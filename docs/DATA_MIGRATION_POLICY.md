@@ -9,7 +9,7 @@ Koma 当前使用文件 JSON、Harmony Preferences、AssetStore 和本地备份�
 | Domain | Store | Current version/key |
 | --- | --- | --- |
 | Library | `LibraryPersistence.ets` | `LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1`, `library-store.v1.json` |
-| Reader progress | `ReaderSessionStore.ets` | `READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2`, `reader-sessions.v1.json`; v1 progress migrates with empty source history |
+| Reader progress | `ReaderSessionStore.ets` | `READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 4`, `reader-sessions.v1.json`; v1/v2 progress and v3 independent chapter states remain readable; v4 may retain OPDS user search intent, never raw signed feed URLs |
 | Reader preferences | `ReaderPreferencesStore.ets` | `READER_PREFERENCES_STORE_NAME = koma_reader_preferences_v1` |
 | Per-series reader overrides | `ReaderPreferencesStore.ets` | `SERIES_OVERRIDES_KEY = reader.seriesOverrides.v1` |
 | Source settings | `SourceSettingsStore.ets` | `SOURCE_SETTINGS_SCHEMA_VERSION = 1`, `source-settings.json` |
@@ -33,7 +33,7 @@ Koma 当前使用文件 JSON、Harmony Preferences、AssetStore 和本地备份�
 4. Secrets never migrate through backup JSON. Tracker tokens stay in AssetStore; source settings block credential-like descriptors.
 5. Corrupt, missing, or unsupported persisted data must not mutate live state before validation succeeds.
 6. File deletion during migration is bounded to app-owned roots only.
-7. Source package icon metadata is optional: missing fields preserve the generic source icon. Only a validated source-repo root `icon.png` may be persisted, exported, or restored; legacy/internal package layouts reject an icon payload.
+7. New production source imports/updates require exactly one validated root icon resource (`icon.png`, `icon.jpg`, `icon.jpeg`, `icon.gif`, `icon.webp`, or `icon.ico`). A validated source-repo root icon may be persisted, exported, or restored only beside its own package. Existing installed metadata/old backups without an icon remain readable and are queued for asset repair; do not uninstall or delete user state. Legacy/internal package layouts reject an icon payload. PNG backups retain `iconPngBase64`/`iconByteCount`; other formats use the versioned optional `iconResource` envelope `{schemaVersion: 1, fileName, base64, byteCount}`. Unknown icon-envelope versions, ambiguous legacy+new payloads, name/format mismatches and invalid paths fail before live state mutation.
 
 ## Add-Field Checklist
 

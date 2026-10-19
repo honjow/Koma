@@ -10,7 +10,7 @@ import {
 } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
-import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { ReaderSessionConfig, appReaderSessionStore, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
 import { RemoteServerStore, KomgaServerRecord } from '../model/RemoteServerStore'
 import { KomgaClient, KomgaHeaders } from '../remote/KomgaClient'
 import {
@@ -38,6 +38,8 @@ export interface KomgaSeriesRouteParam {
   libraryId?: string
   seriesId?: string
   seriesTitle?: string
+  expectedServerId?: string
+  resumeChapterId?: string
 }
 
 @ComponentV2
@@ -97,6 +99,10 @@ export struct KomgaSeriesPage {
       if (pageEpoch !== this.pageEpoch) return
       if (saved === undefined) {
         this.errorText = s('komga_config_required')
+        return
+      }
+      if (this.params?.expectedServerId !== undefined && this.params.expectedServerId !== saved.server.id) {
+        this.errorText = s('remote_history_server_mismatch')
         return
       }
       this.record = saved
@@ -210,14 +216,22 @@ export struct KomgaSeriesPage {
     this.initialSeriesOpened = true
     const loaded = this.series.find((item: KomgaSeriesDto): boolean => item.id === seriesId)
     if (loaded !== undefined) {
-      await this.openSeries(loaded)
-      return
+      if (!await this.openSeries(loaded)) return
+    } else {
+      const seriesTitle = this.params?.seriesTitle
+      const opened = await this.openSeries({
+        id: seriesId,
+        name: seriesTitle === undefined || seriesTitle.length === 0 ? seriesId : seriesTitle,
+      } as KomgaSeriesDto)
+      if (!opened) return
     }
-    const seriesTitle = this.params?.seriesTitle
-    await this.openSeries({
-      id: seriesId,
-      name: seriesTitle === undefined || seriesTitle.length === 0 ? seriesId : seriesTitle,
-    } as KomgaSeriesDto)
+    const resumeChapterId = this.params?.resumeChapterId
+    if (resumeChapterId !== undefined && this.record !== undefined) {
+      const book = this.books.find((item: KomgaBookDto): boolean =>
+        `komga:${this.record?.server.id}:book:${item.id}` === resumeChapterId)
+      if (book !== undefined) await this.openBook(book)
+      else if (this.errorText.length === 0) this.errorText = s('common_load_failed')
+    }
   }
 
   private async openBook(book: KomgaBookDto): Promise<void> {
@@ -247,6 +261,10 @@ export struct KomgaSeriesPage {
         comic.coverUri = client.getPageImageUrl(book.id, firstPage.number, KomgaPageImageKind.THUMBNAIL)
       }
       const config = createReaderSessionConfigFromComic(comic, chapter.id)
+      appReaderSessionStore((getContext(this) as common.UIAbilityContext).filesDir).saveRemoteHistory({
+        kind: 'komga', comicId, chapterId: chapter.id, serverId: record.server.id,
+        resourceId: series.id, title: comic.title, chapterTitle: chapter.title,
+      })
       this.installReaderSession(config, client.getBaseUrl(), this.store().getKomgaImageHeaders(record))
       console.info(`[Komga] step=open_reader book=${book.id} pages=${pages.length}`)
       RouterHelper.pushReader()

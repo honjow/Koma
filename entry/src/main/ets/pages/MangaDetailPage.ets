@@ -77,6 +77,7 @@ import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
   ReaderSessionStore,
+  ChapterReadMutation,
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
@@ -1638,8 +1639,11 @@ export struct MangaDetailPage {
     if (chapterId.trim().length === 0) {
       return
     }
-    this.readerSessionStore.markChapterReadState(this.currentComicId(), chapterId, isRead)
-    this.readerSessionStore.flush()
+    const result = this.readerSessionStore.commitChapterReadStates([{ comicId: this.currentComicId(), chapterId, isRead }])
+    if (!result.committed) {
+      this.showToast(s('reader_progress_save_failed'))
+      return
+    }
     this.applyChapterStatesToCurrent()
     this.onReadingStateChanged()
     if (isRead) {
@@ -1694,12 +1698,14 @@ export struct MangaDetailPage {
       return
     }
     const comicId = this.currentComicId()
-    let changedCount = 0
-    targetIds.forEach((chapterId: string) => {
-      this.readerSessionStore.markChapterReadState(comicId, chapterId, isRead)
-      changedCount += 1
-    })
-    this.readerSessionStore.flush()
+    const result = this.readerSessionStore.commitChapterReadStates(
+      targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead })),
+    )
+    if (!result.committed) {
+      this.showToast(s('reader_progress_save_failed'))
+      return
+    }
+    const changedCount = result.changedCount
     this.applyChapterStatesToCurrent()
     this.onReadingStateChanged()
     if (isRead) {

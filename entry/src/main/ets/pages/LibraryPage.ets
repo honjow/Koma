@@ -1460,8 +1460,12 @@ export struct LibraryPage {
       this.showToast(s('library_batch_read_state_no_chapters'))
       return
     }
-    const changedCount = this.readerSessionStore.markChapterReadStates(mutations)
-    this.readerSessionStore.flush()
+    const result = this.readerSessionStore.commitChapterReadStates(mutations)
+    if (!result.committed) {
+      this.showToast(s('reader_progress_save_failed'))
+      return
+    }
+    const changedCount = result.changedCount
     this.onProgressStoreReloadRequested()
     if (changedCount > 0) {
       console.info(`[Library] step=batch_read_state isRead=${isRead} comics=${comicIds.length} chapters=${changedCount}`)

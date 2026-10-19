@@ -435,6 +435,11 @@
     { "name": "search_match_weak", "value": "相关匹配" },
 
     { "name": "history_relative_just_now", "value": "刚刚" },
+    {"name":"reader_progress_save_failed","value":"阅读进度尚未保存，请稍后重试"},
+    {
+      "name": "remote_history_server_mismatch",
+      "value": "这条历史记录来自另一服务，请切换到对应服务"
+    },
     { "name": "history_relative_minutes_ago", "value": "%s 分钟前" },
     { "name": "history_relative_hours_ago", "value": "%s 小时前" },
     { "name": "history_relative_days_ago", "value": "%s 天前" },

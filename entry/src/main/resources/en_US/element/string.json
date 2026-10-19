@@ -1,5 +1,6 @@
 {
   "string": [
+    {"name":"reader_progress_save_failed","value":"Reading progress has not been saved. Please try again later."},
     { "name": "backup_task_create", "value": "Create backup" },
     { "name": "backup_task_create_hint", "value": "Choose where to save and whether to encrypt" },
     { "name": "backup_task_restore", "value": "Restore backup" },
@@ -435,6 +436,7 @@
     { "name": "search_match_weak", "value": "Related match" },
 
     { "name": "history_relative_just_now", "value": "Just now" },
+    { "name": "remote_history_server_mismatch", "value": "This history belongs to another server. Switch to that server to resume." },
     { "name": "history_relative_minutes_ago", "value": "%s min ago" },
     { "name": "history_relative_hours_ago", "value": "%s h ago" },
     { "name": "history_relative_days_ago", "value": "%s d ago" },

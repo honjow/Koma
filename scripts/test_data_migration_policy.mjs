@@ -22,7 +22,7 @@ const sourceAppRegistry = source('entry/src/main/ets/sourceRuntime/SourceRuntime
 
 for (const required of [
   'LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1',
-  'READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2',
+  'READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 4',
   'READER_PREFERENCES_STORE_NAME = koma_reader_preferences_v1',
   'SERIES_OVERRIDES_KEY = reader.seriesOverrides.v1',
   'SOURCE_SETTINGS_SCHEMA_VERSION = 1',
@@ -33,13 +33,13 @@ for (const required of [
   'BACKUP_ENVELOPE_VERSION = 1',
   'TRACKER_PREFERENCES_STORE_NAME = koma_tracker_preferences_v1',
   'optional validated source-repo `packageIconPath`',
-  'Only a validated source-repo root `icon.png` may be persisted, exported, or restored',
+  'New production source imports/updates require exactly one validated root icon resource',
 ]) {
   assert.ok(policy.includes(required), `migration policy must list ${required}`)
 }
 
 assert.match(library, /LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1[\s\S]*assertValidLibraryStoreJson/, 'library schema must validate before hydrate')
-assert.match(readerProgress, /READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 2[\s\S]*READER_PROGRESS_LEGACY_SCHEMA_VERSION = 1[\s\S]*Unsupported reader progress schema version/, 'reader progress must migrate v1 and reject unsupported schemas')
+assert.match(readerProgress, /READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 4[\s\S]*READER_PROGRESS_LEGACY_SCHEMA_VERSION = 1[\s\S]*Unsupported reader progress schema version/, 'reader progress must migrate v1 and reject unsupported schemas')
 assert.match(readerPrefs, /READER_PREFERENCES_STORE_NAME[\s\S]*SERIES_OVERRIDES_KEY[\s\S]*normalizeReaderSeriesPreferenceOverrides/, 'reader prefs must keep stable keys and normalize per-series overrides')
 assert.match(sourceSettings, /SOURCE_SETTINGS_SCHEMA_VERSION: number = 1[\s\S]*filterSafeValues[\s\S]*descriptorIsCredentialLike/, 'source settings must schema and block credential-like values')
 assert.match(sourceFilterPreferences, /SOURCE_FILTER_PREFS_SCHEMA_VERSION: number = 1[\s\S]*filterSafeValues[\s\S]*sanitizeFilterValue[\s\S]*filterSafeStoredValues/, 'source filter preferences must schema and sanitize persisted values')
@@ -48,7 +48,7 @@ assert.match(offlineQueue, /OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION[\s\S]*reconcil
 assert.match(backup, /BACKUP_ACCEPTED_SCHEMA_VERSIONS[\s\S]*BACKUP_SCHEMA_VERSION_V1[\s\S]*BACKUP_SCHEMA_VERSION_V2[\s\S]*BACKUP_SCHEMA_VERSION/, 'backup restore must keep accepted plaintext versions explicit')
 assert.match(encryption, /BACKUP_ENVELOPE_VERSION: number = 1[\s\S]*BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION: number = 4/, 'encrypted backup envelope and content versions must stay explicit')
 assert.match(tracker, /TRACKER_PREFERENCES_STORE_NAME[\s\S]*AssetStoreTrackerCredentialSecretStore[\s\S]*asset\.add/, 'tracker tokens must stay in AssetStore, outside JSON migration')
-assert.match(sourceRegistry, /packageIconPath[\s\S]*SOURCE_REPO_PACKAGE_WASM_FILE[\s\S]*SOURCE_REPO_PACKAGE_ICON_FILE/, 'source registry must only expose a package icon beside a source-repo wasm payload')
+assert.match(sourceRegistry, /packageIconPath[\s\S]*SOURCE_REPO_PACKAGE_WASM_FILE[\s\S]*isSourcePackageIconFileName/, 'source registry must only expose a package icon beside a source-repo wasm payload')
 assert.match(sourceAppRegistry, /iconPngBase64[\s\S]*sourceRepoLayout[\s\S]*iconBytes !== undefined && !sourceRepoLayout[\s\S]*invalid_icon/, 'backup restore must reject icons for legacy package layouts')
 
 console.log('data migration policy checks passed')

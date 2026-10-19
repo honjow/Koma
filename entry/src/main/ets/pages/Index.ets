@@ -22,6 +22,7 @@ import { ComponentContent } from '@kit.ArkUI'
 import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
+import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
@@ -44,7 +45,7 @@ import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT, SourceBrowseTitleFieldContentBuilder
 import { KomgaSeriesPage, KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowsePage, OpdsBrowseRouteParam } from './OpdsBrowsePage'
-import { WebDavBrowsePage } from './WebDavBrowsePage'
+import { WebDavBrowsePage, WebDavBrowseRouteParam } from './WebDavBrowsePage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
 import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
@@ -248,6 +249,14 @@ struct Index {
   private readerOpenAlign: 'start' | 'end' = 'start'
   /** Present only while Reader was launched from an un-shelved source item. */
   private activeSourceReaderRequest?: SourceReaderSessionRequest
+  /** Kavita read snapshot; favorite state remains owned by LibraryStore. */
+  private activeKavitaReaderComic?: Comic
+
+  private readerComicForOpen(comicId: ComicId): Comic | undefined {
+    if (this.activeKavitaReaderComic?.id === comicId) return this.activeKavitaReaderComic
+    return this.libraryStore.getComic(comicId)
+  }
+
   private readerTrackerProgress?: ReaderTrackerProgressCoordinator
 
   @Monitor('layoutSafeArea.keyboardHeight')
@@ -395,7 +404,7 @@ struct Index {
     chapterId: string | undefined,
     openEpoch: number,
   ): Promise<void> {
-    const originalComic = this.libraryStore.getComic(comicId)
+    const originalComic = this.readerComicForOpen(comicId)
     if (originalComic === undefined) {
       if (openEpoch === this.readerOpenEpoch) {
         this.readerSessionLoading = false
@@ -416,7 +425,7 @@ struct Index {
       sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId,
         (reason: string | undefined): void => { sourceFailureReason = reason })
     }
-    const comic = this.libraryStore.getComic(comicId) ?? originalComic
+    const comic = this.readerComicForOpen(comicId) ?? originalComic
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
       return
     }
@@ -546,7 +555,7 @@ struct Index {
   private readerLabInitialConfig(work: string, unit: string): ReaderSessionConfig | null {
     if (this.readerSessionConfig.comicId === work && this.readerSessionConfig.chapterId === unit &&
       this.readerSessionConfig.totalPages > 0) return cloneReaderSessionConfig(this.readerSessionConfig)
-    const comic = this.libraryStore.getComic(work)
+    const comic = this.readerComicForOpen(work)
     if (comic === undefined) return null
     const config = this.createReaderSessionConfigForOpen(comic, unit)
     return config.chapterId === unit && config.totalPages > 0 ? config : null
@@ -584,7 +593,7 @@ struct Index {
         ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
       return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
     }
-    const original = this.libraryStore.getComic(target.work)
+    const original = this.readerComicForOpen(target.work)
     if (original === undefined) return null
     // Keep local-folder permission activation in the adapter's established path.
     if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
@@ -593,7 +602,7 @@ struct Index {
     if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit,
       (reason: string | undefined): void => { sourceFailureReason = reason })
     cancellation.check()
-    const comic = this.libraryStore.getComic(target.work) ?? original
+    const comic = this.readerComicForOpen(target.work) ?? original
     cancellation.check()
     const config = this.createReaderSessionConfigForOpen(comic, target.unit)
     if (config.totalPages > 0) return config
@@ -660,11 +669,20 @@ struct Index {
     comicId: ComicId,
     chapterId?: string,
     intent: ReaderChapterOpenIntent = 'resume',
+    kavitaComic?: Comic,
   ): Promise<void> {
+    if (kavitaComic !== undefined) this.activeKavitaReaderComic = kavitaComic
+    else if (this.activeKavitaReaderComic?.id !== comicId) this.activeKavitaReaderComic = undefined
     this.readerOpenIntent = intent
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
-    let comic = this.libraryStore.getComic(comicId)
+    let comic = this.readerComicForOpen(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    const remoteHistory = this.readerSessionStore.getRemoteHistory(comicId)
+    if (comic?.sourceKind === ComicSourceKind.KAVITA_REMOTE && remoteHistory?.kind === 'kavita' && targetChapterId !== undefined) {
+      remoteHistory.chapterId = targetChapterId
+      remoteHistory.chapterTitle = comic.chapters.find((item: Chapter): boolean => item.id === targetChapterId)?.title
+      this.readerSessionStore.saveRemoteHistory(remoteHistory)
+    }
     const openEpoch = this.readerOpenEpoch + 1
     this.readerOpenEpoch = openEpoch
     if (comic !== undefined && targetChapterId !== undefined &&
@@ -751,6 +769,7 @@ struct Index {
     const openEpoch = this.readerOpenEpoch + 1
     this.readerOpenEpoch = openEpoch
     this.activeSourceReaderRequest = nextRequest
+    this.activeKavitaReaderComic = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = true
     this.readerSessionConfig = this.createSourceReaderSessionConfig(nextRequest, [])
@@ -771,12 +790,34 @@ struct Index {
     void this.prepareSourceReaderSession(nextRequest, openEpoch)
   }
 
+  private openRemoteHistory(entry: RemoteReadHistoryEntry): void {
+    const history = copyRemoteReadHistoryEntry(entry)
+    if (history === undefined || this.readerSessionStore.getProgress(history.comicId)?.chapterId !== history.chapterId) return
+    if (history.kind === 'komga') {
+      const params: KomgaSeriesRouteParam = { seriesId: history.resourceId, seriesTitle: history.title,
+        expectedServerId: history.serverId, resumeChapterId: history.chapterId }
+      this.appPathStack.pushPath({ name: RouteName.KOMGA_BROWSE, param: params })
+    } else if (history.kind === 'kavita') {
+      const params: KavitaBrowseRouteParam = { libraryId: history.libraryId, seriesId: history.resourceId,
+        seriesTitle: history.title, expectedServerId: history.serverId, resumeChapterId: history.chapterId }
+      this.appPathStack.pushPath({ name: RouteName.KAVITA_BROWSE, param: params })
+    } else if (history.kind === 'webdav') {
+      const params: WebDavBrowseRouteParam = { pathSegments: history.pathSegments,
+        expectedServerId: history.serverId, resumeChapterId: history.chapterId }
+      this.appPathStack.pushPath({ name: RouteName.WEBDAV_BROWSE, param: params })
+    } else {
+      const params: OpdsBrowseRouteParam = { remoteHistory: history }
+      this.appPathStack.pushPath({ name: RouteName.OPDS_BROWSE, param: params })
+    }
+  }
+
   private openExternalReaderSession(): void {
     if (this.readerOpen && !this.readerClosing) {
       return
     }
     this.readerOpenEpoch += 1
     this.activeSourceReaderRequest = undefined
+    this.activeKavitaReaderComic = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = false
     this.readerSessionConfig = cloneReaderSessionConfig(MOCK_LIBRARY_READER_SESSION)
@@ -976,6 +1017,7 @@ struct Index {
     this.readerClosing = false
     this.readerRouteVisible = false
     this.readerSessionLoading = false
+    this.activeKavitaReaderComic = undefined
   }
 
   private reloadReaderSessionStore(reason: string): void {
@@ -1115,6 +1157,17 @@ struct Index {
       return
     }
     const comic = this.libraryStore.getComic(comicId)
+    const routes = this.appPathStack.getAllPathName()
+    const belowReader = routes[routes.length - 2]
+    const privateBrowse = belowReader === RouteName.KOMGA_BROWSE || belowReader === RouteName.KAVITA_BROWSE ||
+      belowReader === RouteName.WEBDAV_BROWSE || belowReader === RouteName.OPDS_BROWSE
+    if (comic === undefined && (this.activeKavitaReaderComic?.id === comicId ||
+      privateBrowse)) {
+      // The original private browse page is still below Reader. Retire Reader
+      // through its normal persistence/system-bar close before returning there.
+      this.closeReader()
+      return
+    }
     const sourceId = comic?.sourceRuntimeId?.trim() ?? ''
     const remoteMangaId = comic?.remoteResourceId?.trim() ?? ''
     const detailParam: MangaDetailRouteParam = sourceId.length > 0 && remoteMangaId.length > 0
@@ -1939,8 +1992,8 @@ struct Index {
           onLibraryChanged: () => {
             this.refreshLibrarySnapshot()
           },
-          onOpenReader: (comicId: string, chapterId?: string) => {
-            void this.openReader(comicId, chapterId)
+          onOpenReader: (comic: Comic, chapterId: string) => {
+            void this.openReader(comic.id, chapterId, 'resume', comic)
           },
         })
       }
@@ -1960,6 +2013,7 @@ struct Index {
     } else if (name === RouteName.WEBDAV_BROWSE) {
       HdsNavDestination() {
         WebDavBrowsePage({
+          params: param as WebDavBrowseRouteParam,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           onLibraryChanged: () => {
@@ -2230,6 +2284,9 @@ struct Index {
                 },
                 onOpenSourceReader: (request: SourceReaderSessionRequest) => {
                   void this.openSourceReader(request)
+                },
+                onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => {
+                  this.openRemoteHistory(entry)
                 }
               })
             }.tabBar(this.TabIcon(tabLabel(TabIndex.HISTORY), TabIndex.HISTORY))

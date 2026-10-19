@@ -17,7 +17,8 @@ import {
 } from '../model/LibraryPersistence'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
-import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { ReaderSessionConfig, appReaderSessionStore, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { validRemoteHistorySegments } from '../model/RemoteReaderSession'
 import { RemoteServerStore, WebDavServerRecord } from '../model/RemoteServerStore'
 import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
 import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
@@ -29,8 +30,15 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+export interface WebDavBrowseRouteParam {
+  expectedServerId?: string
+  pathSegments?: string[]
+  resumeChapterId?: string
+}
+
 @ComponentV2
 export struct WebDavBrowsePage {
+  @Param params: WebDavBrowseRouteParam = {}
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private pathSegments: string[] = []
   @Local private folders: DavResource[] = []
@@ -77,11 +85,37 @@ export struct WebDavBrowsePage {
         this.errorText = s('webdav_config_required')
         return
       }
+      if (this.params?.expectedServerId !== undefined && this.params.expectedServerId !== saved.server.id) {
+        this.errorText = s('remote_history_server_mismatch')
+        return
+      }
+      const pathSegments = this.params?.pathSegments ?? []
+      if (!Array.isArray(pathSegments) || !validRemoteHistorySegments(pathSegments)) {
+        this.errorText = s('common_load_failed')
+        return
+      }
       this.record = saved
       console.info('[WebDAV] step=load_initial')
       directoryEpoch = this.directoryEpoch + 1
-      const loaded = await this.loadDirectory([])
+      const loaded = await this.loadDirectory(pathSegments)
       if (!loaded || pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return
+      const resumeChapterId = this.params?.resumeChapterId
+      if (resumeChapterId !== undefined && this.errorText.length === 0) {
+        const client = this.client()
+        const directoryUrl = client?.buildUrl(pathSegments) ?? ''
+        if (`webdav:${saved.server.id}:chapter:${this.shortHash(directoryUrl)}` === resumeChapterId && this.images.length > 0) {
+          this.openReader()
+        } else if (client !== undefined) {
+          const selectedImage = this.images.find((resource: DavResource): boolean => {
+            const sourcePath = client.buildUrl(this.relativeSegments(client, resource.href))
+            return `webdav:${saved.server.id}:chapter:image:${this.shortHash(sourcePath)}` === resumeChapterId
+          })
+          if (selectedImage !== undefined) this.openReader(selectedImage)
+          else this.errorText = s('common_load_failed')
+        } else {
+          this.errorText = s('common_load_failed')
+        }
+      }
     } catch (error) {
       void error
       if (pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return
@@ -142,17 +176,20 @@ export struct WebDavBrowsePage {
     this.loadDirectory(this.pathSegments.slice(0, this.pathSegments.length - 1))
   }
 
-  private openReader(): void {
+  private openReader(selectedImage?: DavResource): void {
     const client = this.client()
     const record = this.record
     if (client === undefined || record === undefined || this.images.length === 0) {
       return
     }
-    const title = this.currentTitle()
+    const images = selectedImage === undefined ? this.images : [selectedImage]
+    const title = selectedImage === undefined ? this.currentTitle() : this.resourceName(selectedImage)
     const now = Date.now()
-    const comicId = `webdav:${record.server.id}:comic:${this.shortHash(client.buildUrl(this.pathSegments))}`
-    const chapterId = `webdav:${record.server.id}:chapter:${this.shortHash(client.buildUrl(this.pathSegments))}`
-    const pages = this.images.map((resource: DavResource, index: number): Page => {
+    const sourcePath = client.buildUrl(selectedImage === undefined ? this.pathSegments : this.relativeSegments(client, selectedImage.href))
+    const resourceKey = selectedImage === undefined ? this.shortHash(sourcePath) : `image:${this.shortHash(sourcePath)}`
+    const comicId = `webdav:${record.server.id}:comic:${resourceKey}`
+    const chapterId = `webdav:${record.server.id}:chapter:${resourceKey}`
+    const pages = images.map((resource: DavResource, index: number): Page => {
       const name = this.resourceName(resource)
       return {
         id: `${chapterId}:page:${index + 1}`,
@@ -170,7 +207,7 @@ export struct WebDavBrowsePage {
       comicId,
       title,
       index: 0,
-      sourcePath: client.buildUrl(this.pathSegments),
+      sourcePath,
       sortKey: normalizeSortKey(title),
       pages,
       pageCount: pages.length,
@@ -181,9 +218,9 @@ export struct WebDavBrowsePage {
       id: comicId,
       title,
       sourceKind: ComicSourceKind.WEBDAV_REMOTE,
-      sourcePath: client.buildUrl(this.pathSegments),
+      sourcePath,
       remoteServerId: record.server.id,
-      remoteResourceId: client.buildUrl(this.pathSegments),
+      remoteResourceId: sourcePath,
       coverUri: pages.length === 0 ? undefined : pages[0].uri,
       sortTitle: normalizeSortKey(title),
       preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
@@ -195,6 +232,10 @@ export struct WebDavBrowsePage {
       lastImportedAt: now,
     }
     const config = createReaderSessionConfigFromComic(comic, chapterId)
+    appReaderSessionStore((getContext(this) as common.UIAbilityContext).filesDir).saveRemoteHistory({
+      kind: 'webdav', comicId, chapterId, serverId: record.server.id,
+      resourceId: selectedImage === undefined ? 'folder' : 'image', title, chapterTitle: title, pathSegments: this.pathSegments.slice(),
+    })
     this.installReaderSession(config)
     console.info(`[WebDAV] step=open_reader pages=${pages.length}`)
     RouterHelper.pushReader()
@@ -527,7 +568,7 @@ export struct WebDavBrowsePage {
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
-      this.openReader()
+      this.openReader(item)
     })
   }
 

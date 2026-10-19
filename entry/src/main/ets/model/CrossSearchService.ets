@@ -9,7 +9,7 @@ import {
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { MOCK_LIBRARY_READER_SESSION } from './MockLibraryData'
-import { createReaderSessionConfigFromComic } from './ReaderSessionStore'
+import { appReaderSessionStore, createReaderSessionConfigFromComic } from './ReaderSessionStore'
 import { RemoteServerStore, WebDavServerRecord } from './RemoteServerStore'
 import { SourceManga } from './SourceModels'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
@@ -739,6 +739,10 @@ export class CrossSearchService {
       lastImportedAt: now,
     }
     const config = createReaderSessionConfigFromComic(comic, chapterId)
+    appReaderSessionStore(this.context.filesDir).saveRemoteHistory({
+      kind: 'webdav', comicId, chapterId, serverId: record.server.id,
+      resourceId: singleImage ? 'image' : 'folder', title, chapterTitle: title, pathSegments: pathSegments.slice(),
+    })
     MOCK_LIBRARY_READER_SESSION.comicId = config.comicId
     MOCK_LIBRARY_READER_SESSION.chapterId = config.chapterId
     MOCK_LIBRARY_READER_SESSION.chapterIds = config.chapterIds

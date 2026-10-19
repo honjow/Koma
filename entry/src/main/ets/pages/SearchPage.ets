@@ -511,6 +511,7 @@ export struct SearchPage {
     }
     if (item.sourceKind === 'komga') {
       const param: KomgaSeriesRouteParam = {
+        expectedServerId: item.remoteServerId,
         seriesId: item.komgaSeriesId,
         seriesTitle: item.title,
       }
@@ -519,6 +520,7 @@ export struct SearchPage {
     }
     if (item.sourceKind === 'kavita') {
       const param: KavitaBrowseRouteParam = {
+        expectedServerId: item.remoteServerId,
         libraryId: item.kavitaLibraryId,
         seriesId: item.kavitaSeriesId,
         seriesTitle: item.title,
@@ -528,7 +530,9 @@ export struct SearchPage {
     }
     if (item.sourceKind === 'opds') {
       const param: OpdsBrowseRouteParam = {
+        expectedServerId: item.remoteServerId,
         feedUrl: item.opdsFeedUrl,
+        searchQuery: item.opdsSearchQuery,
         publicationId: item.opdsPublicationId,
       }
       this.onOpenOpdsResult(param)

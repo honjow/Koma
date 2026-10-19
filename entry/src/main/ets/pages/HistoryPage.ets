@@ -16,8 +16,7 @@ import {
 import { LibraryStore } from '../model/LibraryStore'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import {
-  AppFilesReaderSessionPersistenceAdapter,
-  PersistentReaderSessionStore,
+  appReaderSessionStore,
   ReaderSessionStore,
 } from '../model/ReaderSessionStore'
 import {
@@ -26,6 +25,7 @@ import {
   sourceReaderSessionRequestFromHistory,
 } from '../model/SourceReaderSession'
 import { AppStrings } from '../i18n/AppStrings'
+import { RemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 const HISTORY_LIMIT: number = 50
@@ -68,6 +68,7 @@ interface HistoryItem {
   lastReadAt?: number
   progress?: ReadingProgress
   sourceHistory?: SourceReadHistoryEntry
+  remoteHistory?: RemoteReadHistoryEntry
 }
 
 @ComponentV2
@@ -82,6 +83,7 @@ export struct HistoryPage {
   @Local private failedCoverUris: string[] = []
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
+  @Event onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => void = () => {}
 
   @Monitor('active')
   private onActiveChanged(): void {
@@ -111,9 +113,7 @@ export struct HistoryPage {
         console.info('[History] step=session_store_unavailable reason=context')
         return undefined
       }
-      return new PersistentReaderSessionStore(
-        new AppFilesReaderSessionPersistenceAdapter(context.filesDir)
-      )
+      return appReaderSessionStore(context.filesDir)
     } catch (error) {
       void error
       console.info('[History] step=session_store_unavailable reason=context')
@@ -138,6 +138,7 @@ export struct HistoryPage {
       libraryComicIds.add(item.comicId)
     })
     const sourceItems: HistoryItem[] = []
+    const remoteItems: HistoryItem[] = []
     if (sessionStore !== undefined) {
       sessionStore.listSourceHistory().forEach((entry: SourceReadHistoryEntry): void => {
         const progress = progressByComicId.get(entry.comicId)
@@ -145,8 +146,16 @@ export struct HistoryPage {
           sourceItems.push(this.sourceHistoryItem(entry, progress))
         }
       })
+      sessionStore.listRemoteHistory().forEach((entry: RemoteReadHistoryEntry): void => {
+        const progress = progressByComicId.get(entry.comicId)
+        if (!libraryComicIds.has(entry.comicId) && progress !== undefined && progress.chapterId === entry.chapterId) {
+          remoteItems.push({ id: `remote-history:${entry.comicId}`, comicId: entry.comicId,
+            title: entry.title, remoteServerId: entry.serverId, chapterCount: 1,
+            pageCount: progress.totalPages, lastReadAt: progress.updatedAt, progress, remoteHistory: entry })
+        }
+      })
     }
-    this.historyItems = libraryItems.concat(sourceItems)
+    this.historyItems = libraryItems.concat(sourceItems, remoteItems)
       .sort((a: HistoryItem, b: HistoryItem): number => {
         return (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)
       })
@@ -224,11 +233,11 @@ export struct HistoryPage {
     if (item.progress === undefined) {
       return s('history_chapter_count').replace('%s', `${item.chapterCount}`)
     }
-    const sourceChapterTitle = item.sourceHistory?.chapterTitle?.trim()
+    const sourceChapterTitle = (item.sourceHistory?.chapterTitle ?? item.remoteHistory?.chapterTitle)?.trim()
     if (sourceChapterTitle !== undefined && sourceChapterTitle.length > 0) {
       return sourceChapterTitle
     }
-    if (item.sourceHistory !== undefined) {
+    if (item.sourceHistory !== undefined || item.remoteHistory !== undefined) {
       return s('history_chapter_read')
     }
     const comic = this.libraryStore.getComic(item.comicId)
@@ -261,6 +270,10 @@ export struct HistoryPage {
   private openHistoryItem(item: HistoryItem): void {
     const chapterId = item.progress === undefined ? undefined : item.progress.chapterId
     console.info(`[History] step=open_resume comic=${item.comicId} chapter=${chapterId ?? ''} page=${item.progress?.pageIndex ?? 0}`)
+    if (item.remoteHistory !== undefined) {
+      this.onOpenRemoteReader(item.remoteHistory)
+      return
+    }
     if (item.sourceHistory !== undefined) {
       const request = sourceReaderSessionRequestFromHistory(item.sourceHistory)
       if (request !== undefined) {
@@ -276,8 +289,10 @@ export struct HistoryPage {
     if (sessionStore === undefined) {
       return
     }
-    sessionStore.removeProgress(item.comicId)
-    sessionStore.removeSourceHistory(item.comicId)
+    if (!sessionStore.removeHistoryEntries([item.comicId])) {
+      this.showHistorySaveFailed()
+      return
+    }
     this.historyItems = this.historyItems.filter((historyItem: HistoryItem): boolean => {
       return historyItem.comicId !== item.comicId
     })
@@ -308,14 +323,23 @@ export struct HistoryPage {
     if (sessionStore === undefined) {
       return
     }
-    sessionStore.listProgress().forEach((progress: ReadingProgress) => {
-      sessionStore.removeProgress(progress.comicId)
-    })
-    sessionStore.listSourceHistory().forEach((entry: SourceReadHistoryEntry): void => {
-      sessionStore.removeSourceHistory(entry.comicId)
-    })
+    const comicIds = sessionStore.listProgress().map((progress: ReadingProgress): ComicId => progress.comicId)
+      .concat(sessionStore.listSourceHistory().map((entry: SourceReadHistoryEntry): ComicId => entry.comicId),
+        sessionStore.listRemoteHistory().map((entry: RemoteReadHistoryEntry): ComicId => entry.comicId))
+    if (!sessionStore.removeHistoryEntries(comicIds)) {
+      this.showHistorySaveFailed()
+      return
+    }
     this.historyItems = []
     console.info('[History] step=clear')
+  }
+
+  private showHistorySaveFailed(): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: s('reader_progress_save_failed') })
+    } catch (_error) {
+    }
+    console.warn('[History] step=remove_failed reason=persistence')
   }
 
   private confirmClearHistory(): void {

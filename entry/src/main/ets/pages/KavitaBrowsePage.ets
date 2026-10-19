@@ -20,6 +20,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { LibraryStore } from '../model/LibraryStore'
+import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import {
   LibraryStorePersistenceService,
   upsertComicAndPersistLibraryStore,
@@ -41,6 +42,8 @@ export interface KavitaBrowseRouteParam {
   libraryId?: number
   seriesId?: string
   seriesTitle?: string
+  expectedServerId?: string
+  resumeChapterId?: string
 }
 
 @ComponentV2
@@ -72,7 +75,7 @@ export struct KavitaBrowsePage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
-  @Event onOpenReader: (comicId: string, chapterId?: string) => void = () => {}
+  @Event onOpenReader: (comic: Comic, chapterId: string) => void = () => {}
   private record?: KavitaServerRecord
 
   private store(): RemoteServerStore {
@@ -106,6 +109,10 @@ export struct KavitaBrowsePage {
         this.libraries = []
         return
       }
+      if (this.params?.expectedServerId !== undefined && this.params.expectedServerId !== saved.server.id) {
+        this.errorKey = 'remote_history_server_mismatch'
+        return
+      }
       this.record = saved
       console.info('[Kavita] step=load_libraries_start')
       const libraries = await store.createKavitaClient(saved).listLibraries()
@@ -125,8 +132,8 @@ export struct KavitaBrowsePage {
   }
 
   private routeParamKey(): string {
-    const libraryId = this.params.libraryId
-    const seriesId = this.params.seriesId
+    const libraryId = this.params?.libraryId
+    const seriesId = this.params?.seriesId
     if (libraryId === undefined || seriesId === undefined || seriesId.trim().length === 0) {
       return ''
     }
@@ -138,8 +145,8 @@ export struct KavitaBrowsePage {
     if (key.length === 0 || this.autoOpenedRouteKey === key) {
       return
     }
-    const libraryId = this.params.libraryId as number
-    const seriesId = Number.parseInt(this.params.seriesId as string, 10)
+    const libraryId = this.params?.libraryId as number
+    const seriesId = Number.parseInt(this.params?.seriesId as string, 10)
     if (!Number.isFinite(seriesId) || seriesId <= 0) {
       return
     }
@@ -152,11 +159,22 @@ export struct KavitaBrowsePage {
     const libraryEpoch = this.libraryEpoch + 1
     await this.openLibrary(library)
     if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
-    const series = this.series.find((item: KavitaSeriesDto): boolean => item.id === seriesId)
+    let series = this.series.find((item: KavitaSeriesDto): boolean => item.id === seriesId)
+    if (series === undefined && this.params?.resumeChapterId !== undefined && this.seriesErrorKey.length === 0) {
+      series = { id: seriesId, name: this.params?.seriesTitle ?? '', libraryId }
+    }
     if (series !== undefined) {
       const seriesEpoch = this.seriesEpoch + 1
       await this.openSeries(series)
       if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch || seriesEpoch !== this.seriesEpoch) return
+      const resumeChapterId = this.params?.resumeChapterId
+      const serverId = this.record?.server.id
+      if (resumeChapterId !== undefined && serverId !== undefined && this.volumesErrorKey.length === 0) {
+        const chapter = this.knownChapters().find((item: KavitaChapterDto): boolean =>
+          createKavitaChapterId(serverId, item.id) === resumeChapterId)
+        if (chapter !== undefined) await this.openChapter(chapter)
+        else this.volumesErrorKey = 'kavita_volumes_load_failed'
+      }
     }
   }
 
@@ -516,13 +534,41 @@ export struct KavitaBrowsePage {
         console.warn('[Kavita] step=open_chapter_failed code=kavita_no_pages')
         return
       }
-      if (this.libraryPersistenceService === undefined) {
-        this.libraryStore.upsertComic(comic)
-      } else {
-        upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
+      const saved = this.libraryStore.getComic(comic.id)
+      // Reading owns only this catalog snapshot. Explicit favorite/update
+      // actions own Library writes; preserve the saved user's other fields.
+      const readerComic: Comic = saved === undefined ? comic : {
+        id: saved.id,
+        title: saved.title,
+        subtitle: saved.subtitle,
+        author: saved.author,
+        categoryIds: saved.categoryIds?.slice(),
+        sourceKind: saved.sourceKind,
+        sourcePath: saved.sourcePath,
+        sourceRuntimeId: saved.sourceRuntimeId,
+        remoteServerId: saved.remoteServerId,
+        remoteResourceId: saved.remoteResourceId,
+        coverUri: saved.coverUri,
+        localMetadata: saved.localMetadata,
+        localImportOrigin: saved.localImportOrigin,
+        sortTitle: saved.sortTitle,
+        preferredDirection: saved.preferredDirection,
+        chapters: comic.chapters,
+        chapterCount: comic.chapterCount,
+        pageCount: comic.pageCount,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+        lastImportedAt: saved.lastImportedAt,
       }
-      this.onLibraryChanged()
-      this.onOpenReader(comic.id, createKavitaChapterId(record.server.id, chapter.id))
+      const chapterId = createKavitaChapterId(record.server.id, chapter.id)
+      const libraryId = this.selectedLibrary?.id ?? series.libraryId
+      if (libraryId !== undefined) {
+        appReaderSessionStore((getContext(this) as common.UIAbilityContext).filesDir).saveRemoteHistory({
+          kind: 'kavita', comicId: readerComic.id, chapterId, serverId: record.server.id,
+          resourceId: `${series.id}`, title: readerComic.title, chapterTitle: this.chapterTitle(chapter), libraryId,
+        })
+      }
+      this.onOpenReader(readerComic, chapterId)
       console.info(`[Kavita] step=open_chapter_ok chapters=${comic.chapterCount} pages=${comic.pageCount}`)
     } catch (error) {
       void error

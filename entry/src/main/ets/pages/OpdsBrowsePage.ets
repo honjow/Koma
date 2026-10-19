@@ -17,11 +17,15 @@ import {
 } from '../model/LibraryPersistence'
 import { MOCK_LIBRARY_READER_SESSION } from '../model/MockLibraryData'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
-import { ReaderSessionConfig, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { ReaderSessionConfig, appReaderSessionStore, createReaderSessionConfigFromComic } from '../model/ReaderSessionStore'
+import { RemoteReadHistoryEntry, opdsHistoryLocator, opdsHistoryPublicationKey, resolveOpdsHistoryFeed, opdsSearchHistoryLocator, canRequestOpdsHistoryUrl, OpdsHistoryLocator } from '../model/RemoteReaderSession'
 import { OpdsServerRecord, RemoteServerStore } from '../model/RemoteServerStore'
 import {
   mapOpdsPublicationToAcquisitions,
   mapOpdsPublicationToImages,
+  resolveOpdsSearchUrl,
+  resolveOpdsHref,
+  OpdsClient,
 } from '../remote/OpdsParser'
 import {
   OpdsAcquisitionDto,
@@ -47,8 +51,11 @@ interface OpdsHistoryEntry {
 }
 
 export interface OpdsBrowseRouteParam {
+  expectedServerId?: string
   feedUrl?: string
+  searchQuery?: string
   publicationId?: string
+  remoteHistory?: RemoteReadHistoryEntry
 }
 
 @ComponentV2
@@ -67,6 +74,9 @@ export struct OpdsBrowsePage {
   @Local private favoriteRevision: number = 0
   private record?: OpdsServerRecord
   private initialPublicationOpened: boolean = false
+  private pageEpoch: number = 0
+  private catalogEpoch: number = 0
+  private publicationEpoch: number = 0
   @Param params: OpdsBrowseRouteParam = {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -106,52 +116,118 @@ export struct OpdsBrowsePage {
     this.loadInitial()
   }
 
+  aboutToDisappear(): void {
+    this.pageEpoch += 1
+    this.catalogEpoch += 1
+    this.publicationEpoch += 1
+  }
+
   private async loadInitial(): Promise<void> {
+    const pageEpoch = ++this.pageEpoch
+    let catalogEpoch = ++this.catalogEpoch
+    this.publicationEpoch += 1
     this.loading = true
     this.clearError()
     try {
       const saved = await this.store().loadOpds()
+      if (pageEpoch !== this.pageEpoch) return
       if (saved === undefined) {
         this.setErrorKey('opds_config_required')
+        return
+      }
+      const history = this.params?.remoteHistory
+      if ((history !== undefined && history.serverId !== saved.server.id) ||
+        (this.params?.expectedServerId !== undefined && this.params.expectedServerId !== saved.server.id)) {
+        this.setErrorKey('remote_history_server_mismatch')
         return
       }
       this.record = saved
       const initialUrl = this.initialCatalogUrl(saved.server.rootUrl)
       this.currentUrl = initialUrl
       console.info('[OPDS] step=load_initial')
-      await this.loadCatalog(initialUrl, false)
+      catalogEpoch = this.catalogEpoch + 1
+      await this.loadCatalog(initialUrl, false, undefined, history?.opdsSearchQuery === undefined ? undefined : history)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.setErrorKey('common_load_failed')
       console.error('[OPDS] step=load_initial_failed code=opds_initial_load_failed')
     } finally {
-      this.loading = false
+      if (pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch) this.loading = false
     }
   }
 
-  private async loadCatalog(url: string, pushHistory: boolean): Promise<void> {
+  private async loadCatalog(url: string, pushHistory: boolean, historyDepth?: number, searchHistory?: RemoteReadHistoryEntry): Promise<void> {
     const record = this.record
     if (record === undefined) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const catalogEpoch = ++this.catalogEpoch
+    this.publicationEpoch += 1
+    const previous: OpdsHistoryEntry = { url: this.currentUrl, title: this.title }
+    const history = this.history.slice()
     this.loading = true
     this.clearError()
     try {
       console.info(`[OPDS] step=load_catalog_start urlHash=${this.shortHash(url)}`)
-      const catalog = await this.store().createOpdsClient(record).fetchCatalog(url)
+      const client = this.store().createOpdsClient(record)
+      const ownsRequest = (): boolean => pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch
+      const catalog = searchHistory === undefined ? await client.fetchCatalog(url) :
+        await this.findSearchHistoryCatalog(client, record.server.rootUrl, searchHistory, ownsRequest)
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       if (pushHistory) {
-        this.history = this.history.concat([{ url: this.currentUrl, title: this.title }])
+        this.history = history.concat([previous])
+      } else if (historyDepth !== undefined) {
+        this.history = history.slice(0, historyDepth)
       }
       this.applyCatalog(catalog)
       await this.openInitialPublicationIfNeeded()
       console.info(`[OPDS] step=load_catalog_ok version=${catalog.version} navigation=${catalog.navigation.length} publications=${catalog.publications.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.setErrorKey('common_load_failed')
       console.error('[OPDS] step=load_catalog_failed code=opds_catalog_load_failed')
     } finally {
-      this.loading = false
+      if (pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch) this.loading = false
     }
+  }
+
+  private async findSearchHistoryCatalog(
+    client: OpdsClient, rootUrl: string, history: RemoteReadHistoryEntry, ownsRequest: () => boolean,
+  ): Promise<OpdsParseResult> {
+    const query = history.opdsSearchQuery
+    if (query === undefined) throw new Error('Missing OPDS search intent')
+    const root = await client.fetchCatalog(rootUrl)
+    if (!ownsRequest()) throw new Error('OPDS request cancelled')
+    const searchUrl = resolveOpdsSearchUrl(root, query)
+    if (!canRequestOpdsHistoryUrl(rootUrl, searchUrl)) throw new Error('Invalid OPDS search endpoint')
+    let catalog = await client.fetchCatalog(searchUrl)
+    const visited = new Set<string>()
+    while (true) {
+      if (!ownsRequest()) throw new Error('OPDS request cancelled')
+      visited.add(catalog.feedUrl)
+      if (catalog.publications.some((publication: OpdsBookDto): boolean =>
+        opdsHistoryPublicationKey(publication.id) === history.resourceId)) return catalog
+      const next = catalog.links.find((link: OpdsLink): boolean => link.rel?.toLocaleLowerCase() === 'next')
+      if (next === undefined) throw new Error('OPDS history publication unavailable')
+      const nextUrl = resolveOpdsHref(catalog.feedUrl, next.href)
+      if (visited.has(nextUrl) || !canRequestOpdsHistoryUrl(rootUrl, nextUrl)) throw new Error('Invalid OPDS history pagination')
+      catalog = await client.fetchCatalog(nextUrl)
+    }
+  }
+
+  private readerHistoryLocator(publication: OpdsBookDto): OpdsHistoryLocator | undefined {
+    const record = this.record
+    if (record === undefined) return undefined
+    const locator = opdsHistoryLocator(record.server.rootUrl, this.currentUrl)
+    if (locator !== undefined) return locator
+    const history = this.params?.remoteHistory
+    const query = history !== undefined && history.resourceId === opdsHistoryPublicationKey(publication.id)
+      ? history.opdsSearchQuery : this.currentUrl === this.params?.feedUrl && publication.id === this.params?.publicationId
+        ? this.params?.searchQuery : undefined
+    return query === undefined ? undefined : opdsSearchHistoryLocator(record.server.rootUrl, this.currentUrl, query)
   }
 
   private applyCatalog(catalog: OpdsParseResult): void {
@@ -164,7 +240,13 @@ export struct OpdsBrowsePage {
   }
 
   private initialCatalogUrl(rootUrl: string): string {
-    const feedUrl = this.params.feedUrl
+    const history = this.params?.remoteHistory
+    if (history !== undefined) {
+      const feed = resolveOpdsHistoryFeed(rootUrl, history)
+      if (feed === undefined) throw new Error('Invalid OPDS history locator')
+      return feed
+    }
+    const feedUrl = this.params?.feedUrl
     if (feedUrl === undefined || feedUrl.trim().length === 0) {
       return rootUrl
     }
@@ -175,16 +257,29 @@ export struct OpdsBrowsePage {
     if (this.initialPublicationOpened) {
       return
     }
-    const publicationId = this.params.publicationId
-    if (publicationId === undefined || publicationId.length === 0) {
+    const history = this.params?.remoteHistory
+    const publicationId = this.params?.publicationId
+    if (history === undefined && (publicationId === undefined || publicationId.length === 0)) {
       return
     }
-    const publication = this.publications.find((item: OpdsBookDto): boolean => item.id === publicationId)
+    const publication = this.publications.find((item: OpdsBookDto): boolean => history === undefined
+      ? item.id === publicationId : opdsHistoryPublicationKey(item.id) === history.resourceId)
     if (publication === undefined) {
+      if (history !== undefined) this.setErrorKey('common_load_failed')
       return
     }
     this.initialPublicationOpened = true
+    const pageEpoch = this.pageEpoch
+    const catalogEpoch = this.catalogEpoch
+    const publicationEpoch = this.publicationEpoch + 1
     await this.openPublication(publication)
+    if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch || publicationEpoch !== this.publicationEpoch) return
+    if (history !== undefined) {
+      const serverId = this.record?.server.id
+      const chapterId = `opds:${serverId}:chapter:${this.shortHash(publication.id + this.currentUrl)}`
+      if (chapterId === history.chapterId && this.selectedImages.length > 0) this.openReader()
+      else this.setErrorKey('common_load_failed')
+    }
   }
 
   private openNavigation(item: OpdsCatalogDto): void {
@@ -194,6 +289,7 @@ export struct OpdsBrowsePage {
 
   private goUp(): void {
     if (this.selectedPublication !== undefined) {
+      this.publicationEpoch += 1
       this.selectedPublication = undefined
       this.selectedImages = []
       return
@@ -202,12 +298,13 @@ export struct OpdsBrowsePage {
       return
     }
     const previous = this.history[this.history.length - 1]
-    this.history = this.history.slice(0, this.history.length - 1)
-    this.title = previous.title
-    this.loadCatalog(previous.url, false)
+    this.loadCatalog(previous.url, false, this.history.length - 1)
   }
 
   private async openPublication(publication: OpdsBookDto): Promise<void> {
+    const pageEpoch = this.pageEpoch
+    const catalogEpoch = this.catalogEpoch
+    const publicationEpoch = ++this.publicationEpoch
     this.selectedPublication = publication
     const manifestLink = this.findManifestLink(publication)
     this.selectedImages = manifestLink === undefined ? mapOpdsPublicationToImages(publication) : []
@@ -222,7 +319,8 @@ export struct OpdsBrowsePage {
     try {
       console.info(`[OPDS] step=load_publication_manifest_start urlHash=${this.shortHash(manifestLink.href)}`)
       const manifestImages = await this.store().createOpdsClient(record).fetchPublicationImages(manifestLink.href)
-      if (this.selectedPublication !== publication) {
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch ||
+        publicationEpoch !== this.publicationEpoch || this.selectedPublication !== publication) {
         return
       }
       if (manifestImages.length > 0) {
@@ -231,6 +329,7 @@ export struct OpdsBrowsePage {
       console.info(`[OPDS] step=load_publication_manifest_ok images=${manifestImages.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch || publicationEpoch !== this.publicationEpoch) return
       console.error('[OPDS] step=load_publication_manifest_failed code=opds_manifest_load_failed')
     }
   }
@@ -295,6 +394,15 @@ export struct OpdsBrowsePage {
       lastImportedAt: now,
     }
     const config = createReaderSessionConfigFromComic(comic, chapterId)
+    const locator = this.readerHistoryLocator(publication)
+    if (locator !== undefined) {
+      appReaderSessionStore((getContext(this) as common.UIAbilityContext).filesDir).saveRemoteHistory({
+        kind: 'opds', comicId, chapterId, serverId: record.server.id,
+        resourceId: opdsHistoryPublicationKey(publication.id), title: comic.title,
+        chapterTitle: chapter.title, opdsRootFeed: locator.opdsRootFeed, opdsFeedPath: locator.opdsFeedPath,
+        opdsSearchQuery: locator.opdsSearchQuery,
+      })
+    }
     this.installReaderSession(config)
     console.info(`[OPDS] step=open_reader images=${pages.length}`)
     RouterHelper.pushReader()
