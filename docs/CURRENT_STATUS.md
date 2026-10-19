@@ -2,6 +2,11 @@
 
 ## 当前：目录与分支成果恢复审计（2026-10-19）
 
+- 本轮原主仓WIP恢复：App `59a885c7` 仅归回 `scanPickedFolderUri` 原失败catch，stat错误不再伪装 `exists:false` 发布缩减页表，改走既有 `folder_scan_failed`/failed且无scanResult；Root亲核完整picker、Contract、summary、持久化与Index/ImportPage成功准入。实际index本轮before/after方法检查及原20260905三个完整stat/list/正常用例通过，仅补FileUri端口，不变原断言；全部tracked工作字节/模式及3untracked保持。无新文字、样式、权限放宽、构建或Native结论。原逐字人类来源未定位，不冒历史批准。证据：`root-folder-stat-failure-stage-review.json`、`root-59a885c7-*`。
+- 十八旧六图标打包夹具已精确清理：r0/r1/r2共361原文件、595完整tar成员先全部归档逐件核后才首删。Root亲核原采纳Git blobs、f7共同工具差异、受取代的r0新模式/r1白名单、四陈旧素材说明的4209/539后继、腾讯首次失败/不同flags标准WASM与原包成员。外层素材/原包/REPORT/原拒方案保留，未回灌旧图或改当前图标，源主仓7af0及所有refs/worktree/源码字节保持。证据：`six-icon-eighteen-fixtures-cleanup-result.json`及三份完整原审附件。
+- 旧master-integration残壳已清理：三个符号链接及全部私有admin/index/log先完整归档逐member核，13164个App原对象独立pack逐type/rawbytes/SHA/GitOID重读；两个160000外部pin分别在r54独立Kit/Lexbor载体核同。69af→156→1e4原提交闭包仍由保留production继承，69af的CMake单文件当前精确；这不冒所有108职责均已归并。只删 `/private/tmp/koma-master-integration-20261005` 与其私有admin；主仓全部WIP/refs保持。首审计脚本误用仓根CMake路径，在任何归档/删除前停止，按真实 `entry/src/main/cpp/CMakeLists.txt` 修正，原失败保留。证据：`master-integration-residual-{preservation,cleanup-result}.json`。
+- 两个production旧模块库已完整独立保全：r54实际执行ReaderKit2493与Lexbor12068全raw对象（包括不可达/旧refs）、所有显式根、完整admin含objects/nested、self/live两份physical与两index；每个tar成员及无alternate载体逐对象核同，源metadata/物理/对象前后稳定。此项解除cb4f原pin仅在旧现场的风险，不称26/935独有历史职责已归并，live gitfile仍指旧nested，因此production父admin继续保留。两个旧Docker仍运行且bind旧production的Kavita/Komga数据，不按prunable删活目录。下一owner：Root审Kit126/88b完整输入原组及剩余可清理源树；App原owner继续17WIP逐职责、CI同级适配和缺失Detail消费者；Kit原owner继续余原组/引用去向；源原owner继续全实体与外部证据去向。产品新增/设备仍暂停，整体恢复OPEN，所有本轮提交未推送。
+
 最新人类任务是逐项核清相关目录、分支与未提交差异，找回遗漏的有效成果，归并至原主仓。App 目标为 `/Users/honjow/git/Koma`，源目标为 `/Users/honjow/git/koma-sources`；`Koma-production-20261010` 及其他工作树是待核材料，不能自行升格为正式目录。产品新增开发与设备操作仍暂停。用户随后明确要求：所有相关工作树和分支逐项核实、归并、确认后清理，完成后再回到原先开发。清理不是永久搁置项；每个待删对象必须先解决其独有提交、tracked/untracked/ignored内容及必要证据的去向。未核清对象不得提前删除或整体覆盖。下方旧开发队列不用于覆盖本次任务。
 
 - 现有Reader事件归回检查点：App `22cdf373` 接原0c1的Legacy实际save→observe、Index真实准入begin/观察/关闭commit布尔/restore reset及Lab事件消费者；当前Kavita真实先upsert Library再onOpenReader，故明确三方用现LibraryStore身份，不伪造未来transient helper。原Index代码块及ReaderPage全部原span亲核，19块WIP changed payload与其他tracked/untracked保持。实际index原producers整套和明确标注为本轮补充的五方法admission检查通过；normal Shared epoch/18e transient/原新增失败toast仍OPEN，无新账号/网络/设备结论。证据：`tracker-0c1-reader-*`。
