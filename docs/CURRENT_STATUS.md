@@ -2,13 +2,15 @@
 
 ## 当前：30分钟清理收尾（2026-10-20）
 
+- **最终状态纠正（17:26 UTC实读）**：三个仓当前Git状态均干净；早先观察到差异的Lab/Surface/test三文件现已与HEAD及index逐字相同，flags=0。其mtime在17:20:43 UTC发生变化，写回者与原因未核实，本续接未执行对这三文件的写入或回滚。17:23保存的小档实际只保当时已回到HEAD的正文，不能证明初始WIP已保全；早先Lab34711db8、Surface dff0673当前Git对象不可读，第三文件初始完整diff也未保存。此前“当前三份未提交WIP/精确保全早期WIP”的表述撤回，原记录和纠正分别保留。此缺口列为恢复OPEN，不能据最终干净状态说已交付。
+
 - 最新期限：本轮从2026-10-19 16:58:03 UTC起计30分钟，截止17:28:03 UTC。每项实际操作及剩余时间见恢复区`root-cleanup-user-30min-20261020.json`；未捕获起点的准备操作明确记为未知，不补造耗时。产品开发与设备验收仍暂停。
 - 已实际退出原`koma-checkpoint-review-20261018`审查父目录。完整原件保留在`app-checkpoint-preferences-whole-host-input-c6bb8602.tar.gz`；退出回执`root-checkpoint-parent-final-retirement-20261020.json`核正式源码/index/flags/refs不变。此前的原preferences fixture、小Kit目录和三个旧检查点分支不再待执行。
 - 本轮进一步清理五组已批准修改的旧审查目录、两份对应实现旁件，以及History旧32vp提案和源地址Sheet旧检查点。每批先完整保全源码前后件、原补丁、失败、截图、HAP及原路径、正文和类型/权限/时间/扩展属性记录，独立全档读回，再核无FD/argv/容器挂载后退出。原件与旧路径映射分别在`approved-five-original-reviews-r2-20261020-{manifest.json,retirement.json}`、`approved-two-implementation-sidecars-20261020-{manifest.json,retirement.json}`、`resolved-design-review-originals-20261020-{manifest.json,retirement.json}`和同名前缀tar.gz中。第一次Python缺xattr接口在任何删除前停止，失败与修正版分别保留。
 - 三个正式仓实时各只有一个登记工作树和一条本地分支：Koma/master、koma-sources/master、reader-kit/codex/reconcile-f1-d1。按原源开发副本全集逐路径核对，仅正式源仓仍在；这不等于所有历史证据目录都已清理。physical05的活服务数据、MDX两个外部证据父、唯一审计与完整归档区继续保留；MDX未定位正文是HTTP证据，不是尚未归回的源业务代码。
 - 本轮原候选与当前源码核回：备份加载/失败保旧列表/重试、OPDS真实页数、明确unsupported文案、Shared/旧版真实章节重试、浏览错误上下文均保留。另核源索引完整URL换行及可滚动父树、History移除按钮24vp、Library已批准边距/padding和未缩减封面均保持。没有新产品差异、构建或设备验收；源码保留不冒运行通过。
 - 恢复尚未整体完成：App普通Shared入口、AutoRead、旧远端session、章节landing、production可见叶、f769宿主变体，以及Kit的claim/rollback、thumbnail委托、chapter landing、prepare失败叶、processing队列、title/window/loading和Pager动画候选继续档内保留，不能把真实反例、缺完整消费者或未定位批准的候选直接回灌。另有原输入未完成逐行为裁定，不可统称这几组或称全被取代；具体索引为审计区`app-worker-unmapped-app-source-member-binding-r2-c6bb8602.json`和原全量覆盖表，Kit路由为`kit-current-finite-owner-and-responsibility-queue-r161-20261019.json`，其中旧可删项已经退出，以本轮回执为准。
-- 当前仍有三份未提交工作文件：App `KomaReaderLabPage.ets`；Kit `ReaderSurface.ets`及`reader-surface-input.test.cjs`。本续接未修改、未覆盖、未提交这些差异，来源归属未查证；不把它们冒称清理已采纳。Kit stash继续保留。远端未由本轮同步，不发布。
+- 初始阶段曾观察到三份未提交工作文件（最终状态及保全边界以上方纠正为准）：App `KomaReaderLabPage.ets`；Kit `ReaderSurface.ets`及`reader-surface-input.test.cjs`。本续接未修改、未覆盖、未提交这些差异，来源归属未查证；不把它们冒称清理已采纳。Kit stash继续保留。远端未由本轮同步，不发布。
 - 下一项仍是恢复清理：Root对现存原输入中未完成的行为差异继续作有限裁定，先用现成原候选/后继/反例，不能以归档代替采用，也不重开已闭源码组或插入产品测试。现有App、Kit、源owner均已回报其直接可退队列为空；历史证据父仍未全部退出。
 
 - 当前原下载初始化恢复依据：对象为Settings两个下载偏好保存方法与Index移书下载清理；来源为`koma-download-initialization-owner-20261017/proposed.diff`原完整五hunk及原有限197/Host记录。原理由是后台初始化会用旧队列覆盖同步写；本次原候选/当前真实三个消费者比对确认五hunk未归，且现Service仍提供同一Promise API。按本次有效成果恢复授权，仅接回两import、两方法await和清理Promise前置，保现有catch/文案/Builder与其它WIP；当前构建和设备验收未做。设置计数独立未归候选继续保原父，不随此组回灌。
@@ -16,7 +18,7 @@
 - 四个已核数据Owner原父已完整归档读回后退出，回执`four-retained-data-owner-originals-20261020-retirement.json`；另定位到下载初始化原完整五hunk未归，已仅在Index/Settings接回原等待顺序。`download-init-recovery-current-consumer-result.json`复用原提取器在当前三个实际方法验证等待前不写/不删、初始化拒绝沿原catch；依赖为内存端口，非真实TaskPool/IO、构建或Native。源设置计数另有具体未归行：saveSettings先取旧savedSettingCounts，再reload仅保留既有ValidationStatus.savedCount；摘要/验证诊断可读旧值，计数诊断读新缓存。原重新load行在try内，当前无try；原716f未纳理由未知，保原settings父，不作不安全单行回灌。
 
 - 本轮实际结算：原检查点审查父及19个已核清的原审查/实现父已退出，所有源码前后件、原补丁、原失败和原取证仍在上述完整档；新增下载六父对应`six-retained-download-owner-originals-20261020-{manifest.json,retirement.json}`及同名前缀tar.gz。下载初始化遗漏已在正式主仓`e280902b`恢复（两生产文件原五hunk），仅三个实际方法的初始化顺序/拒绝受控检查通过；当前ArkTS构建、真实TaskPool/IO及设备未验，不冒全量恢复完成。
-- 未完成项保持具体：源设置保存计数的原读取行及其异常处理完整边界未归，原`koma-source-settings-read-integrity-20261017`父仍原位；此前App/Kit保留职责、其它档内原输入语义、剩余历史证据父尚未全部核清。当前三份未提交文件及两仓完整diff另以`current-three-unsubmitted-original-bytes-20261020.tar.gz`逐字保全，回执明确不采纳、不替代提交或完整仓元数据。所有本轮清理均未改这三份文件。下一具体未核动作是源设置计数完整原候选与未定位取舍的安全裁定，不再以笼统剩余桶冒已核完。
+- 未完成项保持具体：源设置保存计数的原读取行及其异常处理完整边界未归，原`koma-source-settings-read-integrity-20261017`父仍原位；此前App/Kit保留职责、其它档内原输入语义、剩余历史证据父尚未全部核清。17:23当时三文件及两仓diff曾另以`current-three-unsubmitted-original-bytes-20261020.tar.gz`逐字保全，回执明确不采纳、不替代提交或完整仓元数据。本续接清理代码未对这三文件执行写入；期间变化的来源仍未核。下一具体未核动作是源设置计数完整原候选与未定位取舍的安全裁定，不再以笼统剩余桶冒已核完。
 
 ## 恢复审计记录（2026-10-19）
 
@@ -377,9 +379,9 @@
 {
   "schemaVersion": 1,
   "title": "Koma 目录与分支成果恢复审计",
-  "state": "找回下载初始化遗漏 · 全量恢复仍未完成",
+  "state": "下载遗漏已恢复 · 早期差异保全缺口未闭",
   "outcome": "本页区分已实际退出的旧开发副本、仍保留的服务与原证据、尚未合入的候选；不把归档或源码一致冒成产品验收。",
-  "updatedAt": "2026-10-19T17:24:36.635042+00:00",
+  "updatedAt": "2026-10-19T17:27:41.919368+00:00",
   "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
   "activeId": "RECOVERY",
   "activity": {
@@ -387,7 +389,7 @@
     "detail": "原检查点父及19个已核清审查/实现父完整保全退出；下载初始化原五hunk已恢复并提交e280902b；源设置计数原父保留。",
     "startedAt": "2026-10-19T16:58:03+00:00"
   },
-  "nextAction": "源设置保存计数完整候选与异常边界仍未归；其它保留职责、档内原输入和历史证据父继续OPEN。30分钟期限17:28:03 UTC，按实际未完成项结算。",
+  "nextAction": "优先核三文件期间回到HEAD的写入来源与早期完整正文保全；源设置计数完整候选及其它原输入裁定仍OPEN。",
   "proof": [
     {
       "label": "原件保全",
@@ -419,10 +421,10 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "e280902b7d92d1dce3b30ed43bcb87e4229e94f3",
-      "hap": "本轮清理未构建或安装；此前卡片197限定证据保持。App Lab有未提交差异，不能把当前工作字节冒作已验包。"
+      "hap": "本轮恢复未构建/安装；最终Git干净不代表当前包验收或早期差异已保全。"
     }
   ],
-  "scope": "当前源码基线App e280902b、Kit6c289f2、源7af0d9d；三份未提交WIP已另存精确正文与diff且原工作字节保持。下载恢复仅当前三个实际消费方法的内存依赖检查；无当前构建、设备、远端同步或发布。",
+  "scope": "最终三正式仓Git干净，三文件HEAD/index/working逐字同且flags0；早期差异期间变回HEAD的写入者未知，17:23小档不能证明初始WIP保全。App代码恢复e280902b；无当前构建、设备、远端同步或发布。",
   "items": [
     {
       "id": "APP05",
@@ -484,7 +486,7 @@
   "milestones": [],
   "releaseGates": [
     "旧开发副本/分支清理不等于全部原代码差异已裁定；未合入候选和未知原输入保持OPEN。",
-    "App一份、Kit两份未提交WIP及Kit stash保持，来源未核；本轮不冒采纳、同步或发布。",
+    "初始三文件差异未完整保全，期间回到HEAD的写入来源未知；最终Git干净不得冒成全部归并。",
     "本轮未构建/安装/设备验收；既有卡片限定结论不扩大到Reader或其它宿主。"
   ],
   "stopRule": "任何真实反例保留；不得靠目录清理强制应用HOLD候选。",
