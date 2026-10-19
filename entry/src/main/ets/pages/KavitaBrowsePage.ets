@@ -64,6 +64,10 @@ export struct KavitaBrowsePage {
   @Local private addingSelectedSeries: boolean = false
   @Local private favoriteRevision: number = 0
   private autoOpenedRouteKey: string = ''
+  private pageEpoch: number = 0
+  private libraryEpoch: number = 0
+  private seriesEpoch: number = 0
+  private readerEpoch: number = 0
   @Param params: KavitaBrowseRouteParam = {}
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
@@ -79,12 +83,24 @@ export struct KavitaBrowsePage {
     this.loadLibraries()
   }
 
+  aboutToDisappear(): void {
+    this.pageEpoch += 1
+    this.libraryEpoch += 1
+    this.seriesEpoch += 1
+    this.readerEpoch += 1
+  }
+
   private async loadLibraries(): Promise<void> {
+    const pageEpoch = ++this.pageEpoch
+    this.libraryEpoch += 1
+    this.seriesEpoch += 1
+    this.readerEpoch += 1
     this.loading = true
     this.errorKey = ''
     try {
       const store = this.store()
       const saved = await store.loadKavita()
+      if (pageEpoch !== this.pageEpoch) return
       if (saved === undefined) {
         this.errorKey = 'kavita_browse_not_configured'
         this.libraries = []
@@ -92,16 +108,19 @@ export struct KavitaBrowsePage {
       }
       this.record = saved
       console.info('[Kavita] step=load_libraries_start')
-      this.libraries = await store.createKavitaClient(saved).listLibraries()
+      const libraries = await store.createKavitaClient(saved).listLibraries()
+      if (pageEpoch !== this.pageEpoch) return
+      this.libraries = libraries
       await this.openRouteParamTarget()
       console.info(`[Kavita] step=load_libraries_ok libraries=${this.libraries.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch) return
       this.errorKey = 'kavita_browse_load_failed'
       this.libraries = []
       console.error('[Kavita] step=load_libraries_failed code=kavita_libraries_load_failed')
     } finally {
-      this.loading = false
+      if (pageEpoch === this.pageEpoch) this.loading = false
     }
   }
 
@@ -129,17 +148,31 @@ export struct KavitaBrowsePage {
       return
     }
     this.autoOpenedRouteKey = key
+    const pageEpoch = this.pageEpoch
+    const libraryEpoch = this.libraryEpoch + 1
     await this.openLibrary(library)
+    if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
     const series = this.series.find((item: KavitaSeriesDto): boolean => item.id === seriesId)
     if (series !== undefined) {
+      const seriesEpoch = this.seriesEpoch + 1
       await this.openSeries(series)
+      if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch || seriesEpoch !== this.seriesEpoch) return
     }
   }
 
   private async openLibrary(item: KavitaLibraryDto): Promise<void> {
-    if (this.record === undefined || this.seriesLoading) {
+    if (this.record === undefined || (this.seriesLoading && this.selectedLibrary?.id === item.id)) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const libraryEpoch = ++this.libraryEpoch
+    this.seriesEpoch += 1
+    this.readerEpoch += 1
+    this.selectedSeries = undefined
+    this.volumes = []
+    this.volumesLoading = false
+    this.seriesLoadingMore = false
+    this.openingChapterId = ''
     this.selectedLibrary = item
     this.series = []
     this.seriesErrorKey = ''
@@ -153,20 +186,28 @@ export struct KavitaBrowsePage {
         return
       }
       const rows = await this.store().createKavitaClient(record).listSeries(item.id, 1, KAVITA_SERIES_PAGE_SIZE)
+      if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
       this.series = rows
       this.seriesHasMore = rows.length >= KAVITA_SERIES_PAGE_SIZE
       console.info(`[Kavita] step=load_series_ok library=${item.id} series=${this.series.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
       this.seriesErrorKey = 'kavita_series_load_failed'
       this.series = []
       console.error('[Kavita] step=load_series_failed code=kavita_series_load_failed')
     } finally {
-      this.seriesLoading = false
+      if (pageEpoch === this.pageEpoch && libraryEpoch === this.libraryEpoch) this.seriesLoading = false
     }
   }
 
   private backToLibraries(): void {
+    this.libraryEpoch += 1
+    this.seriesEpoch += 1
+    this.readerEpoch += 1
+    this.seriesLoading = false
+    this.volumesLoading = false
+    this.openingChapterId = ''
     this.selectedLibrary = undefined
     this.selectedSeries = undefined
     this.series = []
@@ -194,35 +235,47 @@ export struct KavitaBrowsePage {
     if (record === undefined || library === undefined || this.seriesLoading || this.seriesLoadingMore || !this.seriesHasMore) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const libraryEpoch = this.libraryEpoch
     const nextPage = this.seriesPage + 1
     this.seriesLoadingMore = true
     this.seriesErrorKey = ''
     try {
       console.info(`[Kavita] step=load_more_series_start library=${library.id} page=${nextPage}`)
       const rows = await this.store().createKavitaClient(record).listSeries(library.id, nextPage, KAVITA_SERIES_PAGE_SIZE)
+      if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
       this.series = this.appendUniqueSeries(this.series, rows)
       this.seriesPage = nextPage
       this.seriesHasMore = rows.length >= KAVITA_SERIES_PAGE_SIZE
       console.info(`[Kavita] step=load_more_series_ok library=${library.id} page=${nextPage} series=${rows.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
       this.seriesErrorKey = 'browse_error_load_more'
       console.error('[Kavita] step=load_more_series_failed code=kavita_series_load_more_failed')
     } finally {
-      this.seriesLoadingMore = false
+      if (pageEpoch === this.pageEpoch && libraryEpoch === this.libraryEpoch) this.seriesLoadingMore = false
     }
   }
 
   private backToSeries(): void {
+    this.seriesEpoch += 1
+    this.readerEpoch += 1
+    this.volumesLoading = false
+    this.openingChapterId = ''
     this.selectedSeries = undefined
     this.volumes = []
     this.volumesErrorKey = ''
   }
 
   private async openSeries(item: KavitaSeriesDto): Promise<void> {
-    if (this.record === undefined || this.volumesLoading) {
+    if (this.record === undefined || (this.volumesLoading && this.selectedSeries?.id === item.id)) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const seriesEpoch = ++this.seriesEpoch
+    this.readerEpoch += 1
+    this.openingChapterId = ''
     this.selectedSeries = item
     this.volumes = []
     this.volumesErrorKey = ''
@@ -233,15 +286,18 @@ export struct KavitaBrowsePage {
         return
       }
       console.info(`[Kavita] step=load_volumes_start series=${item.id}`)
-      this.volumes = await this.store().createKavitaClient(record).listVolumes(item.id)
+      const volumes = await this.store().createKavitaClient(record).listVolumes(item.id)
+      if (pageEpoch !== this.pageEpoch || seriesEpoch !== this.seriesEpoch) return
+      this.volumes = volumes
       console.info(`[Kavita] step=load_volumes_ok series=${item.id} volumes=${this.volumes.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || seriesEpoch !== this.seriesEpoch) return
       this.volumesErrorKey = 'kavita_volumes_load_failed'
       this.volumes = []
       console.error('[Kavita] step=load_volumes_failed code=kavita_volumes_load_failed')
     } finally {
-      this.volumesLoading = false
+      if (pageEpoch === this.pageEpoch && seriesEpoch === this.seriesEpoch) this.volumesLoading = false
     }
   }
 
@@ -300,9 +356,9 @@ export struct KavitaBrowsePage {
     return s('kavita_series_pages_progress').replace('%s', `${read}`).replace('%s', `${pages}`)
   }
 
-  private knownChapters(): KavitaChapterDto[] {
+  private knownChapters(volumes: KavitaVolumeDto[] = this.volumes): KavitaChapterDto[] {
     const chapters: KavitaChapterDto[] = []
-    this.volumes.forEach((volume: KavitaVolumeDto) => {
+    volumes.forEach((volume: KavitaVolumeDto) => {
       if (volume.chapters !== undefined) {
         volume.chapters.forEach((chapter: KavitaChapterDto) => {
           if (chapters.find((item: KavitaChapterDto): boolean => item.id === chapter.id) === undefined) {
@@ -405,15 +461,17 @@ export struct KavitaBrowsePage {
       this.showToast(s('common_already_in_library'))
       return
     }
+    const pageEpoch = this.pageEpoch
+    const seriesEpoch = this.seriesEpoch
     this.addingSelectedSeries = true
     try {
       console.info(`[Favorite] step=kavita_add_start server=${record.server.id} resource=${series.id}`)
       let volumeRows = this.volumes
       if (volumeRows.length === 0) {
         volumeRows = await this.store().createKavitaClient(record).listVolumes(series.id)
-        this.volumes = volumeRows
+        if (pageEpoch === this.pageEpoch && seriesEpoch === this.seriesEpoch) this.volumes = volumeRows
       }
-      const chapters = this.knownChapters()
+      const chapters = this.knownChapters(volumeRows)
       const comic = this.createSeriesComic(record, series, chapters)
       if (comic === undefined) {
         this.showToast(s('common_no_images_to_add'))
@@ -425,7 +483,7 @@ export struct KavitaBrowsePage {
       } else {
         upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
       }
-      this.favoriteRevision += 1
+      if (pageEpoch === this.pageEpoch) this.favoriteRevision += 1
       this.onLibraryChanged()
       this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=kavita_add_ok chapters=${comic.chapterCount} pages=${comic.pageCount}`)
@@ -434,21 +492,24 @@ export struct KavitaBrowsePage {
       this.showToast(s('common_add_to_library_failed'))
       console.error('[Favorite] step=kavita_add_failed code=kavita_add_failed')
     } finally {
-      this.addingSelectedSeries = false
+      if (pageEpoch === this.pageEpoch) this.addingSelectedSeries = false
     }
   }
 
   private async openChapter(chapter: KavitaChapterDto): Promise<void> {
     const record = this.record
     const series = this.selectedSeries
-    if (record === undefined || series === undefined || this.openingChapterId.length > 0) {
+    if (record === undefined || series === undefined || this.openingChapterId === `${chapter.id}`) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const readerEpoch = ++this.readerEpoch
     this.openingChapterId = `${chapter.id}`
     try {
       const client = this.store().createKavitaClient(record)
       console.info(`[Kavita] step=load_chapter_info_start chapter=${chapter.id}`)
       const info = await client.getChapterInfo(chapter.id)
+      if (pageEpoch !== this.pageEpoch || readerEpoch !== this.readerEpoch) return
       const comic = this.createReaderComic(record, series, chapter, info)
       if (comic === undefined) {
         this.showToast(s('common_no_images_to_add'))
@@ -465,10 +526,11 @@ export struct KavitaBrowsePage {
       console.info(`[Kavita] step=open_chapter_ok chapters=${comic.chapterCount} pages=${comic.pageCount}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || readerEpoch !== this.readerEpoch) return
       this.showToast(s('kavita_chapter_open_failed'))
       console.error('[Kavita] step=open_chapter_failed code=kavita_chapter_open_failed')
     } finally {
-      this.openingChapterId = ''
+      if (pageEpoch === this.pageEpoch && readerEpoch === this.readerEpoch) this.openingChapterId = ''
     }
   }
 

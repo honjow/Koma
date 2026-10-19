@@ -39,6 +39,8 @@ export struct WebDavBrowsePage {
   @Local private errorText: string = ''
   @Local private favoriteRevision: number = 0
   private record?: WebDavServerRecord
+  private pageEpoch: number = 0
+  private directoryEpoch: number = 0
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -58,51 +60,69 @@ export struct WebDavBrowsePage {
     this.loadInitial()
   }
 
+  aboutToDisappear(): void {
+    this.pageEpoch += 1
+    this.directoryEpoch += 1
+  }
+
   private async loadInitial(): Promise<void> {
+    const pageEpoch = ++this.pageEpoch
+    let directoryEpoch = ++this.directoryEpoch
     this.loading = true
     this.errorText = ''
     try {
       const saved = await this.store().loadWebDav()
+      if (pageEpoch !== this.pageEpoch) return
       if (saved === undefined) {
         this.errorText = s('webdav_config_required')
         return
       }
       this.record = saved
       console.info('[WebDAV] step=load_initial')
-      await this.loadDirectory([])
+      directoryEpoch = this.directoryEpoch + 1
+      const loaded = await this.loadDirectory([])
+      if (!loaded || pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return
       this.errorText = s('common_load_failed')
       console.error('[WebDAV] step=load_initial_failed code=webdav_initial_load_failed')
     } finally {
-      this.loading = false
+      if (pageEpoch === this.pageEpoch && directoryEpoch === this.directoryEpoch) this.loading = false
     }
   }
 
-  private async loadDirectory(pathSegments: string[]): Promise<void> {
+  private async loadDirectory(pathSegments: string[]): Promise<boolean> {
     const client = this.client()
     if (client === undefined) {
-      return
+      return false
     }
+    const pageEpoch = this.pageEpoch
+    const directoryEpoch = ++this.directoryEpoch
+    const requestedPath = pathSegments.slice()
     this.loading = true
     this.errorText = ''
     try {
       console.info(`[WebDAV] step=propfind_start path=${pathSegments.join('/')}`)
-      const resources = await client.propfind(pathSegments, 1)
-      this.pathSegments = pathSegments
+      const resources = await client.propfind(requestedPath, 1)
+      if (pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return false
+      this.pathSegments = requestedPath
       this.folders = this.sortResources(resources.filter((resource: DavResource) => {
-        return resource.isCollection && !this.isCurrentResource(client, pathSegments, resource)
+        return resource.isCollection && !this.isCurrentResource(client, requestedPath, resource)
       }))
       this.images = this.sortResources(resources.filter((resource: DavResource) => {
         return !resource.isCollection && resource.candidateKind === DavComicCandidateKind.IMAGE_FILE
       }))
       console.info(`[WebDAV] step=propfind_ok folders=${this.folders.length} images=${this.images.length}`)
+      return true
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return false
       this.errorText = s('common_load_failed')
       console.error('[WebDAV] step=propfind_failed code=webdav_propfind_failed')
+      return false
     } finally {
-      this.loading = false
+      if (pageEpoch === this.pageEpoch && directoryEpoch === this.directoryEpoch) this.loading = false
     }
   }
 

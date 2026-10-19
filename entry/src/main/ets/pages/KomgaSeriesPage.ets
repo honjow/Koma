@@ -57,6 +57,10 @@ export struct KomgaSeriesPage {
   @Local private favoriteRevision: number = 0
   private record?: KomgaServerRecord
   private initialSeriesOpened: boolean = false
+  private pageEpoch: number = 0
+  private catalogEpoch: number = 0
+  private booksEpoch: number = 0
+  private readerEpoch: number = 0
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -76,12 +80,21 @@ export struct KomgaSeriesPage {
     this.loadInitial()
   }
 
+  aboutToDisappear(): void {
+    this.pageEpoch += 1
+    this.catalogEpoch += 1
+    this.booksEpoch += 1
+    this.readerEpoch += 1
+  }
+
   private async loadInitial(): Promise<void> {
+    const pageEpoch = ++this.pageEpoch
     this.loading = true
     this.errorText = ''
     try {
       const store = this.store()
       const saved = await store.loadKomga()
+      if (pageEpoch !== this.pageEpoch) return
       if (saved === undefined) {
         this.errorText = s('komga_config_required')
         return
@@ -89,21 +102,31 @@ export struct KomgaSeriesPage {
       this.record = saved
       const client = store.createKomgaClient(saved)
       console.info('[Komga] step=load_libraries_start')
-      this.libraries = await client.listLibraries()
+      const libraries = await client.listLibraries()
+      if (pageEpoch !== this.pageEpoch) return
+      this.libraries = libraries
       this.selectedLibraryId = this.params?.libraryId ?? ''
       console.info(`[Komga] step=load_libraries_ok libraries=${this.libraries.length}`)
+      const catalogEpoch = this.catalogEpoch + 1
       await this.reloadSeries()
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       await this.openInitialSeriesIfNeeded()
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch) return
       this.errorText = s('common_load_failed')
       console.error('[Komga] step=load_initial_failed code=komga_initial_load_failed')
     } finally {
-      this.loading = false
+      if (pageEpoch === this.pageEpoch) this.loading = false
     }
   }
 
   private async reloadSeries(): Promise<void> {
+    this.catalogEpoch += 1
+    this.booksEpoch += 1
+    this.readerEpoch += 1
+    this.loadingMore = false
+    this.errorText = ''
     this.page = 0
     this.hasMore = true
     this.series = []
@@ -121,45 +144,58 @@ export struct KomgaSeriesPage {
     if (client === undefined) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const catalogEpoch = this.catalogEpoch
+    const page = this.page
     this.loadingMore = true
     try {
       console.info(`[Komga] step=load_series_start page=${this.page}`)
       const libraryIds = this.selectedLibraryId.length === 0 ? undefined : [this.selectedLibraryId]
       const response = await client.listSeries({
-        page: this.page,
+        page,
         size: KOMGA_PAGE_SIZE,
         libraryIds,
         sort: ['metadata.titleSort,asc'],
       })
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.series = this.series.concat(response.content)
       this.hasMore = response.last === undefined ? response.content.length >= KOMGA_PAGE_SIZE : !response.last
-      this.page += 1
+      this.page = page + 1
       console.info(`[Komga] step=load_series_ok count=${response.content.length} total=${this.series.length}`)
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.errorText = s('common_load_failed')
       console.error('[Komga] step=load_series_failed code=komga_series_load_failed')
     } finally {
-      this.loadingMore = false
+      if (pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch) this.loadingMore = false
     }
   }
 
-  private async openSeries(series: KomgaSeriesDto): Promise<void> {
+  private async openSeries(series: KomgaSeriesDto): Promise<boolean> {
     const client = this.client()
     if (client === undefined) {
-      return
+      return false
     }
+    const pageEpoch = this.pageEpoch
+    const booksEpoch = ++this.booksEpoch
+    this.readerEpoch += 1
     this.selectedSeries = series
     this.books = []
     this.errorText = ''
     try {
       console.info(`[Komga] step=load_books_start series=${series.id}`)
-      this.books = await client.listBooksForSeries(series.id)
+      const books = await client.listBooksForSeries(series.id)
+      if (pageEpoch !== this.pageEpoch || booksEpoch !== this.booksEpoch) return false
+      this.books = books
       console.info(`[Komga] step=load_books_ok books=${this.books.length}`)
+      return true
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || booksEpoch !== this.booksEpoch) return false
       this.errorText = s('common_load_failed')
       console.error('[Komga] step=load_books_failed code=komga_books_load_failed')
+      return false
     }
   }
 
@@ -191,9 +227,12 @@ export struct KomgaSeriesPage {
     if (client === undefined || record === undefined || series === undefined) {
       return
     }
+    const pageEpoch = this.pageEpoch
+    const readerEpoch = ++this.readerEpoch
     try {
       console.info(`[Komga] step=load_pages_start book=${book.id}`)
       const pageDtos = await client.listBookPages(book.id)
+      if (pageEpoch !== this.pageEpoch || readerEpoch !== this.readerEpoch) return
       const comicId = createKomgaComicId(record.server.id, series.id)
       const chapterId = `komga:${record.server.id}:book:${book.id}`
       const pages = pageDtos.map((page: KomgaPageDto) => {
@@ -213,6 +252,7 @@ export struct KomgaSeriesPage {
       RouterHelper.pushReader()
     } catch (error) {
       void error
+      if (pageEpoch !== this.pageEpoch || readerEpoch !== this.readerEpoch) return
       this.errorText = s('common_load_failed')
       console.error('[Komga] step=open_book_failed code=komga_book_open_failed')
     }
@@ -238,12 +278,14 @@ export struct KomgaSeriesPage {
       this.showToast(s('common_already_in_library'))
       return
     }
+    const pageEpoch = this.pageEpoch
+    const booksEpoch = this.booksEpoch
     try {
       console.info(`[Favorite] step=komga_add_start server=${record.server.id} resource=${series.id}`)
       let bookRows = this.books
       if (bookRows.length === 0) {
         bookRows = await client.listBooksForSeries(series.id)
-        this.books = bookRows
+        if (pageEpoch === this.pageEpoch && booksEpoch === this.booksEpoch) this.books = bookRows
       }
       const comicId = createKomgaComicId(record.server.id, series.id)
       const chapters: Chapter[] = []
@@ -269,13 +311,13 @@ export struct KomgaSeriesPage {
       } else {
         upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, comic)
       }
-      this.favoriteRevision += 1
+      if (pageEpoch === this.pageEpoch) this.favoriteRevision += 1
       this.onLibraryChanged()
       this.showToast(s('common_added_to_library'))
       console.info(`[Favorite] step=komga_add_ok chapters=${chapters.length} pages=${comic.pageCount}`)
     } catch (error) {
       void error
-      this.errorText = s('common_add_to_library_failed')
+      if (pageEpoch === this.pageEpoch && booksEpoch === this.booksEpoch) this.errorText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
       console.error('[Favorite] step=komga_add_failed code=komga_add_failed')
     }
