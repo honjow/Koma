@@ -8,6 +8,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <time.h>
+#include <unistd.h>
 
 #include "html_host.h"
 #include "http_host.h"
@@ -253,7 +255,39 @@ int32_t HostHtmlClose(wasm_exec_env_t execEnv, int32_t descriptor)
     return koma::html::Close(descriptor);
 }
 
+int32_t HostUnixTimeMs(wasm_exec_env_t execEnv, char *out, uint32_t outCap)
+{
+    auto moduleInst = wasm_runtime_get_module_inst(execEnv);
+    if (out == nullptr || outCap != 8 ||
+        !wasm_runtime_validate_native_addr(moduleInst, out, 8)) return -1;
+    timespec ts {};
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0 || ts.tv_sec < 0 ||
+        ts.tv_nsec < 0 || ts.tv_nsec >= 1000000000 ||
+        static_cast<uint64_t>(ts.tv_sec) > (UINT64_MAX - 999u) / 1000u) return -2;
+    const uint64_t ms = static_cast<uint64_t>(ts.tv_sec) * 1000u +
+        static_cast<uint64_t>(ts.tv_nsec) / 1000000u;
+    if (ms == 0) return -2;
+    for (uint32_t i = 0; i < 8; ++i) out[i] = static_cast<char>(ms >> (8u * i));
+    return 8;
+}
+
+int32_t HostRandomBytes(wasm_exec_env_t execEnv, char *out, uint32_t outCap)
+{
+    auto moduleInst = wasm_runtime_get_module_inst(execEnv);
+    if (out == nullptr || outCap == 0 || outCap > 256 ||
+        !wasm_runtime_validate_native_addr(moduleInst, out, outCap)) return -1;
+    // POSIX interface declared by the current installed Harmony native SDK.
+    // OS entropy failure is explicit; never fallback to a seed, clock or rand().
+    uint8_t local[256] {};
+    if (getentropy(local, outCap) != 0) return -2;
+    std::memcpy(out, local, outCap);
+    return static_cast<int32_t>(outCap);
+}
+
+
 NativeSymbol g_komaHostSymbols[] = {
+    {"unix_time_ms", reinterpret_cast<void *>(HostUnixTimeMs), "(*~)i", nullptr},
+    {"random_bytes", reinterpret_cast<void *>(HostRandomBytes), "(*~)i", nullptr},
     {"log", reinterpret_cast<void *>(HostLog), "(i*~)", nullptr},
     {"check_cancel", reinterpret_cast<void *>(HostCheckCancel), "()i", nullptr},
     {"http_request", reinterpret_cast<void *>(HostHttpRequest), "(*~*~)i", nullptr},

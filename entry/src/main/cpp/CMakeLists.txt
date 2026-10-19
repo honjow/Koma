@@ -37,13 +37,14 @@ if(EXISTS "${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake")
     set(KOMA_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
     set(KOMA_FIXTURE_HEADER ${KOMA_GENERATED_DIR}/source_runtime_fixture_wasm.h)
 
+    # Distro xxd versions may lack -n; normalize declaration names with sed below.
     add_custom_command(
         OUTPUT ${KOMA_FIXTURE_HEADER}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${KOMA_GENERATED_DIR}
         COMMAND /bin/sh -c
-            "${KOMA_HOST_XXD} -i -n kSourceRuntimeFixtureWasm ${KOMA_FIXTURE_WASM_SOURCE} > ${KOMA_FIXTURE_HEADER}.tmp"
+            "${KOMA_HOST_XXD} -i ${KOMA_FIXTURE_WASM_SOURCE} > ${KOMA_FIXTURE_HEADER}.tmp"
         COMMAND /bin/sh -c
-            "sed -e 's/unsigned char kSourceRuntimeFixtureWasm/static const unsigned char kSourceRuntimeFixtureWasm/' -e 's/unsigned int kSourceRuntimeFixtureWasm_len/static const unsigned int kSourceRuntimeFixtureWasmLen/' ${KOMA_FIXTURE_HEADER}.tmp > ${KOMA_FIXTURE_HEADER}"
+            "sed -e 's/^unsigned char .* =/static const unsigned char kSourceRuntimeFixtureWasm[] =/' -e 's/^unsigned int .* =/static const unsigned int kSourceRuntimeFixtureWasmLen =/' ${KOMA_FIXTURE_HEADER}.tmp > ${KOMA_FIXTURE_HEADER}"
         DEPENDS ${KOMA_FIXTURE_WASM_SOURCE}
         VERBATIM)
 
