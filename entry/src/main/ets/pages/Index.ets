@@ -88,9 +88,13 @@ import {
   LocalLibraryFolderScanResult,
   buildKnownLocalLibraryFolderSeriesFromComics,
   buildComicsFromLocalLibraryFolderScan,
+  localLibraryFolderRootUriFromComic,
   bindLocalLibraryFolderScanIdentity,
 } from '../model/LocalLibraryFolderContract'
-import { activateLocalLibraryFolderAccessForComics } from '../model/LocalLibraryFolderAccessService'
+import {
+  activateLocalLibraryFolderAccess,
+  activateLocalLibraryFolderAccessForComics,
+} from '../model/LocalLibraryFolderAccessService'
 import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
@@ -397,6 +401,13 @@ struct Index {
       }
       return
     }
+    if (originalComic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
+      const rootUri = localLibraryFolderRootUriFromComic(originalComic)
+      if (rootUri !== undefined) {
+        const access = await activateLocalLibraryFolderAccess(rootUri)
+        console.info('[LocalFolderAccess] step=reader_activate status=' + access.status)
+      }
+    }
     const offlineReaderPagesReady = this.hasAvailableOfflineReaderPages(originalComic.id, chapterId)
     let sourcePagesReady = true
     let sourceFailureReason: string | undefined = undefined
@@ -637,7 +648,8 @@ struct Index {
     if (this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
     }
-    return comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
+    return comic.sourceKind === ComicSourceKind.LOCAL_FOLDER ||
+      comic.sourceKind === ComicSourceKind.KOMGA_REMOTE ||
       comic.sourceKind === ComicSourceKind.KAVITA_REMOTE ||
       comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
