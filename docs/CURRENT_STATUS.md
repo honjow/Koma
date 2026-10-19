@@ -143,6 +143,28 @@
 
 - 当前恢复工作单及原主仓八处历史文档导引纳入Git跟踪检查点：只保存既有唯一工作单/历史边界提示，不把旧计划重新立项，不带其余UI审计/Reader标准/源码WIP。全部恢复与清理仍按顶部范围OPEN，下一项为Root核WebDAV打开Owner、源worker核GlobalComix/GoDa/xkcd/Manhuagui-v011，Kit可见前缀/窗口与旧WIP保持具体待审边界；不能以本次文档提交作为任务完成。
 
+- GlobalComix/GoDa/xkcd三个owner实际清理：Root已读自有parser/版本精确差异及原Root回执，确认当前011业务+官网ICO、GoDa012根相对API图路径、xkcd012正文角色+013图标后继承接原成果；共同旧打包WIP按已归并后继处理。283/324/237物理文件及各6admin全部归档逐member核后精确移除三个checkout与冗余refs，主仓dbd66299/clean与其他refs/字节保持。漫画柜012/资产仍HOLD，不因其继承HEAD可保全而丢弃独有业务。证据：`three-canonical-owner-cleanup-result.json`及对应full/admin原档。
+
+- Terra继承文档恢复：源主仓`735ebc06`找回662b原README blob3c6137/5077a9全文，历史11行逐字保留并前置当前017、016业务/017资产后继和原具名有限证据边界。明确旧011/黑底/197调度不是当前事实或授权；没有编造原文不存在的build命令，没有覆盖当前源码/资产/SDK/registry。补回此路径不解除漫画柜012自身HOLD。其余App/Kit/源目录/refs审计继续OPEN。证据：`terra-readme-recovery-*`及原source-worker补件报告。
+
+- WebDAV异步打开原独立闭包恢复检查点：App`23c69e8d`归回f5两文件八raw span，Service请求前/后当前server/root及三次ownsOpen、Search唯一caller的route/query/open serial全配套；4d原DTO及b1端点前置现已在主仓。Root核所有raw Git blob/行hash和真实index/working目标hash，保当前文案/Builder/其他WIP。原全部WebDAV Service/caller断言在实际index通过，IO/网络/路由mock；原另三私库expectedServerId block仍保留于--full且OPEN，不冒整套通过。未带e22/af远程history/channel/v4或可信旧OPDS身份，不加新错误文字；无新包/Native。其余恢复审计继续OPEN。证据：`webdav-open-owner-recovery-*`及原worker完整边界。
+
+- Kit独立资源寿命闭包恢复检查点：原reader-kit现有codex/reconcile-f1-d1上提交`089cbd13`，在真实bd392基线归回557原Core资源保留/观察后释放/失效闭包及三个原测试。保原spread算法、onVisible/reportVisible、窗口二参接口、UI/菜单/路由/默认；continuous不扩大outgoing需求。Root亲审原完整diff及当前适配，实际当前Core的PagedSession/Session/AutoRead三套Host86/86通过，其他tracked原字节与clean状态保持。只恢复内部资源寿命，最多多保一既有paged item；原557人类批准未定位，不冒历史许可或Native视觉等价。无FF/embedded迁移/新目录/包/设备，OFF旧投影、可见prefix/window、31WIP和整个Shared仍OPEN。证据：`kit557-bd-recovery-*`及原r12来源/消费者绑定。
+
+- Kit原有冗余refs实际清理：原reader-kit两个f1/d1分支tip及全部13条reflog中的每个对象、遗留f1 admin的HEAD/ORIG/日志/refs均为当前089cbd1祖先；旧checkout已不存在，其index相对原tip无差异。完整7管理文件/10member归档逐项SHA/模式核后，只移除该精确stale admin与两冗余本地ref；主仓代码/当前分支/其他refs/stash不变，不GC。原对象仍由当前分支可达，原ref/reflog原文与index保在审计。其余Kit生产GitDB/f769 WIP与App/源恢复继续OPEN。证据：`kit-ancestral-refs-cleanup-*`。
+
+- 自动备份完整数据Owner三方恢复检查点：App`35390e24`接回008任务/偏好串行owner、2db严格列表与已导出后清理失败记录、14cd剩余五键回滚，并接全部三字段producer、页面重读/完成与Index前台消费者。保主仓保存成功后才显示、原latest-load DEFAULT、原manual失败文字、Builder及local-folder ready/finally；原乐观显示/新busy反馈仍HOLD，不冒原样历史批准。Root核原Git blobs/全部raw span、双port hash及Index十九对原WIP编辑保持，三文件169增68删；实际index service/rollback/consumers及2db列表/IO/retention/导出失败Host通过，文件与Preferences仅内存适配，无新测试目录。启动原250ms若ready未成仍跳过，等下一真实foreground，不新增触发器或延时；无真实删除/新ArkTS包/Native/进程死亡结论。其余恢复与清理继续OPEN。证据：`automatic-backup-threeway-recovery-*`。
+
+- App原有冗余本地refs实际清理：203个本地分支逐对象核查，168个未被工作树占用且tip及全部reflog旧/新对象均为当前35390e24祖先。每ref原名称/tip/loose内容与模式、reflog原文/模式/SHA、配置及全refs已保全后，使用Git删除这168个本地分支。主仓源码、所有tracked/普通untracked字节、WIP/status、HEAD、工作树列表与远端refs精确不变，不GC、不新增分支。剩35个（六个占用owner含master、29个非祖先旧feature/lane）继续逐提交审，不据此声称目录或有效成果已全核毕。证据：`app-ancestral-refs-cleanup-review.json`及`app-ancestral-refs-cleanup-result.json`。
+
+- BH3当前归属文档纠正：源主仓`31f2f16e`仅纠正NOTICE把旧Keiyoushi b4fba图标称为当前包图标的不实陈述，保原路径/blob/许可并说明已选119px官网原PNG010b及原ASSET声明链。实际当前PNG签名/尺寸/hash和全部原引用核同，源码/素材/SDK/打包字节不变，无新网络/构建/Native结论。其旧owner内历史素材池与PNG补包工具逐件保全、当前标准六格式/manifest.icon职责后继已经对应，四owner完整归档校验仍在进行，未提前删除。证据：`bh3-notice-correction-*`及原source-worker精确工具/素材报告。
+
+- 又实际清理四个已归并旧源owner：BH3/ComicABC/Manhuadui/Terra共11988物理文件及26件admin逐member SHA/size/mode核档，完整原历史bundle无前置verify+unbundle通过后精确删除四checkout及refs。随后IQIYI/MPC/Tencent/Zai共9193物理文件及24admin同样完整核档并删除，source HEAD31f2f16/clean、所有tracked字节和其余refs保持。业务/资产当前接受后继逐项保留，原PNG补包器/素材池/真实请求与有限Native证据均保在完整原档；无源内容新验收。Manhuaren011与Manhuagui012及其他未核对象仍保留，不能把已清理八个当全线结束。证据：`four-inherited-owner-*`、`next-four-owner-*`。
+
+- App其余29个旧非codex本地ref实际清理：30个独有commit中28个stable binary patch-id等价，另两件因create/replace父占位差异而hash不同但全部7/6路径after blob/mode精确；Root再次核全部改变路径及SDK两真实迁移blob。完整29ref无前置原对象bundle验证并unbundle、原空reflog/refs保全后按预期tip事务删除。源码/WIP/所有原working文件、HEAD、工作树及远端保持；三个原feature跟踪配置段另核原已归档值后精确移除。保全脚本首轮仅写记录时Path类型错误，未删ref；修正包装后重核原档，未覆盖bundle。App从203本地分支减至6（master+五个待核owner），其五份checkout及原WIP仍OPEN。证据：`app-equivalent-refs-*`、`app-original-29-equivalent-refs.bundle`。
+
+- Kit原f769数据闭包恢复检查点：原reader-kit现分支提交`8201b4e6`，归回DisplayMap原metadata稳定身份/updatePage及PagedSession两实际生产者/消费者、原resolvePosition与idle/request0构造回声去重，两文件54增11删。Root实读原WIP和真实subscribe/reconcile顺序，核16输入及8原方法全字节保持，保089已恢复资源寿命、窗口/continuous/导航/close/UI/默认。实际当前Map/PagedSession/Session/AutoRead四套104/104通过；无新ArkTS/Native/优化收益或逐帧等价结论。31WIP剩余资源窗口/visual claim/Viewport等明确原消费者仍待审，不以纯helper闲置当恢复；原可见prefix与两删除保持具体OPEN/HOLD。证据：`kit-metadata-recovery-*`及r14逐职责报告。
+
 ---
 
 以下保留原主仓开发记录全文，其历史状态不得覆盖上方当前恢复任务。
