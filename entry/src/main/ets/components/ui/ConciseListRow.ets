@@ -356,8 +356,6 @@ export struct ConciseListRow {
     }
     .width(ThemeConstants.SOURCE_LIST_ICON_SIZE)
     .height(ThemeConstants.SOURCE_LIST_ICON_SIZE)
-    .borderRadius(ThemeConstants.SOURCE_LIST_ICON_RADIUS)
-    .clip(true)
   }
 
   private prefixItem(): PrefixImage | PrefixCustomBuilder | undefined {
