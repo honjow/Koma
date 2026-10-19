@@ -20,6 +20,10 @@ import { configureSourceRuntimeHttpTransport } from '../sourceRuntime/SourceRunt
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { LayoutSafeAreaBridge } from '../state/LayoutSafeAreaState'
 import { AppForegroundStateBridge } from '../state/AppForegroundState'
+import {
+  captureKomaDeviceVerificationIsolation,
+  shouldSuppressKomaDeviceVerificationBackgroundSideEffects,
+} from '../state/KomaDeviceVerificationIsolation'
 import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { BackupRestoreCheckpoint } from '../model/BackupRestoreCheckpoint'
@@ -36,6 +40,7 @@ export default class EntryAbility extends UIAbility {
   private startupPromise: Promise<void> = Promise.resolve()
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
+    captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
     this.startupPromise = this.prepareStartup(want).catch((_error: Error): void => {
@@ -65,6 +70,7 @@ export default class EntryAbility extends UIAbility {
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
+    captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     void launchParam
     void this.startupPromise.then((): void => {
       if (!this.startupReady) return
@@ -102,9 +108,11 @@ export default class EntryAbility extends UIAbility {
         bindReaderThemeWindow(this.context)
         this.applySavedThemeMode()
         this.configureAvoidAreas(windowStage)
-        setTimeout(() => {
-          this.syncRemoteProgressInBackground()
-        }, 250)
+        if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+          setTimeout(() => {
+            this.syncRemoteProgressInBackground()
+          }, 250)
+        }
       })
     })
   }
@@ -120,9 +128,11 @@ export default class EntryAbility extends UIAbility {
   onForeground(): void {
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
-    setTimeout(() => {
-      this.syncRemoteProgressInBackground()
-    }, 250)
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      setTimeout(() => {
+        this.syncRemoteProgressInBackground()
+      }, 250)
+    }
   }
 
   onBackground(): void {

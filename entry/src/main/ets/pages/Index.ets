@@ -143,6 +143,7 @@ import { TRACKER_PROVIDER_CONFIGS, TrackerProviderConfig, TrackerProviderId } fr
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
+import { shouldSuppressKomaDeviceVerificationBackgroundSideEffects } from '../state/KomaDeviceVerificationIsolation'
 import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryUpdateState'
 import { requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
 
@@ -262,7 +263,8 @@ struct Index {
 
   @Monitor('appForegroundState.revision')
   private runForegroundLibraryUpdate(): void {
-    if (!this.libraryUpdateReady || !this.appForegroundState.active) {
+    if (!this.libraryUpdateReady || !this.appForegroundState.active ||
+      shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       return
     }
     void requestLibraryUpdateCheck({
@@ -1555,10 +1557,12 @@ struct Index {
       }
     }
     this.runForegroundLibraryUpdate()
-    setTimeout(() => {
-      this.triggerAutomaticBackup(context)
-      this.triggerPendingTrackerProgressSync(context)
-    }, 250)
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      setTimeout(() => {
+        this.triggerAutomaticBackup(context)
+        this.triggerPendingTrackerProgressSync(context)
+      }, 250)
+    }
   }
 
   @Builder
