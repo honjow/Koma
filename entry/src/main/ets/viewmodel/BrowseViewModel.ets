@@ -412,7 +412,7 @@ function safeSourceBrowseErrorText(error: Error, fallbackKey: string): string {
   if (diagnostic.code === 'search_failed') {
     return AppStrings.get(fallbackKey)
   }
-  return diagnostic.userText
+  return AppStrings.format('browse_error_source_runtime_failed', diagnostic.code)
 }
 
 function sourceLanguageBadgeFromLanguage(language: string): string | undefined {
@@ -459,7 +459,13 @@ export class BrowseViewModel {
   @Trace loadingBrowse: boolean = false
   @Trace loadingSearch: boolean = false
   @Trace sourceErrorMessage: string = ''
-  @Trace errorMessage: string = ''
+  @Trace browseErrorMessage: string = ''
+  @Trace searchErrorMessage: string = ''
+
+  @Computed
+  get errorMessage(): string {
+    return this.searchQuery.trim().length > 0 ? this.searchErrorMessage : this.browseErrorMessage
+  }
   @Trace browseContentState: BrowseContentState = BrowseContentState.UNRESOLVED
   @Trace browseLoadIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace browseErrorIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
@@ -528,7 +534,7 @@ export class BrowseViewModel {
     this.filters = []
     this.browseFilterValues = {}
     this.searchFilterValues = {}
-    this.errorMessage = ''
+    this.browseErrorMessage = ''
     this.browseContentState = BrowseContentState.UNRESOLVED
     this.browseLoadIntent = BrowseLoadIntent.NONE
     this.browseErrorIntent = BrowseLoadIntent.NONE
@@ -570,7 +576,7 @@ export class BrowseViewModel {
     this.loadingBrowse = true
     this.browseLoadIntent = intent
     this.browseErrorIntent = BrowseLoadIntent.NONE
-    this.errorMessage = ''
+    this.browseErrorMessage = ''
     this.failedBrowseListing = undefined
     this.browseContentState = retainsCurrentContent ? BrowseContentState.CONTENT : BrowseContentState.LOADING
   }
@@ -579,12 +585,12 @@ export class BrowseViewModel {
     this.browseContentState = this.hasBrowseContent() ? BrowseContentState.CONTENT : BrowseContentState.EMPTY
     this.browseLoadIntent = BrowseLoadIntent.NONE
     this.browseErrorIntent = BrowseLoadIntent.NONE
-    this.errorMessage = ''
+    this.browseErrorMessage = ''
     this.failedBrowseListing = undefined
   }
 
   private failBrowseLoad(error: Error, intent: BrowseLoadIntent, fallbackKey: string): void {
-    this.errorMessage = safeSourceBrowseErrorText(error, fallbackKey)
+    this.browseErrorMessage = safeSourceBrowseErrorText(error, fallbackKey)
     this.browseContentState = BrowseContentState.ERROR
     this.browseLoadIntent = BrowseLoadIntent.NONE
     this.browseErrorIntent = intent
@@ -869,7 +875,7 @@ export class BrowseViewModel {
     this.searchQuery = query
     this.searchPage = 1
     this.loadingSearch = true
-    this.errorMessage = ''
+    this.searchErrorMessage = ''
     try {
       const normalizedQuery = query.trim()
       if (normalizedQuery.length === 0) {
@@ -889,7 +895,7 @@ export class BrowseViewModel {
         return
       }
       const e = error as Error
-      this.errorMessage = safeSearchDiagnostic(e).userText
+      this.searchErrorMessage = safeSearchDiagnostic(e).userText
       this.searchResults = []
       this.hasMoreSearch = false
       this.searchNextCursor = ''
@@ -910,12 +916,12 @@ export class BrowseViewModel {
     this.searchResults = []
     this.hasMoreSearch = false
     this.loadingSearch = false
-    this.errorMessage = ''
+    this.searchErrorMessage = ''
     this.searchNextCursor = ''
   }
 
   async retrySearchPage(): Promise<void> {
-    if (this.loadingSearch || this.errorMessage.length === 0 || this.searchResults.length === 0 ||
+    if (this.loadingSearch || this.searchErrorMessage.length === 0 || this.searchResults.length === 0 ||
       this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return
     }
@@ -933,7 +939,7 @@ export class BrowseViewModel {
     const page = this.searchPage + 1
     const cursor = this.searchNextCursor
     this.loadingSearch = true
-    this.errorMessage = ''
+    this.searchErrorMessage = ''
     try {
       const more = await this.searchSource(source, query, page, cursor)
       if (requestId !== this.searchRequestId) {
@@ -948,7 +954,7 @@ export class BrowseViewModel {
         return
       }
       const e = error as Error
-      this.errorMessage = safeSearchDiagnostic(e).userText
+      this.searchErrorMessage = safeSearchDiagnostic(e).userText
       this.hasMoreSearch = false
     } finally {
       if (requestId === this.searchRequestId) {
