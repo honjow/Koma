@@ -26,7 +26,7 @@ assert.doesNotMatch(
   'persisted account model must not include raw token or auth material fields',
 )
 
-const storeWriteBlock = trackerModelsSource.match(/async saveAccounts\(accounts: TrackerAccount\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
+const storeWriteBlock = trackerModelsSource.match(/private async saveAccountsCurrent\(accounts: TrackerAccount\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(storeWriteBlock, /JSON\.stringify\(next\.accounts\)/, 'account store must persist normalized account JSON')
 assert.match(storeWriteBlock, /autoSyncEnabled: current\.autoSyncEnabled[\s\S]*updateStrategy: current\.updateStrategy/, 'account store must preserve tracker sync preferences')
 assert.doesNotMatch(
@@ -51,7 +51,7 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
-  /async saveSyncPreferences\(autoSyncEnabled: boolean, updateStrategy: TrackerUpdateStrategy\): Promise<TrackerPreferences>[\s\S]*accounts: current\.accounts[\s\S]*comicMappings: current\.comicMappings[\s\S]*store\.put\(TRACKER_AUTO_SYNC_ENABLED_KEY, next\.autoSyncEnabled\)[\s\S]*store\.put\(TRACKER_UPDATE_STRATEGY_KEY, next\.updateStrategy\)/,
+  /async saveSyncPreferenceChanges\(patch: TrackerSyncPreferencesPatch\): Promise<TrackerPreferences>[\s\S]*values\.set\(TRACKER_AUTO_SYNC_ENABLED_KEY, patch\.autoSyncEnabled\)[\s\S]*values\.set\(TRACKER_UPDATE_STRATEGY_KEY, normalizeTrackerUpdateStrategy\(patch\.updateStrategy\)\)[\s\S]*this\.commit\(values\)/,
   'tracker sync preferences must persist without touching account secrets or mapping data',
 )
 assert.match(
@@ -127,7 +127,7 @@ assert.match(
   'tracker mapping summary must count mapping states for UI and sync planning',
 )
 
-const mappingSaveBlock = trackerModelsSource.match(/async saveComicMappings\(mappings: ComicTrackerMapping\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
+const mappingSaveBlock = trackerModelsSource.match(/private async saveComicMappingsCurrent\(mappings: ComicTrackerMapping\[\]\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(mappingSaveBlock, /TRACKER_COMIC_MAPPINGS_KEY/, 'mapping store must persist under the dedicated mapping key')
 assert.match(mappingSaveBlock, /JSON\.stringify\(next\.comicMappings\)/, 'mapping store must persist normalized mapping JSON')
 assert.match(mappingSaveBlock, /autoSyncEnabled: current\.autoSyncEnabled[\s\S]*updateStrategy: current\.updateStrategy/, 'mapping store must preserve tracker sync preferences')
@@ -140,14 +140,14 @@ assert.doesNotMatch(
 const mappingUpsertBlock = trackerModelsSource.match(/async upsertComicMapping\(mapping: ComicTrackerMapping\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
   mappingUpsertBlock,
-  /item\.comicId !== mapping\.comicId\.trim\(\) \|\| item\.providerId !== mapping\.providerId[\s\S]*nextMappings\.push\(mapping\)[\s\S]*saveComicMappings\(nextMappings\)/,
+  /item\.comicId !== mapping\.comicId\.trim\(\) \|\| item\.providerId !== mapping\.providerId[\s\S]*nextMappings\.push\(mapping\)[\s\S]*saveComicMappingsCurrent\(nextMappings\)/,
   'upsert must replace the mapping for the same comic/provider pair',
 )
 
 const mappingRemoveBlock = trackerModelsSource.match(/async removeComicMapping\(comicId: ComicId, providerId: TrackerProviderId\): Promise<TrackerPreferences> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
   mappingRemoveBlock,
-  /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*saveComicMappings\(nextMappings\)/,
+  /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*saveComicMappingsCurrent\(nextMappings\)/,
   'remove must delete only the requested comic/provider mapping',
 )
 assert.match(
@@ -168,7 +168,7 @@ assert.match(
 const mappingStateUpdateBlock = trackerModelsSource.match(/private async updateComicMappingState\([\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
   mappingStateUpdateBlock,
-  /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*mappingState[\s\S]*userConfirmed[\s\S]*updatedAt: now[\s\S]*saveComicMappings\(nextMappings\)/,
+  /mapping\.comicId !== normalizedComicId \|\| mapping\.providerId !== providerId[\s\S]*mappingState[\s\S]*userConfirmed[\s\S]*updatedAt: now[\s\S]*saveComicMappingsCurrent\(nextMappings\)/,
   'mapping state updates must mutate only the requested comic/provider row and persist through the normalized mapping store',
 )
 assert.doesNotMatch(
@@ -207,7 +207,7 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
-  /export function createTrackerPkcePair\(\): TrackerPkcePair \{[\s\S]*trackerRandomBase64Url\(TRACKER_PKCE_VERIFIER_BYTES\)[\s\S]*trackerSha256Base64Url\(codeVerifier\)/,
+  /export function createTrackerPkcePair\(providerId: TrackerProviderId = 'anilist'\): TrackerPkcePair \{[\s\S]*trackerRandomBase64Url\(TRACKER_PKCE_VERIFIER_BYTES\)[\s\S]*trackerSha256Base64Url\(codeVerifier\)/,
   'production OAuth preparation must create a random PKCE verifier and SHA-256 code challenge',
 )
 assert.match(
@@ -218,7 +218,7 @@ assert.match(
 const prepareConnectBlock = trackerModelsSource.match(/async prepareConnect\(providerId: TrackerProviderId\): Promise<TrackerOAuthStartPreparation> \{[\s\S]*?\n  \}/)?.[0] ?? ''
 assert.match(
   prepareConnectBlock,
-  /const current = await this\.load\(\)[\s\S]*const state = createTrackerOAuthState\(\)[\s\S]*const pkce = createTrackerPkcePair\(\)[\s\S]*prepareTrackerOAuthStart\(\{[\s\S]*state,[\s\S]*codeChallenge: pkce\.codeChallenge[\s\S]*providerConfig: getConfiguredTrackerProviderConfig\(providerId, current\.providerOAuthConfigs\)[\s\S]*this\.secretStore\.isAvailable\(\)/,
+  /const current = await this\.loadCurrent\(\)[\s\S]*const state = createTrackerOAuthState\(\)[\s\S]*const pkce = providerId === 'anilist' \? undefined : createTrackerPkcePair\(providerId\)[\s\S]*prepareTrackerOAuthStart\(\{[\s\S]*state,[\s\S]*codeChallenge: pkce\?\.codeChallenge[\s\S]*providerConfig: getConfiguredTrackerProviderConfig\(providerId, current\.providerOAuthConfigs\)[\s\S]*this\.secretStore\.isAvailable\(\)/,
   'production prepareConnect must use generated state, PKCE challenge, and user-configured provider metadata when preparing OAuth',
 )
 assert.match(
@@ -240,7 +240,7 @@ assert.doesNotMatch(
 const callbackBlock = trackerModelsSource.match(/export function parseTrackerOAuthCallback[\s\S]*?\n\}/)?.[0] ?? ''
 assert.match(
   callbackBlock,
-  /try \{[\s\S]*parseQuery\(callbackUri\)[\s\S]*catch \(_error\) \{[\s\S]*reason: 'invalid_callback'/,
+  /try \{[\s\S]*parseQuery\(callbackUri, implicitGrant\)[\s\S]*catch \(_error\) \{[\s\S]*reason: 'invalid_callback'/,
   'callback parser must return invalid_callback for malformed percent-encoding instead of throwing',
 )
 assert.match(callbackBlock, /state_mismatch/, 'callback parser must detect state mismatch')

@@ -88,6 +88,14 @@ async function run() {
   malformed = true
   assert.equal((await subject.searchKavita('Owned')).section.state, 'failed')
 
+  malformed = false
+  matches = Array.from({ length: 25 }, (_, i) => ({ seriesId: i + 1, libraryId: 1, libraryName: 'Library' }))
+  rows = matches.map(match => ({ id: match.seriesId, name: `Owned ${String(match.seriesId).padStart(2, '0')}` }))
+  const complete = (await subject.searchKavita('Owned')).section
+  assert.equal(complete.items.length, 25)
+  assert.equal(complete.resultCount, 25)
+  assert.equal(complete.items[24].kavitaSeriesId, '25')
+
   await client.listSeries(7, 2, 50)
   const browse = requests.at(-1)
   assert.ok(browse.url.endsWith('/api/Series/all-v2?PageNumber=2&PageSize=50'))

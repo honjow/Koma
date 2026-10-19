@@ -7,13 +7,17 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.resolve(__dirname, '../entry/src/main/ets')
 const stores = new Map(), modules = new Map(), networkCalls = []
+let failNextPreferenceFlush = false
 let nextNetworkResponse = { responseCode: 200, result: '{}' }, destroyed = 0
 const bindings = {
   '@kit.ArkData': { preferences: { async getPreferences(_context, name) {
     if (!stores.has(name)) stores.set(name, new Map())
     const data = stores.get(name)
     return { async get(key, fallback) { return data.has(key) ? data.get(key) : fallback },
-      async put(key, value) { data.set(key, value) }, async flush() {} }
+      getSync(key, fallback) { return data.has(key) ? data.get(key) : fallback },
+      async has(key) { return data.has(key) }, async delete(key) { data.delete(key) },
+      hasSync(key) { return data.has(key) }, deleteSync(key) { data.delete(key) },
+      async put(key, value) { data.set(key, value) }, putSync(key, value) { data.set(key, value) }, async flush() { if (failNextPreferenceFlush) { failNextPreferenceFlush = false; throw Error('owned_flush_failure') } } }
   } } },
   '@kit.ArkTS': { buffer: Buffer },
   '@kit.NetworkKit': { http: { RequestMethod: { GET: 'GET', POST: 'POST' },
@@ -108,8 +112,56 @@ async function runProvider(providerId) {
   assert.equal(calls.length, beforeInvalid)
   console.log(providerId + ': production first push, incomplete chapter, failure queue/retry and explicit status intent checked')
 }
+async function runPreferenceOwner() {
+  stores.clear()
+  const secretStore = { isAvailable: () => true, readToken: async () => new Uint8Array(Buffer.from('owned-token')),
+    writeToken: async () => ({ ok: true }), deleteAccount: async () => ({ ok: true }), deleteToken: async () => ({ ok: true }) }
+  const context = { filesDir: 'owned-tracker-preferences' }
+  const store = () => new model.TrackerPreferencesStore(context, secretStore)
+  await Promise.all([store().saveSyncPreferenceChanges({ autoSyncEnabled: true }),
+    store().saveSyncPreferenceChanges({ updateStrategy: 'manual' })])
+  let value = await store().load()
+  assert.equal(value.autoSyncEnabled, true); assert.equal(value.updateStrategy, 'manual')
+  const raw = stores.get(model.TRACKER_PREFERENCES_STORE_NAME), original = new Map(raw)
+  failNextPreferenceFlush = true
+  await assert.rejects(store().saveSyncPreferences(false, 'on_reader_close'), /owned_flush_failure/)
+  assert.deepEqual(raw, original, 'failed commit must restore cache values and original missing keys')
+  const mapping = id => ({ comicId: id, providerId: 'anilist', providerTitleId: id,
+    mappingState: 'candidate', userConfirmed: false, createdAt: 1 })
+  await Promise.all([store().upsertComicMapping(mapping('1')), store().upsertComicMapping(mapping('2'))])
+  assert.equal((await store().load()).comicMappings.length, 2)
+  await store().confirmComicMapping('1', 'anilist', 2)
+  await store().removeComicMapping('2', 'anilist')
+  assert.equal((await store().listComicMappings('1'))[0].mappingState, 'confirmed')
+  await Promise.all([store().saveProviderOAuthConfig('anilist', 'owned-a', 'https://owned.invalid/a'),
+    store().saveProviderOAuthConfig('myanimelist', 'owned-b', 'https://owned.invalid/b')])
+  assert.equal((await store().load()).providerOAuthConfigs.length, 2)
+  await store().saveAccounts([{ providerId: 'anilist', status: 'connected', credentialAccountKey: 'owned-account' }])
+  let started, resume
+  const began = new Promise(resolve => { started = resolve }), profile = new Promise(resolve => { resume = resolve })
+  const { TrackerAccountRefreshService } = load('model/TrackerAccountRefreshService')
+  const refresh = new TrackerAccountRefreshService(context, { secretStore,
+    aniListClient: { async fetchProfile() { started(); return profile } } }).refreshAccounts('anilist', 10)
+  await began
+  await store().disconnectAccount('anilist')
+  resume({ ok: true, value: { providerUserId: '1', username: 'owned-user' } })
+  const result = await refresh
+  assert.equal(result.refreshedCount, 0); assert.equal(result.skippedCount, 1)
+  assert.equal((await store().load()).accounts.find(account => account.providerId === 'anilist').status, 'disconnected')
+  for (const key of [model.TRACKER_ACCOUNTS_KEY, model.TRACKER_COMIC_MAPPINGS_KEY, model.TRACKER_PROVIDER_OAUTH_CONFIGS_KEY]) {
+    const before = new Map(raw)
+    raw.set(key, '{damaged')
+    const damaged = new Map(raw)
+    await assert.rejects(store().load(), /tracker_.*_invalid/)
+    await assert.rejects(store().saveSyncPreferenceChanges({ autoSyncEnabled: false }), /tracker_.*_invalid/)
+    assert.deepEqual(raw, damaged, 'a damaged existing document must not become an empty/default write')
+    raw.clear(); for (const [name, value] of before) raw.set(name, value)
+  }
+  console.log('Tracker preference fields, rollback, mapping/config concurrent intents, nested methods and stale profile guard checked')
+}
 async function run() {
   await runProvider('anilist'); await runProvider('myanimelist')
+  await runPreferenceOwner()
   // API binding observes options passed by the actual adapter, not real native HTTP delivery.
   const adapter = new mal.HarmonyMyAnimeListTrackerHttpAdapter()
   await adapter.request({ method: 'PATCH', url: 'https://owned.invalid/status', headers: {
