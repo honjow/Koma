@@ -106,10 +106,7 @@ export struct ChapterListSection {
     sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number => {
       const numLeft = this.chapterNumberValue(left)
       const numRight = this.chapterNumberValue(right)
-      if (numLeft >= 0 && numRight >= 0 && numLeft !== numRight) {
-        return this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC ? numLeft - numRight : numRight - numLeft
-      }
-      return this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC ? 1 : -1
+      return this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC ? numLeft - numRight : numRight - numLeft
     })
     return sorted
   }

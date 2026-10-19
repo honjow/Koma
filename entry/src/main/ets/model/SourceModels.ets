@@ -315,7 +315,7 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
     const payload = JSON.parse(json) as SourceRuntimeChapterListPayload
     const rows = payload.chapters !== undefined ? payload.chapters : (payload.items ?? [])
     return rows.map((row: SourceRuntimeChapterPayload): SourceChapter => {
-      const chapterNumber = firstNumber([row.chapterNumber, row.chapter, row.index])
+      const chapterNumber = firstNumber([row.chapterNumber, row.chapter])
       const title = firstNonEmpty([row.title]) ?? (chapterNumber === undefined
         ? AppStrings.get('manga_detail_chapter_untitled')
         : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${chapterNumber}`))

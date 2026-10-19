@@ -229,7 +229,6 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     item['chapter_number'],
     item['chapterNumber'],
     item['chapter'],
-    hasContinuationContract ? undefined : item['index'],
   ])
   const sourceTitle = optionalSourceDisplayString(item['title'])
   const readingGroup = optionalSourceString(item['readingGroup'])

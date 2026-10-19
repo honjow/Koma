@@ -2356,7 +2356,8 @@ function mangaChapterItemFromComicChapter(chapter: Chapter, sourceKind: ComicSou
   return {
     id: chapter.id,
     title: chapter.title,
-    chapterNumber: chapter.chapterNumber ?? (chapter.continuationEligible === undefined ? chapter.index + 1 : undefined),
+    chapterNumber: chapter.chapterNumber ?? (sourceKind !== ComicSourceKind.PRIVATE_LIBRARY &&
+      chapter.continuationEligible === undefined ? chapter.index + 1 : undefined),
     volumeNumber: chapter.volumeNumber,
     readingGroup: chapter.readingGroup,
     continuationEligible: chapter.continuationEligible,
