@@ -1274,6 +1274,7 @@ export class BackupService {
 
   async decryptPreview(json: string, passphrase: string): Promise<BackupImportSelectionPreview> {
     const plaintext = await new BackupEncryptionService().decrypt(json, passphrase)
+    const encryptedPreview = previewEncryptedBackupEnvelope(json)
     const preview = this.previewDecrypted(plaintext)
     return {
       payload: plaintext,
@@ -1281,8 +1282,8 @@ export class BackupService {
         schemaVersion: preview.schemaVersion,
         exportedAt: preview.exportedAt,
         exportedAtText: preview.exportedAtText,
-        algorithm: preview.algorithm,
-        kdfId: preview.kdfId,
+        algorithm: encryptedPreview.algorithm,
+        kdfId: encryptedPreview.kdfId,
         libraryItemCount: preview.libraryItemCount,
         progressCount: preview.progressCount,
         currentLibraryItemCount: preview.currentLibraryItemCount,

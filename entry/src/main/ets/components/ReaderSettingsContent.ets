@@ -324,14 +324,14 @@ export struct ReaderSettingsContent {
           ConciseListRow({ title: s('reader_control_mode'), trailingText: this.seriesOverrideBadge(getReaderModeLabel(this.readerMode)), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
           ListDivider()
           ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.seriesOverrideBadge(getReadingDirectionLabel(this.preferences.readingDirection)), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
-          ListDivider()
           if (this.readerMode === ReaderMode.DUAL_PAGE) {
+            ListDivider()
             ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
             ListDivider()
             ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
-            ListDivider()
           }
           if (!this.isWebtoonLayout()) {
+            ListDivider()
             ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
           }
         }
@@ -366,8 +366,8 @@ export struct ReaderSettingsContent {
         SectionHeader({ title: s('settings_row_reader_page_gap_title') })
         GroupedListSection() {
           ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
-          ListDivider()
           if (!this.isWebtoonLayout()) {
+            ListDivider()
             ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
           }
         }

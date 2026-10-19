@@ -1425,6 +1425,8 @@
     { "name": "source_pkg_min_app_version", "value": "Minimum Koma version" },
     { "name": "source_pkg_management_section", "value": "Management" },
     { "name": "source_pkg_current_index", "value": "Current index" },
-    { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" }
+    { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" },
+    {"name":"backup_local_unavailable","value":"Read failed"},
+    {"name":"backup_local_load_failed","value":"Unable to read local backups"}
   ]
 }

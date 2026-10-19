@@ -17,6 +17,7 @@ export struct ConciseListRow {
   @Param subtitle: ResourceStr = ''
   @Param subtitleMaxLines: number = 2
   @Param trailingText: ResourceStr = ''
+  @Param trailingMaxLines: number = 1
   @Param leadingImageUrl: string = ''
   @Param leadingImageSize: number = 0
   @Param leadingImageRadius: number = 0
@@ -92,7 +93,7 @@ export struct ConciseListRow {
     return new TextModifier()
       .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
       .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
-      .maxLines(1)
+      .maxLines(this.trailingMaxLines)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
   }
 

@@ -2353,6 +2353,7 @@ export struct SettingsPage {
           title: this.rowTitle(row),
           subtitle: row.key === 'library-update-interval' ? getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences) : '',
           trailingText: this.rowDetail(row),
+          trailingMaxLines: this.rowDetailMaxLines(row),
           trailingDropdown: true,
           showChevron: true,
           dropdownMenuEnabled: true,
@@ -2365,6 +2366,7 @@ export struct SettingsPage {
       ConciseListRow({
         title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
+          trailingMaxLines: this.rowDetailMaxLines(row),
         showChevron: false,
         action: () => {
           this.handleRowClick(row)
@@ -2374,6 +2376,7 @@ export struct SettingsPage {
       ConciseListRow({
         title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
+          trailingMaxLines: this.rowDetailMaxLines(row),
         showChevron: true,
         action: () => {
           this.handleRowClick(row)

@@ -1425,6 +1425,8 @@
     { "name": "source_pkg_min_app_version", "value": "最低 Koma 版本" },
     { "name": "source_pkg_management_section", "value": "管理" },
     { "name": "source_pkg_current_index", "value": "当前索引" },
-    { "name": "source_pkg_batch_actions_heading", "value": "批量操作" }
+    { "name": "source_pkg_batch_actions_heading", "value": "批量操作" },
+    {"name":"backup_local_unavailable","value":"读取失败"},
+    {"name":"backup_local_load_failed","value":"无法读取本地备份"}
   ]
 }
