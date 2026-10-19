@@ -8,6 +8,7 @@ import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { connectAppForegroundState } from '../state/AppForegroundState'
 import { RemoteServerStore, REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, parseRemoteServerEndpointIdentities, rememberRemoteServerEndpointIdentity } from './RemoteServerStore'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
 import {
@@ -219,6 +220,12 @@ export interface BackupContentPreferences {
   includeTrackerMappings: boolean
 }
 
+export interface BackupAutomaticPreferencesPatch {
+  enabled?: boolean
+  intervalHours?: number
+  retentionCount?: number
+}
+
 export interface BackupAutomaticRunResult {
   ran: boolean
   deletedCount: number
@@ -240,6 +247,16 @@ export const DEFAULT_BACKUP_CONTENT_PREFERENCES: BackupContentPreferences = {
   includeSettings: true,
   includeDownloadQueue: true,
   includeTrackerMappings: true,
+}
+
+let automaticBackupInFlight: Promise<BackupAutomaticRunResult> | undefined = undefined
+let automaticBackupInFlightReason: 'due' | 'manual' | undefined = undefined
+let automaticPreferenceOperation: Promise<void> = Promise.resolve()
+
+function queueAutomaticPreferences<T>(operation: () => Promise<T>): Promise<T> {
+  const result = automaticPreferenceOperation.then(operation)
+  automaticPreferenceOperation = result.then(() => {}, () => {})
+  return result
 }
 
 export function backupIncludedDomainLabels(preferencesValue: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES): string[] {
@@ -858,6 +875,10 @@ export class BackupService {
   }
 
   async loadAutomaticPreferences(): Promise<BackupAutomaticPreferences> {
+    return queueAutomaticPreferences(() => this.readAutomaticPreferences())
+  }
+
+  private async readAutomaticPreferences(): Promise<BackupAutomaticPreferences> {
     const store = await this.automaticPreferences()
     const enabled = await store.get(BACKUP_AUTOMATIC_ENABLED_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.enabled) as boolean
     const intervalHours = await store.get(BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.intervalHours) as number
@@ -873,15 +894,45 @@ export class BackupService {
     })
   }
 
-  async saveAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): Promise<void> {
+  async saveAutomaticPreferences(patch: BackupAutomaticPreferencesPatch): Promise<BackupAutomaticPreferences> {
+    return queueAutomaticPreferences(() => BackupRestoreActivity.runWrite(async (): Promise<BackupAutomaticPreferences> => {
+      const current = await this.readAutomaticPreferences()
+      const next = normalizeBackupAutomaticPreferences({
+        enabled: patch.enabled ?? current.enabled,
+        intervalHours: patch.intervalHours ?? current.intervalHours,
+        retentionCount: patch.retentionCount ?? current.retentionCount,
+        lastRunAt: current.lastRunAt,
+        lastFailureCode: current.lastFailureCode,
+      })
+      await this.persistAutomaticPreferences(next)
+      return next
+    }))
+  }
+
+  private async persistAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): Promise<void> {
     const normalized = normalizeBackupAutomaticPreferences(preferencesValue)
     const store = await this.automaticPreferences()
-    await store.put(BACKUP_AUTOMATIC_ENABLED_KEY, normalized.enabled)
-    await store.put(BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY, normalized.intervalHours)
-    await store.put(BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, normalized.retentionCount)
-    await store.put(BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, normalized.lastRunAt)
-    await store.put(BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY, normalized.lastFailureCode)
-    await store.flush()
+    const keys: string[] = [BACKUP_AUTOMATIC_ENABLED_KEY, BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY,
+      BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY]
+    const values: preferences.ValueType[] = [normalized.enabled, normalized.intervalHours,
+      normalized.retentionCount, normalized.lastRunAt, normalized.lastFailureCode]
+    const existed: boolean[] = keys.map((key: string): boolean => store.hasSync(key))
+    const previous: preferences.ValueType[] = keys.map((key: string): preferences.ValueType => store.getSync(key, ''))
+    try {
+      for (let i = 0; i < keys.length; i++) await store.put(keys[i], values[i])
+      await store.flush()
+    } catch (error) {
+      try {
+        for (let i = 0; i < keys.length; i++) {
+          if (existed[i]) store.putSync(keys[i], previous[i])
+          else store.deleteSync(keys[i])
+        }
+        await store.flush()
+      } catch (_rollbackError) {
+        throw new Error('backup_automatic_preferences_rollback_failed')
+      }
+      throw error as Error
+    }
   }
 
   async loadContentPreferences(): Promise<BackupContentPreferences> {
@@ -908,9 +959,44 @@ export class BackupService {
     await store.flush()
   }
 
-  async runAutomaticLocalBackupIfDue(now: number = Date.now()): Promise<BackupAutomaticRunResult> {
+  async runAutomaticLocalBackupIfDue(now: number = Date.now(), requireForeground: boolean = false): Promise<BackupAutomaticRunResult> {
+    return this.requestAutomaticLocalBackup('due', now, requireForeground)
+  }
+
+  async runAutomaticLocalBackupNow(now: number = Date.now()): Promise<BackupAutomaticRunResult> {
+    return this.requestAutomaticLocalBackup('manual', now, false)
+  }
+
+  private requestAutomaticLocalBackup(
+    reason: 'due' | 'manual', now: number, requireForeground: boolean,
+  ): Promise<BackupAutomaticRunResult> {
+    const active = automaticBackupInFlight
+    const activeReason = automaticBackupInFlightReason
+    if (active !== undefined) {
+      if (reason === 'manual') {
+        return active.then((result: BackupAutomaticRunResult): Promise<BackupAutomaticRunResult> | BackupAutomaticRunResult => {
+          const skippedDue = activeReason === 'due' && !result.ran && result.failureCode === undefined
+          return skippedDue ? this.requestAutomaticLocalBackup(reason, now, requireForeground) : result
+        })
+      }
+      return active
+    }
+    automaticBackupInFlightReason = reason
+    // Reserve the slot before preference IO; restore admission covers export, pruning and status commit.
+    const operation = Promise.resolve().then(() => BackupRestoreActivity.runWrite(() =>
+      this.runAdmittedAutomaticLocalBackup(reason, now, requireForeground)))
+    automaticBackupInFlight = operation.finally(() => {
+      automaticBackupInFlight = undefined
+      automaticBackupInFlightReason = undefined
+    })
+    return automaticBackupInFlight
+  }
+
+  private async runAdmittedAutomaticLocalBackup(
+    reason: 'due' | 'manual', now: number, requireForeground: boolean,
+  ): Promise<BackupAutomaticRunResult> {
     const preferencesValue = await this.loadAutomaticPreferences()
-    if (!preferencesValue.enabled) {
+    if (reason === 'due' && !preferencesValue.enabled) {
       return {
         ran: false,
         deletedCount: 0,
@@ -919,7 +1005,7 @@ export class BackupService {
       }
     }
     const intervalMs = preferencesValue.intervalHours * 60 * 60 * 1000
-    if (preferencesValue.lastRunAt > 0 && now - preferencesValue.lastRunAt < intervalMs) {
+    if (reason === 'due' && preferencesValue.lastRunAt > 0 && now - preferencesValue.lastRunAt < intervalMs) {
       return {
         ran: false,
         deletedCount: 0,
@@ -927,11 +1013,11 @@ export class BackupService {
         skippedReason: 'not_due',
       }
     }
-    return this.runAutomaticLocalBackupWithPreferences(now, preferencesValue)
-  }
-
-  async runAutomaticLocalBackupNow(now: number = Date.now()): Promise<BackupAutomaticRunResult> {
-    return this.runAutomaticLocalBackupWithPreferences(now, await this.loadAutomaticPreferences())
+    if (reason === 'due' && requireForeground && !connectAppForegroundState().active) {
+      return { ran: false, deletedCount: 0, preferences: preferencesValue, skippedReason: 'background' }
+    }
+    console.info('[Backup] step=auto_started reason=' + reason)
+    return this.runAutomaticLocalBackupWithPreferences(now)
   }
 
   async pruneLocalBackups(retentionCount: number): Promise<number> {
@@ -955,7 +1041,7 @@ export class BackupService {
       .filter((name: string): boolean => isLocalBackupFileName(name))
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
-      const record = this.readLocalBackupRecord(fileNames[index])
+      const record = this.readLocalBackupRecord(fileNames[index], true)
       if (record !== undefined) {
         records.push(record)
       }
@@ -1247,7 +1333,7 @@ export class BackupService {
     return record
   }
 
-  private readLocalBackupRecord(fileName: string): BackupLocalFileRecord | undefined {
+  private readLocalBackupRecord(fileName: string, strictRead: boolean = false): BackupLocalFileRecord | undefined {
     const safeName = this.requireLocalBackupFileName(fileName)
     const path = this.localBackupPath(safeName)
     if (!fs.accessSync(path)) {
@@ -1262,6 +1348,9 @@ export class BackupService {
         preview: this.preview(payload),
       }
     } catch (_error) {
+      if (strictRead) {
+        throw new Error('backup_local_read_failed')
+      }
       return undefined
     }
   }
@@ -1466,19 +1555,20 @@ export class BackupService {
 
   private async runAutomaticLocalBackupWithPreferences(
     now: number,
-    preferencesValue: BackupAutomaticPreferences,
   ): Promise<BackupAutomaticRunResult> {
+    let created: BackupLocalFileRecord | undefined = undefined
     try {
-      const created = await this.exportLocal()
-      const deletedCount = await this.pruneLocalBackups(preferencesValue.retentionCount)
-      const nextPreferences: BackupAutomaticPreferences = {
-        enabled: preferencesValue.enabled,
-        intervalHours: preferencesValue.intervalHours,
-        retentionCount: preferencesValue.retentionCount,
-        lastRunAt: normalizeBackupAutomaticLastRunAt(now),
-        lastFailureCode: '',
-      }
-      await this.saveAutomaticPreferences(nextPreferences)
+      created = await this.exportLocal()
+      // A settings edit during export must survive. Only the completion fields belong to this job.
+      let deletedCount = 0
+      const nextPreferences = await queueAutomaticPreferences(async (): Promise<BackupAutomaticPreferences> => {
+        const current = await this.readAutomaticPreferences()
+        deletedCount = await this.pruneLocalBackups(current.retentionCount)
+        current.lastRunAt = normalizeBackupAutomaticLastRunAt(now)
+        current.lastFailureCode = ''
+        await this.persistAutomaticPreferences(current)
+        return current
+      })
       console.info(`[Backup] step=auto_export deleted=${deletedCount}`)
       return {
         ran: true,
@@ -1487,14 +1577,16 @@ export class BackupService {
         preferences: nextPreferences,
       }
     } catch (_error) {
-      const nextPreferences: BackupAutomaticPreferences = {
-        enabled: preferencesValue.enabled,
-        intervalHours: preferencesValue.intervalHours,
-        retentionCount: preferencesValue.retentionCount,
-        lastRunAt: preferencesValue.lastRunAt,
-        lastFailureCode: 'backup_auto_export_failed',
-      }
-      await this.saveAutomaticPreferences(nextPreferences)
+      const nextPreferences = await queueAutomaticPreferences(async (): Promise<BackupAutomaticPreferences> => {
+        const current = await this.readAutomaticPreferences()
+        // The export already exists even when retention cleanup fails; do not recreate it on every foreground.
+        if (created !== undefined) {
+          current.lastRunAt = normalizeBackupAutomaticLastRunAt(now)
+        }
+        current.lastFailureCode = 'backup_auto_export_failed'
+        await this.persistAutomaticPreferences(current)
+        return current
+      })
       console.error('[Backup] step=auto_export_failed code=backup_auto_export_failed')
       return {
         ran: false,

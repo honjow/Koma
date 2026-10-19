@@ -16,6 +16,7 @@ import {
   BackupImportSelectionPreview,
   BackupLocalFileRecord,
   BackupService,
+  BackupAutomaticPreferencesPatch,
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES,
   DEFAULT_BACKUP_CONTENT_PREFERENCES,
   backupAutomaticIntervalLabel,
@@ -61,6 +62,7 @@ export struct BackupManagementPage {
   @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
   @Local private localBackups: BackupLocalFileRecord[] = []
   @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+  private automaticPreferencesEpoch: number = 0
   @Local private contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
   @Local private autoIntervalMenuOpen: boolean = false
   @Local private autoRetentionMenuOpen: boolean = false
@@ -82,6 +84,8 @@ export struct BackupManagementPage {
       this.loadAutomaticPreferences()
     } else if (this.pane === 'create') {
       this.loadContentPreferences()
+    } else if (this.pane === 'settings') {
+      this.loadAutomaticPreferences()
     }
   }
 
@@ -128,12 +132,15 @@ export struct BackupManagementPage {
   }
 
   private loadAutomaticPreferences(): void {
+    const epoch = this.automaticPreferencesEpoch
     void this.backupService().loadAutomaticPreferences()
       .then((preferencesValue: BackupAutomaticPreferences) => {
+        if (epoch !== this.automaticPreferencesEpoch) return
         this.autoPreferences = preferencesValue
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=auto_preferences_load_failed code=backup_auto_preferences_failed')
+        if (epoch !== this.automaticPreferencesEpoch) return
         this.autoPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
       })
   }
@@ -218,14 +225,19 @@ export struct BackupManagementPage {
     })
   }
 
-  private saveAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): void {
-    void this.backupService().saveAutomaticPreferences(preferencesValue)
-      .then(() => {
+  private saveAutomaticPreferences(patch: BackupAutomaticPreferencesPatch): void {
+    const epoch = ++this.automaticPreferencesEpoch
+    void this.backupService().saveAutomaticPreferences(patch)
+      .then((preferencesValue: BackupAutomaticPreferences) => {
+        if (epoch !== this.automaticPreferencesEpoch) return
         this.autoPreferences = preferencesValue
         this.showToast(t('backup_auto_saved_toast'))
       })
       .catch((_error: Error) => {
         console.error('[BackupManagement] step=auto_preferences_save_failed code=backup_auto_preferences_failed')
+        if (epoch === this.automaticPreferencesEpoch) {
+          this.loadAutomaticPreferences()
+        }
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_auto_preferences_failed'))
       })
   }
@@ -267,35 +279,17 @@ export struct BackupManagementPage {
   }
 
   private setAutomaticBackupEnabled(enabled: boolean): void {
-    this.saveAutomaticPreferences({
-      intervalHours: this.autoPreferences.intervalHours,
-      retentionCount: this.autoPreferences.retentionCount,
-      lastRunAt: this.autoPreferences.lastRunAt,
-      lastFailureCode: this.autoPreferences.lastFailureCode,
-      enabled,
-    })
+    this.saveAutomaticPreferences({ enabled })
   }
 
   private setAutomaticBackupInterval(intervalHours: number): void {
     this.autoIntervalMenuOpen = false
-    this.saveAutomaticPreferences({
-      enabled: this.autoPreferences.enabled,
-      retentionCount: this.autoPreferences.retentionCount,
-      lastRunAt: this.autoPreferences.lastRunAt,
-      lastFailureCode: this.autoPreferences.lastFailureCode,
-      intervalHours,
-    })
+    this.saveAutomaticPreferences({ intervalHours })
   }
 
   private setAutomaticBackupRetention(retentionCount: number): void {
     this.autoRetentionMenuOpen = false
-    this.saveAutomaticPreferences({
-      enabled: this.autoPreferences.enabled,
-      intervalHours: this.autoPreferences.intervalHours,
-      lastRunAt: this.autoPreferences.lastRunAt,
-      lastFailureCode: this.autoPreferences.lastFailureCode,
-      retentionCount,
-    })
+    this.saveAutomaticPreferences({ retentionCount })
   }
 
   private runAutomaticBackupNow(): void {
@@ -306,7 +300,7 @@ export struct BackupManagementPage {
     console.info('[BackupManagement] step=auto_run_now_start')
     void this.backupService().runAutomaticLocalBackupNow()
       .then((result: BackupAutomaticRunResult) => {
-        this.autoPreferences = result.preferences
+        this.loadAutomaticPreferences()
         this.loadLocalBackups()
         if (result.ran) {
           this.showToast(t('backup_local_saved_toast'))

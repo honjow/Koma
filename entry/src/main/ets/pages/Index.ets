@@ -222,7 +222,7 @@ struct Index {
   private readerSessionPersistenceReady: boolean = false
   private libraryPersistenceRestored: boolean = false
   private libraryUpdateReady: boolean = false
-  private automaticBackupChecked: boolean = false
+  private automaticBackupPending: boolean = false
   private pendingTrackerProgressChecked: boolean = false
   private readerOpenEpoch: number = 0
   /**
@@ -1477,22 +1477,37 @@ struct Index {
     return this.libraryPersistenceService
   }
 
+  @Monitor('appForegroundState.revision')
+  private runForegroundAutomaticBackup(): void {
+    if (!this.libraryUpdateReady || !this.appForegroundState.active ||
+      shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) return
+    this.triggerAutomaticBackup(getContext(this) as common.UIAbilityContext)
+  }
+
   private triggerAutomaticBackup(context: common.UIAbilityContext): void {
-    if (this.automaticBackupChecked) {
+    if (this.automaticBackupPending) {
       return
     }
-    this.automaticBackupChecked = true
-    void new BackupService(context).runAutomaticLocalBackupIfDue()
+    this.automaticBackupPending = true
+    void new BackupService(context).runAutomaticLocalBackupIfDue(Date.now(), true)
       .then((result: BackupAutomaticRunResult) => {
+        if (result.ran || result.failureCode !== undefined) this.backupSettingsRevision += 1
         if (result.ran) {
           console.info(`[Backup] step=app_open_auto_backup deleted=${result.deletedCount}`)
         } else if (result.failureCode !== undefined) {
           console.error(`[Backup] step=app_open_auto_backup_failed code=${result.failureCode}`)
+        } else {
+          console.info('[Backup] step=auto_admission status=' + result.skippedReason)
         }
       })
-      .catch((_error: Error) => {
-        console.error('[Backup] step=app_open_auto_backup_failed code=backup_auto_export_failed')
+      .catch((error: Error) => {
+        if (error.message === 'backup_restore_busy') {
+          console.info('[Backup] step=auto_admission status=restore_busy')
+        } else {
+          console.error('[Backup] step=app_open_auto_backup_failed code=backup_auto_export_failed')
+        }
       })
+      .finally(() => { this.automaticBackupPending = false })
   }
 
   private triggerPendingTrackerProgressSync(context: common.UIAbilityContext): void {
@@ -1559,7 +1574,7 @@ struct Index {
     this.runForegroundLibraryUpdate()
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       setTimeout(() => {
-        this.triggerAutomaticBackup(context)
+        this.runForegroundAutomaticBackup()
         this.triggerPendingTrackerProgressSync(context)
       }, 250)
     }
