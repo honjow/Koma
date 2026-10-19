@@ -1,10 +1,5 @@
 {
   "string": [
-    {"name": "library_update_results_unavailable_comic", "value": "Manga information unavailable"},
-    {"name": "library_update_results_unsupported_source", "value": "Unsupported source"},
-    {"name": "settings_library_update_no_eligible", "value": "No items in this library support update checks."},
-    {"name": "settings_library_update_partial_failure", "value": "Checked %s successfully; %s failed. View update results for details."},
-    {"name": "settings_library_update_result_save_failed", "value": "Check records were not fully saved. Try again later."},
     { "name": "backup_task_create", "value": "Create backup" },
     { "name": "backup_task_create_hint", "value": "Choose where to save and whether to encrypt" },
     { "name": "backup_task_restore", "value": "Restore backup" },
@@ -204,6 +199,9 @@
     { "name": "settings_library_update_found_count", "value": "Found updates for %s books" },
     { "name": "settings_library_update_up_to_date", "value": "No updates found" },
     { "name": "settings_library_update_failed", "value": "Library update failed" },
+    { "name": "settings_library_update_result_save_failed", "value": "Check records were not fully saved. Try again later." },
+    { "name": "settings_library_update_partial_failure", "value": "Checked %s successfully; %s failed. View update results for details." },
+    { "name": "settings_library_update_no_eligible", "value": "No items in this library support update checks." },
     { "name": "settings_library_update_notification_enabled", "value": "Notifications enabled" },
     { "name": "settings_library_update_notification_disabled", "value": "System notifications are disabled" },
     { "name": "settings_library_update_notification_failed", "value": "Failed to update notification permission" },
@@ -459,6 +457,8 @@
     { "name": "history_clear_title", "value": "Clear reading history?" },
     { "name": "history_clear_message", "value": "Clear %s reading history items? Reader mode preferences are kept." },
 
+    { "name": "library_update_results_unavailable_comic", "value": "Manga information unavailable" },
+    { "name": "library_update_results_unsupported_source", "value": "Unsupported source" },
     { "name": "library_update_results_status_updated", "value": "Updated" },
     { "name": "library_update_results_status_unchanged", "value": "Unchanged" },
     { "name": "library_update_results_status_skipped", "value": "Skipped" },

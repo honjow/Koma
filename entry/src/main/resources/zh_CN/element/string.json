@@ -1,10 +1,5 @@
 {
   "string": [
-    {"name": "library_update_results_unavailable_comic", "value": "漫画信息不可用"},
-    {"name": "library_update_results_unsupported_source", "value": "不支持的来源"},
-    {"name": "settings_library_update_no_eligible", "value": "当前书架没有支持检查更新的漫画。"},
-    {"name": "settings_library_update_partial_failure", "value": "成功检查 %s 本，%s 本失败，请查看更新结果。"},
-    {"name": "settings_library_update_result_save_failed", "value": "检查记录未完整保存，请稍后重试"},
     { "name": "backup_task_create", "value": "创建备份" },
     { "name": "backup_task_create_hint", "value": "选择保存位置与加密方式" },
     { "name": "backup_task_restore", "value": "恢复备份" },
@@ -204,6 +199,9 @@
     { "name": "settings_library_update_found_count", "value": "发现 %s 本有更新" },
     { "name": "settings_library_update_up_to_date", "value": "没有发现更新" },
     { "name": "settings_library_update_failed", "value": "书架更新失败" },
+    { "name": "settings_library_update_result_save_failed", "value": "检查记录未完整保存，请稍后重试" },
+    { "name": "settings_library_update_partial_failure", "value": "成功检查 %s 本，%s 本失败，请查看更新结果。" },
+    { "name": "settings_library_update_no_eligible", "value": "当前书架没有支持检查更新的漫画。" },
     { "name": "settings_library_update_notification_enabled", "value": "更新通知已开启" },
     { "name": "settings_library_update_notification_disabled", "value": "系统通知未开启" },
     { "name": "settings_library_update_notification_failed", "value": "更新通知权限处理失败" },
@@ -459,6 +457,8 @@
     { "name": "history_clear_title", "value": "清空阅读历史？" },
     { "name": "history_clear_message", "value": "清空 %s 条阅读历史？阅读模式偏好会保留。" },
 
+    { "name": "library_update_results_unavailable_comic", "value": "漫画信息不可用" },
+    { "name": "library_update_results_unsupported_source", "value": "不支持的来源" },
     { "name": "library_update_results_status_updated", "value": "更新" },
     { "name": "library_update_results_status_unchanged", "value": "未变化" },
     { "name": "library_update_results_status_skipped", "value": "跳过" },
