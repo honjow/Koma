@@ -1,5 +1,15 @@
 # Koma 当前状态、缺口与执行基线
 
+## 本次接续：交付同步与普通备份路径（2026-10-20，Root）
+
+- 三个主仓当前各一个原工作树、一本地主分支，工作区干净；没有新增工作树、分支、源码副本、归档、报告或脚本。禁止哈希核验继续有效。
+- 书源 master 已实际同步至 origin/master 的319f581。reader-kit/main 的139个本地提交推送失败：GitHub返回403，现有honjow凭据的仓库权限接口明确 push=false；保留本地成果，不重复推送、不改仓库地址或另建分支。需要该仓库写权限才能完成同步。
+- Koma远端旧master与当前已归并源码分叉；9c2645a8仅把已审旧远端历史接入当前master，git diff HEAD^1 HEAD确认没有源码差异。旧Shared普通路由、未采用候选及原反例继续按下方既有取舍保持，不以历史合并冒功能恢复。Koma/master随后已正常推送到origin/master的9c2645a8；没有强推。远端CI仍未通过，依赖未同步的Kit提交。
+- 197沿主仓既有Debug包完成普通设置→备份→本地文件→预览：旧文件显示74个书架项目、76条进度；展开显示当前75/80及77份源包元数据。没有执行恢复。
+- 随后经创建备份表单生成本地未加密文件1792448507055：首页4→5；新文件真实预览显示75个书架项目、80条进度。经该文件行菜单及准确文件名确认框仅删除这份本轮文件；最终布局逐项读回原四个文件仍在，新文件消失。未改持久备份配置、未恢复/替换书架或进度。仅关闭本地未加密创建/预览/删除这条路径，不扩大到加密、恢复、失败回滚或cold。
+- 证据沿用 .hvigor/outputs/user-flow-audit/ 的 backup-resumed-preview、backup-preview-details、backup-new-preview、backup-own-delete-confirm、backup-cleanup-complete原图/布局和global-search-commands.jsonl。首次内联语法错误发生在执行前；两次转场期布局只有系统栏，稳定后普通页面正常，未误报崩溃或修改产品。后续沿同manifest按页面控件就绪条件读取，不加人为延时制造通过。
+- 下一未验证动作/owner：Root接续已批准8c0a8d25的书源筛选普通切换及失败/重试消费者；不重验已通过的搜索列表、下载查看或四图标呈现，不制造失败、不抢窗口。普通Shared入口及两项标识提取仍待真实人类答复。图标worker当前没有可直接执行的可信素材替换，保留逐源具体缺口，不称图标全线完成。
+
 ## 当前问题：全局书源搜索提前超时（2026-10-20）
 
 - 用户现场：源内同关键词可搜到，全局只返回书架、书源很快全部超时；本项优先于旧队列。
@@ -447,118 +457,141 @@
 <!-- koma-progress-snapshot
 {
   "schemaVersion": 1,
-  "title": "Koma 目录与分支成果恢复审计",
-  "state": "三份旧修改及网格正文已找回 · 368旧目录退出 · 未决候选保留",
-  "outcome": "本页区分已实际退出的旧开发副本、仍保留的服务与原证据、尚未合入的候选；不把归档或源码一致冒成产品验收。",
-  "updatedAt": "2026-10-19T18:11:50Z",
-  "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
-  "activeId": "RECOVERY",
+  "title": "Koma 首版开发与普通路径验收",
+  "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
+  "outcome": "本地未加密备份创建/预览/清理通过；Koma和源已同步，Kit写权限阻塞。",
+  "updatedAt": "2026-10-19T22:28:32Z",
+  "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
+  "activeId": "SOURCE_FILTERS",
   "activity": {
-    "title": "第二轮30分钟恢复清理",
-    "detail": "368旧目录树/96重复文件已退出；九条旧stash名已清，完整406对象仍在原r38载体；无新归档/脚本/报告。",
-    "startedAt": "2026-10-19T17:44:16+00:00"
+    "title": "接续已批准的书源筛选行为",
+    "detail": "备份普通创建→预览→本轮文件清理已完成；已通过路径冻结，不以旧清理窗口继续调度。",
+    "startedAt": "2026-10-19T22:26:49Z"
   },
-  "nextAction": "继续核清未裁定原输入；App6/Kit7候选保留完整原件，不强行回灌。独立系统栏任务由其当前owner负责。",
+  "nextAction": "Root：验证已批准源筛选切换的真实消费者；不人为注入错误，不重复已通过路径。",
   "proof": [
     {
-      "label": "原件保全",
-      "state": "已独立读回",
+      "label": "正式主仓",
+      "state": "各一工作树/分支",
       "kind": "accepted",
-      "detail": "b744 r134、App05原379及扩展15成员、源历史父原件完整保全；不是产品验收。"
+      "detail": "Koma/master、reader-kit/main、koma-sources/master；没有新增副本。"
     },
     {
-      "label": "旧App管理退休",
-      "state": "App05已核",
+      "label": "本地未加密备份",
+      "state": "具名路径通过",
       "kind": "accepted",
-      "detail": "App05管理项和固定基线ref已退；physical05两运行容器四bind保持，旧30227已迁到正式资产的34310。"
+      "detail": "创建、列表5项、新文件75书架/80进度预览、本轮新文件删除，原四份保留；不含恢复/加密/cold。"
     },
     {
-      "label": "源历史父清理",
-      "state": "新增DM5三组已核",
-      "kind": "accepted",
-      "detail": "原Komiic/GoDa/GlobalComix各组保持；新增DM5三组699/1287/6884旧路径分别全保全及Root独立读回，原HOLD/失败/旧链接保留。源恢复整体未完成。"
+      "label": "远端同步",
+      "state": "App/源已同步；Kit权限阻塞",
+      "kind": "open",
+      "detail": "Koma/master已到9c2645a8，sources/master已到319f581；reader-kit/main推送403且push=false。远端CI仍待依赖可用。"
     },
     {
-      "label": "8766服务GET",
-      "state": "真实HTTP与浏览器已核",
-      "kind": "accepted",
-      "detail": "根页/全文/两次API/三证据与Range均实测通过；浏览器实际展开、回执与工作单链接、连接时间自然更新已核，旧argv已退出。"
+      "label": "共享阅读器",
+      "state": "普通入口仍待决定",
+      "kind": "open",
+      "detail": "Debug入口或旧版正文成功均不代表普通Shared路径通过。"
+    },
+    {
+      "label": "图标全范围",
+      "state": "仍未完成",
+      "kind": "open",
+      "detail": "四份实际交付与公共裁切修复按已记录消费者冻结；其余低清/缺图和待答复提取保持具体OPEN。"
     }
   ],
   "hosts": [
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "e280902b7d92d1dce3b30ed43bcb87e4229e94f3",
-      "hap": "本轮未构建/安装；当前独立系统栏任务源码仍为WIP。原三份初始正文已核回，被拒候选不重新采用。"
+      "appHead": "9c2645a8",
+      "hap": "沿已安装主仓Debug包验收；本轮没有源码修改、重新构建或安装。历史合并不代表功能恢复。"
     }
   ],
-  "scope": "本轮恢复清理：原三份WIP和缺失网格正文已在现有原件逐字核回；368旧目录树及9旧stash名退出。各正式仓一工作树/一本地分支且无stash；独立系统栏WIP保留。没有新增源码副本/归档/脚本/报告、产品构建/设备验收或远端同步。",
+  "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
   "items": [
     {
-      "id": "APP05",
-      "title": "旧App05完整保全与管理项退休",
-      "status": "实际完成限定退出",
-      "kind": "accepted",
-      "result": "379成员原档及15成员扩展元数据由Root独立全读回；13730原raw对应既有14723独立档。r2真实SUCCESS并通过独立postcheck，只移除App05 admin（含两个已保全provider）与固定156基线ref。正式Koma仅主仓worktree/master，主仓其它状态精确。",
-      "remaining": "physical05仍是两原Running数据容器四个bind所用的数据残留，继续保护。原代理30227已精确TERM并退出，新PID34310以前台工具session69242从正式Koma三原资产运行，同地址/端口/allowlist/上游/cwd保持；两原GET状态/type/长度/bodySHA全等，Root独立核两容器四bind未变。旧进程内存是否等原档仍UNKNOWN，不冒Native或全部allowlist验收。",
+      "id": "SOURCE_FILTERS",
+      "title": "已批准源筛选行为的当前设备路径",
+      "status": "待验证",
+      "kind": "open",
+      "result": "8c0a8d25已接入三项获批源行为，原有限导航证据保留。",
+      "remaining": "Root接正常筛选切换；没有自然失败时不虚构失败/重试通过。",
       "reportedAt": null,
-      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": null
     },
     {
-      "id": "COMICABC",
-      "title": "六父、四父及十一证据父实际清理",
-      "status": "原件已读回／精确清理",
-      "kind": "accepted",
-      "result": "六父1451旧路径映射（1051本轮parent＋此前400 child）及四父144成员，共1595旧路径映射；另11证据父973成员已完整归档并精确清理，Root独立全读回。六／四父44＋10 reference及111＋21 outer、十一父4 reference及20 outer保持。三份旧shared NOT_REPROVEN已由Root逐字连到六父第5实际归档，不冒重用旧基线。",
-      "remaining": "这些数量不是1595当前物理文件；原失败、受控输入和重建参考边界保留，当前源7af0代码/图标/refs/index/flags保持，无新HTTP/Native结论。",
+      "id": "SHARED_ROUTE",
+      "title": "普通共享阅读入口",
+      "status": "待人类决定",
+      "kind": "open",
+      "result": "当前普通书架仍走旧版；Debug共享界面不算普通入口通过。",
+      "remaining": "既有异步问题仍待真实答复，不重复问、不按accepted:true实施。",
       "reportedAt": null,
-      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": null
     },
     {
-      "id": "B744",
-      "title": "旧NextN父完整保全与路径消费者",
-      "status": "两根实际退出并核回",
-      "kind": "accepted",
-      "result": "r134原档覆盖164767原路径及App21345/Kit3219/Enhancement106 raw，Root独立全读回；r144全源复核通过。r147在删除前因旧index观测不一致FAILED且未删；r149仅精确重绑该观测与35实际归档新增后SUCCESS，两固定根已移除。Root另核12外link内容/nlink、两父children/metadata、正式仓GitMeta与服务/两容器四bind。",
-      "remaining": "旧b744/c585/eceb物理树已退，对应检查点已完整bundle保存后精确删名；原未归候选仍保留。其它历史证据父与未裁定原件继续清理，不冒整体恢复完成。",
+      "id": "ICONS",
+      "title": "完整书源图标质量",
+      "status": "未完成",
+      "kind": "open",
+      "result": "四源图标已实际导入与显示；公共外层裁切已纠正。",
+      "remaining": "逐源缺图/低清、可信品牌绑定及两项提取决定继续OPEN。",
       "reportedAt": null,
-      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": null
     },
     {
-      "id": "SERVICE8766",
-      "title": "原进度页限定恢复",
-      "status": "正式路径服务已验",
-      "kind": "accepted",
-      "result": "旧PID65874身份核同后仅TERM并释放8766；正式路径唯一PID18551实际提供原9876B HTML、完整CURRENT_STATUS、同级Kit6c289f2、三原JSON回执及Range。Root实际浏览器核展开/四组/未知时间、原链接和自动刷新；旧503基线与全部回执保留。",
-      "remaining": "本项只证明正式路径进度服务及原浏览器路径；本轮恢复尚未整体完成，远端同步和Reader验收分别未闭。",
+      "id": "SYNC",
+      "title": "现有主分支远端同步",
+      "status": "部分完成",
+      "kind": "open",
+      "result": "Koma及源master已正常同步；没有强推、新分支或发版。",
+      "remaining": "Kit仓库写权限缺失；远端CI尚未通过。",
       "reportedAt": null,
-      "reportedAtSource": "原始人类提出时间未定位；不以Git提交、归档或当前纠正冒原话。",
+      "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": null
+    },
+    {
+      "id": "BACKUP_LOCAL",
+      "title": "本地未加密备份创建与预览",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "当前75书架/80进度可创建并读回；删除本轮生成文件后原四份保留。",
+      "remaining": "加密、恢复、回滚与cold没有本轮证明。",
+      "reportedAt": null,
+      "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
+      "firstEvidenceAt": null,
+      "closedAt": "2026-10-19T22:26:49Z"
     }
   ],
   "source": {
-    "status": "原源开发副本已退出／历史证据保留",
+    "status": "未完成",
     "kind": "open",
-    "title": "源原成果、依赖与历史父精确保全清理",
-    "result": "对原源开发副本全集逐路径核存在，只剩正式koma-sources；主仓源码和refs保持。",
-    "remaining": "MDX两个外部证据父及HTTP正文UNKNOWN保留；纯历史证据目录未全退出，不能称整线恢复完。",
-    "commit": "7af0d9d80c97e93c4bf3254dad24913ca68f60d4"
+    "title": "中文源质量与完整图标范围",
+    "result": "源码已同步319f581；DBMultiverse、immark、Laya、3Hentai的实际图标交付按具名消费者通过。",
+    "remaining": "仍有缺图/低清及品牌绑定问题；两项提取待答复。具体受阻仅限制对应源，不扩大为全App停止。",
+    "commit": "319f581"
   },
-  "milestones": [],
-  "releaseGates": [
-    "旧开发副本/分支清理不等于全部原代码差异已裁定；未合入候选和未知原输入保持OPEN。",
-    "原三份初始修改已在既有拒绝候选完整核回；不重新采用被拒实现，不将当前独立任务WIP混入恢复提交。",
-    "本轮未构建/安装/设备验收；既有卡片限定结论不扩大到Reader或其它宿主。"
+  "milestones": [
+    {
+      "at": "2026-10-19T22:26:49Z",
+      "text": "本地未加密备份创建/读回/清理完成；书源主分支已同步，Kit推送403已核权限。"
+    }
   ],
-  "stopRule": "任何真实反例保留；不得靠目录清理强制应用HOLD候选。",
+  "releaseGates": [
+    "普通Shared入口尚待决定和普通进入/翻页/返回/进度验收。",
+    "源图标质量和已批准筛选行为仍有具体未闭项；不以构建或局部PASS扩大为全App通过。",
+    "Kit远端写权限缺失；其139个本地提交未同步，Koma远端CI尚未通过。"
+  ],
+  "stopRule": "局部验收、提交、清理或写状态不是首版完成；继续安全且已授权的实际动作，具体分支缺条件不扩大为全局停止。",
   "evidence": [
     {
       "id": "b744-preservation",
@@ -579,8 +612,8 @@
       "storage": "recovery"
     }
   ],
-  "evidenceNote": "原三JSON仅证明具名保全/限定退出；本轮各完整档与读回/退出回执、下载原恢复与受控方法检查均见工作单及恢复区，不冒原生验收。",
-  "excluded": "不改原HTML外观/父结构/schema，不新建daemon/端口/symlink，不停数据容器，不回灌旧错误snapshot。最早人类进度页原文/提出时间及工时未知。"
+  "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
+  "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。"
 }
 -->
 
