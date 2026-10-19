@@ -86,6 +86,10 @@
 - 已定位一半：双击路径 `beginZoomAnimation()` 置 `zoomAnimating`（180+24ms）门控 ReaderImage 的 `.animation` duration；routeTaps（webtoon/List）分支走 `commitContinuousTransformAfterAnimation` 延迟提交，其注释自认「committing it sooner remounts this row and cuts the reset animation short」——该提交管线存在重挂载裁切动画的前科。
 - 动作：通读 ReaderPage 渲染管线（renderTransform/gesture scale/routeTaps 提交时序），修复后按录屏分帧验证动画连续。
 
+- 根因 1（已核实）：`ReaderImageSurface` 在 `renderScale` 跨过 `1.001` 时切换两个独立 `Image` 分支，动画中重建图片节点。
+- 根因 2（已核实）：Koma 同时维护 gesture transform、render transform、ReaderPage telemetry transform、连续模式 replay transform；Pan 更新的状态与 Image 最终消费的状态不是同一个所有者。双页又把两张图片建成两个可独立变换的 surface，而 NextE 的边界是一个 `ReaderSpreadSurface`。
+- 修复方向：图片只保留一个 local transform 并直接绑定 Image；ReaderPage 只接收 zoom gate；双页由一个 spread surface 统一变换；连续模式删除父级 replay/延迟提交/raw fallback；zoom-dependent gesture 全部恢复为 NextE 的内联声明。
+
 ### R2 页码指示器可辨识度不足（P2，已关闭）
 
 - 核实结果：NextE 当前实现没有 `textShadow`，而是在 `ReaderPage.ets` 通过 `MutableStyledString` + `TextStyle` 使用约 `2.5vp` 的负描边生成深色文字轮廓。此前只检索 `textShadow` 得出“NextE 也没有”的结论过于表面，现已纠正。
