@@ -1,0 +1,138 @@
+name: Build OHOS
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-ohos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KOMA_READER_KIT_REVISION: 84237f7e4bd83dee402ba03a363706c3be67e01b
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build_hap:
+    name: Build unsigned Release HAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/honjow/harmonyos-build-env:26.0-api26
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: Koma
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: Koma
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Checkout pinned reader-kit sibling
+        uses: actions/checkout@v4
+        with:
+          repository: erosTeam/reader-kit
+          ref: ${{ env.KOMA_READER_KIT_REVISION }}
+          path: reader-kit
+          persist-credentials: false
+          token: ${{ secrets.READER_KIT_READ_TOKEN || github.token }}
+
+      - name: Configure Git workspace ownership
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/reader-kit"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma/third_party/lexbor"
+
+      - name: Guard public build profile
+        run: bash scripts/check-public-build-profile.sh --head
+
+      - name: Check i18n resources
+        run: python3 scripts/check_i18n_duplicates.py
+
+      - name: Install native build dependencies
+        run: |
+          if ! command -v xxd >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xxd
+          fi
+
+      - name: Install OHPM dependencies
+        run: ohpm install --all
+
+      - name: Build unsigned HAP (release)
+        run: hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-daemon
+
+      - name: Inspect and collect HAP
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          import zipfile
+
+          source = Path("entry/build/default/outputs/default/entry-default-unsigned.hap")
+          with zipfile.ZipFile(source) as archive:
+              if archive.testzip() is not None:
+                  raise SystemExit("HAP archive integrity check failed")
+              app = json.loads(archive.read("module.json"))["app"]
+              if app["bundleName"] != "com.honjow.koma":
+                  raise SystemExit("Unexpected HAP bundle name")
+              if app.get("buildMode") != "release" or app.get("debug") is not False:
+                  raise SystemExit("Expected a non-debug Release HAP")
+              required = {
+                  "libs/arm64-v8a/libkoma_source_runtime.so",
+                  "libs/arm64-v8a/libc++_shared.so",
+              }
+              if not required.issubset(archive.namelist()):
+                  raise SystemExit("HAP is missing required arm64 native libraries")
+
+          version = app["versionName"]
+          if re.fullmatch(r"[A-Za-z0-9._-]+", version) is None:
+              raise SystemExit("Invalid artifact version")
+          output = Path(f"Koma_{version}_ohos-release-unsigned.hap")
+          shutil.copyfile(source, output)
+          manifest = {
+              "commit": os.environ["GITHUB_SHA"],
+              "readerKitCommit": subprocess.check_output(
+                  ["git", "-C", "../reader-kit", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "bundleName": app["bundleName"],
+              "versionName": version,
+              "versionCode": app["versionCode"],
+              "buildMode": app["buildMode"],
+              "signed": False,
+              "hap": output.name,
+              "bytes": output.stat().st_size,
+              "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+          }
+          Path("build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+              env.write(f"HAP_PATH=Koma/{output}\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload unsigned HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: ohos-hap-unsigned
+          path: |
+            ${{ env.HAP_PATH }}
+            Koma/build-manifest.json
+          if-no-files-found: error
+          retention-days: 14
