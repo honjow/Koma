@@ -2568,7 +2568,12 @@ struct Index {
     if (initialTitle.length > 0) {
       return initialTitle
     }
-    const comic = this.libraryStore.getComic(param.mangaId)
+    const sourceId = param.sourceId?.trim() ?? ''
+    const mangaId = param.mangaId.trim()
+    const comic = sourceId.length > 0
+      ? this.libraryStore.listComics().find((item: Comic): boolean =>
+        item.sourceRuntimeId === sourceId && item.remoteResourceId === mangaId)
+      : this.libraryStore.getComic(param.mangaId)
     const comicTitle = comic?.title?.trim() ?? ''
     if (comicTitle.length > 0) {
       return comicTitle
