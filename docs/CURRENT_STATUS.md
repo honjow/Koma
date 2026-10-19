@@ -11,9 +11,15 @@
 - 已有197筛选原件复核：MangaDex声明支持筛选，热门列表20本；Status由All切Completed后列表替换，恢复All后原列表读回。只关闭普通筛选替换，不包含请求中换筛选或自然失败重试。DM5及中文MangaDex不声明筛选，不能用于这项验收。证据为source-filter-mdx-{browse,original-values,selected-status,restored-all}。
 - 设置“失败任务重试”消费者实际仅跳转下载管理，说明却写“自动重试失败下载”；三语限定说明候选仍待真实人类答复，未改动。不以异步工具受理作为批准。
 - 本轮197普通本地归档路径：系统文件选择器中使用已有258.23MB CBZ；导入后书架新增一本，详情解析1章/1700页，普通开始阅读显示首图。当前原偏好为纵向分页、从左到右、左右分区且水平翻转；上滑实际进入第2页，退出并普通继续阅读仍为第2页。随后force-stop前PID24637、停止后pidof空、新启动PID11467；普通书架继续阅读再次返回2/1700，未清数据、未改阅读偏好。最后仅经准确书名确认框移出本轮新增条目，原书架继续阅读卡恢复，外部CBZ未删除；临时“最近加入”排序冷启动后回到原“最近阅读”。仅此归档的导入/首图/纵向翻页/同进程重开/真实进程结束后重开/书架移出得到当前证据，不扩大为全部本地格式、完整1700页或Shared通过。
-- 本轮未闭反例：同一旧版阅读页，左右两侧单击均未改变页码；中心点击可呼出控件，纵向翻页正常。横向滑动在纵向分页下无效不计产品故障；两侧点击原因尚未查明，不能说已修好。已有就绪断言曾误用系统截断路径和未核对文案，检查超时不冒产品失败，原命令记录保留。
+- 本轮未闭反例限于上述1700页归档：左右单击未改变页码，中心可呼出控件，纵向翻页正常，原因未定。另以既有8页短章实际左点2→3、右点3→2并恢复原页；本轮新导入2图书也左点1→2成功，因此不能称通用点击区失效。197实时API=26，官方tapLocation为API20起，已排除低API缺字段假设；没有据猜测改阅读代码。横向滑动在纵向分页下无效不计产品故障。就绪检查曾误用系统截断路径或未核对文案，及清理弹窗退场时的连续输入误入原书详情，均保留命令原件并已恢复，不冒产品故障。
 - 本轮证据仍在.hvigor/outputs/user-flow-audit/local-import-{result,added,open,reader,page2,reader-settings,vertical,reopen,cold-library,cold-reader,remove-confirm,cleanup}原图/布局，以及global-search-commands.jsonl；不新增报告、脚本、目录或哈希核验。
-- 下一未验证动作/owner：Root追查当前纵向分页两侧点击未翻页的事件坐标、偏好与分页消费者；不更改样式，不反复重验已通过路径。普通Shared入口、两项标识提取及下载说明仍待真实人类答复。图标worker当前没有可直接执行的可信素材替换，保留逐源具体缺口，不称全线完成。
+- 设置消费者本轮实际核对：服务页Komga/Kavita/OPDS/WebDAV各到对应配置页并能返回，未保存连接；存储显示498MB/1186项及500MB上限，已追到ReaderPageSourceAdapter实际evictIfOver消费者，未清缓存或改偏好。追踪到账号总览，两提供方均未连接，没有启动OAuth/同步。关于页产品/隐私/版本/开源四个信息弹窗均可打开和返回，版本读回0.1.1(2)；这仅证明具名入口，不证明凭据连接或隐私声明全项验收。
+- 实际缺口：开源声明仍只有“开源依赖声明会在这里整理”。已核占位始于b6eb587f，当前CMake实际链接WAMR 2.4.3和Lexbor 3.0.0；仓内两LICENSE均声明Apache 2.0，Lexbor另有原NOTICE。已提出只替换此占位、保留原生弹窗/标题/确定按钮的限定候选，许可原文不改写；异步问题仍待真实人类答复，未改资源或代码。原生长文能否完整滚动须实施后另验，不预判通过。
+- 已批准本地重扫当前197证据：设置→书架→本地书架刷新实际roots=2、scanned=1、reselect=1、failed=0、added=changed=missing=0。结果框显示对应计数；“导入”到既有CBZ/ZIP/图片/文件夹菜单，再选文件夹真实打开系统选择器。未猜选失效根，取消后返回原书架；不把此路径扩大为新增/变更/缺失内容或重新授权成功。证据settings-local-rescan-{result,import,picker}.json及local-folder-rescan-log.txt。
+- 普通图片导入当前197证据：系统选择器依次点选既有QA根002.jpg与001.jpg，显示已选2/300；书架新增Koma-QA-Folder-20261009，普通详情→阅读形成1/2与2/2，两幅真实内容均已目视。左点击到第2页、退出后继续阅读回2/2；仅经准确书名确认框移出本轮条目，临时排序恢复最近阅读，原图片与既有文件夹书保留。不冒独立文件名/内容顺序绑定、图片分支cold或未测格式通过。证据local-image-{selected,new-item,reader-first,reader-next,resume,remove-confirm,cleanup-final}，同一命令日志。
+- 设置搜索当前197具名路径：输入“缓存上限”返回对应结果，点击进入存储页并显示原500MB；返回根设置查询已清空，未改参数。首次inputText缺坐标被设备help拒绝，后按实际<x y text>格式完成，不误报搜索故障；原图证明键盘状态下结果仍可操作，未据布局树中的隐藏Tab边界改UI。证据settings-search-{query,storage,return}。
+- 详情单目录刷新当前197具名路径：原Nemo详情菜单“检查本地库”实际只重扫1目录，新增/变更/元数据/缺失/重选/失败全部0；保留原2章及第2/3页继续阅读。临时本地来源筛选已恢复全部，未进正文。证据local-folder-detail-{before,result,restored}与原日志；不以此代替文件变更/丢失输入分支。
+- 下一未验证动作/owner：Root接现有分类管理的普通新增/改名/移除闭环，仅处理本轮自建空分类；1700页归档点击反例保留，未得到可靠完整原因前不改参数或手势结构。普通Shared入口、两项标识提取、下载说明和开源声明候选仍待真实人类答复。图标worker没有可直接执行的可信素材替换，逐源具体缺口仍OPEN；不重验冻结路径、不制造失败。
 
 ## 当前问题：全局书源搜索提前超时（2026-10-20）
 
@@ -464,16 +470,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "本地归档普通导入/纵向翻页/进度重开与不清数据冷启动具名通过；两侧点击未翻页仍待归因。",
-  "updatedAt": "2026-10-19T23:20:11Z",
+  "outcome": "本地归档/两图导入与具名重开通过；本地重扫和重选入口已实际观察，开源声明仍是占位待决定。",
+  "updatedAt": "2026-10-19T23:45:59Z",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LOCAL_READER_TAPS",
+  "activeId": "CATEGORY_LIFECYCLE",
   "activity": {
-    "title": "追查实际本地阅读点击反例",
-    "detail": "普通本地导入及真实冷启动进度已验证；保持现有纵向分页和点击区偏好。",
-    "startedAt": "2026-10-19T23:20:11Z"
+    "title": "现有分类管理普通路径",
+    "detail": "设置搜索与详情单目录重扫具名通过；继续只处理本轮自建空分类，保留原分类和书籍。",
+    "startedAt": "2026-10-19T23:45:59Z"
   },
-  "nextAction": "Root：追当前纵向分页两侧点击事件坐标、原偏好与分页消费者；不以正常纵向翻页抵消点击反例。",
+  "nextAction": "Root：分类管理新增/改名/移除一份本轮空分类；不触及原分类和书籍归属。",
   "proof": [
     {
       "label": "正式主仓",
@@ -491,7 +497,7 @@
       "label": "远端同步",
       "state": "App/源已同步；Kit权限阻塞",
       "kind": "open",
-      "detail": "Koma/master已到9c2645a8，sources/master已到319f581；reader-kit/main推送403且push=false。远端CI仍待依赖可用。"
+      "detail": "Koma/master已正常同步017197b0，sources/master319f581；reader-kit/main推送403且push=false，CI仍待依赖可用。"
     },
     {
       "label": "共享阅读器",
@@ -584,11 +590,11 @@
     },
     {
       "id": "LOCAL_READER_TAPS",
-      "title": "纵向分页两侧点击未翻页",
+      "title": "1700页归档点击未翻页",
       "status": "原因待查",
       "kind": "open",
-      "result": "中心能呼出控件、纵向能翻页；两侧单击页码不变。",
-      "remaining": "Root追事件坐标、当前偏好及分页消费者；未改产品。",
+      "result": "同一归档两侧点击页码不变；既有8页章2→3→2及新2图书1→2点击正常，未改阅读代码。",
+      "remaining": "Root保留输入特定反例，原因未定；API26已排除低版本缺tapLocation假设，不为此猜改参数。",
       "reportedAt": null,
       "reportedAtSource": "本轮普通路径实际观察，不猜原始出现时间。",
       "firstEvidenceAt": null,
@@ -605,6 +611,51 @@
       "reportedAtSource": "本轮普通路径实际观察。",
       "firstEvidenceAt": null,
       "closedAt": "2026-10-19T23:20:11Z"
+    },
+    {
+      "id": "LOCAL_IMAGES",
+      "title": "两张既有图片普通导入",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "两页真实内容、左侧点击翻页、同进程重开及仅本轮书架条目移出已观察，原排序已恢复。",
+      "remaining": "不冒独立顺序绑定、图片分支cold或全部格式通过。",
+      "closedAt": "2026-10-19T23:39:24Z"
+    },
+    {
+      "id": "LOCAL_RESCAN",
+      "title": "本地重扫与自然重选分支",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "2根中1重扫、1需重选；0新增/变更/缺失/失败。结果框、导入菜单、系统文件夹选择器均到达，已取消选择。 Nemo详情仅1根重扫且各计数0，原2章/第2页保持，来源筛选恢复。",
+      "remaining": "失效根未重新选择；新增/变更/缺失数据分支没有本轮实际证据。",
+      "closedAt": "2026-10-19T23:39:24Z"
+    },
+    {
+      "id": "SETTINGS_SEARCH",
+      "title": "设置搜索的实际消费者",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "缓存上限查询返回、进入存储显示原500MB、返回查询清空已观察。",
+      "remaining": "仅中文该查询/目的页，不冒全部语言或设置生效。",
+      "closedAt": "2026-10-19T23:45:59Z"
+    },
+    {
+      "id": "OPEN_SOURCE_NOTICE",
+      "title": "开源声明占位内容",
+      "status": "待人类决定",
+      "kind": "open",
+      "result": "已读回真实占位，追b6eb587f及当前CMake/WAMR2.4.3/Lexbor3.0.0和原许可。",
+      "remaining": "限定内容替换问题已发，accepted:true不是批准；未实施。",
+      "closedAt": null
+    },
+    {
+      "id": "CATEGORY_LIFECYCLE",
+      "title": "分类管理普通操作",
+      "status": "待验证",
+      "kind": "open",
+      "result": "现有生产能力，尚无本轮当前设备闭环。",
+      "remaining": "Root仅新增/改名/移除本轮自建空分类，不改原分类或书籍。",
+      "closedAt": null
     }
   ],
   "source": {
@@ -623,6 +674,10 @@
     {
       "at": "2026-10-19T23:20:11Z",
       "text": "197现成CBZ导入、纵向翻页及真实进程死亡后进度重开通过；本轮条目已移出，点击反例继续追。"
+    },
+    {
+      "at": "2026-10-19T23:39:24Z",
+      "text": "设置具名入口、本地重扫自然重选分支及两图导入/翻页/重开已实际观察，临时条目与排序已恢复。"
     }
   ],
   "releaseGates": [
