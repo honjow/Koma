@@ -2272,7 +2272,7 @@ export struct LibraryPage {
           }
         }
         .width('100%')
-        .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
+        .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
         .backgroundColor(this.isComicSelected(comic.id) ? ThemeConstants.SOFT_TINT : ThemeConstants.CARD)
         .alignItems(VerticalAlign.Center)
