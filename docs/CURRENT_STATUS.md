@@ -15,6 +15,9 @@
 
 - 四个已核数据Owner原父已完整归档读回后退出，回执`four-retained-data-owner-originals-20261020-retirement.json`；另定位到下载初始化原完整五hunk未归，已仅在Index/Settings接回原等待顺序。`download-init-recovery-current-consumer-result.json`复用原提取器在当前三个实际方法验证等待前不写/不删、初始化拒绝沿原catch；依赖为内存端口，非真实TaskPool/IO、构建或Native。源设置计数另有具体未归行：saveSettings先取旧savedSettingCounts，再reload仅保留既有ValidationStatus.savedCount；摘要/验证诊断可读旧值，计数诊断读新缓存。原重新load行在try内，当前无try；原716f未纳理由未知，保原settings父，不作不安全单行回灌。
 
+- 本轮实际结算：原检查点审查父及19个已核清的原审查/实现父已退出，所有源码前后件、原补丁、原失败和原取证仍在上述完整档；新增下载六父对应`six-retained-download-owner-originals-20261020-{manifest.json,retirement.json}`及同名前缀tar.gz。下载初始化遗漏已在正式主仓`e280902b`恢复（两生产文件原五hunk），仅三个实际方法的初始化顺序/拒绝受控检查通过；当前ArkTS构建、真实TaskPool/IO及设备未验，不冒全量恢复完成。
+- 未完成项保持具体：源设置保存计数的原读取行及其异常处理完整边界未归，原`koma-source-settings-read-integrity-20261017`父仍原位；此前App/Kit保留职责、其它档内原输入语义、剩余历史证据父尚未全部核清。当前三份未提交文件及两仓完整diff另以`current-three-unsubmitted-original-bytes-20261020.tar.gz`逐字保全，回执明确不采纳、不替代提交或完整仓元数据。所有本轮清理均未改这三份文件。下一具体未核动作是源设置计数完整原候选与未定位取舍的安全裁定，不再以笼统剩余桶冒已核完。
+
 ## 恢复审计记录（2026-10-19）
 
 - 2026-10-20 Root已实际收敛清理：咚漫五父由r3原件/9档/16独有Git正文完整保全后退出，Root逐5554旧路径成员独立读回；r2循环变量复用风险保留，未运行旧候选。四份非Koma命名旧源码已核后继并全档读回后精确退出，生产源码未变化。Kit旧小审查目录14原文件复用r154完整原档、补保存原目录元数据与路径图后退出；停止r160过宽全局扫描路线，未运行其删除模式。证据：`root-dongman-five-r3-independent-postcheck-20261020.json`、`app-four-nonkoma-original-inputs-retirement-20261020-result.json`、`root-kit-small-checkpoint-exact-retirement-20261020.json`。
@@ -374,17 +377,17 @@
 {
   "schemaVersion": 1,
   "title": "Koma 目录与分支成果恢复审计",
-  "state": "旧开发副本已归一 · 原输入裁定仍未完成",
+  "state": "找回下载初始化遗漏 · 全量恢复仍未完成",
   "outcome": "本页区分已实际退出的旧开发副本、仍保留的服务与原证据、尚未合入的候选；不把归档或源码一致冒成产品验收。",
-  "updatedAt": "2026-10-19T17:14:13.975662+00:00",
+  "updatedAt": "2026-10-19T17:24:36.635042+00:00",
   "target": "唯一正式 /Users/honjow/git/Koma · 产品新增与设备仍暂停",
   "activeId": "RECOVERY",
   "activity": {
     "title": "30分钟限定清理收尾",
-    "detail": "最后检查点父已退出；五组已批准修改审查父及四份同组/已裁定旁件完整保全、读回后清理。三个正式仓各一工作树/一本地分支。",
+    "detail": "原检查点父及19个已核清审查/实现父完整保全退出；下载初始化原五hunk已恢复并提交e280902b；源设置计数原父保留。",
     "startedAt": "2026-10-19T16:58:03+00:00"
   },
-  "nextAction": "Root继续有限裁定档内尚未核完的原输入；已有真实反例与未定位批准的候选保留，不强制合入。期限17:28:03 UTC，届时按实际未完成项报告。",
+  "nextAction": "源设置保存计数完整候选与异常边界仍未归；其它保留职责、档内原输入和历史证据父继续OPEN。30分钟期限17:28:03 UTC，按实际未完成项结算。",
   "proof": [
     {
       "label": "原件保全",
@@ -415,11 +418,11 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "46be267f21375db6dcccc5ba5a2ccbfa75469966",
+      "appHead": "e280902b7d92d1dce3b30ed43bcb87e4229e94f3",
       "hap": "本轮清理未构建或安装；此前卡片197限定证据保持。App Lab有未提交差异，不能把当前工作字节冒作已验包。"
     }
   ],
-  "scope": "仅当前清理范围。源码基线App46be267f、Kit6c289f2、源7af0d9d；App一份及Kit两份当前WIP归属未核，未纳入清理提交。无本轮产品/设备验收、远端同步或发布。",
+  "scope": "当前源码基线App e280902b、Kit6c289f2、源7af0d9d；三份未提交WIP已另存精确正文与diff且原工作字节保持。下载恢复仅当前三个实际消费方法的内存依赖检查；无当前构建、设备、远端同步或发布。",
   "items": [
     {
       "id": "APP05",
@@ -505,7 +508,7 @@
       "storage": "recovery"
     }
   ],
-  "evidenceNote": "三JSON仅证明具名保全/限定退出，不是原生画面验收。b744原完整保全回执和全部失败继续保留；DM5各组Root独立结果及原档见工作单正文。",
+  "evidenceNote": "原三JSON仅证明具名保全/限定退出；本轮各完整档与读回/退出回执、下载原恢复与受控方法检查均见工作单及恢复区，不冒原生验收。",
   "excluded": "不改原HTML外观/父结构/schema，不新建daemon/端口/symlink，不停数据容器，不回灌旧错误snapshot。最早人类进度页原文/提出时间及工时未知。"
 }
 -->
