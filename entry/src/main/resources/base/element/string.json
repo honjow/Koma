@@ -165,6 +165,10 @@
     { "name": "local_library_refresh_detail_empty", "value": "No local archive or folder imports were found." },
     { "name": "local_library_refresh_detail_reselect", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages, %s missing pages. %s folders need to be re-selected before Koma can rescan additions or deletions." },
     { "name": "local_library_refresh_detail_clean", "value": "Checked %s local items: %s folders, %s archives, %s chapters, %s pages, %s missing pages. No folder reselect is required." },
+    { "name": "local_library_rescan_updated_detail", "value": "Rescanned %s folders: %s added, %s changed, %s metadata updates, %s missing retained; %s need reselect and %s failed." },
+    { "name": "local_library_rescan_unchanged_detail", "value": "Rescanned %s folders with no additions or changes; %s added, %s changed, %s metadata updates, %s missing retained, %s need reselect and %s failed." },
+    { "name": "local_library_rescan_reselect_detail", "value": "%s local folders were imported before persistent access was available or no longer have authorization. Re-select them once from Import to enable future rescans." },
+    { "name": "local_library_rescan_failed_detail", "value": "Koma could not rescan the selected local folders." },
 
     { "name": "settings_search_placeholder", "value": "Search settings" },
     { "name": "settings_search_empty_title", "value": "No matching settings" },
@@ -209,6 +213,7 @@
     { "name": "settings_local_library_refresh_none", "value": "No local libraries to check" },
     { "name": "settings_local_library_refresh_reselect", "value": "Some local libraries need reselect" },
     { "name": "settings_local_library_refresh_clean", "value": "Local libraries look good" },
+    { "name": "settings_local_library_refresh_done", "value": "Local folders rescanned" },
     { "name": "settings_local_library_refresh_failed", "value": "Local library check failed" },
     { "name": "settings_about_dialog_title", "value": "About Koma" },
     { "name": "settings_about_dialog_message", "value": "Koma is a private manga bookshelf and reader for local and self-hosted libraries." },

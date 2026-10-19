@@ -165,6 +165,10 @@
     { "name": "local_library_refresh_detail_empty", "value": "没有找到本地压缩包或文件夹导入项。" },
     { "name": "local_library_refresh_detail_reselect", "value": "共检查 %s 个本地条目：%s 个文件夹、%s 个压缩包、%s 个章节、%s 页，%s 页缺失。%s 个文件夹需要重新选择后，Koma 才能重扫新增或删除。" },
     { "name": "local_library_refresh_detail_clean", "value": "共检查 %s 个本地条目：%s 个文件夹、%s 个压缩包、%s 个章节、%s 页，%s 页缺失。当前不需要重新选择文件夹。" },
+    { "name": "local_library_rescan_updated_detail", "value": "已重扫 %s 个目录：新增 %s 本、变更 %s 本、元数据更新 %s 本，保留 %s 本缺失记录；%s 个目录需重新选择，%s 个目录失败。" },
+    { "name": "local_library_rescan_unchanged_detail", "value": "已重扫 %s 个目录，没有新增或变更；新增 %s 本、变更 %s 本、元数据更新 %s 本，保留 %s 本缺失记录，%s 个目录需重新选择，%s 个目录失败。" },
+    { "name": "local_library_rescan_reselect_detail", "value": "%s 个本地目录是在持久访问可用前导入或授权已失效。请从导入页重新选择一次，之后即可直接重扫。" },
+    { "name": "local_library_rescan_failed_detail", "value": "Koma 无法重扫所选本地目录。" },
 
     { "name": "settings_search_placeholder", "value": "搜索设置" },
     { "name": "settings_search_empty_title", "value": "没有找到设置" },
@@ -209,6 +213,7 @@
     { "name": "settings_local_library_refresh_none", "value": "没有可检查的本地书架" },
     { "name": "settings_local_library_refresh_reselect", "value": "部分本地书架需要重新选择" },
     { "name": "settings_local_library_refresh_clean", "value": "本地书架状态正常" },
+    { "name": "settings_local_library_refresh_done", "value": "本地目录已重扫" },
     { "name": "settings_local_library_refresh_failed", "value": "本地书架检查失败" },
     { "name": "settings_about_dialog_title", "value": "关于 Koma" },
     { "name": "settings_about_dialog_message", "value": "Koma 是一个面向本地与自建书库的私有漫画书架与阅读器。" },

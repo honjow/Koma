@@ -90,12 +90,15 @@ import {
   buildKnownLocalLibraryFolderSeriesFromComics,
   buildComicsFromLocalLibraryFolderScan,
   localLibraryFolderRootUriFromComic,
+  localLibraryFolderRootUrisFromComics,
   bindLocalLibraryFolderScanIdentity,
 } from '../model/LocalLibraryFolderContract'
 import {
   activateLocalLibraryFolderAccess,
   activateLocalLibraryFolderAccessForComics,
+  canImportLocalLibraryFolder,
 } from '../model/LocalLibraryFolderAccessService'
+import { LocalLibraryFolderRescanActionResult } from '../model/LocalLibraryRefreshService'
 import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
@@ -1326,14 +1329,16 @@ struct Index {
         void this.startImageImport()
       })
 
-      MenuItem({
-        startIcon: $r('sys.symbol.folder'),
-        content: AppStrings.get('import_folder_title'),
-      })
-      .onClick(() => {
-        this.importMenuShown = false
-        void this.startFolderImport()
-      })
+      if (canImportLocalLibraryFolder()) {
+        MenuItem({
+          startIcon: $r('sys.symbol.folder'),
+          content: AppStrings.get('import_folder_title'),
+        })
+        .onClick(() => {
+          this.importMenuShown = false
+          void this.startFolderImport()
+        })
+      }
     }
   }
 
@@ -1482,6 +1487,111 @@ struct Index {
       metadataChangedCount,
       rejectedEntryCount,
     }
+  }
+
+  private emptyLocalLibraryFolderRescanResult(rootCount: number): LocalLibraryFolderRescanActionResult {
+    return {
+      status: rootCount === 0 ? 'no_local_folders' : 'failed',
+      rootCount,
+      scannedRootCount: 0,
+      reselectRequiredCount: 0,
+      failedRootCount: 0,
+      addedCount: 0,
+      changedCount: 0,
+      missingCount: 0,
+      metadataChangedCount: 0,
+      rejectedEntryCount: 0,
+      upsertedCount: 0,
+    }
+  }
+
+  private finalizeLocalLibraryFolderRescanResult(
+    result: LocalLibraryFolderRescanActionResult,
+  ): LocalLibraryFolderRescanActionResult {
+    if (result.scannedRootCount > 0) {
+      result.status = result.addedCount > 0 ||
+        result.changedCount > 0 ||
+        result.missingCount > 0 ||
+        result.metadataChangedCount > 0
+        ? 'updated'
+        : 'unchanged'
+    } else if (result.reselectRequiredCount > 0 && result.failedRootCount === 0) {
+      result.status = 'reselect_required'
+    } else {
+      result.status = 'failed'
+    }
+    return result
+  }
+
+  private async rescanLocalLibraryFolders(comicId?: string): Promise<LocalLibraryFolderRescanActionResult> {
+    let targetComics: Comic[] = []
+    if (comicId === undefined) {
+      targetComics = this.libraryStore.listComics()
+    } else {
+      const targetComic = this.libraryStore.getComic(comicId)
+      if (targetComic !== undefined) {
+        targetComics.push(targetComic)
+      }
+    }
+    const rootUris = localLibraryFolderRootUrisFromComics(targetComics)
+    const result = this.emptyLocalLibraryFolderRescanResult(rootUris.length)
+    if (rootUris.length === 0) {
+      return result
+    }
+    const persistenceService = this.ensureLibraryPersistenceService()
+    if (persistenceService === undefined) {
+      result.failedRootCount = rootUris.length
+      return result
+    }
+    for (const rootUri of rootUris) {
+      const runtimeResult = await this.localImportCoordinator.rescanPersistedFolder(rootUri)
+      if (runtimeResult.status === 'reselect_required') {
+        result.reselectRequiredCount += 1
+        continue
+      }
+      if (runtimeResult.status !== 'succeeded' || runtimeResult.scanResult === undefined) {
+        result.failedRootCount += 1
+        continue
+      }
+      const previousKnownSeries = buildKnownLocalLibraryFolderSeriesFromComics(
+        this.libraryStore.listComics(),
+        rootUri,
+      )
+      if (previousKnownSeries.length === 0) {
+        result.failedRootCount += 1
+        continue
+      }
+      try {
+        const persisted = upsertLocalLibraryFolderRescanAndPersistLibraryStore(
+          this.libraryStore,
+          persistenceService,
+          previousKnownSeries,
+          runtimeResult.scanResult,
+          rootUri,
+        )
+        result.scannedRootCount += 1
+        result.addedCount += persisted.summary.addedCount
+        result.changedCount += persisted.summary.changedCount
+        result.missingCount += persisted.summary.missingCount
+        result.metadataChangedCount += persisted.summary.metadataChangedCount
+        result.rejectedEntryCount += persisted.summary.rejectedEntryCount
+        result.upsertedCount += persisted.upsertedCount
+      } catch (_error) {
+        result.failedRootCount += 1
+      }
+    }
+    if (result.upsertedCount > 0) {
+      this.refreshLibrarySnapshot()
+    }
+    const finalized = this.finalizeLocalLibraryFolderRescanResult(result)
+    console.info('[LocalFolderRescan] step=done roots=' + finalized.rootCount +
+      ' scanned=' + finalized.scannedRootCount +
+      ' reselect=' + finalized.reselectRequiredCount +
+      ' failed=' + finalized.failedRootCount +
+      ' added=' + finalized.addedCount +
+      ' changed=' + finalized.changedCount +
+      ' missing=' + finalized.missingCount)
+    return finalized
   }
 
   private handleRemoveComicRequested(comicId: ComicId): boolean {
@@ -1962,6 +2072,7 @@ struct Index {
           onOpenReader: (mangaId: string, chapterId?: string) => { void this.openReader(mangaId, chapterId) },
           onOpenSourceReader: (request: SourceReaderSessionRequest) => { void this.openSourceReader(request) },
           onOpenImportRequested: () => { this.openImport() },
+          onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
           onLibraryChanged: () => { this.onMangaDetailLibraryChanged() }
         })
       }
@@ -2092,6 +2203,7 @@ struct Index {
           onOpenImportRequested: () => {
             this.openImport()
           },
+          onRefreshLocalFolders: () => this.rescanLocalLibraryFolders(),
           onLibraryChanged: () => {
             this.refreshLibrarySnapshot()
           }
@@ -2335,6 +2447,7 @@ struct Index {
                 onOpenImportRequested: () => {
                   this.openImport()
                 },
+                onRefreshLocalFolders: () => this.rescanLocalLibraryFolders(),
                 onLibraryChanged: () => {
                   this.refreshLibrarySnapshot()
                 }

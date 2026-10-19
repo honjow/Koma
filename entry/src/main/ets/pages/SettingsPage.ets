@@ -23,11 +23,14 @@ import {
   formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
+  LocalLibraryFolderRescanActionResult,
   LocalLibraryRefreshService,
   LocalLibraryRefreshSummary,
+  formatLocalLibraryFolderRescanActionResult,
   formatLocalLibraryRefreshDetail,
   formatLocalLibraryRefreshSummary,
 } from '../model/LocalLibraryRefreshService'
+import { canRescanLocalLibraryFolder } from '../model/LocalLibraryFolderAccessService'
 import {
   LibraryUpdateJobSnapshot,
   LibraryUpdateResultStore,
@@ -412,6 +415,8 @@ export struct SettingsPage {
   @Event onOpenBackupManagement: () => void = () => {}
   @Event onOpenTrackerSettings: () => void = () => {}
   @Event onOpenImportRequested: () => void = () => {}
+  @Event onRefreshLocalFolders: () => Promise<LocalLibraryFolderRescanActionResult | undefined> =
+    async () => undefined
   @Param preferencesRestoreRevision: number = 0
   @Event onLibraryChanged: () => void = () => {}
   @Param libraryStore?: LibraryStore = undefined
@@ -959,7 +964,8 @@ export struct SettingsPage {
     const rows: SettingsRow[] = []
     createSettingsSections().forEach((section: SettingsSection) => {
       section.rows.forEach((row: SettingsRow) => {
-        if (keys.includes(row.key)) {
+        if (keys.includes(row.key) &&
+          (row.key !== 'local-library-refresh' || canRescanLocalLibraryFolder())) {
           rows.push(row)
         }
       })
@@ -1894,7 +1900,7 @@ export struct SettingsPage {
     })
   }
 
-  private checkLocalLibraryRefresh(): void {
+  private async checkLocalLibraryRefresh(): Promise<void> {
     if (this.localLibraryRefreshBusy) {
       return
     }
@@ -1905,6 +1911,10 @@ export struct SettingsPage {
     this.localLibraryRefreshBusy = true
     console.info('[Settings] step=local_library_refresh_start')
     try {
+      const actionResult = await this.onRefreshLocalFolders()
+      if (actionResult === undefined) {
+        throw new Error('local_folder_rescan_unavailable')
+      }
       const summary = new LocalLibraryRefreshService(this.libraryStore).checkLocalLibraryRefresh()
       this.localLibraryRefreshSummary = summary
       console.info(
@@ -1912,14 +1922,24 @@ export struct SettingsPage {
           ' reselectRequired=' + summary.reselectRequiredCount +
           ' missingPages=' + summary.missingPageCount
       )
-      if (summary.totalCount === 0) {
-        this.showToast(s('settings_local_library_refresh_none'))
-      } else if (summary.reselectRequiredCount > 0) {
+      if (actionResult.status === 'no_local_folders') {
+        if (summary.totalCount === 0) {
+          this.showToast(s('settings_local_library_refresh_none'))
+        } else if (summary.reselectRequiredCount > 0) {
+          this.showToast(s('settings_local_library_refresh_reselect'))
+          this.showLocalLibraryRefreshResult(summary)
+        } else {
+          this.showToast(s('settings_local_library_refresh_clean'))
+          this.showLocalLibraryRefreshResult(summary)
+        }
+      } else if (actionResult.status === 'failed') {
+        this.showToast(s('settings_local_library_refresh_failed'))
+      } else if (actionResult.reselectRequiredCount > 0) {
         this.showToast(s('settings_local_library_refresh_reselect'))
-        this.showLocalLibraryRefreshResult(summary)
+        this.showLocalLibraryFolderRescanResult(actionResult)
       } else {
-        this.showToast(s('settings_local_library_refresh_clean'))
-        this.showLocalLibraryRefreshResult(summary)
+        this.showToast(s('settings_local_library_refresh_done'))
+        this.showLocalLibraryFolderRescanResult(actionResult)
       }
     } catch (error) {
       const e = error as Error
@@ -1944,6 +1964,30 @@ export struct SettingsPage {
     const title = s('settings_row_local_library_refresh_title')
     const message = formatLocalLibraryRefreshDetail(summary)
     if (summary.reselectRequiredCount > 0) {
+      this.getUIContext().showAlertDialog({
+        title,
+        message,
+        autoCancel: true,
+        primaryButton: {
+          value: s('route_import_title'),
+          action: () => {
+            this.onOpenImportRequested()
+          },
+        },
+        secondaryButton: {
+          value: s('common_cancel'),
+          action: () => {},
+        },
+      })
+      return
+    }
+    this.showInfoDialog(title, message)
+  }
+
+  private showLocalLibraryFolderRescanResult(result: LocalLibraryFolderRescanActionResult): void {
+    const title = s('settings_row_local_library_refresh_title')
+    const message = formatLocalLibraryFolderRescanActionResult(result)
+    if (result.reselectRequiredCount > 0) {
       this.getUIContext().showAlertDialog({
         title,
         message,
@@ -2287,7 +2331,7 @@ export struct SettingsPage {
     } else if (row.key === 'library-categories') {
       this.onOpenLibraryCategories()
     } else if (row.key === 'local-library-refresh') {
-      this.checkLocalLibraryRefresh()
+      void this.checkLocalLibraryRefresh()
     } else if (row.key === 'reader-reset-defaults') {
       this.resetReaderPreferences()
     } else if (row.key === 'about') {

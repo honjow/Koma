@@ -6,6 +6,7 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 import { Comic } from '../model/ComicModels'
 import { LocalLibraryFolderScanResult } from '../model/LocalLibraryFolderContract'
+import { canImportLocalLibraryFolder } from '../model/LocalLibraryFolderAccessService'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
@@ -332,8 +333,10 @@ export struct ImportPage {
             this.ImportEntryRow(ARCHIVE_ENTRY)
             ListDivider()
             this.ImportEntryRow(IMAGE_ENTRY)
-            ListDivider()
-            this.ImportEntryRow(FOLDER_ENTRY)
+            if (canImportLocalLibraryFolder()) {
+              ListDivider()
+              this.ImportEntryRow(FOLDER_ENTRY)
+            }
           }
         }
         if (!this.importing && this.feedbackText.length > 0) {

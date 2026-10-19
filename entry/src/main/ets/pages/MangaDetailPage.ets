@@ -54,9 +54,12 @@ import {
   LocalLibraryStoredMetadata,
 } from '../model/LocalLibraryMetadataService'
 import {
+  LocalLibraryFolderRescanActionResult,
   LocalLibraryRefreshComicResult,
   LocalLibraryRefreshService,
+  formatLocalLibraryFolderRescanActionResult,
 } from '../model/LocalLibraryRefreshService'
+import { canRescanLocalLibraryFolder } from '../model/LocalLibraryFolderAccessService'
 import {
   SourceChapterPageHydrationResult,
   SourceChapterPageHydrator,
@@ -266,6 +269,8 @@ export struct MangaDetailPage {
   @Event onOpenReader: (mangaId: string, chapterId?: string) => void = (_mangaId: string, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
   @Event onOpenImportRequested: () => void = () => {}
+  @Event onRefreshLocalFolder: (comicId: string) => Promise<LocalLibraryFolderRescanActionResult | undefined> =
+    async (_comicId: string) => undefined
   @Event onLibraryChanged: () => void = () => {}
   private sourceDetailRequestEpoch: number = 0
   private sourceDetailSettingsRevision: string = ''
@@ -1400,10 +1405,11 @@ export struct MangaDetailPage {
   private canCheckLocalLibraryRefresh(): boolean {
     const comic = this.libraryStore?.getComic(this.currentComicId())
     return comic !== undefined &&
-      (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER)
+      (comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE ||
+        (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER && canRescanLocalLibraryFolder()))
   }
 
-  private checkLocalLibraryRefreshNow(): void {
+  private async checkLocalLibraryRefreshNow(): Promise<void> {
     if (this.localRefreshBusy) {
       return
     }
@@ -1417,6 +1423,21 @@ export struct MangaDetailPage {
     this.localRefreshBusy = true
     this.localRefreshText = s('manga_detail_local_refresh_checking')
     try {
+      if (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
+        const actionResult = await this.onRefreshLocalFolder(comic.id)
+        if (actionResult === undefined) {
+          throw new Error('local_folder_rescan_unavailable')
+        }
+        if (actionResult.scannedRootCount > 0) {
+          this.loadLocalOrMissingManga(comic.id)
+        }
+        this.localRefreshText = formatLocalLibraryFolderRescanActionResult(actionResult)
+        this.showToast(this.localRefreshText)
+        if (actionResult.status === 'reselect_required') {
+          this.onOpenImportRequested()
+        }
+        return
+      }
       const result: LocalLibraryRefreshComicResult =
         new LocalLibraryRefreshService(libraryStore).checkLocalComicRefresh(comic)
       this.localRefreshText = result.message

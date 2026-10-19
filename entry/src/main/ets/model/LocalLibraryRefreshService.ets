@@ -34,6 +34,27 @@ export interface LocalLibraryRefreshSummary {
   results: LocalLibraryRefreshComicResult[]
 }
 
+export type LocalLibraryFolderRescanActionStatus =
+  'no_local_folders' |
+  'updated' |
+  'unchanged' |
+  'reselect_required' |
+  'failed'
+
+export interface LocalLibraryFolderRescanActionResult {
+  status: LocalLibraryFolderRescanActionStatus
+  rootCount: number
+  scannedRootCount: number
+  reselectRequiredCount: number
+  failedRootCount: number
+  addedCount: number
+  changedCount: number
+  missingCount: number
+  metadataChangedCount: number
+  rejectedEntryCount: number
+  upsertedCount: number
+}
+
 function isLocalRefreshCandidate(comic: Comic): boolean {
   return comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER
 }
@@ -120,6 +141,34 @@ function formatLocalLibraryRefreshText(key: string, values: string[]): string {
     text = text.replace('%s', value)
   })
   return text
+}
+
+export function formatLocalLibraryFolderRescanActionResult(
+  result: LocalLibraryFolderRescanActionResult,
+): string {
+  if (result.status === 'no_local_folders') {
+    return AppStrings.get('local_library_refresh_none')
+  }
+  if (result.status === 'reselect_required') {
+    return formatLocalLibraryRefreshText('local_library_rescan_reselect_detail', [
+      `${result.reselectRequiredCount}`,
+    ])
+  }
+  if (result.status === 'failed') {
+    return AppStrings.get('local_library_rescan_failed_detail')
+  }
+  const key = result.status === 'updated'
+    ? 'local_library_rescan_updated_detail'
+    : 'local_library_rescan_unchanged_detail'
+  return formatLocalLibraryRefreshText(key, [
+    `${result.scannedRootCount}`,
+    `${result.addedCount}`,
+    `${result.changedCount}`,
+    `${result.metadataChangedCount}`,
+    `${result.missingCount}`,
+    `${result.reselectRequiredCount}`,
+    `${result.failedRootCount}`,
+  ])
 }
 
 export function formatLocalLibraryRefreshSummary(summary?: LocalLibraryRefreshSummary): string {

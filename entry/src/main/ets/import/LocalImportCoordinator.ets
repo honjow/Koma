@@ -24,7 +24,11 @@ import {
   LocalLibraryFolderScanResult,
   scanLocalLibraryFolderEntries,
 } from '../model/LocalLibraryFolderContract'
-import { persistLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
+import {
+  canImportLocalLibraryFolder,
+  activateLocalLibraryFolderAccess,
+  persistLocalLibraryFolderAccess,
+} from '../model/LocalLibraryFolderAccessService'
 import {
   LOCAL_ARCHIVE_DEBUG_STEP_CACHE_PATHS,
   LOCAL_ARCHIVE_DEBUG_STEP_COPY_FAILED,
@@ -115,6 +119,12 @@ export interface LocalFolderImportFailedResult {
 }
 
 export type LocalFolderImportItemResult = LocalFolderImportSucceededResult | LocalFolderImportFailedResult
+
+export interface LocalFolderRuntimeRescanResult {
+  status: 'succeeded' | 'reselect_required' | 'failed'
+  scanResult?: LocalLibraryFolderScanResult
+  error?: string
+}
 
 export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives(.zip, .cbz)|.zip,.cbz'
 export const IMAGE_FILE_SUFFIX_FILTER = 'Images(.jpg, .jpeg, .png, .webp, .gif, .bmp, .avif)|.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif'
@@ -686,6 +696,10 @@ export class LocalImportCoordinator {
   }
 
   async pickAndScanFolders(context: common.UIAbilityContext, maxSelectNumber: number = 1): Promise<LocalFolderImportItemResult[]> {
+    if (!canImportLocalLibraryFolder()) {
+      console.info('[LocalFolderAccess] step=picker status=unsupported')
+      return [{ status: 'failed', error: LOCAL_IMPORT_ERROR_FOLDER_PICKER_FAILED }]
+    }
     this.reportDebugEvent({
       step: LOCAL_ARCHIVE_DEBUG_STEP_PICKER_STARTED,
     })
@@ -736,5 +750,29 @@ export class LocalImportCoordinator {
       }
     }
     return results
+  }
+
+  async rescanPersistedFolder(rootUri: string): Promise<LocalFolderRuntimeRescanResult> {
+    const access = await activateLocalLibraryFolderAccess(rootUri)
+    if (access.status === 'not_persisted') {
+      return { status: 'reselect_required' }
+    }
+    if (access.status !== 'activated' && access.status !== 'persisted') {
+      return {
+        status: 'failed',
+        error: access.failureCode ?? LOCAL_IMPORT_ERROR_FOLDER_ACCESS_FAILED,
+      }
+    }
+    try {
+      return {
+        status: 'succeeded',
+        scanResult: await scanPickedFolderUri(rootUri),
+      }
+    } catch (_error) {
+      return {
+        status: 'failed',
+        error: LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED,
+      }
+    }
   }
 }
