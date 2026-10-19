@@ -195,9 +195,12 @@ export class CrossSearchService {
       }))
     }
 
+    const sourceRun: PagedSearchRun = { cancelled: false }
+    this.pagedSearchRuns.push(sourceRun)
     const sourceTasks: Promise<SourceSearchOutcome>[] = this.sourceMatchesFilter('wasm', sourceFilter) ?
       appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
-        return this.withTimeout(this.searchWasmSource(source, normalizedQuery), this.emptySection(`wasm:${source.sourceId}`, source.displayName, 'wasm'))
+        // Use the same execution and HTTP deadlines as source-internal search.
+        return this.searchWasmSource(source, normalizedQuery, sourceRun)
       }) :
       []
     const reportedTasks = tasks.concat(sourceTasks).map((task: Promise<SourceSearchOutcome>) => {
@@ -217,8 +220,8 @@ export class CrossSearchService {
   cancelPendingSearch(): void {
     this.pagedSearchRuns.forEach((run: PagedSearchRun) => { run.cancelled = true })
     this.pagedSearchRuns = []
-    // One-shot provider calls retain their existing UI ownership guards. Stop
-    // the directory traversal before it can issue any further PROPFIND calls.
+    // Mark queued source calls obsolete before they enter WAMR, and stop
+    // directory traversal before it can issue any further PROPFIND calls.
     if (this.webDavSearchRun !== undefined) this.webDavSearchRun.cancelled = true
     this.webDavSearchRun = undefined
   }
@@ -513,12 +516,16 @@ export class CrossSearchService {
     return section
   }
 
-  private async searchWasmSource(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<SourceSearchOutcome> {
+  private async searchWasmSource(
+    source: SourceRuntimeRegistryInstalledSourceSummary,
+    query: string,
+    run: PagedSearchRun,
+  ): Promise<SourceSearchOutcome> {
     try {
       if (!this.sourceSupportsSearch(source)) {
         return { section: this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported') }
       }
-      const result = await this.sourceViewModel.searchSource(source, query, 1)
+      const result = await this.sourceViewModel.searchSource(source, query, 1, '', () => !run.cancelled)
       const items = this.sortSearchResultItems(query, result.manga.map((manga: SourceManga): CrossSearchResultItem => {
         return {
           id: `wasm:${manga.sourceId}:${manga.id}`,

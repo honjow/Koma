@@ -116,7 +116,6 @@ interface SourceOperationRequest {
 }
 
 const SOURCE_OPERATION_PAGE_SIZE: number = 20
-const SOURCE_OPERATION_TIMEOUT_MS: number = 10000
 
 @Concurrent
 async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array): Promise<string> {
@@ -125,32 +124,25 @@ async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint
   return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes) as string
 }
 
-function withSourceOperationTimeout(promise: Promise<string>, operation: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    let settled = false
-    const timer = setTimeout(() => {
-      if (settled) {
-        return
-      }
-      settled = true
-      reject(new Error(`${operation} timed out`))
-    }, SOURCE_OPERATION_TIMEOUT_MS)
-    promise.then((value: string) => {
-      if (settled) {
-        return
-      }
-      settled = true
-      clearTimeout(timer)
-      resolve(value)
-    }).catch((error: Error) => {
-      if (settled) {
-        return
-      }
-      settled = true
-      clearTimeout(timer)
-      reject(error)
-    })
+// Native WAMR execution is process-serial. Keep waiting work out of taskpool
+// and discard obsolete searches before they consume a runtime/network slot.
+// HTTP transport owns request deadlines; queue time is not a network timeout.
+let sourceOperationQueue: Promise<void> = Promise.resolve()
+
+function enqueueSourceOperation(
+  requestJson: string,
+  wasmBytes: Uint8Array,
+  isActive: (() => boolean) | undefined = undefined,
+): Promise<string> {
+  const result = sourceOperationQueue.then((): Promise<string> => {
+    if (isActive !== undefined && !isActive()) {
+      throw new Error('search_cancelled')
+    }
+    return taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>
   })
+  // A failed source must not prevent the next source from running.
+  sourceOperationQueue = result.then(() => {}, () => {})
+  return result
 }
 
 function optionalString(value: RuntimeValue | undefined): string | undefined {
@@ -968,6 +960,7 @@ export class BrowseViewModel {
     query: string,
     page: number,
     cursor: string = '',
+    isActive: (() => boolean) | undefined = undefined,
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: this.pageCursor(page, cursor),
@@ -978,7 +971,7 @@ export class BrowseViewModel {
       page: pageArg,
       filters: this.searchFilterValues,
     }
-    return this.runSourceOperation(source.sourceId, 'search', args, page)
+    return this.runSourceOperation(source.sourceId, 'search', args, page, isActive)
   }
 
   async loadMangaList(
@@ -1245,6 +1238,7 @@ export class BrowseViewModel {
     operation: string,
     args: SourceOperationArgs,
     page: number,
+    isActive: (() => boolean) | undefined = undefined,
   ): Promise<SourceMangaList> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
@@ -1252,10 +1246,7 @@ export class BrowseViewModel {
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await withSourceOperationTimeout(
-      taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>,
-      operation,
-    )
+    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, isActive)
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
       throw new Error(this.runtimeErrorMessage(response))
@@ -1275,10 +1266,7 @@ export class BrowseViewModel {
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await withSourceOperationTimeout(
-      taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>,
-      operation,
-    )
+    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes)
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
       throw new Error(this.runtimeErrorMessage(response))
