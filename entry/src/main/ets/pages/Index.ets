@@ -590,10 +590,24 @@ struct Index {
   }
 
   private createReaderLabCatalogHost(): KomaReaderCatalogHost {
+    // The root already attempted this shelf chapter before publishing the
+    // shared entry. Consume that terminal failure once for shelf and transient
+    // source opens; only an explicit catalog retry asks the provider again.
+    const initialConfig = this.readerSessionConfig
+    let initialFailurePending = initialConfig.totalPages === 1 && initialConfig.pageUris.length === 1 &&
+      initialConfig.pageUris[0] === 'source-placeholder://chapter'
+    const initialWork = initialConfig.comicId
+    const initialUnit = initialConfig.chapterId
     return new KomaReaderCatalogHost(
       (work: string, unit: string): ReaderSessionConfig | null => this.readerLabInitialConfig(work, unit),
-      (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> =>
-        this.prepareReaderLabCatalog(target, cancellation),
+      async (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> => {
+        const consumeInitialFailure = initialFailurePending &&
+          target.work === initialWork && target.unit === initialUnit
+        initialFailurePending = false
+        if (consumeInitialFailure) throw new Error(initialConfig.sourceFailureReason === 'unsupported'
+          ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
+        return this.prepareReaderLabCatalog(target, cancellation)
+      },
       (target: ReaderUnitKey, config: ReaderSessionConfig): void => this.commitReaderLabCatalog(target, config),
     )
   }
