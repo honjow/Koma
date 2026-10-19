@@ -499,7 +499,7 @@ struct Index {
         const lookup = this.sourceRegistry.lookup(request.sourceId)
         if (lookup.ok && lookup.entry !== undefined && sourceRuntimeEntryEnabled(lookup.entry)) {
           const catalog = await resolveSourceChapterList(lookup.entry, request.mangaId, request.mangaUrl,
-            (): boolean => this.readerPreparationCurrent(openEpoch))
+            (): boolean => openEpoch === this.readerOpenEpoch && this.readerOpen && !this.readerClosing)
           if (catalog.resolved && catalog.chapters.some((chapter: ReaderChapterDescriptor): boolean => chapter.id === request.chapterId)) {
             preparedRequest.chapters = catalog.chapters.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor =>
               cloneReaderChapterDescriptor(chapter))
