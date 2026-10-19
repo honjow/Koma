@@ -86,9 +86,10 @@
 - 已定位一半：双击路径 `beginZoomAnimation()` 置 `zoomAnimating`（180+24ms）门控 ReaderImage 的 `.animation` duration；routeTaps（webtoon/List）分支走 `commitContinuousTransformAfterAnimation` 延迟提交，其注释自认「committing it sooner remounts this row and cuts the reset animation short」——该提交管线存在重挂载裁切动画的前科。
 - 动作：通读 ReaderPage 渲染管线（renderTransform/gesture scale/routeTaps 提交时序），修复后按录屏分帧验证动画连续。
 
-### R2 页码指示器文字阴影缺失（P2）
+### R2 页码指示器可辨识度不足（P2，已关闭）
 
-- 现象：底栏页码文字无阴影。Koma 全代码库与 NextE feature/reader 均未检索到 textShadow——阴影出处待进一步定位（可能为早期版本或阅读器 chrome 其他属性），定位后补齐。
+- 核实结果：NextE 当前实现没有 `textShadow`，而是在 `ReaderPage.ets` 通过 `MutableStyledString` + `TextStyle` 使用约 `2.5vp` 的负描边生成深色文字轮廓。此前只检索 `textShadow` 得出“NextE 也没有”的结论过于表面，现已纠正。
+- 修复与证据（2026-09-05 / 197）：Koma 保留自身页码布局与语义，只复用负描边这一可辨识度技术；`20260905-reader-page-indicator-white-background-run1/white-screen.png` 与 `20260905-reader-page-and-menu-after-run1/white-page-screen.png` 均确认 `4 / 19` 在白色背景上清晰可见。顶部栏、底部进度区和缩略图页码已有深色承载面，不重复添加描边。
 
 ## 附：其他排查中发现的静态疑点（待逐项确认）
 
