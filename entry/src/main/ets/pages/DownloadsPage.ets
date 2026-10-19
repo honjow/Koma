@@ -7,7 +7,7 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { KomaMenuChip } from '../components/ui/KomaMenuChip'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { Comic } from '../model/ComicModels'
+import { Comic, sameComicIdentity } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -455,14 +455,22 @@ export struct DownloadsPage {
     if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
       return
     }
-    const blocked = this.queueStore().upsert({
-      comicId: entry.comicId,
-      chapterId: entry.chapterId,
-      comicTitle: entry.comicTitle,
-      chapterTitle: entry.chapterTitle,
+    const store = this.queueStore()
+    const current = store.load().find((item: OfflineDownloadQueueEntry): boolean => {
+      return this.rowKey(item) === this.rowKey(entry)
+    })
+    if (current === undefined) {
+      this.loadQueue()
+      return
+    }
+    const blocked = store.upsert({
+      comicId: current.comicId,
+      chapterId: current.chapterId,
+      comicTitle: current.comicTitle,
+      chapterTitle: current.chapterTitle,
       status: OfflineDownloadStatus.BLOCKED,
-      pageCount: entry.pageCount,
-      downloadedPageCount: entry.downloadedPageCount,
+      pageCount: current.pageCount,
+      downloadedPageCount: current.downloadedPageCount,
       updatedAt: Date.now(),
       failureReasonCode: 'comic_missing',
     })
@@ -555,8 +563,17 @@ export struct DownloadsPage {
   private async runRetry(comic: Comic, entry: OfflineDownloadQueueEntry): Promise<void> {
     try {
       const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
+      const currentComic = this.libraryStore?.getComic(entry.comicId)
+      if (currentComic === undefined) {
+        this.blockUnavailableEntry(entry)
+        return
+      }
+      if (!sameComicIdentity(comic, currentComic)) {
+        this.loadQueue()
+        return
+      }
       if (!hydration.hydrated) {
-        await this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
+        await this.blockSourcePagesUnavailable(currentComic, entry, hydration.reasonCode ?? 'pages_missing')
         this.loadQueue()
         this.showToast(s('downloads_toast_retry_failed'))
         return
@@ -565,8 +582,8 @@ export struct DownloadsPage {
         new OfflineDownloadStore(this.context().filesDir),
         this.queueStore(), this.context()
       )
-      const manifest = await service.downloadChapter(comic, entry.chapterId, {
-        comicTitle: entry.comicTitle ?? comic.title,
+      const manifest = await service.downloadChapter(currentComic, entry.chapterId, {
+        comicTitle: entry.comicTitle ?? currentComic.title,
         chapterTitle: entry.chapterTitle,
       })
       this.loadQueue()
@@ -787,16 +804,25 @@ export struct DownloadsPage {
           continue
         }
         const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
+        const currentComic = this.libraryStore?.getComic(entry.comicId)
+        if (currentComic === undefined) {
+          this.blockUnavailableEntry(entry)
+          continue
+        }
+        if (!sameComicIdentity(comic, currentComic)) {
+          this.loadQueue()
+          continue
+        }
         if (!hydration.hydrated) {
-          await this.blockSourcePagesUnavailable(comic, entry, hydration.reasonCode ?? 'pages_missing')
+          await this.blockSourcePagesUnavailable(currentComic, entry, hydration.reasonCode ?? 'pages_missing')
           continue
         }
         const service = new OfflineDownloadService(
           new OfflineDownloadStore(this.context().filesDir),
           this.queueStore(), this.context()
         )
-        await service.downloadChapter(comic, entry.chapterId, {
-          comicTitle: entry.comicTitle ?? comic.title,
+        await service.downloadChapter(currentComic, entry.chapterId, {
+          comicTitle: entry.comicTitle ?? currentComic.title,
           chapterTitle: entry.chapterTitle,
         })
         completed += 1
@@ -806,7 +832,10 @@ export struct DownloadsPage {
     for (let index = 0; index < concurrencyLimit && index < targets.length; index += 1) {
       workers.push(worker())
     }
-    await Promise.all(workers)
+    const results = await Promise.allSettled(workers)
+    for (const result of results) {
+      if (result.status === 'rejected') throw result.reason as Error
+    }
     return completed
   }
 

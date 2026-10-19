@@ -27,6 +27,7 @@ import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from '../model/
 import {
   Chapter,
   Comic,
+  sameComicIdentity,
   ComicSourceKind,
   ReadingDirection,
   ReadingProgress,
@@ -1342,7 +1343,7 @@ export struct MangaDetailPage {
           return
         }
       }
-      const comic = this.libraryStore?.getComic(this.currentComicId())
+      let comic = this.libraryStore?.getComic(this.currentComicId())
       if (comic === undefined) {
         this.downloadStatusText = s('manga_detail_add_to_library_first')
         this.showToast(s('manga_detail_add_to_library_first'))
@@ -1350,6 +1351,12 @@ export struct MangaDetailPage {
       }
       if (manga.sourceId !== undefined) {
         const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
+        const currentComic = this.libraryStore?.getComic(comic.id)
+        if (currentComic === undefined || !sameComicIdentity(comic, currentComic) ||
+          !currentComic.chapters.some((item: Chapter): boolean => item.id === resolvedChapterId)) {
+          throw new Error('download_target_changed')
+        }
+        comic = currentComic
         if (!hydration.hydrated) {
           const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
           await service.blockChapterDownload(comic, resolvedChapterId, hydration.reasonCode ?? 'pages_missing', {
@@ -1382,6 +1389,10 @@ export struct MangaDetailPage {
         : manifest.status === OfflineDownloadStatus.DOWNLOADED
         ? s('manga_detail_chapter_downloaded')
         : s('manga_detail_chapter_download_failed'))
+    } catch (_error) {
+      console.warn('[ReaderOffline] step=detail_download_failed failed=true reason=download_execution')
+      this.downloadStatusText = s('manga_detail_chapter_download_failed')
+      this.showToast(this.downloadStatusText)
     } finally {
       this.downloadBusy = false
     }
@@ -1546,31 +1557,34 @@ export struct MangaDetailPage {
       for (let index = 0; index < targetChapterIds.length; index += 1) {
         const chapterId = targetChapterIds[index]
         if (manga.sourceId !== undefined) {
+          let hydration: SourceChapterPageHydrationResult
           try {
-            const hydration = await this.ensureSourceChapterPages(chapterId)
-            if (!hydration.hydrated) {
-              const comic = this.libraryStore?.getComic(this.currentComicId())
-              if (comic !== undefined) {
-                const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
-                await service.blockChapterDownload(comic, chapterId, hydration.reasonCode ?? 'pages_missing', {
-                  comicTitle: comic.title,
-                  chapterTitle,
-                })
-              }
-              blockedCount += 1
-              console.warn(`[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
-              this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
-              continue
-            }
+            hydration = await this.ensureSourceChapterPages(chapterId)
           } catch (_error) {
             console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
             blockedCount += 1
             this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
             continue
           }
+          if (!hydration.hydrated) {
+            const comic = this.libraryStore?.getComic(this.currentComicId())
+            if (comic !== undefined && sameComicIdentity(initialComic, comic) &&
+              comic.chapters.some((item: Chapter): boolean => item.id === chapterId)) {
+              const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
+              await service.blockChapterDownload(comic, chapterId, hydration.reasonCode ?? 'pages_missing', {
+                comicTitle: comic.title,
+                chapterTitle,
+              })
+            }
+            blockedCount += 1
+            console.warn(`[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
+            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
+            continue
+          }
         }
         const comic = this.libraryStore?.getComic(this.currentComicId())
-        if (comic === undefined) {
+        if (comic === undefined || !sameComicIdentity(initialComic, comic) ||
+          !comic.chapters.some((item: Chapter): boolean => item.id === chapterId)) {
           failedCount += 1
           this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [index + 1, targetChapterIds.length])
           continue
@@ -1595,6 +1609,10 @@ export struct MangaDetailPage {
       this.downloadStatusText = pausedCount > 0
         ? this.formatString('manga_detail_batch_paused', [downloadedCount, pausedCount, blockedCount, failedCount])
         : this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
+      this.showToast(this.downloadStatusText)
+    } catch (_error) {
+      console.warn('[ReaderOffline] step=detail_batch_download_failed failed=true reason=download_execution')
+      this.downloadStatusText = s('manga_detail_chapter_download_failed')
       this.showToast(this.downloadStatusText)
     } finally {
       this.downloadBusy = false
