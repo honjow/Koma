@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { pasteboard } from '@kit.BasicServicesKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import {
@@ -864,7 +865,7 @@ export struct TrackerSettingsPage {
 
   @Builder
   private ProvidersCard() {
-    Column() {
+    GroupedListSection() {
       ForEach(this.visibleProviders(), (provider: TrackerProviderConfig, index: number) => {
         if (this.providerId.length === 0) {
           this.ProviderNavigationRow(provider)
@@ -878,16 +879,10 @@ export struct TrackerSettingsPage {
           }
         }
         if (index < this.visibleProviders().length - 1) {
-          Divider()
-            .strokeWidth(0.5)
-            .color(ThemeConstants.DIVIDER)
-            .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+          ListDivider()
         }
       }, (provider: TrackerProviderConfig) => provider.providerId)
     }
-    .width('100%')
-    .borderRadius(ThemeConstants.RADIUS_CARD)
-    .backgroundColor(ThemeConstants.CARD)
   }
 
   @Builder
