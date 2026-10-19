@@ -1,6 +1,6 @@
 # Koma 当前状态、缺口与执行基线
 
-## 本次接续：交付同步与普通备份路径（2026-10-20，Root）
+## 本次接续：普通导入、筛选与交付同步（2026-10-20，Root）
 
 - 三个主仓当前各一个原工作树、一本地主分支，工作区干净；没有新增工作树、分支、源码副本、归档、报告或脚本。禁止哈希核验继续有效。
 - 书源 master 已实际同步至 origin/master 的319f581。reader-kit/main 的139个本地提交推送失败：GitHub返回403，现有honjow凭据的仓库权限接口明确 push=false；保留本地成果，不重复推送、不改仓库地址或另建分支。需要该仓库写权限才能完成同步。
@@ -8,7 +8,12 @@
 - 197沿主仓既有Debug包完成普通设置→备份→本地文件→预览：旧文件显示74个书架项目、76条进度；展开显示当前75/80及77份源包元数据。没有执行恢复。
 - 随后经创建备份表单生成本地未加密文件1792448507055：首页4→5；新文件真实预览显示75个书架项目、80条进度。经该文件行菜单及准确文件名确认框仅删除这份本轮文件；最终布局逐项读回原四个文件仍在，新文件消失。未改持久备份配置、未恢复/替换书架或进度。仅关闭本地未加密创建/预览/删除这条路径，不扩大到加密、恢复、失败回滚或cold。
 - 证据沿用 .hvigor/outputs/user-flow-audit/ 的 backup-resumed-preview、backup-preview-details、backup-new-preview、backup-own-delete-confirm、backup-cleanup-complete原图/布局和global-search-commands.jsonl。首次内联语法错误发生在执行前；两次转场期布局只有系统栏，稳定后普通页面正常，未误报崩溃或修改产品。后续沿同manifest按页面控件就绪条件读取，不加人为延时制造通过。
-- 下一未验证动作/owner：Root接续已批准8c0a8d25的书源筛选普通切换及失败/重试消费者；不重验已通过的搜索列表、下载查看或四图标呈现，不制造失败、不抢窗口。普通Shared入口及两项标识提取仍待真实人类答复。图标worker当前没有可直接执行的可信素材替换，保留逐源具体缺口，不称图标全线完成。
+- 已有197筛选原件复核：MangaDex声明支持筛选，热门列表20本；Status由All切Completed后列表替换，恢复All后原列表读回。只关闭普通筛选替换，不包含请求中换筛选或自然失败重试。DM5及中文MangaDex不声明筛选，不能用于这项验收。证据为source-filter-mdx-{browse,original-values,selected-status,restored-all}。
+- 设置“失败任务重试”消费者实际仅跳转下载管理，说明却写“自动重试失败下载”；三语限定说明候选仍待真实人类答复，未改动。不以异步工具受理作为批准。
+- 本轮197普通本地归档路径：系统文件选择器中使用已有258.23MB CBZ；导入后书架新增一本，详情解析1章/1700页，普通开始阅读显示首图。当前原偏好为纵向分页、从左到右、左右分区且水平翻转；上滑实际进入第2页，退出并普通继续阅读仍为第2页。随后force-stop前PID24637、停止后pidof空、新启动PID11467；普通书架继续阅读再次返回2/1700，未清数据、未改阅读偏好。最后仅经准确书名确认框移出本轮新增条目，原书架继续阅读卡恢复，外部CBZ未删除；临时“最近加入”排序冷启动后回到原“最近阅读”。仅此归档的导入/首图/纵向翻页/同进程重开/真实进程结束后重开/书架移出得到当前证据，不扩大为全部本地格式、完整1700页或Shared通过。
+- 本轮未闭反例：同一旧版阅读页，左右两侧单击均未改变页码；中心点击可呼出控件，纵向翻页正常。横向滑动在纵向分页下无效不计产品故障；两侧点击原因尚未查明，不能说已修好。已有就绪断言曾误用系统截断路径和未核对文案，检查超时不冒产品失败，原命令记录保留。
+- 本轮证据仍在.hvigor/outputs/user-flow-audit/local-import-{result,added,open,reader,page2,reader-settings,vertical,reopen,cold-library,cold-reader,remove-confirm,cleanup}原图/布局，以及global-search-commands.jsonl；不新增报告、脚本、目录或哈希核验。
+- 下一未验证动作/owner：Root追查当前纵向分页两侧点击未翻页的事件坐标、偏好与分页消费者；不更改样式，不反复重验已通过路径。普通Shared入口、两项标识提取及下载说明仍待真实人类答复。图标worker当前没有可直接执行的可信素材替换，保留逐源具体缺口，不称全线完成。
 
 ## 当前问题：全局书源搜索提前超时（2026-10-20）
 
@@ -459,16 +464,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "本地未加密备份创建/预览/清理通过；Koma和源已同步，Kit写权限阻塞。",
-  "updatedAt": "2026-10-19T22:28:32Z",
+  "outcome": "本地归档普通导入/纵向翻页/进度重开与不清数据冷启动具名通过；两侧点击未翻页仍待归因。",
+  "updatedAt": "2026-10-19T23:20:11Z",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_FILTERS",
+  "activeId": "LOCAL_READER_TAPS",
   "activity": {
-    "title": "接续已批准的书源筛选行为",
-    "detail": "备份普通创建→预览→本轮文件清理已完成；已通过路径冻结，不以旧清理窗口继续调度。",
-    "startedAt": "2026-10-19T22:26:49Z"
+    "title": "追查实际本地阅读点击反例",
+    "detail": "普通本地导入及真实冷启动进度已验证；保持现有纵向分页和点击区偏好。",
+    "startedAt": "2026-10-19T23:20:11Z"
   },
-  "nextAction": "Root：验证已批准源筛选切换的真实消费者；不人为注入错误，不重复已通过路径。",
+  "nextAction": "Root：追当前纵向分页两侧点击事件坐标、原偏好与分页消费者；不以正常纵向翻页抵消点击反例。",
   "proof": [
     {
       "label": "正式主仓",
@@ -499,6 +504,12 @@
       "state": "仍未完成",
       "kind": "open",
       "detail": "四份实际交付与公共裁切修复按已记录消费者冻结；其余低清/缺图和待答复提取保持具体OPEN。"
+    },
+    {
+      "label": "本地CBZ普通路径",
+      "state": "具名路径通过",
+      "kind": "accepted",
+      "detail": "1章1700页归档导入、首图、纵向第2页、同进程及真实进程结束后第2页重开；仅移出本轮条目，外部文件保留。"
     }
   ],
   "hosts": [
@@ -514,10 +525,10 @@
     {
       "id": "SOURCE_FILTERS",
       "title": "已批准源筛选行为的当前设备路径",
-      "status": "待验证",
+      "status": "普通切换具名通过",
       "kind": "open",
-      "result": "8c0a8d25已接入三项获批源行为，原有限导航证据保留。",
-      "remaining": "Root接正常筛选切换；没有自然失败时不虚构失败/重试通过。",
+      "result": "MangaDex热门列表All→Completed实际替换，回All后原列表读回。",
+      "remaining": "请求中改筛选与自然失败重试未取得当前证据；不制造失败。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -570,6 +581,30 @@
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": "2026-10-19T22:26:49Z"
+    },
+    {
+      "id": "LOCAL_READER_TAPS",
+      "title": "纵向分页两侧点击未翻页",
+      "status": "原因待查",
+      "kind": "open",
+      "result": "中心能呼出控件、纵向能翻页；两侧单击页码不变。",
+      "remaining": "Root追事件坐标、当前偏好及分页消费者；未改产品。",
+      "reportedAt": null,
+      "reportedAtSource": "本轮普通路径实际观察，不猜原始出现时间。",
+      "firstEvidenceAt": null,
+      "closedAt": null
+    },
+    {
+      "id": "LOCAL_ARCHIVE",
+      "title": "本地CBZ导入与进度重开",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "导入、首图、纵向翻页、同进程及真实冷启动后第2页重开均实际观察；本轮条目已移出。",
+      "remaining": "不扩大为ZIP/其它格式、全部内容或Shared；两侧点击另保OPEN。",
+      "reportedAt": null,
+      "reportedAtSource": "本轮普通路径实际观察。",
+      "firstEvidenceAt": null,
+      "closedAt": "2026-10-19T23:20:11Z"
     }
   ],
   "source": {
@@ -584,6 +619,10 @@
     {
       "at": "2026-10-19T22:26:49Z",
       "text": "本地未加密备份创建/读回/清理完成；书源主分支已同步，Kit推送403已核权限。"
+    },
+    {
+      "at": "2026-10-19T23:20:11Z",
+      "text": "197现成CBZ导入、纵向翻页及真实进程死亡后进度重开通过；本轮条目已移出，点击反例继续追。"
     }
   ],
   "releaseGates": [
