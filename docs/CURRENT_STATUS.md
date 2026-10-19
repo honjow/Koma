@@ -11,6 +11,10 @@
 - 当前仍有三份未提交工作文件：App `KomaReaderLabPage.ets`；Kit `ReaderSurface.ets`及`reader-surface-input.test.cjs`。本续接未修改、未覆盖、未提交这些差异，来源归属未查证；不把它们冒称清理已采纳。Kit stash继续保留。远端未由本轮同步，不发布。
 - 下一项仍是恢复清理：Root对现存原输入中未完成的行为差异继续作有限裁定，先用现成原候选/后继/反例，不能以归档代替采用，也不重开已闭源码组或插入产品测试。现有App、Kit、源owner均已回报其直接可退队列为空；历史证据父仍未全部退出。
 
+- 当前原下载初始化恢复依据：对象为Settings两个下载偏好保存方法与Index移书下载清理；来源为`koma-download-initialization-owner-20261017/proposed.diff`原完整五hunk及原有限197/Host记录。原理由是后台初始化会用旧队列覆盖同步写；本次原候选/当前真实三个消费者比对确认五hunk未归，且现Service仍提供同一Promise API。按本次有效成果恢复授权，仅接回两import、两方法await和清理Promise前置，保现有catch/文案/Builder与其它WIP；当前构建和设备验收未做。设置计数独立未归候选继续保原父，不随此组回灌。
+
+- 四个已核数据Owner原父已完整归档读回后退出，回执`four-retained-data-owner-originals-20261020-retirement.json`；另定位到下载初始化原完整五hunk未归，已仅在Index/Settings接回原等待顺序。`download-init-recovery-current-consumer-result.json`复用原提取器在当前三个实际方法验证等待前不写/不删、初始化拒绝沿原catch；依赖为内存端口，非真实TaskPool/IO、构建或Native。源设置计数另有具体未归行：saveSettings先取旧savedSettingCounts，再reload仅保留既有ValidationStatus.savedCount；摘要/验证诊断可读旧值，计数诊断读新缓存。原重新load行在try内，当前无try；原716f未纳理由未知，保原settings父，不作不安全单行回灌。
+
 ## 恢复审计记录（2026-10-19）
 
 - 2026-10-20 Root已实际收敛清理：咚漫五父由r3原件/9档/16独有Git正文完整保全后退出，Root逐5554旧路径成员独立读回；r2循环变量复用风险保留，未运行旧候选。四份非Koma命名旧源码已核后继并全档读回后精确退出，生产源码未变化。Kit旧小审查目录14原文件复用r154完整原档、补保存原目录元数据与路径图后退出；停止r160过宽全局扫描路线，未运行其删除模式。证据：`root-dongman-five-r3-independent-postcheck-20261020.json`、`app-four-nonkoma-original-inputs-retirement-20261020-result.json`、`root-kit-small-checkpoint-exact-retirement-20261020.json`。

@@ -1,3 +1,4 @@
+import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
@@ -1668,7 +1669,8 @@ struct Index {
   private cleanupRemovedComicDownloads(comicId: ComicId): void {
     try {
       const context = getContext(this) as common.UIAbilityContext
-      void new OfflineDownloadQueueStore(context.filesDir).deleteComicDownloads(comicId)
+      void OfflineDownloadService.ensureQueueInitialized(context.filesDir)
+        .then((): Promise<number> => new OfflineDownloadQueueStore(context.filesDir).deleteComicDownloads(comicId))
         .then((removedCount: number) => {
           console.info(`[library-remove] downloads_cleanup removed=${removedCount}`)
         })

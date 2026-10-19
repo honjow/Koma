@@ -1,3 +1,4 @@
+import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { bundleManager, common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -1676,8 +1677,9 @@ export struct SettingsPage {
       })
   }
 
-  private saveDownloadForegroundConcurrencyLimit(limit: number): void {
+  private async saveDownloadForegroundConcurrencyLimit(limit: number): Promise<void> {
     try {
+      await OfflineDownloadService.ensureQueueInitialized(this.context().filesDir)
       this.downloadForegroundConcurrencyLimit = this.offlineDownloadQueueStore().setForegroundConcurrencyLimit(limit).foregroundConcurrencyLimit
       console.info('[Settings] step=save_download_concurrency limit=' + this.downloadForegroundConcurrencyLimit)
     } catch (error) {
@@ -1686,8 +1688,9 @@ export struct SettingsPage {
     }
   }
 
-  private saveDownloadWifiOnly(wifiOnly: boolean): void {
+  private async saveDownloadWifiOnly(wifiOnly: boolean): Promise<void> {
     try {
+      await OfflineDownloadService.ensureQueueInitialized(this.context().filesDir)
       this.downloadWifiOnly = this.offlineDownloadQueueStore().setWifiOnly(wifiOnly).wifiOnly
       console.info('[Settings] step=save_download_wifi_only value=' + this.downloadWifiOnly)
     } catch (error) {
