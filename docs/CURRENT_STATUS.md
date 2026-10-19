@@ -191,6 +191,12 @@
 
 - 全目录范围补漏继续OPEN：除五现存App checkout、源五owner与Kit独立GitDB/WIP外，`/Users/honjow/git/koma-worktrees/source-settings` 是无.git指针但仍含App源码/证据的实体副本，不在Git worktree清单仍必须核。App worker已读2366件，非生成1764件中1762有可达原内容映射，旧ReaderChrome/ReaderPage两件继续逐行为找后继，未删该目录。`/private/tmp`原盘点1144顶层目录/220源树，当前仍有1117个Koma相关目录；源worker继续非Git候选树逐内容去向，不能把分支或工作树数量减少当本任务完成。普通产品与设备仍暂停；下一owner：Root亲审claim/剩余owner可清理闭包，App worker核无Git副本/CI依赖/文档，source worker核剩余实体和非Git树。
 
+
+- 无Git的source-settings实体已核清并清理：Root独立核708个App文件逐路径/mode/blob精确等原0312完整tree、1056个Lexbor等原c8f pin，原12条settings after与主仓祖先3743全同，旧Reader基线不回灌。全部2366文件/150421450字节（含602构建/证据项与唯一fixture原回执）完整归档，2835个tar成员逐件核mode/字节，App原历史2929对象与Lexbor完整上游11200对象均pack/index严格验证。首次Lexbor浅仓缺父对象使index-pack严格失败，在删除前停止；失败包/记录保留，后从本地现存非浅对象库补齐，无网络/新源码目录。限定移除`/Users/honjow/git/koma-worktrees/source-settings`，主仓全部tracked/WIP/refs/HEAD前后精确保留。证据：`source-settings-complete-cleanup-*`、`source-settings-original-*-closure*`及原App worker完整实体报告。其余实体/历史审计继续OPEN。
+- 可选多语言名称完整消费者已归回：App`31c8ee5a`恢复原1bb的11路径producer/consumer。Root亲读原同会话9666/9691 actual对话并核行hash，原可选名称/旧name fallback/固定ID和收藏不变授权成立；172项双port原raw span亲核，结果页仅将现bde map的名称producer接解析helper，保live revision、opaque sourceKey join、当前job复读与`>`比较。Index19/Library3/Detail8块原WIP逐字保持，其他tracked保持。实际index原metadata/presentation全部Host断言通过，无新构建/Native/各页实时语言刷新结论。证据：`localized-name-consumers-recovery-*`及原1bb完整追溯。
+- Kit原独立职责继续归回：`39c93a8`仅将原f7的两行loading根Transparent注释/修复适配到现Column，保四现有consumer与全部几何/文案/门禁，不加responseRegion，原Stack与当前Column区别明列，不能把原fresh57命中链进展当当前waiting菜单接受。`a03ca79`归回原854的66行native identity map、完整RenderItem/DataSource→真实LazyForEach/key/snapshot消费者及原五项语义测试，16 after span与原854精确、原8a427 HAP/patch/具名录像绑定亲核，实际五项通过；当前command/queueSelection/boundary/active、f260深度/true和所有Core保留。`32b297d`恢复原304的排队prepare单行及完整原测试case，当前Koma先open→current检查→prepare→current检查→真实layout wait消费者已核，实际Window整套36/36。无新ArkTS/Native，原具名有限运行不扩大。证据：`kit-loading-input-recovery-*`、`kit-native-identity-recovery-*`、`kit-window-queue-recovery-*`。
+- claim/rollback组具体HOLD：Root已在真实原GitDB独立核r20的原方法与消费者。原854/f769 continuous在displayed+failure态没有对应重试入口，总error也不聚合slot failure；整组回灌会把当前failed面板重试变成无入口。原29ca/38216成功替换运行不覆盖这条失败。故原已有采纳成果/原包继续保全，不冒“完整8消费者失败闭环”，也不造success-only生命周期或新连续按钮绕过恢复范围。其余非依赖原组照常审。下一owner：Root亲审源八阶段非Git树的共享WIP/后继及完整保全清理；App worker接原682网格完整授权/三方WIP依赖，源worker补非Git全physical和真正独有WIP，Kit worker收口剩余31对象与ignored内容。产品新增与设备仍暂停，整体恢复OPEN。
+
 ---
 
 以下保留原主仓开发记录全文，其历史状态不得覆盖上方当前恢复任务。
