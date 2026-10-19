@@ -56,12 +56,15 @@ function writeBytesSync(path: string, bytes: ArrayBuffer): OfflineDownloadPageWr
   let file: fs.File | undefined = undefined
   try {
     file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, bytes)
+    const written = fs.writeSync(file.fd, bytes)
+    if (written !== bytes.byteLength) throw new Error('Incomplete download page write')
   } finally {
     closeFileQuietly(file)
   }
+  const size = fs.statSync(path).size
+  if (size !== bytes.byteLength) throw new Error('Incomplete download page file')
   return {
-    size: fs.statSync(path).size,
+    size,
     contentHash: createOfflineDownloadStableByteHash(new Uint8Array(bytes)),
   }
 }
