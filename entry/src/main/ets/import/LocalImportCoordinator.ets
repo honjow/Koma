@@ -346,10 +346,9 @@ export async function scanPickedFolderUri(rootUri: string): Promise<LocalLibrary
         textContent: stat.isDirectory() ? undefined : readPickedFolderTextIfNeeded(entryUri, relativePath, stat.size),
       })
     } catch (_err) {
-      entries.push({
-        relativePath,
-        exists: false,
-      })
+      // An unreadable entry is not evidence of deletion. Keep the previous
+      // library snapshot intact instead of persisting a partial page list.
+      throw new Error(LOCAL_IMPORT_ERROR_FOLDER_SCAN_FAILED)
     }
   }
   return scanLocalLibraryFolderEntries(entries, createPickedFolderRootName(rootUri))
