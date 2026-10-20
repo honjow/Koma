@@ -292,15 +292,17 @@ export struct ReaderChrome {
           .width('100%')
 
         Row({ space: ThemeConstants.SPACE_XS }) {
-          Text(this.pageText())
-            .fontSize(11)
-            .fontColor('#CCFFFFFF')
-            .maxLines(1)
-            .flexShrink(0)
-          Text('·')
-            .fontSize(11)
-            .fontColor('#CCFFFFFF')
-            .flexShrink(0)
+          if (this.pageTotal > 0) {
+            Text(this.pageText())
+              .fontSize(11)
+              .fontColor('#CCFFFFFF')
+              .maxLines(1)
+              .flexShrink(0)
+            Text('·')
+              .fontSize(11)
+              .fontColor('#CCFFFFFF')
+              .flexShrink(0)
+          }
           Text(this.chapterTitleText())
             .fontSize(11)
             .fontColor('#CCFFFFFF')
@@ -386,6 +388,7 @@ export struct ReaderChrome {
             })
           Text(`${Math.max(this.pageTotal, 0)}`).fontSize(14).fontColor(Color.White).width(30).textAlign(TextAlign.End)
         }.width('100%').height(32)
+          .visibility(this.pageTotal > 0 ? Visibility.Visible : Visibility.Hidden)
         Row() {
           Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.book')).fontSize(22).fontColor([this.readerMode === ReaderMode.DUAL_PAGE ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
             .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.pageTotal > 1).onClick(() => { this.onModeChange(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.SINGLE_PAGE : ReaderMode.DUAL_PAGE) })

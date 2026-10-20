@@ -58,6 +58,16 @@ import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeA
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
 
+interface ReaderRetryHitRegion {
+  pageIndex: number
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+let nextReaderRetryHitRegionId: number = 1
+
 const READER_TAP_VERTICAL_TOLERANCE: number = 10
 const READER_TAP_ZONE_SCROLL_RATIO: number = 0.75
 // Harmony's device doubleClick path delivers the second click around 350ms;
@@ -188,8 +198,12 @@ struct ReaderImageSurface {
   @Event onImageInfo: (pageIndex: number, width: number, height: number) => void = (_pageIndex: number, _width: number, _height: number) => {}
   @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onRetry: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => void =
+    (_id: number, _region: ReaderRetryHitRegion | undefined) => {}
   @Event onTap: (x: number, y: number) => void = (_x: number, _y: number) => {}
 
+  private readonly retryHitRegionId: number = nextReaderRetryHitRegionId++
   @Local private displayUri: string = ''
   @Local private loading: boolean = false
   @Local private failed: boolean = false
@@ -691,10 +705,30 @@ struct ReaderImageSurface {
   @Builder
   private LoadingContent() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      LoadingProgress().width(28).height(28).color(Color.White)
+      if (!this.failed) {
+        LoadingProgress().width(28).height(28).color(Color.White)
+      }
       Text(this.failed ? s(this.sourceFailureReason === 'unsupported' &&
         (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.uri === 'source-placeholder://chapter')
         ? 'reader_source_chapter_unsupported' : 'reader_page_load_failed') : s('reader_decoding_image')).fontSize(13).fontColor(Color.White)
+      if (this.failed) {
+        Button({ type: ButtonType.Capsule, stateEffect: true }) {
+          Text(s('common_retry')).fontSize(13).fontColor(ThemeConstants.TEXT_ON_BRAND)
+        }
+        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
+        .onAreaChange((_old: Area, next: Area) => {
+          if (this.disposed) return
+          this.onRetryRegionChange(this.retryHitRegionId, {
+            pageIndex: this.pageIndex,
+            x: next.globalPosition.x as number,
+            y: next.globalPosition.y as number,
+            width: next.width as number,
+            height: next.height as number,
+          })
+        })
+        .onDisAppear(() => { this.onRetryRegionChange(this.retryHitRegionId, undefined) })
+        .onClick(() => { this.onRetry(this.pageIndex) })
+      }
     }.justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center).width('100%').height('100%')
   }
 
@@ -781,7 +815,7 @@ struct ReaderImageSurface {
     // zoomed-pan recognizers below. A single-tap recognizer here would join
     // the recognizer race and starve the List before it can start scrolling.
     .onTouch((event: TouchEvent) => { this.onSurfaceTouch(event) })
-    .hitTestBehavior(this.gesturesEnabled ? HitTestMode.Default : HitTestMode.None)
+    .hitTestBehavior(this.gesturesEnabled || this.failed ? HitTestMode.Default : HitTestMode.None)
     // Keep this declaration inline. `panDistance()` depends on local zoom
     // state; hiding the recognizer behind a factory freezes its construction
     // at the unzoomed threshold and makes post-zoom pan impossible.
@@ -864,6 +898,9 @@ struct ReaderSpreadSurface {
     (_pageIndex: number, _width: number, _height: number) => {}
   @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onRetry: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => void =
+    (_id: number, _region: ReaderRetryHitRegion | undefined) => {}
 
   @Local private zoomScale: number = 1
   @Local private offsetX: number = 0
@@ -1255,6 +1292,10 @@ struct ReaderSpreadSurface {
       },
       onLoaded: (pageIndex: number) => { this.onLoaded(pageIndex) },
       onFailed: (pageIndex: number) => { this.onFailed(pageIndex) },
+      onRetry: (pageIndex: number) => { this.onRetry(pageIndex) },
+      onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => {
+        this.onRetryRegionChange(id, region)
+      },
     })
   }
 
@@ -1756,6 +1797,7 @@ export struct ReaderPage {
   }
 
   aboutToDisappear(): void {
+    this.retryHitRegions.clear()
     this.persistCurrentProgress()
     this.sessionStore.flush()
     this.setReaderKeepScreenOn(false)
@@ -1767,6 +1809,7 @@ export struct ReaderPage {
 
   @Monitor('sessionConfig')
   onSessionChanged(): void {
+    this.retryHitRegions.clear()
     this.syncSession(true)
   }
 
@@ -3038,6 +3081,7 @@ export struct ReaderPage {
       .width('100%')
       .height('100%')
       .hitTestBehavior(HitTestMode.Transparent)
+      .onTouchIntercept((event: TouchEvent): HitTestMode => this.retryTouchHitTest(event))
       .onTouch((event: TouchEvent) => { this.onPagedOverlayTouch(event) })
       .gesture(
         GestureGroup(
@@ -3146,6 +3190,31 @@ export struct ReaderPage {
     }
     this.volumeDownConsumer = null
     this.volumeUpConsumer = null
+  }
+
+  private readonly retryHitRegions: Map<number, ReaderRetryHitRegion> = new Map()
+
+  private rememberRetryHitRegion(id: number, region: ReaderRetryHitRegion | undefined): void {
+    if (region === undefined || region.width <= 0 || region.height <= 0) {
+      this.retryHitRegions.delete(id)
+    } else {
+      this.retryHitRegions.set(id, region)
+    }
+  }
+
+  private retryTouchHitTest(event: TouchEvent): HitTestMode {
+    const touch = this.overlayTouchPoint(event)
+    if (touch === undefined) return HitTestMode.Transparent
+    let retryHit = false
+    // The button supplies its actual window bounds. Keep the existing pager
+    // recognizers everywhere else, including the rest of the failed page.
+    this.retryHitRegions.forEach((region: ReaderRetryHitRegion): void => {
+      if (!this.failedPages.includes(region.pageIndex) ||
+        !this.pageIsZoomActive(region.pageIndex, this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL)) return
+      if (touch.windowX >= region.x && touch.windowX <= region.x + region.width &&
+        touch.windowY >= region.y && touch.windowY <= region.y + region.height) retryHit = true
+    })
+    return retryHit ? HitTestMode.None : HitTestMode.Transparent
   }
 
   private sourceRetryConfig: ReaderSessionConfig | null = null
@@ -3351,15 +3420,12 @@ export struct ReaderPage {
         },
         onLoaded: (page: number) => { this.onImageLoaded(page) },
         onFailed: (page: number) => { this.onImageFailed(page) },
+        onRetry: (page: number) => { this.retryCurrentPage(page) },
+        onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => {
+          this.rememberRetryHitRegion(id, region)
+        },
         onTap: (x: number, y: number) => { this.tapActionForSlot(x, y, splitSide, compact) },
       })
-      if (this.failedPages.includes(index)) {
-        Button({ type: ButtonType.Capsule, stateEffect: true }) {
-          Text(s('common_retry')).fontSize(13).fontColor(ThemeConstants.TEXT_ON_BRAND)
-        }
-        .backgroundColor(ThemeConstants.BRAND_PRIMARY)
-        .onClick(() => { this.retryCurrentPage(index) })
-      }
       if (compact) {
         Blank().width(1).height(1)
       }
@@ -3452,6 +3518,10 @@ export struct ReaderPage {
           },
           onLoaded: (page: number) => { this.onImageLoaded(page) },
           onFailed: (page: number) => { this.onImageFailed(page) },
+          onRetry: (page: number) => { this.retryCurrentPage(page) },
+          onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => {
+            this.rememberRetryHitRegion(id, region)
+          },
         })
       }, (start: number) => `reader-spread-${start}`)
     }
@@ -3595,7 +3665,7 @@ export struct ReaderPage {
       placement: placement,
       viewportHeight: this.viewportHeight,
       pageIndex: this.pageIndex,
-      pageTotal: this.sessionConfig.totalPages,
+      pageTotal: this.sessionConfig.pageUris.includes('source-placeholder://chapter') ? 0 : this.sessionConfig.totalPages,
       title: this.sessionConfig.title ?? s('reader_title_default'),
       chapterIndex: this.chapterIndex(),
       chapterTotal: this.sessionConfig.chapterIds.length,
@@ -3658,7 +3728,7 @@ export struct ReaderPage {
       if (this.readerOpen && this.sessionConfig.totalPages > 0 && this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL) {
         this.ReaderTapOverlay()
       }
-      if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.chromeShown && this.preferences.showPageNumber) this.PersistentPageNumber()
+      if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.sessionConfig.pageUris.includes('source-placeholder://chapter') && !this.chromeShown && this.preferences.showPageNumber) this.PersistentPageNumber()
       if (this.readerOpen && this.tapPreviewVisible) this.TapZonePreview()
       if (this.readerOpen && this.chromeShown) {
         this.ReaderChromeBar('top')
