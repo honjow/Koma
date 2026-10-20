@@ -20,7 +20,17 @@
 - 设置搜索当前197具名路径：输入“缓存上限”返回对应结果，点击进入存储页并显示原500MB；返回根设置查询已清空，未改参数。首次inputText缺坐标被设备help拒绝，后按实际<x y text>格式完成，不误报搜索故障；原图证明键盘状态下结果仍可操作，未据布局树中的隐藏Tab边界改UI。证据settings-search-{query,storage,return}。
 - 详情单目录刷新当前197具名路径：原Nemo详情菜单“检查本地库”实际只重扫1目录，新增/变更/元数据/缺失/重选/失败全部0；保留原2章及第2/3页继续阅读。临时本地来源筛选已恢复全部，未进正文。证据local-folder-detail-{before,result,restored}与原日志；不以此代替文件变更/丢失输入分支。
 - 分类管理当前197具名闭环：初始无自定义分类，普通表单新建本轮空分类，数量0本；经其菜单改名，显示策略与自定义列表两处均更新，原名消失；准确名称确认框仅删除这份空分类，最终再次“暂无自定义分类”，全部分类/未分类/收藏/稍后阅读仍在。未给任何书分配分类，原书架及最近阅读排序读回；只证明本轮空分类生命周期，不扩大到归属分配、排序迁移或cold。输入曾追加到原名，保存前已读回拦下并用全选替换准确新名，没有提交错误名称。证据category-lifecycle-{before,created,renamed,delete-confirm,cleanup,final-shelf}。
-- 下一未验证动作/owner：Root接现有已配置Kavita的普通浏览、阅读与历史重开，先核实时服务条件，不保存或替换凭据。1700页归档点击反例保留，未得到可靠完整原因前不改参数或手势结构。普通Shared入口、两项标识提取、下载说明和开源声明候选仍待真实人类答复。图标worker没有可直接执行的可信素材替换，逐源具体缺口仍OPEN；不重验冻结路径、不制造失败。
+- Kavita当前条件已实际核对：普通浏览显示无法加载。宿主地址仍匹配已保存配置，25610无监听；原OrbStack为Stopped，CLI清单读取隐式启动超时，正常打开已有应用后Docker守护进程恢复。唯一原Kavita容器仍exited，实际只绑定loopback:25608；其/kavita/config与/manga两个原bind源当前均不存在。未启动该容器、未创建空目录、未重建数据或改凭据，也未回TMP目录盘点；此分支需要有效原服务/数据和转发恢复后才能验阅读/历史，不能误报客户端或Auth Key坏了。
+- WEBTOON繁中0.1.2本轮197普通公开路径：热门30本、作品255章，第2季第65話返回106页；首图为站点原版权提示，第2页真实漫画正文已亲看。纵向翻到2/106，返回详情“继续阅读”同进程回2/106；force-stop前PID11467、停止后pidof空、新启动PID30362，普通历史条目显示2/106并重开同一幅正文。没有收藏、清数据或改偏好；仅关闭此章首两页/重开，不扩大到全106页、全部源、下载或Shared。升序仍显示最新季标题的线索已查：源只解析“第数字話”等显式格式，分季标题chapterNumber=null；公共排序19ad9143刻意让未知话数稳定保留原序，不把index冒充话数，本轮未改排序/源。证据public-webtoon-{reader,page2,resume,cold-root,cold-history,cold-reader}原图/布局及原命令日志。
+- 本轮设备预检错误单独保留：曾误用power-shell setmode 602而非timeout，返回性能模式设置成功；发现后停下普通操作，查官方命令后以setmode 600改为标准模式，随后timeout -o 86400000并读回AWAKE/OverrideTimeout通过。误操作前原模式没有读回，不能称精确恢复原值。一次就绪判断误等隐藏章节标题、一次生命周期动作错放measurement均已保留原失败；后者校验阶段即停止，未触设备，不冒产品错误。
+- HKO原图交付：Root重新读取官网menu.js的myLogo，HTTP200并明确绑定中文首页logo_hko_index_c.png；采用现存451×140完整官方原件替换182×40内页标识，版本0.1.1，未裁切/重绘/加底板或遮罩。仅构建此源，普通文件选择器导入成功；197源包管理与Browse均读回0.1.1并亲看原图。完整横标在小槽仍太小，辨识质量继续OPEN；不以高清原件或安装成功称解决。证据hko-{import-result,manager-row,official-manager,official-browse}，源码与锁文件版本变更已提交并同步源master的563f92d。
+- 下一未验证动作/owner：Root接尚未验收的本地加密备份创建/预览/本轮文件删除，不执行恢复或覆盖书架。1700页归档点击反例仍未归因；普通Shared入口、HComic/科技标识提取、下载说明和开源声明候选待真实人类答复。其余图标逐源缺口保持OPEN。
+
+## 当前问题：书源分页后标题仍显示首批数量（2026-10-20，Root）
+
+- 实际反例：197 HKO0.1.1三页已全部返回，六个真实封面与“没有更多了”同屏，标题仍为“2本”。原件为`.hvigor/outputs/user-flow-audit/hko-catalogue{,-loaded}.json`及`hko-catalogue.png`。第82期详情同时读回原13/13与已下载，本轮不重下既有完成任务。
+- 修改对象/历史来源：SourceBrowsePage，396b71b4恢复原生网格时采用稳定行key与currentGridRow实时查找，但GridRowContent→SectionHeader/HomeSectionHeader仍按值接收对象；分页mergeBrowseListingPage替换section后，卡片新增而标题保留首批对象。原网格/尾部加载决定保持，此新反例只重开数据刷新。
+- 允许差异：沿书架LibraryGridCell既有单literal对象传参和华为@Builder按引用契约，贯通这三层参数。保留全部样式、文案模板、行key、滚动所有者、筛选、分页与动作，不用重建网格或改key制造更新；共一生产文件。主仓Debug构建通过并在197覆盖安装，未清数据；同一路径六个真实封面/终态/标题“6本”已亲看。DM5 0.1.13首页的热门/最新两组及“最新更新→打开列表”实际进入70本最新列表，封面与标题同步；MangaDex旧0.1.6仅覆盖Popular列表，不冒首页通过。原件browse-header-{repaired,dm5-home,dm5-latest}，原失败就绪条件仍保留。
 
 ## 当前问题：全局书源搜索提前超时（2026-10-20）
 
@@ -471,16 +481,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "本地归档/两图导入与具名重开通过；本地重扫和重选入口已实际观察，开源声明仍是占位待决定。",
-  "updatedAt": "2026-10-19T23:55:31Z",
+  "outcome": "WEBTOON具名公开章节cold历史重开通过；书源分页数量刷新修复通过。HKO完整官方原图已交付，小槽辨识仍OPEN。",
+  "updatedAt": "2026-10-20T00:35:00Z",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "KAVITA_HISTORY",
+  "activeId": "BACKUP_ENCRYPTED",
   "activity": {
-    "title": "现有私库普通路径",
-    "detail": "空分类新增/改名/移除已具名验证并清理；接已配置Kavita，不更换凭据。",
-    "startedAt": "2026-10-19T23:55:31Z"
+    "title": "本地加密备份普通闭环",
+    "detail": "书源分页后2→6数量刷新和DM5首页导航已通过；沿备份既有未验收分支接续。",
+    "startedAt": "2026-10-20T00:35:00Z"
   },
-  "nextAction": "Root：从普通浏览入口检查现有Kavita服务，接实际阅读与历史重开；具体服务缺条件只限制该分支。",
+  "nextAction": "Root：普通设置创建一份本地加密备份，预览并仅删除本轮文件；不执行恢复或替换用户数据。",
   "proof": [
     {
       "label": "正式主仓",
@@ -498,7 +508,7 @@
       "label": "远端同步",
       "state": "App/源已同步；Kit权限阻塞",
       "kind": "open",
-      "detail": "Koma/master已正常同步017197b0，sources/master319f581；reader-kit/main推送403且push=false，CI仍待依赖可用。"
+      "detail": "源master已正常同步563f92d；Koma本轮范围提交同步中；Kit原403/push=false仍限制其分支。"
     },
     {
       "label": "共享阅读器",
@@ -661,10 +671,37 @@
     {
       "id": "KAVITA_HISTORY",
       "title": "已配置Kavita普通阅读与历史重开",
+      "status": "原服务条件缺失",
+      "kind": "open",
+      "result": "普通浏览无法加载；原Kavita容器exited且两原bind源不存在，25610转发无监听；Docker守护进程已恢复，未启动空数据容器或改凭据。",
+      "remaining": "需要有效原Kavita服务数据及转发恢复；原Host/缓存书架不当当前阅读历史通过。",
+      "closedAt": null
+    },
+    {
+      "id": "WEBTOON_READING",
+      "title": "WEBTOON繁中普通公开阅读",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "热门30本、目录255章；第2季第65話106页的原首图和第2页正文、同进程继续阅读及PID11467→空→30362后历史2/106重开。",
+      "remaining": "全章、下载与Shared不在本次通过范围；分季标题未解析话数，稳定原序保持。",
+      "closedAt": "2026-10-20T00:20:25Z"
+    },
+    {
+      "id": "BROWSE_HEADER_REFRESH",
+      "title": "书源分页后的当前数据刷新",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "HKO六本标题由旧2修正为6；DM5首页分组及最新导航70本正常。样式、文案模板、行key和网格保持。",
+      "remaining": "不扩大为所有源与全部失败状态。",
+      "closedAt": "2026-10-20T00:35:00Z"
+    },
+    {
+      "id": "BACKUP_ENCRYPTED",
+      "title": "本地加密备份创建与预览",
       "status": "待验证",
       "kind": "open",
-      "result": "c8813948恢复组原Host证据不替代当前实机；现有配置地址仍在，未重写或打印密钥。",
-      "remaining": "Root核当前普通浏览/阅读/历史消费者及服务条件。",
+      "result": "当前只闭本地未加密创建/预览/清理；不以此替代加密、恢复或cold。",
+      "remaining": "Root普通创建→预览→仅清理本轮文件；不执行恢复。",
       "closedAt": null
     }
   ],
@@ -672,9 +709,9 @@
     "status": "未完成",
     "kind": "open",
     "title": "中文源质量与完整图标范围",
-    "result": "源码已同步319f581；DBMultiverse、immark、Laya、3Hentai的实际图标交付按具名消费者通过。",
+    "result": "HKO0.1.1完整官方首页原件已实际安装，两处消费者已亲看；完整横字标小槽辨识仍未解决。既有四图交付按原范围冻结。",
     "remaining": "仍有缺图/低清及品牌绑定问题；两项提取待答复。具体受阻仅限制对应源，不扩大为全App停止。",
-    "commit": "319f581"
+    "commit": "563f92d"
   },
   "milestones": [
     {

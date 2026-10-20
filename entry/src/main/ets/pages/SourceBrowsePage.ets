@@ -39,6 +39,15 @@ interface SourceBrowseGridRow {
   browseSection?: BrowseSourceSectionState
   bottomPadding: number
 }
+interface SourceBrowseGridRowParams {
+  row: SourceBrowseGridRow
+}
+interface SourceBrowseSectionHeaderParams {
+  section: BrowseSourceSectionState
+}
+interface SourceHomeSectionHeaderParams {
+  section: SourceHomeSectionState
+}
 interface SourceBrowseGridProjection {
   rows: SourceBrowseGridRow[]
   byKey: Map<string, SourceBrowseGridRow>
@@ -283,12 +292,12 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private SectionHeader(section: BrowseSourceSectionState) {
+  private SectionHeader(params: SourceBrowseSectionHeaderParams) {
     Row() {
       if (this.viewModel.listings.length > 1) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: ThemeConstants.SPACE_XS }) {
-            Text(section.listing.name)
+            Text(params.section.listing.name)
               .fontSize(ThemeConstants.FONT_SIZE_H3)
               .fontWeight(FontWeight.Bold)
               .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -309,12 +318,12 @@ export struct SourceBrowsePage {
             this.listingMenuOpen = false
           },
         })
-        .accessibilityText(section.listing.name)
+        .accessibilityText(params.section.listing.name)
         .onClick(() => {
           this.openListingMenu()
         })
       } else {
-        Text(section.listing.name)
+        Text(params.section.listing.name)
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -322,7 +331,7 @@ export struct SourceBrowsePage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       Blank()
-      Text(s('library_count_books').replace('%s', `${section.manga.length}`))
+      Text(s('library_count_books').replace('%s', `${params.section.manga.length}`))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
     }
@@ -330,25 +339,25 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private HomeSectionHeader(section: SourceHomeSectionState) {
+  private HomeSectionHeader(params: SourceHomeSectionHeaderParams) {
       Row() {
-        Text(section.title)
+        Text(params.section.title)
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
         Blank()
-        if (this.hasListingForHomeSection(section)) {
+        if (this.hasListingForHomeSection(params.section)) {
           KomaActionButton({
             label: s('browse_section_open_listing'),
             kind: 'ghost',
             compact: true,
             isEnabled: !this.viewModel.loadingBrowse,
             action: () => {
-              this.openHomeSectionListing(section)
+              this.openHomeSectionListing(params.section)
             },
           })
         } else {
-          Text(s('library_count_books').replace('%s', `${section.manga.length}`))
+          Text(s('library_count_books').replace('%s', `${params.section.manga.length}`))
             .fontSize(ThemeConstants.FONT_SIZE_META)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
         }
@@ -423,21 +432,21 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private GridRowContent(row: SourceBrowseGridRow) {
-    if (row.kind === 'manga') {
-      MangaGridItem({ manga: row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
-    } else if (row.kind === 'home-header') {
-      this.HomeSectionHeader(row.homeSection!)
-    } else if (row.kind === 'browse-header') {
-      this.SectionHeader(row.browseSection!)
-    } else if (row.kind === 'loading') {
+  private GridRowContent(params: SourceBrowseGridRowParams) {
+    if (params.row.kind === 'manga') {
+      MangaGridItem({ manga: params.row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+    } else if (params.row.kind === 'home-header') {
+      this.HomeSectionHeader({ section: params.row.homeSection! })
+    } else if (params.row.kind === 'browse-header') {
+      this.SectionHeader({ section: params.row.browseSection! })
+    } else if (params.row.kind === 'loading') {
       this.LoadingBrowseState()
-    } else if (row.kind === 'empty-search') {
+    } else if (params.row.kind === 'empty-search') {
       KomaEmptyState({ title: s('source_search_empty_results_title'),
         message: this.viewModel.errorMessage.length > 0 ? this.viewModel.errorMessage : s('source_search_empty_results_message') })
-    } else if (row.kind === 'empty-browse') {
+    } else if (params.row.kind === 'empty-browse') {
       this.EmptyBrowseResults()
-    } else if (row.kind === 'error') {
+    } else if (params.row.kind === 'error') {
       this.BrowseErrorState()
     } else {
       SourcePaginationFooter({
@@ -582,7 +591,7 @@ export struct SourceBrowsePage {
           },
         }) {
           ForEach(this.gridProjection.rows, (row: SourceBrowseGridRow) => {
-            GridItem() { this.GridRowContent(this.currentGridRow(row)) }
+            GridItem() { this.GridRowContent({ row: this.currentGridRow(row) }) }
               .padding({ bottom: this.currentGridRow(row).bottomPadding })
               .clip(false)
           }, (row: SourceBrowseGridRow) => row.key)
