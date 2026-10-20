@@ -133,10 +133,13 @@ async function executeSourceHttpRequest(requestJson: string): Promise<string> {
       connectTimeout: sourceTimeout(envelope.timeoutMs),
     })
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+    console.info('[SourceHttpTransport] step=response status=' + response.responseCode)
     return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody))
   } catch (_error) {
     const error = _error as BusinessError
-    return transportError(error.code === undefined ? 'network_error' : 'network_error')
+    const platformCode = typeof error.code === 'number' && Number.isFinite(error.code) ? error.code : 0
+    console.warn('[SourceHttpTransport] step=transport_failed platformCode=' + platformCode)
+    return transportError('network_error')
   } finally {
     request.destroy()
   }

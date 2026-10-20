@@ -2,12 +2,12 @@
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
-最后接续核对：2026-10-21 05:46，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
+最后接续核对：2026-10-21 06:09，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | **进行中：亲审Noy真实source_runtime的App解码消费者**（当前只读）。两书分类加入/筛选/cold/移出/清理已闭，原Chibi2/8、全部分类、最近阅读首三书及10000ms均实际恢复，原租约已release。新长分类名直接截成Koma-QA-的原图反例已追0790b3b4与唯一ComicCoverCard网格消费者；仅加省略号候选待当前异步答复，尚未应用。 | 对齐源owner的本次Noy最小原错误与App解码合同；只因当前实际反例重开相关消费者，不重复已闭路径、不改可见样式。新的197动作前重新实时target/租约/醒屏门禁。 |
-| 源 / koma_source_delivery / 237 | **Noy012内容欠账：当前普通浏览source_runtime失败，正在查原错误**。012图标已由Root亲审两原图并提交同步013f0b0；原48顺序/启用保持，仅新装Noy第49项。Nami简中011当前普通“我是 赛拉”唯一封面/终态已亲审，三文档同步2a890d1；历史197原失败原因仍未知。漫画社首页/160两CSS403已具名登记不重试。 | 源owner追Noy本次请求/ABI/形状与原日志，HTTP状态未知不重发；Root只审App端解码。当前237租约22574a45，原停点Browse末端Noy；阶段结束恢复10000ms/释放。图标未闭条件保留，不把单分支403扩全局。 |
+| App / Root / 197 | **两文件脱敏诊断已实际定位Noy HTTP405/client_error，正在范围提交**。HTTP status/平台数值码与Browse operation/reason/error token不含URL/正文/凭据；请求/响应/UI保持。实际回调封套/隐私验证与Debug自动签名构建通过；237覆盖安装明确成功后一次普通get_listings读回405，原件已由Root亲审。197仍前一按钮包，未冒当前诊断包197验收；其本轮分类/通知状态已完整恢复/release。 | Root亲审源owner后续官网请求合同/最小差异，若涉及App共享依赖再接入；分类长名省略号候选待人类答复，尚未应用。新197动作须实时target/租约/醒屏，不重跑已闭具名路径。 |
+| 源 / koma_source_delivery / 237 | **Noy012实际get_listings HTTP405，源端合同调查进行中**。诊断HAP16223299B/06:04:34在237覆盖安装明确成功；06:08:06 status405，operation=get_listings/reason=unknown/error=client_error，Root亲审原件。未403/challenge，未盲点重试。012图标与Nami限定搜索/403记录已同步。 | 只读核官网公开JS及历史readLeaderboard方法/参数，找到明确冲突后准备源最小diff供Root核；不换GET试探、不猜补。当前237租约30b4eea2，阶段结束原Browse/49项/10000ms读回释放。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
 
@@ -26,6 +26,8 @@
 - **197本轮通知闭环：** 原通知关闭，普通系统请求临时允许；详情“下载章节”实际下载最早章xkcd《1: 桶子之一》（不是2977选择器），完成1/1。Home后通知栏真实显示完成/标题/页数；点击进入下载管理89章2298/2298页，Root亲看完整两图。仅经该章准确名称确认移除后恢复88章2297/2297页。仅Koma系统通知恢复false，App再实读关闭；普通返回原Chibi2/8书架。首次关开关仅收起系统说明浮层，读回true后重试才false，未冒首次成功。原图/布局沿reader-failure-retry的notification197-published-001、click-downloads-001、original-downloads-restored-001、permission-restored-002、app-status-restored-001、library-restored-001（全部带notification197-前缀），回执哈希关闭。不冒cold通知/后台执行/全队列通过。
 
 - **197两书分类有限闭环：** 唯一本轮Koma-QA-Batch-1021空分类创建后，多选Chibi/虫笼只加入此新ID，两处标签更新，普通分类筛选仅两本。Home→force-stop得到38924→空→4949，不清数据普通启动仍为同两本/同标签。再多选仅移出该新ID，筛选实为空；准确名称确认删除0本测试分类后“暂无自定义分类”读回。原筛选全部、最近阅读、Chibi2/8及首三书Chibi/xkcd/虫笼实际恢复；原10000ms/AWAKE读回并release。只关闭两书增删新分类/筛选/cold，不冒替换原分类或自然保存失败回滚。表单输入使页面滚动，首下创建坐标未命中；当前按钮再保存才创建，未误报首下成功。首次清理读回排序仍最近加入，被拦下后恢复最近阅读，未以该帧当原状态。原件为reader-failure-retry/categories197-{created-002,two-selected-menu-001,two-visible-001,cold-001,empty-after-remove-001,own-deleted-001,final-original-state-001}。整图另发现长标签缺省略号，已留候选待当前人类决定，不把功能通过冒整页视觉通过。
+
+- **Noy失败原码现已定位（诊断完成，源内容仍未修）：** 原App只保留泛化source_runtime，本轮两文件仅增加安全token、HTTP状态和数值平台码日志；没有URL/正文/异常原文。实际transport回调离线执行确认200/403/network_error封套保持、非法请求不联网且日志无敏感标记；Debug构建成功，Hvigor自动签名HAP16223299B/06:04:34。旧sign.py仅签名尝试因旧材料路径缺失退出，未改安全/签名材料，未使用它安装；实际237安装的是上述当前自动签名包，明确成功。一次普通Noy入口06:08:05 get_listings→06:08:06.783 HTTP405→06:08:06.888 error=client_error，Root亲审noy012-diagnostic-single-entry237-001/run-metadata.json。首编译因局部errorCode同名失败，改局部变量名后通过；失败未触设备。不把日志修补或HTTP非403当源可用，源owner继续核真实公开请求合同。
 
 ## 当前能力的证据边界（2026-10-21）
 

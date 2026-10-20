@@ -1249,7 +1249,7 @@ export class BrowseViewModel {
     const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, isActive)
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
-      throw new Error(this.runtimeErrorMessage(response))
+      throw new Error(this.runtimeErrorMessage(response, operation))
     }
     return parseSourceMangaListFromResponse(sourceId, response)
   }
@@ -1269,7 +1269,7 @@ export class BrowseViewModel {
     const responseJson = await enqueueSourceOperation(requestJson, wasmBytes)
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
-      throw new Error(this.runtimeErrorMessage(response))
+      throw new Error(this.runtimeErrorMessage(response, operation))
     }
     return response
   }
@@ -1301,7 +1301,12 @@ export class BrowseViewModel {
     return copy
   }
 
-  private runtimeErrorMessage(response: SourceRuntimeCallResponse): string {
+  private runtimeErrorMessage(response: SourceRuntimeCallResponse, operation: string): string {
+    const rawErrorCode = response.error?.['code']
+    const reasonCode = safeDiagnosticCode(response.reasonCode ?? 'unknown')
+    const diagnosticErrorCode = safeDiagnosticCode(typeof rawErrorCode === 'string' ? rawErrorCode : 'unknown')
+    console.warn('[Browse] step=source_operation_failed operation=' + safeDiagnosticCode(operation) +
+      ' reason=' + reasonCode + ' error=' + diagnosticErrorCode)
     if (typeof response.reasonCode === 'string' && response.reasonCode.length > 0) {
       return AppStrings.format('browse_error_source_runtime_failed', safeDiagnosticCode(response.reasonCode))
     }
