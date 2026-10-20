@@ -39,6 +39,10 @@
 
 - 上述下载筛选冻结已具名验收（Root，2026-10-21）：唯一QueueStore生产差异为只读snapshot传validateContentHash=false，Debug assembleHap退出0，197覆盖安装明确成功。原88章2297页下已下载/部分/完整三种普通选择均完成，进程40646持续存活；部分下载真实cold为40646→空→41035，恢复相同筛选。xkcd目录676/676、2978唯一已下载，与部分下载对应；Chibi目录1/1且已下载，与完整下载对应。未进正文、创建/删除下载或标读；原可用性已恢复全部，再次cold41035→空→42859，原虫笼第1页/原首三书/最近阅读显示恢复，定向只读队列仍88章2297页。Root亲看原图，证据library-availability197-{downloaded-repaired,downloaded-settled,partial-cold,partial-detail-ready,full-detail-ready,original-restored,original-queue}-001；不扩大为所有下载状态或性能预算通过。两次带引号grep被设备shell吃引号、一次cat受回执8000字符尾截断，均未当数据损坏；后用不含引号的定向页数表达式读回。哈希关闭。
 
+- 书架无关筛选覆盖分类投影（Root，2026-10-21，实施前）：同次197筛选前为最近阅读，保存下载状态后变最近加入，cold又回最近阅读。已追cdb3fb22恢复的saveFilterPreferences回执及applyCategoryDisplayStrategy：进入页先应用当前分类的sort/readState，局部字段保存返回全局Preferences快照却以false跳过分类投影，旧全局值回盖当前有效值。只读检查无其他LibraryPage WIP；原具体人类批准仍未知。实际生产save/apply方法在内存Preferences适配下复现同一added覆盖lastRead，非源文本断言。允许差异仅有分类显示策略时，无关字段回执保留当前有效sort/readState；显式排序、阅读状态、重置仍按其字段意图提交，未设策略时仍接收全局合并快照，旧epoch/revision拒绝规则保留。不改分类策略、存储字段、布局或文案；下一Root限定修复→同方法边界检查→197同下载筛选及返回/cold。
+
+- 上述分类投影覆盖已具名验收（Root，2026-10-21）：LibraryPage唯一8行实现差异，实际生产save/apply方法在内存Preferences适配下原反例先失败，修复后6项通过（分类无关字段、无策略全局合并、显式排序/阅读状态、重置、过期回执），存储写入仍只有原changes字段；不冒Native。当前主仓Debug构建退出0，197覆盖安装明确成功。相同下载筛选后最近阅读/全部阅读状态/原首三书保持，不再回跳最近加入；真实cold为46649→空→46953，筛选与排序仍在。最后只把本轮availability恢复all，原继续阅读虫笼第1页、原首三书与最近阅读保持，Root已亲看原图。证据library-filter197-{repair-installed,order-retained,order-cold,restore-all,restored-root}-001，哈希关闭。只关闭这个回执反例，不冒所有分类策略或显式排序的设备验收。Root下一未验证动作：追当前按书阅读模式与全局设置的实际消费者，再核普通阅读入口的设置作用域/恢复；Shared普通路由仍等待真实人类答复，不借此实施。
+
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
 - N/E共享Kit3a7b56d的197普通阅读按钮路径已连续录像；E4212986为13→14→13，N686744为2→1→2，均正常Back。顺序审完695/210帧并复核原分辨率进入边界，正文出现时中央图片准备层已退出。仅接受这两个具名路径，不冒所有模式或K普通Shared入口通过。原件及完整边界在NextN现有共同工作单，记录已提交947b0e01；哈希关闭，用户拒绝助手二选一不得再用于停止。197原120000ms超时已恢复、原7份N下载仍在、租约已释放。

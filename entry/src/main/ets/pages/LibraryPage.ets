@@ -698,11 +698,19 @@ export struct LibraryPage {
   private saveFilterPreferences(changes: LibraryFilterPreferenceChanges): void {
     const revision = this.filterPreferencesMutationRevision
     const restoreEpoch = this.filterPreferencesRestoreEpoch
+    const hasCategoryStrategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory) !== undefined
+    const effectiveSortBy = this.sortBy
+    const effectiveReadState = this.filterReadState
     try {
       const context = getContext(this) as common.UIAbilityContext
       void new LibraryFilterStore(context).update(changes)
         .then((value: LibraryFilterPreferences) => {
           if (revision !== this.filterPreferencesMutationRevision || restoreEpoch !== this.filterPreferencesRestoreEpoch) return
+          // Unrelated saves must not replace the active category's effective display with older global fields.
+          if (hasCategoryStrategy) {
+            if (changes.sortBy === undefined) value.sortBy = effectiveSortBy
+            if (changes.readState === undefined) value.readState = effectiveReadState
+          }
           this.applyFilterPreferences(value, false)
           this.refreshDisplayedSnapshotFromStore()
         })
