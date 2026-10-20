@@ -22,6 +22,11 @@
 
 - 新实机菜单文案反例（未修改、待决定）：197下载后正文更多菜单最后一项显示“无法加载页面”，实际在pageFailed时调用onReloadPage。当前ReaderChrome:202及git blame/show均定位到bc122397原迁移；只找到实施，未找到故意用失败状态句命名动作的原始人类理由，写未知。本次依据为downloads197-dm5-completed-reader-001实际菜单，不按默认值改样式。建议允许差异仅将该项content由s(reader_page_load_failed)改为现有s(common_retry)，其enabled条件/回调/菜单顺序/尺寸/颜色保持；已批准失败按钮排布不覆盖此新文字候选，尚未应用。
 
+- 197源筛选接续：沿同一MangaDex普通热门列表快速选择Completed再Ongoing，现存连续录像pending-change-001的127帧/四联系表已顺序审完；最终为Kage no Jitsuryokusha、Tensei Slime、One Punch-Man等Ongoing列表，重开筛选读回Status=Ongoing。旧内容在请求期间保留，未见空白或失败层，终态没有被旧结果回盖；但无网络起止记录，不把该录像扩大为穷尽乱序响应。随后Status恢复原All，Content Rating/Demographic仍All、Order By仍Relevance，原Solo Leveling等列表读回。证据source-filter197-{ongoing-values,restored-all,final-values}-001及device197__ALN-AL80/not-applicable/portrait-1260x2720/source-filters/pending-change-001；自然失败重试仍未验，不人为制造站点失败。Root继而接续外观设置已有消费者，未新增产品改动。
+
+- 197外观消费者具名验收：普通设置原值为主题跟随系统/强调色翠绿/语言跟随系统。经现有菜单切深色与海蓝，亲看外观页和普通书架的背景、文字、继续阅读进度及底部选中色生效；再选English，外观页实际改为英文。Home→force-stop PID54198→空→63980，不清数据后普通书架仍深色/海蓝且标题、排序、筛选、底栏为英文，重开外观读回Dark/Ocean/English。随后三项全经原菜单恢复跟随系统/翠绿/跟随系统，外观及书架实际恢复中文浅色；首三作品和虫笼第1页保持。结束读回AWAKE/原OverrideTimeout10000ms并释放租约。只接受这三个值与具名消费者，不扩大全部语言、页面或系统语言跟随变化。原件appearance197-{original-values,dark-terminal,dark-ocean-library,english-values,cold-library,cold-values,original-restored,session-restored}-001，回执哈希均关闭。
+- 新发现待决定的文字缺口：英文书架数量仍为“1 话/676 话”，197冷启动原图可见。当前MockLibraryData.formatSourceSubtitle:293硬编码由8c8e92fc引入（2026-09-04），git log -S/-G及show已定位；当前无该文件WIP。所有消费者为createFallbackPresentation与createLibraryViewModelFromComics，LibraryPage网格/列表共同投影，gridProjection已监听effectiveLocale。未定位有意在英文中保留中文单位的人类决定；不猜理由。候选仅将此自动数量接到新单数/复数语言键，中文保持“%s 话”，英文“1 chapter/%s chapters”；原问题中“1 chapters”示例已明确更正。短源副标题/作者等其他分支、数量、布局与几何保持。四文件候选尚未应用，异步问题accepted:true不算批准，等待真实答复后才实施。
+
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
 - N/E共享Kit3a7b56d的197普通阅读按钮路径已连续录像；E4212986为13→14→13，N686744为2→1→2，均正常Back。顺序审完695/210帧并复核原分辨率进入边界，正文出现时中央图片准备层已退出。仅接受这两个具名路径，不冒所有模式或K普通Shared入口通过。原件及完整边界在NextN现有共同工作单，记录已提交947b0e01；哈希关闭，用户拒绝助手二选一不得再用于停止。197原120000ms超时已恢复、原7份N下载仍在、租约已释放。
@@ -121,7 +126,7 @@
 - 四份既装原件补归：Root亲看ASM49×35 AH、NNHanman172×46、漫小肆145×56及NH.xxx32²现存取回图，尺寸/原件长度与各自NOTICE/README官网声明记录吻合。source worker核已有记录未找到这四件明确人类拒绝、取代或身份错配；原缺图原因是business-only恢复没有带素材，不把低清当成已拒。此次仅将四份现存原件补入源码及就地纠正文档边界，版本、业务、设备全部不变；NH.xxx保留历史原ICO无损转PNG的事实，不称原ICO字节。低清和横标小槽继续OPEN，未用归回文件冒质量完成。
 
 - 本轮五包交付与原件归回（Root）：TIPO0.1.1、科技大观园0.1.1、漫画社0.1.3先前已普通导入，本轮管理/Browse两处原图亲看；东立0.1.1完整600²原JPEG与Noy0.1.1完整908²透明WebP经本轮普通系统选择器导入，两处及cold后Browse实际显示。东立虎头清楚；Noy人物偏窄、漫画社横标仍小，尺寸辨识继续OPEN，不称整线质量完成。NH.to原96² PNG按本会话实际既装包取回原件归回源主仓，未改其业务或版本。24文件已提交源master 5965937；后续四份补归093090f与HentaiFox补归552b9c3均已正常同步origin/master，不发版。原图icons-manager-later、icons-remaining-browse、noy-tongli-{manager,browse}、order-cold-browse。
-- 当前86个源码源成员仍12项缺资源（含Demo）：XComic简中、漫画160、HComic、喵趣、IKMMH、HentaiHand、MyComic、漫画柜、Happy、九儿、漫画1234、Demo。各源是原图/父链不足、原403/拒绝或既定未采用的不同边界，不能概称全部可用或全局停止。MPC另有Creators自身569×192 SVG仍横标；关联母平台MANGA Plus图不冒本源品牌，均未采用。MangaBall24px、創漫/微漫画16px、六漫画32px及当前Noy/漫画社小槽等问题继续未闭。
+- 当前86个源码源成员实核11项缺icon文件（10生产候选+Demo）：XComic简中、漫画160、HComic、喵趣、IKMMH、HentaiHand、MyComic、Happy、九儿、漫画1234、Demo。Root从当前Cargo成员和icon.*文件独立读回该集合；漫画柜0.1.3完整128px ICO已交付，从旧12列表剔除。HKO0.1.2当前480px官方应用图、Laya0.1.2的720px图、科技/TIPO0.1.1的720px后继已交付，旧横标/16/32px结论不再排工。Noy当前908px只保留人物偏窄，不再称旧花朵模糊。各源的父链不足、403/拒绝或既定未采用边界分别保持。
 
 - Noy本次重开：旧512px花朵原件本身模糊，当前用户要求继续全量质量处理。Root亲看908²透明角色WebP，正常读取官网明链发布页200，head准确声明/assets/favicon-BPmZMpu7.webp；官网→公开JS→发布页关联由现有源worker回传。沿同一Noy身份换完整官方原件，仅资源/来源记录及版本0.1.0→0.1.1，保业务与App槽/圆角。本条原准备状态已由上方五包交付接续：197两处已显示，人物偏窄仍OPEN。MPC母平台图与Creators身份有区分，暂不以同公司当同源替换。
 
@@ -129,13 +134,13 @@
 
 - 用户最新要求仍为完整书源图标处理，不限于点名源；优先清晰、官方认可的标识，禁止新增底板/阴影/遮罩，不像素描摹模糊边缘。本轮不新增工作树/源码副本/归档/报告。
 - 撤回72d7e0f4的“纠正遗漏/裁切遗漏已关闭”结论：该提交删除了用户明确保留的列表圆角，与原始要求冲突；icon-unmask两图只记录错误效果，不能作通过证据。恢复范围及当前验收见本页顶部“列表图标圆角回归修正”。
-- 源worker核定65个标准打包项（含1 demo），正式缺图为Happy/九儿/漫画1234/漫画柜；未注册源含喵趣，未因未注册而忽略其素材缺口。现存素材仍有微漫画/科技大观园16px、MangaBall24px、TIPO/六漫画32px、Noy自身模糊及部分横标小槽辨识问题；尺寸和文件存在不作视觉通过。
+- 旧65标准打包项口径被上方当前86源码成员核对取代，不能继续漏掉未注册候选或已交付后继。当前低清/小槽沿已有实际问题保留：HentaiFox16px、MangaBall24px、微漫画/創漫同一源16px、六漫画32px、ASM49×35及NH.xxx32px；NNHanman172×46、漫小肆145×56、漫画社150×50、MPC1024×354、Manhuadui224×81为横标小槽，Noy人物偏窄、Terra原白画布适配分别未闭。ComicFury/xkcd派生图的官方原件替代问题另记，不能混称低清；尺寸或文件存在不当视觉通过。
 - 漫画柜同源16px favicon缺官方品牌绑定，Root实际目视并否决“同源即官方”的推断；worker45f2db6已撤回5b10e8d新增素材，保留现有README准确未闭说明。ComicFury/xkcd为现有派生图，不冒官方矢量；原决定与已拒稿保持，不盲换更难辨识的官方横标。
 - 当前四项实际交付：DBMultiverse原144² PNG（a31de13）、immark原420² WebP（319f581）、Laya原64² JPEG（249d9b1）、3Hentai原180² PNG（2a253ff）均由Root审素材/精确差异，在原源仓用已安装Rust工具链构建，直接生成正式.koma本地安装包；不生成索引、辅助归档或哈希核验。197经普通设置→服务→源包→系统文件选择器导入成功；源包管理及Browse两消费者已亲看四图实际显示，源索引URL及启用状态保持。证据：`.hvigor/outputs/user-flow-audit/four-icons-{manager,browse}.png`、具名`*-import.json`与现有命令日志。只关闭这四项安装/呈现缺口；Laya仍仅64px，不能称高清或整线质量完成，正文/下载/cold未在本轮重验。
 - immark来源绑定已由Root亲读既存tar内真实HtmlHost的head JSON-LD SelectAll/Text：Person的ImageObject明确声明该420² WebP准确URI；保留作者原图、不加工。今天父页/CDN403与历史真实原件分开，未重试。当前App本来已支持WebP，没有为此改SDK/App或安全机制。
 - Laya/3Hentai构包曾被自动审批将.koma误归为新增辅助ZIP归档而拒绝，实际未执行；Root补充核实用户全线图标任务、build.sh产品格式及App本地消费者后，以原命令/原路径正常审批获准生成，没有绕路。
-- HComic与科技大观园提取仍待人类选择；call_9efb6cb4056d48eca0096eca5ea70f5b的accepted:true也是工具受理，不是批准。HComic生成稿改变纹理/笔画，已否决，未回灌；HKO0.1.2独立官方应用标识已交付，具名两消费者结果见本次接续；其他源限制保持。
-- 其余图标仍OPEN：微漫画/創漫16px且身份绑定不足、MangaBall24px、TIPO/六漫画32px、漫画社横标、Manhuadui黑色区、Noy原件自身模糊与MPC横字标分别保留具体问题；TIPO真实目录、六漫画既有详情、漫画社正确源域的首次普通读取403后均停止。六个精确静态原件请求被自动审批拒绝、未实际发出，不写成图体403。无可信品牌图、只有平台头像或已拒素材的源不补假图；这些限制不覆盖其他已授权App动作。
+- HComic提取仍待真实人类选择；call_9efb6cb4056d48eca0096eca5ea70f5b的accepted:true仅为工具受理。HComic生成稿已否决，未回灌；科技大观园已由0.1.1的720px官方后继交付取代旧提取条件。HKO0.1.2官方应用标识已交付，两消费者边界保持。
+- 受限源保留精确边界：六漫画既有详情、漫画社正确源域首次普通读取403后停止；六个旧静态请求被自动审批拒绝且未发出，不写成图体403。漫画1234现存真实详情HTML有明确“在APP中阅读更多章节”→/boluoyuedu.html锚点；本轮原source_icons正常读取该页遇SSL UNEXPECTED_EOF_WHILE_READING、未取得HTTP正文，没有降TLS/换UA/Cookie或重试，因此App归属及图URI仍未知，不能把菠萝阅读猜作1234品牌。160/喵趣/XComic既有父页本轮未发现新的明确官方资源/账号URI，不以同名第三方图补假图。限制仅作用于这些具体父链；其他已有交付按上方当前版本冻结。
 - 已查站点403、Happy DNS和九儿变体自动审批拒绝只限制对应分支，不重试被拒请求、不绕过。素材质量和实际App呈现仍OPEN，不能以全量盘点称完成；未运行带哈希的源打包脚本，也未修改安全机制。
 
 ## 当前执行位置：主仓与共享阅读器归并（2026-10-20 04:06）
@@ -560,15 +565,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
   "outcome": "已批准失败界面修正f55a18e0已同步master，197四模式失败呈现与纵向/双页真实按钮重试通过，CI39431040015成功。首版及图标质量仍未完成。",
-  "updatedAt": "2026-10-20T13:40:29.817024+00:00",
+  "updatedAt": "2026-10-20T14:31:54.915842+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "DOWNLOADS",
+  "activeId": "LIBRARY_COUNT_I18N",
   "activity": {
-    "title": "下载设置与既有受阻任务",
-    "detail": "原并发1、仅Wi-Fi关闭；当前88章2281/2281页，1项DM5源取页受阻。Reader修正已闭具名路径；保留源图标及普通Shared具体缺口。",
-    "updatedAt": "2026-10-20T13:40:29.817024+00:00"
+    "title": "英文书架数量文案缺口",
+    "detail": "197主题/强调色/语言的普通消费者及真实cold验证完成，原值和设备超时已恢复；数量单位候选尚未应用，待真实答复。",
+    "updatedAt": "2026-10-20T14:31:54.915842+00:00"
   },
-  "nextAction": "Root核对下载设置真实消费者及当前DM5受阻任务；不批量重试或删除原任务。普通Shared入口仍待既有真实人类答复。source_icons本轮六漫画公开索引无新标识、准确首页首次403后停止；既有受限分支不重试。",
+  "nextAction": "Root按本轮实机反例追书架数量的共同投影与语言分支；候选取得明确答复才实施。图标11缺文件及低清/小槽按当前名单接续，已交付后继不重开。",
   "proof": [
     {
       "label": "正式主仓",
@@ -586,7 +591,7 @@
       "label": "远端同步",
       "state": "三个原主分支已同步",
       "kind": "accepted",
-      "detail": "Koma/master f55a18e0；reader-kit/main 3a7b56d经独立SSH身份正常同步；源master fab24d0。CI39431040015已成功，原权限全局阻塞结论撤回。"
+      "detail": "Koma/master产品f55a18e0、文档3526825f；reader-kit/main 3a7b56d经独立SSH正常同步；源master fab24d0。CI39431040015成功。"
     },
     {
       "label": "共享阅读器",
@@ -620,10 +625,10 @@
     {
       "id": "SOURCE_FILTERS",
       "title": "已批准源筛选行为的当前设备路径",
-      "status": "普通切换具名通过",
+      "status": "普通及快速连续切换具名通过",
       "kind": "open",
-      "result": "MangaDex热门列表All→Completed实际替换，回All后原列表读回。",
-      "remaining": "请求中改筛选与自然失败重试未取得当前证据；不制造失败。",
+      "result": "197 MangaDex All→Completed→Ongoing，最后筛选值与最终列表一致；全127帧联系表已审。恢复Status/Content Rating/Demographic=All、Order By=Relevance并读回原列表。",
+      "remaining": "自然失败重试未取得当前证据；本录像未记录网络请求起止，不扩大为穷尽乱序响应通过。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -695,7 +700,7 @@
       "status": "具名路径通过",
       "kind": "accepted",
       "result": "导入、首图、纵向翻页、同进程及真实冷启动后第2页重开均实际观察；本轮条目已移出。",
-      "remaining": "不扩大为ZIP/其它格式、全部内容或Shared；两侧点击另保OPEN。",
+      "remaining": "不扩大为ZIP/其它格式、全部内容或Shared；两侧点击原误报已由同页宽图左右半原件澄清。",
       "reportedAt": null,
       "reportedAtSource": "本轮普通路径实际观察。",
       "firstEvidenceAt": null,
@@ -781,6 +786,30 @@
       "result": "197本地加密文件创建，认证预览75书架/83进度，未执行恢复；仅删本轮1792456763593并读回四原备份。",
       "remaining": "恢复、失败回滚与cold不在本次通过范围。",
       "closedAt": "2026-10-20T00:44:00Z"
+    },
+    {
+      "id": "APPEARANCE_CONSUMERS",
+      "title": "主题、强调色和语言实际消费者",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "197普通菜单深色/海蓝/English实际影响外观与书架，PID54198→空→63980后保持；原跟随系统/翠绿/跟随系统及设备超时已恢复。",
+      "remaining": "不扩大全部主题色、语言、页面或系统语言变化；英文自动章数仍为中文，已单独列候选待决定。",
+      "reportedAt": null,
+      "reportedAtSource": "本轮普通路径实际观察。",
+      "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
+      "closedAt": "2026-10-20T14:31:54.915842+00:00"
+    },
+    {
+      "id": "LIBRARY_COUNT_I18N",
+      "title": "英文书架自动章节数量单位",
+      "status": "候选待真实答复",
+      "kind": "open",
+      "result": "197英文冷启动仍见1话/676话，已追到8c8e92fc引入的共用硬编码；尚未修改。",
+      "remaining": "仅自动数量的语言资源候选获明确答复后实施，中文保持、英文区分单复数；网格/列表共同投影验收。",
+      "reportedAt": null,
+      "reportedAtSource": "本轮实机新反例，不猜原提出时间。",
+      "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
+      "closedAt": null
     }
   ],
   "source": {
@@ -788,7 +817,7 @@
     "kind": "open",
     "title": "中文源质量与完整图标范围",
     "result": "HKO0.1.2独立官方标识、Laya0.1.2、瓜子0.1.3及本次綜合口味/人2/幻塔0.1.1原资源已完成具名两处图标交付。",
-    "remaining": "当前仍有具名缺图/低清/小槽辨识问题及待决定提取；六漫画本轮未取得新标识，准确首页首次403停止。漫画柜0.1.3已按官方完整ICO具名交付，不能仍计为该项未交付。",
+    "remaining": "当前86源11项缺图文件，低清/横标小槽与派生图问题分别OPEN；HKO/Laya/科技/TIPO/漫画柜后继已交付，不再重复旧低清队列。1234准确App说明页正常读取SSL中断，无可用新图。",
     "commit": "fab24d0"
   },
   "milestones": [
