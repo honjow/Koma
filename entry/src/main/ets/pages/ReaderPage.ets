@@ -715,6 +715,8 @@ struct ReaderImageSurface {
         Button({ type: ButtonType.Capsule, stateEffect: true }) {
           Text(s('common_retry')).fontSize(13).fontColor(ThemeConstants.TEXT_ON_BRAND)
         }
+        .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG,
+          top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .backgroundColor(ThemeConstants.BRAND_PRIMARY)
         .onAreaChange((_old: Area, next: Area) => {
           if (this.disposed) return
