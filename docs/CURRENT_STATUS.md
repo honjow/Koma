@@ -53,6 +53,14 @@
 
 - HentaiFox0.1.1资源交付已闭（Root，2026-10-21）：实际离线WASM版本与三成员包读回后，197经普通本地导入成功；Root亲看管理及Browse两原图，新H/狐尾可辨、轮廓流畅，79启用及同组H-Comic→HentaiFox→NH.xxx顺序保持。只闭这两处低清图标，不冒正文/下载或全线图标通过；证据source-icons/hentaifox011-manager-and-browse-001/manager.png与hentaifox011-browse-visible-003/browse.png。源master的4967900已提交并正常同步origin/master，仅本源图标/出处/版本及锁文件对应块；六漫画012/NH.xxx011由现存source_icons在237普通导入验收，其他缺图/小槽项继续OPEN。Root随后回App按书阅读偏好与全局消费者普通路径，不重跑已冻结项。
 
+- 按书模式/全局消费者本轮197证据（Root，2026-10-21）：a85b3e35恢复序列化保存后，用普通继续阅读进入原Chibi第2/8页，原全局vertical_page/left_to_right、既有Komiic1936双页覆盖先读回。仅经现有阅读设置将Chibi改single_page，实际保存只新增该书的两字段窄覆盖，全局保持；真实进程55475→停止后空→6497，普通继续阅读/设置重开仍为单页·本书。最后经既有恢复默认只清本轮Chibi覆盖，Preferences全部键值恢复原基线，原Komiic覆盖不变；未翻页、删书或改源。原图及回执位于user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-preferences/book-mode-*，哈希关闭。仅闭本次保存/全局隔离/真实cold与GUI恢复，不冒全部偏好或Shared入口。
+- 新实际UI缺口OPEN：首次保存单页成功后，本面板无“本书”标记和恢复默认入口；真实cold重开才出现。原4e9e16b0及当前ReaderPage的seriesOverrideActive都仅loadPreferences读取/reset时清false，persistPreferences未在成功保存后刷新；ReaderSettingsContent的两行徽标/两个菜单共用该值，ReaderChrome透传，独立Lab另一消费者不在本候选内。不是本次测试造成的源码修改。建议仅在当前书保存成功后重读真实覆盖并更新该标记，保留旧存储/字段/布局/文案/尺寸；校验回调仍属同一Store/同一书/未关闭，失败不发布新标记。此可见行为候选尚未应用，待人类决定；源worker继续237图标，不以此停止双线。
+
+- 六漫画012、NH.xxx012图标交付（2026-10-21，source_icons执行/Root审）：237当前VDE-AL00展开1320×2120，six为已装011普通更新，NH为首次新增后再更新；44→45只新增NH，原44相对顺序及启用状态保留。Root已亲看source-icons-manager-middle237-001与source-icons-browse237-001中的六漫画6/松鼠；NH透明011因白n融入浅卡判失败，不提交。核官网原32图自身#223445画布后，012仅保留原深蓝画布和已审白n/红翼，未加第三方板/影/遮罩；Root亲看nhxxx012-manager237-001及nhxxx012-browse237-001两处完整标识可辨。原图位于user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/。两源分别378e1cd/64d89dc已同步源master，源仓clean；只闭这两处图标，不冒正文。source_icons只移除本轮传入3个Download包，恢复原OverrideTimeout10000ms并释放f65e6187。后继按当前发布index.pb的准确icon字段接MangaBall/NNHanman/漫小肆，不重试403官网或GitHub限额API。
+- 197阅读方向实际消费者补证：原记录未通过的方向选择，本轮现有菜单确能选择从右到左，存储只新增Chibi的vertical_page/right_to_left窄覆盖，全局left_to_right与原Komiic覆盖保持；再经同菜单选回从左到右，全部Preferences键值恢复本轮基线，普通返回仍原第2页/25%。只闭本次菜单选择/保存/作用域/恢复，不冒右到左翻页或方向cold。随后197原OverrideTimeout10000ms已读回AWAKE并释放原租约；App布局和源顺序保持。
+
+- 优酷013当前候选（Root，2026-10-21）：原官网完整224×81横标身份及当前小槽过小已核，沿现存左侧蓝圆/白色双曲带/中部青蓝菱形作一次图像接口还原，原首页403不重试。Root与source_icons对照原标识后亲看512正常输出，图形身份成立；渐变/轻微质感有还原差异，不冒官方高清原件，未加App框/阴影/遮罩。源仓仅资源/出处/版本012→013及锁对应块6文件WIP；真实离线WASM info013、图标解码契约通过，3成员包manhuadui-0.1.3.koma已交现存source_icons在237做普通更新与管理/Browse两处验收，尚未提交或称通过。源其他业务/能力及App槽/圆角/排序保持。当前Koma c7cefa9f的CI39472126413 success，源仓未发现Actions工作流，不冒源CI通过。
+
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
 - N/E共享Kit3a7b56d的197普通阅读按钮路径已连续录像；E4212986为13→14→13，N686744为2→1→2，均正常Back。顺序审完695/210帧并复核原分辨率进入边界，正文出现时中央图片准备层已退出。仅接受这两个具名路径，不冒所有模式或K普通Shared入口通过。原件及完整边界在NextN现有共同工作单，记录已提交947b0e01；哈希关闭，用户拒绝助手二选一不得再用于停止。197原120000ms超时已恢复、原7份N下载仍在、租约已释放。
@@ -164,7 +172,7 @@
 
 - 用户最新要求仍为完整书源图标处理，不限于点名源；优先清晰、官方认可的标识，禁止新增底板/阴影/遮罩，不像素描摹模糊边缘。本轮不新增工作树/源码副本/归档/报告。
 - 撤回72d7e0f4的“纠正遗漏/裁切遗漏已关闭”结论：该提交删除了用户明确保留的列表圆角，与原始要求冲突；icon-unmask两图只记录错误效果，不能作通过证据。恢复范围及当前验收见本页顶部“列表图标圆角回归修正”。
-- 旧65标准打包项口径被上方当前86源码成员核对取代，不能继续漏掉未注册候选或已交付后继。当前低清/小槽沿已有实际问题保留：HentaiFox16px、MangaBall24px、微漫画/創漫同一源16px、六漫画32px、ASM49×35及NH.xxx32px；NNHanman172×46、漫小肆145×56、漫画社150×50、MPC1024×354、Manhuadui224×81为横标小槽，Noy人物偏窄、Terra原白画布适配分别未闭。ComicFury/xkcd派生图的官方原件替代问题另记，不能混称低清；尺寸或文件存在不当视觉通过。
+- 旧65标准打包项口径被上方当前86源码成员核对取代，不能继续漏掉未注册候选或已交付后继。当前低清/小槽沿已有实际问题保留：MangaBall24px、微漫画/創漫同一源16px、ASM49×35；HentaiFox011、六漫画012及NH.xxx012已由上方具名两消费者交付关闭，不再按旧16/32px重排；NNHanman172×46、漫小肆145×56、漫画社150×50、MPC1024×354、Manhuadui224×81为横标小槽，Noy人物偏窄、Terra原白画布适配分别未闭。ComicFury/xkcd派生图的官方原件替代问题另记，不能混称低清；尺寸或文件存在不当视觉通过。
 - 漫画柜同源16px favicon缺官方品牌绑定，Root实际目视并否决“同源即官方”的推断；worker45f2db6已撤回5b10e8d新增素材，保留现有README准确未闭说明。ComicFury/xkcd旧派生图现由上方9a3d942完整官方原件取代；不冒官方矢量，旧拒稿仍不采用。
 - 当前四项实际交付：DBMultiverse原144² PNG（a31de13）、immark原420² WebP（319f581）、Laya原64² JPEG（249d9b1）、3Hentai原180² PNG（2a253ff）均由Root审素材/精确差异，在原源仓用已安装Rust工具链构建，直接生成正式.koma本地安装包；不生成索引、辅助归档或哈希核验。197经普通设置→服务→源包→系统文件选择器导入成功；源包管理及Browse两消费者已亲看四图实际显示，源索引URL及启用状态保持。证据：`.hvigor/outputs/user-flow-audit/four-icons-{manager,browse}.png`、具名`*-import.json`与现有命令日志。只关闭这四项安装/呈现缺口；Laya仍仅64px，不能称高清或整线质量完成，正文/下载/cold未在本轮重验。
 - immark来源绑定已由Root亲读既存tar内真实HtmlHost的head JSON-LD SelectAll/Text：Person的ImageObject明确声明该420² WebP准确URI；保留作者原图、不加工。今天父页/CDN403与历史真实原件分开，未重试。当前App本来已支持WebP，没有为此改SDK/App或安全机制。
