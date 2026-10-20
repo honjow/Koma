@@ -70,23 +70,29 @@ export struct ConciseListRow {
   }
 
   private primaryTextModifier(): TextModifier {
-    return new TextModifier()
-      .textIndent(this.hasLeading() ? undefined : ThemeConstants.LIST_ROW_TEXT_INDENT)
+    const modifier = new TextModifier()
       .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
       .fontWeight(FontWeight.Regular)
       .fontColor(this.primaryColor ?? (this.destructive ? Color.Red : $r('sys.color.font_primary')))
       .maxLines(this.wrapTitle ? 2147483647 : 1)
       .wordBreak(this.wrapTitle ? WordBreak.BREAK_ALL : WordBreak.BREAK_WORD)
       .textOverflow({ overflow: this.wrapTitle ? TextOverflow.Clip : TextOverflow.Ellipsis })
+    if (!this.hasLeading()) {
+      modifier.padding({ left: ThemeConstants.LIST_ROW_TEXT_INDENT })
+    }
+    return modifier
   }
 
   private secondaryTextModifier(): TextModifier {
-    return new TextModifier()
-      .textIndent(this.hasLeading() ? undefined : ThemeConstants.LIST_ROW_TEXT_INDENT)
+    const modifier = new TextModifier()
       .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
       .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
       .maxLines(this.subtitleMaxLines)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
+    if (!this.hasLeading()) {
+      modifier.padding({ left: ThemeConstants.LIST_ROW_TEXT_INDENT })
+    }
+    return modifier
   }
 
   private trailingTextModifier(): TextModifier {
@@ -356,6 +362,8 @@ export struct ConciseListRow {
     }
     .width(ThemeConstants.SOURCE_LIST_ICON_SIZE)
     .height(ThemeConstants.SOURCE_LIST_ICON_SIZE)
+    .borderRadius(ThemeConstants.SOURCE_LIST_ICON_RADIUS)
+    .clip(true)
   }
 
   private prefixItem(): PrefixImage | PrefixCustomBuilder | undefined {
