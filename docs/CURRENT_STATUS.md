@@ -18,6 +18,10 @@
 - 197重试输入反例及修复：原两份联系表71帧和直接点击均只切chrome，现有菜单同一retryCurrentPage能进入加载；已排除录屏缩放/坐标偏移。华为多层级手势文档确认Transparent仍让上层点击手势优先；现保原翻页手势组，仅在实际失败按钮窗口矩形内返回HitTestMode.None，其余保持Transparent。矩形由组件Area提供，按唯一ID清理、会话更换/卸载清空，接全部ImageSurface/Spread消费者；本轮纵向与双页直接重试均已实际通过，不新增可见方案。原四模式呈现及该输入修正只在ReaderPage/ReaderChrome两文件，不修改共享Kit、NextN或NextE。
 - 上述失败呈现的两文件候选已获本会话当前人类答复“实施这份限定修正（推荐）”，并已精确应用：ReaderImageSurface失败时停止加载圈，把现有13vp同色胶囊重试移入同一纵向列、位于原失败文字下方；普通单页/纵向/连续和双页都回调现有retryCurrentPage，双页只在失败时允许该按钮命中。source-placeholder交给ReaderChrome的实际可显示页数为0，收起假页码/滑块并保留控件原占位高度，真实图片的页码不改。全部两处ImageSurface、唯一Spread消费者及唯一Chrome消费者已核。原LoadingContent和覆盖按钮来自bc122397；670f66bb明确保旧几何，原人类只批准真实重试/限定unsupported文案，不覆盖本次新排布。现据237真实重叠反例及本次明确批准实施，没有用默认尺寸或小diff作依据。原主仓Debug构建返回成功并生成当前签名HAP，197覆盖安装明确成功；四模式失败呈现及纵向/双页直接重试结果见上条。197系统应用联网中的Koma移动数据、WLAN已分别恢复并读回true；原纵向分页恢复，阅读方向从左到右与既有local-import-reader-settings原件及当前设置读回一致。当前租约仍有效，原OverrideTimeout10000ms在会话结束时恢复。
 
+- 下载消费者与既有受阻任务197接续：Settings原并发1、仅Wi-Fi=false、通知关闭已实际读回；静态追到OfflineDownloadService使用同一queueStore偏好、Runtime.acquireSlot按当前并发放行，网络判定读取默认Wi-Fi承载。管理原88章2281/2281页、1项DM5虫笼受阻；从该项进入普通详情并开章后当前源取得16页及真实首图。只重试此既有任务，实际完成16/16，合计仍88章但2297/2297页，受阻提示消失；未批量重试、清理或删除原任务。暂停动作到达前已完成，未取得暂停/恢复证据，不计通过且不反复抢窗口。图片信息实读600×600、来源设备文件；Home→force-stop PID43747→空→54198，不清数据新进程经设置/下载管理重开，首图及第16页不同正文均亲看，页位置随后回1。保留本次原任务成功下载与阅读历史，不冒全部16页逐张解码、物理断网或整个队列通过。原件沿user-flow-audit的downloads197-{preferences-original,attention-task,dm5-reader-terminal,dm5-retry-start,pause-existing-retry,dm5-device-file-info,dm5-cold-root,dm5-cold-reader,dm5-last-page,dm5-return-original-page,original-preferences-restored}-001。最终并发1/仅Wi-Fi=false读回，AWAKE/原OverrideTimeout10000ms读回；后继设备阶段须重新建立当前醒屏条件。
+
+- 新实机菜单文案反例（未修改、待决定）：197下载后正文更多菜单最后一项显示“无法加载页面”，实际在pageFailed时调用onReloadPage。当前ReaderChrome:202及git blame/show均定位到bc122397原迁移；只找到实施，未找到故意用失败状态句命名动作的原始人类理由，写未知。本次依据为downloads197-dm5-completed-reader-001实际菜单，不按默认值改样式。建议允许差异仅将该项content由s(reader_page_load_failed)改为现有s(common_retry)，其enabled条件/回调/菜单顺序/尺寸/颜色保持；已批准失败按钮排布不覆盖此新文字候选，尚未应用。
+
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
 - N/E共享Kit3a7b56d的197普通阅读按钮路径已连续录像；E4212986为13→14→13，N686744为2→1→2，均正常Back。顺序审完695/210帧并复核原分辨率进入边界，正文出现时中央图片准备层已退出。仅接受这两个具名路径，不冒所有模式或K普通Shared入口通过。原件及完整边界在NextN现有共同工作单，记录已提交947b0e01；哈希关闭，用户拒绝助手二选一不得再用于停止。197原120000ms超时已恢复、原7份N下载仍在、租约已释放。
@@ -555,16 +559,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "已修复源包替换移到末尾：197原77项更新保序，新装Noy/东立追加且79项cold保持；五份官方图包当前两消费者已亲看。全量图标质量仍未完成。",
-  "updatedAt": "2026-10-20T04:56:37.288769+00:00",
+  "outcome": "已批准失败界面修正f55a18e0已同步master，197四模式失败呈现与纵向/双页真实按钮重试通过，CI39431040015成功。首版及图标质量仍未完成。",
+  "updatedAt": "2026-10-20T13:40:29.817024+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_ICONS",
+  "activeId": "DOWNLOADS",
   "activity": {
-    "title": "全量图标资源与实际显示",
-    "detail": "更新保序4d86ec27已实际交付；当前额外核清1700归档是正常宽页半页切换，原误报撤回且临时日志/条目/包已恢复。12项缺图及具名低清仍未关闭。",
-    "updatedAt": "2026-10-20T04:56:37.288769+00:00"
+    "title": "下载设置与既有受阻任务",
+    "detail": "原并发1、仅Wi-Fi关闭；当前88章2281/2281页，1项DM5源取页受阻。Reader修正已闭具名路径；保留源图标及普通Shared具体缺口。",
+    "updatedAt": "2026-10-20T13:40:29.817024+00:00"
   },
-  "nextAction": "当前具名官方替代均无合格新件；source_icons保留缺图/低清边界，需新的明确官方原件或父链、相应访问条件变化，或既有提取候选的真实人类决定后恢复。Root普通Shared入口仍待既有决定；不重试拒绝路径、不猜品牌、不放宽图标校验。",
+  "nextAction": "Root核对下载设置真实消费者及当前DM5受阻任务；不批量重试或删除原任务。普通Shared入口仍待既有真实人类答复。source_icons本轮六漫画公开索引无新标识、准确首页首次403后停止；既有受限分支不重试。",
   "proof": [
     {
       "label": "正式主仓",
@@ -580,9 +584,9 @@
     },
     {
       "label": "远端同步",
-      "state": "App/源已同步；Kit权限阻塞",
-      "kind": "open",
-      "detail": "Koma/master 4d86ec27、源master552b9c3已正常同步；Kit原403/push=false仍限制其分支。"
+      "state": "三个原主分支已同步",
+      "kind": "accepted",
+      "detail": "Koma/master f55a18e0；reader-kit/main 3a7b56d经独立SSH身份正常同步；源master fab24d0。CI39431040015已成功，原权限全局阻塞结论撤回。"
     },
     {
       "label": "共享阅读器",
@@ -607,8 +611,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "4d86ec27",
-      "hap": "本轮仅加入临时数值诊断后已全部移除，ReaderPage无最终差异；已重新构建并覆盖恢复主仓普通Debug包。"
+      "appHead": "f55a18e0",
+      "hap": "主仓Debug签名包2026-10-20 20:46:49已覆盖197；四模式失败呈现、纵向/双页直接重试取得真实正文。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -652,14 +656,14 @@
     {
       "id": "SYNC",
       "title": "现有主分支远端同步",
-      "status": "部分完成",
-      "kind": "open",
-      "result": "Koma及源master已正常同步；没有强推、新分支或发版。",
-      "remaining": "Kit仓库写权限缺失；远端CI尚未通过。",
+      "status": "已同步且CI成功",
+      "kind": "accepted",
+      "result": "三个原主分支已正常同步；Kit采用独立SSH身份；本次Koma CI39431040015 Release HAP成功。",
+      "remaining": "不含发版、签名Release安装或整体首版验收。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
-      "closedAt": null
+      "closedAt": "2026-10-20T13:40:29.817024+00:00"
     },
     {
       "id": "BACKUP_LOCAL",
@@ -676,10 +680,10 @@
     {
       "id": "LOCAL_READER_TAPS",
       "title": "1700页归档点击未翻页",
-      "status": "原因待查",
-      "kind": "open",
-      "result": "同一归档两侧点击页码不变；既有8页章2→3→2及新2图书1→2点击正常，未改阅读代码。",
-      "remaining": "Root保留输入特定反例，原因未定；API26已排除低版本缺tapLocation假设，不为此猜改参数。",
+      "status": "原误报已澄清",
+      "kind": "accepted",
+      "result": "当前拆宽页偏好下显示单元切换而源页码可不变；两次点击真实进入下一源页，临时日志与测试条目已清。",
+      "remaining": "不扩大到其他模式完整验收。",
       "reportedAt": null,
       "reportedAtSource": "本轮普通路径实际观察，不猜原始出现时间。",
       "firstEvidenceAt": null,
@@ -727,10 +731,10 @@
     {
       "id": "OPEN_SOURCE_NOTICE",
       "title": "开源声明占位内容",
-      "status": "待人类决定",
-      "kind": "open",
-      "result": "已读回真实占位，追b6eb587f及当前CMake/WAMR2.4.3/Lexbor3.0.0和原许可。",
-      "remaining": "限定内容替换问题已发，accepted:true不是批准；未实施。",
+      "status": "已批准并具名验收",
+      "kind": "accepted",
+      "result": "be57e585已替换三语占位为实际依赖及完整原许可；197中文普通弹窗滚动到Lexbor末尾并返回。",
+      "remaining": "不冒所有语言设备或全部许可合规审计。",
       "closedAt": null
     },
     {
@@ -738,8 +742,8 @@
       "title": "分类管理普通操作",
       "status": "具名路径通过",
       "kind": "accepted",
-      "result": "本轮0本书空分类已创建、改名并经准确名称确认删除，两处名称同步；四个原内置分类和原书架保持。",
-      "remaining": "不冒书籍归属分配、迁移或cold通过。",
+      "result": "本轮0本书空分类已创建、改名并经准确名称确认删除，两处名称同步；四个原内置分类和原书架保持。 后续237普通单书加入/移出/筛选、两次不清数据cold及测试分类清理已具名通过。",
+      "remaining": "不扩大到多书替换、迁移或失败回滚。",
       "closedAt": "2026-10-19T23:55:31Z"
     },
     {
@@ -784,8 +788,8 @@
     "kind": "open",
     "title": "中文源质量与完整图标范围",
     "result": "HKO0.1.2独立官方标识、Laya0.1.2、瓜子0.1.3及本次綜合口味/人2/幻塔0.1.1原资源已完成具名两处图标交付。",
-    "remaining": "Root检查完整列表其余图标实际质量并交付下一合格原件；source_icons按当前86源成员继续东立及缺图/低清调查，保留各项准确阻点，不动App样式。",
-    "commit": "9095a9a"
+    "remaining": "当前仍有具名缺图/低清/小槽辨识问题及待决定提取；六漫画本轮未取得新标识，准确首页首次403停止。漫画柜0.1.3已按官方完整ICO具名交付，不能仍计为该项未交付。",
+    "commit": "fab24d0"
   },
   "milestones": [
     {
@@ -804,7 +808,7 @@
   "releaseGates": [
     "普通Shared入口尚待决定和普通进入/翻页/返回/进度验收。",
     "源图标质量和已批准筛选行为仍有具体未闭项；不以构建或局部PASS扩大为全App通过。",
-    "Kit远端写权限缺失；其139个本地提交未同步，Koma远端CI尚未通过。"
+    "CI成功仅证明当前Release构建，普通Shared路由和其余产品路径未闭，尚未发版。"
   ],
   "stopRule": "局部验收、提交、清理或写状态不是首版完成；继续安全且已授权的实际动作，具体分支缺条件不扩大为全局停止。",
   "evidence": [
