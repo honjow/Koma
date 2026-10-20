@@ -680,6 +680,8 @@
     { "name": "library_progress_continue_chapter", "value": "Continue %s" },
     { "name": "library_progress_continue_page", "value": "Continue %s / Page %s · %s%" },
     { "name": "library_progress_continue_page_only", "value": "Page %s · %s%" },
+    { "name": "library_source_subtitle_chapter", "value": "%s chapter" },
+    { "name": "library_source_subtitle_chapters", "value": "%s chapters" },
     { "name": "library_source_subtitle_folder", "value": "Image folder - %s chapters" },
     { "name": "library_source_subtitle_private", "value": "Private library - %s chapters" },
     { "name": "library_source_subtitle_archive", "value": "Local ZIP - %s chapters" },

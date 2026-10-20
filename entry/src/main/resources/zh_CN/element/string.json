@@ -683,6 +683,8 @@
     { "name": "library_progress_continue_chapter", "value": "继续阅读 %s" },
     { "name": "library_progress_continue_page", "value": "继续阅读 %s / 第 %s 页 · %s%" },
     { "name": "library_progress_continue_page_only", "value": "第 %s 页 · %s%" },
+    { "name": "library_source_subtitle_chapter", "value": "%s 话" },
+    { "name": "library_source_subtitle_chapters", "value": "%s 话" },
     { "name": "library_source_subtitle_folder", "value": "图片文件夹 - %s 章" },
     { "name": "library_source_subtitle_private", "value": "私有库 - %s 章" },
     { "name": "library_source_subtitle_archive", "value": "本地 ZIP - %s 章" },
