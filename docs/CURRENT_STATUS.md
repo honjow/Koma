@@ -35,6 +35,10 @@
 
 - ComicFury0.1.3已交付（Root，2026-10-21）：离线构建并读回WASM版本后，197普通本地导入明确成功；同词“毛兒”终态为现有“没有找到结果”，Maor返回“毛兒傳 (Maor)”且无下一页。普通进入详情实际显示封面、Allen T及67/67章；Back后Maor和同一结果保留，Root已亲看两张原图。只接受这两词的空/非空搜索及详情返回，不扩大到全文搜索或正文/下载。源master四文件7245a50已正常同步；修复保持其他错误列表失败、原非空解析/分页/请求及App呈现。证据comicfury-search197-{empty-repaired,empty-terminal,positive-query,positive-terminal,detail-ready,back-results}-001及原反例日志保留，哈希关闭。197继续同一有效租约，当前AWAKE/OverrideTimeout86400000ms；会话结束恢复原10000ms。下一未验证动作/Root：核对当前普通私库服务入口及实际可用连接，接续尚未验的浏览→详情→阅读/返回路径；source_icons已恢复全量未闭资源官方父链工作，不重试受限URL。
 
+- 197书架下载筛选新反例（Root，2026-10-21，修复前记录）：原最近阅读/全部筛选及88章2297页下载保留；普通筛选→下载状态→已下载后主线程冻结，系统00:21:35记录THREAD_BLOCK_6S，PID19476随后消失。原故障堆栈明确为createOfflineDownloadStableByteHash→validateDownloadedChapter→QueueStore.loadReconciledSnapshot→LibraryPage.downloadedComicAvailability/setAvailabilityFilter，不把菜单点击/Back或输出截断误作根因。2abef1c2引入只读清单投影以避免筛选改写下载；64fad10e已让详情摘要跳过图片正文重算，4f4bd846给队列初始化加入同一选项，却未覆盖唯一书架snapshot调用。原特定人类批准未定位，写未知；本次重开依据是当前真实系统故障，不改UI/筛选含义。允许差异只给loadReconciledSnapshot的现有只读验证传validateContentHash=false，保留清单/身份/路径/文件存在及大小验证，其他显式校验和下载读写不动。原件library-availability197-{original,filter-controls,availability-menu,downloaded,exit-evidence,freeze-log}-001，faultlogger原log已接收。Root下一动作：原主仓限定修复→Debug构建/覆盖安装→同88章普通筛选、目录和不清数据重开；未通过前保持OPEN。
+
+- 上述下载筛选冻结已具名验收（Root，2026-10-21）：唯一QueueStore生产差异为只读snapshot传validateContentHash=false，Debug assembleHap退出0，197覆盖安装明确成功。原88章2297页下已下载/部分/完整三种普通选择均完成，进程40646持续存活；部分下载真实cold为40646→空→41035，恢复相同筛选。xkcd目录676/676、2978唯一已下载，与部分下载对应；Chibi目录1/1且已下载，与完整下载对应。未进正文、创建/删除下载或标读；原可用性已恢复全部，再次cold41035→空→42859，原虫笼第1页/原首三书/最近阅读显示恢复，定向只读队列仍88章2297页。Root亲看原图，证据library-availability197-{downloaded-repaired,downloaded-settled,partial-cold,partial-detail-ready,full-detail-ready,original-restored,original-queue}-001；不扩大为所有下载状态或性能预算通过。两次带引号grep被设备shell吃引号、一次cat受回执8000字符尾截断，均未当数据损坏；后用不含引号的定向页数表达式读回。哈希关闭。
+
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
 - N/E共享Kit3a7b56d的197普通阅读按钮路径已连续录像；E4212986为13→14→13，N686744为2→1→2，均正常Back。顺序审完695/210帧并复核原分辨率进入边界，正文出现时中央图片准备层已退出。仅接受这两个具名路径，不冒所有模式或K普通Shared入口通过。原件及完整边界在NextN现有共同工作单，记录已提交947b0e01；哈希关闭，用户拒绝助手二选一不得再用于停止。197原120000ms超时已恢复、原7份N下载仍在、租约已释放。

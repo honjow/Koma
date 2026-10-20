@@ -311,7 +311,8 @@ export class OfflineDownloadQueueStore {
   }
 
   loadReconciledSnapshot(): OfflineDownloadQueueEntry[] {
-    return this.reconciledEntries(this.loadDocument(), false).entries
+    // Library filtering only needs file availability; do not scan every image on the UI thread.
+    return this.reconciledEntries(this.loadDocument(), false, { validateContentHash: false }).entries
   }
 
   reconcileWithManifests(options?: OfflineDownloadValidationOptions): OfflineDownloadQueueEntry[] {
