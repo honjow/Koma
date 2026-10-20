@@ -27,6 +27,14 @@
 - 197外观消费者具名验收：普通设置原值为主题跟随系统/强调色翠绿/语言跟随系统。经现有菜单切深色与海蓝，亲看外观页和普通书架的背景、文字、继续阅读进度及底部选中色生效；再选English，外观页实际改为英文。Home→force-stop PID54198→空→63980，不清数据后普通书架仍深色/海蓝且标题、排序、筛选、底栏为英文，重开外观读回Dark/Ocean/English。随后三项全经原菜单恢复跟随系统/翠绿/跟随系统，外观及书架实际恢复中文浅色；首三作品和虫笼第1页保持。结束读回AWAKE/原OverrideTimeout10000ms并释放租约。只接受这三个值与具名消费者，不扩大全部语言、页面或系统语言跟随变化。原件appearance197-{original-values,dark-terminal,dark-ocean-library,english-values,cold-library,cold-values,original-restored,session-restored}-001，回执哈希均关闭。
 - 新发现待决定的文字缺口：英文书架数量仍为“1 话/676 话”，197冷启动原图可见。当前MockLibraryData.formatSourceSubtitle:293硬编码由8c8e92fc引入（2026-09-04），git log -S/-G及show已定位；当前无该文件WIP。所有消费者为createFallbackPresentation与createLibraryViewModelFromComics，LibraryPage网格/列表共同投影，gridProjection已监听effectiveLocale。未定位有意在英文中保留中文单位的人类决定；不猜理由。候选仅将此自动数量接到新单数/复数语言键，中文保持“%s 话”，英文“1 chapter/%s chapters”；原问题中“1 chapters”示例已明确更正。短源副标题/作者等其他分支、数量、布局与几何保持。四文件候选尚未应用，异步问题accepted:true不算批准，等待真实答复后才实施。
 
+- 197书架更新记录普通路径已核：现有2026-10-16 18:37记录为74本/7更新/65未变化/1跳过/1失败/9新章；设置摘要与详情卡一致。失败KAV001条目实际打开本地3章详情及原第3/3页续读，返回保留原结果位置；更新Meme Girls条目285→287与普通详情287章、原已下载标记一致，未开始阅读。Home→停止PID63980→空→19476，不清数据后经普通设置重开仍是同一时间/全部计数及Kavita失败摘要。Root亲看原图，证据library-update197-{library-settings,results,failed-row,failed-detail,updated-detail,cold-root,cold-results}-001。仅关闭既存记录展示/两条结果身份跳转/持久重开，未执行新的全书架更新、验证历史检查本身或改更新偏好；当前服务无单本检查入口，不为验收新增功能。章节多选下载后继见下一条。
+
+- 197两章多选下载实际闭环：普通xkcd目录进入选择，仅勾2977/2976，确认框实读2章/跳过0/待处理2；自然完成后两行均已下载，管理90章2299/2299页、xkcd3章3/3页（含原2978）。分别经准确章节名确认只移除本轮2976、2977，管理恢复88章2297/2297页；定向queue读回xkcd仅2978保留。Root亲看确认/完成/管理/清理及恢复原书架图，继续阅读虫笼第1页、最近阅读与原首三作品保持。本轮没有阅读、标读或更改下载偏好，没有测试暂停窗口、断网或批量失败，不外推并发/恢复通过。证据chapter-batch197-{confirm,terminal,download-manager,cleanup,original-state}-001及独立准确名称确认回执，哈希关闭。原OverrideTimeout10000ms已读回；下一未验证动作/Root：ComicFury尚未接受的普通源内搜索→详情实际路径，原Reader/下载已验路径不重跑。
+
+- ComicFury源内搜索新反例及实施边界：197当前0.1.2热门实际12本，内联“毛兒”搜索终态为source_runtime失败。source_icons对同构造URL唯一普通Host GET取得HTTP200/26839B、标题Search - Comic Fury Webcomic Hosting，query input确为毛兒；唯一form.search-wrap内search-results的直接search-error明确“There were no results for your search!”。Root已审原响应精简HTML和父树偏移、App args.query/page消费者、6bbee70原list无条件empty listing及唯一search/list两调用；该正常无结果被源抛失败，不是图标提交改变解析。允许差异仅search=true、零卡片且唯一精确无结果标记时返回现有空items/null游标/hasMore=false合同；popular/latest、其他错误/缺失结构、非空解析/分页及App呈现保持。现有CLI无离线响应注入，不为此新增Host或脚本；Root实施0.1.3后按197真实同词空结果及有效搜索/详情验证。此前两次把内联提交误当另页入口、一次多余Back退出、带管道的日志取法失败及hilog-t被原guard拒绝原件保留，均不作产品反例或通过。
+
+- ComicFury0.1.3已交付（Root，2026-10-21）：离线构建并读回WASM版本后，197普通本地导入明确成功；同词“毛兒”终态为现有“没有找到结果”，Maor返回“毛兒傳 (Maor)”且无下一页。普通进入详情实际显示封面、Allen T及67/67章；Back后Maor和同一结果保留，Root已亲看两张原图。只接受这两词的空/非空搜索及详情返回，不扩大到全文搜索或正文/下载。源master四文件7245a50已正常同步；修复保持其他错误列表失败、原非空解析/分页/请求及App呈现。证据comicfury-search197-{empty-repaired,empty-terminal,positive-query,positive-terminal,detail-ready,back-results}-001及原反例日志保留，哈希关闭。197继续同一有效租约，当前AWAKE/OverrideTimeout86400000ms；会话结束恢复原10000ms。下一未验证动作/Root：核对当前普通私库服务入口及实际可用连接，接续尚未验的浏览→详情→阅读/返回路径；source_icons已恢复全量未闭资源官方父链工作，不重试受限URL。
+
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
 - N/E共享Kit3a7b56d的197普通阅读按钮路径已连续录像；E4212986为13→14→13，N686744为2→1→2，均正常Back。顺序审完695/210帧并复核原分辨率进入边界，正文出现时中央图片准备层已退出。仅接受这两个具名路径，不冒所有模式或K普通Shared入口通过。原件及完整边界在NextN现有共同工作单，记录已提交947b0e01；哈希关闭，用户拒绝助手二选一不得再用于停止。197原120000ms超时已恢复、原7份N下载仍在、租约已释放。
@@ -122,7 +130,7 @@
 
 - 下一未验证动作/owner：Root接续App当前未验普通用户路径；source_icons沿已记录未闭资源的官方明确父链接续，不重复已403、SSL受限或安全拒绝请求，不改App容器/尺寸/排序。
 
-- 本轮有限官方原件调查仍无可采用新件：XComic简繁同站，但繁中192²旧图仅扩展仓来源、不能冒官网认可；160/喵趣未取得准确官方身份父链；IKMMH旧图属错误品牌且准确入口不可达；HentaiFox官方Twitter不返回图像URI、Discord安全拒绝；NH.xxx/HentaiHand/MyComic未取得新标识声明，对应首次原始首页403均停止。MangaBall首页本轮403；創漫官网明确链接weicomicep官方粉丝团，但该页提示临时阻止，官网原始读取403，均不换方式绕过。MPC官网明确声明的新1200×630 OGP仍为横字标加大块深蓝留白，不宜代替现有透明横标；官网及实际/about无独立方图或官方账号链。旧MediBang /mpc/about/误用返回验证页的记录不作当前官网依据；本轮没有采用新资源。
+- 本轮有限官方原件调查仍无可采用新件：XComic简繁同站，但繁中192²旧图仅扩展仓来源、不能冒官网认可；160/喵趣未取得准确官方身份父链；IKMMH旧图属错误品牌且准确入口不可达；HentaiFox官方Twitter不返回图像URI、Discord安全拒绝；NH.xxx/HentaiHand/MyComic未取得新标识声明，对应首次原始首页403均停止。MangaBall首页本轮403；創漫官网明确链接weicomicep官方粉丝团，但该页提示临时阻止，官网原始读取403，均不换方式绕过。MPC官网明确声明的新1200×630 OGP仍为横字标加大块深蓝留白，不宜代替现有透明横标；官网及实际/about无独立方图或官方账号链。旧MediBang /mpc/about/误用返回验证页的记录不作当前官网依据；本轮没有采用新资源。 source_icons后续对优酷准确首页https://www.ykmh.net/首次普通匿名GET实际HTTP403（原命令urllib.request.urlopen，timeout=15；异常捕获打印HTTPError HTTP Error 403: Forbidden，进程exit0不当HTTP成功），已停止；此前笼统父页受限表述不能冒该请求已有旧403。NN/漫小肆/ASM仍无新明确官方头像链，无新素材或源码差异。
 - 197可用源列表失败另已核到本地旧dist/index.json：21条中Demo/Happy/92/Mangabz/Manhuagui/漫画社/漫画1234共7条icon为空；当前SourceIndexService.fetchIndex依已存在必需图标合同拒绝整个输入。当前build.sh已有非空图标验证，这份旧输出不能作当前成功构建产物；未修改校验、删除条目或重建临时服务制造通过。
 
 - HentaiFox原16² PNG也按同一原件补归原则归回：Root亲看现存取回图，格式/尺寸/1537B与NOTICE所记官网head声明一致；原business-only边界没有带图，不冒人类已拒。仅补原文件和就地澄清记录，保持业务/版本，不重装，不把16px图冒高清解决。source_icons仅接续它的新安全官方清晰标识父链，原favicon不重取。
