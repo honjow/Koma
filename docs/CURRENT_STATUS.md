@@ -1,5 +1,16 @@
 # Koma 当前状态、缺口与执行基线
 
+## 实时执行位置（2026-10-21，持续工作）
+
+- 197六包图标整合已完成（Root）：六漫画012、NH.xxx012、优酷013、NNHanman011、漫小肆011、MangaBall011全部经普通系统选择器导入并显示成功，实时registry读回相应版本；原79项sourceId序列与enabled值逐项保持。Root亲看管理和Browse各三张原图icons197-{manager,browse}-{upper,middle,later}-001，六项在两消费者均实际显示；只闭呈现，不重跑旧正文/下载或称所有图标完成。仅删除本轮自传六份Download包，既有HentaiFox等保留；返回原书架Chibi第2页25%、最近阅读及原首三书保持。最终AWAKE/原OverrideTimeout10000ms读回，租约5a9ecb4e已释放，全部回执artifactHashesEnabled=false。下一Root动作：阅读重试留白候选仍待当前真实人类决定，不能据工具accepted实施；source_icons沿237当前NN011首章路径继续，保留此前P1/P2原图，不从头复验。
+
+- 用户新反例：阅读失败页“重试”文字贴胶囊边缘（本会话19257.png）。Root已核当前ReaderPage.LoadingContent及所有ImageSurface/Spread消费者、无源码WIP，git follow/-G/blame/show追到bc122397初始自定义Button/Text没有内边距；f55a18e0搬入同一失败列时照搬。原197 single-failed布局中Text与Button边界完全相同：[588,1373][673,1423]，因此原“失败呈现通过”只保留停圈/位置/重试事实，按钮留白不合格。最新原批准保留字号/颜色，不能冒成新尺寸授权。候选仅在同一Button加左右SPACE_LG=16vp、上下SPACE_SM=8vp内边距，保留13fp字、胶囊色/形、失败文字下方位置及现有onAreaChange动态命中；不改失败文案、四模式结构或真实重试。候选未应用；待人类决定后在197普通失败→点击重试路径复核。源237继续现存source_icons的NNHanman正文未验路径，MangaBall011原图/六文件提交由Root接续。
+
+- Root负责App与整合，source_icons负责源/237。MangaBall011已由source_icons在237普通导入，Root亲看mangaball011-manager237-001及mangaball011-browse237-001原图：红蓝球、字标和中央环在现有槽可辨；原47项相对保序，新增后48项。六文件资源/出处/版本差异已审，源master8f811bd正常同步。仅关闭237两消费者图标呈现，不冒正文/封面通过。197六包后继已由上条实际整合；当前用户新反馈的阅读重试留白候选等待决定。
+- 本轮已交付的七项图标：HentaiFox011（197）、六漫画012/NH.xxx012/优酷013/NNHanman011/漫小肆011/MangaBall011（237），均具名管理及Browse两消费者；源master分别4967900、378e1cd、64d89dc、601beb3、c3ab0ba（含两源）、8f811bd已同步。NN/漫小肆首次安装使237从45到47，原45相对保序；不冒这些源的阅读/下载通过。原图沿现有user-flow-audit设备分区。
+- 漫画160现已找到官网明确声明的280×95原PNG并补到源仓2f577e4（随c3ab0ba同步）；移动端220×72仍横标，134方图是QR已排除。此项只闭“来源/源码缺文件”，小槽质量仍OPEN。其余缺图、ASM/創漫、漫画社/MPC、Terra/Noy小槽等保持下方具体条件，不以六项交付冒整线完成。
+- App197本轮按书模式/方向的保存与全局隔离、模式cold及GUI恢复已具名记录，原Preferences/第2页保持，原超时10000ms已恢复并释放租约。新反例“首次保存后本书标记/恢复默认入口不刷新”候选尚未应用，等待本会话已发送的具体人类决定，不重复提问；源线不停。
+
 ## 当前接续：CI依赖同步故障与237验收（2026-10-20，Root）
 
 - CI原反例：run39406667795及39335215874均在Checkout pinned reader-kit sibling报not our ref 103ef18，编译未开始。按用户本轮纠正核 ~/.ssh/config，发现独立github-3003h别名（ssh.github.com:443、独立密钥）；该身份对原erosTeam/reader-kit/main的dry-run及实际正常快进均成功。origin已改为git@github-3003h:erosTeam/reader-kit.git，远端main现为3a7b56d，主仓已同步且干净。此前honjow的HTTPS/默认SSH/连接器无写权是对应身份的事实，但据此要求用户恢复写权限并停止同步的全局结论错误，现撤回；原仓无需额外授权或换地址。当前CI只将固定依赖更新到本机已构建/具名验收的3a7b56d，并移除自定义产物SHA计算及对应README描述，保留HAP结构/包名/Release/必需SO检查；精确提交f4b11db8的新run39412294482已实际全部成功：依赖检出/公共配置/国际化/OHPM/Release编译/HAP检查/上传均通过，整个job2m54s，编译50s296ms。清单实际readerKitCommit=3a7b56d，HAP为Koma_0.1.1_ohos-release-unsigned.hap、8142481B；ohos-hap-unsigned产物2984132B且未过期。仅关闭此CI故障，不冒签名安装/首版可发布。
@@ -59,7 +70,7 @@
 - 六漫画012、NH.xxx012图标交付（2026-10-21，source_icons执行/Root审）：237当前VDE-AL00展开1320×2120，six为已装011普通更新，NH为首次新增后再更新；44→45只新增NH，原44相对顺序及启用状态保留。Root已亲看source-icons-manager-middle237-001与source-icons-browse237-001中的六漫画6/松鼠；NH透明011因白n融入浅卡判失败，不提交。核官网原32图自身#223445画布后，012仅保留原深蓝画布和已审白n/红翼，未加第三方板/影/遮罩；Root亲看nhxxx012-manager237-001及nhxxx012-browse237-001两处完整标识可辨。原图位于user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/。两源分别378e1cd/64d89dc已同步源master，源仓clean；只闭这两处图标，不冒正文。source_icons只移除本轮传入3个Download包，恢复原OverrideTimeout10000ms并释放f65e6187。后继按当前发布index.pb的准确icon字段接MangaBall/NNHanman/漫小肆，不重试403官网或GitHub限额API。
 - 197阅读方向实际消费者补证：原记录未通过的方向选择，本轮现有菜单确能选择从右到左，存储只新增Chibi的vertical_page/right_to_left窄覆盖，全局left_to_right与原Komiic覆盖保持；再经同菜单选回从左到右，全部Preferences键值恢复本轮基线，普通返回仍原第2页/25%。只闭本次菜单选择/保存/作用域/恢复，不冒右到左翻页或方向cold。随后197原OverrideTimeout10000ms已读回AWAKE并释放原租约；App布局和源顺序保持。
 
-- 优酷013当前候选（Root，2026-10-21）：原官网完整224×81横标身份及当前小槽过小已核，沿现存左侧蓝圆/白色双曲带/中部青蓝菱形作一次图像接口还原，原首页403不重试。Root与source_icons对照原标识后亲看512正常输出，图形身份成立；渐变/轻微质感有还原差异，不冒官方高清原件，未加App框/阴影/遮罩。源仓仅资源/出处/版本012→013及锁对应块6文件WIP；真实离线WASM info013、图标解码契约通过，3成员包manhuadui-0.1.3.koma已交现存source_icons在237做普通更新与管理/Browse两处验收，尚未提交或称通过。源其他业务/能力及App槽/圆角/排序保持。当前Koma c7cefa9f的CI39472126413 success，源仓未发现Actions工作流，不冒源CI通过。
+- 优酷013当前候选（Root，2026-10-21）：原官网完整224×81横标身份及当前小槽过小已核，沿现存左侧蓝圆/白色双曲带/中部青蓝菱形作一次图像接口还原，原首页403不重试。Root与source_icons对照原标识后亲看512正常输出，图形身份成立；渐变/轻微质感有还原差异，不冒官方高清原件，未加App框/阴影/遮罩。源仓仅资源/出处/版本012→013及锁对应块6文件WIP；真实离线WASM info013、图标解码契约通过，3成员包manhuadui-0.1.3.koma在237经普通本地更新成功；Root亲看ykmh013-manager237-001及ykmh013-browse237-002两处标识清楚，无可见彩边或长影，45源ID顺序与启用/索引保持。601beb3已提交并正常同步源master，仅关闭这两处图标，不冒列表/正文。源其他业务/能力及App槽/圆角/排序保持。当前Koma c7cefa9f的CI39472126413 success，源仓未发现Actions工作流，不冒源CI通过。
 
 ## 当前接续：Reader实机结果与漫画柜原资源交付（2026-10-20，Root）
 
@@ -164,7 +175,7 @@
 - 四份既装原件补归：Root亲看ASM49×35 AH、NNHanman172×46、漫小肆145×56及NH.xxx32²现存取回图，尺寸/原件长度与各自NOTICE/README官网声明记录吻合。source worker核已有记录未找到这四件明确人类拒绝、取代或身份错配；原缺图原因是business-only恢复没有带素材，不把低清当成已拒。此次仅将四份现存原件补入源码及就地纠正文档边界，版本、业务、设备全部不变；NH.xxx保留历史原ICO无损转PNG的事实，不称原ICO字节。低清和横标小槽继续OPEN，未用归回文件冒质量完成。
 
 - 本轮五包交付与原件归回（Root）：TIPO0.1.1、科技大观园0.1.1、漫画社0.1.3先前已普通导入，本轮管理/Browse两处原图亲看；东立0.1.1完整600²原JPEG与Noy0.1.1完整908²透明WebP经本轮普通系统选择器导入，两处及cold后Browse实际显示。东立虎头清楚；Noy人物偏窄、漫画社横标仍小，尺寸辨识继续OPEN，不称整线质量完成。NH.to原96² PNG按本会话实际既装包取回原件归回源主仓，未改其业务或版本。24文件已提交源master 5965937；后续四份补归093090f与HentaiFox补归552b9c3均已正常同步origin/master，不发版。原图icons-manager-later、icons-remaining-browse、noy-tongli-{manager,browse}、order-cold-browse。
-- 当前86个源码源成员实核11项缺icon文件（10生产候选+Demo）：XComic简中、漫画160、HComic、喵趣、IKMMH、HentaiHand、MyComic、Happy、九儿、漫画1234、Demo。Root从当前Cargo成员和icon.*文件独立读回该集合；漫画柜0.1.3完整128px ICO已交付，从旧12列表剔除。HKO0.1.2当前480px官方应用图、Laya0.1.2的720px图、科技/TIPO0.1.1的720px后继已交付，旧横标/16/32px结论不再排工。Noy当前908px只保留人物偏窄，不再称旧花朵模糊。各源的父链不足、403/拒绝或既定未采用边界分别保持。
+- 当前86个源码源成员的缺icon文件已减为10项（9生产候选+Demo）：XComic简中、HComic、喵趣、IKMMH、HentaiHand、MyComic、Happy、九儿、漫画1234、Demo；漫画160现有官网原件，但小槽质量另留OPEN。Root从当前Cargo成员和icon.*文件独立读回该集合；漫画柜0.1.3完整128px ICO已交付，从旧12列表剔除。HKO0.1.2当前480px官方应用图、Laya0.1.2的720px图、科技/TIPO0.1.1的720px后继已交付，旧横标/16/32px结论不再排工。Noy当前908px只保留人物偏窄，不再称旧花朵模糊。各源的父链不足、403/拒绝或既定未采用边界分别保持。
 
 - Noy本次重开：旧512px花朵原件本身模糊，当前用户要求继续全量质量处理。Root亲看908²透明角色WebP，正常读取官网明链发布页200，head准确声明/assets/favicon-BPmZMpu7.webp；官网→公开JS→发布页关联由现有源worker回传。沿同一Noy身份换完整官方原件，仅资源/来源记录及版本0.1.0→0.1.1，保业务与App槽/圆角。本条原准备状态已由上方五包交付接续：197两处已显示，人物偏窄仍OPEN。MPC母平台图与Creators身份有区分，暂不以同公司当同源替换。
 
@@ -172,7 +183,7 @@
 
 - 用户最新要求仍为完整书源图标处理，不限于点名源；优先清晰、官方认可的标识，禁止新增底板/阴影/遮罩，不像素描摹模糊边缘。本轮不新增工作树/源码副本/归档/报告。
 - 撤回72d7e0f4的“纠正遗漏/裁切遗漏已关闭”结论：该提交删除了用户明确保留的列表圆角，与原始要求冲突；icon-unmask两图只记录错误效果，不能作通过证据。恢复范围及当前验收见本页顶部“列表图标圆角回归修正”。
-- 旧65标准打包项口径被上方当前86源码成员核对取代，不能继续漏掉未注册候选或已交付后继。当前低清/小槽沿已有实际问题保留：MangaBall24px、微漫画/創漫同一源16px、ASM49×35；HentaiFox011、六漫画012及NH.xxx012已由上方具名两消费者交付关闭，不再按旧16/32px重排；NNHanman172×46、漫小肆145×56、漫画社150×50、MPC1024×354、Manhuadui224×81为横标小槽，Noy人物偏窄、Terra原白画布适配分别未闭。ComicFury/xkcd派生图的官方原件替代问题另记，不能混称低清；尺寸或文件存在不当视觉通过。
+- 旧65标准打包项口径被上方当前86源码成员核对取代，不能继续漏掉未注册候选或已交付后继。当前低清/小槽沿已有实际问题保留：MangaBall24px、微漫画/創漫同一源16px、ASM49×35；HentaiFox011、六漫画012及NH.xxx012已由上方具名两消费者交付关闭，不再按旧16/32px重排；漫画社150×50、MPC1024×354、漫画160280×95为横标小槽（优酷Manhuadui013已由上方237两消费者交付关闭，不再按224×81旧图排工），Noy人物偏窄、Terra原白画布适配分别未闭。ComicFury/xkcd派生图的官方原件替代问题另记，不能混称低清；尺寸或文件存在不当视觉通过。
 - 漫画柜同源16px favicon缺官方品牌绑定，Root实际目视并否决“同源即官方”的推断；worker45f2db6已撤回5b10e8d新增素材，保留现有README准确未闭说明。ComicFury/xkcd旧派生图现由上方9a3d942完整官方原件取代；不冒官方矢量，旧拒稿仍不采用。
 - 当前四项实际交付：DBMultiverse原144² PNG（a31de13）、immark原420² WebP（319f581）、Laya原64² JPEG（249d9b1）、3Hentai原180² PNG（2a253ff）均由Root审素材/精确差异，在原源仓用已安装Rust工具链构建，直接生成正式.koma本地安装包；不生成索引、辅助归档或哈希核验。197经普通设置→服务→源包→系统文件选择器导入成功；源包管理及Browse两消费者已亲看四图实际显示，源索引URL及启用状态保持。证据：`.hvigor/outputs/user-flow-audit/four-icons-{manager,browse}.png`、具名`*-import.json`与现有命令日志。只关闭这四项安装/呈现缺口；Laya仍仅64px，不能称高清或整线质量完成，正文/下载/cold未在本轮重验。
 - immark来源绑定已由Root亲读既存tar内真实HtmlHost的head JSON-LD SelectAll/Text：Person的ImageObject明确声明该420² WebP准确URI；保留作者原图、不加工。今天父页/CDN403与历史真实原件分开，未重试。当前App本来已支持WebP，没有为此改SDK/App或安全机制。
