@@ -639,7 +639,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
   }
 }
 
-function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefined): void {
+function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefined, insertionIndex?: number): void {
   if (entry === undefined) {
     return
   }
@@ -662,7 +662,7 @@ function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefin
     packageIconPath: entry.packageIconPath,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
-  })
+  }, insertionIndex)
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -1146,6 +1146,7 @@ async function registerSourcePackageFromBytes(
   const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
   const importedRoot = joinSourceRuntimePath(packageDir, 'package')
   let removedExisting: SourceRuntimeRegistryEntry | undefined = undefined
+  let removedExistingPosition: number = -1
   let registeredReplacementSourceId: string = ''
   try {
     ensureDirSync(packageDir)
@@ -1168,6 +1169,7 @@ async function registerSourcePackageFromBytes(
       console.error('[SourceManager] step=import_fail reason=app_version_unsupported')
       return { ok: false, reasonCode: 'app_version_unsupported' }
     }
+    removedExistingPosition = appSourceRuntimeRegistry.list().findIndex((entry: SourceRuntimeRegistryEntry): boolean => entry.sourceId === sourceId)
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
     const detectedCapabilities = detectSourceRuntimeCapabilities(sourceId, imported.wasmBytes)
@@ -1187,9 +1189,9 @@ async function registerSourcePackageFromBytes(
       packageIconPath: imported.iconPath,
       presentationDescription: removedExisting?.presentationDescription,
       presentationIcon: removedExisting?.presentationIcon,
-    })
+    }, removedExistingPosition)
     if (!registered.ok) {
-      restoreRuntimeRegistryEntry(removedExisting)
+      restoreRuntimeRegistryEntry(removedExisting, removedExistingPosition)
       await removeAppSourcePackageDir(context, packageDir)
       console.error('[SourceManager] step=import_fail reason=' + (registered.reasonCode ?? 'register_failed'))
       return { ok: false, reasonCode: registered.reasonCode ?? 'register_failed' }
@@ -1210,7 +1212,7 @@ async function registerSourcePackageFromBytes(
     if (registeredReplacementSourceId.length > 0) {
       appSourceRuntimeRegistry.remove(registeredReplacementSourceId)
     }
-    restoreRuntimeRegistryEntry(removedExisting)
+    restoreRuntimeRegistryEntry(removedExisting, removedExistingPosition)
     try {
       await removeAppSourcePackageDir(context, packageDir)
     } catch (_err) {

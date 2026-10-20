@@ -476,7 +476,7 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
 export class SourceRuntimeRegistry {
   private entries: SourceRuntimeRegistryEntry[] = []
 
-  register(input: SourceRuntimeRegistryEntryInput): SourceRuntimeRegistryRegisterResult {
+  register(input: SourceRuntimeRegistryEntryInput, insertionIndex?: number): SourceRuntimeRegistryRegisterResult {
     const sourceId = normalizeSourceRuntimeSourceId(input.sourceId)
     if (sourceId.length === 0) {
       return { ok: false, reasonCode: 'missing_source_id', sourceCount: this.entries.length }
@@ -526,7 +526,10 @@ export class SourceRuntimeRegistry {
       presentationDescription: normalizePresentationText(input.presentationDescription),
       presentationIcon: normalizePresentationText(input.presentationIcon),
     }
-    this.entries.push(entry)
+    // Replacing a package must preserve its position in installed-source lists.
+    const position = insertionIndex === undefined || insertionIndex < 0
+      ? this.entries.length : Math.min(insertionIndex, this.entries.length)
+    this.entries.splice(position, 0, entry)
     return { ok: true, entry, sourceCount: this.entries.length }
   }
 
