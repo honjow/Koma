@@ -25,7 +25,8 @@
 - 本轮设备预检错误单独保留：曾误用power-shell setmode 602而非timeout，返回性能模式设置成功；发现后停下普通操作，查官方命令后以setmode 600改为标准模式，随后timeout -o 86400000并读回AWAKE/OverrideTimeout通过。误操作前原模式没有读回，不能称精确恢复原值。一次就绪判断误等隐藏章节标题、一次生命周期动作错放measurement均已保留原失败；后者校验阶段即停止，未触设备，不冒产品错误。
 - HKO原图交付：Root重新读取官网menu.js的myLogo，HTTP200并明确绑定中文首页logo_hko_index_c.png；采用现存451×140完整官方原件替换182×40内页标识，版本0.1.1，未裁切/重绘/加底板或遮罩。仅构建此源，普通文件选择器导入成功；197源包管理与Browse均读回0.1.1并亲看原图。完整横标在小槽仍太小，辨识质量继续OPEN；不以高清原件或安装成功称解决。证据hko-{import-result,manager-row,official-manager,official-browse}，源码与锁文件版本变更已提交并同步源master的563f92d。
 - 本轮197本地加密备份闭环：普通创建表单选择保存在Koma内部及加密，临时口令只用于本次，命令/manifest/布局脱敏；新文件1792456763593显示23MB、已加密。选择它→仅解密预览，v4认证通过，75书架/83进度，两项新增均0，未点击恢复。随后准确文件名确认框仅删除本轮文件，最终原四份备份全部读回且新文件消失。只关闭创建/认证预览/本轮文件删除，不冒恢复/失败回滚/cold。证据encrypted-backup-{form,created,list,locked-preview,decrypted-preview,preview,own-confirm,cleanup}及原命令日志。一次连续输入未等回列表完成而误入旧备份预览，确认前已拦下并关闭菜单回稳定列表，未删除/恢复旧文件；该失败原件保留。
-- 下一未验证动作/owner：Root沿Reader点击/显示页所有者追1700页归档点击反例；不改参数或手势试错。现存图标owner沿HKO本次小槽反例有限核官网声明的独立标识，Root亲审后交付；其余已冻素材不重做。普通Shared入口、HComic/科技提取、下载说明和开源声明仍待真实人类答复。
+- HKO小槽辨识补交付：官网menu.js明确链接天文台发布的MyObservatory Google Play页，itemprop=image的2x srcset声明480×480完整PNG。Root实读父链及目视蓝白独立标识后采用完整原件，未裁切/重绘/新增底板或遮罩，原白画布保留。0.1.2当前工具链构建、WASM版本读回及197普通文件选择器导入成功；Root亲看源包管理/Browse两原图，图形可辨，关闭这两处横字标过小问题。五文件已提交并同步源master f41a59c；证据hko-standalone-{import,manager,browse}及hko-myobservatory-official.png，沿既有日志。未改变索引URL/启用状态，未重验正文/下载/cold。首个Cargo路径失败后曾生成混旧WASM的未安装包，已以实际rustup工具链成功构建的包覆盖；本轮就绪检查数次误写页面文案或假设滚动初始位置，实际读取后修正，均不报产品故障。
+- 下一未验证动作/owner：Root接续1700页归档点击反例；ReaderPage现存四处KomaTapDiagnosis临时日志及原诊断构建日志保留，先核执行状态，不改参数或手势试错。现存图标owner接续MangaBall 24px官方清晰标识调查，Root亲审采用及197交付；其余已冻素材不重做。普通Shared入口、HComic/科技提取、下载说明和开源声明仍待真实人类答复。
 
 ## 当前问题：书源分页后标题仍显示首批数量（2026-10-20，Root）
 
@@ -57,7 +58,7 @@
 - 当前四项实际交付：DBMultiverse原144² PNG（a31de13）、immark原420² WebP（319f581）、Laya原64² JPEG（249d9b1）、3Hentai原180² PNG（2a253ff）均由Root审素材/精确差异，在原源仓用已安装Rust工具链构建，直接生成正式.koma本地安装包；不生成索引、辅助归档或哈希核验。197经普通设置→服务→源包→系统文件选择器导入成功；源包管理及Browse两消费者已亲看四图实际显示，源索引URL及启用状态保持。证据：`.hvigor/outputs/user-flow-audit/four-icons-{manager,browse}.png`、具名`*-import.json`与现有命令日志。只关闭这四项安装/呈现缺口；Laya仍仅64px，不能称高清或整线质量完成，正文/下载/cold未在本轮重验。
 - immark来源绑定已由Root亲读既存tar内真实HtmlHost的head JSON-LD SelectAll/Text：Person的ImageObject明确声明该420² WebP准确URI；保留作者原图、不加工。今天父页/CDN403与历史真实原件分开，未重试。当前App本来已支持WebP，没有为此改SDK/App或安全机制。
 - Laya/3Hentai构包曾被自动审批将.koma误归为新增辅助ZIP归档而拒绝，实际未执行；Root补充核实用户全线图标任务、build.sh产品格式及App本地消费者后，以原命令/原路径正常审批获准生成，没有绕路。
-- HComic与科技大观园提取仍待人类选择；call_9efb6cb4056d48eca0096eca5ea70f5b的accepted:true也是工具受理，不是批准。HComic生成稿改变纹理/笔画，已否决，未回灌；HKO较大官方原图已亲看，完整横字标仍有小槽辨识限制，独立徽标处理未实施。
+- HComic与科技大观园提取仍待人类选择；call_9efb6cb4056d48eca0096eca5ea70f5b的accepted:true也是工具受理，不是批准。HComic生成稿改变纹理/笔画，已否决，未回灌；HKO0.1.2独立官方应用标识已交付，具名两消费者结果见本次接续；其他源限制保持。
 - 其余图标仍OPEN：微漫画/創漫16px且身份绑定不足、MangaBall24px、TIPO/六漫画32px、漫画社横标、Manhuadui黑色区、Noy原件自身模糊与MPC横字标分别保留具体问题；TIPO真实目录、六漫画既有详情、漫画社正确源域的首次普通读取403后均停止。六个精确静态原件请求被自动审批拒绝、未实际发出，不写成图体403。无可信品牌图、只有平台头像或已拒素材的源不补假图；这些限制不覆盖其他已授权App动作。
 - 已查站点403、Happy DNS和九儿变体自动审批拒绝只限制对应分支，不重试被拒请求、不绕过。素材质量和实际App呈现仍OPEN，不能以全量盘点称完成；未运行带哈希的源打包脚本，也未修改安全机制。
 
