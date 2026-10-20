@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  KOMA_READER_KIT_REVISION: 103ef181d079b761d439ffe43da457c43a86abe1
+  KOMA_READER_KIT_REVISION: 3a7b56d9022d1d96c521b9d5abd169b935254f71
 
 permissions:
   contents: read
@@ -77,7 +77,6 @@ jobs:
       - name: Inspect and collect HAP
         run: |
           python3 - <<'PY'
-          import hashlib
           import json
           import os
           from pathlib import Path
@@ -119,7 +118,6 @@ jobs:
               "signed": False,
               "hap": output.name,
               "bytes": output.stat().st_size,
-              "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
           }
           Path("build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
           with open(os.environ["GITHUB_ENV"], "a") as env:

@@ -21,4 +21,4 @@ Koma 是一个 HarmonyOS 私有漫画书架与阅读器项目。
 
 [Build OHOS](https://github.com/honjow/Koma/actions/workflows/build.yml) 在 `master` 推送、面向 `master` 的 PR 和手动触发时运行。工作流将 App 和固定 revision 的 reader-kit 检出为同级目录，并递归检出 App 的子模块，检查公共构建配置和国际化资源，然后构建 arm64 Release 未签名 HAP。
 
-成功后可在运行页面下载 `ohos-hap-unsigned` 产物，其中包含 HAP 和记录提交、reader-kit 版本及 SHA-256 的 `build-manifest.json`，保留 14 天。该产物需要签名后才能安装；CI 通过只表示编译与打包检查通过，设备功能验收仍需单独完成。
+成功后可在运行页面下载 `ohos-hap-unsigned` 产物，其中包含 HAP 和记录提交、reader-kit 版本及文件大小的 `build-manifest.json`，保留 14 天。该产物需要签名后才能安装；CI 通过只表示编译与打包检查通过，设备功能验收仍需单独完成。
