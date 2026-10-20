@@ -27,7 +27,7 @@
 - 本轮未闭反例限于上述1700页归档：左右单击未改变页码，中心可呼出控件，纵向翻页正常，原因未定。另以既有8页短章实际左点2→3、右点3→2并恢复原页；本轮新导入2图书也左点1→2成功，因此不能称通用点击区失效。197实时API=26，官方tapLocation为API20起，已排除低API缺字段假设；没有据猜测改阅读代码。横向滑动在纵向分页下无效不计产品故障。就绪检查曾误用系统截断路径或未核对文案，及清理弹窗退场时的连续输入误入原书详情，均保留命令原件并已恢复，不冒产品故障。
 - 本轮证据仍在.hvigor/outputs/user-flow-audit/local-import-{result,added,open,reader,page2,reader-settings,vertical,reopen,cold-library,cold-reader,remove-confirm,cleanup}原图/布局，以及global-search-commands.jsonl；不新增报告、脚本、目录或哈希核验。
 - 设置消费者本轮实际核对：服务页Komga/Kavita/OPDS/WebDAV各到对应配置页并能返回，未保存连接；存储显示498MB/1186项及500MB上限，已追到ReaderPageSourceAdapter实际evictIfOver消费者，未清缓存或改偏好。追踪到账号总览，两提供方均未连接，没有启动OAuth/同步。关于页产品/隐私/版本/开源四个信息弹窗均可打开和返回，版本读回0.1.1(2)；这仅证明具名入口，不证明凭据连接或隐私声明全项验收。
-- 开源声明用户本轮已明确批准并实施：只替换base/en_US/zh_CN现有settings_open_source_dialog_message三个值，逐字含WAMR 2.4.3 LICENSE、Lexbor 3.0.0 NOTICE与LICENSE完整原文（包括原文件附带的第三方许可段，不删成仅Apache正文），标题/原生showDialog/确定按钮未改。当前Debug构建和197覆盖安装成功；Root实际看普通关于→开源声明起始版本信息、原许可首段，连续滚动后亲看Lexbor文件末尾SUCH DAMAGE.及原确定按钮，点击后回关于页。只有当前中文普通路径通过，不扩大为所有语言设备或全部依赖合规审计。证据open-source-notices-{initial,scroll,end,dismissed}与原命令日志；三个资源均直接包含三原文件全文。
+- 开源声明用户本轮已明确批准并实施：只替换base/en_US/zh_CN现有settings_open_source_dialog_message三个值，逐字含WAMR 2.4.3 LICENSE、Lexbor 3.0.0 NOTICE与LICENSE完整原文（包括原文件附带的第三方许可段，不删成仅Apache正文），标题/原生showDialog/确定按钮未改。当前Debug构建和197覆盖安装成功；Root实际看普通关于→开源声明起始版本信息、原许可首段，连续滚动后亲看Lexbor文件末尾SUCH DAMAGE.及原确定按钮，点击后回关于页。只有当前中文普通路径通过，不扩大为所有语言设备或全部依赖合规审计；源码与本条记录已提交同步Koma master be57e585。证据open-source-notices-{initial,scroll,end,dismissed}与原命令日志；三个资源均直接包含三原文件全文。
 - 已批准本地重扫当前197证据：设置→书架→本地书架刷新实际roots=2、scanned=1、reselect=1、failed=0、added=changed=missing=0。结果框显示对应计数；“导入”到既有CBZ/ZIP/图片/文件夹菜单，再选文件夹真实打开系统选择器。未猜选失效根，取消后返回原书架；不把此路径扩大为新增/变更/缺失内容或重新授权成功。证据settings-local-rescan-{result,import,picker}.json及local-folder-rescan-log.txt。
 - 普通图片导入当前197证据：系统选择器依次点选既有QA根002.jpg与001.jpg，显示已选2/300；书架新增Koma-QA-Folder-20261009，普通详情→阅读形成1/2与2/2，两幅真实内容均已目视。左点击到第2页、退出后继续阅读回2/2；仅经准确书名确认框移出本轮条目，临时排序恢复最近阅读，原图片与既有文件夹书保留。不冒独立文件名/内容顺序绑定、图片分支cold或未测格式通过。证据local-image-{selected,new-item,reader-first,reader-next,resume,remove-confirm,cleanup-final}，同一命令日志。
 - 设置搜索当前197具名路径：输入“缓存上限”返回对应结果，点击进入存储页并显示原500MB；返回根设置查询已清空，未改参数。首次inputText缺坐标被设备help拒绝，后按实际<x y text>格式完成，不误报搜索故障；原图证明键盘状态下结果仍可操作，未据布局树中的隐藏Tab边界改UI。证据settings-search-{query,storage,return}。
@@ -41,7 +41,12 @@
 - HKO小槽辨识补交付：官网menu.js明确链接天文台发布的MyObservatory Google Play页，itemprop=image的2x srcset声明480×480完整PNG。Root实读父链及目视蓝白独立标识后采用完整原件，未裁切/重绘/新增底板或遮罩，原白画布保留。0.1.2当前工具链构建、WASM版本读回及197普通文件选择器导入成功；Root亲看源包管理/Browse两原图，图形可辨，关闭这两处横字标过小问题。五文件已提交并同步源master f41a59c；证据hko-standalone-{import,manager,browse}及hko-myobservatory-official.png，沿既有日志。未改变索引URL/启用状态，未重验正文/下载/cold。首个Cargo路径失败后曾生成混旧WASM的未安装包，已以实际rustup工具链成功构建的包覆盖；本轮就绪检查数次误写页面文案或假设滚动初始位置，实际读取后修正，均不报产品故障。
 - 1700页归档点击疑点本轮澄清：普通重新导入同一既有CBZ，首次左点击显示索引0→1但原页仍0；第二次左点击索引1→2、可见页码2/1700；反向点击2→1→0返回同一原始第一页的两个不同画面。Root实际对看split-right/split-left原图，内容变化，非点击失效。buildReaderDisplayPages按已启用的拆宽页偏好生成多个显示单元共享同一source pageIndex；加载后count从1701到1702，不能拿原始页码未增判没翻。未改手势/参数/业务。四处临时日志已撤下，正常Debug重新构建并覆盖安装；本轮新增条目经准确名称确认仅移出书架，原外部CBZ保留，最近阅读排序和原继续阅读卡恢复。证据reader-tap-archive-{before,after,second-left,return-first,split-right,split-left,cleanup}及原日志，其他原功能不重验。
 - 輔大猴缺图补交付：Root实读官方公司about-us→官方Facebook fjumonkeystore→明确og:image，采用完整720² JPEG原件（50149B），原黄底、品牌文字与角色保持，未新增背景/阴影/遮罩或裁切重绘。0.1.1源构建及WASM版本读回、197普通文件导入成功；Root亲看源包管理和Browse两行完整红猴标识清晰可辨，启用与索引保持。五文件已提交同步源master 6a428a8；证据fjumonkey-{official-original,manager,browse}。安装更新项排到列表末尾，最初未含该项的Browse截图不作通过；最终实际看到后才交付。只闭图标呈现，不冒正文/下载/cold。
-- 下一未验证动作/owner：Root沿现存图标worker新取得的Laya官方720px品牌图核对小槽质量，当前64px缺口仍OPEN；MangaBall未取得可信新原件，Noy官方manifest最大仍512且原件自身模糊、MPC仅横字标，Manhuadui既有403不重试。其余已冻素材不重做。普通Shared入口、HComic/科技提取和下载说明仍待真实人类答复。
+- Laya低清补交付：Root实读官网hospital导航/Organization.sameAs→官方Facebook Crazyospital→准确og:image，采用完整720² JPEG（67776B）替换原64px favicon，原品牌字/纸箱头/作者/灰底保留，未裁切重绘或新增底板/遮罩。0.1.2源限定构建、WASM版本读回及197普通文件导入成功；Root亲看源包管理/Browse两原图，角色边界可辨且像素模糊减轻，图标槽与索引/启用保持。证据laya-{official-large,large-manager,large-browse}，只闭这两处低清交付，不冒正文/下载/cold。
+- 瓜子197资源交付补齐：主仓已采用的208²透明CSS种子图此前未进入197，旧0.1.2仍显示白框旧标。Root保持原素材及解析业务，仅将版本升至0.1.3，使用现有完整Rustup PATH离线构建、实际info读回后生成正式.koma；197经普通文件选择器导入成功，管理与Browse末行均亲看红白种子/透明外区与0.1.3，原白框消失，启用和索引保持。原图guazi013-{manager-end,browse}与import-result保留。仅关闭两消费者图标交付，不扩大到正文/下载/cold；首次Cargo入口不存在及第二次Homebrew rustc混用均未生成交付包，原日志保留后用已安装工具链完成，未安装工具或改安全机制。
+- 綜合口味、人2、幻塔三原图交付（Root，2026-10-20）：亲审官网关联官方账号的720²原JPEG两份，以及幻塔官网明引官方App Store的400²完整WebP；原画、原背景/透明外形保留，未裁切/重绘/新增遮罩或改App容器。三个源仅升0.1.1，离线构建和真实WASM版本读回后，197逐份经普通系统文件选择器导入；管理与Browse的三行原图均已亲看，版本均0.1.1，人物可辨且原圆角保留。只闭两消费者缺图交付，不冒正文/下载/cold。源码13文件已提交同步源master 9095a9a。证据同目录icons-trio-{manager-final,browse}.png/json及三个import-result。首次发送误用不存在的Download路径失败；幻塔首次连续输入未选中文件，停止并按当前选择器确认已选1/1后成功，失败原件保留，未误报产品故障。
+- 全量边界纠正：旧77只覆盖当时清单，不能作全部源边界。Root实读当前Cargo workspace有86个源成员；本次三图纳入后仍19项缺文件（18生产候选及Demo）：HentaiFox、NNHanman、漫小肆、XComic简中、AsmHentai、漫画160、NH.xxx、NH.to、HComic、喵趣、IKMMH、HentaiHand、MyComic、漫画柜、Happy、92、漫画1234、东立、Demo。缺文件与低清/留白/小槽识别问题分开，不能以文件存在称质量通过。
+- 可用源本机索引失败已核到现存dist/index.json为21个旧条目，其中Demo、Happy、92、Mangabz、漫画柜、漫画社、漫画1234七条icon为空；未改校验、删条目或换URL制造通过，旧本机索引不代表当前全部源码交付。
+- 下一未验证动作/owner：Root接续全列表实际图标质量检查并交付下一份合格原资源；现存source_icons按当前86成员继续官方原件调查，当前接续东立。六个旧静态请求缺准确拒绝URL，先定位原拒绝而不试探重取；已403/受限分支不重试。普通Shared入口、HComic/科技提取和下载说明仍待真实人类答复。
 
 ## 当前问题：书源分页后标题仍显示首批数量（2026-10-20，Root）
 
@@ -498,16 +503,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "书源分页数量刷新修复和DM5首页导航通过；本地加密备份创建/认证预览/本轮文件删除通过；HKO小槽辨识及归档点击反例继续OPEN。",
-  "updatedAt": "2026-10-20T00:44:00Z",
+  "outcome": "綜合口味、人2、幻塔0.1.1官方原图197管理/Browse两处已亲看，源9095a9a已同步；原圆角和文字对齐保留。全量图标及首版目标仍未完成。",
+  "updatedAt": "2026-10-20T03:09:16.404869+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LOCAL_READER_TAPS",
+  "activeId": "SOURCE_ICONS",
   "activity": {
-    "title": "长归档点击反例与HKO标识",
-    "detail": "加密备份临时文件已删除、四原文件保留；继续具体未闭产品动作。",
-    "startedAt": "2026-10-20T00:44:00Z"
+    "title": "全量图标资源与实际显示",
+    "detail": "当前86源码源成员，三图交付后仍19项缺文件（含Demo）；Root检查其余实际显示，源worker继续官方资源。",
+    "updatedAt": "2026-10-20T03:09:16.404869+00:00"
   },
-  "nextAction": "Root：沿Reader点击和显示页所有者追1700页反例，不改参数制造通过；现有图标owner有限核HKO官网声明独立标识。",
+  "nextAction": "Root检查完整列表其余图标实际质量并交付下一合格原件；source_icons按当前86源成员继续东立及缺图/低清调查，保留各项准确阻点，不动App样式。",
   "proof": [
     {
       "label": "正式主仓",
@@ -726,9 +731,9 @@
     "status": "未完成",
     "kind": "open",
     "title": "中文源质量与完整图标范围",
-    "result": "HKO0.1.1完整官方首页原件已实际安装，两处消费者已亲看；完整横字标小槽辨识仍未解决。既有四图交付按原范围冻结。",
-    "remaining": "仍有缺图/低清及品牌绑定问题；两项提取待答复。具体受阻仅限制对应源，不扩大为全App停止。",
-    "commit": "563f92d"
+    "result": "HKO0.1.2独立官方标识、Laya0.1.2、瓜子0.1.3及本次綜合口味/人2/幻塔0.1.1原资源已完成具名两处图标交付。",
+    "remaining": "Root检查完整列表其余图标实际质量并交付下一合格原件；source_icons按当前86源成员继续东立及缺图/低清调查，保留各项准确阻点，不动App样式。",
+    "commit": "9095a9a"
   },
   "milestones": [
     {
