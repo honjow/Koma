@@ -24,7 +24,8 @@
 - WEBTOON繁中0.1.2本轮197普通公开路径：热门30本、作品255章，第2季第65話返回106页；首图为站点原版权提示，第2页真实漫画正文已亲看。纵向翻到2/106，返回详情“继续阅读”同进程回2/106；force-stop前PID11467、停止后pidof空、新启动PID30362，普通历史条目显示2/106并重开同一幅正文。没有收藏、清数据或改偏好；仅关闭此章首两页/重开，不扩大到全106页、全部源、下载或Shared。升序仍显示最新季标题的线索已查：源只解析“第数字話”等显式格式，分季标题chapterNumber=null；公共排序19ad9143刻意让未知话数稳定保留原序，不把index冒充话数，本轮未改排序/源。证据public-webtoon-{reader,page2,resume,cold-root,cold-history,cold-reader}原图/布局及原命令日志。
 - 本轮设备预检错误单独保留：曾误用power-shell setmode 602而非timeout，返回性能模式设置成功；发现后停下普通操作，查官方命令后以setmode 600改为标准模式，随后timeout -o 86400000并读回AWAKE/OverrideTimeout通过。误操作前原模式没有读回，不能称精确恢复原值。一次就绪判断误等隐藏章节标题、一次生命周期动作错放measurement均已保留原失败；后者校验阶段即停止，未触设备，不冒产品错误。
 - HKO原图交付：Root重新读取官网menu.js的myLogo，HTTP200并明确绑定中文首页logo_hko_index_c.png；采用现存451×140完整官方原件替换182×40内页标识，版本0.1.1，未裁切/重绘/加底板或遮罩。仅构建此源，普通文件选择器导入成功；197源包管理与Browse均读回0.1.1并亲看原图。完整横标在小槽仍太小，辨识质量继续OPEN；不以高清原件或安装成功称解决。证据hko-{import-result,manager-row,official-manager,official-browse}，源码与锁文件版本变更已提交并同步源master的563f92d。
-- 下一未验证动作/owner：Root接尚未验收的本地加密备份创建/预览/本轮文件删除，不执行恢复或覆盖书架。1700页归档点击反例仍未归因；普通Shared入口、HComic/科技标识提取、下载说明和开源声明候选待真实人类答复。其余图标逐源缺口保持OPEN。
+- 本轮197本地加密备份闭环：普通创建表单选择保存在Koma内部及加密，临时口令只用于本次，命令/manifest/布局脱敏；新文件1792456763593显示23MB、已加密。选择它→仅解密预览，v4认证通过，75书架/83进度，两项新增均0，未点击恢复。随后准确文件名确认框仅删除本轮文件，最终原四份备份全部读回且新文件消失。只关闭创建/认证预览/本轮文件删除，不冒恢复/失败回滚/cold。证据encrypted-backup-{form,created,list,locked-preview,decrypted-preview,preview,own-confirm,cleanup}及原命令日志。一次连续输入未等回列表完成而误入旧备份预览，确认前已拦下并关闭菜单回稳定列表，未删除/恢复旧文件；该失败原件保留。
+- 下一未验证动作/owner：Root沿Reader点击/显示页所有者追1700页归档点击反例；不改参数或手势试错。现存图标owner沿HKO本次小槽反例有限核官网声明的独立标识，Root亲审后交付；其余已冻素材不重做。普通Shared入口、HComic/科技提取、下载说明和开源声明仍待真实人类答复。
 
 ## 当前问题：书源分页后标题仍显示首批数量（2026-10-20，Root）
 
@@ -481,16 +482,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "WEBTOON具名公开章节cold历史重开通过；书源分页数量刷新修复通过。HKO完整官方原图已交付，小槽辨识仍OPEN。",
-  "updatedAt": "2026-10-20T00:35:00Z",
+  "outcome": "书源分页数量刷新修复和DM5首页导航通过；本地加密备份创建/认证预览/本轮文件删除通过；HKO小槽辨识及归档点击反例继续OPEN。",
+  "updatedAt": "2026-10-20T00:44:00Z",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "BACKUP_ENCRYPTED",
+  "activeId": "LOCAL_READER_TAPS",
   "activity": {
-    "title": "本地加密备份普通闭环",
-    "detail": "书源分页后2→6数量刷新和DM5首页导航已通过；沿备份既有未验收分支接续。",
-    "startedAt": "2026-10-20T00:35:00Z"
+    "title": "长归档点击反例与HKO标识",
+    "detail": "加密备份临时文件已删除、四原文件保留；继续具体未闭产品动作。",
+    "startedAt": "2026-10-20T00:44:00Z"
   },
-  "nextAction": "Root：普通设置创建一份本地加密备份，预览并仅删除本轮文件；不执行恢复或替换用户数据。",
+  "nextAction": "Root：沿Reader点击和显示页所有者追1700页反例，不改参数制造通过；现有图标owner有限核HKO官网声明独立标识。",
   "proof": [
     {
       "label": "正式主仓",
@@ -508,7 +509,7 @@
       "label": "远端同步",
       "state": "App/源已同步；Kit权限阻塞",
       "kind": "open",
-      "detail": "源master已正常同步563f92d；Koma本轮范围提交同步中；Kit原403/push=false仍限制其分支。"
+      "detail": "Koma/master已正常同步c5f4ea23，源master563f92d；Kit原403/push=false仍限制其分支。"
     },
     {
       "label": "共享阅读器",
@@ -698,11 +699,11 @@
     {
       "id": "BACKUP_ENCRYPTED",
       "title": "本地加密备份创建与预览",
-      "status": "待验证",
-      "kind": "open",
-      "result": "当前只闭本地未加密创建/预览/清理；不以此替代加密、恢复或cold。",
-      "remaining": "Root普通创建→预览→仅清理本轮文件；不执行恢复。",
-      "closedAt": null
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "197本地加密文件创建，认证预览75书架/83进度，未执行恢复；仅删本轮1792456763593并读回四原备份。",
+      "remaining": "恢复、失败回滚与cold不在本次通过范围。",
+      "closedAt": "2026-10-20T00:44:00Z"
     }
   ],
   "source": {
