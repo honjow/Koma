@@ -1,7 +1,7 @@
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { bundleManager, common } from '@kit.AbilityKit'
-import { buffer } from '@kit.ArkTS'
+import { buffer, util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -670,12 +670,8 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function base64ToBytes(payload: string): Uint8Array {
-  const decoded = buffer.from(payload, 'base64')
-  const bytes = new Uint8Array(decoded.length)
-  for (let index = 0; index < decoded.length; index += 1) {
-    bytes[index] = decoded[index]
-  }
-  return bytes
+  const helper = new util.Base64Helper()
+  return helper.decodeSync(payload)
 }
 
 function sha256Hex(bytes: Uint8Array): string {
