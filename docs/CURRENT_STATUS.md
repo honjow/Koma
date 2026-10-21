@@ -6,10 +6,12 @@
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 已批准的新章ID计数修复两文件提交1150724；Host真实快照回放10/旧格式9、结果及协调器检查通过，当前Debug覆盖安装成功，普通旧报告仍75/4/69/1/1/9。16:31普通返回原Chibi25%/最近阅读/首三书，library与reader同安装前内容，AWAKE/10000ms读回，163181d0已释放。 | 同步提交并监控CI；Root接续尚未验证的普通捏合缩放/还原路径，不重跑已闭双击。自然新章新报告仍待真实增量；不注入旧目录造数。详情刷新候选未批准。 |
-| 源 / koma_manhuaren237 / 237 | LOL010织星普通连续模式P2可读且原偏好恢复，王者010李信P1/P2中文正文；三README已亲审提交同步f2d1e0f。DOTA2011封面及P1/P2/48、自然返回进度本轮已亲审，52源及原记录保持，10000ms恢复且8929bb38已释放。 | 同一owner接续ASM49×35标识的清晰官方父链；没有新件则沿原表核Terra，不重试受限请求、不改容器。Root审DOTA原件与README并提交；源阅读按原失败账继续，非全源通过。 |
+| App / Root / 197 | 新章ID计数修复1150724及状态9c7d7702均已同步，CI39570169204 completed/success。197普通内容中央双指放大/缩小回同一Chibi2/8，Root亲看三原图；原书架/10000ms已恢复，a53f9ced已释放。 | Root接续既有保存/分享消费者及普通取消路径；不重跑已闭双击/中央捏合。自然新章新报告仍待真实增量；不注入旧目录造数。详情刷新候选仍未批准。 |
+| 源 / koma_manhuaren237 / 237 | LOL/HOK三README同步f2d1e0f；DOTA2011封面/两页及返回具名证据同步f2e7111；FGO012第4→5章各1页中文、普通续章/返回亲审，原52源与其他书记录保持、10000ms恢复且release，README同步c1dcadd。ASM/Terra无可采用新官方原件，未改素材。 | 同一owner接续现装Genshin：先核当前真实版本与未闭章，再普通正文/返回；不先改源或重复已闭样本。现有图标受限父链保留，未冒全量图标/全源通过。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
+
+- **197原生捏合有限结果（Root，2026-10-21）：** 普通继续阅读Chibi2/8，既有全局纵向分页/原比例保持。首用全屏reader_key_surface的Component.pinchOut(2)可放大，但pinchIn(0.5)返回书架，最终页码断言失败，原三图/失败JSON保留，未据此改App。上游GenericPinch源码表明收拢从组件左右边界内40px起步，当前全屏即x40/1220；与系统侧边返回的关系是有依据的解释，未取本机原生注入轨迹，不冒精确系统因果已证。改用同一官方PointerMatrix API，在内容内x330..930/y1360、双指起距300→600→300执行原生张合，Root亲看放大与还原原图，最后同一2/8仍在。仅此当前模式/页面中央两指功能闭合，不冒边缘、所有模式或动画全帧。语义适配器前后台资源均完成清理，无新脚本、无产品/技能代码修改。普通Back后原Chibi25%/最近阅读/首三书保持，library内容相同，86progress/142chapter记录仅该书updatedAt自然变化，原页ID/页码/比例/columnMode均不变，其他对象保持；AWAKE/原10000ms读回并release a53f9ced。原件reader-pinch197-{original-page,reopen-original,session-restored}-001，其中native-actions.json保留首失败、native-inner-actions.json保留完整两指坐标，哈希关闭。
 
 - **237本轮源边界（Root亲审，2026-10-21）：** 漫画人011热门HTTP200后permission_denied，现源码code40011单独映射匿名会话要求；独立“一拳超人”搜索HTTP200与至少六个可见标题/封面已Root亲看，详情/目录/正文匿名建号POST未执行。老夫子010普通新增后52源，25本目录但#2518详情14:49:31实HTTP403，失败图/原码已亲审，未重试；图标/目录不冒正文。BH3012《逃离长空篇》7/7章，第一话bh3ch:1001:2 P1/27扉页、P2/27“香港中环/好美的夜景”正文亲看，Back后真实pageIndex1/27自然落盘；原reader43progress/17sourceHistory/54chapter对象全部保持，仅新增本书progress/chapter各1，52源完整内容同原。具名恢复回执manhuaren011-search-session-restored237-001、oldmasterq010-session-restored237-001、bh3012-session-restored237-001均10000ms/AWAKE且租约释放，哈希关闭；四源README本轮83fcc98，喵趣NOTICE原WIP保留。现图标表本轮未取得可采用新官方资产，XComic官网单次403新增边界不外推其独立API；其余具体限制依原表，不冒全量图标完成。
 
