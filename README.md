@@ -1,24 +1,57 @@
 # Koma
 
-Koma 是一个 HarmonyOS 私有漫画书架与阅读器项目。
+面向 HarmonyOS 的漫画书架与阅读器。把本地漫画、私有书库和自行添加的书源放进同一个书架，保存阅读位置，接着上次的章节继续读。
 
-> 当前实现、未完成缺口、197 真机证据与唯一执行队列见 [`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md)。本 README 只描述产品方向，不作为功能完成度依据。
+## 可以做什么
 
-## 方向
+- **本地阅读**：导入 CBZ、ZIP 和设备支持选择的图片文件夹，管理封面、分类和阅读进度。
+- **连接私有书库**：支持 Komga、Kavita、OPDS 和 WebDAV；具体内容格式与权限取决于服务端。
+- **自行添加书源**：通过远程索引安装、更新 `.koma` 源包，也支持本地导入。可以在源内找书，或从全局搜索进入不同来源的结果。
+- **阅读与离线保存**：提供单页、双页、纵向分页和连续滚动阅读，章节下载、历史和继续阅读。
+- **书架维护**：分类、排序、检查章节更新，以及本机备份与恢复。
 
-- v0：本地 CBZ/ZIP、图片文件夹、书架、阅读进度、沉浸式阅读器。
-- v1：Komga / OPDS / WebDAV 私有库接入。
-- Spike：参考 Aidoku 的 WASM source 架构，验证 HarmonyOS NDK + NAPI + Wasm runtime 是否可行。
+当前为早期使用版本，仍有未完成项。源的实际可用范围与已知限制在[源库说明](https://github.com/honjow/koma-sources)中维护。
 
-## 边界
+## 安装
 
-- 不内置漫画源。
-- 不走 APK 插件模式。
-- 不提供源市场。
-- 上架版主打本地/私有库和用户自有内容。
+最低兼容配置为 **HarmonyOS 6.1（API 23）**，当前构建面向 **arm64** 设备。
 
-## CI 构建
+[GitHub Actions](https://github.com/honjow/Koma/actions/workflows/build.yml) 提供最新代码的构建产物。当前公开 CI 产物为未签名 HAP，需要签名后安装；已获得可安装签名包的用户可直接按设备提示安装。本仓的构建入口与签名配置见 [scripts](scripts)。
 
-[Build OHOS](https://github.com/honjow/Koma/actions/workflows/build.yml) 在 `master` 推送、面向 `master` 的 PR 和手动触发时运行。工作流将 App 和固定 revision 的 reader-kit 检出为同级目录，并递归检出 App 的子模块，检查公共构建配置和国际化资源，然后构建 arm64 Release 未签名 HAP。
+## 添加书源
 
-成功后可在运行页面下载 `ohos-hap-unsigned` 产物，其中包含 HAP 和记录提交、reader-kit 版本及文件大小的 `build-manifest.json`，保留 14 天。该产物需要签名后才能安装；CI 通过只表示编译与打包检查通过，设备功能验收仍需单独完成。
+Koma 不内置书源，也不包含漫画内容。源包独立维护在 **[koma-sources 书源库](https://github.com/honjow/koma-sources)**。
+
+持续更新的索引地址：
+
+```text
+https://github.com/honjow/koma-sources/releases/latest/download/index.json
+```
+
+1. 进入 **浏览**，点击右上角齿轮，打开 **源包管理**。
+2. 打开 **源索引地址**，粘贴上面的地址，点击 **加载源列表**。
+3. 选择需要的源并安装，再回到“浏览”打开对应书源。
+4. 后续在“源包管理”点击 **检查更新**，从保存的索引下载并更新已安装源。
+
+索引固定指向最近一次成功发布的源库版本，无需每次更换地址。也可以从[源库发行页](https://github.com/honjow/koma-sources/releases/latest)下载单个 `.koma` 文件，再通过“本地导入”安装。源包通过编译不代表所有站点内容均可访问；请以对应源的说明为准。
+
+## 开始阅读
+
+- **本地漫画**：从书架的导入入口选择文件或文件夹。
+- **私有书库**：在设置中添加自己的服务地址与账号，再浏览书库。
+- **书源漫画**：在浏览页进入已安装源，搜索或浏览作品，打开详情后阅读、加入书架或下载章节。
+- **继续阅读**：从书架的“继续阅读”卡或作品详情继续；历史中可以找到最近打开的作品。
+
+下载和书架更新主要在 App 前台执行，目前不承诺系统后台长期运行。更换设备或执行恢复前，先在设置中保存备份；恢复会按确认页所示替换对应数据，并非逐项合并。
+
+## 反馈问题
+
+App 问题请提交到 [Koma Issues](https://github.com/honjow/Koma/issues)，书源问题请提交到 [源库 Issues](https://github.com/honjow/koma-sources/issues)。说明 App/源版本、设备型号、操作步骤和看到的错误；截图请先遮住个人信息，不要提供密码、Cookie 或令牌。
+
+## 开发与开源
+
+- [构建与开发脚本](scripts)
+- [源包与 WASM 接口](docs/source-runtime-abi.md)
+- [当前实现与已知缺口](docs/CURRENT_STATUS.md)
+
+本项目使用的第三方组件及许可可在 App 的“关于 → 开源声明”和仓内相应许可文件中查看。
