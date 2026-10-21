@@ -2,18 +2,22 @@
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
-最后接续核对：2026-10-21 20:54，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
+最后接续核对：2026-10-21 21:25，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 已获准的1792584275735自恢复已出现“备份已导入”；79源包验证从8702ms降至262ms，进程存活。最终无诊断Debug 16230370B/20:36:24已安装，原书架/历史/88章2297页已亲看，原四备份保留，仅本轮快照已准确删除；10000ms/AWAKE并释放3c78a12e。 | Root范围提交原生Base64解码修复与013呈现兼容、同步并核CI；随后在197补恢复结果的不清数据cold与源列表消费者。 |
-| 源 / koma_mh160_duplicate_catalog / 237 | SixMH013已同步源master4066dbc；水行群侠01卷P1/P2真实正文及准确已下架not_found已亲审。最终App包管理/Browse013图标已亲看；10000ms/AWAKE并释放ce678c61。现存owner续接再次429退出。 | 按现有图标未闭表接下一可安全官方原件/正文缺口；Root先接Host调查，237待取得明确候选后再租约验收；不重跑013。 |
+| App / Root / 197 | 当前快照恢复及无诊断包真实cold具名消费者已闭，修复cdca787/兼容0eee60a已同步，CI39603410133 success；原书架/四备份/88章2297页/79源包保持，197原10000ms已恢复并release。 | Root亲审/集成237源结果；当前Laya图片头App链已核无静态丢头证据、不改App。其余Shared/首次模式标记等候选保留原待决定，私库保留服务数据条件。 |
+| 源 / source_icon_continuation / 237 | Laya012普通首次导入后53启用；最常被問真实繁中四格1/1、自然返回及首6封面终态已Root亲审；原500原因未知，其他封面/正文仍有边界。两租约已释放，Browse/10000ms/AWAKE恢复。 | source_icon_continuation接GoDa旧011《武炼巅峰/夺酒》invalid_image_url的012后继：准确get_pages单次Host成功后普通237首正文；漫画1234身份图/资源403保持。Root已审Laya证据，源master9bfc468已同步。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
 
 - **SixMH013图标呈现保留：** 013与012为同一原图资源，本轮仅给com.sixmh.koma@0.1.3延续原1.05缩放，槽/圆角/其他源不改。最终16230370B包已237覆盖安装，Root亲看sixmh013-final-icon-{browse,manager}237-001两原图，完整标识可辨，无可见裁切/彩边；最终Browse/10000ms/AWAKE并释放ce678c61。不冒197对应列表或源全正文通过。
 
-- **197当前快照真实恢复修复（Root，2026-10-21）：** 本轮1792584275735预览75书/86进度、88下载、79源包、50设置、新增0；用户明确允许后执行整份恢复。原进程19357在prepared→committed/import_json后退出，系统THREAD_BLOCK_3S；不清数据重开后原消费者存在，但成功提示未出现，原失败保留。临时计时定位文档解析202ms、79源包验证8702ms；原base64ToBytes自bfd55621逐字节访问原生Buffer。整块Buffer复制的Host检查虽过，实机报backup_import_failed，该候选已撤回。最终仅改用util.Base64Helper.decodeSync，字节数/图标/清单/身份及恢复事务验证保持；实机同快照验证262ms，约4秒出现“备份已导入”，进程53185存活。5行临时计时全部移除，最终Debug16230370B/20:36:24安装明确成功，进程55912；普通书架原Chibi25%/最近阅读/首三书、历史Chibi2/8与xkcd2937、下载88章2297/2297均亲看。仅经准确名称确认删除本轮1792584275735，原四备份1792170707289/1792170162766/1792166507105/1792011739954逐名保留。原10000ms/AWAKE读回并release3c78a12e，哈希关闭；原件backupfresh197-{import-exit-diagnostic,import-exit-cause,reopen,diagnostic-installed,bulkcopy-installed,bulkcopy-log,nativebase64-installed,nativebase64-log,clean-installed,session-restored}-001。只闭该快照成功恢复与具名消费者；真实cold、失败回滚、其他备份/跨设备未因此通过。
+- **197当前快照真实恢复修复（Root，2026-10-21）：** 本轮1792584275735预览75书/86进度、88下载、79源包、50设置、新增0；用户明确允许后执行整份恢复。原进程19357在prepared→committed/import_json后退出，系统THREAD_BLOCK_3S；不清数据重开后原消费者存在，但成功提示未出现，原失败保留。临时计时定位文档解析202ms、79源包验证8702ms；原base64ToBytes自bfd55621逐字节访问原生Buffer。整块Buffer复制的Host检查虽过，实机报backup_import_failed，该候选已撤回。最终仅改用util.Base64Helper.decodeSync，字节数/图标/清单/身份及恢复事务验证保持；实机同快照验证262ms，约4秒出现“备份已导入”，进程53185存活。5行临时计时全部移除，最终Debug16230370B/20:36:24安装明确成功，进程55912；普通书架原Chibi25%/最近阅读/首三书、历史Chibi2/8与xkcd2937、下载88章2297/2297均亲看。仅经准确名称确认删除本轮1792584275735，原四备份1792170707289/1792170162766/1792166507105/1792011739954逐名保留。原10000ms/AWAKE读回并release3c78a12e，哈希关闭；原件backupfresh197-{import-exit-diagnostic,import-exit-cause,reopen,diagnostic-installed,bulkcopy-installed,bulkcopy-log,nativebase64-installed,nativebase64-log,clean-installed,session-restored}-001。只闭该快照成功恢复与具名消费者；失败回滚、其他备份/跨设备未因此通过。后继真实cold55912→空→887，普通历史原Chibi2/8与xkcd2937、下载88章2297/2297、服务79源包及管理首屏图标读回，Root亲看原图，最终原书架/最近阅读恢复；10000ms/AWAKE并release2a5bae4c。原件backupfresh197-cold-{wake,unlock,reopen,session-restored}-001，重开目录内ordinary-consumer-resumed-actions.json。首次误把完整“排序 最近阅读”写作“最近阅读”导致选择器超时，原失败图实际排序正确，未据此改产品。修复cdca787及图标兼容0eee60a已正常同步master，精确CI39603410133 success。
+
+- **ASM高清候选本轮未采用（Root，2026-10-21）：** 官网原49×35与既有扩展192参考已亲看，原两稿因字形/透明脏边拒绝保持。本轮按现有资源重建授权再取得一稿及其限定alpha修订，两稿的AH空隙/轮廓仍有白色杂点，均失败；未写入源资源/版本/产品包，不把生成动作当修好。自动原件留在/Users/honjow/.codex/generated_images/01a11fb1-9f44-7123-8590-b6e849190eab/exec-efd43010-261b-4eb3-ac0a-861e6a56aa54.png及exec-2b2faa9f-06b7-4857-8b27-d102523d068f.png，不新建归档/脚本。官网403不重取，App槽/圆角/顺序保持；此分支仍OPEN，不反复采用同类有缺陷稿。
+
+- **Laya012首正文与首6封面（237，Root亲审）：** 原237未装，沿现有正式85580B包普通选择器首次导入成功；GUI52→53、新增末项在老夫子后，未切其他源启用，未私有导出，不冒原52持久对象逐项相同。精選漫畫首项最常被問/ch-0001.jpg→一章一页→开始阅读，真实繁中彩色四格1/1、21:17:36 display_ready/display_complete已亲看；自然Back详情为继续阅读。21:15原首6占位至21:19自然返回同屏6封面真实显示，未点击重试；下缘第3排左侧仍占位，不冒12张/全80项或稳定性通过。较早2300028/2300055无准确图像关联，末次有界CachedCoverImage日志为空，旧010500原因不猜。App现有CachedCoverImage→SourceAdapter解析imageRequest.headers→NetworkKit header原链已核，没有静态丢UA/Referer证据，不据此改App。原件category-membership/laya012-picker-entry237-001/{first-reader-after6s,natural-return-gallery,natural-return-detail,browse-count53,final-browse-restored}.png及具名actions；日志laya012-reader-log-restored237-001。正确传包已单独删除/test不存在；原10000ms收尾日志跨超时自然SLEEP后，最后laya012-final-awake-restored237-001重新完整门禁读回AWAKE/10000并释放，b7f3ed3e与678cfe5d都已release。只闭具名首篇/6封面/普通返回；无下载/cold/额外源请求，源码/图标/版本不改。
 
 - **197手动单章读态联动有限结果（Root，2026-10-21）：** xkcd2977原在已读5/676，普通长按标未读后就地移出、已读4/676；切未读后672/676且准确该章黑字可见，再普通标已读后移出、未读671/676；切已读恢复5/676与该章灰字。原全部676/676、降序恢复，未开章/下载，详情继续原2937第1/1页；普通历史仍Chibi2/8及xkcd2937，书架仍原Chibi25%/最近阅读/首三书。Root已亲看三张原图及历史；未导出私有文件，不宣称全库内容相同或cold/失败回滚通过。原件chapterread197-wake-001内manual-read-actions.json及具名图/布局。最初精确匹配遗漏“章节 (...)”完整文本而超时，后实际页已加载；未据该脚本错误改产品。
 
@@ -63,7 +67,7 @@
 
 - **本轮多书分类替换（Root/197）：** 精确Chibi/虫笼原分类均无；普通加入favorite和read_later后两书均有两标签、持久文件均同二ID。再普通“移动到收藏”，两书只余favorite，read_later实际移除；最后仅对这两书清除本轮归属，现有全部作品分类字段逐项恢复原值，原进度/网格/最近阅读及首三书亲看保持。10000ms/AWAKE读回并release。首次把加入后快速重选当连续路径，实际误入虫笼详情，未冒加入稍后成功；Back后按真实UI/文件确认仅favorite，再完成上述路径，失败原件保留。本条接受替换与持久文件结果，未重跑cold或注入失败。原件categorymove197-{two-memberships-001,recover-current-state-001,two-memberships-002,replaced-favorite-001,original-restored-001}。
 
-- **Noy失败原码现已定位（诊断完成，源内容仍未修）：** 原App只保留泛化source_runtime，本轮两文件仅增加安全token、HTTP状态和数值平台码日志；没有URL/正文/异常原文。实际transport回调离线执行确认200/403/network_error封套保持、非法请求不联网且日志无敏感标记；Debug构建成功，Hvigor自动签名HAP16223299B/06:04:34。旧sign.py仅签名尝试因旧材料路径缺失退出，未改安全/签名材料，未使用它安装；实际237安装的是上述当前自动签名包，明确成功。一次普通Noy入口06:08:05 get_listings→06:08:06.783 HTTP405→06:08:06.888 error=client_error，Root亲审noy012-diagnostic-single-entry237-001/run-metadata.json。首编译因局部errorCode同名失败，改局部变量名后通过；失败未触设备。不把日志修补或HTTP非403当源可用，源owner继续核真实公开请求合同。
+- **Noy012失败原码历史定位（当前已由013后继取代）：** 原App只保留泛化source_runtime，本轮两文件仅增加安全token、HTTP状态和数值平台码日志；没有URL/正文/异常原文。实际transport回调离线执行确认200/403/network_error封套保持、非法请求不联网且日志无敏感标记；Debug构建成功，Hvigor自动签名HAP16223299B/06:04:34。旧sign.py仅签名尝试因旧材料路径缺失退出，未改安全/签名材料，未使用它安装；实际237安装的是上述当前自动签名包，明确成功。一次普通Noy入口06:08:05 get_listings→06:08:06.783 HTTP405→06:08:06.888 error=client_error，Root亲审noy012-diagnostic-single-entry237-001/run-metadata.json。首编译因局部errorCode同名失败，改局部变量名后通过；失败未触设备。不把日志修补或HTTP非403当源可用。本条012停点已被源master5360c4b/当前013取代：Root核当前README及原提交，普通237于06:18:42 get_manga_list HTTP200后auth_required，仅精确status=login映射；当前是账户边界，不能继续按405派修，具名原件noy013-popular-{entry,auth}237-001。
 
 - **自动备份自然到期前台闭环（Root/197）：** 原关闭/每天/保留5，原四文件保留。普通开启后Home再返回App，日志auto_started reason=due→export_json→local_export→auto_export，生成1792537900263，管理显示20MB/未加密与新运行时间。恢复关闭，仅准确文件确认删除本轮生成物，原四文件名逐项相同；10000ms/AWAKE并release。页面返回计数短暂5后稳定4，现存onShown刷新有效，曾过早猜测刷新缺陷已撤回，未打补丁。证据沿reader-failure-retry/autobackup197-{foreground-due,due-result,files-and-setting-restored,return-settled,session-restored}-001。只闭自然到期前台生成，不冒恢复写入/全后台调度。
 
@@ -103,7 +107,7 @@
 | 历史 / 远程进度 | r5远程历史已归回c8813948；既有WEBTOON具名历史重开/cold记录；当前24vp历史移除按钮保留。 | 当前真实私库普通历史重开及自然保存失败边界未闭，Host不冒Native。 |
 | Komga / Kavita / OPDS / WebDAV | 原目录遍历、搜索、封面、历史消费者已具名恢复；四配置入口既有197能打开/返回。 | 当前Kavita原服务25610无监听、旧bind来源缺，其他真实连接/内容条件未闭；不造服务数据或把单分支条件扩成全局停止。 |
 | 外观 / 语言 / 设置 / 关于 | 既有197主题/强调色/语言实际消费者，英文chapter/chapters与中文话已验；完整WAMR/Lexbor许可中文弹窗已滚到末尾。 | 未宣称全部页面、语言或许可审计通过；下载自动重试说明、菜单失败状态句等既有候选待原决定。 |
-| 备份 / 恢复 | 既有创建/预览/取消；本轮获准当前快照1792584275735已真实恢复成功，解码阻塞修复、具名书架/历史/下载消费者及原四备份保留已亲审。 | 恢复后的真实cold、自然失败回滚、其他备份/跨设备仍未验；不清数据制造样本。 |
+| 备份 / 恢复 | 既有创建/预览/取消；本轮获准当前快照1792584275735已真实恢复成功，解码阻塞修复、具名书架/历史/下载消费者及原四备份保留已亲审。 | 本轮当前快照真实cold已补；自然失败回滚、其他备份/跨设备仍未验，不清数据制造样本。 |
 | 更新 / Tracker | 既有197上次更新报告计数、两条结果跳转及cold；当前Tracker未连接。 | 本轮普通手动全库更新及旧报告cold已有具名结果；修复后自然新增报告、更新通知/系统调度仍未验。Tracker缺账户/client只限制该分支。 |
 | 源图标 / 源正文 | 当前缺图与低清/小槽各有原表条件；漫小肆013已同步3daaac6并有限正文/下载/cold通过；原至少14身份的历史正文下界另见本页。 | ComicABC30513第4話在线首图1/27已闭，第01話只证下载正文；素材403/拒稿/待选择分别保留，不从86源从零跑，不把图标或目录当正文。 |
 | 构建 / 同步 / 分发 | Koma计数修复1150724已197覆盖安装且CI39570169204 success；源mastera4ca19e已同步。Kit原SSH身份/固定依赖CI故障已闭。 | 记录提交、同步、安装、路径验收分别成立；首版整体未完成，尚无正式发布结论。 |
@@ -711,17 +715,17 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；具名路径冻结，源图标/真实私库等仍未闭",
-  "outcome": "当前快照真实恢复及解码阻塞修复已取得197结果；SixMH013正常正文与准确下架分类已在237具名验收并同步。首版未完成。",
-  "updatedAt": "2026-10-21T20:54:08+08:00",
+  "outcome": "197当前快照恢复及真实cold具名消费者已闭且修复CI成功；237 Laya012首正文/自然返回/首6封面已亲审，源继续下一真实缺口。ASM新稿未合格，首版未完成。",
+  "updatedAt": "2026-10-21T21:25:11+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "APP_BACKUP_DELIVERY_AND_ICONS",
+  "activeId": "SOURCE_READER_CONTINUATION",
   "activity": {
-    "title": "备份修复交付及未闭图标接续",
-    "detail": "Root提交原生Base64解码修复、013呈现兼容并核CI；源owner429退出，沿现有表接安全Host调查。",
-    "startedAt": "2026-10-21T20:54:08+08:00",
-    "updatedAt": "2026-10-21T20:54:08+08:00"
+    "title": "源已知失败后继核对与集成",
+    "detail": "Laya012具名首正文与6封面交付；Root审原件并提交，源owner按原账接漫画1234/GoDa，不重跑旧通过。ASM稿失败未进源码。",
+    "startedAt": "2026-10-21T21:25:11+08:00",
+    "updatedAt": "2026-10-21T21:25:11+08:00"
   },
-  "nextAction": "先同步已审修复并核CI；197补恢复后的真实cold与源列表消费者；源线按现有未闭图标父链接续，不重跑013或重试403。",
+  "nextAction": "source_icon_continuation接GoDa012对旧011准确夺酒章节反例的单次Host与237普通首正文；Root同步本轮结果并核CI，继而亲审原件。",
   "proof": [
     {
       "label": "正式主仓",
@@ -733,13 +737,13 @@
       "label": "本地未加密备份",
       "state": "具名路径通过",
       "kind": "accepted",
-      "detail": "创建、列表5项、新文件75书架/80进度预览、本轮新文件删除，原四份保留；不含恢复/加密/cold。"
+      "detail": "具名当前快照恢复成功及真实cold后的书架/历史/下载/79源包消费者已亲审，原四备份保留；不含其他快照/跨设备/自然失败回滚。"
     },
     {
       "label": "远端同步",
       "state": "三个原主分支已同步",
       "kind": "accepted",
-      "detail": "本轮开始Koma/master8fc8886d、源master1dbffba；Kit原SSH闭环沿既有记录。本轮新文档检查点待范围审查提交同步，不把旧CI冒成本轮源码变更验证。"
+      "detail": "Koma/master0eee60a（含备份修复cdca787）已正常同步，CI39603410133 success；源master9bfc468（含SixMH4066dbc及Laya具名结果）已同步，Kit维持原SSH闭环。"
     },
     {
       "label": "共享阅读器",
@@ -823,8 +827,8 @@
       "title": "本地未加密备份创建与预览",
       "status": "具名路径通过",
       "kind": "accepted",
-      "result": "197当前快照1792584275735已获准实际恢复，解码验证8702→262ms，“备份已导入”与具名书架/历史/88下载读回；原四备份保留，本轮快照已清。",
-      "remaining": "真实cold、失败回滚、其他备份和跨设备仍未验。",
+      "result": "197当前快照1792584275735获准真实恢复；解码8702→262ms及“备份已导入”已亲审；无诊断包真实cold55912→空→887后书架/两原历史/88章2297页/79源包与首屏图标读回，原四备份保留，本轮快照清理。",
+      "remaining": "自然失败回滚、其他备份与跨设备仍未验；不外推全库所有字段相同。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -982,8 +986,8 @@
     "status": "未完成",
     "kind": "open",
     "title": "中文源质量与完整图标范围",
-    "result": "SixMH013源master4066dbc已同步；237水行群侠01卷P1/P2真实正文、准确已下架not_found及最终管理/Browse图标已亲审；原件与历史阅读边界保留。",
-    "remaining": "既有缺图/低清/小槽依各自未闭条件继续；源owner429，Root接安全Host动作，不从零跑矩阵、不重试403。",
+    "result": "SixMH013已闭原具名样本；Laya012在237真实首正文1/1及首6封面/自然返回已Root亲审，GUI新增至53；Noy当前013账户边界不再按012405派修。",
+    "remaining": "其余源/正文/下载、图标缺图/低清/小槽按具体条件OPEN；ASM本轮两生成稿仍杂点未采用，source owner接原漫画1234/GoDa失败后继，不从零跑。",
     "commit": "4066dbc"
   },
   "milestones": [
