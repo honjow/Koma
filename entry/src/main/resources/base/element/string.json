@@ -681,7 +681,7 @@
     { "name": "library_progress_finished", "value": "Finished" },
     { "name": "library_progress_continue_generic", "value": "Continue reading" },
     { "name": "library_progress_continue_chapter", "value": "Continue %s" },
-    { "name": "library_progress_continue_page", "value": "Continue %s / Page %s · %s%" },
+    { "name": "library_progress_continue_page", "value": "Page %s · %s% · %s" },
     { "name": "library_progress_continue_page_only", "value": "Page %s · %s%" },
     { "name": "library_source_subtitle_chapter", "value": "%s chapter" },
     { "name": "library_source_subtitle_chapters", "value": "%s chapters" },

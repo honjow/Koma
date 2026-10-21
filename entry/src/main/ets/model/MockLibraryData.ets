@@ -280,9 +280,9 @@ export function formatContinueReadingDetail(comic: MockLibraryComic, progress?: 
     return AppStrings.get('library_progress_continue_chapter').replace('%s', comic.chapterTitle)
   }
   return AppStrings.get('library_progress_continue_page')
-    .replace('%s', comic.chapterTitle)
     .replace('%s', `${progress.pageIndex + 1}`)
     .replace('%s', `${progressPercent(progress)}`)
+    .replace('%s', comic.chapterTitle)
 }
 
 function formatSourceSubtitle(comic: Comic): string {
@@ -375,9 +375,9 @@ function formatContinueDetail(chapterTitle: string, progress?: ReadingProgress):
       .replace('%s', `${progressPercent(progress)}`)
   }
   return AppStrings.get('library_progress_continue_page')
-    .replace('%s', chapterTitle)
     .replace('%s', `${progress.pageIndex + 1}`)
     .replace('%s', `${progressPercent(progress)}`)
+    .replace('%s', chapterTitle)
 }
 
 export function createLibraryViewModelFromComics(

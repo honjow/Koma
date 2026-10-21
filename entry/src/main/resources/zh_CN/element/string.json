@@ -681,7 +681,7 @@
     { "name": "library_progress_finished", "value": "已读完" },
     { "name": "library_progress_continue_generic", "value": "继续阅读" },
     { "name": "library_progress_continue_chapter", "value": "继续阅读 %s" },
-    { "name": "library_progress_continue_page", "value": "继续阅读 %s / 第 %s 页 · %s%" },
+    { "name": "library_progress_continue_page", "value": "第 %s 页 · %s% · %s" },
     { "name": "library_progress_continue_page_only", "value": "第 %s 页 · %s%" },
     { "name": "library_source_subtitle_chapter", "value": "%s 话" },
     { "name": "library_source_subtitle_chapters", "value": "%s 话" },
