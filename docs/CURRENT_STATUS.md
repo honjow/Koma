@@ -7,7 +7,7 @@
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
 | App / Root / 197 | c754079签名Release 0.1.1/code2/8295487B已覆盖安装；公开latest索引85源加载、IKM010→011远程更新、92漫画011新安装及不清数据cold保持已实际完成。用户README91b3babc已推送，CI39672541172成功。 | 已普通返回原Chibi第2页25%/最近阅读并亲看整图，10000ms/AWAKE读回、7e5806e2已释租。当前初步日用包可交付；非致命图标与源站限制保留原队列，不扩展验收矩阵。 |
-| 源 / source_icon_continuation / 237 | 85源初步分发6321776已闭；喵趣012去白板/灰影后继2d4e035已同步，CI39679046650全量构建发布成功，公开latest仍85源且喵趣012包HTTP200。Root已亲审237管理/Browse两原图、56项顺序/启用保持及恢复回执；237已10000ms/AWAKE并释租。 | 源owner只读接续微漫画/創漫16px与ASM49×35的官方资源父链，不重试已403/404、不动设备或正文；Root审新资源后才决定采用。原漫画社ASSET、喵趣NOTICE两份WIP保留；其他图标/正文项沿原具名停点，不重跑85源矩阵。 |
+| 源 / source_icon_continuation / 237 | XComic简繁011去白板/灰影已完成普通新安装及管理/Browse验收，Root亲看两完整原图。原56项顺序/enabled保持，仅新增两实体至58；原Browse喵趣组、10000ms/AWAKE及释租已核。bf45d24已同步，CI39683540713全85源构建/发布成功，固定latest仍85源且两011包实际HTTP200。 | 本轮资源代码及ASM/MPC/mh160具体限制已提交；仅原漫画社ASSET、喵趣NOTICE两份无关WIP保留。ASM、創漫/微漫画、MPC、漫画160/漫画社及Terra原图低清或小槽问题仍按各自已查资源边界OPEN；source owner仅在出现新官方资源父链/合格新原件后继续对应调查，不重试旧403/404或已否决去黑路线，不从85源重跑正文矩阵。 |
 
 **本轮初步日用版交付（2026-10-22）**
 
@@ -17,6 +17,8 @@
 - 用户README已说明安装条件、普通添加/更新路径、源库及固定索引、备份恢复覆盖边界与问题反馈。当前签名日用产物为 `entry/build/default/outputs/default/entry-default-signed.hap`，bundle `com.honjow.koma`，0.1.1/code2、buildMode=release、debug=false；App公开CI仍为未签名Release。初步交付时的喵趣外底板/灰影现由下方012限定交付取代；其余低清或比例项仍OPEN，未当成已修；私库真实服务等原条件缺口不冒全能力通过。
 
 - **喵趣012去白板/灰影限定交付（Root/源owner，2026-10-22）：** 192px固定扩展原件与喵趣名称/原域绑定，未取得新官方高清资源。图像生成稿因黄色杂边/孔洞残点被Root否决，未进源包；采用原104×104橙色字形的白底色度分离/边缘alpha恢复，120×120透明PNG、8px安全边，不放大、不描轮廓；主体橙色取原众数240/160/110，不称高清重绘。只改本源PNG及Cargo/src/lock版本011→012、README，App30vp槽/7vp圆角/排序和业务请求保持。237普通010→012导入成功；Root亲看管理/Browse两完整原图，无原白板/灰边，字形保留。56项sourceId/enabled逐项同序；只清本人传包、原10000ms/AWAKE读回且c646bab7释放。五文件2d4e035已同步，CI39679046650全85构建/封包/发布成功；Root实际GET固定latest/index85项及miaoqu012.koma均HTTP200，准确manifest、120² RGBA图和三成员合同成立。只关闭这次图标两消费者，不冒新正文/高清资源/其他图标通过；未操作197。原件沿237 category-membership/miaoqu012-icon-import237-001及miaoqu012-icon-restored237-001。下一原有低清项由既有源owner只读调查微漫画/ASM，Root不同时编辑。
+
+- **XComic简繁去白板交付（Root/源owner，2026-10-22）：** 两源沿eb1b49b/6321776固定扩展双色X；本会话用户要求处理剩余素材板影，重开的是原192px白圆角板/灰影。011保留主体渐变和原尺寸、恢复边缘alpha，不放大/重绘，不改App30vp槽/7vp圆角、ID/语言/业务。Root亲看原PNG、96px浅深底及237管理/Browse两完整原图，无白框灰影；两实体原均未装，本轮普通picker新装011，56→58仅新增简繁两ID，原56相对顺序/enabled逐项同序。两包均恰manifest/source.wasm/icon，nsfw=true，简/繁最低App版本分别011/010。只移除自传两包、普通恢复Browse喵趣组，最终10000ms/AWAKE、8e887b02释租已核，未请求源内容或正文。原件为237 category-membership/xcomic011-icon-awake237-001/{manager-xcomic011.png,browse-xcomic011.png}、xcomic011-icon-restored237-001及xcomic011-position-awake237-001、xcomic011-icon-final-power237-001，回执哈希关闭。12文件bf45d24已正常同步源master（含本轮ASM/MPC/mh160现有资料，不含原漫画社ASSET/喵趣NOTICE）；CI39683540713全部85源编译/封包/发布success，固定latest/index实际GET200且85项，两XComic011包实际GET200（52482/52339B）、manifest/三成员及6077B透明图成立。初次下载检查程序误找url而实际字段为pkg，在发包请求前失败；按真实合同纠正后成功，未改产品。只关闭这两源图标消费者，不冒官网批准/高清原件或正文通过。Terra017保留：黑字透明在深底不适用、官方白字横标在浅底不适用，不截标识/反色替换；ASM的JPEG去黑稿有不可恢复彩边，創漫16px无内嵌大图，MPC/漫画160等缺独立合格原件，各自资源缺口仍OPEN，已否决路线不重复。
 
 **未完成队列（不能因上表局部完成而丢弃）**
 
