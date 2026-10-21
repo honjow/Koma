@@ -2,12 +2,12 @@
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
-最后接续核对：2026-10-21 08:22，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
+最后接续核对：2026-10-21 09:40，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 本轮下载暂停/恢复及3秒自动翻页已具名闭环，细节见下条。自动翻页普通2/8→3/8，原时钟停止后跨原间隔仍3/8；普通右点击回2/8并返回书架，原3s/预载2/纵向分页/左右分区水平翻转均未改，原10000ms/AWAKE并release038843aa。原88下载/2297页及原偏好保持，记录a62333af已同步。 | Root接续阅读设置中的音量键消费者：先读当前开关/方向及平台输入合同，再做适用普通路径并恢复；不进入仍待原决定的Shared路由、不重跑已闭自动翻页或双击。源owner429只限该执行者，不作首版可发布或全局停止结论。 |
-| 源 / koma_source_delivery / 237 | 咚漫014每日连载1317本/第1话真实2/176与原读档保持；漫画柜013热门42本/235章/第23卷真实1→3/230已具名亲审。四份原记录已提交同步1dbffba。源owner恢复后转微漫画/創漫官方资源调查，但又429超限；237现无租约。 | 429解除后接续同owner的未闭图标/已知失败，不重跑具名通过路径；不请求已403的ASM、不回用Terra白字拒稿。原封面首卡占位保留原因未定，本次重进可见不称已修。 |
+| App / Root / 197 | 本轮xkcd676章目录两端/已下载投影、Nemo同公共根重导入已具名闭环，见本轮结果；75本书架及进度内容逐项相同，原全部来源/最近阅读/Chibi2页/10000ms已亲看恢复，197无租约。 | Root接续当前源候选的App集成审查；私库当前两个原容器均exited，四原挂载源均不存在，官方demo无凭据API403；不启动空库/造数据或重复403。Shared、首次按书标记与已列文案/长标签候选分别待原答复，不重复问、不擅改。 |
+| 源 / koma_source_continuation（替补）/ 237 | 原owner连续两次恢复仍429，已interrupt；替补已正常执行并接同台账，图标原受限/缺明确资源分支保留；已转MangaBz当前016普通首两页未闭路径（lib.rs与原237registry核对，旧README015过时）。原已闭正文和图标不重跑；237无租约，源master1dbffba，原miaoqu/NOTICE WIP保留。 | 先核237现装016及73bz/10344原样本，再仅在未闭时普通首两页；不下载/cold、不重试已403链，不回用Terra白字拒稿。Root亲审原件及边界后接下一动作；六漫画012普通热门30本有限结果不算正文。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
 
@@ -40,6 +40,16 @@
 - **下载暂停/恢复限定闭环（Root/197）：** 原88条全downloaded/2297页、并发1/isPaused=false/wifiOnly=false。原序言组曲只将01呼吸/02心跳两章入队，启动实际1/43及0/50；普通暂停后在途页完成至34/43、partial/paused，后续约50秒仍34/43且第二章0/50未起。普通继续后先43/43、再第二章50/50，最终90章2390/2390。只经两个准确章节名称确认框删除本轮两项，原88条全部字段及偏好按内容比较相同；原网格/最近阅读/继续阅读卡恢复，10000ms/AWAKE读回并release c33aa70b。证据沿reader-failure-retry/downloadpause197-{queued,started,paused,paused-stable,resumed,completion,completed,own-heartbeat-delete-confirm,own-breath-delete-confirm,original-queue-restored,original-shelf-restored}-001。恢复瞬间持久队列曾0/0，随即布局仅转场空树，未取得对应可见归零，不能据此判UI缺陷或擅改；首次错误文件名/第二次cat截断与两次过早读未完成回执均保留，后使用原已验证cp/file-recv取得完整JSON，不计算哈希。只闭这两章的当前前台暂停/恢复/清理，不冒暂停跨cold或逐页不重取证据。
 
 - **自动翻页当前普通路径（Root/197）：** 原继续阅读Chibi2/8，实际阅读设置显示3s/预载2、纵向分页、从左到右、左右分区/水平翻转。未改设置；关闭设置后点击现有时钟，跨一个配置周期4200ms再点同按钮停止，实图显示另一幅第3/8页且时钟回白；后续读回仍3/8，再普通右点击回2/8原图。普通Back后书架继续阅读明确第2页25%/最近阅读/首三书保持，原10000ms/AWAKE读回并release038843aa。证据reader-failure-retry/autopage197-{original-reader,current-settings,interval-readback,start-stop,stopped-restored-page,session-restored}-001。只闭当前旧版纵向分页普通启动/手动停止；未冒连续模式、后台恢复、长时、缺图等待或Shared通过。当前11项阅读设置均有ReaderPage符号引用的静态检查只作消费者线索，不冒运行验收。
+
+- **音量键普通消费者补记（Root/197，原件本轮已复核）：** 原开关false/下键下一页，普通开启后keyEvent17使Chibi2/8→3/8，16回2/8；普通关闭后17未翻页，系统MUSIC4→3；16恢复MUSIC4，Back回原Chibi第2页25%书架。原开关false、方向、页位及10000ms/AWAKE均恢复，旧64a94beb已释放。原AudioPolicyServer不支持查询保留，后使用实际AudioPolicyService；未改产品。原件volume197-{original-reader-settings,enabled,down-next,up-previous-settings,original-off-restored,disabled-down,session-restored}-001，哈希关闭；不冒方向反转、其他模式或Shared通过。
+
+- **私库官方demo当前条件（Root，2026-10-21）：** 官方Komga文档及其原始introduction.md确认公开演示地址与演示凭据。首次带公开Basic凭据的Host只读API请求被自动审批拒绝，未执行；转为不带凭据的公开GET，实际HTTP403/0.58s。没有继续认证/重试/绕过，也没有修改App私库配置；不把该失败判成Koma客户端缺陷。原Kavita缺有效服务/数据条件不变，该分支未闭，其他安全App动作继续。
+
+- **xkcd完整手动目录当前有限路径（Root/197）：** 普通书架详情正常取回676/676章，原降序首2978，普通升序首1/11/20/22，已下载筛选1/676且仅原2978；Root已亲看完整原图。普通重置后回原书架，没有开章、标读或触发新下载，不冒全676逐行目视、正文或全部筛选。原件catalog197-{xkcd-ready,ascending-oldest,downloaded-one,reset-original-shelf}-001。
+
+- **Nemo同根重导入（Root/197）：** 从普通书架导入→文件夹，系统选择器精确选原file://docs/.../Koma-QA-Folder-20261009父根（不是Nemo子目录）。当前原生日志09:28:57确认folder_access activated、folder_rescan_persisted added/changed/metadata_changed/missing均0、rejected3、upserted0。导入前后75本及整份library JSON内容相同，reader JSON内容相同，无新增/丢失ID；普通本地筛选仍仅Nemo和原Smoke，Nemo详情2/2章、继续第2/3页亲看保持。未修改外部文件或制造授权失效样本，不冒内容变更/缺失/失败回滚通过。原件folderreimport197-{baseline-menu,before-confirm,result,native-log-002,local-results,nemo-detail}；首日志括号被设备shell解析拒绝保留，后只读简单folder_过滤成功，未重复导入。
+- **本轮恢复反例保留：** 首批量恢复使用旧展开菜单位置，实际选成另一来源，读回仍“筛选·1”被拦下，不能作恢复通过；虽提前release5e6a68cb，随后立刻重取560a29b4并完整醒屏门禁，按当前菜单“全部”真实坐标214而非旧529纠正。最终all-sources-restored-002原图/布局明确原首三书Chibi/xkcd/虫笼、最近阅读、无筛选计数及原Chibi第2页25%，10000ms/AWAKE读回后才release560a29b4。未改产品源码。
+- **既有私库服务当前核对（Root，09:36）：** Docker实际Komga与Kavita均exited；仅按两现存容器inspect给出的四条bind源作exists检查，/config、/data、/kavita/config、/manga对应宿主来源全部不存在。没有启动/重建容器、遍历TMP、复制/补造目录或改凭据。真实私库正文仍未闭，需要有效服务/数据条件；官方demo403不再请求。
 
 ## 当前能力的证据边界（2026-10-21）
 
@@ -664,17 +674,17 @@
 {
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
-  "state": "首版推进中；主仓已收敛，交付与功能仍有缺口",
-  "outcome": "已批准失败界面修正f55a18e0已同步master，197四模式失败呈现与纵向/双页真实按钮重试通过，CI39431040015成功。首版及图标质量仍未完成。",
-  "updatedAt": "2026-10-20T14:45:24.676437+00:00",
+  "state": "首版推进中；具名路径冻结，源图标/真实私库等仍未闭",
+  "outcome": "197本轮完整目录两端/已下载投影和Nemo同根重导入取得真实证据，原书架75本及进度内容保持；源原owner429，替补已正常接续未闭图标。首版仍未完成。",
+  "updatedAt": "2026-10-21T01:43:46.574409+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_COUNT_I18N",
+  "activeId": "SOURCE_ICONS_CONTINUATION",
   "activity": {
-    "title": "英文书架数量文案缺口",
-    "detail": "197主题/强调色/语言的普通消费者及真实cold验证完成，原值和设备超时已恢复；数量单位候选尚未应用，待真实答复。",
-    "updatedAt": "2026-10-20T14:31:54.915842+00:00"
+    "title": "完整目录与同根导入闭环，源替补接续",
+    "detail": "xkcd676章降序2978/升序1/已下载1；Nemo重导入0新增变更、原2章/2页保持。全部来源及10000ms已实际恢复。源替补正在核原未闭官方图标父链。",
+    "updatedAt": "2026-10-21T01:43:46.574409+00:00"
   },
-  "nextAction": "书架数量候选的共同投影/语言分支已追清，等待真实答复后才在原主仓实施并验收网格/列表；普通Shared及既有文案候选保持各自待决定。图标具体缺图/低清父链未获新件，已403/拒绝路径不重试，已交付后继不重开。",
+  "nextAction": "源替补沿微漫画/創漫等原图标队列接续；Root审实际原件及候选diff后负责App集成。真实私库需有效服务与数据（现有两容器exited且四bind源缺失，官方demo403）；不造样本、不重试403。普通Shared/首次本书标记等既有候选待原答复。",
   "proof": [
     {
       "label": "正式主仓",
@@ -692,7 +702,7 @@
       "label": "远端同步",
       "state": "三个原主分支已同步",
       "kind": "accepted",
-      "detail": "Koma/master产品f55a18e0、文档3526825f；reader-kit/main 3a7b56d经独立SSH正常同步；源master fab24d0。CI39431040015成功。"
+      "detail": "本轮开始Koma/master8fc8886d、源master1dbffba；Kit原SSH闭环沿既有记录。本轮新文档检查点待范围审查提交同步，不把旧CI冒成本轮源码变更验证。"
     },
     {
       "label": "共享阅读器",
@@ -717,8 +727,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "f55a18e0",
-      "hap": "主仓Debug签名包2026-10-20 20:46:49已覆盖197；四模式失败呈现、纵向/双页直接重试取得真实正文。"
+      "appHead": "8fc8886d",
+      "hap": "沿用主仓当前Debug；本轮未改生产源码/构建/安装。按钮f4afaf3d原交付证据保持。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -821,8 +831,8 @@
       "title": "本地重扫与自然重选分支",
       "status": "具名路径通过",
       "kind": "accepted",
-      "result": "2根中1重扫、1需重选；0新增/变更/缺失/失败。结果框、导入菜单、系统文件夹选择器均到达，已取消选择。 Nemo详情仅1根重扫且各计数0，原2章/第2页保持，来源筛选恢复。",
-      "remaining": "失效根未重新选择；新增/变更/缺失数据分支没有本轮实际证据。",
+      "result": "2根中1重扫、1需重选；0新增/变更/缺失/失败。结果框、导入菜单、系统文件夹选择器均到达，已取消选择。 Nemo详情仅1根重扫且各计数0，原2章/第2页保持，来源筛选恢复。 本轮普通重选同一有效公共根，Native重扫0新增/变更/缺失、跳过3、无重复；75本及进度JSON内容相同，Nemo详情2/2章与继续2/3页保持。",
+      "remaining": "自然失效根仍为不可经系统选择器选取的旧私有Smoke根；新增/变更/缺失输入未有当前样本，不造夹具。",
       "closedAt": "2026-10-19T23:39:24Z"
     },
     {
@@ -894,7 +904,7 @@
       "status": "具名路径通过",
       "kind": "accepted",
       "result": "197普通菜单深色/海蓝/English实际影响外观与书架，PID54198→空→63980后保持；原跟随系统/翠绿/跟随系统及设备超时已恢复。",
-      "remaining": "不扩大全部主题色、语言、页面或系统语言变化；英文自动章数仍为中文，已单独列候选待决定。",
+      "remaining": "不扩大全部主题色、语言、页面或系统语言变化；自动章数后继已按批准接入语言资源并具名验收。",
       "reportedAt": null,
       "reportedAtSource": "本轮普通路径实际观察。",
       "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
@@ -903,14 +913,32 @@
     {
       "id": "LIBRARY_COUNT_I18N",
       "title": "英文书架自动章节数量单位",
-      "status": "候选待真实答复",
-      "kind": "open",
-      "result": "197英文冷启动仍见1话/676话，已追到8c8e92fc引入的共用硬编码；尚未修改。",
-      "remaining": "仅自动数量的语言资源候选获明确答复后实施，中文保持、英文区分单复数；网格/列表共同投影验收。",
+      "status": "已按人类批准实施并具名验收（既有记录）",
+      "kind": "accepted",
+      "result": "当前会话已有明确批准；工作单既有197记录中文话与英文chapter/chapters实际消费者通过，本轮不重跑。",
+      "remaining": "不外推所有页面/语言/源自带副标题。",
       "reportedAt": null,
       "reportedAtSource": "本轮实机新反例，不猜原提出时间。",
       "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
       "closedAt": null
+    },
+    {
+      "id": "CATALOG197",
+      "title": "完整手动章节目录当前路径",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "676/676章、降序2978/升序1、已下载仅原2978；未开章/下载/标读，原书架保持。",
+      "remaining": "仅当前版本/样本，不外推未验分支。",
+      "closedAt": "2026-10-21T01:43:46.574409+00:00"
+    },
+    {
+      "id": "FOLDER_REIMPORT197",
+      "title": "既有公共根重复导入",
+      "status": "具名路径通过",
+      "kind": "accepted",
+      "result": "Native实际重扫，0新增/变更/缺失，跳过3，无重复，原75本及进度内容相同；Nemo2章/2页保持。",
+      "remaining": "仅当前版本/样本，不外推未验分支。",
+      "closedAt": "2026-10-21T01:43:46.574409+00:00"
     }
   ],
   "source": {
@@ -918,8 +946,8 @@
     "kind": "open",
     "title": "中文源质量与完整图标范围",
     "result": "HKO0.1.2独立官方标识、Laya0.1.2、瓜子0.1.3及本次綜合口味/人2/幻塔0.1.1原资源已完成具名两处图标交付。",
-    "remaining": "当前86源11项缺图文件，低清/横标小槽与派生图问题分别OPEN；HKO/Laya/科技/TIPO/漫画柜后继已交付，不再重复旧低清队列。1234准确App说明页在SSL后同请求有界恢复返回403，已停止；NN明确联系页亦无新图或官方账号。",
-    "commit": "fab24d0"
+    "remaining": "未闭图标按正文逐包表保持；原owner连续429已停止，替补koma_source_continuation正常接续。优先微漫画/創漫官方原资源、漫画160横标小槽等；不重试已403链或回用Terra白字拒稿。",
+    "commit": "1dbffba"
   },
   "milestones": [
     {
