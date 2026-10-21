@@ -28,6 +28,8 @@ export struct ConciseListRow {
   // must not construct another component or global builder across that edge.
   @Param hasSourceIdentityPrefix: boolean = false
   @Param sourceIdentityIconUri: string = ''
+  @Param sourceIdentitySourceId: string = ''
+  @Param sourceIdentityVersion: string = ''
   @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
   @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
   @Param count: number = -1
@@ -339,6 +341,29 @@ export struct ConciseListRow {
     .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_SM })
   }
 
+  private sourceIdentityOpticalScale(): number {
+    // Tune only the reviewed asset versions. A later package can replace its
+    // artwork, so it must not inherit an old optical framing adjustment.
+    switch (`${this.sourceIdentitySourceId}@${this.sourceIdentityVersion}`) {
+      case 'com.manhuagui.koma@0.1.3':
+        return 1.1
+      case 'com.nnhanman.zh.koma@0.1.1':
+        return 1.3
+      case 'com.guazimanhua.koma@0.1.3':
+        return 1.2
+      case 'com.catfood.majsoul.zhhant.koma@0.1.1':
+        return 1.15
+      case 'cn.dongmanmanhua.koma@0.1.4':
+        return 1.08
+      case 'com.hentaifox.zh.koma@0.1.1':
+        return 1.04
+      case 'com.sixmh.koma@0.1.2':
+        return 1.05
+      default:
+        return 1
+    }
+  }
+
   @Builder
   private SourceIdentityPrefix() {
     Stack({ alignContent: Alignment.Center }) {
@@ -348,6 +373,7 @@ export struct ConciseListRow {
           .height('100%')
           .objectFit(ImageFit.Contain)
           .interpolation(ImageInterpolation.Medium)
+          .scale({ x: this.sourceIdentityOpticalScale(), y: this.sourceIdentityOpticalScale() })
       } else {
         Stack() {
           SymbolGlyph(this.sourceIdentityFallbackIcon)
