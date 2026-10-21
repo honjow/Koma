@@ -2,14 +2,22 @@
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
-最后接续核对：2026-10-22 02:08，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文旧“下一步”只作证据索引。取得结果、遇到失败或切换事项就地更新，定时提示词只负责唤醒。
+最后接续核对：2026-10-22 02:39，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文旧“下一步”只作证据索引。取得结果、遇到失败或切换事项就地更新，定时提示词只负责唤醒。
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 搜索书架结果改走既有详情路由已提交推送dcd02bbb，CI39647010965 success。197补证真实本地Nemo搜索→2/2目录/原2/3页入口→返回查询；GlobalComix外部浏览器真实作品页→系统返回Koma仍1/1/2/2。Six014已普通重导纠正为nsfw=true；79项ID顺序/enabled、library/reader全内容保持，原书架/空查询/全部来源/10000ms/AWAKE恢复，自传包ABSENT并release1d11f099。 | 漫画屋详情失败无原码，Root现核当前请求/既有离线样本，不重试受限请求；详情首次阅读章页刷新等原候选仍待人类决定，不重问、不实施。 |
-| 源 / source_icon_continuation / 237 | Six014纠正包已同版普通重导，nsfw=true/contentRating=nsfw，54项有序ID/enabled保持；准确620554的两菜单→真实作品WebView→自然Back仍3/3/开始阅读，Root亲看原图；原热门/Browse54/10000ms/AWAKE恢复并release88d0a629。源README提交7d55cb5已同步。 | 现存worker接CManhua013：c585d5b精确diff/63997B三成员包/完整manifest已由Root审，沿原54源和准确斗破苍穹实体普通更新及网页/返回，Root亲审原图。喵趣NOTICE WIP保留。 |
+| App / Root / 197 | d339afc3漫画1234限定身份修复已提交；197916→458/旧状态和页资源保持、cold及旧go第2/16正文结果在对应项。dcd02bbb搜索路由CI success。CManhua013已普通更新，准确664/664详情→真实网页→返回，原图实际继续入口第3/36页；10000ms/AWAKE及传包ABSENT读回，dc915efe已释放。 | Root接全局搜索书架同名结果来源不可辨：实际三本为CManhua、漫画屋、喵趣；先核现有副行/匹配质量及历史，形成限定显示候选后按可见改动规则决定。漫画屋既有日志有界读取为空，未重发请求；原10000ms/AWAKE恢复并release e9bd815d。原待决定项不擅自实施。 |
+| 源 / source_icon_continuation / 237 | CManhua013首次导入54→55，原54顺序/enabled保持；真实网页返回664/664。普通历史续读P2→P3/36真实三格叙事、返回历史3/36，Root亲看原图；Browse55/10000ms/AWAKE恢复，d5c09262已释放。源README记录6e756ff已本地提交，推送被自动审批拦下待人类决定。 | ComicABC010准确9154/ch1当前Host71页及237缓存P1繁中正文已Root亲看，原159P2/Browse55/超时恢复并释租；现存owner已从原回执确认9154/ch1与16264/ch1在014已有有限接受，16264本轮零请求并冻结，9154当前010仅补图；接账内其他真实未闭源项前核后继原回执。喵趣237真实仍010，011仅源码且缺可信图未封包，不能当011已装。漫画人/mycomic/mh160缺可信作品网页父链各保留OPEN，不扩大为整线停止。原喵趣NOTICE WIP保留。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
+
+- **ComicABC010旧9154首章解析反例续验（Root/源worker，2026-10-22）：** 当前实际WASM sourceInfo0.1.10，对旧失败comicabc:chapter:9154:1单次Host页计划返回71页；同实体get_manga真实题名《終結的熾天使》。237普通准确源内搜索→159/159目录，普通选1話实际恢复已有P2/71彩色题图，前页P1/71为繁中三格叙事正文，Root亲看原图；Back详情1話1/71。日志仅保到图片请求/display_ready/complete及cache hit，Native新在线页计划未证；不以缓存读图冒首取。随后普通重置默认降序、仅恢复原159话2/29且不翻页，详情/历史均读回原位置；Browse55、完整registry保持、10000ms/AWAKE并release dfc078d6。未清缓存/下载/写回私有状态。原件237 category-membership/comicabc010-9154-{body,current-log,restored}237-001及Host原件；源README已范围提交，原喵趣NOTICE保持。后继原回执核对：现存recovery-20261019/comicabc-six-historical-parents-2-nested-full-tree-preserved.tar.gz中的tree/native-receipt.json与result.json（Root仅读两个member、不解包）明确0.1.4时两首章P1/P2已有PASS_FINITE_ROOT_REVIEWED，16264/ch1还20/20下载及不清数据cold重开P2；原README更早OPEN已被取代。本轮9154记录只算当前010缓存图片补证，不称首次修复；16264本轮零网络/设备动作，不再派同路径。现有owner继续其他真实未闭源项前先核该源后继回执，不扩全章矩阵。
+
+- **喵趣缺图资源接续（Root，2026-10-22，未采用）：** 仅沿NOTICE已引用的Keiyoushi固定1319949资源取到96px与192px“喵”图，原build.gradle同目录明确绑定www.miaoqumh.org；该第三方来源不能冒官网认可，既有排除决定保持。复用已有成功手机版详情HTML，发现.logo节点及其声明CSS index.css；该CSS本轮正常取回并明确background:url(../img/logo.png)，准确图像URL一次读取实际HTTP404，无图件。原favicon404、www首页403均未重试，没有改图/放大/重绘或封包；官方可用资源仍OPEN。原件位于现有user-flow-audit/miaoqu-{upstream-fixed-*,declared-index.css}；不改原NOTICE WIP。
+
+- **搜索书架同名结果来源不可辨（Root，2026-10-22，调查候选未应用）：** 原图source-web197-baseline-001/search-failure.png实际是“书架”筛选下三条斗破苍穹；当前保存library的真实sourceRuntimeId依次为CManhua、漫画屋、喵趣，后两条连作者和封面也同，界面无来源名。交接摘要把其中两项说成GlobalComix/CManhua有误，本轮按原图/实际字段纠正。d17f3fe5原本地结果仅作者/章页，f1519216增加命中章名，31d7b164增加独立匹配质量第三行，31c8ee5a只接源结果中文名；没有发现故意让同名不同源不可区分的决定。ResultRow完整父树为各Section下独立卡片，副行单行，第三行匹配质量；当前两文件无WIP。建议仅SearchPage.resultSubtitle对localComicId对应且sourceRuntimeId存在的书架项，在现有副行前放现有本地化源名，如“漫画屋 · 知音漫客 任翔”“喵趣 · 知音漫客 任翔”；保留作者/命中章名、第三行、排序/检索/路由及全部几何，源缺失时保留现有副行，真正本地/私库/远端结果不改。只从LibraryStore读既有身份，不把来源字串写入检索字段或排名。可见文字候选待人类决定，未改产品源码。 本轮已向用户呈现推荐“显示来源名”的明确选项，尚未收到答复，不实施依赖改动。
+
+- **CManhua013两线限定验收（Root/源worker，2026-10-22）：** 197现有012→013普通更新，准确书架来源筛选进入斗破苍穹，WebView真实作品页→Back原664/664及继续第3/36页，Root亲看原图；旧摘要第2/36描述按实际原图纠正。237首次导入54→55并保持原54有序ID/enabled，两网页菜单真实存在，WebView→Back保持664/664；正文P1/P2是不同扉图，后继普通历史P2→P3/36真实三格星空叙事，Back历史真实3/36，Root亲看两原图。未冒P4/其他章/新下载或全源通过。两台传包清理、10000ms/AWAKE和租约释放均有回执。原件197 cmanhua013-library197-{baseline,final}-001；237 cmanhua013-{body237,story237,story-restored237}-001。源README已审范围提交6e756ff；首次SSH22连接关闭，后继HTTPS正常推送被自动审批因目的地及载荷授权不足拒绝，未绕过，已向用户呈现确切范围；原喵趣NOTICE未提交。 漫画屋013错误证据后继：197实时唯一Connected，e9bd815d租约下沿原中性手势解锁，AWAKE/86400000及Koma焦点83均读回；仅对现存PID40091有界筛选SourceHttpTransport/source-detail安全标签，返回0条，不能据此认定没有错误或归因。未点击作品/重发请求/读取业务正文；原10000ms/AWAKE恢复后释租。原件manhuawu013-existing-log197-{wake,unlock,read}-001；哈希关闭。
 
 - **Six014本地封包分级纠正（Root/源worker，2026-10-22）：** 交接复核发现本轮手动封包把manifest.nsfw误写为false，与build.sh登记true及contentRating=nsfw冲突；Root负责编包错误。现有包已就地改为true（197542B），逐字段核对其余manifest、WASM/icon内容不变，未计算摘要；同批漫画屋/GlobalComix/繁中WEBTOON分级均符合登记。237和197均已普通picker同版重导，实际已装manifest均为true/nsfw；两台原54/79项ID顺序/enabled分别保持。197 library/reader完整内容在重导前后及本轮路由返回后全等；原件sixmh014-classification197-{baseline,result,verified}-001及source-routes197-final-preserved-001。
 
