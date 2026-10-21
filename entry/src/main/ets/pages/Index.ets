@@ -1996,6 +1996,7 @@ struct Index {
     HdsNavDestination() {
       SearchPage({
         chrome: RouterHelper.ensureSearchRouteChrome(param),
+        onOpenLibraryResult: (comicId: string) => { this.openLibraryMangaDetail(comicId) },
         libraryStore: this.libraryStore,
         libraryPersistenceService: this.ensureLibraryPersistenceService(),
         onLibraryChanged: () => {

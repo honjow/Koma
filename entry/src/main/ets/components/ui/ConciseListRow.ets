@@ -360,6 +360,7 @@ export struct ConciseListRow {
         return 1.04
       case 'com.sixmh.koma@0.1.2':
       case 'com.sixmh.koma@0.1.3':
+      case 'com.sixmh.koma@0.1.4':
         return 1.05
       default:
         return 1

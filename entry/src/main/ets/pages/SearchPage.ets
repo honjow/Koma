@@ -77,6 +77,7 @@ export struct SearchPage {
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Event onOpenLibraryResult: (comicId: string) => void = (_comicId: string) => {}
   @Event onOpenKomgaResult: (param: KomgaSeriesRouteParam) => void = (_param: KomgaSeriesRouteParam) => {}
   @Event onOpenKavitaResult: (param: KavitaBrowseRouteParam) => void = (_param: KavitaBrowseRouteParam) => {}
   @Event onOpenOpdsResult: (param: OpdsBrowseRouteParam) => void = (_param: OpdsBrowseRouteParam) => {}
@@ -502,7 +503,7 @@ export struct SearchPage {
     if (!ownsOpen()) return
     console.info(`[Search] step=open_result kind=${item.sourceKind}`)
     if (item.sourceKind === 'local' && item.localComicId !== undefined) {
-      RouterHelper.pushMangaDetail({ mangaId: item.localComicId })
+      this.onOpenLibraryResult(item.localComicId)
       return
     }
     if (item.sourceKind === 'wasm' && item.sourceId !== undefined && item.sourceMangaId !== undefined) {
