@@ -354,6 +354,7 @@ export struct ConciseListRow {
       case 'com.catfood.majsoul.zhhant.koma@0.1.1':
         return 1.15
       case 'cn.dongmanmanhua.koma@0.1.4':
+      case 'cn.dongmanmanhua.koma@0.1.5':
         return 1.08
       case 'com.hentaifox.zh.koma@0.1.1':
         return 1.04
