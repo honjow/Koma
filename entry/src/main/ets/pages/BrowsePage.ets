@@ -179,7 +179,7 @@ export struct BrowsePage {
           if (index + 1 < this.configuredPrivateSourceEntries().length) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
-        }, (entry: PrivateBrowseSourceEntry) => entry.key)
+        }, (entry: PrivateBrowseSourceEntry) => JSON.stringify([entry.key, entry.title, entry.detail, entry.badge]))
       }
     }
   }
@@ -216,7 +216,8 @@ export struct BrowsePage {
           if (index + 1 < this.enabledRuntimeSources().length) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
-        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version]))
+        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
+          sourceDisplayName(source.sourceId, source.displayName)]))
       }
     }
   }
