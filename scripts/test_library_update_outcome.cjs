@@ -72,7 +72,42 @@ function summary(statuses, time = checkedAt) {
   }
 }
 
+function checkChapterIdentityProtection() {
+  const { reconcileSourceChapterIdentity: reconcile, sourceChapterForRetainedIdentity: resume } =
+    compile(source('SourceChapterIdentity'), {})
+  const oldId = '/go/' + Buffer.from('9330-123-0123456789').toString('base64url')
+  const currentId = '/comic/9330/123.html'
+  const old = { id: oldId, pages: [{ id: 'page-1', uri: 'file://kept-page' }], pageCount: 1 }
+  const emptyDuplicate = { id: currentId, pages: [], pageCount: 0 }
+  const comic = { id: 'identity-fixture', sourceRuntimeId: 'com.mh1234.koma',
+    chapters: [old, emptyDuplicate] }
+  const incoming = [{ id: currentId, title: 'chapter', sourcePath: 'original-request-path' }]
+  const before = JSON.stringify({ comic, incoming })
+  const merged = reconcile(comic, '/comic/9330.html', incoming, new Set())
+  assert.deepEqual(merged.removedDuplicateIds, [currentId])
+  assert.deepEqual(merged.storedChapters, [old])
+  assert.equal(merged.storedChapters[0], old, 'preserve the original chapter and cached pages')
+  assert.equal(merged.chapters[0].id, oldId)
+  assert.equal(merged.chapters[0].sourcePath, incoming[0].sourcePath)
+  assert.equal(JSON.stringify({ comic, incoming }), before, 'do not mutate either input')
+  for (const references of [undefined, new Set([currentId])]) {
+    assert.deepEqual(reconcile(comic, '/comic/9330.html', incoming, references).storedChapters,
+      comic.chapters, 'unknown or referenced duplicates must remain')
+  }
+  const populated = { ...comic, chapters: [old, { ...emptyDuplicate, pageCount: 2 }] }
+  assert.equal(reconcile(populated, '/comic/9330.html', incoming, new Set()).storedChapters.length, 2)
+  const ambiguous = { ...comic, chapters: [...comic.chapters,
+    { ...old, id: '/go/' + Buffer.from('9330-123-abcdef0123').toString('base64url') }] }
+  assert.deepEqual(reconcile(ambiguous, '/comic/9330.html', incoming, new Set()).removedDuplicateIds, [])
+  assert.deepEqual(reconcile({ ...comic, sourceRuntimeId: 'other-source' }, '/comic/9330.html',
+    incoming, new Set()).removedDuplicateIds, [])
+  assert.equal(resume(comic.sourceRuntimeId, '/comic/9330.html', oldId, incoming).id, oldId)
+  assert.equal(resume(comic.sourceRuntimeId, '/comic/9330.html', oldId,
+    [{ ...incoming[0], id: '/comic/9999/123.html' }]), undefined)
+}
+
 async function main() {
+  checkChapterIdentityProtection()
   const cases = [
     [[], 'no-eligible', 'success'],
     [['skipped'], 'no-eligible', 'success'],
@@ -135,7 +170,7 @@ async function main() {
   assert.equal(recovered.lastSummaryFailedCount, 1)
   await preferenceStore.saveLastSummary(checkedAt + 2, 1, 0, 0, 0, 0)
   assert.equal((await preferenceStore.load()).failureCount, 0)
-  console.log('PASS library update outcome: classification, snapshot roundtrip, result persistence, failure backoff and recovery')
+  console.log('PASS library update outcome: chapter identity/reference protection, classification, snapshot roundtrip, result persistence, failure backoff and recovery')
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1 })

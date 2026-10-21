@@ -86,7 +86,7 @@ async function environment(autoCheckEnabled = true) {
       return storage.get(key)
     } } },
   })
-  const request = { context: {}, libraryStore: {}, sourceRegistry: {}, libraryPersistenceService: {}, reason: 'manual' }
+  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: {}, sourceRegistry: {}, libraryPersistenceService: {}, reason: 'manual' }
   class PreferencesStore extends preferences.LibraryUpdatePreferencesStore {
     async load(strict) {
       if (controls.readGate) await controls.readGate.promise
@@ -124,14 +124,28 @@ async function environment(autoCheckEnabled = true) {
     }
   }
   const activity = compile(source('model/BackupRestoreActivity'), {}).BackupRestoreActivity
+  const readerStore = {}
+  const protectedIds = new Set(['protected-chapter'])
+  const guardComic = { id: 'guard-comic', sourceRuntimeId: 'com.mh1234.koma' }
   const coordinator = compile(source('model/LibraryUpdateCoordinator'), {
+    './ReaderSessionStore': { appReaderSessionStore: (filesDir) => {
+      assert.equal(filesDir, request.context.filesDir)
+      return readerStore
+    } },
+    './SourceChapterIdentityGuard': { protectedSourceChapterIds: (comic, filesDir, reader) => {
+      assert.equal(comic, guardComic)
+      assert.equal(filesDir, request.context.filesDir)
+      assert.equal(reader, readerStore)
+      return protectedIds
+    } },
     './BackupRestoreActivity': { BackupRestoreActivity: activity },
     './RemoteServerStore': { RemoteServerStore: class {} },
     './LibraryUpdateService': { ...helpers, LibraryUpdateService: class {
-      constructor(store, registry, persistence) {
+      constructor(store, registry, persistence, _remote, protectedChapterIds) {
         assert.equal(store, request.libraryStore)
         assert.equal(registry, request.sourceRegistry)
         assert.equal(persistence, request.libraryPersistenceService)
+        assert.equal(protectedChapterIds(guardComic), protectedIds)
       }
       async checkLibraryUpdates() {
         calls.service++
