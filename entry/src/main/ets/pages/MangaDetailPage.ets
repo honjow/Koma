@@ -1129,6 +1129,7 @@ export struct MangaDetailPage {
   }
 
   private currentReadingProgress(): ReadingProgress | undefined {
+    void this.readerProgressRevision
     const comic = this.libraryStore?.getComic(this.currentComicId())
     return comic === undefined ? this.readerSessionStore.getProgress(this.currentComicId()) :
       this.readerSessionStore.getComicProgress(comic)

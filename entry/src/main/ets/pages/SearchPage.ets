@@ -579,7 +579,11 @@ export struct SearchPage {
       (item.subtitle.length === 0 || item.subtitle === item.sourceLabel)) {
       return sourceDisplayName(item.sourceId, item.sourceLabel)
     }
-    return item.subtitle.length === 0 ? item.sourceLabel : item.subtitle
+    const subtitle = item.subtitle.length === 0 ? item.sourceLabel : item.subtitle
+    const sourceId = item.sourceKind === 'local' && item.localComicId !== undefined
+      ? this.libraryStore.getComic(item.localComicId)?.sourceRuntimeId : undefined
+    const sourceName = sourceId === undefined ? '' : sourceDisplayName(sourceId)
+    return sourceName.length === 0 ? subtitle : `${sourceName} · ${subtitle}`
   }
 
   private sectionRenderKey(section: CrossSearchSection): string {
