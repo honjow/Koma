@@ -21,7 +21,6 @@ import {
 } from '../model/LibraryFilterStore'
 import {
   LibraryUpdateSummary,
-  formatLibraryUpdateSummary,
 } from '../model/LibraryUpdateService'
 import {
   LocalLibraryFolderRescanActionResult,
@@ -55,9 +54,7 @@ import {
   LibraryUpdateNotificationStatus,
   LibraryUpdatePreferences,
   LibraryUpdatePreferencesStore,
-  formatLibraryUpdateStoredSummary,
   getLibraryUpdateAutoCheckLabel,
-  getLibraryUpdateLastResultLabel,
   getLibraryUpdateNextDueLabel,
   getLibraryUpdateNotificationStatusLabel,
   formatLibraryUpdateTimestamp,
@@ -683,21 +680,12 @@ export struct SettingsPage {
       if (this.libraryUpdateState.busy) {
         return this.t('common_checking')
       }
-      const effectiveSummary = this.getEffectiveLibraryUpdateSummary()
-      const summaryText = formatLibraryUpdateSummary(effectiveSummary)
-      const checkedAt = effectiveSummary?.checkedAt
+      const checkedAt = this.getEffectiveLibraryUpdateSummary()?.checkedAt ??
+        this.libraryUpdatePreferences.lastCheckedAt
       if (checkedAt === undefined) {
-        const storedSummary = formatLibraryUpdateStoredSummary(this.libraryUpdatePreferences)
-        const storedCheckedAt = this.libraryUpdatePreferences.lastCheckedAt
-        if (storedSummary !== undefined && storedCheckedAt !== undefined) {
-          return `${getLibraryUpdateLastResultLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
-        }
-        if (this.libraryUpdatePreferences.lastFailureCode !== undefined && storedCheckedAt !== undefined) {
-          return `${getLibraryUpdateLastResultLabel(this.libraryUpdatePreferences)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
-        }
-        return `${summaryText} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+        return this.t('library_update_not_checked')
       }
-      return `${summaryText} · ${this.t('common_last_checked')} ${this.formatTimestamp(checkedAt)} · ${getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences)}`
+      return `${this.t('common_last_checked')} ${this.formatTimestamp(checkedAt).slice(-5)}`
     }
     if (row.key === 'library-update-results') {
       return this.getEffectiveLibraryUpdateSummary() === undefined ? this.t('library_update_no_result') : this.t('settings_library_update_results_view')

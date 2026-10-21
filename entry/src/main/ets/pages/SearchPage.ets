@@ -856,9 +856,9 @@ export struct SearchPage {
             .fontColor([ThemeConstants.TEXT_TERTIARY])
         }
       }
-      .width(ThemeConstants.LIST_COVER_WIDTH)
-      .height(ThemeConstants.LIST_COVER_HEIGHT)
-      .borderRadius(ThemeConstants.RADIUS_THUMB)
+      .width(64)
+      .height(88)
+      .borderRadius(ThemeConstants.RADIUS_COVER)
       .clip(true)
       .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
 
@@ -898,7 +898,7 @@ export struct SearchPage {
       }
     }
     .width('100%')
-    .padding(ThemeConstants.SPACE_LG)
+    .padding(ThemeConstants.SPACE_MD)
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
