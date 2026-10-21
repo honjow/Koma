@@ -1,3 +1,4 @@
+import { SourceMangaWebLink, sourceMangaWebUrl } from './MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 import { ReaderChapterDescriptor } from './ReaderChapterSequence'
@@ -17,6 +18,7 @@ export interface MangaDetail {
   chapterCount: number
   isInLibrary: boolean
   url?: string
+  webUrl?: string
 }
 
 export enum MangaStatus {
@@ -215,6 +217,7 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     chapterCount: 0,
     isInLibrary: false,
     url: optionalSourceString(item['url']),
+    webUrl: sourceMangaWebUrl(item['links'] as SourceMangaWebLink[] | undefined, optionalSourceString(item['url'])),
   }
 }
 

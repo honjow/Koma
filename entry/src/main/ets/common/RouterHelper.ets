@@ -12,6 +12,11 @@ export interface MangaDetailRouteParam {
   chrome?: MangaDetailRouteChromeState
 }
 
+export interface MangaWebRouteParam {
+  url: string
+  title: string
+}
+
 export interface SearchRouteParam {
   query?: string
   chrome?: SearchRouteChromeState
@@ -112,6 +117,10 @@ export class RouterHelper {
 
   static pushTrackerSettings(): void {
     RouterHelper.openLaunchRoute(RouteName.TRACKER_SETTINGS)
+  }
+
+  static pushMangaWeb(param: MangaWebRouteParam): void {
+    RouterHelper.appPathStack?.pushPath({ name: RouteName.MANGA_WEB, param })
   }
 
   static pushMangaDetail(param: MangaDetailRouteParam): void {

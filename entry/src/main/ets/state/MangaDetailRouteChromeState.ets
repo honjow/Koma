@@ -6,6 +6,8 @@
  * never drives the title bar of another route still retained in the stack.
  */
 export enum MangaDetailTitleAction {
+  OPEN_WEBVIEW = 'open_webview',
+  OPEN_BROWSER = 'open_browser',
   FIND_TRACKER_MAPPING = 'find_tracker_mapping',
   SYNC_TRACKER = 'sync_tracker',
   PULL_TRACKER = 'pull_tracker',
@@ -16,6 +18,7 @@ export enum MangaDetailTitleAction {
 @ObservedV2
 export class MangaDetailRouteChromeState {
   @Trace pageActionsAvailable: boolean = false
+  @Trace webActionsAvailable: boolean = false
   @Trace localRefreshAvailable: boolean = false
   @Trace localMetadataAvailable: boolean = false
   @Trace localRefreshBusy: boolean = false

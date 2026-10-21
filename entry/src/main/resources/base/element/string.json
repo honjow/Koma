@@ -1440,6 +1440,12 @@
     { "name": "source_pkg_current_index", "value": "Current index" },
     { "name": "source_pkg_batch_actions_heading", "value": "Batch actions" },
     {"name":"backup_local_unavailable","value":"读取失败"},
-    {"name":"backup_local_load_failed","value":"无法读取本地备份"}
+    {"name":"backup_local_load_failed","value":"无法读取本地备份"},
+    {"name": "manga_detail_menu_open_webview", "value": "在 WebView 中打开"},
+    {"name": "manga_detail_menu_open_browser", "value": "在浏览器中打开"},
+    {"name": "manga_detail_open_browser_failed", "value": "无法打开浏览器"},
+    {"name": "web_nav_back", "value": "后退"},
+    {"name": "web_nav_forward", "value": "前进"},
+    {"name": "web_nav_refresh", "value": "刷新"}
   ]
 }

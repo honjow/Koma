@@ -1,3 +1,5 @@
+import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -137,6 +139,9 @@ export struct BrowsePage {
 
   private enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
     return this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled)
+      .sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
+        compareSourceNames(sourceDisplayName(left.sourceId, left.displayName), left.sourceId,
+          sourceDisplayName(right.sourceId, right.displayName), right.sourceId))
   }
 
   private runtimeSourceSummary(source: SourceRuntimeRegistryInstalledSourceSummary): string {

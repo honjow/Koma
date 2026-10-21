@@ -27,6 +27,7 @@ function cloneMangaDetail(detail: MangaDetail): MangaDetail {
     chapterCount: detail.chapterCount,
     isInLibrary: detail.isInLibrary,
     url: detail.url,
+    webUrl: detail.webUrl,
   }
 }
 

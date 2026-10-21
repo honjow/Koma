@@ -1,3 +1,4 @@
+import { SourceMangaWebLink, sourceMangaWebUrl } from './MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 
@@ -15,6 +16,7 @@ export interface SourceManga {
   contentRating?: string
   tags?: string[]
   url?: string
+  webUrl?: string
 }
 
 export interface SourceMangaList {
@@ -80,6 +82,7 @@ interface SourceRuntimeMangaPayload {
   content_rating?: string
   tags?: string[]
   sourceTags?: string[]
+  links?: SourceMangaWebLink[]
   url?: string
 }
 
@@ -289,6 +292,7 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     contentRating: optionalString(payload.contentRating ?? payload.content_rating),
     tags: normalizeTags(payload),
     url: optionalString(payload.url),
+    webUrl: sourceMangaWebUrl(payload.links, payload.url),
   }
 }
 

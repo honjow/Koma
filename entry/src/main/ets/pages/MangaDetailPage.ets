@@ -1,5 +1,6 @@
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { trackerChapterProgress, trackerChapterForProgress } from '../model/TrackerReadingProgress'
+import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
@@ -358,6 +359,7 @@ export struct MangaDetailPage {
   private syncTitleActions(): void {
     const actionsAvailable = this.shouldRenderDetailActions()
     this.chrome.pageActionsAvailable = actionsAvailable
+    this.chrome.webActionsAvailable = actionsAvailable && this.mangaWebUrl() !== undefined
     this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
     this.chrome.localMetadataAvailable = actionsAvailable && this.canEditLocalMetadata()
     this.chrome.localRefreshBusy = this.localRefreshBusy
@@ -365,8 +367,29 @@ export struct MangaDetailPage {
     this.chrome.trackerSyncBusy = this.trackerSyncBusy
   }
 
+  private mangaWebUrl(): string | undefined {
+    const page = mangaHttpUrl(this.manga?.webUrl)
+    if (page !== undefined) return page
+    // Private-library sourcePath may be a feed/download URL rather than a work page.
+    if ((this.manga?.sourceId?.trim() ?? '').length === 0) return undefined
+    return mangaHttpUrl(this.manga?.url)
+  }
+
   private runTitleAction(action: MangaDetailTitleAction): void {
     if (!this.shouldRenderDetailActions()) {
+      return
+    }
+    if (action === MangaDetailTitleAction.OPEN_WEBVIEW || action === MangaDetailTitleAction.OPEN_BROWSER) {
+      const url = this.mangaWebUrl()
+      if (url === undefined) return
+      if (action === MangaDetailTitleAction.OPEN_WEBVIEW) {
+        RouterHelper.pushMangaWeb({ url, title: this.manga?.title ?? '' })
+      } else {
+        const context = getContext(this) as common.UIAbilityContext
+        void context.startAbility({ action: 'ohos.want.action.viewData', uri: url }).catch(() => {
+          this.getUIContext().getPromptAction().openToast({ message: s('manga_detail_open_browser_failed') })
+        })
+      }
       return
     }
     if (action === MangaDetailTitleAction.FIND_TRACKER_MAPPING) {
@@ -896,6 +919,7 @@ export struct MangaDetailPage {
       chapterCount: detail.chapterCount,
       isInLibrary: detail.isInLibrary,
       url: detail.url ?? this.sourceMangaRouteUrl(sourceId, mangaId),
+      webUrl: detail.webUrl ?? initialManga?.webUrl,
     }
     return next
   }
@@ -975,6 +999,7 @@ export struct MangaDetailPage {
       chapterCount: 0,
       isInLibrary: false,
       url: initialManga.url,
+      webUrl: initialManga.webUrl,
     }
   }
 

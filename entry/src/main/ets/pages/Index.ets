@@ -32,6 +32,7 @@ import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
 import { ReaderPage } from './ReaderPage'
 import { MangaDetailPage } from './MangaDetailPage'
+import { MangaWebPage } from './MangaWebPage'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
 import {
   ReaderChapterDescriptor,
@@ -62,6 +63,7 @@ import { RouteName, TabIndex, tabLabel } from '../common/Constants'
 import { MangaDetailTitleAction } from '../state/MangaDetailRouteChromeState'
 import {
   MangaDetailRouteParam,
+  MangaWebRouteParam,
   RouterHelper,
   SearchRouteParam,
   SourceBrowseRouteParam,
@@ -2057,6 +2059,8 @@ struct Index {
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_import_title')))
     } else if (name === RouteName.SEARCH) {
       this.SearchDestination(param as SearchRouteParam)
+    } else if (name === RouteName.MANGA_WEB) {
+      MangaWebPage({ params: param as MangaWebRouteParam })
     } else if (name === RouteName.MANGA_DETAIL) {
       HdsNavDestination() {
         MangaDetailPage({
@@ -2809,6 +2813,20 @@ struct Index {
     }
 
     const menuItems: Record<string, Object>[] = []
+    if (chrome.webActionsAvailable) {
+      menuItems.push({ 'content': {
+        'label': AppStrings.get('manga_detail_menu_open_webview'),
+        'icon': $r('sys.symbol.house_fill'),
+        'isEnabled': true,
+        'action': () => { chrome.requestAction(MangaDetailTitleAction.OPEN_WEBVIEW) },
+      } as Record<string, Object> })
+      menuItems.push({ 'content': {
+        'label': AppStrings.get('manga_detail_menu_open_browser'),
+        'icon': $r('sys.symbol.arrow_right'),
+        'isEnabled': true,
+        'action': () => { chrome.requestAction(MangaDetailTitleAction.OPEN_BROWSER) },
+      } as Record<string, Object> })
+    }
     const trackerMappingContent: Record<string, Object> = {
       'label': AppStrings.get('manga_detail_menu_find_tracker_mapping'),
       'icon': $r('sys.symbol.magnifyingglass'),

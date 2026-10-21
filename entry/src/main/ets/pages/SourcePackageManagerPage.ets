@@ -1,3 +1,4 @@
+import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
@@ -160,8 +161,16 @@ export struct SourcePackageManagerPage {
     return getContext(this) as common.UIAbilityContext
   }
 
+  private sortedIndexEntries(entries: SourceIndexEntry[]): SourceIndexEntry[] {
+    return entries.slice().sort((left: SourceIndexEntry, right: SourceIndexEntry): number =>
+      compareSourceNames(
+        resolveSourceLocalizedName(left.name, left.localizedNames, this.languageState.effectiveLocale), left.id,
+        resolveSourceLocalizedName(right.name, right.localizedNames, this.languageState.effectiveLocale), right.id))
+  }
+
   private reload(): void {
-    this.packages = listInstalled()
+    this.packages = listInstalled().slice().sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
+      compareSourceNames(sourceDisplayName(left.id, left.name), left.id, sourceDisplayName(right.id, right.name), right.id))
     this.refreshSavedSettingsCounts()
     const sheetSource = this.sourceSheetSource()
     if (sheetSource !== undefined) {
@@ -679,7 +688,7 @@ export struct SourcePackageManagerPage {
         }
         loadedIndexCount += 1
         if (indexUrl === url || this.indexEntries.length === 0) {
-          this.indexEntries = result.entries
+          this.indexEntries = this.sortedIndexEntries(result.entries)
           this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
         }
         result.entries.forEach((entry: SourceIndexEntry) => {
@@ -1028,7 +1037,7 @@ export struct SourcePackageManagerPage {
       this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
       const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
       if (result.ok) {
-        this.indexEntries = result.entries
+        this.indexEntries = this.sortedIndexEntries(result.entries)
         this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
       } else {
         this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(result.reasonCode))
