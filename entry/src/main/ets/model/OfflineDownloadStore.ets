@@ -699,6 +699,33 @@ export class OfflineDownloadStore {
       validation.missingPageCount === 0
   }
 
+  /** Protect migration references, including manifests absent from the queue.
+   * Reads directory/manifest metadata only; no page reads or integrity calculations. */
+  storedChapterIds(comicId: ComicId): string[] | undefined {
+    try {
+      const ids: string[] = []
+      const owners = fs.listFileSync(this.rootDir)
+      for (const owner of owners) {
+        const ownerPath = joinOfflineDownloadPath(this.rootDir, owner)
+        assertSafeOfflineDownloadRoot(this.filesDir, ownerPath)
+        if (!fs.statSync(ownerPath).isDirectory()) continue
+        const chapters = fs.listFileSync(ownerPath)
+        for (const chapter of chapters) {
+          const chapterPath = joinOfflineDownloadPath(ownerPath, chapter)
+          assertSafeOfflineDownloadRoot(this.filesDir, chapterPath)
+          if (!fs.statSync(chapterPath).isDirectory()) continue
+          const path = joinOfflineDownloadPath(chapterPath, OFFLINE_DOWNLOAD_MANIFEST_NAME)
+          if (!fs.accessSync(path)) return undefined
+          const manifest = safeParseManifest(fs.readTextSync(path, { encoding: 'utf-8' }))
+          if (manifest.comicId === comicId) ids.push(manifest.chapterId)
+        }
+      }
+      return ids
+    } catch (_error) {
+      return undefined
+    }
+  }
+
   async scanDownloadedChapterManifests(): Promise<OfflineDownloadManifestScanResult> {
     if (!(await pathExists(this.rootDir))) {
       return {

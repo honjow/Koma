@@ -1,3 +1,5 @@
+import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
+import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { trackerChapterProgress, trackerChapterForProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
@@ -848,10 +850,14 @@ export struct MangaDetailPage {
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     this.activeLibraryComicId = libraryComic?.id ?? ''
-    const displayedChapters = chapters.slice()
-    const displayedIds = new Set<string>(chapters.map((chapter: MangaChapterItem): string => chapter.id))
+    const identity = libraryComic !== undefined && this.sourceChaptersResolved
+      ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
+        protectedSourceChapterIds(libraryComic, (getContext(this) as common.UIAbilityContext).filesDir, this.readerSessionStore))
+      : undefined
+    const displayedChapters = (identity?.chapters ?? chapters).slice()
+    const displayedIds = new Set<string>(displayedChapters.map((chapter: MangaChapterItem): string => chapter.id))
     if (libraryComic !== undefined) {
-      libraryComic.chapters.forEach((chapter: Chapter): void => {
+      (identity?.storedChapters ?? libraryComic.chapters).forEach((chapter: Chapter): void => {
         if (!displayedIds.has(chapter.id)) {
           displayedChapters.push(mangaChapterItemFromComicChapter(chapter, libraryComic.sourceKind))
           displayedIds.add(chapter.id)

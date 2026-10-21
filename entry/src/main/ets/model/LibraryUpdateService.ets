@@ -1,3 +1,4 @@
+import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import {
   Chapter,
@@ -493,17 +494,20 @@ export class LibraryUpdateService {
   private sourceRegistry: SourceRuntimeRegistry
   private persistenceService?: LibraryStorePersistenceService
   private remoteServerStore?: RemoteServerStore
+  private protectedChapterIds?: (comic: Comic) => Set<string> | undefined
 
   constructor(
     libraryStore: LibraryStore,
     sourceRegistry: SourceRuntimeRegistry,
     persistenceService?: LibraryStorePersistenceService,
     remoteServerStore?: RemoteServerStore,
+    protectedChapterIds?: (comic: Comic) => Set<string> | undefined,
   ) {
     this.libraryStore = libraryStore
     this.sourceRegistry = sourceRegistry
     this.persistenceService = persistenceService
     this.remoteServerStore = remoteServerStore
+    this.protectedChapterIds = protectedChapterIds
   }
 
   async checkLibraryUpdates(): Promise<LibraryUpdateSummary> {
@@ -611,15 +615,25 @@ export class LibraryUpdateService {
       }
     }
     try {
-      const remoteChapters = await this.fetchSourceRuntimeChapters(lookup.entry, mangaId, comic.sourcePath)
+      const fetchedChapters = await this.fetchSourceRuntimeChapters(lookup.entry, mangaId, comic.sourcePath)
+      const identity = reconcileSourceChapterIdentity(comic, mangaId, fetchedChapters,
+        this.protectedChapterIds?.(comic))
+      const remoteChapters = identity.chapters
+      const identityChanged = identity.removedDuplicateIds.length > 0
+      const currentComic = identityChanged ? JSON.parse(JSON.stringify(comic)) as Comic : comic
+      if (identityChanged) {
+        currentComic.chapters = identity.storedChapters
+        currentComic.chapterCount = identity.storedChapters.length
+        currentComic.updatedAt = Date.now()
+      }
       const remoteIds = remoteChapters.map((chapter: MangaChapterItem): string => chapter.id)
-      const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
+      const localIds = currentComic.chapters.map((chapter: Chapter): string => chapter.id)
       const addedChapterCount = new Set<string>(remoteIds.filter(
         (chapterId: string): boolean => !localIds.includes(chapterId))).size
       if (addedChapterCount === 0) {
-        const metadataChanged = enrichSourceChapterMetadata(comic, remoteChapters)
+        const metadataChanged = enrichSourceChapterMetadata(currentComic, remoteChapters) || identityChanged
         if (metadataChanged) {
-          this.libraryStore.upsertComic(comic)
+          this.libraryStore.upsertComic(currentComic)
         }
         return {
           comicId: comic.id,
@@ -628,12 +642,12 @@ export class LibraryUpdateService {
           status: 'unchanged',
           metadataChanged,
           previousChapterCount,
-          newChapterCount: previousChapterCount,
+          newChapterCount: currentComic.chapters.length,
           message: AppStrings.get('library_update_no_new_chapters'),
         }
       }
       const now = Date.now()
-      const mergedChapters = mergeSourceChapters(comic, remoteChapters, now)
+      const mergedChapters = mergeSourceChapters(currentComic, remoteChapters, now)
       this.libraryStore.upsertComic(updatedComicWithChapters(comic, mergedChapters, now))
       return {
         comicId: comic.id,

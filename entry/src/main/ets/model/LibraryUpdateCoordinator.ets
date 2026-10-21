@@ -1,3 +1,6 @@
+import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
+import { appReaderSessionStore } from './ReaderSessionStore'
+import { Comic } from './ComicModels'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { LibraryStore } from './LibraryStore'
@@ -138,7 +141,9 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   let summary: LibraryUpdateSummary
   try {
     const service = new LibraryUpdateService(request.libraryStore, request.sourceRegistry,
-      request.libraryPersistenceService, new RemoteServerStore(request.context))
+      request.libraryPersistenceService, new RemoteServerStore(request.context),
+      (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(
+        comic, request.context.filesDir, appReaderSessionStore(request.context.filesDir)))
     summary = await service.checkLibraryUpdates()
   } catch (_error) {
     // Only a service exception reaches this branch; persistence and notification failures are separate.

@@ -1,3 +1,4 @@
+import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
 import { taskpool } from '@kit.ArkTS'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -85,7 +86,7 @@ export async function resolveSourceChapterForResume(
   isCurrent?: () => boolean,
 ): Promise<MangaChapterItem | undefined> {
   const result = await fetchSourceChapterList(entry, mangaId, chapterId, mangaUrl, isCurrent)
-  return result.chapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
+  return sourceChapterForRetainedIdentity(entry.sourceId, mangaId, chapterId, result.chapters)
 }
 
 async function fetchSourceChapterList(
