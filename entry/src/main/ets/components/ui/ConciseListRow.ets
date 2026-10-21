@@ -358,6 +358,7 @@ export struct ConciseListRow {
       case 'com.hentaifox.zh.koma@0.1.1':
         return 1.04
       case 'com.sixmh.koma@0.1.2':
+      case 'com.sixmh.koma@0.1.3':
         return 1.05
       default:
         return 1
