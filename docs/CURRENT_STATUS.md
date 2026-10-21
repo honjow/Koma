@@ -2,14 +2,20 @@
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
-最后接续核对：2026-10-21 09:40，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
+最后接续核对：2026-10-21 12:25，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 本轮xkcd676章目录两端/已下载投影、Nemo同公共根重导入已具名闭环，见本轮结果；75本书架及进度内容逐项相同，原全部来源/最近阅读/Chibi2页/10000ms已亲看恢复，197无租约。 | Root接续当前源候选的App集成审查；私库当前两个原容器均exited，四原挂载源均不存在，官方demo无凭据API403；不启动空库/造数据或重复403。Shared、首次按书标记与已列文案/长标签候选分别待原答复，不重复问、不擅改。 |
-| 源 / koma_source_continuation（替补）/ 237 | 原owner连续两次恢复仍429，已interrupt；替补已正常执行并接同台账，图标原受限/缺明确资源分支保留；已转MangaBz当前016普通首两页未闭路径（lib.rs与原237registry核对，旧README015过时）。原已闭正文和图标不重跑；237无租约，源master1dbffba，原miaoqu/NOTICE WIP保留。 | 先核237现装016及73bz/10344原样本，再仅在未闭时普通首两页；不下载/cold、不重试已403链，不回用Terra白字拒稿。Root亲审原件及边界后接下一动作；六漫画012普通热门30本有限结果不算正文。 |
+| App / Root / 197 | 长分类原标签滚动已实测：旧25秒原片全字/再入，新包6秒补验初停约1.4秒后移动，短名静止，标签几何保持。75本仅两书updatedAt正常保存；空分类已删、10000ms/AWAKE恢复、94fc2fdf已release。 | Root审精确diff提交，然后追蔚蓝010返回详情缺章页文案反例：先查进度数据/刷新职责及历史，不按单源补丁改界面。 |
+| 源 / koma_source_resume / 237 | 阴阳师010《内卷的平安京》P1/6→P2/6为长条彩色正文，代理已亲看；漫画社实际012《一人之下》766《反杀》P1/17→P2/17具名完成。两路径原Browse/50项/10000ms已恢复，原件待Root审。 | 源owner接GlobalComix中文011原P2在线超时具名路径，不登录/付费；Root审阴阳师/漫画社原件与README。原漫画屋403/Noy认证条件不重试。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
+
+- **长分类名滚动已实施并限定验收（Root/197，2026-10-21）：** 用户明确选择滚动取代未提交Ellipsis。沿0790b3b4原分类Text与唯一网格消费者，仅加原生MARQUEE/step0.5/loop-1/delay1000/fromStart/fadeout false及可取消的1000ms初次启动等待；原20vp高/左右8vp/字体/颜色/圆角保持。初版25秒原片category-marquee197-recording-001已见全名及再次进入、短名收藏静止，但初停只有约0.4秒；补修当前Debug16226877B/12:06:09后，category-marquee197-initial-recording-002的410原帧/PTS显示约0.64秒出现、约2.1秒开始移动，可见初停约1.4秒，短名始终静止。第一次补验启动导航落电话页为失败且书架完全未变；单独确认Koma前台后才继续。两轮测试归属/唯一空分类已准确清理，75本业务字段逐项恢复，仅两本updatedAt正常保存变化；AWAKE/原10000ms恢复，租约94fc2fdf已release。源码和本条待范围提交，非首版整体通过。
+
+
+- **当前反馈图标比例结果（Root，2026-10-21）：** 用户明确授权漫画柜及偏小图标适当调整。f1fc285仅对源ID@版本绑定Image.scale：漫画柜013 1.10、鸟鸟011 1.30、瓜子013 1.20、雀魂011 1.15、咚漫014 1.08、HentaiFox011 1.04、六漫画012 1.05；未来版本/其他源默认1，三消费者共用，30vp槽/7vp圆角不动。e0d797d7/ecbfeac8原槽与圆角历史已查，72d7e0f4撤圆角仍为拒绝方向；MangaBall横标不为填高裁两侧。漫画柜用户后继明确要求改掉后采用512px满幅头像，源014/73ecf4b已同步并由Root亲审237管理/Browse；014默认比例1，不额外加底色。鸟鸟011及四现装（瓜子/雀魂/咚漫/六漫画）管理/Browse原图Root已亲审主体完整，原件optical-four237-*；50项sourceId/enabled顺序保持。237未装HentaiFox，不为此新增导包；其197槽及其余既有缺图/低清/横标项目仍按原表OPEN，不冒全量图标完成。素材本身未新增板/影/遮罩，鸟鸟生成候选未采用。
+
 
 - App已授权下一动作（Root/197）：通知发布/点击已闭，见本轮结果；接续上表多书分类消费者；双击缩放的本次具名路径已闭，不重跑；跨书零新增确认本轮已闭。本地根重选保留未验：实际仅Nemo公共根与旧Local Folder Smoke私有根，原1需重选样本对应后者，系统picker不能选择App私有目录；目录本身仍存在，不能冒缺失，也不盲选Nemo或制造新授权失效夹具。私库浏览→详情→阅读/返回仍未闭，Kavita原25610无监听且旧bind目录缺失的具体条件保留，不能只因轮到它就反复重试或停止全线。分类、语言、下载筛选等具名已通过路径冻结。
 - 源已授权：ComicABC30513第4話在线1/27已具名补验；全量图标未闭项、既有源阅读失败及中文新源质量继续保留；原成功只绑定原版本/作品/章节，图标/列表成功不计正文通过。当前图标表中的MangaBall24px已被011交付取代，其余缺图、横标小槽及受限父链依各自条目保持。
@@ -25,7 +31,7 @@
 
 - **197本轮通知闭环：** 原通知关闭，普通系统请求临时允许；详情“下载章节”实际下载最早章xkcd《1: 桶子之一》（不是2977选择器），完成1/1。Home后通知栏真实显示完成/标题/页数；点击进入下载管理89章2298/2298页，Root亲看完整两图。仅经该章准确名称确认移除后恢复88章2297/2297页。仅Koma系统通知恢复false，App再实读关闭；普通返回原Chibi2/8书架。首次关开关仅收起系统说明浮层，读回true后重试才false，未冒首次成功。原图/布局沿reader-failure-retry的notification197-published-001、click-downloads-001、original-downloads-restored-001、permission-restored-002、app-status-restored-001、library-restored-001（全部带notification197-前缀），回执哈希关闭。不冒cold通知/后台执行/全队列通过。
 
-- **197两书分类有限闭环：** 唯一本轮Koma-QA-Batch-1021空分类创建后，多选Chibi/虫笼只加入此新ID，两处标签更新，普通分类筛选仅两本。Home→force-stop得到38924→空→4949，不清数据普通启动仍为同两本/同标签。再多选仅移出该新ID，筛选实为空；准确名称确认删除0本测试分类后“暂无自定义分类”读回。原筛选全部、最近阅读、Chibi2/8及首三书Chibi/xkcd/虫笼实际恢复；原10000ms/AWAKE读回并release。只关闭两书增删新分类/筛选/cold，不冒替换原分类或自然保存失败回滚。表单输入使页面滚动，首下创建坐标未命中；当前按钮再保存才创建，未误报首下成功。首次清理读回排序仍最近加入，被拦下后恢复最近阅读，未以该帧当原状态。原件为reader-failure-retry/categories197-{created-002,two-selected-menu-001,two-visible-001,cold-001,empty-after-remove-001,own-deleted-001,final-original-state-001}。整图另发现长标签缺省略号，已留候选待当前人类决定，不把功能通过冒整页视觉通过。
+- **197两书分类有限闭环：** 唯一本轮Koma-QA-Batch-1021空分类创建后，多选Chibi/虫笼只加入此新ID，两处标签更新，普通分类筛选仅两本。Home→force-stop得到38924→空→4949，不清数据普通启动仍为同两本/同标签。再多选仅移出该新ID，筛选实为空；准确名称确认删除0本测试分类后“暂无自定义分类”读回。原筛选全部、最近阅读、Chibi2/8及首三书Chibi/xkcd/虫笼实际恢复；原10000ms/AWAKE读回并release。只关闭两书增删新分类/筛选/cold，不冒替换原分类或自然保存失败回滚。表单输入使页面滚动，首下创建坐标未命中；当前按钮再保存才创建，未误报首下成功。首次清理读回排序仍最近加入，被拦下后恢复最近阅读，未以该帧当原状态。原件为reader-failure-retry/categories197-{created-002,two-selected-menu-001,two-visible-001,cold-001,empty-after-remove-001,own-deleted-001,final-original-state-001}。整图另发现长标签缺省略号；人类已批准一行Ellipsis，Root当前接续197验证，不把功能通过冒整页视觉通过。
 
 - **本轮跨书入队与有限后台事实（Root/197，完成限定路径）：** 当前队列88条基线无排队，普通选择序言组曲0694及Nami繁中73hLs8EN，确认2书/6章/新增4/跳过2，实际92条中仅新增01呼吸、02心跳、Ch.2、Ch.3。首次Home写成HOME被平台Invalid parameters拒绝，原图仍App前台，不能当后台通过；后沿已验证Home取得真实桌面，12秒后台只读队列01呼吸由4/43到6/43，返回App继续8/43，Nami两章已15/15及20/20。原件crossbook197-{queue-baseline,new-target-confirm,new-queue,background-progress-001,background-progress-002}，哈希均关闭。下载管理标题页数被省略、未知页数排队章0/0仍属未改善呈现，不冒整页视觉通过；四新章最终02心跳50/50、01呼吸43/43、Ch.3 20/20、Ch.2 15/15，共128页；总92章2425/2425。逐章菜单核准确名称后只删除四新增，原88条全部字段及偏好按内容比较相同，恢复2297/2297；原网格、最近阅读及首三书已亲看。完成/逐项删除/恢复原件沿crossbook197-completion-observe-001、own-*-delete-confirm-001、restored-original-queue-001、shelf-restored-001。不把下载完成冒四章正文目视通过或全部后台存活。
 
@@ -50,6 +56,11 @@
 - **Nemo同根重导入（Root/197）：** 从普通书架导入→文件夹，系统选择器精确选原file://docs/.../Koma-QA-Folder-20261009父根（不是Nemo子目录）。当前原生日志09:28:57确认folder_access activated、folder_rescan_persisted added/changed/metadata_changed/missing均0、rejected3、upserted0。导入前后75本及整份library JSON内容相同，reader JSON内容相同，无新增/丢失ID；普通本地筛选仍仅Nemo和原Smoke，Nemo详情2/2章、继续第2/3页亲看保持。未修改外部文件或制造授权失效样本，不冒内容变更/缺失/失败回滚通过。原件folderreimport197-{baseline-menu,before-confirm,result,native-log-002,local-results,nemo-detail}；首日志括号被设备shell解析拒绝保留，后只读简单folder_过滤成功，未重复导入。
 - **本轮恢复反例保留：** 首批量恢复使用旧展开菜单位置，实际选成另一来源，读回仍“筛选·1”被拦下，不能作恢复通过；虽提前release5e6a68cb，随后立刻重取560a29b4并完整醒屏门禁，按当前菜单“全部”真实坐标214而非旧529纠正。最终all-sources-restored-002原图/布局明确原首三书Chibi/xkcd/虫笼、最近阅读、无筛选计数及原Chibi第2页25%，10000ms/AWAKE读回后才release560a29b4。未改产品源码。
 - **既有私库服务当前核对（Root，09:36）：** Docker实际Komga与Kavita均exited；仅按两现存容器inspect给出的四条bind源作exists检查，/config、/data、/kavita/config、/manga对应宿主来源全部不存在。没有启动/重建容器、遍历TMP、复制/补造目录或改凭据。真实私库正文仍未闭，需要有效服务/数据条件；官方demo403不再请求。
+
+- **MangaBz016当前正文有限闭环（237/源owner，Root亲审）：** 现装0.1.6普通热门12本，鬼滅之刃235/235章；第1話殘酷54P显示真实1/54封面，正确右侧下一页后真实繁中正文2/54。自然Back完整reader JSON独立绑定com.mangabz.koma:manga:73bz / chapter:73bz:10344:54 / pageIndex1 / totalPages54。原左点回执虽误命名ordinary-next-page，真实单页/从左到右/左右分区/不翻转合同下它是前页，1/54不变不构成取页或手势故障，未改产品。普通重开原第1卷271587:190后P2/190、自然Back和详情均确认恢复原继续阅读；新章P2记录作为正常阅读结果保留，未编辑/删除持久记录。原全部/降序、Browse末端、AWAKE/10000ms均读回。Root已亲看first-page、correct-next、original-progress-restored、session-restored原图及元数据；仅闭这两页与普通返回，不冒54页全部/下载/cold/全源。证据沿原category-membership/mangabz016-*237-001，哈希关闭；源README版本标题已校正016并记录完整边界，单文件提交01ee23f。
+
+- **本轮图标实际交付（Root/237）：** 主仓Debug10:34构建/覆盖安装成功；NN011主体按1.30放大后管理/Browse原图完整。漫画柜013的1.10显示调整后，用户明确要求替换头像，采用生成的无书脊/边框512px满幅图，014默认比例1；普通系统picker导入明确成功。Root已亲看manhuagui014-manager-visible237-001与browse-restored237-001完整原图，仍由原30vp/7vp容器定义边界；它是原官方桌面身份的派生头像，不冒官方高清原件。50项sourceId/enabled逐项顺序相同，本源仍第50项014；只清本次014上传包，AWAKE/10000ms读回后releasefd787030。其余四现装比例由源替补接续观察，HentaiFox在237未装，不以其他源替代通过；MangaBall宽形标识未强行裁掉两侧文字。Appf1fc285、源73ecf4b已提交；源旧01ee23f已SSH同步。
+- **瓜子013本轮具名正文有限闭环（源owner/237，Root亲审）：** 普通更新成功，50项sourceId/enabled顺序保持；14109/1633768（334鬼梦貘）1/3为作品署名页，下一页2/3为彩色正文并可见城户南，Root已亲看两完整原图。自然reader记录pageIndex1/total3，未直接编辑持久记录；Browse末端、10000ms/AWAKE已恢复，唯一自传包已删、fd2cc4e7已release。只接受具名两页与返回；长条图在单页模式内呈窄栏，不冒全图/全模式/下载/cold。原件guazi013-{reader334,reader334-page2,session-restored}237-001。
 
 ## 当前能力的证据边界（2026-10-21）
 
@@ -118,7 +129,7 @@
 
 
 - 英文书架数量单位已按本会话人类明确答复实施（Root，2026-10-21）：仅MockLibraryData.formatSourceSubtitle自动数量表达式及三份资源，单章/多章分别读语言键；中文保持“%s 话”，英文“%s chapter/%s chapters”。原短副标题/作者优先级、数量、布局和尺寸保持。三语言键一致/无重复检查通过，当前主仓Debug assembleHap退出0，197明确覆盖安装成功（01:10:37，16224380B），未清数据。Root亲看普通中文书架1话/676话、切English后1chapter/676chapters及原源副标题；随后原菜单读回跟随系统/翠绿/跟随系统，回中文书架原Chibi第2页25%、最近阅读及首三书保持。原件沿user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-language/{installed-001,chinese-and-appearance-001,english-shelf-001,follow-system-restored-001,original-shelf-restored-001}，回执哈希关闭。仅接受普通网格具名文字，不冒全部页面/列表或新cold验收。
-- 双线与历史阅读记录口径（2026-10-21，用户追问后接续核对）：237本轮新增正文复验0不等于历史0。当前工作单/各源README至少保留14个源身份的具名Native正文成功：菇菇（237两页/下载/禁Koma-WLAN后cold）、WEBTOON繁中012（197第2季65話前两页/106及cold）、xkcd（1972975/2976按钮重试正文、2977菜单重试，版本未记明）、DM5（197虫笼16/16下载/首尾正文/cold，版本未记明）、ComicABC（旧010首1/44+44下载/cold；019旧包159/159目录/P2/29）、mh1234（旧012于237第538話P1/11，非197011第700話失败）、六漫画（旧010第1話54下载/cold；当前标准TLS失败仍OPEN）、Komiic（014 ONEPIECE1194/12页下载/cold）、MangaDex简/繁（010分别33/49页下载与cold，非英文实体）、MangaBall（010 Knight第1話197下载/cold，封面未过）、GoDa（旧010扫地小厮17页下载/cold）、NamiComi简（旧010我是赛拉前2/20页及20下载持久；搜索未过）、ComicFury（旧1268101正文1/1下载/cold；新013只闭搜索/详情）。此为历史具名下界，不是全历史累计或当前14包全通过；MangaBz README有限Native线索仍未定位具体章页回执，不以54页Host冒Native。后继标准编译、图标安装、目录或HTTP成功均不增加正文通过数；旧通过与新失败并存，按源/版本/章节继续，不从86源从零跑矩阵。
+- 双线与历史阅读记录口径（2026-10-21，用户追问后接续核对）：237本轮新增正文复验0不等于历史0。当前工作单/各源README至少保留15个源身份的具名Native正文成功（含本轮MangaBz016）：菇菇（237两页/下载/禁Koma-WLAN后cold）、WEBTOON繁中012（197第2季65話前两页/106及cold）、xkcd（1972975/2976按钮重试正文、2977菜单重试，版本未记明）、DM5（197虫笼16/16下载/首尾正文/cold，版本未记明）、ComicABC（旧010首1/44+44下载/cold；019旧包159/159目录/P2/29）、mh1234（旧012于237第538話P1/11，非197011第700話失败）、六漫画（旧010第1話54下载/cold；当前标准TLS失败仍OPEN）、Komiic（014 ONEPIECE1194/12页下载/cold）、MangaDex简/繁（010分别33/49页下载与cold，非英文实体）、MangaBall（010 Knight第1話197下载/cold，封面未过）、GoDa（旧010扫地小厮17页下载/cold）、NamiComi简（旧010我是赛拉前2/20页及20下载持久；搜索未过）、ComicFury（旧1268101正文1/1下载/cold；新013只闭搜索/详情）。此为历史具名下界，不是全历史累计或当前15包全通过；MangaBz旧README有限Native线索原未定位具体章页；本轮016的10344:54第1/2页及普通返回已取得独立新原件，不以54页Host冒全章Native。后继标准编译、图标安装、目录或HTTP成功均不增加正文通过数；旧通过与新失败并存，按源/版本/章节继续，不从86源从零跑矩阵。
 - 用户最新再次指出剩余图标未闭，源线现存source_icons立即回图标质量，ComicABC237已读回现装0.1.10（019 parser的图标版本后继），旧30513样本尚未打开正文，不计通过。Root已交付本项语言修正后接续197的资源呈现/普通包交付；source_icons接续Terra/Noy及横标的官方独立标识。缺图、低清、小槽和受限父链继续按现有未闭表，不以个别素材受限、文档补记或局部交付收尾；App容器圆角/槽尺寸/顺序冻结。
 
 
@@ -675,16 +686,16 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "首版推进中；具名路径冻结，源图标/真实私库等仍未闭",
-  "outcome": "197本轮完整目录两端/已下载投影和Nemo同根重导入取得真实证据，原书架75本及进度内容保持；源原owner429，替补已正常接续未闭图标。首版仍未完成。",
-  "updatedAt": "2026-10-21T01:43:46.574409+00:00",
+  "outcome": "长分类滚动已实测并恢复测试数据；四现装比例、漫画1234第700话、雀魂011/蔚蓝010原件Root已审。阴阳师010/漫画社012新正文待Root审；首版仍未完成。",
+  "updatedAt": "2026-10-21T04:21:52.447936+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_ICONS_CONTINUATION",
+  "activeId": "DETAIL_RESUME_CONSUMER_AND_SOURCE_READING",
   "activity": {
-    "title": "完整目录与同根导入闭环，源替补接续",
-    "detail": "xkcd676章降序2978/升序1/已下载1；Nemo重导入0新增变更、原2章/2页保持。全部来源及10000ms已实际恢复。源替补正在核原未闭官方图标父链。",
-    "updatedAt": "2026-10-21T01:43:46.574409+00:00"
+    "title": "App详情进度消费者与源正文双线",
+    "detail": "分类名滚动补验闭环；Root追蔚蓝返回详情章页信息反例，源owner接GlobalComix中文011原未闭在线P2。",
+    "updatedAt": "2026-10-21T04:21:52.447936+00:00"
   },
-  "nextAction": "源替补沿微漫画/創漫等原图标队列接续；Root审实际原件及候选diff后负责App集成。真实私库需有效服务与数据（现有两容器exited且四bind源缺失，官方demo403）；不造样本、不重试403。普通Shared/首次本书标记等既有候选待原答复。",
+  "nextAction": "Root提交已审分类滚动，追详情返回刷新/进度消费者真实缺口；源继续237 GlobalComix中文011普通free Episode1首两页。已闭路径不重跑。",
   "proof": [
     {
       "label": "正式主仓",
@@ -727,8 +738,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "8fc8886d",
-      "hap": "沿用主仓当前Debug；本轮未改生产源码/构建/安装。按钮f4afaf3d原交付证据保持。"
+      "appHead": "f1fc285",
+      "hap": "当前Debug16226877B/2026-10-21 12:06:09，197已安装，分类原标签滚动与初停录像补验完成。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -945,9 +956,9 @@
     "status": "未完成",
     "kind": "open",
     "title": "中文源质量与完整图标范围",
-    "result": "HKO0.1.2独立官方标识、Laya0.1.2、瓜子0.1.3及本次綜合口味/人2/幻塔0.1.1原资源已完成具名两处图标交付。",
-    "remaining": "未闭图标按正文逐包表保持；原owner连续429已停止，替补koma_source_continuation正常接续。优先微漫画/創漫官方原资源、漫画160横标小槽等；不重试已403链或回用Terra白字拒稿。",
-    "commit": "1dbffba"
+    "result": "HKO0.1.2独立官方标识、Laya0.1.2、瓜子0.1.3及本次綜合口味/人2/幻塔0.1.1原资源已完成具名两处图标交付。 本轮MangaBz016具名第1話10344:54真实首两页/返回及原卷P2恢复已亲审，图标质量另留OPEN。",
+    "remaining": "瓜子013正文接续；图标原各项403/TLS/缺明确官方资源及待提取决定保持，不新增重绘/裁切/发明标识，不从86源重跑。",
+    "commit": "01ee23f"
   },
   "milestones": [
     {

@@ -37,6 +37,28 @@ export struct ComicCoverCard {
   @Param categoryLabels: string[] = []
   @Param selected: boolean = false
   @Local private failedCoverUri: string = ''
+  @Local private categoryMarqueeStarted: boolean = false
+  private categoryMarqueeStartTimer: number = -1
+
+  aboutToDisappear(): void {
+    this.cancelCategoryMarqueeStart()
+  }
+
+  private cancelCategoryMarqueeStart(): void {
+    if (this.categoryMarqueeStartTimer !== -1) {
+      clearTimeout(this.categoryMarqueeStartTimer)
+      this.categoryMarqueeStartTimer = -1
+    }
+    this.categoryMarqueeStarted = false
+  }
+
+  private scheduleCategoryMarqueeStart(): void {
+    this.cancelCategoryMarqueeStart()
+    this.categoryMarqueeStartTimer = setTimeout((): void => {
+      this.categoryMarqueeStartTimer = -1
+      this.categoryMarqueeStarted = true
+    }, 1000)
+  }
 
   private displayTitle(): string {
     return this.title.length > 0 ? this.title : this.comic.title
@@ -183,6 +205,9 @@ export struct ComicCoverCard {
               .fontColor(ThemeConstants.BRAND_PRIMARY)
               .backgroundColor(ThemeConstants.SOFT_TINT)
               .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.MARQUEE })
+              .marqueeOptions({ start: this.categoryMarqueeStarted, step: 0.5, loop: -1, delay: 1000, fromStart: true, fadeout: false })
+              .onAppear(() => this.scheduleCategoryMarqueeStart())
           }, (categoryLabel: string) => categoryLabel)
         }
         .width('100%')
