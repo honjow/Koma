@@ -69,6 +69,7 @@ export interface LibraryUpdateComicResult {
   status: LibraryUpdateResultStatus
   previousChapterCount: number
   newChapterCount: number
+  addedChapterCount?: number
   message: string
   metadataChanged?: boolean
 }
@@ -346,7 +347,10 @@ export function countLibraryUpdateNewChapters(summary: LibraryUpdateSummary): nu
     if (result.status !== 'updated') {
       return total
     }
-    return total + Math.max(result.newChapterCount - result.previousChapterCount, 0)
+    const added = result.addedChapterCount
+    return total + (added !== undefined && Number.isFinite(added) && added >= 0
+      ? Math.floor(added)
+      : Math.max(result.newChapterCount - result.previousChapterCount, 0))
   }, 0)
 }
 
@@ -372,7 +376,10 @@ export function summarizeLibraryUpdateProviders(results: LibraryUpdateComicResul
     summary.totalCount += 1
     if (result.status === 'updated') {
       summary.updatedCount += 1
-      summary.newChapterCount += Math.max(result.newChapterCount - result.previousChapterCount, 0)
+      const added = result.addedChapterCount
+      summary.newChapterCount += added !== undefined && Number.isFinite(added) && added >= 0
+        ? Math.floor(added)
+        : Math.max(result.newChapterCount - result.previousChapterCount, 0)
     } else if (result.status === 'unchanged') {
       summary.unchangedCount += 1
     } else if (result.status === 'skipped') {
@@ -607,8 +614,9 @@ export class LibraryUpdateService {
       const remoteChapters = await this.fetchSourceRuntimeChapters(lookup.entry, mangaId, comic.sourcePath)
       const remoteIds = remoteChapters.map((chapter: MangaChapterItem): string => chapter.id)
       const localIds = comic.chapters.map((chapter: Chapter): string => chapter.id)
-      const hasNewId = remoteIds.some((chapterId: string): boolean => !localIds.includes(chapterId))
-      if (!hasNewId) {
+      const addedChapterCount = new Set<string>(remoteIds.filter(
+        (chapterId: string): boolean => !localIds.includes(chapterId))).size
+      if (addedChapterCount === 0) {
         const metadataChanged = enrichSourceChapterMetadata(comic, remoteChapters)
         if (metadataChanged) {
           this.libraryStore.upsertComic(comic)
@@ -634,8 +642,9 @@ export class LibraryUpdateService {
         status: 'updated',
         previousChapterCount,
         newChapterCount: mergedChapters.length,
+        addedChapterCount,
         message: AppStrings.get('library_update_found_new_chapters')
-          .replace('%s', `${Math.max(mergedChapters.length - previousChapterCount, 0)}`),
+          .replace('%s', `${addedChapterCount}`),
       }
     } catch (error) {
       const e = error as Error

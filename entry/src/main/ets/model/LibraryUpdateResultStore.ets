@@ -53,6 +53,7 @@ export interface PersistedLibraryUpdateResult {
   status: LibraryUpdateResultStatus
   previousChapterCount: number
   newChapterCount: number
+  addedChapterCount?: number
   message: string
 }
 
@@ -259,6 +260,7 @@ function cloneLibraryUpdateResult(result: LibraryUpdateComicResult): LibraryUpda
     status: result.status,
     previousChapterCount: result.previousChapterCount,
     newChapterCount: result.newChapterCount,
+    addedChapterCount: result.addedChapterCount,
     message: sanitizeLibraryUpdateResultMessage(result.status, result.message),
   }
 }
@@ -272,6 +274,8 @@ function persistLibraryUpdateResult(result: LibraryUpdateComicResult): Persisted
     status: result.status,
     previousChapterCount: normalizeCount(result.previousChapterCount),
     newChapterCount: normalizeCount(result.newChapterCount),
+    addedChapterCount: result.addedChapterCount !== undefined && isNonNegativeFiniteNumber(result.addedChapterCount)
+      ? normalizeCount(result.addedChapterCount) : undefined,
     message: clampString(message, LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
   }
 }
@@ -466,6 +470,7 @@ function hydrateLibraryUpdateResult(value: Object): LibraryUpdateComicResult | u
   const status = stringField(record, 'status')
   const previousChapterCount = numberField(record, 'previousChapterCount')
   const newChapterCount = numberField(record, 'newChapterCount')
+  const addedChapterCount = numberField(record, 'addedChapterCount')
   const message = stringField(record, 'message')
   if (comicId === undefined ||
     status === undefined ||
@@ -487,6 +492,8 @@ function hydrateLibraryUpdateResult(value: Object): LibraryUpdateComicResult | u
     status: safeStatus,
     previousChapterCount: normalizeCount(previousChapterCount),
     newChapterCount: normalizeCount(newChapterCount),
+    addedChapterCount: addedChapterCount !== undefined && isNonNegativeFiniteNumber(addedChapterCount)
+      ? normalizeCount(addedChapterCount) : undefined,
     message: clampString(sanitizeLibraryUpdateResultMessage(safeStatus, message), LIBRARY_UPDATE_RESULT_MAX_MESSAGE_LENGTH),
   }
 }
