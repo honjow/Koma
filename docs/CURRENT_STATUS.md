@@ -2,12 +2,12 @@
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
-最后接续核对：2026-10-21 06:36，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
+最后接续核对：2026-10-21 08:15，Root；当前目标仍为首版开发与普通路径验收，当前用户反馈优先。下表记录实际停点，后文的旧“下一步”是证据索引，不能覆盖本表。取得结果、遇到失败或切换事项时就地更新，不等压缩或定时唤醒补写。定时提示词只负责唤醒。
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | **跨书4任务128页完成并精确清理，多书分类替换已具名闭环**。原88下载条目及偏好按内容逐项相同，2297/2297页；原网格/最近阅读/Chibi2/8/全书架分类保持。两书favorite+read_later→移动favorite后仅favorite，已读回实际持久文件，最后清除仅本轮归属恢复。10000ms/AWAKE并release。诊断2edb554a的CI39506048417 success。 | Root接续自动备份真实前台到期消费者：先核当前开关/到期/保留数量及原四备份，若会删旧备份则不执行。分类长名省略号仍待原人类答复，未应用；新设备动作须重新target/租约/醒屏。 |
-| 源 / koma_source_delivery / 237 | **Noy013限定修复已同步5360c4b；HTTP200/auth_required，正文未通过**。Terra现图原样，小槽仍OPEN；新两白字透明横标不采用；ASM准确首页首次403停止。当前source owner接咚漫cn.dongmanmanhua.koma014旧空列表后继：普通每日连载1317本/首六封面、原书11章已显示。 | 同一普通《如出一辙的女儿》沿原进度第1话2/176核正文，完成后恢复实际进度/原49顺序与10000ms。列表/目录不计正文通过；不回用图标拒稿，不改App槽/圆角。 |
+| App / Root / 197 | 下载暂停/恢复本轮具名闭环：01呼吸34/43暂停稳定、02心跳0/50未起；普通继续后两章43/43及50/50完成。准确确认仅删本轮两章，原88条全部字段及偏好相同、2297/2297；原网格/最近阅读/Chibi继续阅读保持，10000ms/AWAKE并release c33aa70b。备份/封面后继见下条。 | Root接续阅读设置实际消费者：核自动翻页的普通启动/停止与原进度恢复，先读当前模式/原页和既有验收边界，不重跑已闭双击/翻页。源线429只限制该执行者；当前私库仅Kavita且缺服务，不盲请求或造数据。 |
+| 源 / koma_source_delivery / 237 | 咚漫014每日连载1317本/第1话真实2/176与原读档保持；漫画柜013热门42本/235章/第23卷真实1→3/230已具名亲审。四份原记录已提交同步1dbffba。源owner恢复后转微漫画/創漫官方资源调查，但又429超限；237现无租约。 | 429解除后接续同owner的未闭图标/已知失败，不重跑具名通过路径；不请求已403的ASM、不回用Terra白字拒稿。原封面首卡占位保留原因未定，本次重进可见不称已修。 |
 
 **未完成队列（不能因上表局部完成而丢弃）**
 
@@ -32,6 +32,12 @@
 - **本轮多书分类替换（Root/197）：** 精确Chibi/虫笼原分类均无；普通加入favorite和read_later后两书均有两标签、持久文件均同二ID。再普通“移动到收藏”，两书只余favorite，read_later实际移除；最后仅对这两书清除本轮归属，现有全部作品分类字段逐项恢复原值，原进度/网格/最近阅读及首三书亲看保持。10000ms/AWAKE读回并release。首次把加入后快速重选当连续路径，实际误入虫笼详情，未冒加入稍后成功；Back后按真实UI/文件确认仅favorite，再完成上述路径，失败原件保留。本条接受替换与持久文件结果，未重跑cold或注入失败。原件categorymove197-{two-memberships-001,recover-current-state-001,two-memberships-002,replaced-favorite-001,original-restored-001}。
 
 - **Noy失败原码现已定位（诊断完成，源内容仍未修）：** 原App只保留泛化source_runtime，本轮两文件仅增加安全token、HTTP状态和数值平台码日志；没有URL/正文/异常原文。实际transport回调离线执行确认200/403/network_error封套保持、非法请求不联网且日志无敏感标记；Debug构建成功，Hvigor自动签名HAP16223299B/06:04:34。旧sign.py仅签名尝试因旧材料路径缺失退出，未改安全/签名材料，未使用它安装；实际237安装的是上述当前自动签名包，明确成功。一次普通Noy入口06:08:05 get_listings→06:08:06.783 HTTP405→06:08:06.888 error=client_error，Root亲审noy012-diagnostic-single-entry237-001/run-metadata.json。首编译因局部errorCode同名失败，改局部变量名后通过；失败未触设备。不把日志修补或HTTP非403当源可用，源owner继续核真实公开请求合同。
+
+- **自动备份自然到期前台闭环（Root/197）：** 原关闭/每天/保留5，原四文件保留。普通开启后Home再返回App，日志auto_started reason=due→export_json→local_export→auto_export，生成1792537900263，管理显示20MB/未加密与新运行时间。恢复关闭，仅准确文件确认删除本轮生成物，原四文件名逐项相同；10000ms/AWAKE并release。页面返回计数短暂5后稳定4，现存onShown刷新有效，曾过早猜测刷新缺陷已撤回，未打补丁。证据沿reader-failure-retry/autobackup197-{foreground-due,due-result,files-and-setting-restored,return-settled,session-restored}-001。只闭自然到期前台生成，不冒恢复写入/全后台调度。
+
+- **漫画柜首卡占位诊断（Root/237）：** 原manhuagui013-popular237-001首卡占位保留；同合同单次Host准确URI200/13888B仅证明该宿主请求成功。07:27普通Browse再入现装013，热门42本首屏六张含鬼灭均可见，当前有界日志仅列表HTTP200，未捕获首次HTTP/解码失败码。原因未定、未改代码/素材/缓存，不由Host成功认定App缺陷，也不把重进成功称修复。原图manhuagui-cover237-terminal-001，已返回原Browse末端并读回10000ms/AWAKE释放9bd7807e。
+
+- **下载暂停/恢复限定闭环（Root/197）：** 原88条全downloaded/2297页、并发1/isPaused=false/wifiOnly=false。原序言组曲只将01呼吸/02心跳两章入队，启动实际1/43及0/50；普通暂停后在途页完成至34/43、partial/paused，后续约50秒仍34/43且第二章0/50未起。普通继续后先43/43、再第二章50/50，最终90章2390/2390。只经两个准确章节名称确认框删除本轮两项，原88条全部字段及偏好按内容比较相同；原网格/最近阅读/继续阅读卡恢复，10000ms/AWAKE读回并release c33aa70b。证据沿reader-failure-retry/downloadpause197-{queued,started,paused,paused-stable,resumed,completion,completed,own-heartbeat-delete-confirm,own-breath-delete-confirm,original-queue-restored,original-shelf-restored}-001。恢复瞬间持久队列曾0/0，随即布局仅转场空树，未取得对应可见归零，不能据此判UI缺陷或擅改；首次错误文件名/第二次cat截断与两次过早读未完成回执均保留，后使用原已验证cp/file-recv取得完整JSON，不计算哈希。只闭这两章的当前前台暂停/恢复/清理，不冒暂停跨cold或逐页不重取证据。
 
 ## 当前能力的证据边界（2026-10-21）
 
