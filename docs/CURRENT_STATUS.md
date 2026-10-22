@@ -1,13 +1,13 @@
 # Koma 当前状态、缺口与执行基线
 
-## 当前新增：日志与预发布 CI（2026-10-22 / Root）
+## 日志与预发布 CI：已交付（2026-10-22 / Root）
 
-- 用户明确要求完善日志系统并参考 NextE；tag 以 pre 结尾发布为 prerelease。原日志为分散 console，原 CI 仅分支构建/上传，没有 tag 发布入口。允许新增诊断设置入口及日志控制/导出，沿用现有设置页父树和行组件，不改其他界面。
-- 正在实现：脱敏后写 HiLog/500条内存缓冲/有界持久文件，开关及级别持久化、历史日志与分享导出；关键生命周期、源请求、下载、备份恢复、阅读故障接入。避免记录书名、URL、路径、凭据、原始 ID 和报文，不引入哈希。
-- CI：tag 构建复用现有 Release 检查，再发布 HAP/构建清单；仅 endsWith(ref_name, 'pre') 为预发布，预发布不抢 latest。未创建 tag 或发布新版本。
-- 已运行：实际生产类内存测试覆盖完整Cookie/认证头/多类凭据/URL/路径/截长、开关/级别、500条缓冲、单文件512KB分卷/总量2MB预留、磁盘失败回退与历史恢复；5项通过（含原失败分类测试）。三语键集、YAML解析、diff检查及签名Release构建通过。197已普通设置→关于→诊断日志，时间标记与系统保存选择器已实际操作；原始画面在忽略目录diagnostics/installed-001。
-- 原有return_to_detail测试在当前HEAD仍引用已不存在的readerHostActions方法（HEAD已用hostActionDispatch），属于既存测试失配，不改产品迁就旧测试、不冒称全测试通过。
-- 未完成：197完成保存文件读回、开关/级别重开保持，最终包覆盖安装；范围提交推送并跟进精确 CI。Owner=Root；私库继续 PARKED_USER，旧具名通过路径不重跑。
+- 按当前人类要求参考NextE：统一脱敏后写HiLog/500条内存缓冲/持久文件；本地最多12份、14天、总2MB，单份512KB轮转；磁盘失败回退内存。关键生命周期、源请求、下载、备份恢复和阅读故障已接入，不记录书名、请求正文、凭据、私有地址或书/章ID，不引入哈希。
+- 普通入口为“设置→关于→诊断日志”：开关和级别持久化、时间标记、历史日志、分享及保存TXT；沿用原设置父树/行组件，三语已齐。代码eb160c0a已SSH推送master，精确CI39801582422为success；Release构建、HAP检查与上传均通过。
+- CI增加所有tag触发；仅endsWith(ref_name, 'pre')标记prerelease且不占latest，其他tag正式发布。真实workflow解析及5组后缀用例通过；本次为分支事件，发布任务实际skipped，没有打tag或实际发布新版本。
+- 5项针对性运行检查、三语及diff检查通过。原return_to_detail测试仍引用HEAD早已不存在的readerHostActions，属于既存失配，未声称全测试通过，也未改产品迁就旧测试。
+- 最终签名Release为0.1.1/code2/8375382B/debug=false，197明确覆盖安装并force-stop冷启动；关闭/WARN保持、启动0条及历史日志保留已亲看，之后恢复开启/INFO。持久原日志432B含标记与保存成功事件；系统分享实际TXT已接收159B，含新标记。系统URI保存已执行，但两条shell下载路径未读到目标，不能冒称外部保存文件已直接读回。原件在忽略目录`user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/`。
+- 最终书架Chibi第2页25%保持；按本轮首次实时读回恢复无override/系统120000ms，性能模式保持，自有截图scratch已清，535f0199已释租。两项已关闭；四私库仍PARKED_USER，旧具名通过路径不重跑。
 
 ## 实时执行位置（2026-10-21，当前唯一接续入口）
 
@@ -17,7 +17,7 @@
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 普通Shared宿主已接入；本轮Release0.1.1/code2/8307106B/debug=false已明确覆盖安装。继续阅读/历史/本地/未收藏源及进度、前后章、按书设置已有具名证据；详情重入崩溃已定位修复，源与本地同路径均通过。下载管理已完成Chibi章节开书→Shared真实第2/8页→Back回列表也已补验；终态书架Chibi第2页25%已亲看。 | 普通Shared接入44a86da1已按当前人类批准同步master，精确CI39789257199已success（固定Kit检出、Release编译、HAP检查及上传均通过）；当前首版普通Shared交付条件已具名闭合，签名包见下方路径。人类确认197原本就是性能模式，明确保留；原10000ms超时已读回，本轮46163ca8租约已释放。四私库仍PARKED_USER。 |
+| App / Root / 197 | 普通Shared宿主已接入；当前日志版eb160c0a的Release0.1.1/code2/8375382B/debug=false已明确覆盖安装；普通Shared旧验收边界保持。继续阅读/历史/本地/未收藏源及进度、前后章、按书设置已有具名证据；详情重入崩溃已定位修复，源与本地同路径均通过。下载管理已完成Chibi章节开书→Shared真实第2/8页→Back回列表也已补验；终态书架Chibi第2页25%已亲看。 | 普通Shared接入44a86da1已按当前人类批准同步master，精确CI39789257199已success（固定Kit检出、Release编译、HAP检查及上传均通过）；当前首版普通Shared交付条件已具名闭合，签名包见下方路径。后继日志版eb160c0a及CI39801582422已完成（见顶部）；197性能模式保留，本轮真实原超时为系统120000ms且无override，已恢复并释放535f0199。四私库仍PARKED_USER。 |
 | 源 / source_delivery_cleanup + Root / 237 | MyComic012与漫画1234 013保主体去旧底板/阴影已范围提交ddf7fae并SSH同步。237普通导入、管理/Browse四原图Root亲审；60→61仅新增MyComic，原60相对顺序及enabled保持。传包清理、原10000ms及Browse锚点已恢复、e2f3b60f已释租。 | 精确CI39793217139 attempt2已确认completed/success/head=ddf7fae，固定latest/index HTTP200且85项，两准确版本新包HTTP200及manifest/source.wasm/icon三成员均由Root独立复核。验收说明5e4a597已[skip ci]同步源master，工作区干净；本轮图标交付闭合。原attempt1取消及官方结果延迟边界保留，不按旧queued子任务重跑或改CI。四私库仍PARKED_USER。 |
 
 - **图标候选批准与Terra后继纠正（2026-10-22，三源实机及远端交付完成）：** 人类先批准`source-icons-four-proposals.png`四项，后明确Terra固定白底保原黑色，取代中灰/透明/描边候选；Terra原512px白底黑字017保持，237深色管理/Browse两原图Root已亲看清楚。HComic012完整原鲨鱼去英文、漫画社015黄漫/棕气泡独立几何标、漫画160012原红字上下两行均已普通picker安装/更新；三源浅色管理/Browse整图Root已亲看，App槽/圆角/顺序及业务请求未改。原件`category-membership/three-icons-package237-001`。真实registry59→60，仅新增HComic，原相对顺序及其他完整entry保持；漫画社014→015与160011→012仅预期包引用/版本字段变化。最终恢复原跟随系统及喵趣漫画Browse组，仅删除本轮三份本人传包并确认ABSENT；`three-icons-final-restored237-001`读回10000ms/AWAKE/koma0焦点208，049f4940租约已释放，所有产物哈希关闭。首深色选择因MenuItem/子Text同名、恢复原组时误用“喵趣”而非“喵趣漫画”的导航失败保留，未据其改产品。三源19文件3fda006已范围提交并同步源master，CI39722753351全部编译/metadata/封包/原子发布success。公开latest/index85项，HComic012/漫画社015/160012包及独立图标均HTTP200，三成员及精确ID/版本成立；本机首次把相对pkg当完整URL的解析失败后按实际合同修正，未据此改产品。原漫画社ASSET_SOURCES及喵趣NOTICE两WIP不纳入。
