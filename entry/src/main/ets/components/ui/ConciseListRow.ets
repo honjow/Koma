@@ -348,6 +348,7 @@ export struct ConciseListRow {
       case 'com.manhuagui.koma@0.1.3':
         return 1.1
       case 'com.nnhanman.zh.koma@0.1.1':
+      case 'com.nnhanman.zh.koma@0.1.2':
         return 1.3
       case 'com.guazimanhua.koma@0.1.3':
         return 1.2
