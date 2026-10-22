@@ -26,6 +26,7 @@ const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
 const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
 const SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME: string = 'source-index-icon-cache'
 const SOURCE_INDEX_ICON_CACHE_MAX_BYTES: number = 16 * 1024 * 1024
+const SOURCE_INDEX_ICON_FETCH_CONCURRENCY: number = 4
 
 interface SourceIndexHttpUrl {
   origin: string
@@ -577,12 +578,22 @@ export class SourceIndexService {
           if (safeResolveIndexAssetUrl(normalizedUrl, entry.icon).length === 0) {
             return { ok: false, reasonCode: 'invalid_icon', entries: [] }
           }
-          const iconUri = await this.cachedIconUriFor(normalizedUrl, entry)
-          if (iconUri.length > 0) {
-            entries.push(entryWithCachedIcon(entry, iconUri))
-            continue
-          }
           entries.push(entry)
+        }
+      }
+      // Fetch independent icons together without changing the index order or validation.
+      for (let offset = 0; offset < entries.length; offset += SOURCE_INDEX_ICON_FETCH_CONCURRENCY) {
+        const end = Math.min(offset + SOURCE_INDEX_ICON_FETCH_CONCURRENCY, entries.length)
+        const pending: Promise<string>[] = []
+        for (let index = offset; index < end; index += 1) {
+          pending.push(this.cachedIconUriFor(normalizedUrl, entries[index]))
+        }
+        const iconUris = await Promise.all(pending)
+        for (let index = 0; index < iconUris.length; index += 1) {
+          const iconUri = iconUris[index]
+          if (iconUri.length > 0) {
+            entries[offset + index] = entryWithCachedIcon(entries[offset + index], iconUri)
+          }
         }
       }
       console.info('[SourceIndex] step=fetch_ok count=' + entries.length)
