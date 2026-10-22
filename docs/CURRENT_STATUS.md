@@ -1,11 +1,14 @@
 # Koma 当前状态、缺口与执行基线
 
-## 0.1.2-pre 发布：日志已确认，提交与CI进行中（2026-10-23 / Root）
+## 0.1.2-pre：预发布已完成（2026-10-23 / Root）
 
-- 当前人类已明确接受删除开场句后的两条功能概述及测试不足说明，并授权“提交推送并打 v0.1.2-pre tag，然后跟进 CI 和预发布结果”。日志确认门槛已满足；本轮按该精确版本提交/推送/打tag并核CI与Release，正文保持已确认原文。
-- 源码版本入口AppScope/root/entry同步0.1.2-pre，versionCode由2递增3；已确认正文为`changelog/v0.1.2.md`。原0.1.1未发布草稿保持，日志索引已指向新候选。设备仍是前一轮0.1.1/code2包，不能称新版已构建或安装。
+- 当前人类已明确接受删除开场句后的两条功能概述及测试不足说明，并授权“提交推送并打 v0.1.2-pre tag，然后跟进 CI 和预发布结果”。日志确认门槛已满足；本轮已按该精确版本提交/推送/打tag并核CI与Release，正文保持已确认原文。
+- 源码版本入口AppScope/root/entry同步0.1.2-pre，versionCode由2递增3；已确认正文为`changelog/v0.1.2.md`。原0.1.1未发布草稿保持，日志索引已指向本次正文。新版CI Release已构建并发布；设备仍是前一轮0.1.1/code2包，不能称新版已实机安装。
 - 版本相关必要兼容：096730b1引入的宿主最低版本检查只认纯数字，直接改-pre会误拒源包安装/恢复/冷重载/索引安装。仅在共用宿主检查中识别当前-pre后缀；按版本先后允许满足较低数字最低版本，不满足同数字正式版或更高最低版本。源包最低版本字段仍严格三段数字，不放宽原格式、不改源/UI/缓存/持久合同。生产方法24例检查通过，覆盖旧缺陷复现、预发布/正式版本先后、非法值与bundle读取失败；源包最低版本格式保持不变，未新增脚本。
-- `python3 scripts/check_release_notes.py --tag v0.1.2-pre`及diff检查通过，7文件精确范围已复核，无无关WIP。远端master=8cc8e1a8，目标tag与Release均不存在。owner为Root；下一动作是提交并同步master、跟进精确构建后创建/推送v0.1.2-pre，再确认tag CI、prerelease=true、日志正文及版本附件。设备未操作，四私库搁置及其他条件项保持。
+- `python3 scripts/check_release_notes.py --tag v0.1.2-pre`及diff检查通过，7文件范围已审并提交4bf22c66b7a00d5dfa804fa7c4fdd1a64ff34903，master推送成功。本笔分支CI39828487326与tag CI39829003869均completed/success，后者Release构建及Publish tagged Release两job均通过。注释tag v0.1.2-pre已推送，远端peeled目标实读同一4bf22c66。GitHub https://github.com/honjow/Koma/releases/tag/v0.1.2-pre 实读prerelease=true/draft=false，发布时间2026-10-23 02:13:41（Asia/Shanghai），body与批准日志全文一致。
+
+
+- 两公开附件均HTTP200且uploaded：`Koma_0.1.2-pre_ohos-release-unsigned.hap` 8252181B、`build-manifest.json` 327B。Root在内存读取manifest与HAP module.json，确认commit4bf22c66、0.1.2-pre/code3/com.honjow.koma/release/debug=false、signed=false及两必需arm64库存在；未计算哈希、未落下载副本。当前发布任务已完成，tag未移动；owner Root只收尾这份记录及远端同步，不把CI或包检查扩大为新版设备验收。四私库搁置与其余具体条件项保持。
 
 ## 自研 K 应用图标与首屏 Logo（2026-10-23 / Root）
 
@@ -867,18 +870,18 @@
 {
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
-  "state": "0.1.2-pre日志已确认，发布执行中",
-  "outcome": "普通Shared、日志/发布日志、封面与K图标已交付；本轮Protectors/SciTech首篇具名闭合。最新Release已197安装并恢复，未正式打tag发布，不冒全85源正文可用。",
-  "updatedAt": "2026-10-23T02:06:11+08:00",
+  "state": "v0.1.2-pre已预发布，CI与资产核对完成",
+  "outcome": "版本提交4bf22c66与v0.1.2-pre tag已同步；分支/tag两CI成功，Release非草稿且prerelease=true、正文相同、0.1.2-pre/code3未签名HAP已公开。设备仍是前轮0.1.1/code2，不冒新版设备验收。",
+  "updatedAt": "2026-10-23T02:15:31+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "PRERELEASE_PUBLISHING",
+  "activeId": "PRERELEASE_PUBLISHED",
   "activity": {
-    "title": "v0.1.2-pre提交与预发布",
-    "detail": "用户已确认日志并明确授权提交/推送/tag及CI跟进；版本校验和最低版本生产方法24例已通过，开始发布执行。",
+    "title": "v0.1.2-pre预发布结果已核对",
+    "detail": "tag CI39829003869已success；Release正文及两个公开附件已读回，HAP版本/code/Release/debug标记成立，现收尾既有工作单同步。",
     "startedAt": "2026-10-23T02:06:11+08:00",
-    "updatedAt": "2026-10-23T02:06:11+08:00"
+    "updatedAt": "2026-10-23T02:15:31+08:00"
   },
-  "nextAction": "提交同步0.1.2-pre/code3，跟进精确构建并创建/推送v0.1.2-pre；必须核tag CI与预发布结果，不以提交或tag推送代替完成。",
+  "nextAction": "本次发布目标已完成；新反馈或真实条件变化仅接续对应项，四私库仍按用户决定搁置。",
   "proof": [
     {
       "label": "正式主仓",
@@ -894,9 +897,9 @@
     },
     {
       "label": "远端同步",
-      "state": "两仓当前主分支已同步",
+      "state": "版本与tag已同步，CI和预发布成功",
       "kind": "accepted",
-      "detail": "Koma代码3a75c9a9精确CI39824362291成功；源master fb5245d仅后继验收材料，[skip ci]；最新生产源精确CI已按顶部结果冻结。"
+      "detail": "版本4bf22c66与v0.1.2-pre已同步；分支CI39828487326/tag CI39829003869均success，Release正文/资产已核。源master fb5245d保持。"
     },
     {
       "label": "共享阅读器",
@@ -921,8 +924,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "3a75c9a9",
-      "hap": ".hermes-artifacts/release/0.1.1-2-3a75c9a9/Koma-0.1.1-2-3a75c9a9-default-release-signed.hap；0.1.1/code2/release/debug=false/8361988B；197已安装。"
+      "appHead": "4bf22c66",
+      "hap": "公开v0.1.2-pre/code3未签名Release：8252181B；197仍为前轮已安装0.1.1/code2/8361988B，固定本地包保持，不能混称新版设备通过。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -966,10 +969,10 @@
     {
       "id": "SYNC",
       "title": "现有主分支远端同步",
-      "status": "已同步且CI成功",
+      "status": "版本/tag/CI/预发布均已完成",
       "kind": "accepted",
-      "result": "Koma代码3a75c9a9精确CI39824362291成功，源master fb5245d后继材料已同步。",
-      "remaining": "本轮签名日用包已197安装；未打tag或正式发布。",
+      "result": "4bf22c66分支CI39828487326及tag CI39829003869均success；v0.1.2-pre为非草稿预发布，两附件公开可读且正文相同。",
+      "remaining": "本次发布目标已闭；新版尚未设备安装，不扩大实际验收范围。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -1158,9 +1161,9 @@
     }
   ],
   "releaseGates": [
-    "人类已确认日志并授权提交推送和v0.1.2-pre tag；本次确认门已满足。",
-    "必须完成精确CI及GitHub prerelease结果核对；未完成不以push成功关闭任务。",
-    "四私库PARKED_USER及具名源/自然场景条件边界保持；不冒新版已实机安装。"
+    "用户确认日志后的提交/推送/v0.1.2-pre tag及CI/预发布核对均已完成。",
+    "公开HAP为0.1.2-pre/code3未签名Release；设备仍0.1.1/code2，未冒新版安装或全功能通过。",
+    "四私库PARKED_USER及具名源/自然场景条件边界保持。"
   ],
   "stopRule": "局部验收、提交、清理或写状态不是首版完成；继续安全且已授权的实际动作，具体分支缺条件不扩大为全局停止。",
   "evidence": [
