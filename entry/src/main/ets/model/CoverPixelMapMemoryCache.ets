@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
 
 // This cache only holds decoded library-cover thumbnails for the current app
@@ -203,7 +204,7 @@ export class CoverPixelMapMemoryCache {
     try {
       await entry.pixelMap.release()
     } catch (_error) {
-      console.warn('[CoverPixelMapCache] step=release_failed')
+      DiagnosticLogger.warn('cover_pixel_map_memory_cache', 'release_failed', '[CoverPixelMapCache] step=release_failed')
     }
   }
 }

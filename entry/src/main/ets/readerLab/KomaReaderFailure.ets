@@ -11,7 +11,7 @@ export class KomaReaderFailure {
 
   static from(error: Error): ReaderAssetFailure {
     DiagnosticLogger.warn('reader', 'page_unavailable',
-      error.message === 'koma_reader_source_chapter_unsupported' ? 'reason=chapter_unsupported' : 'reason=page_unavailable')
+      DiagnosticLogger.errorSummary(error))
     return new ReaderAssetFailure('pageUnavailable',
       KomaReaderFailure.catalogMessage(error) || AppStrings.get('reader_page_load_failed'))
   }

@@ -25,11 +25,12 @@ function runtime() {
     if (name === '@kit.CoreFileKit') return { fileIo: io, fileUri: { getUriFromPath: value => 'file://' + value } }
     if (name === '@kit.PerformanceAnalysisKit') return { hilog: new Proxy({}, { get: () => (...args) => emitted.push(args) }) }
     if (name === '@kit.AbilityKit') return {}
+    if (name === './NativeSourceRuntime') return { NativeSourceRuntime: {} }
     const key = path.basename(name)
     if (modules.has(key)) return modules.get(key)
     const exports = {}
     modules.set(key, exports)
-    vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, key + '.ets'), 'utf8'), {
+    vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, key === 'SourceRuntimeRunner' ? '../sourceRuntime/SourceRuntimeRunner.ets' : key + '.ets'), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     }).outputText, { exports, require: load, Date, console, Map })
     return exports
@@ -96,4 +97,64 @@ test('disk failure leaves memory diagnostics usable, and clearing memory retains
   log.warn('app','disk_test','memory_survives')
   assert.ok(log.exportBufferedText().includes('memory_survives'))
   assert.ok(log.exportText().includes('memory_survives'))
+})
+
+
+test('errors preserve platform code, known cause and code frames without arbitrary messages or identities', () => {
+  const { DiagnosticsRedactor: redactor } = runtime().load('DiagnosticsRedactor')
+  const error = Object.assign(new Error('secretTitle token=secretToken'), { code: 2300028 })
+  error.stack = 'Error: secretTitle\n    at fetch (/data/storage/el2/secretTitle:1:2)\n    at load (ReaderPage.ets:42:5)'
+  const summary = redactor.errorSummary(error)
+  assert.match(summary, /code=2300028 reason=unclassified/)
+  assert.match(summary, /ReaderPage.ets:42:5/)
+  assert.equal(summary.includes('secret'), false)
+  assert.match(redactor.errorSummary(new Error('reader_remote_image_http_403')), /reason=reader_remote_image_http_403/)
+  assert.match(redactor.errorSummary(new Error('koma_reader_source_chapter_unsupported')), /reason=koma_reader_source_chapter_unsupported/)
+  const message = redactor.sanitizeString('comic=privateComic chapter=privateChapter uri=privateUri count=3')
+  assert.equal(message.includes('private'), false)
+  assert.match(message, /count=3/)
+})
+
+test('interleaved operations keep unique identities, context, duration and exactly one terminal event', () => {
+  const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
+  log.initializePersistentSink({ filesDir: '/sandbox' })
+  const first = log.begin('source', 'request', 'source=com.first')
+  const second = log.begin('source', 'request', 'source=com.second')
+  second.finish('completed', 'count=4')
+  first.fail(Object.assign(new Error('privateMessage'), { code: 2300028 }))
+  first.finish('completed', 'should_not_appear')
+  const lines = log.exportBufferedText().split('\n').filter(line => line.includes('source.request.'))
+  assert.equal(lines.length, 4)
+  const ids = lines.map(line => line.match(/op=([^ ]+)/)[1])
+  assert.notEqual(ids[0], ids[1])
+  assert.equal(ids[0], ids[3])
+  assert.equal(ids[1], ids[2])
+  assert.match(lines[3], /source=com.first.*status=failed durationMs=\d+.*code=2300028/)
+  assert.equal(lines.join('').includes('privateMessage'), false)
+  assert.equal(log.exportText().includes('should_not_appear'), false)
+  log.configure(true, 'warn')
+  log.begin('download', 'chapter', 'pages=2').finish('partial', 'reason=page_fetch_failed')
+  assert.match(log.exportBufferedText(), /pages=2.*status=partial.*reason=page_fetch_failed/)
+})
+
+
+test('ordinary source operation logging preserves responses and thrown objects without request content', async () => {
+  const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
+  const { diagnoseSourceOperation: run } = r.load('SourceRuntimeRunner')
+  log.initializePersistentSink({ filesDir: '/sandbox' })
+  const request = JSON.stringify({ sourceId: 'com.fixture', operation: 'get_manga',
+    args: { mangaId: 'secretWork', query: 'secretQuery' }, settings: { token: 'secretToken' } })
+  const response = '{"ok":true,"data":{"items":[{"title":"secretTitle"}]}}'
+  assert.equal(await run(request, async () => response), response)
+  const failed = '{"ok":false,"error":{"code":"network_error","message":"secretBody"}}'
+  assert.equal(await run(request, async () => failed), failed)
+  assert.equal(await run(request, async () => 'invalid response'), 'invalid response')
+  const original = Object.assign(new Error('secretThrown'), { code: 2300028 })
+  await assert.rejects(run(request, async () => { throw original }), error => error === original)
+  const text = log.exportText()
+  assert.equal(text.includes('secret'), false)
+  assert.match(text, /source=com.fixture operation=get_manga.*status=completed/)
+  assert.match(text, /reason=network_error/)
+  assert.match(text, /reason=source_response_invalid_json/)
+  assert.match(text, /code=2300028/)
 })

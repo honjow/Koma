@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
@@ -77,7 +78,7 @@ export struct LibraryUpdateResultPage {
         this.loadPersistedSummary(effectiveJob)
       })
       .catch((_error: Error) => {
-        console.warn('[LibraryUpdateResults] step=load_job_failed code=library_update_job_load_failed')
+        DiagnosticLogger.warn('library_update_result_page', 'load_job_failed', '[LibraryUpdateResults] step=load_job_failed code=library_update_job_load_failed')
         this.loadPersistedSummary(latestJob)
       })
   }
@@ -99,7 +100,7 @@ export struct LibraryUpdateResultPage {
         console.info('[LibraryUpdateResults] step=load_persisted hasSummary=' + (effectiveSummary !== undefined) + ' total=' + total)
       })
       .catch((_error: Error) => {
-        console.warn('[LibraryUpdateResults] step=load_persisted_failed code=library_update_result_load_failed')
+        DiagnosticLogger.warn('library_update_result_page', 'load_persisted_failed', '[LibraryUpdateResults] step=load_persisted_failed code=library_update_result_load_failed')
       })
   }
 

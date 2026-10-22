@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { pasteboard } from '@kit.BasicServicesKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -133,7 +134,7 @@ export struct TrackerSettingsPage {
       console.info('[TrackerSettings] step=load accounts=' + preferences.accounts.length + ' mappings=' + preferences.comicMappings.length)
     } catch (_error) {
       this.authPreparationMessageKey = 'tracker_message_load_failed'
-      console.warn('[TrackerSettings] step=load_failed reason=redacted')
+      DiagnosticLogger.warn('tracker_settings_page', 'load_failed', '[TrackerSettings] step=load_failed reason=redacted')
     } finally {
       this.loading = false
       this.loadInFlight = false
@@ -418,7 +419,7 @@ export struct TrackerSettingsPage {
         }
       })
       .catch((_error: Error) => {
-        console.warn('[TrackerSettings] step=account_refresh_failed reason=redacted')
+        DiagnosticLogger.warn('tracker_settings_page', 'account_refresh_failed', '[TrackerSettings] step=account_refresh_failed reason=redacted')
         this.showToast(s('tracker_refresh_failed'))
       })
       .finally(() => {
@@ -518,7 +519,7 @@ export struct TrackerSettingsPage {
       })
       .catch((_error: Error) => {
         this.pendingSummary = summarizeTrackerPendingProgress([])
-        console.warn('[TrackerSync] step=settings_pending_load_failed reason=redacted')
+        DiagnosticLogger.warn('tracker_settings_page', 'settings_pending_load_failed', '[TrackerSync] step=settings_pending_load_failed reason=redacted')
       })
   }
 
@@ -546,7 +547,7 @@ export struct TrackerSettingsPage {
         this.loadPendingProgressSummary()
       })
       .catch((_error: Error) => {
-        console.warn('[TrackerSync] step=settings_pending_retry_failed reason=redacted')
+        DiagnosticLogger.warn('tracker_settings_page', 'settings_pending_retry_failed', '[TrackerSync] step=settings_pending_retry_failed reason=redacted')
         this.showToast(s('tracker_pending_retry_failed'))
       })
       .finally(() => {
@@ -588,7 +589,7 @@ export struct TrackerSettingsPage {
         this.loadPendingProgressSummary()
       })
       .catch((_error: Error) => {
-        console.warn('[TrackerSync] step=settings_pending_clear_failed reason=redacted')
+        DiagnosticLogger.warn('tracker_settings_page', 'settings_pending_clear_failed', '[TrackerSync] step=settings_pending_clear_failed reason=redacted')
         this.showToast(s('tracker_pending_clear_failed'))
       })
       .finally(() => {

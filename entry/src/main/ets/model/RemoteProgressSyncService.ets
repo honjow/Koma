@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import {
   Chapter,
@@ -148,7 +149,7 @@ export class RemoteProgressSyncService {
       return progress
     } catch (error) {
       void error
-      console.warn('[KomgaSync] step=pull_fail page=0 code=remote_progress_pull_failed')
+      DiagnosticLogger.warn('remote_progress_sync_service', 'pull_fail', '[KomgaSync] step=pull_fail page=0 code=remote_progress_pull_failed')
       return undefined
     }
   }
@@ -178,14 +179,14 @@ export class RemoteProgressSyncService {
       const store = new RemoteServerStore(this.context)
       const record = await store.loadKomga()
       if (record === undefined || !pending.progress.chapterId.startsWith(`komga:${record.server.id}:book:`)) {
-        console.warn(`[KomgaSync] step=push_fail page=${page} code=server_unavailable`)
+        DiagnosticLogger.warn('remote_progress_sync_service', 'push_fail', `[KomgaSync] step=push_fail page=${page} code=server_unavailable`)
         return
       }
       await store.createKomgaClient(record).patchBookReadProgress(pending.bookId, page, pending.progress.completed)
       console.info(`[KomgaSync] step=push_ok page=${page}`)
     } catch (error) {
       void error
-      console.warn(`[KomgaSync] step=push_fail page=${page} code=remote_progress_push_failed`)
+      DiagnosticLogger.warn('remote_progress_sync_service', 'push_fail', `[KomgaSync] step=push_fail page=${page} code=remote_progress_push_failed`)
     }
   }
 
@@ -239,7 +240,7 @@ export class RemoteProgressSyncService {
       return progress
     } catch (error) {
       void error
-      console.warn('[KavitaSync] step=pull_fail page=0 code=remote_progress_pull_failed')
+      DiagnosticLogger.warn('remote_progress_sync_service', 'pull_fail', '[KavitaSync] step=pull_fail page=0 code=remote_progress_pull_failed')
       return undefined
     }
   }
@@ -269,7 +270,7 @@ export class RemoteProgressSyncService {
       const store = new RemoteServerStore(this.context)
       const record = await store.loadKavita()
       if (record === undefined || !pending.progress.chapterId.startsWith(`kavita:${record.server.id}:chapter:`)) {
-        console.warn(`[KavitaSync] step=push_fail page=${page} code=server_unavailable`)
+        DiagnosticLogger.warn('remote_progress_sync_service', 'push_fail', `[KavitaSync] step=push_fail page=${page} code=server_unavailable`)
         return
       }
       const client = store.createKavitaClient(record)
@@ -278,7 +279,7 @@ export class RemoteProgressSyncService {
       console.info(`[KavitaSync] step=push_ok page=${page}`)
     } catch (error) {
       void error
-      console.warn(`[KavitaSync] step=push_fail page=${page} code=remote_progress_push_failed`)
+      DiagnosticLogger.warn('remote_progress_sync_service', 'push_fail', `[KavitaSync] step=push_fail page=${page} code=remote_progress_push_failed`)
     }
   }
 

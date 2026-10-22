@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   NativeSourceRuntime,
   SourceRuntimeCallRequest,
@@ -142,6 +143,34 @@ export function runSourceOperationFromBytes(
   wasmBytes: Uint8Array,
 ): SourceRuntimeCallResponse {
   return NativeSourceRuntime.runJsonCallFromBytes(request, wasmBytes)
+}
+
+/** Observe on the calling runtime so ordinary TaskPool results reach the persistent sink. */
+export async function diagnoseSourceOperation(requestJson: string, execute: () => Promise<string>): Promise<string> {
+  let context = 'operation=unknown'
+  try {
+    const request = JSON.parse(requestJson) as SourceRuntimeCallRequest
+    context = 'source=' + (typeof request['sourceId'] === 'string' ? request['sourceId'] : 'unknown') +
+      ' operation=' + (typeof request['operation'] === 'string' ? request['operation'] : 'unknown')
+  } catch (_error) {
+    // Logging never changes validation or execution of the original request.
+  }
+  const trace = DiagnosticLogger.begin('source', 'operation', context)
+  try {
+    const result = await execute()
+    try {
+      const response = JSON.parse(result) as SourceRuntimeCallResponse
+      const code = response.reasonCode ?? response.error?.['code']
+      const reason = typeof code === 'string' ? DiagnosticLogger.errorSummary(new Error(code)) : 'reason=none'
+      trace.finish(response.ok === true ? 'completed' : 'failed', 'resultChars=' + result.length + ' ' + reason)
+    } catch (_error) {
+      trace.finish('failed', 'reason=source_response_invalid_json')
+    }
+    return result
+  } catch (error) {
+    trace.fail(error as Error)
+    throw error as Error
+  }
 }
 
 export function responseReachedFixture(response: SourceRuntimeCallResponse): boolean {

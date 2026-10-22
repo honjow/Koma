@@ -1,8 +1,9 @@
+import { deviceInfo } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
 import { AppearancePreferencesStore } from '../model/AppearancePreferencesStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
-import { UIAbility, Want, AbilityConstant, Configuration } from '@kit.AbilityKit'
+import { UIAbility, Want, AbilityConstant, Configuration, bundleManager } from '@kit.AbilityKit'
 import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
 import { KeyboardAvoidMode, window } from '@kit.ArkUI'
 import {
@@ -59,7 +60,12 @@ export default class EntryAbility extends UIAbility {
     // Recover before theme Preferences, installed packages, Library or Reader
     // consumers are initialized. A failed recovery never loads ordinary Index.
     await DiagnosticsSettings.restore(this.context)
-    DiagnosticLogger.info('app', 'startup', 'debug=' + this.context.applicationInfo.debug)
+    try {
+      const bundle = bundleManager.getBundleInfoForSelfSync(0)
+      DiagnosticLogger.info('app', 'startup', 'version=' + bundle.versionName + ' versionCode=' + bundle.versionCode +
+        ' debug=' + this.context.applicationInfo.debug + ' model=' + deviceInfo.productModel + ' sdk=' + deviceInfo.sdkApiVersion)
+      DiagnosticLogger.info('app', 'platform', 'os=' + deviceInfo.osFullName)
+    } catch (error) { DiagnosticLogger.exception('app', 'metadata_failed', error as Error) }
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
     await LanguageSettings.restore(this.context).catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')

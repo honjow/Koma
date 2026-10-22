@@ -2,7 +2,7 @@ import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
 import { taskpool } from '@kit.ArkTS'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { SourceSettingsRecord, appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 
 interface SourceChapterPage {
@@ -120,9 +120,9 @@ async function fetchSourceChapterList(
     }
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
-    const responseJson = await taskpool.execute(
+    const responseJson = await diagnoseSourceOperation(JSON.stringify(request), () => taskpool.execute(
       executeSourceChapterListOperation, JSON.stringify(request), wasmBytes,
-    ) as string
+    ) as Promise<string>)
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse
     if (response.ok !== true) {

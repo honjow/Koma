@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
@@ -61,7 +62,7 @@ export class LanguageSettings {
       try {
         i18n.System.setAppPreferredLanguage(previousMode === LanguageSettings.MODE_SYSTEM ? 'default' : previousMode)
       } catch (_rollbackError) {
-        console.warn('[Language] platform_restore_failed')
+        DiagnosticLogger.warn('language_settings', 'platform_restore_failed', '[Language] platform_restore_failed')
       }
       throw error as Error
     }
@@ -76,7 +77,7 @@ export class LanguageSettings {
         const store = await preferences.getPreferences(context, APP_PREFERENCES_STORE_NAME)
         mode = store.getSync(APP_LANGUAGE_KEY, LanguageSettings.MODE_SYSTEM) as string
       } catch (_error) {
-        console.warn('[Language] restore_failed using_system=true')
+        DiagnosticLogger.warn('language_settings', 'restore_failed', '[Language] restore_failed using_system=true')
       }
       LanguageSettings.apply(mode)
     })

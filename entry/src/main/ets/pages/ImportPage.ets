@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import {
@@ -154,7 +155,7 @@ export struct ImportPage {
       }
       console.info(`[Import] step=archive_import_finished succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[Import] step=archive_import_failed code=archive_import_failed')
+      DiagnosticLogger.error('import_page', 'archive_import_failed', '[Import] step=archive_import_failed code=archive_import_failed')
       this.feedbackText = t('import_feedback_failed_file')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
@@ -204,7 +205,7 @@ export struct ImportPage {
       }
       console.info(`[Import] step=image_import_finished succeeded=${succeededCount} failed=${failedCount}`)
     } catch (error) {
-      console.error('[Import] step=image_import_failed code=image_import_failed')
+      DiagnosticLogger.error('import_page', 'image_import_failed', '[Import] step=image_import_failed code=image_import_failed')
       this.feedbackText = t('import_feedback_failed_images')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)
@@ -248,7 +249,7 @@ export struct ImportPage {
             rejectedEntryCount += persistResult.rejectedEntryCount
           } catch (error) {
             failedCount += 1
-            console.error('[Import] step=folder_import_persist_failed code=library_persist_failed')
+            DiagnosticLogger.error('import_page', 'folder_import_persist_failed', '[Import] step=folder_import_persist_failed code=library_persist_failed')
           }
           return
         }
@@ -286,7 +287,7 @@ export struct ImportPage {
         ' rejected=' + rejectedEntryCount +
         ' failed=' + failedCount)
     } catch (error) {
-      console.error('[Import] step=folder_import_failed code=folder_import_failed')
+      DiagnosticLogger.error('import_page', 'folder_import_failed', '[Import] step=folder_import_failed code=folder_import_failed')
       this.feedbackText = t('import_feedback_folder_unavailable')
     } finally {
       this.localImportCoordinator.setDebugSink(undefined)

@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -120,7 +121,7 @@ export struct WebDavBrowsePage {
       void error
       if (pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return
       this.errorText = s('common_load_failed')
-      console.error('[WebDAV] step=load_initial_failed code=webdav_initial_load_failed')
+      DiagnosticLogger.error('web_dav_browse_page', 'load_initial_failed', '[WebDAV] step=load_initial_failed code=webdav_initial_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && directoryEpoch === this.directoryEpoch) this.loading = false
     }
@@ -153,7 +154,7 @@ export struct WebDavBrowsePage {
       void error
       if (pageEpoch !== this.pageEpoch || directoryEpoch !== this.directoryEpoch) return false
       this.errorText = s('common_load_failed')
-      console.error('[WebDAV] step=propfind_failed code=webdav_propfind_failed')
+      DiagnosticLogger.error('web_dav_browse_page', 'propfind_failed', '[WebDAV] step=propfind_failed code=webdav_propfind_failed')
       return false
     } finally {
       if (pageEpoch === this.pageEpoch && directoryEpoch === this.directoryEpoch) this.loading = false
@@ -343,7 +344,7 @@ export struct WebDavBrowsePage {
       void error
       this.errorText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=webdav_add_failed code=webdav_add_failed')
+      DiagnosticLogger.error('web_dav_browse_page', 'webdav_add_failed', '[Favorite] step=webdav_add_failed code=webdav_add_failed')
     }
   }
 

@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common, wantAgent } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -132,7 +133,7 @@ export async function getLibraryUpdateNotificationStatus(): Promise<LibraryUpdat
     return await notificationManager.isNotificationEnabled() ? 'enabled' : 'disabled'
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn('[LibraryUpdateResultStore] step=query_library_update_notification_status_failed code=' + businessError.code)
+    DiagnosticLogger.warn('library_update_result_store', 'query_library_update_notification_status_failed', '[LibraryUpdateResultStore] step=query_library_update_notification_status_failed code=' + businessError.code)
     return 'unavailable'
   }
 }
@@ -145,7 +146,7 @@ export async function requestLibraryUpdateNotificationPermission(context: common
     await notificationManager.requestEnableNotification(context)
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn('[LibraryUpdateResultStore] step=request_library_update_notification_permission_failed code=' + businessError.code)
+    DiagnosticLogger.warn('library_update_result_store', 'request_library_update_notification_permission_failed', '[LibraryUpdateResultStore] step=request_library_update_notification_permission_failed code=' + businessError.code)
   }
   return getLibraryUpdateNotificationStatus()
 }
@@ -389,7 +390,7 @@ async function publishLibraryUpdateNotificationText(
     return { delivered: true, code: 'delivered' }
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn('[LibraryUpdateResultStore] step=publish_library_update_notification_failed code=' + businessError.code)
+    DiagnosticLogger.warn('library_update_result_store', 'publish_library_update_notification_failed', '[LibraryUpdateResultStore] step=publish_library_update_notification_failed code=' + businessError.code)
     return { delivered: false, code: 'publish_failed' }
   }
 }

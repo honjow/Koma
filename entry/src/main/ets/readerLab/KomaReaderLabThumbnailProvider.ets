@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderAsset, ReaderCancellation } from '@reader-kit/core'
@@ -25,11 +26,11 @@ export class KomaReaderLabThumbnailProvider {
 
   private remove(directory: string, path: string): void {
     try { if (fs.accessSync(path)) fs.unlinkSync(path) } catch (_) {
-      console.warn('[KomaReaderLabThumbnail] file_cleanup_failed')
+      DiagnosticLogger.warn('koma_reader_lab_thumbnail_provider', 'file_cleanup_failed', '[KomaReaderLabThumbnail] file_cleanup_failed')
     }
     // rmdirSync is recursive on this platform: call only after an empty-directory readback.
     try { if (fs.listFileSync(directory).length === 0) fs.rmdirSync(directory) } catch (_) {
-      console.warn('[KomaReaderLabThumbnail] directory_cleanup_failed')
+      DiagnosticLogger.warn('koma_reader_lab_thumbnail_provider', 'directory_cleanup_failed', '[KomaReaderLabThumbnail] directory_cleanup_failed')
     }
   }
 

@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -339,7 +340,7 @@ export struct HistoryPage {
       this.getUIContext().getPromptAction().showToast({ message: s('reader_progress_save_failed') })
     } catch (_error) {
     }
-    console.warn('[History] step=remove_failed reason=persistence')
+    DiagnosticLogger.warn('history_page', 'remove_failed', '[History] step=remove_failed reason=persistence')
   }
 
   private confirmClearHistory(): void {

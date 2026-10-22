@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { LengthMetrics, window } from '@kit.ArkUI'
@@ -344,7 +345,7 @@ struct ReaderImageSurface {
     } catch (error) {
       if (!this.disposed && run === this.generation) {
         const message = error instanceof Error ? error.message : String(error)
-        console.warn(`[ReaderImage] step=resolve_failed page=${this.pageIndex + 1} reason=${message}`)
+        DiagnosticLogger.warn('reader_page', 'resolve_failed', `[ReaderImage] step=resolve_failed page=${this.pageIndex + 1} reason=${message}`)
         this.failed = true
         this.onFailed(this.pageIndex)
       }
@@ -752,7 +753,7 @@ struct ReaderImageSurface {
     this.loading = false
     this.failed = true
     this.displayUri = ''
-    console.warn(`[ReaderImage] step=display_failed page=${this.pageIndex + 1}`)
+    DiagnosticLogger.warn('reader_page', 'display_failed', `[ReaderImage] step=display_failed page=${this.pageIndex + 1}`)
     this.onFailed(this.pageIndex)
   }
 

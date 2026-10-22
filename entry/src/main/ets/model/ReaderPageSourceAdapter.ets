@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
@@ -30,7 +31,7 @@ import { KomgaHeaders } from '../remote/KomgaClient'
 import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
-import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 
 @Concurrent
 function executeReaderSourceImageRequestOperation(requestJson: string, wasmBytes: Uint8Array): string {
@@ -158,13 +159,13 @@ export async function restoreReaderRemoteImageCache(context: common.UIAbilityCon
     saved = await new ReaderRemoteImageCachePreferencesStore(context).load()
   } catch (_error) {
     // Do not authorize cleanup under a guessed preference or block the App.
-    console.warn('[ReaderCache] step=preferences_restore_failed cleanup=false')
+    DiagnosticLogger.warn('reader_page_source_adapter', 'preferences_restore_failed', '[ReaderCache] step=preferences_restore_failed cleanup=false')
   }
   try {
     configureReaderRemoteImageCache(context.cacheDir, saved.maxBytes, saved.autoCleanEnabled)
     console.info(`[ReaderCache] step=startup_ready maxBytes=${saved.maxBytes} autoClean=${saved.autoCleanEnabled}`)
   } catch (_error) {
-    console.warn('[ReaderCache] step=cache_unavailable')
+    DiagnosticLogger.warn('reader_page_source_adapter', 'cache_unavailable', '[ReaderCache] step=cache_unavailable')
   }
 }
 
@@ -187,7 +188,7 @@ export function configureReaderRemoteImageCache(
   }
   if (readerImageCacheAutoCleanEnabled) {
     void readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes).catch((): void => {
-      console.warn('[ReaderCache] step=cleanup_failed')
+      DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
     })
   }
 }
@@ -198,7 +199,7 @@ async function maintainReaderImageCacheAfterWrite(path: string): Promise<void> {
     // Keep the just-returned image available even when one image alone exceeds the limit.
     await readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes, path)
   } catch (_error) {
-    console.warn('[ReaderCache] step=cleanup_failed')
+    DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
   }
 }
 
@@ -333,6 +334,7 @@ function isLocalFileUri(uri: string): boolean {
 }
 
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders): Promise<ArrayBuffer> {
+  const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=30000 readTimeoutMs=60000')
   const httpRequest = http.createHttp()
   try {
     const response = await httpRequest.request(url, {
@@ -344,13 +346,16 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       connectTimeout: 30000,
     })
     if (response.responseCode !== 200) {
-      console.warn(`[ReaderImage] step=http_status_failed status=${response.responseCode}`)
+      DiagnosticLogger.warn('reader_page_source_adapter', 'http_status_failed', `[ReaderImage] step=http_status_failed status=${response.responseCode}`)
+      trace.finish('failed', 'status=' + response.responseCode)
       throw new Error(`reader_remote_image_http_${response.responseCode}`)
     }
+    trace.finish('completed', 'status=' + response.responseCode + ' bytes=' + (response.result as ArrayBuffer).byteLength)
     return response.result as ArrayBuffer
   } catch (error) {
     const e = error as BusinessError
-    console.warn(`[ReaderImage] step=http_request_failed code=${e.code === undefined ? 'unknown' : e.code}`)
+    trace.fail(e)
+    DiagnosticLogger.warn('reader_page_source_adapter', 'http_request_failed', `[ReaderImage] step=http_request_failed code=${e.code === undefined ? 'unknown' : e.code}`)
     throw new Error(`reader_remote_image_fetch_failed_${e.code === undefined ? 'unknown' : e.code}`)
   } finally {
     httpRequest.destroy()
@@ -515,11 +520,11 @@ async function resolveSourceRuntimeImageRequest(
     // while the configured host HTTP bridge dispatches NetworkKit on the UI
     // runtime. Loading the NAPI module dynamically inside the worker bypassed
     // that established execution path and crashed on a ticketed image request.
-    responseJson = await taskpool.execute(
+    responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
       executeReaderSourceImageRequestOperation,
       requestJson,
       wasmBytes,
-    ) as string
+    ) as Promise<string>)
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_failed')
     return undefined
@@ -563,7 +568,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   }
   const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route)
   if (imageRequest === undefined) {
-    console.warn(`[ReaderImage] step=image_request_unavailable source=${sourceId} page=${sourceImageId}`)
+    DiagnosticLogger.warn('reader_page_source_adapter', 'image_request_unavailable', `[ReaderImage] step=image_request_unavailable source=${sourceId} kind=image_descriptor`)
     return fetchAndCacheReaderRemoteImage(uri)
   }
   const cacheHeaders = imageRequest.headers

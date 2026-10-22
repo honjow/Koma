@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
@@ -273,10 +274,10 @@ export struct BrowsePage {
       this.kavitaConfigured = false
       this.opdsConfigured = false
       this.webDavConfigured = false
-      console.error('[Komga] step=browse_availability_failed code=availability_load_failed')
-      console.error('[Kavita] step=browse_availability_failed code=availability_load_failed')
-      console.error('[OPDS] step=browse_availability_failed code=availability_load_failed')
-      console.error('[WebDAV] step=browse_availability_failed code=availability_load_failed')
+      DiagnosticLogger.error('browse_page', 'browse_availability_failed', '[Komga] step=browse_availability_failed code=availability_load_failed')
+      DiagnosticLogger.error('browse_page', 'browse_availability_failed', '[Kavita] step=browse_availability_failed code=availability_load_failed')
+      DiagnosticLogger.error('browse_page', 'browse_availability_failed', '[OPDS] step=browse_availability_failed code=availability_load_failed')
+      DiagnosticLogger.error('browse_page', 'browse_availability_failed', '[WebDAV] step=browse_availability_failed code=availability_load_failed')
     }
   }
 

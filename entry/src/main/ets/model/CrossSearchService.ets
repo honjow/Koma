@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import {
   Chapter,
@@ -159,7 +160,7 @@ export class CrossSearchService {
     if (!isCrossSearchQueryMeaningful(normalizedQuery)) {
       return []
     }
-    console.info(`[Search] step=query_start length=${normalizedQuery.length}`)
+    const trace = DiagnosticLogger.begin('search', 'query', 'length=' + normalizedQuery.length + ' filter=' + sourceFilter)
     const tasks: Promise<SourceSearchOutcome>[] = []
     if (this.sourceMatchesFilter('local', sourceFilter)) {
       tasks.push(this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')))
@@ -211,9 +212,11 @@ export class CrossSearchService {
         return outcome
       })
     })
-    const outcomes = await Promise.all(reportedTasks)
+    let outcomes: SourceSearchOutcome[]
+    try { outcomes = await Promise.all(reportedTasks) }
+    catch (error) { trace.fail(error as Error); throw error as Error }
     const sections = outcomes.map((outcome: SourceSearchOutcome): CrossSearchSection => outcome.section)
-    console.info(`[Search] step=query_done sections=${sections.length}`)
+    trace.finish('completed', 'sections=' + sections.length + ' results=' + sections.reduce((sum: number, section: CrossSearchSection) => sum + section.resultCount, 0))
     return sections
   }
 
@@ -302,7 +305,7 @@ export class CrossSearchService {
       throw new Error(AppStrings.get('search_webdav_no_images'))
     }
     this.installWebDavReaderSession(record, client, pathSegments, item.title, images, item.webDavIsCollection !== true)
-    console.info(`[Search] step=open_webdav_reader pages=${images.length}`)
+    DiagnosticLogger.info('search', 'open_webdav_reader', `[Search] step=open_webdav_reader pages=${images.length}`)
     return true
   }
 
@@ -323,7 +326,7 @@ export class CrossSearchService {
           localComicId: comic.id,
         }
       }))
-    console.info(`[Search] step=local_done count=${items.length}`)
+    DiagnosticLogger.info('search', 'local_done', `[Search] step=local_done count=${items.length}`)
     return { section: this.section('local', AppStrings.get('tab_library'), 'local', items) }
   }
 
@@ -367,12 +370,12 @@ export class CrossSearchService {
           komgaSeriesId: series.id,
         }
       }))
-      console.info(`[Search] step=komga_done count=${items.length}`)
+      DiagnosticLogger.info('search', 'komga_done', `[Search] step=komga_done count=${items.length}`)
       return { section: this.section('komga', AppStrings.get('route_komga_title'), 'komga', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
-      console.error('[Search] step=komga_failed code=' + diagnostic.code)
+      DiagnosticLogger.error('cross_search_service', 'komga_failed', '[Search] step=komga_failed code=' + diagnostic.code)
       return { section: this.errorSection('komga', AppStrings.get('route_komga_title'), 'komga', diagnostic) }
     }
   }
@@ -406,12 +409,12 @@ export class CrossSearchService {
         })
       })
       const items = this.sortSearchResultItems(query, matchedItems)
-      console.info(`[Search] step=kavita_done candidates=${matches.length} count=${items.length}`)
+      DiagnosticLogger.info('search', 'kavita_done', `[Search] step=kavita_done candidates=${matches.length} count=${items.length}`)
       return { section: this.section('kavita', AppStrings.get('route_kavita_title'), 'kavita', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
-      console.error('[Search] step=kavita_failed code=' + diagnostic.code)
+      DiagnosticLogger.error('cross_search_service', 'kavita_failed', '[Search] step=kavita_failed code=' + diagnostic.code)
       return { section: this.errorSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', diagnostic) }
     }
   }
@@ -444,12 +447,12 @@ export class CrossSearchService {
         if (run.cancelled) throw new Error('search_cancelled')
         catalog = await client.fetchCatalog(url)
       }
-      console.info(`[Search] step=opds_done count=${items.length}`)
+      DiagnosticLogger.info('search', 'opds_done', `[Search] step=opds_done count=${items.length}`)
       return { section: this.section('opds', AppStrings.get('route_opds_title'), 'opds', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
-      console.error('[Search] step=opds_failed code=' + diagnostic.code)
+      DiagnosticLogger.error('cross_search_service', 'opds_failed', '[Search] step=opds_failed code=' + diagnostic.code)
       return { section: this.errorSection('opds', AppStrings.get('route_opds_title'), 'opds', diagnostic) }
     }
   }
@@ -477,7 +480,7 @@ export class CrossSearchService {
       return { section: this.webDavSearchSection(query, run) }
     } catch (error) {
       run.diagnostic = safeSearchDiagnostic(error as Error)
-      console.error('[Search] step=webdav_failed code=' + run.diagnostic.code)
+      DiagnosticLogger.error('cross_search_service', 'webdav_failed', '[Search] step=webdav_failed code=' + run.diagnostic.code)
       return { section: this.webDavSearchSection(query, run) }
     }
   }
@@ -512,7 +515,7 @@ export class CrossSearchService {
         this.section('webdav', AppStrings.get('route_webdav_title'), 'webdav', items)
     section.items = items
     section.resultCount = items.length
-    console.info(`[Search] step=webdav_done count=${items.length} state=${section.state}`)
+    DiagnosticLogger.info('search', 'webdav_done', `[Search] step=webdav_done count=${items.length} state=${section.state}`)
     return section
   }
 
@@ -539,12 +542,12 @@ export class CrossSearchService {
           sourceMangaUrl: manga.url,
         }
       })).slice(0, SOURCE_PAGE_SIZE)
-      console.info(`[Search] step=wasm_done source=${source.sourceId} count=${items.length}`)
+      DiagnosticLogger.info('search', 'wasm_done', `[Search] step=wasm_done source=${source.sourceId} count=${items.length}`)
       return { section: this.section(`wasm:${source.sourceId}`, source.displayName, 'wasm', items) }
     } catch (error) {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
-      console.error(`[Search] step=wasm_failed source=${source.sourceId} code=${diagnostic.code}`)
+      DiagnosticLogger.error('cross_search_service', 'wasm_failed', `[Search] step=wasm_failed source=${source.sourceId} code=${diagnostic.code}`)
       return { section: this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', diagnostic) }
     }
   }
@@ -583,12 +586,13 @@ export class CrossSearchService {
         this.ensureWebDavSearchActive(run)
         const diagnostic = safeSearchDiagnostic(error as Error)
         if (run.diagnostic === undefined) run.diagnostic = diagnostic
-        console.error('[Search] step=webdav_child_scan_failed code=' + diagnostic.code)
+        DiagnosticLogger.error('cross_search_service', 'webdav_child_scan_failed', '[Search] step=webdav_child_scan_failed code=' + diagnostic.code)
       }
     }
   }
 
   private async withTimeout(task: Promise<SourceSearchOutcome>, fallback: CrossSearchSection, onTimeout: (() => CrossSearchSection) | undefined = undefined): Promise<SourceSearchOutcome> {
+    const trace = DiagnosticLogger.begin('search', 'section', 'kind=' + fallback.sourceKind + ' timeoutMs=' + SEARCH_TIMEOUT_MS)
     return new Promise<SourceSearchOutcome>((resolve) => {
       let done = false
       const timer = setTimeout(() => {
@@ -596,7 +600,8 @@ export class CrossSearchService {
           return
         }
         done = true
-        console.error(`[Search] step=source_timeout source=${fallback.id}`)
+        trace.finish('timeout')
+        DiagnosticLogger.error('cross_search_service', 'source_timeout', `[Search] step=source_timeout source=${fallback.id}`)
         resolve({
           section: onTimeout === undefined ? this.timeoutSection(fallback.id, fallback.title, fallback.sourceKind) : onTimeout(),
         })
@@ -607,6 +612,7 @@ export class CrossSearchService {
         }
         done = true
         clearTimeout(timer)
+        trace.finish('completed', 'state=' + value.section.state + ' count=' + value.section.resultCount + ' code=' + value.section.diagnosticCode)
         resolve(value)
       }).catch((error: Error) => {
         if (done) {
@@ -614,6 +620,7 @@ export class CrossSearchService {
         }
         done = true
         clearTimeout(timer)
+        trace.fail(error)
         resolve({
           section: this.errorSection(fallback.id, fallback.title, fallback.sourceKind, safeSearchDiagnostic(error)),
         })

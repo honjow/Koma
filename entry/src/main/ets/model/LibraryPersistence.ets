@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import {
   Chapter,
@@ -705,7 +706,13 @@ export class LibraryStorePersistenceService {
   }
 
   persist(): void {
-    this.adapter.save(serializeLibraryStore(this.libraryStore))
+    try {
+      this.adapter.save(serializeLibraryStore(this.libraryStore))
+      DiagnosticLogger.debug('persistence', 'library_saved', 'saved=true')
+    } catch (error) {
+      DiagnosticLogger.exception('persistence', 'library_save_failed', error as Error)
+      throw error as Error
+    }
   }
 }
 

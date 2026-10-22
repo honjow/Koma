@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
@@ -307,7 +308,7 @@ export class HarmonyHttpAdapter implements KomgaHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[Komga] step=http_error code=${e.code}`)
+      DiagnosticLogger.error('remote_server_store', 'http_error', `[Komga] step=http_error code=${e.code}`)
       throw new Error(`komga_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
@@ -337,7 +338,7 @@ export class KavitaHarmonyHttpAdapter implements KavitaHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[Kavita] step=http_error code=${e.code}`)
+      DiagnosticLogger.error('remote_server_store', 'http_error', `[Kavita] step=http_error code=${e.code}`)
       throw new Error(`kavita_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
@@ -369,7 +370,7 @@ export class WebDavHarmonyHttpAdapter implements WebDavHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[WebDAV] step=http_error method=${request.method} code=${e.code}`)
+      DiagnosticLogger.error('remote_server_store', 'http_error', `[WebDAV] step=http_error method=${request.method} code=${e.code}`)
       throw new Error(`webdav_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
@@ -402,7 +403,7 @@ export class OpdsHarmonyHttpAdapter implements OpdsHttpAdapter {
       }
     } catch (error) {
       const e = error as BusinessError
-      console.error(`[OPDS] step=http_error code=${e.code}`)
+      DiagnosticLogger.error('remote_server_store', 'http_error', `[OPDS] step=http_error code=${e.code}`)
       throw new Error(`opds_http_error_${e.code}`)
     } finally {
       httpRequest.destroy()
@@ -997,7 +998,7 @@ export class RemoteServerStore {
       await this.commitStoredState(store, kind, legacyKey, credentialRef, legacyPayload, [])
       console.info(`[RemoteServerStore] step=credential_migrated provider=${kind}`)
     } catch (error) {
-      console.warn(`[RemoteServerStore] step=credential_migration_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      DiagnosticLogger.warn('remote_server_store', 'credential_migration_failed', `[RemoteServerStore] step=credential_migration_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
     }
     return legacyPayload
   }
@@ -1060,7 +1061,7 @@ export class RemoteServerStore {
         restoreFailed = true
       }
       if (restoreFailed) {
-        console.error(`[RemoteServerStore] step=state_restore_failed provider=${kind}`)
+        DiagnosticLogger.error('remote_server_store', 'state_restore_failed', `[RemoteServerStore] step=state_restore_failed provider=${kind}`)
         throw new Error('remote_server_state_restore_failed')
       }
       throw error as Error
@@ -1095,7 +1096,7 @@ export class RemoteServerStore {
     try {
       await asset.add(attributes)
     } catch (error) {
-      console.warn(`[RemoteServerStore] step=credential_write_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      DiagnosticLogger.warn('remote_server_store', 'credential_write_failed', `[RemoteServerStore] step=credential_write_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
       throw new Error('remote_server_credential_write_failed')
     }
   }
@@ -1119,7 +1120,7 @@ export class RemoteServerStore {
       return remoteCredentialUtf8Decode(secret)
     } catch (error) {
       if ((error as BusinessError).code === 24000002) return undefined
-      console.warn(`[RemoteServerStore] step=credential_read_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      DiagnosticLogger.warn('remote_server_store', 'credential_read_failed', `[RemoteServerStore] step=credential_read_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
       throw new Error('remote_server_credential_read_failed')
     }
   }
@@ -1129,7 +1130,7 @@ export class RemoteServerStore {
       await asset.remove(remoteCredentialAssetIdentity(kind, credentialRef))
     } catch (error) {
       if ((error as BusinessError).code === 24000002) return
-      console.warn(`[RemoteServerStore] step=credential_delete_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
+      DiagnosticLogger.warn('remote_server_store', 'credential_delete_failed', `[RemoteServerStore] step=credential_delete_failed provider=${kind} code=${remoteCredentialFailureCode(error as Object)}`)
       throw new Error('remote_server_credential_delete_failed')
     }
   }

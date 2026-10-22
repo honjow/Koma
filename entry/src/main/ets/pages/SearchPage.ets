@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
@@ -220,7 +221,7 @@ export struct SearchPage {
       this.sections = []
       const diagnostic = safeSearchDiagnostic(e)
       this.feedbackText = diagnostic.userText
-      console.error('[Search] step=ui_search_failed code=' + diagnostic.code)
+      DiagnosticLogger.error('search_page', 'ui_search_failed', '[Search] step=ui_search_failed code=' + diagnostic.code)
     } finally {
       if (this.ownsRoute(routeEpoch) && serial === this.searchSerial) {
         this.loading = false
@@ -250,7 +251,7 @@ export struct SearchPage {
         return
       }
       this.historyLoadState = SearchHistoryLoadState.FAILED
-      console.error('[Search] step=history_load_failed code=' + safeSearchDiagnostic(error).code)
+      DiagnosticLogger.error('search_page', 'history_load_failed', '[Search] step=history_load_failed code=' + safeSearchDiagnostic(error).code)
     })
   }
 
@@ -312,7 +313,7 @@ export struct SearchPage {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
         return
       }
-      console.error('[Search] step=' + step + '_failed code=' + safeSearchDiagnostic(error).code)
+      DiagnosticLogger.error('search_page', 'step', '[Search] step=' + step + '_failed code=' + safeSearchDiagnostic(error).code)
       this.loadHistory()
     })
   }
@@ -340,7 +341,7 @@ export struct SearchPage {
         if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
           return
         }
-        console.error('[Search] step=source_filter_load_failed code=' + safeSearchDiagnostic(error).code)
+        DiagnosticLogger.error('search_page', 'source_filter_load_failed', '[Search] step=source_filter_load_failed code=' + safeSearchDiagnostic(error).code)
       })
       .finally(() => {
         if (!this.ownsRoute(routeEpoch)) {
@@ -477,7 +478,7 @@ export struct SearchPage {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
         return
       }
-      console.error('[Search] step=source_filter_save_failed code=' + safeSearchDiagnostic(error).code)
+      DiagnosticLogger.error('search_page', 'source_filter_save_failed', '[Search] step=source_filter_save_failed code=' + safeSearchDiagnostic(error).code)
       try {
         const committed = await store.loadSourceFilter()
         if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.sourceFilterMutationEpoch) {
@@ -489,7 +490,7 @@ export struct SearchPage {
           this.runImmediateQuery(this.queryText)
         }
       } catch (readError) {
-        console.error('[Search] step=source_filter_reload_failed code=' + safeSearchDiagnostic(readError as Error).code)
+        DiagnosticLogger.error('search_page', 'source_filter_reload_failed', '[Search] step=source_filter_reload_failed code=' + safeSearchDiagnostic(readError as Error).code)
       }
     })
   }
@@ -552,7 +553,7 @@ export struct SearchPage {
         const e = error as Error
         const diagnostic = safeSearchDiagnostic(e)
         this.feedbackText = diagnostic.userText
-        console.error('[Search] step=open_webdav_failed code=' + diagnostic.code)
+        DiagnosticLogger.error('search_page', 'open_webdav_failed', '[Search] step=open_webdav_failed code=' + diagnostic.code)
       }
     }
   }

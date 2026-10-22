@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -121,7 +122,7 @@ export struct KomgaSeriesPage {
       void error
       if (pageEpoch !== this.pageEpoch) return
       this.errorText = s('common_load_failed')
-      console.error('[Komga] step=load_initial_failed code=komga_initial_load_failed')
+      DiagnosticLogger.error('komga_series_page', 'load_initial_failed', '[Komga] step=load_initial_failed code=komga_initial_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch) this.loading = false
     }
@@ -172,7 +173,7 @@ export struct KomgaSeriesPage {
       void error
       if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.errorText = s('common_load_failed')
-      console.error('[Komga] step=load_series_failed code=komga_series_load_failed')
+      DiagnosticLogger.error('komga_series_page', 'load_series_failed', '[Komga] step=load_series_failed code=komga_series_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch) this.loadingMore = false
     }
@@ -200,7 +201,7 @@ export struct KomgaSeriesPage {
       void error
       if (pageEpoch !== this.pageEpoch || booksEpoch !== this.booksEpoch) return false
       this.errorText = s('common_load_failed')
-      console.error('[Komga] step=load_books_failed code=komga_books_load_failed')
+      DiagnosticLogger.error('komga_series_page', 'load_books_failed', '[Komga] step=load_books_failed code=komga_books_load_failed')
       return false
     }
   }
@@ -272,7 +273,7 @@ export struct KomgaSeriesPage {
       void error
       if (pageEpoch !== this.pageEpoch || readerEpoch !== this.readerEpoch) return
       this.errorText = s('common_load_failed')
-      console.error('[Komga] step=open_book_failed code=komga_book_open_failed')
+      DiagnosticLogger.error('komga_series_page', 'open_book_failed', '[Komga] step=open_book_failed code=komga_book_open_failed')
     }
   }
 
@@ -337,7 +338,7 @@ export struct KomgaSeriesPage {
       void error
       if (pageEpoch === this.pageEpoch && booksEpoch === this.booksEpoch) this.errorText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=komga_add_failed code=komga_add_failed')
+      DiagnosticLogger.error('komga_series_page', 'komga_add_failed', '[Favorite] step=komga_add_failed code=komga_add_failed')
     }
   }
 

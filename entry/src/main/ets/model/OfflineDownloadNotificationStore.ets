@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common, wantAgent } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { notificationManager } from '@kit.NotificationKit'
@@ -53,7 +54,7 @@ export async function getOfflineDownloadNotificationStatus(): Promise<OfflineDow
     return await notificationManager.isNotificationEnabled() ? 'enabled' : 'disabled'
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn('[OfflineDownloadNotificationStore] step=query_download_notification_status_failed code=' + businessError.code)
+    DiagnosticLogger.warn('offline_download_notification_store', 'query_download_notification_status_failed', '[OfflineDownloadNotificationStore] step=query_download_notification_status_failed code=' + businessError.code)
     return 'unavailable'
   }
 }
@@ -66,7 +67,7 @@ export async function requestOfflineDownloadNotificationPermission(context: comm
     await notificationManager.requestEnableNotification(context)
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn('[OfflineDownloadNotificationStore] step=request_download_notification_permission_failed code=' + businessError.code)
+    DiagnosticLogger.warn('offline_download_notification_store', 'request_download_notification_permission_failed', '[OfflineDownloadNotificationStore] step=request_download_notification_permission_failed code=' + businessError.code)
   }
   return getOfflineDownloadNotificationStatus()
 }
@@ -134,7 +135,7 @@ async function publishOfflineDownloadNotificationText(
     return { delivered: true, code: 'delivered' }
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn('[OfflineDownloadNotificationStore] step=publish_download_notification_failed code=' + businessError.code)
+    DiagnosticLogger.warn('offline_download_notification_store', 'publish_download_notification_failed', '[OfflineDownloadNotificationStore] step=publish_download_notification_failed code=' + businessError.code)
     return { delivered: false, code: 'publish_failed' }
   }
 }

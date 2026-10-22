@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
 import { appReaderSessionStore } from './ReaderSessionStore'
 import { Comic } from './ComicModels'
@@ -63,7 +64,7 @@ export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): P
   const active = inFlight
   const activeReason = inFlightReason
   if (active !== undefined) {
-    console.info('[LibraryUpdateCoordinator] step=admission reason=' + request.reason + ' status=joined')
+    DiagnosticLogger.info('library_update', 'admission', '[LibraryUpdateCoordinator] step=admission reason=' + request.reason + ' status=joined')
     if (request.reason === 'manual') {
       return active.then((result: LibraryUpdateCheckResult): Promise<LibraryUpdateCheckResult> | LibraryUpdateCheckResult => {
         // A due admission may finish without checking anything. It must not consume a manual request.
@@ -81,7 +82,7 @@ export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): P
     BackupRestoreActivity.runWrite(() => runLibraryUpdateCheck(request)))
     .then((result: LibraryUpdateCheckResult): LibraryUpdateCheckResult => {
       ran = result.status === 'completed' || result.status === 'failed'
-      console.info('[LibraryUpdateCoordinator] step=' + (ran ? 'check_done' : 'admission') +
+      DiagnosticLogger.info('library_update', 'step', '[LibraryUpdateCoordinator] step=' + (ran ? 'check_done' : 'admission') +
         ' reason=' + request.reason + ' status=' + result.status)
       return result
     })
@@ -108,7 +109,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     result.preferences = await mutateLibraryUpdatePreferences(() => preferencesStore.load(true))
   } catch (_error) {
     result.persistenceFailed = true
-    console.warn('[LibraryUpdateCoordinator] step=preferences_load_failed')
+    DiagnosticLogger.warn('library_update_coordinator', 'preferences_load_failed', '[LibraryUpdateCoordinator] step=preferences_load_failed')
     if (request.reason === 'due') {
       return result
     }
@@ -127,7 +128,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
 
   LibraryUpdateStateBridge.setBusy(true)
   const startedAt = Date.now()
-  console.info('[LibraryUpdateCoordinator] step=check_started reason=' + request.reason)
+  DiagnosticLogger.info('library_update', 'check_started', '[LibraryUpdateCoordinator] step=check_started reason=' + request.reason)
   const running = createLibraryUpdateJobSnapshot('running', startedAt, undefined, undefined, undefined, startedAt)
   setLatestLibraryUpdateJobSnapshot(running)
   try {
@@ -135,7 +136,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     await resultStore.saveJobSnapshot(running)
   } catch (_error) {
     result.persistenceFailed = true
-    console.warn('[LibraryUpdateCoordinator] step=running_save_failed')
+    DiagnosticLogger.warn('library_update_coordinator', 'running_save_failed', '[LibraryUpdateCoordinator] step=running_save_failed')
   }
 
   let summary: LibraryUpdateSummary
@@ -158,7 +159,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
       } catch (_saveError) {
         result.persistenceFailed = true
         result.preferences = undefined
-        console.warn('[LibraryUpdateCoordinator] step=failure_preferences_save_failed')
+        DiagnosticLogger.warn('library_update_coordinator', 'failure_preferences_save_failed', '[LibraryUpdateCoordinator] step=failure_preferences_save_failed')
       }
     }
     const nextDueAt = result.preferences === undefined ? undefined : getLibraryUpdateNextDueAt(result.preferences)
@@ -169,7 +170,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
       await resultStore.saveJobSnapshot(snapshot)
     } catch (_saveError) {
       result.persistenceFailed = true
-      console.warn('[LibraryUpdateCoordinator] step=failure_result_save_failed')
+      DiagnosticLogger.warn('library_update_coordinator', 'failure_result_save_failed', '[LibraryUpdateCoordinator] step=failure_result_save_failed')
     }
     try {
       result.notification = await publishLibraryUpdateFailureNotification(checkedAt, failureCode)
@@ -191,7 +192,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     } catch (_error) {
       result.persistenceFailed = true
       result.preferences = undefined
-      console.warn('[LibraryUpdateCoordinator] step=summary_preferences_save_failed')
+      DiagnosticLogger.warn('library_update_coordinator', 'summary_preferences_save_failed', '[LibraryUpdateCoordinator] step=summary_preferences_save_failed')
     }
   }
   const nextDueAt = result.preferences === undefined ? undefined : getLibraryUpdateNextDueAt(result.preferences)
@@ -201,7 +202,7 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     await resultStore.save(summary, snapshot)
   } catch (_error) {
     result.persistenceFailed = true
-    console.warn('[LibraryUpdateCoordinator] step=summary_result_save_failed')
+    DiagnosticLogger.warn('library_update_coordinator', 'summary_result_save_failed', '[LibraryUpdateCoordinator] step=summary_result_save_failed')
   }
   try {
     result.notification = await publishLibraryUpdateNotification(summary)

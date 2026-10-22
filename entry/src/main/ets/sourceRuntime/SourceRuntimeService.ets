@@ -527,14 +527,20 @@ function registeredSourceResponse(
 export function runRegisteredSourceRequestById(
   registry: SourceRuntimeRegistry, sourceId: string, requestJson: string,
 ): SourceRuntimeServiceRunRequestByIdSummary {
+  const trace = DiagnosticLogger.begin('source', 'request', 'source=' + sourceId)
   const admission = admitRegisteredSourceRequest(registry, sourceId, requestJson)
-  if (admission.failure !== undefined) return admission.failure
+  if (admission.failure !== undefined) { trace.finish('rejected', 'reason=' + admission.failure.reasonCode); return admission.failure }
   if (admission.entry === undefined) {
+    trace.finish('rejected', 'reason=missing_source')
     return { ok: false, sourceId, sourceCount: admission.sourceCount, reasonCode: 'missing_source',
       responseOk: false, attemptedWamrExecution: false }
   }
-  const response = runSourceOperationFromBytes(requestJson, admission.entry.wasmBytes)
-  return registeredSourceResponse(admission, admission.entry.sourceId, response)
+  try {
+    const response = runSourceOperationFromBytes(requestJson, admission.entry.wasmBytes)
+    const result = registeredSourceResponse(admission, admission.entry.sourceId, response)
+    trace.finish(result.ok ? 'completed' : 'failed', 'operation=' + admission.operation + ' reason=' + (result.reasonCode ?? 'none'))
+    return result
+  } catch (error) { trace.fail(error as Error); throw error as Error }
 }
 
 @Concurrent
@@ -545,15 +551,16 @@ function executeRegisteredSourceRequest(requestJson: string, wasmBytes: Uint8Arr
 export async function runRegisteredSourceRequestByIdAsync(
   registry: SourceRuntimeRegistry, sourceId: string, requestJson: string,
 ): Promise<SourceRuntimeServiceRunRequestByIdSummary> {
+  const trace = DiagnosticLogger.begin('source', 'request', 'source=' + sourceId)
   const admission = admitRegisteredSourceRequest(registry, sourceId, requestJson)
-  if (admission.failure !== undefined) return admission.failure
+  if (admission.failure !== undefined) { trace.finish('rejected', 'reason=' + admission.failure.reasonCode); return admission.failure }
   const entry = admission.entry
   if (entry === undefined) {
+    trace.finish('rejected', 'reason=missing_source')
     return { ok: false, sourceId, sourceCount: admission.sourceCount, reasonCode: 'missing_source',
       responseOk: false, attemptedWamrExecution: false }
   }
-  const started = Date.now()
-  DiagnosticLogger.info('source', admission.operation ?? 'request', 'started=true')
+  trace.info('admitted', 'operation=' + admission.operation)
   const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
   wasmBytes.set(entry.wasmBytes)
   try {
@@ -563,12 +570,15 @@ export async function runRegisteredSourceRequestByIdAsync(
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     const current = registry.lookup(sourceId).entry
     if (current !== entry || !sourceRuntimeEntryEnabled(entry)) {
+      trace.finish('cancelled', 'reason=source_changed')
       return { ok: false, sourceId, operation: admission.operation, sourceCount: admission.sourceCount,
         reasonCode: 'source_changed', responseOk: false, attemptedWamrExecution: true }
     }
-    DiagnosticLogger.debug('source', admission.operation ?? 'request', 'durationMs=' + (Date.now() - started))
-    return registeredSourceResponse(admission, entry.sourceId, response)
+    const result = registeredSourceResponse(admission, entry.sourceId, response)
+    trace.finish(result.ok ? 'completed' : 'failed', 'operation=' + admission.operation + ' reason=' + (result.reasonCode ?? 'none'))
+    return result
   } catch (_error) {
+    trace.fail(_error as Error)
     DiagnosticLogger.warn('source', admission.operation ?? 'request', 'reason=source_worker_failed')
     return { ok: false, sourceId, operation: admission.operation, sourceCount: admission.sourceCount,
       reasonCode: 'source_worker_failed', responseOk: false, attemptedWamrExecution: true }

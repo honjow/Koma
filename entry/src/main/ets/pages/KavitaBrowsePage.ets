@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -125,7 +126,7 @@ export struct KavitaBrowsePage {
       if (pageEpoch !== this.pageEpoch) return
       this.errorKey = 'kavita_browse_load_failed'
       this.libraries = []
-      console.error('[Kavita] step=load_libraries_failed code=kavita_libraries_load_failed')
+      DiagnosticLogger.error('kavita_browse_page', 'load_libraries_failed', '[Kavita] step=load_libraries_failed code=kavita_libraries_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch) this.loading = false
     }
@@ -213,7 +214,7 @@ export struct KavitaBrowsePage {
       if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
       this.seriesErrorKey = 'kavita_series_load_failed'
       this.series = []
-      console.error('[Kavita] step=load_series_failed code=kavita_series_load_failed')
+      DiagnosticLogger.error('kavita_browse_page', 'load_series_failed', '[Kavita] step=load_series_failed code=kavita_series_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && libraryEpoch === this.libraryEpoch) this.seriesLoading = false
     }
@@ -270,7 +271,7 @@ export struct KavitaBrowsePage {
       void error
       if (pageEpoch !== this.pageEpoch || libraryEpoch !== this.libraryEpoch) return
       this.seriesErrorKey = 'browse_error_load_more'
-      console.error('[Kavita] step=load_more_series_failed code=kavita_series_load_more_failed')
+      DiagnosticLogger.error('kavita_browse_page', 'load_more_series_failed', '[Kavita] step=load_more_series_failed code=kavita_series_load_more_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && libraryEpoch === this.libraryEpoch) this.seriesLoadingMore = false
     }
@@ -313,7 +314,7 @@ export struct KavitaBrowsePage {
       if (pageEpoch !== this.pageEpoch || seriesEpoch !== this.seriesEpoch) return
       this.volumesErrorKey = 'kavita_volumes_load_failed'
       this.volumes = []
-      console.error('[Kavita] step=load_volumes_failed code=kavita_volumes_load_failed')
+      DiagnosticLogger.error('kavita_browse_page', 'load_volumes_failed', '[Kavita] step=load_volumes_failed code=kavita_volumes_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && seriesEpoch === this.seriesEpoch) this.volumesLoading = false
     }
@@ -493,7 +494,7 @@ export struct KavitaBrowsePage {
       const comic = this.createSeriesComic(record, series, chapters)
       if (comic === undefined) {
         this.showToast(s('common_no_images_to_add'))
-        console.warn('[Favorite] step=kavita_add_failed code=kavita_no_pages')
+        DiagnosticLogger.warn('kavita_browse_page', 'kavita_add_failed', '[Favorite] step=kavita_add_failed code=kavita_no_pages')
         return
       }
       if (this.libraryPersistenceService === undefined) {
@@ -508,7 +509,7 @@ export struct KavitaBrowsePage {
     } catch (error) {
       void error
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=kavita_add_failed code=kavita_add_failed')
+      DiagnosticLogger.error('kavita_browse_page', 'kavita_add_failed', '[Favorite] step=kavita_add_failed code=kavita_add_failed')
     } finally {
       if (pageEpoch === this.pageEpoch) this.addingSelectedSeries = false
     }
@@ -531,7 +532,7 @@ export struct KavitaBrowsePage {
       const comic = this.createReaderComic(record, series, chapter, info)
       if (comic === undefined) {
         this.showToast(s('common_no_images_to_add'))
-        console.warn('[Kavita] step=open_chapter_failed code=kavita_no_pages')
+        DiagnosticLogger.warn('kavita_browse_page', 'open_chapter_failed', '[Kavita] step=open_chapter_failed code=kavita_no_pages')
         return
       }
       const saved = this.libraryStore.getComic(comic.id)
@@ -574,7 +575,7 @@ export struct KavitaBrowsePage {
       void error
       if (pageEpoch !== this.pageEpoch || readerEpoch !== this.readerEpoch) return
       this.showToast(s('kavita_chapter_open_failed'))
-      console.error('[Kavita] step=open_chapter_failed code=kavita_chapter_open_failed')
+      DiagnosticLogger.error('kavita_browse_page', 'open_chapter_failed', '[Kavita] step=open_chapter_failed code=kavita_chapter_open_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && readerEpoch === this.readerEpoch) this.openingChapterId = ''
     }

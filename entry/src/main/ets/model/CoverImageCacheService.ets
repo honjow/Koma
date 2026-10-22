@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
@@ -281,13 +282,13 @@ async function downloadCoverBytes(url: string, headers?: RemoteImageCacheHeaders
       connectTimeout: 30000,
     })
     if (response.responseCode !== 200) {
-      console.warn(`[CoverCache] step=http_status_failed status=${response.responseCode}`)
+      DiagnosticLogger.warn('cover_image_cache_service', 'http_status_failed', `[CoverCache] step=http_status_failed status=${response.responseCode}`)
       throw new Error(`cover_image_http_${response.responseCode}`)
     }
     return response.result as ArrayBuffer
   } catch (error) {
     const businessError = error as BusinessError
-    console.warn(`[CoverCache] step=http_request_failed code=${businessError.code === undefined ? 'unknown' : businessError.code}`)
+    DiagnosticLogger.warn('cover_image_cache_service', 'http_request_failed', `[CoverCache] step=http_request_failed code=${businessError.code === undefined ? 'unknown' : businessError.code}`)
     throw new Error(`cover_image_fetch_failed_${businessError.code === undefined ? 'unknown' : businessError.code}`)
   } finally {
     request.destroy()

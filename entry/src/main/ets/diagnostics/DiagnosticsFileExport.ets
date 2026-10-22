@@ -46,7 +46,7 @@ export class DiagnosticsFileExport {
         directoryKind: target.directoryKind,
       }
     } catch (error) {
-      DiagnosticLogger.warn('diagnostics', 'file_export_failed', `phase=${phase} file=${fileName} error=${(error as Error).message}`)
+      DiagnosticLogger.warn('diagnostics', 'file_export_failed', `phase=${phase} file=${fileName} ${DiagnosticLogger.errorSummary(error as Error)}`)
       throw new Error('Diagnostics file export failed')
     }
   }

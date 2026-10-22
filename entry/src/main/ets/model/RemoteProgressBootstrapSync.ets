@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { RemoteProgressSyncBridge } from '../state/RemoteProgressSyncState'
@@ -78,7 +79,7 @@ export class RemoteProgressBootstrapSync {
         return total
       } catch (error) {
         void error
-        console.warn('[BootstrapSync] step=done updated=0 synced=0 failed=1 code=bootstrap_sync_failed')
+        DiagnosticLogger.warn('remote_progress_bootstrap_sync', 'done', '[BootstrapSync] step=done updated=0 synced=0 failed=1 code=bootstrap_sync_failed')
         return { synced: 0, updated: 0, failed: 1 }
       } finally {
         RemoteProgressBootstrapSync.running = false
@@ -133,7 +134,7 @@ export class RemoteProgressBootstrapSync {
       return { synced, updated, failed }
     } catch (error) {
       void error
-      console.warn('[BootstrapSync] step=server_fail code=remote_progress_server_failed')
+      DiagnosticLogger.warn('remote_progress_bootstrap_sync', 'server_fail', '[BootstrapSync] step=server_fail code=remote_progress_server_failed')
       return { synced, updated, failed: failed + comics.length - synced }
     }
   }

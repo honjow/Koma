@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { CachedCoverImage } from '../components/CachedCoverImage'
@@ -92,7 +93,7 @@ export struct DownloadsPage {
       }
     } catch (error) {
       const e = error as Error
-      console.warn('[Downloads] step=deferred_reconcile_failed code=' + e.message)
+      DiagnosticLogger.warn('downloads_page', 'deferred_reconcile_failed', DiagnosticLogger.errorSummary(e))
     } finally {
       if (this.busyKey === 'initialize') {
         this.busyKey = ''
@@ -108,7 +109,7 @@ export struct DownloadsPage {
       this.entries = entries
       this.preferences = preferences
     } catch (_error) {
-      console.warn('[Downloads] step=load_queue_failed code=queue_read_failed')
+      DiagnosticLogger.warn('downloads_page', 'load_queue_failed', '[Downloads] step=load_queue_failed code=queue_read_failed')
     }
   }
 
@@ -446,7 +447,7 @@ export struct DownloadsPage {
         (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
           validation.status === OfflineDownloadedChapterStatus.PARTIAL)
     } catch (_error) {
-      console.warn('[Downloads] step=read_manifest_validation_failed failed=true reason=download_manifest')
+      DiagnosticLogger.warn('downloads_page', 'read_manifest_validation_failed', '[Downloads] step=read_manifest_validation_failed failed=true reason=download_manifest')
       return false
     }
   }
@@ -591,7 +592,7 @@ export struct DownloadsPage {
         ? s('downloads_status_paused') : s('downloads_toast_retried'))
     } catch (error) {
       void error
-      console.warn('[Downloads] step=retry_failed failed=true reason=download_retry')
+      DiagnosticLogger.warn('downloads_page', 'retry_failed', '[Downloads] step=retry_failed failed=true reason=download_retry')
       this.showToast(s('downloads_toast_retry_failed'))
     } finally {
       this.busyKey = ''
@@ -610,7 +611,7 @@ export struct DownloadsPage {
       })
       .catch((error: Error) => {
         void error
-        console.warn('[Downloads] step=remove_failed failed=true reason=download_remove')
+        DiagnosticLogger.warn('downloads_page', 'remove_failed', '[Downloads] step=remove_failed failed=true reason=download_remove')
         this.showToast(s('downloads_toast_remove_failed'))
       })
       .finally(() => {
@@ -663,7 +664,7 @@ export struct DownloadsPage {
       this.showToast(retried > 0 ? s('downloads_toast_retried_failed') : s('downloads_toast_no_retryable'))
     } catch (error) {
       void error
-      console.warn('[Downloads] step=batch_retry_failed failed=true reason=batch_retry')
+      DiagnosticLogger.warn('downloads_page', 'batch_retry_failed', '[Downloads] step=batch_retry_failed failed=true reason=batch_retry')
       this.showToast(s('downloads_toast_batch_retry_failed'))
     } finally {
       this.busyKey = ''
@@ -676,7 +677,7 @@ export struct DownloadsPage {
       this.loadQueue()
       this.showToast(s('downloads_toast_paused_queued'))
     } catch (_error) {
-      console.warn('[Downloads] step=pause_queue_failed code=queue_commit_failed')
+      DiagnosticLogger.warn('downloads_page', 'pause_queue_failed', '[Downloads] step=pause_queue_failed code=queue_commit_failed')
     }
   }
 
@@ -703,7 +704,7 @@ export struct DownloadsPage {
       this.showToast(started > 0 ? s('downloads_toast_started_queued') : s('downloads_toast_no_queued'))
     } catch (error) {
       void error
-      console.warn('[Downloads] step=batch_start_failed failed=true reason=batch_start')
+      DiagnosticLogger.warn('downloads_page', 'batch_start_failed', '[Downloads] step=batch_start_failed failed=true reason=batch_start')
       this.showToast(s('downloads_toast_start_failed'))
     } finally {
       this.busyKey = ''
@@ -735,7 +736,7 @@ export struct DownloadsPage {
       this.showToast(resumed > 0 ? s('downloads_toast_resumed_queued') : s('downloads_toast_no_resumable'))
     } catch (error) {
       void error
-      console.warn('[Downloads] step=batch_resume_failed failed=true reason=batch_resume')
+      DiagnosticLogger.warn('downloads_page', 'batch_resume_failed', '[Downloads] step=batch_resume_failed failed=true reason=batch_resume')
       this.showToast(s('downloads_toast_resume_failed'))
     } finally {
       this.busyKey = ''
@@ -751,7 +752,7 @@ export struct DownloadsPage {
       this.loadQueue()
     } catch (error) {
       void error
-      console.warn('[Downloads] step=save_wifi_only_failed failed=true reason=queue_preference')
+      DiagnosticLogger.warn('downloads_page', 'save_wifi_only_failed', '[Downloads] step=save_wifi_only_failed failed=true reason=queue_preference')
       this.showToast(s('settings_download_wifi_only_save_failed'))
     }
   }
@@ -780,7 +781,7 @@ export struct DownloadsPage {
       this.showToast(this.recoveryText)
     } catch (error) {
       void error
-      console.warn('[Downloads] step=rescan_failed failed=true reason=manifest_rescan')
+      DiagnosticLogger.warn('downloads_page', 'rescan_failed', '[Downloads] step=rescan_failed failed=true reason=manifest_rescan')
       this.showToast(s('downloads_toast_rescan_failed'))
     } finally {
       this.busyKey = ''
@@ -853,7 +854,7 @@ export struct DownloadsPage {
       },
     ).ensureChapterPages(comic.id, sourceId, chapterId)
     if (!result.hydrated) {
-      console.warn(`[Downloads] step=source_pages_hydrate_unavailable reason=${result.reasonCode ?? 'unknown'}`)
+      DiagnosticLogger.warn('downloads_page', 'source_pages_hydrate_unavailable', `[Downloads] step=source_pages_hydrate_unavailable reason=${result.reasonCode ?? 'unknown'}`)
     }
     return result
   }
@@ -914,7 +915,7 @@ export struct DownloadsPage {
       this.showToast(s('downloads_toast_cleanup_done'))
     } catch (error) {
       void error
-      console.warn('[Downloads] step=batch_remove_failed failed=true reason=batch_remove')
+      DiagnosticLogger.warn('downloads_page', 'batch_remove_failed', '[Downloads] step=batch_remove_failed failed=true reason=batch_remove')
       this.showToast(s('downloads_toast_cleanup_failed'))
     } finally {
       this.busyKey = ''

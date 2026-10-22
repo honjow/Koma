@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -151,7 +152,7 @@ export struct OpdsBrowsePage {
       void error
       if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.setErrorKey('common_load_failed')
-      console.error('[OPDS] step=load_initial_failed code=opds_initial_load_failed')
+      DiagnosticLogger.error('opds_browse_page', 'load_initial_failed', '[OPDS] step=load_initial_failed code=opds_initial_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch) this.loading = false
     }
@@ -188,7 +189,7 @@ export struct OpdsBrowsePage {
       void error
       if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch) return
       this.setErrorKey('common_load_failed')
-      console.error('[OPDS] step=load_catalog_failed code=opds_catalog_load_failed')
+      DiagnosticLogger.error('opds_browse_page', 'load_catalog_failed', '[OPDS] step=load_catalog_failed code=opds_catalog_load_failed')
     } finally {
       if (pageEpoch === this.pageEpoch && catalogEpoch === this.catalogEpoch) this.loading = false
     }
@@ -330,7 +331,7 @@ export struct OpdsBrowsePage {
     } catch (error) {
       void error
       if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch || publicationEpoch !== this.publicationEpoch) return
-      console.error('[OPDS] step=load_publication_manifest_failed code=opds_manifest_load_failed')
+      DiagnosticLogger.error('opds_browse_page', 'load_publication_manifest_failed', '[OPDS] step=load_publication_manifest_failed code=opds_manifest_load_failed')
     }
   }
 
@@ -502,7 +503,7 @@ export struct OpdsBrowsePage {
       void error
       this.setErrorKey('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
-      console.error('[Favorite] step=opds_add_failed code=opds_add_failed')
+      DiagnosticLogger.error('opds_browse_page', 'opds_add_failed', '[Favorite] step=opds_add_failed code=opds_add_failed')
     }
   }
 

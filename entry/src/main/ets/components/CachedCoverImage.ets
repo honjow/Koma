@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -211,7 +212,7 @@ export struct CachedCoverImage {
       }
       await this.replacePixelMap(lease, signature)
     } catch (error) {
-      console.warn('[CachedCoverImage] step=decode_failed stage=' + decodeStep +
+      DiagnosticLogger.warn('cached_cover_image', 'decode_failed', '[CachedCoverImage] step=decode_failed stage=' + decodeStep +
         ' code=' + ((error as BusinessError).code ?? 'unknown'))
       if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
         this.failedSignature = signature
@@ -222,14 +223,14 @@ export struct CachedCoverImage {
         try {
           await imageSource.release()
         } catch (_error) {
-          console.warn('[CachedCoverImage] step=image_source_release_failed')
+          DiagnosticLogger.warn('cached_cover_image', 'image_source_release_failed', '[CachedCoverImage] step=image_source_release_failed')
         }
       }
       if (sourceFile !== undefined) {
         try {
           await fs.close(sourceFile)
         } catch (_error) {
-          console.warn('[CachedCoverImage] step=source_file_close_failed')
+          DiagnosticLogger.warn('cached_cover_image', 'source_file_close_failed', '[CachedCoverImage] step=source_file_close_failed')
         }
       }
       if (!this.disposed && this.loading && this.loadingSignature === signature && this.loadingGeneration === generation) {

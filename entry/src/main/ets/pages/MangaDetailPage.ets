@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
 import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -73,7 +74,7 @@ import {
   SourceRuntimeRegistryEntry,
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import {
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -424,7 +425,7 @@ export struct MangaDetailPage {
       return new OfflineDownloadService(new OfflineDownloadStore(context.filesDir), undefined, context)
     } catch (error) {
       void error
-      console.warn('[ReaderOffline] step=detail_service_unavailable failed=true')
+      DiagnosticLogger.warn('manga_detail_page', 'detail_service_unavailable', '[ReaderOffline] step=detail_service_unavailable failed=true')
       return undefined
     }
   }
@@ -630,7 +631,7 @@ export struct MangaDetailPage {
       this.onLibraryChanged()
       this.showToast(s('manga_detail_local_metadata_saved'))
     } catch (_error) {
-      console.warn('[LocalMetadata] step=save_failed failed=true reason=metadata_validation')
+      DiagnosticLogger.warn('manga_detail_page', 'save_failed', '[LocalMetadata] step=save_failed failed=true reason=metadata_validation')
       this.showToast(s('manga_detail_local_metadata_save_failed'))
     }
   }
@@ -715,7 +716,7 @@ export struct MangaDetailPage {
           return
         }
         chaptersLoadFailed = true
-        console.warn('[manga-detail] source chapters load failed reason=source_chapters')
+        DiagnosticLogger.warn('manga_detail_page', 'source', '[manga-detail] source chapters load failed reason=source_chapters')
         const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
         if (libraryComic !== undefined && libraryComic.chapters.length > 0) {
           chapters = libraryComic.chapters.map((chapter: Chapter): MangaChapterItem =>
@@ -754,7 +755,7 @@ export struct MangaDetailPage {
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
         return
       }
-      console.warn('[manga-detail] source detail load failed reason=source_detail')
+      DiagnosticLogger.warn('manga_detail_page', 'source', '[manga-detail] source detail load failed reason=source_detail')
       const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
       const fallbackComicId = this.sourceComicId(sourceId, mangaId)
       const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, fallbackComicId)
@@ -884,11 +885,11 @@ export struct MangaDetailPage {
   ): Promise<SourceMangaDetailLoadResult> {
     const args: SourceMangaRequestArgs = { mangaId, mangaUrl: this.sourceMangaRouteUrl(entry.sourceId, mangaId) }
     const request = this.buildSourceDetailRequestJson(entry.sourceId, operation, args, { network: true })
-    const responseJson = await taskpool.execute(
+    const responseJson = await diagnoseSourceOperation(request, () => taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
       this.copyWasmBytes(entry)
-    ) as string
+    ) as Promise<string>)
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const item = this.sourceMangaResponseItem(response)
     if (response.ok !== true || item === undefined) {
@@ -1210,10 +1211,10 @@ export struct MangaDetailPage {
           console.info(`[TrackerSync] step=marked_read_progress status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
         })
         .catch((_error: Error) => {
-          console.warn('[TrackerSync] step=marked_read_progress failed=true reason=marked_read')
+          DiagnosticLogger.warn('manga_detail_page', 'marked_read_progress', '[TrackerSync] step=marked_read_progress failed=true reason=marked_read')
         })
     } catch (_error) {
-      console.warn('[TrackerSync] step=marked_read_progress failed=true reason=context')
+      DiagnosticLogger.warn('manga_detail_page', 'marked_read_progress', '[TrackerSync] step=marked_read_progress failed=true reason=context')
     }
   }
 
@@ -1252,7 +1253,7 @@ export struct MangaDetailPage {
         return true
       } catch (error) {
         void error
-        console.error('[manga-detail] step=remove_from_library_failed reason=library_persist')
+        DiagnosticLogger.error('manga_detail_page', 'remove_from_library_failed', '[manga-detail] step=remove_from_library_failed reason=library_persist')
         this.showToast(s('common_remove_from_library_failed'))
         return false
       }
@@ -1277,7 +1278,7 @@ export struct MangaDetailPage {
       return true
     } catch (error) {
       void error
-      console.error('[manga-detail] step=add_to_library_failed reason=library_persist')
+      DiagnosticLogger.error('manga_detail_page', 'add_to_library_failed', '[manga-detail] step=add_to_library_failed reason=library_persist')
       this.feedbackText = s('common_add_to_library_failed')
       this.showToast(s('common_add_to_library_failed'))
       return false
@@ -1426,7 +1427,7 @@ export struct MangaDetailPage {
         ? s('manga_detail_chapter_downloaded')
         : s('manga_detail_chapter_download_failed'))
     } catch (_error) {
-      console.warn('[ReaderOffline] step=detail_download_failed failed=true reason=download_execution')
+      DiagnosticLogger.warn('manga_detail_page', 'detail_download_failed', '[ReaderOffline] step=detail_download_failed failed=true reason=download_execution')
       this.downloadStatusText = s('manga_detail_chapter_download_failed')
       this.showToast(this.downloadStatusText)
     } finally {
@@ -1480,7 +1481,7 @@ export struct MangaDetailPage {
       }
     } catch (_error) {
       this.localRefreshText = s('manga_detail_local_refresh_unavailable')
-      console.warn('[LocalLibraryRefresh] step=detail_check_failed failed=true reason=local_refresh')
+      DiagnosticLogger.warn('manga_detail_page', 'detail_check_failed', '[LocalLibraryRefresh] step=detail_check_failed failed=true reason=local_refresh')
       this.showToast(this.localRefreshText)
     } finally {
       this.localRefreshBusy = false
@@ -1613,7 +1614,7 @@ export struct MangaDetailPage {
           try {
             hydration = await this.ensureSourceChapterPages(chapterId)
           } catch (_error) {
-            console.warn('[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
+            DiagnosticLogger.warn('manga_detail_page', 'batch_pages_unavailable', '[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
             blockedCount += 1
             this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
             return
@@ -1629,7 +1630,7 @@ export struct MangaDetailPage {
               })
             }
             blockedCount += 1
-            console.warn(`[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
+            DiagnosticLogger.warn('manga_detail_page', 'batch_pages_unavailable', `[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
             this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
             return
           }
@@ -1663,7 +1664,7 @@ export struct MangaDetailPage {
         : this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
       this.showToast(this.downloadStatusText)
     } catch (_error) {
-      console.warn('[ReaderOffline] step=detail_batch_download_failed failed=true reason=download_execution')
+      DiagnosticLogger.warn('manga_detail_page', 'detail_batch_download_failed', '[ReaderOffline] step=detail_batch_download_failed failed=true reason=download_execution')
       this.downloadStatusText = s('manga_detail_chapter_download_failed')
       this.showToast(this.downloadStatusText)
     } finally {
@@ -1829,7 +1830,7 @@ export struct MangaDetailPage {
       const reason = summary.results.length === 0 ? undefined : summary.results[0].reason
       this.showToast(this.trackerMappingSkippedText(summary.failedCount > 0 ? 'provider_failed' : reason))
     } catch (_error) {
-      console.warn('[TrackerMapping] step=manual_candidate_refresh failed=true')
+      DiagnosticLogger.warn('manga_detail_page', 'manual_candidate_refresh', '[TrackerMapping] step=manual_candidate_refresh failed=true')
       this.showToast(s('manga_detail_tracker_mapping_failed'))
     } finally {
       this.trackerMappingBusy = false
@@ -1869,7 +1870,7 @@ export struct MangaDetailPage {
       }
       this.showToast(s('manga_detail_tracker_sync_failed'))
     } catch (_error) {
-      console.warn('[TrackerSync] step=manual_progress failed=true reason=manual_progress')
+      DiagnosticLogger.warn('manga_detail_page', 'manual_progress', '[TrackerSync] step=manual_progress failed=true reason=manual_progress')
       this.showToast(s('manga_detail_tracker_sync_failed'))
     } finally {
       this.trackerSyncBusy = false
@@ -1904,7 +1905,7 @@ export struct MangaDetailPage {
       }
       this.showToast(s('manga_detail_tracker_sync_failed'))
     } catch (_error) {
-      console.warn('[TrackerSync] step=manual_pull_progress failed=true reason=manual_pull')
+      DiagnosticLogger.warn('manga_detail_page', 'manual_pull_progress', '[TrackerSync] step=manual_pull_progress failed=true reason=manual_pull')
       this.showToast(s('manga_detail_tracker_sync_failed'))
     } finally {
       this.trackerSyncBusy = false
@@ -2366,7 +2367,7 @@ export struct MangaDetailPage {
               void this.handleOpenChapter(chapterId)
                 .catch((error: Error) => {
                   void error
-                  console.error('[manga-detail] step=source_pages_load_failed reason=source_pages')
+                  DiagnosticLogger.error('manga_detail_page', 'source_pages_load_failed', '[manga-detail] step=source_pages_load_failed reason=source_pages')
                   this.showToast(s('manga_detail_chapter_pages_load_failed'))
                 })
             },

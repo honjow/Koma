@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
@@ -758,7 +759,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       mutation()
       if (this.flush()) return true
     } catch (_error) {
-      console.warn('[ReaderProgress] user_mutation_failed')
+      DiagnosticLogger.warn('reader_session_store', 'user_mutation_failed', '[ReaderProgress] user_mutation_failed')
     }
     if (this.persistTimerId >= 0) clearTimeout(this.persistTimerId)
     this.persistTimerId = -1
@@ -850,7 +851,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.persistPending = false
       return true
     } catch (_error) {
-      console.warn('[ReaderProgress] persist_failed pending=true')
+      DiagnosticLogger.warn('reader_session_store', 'persist_failed', '[ReaderProgress] persist_failed pending=true')
       return false
     }
   }

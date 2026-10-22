@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
@@ -318,7 +319,7 @@ struct Index {
     }).then((result) => {
       console.info('[LibraryUpdate] step=foreground_check status=' + result.status)
     }).catch((_error: Error) => {
-      console.warn('[LibraryUpdate] step=foreground_check_failed')
+      DiagnosticLogger.warn('index', 'foreground_check_failed', '[LibraryUpdate] step=foreground_check_failed')
     })
   }
 
@@ -369,10 +370,10 @@ struct Index {
       reasonCode === 'source_lookup_failed' ||
       reasonCode === 'source_disabled' ||
       reasonCode === 'source_pages_failed') {
-      console.warn(`[Reader] step=open_source_pages_unavailable failed=true reason=${reasonCode}`)
+      DiagnosticLogger.warn('index', 'open_source_pages_unavailable', `[Reader] step=open_source_pages_unavailable failed=true reason=${reasonCode}`)
       return
     }
-    console.warn('[Reader] step=open_source_pages_unavailable failed=true reason=source_pages_unavailable')
+    DiagnosticLogger.warn('index', 'open_source_pages_unavailable', '[Reader] step=open_source_pages_unavailable failed=true reason=source_pages_unavailable')
   }
 
   private hasAvailableOfflineReaderPages(comicId: ComicId, chapterId: string | undefined): boolean {
@@ -391,7 +392,7 @@ struct Index {
         (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
           validation.status === OfflineDownloadedChapterStatus.PARTIAL)
     } catch (_error) {
-      console.warn('[ReaderOffline] step=open_manifest_probe failed=true reason=manifest_session')
+      DiagnosticLogger.warn('index', 'open_manifest_probe', '[ReaderOffline] step=open_manifest_probe failed=true reason=manifest_session')
       return false
     }
   }
@@ -530,7 +531,7 @@ struct Index {
         }
       } catch (_error) {
         // A failed catalog must not prevent opening the known current chapter.
-        console.warn('[ReaderSource] chapter catalog unresolved')
+        DiagnosticLogger.warn('index', 'chapter', '[ReaderSource] chapter catalog unresolved')
       }
     }
     // Do not share the library hydrator's result here. Source hosts may issue
@@ -993,7 +994,7 @@ struct Index {
         sourceRuntimeId: comic.sourceRuntimeId,
       }
     } catch (_error) {
-      console.warn('[ReaderOffline] step=open_from_manifest failed=true reason=manifest_session')
+      DiagnosticLogger.warn('index', 'open_from_manifest', '[ReaderOffline] step=open_from_manifest failed=true reason=manifest_session')
       return undefined
     }
   }
@@ -1076,7 +1077,7 @@ struct Index {
       this.readerProgressRevision += 1
       console.info(`[Reader] step=progress_store_reloaded reason=${reason}`)
     } catch (_error) {
-      console.warn('[Reader] step=restore_progress_failed reason=session_store')
+      DiagnosticLogger.warn('index', 'restore_progress_failed', '[Reader] step=restore_progress_failed reason=session_store')
     }
   }
 
@@ -1260,7 +1261,7 @@ struct Index {
         this.showToast(AppStrings.format('import_feedback_partial', succeededCount, failedCount))
       }
     } catch (error) {
-      console.error('[Import] step=archive_import_failed code=archive_import_failed')
+      DiagnosticLogger.error('index', 'archive_import_failed', '[Import] step=archive_import_failed code=archive_import_failed')
       this.showToast(AppStrings.get('import_feedback_failed_file'))
     }
   }
@@ -1290,7 +1291,7 @@ struct Index {
         this.showToast(AppStrings.format('import_feedback_partial', succeededCount, failedCount))
       }
     } catch (error) {
-      console.error('[Import] step=image_import_failed code=image_import_failed')
+      DiagnosticLogger.error('index', 'image_import_failed', '[Import] step=image_import_failed code=image_import_failed')
       this.showToast(AppStrings.get('import_feedback_failed_images'))
     }
   }
@@ -1345,7 +1346,7 @@ struct Index {
         this.showToast(AppStrings.get('import_feedback_folder_empty'))
       }
     } catch (error) {
-      console.error('[Import] step=folder_import_failed code=folder_import_failed')
+      DiagnosticLogger.error('index', 'folder_import_failed', '[Import] step=folder_import_failed code=folder_import_failed')
       this.showToast(AppStrings.get('import_feedback_folder_unavailable'))
     }
   }
@@ -1454,7 +1455,7 @@ struct Index {
     try {
       await this.localImportCommitService.commit(comic)
     } catch (error) {
-      console.error('[Library] step=persist_imported_comic_failed code=library_persist_failed')
+      DiagnosticLogger.error('index', 'persist_imported_comic_failed', '[Library] step=persist_imported_comic_failed code=library_persist_failed')
       throw error as Error
     }
     this.refreshLibrarySnapshot()
@@ -1512,7 +1513,7 @@ struct Index {
             ' upserted=' + result.upsertedCount)
         }
       } catch (error) {
-        console.error('[Library] step=persist_imported_folder_failed code=library_persist_failed')
+        DiagnosticLogger.error('index', 'persist_imported_folder_failed', '[Library] step=persist_imported_folder_failed code=library_persist_failed')
         throw error as Error
       }
     }
@@ -1665,7 +1666,7 @@ struct Index {
         return false
       }
     } catch (error) {
-      console.error('[Library] step=persist_removed_comic_failed code=library_persist_failed')
+      DiagnosticLogger.error('index', 'persist_removed_comic_failed', '[Library] step=persist_removed_comic_failed code=library_persist_failed')
       throw error as Error
     }
   }
@@ -1702,7 +1703,7 @@ struct Index {
       console.info(`[library-remove] batch_result removed=${removedIds.length} persistence=available`)
       return removedIds.length
     } catch (error) {
-      console.error('[Library] step=persist_removed_comics_failed code=library_persist_failed')
+      DiagnosticLogger.error('index', 'persist_removed_comics_failed', '[Library] step=persist_removed_comics_failed code=library_persist_failed')
       throw error as Error
     }
   }
@@ -1716,10 +1717,10 @@ struct Index {
           console.info(`[library-remove] downloads_cleanup removed=${removedCount}`)
         })
         .catch((_error: Error) => {
-          console.warn('[library-remove] downloads_cleanup_failed reason=delete_downloads')
+          DiagnosticLogger.warn('index', 'downloads_cleanup_failed', '[library-remove] downloads_cleanup_failed reason=delete_downloads')
         })
     } catch (_error) {
-      console.warn('[library-remove] downloads_cleanup_failed reason=context_unavailable')
+      DiagnosticLogger.warn('index', 'downloads_cleanup_failed', '[library-remove] downloads_cleanup_failed reason=context_unavailable')
     }
   }
 
@@ -1748,7 +1749,7 @@ struct Index {
       return changedCount > 0
     } catch (error) {
       const e = error as Error
-      console.error('[Library] step=persist_category_assignment_failed code=library_persist_failed')
+      DiagnosticLogger.error('index', 'persist_category_assignment_failed', '[Library] step=persist_category_assignment_failed code=library_persist_failed')
       throw e
     }
   }
@@ -1781,7 +1782,7 @@ struct Index {
       return changedCount > 0
     } catch (error) {
       const e = error as Error
-      console.error('[Library] step=persist_category_membership_failed code=library_persist_failed')
+      DiagnosticLogger.error('index', 'persist_category_membership_failed', '[Library] step=persist_category_membership_failed code=library_persist_failed')
       throw e
     }
   }
@@ -1819,7 +1820,7 @@ struct Index {
         if (result.ran) {
           console.info(`[Backup] step=app_open_auto_backup deleted=${result.deletedCount}`)
         } else if (result.failureCode !== undefined) {
-          console.error(`[Backup] step=app_open_auto_backup_failed code=${result.failureCode}`)
+          DiagnosticLogger.error('index', 'app_open_auto_backup_failed', `[Backup] step=app_open_auto_backup_failed code=${result.failureCode}`)
         } else {
           console.info('[Backup] step=auto_admission status=' + result.skippedReason)
         }
@@ -1828,7 +1829,7 @@ struct Index {
         if (error.message === 'backup_restore_busy') {
           console.info('[Backup] step=auto_admission status=restore_busy')
         } else {
-          console.error('[Backup] step=app_open_auto_backup_failed code=backup_auto_export_failed')
+          DiagnosticLogger.error('index', 'app_open_auto_backup_failed', '[Backup] step=app_open_auto_backup_failed code=backup_auto_export_failed')
         }
       })
       .finally(() => { this.automaticBackupPending = false })
@@ -1850,7 +1851,7 @@ struct Index {
         }
       })
       .catch((_error: Error) => {
-        console.warn('[TrackerSync] step=app_open_pending_progress status=failed reason=provider_failed')
+        DiagnosticLogger.warn('index', 'app_open_pending_progress', '[TrackerSync] step=app_open_pending_progress status=failed reason=provider_failed')
       })
   }
 
@@ -1891,7 +1892,7 @@ struct Index {
             })
         } catch (error) {
           void error
-          console.error('[Library] step=restore_failed code=library_restore_failed')
+          DiagnosticLogger.error('index', 'restore_failed', '[Library] step=restore_failed code=library_restore_failed')
         }
       }
     }

@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Binding, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -152,7 +153,7 @@ export struct BackupManagementPage {
       })
       .catch((_error: Error) => {
         if (epoch !== this.localBackupsEpoch) return
-        console.error('[BackupManagement] step=local_list_failed code=backup_local_list_failed')
+        DiagnosticLogger.error('backup_management_page', 'local_list_failed', '[BackupManagement] step=local_list_failed code=backup_local_list_failed')
         this.localBackupsFailed = true
       })
       .finally(() => {
@@ -168,7 +169,7 @@ export struct BackupManagementPage {
         this.autoPreferences = preferencesValue
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=auto_preferences_load_failed code=backup_auto_preferences_failed')
+        DiagnosticLogger.error('backup_management_page', 'auto_preferences_load_failed', '[BackupManagement] step=auto_preferences_load_failed code=backup_auto_preferences_failed')
         if (epoch !== this.automaticPreferencesEpoch) return
         this.autoPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
       })
@@ -180,7 +181,7 @@ export struct BackupManagementPage {
         this.contentPreferences = preferencesValue
       })
       .catch((_error: Error) => {
-        console.warn('[BackupManagement] step=content_preferences_load_failed code=backup_content_preferences_failed')
+        DiagnosticLogger.warn('backup_management_page', 'content_preferences_load_failed', '[BackupManagement] step=content_preferences_load_failed code=backup_content_preferences_failed')
         this.contentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
       })
   }
@@ -263,7 +264,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_auto_saved_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=auto_preferences_save_failed code=backup_auto_preferences_failed')
+        DiagnosticLogger.error('backup_management_page', 'auto_preferences_save_failed', '[BackupManagement] step=auto_preferences_save_failed code=backup_auto_preferences_failed')
         if (epoch === this.automaticPreferencesEpoch) {
           this.loadAutomaticPreferences()
         }
@@ -278,7 +279,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_auto_saved_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=content_preferences_save_failed code=backup_content_preferences_failed')
+        DiagnosticLogger.error('backup_management_page', 'content_preferences_save_failed', '[BackupManagement] step=content_preferences_save_failed code=backup_content_preferences_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_content_preferences_failed'))
       })
   }
@@ -340,7 +341,7 @@ export struct BackupManagementPage {
         }
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=auto_run_now_failed code=backup_auto_export_failed')
+        DiagnosticLogger.error('backup_management_page', 'auto_run_now_failed', '[BackupManagement] step=auto_run_now_failed code=backup_auto_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_auto_export_failed'))
       })
       .finally(() => {
@@ -364,7 +365,7 @@ export struct BackupManagementPage {
         }
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=export_failed code=backup_export_failed')
+        DiagnosticLogger.error('backup_management_page', 'export_failed', '[BackupManagement] step=export_failed code=backup_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
@@ -396,7 +397,7 @@ export struct BackupManagementPage {
         }
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=export_encrypted_failed code=backup_export_failed')
+        DiagnosticLogger.error('backup_management_page', 'export_encrypted_failed', '[BackupManagement] step=export_encrypted_failed code=backup_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => {
@@ -418,7 +419,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_local_saved_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=local_export_failed code=backup_local_export_failed')
+        DiagnosticLogger.error('backup_management_page', 'local_export_failed', '[BackupManagement] step=local_export_failed code=backup_local_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
       })
       .finally(() => {
@@ -447,7 +448,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_local_saved_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=local_export_encrypted_failed code=backup_local_export_failed')
+        DiagnosticLogger.error('backup_management_page', 'local_export_encrypted_failed', '[BackupManagement] step=local_export_encrypted_failed code=backup_local_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
       })
       .finally(() => {
@@ -480,7 +481,7 @@ export struct BackupManagementPage {
         }
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=preview_failed code=backup_preview_failed')
+        DiagnosticLogger.error('backup_management_page', 'preview_failed', '[BackupManagement] step=preview_failed code=backup_preview_failed')
         this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
       })
       .finally(() => {
@@ -508,7 +509,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_preview_loaded_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=local_preview_failed code=backup_preview_failed')
+        DiagnosticLogger.error('backup_management_page', 'local_preview_failed', '[BackupManagement] step=local_preview_failed code=backup_preview_failed')
         this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
       })
       .finally(() => {
@@ -541,7 +542,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_local_renamed_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=local_rename_failed code=backup_local_rename_failed')
+        DiagnosticLogger.error('backup_management_page', 'local_rename_failed', '[BackupManagement] step=local_rename_failed code=backup_local_rename_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_rename_failed'))
       })
       .finally(() => {
@@ -580,7 +581,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_local_deleted_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=local_delete_failed code=backup_local_delete_failed')
+        DiagnosticLogger.error('backup_management_page', 'local_delete_failed', '[BackupManagement] step=local_delete_failed code=backup_local_delete_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_delete_failed'))
       })
       .finally(() => {
@@ -608,7 +609,7 @@ export struct BackupManagementPage {
         this.showToast(t('backup_decrypted_toast'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=decrypt_preview_failed code=backup_decrypt_failed')
+        DiagnosticLogger.error('backup_management_page', 'decrypt_preview_failed', '[BackupManagement] step=decrypt_preview_failed code=backup_decrypt_failed')
         this.showInfoDialog(t('backup_dialog_decrypt_failed_title'), t('backup_decrypt_failed_message'))
       })
       .finally(() => {
@@ -667,7 +668,7 @@ export struct BackupManagementPage {
         this.showInfoDialog(t('backup_dialog_imported_title'), t('backup_imported_message'))
       })
       .catch((_error: Error) => {
-        console.error('[BackupManagement] step=import_failed code=backup_import_failed')
+        DiagnosticLogger.error('backup_management_page', 'import_failed', '[BackupManagement] step=import_failed code=backup_import_failed')
         this.showInfoDialog(t('backup_dialog_import_failed_title'), this.backupFailureMessage('backup_import_failed'))
       })
       .finally(() => {

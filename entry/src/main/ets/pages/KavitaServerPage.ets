@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { GroupedListSection } from '../components/ui/GroupedListSection'
@@ -50,7 +51,7 @@ export struct KavitaServerPage {
     } catch (error) {
       void error
       this.setStatus('server_status_load_failed')
-      console.error('[Kavita] step=settings_load_error reason=settings_load')
+      DiagnosticLogger.error('kavita_server_page', 'settings_load_error', '[Kavita] step=settings_load_error reason=settings_load')
     } finally {
       this.loading = false
     }
@@ -95,7 +96,7 @@ export struct KavitaServerPage {
       } catch (error) {
         void error
         this.setStatus('kavita_status_failed')
-        console.error('[Kavita] step=test_connection_failed reason=connection_test')
+        DiagnosticLogger.error('kavita_server_page', 'test_connection_failed', '[Kavita] step=test_connection_failed reason=connection_test')
         this.showToast(s('kavita_toast_failed'))
       }
     } finally {

@@ -14,6 +14,8 @@ export type DiagnosticLogLevel = 'debug' | 'info' | 'warn' | 'error'
  * redaction and export safety so user feedback is not limited to live hilog capture.
  */
 export class DiagnosticLogger {
+  private static sequence: number = 0
+  private static scope: string = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
   private static enabled: boolean = true
   private static minLevel: DiagnosticLogLevel = 'info'
 
@@ -56,7 +58,16 @@ export class DiagnosticLogger {
   }
 
   static exception(category: string, event: string, err: Error): void {
-    DiagnosticLogger.log('error', category, event, err.message)
+    DiagnosticLogger.log('error', category, event, DiagnosticsRedactor.errorSummary(err))
+  }
+
+  static errorSummary(error: Error): string {
+    return DiagnosticsRedactor.errorSummary(error)
+  }
+
+  static begin(category: string, event: string, detail: string = ''): DiagnosticOperation {
+    DiagnosticLogger.sequence += 1
+    return new DiagnosticOperation(category, event, DiagnosticLogger.scope + ':' + DiagnosticLogger.sequence, detail)
   }
 
   static exportText(): string {
@@ -152,5 +163,43 @@ export class DiagnosticLogger {
       return level
     }
     return 'info'
+  }
+}
+
+/** A temporary operation number links concurrent events without retaining content identities. */
+export class DiagnosticOperation {
+  private category: string
+  private event: string
+  private id: string
+  private detail: string
+  private started: number = Date.now()
+  private ended: boolean = false
+
+  constructor(category: string, event: string, id: string, detail: string) {
+    this.category = category
+    this.event = event
+    this.id = id
+    this.detail = detail
+    this.info('start', '')
+  }
+
+  info(event: string, detail: string): void {
+    DiagnosticLogger.info(this.category, this.event + '.' + event, 'op=' + this.id + ' ' + this.detail + ' ' + detail)
+  }
+
+  warn(event: string, detail: string): void {
+    DiagnosticLogger.warn(this.category, this.event + '.' + event, 'op=' + this.id + ' ' + this.detail + ' ' + detail)
+  }
+
+  finish(status: string, detail: string = ''): void {
+    if (this.ended) return
+    this.ended = true
+    const summary = 'status=' + status + ' durationMs=' + Math.max(0, Date.now() - this.started) + ' ' + detail
+    if (status === 'failed' || status === 'rejected' || status === 'timeout' || status === 'blocked' || status === 'partial') this.warn('end', summary)
+    else this.info('end', summary)
+  }
+
+  fail(error: Error): void {
+    this.finish('failed', DiagnosticLogger.errorSummary(error))
   }
 }

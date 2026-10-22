@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { fileIo, fileUri } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
@@ -39,8 +40,8 @@ class KomaReaderLabSharePresentation implements ReaderImageSharePresentation {
     if (this.released) return
     this.released = true
     this.inner.release()
-    try { fileIo.unlinkSync(this.path) } catch (_) { console.warn('[KomaReaderLabShare] file cleanup failed') }
-    try { fileIo.rmdirSync(this.directory) } catch (_) { console.warn('[KomaReaderLabShare] directory cleanup failed') }
+    try { fileIo.unlinkSync(this.path) } catch (_) { DiagnosticLogger.warn('koma_reader_lab_image_share_host', 'file', '[KomaReaderLabShare] file cleanup failed') }
+    try { fileIo.rmdirSync(this.directory) } catch (_) { DiagnosticLogger.warn('koma_reader_lab_image_share_host', 'directory', '[KomaReaderLabShare] directory cleanup failed') }
   }
 }
 
@@ -94,7 +95,7 @@ export class KomaReaderLabImageShareHost implements ReaderImageShareHost {
       throw new Error('koma_lab_share_prepare_failed')
     } finally {
       if (source !== null) {
-        try { fileIo.closeSync(source) } catch (_) { console.warn('[KomaReaderLabShare] source close failed') }
+        try { fileIo.closeSync(source) } catch (_) { DiagnosticLogger.warn('koma_reader_lab_image_share_host', 'source', '[KomaReaderLabShare] source close failed') }
       }
     }
   }

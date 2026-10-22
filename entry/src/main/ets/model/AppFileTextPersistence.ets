@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { fileIo as fs } from '@kit.CoreFileKit'
 
 /** Commit a complete same-directory sibling before replacing the live app document. */
@@ -15,6 +16,9 @@ export function writeAppTextFile(filePath: string, payload: string): void {
       throw new Error('Incomplete app file persistence write')
     }
     fs.renameSync(tempPath, filePath)
+  } catch (error) {
+    DiagnosticLogger.exception('persistence', 'app_document_write_failed', error as Error)
+    throw error as Error
   } finally {
     if (file !== undefined) {
       try {

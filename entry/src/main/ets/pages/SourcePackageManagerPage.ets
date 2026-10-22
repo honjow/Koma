@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
@@ -825,7 +826,7 @@ export struct SourcePackageManagerPage {
         })
         this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText(result.reasonCode))
         this.showToast(t('source_pkg_toast_install_failed'))
-        console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
+        DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
       }
     } catch (_error) {
       this.setUpdateStatus({
@@ -839,7 +840,7 @@ export struct SourcePackageManagerPage {
       })
       this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText('network_error'))
       this.showToast(t('source_pkg_toast_install_failed'))
-      console.error('[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + this.sourceIndexFailureReason(_error))
+      DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + this.sourceIndexFailureReason(_error))
     } finally {
       this.updateInstallSourceId = ''
     }
@@ -1192,7 +1193,7 @@ export struct SourcePackageManagerPage {
         ? tf('source_pkg_batch_update_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
         : tf('source_pkg_batch_install_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
       this.showToast(t('source_pkg_toast_install_failed'))
-      console.error('[SourcePackageBatch] step=failed mode=' + (replaceExisting ? 'update' : 'install') + ' reason=network_error')
+      DiagnosticLogger.error('source_package_manager_page', 'failed', '[SourcePackageBatch] step=failed mode=' + (replaceExisting ? 'update' : 'install') + ' reason=network_error')
     } finally {
       this.reload()
       this.indexInstallBusy = false
@@ -1270,7 +1271,7 @@ export struct SourcePackageManagerPage {
     } catch (_error) {
       this.statusText = tf('source_pkg_batch_update_failed', this.sourceReasonText('network_error'))
       this.showToast(t('source_pkg_toast_install_failed'))
-      console.error('[SourcePackageUpdateBatch] step=failed reason=network_error')
+      DiagnosticLogger.error('source_package_manager_page', 'failed', '[SourcePackageUpdateBatch] step=failed reason=network_error')
     } finally {
       this.reload()
       this.updateInstallSourceId = ''
@@ -1419,7 +1420,7 @@ export struct SourcePackageManagerPage {
       })
       this.statusText = tf('source_pkg_settings_validation_failed', this.sourceReasonText(reason))
       this.showToast(t('source_pkg_settings_validation_toast_fail'))
-      console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
+      DiagnosticLogger.error('source_package_manager_page', 'done', '[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } catch (_error) {
       if (!settingsLoaded) this.savedSettingsReadFailed = true
       const reason = 'settings_validation_failed'
@@ -1431,7 +1432,7 @@ export struct SourcePackageManagerPage {
       })
       this.statusText = tf('source_pkg_settings_validation_failed', this.sourceReasonText(reason))
       this.showToast(t('source_pkg_settings_validation_toast_fail'))
-      console.error('[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
+      DiagnosticLogger.error('source_package_manager_page', 'done', '[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } finally {
       this.settingsValidationSourceId = ''
     }

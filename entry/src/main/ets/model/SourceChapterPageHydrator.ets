@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
 import {
   Chapter,
@@ -15,7 +16,7 @@ import {
   SourceRuntimeRegistryEntry,
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes } from '../sourceRuntime/SourceRuntimeRunner'
+import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import {
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -239,11 +240,11 @@ async function fetchSourceChapterPages(
     settings: appSourceSettingsStore.loadForSource(entry.sourceId),
     hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
   }
-  const responseJson = await taskpool.execute(
+  const responseJson = await diagnoseSourceOperation(JSON.stringify(sourceRequest), () => taskpool.execute(
     executeSourceChapterPagesOperation,
     JSON.stringify(sourceRequest),
     cloneWasmBytes(entry),
-  ) as string
+  ) as Promise<string>)
   const response = JSON.parse(responseJson) as SourceOperationResponsePayload
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
   if (response.ok !== true) {
@@ -285,11 +286,11 @@ export async function resolveSourceChapterPages(
       chapterId,
     })
     if (resolution.pages.length === 0) {
-      console.warn('[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
+      DiagnosticLogger.warn('source_chapter_page_hydrator', 'fetch_pages_failed', '[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
     }
     return resolution
   } catch (_error) {
-    console.warn('[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
+    DiagnosticLogger.warn('source_chapter_page_hydrator', 'fetch_pages_failed', '[SourceChapterPages] step=fetch_pages_failed failed=true reason=source_pages_failed')
     return { pages: [], reasonCode: 'source_pages_failed' }
   }
 }

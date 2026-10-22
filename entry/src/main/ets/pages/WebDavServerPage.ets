@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { GroupedListSection } from '../components/ui/GroupedListSection'
@@ -55,7 +56,7 @@ export struct WebDavServerPage {
     } catch (error) {
       void error
       this.setStatus('server_status_load_failed')
-      console.error('[WebDAV] step=settings_load_error reason=settings_load')
+      DiagnosticLogger.error('web_dav_server_page', 'settings_load_error', '[WebDAV] step=settings_load_error reason=settings_load')
     } finally {
       this.loading = false
     }
@@ -104,7 +105,7 @@ export struct WebDavServerPage {
       } catch (error) {
         void error
         this.setStatus('webdav_status_failed')
-        console.error('[WebDAV] step=test_connection_failed reason=connection_test')
+        DiagnosticLogger.error('web_dav_server_page', 'test_connection_failed', '[WebDAV] step=test_connection_failed reason=connection_test')
         this.showToast(s('webdav_toast_failed'))
       }
     } finally {

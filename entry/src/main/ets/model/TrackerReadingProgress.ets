@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReadingProgress } from './ComicModels'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { TrackerProgressSyncResult, ReaderTrackerProgressPort } from './TrackerProgressSyncService'
@@ -73,14 +74,14 @@ export class ReaderTrackerProgressCoordinator {
     if (this.completed.has(key)) return
     this.pending.set(key, snapshot)
     if (this.store.flush()) this.drainCompletions()
-    else console.warn('[ReaderTracker] step=deferred reason=local_progress_commit')
+    else DiagnosticLogger.warn('tracker_reading_progress', 'deferred', '[ReaderTracker] step=deferred reason=local_progress_commit')
   }
 
   close(progressCommitted: boolean): void {
     const latest = this.latest
     this.latest = undefined
     if (!progressCommitted) {
-      console.warn('[ReaderTracker] step=deferred reason=local_progress_commit')
+      DiagnosticLogger.warn('tracker_reading_progress', 'deferred', '[ReaderTracker] step=deferred reason=local_progress_commit')
       return
     }
     this.drainCompletions()
@@ -124,7 +125,7 @@ export class ReaderTrackerProgressCoordinator {
             this.pending.set(completionKey, snapshot)
           }
         }
-        console.warn('[ReaderTracker] step=event_failed trigger=' + trigger)
+        DiagnosticLogger.warn('tracker_reading_progress', 'event_failed', '[ReaderTracker] step=event_failed trigger=' + trigger)
       })
   }
 }

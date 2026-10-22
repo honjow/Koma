@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { GroupedListSection } from '../components/ui/GroupedListSection'
@@ -59,7 +60,7 @@ export struct KomgaServerPage {
     } catch (error) {
       void error
       this.setStatus('server_status_load_failed')
-      console.error('[Komga] step=settings_load_error reason=settings_load')
+      DiagnosticLogger.error('komga_server_page', 'settings_load_error', '[Komga] step=settings_load_error reason=settings_load')
     } finally {
       this.loading = false
     }
@@ -109,7 +110,7 @@ export struct KomgaServerPage {
       } catch (error) {
         void error
         this.setStatus('komga_status_failed')
-        console.error('[Komga] step=test_connection_failed reason=connection_test')
+        DiagnosticLogger.error('komga_server_page', 'test_connection_failed', '[Komga] step=test_connection_failed reason=connection_test')
         this.showToast(s('komga_toast_failed'))
       }
     } finally {

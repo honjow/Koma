@@ -1,4 +1,4 @@
-import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
@@ -230,12 +230,18 @@ export class OfflineDownloadService {
   }
 
   async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
-    const filesDir = this.store.filesRootDir()
-    await OfflineDownloadService.ensureQueueInitialized(filesDir)
-    const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
-    return OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
-      () => this.runChapterDownload(comic, chapterId, key, labels),
-      () => this.queueStore.loadPreferences().foregroundConcurrencyLimit)
+    const trace = DiagnosticLogger.begin('download', 'chapter')
+    try {
+      const filesDir = this.store.filesRootDir()
+      await OfflineDownloadService.ensureQueueInitialized(filesDir)
+      const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
+      const manifest = await OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
+        () => this.runChapterDownload(comic, chapterId, key, trace, labels),
+        () => this.queueStore.loadPreferences().foregroundConcurrencyLimit)
+      trace.finish(manifest.status === OfflineDownloadStatus.DOWNLOADED ? 'completed' : manifest.status,
+        'pages=' + manifest.downloadedPageCount + '/' + manifest.pageCount + ' reason=' + (manifest.failureReasonCode ?? 'none'))
+      return manifest
+    } catch (error) { trace.fail(error as Error); throw error as Error }
   }
 
   async runChapterBatch(chapterIds: string[], execute: (chapterId: string) => Promise<void>): Promise<void> {
@@ -243,7 +249,7 @@ export class OfflineDownloadService {
   }
 
   private async runChapterDownload(
-    comic: Comic, chapterId: string, executionKey: string, labels?: OfflineDownloadLabels,
+    comic: Comic, chapterId: string, executionKey: string, trace: DiagnosticOperation, labels?: OfflineDownloadLabels,
   ): Promise<OfflineChapterDownloadManifest> {
     const initialPreferences = this.queueStore.loadPreferences()
     this.queueStore.upsert({
@@ -287,11 +293,11 @@ export class OfflineDownloadService {
     }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
-      DiagnosticLogger.warn('download', 'download_blocked', `[ReaderOffline] step=download_blocked reason=chapter_missing`)
+      trace.warn('download_blocked', `[ReaderOffline] step=download_blocked reason=chapter_missing`)
       return this.saveBlockedChapter(comic, chapterId, 'chapter_missing', labels)
     }
     if (chapter.pages.length === 0) {
-      DiagnosticLogger.warn('download', 'download_blocked', `[ReaderOffline] step=download_blocked reason=pages_missing`)
+      trace.warn('download_blocked', `[ReaderOffline] step=download_blocked reason=pages_missing`)
       return this.saveBlockedChapter(comic, chapterId, 'pages_missing', labels)
     }
 
@@ -300,7 +306,7 @@ export class OfflineDownloadService {
       existingValidation.manifest !== undefined) {
       const manifest = this.store.saveManifest(applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      DiagnosticLogger.info('download', 'download_reused', `[ReaderOffline] step=download_reused pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
+      trace.info('download_reused', `[ReaderOffline] step=download_reused pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
       return manifest
     }
     const reusablePages = existingValidation.status === OfflineDownloadedChapterStatus.PARTIAL && existingValidation.manifest !== undefined ?
@@ -353,7 +359,7 @@ export class OfflineDownloadService {
         } catch (error) {
           void error
           pageFetchFailed = true
-          DiagnosticLogger.warn('download', 'download_page_failed', `[ReaderOffline] step=download_page_failed page=${index} reason=page_fetch_failed`)
+          trace.warn('download_page_failed', `[ReaderOffline] step=download_page_failed page=${index} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
           continue
         }
         const row: OfflineDownloadedPage = {
@@ -380,12 +386,12 @@ export class OfflineDownloadService {
         manifest.failureReasonCode = pageFetchFailed ? 'page_fetch_failed' : (finalValidation.reasonCode ?? 'manifest_validation_failed')
         manifest = this.store.saveManifest(manifest)
         this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-        DiagnosticLogger.warn('download', 'download_final_validation_failed', `[ReaderOffline] step=download_final_validation_failed pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
+        trace.warn('download_final_validation_failed', `[ReaderOffline] step=download_final_validation_failed pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
         this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
         return manifest
       }
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      DiagnosticLogger.info('download', 'download_done', `[ReaderOffline] step=download_done pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
+      trace.info('download_done', `[ReaderOffline] step=download_done pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     } catch (error) {
@@ -394,7 +400,7 @@ export class OfflineDownloadService {
       manifest.failureReasonCode = 'page_fetch_failed'
       manifest = this.store.saveManifest(manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      DiagnosticLogger.warn('download', 'download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed`)
+      trace.warn('download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed ${DiagnosticLogger.errorSummary(error as Error)}`)
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     }

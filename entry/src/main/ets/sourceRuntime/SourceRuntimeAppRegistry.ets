@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { bundleManager, common } from '@kit.AbilityKit'
@@ -1150,19 +1151,19 @@ async function registerSourcePackageFromBytes(
     const imported = await importLocalSourceArchive(archiveBytes, archivePath, importedRoot)
     if (!imported.ok || imported.manifest === undefined || imported.wasmBytes === undefined) {
       await removeAppSourcePackageDir(context, packageDir)
-      console.error('[SourceManager] step=import_fail reason=' + (imported.reasonCode ?? 'validation_failed'))
+      DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=' + (imported.reasonCode ?? 'validation_failed'))
       return { ok: false, reasonCode: imported.reasonCode ?? 'validation_failed' }
     }
 
     const sourceId = imported.manifest.package.id
     if (expectedSourceId !== undefined && expectedSourceId.length > 0 && sourceId !== expectedSourceId) {
       await removeAppSourcePackageDir(context, packageDir)
-      console.error('[SourceManager] step=import_fail reason=source_id_mismatch expected=' + expectedSourceId + ' actual=' + sourceId)
+      DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=source_id_mismatch expected=' + expectedSourceId + ' actual=' + sourceId)
       return { ok: false, reasonCode: 'source_id_mismatch' }
     }
     if (!isSourcePackageMinAppVersionSatisfied(imported.manifest.package.minAppVersion)) {
       await removeAppSourcePackageDir(context, packageDir)
-      console.error('[SourceManager] step=import_fail reason=app_version_unsupported')
+      DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=app_version_unsupported')
       return { ok: false, reasonCode: 'app_version_unsupported' }
     }
     removedExistingPosition = appSourceRuntimeRegistry.list().findIndex((entry: SourceRuntimeRegistryEntry): boolean => entry.sourceId === sourceId)
@@ -1189,7 +1190,7 @@ async function registerSourcePackageFromBytes(
     if (!registered.ok) {
       restoreRuntimeRegistryEntry(removedExisting, removedExistingPosition)
       await removeAppSourcePackageDir(context, packageDir)
-      console.error('[SourceManager] step=import_fail reason=' + (registered.reasonCode ?? 'register_failed'))
+      DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=' + (registered.reasonCode ?? 'register_failed'))
       return { ok: false, reasonCode: registered.reasonCode ?? 'register_failed' }
     }
     registeredReplacementSourceId = sourceId
@@ -1201,7 +1202,7 @@ async function registerSourcePackageFromBytes(
       } catch (_err) {
       }
     }
-    console.info('[SourceManager] step=import_ok id=' + sourceId)
+    DiagnosticLogger.info('source_package', 'import_ok', '[SourceManager] step=import_ok id=' + sourceId)
     SourceRuntimeStateBridge.notifyChanged()
     return { ok: true, id: sourceId, name: imported.manifest.package.name }
   } catch (_error) {
@@ -1213,14 +1214,14 @@ async function registerSourcePackageFromBytes(
       await removeAppSourcePackageDir(context, packageDir)
     } catch (_err) {
     }
-    console.error('[SourceManager] step=import_fail reason=import_failed')
+    DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=import_failed')
     return { ok: false, reasonCode: 'import_failed' }
   }
 }
 
 export async function installFromArchive(context: common.UIAbilityContext, uri: string): Promise<SourcePackageInstallResult> {
   return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
-    console.info('[SourceManager] step=import_start')
+    DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start')
     ensureDirSync(appSourceRoot(context))
     ensureDirSync(appSourcePackagesRoot(context))
     const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
@@ -1236,7 +1237,7 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
         await removeAppSourcePackageDir(context, packageDir)
       } catch (_err) {
       }
-      console.error('[SourceManager] step=import_fail reason=import_failed')
+      DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=import_failed')
       return { ok: false, reasonCode: 'import_failed' }
     }
   })
@@ -1249,7 +1250,7 @@ export async function installFromBytes(
   expectedSourceId?: string,
 ): Promise<SourcePackageInstallResult> {
   return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
-    console.info('[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
+    DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
     const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
     const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
       sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
@@ -1294,7 +1295,7 @@ export function setEnabled(context: common.UIAbilityContext, id: string, enabled
     return false
   }
   SourceRuntimeStateBridge.notifyChanged()
-  console.info('[SourceManager] step=' + (enabled ? 'enable' : 'disable') + ' id=' + id)
+  DiagnosticLogger.info('source_package', 'step', '[SourceManager] step=' + (enabled ? 'enable' : 'disable') + ' id=' + id)
   return true
 }
 
@@ -1347,7 +1348,7 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
     appSourceRuntimeRegistry.remove(entry.sourceId)
     clearSourceRuntimeDiagnostic(entry.sourceId)
     SourceRuntimeStateBridge.notifyChanged()
-    console.info('[SourceManager] step=remove id=' + entry.sourceId)
+    DiagnosticLogger.info('source_package', 'remove', '[SourceManager] step=remove id=' + entry.sourceId)
     if (entry.archivePath !== undefined) {
       const packageDir = entry.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
       try {
@@ -1367,7 +1368,7 @@ export function runSmoke(id: string): SourcePackageSmokeResult {
     sourceManagerSmokeSourceInfoRequest(id),
   )
   if (sourceInfoResult.ok) {
-    console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=source_info')
+    DiagnosticLogger.info('source_package', 'smoke_ok', '[SourceManager] step=smoke_ok id=' + id + ' operation=source_info')
     const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'source_info' }
     setSourceRuntimeDiagnostic(passed)
     return passed
@@ -1388,7 +1389,7 @@ export function runSmoke(id: string): SourcePackageSmokeResult {
     setSourceRuntimeDiagnostic(failed)
     return failed
   }
-  console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=search')
+  DiagnosticLogger.info('source_package', 'smoke_ok', '[SourceManager] step=smoke_ok id=' + id + ' operation=search')
   const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'Fixture Series' }
   setSourceRuntimeDiagnostic(passed)
   return passed
@@ -1401,7 +1402,7 @@ export async function runSmokeAsync(id: string): Promise<SourcePackageSmokeResul
     sourceManagerSmokeSourceInfoRequest(id),
   )
   if (sourceInfoResult.ok) {
-    console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=source_info')
+    DiagnosticLogger.info('source_package', 'smoke_ok', '[SourceManager] step=smoke_ok id=' + id + ' operation=source_info')
     const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'source_info' }
     setSourceRuntimeDiagnostic(passed)
     return passed
@@ -1422,7 +1423,7 @@ export async function runSmokeAsync(id: string): Promise<SourcePackageSmokeResul
     setSourceRuntimeDiagnostic(failed)
     return failed
   }
-  console.info('[SourceManager] step=smoke_ok id=' + id + ' operation=search')
+  DiagnosticLogger.info('source_package', 'smoke_ok', '[SourceManager] step=smoke_ok id=' + id + ' operation=search')
   const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'Fixture Series' }
   setSourceRuntimeDiagnostic(passed)
   return passed

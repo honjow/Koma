@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   Comic,
   CustomLibraryCategory,
@@ -74,7 +75,7 @@ export struct LibraryCategoryManagementPage {
     if (allowedValidationMessages.includes(message)) {
       return message
     }
-    console.warn('[LibraryCategory] step=mutation_failed reason=category_persist')
+    DiagnosticLogger.warn('library_category_management_page', 'mutation_failed', '[LibraryCategory] step=mutation_failed reason=category_persist')
     return s('library_category_save_failed')
   }
 

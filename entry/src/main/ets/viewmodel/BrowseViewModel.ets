@@ -1,3 +1,5 @@
+import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
 import { AppStrings } from '../i18n/AppStrings'
 import {
@@ -138,7 +140,7 @@ function enqueueSourceOperation(
     if (isActive !== undefined && !isActive()) {
       throw new Error('search_cancelled')
     }
-    return taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>
+    return diagnoseSourceOperation(requestJson, () => taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>)
   })
   // A failed source must not prevent the next source from running.
   sourceOperationQueue = result.then(() => {}, () => {})
@@ -1305,7 +1307,7 @@ export class BrowseViewModel {
     const rawErrorCode = response.error?.['code']
     const reasonCode = safeDiagnosticCode(response.reasonCode ?? 'unknown')
     const diagnosticErrorCode = safeDiagnosticCode(typeof rawErrorCode === 'string' ? rawErrorCode : 'unknown')
-    console.warn('[Browse] step=source_operation_failed operation=' + safeDiagnosticCode(operation) +
+    DiagnosticLogger.warn('browse_view_model', 'source_operation_failed', '[Browse] step=source_operation_failed operation=' + safeDiagnosticCode(operation) +
       ' reason=' + reasonCode + ' error=' + diagnosticErrorCode)
     if (typeof response.reasonCode === 'string' && response.reasonCode.length > 0) {
       return AppStrings.format('browse_error_source_runtime_failed', safeDiagnosticCode(response.reasonCode))

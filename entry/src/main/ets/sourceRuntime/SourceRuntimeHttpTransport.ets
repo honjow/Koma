@@ -121,6 +121,7 @@ async function executeSourceHttpRequest(requestJson: string): Promise<string> {
   if (body.length > 1024 * 1024) {
     return transportError('request_too_large', false)
   }
+  const trace = DiagnosticLogger.begin('source_http', 'request', 'method=' + method + ' timeoutMs=' + sourceTimeout(envelope.timeoutMs))
   const request = http.createHttp()
   try {
     const response = await request.request(url, {
@@ -134,12 +135,13 @@ async function executeSourceHttpRequest(requestJson: string): Promise<string> {
       connectTimeout: sourceTimeout(envelope.timeoutMs),
     })
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
-    DiagnosticLogger.debug('source_http', 'response', '[SourceHttpTransport] step=response status=' + response.responseCode)
+    trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode + ' chars=' + responseBody.length)
     return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody))
   } catch (_error) {
     const error = _error as BusinessError
     const platformCode = typeof error.code === 'number' && Number.isFinite(error.code) ? error.code : 0
-    DiagnosticLogger.warn('source_http', 'transport_failed', '[SourceHttpTransport] step=transport_failed platformCode=' + platformCode)
+    trace.fail(error)
+    DiagnosticLogger.warn('source_http', 'transport_failed', 'platformCode=' + platformCode)
     return transportError('network_error')
   } finally {
     request.destroy()

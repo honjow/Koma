@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
@@ -494,7 +495,7 @@ export class SourceIndexService {
             next = updated
           }
           await this.commitSavedPreferences(store, next, normalized)
-          console.info('[SourceIndex] step=save_url')
+          DiagnosticLogger.info('source_index', 'save_url', '[SourceIndex] step=save_url')
         } catch (_error) {
           throw new Error('source_index_preferences_save_failed')
         }
@@ -553,7 +554,7 @@ export class SourceIndexService {
       })
 
       if (response.responseCode !== 200) {
-        console.error('[SourceIndex] step=fetch_fail status=' + response.responseCode)
+        DiagnosticLogger.error('source_index_service', 'fetch_fail', '[SourceIndex] step=fetch_fail status=' + response.responseCode)
         return { ok: false, reasonCode: 'http_error', entries: [] }
       }
 
@@ -596,11 +597,11 @@ export class SourceIndexService {
           }
         }
       }
-      console.info('[SourceIndex] step=fetch_ok count=' + entries.length)
+      DiagnosticLogger.info('source_index', 'fetch_ok', '[SourceIndex] step=fetch_ok count=' + entries.length)
       return { ok: true, entries }
     } catch (error) {
       const e = error as BusinessError
-      console.error('[SourceIndex] step=fetch_error code=' + e.code)
+      DiagnosticLogger.error('source_index_service', 'fetch_error', '[SourceIndex] step=fetch_error code=' + e.code)
       return { ok: false, reasonCode: 'network_error', entries: [] }
     } finally {
       httpRequest.destroy()
@@ -610,7 +611,7 @@ export class SourceIndexService {
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
     return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexInstallResult> => {
       if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
-        console.error('[SourceIndex] step=install_blocked reason=app_version_unsupported')
+        DiagnosticLogger.error('source_index_service', 'install_blocked', '[SourceIndex] step=install_blocked reason=app_version_unsupported')
         return { ok: false, reasonCode: 'app_version_unsupported' }
       }
 
@@ -619,7 +620,7 @@ export class SourceIndexService {
         return { ok: false, reasonCode: 'invalid_pkg_url' }
       }
 
-      console.info('[SourceIndex] step=download_pkg')
+      DiagnosticLogger.info('source_index', 'download_pkg', '[SourceIndex] step=download_pkg')
 
       const httpRequest = http.createHttp()
       try {
@@ -632,7 +633,7 @@ export class SourceIndexService {
         })
 
         if (response.responseCode !== 200) {
-          console.error('[SourceIndex] step=download_fail status=' + response.responseCode)
+          DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail status=' + response.responseCode)
           return { ok: false, reasonCode: 'http_error' }
         }
 
@@ -647,21 +648,21 @@ export class SourceIndexService {
           return { ok: false, reasonCode: 'empty_package' }
         }
         if (entry.sha256.length > 0 && sha256Hex(archiveBytes) !== entry.sha256) {
-          console.error('[SourceIndex] step=download_fail reason=checksum_mismatch')
+          DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail reason=checksum_mismatch')
           return { ok: false, reasonCode: 'checksum_mismatch' }
         }
 
         const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)
         if (!install.ok) {
-          console.error('[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
+          DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
           return { ok: false, reasonCode: install.reasonCode, install }
         }
 
-        console.info('[SourceIndex] step=install_ok id=' + install.id)
+        DiagnosticLogger.info('source_index', 'install_ok', '[SourceIndex] step=install_ok id=' + install.id)
         return { ok: true, install }
       } catch (error) {
         const e = error as BusinessError
-        console.error('[SourceIndex] step=download_error code=' + e.code)
+        DiagnosticLogger.error('source_index_service', 'download_error', '[SourceIndex] step=download_error code=' + e.code)
         return { ok: false, reasonCode: 'network_error' }
       } finally {
         httpRequest.destroy()
