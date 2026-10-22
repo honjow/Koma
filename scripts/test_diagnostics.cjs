@@ -158,3 +158,65 @@ test('ordinary source operation logging preserves responses and thrown objects w
   assert.match(text, /reason=source_response_invalid_json/)
   assert.match(text, /code=2300028/)
 })
+
+
+function readerImageRequestRuntime({ headers, error, responseCode = 200, observerFails = false }) {
+  const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
+  const file = path.join(__dirname, '../entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
+  const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
+  const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'downloadReaderRemoteBytes')
+  assert.ok(fn)
+  let observer, destroyed = false, options
+  const bytes = new ArrayBuffer(7)
+  const http = {
+    RequestMethod: { GET: 'GET' }, HttpDataType: { ARRAY_BUFFER: 'buffer' },
+    createHttp: () => ({
+      on(event, callback) {
+        assert.equal(event, 'headersReceive')
+        if (observerFails) throw Error('privateObserverFailure')
+        observer = callback
+      },
+      async request(_url, requestOptions) {
+        options = requestOptions
+        if (headers !== undefined) observer?.(headers)
+        if (error) throw error
+        return { responseCode, result: bytes }
+      },
+      destroy() { destroyed = true },
+    }),
+  }
+  const exports = {}
+  const js = ts.transpileModule(fn.getText(source) + '\nexports.fetch = downloadReaderRemoteBytes', {
+    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
+  }).outputText
+  vm.runInNewContext(js, { exports, http, DiagnosticLogger: log, httpHeadersForReaderRequest: value => value })
+  return { run: () => exports.fetch('https://example.test/privateWork', { Authorization: 'privateToken' }),
+    bytes, log, destroyed: () => destroyed, options: () => options }
+}
+
+test('reader HTTP failures retain observed response metadata without inventing received bytes', async () => {
+  for (const headers of [undefined, { 'Content-Length': '28793918', 'Set-Cookie': 'privateCookie' }, { 'content-length': 'invalid' }]) {
+    const r = readerImageRequestRuntime({ headers, error: Object.assign(new Error('privateBody'), { code: 2300028 }) })
+    await assert.rejects(r.run(), /reader_remote_image_fetch_failed_2300028/)
+    const text = r.log.exportBufferedText()
+    assert.match(text, new RegExp('responseStarted=' + (headers !== undefined)))
+    assert.match(text, new RegExp('declaredBytes=' + (headers?.['Content-Length'] || '-1')))
+    assert.match(text, /receivedBytes=unknown.*code=2300028/)
+    assert.equal(text.includes('private'), false)
+    assert.equal(r.destroyed(), true)
+    assert.equal(r.options().readTimeout, 60000)
+    assert.equal(r.options().connectTimeout, 30000)
+    assert.equal(r.options().maxLimit, undefined)
+  }
+})
+
+test('reader HTTP diagnostics preserve returned bytes and survive unavailable or malformed observers', async () => {
+  for (const config of [{ headers: { 'cOnTeNt-LeNgTh': '7' } }, { observerFails: true }, { headers: null }]) {
+    const r = readerImageRequestRuntime(config)
+    assert.equal(await r.run(), r.bytes)
+    assert.equal(r.destroyed(), true)
+    const text = r.log.exportBufferedText()
+    assert.match(text, /status=completed.*bytes=7/)
+    assert.equal(text.includes('private'), false)
+  }
+})

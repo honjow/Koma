@@ -9,6 +9,11 @@
 - 放大版Release构建成功，0.1.1/code2/debug=false，固定包`build-startup-large/0.1.1-2-d54fbc42/Koma-0.1.1-2-d54fbc42-default-release-signed.hap`为8354908B，197明确覆盖安装成功。桌面K原图已亲看；普通图标冷启动连续录像136帧/4张联系表及第60帧原图已亲看，浅色首屏为放大K。最终普通书架与Chibi第2页25%保持。浅深资源同步同尺寸并已编译，深色启动未做实机切换，不冒称通过。
 - 原emerald背景和分层引用逐字节保持。原系统120000ms/无override已恢复并读回AWAKE，本轮scratch清理、租约2c024806已释放。原件、结果及固定包沿上述忽略目录；本轮资源已范围提交051f3b17并随efacb2f1同步master；精确CI39819554203/head=efacb2f15121cdaa510dd887448c1fd9e49b289e已completed/success，固定Kit、版本日志/三语检查、Release编译、HAP检查及上传通过，tag发布任务skipped。当前可安装签名包固定在`.hermes-artifacts/20261022-k-icon-study/build-startup-large/0.1.1-2-d54fbc42/Koma-0.1.1-2-d54fbc42-default-release-signed.hap`；本轮只读包内module.json复核com.honjow.koma/0.1.1/code2/debug=false及8354908B，不重建、不重装、不重新计算摘要。
 
+## SciTechVista237首图网络失败：日志边界补齐进行中（2026-10-23 / Root）
+
+- 原source owner已普通导入011，61→62仅新增本源；首屏5作及首篇1章成立，正文约61秒后ReaderImage报2300028并显示失败/重试，未点击重试。Root亲看终态、读回原始错误及恢复回执；CMYK解码/颜色、实际平台容量仍未证。HEAD在本机仅证200/28793918B/1.56s响应，不代替237正文；四私库及旧受限端点不重取。
+- 修改依据：本次失败缺“是否收到响应头/声明长度”。42a56efa的终态日志只保平台码；09cc9e2f以来普通request/60000ms读取/30000ms连接保持。官方API23说明50MB与参数表5MiB存在差异，不能据旧表断定本设备容量问题；官方普通request不发送流式接收进度，不假记0。Root只给ReaderPageSourceAdapter.downloadReaderRemoteBytes的现有日志补响应到达/声明长度，成功保实际字节、失败写unknown，原请求/缓存/期限/容量/UI保持；随后Release构建与237同一路径限定验收，未完成不计修好。
+
 ## Protectors237首篇普通正文：具名路径通过（2026-10-23 / 源owner + Root）
 
 - 现装0.1.0普通Browse→《具现灵小课堂》（moment185451606127414743）→开始阅读，完整中文四格原图1/1及自然返回详情的继续第1/1页均由Root亲看；reader.json精确绑定该作品/章/pageIndex0/totalPages1/completed=true。只闭首篇Native读图与返回，原日志列表阶段664126B命中不能冒正文缓存命中或首次网络成功；下载/cold及其余四篇保持未验。

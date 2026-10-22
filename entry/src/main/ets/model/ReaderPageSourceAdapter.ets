@@ -336,6 +336,29 @@ function isLocalFileUri(uri: string): boolean {
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders): Promise<ArrayBuffer> {
   const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=30000 readTimeoutMs=60000')
   const httpRequest = http.createHttp()
+  let responseStarted: boolean = false
+  let declaredBytes: number = -1
+  try {
+    httpRequest.on('headersReceive', (headers: Object) => {
+      responseStarted = true
+      declaredBytes = -1
+      try {
+        const fields = headers as Record<string, string>
+        for (const key of Object.keys(fields)) {
+          if (key.toLowerCase() === 'content-length' && /^\d+$/.test(fields[key])) {
+            const length = Number(fields[key])
+            if (Number.isSafeInteger(length)) declaredBytes = length
+          }
+        }
+      } catch (_error) {
+        // A malformed diagnostic header must not affect the image request.
+      }
+      trace.info('response', 'declaredBytes=' + declaredBytes)
+    })
+  } catch (error) {
+    // Diagnostics registration must never prevent the original request.
+    trace.warn('response_observer_unavailable', DiagnosticLogger.errorSummary(error as Error))
+  }
   try {
     const response = await httpRequest.request(url, {
       method: http.RequestMethod.GET,
@@ -347,14 +370,17 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
     })
     if (response.responseCode !== 200) {
       DiagnosticLogger.warn('reader_page_source_adapter', 'http_status_failed', `[ReaderImage] step=http_status_failed status=${response.responseCode}`)
-      trace.finish('failed', 'status=' + response.responseCode)
+      trace.finish('failed', 'status=' + response.responseCode + ' responseStarted=' + responseStarted +
+        ' declaredBytes=' + declaredBytes + ' receivedBytes=' + (response.result as ArrayBuffer).byteLength)
       throw new Error(`reader_remote_image_http_${response.responseCode}`)
     }
-    trace.finish('completed', 'status=' + response.responseCode + ' bytes=' + (response.result as ArrayBuffer).byteLength)
+    trace.finish('completed', 'status=' + response.responseCode + ' bytes=' + (response.result as ArrayBuffer).byteLength +
+      ' responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes)
     return response.result as ArrayBuffer
   } catch (error) {
     const e = error as BusinessError
-    trace.fail(e)
+    trace.finish('failed', 'responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes +
+      ' receivedBytes=unknown ' + DiagnosticLogger.errorSummary(e))
     DiagnosticLogger.warn('reader_page_source_adapter', 'http_request_failed', `[ReaderImage] step=http_request_failed code=${e.code === undefined ? 'unknown' : e.code}`)
     throw new Error(`reader_remote_image_fetch_failed_${e.code === undefined ? 'unknown' : e.code}`)
   } finally {
