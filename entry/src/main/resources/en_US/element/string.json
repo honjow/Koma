@@ -344,7 +344,7 @@
     { "name": "settings_row_download_concurrency_title", "value": "Concurrent tasks" },
     { "name": "settings_row_download_concurrency_detail", "value": "Downloads at the same time" },
     { "name": "settings_row_download_retry_failed_title", "value": "Retry failed tasks" },
-    { "name": "settings_row_download_retry_failed_detail", "value": "Retry failed downloads automatically" },
+    { "name": "settings_row_download_retry_failed_detail", "value": "View and retry failed downloads" },
     { "name": "settings_row_download_wifi_only_title", "value": "Wi-Fi only" },
     { "name": "settings_row_download_wifi_only_detail", "value": "Download only on Wi-Fi" },
     { "name": "settings_row_trackers_title", "value": "Trackers" },

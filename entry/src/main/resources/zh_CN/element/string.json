@@ -343,7 +343,7 @@
     { "name": "settings_row_download_concurrency_title", "value": "并发任务数" },
     { "name": "settings_row_download_concurrency_detail", "value": "同时下载的任务数" },
     { "name": "settings_row_download_retry_failed_title", "value": "失败任务重试" },
-    { "name": "settings_row_download_retry_failed_detail", "value": "自动重试失败下载" },
+    { "name": "settings_row_download_retry_failed_detail", "value": "查看并重试失败任务" },
     { "name": "settings_row_download_wifi_only_title", "value": "仅 Wi-Fi" },
     { "name": "settings_row_download_wifi_only_detail", "value": "仅在 Wi-Fi 下下载" },
     { "name": "settings_row_trackers_title", "value": "追踪器" },

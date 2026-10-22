@@ -2766,14 +2766,21 @@ export struct ReaderPage {
       this.scheduleStatusBarVisibility()
     }
     if (persist) {
-      this.persistPreferences(previous, this.preferences)
+      void this.persistPreferences(previous, this.preferences)
       this.persistCurrentProgress()
     }
   }
 
-  private persistPreferences(previous: ReaderPreferences, next: ReaderPreferences): void {
-    if (this.preferencesStore !== undefined) {
-      void this.preferencesStore.saveChangesForComic(this.sessionConfig.comicId, previous, next)
+  private async persistPreferences(previous: ReaderPreferences, next: ReaderPreferences): Promise<void> {
+    const store = this.preferencesStore
+    if (store === undefined) {
+      return
+    }
+    const config = this.sessionConfig
+    await store.saveChangesForComic(config.comicId, previous, next)
+    const override = await store.seriesModeOverride(config.comicId)
+    if (this.sessionConfig === config && this.preferencesStore === store && !this.closing) {
+      this.seriesOverrideActive = override !== undefined
     }
   }
 
