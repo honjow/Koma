@@ -70,7 +70,13 @@ export function isSourcePackageMinAppVersionSatisfied(minAppVersion: string | un
   try {
     const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
     const current = info.versionName
-    return isValidSourcePackageMinAppVersion(current) && compareSourcePackageVersions(current, required) >= 0
+    const prerelease = current.endsWith('-pre')
+    const baseVersion = prerelease ? current.slice(0, -4) : current
+    if (!isValidSourcePackageMinAppVersion(baseVersion) || baseVersion.length === 0) {
+      return false
+    }
+    const comparison = compareSourcePackageVersions(baseVersion, required)
+    return comparison > 0 || (comparison === 0 && !prerelease)
   } catch (_err) {
     return false
   }
