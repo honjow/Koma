@@ -10,7 +10,9 @@ const output = ts.transpileModule(failureSource, { compilerOptions: {
   target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
 } }).outputText
 const exported = {}
+const logEvents = []
 new Function('exports', 'require', output)(exported, function (name) {
+  if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { warn: (...args) => logEvents.push(args) } }
   if (name === '../i18n/AppStrings') return { AppStrings: { get: function (key) { return key === 'reader_page_load_failed' ? 'Koma page failed' : key } } }
   if (name === '@reader-kit/core') return { ReaderAssetFailure: class {
     constructor(code, title, hint) { Object.assign(this, { code: code, title: title || '', hint: hint || '' }) }
@@ -21,6 +23,9 @@ const KomaReaderFailure = exported.KomaReaderFailure
 const failure = KomaReaderFailure.from(new Error('missing_chapter_page'))
 assert.equal(failure.code, 'pageUnavailable')
 assert.equal(failure.title, 'Koma page failed')
+assert.deepEqual(logEvents, [['reader', 'page_unavailable', 'reason=page_unavailable']])
+KomaReaderFailure.from(new Error('https://private.example/secret-title?token=secret'))
+assert.equal(JSON.stringify(logEvents).includes('secret'), false)
 
 const adapter = fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabAdapter.ets'), 'utf8')
 assert.ok(adapter.indexOf('ReaderAssetFailureClassifier') >= 0)

@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
   importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
@@ -855,7 +856,7 @@ export class BackupService {
   async exportEncrypted(passphrase: string): Promise<string> {
     const document = await this.buildBackupDocument(BACKUP_ENCRYPTED_SCHEMA_VERSION)
     const payload = await new BackupEncryptionService().encrypt(JSON.stringify(document), passphrase)
-    console.info('[Backup] step=export_encrypted')
+    DiagnosticLogger.info('backup', 'export_encrypted', '[Backup] step=export_encrypted')
     return payload
   }
 
@@ -863,7 +864,7 @@ export class BackupService {
     const payload = await this.export()
     const fileName = `koma-backup-${Date.now()}.json`
     const record = this.writeLocalBackup(fileName, payload)
-    console.info('[Backup] step=local_export')
+    DiagnosticLogger.info('backup', 'local_export', '[Backup] step=local_export')
     return record
   }
 
@@ -871,7 +872,7 @@ export class BackupService {
     const payload = await this.exportEncrypted(passphrase)
     const fileName = `koma-backup-${Date.now()}.koma-backup`
     const record = this.writeLocalBackup(fileName, payload)
-    console.info('[Backup] step=local_export_encrypted')
+    DiagnosticLogger.info('backup', 'local_export_encrypted', '[Backup] step=local_export_encrypted')
     return record
   }
 
@@ -1017,7 +1018,7 @@ export class BackupService {
     if (reason === 'due' && requireForeground && !connectAppForegroundState().active) {
       return { ran: false, deletedCount: 0, preferences: preferencesValue, skippedReason: 'background' }
     }
-    console.info('[Backup] step=auto_started reason=' + reason)
+    DiagnosticLogger.info('backup', 'auto_started', '[Backup] step=auto_started reason=' + reason)
     return this.runAutomaticLocalBackupWithPreferences(now)
   }
 
@@ -1066,7 +1067,7 @@ export class BackupService {
     if (record === undefined) {
       throw new Error('backup_local_rename_failed')
     }
-    console.info('[Backup] step=local_rename')
+    DiagnosticLogger.info('backup', 'local_rename', '[Backup] step=local_rename')
     return record
   }
 
@@ -1076,14 +1077,14 @@ export class BackupService {
     if (fs.accessSync(path)) {
       fs.unlinkSync(path)
     }
-    console.info('[Backup] step=local_delete')
+    DiagnosticLogger.info('backup', 'local_delete', '[Backup] step=local_delete')
   }
 
   async selectLocalBackup(fileName: string): Promise<BackupImportSelectionPreview> {
     const safeName = this.requireLocalBackupFileName(fileName)
     const payload = fs.readTextSync(this.localBackupPath(safeName), { encoding: 'utf-8' })
     const preview = this.preview(payload)
-    console.info('[Backup] step=local_select')
+    DiagnosticLogger.info('backup', 'local_select', '[Backup] step=local_select')
     return {
       payload,
       preview,
@@ -1128,7 +1129,7 @@ export class BackupService {
         document.trackerMappings = await this.exportTrackerMappings()
       }
       document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
-      console.info('[Backup] step=export_json')
+      DiagnosticLogger.info('backup', 'export_json', '[Backup] step=export_json')
       return document
     })
   }
@@ -1179,7 +1180,7 @@ export class BackupService {
         await importApplicationSettings(this.context, document.applicationSettings)
       }
       checkpoint.commit()
-      console.info('[Backup] step=import_json')
+      DiagnosticLogger.info('backup', 'import_json', '[Backup] step=import_json')
     } catch (error) {
       if (checkpoint !== undefined) {
         try {
@@ -1193,7 +1194,7 @@ export class BackupService {
           checkpoint.completeRollback()
         } catch (_recoveryError) {
           BackupRestoreActivity.blockUntilRestart()
-          console.error('[BackupRecovery] step=rollback_failed code=backup_recovery_pending')
+          DiagnosticLogger.error('backup', 'rollback_failed', '[BackupRecovery] step=rollback_failed code=backup_recovery_pending')
           // Keep PREPARED and prevent this Ability from consuming mixed state.
           await this.context.terminateSelf()
           throw new Error('backup_recovery_pending')
@@ -1316,11 +1317,11 @@ export class BackupService {
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.save(options)
     if (result.length === 0) {
-      console.info('[Backup] step=export_cancel')
+      DiagnosticLogger.info('backup', 'export_cancel', '[Backup] step=export_cancel')
       return undefined
     }
     writePickedBackupText(result[0], payload)
-    console.info('[Backup] step=export_save')
+    DiagnosticLogger.info('backup', 'export_save', '[Backup] step=export_save')
     return result[0]
   }
 
@@ -1386,11 +1387,11 @@ export class BackupService {
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.save(options)
     if (result.length === 0) {
-      console.info('[Backup] step=export_encrypted_cancel')
+      DiagnosticLogger.info('backup', 'export_encrypted_cancel', '[Backup] step=export_encrypted_cancel')
       return undefined
     }
     writePickedBackupText(result[0], payload)
-    console.info('[Backup] step=export_encrypted_save')
+    DiagnosticLogger.info('backup', 'export_encrypted_save', '[Backup] step=export_encrypted_save')
     return result[0]
   }
 
@@ -1400,12 +1401,12 @@ export class BackupService {
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.select(options)
     if (result.length === 0) {
-      console.info('[Backup] step=import_cancel')
+      DiagnosticLogger.info('backup', 'import_cancel', '[Backup] step=import_cancel')
       return false
     }
     const payload = readPickedBackupText(result[0])
     await this.import(payload)
-    console.info('[Backup] step=import_select')
+    DiagnosticLogger.info('backup', 'import_select', '[Backup] step=import_select')
     return true
   }
 
@@ -1415,12 +1416,12 @@ export class BackupService {
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.select(options)
     if (result.length === 0) {
-      console.info('[Backup] step=preview_cancel')
+      DiagnosticLogger.info('backup', 'preview_cancel', '[Backup] step=preview_cancel')
       return undefined
     }
     const payload = readPickedBackupText(result[0])
     const preview = this.preview(payload)
-    console.info('[Backup] step=preview_select')
+    DiagnosticLogger.info('backup', 'preview_select', '[Backup] step=preview_select')
     return {
       payload,
       preview,
@@ -1571,7 +1572,7 @@ export class BackupService {
         await this.persistAutomaticPreferences(current)
         return current
       })
-      console.info(`[Backup] step=auto_export deleted=${deletedCount}`)
+      DiagnosticLogger.info('backup', 'auto_export', `[Backup] step=auto_export deleted=${deletedCount}`)
       return {
         ran: true,
         created,
@@ -1589,7 +1590,7 @@ export class BackupService {
         await this.persistAutomaticPreferences(current)
         return current
       })
-      console.error('[Backup] step=auto_export_failed code=backup_auto_export_failed')
+      DiagnosticLogger.error('backup', 'auto_export_failed', '[Backup] step=auto_export_failed code=backup_auto_export_failed')
       return {
         ran: false,
         deletedCount: 0,

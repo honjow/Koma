@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool } from '@kit.ArkTS'
@@ -26,7 +27,6 @@ import {
   OfflineDownloadedPage,
   createOfflineDownloadFileContentHash,
   createOfflineDownloadStableByteHash,
-  createOfflineDownloadStableHash,
 } from './OfflineDownloadStore'
 import {
   OfflineDownloadQueuePreferences,
@@ -287,11 +287,11 @@ export class OfflineDownloadService {
     }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
     if (chapter === undefined) {
-      console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=chapter_missing`)
+      DiagnosticLogger.warn('download', 'download_blocked', `[ReaderOffline] step=download_blocked reason=chapter_missing`)
       return this.saveBlockedChapter(comic, chapterId, 'chapter_missing', labels)
     }
     if (chapter.pages.length === 0) {
-      console.warn(`[ReaderOffline] step=download_blocked comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} reason=pages_missing`)
+      DiagnosticLogger.warn('download', 'download_blocked', `[ReaderOffline] step=download_blocked reason=pages_missing`)
       return this.saveBlockedChapter(comic, chapterId, 'pages_missing', labels)
     }
 
@@ -300,7 +300,7 @@ export class OfflineDownloadService {
       existingValidation.manifest !== undefined) {
       const manifest = this.store.saveManifest(applyManifestLabels(existingValidation.manifest, comic, chapter, labels))
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      console.info(`[ReaderOffline] step=download_reused comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
+      DiagnosticLogger.info('download', 'download_reused', `[ReaderOffline] step=download_reused pages=${existingValidation.availablePageCount}/${existingValidation.pageCount}`)
       return manifest
     }
     const reusablePages = existingValidation.status === OfflineDownloadedChapterStatus.PARTIAL && existingValidation.manifest !== undefined ?
@@ -353,7 +353,7 @@ export class OfflineDownloadService {
         } catch (error) {
           void error
           pageFetchFailed = true
-          console.warn(`[ReaderOffline] step=download_page_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} page=${index} reason=page_fetch_failed`)
+          DiagnosticLogger.warn('download', 'download_page_failed', `[ReaderOffline] step=download_page_failed page=${index} reason=page_fetch_failed`)
           continue
         }
         const row: OfflineDownloadedPage = {
@@ -380,12 +380,12 @@ export class OfflineDownloadService {
         manifest.failureReasonCode = pageFetchFailed ? 'page_fetch_failed' : (finalValidation.reasonCode ?? 'manifest_validation_failed')
         manifest = this.store.saveManifest(manifest)
         this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-        console.warn(`[ReaderOffline] step=download_final_validation_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
+        DiagnosticLogger.warn('download', 'download_final_validation_failed', `[ReaderOffline] step=download_final_validation_failed pages=${finalValidation.availablePageCount}/${finalValidation.pageCount} reason=${manifest.failureReasonCode}`)
         this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
         return manifest
       }
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      console.info(`[ReaderOffline] step=download_done comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
+      DiagnosticLogger.info('download', 'download_done', `[ReaderOffline] step=download_done pages=${manifest.downloadedPageCount}/${manifest.pageCount}`)
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     } catch (error) {
@@ -394,7 +394,7 @@ export class OfflineDownloadService {
       manifest.failureReasonCode = 'page_fetch_failed'
       manifest = this.store.saveManifest(manifest)
       this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
-      console.warn(`[ReaderOffline] step=download_failed comic=${createOfflineDownloadStableHash(comic.id)} chapter=${createOfflineDownloadStableHash(chapterId)} pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed`)
+      DiagnosticLogger.warn('download', 'download_failed', `[ReaderOffline] step=download_failed pages=${manifest.downloadedPageCount}/${manifest.pageCount} reason=page_fetch_failed`)
       this.publishNotification(manifest, labels ?? { comicTitle: comic.title, chapterTitle: chapter.title })
       return manifest
     }
@@ -407,7 +407,7 @@ export class OfflineDownloadService {
   private publishNotification(manifest: OfflineChapterDownloadManifest, labels?: OfflineDownloadLabels): void {
     void publishOfflineDownloadNotification(manifest, labels)
       .then((result) => {
-        console.info('[ReaderOffline] step=download_notification code=' + result.code)
+        DiagnosticLogger.info('download', 'download_notification', '[ReaderOffline] step=download_notification code=' + result.code)
       })
   }
 

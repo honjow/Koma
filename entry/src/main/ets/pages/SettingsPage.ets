@@ -1,3 +1,4 @@
+import { DiagnosticsSettingsContent } from './DiagnosticsSettingsContent'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { bundleManager, common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
@@ -159,7 +160,8 @@ export type SettingsPaneKey =
   'tracking' |
   'backup' |
   'storage' |
-  'about'
+  'about' |
+  'diagnostics'
 
 interface SettingsPaneItem {
   key: SettingsPaneKey
@@ -277,6 +279,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'about', titleKey: 'settings_row_about_title', detailKey: 'settings_row_about_detail' },
         { key: 'privacy-permissions', titleKey: 'settings_row_privacy_permissions_title', detailKey: 'settings_row_privacy_permissions_detail' },
         { key: 'version', titleKey: 'settings_row_version_title', detailKey: 'settings_row_version_detail' },
+        { key: 'diagnostics', titleKey: 'diagnostics_title', detailKey: 'diagnostics_detail' },
         { key: 'open-source', titleKey: 'settings_row_open_source_title', detailKey: 'settings_row_open_source_detail' },
       ],
     },
@@ -368,6 +371,7 @@ function safeSettingsErrorCode(error: Error): string {
 }
 
 export function settingsPaneTitle(pane: SettingsPaneKey): string {
+  if (pane === 'diagnostics') return s('diagnostics_title')
   if (pane === 'appearance') {
     return s('settings_pane_appearance_title')
   }
@@ -2331,6 +2335,8 @@ export struct SettingsPage {
       this.showPrivacyPermissionsDialog()
     } else if (row.key === 'version') {
       this.showVersionDialog()
+    } else if (row.key === 'diagnostics') {
+      this.onOpenSettingsPane('diagnostics')
     } else if (row.key === 'open-source') {
       this.showOpenSourceDialog()
     }
@@ -2584,6 +2590,8 @@ export struct SettingsPage {
   private SettingsContent() {
     if (this.isSettingsSearchActive()) {
       this.SearchResults()
+    } else if (this.pane === 'diagnostics') {
+      DiagnosticsSettingsContent()
     } else if (this.pane === 'root') {
       this.RootSettings()
     } else {

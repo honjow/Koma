@@ -1437,7 +1437,7 @@ struct Index {
       pane === 'tracking' ||
       pane === 'backup' ||
       pane === 'storage' ||
-      pane === 'about') {
+      pane === 'about' || pane === 'diagnostics') {
       return pane
     }
     return 'root'

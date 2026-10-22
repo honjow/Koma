@@ -16,7 +16,7 @@
 
 最低兼容配置为 **HarmonyOS 6.1（API 23）**，当前构建面向 **arm64** 设备。
 
-[GitHub Actions](https://github.com/honjow/Koma/actions/workflows/build.yml) 提供最新代码的构建产物。当前公开 CI 产物为未签名 HAP，需要签名后安装；已获得可安装签名包的用户可直接按设备提示安装。本仓的构建入口与签名配置见 [scripts](scripts)。
+[GitHub Actions](https://github.com/honjow/Koma/actions/workflows/build.yml) 提供最新代码的构建产物。当前公开 CI 产物为未签名 HAP，需要签名后安装；已获得可安装签名包的用户可直接按设备提示安装。tag 构建成功后会自动发布到 Releases：以 `pre` 结尾的 tag（如 `v0.1.2-pre`）标为预发布，其他 tag 标为正式发布。发布产物仍为未签名 HAP。本仓的构建入口与签名配置见 [scripts](scripts)。
 
 ## 添加书源
 
@@ -46,7 +46,7 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 ## 反馈问题
 
-App 问题请提交到 [Koma Issues](https://github.com/honjow/Koma/issues)，书源问题请提交到 [源库 Issues](https://github.com/honjow/koma-sources/issues)。说明 App/源版本、设备型号、操作步骤和看到的错误；截图请先遮住个人信息，不要提供密码、Cookie 或令牌。
+App 问题请提交到 [Koma Issues](https://github.com/honjow/Koma/issues)，书源问题请提交到 [源库 Issues](https://github.com/honjow/koma-sources/issues)。说明 App/源版本、设备型号、操作步骤和看到的错误；可在 **设置 → 关于 → 诊断日志** 标记问题发生时间，然后分享或保存本地日志。日志支持开关、级别和历史文件，并对凭据与地址脱敏；截图请先遮住个人信息，不要提供密码、Cookie 或令牌。
 
 ## 开发与开源
 

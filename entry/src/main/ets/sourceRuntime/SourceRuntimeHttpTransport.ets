@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime } from './NativeSourceRuntime'
@@ -133,12 +134,12 @@ async function executeSourceHttpRequest(requestJson: string): Promise<string> {
       connectTimeout: sourceTimeout(envelope.timeoutMs),
     })
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
-    console.info('[SourceHttpTransport] step=response status=' + response.responseCode)
+    DiagnosticLogger.debug('source_http', 'response', '[SourceHttpTransport] step=response status=' + response.responseCode)
     return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody))
   } catch (_error) {
     const error = _error as BusinessError
     const platformCode = typeof error.code === 'number' && Number.isFinite(error.code) ? error.code : 0
-    console.warn('[SourceHttpTransport] step=transport_failed platformCode=' + platformCode)
+    DiagnosticLogger.warn('source_http', 'transport_failed', '[SourceHttpTransport] step=transport_failed platformCode=' + platformCode)
     return transportError('network_error')
   } finally {
     request.destroy()

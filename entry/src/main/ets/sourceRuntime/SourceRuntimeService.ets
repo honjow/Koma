@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -506,6 +507,11 @@ function registeredSourceResponse(
 ): SourceRuntimeServiceRunRequestByIdSummary {
   const operation = admission.operation ?? ''
   const responseOk = sourceRuntimeRequestResponseOk(operation, response)
+  if (responseOk) {
+    DiagnosticLogger.info('source', operation, 'completed=true source=' + sourceId)
+  } else {
+    DiagnosticLogger.warn('source', operation, 'source=' + sourceId + ' reason=' + (responseReasonCode(response) ?? 'operation_response_mismatch'))
+  }
   return {
     ok: responseOk,
     sourceId,
@@ -546,6 +552,8 @@ export async function runRegisteredSourceRequestByIdAsync(
     return { ok: false, sourceId, sourceCount: admission.sourceCount, reasonCode: 'missing_source',
       responseOk: false, attemptedWamrExecution: false }
   }
+  const started = Date.now()
+  DiagnosticLogger.info('source', admission.operation ?? 'request', 'started=true')
   const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
   wasmBytes.set(entry.wasmBytes)
   try {
@@ -558,8 +566,10 @@ export async function runRegisteredSourceRequestByIdAsync(
       return { ok: false, sourceId, operation: admission.operation, sourceCount: admission.sourceCount,
         reasonCode: 'source_changed', responseOk: false, attemptedWamrExecution: true }
     }
+    DiagnosticLogger.debug('source', admission.operation ?? 'request', 'durationMs=' + (Date.now() - started))
     return registeredSourceResponse(admission, entry.sourceId, response)
   } catch (_error) {
+    DiagnosticLogger.warn('source', admission.operation ?? 'request', 'reason=source_worker_failed')
     return { ok: false, sourceId, operation: admission.operation, sourceCount: admission.sourceCount,
       reasonCode: 'source_worker_failed', responseOk: false, attemptedWamrExecution: true }
   }

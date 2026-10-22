@@ -1,3 +1,5 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
 import { AppearancePreferencesStore } from '../model/AppearancePreferencesStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
 import { UIAbility, Want, AbilityConstant, Configuration } from '@kit.AbilityKit'
@@ -41,26 +43,30 @@ export default class EntryAbility extends UIAbility {
   private startupReady: boolean = false
   private startupPromise: Promise<void> = Promise.resolve()
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    DiagnosticLogger.configure(false)
+    DiagnosticLogger.initializePersistentSink(this.context)
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     void launchParam
     AppStrings.init(this.context)
     this.startupPromise = this.prepareStartup(want).catch((_error: Error): void => {
       BackupRestoreActivity.blockUntilRestart()
-      console.error('[BackupRecovery] step=startup_failed code=backup_recovery_pending')
+      DiagnosticLogger.error('app', 'startup_failed', '[BackupRecovery] step=startup_failed code=backup_recovery_pending')
     })
   }
 
   private async prepareStartup(want: Want): Promise<void> {
     // Recover before theme Preferences, installed packages, Library or Reader
     // consumers are initialized. A failed recovery never loads ordinary Index.
+    await DiagnosticsSettings.restore(this.context)
+    DiagnosticLogger.info('app', 'startup', 'debug=' + this.context.applicationInfo.debug)
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
     await LanguageSettings.restore(this.context).catch((_error: Error): void => {
-      console.warn('[Language] startup_apply_failed retained_previous_runtime=true')
+      DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')
     })
     await restoreReaderRemoteImageCache(this.context)
     await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
-      console.warn('[Appearance] startup_load_failed retained_previous_runtime=true')
+      DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
     })
     configureSourceSettingsStore(this.context)
     configureSourceRuntimeHttpTransport()
@@ -93,18 +99,18 @@ export default class EntryAbility extends UIAbility {
       // system rotation-lock toggle still pins portrait when enabled.
       win.setPreferredOrientation(window.Orientation.AUTO_ROTATION_UNSPECIFIED)
         .catch((error: Error) => {
-          console.error('[EntryAbility] step=set_orientation_failed code=orientation_request_failed msg=' + error.message)
+          DiagnosticLogger.error('app', 'set_orientation_failed', '[EntryAbility] step=set_orientation_failed code=orientation_request_failed msg=' + error.message)
         })
     } catch (error) {
       void error
-      console.error('[EntryAbility] step=configure_window_failed code=window_configure_failed')
+      DiagnosticLogger.error('app', 'configure_window_failed', '[EntryAbility] step=configure_window_failed code=window_configure_failed')
     }
 
     void this.startupPromise.then((): void => {
       if (!this.startupReady) return
       windowStage.loadContent(ENTRY_PAGE, (err) => {
         if (err.code) {
-          console.error('[EntryAbility] step=load_content_failed code=load_content_failed')
+          DiagnosticLogger.error('app', 'load_content_failed', '[EntryAbility] step=load_content_failed code=load_content_failed')
           return
         }
         bindReaderThemeWindow(this.context)
@@ -125,6 +131,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    DiagnosticLogger.info('app', 'destroy', '')
+    DiagnosticLogger.closePersistentSink()
     this.unbindLayoutWindow()
     unbindReaderThemeWindow()
   }
@@ -135,6 +143,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onForeground(): void {
+    DiagnosticLogger.info('app', 'foreground', '')
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
@@ -145,6 +154,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onBackground(): void {
+    DiagnosticLogger.info('app', 'background', '')
     updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()
   }
@@ -163,7 +173,7 @@ export default class EntryAbility extends UIAbility {
     try {
       win.on('windowSizeChange', this.layoutWindowSizeCallback)
     } catch (_error) {
-      console.warn('[LibraryLayout] step=window_listener_unavailable')
+      DiagnosticLogger.warn('app', 'window_listener_unavailable', '[LibraryLayout] step=window_listener_unavailable')
     }
   }
 
@@ -215,7 +225,7 @@ export default class EntryAbility extends UIAbility {
       win.on('keyboardHeightChange', this.keyboardHeightCallback)
     } catch (error) {
       void error
-      console.error('[EntryAbility] step=configure_avoid_areas_failed code=avoid_area_failed')
+      DiagnosticLogger.error('app', 'configure_avoid_areas_failed', '[EntryAbility] step=configure_avoid_areas_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
@@ -238,7 +248,7 @@ export default class EntryAbility extends UIAbility {
       LayoutSafeAreaBridge.publishKeyboardHeight(uiContext.px2vp(keyboardArea.bottomRect.height))
     } catch (error) {
       void error
-      console.error('[EntryAbility] step=publish_avoid_heights_failed code=avoid_area_failed')
+      DiagnosticLogger.error('app', 'publish_avoid_heights_failed', '[EntryAbility] step=publish_avoid_heights_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
@@ -269,11 +279,11 @@ export default class EntryAbility extends UIAbility {
   private applySavedThemeMode(): void {
     void new ReaderPreferencesStore(this.context).load()
       .then((preferences) => {
-        console.info('[Settings] step=apply_startup_theme value=' + preferences.themeMode)
+        DiagnosticLogger.info('app', 'apply_startup_theme', '[Settings] step=apply_startup_theme value=' + preferences.themeMode)
       })
       .catch((error: Error) => {
         void error
-        console.warn('[Settings] step=apply_startup_theme_failed code=theme_apply_failed')
+        DiagnosticLogger.warn('app', 'apply_startup_theme_failed', '[Settings] step=apply_startup_theme_failed code=theme_apply_failed')
       })
   }
 

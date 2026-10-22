@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderModeControl } from '../components/ReaderModeControl'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
@@ -162,6 +163,7 @@ export struct KomaReaderLabPage {
           this.unitKey.copy(), this.initialPageIndex)]
       }
     } catch (_error) {
+      DiagnosticLogger.warn('reader', 'initialize_failed', 'reason=library_unavailable')
       this.error = 'reader_lab_library_unavailable'
     }
   }
@@ -197,7 +199,7 @@ export struct KomaReaderLabPage {
       this.syncVolumeKeys()
     } catch (_error) {
       if (cancellation.isCancelled() || this.readerClosed) return
-      console.warn('[KomaReaderLab] initial_policy_unavailable')
+      DiagnosticLogger.warn('reader', 'initial_policy_unavailable', '[KomaReaderLab] initial_policy_unavailable')
       this.closeReader()
     } finally {
       if (this.initialization === cancellation) this.initialization = null
@@ -283,7 +285,7 @@ export struct KomaReaderLabPage {
   private async runChapterPreparationProbe(cancellation: ReaderCancellation): Promise<void> {
     if (this.chapterProbeUsed || this.request.chapterProbe.length === 0) return
     this.chapterProbeUsed = true
-    console.info(`[KomaReaderLab] chapter_probe kind=${this.request.chapterProbe}`)
+    DiagnosticLogger.info('reader', 'chapter_probe', `[KomaReaderLab] chapter_probe kind=${this.request.chapterProbe}`)
     if (this.request.chapterProbe === 'prepare-fail-once') throw new Error('reader_lab_chapter_prepare_probe')
     await new Promise<void>((resolve): void => { setTimeout(resolve, 3000) })
     cancellation.check()
@@ -299,7 +301,7 @@ export struct KomaReaderLabPage {
     if (current.phase !== 'ready' || current.unit === null || !current.unit.key.equals(sourceUnit)) return
     if (target.scope !== sourceUnit.scope || target.work !== sourceUnit.work) return
     this.chapterRequest?.cancel()
-    console.info(`[KomaReaderLab] chapter_boundary direction=${reason} source=${sourceUnit.unit} target=${target.unit}`)
+    DiagnosticLogger.info('reader', 'chapter_boundary', `[KomaReaderLab] chapter_boundary direction=${reason}`)
     const source = sourceUnit.copy()
     const cancellation = new ReaderCancellation()
     this.chapterRequest = cancellation
@@ -318,14 +320,14 @@ export struct KomaReaderLabPage {
         opened.unit?.key.equals(target) === true && this.chapterRequest === cancellation &&
         this.session === session && this.routeActive && this.labVisibility.foreground) {
         this.syncChapterChoices(target)
-        console.info(`[KomaReaderLab] chapter_opened direction=${reason} unit=${target.unit}`)
+        DiagnosticLogger.info('reader', 'chapter_opened', `[KomaReaderLab] chapter_opened direction=${reason}`)
       }
     } catch (_error) {
       if (isCurrent()) {
-        console.warn(`[KomaReaderLab] chapter_failed direction=${reason} source=${source.unit} target=${target.unit}`)
+        DiagnosticLogger.warn('reader', 'chapter_failed', `[KomaReaderLab] chapter_failed direction=${reason}`)
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.manga_detail_chapter_pages_load_failed') })
       } else if (cancellation.isCancelled()) {
-        console.info(`[KomaReaderLab] chapter_cancelled direction=${reason} source=${source.unit} target=${target.unit}`)
+        DiagnosticLogger.info('reader', 'chapter_cancelled', `[KomaReaderLab] chapter_cancelled direction=${reason}`)
       }
     } finally {
       if (this.chapterRequest === cancellation) {
@@ -435,7 +437,7 @@ export struct KomaReaderLabPage {
         await store.save(next)
       }
     }).catch((): void => {
-      console.warn('[KomaReaderLab] preference_persist_failed')
+      DiagnosticLogger.warn('reader', 'preference_persist_failed', '[KomaReaderLab] preference_persist_failed')
     })
   }
 
@@ -556,7 +558,7 @@ export struct KomaReaderLabPage {
       this.hostPreferences = effective
       this.seriesOverrideActive = false
       this.session?.setPolicy(KomaReaderInitialPolicy.resolveHost(effective, effective.columnMode))
-    }).catch((): void => { console.warn('[KomaReader] preference_reset_failed') })
+    }).catch((): void => { DiagnosticLogger.warn('reader', 'preference_reset_failed', '[KomaReader] preference_reset_failed') })
   }
 
   @Builder
