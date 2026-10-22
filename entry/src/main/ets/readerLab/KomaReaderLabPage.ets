@@ -23,9 +23,33 @@ import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
 import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 
+// A surface keeps one non-null session for its whole component lifetime.
+// Re-entry replaces the entry, rather than updating a mounted surface to null.
+class KomaReaderSessionEntry {
+  readonly id: number
+  readonly session: ReaderPagedSession
+  readonly unit: ReaderUnitKey
+  readonly initialIndex: number
+
+  constructor(id: number, session: ReaderPagedSession, unit: ReaderUnitKey, initialIndex: number) {
+    this.id = id
+    this.session = session
+    this.unit = unit
+    this.initialIndex = initialIndex
+  }
+}
+
 @ComponentV2
 export struct KomaReaderLabPage {
   @Require @Param request: ReaderLabRequest
+  @Param productionEntry: boolean = false
+  @Param closeRequestId: number = 0
+  @Event prepareInitial: () => Promise<void> = async (): Promise<void> => {}
+  @Event onRouteVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
+  @Event onRouteDisappear: () => void = () => {}
+  @Local private seriesOverrideActive: boolean = false
+  private observedCloseRequestId: number = 0
+
   @Event readInitialColumn: (work: string, unit: string) => ReaderColumnMode = () => {
     throw new Error('reader_lab_progress_owner_unavailable')
   }
@@ -38,6 +62,8 @@ export struct KomaReaderLabPage {
   @Event onClose: () => void = () => {}
   @Param catalogHost: KomaReaderCatalogHost | null = null
   @Local private session: ReaderPagedSession | null = null
+  @Local private surfaceEntries: KomaReaderSessionEntry[] = []
+  private surfaceGeneration: number = 0
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
   @Local private routeActive: boolean = false
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -86,9 +112,36 @@ export struct KomaReaderLabPage {
   }
 
   aboutToAppear(): void {
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    if (!context.applicationInfo.debug) return
+    this.initializeReader()
+  }
+
+  @Monitor('request')
+  private onEntryRequestChanged(): void {
+    if (!this.productionEntry) return
     this.initialization?.cancel()
+    this.session?.close()
+    this.adapter?.close()
+    this.cancelChapterRequest()
+    this.readerSettingsSheetShown = false
+    this.chapterPickerShown = false
+    this.initializeReader()
+  }
+
+  @Monitor('closeRequestId')
+  private onExternalCloseRequest(): void {
+    if (!this.productionEntry || this.closeRequestId === this.observedCloseRequestId) return
+    this.observedCloseRequestId = this.closeRequestId
+    this.closeReader()
+  }
+
+  private initializeReader(): void {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    if (!this.productionEntry && !context.applicationInfo.debug) return
+    this.observedCloseRequestId = this.closeRequestId
+    this.error = ''
+    this.seriesOverrideActive = false
+    this.initialization?.cancel()
+    this.surfaceEntries = []
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
     try {
@@ -105,6 +158,8 @@ export struct KomaReaderLabPage {
         void this.initializeSession(context, session)
       } else {
         this.session = session
+        this.surfaceEntries = [new KomaReaderSessionEntry(++this.surfaceGeneration, session,
+          this.unitKey.copy(), this.initialPageIndex)]
       }
     } catch (_error) {
       this.error = 'reader_lab_library_unavailable'
@@ -116,8 +171,14 @@ export struct KomaReaderLabPage {
     this.initialization?.cancel()
     this.initialization = cancellation
     try {
+      if (this.productionEntry) await this.prepareInitial()
+      if (cancellation.isCancelled() || this.readerClosed) return
       const preferencesStore = new ReaderPreferencesStore(context)
-      const preferences = await preferencesStore.load()
+      const preferences = this.productionEntry
+        ? await preferencesStore.loadForComic(this.unitKey.work) : await preferencesStore.load()
+      if (this.productionEntry) {
+        this.seriesOverrideActive = await preferencesStore.seriesModeOverride(this.unitKey.work) !== undefined
+      }
       if (cancellation.isCancelled() || this.readerClosed) return
       this.preferencesStore = preferencesStore
       const column = this.readInitialColumn(this.unitKey.work, this.unitKey.unit)
@@ -130,6 +191,8 @@ export struct KomaReaderLabPage {
       if (cancellation.isCancelled() || this.readerClosed) return
       session.setPolicy(KomaReaderInitialPolicy.resolve(preferences, column, this.request))
       this.session = session
+      this.surfaceEntries = [new KomaReaderSessionEntry(++this.surfaceGeneration, session,
+        this.unitKey.copy(), this.initialPageIndex)]
       this.syncKeepScreenOn()
       this.syncVolumeKeys()
     } catch (_error) {
@@ -184,7 +247,14 @@ export struct KomaReaderLabPage {
     this.cancelChapterRequest()
     void this.keepScreenOn?.close()
     if (this.request.progressReadWrite) this.flushObserved()
-    this.onClose()
+    if (this.productionEntry) {
+      void this.preferenceWrites.then(async (): Promise<void> => {
+        await this.trialWindow.close()
+        this.onClose()
+      })
+    } else {
+      this.onClose()
+    }
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
@@ -353,9 +423,17 @@ export struct KomaReaderLabPage {
   private enqueuePreferenceWrite(next: ReaderPreferences): void {
     const store = this.preferencesStore
     if (store === null) return
+    const previous = this.hostPreferences
+    const work = this.unitKey.work
     this.hostPreferences = next
     this.preferenceWrites = this.preferenceWrites.then(async (): Promise<void> => {
-      await store.save(next)
+      if (this.productionEntry && previous !== null) {
+        await store.saveChangesForComic(work, previous, next)
+        const override = await store.seriesModeOverride(work)
+        if (!this.readerClosed && this.unitKey.work === work) this.seriesOverrideActive = override !== undefined
+      } else {
+        await store.save(next)
+      }
     }).catch((): void => {
       console.warn('[KomaReaderLab] preference_persist_failed')
     })
@@ -421,7 +499,6 @@ export struct KomaReaderLabPage {
     if (!this.request.preferencesReadWrite || session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
     const previous = this.hostPreferences
-    this.hostPreferences = next
     if (previous !== null && (previous.tapZonePreset !== next.tapZonePreset ||
       previous.tapZoneInvert !== next.tapZoneInvert)) this.tapZonePreviewRevision += 1
     session.setPolicy(KomaReaderInitialPolicy.resolveHost(next, next.columnMode))
@@ -468,12 +545,28 @@ export struct KomaReaderLabPage {
       this.sharedTapZoneAction(region.action), region.left, region.top, region.right, region.bottom))
   }
 
+  private resetSeriesOverride(): void {
+    const store = this.preferencesStore
+    if (!this.productionEntry || store === null || this.readerClosed) return
+    const work = this.unitKey.work
+    this.preferenceWrites = this.preferenceWrites.then(async (): Promise<void> => {
+      const effective = await store.clearSeriesOverride(work)
+      if (this.readerClosed || this.unitKey.work !== work) return
+      effective.columnMode = this.hostPreferences?.columnMode ?? effective.columnMode
+      this.hostPreferences = effective
+      this.seriesOverrideActive = false
+      this.session?.setPolicy(KomaReaderInitialPolicy.resolveHost(effective, effective.columnMode))
+    }).catch((): void => { console.warn('[KomaReader] preference_reset_failed') })
+  }
+
   @Builder
   private ReaderHostSettingsSheet() {
     if (this.hostPreferences !== null) {
       ReaderSettingsContent({
         readerMode: this.currentReaderMode(),
         preferences: this.hostPreferences,
+        seriesOverrideActive: this.seriesOverrideActive,
+        onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
         onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
         onClose: (): void => { this.closeHostSettings() },
         onRevealTapZones: (): void => { this.closeHostSettings() },
@@ -519,73 +612,84 @@ export struct KomaReaderLabPage {
     HdsNavDestination() {
       Column() {
         if (this.session !== null) {
-          if (this.request.readingChrome) {
-            ReaderSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.initialPageIndex,
-              modeControl: (params: ReaderModeControlParams): void => { this.HostModeControl(params) },
-              catalogFailureText: (): string => this.adapter?.catalogFailureMessage() ?? '',
-              imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
-                ? ImageInterpolation.Low :
-                (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
-                  ? ImageInterpolation.High : ImageInterpolation.Medium,
-              canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
-              input: this.input, mediaActions: new ReaderMediaActions(this.imageShare, this.imageSave),
-              tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
-              tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
-              tapZonePreviewRevision: this.tapZonePreviewRevision,
-              autoReadPolicy: new ReaderAutoReadPolicy(true,
-                this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds),
-              pageTurnAnimation: this.request.pageTurnAnimationOverride ??
-                (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
-              pageGap: this.readerPageGap(),
-              preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
-              cropPolicy: new ReaderCropPolicy(
-                this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true),
-              hostSettings: this.request.preferencesReadWrite
-                ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
-              hostActions: this.hostActionDispatch,
-              active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
-                !this.chapterPickerShown,
-              centerAction: this.chapterChoices.length > 0
-                ? new ReaderCenterAction(this.chapterControlLabel(),
-                  (sourceUnit: ReaderUnitKey, navigation: number): void => {
-                    this.openChapterPicker(sourceUnit, navigation)
-                  }) : null,
-              showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
-              observation: new ReaderObservationSink(null,
-                (position: ReaderObservedPosition): void => { this.onObservedPosition(position) }),
-              preferenceSink: new ReaderPreferenceSink(
-                (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
-                (enabled: boolean): void => { this.onCropChanged(enabled) }),
-              chapterNavigation: new ReaderChapterNavigation(this.chapterBusy,
-                (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
-                  void this.switchChapter(direction, sourceUnit)
-                }),
-              windowPresentation: this.trialWindow.presentation,
-              windowFullscreen: this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen,
-              windowCanvasDark: true,
-              topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
-              accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
-            Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
-              .bindSheet($$this.chapterPickerShown, this.ReaderHostChapterPickerSheet, {
-                detents: [SheetSize.MEDIUM, SheetSize.LARGE],
-                showClose: false,
-                enableOutsideInteractive: false,
-                scrollSizeMode: ScrollSizeMode.CONTINUOUS,
-                enableFloatingDragBar: true,
-                onDisappear: (): void => { this.finishChapterPickerDismissal() },
-              })
-          } else {
-            ReaderLabSurface({ session: this.session, initialUnit: this.unitKey, initialIndex: this.request.pageIndex,
-              preloadDepth: this.readerMode.preloadPages,
-              active: this.routeActive && this.labVisibility.foreground })
-          }
+          ForEach(this.surfaceEntries, (entry: KomaReaderSessionEntry) => {
+            if (this.request.readingChrome) {
+              ReaderSurface({ session: entry.session, initialUnit: entry.unit, initialIndex: entry.initialIndex,
+                modeControl: (params: ReaderModeControlParams): void => { this.HostModeControl(params) },
+                catalogFailureText: (): string => this.adapter?.catalogFailureMessage() ?? '',
+                imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
+                  ? ImageInterpolation.Low :
+                  (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
+                    ? ImageInterpolation.High : ImageInterpolation.Medium,
+                canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
+                input: this.input, mediaActions: new ReaderMediaActions(this.imageShare, this.imageSave),
+                tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
+                tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
+                tapZonePreviewRevision: this.tapZonePreviewRevision,
+                autoReadPolicy: new ReaderAutoReadPolicy(true,
+                  this.hostPreferences?.autoPageSeconds ?? this.readerMode.autoPageSeconds),
+                pageTurnAnimation: this.request.pageTurnAnimationOverride ??
+                  (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
+                pageGap: this.readerPageGap(),
+                preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
+                cropPolicy: new ReaderCropPolicy(
+                  this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true),
+                hostSettings: this.request.preferencesReadWrite
+                  ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
+                hostActions: this.hostActionDispatch,
+                active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
+                  !this.chapterPickerShown,
+                centerAction: this.chapterChoices.length > 0
+                  ? new ReaderCenterAction(this.chapterControlLabel(),
+                    (sourceUnit: ReaderUnitKey, navigation: number): void => {
+                      this.openChapterPicker(sourceUnit, navigation)
+                    }) : null,
+                showPageNumber: this.hostPreferences?.showPageNumber ?? this.readerMode.showPageNumber,
+                observation: new ReaderObservationSink(null,
+                  (position: ReaderObservedPosition): void => { this.onObservedPosition(position) }),
+                preferenceSink: new ReaderPreferenceSink(
+                  (policy: ReaderDisplayPolicy): void => { this.onPolicyChanged(policy) },
+                  (enabled: boolean): void => { this.onCropChanged(enabled) }),
+                chapterNavigation: new ReaderChapterNavigation(this.chapterBusy,
+                  (direction: 'previous' | 'next', sourceUnit: ReaderUnitKey): void => {
+                    void this.switchChapter(direction, sourceUnit)
+                  }),
+                windowPresentation: this.trialWindow.presentation,
+                windowFullscreen: this.hostPreferences?.fullscreen ?? this.readerMode.fullscreen,
+                windowCanvasDark: true,
+                topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
+                accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
+              Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
+                .bindSheet($$this.chapterPickerShown, this.ReaderHostChapterPickerSheet, {
+                  detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+                  showClose: false,
+                  enableOutsideInteractive: false,
+                  scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+                  enableFloatingDragBar: true,
+                  onDisappear: (): void => { this.finishChapterPickerDismissal() },
+                })
+            } else {
+              ReaderLabSurface({ session: entry.session, initialUnit: entry.unit, initialIndex: entry.initialIndex,
+                preloadDepth: this.readerMode.preloadPages,
+                active: this.routeActive && this.labVisibility.foreground })
+            }
+          }, (entry: KomaReaderSessionEntry): string => `${entry.id}`)
+        } else if (this.productionEntry) {
+          Column() {
+            if (this.error.length > 0) {
+              Text(AppStrings.get('reader_page_load_failed')).fontSize(16).fontColor(Color.White)
+            } else {
+              LoadingProgress().width(32).height(32).color(Color.White)
+            }
+          }.width('100%').height('100%').justifyContent(FlexAlign.Center)
         } else {
           Text(this.error)
         }
       }
       .width('100%').height('100%')
-      .padding({ top: this.request.readingChrome && this.session !== null ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
-        bottom: this.request.readingChrome && this.session !== null ? 0 : this.safeArea.bottomAvoidHeight })
+      .backgroundColor(this.productionEntry ? this.readerCanvasBackground() : Color.Transparent)
+      .padding({ top: this.productionEntry || this.request.readingChrome && this.session !== null ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
+        bottom: this.productionEntry || this.request.readingChrome && this.session !== null ? 0 : this.safeArea.bottomAvoidHeight })
       .bindSheet($$this.readerSettingsSheetShown, this.ReaderHostSettingsSheet, {
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
@@ -599,13 +703,16 @@ export struct KomaReaderLabPage {
       enableComponentSafeArea: false,
       content: { title: { mainTitle: $r('app.string.rkit_lab_title') } },
     })
-    .hideTitleBar(this.request.readingChrome && this.session !== null)
+    .hideTitleBar(this.productionEntry || this.request.readingChrome && this.session !== null)
     .onBackPressed((): boolean => {
       if (!this.request.readingChrome) return false
       this.closeReader()
       return true
     })
-    .onShown((): void => { this.routeActive = true })
-    .onHidden((): void => { this.routeActive = false })
+    .onShown((): void => { this.routeActive = true; this.onRouteVisibleChange(true) })
+    .onWillHide((): void => { this.routeActive = false; this.onRouteVisibleChange(false) })
+    .onHidden((): void => { this.routeActive = false; this.onRouteVisibleChange(false) })
+    .onWillDisappear((): void => { this.routeActive = false; this.onRouteVisibleChange(false) })
+    .onDisAppear((): void => { this.onRouteDisappear() })
   }
 }
