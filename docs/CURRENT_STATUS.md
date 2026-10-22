@@ -7,12 +7,17 @@
 - 首轮197实机冷启动显示了K，用户指出首屏过小，原0.60缩放不再沿用。该值来自研究稿对旧V可见高度的匹配，并非本次实机认可；按当前反馈只把浅深启动资源缩放改为1.00（主体约原1.67倍），路径、颜色、中心和桌面图标均保持。
 - 量化对照：原V在1024画布内约354×315，首轮K为232×316；只对齐高度使宽度小了约三分之一。当前K为386×524。修改的是资源内主体占比，`startWindowIcon`及窗口显示参数未改。
 - 放大版Release构建成功，0.1.1/code2/debug=false，固定包`build-startup-large/0.1.1-2-d54fbc42/Koma-0.1.1-2-d54fbc42-default-release-signed.hap`为8354908B，197明确覆盖安装成功。桌面K原图已亲看；普通图标冷启动连续录像136帧/4张联系表及第60帧原图已亲看，浅色首屏为放大K。最终普通书架与Chibi第2页25%保持。浅深资源同步同尺寸并已编译，深色启动未做实机切换，不冒称通过。
-- 原emerald背景和分层引用逐字节保持。原系统120000ms/无override已恢复并读回AWAKE，本轮scratch清理、租约2c024806已释放。原件、结果及固定包沿上述忽略目录；本轮资源已范围提交051f3b17并随efacb2f1同步master；精确CI39819554203/head=efacb2f15121cdaa510dd887448c1fd9e49b289e已completed/success，固定Kit、版本日志/三语检查、Release编译、HAP检查及上传通过，tag发布任务skipped。当前可安装签名包固定在`.hermes-artifacts/20261022-k-icon-study/build-startup-large/0.1.1-2-d54fbc42/Koma-0.1.1-2-d54fbc42-default-release-signed.hap`；本轮只读包内module.json复核com.honjow.koma/0.1.1/code2/debug=false及8354908B，不重建、不重装、不重新计算摘要。
+- 原emerald背景和分层引用逐字节保持。原系统120000ms/无override已恢复并读回AWAKE，本轮scratch清理、租约2c024806已释放。原件、结果及固定包沿上述忽略目录；本轮资源已范围提交051f3b17并随efacb2f1同步master；精确CI39819554203/head=efacb2f15121cdaa510dd887448c1fd9e49b289e已completed/success，固定Kit、版本日志/三语检查、Release编译、HAP检查及上传通过，tag发布任务skipped。图标阶段签名包固定在`.hermes-artifacts/20261022-k-icon-study/build-startup-large/0.1.1-2-d54fbc42/Koma-0.1.1-2-d54fbc42-default-release-signed.hap`，当前日用包以后继响应诊断段为准；本轮只读包内module.json复核com.honjow.koma/0.1.1/code2/debug=false及8354908B，不重建、不重装、不重新计算摘要。
 
-## SciTechVista237首图网络失败：日志边界补齐进行中（2026-10-23 / Root）
+## SciTechVista237首图与响应诊断：具名范围已交付（2026-10-23 / Root）
 
 - 原source owner已普通导入011，61→62仅新增本源；首屏5作及首篇1章成立，正文约61秒后ReaderImage报2300028并显示失败/重试，未点击重试。Root亲看终态、读回原始错误及恢复回执；CMYK解码/颜色、实际平台容量仍未证。HEAD在本机仅证200/28793918B/1.56s响应，不代替237正文；四私库及旧受限端点不重取。
-- 修改依据：本次失败缺“是否收到响应头/声明长度”。42a56efa的终态日志只保平台码；09cc9e2f以来普通request/60000ms读取/30000ms连接保持。官方API23说明50MB与参数表5MiB存在差异，不能据旧表断定本设备容量问题；官方普通request不发送流式接收进度，不假记0。Root只给ReaderPageSourceAdapter.downloadReaderRemoteBytes的现有日志补响应到达/声明长度，成功保实际字节、失败写unknown，原请求/缓存/期限/容量/UI保持；随后Release构建与237同一路径限定验收，未完成不计修好。
+- 修改依据：本次失败缺“是否收到响应头/声明长度”。42a56efa的终态日志只保平台码；09cc9e2f以来普通request/60000ms读取/30000ms连接保持。官方API23说明50MB与参数表5MiB存在差异，不能据旧表断定本设备容量问题；官方普通request不发送流式接收进度，不假记0。Root只给ReaderPageSourceAdapter.downloadReaderRemoteBytes的现有日志补响应到达/声明长度，成功保实际字节、失败写unknown，原请求/缓存/期限/容量/UI保持。9项诊断检查通过，范围提交3a75c9a9已同步master；精确CI39824362291/head=3a75c9a969674dac6de42248e5f16fb810ccc48f为completed/success。
+
+
+- 后继237同首篇普通历史重开一次：同一操作日志01:39:12.994开始，响应声明28793918B，17.145秒后HTTP200且实收28793918B；Root亲看完整四格繁中正文1/1，无加载层。自然Back后同作品pageIndex=0/totalPages=1/completed=true。只关闭此28.8MB首图普通传输/Native显示/返回保存缺口，不外推色彩校准、其余作品、下载/cold或首轮超时原因已修复。237已恢复原Browse喵趣组、62项登记、10000ms/AWAKE，scratch清理且释租。原件沿`category-membership/scitech011-headerdiag237-{terminal,return,final-restored,anchor-restored}-001`；源README后继记录fb5245d已SSH同步，源仓干净。
+- 197已明确覆盖安装同代码签名Release0.1.1/code2/debug=false/8361988B并启动，bm版本读回相符；Root亲看原书架Chibi第2页25%及原首三书。装机前后library与reader完整JSON内容一致，未开章/升级源。原OverrideTimeout10000ms与AWAKE已读回，性能模式未动，两本人scratch已核不存在，9c4de24d租约已released。原件沿197 `diagnostics/image-response197-{gate,unlock,installed,restored}-001`；收尾manifest首轮含不支持的allowFailure键，被校验拒绝且未执行设备动作，移除该键后正常校验/执行。所有回执哈希关闭。
+- 当前固定日用签名包为`.hermes-artifacts/release/0.1.1-2-3a75c9a9/Koma-0.1.1-2-3a75c9a9-default-release-signed.hap`，8361988B。直接固定已安装产物、核包内版本/buildMode/debug，未重建或计算摘要；取代旧图标阶段固定包作为当前交付入口。本轮没有打tag或正式发布Release。
 
 ## Protectors237首篇普通正文：具名路径通过（2026-10-23 / 源owner + Root）
 
@@ -58,8 +63,8 @@
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 普通Shared宿主已接入；当前K图标放大版Release0.1.1/code2/8354908B/debug=false已有197明确覆盖安装结果，固定包见顶部；普通Shared旧验收边界保持。继续阅读/历史/本地/未收藏源及进度、前后章、按书设置已有具名证据；详情重入崩溃已定位修复，源与本地同路径均通过。下载管理已完成Chibi章节开书→Shared真实第2/8页→Back回列表也已补验；终态书架Chibi第2页25%已亲看。 | 普通Shared接入44a86da1已按当前人类批准同步master，精确CI39789257199已success（固定Kit检出、Release编译、HAP检查及上传均通过）；当前首版普通Shared交付条件已具名闭合，签名包见下方路径。后继日志/封面/图标结果见顶部，当前主线efacb2f1精确CI39819554203成功。197性能模式保留，最新漫画屋场景首次读回的原OverrideTimeout为10000ms，已恢复AWAKE并释放c140ef36；本轮未再安装或操作197。四私库仍PARKED_USER。 |
-| 源 / source_delivery_cleanup + Root / 237 | MyComic012与漫画1234 013保主体去旧底板/阴影已范围提交ddf7fae并SSH同步。237普通导入、管理/Browse四原图Root亲审；60→61仅新增MyComic，原60相对顺序及enabled保持。传包清理、原10000ms及Browse锚点已恢复、e2f3b60f已释租。 | 精确CI39793217139 attempt2已确认completed/success/head=ddf7fae，固定latest/index HTTP200且85项，两准确版本新包HTTP200及manifest/source.wasm/icon三成员均由Root独立复核。验收说明5e4a597已[skip ci]同步源master，工作区干净；本轮图标交付闭合。新增《猎行者》过期封面反例已由App限定修复1cc7b020及197详情→书架/cold验收关闭，精确CI39814009255成功，详见顶部；图标前置已由最新人类明确解除；Protectors现装0.1.0首篇普通Native正文/返回已由源owner执行并经Root亲审关闭，见顶部；原source_delivery_cleanup继续核SciTechVista011首篇CMYK长图的既有Native缺口，先排除后继已闭，再接一次普通路径。旧失败的后继与受限端点分别核清，原成功路径不复活。原attempt1取消及官方结果延迟边界保留，不按旧queued子任务重跑或改CI。四私库仍PARKED_USER。 |
+| App / Root / 197 | 普通Shared入口、日志/发布日志、封面与K图标按具名范围已交付；最新签名Release为3a75c9a9/0.1.1/code2/8361988B/debug=false，197已明确覆盖安装并启动，原书架Chibi第2页25%保持，library/reader装机前后内容一致。固定包见顶部响应诊断段。 | 精确CI39824362291/head=3a75c9a9已completed/success。197原10000ms/AWAKE、本人scratch清理及9c4de24d释租已核；性能模式保留。当前无App设备动作在运行；四私库PARKED_USER，自然失败/新增章/授权失效/首次全未命中与Tracker按实际条件保留，不造状态。 |
+| 源 / source_delivery_cleanup + Root / 237 | 图标按最新人类决定关闭；85源远端编译/固定索引交付沿原精确CI结果冻结。Protectors首篇和SciTechVista011同首篇Native显示/自然返回均已Root亲审；仅具名范围通过，不冒全85源正文可用。 | 后继材料fb5245d已SSH同步，源仓干净；237已恢复Browse/原10000ms/AWAKE、scratch清理并释租，现有源owner本轮工作已结束。旧403/5xx/TLS/账户/在线缓存条件见当前队列；没有新增请求、测试矩阵或图标任务。 |
 
 - **图标候选批准与Terra后继纠正（2026-10-22，三源实机及远端交付完成）：** 人类先批准`source-icons-four-proposals.png`四项，后明确Terra固定白底保原黑色，取代中灰/透明/描边候选；Terra原512px白底黑字017保持，237深色管理/Browse两原图Root已亲看清楚。HComic012完整原鲨鱼去英文、漫画社015黄漫/棕气泡独立几何标、漫画160012原红字上下两行均已普通picker安装/更新；三源浅色管理/Browse整图Root已亲看，App槽/圆角/顺序及业务请求未改。原件`category-membership/three-icons-package237-001`。真实registry59→60，仅新增HComic，原相对顺序及其他完整entry保持；漫画社014→015与160011→012仅预期包引用/版本字段变化。最终恢复原跟随系统及喵趣漫画Browse组，仅删除本轮三份本人传包并确认ABSENT；`three-icons-final-restored237-001`读回10000ms/AWAKE/koma0焦点208，049f4940租约已释放，所有产物哈希关闭。首深色选择因MenuItem/子Text同名、恢复原组时误用“喵趣”而非“喵趣漫画”的导航失败保留，未据其改产品。三源19文件3fda006已范围提交并同步源master，CI39722753351全部编译/metadata/封包/原子发布success。公开latest/index85项，HComic012/漫画社015/160012包及独立图标均HTTP200，三成员及精确ID/版本成立；本机首次把相对pkg当完整URL的解析失败后按实际合同修正，未据此改产品。原漫画社ASSET_SOURCES及喵趣NOTICE两WIP不纳入。
 - **黑色主体固定白底（最新人类允许，源owner接续）：** 本轮当前用户明确允许黑色透明主体在深色界面难辨时固定白底，保原形/原黑色，不改写为全量强制换底。具体新反例为上述Terra深色两原图同屏“鸟鸟韩漫”黑线稿几乎不可见；不得以Terra通过冒其他图标完成。既有源owner已按最新固定白底许可生成NN012候选：同512画布alpha-over纯白；Root逐像素验证与该合成结果相同，原黑线/位置/几何保持且旧透明原件保留。源仅资源、版本与出处，离线info/三成员包通过；其他黑标ComicFury/xkcd当前已有不透明官方底图，不据旧资源重开。Root已追f1fc2857与管理/索引/Browse全部消费者，当前NN011=1.30；只给同几何NN012延续1.30，不改槽/圆角/数值/其他源。先前复合编辑+构建遭自动审批拒绝；补充实际候选逐像素几何证据后，单行保留性修改已获准并实施，未绕过。原主仓Debug16317325B已237安装明确成功，普通导入NN012后管理/Browse浅深四图亲审，均可辨且原占比保持；60项仅NN预期包引用与版本变化，主题/Browse/原10000ms/AWAKE/焦点209和本人传包清理均读回恢复、2d460006释租，原件`nn012-white-{debug-installed,final-restored}237-001`。原Release构建成功但安装被设备拒绝不受信任源；脚本的共享签名目录实际不存在、直接读取本地build-profile签名口令也不可作明文，两条尝试未改材料。237最终沿原生default/debug签名流程成功。197保持Release模式：发行签名同样被设备拒绝后，仅在原本地build-profile中临时让release产品选用既有debug设备签名；Hvigor构建完finally逐字恢复原配置，未改证书/profile/口令或关闭验签。8295117B、debug=false Release已明确覆盖安装成功。更新前后原书架/Chibi第2页25%/最近阅读/首三书均亲看保留，未开章/升级197源。原件`nn012-optical197-{unlock,release-installed,device-profile-installed,final-restored}-001`；最后10000ms/AWAKE/焦点87及3f1ffa16释租成立。系统picker根位置/下载父子同名的导航失败原图保留，不计产品失败。源b1b8eb5与App e9083692已同步，精确CI39724146846/39724219060均success；公开固定索引85项、NN012三成员包及白底图均HTTP200。本轮图标交付关闭；不重跑既有源正文验收。
@@ -71,7 +76,7 @@
 - 固定索引为 `https://github.com/honjow/koma-sources/releases/latest/download/index.json`。源库已将原main监听改为实际master，补齐21个生产源登记和9个必需图标；IKMMH/HentaiHand/Happy/92按本会话明确批准使用透明名称字标，不称官方Logo。Root已审6321776实际CI/build差异并独立读回成功run；源owner已对四包、85索引及85包/85图标资产作公开读取核对。
 - 197普通入口从原LAN索引切到公开latest并保存，真实显示“已加载85个源”；首次加载约97秒（逐个图标请求，仍属待改善性能，不伪称快速）。实际更新爱看漫010→011、安装92漫画011；普通返回后不清数据cold，PID59199→NOT_RUNNING→64210，Browse仍80启用且两源011，管理页公开URL仍在。普通检查更新Native于04:49:09开始、04:49:14完成：update19/latest61/missing0/failed_indexes3；三个原保存索引失败不扩大为当前公开索引失败，旧地址未删除。没有批量升级其余19源、没有源站正文重验。
 - 最终普通返回书架Chibi第2页25%/最近阅读已亲看，原10000ms/AWAKE已读回、7e5806e2已释租；公开索引、IKM011及92新装源作为本轮正常使用结果保留。原图/布局沿既有reader-failure-retry下 `daily-release197-public-gate-001`、`daily-release197-public-cold-001`、`daily-release197-session-restored-001`；有界计数日志在 `daily-release197-update-check-001`。首更新脚本误等只在索引弹层显示的“已更新”而超时，实际主列表已为011；另一次冷启动导航未等Browse就点工具栏，URL断言失败。两次失败保留，后按真实页面接续；没有据测试脚本错误改产品或把控件离屏冒成检查完成。
-- 用户README已说明安装条件、普通添加/更新路径、源库及固定索引、备份恢复覆盖边界与问题反馈。当前197签名日用产物为 `.hermes-artifacts/20261022-k-icon-study/build-startup-large/0.1.1-2-d54fbc42/Koma-0.1.1-2-d54fbc42-default-release-signed.hap`（K图标放大版8354908B），bundle `com.honjow.koma`，0.1.1/code2、buildMode=release、debug=false；该固定包取代普通Shared阶段8307106B及后继封面版的交付路径，不从可变build输出推定安装包。App公开CI仍为未签名Release。初步交付时的喵趣外底板/灰影现由下方012限定交付取代；未取得官方高清原件的来源边界仍保留；获批重建/固定白底及本轮两源修正按各自后继交付记录收口，不由旧OPEN标签重做。私库真实服务等原条件缺口不冒全能力通过。
+- 用户README已说明安装条件、普通添加/更新路径、源库及固定索引、备份恢复覆盖边界与问题反馈。当前197签名日用产物为`.hermes-artifacts/release/0.1.1-2-3a75c9a9/Koma-0.1.1-2-3a75c9a9-default-release-signed.hap`（8361988B），bundle `com.honjow.koma`，0.1.1/code2、buildMode=release、debug=false；它取代旧Shared/封面/图标阶段固定包，装机与恢复证据见顶部响应诊断段。App公开CI仍为未签名Release；未创建新tag。源资源交付及其出处边界依各自后继记录，不由旧OPEN重开已关闭图标；私库按用户决定搁置，不冒全能力通过。
 
 - **喵趣012去白板/灰影限定交付（Root/源owner，2026-10-22）：** 192px固定扩展原件与喵趣名称/原域绑定，未取得新官方高清资源。图像生成稿因黄色杂边/孔洞残点被Root否决，未进源包；采用原104×104橙色字形的白底色度分离/边缘alpha恢复，120×120透明PNG、8px安全边，不放大、不描轮廓；主体橙色取原众数240/160/110，不称高清重绘。只改本源PNG及Cargo/src/lock版本011→012、README，App30vp槽/7vp圆角/排序和业务请求保持。237普通010→012导入成功；Root亲看管理/Browse两完整原图，无原白板/灰边，字形保留。56项sourceId/enabled逐项同序；只清本人传包、原10000ms/AWAKE读回且c646bab7释放。五文件2d4e035已同步，CI39679046650全85构建/封包/发布成功；Root实际GET固定latest/index85项及miaoqu012.koma均HTTP200，准确manifest、120² RGBA图和三成员合同成立。只关闭这次图标两消费者，不冒新正文/高清资源/其他图标通过；未操作197。原件沿237 category-membership/miaoqu012-icon-import237-001及miaoqu012-icon-restored237-001。下一原有低清项由既有源owner只读调查微漫画/ASM，Root不同时编辑。
 
@@ -89,7 +94,9 @@
 
 **当前接续队列（2026-10-23续接核对；逐项以当前状态接续，下方旧段落是结果索引）**
 
-- **2026-10-23当前执行 / Root：** 日志、版本日志/预发布CI、封面修复及返回详情检查已交付；10cddc79检查4/4通过。漫画屋197原普通详情及两个网页入口本轮已取得具名结果，见顶部；197已恢复释租。最新人类明确图标任务完成并要求继续，“先图标再可用性”的前置已满足，不能继续当作源线永久暂停：原source_delivery_cleanup已核旧失败后继：MPC已由011具名正文/下载/cold取代，MH160旧章403、Six旧作not_found、Noy013账户边界均不重取；GlobalComix既有下载优先且无安全强制在线入口，不删下载/缓存造首取。Protectors0.1.0首篇Native正文/返回已由Root亲审收口，详情见顶部；同一owner接SciTechVista011首篇CMYK长图的原Native缺口，先核后继再执行一次普通读图/返回；不从85源从零测、不开发新源、不重跑冻结成功或受限端点。Root已读回efacb2f1推送成功，两仓均干净；精确CI39819554203/head=efacb2f15121cdaa510dd887448c1fd9e49b289e为completed/success，固定Kit、版本日志/三语、Release编译及产物检查/上传通过，tag发布skipped。四私库仍PARKED_USER；自然保存失败/新增章、真实外部授权失效、首次全未命中耗时及Tracker账户条件保持原边界，不造状态。
+- **2026-10-23交付收尾 / Root：** 日志、版本日志/预发布CI、封面、K图标及普通Shared具名入口已交付；10cddc79检查4/4通过。最新响应诊断3a75c9a9精确CI39824362291成功，签名日用包已固定并197装机/恢复完成，见顶部。源owner核旧失败后继后，本轮Protectors首篇与SciTechVista同首篇已具名闭合，材料fb5245d已同步；MPC已由011正文/下载/cold取代，不重跑。当前没有设备或源执行者在运行；余项逐项核对为条件依赖，详见下一条，不能据此称全App/全源通过，也不从85源从零测或开发新源。
+
+- **条件性剩余项 / Root + 原源owner：** MH160旧404绑定不足、同章后继403，包子原403/5xx，Happy原TLS/API拒绝均缺可信成功原响应，不重试拒绝端点或猜改映射；Noy013明确auth_required，需真实账户及获准接入方式；GlobalComix侯门在线P2仍未闭，原章已下载且无安全强制在线入口，不删下载/缓存造首取。Six既有下架/两图后继范围保持，014只补网页字段，不补造全正文通过。App自然保存失败、新增章、真实外部授权失效、首次图标全未命中耗时、Tracker账户仍各依赖实际场景；四私库PARKED_USER只待人类重提。以上只限制对应项；本次有界读回未发现其余可立即执行的既有修复动作，非所有能力完成。新反馈/真实条件变化仅重开对应项。
 
 - **App / Root / 197：公开索引图标限并发已部署、同步且CI成功。** 既有197原记录为85源首次约97秒；本轮读当前SourceIndexService.fetchIndex及096730b1原引入，确认每项await cachedIconUriFor之后才开始下一图标，管理页加载和更新检查共用它。原理由是缓存按源ID/版本隔离并验证图片，不撤销这些职责。当前拟改仅批量最多4项并行读取，仍按原索引位置组装结果，全部保留缺图/非法路径拒绝、图像检验、缓存身份和网络失败回退；页面文字/几何/排序、安装合同和偏好写入不改。限定实现已完成。实际生产方法配内存HTTP/cache端口验证85项逆序完成仍原序、并发峰值4、4种图标失败条目保留、缓存仅重试失败、缺图/非法路径在图标请求前拒绝；未写文件或计算摘要。首测试仅校验次数预期83写错，实际82（HTTP失败/网络异常/空体三项在字节校验前返回），改测试预期后通过；未据此改生产。Release 8294930B/0.1.1/code2/buildMode release/debug false已构建并197明确覆盖安装成功，本地release产品临时选既有debug设备签名，finally逐字恢复配置。197原公开latest普通读取真实“已加载 85 个源”，有缓存重载4.894秒（含语义点击/等待开销），不清缓存、不升级包；不能将它与历史首次97秒当同条件提速对比。Root亲看结果及最终书架整图：本轮实际基线为Chibi/书虫/猎行者，Chibi第2页25%及原可见卡片保持，猎行者原封面占位仍在，不冒全库数据逐字段保持或封面已修。先前过早坐标未进管理、文案断言漏空格、末端书名预期1而实际卡片与网格共2，失败全部保留；后继原图/布局证实已返回原书架，未改App迎合断言。原10000ms/AWAKE/焦点88读回且b9667b96释租；具名原件index-bounded197-{gate,installed,current,restored}-001与installed内ordinary-index-*-actions.json，回执哈希关闭。7ace468b已范围提交并同步，精确CI39748030006已success，未签名Release构建/检查/上传及固定Kit检出均成功。第二消费者也已具名通过：普通检查更新真实完成“检查完成：可更新 27，最新 53，未找到 0”，Root本轮亲看completed-result.png及返回书架completed-original-shelf.png。最初20秒客户端接收期限在scrollSearch绑定返回前超时，保留JSONDecodeError及原失败回执；随后只按官方On.text前缀匹配/scrollSearch读回同一结果，60秒接收期限完成，没有再发起检查。原件index-updatecheck197-{gate,resume-gate,result-position,log,restored,final-restored}-001及gate内update-check-result-recovered-actions.json；final-restored回执completed、哈希关闭、自有scratch已清、原10000ms/AWAKE/焦点88恢复，租约20261022-084118-32025cf6已释放并读回released。当前限定调度修复的加载/更新检查两个消费者均已关闭；首次新图标全未命中的Native耗时保留待自然场景，不为此清缓存或从零重跑源正文。
 - **MyComic/漫画1234官方原件调查的历史边界（现图标修正由ddf7fae及本轮237验收取代）：** 它们已有可发布图标，区别于缺文件或构建失败；本轮source owner有限核对：MyComic仍缺成功官方身份父页；漫画1234既存成功详情HTML新核出的mint-logo准确PNG唯一匿名内存GET实际403，已停该端点。最初图像/JSON落盘组合被自动审批拒绝且未发GET，后继只读取内存获准，不能把两者混作网络失败；未新增文件/代码/设备动作。当时未获可采用新原件；现按已有2D重建允许完成素材修正，仍不声称官方高清原件、不重试403/挑战。本批已交付图标不重跑，临时名称字标不称官方。根README过时的喵趣/HComic/XComic待处理说法及固定白底许可冲突已就地纠正，单文件afc937c已同步master，未重跑85源构建；两份原材料WIP后继已由3e8b549/05924d5收尾并按人类授权同步，精确CI39762999539成功；源工作区干净。
@@ -853,18 +860,18 @@
 {
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
-  "state": "首版推进中；具名路径冻结，源图标/真实私库等仍未闭",
-  "outcome": "197当前快照恢复及真实cold具名消费者已闭且修复CI成功；237 Laya012首正文/自然返回/首6封面已亲审，源继续下一真实缺口。ASM新稿未合格，首版未完成。",
-  "updatedAt": "2026-10-21T21:25:11+08:00",
+  "state": "初步日用签名包已交付；具名路径冻结，条件性验收保留",
+  "outcome": "普通Shared、日志/发布日志、封面与K图标已交付；本轮Protectors/SciTech首篇具名闭合。最新Release已197安装并恢复，未正式打tag发布，不冒全85源正文可用。",
+  "updatedAt": "2026-10-23T01:53:16+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_READER_CONTINUATION",
+  "activeId": "DAILY_BUILD_DELIVERED",
   "activity": {
-    "title": "源已知失败后继核对与集成",
-    "detail": "Laya012具名首正文与6封面交付；Root审原件并提交，源owner按原账接漫画1234/GoDa，不重跑旧通过。ASM稿失败未进源码。",
+    "title": "日用包部署与既有源缺口收尾完成",
+    "detail": "3a75c9a9精确CI成功，197安装/原数据/现场恢复已核；源材料fb5245d已同步，237已恢复释租；无运行中的执行者。",
     "startedAt": "2026-10-21T21:25:11+08:00",
-    "updatedAt": "2026-10-21T21:25:11+08:00"
+    "updatedAt": "2026-10-23T01:53:16+08:00"
   },
-  "nextAction": "source_icon_continuation接GoDa012对旧011准确夺酒章节反例的单次Host与237普通首正文；Root同步本轮结果并核CI，继而亲审原件。",
+  "nextAction": "用户实际试用后依具体反馈或真实条件变化接续对应项；四私库按人类决定搁置，不自主复活。",
   "proof": [
     {
       "label": "正式主仓",
@@ -880,21 +887,21 @@
     },
     {
       "label": "远端同步",
-      "state": "三个原主分支已同步",
+      "state": "两仓当前主分支已同步",
       "kind": "accepted",
-      "detail": "Koma/master0eee60a（含备份修复cdca787）已正常同步，CI39603410133 success；源master9bfc468（含SixMH4066dbc及Laya具名结果）已同步，Kit维持原SSH闭环。"
+      "detail": "Koma代码3a75c9a9精确CI39824362291成功；源master fb5245d仅后继验收材料，[skip ci]；最新生产源精确CI已按顶部结果冻结。"
     },
     {
       "label": "共享阅读器",
-      "state": "普通入口仍待决定",
-      "kind": "open",
-      "detail": "Debug入口或旧版正文成功均不代表普通Shared路径通过。"
+      "state": "普通入口具名通过",
+      "kind": "accepted",
+      "detail": "44a86da1普通入口已接入并完成源/本地/进度/前后章/按书设置/返回及下载管理具名路径，详见当前队列。"
     },
     {
       "label": "图标全范围",
-      "state": "仍未完成",
-      "kind": "open",
-      "detail": "四份实际交付与公共裁切修复按已记录消费者冻结；其余低清/缺图和待答复提取保持具体OPEN。"
+      "state": "用户已确认完成",
+      "kind": "accepted",
+      "detail": "按本会话最新人类决定关闭；后继K应用图标也已安装交付，不从旧OPEN重开图标矩阵。"
     },
     {
       "label": "本地CBZ普通路径",
@@ -907,8 +914,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "f1fc285",
-      "hap": "当前Debug16226877B/2026-10-21 12:06:09，197已安装，分类原标签滚动与初停录像补验完成。"
+      "appHead": "3a75c9a9",
+      "hap": ".hermes-artifacts/release/0.1.1-2-3a75c9a9/Koma-0.1.1-2-3a75c9a9-default-release-signed.hap；0.1.1/code2/release/debug=false/8361988B；197已安装。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -928,10 +935,10 @@
     {
       "id": "SHARED_ROUTE",
       "title": "普通共享阅读入口",
-      "status": "待人类决定",
-      "kind": "open",
-      "result": "当前普通书架仍走旧版；Debug共享界面不算普通入口通过。",
-      "remaining": "既有异步问题仍待真实答复，不重复问、不按accepted:true实施。",
+      "status": "普通入口具名通过",
+      "kind": "accepted",
+      "result": "44a86da1已接普通Shared，源/本地/历史/进度/切章/按书设置/返回及下载管理具名通过。",
+      "remaining": "不扩大到四私库或所有内容；四私库PARKED_USER。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -940,10 +947,10 @@
     {
       "id": "ICONS",
       "title": "完整书源图标质量",
-      "status": "未完成",
-      "kind": "open",
-      "result": "四源图标已实际导入与显示；公共外层裁切已纠正。",
-      "remaining": "逐源缺图/低清、可信品牌绑定及两项提取决定继续OPEN。",
+      "status": "用户确认完成",
+      "kind": "accepted",
+      "result": "用户明确图标任务已完成；源后继图标及K应用图标按顶部具名结果交付。",
+      "remaining": "不自主重开已关闭图标；官方高清原件的出处限制仍如实保留。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -954,8 +961,8 @@
       "title": "现有主分支远端同步",
       "status": "已同步且CI成功",
       "kind": "accepted",
-      "result": "三个原主分支已正常同步；Kit采用独立SSH身份；本次Koma CI39431040015 Release HAP成功。",
-      "remaining": "不含发版、签名Release安装或整体首版验收。",
+      "result": "Koma代码3a75c9a9精确CI39824362291成功，源master fb5245d后继材料已同步。",
+      "remaining": "本轮签名日用包已197安装；未打tag或正式发布。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
@@ -1045,10 +1052,10 @@
     {
       "id": "KAVITA_HISTORY",
       "title": "已配置Kavita普通阅读与历史重开",
-      "status": "原服务条件缺失",
-      "kind": "open",
+      "status": "PARKED_USER：只待用户明确重提",
+      "kind": "parked",
       "result": "普通浏览无法加载；原Kavita容器exited且两原bind源不存在，25610转发无监听；Docker守护进程已恢复，未启动空数据容器或改凭据。",
-      "remaining": "需要有效原Kavita服务数据及转发恢复；原Host/缓存书架不当当前阅读历史通过。",
+      "remaining": "四私库实际验收已被人类明确搁置；不由heartbeat、旧记录或交接自主复活。",
       "closedAt": null
     },
     {
@@ -1122,12 +1129,12 @@
     }
   ],
   "source": {
-    "status": "未完成",
+    "status": "本轮具名范围已交付，条件项保留",
     "kind": "open",
     "title": "中文源质量与完整图标范围",
-    "result": "SixMH013已闭原具名样本；Laya012在237真实首正文1/1及首6封面/自然返回已Root亲审，GUI新增至53；Noy当前013账户边界不再按012405派修。",
-    "remaining": "其余源/正文/下载、图标缺图/低清/小槽按具体条件OPEN；ASM本轮两生成稿仍杂点未采用，source owner接原漫画1234/GoDa失败后继，不从零跑。",
-    "commit": "4066dbc"
+    "result": "85源远端构建与固定索引沿现有CI结果；图标已确认完成；Protectors首篇/SciTech011首篇Native及自然返回本轮具名闭合。",
+    "remaining": "MH160/包子/Happy原拒绝或失败端点、Noy账户及GlobalComix在线缓存边界保持；不冒全85源正文通过，不重跑旧成功路径。",
+    "commit": "fb5245d"
   },
   "milestones": [
     {
@@ -1144,9 +1151,9 @@
     }
   ],
   "releaseGates": [
-    "普通Shared入口尚待决定和普通进入/翻页/返回/进度验收。",
-    "源图标质量和已批准筛选行为仍有具体未闭项；不以构建或局部PASS扩大为全App通过。",
-    "CI成功仅证明当前Release构建，普通Shared路由和其余产品路径未闭，尚未发版。"
+    "本轮日用签名包具名路径已交付，原证据边界保持。",
+    "四私库PARKED_USER，源拒绝/账户及App自然场景按当前队列条件保留，不冒全能力通过。",
+    "尚未创建版本tag或正式发布GitHub Release；按用户发布决定执行。"
   ],
   "stopRule": "局部验收、提交、清理或写状态不是首版完成；继续安全且已授权的实际动作，具体分支缺条件不扩大为全局停止。",
   "evidence": [
