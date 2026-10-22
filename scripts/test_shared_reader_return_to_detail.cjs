@@ -33,38 +33,67 @@ function key(unit) {
   }
 }
 
-test('shared reader exposes the legacy manga-detail action through a Koma-owned callback', () => {
-  class ReaderHostAction {
-    constructor(id, label) { Object.assign(this, { id, label }) }
-  }
+// Use the pinned kit's real capability bundle, so the callback is exercised through
+// the same public dispatcher as ReaderSurface instead of calling the host method directly.
+const kitDirectory = path.join(__dirname, '../../reader-kit/reader-ui/src/main/ets')
+const kitSource = ['ReaderHostAction.ets', 'ReaderHostActions.ets']
+  .map(file => fs.readFileSync(path.join(kitDirectory, file), 'utf8').replace(/^import .*$/gm, ''))
+  .join('\n')
+const kit = {}
+vm.runInNewContext(ts.transpileModule(kitSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText, { exports: kit })
+
+function fixture() {
   const Page = subject('readerLab/KomaReaderLabPage.ets', 'KomaReaderLabPage',
-    ['readerHostActions', 'openMangaDetail'], {
-      AppStrings: { get: value => value }, ReaderHostAction,
+    ['hostActionDispatch', 'openMangaDetail'], {
+      AppStrings: { get: value => value }, ...kit,
     })
-  const page = new Page()
-  const current = key('A')
-  const opened = []
+  const page = new Page(), current = key('A'), opened = []
+  const snapshot = { phase: 'ready', unit: { key: current }, navigationRevision: 5,
+    anchor: { sourceIndexHint: 2 } }
   Object.assign(page, {
-    session: { snapshot: () => ({
-      phase: 'ready', unit: { key: current }, navigationRevision: 5, anchor: { sourceIndexHint: 2 },
-    }) },
+    session: { snapshot: () => snapshot },
     onOpenMangaDetail: work => opened.push(work),
   })
+  return { page, current, opened, snapshot }
+}
 
-  assert.equal(JSON.stringify(page.readerHostActions().map(action => [action.id, action.label])),
-    JSON.stringify([['manga-detail', 'reader_action_return_to_detail']]))
-  page.openMangaDetail('manga-detail', current, 4, 2)
-  page.openMangaDetail('manga-detail', current, 5, 1)
-  assert.deepEqual(opened, [])
-  page.openMangaDetail('manga-detail', current, 5, 2)
+test('the current shared-reader dispatcher opens detail only for the observed position', () => {
+  const { page, current, opened } = fixture()
+  assert.deepEqual(Array.from(page.hostActionDispatch.items(), action => [action.id, action.label]),
+    [['manga-detail', 'reader_action_return_to_detail']])
+  page.hostActionDispatch.request('manga-detail', current, 5, 2)
   assert.deepEqual(opened, ['work'])
+})
+
+test('stale or unrelated menu requests cannot navigate to detail', () => {
+  const { page, current, opened } = fixture()
+  page.hostActionDispatch.request('other-action', current, 5, 2)
+  page.hostActionDispatch.request('manga-detail', key('B'), 5, 2)
+  page.hostActionDispatch.request('manga-detail', current, 4, 2)
+  page.hostActionDispatch.request('manga-detail', current, 5, 1)
+  assert.deepEqual(opened, [])
+})
+
+test('loading, retired and missing sessions cannot navigate to detail', () => {
+  const { page, current, opened, snapshot } = fixture()
+  snapshot.phase = 'loading'
+  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+  snapshot.phase = 'ready'
+  snapshot.unit = null
+  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+  page.session = null
+  page.hostActionDispatch.request('manga-detail', current, 5, 2)
+  assert.deepEqual(opened, [])
 })
 
 test('Koma owns detail routing while reader-kit remains host-neutral', () => {
   const page = fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabPage.ets'), 'utf8')
   const index = fs.readFileSync(path.join(root, 'pages/Index.ets'), 'utf8')
-  assert.match(page, /hostActions: this\.readerHostActions\(\)/)
+  assert.match(page, /hostActions: this\.hostActionDispatch/)
   assert.match(page, /this\.openMangaDetail\(id, source, navigation, sourceIndex\)/)
+  assert.match(index, /onOpenMangaDetail: \(_work: string\): void => \{ this\.openReaderMangaDetail\(\)/)
   assert.match(index, /onOpenMangaDetail: \(work: string\): void => \{\s*this\.openLibraryMangaDetail\(work\)/)
   assert.doesNotMatch(page, /RouterHelper|MangaDetailRouteParam|RouteName\.MANGA_DETAIL/)
 })
