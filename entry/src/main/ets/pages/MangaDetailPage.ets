@@ -52,6 +52,7 @@ import {
   removeComicRecordAndPersistLibraryStore,
   updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
+  refreshSourceComicCoverAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
   LocalLibraryMetadataStatus,
@@ -674,6 +675,7 @@ export struct MangaDetailPage {
           return
         }
         detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
+        this.refreshSourceLibraryCover(sourceId, mangaId, detail.coverUrl)
         chapters = loaded.embeddedChapters
       }
       // The detail payload is already real data. Keep it visible while the
@@ -832,6 +834,20 @@ export struct MangaDetailPage {
     this.feedbackText = s('manga_detail_loading_source')
     this.downloadStatusText = ''
     this.localRefreshText = ''
+  }
+
+  private refreshSourceLibraryCover(sourceId: string, mangaId: string, coverUri: string | undefined): void {
+    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) return
+    const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+    if (comic === undefined) return
+    try {
+      if (refreshSourceComicCoverAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
+        comic.id, sourceId, mangaId, coverUri)) {
+        this.onLibraryChanged()
+      }
+    } catch (error) {
+      DiagnosticLogger.exception('persistence', 'source_cover_refresh_failed', error as Error)
+    }
   }
 
   private applySourceMangaDetail(

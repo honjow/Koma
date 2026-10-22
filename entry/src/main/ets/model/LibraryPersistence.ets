@@ -741,6 +741,29 @@ export function upsertComicAndPersistLibraryStore(
   }
 }
 
+/** Refresh only the cover of an already-collected source work, keeping user state and ordering. */
+export function refreshSourceComicCoverAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicId: string,
+  sourceId: string,
+  mangaId: string,
+  coverUri: string | undefined,
+): boolean {
+  const cover = coverUri?.trim() ?? ''
+  const previous = libraryStore.getComic(comicId)
+  if (previous === undefined || previous.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
+    previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId ||
+    !/^https?:\/\//i.test(cover) || previous.coverUri === cover) {
+    return false
+  }
+  // Clone the latest owner value, not the detail snapshot: chapter/progress/category fields stay intact.
+  const next = JSON.parse(JSON.stringify(previous)) as Comic
+  next.coverUri = cover
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  return true
+}
+
 function localFolderSeriesRelativePath(comic: Comic): string | undefined {
   const remoteResourceId = comic.remoteResourceId
   if (remoteResourceId === undefined) {
