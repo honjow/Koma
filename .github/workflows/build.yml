@@ -59,6 +59,9 @@ jobs:
       - name: Guard public build profile
         run: bash scripts/check-public-build-profile.sh --head
 
+      - name: Verify version and release notes
+        run: python3 scripts/check_release_notes.py
+
       - name: Check i18n resources
         run: python3 scripts/check_i18n_duplicates.py
 
@@ -144,11 +147,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout tagged release notes
+        uses: actions/checkout@v4
+
       - name: Download verified Release artifacts
         uses: actions/download-artifact@v4
         with:
           name: ohos-hap-unsigned
           path: release-artifacts
+
+      - name: Verify tag, artifact version and release notes
+        run: python3 scripts/check_release_notes.py --tag "$GITHUB_REF_NAME" --manifest release-artifacts/build-manifest.json --github-env
 
       - name: Publish Release
         uses: ncipollo/release-action@v1
@@ -159,6 +168,6 @@ jobs:
           artifactErrorsFailBuild: true
           prerelease: ${{ endsWith(github.ref_name, 'pre') }}
           makeLatest: ${{ endsWith(github.ref_name, 'pre') && 'false' || 'true' }}
-          generateReleaseNotes: true
+          bodyFile: ${{ env.RELEASE_NOTES_PATH }}
           allowUpdates: true
           replacesArtifacts: true

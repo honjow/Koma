@@ -1,6 +1,6 @@
 {
   "name": "entry",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Koma entry module",
   "dependencies": {
     "@reader-kit/core": "file:../../reader-kit/reader-core",

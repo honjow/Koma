@@ -1,5 +1,14 @@
 # Koma 当前状态、缺口与执行基线
 
+## 当前接续：业务日志补齐与版本发布日志（2026-10-22 / Root）
+
+- 已完成实现：原42文件/258处console warning/error接入脱敏持久日志；源、搜索、图片、下载和持久化补操作号、起止/耗时/终态、数量、真实平台码及脱敏代码栈。操作号含本次运行临时前缀，失败终态自身保留上下文；不记录书名、正文、凭据或书章ID，不计算哈希，不改UI。
+- 普通入口补漏：197首轮只看到HTTP日志，核实注册请求服务并非所有业务消费者。已在调用方runtime接入普通Browse/搜索、详情、章节目录/页列表和图片描述的既有TaskPool派发；原任务、参数、返回及异常对象保持。终态已实测DM5 get_manga/get_chapters和漫画1234 get_image_request起止落盘，原并发/超时策略保持。
+- 197最终签名Release0.1.1/code2/8396778B/debug=false已覆盖安装。启动版本/型号/API及真实图片HTTP410、平台码2300007被记录；分享面板实际显示TXT，读回3285B/26行，包含上述起止与耗时、不含书名/地址/请求内容。证据沿既有diagnostics/coverage-{final-installed,ordinary-final,share,restored}-001；Root亲看恢复书架，Chibi第2页25%保持。系统120000ms/无override已读回，性能模式未动，499eeb17已释租。Kavita码来自既有启动同步，不是重启私库验收；四私库仍PARKED_USER。
+- 验证：8项针对性日志/分类检查、Release编译、三语、diff检查通过。版本检查8组正反例及真实YAML解析通过。未制造磁盘满或批量新下载的实机故障，不把主机替身检查冒作全部原生故障验收。现存《猎行者》封面请求410已被日志准确暴露，本批不擅改源或清缓存。
+- 版本日志：首份changelog/v0.1.1.md及维护说明已完成；根/entry包元数据对齐AppScope。CI核对tag/版本/产物元数据与对应日志，Release使用bodyFile正文；pre结尾仍为prerelease且不占latest。本轮不打tag，故不冒实际tag发布通过。
+- 日志代码已范围提交42a56ef；版本日志与当前工作单正在提交，剩余SSH推送与精确CI。Owner=Root；设备验证已结束，无源代理在执行，不重测旧通过路径。
+
 ## 日志与预发布 CI：已交付（2026-10-22 / Root）
 
 - 按当前人类要求参考NextE：统一脱敏后写HiLog/500条内存缓冲/持久文件；本地最多12份、14天、总2MB，单份512KB轮转；磁盘失败回退内存。关键生命周期、源请求、下载、备份恢复和阅读故障已接入，不记录书名、请求正文、凭据、私有地址或书/章ID，不引入哈希。
@@ -17,7 +26,7 @@
 
 | 执行线 / Owner | 当前事实与状态 | 下一未验证动作 / 恢复义务 |
 | --- | --- | --- |
-| App / Root / 197 | 普通Shared宿主已接入；当前日志版eb160c0a的Release0.1.1/code2/8375382B/debug=false已明确覆盖安装；普通Shared旧验收边界保持。继续阅读/历史/本地/未收藏源及进度、前后章、按书设置已有具名证据；详情重入崩溃已定位修复，源与本地同路径均通过。下载管理已完成Chibi章节开书→Shared真实第2/8页→Back回列表也已补验；终态书架Chibi第2页25%已亲看。 | 普通Shared接入44a86da1已按当前人类批准同步master，精确CI39789257199已success（固定Kit检出、Release编译、HAP检查及上传均通过）；当前首版普通Shared交付条件已具名闭合，签名包见下方路径。后继日志版eb160c0a及CI39801582422已完成（见顶部）；197性能模式保留，本轮真实原超时为系统120000ms且无override，已恢复并释放535f0199。四私库仍PARKED_USER。 |
+| App / Root / 197 | 普通Shared宿主已接入；当前内部日志补齐Release0.1.1/code2/8396778B/debug=false已明确覆盖安装；普通Shared旧验收边界保持。继续阅读/历史/本地/未收藏源及进度、前后章、按书设置已有具名证据；详情重入崩溃已定位修复，源与本地同路径均通过。下载管理已完成Chibi章节开书→Shared真实第2/8页→Back回列表也已补验；终态书架Chibi第2页25%已亲看。 | 普通Shared接入44a86da1已按当前人类批准同步master，精确CI39789257199已success（固定Kit检出、Release编译、HAP检查及上传均通过）；当前首版普通Shared交付条件已具名闭合，签名包见下方路径。后继日志版eb160c0a及CI39801582422已完成（见顶部）；197性能模式保留，本轮真实原超时为系统120000ms且无override，已恢复并释放535f0199。四私库仍PARKED_USER。 |
 | 源 / source_delivery_cleanup + Root / 237 | MyComic012与漫画1234 013保主体去旧底板/阴影已范围提交ddf7fae并SSH同步。237普通导入、管理/Browse四原图Root亲审；60→61仅新增MyComic，原60相对顺序及enabled保持。传包清理、原10000ms及Browse锚点已恢复、e2f3b60f已释租。 | 精确CI39793217139 attempt2已确认completed/success/head=ddf7fae，固定latest/index HTTP200且85项，两准确版本新包HTTP200及manifest/source.wasm/icon三成员均由Root独立复核。验收说明5e4a597已[skip ci]同步源master，工作区干净；本轮图标交付闭合。原attempt1取消及官方结果延迟边界保留，不按旧queued子任务重跑或改CI。四私库仍PARKED_USER。 |
 
 - **图标候选批准与Terra后继纠正（2026-10-22，三源实机及远端交付完成）：** 人类先批准`source-icons-four-proposals.png`四项，后明确Terra固定白底保原黑色，取代中灰/透明/描边候选；Terra原512px白底黑字017保持，237深色管理/Browse两原图Root已亲看清楚。HComic012完整原鲨鱼去英文、漫画社015黄漫/棕气泡独立几何标、漫画160012原红字上下两行均已普通picker安装/更新；三源浅色管理/Browse整图Root已亲看，App槽/圆角/顺序及业务请求未改。原件`category-membership/three-icons-package237-001`。真实registry59→60，仅新增HComic，原相对顺序及其他完整entry保持；漫画社014→015与160011→012仅预期包引用/版本字段变化。最终恢复原跟随系统及喵趣漫画Browse组，仅删除本轮三份本人传包并确认ABSENT；`three-icons-final-restored237-001`读回10000ms/AWAKE/koma0焦点208，049f4940租约已释放，所有产物哈希关闭。首深色选择因MenuItem/子Text同名、恢复原组时误用“喵趣”而非“喵趣漫画”的导航失败保留，未据其改产品。三源19文件3fda006已范围提交并同步源master，CI39722753351全部编译/metadata/封包/原子发布success。公开latest/index85项，HComic012/漫画社015/160012包及独立图标均HTTP200，三成员及精确ID/版本成立；本机首次把相对pkg当完整URL的解析失败后按实际合同修正，未据此改产品。原漫画社ASSET_SOURCES及喵趣NOTICE两WIP不纳入。

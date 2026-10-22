@@ -48,6 +48,8 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 App 问题请提交到 [Koma Issues](https://github.com/honjow/Koma/issues)，书源问题请提交到 [源库 Issues](https://github.com/honjow/koma-sources/issues)。说明 App/源版本、设备型号、操作步骤和看到的错误；可在 **设置 → 关于 → 诊断日志** 标记问题发生时间，然后分享或保存本地日志。日志支持开关、级别和历史文件，并对凭据与地址脱敏；截图请先遮住个人信息，不要提供密码、Cookie 或令牌。
 
+版本变化见[版本日志](changelog/README.md)，各次 Release 使用对应版本文件的同一份正文。
+
 ## 开发与开源
 
 - [构建与开发脚本](scripts)
