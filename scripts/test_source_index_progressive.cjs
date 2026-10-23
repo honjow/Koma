@@ -242,3 +242,60 @@ test('route settings capability hides an empty source, preserves unknown, and ig
   result=new Promise(resolve=>{finish=resolve});const loading=host.loadAvailability();host.mounted=false
   finish({ready:true,descriptors:[{id:'region'}]});await loading;assert.deepEqual(changes,[false])
 })
+
+
+test('update-all submits merged candidates through per-source actions without a global lock or duplicate installs', async () => {
+  const lane = installLane(), calls = [], statuses = [], enabled = []
+  const packages = [installed('A','1'), installed('B','1',false), installed('C','1')]
+  let finishA
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
+    ['updateAllAvailablePackages','updateInstalledPackage','packageInstallPending'], {
+      ...globals, t:key=>key, tf:key=>key, sourceDisplayName:(_id,name)=>name,
+      setEnabled:(_context,id,value)=>enabled.push([id,value]),
+    })
+  const candidates = ['A','B','C'].map(id=>({entry:indexed(id,'2'),indexUrl:`https://${id}.test/index.json`}))
+  Object.assign(manager, {
+    busy:false, packageInstallTasks:lane, indexInstallBusy:true, updateInstallSourceId:'other',
+    availablePackageUpdates:()=>candidates,
+    installedPackage:id=>packages.find(item=>item.id===id),
+    context:()=>({}), reload(){}, showToast(){},
+    setUpdateStatus:status=>statuses.push([status.sourceId,status.status]),
+    sourceIndexService:{installPackage:(url,item)=>lane.run(item.id,async()=>{
+      calls.push([item.id,url])
+      if(item.id==='A') await new Promise(resolve=>{finishA=resolve})
+      if(item.id==='C') return {ok:false,reasonCode:'network_error'}
+      packages.find(p=>p.id===item.id).version=item.version
+      return {ok:true}
+    })},
+    sourceRedactedReasonText:()=>'',
+  })
+  manager.updateAllAvailablePackages()
+  manager.updateAllAvailablePackages()
+  const tasks = Array.from(lane.pending.values())
+  assert.deepEqual(Array.from(lane.pendingIds),['A','B','C'])
+  await new Promise(setImmediate)
+  assert.deepEqual(calls,[['A','https://A.test/index.json']])
+  assert.equal(lane.runningId,'A')
+  finishA(); await Promise.all(tasks); await new Promise(setImmediate)
+  assert.deepEqual(calls,[['A','https://A.test/index.json'],['B','https://B.test/index.json'],['C','https://C.test/index.json']])
+  assert.deepEqual(statuses,[['A','latest'],['B','latest'],['C','failed']])
+  assert.deepEqual(enabled,[['B',false]])
+  assert.equal(lane.pendingIds.length,0)
+})
+
+
+test('activity summary names the actual running source rather than the last queued request', () => {
+  const manager = subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',
+    ['packageActivityText'],{t:key=>key,tf:(key,name)=>`${key}:${name}`,sourceDisplayName:(_id,name)=>name})
+  Object.assign(manager,{
+    packageInstallTasks:{runningId:'A'},
+    installedPackage:id=>id==='A'?{id:'A',name:'Active A'}:undefined,
+    indexEntries:[{id:'new',name:'New source'}],indexDisplayName:entry=>entry.name,
+    statusText:'last completion',
+  })
+  assert.equal(manager.packageActivityText(),'source_pkg_update_running:Active A')
+  manager.packageInstallTasks.runningId='new'
+  assert.equal(manager.packageActivityText(),'source_pkg_install_running:New source')
+  manager.packageInstallTasks.runningId=''
+  assert.equal(manager.packageActivityText(),'last completion')
+})

@@ -1278,6 +1278,7 @@
     { "name": "source_pkg_update_status_failed", "value": "更新：检查失败：%s" },
     { "name": "source_pkg_update_status_unknown", "value": "更新：未检查" },
     { "name": "source_pkg_action_update", "value": "更新" },
+    { "name": "source_pkg_update_all", "value": "全部更新" },
     { "name": "source_pkg_action_queued", "value": "等待中" },
     { "name": "source_pkg_action_updating", "value": "更新中" },
     { "name": "source_pkg_prompt_index_url", "value": "请输入源索引地址" },

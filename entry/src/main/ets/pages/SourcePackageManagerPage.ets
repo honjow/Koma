@@ -5,6 +5,7 @@ import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
+import { SubHeaderV2, SubHeaderV2Title, SubHeaderV2OperationType, SubHeaderV2OperationItem, TextModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
@@ -578,6 +579,19 @@ export struct SourcePackageManagerPage {
       this.packageInstallTasks.pendingIds.length > 0 || this.updateInstallSourceId.length > 0
   }
 
+  private packageActivityText(): string {
+    const runningId = this.packageInstallTasks.runningId
+    if (runningId.length > 0) {
+      const installed = this.installedPackage(runningId)
+      if (installed !== undefined) {
+        return tf('source_pkg_update_running', sourceDisplayName(installed.id, installed.name))
+      }
+      const entry = this.indexEntries.find((item: SourceIndexEntry): boolean => item.id === runningId)
+      if (entry !== undefined) return tf('source_pkg_install_running', this.indexDisplayName(entry))
+    }
+    return this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice')
+  }
+
   private sourceIndexSummaryText(): string {
     const url = this.sourceIndexUrl.trim()
     return url.length > 0 ? url : t('source_pkg_boundary_notice')
@@ -725,6 +739,16 @@ export struct SourcePackageManagerPage {
         ? t(update ? 'source_pkg_action_updating' : 'source_pkg_installing') : t('source_pkg_action_queued')
     }
     return t(update ? 'source_pkg_action_update' : 'source_pkg_install')
+  }
+
+  // This is a trigger, not a second batch-state owner. Each source registers
+  // its own pending/running state through the same single-package action.
+  private updateAllAvailablePackages(): void {
+    if (this.busy) return
+    this.availablePackageUpdates().forEach((candidate: SourcePackageUpdateCandidate): void => {
+      const source = this.installedPackage(candidate.entry.id)
+      if (source !== undefined) void this.updateInstalledPackage(source, candidate)
+    })
   }
 
   private updateActionLabel(sourceId: string): string {
@@ -926,8 +950,7 @@ export struct SourcePackageManagerPage {
       return
     }
     const wasEnabled = source.enabled
-    this.statusText = tf('source_pkg_update_running', sourceDisplayName(source.id, source.name))
-    console.info('[SourcePackageUpdate] step=install_start id=' + source.id)
+    console.info('[SourcePackageUpdate] step=install_requested id=' + source.id)
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
       if (result.ok) {
@@ -2371,7 +2394,20 @@ export struct SourcePackageManagerPage {
   private PackageListGroups(groups: SourcePackageListGroups) {
     if (groups.updates.length > 0) {
       ListItem() {
-        SectionHeader({ title: t('source_pkg_update_available') })
+        SubHeaderV2({
+          title: new SubHeaderV2Title({
+            secondaryTitle: t('source_pkg_update_available'),
+            secondaryTitleModifier: new TextModifier()
+              .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('sys.color.font_secondary')),
+          }),
+          operationType: SubHeaderV2OperationType.BUTTON,
+          operationItems: [new SubHeaderV2OperationItem({
+            content: t('source_pkg_update_all'),
+            action: () => { this.updateAllAvailablePackages() },
+          })],
+        })
       }
       ListItem() {
         GroupedListSection() {
@@ -2428,7 +2464,7 @@ export struct SourcePackageManagerPage {
               GroupedListSection() {
                 ConciseListRow({
                   title: t('source_pkg_check_updates'),
-                  subtitle: this.statusText.length > 0 ? this.statusText : t('source_pkg_manual_check_notice'),
+                  subtitle: this.packageActivityText(),
                   leadingIcon: $r('sys.symbol.arrow_clockwise'),
                   leadingIconBackgroundColor: ThemeConstants.BRAND_PRIMARY,
                   isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
