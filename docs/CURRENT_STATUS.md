@@ -931,16 +931,16 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T02:53:38.884410+00:00",
+  "updatedAt": "2026-10-23T04:20:18.274661+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_WEB_SESSION",
+  "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": {
-    "title": "Root：亲审源内搜索与App本批范围提交",
-    "detail": "源远端精确CI/85源资产发布已亲核收口；App本批仍准备提交且未推送，源设置保存未验。保持所有原未完成项，已过发布/原生包子路径冻结。",
+    "title": "Root：准备NextE P0普通连续性能，后继NextN",
+    "detail": "197源错误/Web具名收尾已闭：010网页→011原生搜索200→014不清数据pid冷启动→015真实12本首页成立。原未覆盖范围不扩认；FIRST与未知排序已获metadata只读结论但方案未闭，不为Extra刷75本或清缓存。",
     "startedAt": null,
-    "updatedAt": "2026-10-23T02:53:38.884410+00:00"
+    "updatedAt": "2026-10-23T04:20:18.274661+00:00"
   },
-  "nextAction": "Root亲看237源内搜索007原图，审本批App精确diff并范围提交（排除.idea）；当前尚未推送。源8bcc23a发布已收口，不复查已过资产；继续197原首章/排序/错误/索引等未完项，局部收口不停止整体。",
+  "nextAction": "Root审当前工作单精确diff并提交后接NextE P0普通连续性能，后继NextN；197有界trace样本冻结不重采。全屏native结束时机、FIRST详情投影/未知metadata、未知排序与章选器运动区间仍OPEN，私库PARKED_USER、图标/其他已接受样本冻结。",
   "proof": [
     {
       "label": "正式主仓",
@@ -956,9 +956,9 @@
     },
     {
       "label": "远端同步",
-      "state": "源8bcc23a CI/85源发布通过；App本批待提交",
-      "kind": "open",
-      "detail": "源0e33ec3+8bcc23a已推，精确CI39891584060/head8bcc23a1b2f60a58607e1a34351efd5e6fb1d81a success，latest211资产/85源pkg与icon对应已Root亲核；源仓干净。App本批范围提交尚准备/未推送；先前App f7a6a7d及标题868dbb38成功不替代本批。"
+      "state": "App2f9f2d9a精确CI成功，无新tag",
+      "kind": "accepted",
+      "detail": "2f9f2d9a6131afa4d6fa1afa19d53468bec1b869已推，CI39899052096 completed/success；4b878926/991309a与源85源/README既有成功范围冻结。未新增tag或将CI当当前冷启动首页验收。"
     },
     {
       "label": "共享阅读器",
@@ -983,8 +983,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "4bf22c66",
-      "hap": "237已装source-web-session-native-context-signed.hap /8429466B正式包；包子具名原生首页/详情/正文/返回通过。197此前8429714B/code3安装保持；不冒197已装r2。"
+      "appHead": "2f9f2d9a6131afa4d6fa1afa19d53468bec1b869",
+      "hap": "197当前source-search-failure-signed.hap 8427937B /0.1.2-pre/code3，经source-search-failure197-installed-006 installer/start/bm成功；after-007首搜失败标题已具名通过，011会话回流及014→015真实cold首页已亲审。此前r3索引具名结果冻结。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1009,10 +1009,10 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "197同路径性能有界实证，跨宿主待验",
+      "status": "197证据冻结，准备NextE/NextN P0普通性能",
       "kind": "open",
       "priority": "P0",
-      "owner": "Root",
+      "owner": "Root：准备NextE P0普通连续性能，后继NextN",
       "dependencies": [],
       "result": "reader-kit efca410已实现typed轻量位置回调，84项针对检查通过；Koma同页保存/目录commit去重及chapterChoices线性map已写。Root在197同一连续滚动路径trace取得前后证据：优化前77帧均值183.76ms；优化后997帧均值5.74ms，仅1帧超过16.67ms。这是197该操作/内容/构建的有界性能实证。用户此前NextE新版不流畅、旧版顺滑为用户对照反馈；尚不能据Koma单路径结果认定三App均已解决。 原件：diagnostics/continuous-perf197-{before,after}-001/parsed-cwd/summary.json。 Kit efca410已通过正确erosTeam SSH同步，推送不替代剩余宿主实机验收。 Koma Reader优化随f7a6a7d提交推送。 后继SSH443推送实际成功：a4ec2eb..f7a6a7d → master；CI39883471325/head=f7a6a7dc567be375ef23da7366cee5fbd0e4e317后继已success。",
       "remaining": "197同一路径trace证据冻结，不重复采已过样本；NextE/NextN受影响普通入口仍未验，不扩认三App通过；章选器同目录保位已获后继精确通过，原失败留证不再当当前未修复。",
@@ -1031,13 +1031,13 @@
     {
       "id": "FIRST_CHAPTER_SELECTION",
       "title": "无历史书架首次阅读误开最新一话",
-      "status": "Extra2续读保持；只读仍为旧0编号，新metadata未回写",
+      "status": "无metadata与详情不落库边界已核，仍OPEN",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root / 197；source_chapter_metadata供011修复包",
+      "owner": "Root：追详情不写库历史/单书更新路径",
       "dependencies": [],
-      "result": "197普通picker已导入MangaDex0.1.11，registry实际读回版本0.1.11。diagnostics/mangadex011-first197-*：005从书架最近加入→Super Lovers未读详情→开始阅读，006原图Root亲看Extra2首图1/25，证明没有打开数组最新46话。此结果不是011新元数据首章通过：详情get_manga真实网络失败platformCode2300016，沿用原书架缓存，Extra1/2/3仍旧chapterNumber=0。007 registry及008脱敏log已取，新章元数据尚未回写。 后继普通目录刷新已成功，重开Extra2已产生进度保留；此前platform2300016失败原件保留，不再将该失败当当前持续失败。原始011新章metadata是否写回尚未核实。 本轮只读原数据确认Extra1/2/3仍chapterNumber=0，不能称011新metadata已回写；原ID/URL不输出。",
-      "remaining": "旧0编号原数据已确认，新metadata回写仍未成立；需正常数据更新链后再核，保已产生Extra2进度，不清缓存/伪造未读。风起苍岚无章号/日期边界仍OPEN。",
+      "result": "书架漏接明确章ID已改用firstReaderChapter；197 MD011普通安装成立，Super Lovers正常目录刷新及Extra2续读进度保留，但不是新metadata落库证明。源metadata owner只读确认MD011仅把缺编号0→null、真实0保留；MangaDetailPage.applySourceMangaDetail只更新投影，LibraryUpdateService正常metadata enrichment才落库，当前UI没有单书更新入口。漫画160《风起苍岚》781章原序第二季353→第一话，章号/日期全缺，不能据数字目录结果宣称全源首次章已修。",
+      "remaining": "Root后继追详情不写库的历史/已定语义，不为Extra刷新75本、清缓存或假造未读；暂不改源。无元数据首章规则、已有进度/显式选章边界仍OPEN，与未知排序关联但不抢当前P0。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
@@ -1048,13 +1048,13 @@
     {
       "id": "CHAPTER_SORT_MENU",
       "title": "章节排序菜单无作用",
-      "status": "已编号目录排序具名成立，未知编号仍调查",
+      "status": "未知元数据比较恒0已核，合法排序方案仍OPEN",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root",
+      "owner": "Root：未知元数据排序语义/历史核查",
       "dependencies": [],
-      "result": "197 xkcd676章目录切话数升序后实际显示1/11/20/22，说明该已编号目录排序生效。",
-      "remaining": "未知编号目录仍须调查源元数据与App比较器边界；关联FIRST_CHAPTER_SELECTION的无章号/日期及Extra=0样本，但尚未证明必须等待全部首章修复。已编号xkcd路径冻结，不重跑。",
+      "result": "已编号xkcd676章升序1/11/20/22具名成立并冻结。原metadata owner只读确认漫画160《风起苍岚》781章原序第二季353→第一话，章号和日期全缺；未知比较同为-1，比较结果为0，不能由现有比较器产生排序变化。",
+      "remaining": "方案仍OPEN；不能恢复19ad9143已否决的非对称比较器，也不能从标题取首数字把季2误当章2。与FIRST未知元数据/投影不落库关联，暂不改源，不重跑已编号成功样本。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -1187,13 +1187,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "本轮Release构建/安装通过，普通消费者待验",
+      "status": "首页/首搜错误呈现通过，全局搜索消费者待验",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root",
+      "owner": "Root：P0性能后续验全局搜索错误消费者",
       "dependencies": [],
-      "result": "Root已新增结构化错误与白名单原因映射WIP，保操作/reason/error/status/kind关联；不直接暴露原服务端消息。 Root本轮source-web-session-menu-build.log退出0；唯一签名包diagnostics/source-web-session-menu-signed.hap为8429714B，197经source-web-session-menu197-installed-001同manifest覆盖安装成功，0.1.2-pre/code3。diagnostics/web_sessions/chapter_picker/index_progressive当前合跑28项全过；这是构建/检查/安装证据，不是普通功能验收。",
-      "remaining": "Browse/源内搜索/全局搜索错误消费者、日志足够性与实际包子错误需验证。此项无需等包子业务修复才可推进。",
+      "result": "197包子014首页source-errors197-baozi-002/layout.json/result.png显示“源浏览失败 / 书源请求被拒绝。（HTTP 403）”，无source_runtime；首搜修正后source-search-failure197-after-007/result.png显示“源搜索失败 / 书源请求被拒绝（HTTP403）/重试”，“没有找到结果”节点0，Root亲审。SourceBrowsePage.ets仅7增3删；首搜按钮用原runSearch(currentSource(),searchQuery)，Browse保retryBrowseError，分页retrySearchPage不适用零结果。8427937B/code3签名包经installed-006 installer/start/bm成功，21项方法检查通过。单文件2f9f2d9a6131afa4d6fa1afa19d53468bec1b869已推，精确CI39899052096 completed/success。原source-errors197-evidence-005失败403却显示空结果标题、search-004等错误标题期望超时均留证；a87cea74/396b71b4 failed/empty共分支因果已核。",
+      "remaining": "197首页/首搜错误可读标题与提示、单文件提交及精确CI范围冻结；原队列的全局搜索错误消费者仍未验，P0之后沿普通源筛选入口核一次自然错误及关联日志，不涉及已搁置私库。正常零结果、通用重试成功未外推；网页完成后原生搜索200与cold首页另属SOURCE_WEB_SESSION，不倒改原失败，不重复403重试。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1205,36 +1205,56 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（明确必须做，原队列保留）",
-      "owner": "Root：237必要收尾后回197；source_chapter_metadata：源提交/推送/CI（禁设备）",
+      "owner": "冻结：Root按新反例或相关依赖变化重开",
       "dependencies": [],
-      "status": "包子r2原生闭环具名通过，源设置仅打开",
-      "kind": "open",
-      "result": "237 source-web-session-native-context-signed.hap 8429466B已覆盖安装。Root亲看category-membership/baozi014-native-context237-settled-002/native-result.png首页12封面、detail-003/detail.png《紹宋》258章、reader-004/reader.png角色设定1/6真实正文，return-settings-005/detail-return.png自然Back立即显示“继续阅读 · 人設物料 · 第1/6页”并再Back回熱門漫畫。full-log-006/business-log.txt:12/15/18/21/26为native/attached/cookieState present/uaSource webview及get_home/get_manga_list HTTP200；95–109详情/目录/页completed，跨origin get_pages为identity native/session none仍成功；140–145六图HTTP200。未记录Cookie值或原敏感ID/URL。 Root已亲读/tmp/koma-source-release-8bcc23a/verification.json：源0e33ec3+8bcc23a已推，CI39891584060/head8bcc23a1b2f60a58607e1a34351efd5e6fb1d81a success，latest sources-8bcc发布；85/85 available、85源pkg/icon全部资产对应，共211资产，源仓干净。包子014精确声明仅https://www.baozimh.com，MangaDex011无会话声明；源代码发布不代表旧App具备会话。237源内搜索007一次“绍宋”→“紹宋”结果已实际返回，原图待Root亲看。",
-      "remaining": "App本批范围提交正准备，尚未推送，不混.idea；源内搜索007原图待Root亲看。005源设置已不保存退出，只证打开不证保存；其他会话/设置/登录/按源退出未覆盖边界保持，当前具名包子闭环不外推所有站点。",
+      "status": "197网页回流与cold首页具名通过（冻结）",
+      "kind": "accepted",
+      "result": "197当前8427937B/code3。网页验证010原图Root亲看真实“绍宋”检索结果；HDS把“完成并重试”显示为无文字勾号，010布局[766,149][896,279]与原图勾号对应。011点击后回原生Search，唯一“紹宋”封面/书名、源搜索失败节点0，011/result.png已亲审。013业务log明确12:10 get_home/search native/session none/cookieState empty/uaSource source→403；12:15完成后同源search native/session attached/cookieState present/uaSource webview→HTTP200/operation completed，未输出Cookie值。008菜单父子文本重复、009等“完成并重试”文字超时均为工具定位误期望，原件保留，不代表未进网页。237此前8429466B包子原生首页12封面→258章→1/6正文→自然返回进度、source-settings-buttons/sheet-save237-001“源设置已保存”及半模态退出均独立成立；按钮991309a精确CI39895213060成功。源8bcc23a CI39891584060与85源/211资产发布、README9243deb CI39894595111成功，MD011无会话声明/包子014精确origin保持。 后继014不清数据真实PID16407→空→20307；diagnostics/source-session197-cold-native-015原图/布局/actions中，普通书架→浏览→包子0.1.4，熱門漫畫节点1、源浏览失败0、403提示0。Root亲看015/result.png为12本真实封面/标题首页。",
+      "remaining": "只接受197真实网页完成→同源原生搜索200及不清数据cold后普通首页具名范围；无观察CF挑战UI，不扩所有CF/全部源/其他会话边界。237先前闭环/保存及按钮具名结果分别冻结，其他未覆盖能力不自动生新矩阵。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
       "firstEvidenceAt": "2026-10-23T01:44:08.576Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": "2026-10-23T04:20:18.274661+00:00"
+    },
+    {
+      "id": "SOURCE_SETTINGS_ACTION_ALIGNMENT",
+      "title": "源设置底部清除/保存按钮突兀且不齐",
+      "priority": "P2（本sheet限定修正，不取消原队列）",
+      "owner": "冻结：Root按新反例或相关依赖变化重开",
+      "dependencies": [],
+      "status": "已验收+已推送，CI成功（冻结）",
+      "kind": "accepted",
+      "result": "237具名实机验收成立：device237__VDE-AL00/unfolded/portrait-1320x2120/source-settings-buttons/sheet-after237-001/screen.png与layout.json。实测保存设置文字中心x660，绿色按钮横向48..1271与上方卡片48..1272对齐；清除已保存设置为居中红字，无实心块。两个builder限定修正已提交991309a并推master，精确CI39895213060/head991309aca111aefe29286ffe83957227e0ceafd8后继completed/success。 后继237 source-settings-buttons/sheet-save237-001/layout.json明确“源设置已保存”且半模态退出，保存动作成立；source-settings-btn237-001安装回执completed/code3保留。",
+      "remaining": "本sheet具名视觉/对齐、保存退出及991309a精确CI均已通过冻结；不为旧候选/安装中总述重开，不外推其他页面或未验设置字段。",
+      "reportedAt": "2026-10-23T02:58:58.381Z",
+      "reportedAtSource": "原始会话JSONL response_item/user图反馈原文实际时间戳。",
+      "firstEvidenceAt": "2026-10-23T02:58:58.381Z",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": "2026-10-23T03:38:15.620424+00:00"
     },
     {
       "id": "SOURCE_INDEX_PROGRESSIVE",
       "title": "首次远端索引长空白，需逐项异步显示",
-      "status": "本轮Release构建/安装通过，普通消费者待验",
-      "kind": "open",
+      "status": "r3具名通过，4b878926已推且精确CI成功",
+      "kind": "accepted",
       "priority": "P2",
-      "owner": "Root",
+      "owner": "冻结：Root按新反例或相关依赖变化重开",
       "dependencies": [],
-      "result": "Root已有JSON与图标等待拆分WIP，保名称排序和最多四路图标补入。 Root本轮source-web-session-menu-build.log退出0；唯一签名包diagnostics/source-web-session-menu-signed.hap为8429714B，197经source-web-session-menu197-installed-001同manifest覆盖安装成功，0.1.2-pre/code3。diagnostics/web_sessions/chapter_picker/index_progressive当前合跑28项全过；这是构建/检查/安装证据，不是普通功能验收。",
-      "remaining": "普通首次配置、图标失败/慢响应、并发与地址变更旧回写待验证；不复活已完图标素材任务。",
+      "result": "197已装r3签名8427727B/code3。source-index-progressive/public-load-prefix-recording197-003全131帧/13.929833s、四联系表和104/110/117/130原图Root已亲审：110@2.356733s列表/部分图先出，其余占位，117@4.393822s图齐，130保持，未再见文字裁切/位移；package-update197-003普通latest更新包子0.1.2→0.1.4成功，85项及actions/layout/updated.png已审。三文件4b878926ef0b46287fafcf020194b45820606932已推，CI39898097341 completed/success，普通push tag job skipped，无新tag。修复为固定行身份、每源可观察URI仅在既有SourceIdentityPrefix内读，保HDS/NAPI边界及原样式/旧URI接口。原失败public-load-fixed-recording197-001 frame127/8.2689s（r28423132B稳定key+全map仍裁切）保留；最初public-load-recording197-001 112/132帧裁切与public-load-result197-001“可安装源/可用源”测试误期望保留。首次source-index-stable-rows-build.log对象展开构建失败与后继显式类型成功留证。",
+      "remaining": "冻结现有profile普通latest渐进稳定性和包更新具名范围；首次全新无缓存、慢/失败/换URL实机未扩认，4项真实方法检查只证行为边界。不清缓存/造故障重跑，r2失败不抹去。",
       "reportedAt": "2026-10-22T18:37:17.168Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:37:17.168Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "references": [
+        "https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-rendering-control-foreach"
+      ]
     },
     {
       "id": "SEARCH_DETAIL_TITLE",
@@ -1541,14 +1561,32 @@
       "references": [
         "https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ts-basic-components-image#orientation14"
       ]
+    },
+    {
+      "id": "SOURCE_README_USER_GUIDE",
+      "title": "重新整理koma-sources用户README",
+      "priority": "待分配（本次未指定）",
+      "owner": "/root/koma_sources_readme（已完成）",
+      "dependencies": [],
+      "status": "已完成，9243deb CI通过",
+      "kind": "accepted",
+      "result": "koma-sources README已由/root/koma_sources_readme整理完成，258→86行，面向用户且结构清晰，85源已核实。提交9243deb，精确CI39894595111通过。",
+      "remaining": "本轮README整理范围已完成并冻结；后续仅随真实源发布/用户反馈按需更新，不重开已完成整理。",
+      "reportedAt": null,
+      "reportedDate": "2026-10-23",
+      "reportedAtSource": "本次人类消息；提出日期为2026-10-23，未提供精确时分秒，不猜填。",
+      "firstEvidenceAt": "2026-10-23T03:16:03.446263+00:00",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
     }
   ],
   "source": {
-    "status": "源8bcc23a CI与85源发布已核，设备搜索待亲审",
+    "status": "源发布/包子具名回流与cold首页冻结",
     "kind": "accepted",
     "title": "源会话当前验收与源库同步",
     "result": "Root亲读verification.json及release/index/catalogue原件：源0e33ec3+8bcc23a已推，CI39891584060精确head成功，latest sources-8bcc发布，85/85 available、85源pkg/icon资产全部对应、共211资产，源仓干净。包子014仅许可www.baozimh.com；MD011无会话声明。237源内搜索007返回绍宋→紹宋，原图待亲审。",
-    "remaining": "发布核对不冒85源正文/所有CF通过，源代码不使旧App自动具备会话。App本批尚未提交推送；源设置005未保存退出，只证打开。已过具名包子闭环与原图标范围冻结，其他App缺陷仍继续。",
+    "remaining": "源8bcc23a/README及237原生闭环/设置保存、197搜索回流与cold首页仅具名范围冻结，不扩全源/全CF。metadata owner只读发现已回报FIRST/排序项，暂不改源/不操作设备。当前主控准备NextE P0，其他原OPEN保持。",
     "commit": "8bcc23a1b2f60a58607e1a34351efd5e6fb1d81a"
   },
   "milestones": [
