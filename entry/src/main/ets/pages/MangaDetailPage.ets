@@ -1,3 +1,8 @@
+import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
+import { MangaWebRouteParam } from '../common/RouterHelper'
+import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
+import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { SourceRuntimeError } from '../model/SourceRuntimeError'
@@ -281,6 +286,87 @@ export struct MangaDetailPage {
   @Event onRefreshLocalFolder: (comicId: string) => Promise<LocalLibraryFolderRescanActionResult | undefined> =
     async (_comicId: string) => undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Local private detailWebChallenge: SourceWebChallengeReceipt | null = null
+  @Local private detailWebChallengeShown: boolean = false
+  @Local private detailWebChallengeParams: MangaWebRouteParam = { url: '', title: '' }
+  private detailWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  private detailWebChallengeId: number = 0
+  private detailWebChallengeClosing: boolean = false
+
+  private clearDetailWebChallenge(): void {
+    this.detailWebChallengeGate.clear()
+    this.detailWebChallenge = null
+  }
+
+  @Monitor('chrome.visible', 'detailWebChallenge')
+  private handleDetailWebChallenge(): void {
+    if (!this.chrome.visible) { this.closeDetailWebChallenge(); return }
+    if (this.detailWebChallengeShown || this.detailWebChallengeClosing) return
+    const receipt = this.detailWebChallenge
+    if (receipt === null || receipt.sourceId !== this.params.sourceId?.trim() ||
+      !this.detailWebChallengeGate.claim(receipt.id, this.chrome.visible)) return
+    const params = prepareSourceWebSession(receipt.sourceId, sourceDisplayName(receipt.sourceId, this.sourceDetailRegistryEntry?.manifestName ?? ''))
+    if (params === undefined) {
+      this.detailWebChallengeGate.cancel(receipt.id)
+      this.detailWebChallenge = null
+      return
+    }
+    this.detailWebChallengeId = receipt.id
+    this.detailWebChallengeParams = params
+    this.detailWebChallengeShown = true
+  }
+
+  private closeDetailWebChallenge(): void {
+    if (this.detailWebChallengeShown) this.detailWebChallengeClosing = true
+    const id = this.detailWebChallengeId
+    const session = this.detailWebChallengeParams.sourceSession
+    // Consume this sheet's receipt before callbacks or session cancellation can run.
+    this.detailWebChallengeId = 0
+    this.detailWebChallengeShown = false
+    if (id > 0) {
+      this.detailWebChallengeGate.cancel(id)
+      if (this.detailWebChallenge?.id === id) this.detailWebChallenge = null
+      if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
+    } else if (!this.detailWebChallengeClosing) this.clearDetailWebChallenge()
+  }
+
+  private completeDetailWebChallenge(): void {
+    const id = this.detailWebChallengeId
+    this.detailWebChallengeClosing = true
+    this.detailWebChallengeId = 0
+    this.detailWebChallengeShown = false
+    if (id <= 0) return
+    if (this.detailWebChallenge?.id === id) this.detailWebChallenge = null
+    void this.detailWebChallengeGate.complete(id, this.chrome.visible)
+  }
+
+  private finishDetailWebChallengeDismiss(): void {
+    // The old sheet has fully disappeared. Never cancel mutable params here:
+    // a newer challenge may already be waiting for this presentation boundary.
+    this.detailWebChallengeClosing = false
+    this.handleDetailWebChallenge()
+  }
+
+  private publishDetailWebChallenge(error: Object, sourceId: string, mangaId: string, requestEpoch: number,
+    retryStage: 'detail' | 'chapters', automaticRecovery: boolean): void {
+    const entry = this.sourceDetailRegistryEntry
+    const eligible = !automaticRecovery && error instanceof SourceRuntimeError &&
+      (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required') &&
+      entry !== undefined && (entry.webSessionOrigins ?? []).length > 0
+    this.detailWebChallenge = this.detailWebChallengeGate.issue(sourceId, 'detail', eligible,
+      (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId),
+      async (): Promise<void> => { await this.loadSourceMangaDetail(sourceId, mangaId, true, true, retryStage) })
+  }
+
+  @Builder
+  private DetailWebChallengeSheet() {
+    SourceWebSessionSheet({
+      params: this.detailWebChallengeParams,
+      onClose: () => { this.closeDetailWebChallenge() },
+      onCompleted: () => { this.completeDetailWebChallenge() },
+    })
+  }
+
   private sourceDetailRequestEpoch: number = 0
   private sourceDetailSettingsRevision: string = ''
   private sourceDetailRegistryEntry?: SourceRuntimeRegistryEntry
@@ -345,6 +431,8 @@ export struct MangaDetailPage {
 
   aboutToDisappear(): void {
     // A hidden detail route must not let an old source response repaint a later route instance.
+    this.closeDetailWebChallenge()
+    this.clearDetailWebChallenge()
     this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
     this.chrome.pageActionsAvailable = false
     this.chrome.sourceReloadAvailable = false
@@ -667,7 +755,10 @@ export struct MangaDetailPage {
     this.localMetadataCoverPath = ''
   }
 
-  private async loadSourceMangaDetail(sourceId: string, mangaId: string, forceReload: boolean = false): Promise<void> {
+  private async loadSourceMangaDetail(sourceId: string, mangaId: string, forceReload: boolean = false,
+    automaticRecovery: boolean = false, retryStage: 'detail' | 'chapters' = 'detail'): Promise<void> {
+    this.closeDetailWebChallenge()
+    this.clearDetailWebChallenge()
     const retainedDetail = forceReload && this.sourceDetailDataResolved ? this.manga : undefined
     const retainedChapters = retainedDetail === undefined ? [] : this.chapters.slice()
     const retainedChaptersResolved = this.sourceChaptersResolved
@@ -694,7 +785,10 @@ export struct MangaDetailPage {
       const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
-      if (cached !== undefined) {
+      if (retryStage === 'chapters' && retainedDetail !== undefined) {
+        detail = retainedDetail
+        chapters = retainedChapters
+      } else if (cached !== undefined) {
         detail = cached.detail
         chapters = cached.chapters
         if (cached.chaptersResolved) {
@@ -753,6 +847,7 @@ export struct MangaDetailPage {
         }
         chaptersLoadFailed = true
         chaptersFailureText = this.sourceOperationFailureText(_error, 'get_chapters', 'manga_detail_load_source_chapters_failed')
+        this.publishDetailWebChallenge(_error, sourceId, mangaId, requestEpoch, 'chapters', automaticRecovery)
         const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
         if (libraryComic !== undefined && libraryComic.chapters.length > 0) {
           chapters = libraryComic.chapters.map((chapter: Chapter): MangaChapterItem =>
@@ -790,6 +885,7 @@ export struct MangaDetailPage {
         return
       }
       const failureText = this.sourceOperationFailureText(error, 'get_manga', 'manga_detail_load_source_failed')
+      this.publishDetailWebChallenge(error, sourceId, mangaId, requestEpoch, 'detail', automaticRecovery)
       if (retainedDetail !== undefined) {
         this.manga = retainedDetail
         this.chapters = retainedChapters
@@ -2336,6 +2432,18 @@ export struct MangaDetailPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack({ alignContent: Alignment.TopEnd }) {
+        Column() {}
+          .width(0)
+          .height(0)
+          .bindSheet($$this.detailWebChallengeShown, this.DetailWebChallengeSheet, {
+            detents: [SheetSize.LARGE], showClose: false,
+            enableOutsideInteractive: false, enableFloatingDragBar: true,
+            onWillDismiss: (action: DismissSheetAction) => {
+              this.closeDetailWebChallenge()
+              action.dismiss()
+            },
+            onDisappear: () => { this.finishDetailWebChallengeDismiss() },
+          })
         SecondaryListScaffold({
           listSpace: ThemeConstants.SPACE_LG,
           bottomPadding: ThemeConstants.SPACE_XL,

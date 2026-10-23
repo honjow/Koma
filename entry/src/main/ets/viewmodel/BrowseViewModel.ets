@@ -1,3 +1,4 @@
+import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -472,6 +473,76 @@ export class BrowseViewModel {
   @Trace browseErrorIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace searchQuery: string = ''
   @Trace searchNextCursor: string = ''
+  @Trace browseWebChallenge: SourceWebChallengeReceipt | null = null
+  @Trace searchWebChallenge: SourceWebChallengeReceipt | null = null
+  private browseWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  private searchWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+
+  private challengeGate(scope: SourceWebChallengeScope): SourceWebChallengeGate {
+    return scope === 'browse' ? this.browseWebChallengeGate : this.searchWebChallengeGate
+  }
+
+  private clearWebChallenge(scope: SourceWebChallengeScope): void {
+    this.challengeGate(scope).clear()
+    if (scope === 'browse') this.browseWebChallenge = null
+    else this.searchWebChallenge = null
+  }
+
+  claimWebChallenge(scope: SourceWebChallengeScope, id: number, routeVisible: boolean): boolean {
+    return this.challengeGate(scope).claim(id, routeVisible)
+  }
+
+  cancelWebChallenge(scope: SourceWebChallengeScope, id: number): void {
+    if (!this.challengeGate(scope).cancel(id)) return
+    if (scope === 'browse') this.browseWebChallenge = null
+    else this.searchWebChallenge = null
+  }
+
+  async completeWebChallenge(scope: SourceWebChallengeScope, id: number, routeVisible: boolean): Promise<boolean> {
+    const receipt = scope === 'browse' ? this.browseWebChallenge : this.searchWebChallenge
+    if (receipt?.id !== id) return false
+    // Clear the visible receipt before retry so a repeated challenge cannot reuse it.
+    const completion = this.challengeGate(scope).complete(id, routeVisible)
+    const completed = await completion
+    if ((scope === 'browse' ? this.browseWebChallenge : this.searchWebChallenge)?.id === id) {
+      if (scope === 'browse') this.browseWebChallenge = null
+      else this.searchWebChallenge = null
+    }
+    return completed
+  }
+
+  private challengeFingerprint(scope: SourceWebChallengeScope): string {
+    const source = this.selectedSource
+    return JSON.stringify([source?.sourceId, source?.version, source?.wasmByteCount,
+      scope === 'browse' ? this.browseRequestId : this.searchRequestId,
+      scope === 'browse' ? this.selectedListingId : this.searchQuery,
+      scope === 'browse' ? this.browseFilterValues : this.searchFilterValues,
+      scope === 'browse' ? this.browsePage : this.searchPage,
+      scope === 'browse' ? this.browseNextCursor : this.searchNextCursor])
+  }
+
+  private webChallengeGuard(scope: SourceWebChallengeScope): () => boolean {
+    const sourceId = this.selectedSource?.sourceId ?? ''
+    const entry = this.registry.lookup(sourceId).entry
+    const settingsRevision = appSourceSettingsStore.revisionForSource(sourceId)
+    const fingerprint = this.challengeFingerprint(scope)
+    return (): boolean => sourceId.length > 0 && entry !== undefined &&
+      this.registry.lookup(sourceId).entry === entry &&
+      appSourceSettingsStore.revisionForSource(sourceId) === settingsRevision &&
+      this.challengeFingerprint(scope) === fingerprint
+  }
+
+  private publishWebChallenge(scope: SourceWebChallengeScope, error: Error, automaticRecovery: boolean,
+    current: () => boolean, retry: () => Promise<void>): void {
+    const source = this.selectedSource
+    const eligible = !automaticRecovery && error instanceof SourceRuntimeError &&
+      (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required') &&
+      source !== undefined && (source.webSessionOrigins ?? []).length > 0
+    const receipt = this.challengeGate(scope).issue(source?.sourceId ?? '', scope, eligible, current, retry)
+    if (scope === 'browse') this.browseWebChallenge = receipt
+    else this.searchWebChallenge = receipt
+  }
+
   private browseRequestId: number = 0
   private searchRequestId: number = 0
   private persistSearchFilters: boolean = true
@@ -529,6 +600,8 @@ export class BrowseViewModel {
   }
 
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.clearWebChallenge('browse')
+    this.clearWebChallenge('search')
     this.browseRequestId += 1
     this.selectedSource = source
     this.clearBrowseContent()
@@ -575,6 +648,7 @@ export class BrowseViewModel {
   }
 
   private beginBrowseLoad(intent: BrowseLoadIntent, retainsCurrentContent: boolean): void {
+    this.clearWebChallenge('browse')
     this.loadingBrowse = true
     this.browseLoadIntent = intent
     this.browseErrorIntent = BrowseLoadIntent.NONE
@@ -605,6 +679,7 @@ export class BrowseViewModel {
   async loadBrowseHome(
     source: SourceRuntimeRegistryInstalledSourceSummary,
     intent: BrowseLoadIntent = BrowseLoadIntent.INITIAL,
+    automaticRecovery: boolean = false,
   ): Promise<void> {
     const sourceMatchesCurrent = this.isCurrentBrowseSource(source)
     // A user refresh belongs to the source identity, not to the currently
@@ -622,6 +697,7 @@ export class BrowseViewModel {
     }
     const requestId = this.browseRequestId
     this.beginBrowseLoad(effectiveIntent, retainsCurrentContent)
+    const challengeCurrent = this.webChallengeGuard('browse')
     try {
       const listings = await this.loadSourceListings(source)
       if (requestId !== this.browseRequestId) {
@@ -685,6 +761,8 @@ export class BrowseViewModel {
       }
       const e = error as Error
       this.failBrowseLoad(e, effectiveIntent, 'browse_error_load_home')
+      this.publishWebChallenge('browse', e, automaticRecovery, challengeCurrent,
+        async (): Promise<void> => { await this.retryBrowseFailure(true) })
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
@@ -692,7 +770,7 @@ export class BrowseViewModel {
     }
   }
 
-  async selectBrowseListing(listing: SourceListingDescriptor, replacePending: boolean = false): Promise<void> {
+  async selectBrowseListing(listing: SourceListingDescriptor, replacePending: boolean = false, automaticRecovery: boolean = false): Promise<void> {
     if (this.selectedSource === undefined || (this.loadingBrowse && !replacePending)) {
       return
     }
@@ -700,6 +778,7 @@ export class BrowseViewModel {
     const requestId = this.browseRequestId + 1
     this.browseRequestId = requestId
     this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, retainsCurrentContent)
+    const challengeCurrent = this.webChallengeGuard('browse')
     try {
       const result = await this.loadMangaListing(this.selectedSource, listing.id, 1)
       if (requestId !== this.browseRequestId) {
@@ -715,6 +794,8 @@ export class BrowseViewModel {
       const e = error as Error
       this.failedBrowseListing = listing
       this.failBrowseLoad(e, BrowseLoadIntent.LISTING_REPLACEMENT, 'browse_error_load_home')
+      this.publishWebChallenge('browse', e, automaticRecovery, challengeCurrent,
+        async (): Promise<void> => { await this.retryBrowseFailure(true) })
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
@@ -769,17 +850,17 @@ export class BrowseViewModel {
     }
   }
 
-  async retryBrowseFailure(): Promise<void> {
+  async retryBrowseFailure(automaticRecovery: boolean = false): Promise<void> {
     const intent = this.browseErrorIntent
     if (intent === BrowseLoadIntent.NONE) {
       return
     }
     if (intent === BrowseLoadIntent.PAGINATION) {
-      await this.loadMoreBrowse()
+      await this.loadMoreBrowse(automaticRecovery)
       return
     }
     if (intent === BrowseLoadIntent.LISTING_REPLACEMENT && this.failedBrowseListing !== undefined) {
-      await this.selectBrowseListing(this.failedBrowseListing)
+      await this.selectBrowseListing(this.failedBrowseListing, false, automaticRecovery)
       return
     }
     if (this.selectedSource === undefined) {
@@ -788,6 +869,7 @@ export class BrowseViewModel {
     await this.loadBrowseHome(
       this.selectedSource,
       intent === BrowseLoadIntent.REFRESH ? BrowseLoadIntent.REFRESH : BrowseLoadIntent.INITIAL,
+      automaticRecovery,
     )
   }
 
@@ -838,7 +920,7 @@ export class BrowseViewModel {
     return this.persistSearchFilters ? this.defaultSourceFilterValues(this.filters) : {}
   }
 
-  async loadMoreBrowse(): Promise<void> {
+  async loadMoreBrowse(automaticRecovery: boolean = false): Promise<void> {
     if (this.loadingBrowse || !this.hasMoreBrowse || this.selectedSource === undefined) {
       return
     }
@@ -852,6 +934,7 @@ export class BrowseViewModel {
       return
     }
     this.beginBrowseLoad(BrowseLoadIntent.PAGINATION, true)
+    const challengeCurrent = this.webChallengeGuard('browse')
     try {
       const more = await this.loadMangaListing(source, listing.id, page, cursor)
       if (requestId !== this.browseRequestId) {
@@ -867,6 +950,8 @@ export class BrowseViewModel {
       }
       const e = error as Error
       this.failBrowseLoad(e, BrowseLoadIntent.PAGINATION, 'browse_error_load_more')
+      this.publishWebChallenge('browse', e, automaticRecovery, challengeCurrent,
+        async (): Promise<void> => { await this.retryBrowseFailure(true) })
     } finally {
       if (requestId === this.browseRequestId) {
         this.loadingBrowse = false
@@ -874,15 +959,18 @@ export class BrowseViewModel {
     }
   }
 
-  async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): Promise<void> {
+  async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false): Promise<void> {
     const requestId = this.searchRequestId + 1
     this.searchRequestId = requestId
     this.selectedSource = source
     this.searchQuery = query
     this.searchPage = 1
+    this.searchNextCursor = ''
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
+    this.clearWebChallenge('search')
+    const challengeCurrent = this.webChallengeGuard('search')
     try {
       const normalizedQuery = query.trim()
       if (normalizedQuery.length === 0) {
@@ -905,6 +993,8 @@ export class BrowseViewModel {
       this.searchErrorMessage = safeSearchDiagnostic(e).userText
       this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
+      this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
+        async (): Promise<void> => { await this.runSearch(source, query, true) })
       this.searchResults = []
       this.hasMoreSearch = false
       this.searchNextCursor = ''
@@ -916,6 +1006,7 @@ export class BrowseViewModel {
   }
 
   clearSearch(source?: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.clearWebChallenge('search')
     this.searchRequestId += 1
     if (source !== undefined) {
       this.selectedSource = source
@@ -930,16 +1021,16 @@ export class BrowseViewModel {
     this.searchNextCursor = ''
   }
 
-  async retrySearchPage(): Promise<void> {
+  async retrySearchPage(automaticRecovery: boolean = false): Promise<void> {
     if (this.loadingSearch || this.searchErrorMessage.length === 0 || this.searchResults.length === 0 ||
       this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return
     }
     this.hasMoreSearch = true
-    await this.loadMoreSearch()
+    await this.loadMoreSearch(automaticRecovery)
   }
 
-  async loadMoreSearch(): Promise<void> {
+  async loadMoreSearch(automaticRecovery: boolean = false): Promise<void> {
     if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return
     }
@@ -951,6 +1042,8 @@ export class BrowseViewModel {
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
+    this.clearWebChallenge('search')
+    const challengeCurrent = this.webChallengeGuard('search')
     try {
       const more = await this.searchSource(source, query, page, cursor)
       if (requestId !== this.searchRequestId) {
@@ -968,6 +1061,8 @@ export class BrowseViewModel {
       this.searchErrorMessage = safeSearchDiagnostic(e).userText
       this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
+      this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
+        async (): Promise<void> => { await this.retrySearchPage(true) })
       this.hasMoreSearch = false
     } finally {
       if (requestId === this.searchRequestId) {

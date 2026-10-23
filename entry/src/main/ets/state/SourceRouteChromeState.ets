@@ -10,6 +10,7 @@ export class SourceBrowseRouteChromeState {
   readonly sourceName: string
   readonly sourceId: string
   readonly scroller: Scroller = new Scroller()
+  @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
@@ -18,7 +19,10 @@ export class SourceBrowseRouteChromeState {
 
   markRefreshNeeded(): void { this.refreshPending = true }
 
+  hide(): void { this.visible = false }
+
   resume(): void {
+    this.visible = true
     if (!this.refreshPending) return
     this.refreshPending = false
     this.refreshRequestSeq += 1
@@ -54,6 +58,7 @@ export class SourceSearchRouteChromeState {
   readonly sourceName: string
   readonly sourceId: string
   readonly initialQuery: string
+  @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
@@ -62,7 +67,10 @@ export class SourceSearchRouteChromeState {
 
   markRefreshNeeded(): void { this.refreshPending = true }
 
+  hide(): void { this.visible = false }
+
   resume(): void {
+    this.visible = true
     if (!this.refreshPending) return
     this.refreshPending = false
     this.refreshRequestSeq += 1

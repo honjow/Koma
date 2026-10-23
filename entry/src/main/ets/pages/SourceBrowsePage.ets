@@ -1,3 +1,7 @@
+import { MangaWebRouteParam } from '../common/RouterHelper'
+import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
+import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
+import { SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
 import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT } from '../components/SourceBrowseTitleField'
 import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
@@ -9,7 +13,7 @@ import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaf
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
-import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -81,6 +85,67 @@ export struct SourceBrowsePage {
   @Local private listingMenuOpen: boolean = false
   private handledFilterRequestSeq: number = 0
   private handledRefreshRequestSeq: number = 0
+
+  @Local private webChallengeShown: boolean = false
+  @Local private webChallengeParams: MangaWebRouteParam = { url: '', title: '' }
+  private webChallengeClosing: boolean = false
+  private webChallengeId: number = 0
+  private webChallengeScope: SourceWebChallengeScope = 'browse'
+
+  @Monitor('chrome.visible', 'viewModel.browseWebChallenge', 'viewModel.searchWebChallenge')
+  private handleWebChallenge(): void {
+    if (!this.chrome.visible) {
+      this.closeWebChallenge()
+      return
+    }
+    if (this.webChallengeShown || this.webChallengeClosing) return
+    const receipt = this.isSearchActive() ? this.viewModel.searchWebChallenge : this.viewModel.browseWebChallenge
+    if (receipt === null || receipt.sourceId !== this.source.sourceId) return
+    if (!this.viewModel.claimWebChallenge(receipt.scope, receipt.id, this.chrome.visible)) return
+    const source = this.currentSource()
+    const params = prepareSourceWebSession(source.sourceId, source.displayName)
+    if (params === undefined) {
+      this.viewModel.cancelWebChallenge(receipt.scope, receipt.id)
+      return
+    }
+    this.webChallengeId = receipt.id
+    this.webChallengeScope = receipt.scope
+    this.webChallengeParams = params
+    this.webChallengeShown = true
+  }
+
+  private closeWebChallenge(): void {
+    if (this.webChallengeShown) this.webChallengeClosing = true
+    const session = this.webChallengeParams.sourceSession
+    if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
+    if (this.webChallengeId > 0) this.viewModel.cancelWebChallenge(this.webChallengeScope, this.webChallengeId)
+    this.webChallengeId = 0
+    this.webChallengeShown = false
+  }
+
+  private completeWebChallenge(): void {
+    const id = this.webChallengeId
+    const scope = this.webChallengeScope
+    this.webChallengeClosing = true
+    this.webChallengeId = 0
+    this.webChallengeShown = false
+    if (id > 0) void this.viewModel.completeWebChallenge(scope, id, this.chrome.visible)
+  }
+
+  private finishWebChallengeDismiss(): void {
+    this.webChallengeClosing = false
+    this.handleWebChallenge()
+  }
+
+  @Builder
+  private WebChallengeSheet() {
+    SourceWebSessionSheet({
+      params: this.webChallengeParams,
+      onClose: () => { this.closeWebChallenge() },
+      onCompleted: () => { this.completeWebChallenge() },
+    })
+  }
+
 
   @Monitor('chrome.refreshRequestSeq')
   private handleSourceSessionReturn(): void {
@@ -192,6 +257,7 @@ export struct SourceBrowsePage {
   }
 
   aboutToDisappear(): void {
+    this.closeWebChallenge()
     this.clearPendingSearchTimer()
   }
 
@@ -604,6 +670,18 @@ export struct SourceBrowsePage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        Column() {}
+          .width(0)
+          .height(0)
+          .bindSheet($$this.webChallengeShown, this.WebChallengeSheet, {
+            detents: [SheetSize.LARGE], showClose: false,
+            enableOutsideInteractive: false, enableFloatingDragBar: true,
+            onWillDismiss: (action: DismissSheetAction) => {
+              this.closeWebChallenge()
+              action.dismiss()
+            },
+            onDisappear: () => { this.finishWebChallengeDismiss() },
+          })
         SourceMangaGrid({
           scroller: this.chrome.scroller,
           contentItemCount: this.gridProjection.rows.length,

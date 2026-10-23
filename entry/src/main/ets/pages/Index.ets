@@ -2045,6 +2045,7 @@ struct Index {
       this.disposeSourceBrowseFieldContent(param.chrome)
     })
     .onShown(() => { param.chrome.resume() })
+    .onHidden(() => { param.chrome.hide() })
     .titleBar(this.sourceBrowseTitleBarOpts(param))
     .dynamicHideTitleBar({
       hideTitleArea: true,
@@ -2067,6 +2068,7 @@ struct Index {
       })
     }
     .onShown(() => { param.chrome.resume() })
+    .onHidden(() => { param.chrome.hide() })
     .titleBar(this.sourceSearchTitleBarOpts(param))
     .onDisAppear(() => {
       // A detail route only hides this destination. Dispose the cached title
@@ -2168,7 +2170,13 @@ struct Index {
         })
       }
       .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
-      .onShown(() => { this.readerProgressRevision += 1 })
+      .onShown(() => {
+        RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = true
+        this.readerProgressRevision += 1
+      })
+      .onHidden(() => {
+        RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = false
+      })
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
