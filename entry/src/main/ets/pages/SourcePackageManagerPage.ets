@@ -2411,25 +2411,25 @@ export struct SourcePackageManagerPage {
         }
       }
 
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        KomaActionButton({
-          label: t('source_pkg_clear_settings'),
-          kind: 'danger',
-          compact: true,
-          action: () => {
-            this.confirmClearSavedSettings()
-          },
-        })
-          .layoutWeight(1)
+      Column({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
           label: t('source_pkg_save_settings'),
           kind: 'primary',
-          compact: true,
+          fullWidth: true,
           action: () => {
             this.saveSettings()
           },
         })
-          .layoutWeight(1)
+        KomaActionButton({
+          label: t('source_pkg_clear_settings'),
+          kind: 'ghost',
+          fullWidth: true,
+          accentColor: ThemeConstants.DANGER,
+          controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+          action: () => {
+            this.confirmClearSavedSettings()
+          },
+        })
       }
       .width('100%')
       Blank().height(ThemeConstants.SPACE_XL)
@@ -2604,25 +2604,25 @@ export struct SourcePackageManagerPage {
           }
         }
 
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          KomaActionButton({
-            label: t('source_pkg_clear_settings'),
-            kind: 'danger',
-            compact: true,
-            action: () => {
-              this.confirmClearSavedSettings()
-            },
-          })
-            .layoutWeight(1)
+        Column({ space: ThemeConstants.SPACE_MD }) {
           KomaActionButton({
             label: t('source_pkg_save_settings'),
             kind: 'primary',
-            compact: true,
+            fullWidth: true,
             action: () => {
               this.saveSettings()
             },
           })
-            .layoutWeight(1)
+          KomaActionButton({
+            label: t('source_pkg_clear_settings'),
+            kind: 'ghost',
+            fullWidth: true,
+            accentColor: ThemeConstants.DANGER,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            action: () => {
+              this.confirmClearSavedSettings()
+            },
+          })
         }
         .width('100%')
       }
