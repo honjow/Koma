@@ -56,7 +56,7 @@ function fixture() {
       if (name === '@kit.ArkTS') return { url: { URL } }
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store }
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
-      if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, warn: () => {} } }
+      if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
         RequestMethod: { GET: 'GET', POST: 'POST' }, HttpDataType: { STRING: 1 },
         InterceptorType: { REDIRECTION: 'REDIRECTION' },
@@ -81,6 +81,7 @@ function fixture() {
               let fullUrl = initialUrl
               while (true) {
                 calls.push({ fullUrl, options, instance: instances.indexOf(request) })
+                if (network.requestError) throw network.requestError
                 const response = responses.shift()
                 if (!response) throw Error('unexpected additional request')
                 if ([301, 302, 303, 307, 308].includes(response.responseCode)) {
@@ -329,5 +330,25 @@ test('303 changes POST to GET while 307 retains the request body', async () => {
     assert.equal(result.calls[1].options.method, method)
     assert.equal(result.calls[1].options.extraData, body)
     assert(result.instances.every(request => request.destroyed))
+  }
+})
+
+test('platform operation timeout survives the HTTP envelope while unknown transport failures remain network errors', async () => {
+  for (const attached of [false, true]) {
+    for (const code of [2300028, 2300006, undefined, '2300028', NaN]) {
+      const f = fixture()
+      if (attached) f.grant()
+      const failed = await f.http([], attached ? JSON.stringify(f.identity()) : undefined, {}, {
+        requestError: Object.assign(Error('private-platform-error-detail'), { code }),
+      })
+      assert.equal(failed.result.ok, false)
+      assert.equal(failed.result.error.code, code === 2300028 ? 'timeout' : 'network_error')
+      assert.equal(failed.result.error.retryable, true)
+      assert.equal(failed.calls.length, 1)
+      assert(failed.instances.every(request => request.requestCount === 1 && request.destroyed))
+      assert(!JSON.stringify(failed.result).includes('private-platform-error-detail'))
+      assert(!f.diagnostics.join(' ').includes('private-platform-error-detail'))
+      assert(f.diagnostics.includes('platformCode=' + (typeof code === 'number' && Number.isFinite(code) ? code : 0)))
+    }
   }
 })

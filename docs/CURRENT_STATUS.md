@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T17:52:28.847577+00:00",
+  "updatedAt": "2026-10-23T17:55:30.003445+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_RUNTIME_ERRORS",
   "activity": {
     "title": "源错误：保留平台超时分类",
-    "detail": "源列表202/204/205具名验收及数据保全完成，准备范围同步。平台2300028已保留为timeout，16项HTTP测试及22项详情/Reader测试通过、Release构建成功，原源owner接续237一次自然验收。",
+    "detail": "源列表8a2a3798已推，CI39998784107运行中。237004自然原作品目录和取页均保真timeout、实际提示已亲审；不把超时提示修好当正文可用。准备同步唯一分类修复，继续原Reader未闭项。",
     "startedAt": "2026-10-23T17:52:28.847577+00:00"
   },
-  "nextAction": "同步源列表范围并跟精确CI；237自然错误核验后提交超时分类，继续剩余Reader原队列。",
+  "nextAction": "提交推送HTTP2300028分类并跟精确CI；原owner237收尾，Root接续共享Reader窗口完成信号调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,7 +982,7 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "a8469704a0c2859c73e2517477714253ec15ba82已推；CI39991605716 completed/success；源列表范围准备提交",
+      "appHead": "8a2a37980fb53d2dacca213121a738a5d0319f34已推；CI39998784107 in_progress",
       "hap": "197201已装8497498B/defaultRelease0.1.2-pre code3；202/204/205源列表具名验收及完整库/reader保全通过。237准备8497473B超时修复自然验收。"
     },
     {
@@ -1381,13 +1381,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "已验网络提示保持；平台超时分类已实现，237自然验收中",
+      "status": "237自然超时具名通过；分类修复准备同步",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：App修复/同步；koma_comicabc_chapters：237一次自然验收",
       "dependencies": [],
-      "result": "237同一自然取页失败已显示可用网络原因；197正常正文与返回保持，安全分类仅在路由内传递。",
-      "remaining": "原237自然请求核2300028→timeout实际提示；全局搜索自然失败仍待条件。",
+      "result": "237004自然get_chapters/get_pages均2300028→timeout，原生显示连接书源超时并保留重试；正文仍不可用，不猜具体网络阶段。",
+      "remaining": "分类修复范围提交推送和精确CI；全局自然失败仍待条件。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1404,12 +1404,12 @@
         "SOURCE_WEB_SESSION"
       ],
       "evidencePoints": [
-        "63f1c11e已推、CI39983172244成功；237005具名网络提示与原取页失败一致。",
-        "原005平台2300028及官方HTTP文档已亲核；传输层仅保留此码为timeout，其他错误仍network_error。",
-        "16项HTTP会话测试与22项详情/Reader分类测试通过，8497473B Release构建；尚不冒237自然显示通过。"
+        "原005平台2300028与官方HTTP文档已亲核；仅此码返回timeout，未知码维持network_error。",
+        "237004原图/日志已亲审：目录15149ms、取页15064ms均reason/error/kind=timeout、HTTP0，重试未点击。",
+        "16项HTTP会话与22项详情/Reader分类测试通过，8497473B defaultRelease已装237；正常返回/电源收尾由原owner核。"
       ],
       "remainingActions": [
-        "原源owner237一次自然请求，Root亲审原件；通过后范围提交推送和精确CI。",
+        "完成原237保位/电源收尾，提交推送分类修复及精确CI。",
         "全局搜索自然失败待条件，不造故障。"
       ],
       "boundaries": [
@@ -2065,10 +2065,10 @@
       "priority": "P2（保当前P0不抢占）",
       "owner": "Root：已验列表范围同步；具体筛选方案后继",
       "dependencies": [],
-      "status": "197原生列表/红NSFW/普通更新具名通过；提交同步中",
+      "status": "197具名验收完成已推；精确CI运行中",
       "kind": "open",
       "result": "202/204/205：NSFW单独红，字体与64vp行高同原HDS；安装/更新同款原生按钮，漫画柜014→016一次更新移入已安装、版本只显示一次。",
-      "remaining": "范围提交推送并跟精确CI；管理列表具体筛选维度仍需独立方案。",
+      "remaining": "8a2a3798已推，跟CI39998784107；具体新筛选方案后继。",
       "reportedAt": "2026-10-23T05:28:39.778Z",
       "reportedAtSource": "原始会话JSONL response_item/user实际时间戳；方向原文已核，不猜开始时间/耗时。",
       "firstEvidenceAt": "2026-10-23T05:28:39.778Z",
@@ -2084,10 +2084,10 @@
       "evidencePoints": [
         "202原图及205父树：成人/普通行同208px，标题与副行坐标分别同原176，版本/语言灰、NSFW红。",
         "202原详情→设置→关闭保持；204漫画柜一次更新后已安装只v0.1.6，无重复更新。185包子018→019证据保持。",
-        "201至205库及reader完整JSON相同；8项渐进加载/分组/更新生产方法测试通过。"
+        "201至205库/reader完整JSON相同；206恢复120000ms已读回、租约已释放；8项生产方法检查通过。"
       ],
       "remainingActions": [
-        "范围提交推送并跟进精确CI。",
+        "跟进8a2a3798精确CI39998784107。",
         "后继核管理列表具体筛选方案，不自行决定新维度。"
       ],
       "boundaries": [
@@ -2227,7 +2227,7 @@
     "kind": "open",
     "title": "源会话当前验收与源库同步",
     "result": "CI39979277747成功；latest公开索引85条，漫画柜0.1.6包三成员与manifest版本已核。237更新已装，原第23卷3/230保持。",
-    "remaining": "237目录与页面均network_error/http0，未验新metadata落库及正文；不冒称CF/parser原因。",
+    "remaining": "237目录与页面均平台2300028操作超时/HTTP0，提示保真已验；新metadata落库及正文仍未通过，不冒称CF/parser原因。",
     "commit": "4f92d535d1315e4e9d3ade9615b64d16a5377ece"
   },
   "milestones": [

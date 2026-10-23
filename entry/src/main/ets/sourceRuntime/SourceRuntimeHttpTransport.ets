@@ -244,7 +244,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const platformCode = typeof error.code === 'number' && Number.isFinite(error.code) ? error.code : 0
     trace.fail(error)
     DiagnosticLogger.warn('source_http', 'transport_failed', 'platformCode=' + platformCode)
-    return transportError('network_error')
+    return transportError(platformCode === 2300028 ? 'timeout' : 'network_error')
   }
 }
 
