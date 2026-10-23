@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T12:06:09.644180+00:00",
+  "updatedAt": "2026-10-23T13:13:52.676862+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "READER_SETTINGS_STABILITY",
-  "activity": "Root：详情下拉114保内容/458章/15页实机成立；普通List长短/Grid顶部已验，Modal嵌套为system sheet拖动边界不冒通过；接续模式切换页码偏移。",
-  "nextAction": "当前列表/详情代码范围提交推送并跟精确CI；197普通Reader入口区分只开关设置与改模式的16→15来源。",
+  "activity": "Root：d8b568d共享目标保留Koma123/124/130具名成立，E/N依赖已推；接续E/N197暂停/模式回归与精确CI。",
+  "nextAction": "KomaCI pin/工作单范围提交同步；E/N实际安装新签名候选并走原普通下载入口，核弹层暂停目标及恢复原偏好/页码。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1078,13 +1078,13 @@
     {
       "id": "READER_SETTINGS_STABILITY",
       "title": "阅读设置菜单跳变及动态本书后缀",
-      "status": "模式方向一致性197两入口通过；反复切换页码16→15新边界OPEN",
+      "status": "共享修复Koma只开关/两轮模式往返具名通过；E/N实际消费者接续",
       "kind": "open",
       "priority": "P1（新严重语义反例，当前优先调查）",
-      "owner": "Root：已提交/CI成功，模式切换位置边界待查",
+      "owner": "Root：E/N197新依赖普通入口，KomaCI pin同步/三精确CI",
       "dependencies": [],
-      "result": "原固定菜单、独立恢复全局、纵向动画置灰、预设半模态保持的197具名验收及f7a6a7d提交/CI成功继续保留，不否定或重跑。用户2026-10-23T04:52:35.917Z新报前两项“模式=连续滚动”却“阅读方向=从右到左”，要求理清分类；后续04:53:08.358Z/04:53:30.412Z重复同一反例。本次重开的是生效方向回显与适用性语义，不是旧固定菜单版式。Root正在追真实状态所有者/菜单消费者，原因尚未核定，方案未实施。 本轮只读确认SettingsContent仅改pageMode、底部applyPolicy却写WEBTOON；resolveHost的WEBTOON优先会导致选择单页仍实际continuous。当前6文件候选共用显式转换helper，连续保休眠LTR/RTL，退出连续清legacy WEBTOON，不做加载迁移；13转换检查及持久/恢复/重开检查过，尚未构建实机。 Root补有效方向行独立三语从上到下，保旧WEBTOON文案其他消费者。首次构建六处ArkTS结构类型失败，改显式窄对象后r2构建成功；26生产方法/持久owner/桥检查通过，8477062B Release已099覆盖197。普通继续猎行者16/16→设置连续显示从上到下→单页恢复横向方向且半模态保持已观察，完整两入口测试进行中。 197设置RTL→continuous→vertical→single实际恢复RTL且sheet保持；底部continuous→设置double同样保RTL。101整图亲审方向从上到下置灰、原固定行保持；全局恢复实际纵向分页/一致说明成立，恢复原continuous后普通书架重开仍continuous/从上到下，restore-reopen.json留证。最终返回前rkit-chrome-page实读15/16，原入场100为16/16，模式切换位置保持不得宣称通过；需追转换时位置/行高锚点。首次全局恢复断言误用短文案失败，后继完整原文读回成功，未重复点恢复。 实现13文件已审提交8f8e6f1409474c4846f61d9d4e741863362ef7cb并SSH推master，精确CI39929957695 completed/success。 Root已追543cbda和ContinuousList：onSnapshotChanged在active=false清positionTarget，而Koma设置sheet会令ReaderSurface active=false，可能失去原末页锚点；尚待区分运行顺序。另已用官方文档否定“无动画scrollToIndex触发onWillScroll”的假设，未据此改代码。",
-      "remaining": "16→15新位置边界仍OPEN；Legacy/全局设置页设备未验。先继续跨App快速P0。",
+      "result": "原固定菜单、独立恢复全局、纵向动画置灰、预设半模态保持的197具名验收及f7a6a7d提交/CI成功继续保留，不否定或重跑。用户2026-10-23T04:52:35.917Z新报前两项“模式=连续滚动”却“阅读方向=从右到左”，要求理清分类；后续04:53:08.358Z/04:53:30.412Z重复同一反例。本次重开的是生效方向回显与适用性语义，不是旧固定菜单版式。Root正在追真实状态所有者/菜单消费者，原因尚未核定，方案未实施。 本轮只读确认SettingsContent仅改pageMode、底部applyPolicy却写WEBTOON；resolveHost的WEBTOON优先会导致选择单页仍实际continuous。当前6文件候选共用显式转换helper，连续保休眠LTR/RTL，退出连续清legacy WEBTOON，不做加载迁移；13转换检查及持久/恢复/重开检查过，尚未构建实机。 Root补有效方向行独立三语从上到下，保旧WEBTOON文案其他消费者。首次构建六处ArkTS结构类型失败，改显式窄对象后r2构建成功；26生产方法/持久owner/桥检查通过，8477062B Release已099覆盖197。普通继续猎行者16/16→设置连续显示从上到下→单页恢复横向方向且半模态保持已观察，完整两入口测试进行中。 197设置RTL→continuous→vertical→single实际恢复RTL且sheet保持；底部continuous→设置double同样保RTL。101整图亲审方向从上到下置灰、原固定行保持；全局恢复实际纵向分页/一致说明成立，恢复原continuous后普通书架重开仍continuous/从上到下，restore-reopen.json留证。最终返回前rkit-chrome-page实读15/16，原入场100为16/16，模式切换位置保持不得宣称通过；需追转换时位置/行高锚点。首次全局恢复断言误用短文案失败，后继完整原文读回成功，未重复点恢复。 实现13文件已审提交8f8e6f1409474c4846f61d9d4e741863362ef7cb并SSH推master，精确CI39929957695 completed/success。 Root已追543cbda和ContinuousList：onSnapshotChanged在active=false清positionTarget，而Koma设置sheet会令ReaderSurface active=false，可能失去原末页锚点；尚待区分运行顺序。另已用官方文档否定“无动画scrollToIndex触发onWillScroll”的假设，未据此改代码。 121普通LibraryContinue15/16→slider16/16→只打开设置未改任一选项仍16/16→Back关闭15/16；四语义观察及before/after整图Root亲审，图片内容未移但页码/slider退一。Root亲读543cbda：新增positionTarget保显式导航，唯独active=false也清target；Koma设置sheet令ReaderSurface inactive，恢复scheduleMeasure改用viewport顶部上一行，符合当前反例。该历史清理没有独立人类视觉决定记录；原用户要求保位，本次允许差异仅短暂inactive不清显式target。真实用户滚动/zoom、导航revision/拓扑替换、失败、销毁仍按原guard释放。拟在共享ReaderContinuousList修，不单改Koma宿主或加延时，三宿主构建/适用运行分别核。 旧实现实际production行为新检查29过/1失败，输出explicitlast应1实0；共享限定修复后相关102/102及全531/531通过。d8b568d已指定SSH推erosTeam/reader-kit。Koma8487321B/defaultRelease已122成功覆盖，123普通继续15→slider16→只开关设置全程16，after整图Root亲审；尚未扩大原全部模式。E/N首轮构建检查发现现有子模块仍df052f4，故r1不是新候选，已分别在原现有子模块干净状态fetch本地Kit并checkoutd8b568d，r2真实新代码编译成功E38177598B/N38201134B，均debugfalse产品签名Release；设备待。 124两轮continuous→single→continuous，固定设置半模态保持，关后均16/16；实际正文swipe3000后14/16证明真实滚动接管。随后按Slider边框比例与旧点击位置恢复原15页均实际仍16，127一次普通单页左点亦仍16，不冒通过/不猜原因；125/127失败及128当前整图原件保留。129按当前Slider[163,2291][1097,2421]从右侧原旋钮正常短拖动后，页码15/16及Slider原生值15.000000成立，未扫第三个点击位置。130恢复原continuous、正常返回书架再普通Continue重开15/16，Root已亲看原图，最终回原Library。只开关与两轮mode目标保留的具名结果成立，点击未达预期边界不据此宣称全交互通过。E3448ec7e/N25a085a2子模块pin已用指定github-3003h身份推main；首次直连443默认honjow密钥权限拒绝不当作授权撤销，已同载荷正确身份成功。",
+      "remaining": "Koma原只开关/两轮模式/真实滚动/原15页正常返回重开路径冻结；E/N新依赖实际安装、普通入口与暂停保位仍待。Legacy/全局页与Slider点击未达预期边界不扩大通过；真实进程死亡另列。",
       "reportedAt": "2026-10-22T18:52:07.192Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:52:07.192Z",
@@ -1736,8 +1736,8 @@
         "SOURCE_RUNTIME_ERRORS",
         "SOURCE_WEB_SESSION"
       ],
-      "result": "用户最新明确建议：把下拉刷新接入漫画详情页。已授权该交互方向；目前未实施。代理只读当前完整父树/滚动所有者与既有重新加载/force缓存链。 父树调查已核：HdsNavDestination→Stack→Secondary唯一List→ChapterListSection虚拟组。既有菜单force=true绕snapshot，transport usingCache:false；应共享同一Scroller/手势gate，菜单与下拉await同一有界inflight，不另套Scroll或替换原父树。原详情/章节/进度保留；本地复用既有检查，私库不新建请求。 本次允许差异：普通列表/网格/章节列表边缘spring+alwaysEnabled；PullRefresh内原生spring保None避免重复位移，阅读器正文不变。详情仅增加外层既有PullRefresh，保同一List/Scroller/父树内容及原裁切/间距；菜单与下拉共用force重载、手动并发合并，原详情/目录/进度保留。 当前候选：Secondary默认普通spring+alwaysEnabled、Modal自有List/LibraryGrid/章节sheet/普通横向Scroll同属性；PullRefresh内部保None，正文不改。详情共用Scroller与手势gate/force在途合并，保原内容父树。首构建因custom组件链width/height失败已修；r2签名Release构建成功8487312B/default0.1.2-pre code3，197111成功覆盖。相关既有检查28/28通过；113原详情458/458及继续15/16亲审。114一次下拉实际新get_manga/get_chapters各一次/HTTP200，目录458/unique458；全程原帧及刷新后保位待亲审，不先写通过。 114完整217原始帧/7联系表及50/216整图Root亲审：原封面/详情/目录持续显示，单一刷新位移/指示结束后回原顶部，继续第一话15/16；新get_manga960ms/get_chapters2296ms各一次、HTTP200、458/458唯一目录保持。117返回书架继续第15页94%整图再次亲审。",
-      "remaining": "本具名漫画1234已有详情下拉强刷/保内容/进度路径冻结；本地检查、自然失败或挑战分支未作本轮设备验收，不造故障/清Cookie取样。代码提交与精确CI继续，原源错误/挑战未完项不因本项关闭。",
+      "result": "用户最新明确建议：把下拉刷新接入漫画详情页。已授权该交互方向；目前未实施。代理只读当前完整父树/滚动所有者与既有重新加载/force缓存链。 父树调查已核：HdsNavDestination→Stack→Secondary唯一List→ChapterListSection虚拟组。既有菜单force=true绕snapshot，transport usingCache:false；应共享同一Scroller/手势gate，菜单与下拉await同一有界inflight，不另套Scroll或替换原父树。原详情/章节/进度保留；本地复用既有检查，私库不新建请求。 本次允许差异：普通列表/网格/章节列表边缘spring+alwaysEnabled；PullRefresh内原生spring保None避免重复位移，阅读器正文不变。详情仅增加外层既有PullRefresh，保同一List/Scroller/父树内容及原裁切/间距；菜单与下拉共用force重载、手动并发合并，原详情/目录/进度保留。 当前候选：Secondary默认普通spring+alwaysEnabled、Modal自有List/LibraryGrid/章节sheet/普通横向Scroll同属性；PullRefresh内部保None，正文不改。详情共用Scroller与手势gate/force在途合并，保原内容父树。首构建因custom组件链width/height失败已修；r2签名Release构建成功8487312B/default0.1.2-pre code3，197111成功覆盖。相关既有检查28/28通过；113原详情458/458及继续15/16亲审。114一次下拉实际新get_manga/get_chapters各一次/HTTP200，目录458/unique458；全程原帧及刷新后保位待亲审，不先写通过。 114完整217原始帧/7联系表及50/216整图Root亲审：原封面/详情/目录持续显示，单一刷新位移/指示结束后回原顶部，继续第一话15/16；新get_manga960ms/get_chapters2296ms各一次、HTTP200、458/458唯一目录保持。117返回书架继续第15页94%整图再次亲审。 本次11文件746e3b8e32040b22825a3b97c560c0242bca37e3已审提交，默认SSH22连接关闭后同载荷SSH443推master成功；精确CI39950964499 completed/success实际核对。",
+      "remaining": "本具名漫画1234已有详情下拉强刷/保内容/进度路径冻结；本地检查、自然失败或挑战分支未作本轮设备验收，不造故障/清Cookie取样。代码提交与精确CI已完成，原源错误/挑战未完项不因本项关闭。",
       "reportedAt": null,
       "reportedDate": "2026-10-23",
       "reportedAtSource": "最新人类消息原文；未提供精确时间，不猜填。",
@@ -1762,7 +1762,7 @@
       "firstEvidenceAt": null,
       "firstHandlingAt": "2026-10-23T10:54:45.461347+00:00",
       "closedAt": null,
-      "result": "用户报告列表头尾阻尼/回弹突兀，并明确要求适用列表默认始终允许滚动、参考NextE，不再逐页问。官方List文档已查：内容不足一屏默认无回弹，edgeEffect options.alwaysEnabled=true可启用；这不证明所有突兀均由该项造成。尚未改源码。 当前Root已亲读NextE Secondary与e81ae131：普通Settings等消费者显式spring+alwaysEnabled，PullRefresh内原生spring被禁以免双位移。Koma Secondary/Modal/LibraryGrid当前None源自旧scaffold，未查到刻意硬止的用户决定；最新用户明确统一方向覆盖此属性，保几何/位置/方向及阅读器专有手势。 本次允许差异：普通列表/网格/章节列表边缘spring+alwaysEnabled；PullRefresh内原生spring保None避免重复位移，阅读器正文不变。详情仅增加外层既有PullRefresh，保同一List/Scroller/父树内容及原裁切/间距；菜单与下拉共用force重载、手动并发合并，原详情/目录/进度保留。 当前候选：Secondary默认普通spring+alwaysEnabled、Modal自有List/LibraryGrid/章节sheet/普通横向Scroll同属性；PullRefresh内部保None，正文不改。详情共用Scroller与手势gate/force在途合并，保原内容父树。首构建因custom组件链width/height失败已修；r2签名Release构建成功8487312B/default0.1.2-pre code3，197111成功覆盖。相关既有检查28/28通过；113原详情458/458及继续15/16亲审。114一次下拉实际新get_manga/get_chapters各一次/HTTP200，目录458/unique458；全程原帧及刷新后保位待亲审，不先写通过。 116397帧/12联系表和末帧整图已全审：设置普通长List上下越界、弹回，固定标题/底栏与进入外观保持。117269帧/8联系表及末帧整图全审：外观仅3行不足一屏，上下边缘均可拖动回弹，原主题/翠绿/系统语言保持，回书架原15页94%。118138帧/4联系表全审：原书架Grid顶部可拖动回弹、筛选照常打开。119193帧/6联系表全审：筛选内容拖动由系统sheet接管缩小/扩大，不能当Modal内部Listspring已验；扩大后旧X坐标误点分类下拉，未选项；120正常Back菜单/Back半模态恢复，不能将注入成功写关闭通过。",
+      "result": "用户报告列表头尾阻尼/回弹突兀，并明确要求适用列表默认始终允许滚动、参考NextE，不再逐页问。官方List文档已查：内容不足一屏默认无回弹，edgeEffect options.alwaysEnabled=true可启用；这不证明所有突兀均由该项造成。尚未改源码。 当前Root已亲读NextE Secondary与e81ae131：普通Settings等消费者显式spring+alwaysEnabled，PullRefresh内原生spring被禁以免双位移。Koma Secondary/Modal/LibraryGrid当前None源自旧scaffold，未查到刻意硬止的用户决定；最新用户明确统一方向覆盖此属性，保几何/位置/方向及阅读器专有手势。 本次允许差异：普通列表/网格/章节列表边缘spring+alwaysEnabled；PullRefresh内原生spring保None避免重复位移，阅读器正文不变。详情仅增加外层既有PullRefresh，保同一List/Scroller/父树内容及原裁切/间距；菜单与下拉共用force重载、手动并发合并，原详情/目录/进度保留。 当前候选：Secondary默认普通spring+alwaysEnabled、Modal自有List/LibraryGrid/章节sheet/普通横向Scroll同属性；PullRefresh内部保None，正文不改。详情共用Scroller与手势gate/force在途合并，保原内容父树。首构建因custom组件链width/height失败已修；r2签名Release构建成功8487312B/default0.1.2-pre code3，197111成功覆盖。相关既有检查28/28通过；113原详情458/458及继续15/16亲审。114一次下拉实际新get_manga/get_chapters各一次/HTTP200，目录458/unique458；全程原帧及刷新后保位待亲审，不先写通过。 116397帧/12联系表和末帧整图已全审：设置普通长List上下越界、弹回，固定标题/底栏与进入外观保持。117269帧/8联系表及末帧整图全审：外观仅3行不足一屏，上下边缘均可拖动回弹，原主题/翠绿/系统语言保持，回书架原15页94%。118138帧/4联系表全审：原书架Grid顶部可拖动回弹、筛选照常打开。119193帧/6联系表全审：筛选内容拖动由系统sheet接管缩小/扩大，不能当Modal内部Listspring已验；扩大后旧X坐标误点分类下拉，未选项；120正常Back菜单/Back半模态恢复，不能将注入成功写关闭通过。 本次11文件746e3b8e32040b22825a3b97c560c0242bca37e3已审提交，默认SSH22连接关闭后同载荷SSH443推master成功；精确CI39950964499 completed/success实际核对。",
       "remaining": "普通List长短/Grid顶部具名范围成立，未外推Grid底部/每页/私库或阅读器正文；Modal现有nestedScroll系统sheet调整正常，但内部短Listspring尚不能由该录像证明。120恢复后接续P1位置，不为凑全页重复测试。"
     }
   ],
