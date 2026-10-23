@@ -257,7 +257,7 @@ export struct ReaderChrome {
       .height('100%')
       .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
       .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
     }
   }
 

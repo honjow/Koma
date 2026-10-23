@@ -2493,6 +2493,7 @@ export struct SourcePackageManagerPage {
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
   }
 
   @Builder

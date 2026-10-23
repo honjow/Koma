@@ -2142,7 +2142,7 @@ export struct LibraryPage {
     .height('100%')
     .padding({ left: this.libraryHorizontalInset(), right: this.libraryHorizontalInset() })
     .clipContent(ContentClipMode.CONTENT_ONLY)
-    .edgeEffect(EdgeEffect.None)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
   }
 
   private shouldShowCoverUri(

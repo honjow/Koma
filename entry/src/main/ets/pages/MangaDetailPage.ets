@@ -21,6 +21,8 @@ import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { PullRefresh, PullRefreshController } from '../components/PullRefresh'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import {
   ChapterBatchDownloadMode,
   ChapterBatchScope,
@@ -272,6 +274,11 @@ export struct MangaDetailPage {
   @Local private feedbackText: string = ''
   @Local private activeLibraryComicId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private detailScrollEnabled: boolean = true
+  private detailScroller: Scroller = new Scroller()
+  private detailRefreshController: PullRefreshController = new PullRefreshController()
+  private detailRefreshTask: Promise<void> | undefined = undefined
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
@@ -483,11 +490,32 @@ export struct MangaDetailPage {
       (this.params.mangaId?.trim().length ?? 0) > 0
   }
 
+  private canPullRefreshDetail(): boolean {
+    return this.canReloadSourceDetail() || this.canCheckLocalLibraryRefresh()
+  }
+
+  private refreshMangaDetail(): Promise<void> {
+    if (this.detailRefreshTask !== undefined) return this.detailRefreshTask
+    const task = this.performDetailRefresh().finally((): void => {
+      if (this.detailRefreshTask === task) this.detailRefreshTask = undefined
+    })
+    this.detailRefreshTask = task
+    return task
+  }
+
+  private async performDetailRefresh(): Promise<void> {
+    if (this.canReloadSourceDetail()) {
+      await this.loadSourceMangaDetail(this.params.sourceId!.trim(), this.params.mangaId!.trim(), true)
+    } else if (this.canCheckLocalLibraryRefresh()) {
+      await this.checkLocalLibraryRefreshNow()
+    }
+  }
+
   private runTitleAction(action: MangaDetailTitleAction): void {
     // Recovery is route-owned and must remain available even before any manga loaded.
     if (action === MangaDetailTitleAction.RELOAD_SOURCE) {
       if (this.canReloadSourceDetail()) {
-        void this.loadSourceMangaDetail(this.params.sourceId!.trim(), this.params.mangaId!.trim(), true)
+        void this.refreshMangaDetail()
       }
       return
     }
@@ -2429,22 +2457,12 @@ export struct MangaDetailPage {
     .alignItems(HorizontalAlign.Center)
   }
 
-  build() {
-    if (this.languageState.effectiveLocale.length >= 0) {
-      Stack({ alignContent: Alignment.TopEnd }) {
-        Column() {}
-          .width(0)
-          .height(0)
-          .bindSheet($$this.detailWebChallengeShown, this.DetailWebChallengeSheet, {
-            detents: [SheetSize.LARGE], showClose: false,
-            enableOutsideInteractive: false, enableFloatingDragBar: true,
-            onWillDismiss: (action: DismissSheetAction) => {
-              this.closeDetailWebChallenge()
-              action.dismiss()
-            },
-            onDisappear: () => { this.finishDetailWebChallengeDismiss() },
-          })
-        SecondaryListScaffold({
+  @Builder
+  private DetailList(nativeSpring: boolean) {
+    SecondaryListScaffold({
+          scroller: this.detailScroller,
+          scrollEnabled: this.detailScrollEnabled,
+          alwaysEnableEdgeSpring: nativeSpring,
           listSpace: ThemeConstants.SPACE_LG,
           bottomPadding: ThemeConstants.SPACE_XL,
           reserveTitleBar: true,
@@ -2540,6 +2558,36 @@ export struct MangaDetailPage {
             },
           })
         }
+        }
+  }
+
+  build() {
+    if (this.languageState.effectiveLocale.length >= 0) {
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Column() {}
+          .width(0)
+          .height(0)
+          .bindSheet($$this.detailWebChallengeShown, this.DetailWebChallengeSheet, {
+            detents: [SheetSize.LARGE], showClose: false,
+            enableOutsideInteractive: false, enableFloatingDragBar: true,
+            onWillDismiss: (action: DismissSheetAction) => {
+              this.closeDetailWebChallenge()
+              action.dismiss()
+            },
+            onDisappear: () => { this.finishDetailWebChallengeDismiss() },
+          })
+        if (this.canPullRefreshDetail()) {
+          PullRefresh({
+            scroller: this.detailScroller,
+            controller: this.detailRefreshController,
+            indicatorTop: this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
+            onRefresh: async (): Promise<void> => { await this.refreshMangaDetail() },
+            onScrollEnableChange: (enabled: boolean): void => { this.detailScrollEnabled = enabled },
+          }) {
+            this.DetailList(false)
+          }
+        } else {
+          this.DetailList(true)
         }
       }
       .width('100%')

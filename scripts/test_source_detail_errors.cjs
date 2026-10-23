@@ -32,7 +32,7 @@ function fixture() {
     chapterError: undefined, library: undefined, cache: undefined, chapters: [], task: undefined }
   const exports = {}
   const code = compile(`export class Page {
-    ${['runSourceMangaOperation', 'sourceMangaResponseItem', 'sourceOperationFailureText', 'isDetailPending', 'loadSourceMangaDetail', 'clearDetailWebChallenge', 'closeDetailWebChallenge', 'completeDetailWebChallenge', 'finishDetailWebChallengeDismiss', 'publishDetailWebChallenge'].map(method).join('\n')}
+    ${['runSourceMangaOperation', 'sourceMangaResponseItem', 'sourceOperationFailureText', 'isDetailPending', 'canReloadSourceDetail', 'canPullRefreshDetail', 'refreshMangaDetail', 'performDetailRefresh', 'loadSourceMangaDetail', 'clearDetailWebChallenge', 'closeDetailWebChallenge', 'completeDetailWebChallenge', 'finishDetailWebChallengeDismiss', 'publishDetailWebChallenge'].map(method).join('\n')}
   }`)
   new Function('exports', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
     'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem',
@@ -164,7 +164,7 @@ test('reload command remains callable when no manga has loaded', async () => {
   const exports = {}, calls = []
   const actions = { RELOAD_SOURCE: 'reload_source' }
   new Function('exports', 'MangaDetailTitleAction', compile(`export class Page {
-    ${['canReloadSourceDetail', 'runTitleAction', 'shouldRenderDetailActions', 'isDetailPending'].map(method).join('\n')}
+    ${['canReloadSourceDetail', 'refreshMangaDetail', 'performDetailRefresh', 'runTitleAction', 'shouldRenderDetailActions', 'isDetailPending'].map(method).join('\n')}
   }`))(exports, actions)
   const page = new exports.Page()
   page.params = { sourceId: ' source.test ', mangaId: ' work ' }
@@ -339,4 +339,45 @@ test('a hidden detail completion consumes its claim without retrying', async () 
   assert.equal(retries,0)
   assert.equal(f.page.detailWebChallenge,null)
   assert.equal(f.page.detailWebChallengeGate.claim(receipt.id,true),false)
+})
+
+
+test('manual detail refresh merges in-flight requests and really bypasses the old snapshot', async () => {
+  const f = fixture()
+  let finish, calls = 0
+  Object.assign(f.page, { params: { sourceId: 'source.test', mangaId: 'work' },
+    manga: { title: 'Old readable detail' }, chapters: [{ title: 'Old readable chapter' }],
+    sourceDetailDataResolved: true, sourceChaptersResolved: true, sourceDetailContentState: 'ready' })
+  f.state.cache = { detail: { title: 'Stale snapshot' }, chapters: [], chaptersResolved: true }
+  f.state.task = () => { calls++; return new Promise(resolve => { finish = resolve }) }
+  const first = f.page.refreshMangaDetail(), concurrent = f.page.refreshMangaDetail()
+  assert.equal(first, concurrent)
+  assert.equal(calls, 1)
+  assert.equal(f.reads.length, 0)
+  assert.equal(f.page.manga.title, 'Old readable detail')
+  assert.equal(f.page.chapters[0].title, 'Old readable chapter')
+  finish(JSON.stringify({ ok: true, data: { manga: { title: 'Fresh detail' } } }))
+  await first
+  assert.equal(f.page.manga.title, 'Fresh detail')
+  assert.equal(f.page.detailRefreshTask, undefined)
+  f.state.task = async () => { calls++; throw new Error('network_error') }
+  await f.page.refreshMangaDetail()
+  assert.equal(calls, 2)
+  assert.equal(f.page.manga.title, 'Fresh detail', 'a later failed refresh retains readable data')
+  assert.equal(f.page.detailRefreshTask, undefined, 'a failed request must not leave refresh stuck')
+})
+
+test('detail pull refresh uses the existing local check and does not revive unsupported providers', async () => {
+  const f = fixture()
+  let localChecks = 0
+  f.page.params = { mangaId: 'local' }
+  f.page.canCheckLocalLibraryRefresh = () => true
+  f.page.checkLocalLibraryRefreshNow = async () => { localChecks++ }
+  assert.equal(f.page.canPullRefreshDetail(), true)
+  await f.page.refreshMangaDetail()
+  assert.equal(localChecks, 1)
+  f.page.canCheckLocalLibraryRefresh = () => false
+  assert.equal(f.page.canPullRefreshDetail(), false)
+  await f.page.refreshMangaDetail()
+  assert.equal(localChecks, 1)
 })

@@ -46,7 +46,7 @@ export struct KomaModalScaffold {
             right: this.contentHorizontalPadding,
           })
           .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.None)
+          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
           .nestedScroll({
             scrollForward: NestedScrollMode.SELF_FIRST,
             scrollBackward: NestedScrollMode.SELF_FIRST,

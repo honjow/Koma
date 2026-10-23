@@ -20,6 +20,8 @@ export struct SecondaryListScaffold {
   @Param floatingTabTailPadding: number = 0
   @Param includeKeyboardPadding: boolean = true
   @Param reserveTitleBar: boolean = true
+  @Param alwaysEnableEdgeSpring: boolean = true
+  @Param scrollEnabled: boolean = true
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
 
@@ -52,7 +54,10 @@ export struct SecondaryListScaffold {
           right: this.horizontalPadding,
         })
         .clipContent(ContentClipMode.CONTENT_ONLY)
-        .edgeEffect(EdgeEffect.None)
+        .enableScrollInteraction(this.scrollEnabled)
+        .edgeEffect(this.alwaysEnableEdgeSpring ? EdgeEffect.Spring : EdgeEffect.None, {
+          alwaysEnabled: this.alwaysEnableEdgeSpring,
+        })
         .onDidScroll((_scrollOffset: number, scrollState: ScrollState) => {
           if (this.onDidScroll) {
             this.onDidScroll(this.scroller.currentOffset().yOffset, scrollState)

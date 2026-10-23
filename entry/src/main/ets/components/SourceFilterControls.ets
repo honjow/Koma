@@ -425,6 +425,7 @@ export struct SourceFilterControls {
         .width('100%')
         .scrollable(ScrollDirection.Horizontal)
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       }
     }
   }

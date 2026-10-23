@@ -691,7 +691,7 @@ export struct KomaReaderLabPage {
         }, (choice: KomaReaderLabChapterChoice): string => choice.key.unit)
       }.width('100%').height('100%')
         .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
-        .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+        .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         .onAppear((): void => { this.restoreChapterPickerPosition() })
         .onScrollIndex((start: number): void => {
           this.chapterPickerVisibleIndex = start

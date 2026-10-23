@@ -82,7 +82,9 @@ export struct SourceMangaGrid {
     .height('100%')
     .padding({ left: SOURCE_MANGA_GRID_GAP, right: SOURCE_MANGA_GRID_GAP })
     .attributeModifier(new SourceGridClipModifier(this.withPullRefresh))
-    .edgeEffect(EdgeEffect.None)
+    .edgeEffect(this.withPullRefresh ? EdgeEffect.None : EdgeEffect.Spring, {
+      alwaysEnabled: !this.withPullRefresh,
+    })
     .onScrollIndex((_first: number, last: number) => {
       this.lastVisibleIndex = last
       if (this.withPullRefresh && last >= this.contentItemCount + 1 && this.onReachEnd) {
