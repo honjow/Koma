@@ -1,3 +1,4 @@
+import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
@@ -33,6 +34,7 @@ import {
   appSourceSettingsStore,
   configureSourceSettingsStore,
   fetchSourceSettingDescriptorsAsync,
+  loadSourceSettingsDescriptorsAsync,
 } from '../sourceRuntime/SourceSettingsStore'
 import {
   SourceIndexEntry,
@@ -40,6 +42,8 @@ import {
   SourceIndexInstallResult,
   SourceIndexRepository,
   SourceIndexService,
+  SourcePackageInstallTasks,
+  appSourcePackageInstallTasks,
 } from '../sourceRuntime/SourceIndexService'
 import {
   installedSourceTrustSummary,
@@ -135,6 +139,7 @@ export struct SourcePackageManagerPage {
   @Local private indexIconStates: Record<string, SourceIdentityIconState> = {}
   @Local private indexFetchBusy: boolean = false
   @Local private indexInstallBusy: boolean = false
+  @Local private packageInstallTasks: SourcePackageInstallTasks = appSourcePackageInstallTasks
   @Local private indexStatusText: string = ''
   @Local private packageUpdateStatuses: SourcePackageUpdateStatus[] = []
   @Local private updateCheckBusy: boolean = false
@@ -169,10 +174,12 @@ export struct SourcePackageManagerPage {
   private async openRequestedSourceSettings(): Promise<void> {
     const source = this.installedPackage(this.initialSettingsSourceId)
     if (source === undefined) return
-    const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, source.id)
-    if (!this.settingsRouteActive) return
     try {
-      this.openSettings(source, descriptors)
+      const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+      if (!this.settingsRouteActive) return
+      if (!result.ready) throw new Error('source_settings_unavailable')
+      if (result.descriptors.length === 0) return
+      this.openSettings(source, result.descriptors)
       this.sourceSettingsSheetShown = true
     } catch (_error) {
       this.showToast(t('source_pkg_reason_settings_validation_failed'))
@@ -258,8 +265,10 @@ export struct SourcePackageManagerPage {
     const snapshot: Record<string, SourceSettingDescriptor[]> = {}
     const availability: Record<string, string> = {}
     for (const source of packages) {
-      const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+      const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
       if (revision !== this.settingsReloadRevision) return
+      if (!result.ready) continue
+      const descriptors = result.descriptors
       snapshot[source.id] = descriptors
       if (descriptors.length === 0) {
         availability[source.id] = t('source_pkg_settings_none')
@@ -393,10 +402,20 @@ export struct SourcePackageManagerPage {
   }
 
   private async openSourceSettingsFromSheet(source: InstalledSourcePackage): Promise<void> {
-    const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, source.id)
-    if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id) return
     try {
-      this.openSettings(source, descriptors)
+      const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+      if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id) return
+      if (!result.ready) throw new Error('source_settings_unavailable')
+      if (result.descriptors.length === 0) {
+        const snapshot: Record<string, SourceSettingDescriptor[]> = {}
+        Object.keys(this.settingsDescriptorSnapshot).forEach((id: string): void => {
+          snapshot[id] = this.settingsDescriptorSnapshot[id]
+        })
+        snapshot[source.id] = []
+        this.settingsDescriptorSnapshot = snapshot
+        return
+      }
+      this.openSettings(source, result.descriptors)
       this.pendingSourceSheetAction = 'none'
       this.pendingSourceSheetSourceId = ''
       this.sourceSettingsSheetShown = true
@@ -555,7 +574,8 @@ export struct SourcePackageManagerPage {
   }
 
   private sourceIndexBatchBusy(): boolean {
-    return this.indexInstallBusy || this.indexFetchBusy || this.busy || this.updateCheckBusy || this.updateInstallSourceId.length > 0
+    return this.indexInstallBusy || this.indexFetchBusy || this.busy || this.updateCheckBusy ||
+      this.packageInstallTasks.pendingIds.length > 0 || this.updateInstallSourceId.length > 0
   }
 
   private sourceIndexSummaryText(): string {
@@ -695,8 +715,20 @@ export struct SourcePackageManagerPage {
     }
   }
 
+  private packageInstallPending(sourceId: string): boolean {
+    return this.packageInstallTasks.pendingIds.includes(sourceId)
+  }
+
+  private packageActionLabel(sourceId: string, update: boolean): string {
+    if (this.packageInstallPending(sourceId)) {
+      return this.packageInstallTasks.runningId === sourceId
+        ? t(update ? 'source_pkg_action_updating' : 'source_pkg_installing') : t('source_pkg_action_queued')
+    }
+    return t(update ? 'source_pkg_action_update' : 'source_pkg_install')
+  }
+
   private updateActionLabel(sourceId: string): string {
-    return this.updateInstallSourceId === sourceId ? t('source_pkg_action_updating') : t('source_pkg_action_update')
+    return this.packageActionLabel(sourceId, true)
   }
 
   private updateEntry(sourceId: string): SourceIndexEntry | undefined {
@@ -879,7 +911,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async updateInstalledPackage(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate): Promise<void> {
-    if (this.updateInstallSourceId.length > 0 || this.indexInstallBusy || this.busy) {
+    if (this.packageInstallPending(source.id) || this.busy) {
       return
     }
     const entry = candidate?.entry ?? this.updateEntry(source.id)
@@ -894,7 +926,6 @@ export struct SourcePackageManagerPage {
       return
     }
     const wasEnabled = source.enabled
-    this.updateInstallSourceId = source.id
     this.statusText = tf('source_pkg_update_running', sourceDisplayName(source.id, source.name))
     console.info('[SourcePackageUpdate] step=install_start id=' + source.id)
     try {
@@ -943,8 +974,6 @@ export struct SourcePackageManagerPage {
       this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText('network_error'))
       this.showToast(t('source_pkg_toast_install_failed'))
       DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + this.sourceIndexFailureReason(_error))
-    } finally {
-      this.updateInstallSourceId = ''
     }
   }
 
@@ -1180,7 +1209,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async installIndexEntry(entry: SourceIndexEntry, replaceExisting: boolean = false): Promise<void> {
-    if (this.indexInstallBusy || this.busy) {
+    if (this.packageInstallPending(entry.id) || this.busy) {
       return
     }
     const existing = this.installedPackage(entry.id)
@@ -1188,7 +1217,6 @@ export struct SourcePackageManagerPage {
       this.showToast(t('source_pkg_toast_already_installed'))
       return
     }
-    this.indexInstallBusy = true
     this.indexStatusText = replaceExisting ? tf('source_pkg_update_running', this.indexDisplayName(entry)) : tf('source_pkg_install_running', this.indexDisplayName(entry))
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
@@ -1213,8 +1241,6 @@ export struct SourcePackageManagerPage {
         ? tf('source_pkg_update_failed', this.sourceReasonText('network_error'))
         : tf('source_pkg_install_failed', this.sourceReasonText('network_error'))
       this.showToast(t('source_pkg_toast_install_failed'))
-    } finally {
-      this.indexInstallBusy = false
     }
   }
 
@@ -1250,7 +1276,7 @@ export struct SourcePackageManagerPage {
           skippedCount += 1
           continue
         }
-        if (replaceExisting && existing === undefined) {
+        if (replaceExisting && (existing === undefined || !this.updateAvailableFor(existing, entry))) {
           skippedCount += 1
           continue
         }
@@ -1337,7 +1363,7 @@ export struct SourcePackageManagerPage {
         const entry = status.remoteEntry
         const url = status.remoteIndexUrl ?? ''
         const source = this.installedPackage(status.sourceId)
-        if (entry === undefined || url.length === 0 || source === undefined) {
+        if (entry === undefined || url.length === 0 || source === undefined || !this.updateAvailableFor(source, entry)) {
           skippedCount += 1
           continue
         }
@@ -1651,7 +1677,7 @@ export struct SourcePackageManagerPage {
 
   private sourceContentRatingLabel(source: InstalledSourcePackage): string {
     if (source.nsfw) {
-      return 'NSFW'
+      return '18+'
     }
     const rating = source.contentRating.trim().toLowerCase()
     if (rating === 'safe') {
@@ -1669,7 +1695,7 @@ export struct SourcePackageManagerPage {
   private sourceMetaText(source: InstalledSourcePackage): string {
     const parts: string[] = ['v' + source.version]
     if (source.lang.length > 0) {
-      parts.push(source.lang)
+      parts.push(sourceLanguageName(source.lang))
     }
     parts.push(this.sourceContentRatingLabel(source))
     parts.push(this.installedTrustSummary(source).provenanceLabel)
@@ -1682,7 +1708,7 @@ export struct SourcePackageManagerPage {
     }
     const parts: string[] = ['v' + source.version]
     if (source.lang.length > 0) {
-      parts.push(source.lang)
+      parts.push(sourceLanguageName(source.lang))
     }
     return parts.join(' · ')
   }
@@ -1704,7 +1730,7 @@ export struct SourcePackageManagerPage {
     return tf(
       'source_pkg_diagnostics_version',
       source.version,
-      source.lang.length > 0 ? source.lang : t('common_unavailable'),
+      source.lang.length > 0 ? sourceLanguageName(source.lang) : t('common_unavailable'),
       this.sourceContentRatingLabel(source),
     )
   }
@@ -1786,7 +1812,7 @@ export struct SourcePackageManagerPage {
   private RemoteIndexCard(entry: SourceIndexEntry) {
     ConciseListRow({
       title: this.indexDisplayName(entry),
-      subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
+      subtitle: this.indexVersionText(entry) + (sourceLanguageName(entry.lang).length > 0 ? ' · ' + sourceLanguageName(entry.lang) : ''),
       subtitleMaxLines: 1,
       subtitleContentRating: entry.nsfw,
       hasSourceIdentityPrefix: true,
@@ -1798,8 +1824,8 @@ export struct SourcePackageManagerPage {
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       showChevron: false,
       actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
-        ? t(this.hasUpdate(entry) ? 'source_pkg_action_update' : 'source_pkg_install') : '',
-      actionButtonEnabled: !this.sourceIndexBatchBusy(),
+        ? this.packageActionLabel(entry.id, this.hasUpdate(entry)) : '',
+      actionButtonEnabled: !this.busy && !this.packageInstallPending(entry.id),
       actionButtonAction: () => { void this.installIndexEntry(entry, this.hasUpdate(entry)) },
       trailingText: this.isSourceInstalled(entry.id) && !this.hasUpdate(entry) ? t('source_pkg_installed') : '',
     })
@@ -2020,12 +2046,12 @@ export struct SourcePackageManagerPage {
     ConciseListRow({
       title: sourceDisplayName(sourceId, this.installedPackage(sourceId)?.name ?? ''),
       subtitle: candidate === undefined ? this.packageListMetaText(this.installedPackage(sourceId))
-        : this.indexVersionText(candidate.entry) + (candidate.entry.lang.length > 0 ? ' · ' + candidate.entry.lang : ''),
+        : this.indexVersionText(candidate.entry) + (sourceLanguageName(candidate.entry.lang).length > 0 ? ' · ' + sourceLanguageName(candidate.entry.lang) : ''),
       showChevron: candidate === undefined,
       trailingText: candidate === undefined
         ? t((this.installedPackage(sourceId)?.enabled ?? false) ? 'source_pkg_enabled' : 'source_pkg_disabled') : '',
       actionButtonText: candidate !== undefined ? this.updateActionLabel(sourceId) : '',
-      actionButtonEnabled: !this.sourceIndexBatchBusy(),
+      actionButtonEnabled: !this.busy && !this.packageInstallPending(sourceId),
       actionButtonAction: () => {
         const source = this.installedPackage(sourceId)
         if (source !== undefined && candidate !== undefined) void this.updateInstalledPackage(source, candidate)
@@ -2072,15 +2098,18 @@ export struct SourcePackageManagerPage {
             this.openSourceSearchFromSheet(params.source)
           },
         })
-        ListDivider()
-        ConciseListRow({
-          title: t('source_pkg_settings'),
-          trailingText: this.sourceSettingsText(params.source),
-          leadingIcon: $r('sys.symbol.gearshape'),
-          action: () => {
-            this.openSourceSettingsFromSheet(params.source)
-          },
-        })
+        if (this.settingsDescriptorSnapshot[params.source.id] === undefined ||
+          this.settingsDescriptorSnapshot[params.source.id].length > 0) {
+          ListDivider()
+          ConciseListRow({
+            title: t('source_pkg_settings'),
+            trailingText: this.sourceSettingsText(params.source),
+            leadingIcon: $r('sys.symbol.gearshape'),
+            action: () => {
+              this.openSourceSettingsFromSheet(params.source)
+            },
+          })
+        }
         if ((appSourceRuntimeRegistry.lookup(params.source.id).entry?.webSessionOrigins ?? []).length > 0) {
           ListDivider()
           ConciseListRow({
@@ -2159,7 +2188,7 @@ export struct SourcePackageManagerPage {
             title: this.updateActionLabel(params.source.id),
             subtitle: this.updateStatusText(params.source),
             leadingIcon: $r('sys.symbol.arrow_clockwise'),
-            isEnabled: this.updateInstallSourceId.length === 0 && !this.indexInstallBusy && !this.busy,
+            isEnabled: !this.busy && !this.packageInstallPending(params.source.id),
             action: () => {
               this.updateInstalledPackage(params.source)
             },

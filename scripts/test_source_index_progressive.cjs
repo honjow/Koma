@@ -151,11 +151,11 @@ test('equal versions print once while a real version change retains both sides',
 })
 test('group update uses its repository and preserves a disabled source through the existing install transaction', async () => {
   const calls = []
-  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['updateInstalledPackage'], {
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['updateInstalledPackage', 'packageInstallPending'], {
     ...globals, tf: key => key, t: key => key, sourceDisplayName: (_id, name) => name,
     setEnabled: (_context, id, value) => calls.push(['enabled', id, value]),
   })
-  Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false,
+  Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false, packageInstallTasks:{pendingIds:[]},
     context: () => ({}), reload() {}, installedPackage: () => installed('A','1.1',false),
     setUpdateStatus: status => calls.push(['status', status.status]), showToast() {},
     sourceIndexService: { installPackage: async (url, entry) => { calls.push(['install',url,entry.id]); return {ok:true} } },
@@ -165,4 +165,80 @@ test('group update uses its repository and preserves a disabled source through t
   })
   assert.deepEqual(calls, [['install','https://other.test/index.json','A'],['enabled','A',false],['status','latest']])
   assert.equal(manager.updateInstallSourceId, '')
+})
+
+function installLane() {
+  const queue = subject('sourceRuntime/SourceIndexService.ets', 'SourcePackageInstallTasks', ['run'], {})
+  Object.assign(queue, {pendingIds: [], runningId: '', pending: new Map(), tail: Promise.resolve()})
+  return queue
+}
+test('other packages enqueue during an install; one identity shares one result and writes remain serial', async () => {
+  const lane = installLane(), starts = []; let finishA, finishB
+  const a = lane.run('A', () => new Promise(resolve => {starts.push('A'); finishA = resolve}))
+  const b = lane.run('B', () => new Promise(resolve => {starts.push('B'); finishB = resolve}))
+  assert.equal(lane.run('A', () => {throw Error('duplicate install')}), a)
+  assert.deepEqual(Array.from(lane.pendingIds), ['A','B'])
+  await new Promise(setImmediate)
+  assert.deepEqual(starts, ['A']); assert.equal(lane.runningId, 'A')
+  finishA({ok:true}); await a; await new Promise(setImmediate)
+  assert.deepEqual(starts, ['A','B']); assert.equal(lane.runningId, 'B')
+  assert.deepEqual(Array.from(lane.pendingIds), ['B'])
+  finishB({ok:true}); await b
+  assert.equal(lane.pendingIds.length, 0); assert.equal(lane.runningId, '')
+})
+test('an installation rejection retires that source and does not poison the next queued package', async () => {
+  const lane = installLane(); let failA
+  const a = lane.run('A', () => new Promise((_resolve,reject) => {failA=reject}))
+  const rejected = assert.rejects(a, /network/)
+  const b = lane.run('B', async () => ({ok:true}))
+  await new Promise(setImmediate); failA(Error('network')); await rejected
+  assert.equal((await b).ok, true)
+  assert.equal(lane.pendingIds.length,0)
+  assert.equal((await lane.run('A', async () => ({ok:true}))).ok,true)
+})
+test('only queued identities are pending and each action reports its actual running or waiting state', () => {
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
+    ['packageInstallPending', 'packageActionLabel'], {t:key=>key})
+  manager.packageInstallTasks={pendingIds:['A','B'],runningId:'A'}
+  assert.equal(manager.packageInstallPending('A'),true)
+  assert.equal(manager.packageInstallPending('B'),true)
+  assert.equal(manager.packageInstallPending('C'),false)
+  assert.equal(manager.packageActionLabel('A',false),'source_pkg_installing')
+  assert.equal(manager.packageActionLabel('B',true),'source_pkg_action_queued')
+  assert.equal(manager.packageActionLabel('C',true),'source_pkg_action_update')
+})
+
+function settingsCapability(response) {
+  const source = fs.readFileSync(path.join(root,'sourceRuntime/SourceSettingsStore.ets'),'utf8')
+  const tree = ts.createSourceFile('settings.ets',source,ts.ScriptTarget.Latest,true)
+  const fn = tree.statements.find(n=>ts.isFunctionDeclaration(n) && n.name.text==='loadSourceSettingsDescriptorsAsync')
+  const output={}
+  vm.runInNewContext(ts.transpileModule(fn.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
+    exports:output, runRegisteredSourceRequestByIdAsync:async()=>({response}),
+    normalizeSourceSettingDescriptors:r=>r.data?.settings ?? r.data?.items ?? [], Date, JSON, Array,
+  })
+  return output.loadSourceSettingsDescriptorsAsync({},'source')
+}
+test('only successful empty settings or explicit unsupported operation establish that no settings exist', async()=>{
+  const none=await settingsCapability({ok:true,data:{settings:[]}})
+  assert.equal(none.ready,true); assert.equal(none.descriptors.length,0)
+  const yes=await settingsCapability({ok:true,data:{settings:[{id:'region'}]}})
+  assert.equal(yes.ready,true); assert.equal(yes.descriptors.length,1)
+  for (const code of ['unsupported_operation','unsupported','not_implemented']) {
+    assert.equal((await settingsCapability({ok:false,error:{code}})).ready,true)
+  }
+  for(const response of [undefined,{ok:false,error:{code:'wasm_call_failed'}},{ok:true,data:{}}]) {
+    assert.equal((await settingsCapability(response)).ready,false)
+  }
+})
+test('route settings capability hides an empty source, preserves unknown, and ignores a departed route', async()=>{
+  let result={ready:true,descriptors:[]},finish
+  const changes=[]
+  const host=subject('components/SourceSettingsSheetHost.ets','SourceSettingsSheetHost',
+    ['loadAvailability'],{appSourceRuntimeRegistry:{},loadSourceSettingsDescriptorsAsync:()=>result})
+  Object.assign(host,{mounted:true,sourceId:'A',onAvailabilityChanged:value=>changes.push(value)})
+  await host.loadAvailability(); assert.deepEqual(changes,[false])
+  result={ready:false,descriptors:[]}; await host.loadAvailability();assert.deepEqual(changes,[false])
+  result=new Promise(resolve=>{finish=resolve});const loading=host.loadAvailability();host.mounted=false
+  finish({ready:true,descriptors:[{id:'region'}]});await loading;assert.deepEqual(changes,[false])
 })

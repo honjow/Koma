@@ -1,3 +1,4 @@
+import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
@@ -415,26 +416,6 @@ function safeSourceBrowseErrorText(error: Error, fallbackKey: string): string {
     diagnostic.code === 'network_error' ? AppStrings.get('source_failure_network') : AppStrings.get('source_failure_runtime')
 }
 
-function sourceLanguageBadgeFromLanguage(language: string): string | undefined {
-  const normalized = language.trim()
-  if (normalized.length === 0) {
-    return undefined
-  }
-  const primary = normalized.split(/[-_]/)[0].trim().toLocaleLowerCase()
-  if (primary.length === 0) {
-    return undefined
-  }
-  if (primary === 'zh' || primary === 'zho' || primary === 'chi') {
-    return 'ZH'
-  }
-  if (primary === 'ja' || primary === 'jp' || primary === 'jpn') {
-    return 'JA'
-  }
-  if (primary === 'en' || primary === 'eng') {
-    return 'EN'
-  }
-  return (primary.length <= 3 ? primary : primary.substring(0, 3)).toLocaleUpperCase()
-}
 
 @ObservedV2
 export class BrowseViewModel {
@@ -1428,20 +1409,6 @@ export class BrowseViewModel {
   }
 
   sourceLanguageBadge(source: SourceRuntimeRegistryInstalledSourceSummary): string {
-    const manifestLanguageBadge = sourceLanguageBadgeFromLanguage(source.language)
-    if (manifestLanguageBadge !== undefined) {
-      return manifestLanguageBadge
-    }
-    const lowered = source.sourceId.toLocaleLowerCase()
-    if (lowered.indexOf('zh') >= 0 || lowered.indexOf('cn') >= 0) {
-      return 'ZH'
-    }
-    if (lowered.indexOf('ja') >= 0 || lowered.indexOf('jp') >= 0) {
-      return 'JA'
-    }
-    if (lowered.indexOf('en') >= 0) {
-      return 'EN'
-    }
-    return 'SRC'
+    return sourceLanguageName(source.language)
   }
 }

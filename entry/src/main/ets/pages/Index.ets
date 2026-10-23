@@ -2813,13 +2813,15 @@ struct Index {
       filterItem['content'] = filterContent
       menuItems.push(filterItem)
     }
-    const settingsContent: Record<string, Object> = {
-      'label': AppStrings.get('source_pkg_settings'),
-      'icon': $r('sys.symbol.gearshape'),
-      'isEnabled': true,
-      'action': () => { chrome.requestSettings() },
+    if (chrome.settingsAvailable) {
+      const settingsContent: Record<string, Object> = {
+        'label': AppStrings.get('source_pkg_settings'),
+        'icon': $r('sys.symbol.gearshape'),
+        'isEnabled': true,
+        'action': () => { chrome.requestSettings() },
+      }
+      menuItems.push({ 'content': settingsContent })
     }
-    menuItems.push({ 'content': settingsContent })
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),
@@ -2889,13 +2891,15 @@ struct Index {
       filterItem['content'] = filterContent
       menuItems.push(filterItem)
     }
-    const settingsContent: Record<string, Object> = {
-      'label': AppStrings.get('source_pkg_settings'),
-      'icon': $r('sys.symbol.gearshape'),
-      'isEnabled': true,
-      'action': () => { chrome.requestSettings() },
+    if (chrome.settingsAvailable) {
+      const settingsContent: Record<string, Object> = {
+        'label': AppStrings.get('source_pkg_settings'),
+        'icon': $r('sys.symbol.gearshape'),
+        'isEnabled': true,
+        'action': () => { chrome.requestSettings() },
+      }
+      menuItems.push({ 'content': settingsContent })
     }
-    menuItems.push({ 'content': settingsContent })
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),

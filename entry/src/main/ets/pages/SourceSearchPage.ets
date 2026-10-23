@@ -481,6 +481,7 @@ export struct SourceSearchPage {
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
           active: this.chrome.visible,
+          onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {
             this.chrome.markRefreshNeeded()
             this.chrome.resume()

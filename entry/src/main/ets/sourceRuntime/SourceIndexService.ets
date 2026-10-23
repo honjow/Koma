@@ -63,6 +63,35 @@ export interface SourceIndexInstallResult {
   install?: SourcePackageInstallResult
 }
 
+// One process-wide install lane. Other sources remain enqueueable while a
+// package is downloading; duplicate taps for one source share the same result.
+@ObservedV2
+export class SourcePackageInstallTasks {
+  @Trace pendingIds: string[] = []
+  @Trace runningId: string = ''
+  private pending: Map<string, Promise<SourceIndexInstallResult>> = new Map()
+  private tail: Promise<void> = Promise.resolve()
+
+  run(sourceId: string, work: () => Promise<SourceIndexInstallResult>): Promise<SourceIndexInstallResult> {
+    const existing = this.pending.get(sourceId)
+    if (existing !== undefined) return existing
+    this.pendingIds = this.pendingIds.concat(sourceId)
+    const result = this.tail.then(async (): Promise<SourceIndexInstallResult> => {
+      this.runningId = sourceId
+      return work()
+    }).finally(() => {
+      this.pending.delete(sourceId)
+      this.pendingIds = this.pendingIds.filter((id: string): boolean => id !== sourceId)
+      if (this.runningId === sourceId) this.runningId = ''
+    })
+    this.pending.set(sourceId, result)
+    this.tail = result.then((): void => {}, (): void => {})
+    return result
+  }
+}
+
+export const appSourcePackageInstallTasks: SourcePackageInstallTasks = new SourcePackageInstallTasks()
+
 export interface SourceIndexRepository {
   url: string
   lastUsedAt: number
@@ -617,6 +646,10 @@ export class SourceIndexService {
   }
 
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
+    return appSourcePackageInstallTasks.run(entry.id, () => this.installPackageNow(indexUrl, entry))
+  }
+
+  private async installPackageNow(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
     return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexInstallResult> => {
       if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
         DiagnosticLogger.error('source_index_service', 'install_blocked', '[SourceIndex] step=install_blocked reason=app_version_unsupported')

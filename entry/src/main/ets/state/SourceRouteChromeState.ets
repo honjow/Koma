@@ -13,6 +13,7 @@ export class SourceBrowseRouteChromeState {
   @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
+  @Trace settingsAvailable: boolean = true
   @Trace settingsRequestSeq: number = 0
   @Trace filterRequestSeq: number = 0
   @Trace refreshRequestSeq: number = 0
@@ -64,6 +65,7 @@ export class SourceSearchRouteChromeState {
   @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
+  @Trace settingsAvailable: boolean = true
   @Trace settingsRequestSeq: number = 0
   @Trace filterRequestSeq: number = 0
   @Trace refreshRequestSeq: number = 0

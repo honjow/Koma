@@ -4,6 +4,7 @@ import {
   PrefixImage,
   SuffixCustomBuilder,
   SuffixButton,
+  SuffixIcon,
   SuffixSwitch,
   SuffixText,
   SuffixTextAndArrow,
@@ -24,9 +25,12 @@ export struct ConciseListRow {
   @Param subtitleMaxLines: number = 2
   @Param subtitleContentRating: boolean = false
   @Param trailingText: ResourceStr = ''
+  @Param trailingIcon: Resource | undefined = undefined
+  @Event trailingIconAction?: () => void
   @Param actionButtonText: ResourceStr = ''
   @Param actionButtonEnabled: boolean = true
   @Param trailingMaxLines: number = 1
+  @Param trailingTextFontSize: Resource | number = ThemeConstants.FONT_SIZE_CAPTION
   @Param leadingImageUrl: string = ''
   @Param leadingImageSize: number = 0
   @Param leadingImageRadius: number = 0
@@ -120,7 +124,7 @@ export struct ConciseListRow {
       Text() {
         Span(this.subtitle)
         Span(' · ')
-        Span('NSFW').fontColor(ThemeConstants.DANGER)
+        Span('18+').fontColor(ThemeConstants.DANGER)
       }
       .attributeModifier(this.secondaryTextModifier())
       .fontSize($r('sys.float.Body_M'))
@@ -136,7 +140,7 @@ export struct ConciseListRow {
 
   private trailingTextModifier(): TextModifier {
     return new TextModifier()
-      .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+      .fontSize(this.trailingTextFontSize)
       .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
       .maxLines(this.trailingMaxLines)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -204,13 +208,22 @@ export struct ConciseListRow {
     .padding({ left: this.prefixPaddingLeft, right: this.prefixPaddingRight })
   }
 
-  private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | undefined {
+  private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | SuffixIcon | undefined {
     if (this.suffixBuilderParam) {
       return new SuffixCustomBuilder(() => {
         this.WrappedSuffixBuilder()
       })
     }
 
+    if (this.trailingIcon !== undefined) {
+      return new SuffixIcon({
+        iconValue: { symbol: this.trailingIcon },
+        enable: this.isEnabled,
+        onClick: () => {
+          if (this.isEnabled && this.trailingIconAction) this.trailingIconAction()
+        },
+      })
+    }
     if (this.actionButtonText !== '') {
       return new SuffixButton({
         text: this.actionButtonText,

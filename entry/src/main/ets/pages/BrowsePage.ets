@@ -1,5 +1,6 @@
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
+import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
@@ -138,15 +139,20 @@ export struct BrowsePage {
     this.openOpds()
   }
 
-  private enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+  // Rows, their dividers and the heading share one derived order. Sorting in
+  // each row's builder repeats the whole list's work during every refresh.
+  @Computed
+  private get enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    const locale = this.languageState.effectiveLocale
     return this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled)
       .sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
-        compareSourceNames(sourceDisplayName(left.sourceId, left.displayName), left.sourceId,
-          sourceDisplayName(right.sourceId, right.displayName), right.sourceId))
+        compareSourceNames(resolveSourceLocalizedName(left.displayName, left.localizedNames, locale), left.sourceId,
+          resolveSourceLocalizedName(right.displayName, right.localizedNames, locale), right.sourceId))
   }
 
   private runtimeSourceSummary(source: SourceRuntimeRegistryInstalledSourceSummary): string {
-    return `v${source.version} · ${this.viewModel.sourceLanguageBadge(source)}`
+    const language = this.viewModel.sourceLanguageBadge(source)
+    return `v${source.version}` + (language.length > 0 ? ` · ${language}` : '')
   }
 
   @Builder
@@ -190,7 +196,7 @@ export struct BrowsePage {
     ListItem() {
       Column({ space: ThemeConstants.SPACE_XS }) {
         SectionHeader({ title: s('browse_installed_sources_heading') })
-        Text(s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources().length}`))
+        Text(s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources.length}`))
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
@@ -200,7 +206,7 @@ export struct BrowsePage {
     }
     ListItem() {
       GroupedListSection() {
-        ForEach(this.enabledRuntimeSources(), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+        ForEach(this.enabledRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
           SourceListItem({
             source: source,
             subtitle: this.runtimeSourceSummary(source),
@@ -214,7 +220,7 @@ export struct BrowsePage {
               this.openSourceSearch(selected)
             },
           })
-          if (index + 1 < this.enabledRuntimeSources().length) {
+          if (index + 1 < this.enabledRuntimeSources.length) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
         }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
@@ -312,7 +318,7 @@ export struct BrowsePage {
           .width('100%')
           .justifyContent(FlexAlign.Center)
         }
-      } else if (this.enabledRuntimeSources().length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
+      } else if (this.enabledRuntimeSources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
         ListItem() {
           this.EmptySources()
         }
@@ -320,7 +326,7 @@ export struct BrowsePage {
         if (this.configuredPrivateSourceEntries().length > 0) {
           this.PrivateSourceListItems()
         }
-        if (this.enabledRuntimeSources().length > 0) {
+        if (this.enabledRuntimeSources.length > 0) {
           this.RuntimeSourceListItems()
         }
       }

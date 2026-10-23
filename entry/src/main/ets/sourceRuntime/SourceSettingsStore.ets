@@ -28,6 +28,11 @@ export interface SourceSettingDescriptor {
   sensitive: boolean
 }
 
+export interface SourceSettingsDescriptorResult {
+  ready: boolean
+  descriptors: SourceSettingDescriptor[]
+}
+
 interface SourceSettingsDocument {
   schemaVersion: number
   sources: Record<string, SourceSettingsRecord>
@@ -470,7 +475,7 @@ export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, s
   return normalizeSourceSettingDescriptors(summary.response)
 }
 
-export async function fetchSourceSettingDescriptorsAsync(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingDescriptor[]> {
+export async function loadSourceSettingsDescriptorsAsync(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingsDescriptorResult> {
   const args: SourceSettingsRequestArgs = {}
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }
@@ -485,5 +490,17 @@ export async function fetchSourceSettingDescriptorsAsync(registry: SourceRuntime
     hostHints,
   }
   const summary = await runRegisteredSourceRequestByIdAsync(registry, sourceId, JSON.stringify(request))
-  return normalizeSourceSettingDescriptors(summary.response)
+  const response = summary.response
+  if (response === undefined) return { ready: false, descriptors: [] }
+  if (!response.ok) {
+    const code = response.error?.['code'] ?? response.reasonCode
+    return { ready: code === 'unsupported_operation' || code === 'unsupported' || code === 'not_implemented', descriptors: [] }
+  }
+  const data = response.data as RuntimeRecord | undefined
+  const rawSettings = data?.['settings'] ?? data?.['items']
+  return { ready: Array.isArray(rawSettings), descriptors: normalizeSourceSettingDescriptors(response) }
+}
+
+export async function fetchSourceSettingDescriptorsAsync(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingDescriptor[]> {
+  return (await loadSourceSettingsDescriptorsAsync(registry, sourceId)).descriptors
 }

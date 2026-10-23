@@ -2,7 +2,6 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
-import { KomaIconButton } from './ui/KomaIconButton'
 
 @ComponentV2
 export struct SourceListItem {
@@ -85,36 +84,6 @@ export struct SourceListItem {
   }
 
   @Builder
-  private SourceSuffix() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      if (!this.sourceBacked() && this.displayBadge() !== '') {
-        Text(this.displayBadge())
-          .fontSize(ThemeConstants.FONT_SIZE_TAG)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-      }
-
-      if (this.showSearchButton && this.sourceBacked()) {
-        KomaIconButton({
-          icon: $r('sys.symbol.magnifyingglass'),
-          kind: 'secondary',
-          controlSize: ThemeConstants.TOUCH_TARGET_SM,
-          iconSize: ThemeConstants.FONT_SIZE_HEADING,
-          accentColor: ThemeConstants.BRAND_PRIMARY,
-          action: () => {
-            this.onSourceSearch(this.source)
-          },
-        })
-      }
-
-      SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(ThemeConstants.FONT_SIZE_HEADING)
-        .fontColor([ThemeConstants.TEXT_SECONDARY])
-    }
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
   private SourceRow() {
     ConciseListRow({
       title: this.displayTitle(),
@@ -128,12 +97,13 @@ export struct SourceListItem {
       sourceIdentityFallbackColor: this.accentColor,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
-      showChevron: false,
+      trailingText: this.sourceBacked() ? '' : this.displayBadge(),
+      trailingTextFontSize: ThemeConstants.FONT_SIZE_TAG,
+      trailingIcon: this.showSearchButton && this.sourceBacked() ? $r('sys.symbol.magnifyingglass') : undefined,
+      trailingIconAction: () => { this.onSourceSearch(this.source) },
+      showChevron: true,
       action: () => {
         this.activate()
-      },
-      suffixBuilderParam: () => {
-        this.SourceSuffix()
       },
     })
   }

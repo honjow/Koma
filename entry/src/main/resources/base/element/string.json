@@ -1278,6 +1278,7 @@
     { "name": "source_pkg_update_status_failed", "value": "Updates: check failed: %s" },
     { "name": "source_pkg_update_status_unknown", "value": "Updates: not checked" },
     { "name": "source_pkg_action_update", "value": "Update" },
+    { "name": "source_pkg_action_queued", "value": "Queued" },
     { "name": "source_pkg_action_updating", "value": "Updating" },
     { "name": "source_pkg_prompt_index_url", "value": "Enter a source index URL" },
     { "name": "source_pkg_check_updates_running", "value": "Checking for updates..." },

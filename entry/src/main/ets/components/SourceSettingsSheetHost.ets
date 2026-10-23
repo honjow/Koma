@@ -1,7 +1,7 @@
 import { AppStrings } from '../i18n/AppStrings'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceSettingDescriptor, SourceSettingsRecord, appSourceSettingsStore,
-  fetchSourceSettingDescriptorsAsync } from '../sourceRuntime/SourceSettingsStore'
+  loadSourceSettingsDescriptorsAsync } from '../sourceRuntime/SourceSettingsStore'
 import { SourceSettingsSheetContent, sourceSettingsDraft } from './SourceSettingsSheetContent'
 
 /** Route-owned presenter: no navigation or index/catalogue loading. */
@@ -12,6 +12,7 @@ export struct SourceSettingsSheetHost {
   @Param requestSeq: number = 0
   @Param active: boolean = false
   @Event onSettingsSaved: () => void = () => {}
+  @Event onAvailabilityChanged: (available: boolean) => void = () => {}
   @Local private shown: boolean = false
   @Local private descriptors: SourceSettingDescriptor[] = []
   @Local private draft: SourceSettingsRecord = {}
@@ -20,7 +21,21 @@ export struct SourceSettingsSheetHost {
   private handledRequestSeq: number = 0
   private saved: boolean = false
 
-  aboutToAppear(): void { this.mounted = true }
+  aboutToAppear(): void {
+    this.mounted = true
+    void this.loadAvailability()
+  }
+
+  private async loadAvailability(): Promise<void> {
+    const sourceId = this.sourceId
+    try {
+      const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
+      if (!this.mounted || sourceId !== this.sourceId || !result.ready) return
+      this.onAvailabilityChanged(result.descriptors.length > 0)
+    } catch (_error) {
+      // A failed/unknown capability probe must not hide a working settings entry.
+    }
+  }
 
   aboutToDisappear(): void {
     this.mounted = false
@@ -47,8 +62,12 @@ export struct SourceSettingsSheetHost {
     const epoch = ++this.epoch
     const sourceId = this.sourceId
     try {
-      const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
+      const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
       if (!this.mounted || !this.active || epoch !== this.epoch || sourceId !== this.sourceId) return
+      if (!result.ready) throw new Error('source_settings_unavailable')
+      const descriptors = result.descriptors
+      this.onAvailabilityChanged(descriptors.length > 0)
+      if (descriptors.length === 0) return
       this.draft = sourceSettingsDraft(descriptors, appSourceSettingsStore.loadForSource(sourceId))
       this.descriptors = descriptors
       this.saved = false
