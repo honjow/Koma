@@ -43,7 +43,7 @@ export struct BrowsePage {
   @Local private kavitaConfigured: boolean = false
   @Local private opdsConfigured: boolean = false
   @Local private webDavConfigured: boolean = false
-  private browseScroller: Scroller = new Scroller()
+  @Param browseScroller: Scroller = new Scroller()
   @Param active: boolean = false
   private availabilityEpoch: number = 0
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry

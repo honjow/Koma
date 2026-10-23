@@ -405,6 +405,7 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
 
 @ComponentV2
 export struct SettingsPage {
+  @Param scroller: Scroller = new Scroller()
   @Event onLibraryPreferencesChanged: () => void = () => {}
   @Event onOpenSettingsPane: (pane: SettingsPaneKey) => void = (_pane: SettingsPaneKey) => {}
   @Event onOpenKomgaSettings: () => void = () => {}
@@ -2666,6 +2667,7 @@ export struct SettingsPage {
   build() {
     Column() {
       SecondaryListScaffold({
+        scroller: this.scroller,
         listSpace: ThemeConstants.SPACE_LG,
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,

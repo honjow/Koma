@@ -260,7 +260,7 @@ export struct LibraryPage {
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private containerWidth: number = gridFallbackContainerWidth()
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
-  private libraryScroller: Scroller = new Scroller()
+  @Param libraryScroller: Scroller = new Scroller()
   private activeFilterCount(): number {
     let count = 0
     if (this.filterSource !== 'all') {

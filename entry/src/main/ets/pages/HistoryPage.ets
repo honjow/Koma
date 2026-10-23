@@ -74,6 +74,7 @@ interface HistoryItem {
 
 @ComponentV2
 export struct HistoryPage {
+  @Param scroller: Scroller = new Scroller()
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param active: boolean = false
   @Param readerSessionStore?: ReaderSessionStore = undefined
@@ -646,6 +647,7 @@ export struct HistoryPage {
   build() {
     Column() {
       SecondaryListScaffold({
+        scroller: this.scroller,
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,

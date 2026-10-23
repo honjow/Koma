@@ -241,6 +241,8 @@ struct Index {
   @Local private libraryRevision: number = 0
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
+  private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
+  @Local private titleScroller: Scroller = this.rootTabScrollers[TabIndex.LIBRARY]
   private tabBarHiddenForKeyboard: boolean = false
   private readerSessionStore: ReaderSessionStore = readerSessionStore
   private libraryStore: LibraryStore = seededLibraryStore
@@ -1419,6 +1421,7 @@ struct Index {
   private selectRootTab(index: number): void {
     this.leaveLibrarySelection(index)
     this.selectedTab = index
+    this.titleScroller = this.rootTabScrollers[index]
     this.tabController.changeIndex(index)
   }
 
@@ -2387,6 +2390,7 @@ struct Index {
           HdsTabs({ controller: this.tabController }) {
             TabContent() {
               LibraryPage({
+                libraryScroller: this.rootTabScrollers[TabIndex.LIBRARY],
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
                 categoryDisplayStrategyChange: this.categoryDisplayStrategyChange,
@@ -2435,6 +2439,7 @@ struct Index {
 
             TabContent() {
               BrowsePage({
+                browseScroller: this.rootTabScrollers[TabIndex.BROWSE],
                 active: this.selectedTab === TabIndex.BROWSE,
                 sourceRegistry: this.sourceRegistry,
                 libraryStore: this.libraryStore,
@@ -2466,6 +2471,7 @@ struct Index {
 
             TabContent() {
               HistoryPage({
+                scroller: this.rootTabScrollers[TabIndex.HISTORY],
                 libraryStore: this.libraryStore,
                 active: this.selectedTab === TabIndex.HISTORY,
                 readerSessionStore: this.readerSessionStore,
@@ -2484,6 +2490,7 @@ struct Index {
 
             TabContent() {
               SettingsPage({
+                scroller: this.rootTabScrollers[TabIndex.SETTINGS],
             preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
                 pane: 'root',
                 onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
@@ -2549,9 +2556,11 @@ struct Index {
           .onChange((index: number) => {
             this.leaveLibrarySelection(index)
             this.selectedTab = index
+            this.titleScroller = this.rootTabScrollers[index]
           })
         }
         .titleBar(this.titleBarOptions())
+        .bindToScrollable([this.titleScroller])
         .titleMode(HdsNavigationTitleMode.MINI)
         .hideBackButton(this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
         .dynamicHideTitleBar({
