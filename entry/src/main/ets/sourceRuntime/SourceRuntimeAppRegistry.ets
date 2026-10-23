@@ -25,10 +25,8 @@ import {
 import {
   runRegisteredSourceRequestById,
   runRegisteredSourceRequestByIdAsync,
+  runSourceOperationFromValidatedBytesAsync,
 } from './SourceRuntimeService'
-import {
-  runSourceOperationFromBytes,
-} from './SourceRuntimeRunner'
 import { appSourceSettingsStore } from './SourceSettingsStore'
 import { appSourceFilterPreferencesStore } from './SourceFilterPreferencesStore'
 import {
@@ -396,7 +394,7 @@ function sourceInfoCapabilityToken(key: string): string | undefined {
   }
 }
 
-function detectSourceRuntimeCapabilities(sourceId: string, wasmBytes: Uint8Array): string[] | undefined {
+async function detectSourceRuntimeCapabilities(sourceId: string, wasmBytes: Uint8Array): Promise<string[] | undefined> {
   const args: SourceInfoCapabilityRequestArgs = {}
   const settings: SourceInfoCapabilityRequestSettings = {}
   const hostHints: SourceInfoCapabilityRequestHostHints = { network: false }
@@ -411,7 +409,7 @@ function detectSourceRuntimeCapabilities(sourceId: string, wasmBytes: Uint8Array
     hostHints,
   }
   try {
-    const response = runSourceOperationFromBytes(JSON.stringify(request), wasmBytes)
+    const response = await runSourceOperationFromValidatedBytesAsync(JSON.stringify(request), wasmBytes)
     if (response.ok !== true || response.operation !== 'source_info') {
       return undefined
     }
@@ -1127,6 +1125,11 @@ export function sourceDisplayName(sourceId: string, fallback: string = ''): stri
   return resolveSourceLocalizedName(entry.manifestName, entry.localizedNames, connectLanguageState().effectiveLocale)
 }
 
+export function getInstalledSourcePackage(sourceId: string): InstalledSourcePackage | undefined {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  return entry === undefined ? undefined : sourcePackageFromEntry(entry)
+}
+
 export function listInstalled(): InstalledSourcePackage[] {
   return appSourceRuntimeRegistry.list().map(sourcePackageFromEntry)
 }
@@ -1176,10 +1179,12 @@ async function registerSourcePackageFromBytes(
       DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=app_version_unsupported')
       return { ok: false, reasonCode: 'app_version_unsupported' }
     }
+    // Keep the installed entry available while the worker probes the new bytes.
+    // Read its latest position/enabled state only after the asynchronous boundary.
+    const detectedCapabilities = await detectSourceRuntimeCapabilities(sourceId, imported.wasmBytes)
     removedExistingPosition = appSourceRuntimeRegistry.list().findIndex((entry: SourceRuntimeRegistryEntry): boolean => entry.sourceId === sourceId)
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
-    const detectedCapabilities = detectSourceRuntimeCapabilities(sourceId, imported.wasmBytes)
     const registered = appSourceRuntimeRegistry.register({
       sourceId,
       route: IMPORTED_SOURCE_ROUTE,

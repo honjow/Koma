@@ -494,7 +494,7 @@ export async function loadSourceSettingsDescriptorsAsync(registry: SourceRuntime
   if (response === undefined) return { ready: false, descriptors: [] }
   if (!response.ok) {
     const code = response.error?.['code'] ?? response.reasonCode
-    return { ready: code === 'unsupported_operation' || code === 'unsupported' || code === 'not_implemented', descriptors: [] }
+    return { ready: code === 'unsupported_operation' || code === 'unsupported' || code === 'not_implemented' || code === 'not_supported', descriptors: [] }
   }
   const data = response.data as RuntimeRecord | undefined
   const rawSettings = data?.['settings'] ?? data?.['items']

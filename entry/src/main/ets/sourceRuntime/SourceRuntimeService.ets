@@ -206,6 +206,10 @@ function sourceRuntimeRequestResponseOk(operation: string, response: SourceRunti
   if (response.ok !== true || response.operation !== operation || response.hostHints?.['network'] !== false) {
     return false
   }
+  if (operation === 'get_settings') {
+    const data = response.data as Record<string, Object> | undefined
+    return Array.isArray(data?.['settings'] ?? data?.['items'])
+  }
   const responseText = JSON.stringify(response)
   if (operation === 'source_info') {
     return responseText.includes('"sourceInfo"') &&
@@ -547,6 +551,16 @@ export function runRegisteredSourceRequestById(
 @Concurrent
 function executeRegisteredSourceRequest(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
   return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
+}
+
+/** Run already validated package bytes without publishing a temporary registry entry. */
+export async function runSourceOperationFromValidatedBytesAsync(
+  requestJson: string, wasmBytes: Uint8Array,
+): Promise<SourceRuntimeCallResponse> {
+  const workerBytes = new Uint8Array(wasmBytes.byteLength)
+  workerBytes.set(wasmBytes)
+  const responseJson = await taskpool.execute(executeRegisteredSourceRequest, requestJson, workerBytes, '') as string
+  return JSON.parse(responseJson) as SourceRuntimeCallResponse
 }
 
 export async function runRegisteredSourceRequestByIdAsync(

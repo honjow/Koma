@@ -25,6 +25,21 @@ const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
 const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
+const SOURCE_INDEX_METADATA_CACHE_KEY: string = 'source_index.metadata_cache.v1'
+// Bound only the optional cache, never truncate a successful online index.
+const SOURCE_INDEX_METADATA_ENTRY_LIMIT: number = 4096
+const SOURCE_INDEX_METADATA_RECORD_LIMIT: number = 1024 * 1024
+const SOURCE_INDEX_METADATA_CACHE_LIMIT: number = 4 * 1024 * 1024
+
+interface SourceIndexMetadataCacheRecord {
+  url: string
+  entries: SourceIndexEntry[]
+}
+
+interface SourceIndexMetadataCacheDocument {
+  schemaVersion: number
+  records: SourceIndexMetadataCacheRecord[]
+}
 const SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME: string = 'source-index-icon-cache'
 const SOURCE_INDEX_ICON_CACHE_MAX_BYTES: number = 16 * 1024 * 1024
 const SOURCE_INDEX_ICON_FETCH_CONCURRENCY: number = 4
@@ -360,6 +375,43 @@ function parseIndexEntriesDocument(raw: Object): Object[] | undefined {
   return Array.isArray(sources) ? sources as Object[] : undefined
 }
 
+function parseCachedIndexEntries(raw: Object, url: string): SourceIndexEntry[] | undefined {
+  if (!Array.isArray(raw) || raw.length > SOURCE_INDEX_METADATA_ENTRY_LIMIT) return undefined
+  const entries: SourceIndexEntry[] = []
+  for (const value of raw as Object[]) {
+    // parseIndexEntry projects metadata only; persisted iconUri is never trusted.
+    const entry = parseIndexEntry(value)
+    if (entry === undefined || safeResolveIndexAssetUrl(url, entry.icon).length === 0) return undefined
+    entries.push(entry)
+  }
+  return entries
+}
+
+function parseMetadataCache(payload: Object): SourceIndexMetadataCacheRecord[] {
+  if (typeof payload !== 'string' || payload.length === 0 || payload.length > SOURCE_INDEX_METADATA_CACHE_LIMIT) return []
+  try {
+    const document = JSON.parse(payload) as Record<string, Object>
+    if (document === null || document['schemaVersion'] !== 1 || !Array.isArray(document['records'])) return []
+    const values = document['records'] as Object[]
+    if (values.length > SOURCE_INDEX_REPOSITORY_LIMIT) return []
+    const records: SourceIndexMetadataCacheRecord[] = []
+    for (const value of values) {
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) continue
+      const record = value as Record<string, Object>
+      const url = safeString(record['url'])
+      if (!isValidHttpUrl(url) || resolveIndexDocumentUrl(url) !== url || JSON.stringify(value).length > SOURCE_INDEX_METADATA_RECORD_LIMIT) continue
+      const entries = parseCachedIndexEntries(record['entries'], url)
+      if (entries === undefined || records.some((item: SourceIndexMetadataCacheRecord): boolean => item.url === url)) continue
+      records.push({ url, entries })
+    }
+    return records
+  } catch (_error) {
+    return []
+  }
+}
+
+// Shared across service instances belonging to the same application data store.
+const sourceIndexMetadataRequests: Map<string, number> = new Map()
 const sourceIndexPreferenceOperations: Map<string, Promise<void>> = new Map()
 
 export class SourceIndexService {
@@ -432,6 +484,73 @@ export class SourceIndexService {
     const result = (sourceIndexPreferenceOperations.get(key) ?? Promise.resolve()).then(operation)
     sourceIndexPreferenceOperations.set(key, result.then(() => {}, () => {}))
     return result
+  }
+
+  private metadataRequestKey(url: string): string {
+    return `${this.context.filesDir}\n${url}`
+  }
+
+  private beginMetadataRequest(url: string): number {
+    const key = this.metadataRequestKey(url)
+    const revision = (sourceIndexMetadataRequests.get(key) ?? 0) + 1
+    sourceIndexMetadataRequests.set(key, revision)
+    return revision
+  }
+
+  // Cache absence/corruption is not a repository/network failure. No user
+  // configuration or existing cache is cleared by a failed read.
+  async loadCachedIndex(indexUrl: string): Promise<SourceIndexEntry[] | undefined> {
+    const url = resolveIndexDocumentUrl(indexUrl)
+    if (!isValidHttpUrl(url)) return undefined
+    return this.ordered(async (): Promise<SourceIndexEntry[] | undefined> => {
+      try {
+        const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+        const records = parseMetadataCache(await store.get(SOURCE_INDEX_METADATA_CACHE_KEY, ''))
+        return records.find((record: SourceIndexMetadataCacheRecord): boolean => record.url === url)?.entries
+      } catch (_error) {
+        return undefined
+      }
+    })
+  }
+
+  private async persistIndexMetadata(url: string, revision: number, entries: SourceIndexEntry[]): Promise<void> {
+    // Project before yielding so icon callbacks/callers cannot mutate the saved
+    // snapshot. A cache too large to retain leaves the old cache untouched.
+    const metadata = parseCachedIndexEntries(entries as Object[], url)
+    if (metadata === undefined) return
+    const record: SourceIndexMetadataCacheRecord = { url, entries: metadata }
+    if (JSON.stringify(record).length > SOURCE_INDEX_METADATA_RECORD_LIMIT) return
+    try {
+      await this.ordered(async (): Promise<void> => {
+        await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+          const key = this.metadataRequestKey(url)
+          if (sourceIndexMetadataRequests.get(key) !== revision) return
+          const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+          const previous = await store.get(SOURCE_INDEX_METADATA_CACHE_KEY, '')
+          const records = parseMetadataCache(previous)
+            .filter((item: SourceIndexMetadataCacheRecord): boolean => item.url !== url)
+          records.unshift(record)
+          const document: SourceIndexMetadataCacheDocument = { schemaVersion: 1, records: records.slice(0, SOURCE_INDEX_REPOSITORY_LIMIT) }
+          let payload = JSON.stringify(document)
+          while (payload.length > SOURCE_INDEX_METADATA_CACHE_LIMIT && document.records.length > 1) {
+            document.records.pop()
+            payload = JSON.stringify(document)
+          }
+          if (sourceIndexMetadataRequests.get(key) !== revision) return
+          try {
+            await store.put(SOURCE_INDEX_METADATA_CACHE_KEY, payload)
+            await store.flush()
+          } catch (_error) {
+            // Do not leave an unsuccessful write in the shared Preferences
+            // memory cache. This touches only the metadata cache key.
+            await store.put(SOURCE_INDEX_METADATA_CACHE_KEY, previous)
+            await store.flush()
+          }
+        })
+      })
+    } catch (_error) {
+      // Optional persistence cannot turn an online success into failure.
+    }
   }
 
   private async savedUrl(store: preferences.Preferences): Promise<string> {
@@ -572,6 +691,7 @@ export class SourceIndexService {
       return { ok: false, reasonCode: 'invalid_url', entries: [] }
     }
 
+    const cacheRevision = this.beginMetadataRequest(normalizedUrl)
     const httpRequest = http.createHttp()
     try {
       const response = await httpRequest.request(normalizedUrl, {
@@ -612,6 +732,8 @@ export class SourceIndexService {
         }
       }
       DiagnosticLogger.info('source_index', 'fetch_ok', '[SourceIndex] step=fetch_ok count=' + entries.length)
+      // Start persistence without awaiting disk IO before publishing metadata.
+      this.persistIndexMetadata(normalizedUrl, cacheRevision, entries).catch((): void => {})
       return { ok: true, entries }
     } catch (error) {
       const e = error as BusinessError

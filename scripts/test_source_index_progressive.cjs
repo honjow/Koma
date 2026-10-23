@@ -35,6 +35,8 @@ test('usable index metadata returns without waiting for any icon download', asyn
       destroy() { destroyed = true },
     }) },
   })
+  service.beginMetadataRequest = () => 1
+  service.persistIndexMetadata = async () => {}
   service.cachedIconUriFor = () => { iconFetches++; return new Promise(() => {}) }
   const result = await service.fetchIndex('https://index.test/index.json')
   assert.equal(result.ok, true)
@@ -69,7 +71,7 @@ test('changing the index retires old icon callbacks without overwriting the new 
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
     ['showIndexEntries', 'setSourceIndexUrl'], { ...globals, tf: (_key, count) => String(count) })
   Object.assign(manager, {
-    sourceIndexUrl: 'https://old.test/index.json', indexLoadRevision: 1, savedIndexLoadRevision: 0,
+    sourceIndexUrl: 'https://old.test/index.json', indexLoadRevision: 1, indexDisplayRevision: 0, savedIndexLoadRevision: 0,
     sortedIndexEntries: entries => entries,
     sourceIndexService: { loadIndexIcons: async (_url, _entries, onReady) => { callback = onReady } },
   })
@@ -88,7 +90,7 @@ test('icon completion retains the displayed source metadata and ignores retired 
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
     ['showIndexEntries', 'setSourceIndexUrl'], { ...globals, tf: (_key, count) => String(count) })
   Object.assign(manager, {
-    sourceIndexUrl: 'https://old.test/index.json', indexLoadRevision: 1, savedIndexLoadRevision: 0,
+    sourceIndexUrl: 'https://old.test/index.json', indexLoadRevision: 1, indexDisplayRevision: 0, savedIndexLoadRevision: 0,
     sortedIndexEntries: entries => entries,
     sourceIndexService: { loadIndexIcons: async (_url, _entries, onReady) => { publish = onReady } },
   })
@@ -104,6 +106,64 @@ test('icon completion retains the displayed source metadata and ignores retired 
   publish({ ...metadata[0], iconUri: 'file://late.png' })
   assert.equal(Object.keys(manager.indexIconStates).length, 0)
   assert.equal(manager.indexEntries.length, 0)
+})
+
+test('refresh keeps displayed icons until replacements arrive, including changed package versions', () => {
+  let publish
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
+    ['showIndexEntries', 'setSourceIndexUrl'], { ...globals, tf: (_key, count) => String(count) })
+  Object.assign(manager, {
+    sourceIndexUrl: 'https://same.test/index.json', indexLoadRevision: 1, indexDisplayRevision: 0, savedIndexLoadRevision: 0,
+    sortedIndexEntries: entries => entries,
+    sourceIndexService: { loadIndexIcons: async (_url, _entries, onReady) => { publish = onReady } },
+  })
+  manager.showIndexEntries(manager.sourceIndexUrl, [entry('A'), entry('B')], 1)
+  publish({ ...entry('A'), iconUri: 'file://A-old.png' })
+  publish({ ...entry('B'), iconUri: 'file://B.png' })
+  const state = manager.indexIconStates, a = state.A, b = state.B
+  const late = publish
+  manager.indexLoadRevision = 2
+  const changed = { ...entry('A'), version: '2', icon: 'A-new.png' }
+  manager.showIndexEntries(manager.sourceIndexUrl, [changed, entry('B')], 2)
+  assert.equal(manager.indexIconStates, state)
+  assert.equal(manager.indexIconStates.A, a)
+  assert.equal(a.uri, 'file://A-old.png')
+  assert.equal(manager.indexIconStates.B, b)
+  late({ ...entry('A'), iconUri: 'file://retired.png' })
+  assert.equal(a.uri, 'file://A-old.png')
+  publish({ ...changed, iconUri: 'file://A-new.png' })
+  assert.equal(a.uri, 'file://A-new.png')
+  assert.equal(b.uri, 'file://B.png')
+  manager.setSourceIndexUrl('https://other.test/index.json')
+  manager.showIndexEntries(manager.sourceIndexUrl, [entry('A')], manager.indexLoadRevision)
+  assert.notEqual(manager.indexIconStates.A, a)
+  assert.equal(manager.indexIconStates.A.uri, '')
+})
+
+test('failed explicit refresh preserves the existing metadata, artwork and installed state', async () => {
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['fetchIndex'], {
+    ...globals, tf: key => key, t: key => key,
+  })
+  const metadata = [entry('A')], icons = { A: { uri: 'file://A.png' } }, packages = [installed('A', '1')]
+  let finish
+  Object.assign(manager, {
+    sourceIndexUrl: 'https://same.test/index.json', indexLoadRevision: 1, indexDisplayRevision: 0, savedIndexLoadRevision: 0,
+    indexFetchBusy: false, indexEntries: metadata, indexIconStates: icons, packages,
+    sourceReasonText: reason => reason,
+    sourceIndexService: { saveUrl: async () => {}, loadSavedRepositories: async () => [],
+      fetchIndex: () => new Promise(resolve => { finish = resolve }) },
+  })
+  const running = manager.fetchIndex()
+  await new Promise(setImmediate)
+  assert.equal(manager.indexFetchBusy, true)
+  assert.equal(manager.indexEntries, metadata)
+  assert.equal(manager.indexIconStates, icons)
+  finish({ ok: false, reasonCode: 'network_error', entries: [] })
+  await running
+  assert.equal(manager.indexFetchBusy, false)
+  assert.equal(manager.indexEntries, metadata)
+  assert.equal(manager.indexIconStates, icons)
+  assert.equal(manager.packages, packages)
 })
 
 function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
@@ -156,7 +216,7 @@ test('group update uses its repository and preserves a disabled source through t
     setEnabled: (_context, id, value) => calls.push(['enabled', id, value]),
   })
   Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false, packageInstallTasks:{pendingIds:[]},
-    context: () => ({}), reload() {}, installedPackage: () => installed('A','1.1',false),
+    context: () => ({}), refreshInstalledPackage() {}, installedPackage: () => installed('A','1.1',false),
     setUpdateStatus: status => calls.push(['status', status.status]), showToast() {},
     sourceIndexService: { installPackage: async (url, entry) => { calls.push(['install',url,entry.id]); return {ok:true} } },
   })
@@ -224,7 +284,7 @@ test('only successful empty settings or explicit unsupported operation establish
   assert.equal(none.ready,true); assert.equal(none.descriptors.length,0)
   const yes=await settingsCapability({ok:true,data:{settings:[{id:'region'}]}})
   assert.equal(yes.ready,true); assert.equal(yes.descriptors.length,1)
-  for (const code of ['unsupported_operation','unsupported','not_implemented']) {
+  for (const code of ['unsupported_operation','unsupported','not_implemented','not_supported']) {
     assert.equal((await settingsCapability({ok:false,error:{code}})).ready,true)
   }
   for(const response of [undefined,{ok:false,error:{code:'wasm_call_failed'}},{ok:true,data:{}}]) {
@@ -258,7 +318,7 @@ test('update-all submits merged candidates through per-source actions without a 
     busy:false, packageInstallTasks:lane, indexInstallBusy:true, updateInstallSourceId:'other',
     availablePackageUpdates:()=>candidates,
     installedPackage:id=>packages.find(item=>item.id===id),
-    context:()=>({}), reload(){}, showToast(){},
+    context:()=>({}), refreshInstalledPackage(){}, showToast(){},
     setUpdateStatus:status=>statuses.push([status.sourceId,status.status]),
     sourceIndexService:{installPackage:(url,item)=>lane.run(item.id,async()=>{
       calls.push([item.id,url])
@@ -298,4 +358,71 @@ test('activity summary names the actual running source rather than the last queu
   assert.equal(manager.packageActivityText(),'source_pkg_install_running:New source')
   manager.packageInstallTasks.runningId=''
   assert.equal(manager.packageActivityText(),'last completion')
+})
+
+function incrementalManager(oldPackages, getReplacement, load) {
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
+    'refreshInstalledPackage','reloadInstalledPackageSettings','reloadSettingsDescriptors','settingsAvailabilityText','publishSourceSettings','installedPackage',
+  ], { ...globals, getInstalledSourcePackage: getReplacement,
+    appSourceRuntimeRegistry: {}, appSourceSettingsStore: {loadForSource:()=>({})},
+    loadSourceSettingsDescriptorsAsync: load, t:key=>key, tf:key=>key,
+    sourceDisplayName:(_id,name)=>name, compareSourceNames:(left,_id,right)=>left.localeCompare(right),
+  })
+  Object.assign(manager,{packages:oldPackages,settingsReloadRevision:1,settingsSourceReloads:{},
+    settingsDescriptorSnapshot:{},settingsAvailability:{},savedSettingCounts:{},settingsValidationStatuses:[],sourceSheetSourceId:''})
+  return manager
+}
+test('single package install preserves unrelated row identities and only probes its settings',async()=>{
+  const a=installed('A','1'),b=installed('B','1'),replacement=installed('A','2'),probed=[]
+  const manager=incrementalManager([a,b],()=>replacement,async(_registry,id)=>{probed.push(id);return {ready:true,descriptors:[{id:'new'}]}})
+  const bSchema=[{id:'B-option'}];manager.settingsDescriptorSnapshot={B:bSchema}
+  manager.refreshInstalledPackage('A');await new Promise(setImmediate)
+  assert.equal(manager.installedPackage('B'),b)
+  assert.equal(manager.installedPackage('A'),replacement)
+  assert.equal(manager.settingsDescriptorSnapshot.B,bSchema)
+  assert.deepEqual(probed,['A'])
+  assert.equal(manager.settingsDescriptorSnapshot.A[0].id,'new')
+})
+test('older initial schema load cannot overwrite a newer installed package schema',async()=>{
+  const a=installed('A','1'),b=installed('B','1'),replacement=installed('A','2')
+  let finishOld,calls=0
+  const manager=incrementalManager([a,b],()=>replacement,async(_registry,id)=>{
+    if(id==='A' && calls++===0)return new Promise(resolve=>{finishOld=resolve})
+    return {ready:true,descriptors:[{id:id==='A'?'new-A':'current-B'}]}
+  })
+  const oldLoad=manager.reloadSettingsDescriptors(manager.packages.slice(),1)
+  await new Promise(setImmediate)
+  manager.refreshInstalledPackage('A');await new Promise(setImmediate)
+  finishOld({ready:true,descriptors:[{id:'old-A'}]});await oldLoad
+  assert.equal(manager.settingsDescriptorSnapshot.A[0].id,'new-A')
+  assert.equal(manager.settingsDescriptorSnapshot.B[0].id,'current-B')
+})
+
+function savedIndexManager(loadCachedIndex) {
+  const shown=[], checks=[]
+  const manager=subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',
+    ['loadSavedIndexUrl','setSourceIndexUrl'],{...globals,tf:key=>key})
+  Object.assign(manager,{savedIndexLoadRevision:0,indexLoadRevision:0,indexDisplayRevision:0,sourceIndexUrl:'',initialSettingsSourceId:'',
+    sourceIndexService:{loadSavedUrl:async()=> 'https://saved.test/index.json',loadSavedRepositories:async()=>[],loadCachedIndex},
+    showIndexEntries:(url,entries)=>shown.push({url,entries}),checkInstalledUpdates:async()=>{checks.push(shown.length)},sourceReasonText:r=>r})
+  return {manager,shown,checks}
+}
+test('opening manager shows persisted metadata before launching background revalidation',async()=>{
+  const metadata=[entry('A')], f=savedIndexManager(async()=>metadata)
+  await f.manager.loadSavedIndexUrl()
+  assert.equal(f.shown[0].entries,metadata);assert.equal(f.shown[0].url,'https://saved.test/index.json')
+  assert.deepEqual(f.checks,[1])
+  const empty=savedIndexManager(async()=>[]);await empty.manager.loadSavedIndexUrl()
+  assert.equal(empty.shown.length,1);assert.equal(empty.shown[0].entries.length,0);assert.deepEqual(empty.checks,[1])
+  const missing=savedIndexManager(async()=>undefined);await missing.manager.loadSavedIndexUrl()
+  assert.equal(missing.shown.length,0);assert.deepEqual(missing.checks,[0])
+})
+test('late cached metadata cannot overwrite another selected repository or trigger its old refresh',async()=>{
+  let finish
+  const f=savedIndexManager(()=>new Promise(resolve=>{finish=resolve}))
+  const running=f.manager.loadSavedIndexUrl();await new Promise(setImmediate)
+  f.manager.setSourceIndexUrl('https://other.test/index.json')
+  finish([entry('old')]);await running
+  assert.equal(f.shown.length,0);assert.equal(f.checks.length,0)
+  assert.equal(f.manager.sourceIndexUrl,'https://other.test/index.json')
 })

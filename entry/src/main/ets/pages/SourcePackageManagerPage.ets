@@ -7,6 +7,7 @@ import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedName
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -22,6 +23,7 @@ import {
   appSourceRuntimeRegistry,
   installFromArchive,
   listInstalled,
+  getInstalledSourcePackage,
   pickSourcePackageArchive,
   remove,
   runSmokeAsync,
@@ -155,8 +157,11 @@ export struct SourcePackageManagerPage {
   @Local private sourceSettingsSheetShown: boolean = false
   @Local private settingsDescriptorSnapshot: Record<string, SourceSettingDescriptor[]> = {}
   private settingsReloadRevision: number = 0
+  private settingsSourceReloads: Record<string, number> = {}
   private savedIndexLoadRevision: number = 0
   private indexLoadRevision: number = 0
+  private indexDisplayRevision: number = 0
+  private displayedIndexUrl: string = ''
   @Local private sourceIndexSheetShown: boolean = false
   @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
   @Local private pendingSourceSheetSourceId: string = ''
@@ -189,6 +194,7 @@ export struct SourcePackageManagerPage {
   aboutToDisappear(): void {
     this.settingsRouteActive = false
     this.indexLoadRevision += 1
+    this.indexDisplayRevision += 1
     this.savedIndexLoadRevision += 1
     this.settingsReloadRevision += 1
   }
@@ -208,28 +214,42 @@ export struct SourcePackageManagerPage {
     if (value === this.sourceIndexUrl) return
     this.savedIndexLoadRevision += 1
     this.indexLoadRevision += 1
+    this.indexDisplayRevision += 1
     this.sourceIndexUrl = value
     this.indexFetchBusy = false
     this.indexEntries = []
     this.indexIconStates = {}
+    this.displayedIndexUrl = ''
     this.indexStatusText = ''
   }
 
   private showIndexEntries(indexUrl: string, entries: SourceIndexEntry[], revision: number): void {
     if (revision !== this.indexLoadRevision) return
+    // Refresh the same repository without taking displayed artwork away.
+    // A changed package still loads its versioned icon and replaces the old URI
+    // only when that replacement is ready. Switching repositories clears it.
+    const previous = this.indexIconStates ?? {}
+    const sameRepository = this.displayedIndexUrl === indexUrl
     const icons: Record<string, SourceIdentityIconState> = {}
-    entries.forEach((entry: SourceIndexEntry): void => { icons[entry.id] = new SourceIdentityIconState() })
-    this.indexIconStates = icons
+    entries.forEach((entry: SourceIndexEntry): void => {
+      icons[entry.id] = (sameRepository ? previous[entry.id] : undefined) ?? new SourceIdentityIconState()
+    })
+    if (!sameRepository || Object.keys(previous).length !== entries.length ||
+      entries.some((entry: SourceIndexEntry): boolean => previous[entry.id] !== icons[entry.id])) {
+      this.indexIconStates = icons
+    }
+    this.displayedIndexUrl = indexUrl
     this.indexEntries = this.sortedIndexEntries(entries)
     this.indexStatusText = tf('source_pkg_index_loaded', entries.length)
+    const iconRevision = ++this.indexDisplayRevision
     void this.sourceIndexService.loadIndexIcons(indexUrl, entries, (ready: SourceIndexEntry): void => {
-      if (revision !== this.indexLoadRevision) return
+      if (iconRevision !== this.indexDisplayRevision) return
       if (!this.indexEntries.some((entry: SourceIndexEntry): boolean =>
         entry.id === ready.id && entry.version === ready.version && entry.icon === ready.icon)) return
       // Keep media observation inside the prefix; do not update the HDS text row.
       const icon = this.indexIconStates[ready.id]
       if (icon !== undefined) icon.uri = ready.iconUri ?? ''
-    }, (): boolean => revision === this.indexLoadRevision).catch((_error: Error): void => {
+    }, (): boolean => iconRevision === this.indexDisplayRevision).catch((_error: Error): void => {
       DiagnosticLogger.warn('source_package_manager_page', 'icons_incomplete', 'Index entries remain available')
     })
   }
@@ -261,23 +281,88 @@ export struct SourcePackageManagerPage {
     void this.reloadSettingsDescriptors(packages, revision)
   }
 
+  private settingsAvailabilityText(descriptors: SourceSettingDescriptor[]): string {
+    if (descriptors.length === 0) return t('source_pkg_settings_none')
+    const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
+    return tf('source_pkg_settings_editable', editable, descriptors.length)
+  }
+
   private async reloadSettingsDescriptors(packages: InstalledSourcePackage[], revision: number): Promise<void> {
-    const snapshot: Record<string, SourceSettingDescriptor[]> = {}
-    const availability: Record<string, string> = {}
+    const sourceRevisions: Record<string, number> = {}
+    packages.forEach((source: InstalledSourcePackage): void => {
+      sourceRevisions[source.id] = this.settingsSourceReloads[source.id] ?? 0
+    })
+    const loaded: Record<string, SourceSettingDescriptor[]> = {}
     for (const source of packages) {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
       if (revision !== this.settingsReloadRevision) return
-      if (!result.ready) continue
-      const descriptors = result.descriptors
-      snapshot[source.id] = descriptors
-      if (descriptors.length === 0) {
-        availability[source.id] = t('source_pkg_settings_none')
-      } else {
-        const editable = descriptors.filter((descriptor: SourceSettingDescriptor): boolean => descriptor.supported && !descriptor.sensitive).length
-        availability[source.id] = tf('source_pkg_settings_editable', editable, descriptors.length)
-      }
+      if (result.ready) loaded[source.id] = result.descriptors
     }
-    if (revision !== this.settingsReloadRevision) return
+    const snapshot: Record<string, SourceSettingDescriptor[]> = {}
+    const availability: Record<string, string> = {}
+    this.packages.forEach((source: InstalledSourcePackage): void => {
+      // An install may complete while the initial page load is still in flight.
+      // Never overwrite that source's newer schema with the old load's result.
+      const unchanged = packages.includes(source) &&
+        sourceRevisions[source.id] === (this.settingsSourceReloads[source.id] ?? 0)
+      const descriptors = (unchanged ? loaded[source.id] : undefined) ?? this.settingsDescriptorSnapshot[source.id]
+      if (descriptors !== undefined) {
+        snapshot[source.id] = descriptors
+        availability[source.id] = this.settingsAvailabilityText(descriptors)
+      }
+    })
+    this.settingsDescriptorSnapshot = snapshot
+    this.settingsAvailability = availability
+  }
+
+  private refreshInstalledPackage(sourceId: string): void {
+    const source = getInstalledSourcePackage(sourceId)
+    if (source === undefined) return
+    // Preserve every unaffected row's input identity; only this package changed.
+    const packages = this.packages.filter((item: InstalledSourcePackage): boolean => item.id !== sourceId)
+    packages.push(source)
+    this.packages = packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
+      compareSourceNames(sourceDisplayName(left.id, left.name), left.id, sourceDisplayName(right.id, right.name), right.id))
+    if (this.sourceSheetSourceId === sourceId) this.sourceSheetRetainedSource = source
+    try {
+      const count = Object.keys(appSourceSettingsStore.loadForSource(sourceId)).length
+      const counts: Record<string, number> = {}
+      Object.keys(this.savedSettingCounts).forEach((id: string): void => { counts[id] = this.savedSettingCounts[id] })
+      counts[sourceId] = count
+      this.savedSettingCounts = counts
+      if (!this.settingsValidationStatuses.some((item: SourceSettingsValidationStatus): boolean => item.sourceId === sourceId)) {
+        const status: SourceSettingsValidationStatus = { sourceId, status: 'unknown', savedCount: count }
+        this.settingsValidationStatuses = this.settingsValidationStatuses.concat(status)
+      }
+    } catch (_error) {
+      this.savedSettingsReadFailed = true
+    }
+    const sourceRevision = (this.settingsSourceReloads[sourceId] ?? 0) + 1
+    this.settingsSourceReloads[sourceId] = sourceRevision
+    this.publishSourceSettings(sourceId)
+    void this.reloadInstalledPackageSettings(source, this.settingsReloadRevision, sourceRevision)
+  }
+
+  private async reloadInstalledPackageSettings(source: InstalledSourcePackage, revision: number, sourceRevision: number): Promise<void> {
+    const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+    if (revision !== this.settingsReloadRevision || sourceRevision !== this.settingsSourceReloads[source.id] ||
+      this.installedPackage(source.id) !== source || !result.ready) return
+    this.publishSourceSettings(source.id, result.descriptors)
+  }
+
+  private publishSourceSettings(sourceId: string, descriptors?: SourceSettingDescriptor[]): void {
+    const snapshot: Record<string, SourceSettingDescriptor[]> = {}
+    const availability: Record<string, string> = {}
+    Object.keys(this.settingsDescriptorSnapshot).forEach((id: string): void => {
+      if (id !== sourceId) snapshot[id] = this.settingsDescriptorSnapshot[id]
+    })
+    Object.keys(this.settingsAvailability).forEach((id: string): void => {
+      if (id !== sourceId) availability[id] = this.settingsAvailability[id]
+    })
+    if (descriptors !== undefined) {
+      snapshot[sourceId] = descriptors
+      availability[sourceId] = this.settingsAvailabilityText(descriptors)
+    }
     this.settingsDescriptorSnapshot = snapshot
     this.settingsAvailability = availability
   }
@@ -291,6 +376,18 @@ export struct SourcePackageManagerPage {
       if (revision !== this.savedIndexLoadRevision) return
       if (saved.length > 0 && this.sourceIndexUrl === previousUrl) this.setSourceIndexUrl(saved)
       this.sourceIndexRepositories = repositories
+      // A direct source-settings route is not an index-browsing request.
+      if (this.initialSettingsSourceId.length > 0) return
+      const url = this.sourceIndexUrl.trim()
+      if (url.length === 0) return
+      const savedRevision = this.savedIndexLoadRevision
+      const indexRevision = ++this.indexLoadRevision
+      const cached = await this.sourceIndexService.loadCachedIndex(url)
+      if (savedRevision !== this.savedIndexLoadRevision || indexRevision !== this.indexLoadRevision ||
+        url !== this.sourceIndexUrl.trim()) return
+      if (cached !== undefined) this.showIndexEntries(url, cached, indexRevision)
+      // Existing metadata/artwork remains usable while the network revalidates.
+      void this.checkInstalledUpdates()
     } catch (_error) {
       if (revision !== this.savedIndexLoadRevision) return
       this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('unknown'))
@@ -821,13 +918,8 @@ export struct SourcePackageManagerPage {
     console.info('[SourcePackageUpdate] step=check_start count=' + count)
     this.updateCheckBusy = true
     this.statusText = t('source_pkg_check_updates_running')
-    this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
-      return {
-        sourceId: source.id,
-        status: 'checking',
-        localVersion: source.version,
-      }
-    })
+    // The summary owns the in-flight indicator. Keep the last known per-source
+    // results (and their groups) until this check has a replacement result.
     try {
       await this.sourceIndexService.saveUrl(url)
       this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
@@ -956,7 +1048,7 @@ export struct SourcePackageManagerPage {
         if (!wasEnabled) {
           setEnabled(this.context(), source.id, false)
         }
-        this.reload()
+        this.refreshInstalledPackage(source.id)
         const installed = this.installedPackage(source.id)
         this.setUpdateStatus({
           sourceId: source.id,
@@ -1186,8 +1278,6 @@ export struct SourcePackageManagerPage {
     const revision = ++this.indexLoadRevision
     this.indexFetchBusy = true
     this.indexStatusText = t('source_pkg_index_loading')
-    this.indexEntries = []
-    this.indexIconStates = {}
     try {
       await this.sourceIndexService.saveUrl(url)
       const repositories = await this.sourceIndexService.loadSavedRepositories()
@@ -1251,7 +1341,7 @@ export struct SourcePackageManagerPage {
         }
         this.indexStatusText = replaceExisting ? tf('source_pkg_update_done', this.indexDisplayName(entry)) : tf('source_pkg_install_done', this.indexDisplayName(entry))
         this.showToast(replaceExisting ? t('source_pkg_toast_updated') : t('source_pkg_toast_install_success'))
-        this.reload()
+        this.refreshInstalledPackage(entry.id)
       } else {
         this.indexStatusText = replaceExisting
           ? tf('source_pkg_update_failed', this.sourceReasonText(result.reasonCode))
@@ -2062,36 +2152,19 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private PackageCard(sourceId: string, candidate?: SourcePackageUpdateCandidate) {
-    ConciseListRow({
-      title: sourceDisplayName(sourceId, this.installedPackage(sourceId)?.name ?? ''),
-      subtitle: candidate === undefined ? this.packageListMetaText(this.installedPackage(sourceId))
+  private PackageCard(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate) {
+    SourcePackageListItem({
+      source,
+      subtitle: candidate === undefined ? this.packageListMetaText(source)
         : this.indexVersionText(candidate.entry) + (sourceLanguageName(candidate.entry.lang).length > 0 ? ' · ' + sourceLanguageName(candidate.entry.lang) : ''),
-      showChevron: candidate === undefined,
-      trailingText: candidate === undefined
-        ? t((this.installedPackage(sourceId)?.enabled ?? false) ? 'source_pkg_enabled' : 'source_pkg_disabled') : '',
-      actionButtonText: candidate !== undefined ? this.updateActionLabel(sourceId) : '',
-      actionButtonEnabled: !this.busy && !this.packageInstallPending(sourceId),
-      actionButtonAction: () => {
-        const source = this.installedPackage(sourceId)
-        if (source !== undefined && candidate !== undefined) void this.updateInstalledPackage(source, candidate)
+      updateAvailable: candidate !== undefined,
+      updateLabel: candidate !== undefined ? this.updateActionLabel(source.id) : '',
+      updateEnabled: candidate === undefined || (!this.busy && !this.packageInstallPending(source.id)),
+      remoteNsfw: candidate?.entry.nsfw ?? false,
+      onUpdate: (selected: InstalledSourcePackage): void => {
+        if (candidate !== undefined) void this.updateInstalledPackage(selected, candidate)
       },
-      hasSourceIdentityPrefix: true,
-      sourceIdentityIconUri: this.installedPackage(sourceId)?.icon ?? '',
-      sourceIdentitySourceId: sourceId,
-      sourceIdentityVersion: this.installedPackage(sourceId)?.version ?? '',
-      sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
-      prefixPaddingLeft: ThemeConstants.SPACE_MD,
-      prefixPaddingRight: ThemeConstants.SPACE_SM,
-      primaryColor: ThemeConstants.TEXT_PRIMARY,
-      subtitleContentRating: (this.installedPackage(sourceId)?.nsfw ?? false) || (candidate?.entry.nsfw ?? false),
-      secondaryColor: (this.installedPackage(sourceId)?.enabled ?? false) ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
-      action: () => {
-        const source = this.installedPackage(sourceId)
-        if (source !== undefined) {
-          this.openSourceSheet(source)
-        }
-      },
+      onOpen: (selected: InstalledSourcePackage): void => { this.openSourceSheet(selected) },
     })
   }
 
@@ -2395,10 +2468,10 @@ export struct SourcePackageManagerPage {
           action: () => { this.updateAllAvailablePackages() },
         }) {
           ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
-            this.PackageCard(candidate.entry.id, candidate)
-            if (index + 1 < groups.updates.length) { ListDivider() }
-          }, (candidate: SourcePackageUpdateCandidate) => JSON.stringify([candidate.entry.id, candidate.entry.version,
-            this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw]))
+            this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
+            if (candidate.entry.id !== groups.updates[groups.updates.length - 1].entry.id) { ListDivider() }
+          }, (candidate: SourcePackageUpdateCandidate, _index: number) => JSON.stringify([candidate.entry.id, candidate.entry.version,
+            this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw, candidate.entry.id !== groups.updates[groups.updates.length - 1].entry.id]))
         }
       }
     }
@@ -2407,8 +2480,8 @@ export struct SourcePackageManagerPage {
         GroupedListSection({ title: t('source_pkg_uninstalled_heading') }) {
           ForEach(groups.missing, (entry: SourceIndexEntry, index: number) => {
             this.RemoteIndexCard(entry)
-            if (index + 1 < groups.missing.length) { ListDivider() }
-          }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
+            if (entry.id !== groups.missing[groups.missing.length - 1].id) { ListDivider() }
+          }, (entry: SourceIndexEntry, _index: number) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw, entry.id !== groups.missing[groups.missing.length - 1].id]))
         }
       }
     }
@@ -2416,9 +2489,9 @@ export struct SourcePackageManagerPage {
       ListItem() {
         GroupedListSection({ title: t('source_pkg_installed_heading') }) {
           ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
-            this.PackageCard(source.id)
-            if (index + 1 < groups.installed.length) { ListDivider() }
-          }, (source: InstalledSourcePackage) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw]))
+            this.PackageCard(source)
+            if (source.id !== groups.installed[groups.installed.length - 1].id) { ListDivider() }
+          }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang, source.id !== groups.installed[groups.installed.length - 1].id]))
         }
       }
     }

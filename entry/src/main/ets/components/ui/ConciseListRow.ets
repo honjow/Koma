@@ -46,6 +46,7 @@ export struct ConciseListRow {
   @Param sourceIdentityVersion: string = ''
   @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
   @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
+  private sourceIdentityPrefixItem: PrefixCustomBuilder | undefined = undefined
   @Param count: number = -1
   @Param destructive: boolean = false
   @Param showChevron: boolean = true
@@ -461,10 +462,16 @@ export struct ConciseListRow {
   }
 
   private prefixItem(): PrefixImage | PrefixCustomBuilder | undefined {
-    if (this.hasSourceIdentityPrefix || this.prefixBuilderParam) {
-      return new PrefixCustomBuilder(() => {
-        this.WrappedPrefixBuilder()
-      })
+    if (this.hasSourceIdentityPrefix) {
+      // A suffix action changing state must not replace the native prefix item.
+      // The existing builder observes only the actual icon inputs and URI.
+      if (this.sourceIdentityPrefixItem === undefined) {
+        this.sourceIdentityPrefixItem = new PrefixCustomBuilder(() => { this.WrappedPrefixBuilder() })
+      }
+      return this.sourceIdentityPrefixItem
+    }
+    if (this.prefixBuilderParam) {
+      return new PrefixCustomBuilder(() => { this.WrappedPrefixBuilder() })
     }
     if (this.leadingIcon !== undefined) {
       return new PrefixCustomBuilder(() => {
