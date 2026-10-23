@@ -361,6 +361,11 @@ export struct MangaDetailPage {
   }
 
   private syncTitleActions(): void {
+    if (this.sourceDetailContentState === SourceDetailContentState.LOCAL ||
+      this.sourceDetailContentState === SourceDetailContentState.READY) {
+      const title = this.manga?.title?.trim() ?? ''
+      this.chrome.resolvedTitle = title === s('manga_detail_title_fallback') ? '' : title
+    }
     const actionsAvailable = this.shouldRenderDetailActions()
     this.chrome.pageActionsAvailable = actionsAvailable
     this.chrome.webActionsAvailable = actionsAvailable && this.mangaWebUrl() !== undefined

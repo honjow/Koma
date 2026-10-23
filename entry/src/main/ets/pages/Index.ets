@@ -2869,6 +2869,8 @@ struct Index {
   }
 
   private mangaDetailTitle(param: MangaDetailRouteParam): string {
+    const resolvedTitle = param.chrome?.resolvedTitle?.trim() ?? ''
+    if (resolvedTitle.length > 0) return resolvedTitle
     const initialTitle = param.initialManga?.title?.trim() ?? ''
     if (initialTitle.length > 0) {
       return initialTitle
@@ -2883,7 +2885,7 @@ struct Index {
     if (comicTitle.length > 0) {
       return comicTitle
     }
-    return AppStrings.get('manga_detail_title_fallback')
+    return ''
   }
 
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {

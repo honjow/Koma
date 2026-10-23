@@ -64,7 +64,7 @@ for (const [comicId, sourceId, title] of [
 }
 assert.equal(index.mangaDetailTitle({ mangaId: ' remote-1 ', sourceId: ' source-a ' }), 'Source A title')
 assert.equal(index.mangaDetailTitle({ mangaId: 'remote-1', sourceId: 'missing-source' }),
-  s('manga_detail_title_fallback'), 'Missing source must not fall back to a colliding local ID')
+  '', 'Missing source must not fall back to a colliding local ID')
 
 downloads.openDownloadEntry({ comicId: 'local-result' })
 assert.deepEqual(routes.at(-1), { mangaId: 'local-result' })
@@ -79,8 +79,14 @@ assert.equal(index.mangaDetailTitle({ mangaId: 'remote-1', sourceId: 'source-a',
   initialManga: { title: '  ' } }), 'Source A title')
 for (const route of [{ mangaId: 'missing' }, { mangaId: 'blank-title' },
   { mangaId: 'missing', sourceId: 'source-a' }]) {
-  assert.equal(index.mangaDetailTitle(route), s('manga_detail_title_fallback'))
+  assert.equal(index.mangaDetailTitle(route), '')
 }
+
+assert.equal(index.mangaDetailTitle({ mangaId: 'remote-1', sourceId: 'source-a',
+  initialManga: { title: 'Search preview' }, chrome: { resolvedTitle: 'Loaded actual title' } }),
+  'Loaded actual title', 'A detail response publishes only its route-local loaded title')
+assert.equal(index.mangaDetailTitle({ mangaId: 'missing', chrome: { resolvedTitle: '  ' } }), '',
+  'Unknown titles keep the bar empty instead of showing an untitled placeholder')
 
 const count = routes.length
 downloads.openDownloadEntry({ comicId: 'missing' })

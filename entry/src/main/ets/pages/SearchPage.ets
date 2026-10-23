@@ -508,7 +508,17 @@ export struct SearchPage {
       return
     }
     if (item.sourceKind === 'wasm' && item.sourceId !== undefined && item.sourceMangaId !== undefined) {
-      RouterHelper.pushMangaDetail({ mangaId: item.sourceMangaId, sourceId: item.sourceId })
+      RouterHelper.pushMangaDetail({
+        mangaId: item.sourceMangaId,
+        sourceId: item.sourceId,
+        initialManga: {
+          id: item.sourceMangaId,
+          sourceId: item.sourceId,
+          title: item.title,
+          coverUrl: item.coverUri,
+          url: item.sourceMangaUrl,
+        },
+      })
       return
     }
     if (item.sourceKind === 'komga') {
