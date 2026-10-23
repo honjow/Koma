@@ -62,6 +62,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private configs: Map<string, ReaderSessionConfig> = new Map()
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()
   private preparedUnits: Map<string, ReaderUnit> = new Map()
+  private preparingUnits: Map<string, Promise<ReaderUnit>> = new Map()
+  private preparationCancellation: ReaderCancellation = new ReaderCancellation()
+  private sourceRequests: Map<string, Promise<string>> = new Map()
+  private chapterPreloadEnabled: boolean
   private closed: boolean = false
   private catalogFailureText: string = ''
 
@@ -73,7 +77,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
 
   private unitId(key: ReaderUnitKey): string { return JSON.stringify([key.scope, key.work, key.unit]) }
 
-  constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null, requestContext?: common.UIAbilityContext) {
+  constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null,
+    requestContext?: common.UIAbilityContext, chapterPreloadEnabled: boolean = false) {
+    this.chapterPreloadEnabled = chapterPreloadEnabled
     this.requestContext = requestContext
     this.filesDir = filesDir
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
@@ -101,20 +107,46 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     return prepared !== undefined ? prepared.copy() : this.prepare(key, cancellation)
   }
 
-  /** Host preparation leaves the active reader untouched; open consumes this metadata without repeating I/O. */
+  /** One reader entry shares prepared catalogs and their in-flight host request.
+   * Cancelling a prefetch consumer must not cancel a foreground chapter join. */
   async prepare(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderUnit> {
-    cancellation.check()
-    if (this.closed || key.scope !== 'koma-local') throw new Error('invalid_koma_reader_scope')
     this.catalogFailureText = ''
-    let hosted: ReaderSessionConfig | null = null
     try {
-      hosted = await this.catalogHost?.prepare(key, cancellation) ?? null
+      return await this.prepareShared(key, cancellation)
     } catch (error) {
       cancellation.check()
       if (this.closed) throw new Error('closed_koma_reader')
       this.catalogFailureText = KomaReaderFailure.catalogMessage(error as Error)
       throw error as Error
     }
+  }
+
+  private async prepareShared(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderUnit> {
+    cancellation.check()
+    if (this.closed || key.scope !== 'koma-local') throw new Error('invalid_koma_reader_scope')
+    const id = this.unitId(key)
+    const prepared = this.preparedUnits.get(id)
+    if (prepared !== undefined) return prepared.copy()
+    let pending = this.preparingUnits.get(id)
+    if (pending === undefined) {
+      const request = this.prepareUnit(key.copy(), this.preparationCancellation)
+      this.preparingUnits.set(id, request)
+      const retire = (): void => {
+        if (this.preparingUnits.get(id) === request) this.preparingUnits.delete(id)
+      }
+      void request.then(retire, retire)
+      pending = request
+    }
+    const unit = await pending
+    cancellation.check()
+    if (this.closed) throw new Error('closed_koma_reader')
+    return unit.copy()
+  }
+
+  private async prepareUnit(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderUnit> {
+    cancellation.check()
+    if (this.closed) throw new Error('closed_koma_reader')
+    const hosted = await this.catalogHost?.prepare(key, cancellation) ?? null
     if (hosted !== null) return this.installConfig(key, hosted, cancellation)
     const comic = this.library.getComic(key.work)
     if (comic === undefined || !comic.chapters.some((chapter) => chapter.id === key.unit)) {
@@ -207,6 +239,40 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     return config === undefined ? null : cloneReaderSessionConfig(config)
   }
 
+  /** Only the host's verified continuation sequence authorizes speculative work. */
+  async preloadNextUnit(unit: ReaderUnit, depth: number, cancellation: ReaderCancellation): Promise<void> {
+    cancellation.check()
+    if (!this.chapterPreloadEnabled || this.closed) return
+    const sequence = this.configs.get(this.unitId(unit.key))?.continuationChapterIds
+    if (sequence === undefined) return
+    const index = sequence.indexOf(unit.key.unit)
+    if (index < 0 || index + 1 >= sequence.length) return
+    const next = new ReaderUnitKey(unit.key.scope, unit.key.work, sequence[index + 1])
+    const prepared = await this.prepareShared(next, cancellation)
+    for (let page = 0; page < Math.min(depth, prepared.pageCount); page += 1) {
+      cancellation.check()
+      const descriptor = await this.page(prepared, page, cancellation)
+      await this.preload(descriptor, cancellation)
+    }
+  }
+
+  /** Share descriptor resolution and image transport before the file-cache layer. */
+  private sourceFile(key: ReaderUnitKey, index: number): Promise<string> {
+    if (this.closed) return Promise.reject(new Error('closed_koma_reader'))
+    const source = this.sources.get(this.unitId(key))?.[index]
+    if (source === undefined) return Promise.reject(new Error('missing_koma_page_source'))
+    const id = JSON.stringify([this.unitId(key), index])
+    const pending = this.sourceRequests.get(id)
+    if (pending !== undefined) return pending
+    const request = fetchAndCacheReaderRemoteSource(source, this.requestContext)
+    this.sourceRequests.set(id, request)
+    const retire = (): void => {
+      if (this.sourceRequests.get(id) === request) this.sourceRequests.delete(id)
+    }
+    void request.then(retire, retire)
+    return request
+  }
+
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
     cancellation.check()
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
@@ -214,7 +280,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=local-skip`)
       return
     }
-    await fetchAndCacheReaderRemoteSource(source, this.requestContext)
+    await this.sourceFile(page.unit, page.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
@@ -227,7 +293,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       throw new Error('koma_lab_share_source_unavailable')
     }
     cancellation.check()
-    const filePath = await fetchAndCacheReaderRemoteSource(source, this.requestContext)
+    const filePath = await this.sourceFile(target.unit.key, target.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     return new KomaReaderLabImageShareSource(filePath,
@@ -243,7 +309,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       const config = this.configs.get(this.unitId(page.unit))
       throw KomaReaderFailure.sourceError(config?.sourceFailureReason, config?.sourceFailure)
     }
-    const filePath = await fetchAndCacheReaderRemoteSource(source, this.requestContext)
+    const filePath = await this.sourceFile(page.unit, page.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     if (kind === 'thumbnail') return this.thumbnails.load(filePath, cancellation)
@@ -256,6 +322,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
 
   close(): void {
     this.closed = true
+    this.preparationCancellation.cancel()
+    this.preparingUnits.clear()
+    this.sourceRequests.clear()
     this.thumbnails.close()
     this.configs.clear()
     this.sources.clear()

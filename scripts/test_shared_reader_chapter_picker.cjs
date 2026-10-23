@@ -243,3 +243,109 @@ test('a newer opening layout retires its earlier callback and closed/replaced ca
   f.page.restoreChapterPickerPosition(); f.page.chapterPickerShown = false; f.frame()
   assert.equal(f.scrolls.length, 1)
 })
+
+
+const sharedCore = require('../../reader-kit/tests/load-core.cjs')('ReaderSession')
+function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri) {
+  const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
+    ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'preloadNextUnit',
+      'page', 'preload', 'sourceFile', 'load', 'close'], {
+      ...sharedCore, KomaReaderFailure: { catalogMessage: error => error.message },
+      ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2 },
+      createReaderPageRenderSources: config => config.pageUris.map(imageUri => ({ kind: 1, imageUri })),
+      fetchAndCacheReaderRemoteSource: fetchSource,
+      KomaReaderFileInformation: class {}, ReaderFileCropSource: class {},
+    })
+  const adapter = new Adapter()
+  Object.assign(adapter, { configs: new Map(), sources: new Map(), preparedUnits: new Map(),
+    preparingUnits: new Map(), sourceRequests: new Map(), closed: false, chapterPreloadEnabled: true,
+    preparationCancellation: new sharedCore.ReaderCancellation(), catalogFailureText: 'visible failure',
+    catalogHost: { prepare: hostPrepare }, thumbnails: { close() {} },
+  })
+  return adapter
+}
+function unitKey(unit) { return new sharedCore.ReaderUnitKey('koma-local', 'work', unit) }
+function chapterConfig(unit = 'B') {
+  return { comicId: 'work', chapterId: unit, totalPages: 3, pageUris: [unit + '0', unit + '1', unit + '2'],
+    chapterIds: ['A', 'B', 'C'], continuationChapterIds: ['A', 'B', 'C'] }
+}
+const later = () => new Promise(setImmediate)
+test('concurrent chapter consumers share host preparation; cancelling one does not reject the other', async () => {
+  let finish, count = 0
+  const adapter = preparationFixture(() => { count++; return new Promise(resolve => { finish = resolve }) })
+  const cancelled = new sharedCore.ReaderCancellation(), current = new sharedCore.ReaderCancellation()
+  const first = adapter.prepare(unitKey('B'), cancelled), second = adapter.prepare(unitKey('B'), current)
+  const firstFailure = assert.rejects(first, /cancel/)
+  assert.equal(count, 1)
+  cancelled.cancel(); finish(chapterConfig())
+  await firstFailure
+  const ready = await second
+  assert.equal(ready.pageCount, 3)
+  assert.equal((await adapter.prepare(unitKey('B'), current)).pageCount, 3)
+  assert.equal(count, 1)
+  assert.equal(adapter.preparingUnits.size, 0)
+  adapter.close()
+})
+test('failed preparation is not cached and a real foreground retry can resolve it', async () => {
+  let count = 0
+  const adapter = preparationFixture(async () => { if (++count === 1) throw Error('unavailable'); return chapterConfig() })
+  await assert.rejects(adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation()), /unavailable/)
+  assert.equal(adapter.preparedUnits.size, 0)
+  assert.equal((await adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation())).pageCount, 3)
+  assert.equal(count, 2)
+  adapter.close()
+})
+test('next-unit prefetch requires a verified sequence, warms only its configured prefix and never commits progress', async () => {
+  let preparations = 0
+  const fetched = []
+  const adapter = preparationFixture(async () => { preparations++; return chapterConfig() },
+    async source => { fetched.push(source.imageUri); return '/cache/' + source.imageUri })
+  const unit = new sharedCore.ReaderUnit(unitKey('A'), 'current', 8)
+  const id = adapter.unitId(unit.key)
+  adapter.configs.set(id, { ...chapterConfig('A'), continuationChapterIds: undefined })
+  await adapter.preloadNextUnit(unit, 2, new sharedCore.ReaderCancellation())
+  assert.equal(preparations, 0, 'the full manual picker catalog is not automatic adjacency')
+  adapter.configs.set(id, chapterConfig('A'))
+  await adapter.preloadNextUnit(unit, 2, new sharedCore.ReaderCancellation())
+  assert.equal(preparations, 1)
+  assert.deepEqual(fetched, ['B0', 'B1'])
+  assert.equal(adapter.catalogFailureText, 'visible failure', 'speculation must not replace a foreground diagnostic')
+  assert.equal(unit.key.unit, 'A')
+  adapter.chapterPreloadEnabled = false
+  await adapter.preloadNextUnit(new sharedCore.ReaderUnit(unitKey('B'), 'next', 3), 2,
+    new sharedCore.ReaderCancellation())
+  assert.equal(preparations, 1, 'read-only/debug consumers do not gain network speculation')
+  adapter.close()
+})
+test('foreground body joins a warming image before descriptor resolution; retired prefetch stops further images', async () => {
+  let finishImage, preparations = 0, images = 0
+  const adapter = preparationFixture(async () => { preparations++; return chapterConfig() },
+    () => { images++; return new Promise(resolve => { finishImage = resolve }) })
+  const current = new sharedCore.ReaderUnit(unitKey('A'), 'current', 8)
+  adapter.configs.set(adapter.unitId(current.key), chapterConfig('A'))
+  const warming = new sharedCore.ReaderCancellation()
+  const prefetch = adapter.preloadNextUnit(current, 2, warming)
+  const retired = assert.rejects(prefetch, /cancel/)
+  await later(); assert.equal(images, 1)
+  const foreground = new sharedCore.ReaderCancellation()
+  const ready = await adapter.prepare(unitKey('B'), foreground)
+  const page = await adapter.page(ready, 0, foreground)
+  const body = adapter.load(page, 'original', foreground, false)
+  assert.equal(images, 1)
+  warming.cancel(); finishImage('/cache/B0')
+  assert.equal((await body).uri, 'file:///cache/B0')
+  await retired
+  assert.equal(preparations, 1)
+  assert.equal(images, 1)
+  assert.equal(adapter.sourceRequests.size, 0)
+  adapter.close()
+})
+test('closing retires a pending catalog before it can install late pages', async () => {
+  let finish
+  const adapter = preparationFixture(() => new Promise(resolve => { finish = resolve }))
+  const pending = adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation())
+  const rejected = assert.rejects(pending, /closed|cancel/)
+  adapter.close(); finish(chapterConfig()); await rejected
+  assert.equal(adapter.configs.size, 0)
+  assert.equal(adapter.preparedUnits.size, 0)
+})

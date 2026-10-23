@@ -205,7 +205,7 @@ export struct KomaReaderLabPage {
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
     try {
-      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context)
+      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry)
       this.adapter = adapter
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)

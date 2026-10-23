@@ -104,8 +104,7 @@ assert.match(initialPolicySource,
 const adapterSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
 assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
-assert.match(adapterSource,
-  /async preload\(page: ReaderPage, cancellation: ReaderCancellation\): Promise<void>[\s\S]*?ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*?fetchAndCacheReaderRemoteSource\(source, this\.requestContext\)/)
+// Real preload request sharing and cancellation run in test_shared_reader_chapter_picker.cjs.
 const chromeSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/components/ReaderChrome.ets'), 'utf8')
 const settingsSource = fs.readFileSync(path.resolve(__dirname,
