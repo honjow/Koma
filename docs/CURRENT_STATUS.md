@@ -931,16 +931,16 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T04:20:18.274661+00:00",
+  "updatedAt": "2026-10-23T06:26:48.431304+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
+  "activeId": "SOURCE_CHAPTER_DUPLICATE_TITLE_REVIEW",
   "activity": {
-    "title": "Root：准备NextE P0普通连续性能，后继NextN",
-    "detail": "197源错误/Web具名收尾已闭：010网页→011原生搜索200→014不清数据pid冷启动→015真实12本首页成立。原未覆盖范围不扩认；FIRST与未知排序已获metadata只读结论但方案未闭，不为Extra刷75本或清缓存。",
+    "title": "源owner：精确重复合并/身份冲突保留；非直接同ID删除",
+    "detail": "043只证输出ID重复，parser按chapter_slot及0_slot取页可能折叠不同href；不证明24真实同章。已限定同slot+href+trim title+全字段一致才合并，冲突保留；App诊断27af82c已提交。",
     "startedAt": null,
-    "updatedAt": "2026-10-23T04:20:18.274661+00:00"
+    "updatedAt": "2026-10-23T06:26:48.431304+00:00"
   },
-  "nextAction": "Root审当前工作单精确diff并提交后接NextE P0普通连续性能，后继NextN；197有界trace样本冻结不重采。全屏native结束时机、FIRST详情投影/未知metadata、未知排序与章选器运动区间仍OPEN，私库PARKED_USER、图标/其他已接受样本冻结。",
+  "nextAction": "source_unknown_metadata核parser的slot/原href/trim title与全部输出字段，仅合并全一致精确重复，输出ID冲突保留，不直接删除24。Root接源修复后的真实目录验收；App诊断27af82c已提交，其他队列保持。",
   "proof": [
     {
       "label": "正式主仓",
@@ -956,9 +956,9 @@
     },
     {
       "label": "远端同步",
-      "state": "App2f9f2d9a精确CI成功，无新tag",
+      "state": "恢复7b3f196已推，精确CI成功",
       "kind": "accepted",
-      "detail": "2f9f2d9a6131afa4d6fa1afa19d53468bec1b869已推，CI39899052096 completed/success；4b878926/991309a与源85源/README既有成功范围冻结。未新增tag或将CI当当前冷启动首页验收。"
+      "detail": "7b3f19693ba0de60554e350b82e83a87ad3acc7e已推master，精确CI39910437371后继completed/success：https://github.com/honjow/Koma/actions/runs/39910437371 。目录脱敏诊断后继27af82c、8432957B已通过12检查/Release构建并在041安装成功；043实测输出ID重复24条，源层精确重复修复仍未验收。"
     },
     {
       "label": "共享阅读器",
@@ -983,8 +983,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "2f9f2d9a6131afa4d6fa1afa19d53468bec1b869",
-      "hap": "197当前source-search-failure-signed.hap 8427937B /0.1.2-pre/code3，经source-search-failure197-installed-006 installer/start/bm成功；after-007首搜失败标题已具名通过，011会话回流及014→015真实cold首页已亲审。此前r3索引具名结果冻结。"
+      "appHead": "7b3f19693ba0de60554e350b82e83a87ad3acc7e（已推/CI39910437371成功）",
+      "hap": "1970418432957B目录诊断包已装；043统计输出230行/206唯一输出ID/24重复ID组及24重复行，不等于24条真实同章。App诊断27af82c已提交；源精确重复修复及实机结果未成。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1009,13 +1009,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "197证据冻结，准备NextE/NextN P0普通性能",
+      "status": "单文件35612345已推/CI成功，跨App快速P0仍OPEN",
       "kind": "open",
-      "priority": "P0",
-      "owner": "Root：准备NextE P0普通连续性能，后继NextN",
+      "priority": "P0（最高）",
+      "owner": "Root：按新反例接跨App快速边界，当前先包子恢复",
       "dependencies": [],
-      "result": "reader-kit efca410已实现typed轻量位置回调，84项针对检查通过；Koma同页保存/目录commit去重及chapterChoices线性map已写。Root在197同一连续滚动路径trace取得前后证据：优化前77帧均值183.76ms；优化后997帧均值5.74ms，仅1帧超过16.67ms。这是197该操作/内容/构建的有界性能实证。用户此前NextE新版不流畅、旧版顺滑为用户对照反馈；尚不能据Koma单路径结果认定三App均已解决。 原件：diagnostics/continuous-perf197-{before,after}-001/parsed-cwd/summary.json。 Kit efca410已通过正确erosTeam SSH同步，推送不替代剩余宿主实机验收。 Koma Reader优化随f7a6a7d提交推送。 后继SSH443推送实际成功：a4ec2eb..f7a6a7d → master；CI39883471325/head=f7a6a7dc567be375ef23da7366cee5fbd0e4e317后继已success。",
-      "remaining": "197同一路径trace证据冻结，不重复采已过样本；NextE/NextN受影响普通入口仍未验，不扩认三App通过；章选器同目录保位已获后继精确通过，原失败留证不再当当前未修复。",
+      "result": "性能单文件35612345685656fee890ee7441b2208c4d2fd71e已SSH443推master，精确CI39907409671 completed/success。最小候选只在Reader可见时抑制persistReaderLabObserved的UI revision广播，保saveProgress/tracker及原pop/onShown发布，避免被覆盖页面每页全量刷新；default产品Release签名8427907B/code3经197009成功安装。旧008分发签名遭9568322拒绝、旧包未动的回执保留。Koma普通《猎行者》第一话连续/chrome隐藏、458章后台、六组swipe8000/pause0同路径：007 actual host/type0/depth0/dur>0为383帧/均11.720449ms/max216.601ms/22>16.67/12>33.34，最长FlushDirtyNodeUpdate213.748ms；候选013同定义636帧/均5.995766ms/max21.585ms/3>16.67/0>33.34，原件diagnostics/continuous-fast197-trace-{007,013}/parsed-cwd/trace.db。014全部10联系表及关键84/220、015整图已亲审；016 reader2/16→017详情第2/16→018书架第2页13%实际一致，快速运动及自然返回进度的具名验证已完成。NextE既有007有界host trace、008全715帧/18联系表及009LTR/13/19、010下载页恢复结果冻结；onlyKit pin56e50bbe已推main，精确CI39902674413成功。NextN1.0.7/code10已装，实际两页低速005 trace已解析，006LTR/2/2及007下载页恢复已亲审；未亲核原件统计则不录入交接数，且该样本不覆盖快速反向。Koma原低速77→997帧有界改善证据保持原summary路径冻结。",
+      "remaining": "Koma此具名快速运动/trace/自然返回改善及单文件提交精确CI冻结；跨App快速P0仍OPEN，不外推满帧/全部JS根因/所有内容。NextE/Koma原host统计非video FPS/每显示刷新且无旧包clean A/B，NextN两页低速不覆盖快速反例；当前按原优先队列接包子详情恢复，不再派已完成性能WIP提交。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1025,8 +1025,14 @@
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
         "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-perf197-before-001/parsed-cwd/summary.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-perf197-after-001/parsed-cwd/summary.json"
-      ]
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-perf197-after-001/parsed-cwd/summary.json",
+        "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-trace-007/parsed-cwd/nexte-host-frame-stats.json",
+        "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-motion-008",
+        "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-ltr-009",
+        "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-verified-010",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-fast197-trace-007/parsed-cwd/trace.db"
+      ],
+      "latestCounterexampleAt": "2026-10-23T04:57:37.180Z"
     },
     {
       "id": "FIRST_CHAPTER_SELECTION",
@@ -1065,16 +1071,63 @@
     {
       "id": "READER_SETTINGS_STABILITY",
       "title": "阅读设置菜单跳变及动态本书后缀",
-      "status": "具名实机通过，已随f7a6a7d提交推送并冻结",
-      "kind": "accepted",
-      "priority": "P1",
-      "owner": "冻结：Root按新反例或相关依赖变化重开",
+      "status": "新严重反例重开：连续模式与RTL方向回显矛盾",
+      "kind": "open",
+      "priority": "P1（新严重语义反例，当前优先调查）",
+      "owner": "Root：追实际设置所有者/菜单消费者，未实施方案",
       "dependencies": [],
-      "result": "工作单已有Root亲审197 fixedsettings三组证据：固定行/菜单、独立恢复全局、纵向动画置灰均通过；本书后缀已移除。该范围尚未提交。 本轮Reader范围提交f7a6a7d已提交推送（Root回报，已核本地10文件范围）。 后继SSH443推送实际成功：a4ec2eb..f7a6a7d → master；CI39883471325/head=f7a6a7dc567be375ef23da7366cee5fbd0e4e317后继已success。",
-      "remaining": "原具名验收范围冻结，不重复操作；未覆盖设置分支仅保边界，不以此自行扩成新矩阵。",
+      "result": "原固定菜单、独立恢复全局、纵向动画置灰、预设半模态保持的197具名验收及f7a6a7d提交/CI成功继续保留，不否定或重跑。用户2026-10-23T04:52:35.917Z新报前两项“模式=连续滚动”却“阅读方向=从右到左”，要求理清分类；后续04:53:08.358Z/04:53:30.412Z重复同一反例。本次重开的是生效方向回显与适用性语义，不是旧固定菜单版式。Root正在追真实状态所有者/菜单消费者，原因尚未核定，方案未实施。",
+      "remaining": "真实未完为连续滚动等模式下生效方向的回显/适用性语义：追所有者/菜单消费者并确认合理分类，当前根因未核、方案未实施。NextN原LTR/2页及007回下载已恢复完成，不再派旧恢复动作；原固定菜单/半模态/动画具名通过保持，新反例OPEN。",
       "reportedAt": "2026-10-22T18:52:07.192Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:52:07.192Z",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null,
+      "reopenedAt": "2026-10-23T04:52:35.917Z",
+      "reopenedAtSource": "原始会话JSONL response_item/user核得新反例首报，非当前登记时间。",
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET"
+      ]
+    },
+    {
+      "id": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "title": "自动跨章回退误落首图，应落上一章末页",
+      "priority": "P1（阅读正确性）",
+      "owner": "Root：上下边界→宿主章选择/entry target追查",
+      "dependencies": [],
+      "relatedItems": [
+        "READER_SETTINGS_STABILITY",
+        "NEXT_CHAPTER_PREFETCH_REUSE"
+      ],
+      "status": "新反例已登记，待因果追查/限定修复",
+      "kind": "open",
+      "result": "原始用户2026-10-23T04:55:39.469Z报告：第一章向前到第二章，再向后翻/向上回退第一章，应落该章末页，实际每次切章都从首图开始。本次是自动跨章方向与落点的独立阅读正确性缺陷，不能等同设置方向回显问题；Root拟沿上下边界事件→宿主章选择→entry target查真实链，原因尚未核定，方案未实施。",
+      "remaining": "核自动向后跨章为何未携末页目标并限定修复/实机验证；不改变显式手选章或已有续读语义。与设置生效方向相关但不互相代替/关闭；原跨宿主P0仍OPEN，未取消其他队列。",
+      "reportedAt": "2026-10-23T04:55:39.469Z",
+      "reportedAtSource": "原始会话JSONL response_item/user实际首报时间，不由当前登记时间猜测。",
+      "firstEvidenceAt": "2026-10-23T04:55:39.469Z",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "NEXT_CHAPTER_PREFETCH_REUSE",
+      "title": "接近章末预加载下一章及跨章请求复用",
+      "priority": "P2（当前P0后，与跨章联动核查）",
+      "owner": "Root：页计划/图片缓存/在途请求复用调查",
+      "dependencies": [],
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET",
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "status": "用户改进建议已登记，缓存/重复请求待查",
+      "kind": "open",
+      "result": "用户2026-10-23T05:33:34.382Z建议接近当前章最后几页即准备下一章，避免末页才开始请求；同时观察跨章似乎未用缓存、疑有重复请求。重复请求目前是用户观察/推测，尚无具体请求对照证据，不能直接写成已证缓存根因。",
+      "remaining": "P0快速卡顿先收口，再与自动跨章方向/落点联动核页计划、图片缓存及在途请求复用；预加载不得推进阅读进度，须有界并发/流量，不臆定末几页阈值或缓存策略。当前未实现/构建/实机，独立需求不能代替回退应末页的正确性缺陷。",
+      "reportedAt": "2026-10-23T05:33:34.382Z",
+      "reportedAtSource": "原始会话JSONL response_item/user实值首报时间；疑重复请求是用户观察待验证。",
+      "firstEvidenceAt": "2026-10-23T05:33:34.382Z",
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null
@@ -1168,56 +1221,79 @@
     {
       "id": "BAOZIMH_BROWSE_FAILURE",
       "title": "包子漫画安装后源浏览失败/重试无效",
-      "status": "包子014 r2首页/详情/正文/返回具名通过",
+      "status": "两书具名恢复/已推7b3f196，精确CI成功",
       "kind": "accepted",
       "priority": "P1",
-      "owner": "冻结：Root按新反例或相关依赖变更重开",
+      "owner": "Root：7b3f196实际push/精确CI；已过样本冻结",
       "dependencies": [
         "SOURCE_WEB_SESSION"
       ],
-      "result": "五入口Registry宿主上下文修正后，2378429466B正式包真实native/attached/cookieState present/uaSource webview生产链首页12封面、258章详情、角色设定1/6正文及自然返回进度均Root亲审；对应首页/目录HTTP200、get_pages跨origin无session成功及六图HTTP200见full-log-006。原identity/session缺失403与challenge_required失败证据保留，后继具名恢复已成立。",
-      "remaining": "仅此包子014当前场景冻结，不反复重跑，不外推所有作品/CF站点/全部源；源设置保存/退出等能力边界归SOURCE_WEB_SESSION。",
+      "result": "session首跳maxRedirects0导致2300047、手写3xx循环无response的transport缺陷已限定改为API22 REDIRECTION false拦原response，保逐跳origin权限/cookie/30跳时限/failclosed。197033候选8433562B安装成功。034 Root亲看《劍尊歸來》作者BIGA,LICO、214章/简介恢复；035真实强刷→036日志14:10:40新op14/16的get_manga/get_chapters均200，原214章保持。037《絕對劍感》作者/简介、230章及get_manga/get_chapters200；038普通开始阅读1/50真实图像且get_pages completed，随后semantic go_back返回章节230/230节点1。Koma10文件7b3f19693ba0de60554e350b82e83a87ad3acc7e已推成功，精确CI39910437371已completed/success。原029–031 attached/cookie/UA新请求2300047、此前首页403/手动网页回流成功等原证据保留；强刷动作/两书当前业务恢复有界成立，不倒改历史失败。 039只读library-store无包子记录，未为取证添加书架，不把库内fallback猜成此场景已证原因。",
+      "remaining": "只接受033–038两书当前详情/强刷及一书正文/返回具名范围，不泛化所有源/所有书。7b3f196精确CI39910437371已completed/success；session revision/自动确认挑战半模态仍未完成，另在WEB项保持。顶部同标题章调查独立OPEN，不按标题去重。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reopenedAt": "2026-10-23T05:31:18.350Z",
+      "latestCounterexampleAt": "2026-10-23T05:37:16.993Z",
+      "feedbackReports": [
+        {
+          "reportedAt": "2026-10-23T05:37:16.993Z",
+          "source": "原JSONL response_item/user",
+          "summary": "网页完成后列表恢复、多详情失败部分有章、重入不恢复，缺不带缓存刷新；缓存根因未证。"
+        }
+      ]
     },
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "首页/首搜错误呈现通过，全局搜索消费者待验",
+      "status": "详情错误保真/强刷与两书恢复具名成立，全局错误仍待验",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：P0性能后续验全局搜索错误消费者",
+      "owner": "Root：P0后接全局搜索普通源筛选入口",
       "dependencies": [],
-      "result": "197包子014首页source-errors197-baozi-002/layout.json/result.png显示“源浏览失败 / 书源请求被拒绝。（HTTP 403）”，无source_runtime；首搜修正后source-search-failure197-after-007/result.png显示“源搜索失败 / 书源请求被拒绝（HTTP403）/重试”，“没有找到结果”节点0，Root亲审。SourceBrowsePage.ets仅7增3删；首搜按钮用原runSearch(currentSource(),searchQuery)，Browse保retryBrowseError，分页retrySearchPage不适用零结果。8427937B/code3签名包经installed-006 installer/start/bm成功，21项方法检查通过。单文件2f9f2d9a6131afa4d6fa1afa19d53468bec1b869已推，精确CI39899052096 completed/success。原source-errors197-evidence-005失败403却显示空结果标题、search-004等错误标题期望超时均留证；a87cea74/396b71b4 failed/empty共分支因果已核。",
-      "remaining": "197首页/首搜错误可读标题与提示、单文件提交及精确CI范围冻结；原队列的全局搜索错误消费者仍未验，P0之后沿普通源筛选入口核一次自然错误及关联日志，不涉及已搁置私库。正常零结果、通用重试成功未外推；网页完成后原生搜索200与cold首页另属SOURCE_WEB_SESSION，不倒改原失败，不重复403重试。",
+      "result": "197包子014首页source-errors197-baozi-002/layout.json/result.png显示“源浏览失败 / 书源请求被拒绝。（HTTP 403）”，无source_runtime；首搜修正后source-search-failure197-after-007/result.png显示“源搜索失败 / 书源请求被拒绝（HTTP403）/重试”，“没有找到结果”节点0，Root亲审。SourceBrowsePage.ets仅7增3删；首搜按钮用原runSearch(currentSource(),searchQuery)，Browse保retryBrowseError，分页retrySearchPage不适用零结果。8427937B/code3签名包经installed-006 installer/start/bm成功，21项方法检查通过。单文件2f9f2d9a6131afa4d6fa1afa19d53468bec1b869已推，精确CI39899052096 completed/success。原source-errors197-evidence-005失败403却显示空结果标题、search-004等错误标题期望超时均留证；a87cea74/396b71b4 failed/empty共分支因果已核。 同一05:31:18.350Z用户403/自动验证反馈关联SOURCE_WEB_SESSION；当前403性质未核，错误分类需区分挑战/会话回流/其他拒绝，不把HTTP状态直接等同CF。 新05:37:16.993Z详情失败/部分章节可见与重入不恢复反馈关联包子项：当前只用户实测事实，待核详情/章节独立错误及失败恢复，不认定缓存定因。 详情错误丢码链已只读确认：runSourceMangaOperation失败丢no item及两catch丢原码，关联用户详情提示不足；这不等于用户持续失败业务根因已定。 详情错误保真两文件+5行为检查已过，Root修初构未类型对象后Release r2成功，未装机，不能记新消费者通过。 候选8434281B/code3/debug=false已197023安装启动；单作品强刷后继11行为检查及完整Release构建成功，实机刷新尚未验。 031真实“重新加载详情与章节”可调用且两次新HTTP request已证；平台2300047官方释义为重定向次数达上限，当前network_error分类不能解释实际拒因。 后继033–038两书详情/强刷新HTTP200及一书1/50正文/返回已具名成立，错误保真/transport修正纳入7b3f196十文件已提交，后继push已成功，精确CI39910437371已completed/success。",
+      "remaining": "首页/首搜提示与当前两书详情恢复范围冻结，不扩正常空结果/所有错误。原全局搜索普通源筛选入口自然错误消费者仍待办；7b3f196已实际推送，精确CI39910437371已completed/success。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "relatedItems": [
+        "SOURCE_WEB_SESSION"
+      ]
     },
     {
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（明确必须做，原队列保留）",
-      "owner": "冻结：Root按新反例或相关依赖变化重开",
+      "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "197网页回流与cold首页具名通过（冻结）",
-      "kind": "accepted",
-      "result": "197当前8427937B/code3。网页验证010原图Root亲看真实“绍宋”检索结果；HDS把“完成并重试”显示为无文字勾号，010布局[766,149][896,279]与原图勾号对应。011点击后回原生Search，唯一“紹宋”封面/书名、源搜索失败节点0，011/result.png已亲审。013业务log明确12:10 get_home/search native/session none/cookieState empty/uaSource source→403；12:15完成后同源search native/session attached/cookieState present/uaSource webview→HTTP200/operation completed，未输出Cookie值。008菜单父子文本重复、009等“完成并重试”文字超时均为工具定位误期望，原件保留，不代表未进网页。237此前8429466B包子原生首页12封面→258章→1/6正文→自然返回进度、source-settings-buttons/sheet-save237-001“源设置已保存”及半模态退出均独立成立；按钮991309a精确CI39895213060成功。源8bcc23a CI39891584060与85源/211资产发布、README9243deb CI39894595111成功，MD011无会话声明/包子014精确origin保持。 后继014不清数据真实PID16407→空→20307；diagnostics/source-session197-cold-native-015原图/布局/actions中，普通书架→浏览→包子0.1.4，熱門漫畫节点1、源浏览失败0、403提示0。Root亲看015/result.png为12本真实封面/标题首页。",
-      "remaining": "只接受197真实网页完成→同源原生搜索200及不清数据cold后普通首页具名范围；无观察CF挑战UI，不扩所有CF/全部源/其他会话边界。237先前闭环/保存及按钮具名结果分别冻结，其他未覆盖能力不自动生新矩阵。",
+      "status": "transport修正两书具名通过；revision/自动半模态未完成",
+      "kind": "open",
+      "result": "197当前8427937B/code3。网页验证010原图Root亲看真实“绍宋”检索结果；HDS把“完成并重试”显示为无文字勾号，010布局[766,149][896,279]与原图勾号对应。011点击后回原生Search，唯一“紹宋”封面/书名、源搜索失败节点0，011/result.png已亲审。013业务log明确12:10 get_home/search native/session none/cookieState empty/uaSource source→403；12:15完成后同源search native/session attached/cookieState present/uaSource webview→HTTP200/operation completed，未输出Cookie值。008菜单父子文本重复、009等“完成并重试”文字超时均为工具定位误期望，原件保留，不代表未进网页。237此前8429466B包子原生首页12封面→258章→1/6正文→自然返回进度、source-settings-buttons/sheet-save237-001“源设置已保存”及半模态退出均独立成立；按钮991309a精确CI39895213060成功。源8bcc23a CI39891584060与85源/211资产发布、README9243deb CI39894595111成功，MD011无会话声明/包子014精确origin保持。 后继014不清数据真实PID16407→空→20307；diagnostics/source-session197-cold-native-015原图/布局/actions中，普通书架→浏览→包子0.1.4，熱門漫畫节点1、源浏览失败0、403提示0。Root亲看015/result.png为12本真实封面/标题首页。 用户2026-10-23T05:31:18.350Z新实测包子仍HTTP403，并指出不应靠用户找右上角菜单，要求需要挑战时自动弹半模态WebView、兼顾人工勾选；隐藏WebView只是用户提出的可能方式，不是已选定实现。Root已说明方向为确认挑战后才弹、完成后重试原请求，方案尚未实施。原197手动网页完成→原生搜索200及cold首页、237原生/设置具名成功仅保原范围，不能等同稳定或自动挑战支持。 新197025–028再次通过正常网页分类→完成勾→native loading→熱門1/12真实书名恢复；此前022为attached/cookie present/ua webview仍403，所以不能把该次失败断成无会话或CF。 当前session transport的maxRedirects0首跳2300047因果已核；API22 REDIRECTION false截原response的限定修复已审，保origin/cookie逐跳边界、30跳时限、安装失败failclosed，15项session检查通过。",
+      "remaining": "033–038两书transport详情/正文具名恢复成立，不泛化所有源/书；7b3f196已推成功、精确CI39910437371已completed/success。session revision方案未实施，确认挑战自动半模态及其他原会话边界未完成；原手动成功不能当稳定自动支持。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
       "firstEvidenceAt": "2026-10-23T01:44:08.576Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": "2026-10-23T04:20:18.274661+00:00"
+      "closedAt": null,
+      "reopenedAt": "2026-10-23T05:31:18.350Z",
+      "feedbackReports": [
+        {
+          "reportedAt": "2026-10-23T05:31:18.350Z",
+          "source": "原JSONL response_item/user",
+          "summary": "包子仍403，自动半模态验证/人工勾选，手动菜单不成熟；隐藏WebView仅提议。"
+        }
+      ],
+      "relatedItems": [
+        "SOURCE_SETTINGS_DIRECT_ENTRY"
+      ]
     },
     {
       "id": "SOURCE_SETTINGS_ACTION_ALIGNMENT",
@@ -1235,6 +1311,27 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": "2026-10-23T03:38:15.620424+00:00"
+    },
+    {
+      "id": "SOURCE_SETTINGS_DIRECT_ENTRY",
+      "title": "当前源页应直接弹源设置，避免绕管理路由",
+      "priority": "P2（入口行为，保P0优先）",
+      "owner": "Root：源码确认口语指代/当前路由，限定入口修正",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_WEB_SESSION",
+        "SOURCE_SETTINGS_ACTION_ALIGNMENT"
+      ],
+      "status": "源菜单绕管理路由源码已证，直弹限定方案待实施",
+      "kind": "open",
+      "result": "用户05:31:55.042Z口语“语言设置/语言包管理”结合前文暂解源设置。Root后继已核RouterHelper.pushSourceSettings:130–132实际push SOURCE_PACKAGE_MANAGER并带settingsSourceId，Index两个源菜单调用该方法，当前源菜单绕管理路由的代码链已证；不是已做用户现场录像复现。目标当前源页直接弹设置半模态、关闭留原源页。",
+      "remaining": "基于已证代码链拟定/实施限定直弹入口，不绕管理路由；当前未实施/实机未验。不重开按钮视觉/保存accepted，P0先收口。",
+      "reportedAt": "2026-10-23T05:31:55.042Z",
+      "reportedAtSource": "原始会话JSONL response_item/user口语原文时间；“源设置/源包管理”是结合上下文的当前暂解，待源码确认。",
+      "firstEvidenceAt": "2026-10-23T05:31:55.042Z",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
     },
     {
       "id": "SOURCE_INDEX_PROGRESSIVE",
@@ -1276,13 +1373,13 @@
     {
       "id": "CHAPTER_PICKER_POSITION",
       "title": "阅读器章节选择器每次从顶部动画滚到当前章",
-      "status": "xkcd同目录关开精确保位通过，运动区间待验",
+      "status": "用户新报打开定位不准，首次对齐/保位需分清",
       "kind": "open",
       "priority": "P2",
-      "owner": "Root",
+      "owner": "Root：区分首次当前章对齐与上次手动滚动保位",
       "dependencies": [],
-      "result": "197 chapter-picker197-guard-007/actions.json返回positionEqual:true：关开前后8条相同章节bounds逐条完全一致。Root亲看picker-scrolled与picker-reopened完整原图，同位置无偏移。正式ready重置修正已构建/安装，临时picker_probe全移除；此前49px和21px失败原件均保留。 正式修正已随f7a6a7d提交推送；精确保位已过范围冻结，不重跑。 后继SSH443推送实际成功：a4ec2eb..f7a6a7d → master；CI39883471325/head=f7a6a7dc567be375ef23da7366cee5fbd0e4e317后继已success。",
-      "remaining": "仅xkcd676章同章同目录八行bounds静态精确保位通过并冻结；运动区间未验，目录换章/所有章节未外推。f7a6a7d已推送，精确CI已success。",
+      "result": "用户2026-10-23T04:56:52.153Z新报章节半模态“虽然不滚动了，但是它位置不准”。这是当前定位准确性反例，根因未知；Root须区分首次当前章对齐和上次手动滚动保位。先前chapter-picker197-guard-007/actions.json的positionEqual:true、同目录8条相同章节bounds逐条全同及Root亲看原图仍作为狭窄静态关开保位证据保留，不能当首次定位正确或覆盖当前反例；原49px/21px失败原件也保留。正式修正已在f7a6a7d提交推送、CI39883471325成功，临时picker_probe已移除。",
+      "remaining": "追当前打开定位规则/当前章与已存手动位置的优先关系，不猜根因或恢复长距离动画；当前用户反例仍OPEN。原8行静态保位及其他已过样本不重跑或扩大验收；P0快速往返连续性能优先，设置语义/跨章落点等其他原项不丢。",
       "reportedAt": "2026-10-22T19:45:43.075Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:45:43.075Z",
@@ -1296,7 +1393,9 @@
         "note": "本段在具名保位结果登记后停止；有效窗之外未补计，含构建/设备等待非纯工时。"
       },
       "closedAt": null,
-      "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。"
+      "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。",
+      "reopenedAt": "2026-10-23T04:56:52.153Z",
+      "reopenedAtSource": "原始会话JSONL response_item/user当前定位反例首报实值。"
     },
     {
       "id": "SOURCE_FILTERS",
@@ -1579,14 +1678,52 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null
+    },
+    {
+      "id": "SOURCE_PACKAGE_INSTALL_LIST_UI",
+      "title": "源包管理按软件安装列表整理版本、动作、分组及标记",
+      "priority": "P2（保当前P0不抢占）",
+      "owner": "Root：P0后具体方案与限定实施",
+      "dependencies": [],
+      "status": "明确方向已登记，筛选维度/整页细节待方案",
+      "kind": "open",
+      "result": "原始用户2026-10-23T05:28:39.778Z提出：已安装与远端同版本不重复两边版本；可更新项右侧动作显示“更新”而非“安装”；按可更新→未安装→已安装最新三组顺序；含成人内容源用红色标记，并以软件安装列表逻辑重新考虑源包管理及完善筛选。版本去重/动作区分/三组顺序/成人标记为明确要求方向。 用户2026-10-23T05:29:26.481Z补充：Android成熟实现可参考借鉴（可调研Mihon），不必全抄，须符合Koma既有设计风格。该约束并入同项方案依据，不新增任意全页重做授权。",
+      "remaining": "P0快速卡顿继续优先；后继拟定具体筛选维度、整页布局/细节与实施方案，不把泛化“重新考虑”虚构为任意重设计授权，也不虚构筛选方案已获批准。当前仅登记待办，未实现/构建/实机，耗时未知。",
+      "reportedAt": "2026-10-23T05:28:39.778Z",
+      "reportedAtSource": "原始会话JSONL response_item/user实际时间戳；方向原文已核，不猜开始时间/耗时。",
+      "firstEvidenceAt": "2026-10-23T05:28:39.778Z",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_CHAPTER_DUPLICATE_TITLE_REVIEW",
+      "title": "两书目录顶部同标题章节重复现象调查",
+      "priority": "P2（目录身份只读核查）",
+      "owner": "source_unknown_metadata：parser精确重复/冲突保留；Root：实机与诊断提交",
+      "dependencies": [],
+      "relatedItems": [
+        "FIRST_CHAPTER_SELECTION",
+        "CHAPTER_SORT_MENU"
+      ],
+      "status": "输出ID重复已证，原href冲突待核；仅精确重复可合并",
+      "kind": "open",
+      "result": "197041成功安装8432957B Release；普通《絕對劍感》章节230/230节点唯一1。043/business-log.txt于2026-10-23 14:24:16.241记录catalog_identity total230/uniqueId206/duplicateIdGroups24/duplicateRows24。该统计仅证明输出ID重复24条，不证明24条真实同章。源owner后继查parser输出ID只取chapter_slot、get_pages固定0_slot，不同原href可能被折叠为同输出ID；当前仅为身份编码冲突可能性，真实href关系待核。App诊断两文件已提交27af82c，未把诊断提交当业务修复。",
+      "remaining": "源owner仅合并同slot+原href+trim title且所有输出字段一致的精确重复；同ID但href/title冲突一律保留，不能直接删24条或只按输出ID/标题去重。当前源修复/真实目录验收未完成，保持OPEN；原全页selector风险/匿名GET403未得HTML记录不抵消043输出身份统计。",
+      "reportedAt": null,
+      "reportedAtSource": "Root本轮调查回传，未给原始提出精确时间，不猜填。",
+      "firstEvidenceAt": "2026-10-23T06:17:05.337142+00:00",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
     }
   ],
   "source": {
-    "status": "源发布/包子具名回流与cold首页冻结",
-    "kind": "accepted",
+    "status": "发布结果冻结；包子新实测403分类待核",
+    "kind": "open",
     "title": "源会话当前验收与源库同步",
     "result": "Root亲读verification.json及release/index/catalogue原件：源0e33ec3+8bcc23a已推，CI39891584060精确head成功，latest sources-8bcc发布，85/85 available、85源pkg/icon资产全部对应、共211资产，源仓干净。包子014仅许可www.baozimh.com；MD011无会话声明。237源内搜索007返回绍宋→紹宋，原图待亲审。",
-    "remaining": "源8bcc23a/README及237原生闭环/设置保存、197搜索回流与cold首页仅具名范围冻结，不扩全源/全CF。metadata owner只读发现已回报FIRST/排序项，暂不改源/不操作设备。当前主控准备NextE P0，其他原OPEN保持。",
+    "remaining": "源发布/README和原手动具名成功分别冻结；用户包子新实测403及自动半模态流程另在SOURCE_WEB_SESSION/BAOZIMH追查，不能视为全部403即CF或稳定挑战支持。",
     "commit": "8bcc23a1b2f60a58607e1a34351efd5e6fb1d81a"
   },
   "milestones": [
