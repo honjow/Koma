@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T09:10:11.670919+00:00",
+  "updatedAt": "2026-10-23T11:11:46.711942+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "Root接跨App快滚P0；设置转换已197具名验，位置保持新边界保留",
-  "nextAction": "提交已审模式转换实现，接NextE/NextN快速往返采样；模式切换位置边界与原持续滚动共同锚点待核。",
+  "activity": "Root：三宿主当前共享候选具名结果已回填；同步Koma CI依赖后继续剩余P1；列表回弹/详情下拉刷新已完成只读调查待限定实施",
+  "nextAction": "同步Koma共享依赖及本轮证据，继续16→15模式切换位置边界/首章与未知排序等原P1；新列表回弹与详情下拉刷新按原队列保留，不复活冻结和私库。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,8 +978,20 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "7b3f19693ba0de60554e350b82e83a87ad3acc7e（已推/CI39910437371成功）",
-      "hap": "1970418432957B目录诊断包已装；043统计输出230行/206唯一输出ID/24重复ID组及24重复行，不等于24条真实同章。App诊断27af82c已提交；源精确重复修复及实机结果未成。"
+      "appHead": "8f8e6f1409474c4846f61d9d4e741863362ef7cb；本轮CI pin df052f4待提交",
+      "hap": "197102已覆盖8477096B/defaultRelease0.1.2-pre code3；runtime Kit42e8713与df052f4产品源码相同，106/107/109具名结果见CONTINUOUS_PERFORMANCE。"
+    },
+    {
+      "name": "NextE",
+      "checkout": "/Users/honjow/git/NextE",
+      "appHead": "45e0b056d64a1c50217551f1d609664f0dc42400；CI39939944395 success",
+      "hap": "38177354B/defaultRelease1.3.6code42；030trace/031运动/032-038缩放及恢复已亲审。"
+    },
+    {
+      "name": "NextN",
+      "checkout": "/Users/honjow/git/NextN",
+      "appHead": "b27dcab52beb26004e33cf1205681d6f4b65dcad；CI39939956932 success",
+      "hap": "38209064B/defaultRelease1.0.7code10；009-017仅现成NonH2页功能/连续/缩放/返回，未外推长列表。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1004,13 +1016,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "单文件35612345已推/CI成功，跨App快速P0仍OPEN",
+      "status": "共同面积回调修复K/E具名快滚改善；N有限功能回归完成",
       "kind": "open",
       "priority": "P0（最高）",
-      "owner": "Root：按新反例接跨App快速边界，当前先包子恢复",
+      "owner": "Root：197同场景候选trace与返回进度；feedback_registry候选实现已完成",
       "dependencies": [],
-      "result": "性能单文件35612345685656fee890ee7441b2208c4d2fd71e已SSH443推master，精确CI39907409671 completed/success。最小候选只在Reader可见时抑制persistReaderLabObserved的UI revision广播，保saveProgress/tracker及原pop/onShown发布，避免被覆盖页面每页全量刷新；default产品Release签名8427907B/code3经197009成功安装。旧008分发签名遭9568322拒绝、旧包未动的回执保留。Koma普通《猎行者》第一话连续/chrome隐藏、458章后台、六组swipe8000/pause0同路径：007 actual host/type0/depth0/dur>0为383帧/均11.720449ms/max216.601ms/22>16.67/12>33.34，最长FlushDirtyNodeUpdate213.748ms；候选013同定义636帧/均5.995766ms/max21.585ms/3>16.67/0>33.34，原件diagnostics/continuous-fast197-trace-{007,013}/parsed-cwd/trace.db。014全部10联系表及关键84/220、015整图已亲审；016 reader2/16→017详情第2/16→018书架第2页13%实际一致，快速运动及自然返回进度的具名验证已完成。NextE既有007有界host trace、008全715帧/18联系表及009LTR/13/19、010下载页恢复结果冻结；onlyKit pin56e50bbe已推main，精确CI39902674413成功。NextN1.0.7/code10已装，实际两页低速005 trace已解析，006LTR/2/2及007下载页恢复已亲审；未亲核原件统计则不录入交接数，且该样本不覆盖快速反向。Koma原低速77→997帧有界改善证据保持原summary路径冻结。",
-      "remaining": "Koma此具名快速运动/trace/自然返回改善及单文件提交精确CI冻结；跨App快速P0仍OPEN，不外推满帧/全部JS根因/所有内容。NextE/Koma原host统计非video FPS/每显示刷新且无旧包clean A/B，NextN两页低速不覆盖快速反例；当前按原优先队列接包子详情恢复，不再派已完成性能WIP提交。",
+      "result": "性能单文件35612345685656fee890ee7441b2208c4d2fd71e已SSH443推master，精确CI39907409671 completed/success。最小候选只在Reader可见时抑制persistReaderLabObserved的UI revision广播，保saveProgress/tracker及原pop/onShown发布，避免被覆盖页面每页全量刷新；default产品Release签名8427907B/code3经197009成功安装。旧008分发签名遭9568322拒绝、旧包未动的回执保留。Koma普通《猎行者》第一话连续/chrome隐藏、458章后台、六组swipe8000/pause0同路径：007 actual host/type0/depth0/dur>0为383帧/均11.720449ms/max216.601ms/22>16.67/12>33.34，最长FlushDirtyNodeUpdate213.748ms；候选013同定义636帧/均5.995766ms/max21.585ms/3>16.67/0>33.34，原件diagnostics/continuous-fast197-trace-007及continuous-fast197-after-trace-013/parsed-cwd/trace.db。014全部10联系表及关键84/220、015整图已亲审；016 reader2/16→017详情第2/16→018书架第2页13%实际一致，快速运动及自然返回进度的具名验证已完成。NextE既有007有界host trace、008全715帧/18联系表及009LTR/13/19、010下载页恢复结果冻结；onlyKit pin56e50bbe已推main，精确CI39902674413成功。NextN1.0.7/code10已装，实际两页低速005 trace已解析，006LTR/2/2及007下载页恢复已亲审；未亲核原件统计则不录入交接数，且该样本不覆盖快速反向。Koma原低速77→997帧有界改善证据保持原summary路径冻结。 NextE fast-trace-013已按实际pid23310/ipid53/type0/depth0/dur>0解析351帧，均9.815427ms/max35.365ms/52>16.67ms/1>33.34ms；最长FlushDirtyNodeUpdate34.568ms。014全部384帧/11联系表已亲审，六对快速反向有效，未见图片空白或加载覆盖，不等同满帧。015恢复LTR、016正常四次翻页恢复13/19原图已亲审，017返回下载页。 NextE宿主a8a95f8f7d3cd10a882259e4d5828b31edd6c181已推main，精确CI39935581371 success；197018签名38170862B实际覆盖，020同13/19，021六对8000为479主线程帧/mean9.163403/max31.897/55>16.67/0>33.34（原013351/9.815427/35.365/52/1），改善有限仍不通过性能。022402帧/12联系表全部亲审，无图片空白/加载覆盖；023正常返回重开均10/19（不冒fraction恢复）；024LTR/02513/19恢复亲审。进一步源证共享ZoomImage.onAreaChange在List纯位置变化仍@Local写新Transform；42e8713限定三尺寸相同no-op，真resize沿原reflow，59相关检查过。全530为527过/3基线失败（旧element/loading断言及enhancement行为，调查中），不写全绿。三宿主相同42e8713签名Release构建均通过，实机待。 026安装38177354B后Root错误假定恢复首页，连续导航终点实际Search设置；027在查看返回图片前已启动，前置不成立，已写invalid-sample.txt并排除性能统计，原trace保留。028按实际页面回退恢复，不能把runner pass写成阅读器通过。 NextE029已单独亲核实际13/19后030有效trace：566帧/mean6.348475/max31.097/31>16.67/0>33.34；JSAnimation6855→154次（013→030），比021宿主去重有进一步改善。031406原始帧/12联系表全部亲审，无空白或加载覆盖；032双击放大/033放大图拖动/035原菜单reset/036返回同书重开11/19均亲审；037LTR13/19已亲审、038回下载。Kit42e8713+测试校正df052f4已指定SSH推main，全530/530通过；测试only后继与42产品源码diff为空。NextE45e0b056/CI39939944395及NextNb27dcab5/CI39939956932已推各main并completed/success；KomaCI pin待本轮范围提交。Koma102实际成功覆盖8477096B/defaultRelease/code3，源书架原15页94%保持，103普通继续入口进行。 Koma105已亲审同1/16封面与下一图锚点；106同六对8000实际主线程607帧/mean4.289947ms/max19.113ms/2>16.67/0>33.34（pid9440,ipid48,itid217,type0depth0dur>0），比宿主候选after013 mean5.995766/max21.585进一步改善。107全部341原始帧/10联系表及关键0/240/340整图亲审，无图片空白或loading覆盖；108恢复15/16、109正常Back→书架Continue仍15/16亲审，110正常返回书架。该具名快滚/保位范围成立，不冒满帧/全部内容。 NextN009成功覆盖38209064B/defaultRelease1.0.7code10，011普通下载NonH2/2；012连续模式后013六对8000+双击放大/平移，231原始帧/7联系表及180/194/230整图Root全审，无图片空白/loading覆盖。014原菜单reset，015恢复原LTR2/2，016正常返回再开仍2/2；原增强偏好保持、无翻译上传。017正常回原7完成下载。",
+      "remaining": "Koma/NextE同内容具名快滚、缩放保留及正常返回范围成立；NextN仅现成2页功能/缩放/返回，不覆盖长列表快速性能。原Koma16→15模式切换反例仍由READER_SETTINGS_STABILITY继续，生命周期真实完成信号等原P1不因局部性能改善关闭。KomaCI依赖与当前工作单本次提交后跟精确CI。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1054,8 +1066,8 @@
       "priority": "P1",
       "owner": "Root：197绍宋018原生升降序验收",
       "dependencies": [],
-      "result": "已编号xkcd676章升序1/11/20/22具名成立并冻结。 包子061实际降序170后198；源历史b9e0829以来把chapter_slot误当chapterNumber已证。016限定保ID/slot/get_pages/015去重，仅从完整严格第N話/话或[第N話]标题读整数/小数，未知null。Root亲审四文件diff及2组行为测试；197正常015→016导入、正常网页确认后同《絕對劍感》064降序203/202、066升序1/2原图亲审，206章与旧第1话1/50进度保持。重置后话数降序节点1，返回浏览断言期望1实为标题/底栏2保留工具失败，不改产品迎合。源016四文件已提交3a67013ee2d956645d3197f3f96436ff477ad71e并SSH443推master；精确CI39915806755成功，源owner已实际核公开85源索引与44209B三成员016包，非本机44911B字节相同。原metadata owner只读确认漫画160《风起苍岚》781章原序第二季353→第一话，章号和日期全缺；未知比较同为-1，比较结果为0，不能由现有比较器产生排序变化。 新197 source-auto-web197-detail-089原图：包子017紹宋234/234，话数降序却首两项215如之奈何、224潰敗；源owner source_unknown_metadata只读追章号metadata及原序，尚未定因，旧范围不复活。 018源4677c0fd已推，CI39926101447成功，公开85项/46581B三成员身份版本实读。仅严格裸数字+标题识别，14项检查过；197原管理更新017→018成功，096自然再次自动验证，完成后首页/绍宋234章恢复。 018普通绍宋强刷后降序224/223/222；升序097/098原图亲审，未知公告后001/002/003/004/005/007等正确递增，234章保持。006无空格标题与纯045仍unknown，新边界只登记，未扩称全目录通过；正常返回原书架，无开章/进度写入。",
-      "remaining": "原未知metadata仍OPEN；包子018已证格式冻结。源owner只读建议三位补零纯数/接CJK严格扩展，尚未实施，不抢P0。",
+      "result": "已编号xkcd676章升序1/11/20/22具名成立并冻结。 包子061实际降序170后198；源历史b9e0829以来把chapter_slot误当chapterNumber已证。016限定保ID/slot/get_pages/015去重，仅从完整严格第N話/话或[第N話]标题读整数/小数，未知null。Root亲审四文件diff及2组行为测试；197正常015→016导入、正常网页确认后同《絕對劍感》064降序203/202、066升序1/2原图亲审，206章与旧第1话1/50进度保持。重置后话数降序节点1，返回浏览断言期望1实为标题/底栏2保留工具失败，不改产品迎合。源016四文件已提交3a67013ee2d956645d3197f3f96436ff477ad71e并SSH443推master；精确CI39915806755成功，源owner已实际核公开85源索引与44209B三成员016包，非本机44911B字节相同。原metadata owner只读确认漫画160《风起苍岚》781章原序第二季353→第一话，章号和日期全缺；未知比较同为-1，比较结果为0，不能由现有比较器产生排序变化。 新197 source-auto-web197-detail-089原图：包子017紹宋234/234，话数降序却首两项215如之奈何、224潰敗；源owner source_unknown_metadata只读追章号metadata及原序，尚未定因，旧范围不复活。 018源4677c0fd已推，CI39926101447成功，公开85项/46581B三成员身份版本实读。仅严格裸数字+标题识别，14项检查过；197原管理更新017→018成功，096自然再次自动验证，完成后首页/绍宋234章恢复。 018普通绍宋强刷后降序224/223/222；升序097/098原图亲审，未知公告后001/002/003/004/005/007等正确递增，234章保持。006无空格标题与纯045仍unknown，新边界只登记，未扩称全目录通过；正常返回原书架，无开章/进度写入。 包子019 e57d184bebcdcd83f83639d1db5ee7a4f6ad3d85已审五文件精确diff，仅三位补零纯数/接CJK且拒绝年/月/日/卷季页册等歧义；16生产helper测试过。CI39934858276成功，公开85项/包子唯一0.1.9/46944B三成员版本身份Root亲读。 237旧现装App（仅bm0.1.2-pre/code3，非本轮新候选）普通014→019已完成。Root亲看017 six.png实际005→006扶腰壯膽韓良臣→007、forty-five.png实际044→045→046；代理016原生234/234、继续人設物料1/6及最终进度/49书架JSON相等证据已交，Root其余原件待亲核。旧会话版本失配自然challenge403保留，经原手动网页确认恢复native200，非自动sheet验收。原局域网索引最终已通过普通加载保存并清理本轮public收藏；该原局域网网络失败不称可达。租约已释。 Root已亲审237005更新界面0.1.9、016原生紹宋234/234及继续人設物料第1/6页、022历史同页与原LAN当前索引（实网加载失败）。023registry实读65项/baozi019 enabled；004→023全49书架JSON相等，27源历史相等，57进度及72chapter仅同本正常重开updatedAt变化，chapter内position除updatedAt外相等，没把时间相等当保位标准。",
+      "remaining": "包子019严格6/45邻接、234目录及原1/6进度具名验收冻结；未知metadata源仍OPEN，不外推所有排序。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -1069,10 +1081,10 @@
       "status": "模式方向一致性197两入口通过；反复切换页码16→15新边界OPEN",
       "kind": "open",
       "priority": "P1（新严重语义反例，当前优先调查）",
-      "owner": "feedback_registry：业务转换实现，Root审查/构建/实机",
+      "owner": "Root：已提交/CI成功，模式切换位置边界待查",
       "dependencies": [],
-      "result": "原固定菜单、独立恢复全局、纵向动画置灰、预设半模态保持的197具名验收及f7a6a7d提交/CI成功继续保留，不否定或重跑。用户2026-10-23T04:52:35.917Z新报前两项“模式=连续滚动”却“阅读方向=从右到左”，要求理清分类；后续04:53:08.358Z/04:53:30.412Z重复同一反例。本次重开的是生效方向回显与适用性语义，不是旧固定菜单版式。Root正在追真实状态所有者/菜单消费者，原因尚未核定，方案未实施。 本轮只读确认SettingsContent仅改pageMode、底部applyPolicy却写WEBTOON；resolveHost的WEBTOON优先会导致选择单页仍实际continuous。当前6文件候选共用显式转换helper，连续保休眠LTR/RTL，退出连续清legacy WEBTOON，不做加载迁移；13转换检查及持久/恢复/重开检查过，尚未构建实机。 Root补有效方向行独立三语从上到下，保旧WEBTOON文案其他消费者。首次构建六处ArkTS结构类型失败，改显式窄对象后r2构建成功；26生产方法/持久owner/桥检查通过，8477062B Release已099覆盖197。普通继续猎行者16/16→设置连续显示从上到下→单页恢复横向方向且半模态保持已观察，完整两入口测试进行中。 197设置RTL→continuous→vertical→single实际恢复RTL且sheet保持；底部continuous→设置double同样保RTL。101整图亲审方向从上到下置灰、原固定行保持；全局恢复实际纵向分页/一致说明成立，恢复原continuous后普通书架重开仍continuous/从上到下，restore-reopen.json留证。最终返回前rkit-chrome-page实读15/16，原入场100为16/16，模式切换位置保持不得宣称通过；需追转换时位置/行高锚点。首次全局恢复断言误用短文案失败，后继完整原文读回成功，未重复点恢复。",
-      "remaining": "已实现方向语义/两入口转换具名结果可提交；模式往返后16→15新位置边界继续调查，Legacy/全局设置页设备未验。跨App快滚P0仍未完。",
+      "result": "原固定菜单、独立恢复全局、纵向动画置灰、预设半模态保持的197具名验收及f7a6a7d提交/CI成功继续保留，不否定或重跑。用户2026-10-23T04:52:35.917Z新报前两项“模式=连续滚动”却“阅读方向=从右到左”，要求理清分类；后续04:53:08.358Z/04:53:30.412Z重复同一反例。本次重开的是生效方向回显与适用性语义，不是旧固定菜单版式。Root正在追真实状态所有者/菜单消费者，原因尚未核定，方案未实施。 本轮只读确认SettingsContent仅改pageMode、底部applyPolicy却写WEBTOON；resolveHost的WEBTOON优先会导致选择单页仍实际continuous。当前6文件候选共用显式转换helper，连续保休眠LTR/RTL，退出连续清legacy WEBTOON，不做加载迁移；13转换检查及持久/恢复/重开检查过，尚未构建实机。 Root补有效方向行独立三语从上到下，保旧WEBTOON文案其他消费者。首次构建六处ArkTS结构类型失败，改显式窄对象后r2构建成功；26生产方法/持久owner/桥检查通过，8477062B Release已099覆盖197。普通继续猎行者16/16→设置连续显示从上到下→单页恢复横向方向且半模态保持已观察，完整两入口测试进行中。 197设置RTL→continuous→vertical→single实际恢复RTL且sheet保持；底部continuous→设置double同样保RTL。101整图亲审方向从上到下置灰、原固定行保持；全局恢复实际纵向分页/一致说明成立，恢复原continuous后普通书架重开仍continuous/从上到下，restore-reopen.json留证。最终返回前rkit-chrome-page实读15/16，原入场100为16/16，模式切换位置保持不得宣称通过；需追转换时位置/行高锚点。首次全局恢复断言误用短文案失败，后继完整原文读回成功，未重复点恢复。 实现13文件已审提交8f8e6f1409474c4846f61d9d4e741863362ef7cb并SSH推master，精确CI39929957695 completed/success。",
+      "remaining": "16→15新位置边界仍OPEN；Legacy/全局设置页设备未验。先继续跨App快速P0。",
       "reportedAt": "2026-10-22T18:52:07.192Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:52:07.192Z",
@@ -1711,6 +1723,47 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null
+    },
+    {
+      "id": "MANGA_DETAIL_PULL_REFRESH",
+      "title": "漫画详情页接入下拉刷新",
+      "priority": "P2（当前P0后，与源详情失败恢复关联）",
+      "owner": "Root：限定实施/197验证；feedback_registry只读调查已完成",
+      "kind": "open",
+      "status": "用户方向已明确，限定实施调查中",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_RUNTIME_ERRORS",
+        "SOURCE_WEB_SESSION"
+      ],
+      "result": "用户最新明确建议：把下拉刷新接入漫画详情页。已授权该交互方向；目前未实施。代理只读当前完整父树/滚动所有者与既有重新加载/force缓存链。 父树调查已核：HdsNavDestination→Stack→Secondary唯一List→ChapterListSection虚拟组。既有菜单force=true绕snapshot，transport usingCache:false；应共享同一Scroller/手势gate，菜单与下拉await同一有界inflight，不另套Scroll或替换原父树。原详情/章节/进度保留；本地复用既有检查，私库不新建请求。",
+      "remaining": "沿已有请求能力接入下拉刷新，刷新保留原详情/目录和进度，真实重新请求而非重读失败缓存；按不同来源已有刷新能力核边界，保四私库PARKED_USER，不打断当前连续滚动P0。",
+      "reportedAt": null,
+      "reportedDate": "2026-10-23",
+      "reportedAtSource": "最新人类消息原文；未提供精确时间，不猜填。",
+      "firstEvidenceAt": null,
+      "firstHandlingAt": null,
+      "closedAt": null
+    },
+    {
+      "id": "LIST_EDGE_SCROLL_FEEL",
+      "title": "普通列表头尾回弹及短列表始终允许滚动",
+      "priority": "P2（当前连续性能P0后）",
+      "owner": "Root：限定实施/197验证；feedback_registry只读调查已完成",
+      "kind": "open",
+      "status": "用户方向明确，参考及适用范围调查中",
+      "dependencies": [],
+      "relatedItems": [
+        "MANGA_DETAIL_PULL_REFRESH"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-23",
+      "reportedAtSource": "最新用户原文，无精确提出时间，不猜填。",
+      "firstEvidenceAt": null,
+      "firstHandlingAt": "2026-10-23T10:54:45.461347+00:00",
+      "closedAt": null,
+      "result": "用户报告列表头尾阻尼/回弹突兀，并明确要求适用列表默认始终允许滚动、参考NextE，不再逐页问。官方List文档已查：内容不足一屏默认无回弹，edgeEffect options.alwaysEnabled=true可启用；这不证明所有突兀均由该项造成。尚未改源码。 当前Root已亲读NextE Secondary与e81ae131：普通Settings等消费者显式spring+alwaysEnabled，PullRefresh内原生spring被禁以免双位移。Koma Secondary/Modal/LibraryGrid当前None源自旧scaffold，未查到刻意硬止的用户决定；最新用户明确统一方向覆盖此属性，保几何/位置/方向及阅读器专有手势。",
+      "remaining": "追NextE既有完整父树/历史及Koma普通List/Scroll实际消费者，采用用户已明确方向；核长短内容、边界与嵌套滚动，保阅读器专门翻页/缩放规则。不以一处设置称所有列表通过，当前197连续性能P0继续。"
     }
   ],
   "source": {
