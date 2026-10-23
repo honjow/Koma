@@ -538,7 +538,8 @@ export class BrowseViewModel {
     const eligible = !automaticRecovery && error instanceof SourceRuntimeError &&
       (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required') &&
       source !== undefined && (source.webSessionOrigins ?? []).length > 0
-    const receipt = this.challengeGate(scope).issue(source?.sourceId ?? '', scope, eligible, current, retry)
+    const receipt = this.challengeGate(scope).issue(source?.sourceId ?? '', scope, eligible, current, retry,
+      error instanceof SourceRuntimeError && error.diagnostic.kind === 'challenge')
     if (scope === 'browse') this.browseWebChallenge = receipt
     else this.searchWebChallenge = receipt
   }

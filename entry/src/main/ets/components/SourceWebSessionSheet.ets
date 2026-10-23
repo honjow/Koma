@@ -1,8 +1,10 @@
 import { webview } from '@kit.ArkWeb'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { hasNewSourceClearance } from '../sourceRuntime/SourceWebChallengeGate'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
-import { appSourceWebSessionStore, SourceWebSessionStatus } from '../sourceRuntime/SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceWebOrigin, SourceWebSessionStatus } from '../sourceRuntime/SourceWebSessionStore'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaModalScaffold } from './KomaModalScaffold'
@@ -13,6 +15,7 @@ import { KomaActionButton } from './ui/KomaActionButton'
 @ComponentV2
 export struct SourceWebSessionSheet {
   @Param params: MangaWebRouteParam = { url: '', title: '' }
+  @Param autoRetryOnClearance: boolean = false
   @Event onCompleted: (status: SourceWebSessionStatus) => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private loading: boolean = true
@@ -21,6 +24,11 @@ export struct SourceWebSessionSheet {
   @Local private canForward: boolean = false
   @Local private completing: boolean = false
   @Local private completed: boolean = false
+  private clearanceBaseline: string | undefined = undefined
+  private autoRetryStarted: boolean = false
+  private pageRevision: number = 0
+  private pageUrl: string = ''
+  private pageFailed: boolean = false
   private active: boolean = false
   private epoch: number = 0
   private controller: webview.WebviewController = new webview.WebviewController()
@@ -35,6 +43,7 @@ export struct SourceWebSessionSheet {
     this.active = false
     this.epoch += 1
     this.controllerReady = false
+    this.clearanceBaseline = undefined
   }
 
   @Monitor('params')
@@ -42,6 +51,10 @@ export struct SourceWebSessionSheet {
     this.epoch += 1
     this.completing = false
     this.completed = false
+    this.clearanceBaseline = undefined
+    this.autoRetryStarted = false
+    this.pageUrl = ''
+    this.pageFailed = false
     if (this.active && this.controllerReady) this.loadInitialPage()
   }
 
@@ -50,6 +63,7 @@ export struct SourceWebSessionSheet {
     // Invalidate before notifying: cookie persistence may still be awaiting.
     this.active = false
     this.epoch += 1
+    this.clearanceBaseline = undefined
     this.onClose()
   }
 
@@ -77,6 +91,10 @@ export struct SourceWebSessionSheet {
       this.loading = false
       return
     }
+    if (this.autoRetryOnClearance && this.clearanceBaseline === undefined) {
+      try { this.clearanceBaseline = webview.WebCookieManager.fetchCookieSync(url, false) }
+      catch (_error) { /* Missing baseline disables automatic retry; manual completion remains. */ }
+    }
     this.loading = true
     try { this.controller.loadUrl(url) }
     catch (_error) { this.loading = false }
@@ -91,10 +109,46 @@ export struct SourceWebSessionSheet {
     } catch (_error) { this.updateNavState() }
   }
 
-  private async completeSourceSession(): Promise<void> {
+  private pageBegan(event?: OnPageBeginEvent): void {
+    if (!this.active) return
+    this.pageRevision += 1
+    this.pageUrl = event?.url ?? ''
+    this.pageFailed = false
+    this.loading = true
+    this.updateNavState()
+  }
+
+  private pageEnded(event?: OnPageEndEvent): void {
+    if (!this.active) return
+    this.loading = false
+    this.updateNavState()
+    if (!this.autoRetryOnClearance || this.autoRetryStarted || this.pageFailed ||
+      this.clearanceBaseline === undefined || event === undefined || event.url !== this.pageUrl || this.params.sourceSession === undefined) return
+    try {
+      const currentUrl = this.controller.getUrl()
+      const origin = sourceWebOrigin(this.params.url)
+      if (origin.length === 0 || sourceWebOrigin(currentUrl) !== origin || currentUrl !== event.url) return
+      const cookies = webview.WebCookieManager.fetchCookieSync(this.params.url, false)
+      if (!hasNewSourceClearance(this.clearanceBaseline, cookies)) return
+      // Candidate only: the host consumes its guarded receipt and retries the exact native request once.
+      this.autoRetryStarted = true
+      DiagnosticLogger.info('source_web_session', 'clearance_candidate', 'action=retry_original_once')
+      void this.completeSourceSession(true)
+    } catch (_error) { /* Keep the visible challenge and manual control. No cookie values in diagnostics. */ }
+  }
+
+  private mainPageFailed(request: WebResourceRequest): void {
+    if (!this.active || !request.isMainFrame() || request.getRequestUrl() !== this.pageUrl) return
+    this.pageFailed = true
+    this.loading = false
+    this.updateNavState()
+  }
+
+  private async completeSourceSession(automatic: boolean = false): Promise<void> {
     if (!this.active || !this.controllerReady || this.loading || this.completing || this.completed ||
       this.params.sourceSession === undefined || this.params.sourceSession.sessionId.length === 0) return
     const epoch = this.epoch
+    const pageRevision = this.pageRevision
     const sourceId = this.params.sourceSession.sourceId
     const sessionId = this.params.sourceSession.sessionId
     this.completing = true
@@ -103,6 +157,7 @@ export struct SourceWebSessionSheet {
       catch (_error) { await webview.WebCookieManager.saveCookieAsync() }
       // Neither a close, unmount nor replacement session may complete an old grant.
       if (!this.isCurrent(epoch, sourceId, sessionId) || !this.controllerReady) return
+      if (automatic && (this.pageFailed || this.loading || this.pageRevision !== pageRevision)) return
       const customUa = this.controller.getCustomUserAgent()
       const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
       const status = appSourceWebSessionStore.complete(sourceId, sessionId, this.controller.getUrl(), actualUa)
@@ -129,15 +184,10 @@ export struct SourceWebSessionSheet {
           MangaWebView({
             controller: this.controller,
             onControllerAttached: () => { this.loadInitialPage() },
-            onPageBegin: () => {
-              if (this.active) { this.loading = true; this.updateNavState() }
-            },
-            onPageEnd: () => {
-              if (this.active) { this.loading = false; this.updateNavState() }
-            },
-            onErrorReceive: () => {
-              if (this.active) { this.loading = false; this.updateNavState() }
-            },
+            onPageBegin: (event?: OnPageBeginEvent) => { this.pageBegan(event) },
+            onPageEnd: (event?: OnPageEndEvent) => { this.pageEnded(event) },
+            onErrorReceive: (event: OnErrorReceiveEvent) => { this.mainPageFailed(event.request) },
+            onHttpErrorReceive: (event: OnHttpErrorReceiveEvent) => { this.mainPageFailed(event.request) },
           })
           if (this.loading) {
             LoadingProgress()

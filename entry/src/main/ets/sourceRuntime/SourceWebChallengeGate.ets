@@ -5,6 +5,7 @@ export interface SourceWebChallengeReceipt {
   id: number
   sourceId: string
   scope: SourceWebChallengeScope
+  allowClearanceRetry: boolean
 }
 
 /** One challenge attempt, claimed once and consumed before retrying. No UI or transport owner. */
@@ -16,10 +17,10 @@ export class SourceWebChallengeGate {
   private retry: () => Promise<void> = async (): Promise<void> => {}
 
   issue(sourceId: string, scope: SourceWebChallengeScope, eligible: boolean,
-    current: () => boolean, retry: () => Promise<void>): SourceWebChallengeReceipt | null {
+    current: () => boolean, retry: () => Promise<void>, allowClearanceRetry: boolean = false): SourceWebChallengeReceipt | null {
     this.clear()
     if (!eligible || !current()) return null
-    const receipt: SourceWebChallengeReceipt = { id: ++this.sequence, sourceId, scope }
+    const receipt: SourceWebChallengeReceipt = { id: ++this.sequence, sourceId, scope, allowClearanceRetry }
     this.receipt = receipt
     this.current = current
     this.retry = retry
@@ -54,4 +55,21 @@ export class SourceWebChallengeGate {
     this.current = (): boolean => false
     this.retry = async (): Promise<void> => {}
   }
+}
+
+/** In-memory retry signal only; never a claim that the native request will pass. */
+export function hasNewSourceClearance(previousCookies: string, currentCookies: string): boolean {
+  const clearance = (cookies: string): string => {
+    let value = ''
+    let count = 0
+    cookies.split(';').forEach((entry: string) => {
+      const separator = entry.indexOf('=')
+      if (separator < 0 || entry.slice(0, separator).trim() !== 'cf_clearance') return
+      count += 1
+      value = entry.slice(separator + 1).trim()
+    })
+    return count === 1 ? value : ''
+  }
+  const current = clearance(currentCookies)
+  return current.length > 0 && current !== clearance(previousCookies)
 }

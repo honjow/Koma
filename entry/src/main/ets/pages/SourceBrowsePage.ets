@@ -111,6 +111,7 @@ export struct SourceBrowsePage {
     }
     this.webChallengeId = receipt.id
     this.webChallengeScope = receipt.scope
+    if (params.sourceSession !== undefined) params.sourceSession.allowClearanceRetry = receipt.allowClearanceRetry
     this.webChallengeParams = params
     this.webChallengeShown = true
   }
@@ -142,6 +143,7 @@ export struct SourceBrowsePage {
   private WebChallengeSheet() {
     SourceWebSessionSheet({
       params: this.webChallengeParams,
+      autoRetryOnClearance: this.webChallengeParams.sourceSession?.allowClearanceRetry ?? false,
       onClose: () => { this.closeWebChallenge() },
       onCompleted: () => { this.completeWebChallenge() },
     })

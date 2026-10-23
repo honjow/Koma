@@ -53,7 +53,7 @@ test('a challenge is claimed once, cancelled without retry, and a new user attem
   const f = fixture(); f.replies.push(challenge(), challenge())
   await f.model.runSearch(f.source, 'one')
   const receipt = f.model.searchWebChallenge
-  assert.deepEqual(Object.keys(receipt).sort(), ['id', 'scope', 'sourceId'])
+  assert.deepEqual(Object.keys(receipt).sort(), ['allowClearanceRetry', 'id', 'scope', 'sourceId'])
   assert.equal(f.model.claimWebChallenge('search', receipt.id, false), false)
   assert.equal(f.model.claimWebChallenge('search', receipt.id, true), true)
   assert.equal(f.model.claimWebChallenge('search', receipt.id, true), false)
@@ -154,4 +154,95 @@ test('home preliminary listing/filter results do not invalidate its later listin
   assert.equal(f.model.claimWebChallenge('browse', receipt.id, true), true)
   assert.equal(await f.model.completeWebChallenge('browse', receipt.id, true), true)
   assert.deepEqual(f.calls, [{ listing: 'latest', page: 1, cursor: '' }, { listing: 'latest', page: 1, cursor: '' }])
+})
+
+
+const { hasNewSourceClearance } = moduleFrom('sourceRuntime/SourceWebChallengeGate')
+test('clearance candidate requires a nonempty changed exact cookie; other names and ambiguous duplicates cannot complete', () => {
+  for (const [before, after] of [['', 'sid=x'], ['cf_clearance=a', 'cf_clearance=a; sid=new'],
+    ['cf_clearance=a', 'cf_clearance='], ['', 'not_cf_clearance=a'], ['', 'cf_clearance=a; cf_clearance=b']]) {
+    assert.equal(hasNewSourceClearance(before, after), false)
+  }
+  assert.equal(hasNewSourceClearance('', 'sid=x; cf_clearance=a=b; theme=y'), true)
+  assert.equal(hasNewSourceClearance('cf_clearance=old', 'cf_clearance=new'), true)
+})
+
+const sheetText = read('components/SourceWebSessionSheet').replace('export struct SourceWebSessionSheet', 'export class SourceWebSessionSheet')
+const sheetAst = ts.createSourceFile('sheet.ts', sheetText, ts.ScriptTarget.Latest, true)
+const sheetOwner = sheetAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceWebSessionSheet')
+const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan','pageEnded','mainPageFailed',
+  'completeSourceSession','close','sessionChanged','aboutToDisappear']
+const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
+function sheetFixture() {
+  let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve()
+  const exports = {}, granted = [], completed = [], events = []
+  const webview = { WebCookieManager: {
+    fetchCookieSync: () => { if (failRead) throw Error('unavailable'); return cookies },
+    saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
+  } }
+  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','DiagnosticLogger','AppStrings','mangaHttpUrl', compile(sheetSource))(
+    exports, webview, { complete: (...args) => { granted.push(args); return { state:'available' } } },
+    u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance,
+    { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl)
+  const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
+  Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
+    autoRetryOnClearance:true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
+    autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,
+    controller:{loadUrl:()=>{},getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>'',getUserAgent:()=> 'Web UA',
+      accessBackward:()=>false,accessForward:()=>false},
+    onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
+    getUIContext:()=>({getPromptAction:()=>({showToast:()=>{}})}),
+  })
+  sheet.loadInitialPage(); sheet.pageBegan({url:initialUrl})
+  return { sheet, initialUrl, granted, completed, events, setCookies:s=>cookies=s, failRead:()=>failRead=true,
+    delaySave:()=> { saveError=true; let resolve; saveWait=new Promise(r=>resolve=r); return resolve } }
+}
+const settled = () => new Promise(resolve=>setImmediate(resolve))
+test('changed clearance on current successful document retries once without a manual tap', async () => {
+  const f=sheetFixture();f.setCookies('cf_clearance=new');f.sheet.pageEnded({url:f.initialUrl});
+  f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.granted.length,1);assert.equal(f.completed.length,1)
+  assert.equal(f.granted[0][2],f.initialUrl);assert.equal(JSON.stringify(f.events).includes('cf_clearance'),false)
+})
+test('manual login does not auto-close when clearance changes; its completion control still works', async () => {
+  const f=sheetFixture();f.sheet.autoRetryOnClearance=false;f.setCookies('cf_clearance=new');
+  f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.granted.length,0)
+  await f.sheet.completeSourceSession();assert.equal(f.completed.length,1)
+})
+test('main document HTTP/transport error blocks auto candidate, while a subresource error does not', async () => {
+  for (const isMain of [true,false]) {
+    const f=sheetFixture();f.setCookies('cf_clearance=new');
+    f.sheet.mainPageFailed({isMainFrame:()=>isMain,getRequestUrl:()=>f.initialUrl})
+    f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.granted.length,isMain?0:1)
+  }
+})
+test('off-origin and stale navigation completion cannot auto-complete current source', async () => {
+  for (const stale of [true,false]) {
+    const f=sheetFixture();f.setCookies('cf_clearance=new')
+    f.sheet.pageBegan({url:stale?'https://test.invalid/new':'https://other.invalid/'})
+    f.sheet.pageEnded({url:stale?f.initialUrl:'https://other.invalid/'})
+    await settled();assert.equal(f.granted.length,0)
+  }
+})
+test('unknown cookie baseline never becomes an automatic success signal', async () => {
+  const f=sheetFixture();f.sheet.clearanceBaseline=undefined;f.failRead();f.sheet.loadInitialPage();
+  f.sheet.pageBegan({url:f.initialUrl});f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.granted.length,0);await f.sheet.completeSourceSession();assert.equal(f.completed.length,1)
+})
+for (const action of ['close','aboutToDisappear','navigation','replacement']) test(`pending cookie flush cannot complete after ${action}`, async () => {
+  const f=sheetFixture(), release=f.delaySave();f.setCookies('cf_clearance=new');f.sheet.pageEnded({url:f.initialUrl})
+  if (action==='navigation') f.sheet.pageBegan({url:'https://test.invalid/new'})
+  else if (action==='replacement') {
+    f.sheet.params={url:f.initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt2'}}
+    f.sheet.sessionChanged()
+  } else f.sheet[action]()
+  release();await settled();assert.equal(f.granted.length,0);assert.equal(f.completed.length,0)
+})
+
+test('authentication recovery may open Web but cannot auto-return on a challenge cookie before login', async () => {
+  const f = fixture();f.replies.push(new SourceRuntimeError({ok:false,error:{code:'auth_required',status:401}}))
+  await f.model.runSearch(f.source,'one');assert.ok(f.model.searchWebChallenge)
+  assert.equal(f.model.searchWebChallenge.allowClearanceRetry,false)
+  f.replies.push(challenge());await f.model.runSearch(f.source,'one')
+  assert.equal(f.model.searchWebChallenge.allowClearanceRetry,true)
 })

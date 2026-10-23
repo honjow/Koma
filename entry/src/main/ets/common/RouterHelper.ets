@@ -15,6 +15,7 @@ export interface MangaDetailRouteParam {
 export interface SourceWebSessionRouteParam {
   sourceId: string
   sessionId: string
+  allowClearanceRetry?: boolean
 }
 
 export interface MangaWebRouteParam {

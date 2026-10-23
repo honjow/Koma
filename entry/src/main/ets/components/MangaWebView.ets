@@ -10,6 +10,7 @@ export struct MangaWebView {
   @Event onLoadFinished?: (event?: OnLoadFinishedEvent) => void;
   @Event onProgressChange?: (event?: OnProgressChangeEvent) => void;
   @Event onErrorReceive?: (event: OnErrorReceiveEvent) => void;
+  @Event onHttpErrorReceive?: (event: OnHttpErrorReceiveEvent) => void;
   @Event onTitleReceive?: (event?: OnTitleReceiveEvent) => void;
 
   build() {
@@ -54,6 +55,11 @@ export struct MangaWebView {
       .onErrorReceive((event: OnErrorReceiveEvent) => {
         if (this.onErrorReceive) {
           this.onErrorReceive(event)
+        }
+      })
+      .onHttpErrorReceive((event: OnHttpErrorReceiveEvent) => {
+        if (this.onHttpErrorReceive) {
+          this.onHttpErrorReceive(event)
         }
       })
       .onTitleReceive((event: OnTitleReceiveEvent) => {

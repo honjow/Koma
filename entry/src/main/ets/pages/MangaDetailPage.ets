@@ -319,6 +319,7 @@ export struct MangaDetailPage {
       return
     }
     this.detailWebChallengeId = receipt.id
+    if (params.sourceSession !== undefined) params.sourceSession.allowClearanceRetry = receipt.allowClearanceRetry
     this.detailWebChallengeParams = params
     this.detailWebChallengeShown = true
   }
@@ -362,13 +363,15 @@ export struct MangaDetailPage {
       entry !== undefined && (entry.webSessionOrigins ?? []).length > 0
     this.detailWebChallenge = this.detailWebChallengeGate.issue(sourceId, 'detail', eligible,
       (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId),
-      async (): Promise<void> => { await this.loadSourceMangaDetail(sourceId, mangaId, true, true, retryStage) })
+      async (): Promise<void> => { await this.loadSourceMangaDetail(sourceId, mangaId, true, true, retryStage) },
+      error instanceof SourceRuntimeError && error.diagnostic.kind === 'challenge')
   }
 
   @Builder
   private DetailWebChallengeSheet() {
     SourceWebSessionSheet({
       params: this.detailWebChallengeParams,
+      autoRetryOnClearance: this.detailWebChallengeParams.sourceSession?.allowClearanceRetry ?? false,
       onClose: () => { this.closeDetailWebChallenge() },
       onCompleted: () => { this.completeDetailWebChallenge() },
     })
