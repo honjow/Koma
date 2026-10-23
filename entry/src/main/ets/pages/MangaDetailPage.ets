@@ -64,6 +64,7 @@ import {
   updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
   refreshSourceComicCoverAndPersistLibraryStore,
+  refreshSourceChapterMetadataAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
   LocalLibraryMetadataStatus,
@@ -824,7 +825,8 @@ export struct MangaDetailPage {
         chapters = cached.chapters
         if (cached.chaptersResolved) {
           this.sourceChaptersResolved = true
-          this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, detail, chapters, '')
+          this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, detail, chapters, '',
+            SourceDetailContentState.READY, true)
           return
         }
       } else {
@@ -903,6 +905,7 @@ export struct MangaDetailPage {
         chaptersLoadFailed && chapters.length === 0
           ? SourceDetailContentState.ERROR
           : SourceDetailContentState.READY,
+        !chaptersLoadFailed && this.sourceChaptersResolved,
       )
       if (applied && !chaptersLoadFailed) {
         sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
@@ -1018,6 +1021,18 @@ export struct MangaDetailPage {
     }
   }
 
+  private refreshSourceLibraryChapterMetadata(sourceId: string, mangaId: string, chapters: MangaChapterItem[]): void {
+    if (!this.sourceChaptersResolved || this.libraryStore === undefined || this.libraryPersistenceService === undefined) return
+    const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+    if (comic === undefined) return
+    try {
+      if (refreshSourceChapterMetadataAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
+        comic.id, sourceId, mangaId, chapters)) this.onLibraryChanged()
+    } catch (error) {
+      DiagnosticLogger.exception('persistence', 'source_chapter_metadata_refresh_failed', error as Error)
+    }
+  }
+
   private applySourceMangaDetail(
     requestEpoch: number,
     entry: SourceRuntimeRegistryEntry,
@@ -1027,6 +1042,7 @@ export struct MangaDetailPage {
     chapters: MangaChapterItem[],
     feedbackText: string,
     contentState: SourceDetailContentState = SourceDetailContentState.READY,
+    persistResolvedChapterMetadata: boolean = false,
   ): boolean {
     if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
       return false
@@ -1039,6 +1055,9 @@ export struct MangaDetailPage {
       ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
         protectedSourceChapterIds(libraryComic, (getContext(this) as common.UIAbilityContext).filesDir, this.readerSessionStore))
       : undefined
+    if (persistResolvedChapterMetadata) {
+      this.refreshSourceLibraryChapterMetadata(sourceId, mangaId, identity?.chapters ?? chapters)
+    }
     const displayedChapters = (identity?.chapters ?? chapters).slice()
     const displayedIds = new Set<string>(displayedChapters.map((chapter: MangaChapterItem): string => chapter.id))
     if (libraryComic !== undefined) {

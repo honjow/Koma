@@ -26,6 +26,8 @@ const arkData = { preferences: { getPreferences: async (_context, name) => {
 } } }
 
 function compile(text, dependencies) {
+  const DiagnosticLogger = { debug() {}, info() {}, warn() {}, error() {}, exception() {} }
+  dependencies = { DiagnosticLogger, '../diagnostics/DiagnosticLogger': { DiagnosticLogger }, ...dependencies }
   const { outputText } = ts.transpileModule(text, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
   })

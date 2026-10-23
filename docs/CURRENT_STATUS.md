@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T14:37:48.050563+00:00",
+  "updatedAt": "2026-10-23T15:10:50.515724+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_WEB_SESSION",
+  "activeId": "FIRST_CHAPTER_SELECTION",
   "activity": {
-    "title": "挑战自动回流：候选已实现，保留自然样本边界",
-    "detail": "Root已提交e839ec87；73项相关行为检查与Release构建通过，197普通首页/手动网页登录返回已验。当前会话HTTP200，没有新挑战，不冒自动回流实机通过。",
-    "startedAt": "2026-10-23T14:17:47.457815+00:00"
+    "title": "首次选章：同ID顺序信息保存已具名验收，准备同步",
+    "detail": "完整成功目录才保存；197《Super Lovers》76章身份、缓存及原Extra2进度保持，重复重入数据不变。源owner继续237漫画柜016普通更新。",
+    "startedAt": "2026-10-23T15:10:50.515724+00:00"
   },
-  "nextAction": "同步并跟进e839ec87精确CI；继续首次选章metadata保存语义与章节列表定位的独立调查，不等待人为制造CF样本。",
+  "nextAction": "范围提交并跟进精确CI；随后继续章节选择器首次对齐调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -957,7 +957,7 @@
       "label": "远端同步",
       "state": "具名修复精确CI成功",
       "kind": "accepted",
-      "detail": "源设置296c7b3/进度页4efd4bdc的CI39968459689成功；自动回流e839ec87已本地提交并装197，待同步CI及自然挑战样本。"
+      "detail": "源设置/进度页4efd4bdc CI39968459689成功；自动回流e839ec87及工作单aff06060 CI39971365655成功，197自然挑战分支仍待。"
     },
     {
       "label": "共享阅读器",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "e839ec87（本地候选）；原4efd4bdc CI39968459689 success",
-      "hap": "197154已装8491057B/defaultRelease0.1.2-pre code3；155首页12本、手动Web保持/取消返回及原书架15页94%亲审；157真实请求200，无clearance_candidate。"
+      "appHead": "aff06060（含e839ec87自动回流），已推；CI39971365655 completed/success",
+      "hap": "197158已装8489629B/defaultRelease0.1.2-pre code3；159/161原Super Lovers76章及Extra2第1/25页亲审，160/162全部reader保持，重入库全同。"
     },
     {
       "name": "NextE",
@@ -1069,28 +1069,36 @@
     {
       "id": "FIRST_CHAPTER_SELECTION",
       "title": "无历史书架首次阅读误开最新一话",
-      "status": "无metadata与详情不落库边界已核，仍OPEN",
+      "status": "同ID metadata保存197具名通过；未知目录边界仍OPEN",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：追详情不写库历史/单书更新路径",
+      "owner": "Root：App同步及章节选择器；源owner：237漫画柜016",
       "dependencies": [],
-      "result": "书架漏接选章消费者已修；无章号/日期目录及详情metadata不落库的边界尚未解决。",
-      "remaining": "追详情不落库的历史与既定语义；继续核无metadata时可靠首章/排序依据。",
+      "result": "详情完整成功目录可同步同ID顺序信息到书架；未知跨季目录仍不猜序。",
+      "remaining": "跟进当前App精确CI与漫画柜016普通更新；无metadata跨季继续查站点依据。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
       "firstHandlingAt": null,
-      "handling": null,
+      "handling": {
+        "measurement": "本轮实现时段经过（含构建/设备等待，非纯工时）",
+        "recordedSeconds": 1230,
+        "activeSince": null,
+        "activeUntil": null,
+        "note": "仅从本轮实现开始记录；此前调查与处理工时未知。"
+      },
       "closedAt": null,
       "evidencePoints": [
-        "书架已统一firstReaderChapter。MD011与Extra2续读已核，但详情只更新投影、不落库，不能据此证明新metadata已保存。",
-        "风起苍岚781章缺章号/日期且跨季重编号；唯一一次原网页请求403，未获可信分季/排序字段。"
+        "详情旧34ab280d仅投影；沿b486da30的同ID规则补持久化，34项行为检查及签名Release构建通过。",
+        "197158–162：仅Super Lovers三条番外的旧章号/排序字段更新，76章ID/页缓存及全部reader数据保持，重入库内容全同。",
+        "漫画柜016原HTML235条ID/标题/顺序保持，23卷/206话/6番外分组Root独立复跑通过，237普通更新待。"
       ],
       "remainingActions": [
-        "追详情不落库的历史与既定语义；继续核无metadata时可靠首章/排序依据。"
+        "同步本次App实现并核精确CI；源owner继续237漫画柜016普通更新。",
+        "漫画160跨季无metadata仍待原始依据，不用标题首数、全reverse或漫画柜结果外推。"
       ],
       "boundaries": [
-        "不为Extra全库刷新75本、清缓存或假造未读；暂不改该源。不能全reverse、取最小标题数字或把季号当章号。已有进度与显式选章优先边界保留。"
+        "197只验同ID信息保存和原Extra2进度保持；没有清历史伪造首次阅读，不称全源首章/排序已完成。"
       ]
     },
     {

@@ -381,3 +381,22 @@ test('detail pull refresh uses the existing local check and does not revive unsu
   await f.page.refreshMangaDetail()
   assert.equal(localChecks, 1)
 })
+
+
+test('only complete chapter results and resolved cache snapshots permit metadata persistence', async () => {
+  const f = fixture()
+  f.state.chapters = [{ id: 'chapter', title: 'Resolved', chapterNumber: 1 }]
+  f.page.sourceChaptersResolved = true
+  await f.page.loadSourceMangaDetail('source.test', 'work', true)
+  assert.equal(f.applied[0][8], undefined, 'pending embedded/retained rows cannot write the library')
+  assert.equal(f.applied.at(-1)[8], true)
+  const failed = fixture()
+  failed.page.sourceChaptersResolved = true
+  failed.state.chapterError = new Error('network')
+  await failed.page.loadSourceMangaDetail('source.test', 'work', true)
+  assert.equal(failed.applied.at(-1)[8], false)
+  const cached = fixture()
+  cached.state.cache = { detail: { title: 'Cached detail' }, chapters: f.state.chapters, chaptersResolved: true }
+  await cached.page.loadSourceMangaDetail('source.test', 'work')
+  assert.equal(cached.applied.length, 1); assert.equal(cached.applied[0][8], true)
+})

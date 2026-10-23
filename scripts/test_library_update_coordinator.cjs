@@ -6,6 +6,8 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
 const root = resolve(__dirname, '..', 'entry/src/main/ets')
 const source = (path) => readFileSync(resolve(root, path + '.ets'), 'utf8')
 function compile(text, dependencies) {
+  const DiagnosticLogger = { debug() {}, info() {}, warn() {}, error() {}, exception() {} }
+  dependencies = { DiagnosticLogger, '../diagnostics/DiagnosticLogger': { DiagnosticLogger }, ...dependencies }
   const { outputText } = ts.transpileModule(text, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
   })

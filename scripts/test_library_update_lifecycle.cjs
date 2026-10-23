@@ -6,6 +6,8 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
 const root = resolve(__dirname, '..', 'entry/src/main/ets')
 const read = (path) => readFileSync(resolve(root, path + '.ets'), 'utf8')
 function compile(text, dependencies) {
+  const DiagnosticLogger = { debug() {}, info() {}, warn() {}, error() {}, exception() {} }
+  dependencies = { DiagnosticLogger, '../diagnostics/DiagnosticLogger': { DiagnosticLogger }, ...dependencies }
   const { outputText } = ts.transpileModule(text, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
   })
@@ -51,7 +53,10 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     if (restoreFails) throw new Error('restore failed')
   } }
   const context = {}
+  const isolation = compile(read('state/KomaDeviceVerificationIsolation'), {})
   const dependencies = {
+    ...isolation,
+    appSourceWebSessionStore: { configure() {} },
     getContext: () => context,
     RouterHelper: { setAppPathStack() {}, setReaderOpener() {}, consumePendingLaunchRoute() {} },
     configureSourceSettingsStore() {}, configureSourceFilterPreferencesStore() {},
@@ -90,7 +95,7 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     context = { applicationInfo: { debug: false } };
     syncRemoteProgressInBackground() {}
     ${['onForeground', 'onBackground'].map((name) => method('entryability/EntryAbility', name)).join('\n')}
-  }`, { AppForegroundStateBridge: bridge.AppForegroundStateBridge,
+  }`, { ...isolation, AppForegroundStateBridge: bridge.AppForegroundStateBridge,
     updateReaderLabForeground: () => {}, setTimeout: () => 0 }).Entry
   const entry = new Entry()
   return { index, entry, calls, events, foreground,

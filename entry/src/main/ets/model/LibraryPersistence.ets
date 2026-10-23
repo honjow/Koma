@@ -1,3 +1,5 @@
+import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
+import { MangaChapterItem } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import {
@@ -760,6 +762,24 @@ export function refreshSourceComicCoverAndPersistLibraryStore(
   // Clone the latest owner value, not the detail snapshot: chapter/progress/category fields stay intact.
   const next = JSON.parse(JSON.stringify(previous)) as Comic
   next.coverUri = cover
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  return true
+}
+
+/** Persist metadata for matching stored chapters only, without adding/removing chapters or replacing reading state. */
+export function refreshSourceChapterMetadataAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicId: string,
+  sourceId: string,
+  mangaId: string,
+  chapters: MangaChapterItem[],
+): boolean {
+  const previous = libraryStore.getComic(comicId)
+  if (previous === undefined || previous.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
+    previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId || chapters.length === 0) return false
+  const next = JSON.parse(JSON.stringify(previous)) as Comic
+  if (!enrichSourceChapterMetadata(next, chapters)) return false
   upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
   return true
 }

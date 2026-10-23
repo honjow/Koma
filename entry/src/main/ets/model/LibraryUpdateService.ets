@@ -1,3 +1,4 @@
+import { chapterSortKey, enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import {
@@ -60,6 +61,8 @@ import {
   LocalLibraryRefreshService,
 } from './LocalLibraryRefreshService'
 
+export { enrichSourceChapterMetadata } from './SourceChapterMetadata'
+
 export type LibraryUpdateResultStatus = 'unchanged' | 'updated' | 'skipped' | 'failed'
 export type LibraryUpdateProviderKind = 'source_runtime' | 'local' | 'komga' | 'kavita' | 'opds' | 'webdav' | 'private_library' | 'unsupported'
 
@@ -112,16 +115,6 @@ function sourceMangaIdFromComic(comic: Comic): string | undefined {
     return comic.id.substring(prefix.length)
   }
   return undefined
-}
-
-function chapterSortKey(chapter: MangaChapterItem, index: number): string {
-  if (chapter.chapterNumber !== undefined) {
-    return `${chapter.chapterNumber}`
-  }
-  if (chapter.volumeNumber !== undefined && chapter.volumeNumber.length > 0) {
-    return `${chapter.volumeNumber}:${index}`
-  }
-  return `${index}`
 }
 
 function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], now: number): Chapter[] {
@@ -188,45 +181,6 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
     }
   })
   return merged
-}
-
-export function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaChapterItem[]): boolean {
-  const remoteById = new Map<string, MangaChapterItem>()
-  remoteChapters.forEach((chapter: MangaChapterItem): void => { remoteById.set(chapter.id, chapter) })
-  let changed = false
-  comic.chapters.forEach((chapter: Chapter): void => {
-    const remote = remoteById.get(chapter.id)
-    if (remote === undefined) {
-      return
-    }
-    // A successfully resolved source snapshot owns sequence metadata and language, including unknown.
-    if (remote.language !== chapter.language) {
-      chapter.language = remote.language
-      changed = true
-    }
-    if (remote.chapterNumber !== chapter.chapterNumber) {
-      chapter.chapterNumber = remote.chapterNumber
-      changed = true
-    }
-    if (remote.volumeNumber !== chapter.volumeNumber) {
-      chapter.volumeNumber = remote.volumeNumber
-      changed = true
-    }
-    if (remote.readingGroup !== chapter.readingGroup) {
-      chapter.readingGroup = remote.readingGroup
-      changed = true
-    }
-    if (remote.continuationEligible !== chapter.continuationEligible) {
-      chapter.continuationEligible = remote.continuationEligible
-      changed = true
-    }
-    const sortKey = chapterSortKey(remote, chapter.index)
-    if (sortKey !== chapter.sortKey) {
-      chapter.sortKey = sortKey
-      changed = true
-    }
-  })
-  return changed
 }
 
 function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number): Comic {
