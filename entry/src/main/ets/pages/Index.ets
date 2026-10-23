@@ -5,6 +5,8 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
+import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
+import { SourceFailureDetails } from '../model/SourceRuntimeError'
 import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch } from '@reader-kit/ui'
 import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
@@ -403,7 +405,7 @@ struct Index {
   }
 
   private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined,
-    onSourceFailure?: (reason: string | undefined) => void): Promise<boolean> {
+    onSourceFailure?: (reason: string | undefined, details?: SourceFailureDetails) => void): Promise<boolean> {
     if (!this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
     }
@@ -417,7 +419,7 @@ struct Index {
         },
       ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, false)
       if (!result.hydrated) {
-        onSourceFailure?.(result.sourceFailureReason)
+        onSourceFailure?.(result.sourceFailureReason, result.sourceFailure)
         this.logReaderSourcePagesUnavailable(result.reasonCode)
         return false
       }
@@ -450,9 +452,10 @@ struct Index {
     const offlineReaderPagesReady = this.hasAvailableOfflineReaderPages(originalComic.id, chapterId)
     let sourcePagesReady = true
     let sourceFailureReason: string | undefined = undefined
+    let sourceFailure: SourceFailureDetails | undefined = undefined
     if (!offlineReaderPagesReady) {
       sourcePagesReady = await this.ensureReaderSourceChapterPages(originalComic, chapterId,
-        (reason: string | undefined): void => { sourceFailureReason = reason })
+        (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details })
     }
     const comic = this.readerComicForOpen(comicId) ?? originalComic
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) {
@@ -460,7 +463,7 @@ struct Index {
     }
     let nextSessionConfig = this.createReaderSessionConfigForOpen(comic, chapterId)
     if (!sourcePagesReady && nextSessionConfig.totalPages <= 0) {
-      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig, sourceFailureReason)
+      nextSessionConfig = this.createSourceUnavailableReaderSessionConfig(comic, chapterId, nextSessionConfig, sourceFailureReason, sourceFailure)
     }
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
@@ -504,7 +507,7 @@ struct Index {
   }
 
   private createUnavailableSourceReaderSessionConfig(request: SourceReaderSessionRequest,
-    sourceFailureReason?: string): ReaderSessionConfig {
+    sourceFailureReason?: string, sourceFailure?: SourceFailureDetails): ReaderSessionConfig {
     const config = this.createSourceReaderSessionConfig(request, [])
     config.totalPages = 1
     config.pageUris = ['source-placeholder://chapter']
@@ -512,6 +515,7 @@ struct Index {
     config.pageWidths = [undefined]
     config.pageHeights = [undefined]
     config.sourceFailureReason = sourceFailureReason
+    config.sourceFailure = sourceFailure
     return config
   }
 
@@ -561,7 +565,7 @@ struct Index {
     this.activeSourceReaderRequest = preparedRequest
     if (resolution.pages.length === 0) {
       this.logReaderSourcePagesUnavailable(resolution.reasonCode)
-      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, resolution.sourceFailureReason)
+      const unavailableConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, resolution.sourceFailureReason, resolution.sourceFailure)
       this.readerSessionConfig = unavailableConfig
       // An unavailable placeholder has no real pages: an 'end' intent must not
       // be consumed as a successful landing (openPageIndex returns 0 there).
@@ -618,8 +622,7 @@ struct Index {
       // A chapter handoff is prepared beside the still-readable shared session.
       // Do not turn a provider failure into a committed placeholder unit: reject
       // the handoff so the current chapter stays visible and can be retried.
-      if (resolution.pages.length === 0) throw new Error(resolution.sourceFailureReason === 'unsupported'
-        ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
+      if (resolution.pages.length === 0) throw KomaReaderFailure.sourceError(resolution.sourceFailureReason, resolution.sourceFailure)
       return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
     }
     const original = this.readerComicForOpen(target.work)
@@ -628,16 +631,16 @@ struct Index {
     if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
     const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
     let sourceFailureReason: string | undefined = undefined
+    let sourceFailure: SourceFailureDetails | undefined = undefined
     if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit,
-      (reason: string | undefined): void => { sourceFailureReason = reason })
+      (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details })
     cancellation.check()
     const comic = this.readerComicForOpen(target.work) ?? original
     cancellation.check()
     const config = this.createReaderSessionConfigForOpen(comic, target.unit)
     if (config.totalPages > 0) return config
     if (this.chapterNeedsReaderSourcePages(comic, target.unit)) {
-      throw new Error(sourceFailureReason === 'unsupported'
-        ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
+      throw KomaReaderFailure.sourceError(sourceFailureReason, sourceFailure)
     }
     return null
   }
@@ -664,8 +667,7 @@ struct Index {
           const prepared = this.readerSessionConfig
           initialFailurePending = false
           if (prepared.pageUris.includes('source-placeholder://chapter')) {
-            throw new Error(prepared.sourceFailureReason === 'unsupported'
-              ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
+            throw KomaReaderFailure.sourceError(prepared.sourceFailureReason, prepared.sourceFailure)
           }
           const ready = this.readerLabInitialConfig(target.work, target.unit)
           if (ready !== null) return ready
@@ -673,8 +675,7 @@ struct Index {
         const consumeInitialFailure = initialFailurePending &&
           target.work === initialWork && target.unit === initialUnit
         initialFailurePending = false
-        if (consumeInitialFailure) throw new Error(initialConfig.sourceFailureReason === 'unsupported'
-          ? 'koma_reader_source_chapter_unsupported' : 'koma_reader_chapter_pages_unavailable')
+        if (consumeInitialFailure) throw KomaReaderFailure.sourceError(initialConfig.sourceFailureReason, initialConfig.sourceFailure)
         return this.prepareReaderLabCatalog(target, cancellation)
       },
       (target: ReaderUnitKey, config: ReaderSessionConfig): void => this.commitReaderLabCatalog(target, config),
@@ -891,6 +892,7 @@ struct Index {
     chapterId: string | undefined,
     baseConfig: ReaderSessionConfig,
     sourceFailureReason?: string,
+    sourceFailure?: SourceFailureDetails,
   ): ReaderSessionConfig {
     const resolvedChapterId = chapterId !== undefined && chapterId.length > 0 ? chapterId : baseConfig.chapterId
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === resolvedChapterId)
@@ -918,6 +920,7 @@ struct Index {
       pageHeights: [undefined],
       sourceRuntimeId: comic.sourceRuntimeId,
       sourceFailureReason,
+      sourceFailure,
     }
   }
 

@@ -14,6 +14,7 @@ import {
   readingProgressPageIndex,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
+import { SourceFailureDetails } from './SourceRuntimeError'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from './RemoteReaderSession'
 import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } from './ChapterReadStateStore'
@@ -150,6 +151,8 @@ export interface ReaderSessionConfig {
   sourceRuntimeId?: string
   /** Route-local provider category; never persisted with history or progress. */
   sourceFailureReason?: string
+  /** Sanitized route-local source failure; excluded from durable history/progress. */
+  sourceFailure?: SourceFailureDetails
   sourceMangaUrl?: string
   sourceKind?: ComicSourceKind
   remoteServerId?: string
@@ -182,6 +185,10 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageHeights: config.pageHeights?.slice(),
     sourceRuntimeId: config.sourceRuntimeId,
     sourceFailureReason: config.sourceFailureReason,
+    sourceFailure: config.sourceFailure === undefined ? undefined : {
+      reason: config.sourceFailure.reason, code: config.sourceFailure.code,
+      status: config.sourceFailure.status, kind: config.sourceFailure.kind,
+    },
     sourceMangaUrl: config.sourceMangaUrl,
     sourceKind: config.sourceKind,
     remoteServerId: config.remoteServerId,

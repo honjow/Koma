@@ -241,8 +241,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
       source.uri === 'source-placeholder://chapter' || source.imageUri.length === 0) {
       const config = this.configs.get(this.unitId(page.unit))
-      throw new Error(config?.sourceFailureReason === 'unsupported'
-        ? 'koma_reader_source_chapter_unsupported' : 'koma_lab_page_source_unavailable')
+      throw KomaReaderFailure.sourceError(config?.sourceFailureReason, config?.sourceFailure)
     }
     const filePath = await fetchAndCacheReaderRemoteSource(source, this.requestContext)
     cancellation.check()

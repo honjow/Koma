@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T15:35:45.628401+00:00",
+  "updatedAt": "2026-10-23T16:00:12.538712+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CHAPTER_PICKER_POSITION",
+  "activeId": "SOURCE_PACKAGE_INSTALL_LIST_UI",
   "activity": {
-    "title": "章节选择器：具名修复收尾与源管理下一项",
-    "detail": "Root已核197首开当前章、手动保位及返回保全；同步后继续源管理已批准的分组/动作/红NSFW标记。源owner只读核metadata生产者。",
-    "startedAt": "2026-10-23T15:35:45.628401+00:00"
+    "title": "源列表：红NSFW标记与安装状态分组",
+    "detail": "Root保原HDS卡片/图标/设置入口，落实已明确的红标、版本去重与三组；源owner只读查漫画160目录依据。",
+    "startedAt": "2026-10-23T16:00:12.538712+00:00"
   },
-  "nextAction": "同步章节定位修复并跟进CI；继续源管理名称/版本/安装更新分组和红NSFW标记范围调查。",
+  "nextAction": "先按现有列表父树实现红NSFW及可更新→未安装→已安装分组；不擅加未决定的筛选维度。",
   "proof": [
     {
       "label": "正式主仓",
@@ -957,7 +957,7 @@
       "label": "远端同步",
       "state": "具名修复精确CI成功",
       "kind": "accepted",
-      "detail": "fd807cf1同ID metadata保存修复已推，CI39976408662成功；章节定位具名通过待同步，源漫画柜016已推待CI。"
+      "detail": "fd807cf1与1e163c3e精确CI成功；漫画柜016公开85源索引与包三成员已核。"
     },
     {
       "label": "共享阅读器",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "fd807cf1edcf156e31ac15793722492495f1bc9b已推；CI39976408662 completed/success",
-      "hap": "197166已装8489124B/defaultRelease0.1.2-pre code3；168首开/关闭104帧序列已审，169末段当前章及手动保位通过，170章页/缓存保持。"
+      "appHead": "1e163c3e8a0efbb3df0ac06f330c9ac4af5bade7已推；CI39979645515 completed/success",
+      "hap": "197172已装8495784B/defaultRelease0.1.2-pre code3；173原Extra2第1/25页正常返回，174库全同，reader仅正常updatedAt变化。237同包自然网络失败新文案已验。"
     },
     {
       "name": "NextE",
@@ -1072,10 +1072,10 @@
       "status": "同ID metadata保存197具名通过；未知目录边界仍OPEN",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：App同步及章节选择器；源owner：237漫画柜016",
+      "owner": "Root：未知目录边界；源具名网络分支待条件",
       "dependencies": [],
       "result": "详情完整成功目录可同步同ID顺序信息到书架；未知跨季目录仍不猜序。",
-      "remaining": "跟进当前App精确CI与漫画柜016普通更新；无metadata跨季继续查站点依据。",
+      "remaining": "漫画柜016已公开发布，237目录与页面HTTP0未完成正文；漫画160未知跨季继续查站点依据。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
@@ -1091,11 +1091,11 @@
       "evidencePoints": [
         "详情旧34ab280d仅投影；沿b486da30的同ID规则补持久化，34项行为检查及签名Release构建通过。",
         "197158–162：仅Super Lovers三条番外的旧章号/排序字段更新，76章ID/页缓存及全部reader数据保持，重入库内容全同。",
-        "漫画柜016原HTML235条ID/标题/顺序保持，23卷/206话/6番外分组Root独立复跑通过，237普通更新待。"
+        "漫画柜016原HTML235条Root独立复跑通过；237更新已装但目录/页面均network_error/http0；公开索引85条已含016。"
       ],
       "remainingActions": [
-        "同步本次App实现并核精确CI；源owner继续237漫画柜016普通更新。",
-        "漫画160跨季无metadata仍待原始依据，不用标题首数、全reverse或漫画柜结果外推。"
+        "漫画柜016已推且公开索引确认；237网络失败分支仅待有效响应。",
+        "漫画160跨季缺metadata，仍查原始依据，不猜标题首数或全reverse。"
       ],
       "boundaries": [
         "197只验同ID信息保存和原Extra2进度保持；没有清历史伪造首次阅读，不称全源首章/排序已完成。"
@@ -1379,29 +1379,36 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "详情错误保真/强刷与两书恢复具名成立，全局错误仍待验",
+      "status": "阅读器自然取页错误237通过；全局搜索自然失败待",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：P0后接全局搜索普通源筛选入口",
+      "owner": "Root：本次取页提示具名冻结；全局自然错误待",
       "dependencies": [],
-      "result": "首页与首搜能显示可诊断HTTP错误；详情错误保真及两书恢复成立，全局搜索错误消费者尚未验。",
-      "remaining": "经原普通源筛选入口核全局搜索自然错误消费者；漫画柜分页仅在具备有效首批条件后推进。",
+      "result": "237同一自然取页失败已显示可用网络原因；197正常正文与返回保持，安全分类仅在路由内传递。",
+      "remaining": "同步本次错误链修复并跟进CI；全局搜索自然失败仍待，其他错误类型不外推。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
-      "firstHandlingAt": null,
-      "handling": null,
+      "firstHandlingAt": "2026-10-23T15:43:46.545761+00:00",
+      "handling": {
+        "measurement": "本次取页错误链处理时段，含等待，非纯工时",
+        "recordedSeconds": 985.992951,
+        "activeSince": null,
+        "activeUntil": null,
+        "note": "早期处理工时未知，不倒填。"
+      },
       "closedAt": null,
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ],
       "evidencePoints": [
-        "197首页与首搜现在显示HTTP403原因；首搜失败不再冒充“没有结果”。原件source-search-failure197-after-007，2f9f2d9a CI成功。",
-        "详情保留原码并提供真实强刷；两书恢复见BAOZIMH项。旧空结果误报与2300047失败原件保留，全局搜索错误消费者仍未验。",
-        "漫画柜015首批15秒后2300028，无HTTP/HTML、页2未触且无重试。原日志/tmp/koma-manhuagui015-pagination237-20261023；设备已恢复。"
+        "代码保源白名单分类/HTTP状态；不透传原消息，unsupported文案及重试保持，相关行为检查通过。",
+        "237005：网络文案与get_pages15056ms/network_error/http0一致；未点重试。原layout3/230保持，已恢复History/10000ms及释租。",
+        "197172–174：8495784B新包正常Extra2第1/25页；库全同，reader仅3处updatedAt。错误字段未持久化；错误签名拒绝原件保留。"
       ],
       "remainingActions": [
-        "经原普通源筛选入口核全局搜索自然错误消费者；漫画柜分页仅在具备有效首批条件后推进。"
+        "范围提交并跟进精确CI。",
+        "全局搜索自然失败及其他分类实机未验，不造故障或重复请求。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -1567,13 +1574,13 @@
     {
       "id": "CHAPTER_PICKER_POSITION",
       "title": "阅读器章节选择器每次从顶部动画滚到当前章",
-      "status": "197末段首开/手动保位/返回具名通过，准备同步",
-      "kind": "open",
+      "status": "197首开/手动保位通过，1e163c3e精确CI成功",
+      "kind": "accepted",
       "priority": "P2",
-      "owner": "Root：197末段首次定位与原生List布局调查",
+      "owner": "冻结路径：无当前执行者",
       "dependencies": [],
       "result": "已补打开期间实际布局校正；Extra2首开可见，手动Booklet3关开位置相同，原章页保持。",
-      "remaining": "同步当前限定修复并核精确CI；其他屏幕/档位/字号未由此验收。",
+      "remaining": "197具名范围冻结；不外推旋转、字号或档位拖动。",
       "reportedAt": "2026-10-22T19:45:43.075Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:45:43.075Z",
@@ -1586,17 +1593,17 @@
         "sharedSegment": "reader-three-fixes-20261022T200018",
         "note": "本段在具名保位结果登记后停止；有效窗之外未补计，含构建/设备等待非纯工时。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-23T15:43:46.545761+00:00",
       "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。",
       "reopenedAt": "2026-10-23T04:56:52.153Z",
       "reopenedAtSource": "原始会话JSONL response_item/user当前定位反例首报实值。",
       "evidencePoints": [
-        "旧f7a6a7dc只依赖initialIndex；163/164已复现当前索引73不在62–69可见区。",
+        "旧f7a6a7dc仅initialIndex；163/164复现末段不可见。1e163c3e已推，CI39979645515成功。",
         "166–169：签名Release已装；104编码帧按序及关键原尺寸帧已审，Extra2首开可见，无从顶部追章动画。",
         "169手动Booklet3关开均1664–1725px；170整库全同，reader仅正常updatedAt变化，章页/已读/缓存保持。"
       ],
       "remainingActions": [
-        "范围提交并跟进精确CI，保留197具名首开与手动保位边界。"
+        "仅真实新反例或相关依赖变化重开。"
       ],
       "boundaries": [
         "仅197/1260×2720/76章末段与手动位置；未扩认旋转、字号或档位拖动，不改原样式/目录/阅读规则。"
@@ -2054,26 +2061,35 @@
       "id": "SOURCE_PACKAGE_INSTALL_LIST_UI",
       "title": "源包管理按软件安装列表整理版本、动作、分组及标记",
       "priority": "P2（保当前P0不抢占）",
-      "owner": "Root：P0后具体方案与限定实施",
+      "owner": "Root：红NSFW/状态分组；具体新筛选仍待方案",
       "dependencies": [],
-      "status": "明确方向已登记，筛选维度/整页细节待方案",
+      "status": "已查历史/完整父树，限定实现中",
       "kind": "open",
-      "result": "明确方向已登记，筛选维度/整页细节待方案",
-      "remaining": "P0快速卡顿继续优先；后继拟定具体筛选维度、整页布局/细节与实施方案，不把泛化“重新考虑”虚构为任意重设计授权，也不虚构筛选方案已获批准。当前仅登记待办，未实现/构建/实机，耗时未知。",
+      "result": "85源字段完整且App传输保留；缺口在列表。现有更新动作已存在，尚未三组整理，同版本仍重复显示。",
+      "remaining": "沿SecondaryListScaffold与原HDS行实现明确四点；保图标、源详情/设置与安装入口。",
       "reportedAt": "2026-10-23T05:28:39.778Z",
       "reportedAtSource": "原始会话JSONL response_item/user实际时间戳；方向原文已核，不猜开始时间/耗时。",
       "firstEvidenceAt": "2026-10-23T05:28:39.778Z",
-      "firstHandlingAt": null,
-      "handling": null,
+      "firstHandlingAt": "2026-10-23T16:00:12.538712+00:00",
+      "handling": {
+        "measurement": "本次列表限定实现经过，含构建/设备等待，非纯工时",
+        "recordedSeconds": 0,
+        "activeSince": "2026-10-23T16:00:12.538712+00:00",
+        "activeUntil": "2026-10-23T16:12:12.538712+00:00",
+        "note": "此前只登记/调查，旧处理时长未知。"
+      },
       "closedAt": null,
       "evidencePoints": [
-        "用户明确：同版本不重复；更新动作区别安装；三组按可更新→未安装→最新；成人源红色标记。",
-        "筛选维度与细节尚待具体方案。可借鉴Mihon但须保Koma风格，不授权任意整页重设计。"
+        "已核原d53505ec的更新动作/双版本、当前两组父树；原HDS卡片/源图标继续保留。",
+        "85生产源nsfw布尔齐全（32true）；安装/索引DTO保持，PackageCard/RemoteIndexCard/SourceListItem均未显示红标。"
       ],
       "remainingActions": [
-        "P0快速卡顿继续优先；后继拟定具体筛选维度、整页布局/细节与实施方案，不把泛化“重新考虑”虚构为任意重设计授权，也不虚构筛选方案已获批准。当前仅登记待办，未实现/构建/实机，耗时未知。"
+        "红NSFW；同版本只显示一次；三组按可更新→未安装→已安装排列。",
+        "保原管理/设置入口和更新语义；具体额外筛选不擅定。"
       ],
-      "boundaries": []
+      "boundaries": [
+        "只落实人类已明确的列表语义，保原HDS/图标/普通返回；不引入全页重设计或未批准筛选方案。"
+      ]
     },
     {
       "id": "SOURCE_CHAPTER_DUPLICATE_TITLE_REVIEW",
@@ -2170,11 +2186,11 @@
     }
   ],
   "source": {
-    "status": "漫画柜016已推，精确CI待；HTTP0分支保留",
+    "status": "漫画柜016远端CI与公开索引完成；237HTTP0分支未通过",
     "kind": "open",
     "title": "源会话当前验收与源库同步",
-    "result": "漫画柜016原HTML235条metadata与顺序Root独立复跑通过；237普通015→016导入已验，精确历史第23卷3/230页保持。",
-    "remaining": "本次目录15150ms、页面15058ms均network_error/http0，无HTTP/HTML，不计内容或metadata落库Native通过；已恢复History/10000ms并释租。",
+    "result": "CI39979277747成功；latest公开索引85条，漫画柜0.1.6包三成员与manifest版本已核。237更新已装，原第23卷3/230保持。",
+    "remaining": "237目录与页面均network_error/http0，未验新metadata落库及正文；不冒称CF/parser原因。",
     "commit": "4f92d535d1315e4e9d3ade9615b64d16a5377ece"
   },
   "milestones": [

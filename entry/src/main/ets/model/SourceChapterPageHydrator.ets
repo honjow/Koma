@@ -24,6 +24,7 @@ import {
 } from '../sourceRuntime/SourceSettingsStore'
 import { normalizeSourceImageUrl } from './SourceTextNormalizer'
 import { resolveSourceChapterForResume } from './SourceChapterListResolver'
+import { SourceFailureDetails, sourceFailureDetails } from './SourceRuntimeError'
 
 interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
@@ -64,6 +65,7 @@ export interface SourceChapterPageHydrationResult {
   pageCount: number
   reasonCode?: string
   sourceFailureReason?: string
+  sourceFailure?: SourceFailureDetails
 }
 
 /**
@@ -84,6 +86,7 @@ export interface SourceChapterPagesResolveResult {
   pages: Page[]
   reasonCode?: string
   sourceFailureReason?: string
+  sourceFailure?: SourceFailureDetails
 }
 
 function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): string {
@@ -251,10 +254,11 @@ async function fetchSourceChapterPages(
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
   if (response.ok !== true) {
     const reason = optionalSourceString(response.reasonCode) ?? optionalSourceString(response.error?.['code'])
-    // Preserve the existing download/lookup classification; only Reader consumes
-    // the explicit provider category. Never forward source messages or raw errors.
+    // Keep download reason codes stable. Reader receives only the allowlisted
+    // category/status, never provider messages, URLs, headers, or response bodies.
     return { pages: [], reasonCode: 'source_pages_failed',
-      sourceFailureReason: reason?.trim().toLowerCase() === 'unsupported' ? 'unsupported' : undefined }
+      sourceFailureReason: reason?.trim().toLowerCase() === 'unsupported' ? 'unsupported' : undefined,
+      sourceFailure: sourceFailureDetails({ ok: false, reasonCode: response.reasonCode, error: response.error }) }
   }
   if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
   return { pages: pagesFromSourceRows(request.comicId, request.chapterId, rows) }
@@ -408,7 +412,7 @@ export class SourceChapterPageHydrator {
     })
     if (resolution.pages.length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing',
-        sourceFailureReason: resolution.sourceFailureReason }
+        sourceFailureReason: resolution.sourceFailureReason, sourceFailure: resolution.sourceFailure }
     }
     return this.applyPages(baselineComic, baselineChapter, resolution.pages)
   }
