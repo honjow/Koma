@@ -412,6 +412,8 @@ export struct SourceBrowsePage {
     if (this.isSearchActive()) {
       if (this.viewModel.loadingSearch && this.viewModel.searchResults.length === 0) {
         rows.push({ key: 'search-loading', kind: 'loading', bottomPadding: ThemeConstants.SPACE_MD })
+      } else if (this.viewModel.searchResults.length === 0 && this.viewModel.searchErrorMessage.length > 0) {
+        rows.push({ key: 'search-error', kind: 'error', bottomPadding: ThemeConstants.SPACE_MD })
       } else if (this.viewModel.searchResults.length === 0) {
         rows.push({ key: 'search-empty', kind: 'empty-search', bottomPadding: ThemeConstants.SPACE_MD })
       } else {
@@ -469,7 +471,7 @@ export struct SourceBrowsePage {
       this.LoadingBrowseState()
     } else if (params.row.kind === 'empty-search') {
       KomaEmptyState({ title: s('source_search_empty_results_title'),
-        message: this.viewModel.errorMessage.length > 0 ? this.viewModel.errorMessage : s('source_search_empty_results_message') })
+        message: s('source_search_empty_results_message') })
     } else if (params.row.kind === 'empty-browse') {
       this.EmptyBrowseResults()
     } else if (params.row.kind === 'error') {
@@ -509,13 +511,15 @@ export struct SourceBrowsePage {
   @Builder
   private BrowseErrorState() {
     KomaEmptyState({
-      title: this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
-        ? s('browse_error_load_more') : s('browse_error_load_home'),
+      title: this.isSearchActive() ? s('source_search_error_title') :
+        this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
+          ? s('browse_error_load_more') : s('browse_error_load_home'),
       message: this.viewModel.errorMessage,
       actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: true,
       action: () => {
         if (this.canVerifySource()) this.verifySource()
+        else if (this.isSearchActive()) void this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
         else this.retryBrowseError()
       },
     })
