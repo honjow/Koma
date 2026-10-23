@@ -1,5 +1,7 @@
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
+import { SourceRuntimeError } from '../model/SourceRuntimeError'
+import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
 import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
@@ -345,6 +347,7 @@ export struct MangaDetailPage {
     // A hidden detail route must not let an old source response repaint a later route instance.
     this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
     this.chrome.pageActionsAvailable = false
+    this.chrome.sourceReloadAvailable = false
   }
 
   @Monitor('chrome.actionRequestSeq')
@@ -370,6 +373,7 @@ export struct MangaDetailPage {
     }
     const actionsAvailable = this.shouldRenderDetailActions()
     this.chrome.pageActionsAvailable = actionsAvailable
+    this.chrome.sourceReloadAvailable = this.canReloadSourceDetail()
     this.chrome.webActionsAvailable = actionsAvailable && this.mangaWebUrl() !== undefined
     this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
     this.chrome.localMetadataAvailable = actionsAvailable && this.canEditLocalMetadata()
@@ -386,7 +390,19 @@ export struct MangaDetailPage {
     return mangaHttpUrl(this.manga?.url)
   }
 
+  private canReloadSourceDetail(): boolean {
+    return (this.params.sourceId?.trim().length ?? 0) > 0 &&
+      (this.params.mangaId?.trim().length ?? 0) > 0
+  }
+
   private runTitleAction(action: MangaDetailTitleAction): void {
+    // Recovery is route-owned and must remain available even before any manga loaded.
+    if (action === MangaDetailTitleAction.RELOAD_SOURCE) {
+      if (this.canReloadSourceDetail()) {
+        void this.loadSourceMangaDetail(this.params.sourceId!.trim(), this.params.mangaId!.trim(), true)
+      }
+      return
+    }
     if (!this.shouldRenderDetailActions()) {
       return
     }
@@ -651,11 +667,21 @@ export struct MangaDetailPage {
     this.localMetadataCoverPath = ''
   }
 
-  private async loadSourceMangaDetail(sourceId: string, mangaId: string): Promise<void> {
+  private async loadSourceMangaDetail(sourceId: string, mangaId: string, forceReload: boolean = false): Promise<void> {
+    const retainedDetail = forceReload && this.sourceDetailDataResolved ? this.manga : undefined
+    const retainedChapters = retainedDetail === undefined ? [] : this.chapters.slice()
+    const retainedChaptersResolved = this.sourceChaptersResolved
+    const retainedState = this.isDetailPending() ? SourceDetailContentState.READY : this.sourceDetailContentState
     const requestEpoch = this.beginSourceDetailRequest(sourceId, mangaId)
-    this.sourceDetailContentState = SourceDetailContentState.LOADING
-    this.sourceDetailDataResolved = false
-    this.feedbackText = s('manga_detail_loading_source')
+    if (retainedDetail === undefined) {
+      this.sourceDetailContentState = SourceDetailContentState.LOADING
+      this.sourceDetailDataResolved = false
+      this.feedbackText = s('manga_detail_loading_source')
+    } else {
+      this.sourceDetailContentState = retainedState
+      this.sourceChaptersResolved = retainedChaptersResolved
+      this.feedbackText = ''
+    }
     try {
       const lookup = this.sourceRegistry.lookup(sourceId)
       if (!lookup.ok || lookup.entry === undefined) {
@@ -665,7 +691,7 @@ export struct MangaDetailPage {
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
         throw new Error('source_disabled')
       }
-      const cached = sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
+      const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
       if (cached !== undefined) {
@@ -683,7 +709,7 @@ export struct MangaDetailPage {
         }
         detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
         this.refreshSourceLibraryCover(sourceId, mangaId, detail.coverUrl)
-        chapters = loaded.embeddedChapters
+        chapters = loaded.embeddedChapters.length > 0 ? loaded.embeddedChapters : retainedChapters
       }
       // The detail payload is already real data. Keep it visible while the
       // independent chapter request is pending instead of representing this
@@ -696,7 +722,7 @@ export struct MangaDetailPage {
         detail,
         chapters,
         '',
-        SourceDetailContentState.LOADING,
+        retainedDetail === undefined ? SourceDetailContentState.LOADING : SourceDetailContentState.READY,
       )
       if (!detailApplied) {
         return
@@ -709,6 +735,7 @@ export struct MangaDetailPage {
         }, this.sourceDetailSettingsRevision)
       }
       let chaptersLoadFailed = false
+      let chaptersFailureText = s('manga_detail_load_source_chapters_failed')
       try {
         const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId, detail.url,
           (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId))
@@ -717,7 +744,7 @@ export struct MangaDetailPage {
         }
         chaptersLoadFailed = !chapterResult.resolved
         this.sourceChaptersResolved = chapterResult.resolved && chapterResult.chapters.length > 0
-        if (chapterResult.chapters.length > 0) {
+        if (chapterResult.chapters.length > 0 || (forceReload && chapterResult.resolved)) {
           chapters = chapterResult.chapters
         }
       } catch (_error) {
@@ -725,7 +752,7 @@ export struct MangaDetailPage {
           return
         }
         chaptersLoadFailed = true
-        DiagnosticLogger.warn('manga_detail_page', 'source', '[manga-detail] source chapters load failed reason=source_chapters')
+        chaptersFailureText = this.sourceOperationFailureText(_error, 'get_chapters', 'manga_detail_load_source_chapters_failed')
         const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
         if (libraryComic !== undefined && libraryComic.chapters.length > 0) {
           chapters = libraryComic.chapters.map((chapter: Chapter): MangaChapterItem =>
@@ -746,7 +773,7 @@ export struct MangaDetailPage {
         mangaId,
         detail,
         chapters,
-        chaptersLoadFailed ? s('manga_detail_load_source_chapters_failed') : '',
+        chaptersLoadFailed ? chaptersFailureText : '',
         chaptersLoadFailed && chapters.length === 0
           ? SourceDetailContentState.ERROR
           : SourceDetailContentState.READY,
@@ -759,18 +786,25 @@ export struct MangaDetailPage {
         }, this.sourceDetailSettingsRevision)
       }
     } catch (error) {
-      const e = error as Error
-      void e
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
         return
       }
-      DiagnosticLogger.warn('manga_detail_page', 'source', '[manga-detail] source detail load failed reason=source_detail')
+      const failureText = this.sourceOperationFailureText(error, 'get_manga', 'manga_detail_load_source_failed')
+      if (retainedDetail !== undefined) {
+        this.manga = retainedDetail
+        this.chapters = retainedChapters
+        this.sourceDetailDataResolved = true
+        this.sourceChaptersResolved = retainedChaptersResolved
+        this.sourceDetailContentState = retainedState
+        this.feedbackText = failureText
+        return
+      }
       const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
       const fallbackComicId = this.sourceComicId(sourceId, mangaId)
       const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, fallbackComicId)
       if (libraryComic !== undefined) {
         this.loadLocalOrMissingManga(libraryComic.id)
-        this.feedbackText = s('manga_detail_load_source_failed')
+        this.feedbackText = failureText
         return
       }
       if (fallbackDetail !== undefined) {
@@ -783,7 +817,7 @@ export struct MangaDetailPage {
       this.isInLibrary = false
       this.sourceDetailDataResolved = false
       this.activeLibraryComicId = ''
-      this.feedbackText = s('manga_detail_load_source_failed')
+      this.feedbackText = failureText
       this.sourceDetailContentState = SourceDetailContentState.ERROR
       this.downloadStatusText = ''
       this.localRefreshText = ''
@@ -901,6 +935,19 @@ export struct MangaDetailPage {
     return true
   }
 
+  private sourceOperationFailureText(error: Object, operation: string, fallbackKey: string): string {
+    if (error instanceof SourceRuntimeError) {
+      const details = error.diagnostic
+      DiagnosticLogger.warn('manga_detail_page', 'source_operation_failed',
+        'operation=' + operation + ' reason=' + details.reason + ' error=' + details.code +
+        ' http=' + details.status + ' kind=' + details.kind)
+      return s(fallbackKey) + ' ' + error.userText
+    }
+    // Unexpected exceptions may contain URLs or credentials. Keep the phase, never their raw message.
+    DiagnosticLogger.warn('manga_detail_page', 'source_operation_failed', 'operation=' + operation + ' reason=unexpected_failure')
+    return s(fallbackKey)
+  }
+
   private async runSourceMangaOperation(
     entry: SourceRuntimeRegistryEntry,
     operation: string,
@@ -914,10 +961,15 @@ export struct MangaDetailPage {
       this.copyWasmBytes(entry),
       sourceHttpIdentityJson(entry),
     ) as Promise<string>)
-    const response = JSON.parse(responseJson) as SourceOperationResponsePayload
+    const runtimeResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
+    if (runtimeResponse.ok !== true) {
+      throw new SourceRuntimeError(runtimeResponse)
+    }
+    const response = runtimeResponse as SourceOperationResponsePayload
     const item = this.sourceMangaResponseItem(response)
-    if (response.ok !== true || item === undefined) {
-      throw new Error('get_manga returned no item')
+    if (item === undefined) {
+      const invalidResponse: SourceRuntimeCallResponse = { ok: false, reasonCode: 'invalid_response' }
+      throw new SourceRuntimeError(invalidResponse)
     }
     return {
       detail: parseMangaDetailFromSourceItem(entry.sourceId, item),

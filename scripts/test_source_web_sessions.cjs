@@ -48,29 +48,71 @@ function fixture() {
     const pending = store.begin(registry, entry.sourceId, 'https://site.invalid/verify?not-persisted')
     store.complete(entry.sourceId, pending.sessionId, 'https://site.invalid/done', 'ActualWebViewUA')
   }
-  async function http(responses, context, sourceRequest = {}) {
+  async function http(responses, context, sourceRequest = {}, network = {}) {
     let callback
-    const calls = []
+    const calls = [], instances = [], intercepts = []
     const trace = { info: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === '@kit.ArkTS') return { url: { URL } }
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store }
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, warn: () => {} } }
-      if (name === '@kit.NetworkKit') return { http: { RequestMethod: { GET: 'GET', POST: 'POST' }, HttpDataType: { STRING: 1 }, createHttp: () => ({
-        request: async (fullUrl, options) => {
-          calls.push({ fullUrl, options })
-          const response = responses.shift()
-          if (!response) throw Error('unexpected additional request')
-          return response
-        }, destroy: () => {},
-      }) } }
+      if (name === '@kit.NetworkKit') return { http: {
+        RequestMethod: { GET: 'GET', POST: 'POST' }, HttpDataType: { STRING: 1 },
+        InterceptorType: { REDIRECTION: 'REDIRECTION' },
+        HttpInterceptorChain: class {
+          addChain(chain) {
+            if (network.addThrows) throw Error('interceptor setup failed')
+            this.chain = chain
+            return network.addResult !== false
+          }
+          apply(request) {
+            if (network.applyThrows) throw Error('interceptor setup failed')
+            if (network.applyResult === false) return false
+            request.chain = this.chain
+            return true
+          }
+        },
+        createHttp: () => {
+          const request = { chain: [], destroyed: false, requestCount: 0,
+            request: async (initialUrl, options) => {
+              assert.equal(request.destroyed, false)
+              assert.equal(++request.requestCount, 1, 'A HttpRequest must not be reused for another hop')
+              let fullUrl = initialUrl
+              while (true) {
+                calls.push({ fullUrl, options, instance: instances.indexOf(request) })
+                const response = responses.shift()
+                if (!response) throw Error('unexpected additional request')
+                if ([301, 302, 303, 307, 308].includes(response.responseCode)) {
+                  // NetworkKit rejects even the first redirect when the configured maximum is zero.
+                  if (options.maxRedirects === 0) throw Object.assign(Error('redirect limit'), { code: 2300047 })
+                  let stopped = false
+                  for (const interceptor of request.chain) {
+                    assert.equal(interceptor.interceptorType, 'REDIRECTION')
+                    const continued = await interceptor.interceptorHandle({ url: fullUrl, header: options.header }, response)
+                    intercepts.push({ status: response.responseCode, continued })
+                    if (!continued) { stopped = true; break }
+                  }
+                  if (stopped) return response
+                  // A missing stop interceptor would send the next request automatically.
+                  const key = Object.keys(response.header).find(key => key.toLowerCase() === 'location')
+                  fullUrl = new URL(response.header[key], fullUrl).toString()
+                  continue
+                }
+                return response
+              }
+            }, destroy: () => { request.destroyed = true },
+          }
+          instances.push(request)
+          return request
+        },
+      } }
       if (name === '@kit.BasicServicesKit') return {}
       throw Error('unexpected import: ' + name)
     })
     transport.configureSourceRuntimeHttpTransport()
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
-    return { calls, result: JSON.parse(result) }
+    return { calls, instances, intercepts, result: JSON.parse(result) }
   }
   return { api, store, registry, writes, fetched, diagnostics, configured, identity, grant, http,
     addSource: e => extraEntries.set(e.sourceId, e), setWriteFailure: value => { failWrite = value },
@@ -139,11 +181,16 @@ test('same-origin redirects re-read cookies for the exact path; cross-origin red
   const f = fixture(); f.grant()
   const allowed = await f.http([response(302, { location: '/next' }), response()], JSON.stringify(f.identity()))
   assert.equal(allowed.calls.length, 2)
-  assert.equal(allowed.calls[0].options.maxRedirects, 0)
+  assert.equal(allowed.calls[0].options.maxRedirects, undefined)
+  assert.deepEqual(allowed.intercepts, [{ status: 302, continued: false }])
+  assert.equal(allowed.instances.length, 2)
+  assert(allowed.instances.every(request => request.destroyed))
   assert.equal(allowed.calls[1].fullUrl, 'https://site.invalid/next')
   assert(f.fetched.includes('https://site.invalid/next'))
   const denied = await f.http([response(302, { Location: 'https://evil.invalid/steal' })], JSON.stringify(f.identity()))
   assert.equal(denied.calls.length, 1)
+  assert.equal(denied.instances.length, 1)
+  assert(denied.instances.every(request => request.destroyed))
   assert.equal(denied.result.ok, false)
   assert.equal(denied.result.error.code, 'web_session_redirect_rejected')
 })
@@ -253,5 +300,34 @@ test('detail, chapter list, page and image-request workers retain each invocatio
     assert.equal(JSON.parse(exports.run('public-request', bytes, context)).ok, true)
     assert.equal(calls.length, 1, file)
     assert.equal(calls[0][2], context, file)
+  }
+})
+
+test('redirect interceptor setup failure never sends a credentialed request or falls back to automatic following', async () => {
+  for (const network of [{ addResult: false }, { applyResult: false }, { addThrows: true }, { applyThrows: true }]) {
+    const f = fixture(); f.grant()
+    const failed = await f.http([response(302, { Location: 'https://other.invalid/' })], JSON.stringify(f.identity()), {}, network)
+    assert.equal(failed.calls.length, 0)
+    assert.equal(failed.result.error.code, 'web_session_redirect_unavailable')
+    assert.equal(failed.result.error.retryable, false)
+    assert.equal(failed.instances.length, 1)
+    assert.equal(failed.instances[0].destroyed, true)
+  }
+})
+test('manual redirect budget rejects the next hop and destroys every single-use request', async () => {
+  const f = fixture(); f.grant()
+  const result = await f.http(Array.from({ length: 31 }, (_, i) => response(302, { Location: '/hop-' + i })), JSON.stringify(f.identity()))
+  assert.equal(result.result.error.code, 'web_session_redirect_rejected')
+  assert.equal(result.calls.length, 31)
+  assert.equal(result.intercepts.length, 31)
+  assert(result.instances.every(request => request.requestCount === 1 && request.destroyed))
+})
+test('303 changes POST to GET while 307 retains the request body', async () => {
+  const f = fixture(); f.grant()
+  for (const [status, method, body] of [[303, 'GET', undefined], [307, 'POST', 'payload']]) {
+    const result = await f.http([response(status, { Location: '/next' }), response()], JSON.stringify(f.identity()), { method: 'POST', body: 'payload' })
+    assert.equal(result.calls[1].options.method, method)
+    assert.equal(result.calls[1].options.extraData, body)
+    assert(result.instances.every(request => request.destroyed))
   }
 })

@@ -1,3 +1,5 @@
+import { SourceRuntimeError } from './SourceRuntimeError'
+import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
 import { taskpool } from '@kit.ArkTS'
@@ -131,7 +133,10 @@ async function fetchSourceChapterList(
       const sourceReason = response.error?.['code']
       const reason = typeof nativeReason === 'string' && nativeReason.trim().length > 0 ? nativeReason :
         (typeof sourceReason === 'string' && sourceReason.trim().length > 0 ? sourceReason : 'get_chapters_failed')
-      throw new Error(reason)
+      const failure = new SourceRuntimeError(response as SourceRuntimeCallResponse)
+      // Existing update/resume consumers classify message as a reason code; UI uses userText.
+      failure.message = reason
+      throw failure
     }
     const rows = response.data?.items ?? response.data?.chapters ?? []
     rows.forEach((item: Record<string, Object>): void => { chapters.push(parseMangaChapterFromSourceItem(item)) })

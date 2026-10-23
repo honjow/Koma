@@ -107,6 +107,25 @@ function sourceNetworkMethod(method: string): http.RequestMethod {
   return method === 'POST' ? http.RequestMethod.POST : http.RequestMethod.GET
 }
 
+// Stop before NetworkKit issues a redirected request. maxRedirects=0 rejects
+// the first redirect with 2300047 instead of exposing its response to this host.
+class SourceRedirectStopInterceptor implements http.HttpInterceptor {
+  interceptorType: http.InterceptorType = http.InterceptorType.REDIRECTION
+
+  interceptorHandle(_request: http.HttpRequestContext, _response: http.HttpResponse): Promise<http.ChainContinue> {
+    return Promise.resolve(false)
+  }
+}
+
+function attachSourceRedirectStop(request: http.HttpRequest): boolean {
+  try {
+    const chain = new http.HttpInterceptorChain()
+    return chain.addChain([new SourceRedirectStopInterceptor()]) && chain.apply(request)
+  } catch (_error) {
+    return false
+  }
+}
+
 async function executeSourceHttpRequest(requestJson: string, httpContextJson: string = ''): Promise<string> {
   let envelope: SourceHttpRequestEnvelope
   try {
@@ -131,7 +150,6 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       Array.isArray(parsed.webSessionOrigins) && parsed.webSessionOrigins.every((item: string): boolean => typeof item === 'string')) identity = parsed
   } catch (_error) {}
   const session = identity === undefined ? undefined : appSourceWebSessionStore.requestSession(identity, url)
-  const request = http.createHttp()
   try {
     let currentUrl = url
     let currentMethod = method
@@ -159,17 +177,27 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' uaSource=' + (session === undefined ? 'source' : 'webview'))
     const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt))
-    const response = await request.request(currentUrl, {
+    const request = http.createHttp()
+    let response: http.HttpResponse
+    try {
+      if (session !== undefined && !attachSourceRedirectStop(request)) {
+        trace.finish('failed', 'reason=web_session_redirect_unavailable')
+        return transportError('web_session_redirect_unavailable', false)
+      }
+      response = await request.request(currentUrl, {
       method: sourceNetworkMethod(currentMethod),
       customMethod: currentMethod === 'GET' || currentMethod === 'POST' ? undefined : currentMethod,
       extraData: currentBody.length > 0 ? currentBody : undefined,
       expectDataType: http.HttpDataType.STRING,
       usingCache: false,
       header: headers,
-      maxRedirects: session === undefined ? undefined : 0,
       readTimeout: remaining,
       connectTimeout: remaining,
-    })
+      })
+    } finally {
+      // A HttpRequest represents one hop and cannot be reused for the next URL.
+      request.destroy()
+    }
     if (session !== undefined && identity !== undefined) {
       // NetworkKit exposes each Set-Cookie as an array entry; preserve Expires commas.
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
@@ -217,8 +245,6 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.fail(error)
     DiagnosticLogger.warn('source_http', 'transport_failed', 'platformCode=' + platformCode)
     return transportError('network_error')
-  } finally {
-    request.destroy()
   }
 }
 

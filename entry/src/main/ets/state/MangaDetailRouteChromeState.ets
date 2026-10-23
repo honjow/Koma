@@ -6,6 +6,7 @@
  * never drives the title bar of another route still retained in the stack.
  */
 export enum MangaDetailTitleAction {
+  RELOAD_SOURCE = 'reload_source',
   OPEN_WEBVIEW = 'open_webview',
   OPEN_BROWSER = 'open_browser',
   FIND_TRACKER_MAPPING = 'find_tracker_mapping',
@@ -19,6 +20,7 @@ export enum MangaDetailTitleAction {
 export class MangaDetailRouteChromeState {
   @Trace resolvedTitle: string = ''
   @Trace pageActionsAvailable: boolean = false
+  @Trace sourceReloadAvailable: boolean = false
   @Trace webActionsAvailable: boolean = false
   @Trace localRefreshAvailable: boolean = false
   @Trace localMetadataAvailable: boolean = false

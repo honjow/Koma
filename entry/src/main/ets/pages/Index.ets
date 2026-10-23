@@ -2946,11 +2946,23 @@ struct Index {
     const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
     const title: Record<string, Object> = { 'mainTitle': this.mangaDetailTitle(param) }
     const content: Record<string, Object> = { 'title': title }
-    if (!chrome.pageActionsAvailable) {
+    if (!chrome.pageActionsAvailable && !chrome.sourceReloadAvailable) {
       return this.sourceRouteTitleBarOpts(content)
     }
 
     const menuItems: Record<string, Object>[] = []
+    if (chrome.sourceReloadAvailable) {
+      menuItems.push({ 'content': {
+        'label': AppStrings.get('manga_detail_menu_reload_source'),
+        'icon': $r('sys.symbol.arrow_clockwise'),
+        'isEnabled': true,
+        'action': () => { chrome.requestAction(MangaDetailTitleAction.RELOAD_SOURCE) },
+      } as Record<string, Object> })
+    }
+    if (!chrome.pageActionsAvailable) {
+      content['menu'] = { 'value': menuItems, 'maxCount': 1 } as Record<string, Object>
+      return this.sourceRouteTitleBarOpts(content)
+    }
     if (chrome.webActionsAvailable) {
       menuItems.push({ 'content': {
         'label': AppStrings.get('manga_detail_menu_open_webview'),
