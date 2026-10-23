@@ -1,3 +1,4 @@
+import { readerModeSelection, readerDirectionSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettingsContent } from './DiagnosticsSettingsContent'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -1303,7 +1304,9 @@ export struct SettingsPage {
   }
 
   private savePageMode(pageMode: ReaderPageMode): void {
-    this.pageMode = pageMode
+    const choice = readerModeSelection({ pageMode: this.pageMode, readingDirection: this.readingDirection }, pageMode)
+    this.pageMode = choice.pageMode
+    this.readingDirection = choice.readingDirection
     void this.preferencesStore().savePageMode(pageMode)
       .then(() => {
         console.info('[Settings] step=save_page_mode value=' + pageMode)
@@ -1314,7 +1317,9 @@ export struct SettingsPage {
   }
 
   private saveReadingDirection(readingDirection: ReadingDirection): void {
-    this.readingDirection = readingDirection
+    const choice = readerDirectionSelection({ pageMode: this.pageMode, readingDirection: this.readingDirection }, readingDirection)
+    this.pageMode = choice.pageMode
+    this.readingDirection = choice.readingDirection
     void this.preferencesStore().saveReadingDirection(readingDirection)
       .then(() => {
         console.info('[Settings] step=save_reading_direction value=' + readingDirection)

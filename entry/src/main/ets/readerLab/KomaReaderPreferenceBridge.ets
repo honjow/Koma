@@ -1,6 +1,6 @@
 import { ReaderDisplayPolicy } from '@reader-kit/core'
 import { ReadingDirection } from '../model/ComicModels'
-import { ReaderPreferences, normalizeReaderPreferences } from '../model/ReaderPreferencesStore'
+import { ReaderPreferences, ReaderPageMode, normalizeReaderPreferences, readerModeSelection } from '../model/ReaderPreferencesStore'
 
 /** Pure host mapping. reader-kit never imports or persists Koma preferences. */
 export class KomaReaderPreferenceBridge {
@@ -60,10 +60,15 @@ export class KomaReaderPreferenceBridge {
 
   static applyPolicy(current: ReaderPreferences, policy: ReaderDisplayPolicy): ReaderPreferences {
     const next = KomaReaderPreferenceBridge.copy(current)
-    next.pageMode = policy.layout === 'continuous' ? 'continuous_scroll' :
+    const mode: ReaderPageMode = policy.layout === 'continuous' ? 'continuous_scroll' :
       policy.layout === 'spread' ? 'double_page' : policy.pagingAxis === 'vertical' ? 'vertical_page' : 'single_page'
-    next.readingDirection = policy.layout === 'continuous' ? ReadingDirection.WEBTOON :
-      policy.direction === 'rtl' ? ReadingDirection.RIGHT_TO_LEFT : ReadingDirection.LEFT_TO_RIGHT
+    // Vertical layouts do not choose a horizontal direction. Preserve the host's dormant choice.
+    if (policy.layout !== 'continuous' && policy.pagingAxis !== 'vertical') {
+      next.readingDirection = policy.direction === 'rtl' ? ReadingDirection.RIGHT_TO_LEFT : ReadingDirection.LEFT_TO_RIGHT
+    }
+    const choice = readerModeSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, mode)
+    next.pageMode = choice.pageMode
+    next.readingDirection = choice.readingDirection
     next.spreadLayoutMode = policy.spreadLayout === 'split' ? 'split' : 'joined'
     next.columnMode = policy.firstPageAlone ? 'even_left' : 'odd_left'
     next.wideImageMode = policy.splitWidePages ? 'split_wide_pages' :

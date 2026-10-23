@@ -1,3 +1,4 @@
+import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
@@ -2653,11 +2654,9 @@ export struct ReaderPage {
     next.pageMode = mode === ReaderMode.DUAL_PAGE ? 'double_page' :
       (mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous_scroll' :
         (mode === ReaderMode.VERTICAL_PAGE ? 'vertical_page' : 'single_page'))
-    if (mode === ReaderMode.CONTINUOUS_SCROLL) {
-      next.readingDirection = ReadingDirection.WEBTOON
-    } else if (next.readingDirection === ReadingDirection.WEBTOON) {
-      next.readingDirection = ReadingDirection.LEFT_TO_RIGHT
-    }
+    const choice = readerModeSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, next.pageMode)
+    next.pageMode = choice.pageMode
+    next.readingDirection = choice.readingDirection
     this.preferences = next
     this.preferenceRevision += 1
     this.refreshPageDataSources()

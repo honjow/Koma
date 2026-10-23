@@ -1,6 +1,8 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
 import {
+  readerModeSelection,
+  readerDirectionSelection,
   ReaderBackgroundMode,
   ReaderColumnMode,
   ReaderImageScalingQuality,
@@ -79,13 +81,17 @@ export struct ReaderSettingsContent {
 
   private setPageMode(mode: ReaderPageMode): void {
     const next = this.copyPreferences()
-    next.pageMode = mode
+    const choice = readerModeSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, mode)
+    next.pageMode = choice.pageMode
+    next.readingDirection = choice.readingDirection
     this.update(next)
   }
 
   private setDirection(direction: ReadingDirection): void {
     const next = this.copyPreferences()
-    next.readingDirection = direction
+    const choice = readerDirectionSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, direction)
+    next.pageMode = choice.pageMode
+    next.readingDirection = choice.readingDirection
     this.update(next)
   }
 
@@ -169,6 +175,15 @@ export struct ReaderSettingsContent {
     if (key === 'awake') next.keepScreenAwake = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
     this.update(next)
+  }
+
+  private isHorizontalDirectionApplicable(): boolean {
+    return this.readerMode === ReaderMode.SINGLE_PAGE || this.readerMode === ReaderMode.DUAL_PAGE
+  }
+
+  private effectiveDirectionLabel(): string {
+    return this.isHorizontalDirectionApplicable() ? getReadingDirectionLabel(this.preferences.readingDirection) :
+      s('reader_direction_effective_top_to_bottom')
   }
 
   private isWebtoonLayout(): boolean {
@@ -305,7 +320,7 @@ export struct ReaderSettingsContent {
         GroupedListSection() {
           ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
           ListDivider()
-          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: getReadingDirectionLabel(this.preferences.readingDirection), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
+          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.isHorizontalDirectionApplicable(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
           ListDivider()
           ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
           ListDivider()

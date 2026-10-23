@@ -71,6 +71,7 @@
     { "name": "reader_direction_ltr", "value": "从左到右" },
     { "name": "reader_direction_rtl", "value": "从右到左" },
     { "name": "reader_direction_vertical", "value": "纵向滚动" },
+    { "name": "reader_direction_effective_top_to_bottom", "value": "从上到下" },
     { "name": "reader_background_black", "value": "黑色" },
     { "name": "reader_background_gray", "value": "灰色" },
     { "name": "reader_background_white", "value": "白色" },

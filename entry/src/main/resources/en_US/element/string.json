@@ -72,6 +72,7 @@
     { "name": "reader_direction_ltr", "value": "Left to right" },
     { "name": "reader_direction_rtl", "value": "Right to left" },
     { "name": "reader_direction_vertical", "value": "Vertical" },
+    { "name": "reader_direction_effective_top_to_bottom", "value": "Top to bottom" },
     { "name": "reader_background_black", "value": "Black" },
     { "name": "reader_background_gray", "value": "Gray" },
     { "name": "reader_background_white", "value": "White" },

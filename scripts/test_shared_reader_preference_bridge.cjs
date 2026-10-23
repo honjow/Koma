@@ -14,9 +14,16 @@ const output = ts.transpileModule(source, { compilerOptions: {
 const exportsBridge = {}
 const ReadingDirection = { LEFT_TO_RIGHT: 'left_to_right', RIGHT_TO_LEFT: 'right_to_left', WEBTOON: 'webtoon' }
 const normalizeReaderPreferences = value => ({ ...value })
+const storeAst = ts.createSourceFile('store.ts', fs.readFileSync(path.resolve(__dirname,
+  '../entry/src/main/ets/model/ReaderPreferencesStore.ets'), 'utf8'), ts.ScriptTarget.Latest, true)
+const modeExports = {}
+new Function('exports', 'ReadingDirection', ts.transpileModule(
+  storeAst.statements.find(node => node.name?.text === 'readerModeSelection').getText(storeAst),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(modeExports, ReadingDirection)
+
 new Function('exports', 'require', output)(exportsBridge, name => {
   if (name === '../model/ComicModels') return { ReadingDirection }
-  if (name === '../model/ReaderPreferencesStore') return { normalizeReaderPreferences }
+  if (name === '../model/ReaderPreferencesStore') return { normalizeReaderPreferences, readerModeSelection: modeExports.readerModeSelection }
   if (name === '@reader-kit/core') return {}
   throw new Error(`Unexpected import: ${name}`)
 })
@@ -56,7 +63,7 @@ assert.equal(vertical.wideImageMode, 'split_wide_pages')
 const continuous = KomaReaderPreferenceBridge.applyPolicy(base,
   policy({ layout: 'continuous', direction: 'rtl', pagingAxis: 'vertical' }))
 assert.equal(continuous.pageMode, 'continuous_scroll')
-assert.equal(continuous.readingDirection, ReadingDirection.WEBTOON)
+assert.equal(continuous.readingDirection, base.readingDirection)
 
 for (const key of ['themeMode', 'backgroundMode', 'showProgressControls', 'keepScreenAwake', 'fullscreen',
   'imageFitMode', 'imageScalingQuality', 'showPageNumber', 'pageTurnAnimation', 'autoPageSeconds',

@@ -95,6 +95,32 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.clearSeriesOverride('book-A');
  assert.equal((await store.loadForComic('book-A')).pageMode,(await store.load()).pageMode);
  assert.equal((await store.loadForComic('book-B')).pageMode,'vertical_page');
+
+ // Explicit commands reconcile legacy WEBTOON, while merely reopening does not migrate records.
+ const modeBase={...await store.load(),pageMode:'single_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT};
+ await store.save(modeBase);
+ await store.savePageMode('continuous_scroll');
+ assert.equal((await store.load()).readingDirection,ReadingDirection.RIGHT_TO_LEFT,'vertical mode retains dormant RTL');
+ await store.savePageMode('double_page');
+ assert.equal((await store.load()).readingDirection,ReadingDirection.RIGHT_TO_LEFT);
+ await store.saveReadingDirection(ReadingDirection.WEBTOON);
+ assert.equal((await store.load()).pageMode,'continuous_scroll');
+ await store.savePageMode('single_page');
+ assert.equal((await store.load()).readingDirection,ReadingDirection.LEFT_TO_RIGHT,'explicit non-continuous command clears legacy WEBTOON');
+ const globalChoice=await store.load();
+ await store.saveChangesForComic('mode-reopen',globalChoice,{...globalChoice,pageMode:'continuous_scroll',readingDirection:ReadingDirection.RIGHT_TO_LEFT});
+ const reopened=new mod.ReaderPreferencesStore(ctx);
+ assert.equal((await reopened.loadForComic('mode-reopen')).pageMode,'continuous_scroll');
+ assert.equal((await reopened.loadForComic('mode-reopen')).readingDirection,ReadingDirection.RIGHT_TO_LEFT);
+ await reopened.clearSeriesOverride('mode-reopen');
+ assert.equal((await reopened.loadForComic('mode-reopen')).pageMode,globalChoice.pageMode);
+ assert.equal((await reopened.loadForComic('mode-reopen')).readingDirection,globalChoice.readingDirection);
+ await reopened.save({...globalChoice,pageMode:'single_page',readingDirection:ReadingDirection.WEBTOON});
+ const unchanged=new Map(data.get(ctx.filesDir));
+ const legacyReopened=new mod.ReaderPreferencesStore(ctx);
+ assert.equal((await legacyReopened.load()).readingDirection,ReadingDirection.WEBTOON);
+ assert.deepEqual(data.get(ctx.filesDir),unchanged,'loading does not migrate persistent mode records');
+ console.log('PASS: mode commands, dormant RTL, legacy WEBTOON, global restore and fresh store reopen');
  console.log('PASS: one book commit, rejected override/reset cache rollback, later unrelated commits and other-book isolation');
  console.log('PASS: committed backend selection, rejected save and backup restore publication');
  console.log('PASS: common mutation owner, field deltas, two book overrides, reset, restore admission, flush publication and rejection recovery');

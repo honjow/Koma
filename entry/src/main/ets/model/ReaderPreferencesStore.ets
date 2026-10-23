@@ -64,6 +64,23 @@ export interface ReaderSeriesModeOverride {
   readingDirection: ReadingDirection
 }
 
+/** Explicit commands reconcile legacy WEBTOON without rewriting stored data on load.
+ * Horizontal direction remains dormant while a vertical mode owns movement. */
+export function readerModeSelection(current: ReaderSeriesModeOverride, pageMode: ReaderPageMode): ReaderSeriesModeOverride {
+  return {
+    pageMode,
+    readingDirection: pageMode !== 'continuous_scroll' && current.readingDirection === ReadingDirection.WEBTOON
+      ? ReadingDirection.LEFT_TO_RIGHT : current.readingDirection,
+  }
+}
+
+export function readerDirectionSelection(current: ReaderSeriesModeOverride, readingDirection: ReadingDirection): ReaderSeriesModeOverride {
+  return {
+    pageMode: readingDirection === ReadingDirection.WEBTOON ? 'continuous_scroll' : current.pageMode,
+    readingDirection,
+  }
+}
+
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageMode: 'single_page',
   readingDirection: ReadingDirection.LEFT_TO_RIGHT,
@@ -975,21 +992,17 @@ export class ReaderPreferencesStore {
 
   async savePageMode(pageMode: ReaderPageMode): Promise<ReaderPreferences> {
     return this.mutatePreferences((next: ReaderPreferences): void => {
-      next.pageMode = pageMode
-      // Keep the legacy WEBTOON direction and the explicit mode in sync. This
-      // prevents a later switch back to single/vertical paging from remaining
-      // trapped in continuous mode because an old direction flag still wins.
-      if (pageMode === 'continuous_scroll') {
-        next.readingDirection = ReadingDirection.WEBTOON
-      } else if (next.readingDirection === ReadingDirection.WEBTOON) {
-        next.readingDirection = ReadingDirection.LEFT_TO_RIGHT
-      }
+      const choice = readerModeSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, pageMode)
+      next.pageMode = choice.pageMode
+      next.readingDirection = choice.readingDirection
     })
   }
 
   async saveReadingDirection(readingDirection: ReadingDirection): Promise<ReaderPreferences> {
     return this.mutatePreferences((next: ReaderPreferences): void => {
-      next.readingDirection = readingDirection
+      const choice = readerDirectionSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, readingDirection)
+      next.pageMode = choice.pageMode
+      next.readingDirection = choice.readingDirection
     })
   }
 

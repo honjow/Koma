@@ -534,7 +534,7 @@ export struct KomaReaderLabPage {
           policy.layout === 'spread' ? 'spread' : 'single'
         policy.pagingAxis = direction === 'vertical_page' ? 'vertical' : 'horizontal'
         if (direction === 'vertical_page') policy.layout = 'single'
-        policy.direction = direction === 'rtl' ? 'rtl' : 'ltr'
+        if (direction === 'rtl' || direction === 'ltr') policy.direction = direction
         params.onChange(policy)
       },
       onMenuVisible: (visible: boolean): void => { params.onMenuVisible(visible) },
@@ -563,6 +563,12 @@ export struct KomaReaderLabPage {
   }
 
   private currentReaderMode(): ReaderMode {
+    const policy = this.session?.snapshot().policy
+    if (policy !== undefined) {
+      if (policy.layout === 'continuous') return ReaderMode.CONTINUOUS_SCROLL
+      if (policy.layout === 'spread') return ReaderMode.DUAL_PAGE
+      return policy.pagingAxis === 'vertical' ? ReaderMode.VERTICAL_PAGE : ReaderMode.SINGLE_PAGE
+    }
     const mode = this.hostPreferences?.pageMode ?? this.readerMode.pageMode
     if (mode === 'double_page') return ReaderMode.DUAL_PAGE
     if (mode === 'vertical_page') return ReaderMode.VERTICAL_PAGE
