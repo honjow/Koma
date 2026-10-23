@@ -120,6 +120,7 @@ export struct SourceListItem {
       title: this.displayTitle(),
       subtitle: this.displaySubtitle(),
       subtitleMaxLines: 1,
+      subtitleContentRating: this.source.nsfw,
       hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: this.presentationIconUri(),
       sourceIdentitySourceId: this.source.sourceId,

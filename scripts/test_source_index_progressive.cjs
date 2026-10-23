@@ -105,3 +105,64 @@ test('icon completion retains the displayed source metadata and ignores retired 
   assert.equal(Object.keys(manager.indexIconStates).length, 0)
   assert.equal(manager.indexEntries.length, 0)
 })
+
+function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
+    'installedSourceIds', 'installedPackage', 'compareVersion', 'entryDeclaresPackageIcon',
+    'needsPackageIdentityIconRepair', 'updateAvailableFor', 'hasUpdate', 'missingIndexEntries',
+    'updatableIndexEntries', 'availablePackageUpdates', 'packageListGroups', 'indexVersionText',
+  ], { ...globals, compareSourceNames: (left, _id, right) => left.localeCompare(right),
+    tf: (_key, local, remote) => `local ${local} / remote ${remote}` })
+  Object.assign(manager, { packages, indexEntries, packageUpdateStatuses,
+    sourceIndexUrl: 'https://active.test/index.json', indexDisplayName: item => item.name })
+  return manager
+}
+const installed = (id, version, enabled = true) => ({ id, name: id, version, enabled, icon: 'file://installed.png' })
+const indexed = (id, version) => ({ ...entry(id), version })
+test('source groups contain each installed identity once; updates precede missing and current packages', () => {
+  const packages = [installed('A', '1.0'), installed('B', '1.0'), installed('C', '2.0', false)]
+  const manager = packageManager(packages, [indexed('A','1.1'), indexed('B','1.0'), indexed('C','1.0'), indexed('D','1.0')])
+  const groups = manager.packageListGroups()
+  assert.equal(groups.updates.map(c => c.entry.id).join(','), 'A')
+  assert.equal(groups.missing.map(e => e.id).join(','), 'D')
+  assert.equal(groups.installed.map(e => e.id).join(','), 'B,C')
+  assert.equal(groups.installed[1].enabled, false)
+  assert.equal(packages.map(e => e.id).join(','), 'A,B,C')
+})
+test('checked updates retain their actual repository and ignore a stale update after local installation', () => {
+  const manager = packageManager([installed('A','1.0'), installed('B','1.0')], [indexed('A','1.1')], [
+    { sourceId:'A', status:'update', remoteEntry:indexed('A','1.2'), remoteIndexUrl:'https://other.test/index.json' },
+    { sourceId:'B', status:'update', remoteEntry:indexed('B','1.1'), remoteIndexUrl:'https://other.test/index.json' },
+  ])
+  let groups = manager.packageListGroups()
+  assert.equal(groups.updates.length, 2)
+  assert.equal(groups.updates[0].entry.version, '1.2')
+  assert.equal(groups.updates[0].indexUrl, 'https://other.test/index.json')
+  manager.packages = [installed('A','1.2'), installed('B','1.1')]
+  groups = manager.packageListGroups()
+  assert.equal(groups.updates.length, 0)
+  assert.equal(groups.installed.length, 2)
+})
+test('equal versions print once while a real version change retains both sides', () => {
+  const manager = packageManager([installed('A','1.0')], [])
+  assert.equal(manager.indexVersionText(indexed('A','1.0')), 'v1.0')
+  assert.equal(manager.indexVersionText(indexed('A','1.1')), 'local 1.0 / remote 1.1')
+  assert.equal(manager.indexVersionText(indexed('new','1.1')), 'v1.1')
+})
+test('group update uses its repository and preserves a disabled source through the existing install transaction', async () => {
+  const calls = []
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['updateInstalledPackage'], {
+    ...globals, tf: key => key, t: key => key, sourceDisplayName: (_id, name) => name,
+    setEnabled: (_context, id, value) => calls.push(['enabled', id, value]),
+  })
+  Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false,
+    context: () => ({}), reload() {}, installedPackage: () => installed('A','1.1',false),
+    setUpdateStatus: status => calls.push(['status', status.status]), showToast() {},
+    sourceIndexService: { installPackage: async (url, entry) => { calls.push(['install',url,entry.id]); return {ok:true} } },
+  })
+  await manager.updateInstalledPackage(installed('A','1.0',false), {
+    entry:indexed('A','1.1'), indexUrl:'https://other.test/index.json',
+  })
+  assert.deepEqual(calls, [['install','https://other.test/index.json','A'],['enabled','A',false],['status','latest']])
+  assert.equal(manager.updateInstallSourceId, '')
+})

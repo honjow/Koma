@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T17:00:44.560809+00:00",
+  "updatedAt": "2026-10-23T17:52:28.847577+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_LIST_UI",
+  "activeId": "SOURCE_RUNTIME_ERRORS",
   "activity": {
-    "title": "源列表：红NSFW标记与安装状态分组",
-    "detail": "Tab完整八次录屏已亲审；NSFW整行红与191 overlay均撤回。官方B区customBuilder已核，依原生文字几何接局部Span。",
-    "startedAt": "2026-10-23T16:00:12.538712+00:00"
+    "title": "源错误：保留平台超时分类",
+    "detail": "源列表202/204/205具名验收及数据保全完成，准备范围同步。平台2300028已保留为timeout，16项HTTP测试及22项详情/Reader测试通过、Release构建成功，原源owner接续237一次自然验收。",
+    "startedAt": "2026-10-23T17:52:28.847577+00:00"
   },
-  "nextAction": "核191局部标红实际画面和点击透传；只提交已接受的Tab接线，NSFW不以整行红妥协。",
+  "nextAction": "同步源列表范围并跟精确CI；237自然错误核验后提交超时分类，继续剩余Reader原队列。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "1e163c3e8a0efbb3df0ac06f330c9ac4af5bade7已推；CI39979645515 completed/success",
-      "hap": "197172已装8495784B/defaultRelease0.1.2-pre code3；173原Extra2第1/25页正常返回，174库全同，reader仅正常updatedAt变化。237同包自然网络失败新文案已验。"
+      "appHead": "a8469704a0c2859c73e2517477714253ec15ba82已推；CI39991605716 completed/success；源列表范围准备提交",
+      "hap": "197201已装8497498B/defaultRelease0.1.2-pre code3；202/204/205源列表具名验收及完整库/reader保全通过。237准备8497473B超时修复自然验收。"
     },
     {
       "name": "NextE",
@@ -1381,13 +1381,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "阅读器自然取页错误237通过；全局搜索自然失败待",
+      "status": "已验网络提示保持；平台超时分类已实现，237自然验收中",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：本次取页提示具名冻结；全局自然错误待",
+      "owner": "Root：App修复/同步；koma_comicabc_chapters：237一次自然验收",
       "dependencies": [],
       "result": "237同一自然取页失败已显示可用网络原因；197正常正文与返回保持，安全分类仅在路由内传递。",
-      "remaining": "63f1c11e已推、CI39983172244成功；全局搜索自然失败和其他分类仍待。",
+      "remaining": "原237自然请求核2300028→timeout实际提示；全局搜索自然失败仍待条件。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1404,12 +1404,13 @@
         "SOURCE_WEB_SESSION"
       ],
       "evidencePoints": [
-        "63f1c11e已推，CI39983172244成功；仅传白名单分类/HTTP状态，unsupported及重试保持。",
-        "237005：网络文案与get_pages15056ms/network_error/http0一致；未点重试。原layout3/230保持，已恢复History/10000ms及释租。",
-        "197172–174：8495784B新包正常Extra2第1/25页；库全同，reader仅3处updatedAt。错误字段未持久化；错误签名拒绝原件保留。"
+        "63f1c11e已推、CI39983172244成功；237005具名网络提示与原取页失败一致。",
+        "原005平台2300028及官方HTTP文档已亲核；传输层仅保留此码为timeout，其他错误仍network_error。",
+        "16项HTTP会话测试与22项详情/Reader分类测试通过，8497473B Release构建；尚不冒237自然显示通过。"
       ],
       "remainingActions": [
-        "本次阅读器网络错误范围冻结；全局搜索自然失败待条件。"
+        "原源owner237一次自然请求，Root亲审原件；通过后范围提交推送和精确CI。",
+        "全局搜索自然失败待条件，不造故障。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -2062,36 +2063,36 @@
       "id": "SOURCE_PACKAGE_INSTALL_LIST_UI",
       "title": "源包管理按软件安装列表整理版本、动作、分组及标记",
       "priority": "P2（保当前P0不抢占）",
-      "owner": "Root：红NSFW/状态分组；具体新筛选仍待方案",
+      "owner": "Root：已验列表范围同步；具体筛选方案后继",
       "dependencies": [],
-      "status": "三组/更新归组已验；最新版本、按钮、NSFW位置反馈实施中",
+      "status": "197原生列表/红NSFW/普通更新具名通过；提交同步中",
       "kind": "open",
-      "result": "197真实索引27更新/53最新；包子018→019单次正常更新后归已安装，版本只一份；原源设置入口与返回正常。",
-      "remaining": "B区正式插槽局部NSFW候选实机复核；精简版本和同款按钮随组验收，不能提交被否决候选。",
+      "result": "202/204/205：NSFW单独红，字体与64vp行高同原HDS；安装/更新同款原生按钮，漫画柜014→016一次更新移入已安装、版本只显示一次。",
+      "remaining": "范围提交推送并跟精确CI；管理列表具体筛选维度仍需独立方案。",
       "reportedAt": "2026-10-23T05:28:39.778Z",
       "reportedAtSource": "原始会话JSONL response_item/user实际时间戳；方向原文已核，不猜开始时间/耗时。",
       "firstEvidenceAt": "2026-10-23T05:28:39.778Z",
       "firstHandlingAt": "2026-10-23T16:00:12.538712+00:00",
       "handling": {
         "measurement": "本轮共享验证经过，含构建/设备等待，两个并行条目时段不可相加为纯工时",
-        "recordedSeconds": 2814.079629,
-        "activeSince": "2026-10-23T16:55:10.291918+00:00",
-        "activeUntil": "2026-10-23T17:07:10.291918+00:00",
-        "note": "此前只登记/调查，旧处理时长未知。"
+        "recordedSeconds": 4956.592758,
+        "activeSince": null,
+        "activeUntil": null,
+        "note": "只计已登记窗口，工具/上下文空档不倒填。"
       },
       "closedAt": null,
       "evidencePoints": [
-        "183真实索引后动态分组正常；185包子018→019成功、未安装与已安装组原图已亲审。",
-        "更新后包子只v0.1.9；已安装Browse红NSFW具名可见。180/181首候选未刷新失败保留。",
-        "本轮新反馈：版本改v旧→v新；安装/更新同款按钮、不以>伪装跳转；NSFW放语言后、保持HDS行。"
+        "202原图及205父树：成人/普通行同208px，标题与副行坐标分别同原176，版本/语言灰、NSFW红。",
+        "202原详情→设置→关闭保持；204漫画柜一次更新后已安装只v0.1.6，无重复更新。185包子018→019证据保持。",
+        "201至205库及reader完整JSON相同；8项渐进加载/分组/更新生产方法测试通过。"
       ],
       "remainingActions": [
-        "落实最新列表反馈并197原入口复核。",
-        "范围提交推送并跟进精确CI；具体筛选维度仍待独立方案。"
+        "范围提交推送并跟进精确CI。",
+        "后继核管理列表具体筛选方案，不自行决定新维度。"
       ],
       "boundaries": [
-        "整行红色已被用户否决；191副行overlay未渲染造成文字不可见，候选失败已撤，原件保留。",
-        "官方TextItemOptions.customBuilder是真正B区插槽；此前只读secondaryText而误报整个HDS限制，现已纠正。后继只用正式槽+Text/Span，保HDS行和原几何。"
+        "失败候选及脚本错误原件保留：191副行不可见、193字号偏小均已撤；199错误选择器与202未滚入安装组的等待不冒产品故障。",
+        "HDS拥有卡片、图标、后缀按钮和点击；只用官方B区Text/Span扩展，不覆盖像素，不改其他普通行或素材。"
       ]
     },
     {
@@ -2192,10 +2193,10 @@
       "title": "主页Tab选中填充图标与点击弹跳",
       "priority": "P2（当前源列表后）",
       "owner": "Root",
-      "kind": "open",
-      "status": "197四Tab与重复点击具名通过，待范围提交",
+      "kind": "accepted",
+      "status": "197具名验收完成并已推，精确CI成功",
       "result": "186八次原速点击的607编码帧与关键原帧已亲审；四Tab随选中切换fill、同Tab重复点击有系统弹跳，原导航保持。",
-      "remaining": "范围提交推送与精确CI。",
+      "remaining": "具名范围冻结。",
       "reportedAt": null,
       "reportedDate": "2026-10-24",
       "reportedAtSource": "最新两条人类消息；无精确提出时分秒，不猜填。",
@@ -2203,20 +2204,18 @@
       "firstHandlingAt": "2026-10-23T16:16:13.824783+00:00",
       "handling": {
         "measurement": "本轮共享验证经过，含构建/设备等待，两个并行条目时段不可相加为纯工时",
-        "recordedSeconds": 1852.7935579999998,
-        "activeSince": "2026-10-23T16:55:10.291918+00:00",
-        "activeUntil": "2026-10-23T17:07:10.291918+00:00",
-        "note": "实现前段未分段记录，不倒填。"
+        "recordedSeconds": 2572.793558,
+        "activeSince": null,
+        "activeUntil": null,
+        "note": "只计已登记窗口，工具/上下文空档不倒填。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-23T17:28:46.334448+00:00",
       "evidencePoints": [
-        "SDK8个真实symbol资源均存在；系统BounceSymbolEffect数值trigger由HdsTabs.onTabBarClick驱动，初始-1不自动播。",
+        "a8469704已推，CI39991605716成功；197八次原速点击、607原始编码帧已亲审。",
         "186连续8次点击，19张完整联系表、607原PTS帧与110/247/390/526原帧已亲审；当前Tab重复点击有弹跳反馈。",
         "182至187库及reader完整JSON同值；不改阅读状态。录像890×1920只判可见动效，不推1260×2720几何或显示刷新帧率。"
       ],
-      "remainingActions": [
-        "只将Tab两文件和当前记录范围提交推送，跟精确CI。"
-      ],
+      "remainingActions": [],
       "boundaries": [
         "只改图形及明确点击反馈，不换底栏样式、文字、尺寸、颜色或根导航/滚动所有权。"
       ],

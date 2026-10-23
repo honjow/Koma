@@ -3,6 +3,7 @@ import {
   PrefixCustomBuilder,
   PrefixImage,
   SuffixCustomBuilder,
+  SuffixButton,
   SuffixSwitch,
   SuffixText,
   SuffixTextAndArrow,
@@ -21,7 +22,10 @@ export struct ConciseListRow {
   @Param wrapTitle: boolean = false
   @Param subtitle: ResourceStr = ''
   @Param subtitleMaxLines: number = 2
+  @Param subtitleContentRating: boolean = false
   @Param trailingText: ResourceStr = ''
+  @Param actionButtonText: ResourceStr = ''
+  @Param actionButtonEnabled: boolean = true
   @Param trailingMaxLines: number = 1
   @Param leadingImageUrl: string = ''
   @Param leadingImageSize: number = 0
@@ -64,6 +68,7 @@ export struct ConciseListRow {
   @Param surfaceRadius: number = 0
   @Consumer('koma.groupedList.surfaceRadius') private groupedSurfaceRadius: number = ThemeConstants.LIST_ROW_RADIUS
   @Event action?: () => void
+  @Event actionButtonAction?: () => void
   @BuilderParam suffixBuilderParam?: () => void
   @BuilderParam prefixBuilderParam?: () => void
   @BuilderParam dropdownMenuBuilder: (select: (action: () => void) => void) => void =
@@ -101,6 +106,32 @@ export struct ConciseListRow {
       modifier.padding({ left: ThemeConstants.LIST_ROW_TEXT_INDENT })
     }
     return modifier
+  }
+
+  @Builder
+  private ContentRatedText() {
+    // Native HDS B-area extension; retain the measured 2vp title/subtitle gap.
+    Column({ space: 2 }) {
+      Text(this.title)
+        .attributeModifier(this.primaryTextModifier())
+        .fontSize($r('sys.float.Body_L'))
+        .fontWeight(FontWeight.Medium)
+        .width('100%')
+      Text() {
+        Span(this.subtitle)
+        Span(' · ')
+        Span('NSFW').fontColor(ThemeConstants.DANGER)
+      }
+      .attributeModifier(this.secondaryTextModifier())
+      .fontSize($r('sys.float.Body_M'))
+      .width('100%')
+    }
+    .alignItems(HorizontalAlign.Start)
+    // Preserve the native 64vp two-line source row: HDS adds its own 8vp
+    // above/below this 48vp B slot. Let longer or scaled text grow naturally.
+    .constraintSize({ minHeight: 48 })
+    .justifyContent(FlexAlign.Center)
+    .width('100%')
   }
 
   private trailingTextModifier(): TextModifier {
@@ -173,13 +204,23 @@ export struct ConciseListRow {
     .padding({ left: this.prefixPaddingLeft, right: this.prefixPaddingRight })
   }
 
-  private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | undefined {
+  private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | undefined {
     if (this.suffixBuilderParam) {
       return new SuffixCustomBuilder(() => {
         this.WrappedSuffixBuilder()
       })
     }
 
+    if (this.actionButtonText !== '') {
+      return new SuffixButton({
+        text: this.actionButtonText,
+        textColor: ThemeConstants.BRAND_PRIMARY,
+        enable: this.isEnabled && this.actionButtonEnabled,
+        onClick: () => {
+          if (this.isEnabled && this.actionButtonEnabled && this.actionButtonAction) this.actionButtonAction()
+        },
+      })
+    }
     if (this.hasSwitch) {
       return new SuffixSwitch({
         isCheck: this.checked,
@@ -432,6 +473,7 @@ export struct ConciseListRow {
   private RowContent() {
     HdsListItemCard({
       textItem: {
+        customBuilder: this.subtitleContentRating ? () => { this.ContentRatedText() } : undefined,
         primaryText: {
           text: this.title,
           modifier: this.primaryTextModifier(),

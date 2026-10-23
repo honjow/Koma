@@ -76,6 +76,12 @@ interface SourcePackageUpdateCandidate {
   indexUrl: string
 }
 
+interface SourcePackageListGroups {
+  updates: SourcePackageUpdateCandidate[]
+  missing: SourceIndexEntry[]
+  installed: InstalledSourcePackage[]
+}
+
 interface SourceSettingsValidationStatus {
   sourceId: string
   status: SourceSettingsValidationState
@@ -506,6 +512,41 @@ export struct SourcePackageManagerPage {
     return this.indexEntries.filter((entry: SourceIndexEntry): boolean => this.hasUpdate(entry))
   }
 
+  private availablePackageUpdates(): SourcePackageUpdateCandidate[] {
+    const candidates: SourcePackageUpdateCandidate[] = []
+    this.updatableIndexEntries().forEach((entry: SourceIndexEntry): void => {
+      candidates.push({ entry, indexUrl: this.sourceIndexUrl.trim() })
+    })
+    this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
+      const entry = status.remoteEntry
+      const installed = this.installedPackage(status.sourceId)
+      if (status.status !== 'update' || entry === undefined || installed === undefined ||
+        status.remoteIndexUrl === undefined || !this.updateAvailableFor(installed, entry)) return
+      const index = candidates.findIndex((candidate: SourcePackageUpdateCandidate): boolean => candidate.entry.id === entry.id)
+      const candidate: SourcePackageUpdateCandidate = { entry, indexUrl: status.remoteIndexUrl }
+      if (index < 0) candidates.push(candidate)
+      else if (this.compareVersion(entry.version, candidates[index].entry.version) > 0 ||
+        (this.compareVersion(entry.version, candidates[index].entry.version) === 0 &&
+          this.entryDeclaresPackageIcon(entry) && !this.entryDeclaresPackageIcon(candidates[index].entry))) {
+        candidates[index] = candidate
+      }
+    })
+    return candidates.sort((left: SourcePackageUpdateCandidate, right: SourcePackageUpdateCandidate): number =>
+      compareSourceNames(this.indexDisplayName(left.entry), left.entry.id, this.indexDisplayName(right.entry), right.entry.id))
+  }
+
+  private packageListGroups(): SourcePackageListGroups {
+    const updates = this.availablePackageUpdates()
+    const updating = updates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
+    return { updates, missing: this.missingIndexEntries(),
+      installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.includes(source.id)) }
+  }
+
+  @Computed
+  private get listGroups(): SourcePackageListGroups {
+    return this.packageListGroups()
+  }
+
   private checkedUpdateStatuses(): SourcePackageUpdateStatus[] {
     return this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => {
       return status.status === 'update' && status.remoteEntry !== undefined && status.remoteIndexUrl !== undefined &&
@@ -837,15 +878,15 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private async updateInstalledPackage(source: InstalledSourcePackage): Promise<void> {
+  private async updateInstalledPackage(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate): Promise<void> {
     if (this.updateInstallSourceId.length > 0 || this.indexInstallBusy || this.busy) {
       return
     }
-    const entry = this.updateEntry(source.id)
+    const entry = candidate?.entry ?? this.updateEntry(source.id)
     if (entry === undefined) {
       return
     }
-    let url = this.updateIndexUrl(source.id)
+    let url = candidate?.indexUrl ?? this.updateIndexUrl(source.id)
     if (url.length === 0) {
       url = await this.currentIndexUrlOrPrompt()
     }
@@ -909,7 +950,7 @@ export struct SourcePackageManagerPage {
 
   private indexVersionText(entry: SourceIndexEntry): string {
     const installed = this.installedPackage(entry.id)
-    if (installed === undefined) {
+    if (installed === undefined || this.compareVersion(installed.version, entry.version) === 0) {
       return 'v' + entry.version
     }
     return tf('source_pkg_index_version_installed', installed.version, entry.version)
@@ -1747,6 +1788,7 @@ export struct SourcePackageManagerPage {
       title: this.indexDisplayName(entry),
       subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
       subtitleMaxLines: 1,
+      subtitleContentRating: entry.nsfw,
       hasSourceIdentityPrefix: true,
       sourceIdentityIconState: this.indexIconStates[entry.id],
       sourceIdentitySourceId: entry.id,
@@ -1754,17 +1796,12 @@ export struct SourcePackageManagerPage {
       sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
-      trailingText: this.hasUpdate(entry)
-        ? t('source_pkg_action_update')
-        : (this.isSourceInstalled(entry.id) ? t('source_pkg_installed') : t('source_pkg_install')),
-      showChevron: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id),
-      action: () => {
-        if (this.hasUpdate(entry)) {
-          this.installIndexEntry(entry, true)
-        } else if (!this.isSourceInstalled(entry.id)) {
-          this.installIndexEntry(entry)
-        }
-      },
+      showChevron: false,
+      actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
+        ? t(this.hasUpdate(entry) ? 'source_pkg_action_update' : 'source_pkg_install') : '',
+      actionButtonEnabled: !this.sourceIndexBatchBusy(),
+      actionButtonAction: () => { void this.installIndexEntry(entry, this.hasUpdate(entry)) },
+      trailingText: this.isSourceInstalled(entry.id) && !this.hasUpdate(entry) ? t('source_pkg_installed') : '',
     })
   }
 
@@ -1979,11 +2016,20 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private PackageCard(sourceId: string) {
+  private PackageCard(sourceId: string, candidate?: SourcePackageUpdateCandidate) {
     ConciseListRow({
       title: sourceDisplayName(sourceId, this.installedPackage(sourceId)?.name ?? ''),
-      subtitle: this.packageListMetaText(this.installedPackage(sourceId)),
-      trailingText: (this.installedPackage(sourceId)?.enabled ?? false) ? t('source_pkg_enabled') : t('source_pkg_disabled'),
+      subtitle: candidate === undefined ? this.packageListMetaText(this.installedPackage(sourceId))
+        : this.indexVersionText(candidate.entry) + (candidate.entry.lang.length > 0 ? ' · ' + candidate.entry.lang : ''),
+      showChevron: candidate === undefined,
+      trailingText: candidate === undefined
+        ? t((this.installedPackage(sourceId)?.enabled ?? false) ? 'source_pkg_enabled' : 'source_pkg_disabled') : '',
+      actionButtonText: candidate !== undefined ? this.updateActionLabel(sourceId) : '',
+      actionButtonEnabled: !this.sourceIndexBatchBusy(),
+      actionButtonAction: () => {
+        const source = this.installedPackage(sourceId)
+        if (source !== undefined && candidate !== undefined) void this.updateInstalledPackage(source, candidate)
+      },
       hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: this.installedPackage(sourceId)?.icon ?? '',
       sourceIdentitySourceId: sourceId,
@@ -1992,6 +2038,7 @@ export struct SourcePackageManagerPage {
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       primaryColor: ThemeConstants.TEXT_PRIMARY,
+      subtitleContentRating: (this.installedPackage(sourceId)?.nsfw ?? false) || (candidate?.entry.nsfw ?? false),
       secondaryColor: (this.installedPackage(sourceId)?.enabled ?? false) ? ThemeConstants.TEXT_SECONDARY : ThemeConstants.TEXT_TERTIARY,
       action: () => {
         const source = this.installedPackage(sourceId)
@@ -2291,6 +2338,50 @@ export struct SourcePackageManagerPage {
     .backgroundColor(ThemeConstants.SOFT_TINT)
   }
 
+  @Builder
+  private PackageListGroups(groups: SourcePackageListGroups) {
+    if (groups.updates.length > 0) {
+      ListItem() {
+        SectionHeader({ title: t('source_pkg_update_available') })
+      }
+      ListItem() {
+        GroupedListSection() {
+          ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
+            this.PackageCard(candidate.entry.id, candidate)
+            if (index + 1 < groups.updates.length) { ListDivider() }
+          }, (candidate: SourcePackageUpdateCandidate) => JSON.stringify([candidate.entry.id, candidate.entry.version,
+            this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw]))
+        }
+      }
+    }
+    if (groups.missing.length > 0) {
+      ListItem() {
+        SectionHeader({ title: t('source_pkg_uninstalled_heading') })
+      }
+      ListItem() {
+        GroupedListSection() {
+          ForEach(groups.missing, (entry: SourceIndexEntry, index: number) => {
+            this.RemoteIndexCard(entry)
+            if (index + 1 < groups.missing.length) { ListDivider() }
+          }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
+        }
+      }
+    }
+    if (groups.installed.length > 0) {
+      ListItem() {
+        SectionHeader({ title: t('source_pkg_installed_heading') })
+      }
+      ListItem() {
+        GroupedListSection() {
+          ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
+            this.PackageCard(source.id)
+            if (index + 1 < groups.installed.length) { ListDivider() }
+          }, (source: InstalledSourcePackage) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw]))
+        }
+      }
+    }
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
@@ -2304,24 +2395,6 @@ export struct SourcePackageManagerPage {
                 this.IndexUrlCard()
               }
             }
-            if (this.indexEntries.length > 0) {
-              ListItem() {
-                SectionHeader({ title: t('source_pkg_available_heading') })
-              }
-              ListItem() {
-                GroupedListSection() {
-                  ForEach(this.indexEntries, (entry: SourceIndexEntry, index: number) => {
-                  this.RemoteIndexCard(entry)
-                  if (index < this.indexEntries.length - 1) {
-                    ListDivider()
-                  }
-                }, (entry: SourceIndexEntry, _index: number) => JSON.stringify([entry.id, entry.version, entry.icon]))
-                }
-              }
-            }
-            ListItem() {
-              SectionHeader({ title: t('source_pkg_installed_heading') })
-            }
             ListItem() {
               GroupedListSection() {
                 ConciseListRow({
@@ -2330,21 +2403,15 @@ export struct SourcePackageManagerPage {
                   leadingIcon: $r('sys.symbol.arrow_clockwise'),
                   leadingIconBackgroundColor: ThemeConstants.BRAND_PRIMARY,
                   isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
-                  action: () => {
-                    this.checkInstalledUpdates()
-                  },
+                  action: () => { this.checkInstalledUpdates() },
                 })
-                if (this.packages.length > 0) {
-                  ListDivider()
-                }
-                ForEach(this.packages, (source: InstalledSourcePackage, index: number) => {
-                  this.PackageCard(source.id)
-                  if (index < this.packages.length - 1) {
-                    ListDivider()
-                  }
-                }, (source: InstalledSourcePackage) => `${source.id}-${source.enabled}`)
               }
             }
+            this.PackageListGroups({
+              updates: this.listGroups.updates,
+              missing: this.listGroups.missing,
+              installed: this.listGroups.installed,
+            })
             if (this.packages.length === 0) {
               ListItem() {
                 this.EmptyCard()
