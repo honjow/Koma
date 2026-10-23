@@ -5,7 +5,6 @@ import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
-import { SubHeaderV2, SubHeaderV2Title, SubHeaderV2OperationType, SubHeaderV2OperationItem, TextModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
@@ -2394,20 +2393,21 @@ export struct SourcePackageManagerPage {
   private PackageListGroups(groups: SourcePackageListGroups) {
     if (groups.updates.length > 0) {
       ListItem() {
-        SubHeaderV2({
-          title: new SubHeaderV2Title({
-            secondaryTitle: t('source_pkg_update_available'),
-            secondaryTitleModifier: new TextModifier()
-              .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('sys.color.font_secondary')),
-          }),
-          operationType: SubHeaderV2OperationType.BUTTON,
-          operationItems: [new SubHeaderV2OperationItem({
-            content: t('source_pkg_update_all'),
-            action: () => { this.updateAllAvailablePackages() },
-          })],
-        })
+        Row() {
+          SectionHeader({ title: t('source_pkg_update_available') })
+            .layoutWeight(1)
+          Button(t('source_pkg_update_all'), {
+            controlSize: ControlSize.SMALL,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+          })
+            .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.BRAND_PRIMARY)
+            .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+            .onClick(() => { this.updateAllAvailablePackages() })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
       }
       ListItem() {
         GroupedListSection() {
