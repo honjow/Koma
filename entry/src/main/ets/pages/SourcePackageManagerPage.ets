@@ -6,7 +6,7 @@ import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
-import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
@@ -128,6 +128,7 @@ export struct SourcePackageManagerPage {
   @Local private sourceIndexUrl: string = ''
   @Local private sourceIndexRepositories: SourceIndexRepository[] = []
   @Local private indexEntries: SourceIndexEntry[] = []
+  @Local private indexIconStates: Record<string, SourceIdentityIconState> = {}
   @Local private indexFetchBusy: boolean = false
   @Local private indexInstallBusy: boolean = false
   @Local private indexStatusText: string = ''
@@ -199,17 +200,24 @@ export struct SourcePackageManagerPage {
     this.sourceIndexUrl = value
     this.indexFetchBusy = false
     this.indexEntries = []
+    this.indexIconStates = {}
     this.indexStatusText = ''
   }
 
   private showIndexEntries(indexUrl: string, entries: SourceIndexEntry[], revision: number): void {
     if (revision !== this.indexLoadRevision) return
+    const icons: Record<string, SourceIdentityIconState> = {}
+    entries.forEach((entry: SourceIndexEntry): void => { icons[entry.id] = new SourceIdentityIconState() })
+    this.indexIconStates = icons
     this.indexEntries = this.sortedIndexEntries(entries)
     this.indexStatusText = tf('source_pkg_index_loaded', entries.length)
     void this.sourceIndexService.loadIndexIcons(indexUrl, entries, (ready: SourceIndexEntry): void => {
       if (revision !== this.indexLoadRevision) return
-      this.indexEntries = this.indexEntries.map((entry: SourceIndexEntry): SourceIndexEntry =>
-        entry.id === ready.id && entry.version === ready.version && entry.icon === ready.icon ? ready : entry)
+      if (!this.indexEntries.some((entry: SourceIndexEntry): boolean =>
+        entry.id === ready.id && entry.version === ready.version && entry.icon === ready.icon)) return
+      // Keep media observation inside the prefix; do not update the HDS text row.
+      const icon = this.indexIconStates[ready.id]
+      if (icon !== undefined) icon.uri = ready.iconUri ?? ''
     }, (): boolean => revision === this.indexLoadRevision).catch((_error: Error): void => {
       DiagnosticLogger.warn('source_package_manager_page', 'icons_incomplete', 'Index entries remain available')
     })
@@ -1089,6 +1097,7 @@ export struct SourcePackageManagerPage {
     this.indexFetchBusy = true
     this.indexStatusText = t('source_pkg_index_loading')
     this.indexEntries = []
+    this.indexIconStates = {}
     try {
       await this.sourceIndexService.saveUrl(url)
       const repositories = await this.sourceIndexService.loadSavedRepositories()
@@ -1972,7 +1981,7 @@ export struct SourcePackageManagerPage {
       subtitle: this.indexVersionText(entry) + (entry.lang.length > 0 ? ' · ' + entry.lang : ''),
       subtitleMaxLines: 1,
       hasSourceIdentityPrefix: true,
-      sourceIdentityIconUri: entry.iconUri ?? '',
+      sourceIdentityIconState: this.indexIconStates[entry.id],
       sourceIdentitySourceId: entry.id,
       sourceIdentityVersion: entry.version,
       sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
@@ -2720,7 +2729,7 @@ export struct SourcePackageManagerPage {
                   if (index < this.indexEntries.length - 1) {
                     ListDivider()
                   }
-                }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.iconUri ?? '']))
+                }, (entry: SourceIndexEntry, _index: number) => JSON.stringify([entry.id, entry.version, entry.icon]))
                 }
               }
             }

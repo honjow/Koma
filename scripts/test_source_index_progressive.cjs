@@ -21,6 +21,7 @@ const globals = {
   resolveIndexDocumentUrl: value => value,
   entryWithCachedIcon: (entry, iconUri) => ({ ...entry, iconUri }),
   SOURCE_INDEX_ICON_FETCH_CONCURRENCY: 4,
+  SourceIdentityIconState: class { uri = '' },
   DiagnosticLogger: { info() {}, error() {}, warn() {} },
 }
 
@@ -79,4 +80,28 @@ test('changing the index retires old icon callbacks without overwriting the new 
   assert.equal(manager.indexEntries[0].id, 'B')
   manager.showIndexEntries('https://old.test/index.json', [entry('C')], 1)
   assert.equal(manager.indexEntries[0].id, 'B')
+})
+
+
+test('icon completion retains the displayed source metadata and ignores retired publications', () => {
+  let publish
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
+    ['showIndexEntries', 'setSourceIndexUrl'], { ...globals, tf: (_key, count) => String(count) })
+  Object.assign(manager, {
+    sourceIndexUrl: 'https://old.test/index.json', indexLoadRevision: 1, savedIndexLoadRevision: 0,
+    sortedIndexEntries: entries => entries,
+    sourceIndexService: { loadIndexIcons: async (_url, _entries, onReady) => { publish = onReady } },
+  })
+  const metadata = [entry('A'), entry('B')]
+  manager.showIndexEntries(manager.sourceIndexUrl, metadata, 1)
+  publish({ ...metadata[1], iconUri: 'file://B.png' })
+  assert.equal(manager.indexEntries, metadata)
+  assert.equal(manager.indexEntries[1], metadata[1])
+  assert.equal(manager.indexIconStates.B.uri, 'file://B.png')
+  publish({ ...metadata[0], version: 'other', iconUri: 'file://wrong.png' })
+  assert.equal(manager.indexIconStates.A.uri, '')
+  manager.setSourceIndexUrl('https://new.test/index.json')
+  publish({ ...metadata[0], iconUri: 'file://late.png' })
+  assert.equal(Object.keys(manager.indexIconStates).length, 0)
+  assert.equal(manager.indexEntries.length, 0)
 })

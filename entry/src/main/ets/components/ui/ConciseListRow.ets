@@ -10,6 +10,11 @@ import {
 import { ImageModifier, TextModifier } from '@kit.ArkUI'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
+@ObservedV2
+export class SourceIdentityIconState {
+  @Trace uri: string = ''
+}
+
 @ComponentV2
 export struct ConciseListRow {
   @Param title: ResourceStr = ''
@@ -28,6 +33,7 @@ export struct ConciseListRow {
   // must not construct another component or global builder across that edge.
   @Param hasSourceIdentityPrefix: boolean = false
   @Param sourceIdentityIconUri: string = ''
+  @Param sourceIdentityIconState: SourceIdentityIconState | undefined = undefined
   @Param sourceIdentitySourceId: string = ''
   @Param sourceIdentityVersion: string = ''
   @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
@@ -368,11 +374,15 @@ export struct ConciseListRow {
     }
   }
 
+  private sourceIdentityUri(): string {
+    return this.sourceIdentityIconState?.uri ?? this.sourceIdentityIconUri
+  }
+
   @Builder
   private SourceIdentityPrefix() {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.sourceIdentityIconUri.trim().length > 0) {
-        Image(this.sourceIdentityIconUri)
+      if (this.sourceIdentityUri().trim().length > 0) {
+        Image(this.sourceIdentityUri())
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Contain)
