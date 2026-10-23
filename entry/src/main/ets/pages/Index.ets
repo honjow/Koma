@@ -2806,7 +2806,7 @@ struct Index {
       'label': AppStrings.get('source_pkg_settings'),
       'icon': $r('sys.symbol.gearshape'),
       'isEnabled': true,
-      'action': () => { RouterHelper.pushSourceSettings(source.sourceId, () => { chrome.markRefreshNeeded() }) },
+      'action': () => { chrome.requestSettings() },
     }
     menuItems.push({ 'content': settingsContent })
     if (chrome.webSessionAvailable) {
@@ -2882,7 +2882,7 @@ struct Index {
       'label': AppStrings.get('source_pkg_settings'),
       'icon': $r('sys.symbol.gearshape'),
       'isEnabled': true,
-      'action': () => { RouterHelper.pushSourceSettings(source.sourceId, () => { chrome.markRefreshNeeded() }) },
+      'action': () => { chrome.requestSettings() },
     }
     menuItems.push({ 'content': settingsContent })
     if (chrome.webSessionAvailable) {

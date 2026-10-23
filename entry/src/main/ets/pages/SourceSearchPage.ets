@@ -1,3 +1,4 @@
+import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
@@ -473,6 +474,16 @@ export struct SourceSearchPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        SourceSettingsSheetHost({
+          sourceId: this.source.sourceId,
+          sourceName: this.source.displayName,
+          requestSeq: this.chrome.settingsRequestSeq,
+          active: this.chrome.visible,
+          onSettingsSaved: () => {
+            this.chrome.markRefreshNeeded()
+            this.chrome.resume()
+          },
+        })
         Column() {}
           .width(0)
           .height(0)
