@@ -58,7 +58,7 @@ function fixture() {
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
-        RequestMethod: { GET: 'GET', POST: 'POST' }, HttpDataType: { STRING: 1 },
+        RequestMethod: { GET: 'GET', POST: 'POST', HEAD: 'HEAD' }, HttpDataType: { STRING: 1 },
         InterceptorType: { REDIRECTION: 'REDIRECTION' },
         HttpInterceptorChain: class {
           addChain(chain) {
@@ -350,5 +350,27 @@ test('platform operation timeout survives the HTTP envelope while unknown transp
       assert(!f.diagnostics.join(' ').includes('private-platform-error-detail'))
       assert(f.diagnostics.includes('platformCode=' + (typeof code === 'number' && Number.isFinite(code) ? code : 0)))
     }
+  }
+})
+
+// A HEAD probe must use NetworkKit's body-free verb and retain the source timeout.
+test('anonymous source HEAD uses the native verb without a custom GET override', async () => {
+  const f = fixture()
+  const out = await f.http([{responseCode:200,result:'',header:{'content-length':'2299450'}}], '',
+    {method:'HEAD',timeoutMs:1500})
+  assert.equal(out.calls.length,1)
+  assert.equal(out.calls[0].options.method,'HEAD')
+  assert.equal(out.calls[0].options.customMethod,undefined)
+  assert.equal(out.calls[0].options.extraData,undefined)
+  assert.equal(out.calls[0].options.readTimeout,1500)
+  assert.equal(out.result.status,200)
+  assert.equal(out.result.bodyText,'')
+  assert.equal(f.fetched.length,0)
+})
+test('GET POST and extension verbs retain their request-method behavior', async () => {
+  for(const method of ['GET','POST','PROPFIND']) {
+    const f = fixture(), out = await f.http([response()], '', {method})
+    assert.equal(out.calls[0].options.method,method==='POST'?'POST':'GET')
+    assert.equal(out.calls[0].options.customMethod,method==='PROPFIND'?'PROPFIND':undefined)
   }
 })

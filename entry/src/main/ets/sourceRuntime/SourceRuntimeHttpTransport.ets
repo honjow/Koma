@@ -104,6 +104,8 @@ function sourceHttpUrl(value: Object | string | number | boolean | null | undefi
 }
 
 function sourceNetworkMethod(method: string): http.RequestMethod {
+  // HEAD is a body-free NetworkKit operation, not a custom GET method.
+  if (method === 'HEAD') return http.RequestMethod.HEAD
   return method === 'POST' ? http.RequestMethod.POST : http.RequestMethod.GET
 }
 
@@ -186,7 +188,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
       response = await request.request(currentUrl, {
       method: sourceNetworkMethod(currentMethod),
-      customMethod: currentMethod === 'GET' || currentMethod === 'POST' ? undefined : currentMethod,
+      customMethod: currentMethod === 'GET' || currentMethod === 'POST' || currentMethod === 'HEAD' ? undefined : currentMethod,
       extraData: currentBody.length > 0 ? currentBody : undefined,
       expectDataType: http.HttpDataType.STRING,
       usingCache: false,

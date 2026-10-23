@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T22:29:28.168472+00:00",
+  "updatedAt": "2026-10-23T23:32:59.611478+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activeId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
   "activity": {
-    "title": "同步已审源管理修复与65项反馈记录",
-    "detail": "f4caffaa已本地提交10文件；315/317分隔线与正常安装数据保持已审。316本行图标瞬空、307残余126.861ms仍OPEN，完整反馈记录准备提交推送。",
-    "startedAt": "2026-10-23T22:29:28.168472+00:00"
+    "title": "同步包子CDN修复并跟进精确CI",
+    "detail": "197同首话1→2→3与返回详情继续重开3/24已核，原其他数据保持；Root审两仓范围提交与远端CI，安装闪烁和残余长回调未关闭。",
+    "startedAt": "2026-10-23T23:32:59.611478+00:00"
   },
-  "nextAction": "同步精确代码与进度记录并跟进CI；接续本行HDS更新/残余主线程回调及具名源不可读，不关闭其他队列。",
+  "nextAction": "提交推送已审Host HEAD/包子0.1.10与源homepage生产链，跟精确CI和公开索引；期间接回源安装主线程长回调调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "f4caffaa源管理有效修复＋2c05ea6c公共分组已本地提交待push；上一d3187726精确CI40021847034 success",
-      "hap": "197312已保数据安装8510880B/Release0.1.2-pre code3；313/315三域同安装前；317仅正常新增Zerobyw到84源、原83项及library/reader保持。"
+      "appHead": "876b435f09ba4c62a736ee2530b2fcb13865156e已push（含f4caffaa与2c05ea6c）；精确CI40033988416 completed/success；无新tag发布",
+      "hap": "197327保数据覆盖Host HEAD候选8510812B/defaultRelease0.1.2-pre code3；328普通书架完整图与三域同before。原8510880B具名范围保留，不冒新包全App通过。"
     },
     {
       "name": "NextE",
@@ -1105,13 +1105,13 @@
     {
       "id": "CHAPTER_SORT_MENU",
       "title": "章节排序菜单无作用",
-      "status": "包子019严格编号升降序具名成立；未知metadata仍开放",
+      "status": "既有019范围保留；大奉695目录583后099新反例",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：未知metadata规则；包子019具名范围冻结",
       "dependencies": [],
-      "result": "包子019严格编号的升降序及6/45邻接具名成立；未知metadata目录仍开放。",
-      "remaining": "未知metadata源继续与FIRST_CHAPTER_SELECTION联合查依据。",
+      "result": "包子019既有编号升降序范围保留；324大奉695章目录出现583后099新反例，原因尚未核，不凭旧绍宋通过覆盖。",
+      "remaining": "追大奉695目录新顺序/metadata反例；未知metadata原规则继续保留，不按标题直接重排。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -1121,10 +1121,11 @@
       "evidencePoints": [
         "包子019的绍宋234章升降序、005→006→007及044→045→046已亲审；原人设1/6进度保持。",
         "源e57d184b、CI39934858276成功；原件为237包子019更新、six/forty-five与016目录图。旧170→198、215→224排序反例保留。",
-        "漫画160无metadata且混跨季，现有比较不能产生可靠首章/排序；不能把已编号样本通过扩成全源通过。"
+        "漫画160无metadata且混跨季，现有比较不能产生可靠首章/排序；不能把已编号样本通过扩成全源通过。",
+        "324普通大奉详情695章，目录583后099异常已发现；本轮未改源码/未清数据，原件baozimh-dafeng197-detail-324。"
       ],
       "remainingActions": [
-        "未知metadata源继续与FIRST_CHAPTER_SELECTION联合查依据。"
+        "追大奉695目录新顺序/metadata反例；未知metadata原规则继续保留，不按标题直接重排。"
       ],
       "boundaries": [
         "包子019具名目录/邻接/原进度冻结，不外推所有排序。漫画160跨季无metadata不能用已否决的非对称比较器、标题首数或全reverse修。",
@@ -1434,10 +1435,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "限定自动回流已实现；自然挑战实机样本待",
+      "status": "自然挑战自动弹出/人工回流已验；自动完成待",
       "kind": "open",
-      "result": "挑战弹层已支持新clearance后自动重试原请求一次；代码和行为检查通过，真实挑战后的自动回流尚未实机确认。",
-      "remaining": "真实自然挑战下核自动候选→原请求重试；保搜索分页/详情及session过期守卫范围，不清Cookie制造样本。",
+      "result": "318自然403自动弹出WebView，320及341人工点击完成并重试后原生列表成立；自动clearance识别/自动关闭尚未证实，不把人工完成当自动通过。",
+      "remaining": "真实自然挑战下核自动识别和关闭；搜索/分页/详情及会话过期按原边界接续，不清Cookie或造挑战。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1459,11 +1460,12 @@
       "evidencePoints": [
         "实现e839ec87：仅challenge receipt允许自动回流；auth_required及手动登录不自动退出。保主文档错误、离页、换会话和一次性守卫。",
         "73项相关检查通过，Release构建成功；197154装8491057B。155手动Web保持/取消回原首页12本及书架15页94%亲审。",
-        "157原日志显示本轮请求均200、没有clearance_candidate；没有新自然挑战，不能把本轮内容加载算自动验证通过。"
+        "157原日志显示本轮请求均200、没有clearance_candidate；没有新自然挑战，不能把本轮内容加载算自动验证通过。",
+        "318自然403确自动弹WebView；320手点原完成并重试后首页/列表成功。只证自动弹与人工完成回流，未证自动关闭。"
       ],
       "remainingActions": [
-        "真实自然挑战出现时核自动回流与原请求结果；当前会话200，继续其他可执行缺陷。",
-        "搜索分页/详情的自然挑战及session过期分支未扩认，手动完成始终保留。"
+        "318自然挑战自动弹出与320人工完成回流成立；本次自动判断成功/自动关闭仍未证，不再等待“首次自然挑战”。",
+        "其他搜索/分页/详情及会话过期边界按真实自然样本接续，不清Cookie或造挑战。"
       ],
       "boundaries": [
         "只对已确认challenge自动弹；普通403不弹，同attempt取消/再次挑战不自动循环。不伪造或清Cookie取样，不记录Cookie值，不把现有首页范围扩成所有源/所有CF支持。",
@@ -2077,10 +2079,10 @@
       "priority": "P2（保当前P0不抢占）",
       "owner": "Root：已验列表范围同步；具体筛选方案后继",
       "dependencies": [],
-      "status": "共同分组具名已核；2c05ea6本地检查点待push",
+      "status": "公共组件/有效修复已推，本笔精确CI成功",
       "kind": "open",
-      "result": "公共9源码2c05ea6已commit待push；283/284/285/286/288具名分组/更新/数据/设置分类结果已核，不再写283收集中。",
-      "remaining": "检查点待push；刷新与安装性能转独立当前项，未覆盖迁移页边界保持。",
+      "result": "公共2c05ea6c、源更新f4caffaa与65项工作单876b435f已推；精确CI40033988416/head876b435f成功，unsigned Release成功，tag发布跳过，无新发版。",
+      "remaining": "未验迁移页面/其他缺陷继续原项；本笔CI已完，不因构建成功关闭未验边界。",
       "reportedAt": "2026-10-23T05:28:39.778Z",
       "reportedAtSource": "原始会话JSONL response_item/user实际时间戳；方向原文已核，不猜开始时间/耗时。",
       "firstEvidenceAt": "2026-10-23T05:28:39.778Z",
@@ -2096,10 +2098,10 @@
       "evidencePoints": [
         "283最终图可更新/未安装/已安装分组均核，281→283库/reader/registry字节相同；不是拿280旧候选代最终。",
         "284正常全部更新后285仍80源、仅com.hentai3变011/70388B/enabledtrue，library/reader同值；未声称3H正文可用。",
-        "286书架设置、288分类三组全图已审；共同9源码已提交2c05ea6c待push，其他迁移路径未扩大。"
+        "286书架设置、288分类三组全图已审；共同9源码2c05ea6c当时本地，现已随876b435f推送，其他迁移路径未扩大。"
       ],
       "remainingActions": [
-        "检查点待push；刷新与安装性能转独立当前项，未覆盖迁移页边界保持。"
+        "未验迁移页面/其他缺陷继续原项；本笔CI已完，不因构建成功关闭未验边界。"
       ],
       "boundaries": [
         "失败候选及脚本错误原件保留：191副行不可见、193字号偏小均已撤；199错误选择器与202未滚入安装组的等待不冒产品故障。",
@@ -2281,8 +2283,8 @@
         "210工具超时原件保留，不误判更新失败；未清用户数据，库和reader完整内容保持。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类原文“创漫繁中的图标怎么又变成默认了？”；当前无可信原始UTC时刻，精确时间留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类原文“创漫繁中的图标怎么又变成默认了？”；当前无可信原始UTC时刻，精确时间留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T18:12:56.863520+00:00",
       "firstEvidenceAtSource": "本次登记时刻；Root已亲审具名原图，不作为用户精确首报时间。",
       "firstHandlingAt": "2026-10-23T18:21:28.577481+00:00",
@@ -2293,37 +2295,38 @@
         "activeUntil": null,
         "note": "只累计此前已登记且未过期的执行窗口；窗口到期后的空档不倒填，含构建/设备等待，不是纯工时。"
       },
-      "closedAt": "2026-10-23T18:26:12.662508+00:00"
+      "closedAt": "2026-10-23T18:26:12.662508+00:00",
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "BROWSE_PULL_REFRESH_STALL",
       "title": "浏览页下拉刷新停住数秒才收回",
       "priority": "P1（交互阻塞新反例）",
-      "owner": "Root：核根Browse与单源Browse刷新消费者",
+      "owner": "Root：根Browse具名范围冻结；其他消费者不外推",
       "dependencies": [],
       "relatedItems": [
         "LIST_EDGE_SCROLL_FEEL",
         "SOURCE_INDEX_PROGRESSIVE"
       ],
       "kind": "open",
-      "status": "根Browse回缩/数据保持已推；精确CI中",
-      "result": "233完整回缩与匹配trace改善、230→234数据保持成立；派生列表修复随0de9d3d已推，CI40015663006进行中。",
+      "status": "根Browse回缩/数据保持具名成立；包含本范围CI成功",
+      "result": "233完整回缩、匹配trace与数据保持成立；该派生修复已含876b435f，精确CI40033988416 success。原80源根Browse范围冻结。",
       "evidencePoints": [
         "229→232主线程最长1604.765→8.76ms、dirty1600.618→5.547ms；前24行文字/bounds保持。",
         "233全部117原PTS帧/4联系表回缩已审；230→234前三域JSON逐份相等，未以trace代视觉。"
       ],
       "remainingActions": [
-        "跟精确CI；只冻结原80源根Browse范围，不扩单源页面或FPS。"
+        "本笔已含范围CI完成；单源页面/FPS未扩认，不重跑具名根Browse。"
       ],
-      "remaining": "跟精确CI；只冻结原80源根Browse范围，不扩单源页面或FPS。",
+      "remaining": "本笔已含范围CI完成；单源页面/FPS未扩认，不重跑具名根Browse。",
       "boundaries": [
         "修改对象仅BrowsePage重复派生列表：按53cbc39a历史保名称排序，允许差异仅缓存同一响应式派生值。",
         "行结构、计数、分隔线、样式、动画及私库请求行为保持；不凭credential线索擅改，不复活私库验收。",
         "预加载225/227缓存命中有限结果和App/三仓WIP继续保留，不取消或当作已交付。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类原文；无可信原始UTC精确时刻，reportedAt留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类原文；无可信原始UTC精确时刻，reportedAt留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T18:45:24.863746+00:00",
       "firstEvidenceAtSource": "本次登记时刻，不冒充用户精确首报。",
       "firstHandlingAt": "2026-10-23T18:53:36.630490+00:00",
@@ -2335,40 +2338,42 @@
         "note": "仅从当前真实登记时刻起计，不补此前取证或空档。"
       },
       "closedAt": null,
-      "firstHandlingAtSource": "本次真实执行登记起点，早先分析与取证未分段，不倒填。"
+      "firstHandlingAtSource": "本次真实执行登记起点，早先分析与取证未分段，不倒填。",
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_ROW_NATIVE_ARROW",
       "title": "源列表右箭头应采用设置同款原生尾部",
       "priority": "P1（UI一致性与准确性）",
-      "owner": "Root：SourceListItem尾部与showSearchButton消费者",
+      "owner": "Root：源尾部具名范围冻结；同类批准未知边界保留",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "原生箭头视觉与源行点击具名通过；已推CI中",
+      "status": "原生箭头视觉/点击成立；已含范围CI成功",
       "result": "235箭头与设置一致，253普通源行实际进入3Hentai源页；Root亲审，尾部/点击范围成立，源正文失败另留。",
       "evidencePoints": [
         "253原图确认普通源行点击到3Hentai，右上无空设置；3Hentai0.1.0正文runtime失败，不是箭头点击失败，也不称源可用。",
-        "源尾部随0de9d3d已推，CI40015663006运行；已批准卡片/原生槽扩展和私库PARKED审计边界保持。"
+        "源尾部0de9d3d已含876b435f，CI40033988416成功；已批准卡片/原生槽扩展和私库PARKED审计边界保持。"
       ],
       "remainingActions": [
-        "跟0de9d3d的CI40015663006；同类审计的批准未知边界保留，不重跑已验尾部/点击。"
+        "源尾部已含876b435f且CI40033988416成功；保同类批准未知/私库PARKED，不重跑已验尾部点击。"
       ],
-      "remaining": "跟0de9d3d的CI40015663006；同类审计的批准未知边界保留，不重跑已验尾部/点击。",
+      "remaining": "源尾部已含876b435f且CI40033988416成功；保同类批准未知/私库PARKED，不重跑已验尾部点击。",
       "boundaries": [
         "具体实施授权仍限定源行尾部，保图标、行高、动作；同类审计不等于全局重做授权。",
         "不擅改已批准定制或冻结界面，不重开ICONS矩阵；预加载及其他WIP保留。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类箭头反馈原文；无可信原始UTC时刻，精确首报留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类箭头反馈原文；无可信原始UTC时刻，精确首报留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T19:01:03.959368+00:00",
       "firstEvidenceAtSource": "本次登记，Root已查源码；不冒充用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_LANGUAGE_DISPLAY_CONSISTENCY",
@@ -2396,13 +2401,14 @@
         "只改展示语言/标记文案，原metadata/身份/筛选语义保持；18+仍在语言后，不扩大布局或样式重做。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类反馈；无可信原始UTC精确时刻，reportedAt留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类反馈；无可信原始UTC精确时刻，reportedAt留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T19:07:50.969774+00:00",
       "firstEvidenceAtSource": "本次登记时刻，不冒充用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_INSTALL_GLOBAL_DISABLE",
@@ -2429,29 +2435,31 @@
         "浏览卡顿具名范围和跨章预加载WIP保留，不因新项抛掉原队列。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T19:08:16.947392+00:00",
       "firstEvidenceAtSource": "本次登记，源码链由Root核实；非用户精确首报时间。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "Root：源浏览/搜索菜单与管理详情描述符状态",
+      "owner": "Root：独立Search与其他未知/失败描述符边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "open",
-      "status": "manager与源Browse空项隐藏具名成立；已推CI中",
+      "status": "manager/Browse空项隐藏成立；已含范围CI成功",
       "result": "245管理无项、有项247包子控件及253源Browse无空设置入口已核；独立Search与其他失败状态仍未扩认。",
       "evidencePoints": [
         "311漫小肆manager仅浏览/搜索已审且309→311三域相同；旧管理/Browse空项与包子有项范围保留。",
-        "Manager/Store均读response.ok；fixture问题只证Host summary/日志误报，不能称显式设置验证失败根因。"
+        "Manager/Store均读response.ok；fixture问题只证Host summary/日志误报，不能称显式设置验证失败根因。",
+        "本范围已含876b435f，精确CI40033988416 success；不推断祖先独立run状态，也不提升未验Search。"
       ],
       "remainingActions": [
         "独立Search菜单及其他未知/失败边界仍待；保合法空与unsupported不等价，不泛化所有源设置已修。"
@@ -2462,13 +2470,14 @@
         "未知/失败不能误隐藏成无设置，其他已授权WIP保持。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类反馈；无可信精确UTC首报，reportedAt留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类反馈；无可信精确UTC首报，reportedAt留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T19:11:07.767687+00:00",
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_PACKAGE_ICON_INVALIDATION",
@@ -2481,29 +2490,30 @@
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "刷新不闪具名保留；316安装本行瞬空反例仍OPEN",
-      "result": "316普通安装Zerobyw原片frame9本行图标短暂空白且HDS圆角/布局异常，frame10回填；其他图标保持。安装分支未修好，300有内容刷新不闪范围保持。",
+      "status": "316本行瞬空仍OPEN；317组尾divider已核",
+      "result": "317只剩HANMAN18一未装行，无尾divider且已装divider正常；83→84仅Zerobyw新增、旧83及library/reader同315。316本行瞬空/卡片异常仍OPEN。",
       "evidencePoints": [
-        "Root顺审316全部101帧/3表及8/9/10/70原图，真实异常不能被行为测试或其他图标稳定抵消。",
-        "315最终8510880B两未装分隔线存在；316移走最后条目后的组尾待317终点核。312→313、313→315三域逐字相同。"
+        "Root完整审317screen/layout：单未装无尾divider，已装分隔正常；registry仅Zerobyw新增，其余数据逐字同315。",
+        "有效修复代码f4caffaa已push，未把提交当316视觉反例通过；旧300有内容刷新不闪范围保留。"
       ],
       "remainingActions": [
-        "继续核HDS原生前缀/后缀更新边界，保留316第9帧原始反例；其他可见源保持不等于本行已修好。"
+        "保316安装本行瞬空/原生卡片反例，Root暂切包子不可读具名链后接回，未取消。"
       ],
-      "remaining": "继续核HDS原生前缀/后缀更新边界，保留316第9帧原始反例；其他可见源保持不等于本行已修好。",
+      "remaining": "保316安装本行瞬空/原生卡片反例，Root暂切包子不可读具名链后接回，未取消。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:12:10.554202+00:00",
       "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
       "firstHandlingAt": "2026-10-23T21:12:10.554202+00:00",
       "handling": null,
       "closedAt": null,
-      "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。"
+      "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。",
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
@@ -2516,30 +2526,29 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "58检查与repair build过；长回调/安装视觉反例仍OPEN",
-      "result": "58检查、最终正式repair build通过并312装8510880B；旧307残余126.861ms回调与316安装本行视觉反例均保留，不能宣布整体解决。",
+      "status": "有效代码已推且本笔CI成功；残余126ms仍OPEN",
+      "result": "f4caffaa十文件已提交推送；残余126.861ms无scope主线程回调与316安装视觉反例仍未闭，暂切包子具名不可读取证不取消源性能。",
       "evidencePoints": [
-        "313同312before、315同313三域逐字相同；316普通装Zerobyw的本行一帧异常单列图标项，整体安装范围仍待。",
-        "有效日志来自316既有boundedhilog；315 hilog -d缺参数失败不作日志证据。",
-        "317正常安装终点：83→84仅新增Zerobyw，原83项与library/reader保持；315双条目divider及317单条目无尾divider已亲审。"
+        "本笔CI40033988416/head876b435f09ba4c62a736ee2530b2fcb13865156e completed/success；unsigned Release成功，tag发布skipped。"
       ],
       "remainingActions": [
-        "同步已审检查点；继续定位307未标scope的126.861ms回调，不以dirty下降关闭安装阻塞。"
+        "具名正文链后接回残余长回调/安装视觉；本笔CI已完成，不重复跟进。"
       ],
-      "remaining": "同步已审检查点；继续定位307未标scope的126.861ms回调，不以dirty下降关闭安装阻塞。",
+      "remaining": "具名正文链后接回残余长回调/安装视觉；本笔CI已完成，不重复跟进。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:12:10.554202+00:00",
       "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
       "firstHandlingAt": "2026-10-23T21:12:10.554202+00:00",
       "handling": null,
       "closedAt": null,
-      "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。"
+      "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。",
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
@@ -2566,13 +2575,14 @@
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:12:10.554202+00:00",
       "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "REFRESH_RETAIN_EXISTING_CONTENT",
@@ -2601,13 +2611,14 @@
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:16:09.194667+00:00",
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "LIBRARY_READING_PROGRESS_SEMANTICS",
@@ -2634,13 +2645,14 @@
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:16:09.194667+00:00",
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
@@ -2653,27 +2665,31 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "用户具名不可读反馈，根因未知",
-      "result": "用户报告包子《大奉打更人》仅提示无法加载页面等，正文不可读；尚未定位，不归因CF或网络。",
+      "status": "同首话1→2→3及返回重开具名恢复；候选待同步CI",
+      "result": "349真实3/24正文正常；同首话依实际纵向设置1→2→3、Back详情后继续重开3/24成立。候选待范围同步/CI，不是整书、cold、排序或旧公开HAP通过。",
       "evidencePoints": [
-        "当前依据为用户具名实际反馈；源owner先只读核源与日志，不动设备，Root后继普通入口取证。"
+        "347按346纵向分页/从上到下普通上滑到2/24→3/24；348返回同695章详情再继续，349完整3/24原图已审。",
+        "349对342 registry/library逐字同；reader数组长度91/151不变，仅大奉同章正常pageIndex2/pageId0002/ratio.125/completedfalse与时间更新，其余记录保持。",
+        "344横滑等待2失败、345仍1/24，346证实纵向模式，属Root错轴不是产品翻页失败；原325失败与错轴原件均保留。"
       ],
       "remainingActions": [
-        "源owner只读追该作品正文解析/请求与原日志；Root后继按用户普通路径取证并保原进度。"
+        "Root审候选范围commit/push并跟精确CI；仅接受同首话翻页/返回重开范围，不外推cold/排序/整书或旧公开HAP。"
       ],
-      "remaining": "先源/日志只读调查，再普通路线具名取证；根因未证前不泛化。",
+      "remaining": "Root审候选范围commit/push并跟精确CI；仅接受同首话翻页/返回重开范围，不外推cold/排序/整书或旧公开HAP。",
       "boundaries": [
-        "原包子两书已过范围保留，不用旧成功抵消本书失败，也不将本书归因扩至所有源。",
-        "源UI当前主线与其余队列保持；不重复盲重试、不清缓存/进度，不擅称CF或网络。"
+        "允许差异仅source图片选路与Host请求方法；保ID/章节/页数/进度，Reader布局不动。",
+        "不写死rsa、不绕TLS、不新增UI或Cookie权限；五CDN仅按站点声明有界选择，每章一次，不盲目多路下载。",
+        "Mac匿名样本不称Native通过，原325失败保留，其他请求method/会话边界保持。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:17:42.386549+00:00",
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
@@ -2700,13 +2716,14 @@
         "保当前源UI/性能与包子正文主线，新设计调查不替换旧队列。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类质疑，无可信UTC精确首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类质疑，无可信UTC精确首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:19:47.404038+00:00",
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
@@ -2732,13 +2749,14 @@
         "不清数据、不盲重试；未复现不能写已定位或已通过。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:26:41.632173+00:00",
       "firstEvidenceAtSource": "本次登记，非用户首报精确时间。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -2764,13 +2782,14 @@
         "保当前源UI/安装性能主线；旧证据不冒本次复现，不盲重试或清缓存。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:28:34.289082+00:00",
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
@@ -2783,8 +2802,8 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "homepage producer候选6文件/6test待审；常驻宿主入口未验",
-      "result": "源producer owner已完成三源homepage metadata透传6文件/6test，待Root审；未改版/打包/提交，不算宿主常驻WebView入口完成。",
+      "status": "homepage生产链已提交3a80037；常驻宿主入口未验",
+      "result": "六文件显式homepage→包manifest/index投影已审并提交3a80037，六项行为检查通过；不扩webSessionOrigins权限，App透传/常驻菜单尚未接完。",
       "evidencePoints": [
         "当前只有producer候选交付；Root后继审metadata契约并接普通源菜单，原自动验证/重试入口保持。"
       ],
@@ -2797,13 +2816,14 @@
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜。",
+      "reportedDate": null,
+      "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:28:34.289082+00:00",
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "MANXIAOSI_SETTINGS_VALIDATION_FAILURE",
@@ -2831,13 +2851,14 @@
         "不复活旧空源验收，不以验证失败推断无设置，不盲重试/清用户数据。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:29:33.094146+00:00",
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
       "id": "SOURCE_INDEX_CACHE_REVALIDATE",
@@ -2866,13 +2887,14 @@
         "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。"
       ],
       "reportedAt": null,
-      "reportedDate": "2026-10-24",
-      "reportedAtSource": "最新人类明确授权，未提供可信精确UTC首报。",
+      "reportedDate": null,
+      "reportedAtSource": "最新人类明确授权，未提供可信精确UTC首报；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:33:52.591153+00:00",
       "firstEvidenceAtSource": "本次登记，非用户首报精确时刻。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null
+      "closedAt": null,
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     }
   ],
   "source": {
