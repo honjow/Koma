@@ -1,3 +1,5 @@
+import { url as urlKit } from '@kit.ArkTS'
+import { appSourceWebSessionStore, SourceHttpIdentity } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
@@ -105,7 +107,7 @@ function sourceNetworkMethod(method: string): http.RequestMethod {
   return method === 'POST' ? http.RequestMethod.POST : http.RequestMethod.GET
 }
 
-async function executeSourceHttpRequest(requestJson: string): Promise<string> {
+async function executeSourceHttpRequest(requestJson: string, httpContextJson: string = ''): Promise<string> {
   let envelope: SourceHttpRequestEnvelope
   try {
     envelope = JSON.parse(requestJson) as SourceHttpRequestEnvelope
@@ -122,21 +124,93 @@ async function executeSourceHttpRequest(requestJson: string): Promise<string> {
     return transportError('request_too_large', false)
   }
   const trace = DiagnosticLogger.begin('source_http', 'request', 'method=' + method + ' timeoutMs=' + sourceTimeout(envelope.timeoutMs))
+  let identity: SourceHttpIdentity | undefined = undefined
+  try {
+    const parsed = JSON.parse(httpContextJson) as SourceHttpIdentity
+    if (typeof parsed.sourceId === 'string' && typeof parsed.sourceVersion === 'string' && typeof parsed.packageIdentity === 'string' &&
+      Array.isArray(parsed.webSessionOrigins) && parsed.webSessionOrigins.every((item: string): boolean => typeof item === 'string')) identity = parsed
+  } catch (_error) {}
+  const session = identity === undefined ? undefined : appSourceWebSessionStore.requestSession(identity, url)
   const request = http.createHttp()
   try {
-    const response = await request.request(url, {
-      method: sourceNetworkMethod(method),
-      customMethod: method === 'GET' || method === 'POST' ? undefined : method,
-      extraData: body.length > 0 ? body : undefined,
+    let currentUrl = url
+    let currentMethod = method
+    let currentBody = body
+    const startedAt = Date.now()
+    let redirects = 0
+    while (true) {
+    const originalHeaders = sourceHeaders(envelope.headers)
+    const headers: Record<string, string> = {}
+    Object.keys(originalHeaders).forEach((name: string) => {
+      if (session === undefined || (name.toLowerCase() !== 'cookie' && name.toLowerCase() !== 'user-agent')) headers[name] = originalHeaders[name]
+    })
+    if (session !== undefined && identity !== undefined) {
+      const active = appSourceWebSessionStore.requestSession(identity, currentUrl)
+      if (active === undefined) {
+        trace.finish('failed', 'reason=web_session_unavailable')
+        return transportError('web_session_unavailable', false)
+      }
+      headers['User-Agent'] = active.userAgent
+      if (active.cookie.length > 0) headers['Cookie'] = active.cookie
+    }
+    trace.info('session', 'identity=' + (identity === undefined ? 'none' : 'native') +
+      ' session=' + (session === undefined ? 'none' : 'attached') +
+      ' cookieState=' + (typeof headers['Cookie'] === 'string' && headers['Cookie'].length > 0 ? 'present' : 'empty') +
+      ' uaSource=' + (session === undefined ? 'source' : 'webview'))
+    const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
+      Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt))
+    const response = await request.request(currentUrl, {
+      method: sourceNetworkMethod(currentMethod),
+      customMethod: currentMethod === 'GET' || currentMethod === 'POST' ? undefined : currentMethod,
+      extraData: currentBody.length > 0 ? currentBody : undefined,
       expectDataType: http.HttpDataType.STRING,
       usingCache: false,
-      header: sourceHeaders(envelope.headers),
-      readTimeout: sourceTimeout(envelope.timeoutMs),
-      connectTimeout: sourceTimeout(envelope.timeoutMs),
+      header: headers,
+      maxRedirects: session === undefined ? undefined : 0,
+      readTimeout: remaining,
+      connectTimeout: remaining,
     })
+    if (session !== undefined && identity !== undefined) {
+      // NetworkKit exposes each Set-Cookie as an array entry; preserve Expires commas.
+      const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
+      const key = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'set-cookie')
+      const raw = key === undefined ? undefined : responseHeaders[key]
+      const values: string[] = []
+      if (typeof raw === 'string') values.push(raw)
+      else if (Array.isArray(raw)) {
+        (raw as Object[]).forEach((value: Object) => { if (typeof value === 'string') values.push(value) })
+      }
+      appSourceWebSessionStore.acceptResponseCookies(identity, currentUrl, values)
+    }
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+    if (identity !== undefined && response.responseCode === 403) {
+      appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
+    }
+    if (session !== undefined && [301, 302, 303, 307, 308].includes(response.responseCode)) {
+      const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
+      const locationKey = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'location')
+      const location = locationKey === undefined ? undefined : sourceString(responseHeaders[locationKey])
+      if (location === undefined || redirects >= 30 || Date.now() - startedAt >= sourceTimeout(envelope.timeoutMs)) {
+        trace.finish('failed', 'reason=web_session_redirect_rejected')
+        return transportError('web_session_redirect_rejected', false)
+      }
+      const nextUrl = new urlKit.URL(location, currentUrl).toString()
+      // Re-check the full next URL against this source's explicit session grant.
+      if (identity === undefined || appSourceWebSessionStore.requestSession(identity, nextUrl) === undefined) {
+        trace.finish('failed', 'reason=web_session_redirect_rejected')
+        return transportError('web_session_redirect_rejected', false)
+      }
+      if (response.responseCode === 303 || ((response.responseCode === 301 || response.responseCode === 302) && currentMethod === 'POST')) {
+        currentMethod = 'GET'
+        currentBody = ''
+      }
+      currentUrl = nextUrl
+      redirects += 1
+      continue
+    }
     trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode + ' chars=' + responseBody.length)
     return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody))
+    }
   } catch (_error) {
     const error = _error as BusinessError
     const platformCode = typeof error.code === 'number' && Number.isFinite(error.code) ? error.code : 0

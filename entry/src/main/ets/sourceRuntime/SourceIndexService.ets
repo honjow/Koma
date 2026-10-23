@@ -582,21 +582,6 @@ export class SourceIndexService {
           entries.push(entry)
         }
       }
-      // Fetch independent icons together without changing the index order or validation.
-      for (let offset = 0; offset < entries.length; offset += SOURCE_INDEX_ICON_FETCH_CONCURRENCY) {
-        const end = Math.min(offset + SOURCE_INDEX_ICON_FETCH_CONCURRENCY, entries.length)
-        const pending: Promise<string>[] = []
-        for (let index = offset; index < end; index += 1) {
-          pending.push(this.cachedIconUriFor(normalizedUrl, entries[index]))
-        }
-        const iconUris = await Promise.all(pending)
-        for (let index = 0; index < iconUris.length; index += 1) {
-          const iconUri = iconUris[index]
-          if (iconUri.length > 0) {
-            entries[offset + index] = entryWithCachedIcon(entries[offset + index], iconUri)
-          }
-        }
-      }
       DiagnosticLogger.info('source_index', 'fetch_ok', '[SourceIndex] step=fetch_ok count=' + entries.length)
       return { ok: true, entries }
     } catch (error) {
@@ -606,6 +591,29 @@ export class SourceIndexService {
     } finally {
       httpRequest.destroy()
     }
+  }
+
+  async loadIndexIcons(
+    indexUrl: string,
+    entries: SourceIndexEntry[],
+    onIconReady: (entry: SourceIndexEntry) => void,
+    isCurrent: () => boolean,
+  ): Promise<void> {
+    const normalizedUrl = resolveIndexDocumentUrl(indexUrl)
+    let nextIndex = 0
+    const worker = async (): Promise<void> => {
+      while (isCurrent() && nextIndex < entries.length) {
+        const entry = entries[nextIndex++]
+        const iconUri = await this.cachedIconUriFor(normalizedUrl, entry)
+        if (!isCurrent()) return
+        if (iconUri.length > 0) onIconReady(entryWithCachedIcon(entry, iconUri))
+      }
+    }
+    const workers: Promise<void>[] = []
+    for (let index = 0; index < Math.min(SOURCE_INDEX_ICON_FETCH_CONCURRENCY, entries.length); index += 1) {
+      workers.push(worker())
+    }
+    await Promise.all(workers)
   }
 
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 #include <napi/native_api.h>
 
@@ -26,7 +27,7 @@ bool ConfigureArkTsHttpTransport(napi_env env, napi_value callback);
 ///   -2: network error
 ///   -3: buffer too small
 int32_t HostRequest(const char *requestJson, uint32_t requestLen,
-    char *out, uint32_t outCap);
+    char *out, uint32_t outCap, const std::string &httpContextJson = "");
 
 } // namespace http
 } // namespace koma

@@ -1,3 +1,4 @@
+import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
 import { taskpool } from '@kit.ArkTS'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
@@ -63,8 +64,8 @@ export interface SourceChapterListResult {
 }
 
 @Concurrent
-function executeSourceChapterListOperation(requestJson: string, wasmBytes: Uint8Array): string {
-  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes))
+function executeSourceChapterListOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
 }
 
 /** Existing detail pagination/settings flow, shared without writing Library or history. */
@@ -121,7 +122,7 @@ async function fetchSourceChapterList(
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
     const responseJson = await diagnoseSourceOperation(JSON.stringify(request), () => taskpool.execute(
-      executeSourceChapterListOperation, JSON.stringify(request), wasmBytes,
+      executeSourceChapterListOperation, JSON.stringify(request), wasmBytes, sourceHttpIdentityJson(entry),
     ) as Promise<string>)
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse

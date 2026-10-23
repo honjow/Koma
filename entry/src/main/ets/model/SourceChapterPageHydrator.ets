@@ -1,3 +1,4 @@
+import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
 import {
@@ -93,8 +94,8 @@ function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): s
 }
 
 @Concurrent
-function executeSourceChapterPagesOperation(requestJson: string, wasmBytes: Uint8Array): string {
-  const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+function executeSourceChapterPagesOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  const response = runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson)
   return JSON.stringify(response)
 }
 
@@ -244,6 +245,7 @@ async function fetchSourceChapterPages(
     executeSourceChapterPagesOperation,
     JSON.stringify(sourceRequest),
     cloneWasmBytes(entry),
+    sourceHttpIdentityJson(entry),
   ) as Promise<string>)
   const response = JSON.parse(responseJson) as SourceOperationResponsePayload
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])

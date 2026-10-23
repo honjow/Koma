@@ -1,3 +1,4 @@
+import { appSourceWebSessionStore } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
@@ -635,6 +636,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
     permissions: {
       network: false,
       hostImports: [],
+      webSessionOrigins: entry.webSessionOrigins ?? [],
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -1006,7 +1008,8 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
         existing.packageAuthor === entry.packageAuthor &&
         existing.packageDescription === entry.packageDescription &&
         existing.packageContentRating === entry.packageContentRating &&
-        existing.packageMinAppVersion === entry.packageMinAppVersion
+        existing.packageMinAppVersion === entry.packageMinAppVersion &&
+        JSON.stringify(existing.webSessionOrigins ?? []) === JSON.stringify(entry.webSessionOrigins ?? [])
       if (unchanged) {
         continue
       }
@@ -1044,6 +1047,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
         permissions: {
           network: false,
           hostImports: [],
+          webSessionOrigins: entry.webSessionOrigins ?? [],
         },
         operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
         contentPolicy: {
@@ -1300,6 +1304,7 @@ export function setEnabled(context: common.UIAbilityContext, id: string, enabled
     appSourceRuntimeRegistry.setEnabled(id, previous)
     return false
   }
+  if (!enabled) appSourceWebSessionStore.revoke(id)
   SourceRuntimeStateBridge.notifyChanged()
   DiagnosticLogger.info('source_package', 'step', '[SourceManager] step=' + (enabled ? 'enable' : 'disable') + ' id=' + id)
   return true
@@ -1352,6 +1357,7 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
       throw new Error('source_remove_commit_failed')
     }
     appSourceRuntimeRegistry.remove(entry.sourceId)
+    appSourceWebSessionStore.revoke(entry.sourceId)
     clearSourceRuntimeDiagnostic(entry.sourceId)
     SourceRuntimeStateBridge.notifyChanged()
     DiagnosticLogger.info('source_package', 'remove', '[SourceManager] step=remove id=' + entry.sourceId)

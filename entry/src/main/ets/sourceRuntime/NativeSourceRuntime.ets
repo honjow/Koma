@@ -4,13 +4,13 @@ interface NativeSourceRuntimeModule {
   hello(): string;
   add(a: number, b: number): number;
   runJsonCall(requestJson: string): string;
-  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array): string;
+  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson?: string): string;
   configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean;
 }
 
 const nativeSourceRuntime = nativeRuntime as NativeSourceRuntimeModule;
 
-export type SourceRuntimeHttpTransport = (requestJson: string) => Promise<string>;
+export type SourceRuntimeHttpTransport = (requestJson: string, httpContextJson?: string) => Promise<string>;
 
 export type SourceRuntimeCallRequest = Record<string, Object | string | number | boolean | null>;
 
@@ -47,9 +47,9 @@ export class NativeSourceRuntime {
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
   }
 
-  static runJsonCallFromBytes(request: SourceRuntimeCallRequest | string, wasmBytes: Uint8Array): SourceRuntimeCallResponse {
+  static runJsonCallFromBytes(request: SourceRuntimeCallRequest | string, wasmBytes: Uint8Array, httpContextJson: string = ''): SourceRuntimeCallResponse {
     const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
-    const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes);
+    const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson);
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
   }
 

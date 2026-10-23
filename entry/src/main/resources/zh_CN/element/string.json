@@ -398,6 +398,22 @@
     { "name": "browse_error_source_unavailable", "value": "源未安装或不可用" },
     { "name": "browse_error_source_runtime_failed", "value": "源运行失败：%s" },
     { "name": "browse_error_source_runtime_failed_generic", "value": "源运行失败" },
+    {"name": "source_failure_runtime", "value": "书源运行异常，请更新书源或导出诊断日志反馈。"},
+    {"name": "source_failure_load", "value": "书源程序无法加载，可能不兼容当前版本，请更新或重新安装书源。"},
+    {"name": "source_failure_init", "value": "书源初始化失败，请更新书源或导出诊断日志反馈。"},
+    {"name": "source_failure_execute", "value": "书源执行失败，请更新书源或导出诊断日志反馈。"},
+    {"name": "source_failure_access", "value": "书源请求被拒绝。"},
+    {"name": "source_failure_challenge", "value": "站点要求网页验证，当前请求未通过。"},
+    {"name": "source_failure_rate_limit", "value": "书源网站限制了请求频率，请稍后再试。"},
+    {"name": "source_failure_not_found", "value": "书源网页不存在或已变更，请更新书源。"},
+    {"name": "source_failure_server", "value": "书源网站暂时异常，请稍后再试。"},
+    {"name": "source_failure_timeout", "value": "连接书源超时，请检查网络后重试。"},
+    {"name": "source_failure_network", "value": "无法连接书源，请检查网络连接。"},
+    {"name": "source_failure_parse", "value": "书源无法解析网站内容，网站可能已改版，请更新书源或反馈。"},
+    {"name": "source_failure_capacity", "value": "书源返回的数据超出支持范围，请导出诊断日志反馈。"},
+    {"name": "source_failure_unavailable", "value": "书源未启用或文件不完整，请启用或重新安装书源。"},
+    {"name": "source_failure_unsupported", "value": "此书源暂不支持该操作。"},
+    {"name": "source_failure_http", "value": "%s（HTTP %s）"},
     { "name": "browse_untitled_manga", "value": "未命名漫画" },
     { "name": "browse_section_open_listing", "value": "打开列表" },
     { "name": "source_browse_empty_results_title", "value": "没有找到漫画" },
@@ -1470,6 +1486,34 @@
     {"name": "diagnostics_export_failed", "value": "日志导出失败"},
     {"name": "diagnostics_saved", "value": "日志已保存"},
     {"name": "diagnostics_settings_failed", "value": "日志设置保存失败"},
-    {"name": "diagnostics_file_choice", "value": "文本 (.txt)"}
+    {"name": "diagnostics_file_choice", "value": "文本 (.txt)"},
+    {
+      "name": "source_web_open",
+      "value": "网页验证 / 登录"
+    },
+    {
+      "name": "source_web_complete",
+      "value": "完成并重试"
+    },
+    {
+      "name": "source_web_not_allowed",
+      "value": "此源尚未提供可用的网页登录地址，请先检查源包更新。"
+    },
+    {
+      "name": "source_web_session_failed",
+      "value": "当前网页无法用于此源，请回到该源的网站后再完成。"
+    },
+    {
+      "name": "source_web_disconnect",
+      "value": "断开网页会话"
+    },
+    {
+      "name": "source_web_disconnected",
+      "value": "已断开此源的网页会话。"
+    },
+    {
+      "name": "source_web_disconnect_failed",
+      "value": "未能保存会话断开状态，请重试。"
+    }
   ]
 }

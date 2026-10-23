@@ -399,6 +399,22 @@
     { "name": "browse_error_source_unavailable", "value": "Source is not installed or unavailable" },
     { "name": "browse_error_source_runtime_failed", "value": "Source runtime failed: %s" },
     { "name": "browse_error_source_runtime_failed_generic", "value": "Source runtime failed" },
+    {"name": "source_failure_runtime", "value": "The source encountered an error. Update it or share diagnostic logs."},
+    {"name": "source_failure_load", "value": "The source program could not load. It may be incompatible; update or reinstall the source."},
+    {"name": "source_failure_init", "value": "Source initialization failed. Update the source or share diagnostic logs."},
+    {"name": "source_failure_execute", "value": "Source execution failed. Update the source or share diagnostic logs."},
+    {"name": "source_failure_access", "value": "The source request was refused."},
+    {"name": "source_failure_challenge", "value": "The site requires a browser verification challenge. This request has not passed it."},
+    {"name": "source_failure_rate_limit", "value": "The source website is limiting requests. Try again later."},
+    {"name": "source_failure_not_found", "value": "The source page was removed or changed. Update the source."},
+    {"name": "source_failure_server", "value": "The source website is temporarily unavailable. Try again later."},
+    {"name": "source_failure_timeout", "value": "The source connection timed out. Check your network and retry."},
+    {"name": "source_failure_network", "value": "Cannot connect to the source. Check your network connection."},
+    {"name": "source_failure_parse", "value": "The source could not read the website content. The site may have changed; update the source or report it."},
+    {"name": "source_failure_capacity", "value": "The source returned more data than is supported. Share diagnostic logs."},
+    {"name": "source_failure_unavailable", "value": "The source is disabled or its files are incomplete. Enable or reinstall it."},
+    {"name": "source_failure_unsupported", "value": "This source does not support this action."},
+    {"name": "source_failure_http", "value": "%s (HTTP %s)"},
     { "name": "browse_untitled_manga", "value": "Untitled manga" },
     { "name": "browse_section_open_listing", "value": "Open list" },
     { "name": "source_browse_empty_results_title", "value": "No manga found" },
@@ -1467,6 +1483,34 @@
     {"name": "diagnostics_export_failed", "value": "Log export failed"},
     {"name": "diagnostics_saved", "value": "Log saved"},
     {"name": "diagnostics_settings_failed", "value": "Could not save logging settings"},
-    {"name": "diagnostics_file_choice", "value": "Text (.txt)"}
+    {"name": "diagnostics_file_choice", "value": "Text (.txt)"},
+    {
+      "name": "source_web_open",
+      "value": "Web verification / sign in"
+    },
+    {
+      "name": "source_web_complete",
+      "value": "Done and retry"
+    },
+    {
+      "name": "source_web_not_allowed",
+      "value": "This source has no permitted sign-in address. Check for a source update."
+    },
+    {
+      "name": "source_web_session_failed",
+      "value": "This page cannot be used by this source. Return to its website and try again."
+    },
+    {
+      "name": "source_web_disconnect",
+      "value": "Disconnect web session"
+    },
+    {
+      "name": "source_web_disconnected",
+      "value": "Web session disconnected for this source."
+    },
+    {
+      "name": "source_web_disconnect_failed",
+      "value": "Unable to save the disconnected session. Please try again."
+    }
   ]
 }

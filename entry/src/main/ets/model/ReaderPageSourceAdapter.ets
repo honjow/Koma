@@ -1,3 +1,4 @@
+import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
@@ -34,8 +35,8 @@ import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/S
 import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 
 @Concurrent
-function executeReaderSourceImageRequestOperation(requestJson: string, wasmBytes: Uint8Array): string {
-  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes))
+function executeReaderSourceImageRequestOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
 }
 
 export interface ReaderRemoteImageCachePreferences {
@@ -540,6 +541,7 @@ async function resolveSourceRuntimeImageRequest(
   const wasmBytes = new Uint8Array(lookup.entry.wasmBytes.byteLength)
   wasmBytes.set(lookup.entry.wasmBytes)
   const descriptorRequired = lookup.entry.capabilities.includes('imageRequest')
+  const httpContextJson = sourceHttpIdentityJson(lookup.entry)
   let responseJson: string
   try {
     // Match the source detail/chapter path: WAMR stays on a TaskPool worker,
@@ -550,6 +552,7 @@ async function resolveSourceRuntimeImageRequest(
       executeReaderSourceImageRequestOperation,
       requestJson,
       wasmBytes,
+      httpContextJson,
     ) as Promise<string>)
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_failed')

@@ -1,4 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
+import { SourceRuntimeError } from './SourceRuntimeError'
 
 export type CrossSearchSectionState = 'pending' | 'running' | 'empty' | 'timeout' | 'failed' | 'unsupported' | 'ready'
 
@@ -25,6 +26,9 @@ export function searchStateUserText(state: CrossSearchSectionState, diagnosticCo
       ? AppStrings.get('search_state_not_configured')
       : AppStrings.get('search_state_unsupported')
   }
+  if (state === 'failed' && diagnosticCode === 'source_runtime') {
+    return AppStrings.get('source_failure_runtime')
+  }
   if (state === 'failed') {
     return AppStrings.get('search_state_failed').replace('%s', safeDiagnosticCode(diagnosticCode))
   }
@@ -47,6 +51,10 @@ export function safeDiagnosticCode(value: string): string {
 }
 
 export function safeSearchDiagnostic(error: Error): SearchDiagnostic {
+  if (error instanceof SourceRuntimeError) {
+    const details = error.diagnostic
+    return { code: details.code !== 'unknown' ? details.code : details.reason, userText: error.userText }
+  }
   const message = error.message.toLocaleLowerCase()
   let code = 'search_failed'
   if (message.indexOf('timeout') >= 0 || message.indexOf('timed out') >= 0 || message.indexOf('超时') >= 0) {

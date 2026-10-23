@@ -1,3 +1,4 @@
+import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { common } from '@kit.AbilityKit'
 import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
@@ -89,7 +90,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       return new ReaderUnitKey('koma-local', work, unit)
     }
     const comic = this.library.getComic(work)
-    const chapter = unit.length > 0 ? unit : (comic?.chapters[0]?.id ?? '')
+    const chapter = unit.length > 0 ? unit : (firstReaderChapter(comic?.chapters ?? [])?.id ?? '')
     return new ReaderUnitKey('koma-local', work, chapter)
   }
 

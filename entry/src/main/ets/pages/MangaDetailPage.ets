@@ -1,3 +1,5 @@
+import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
 import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
@@ -162,8 +164,8 @@ interface SourceDetailRequest {
 }
 
 @Concurrent
-function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8Array): string {
-  const response = runSourceOperationFromBytes(requestJson, wasmBytes)
+function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  const response = runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson)
   return JSON.stringify(response)
 }
 
@@ -909,7 +911,8 @@ export struct MangaDetailPage {
     const responseJson = await diagnoseSourceOperation(request, () => taskpool.execute(
       executeMangaDetailSourceOperation,
       request,
-      this.copyWasmBytes(entry)
+      this.copyWasmBytes(entry),
+      sourceHttpIdentityJson(entry),
     ) as Promise<string>)
     const response = JSON.parse(responseJson) as SourceOperationResponsePayload
     const item = this.sourceMangaResponseItem(response)
@@ -1117,37 +1120,8 @@ export struct MangaDetailPage {
     })
   }
 
-  private earliestNumberedChapter(): MangaChapterItem | undefined {
-    let selected: MangaChapterItem | undefined = undefined
-    this.chapters.forEach((chapter: MangaChapterItem): void => {
-      if (chapter.chapterNumber === undefined) {
-        return
-      }
-      if (selected === undefined || (selected.chapterNumber !== undefined && chapter.chapterNumber < selected.chapterNumber)) {
-        selected = chapter
-      }
-    })
-    return selected
-  }
-
-  private oldestDatedChapter(): MangaChapterItem | undefined {
-    let selected: MangaChapterItem | undefined = undefined
-    this.chapters.forEach((chapter: MangaChapterItem): void => {
-      if (chapter.dateUpload === undefined) {
-        return
-      }
-      if (selected === undefined || (selected.dateUpload !== undefined && chapter.dateUpload < selected.dateUpload)) {
-        selected = chapter
-      }
-    })
-    return selected
-  }
-
   private firstChapterId(): string | undefined {
-    if (this.chapters.length === 0) {
-      return undefined
-    }
-    return (this.earliestNumberedChapter() ?? this.oldestDatedChapter() ?? this.chapters[0]).id
+    return firstReaderChapter(this.chapters)?.id
   }
 
   private currentReadingProgress(): ReadingProgress | undefined {

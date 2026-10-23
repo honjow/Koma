@@ -41,6 +41,7 @@ struct HttpBridgeCall {
     std::condition_variable cv;
     bool done = false;
     std::string request;
+    std::string httpContextJson;
     std::string response;
     std::atomic<uint32_t> refs { 1 };
 
@@ -138,11 +139,17 @@ void CallArkTsHttpTransport(napi_env env, napi_value callback, void *context, vo
         return;
     }
     napi_value input = nullptr;
+    napi_value identity = nullptr;
+    napi_value inputs[2] = {nullptr, nullptr};
     napi_value undefined = nullptr;
     napi_value promise = nullptr;
     napi_get_undefined(env, &undefined);
-    if (napi_create_string_utf8(env, call->request.c_str(), call->request.size(), &input) != napi_ok ||
-        napi_call_function(env, undefined, callback, 1, &input, &promise) != napi_ok) {
+    const napi_status identityStatus = napi_create_string_utf8(env, call->httpContextJson.c_str(), call->httpContextJson.size(), &identity);
+    const napi_status inputStatus = napi_create_string_utf8(env, call->request.c_str(), call->request.size(), &input);
+    inputs[0] = input;
+    inputs[1] = identity;
+    if (identityStatus != napi_ok || inputStatus != napi_ok ||
+        napi_call_function(env, undefined, callback, 2, inputs, &promise) != napi_ok) {
         napi_close_handle_scope(env, scope);
         CompleteBridgeCall(call, "{\"ok\":false,\"error\":{\"code\":\"transport_unavailable\",\"message\":\"network request failed\",\"retryable\":true}}");
         return;
@@ -197,7 +204,7 @@ bool ConfigureArkTsHttpTransport(napi_env env, napi_value callback)
     return true;
 }
 
-int32_t HostRequest(const char *requestJson, uint32_t requestLen, char *out, uint32_t outCap)
+int32_t HostRequest(const char *requestJson, uint32_t requestLen, char *out, uint32_t outCap, const std::string &httpContextJson)
 {
     if (requestJson == nullptr || requestLen == 0 || out == nullptr || outCap == 0) {
         return -1;
@@ -215,6 +222,7 @@ int32_t HostRequest(const char *requestJson, uint32_t requestLen, char *out, uin
     }
     auto *call = new HttpBridgeCall();
     call->request.assign(requestJson, requestLen);
+    call->httpContextJson = httpContextJson;
     call->refs.fetch_add(1);
     const napi_status queued = napi_call_threadsafe_function(transport, call, napi_tsfn_nonblocking);
     napi_release_threadsafe_function(transport, napi_tsfn_release);

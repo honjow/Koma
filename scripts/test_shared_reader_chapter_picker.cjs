@@ -126,3 +126,38 @@ test('shared page keeps chapter data and sheet ownership outside reader-kit', ()
   assert.match(adapter, /chapterChoices\(unit: ReaderUnitKey\)/)
   assert.doesNotMatch(page, /@reader-kit\/.*ChapterPicker/)
 })
+
+function chapterSequence() {
+  const exports = {}
+  const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
+  vm.runInNewContext(ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports })
+  return exports
+}
+
+test('first-read ignores catalog display direction and unknown negative ordinals, preserving a real chapter zero', () => {
+  const { firstReaderChapter } = chapterSequence()
+  const catalog = [
+    { id: 'newest', title: 'Latest', chapterNumber: 46 },
+    { id: 'unknown', title: 'Extra', chapterNumber: -1 },
+    { id: 'first', title: 'First', chapterNumber: 1 },
+  ]
+  assert.equal(firstReaderChapter(catalog).id, 'first')
+  assert.equal(firstReaderChapter([...catalog].reverse()).id, 'first')
+  assert.equal(catalog[0].id, 'newest')
+  assert.equal(firstReaderChapter([...catalog, { id: 'zero', title: 'Prologue', chapterNumber: 0 }]).id, 'zero')
+})
+
+test('first-read uses oldest real upload date without inventing numbers from titles', () => {
+  const { firstReaderChapter } = chapterSequence()
+  const catalog = [
+    { id: 'new', title: 'Chapter 1', dateUpload: 200 },
+    { id: 'unknown-date', title: 'Chapter 0', dateUpload: 0 },
+    { id: 'old', title: 'Chapter 99', dateUpload: 100 },
+  ]
+  assert.equal(firstReaderChapter(catalog).id, 'old')
+  assert.equal(firstReaderChapter([]), undefined)
+  assert.equal(firstReaderChapter([{ id: 'stable', title: 'No metadata' },
+    { id: 'other', title: 'Chapter 1' }]).id, 'stable')
+})

@@ -1,3 +1,4 @@
+import { url } from '@kit.ArkTS'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
 import { zlib } from '@kit.BasicServicesKit'
@@ -84,6 +85,7 @@ export interface LocalSourcePackageRuntime {
 export interface LocalSourcePackagePermissions {
   network: boolean
   hostImports: string[]
+  webSessionOrigins?: string[]
 }
 
 export interface LocalSourcePackageContentPolicy {
@@ -103,6 +105,7 @@ export interface LocalSourcePackageManifest {
 }
 
 interface SourceRepoPackageManifest {
+  webSessionOrigins?: string[]
   icon?: string
   id: string
   name: string
@@ -555,6 +558,21 @@ export function normalizeSourceOperationCapabilityTokens(input: string[] | undef
   return tokens
 }
 
+export function validSourceWebSessionOrigins(value: Object | undefined): boolean {
+  if (value === undefined) return true
+  if (!Array.isArray(value)) return false
+  const declared = value as string[]
+  for (const raw of declared) {
+    if (typeof raw !== 'string') return false
+    try {
+      const parsed = new url.URL(raw)
+      if (parsed.protocol !== 'https:' || parsed.origin !== raw ||
+        parsed.username.length > 0 || parsed.password.length > 0 || parsed.hostname.length === 0) return false
+    } catch (_error) { return false }
+  }
+  return true
+}
+
 function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSourcePackageManifest | undefined {
   const parsed = JSON.parse(raw) as SourceRepoPackageManifest
   const id = nonEmptyString(parsed.id)
@@ -576,6 +594,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
 
   const capabilities = isPlainObject(parsed.capabilities as Object | null) ? parsed.capabilities : undefined
   const contentPolicy = isPlainObject(parsed.contentPolicy as Object | null) ? parsed.contentPolicy : undefined
+  if (!validSourceWebSessionOrigins(parsed.webSessionOrigins)) return undefined
   const declaredSha256 = nonEmptyString(parsed.wasmSha256) ?? nonEmptyString(parsed.sourceWasmSha256) ?? ''
   const maxWasmBytes = optionalNumber(parsed.maxWasmBytes, Math.max(wasmSize, SOURCE_PACKAGE_WASM_MAX_BYTES))
   return {
@@ -602,6 +621,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       maxWasmBytes,
     },
     permissions: {
+      webSessionOrigins: parsed.webSessionOrigins ?? [],
       network: optionalBoolean(capabilities?.network, false),
       hostImports: [],
     },
@@ -616,6 +636,8 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
 }
 
 export function validateNormalizedManifest(manifest: LocalSourcePackageManifest): SourceArchiveValidationReason | undefined {
+  if (manifest.permissions === undefined || manifest.permissions === null ||
+    !validSourceWebSessionOrigins(manifest.permissions.webSessionOrigins)) return 'manifest_invalid'
   if (manifest.package.id.length === 0 || manifest.package.version.length === 0 || manifest.package.id.length > 96) {
     return 'manifest_invalid'
   }

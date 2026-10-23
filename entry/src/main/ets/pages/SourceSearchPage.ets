@@ -9,6 +9,7 @@ import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaf
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
+import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { safeSearchDiagnostic } from '../model/SearchStateMapper'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -58,6 +59,26 @@ export struct SourceSearchPage {
   @Local private filtersShown: boolean = false
   private searchTimer: number = 0
   private handledFilterRequestSeq: number = 0
+  private handledRefreshRequestSeq: number = 0
+
+  @Monitor('chrome.refreshRequestSeq')
+  private handleSourceSessionReturn(): void {
+    if (this.chrome.refreshRequestSeq <= this.handledRefreshRequestSeq) return
+    this.handledRefreshRequestSeq = this.chrome.refreshRequestSeq
+    this.retrySearch()
+  }
+
+  private canVerifySource(): boolean {
+    return this.viewModel.searchNeedsWebSession && (this.currentSource().webSessionOrigins ?? []).length > 0
+  }
+
+  private verifySource(): void {
+    const source = this.currentSource()
+    if (!openSourceWebSession(source.sourceId, source.displayName, () => { this.chrome.markRefreshNeeded() })) {
+      this.getUIContext().getPromptAction().showToast({ message: s('source_web_not_allowed') })
+    }
+  }
+
   private handledQueryChangeSeq: number = 0
   private handledQuerySubmitSeq: number = 0
   private searchInitializationStarted: boolean = false
@@ -155,6 +176,8 @@ export struct SourceSearchPage {
   }
 
   private syncTitleActions(): void {
+    const source = this.currentSource()
+    this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
     this.chrome.filtersAvailable = this.hasRuntimeFilters()
   }
 
@@ -241,10 +264,11 @@ export struct SourceSearchPage {
     KomaEmptyState({
       title: s('source_search_error_title'),
       message: this.viewModel.searchErrorMessage,
-      actionLabel: s('common_retry'),
+      actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: !this.searchFiltersReady || this.query.trim().length > 0,
       action: () => {
-        this.retrySearch()
+        if (this.canVerifySource()) this.verifySource()
+        else this.retrySearch()
       },
     })
   }

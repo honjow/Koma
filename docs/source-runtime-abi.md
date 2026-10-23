@@ -219,6 +219,20 @@ Host enforcement:
 - `Cookie`, `Authorization`, API keys and passwords are never passed as raw manifest literals; source may request `credentialsRef`, host resolves it.
 - Response body is capped by `maxResponseBytes`.
 
+## 已实现的宿主网页会话（2026-10-23）
+
+当前 WASM 源包可选声明 `webSessionOrigins`，例如 `["https://www.example.com"]`；宿主归一化后保存在 `permissions.webSessionOrigins`。只接受无路径、无账号、无通配符的完整 HTTPS origin，旧包不声明时不会取得网页会话。
+
+用户从源浏览/搜索菜单或源包详情打开“网页验证 / 登录”，沿用 App 的带导航控件 WebView。完成后显式选择“完成并重试”，宿主将当前网页的实际 User-Agent 与该源、该版本、该安装身份和精确 origin 绑定，返回原源请求。打开或取消验证不撤销先前可用会话；网页完成本身不证明站点验证成功，仍以普通源请求结果为准。
+
+- Cookie 仅由系统 `WebCookieManager` 保存；宿主逐个完整请求 URL 读取，以保留 path、secure 和过期规则，并在同源响应中逐条接收 `Set-Cookie` 续期。
+- 可信源身份从 Registry 经独立 Native 调用上下文送达 HTTP 桥，不读取 WASM 请求 JSON 中自报的身份。Cookie、网页会话和密码不作为 `get_settings` 的普通值交给 WASM，也不进入返回包或日志。
+- 带会话的请求禁止自动跟随重定向；每一跳重新核对当前授权和 origin，再读取该 URL 的 Cookie。跨 origin 不携带会话且不发出该跳请求。
+- 仅非秘密的按源授权元数据和实际 User-Agent 保存在 App 私有目录；不持久化验证 URL 的查询串。源版本、安装身份或域许可变化、禁用、移除和主动断开会使授权失效；等价的 Registry 重新加载不丢登录。
+- 普通源设置仍使用既有按源控件与持久化，来源于 `get_settings` 的安全类型；网页登录是宿主动作，不把密码、令牌或 Cookie 当普通源设置输入。
+
+这里的会话支持不表示所有站点的挑战或账号体系已通过；具体源仍需完成网页验证、返回普通浏览/阅读及重开验收。
+
 ## Caching
 
 Cache key namespace:

@@ -11,7 +11,19 @@ export class SourceBrowseRouteChromeState {
   readonly sourceId: string
   readonly scroller: Scroller = new Scroller()
   @Trace filtersAvailable: boolean = false
+  @Trace webSessionAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
+  @Trace refreshRequestSeq: number = 0
+  private refreshPending: boolean = false
+
+  markRefreshNeeded(): void { this.refreshPending = true }
+
+  resume(): void {
+    if (!this.refreshPending) return
+    this.refreshPending = false
+    this.refreshRequestSeq += 1
+  }
+
   @Trace query: string = ''
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0
@@ -43,7 +55,19 @@ export class SourceSearchRouteChromeState {
   readonly sourceId: string
   readonly initialQuery: string
   @Trace filtersAvailable: boolean = false
+  @Trace webSessionAvailable: boolean = false
   @Trace filterRequestSeq: number = 0
+  @Trace refreshRequestSeq: number = 0
+  private refreshPending: boolean = false
+
+  markRefreshNeeded(): void { this.refreshPending = true }
+
+  resume(): void {
+    if (!this.refreshPending) return
+    this.refreshPending = false
+    this.refreshRequestSeq += 1
+  }
+
   @Trace query: string = ''
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0

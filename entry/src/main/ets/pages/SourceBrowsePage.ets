@@ -9,6 +9,7 @@ import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaf
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
+import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceFilter, SourceManga } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -79,6 +80,29 @@ export struct SourceBrowsePage {
   @Local private filtersShown: boolean = false
   @Local private listingMenuOpen: boolean = false
   private handledFilterRequestSeq: number = 0
+  private handledRefreshRequestSeq: number = 0
+
+  @Monitor('chrome.refreshRequestSeq')
+  private handleSourceSessionReturn(): void {
+    if (this.chrome.refreshRequestSeq <= this.handledRefreshRequestSeq) return
+    this.handledRefreshRequestSeq = this.chrome.refreshRequestSeq
+    if (this.isSearchActive()) void this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
+    else if (this.viewModel.browseErrorIntent !== BrowseLoadIntent.NONE) this.retryBrowseError()
+    else void this.refreshBrowse()
+  }
+
+  private canVerifySource(): boolean {
+    const needsSession = this.isSearchActive() ? this.viewModel.searchNeedsWebSession : this.viewModel.browseNeedsWebSession
+    return needsSession && (this.currentSource().webSessionOrigins ?? []).length > 0
+  }
+
+  private verifySource(): void {
+    const source = this.currentSource()
+    if (!openSourceWebSession(source.sourceId, source.displayName, () => { this.chrome.markRefreshNeeded() })) {
+      this.getUIContext().getPromptAction().showToast({ message: s('source_web_not_allowed') })
+    }
+  }
+
   private searchTimer: number = 0
   private handledQueryChangeSeq: number = 0
   private handledQuerySubmitSeq: number = 0
@@ -238,6 +262,8 @@ export struct SourceBrowsePage {
   }
 
   private syncTitleActions(): void {
+    const source = this.currentSource()
+    this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
     this.chrome.filtersAvailable = this.hasRuntimeFilters()
   }
 
@@ -486,10 +512,11 @@ export struct SourceBrowsePage {
       title: this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
         ? s('browse_error_load_more') : s('browse_error_load_home'),
       message: this.viewModel.errorMessage,
-      actionLabel: s('common_retry'),
+      actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: true,
       action: () => {
-        this.retryBrowseError()
+        if (this.canVerifySource()) this.verifySource()
+        else this.retryBrowseError()
       },
     })
   }

@@ -14,6 +14,8 @@ import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { RouterHelper } from '../common/RouterHelper'
+import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import {
   InstalledSourcePackage,
   appSourceRuntimeRegistry,
@@ -59,7 +61,7 @@ function tf(name: string, ...args: Array<string | number>): string {
 
 type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
-type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'confirm_remove'
+type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'open_web' | 'confirm_remove'
 
 interface SourcePackageUpdateStatus {
   sourceId: string
@@ -113,6 +115,9 @@ interface SourceDiagnosticsSettingCounts {
 
 @ComponentV2
 export struct SourcePackageManagerPage {
+  @Param initialSettingsSourceId: string = ''
+  @Event onSettingsSaved: () => void = () => {}
+  private settingsRouteActive: boolean = false
   @Local private packages: InstalledSourcePackage[] = []
   @Local private busy: boolean = false
   @Local private statusText: string = ''
@@ -141,6 +146,7 @@ export struct SourcePackageManagerPage {
   @Local private settingsDescriptorSnapshot: Record<string, SourceSettingDescriptor[]> = {}
   private settingsReloadRevision: number = 0
   private savedIndexLoadRevision: number = 0
+  private indexLoadRevision: number = 0
   @Local private sourceIndexSheetShown: boolean = false
   @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
   @Local private pendingSourceSheetSourceId: string = ''
@@ -151,9 +157,26 @@ export struct SourcePackageManagerPage {
     configureSourceSettingsStore(this.context())
     this.reload()
     this.loadSavedIndexUrl()
+    this.settingsRouteActive = true
+    if (this.initialSettingsSourceId.length > 0) void this.openRequestedSourceSettings()
+  }
+
+  private async openRequestedSourceSettings(): Promise<void> {
+    const source = this.installedPackage(this.initialSettingsSourceId)
+    if (source === undefined) return
+    const descriptors = await fetchSourceSettingDescriptorsAsync(appSourceRuntimeRegistry, source.id)
+    if (!this.settingsRouteActive) return
+    try {
+      this.openSettings(source, descriptors)
+      this.sourceSettingsSheetShown = true
+    } catch (_error) {
+      this.showToast(t('source_pkg_reason_settings_validation_failed'))
+    }
   }
 
   aboutToDisappear(): void {
+    this.settingsRouteActive = false
+    this.indexLoadRevision += 1
     this.savedIndexLoadRevision += 1
     this.settingsReloadRevision += 1
   }
@@ -167,6 +190,29 @@ export struct SourcePackageManagerPage {
       compareSourceNames(
         resolveSourceLocalizedName(left.name, left.localizedNames, this.languageState.effectiveLocale), left.id,
         resolveSourceLocalizedName(right.name, right.localizedNames, this.languageState.effectiveLocale), right.id))
+  }
+
+  private setSourceIndexUrl(value: string): void {
+    if (value === this.sourceIndexUrl) return
+    this.savedIndexLoadRevision += 1
+    this.indexLoadRevision += 1
+    this.sourceIndexUrl = value
+    this.indexFetchBusy = false
+    this.indexEntries = []
+    this.indexStatusText = ''
+  }
+
+  private showIndexEntries(indexUrl: string, entries: SourceIndexEntry[], revision: number): void {
+    if (revision !== this.indexLoadRevision) return
+    this.indexEntries = this.sortedIndexEntries(entries)
+    this.indexStatusText = tf('source_pkg_index_loaded', entries.length)
+    void this.sourceIndexService.loadIndexIcons(indexUrl, entries, (ready: SourceIndexEntry): void => {
+      if (revision !== this.indexLoadRevision) return
+      this.indexEntries = this.indexEntries.map((entry: SourceIndexEntry): SourceIndexEntry =>
+        entry.id === ready.id && entry.version === ready.version && entry.icon === ready.icon ? ready : entry)
+    }, (): boolean => revision === this.indexLoadRevision).catch((_error: Error): void => {
+      DiagnosticLogger.warn('source_package_manager_page', 'icons_incomplete', 'Index entries remain available')
+    })
   }
 
   private reload(): void {
@@ -222,7 +268,7 @@ export struct SourcePackageManagerPage {
       const saved = await this.sourceIndexService.loadSavedUrl()
       const repositories = await this.sourceIndexService.loadSavedRepositories()
       if (revision !== this.savedIndexLoadRevision) return
-      if (saved.length > 0 && this.sourceIndexUrl === previousUrl) this.sourceIndexUrl = saved
+      if (saved.length > 0 && this.sourceIndexUrl === previousUrl) this.setSourceIndexUrl(saved)
       this.sourceIndexRepositories = repositories
     } catch (_error) {
       if (revision !== this.savedIndexLoadRevision) return
@@ -243,6 +289,9 @@ export struct SourcePackageManagerPage {
   }
 
   private sourceSummary(source: InstalledSourcePackage): SourceRuntimeRegistryInstalledSourceSummary {
+    const current = appSourceRuntimeRegistry.listInstalledSourceSummaries()
+      .find((item: SourceRuntimeRegistryInstalledSourceSummary): boolean => item.sourceId === source.id)
+    if (current !== undefined) return current
     const importStatus = source.status === 'staged' ? 'staged' : 'imported'
     return {
       sourceId: source.id,
@@ -314,6 +363,10 @@ export struct SourcePackageManagerPage {
       this.openSourceBrowse(source)
     } else if (action === 'open_search' && source !== undefined) {
       this.openSourceSearch(source)
+    } else if (action === 'open_web' && source !== undefined) {
+      if (!openSourceWebSession(source.id, sourceDisplayName(source.id, source.name), () => { this.reload() })) {
+        this.showToast(t('source_web_not_allowed'))
+      }
     } else if (action === 'confirm_remove' && source !== undefined) {
       this.confirmRemovePackage(source)
     }
@@ -349,6 +402,7 @@ export struct SourcePackageManagerPage {
   private finishSourceSettingsSheetDismissal(): void {
     this.sourceSettingsSheetShown = false
     this.closeSettings()
+    if (this.settingsRouteActive && this.initialSettingsSourceId.length > 0) RouterHelper.pop()
   }
 
   private finishSourceIndexSheetDismissal(): void {
@@ -633,7 +687,7 @@ export struct SourcePackageManagerPage {
       try {
         const saved = await this.sourceIndexService.loadSavedUrl()
         if (saved.length > 0) {
-          this.sourceIndexUrl = saved
+          this.setSourceIndexUrl(saved)
           url = saved
         }
       } catch (_error) {
@@ -660,6 +714,7 @@ export struct SourcePackageManagerPage {
     if (url.length === 0) {
       return
     }
+    const revision = ++this.indexLoadRevision
     const count = this.packages.length
     console.info('[SourcePackageUpdate] step=check_start count=' + count)
     this.updateCheckBusy = true
@@ -682,6 +737,7 @@ export struct SourcePackageManagerPage {
       for (let index = 0; index < updateIndexUrls.length; index += 1) {
         const indexUrl = updateIndexUrls[index]
         const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(indexUrl)
+        if (revision !== this.indexLoadRevision) return
         if (!result.ok) {
           failedIndexCount += 1
           firstFailureReason = result.reasonCode ?? firstFailureReason
@@ -689,8 +745,7 @@ export struct SourcePackageManagerPage {
         }
         loadedIndexCount += 1
         if (indexUrl === url || this.indexEntries.length === 0) {
-          this.indexEntries = this.sortedIndexEntries(result.entries)
-          this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
+          this.showIndexEntries(indexUrl, result.entries, revision)
         }
         result.entries.forEach((entry: SourceIndexEntry) => {
           const existing = candidates[entry.id]
@@ -1030,28 +1085,32 @@ export struct SourcePackageManagerPage {
       this.indexStatusText = t('source_pkg_prompt_index_url')
       return
     }
+    const revision = ++this.indexLoadRevision
     this.indexFetchBusy = true
     this.indexStatusText = t('source_pkg_index_loading')
     this.indexEntries = []
     try {
       await this.sourceIndexService.saveUrl(url)
-      this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
+      const repositories = await this.sourceIndexService.loadSavedRepositories()
+      if (revision !== this.indexLoadRevision) return
+      this.sourceIndexRepositories = repositories
       const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
+      if (revision !== this.indexLoadRevision) return
       if (result.ok) {
-        this.indexEntries = this.sortedIndexEntries(result.entries)
-        this.indexStatusText = tf('source_pkg_index_loaded', result.entries.length)
+        this.showIndexEntries(url, result.entries, revision)
       } else {
         this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(result.reasonCode))
       }
     } catch (_error) {
+      if (revision !== this.indexLoadRevision) return
       this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
     } finally {
-      this.indexFetchBusy = false
+      if (revision === this.indexLoadRevision) this.indexFetchBusy = false
     }
   }
 
   private selectSavedIndex(repository: SourceIndexRepository): void {
-    this.sourceIndexUrl = repository.url
+    this.setSourceIndexUrl(repository.url)
     void this.fetchIndex()
   }
 
@@ -1061,10 +1120,10 @@ export struct SourcePackageManagerPage {
       .then((repositories: SourceIndexRepository[]) => {
         this.sourceIndexRepositories = repositories
         if (this.sourceIndexUrl.trim() === repository.url && repositories.length > 0) {
-          this.sourceIndexUrl = repositories[0].url
+          this.setSourceIndexUrl(repositories[0].url)
         }
         if (repositories.length === 0 && this.sourceIndexUrl.trim() === repository.url) {
-          this.sourceIndexUrl = ''
+          this.setSourceIndexUrl('')
         }
       })
       .catch((_error: Error) => {
@@ -1480,6 +1539,7 @@ export struct SourcePackageManagerPage {
     this.reload()
     this.statusText = t('source_pkg_settings_saved')
     this.showToast(t('source_pkg_settings_saved'))
+    this.onSettingsSaved()
     this.closeSourceSettingsSheet()
   }
 
@@ -1496,6 +1556,7 @@ export struct SourcePackageManagerPage {
     this.reload()
     this.statusText = t('source_pkg_settings_cleared')
     this.showToast(t('source_pkg_settings_cleared'))
+    this.onSettingsSaved()
     this.closeSourceSettingsSheet()
   }
 
@@ -1965,7 +2026,7 @@ export struct SourcePackageManagerPage {
               void this.fetchIndex()
             },
             change: (value: string) => {
-              this.sourceIndexUrl = value
+              this.setSourceIndexUrl(value)
             },
           })
 
@@ -2197,6 +2258,31 @@ export struct SourcePackageManagerPage {
             this.openSourceSettingsFromSheet(params.source)
           },
         })
+        if ((appSourceRuntimeRegistry.lookup(params.source.id).entry?.webSessionOrigins ?? []).length > 0) {
+          ListDivider()
+          ConciseListRow({
+            title: t('source_web_open'),
+            leadingIcon: $r('sys.symbol.house_fill'),
+            isEnabled: params.source.enabled,
+            action: () => { this.requestSourceSheetDismiss('open_web', params.source) },
+          })
+          if (appSourceWebSessionStore.status(params.source.id).state === 'available') {
+            ListDivider()
+            ConciseListRow({
+              title: t('source_web_disconnect'),
+              leadingIcon: $r('sys.symbol.xmark'),
+              action: () => {
+                try {
+                  appSourceWebSessionStore.revoke(params.source.id)
+                  this.reload()
+                  this.showToast(t('source_web_disconnected'))
+                } catch (_error) {
+                  this.showToast(t('source_web_disconnect_failed'))
+                }
+              },
+            })
+          }
+        }
       }
 
       if (this.hasSourcePackageMetadata(params.source)) {
@@ -2634,7 +2720,7 @@ export struct SourcePackageManagerPage {
                   if (index < this.indexEntries.length - 1) {
                     ListDivider()
                   }
-                }, (entry: SourceIndexEntry) => entry.id)
+                }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.iconUri ?? '']))
                 }
               }
             }

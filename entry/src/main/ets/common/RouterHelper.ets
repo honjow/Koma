@@ -12,9 +12,21 @@ export interface MangaDetailRouteParam {
   chrome?: MangaDetailRouteChromeState
 }
 
+export interface SourceWebSessionRouteParam {
+  sourceId: string
+  sessionId: string
+}
+
 export interface MangaWebRouteParam {
   url: string
   title: string
+  sourceSession?: SourceWebSessionRouteParam
+  onSessionCompleted?: () => void
+}
+
+export interface SourcePackageManagerRouteParam {
+  settingsSourceId: string
+  onSettingsSaved?: () => void
 }
 
 export interface SearchRouteParam {
@@ -113,6 +125,11 @@ export class RouterHelper {
 
   static pushSourcePackageManager(): void {
     RouterHelper.openLaunchRoute(RouteName.SOURCE_PACKAGE_MANAGER)
+  }
+
+  static pushSourceSettings(sourceId: string, onSettingsSaved?: () => void): void {
+    const param: SourcePackageManagerRouteParam = { settingsSourceId: sourceId, onSettingsSaved }
+    RouterHelper.appPathStack?.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param })
   }
 
   static pushTrackerSettings(): void {

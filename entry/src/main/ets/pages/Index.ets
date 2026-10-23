@@ -1,3 +1,4 @@
+import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -69,6 +70,7 @@ import {
   RouterHelper,
   SearchRouteParam,
   SourceBrowseRouteParam,
+  SourcePackageManagerRouteParam,
   SourceSearchRouteParam,
 } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
@@ -131,7 +133,6 @@ import {
   cloneReaderSessionConfig,
   createReaderSessionConfigFromComic,
   getReaderSessionPageId,
-  sortedReaderChapters,
 } from '../model/ReaderSessionStore'
 import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
 import { SourceChapterPageHydrator, resolveSourceChapterPages } from '../model/SourceChapterPageHydrator'
@@ -149,6 +150,8 @@ import {
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
+import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -348,7 +351,7 @@ struct Index {
       (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0))) {
       return progress.chapterId
     }
-    const firstChapter = sortedReaderChapters(comic.chapters)[0]
+    const firstChapter = firstReaderChapter(comic.chapters)
     return firstChapter?.id
   }
 
@@ -1874,6 +1877,7 @@ struct Index {
     if (this.sourceRegistry.count() === 0) {
       bootstrapSourceRuntimeAppRegistry(context)
     }
+    appSourceWebSessionStore.configure(context, this.sourceRegistry)
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true
       const persistenceService = this.ensureLibraryPersistenceService()
@@ -2037,6 +2041,7 @@ struct Index {
     .onDisAppear(() => {
       this.disposeSourceBrowseFieldContent(param.chrome)
     })
+    .onShown(() => { param.chrome.resume() })
     .titleBar(this.sourceBrowseTitleBarOpts(param))
     .dynamicHideTitleBar({
       hideTitleArea: true,
@@ -2058,6 +2063,7 @@ struct Index {
         },
       })
     }
+    .onShown(() => { param.chrome.resume() })
     .titleBar(this.sourceSearchTitleBarOpts(param))
     .onDisAppear(() => {
       // A detail route only hides this destination. Dispose the cached title
@@ -2237,7 +2243,10 @@ struct Index {
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_webdav_title')))
     } else if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
       HdsNavDestination() {
-        SourcePackageManagerPage()
+        SourcePackageManagerPage({
+          initialSettingsSourceId: (param as SourcePackageManagerRouteParam | undefined)?.settingsSourceId ?? '',
+          onSettingsSaved: () => { (param as SourcePackageManagerRouteParam | undefined)?.onSettingsSaved?.() },
+        })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_source_package_manager_title')))
     } else if (name === RouteName.SETTINGS_PANE) {
@@ -2769,6 +2778,7 @@ struct Index {
     bottomBuilder['height'] = SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT
     bottomBuilder['showType'] = BottomBuilderShowType.DIRECTLY_SHOW
     content['bottomBuilder'] = bottomBuilder
+    const menuItems: Record<string, Object>[] = []
     if (chrome.filtersAvailable) {
       const filterContent: Record<string, Object> = {}
       filterContent['label'] = AppStrings.get('common_filter')
@@ -2779,11 +2789,31 @@ struct Index {
       }
       const filterItem: Record<string, Object> = {}
       filterItem['content'] = filterContent
-      const menu: Record<string, Object> = {}
-      menu['value'] = [filterItem]
-      menu['maxCount'] = 1
-      content['menu'] = menu
+      menuItems.push(filterItem)
     }
+    const settingsContent: Record<string, Object> = {
+      'label': AppStrings.get('source_pkg_settings'),
+      'icon': $r('sys.symbol.gearshape'),
+      'isEnabled': true,
+      'action': () => { RouterHelper.pushSourceSettings(source.sourceId, () => { chrome.markRefreshNeeded() }) },
+    }
+    menuItems.push({ 'content': settingsContent })
+    if (chrome.webSessionAvailable) {
+      const webContent: Record<string, Object> = {
+        'label': AppStrings.get('source_web_open'),
+        'icon': $r('sys.symbol.house_fill'),
+        'isEnabled': source.enabled,
+        'action': () => {
+          if (!openSourceWebSession(source.sourceId, sourceDisplayName(source.sourceId, source.displayName),
+            () => { chrome.markRefreshNeeded() })) {
+            this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_not_allowed') })
+          }
+        },
+      }
+      menuItems.push({ 'content': webContent })
+    }
+    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
+    content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
 
@@ -2824,6 +2854,7 @@ struct Index {
     const content: Record<string, Object> = {}
     content['title'] = title
     content['bottomBuilder'] = bottomBuilder
+    const menuItems: Record<string, Object>[] = []
     if (chrome.filtersAvailable) {
       const filterContent: Record<string, Object> = {}
       filterContent['label'] = AppStrings.get('common_filter')
@@ -2834,11 +2865,31 @@ struct Index {
       }
       const filterItem: Record<string, Object> = {}
       filterItem['content'] = filterContent
-      const menu: Record<string, Object> = {}
-      menu['value'] = [filterItem]
-      menu['maxCount'] = 1
-      content['menu'] = menu
+      menuItems.push(filterItem)
     }
+    const settingsContent: Record<string, Object> = {
+      'label': AppStrings.get('source_pkg_settings'),
+      'icon': $r('sys.symbol.gearshape'),
+      'isEnabled': true,
+      'action': () => { RouterHelper.pushSourceSettings(source.sourceId, () => { chrome.markRefreshNeeded() }) },
+    }
+    menuItems.push({ 'content': settingsContent })
+    if (chrome.webSessionAvailable) {
+      const webContent: Record<string, Object> = {
+        'label': AppStrings.get('source_web_open'),
+        'icon': $r('sys.symbol.house_fill'),
+        'isEnabled': source.enabled,
+        'action': () => {
+          if (!openSourceWebSession(source.sourceId, sourceDisplayName(source.sourceId, source.displayName),
+            () => { chrome.markRefreshNeeded() })) {
+            this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_not_allowed') })
+          }
+        },
+      }
+      menuItems.push({ 'content': webContent })
+    }
+    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
+    content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
 

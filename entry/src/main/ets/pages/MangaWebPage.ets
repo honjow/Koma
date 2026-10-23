@@ -2,7 +2,8 @@ import { webview } from '@kit.ArkWeb'
 import { BlurStrategy, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { MangaWebView } from '../components/MangaWebView'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
-import { MangaWebRouteParam } from '../common/RouterHelper'
+import { MangaWebRouteParam, RouterHelper } from '../common/RouterHelper'
+import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -56,6 +57,15 @@ export struct MangaWebPage {
       },
     }
     const items: Record<string, Object>[] = [{ 'content': back }, { 'content': forward }, { 'content': refresh }]
+    if (this.params.sourceSession !== undefined) {
+      const complete: Record<string, Object> = {
+        'label': AppStrings.get('source_web_complete'),
+        'icon': $r('sys.symbol.checkmark'),
+        'isEnabled': this.controllerReady && !this.loading,
+        'action': () => { void this.completeSourceSession() },
+      }
+      items.unshift({ 'content': complete })
+    }
     return { 'value': items, 'maxCount': 3 }
   }
 
@@ -74,6 +84,29 @@ export struct MangaWebPage {
       'blurStrategy': BlurStrategy.ENABLE, 'systemMaterialEffect': material, 'scrollEffectOpts': scroll,
     }
     return { 'avoidLayoutSafeArea': true, 'enableComponentSafeArea': false, 'content': content, 'style': style }
+  }
+
+  private async completeSourceSession(): Promise<void> {
+    const session = this.params.sourceSession
+    if (session === undefined || !this.controllerReady) return
+    try {
+      const customUa = this.controller.getCustomUserAgent()
+      const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
+      try { webview.WebCookieManager.saveCookieSync() }
+      catch (_error) { await webview.WebCookieManager.saveCookieAsync() }
+      const status = appSourceWebSessionStore.complete(session.sourceId, session.sessionId,
+        this.controller.getUrl(), actualUa)
+      if (status.state !== 'available') throw new Error('session_unavailable')
+      this.params.onSessionCompleted?.()
+      RouterHelper.pop()
+    } catch (_error) {
+      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_session_failed') })
+    }
+  }
+
+  aboutToDisappear(): void {
+    const session = this.params.sourceSession
+    if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
   }
 
   private loadInitialPage(): void {

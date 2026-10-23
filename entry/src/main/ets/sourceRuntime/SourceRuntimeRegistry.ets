@@ -3,6 +3,7 @@ import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
   LocalSourcePackageManifest,
   isValidSourcePackageMinAppVersion,
+  validSourceWebSessionOrigins,
   normalizeSourceOperationCapabilityToken,
   normalizeSourceOperationCapabilityTokens,
   isSourcePackageIconFileName,
@@ -31,6 +32,7 @@ export interface SourceRuntimeRegistryEntryInput {
   packageDescription?: string
   packageContentRating?: string
   packageMinAppVersion?: string
+  webSessionOrigins?: string[]
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -61,6 +63,7 @@ export interface SourceRuntimeRegistryEntry {
   packageDescription: string
   packageContentRating: string
   packageMinAppVersion: string
+  webSessionOrigins?: string[]
   presentationDescription: string
   presentationIcon: string
 }
@@ -103,6 +106,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   packageDescription?: string
   packageContentRating?: string
   packageMinAppVersion?: string
+  webSessionOrigins?: string[]
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -136,6 +140,7 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   importStatus: SourceRuntimeRegistryRouteStatus
   networkEnabled: boolean
   httpEnabled: boolean
+  webSessionOrigins?: string[]
   enabled: boolean
   language: string
   nsfw: boolean
@@ -332,6 +337,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
     permissions: {
       network: false,
       hostImports: [],
+      webSessionOrigins: entry.webSessionOrigins ?? [],
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -368,6 +374,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     packageDescription: entry.packageDescription,
     packageContentRating: entry.packageContentRating,
     packageMinAppVersion: entry.packageMinAppVersion,
+    webSessionOrigins: entry.webSessionOrigins ?? [],
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }
@@ -459,6 +466,7 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   if (entry.packageContentRating !== undefined && typeof entry.packageContentRating !== 'string') {
     return true
   }
+  if (!validSourceWebSessionOrigins(entry.webSessionOrigins)) return true
   if (entry.packageMinAppVersion !== undefined && typeof entry.packageMinAppVersion !== 'string') {
     return true
   }
@@ -523,6 +531,7 @@ export class SourceRuntimeRegistry {
       packageDescription: normalizePresentationText(input.manifest.package.description),
       packageContentRating: normalizePresentationText(input.manifest.package.contentRating),
       packageMinAppVersion: normalizePresentationText(input.manifest.package.minAppVersion),
+      webSessionOrigins: input.manifest.permissions.webSessionOrigins ?? [],
       presentationDescription: normalizePresentationText(input.presentationDescription),
       presentationIcon: normalizePresentationText(input.presentationIcon),
     }
@@ -606,6 +615,7 @@ export class SourceRuntimeRegistry {
         importStatus: entry.importStatus,
         networkEnabled: false,
         httpEnabled: false,
+        webSessionOrigins: entry.webSessionOrigins ?? [],
         enabled: entry.enabled,
         language: entry.language,
         nsfw: entry.nsfw,
@@ -721,6 +731,7 @@ export class SourceRuntimeRegistry {
           packageDescription: entry.packageDescription,
           packageContentRating: entry.packageContentRating,
           packageMinAppVersion: entry.packageMinAppVersion,
+          webSessionOrigins: entry.webSessionOrigins ?? [],
           presentationDescription: entry.presentationDescription,
           presentationIcon: entry.presentationIcon,
         })

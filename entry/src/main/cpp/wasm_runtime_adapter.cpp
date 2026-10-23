@@ -109,6 +109,15 @@ std::string RuntimeReasonCode(const std::string &message)
         message.find("result payload is outside wasm memory") != std::string::npos) {
         return "malformed_result";
     }
+    if (message.find("wasm_runtime_load failed") != std::string::npos) return "wasm_load_failed";
+    if (message.find("wasm_runtime_instantiate failed") != std::string::npos) return "wasm_instantiate_failed";
+    if (message.find("wasm_runtime_full_init failed") != std::string::npos ||
+        message.find("wasm_runtime_init_thread_env failed") != std::string::npos ||
+        message.find("wasm_runtime_create_exec_env failed") != std::string::npos) return "wasm_environment_failed";
+    if (message.find("missing export:") != std::string::npos) return "missing_export";
+    if (message.find("wasm call failed:") != std::string::npos) return "wasm_call_failed";
+    if (message.find("koma_source_init returned") != std::string::npos) return "source_init_failed";
+    if (message.find("unsupported operation:") != std::string::npos) return "unsupported_operation";
     return "runtime_error";
 }
 
@@ -210,8 +219,8 @@ int32_t HostCheckCancel(wasm_exec_env_t execEnv)
 
 int32_t HostHttpRequest(wasm_exec_env_t execEnv, char *request, uint32_t requestLen, char *out, uint32_t outCap)
 {
-    (void)execEnv;
-    return koma::http::HostRequest(request, requestLen, out, outCap);
+    const auto *context = static_cast<const std::string *>(wasm_runtime_get_user_data(execEnv));
+    return koma::http::HostRequest(request, requestLen, out, outCap, context ? *context : "");
 }
 
 int32_t HostHtmlParse(wasm_exec_env_t execEnv, char *html, uint32_t htmlLen)
@@ -518,7 +527,7 @@ private:
 
 class Module {
 public:
-    explicit Module(std::vector<uint8_t> wasmBytes) : wasmBytes_(std::move(wasmBytes))
+    explicit Module(std::vector<uint8_t> wasmBytes, const std::string &httpContextJson = "") : httpContextJson_(httpContextJson), wasmBytes_(std::move(wasmBytes))
     {
         char errorBuf[256] = {0};
         module_ = wasm_runtime_load(
@@ -539,6 +548,7 @@ public:
         if (!execEnv_) {
             throw std::runtime_error("wasm_runtime_create_exec_env failed");
         }
+        wasm_runtime_set_user_data(execEnv_, &httpContextJson_);
     }
 
     ~Module()
@@ -688,6 +698,7 @@ private:
     wasm_module_t module_ = nullptr;
     wasm_module_inst_t moduleInst_ = nullptr;
     wasm_exec_env_t execEnv_ = nullptr;
+    std::string httpContextJson_;
     std::vector<uint8_t> wasmBytes_;
 };
 
@@ -717,7 +728,7 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
 #endif
 }
 
-std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes)
+std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes, const std::string &httpContextJson)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
@@ -727,7 +738,7 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         std::lock_guard<std::mutex> lock(g_wamrExecutionMu);
         Runtime runtime;
         ThreadEnv threadEnv;
-        Module module(LoadWasmBytesFromExternalBytes(wasmBytes));
+        Module module(LoadWasmBytesFromExternalBytes(wasmBytes), httpContextJson);
         std::string response = module.RunOperation(requestJson);
 #if defined(KOMA_HAS_HILOG)
         OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "[SourceRuntime] step=wasm_smoke_ok route=bytes wasmBytes=%{public}zu",

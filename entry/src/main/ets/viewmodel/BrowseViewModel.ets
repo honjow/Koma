@@ -1,3 +1,4 @@
+import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
@@ -12,6 +13,7 @@ import {
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { safeDiagnosticCode, safeSearchDiagnostic } from '../model/SearchStateMapper'
+import { SourceRuntimeError } from '../model/SourceRuntimeError'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import {
   SourceSettingsRecord,
@@ -120,10 +122,10 @@ interface SourceOperationRequest {
 const SOURCE_OPERATION_PAGE_SIZE: number = 20
 
 @Concurrent
-async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array): Promise<string> {
+async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): Promise<string> {
   const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
   const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
-  return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes) as string
+  return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson) as string
 }
 
 // Native WAMR execution is process-serial. Keep waiting work out of taskpool
@@ -134,13 +136,14 @@ let sourceOperationQueue: Promise<void> = Promise.resolve()
 function enqueueSourceOperation(
   requestJson: string,
   wasmBytes: Uint8Array,
+  httpContextJson: string,
   isActive: (() => boolean) | undefined = undefined,
 ): Promise<string> {
   const result = sourceOperationQueue.then((): Promise<string> => {
     if (isActive !== undefined && !isActive()) {
       throw new Error('search_cancelled')
     }
-    return diagnoseSourceOperation(requestJson, () => taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes) as Promise<string>)
+    return diagnoseSourceOperation(requestJson, () => taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes, httpContextJson) as Promise<string>)
   })
   // A failed source must not prevent the next source from running.
   sourceOperationQueue = result.then(() => {}, () => {})
@@ -402,11 +405,13 @@ function parseSourceHomeSectionsFromResponse(sourceId: string, response: SourceR
 }
 
 function safeSourceBrowseErrorText(error: Error, fallbackKey: string): string {
+  if (error instanceof SourceRuntimeError) return error.userText
   const diagnostic = safeSearchDiagnostic(error)
   if (diagnostic.code === 'search_failed') {
     return AppStrings.get(fallbackKey)
   }
-  return AppStrings.format('browse_error_source_runtime_failed', diagnostic.code)
+  return diagnostic.code === 'timeout' ? AppStrings.get('source_failure_timeout') :
+    diagnostic.code === 'network_error' ? AppStrings.get('source_failure_network') : AppStrings.get('source_failure_runtime')
 }
 
 function sourceLanguageBadgeFromLanguage(language: string): string | undefined {
@@ -454,6 +459,8 @@ export class BrowseViewModel {
   @Trace loadingSearch: boolean = false
   @Trace sourceErrorMessage: string = ''
   @Trace browseErrorMessage: string = ''
+  @Trace browseNeedsWebSession: boolean = false
+  @Trace searchNeedsWebSession: boolean = false
   @Trace searchErrorMessage: string = ''
 
   @Computed
@@ -529,6 +536,7 @@ export class BrowseViewModel {
     this.browseFilterValues = {}
     this.searchFilterValues = {}
     this.browseErrorMessage = ''
+    this.browseNeedsWebSession = false
     this.browseContentState = BrowseContentState.UNRESOLVED
     this.browseLoadIntent = BrowseLoadIntent.NONE
     this.browseErrorIntent = BrowseLoadIntent.NONE
@@ -571,6 +579,7 @@ export class BrowseViewModel {
     this.browseLoadIntent = intent
     this.browseErrorIntent = BrowseLoadIntent.NONE
     this.browseErrorMessage = ''
+    this.browseNeedsWebSession = false
     this.failedBrowseListing = undefined
     this.browseContentState = retainsCurrentContent ? BrowseContentState.CONTENT : BrowseContentState.LOADING
   }
@@ -580,11 +589,14 @@ export class BrowseViewModel {
     this.browseLoadIntent = BrowseLoadIntent.NONE
     this.browseErrorIntent = BrowseLoadIntent.NONE
     this.browseErrorMessage = ''
+    this.browseNeedsWebSession = false
     this.failedBrowseListing = undefined
   }
 
   private failBrowseLoad(error: Error, intent: BrowseLoadIntent, fallbackKey: string): void {
     this.browseErrorMessage = safeSourceBrowseErrorText(error, fallbackKey)
+    this.browseNeedsWebSession = error instanceof SourceRuntimeError &&
+      (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required')
     this.browseContentState = BrowseContentState.ERROR
     this.browseLoadIntent = BrowseLoadIntent.NONE
     this.browseErrorIntent = intent
@@ -870,6 +882,7 @@ export class BrowseViewModel {
     this.searchPage = 1
     this.loadingSearch = true
     this.searchErrorMessage = ''
+    this.searchNeedsWebSession = false
     try {
       const normalizedQuery = query.trim()
       if (normalizedQuery.length === 0) {
@@ -890,6 +903,8 @@ export class BrowseViewModel {
       }
       const e = error as Error
       this.searchErrorMessage = safeSearchDiagnostic(e).userText
+      this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
+        (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.searchResults = []
       this.hasMoreSearch = false
       this.searchNextCursor = ''
@@ -911,6 +926,7 @@ export class BrowseViewModel {
     this.hasMoreSearch = false
     this.loadingSearch = false
     this.searchErrorMessage = ''
+    this.searchNeedsWebSession = false
     this.searchNextCursor = ''
   }
 
@@ -934,6 +950,7 @@ export class BrowseViewModel {
     const cursor = this.searchNextCursor
     this.loadingSearch = true
     this.searchErrorMessage = ''
+    this.searchNeedsWebSession = false
     try {
       const more = await this.searchSource(source, query, page, cursor)
       if (requestId !== this.searchRequestId) {
@@ -949,6 +966,8 @@ export class BrowseViewModel {
       }
       const e = error as Error
       this.searchErrorMessage = safeSearchDiagnostic(e).userText
+      this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
+        (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.hasMoreSearch = false
     } finally {
       if (requestId === this.searchRequestId) {
@@ -1248,10 +1267,10 @@ export class BrowseViewModel {
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, isActive)
+    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, sourceHttpIdentityJson(lookup.entry), isActive)
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
-      throw new Error(this.runtimeErrorMessage(response, operation))
+      throw this.runtimeError(response, operation)
     }
     return parseSourceMangaListFromResponse(sourceId, response)
   }
@@ -1268,10 +1287,10 @@ export class BrowseViewModel {
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
     const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes)
+    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, sourceHttpIdentityJson(lookup.entry))
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
-      throw new Error(this.runtimeErrorMessage(response, operation))
+      throw this.runtimeError(response, operation)
     }
     return response
   }
@@ -1303,20 +1322,13 @@ export class BrowseViewModel {
     return copy
   }
 
-  private runtimeErrorMessage(response: SourceRuntimeCallResponse, operation: string): string {
-    const rawErrorCode = response.error?.['code']
-    const reasonCode = safeDiagnosticCode(response.reasonCode ?? 'unknown')
-    const diagnosticErrorCode = safeDiagnosticCode(typeof rawErrorCode === 'string' ? rawErrorCode : 'unknown')
-    DiagnosticLogger.warn('browse_view_model', 'source_operation_failed', '[Browse] step=source_operation_failed operation=' + safeDiagnosticCode(operation) +
-      ' reason=' + reasonCode + ' error=' + diagnosticErrorCode)
-    if (typeof response.reasonCode === 'string' && response.reasonCode.length > 0) {
-      return AppStrings.format('browse_error_source_runtime_failed', safeDiagnosticCode(response.reasonCode))
-    }
-    const errorCode = response.error?.['code']
-    if (typeof errorCode === 'string' && errorCode.length > 0) {
-      return AppStrings.format('browse_error_source_runtime_failed', safeDiagnosticCode(errorCode))
-    }
-    return AppStrings.get('browse_error_source_runtime_failed_generic')
+  private runtimeError(response: SourceRuntimeCallResponse, operation: string): SourceRuntimeError {
+    const error = new SourceRuntimeError(response)
+    const details = error.diagnostic
+    DiagnosticLogger.warn('browse_view_model', 'source_operation_failed',
+      'operation=' + safeDiagnosticCode(operation) + ' reason=' + details.reason +
+      ' error=' + details.code + ' http=' + details.status + ' kind=' + details.kind)
+    return error
   }
 
   sourceLanguageBadge(source: SourceRuntimeRegistryInstalledSourceSummary): string {

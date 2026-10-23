@@ -1,0 +1,244 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { common } from '@kit.AbilityKit'
+import { fileIo as fs } from '@kit.CoreFileKit'
+import { writeAppTextFile } from '../model/AppFileTextPersistence'
+import { url, util } from '@kit.ArkTS'
+import { webview } from '@kit.ArkWeb'
+import { SourceRuntimeRegistry, SourceRuntimeRegistryEntry } from './SourceRuntimeRegistry'
+
+export interface SourceWebSessionStatus {
+  sourceId: string
+  sessionId: string
+  initialUrl: string
+  origin: string
+  state: string
+}
+
+export interface SourceHttpIdentity {
+  sourceId: string
+  sourceVersion: string
+  packageIdentity: string
+  webSessionOrigins: string[]
+}
+
+export interface SourceWebRequestSession {
+  userAgent: string
+  cookie: string
+}
+
+interface SourceWebSession {
+  status: SourceWebSessionStatus
+  registry: SourceRuntimeRegistry
+  entry: SourceRuntimeRegistryEntry
+  packageIdentity: string
+  userAgent: string
+}
+
+export function sourceWebOrigin(fullUrl: string): string {
+  try {
+    const parsed = new url.URL(fullUrl)
+    if (parsed.protocol !== 'https:' || parsed.username.length > 0 || parsed.password.length > 0 ||
+      parsed.hostname.length === 0) return ''
+    return parsed.origin
+  } catch (_error) { return '' }
+}
+
+interface PersistedWebSession {
+  sourceId: string
+  sourceVersion: string
+  packageIdentity: string
+  origin: string
+  userAgent: string
+}
+
+interface PersistedWebSessions {
+  schemaVersion: number
+  sessions: PersistedWebSession[]
+}
+
+export function sourceWebPackageIdentity(entry: SourceRuntimeRegistryEntry): string {
+  return JSON.stringify([entry.sourceId, entry.manifestVersion, entry.wasmPath ?? entry.archivePath ?? '',
+    JSON.stringify((entry.webSessionOrigins ?? []).slice().sort())])
+}
+
+export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry): string {
+  const identity: SourceHttpIdentity = { sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
+    packageIdentity: sourceWebPackageIdentity(entry), webSessionOrigins: entry.webSessionOrigins ?? [] }
+  return JSON.stringify(identity)
+}
+
+function emptyStatus(sourceId: string): SourceWebSessionStatus {
+  return { sourceId, sessionId: '', initialUrl: '', origin: '', state: 'none' }
+}
+
+export class SourceWebSessionStore {
+  private sessions: Map<string, SourceWebSession> = new Map<string, SourceWebSession>()
+  private pending: Map<string, SourceWebSession> = new Map<string, SourceWebSession>()
+  private persisted: Map<string, PersistedWebSession> = new Map<string, PersistedWebSession>()
+  private rejectedUrls: Map<string, string> = new Map<string, string>()
+  private registry?: SourceRuntimeRegistry
+  private storagePath: string = ''
+
+  configure(context: common.UIAbilityContext, registry: SourceRuntimeRegistry): void {
+    this.registry = registry
+    const directory = context.filesDir + '/source-runtime'
+    if (!fs.accessSync(directory)) fs.mkdirSync(directory, true)
+    this.storagePath = directory + '/web-sessions.json'
+    if (!fs.accessSync(this.storagePath)) return
+    try {
+      const document = JSON.parse(fs.readTextSync(this.storagePath)) as PersistedWebSessions
+      if (document.schemaVersion !== 1 || !Array.isArray(document.sessions)) return
+      document.sessions.forEach((record: PersistedWebSession) => {
+        if (typeof record.sourceId === 'string' && typeof record.sourceVersion === 'string' &&
+          typeof record.packageIdentity === 'string' && typeof record.origin === 'string' && sourceWebOrigin(record.origin) === record.origin &&
+          typeof record.userAgent === 'string' && record.userAgent.trim().length > 0 && !/[\r\n]/.test(record.userAgent)) {
+          this.persisted.set(record.sourceId, record)
+        }
+      })
+    } catch (_error) {}
+  }
+
+  launchUrl(registry: SourceRuntimeRegistry, sourceId: string): string {
+    const entry = registry.lookup(sourceId).entry
+    if (entry === undefined || !entry.enabled) throw new Error('source_web_session_not_allowed')
+    const previous = this.rejectedUrls.get(sourceId)
+    if (previous !== undefined && (entry.webSessionOrigins ?? []).includes(sourceWebOrigin(previous))) return previous
+    const origin = (entry.webSessionOrigins ?? [])[0]
+    if (origin === undefined) throw new Error('source_web_session_not_allowed')
+    return origin + '/'
+  }
+
+  observeRejectedRequest(identity: SourceHttpIdentity, fullUrl: string): void {
+    const origin = sourceWebOrigin(fullUrl)
+    if (origin.length > 0 && identity.webSessionOrigins.includes(origin)) this.rejectedUrls.set(identity.sourceId, fullUrl)
+  }
+
+  begin(registry: SourceRuntimeRegistry, sourceId: string, fullUrl: string): SourceWebSessionStatus {
+    const entry = registry.lookup(sourceId).entry
+    const origin = sourceWebOrigin(fullUrl)
+    if (entry === undefined || !entry.enabled || origin.length === 0 ||
+      !(entry.webSessionOrigins ?? []).includes(origin)) throw new Error('source_web_session_not_allowed')
+    const status: SourceWebSessionStatus = {
+      sourceId, sessionId: util.generateRandomUUID(true), initialUrl: fullUrl, origin, state: 'pending',
+    }
+    this.pending.set(sourceId, { status, registry, entry, packageIdentity: sourceWebPackageIdentity(entry), userAgent: '' })
+    return { sourceId, sessionId: status.sessionId, initialUrl: fullUrl, origin, state: 'pending' }
+  }
+
+  complete(sourceId: string, sessionId: string, currentFullUrl: string, actualUserAgent: string): SourceWebSessionStatus {
+    const session = this.pending.get(sourceId)
+    if (session === undefined || session.status.sessionId !== sessionId ||
+      sourceWebPackageIdentity(session.registry.lookup(sourceId).entry ?? session.entry) !== session.packageIdentity ||
+      session.registry.lookup(sourceId).entry?.enabled !== true ||
+      sourceWebOrigin(currentFullUrl) !== session.status.origin || actualUserAgent.trim().length === 0 ||
+      /[\r\n]/.test(actualUserAgent)) throw new Error('source_web_session_not_allowed')
+    const previous = this.sessions.get(sourceId)
+    const previousRecord = this.persisted.get(sourceId)
+    session.userAgent = actualUserAgent
+    session.status.state = 'available'
+    this.sessions.set(sourceId, session)
+    this.persisted.set(sourceId, { sourceId, sourceVersion: session.entry.manifestVersion,
+      packageIdentity: session.packageIdentity, origin: session.status.origin, userAgent: actualUserAgent })
+    try { this.persist() } catch (error) {
+      this.sessions.delete(sourceId)
+      this.persisted.delete(sourceId)
+      if (previous !== undefined) this.sessions.set(sourceId, previous)
+      if (previousRecord !== undefined) this.persisted.set(sourceId, previousRecord)
+      session.status.state = 'pending'
+      throw error as Error
+    }
+    this.pending.delete(sourceId)
+    return this.status(sourceId)
+  }
+
+  cancel(sourceId: string, sessionId: string): void {
+    if (this.pending.get(sourceId)?.status.sessionId === sessionId) this.pending.delete(sourceId)
+  }
+
+  revoke(sourceId: string): void {
+    this.pending.delete(sourceId)
+    this.sessions.delete(sourceId)
+    this.persisted.delete(sourceId)
+    this.persist()
+  }
+
+  status(sourceId: string): SourceWebSessionStatus {
+    const session = this.current(sourceId)
+    if (session === undefined) return emptyStatus(sourceId)
+    return { sourceId, sessionId: session.status.sessionId, initialUrl: session.status.initialUrl,
+      origin: session.status.origin, state: session.status.state }
+  }
+
+  requestSession(identity: SourceHttpIdentity, fullUrl: string): SourceWebRequestSession | undefined {
+    const session = this.current(identity.sourceId)
+    const origin = sourceWebOrigin(fullUrl)
+    if (session === undefined || session.status.state !== 'available' ||
+      identity.sourceVersion !== session.entry.manifestVersion || identity.packageIdentity !== session.packageIdentity || origin !== session.status.origin ||
+      !identity.webSessionOrigins.includes(origin)) return undefined
+    // UI-runtime callback only. The Web engine enforces URL/path/secure/expiry.
+    // Cookie is never persisted by this store, logged, or included in WASM results.
+    let cookie = ''
+    try { cookie = webview.WebCookieManager.fetchCookieSync(fullUrl, false) } catch (_error) {}
+    return { userAgent: session.userAgent, cookie }
+  }
+
+  acceptResponseCookies(identity: SourceHttpIdentity, fullUrl: string, values: string[]): void {
+    // Only a currently granted exact source/origin may update the system jar.
+    if (this.requestSession(identity, fullUrl) === undefined) return
+    let updated = false
+    values.forEach((value: string) => {
+      if (value.length === 0 || value.length > 40960 || /[\r\n]/.test(value)) return
+      try {
+        webview.WebCookieManager.configCookieSync(fullUrl, value, false, true)
+        updated = true
+      } catch (_error) { /* Invalid server cookies do not expose values or change the response. */ }
+    })
+    if (updated) {
+      try { webview.WebCookieManager.saveCookieSync() } catch (_error) {}
+    }
+  }
+
+  private current(sourceId: string): SourceWebSession | undefined {
+    let session = this.sessions.get(sourceId)
+    if (session === undefined) {
+      const record = this.persisted.get(sourceId)
+      const registry = this.registry
+      if (record === undefined || registry === undefined) return undefined
+      const entry = registry.lookup(sourceId).entry
+      if (entry === undefined || !entry.enabled || entry.manifestVersion !== record.sourceVersion ||
+        sourceWebPackageIdentity(entry) !== record.packageIdentity ||
+        !(entry.webSessionOrigins ?? []).includes(record.origin)) {
+        this.revokeInvalid(sourceId)
+        return undefined
+      }
+      const status: SourceWebSessionStatus = { sourceId, sessionId: util.generateRandomUUID(true),
+        initialUrl: record.origin + '/', origin: record.origin, state: 'available' }
+      session = { status, registry, entry, packageIdentity: record.packageIdentity, userAgent: record.userAgent }
+      this.sessions.set(sourceId, session)
+    }
+    const entry = session.registry.lookup(sourceId).entry
+    if (entry === undefined || entry.enabled !== true || sourceWebPackageIdentity(entry) !== session.packageIdentity ||
+      !(entry.webSessionOrigins ?? []).includes(session.status.origin)) {
+      this.revokeInvalid(sourceId)
+      return undefined
+    }
+    return session
+  }
+
+  private revokeInvalid(sourceId: string): void {
+    try { this.revoke(sourceId) } catch (_error) {
+      // revoke already cleared memory; a storage error must not revive a grant or crash HTTP.
+      DiagnosticLogger.warn('source_web_session', 'revoke_persist_failed', 'reason=storage_write_failed')
+    }
+  }
+
+  private persist(): void {
+    if (this.storagePath.length === 0) return
+    const records: PersistedWebSession[] = []
+    this.persisted.forEach((record: PersistedWebSession) => { records.push(record) })
+    const document: PersistedWebSessions = { schemaVersion: 1, sessions: records }
+    writeAppTextFile(this.storagePath, JSON.stringify(document))
+  }
+}
+
+export const appSourceWebSessionStore: SourceWebSessionStore = new SourceWebSessionStore()

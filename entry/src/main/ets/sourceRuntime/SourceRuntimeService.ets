@@ -1,3 +1,4 @@
+import { sourceHttpIdentityJson } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
 import { common } from '@kit.AbilityKit'
@@ -536,7 +537,7 @@ export function runRegisteredSourceRequestById(
       responseOk: false, attemptedWamrExecution: false }
   }
   try {
-    const response = runSourceOperationFromBytes(requestJson, admission.entry.wasmBytes)
+    const response = runSourceOperationFromBytes(requestJson, admission.entry.wasmBytes, sourceHttpIdentityJson(admission.entry))
     const result = registeredSourceResponse(admission, admission.entry.sourceId, response)
     trace.finish(result.ok ? 'completed' : 'failed', 'operation=' + admission.operation + ' reason=' + (result.reasonCode ?? 'none'))
     return result
@@ -544,8 +545,8 @@ export function runRegisteredSourceRequestById(
 }
 
 @Concurrent
-function executeRegisteredSourceRequest(requestJson: string, wasmBytes: Uint8Array): string {
-  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes))
+function executeRegisteredSourceRequest(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
 }
 
 export async function runRegisteredSourceRequestByIdAsync(
@@ -566,7 +567,7 @@ export async function runRegisteredSourceRequestByIdAsync(
   try {
     // A worker can hold the WAMR lock while HTTP awaits the UI runtime.
     // UI callers must yield here rather than synchronously wait for that lock.
-    const responseJson = await taskpool.execute(executeRegisteredSourceRequest, requestJson, wasmBytes) as string
+    const responseJson = await taskpool.execute(executeRegisteredSourceRequest, requestJson, wasmBytes, sourceHttpIdentityJson(entry)) as string
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     const current = registry.lookup(sourceId).entry
     if (current !== entry || !sourceRuntimeEntryEnabled(entry)) {

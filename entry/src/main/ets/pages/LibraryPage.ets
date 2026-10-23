@@ -1,3 +1,4 @@
+import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { ComponentContent } from '@kit.ArkUI'
@@ -66,7 +67,6 @@ import {
 import {
   InMemoryReaderSessionStore,
   ReaderSessionStore,
-  sortedReaderChapters,
   ChapterReadMutation,
 } from '../model/ReaderSessionStore'
 import { AppStrings } from '../i18n/AppStrings'
@@ -1334,8 +1334,7 @@ export struct LibraryPage {
     if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
       return progress.chapterId
     }
-    const orderedChapters = sortedReaderChapters(comic.chapters)
-    return orderedChapters.length === 0 ? undefined : orderedChapters[0].id
+    return firstReaderChapter(comic.chapters)?.id
   }
 
   private openComicFromLibrary(comicId: ComicId): void {

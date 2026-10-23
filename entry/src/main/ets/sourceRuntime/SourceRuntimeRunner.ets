@@ -1,3 +1,4 @@
+import { sourceFailureDetails } from '../model/SourceRuntimeError'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   NativeSourceRuntime,
@@ -141,8 +142,9 @@ export function runBundledSourceOperation(request: SourceRuntimeCallRequest | st
 export function runSourceOperationFromBytes(
   request: SourceRuntimeCallRequest | string,
   wasmBytes: Uint8Array,
+  httpContextJson: string = '',
 ): SourceRuntimeCallResponse {
-  return NativeSourceRuntime.runJsonCallFromBytes(request, wasmBytes)
+  return NativeSourceRuntime.runJsonCallFromBytes(request, wasmBytes, httpContextJson)
 }
 
 /** Observe on the calling runtime so ordinary TaskPool results reach the persistent sink. */
@@ -160,9 +162,14 @@ export async function diagnoseSourceOperation(requestJson: string, execute: () =
     const result = await execute()
     try {
       const response = JSON.parse(result) as SourceRuntimeCallResponse
-      const code = response.reasonCode ?? response.error?.['code']
-      const reason = typeof code === 'string' ? DiagnosticLogger.errorSummary(new Error(code)) : 'reason=none'
-      trace.finish(response.ok === true ? 'completed' : 'failed', 'resultChars=' + result.length + ' ' + reason)
+      if (response.ok === true) {
+        trace.finish('completed', 'resultChars=' + result.length)
+      } else {
+        const details = sourceFailureDetails(response)
+        trace.finish('failed', 'resultChars=' + result.length + ' reason=' +
+          (details.reason === 'unknown' ? details.code : details.reason) +
+          ' error=' + details.code + ' http=' + details.status + ' kind=' + details.kind)
+      }
     } catch (_error) {
       trace.finish('failed', 'reason=source_response_invalid_json')
     }

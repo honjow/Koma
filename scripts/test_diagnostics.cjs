@@ -25,12 +25,13 @@ function runtime() {
     if (name === '@kit.CoreFileKit') return { fileIo: io, fileUri: { getUriFromPath: value => 'file://' + value } }
     if (name === '@kit.PerformanceAnalysisKit') return { hilog: new Proxy({}, { get: () => (...args) => emitted.push(args) }) }
     if (name === '@kit.AbilityKit') return {}
+    if (name.endsWith('/AppStrings')) return { AppStrings: { get: key => key, format: key => key } }
     if (name === './NativeSourceRuntime') return { NativeSourceRuntime: {} }
     const key = path.basename(name)
     if (modules.has(key)) return modules.get(key)
     const exports = {}
     modules.set(key, exports)
-    vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, key === 'SourceRuntimeRunner' ? '../sourceRuntime/SourceRuntimeRunner.ets' : key + '.ets'), 'utf8'), {
+    vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, key === 'SourceRuntimeRunner' ? '../sourceRuntime/SourceRuntimeRunner.ets' : key === 'SourceRuntimeError' ? '../model/SourceRuntimeError.ets' : key + '.ets'), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
     }).outputText, { exports, require: load, Date, console, Map })
     return exports

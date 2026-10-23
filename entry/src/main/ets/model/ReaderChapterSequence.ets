@@ -3,6 +3,7 @@ export interface ReaderChapterDescriptor {
   id: string
   title: string
   chapterNumber?: number
+  dateUpload?: number
   volumeNumber?: string
   readingGroup?: string
   continuationEligible?: boolean
@@ -13,10 +14,26 @@ export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): 
     id: chapter.id,
     title: chapter.title,
     chapterNumber: chapter.chapterNumber,
+    dateUpload: chapter.dateUpload,
     volumeNumber: chapter.volumeNumber,
     readingGroup: chapter.readingGroup,
     continuationEligible: chapter.continuationEligible,
   }
+}
+
+/** Initial reading follows published chapter metadata, never the display-list direction. */
+export function firstReaderChapter(chapters: ReaderChapterDescriptor[]): ReaderChapterDescriptor | undefined {
+  let numbered: ReaderChapterDescriptor | undefined = undefined
+  let dated: ReaderChapterDescriptor | undefined = undefined
+  chapters.forEach((chapter: ReaderChapterDescriptor): void => {
+    const number = chapter.chapterNumber
+    if (number !== undefined && Number.isFinite(number) && number >= 0 &&
+      (numbered === undefined || number < (numbered.chapterNumber as number))) numbered = chapter
+    const date = chapter.dateUpload
+    if (date !== undefined && Number.isFinite(date) && date > 0 &&
+      (dated === undefined || date < (dated.dateUpload as number))) dated = chapter
+  })
+  return numbered ?? dated ?? chapters[0]
 }
 
 function readingOrder(chapter: ReaderChapterDescriptor): number | undefined {

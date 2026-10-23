@@ -2,7 +2,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { common } from '@kit.AbilityKit'
-import { continuationChapterIds, ReaderChapterOpenIntent } from './ReaderChapterSequence'
+import { continuationChapterIds, firstReaderChapter, ReaderChapterOpenIntent } from './ReaderChapterSequence'
 import {
   Chapter,
   ChapterId,
@@ -903,7 +903,7 @@ export function createReaderSessionConfigFromComic(
 ): ReaderSessionConfig {
   const targetChapterId = chapterId !== undefined && chapterId.length > 0
     ? chapterId
-    : (comic.chapters.length > 0 ? comic.chapters[0].id : '')
+    : (firstReaderChapter(comic.chapters)?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
   return {
     comicId: comic.id,
