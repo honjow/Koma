@@ -9,16 +9,17 @@ export struct KomaTabIcon {
   @Param title: string = ''
   @Param idx: number = 0
   @Param currentIndex: number = 0
+  @Param bounceTrigger: number = -1
 
   private iconForIndex(index: number): Resource {
     if (index === TabIndex.LIBRARY) {
-      return $r('sys.symbol.square_fill_grid_2x2')
+      return this.currentIndex === index ? $r('sys.symbol.square_fill_grid_2x2') : $r('sys.symbol.square_grid_2x2')
     } else if (index === TabIndex.BROWSE) {
-      return $r('sys.symbol.compass')
+      return this.currentIndex === index ? $r('sys.symbol.compass_circle_fill') : $r('sys.symbol.compass_circle')
     } else if (index === TabIndex.HISTORY) {
-      return $r('sys.symbol.clock')
+      return this.currentIndex === index ? $r('sys.symbol.clock_fill') : $r('sys.symbol.clock')
     } else {
-      return $r('sys.symbol.gearshape')
+      return this.currentIndex === index ? $r('sys.symbol.gearshape_fill') : $r('sys.symbol.gearshape')
     }
   }
 
@@ -29,6 +30,7 @@ export struct KomaTabIcon {
         SymbolGlyph(this.iconForIndex(this.idx))
           .fontSize(TAB_SYMBOL_SIZE - 6)
           .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+          .symbolEffect(new BounceSymbolEffect(EffectScope.WHOLE, EffectDirection.UP), this.bounceTrigger)
           .fontColor([
             this.currentIndex === this.idx
               ? ThemeConstants.BRAND_PRIMARY

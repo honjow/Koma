@@ -189,6 +189,7 @@ interface BackupTaskRouteParam {
 @Entry
 @ComponentV2
 struct Index {
+  @Local private tabIconBounceTriggers: number[] = [-1, -1, -1, -1]
   @Local private readerLabLaunch: ReaderLabLaunchState = connectReaderLabLaunch()
   @Local private readerRouteBackend: KomaReaderBackend = KomaReaderBackend.SHARED
   @Local private sharedReaderRequest: ReaderLabRequest = new ReaderLabRequest('', '', 0)
@@ -1924,6 +1925,7 @@ struct Index {
       title: title,
       idx: idx,
       currentIndex: this.selectedTab,
+      bounceTrigger: this.tabIconBounceTriggers[idx] ?? -1,
     })
   }
 
@@ -2576,6 +2578,12 @@ struct Index {
               materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
             },
           } as HdsTabsFloatingStyle)
+          .onTabBarClick((index: number) => {
+            if (index < 0 || index >= this.tabIconBounceTriggers.length) return
+            const triggers = this.tabIconBounceTriggers.slice()
+            triggers[index] += 1
+            this.tabIconBounceTriggers = triggers
+          })
           .onChange((index: number) => {
             this.leaveLibrarySelection(index)
             this.selectedTab = index
