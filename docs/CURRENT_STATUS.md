@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T17:55:30.003445+00:00",
+  "updatedAt": "2026-10-23T22:29:28.168472+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_RUNTIME_ERRORS",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
   "activity": {
-    "title": "源错误：保留平台超时分类",
-    "detail": "源列表8a2a3798已推，CI39998784107运行中。237004自然原作品目录和取页均保真timeout、实际提示已亲审；不把超时提示修好当正文可用。准备同步唯一分类修复，继续原Reader未闭项。",
-    "startedAt": "2026-10-23T17:52:28.847577+00:00"
+    "title": "同步已审源管理修复与65项反馈记录",
+    "detail": "f4caffaa已本地提交10文件；315/317分隔线与正常安装数据保持已审。316本行图标瞬空、307残余126.861ms仍OPEN，完整反馈记录准备提交推送。",
+    "startedAt": "2026-10-23T22:29:28.168472+00:00"
   },
-  "nextAction": "提交推送HTTP2300028分类并跟精确CI；原owner237收尾，Root接续共享Reader窗口完成信号调查。",
+  "nextAction": "同步精确代码与进度记录并跟进CI；接续本行HDS更新/残余主线程回调及具名源不可读，不关闭其他队列。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,19 +982,19 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "8a2a37980fb53d2dacca213121a738a5d0319f34已推；CI39998784107 in_progress",
-      "hap": "197201已装8497498B/defaultRelease0.1.2-pre code3；202/204/205源列表具名验收及完整库/reader保全通过。237准备8497473B超时修复自然验收。"
+      "appHead": "f4caffaa源管理有效修复＋2c05ea6c公共分组已本地提交待push；上一d3187726精确CI40021847034 success",
+      "hap": "197312已保数据安装8510880B/Release0.1.2-pre code3；313/315三域同安装前；317仅正常新增Zerobyw到84源、原83项及library/reader保持。"
     },
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "3448ec7e1991be021d02b8148348d151e1a4b094；CI39959270751 completed/success",
+      "appHead": "73a46588已push，仅gitlink→Kit6f915f；CI40015249492 success",
       "hap": "38177598B/defaultRelease1.3.6code42；039装机、040普通NonH13/19、041–043设置暂停及模式往返19/19、044恢复LTR13/19、045回原2项下载。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "产品25a085a2（CI39959270115成功）；验收材料a3ae6d81a7759ec9f5f2e09ec840ab678d80e62a已推，CI39964150108成功",
+      "appHead": "a3e6a1eb已push，仅gitlink→Kit6f915f；CI40015225284 success",
       "hap": "38201134B/defaultRelease1.0.7code10；018装机、019普通NonH2/2、020–022设置暂停及模式往返2/2、023原LTR2/2正常返回重开；024已正常返回原7项完成下载，实际文本锚点核对。"
     }
   ],
@@ -1200,29 +1200,40 @@
       "id": "NEXT_CHAPTER_PREFETCH_REUSE",
       "title": "接近章末预加载下一章及跨章请求复用",
       "priority": "P2（当前P0后，与跨章联动核查）",
-      "owner": "Root：页计划/图片缓存/在途请求复用调查",
+      "owner": "Root：254普通历史/详情接鲜网络预取与在途复用",
       "dependencies": [],
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET",
         "CONTINUOUS_PERFORMANCE"
       ],
-      "status": "用户改进建议已登记，缓存/重复请求待查",
+      "status": "预取505651f已推且CI成功；原14恢复完成，join边界开放",
       "kind": "open",
-      "result": "用户改进建议已登记，缓存/重复请求待查",
-      "remaining": "P0快速卡顿先收口，再与自动跨章方向/落点联动核页计划、图片缓存及在途请求复用；预加载不得推进阅读进度，须有界并发/流量，不臆定末几页阈值或缓存策略。当前未实现/构建/实机，独立需求不能代替回退应末页的正确性缺陷。",
+      "result": "d3187726含505651f精确CI40021847034 success；274已恢复原14（原2/15）并close成功。鲜网络/ready采用具名范围保留，inflight join仍未自然命中。",
+      "remaining": "保fresh/ready有界结果冻结；inflight join待真实自然样本，不造并发/清缓存取证。",
       "reportedAt": "2026-10-23T05:33:34.382Z",
       "reportedAtSource": "原始会话JSONL response_item/user实值首报时间；疑重复请求是用户观察待验证。",
       "firstEvidenceAt": "2026-10-23T05:33:34.382Z",
-      "firstHandlingAt": null,
-      "handling": null,
+      "firstHandlingAt": "2026-10-23T18:06:01.504859+00:00",
+      "handling": {
+        "measurement": "本轮已登记执行窗口，含分析/构建等待，不等同纯编码工时",
+        "recordedSeconds": 1746.994985,
+        "activeSince": "2026-10-23T18:40:19.657493+00:00",
+        "activeUntil": "2026-10-23T18:55:19.657493+00:00",
+        "note": "仅累计明确登记窗口；当前窗口从真实续接时刻起，空档不倒填。含构建/设备等待，非纯编码工时。"
+      },
       "closedAt": null,
       "evidencePoints": [
-        "用户建议接近章末即准备下一章，并怀疑跨章重复请求；目前没有请求对照证据，重复与缓存根因均待核。"
+        "265 fresh8/9下载与仅8读态、270章9 ready采用范围保持；274原14恢复为2/15并close成功。",
+        "505651f已推且包含它的CI40021847034成功；不因提交/恢复关闭未自然命中的inflight join。"
       ],
       "remainingActions": [
-        "P0快速卡顿先收口，再与自动跨章方向/落点联动核页计划、图片缓存及在途请求复用；预加载不得推进阅读进度，须有界并发/流量，不臆定末几页阈值或缓存策略。当前未实现/构建/实机，独立需求不能代替回退应末页的正确性缺陷。"
+        "保fresh/ready有界结果冻结；inflight join待真实自然样本，不造并发/清缓存取证。"
       ],
-      "boundaries": []
+      "boundaries": [
+        "只预取严格continuation的下一章，不用完整手选目录回退；至多一章、顺序暖不超过既有预加载页数。",
+        "准备可以沿既有源页缓存落元数据，但不得提交当前章/阅读位置/历史；只在实际观测后按原路径提交读态。",
+        "N/E不实现可选相邻单元预取则无新增网络；保Legacy及现有页内预加载，先查历史再改。"
+      ]
     },
     {
       "id": "READER_PRESET_SHEET",
@@ -1381,13 +1392,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "237自然超时具名通过；分类修复准备同步",
+      "status": "237自然超时具名通过，abed388b已推且CI成功",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：App修复/同步；koma_comicabc_chapters：237一次自然验收",
+      "owner": "Root：具名范围冻结；全局自然样本待",
       "dependencies": [],
       "result": "237004自然get_chapters/get_pages均2300028→timeout，原生显示连接书源超时并保留重试；正文仍不可用，不猜具体网络阶段。",
-      "remaining": "分类修复范围提交推送和精确CI；全局自然失败仍待条件。",
+      "remaining": "全局搜索自然失败待条件，不造故障。；Root后继走3Hentai011普通Native；当前发布/Host通过不等于253自然失败已Native恢复。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1406,11 +1417,12 @@
       "evidencePoints": [
         "原005平台2300028与官方HTTP文档已亲核；仅此码返回timeout，未知码维持network_error。",
         "237004原图/日志已亲审：目录15149ms、取页15064ms均reason/error/kind=timeout、HTTP0，重试未点击。",
-        "16项HTTP会话与22项详情/Reader分类测试通过，8497473B defaultRelease已装237；正常返回/电源收尾由原owner核。"
+        "abed388b已推，CI39999131726成功；16项HTTP与22项分类测试通过。237原P3/230/History及10000ms恢复、租约已释放。",
+        "3Hentai011的4d63235已推，CI40020264346 success；公开85索引011/三成员包Root读回执，Host边界保留，Native仍待。"
       ],
       "remainingActions": [
-        "完成原237保位/电源收尾，提交推送分类修复及精确CI。",
-        "全局搜索自然失败待条件，不造故障。"
+        "全局搜索自然失败待条件，不造故障。",
+        "Root后继走3Hentai011普通Native；当前发布/Host通过不等于253自然失败已Native恢复。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -2065,10 +2077,10 @@
       "priority": "P2（保当前P0不抢占）",
       "owner": "Root：已验列表范围同步；具体筛选方案后继",
       "dependencies": [],
-      "status": "197具名验收完成已推；精确CI运行中",
+      "status": "共同分组具名已核；2c05ea6本地检查点待push",
       "kind": "open",
-      "result": "202/204/205：NSFW单独红，字体与64vp行高同原HDS；安装/更新同款原生按钮，漫画柜014→016一次更新移入已安装、版本只显示一次。",
-      "remaining": "8a2a3798已推，跟CI39998784107；具体新筛选方案后继。",
+      "result": "公共9源码2c05ea6已commit待push；283/284/285/286/288具名分组/更新/数据/设置分类结果已核，不再写283收集中。",
+      "remaining": "检查点待push；刷新与安装性能转独立当前项，未覆盖迁移页边界保持。",
       "reportedAt": "2026-10-23T05:28:39.778Z",
       "reportedAtSource": "原始会话JSONL response_item/user实际时间戳；方向原文已核，不猜开始时间/耗时。",
       "firstEvidenceAt": "2026-10-23T05:28:39.778Z",
@@ -2082,17 +2094,22 @@
       },
       "closedAt": null,
       "evidencePoints": [
-        "202原图及205父树：成人/普通行同208px，标题与副行坐标分别同原176，版本/语言灰、NSFW红。",
-        "202原详情→设置→关闭保持；204漫画柜一次更新后已安装只v0.1.6，无重复更新。185包子018→019证据保持。",
-        "201至205库/reader完整JSON相同；206恢复120000ms已读回、租约已释放；8项生产方法检查通过。"
+        "283最终图可更新/未安装/已安装分组均核，281→283库/reader/registry字节相同；不是拿280旧候选代最终。",
+        "284正常全部更新后285仍80源、仅com.hentai3变011/70388B/enabledtrue，library/reader同值；未声称3H正文可用。",
+        "286书架设置、288分类三组全图已审；共同9源码已提交2c05ea6c待push，其他迁移路径未扩大。"
       ],
       "remainingActions": [
-        "跟进8a2a3798精确CI39998784107。",
-        "后继核管理列表具体筛选方案，不自行决定新维度。"
+        "检查点待push；刷新与安装性能转独立当前项，未覆盖迁移页边界保持。"
       ],
       "boundaries": [
         "失败候选及脚本错误原件保留：191副行不可见、193字号偏小均已撤；199错误选择器与202未滚入安装组的等待不冒产品故障。",
-        "HDS拥有卡片、图标、后缀按钮和点击；只用官方B区Text/Span扩展，不覆盖像素，不改其他普通行或素材。"
+        "HDS拥有卡片、图标、后缀按钮和点击；只用官方B区Text/Span扩展，不覆盖像素，不改其他普通行或素材。",
+        "全部更新只触发各源任务；等待中/更新中/完成由各源维护，不使用全局批量busy禁用其他行。",
+        "按钮使用已批准绿色与既有字号/边距；任务文案固定及各源独立状态/串行lane保持。",
+        "当前新增授权允许源管理三组header+对应卡片同一ListItem/Column，组内4、组间12；不以旧局部范围阻挡本次明确新增授权。",
+        "保既有SectionHeader字号/左右及原生绿Button，不改其他页面、卡片/行或队列行为。",
+        "当前用户公共封装要求允许普通分组统一至共同组件；不继续页面临拼，保原几何和业务状态。",
+        "特殊搜索结果标题、章节ListItemGroup、源首页及备份多段说明不强套普通卡片；方法/build不替代可见验收，不宣称全App通过。"
       ]
     },
     {
@@ -2191,12 +2208,12 @@
     {
       "id": "TAB_ICON_SELECTION_FEEDBACK",
       "title": "主页Tab选中填充图标与点击弹跳",
-      "priority": "P2（当前源列表后）",
-      "owner": "Root",
-      "kind": "accepted",
-      "status": "197具名验收完成并已推，精确CI成功",
-      "result": "186八次原速点击的607编码帧与关键原帧已亲审；四Tab随选中切换fill、同Tab重复点击有系统弹跳，原导航保持。",
-      "remaining": "具名范围冻结。",
+      "priority": "P1（Tab切换动效新反例）",
+      "owner": "Root：click/selected重建与BounceSymbolEffect生命周期",
+      "kind": "open",
+      "status": "跨Tab具名动效已推，精确CI成功",
+      "result": "b8a50cf已push，精确CI40015663006 success；243完整539PTS四跨选形变/回稳具名成立，原重复段与底栏范围保持。",
+      "remaining": "本具名动效范围冻结；不外推所有输入或显示FPS。",
       "reportedAt": null,
       "reportedDate": "2026-10-24",
       "reportedAtSource": "最新两条人类消息；无精确提出时分秒，不猜填。",
@@ -2209,17 +2226,653 @@
         "activeUntil": null,
         "note": "只计已登记窗口，工具/上下文空档不倒填。"
       },
-      "closedAt": "2026-10-23T17:28:46.334448+00:00",
+      "closedAt": null,
       "evidencePoints": [
-        "a8469704已推，CI39991605716成功；197八次原速点击、607原始编码帧已亲审。",
-        "186连续8次点击，19张完整联系表、607原PTS帧与110/247/390/526原帧已亲审；当前Tab重复点击有弹跳反馈。",
-        "182至187库及reader完整JSON同值；不改阅读状态。录像890×1920只判可见动效，不推1260×2720几何或显示刷新帧率。"
+        "library约0.18–0.5秒、history3.84–4.2秒、settings7.17–7.6秒、browse10.8–11.2秒均见选中symbol形变/回稳。",
+        "243完整539原PTS与10张底栏全帧联系表Root已顺审；重复当前Tab段单独保留，不混成跨Tab证据。"
+      ],
+      "remainingActions": [
+        "本具名动效范围冻结；不外推所有输入或显示FPS。"
+      ],
+      "boundaries": [
+        "只重开跨Tab弹跳动效，不重开填充或普通源图标已验范围；底栏结构、文字、尺寸、颜色及根导航/滚动所有权保持。",
+        "箭头/语言、安装安全队列、无设置入口、预加载与Browse原队列均保留。"
+      ],
+      "firstHandlingAtSource": "当前实现/构建结果首次登记，非精确编码开始时间；此前时段未知。",
+      "priorAcceptedScope": {
+        "status": "197具名验收完成并已推，精确CI成功",
+        "closedAt": "2026-10-23T17:28:46.334448+00:00",
+        "scope": "填充切换、同Tab重复点击及原具名普通导航范围；新跨Tab动效反例独立重开。"
+      },
+      "reopenedAt": null,
+      "reopenedDate": "2026-10-24",
+      "reopenedAtSource": "最新人类实测反例，无可信原始UTC精确时刻，不以登记时刻冒充。",
+      "feedbackReports": [
+        {
+          "reportedAt": null,
+          "reportedDate": "2026-10-24",
+          "source": "最新人类实测，无可信精确UTC",
+          "summary": "底栏切至其他Tab无弹跳，仅重复点已选Tab有。"
+        }
+      ]
+    },
+    {
+      "id": "CMANHUA_ZH_ICON_REGRESSION",
+      "title": "創漫繁中图标回退为默认菱形",
+      "priority": "P1（已交付图标的新具名回退）",
+      "owner": "Root：197普通更新与采用验收；源owner只读发布侧核查已完成",
+      "dependencies": [],
+      "relatedItems": [
+        "ICONS",
+        "SOURCE_PACKAGE_INSTALL_LIST_UI"
+      ],
+      "kind": "accepted",
+      "status": "197旧包缺图经正常更新恢复，具名范围冻结",
+      "result": "197旧010安装包缺图，正常更新012后浏览显示既定蓝白W；未证实远端资源曾回退。",
+      "evidencePoints": [
+        "207实时registry：exact源仍010/backup-47且无packageIconPath；远端012包/索引正确，源owner核51f73c0素材无撤销。",
+        "210只执行一次正常更新；211为012且iconPath存在，212浏览蓝白W已亲审；213已装图标字节同远端，库/reader完整JSON同207。",
+        "210脚本误用全局副标题而超时，更新实际成功且未重试。213 AWAKE/OverrideTimeout120000已读回，197租约已释放。"
       ],
       "remainingActions": [],
+      "remaining": "仅197旧包缺图、普通更新与浏览采用范围冻结；新具名反例再开。",
       "boundaries": [
-        "只改图形及明确点击反馈，不换底栏样式、文字、尺寸、颜色或根导航/滚动所有权。"
+        "本次没有证明真正的资源回退；不外推全设备/所有源，也不重开ICONS素材矩阵。",
+        "210工具超时原件保留，不误判更新失败；未清用户数据，库和reader完整内容保持。"
       ],
-      "firstHandlingAtSource": "当前实现/构建结果首次登记，非精确编码开始时间；此前时段未知。"
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类原文“创漫繁中的图标怎么又变成默认了？”；当前无可信原始UTC时刻，精确时间留空。",
+      "firstEvidenceAt": "2026-10-23T18:12:56.863520+00:00",
+      "firstEvidenceAtSource": "本次登记时刻；Root已亲审具名原图，不作为用户精确首报时间。",
+      "firstHandlingAt": "2026-10-23T18:21:28.577481+00:00",
+      "handling": {
+        "measurement": "本轮登记窗口，不倒填此前调查时间",
+        "recordedSeconds": 284.085027,
+        "activeSince": null,
+        "activeUntil": null,
+        "note": "只累计此前已登记且未过期的执行窗口；窗口到期后的空档不倒填，含构建/设备等待，不是纯工时。"
+      },
+      "closedAt": "2026-10-23T18:26:12.662508+00:00"
+    },
+    {
+      "id": "BROWSE_PULL_REFRESH_STALL",
+      "title": "浏览页下拉刷新停住数秒才收回",
+      "priority": "P1（交互阻塞新反例）",
+      "owner": "Root：核根Browse与单源Browse刷新消费者",
+      "dependencies": [],
+      "relatedItems": [
+        "LIST_EDGE_SCROLL_FEEL",
+        "SOURCE_INDEX_PROGRESSIVE"
+      ],
+      "kind": "open",
+      "status": "根Browse回缩/数据保持已推；精确CI中",
+      "result": "233完整回缩与匹配trace改善、230→234数据保持成立；派生列表修复随0de9d3d已推，CI40015663006进行中。",
+      "evidencePoints": [
+        "229→232主线程最长1604.765→8.76ms、dirty1600.618→5.547ms；前24行文字/bounds保持。",
+        "233全部117原PTS帧/4联系表回缩已审；230→234前三域JSON逐份相等，未以trace代视觉。"
+      ],
+      "remainingActions": [
+        "跟精确CI；只冻结原80源根Browse范围，不扩单源页面或FPS。"
+      ],
+      "remaining": "跟精确CI；只冻结原80源根Browse范围，不扩单源页面或FPS。",
+      "boundaries": [
+        "修改对象仅BrowsePage重复派生列表：按53cbc39a历史保名称排序，允许差异仅缓存同一响应式派生值。",
+        "行结构、计数、分隔线、样式、动画及私库请求行为保持；不凭credential线索擅改，不复活私库验收。",
+        "预加载225/227缓存命中有限结果和App/三仓WIP继续保留，不取消或当作已交付。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类原文；无可信原始UTC精确时刻，reportedAt留空。",
+      "firstEvidenceAt": "2026-10-23T18:45:24.863746+00:00",
+      "firstEvidenceAtSource": "本次登记时刻，不冒充用户精确首报。",
+      "firstHandlingAt": "2026-10-23T18:53:36.630490+00:00",
+      "handling": {
+        "measurement": "本次已登记窗口，含构建/设备等待，非纯编码工时",
+        "recordedSeconds": 0,
+        "activeSince": "2026-10-23T18:53:36.630490+00:00",
+        "activeUntil": "2026-10-23T19:08:36.630490+00:00",
+        "note": "仅从当前真实登记时刻起计，不补此前取证或空档。"
+      },
+      "closedAt": null,
+      "firstHandlingAtSource": "本次真实执行登记起点，早先分析与取证未分段，不倒填。"
+    },
+    {
+      "id": "SOURCE_ROW_NATIVE_ARROW",
+      "title": "源列表右箭头应采用设置同款原生尾部",
+      "priority": "P1（UI一致性与准确性）",
+      "owner": "Root：SourceListItem尾部与showSearchButton消费者",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_PACKAGE_INSTALL_LIST_UI"
+      ],
+      "kind": "open",
+      "status": "原生箭头视觉与源行点击具名通过；已推CI中",
+      "result": "235箭头与设置一致，253普通源行实际进入3Hentai源页；Root亲审，尾部/点击范围成立，源正文失败另留。",
+      "evidencePoints": [
+        "253原图确认普通源行点击到3Hentai，右上无空设置；3Hentai0.1.0正文runtime失败，不是箭头点击失败，也不称源可用。",
+        "源尾部随0de9d3d已推，CI40015663006运行；已批准卡片/原生槽扩展和私库PARKED审计边界保持。"
+      ],
+      "remainingActions": [
+        "跟0de9d3d的CI40015663006；同类审计的批准未知边界保留，不重跑已验尾部/点击。"
+      ],
+      "remaining": "跟0de9d3d的CI40015663006；同类审计的批准未知边界保留，不重跑已验尾部/点击。",
+      "boundaries": [
+        "具体实施授权仍限定源行尾部，保图标、行高、动作；同类审计不等于全局重做授权。",
+        "不擅改已批准定制或冻结界面，不重开ICONS矩阵；预加载及其他WIP保留。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类箭头反馈原文；无可信原始UTC时刻，精确首报留空。",
+      "firstEvidenceAt": "2026-10-23T19:01:03.959368+00:00",
+      "firstEvidenceAtSource": "本次登记，Root已查源码；不冒充用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_LANGUAGE_DISPLAY_CONSISTENCY",
+      "title": "源语言展示统一格式化入口",
+      "priority": "P1（跨页面展示一致性）",
+      "owner": "Root：源列表与源包管理语言展示消费者",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_ROW_NATIVE_ARROW",
+        "SOURCE_PACKAGE_INSTALL_LIST_UI"
+      ],
+      "kind": "open",
+      "status": "已安装/未安装两组语言名称与红18+具名可见",
+      "result": "259原生终图已显示已安装与未安装两组的语言名称/红18+；两页既有范围保留，未知标签不外推。",
+      "evidencePoints": [
+        "245两页已安装源语言/标记已审；259已安装/未安装两组均实际可见，metadata原值不变。",
+        "0de9d3d所在Koma精确CI40015663006已success；本轮全部更新摘要候选不计为已安装。"
+      ],
+      "remainingActions": [
+        "未知语言等未覆盖边界仅待实际样本；不重跑已审语言与标记范围。"
+      ],
+      "remaining": "未知语言等未覆盖边界仅待实际样本；不重跑已审语言与标记范围。",
+      "boundaries": [
+        "当前有效决定是实际语言名称（语言自称）与红18+，不再按raw代码安排。",
+        "只改展示语言/标记文案，原metadata/身份/筛选语义保持；18+仍在语言后，不扩大布局或样式重做。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类反馈；无可信原始UTC精确时刻，reportedAt留空。",
+      "firstEvidenceAt": "2026-10-23T19:07:50.969774+00:00",
+      "firstEvidenceAtSource": "本次登记时刻，不冒充用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_INSTALL_GLOBAL_DISABLE",
+      "title": "单源安装或更新导致其他源按钮全部禁用",
+      "priority": "P1（安装交互阻塞）",
+      "owner": "Root：按包任务状态与安全排队调查",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_PACKAGE_INSTALL_LIST_UI"
+      ],
+      "kind": "open",
+      "status": "一次全部更新运行/等待/排空具名通过",
+      "result": "258一次触发形成1运行+7等待，随后排空；259实际23项升级、80源身份与enabled保持，library/reader同值，安全队列具名成立。",
+      "evidencePoints": [
+        "258 pending与259终图Root亲审；257→259 registry80→80同ID、23 manifestVersion升级且enabled全保持，library/reader逐字节相等。",
+        "上轮Koma CI40015663006已success；当前顶部任务摘要修正另候选未装，不把队列通过扩大为所有错误/并发状态。"
+      ],
+      "remainingActions": [
+        "保具名队列范围；失败/取消/重复提交等其他自然边界未扩认，摘要新候选另验。"
+      ],
+      "remaining": "保具名队列范围；失败/取消/重复提交等其他自然边界未扩认，摘要新候选另验。",
+      "boundaries": [
+        "不能只删除disabled或guard后裸并发写registry；源行箭头与语言仍当前主修。",
+        "浏览卡顿具名范围和跨章预加载WIP保留，不因新项抛掉原队列。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T19:08:16.947392+00:00",
+      "firstEvidenceAtSource": "本次登记，源码链由Root核实；非用户精确首报时间。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
+      "title": "无设置描述符的源仍显示可点击设置入口",
+      "priority": "P1（无效操作入口）",
+      "owner": "Root：源浏览/搜索菜单与管理详情描述符状态",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_DIRECT_ENTRY"
+      ],
+      "kind": "open",
+      "status": "manager与源Browse空项隐藏具名成立；已推CI中",
+      "result": "245管理无项、有项247包子控件及253源Browse无空设置入口已核；独立Search与其他失败状态仍未扩认。",
+      "evidencePoints": [
+        "311漫小肆manager仅浏览/搜索已审且309→311三域相同；旧管理/Browse空项与包子有项范围保留。",
+        "Manager/Store均读response.ok；fixture问题只证Host summary/日志误报，不能称显式设置验证失败根因。"
+      ],
+      "remainingActions": [
+        "独立Search菜单及其他未知/失败边界仍待；保合法空与unsupported不等价，不泛化所有源设置已修。"
+      ],
+      "remaining": "独立Search菜单及其他未知/失败边界仍待；保合法空与unsupported不等价，不泛化所有源设置已修。",
+      "boundaries": [
+        "不重开已验源设置直接弹出整体；原表单、保存/清除、关闭返回范围保持。",
+        "未知/失败不能误隐藏成无设置，其他已授权WIP保持。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类反馈；无可信精确UTC首报，reportedAt留空。",
+      "firstEvidenceAt": "2026-10-23T19:11:07.767687+00:00",
+      "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_PACKAGE_ICON_INVALIDATION",
+      "title": "安装或检查更新导致源图标闪烁",
+      "priority": "P1（当前源性能主线）",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_INDEX_PROGRESSIVE",
+        "SOURCE_PACKAGE_INSTALL_LIST_UI"
+      ],
+      "kind": "open",
+      "status": "刷新不闪具名保留；316安装本行瞬空反例仍OPEN",
+      "result": "316普通安装Zerobyw原片frame9本行图标短暂空白且HDS圆角/布局异常，frame10回填；其他图标保持。安装分支未修好，300有内容刷新不闪范围保持。",
+      "evidencePoints": [
+        "Root顺审316全部101帧/3表及8/9/10/70原图，真实异常不能被行为测试或其他图标稳定抵消。",
+        "315最终8510880B两未装分隔线存在；316移走最后条目后的组尾待317终点核。312→313、313→315三域逐字相同。"
+      ],
+      "remainingActions": [
+        "继续核HDS原生前缀/后缀更新边界，保留316第9帧原始反例；其他可见源保持不等于本行已修好。"
+      ],
+      "remaining": "继续核HDS原生前缀/后缀更新边界，保留316第9帧原始反例；其他可见源保持不等于本行已修好。",
+      "boundaries": [
+        "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
+        "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:12:10.554202+00:00",
+      "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
+      "firstHandlingAt": "2026-10-23T21:12:10.554202+00:00",
+      "handling": null,
+      "closedAt": null,
+      "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。"
+    },
+    {
+      "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "title": "源安装期间主线程UI阻塞",
+      "priority": "P1（当前源性能主线）",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_INSTALL_GLOBAL_DISABLE",
+        "SOURCE_PACKAGE_ICON_INVALIDATION"
+      ],
+      "kind": "open",
+      "status": "58检查与repair build过；长回调/安装视觉反例仍OPEN",
+      "result": "58检查、最终正式repair build通过并312装8510880B；旧307残余126.861ms回调与316安装本行视觉反例均保留，不能宣布整体解决。",
+      "evidencePoints": [
+        "313同312before、315同313三域逐字相同；316普通装Zerobyw的本行一帧异常单列图标项，整体安装范围仍待。",
+        "有效日志来自316既有boundedhilog；315 hilog -d缺参数失败不作日志证据。",
+        "317正常安装终点：83→84仅新增Zerobyw，原83项与library/reader保持；315双条目divider及317单条目无尾divider已亲审。"
+      ],
+      "remainingActions": [
+        "同步已审检查点；继续定位307未标scope的126.861ms回调，不以dirty下降关闭安装阻塞。"
+      ],
+      "remaining": "同步已审检查点；继续定位307未标scope的126.861ms回调，不以dirty下降关闭安装阻塞。",
+      "boundaries": [
+        "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
+        "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:12:10.554202+00:00",
+      "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
+      "firstHandlingAt": "2026-10-23T21:12:10.554202+00:00",
+      "handling": null,
+      "closedAt": null,
+      "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。"
+    },
+    {
+      "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
+      "title": "详情下拉刷新顶部露底颜色不一致",
+      "priority": "P1（源性能后接续的UI缺陷）",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "MANGA_DETAIL_PULL_REFRESH",
+        "LIST_EDGE_SCROLL_FEEL"
+      ],
+      "kind": "open",
+      "status": "新反馈已登记，具体因果待核",
+      "result": "用户新报详情下拉时顶部露底颜色不同；这是需修的可见缺陷，尚未定位或取得原图。",
+      "evidencePoints": [
+        "当前仅用户实际观察；不能以不崩溃排除，不猜背景所有者。"
+      ],
+      "remainingActions": [
+        "当前源性能后取得普通下拉原图，追PullRefresh/详情/父层背景所有者并限定修正。"
+      ],
+      "remaining": "当前源性能后取得普通下拉原图，追PullRefresh/详情/父层背景所有者并限定修正。",
+      "boundaries": [
+        "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
+        "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类反馈，无可信精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:12:10.554202+00:00",
+      "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "REFRESH_RETAIN_EXISTING_CONTENT",
+      "title": "刷新与首次加载分离，保已有内容与图标",
+      "priority": "P1（当前源闪烁主线关联要求）",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_PACKAGE_ICON_INVALIDATION",
+        "SOURCE_INDEX_PROGRESSIVE",
+        "MANGA_DETAIL_PULL_REFRESH"
+      ],
+      "kind": "open",
+      "status": "306普通重入先显完整运动已审；其他页面未全查",
+      "result": "8511716B的306全部82帧及关键原图已审，缓存组先于后台检查显现；旧300保内容范围仍冻结，其他页面未全查。",
+      "evidencePoints": [
+        "306转场0.597秒已见缓存列表，3.469秒check结束；重新入页图标1.005秒全真图，不当原有内容刷新清空。",
+        "302/303及305业务域保持已核；不把源管理具名结果写成全App状态检查完成。"
+      ],
+      "remainingActions": [
+        "保源管理当前普通重入/刷新具名范围；其他页面逐写入链后继核，失败/换库/cold不外推。"
+      ],
+      "remaining": "保源管理当前普通重入/刷新具名范围；其他页面逐写入链后继核，失败/换库/cold不外推。",
+      "boundaries": [
+        "当前源图标闪烁/安装阻塞仍主线，新反馈不替换旧顺序。",
+        "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:16:09.194667+00:00",
+      "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "LIBRARY_READING_PROGRESS_SEMANTICS",
+      "title": "误开末话后书架进度长期显示100%",
+      "priority": "P1（阅读进度语义正确性）",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "FIRST_CHAPTER_SELECTION",
+        "SHARED_ROUTE"
+      ],
+      "kind": "open",
+      "status": "新要求/反馈已登记，未完成跨消费者调查",
+      "result": "用户报告旧首次开书误读最后一话后，该书书架一直100%；尚未查根因，不能称已复现或擅改数据。",
+      "evidencePoints": [
+        "这是用户当前实际观察；current、furthest、read-count哪种值被保存/展示，以及继续阅读关联均待源码和数据核。"
+      ],
+      "remainingActions": [
+        "追current/furthest/read-count三类所有者与书架/继续阅读消费者，明确现有语义后限定修复。"
+      ],
+      "remaining": "追current/furthest/read-count三类所有者与书架/继续阅读消费者，明确现有语义后限定修复。",
+      "boundaries": [
+        "当前源图标闪烁/安装阻塞仍主线，新反馈不替换旧顺序。",
+        "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:16:09.194667+00:00",
+      "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "title": "包子《大奉打更人》正文无法加载",
+      "priority": "P1（具名正文不可读）",
+      "owner": "koma_comicabc_chapters：只读源/日志调查；Root：后继普通路线取证",
+      "dependencies": [],
+      "relatedItems": [
+        "BAOZIMH_BROWSE_FAILURE",
+        "SOURCE_RUNTIME_ERRORS"
+      ],
+      "kind": "open",
+      "status": "用户具名不可读反馈，根因未知",
+      "result": "用户报告包子《大奉打更人》仅提示无法加载页面等，正文不可读；尚未定位，不归因CF或网络。",
+      "evidencePoints": [
+        "当前依据为用户具名实际反馈；源owner先只读核源与日志，不动设备，Root后继普通入口取证。"
+      ],
+      "remainingActions": [
+        "源owner只读追该作品正文解析/请求与原日志；Root后继按用户普通路径取证并保原进度。"
+      ],
+      "remaining": "先源/日志只读调查，再普通路线具名取证；根因未证前不泛化。",
+      "boundaries": [
+        "原包子两书已过范围保留，不用旧成功抵消本书失败，也不将本书归因扩至所有源。",
+        "源UI当前主线与其余队列保持；不重复盲重试、不清缓存/进度，不擅称CF或网络。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:17:42.386549+00:00",
+      "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "title": "源浏览分类下拉与首页分区结构待整理",
+      "priority": "P2（设计结构调查）",
+      "owner": "Root：追首页/listing用途、历史及设计边界",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_FILTERS",
+        "BROWSE_HEADER_REFRESH"
+      ],
+      "kind": "open",
+      "status": "用户质疑已登记，历史与允许差异待核",
+      "result": "用户质疑部分源用左上分类下拉、部分首页为纵向长分区；当前代码差异已读，历史依据与应采用结构尚未核。",
+      "evidencePoints": [
+        "SourceBrowsePage.SectionHeader仅listings>1显示menu，homeSections按序append；BrowseVM.loadBrowseHome可同时装首页分区与default listing。"
+      ],
+      "remainingActions": [
+        "追各能力/listing/homeSections契约及历史设计，再整理选项与允许差异；未批准前保首页结构。"
+      ],
+      "remaining": "调查能力差异及原设计依据后提出具体方案，不自改首页结构。",
+      "boundaries": [
+        "当前代码不证明原设计无历史依据；允许差异待定，未授权自作主张重构首页。",
+        "保当前源UI/性能与包子正文主线，新设计调查不替换旧队列。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类质疑，无可信UTC精确首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:19:47.404038+00:00",
+      "firstEvidenceAtSource": "本次登记，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "title": "漫画屋源不可用，失败阶段待核",
+      "priority": "P1（具名源不可用）",
+      "owner": "Root：核真实包身份及普通列表/详情/正文阶段",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_RUNTIME_ERRORS"
+      ],
+      "kind": "open",
+      "status": "用户具名反馈，包身份/阶段/根因未知",
+      "result": "用户报告漫画屋源不能用，未给失败阶段；先核实际包ID/版本，不猜与别名关系或失败原因。",
+      "evidencePoints": [
+        "当前仅具名用户反馈，尚未普通入口复现；既有其他源通过不抵消本项。"
+      ],
+      "remainingActions": [
+        "Root后继核包ID/版本，走普通列表→详情→正文区分失败阶段并保真记录。"
+      ],
+      "remaining": "核真实包身份与普通入口失败阶段，再按证据定位。",
+      "boundaries": [
+        "当前源UI/安装主线不替换；不按名称擅合并其他源或猜网络/挑战根因。",
+        "不清数据、不盲重试；未复现不能写已定位或已通过。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空。",
+      "firstEvidenceAt": "2026-10-23T21:26:41.632173+00:00",
+      "firstEvidenceAtSource": "本次登记，非用户首报精确时间。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "MANHUAGUI_RUNTIME_TIMEOUT",
+      "title": "漫画柜超时，当前包及阶段待核",
+      "priority": "P1（具名源运行失败）",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_RUNTIME_ERRORS",
+        "FIRST_CHAPTER_SELECTION"
+      ],
+      "kind": "open",
+      "status": "最新用户反馈/授权已登记，待核实施",
+      "result": "用户新报漫画柜超时，未提供阶段或时刻；当前包/版本与失败阶段待核，不能认作旧237相同根因。",
+      "evidencePoints": [
+        "既有237超时为调查线索，不证明本次同因；FIRST_CHAPTER_SELECTION只关联目录语义，不等于超时原因。"
+      ],
+      "remainingActions": [
+        "核当前实际包与列表/详情/正文阶段，读取本次原始错误后再定位。"
+      ],
+      "remaining": "核当前实际包与列表/详情/正文阶段，读取本次原始错误后再定位。",
+      "boundaries": [
+        "保当前源UI/安装性能主线；旧证据不冒本次复现，不盲重试或清缓存。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:28:34.289082+00:00",
+      "firstEvidenceAtSource": "本次登记，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
+      "title": "源浏览菜单常驻使用WebView打开",
+      "priority": "P1（明确授权的失败恢复入口）",
+      "owner": "Root：宿主入口/契约审查；源producer owner：homepage metadata候选",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_WEB_SESSION",
+        "SOURCE_RUNTIME_ERRORS"
+      ],
+      "kind": "open",
+      "status": "homepage producer候选6文件/6test待审；常驻宿主入口未验",
+      "result": "源producer owner已完成三源homepage metadata透传6文件/6test，待Root审；未改版/打包/提交，不算宿主常驻WebView入口完成。",
+      "evidencePoints": [
+        "当前只有producer候选交付；Root后继审metadata契约并接普通源菜单，原自动验证/重试入口保持。"
+      ],
+      "remainingActions": [
+        "Root审producer六文件，再接常驻源站WebView动作并核正常/未加载/失败状态；不替代自动验证。"
+      ],
+      "remaining": "Root审producer六文件，再接常驻源站WebView动作并核正常/未加载/失败状态；不替代自动验证。",
+      "boundaries": [
+        "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
+        "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜。",
+      "firstEvidenceAt": "2026-10-23T21:28:34.289082+00:00",
+      "firstEvidenceAtSource": "本次登记，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "MANXIAOSI_SETTINGS_VALIDATION_FAILURE",
+      "title": "漫小肆打开设置提示设置验证失败",
+      "priority": "P1（具名源设置能力/运行失败）",
+      "owner": "Root / source owner：核当前包与get_settings失败",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_EMPTY_SETTINGS_ENTRY",
+        "SOURCE_RUNTIME_ERRORS"
+      ],
+      "kind": "open",
+      "status": "manager无无效入口成立；Host日志误报修正具名成立",
+      "result": "311漫小肆manager无无效设置入口且与309三域同。fixture误判仅证Host summary/日志误报，Manager和Store均读response.ok，不能据此归因原菜单失败。",
+      "evidencePoints": [
+        "Root核Manager.validateSettings1648消费response.ok而非summary.ok；原not_supported原因独立，不冒源失败全解决。",
+        "316 pid36728合法get_settings（包子/九儿/Zerobyw）completed，Host fixture误报修正具名成立；显式Record类型修后正式build成功。"
+      ],
+      "remainingActions": [
+        "保manager/not_supported与Host日志修正各自范围；其余源设置失败按真实响应另查，不扩大归因。"
+      ],
+      "remaining": "保manager/not_supported与Host日志修正各自范围；其余源设置失败按真实响应另查，不扩大归因。",
+      "boundaries": [
+        "SOURCE_PACKAGE_ICON_INVALIDATION/INSTALL_UI_STALL当前主线保持，新反馈不替换旧队列。",
+        "不复活旧空源验收，不以验证失败推断无设置，不盲重试/清用户数据。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类具名反馈，无可信UTC精确时刻，留空。",
+      "firstEvidenceAt": "2026-10-23T21:29:33.094146+00:00",
+      "firstEvidenceAtSource": "本次登记，非用户精确首报。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "title": "源管理先显示持久索引缓存并后台更新",
+      "priority": "P1（明确授权的初载/刷新体验）",
+      "owner": "Root：普通重入范围冻结；后台失败/换库/cold边界保留",
+      "dependencies": [],
+      "relatedItems": [
+        "REFRESH_RETAIN_EXISTING_CONTENT",
+        "SOURCE_INDEX_PROGRESSIVE",
+        "SOURCE_PACKAGE_ICON_INVALIDATION"
+      ],
+      "kind": "open",
+      "status": "普通重入缓存先显/后台检查具名成立；未扩大cold",
+      "result": "306普通重入无需点check，0.597秒转场时缓存列表已出现，后台检查3.469秒才完成；先显范围成立，失败/换库/cold未验。",
+      "evidencePoints": [
+        "Root亲审306全部82帧/3表及39/58/72/81原图；未安装3项与已装组在网络检查完成前已显。",
+        "重新进页3图先默认，1.005秒全真图；仅当前profile重入，不冒跨页全图瞬显、离线或冷启动。"
+      ],
+      "remainingActions": [
+        "冻结本次普通重入先显范围；后台失败/换库/cold等待真实适用场景，不造故障。"
+      ],
+      "remaining": "冻结本次普通重入先显范围；后台失败/换库/cold等待真实适用场景，不造故障。",
+      "boundaries": [
+        "当前profile普通重入缓存先显已实现且具名运动成立；新缓存项不覆盖其余缺陷，后台失败/换库/cold仍未验。",
+        "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-24",
+      "reportedAtSource": "最新人类明确授权，未提供可信精确UTC首报。",
+      "firstEvidenceAt": "2026-10-23T21:33:52.591153+00:00",
+      "firstEvidenceAtSource": "本次登记，非用户首报精确时刻。",
+      "firstHandlingAt": null,
+      "handling": null,
+      "closedAt": null
     }
   ],
   "source": {
