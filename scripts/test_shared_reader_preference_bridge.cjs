@@ -76,16 +76,10 @@ assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter, ada
 assert.match(pageSource, /preloadDepth: this\.hostPreferences\?\.preloadPages \?\? this\.readerMode\.preloadPages/)
 assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
 assert.match(pageSource, /const mode = this\.hostPreferences\?\.pageGapMode \?\? this\.readerMode\.pageGapMode[\s\S]*?if \(mode === 'compact'\) return 2[\s\S]*?if \(mode === 'wide'\) return 18[\s\S]*?return 8/)
-assert.match(pageSource, /hostSettingsAvailable: this\.request\.preferencesReadWrite/)
-assert.match(pageSource, /onHostSettings: \(\): void => \{ this\.openHostSettings\(\) \}/)
+assert.match(pageSource, /hostSettings: this\.request\.preferencesReadWrite/)
+assert.match(pageSource, /new ReaderHostSettings\(\(\): void => \{ this\.openHostSettings\(\) \}\)/)
 assert.match(pageSource, /tapZonePreviewRegions: this\.sharedTapZonePreviewRegions\(\)/)
 assert.match(pageSource, /tapZonePreviewRevision: this\.tapZonePreviewRevision/)
-assert.match(pageSource, /new ReaderTrialWindow\(null, true\)/)
-assert.match(pageSource, /this\.trialWindow\.setStatusBarVisible\(!fullscreen\)/)
-assert.match(pageSource, /this\.trialWindow\.prepareStatusBarVisible\(\)/)
-assert.match(pageSource, /ReaderTrialLayoutCommit\.wait\(/)
-assert.match(pageSource, /beforeShowChrome: \(isCurrent:/)
-assert.match(pageSource, /onChromeVisible: \(visible:/)
 assert.match(pageSource,
   /previous\.tapZonePreset !== next\.tapZonePreset[\s\S]*?previous\.tapZoneInvert !== next\.tapZoneInvert[\s\S]*?this\.tapZonePreviewRevision \+= 1/)
 assert.match(pageSource, /readerTapZoneRegions\([\s\S]*?new ReaderTapZonePreviewRegion\(/)
@@ -104,7 +98,7 @@ const adapterSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
 assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
 assert.match(adapterSource,
-  /async preload\(page: ReaderPage, cancellation: ReaderCancellation\): Promise<void>[\s\S]*?ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*?fetchAndCacheReaderRemoteSource\(source\)/)
+  /async preload\(page: ReaderPage, cancellation: ReaderCancellation\): Promise<void>[\s\S]*?ReaderPageRenderKind\.REMOTE_URL_IMAGE[\s\S]*?fetchAndCacheReaderRemoteSource\(source, this\.requestContext\)/)
 const chromeSource = fs.readFileSync(path.resolve(__dirname,
   '../entry/src/main/ets/components/ReaderChrome.ets'), 'utf8')
 const settingsSource = fs.readFileSync(path.resolve(__dirname,

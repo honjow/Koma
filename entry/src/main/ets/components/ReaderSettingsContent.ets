@@ -40,17 +40,9 @@ export struct ReaderSettingsContent {
   @Event onPreferencesChange: (preferences: ReaderPreferences) => void = (_preferences: ReaderPreferences) => {}
   @Event onClose: () => void = () => {}
   @Event onRevealTapZones: () => void = () => {}
-  /**
-   * RDR-005: true while this comic carries its own narrow mode/direction
-   * override. The two affected rows advertise it and both menus offer 恢复默认,
-   * so a per-book choice can never silently outlive the user's awareness of it.
-   */
+  // Status never changes the menu contents or the settings row structure.
   @Param seriesOverrideActive: boolean = false
   @Event onResetSeriesOverride: () => void = () => {}
-
-  private seriesOverrideBadge(label: string): string {
-    return this.seriesOverrideActive ? `${label} · ${s('reader_series_override_badge')}` : label
-  }
 
   private update(next: ReaderPreferences): void {
     this.onPreferencesChange(next)
@@ -113,16 +105,12 @@ export struct ReaderSettingsContent {
     const next = this.copyPreferences()
     next.tapZonePreset = mode
     this.update(next)
-    this.onClose()
-    this.onRevealTapZones()
   }
 
   private setTapInvert(mode: ReaderTapZoneInvert): void {
     const next = this.copyPreferences()
     next.tapZoneInvert = mode
     this.update(next)
-    this.onClose()
-    this.onRevealTapZones()
   }
 
   private setSpreadLayout(mode: ReaderSpreadLayoutMode): void {
@@ -195,9 +183,6 @@ export struct ReaderSettingsContent {
       MenuItem({ content: getReaderModeLabel(ReaderMode.DUAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.DUAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('double_page') }) })
       MenuItem({ content: getReaderModeLabel(ReaderMode.VERTICAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.VERTICAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('vertical_page') }) })
       MenuItem({ content: getReaderModeLabel(ReaderMode.CONTINUOUS_SCROLL), symbolEndIcon: this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('continuous_scroll') }) })
-      if (this.seriesOverrideActive) {
-        MenuItem({ content: s('reader_series_override_reset') }).onClick(() => { select(() => { this.onResetSeriesOverride() }) })
-      }
     }
   }
 
@@ -207,9 +192,6 @@ export struct ReaderSettingsContent {
       MenuItem({ content: getReadingDirectionLabel(ReadingDirection.LEFT_TO_RIGHT), symbolEndIcon: this.preferences.readingDirection === ReadingDirection.LEFT_TO_RIGHT ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setDirection(ReadingDirection.LEFT_TO_RIGHT) }) })
       MenuItem({ content: getReadingDirectionLabel(ReadingDirection.RIGHT_TO_LEFT), symbolEndIcon: this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setDirection(ReadingDirection.RIGHT_TO_LEFT) }) })
       MenuItem({ content: getReadingDirectionLabel(ReadingDirection.WEBTOON), symbolEndIcon: this.preferences.readingDirection === ReadingDirection.WEBTOON ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setDirection(ReadingDirection.WEBTOON) }) })
-      if (this.seriesOverrideActive) {
-        MenuItem({ content: s('reader_series_override_reset') }).onClick(() => { select(() => { this.onResetSeriesOverride() }) })
-      }
     }
   }
 
@@ -321,19 +303,17 @@ export struct ReaderSettingsContent {
       Column({ space: ThemeConstants.SPACE_SM }) {
         SectionHeader({ title: s('settings_reader_group_layout') })
         GroupedListSection() {
-          ConciseListRow({ title: s('reader_control_mode'), trailingText: this.seriesOverrideBadge(getReaderModeLabel(this.readerMode)), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
+          ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
           ListDivider()
-          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.seriesOverrideBadge(getReadingDirectionLabel(this.preferences.readingDirection)), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
-          if (this.readerMode === ReaderMode.DUAL_PAGE) {
-            ListDivider()
-            ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
-            ListDivider()
-            ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
-          }
-          if (!this.isWebtoonLayout()) {
-            ListDivider()
-            ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
-          }
+          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: getReadingDirectionLabel(this.preferences.readingDirection), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
+          ListDivider()
+          ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
+          ListDivider()
+          ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
+          ListDivider()
+          ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE && !this.isWebtoonLayout(), switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
+          ListDivider()
+          ConciseListRow({ title: s('reader_series_override_reset'), subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'), showChevron: false, isEnabled: this.seriesOverrideActive, action: () => { this.onResetSeriesOverride() } })
         }
         SectionHeader({ title: s('settings_reader_group_tap_zones') })
         GroupedListSection() {
@@ -366,10 +346,8 @@ export struct ReaderSettingsContent {
         SectionHeader({ title: s('settings_row_reader_page_gap_title') })
         GroupedListSection() {
           ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
-          if (!this.isWebtoonLayout()) {
-            ListDivider()
-            ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
-          }
+          ListDivider()
+          ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
         }
         Blank().height(ThemeConstants.SPACE_XL)
       }

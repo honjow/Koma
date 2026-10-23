@@ -37,7 +37,7 @@ class Choice {
   constructor(value, title) { this.key = value; this.title = title }
 }
 
-test('adapter projects only the host continuation sequence and aligned titles', () => {
+test('manual picker keeps the complete host catalog and aligned titles', () => {
   class ReaderUnitKey {
     constructor(scope, work, unit) { Object.assign(this, { scope, work, unit }) }
   }
@@ -51,7 +51,7 @@ test('adapter projects only the host continuation sequence and aligned titles', 
     chapterIds: ['A', 'B', 'C'], chapterTitles: ['Alpha', 'Beta', 'Gamma'], continuationChapterIds: ['B', 'C'],
   })
   assert.deepEqual(adapter.chapterChoices(current).map(value => [value.key.unit, value.title]),
-    [['B', 'Beta'], ['C', 'Gamma']])
+    [['A', 'Alpha'], ['B', 'Beta'], ['C', 'Gamma']])
 })
 
 test('picker opens only for an exact current unit/navigation and dismisses before switching', () => {
@@ -88,7 +88,7 @@ test('a newer picker target cancels preparation and is the only chapter opened',
     check() { if (this.cancelled) throw new Error('cancelled') }
   }
   const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
-    ReaderCancellation, $r: value => value,
+    ReaderCancellation, $r: value => value, DiagnosticLogger: { info() {}, warn() {} },
   })
   const page = new Page()
   const source = key('A')
@@ -120,7 +120,7 @@ test('a newer picker target cancels preparation and is the only chapter opened',
 test('shared page keeps chapter data and sheet ownership outside reader-kit', () => {
   const page = fs.readFileSync(path.join(root, 'KomaReaderLabPage.ets'), 'utf8')
   const adapter = fs.readFileSync(path.join(root, 'KomaReaderLabAdapter.ets'), 'utf8')
-  assert.match(page, /hostCenterActionLabel: this\.chapterControlLabel\(\)/)
+  assert.match(page, /new ReaderCenterAction\(this\.chapterControlLabel\(\)/)
   assert.match(page, /ReaderHostChapterPickerSheet/)
   assert.match(page, /!this\.chapterPickerShown/)
   assert.match(adapter, /chapterChoices\(unit: ReaderUnitKey\)/)

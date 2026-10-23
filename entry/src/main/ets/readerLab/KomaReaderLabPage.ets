@@ -1,5 +1,7 @@
+import { FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { ReaderModeControl } from '../components/ReaderModeControl'
+import { ReaderDirectionControl, ReaderDirectionChoice } from '../components/ReaderDirectionControl'
+import { ReadingDirection } from '../model/ComicModels'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
@@ -38,6 +40,13 @@ class KomaReaderSessionEntry {
     this.unit = unit
     this.initialIndex = initialIndex
   }
+}
+
+// Run after native list layout, without a guessed sheet-animation delay.
+class KomaReaderAfterLayout extends FrameCallback {
+  private observe: () => void
+  constructor(observe: () => void) { super(); this.observe = observe }
+  onIdle(_timeLeftInNano: number): void { this.observe() }
 }
 
 @ComponentV2
@@ -95,21 +104,67 @@ export struct KomaReaderLabPage {
   private preferenceWrites: Promise<void> = Promise.resolve()
   private chapterPickerTarget: ReaderUnitKey | null = null
   private chapterChoiceIdentity: string = ''
-  private chapterPickerScroller: Scroller = new Scroller()
+  private observedCatalogUnit: ReaderUnitKey | null = null
+  private observedSourceSignature: string = ''
+  private chapterPickerScroller: ListScroller = new ListScroller()
   private hostActionDispatch: ReaderHostActions = new ReaderHostActions(
     [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'))],
     (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
       this.openMangaDetail(id, source, navigation, sourceIndex)
     })
 
-  @Monitor('chapterPickerShown')
-  private onChapterPickerVisibilityChanged(): void {
-    if (!this.chapterPickerShown) return
-    const index = this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
-      choice.key.unit === this.currentChapterUnit)
-    if (index >= 0) {
-      setTimeout((): void => { this.chapterPickerScroller.scrollToIndex(index, true, ScrollAlign.CENTER) }, 120)
-    }
+  private chapterPickerSavedUnit: string = ''
+  private chapterPickerSavedCatalog: string = ''
+  private chapterPickerVisibleIndex: number = 0
+  private chapterPickerFirstIndex: number = 0
+  private chapterPickerFirstY: number = 0
+  private chapterPickerPositionReady: boolean = false
+
+  private hasChapterPickerPosition(): boolean {
+    return this.chapterPickerSavedUnit === this.currentChapterUnit &&
+      this.chapterPickerSavedCatalog === this.chapterChoiceIdentity
+  }
+
+  private chapterPickerInitialIndex(): number {
+    if (this.hasChapterPickerPosition()) return this.chapterPickerFirstIndex
+    return Math.max(0, this.chapterChoices.findIndex((choice: KomaReaderLabChapterChoice): boolean =>
+      choice.key.unit === this.currentChapterUnit))
+  }
+
+  private restoreChapterPickerPosition(): void {
+    this.chapterPickerPositionReady = false
+    this.chapterPickerVisibleIndex = this.chapterPickerInitialIndex()
+    const unit = this.currentChapterUnit
+    const catalog = this.chapterChoiceIdentity
+    const restore = this.hasChapterPickerPosition()
+    const index = this.chapterPickerFirstIndex
+    const y = this.chapterPickerFirstY
+    this.getUIContext().postFrameCallback(new KomaReaderAfterLayout((): void => {
+      if (!this.chapterPickerShown || this.readerClosed || unit !== this.currentChapterUnit ||
+        catalog !== this.chapterChoiceIdentity) return
+      if (!restore) { this.chapterPickerPositionReady = true; return }
+      this.chapterPickerScroller.scrollToIndex(index, false, ScrollAlign.START,
+        { extraOffset: LengthMetrics.vp(-y) })
+      this.getUIContext().postFrameCallback(new KomaReaderAfterLayout((): void => {
+        if (!this.chapterPickerShown || this.readerClosed || unit !== this.currentChapterUnit ||
+          catalog !== this.chapterChoiceIdentity) return
+        // Native START alignment includes List content padding. Correct from
+        // the measured row position rather than baking that padding into math.
+        const rect = this.chapterPickerScroller.getItemRect(index)
+        if (rect.height > 0) this.chapterPickerScroller.scrollBy(0, rect.y - y)
+        this.chapterPickerPositionReady = true
+      }))
+    }))
+  }
+
+  private rememberChapterPickerPosition(index: number): void {
+    if (!this.chapterPickerShown || !this.chapterPickerPositionReady || index < 0) return
+    const rect = this.chapterPickerScroller.getItemRect(index)
+    if (rect.height <= 0) return
+    this.chapterPickerSavedUnit = this.currentChapterUnit
+    this.chapterPickerSavedCatalog = this.chapterChoiceIdentity
+    this.chapterPickerFirstIndex = index
+    this.chapterPickerFirstY = rect.y
   }
 
   aboutToAppear(): void {
@@ -141,6 +196,8 @@ export struct KomaReaderLabPage {
     this.observedCloseRequestId = this.closeRequestId
     this.error = ''
     this.seriesOverrideActive = false
+    this.observedCatalogUnit = null
+    this.observedSourceSignature = ''
     this.initialization?.cancel()
     this.surfaceEntries = []
     if (this.request.readingChrome) this.session = null
@@ -384,6 +441,9 @@ export struct KomaReaderLabPage {
       snapshot.navigationRevision !== navigation) return
     this.syncChapterChoices(source)
     if (this.chapterChoices.length > 0) {
+      // The new List can report its initial index before onAppear. Keep that
+      // layout from overwriting the retained position before restoration.
+      this.chapterPickerPositionReady = false
       this.chapterPickerShown = true
       this.syncKeepScreenOn()
       this.syncVolumeKeys()
@@ -396,6 +456,7 @@ export struct KomaReaderLabPage {
   }
 
   private finishChapterPickerDismissal(): void {
+    this.chapterPickerPositionReady = false
     const target = this.chapterPickerTarget
     this.chapterPickerTarget = null
     this.chapterPickerShown = false
@@ -410,14 +471,25 @@ export struct KomaReaderLabPage {
 
   private onObservedPosition(position: ReaderObservedPosition): void {
     const session = this.session
-    this.syncChapterChoices(position.anchor.unit)
     if (session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
+    const column = this.hostPreferences?.columnMode ?? 'odd_left'
+    const signature = JSON.stringify([position.anchor.unit.scope, position.anchor.unit.work,
+      position.anchor.unit.unit, position.anchor.pageKey, position.anchor.sourceIndexHint,
+      position.pageCount, position.terminalSourceDisplayed, column])
+    // Koma persists source pages, not pixel offsets. Fractional scroll on the
+    // same page must not clone/commit its catalog or invalidate the root page.
+    if (signature === this.observedSourceSignature) return
     const snapshot = session.snapshot()
     if (snapshot.phase !== 'ready' || snapshot.unit === null ||
       !snapshot.unit.key.equals(position.anchor.unit)) return
-    const config = this.adapter?.sessionConfig(position.anchor.unit) ?? null
-    if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
+    if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
+      this.syncChapterChoices(position.anchor.unit)
+      const config = this.adapter?.sessionConfig(position.anchor.unit) ?? null
+      if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
+      this.observedCatalogUnit = position.anchor.unit.copy()
+    }
+    this.observedSourceSignature = signature
     if (!this.request.progressReadWrite) return
     this.persistObserved(position, snapshot.policy.firstPageAlone ? 'even_left' : 'odd_left')
   }
@@ -450,17 +522,17 @@ export struct KomaReaderLabPage {
 
   @Builder
   private HostModeControl(params: ReaderModeControlParams) {
-    ReaderModeControl({
-      readerMode: params.policy.layout === 'continuous' ? ReaderMode.CONTINUOUS_SCROLL :
-        params.policy.layout === 'spread' ? ReaderMode.DUAL_PAGE :
-          params.policy.pagingAxis === 'vertical' ? ReaderMode.VERTICAL_PAGE : ReaderMode.SINGLE_PAGE,
+    ReaderDirectionControl({
+      readingMode: params.policy.layout === 'continuous' ? 'continuous' :
+        params.policy.pagingAxis === 'vertical' ? 'vertical_page' : params.policy.direction,
       controlEnabled: params.enabled,
-      onModeChange: (mode: ReaderMode): void => {
+      onDirectionChange: (direction: ReaderDirectionChoice): void => {
         const policy = params.policy.copy()
-        policy.layout = mode === ReaderMode.CONTINUOUS_SCROLL ? 'continuous' :
-          mode === ReaderMode.DUAL_PAGE ? 'spread' : 'single'
-        policy.pagingAxis = mode === ReaderMode.VERTICAL_PAGE ? 'vertical' : 'horizontal'
-        if (mode === ReaderMode.CONTINUOUS_SCROLL) policy.direction = 'ltr'
+        policy.layout = direction === 'continuous' ? 'continuous' :
+          policy.layout === 'spread' ? 'spread' : 'single'
+        policy.pagingAxis = direction === 'vertical_page' ? 'vertical' : 'horizontal'
+        if (direction === 'vertical_page') policy.layout = 'single'
+        policy.direction = direction === 'rtl' ? 'rtl' : 'ltr'
         params.onChange(policy)
       },
       onMenuVisible: (visible: boolean): void => { params.onMenuVisible(visible) },
@@ -526,6 +598,10 @@ export struct KomaReaderLabPage {
 
   /** Preserve Koma's existing spacing scale while reader-kit owns only layout. */
   private readerPageGap(): number {
+    const pageMode = this.hostPreferences?.pageMode ?? this.readerMode.pageMode
+    const direction = this.hostPreferences?.readingDirection ?? this.readerMode.readingDirection
+    if (pageMode === 'continuous_scroll' ||
+      (pageMode !== 'vertical_page' && direction === ReadingDirection.WEBTOON)) return 0
     const mode = this.hostPreferences?.pageGapMode ?? this.readerMode.pageGapMode
     if (mode === 'compact') return 2
     if (mode === 'wide') return 18
@@ -590,7 +666,8 @@ export struct KomaReaderLabPage {
       contentOwnsScrolling: true,
       onClose: (): void => { this.chapterPickerShown = false },
     }) {
-      List({ scroller: this.chapterPickerScroller, space: ThemeConstants.SPACE_SM }) {
+      List({ scroller: this.chapterPickerScroller, space: ThemeConstants.SPACE_SM,
+        initialIndex: this.chapterPickerInitialIndex() }) {
         ForEach(this.chapterChoices, (choice: KomaReaderLabChapterChoice, index: number) => {
           ListItem() {
             ConciseListRow({
@@ -607,6 +684,12 @@ export struct KomaReaderLabPage {
       }.width('100%').height('100%')
         .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
         .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
+        .onAppear((): void => { this.restoreChapterPickerPosition() })
+        .onScrollIndex((start: number): void => {
+          this.chapterPickerVisibleIndex = start
+          this.rememberChapterPickerPosition(start)
+        })
+        .onDidScroll((): void => { this.rememberChapterPickerPosition(this.chapterPickerVisibleIndex) })
     }
   }
 

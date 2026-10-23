@@ -193,8 +193,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     // Manual selection matches the legacy reader's complete catalog. Only the
     // previous/next boundary above is restricted to the verified continuation
     // sequence, so editions outside that sequence do not disappear from UI.
-    return config.chapterIds.map((chapterId: string): KomaReaderLabChapterChoice => {
-      const index = config.chapterIds.indexOf(chapterId)
+    return config.chapterIds.map((chapterId: string, index: number): KomaReaderLabChapterChoice => {
       return new KomaReaderLabChapterChoice(
         new ReaderUnitKey(unit.scope, unit.work, chapterId),
         index >= 0 ? (config.chapterTitles?.[index] ?? '') : '',
