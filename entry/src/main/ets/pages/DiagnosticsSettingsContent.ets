@@ -10,7 +10,7 @@ import { DiagnosticsLogFileInfo, DiagnosticsLogFileSink } from '../diagnostics/D
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
 import { connectDiagnostics, DiagnosticsState } from '../state/DiagnosticsState'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 @ComponentV2
@@ -165,8 +165,7 @@ export struct DiagnosticsSettingsContent {
           action: () => { DiagnosticsSettings.clearLogs(); this.refresh() } })
       }
       Column({ space: ThemeConstants.SPACE_XS }) {
-        SectionHeader({ title: AppStrings.get('diagnostics_history') })
-        GroupedListSection() {
+        GroupedListSection({ title: AppStrings.get('diagnostics_history') }) {
           if (this.files.length === 0) {
             ConciseListRow({ title: AppStrings.get('diagnostics_empty'), showChevron: false })
           } else {

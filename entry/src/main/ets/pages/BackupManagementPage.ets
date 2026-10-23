@@ -838,8 +838,7 @@ export struct BackupManagementPage {
   @Builder
   private DomainsCard() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: t('backup_included_data') })
-      GroupedListSection() {
+      GroupedListSection({ title: t('backup_included_data') }) {
         ForEach(backupIncludedDomainLabels({
           includeSettings: false, includeDownloadQueue: false, includeTrackerMappings: false,
         }), (domain: string) => {

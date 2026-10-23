@@ -10,7 +10,7 @@ import { LocalLibraryFolderScanResult } from '../model/LocalLibraryFolderContrac
 import { canImportLocalLibraryFolder } from '../model/LocalLibraryFolderAccessService'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -327,10 +327,7 @@ export struct ImportPage {
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
         ListItem() {
-          SectionHeader({ title: t('import_heading_detail') })
-        }
-        ListItem() {
-          GroupedListSection() {
+          GroupedListSection({ title: t('import_heading_detail') }) {
             this.ImportEntryRow(ARCHIVE_ENTRY)
             ListDivider()
             this.ImportEntryRow(IMAGE_ENTRY)

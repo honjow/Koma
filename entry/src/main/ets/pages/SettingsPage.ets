@@ -7,7 +7,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaSearchField } from '../components/KomaSearchField'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
 import {
@@ -2551,9 +2551,8 @@ export struct SettingsPage {
   @Builder
   private SearchResults() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: s('settings_section_search_results') })
       if (this.settingsSearchResults().length === 0) {
-        GroupedListSection() {
+        GroupedListSection({ title: s('settings_section_search_results') }) {
           ConciseListRow({
             title: s('settings_search_empty_title'),
             subtitle: this.settingsSearchText,
@@ -2561,7 +2560,7 @@ export struct SettingsPage {
           })
         }
       } else {
-        GroupedListSection() {
+        GroupedListSection({ title: s('settings_section_search_results') }) {
           ForEach(this.settingsSearchResults(), (result: SettingsSearchResult, index: number) => {
             this.SearchResultRow(result)
             if (index < this.settingsSearchResults().length - 1) {
@@ -2577,8 +2576,7 @@ export struct SettingsPage {
   @Builder
   private Section(section: SettingsSection) {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: this.sectionTitle(section) })
-      GroupedListSection() {
+      GroupedListSection({ title: this.sectionTitle(section) }) {
         ForEach(section.rows, (row: SettingsRow, index: number) => {
           this.SectionRow(row)
           if (index < section.rows.length - 1) {

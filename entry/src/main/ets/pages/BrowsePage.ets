@@ -5,7 +5,7 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { SourceListItem } from '../components/SourceListItem'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { BrowseViewModel } from '../viewmodel/BrowseViewModel'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -168,10 +168,7 @@ export struct BrowsePage {
   @Builder
   private PrivateSourceListItems() {
     ListItem() {
-      SectionHeader({ title: s('browse_private_sources_heading') })
-    }
-    ListItem() {
-      GroupedListSection() {
+      GroupedListSection({ title: s('browse_private_sources_heading') }) {
         ForEach(this.configuredPrivateSourceEntries(), (entry: PrivateBrowseSourceEntry, index: number) => {
           SourceListItem({
             title: entry.title,
@@ -194,18 +191,10 @@ export struct BrowsePage {
   @Builder
   private RuntimeSourceListItems() {
     ListItem() {
-      Column({ space: ThemeConstants.SPACE_XS }) {
-        SectionHeader({ title: s('browse_installed_sources_heading') })
-        Text(s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources.length}`))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XS })
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-    }
-    ListItem() {
-      GroupedListSection() {
+      GroupedListSection({
+        title: s('browse_installed_sources_heading'),
+        subtitle: s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources.length}`),
+      }) {
         ForEach(this.enabledRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
           SourceListItem({
             source: source,

@@ -23,7 +23,7 @@ import {
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaDisclosureListRow } from '../components/ui/KomaDisclosureListRow'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
@@ -345,8 +345,7 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private DisplayStrategySection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: s('library_category_display_section') })
-      GroupedListSection() {
+      GroupedListSection({ title: s('library_category_display_section') }) {
         this.StrategySummaryRow('all', s('library_category_all'))
         ListDivider()
         this.StrategySummaryRow('uncategorized', s('library_category_uncategorized'))
@@ -430,8 +429,7 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CustomCategoriesSection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: s('library_category_custom_section') })
-      GroupedListSection() {
+      GroupedListSection({ title: s('library_category_custom_section') }) {
         if (this.categories.length === 0) {
           ConciseListRow({
             title: s('library_category_empty_title'),
@@ -453,8 +451,7 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CreateSection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      SectionHeader({ title: s('library_category_create_section') })
-      GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
+      GroupedListSection({ title: s('library_category_create_section'), inset: ThemeConstants.SPACE_LG }) {
         Column({ space: ThemeConstants.SPACE_MD }) {
           KomaFormTextField({
             label: s('library_category_name_label'),

@@ -8,7 +8,7 @@ import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { AppStrings } from '../i18n/AppStrings'
@@ -1920,8 +1920,7 @@ export struct SourcePackageManagerPage {
           }
 
           if (this.sourceIndexRepositories.length > 0) {
-            SectionHeader({ title: t('source_pkg_saved_indexes_heading') })
-            GroupedListSection() {
+            GroupedListSection({ title: t('source_pkg_saved_indexes_heading') }) {
               ForEach(this.sourceIndexRepositories, (repository: SourceIndexRepository, index: number) => {
                 ConciseListRow({
                   title: repository.url,
@@ -1943,8 +1942,7 @@ export struct SourcePackageManagerPage {
           }
 
           if (this.indexEntries.length > 0) {
-            SectionHeader({ title: t('source_pkg_batch_actions_heading') })
-            GroupedListSection() {
+            GroupedListSection({ title: t('source_pkg_batch_actions_heading') }) {
               ConciseListRow({
                 title: tf('source_pkg_batch_install_missing', this.missingIndexEntries().length),
                 leadingIcon: $r('sys.symbol.arrow_down_to_line'),
@@ -2160,8 +2158,7 @@ export struct SourcePackageManagerPage {
       }
 
       if (this.hasSourcePackageMetadata(params.source)) {
-        SectionHeader({ title: t('source_pkg_information_section') })
-        GroupedListSection() {
+        GroupedListSection({ title: t('source_pkg_information_section') }) {
           if (params.source.description.length > 0) {
             ConciseListRow({
               title: t('common_description'),
@@ -2203,8 +2200,7 @@ export struct SourcePackageManagerPage {
         }
       }
 
-      SectionHeader({ title: t('source_pkg_management_section') })
-      GroupedListSection() {
+      GroupedListSection({ title: t('source_pkg_management_section') }) {
         if (this.updateEntry(params.source.id) !== undefined) {
           ConciseListRow({
             title: this.updateActionLabel(params.source.id),
@@ -2393,24 +2389,11 @@ export struct SourcePackageManagerPage {
   private PackageListGroups(groups: SourcePackageListGroups) {
     if (groups.updates.length > 0) {
       ListItem() {
-        Row() {
-          SectionHeader({ title: t('source_pkg_update_available') })
-            .layoutWeight(1)
-          Button(t('source_pkg_update_all'), {
-            controlSize: ControlSize.SMALL,
-            buttonStyle: ButtonStyleMode.TEXTUAL,
-          })
-            .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeConstants.BRAND_PRIMARY)
-            .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-            .onClick(() => { this.updateAllAvailablePackages() })
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-      }
-      ListItem() {
-        GroupedListSection() {
+        GroupedListSection({
+          title: t('source_pkg_update_available'),
+          actionLabel: t('source_pkg_update_all'),
+          action: () => { this.updateAllAvailablePackages() },
+        }) {
           ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
             this.PackageCard(candidate.entry.id, candidate)
             if (index + 1 < groups.updates.length) { ListDivider() }
@@ -2421,10 +2404,7 @@ export struct SourcePackageManagerPage {
     }
     if (groups.missing.length > 0) {
       ListItem() {
-        SectionHeader({ title: t('source_pkg_uninstalled_heading') })
-      }
-      ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ title: t('source_pkg_uninstalled_heading') }) {
           ForEach(groups.missing, (entry: SourceIndexEntry, index: number) => {
             this.RemoteIndexCard(entry)
             if (index + 1 < groups.missing.length) { ListDivider() }
@@ -2434,10 +2414,7 @@ export struct SourcePackageManagerPage {
     }
     if (groups.installed.length > 0) {
       ListItem() {
-        SectionHeader({ title: t('source_pkg_installed_heading') })
-      }
-      ListItem() {
-        GroupedListSection() {
+        GroupedListSection({ title: t('source_pkg_installed_heading') }) {
           ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
             this.PackageCard(source.id)
             if (index + 1 < groups.installed.length) { ListDivider() }
