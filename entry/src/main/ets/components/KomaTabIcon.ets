@@ -23,19 +23,28 @@ export struct KomaTabIcon {
     }
   }
 
+  @Builder
+  private TabSymbol(trigger: number) {
+    SymbolGlyph(this.iconForIndex(this.idx))
+      .fontSize(TAB_SYMBOL_SIZE - 6)
+      .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+      .symbolEffect(new BounceSymbolEffect(EffectScope.WHOLE, EffectDirection.UP), trigger)
+      .fontColor([
+        this.currentIndex === this.idx
+          ? ThemeConstants.BRAND_PRIMARY
+          : $r('sys.color.font_secondary'),
+      ])
+  }
+
   build() {
     Column() {
       Row() {
         Blank().width(TAB_SYMBOL_LAYOUT_OFFSET_VP)
-        SymbolGlyph(this.iconForIndex(this.idx))
-          .fontSize(TAB_SYMBOL_SIZE - 6)
-          .renderingStrategy(SymbolRenderingStrategy.SINGLE)
-          .symbolEffect(new BounceSymbolEffect(EffectScope.WHOLE, EffectDirection.UP), this.bounceTrigger)
-          .fontColor([
-            this.currentIndex === this.idx
-              ? ThemeConstants.BRAND_PRIMARY
-              : $r('sys.color.font_secondary'),
-          ])
+        if (this.currentIndex === this.idx) {
+          this.TabSymbol(this.bounceTrigger)
+        } else {
+          this.TabSymbol(-1)
+        }
       }
       .width(TAB_SYMBOL_SIZE)
       .height(TAB_SYMBOL_SIZE - 2)
