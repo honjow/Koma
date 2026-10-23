@@ -1,3 +1,4 @@
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
@@ -153,6 +154,20 @@ async function fetchSourceChapterList(
       response.data?.has_more === true || response.data?.page?.hasMore === true ||
       response.data?.page?.hasNextPage === true || response.data?.page?.has_more === true || nextCursor !== undefined
     if (!hasMore) {
+      if (chapterId === undefined) {
+        const counts = new Map<string, number>()
+        let duplicateIdGroups = 0
+        let duplicateRows = 0
+        chapters.forEach((chapter: MangaChapterItem): void => {
+          const count = (counts.get(chapter.id) ?? 0) + 1
+          counts.set(chapter.id, count)
+          if (count === 2) duplicateIdGroups += 1
+          if (count > 1) duplicateRows += 1
+        })
+        // Completed catalog only: no identifiers, titles, URLs, page-by-page or scroll logging.
+        DiagnosticLogger.info('source_chapters', 'catalog_identity', 'total=' + chapters.length +
+          ' uniqueId=' + counts.size + ' duplicateIdGroups=' + duplicateIdGroups + ' duplicateRows=' + duplicateRows)
+      }
       return { chapters, resolved: true }
     }
     // A cursor belongs to the source. Never invent a numeric next page, or

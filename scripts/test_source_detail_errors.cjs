@@ -207,3 +207,38 @@ test('starting another reload invalidates the preceding request epoch', () => {
   assert.equal(page.isCurrentSourceDetailRequest(first, 's', 'm'), false)
   assert.equal(page.isCurrentSourceDetailRequest(second, 's', 'm'), true)
 })
+
+test('completed catalog diagnostic counts duplicate identities without merging titles or changing pagination', async () => {
+  const exports = {}, logs = [], requests = []
+  const first = [{ id: 'private-id-a', title: 'Private title one' }, { id: 'private-id-b', title: 'Same title' }]
+  const second = [{ id: 'private-id-a', title: 'Different title' }, { id: 'private-id-c', title: 'Same title' }]
+  let responses = [
+    { ok: true, data: { items: first, page: { nextCursor: 'page-two', hasMore: true } } },
+    { ok: true, data: { items: second, page: { nextCursor: null, hasMore: false } } },
+  ]
+  new Function('exports', 'require', compile(read('model/SourceChapterListResolver')))(exports, name => {
+    if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info: (...args) => logs.push(args.join(' ')) } }
+    if (name === './SourceRuntimeError') return { SourceRuntimeError }
+    if (name === '@kit.ArkTS') return { taskpool: { execute: async (_worker, request) => {
+      requests.push(JSON.parse(request)); return JSON.stringify(responses.shift())
+    } } }
+    if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
+    if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
+    if (name === './MangaDetailModels') return { parseMangaChapterFromSourceItem: item => item }
+    if (name === '../sourceRuntime/SourceSettingsStore') return { appSourceSettingsStore: {
+      revisionForSource: () => 'same', loadForSource: () => ({}) } }
+    return {}
+  })
+  const entry = { sourceId: 'source.test', wasmBytes: new Uint8Array(1) }
+  const result = await exports.resolveSourceChapterList(entry, 'private-work', 'https://private.invalid/work')
+  assert.equal(result.resolved, true)
+  assert.deepEqual(result.chapters, [...first, ...second])
+  assert.equal(requests.length, 2)
+  assert.equal(requests[1].args.page.cursor, 'page-two')
+  assert.deepEqual(logs, ['source_chapters catalog_identity total=4 uniqueId=3 duplicateIdGroups=1 duplicateRows=1'])
+  assert(!logs.join('').includes('private'))
+  responses = [{ ok: true, data: { items: first, page: { hasMore: true } } }]
+  const incomplete = await exports.resolveSourceChapterList(entry, 'private-work')
+  assert.equal(incomplete.resolved, false)
+  assert.equal(logs.length, 1, 'Incomplete catalog must not publish a completed identity diagnostic')
+})
