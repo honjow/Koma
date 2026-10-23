@@ -369,9 +369,11 @@ export struct KomaReaderLabPage {
       session.snapshot().unit?.key.equals(source) === true
     try {
       await this.runChapterPreparationProbe(cancellation)
-      await adapter.prepare(target, cancellation)
+      const prepared = await adapter.prepare(target, cancellation)
       if (!isCurrent()) return
-      await session.open(target)
+      // Backward continuation enters the prepared chapter at its real final page.
+      // Forward continuation and explicit picker selection retain their first-page rule.
+      await session.open(target, reason === 'previous' ? prepared.pageCount - 1 : 0)
       const opened = session.snapshot()
       if (!cancellation.isCancelled() && !this.readerClosed && opened.phase === 'ready' &&
         opened.unit?.key.equals(target) === true && this.chapterRequest === cancellation &&

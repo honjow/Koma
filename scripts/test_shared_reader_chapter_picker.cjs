@@ -161,3 +161,32 @@ test('first-read uses oldest real upload date without inventing numbers from tit
   assert.equal(firstReaderChapter([{ id: 'stable', title: 'No metadata' },
     { id: 'other', title: 'Chapter 1' }]).id, 'stable')
 })
+
+
+test('backward chapter continuation uses prepared final page while next and picker start at zero', async () => {
+  class ReaderCancellation {
+    cancel() { this.cancelled = true }
+    isCancelled() { return this.cancelled === true }
+  }
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
+    ReaderCancellation, $r: value => value, DiagnosticLogger: { info() {}, warn() {} },
+  })
+  for (const [reason, count, expected] of [['previous', 19, 18], ['previous', 1, 0], ['next', 19, 0], ['picker', 19, 0]]) {
+    const page = new Page(), source = key('A'), opened = []
+    let current = source
+    Object.assign(page, {
+      session: {
+        snapshot: () => ({ phase: 'ready', unit: { key: current } }),
+        open: async (target, index) => { opened.push([target.unit, index]); current = target },
+      },
+      adapter: { prepare: async target => ({ key: target, pageCount: count }) },
+      routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
+      chapterRequest: null, chapterBusy: false,
+      runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+      getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
+    })
+    await page.openChapterTarget(key('B'), source, reason)
+    assert.deepEqual(opened, [['B', expected]], reason)
+    assert.equal(page.chapterBusy, false)
+  }
+})
