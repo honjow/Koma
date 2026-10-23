@@ -1148,7 +1148,10 @@ struct Index {
     }
     this.readerSessionStore.saveProgress(progress)
     if (this.readerOpen) this.observeReaderTrackerProgress(progress)
-    this.readerProgressRevision += 1
+    // Keep page persistence live, but do not rebuild the covered shelf/history
+    // and full chapter catalog on every page crossing. Reader close publishes
+    // the saved state; a detail destination also refreshes in onShown.
+    if (!this.isReaderRouteVisible()) this.readerProgressRevision += 1
   }
 
   private onBackupRestored(): void {
