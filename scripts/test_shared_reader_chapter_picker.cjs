@@ -190,3 +190,56 @@ test('backward chapter continuation uses prepared final page while next and pick
     assert.equal(page.chapterBusy, false)
   }
 })
+
+function pickerPositionFixture() {
+  const frames = [], scrolls = [], adjustments = []
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
+    ['hasChapterPickerPosition', 'chapterPickerInitialIndex', 'restoreChapterPickerPosition', 'rememberChapterPickerPosition'], {
+      KomaReaderAfterLayout: class { constructor(observe) { this.observe = observe } },
+      LengthMetrics: { vp: value => value }, ScrollAlign: { START: 'start' },
+    })
+  const page = new Page()
+  Object.assign(page, { chapterPickerShown: true, chapterPickerOpening: true, readerClosed: false,
+    currentChapterUnit: '73', chapterChoiceIdentity: 'catalog', chapterPickerSavedUnit: '', chapterPickerSavedCatalog: '',
+    chapterPickerFirstIndex: 0, chapterPickerFirstY: 0, chapterPickerLayoutRevision: 0,
+    chapterChoices: Array.from({ length: 76 }, (_, index) => ({ key: { unit: String(index) } })),
+    getUIContext: () => ({ postFrameCallback: frame => frames.push(frame) }),
+    chapterPickerScroller: { scrollToIndex: (...args) => scrolls.push(args), getItemRect: () => ({ y: 8, height: 48 }),
+      scrollBy: (...args) => adjustments.push(args) },
+  })
+  return { page, frames, scrolls, adjustments, frame() { assert.ok(frames.length); frames.shift().observe() } }
+}
+test('first picker layout aligns the actual current chapter without animation and cannot save an interim viewport', () => {
+  const f = pickerPositionFixture()
+  f.page.restoreChapterPickerPosition(); f.frame(); f.frame()
+  assert.deepEqual(f.scrolls[0].slice(0, 3), [73, false, 'start'])
+  assert.equal(f.scrolls[0][3].extraOffset, -0)
+  assert.equal(f.adjustments.length, 0)
+  assert.equal(f.page.chapterPickerPositionReady, false, 'opening layout must not overwrite the retained user position')
+  f.page.rememberChapterPickerPosition(62)
+  assert.equal(f.page.chapterPickerSavedUnit, '')
+  f.page.chapterPickerOpening = false
+  f.page.restoreChapterPickerPosition(); f.frame(); f.frame()
+  assert.equal(f.page.chapterPickerPositionReady, true)
+  assert.equal(f.scrolls.at(-1)[0], 73)
+})
+test('saved manual row and measured Y take priority over the current chapter on reopen', () => {
+  const f = pickerPositionFixture()
+  Object.assign(f.page, { chapterPickerSavedUnit: '73', chapterPickerSavedCatalog: 'catalog',
+    chapterPickerFirstIndex: 40, chapterPickerFirstY: -7, chapterPickerOpening: false })
+  f.page.restoreChapterPickerPosition(); f.frame(); f.frame()
+  assert.deepEqual(f.scrolls[0].slice(0, 3), [40, false, 'start'])
+  assert.equal(f.scrolls[0][3].extraOffset, 7)
+  assert.deepEqual(f.adjustments, [[0, 15]])
+  assert.equal(f.page.chapterPickerPositionReady, true)
+})
+test('a newer opening layout retires its earlier callback and closed/replaced catalogs cannot scroll', () => {
+  const f = pickerPositionFixture()
+  f.page.restoreChapterPickerPosition(); f.page.restoreChapterPickerPosition()
+  f.frame(); assert.equal(f.scrolls.length, 0)
+  f.frame(); assert.equal(f.scrolls.length, 1)
+  f.page.chapterChoiceIdentity = 'replacement'; f.frame()
+  assert.equal(f.page.chapterPickerPositionReady, false)
+  f.page.restoreChapterPickerPosition(); f.page.chapterPickerShown = false; f.frame()
+  assert.equal(f.scrolls.length, 1)
+})

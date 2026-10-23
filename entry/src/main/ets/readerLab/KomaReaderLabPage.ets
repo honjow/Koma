@@ -119,6 +119,8 @@ export struct KomaReaderLabPage {
   private chapterPickerFirstIndex: number = 0
   private chapterPickerFirstY: number = 0
   private chapterPickerPositionReady: boolean = false
+  private chapterPickerOpening: boolean = false
+  private chapterPickerLayoutRevision: number = 0
 
   private hasChapterPickerPosition(): boolean {
     return this.chapterPickerSavedUnit === this.currentChapterUnit &&
@@ -137,22 +139,22 @@ export struct KomaReaderLabPage {
     const unit = this.currentChapterUnit
     const catalog = this.chapterChoiceIdentity
     const restore = this.hasChapterPickerPosition()
-    const index = this.chapterPickerFirstIndex
-    const y = this.chapterPickerFirstY
+    const index = this.chapterPickerInitialIndex()
+    const y = restore ? this.chapterPickerFirstY : 0
+    const revision = ++this.chapterPickerLayoutRevision
     this.getUIContext().postFrameCallback(new KomaReaderAfterLayout((): void => {
-      if (!this.chapterPickerShown || this.readerClosed || unit !== this.currentChapterUnit ||
-        catalog !== this.chapterChoiceIdentity) return
-      if (!restore) { this.chapterPickerPositionReady = true; return }
+      if (revision !== this.chapterPickerLayoutRevision || !this.chapterPickerShown || this.readerClosed ||
+        unit !== this.currentChapterUnit || catalog !== this.chapterChoiceIdentity) return
       this.chapterPickerScroller.scrollToIndex(index, false, ScrollAlign.START,
         { extraOffset: LengthMetrics.vp(-y) })
       this.getUIContext().postFrameCallback(new KomaReaderAfterLayout((): void => {
-        if (!this.chapterPickerShown || this.readerClosed || unit !== this.currentChapterUnit ||
-          catalog !== this.chapterChoiceIdentity) return
+        if (revision !== this.chapterPickerLayoutRevision || !this.chapterPickerShown || this.readerClosed ||
+          unit !== this.currentChapterUnit || catalog !== this.chapterChoiceIdentity) return
         // Native START alignment includes List content padding. Correct from
         // the measured row position rather than baking that padding into math.
         const rect = this.chapterPickerScroller.getItemRect(index)
-        if (rect.height > 0) this.chapterPickerScroller.scrollBy(0, rect.y - y)
-        this.chapterPickerPositionReady = true
+        if (restore && rect.height > 0) this.chapterPickerScroller.scrollBy(0, rect.y - y)
+        this.chapterPickerPositionReady = !this.chapterPickerOpening
       }))
     }))
   }
@@ -446,6 +448,7 @@ export struct KomaReaderLabPage {
       // The new List can report its initial index before onAppear. Keep that
       // layout from overwriting the retained position before restoration.
       this.chapterPickerPositionReady = false
+      this.chapterPickerOpening = true
       this.chapterPickerShown = true
       this.syncKeepScreenOn()
       this.syncVolumeKeys()
@@ -459,6 +462,8 @@ export struct KomaReaderLabPage {
 
   private finishChapterPickerDismissal(): void {
     this.chapterPickerPositionReady = false
+    this.chapterPickerOpening = false
+    this.chapterPickerLayoutRevision++
     const target = this.chapterPickerTarget
     this.chapterPickerTarget = null
     this.chapterPickerShown = false
@@ -693,6 +698,11 @@ export struct KomaReaderLabPage {
         .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_XL })
         .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
         .onAppear((): void => { this.restoreChapterPickerPosition() })
+        .onAreaChange((_oldArea: Area, newArea: Area): void => {
+          // initialIndex can be clamped against the sheet's earlier viewport.
+          // Reconcile while opening; later user resizing/scrolling keeps native ownership.
+          if (this.chapterPickerOpening && Number(newArea.height) > 0) this.restoreChapterPickerPosition()
+        })
         .onScrollIndex((start: number): void => {
           this.chapterPickerVisibleIndex = start
           this.rememberChapterPickerPosition(start)
@@ -759,6 +769,10 @@ export struct KomaReaderLabPage {
                   enableOutsideInteractive: false,
                   scrollSizeMode: ScrollSizeMode.CONTINUOUS,
                   enableFloatingDragBar: true,
+                  onAppear: (): void => {
+                    this.chapterPickerOpening = false
+                    this.restoreChapterPickerPosition()
+                  },
                   onDisappear: (): void => { this.finishChapterPickerDismissal() },
                 })
             } else {

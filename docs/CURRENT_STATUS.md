@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T15:10:50.515724+00:00",
+  "updatedAt": "2026-10-23T15:35:45.628401+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "FIRST_CHAPTER_SELECTION",
+  "activeId": "CHAPTER_PICKER_POSITION",
   "activity": {
-    "title": "首次选章：同ID顺序信息保存已具名验收，准备同步",
-    "detail": "完整成功目录才保存；197《Super Lovers》76章身份、缓存及原Extra2进度保持，重复重入数据不变。源owner继续237漫画柜016普通更新。",
-    "startedAt": "2026-10-23T15:10:50.515724+00:00"
+    "title": "章节选择器：具名修复收尾与源管理下一项",
+    "detail": "Root已核197首开当前章、手动保位及返回保全；同步后继续源管理已批准的分组/动作/红NSFW标记。源owner只读核metadata生产者。",
+    "startedAt": "2026-10-23T15:35:45.628401+00:00"
   },
-  "nextAction": "范围提交并跟进精确CI；随后继续章节选择器首次对齐调查。",
+  "nextAction": "同步章节定位修复并跟进CI；继续源管理名称/版本/安装更新分组和红NSFW标记范围调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -957,7 +957,7 @@
       "label": "远端同步",
       "state": "具名修复精确CI成功",
       "kind": "accepted",
-      "detail": "源设置/进度页4efd4bdc CI39968459689成功；自动回流e839ec87及工作单aff06060 CI39971365655成功，197自然挑战分支仍待。"
+      "detail": "fd807cf1同ID metadata保存修复已推，CI39976408662成功；章节定位具名通过待同步，源漫画柜016已推待CI。"
     },
     {
       "label": "共享阅读器",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "aff06060（含e839ec87自动回流），已推；CI39971365655 completed/success",
-      "hap": "197158已装8489629B/defaultRelease0.1.2-pre code3；159/161原Super Lovers76章及Extra2第1/25页亲审，160/162全部reader保持，重入库全同。"
+      "appHead": "fd807cf1edcf156e31ac15793722492495f1bc9b已推；CI39976408662 completed/success",
+      "hap": "197166已装8489124B/defaultRelease0.1.2-pre code3；168首开/关闭104帧序列已审，169末段当前章及手动保位通过，170章页/缓存保持。"
     },
     {
       "name": "NextE",
@@ -1567,19 +1567,19 @@
     {
       "id": "CHAPTER_PICKER_POSITION",
       "title": "阅读器章节选择器每次从顶部动画滚到当前章",
-      "status": "用户新报打开定位不准，首次对齐/保位需分清",
+      "status": "197末段首开/手动保位/返回具名通过，准备同步",
       "kind": "open",
       "priority": "P2",
-      "owner": "Root：区分首次当前章对齐与上次手动滚动保位",
+      "owner": "Root：197末段首次定位与原生List布局调查",
       "dependencies": [],
-      "result": "用户新报打开定位不准，首次对齐/保位需分清",
-      "remaining": "追当前打开定位规则/当前章与已存手动位置的优先关系，不猜根因或恢复长距离动画；当前用户反例仍OPEN。原8行静态保位及其他已过样本不重跑或扩大验收；P0快速往返连续性能优先，设置语义/跨章落点等其他原项不丢。",
+      "result": "已补打开期间实际布局校正；Extra2首开可见，手动Booklet3关开位置相同，原章页保持。",
+      "remaining": "同步当前限定修复并核精确CI；其他屏幕/档位/字号未由此验收。",
       "reportedAt": "2026-10-22T19:45:43.075Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:45:43.075Z",
       "firstHandlingAt": "2026-10-22T20:00:18.424763+00:00",
       "handling": {
-        "recordedSeconds": 2824.374463,
+        "recordedSeconds": 3978.374463,
         "activeSince": null,
         "activeUntil": null,
         "measurement": "本轮处理时段经过（含构建/设备等待，非纯工时）",
@@ -1591,13 +1591,16 @@
       "reopenedAt": "2026-10-23T04:56:52.153Z",
       "reopenedAtSource": "原始会话JSONL response_item/user当前定位反例首报实值。",
       "evidencePoints": [
-        "用户新报首次打开位置不准，仍未解决；原八行静态关开保位只能证明保存位置，不证明首次当前章定位。",
-        "chapter-picker197-guard-007原件保留；旧49px/21px失败也保留。f7a6a7d/CI39883471325成功不抵消新反例。"
+        "旧f7a6a7dc只依赖initialIndex；163/164已复现当前索引73不在62–69可见区。",
+        "166–169：签名Release已装；104编码帧按序及关键原尺寸帧已审，Extra2首开可见，无从顶部追章动画。",
+        "169手动Booklet3关开均1664–1725px；170整库全同，reader仅正常updatedAt变化，章页/已读/缓存保持。"
       ],
       "remainingActions": [
-        "追当前打开定位规则/当前章与已存手动位置的优先关系，不猜根因或恢复长距离动画；当前用户反例仍OPEN。原8行静态保位及其他已过样本不重跑或扩大验收；P0快速往返连续性能优先，设置语义/跨章落点等其他原项不丢。"
+        "范围提交并跟进精确CI，保留197具名首开与手动保位边界。"
       ],
-      "boundaries": []
+      "boundaries": [
+        "仅197/1260×2720/76章末段与手动位置；未扩认旋转、字号或档位拖动，不改原样式/目录/阅读规则。"
+      ]
     },
     {
       "id": "SOURCE_FILTERS",
@@ -2167,12 +2170,12 @@
     }
   ],
   "source": {
-    "status": "发布结果冻结；自动回流自然挑战待验",
+    "status": "漫画柜016已推，精确CI待；HTTP0分支保留",
     "kind": "open",
     "title": "源会话当前验收与源库同步",
-    "result": "源远端85项可用索引与pkg/icon对应、README整理范围冻结。漫画柜015本轮首批15秒2300028无HTTP/HTML，页2未触、无重试，原件/tmp/koma-manhuagui015-pagination237-20261023；原History/65源/10000ms AWAKE已恢复并释租。",
-    "remaining": "漫画柜当次失败只证传输超时。包子限定自动回流候选e839ec87已实现，当前HTTP200，无新自然挑战；实机挑战回流仍待，不把取消后403当未自动弹。",
-    "commit": "8bcc23a1b2f60a58607e1a34351efd5e6fb1d81a"
+    "result": "漫画柜016原HTML235条metadata与顺序Root独立复跑通过；237普通015→016导入已验，精确历史第23卷3/230页保持。",
+    "remaining": "本次目录15150ms、页面15058ms均network_error/http0，无HTTP/HTML，不计内容或metadata落库Native通过；已恢复History/10000ms并释租。",
+    "commit": "4f92d535d1315e4e9d3ade9615b64d16a5377ece"
   },
   "milestones": [
     {
