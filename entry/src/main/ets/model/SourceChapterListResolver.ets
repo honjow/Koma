@@ -158,15 +158,31 @@ async function fetchSourceChapterList(
         const counts = new Map<string, number>()
         let duplicateIdGroups = 0
         let duplicateRows = 0
-        chapters.forEach((chapter: MangaChapterItem): void => {
+        let numberedRows = 0
+        let minNumber: number | undefined = undefined
+        let maxNumber: number | undefined = undefined
+        const leadingNumbers: string[] = []
+        chapters.forEach((chapter: MangaChapterItem, index: number): void => {
           const count = (counts.get(chapter.id) ?? 0) + 1
           counts.set(chapter.id, count)
           if (count === 2) duplicateIdGroups += 1
           if (count > 1) duplicateRows += 1
+          const number = chapter.chapterNumber
+          const known = number !== undefined && Number.isFinite(number) && number >= 0
+          if (known) {
+            numberedRows += 1
+            minNumber = minNumber === undefined ? number : Math.min(minNumber, number)
+            maxNumber = maxNumber === undefined ? number : Math.max(maxNumber, number)
+          }
+          if (index < 8) leadingNumbers.push(index + ':' + (known ? number : '?'))
         })
         // Completed catalog only: no identifiers, titles, URLs, page-by-page or scroll logging.
         DiagnosticLogger.info('source_chapters', 'catalog_identity', 'total=' + chapters.length +
           ' uniqueId=' + counts.size + ' duplicateIdGroups=' + duplicateIdGroups + ' duplicateRows=' + duplicateRows)
+        DiagnosticLogger.info('source_chapters', 'catalog_order', 'total=' + chapters.length +
+          ' numbered=' + numberedRows + ' unknown=' + (chapters.length - numberedRows) +
+          ' min=' + (minNumber ?? 'none') + ' max=' + (maxNumber ?? 'none') +
+          ' leading=' + leadingNumbers.join(','))
       }
       return { chapters, resolved: true }
     }
