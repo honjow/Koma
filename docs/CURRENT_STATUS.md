@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T01:26:55.164712+00:00",
+  "updatedAt": "2026-10-24T01:47:11.321279+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
+  "activeId": "LIBRARY_READING_PROGRESS_SEMANTICS",
   "activity": {
-    "title": "常驻WebView入口：审差异同步与索引传输调查",
-    "detail": "197失败菜单→普通网页→返回具名通过；源81主页已公开，399最终包三域保持。Root提交有效范围后继续核旧包补取公开索引2300999，不外推全源。",
-    "startedAt": null
+    "title": "书架100%：最近章比例与保存语义只读调查",
+    "detail": "现有三书只读生产投影证实：全书未读完仍显示最近章100%。继续核初始位置/保存/退出刷新；尚未改阅读记录或显示定义。",
+    "startedAt": "2026-10-24T01:42:00+00:00"
   },
-  "nextAction": "审App范围提交同步并跟精确CI；用有界原生请求日志继续核旧包索引补取2300999，未加载/非会话采用及余4源地址仍待，不改网络/缓存造通过。",
+  "nextAction": "继续追最近章位置保存与书架/全书读态消费者，先证用户样本原因，不改数据或冒Native复现；Web四例外/未加载边界保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191已push；精确CI40046505483 completed/success，Release成功、Publish tagged Release skipped，无新tag",
-      "hap": "197399最终8514625B/default Release0.1.2-pre code3/debug=false已装；中英文提示准确，三域同装前/382。387/389/390具名菜单网页回流成立；App尚未提交，非会话旧包索引失败开放。"
+      "appHead": "c5ad7b8074c04adcbc09ef5a01284cd735c4211b已push master；精确CI40049912720 completed/success",
+      "hap": "197399最终8514625B/defaultRelease0.1.2-pre code3已install/start成功，装前后及与382三域同；8514626未装旧候选已被最终包取代。"
     },
     {
       "name": "NextE",
@@ -2628,24 +2628,26 @@
       "id": "LIBRARY_READING_PROGRESS_SEMANTICS",
       "title": "误开末话后书架进度长期显示100%",
       "priority": "P1（阅读进度语义正确性）",
-      "owner": "Root",
+      "owner": "Root：最近章百分比/保存与全书读态消费者只读追查",
       "dependencies": [],
       "relatedItems": [
         "FIRST_CHAPTER_SELECTION",
         "SHARED_ROUTE"
       ],
       "kind": "open",
-      "status": "新要求/反馈已登记，未完成跨消费者调查",
-      "result": "用户报告旧首次开书误读最后一话后，该书书架一直100%；尚未查根因，不能称已复现或擅改数据。",
+      "status": "现有数据证实章内100%被用于书架；保存链与显示方案待核",
+      "result": "只读运行实际生产显示方法：Meme Girls已读2/288章、大理寺日志1/392章、战双日常1/33章，全书均reading而卡片和继续阅读均100%；来自406现有数据，未写设备，未冒用户原书或Native画面复现。",
       "evidencePoints": [
-        "这是用户当前实际观察；current、furthest、read-count哪种值被保存/展示，以及继续阅读关联均待源码和数据核。"
+        "MockLibraryData的卡片/继续阅读共用最近章节progressRatio；ComicModels按当前章页数计算，ReaderSessionStore每书保存最近位置，章已读事实另存。",
+        "以406现有library/reader只读输入运行实际createLibraryViewModelFromComics及getComicProgress/comicReadingState，三书非全读仍100%，不是全书进度。",
+        "Index共享宿主保存观察到的页位置、退出发布revision；是否另有首次位置丢失或用户样本保存缺口仍需逐链核。"
       ],
       "remainingActions": [
-        "追current/furthest/read-count三类所有者与书架/继续阅读消费者，明确现有语义后限定修复。"
+        "追最近章选择/初始保存/全书读态与卡片消费者，结合真实样本厘清语义后限定修复。"
       ],
-      "remaining": "追current/furthest/read-count三类所有者与书架/继续阅读消费者，明确现有语义后限定修复。",
+      "remaining": "追最近章选择/初始保存/全书读态与卡片消费者，结合真实样本厘清语义后限定修复。",
       "boundaries": [
-        "当前源图标闪烁/安装阻塞仍主线，新反馈不替换旧顺序。",
+        "源图标本行瞬空等独立未闭项保留；已验安装性能具名范围不重跑，也不因本项丢弃其他反馈。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
       ],
       "reportedAt": null,
@@ -2653,10 +2655,11 @@
       "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:16:09.194667+00:00",
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
-      "firstHandlingAt": null,
+      "firstHandlingAt": "2026-10-24T01:42:00+00:00",
       "handling": null,
       "closedAt": null,
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "firstHandlingAtSource": "Root本轮实际开始只读调查时间；更早处理未知，不倒填。"
     },
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
@@ -2799,25 +2802,24 @@
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
       "title": "源浏览菜单常驻使用WebView打开",
       "priority": "P1（明确授权的失败恢复入口）",
-      "owner": "Root：旧无homepage包索引补取及App入口收尾；源81homepage已发布",
+      "owner": "Root：普通Web具名范围冻结；homepage例外/未加载边界保留",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION",
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "常驻入口具名回流已验，源81地址已发；非会话索引传输待核",
-      "result": "普通失败页WebView与返回197成立；源85项公开索引含81主页。399最终准确中英文提示包已保数据安装；非会话旧包补取索引2300999仍未通过。",
+      "status": "旧Weicomic普通Web打开返回/406数据保持具名成立",
+      "result": "402自然索引fetch_ok85后，403旧Weicomic0.1.2无需升级或新会话授权即可普通Web打开，404真实首页/控件已审，405返回原源页再RootBrowse84成立；406终点三域保持成立。",
       "evidencePoints": [
-        "75项真实生产方法检查通过，Release/i18n通过；399明确安装/启动成功、0.1.2-pre code3 debug=false，三域与装前/382逐字同。",
-        "387原生失败菜单、389普通包子网页与控件Root亲审，390自然返回；原验证动作保留，自动完成仍非本项接受。",
-        "源ae83e07 full head/CI40048652108 success；真实非draft非pre release及85项/81主页原件已核。",
-        "实际非会话源为weicomic0.1.2。393未达Web、394补取索引2300999；396普通UI只读确认公开GitHub latest URL，无query/账号。397/398现缓冲无本次具体CURL/拦截器码，根因未定。"
+        "App c5ad7b8074c04adcbc09ef5a01284cd735c4211b精确CI40049912720已completed/success；399最终8514625B包保持。",
+        "本App39909的402 source_index fetch_ok count85写缓存；另配置repo CURL7/404为独立请求，393旧2300999原因仍未知。",
+        "旧Weicomic无packageHomepage/origins，采用402新缓存打开www.weicomic.com，404首页与原生控件亲审；405自然返回成功，406完成：三域与404/399/382逐字同，AWAKE/override86400000、根Browse84源。"
       ],
       "remainingActions": [
-        "审App范围提交同步并跟精确CI；用有界原生请求日志继续核旧包索引补取2300999，未加载/非会话采用及余4源地址仍待，不改网络/缓存造通过。"
+        "本次普通Web打开/返回/数据保持具名范围冻结；4个homepage例外及未加载Native边界仍open，不扩全部源/CF。"
       ],
-      "remaining": "审App范围提交同步并跟精确CI；用有界原生请求日志继续核旧包索引补取2300999，未加载/非会话采用及余4源地址仍待，不改网络/缓存造通过。",
+      "remaining": "本次普通Web打开/返回/数据保持具名范围冻结；4个homepage例外及未加载Native边界仍open，不扩全部源/CF。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
@@ -2912,11 +2914,11 @@
     }
   ],
   "source": {
-    "status": "81源homepage已原子发布；旧包补取索引Native仍待",
+    "status": "81源homepage已发布；旧Weicomic普通网页打开返回成立，4例外保留",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
     "result": "ae83e07aed5718dccb9c5a3c9049e5a721e47773已push，精确CI40048652108 success；真实公开非draft/pre release、85索引81homepage，Root已读回原件。",
-    "remaining": "App入口代码未提交；旧weicomic无homepage时补取索引2300999未过，不将发布成功当旧包Native采用通过。既有包子/漫画柜未验边界保原项。",
+    "remaining": "App c5ad7b80精确CI40049912720成功；402缓存支持旧Weicomic普通Web打开返回具名成立，406终点三域保持已核。源81/85发布保持，4homepage例外/未加载Native未扩认；393旧2300999原因未知。",
     "commit": "ae83e07aed5718dccb9c5a3c9049e5a721e47773"
   },
   "milestones": [
