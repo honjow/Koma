@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T00:44:02.773930+00:00",
+  "updatedAt": "2026-10-24T01:26:55.164712+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activeId": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
   "activity": {
-    "title": "源安装具名改善：提交同步与精确CI",
-    "detail": "379无诊断同84源同包：UI更新15.652ms、最长UI31.559ms、主回调17.389ms；380/381正常返回浏览及三域保持。Root审6文件同步，不关闭原316行瞬空。",
-    "startedAt": "2026-10-24T00:44:02.773930+00:00"
+    "title": "常驻WebView入口：审差异同步与索引传输调查",
+    "detail": "197失败菜单→普通网页→返回具名通过；源81主页已公开，399最终包三域保持。Root提交有效范围后继续核旧包补取公开索引2300999，不外推全源。",
+    "startedAt": null
   },
-  "nextAction": "提交已验源安装性能修复并跟精确CI；接续常驻源站WebView入口。全部84已装与公开索引同版本，自然远端更新和行瞬空按原项保留。",
+  "nextAction": "审App范围提交同步并跟精确CI；用有界原生请求日志继续核旧包索引补取2300999，未加载/非会话采用及余4源地址仍待，不改网络/缓存造通过。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "e9966c219bb055321d9c34a516393ff4936d6b21已push；精确CI40040342730 completed/success，unsigned Release成功、tag发布skipped，无新App发版",
-      "hap": "197377已装非诊断8510277B/default Release0.1.2-pre code3，379同包导入与380/381根Browse84源/包子0.1.10回流通过。三域保持；不冒全App或远端安装运动通过。"
+      "appHead": "41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191已push；精确CI40046505483 completed/success，Release成功、Publish tagged Release skipped，无新tag",
+      "hap": "197399最终8514625B/default Release0.1.2-pre code3/debug=false已装；中英文提示准确，三域同装前/382。387/389/390具名菜单网页回流成立；App尚未提交，非会话旧包索引失败开放。"
     },
     {
       "name": "NextE",
@@ -2526,18 +2526,18 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "具名同数据本地导入改善；准备审差异提交",
+      "status": "具名本地导入改善已推且本笔CI成功；自然远端边界保留",
       "result": "379无探针同84源/同公开包本地导入46ms，Vsync31.559/Dirty15.652ms且>33.34ms为0；具名改善成立，远端自然更新/316行瞬空仍另保OPEN。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "379库reader同377，registry84/顺序/余83同，仅包子4路径；380正常Back至根Browse，84已启用/包子存在。",
-        "19检查/Release过，临时HiTrace/CPU/timer源码全撤，本地373 CPU原件保留。",
+        "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。",
         "381正常根Browse原图Root已审，84启用/包子0.1.10图标可见；library/reader/registry与379逐字同。仅本轮CPU设备副本已移除并读回为空，本地373原件保留。"
       ],
       "remainingActions": [
-        "审6文件提交推送并跟精确CI；后继真实远端更新时补原生行运动，不造版本或重开已接受范围。"
+        "本笔提交/CI已完成；仅在后继真实远端更新时补316原生行运动，不造版本、不扩大379具名改善。"
       ],
-      "remaining": "审6文件提交推送并跟精确CI；后继真实远端更新时补原生行运动，不造版本或重开已接受范围。",
+      "remaining": "本笔提交/CI已完成；仅在后继真实远端更新时补316原生行运动，不造版本、不扩大379具名改善。",
       "boundaries": [
         "仅具名同数据本地导入性能改善；不外推FPS/全App/远端更新或安装行瞬空已修。",
         "当前无自然远端更新条件，不伪造版本；kind仍open，316独立反例保持。",
@@ -2799,23 +2799,25 @@
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
       "title": "源浏览菜单常驻使用WebView打开",
       "priority": "P1（明确授权的失败恢复入口）",
-      "owner": "Root：宿主入口/契约审查；源producer owner：homepage metadata候选",
+      "owner": "Root：旧无homepage包索引补取及App入口收尾；源81homepage已发布",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION",
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "homepage producer已原子发布；App常驻入口仍未接",
-      "result": "homepage随源dbea22e原子发布成功，真实85项索引含包子0.1.10+homepage；仅生产元数据完成，App常驻源WebView入口仍未接。",
+      "status": "常驻入口具名回流已验，源81地址已发；非会话索引传输待核",
+      "result": "普通失败页WebView与返回197成立；源85项公开索引含81主页。399最终准确中英文提示包已保数据安装；非会话旧包补取索引2300999仍未通过。",
       "evidencePoints": [
-        "源精确CI40040336964/head dbea22e59788cff1445edbe80a6b49322075d8f7 completed/success，公开release非draft/非pre。",
-        "App入口不能由producer发布替代；自动验证/人工回流既有能力保持，不称自动关闭通过。"
+        "75项真实生产方法检查通过，Release/i18n通过；399明确安装/启动成功、0.1.2-pre code3 debug=false，三域与装前/382逐字同。",
+        "387原生失败菜单、389普通包子网页与控件Root亲审，390自然返回；原验证动作保留，自动完成仍非本项接受。",
+        "源ae83e07 full head/CI40048652108 success；真实非draft非pre release及85项/81主页原件已核。",
+        "实际非会话源为weicomic0.1.2。393未达Web、394补取索引2300999；396普通UI只读确认公开GitHub latest URL，无query/账号。397/398现缓冲无本次具体CURL/拦截器码，根因未定。"
       ],
       "remainingActions": [
-        "Root接App常驻WebView动作，核正常/未加载/失败与返回；不再等待已成功源CI，不替代自动验证。"
+        "审App范围提交同步并跟精确CI；用有界原生请求日志继续核旧包索引补取2300999，未加载/非会话采用及余4源地址仍待，不改网络/缓存造通过。"
       ],
-      "remaining": "Root接App常驻WebView动作，核正常/未加载/失败与返回；不再等待已成功源CI，不替代自动验证。",
+      "remaining": "审App范围提交同步并跟精确CI；用有界原生请求日志继续核旧包索引补取2300999，未加载/非会话采用及余4源地址仍待，不改网络/缓存造通过。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
@@ -2825,10 +2827,17 @@
       "reportedAtSource": "本会话最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:28:34.289082+00:00",
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
-      "firstHandlingAt": null,
+      "firstHandlingAt": "2026-10-24T00:55:38.030011+00:00",
       "handling": null,
       "closedAt": null,
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "modificationBasis": {
+        "object": "Index sourceBrowse/sourceSearch原生标题菜单；homepage导入/registry/持久化/索引缓存链",
+        "history": "34ab280d引入源会话菜单；3b662bd6保自动挑战；296c7b34原页设置入口；现只按webSessionOrigins提供验证动作",
+        "originalReason": "源会话需限定origin并保源身份；普通诊断入口尚未接",
+        "reopenEvidence": "用户明确要求在源页菜单固定提供WebView诊断入口，加载失败也可用；公开源manifest/index已有三homepage，App当前丢字段",
+        "allowedDifference": "只加原生菜单普通网页动作，沿现MangaWebPage；可选HTTP(S)homepage全链保留，无sourceSession/新Cookie权限、不改原菜单动作和布局"
+      }
     },
     {
       "id": "MANXIAOSI_SETTINGS_VALIDATION_FAILURE",
@@ -2903,12 +2912,12 @@
     }
   ],
   "source": {
-    "status": "漫画柜016远端CI与公开索引完成；237HTTP0分支未通过",
+    "status": "81源homepage已原子发布；旧包补取索引Native仍待",
     "kind": "open",
-    "title": "源会话当前验收与源库同步",
-    "result": "CI39979277747成功；latest公开索引85条，漫画柜0.1.6包三成员与manifest版本已核。237更新已装，原第23卷3/230保持。",
-    "remaining": "237目录与页面均平台2300028操作超时/HTTP0，提示保真已验；新metadata落库及正文仍未通过，不冒称CF/parser原因。",
-    "commit": "4f92d535d1315e4e9d3ade9615b64d16a5377ece"
+    "title": "源homepage发布与App采用边界",
+    "result": "ae83e07aed5718dccb9c5a3c9049e5a721e47773已push，精确CI40048652108 success；真实公开非draft/pre release、85索引81homepage，Root已读回原件。",
+    "remaining": "App入口代码未提交；旧weicomic无homepage时补取索引2300999未过，不将发布成功当旧包Native采用通过。既有包子/漫画柜未验边界保原项。",
+    "commit": "ae83e07aed5718dccb9c5a3c9049e5a721e47773"
   },
   "milestones": [
     {

@@ -9,7 +9,10 @@ function subject(file, owner, methods, globals) {
   const source = fs.readFileSync(path.join(root, file), 'utf8').replace(/\bstruct /g, 'class ')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   const cls = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.getText(tree) === owner)
-  const body = methods.map(name => cls.members.find(n => n.name?.getText(tree) === name).getText(tree)).join('\n')
+  // Include production computed getters, so callers run the same reactive
+  // projections introduced in the manager instead of an incomplete fake owner.
+  const selected = cls.members.filter(n => methods.includes(n.name?.getText(tree)) || ts.isGetAccessorDeclaration(n))
+  const body = selected.map(n => n.getText(tree).replace(/@Computed\b/g, '')).join('\n')
   const exports = {}
   vm.runInNewContext(ts.transpileModule(`export class Subject {${body}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },

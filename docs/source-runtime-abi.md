@@ -16,6 +16,10 @@
 
 导入加载主路径应支持用户配置的 source index URL：App 拉取远端 `index.json`，展示其中的 source 元数据，再按条目的 `pkg` 下载对应 `.koma` 包并安装。独立源仓库 `/Users/honjow/git/koma-sources/dist/index.json` 是当前索引定义来源；索引项字段包括 `id/name/version/lang/nsfw/author/description/contentRating/pkg/icon/minAppVersion`，`pkg` 为相对索引 URL 的包路径或文件名。
 
+源包 `manifest.json` 与索引项可选声明 `homepage`，作为普通 WebView 的站点导航地址。仅接受不含账号信息的完整 HTTP(S) URL，保留栏目路径、查询和片段；非法或缺失的可选地址不授予任何能力，也不使旧有效包失效。导入、registry 持久化/重载、备份及索引缓存须保留这个字段。它与 `webSessionOrigins` 独立，不能增加源的 Cookie、User-Agent 或网络权限。
+
+普通“在 WebView 中打开”沿用详情页网页控件，不创建 `sourceSession`、不自动重试源请求。旧包缺字段时可从用户当前索引同 ID 的缓存/新元数据取得显式地址，或使用既有声明的会话 origin；不能从 API、图片 CDN、最近失败请求或 source ID 猜测站点。缺少地址时提示检查源更新。可选索引补取只取 JSON，不等待图标或重装包。
+
 本地文件导入仍可作为高级/调试/离线路径。导入文件后缀支持 `.koma`、`.koma-source`、`.koma-source.zip` 和 `.zip`。后缀只用于系统文件选择器过滤与诊断展示；运行前必须按归档内容读取并校验 `manifest.json` 与 `source.wasm`。
 
 ```text

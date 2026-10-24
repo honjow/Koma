@@ -154,6 +154,7 @@ import {
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { openSourceHomepage } from '../sourceRuntime/SourceHomepageNavigation'
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -2788,6 +2789,23 @@ struct Index {
     return this.sourceRouteTitleBarOpts(content)
   }
 
+  private sourceHomepageMenuItem(source: SourceRuntimeRegistryInstalledSourceSummary,
+    isCurrent: () => boolean): Record<string, Object> {
+    const content: Record<string, Object> = {
+      'label': AppStrings.get('manga_detail_menu_open_webview'),
+      'icon': $r('sys.symbol.house_fill'),
+      'isEnabled': true,
+      'action': async () => {
+        const opened = await openSourceHomepage(getContext(this) as common.UIAbilityContext, source.sourceId,
+          sourceDisplayName(source.sourceId, source.displayName), isCurrent)
+        if (!opened && isCurrent()) {
+          this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_homepage_unavailable') })
+        }
+      },
+    }
+    return { 'content': content }
+  }
+
   private sourceBrowseTitleBarOpts(param: SourceBrowseRouteParam): Record<string, Object> {
     const source = param.source
     const chrome = param.chrome
@@ -2822,6 +2840,7 @@ struct Index {
       }
       menuItems.push({ 'content': settingsContent })
     }
+    menuItems.push(this.sourceHomepageMenuItem(source, (): boolean => chrome.visible))
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),
@@ -2900,6 +2919,7 @@ struct Index {
       }
       menuItems.push({ 'content': settingsContent })
     }
+    menuItems.push(this.sourceHomepageMenuItem(source, (): boolean => chrome.visible))
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),

@@ -4,6 +4,7 @@ import {
   LocalSourcePackageManifest,
   isValidSourcePackageMinAppVersion,
   validSourceWebSessionOrigins,
+  normalizeSourceHomepage,
   normalizeSourceOperationCapabilityToken,
   normalizeSourceOperationCapabilityTokens,
   isSourcePackageIconFileName,
@@ -28,6 +29,7 @@ export interface SourceRuntimeRegistryEntryInput {
   wasmPath?: string
   archivePath?: string
   packageIconPath?: string
+  packageHomepage?: string
   packageAuthor?: string
   packageDescription?: string
   packageContentRating?: string
@@ -59,6 +61,7 @@ export interface SourceRuntimeRegistryEntry {
   wasmPath?: string
   archivePath?: string
   packageIconPath?: string
+  packageHomepage?: string
   packageAuthor: string
   packageDescription: string
   packageContentRating: string
@@ -102,6 +105,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   manifestPath?: string
   archivePath?: string
   packageIconPath?: string
+  packageHomepage?: string
   packageAuthor?: string
   packageDescription?: string
   packageContentRating?: string
@@ -146,6 +150,7 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   nsfw: boolean
   status: string
   capabilities: string[]
+  homepage?: string
   description?: string
   icon?: string
 }
@@ -321,6 +326,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       language: entry.language ?? 'en',
       type: entry.type ?? 'wasm-source-fixture',
       nsfw: entry.nsfw === true,
+      homepage: normalizeSourceHomepage(entry.packageHomepage),
       author: entry.packageAuthor ?? '',
       description: entry.packageDescription ?? '',
       contentRating: entry.packageContentRating ?? '',
@@ -370,6 +376,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     manifestPath: entry.manifestPath,
     archivePath: entry.archivePath,
     packageIconPath: entry.packageIconPath,
+    packageHomepage: normalizeSourceHomepage(entry.packageHomepage),
     packageAuthor: entry.packageAuthor,
     packageDescription: entry.packageDescription,
     packageContentRating: entry.packageContentRating,
@@ -527,6 +534,7 @@ export class SourceRuntimeRegistry {
       wasmPath: input.wasmPath,
       archivePath: input.archivePath,
       packageIconPath: input.packageIconPath,
+      packageHomepage: normalizeSourceHomepage(input.manifest.package.homepage),
       packageAuthor: normalizePresentationText(input.manifest.package.author),
       packageDescription: normalizePresentationText(input.manifest.package.description),
       packageContentRating: normalizePresentationText(input.manifest.package.contentRating),
@@ -621,6 +629,7 @@ export class SourceRuntimeRegistry {
         nsfw: entry.nsfw,
         status: entry.importStatus,
         capabilities: entry.capabilities,
+        homepage: normalizeSourceHomepage(entry.packageHomepage),
         description: entry.presentationDescription,
         // Only the host-created URI for a validated package asset reaches
         // presentation. Index metadata remains descriptive and is never a
@@ -739,6 +748,7 @@ export class SourceRuntimeRegistry {
           wasmPath,
           archivePath: entry.archivePath,
           packageIconPath: entry.packageIconPath,
+          packageHomepage: normalizeSourceHomepage(entry.packageHomepage),
           packageAuthor: entry.packageAuthor,
           packageDescription: entry.packageDescription,
           packageContentRating: entry.packageContentRating,

@@ -17,6 +17,7 @@ import {
   SOURCE_REPO_PACKAGE_ICON_MAX_BYTES,
   SOURCE_REPO_PACKAGE_ICON_FILES,
   isValidSourcePackageMinAppVersion,
+  normalizeSourceHomepage,
   validateSourcePackageIconBytes,
   validateSourcePackageIconFile,
 } from './SourcePackageImporter'
@@ -56,6 +57,7 @@ export interface SourceIndexEntry {
   version: string
   lang: string
   nsfw: boolean
+  homepage?: string
   author: string
   description: string
   contentRating: string
@@ -334,6 +336,7 @@ function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
     version: safeString(record['version']),
     lang: safeString(record['lang']),
     nsfw: safeBoolean(record['nsfw']),
+    homepage: normalizeSourceHomepage(record['homepage']),
     author: safeString(record['author']),
     description: safeString(record['description']),
     contentRating: safeString(record['contentRating']),
@@ -352,6 +355,7 @@ function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): SourceIn
     version: entry.version,
     lang: entry.lang,
     nsfw: entry.nsfw,
+    homepage: normalizeSourceHomepage(entry.homepage),
     author: entry.author,
     description: entry.description,
     contentRating: entry.contentRating,

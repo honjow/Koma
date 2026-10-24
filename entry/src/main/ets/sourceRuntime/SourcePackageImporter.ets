@@ -67,6 +67,7 @@ export interface LocalSourcePackageInfo {
   nsfw: boolean
   // Optional package-owned identity metadata. These are deliberately
   // independent from the source-index presentation fields kept by the host.
+  homepage?: string
   author?: string
   description?: string
   contentRating?: string
@@ -114,6 +115,7 @@ interface SourceRepoPackageManifest {
   lang?: string
   language?: string
   nsfw?: boolean
+  homepage?: string
   author?: string
   description?: string
   contentRating?: string
@@ -573,6 +575,20 @@ export function validSourceWebSessionOrigins(value: Object | undefined): boolean
   return true
 }
 
+/** Descriptive navigation only; this never grants network or cookie access. */
+export function normalizeSourceHomepage(value: Object | undefined): string | undefined {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 2048 ||
+    /[\s\u0000-\u001f\u007f\\<>"]/.test(value) || !/^https?:\/\//i.test(value)) return undefined
+  try {
+    const parsed = url.URL.parseURL(value)
+    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.hostname.length === 0 ||
+      parsed.hostname.includes('%') || parsed.username.length > 0 || parsed.password.length > 0) return undefined
+    return value
+  } catch (_error) {
+    return undefined
+  }
+}
+
 function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSourcePackageManifest | undefined {
   const parsed = JSON.parse(raw) as SourceRepoPackageManifest
   const id = nonEmptyString(parsed.id)
@@ -607,6 +623,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       language: nonEmptyString(parsed.language) ?? nonEmptyString(parsed.lang) ?? 'multi',
       type: nonEmptyString(parsed.runtime) ?? 'wasm-source',
       nsfw: optionalBoolean(parsed.nsfw, false),
+      homepage: normalizeSourceHomepage(parsed.homepage),
       author: optionalPackageMetadataText(parsed.author),
       description: optionalPackageMetadataText(parsed.description),
       contentRating: optionalPackageMetadataText(parsed.contentRating),

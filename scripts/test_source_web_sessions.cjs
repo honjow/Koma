@@ -374,3 +374,83 @@ test('GET POST and extension verbs retain their request-method behavior', async 
     assert.equal(out.calls[0].options.customMethod,method==='PROPFIND'?'PROPFIND':undefined)
   }
 })
+
+
+function homepageFixture({entry={sourceId:'one'},cached=[],fresh={ok:true,entries:[]},cacheFails=false,indexFails=false}={}){
+ const source=fs.readFileSync(path.join(base,'SourcePackageImporter.ets'),'utf8')
+ const tree=ts.createSourceFile('importer',source,ts.ScriptTarget.Latest,true)
+ const guard=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='normalizeSourceHomepage')
+ const exports={};vm.runInNewContext(ts.transpileModule(guard.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,
+  {exports,url:{URL:{parseURL:value=>new URL(value)}}})
+ let cacheReads=0,fetches=0,savedReads=0;const pushed=[]
+ const api=moduleFrom('SourceHomepageNavigation',name=>{
+  if(name==='./SourcePackageImporter')return exports
+  if(name==='./SourceRuntimeAppRegistry')return {appSourceRuntimeRegistry:{lookup:id=>({entry:id==='one'?entry:undefined})}}
+  if(name==='../common/RouterHelper')return {RouterHelper:{pushMangaWeb:params=>pushed.push(params)}}
+  if(name==='./SourceIndexService')return {SourceIndexService:class{
+   async loadSavedUrl(){savedReads++;return 'https://index.test/index.json'}
+   async loadCachedIndex(){cacheReads++;if(cacheFails)throw Error('cache');return cached}
+   async fetchIndex(){fetches++;if(indexFails)throw Error('network');return fresh}
+  }}
+  throw Error('unexpected navigation dependency '+name)
+ })
+ return {api,guard:exports.normalizeSourceHomepage,pushed,get reads(){return {cacheReads,fetches,savedReads}}}
+}
+test('homepage URL parsing preserves full HTTP(S) page paths and rejects non-navigation addresses',()=>{
+ const {guard}=homepageFixture()
+ for(const good of ['https://example.org/comics/?type=all#list','http://127.0.0.1:8080/comics/','https://例子.cn/漫画'])assert.equal(guard(good),good)
+ for(const bad of [undefined,1,{},'', '/relative','//example.org','https:example.org','file:///local','data:text/html,hello','javascript:alert(1)',
+  'https://user:secret@example.org/','https://example.org/ x',' https://example.org/','https://example.org/\\evil','https://example.org:99999/'])assert.equal(guard(bad),undefined)
+})
+test('installed homepage opens immediately even when browse failed, with no index IO or session grant',async()=>{
+ const f=homepageFixture({entry:{sourceId:'one',packageHomepage:'https://website.example/comics/',webSessionOrigins:['https://session.example']}})
+ assert.equal(await f.api.openSourceHomepage({},'one','Site',()=>true),true)
+ assert.deepEqual({...f.pushed[0]},{url:'https://website.example/comics/',title:'Site'})
+ assert.deepEqual(f.reads,{cacheReads:0,fetches:0,savedReads:0})
+})
+test('legacy packages use declared same-source cached homepage before fallback origins; unrelated/API fields are ignored',async()=>{
+ const f=homepageFixture({entry:{sourceId:'one',webSessionOrigins:['https://session.example']},cached:[
+  {id:'other',homepage:'https://wrong.example'},{id:'one',homepage:'https://website.example'}]})
+ assert.equal(await f.api.resolveSourceHomepage({},'one'),'https://website.example');assert.equal(f.reads.fetches,0)
+ const missing=homepageFixture({cached:[{id:'other',homepage:'https://wrong.example'},{id:'one',apiUrl:'https://api.example',icon:'https://cdn.example/icon.png'}]})
+ assert.equal(await missing.api.resolveSourceHomepage({},'one'),undefined)
+ assert.equal(await missing.api.resolveSourceHomepage({},'not-installed'),undefined)
+})
+test('existing explicit origin remains usable after an index cache failure without new fetches',async()=>{
+ const f=homepageFixture({entry:{sourceId:'one',webSessionOrigins:['https://session.example']},cacheFails:true})
+ assert.equal(await f.api.resolveSourceHomepage({},'one'),'https://session.example');assert.equal(f.reads.fetches,0)
+})
+test('old cached shape can adopt explicit homepage from fresh index metadata without installing a package',async()=>{
+ const f=homepageFixture({cached:[{id:'one'}],fresh:{ok:true,entries:[{id:'one',homepage:'https://website.example'}]}})
+ assert.equal(await f.api.resolveSourceHomepage({},'one'),'https://website.example');assert.equal(f.reads.fetches,1)
+})
+test('missing or failed optional metadata does not push an invalid page; retired route cannot open later',async()=>{
+ for(const props of [{fresh:{ok:false,entries:[{id:'one',homepage:'https://website.example'}]}},{indexFails:true}]){
+  const f=homepageFixture(props);assert.equal(await f.api.openSourceHomepage({},'one','Site',()=>true),false);assert.equal(f.pushed.length,0)
+ }
+ const f=homepageFixture({entry:{sourceId:'one',packageHomepage:'https://website.example'}})
+ assert.equal(await f.api.openSourceHomepage({},'one','Site',()=>false),true);assert.equal(f.pushed.length,0)
+})
+
+
+test('ordinary Browse and Search menus keep the WebView entry before data loads or after failure',()=>{
+ const file=path.join(base,'../pages/Index.ets'),sourceText=fs.readFileSync(file,'utf8').replace(/\bstruct /g,'class ')
+ const tree=ts.createSourceFile('Index',sourceText,ts.ScriptTarget.Latest,true)
+ const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='Index')
+ const methods=['sourceHomepageMenuItem','sourceBrowseTitleBarOpts','sourceSearchTitleBarOpts']
+ const body=methods.map(name=>owner.members.find(n=>n.name?.getText(tree)===name).getText(tree)).join('\n')
+ const exports={};vm.runInNewContext(ts.transpileModule('export class Subject {'+body+'}',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
+  exports,AppStrings:{get:key=>key},$r:key=>key,sourceDisplayName:(_id,name)=>name,
+  BottomBuilderShowType:{DIRECTLY_SHOW:1},SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT:1,SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT:1})
+ const subject=new exports.Subject();subject.browseFieldContent=()=>({});subject.sourceSearchFieldContent=()=>({});subject.sourceRouteTitleBarOpts=opts=>opts
+ const source={sourceId:'one',displayName:'Site',enabled:true},chrome={visible:true,filtersAvailable:false,settingsAvailable:false,webSessionAvailable:false}
+ for(const method of ['sourceBrowseTitleBarOpts','sourceSearchTitleBarOpts']){
+  const opts=subject[method]({source,chrome})
+  assert.deepEqual(Array.from(opts.menu.value,item=>item.content.label),['manga_detail_menu_open_webview'])
+  assert.equal(opts.menu.value[0].content.isEnabled,true)
+  chrome.webSessionAvailable=true
+  const withSession=subject[method]({source,chrome})
+  assert.deepEqual(Array.from(withSession.menu.value,item=>item.content.label),['manga_detail_menu_open_webview','source_web_open'])
+  chrome.webSessionAvailable=false
+ }
+})

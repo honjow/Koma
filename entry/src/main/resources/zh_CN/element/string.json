@@ -1493,6 +1493,10 @@
     {"name": "diagnostics_settings_failed", "value": "日志设置保存失败"},
     {"name": "diagnostics_file_choice", "value": "文本 (.txt)"},
     {
+      "name": "source_homepage_unavailable",
+      "value": "暂时无法取得此源的站点地址，请检查网络及源包更新后重试。"
+    },
+    {
       "name": "source_web_open",
       "value": "网页验证 / 登录"
     },

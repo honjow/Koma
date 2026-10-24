@@ -7,6 +7,13 @@ const sourcePath=require('node:path').join(__dirname,'../entry/src/main/ets/sour
 const cacheKey='source_index.metadata_cache.v1'
 const item=(id='A',extra={})=>({id,name:id,pkg:`${id}.koma`,icon:`${id}.png`,version:'1',nsfw:true,...extra})
 const tick=()=>new Promise(setImmediate)
+function homepageGuard(){
+ const text=fs.readFileSync(require('node:path').join(__dirname,'../entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets'),'utf8')
+ const tree=ts.createSourceFile('importer',text,ts.ScriptTarget.Latest,true)
+ const node=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='normalizeSourceHomepage')
+ const exports={};new Function('exports','url',ts.transpileModule(node.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(exports,{URL:{parseURL:value=>new URL(value)}})
+ return exports.normalizeSourceHomepage
+}
 function harness(store=new Map()){
  let requests=[],flushes=0,failFlush=false,gate
  const pref={async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
@@ -17,6 +24,7 @@ function harness(store=new Map()){
   BackupRestoreActivity:{async runWrite(fn){return fn()}},
   RemoteImageCacheStore:class{}, DiagnosticLogger:{info(){},error(){}},
   isInvalidSourceLocalizedNames:v=>v!==undefined && (v===null || typeof v!=='object' || Array.isArray(v)),
+  normalizeSourceHomepage:homepageGuard(),
   normalizeSourceLocalizedNames:v=>v, isValidSourcePackageMinAppVersion:v=>v==='' || /^\d+\.\d+\.\d+$/.test(v),
   SOURCE_REPO_PACKAGE_ICON_FILES:['icon.png','icon.jpg','icon.webp'],
   http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING'},createHttp(){return {request(){return new Promise(resolve=>requests.push(resolve))},destroy(){}}}},
@@ -85,4 +93,14 @@ test('aggregate cache stays bounded and read IO failures are misses',async()=>{
  assert.equal((await s.loadCachedIndex('https://large.test/r5/'))[0].id,'5')
  h.pref.get=async()=>{throw Error('read')}
  assert.equal(await s.loadCachedIndex('https://large.test/r5/'),undefined)
+})
+
+test('homepage persists with cached metadata and icon adoption without changing install/session identity',async()=>{
+ const h=harness(),s=h.make(),homepage='https://example.org/comics/?sort=latest#all'
+ const result=await fetched(h,s,'https://index.test/',[item('A',{homepage,webSessionOrigins:['https://not-granted.test']})])
+ assert.equal(result.entries[0].homepage,homepage)
+ const entry=(await harness(h.store).make().loadCachedIndex('https://index.test/'))[0]
+ assert.equal(entry.homepage,homepage);assert.equal(entry.webSessionOrigins,undefined)
+ const rejected=await fetched(h,s,'https://index.test/',[item('B',{homepage:'javascript:alert(1)'})])
+ assert.equal(rejected.ok,true);assert.equal(rejected.entries[0].homepage,undefined)
 })

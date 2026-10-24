@@ -618,6 +618,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       language: entry.language,
       type: entry.type,
       nsfw: entry.nsfw,
+      homepage: entry.packageHomepage,
       author: entry.packageAuthor,
       description: entry.packageDescription,
       contentRating: entry.packageContentRating,
@@ -979,6 +980,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
           JSON.stringify(normalizeSourceLocalizedNames(entry.localizedNames)) &&
         existing.wasmByteCount === entry.wasmByteCount &&
         existing.packageIconPath === entry.packageIconPath &&
+        existing.packageHomepage === entry.packageHomepage &&
         existing.packageAuthor === entry.packageAuthor &&
         existing.packageDescription === entry.packageDescription &&
         existing.packageContentRating === entry.packageContentRating &&
@@ -1005,6 +1007,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
           language: entry.language,
           type: entry.type,
           nsfw: entry.nsfw,
+          homepage: entry.packageHomepage,
           author: entry.packageAuthor,
           description: entry.packageDescription,
           contentRating: entry.packageContentRating,

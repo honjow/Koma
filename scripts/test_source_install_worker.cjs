@@ -101,8 +101,8 @@ function persistenceFixture() {
   const pattern=tree.statements.filter(ts.isVariableStatement).flatMap(n=>[...n.declarationList.declarations])
     .find(n=>n.name.getText(tree)==='SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN').initializer.getText(tree)
   const guards=functions('sourceRuntime/SourcePackageImporter.ets',
-    ['isValidSourcePackageMinAppVersion','normalizeSourceOperationCapabilityToken','normalizeSourceOperationCapabilityTokens','validSourceWebSessionOrigins'],
-    {SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN:new Function('return ('+pattern+')')(),url:require('node:url')})
+    ['isValidSourcePackageMinAppVersion','normalizeSourceOperationCapabilityToken','normalizeSourceOperationCapabilityTokens','validSourceWebSessionOrigins','normalizeSourceHomepage'],
+    {SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN:new Function('return ('+pattern+')')(),url:{URL:class extends URL {static parseURL(value){return new URL(value)}}}})
   function evaluate(file,requireModule) {
     const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{
       compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
@@ -111,14 +111,14 @@ function persistenceFixture() {
   const names=evaluate('sourceRuntime/SourceLocalizedNames.ets',()=>{throw Error('unexpected name dependency')})
   const files=new Map(),reads=[],writes=[];let writeFails=false
   const nativeFs={OpenMode:{READ_ONLY:0},accessSync:p=>p==='/files'||files.has(p),
-    statSync:p=>({size:files.get(p).length}),openSync:p=>({fd:p}),closeSync:()=>{},
+    readTextSync:p=>files.get(p),statSync:p=>({size:files.get(p).length}),openSync:p=>({fd:p}),closeSync:()=>{},
     readSync:(fd,buffer)=>{reads.push(fd);const bytes=files.get(fd);new Uint8Array(buffer).set(bytes);return bytes.length},
     mkdirSync:()=>{throw Error('unexpected directory creation')}}
   const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
     if(name==='@kit.CoreFileKit')return {fileIo:nativeFs,fileUri:{getUriFromPath:p=>'file://'+p}}
     if(name==='./SourceLocalizedNames')return names
     if(name==='./SourcePackageImporter')return {...guards,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm'}
-    if(name==='../model/AppFileTextPersistence')return {writeAppTextFile:(p,text)=>{if(writeFails)throw Error('disk');writes.push({path:p,metadata:JSON.parse(text)})}}
+    if(name==='../model/AppFileTextPersistence')return {writeAppTextFile:(p,text)=>{if(writeFails)throw Error('disk');writes.push({path:p,metadata:JSON.parse(text)});files.set(p,text)}}
     throw Error('unexpected registry dependency '+name)
   })
   const registry=new api.SourceRuntimeRegistry()
@@ -131,7 +131,7 @@ function persistenceFixture() {
         permissions:{network:false,hostImports:[],webSessionOrigins:['https://example.org']}}}
     assert.equal(registry.register(input).ok,true);return input
   }
-  return {registry,add,files,reads,writes,set writeFails(value){writeFails=value}}
+  return {registry,add,files,reads,writes,api,guards,names,set writeFails(value){writeFails=value}}
 }
 test('installed projection retains the exact existing metadata while excluding staged, unarchived and removed sources',()=>{
   const f=persistenceFixture();f.add('keep',{enabled:false});f.add('removed');f.add('staged',{status:'staged'});f.add('unarchived',{archive:undefined})
@@ -198,4 +198,48 @@ for(const outcome of ['installed','cancelled','failed','exception'])test('local 
   }
   await work;assert.equal(manager.busy,false)
   assert.deepEqual(events,outcome==='installed'?['single:one']:outcome==='cancelled'?[]:['reload'])
+})
+
+
+test('declared homepage survives real registry persistence/reload while session origins remain unchanged',()=>{
+  const f=persistenceFixture(), input=f.add('one')
+  f.registry.remove('one');input.manifest.package.homepage='https://website.example/comics/?type=all#list'
+  assert.equal(f.registry.register(input).ok,true)
+  const before=f.registry.lookup('one').entry
+  assert.equal(f.registry.listInstalledSourceSummaries()[0].homepage,input.manifest.package.homepage)
+  assert.equal(f.registry.persistImportedToAppLocalMetadata('/files/registry.json').ok,true)
+  const result=f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata('/files/registry.json')
+  assert.equal(result.ok,true);const after=result.registry.lookup('one').entry
+  assert.equal(after.packageHomepage,before.packageHomepage)
+  assert.deepEqual(after.webSessionOrigins,['https://example.org'])
+  assert.equal(after.network,false);assert.equal(after.enabled,before.enabled)
+  // The old metadata shape remains reloadable; invalid optional navigation metadata is ignored.
+  const document=f.writes[0].metadata
+  delete document.entries[0].packageHomepage;f.files.set('/files/registry.json',JSON.stringify(document))
+  assert.equal(f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata('/files/registry.json').ok,true)
+  document.entries[0].packageHomepage='javascript:alert(1)';f.files.set('/files/registry.json',JSON.stringify(document))
+  const legacy=f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata('/files/registry.json')
+  assert.equal(legacy.ok,true);assert.equal(legacy.registry.lookup('one').entry.packageHomepage,undefined)
+})
+
+test('flat package homepage survives import normalization and backup projection without adding permissions',()=>{
+ const f=persistenceFixture()
+ const parser=functions('sourceRuntime/SourcePackageImporter.ets',[
+  'isPlainObject','nonEmptyString','optionalPackageMetadataText','packageMetadataValueInvalid',
+  'optionalBoolean','optionalNumber','optionalStringArray','parseSourceRepoPackageManifest'],{
+   ...f.guards,...f.names,SOURCE_PACKAGE_WASM_MAX_BYTES:131072,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm'})
+ const raw={id:'one',name:'One',version:'0.1.0',lang:'zh',homepage:'https://website.example/comics/?type=all#latest'}
+ const manifest=parser.parseSourceRepoPackageManifest(JSON.stringify(raw),3)
+ assert.equal(manifest.package.homepage,raw.homepage);assert.deepEqual(manifest.permissions.webSessionOrigins,[])
+ assert.equal(manifest.permissions.network,false)
+ for(const homepage of [undefined,42,'javascript:alert(1)']){
+  const legacy=parser.parseSourceRepoPackageManifest(JSON.stringify({...raw,homepage}),3)
+  assert.ok(legacy);assert.equal(legacy.package.homepage,undefined)
+ }
+ const input=f.add('one');f.registry.remove('one');input.manifest=manifest
+ assert.equal(f.registry.register(input).ok,true)
+ const backup=functions(registryFile,['manifestWasmPathFromRegistryEntry','manifestFromRegistryEntry'],{
+  ...f.guards,...f.names,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm',SOURCE_PACKAGE_WASM_FILE:'fixture.wasm',sha256Hex:()=>''})
+ const restored=backup.manifestFromRegistryEntry(f.registry.lookup('one').entry)
+ assert.equal(restored.package.homepage,raw.homepage);assert.deepEqual(restored.permissions.webSessionOrigins,[])
 })
