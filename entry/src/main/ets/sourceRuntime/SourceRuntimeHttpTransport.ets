@@ -45,11 +45,24 @@ class SourceHttpSuccessEnvelope {
   status: number
   bodyText: string
   networkPerformed: boolean = true
+  // An additive host signal, without forwarding response headers or cookies.
+  accessSignal?: string
 
-  constructor(status: number, bodyText: string) {
+  constructor(status: number, bodyText: string, accessSignal?: string) {
     this.status = status
     this.bodyText = bodyText
+    if (accessSignal !== undefined) this.accessSignal = accessSignal
   }
+}
+
+function sourceResponseAccessSignal(value: Object | undefined): string | undefined {
+  if (value === undefined || value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const headers = value as Record<string, Object | string | number | boolean | null>
+  const name = Object.keys(headers).find((key: string): boolean => key.toLowerCase() === 'cf-mitigated')
+  const raw = name === undefined ? undefined : headers[name]
+  // Cloudflare's documented Challenge Page marker. A 403, server name, body
+  // keyword or a different mitigation value does not establish a challenge.
+  return typeof raw === 'string' && raw.trim() === 'challenge' ? 'challenge_required' : undefined
 }
 
 function transportError(code: string, retryable: boolean = true): string {
@@ -238,8 +251,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       redirects += 1
       continue
     }
+    const accessSignal = sourceResponseAccessSignal(response.header)
+    if (accessSignal !== undefined) trace.info('access_signal', 'signal=' + accessSignal)
     trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode + ' chars=' + responseBody.length)
-    return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody))
+    return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal))
     }
   } catch (_error) {
     const error = _error as BusinessError

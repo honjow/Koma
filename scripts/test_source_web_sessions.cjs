@@ -454,3 +454,67 @@ test('ordinary Browse and Search menus keep the WebView entry before data loads 
   chrome.webSessionAvailable=false
  }
 })
+
+
+test('documented Cloudflare mitigation marker crosses the host without exposing headers or granting a session', async () => {
+  for (const status of [401, 403, 503]) {
+    for (const name of ['cf-mitigated', 'CF-Mitigated', 'Cf-Mitigated']) {
+      const f = fixture()
+      const result = await f.http([{ responseCode: status, result: 'challenge-page-body', header: {
+        [name]: 'challenge', 'set-cookie': 'private-response-cookie', 'cf-ray': 'private-ray-id',
+      } }], JSON.stringify(f.identity()))
+      assert.equal(result.result.ok, true)
+      assert.equal(result.result.status, status)
+      assert.equal(result.result.bodyText, 'challenge-page-body')
+      assert.equal(result.result.accessSignal, 'challenge_required')
+      assert.equal(result.result.networkPerformed, true)
+      assert.equal(f.store.status('source.one').state, 'none')
+      assert.equal(f.fetched.length, 0)
+      assert.equal(f.configured.length, 0)
+      assert.equal(result.calls.length, 1)
+      for (const secret of ['private-response-cookie', 'private-ray-id']) {
+        assert(!JSON.stringify(result.result).includes(secret))
+        assert(!f.diagnostics.join(' ').includes(secret))
+      }
+      assert(!f.diagnostics.join(' ').includes('challenge-page-body'))
+    }
+  }
+})
+
+test('ordinary HTTP failures and body keywords do not become Cloudflare challenges', async () => {
+  for (const header of [{}, {server:'cloudflare'}, {'cf-mitigated':'guardrails'},
+    {'cf-mitigated':'Challenge'}, {'cf-mitigated':['challenge']}, {'x-cf-mitigated':'challenge'}]) {
+    const f = fixture()
+    const body = '<html>challenge_required cf-chl /cdn-cgi/challenge-platform</html>'
+    const result = await f.http([{responseCode:403,result:body,header}], '',
+      {headers:{'cf-mitigated':'challenge'}})
+    assert.deepEqual(result.result, {ok:true,status:403,bodyText:body,networkPerformed:true})
+    assert.equal(result.calls.length,1)
+    assert.equal(f.store.status('source.one').state,'none')
+    assert(!f.diagnostics.some(line=>line.includes('signal=challenge_required')))
+  }
+})
+
+test('missing or malformed response headers retain the existing HTTP result', async () => {
+  for (const header of [undefined, null, '', [], 42]) {
+    const f = fixture()
+    const result = await f.http([{responseCode:200,result:'retained-body',header}], '')
+    assert.deepEqual(result.result,{ok:true,status:200,bodyText:'retained-body',networkPerformed:true})
+  }
+})
+
+test('challenge signal follows each response and retains only the allowed rejected URL', async () => {
+  const f = fixture()
+  const challenged = await f.http([response(403, {'cf-mitigated':'challenge'})], JSON.stringify(f.identity()),
+    {url:'https://site.invalid/category/order/hits/page/1'})
+  assert.equal(challenged.result.accessSignal,'challenge_required')
+  assert.equal(f.store.launchUrl(f.registry,'source.one'),'https://site.invalid/category/order/hits/page/1')
+  const ordinary = await f.http([response()], JSON.stringify(f.identity()))
+  assert.equal(ordinary.result.accessSignal,undefined)
+  const rejected = await f.http([response(403, {'cf-mitigated':'challenge'})], JSON.stringify(f.identity()),
+    {url:'https://other.invalid/not-allowed'})
+  assert.equal(rejected.result.accessSignal,'challenge_required')
+  assert.equal(f.store.launchUrl(f.registry,'source.one'),'https://site.invalid/category/order/hits/page/1')
+  assert.equal(f.store.status('source.one').state,'none')
+  assert.equal(f.fetched.length,0)
+})

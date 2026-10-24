@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T02:31:06.536037+00:00",
+  "updatedAt": "2026-10-24T02:57:09.002414+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": {
-    "title": "漫画屋403地址取证；安装本行图标更新范围调查",
-    "detail": "Root已亲审423 Native014保留HTTP403；源owner用现存HTML核地址。418本行图标瞬空仍复现，Root追原生HDS前后缀更新路径；不以错误文案补齐冒源可用。",
+    "title": "漫画屋015标准信号与自动验证闭环准备",
+    "detail": "Host8517401B已装且数据保持；源015的80项回放与标准构建通过，902f157已推送，精确CI40055887334成功。Root核真实索引后普通升级，再核一次自然请求的标准信号、自动半模态与回流；418图标闪烁另项仍开放。",
     "startedAt": null
   },
-  "nextAction": "沿现存HTML/历史核漫画屋403请求依据；继续查418图标为何在按钮状态变化时瞬空，保原生HDS样式和其他源数据。",
+  "nextAction": "核公开015索引与真实包，再普通升级并验证一次自然请求的标准信号、自动弹层及回流；两个显示候选待答不阻其他调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "c5ad7b8074c04adcbc09ef5a01284cd735c4211b已push master；精确CI40049912720 completed/success",
-      "hap": "197399最终8514625B/defaultRelease0.1.2-pre code3已install/start成功，装前后及与382三域同；8514626未装旧候选已被最终包取代。"
+      "appHead": "0a24f63b145754bae8e28080120ee4e87658814d进度提交已push；精确CI40054577368 success。标准信号Host本轮本地候选未称已提交。",
+      "hap": "197430 Release8517401B/0.1.2-pre code3/debugfalse兼容签名已install/start成功；library/reader/registry前后逐字同，源仍014；profile已finally字节恢复。无新tag。"
     },
     {
       "name": "NextE",
@@ -1435,10 +1435,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "自然挑战自动弹出/人工回流已验；自动完成待",
+      "status": "旧自动弹/人工回流范围保持；漫画屋标准信号闭环待验",
       "kind": "open",
-      "result": "318自然403自动弹出WebView，320及341人工点击完成并重试后原生列表成立；自动clearance识别/自动关闭尚未证实，不把人工完成当自动通过。",
-      "remaining": "真实自然挑战下核自动识别和关闭；搜索/分页/详情及会话过期按原边界接续，不清Cookie或造挑战。",
+      "result": "318自动弹与320/341人工完成回流具名成立；本轮Host标准挑战信号已装，漫画屋015未采用。官网427→429自然通过不等Native自动完成/回流。",
+      "remaining": "真实015普通更新后，一次自然请求核标准信号→自动半模态→原请求回流；不得把官网独立验证或人工完成扩作自动关闭通过；其他搜索/分页/详情及会话过期边界按真实自然样本接续，不清Cookie或造挑战。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1459,12 +1459,11 @@
       ],
       "evidencePoints": [
         "实现e839ec87：仅challenge receipt允许自动回流；auth_required及手动登录不自动退出。保主文档错误、离页、换会话和一次性守卫。",
-        "73项相关检查通过，Release构建成功；197154装8491057B。155手动Web保持/取消回原首页12本及书架15页94%亲审。",
-        "157原日志显示本轮请求均200、没有clearance_candidate；没有新自然挑战，不能把本轮内容加载算自动验证通过。",
-        "318自然403确自动弹WebView；320手点原完成并重试后首页/列表成功。只证自动弹与人工完成回流，未证自动关闭。"
+        "318自然403确自动弹WebView；320手点原完成并重试后首页/列表成功。只证自动弹与人工完成回流，未证自动关闭。",
+        "430 Host仅转cf-mitigated:challenge为常量accessSignal，29受控检查通过；源015仅www.mhua5.com声明，远端与Native闭环待。"
       ],
       "remainingActions": [
-        "318自然挑战自动弹出与320人工完成回流成立；本次自动判断成功/自动关闭仍未证，不再等待“首次自然挑战”。",
+        "真实015普通更新后，一次自然请求核标准信号→自动半模态→原请求回流；不得把官网独立验证或人工完成扩作自动关闭通过。",
         "其他搜索/分页/详情及会话过期边界按真实自然样本接续，不清Cookie或造挑战。"
       ],
       "boundaries": [
@@ -2745,22 +2744,21 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "公开0.1.4普通更新/NativeHTTP403诊断通过；访问仍未恢复",
-      "result": "真实远端0.1.4已普通更新至197；423列表仍HTTP403，但页面与日志现保留403/access。只完成错误保真，漫画屋不可用仍开放。",
+      "status": "Host430已装；902f157已推且015精确源CI成功",
+      "result": "430 App8517401B已安装并保持三域，源仍014。Host仅将官方cf-mitigated:challenge转accessSignal常量；源015的80项回放与标准构建通过，902f157已推且精确CI成功；公开包读回与Native回流未验。",
       "evidencePoints": [
-        "408原生get_listings完成18ms、get_manga_list722ms返回403；get_settings未实现为独立能力。410真实mhua5.com首页已亲审，411正常返回原403及根浏览页，三域同406。",
-        "本地0.1.4构建86844B/WASM55166B；公开远端包86396B/WASM54328B三成员且原图标同，两种构建字节分开。Root对真实远端WASM独立49/49回放通过。",
-        "745856a160d3d64013b51939e4b52d8eaacd876c精确CI40052769845成功，全85源+demo/metadata/原子发布成立；真实latest85项/漫画屋0.1.4。原件/private/tmp/koma-manhuawu-http-status-20261024/remote-0.1.4-verification.json。",
-        "417自然发现1项更新；418正常更新完成，419注册84仅漫画屋014/WASM54328/homepage变化，其余83/enabled及library/reader保持。无新App包或tag。",
-        "422普通RootBrowse进014、423原图与日志亲审：get_manga_list637ms/permission_denied/http403/kindaccess；三域逐字同419。420选择器查找失败保原件，不作源故障。"
+        "423远端014普通列表仍403，HTTP/access诊断已保真；427官网分类真实安全验证→428自然完成→429真实热门分类多封面，不含源session授权或Native回流。",
+        "Host可选accessSignal保status/body，不传原headers或Cookie；29项生产Host/会话受控检查通过。430兼容签名Release8517401B安装启动及三域保持成立，本地profile字节恢复。",
+        "015标准包87172B/WASM55896B，仅声明https://www.mhua5.com且原icon相同；Root独立80项回放通过。",
+        "902f157d4c3fafce9e4a0cd3a9e4abe7584bf272已实际推送，精确源CI40055887334成功；公开015读回及Native回流仍待。"
       ],
       "remainingActions": [
-        "源owner只读核现存真实HTML导航与列表请求URL/历史，不加GET或换UA；403具体拒绝原因及普通列表恢复仍未完成。"
+        "核公开015索引与真实包，再普通远端更新，核一次自然请求的标准信号、自动弹层与回流；不清Cookie或造挑战。"
       ],
-      "remaining": "源owner只读核现存真实HTML导航与列表请求URL/历史，不加GET或换UA；403具体拒绝原因及普通列表恢复仍未完成。",
+      "remaining": "核公开015索引与真实包，再普通远端更新，核一次自然请求的标准信号、自动弹层与回流；不清Cookie或造挑战。",
       "boundaries": [
-        "普通403不自动认挑战；410网页能打开不等源请求恢复，未重试或增加会话授权。",
-        "HTTP受控离线行为检查不替代Native0.1.4；不清用户数据，保其他源及阅读进度。"
+        "只有官方精确信号才识别挑战，普通403仍保原错误；官网自然验证不等Native会话授权或回流。",
+        "离线回放、构建、430安装及精确源CI成功各自成立；公开015读回与Native恢复未验，不清用户数据。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2770,7 +2768,14 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null,
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "modificationBasis": {
+        "object": "SourceRuntimeHttpTransport HTTP envelope与漫画屋fetch/单域会话声明",
+        "history": "34ab280d现有受限会话；745856a保HTTP状态；Host原样转JSON，未传响应头信号",
+        "originalReason": "不向源暴露Cookie/任意响应头，不把全部403认挑战",
+        "reopenEvidence": "427官网分类出现安全验证，428自然通过；官方cf-mitigated=challenge为可靠信号，Native423正文/响应头仍未知",
+        "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界"
+      }
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",

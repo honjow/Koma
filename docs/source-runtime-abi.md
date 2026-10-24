@@ -233,6 +233,10 @@ Host enforcement:
 
 打开或取消验证不撤销先前可用会话；网页完成本身不证明站点验证成功，仍以普通源请求结果为准。
 
+宿主 HTTP 成功执行回包保留 `ok/status/bodyText/networkPerformed`，并可选附带 `accessSignal: "challenge_required"`。仅在实际响应头名（不区分大小写）为 `cf-mitigated`、字符串值精确为 `challenge` 时提供；普通403、其他缓解类型、正文关键词和源请求自报均不能产生该信号。原始响应头、Cookie和挑战正文不进入诊断日志。依据：[Cloudflare 挑战响应识别](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/detect-response/)。
+
+这个可选信号不授予会话。源仍须显式返回挑战错误，并声明对应 HTTPS origin；现有宿主按源身份、安装版本及合法失败地址打开验证。旧源忽略该字段时保持原行为，不能称所有源已具备自动验证。
+
 - Cookie 仅由系统 `WebCookieManager` 保存；宿主逐个完整请求 URL 读取，以保留 path、secure 和过期规则，并在同源响应中逐条接收 `Set-Cookie` 续期。
 - 可信源身份从 Registry 经独立 Native 调用上下文送达 HTTP 桥，不读取 WASM 请求 JSON 中自报的身份。Cookie、网页会话和密码不作为 `get_settings` 的普通值交给 WASM，也不进入返回包或日志。
 - 带会话的请求禁止自动跟随重定向；每一跳重新核对当前授权和 origin，再读取该 URL 的 Cookie。跨 origin 不携带会话且不发出该跳请求。
