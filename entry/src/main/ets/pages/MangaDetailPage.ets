@@ -1,3 +1,4 @@
+import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
@@ -2420,7 +2421,7 @@ export struct MangaDetailPage {
           icon: $r('sys.symbol.chevron_down'),
           action: () => {},
         })
-          .bindMenu(this.LocalMetadataStatusMenu())
+          .bindMenu(this.LocalMetadataStatusMenu(), komaMenuOptions())
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -2590,7 +2591,7 @@ export struct MangaDetailPage {
         Column() {}
           .width(0)
           .height(0)
-          .bindSheet($$this.detailWebChallengeShown, this.DetailWebChallengeSheet, {
+          .bindSheet($$this.detailWebChallengeShown, this.DetailWebChallengeSheet, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false,
             enableOutsideInteractive: false, enableFloatingDragBar: true,
             onWillDismiss: (action: DismissSheetAction) => {
@@ -2598,7 +2599,7 @@ export struct MangaDetailPage {
               action.dismiss()
             },
             onDisappear: () => { this.finishDetailWebChallengeDismiss() },
-          })
+          }))
         if (this.canPullRefreshDetail()) {
           PullRefresh({
             scroller: this.detailScroller,

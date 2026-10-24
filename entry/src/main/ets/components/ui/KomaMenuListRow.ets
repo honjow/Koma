@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../../theme/KomaPopupOptions'
 import { ConciseListRow } from './ConciseListRow'
 
 @ComponentV2
@@ -37,8 +38,8 @@ export struct KomaMenuListRow {
       })
     }
     .width('100%')
-    .bindMenu(this.isMenuOpen, this.MenuContent(), {
+    .bindMenu(this.isMenuOpen, this.MenuContent(), komaMenuOptions({
       placement: this.menuPlacement,
-    })
+    }))
   }
 }

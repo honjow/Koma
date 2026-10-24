@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Binding, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -1032,12 +1033,12 @@ export struct BackupManagementPage {
       action: () => { this.localFileActionMenuKey = record.fileName },
     })
       .accessibilityText(t('common_more_actions'))
-      .bindMenu(this.localFileActionMenuKey === record.fileName, this.LocalBackupActionMenu(record), {
+      .bindMenu(this.localFileActionMenuKey === record.fileName, this.LocalBackupActionMenu(record), komaMenuOptions({
         placement: Placement.BottomRight,
         onDisappear: () => {
           if (this.localFileActionMenuKey === record.fileName) this.localFileActionMenuKey = ''
         },
-      })
+      }))
   }
 
   @Builder

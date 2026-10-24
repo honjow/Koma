@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../../theme/KomaPopupOptions'
 import {
   HdsListItemCard,
   PrefixCustomBuilder,
@@ -181,12 +182,12 @@ export struct ConciseListRow {
         }
       }
       .padding({ left: ThemeConstants.SPACE_SM, right: this.suffixPaddingRight })
-      .bindMenu(this.dropdownMenuShown, this.BoundDropdownMenu, {
+      .bindMenu(this.dropdownMenuShown, this.BoundDropdownMenu, komaMenuOptions({
         placement: Placement.BottomRight,
         onDisappear: () => {
           this.dropdownMenuShown = false
         },
-      })
+      }))
     } else {
       Row() {
         if (this.suffixBuilderParam) {
@@ -362,12 +363,12 @@ export struct ConciseListRow {
         this.DropdownSuffixContent()
       }
       .alignItems(VerticalAlign.Center)
-      .bindMenu(this.dropdownMenuShown, this.BoundDropdownMenu, {
+      .bindMenu(this.dropdownMenuShown, this.BoundDropdownMenu, komaMenuOptions({
         placement: Placement.BottomRight,
         onDisappear: () => {
           this.dropdownMenuShown = false
         },
-      })
+      }))
     } else {
       Row({ space: ThemeConstants.SPACE_XS }) {
         this.DropdownSuffixContent()

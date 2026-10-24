@@ -1,3 +1,4 @@
+import { komaModalContentBackground } from '../theme/KomaPopupOptions'
 import { HdsNavigation, HdsNavigationTitleMode } from '@kit.UIDesignKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -87,6 +88,6 @@ export struct KomaModalScaffold {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.modalSurfaceColor)
+    .backgroundColor(komaModalContentBackground(this.modalSurfaceColor))
   }
 }

@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
@@ -1058,12 +1059,12 @@ export struct SearchPage {
         .height(1)
         .margin({ top: ThemeConstants.TITLE_BAR_HEIGHT, right: ThemeConstants.SPACE_MD })
         .hitTestBehavior(HitTestMode.None)
-        .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), {
+        .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), komaMenuOptions({
           placement: Placement.BottomRight,
           onDisappear: () => {
             this.sourceFilterMenuOpen = false
           },
-        })
+        }))
     }
     .width('100%')
     .height('100%')

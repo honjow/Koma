@@ -1,3 +1,4 @@
+import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { ReaderModeControl } from './ReaderModeControl'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderMode } from '../model/ReaderSessionStore'
@@ -271,14 +272,14 @@ export struct ReaderChrome {
       .height(44)
       .backgroundColor(Color.Transparent)
       .onClick(() => { this.onCloseReader() })
-      .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, {
+      .bindSheet($$this.imageInfoShown, this.ImageInfoSheet, komaSheetOptions({
         detents: [SheetSize.MEDIUM],
         showClose: false,
         enableOutsideInteractive: false,
         scrollSizeMode: ScrollSizeMode.CONTINUOUS,
         enableFloatingDragBar: true,
         onDisappear: () => { this.imageInfoShown = false },
-      })
+      }))
 
       Column({ space: 2 }) {
         Text(this.title.length > 0 ? this.title : s('reader_title_default'))
@@ -326,14 +327,14 @@ export struct ReaderChrome {
         .height(44)
         .backgroundColor(Color.Transparent)
         .onClick(() => { this.settingsShown = true })
-        .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, {
+        .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, komaSheetOptions({
           detents: [SheetSize.MEDIUM, SheetSize.LARGE],
           showClose: false,
           enableOutsideInteractive: false,
           scrollSizeMode: ScrollSizeMode.CONTINUOUS,
           enableFloatingDragBar: true,
           onDisappear: () => { this.closeSettings() },
-        })
+        }))
 
         Button({ type: ButtonType.Circle, stateEffect: true }) {
           SymbolGlyph($r('sys.symbol.dot_grid_2x2')).fontSize(22).fontColor([Color.White])
@@ -343,10 +344,10 @@ export struct ReaderChrome {
         .backgroundColor(Color.Transparent)
         .accessibilityText(s('common_more_actions'))
         .onClick(() => { this.moreShown = true })
-        .bindMenu(this.moreShown, this.MoreMenu, {
+        .bindMenu(this.moreShown, this.MoreMenu, komaMenuOptions({
           placement: Placement.BottomRight,
           onDisappear: () => { this.moreShown = false },
-        })
+        }))
       }
     }
     .width('100%')
@@ -407,7 +408,7 @@ export struct ReaderChrome {
                 this.chapterPickerShown = true
               }
             })
-            .bindSheet($$this.chapterPickerShown, this.ChapterPickerSheet, {
+            .bindSheet($$this.chapterPickerShown, this.ChapterPickerSheet, komaSheetOptions({
               detents: [SheetSize.MEDIUM, SheetSize.LARGE],
               showClose: false,
               enableOutsideInteractive: false,
@@ -416,7 +417,7 @@ export struct ReaderChrome {
               onDisappear: () => {
                 this.finishChapterPickerDismissal()
               },
-            })
+            }))
           Blank().layoutWeight(1)
           Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.clock')).fontSize(22).fontColor([this.autoPageActive ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
             .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.readerMode !== ReaderMode.CONTINUOUS_SCROLL).onClick(() => { this.onToggleAutoPage() })

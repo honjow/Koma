@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { ConciseListRow } from './ui/ConciseListRow'
@@ -401,12 +402,12 @@ export struct SourceFilterControls {
                 .bindMenu(this.activeFilterMenuId === filter.id, this.FilterOptionMenu(filter,
                   (action: () => void) => {
                     this.selectActiveFilterMenuItem(action)
-                  }), {
+                  }), komaMenuOptions({
                   placement: Placement.BottomLeft,
                   onDisappear: () => {
                     this.activeFilterMenuId = ''
                   },
-                })
+                }))
             }
           }, (filter: SourceFilter) => filter.id)
           KomaActionButton({

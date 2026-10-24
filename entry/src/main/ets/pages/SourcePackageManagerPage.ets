@@ -1,3 +1,4 @@
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -2234,7 +2235,7 @@ export struct SourcePackageManagerPage {
           ListDivider()
           ConciseListRow({
             title: t('source_web_open'),
-            leadingIcon: $r('sys.symbol.house_fill'),
+            leadingIcon: $r('sys.symbol.website'),
             isEnabled: params.source.enabled,
             action: () => { this.requestSourceSheetDismiss('open_web', params.source) },
           })
@@ -2566,19 +2567,19 @@ export struct SourcePackageManagerPage {
         .width('100%')
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
-        .bindSheet($$this.sourceIndexSheetShown, this.SourceIndexSheetContent, this.sourceIndexSheetOptions())
+        .bindSheet($$this.sourceIndexSheetShown, this.SourceIndexSheetContent, komaSheetOptions(this.sourceIndexSheetOptions()))
         Column() {
         }
         .width('100%')
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
-        .bindSheet($$this.sourceSheetShown, this.SourceDetailsSheetContent, this.sourceDetailsSheetOptions())
+        .bindSheet($$this.sourceSheetShown, this.SourceDetailsSheetContent, komaSheetOptions(this.sourceDetailsSheetOptions()))
         Column() {
         }
         .width('100%')
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
-        .bindSheet($$this.sourceSettingsSheetShown, this.SourceSettingsSheetContent, this.sourceSettingsSheetOptions())
+        .bindSheet($$this.sourceSettingsSheetShown, this.SourceSettingsSheetContent, komaSheetOptions(this.sourceSettingsSheetOptions()))
       }
       .width('100%')
       .height('100%')

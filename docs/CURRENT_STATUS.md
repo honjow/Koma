@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T15:40:49.413916+00:00",
+  "updatedAt": "2026-10-24T18:54:41.020235+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "Root：cdb9c22三宿主具名运动/选页/恢复已核，正在同步精确CI；跳页相邻短空缺仍OPEN。",
-  "nextAction": "同步N/E消费pin及K CI固定cdb9c22，跟进各自精确CI；继续跳页空缺与共用入场完成候选。",
+  "activeId": "APP_POPUP_SYSTEM_MATERIAL",
+  "activity": "Root：最终109原生菜单/重置已读回；提交Koma限定范围并跟CI，N/E精确CI成功。",
+  "nextAction": "Koma提交推送及精确CI；本地继续原连续滚动/源安装尚未完成的定位。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,20 +978,20 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "b75a0693已push且CI成功；本轮CI依赖固定cdb9c22的提交同步中。",
-      "hap": "237063明确安装defaultRelease8528865B/0.1.2-pre code3，066连续条实选7/10、067222帧全审，068恢复原LTR6/10，069正常回书架；库/注册逐字同063，reader仅同书3处updatedAt。"
+      "appHead": "2800d2c2采用cdb9c22已push，CI40108264842 success；共用入场候选源码WIP未采用。",
+      "hap": "候选8532590B已录073并正常返回；075已明确恢复稳定8528865B，库/阅读/注册与074逐字保持。"
     },
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "85d6281e采用cdb9c22提交已完成，推送及精确CI跟进中；上一笔a06c406b CI40104694632 success。",
+      "appHead": "85d6281e采用cdb9c22已push，CI40108179896 success。",
       "hap": "197060明确安装38181768B/1.3.6code42；061–063原下载13/19→连续实选14，064294帧全审，065原LTR13/19亲核、066原2下载保持。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "fa98a0e0采用cdb9c22已push，精确CI跟进中；上一笔61d6e32d CI40104693965 success。",
-      "hap": "197064明确安装38205248B/1.0.7code10，06612/34同六组反向067；068284帧全审，滑块17/条选中17；070原LTR1/34亲核、0717下载保持。跳页相邻页短空缺保留。"
+      "appHead": "fa98a0e0采用cdb9c22已push，CI40108107245 success；共用入场候选WIP未采用。",
+      "hap": "候选38209576B已录074；076明确恢复稳定38205248B；077–087核同图右黑边，临时会话HD恢复处理中。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1035,13 +1035,13 @@
     {
       "id": "READER_WINDOW_LIFECYCLE",
       "title": "三App五入口全屏/状态栏早于转场完成",
-      "status": "用户已允许制作共用可控转场候选，待录屏审阅",
+      "status": "共用候选待选择；用户所问右侧黑区已核源图固有",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：Koma普通入场与NextN默认入场共用候选",
+      "owner": "Root：共用候选实现及双设备原片",
       "dependencies": [],
-      "result": "系统默认转场的可靠完成信号仍未找到；正式全屏时机修复未完成。",
-      "remaining": "制作共用可控转场候选，以真实动画结束事件接入全屏；录屏给用户决定采用。既有缩略图转场保持。",
+      "result": "共享真实animation.onFinish＋native.onTransitionEnd双完成门，300ms水平进入。549项检查、N/K签名构建完成；N07472帧/2表、K237073108帧/3表均完整顺序亲审，进入与普通返回成立。K日志animation_started→finished301ms，再native_finished4ms；N晚取日志已空，未冒称同等日志时序证明。",
+      "remaining": "用户尚未采用动效。候选源码已撤，四份精确patch及HAP保存在NextN .hvigor/outputs/reader-route-candidate-20261025；采用后恢复并验证取消/重入及N缺失的事件日志。两设备已恢复稳定版，N临时HD已恢复并返回原7项下载。",
       "reportedAt": "2026-10-22T19:12:58.799Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:12:58.799Z",
@@ -1052,10 +1052,14 @@
         "官方Navigation FAQ及SDK均未承诺onShown/onActive/didShow发生在默认转场结束后。",
         "OpenHarmony navigation_pattern.cpp中，生命周期与HideSystemBarIfNeeded均早于转场；临时探针已撤。",
         "2026-10-24官方HDS systemBarStyle明确“页面转场开始时生效”；NavDestination guide仅保证onShown布局完成。官方Navigation转场指南说明默认弹簧时长不可控，监听结束建议自定义转场；未把onShown/onActive误写为官方结束事件，现有样式/动画边界继续。",
-        "当前人类已明确允许制作共用转场候选、先看录屏；旧等待批准状态失效，尚未实现或采用。"
+        "当前人类已明确允许制作共用转场候选、先看录屏；旧等待批准状态失效，尚未实现或采用。",
+        "N候选38209576B/1.0.7code10，从073实际686744下载阅读列进入2/2；074全72帧与返回已审。075布局为原7下载；075接收截图误写到072路径覆盖其截图，该截图不作原安装前置证据，074原片及布局仍独立保留。",
+        "K候选8532590B/defaultRelease0.1.2-precode3，070安装三域同069；072普通Download详情→073继续6/10→正常Back；全108帧/3表顺序亲审。日志armed1792857971896、animation_started1990、animation_finished2291、native_finished2295；074正常回原书架，数据对比待补。",
+        "用户问N图右侧黑区及是否关闭缩放：074为普通下载阅读列直接进入，不经过缩略图缩放，未改缩放开关。076已恢复稳定cdb38205248B；077同页仍有黑区，节点全1260px。079增强JPEG5120x7172；080临时关闭本会话HD，085确认实际源WEBP1280x1793，黑区同。下载RDB精确media4230305/page2，CDN一次HTTP200175362B，原图全高右侧135列近黑（RGB通道≤8）；本机公共文件接收权限拒绝未绕过，未冒称字节相同。087保留cdn-source-page2.webp和像素事实。",
+        "候选未混入后续构建：Kit/N消费/两宿主候选diff均经reverse check精确撤下；N089正常返回原7项下载、HD已恢复。4patch与candidate-state.json留忽略产物目录。"
       ],
       "remainingActions": [
-        "制作共用可控转场候选，以真实动画结束事件接入全屏；录屏给用户决定采用。既有缩略图转场保持。"
+        "用户尚未采用动效。候选源码已撤，四份精确patch及HAP保存在NextN .hvigor/outputs/reader-route-candidate-20261025；采用后恢复并验证取消/重入及N缺失的事件日志。两设备已恢复稳定版，N临时HD已恢复并返回原7项下载。"
       ],
       "boundaries": [
         "不能用didShow、enableStatusBar、布局坐标冒充动画结束；不用延时或改变已定转场效果绕过。"
@@ -1064,13 +1068,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "渲染投影已三端有限验证；精确CI同步中",
+      "status": "投影修复三端CI成功；总体性能仍OPEN",
       "kind": "open",
       "priority": "P0（最高）",
-      "owner": "Root：三宿主运行验证和精确CI",
+      "owner": "Root：跳页相邻短空缺后续定位",
       "dependencies": [],
       "result": "061→067同686734/34页第12页六组8000反向，Cell808→85，Zoom更新71；主线程frame_slice均值5.877→4.047ms、最大38.032→20.362ms、>16.67ms61→2、>33.34ms2→0。顺序暖缓存样本，不是clean AB/显示FPS；共同Kit已推送，性能仍OPEN。",
-      "remaining": "完成三宿主pin精确CI；以现有N068跳页短空缺追请求/解码/定位时序。总体性能仍OPEN，不以本轮有限运动宣称满帧。",
+      "remaining": "现有N068跳页相邻页短空缺约116ms（240→247原PTS4.614667→4.730522）待核请求/解码/定位；非整屏空白，不据此推断单因。三端本轮CI已成功，下一当前处理项为已批准全屏入场候选。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1105,7 +1109,7 @@
         "E cdb9c22明确安装38181768B；061原下载4212986的13/19，063原生条实选14且正文/选中一致。064全294帧/9联系表顺序亲审，三组快速往返正文连续，无整屏空白/错页；065原LTR勾选13/19亲核，066原2项完成下载保持。E现有CI preflight通过。"
       ],
       "remainingActions": [
-        "完成三宿主pin精确CI；以现有N068跳页短空缺追请求/解码/定位时序。总体性能仍OPEN，不以本轮有限运动宣称满帧。"
+        "现有N068跳页相邻页短空缺约116ms（240→247原PTS4.614667→4.730522）待核请求/解码/定位；非整屏空白，不据此推断单因。三端本轮CI已成功，下一当前处理项为已批准全屏入场候选。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
@@ -1162,13 +1166,13 @@
     {
       "id": "CHAPTER_SORT_MENU",
       "title": "章节排序菜单无作用",
-      "status": "包子012普通更新、691编号/5通知及升降序197具名完成",
+      "status": "通用两维排序/缺号反序/原生状态已验；待本笔CI",
       "kind": "open",
-      "priority": "P1",
+      "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "Root：包子012具名范围冻结；未知metadata继续原项",
       "dependencies": [],
-      "result": "532普通远端更新012后，540实际696章中691已编号/5未知，min1/max687；降序687/686。542升序五条放料/预告/通知后001→006连续，543恢复降序并返回，原001第3/24页保持。",
-      "remaining": "包子012本具名范围冻结；漫画160跨季未知metadata及元尊同号分话按原项核依据，不用标题猜号或全reverse。",
+      "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。",
+      "remaining": "推送本笔Koma提交并核精确CI；源跨季真实年代/首次选章仍归独立未完成项，不冒整源通过。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -1176,31 +1180,61 @@
       "handling": null,
       "closedAt": null,
       "evidencePoints": [
-        "包子019的绍宋234章升降序、005→006→007及044→045→046已亲审；原人设1/6进度保持。",
-        "源e57d184b、CI39934858276成功；原件为237包子019更新、six/forty-five与016目录图。旧170→198、215→224排序反例保留。",
-        "漫画160无metadata且混跨季，现有比较不能产生可靠首章/排序；不能把已编号样本通过扩成全源通过。",
-        "324普通大奉详情695章，目录583后099异常已发现；本轮未改源码/未清数据，原件baozimh-dafeng197-detail-324。",
-        "485另见元尊同号下→上；8个unknown置前符合19ad9143既定对称-1规则，不将它冒新实现错误或恢复已拒unknown恒末尾。",
-        "495现站更新为696/696，原生降序仍583陽神→099萬妖國→098銅皮鐵骨；HTTP200，原3/24读态保持。旧695固定等待未命中仅因站点章数变更，不作加载失败。",
-        "505诊断包8536633B，21项Host/Release通过；507 catalog_order total696 numbered101 unknown595 min1 max583，leading前8全unknown。508升序unknown原序十题687..678亲读，509恢复降序并返回，510三域同505。",
-        "c21d58d8五文件限定三位裸整数及配对中文引号题名，10模块测试/生产WASM120849B和source_info0.1.12成立；精确CI40074281080成功，公开sources-c21d58d8于07:31:12Z发布，原latest索引85条且Baozi0.1.12。",
-        "530→532只改变Baozi版本，其他84条目/顺序及书库/reader保持；源012已实际imported/enabled。",
-        "539/540普通Home→大奉，16:01:05 catalog_order=696/691/5；540、542原图已亲看。543恢复降序并返回RootBrowse，544三业务域与535逐字同；无开书、完成、重试。"
+        "历史5e7854a7/3b2713ef/19ad9143：四种排序裁为两个选项后保留隐藏默认值；缺号/同号比较相等，原方向未整表互逆。当前用户明确批准默认源目录顺序、依据/方向独立，允许原生对勾。",
+        "Mihon ChapterSort/SyncChaptersWithSource 与 Aidoku ceee58b源目录默认/方向源码已实际对照；源位置独立于可选话数，不再逐作品补正则处理菜单反序。",
+        "237风起苍岚784章全部unknown：088原序第2季354→353，090/094反序第1话→2话；095切话数保反序，对勾为话数+反序。093小号常规分组标题/材质已亲看；原089大粗标题/白底保留为失败。",
+        "已接受的包子012目录metadata及具名阅读范围保持冻结；旧源反例/发布/原片保留在原目录与Git材料中，不外推为跨季年代或所有首次选章通过。"
       ],
       "remainingActions": [
-        "包子012本具名范围冻结；漫画160跨季未知metadata及元尊同号分话按原项核依据，不用标题猜号或全reverse。"
+        "推送本笔Koma提交并核精确CI；源跨季真实年代/首次选章仍归独立未完成项，不冒整源通过。"
       ],
       "boundaries": [
-        "包子019具名目录/邻接/原进度冻结，不外推所有排序。漫画160跨季无metadata不能用已否决的非对称比较器、标题首数或全reverse修。",
-        "漫画160本轮仍缺成功详情HTML；781章混季反证与唯一403原件已复核，不猜标题首数或倒序。"
+        "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
+        "原始章节对象/ID/源返回顺序、持久阅读数据和Reader自动邻章语义保持；跨季年代不能由显示反序推定。",
+        "允许差异为升降序真正互逆、默认降序单一状态、原生选中对勾和同项选择无变更；不改控件尺寸/排布/字体。"
       ],
       "modificationBasis": {
-        "object": "SourceChapterListResolver既有完成目录脱敏诊断",
-        "history": "27af82c8已有catalog_identity仅计ID重复；e57d184源标题metadata规则及19ad9143未知-1/同号稳定规则保持",
-        "originalReason": "不记录书名/章节ID/URL或每页/每帧日志，不因诊断改变返回目录",
-        "reopenEvidence": "507真实696章仅101编号、595unknown/max583；508未知组原生可见687赤尾烈鷹等十个非零三位+CJK题名，恰被e57d184首位0限制排除。Mac匿名GET403不冒原生body。",
-        "allowedDifference": "仅在既有完成目录单次O(n)统计中增加已知/未知章号数量、数值范围及最多8个原位置的章号；不输出标题/ID/URL，不改章节/排序/读态/分页。"
+        "object": "ChapterListSection展示排序和MangaDetailModels排序状态；原章节对象/ID不变",
+        "history": "5e7854a7→3b2713ef→19ad9143；当前未提交两维方案及237089视觉反例",
+        "originalReason": "话数语义比较保留；源目录和可选数值不能混为同一排序输入。旧二项菜单未同步默认状态。",
+        "reopenEvidence": "用户再次实际复现多作品反序无效/当前项不明，并批准两维默认源目录方案；又明确要求小号分组标题及新材质。",
+        "allowedDifference": "SOURCE_ORDER/CHAPTER_NUMBER与FORWARD/REVERSE独立，整表反转；原生选中标记、当前项无重选；排序分组小号常规字及公共材质。保其他布局、ID、读态和Reader邻章语义。"
       }
+    },
+    {
+      "id": "APP_POPUP_SYSTEM_MATERIAL",
+      "title": "菜单与半模态漏接系统新材质",
+      "kind": "open",
+      "priority": "P1（当前人类连续反馈）",
+      "owner": "Root",
+      "dependencies": [],
+      "reportedAt": "2026-10-24T18:01:49.053271+00:00",
+      "reportedAtSource": "本轮登记时间；原始提出时间未作推算。",
+      "firstHandlingAt": "2026-10-24T18:01:49.053271+00:00",
+      "closedAt": null,
+      "evidencePoints": [
+        "8545858B签名defaultRelease0.1.2-pre/code3已装237，64相关检查和三语资源parity通过。",
+        "SourceSettings104从稳定原生菜单直接打开，105不保存关闭并返回；101自然403自动Web验证后列表恢复，不扩成正文通过。",
+        "shared reader-ui/ReaderChrome五处菜单有三处自d303c6b等已用THICK，两处RuntimeMenu缺失；这次统一调用同一内部材质解析，无新增动作或参数。",
+        "最终1098547952B具名菜单：小号常规标题、原生勾选及材质可见；106三业务域相对105逐字相同。旧087→105缓存/源版本及读态时间戳不同，不写逐字保持或覆盖恢复。"
+      ],
+      "status": "宿主材质及排序菜单237已验；三宿主构建和N/E CI成功",
+      "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。",
+      "remaining": "提交推送Koma材质/排序范围并核精确CI。N/E共享默认菜单新增两处仅构建/4检查，无实机通过声明；暗色及API<26未实机。",
+      "modificationBasis": {
+        "object": "宿主原生菜单/半模态选项及KomaModalScaffold背景；ChapterListSection排序分组标题",
+        "history": "37539a94引入统一ModalScaffold整面BG_SUB，296c7b34直接源设置复用bindSheet；本轮两维排序WIP使用原生MenuItemGroup字符串标题。",
+        "originalReason": "已有公共模态导航/关闭/滚动结构保留；未找到排除新材质的决定，不把未找到当旧授权。",
+        "reopenEvidence": "当前用户明确指出所有菜单和半模态没用新材质及分类粗大；237089原图已见大粗标题/白底。官方API26 MenuOptions/SheetOptions均有systemMaterial，默认undefined。",
+        "allowedDifference": "仅补官方沉浸材质、支持版本的模态内容透明和排序分组小号常规字；旧系统保原底色。保动作/尺寸/位置/展开档位/键盘/生命周期/选中状态。"
+      },
+      "remainingActions": [
+        "提交推送Koma材质/排序范围并核精确CI。N/E共享默认菜单新增两处仅构建/4检查，无实机通过声明；暗色及API<26未实机。"
+      ],
+      "boundaries": [
+        "宿主40处弹层仅增加材质；HDS导航溢出菜单103原生材质已存在，不替换其实现。",
+        "共享层沿用另外三个菜单已使用的THICK及API26检测，只补漏项；不变Reader偏好/控件选项/窗口生命周期。"
+      ]
     },
     {
       "id": "READER_SETTINGS_STABILITY",
@@ -2618,7 +2652,8 @@
         "470完整95PTS/6全页表及6图标表顺审，37–39原帧复核；471与469的8个源Image hashcode/bounds一致，三业务域逐字同。",
         "503/504真实远端新装：115编码帧、4全页表和8/9/10原帧亲审；当行按钮从安装变安装中时图标空1帧，不能用已缓存PrefixCustomBuilder对象宣称完全解决。录像890x1920，设备1260x2720。",
         "531真实011→012更新118帧四联系表已亲看；原帧5图标正常，6(PTS0.099656s)本行图标瞬空，7(0.116111s)恢复，其他原可见源图标保持；问题仍open，不以Native按钮更新正常当已修。",
-        "本轮SDK声明仅CommonMethod，未发现按区域更新setter；预览HdsComponent.hsp解读明确标为mocked implementation，不作实机因果。434实际主线程最长回调29.616ms/一次23.406msUIVsync保有界，不能抵消531一帧瞬空。"
+        "本轮SDK声明仅CommonMethod，未发现按区域更新setter；预览HdsComponent.hsp解读明确标为mocked implementation，不作实机因果。434实际主线程最长回调29.616ms/一次23.406msUIVsync保有界，不能抵消531一帧瞬空。",
+        "官方HdsListItemCard文档已核：A/B/C仅在整卡Options中配置，公开通用属性不可单独修改内部区域；SuffixButton.options可写，但文档未承诺复用对象即可局部更新。未据此认定平台根因，未改原生样式或重复安装。"
       ],
       "remainingActions": [
         "本行按钮改变仍有图标瞬空；待实机HDS A区/C区更新边界的有效实现依据，保原生卡片及已定30vp/R7。不用预览mock或重复造安装验证。"
@@ -2650,18 +2685,20 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "434自然远端更新trace有界结果成立；整体仍OPEN",
-      "result": "434普通014→015安装的12秒trace：最长depth0回调29.616ms、fs.rmdir22.115ms，12个实际帧max23.439ms/均3.622ms；仅该窗口，不称全程满帧或无阻塞。418本行瞬空未复验。",
+      "status": "434回调归因已细分：22.115ms不是目录删除执行时间",
+      "result": "复核434原始trace：fs.rmdir实际工作线程execute 0.288ms，主线程complete 22.115ms，内含后续Promise微任务。当前删除代码已用await；不能据complete标签认定删除在主线程阻塞。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "434注册84IDs/顺序保持，仅漫画屋015/WASM54808/单域变化，其他83及library/reader逐字同；与379本地导入为不同具名路径，不作严格A/B。",
         "main63980既有12秒安装trace读回：depth0最长29.616ms、rmdir22.115ms，12实际帧max23.439ms/均3.622ms；本次没有录像，不判断418视觉反例通过。",
-        "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。"
+        "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。",
+        "434 trace.db事件5986/5987：execute 0.288ms在callid369；complete 22.115ms在主callid262，仅3个子span（序列化两次/提示），无细分JS栈。官方TaskPool指南说明NAPI complete计入后续微任务；目前无法把22ms归给rmdir本身。",
+        "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。"
       ],
       "remainingActions": [
-        "保有界远端安装trace结果；418一帧本行图标瞬空仍待具名录像与因果，不用少量实际帧宣告全程流畅。"
+        "区分安装返回后的notify、单包投影及管理页状态提交耗时；本行图标瞬空独立保留。先补有界阶段观测，再利用真实可更新源验证，不盲迁移文件API。"
       ],
-      "remaining": "保有界远端安装trace结果；418一帧本行图标瞬空仍待具名录像与因果，不用少量实际帧宣告全程流畅。",
+      "remaining": "保留237079新分段及trace：继续定位29.459ms dirty更新；不能把目录删除complete标签当删除执行。当前先处理人类重开的通用排序。",
       "boundaries": [
         "379本地导入与434自然远端更新分别有界取证；不外推全App、满帧或安装行瞬空已修。",
         "漫画屋014→015自然远端更新已执行并取得有界trace；本次无录像，418图标瞬空仍OPEN。",
@@ -2922,11 +2959,12 @@
         "FIRST_CHAPTER_SELECTION"
       ],
       "kind": "open",
-      "status": "413列表超时；415普通网页仍白页，原因未核",
+      "status": "237081当前列表HTTP200；旧197超时未据此撤销",
       "result": "197漫画柜0.1.6 get_manga_list15038ms返回timeout/HTTP0，原生显示连接超时；具体网络阶段未明，不能归为旧237相同根因。",
       "evidencePoints": [
         "413实际列表请求15038ms超时；get_settings未实现是独立能力，不是该列表超时原因。",
-        "415完整原图已亲审：manhuagui.com加载指示消失后仍白页，仅Web节点/原生导航，无正文或挑战UI；三域同406，AWAKE/override86400000。"
+        "415完整原图已亲审：manhuagui.com加载指示消失后仍白页，仅Web节点/原生导航，无正文或挑战UI；三域同406，AWAKE/override86400000。",
+        "237081同普通Browse→漫画柜016，本次HTTP200/27920chars；头1599ms、总1609ms，官方累计dns6.557/tcp9.382/tls1194.953/首字节1593.163/完成1595.842ms。新阶段日志已实机可用；不反推旧197超时原因或整源正文可读。"
       ],
       "remainingActions": [
         "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。"
@@ -2956,7 +2994,7 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "漫画160013网页动作/打开返回197具名成立；站点内容失败保留",
+      "status": "五处网页动作已改官方website符号；原生溢出菜单文本仍由HDS持有",
       "result": "源62a1d185精确CI40079042677成功，08:43:50Z公开非draft/pre，原latest85条/MH1600.1.3。553唯一普通远端更新成功；554源85→85仅MH160变且原顺序/书库/reader保持。556两原网页MenuItem均enabled/clickable，557实际WebView已打开；558只有站点标题/加载指示，未证明正文可见。",
       "evidencePoints": [
         "App c5ad7b8074c04adcbc09ef5a01284cd735c4211b精确CI40049912720已completed/success；399最终8514625B包保持。",
@@ -2967,12 +3005,13 @@
         "mh160仅Cargo/lock/lib/README四文件23增3删；生产单源编译48786B及实际source_info0.1.3通过，62a1d18已同步master，远端/Native待后继。",
         "555断言把MenuItem及子Text同名两节点当1而停，原工具失败保留；556原图/原MenuItem六项已亲核，未改产品迎合断言。",
         "558当前Web拥有正确站点标题，Webbounds[0,305][1260,2720]，但当前没有WebView DevTools socket；未启调试、无UA/Cookie或客户端变更。",
-        "559仅等待页面就绪，31.290s仍见LoadingProgress；560一次普通Back回原详情784并自然回书架，561三业务域同554。未点刷新/外部浏览器，无Cookie或UA改动。"
+        "559仅等待页面就绪，31.290s仍见LoadingProgress；560一次普通Back回原详情784并自然回书架，561三业务域同554。未点刷新/外部浏览器，无Cookie或UA改动。",
+        "最新人类反馈：WebView打开网页入口使用房子图标，应表达网页打开而非主页；已登记，未转移当前通用章节排序修复。"
       ],
       "remainingActions": [
-        "本次Manga160源URL及打开返回具名范围冻结；浏览器动作仅可见/可用未点击。目标Web白屏归网页阶段调查，4homepage例外及未加载Native边界仍保留。"
+        "随本轮Koma提交/CI收尾；HDS溢出菜单103不显示动作图标，不能把文字菜单截图称图标实测。"
       ],
-      "remaining": "本次Manga160源URL及打开返回具名范围冻结；浏览器动作仅可见/可用未点击。目标Web白屏归网页阶段调查，4homepage例外及未加载Native边界仍保留。",
+      "remaining": "随本轮Koma提交/CI收尾；HDS溢出菜单103不显示动作图标，不能把文字菜单截图称图标实测。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
@@ -3164,6 +3203,9 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。"
 }
+
+
+
 -->
 
 ## 0. 本轮审查结论与方法（2026-09-05）

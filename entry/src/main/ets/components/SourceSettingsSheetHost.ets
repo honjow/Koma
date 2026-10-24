@@ -1,3 +1,4 @@
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceSettingDescriptor, SourceSettingsRecord, appSourceSettingsStore,
@@ -101,7 +102,7 @@ export struct SourceSettingsSheetHost {
       .width(0)
       .height(0)
       .hitTestBehavior(HitTestMode.None)
-      .bindSheet($$this.shown, this.SettingsContent, {
+      .bindSheet($$this.shown, this.SettingsContent, komaSheetOptions({
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
         enableOutsideInteractive: false,
@@ -109,6 +110,6 @@ export struct SourceSettingsSheetHost {
         enableFloatingDragBar: true,
         keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_SCROLL,
         onDisappear: () => { this.finishDismissal() },
-      })
+      }))
   }
 }

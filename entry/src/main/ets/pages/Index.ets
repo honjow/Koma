@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -2613,12 +2614,12 @@ struct Index {
         .height(1)
         .margin({ top: this.layoutSafeArea.topAvoidHeight + 48, right: ThemeConstants.SPACE_MD })
         .hitTestBehavior(HitTestMode.None)
-        .bindMenu(this.importMenuShown, this.ImportMenu, {
+        .bindMenu(this.importMenuShown, this.ImportMenu, komaMenuOptions({
           placement: Placement.BottomRight,
           onDisappear: () => {
             this.importMenuShown = false
           },
-        })
+        }))
     }
     .width('100%')
     .height('100%')
@@ -2793,7 +2794,7 @@ struct Index {
     isCurrent: () => boolean): Record<string, Object> {
     const content: Record<string, Object> = {
       'label': AppStrings.get('manga_detail_menu_open_webview'),
-      'icon': $r('sys.symbol.house_fill'),
+      'icon': $r('sys.symbol.website'),
       'isEnabled': true,
       'action': async () => {
         const opened = await openSourceHomepage(getContext(this) as common.UIAbilityContext, source.sourceId,
@@ -2844,7 +2845,7 @@ struct Index {
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),
-        'icon': $r('sys.symbol.house_fill'),
+        'icon': $r('sys.symbol.website'),
         'isEnabled': source.enabled,
         'action': () => {
           if (!openSourceWebSession(source.sourceId, sourceDisplayName(source.sourceId, source.displayName),
@@ -2923,7 +2924,7 @@ struct Index {
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),
-        'icon': $r('sys.symbol.house_fill'),
+        'icon': $r('sys.symbol.website'),
         'isEnabled': source.enabled,
         'action': () => {
           if (!openSourceWebSession(source.sourceId, sourceDisplayName(source.sourceId, source.displayName),
@@ -3009,7 +3010,7 @@ struct Index {
     if (chrome.webActionsAvailable) {
       menuItems.push({ 'content': {
         'label': AppStrings.get('manga_detail_menu_open_webview'),
-        'icon': $r('sys.symbol.house_fill'),
+        'icon': $r('sys.symbol.website'),
         'isEnabled': true,
         'action': () => { chrome.requestAction(MangaDetailTitleAction.OPEN_WEBVIEW) },
       } as Record<string, Object> })

@@ -1,3 +1,4 @@
+import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
@@ -408,12 +409,12 @@ export struct SourceBrowsePage {
         .backgroundColor(Color.Transparent)
         .padding(0)
         .borderRadius(0)
-        .bindMenu(this.listingMenuOpen, this.ListingMenu(), {
+        .bindMenu(this.listingMenuOpen, this.ListingMenu(), komaMenuOptions({
           placement: Placement.BottomLeft,
           onDisappear: () => {
             this.listingMenuOpen = false
           },
-        })
+        }))
         .accessibilityText(params.section.listing.name)
         .onClick(() => {
           this.openListingMenu()
@@ -690,7 +691,7 @@ export struct SourceBrowsePage {
         Column() {}
           .width(0)
           .height(0)
-          .bindSheet($$this.webChallengeShown, this.WebChallengeSheet, {
+          .bindSheet($$this.webChallengeShown, this.WebChallengeSheet, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false,
             enableOutsideInteractive: false, enableFloatingDragBar: true,
             onWillDismiss: (action: DismissSheetAction) => {
@@ -698,7 +699,7 @@ export struct SourceBrowsePage {
               action.dismiss()
             },
             onDisappear: () => { this.finishWebChallengeDismiss() },
-          })
+          }))
         SourceMangaGrid({
           scroller: this.chrome.scroller,
           contentItemCount: this.gridProjection.rows.length,
@@ -729,9 +730,9 @@ export struct SourceBrowsePage {
       .width('100%')
       .height('100%')
       .bindSheet($$this.filtersShown, this.SourceFiltersSheet,
-        sourceFilterSheetOptions(() => {
+        komaSheetOptions(sourceFilterSheetOptions(() => {
           this.closeFilters()
-        }))
+        })))
     }
   }
 }

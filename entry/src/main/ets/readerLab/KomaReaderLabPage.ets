@@ -1,3 +1,4 @@
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderDirectionControl, ReaderDirectionChoice } from '../components/ReaderDirectionControl'
@@ -763,7 +764,7 @@ export struct KomaReaderLabPage {
                 topInset: this.safeArea.topAvoidHeight, bottomInset: this.safeArea.bottomAvoidHeight,
                 accent: ThemeConstants.BRAND_PRIMARY, onClose: (): void => { this.closeReader() } })
               Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
-                .bindSheet($$this.chapterPickerShown, this.ReaderHostChapterPickerSheet, {
+                .bindSheet($$this.chapterPickerShown, this.ReaderHostChapterPickerSheet, komaSheetOptions({
                   detents: [SheetSize.MEDIUM, SheetSize.LARGE],
                   showClose: false,
                   enableOutsideInteractive: false,
@@ -774,7 +775,7 @@ export struct KomaReaderLabPage {
                     this.restoreChapterPickerPosition()
                   },
                   onDisappear: (): void => { this.finishChapterPickerDismissal() },
-                })
+                }))
             } else {
               ReaderLabSurface({ session: entry.session, initialUnit: entry.unit, initialIndex: entry.initialIndex,
                 preloadDepth: this.readerMode.preloadPages,
@@ -797,14 +798,14 @@ export struct KomaReaderLabPage {
       .backgroundColor(this.productionEntry ? this.readerCanvasBackground() : Color.Transparent)
       .padding({ top: this.productionEntry || this.request.readingChrome && this.session !== null ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
         bottom: this.productionEntry || this.request.readingChrome && this.session !== null ? 0 : this.safeArea.bottomAvoidHeight })
-      .bindSheet($$this.readerSettingsSheetShown, this.ReaderHostSettingsSheet, {
+      .bindSheet($$this.readerSettingsSheetShown, this.ReaderHostSettingsSheet, komaSheetOptions({
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
         enableOutsideInteractive: false,
         scrollSizeMode: ScrollSizeMode.CONTINUOUS,
         enableFloatingDragBar: true,
         onDisappear: (): void => { this.closeHostSettings() },
-      })
+      }))
     }.titleBar({
       avoidLayoutSafeArea: true,
       enableComponentSafeArea: false,

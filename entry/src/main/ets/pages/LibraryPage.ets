@@ -1,3 +1,4 @@
+import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -1924,7 +1925,7 @@ export struct LibraryPage {
       Row() {
         this.SortSelector()
       }
-      .bindMenu(this.SortMenu())
+      .bindMenu(this.SortMenu(), komaMenuOptions())
 
       Row() {
         KomaActionButton({
@@ -1938,7 +1939,7 @@ export struct LibraryPage {
           },
         })
       }
-      .bindSheet($$this.filtersShown, this.LibraryFiltersSheet, {
+      .bindSheet($$this.filtersShown, this.LibraryFiltersSheet, komaSheetOptions({
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
         enableOutsideInteractive: false,
@@ -1947,7 +1948,7 @@ export struct LibraryPage {
         onDisappear: () => {
           this.closeFilterSheet()
         },
-      })
+      }))
     }
     .width('100%')
   }
@@ -2050,14 +2051,14 @@ export struct LibraryPage {
           },
         })
           .margin({ top: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-          .bindMenu(this.comicActionMenuKey === `grid:${params.comic.id}`, this.ComicActionMenu({ comic: params.comic }), {
+          .bindMenu(this.comicActionMenuKey === `grid:${params.comic.id}`, this.ComicActionMenu({ comic: params.comic }), komaMenuOptions({
             placement: Placement.BottomRight,
             onDisappear: () => {
               if (this.comicActionMenuKey === `grid:${params.comic.id}`) {
                 this.comicActionMenuKey = ''
               }
             },
-          })
+          }))
       }
     }
     .width('100%')
@@ -2269,14 +2270,14 @@ export struct LibraryPage {
               },
             })
               .margin({ right: ThemeConstants.SPACE_SM })
-              .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu({ comic: comic }), {
+              .bindMenu(this.comicActionMenuKey === `list:${comic.id}`, this.ComicActionMenu({ comic: comic }), komaMenuOptions({
                 placement: Placement.BottomRight,
                 onDisappear: () => {
                   if (this.comicActionMenuKey === `list:${comic.id}`) {
                     this.comicActionMenuKey = ''
                   }
                 },
-              })
+              }))
           }
         }
         .width('100%')

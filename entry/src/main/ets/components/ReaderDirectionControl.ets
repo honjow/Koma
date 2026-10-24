@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 
 export type ReaderDirectionChoice = 'ltr' | 'rtl' | 'vertical_page' | 'continuous'
@@ -51,10 +52,10 @@ export struct ReaderDirectionControl {
     .width(44).height(44).backgroundColor(Color.Transparent)
     .enabled(this.controlEnabled).accessibilityText(this.label(this.readingMode))
     .onClick((): void => { this.menuShown = true })
-    .bindMenu(this.menuShown, this.DirectionMenu, {
+    .bindMenu(this.menuShown, this.DirectionMenu, komaMenuOptions({
       placement: Placement.TopRight,
       aboutToAppear: (): void => { this.onMenuVisible(true) },
       onDisappear: (): void => { this.menuShown = false; this.onMenuVisible(false) },
-    })
+    }))
   }
 }

@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
 
@@ -22,6 +23,6 @@ export struct ReaderModeControl {
 
   build() {
           Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph(this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? $r('sys.symbol.scroll_vertical') : $r('sys.symbol.arrow_right_and_square')).fontSize(22).fontColor([Color.White]) }
-            .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.controlEnabled).onClick(() => { this.modeShown = true }).bindMenu(this.modeShown, this.ModeMenu, { placement: Placement.TopRight, aboutToAppear: (): void => { this.onMenuVisible(true) }, onDisappear: () => { this.modeShown = false; this.onMenuVisible(false) } })
+            .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.controlEnabled).onClick(() => { this.modeShown = true }).bindMenu(this.modeShown, this.ModeMenu, komaMenuOptions({ placement: Placement.TopRight, aboutToAppear: (): void => { this.onMenuVisible(true) }, onDisappear: () => { this.modeShown = false; this.onMenuVisible(false) } }))
   }
 }

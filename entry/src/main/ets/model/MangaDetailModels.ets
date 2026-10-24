@@ -47,11 +47,14 @@ export interface MangaChapterItem extends ReaderChapterDescriptor {
 
 export type MangaChapterDownloadStatus = 'queued' | 'downloading' | 'downloaded' | 'partial' | 'failed' | 'blocked'
 
-export enum ChapterSortOrder {
-  NEWEST_FIRST = 'newest_first',
-  OLDEST_FIRST = 'oldest_first',
-  BY_NUMBER_DESC = 'by_number_desc',
-  BY_NUMBER_ASC = 'by_number_asc',
+export enum ChapterSortBasis {
+  SOURCE_ORDER = 'source_order',
+  CHAPTER_NUMBER = 'chapter_number',
+}
+
+export enum ChapterSortDirection {
+  FORWARD = 'forward',
+  REVERSE = 'reverse',
 }
 
 type SourceRuntimeRecord = Record<string, Object>

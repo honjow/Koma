@@ -1,3 +1,4 @@
+import { komaContextMenuOptions, komaMenuOptions } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaActionButton } from './ui/KomaActionButton'
@@ -5,7 +6,7 @@ import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { KomaMenuChip } from './ui/KomaMenuChip'
 import { ListDivider } from './ui/GroupedListSection'
-import { ChapterSortOrder, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
+import { ChapterSortBasis, ChapterSortDirection, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 function s(name: string): string {
@@ -33,11 +34,11 @@ export enum ChapterBatchScope {
 export struct ChapterListSection {
   @Param chapters: MangaChapterItem[] = []
   @Local private languageState: LanguageState = connectLanguageState()
-  @Local private sortOrder: ChapterSortOrder = ChapterSortOrder.NEWEST_FIRST
+  @Local private sortBasis: ChapterSortBasis = ChapterSortBasis.SOURCE_ORDER
+  @Local private sortDirection: ChapterSortDirection = ChapterSortDirection.FORWARD
   @Local private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
   @Local private languageFilter: string = ''
   @Local private groupFilter: string = ''
-  @Local private sortedChapters: MangaChapterItem[] = []
   @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
   @Local private selectionMode: boolean = false
@@ -51,10 +52,14 @@ export struct ChapterListSection {
   @Event onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean, scope: ChapterBatchScope) => void =
     (_chapterIds: string[], _isRead: boolean, _scope: ChapterBatchScope) => {}
 
+  @Computed
+  private get sortedChapters(): MangaChapterItem[] {
+    return this.sortedChapterList()
+  }
+
   @Monitor('chapters')
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
-    this.sortedChapters = this.sortedChapterList()
     this.selectedChapterIds = new Set<string>(this.selectedIdsInFilter())
   }
 
@@ -103,12 +108,15 @@ export struct ChapterListSection {
 
   private sortedChapterList(): MangaChapterItem[] {
     const sorted = this.filteredChapterList()
-    sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number => {
-      const numLeft = this.chapterNumberValue(left)
-      const numRight = this.chapterNumberValue(right)
-      return this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC ? numLeft - numRight : numRight - numLeft
-    })
-    return sorted
+    if (this.sortBasis === ChapterSortBasis.CHAPTER_NUMBER) {
+      // Source position and optional chapter numbers are distinct inputs.
+      // Equal/missing numbers retain source order in this fixed baseline.
+      sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number =>
+        this.chapterNumberValue(left) - this.chapterNumberValue(right))
+    }
+    // Direction reverses the entire result, including all equal/missing values.
+    // Neither the source catalog nor chapter IDs/reading state are mutated.
+    return this.sortDirection === ChapterSortDirection.REVERSE ? sorted.reverse() : sorted
   }
 
   private filteredChapterList(): MangaChapterItem[] {
@@ -135,31 +143,17 @@ export struct ChapterListSection {
     return filtered
   }
 
-  private compareByDate(left: MangaChapterItem, right: MangaChapterItem, newestFirst: boolean): number {
-    const leftDate = left.dateUpload
-    const rightDate = right.dateUpload
-    if (leftDate === undefined && rightDate === undefined) {
-      // Keep the source's own order when it does not expose dates.
-      return 0
-    }
-    if (leftDate === undefined) {
-      return 1
-    }
-    if (rightDate === undefined) {
-      return -1
-    }
-    return newestFirst ? rightDate - leftDate : leftDate - rightDate
-  }
-
   private chapterNumberValue(chapter: MangaChapterItem): number {
-    return chapter.chapterNumber === undefined ? -1 : chapter.chapterNumber
+    return typeof chapter.chapterNumber === 'number' && Number.isFinite(chapter.chapterNumber) && chapter.chapterNumber >= 0
+      ? chapter.chapterNumber : -1
   }
 
   private sortLabel(): string {
-    if (this.sortOrder === ChapterSortOrder.BY_NUMBER_ASC) {
-      return s('chapter_list_sort_number_asc')
-    }
-    return s('chapter_list_sort_number_desc')
+    const basis = s(this.sortBasis === ChapterSortBasis.SOURCE_ORDER
+      ? 'chapter_list_sort_source_order' : 'chapter_list_sort_number')
+    const direction = s(this.sortDirection === ChapterSortDirection.FORWARD
+      ? 'chapter_list_sort_forward' : 'chapter_list_sort_reverse')
+    return basis + ' · ' + direction
   }
 
   private filterLabel(): string {
@@ -189,9 +183,14 @@ export struct ChapterListSection {
     return `${s('chapter_list_filter_group')}: ${this.groupFilter}`
   }
 
-  private setSortOrder(sortOrder: ChapterSortOrder): void {
-    this.sortOrder = sortOrder
-    this.rebuildDataSource()
+  private setSortBasis(basis: ChapterSortBasis): void {
+    if (this.sortBasis === basis) return
+    this.sortBasis = basis
+  }
+
+  private setSortDirection(direction: ChapterSortDirection): void {
+    if (this.sortDirection === direction) return
+    this.sortDirection = direction
   }
 
   private setReadFilter(readFilter: ChapterReadFilter): void {
@@ -210,7 +209,8 @@ export struct ChapterListSection {
   }
 
   private hasActiveFilters(): boolean {
-    return this.sortOrder !== ChapterSortOrder.NEWEST_FIRST ||
+    return this.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
+      this.sortDirection !== ChapterSortDirection.FORWARD ||
       this.readFilter !== ChapterReadFilter.ALL ||
       this.languageFilter.length > 0 ||
       this.groupFilter.length > 0
@@ -228,7 +228,8 @@ export struct ChapterListSection {
     if (!this.hasActiveFilters()) {
       return
     }
-    this.sortOrder = ChapterSortOrder.NEWEST_FIRST
+    this.sortBasis = ChapterSortBasis.SOURCE_ORDER
+    this.sortDirection = ChapterSortDirection.FORWARD
     this.readFilter = ChapterReadFilter.ALL
     this.languageFilter = ''
     this.groupFilter = ''
@@ -331,16 +332,40 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private SortGroupHeader(title: string) {
+    Text(title)
+      .fontSize($r('sys.float.Body_S'))
+      .fontWeight(FontWeight.Regular)
+      .fontColor($r('sys.color.font_secondary'))
+  }
+
+  @Builder
   private SortMenu() {
     Menu() {
-      MenuItem({ content: s('chapter_list_sort_number_desc') })
-        .onClick(() => {
-          this.setSortOrder(ChapterSortOrder.BY_NUMBER_DESC)
-        })
-      MenuItem({ content: s('chapter_list_sort_number_asc') })
-        .onClick(() => {
-          this.setSortOrder(ChapterSortOrder.BY_NUMBER_ASC)
-        })
+      MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_by')) } }) {
+        MenuItem({ content: s('chapter_list_sort_source_order') })
+          .selected(this.sortBasis === ChapterSortBasis.SOURCE_ORDER)
+          .selectIcon(true)
+          .enabled(this.sortBasis !== ChapterSortBasis.SOURCE_ORDER)
+          .onClick(() => { this.setSortBasis(ChapterSortBasis.SOURCE_ORDER) })
+        MenuItem({ content: s('chapter_list_sort_number') })
+          .selected(this.sortBasis === ChapterSortBasis.CHAPTER_NUMBER)
+          .selectIcon(true)
+          .enabled(this.sortBasis !== ChapterSortBasis.CHAPTER_NUMBER)
+          .onClick(() => { this.setSortBasis(ChapterSortBasis.CHAPTER_NUMBER) })
+      }
+      MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_direction')) } }) {
+        MenuItem({ content: s('chapter_list_sort_forward') })
+          .selected(this.sortDirection === ChapterSortDirection.FORWARD)
+          .selectIcon(true)
+          .enabled(this.sortDirection !== ChapterSortDirection.FORWARD)
+          .onClick(() => { this.setSortDirection(ChapterSortDirection.FORWARD) })
+        MenuItem({ content: s('chapter_list_sort_reverse') })
+          .selected(this.sortDirection === ChapterSortDirection.REVERSE)
+          .selectIcon(true)
+          .enabled(this.sortDirection !== ChapterSortDirection.REVERSE)
+          .onClick(() => { this.setSortDirection(ChapterSortDirection.REVERSE) })
+      }
     }
   }
 
@@ -574,7 +599,7 @@ export struct ChapterListSection {
     .onClick(() => {
       this.onOpenChapter(ri.item.id)
     })
-    .bindContextMenu(this.ReadStateMenu(ri), ResponseType.LongPress)
+    .bindContextMenu(this.ReadStateMenu(ri), ResponseType.LongPress, komaContextMenuOptions())
   }
 
   @Builder
@@ -613,7 +638,7 @@ export struct ChapterListSection {
       .onClick(() => {
         this.setChapterSelected(ri.item.id, !this.selectedChapterIds.has(ri.item.id))
       })
-      .bindContextMenu(this.SectionActionsMenu, ResponseType.LongPress)
+      .bindContextMenu(this.SectionActionsMenu, ResponseType.LongPress, komaContextMenuOptions())
 
       if (this.shouldShowDownloadStatus(ri.item)) {
         this.DownloadStatusBadge(ri)
@@ -656,12 +681,12 @@ export struct ChapterListSection {
             },
           })
         }
-        .bindMenu(this.sectionActionsMenuShown, this.SectionActionsMenu, {
+        .bindMenu(this.sectionActionsMenuShown, this.SectionActionsMenu, komaMenuOptions({
           placement: Placement.BottomRight,
           onDisappear: () => {
             this.sectionActionsMenuShown = false
           },
-        })
+        }))
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -671,26 +696,27 @@ export struct ChapterListSection {
           KomaMenuChip({ label: this.filterLabel(), active: this.readFilter !== ChapterReadFilter.ALL })
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-        .bindMenu(this.FilterMenu())
+        .bindMenu(this.FilterMenu(), komaMenuOptions())
         if (this.shouldShowLanguageFilter()) {
           Row() {
             KomaMenuChip({ label: this.languageFilterLabel(), active: this.languageFilter.length > 0 })
           }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          .bindMenu(this.LanguageFilterMenu())
+          .bindMenu(this.LanguageFilterMenu(), komaMenuOptions())
         }
         if (this.shouldShowGroupFilter()) {
           Row() {
             KomaMenuChip({ label: this.groupFilterLabel(), active: this.groupFilter.length > 0 })
           }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-          .bindMenu(this.GroupFilterMenu())
+          .bindMenu(this.GroupFilterMenu(), komaMenuOptions())
         }
         Row() {
-          KomaMenuChip({ label: this.sortLabel(), active: this.sortOrder !== ChapterSortOrder.NEWEST_FIRST })
+          KomaMenuChip({ label: this.sortLabel(), active: this.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
+            this.sortDirection !== ChapterSortDirection.FORWARD })
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
-        .bindMenu(this.SortMenu())
+        .bindMenu(this.SortMenu(), komaMenuOptions())
         if (this.hasActiveFilters()) {
           KomaActionButton({
             label: s('common_reset'),

@@ -1,3 +1,4 @@
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
@@ -1145,14 +1146,14 @@ export struct DownloadsPage {
               this.actionMenuKey = 'queue'
             },
           })
-            .bindMenu(this.actionMenuKey === 'queue', this.QueueMoreMenu(), {
+            .bindMenu(this.actionMenuKey === 'queue', this.QueueMoreMenu(), komaMenuOptions({
               placement: Placement.BottomRight,
               onDisappear: () => {
                 if (this.actionMenuKey === 'queue') {
                   this.closeActionMenu()
                 }
               },
-            })
+            }))
         }
         .alignItems(VerticalAlign.Center)
       }
@@ -1169,14 +1170,14 @@ export struct DownloadsPage {
           .onClick(() => {
             this.actionMenuKey = 'filter'
           })
-          .bindMenu(this.actionMenuKey === 'filter', this.FilterMenu(), {
+          .bindMenu(this.actionMenuKey === 'filter', this.FilterMenu(), komaMenuOptions({
             placement: Placement.BottomLeft,
             onDisappear: () => {
               if (this.actionMenuKey === 'filter') {
                 this.closeActionMenu()
               }
             },
-          })
+          }))
       }
       .width('100%')
     }
@@ -1315,14 +1316,14 @@ export struct DownloadsPage {
             this.actionMenuKey = `row:${key}`
           },
         })
-          .bindMenu(this.actionMenuKey === `row:${key}`, this.DownloadRowMenu(key), {
+          .bindMenu(this.actionMenuKey === `row:${key}`, this.DownloadRowMenu(key), komaMenuOptions({
             placement: Placement.BottomRight,
             onDisappear: () => {
               if (this.actionMenuKey === `row:${key}`) {
                 this.closeActionMenu()
               }
             },
-          })
+          }))
       }
       .width('100%')
       .padding({
