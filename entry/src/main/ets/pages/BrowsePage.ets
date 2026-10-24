@@ -238,7 +238,8 @@ export struct BrowsePage {
 
   @Monitor('sourceRuntimeState.revision')
   private refreshInstalledSourceSummaries(): void {
-    reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
+    // Registry publishers have already committed the live mutation. Reloading
+    // every WASM here repeats disk work inside the reactive UI update.
     this.viewModel.loadInstalledSources()
   }
 

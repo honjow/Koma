@@ -633,8 +633,20 @@ export class SourceRuntimeRegistry {
   }
 
   persistToAppLocalMetadata(metadataPath: string): SourceRuntimeRegistryPersistResult {
-    for (let index = 0; index < this.entries.length; index += 1) {
-      const entry = this.entries[index]
+    return this.persistEntriesToAppLocalMetadata(metadataPath, this.entries)
+  }
+
+  // Entries have already passed register/import validation. Project the same
+  // installed subset without re-registering or re-hashing every WASM on each write.
+  persistImportedToAppLocalMetadata(metadataPath: string, excludedSourceId?: string): SourceRuntimeRegistryPersistResult {
+    const entries = this.entries.filter((entry: SourceRuntimeRegistryEntry): boolean =>
+      entry.sourceId !== excludedSourceId && entry.importStatus === 'imported' && entry.archivePath !== undefined)
+    return this.persistEntriesToAppLocalMetadata(metadataPath, entries)
+  }
+
+  private persistEntriesToAppLocalMetadata(metadataPath: string, entries: SourceRuntimeRegistryEntry[]): SourceRuntimeRegistryPersistResult {
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index]
       if (entry.wasmPath === undefined || entry.wasmPath.trim().length === 0) {
         return {
           ok: false,
@@ -664,7 +676,7 @@ export class SourceRuntimeRegistry {
 
     const metadata: SourceRuntimeRegistryPersistedMetadata = {
       schemaVersion: 1,
-      entries: this.entries.map((entry: SourceRuntimeRegistryEntry) => persistedEntryFromRegistryEntry(entry)),
+      entries: entries.map((entry: SourceRuntimeRegistryEntry) => persistedEntryFromRegistryEntry(entry)),
     }
     ensureParentDirSync(metadataPath)
     writeTextSync(metadataPath, JSON.stringify(metadata))

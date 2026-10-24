@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-23T23:32:59.611478+00:00",
+  "updatedAt": "2026-10-24T00:44:02.773930+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
   "activity": {
-    "title": "同步包子CDN修复并跟进精确CI",
-    "detail": "197同首话1→2→3与返回详情继续重开3/24已核，原其他数据保持；Root审两仓范围提交与远端CI，安装闪烁和残余长回调未关闭。",
-    "startedAt": "2026-10-23T23:32:59.611478+00:00"
+    "title": "源安装具名改善：提交同步与精确CI",
+    "detail": "379无诊断同84源同包：UI更新15.652ms、最长UI31.559ms、主回调17.389ms；380/381正常返回浏览及三域保持。Root审6文件同步，不关闭原316行瞬空。",
+    "startedAt": "2026-10-24T00:44:02.773930+00:00"
   },
-  "nextAction": "提交推送已审Host HEAD/包子0.1.10与源homepage生产链，跟精确CI和公开索引；期间接回源安装主线程长回调调查。",
+  "nextAction": "提交已验源安装性能修复并跟精确CI；接续常驻源站WebView入口。全部84已装与公开索引同版本，自然远端更新和行瞬空按原项保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "876b435f09ba4c62a736ee2530b2fcb13865156e已push（含f4caffaa与2c05ea6c）；精确CI40033988416 completed/success；无新tag发布",
-      "hap": "197327保数据覆盖Host HEAD候选8510812B/defaultRelease0.1.2-pre code3；328普通书架完整图与三域同before。原8510880B具名范围保留，不冒新包全App通过。"
+      "appHead": "e9966c219bb055321d9c34a516393ff4936d6b21已push；精确CI40040342730 completed/success，unsigned Release成功、tag发布skipped，无新App发版",
+      "hap": "197377已装非诊断8510277B/default Release0.1.2-pre code3，379同包导入与380/381根Browse84源/包子0.1.10回流通过。三域保持；不冒全App或远端安装运动通过。"
     },
     {
       "name": "NextE",
@@ -2526,18 +2526,22 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "有效代码已推且本笔CI成功；残余126ms仍OPEN",
-      "result": "f4caffaa十文件已提交推送；残余126.861ms无scope主线程回调与316安装视觉反例仍未闭，暂切包子具名不可读取证不取消源性能。",
+      "status": "具名同数据本地导入改善；准备审差异提交",
+      "result": "379无探针同84源/同公开包本地导入46ms，Vsync31.559/Dirty15.652ms且>33.34ms为0；具名改善成立，远端自然更新/316行瞬空仍另保OPEN。",
       "evidencePoints": [
-        "本笔CI40033988416/head876b435f09ba4c62a736ee2530b2fcb13865156e completed/success；unsigned Release成功，tag发布skipped。"
+        "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
+        "379库reader同377，registry84/顺序/余83同，仅包子4路径；380正常Back至根Browse，84已启用/包子存在。",
+        "19检查/Release过，临时HiTrace/CPU/timer源码全撤，本地373 CPU原件保留。",
+        "381正常根Browse原图Root已审，84启用/包子0.1.10图标可见；library/reader/registry与379逐字同。仅本轮CPU设备副本已移除并读回为空，本地373原件保留。"
       ],
       "remainingActions": [
-        "具名正文链后接回残余长回调/安装视觉；本笔CI已完成，不重复跟进。"
+        "审6文件提交推送并跟精确CI；后继真实远端更新时补原生行运动，不造版本或重开已接受范围。"
       ],
-      "remaining": "具名正文链后接回残余长回调/安装视觉；本笔CI已完成，不重复跟进。",
+      "remaining": "审6文件提交推送并跟精确CI；后继真实远端更新时补原生行运动，不造版本或重开已接受范围。",
       "boundaries": [
-        "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
-        "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
+        "仅具名同数据本地导入性能改善；不外推FPS/全App/远端更新或安装行瞬空已修。",
+        "当前无自然远端更新条件，不伪造版本；kind仍open，316独立反例保持。",
+        "诊断源码均撤；仅清本轮device CPU副本，本地373原件保留，不新tag。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2665,17 +2669,17 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "同首话1→2→3及返回重开具名恢复；候选待同步CI",
-      "result": "349真实3/24正文正常；同首话依实际纵向设置1→2→3、Back详情后继续重开3/24成立。候选待范围同步/CI，不是整书、cold、排序或旧公开HAP通过。",
+      "status": "限定首话恢复与精确远端发布完成；未扩大cold/整书",
+      "result": "精确远端包普通搜索/695详情/首话继续3/24及读态保持已核，本轮限定恢复与发布范围完成；cold/整书/排序仍未扩认，不阻本轮收口。",
       "evidencePoints": [
-        "347按346纵向分页/从上到下普通上滑到2/24→3/24；348返回同695章详情再继续，349完整3/24原图已审。",
-        "349对342 registry/library逐字同；reader数组长度91/151不变，仅大奉同章正常pageIndex2/pageId0002/ratio.125/completedfalse与时间更新，其余记录保持。",
-        "344横滑等待2失败、345仍1/24，346证实纵向模式，属Root错轴不是产品翻页失败；原325失败与错轴原件均保留。"
+        "353真实远端3/24图与三次HEAD fallback日志已审；registry84顺序保持仅包子WASM变119798B，library同349。",
+        "reader逐字段仅同书同章正常updatedAt/position.updatedAt变化，原page3/24和其余记录保持；不再待reader核查。",
+        "App/源精确CI成功与公开真实远端包13回放/Native范围均保留，原325失败不抹去。"
       ],
       "remainingActions": [
-        "Root审候选范围commit/push并跟精确CI；仅接受同首话翻页/返回重开范围，不外推cold/排序/整书或旧公开HAP。"
+        "冻结本轮限定恢复/发布；cold/整书/排序不外推，后继只按真实新样本或独立排序项推进。"
       ],
-      "remaining": "Root审候选范围commit/push并跟精确CI；仅接受同首话翻页/返回重开范围，不外推cold/排序/整书或旧公开HAP。",
+      "remaining": "冻结本轮限定恢复/发布；cold/整书/排序不外推，后继只按真实新样本或独立排序项推进。",
       "boundaries": [
         "允许差异仅source图片选路与Host请求方法；保ID/章节/页数/进度，Reader布局不动。",
         "不写死rsa、不绕TLS、不新增UI或Cookie权限；五CDN仅按站点声明有界选择，每章一次，不盲目多路下载。",
@@ -2802,15 +2806,16 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "homepage生产链已提交3a80037；常驻宿主入口未验",
-      "result": "六文件显式homepage→包manifest/index投影已审并提交3a80037，六项行为检查通过；不扩webSessionOrigins权限，App透传/常驻菜单尚未接完。",
+      "status": "homepage producer已原子发布；App常驻入口仍未接",
+      "result": "homepage随源dbea22e原子发布成功，真实85项索引含包子0.1.10+homepage；仅生产元数据完成，App常驻源WebView入口仍未接。",
       "evidencePoints": [
-        "当前只有producer候选交付；Root后继审metadata契约并接普通源菜单，原自动验证/重试入口保持。"
+        "源精确CI40040336964/head dbea22e59788cff1445edbe80a6b49322075d8f7 completed/success，公开release非draft/非pre。",
+        "App入口不能由producer发布替代；自动验证/人工回流既有能力保持，不称自动关闭通过。"
       ],
       "remainingActions": [
-        "Root审producer六文件，再接常驻源站WebView动作并核正常/未加载/失败状态；不替代自动验证。"
+        "Root接App常驻WebView动作，核正常/未加载/失败与返回；不再等待已成功源CI，不替代自动验证。"
       ],
-      "remaining": "Root审producer六文件，再接常驻源站WebView动作并核正常/未加载/失败状态；不替代自动验证。",
+      "remaining": "Root接App常驻WebView动作，核正常/未加载/失败与返回；不再等待已成功源CI，不替代自动验证。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"

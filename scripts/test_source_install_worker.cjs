@@ -92,3 +92,110 @@ test('settings response validation retains operation, network and array-shape bo
     assert.equal(settingsResponseOk('get_settings',reply),false)
   }
 })
+
+// Execute the production registry, keeping native filesystem calls observable.
+// The import guards and localized-name rules also come from production code.
+function persistenceFixture() {
+  const importerSource=fs.readFileSync(path.join(root,'sourceRuntime/SourcePackageImporter.ets'),'utf8')
+  const tree=ts.createSourceFile('importer',importerSource,ts.ScriptTarget.Latest,true)
+  const pattern=tree.statements.filter(ts.isVariableStatement).flatMap(n=>[...n.declarationList.declarations])
+    .find(n=>n.name.getText(tree)==='SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN').initializer.getText(tree)
+  const guards=functions('sourceRuntime/SourcePackageImporter.ets',
+    ['isValidSourcePackageMinAppVersion','normalizeSourceOperationCapabilityToken','normalizeSourceOperationCapabilityTokens','validSourceWebSessionOrigins'],
+    {SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN:new Function('return ('+pattern+')')(),url:require('node:url')})
+  function evaluate(file,requireModule) {
+    const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{
+      compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
+    const exports={};new Function('exports','require',code)(exports,requireModule);return exports
+  }
+  const names=evaluate('sourceRuntime/SourceLocalizedNames.ets',()=>{throw Error('unexpected name dependency')})
+  const files=new Map(),reads=[],writes=[];let writeFails=false
+  const nativeFs={OpenMode:{READ_ONLY:0},accessSync:p=>p==='/files'||files.has(p),
+    statSync:p=>({size:files.get(p).length}),openSync:p=>({fd:p}),closeSync:()=>{},
+    readSync:(fd,buffer)=>{reads.push(fd);const bytes=files.get(fd);new Uint8Array(buffer).set(bytes);return bytes.length},
+    mkdirSync:()=>{throw Error('unexpected directory creation')}}
+  const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
+    if(name==='@kit.CoreFileKit')return {fileIo:nativeFs,fileUri:{getUriFromPath:p=>'file://'+p}}
+    if(name==='./SourceLocalizedNames')return names
+    if(name==='./SourcePackageImporter')return {...guards,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm'}
+    if(name==='../model/AppFileTextPersistence')return {writeAppTextFile:(p,text)=>{if(writeFails)throw Error('disk');writes.push({path:p,metadata:JSON.parse(text)})}}
+    throw Error('unexpected registry dependency '+name)
+  })
+  const registry=new api.SourceRuntimeRegistry()
+  function add(id,{status='imported',archive='/packages/'+id+'.koma',enabled=true}={}) {
+    const bytes=new Uint8Array([1,2,3]);files.set('/packages/'+id+'.wasm',bytes)
+    const input={sourceId:id,route:'source',importStatus:status,enabled,hashOk:true,network:false,wasmBytes:bytes,
+      wasmPath:'/packages/'+id+'.wasm',archivePath:archive,capabilities:['sourceInfo','pages'],
+      manifest:{package:{id,name:id,version:'0.1.0',language:'zh-Hant',type:'manga',nsfw:false,
+        localizedNames:{'zh-Hans':'示例'},minAppVersion:'0.1.0'},
+        permissions:{network:false,hostImports:[],webSessionOrigins:['https://example.org']}}}
+    assert.equal(registry.register(input).ok,true);return input
+  }
+  return {registry,add,files,reads,writes,set writeFails(value){writeFails=value}}
+}
+test('installed projection retains the exact existing metadata while excluding staged, unarchived and removed sources',()=>{
+  const f=persistenceFixture();f.add('keep',{enabled:false});f.add('removed');f.add('staged',{status:'staged'});f.add('unarchived',{archive:undefined})
+  // Explicitly represent an admitted source without an archive (the normal helper supplies one).
+  f.registry.lookup('unarchived').entry.archivePath=undefined
+  const expected=persistenceFixture();expected.add('keep',{enabled:false});expected.registry.persistToAppLocalMetadata('/files/registry.json')
+  const before=f.registry.list().slice()
+  const result=f.registry.persistImportedToAppLocalMetadata('/files/registry.json','removed')
+  assert.equal(result.ok,true);assert.equal(result.persistedSourceCount,1)
+  assert.deepEqual(f.writes,expected.writes);assert.deepEqual(f.reads,['/packages/keep.wasm'])
+  assert.deepEqual(f.registry.list(),before);assert.equal(f.registry.lookup('keep').entry,before[0])
+  assert.equal(f.writes[0].metadata.entries[0].enabled,false)
+})
+for(const failure of ['missingPath','missingFile','wrongSize'])test('installed projection retains '+failure+' validation before writing',()=>{
+  const f=persistenceFixture();f.add('one');const entry=f.registry.lookup('one').entry
+  if(failure==='missingPath')entry.wasmPath=undefined
+  if(failure==='missingFile')f.files.delete(entry.wasmPath)
+  if(failure==='wrongSize')f.files.set(entry.wasmPath,new Uint8Array([1,2]))
+  const result=f.registry.persistImportedToAppLocalMetadata('/files/registry.json')
+  assert.equal(result.ok,false);assert.equal(result.reasonCode,{missingPath:'missing_wasm_path',missingFile:'wasm_missing',wrongSize:'wasm_byte_count_mismatch'}[failure])
+  assert.equal(f.writes.length,0);assert.equal(f.registry.count(),1)
+})
+test('projection write errors propagate to the existing rollback owner without mutating live entries',()=>{
+  const f=persistenceFixture();f.add('one');const entry=f.registry.lookup('one').entry;f.writeFails=true
+  assert.throws(()=>f.registry.persistImportedToAppLocalMetadata('/files/registry.json'),/disk/)
+  assert.equal(f.registry.lookup('one').entry,entry);assert.deepEqual(f.reads,['/packages/one.wasm'])
+})
+test('app persistence uses the admitted registry projection without reconstructing or hashing all WASM bytes',()=>{
+  const calls=[]
+  const api=functions(registryFile,['persistInstalledSources'],{
+    appSourceRuntimeRegistry:{persistImportedToAppLocalMetadata:(...args)=>{calls.push(args);return {ok:true}}},
+    appSourceMetadataPath:()=>'/files/registry.json',
+    SourceRuntimeRegistry:class {constructor(){throw Error('duplicate registry')}},
+    manifestFromRegistryEntry:()=>{throw Error('recomputed all source hashes')}})
+  api.persistInstalledSources({},'removed');assert.deepEqual(calls,[['/files/registry.json','removed']])
+})
+
+// Run the real manager method so local imports preserve the same row-update
+// boundary as remote installs. No ArkUI rendering is simulated by this check.
+function localImportMethod(globals) {
+  const source=fs.readFileSync(path.join(root,'pages/SourcePackageManagerPage.ets'),'utf8')
+  const tree=ts.createSourceFile('manager',source.replace('export struct SourcePackageManagerPage','export class SourcePackageManagerPage'),ts.ScriptTarget.Latest,true)
+  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='SourcePackageManagerPage')
+  const method=owner.members.find(n=>ts.isMethodDeclaration(n)&&n.name.getText(tree)==='importPackage')
+  assert.ok(method)
+  const code=ts.transpileModule('class Manager {'+method.getText(tree)+'} exports.Manager=Manager',{
+    compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
+  const exports={};new Function('exports',...Object.keys(globals),code)(exports,...Object.values(globals))
+  return exports.Manager
+}
+for(const outcome of ['installed','cancelled','failed','exception'])test('local archive '+outcome+' retains its declared update boundary',async()=>{
+  const events=[],pending=deferred()
+  const Manager=localImportMethod({t:k=>k,tf:(k,r)=>k+':'+r,
+    pickSourcePackageArchive:async()=>outcome==='cancelled'?undefined:'picked.koma',
+    installFromArchive:()=>pending.promise})
+  const manager=new Manager();manager.busy=false;manager.context=()=>({});manager.showToast=()=>{}
+  manager.sourceReasonText=x=>x;manager.reload=()=>events.push('reload')
+  manager.refreshInstalledPackage=id=>events.push('single:'+id)
+  const work=manager.importPackage();await new Promise(setImmediate)
+  if(outcome!=='cancelled'){
+    assert.equal(manager.busy,true);assert.deepEqual(events,[])
+    if(outcome==='exception')pending.reject(Error('read'))
+    else pending.resolve(outcome==='installed'?{ok:true,id:'one'}:{ok:false,reasonCode:'invalid'})
+  }
+  await work;assert.equal(manager.busy,false)
+  assert.deepEqual(events,outcome==='installed'?['single:one']:outcome==='cancelled'?[]:['reload'])
+})

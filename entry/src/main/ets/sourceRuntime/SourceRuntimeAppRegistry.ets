@@ -693,32 +693,8 @@ function sha256Hex(bytes: Uint8Array): string {
 }
 
 function persistInstalledSources(context: common.UIAbilityContext, excludedSourceId?: string): void {
-  const persistedRegistry = new SourceRuntimeRegistry()
-  const entries = appSourceRuntimeRegistry.list()
-  for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index]
-    if (entry.sourceId === excludedSourceId || entry.importStatus !== 'imported' || entry.archivePath === undefined) {
-      continue
-    }
-    persistedRegistry.register({
-      sourceId: entry.sourceId,
-      route: entry.route,
-      importStatus: entry.importStatus,
-      manifest: manifestFromRegistryEntry(entry),
-      wasmBytes: entry.wasmBytes,
-      hashOk: entry.hashOk,
-      network: false,
-      enabled: entry.enabled,
-      capabilities: entry.capabilities,
-      manifestPath: entry.manifestPath,
-      wasmPath: entry.wasmPath,
-      archivePath: entry.archivePath,
-      packageIconPath: entry.packageIconPath,
-      presentationDescription: entry.presentationDescription,
-      presentationIcon: entry.presentationIcon,
-    })
-  }
-  const persist = persistedRegistry.persistToAppLocalMetadata(appSourceMetadataPath(context))
+  const persist = appSourceRuntimeRegistry.persistImportedToAppLocalMetadata(
+    appSourceMetadataPath(context), excludedSourceId)
   if (!persist.ok) {
     throw new Error(persist.reasonCode ?? 'source_registry_persist_failed')
   }

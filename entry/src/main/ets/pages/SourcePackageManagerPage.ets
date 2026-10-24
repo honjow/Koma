@@ -402,8 +402,17 @@ export struct SourcePackageManagerPage {
     return this.packages.map((pkg: InstalledSourcePackage): string => pkg.id)
   }
 
+  @Computed
+  private get installedPackagesById(): Map<string, InstalledSourcePackage> {
+    const installed: Map<string, InstalledSourcePackage> = new Map()
+    this.packages.forEach((source: InstalledSourcePackage): void => {
+      if (!installed.has(source.id)) installed.set(source.id, source)
+    })
+    return installed
+  }
+
   private installedPackage(entryId: string): InstalledSourcePackage | undefined {
-    return this.packages.find((pkg: InstalledSourcePackage): boolean => pkg.id === entryId)
+    return this.installedPackagesById.get(entryId)
   }
 
   private sourceSummary(source: InstalledSourcePackage): SourceRuntimeRegistryInstalledSourceSummary {
@@ -620,12 +629,24 @@ export struct SourcePackageManagerPage {
     return this.updateAvailableFor(installed, entry)
   }
 
-  private missingIndexEntries(): SourceIndexEntry[] {
+  // Keep the shared filters outside each row's parameter evaluation. Otherwise
+  // a count label subscribes to every nested package read in the cross-list scan.
+  @Computed
+  private get missingIndexPackages(): SourceIndexEntry[] {
     return this.indexEntries.filter((entry: SourceIndexEntry): boolean => this.installedPackage(entry.id) === undefined)
   }
 
-  private updatableIndexEntries(): SourceIndexEntry[] {
+  @Computed
+  private get updatableIndexPackages(): SourceIndexEntry[] {
     return this.indexEntries.filter((entry: SourceIndexEntry): boolean => this.hasUpdate(entry))
+  }
+
+  private missingIndexEntries(): SourceIndexEntry[] {
+    return this.missingIndexPackages
+  }
+
+  private updatableIndexEntries(): SourceIndexEntry[] {
+    return this.updatableIndexPackages
   }
 
   private availablePackageUpdates(): SourcePackageUpdateCandidate[] {
@@ -1251,11 +1272,14 @@ export struct SourcePackageManagerPage {
       if (result.ok) {
         this.statusText = t('source_pkg_import_done')
         this.showToast(t('source_pkg_toast_imported'))
+        // A successful archive import changes one package, just like an index install.
+        if (result.id !== undefined) this.refreshInstalledPackage(result.id)
+        else this.reload()
       } else {
         this.statusText = tf('source_pkg_import_failed', this.sourceReasonText(result.reasonCode))
         this.showToast(t('source_pkg_toast_validation_failed'))
+        this.reload()
       }
-      this.reload()
     } catch (_error) {
       this.statusText = tf('source_pkg_import_failed', this.sourceReasonText('import_failed'))
       this.showToast(t('source_pkg_toast_import_failed'))
