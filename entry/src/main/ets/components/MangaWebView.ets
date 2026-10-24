@@ -12,6 +12,7 @@ export struct MangaWebView {
   @Event onErrorReceive?: (event: OnErrorReceiveEvent) => void;
   @Event onHttpErrorReceive?: (event: OnHttpErrorReceiveEvent) => void;
   @Event onTitleReceive?: (event?: OnTitleReceiveEvent) => void;
+  @Event onConsole?: (event: OnConsoleEvent) => boolean;
 
   build() {
     Web({ src: '', controller: this.controller })
@@ -31,6 +32,9 @@ export struct MangaWebView {
         if (this.onControllerAttached) {
           this.onControllerAttached(this.controller)
         }
+      })
+      .onConsole((event: OnConsoleEvent): boolean => {
+        return this.onConsole ? this.onConsole(event) : false
       })
       .onPageBegin((event: OnPageBeginEvent) => {
         if (this.onPageBegin) {

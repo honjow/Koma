@@ -171,7 +171,7 @@ const sheetText = read('components/SourceWebSessionSheet').replace('export struc
 const sheetAst = ts.createSourceFile('sheet.ts', sheetText, ts.ScriptTarget.Latest, true)
 const sheetOwner = sheetAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceWebSessionSheet')
 const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan','pageEnded','mainPageFailed',
-  'completeSourceSession','close','sessionChanged','aboutToDisappear']
+  'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed']
 const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
 function sheetFixture() {
   let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve()
@@ -180,10 +180,11 @@ function sheetFixture() {
     fetchCookieSync: () => { if (failRead) throw Error('unavailable'); return cookies },
     saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
   } }
-  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','DiagnosticLogger','AppStrings','mangaHttpUrl', compile(sheetSource))(
+  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies', compile(sheetSource))(
     exports, webview, { complete: (...args) => { granted.push(args); return { state:'available' } } },
     u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance,
-    { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl)
+    { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl,
+    fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false))
   const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
   Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
     autoRetryOnClearance:true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
@@ -245,4 +246,25 @@ test('authentication recovery may open Web but cannot auto-return on a challenge
   assert.equal(f.model.searchWebChallenge.allowClearanceRetry,false)
   f.replies.push(challenge());await f.model.runSearch(f.source,'one')
   assert.equal(f.model.searchWebChallenge.allowClearanceRetry,true)
+})
+
+test('verification console keeps only a standard challenge code and never page text or secrets', () => {
+  const f=sheetFixture();f.events.length=0
+  const messages=['password=secret 123456', '[Cloudflare Turnstile] Error: 600010. token=secret',
+    '[Cloudflare Turnstile] Error: 1234567 token=secret', 'normal page output']
+  for (const message of messages) assert.equal(f.sheet.consoleMessage({message:{getMessage:()=>message}}), false)
+  assert.deepEqual(f.events,[['source_web_session','challenge_console','code=600010']])
+  f.sheet.active=false
+  f.sheet.consoleMessage({message:{getMessage:()=> '[Cloudflare Turnstile] Error: 110600.'}})
+  assert.equal(f.events.length,1)
+})
+test('verification resource diagnostics keep numeric stage and host classification without exposing URL', () => {
+  const f=sheetFixture();f.events.length=0
+  const sub={isMainFrame:()=>false,getRequestUrl:()=> 'https://challenges.cloudflare.com/private?token=secret'}
+  f.sheet.resourceFailed(sub,'transport',-105)
+  assert.equal(f.sheet.pageFailed,false)
+  assert.deepEqual(f.events,[['source_web_session','resource_failed','kind=transport code=-105 mainFrame=false challengeHost=true']])
+  assert.equal(JSON.stringify(f.events).includes('secret'),false)
+  f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl},'http',403)
+  assert.equal(f.sheet.pageFailed,true)
 })

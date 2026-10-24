@@ -15,17 +15,18 @@ function moduleFrom(name, requireMock) {
   vm.runInNewContext(javascript, { exports, require: requireMock, Map, Date, JSON, Error })
   return exports
 }
-function fixture() {
+function fixture(sdkApiVersion = 23) {
   const disk = new Map(), writes = [], fetched = [], diagnostics = [], configured = []
-  const extraEntries = new Map()
+  const extraEntries = new Map(), cookieReads = []
   let uuid = 0, cookie = 'private-cookie-value', failWrite = false
   let entry = { sourceId: 'source.one', manifestVersion: '1', enabled: true,
     wasmPath: '/app/packages/one/source.wasm', webSessionOrigins: ['https://site.invalid'] }
   const registry = { lookup: id => ({ entry: id === entry.sourceId ? entry : extraEntries.get(id) }) }
   const mocks = name => {
     if (name === '@kit.ArkTS') return { url: { URL }, util: { generateRandomUUID: () => String(++uuid) } }
-    if (name === '@kit.ArkWeb') return { webview: { WebCookieManager: { fetchCookieSync: fullUrl => {
-      fetched.push(fullUrl); return cookie
+    if (name === '@kit.BasicServicesKit') return { deviceInfo: { sdkApiVersion } }
+    if (name === '@kit.ArkWeb') return { webview: { WebCookieManager: { fetchCookieSync: (...args) => {
+      cookieReads.push(args);fetched.push(args[0]); return cookie
     }, configCookieSync: (fullUrl, value, incognito, includeHttpOnly) => {
       configured.push({ fullUrl, value, incognito, includeHttpOnly }); cookie = value.split(';')[0]
     }, saveCookieSync: () => {} } } }
@@ -115,7 +116,7 @@ function fixture() {
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
     return { calls, instances, intercepts, result: JSON.parse(result) }
   }
-  return { api, store, registry, writes, fetched, diagnostics, configured, identity, grant, http,
+  return { api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http,
     addSource: e => extraEntries.set(e.sourceId, e), setWriteFailure: value => { failWrite = value },
     changeEntry: fn => { entry = fn(entry) }, setCookie: value => { cookie = value },
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
@@ -517,4 +518,16 @@ test('challenge signal follows each response and retains only the allowed reject
   assert.equal(f.store.launchUrl(f.registry,'source.one'),'https://site.invalid/category/order/hits/page/1')
   assert.equal(f.store.status('source.one').state,'none')
   assert.equal(f.fetched.length,0)
+})
+
+test('API26 includes only the requested first-party partition while API23-25 keep the old overload', () => {
+  for (const version of [23,24,25,26,27]) {
+    const f=fixture(version);f.grant()
+    const session=f.store.requestSession(f.identity(),'https://site.invalid/a?original=query')
+    assert.equal(session.cookie,'private-cookie-value')
+    assert.deepEqual(f.cookieReads,[version>=26?['https://site.invalid/a?original=query',false,true]:['https://site.invalid/a?original=query',false]])
+    assert.equal(f.store.requestSession(f.identity(),'https://other.invalid/'),undefined)
+    assert.equal(f.cookieReads.length,1,'an ungranted origin cannot read any cookie partition')
+    assert.equal(JSON.stringify(f.diagnostics).includes('private-cookie-value'),false)
+  }
 })

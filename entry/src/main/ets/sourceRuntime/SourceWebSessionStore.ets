@@ -4,7 +4,16 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { url, util } from '@kit.ArkTS'
 import { webview } from '@kit.ArkWeb'
+import { deviceInfo } from '@kit.BasicServicesKit'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryEntry } from './SourceRuntimeRegistry'
+
+/** Ask the engine for this URL's first-party partition; never enumerate the global jar. */
+export function readSourceWebCookies(fullUrl: string): string {
+  if (deviceInfo.sdkApiVersion >= 26) {
+    return webview.WebCookieManager.fetchCookieSync(fullUrl, false, true)
+  }
+  return webview.WebCookieManager.fetchCookieSync(fullUrl, false)
+}
 
 export interface SourceWebSessionStatus {
   sourceId: string
@@ -178,7 +187,7 @@ export class SourceWebSessionStore {
     // UI-runtime callback only. The Web engine enforces URL/path/secure/expiry.
     // Cookie is never persisted by this store, logged, or included in WASM results.
     let cookie = ''
-    try { cookie = webview.WebCookieManager.fetchCookieSync(fullUrl, false) } catch (_error) {}
+    try { cookie = readSourceWebCookies(fullUrl) } catch (_error) {}
     return { userAgent: session.userAgent, cookie }
   }
 

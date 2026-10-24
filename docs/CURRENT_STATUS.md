@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T03:48:13.890921+00:00",
+  "updatedAt": "2026-10-24T04:37:25.320720+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
+  "activeId": "SOURCE_WEB_SESSION",
   "activity": {
-    "title": "漫画屋验证未通过，继续区分原因",
-    "detail": "197自动弹出网页后仍停留在安全验证；当前URL没有读到Cookie。第三方Cookie关闭只是配置事实，不能据此认定根因。该失败已保留，图标闪烁调查继续。",
+    "title": "进度页摘要/owner已纠正；会话修复整理提交，自动门禁仍未闭",
+    "detail": "Root已审包子自动失败及人工对照原图/日志，65项ID保留；API与磁盘一致。整理本轮已验证的分区Cookie读取与脱敏诊断后，接源列表图标失效因果调查。",
     "startedAt": null
   },
-  "nextAction": "读取当前Web环境和页面错误的有界诊断；同时继续源图标因按钮更新重建的因果调查。",
+  "nextAction": "提交同步已构建/197采用的分区Cookie读取与安全诊断，跟进精确CI；接418图标瞬空的原生行更新因果。包子自动门禁保持未完成，不用人工成功关闭。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "34da2ea9c993d8d5f24af9392e4fba09e6a2ce88已push；精确CI40058325930 completed/success，无新tag。",
-      "hap": "197447已安装8516973B Release/0.1.2-pre code3，仅增加Cookie权限/URL作用域布尔诊断；profile已恢复，447安装前后及449三域逐字保持。无新tag。"
+      "appHead": "1b3e45331730d6d49ac9c5bd58f179766421b962已push；精确CI40059834245 success，无新tag。",
+      "hap": "197454 Release8522757B/0.1.2-pre code3已安装，前三业务域保持；455–458普通漫画屋列表/元尊详情1270章HTTP200，459–460正文页表15秒超时，尚不可读。"
     },
     {
       "name": "NextE",
@@ -1201,7 +1201,7 @@
       "id": "NEXT_CHAPTER_PREFETCH_REUSE",
       "title": "接近章末预加载下一章及跨章请求复用",
       "priority": "P2（当前P0后，与跨章联动核查）",
-      "owner": "Root：254普通历史/详情接鲜网络预取与在途复用",
+      "owner": "Root：鲜网络/ready采用范围冻结；仅自然inflight join边界待验",
       "dependencies": [],
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET",
@@ -1399,7 +1399,7 @@
       "owner": "Root：具名范围冻结；全局自然样本待",
       "dependencies": [],
       "result": "237004自然get_chapters/get_pages均2300028→timeout，原生显示连接书源超时并保留重试；正文仍不可用，不猜具体网络阶段。",
-      "remaining": "全局搜索自然失败待条件，不造故障。；Root后继走3Hentai011普通Native；当前发布/Host通过不等于253自然失败已Native恢复。",
+      "remaining": "全局搜索自然失败待条件，不造故障；3Hentai011原生业务恢复另作具名验证，不与错误文案验收混同。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1423,7 +1423,7 @@
       ],
       "remainingActions": [
         "全局搜索自然失败待条件，不造故障。",
-        "Root后继走3Hentai011普通Native；当前发布/Host通过不等于253自然失败已Native恢复。"
+        "3Hentai011仍待普通原生业务验证；既有发布与Host结果不能替代。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -1435,10 +1435,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "449仍安全验证、无Cookie/clearance；原因未核",
+      "status": "既有分区会话恢复；包子自动等待仍OPEN，人工对照恢复",
       "kind": "open",
-      "result": "449原图仍为www.mhua5.com安全验证页，未网页就绪；文档门禁匹配但请求/当前Cookie均无，自动等待no_clearance。第三方Cookie关闭已证，尚不能归为挑战原因。",
-      "remaining": "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。",
+      "result": "455–458漫画屋既有分区会话列表/元尊详情200；462–463包子自动弹出后47.5秒未返回，网页已有分类/封面但未识别clearance。464–465人工完成后Native附会话并连续HTTP200，自动门禁问题仍未解决。",
+      "remaining": "继续定位包子自动门禁：区分未出现clearance、多个同名cookie或非CF站点验证；不凭网页内容/任意cookie直接宣称验证成功，不放宽同源与源包身份限制。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1458,25 +1458,23 @@
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "evidencePoints": [
-        "449亲审原图仍“正在进行安全验证”；多次document_end为automatic=true/attempted=false/failed=false，baselineKnown/matchingDocument/sessionPresent均true。",
-        "cookie_context：firstPartyAllowed=true、thirdPartyAllowed=false、sameRequestUrl=true；requestCookiePresent/currentCookiePresent均false，automatic_wait=no_clearance。",
-        "449三业务文件与447逐字同；原440–442就绪后人工关Web仍Native403范围保留，不将本轮安全验证页写成已就绪。",
-        "新增权限诊断不改变验证行为；现有29项挑战生命周期回归全过，源码与安装证据分别保留。"
+        "455–458漫画屋Native列表/元尊详情1270章HTTP200；459–460正文Cookie present但2300028/HTTP0超时，另归具名源正文。",
+        "462–463包子Native为session=none，403/98chars；自动Web真实分类/封面已审，Cookie可读、no_clearance，未自动关闭。",
+        "464–465仅人工对照：会话变attached/Cookie present，Native连续200，原生热门12本封面真实；三业务域与463逐字同。人工恢复不能抵消自动失败。"
       ],
       "remainingActions": [
-        "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。"
+        "继续定位包子自动门禁：区分未出现clearance、多个同名cookie或非CF站点验证；不凭网页内容/任意cookie直接宣称验证成功，不放宽同源与源包身份限制。"
       ],
       "boundaries": [
-        "第一方允许、第三方关闭只是已观测配置，不证明它是挑战根因；不清Cookie、不盲重试，不输出Cookie值。",
-        "原自动完成安全条件不变；安全验证页面不等内容就绪，未证明Native回流或源恢复。",
-        "取消、离页、旧请求失效及同次再次挑战不自动循环；只有明确信号才自动弹，普通403保持原错误。"
+        "现有分区Cookie读取已在漫画屋验证；包子本轮自动弹出成立但未自动完成，人工恢复单独保留。",
+        "不修改UA/第三方Cookie策略、不清会话、不盲重试；漫画屋正文页表超时与自动门禁问题分别保留。"
       ],
       "modificationBasis": {
-        "object": "SourceWebSessionSheet.pageEnded诊断",
-        "history": "e839ec87仅新clearance、同源、当前文档且无失败才允许自动完成",
-        "originalReason": "避免旧会话、失败文档或异源变化触发不安全自动回流；保一次性守卫",
-        "reopenEvidence": "436网页已有分类/多封面仍停留，437确challenge信号但无clearance_candidate，缺门禁跳过原因",
-        "allowedDifference": "仅布尔门禁与常量原因的非秘密诊断；不改安全条件，不输出Cookie/header值或宣称自动完成修复"
+        "object": "SourceWebSessionStore/SourceWebSessionSheet共用Cookie读取；网页失败分类诊断",
+        "history": "34ab280d源会话只读同源Cookie；e839ec87新clearance门禁；1b3e4533当前仍两参fetchCookieSync",
+        "originalReason": "系统Jar按完整URL/源身份隔离，不泄Cookie到WASM或日志；默认排除分区Cookie是未覆盖平台能力",
+        "reopenEvidence": "Cloudflare官方现cf_clearance为Partitioned；Huawei API26第三参includePartitionedCookies默认false。453实读197 API26、网页就绪但两参Cookie为空；原失败已保留",
+        "allowedDifference": "API26+只包含该URL第一方分区Cookie，API23–25保原两参读取；不枚举全Jar、不改第三方策略/UA/完成条件、权限或样式。455–458已证漫画屋现有会话的列表/详情恢复，fresh自动关闭与正文另验。"
       }
     },
     {
@@ -1510,7 +1508,7 @@
       "id": "SOURCE_SETTINGS_DIRECT_ENTRY",
       "title": "当前源页应直接弹源设置，避免绕管理路由",
       "priority": "P2（入口行为，保P0优先）",
-      "owner": "Root：限定范围冻结，跟进本次CI",
+      "owner": "Root：三入口具名路径与精确CI已完成，未覆盖边界保留",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION",
@@ -2008,8 +2006,8 @@
       "dependencies": [],
       "status": "原服务已恢复，本机HTTP及原浏览器通过",
       "kind": "accepted",
-      "result": "原服务已恢复，本机HTTP及原浏览器通过",
-      "remaining": "地址http://127.0.0.1:8766/仅本机访问；未开放局域网或公网。该恢复不关闭任何产品缺陷；独立进程不是系统自启动/崩溃自动重启承诺。",
+      "result": "原8766页面及/api/progress均HTTP200；本轮重新逐字段核对，页面实际返回与唯一snapshot的65项完全一致。反馈项未发现缺失，顶部HAP和源摘要的旧状态已纠正。",
+      "remaining": "随实际结果同步条目、主页摘要、当前包和下一动作；原已验证页面结构保持。",
       "reportedAt": null,
       "reportedAtSource": "Root转交用户当前无法打开反馈；原始人类提出的精确时间未核实，不猜填。",
       "firstEvidenceAt": "2026-10-23T00:53:09.114846+00:00",
@@ -2017,13 +2015,16 @@
       "handling": null,
       "closedAt": "2026-10-23T00:53:09.114846+00:00",
       "evidencePoints": [
-        "宿主实际无监听/服务，页面与API连接拒绝；复用serve-reader-progress.py恢复后HTTP200，原Edge页可读。",
-        "仅127.0.0.1:8766本机访问；直接退出原因无日志证据，未知，不承诺系统自启或自动重启。"
+        "原进度页沿用8766，服务每次请求读取CURRENT_STATUS，页面3秒轮询且no-store。",
+        "本轮本机HTTP根页/API均200，API与磁盘snapshot每个字段完全一致，65项ID保持。",
+        "发现并纠正主页“455结果未知”和旧漫画屋403摘要；未把列表/详情恢复扩成正文或fresh自动验证通过。"
       ],
       "remainingActions": [
-        "地址http://127.0.0.1:8766/仅本机访问；未开放局域网或公网。该恢复不关闭任何产品缺陷；独立进程不是系统自启动/崩溃自动重启承诺。"
+        "随实际结果同步条目、主页摘要、当前包和下一动作；原已验证页面结构保持。"
       ],
-      "boundaries": []
+      "boundaries": [
+        "8766仅本机访问；服务恢复不等同系统自启动或崩溃自动重启，当前退出原因未知。"
+      ]
     },
     {
       "id": "CBZ_IMAGE_ORIENTATION",
@@ -2218,7 +2219,7 @@
       "id": "TAB_ICON_SELECTION_FEEDBACK",
       "title": "主页Tab选中填充图标与点击弹跳",
       "priority": "P1（Tab切换动效新反例）",
-      "owner": "Root：click/selected重建与BounceSymbolEffect生命周期",
+      "owner": "Root：跨Tab动效具名完成并冻结；后继只按新反例重开",
       "kind": "open",
       "status": "跨Tab具名动效已推，精确CI成功",
       "result": "b8a50cf已push，精确CI40015663006 success；243完整539PTS四跨选形变/回稳具名成立，原重复段与底栏范围保持。",
@@ -2397,7 +2398,7 @@
       "result": "259原生终图已显示已安装与未安装两组的语言名称/红18+；两页既有范围保留，未知标签不外推。",
       "evidencePoints": [
         "245两页已安装源语言/标记已审；259已安装/未安装两组均实际可见，metadata原值不变。",
-        "0de9d3d所在Koma精确CI40015663006已success；本轮全部更新摘要候选不计为已安装。"
+        "0de9d3d所在Koma精确CI40015663006已成功；后续全部更新摘要另在260安装，88d6fb5/CI40018530912成功，不混同语言消费者验收。"
       ],
       "remainingActions": [
         "未知语言等未覆盖边界仅待实际样本；不重跑已审语言与标记范围。"
@@ -2421,7 +2422,7 @@
       "id": "SOURCE_INSTALL_GLOBAL_DISABLE",
       "title": "单源安装或更新导致其他源按钮全部禁用",
       "priority": "P1（安装交互阻塞）",
-      "owner": "Root：按包任务状态与安全排队调查",
+      "owner": "Root：按源运行/等待/排空具名完成；其他自然失败边界待验",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
@@ -2431,14 +2432,14 @@
       "result": "258一次触发形成1运行+7等待，随后排空；259实际23项升级、80源身份与enabled保持，library/reader同值，安全队列具名成立。",
       "evidencePoints": [
         "258 pending与259终图Root亲审；257→259 registry80→80同ID、23 manifestVersion升级且enabled全保持，library/reader逐字节相等。",
-        "上轮Koma CI40015663006已success；当前顶部任务摘要修正另候选未装，不把队列通过扩大为所有错误/并发状态。"
+        "顶部任务摘要候选已在260明确安装成功；88d6fb5已提交，精确CI40018530912成功。队列通过不扩大为所有错误/并发状态。"
       ],
       "remainingActions": [
-        "保具名队列范围；失败/取消/重复提交等其他自然边界未扩认，摘要新候选另验。"
+        "保具名队列与摘要采用范围；失败、取消和重复提交等其他自然边界未扩认。"
       ],
-      "remaining": "保具名队列范围；失败/取消/重复提交等其他自然边界未扩认，摘要新候选另验。",
+      "remaining": "保具名队列与摘要采用范围；失败、取消和重复提交等其他自然边界未扩认。",
       "boundaries": [
-        "不能只删除disabled或guard后裸并发写registry；源行箭头与语言仍当前主修。",
+        "安全排队仍由各包状态和registry串行写入共同负责，不能只删disabled后裸并发；箭头和语言已有各自具名结果。",
         "浏览卡顿具名范围和跨章预加载WIP保留，不因新项抛掉原队列。"
       ],
       "reportedAt": null,
@@ -2455,7 +2456,7 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "Root：独立Search与其他未知/失败描述符边界",
+      "owner": "Root：manager/Browse/独立Search具名完成；未知或失败描述符边界保留",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
@@ -2499,7 +2500,8 @@
       "result": "真实0.1.3→公开0.1.4更新时，418第8帧0.146778s本行图标瞬空，第9帧0.165611s恢复；其他可见行图保留。旧316反例现有新鲜复现，未接受。",
       "evidencePoints": [
         "Root顺审418完整114帧/4表及7–9、64–66原帧，确认本行短暂空白；未外推所有源图标。",
-        "419 registry84仅com.manhuawu.koma更新014/WASM54328/homepage，其余83及enabled保持，library/reader逐字同417。"
+        "419 registry84仅com.manhuawu.koma更新014/WASM54328/homepage，其余83及enabled保持，library/reader逐字同417。",
+        "434 trace旧icon StartDecoding=319520528798000，行组件至319521968103000后才Destroy；重解码早于销毁，仅因果线索，未证HDS根因。"
       ],
       "remainingActions": [
         "Root继续追418本行图标失效/回填因果，保持原生行布局，不把阶段耗时或更新成功当视觉通过。"
@@ -2672,7 +2674,7 @@
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
       "title": "包子《大奉打更人》正文无法加载",
       "priority": "P1（具名正文不可读）",
-      "owner": "koma_comicabc_chapters：只读源/日志调查；Root：后继普通路线取证",
+      "owner": "Root：精确远端首话及读态保持具名完成；排序问题归独立项",
       "dependencies": [],
       "relatedItems": [
         "BAOZIMH_BROWSE_FAILURE",
@@ -2749,21 +2751,20 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "449仍安全验证、无Cookie/clearance；原因未核",
-      "result": "449原图仍为www.mhua5.com安全验证页，未网页就绪；文档门禁匹配但请求/当前Cookie均无，自动等待no_clearance。第三方Cookie关闭已证，尚不能归为挑战原因。",
+      "status": "列表/元尊详情恢复；页表自然超时，正文未完成",
+      "result": "458元尊封面/简介/1270章目录真实，详情与章节HTTP200；459–460开始阅读get_pages15.014秒后2300028→timeout/HTTP0，无页表/正文，未点重试。列表/详情恢复不代表正文通过。",
       "evidencePoints": [
-        "449亲审原图仍“正在进行安全验证”；多次document_end为automatic=true/attempted=false/failed=false，baselineKnown/matchingDocument/sessionPresent均true。",
-        "cookie_context：firstPartyAllowed=true、thirdPartyAllowed=false、sameRequestUrl=true；requestCookiePresent/currentCookiePresent均false，automatic_wait=no_clearance。",
-        "449三业务文件与447逐字同；原440–442就绪后人工关Web仍Native403范围保留，不将本轮安全验证页写成已就绪。"
+        "455–456既有分区会话Native列表200范围保留；458元尊详情get_manga200/530249chars/682ms、get_chapters200/同长度/293ms，三域同456。",
+        "459进入15.987秒时sharedSurface1/Image0/重试1；460原图明确连接书源超时。get_pages12:16:14.248起、Cookie present，15.014秒平台2300028/HTTP0。",
+        "460三域与458全部同，未点重试；首章实际标题未知，不猜上/下章，也不将独立页表超时归为Cookie修复失败。"
       ],
       "remainingActions": [
-        "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。"
+        "漫画屋页表超时继续按网络阶段定位；包子独立对照已在462–465完成，自动等待问题归SOURCE_WEB_SESSION。保正文未完成，不盲重试或猜首章标题。"
       ],
-      "remaining": "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。",
+      "remaining": "漫画屋页表超时继续按网络阶段定位；包子独立对照已在462–465完成，自动等待问题归SOURCE_WEB_SESSION。保正文未完成，不盲重试或猜首章标题。",
       "boundaries": [
-        "第一方允许、第三方关闭只是已观测配置，不证明它是挑战根因；不清Cookie、不盲重试，不输出Cookie值。",
-        "原自动完成安全条件不变；安全验证页面不等内容就绪，未证明Native回流或源恢复。",
-        "取消、离页、旧请求失效及同次再次挑战不自动循环；只有明确信号才自动弹，普通403保持原错误。"
+        "仅漫画屋015列表/元尊详情恢复；无页表或正文，不扩整源可用。",
+        "页表Cookie present与2300028超时是本次事实，不足以推断网络具体阶段或否定分区读取修复。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2864,7 +2865,7 @@
       "id": "MANXIAOSI_SETTINGS_VALIDATION_FAILURE",
       "title": "漫小肆打开设置提示设置验证失败",
       "priority": "P1（具名源设置能力/运行失败）",
-      "owner": "Root / source owner：核当前包与get_settings失败",
+      "owner": "Root：无效入口与Host误报修正具名完成；其他真实设置失败另查",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY",
@@ -2937,7 +2938,7 @@
     "kind": "open",
     "title": "源homepage发布与App采用边界",
     "result": "ae83e07aed5718dccb9c5a3c9049e5a721e47773已push，精确CI40048652108 success；真实公开非draft/pre release、85索引81homepage，Root已读回原件。",
-    "remaining": "App c5ad7b80精确CI40049912720成功；402缓存支持旧Weicomic普通Web打开返回具名成立，406终点三域保持已核。源81/85发布保持，4homepage例外/未加载Native未扩认；393旧2300999原因未知。 漫画屋745856a精确CI40052769845成功，公开0.1.4与真实远端49回放通过；434普通更新已采用公开0.1.5，435/439自动弹出成立，440无clearance，442人工完成后原生仍403；业务及自动完成未恢复。",
+    "remaining": "App c5ad7b80/CI40049912720及旧Weicomic普通Web打开返回范围保留。源81/85 homepage已发布，4例外及未加载Native边界仍待。漫画屋0.1.5已在434正常更新；455–458分区Cookie读取后原生列表/元尊详情与1270章目录HTTP200，459–460正文get_pages为2300028/HTTP0超时。既有分区会话Native列表/详情请求恢复；包子462–465自动停留、人工对照恢复，自动门禁仍未闭。",
     "commit": "ae83e07aed5718dccb9c5a3c9049e5a721e47773"
   },
   "milestones": [

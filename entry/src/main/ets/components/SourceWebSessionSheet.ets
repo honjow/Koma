@@ -4,7 +4,7 @@ import { hasNewSourceClearance } from '../sourceRuntime/SourceWebChallengeGate'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
-import { appSourceWebSessionStore, sourceWebOrigin, SourceWebSessionStatus } from '../sourceRuntime/SourceWebSessionStore'
+import { appSourceWebSessionStore, readSourceWebCookies, sourceWebOrigin, SourceWebSessionStatus } from '../sourceRuntime/SourceWebSessionStore'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaModalScaffold } from './KomaModalScaffold'
@@ -92,8 +92,17 @@ export struct SourceWebSessionSheet {
       return
     }
     if (this.autoRetryOnClearance && this.clearanceBaseline === undefined) {
-      try { this.clearanceBaseline = webview.WebCookieManager.fetchCookieSync(url, false) }
+      try { this.clearanceBaseline = readSourceWebCookies(url) }
       catch (_error) { /* Missing baseline disables automatic retry; manual completion remains. */ }
+    }
+    try {
+      const nativeUa = this.controller.getUserAgent()
+      const customUa = this.controller.getCustomUserAgent()
+      DiagnosticLogger.info('source_web_session', 'engine_context',
+        'nativeOpenHarmony=' + nativeUa.includes('OpenHarmony') +
+        ' nativeAndroid=' + nativeUa.includes('Android') + ' customUaPresent=' + (customUa.length > 0) + ' customUaEqualsNative=' + (customUa === nativeUa))
+    } catch (_error) {
+      DiagnosticLogger.info('source_web_session', 'engine_context', 'state=unavailable')
     }
     this.loading = true
     try { this.controller.loadUrl(url) }
@@ -137,10 +146,10 @@ export struct SourceWebSessionSheet {
         DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=document_origin_mismatch')
         return
       }
-      const cookies = webview.WebCookieManager.fetchCookieSync(this.params.url, false)
+      const cookies = readSourceWebCookies(this.params.url)
       try {
         const currentCookies = currentUrl === this.params.url ? cookies :
-          webview.WebCookieManager.fetchCookieSync(currentUrl, false)
+          readSourceWebCookies(currentUrl)
         DiagnosticLogger.info('source_web_session', 'cookie_context',
           'firstPartyAllowed=' + webview.WebCookieManager.isCookieAllowed() +
           ' thirdPartyAllowed=' + webview.WebCookieManager.isThirdPartyCookieAllowed() +
@@ -159,6 +168,22 @@ export struct SourceWebSessionSheet {
       DiagnosticLogger.info('source_web_session', 'clearance_candidate', 'action=retry_original_once')
       void this.completeSourceSession(true)
     } catch (_error) { /* Keep the visible challenge and manual control. No cookie values in diagnostics. */ }
+  }
+
+  private consoleMessage(event: OnConsoleEvent): boolean {
+    if (!this.active) return false
+    // Only a standard challenge error code may enter the log, never arbitrary page output.
+    const code = /\[Cloudflare Turnstile\] Error: ([0-9]{6})(?![0-9])/.exec(event.message.getMessage())
+    if (code !== null) DiagnosticLogger.info('source_web_session', 'challenge_console', 'code=' + code[1])
+    return false
+  }
+
+  private resourceFailed(request: WebResourceRequest, kind: string, code: number): void {
+    if (!this.active) return
+    DiagnosticLogger.info('source_web_session', 'resource_failed',
+      'kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
+      ' challengeHost=' + (sourceWebOrigin(request.getRequestUrl()) === 'https://challenges.cloudflare.com'))
+    this.mainPageFailed(request)
   }
 
   private mainPageFailed(request: WebResourceRequest): void {
@@ -210,8 +235,13 @@ export struct SourceWebSessionSheet {
             onControllerAttached: () => { this.loadInitialPage() },
             onPageBegin: (event?: OnPageBeginEvent) => { this.pageBegan(event) },
             onPageEnd: (event?: OnPageEndEvent) => { this.pageEnded(event) },
-            onErrorReceive: (event: OnErrorReceiveEvent) => { this.mainPageFailed(event.request) },
-            onHttpErrorReceive: (event: OnHttpErrorReceiveEvent) => { this.mainPageFailed(event.request) },
+            onConsole: (event: OnConsoleEvent): boolean => { return this.consoleMessage(event) },
+            onErrorReceive: (event: OnErrorReceiveEvent) => {
+              this.resourceFailed(event.request, 'transport', event.error.getErrorCode())
+            },
+            onHttpErrorReceive: (event: OnHttpErrorReceiveEvent) => {
+              this.resourceFailed(event.request, 'http', event.response.getResponseCode())
+            },
           })
           if (this.loading) {
             LoadingProgress()
