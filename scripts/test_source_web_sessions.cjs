@@ -52,7 +52,7 @@ function fixture(sdkApiVersion = 23) {
   async function http(responses, context, sourceRequest = {}, network = {}) {
     let callback
     const calls = [], instances = [], intercepts = []
-    const trace = { info: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
+    const trace = { info: (_event, detail) => diagnostics.push(detail), warn: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === '@kit.ArkTS') return { url: { URL } }
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin }
@@ -76,16 +76,21 @@ function fixture(sdkApiVersion = 23) {
           }
         },
         createHttp: () => {
-          const request = { chain: [], destroyed: false, requestCount: 0,
+          const listeners = new Map()
+          const request = { chain: [], destroyed: false, requestCount: 0, listeners,
+            on: (event, callback) => listeners.set(event, callback),
+            off: event => listeners.delete(event),
             request: async (initialUrl, options) => {
               assert.equal(request.destroyed, false)
               assert.equal(++request.requestCount, 1, 'A HttpRequest must not be reused for another hop')
               let fullUrl = initialUrl
               while (true) {
                 calls.push({ fullUrl, options, instance: instances.indexOf(request) })
+                if (network.headersBeforeError) listeners.get('headersReceive')?.({ 'Set-Cookie': 'PRIVATE_HEADER' })
                 if (network.requestError) throw network.requestError
                 const response = await responses.shift()
                 if (!response) throw Error('unexpected additional request')
+                listeners.get('headersReceive')?.(response.header)
                 if ([301, 302, 303, 307, 308].includes(response.responseCode)) {
                   // NetworkKit rejects even the first redirect when the configured maximum is zero.
                   if (options.maxRedirects === 0) throw Object.assign(Error('redirect limit'), { code: 2300047 })
@@ -649,4 +654,33 @@ for(const change of ['request','session','package','cancel'])test('verified resp
   assert.equal(r.calls.length,3);assert.equal(r.after.status,200)
   assert.equal(f.diagnostics.includes('state=used_once'),false)
   if(change==='package')assert.equal(r.calls[2].options.header.Cookie,undefined)
+})
+
+
+test('HTTP hop diagnostics distinguish a timeout before headers from one after headers, without retaining header content', async () => {
+  for (const headersBeforeError of [false, true]) {
+    const f = fixture()
+    const failed = await f.http([], '{}', {}, { headersBeforeError,
+      requestError: Object.assign(Error('PRIVATE_ERROR'), { code: 2300028 }) })
+    assert.equal(failed.result.error.code, 'timeout')
+    assert.equal(failed.instances[0].destroyed, true)
+    assert.equal(failed.instances[0].listeners.size, 0)
+    assert.ok(f.diagnostics.some(line => line.includes('headersReceived=' + headersBeforeError)))
+    assert.ok(!f.diagnostics.join(' ').includes('PRIVATE_'))
+    assert.ok(!f.diagnostics.join(' ').includes('site.invalid'))
+  }
+})
+
+test('HTTP response diagnostics expose only finite cumulative timing checkpoints and leave the response unchanged', async () => {
+  const f = fixture()
+  const reply = { ...response(), performanceTiming: { dnsTiming: 2.5, tcpTiming: 4, tlsTiming: 8,
+    firstReceiveTiming: 12, totalFinishTiming: 14, responseBodyTiming: NaN, totalTiming: Infinity } }
+  const result = await f.http([reply], '{}')
+  assert.equal(result.result.status, 200)
+  assert.equal(result.result.bodyText, 'public-body')
+  assert.equal(result.instances[0].listeners.size, 0)
+  const timing = f.diagnostics.find(line => line.includes('dnsDoneMs='))
+  assert.ok(timing, 'completed responses provide the platform timing checkpoints')
+  assert.ok(timing.includes('dnsDoneMs=2.5 tcpDoneMs=4 tlsDoneMs=8 firstByteMs=12 finishMs=14'))
+  assert.ok(!/NaN|Infinity|private|site.invalid/.test(timing))
 })

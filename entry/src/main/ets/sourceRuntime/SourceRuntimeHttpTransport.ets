@@ -171,6 +171,21 @@ function attachSourceRedirectStop(request: http.HttpRequest): boolean {
   }
 }
 
+// NetworkKit reports cumulative checkpoints from the start of this hop, not
+// individual phase durations. Missing/reused-connection values do not prove a
+// DNS, TCP or TLS failure. Never include URLs, headers or response content here.
+function sourceHttpTimingMs(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : -1
+}
+
+function sourceHttpTimingText(timing: http.PerformanceTiming | undefined): string {
+  return 'dnsDoneMs=' + sourceHttpTimingMs(timing?.dnsTiming) +
+    ' tcpDoneMs=' + sourceHttpTimingMs(timing?.tcpTiming) +
+    ' tlsDoneMs=' + sourceHttpTimingMs(timing?.tlsTiming) +
+    ' firstByteMs=' + sourceHttpTimingMs(timing?.firstReceiveTiming) +
+    ' finishMs=' + sourceHttpTimingMs(timing?.totalFinishTiming)
+}
+
 async function executeSourceHttpRequest(requestJson: string, httpContextJson: string = '',
   probe?: SourceWebProbeContext): Promise<string> {
   let envelope: SourceHttpRequestEnvelope
@@ -245,7 +260,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt))
     const request = http.createHttp()
     let response: http.HttpResponse
+    const hopStartedAt = Date.now()
+    let firstHeaderMs = -1
     try {
+      request.on('headersReceive', () => {
+        if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
+      })
       if (session !== undefined && !attachSourceRedirectStop(request)) {
         trace.finish('failed', 'reason=web_session_redirect_unavailable')
         return transportError('web_session_redirect_unavailable', false)
@@ -260,10 +280,18 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       readTimeout: remaining,
       connectTimeout: remaining,
       })
+    } catch (error) {
+      trace.warn('hop_failed', 'hop=' + redirects + ' headersReceived=' + (firstHeaderMs >= 0) +
+        ' firstHeaderMs=' + firstHeaderMs + ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt))
+      throw error as Error
     } finally {
       // A HttpRequest represents one hop and cannot be reused for the next URL.
+      request.off('headersReceive')
       request.destroy()
     }
+    trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode +
+      ' headersReceived=' + (firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
+      ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
     if (probe !== undefined && !probe.current()) {
       trace.finish('failed', 'reason=web_session_probe_cancelled')
       return transportError('web_session_unavailable', false)

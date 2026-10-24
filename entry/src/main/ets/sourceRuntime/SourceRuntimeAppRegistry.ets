@@ -1188,7 +1188,10 @@ async function registerSourcePackageFromBytes(
       return { ok: false, reasonCode: registered.reasonCode ?? 'register_failed' }
     }
     registeredReplacementSourceId = sourceId
+    const persistStartedAt = Date.now()
     persistInstalledSources(context)
+    const persistSyncMs = Math.max(0, Date.now() - persistStartedAt)
+    const cleanupStartedAt = Date.now()
     if (removedExisting?.archivePath !== undefined) {
       const existingDir = removedExisting.archivePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
       try {
@@ -1196,8 +1199,12 @@ async function registerSourcePackageFromBytes(
       } catch (_err) {
       }
     }
-    DiagnosticLogger.info('source_package', 'import_ok', '[SourceManager] step=import_ok id=' + sourceId)
+    const cleanupAwaitMs = Math.max(0, Date.now() - cleanupStartedAt)
+    const publishStartedAt = Date.now()
     SourceRuntimeStateBridge.notifyChanged()
+    DiagnosticLogger.info('source_package', 'import_ok', '[SourceManager] step=import_ok id=' + sourceId +
+      ' persistSyncMs=' + persistSyncMs + ' cleanupAwaitMs=' + cleanupAwaitMs +
+      ' publishSyncMs=' + Math.max(0, Date.now() - publishStartedAt))
     return { ok: true, id: sourceId, name: imported.manifest.package.name }
   } catch (_error) {
     if (registeredReplacementSourceId.length > 0) {

@@ -316,6 +316,7 @@ export struct SourcePackageManagerPage {
   }
 
   private refreshInstalledPackage(sourceId: string): void {
+    const projectionStartedAt = Date.now()
     const source = getInstalledSourcePackage(sourceId)
     if (source === undefined) return
     // Preserve every unaffected row's input identity; only this package changed.
@@ -341,6 +342,8 @@ export struct SourcePackageManagerPage {
     this.settingsSourceReloads[sourceId] = sourceRevision
     this.publishSourceSettings(sourceId)
     void this.reloadInstalledPackageSettings(source, this.settingsReloadRevision, sourceRevision)
+    DiagnosticLogger.info('source_package', 'row_projection', 'durationMs=' +
+      Math.max(0, Date.now() - projectionStartedAt) + ' packageCount=' + this.packages.length)
   }
 
   private async reloadInstalledPackageSettings(source: InstalledSourcePackage, revision: number, sourceRevision: number): Promise<void> {
