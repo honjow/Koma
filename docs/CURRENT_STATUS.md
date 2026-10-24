@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T12:53:56.611198+00:00",
+  "updatedAt": "2026-10-24T14:31:18.119614+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
-  "activity": "Root：237東立有限结果完成，App范围提交CI；共同窗口准入继续核真实平台契约，提问不阻止其他工作。",
-  "nextAction": "提交同步准确地区提示及本轮事实；跟精确CI同时核N/E/K原窗口写入者和已接受路径，不改现有动画。",
+  "activeId": "CONTINUOUS_PERFORMANCE",
+  "activity": "Root：隐藏缩略条修正完成N/E/K具名路径，正在同步精确提交；连续阅读仍有慢帧。",
+  "nextAction": "同步三宿主有限实测结果并跟精确CI；继续定位ContinuousCell高频更新。已批准全屏候选仍待制作与录屏。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,20 +978,20 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "922d153f已push，精确CI40077208291 completed/success；无新tag/发版。",
-      "hap": "197554 Release8529046B/0.1.2-pre code3，95项分类/详情/网页/索引检查及Release通过；安装三业务域逐字同。556实际not_implemented已记unsupported；mh160013普通更新后详情784章，网页两动作已出现，页面内容加载仍待核。"
+      "appHead": "b6911d76已push，精确CI40096068659 success；本轮Kit c9494dd构建，文档同步中，无新tag/发版。",
+      "hap": "237042明确安装Release8524605B/0.1.2-pre code3；049–055本地10页连续/选页/隐藏重开及恢复LTR6/10具名完成。library/registry逐字同安装时，reader仅本地书3处正常updatedAt变化。"
     },
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "26a447c2已push；Kit4bf42eb；精确CI40092801362 completed/success",
-      "hap": "197025明确安装38178566B/defaultRelease1.3.6code42；027普通Non-H4277955缩略图原图交接151帧全审；034正常返画廊，原4212986未操作。"
+      "appHead": "acdb63bf已push；Kit c9494dd；精确CI40102240485 completed/success。",
+      "hap": "197046明确安装38178001B/1.3.6code42；048–054连续/缩略条选页及稳定后重开完成，原LTR13/19和2项完成下载已恢复。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "a0211fa7已push；Kit4bf42eb；精确CI40092801190 completed/success",
-      "hap": "197028明确安装38202032B/defaultRelease1.0.7code10；032普通Non-H686734缩略图原图交接269帧全审；033恢复原下载/6867442/2。"
+      "appHead": "a1784577已push；Kit c9494dd；精确CI40102824291 in_progress。",
+      "hap": "197046明确安装38201434B/1.0.7code10；050同34页快速反向隐藏Rail/Tile更新归零，仍有慢帧；053–057缩略条/选页及原LTR1/34与7项下载保持。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1035,13 +1035,13 @@
     {
       "id": "READER_WINDOW_LIFECYCLE",
       "title": "三App五入口全屏/状态栏早于转场完成",
-      "status": "调查未闭：先推进独立修复",
+      "status": "用户已允许制作共用可控转场候选，待录屏审阅",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root",
+      "owner": "Root：Koma普通入场与NextN默认入场共用候选",
       "dependencies": [],
       "result": "系统默认转场的可靠完成信号仍未找到；正式全屏时机修复未完成。",
-      "remaining": "继续查保留现有native动画的真实完成信号；并行推进无此依赖的已授权事项。",
+      "remaining": "制作共用可控转场候选，以真实动画结束事件接入全屏；录屏给用户决定采用。既有缩略图转场保持。",
       "reportedAt": "2026-10-22T19:12:58.799Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:12:58.799Z",
@@ -1051,11 +1051,11 @@
       "evidencePoints": [
         "官方Navigation FAQ及SDK均未承诺onShown/onActive/didShow发生在默认转场结束后。",
         "OpenHarmony navigation_pattern.cpp中，生命周期与HideSystemBarIfNeeded均早于转场；临时探针已撤。",
-        "2026-10-24官方HDS systemBarStyle明确“页面转场开始时生效”；NavDestination guide仅保证onShown布局完成。官方Navigation转场指南说明默认弹簧时长不可控，监听结束建议自定义转场；未把onShown/onActive误写为官方结束事件，现有样式/动画边界继续。"
+        "2026-10-24官方HDS systemBarStyle明确“页面转场开始时生效”；NavDestination guide仅保证onShown布局完成。官方Navigation转场指南说明默认弹簧时长不可控，监听结束建议自定义转场；未把onShown/onActive误写为官方结束事件，现有样式/动画边界继续。",
+        "当前人类已明确允许制作共用转场候选、先看录屏；旧等待批准状态失效，尚未实现或采用。"
       ],
       "remainingActions": [
-        "继续查保留现有native动画的真实完成信号；并行推进无此依赖的已授权事项。",
-        "核现有NextE两条已接受转场的实际共同窗口准入与原默认回退；若需改变现存native效果，先形成具体差异供用户决定，不加固定延时或把可见回调冒作结束。"
+        "制作共用可控转场候选，以真实动画结束事件接入全屏；录屏给用户决定采用。既有缩略图转场保持。"
       ],
       "boundaries": [
         "不能用didShow、enableStatusBar、布局坐标冒充动画结束；不用延时或改变已定转场效果绕过。"
@@ -1064,13 +1064,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "共同面积回调修复K/E具名快滚改善；N有限功能回归完成",
+      "status": "隐藏缩略条修正三宿主具名验证完成；仍有慢帧",
       "kind": "open",
       "priority": "P0（最高）",
-      "owner": "Root：保留K/E具名结果；NextN长样本边界待条件",
+      "owner": "Root：同步有限结果并继续ContinuousCell更新原因",
       "dependencies": [],
-      "result": "共享面积回调与宿主刷新抑制已改善Koma/NextE具名快速滚动；NextN仅两页功能回归，长列表性能仍开放。",
-      "remaining": "后继仅在具备真实长内容时验证NextN快速反向；新性能反例按原owner继续。",
+      "result": "同686734/34页、同12页起点及六组8000速度反向：042→050宿主frame_slice均值9.492→6.115ms，最大51.843→48.364ms，>33.34ms18→5。顺序暖缓存样本，不是clean AB或显示FPS；性能项仍OPEN。",
+      "remaining": "继续定位ContinuousCell等可见单元高频更新，保留原图加载反馈与有效资源身份；不据隐藏工作消除关闭性能。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1091,14 +1091,26 @@
       "evidencePoints": [
         "Koma同场景快滚最大主线程帧耗时216.6→19.1ms；NextE均值9.82→6.35ms。两者完整运动、缩放与返回进度已审，未称满帧。",
         "原件：diagnostics/continuous-fast197-trace-007及后继106/107；NextE fast-trace-013与030/031。旧签名拒绝、错误前置样本均保留并排除。",
-        "共享Kit42e8713、Koma05e788e5、NextE45e0b056及NextNb27dcab5的CI成功。NextN现成样本仅2页，只证缩放/返回功能。"
+        "共享Kit42e8713、Koma05e788e5、NextE45e0b056及NextNb27dcab5的CI成功。NextN现成样本仅2页，只证缩放/返回功能。",
+        "042最慢帧51.843ms中FlushDirtyNodeUpdate41.657ms；整个窗口隐藏的Rail更新93次/89.016ms、Tile304次/229.485ms。原7587让snapshot变化始终scrollToIndex，8918只用高度0隐藏却保活，隐藏期间仍取后续缩略图；保留挂载的原理由是已解码资源与滚动实例不能被销毁。",
+        "Kit c9494dd，537项检查、N/E/K签名Release均构建成功。N046明确安装38201434B；050中隐藏Rail/Tile更新均0，旧042 Rail93/Tile304。051完整424帧/12联系表已按序亲审，未见整屏白空或额外页间黑隔条；未据录像声称满帧。",
+        "N053第10页打开Rail，054选12，055滑块17后隐藏再开正确17；056原LTR1/34亲核，057原7项下载及6867442/2保持。",
+        "E046明确安装38178001B；048连续第13页开Rail、049选14；050全252帧/7联系表顺序亲审。录像末次计划重开未发生，052在稳定控件上实际重开第13页并保原解码节点；053原LTR13/19勾选已亲看，054原2项完成下载保持。",
+        "K237042明确安装8524605B，049连续第6页开条、050选7、051全298帧/9联系表顺序亲审；053重新打开选中6，054原LTR6/10已亲核，055普通返回书架。library/registry与042逐字同，reader仅该书3处updatedAt正常改变，页码及其余字段同。"
       ],
       "remainingActions": [
-        "后继仅在具备真实长内容时验证NextN快速反向；新性能反例按原owner继续。"
+        "继续定位ContinuousCell等可见单元高频更新，保留原图加载反馈与有效资源身份；不据隐藏工作消除关闭性能。"
       ],
       "boundaries": [
-        "这些是host主线程切片与具名运动证据，不等同显示FPS、满帧或全内容通过。NextN两页不能替代长列表。设置位置与全屏时机分别维护，不因性能改善关闭。"
-      ]
+        "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
+      ],
+      "modificationBasis": {
+        "object": "共同ReaderThumbnailRail位置跟随和范围请求；ReaderSurface传既有可见状态",
+        "history": "8918dc3保留挂载以留缓存；7587ee4恢复可见条的动画跟随，未区分隐藏",
+        "originalReason": "保原native List、已解码预览、可见条页变化动画和拖动直接跟手，不清缓存不按页重挂",
+        "reopenEvidence": "042隐藏条仍更新/动画/请求，长样本18个>33ms帧；仅定位额外工作，不认作唯一根因",
+        "allowedDifference": "隐藏条不追随页变化或发新范围请求；保留实例与已有租约，显示时直接对齐当前页，显示中的页变化/slider预览沿原语义。原图加载/进度/几何/样式/转场保持。"
+      }
     },
     {
       "id": "FIRST_CHAPTER_SELECTION",
@@ -3052,15 +3064,15 @@
       "title": "東立任意作品章节加载失败、设置提示验证失败",
       "priority": "P1",
       "kind": "open",
-      "status": "章节认证已修；237原生确认3166地区限制，正文未可读",
-      "owner": "Root：237章节/设置独立原因核查",
+      "status": "237同网官网同首话也无正文；原生3166原因明确",
+      "owner": "Root：237同一网络官网同作品/首话核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS",
         "MANXIAOSI_SETTINGS_VALIDATION_FAILURE"
       ],
-      "result": "012/b28已正常远端更新，237同膽大黨目录恢复4章。013/f5已push，CI40094748912 success；公开85索引、53654B三成员包。当前8525150B App+013在028实际显示“站点对该作品有地区限制…（HTTP400）”，原生3166原因已成立。原请求拒绝保持，未称可读。",
-      "remaining": "App范围提交推送及精确CI；正文受站点3166限制，已异步询问用户同网官网是否可读，只影响该分支。",
+      "result": "012恢复4章与无设置契约、013地区原因及精确CI已成立。按人类要求自行核对：237官方膽大黨→第1話→直接閱讀，官网明确授权台湾地区，实际先Please Wait后黑页未有正文。官网黑页具体失败不强归3166，原生API3166为独立确证。",
+      "remaining": "保站点授权限制及官网黑页两个有限结果；当前网络不能完成正文验收，不改账户/地区/网络。其他源与App继续。",
       "reportedAt": null,
       "reportedAtSource": "当前人类消息无可信精确首报时间，留空。",
       "firstHandlingAt": "2026-10-24T12:02:09.354493+00:00",
@@ -3074,10 +3086,13 @@
         "023当前8525150B签名Release已明确覆盖237/0.1.2-pre code3，library/reader/registry前后逐字同。仅部署，不作阅读已成功。",
         "024误把官网图标当更多菜单；025实际是有内容的东立官网WebView，非更多菜单验收。当前源无无效设置入口，不再出现原设置验证失败。",
         "027普通013更新后028原生同第1話显示region/HTTP400；原图已亲审，29普通返回原章/源/书架。",
-        "029已正常回原书架；030 Library/reader与本轮007起点逐字同，注册67→68仅新增東立013，原67条逐项同；未点地区失败重试、未操作网页登录。"
+        "029已正常回原书架；030 Library/reader与本轮007起点逐字同，注册67→68仅新增東立013，原67条逐项同；未点地区失败重试、未操作网页登录。",
+        "031当前原生日志get_pages实际1251ms、218chars、reason/error=region_restricted、http400/kindregion；Koma b6911d767da4378aaa17009494d2b60115b4cb39 CI40096068659 success，源说明b7face71 CI40096376852 success。",
+        "033只因MenuItem与子Text同名计数2而停，未打开Web；034依实际MenuItem中心打开同作品官网，035采自然加载状态。工具选择器失败不归因产品。",
+        "034–039同机同网普通官网路径：作品及首话页面可见；直接閱讀038显示Please Wait，039仍黑无正文。040正常返回原Native。当前脱敏日志revision3 document_end/100%，首个子资源HTTP404；不能把文档结束当原图就绪或把子资源404推为黑页根因。"
       ],
       "remainingActions": [
-        "App范围提交推送及精确CI；正文受站点3166限制，已异步询问用户同网官网是否可读，只影响该分支。"
+        "保站点授权限制及官网黑页两个有限结果；当前网络不能完成正文验收，不改账户/地区/网络。其他源与App继续。"
       ],
       "boundaries": [
         "本次只接受東立认证/目录/无设置契约/准确地区原因；正文未通过，其他作品和授权地区未扩大。",
