@@ -5,6 +5,7 @@ import { webview } from '@kit.ArkWeb'
 export struct MangaWebView {
   @Param controller: webview.WebviewController = new webview.WebviewController();
   @Event onControllerAttached?: (controller: webview.WebviewController) => void;
+  @Event onLoadIntercept?: (event: OnLoadInterceptEvent) => boolean;
   @Event onPageBegin?: (event?: OnPageBeginEvent) => void;
   @Event onPageEnd?: (event?: OnPageEndEvent) => void;
   @Event onLoadFinished?: (event?: OnLoadFinishedEvent) => void;
@@ -35,6 +36,9 @@ export struct MangaWebView {
       })
       .onConsole((event: OnConsoleEvent): boolean => {
         return this.onConsole ? this.onConsole(event) : false
+      })
+      .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
+        return this.onLoadIntercept ? this.onLoadIntercept(event) : false
       })
       .onPageBegin((event: OnPageBeginEvent) => {
         if (this.onPageBegin) {

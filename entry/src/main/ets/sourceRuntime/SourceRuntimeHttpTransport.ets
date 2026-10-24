@@ -1,5 +1,6 @@
 import { url as urlKit } from '@kit.ArkTS'
 import { appSourceWebSessionStore, SourceHttpIdentity } from './SourceWebSessionStore'
+import { sourceClearanceCookieState } from './SourceWebChallengeGate'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
@@ -190,6 +191,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' session=' + (session === undefined ? 'none' : 'attached') +
       ' cookieState=' + (typeof headers['Cookie'] === 'string' && headers['Cookie'].length > 0 ? 'present' : 'empty') +
       ' uaSource=' + (session === undefined ? 'source' : 'webview'))
+    if (session !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
     const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt))
     const request = http.createHttp()

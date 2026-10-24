@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T04:37:25.320720+00:00",
+  "updatedAt": "2026-10-24T05:47:53.968935+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
   "activity": {
-    "title": "进度页摘要/owner已纠正；会话修复整理提交，自动门禁仍未闭",
-    "detail": "Root已审包子自动失败及人工对照原图/日志，65项ID保留；API与磁盘一致。整理本轮已验证的分区Cookie读取与脱敏诊断后，接源列表图标失效因果调查。",
+    "title": "整理具名Web时序修复，接包子自动门禁",
+    "detail": "漫画屋478/479自动返回Native200与30本；元尊485同号下/上顺序反例保留，486已恢复降序并回RootBrowse，无开书/加书。Root整理限定代码提交同步，继续包子自动诊断，不以漫画屋成功关闭。",
     "startedAt": null
   },
-  "nextAction": "提交同步已构建/197采用的分区Cookie读取与安全诊断，跟进精确CI；接418图标瞬空的原生行更新因果。包子自动门禁保持未完成，不用人工成功关闭。",
+  "nextAction": "核487数据保持、提交同步主文档错误时序修复并跟进精确CI；继续包子现会话的普通自动验证，只有真实挑战时采缺失/多值类别，不造故障。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "1b3e45331730d6d49ac9c5bd58f179766421b962已push；精确CI40059834245 success，无新tag。",
-      "hap": "197454 Release8522757B/0.1.2-pre code3已安装，前三业务域保持；455–458普通漫画屋列表/元尊详情1270章HTTP200，459–460正文页表15秒超时，尚不可读。"
+      "appHead": "代码16799f88e7ed8d3a88a30b0764f78426467ad24f已push；精确CI40063142440 completed/success，Release构建成功，tag发布跳过。",
+      "hap": "197477 Release8528275B/0.1.2-pre code3已装，三域逐字保持；478/479普通漫画屋自动验证后Native列表200/30本，正文及其他源不外推。"
     },
     {
       "name": "NextE",
@@ -1075,7 +1075,7 @@
       "owner": "Root：未知目录边界；源具名网络分支待条件",
       "dependencies": [],
       "result": "详情完整成功目录可同步同ID顺序信息到书架；未知跨季目录仍不猜序。",
-      "remaining": "漫画柜016已公开发布，237目录与页面HTTP0未完成正文；漫画160未知跨季继续查站点依据。",
+      "remaining": "漫画160/漫画柜未知metadata及元尊同号分话顺序继续原项；486排序恢复完成，实际首章ID尚未取得。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
@@ -1091,11 +1091,14 @@
       "evidencePoints": [
         "详情旧34ab280d仅投影；沿b486da30的同ID规则补持久化，34项行为检查及签名Release构建通过。",
         "197158–162：仅Super Lovers三条番外的旧章号/排序字段更新，76章ID/页缓存及全部reader数据保持，重入库内容全同。",
-        "漫画柜016原HTML235条Root独立复跑通过；237更新已装但目录/页面均network_error/http0；公开索引85条已含016。"
+        "漫画柜016原HTML235条Root独立复跑通过；237更新已装但目录/页面均network_error/http0；公开索引85条已含016。",
+        "472普通返回漫画屋27.439秒未出现元尊，473为原生403；未走到排序/开书，无排序更改或恢复义务，不据此判首章规则。",
+        "485元尊1270章升序：8个unknown公告/最终话在前，随后第1话（下）→（上）、第2话下→（上）。首次阅读另取最小已知号且同号保原首项；不能把483 unknown顶部当459实际目标。486已恢复降序/自然回RootBrowse，无开书或加书。"
       ],
       "remainingActions": [
         "漫画柜016已推且公开索引确认；237网络失败分支仅待有效响应。",
-        "漫画160跨季缺metadata，仍查原始依据，不猜标题首数或全reverse。"
+        "漫画160跨季缺metadata，仍查原始依据，不猜标题首数或全reverse。",
+        "元尊第1/2话同号下→上已见，继续核准确chapterId及原目录上下关系；不合成小数编号、标题泛排序或复活unknown恒末尾。"
       ],
       "boundaries": [
         "197只验同ID信息保存和原Extra2进度保持；没有清历史伪造首次阅读，不称全源首章/排序已完成。",
@@ -1122,7 +1125,8 @@
         "包子019的绍宋234章升降序、005→006→007及044→045→046已亲审；原人设1/6进度保持。",
         "源e57d184b、CI39934858276成功；原件为237包子019更新、six/forty-five与016目录图。旧170→198、215→224排序反例保留。",
         "漫画160无metadata且混跨季，现有比较不能产生可靠首章/排序；不能把已编号样本通过扩成全源通过。",
-        "324普通大奉详情695章，目录583后099异常已发现；本轮未改源码/未清数据，原件baozimh-dafeng197-detail-324。"
+        "324普通大奉详情695章，目录583后099异常已发现；本轮未改源码/未清数据，原件baozimh-dafeng197-detail-324。",
+        "485另见元尊同号下→上；8个unknown置前符合19ad9143既定对称-1规则，不将它冒新实现错误或恢复已拒unknown恒末尾。"
       ],
       "remainingActions": [
         "追大奉695目录新顺序/metadata反例；未知metadata原规则继续保留，不按标题直接重排。"
@@ -1435,10 +1439,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "既有分区会话恢复；包子自动等待仍OPEN，人工对照恢复",
+      "status": "漫画屋自动验证具名恢复；包子自动门禁仍待",
       "kind": "open",
-      "result": "455–458漫画屋既有分区会话列表/元尊详情200；462–463包子自动弹出后47.5秒未返回，网页已有分类/封面但未识别clearance。464–465人工完成后Native附会话并连续HTTP200，自动门禁问题仍未解决。",
-      "remaining": "继续定位包子自动门禁：区分未出现clearance、多个同名cookie或非CF站点验证；不凭网页内容/任意cookie直接宣称验证成功，不放宽同源与源包身份限制。",
+      "result": "478/479前两次主框架403均failed=true，不再提前收起；第三次真实正常文档才自动一次重试，Native列表HTTP200/30本。未人工完成；包子自动范围仍未闭。",
+      "remaining": "冻结本次漫画屋自动回流范围，继续包子no_clearance的实际分类；正文超时与源列表图标等独立事项保留。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1458,23 +1462,23 @@
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "evidencePoints": [
-        "455–458漫画屋Native列表/元尊详情1270章HTTP200；459–460正文Cookie present但2300028/HTTP0超时，另归具名源正文。",
-        "462–463包子Native为session=none，403/98chars；自动Web真实分类/封面已审，Cookie可读、no_clearance，未自动关闭。",
-        "464–465仅人工对照：会话变attached/Cookie present，Native连续200，原生热门12本封面真实；三业务域与463逐字同。人工恢复不能抵消自动失败。"
+        "476实机先主HTTP403后pageBegin清失败导致提前完成；clearance在Web/Native均present，未归因TLS。",
+        "477同版本Release8528275B已装，75项Host检查通过；478/479前两失败文档保留，第三正常文档13:37:26.847自动完成，Native get_manga_list3703ms/HTTP200/49557chars、真实30本。",
+        "原462/463包子自动no_clearance、464/465人工恢复200各自保留，不能用漫画屋成功关闭包子问题。"
       ],
       "remainingActions": [
-        "继续定位包子自动门禁：区分未出现clearance、多个同名cookie或非CF站点验证；不凭网页内容/任意cookie直接宣称验证成功，不放宽同源与源包身份限制。"
+        "冻结本次漫画屋自动回流范围，继续包子no_clearance的实际分类；正文超时与源列表图标等独立事项保留。"
       ],
       "boundaries": [
         "现有分区Cookie读取已在漫画屋验证；包子本轮自动弹出成立但未自动完成，人工恢复单独保留。",
         "不修改UA/第三方Cookie策略、不清会话、不盲重试；漫画屋正文页表超时与自动门禁问题分别保留。"
       ],
       "modificationBasis": {
-        "object": "SourceWebSessionStore/SourceWebSessionSheet共用Cookie读取；网页失败分类诊断",
-        "history": "34ab280d源会话只读同源Cookie；e839ec87新clearance门禁；1b3e4533当前仍两参fetchCookieSync",
-        "originalReason": "系统Jar按完整URL/源身份隔离，不泄Cookie到WASM或日志；默认排除分区Cookie是未覆盖平台能力",
-        "reopenEvidence": "Cloudflare官方现cf_clearance为Partitioned；Huawei API26第三参includePartitionedCookies默认false。453实读197 API26、网页就绪但两参Cookie为空；原失败已保留",
-        "allowedDifference": "API26+只包含该URL第一方分区Cookie，API23–25保原两参读取；不枚举全Jar、不改第三方策略/UA/完成条件、权限或样式。455–458已证漫画屋现有会话的列表/详情恢复，fresh自动关闭与正文另验。"
+        "object": "SourceWebSessionSheet主文档状态生命周期，MangaWebView原生加载前事件转发",
+        "history": "e839ec87安全门禁要求主文档无失败；pageBegan原先直接清pageFailed；16799f88共用分区读取不改此状态",
+        "originalReason": "错误文档不能触发自动验证完成；后续真实新导航应允许恢复",
+        "reopenEvidence": "476实机HTTP403发生于13:29:52.372，随后pageBegin52.408清失败，pageEnd52.900错误地允许新clearance自动回流；Native仍403。官方web-event-sequence说明onLoadIntercept在URL加载前触发，onPageBegin并非网络开始边界",
+        "allowedDifference": "只在新主框架加载请求前初始化当前文档错误/修订；pageBegin不抹掉已收到的失败。共享Web封装只转发可选原生onLoadIntercept，默认返回false不拦截；UI/UA/同源、源包身份、单次重试及人工完成保持。75项Host检查及Release8528275B构建成功，477已装、三业务域逐字同；478/479普通自动流程具名恢复，仅此源列表范围；正文及包子不外推。"
       }
     },
     {
@@ -2496,17 +2500,17 @@
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "418自然漫画屋更新复现本行瞬空，仍OPEN",
-      "result": "真实0.1.3→公开0.1.4更新时，418第8帧0.146778s本行图标瞬空，第9帧0.165611s恢复；其他可见行图保留。旧316反例现有新鲜复现，未接受。",
+      "status": "同索引检查图标保持；418安装本行瞬空仍OPEN",
+      "result": "469–471原索引更新0/最新84的普通检查，7个完整可见源图标在95个编码帧均保持，8个可见源Image节点及bounds前后相同；418真实更新本行瞬空仍保留。",
       "evidencePoints": [
-        "Root顺审418完整114帧/4表及7–9、64–66原帧，确认本行短暂空白；未外推所有源图标。",
-        "419 registry84仅com.manhuawu.koma更新014/WASM54328/homepage，其余83及enabled保持，library/reader逐字同417。",
-        "434 trace旧icon StartDecoding=319520528798000，行组件至319521968103000后才Destroy；重解码早于销毁，仅因果线索，未证HDS根因。"
+        "418完整114帧已审：第8帧0.146778秒本行图标瞬空，第9帧恢复；419仅漫画屋014更新，用户数据保持。",
+        "434 trace显示旧图标重解码早于SourcePackageListItem销毁约1.439秒；仅定位到原生行内部更新线索，不宣称已证HDS根因。",
+        "470完整95PTS/6全页表及6图标表顺审，37–39原帧复核；471与469的8个源Image hashcode/bounds一致，三业务域逐字同。"
       ],
       "remainingActions": [
-        "Root继续追418本行图标失效/回填因果，保持原生行布局，不把阶段耗时或更新成功当视觉通过。"
+        "保同索引检查当前7图范围；安装瞬空继续追原生前缀更新。当前真实可更新数为0，不降版本或造包制造验收。"
       ],
-      "remaining": "Root继续追418本行图标失效/回填因果，保持原生行布局，不把阶段耗时或更新成功当视觉通过。",
+      "remaining": "保同索引检查当前7图范围；安装瞬空继续追原生前缀更新。当前真实可更新数为0，不降版本或造包制造验收。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
@@ -2751,17 +2755,18 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "列表/元尊详情恢复；页表自然超时，正文未完成",
-      "result": "458元尊封面/简介/1270章目录真实，详情与章节HTTP200；459–460开始阅读get_pages15.014秒后2300028→timeout/HTTP0，无页表/正文，未点重试。列表/详情恢复不代表正文通过。",
+      "status": "自动验证后列表200；元尊正文仍待",
+      "result": "478/479普通自动Web在真正正常文档后回流，Native列表200/30本；473/476失败保留。原460正文get_pages2300028未扩认恢复。",
       "evidencePoints": [
-        "455–456既有分区会话Native列表200范围保留；458元尊详情get_manga200/530249chars/682ms、get_chapters200/同长度/293ms，三域同456。",
-        "459进入15.987秒时sharedSurface1/Image0/重试1；460原图明确连接书源超时。get_pages12:16:14.248起、Cookie present，15.014秒平台2300028/HTTP0。",
-        "460三域与458全部同，未点重试；首章实际标题未知，不猜上/下章，也不将独立页表超时归为Cookie修复失败。"
+        "473日志13:19:38原请求附会话/Cookie/WebViewUA，HTTP403/5727chars；13:20:10.855 clearance_candidate触发retry_original_once，随后原生161仍403/5727chars/186ms。",
+        "473与471的library/reader/registry逐字比较均相同；没有再次点击重试。原件diagnostics/manhuawu015-firstgroup197-failure-473。",
+        "455–458既有会话列表/详情200及460正文页表超时不抹去；472在27.439秒未见元尊，未进入排序或开书。",
+        "478/479原生列表get_manga_list HTTP200，30本封面/标题已显示；没有人工完成或再次点重试。"
       ],
       "remainingActions": [
-        "漫画屋页表超时继续按网络阶段定位；包子独立对照已在462–465完成，自动等待问题归SOURCE_WEB_SESSION。保正文未完成，不盲重试或猜首章标题。"
+        "继续元尊目录顺序与原页表超时，不据列表成功声明整源可读。"
       ],
-      "remaining": "漫画屋页表超时继续按网络阶段定位；包子独立对照已在462–465完成，自动等待问题归SOURCE_WEB_SESSION。保正文未完成，不盲重试或猜首章标题。",
+      "remaining": "继续元尊目录顺序与原页表超时，不据列表成功声明整源可读。",
       "boundaries": [
         "仅漫画屋015列表/元尊详情恢复；无页表或正文，不扩整源可用。",
         "页表Cookie present与2300028超时是本次事实，不足以推断网络具体阶段或否定分区读取修复。"

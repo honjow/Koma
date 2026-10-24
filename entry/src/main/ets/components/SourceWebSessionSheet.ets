@@ -1,6 +1,6 @@
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { hasNewSourceClearance } from '../sourceRuntime/SourceWebChallengeGate'
+import { hasNewSourceClearance, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
@@ -118,12 +118,27 @@ export struct SourceWebSessionSheet {
     } catch (_error) { this.updateNavState() }
   }
 
-  private pageBegan(event?: OnPageBeginEvent): void {
-    if (!this.active) return
+  private navigationRequested(event: OnLoadInterceptEvent): boolean {
+    if (!this.active || !event.data.isMainFrame()) return false
     this.pageRevision += 1
-    this.pageUrl = event?.url ?? ''
+    this.pageUrl = event.data.getRequestUrl()
     this.pageFailed = false
     this.loading = true
+    DiagnosticLogger.info('source_web_session', 'navigation_requested', 'revision=' + this.pageRevision)
+    this.updateNavState()
+    return false
+  }
+
+  private pageBegan(event?: OnPageBeginEvent): void {
+    if (!this.active) return
+    // ArkWeb may report the main HTTP failure before onPageBegin. Only the
+    // next main-frame request may reset it, never this later display callback.
+    if (this.pageUrl !== (event?.url ?? '')) this.pageRevision += 1
+    this.pageUrl = event?.url ?? ''
+    this.loading = true
+    DiagnosticLogger.info('source_web_session', 'document_begin',
+      'revision=' + this.pageRevision + ' sameRequestDocument=' + (this.pageUrl === this.params.url) +
+      ' sameRequestOrigin=' + (sourceWebOrigin(this.pageUrl) === sourceWebOrigin(this.params.url)))
     this.updateNavState()
   }
 
@@ -133,7 +148,7 @@ export struct SourceWebSessionSheet {
     this.updateNavState()
     // Record gate facts only: URLs, cookie values and session identifiers stay private.
     DiagnosticLogger.info('source_web_session', 'document_end',
-      'automatic=' + this.autoRetryOnClearance + ' attempted=' + this.autoRetryStarted +
+      'revision=' + this.pageRevision + ' automatic=' + this.autoRetryOnClearance + ' attempted=' + this.autoRetryStarted +
       ' failed=' + this.pageFailed + ' baselineKnown=' + (this.clearanceBaseline !== undefined) +
       ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
@@ -154,7 +169,10 @@ export struct SourceWebSessionSheet {
           'firstPartyAllowed=' + webview.WebCookieManager.isCookieAllowed() +
           ' thirdPartyAllowed=' + webview.WebCookieManager.isThirdPartyCookieAllowed() +
           ' sameRequestUrl=' + (currentUrl === this.params.url) +
-          ' requestCookiePresent=' + (cookies.length > 0) + ' currentCookiePresent=' + (currentCookies.length > 0))
+          ' requestCookiePresent=' + (cookies.length > 0) + ' currentCookiePresent=' + (currentCookies.length > 0) +
+          ' baselineClearance=' + sourceClearanceCookieState(this.clearanceBaseline) +
+          ' requestClearance=' + sourceClearanceCookieState(cookies) +
+          ' currentClearance=' + sourceClearanceCookieState(currentCookies))
       } catch (_error) {
         DiagnosticLogger.info('source_web_session', 'cookie_context', 'state=unavailable')
       }
@@ -181,7 +199,8 @@ export struct SourceWebSessionSheet {
   private resourceFailed(request: WebResourceRequest, kind: string, code: number): void {
     if (!this.active) return
     DiagnosticLogger.info('source_web_session', 'resource_failed',
-      'kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
+      'revision=' + this.pageRevision + ' kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
+      ' matchingDocument=' + (request.getRequestUrl() === this.pageUrl) +
       ' challengeHost=' + (sourceWebOrigin(request.getRequestUrl()) === 'https://challenges.cloudflare.com'))
     this.mainPageFailed(request)
   }
@@ -233,6 +252,7 @@ export struct SourceWebSessionSheet {
           MangaWebView({
             controller: this.controller,
             onControllerAttached: () => { this.loadInitialPage() },
+            onLoadIntercept: (event: OnLoadInterceptEvent): boolean => { return this.navigationRequested(event) },
             onPageBegin: (event?: OnPageBeginEvent) => { this.pageBegan(event) },
             onPageEnd: (event?: OnPageEndEvent) => { this.pageEnded(event) },
             onConsole: (event: OnConsoleEvent): boolean => { return this.consoleMessage(event) },

@@ -47,6 +47,7 @@ function sheetFixture() {
       },
     },
     connectLayoutSafeArea: () => ({ bottomAvoidHeight: 0 }),
+    DiagnosticLogger: { info: () => {} },
     AppStrings: { get: key => key }, mangaHttpUrl: value => value,
   })
   const sheet = new SourceWebSessionSheet()

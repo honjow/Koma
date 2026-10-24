@@ -57,6 +57,21 @@ export class SourceWebChallengeGate {
   }
 }
 
+/** Diagnostic category only: no cookie names, values or lengths leave this helper. */
+export function sourceClearanceCookieState(cookies: string): string {
+  let count = 0
+  let nonempty = false
+  cookies.split(';').forEach((entry: string) => {
+    const separator = entry.indexOf('=')
+    if (separator < 0 || entry.slice(0, separator).trim() !== 'cf_clearance') return
+    count += 1
+    nonempty = entry.slice(separator + 1).trim().length > 0
+  })
+  if (count === 0) return 'missing'
+  if (count > 1) return 'ambiguous'
+  return nonempty ? 'present' : 'empty'
+}
+
 /** In-memory retry signal only; never a claim that the native request will pass. */
 export function hasNewSourceClearance(previousCookies: string, currentCookies: string): boolean {
   const clearance = (cookies: string): string => {

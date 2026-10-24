@@ -157,7 +157,7 @@ test('home preliminary listing/filter results do not invalidate its later listin
 })
 
 
-const { hasNewSourceClearance } = moduleFrom('sourceRuntime/SourceWebChallengeGate')
+const { hasNewSourceClearance, sourceClearanceCookieState } = moduleFrom('sourceRuntime/SourceWebChallengeGate')
 test('clearance candidate requires a nonempty changed exact cookie; other names and ambiguous duplicates cannot complete', () => {
   for (const [before, after] of [['', 'sid=x'], ['cf_clearance=a', 'cf_clearance=a; sid=new'],
     ['cf_clearance=a', 'cf_clearance='], ['', 'not_cf_clearance=a'], ['', 'cf_clearance=a; cf_clearance=b']]) {
@@ -171,18 +171,19 @@ const sheetText = read('components/SourceWebSessionSheet').replace('export struc
 const sheetAst = ts.createSourceFile('sheet.ts', sheetText, ts.ScriptTarget.Latest, true)
 const sheetOwner = sheetAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceWebSessionSheet')
 const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan','pageEnded','mainPageFailed',
-  'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed']
+  'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed','navigationRequested']
 const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
 function sheetFixture() {
   let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve()
   const exports = {}, granted = [], completed = [], events = []
   const webview = { WebCookieManager: {
+    isCookieAllowed: () => true, isThirdPartyCookieAllowed: () => false,
     fetchCookieSync: () => { if (failRead) throw Error('unavailable'); return cookies },
     saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
   } }
-  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies', compile(sheetSource))(
+  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies', compile(sheetSource))(
     exports, webview, { complete: (...args) => { granted.push(args); return { state:'available' } } },
-    u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance,
+    u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance, sourceClearanceCookieState,
     { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl,
     fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false))
   const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
@@ -194,7 +195,7 @@ function sheetFixture() {
     onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
     getUIContext:()=>({getPromptAction:()=>({showToast:()=>{}})}),
   })
-  sheet.loadInitialPage(); sheet.pageBegan({url:initialUrl})
+  sheet.loadInitialPage(); sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>initialUrl}}); sheet.pageBegan({url:initialUrl})
   return { sheet, initialUrl, granted, completed, events, setCookies:s=>cookies=s, failRead:()=>failRead=true,
     delaySave:()=> { saveError=true; let resolve; saveWait=new Promise(r=>resolve=r); return resolve } }
 }
@@ -263,8 +264,53 @@ test('verification resource diagnostics keep numeric stage and host classificati
   const sub={isMainFrame:()=>false,getRequestUrl:()=> 'https://challenges.cloudflare.com/private?token=secret'}
   f.sheet.resourceFailed(sub,'transport',-105)
   assert.equal(f.sheet.pageFailed,false)
-  assert.deepEqual(f.events,[['source_web_session','resource_failed','kind=transport code=-105 mainFrame=false challengeHost=true']])
+  assert.deepEqual(f.events,[['source_web_session','resource_failed','revision=1 kind=transport code=-105 mainFrame=false matchingDocument=false challengeHost=true']])
   assert.equal(JSON.stringify(f.events).includes('secret'),false)
   f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl},'http',403)
   assert.equal(f.sheet.pageFailed,true)
+})
+
+test('clearance diagnostics distinguish missing, empty and duplicate cookies without disclosing values', async () => {
+  for (const [cookies, expected] of [['sid=secret', 'missing'], ['cf_clearance=', 'empty'],
+    ['cf_clearance=secret', 'present'], ['cf_clearance=secret; cf_clearance=other', 'ambiguous'],
+    ['not_cf_clearance=secret', 'missing']]) {
+    assert.equal(sourceClearanceCookieState(cookies), expected)
+    const f=sheetFixture();f.events.length=0;f.setCookies(cookies);f.sheet.pageEnded({url:f.initialUrl});await settled()
+    const context=f.events.find(event=>event[1]==='cookie_context')
+    assert.ok(context[2].includes('requestClearance='+expected))
+    assert.ok(context[2].includes('currentClearance='+expected))
+    assert.equal(JSON.stringify(f.events).includes('secret'),false)
+    assert.equal(f.granted.length,expected==='present'?1:0)
+  }
+})
+test('document revisions distinguish a stale main-frame error from the current document without logging paths', () => {
+  const f=sheetFixture();f.events.length=0
+  f.sheet.pageBegan({url:'https://test.invalid/current?token=secret'})
+  f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl},'http',403)
+  assert.equal(f.sheet.pageFailed,false)
+  assert.ok(f.events.some(event=>event[1]==='document_begin' && event[2].includes('revision=2')))
+  assert.ok(f.events.some(event=>event[1]==='resource_failed' && event[2].includes('matchingDocument=false')))
+  f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.sheet.pageUrl},'http',403)
+  assert.equal(f.sheet.pageFailed,true)
+  assert.ok(f.events.at(-1)[2].includes('matchingDocument=true'))
+  assert.equal(JSON.stringify(f.events).includes('secret'),false)
+})
+
+test('a main HTTP error arriving before pageBegin cannot be cleared into an automatic completion', async () => {
+  const f=sheetFixture();f.setCookies('cf_clearance=new')
+  f.sheet.mainPageFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl})
+  f.sheet.pageBegan({url:f.initialUrl});f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.sheet.pageFailed,true);assert.equal(f.completed.length,0);assert.equal(f.sheet.autoRetryStarted,false)
+  assert.equal(f.sheet.navigationRequested({data:{isMainFrame:()=>false,getRequestUrl:()=> 'https://other.invalid/frame'}}),false)
+  assert.equal(f.sheet.pageFailed,true)
+  assert.equal(f.sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl}}),false)
+  f.sheet.pageBegan({url:f.initialUrl});f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.sheet.pageFailed,false);assert.equal(f.completed.length,1)
+})
+test('an initial main HTTP error before any pageBegin remains failed until a real new main request', async () => {
+  const f=sheetFixture();f.sheet.pageUrl='';f.sheet.pageRevision=0;f.sheet.pageFailed=false;f.setCookies('cf_clearance=new')
+  f.sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl}})
+  f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl},'http',403)
+  f.sheet.pageBegan({url:f.initialUrl});f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.sheet.pageFailed,true);assert.equal(f.granted.length,0)
 })

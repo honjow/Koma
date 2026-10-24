@@ -56,6 +56,7 @@ function fixture(sdkApiVersion = 23) {
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === '@kit.ArkTS') return { url: { URL } }
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store }
+      if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
@@ -529,5 +530,16 @@ test('API26 includes only the requested first-party partition while API23-25 kee
     assert.equal(f.store.requestSession(f.identity(),'https://other.invalid/'),undefined)
     assert.equal(f.cookieReads.length,1,'an ungranted origin cannot read any cookie partition')
     assert.equal(JSON.stringify(f.diagnostics).includes('private-cookie-value'),false)
+  }
+})
+
+test('native session records only the clearance category, never a cookie value', async () => {
+  const f=fixture();f.grant()
+  for (const [cookie, state] of [['sid=secret', 'missing'], ['cf_clearance=', 'empty'],
+    ['cf_clearance=secret', 'present'], ['cf_clearance=secret; cf_clearance=other', 'ambiguous']]) {
+    f.setCookie(cookie);f.diagnostics.length=0
+    await f.http([response()],JSON.stringify(f.identity()))
+    assert.ok(f.diagnostics.includes('state='+state))
+    assert.equal(JSON.stringify(f.diagnostics).includes('secret'),false)
   }
 })
