@@ -688,6 +688,26 @@ export struct SourcePackageManagerPage {
     return this.packageListGroups()
   }
 
+  // Position belongs to the live group projection, never to row identity.
+  // These primitive computed values update the divider without remounting its row.
+  @Computed
+  private get lastUpdateSourceId(): string {
+    const rows = this.listGroups.updates
+    return rows.length > 0 ? rows[rows.length - 1].entry.id : ''
+  }
+
+  @Computed
+  private get lastMissingSourceId(): string {
+    const rows = this.listGroups.missing
+    return rows.length > 0 ? rows[rows.length - 1].id : ''
+  }
+
+  @Computed
+  private get lastInstalledSourceId(): string {
+    const rows = this.listGroups.installed
+    return rows.length > 0 ? rows[rows.length - 1].id : ''
+  }
+
   private checkedUpdateStatuses(): SourcePackageUpdateStatus[] {
     return this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => {
       return status.status === 'update' && status.remoteEntry !== undefined && status.remoteIndexUrl !== undefined &&
@@ -2497,9 +2517,9 @@ export struct SourcePackageManagerPage {
         }) {
           ForEach(groups.updates, (candidate: SourcePackageUpdateCandidate, index: number) => {
             this.PackageCard(this.installedPackage(candidate.entry.id)!, candidate)
-            if (candidate.entry.id !== groups.updates[groups.updates.length - 1].entry.id) { ListDivider() }
+            if (candidate.entry.id !== this.lastUpdateSourceId) { ListDivider() }
           }, (candidate: SourcePackageUpdateCandidate, _index: number) => JSON.stringify([candidate.entry.id, candidate.entry.version,
-            this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw, candidate.entry.id !== groups.updates[groups.updates.length - 1].entry.id]))
+            this.installedPackage(candidate.entry.id)?.version, this.installedPackage(candidate.entry.id)?.enabled, candidate.entry.nsfw]))
         }
       }
     }
@@ -2508,8 +2528,8 @@ export struct SourcePackageManagerPage {
         GroupedListSection({ title: t('source_pkg_uninstalled_heading') }) {
           ForEach(groups.missing, (entry: SourceIndexEntry, index: number) => {
             this.RemoteIndexCard(entry)
-            if (entry.id !== groups.missing[groups.missing.length - 1].id) { ListDivider() }
-          }, (entry: SourceIndexEntry, _index: number) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw, entry.id !== groups.missing[groups.missing.length - 1].id]))
+            if (entry.id !== this.lastMissingSourceId) { ListDivider() }
+          }, (entry: SourceIndexEntry, _index: number) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
         }
       }
     }
@@ -2518,8 +2538,8 @@ export struct SourcePackageManagerPage {
         GroupedListSection({ title: t('source_pkg_installed_heading') }) {
           ForEach(groups.installed, (source: InstalledSourcePackage, index: number) => {
             this.PackageCard(source)
-            if (source.id !== groups.installed[groups.installed.length - 1].id) { ListDivider() }
-          }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang, source.id !== groups.installed[groups.installed.length - 1].id]))
+            if (source.id !== this.lastInstalledSourceId) { ListDivider() }
+          }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang]))
         }
       }
     }

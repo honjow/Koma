@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T18:54:41.020235+00:00",
+  "updatedAt": "2026-10-24T19:52:31.227399+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "APP_POPUP_SYSTEM_MATERIAL",
-  "activity": "Root：最终109原生菜单/重置已读回；提交Koma限定范围并跟CI，N/E精确CI成功。",
-  "nextAction": "Koma提交推送及精确CI；本地继续原连续滚动/源安装尚未完成的定位。",
+  "activeId": "CONTINUOUS_PERFORMANCE",
+  "activity": "Root：237真实末项安装已验分隔线与保留行；提交此限定修复后接回N068跳页相邻解码空缺。",
+  "nextAction": "提交同步源列表末项key修复，跟进精确CI；定位N068跳页后的文件命中、原生解码和呈现交接，不重跑已冻结路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,20 +978,20 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "2800d2c2采用cdb9c22已push，CI40108264842 success；共用入场候选源码WIP未采用。",
-      "hap": "候选8532590B已录073并正常返回；075已明确恢复稳定8528865B，库/阅读/注册与074逐字保持。"
+      "appHead": "f6f1c1a已push，CI40123012297成功；末项key限定修复已构建/237113验证，待范围提交。",
+      "hap": "237 source-terminal-row-release-signed.hap8547220B，0.1.2-pre/code3/Kit9b94e98；113正常安装源后69项，库/阅读记录同111。"
     },
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "85d6281e采用cdb9c22已push，CI40108179896 success。",
-      "hap": "197060明确安装38181768B/1.3.6code42；061–063原下载13/19→连续实选14，064294帧全审，065原LTR13/19亲核、066原2下载保持。"
+      "appHead": "e29133b3采用Kit9b94e98已push，CI40120958754成功。",
+      "hap": "本轮新材质包仅构建，未安装。197保38181768B稳定包；原下载与LTR13/19已恢复。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "fa98a0e0采用cdb9c22已push，CI40108107245 success；共用入场候选WIP未采用。",
-      "hap": "候选38209576B已录074；076明确恢复稳定38205248B；077–087核同图右黑边，临时会话HD恢复处理中。"
+      "appHead": "9f47c185采用Kit9b94e98已push，CI40120959939成功。",
+      "hap": "本轮新材质包仅构建，未安装。197保38205248B稳定包；原7项下载、LTR1/34和2/2已恢复。共用入场候选未采用，源码已撤。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1071,10 +1071,10 @@
       "status": "投影修复三端CI成功；总体性能仍OPEN",
       "kind": "open",
       "priority": "P0（最高）",
-      "owner": "Root：跳页相邻短空缺后续定位",
+      "owner": "Root：跳页相邻请求/解码/呈现因果定位",
       "dependencies": [],
       "result": "061→067同686734/34页第12页六组8000反向，Cell808→85，Zoom更新71；主线程frame_slice均值5.877→4.047ms、最大38.032→20.362ms、>16.67ms61→2、>33.34ms2→0。顺序暖缓存样本，不是clean AB/显示FPS；共同Kit已推送，性能仍OPEN。",
-      "remaining": "现有N068跳页相邻页短空缺约116ms（240→247原PTS4.614667→4.730522）待核请求/解码/定位；非整屏空白，不据此推断单因。三端本轮CI已成功，下一当前处理项为已批准全屏入场候选。",
+      "remaining": "N068跳页相邻短空缺240→247/约116ms仍待定位。23:19:00.537 seek后.539–.552有两组文件cache hit，.553–.573既有增强结果ready；原生JPEG解码发生至.983，但缺逐slot对齐，不能据此断言空缺唯一成因。下一核资源需求/解码/可见范围交接，保原图加载反馈与所有宿主旧路径。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1166,27 +1166,28 @@
     {
       "id": "CHAPTER_SORT_MENU",
       "title": "章节排序菜单无作用",
-      "status": "通用两维排序/缺号反序/原生状态已验；待本笔CI",
-      "kind": "open",
+      "status": "本轮限定修复已推送，三宿主构建与精确CI成功",
+      "kind": "done",
       "priority": "P0（人类再次复现：通用排序及菜单状态）",
       "owner": "Root：包子012具名范围冻结；未知metadata继续原项",
       "dependencies": [],
       "result": "237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。",
-      "remaining": "推送本笔Koma提交并核精确CI；源跨季真实年代/首次选章仍归独立未完成项，不冒整源通过。",
+      "remaining": "已具名路径冻结；只按新反馈或相关依赖变化重开。Reader跨季年代、旧系统/暗色及未打开菜单分支未外推。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-24T19:25:24.086002+00:00",
       "evidencePoints": [
         "历史5e7854a7/3b2713ef/19ad9143：四种排序裁为两个选项后保留隐藏默认值；缺号/同号比较相等，原方向未整表互逆。当前用户明确批准默认源目录顺序、依据/方向独立，允许原生对勾。",
         "Mihon ChapterSort/SyncChaptersWithSource 与 Aidoku ceee58b源目录默认/方向源码已实际对照；源位置独立于可选话数，不再逐作品补正则处理菜单反序。",
         "237风起苍岚784章全部unknown：088原序第2季354→353，090/094反序第1话→2话；095切话数保反序，对勾为话数+反序。093小号常规分组标题/材质已亲看；原089大粗标题/白底保留为失败。",
-        "已接受的包子012目录metadata及具名阅读范围保持冻结；旧源反例/发布/原片保留在原目录与Git材料中，不外推为跨季年代或所有首次选章通过。"
+        "已接受的包子012目录metadata及具名阅读范围保持冻结；旧源反例/发布/原片保留在原目录与Git材料中，不外推为跨季年代或所有首次选章通过。",
+        "Koma f6f1c1aa，CI40123012297成功，包含70a36f0阶段诊断；Kit9b94e98已推。N9f47c185/CI40120959939、Ee29133b3/CI40120958754成功。K最终106→110三业务域逐字同，已正常返回书架。"
       ],
       "remainingActions": [
-        "推送本笔Koma提交并核精确CI；源跨季真实年代/首次选章仍归独立未完成项，不冒整源通过。"
+        "已具名路径冻结；只按新反馈或相关依赖变化重开。Reader跨季年代、旧系统/暗色及未打开菜单分支未外推。"
       ],
       "boundaries": [
         "本次新反馈明确重开通用展示反序与菜单状态，不继续按源补章号来掩盖菜单缺陷。",
@@ -1204,23 +1205,24 @@
     {
       "id": "APP_POPUP_SYSTEM_MATERIAL",
       "title": "菜单与半模态漏接系统新材质",
-      "kind": "open",
+      "kind": "done",
       "priority": "P1（当前人类连续反馈）",
       "owner": "Root",
       "dependencies": [],
       "reportedAt": "2026-10-24T18:01:49.053271+00:00",
       "reportedAtSource": "本轮登记时间；原始提出时间未作推算。",
       "firstHandlingAt": "2026-10-24T18:01:49.053271+00:00",
-      "closedAt": null,
+      "closedAt": "2026-10-24T19:25:24.086002+00:00",
       "evidencePoints": [
         "8545858B签名defaultRelease0.1.2-pre/code3已装237，64相关检查和三语资源parity通过。",
         "SourceSettings104从稳定原生菜单直接打开，105不保存关闭并返回；101自然403自动Web验证后列表恢复，不扩成正文通过。",
         "shared reader-ui/ReaderChrome五处菜单有三处自d303c6b等已用THICK，两处RuntimeMenu缺失；这次统一调用同一内部材质解析，无新增动作或参数。",
-        "最终1098547952B具名菜单：小号常规标题、原生勾选及材质可见；106三业务域相对105逐字相同。旧087→105缓存/源版本及读态时间戳不同，不写逐字保持或覆盖恢复。"
+        "最终1098547952B具名菜单：小号常规标题、原生勾选及材质可见；106三业务域相对105逐字相同。旧087→105缓存/源版本及读态时间戳不同，不写逐字保持或覆盖恢复。",
+        "Koma f6f1c1aa，CI40123012297成功，包含70a36f0阶段诊断；Kit9b94e98已推。N9f47c185/CI40120959939、Ee29133b3/CI40120958754成功。K最终106→110三业务域逐字同，已正常返回书架。"
       ],
-      "status": "宿主材质及排序菜单237已验；三宿主构建和N/E CI成功",
+      "status": "本轮限定修复已推送，三宿主构建与精确CI成功",
       "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。",
-      "remaining": "提交推送Koma材质/排序范围并核精确CI。N/E共享默认菜单新增两处仅构建/4检查，无实机通过声明；暗色及API<26未实机。",
+      "remaining": "本次237已打开菜单/筛选与源设置半模态具名范围冻结；旧系统、暗色和未打开菜单未扩认。N/E新增RuntimeMenu仅构建/精确CI成功，未安装实机验收。",
       "modificationBasis": {
         "object": "宿主原生菜单/半模态选项及KomaModalScaffold背景；ChapterListSection排序分组标题",
         "history": "37539a94引入统一ModalScaffold整面BG_SUB，296c7b34直接源设置复用bindSheet；本轮两维排序WIP使用原生MenuItemGroup字符串标题。",
@@ -1229,7 +1231,7 @@
         "allowedDifference": "仅补官方沉浸材质、支持版本的模态内容透明和排序分组小号常规字；旧系统保原底色。保动作/尺寸/位置/展开档位/键盘/生命周期/选中状态。"
       },
       "remainingActions": [
-        "提交推送Koma材质/排序范围并核精确CI。N/E共享默认菜单新增两处仅构建/4检查，无实机通过声明；暗色及API<26未实机。"
+        "本次237已打开菜单/筛选与源设置半模态具名范围冻结；旧系统、暗色和未打开菜单未扩认。N/E新增RuntimeMenu仅构建/精确CI成功，未安装实机验收。"
       ],
       "boundaries": [
         "宿主40处弹层仅增加材质；HDS导航溢出菜单103原生材质已存在，不替换其实现。",
@@ -2678,15 +2680,15 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root",
+      "owner": "Root：限定key修复已实机验证，整体安装主线程工作继续定位",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "434回调归因已细分：22.115ms不是目录删除执行时间",
-      "result": "复核434原始trace：fs.rmdir实际工作线程execute 0.288ms，主线程complete 22.115ms，内含后续Promise微任务。当前删除代码已用await；不能据complete标签认定删除在主线程阻塞。",
+      "status": "相邻行重建限定修复已验，持久化与整体UI耗时继续OPEN",
+      "result": "237候选8547220B普通Zerobyw首次安装成功，missing17→16、installed68→69；原前一项Simply Hentai末尾分隔线正确收回。113 trace仅移除目标ConciseListRow，ForEach additionalChildComps=0，相邻行未因末项位置变化重建。library/reader逐字同111，registry只新增Zerobyw，原68项逐项相同。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "434注册84IDs/顺序保持，仅漫画屋015/WASM54808/单域变化，其他83及library/reader逐字同；与379本地导入为不同具名路径，不作严格A/B。",
@@ -2696,13 +2698,12 @@
         "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。"
       ],
       "remainingActions": [
-        "区分安装返回后的notify、单包投影及管理页状态提交耗时；本行图标瞬空独立保留。先补有界阶段观测，再利用真实可更新源验证，不盲迁移文件API。"
+        "本轮只关闭位置布尔key导致的相邻行重建；整体stall仍OPEN：113 import持久化同步32ms、row projection5ms、最长FlushDirty26.263ms。与079不同源/更新动作，不作耗时AB。后继定位同步持久化与剩余UI工作；本行图标仍独立项。"
       ],
-      "remaining": "保留237079新分段及trace：继续定位29.459ms dirty更新；不能把目录删除complete标签当删除执行。当前先处理人类重开的通用排序。",
+      "remaining": "本轮只关闭位置布尔key导致的相邻行重建；整体stall仍OPEN：113 import持久化同步32ms、row projection5ms、最长FlushDirty26.263ms。与079不同源/更新动作，不作耗时AB。后继定位同步持久化与剩余UI工作；本行图标仍独立项。",
       "boundaries": [
-        "379本地导入与434自然远端更新分别有界取证；不外推全App、满帧或安装行瞬空已修。",
-        "漫画屋014→015自然远端更新已执行并取得有界trace；本次无录像，418图标瞬空仍OPEN。",
-        "诊断源码均撤；仅清本轮device CPU副本，本地373原件保留，不新tag。"
+        "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
+        "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2713,7 +2714,18 @@
       "handling": null,
       "closedAt": null,
       "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。",
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "modificationBasis": {
+        "object": "SourcePackageManagerPage三组末项分隔线状态与ForEach key",
+        "history": "f4caffaa为修末项分隔线失效，把是否末项纳入key；版本/源metadata key另用于保持行输入更新。",
+        "originalReason": "ForEach保留已有key的构造闭包，旧groups快照不随末项变化更新分隔线；原处理通过重建末项解决。",
+        "reopenEvidence": "237079 ForEach preIds3→2销毁两个SourcePackageListItem，保留相邻项也因末项key改变重建；这属于用户明确要求消除的小状态带动无关元素重建。",
+        "allowedDifference": "末项ID改由三个独立Computed字符串提供，分隔线直接观察当前末项；仅从key移除位置布尔值。保原生HDS、几何、顺序、动作及实际metadata更新规则；不冒整个卡顿/本行图标已修。"
+      },
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-missing-tail-112",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-zerobyw-install-trace-113"
+      ]
     },
     {
       "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
@@ -3009,9 +3021,9 @@
         "最新人类反馈：WebView打开网页入口使用房子图标，应表达网页打开而非主页；已登记，未转移当前通用章节排序修复。"
       ],
       "remainingActions": [
-        "随本轮Koma提交/CI收尾；HDS溢出菜单103不显示动作图标，不能把文字菜单截图称图标实测。"
+        "5处网页动作采用官方website符号已随f6f1c1a推送且精确CI40123012297成功；HDS溢出菜单103不显示动作图标，不以文字截图冒图标实测。"
       ],
-      "remaining": "随本轮Koma提交/CI收尾；HDS溢出菜单103不显示动作图标，不能把文字菜单截图称图标实测。",
+      "remaining": "5处网页动作采用官方website符号已随f6f1c1a推送且精确CI40123012297成功；HDS溢出菜单103不显示动作图标，不以文字截图冒图标实测。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
@@ -3203,9 +3215,6 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。"
 }
-
-
-
 -->
 
 ## 0. 本轮审查结论与方法（2026-09-05）
