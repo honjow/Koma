@@ -62,6 +62,28 @@ function fixture() {
   })
   return { page, state, entry, logs, applied, writes, reads, cancelledSessions }
 }
+for (const [code, kind] of [['not_implemented','unsupported'], ['not_supported','unsupported'], ['rate_limit','rate_limit']]) {
+  for (const field of ['reasonCode', 'error']) test(`provider ${code} in ${field} retains its structured cause`, () => {
+    const response = field === 'reasonCode' ? {ok:false,reasonCode:code} :
+      {ok:false,error:{code,message:'PRIVATE_TOKEN https://private.invalid/work'}}
+    const error = new SourceRuntimeError(response)
+    assert.equal(error.diagnostic.kind,kind)
+    assert.equal(error.diagnostic[field === 'reasonCode' ? 'reason' : 'code'],code)
+    assert.equal(error.userText,'source_failure_'+kind)
+    assert.ok(!JSON.stringify(error.diagnostic).includes('PRIVATE_TOKEN'))
+    assert.ok(!error.userText.includes('private.invalid'))
+  })
+}
+test('explicit HTTP status still takes precedence over a provider alias', () => {
+  const error = new SourceRuntimeError({ok:false,error:{code:'not_implemented',status:403}})
+  assert.equal(error.diagnostic.kind,'access');assert.equal(error.diagnostic.code,'not_implemented')
+  assert.equal(error.diagnostic.status,403)
+})
+test('unknown provider text is still redacted rather than reclassified by message guesses', () => {
+  const error = new SourceRuntimeError({ok:false,error:{code:'PRIVATE_TOKEN',message:'not_supported rate_limit'}})
+  assert.equal(error.diagnostic.code,'unknown');assert.equal(error.diagnostic.kind,'runtime')
+  assert.equal(error.userText,'source_failure_runtime')
+})
 test('get_manga keeps structured access status and never exposes the provider message', async () => {
   const f = fixture()
   f.state.response = { ok: false, error: { code: 'permission_denied', status: 403, message: 'PRIVATE_TOKEN' } }

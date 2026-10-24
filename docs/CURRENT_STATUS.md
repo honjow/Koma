@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T08:13:21.059631+00:00",
+  "updatedAt": "2026-10-24T09:08:41.775989+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_ICON_INVALIDATION",
-  "activity": "包子012已正常更新并完成197目录升降序；537自动验证真实回流成功。同步本次App修复后续源行闪烁/安装性能。",
-  "nextAction": "审查并提交SourceWebSessionSheet限定修复，推送后跟进精确CI；继续531图标瞬空与434安装trace因果调查，不重复造安装。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "mh160013已发布/197普通更新，网页动作打开返回已验；目标Web白屏加载仍未闭。明确错误别名修复已实录，准备同步后接网页阶段诊断。",
+  "nextAction": "提交已验错误别名并跟进精确CI；按558/559真实网页白屏补有限阶段日志，只记录布尔/数值，不改Web布局、请求策略或会话。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,8 +978,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "03406dc4已push，精确CI40075047022 completed/success；本次正常Web文档验证修复待同步，无新tag/发版。",
-      "hap": "197535 Release8529158B/0.1.2-pre code3，102项Host及Release通过。537/538原生403后自动Web→原GET200→一次复用→12本Native列表，无人工完成/重试；539–544包子012目录691编号/5通知与原001第3/24页保持，三业务域逐字同535。"
+      "appHead": "922d153f已push，精确CI40077208291 completed/success；无新tag/发版。",
+      "hap": "197554 Release8529046B/0.1.2-pre code3，95项分类/详情/网页/索引检查及Release通过；安装三业务域逐字同。556实际not_implemented已记unsupported；mh160013普通更新后详情784章，网页两动作已出现，页面内容加载仍待核。"
     },
     {
       "name": "NextE",
@@ -1065,13 +1065,13 @@
     {
       "id": "FIRST_CHAPTER_SELECTION",
       "title": "无历史书架首次阅读误开最新一话",
-      "status": "同ID metadata保存197具名通过；未知目录边界仍OPEN",
+      "status": "漫画160当前784章仍全unknown；原生详情200与Mac403分别保留",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：未知目录边界；源具名网络分支待条件",
       "dependencies": [],
       "result": "详情完整成功目录可同步同ID顺序信息到书架；未知跨季目录仍不猜序。",
-      "remaining": "漫画160/漫画柜未知metadata及元尊同号分话顺序继续原项；486排序恢复完成，实际首章ID尚未取得。",
+      "remaining": "漫画160跨季结构仍缺可用原HTML；原生784目录不能据标题首数或全reverse修。元尊同号分话及漫画柜metadata继续原项。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
@@ -1089,7 +1089,9 @@
         "197158–162：仅Super Lovers三条番外的旧章号/排序字段更新，76章ID/页缓存及全部reader数据保持，重入库内容全同。",
         "漫画柜016原HTML235条Root独立复跑通过；237更新已装但目录/页面均network_error/http0；公开索引85条已含016。",
         "472普通返回漫画屋27.439秒未出现元尊，473为原生403；未走到排序/开书，无排序更改或恢复义务，不据此判首章规则。",
-        "485元尊1270章升序：8个unknown公告/最终话在前，随后第1话（下）→（上）、第2话下→（上）。首次阅读另取最小已知号且同号保原首项；不能把483 unknown顶部当459实际目标。486已恢复降序/自然回RootBrowse，无开书或加书。"
+        "485元尊1270章升序：8个unknown公告/最终话在前，随后第1话（下）→（上）、第2话下→（上）。首次阅读另取最小已知号且同号保原首项；不能把483 unknown顶部当459实际目标。486已恢复降序/自然回RootBrowse，无开书或加书。",
+        "545/547当前197普通漫画160→风起苍岚：列表788ms/200，详情1611ms/200、目录209ms/200，784条全部unknown。旧781增为784，未开书/改排序。当前Mac默认匿名准确详情GET仍403/无新body，不改UA/客户端/域重试。",
+        "544→547 library/reader/registry全部逐字同；784为本次返回的站点目录，保存书库原781并未新增/覆盖。不得把目录显示变多误记为书架更新3章。"
       ],
       "remainingActions": [
         "漫画柜016已推且公开索引确认；237网络失败分支仅待有效响应。",
@@ -1405,13 +1407,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "237自然超时具名通过，abed388b已推且CI成功",
+      "status": "明确unsupported/限流别名已补，197实录不再丢成unknown",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：具名范围冻结；全局自然样本待",
+      "owner": "Root：限定错误别名同步及精确CI；其他自然样本保留",
       "dependencies": [],
-      "result": "237004自然get_chapters/get_pages均2300028→timeout，原生显示连接书源超时并保留重试；正文仍不可用，不猜具体网络阶段。",
-      "remaining": "全局搜索自然失败待条件，不造故障；3Hentai011原生业务恢复另作具名验证，不与错误文案验收混同。",
+      "result": "保原237自然超时与abed388b范围；本次只补三个源既有错误码。95项Host/Release通过，554已安装且三业务域逐字同，556真实漫画160 get_image_request179字节响应诊断为not_implemented/unsupported。",
+      "remaining": "本次代码提交推送并跟进精确CI；rate_limit用户提示仅Host通过，未造限流。图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1431,26 +1433,35 @@
         "原005平台2300028与官方HTTP文档已亲核；仅此码返回timeout，未知码维持network_error。",
         "237004原图/日志已亲审：目录15149ms、取页15064ms均reason/error/kind=timeout、HTTP0，重试未点击。",
         "abed388b已推，CI39999131726成功；16项HTTP与22项分类测试通过。237原P3/230/History及10000ms恢复、租约已释放。",
-        "3Hentai011的4d63235已推，CI40020264346 success；公开85索引011/三成员包Root读回执，Host边界保留，Native仍待。"
+        "3Hentai011的4d63235已推，CI40020264346 success；公开85索引011/三成员包Root读回执，Host边界保留，Native仍待。",
+        "547真实漫画160 get_image_request 179字节结果被记为reason=unknown/error=unknown/kind=runtime；现源run_get_image_request明确返回not_implemented。mh160/manhuawu限流返回rate_limit，现白名单只接受rate_limited；SourceSettingsStore已接受not_implemented/not_supported。",
+        "source-failure-alias两组29+66=95检查通过；8529046B签名Release/0.1.2-pre code3安装明确成功。556当前日志reason=not_implemented/error=not_implemented/kind=unsupported；未知私密code/message仍脱敏。",
+        "560普通返回原详情784→源→书架；561 library/reader/registry与554安装后全部逐字同，无开书或手动重试。"
       ],
       "remainingActions": [
-        "全局搜索自然失败待条件，不造故障。",
-        "3Hentai011仍待普通原生业务验证；既有发布与Host结果不能替代。"
+        "本次代码提交推送并跟进精确CI；rate_limit用户提示仅Host通过，未造限流。图片403、全局搜索自然失败及3H业务恢复仍按原边界。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
-      ]
+      ],
+      "modificationBasis": {
+        "object": "SourceRuntimeError已知错误白名单及类别分支",
+        "history": "34ab280d引入结构化分类和保密白名单；SourceSettingsStore已接受两个unsupported别名。",
+        "originalReason": "保留明确原因且不将源任意message/code泄露给用户或日志，HTTP明确状态优先。",
+        "reopenEvidence": "547当前179字节not_implemented被落为unknown；现两个源rate_limit亦未被识别，和真实契约不一致。",
+        "allowedDifference": "只补not_implemented/not_supported/rate_limit三个明确既有代码的对应类别，保原代码诊断、HTTP优先级、未知脱敏、UI布局及原有翻译。不得据此声称图片403或全源错误已修复。"
+      }
     },
     {
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（明确必须做，原队列保留）",
-      "owner": "Root：限定修复同步及精确CI；其余自然挑战边界保留",
+      "owner": "Root：普通Web白屏有限阶段诊断；自动验证具名范围冻结",
       "dependencies": [],
       "status": "537原生403→自动网页→原GET200→Native列表具名成立",
       "kind": "open",
       "result": "534失败依据已修：仍持有效原Native challenge claim的同URL正常Web文档可验证原GET一次，不再额外要求Web先403。537全289帧/9表与160/168/288原帧已审；538实际12本目录，原GET446ms/200，响应仅复用一次，无人工完成或重试。",
-      "remaining": "提交推送本次限定修复并跟进精确CI；当前非CF具名样本冻结，真实CF人工打勾、登录及其他未覆盖挑战仅待自然样本，不清Cookie造验证。",
+      "remaining": "558/559普通漫画160Web有站点标题但白屏/长加载，当前回调没有持久阶段日志。补明确主文档开始/即将可见/完成/错误与有限进度诊断以定位；不因未知阶段改Web布局或UA/会话。CF人工打勾/登录等其他自然边界保持。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1481,10 +1492,12 @@
         "新重开依据534：15:46:16原生identity=native/session=none403，Web15:46:19 firstParty Cookie存在/无clearance且正常document结束，未触probe；534原图已亲看。尚未点完成/重试/清Cookie。",
         "改动依据218dd6ce原理由是额外Web失败证据；已有原GET probe会实测返回2xx且无challenge信号，并按源/包/设置/路由/原claim守卫，成功前不发grant，失败保手动/不循环。该真实反例不需Web再失败才测试原请求。",
         "535明确覆盖安装成功，Release8529158B/0.1.2-pre code3；挑战+会话93项与sheet9项Host通过，构建配置已恢复。",
-        "537首次Native936ms/403，Web正常document且clearance missing；15:56:42原GET probe446ms/200，verification_response_reused used_once，get_home1974ms、get_manga_list621ms完成。535→538及544三业务域逐字同。"
+        "537首次Native936ms/403，Web正常document且clearance missing；15:56:42原GET probe446ms/200，verification_response_reused used_once，get_home1974ms、get_manga_list621ms完成。535→538及544三业务域逐字同。",
+        "922d153fcb7ae92a381e2607b86d35ae900a5e77已push，精确CI40077208291 completed/success；无tag/发布。",
+        "当前新分支：557正确源URL打开WebView，558 Webbounds有效/站点标题存在但白屏；559等待31.290s加载指示仍在。没有DevTools socket，不启调试或换客户端。原MangaWebPage无持久阶段诊断，根因未知，不将入口成功冒网站可用。"
       ],
       "remainingActions": [
-        "提交推送本次限定修复并跟进精确CI；当前非CF具名样本冻结，真实CF人工打勾、登录及其他未覆盖挑战仅待自然样本，不清Cookie造验证。"
+        "558/559普通漫画160Web有站点标题但白屏/长加载，当前回调没有持久阶段日志。补明确主文档开始/即将可见/完成/错误与有限进度诊断以定位；不因未知阶段改Web布局或UA/会话。CF人工打勾/登录等其他自然边界保持。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -2524,12 +2537,13 @@
         "434 trace显示旧图标重解码早于SourcePackageListItem销毁约1.439秒；仅定位到原生行内部更新线索，不宣称已证HDS根因。",
         "470完整95PTS/6全页表及6图标表顺审，37–39原帧复核；471与469的8个源Image hashcode/bounds一致，三业务域逐字同。",
         "503/504真实远端新装：115编码帧、4全页表和8/9/10原帧亲审；当行按钮从安装变安装中时图标空1帧，不能用已缓存PrefixCustomBuilder对象宣称完全解决。录像890x1920，设备1260x2720。",
-        "531真实011→012更新118帧四联系表已亲看；原帧5图标正常，6(PTS0.099656s)本行图标瞬空，7(0.116111s)恢复，其他原可见源图标保持；问题仍open，不以Native按钮更新正常当已修。"
+        "531真实011→012更新118帧四联系表已亲看；原帧5图标正常，6(PTS0.099656s)本行图标瞬空，7(0.116111s)恢复，其他原可见源图标保持；问题仍open，不以Native按钮更新正常当已修。",
+        "本轮SDK声明仅CommonMethod，未发现按区域更新setter；预览HdsComponent.hsp解读明确标为mocked implementation，不作实机因果。434实际主线程最长回调29.616ms/一次23.406msUIVsync保有界，不能抵消531一帧瞬空。"
       ],
       "remainingActions": [
-        "继续HDS A区原生CustomBuilder与C区更新失效边界调查；531已再证局部瞬空，不重复制造安装/更新。"
+        "本行按钮改变仍有图标瞬空；待实机HDS A区/C区更新边界的有效实现依据，保原生卡片及已定30vp/R7。不用预览mock或重复造安装验证。"
       ],
-      "remaining": "继续HDS A区原生CustomBuilder与C区更新失效边界调查；531已再证局部瞬空，不重复制造安装/更新。",
+      "remaining": "本行按钮改变仍有图标瞬空；待实机HDS A区/C区更新边界的有效实现依据，保原生卡片及已定30vp/R7。不用预览mock或重复造安装验证。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
@@ -2846,25 +2860,30 @@
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
       "title": "源浏览菜单常驻使用WebView打开",
       "priority": "P1（明确授权的失败恢复入口）",
-      "owner": "Root：普通Web具名范围冻结；homepage例外/未加载边界保留",
+      "owner": "Root：漫画160源URL限定补齐及197普通更新",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION",
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "旧Weicomic普通Web打开返回/406数据保持具名成立",
-      "result": "402自然索引fetch_ok85后，403旧Weicomic0.1.2无需升级或新会话授权即可普通Web打开，404真实首页/控件已审，405返回原源页再RootBrowse84成立；406终点三域保持成立。",
+      "status": "漫画160013网页动作/打开返回197具名成立；站点内容失败保留",
+      "result": "源62a1d185精确CI40079042677成功，08:43:50Z公开非draft/pre，原latest85条/MH1600.1.3。553唯一普通远端更新成功；554源85→85仅MH160变且原顺序/书库/reader保持。556两原网页MenuItem均enabled/clickable，557实际WebView已打开；558只有站点标题/加载指示，未证明正文可见。",
       "evidencePoints": [
         "App c5ad7b8074c04adcbc09ef5a01284cd735c4211b精确CI40049912720已completed/success；399最终8514625B包保持。",
         "本App39909的402 source_index fetch_ok count85写缓存；另配置repo CURL7/404为独立请求，393旧2300999原因仍未知。",
         "旧Weicomic无packageHomepage/origins，采用402新缓存打开www.weicomic.com，404首页与原生控件亲审；405自然返回成功，406完成：三域与404/399/382逐字同，AWAKE/override86400000、根Browse84源。",
-        "415漫画柜普通Web入口可打开原生Web页，但加载指示消失后仍白页、无正文/挑战；三域同406，不当官网成功或判断超时原因。"
+        "415漫画柜普通Web入口可打开原生Web页，但加载指示消失后仍白页、无正文/挑战；三域同406，不当官网成功或判断超时原因。",
+        "549原菜单及547详情整图已亲看；实际源get_manga/chapters200但章节metadata未知，URL缺口与排序/封面403分别维护。",
+        "mh160仅Cargo/lock/lib/README四文件23增3删；生产单源编译48786B及实际source_info0.1.3通过，62a1d18已同步master，远端/Native待后继。",
+        "555断言把MenuItem及子Text同名两节点当1而停，原工具失败保留；556原图/原MenuItem六项已亲核，未改产品迎合断言。",
+        "558当前Web拥有正确站点标题，Webbounds[0,305][1260,2720]，但当前没有WebView DevTools socket；未启调试、无UA/Cookie或客户端变更。",
+        "559仅等待页面就绪，31.290s仍见LoadingProgress；560一次普通Back回原详情784并自然回书架，561三业务域同554。未点刷新/外部浏览器，无Cookie或UA改动。"
       ],
       "remainingActions": [
-        "本次普通Web打开/返回/数据保持具名范围冻结；4个homepage例外及未加载Native边界仍open，不扩全部源/CF。"
+        "本次Manga160源URL及打开返回具名范围冻结；浏览器动作仅可见/可用未点击。目标Web白屏归网页阶段调查，4homepage例外及未加载Native边界仍保留。"
       ],
-      "remaining": "本次普通Web打开/返回/数据保持具名范围冻结；4个homepage例外及未加载Native边界仍open，不扩全部源/CF。",
+      "remaining": "本次Manga160源URL及打开返回具名范围冻结；浏览器动作仅可见/可用未点击。目标Web白屏归网页阶段调查，4homepage例外及未加载Native边界仍保留。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
@@ -2879,11 +2898,11 @@
       "closedAt": null,
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
       "modificationBasis": {
-        "object": "Index sourceBrowse/sourceSearch原生标题菜单；homepage导入/registry/持久化/索引缓存链",
-        "history": "34ab280d引入源会话菜单；3b662bd6保自动挑战；296c7b34原页设置入口；现只按webSessionOrigins提供验证动作",
-        "originalReason": "源会话需限定origin并保源身份；普通诊断入口尚未接",
-        "reopenEvidence": "用户明确要求在源页菜单固定提供WebView诊断入口，加载失败也可用；公开源manifest/index已有三homepage，App当前丢字段",
-        "allowedDifference": "只加原生菜单普通网页动作，沿现MangaWebPage；可选HTTP(S)homepage全链保留，无sourceSession/新Cookie权限、不改原菜单动作和布局"
+        "object": "sources/mh160/src/lib.rs 列表与详情url字段",
+        "history": "bcfb926恢复原mh160业务；3fda006后只调整资源版本。源manga_doc已拥有固定BASE与合法slug的作品请求路径；Koma MangaWebLink/Detail按既定合同仅接受源提供HTTP(S)地址。",
+        "originalReason": "App不从不透明作品ID猜网站地址，未提供时不显示网页动作。",
+        "reopenEvidence": "549实际成功详情只有重载/Tracker菜单，缺两个既有网页动作；当前源列表/详情确实省略url，而源自身已使用同一真实作品请求地址。",
+        "allowedDifference": "源仅返回其现有/kanmanhua/<validated slug>/公开作品URL，供既有网页动作消费。ID、章节顺序/metadata、图标、请求UA和网络路径保持；不借URL补丁猜季或调图。"
       }
     },
     {
