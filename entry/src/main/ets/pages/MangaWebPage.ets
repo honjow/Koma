@@ -1,9 +1,10 @@
+import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { webview } from '@kit.ArkWeb'
 import { BlurStrategy, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { MangaWebView } from '../components/MangaWebView'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { MangaWebRouteParam, RouterHelper } from '../common/RouterHelper'
-import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceWebOrigin } from '../sourceRuntime/SourceWebSessionStore'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -19,6 +20,85 @@ export struct MangaWebPage {
   @Local private canForward: boolean = false
   private controller: webview.WebviewController = new webview.WebviewController()
   private scroller: Scroller = new Scroller()
+  private webDiagnostic: DiagnosticOperation | undefined = undefined
+  private documentRevision: number = 0
+  private progressBucket: number = -1
+  private subresourceFailureRecorded: boolean = false
+  private documentEndSeen: boolean = false
+  private documentVisibleSeen: boolean = false
+  private stageEventCount: number = 0
+
+  private stageDiagnostic(event: string, detail: string, warning: boolean = false): void {
+    this.stageEventCount += 1
+    if (this.stageEventCount > 48) {
+      if (this.stageEventCount === 49) this.webDiagnostic?.info('events_suppressed', 'limit=48')
+      return
+    }
+    if (warning) this.webDiagnostic?.warn(event, detail)
+    else this.webDiagnostic?.info(event, detail)
+  }
+
+  private documentDiagnosticDetail(url?: string): string {
+    let matchingDocument: string = 'unknown'
+    if (url !== undefined && this.controllerReady) {
+      try { matchingDocument = `${this.controller.getUrl() === url}` }
+      catch (_error) {}
+    }
+    const original = mangaHttpUrl(this.params.url)
+    const originalOrigin = sourceWebOrigin(this.params.url)
+    const eventOrigin = url === undefined ? '' : sourceWebOrigin(url)
+    return 'revision=' + this.documentRevision + ' matchingDocument=' + matchingDocument +
+      ' matchesInitialUrl=' + (url === undefined || original === undefined ? 'unknown' : `${url === original}`) +
+      ' sameInitialOrigin=' + (originalOrigin.length === 0 || eventOrigin.length === 0 ? 'unknown' :
+        `${originalOrigin === eventOrigin}`)
+  }
+
+  private pageBegan(event?: OnPageBeginEvent): void {
+    this.documentRevision += 1
+    this.progressBucket = -1
+    this.subresourceFailureRecorded = false
+    this.documentEndSeen = false
+    this.documentVisibleSeen = false
+    this.stageDiagnostic('document_begin', this.documentDiagnosticDetail(event?.url))
+    this.loading = true
+    this.updateNavState()
+  }
+
+  private pageVisible(event?: OnPageVisibleEvent): void {
+    if (this.documentVisibleSeen) return
+    this.documentVisibleSeen = true
+    // ArkWeb says the new document is about to become visible; this is not
+    // compositor/frame proof and never changes the existing loading state.
+    this.stageDiagnostic('document_visible', this.documentDiagnosticDetail(event?.url))
+  }
+
+  private pageEnded(event?: OnPageEndEvent): void {
+    this.documentEndSeen = true
+    this.stageDiagnostic('document_end', this.documentDiagnosticDetail(event?.url))
+    this.loading = false
+    this.updateNavState()
+  }
+
+  private pageProgress(event?: OnProgressChangeEvent): void {
+    if (event === undefined || !Number.isFinite(event.newProgress)) return
+    const bucket = Math.floor(Math.min(100, Math.max(0, event.newProgress)) / 25)
+    if (bucket <= this.progressBucket) return
+    this.progressBucket = bucket
+    this.stageDiagnostic('progress', 'revision=' + this.documentRevision + ' percentBucket=' + bucket * 25)
+  }
+
+  private resourceFailed(request: WebResourceRequest, kind: string, readCode: () => number): void {
+    try {
+      const mainFrame = request.isMainFrame()
+      if (!mainFrame && this.subresourceFailureRecorded) return
+      const code = readCode()
+      if (!mainFrame) this.subresourceFailureRecorded = true
+      this.stageDiagnostic('resource_failed', 'revision=' + this.documentRevision +
+        ' kind=' + kind + ' code=' + (Number.isFinite(code) ? code : 0) + ' mainFrame=' + mainFrame, true)
+    } catch (_error) {
+      // A failed diagnostic read must not interrupt the existing Web callback.
+    }
+  }
 
   private updateNavState(): void {
     if (!this.controllerReady) return
@@ -105,6 +185,11 @@ export struct MangaWebPage {
   }
 
   aboutToDisappear(): void {
+    this.webDiagnostic?.finish(this.loading ? 'partial' : 'closed',
+      'revision=' + this.documentRevision + ' loading=' + this.loading +
+      ' documentEndSeen=' + this.documentEndSeen + ' documentVisibleEventSeen=' + this.documentVisibleSeen +
+      ' stageEvents=' + this.stageEventCount)
+    this.webDiagnostic = undefined
     const session = this.params.sourceSession
     if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
   }
@@ -116,9 +201,12 @@ export struct MangaWebPage {
       this.loading = false
       return
     }
+    this.webDiagnostic = DiagnosticLogger.begin('web_page', 'navigation',
+      'hasSourceSession=' + (this.params.sourceSession !== undefined))
     try {
       this.controller.loadUrl(url)
     } catch (_error) {
+      this.webDiagnostic.warn('load_failed', 'reason=controller_load_failed')
       this.loading = false
     }
   }
@@ -136,9 +224,18 @@ export struct MangaWebPage {
             MangaWebView({
               controller: this.controller,
               onControllerAttached: () => { this.loadInitialPage() },
-              onPageBegin: () => { this.loading = true; this.updateNavState() },
-              onPageEnd: () => { this.loading = false; this.updateNavState() },
-              onErrorReceive: () => { this.loading = false; this.updateNavState() },
+              onPageBegin: (event?: OnPageBeginEvent) => { this.pageBegan(event) },
+              onPageVisible: (event?: OnPageVisibleEvent) => { this.pageVisible(event) },
+              onPageEnd: (event?: OnPageEndEvent) => { this.pageEnded(event) },
+              onProgressChange: (event?: OnProgressChangeEvent) => { this.pageProgress(event) },
+              onErrorReceive: (event: OnErrorReceiveEvent) => {
+                this.resourceFailed(event.request, 'transport', (): number => event.error.getErrorCode())
+                this.loading = false
+                this.updateNavState()
+              },
+              onHttpErrorReceive: (event: OnHttpErrorReceiveEvent) => {
+                this.resourceFailed(event.request, 'http', (): number => event.response.getResponseCode())
+              },
               onTitleReceive: (event?: OnTitleReceiveEvent) => {
                 if (event !== undefined && event.title.length > 0) this.pageTitle = event.title
               },

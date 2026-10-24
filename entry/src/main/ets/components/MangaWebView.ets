@@ -7,6 +7,7 @@ export struct MangaWebView {
   @Event onControllerAttached?: (controller: webview.WebviewController) => void;
   @Event onLoadIntercept?: (event: OnLoadInterceptEvent) => boolean;
   @Event onPageBegin?: (event?: OnPageBeginEvent) => void;
+  @Event onPageVisible?: (event?: OnPageVisibleEvent) => void;
   @Event onPageEnd?: (event?: OnPageEndEvent) => void;
   @Event onLoadFinished?: (event?: OnLoadFinishedEvent) => void;
   @Event onProgressChange?: (event?: OnProgressChangeEvent) => void;
@@ -44,6 +45,9 @@ export struct MangaWebView {
         if (this.onPageBegin) {
           this.onPageBegin(event)
         }
+      })
+      .onPageVisible((event: OnPageVisibleEvent) => {
+        if (this.onPageVisible) this.onPageVisible(event)
       })
       .onPageEnd((event: OnPageEndEvent) => {
         if (this.onPageEnd) {
