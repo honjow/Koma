@@ -35,6 +35,14 @@ export interface SourceWebRequestSession {
   cookie: string
 }
 
+/** Ephemeral proof from the current visible verification document, never a WASM field. */
+export interface SourcePendingWebSessionRequest {
+  sessionId: string
+  initialUrl: string
+  documentUrl: string
+  userAgent: string
+}
+
 interface SourceWebSession {
   status: SourceWebSessionStatus
   registry: SourceRuntimeRegistry
@@ -191,9 +199,35 @@ export class SourceWebSessionStore {
     return { userAgent: session.userAgent, cookie }
   }
 
+  pendingRequestSession(identity: SourceHttpIdentity, fullUrl: string,
+    proof: SourcePendingWebSessionRequest): SourceWebRequestSession | undefined {
+    const session = this.pending.get(identity.sourceId)
+    if (session === undefined || session.status.sessionId !== proof.sessionId ||
+      session.status.initialUrl !== proof.initialUrl ||
+      sourceWebOrigin(fullUrl) !== session.status.origin || sourceWebOrigin(proof.documentUrl) !== session.status.origin ||
+      identity.sourceVersion !== session.entry.manifestVersion || identity.packageIdentity !== session.packageIdentity ||
+      !identity.webSessionOrigins.includes(session.status.origin) ||
+      sourceWebPackageIdentity(session.registry.lookup(identity.sourceId).entry ?? session.entry) !== session.packageIdentity ||
+      session.registry.lookup(identity.sourceId).entry?.enabled !== true ||
+      proof.userAgent.trim().length === 0 || /[\r\n]/.test(proof.userAgent)) return undefined
+    // This does not publish or persist a grant. Ordinary requests still use requestSession.
+    try { return { userAgent: proof.userAgent, cookie: readSourceWebCookies(fullUrl) } }
+    catch (_error) { return undefined }
+  }
+
+  acceptPendingResponseCookies(identity: SourceHttpIdentity, fullUrl: string,
+    proof: SourcePendingWebSessionRequest, values: string[]): void {
+    if (this.pendingRequestSession(identity, fullUrl, proof) === undefined) return
+    this.writeResponseCookies(fullUrl, values)
+  }
+
   acceptResponseCookies(identity: SourceHttpIdentity, fullUrl: string, values: string[]): void {
     // Only a currently granted exact source/origin may update the system jar.
     if (this.requestSession(identity, fullUrl) === undefined) return
+    this.writeResponseCookies(fullUrl, values)
+  }
+
+  private writeResponseCookies(fullUrl: string, values: string[]): void {
     let updated = false
     values.forEach((value: string) => {
       if (value.length === 0 || value.length > 40960 || /[\r\n]/.test(value)) return

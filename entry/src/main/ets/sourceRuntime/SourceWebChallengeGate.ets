@@ -33,6 +33,10 @@ export class SourceWebChallengeGate {
     return true
   }
 
+  isCurrentClaim(id: number): boolean {
+    return this.receipt?.id === id && this.claimed && this.current()
+  }
+
   cancel(id: number): boolean {
     if (this.receipt?.id !== id) return false
     this.clear()

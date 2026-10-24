@@ -55,10 +55,10 @@ function fixture(sdkApiVersion = 23) {
     const trace = { info: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === '@kit.ArkTS') return { url: { URL } }
-      if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store }
+      if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
-      if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, warn: (_category, _event, detail) => diagnostics.push(detail) } }
+      if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, info: (_category, _event, detail) => diagnostics.push(detail), warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
         RequestMethod: { GET: 'GET', POST: 'POST', HEAD: 'HEAD' }, HttpDataType: { STRING: 1 },
         InterceptorType: { REDIRECTION: 'REDIRECTION' },
@@ -84,7 +84,7 @@ function fixture(sdkApiVersion = 23) {
               while (true) {
                 calls.push({ fullUrl, options, instance: instances.indexOf(request) })
                 if (network.requestError) throw network.requestError
-                const response = responses.shift()
+                const response = await responses.shift()
                 if (!response) throw Error('unexpected additional request')
                 if ([301, 302, 303, 307, 308].includes(response.responseCode)) {
                   // NetworkKit rejects even the first redirect when the configured maximum is zero.
@@ -115,7 +115,8 @@ function fixture(sdkApiVersion = 23) {
     })
     transport.configureSourceRuntimeHttpTransport()
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
-    return { calls, instances, intercepts, result: JSON.parse(result) }
+    const after = network.afterInitial === undefined ? undefined : await network.afterInitial({ transport, execute: callback })
+    return { calls, instances, intercepts, result: JSON.parse(result), after }
   }
   return { api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http,
     addSource: e => extraEntries.set(e.sourceId, e), setWriteFailure: value => { failWrite = value },
@@ -542,4 +543,110 @@ test('native session records only the clearance category, never a cookie value',
     assert.ok(f.diagnostics.includes('state='+state))
     assert.equal(JSON.stringify(f.diagnostics).includes('secret'),false)
   }
+})
+
+
+test('pending probe session is scoped and never publishes an ordinary request grant', () => {
+  const f=fixture(26), id=f.identity(), pending=f.store.begin(f.registry,id.sourceId,'https://site.invalid/a')
+  const proof={sessionId:pending.sessionId,initialUrl:'https://site.invalid/a',documentUrl:'https://site.invalid/a',userAgent:'ActualUA'}
+  assert.equal(f.store.pendingRequestSession(id,'https://site.invalid/a',proof).cookie,'private-cookie-value')
+  assert.equal(f.store.requestSession(id,'https://site.invalid/a'),undefined)
+  assert.equal(f.store.status(id.sourceId).state,'none');assert.equal(f.writes.length,0)
+  for (const bad of [{...proof,sessionId:'stale'},{...proof,initialUrl:'https://site.invalid/other'},
+    {...proof,documentUrl:'https://other.invalid/'},{...proof,userAgent:'bad\r\nUA'}]) {
+    assert.equal(f.store.pendingRequestSession(id,'https://site.invalid/a',bad),undefined)
+  }
+  assert.equal(f.store.pendingRequestSession(id,'https://other.invalid/a',proof),undefined)
+  f.store.cancel(id.sourceId,pending.sessionId)
+  assert.equal(f.store.pendingRequestSession(id,'https://site.invalid/a',proof),undefined)
+})
+
+test('successful native verification hands the exact original GET response over once without a duplicate network read', async () => {
+  const f=fixture(26), context=JSON.stringify(f.identity()), pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const original=JSON.stringify({url:'https://site.invalid/a',method:'GET'})
+  const result=await f.http([response(403),response(200),response(200)],context,{}, {afterInitial:async ({transport,execute})=>{
+    assert.equal(await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true),true)
+    assert.equal(f.store.status('source.one').state,'none');assert.equal(f.writes.length,0)
+    f.store.complete('source.one',pending.sessionId,'https://site.invalid/a','ActualUA')
+    const handed=JSON.parse(await execute(original,context))
+    const repeated=JSON.parse(await execute(original,context))
+    return {handed,repeated}
+  }})
+  assert.equal(result.calls.length,3,'initial refusal + probe + one later independent request')
+  assert.equal(result.after.handed.status,200);assert.equal(result.after.repeated.status,200)
+  assert.equal(f.diagnostics.filter(x=>x==='state=used_once').length,1)
+  assert.equal(JSON.stringify(f.diagnostics).includes('cookie-value'),false)
+})
+
+test('failed native probe keeps the pending manual completion usable and does not cache a refused response', async () => {
+  const f=fixture(), context=JSON.stringify(f.identity()), pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const r=await f.http([response(403),response(403),response(200)],context,{}, {afterInitial:async ({transport,execute})=>{
+    const ready=await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true)
+    assert.equal(ready,false);assert.equal(f.store.status('source.one').state,'none')
+    f.store.complete('source.one',pending.sessionId,'https://site.invalid/a','ActualUA')
+    return JSON.parse(await execute(JSON.stringify({url:'https://site.invalid/a',method:'GET'}),context))
+  }})
+  assert.equal(r.calls.length,3);assert.equal(r.after.status,200)
+  assert.equal(f.diagnostics.includes('state=used_once'),false)
+})
+
+for (const request of [{method:'POST'},{method:'HEAD'},{method:'GET',body:'payload'}]) {
+  test('verification never probes a rejected '+JSON.stringify(request),async ()=>{
+    const f=fixture(), pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+    const r=await f.http([response(403)],JSON.stringify(f.identity()),request,{afterInitial:async({transport})=>
+      transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true)})
+    assert.equal(r.after,false);assert.equal(r.calls.length,1)
+  })
+}
+
+for (const changed of ['document','session','package','route']) test('pending probe cannot leave its '+changed+' boundary', async()=>{
+  const f=fixture(), context=JSON.stringify(f.identity()),pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const r=await f.http([response(403)],context,{}, {afterInitial:async({transport})=>{
+    if(changed==='package')f.changeEntry(e=>({...e,wasmPath:'/app/replaced.wasm'}))
+    return transport.probeSourceWebSession('source.one',changed==='session'?'wrong':pending.sessionId,
+      changed==='document'?'https://other.invalid/a':'https://site.invalid/a','ActualUA',()=>changed!=='route')
+  }})
+  assert.equal(r.after,false);assert.equal(r.calls.length,1)
+})
+
+test('a cancelled in-flight verification cannot publish a response or grant after navigation',async()=>{
+  const f=fixture(), context=JSON.stringify(f.identity()),pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  let resolve, current=true;const deferred=new Promise(r=>resolve=r)
+  const r=await f.http([response(403),deferred],context,{}, {afterInitial:async({transport})=>{
+    const probe=transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>current)
+    await new Promise(r=>setImmediate(r));current=false
+    transport.cancelSourceWebProbe('source.one',pending.sessionId);f.store.cancel('source.one',pending.sessionId)
+    resolve(response(200));return probe
+  }})
+  assert.equal(r.after,false);assert.equal(f.writes.length,0);assert.equal(f.store.status('source.one').state,'none')
+  assert.equal(f.diagnostics.includes('state=ready_for_original_request'),false)
+})
+
+test('native verification refuses an off-origin redirect before issuing its next request',async()=>{
+  const f=fixture(), pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const r=await f.http([response(403),response(302,{location:'https://other.invalid/'})],JSON.stringify(f.identity()),{},
+    {afterInitial:async({transport})=>transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true)})
+  assert.equal(r.after,false);assert.equal(r.calls.length,2);assert.ok(r.calls.every(c=>c.fullUrl==='https://site.invalid/a'))
+})
+
+test('HTTP200 still marked as a challenge is not a successful verification',async()=>{
+  const f=fixture(), pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const r=await f.http([response(403),response(200,{'cf-mitigated':'challenge'})],JSON.stringify(f.identity()),{},
+    {afterInitial:async({transport})=>transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true)})
+  assert.equal(r.after,false);assert.equal(f.writes.length,0)
+})
+
+for(const change of ['request','session','package','cancel'])test('verified response is not reused after '+change,async()=>{
+  const f=fixture(),context=JSON.stringify(f.identity()),pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const r=await f.http([response(403),response(200),response(200)],context,{}, {afterInitial:async({transport,execute})=>{
+    assert.equal(await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true),true)
+    if(change==='cancel')transport.cancelSourceWebProbe('source.one',pending.sessionId)
+    f.store.complete('source.one',pending.sessionId,'https://site.invalid/a','ActualUA')
+    if(change==='session')f.grant()
+    if(change==='package')f.changeEntry(e=>({...e,wasmPath:'/app/replaced.wasm'}))
+    return JSON.parse(await execute(JSON.stringify({url:change==='request'?'https://site.invalid/b':'https://site.invalid/a',method:'GET'}),context))
+  }})
+  assert.equal(r.calls.length,3);assert.equal(r.after.status,200)
+  assert.equal(f.diagnostics.includes('state=used_once'),false)
+  if(change==='package')assert.equal(r.calls[2].options.header.Cookie,undefined)
 })

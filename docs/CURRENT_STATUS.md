@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T05:47:53.968935+00:00",
+  "updatedAt": "2026-10-24T06:28:54.632340+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
   "activity": {
-    "title": "整理具名Web时序修复，接包子自动门禁",
-    "detail": "漫画屋478/479自动返回Native200与30本；元尊485同号下/上顺序反例保留，486已恢复降序并回RootBrowse，无开书/加书。Root整理限定代码提交同步，继续包子自动诊断，不以漫画屋成功关闭。",
+    "title": "原GET验证修复提交同步；接目录与图标反例",
+    "detail": "496自然返回RootBrowse，497三业务文件与493逐字同；100项Host检查、Release和普通200路径成立。新自动验证分支仅待自然挑战，未标通过。",
     "startedAt": null
   },
-  "nextAction": "核487数据保持、提交同步主文档错误时序修复并跟进精确CI；继续包子现会话的普通自动验证，只有真实挑战时采缺失/多值类别，不造故障。",
+  "nextAction": "提交同步当前受限原GET验证及ABI，跟进精确CI；继续大奉696目录metadata反例和安装图标瞬空。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "代码16799f88e7ed8d3a88a30b0764f78426467ad24f已push；精确CI40063142440 completed/success，Release构建成功，tag发布跳过。",
-      "hap": "197477 Release8528275B/0.1.2-pre code3已装，三域逐字保持；478/479普通漫画屋自动验证后Native列表200/30本，正文及其他源不外推。"
+      "appHead": "021e1710769fe2dc51e4f88b188bad23c2b686d7已push，精确CI40067742930 completed/success；无新tag/发版。",
+      "hap": "197493 Release8529118B/0.1.2-pre code3已装；100项Host检查/Release通过。494/495包子首页及大奉get_manga/get_chapters均HTTP200，现站696/696章、原001第3/24页保持；未触发挑战，自动探测分支仍待自然条件。"
     },
     {
       "name": "NextE",
@@ -1108,13 +1108,13 @@
     {
       "id": "CHAPTER_SORT_MENU",
       "title": "章节排序菜单无作用",
-      "status": "既有019范围保留；大奉695目录583后099新反例",
+      "status": "既有019范围保留；大奉现696目录583后099反例仍在",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：未知metadata规则；包子019具名范围冻结",
       "dependencies": [],
       "result": "包子019既有编号升降序范围保留；324大奉695章目录出现583后099新反例，原因尚未核，不凭旧绍宋通过覆盖。",
-      "remaining": "追大奉695目录新顺序/metadata反例；未知metadata原规则继续保留，不按标题直接重排。",
+      "remaining": "追大奉现696目录新顺序/metadata反例；未知metadata原规则保留，不按标题直接重排。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -1126,10 +1126,11 @@
         "源e57d184b、CI39934858276成功；原件为237包子019更新、six/forty-five与016目录图。旧170→198、215→224排序反例保留。",
         "漫画160无metadata且混跨季，现有比较不能产生可靠首章/排序；不能把已编号样本通过扩成全源通过。",
         "324普通大奉详情695章，目录583后099异常已发现；本轮未改源码/未清数据，原件baozimh-dafeng197-detail-324。",
-        "485另见元尊同号下→上；8个unknown置前符合19ad9143既定对称-1规则，不将它冒新实现错误或恢复已拒unknown恒末尾。"
+        "485另见元尊同号下→上；8个unknown置前符合19ad9143既定对称-1规则，不将它冒新实现错误或恢复已拒unknown恒末尾。",
+        "495现站更新为696/696，原生降序仍583陽神→099萬妖國→098銅皮鐵骨；HTTP200，原3/24读态保持。旧695固定等待未命中仅因站点章数变更，不作加载失败。"
       ],
       "remainingActions": [
-        "追大奉695目录新顺序/metadata反例；未知metadata原规则继续保留，不按标题直接重排。"
+        "追大奉现696目录新顺序/metadata反例；未知metadata原规则保留，不按标题直接重排。"
       ],
       "boundaries": [
         "包子019具名目录/邻接/原进度冻结，不外推所有排序。漫画160跨季无metadata不能用已否决的非对称比较器、标题首数或全reverse修。",
@@ -1441,8 +1442,8 @@
       "dependencies": [],
       "status": "漫画屋自动验证具名恢复；包子自动门禁仍待",
       "kind": "open",
-      "result": "478/479前两次主框架403均failed=true，不再提前收起；第三次真实正常文档才自动一次重试，Native列表HTTP200/30本。未人工完成；包子自动范围仍未闭。",
-      "remaining": "冻结本次漫画屋自动回流范围，继续包子no_clearance的实际分类；正文超时与源列表图标等独立事项保留。",
+      "result": "漫画屋478/479自动恢复成立；包子489仍等待：标准clearance三处missing，网页已从403进正常分类。不是多值歧义，不据网页或任意cookie宣布通过。",
+      "remaining": "原请求验证已实现、100项Host/Release与普通200路径成立；自动验证新分支待自然挑战。完成代码同步后接独立目录/安装项，不清Cookie制造样本。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1464,21 +1465,26 @@
       "evidencePoints": [
         "476实机先主HTTP403后pageBegin清失败导致提前完成；clearance在Web/Native均present，未归因TLS。",
         "477同版本Release8528275B已装，75项Host检查通过；478/479前两失败文档保留，第三正常文档13:37:26.847自动完成，Native get_manga_list3703ms/HTTP200/49557chars、真实30本。",
-        "原462/463包子自动no_clearance、464/465人工恢复200各自保留，不能用漫画屋成功关闭包子问题。"
+        "原462/463包子自动no_clearance、464/465人工恢复200各自保留，不能用漫画屋成功关闭包子问题。",
+        "021e1710已push；487终点library/reader/registry与477逐字同，486排序恢复完毕。精确CI40067742930 completed/success。",
+        "488/489原生附会话但HTTP403/98chars；Web主框架revision1失败、revision2正常，baseline/request/current clearance均missing；未人工完成。",
+        "491/492既有包子会话Native home/list五请求HTTP200，12本真实；clearance missing但没有触发挑战，不能算新自动探测分支验收。",
+        "493/494/495最终候选普通包子首页及大奉详情/章节均200，真实696/696、原001第3/24页保持；493至495三业务域逐字同。未触发挑战，原GET验证分支仍不能写Native通过。",
+        "496自然返回RootBrowse，无开书/人工完成/重试；497 library/reader/registry与493逐字同，AWAKE/override86400000。"
       ],
       "remainingActions": [
-        "冻结本次漫画屋自动回流范围，继续包子no_clearance的实际分类；正文超时与源列表图标等独立事项保留。"
+        "原请求验证已实现、100项Host/Release与普通200路径成立；自动验证新分支待自然挑战。完成代码同步后接独立目录/安装项，不清Cookie制造样本。"
       ],
       "boundaries": [
         "现有分区Cookie读取已在漫画屋验证；包子本轮自动弹出成立但未自动完成，人工恢复单独保留。",
         "不修改UA/第三方Cookie策略、不清会话、不盲重试；漫画屋正文页表超时与自动门禁问题分别保留。"
       ],
       "modificationBasis": {
-        "object": "SourceWebSessionSheet主文档状态生命周期，MangaWebView原生加载前事件转发",
-        "history": "e839ec87安全门禁要求主文档无失败；pageBegan原先直接清pageFailed；16799f88共用分区读取不改此状态",
-        "originalReason": "错误文档不能触发自动验证完成；后续真实新导航应允许恢复",
-        "reopenEvidence": "476实机HTTP403发生于13:29:52.372，随后pageBegin52.408清失败，pageEnd52.900错误地允许新clearance自动回流；Native仍403。官方web-event-sequence说明onLoadIntercept在URL加载前触发，onPageBegin并非网络开始边界",
-        "allowedDifference": "只在新主框架加载请求前初始化当前文档错误/修订；pageBegin不抹掉已收到的失败。共享Web封装只转发可选原生onLoadIntercept，默认返回false不拦截；UI/UA/同源、源包身份、单次重试及人工完成保持。75项Host检查及Release8528275B构建成功，477已装、三业务域逐字同；478/479普通自动流程具名恢复，仅此源列表范围；正文及包子不外推。"
+        "object": "SourceWebSessionSheet与SourceRuntimeHttpTransport/SourceWebSessionStore的受限原请求验证",
+        "history": "e839ec87仅识别标准cf_clearance；021e1710修正主文档错误时序，漫画屋已具名恢复。包子source access_signal只认顶层明确challenge_required/auth_required，不把403当CF",
+        "originalReason": "不能凭网页内容或任意Cookie宣称通过；只能使用当前源明确授权origin与真实原失败请求",
+        "reopenEvidence": "489包子Native403/98字符，Web实际正常分类，标准clearance在基线/请求/当前均missing；仅认CF名称无法完成这类现有明确站点验证",
+        "allowedDifference": "仅对当前有效pending会话的原失败无body GET做一次Native验证，UI保持；仍失败则保人工完成。验证成功响应按精确请求JSON/原生源身份/同session一次交给原重试，避免重复请求；不新增持久缓存，不放宽origin/源包身份，不自动探测POST/登录，不改UI/UA/第三方Cookie策略。实现/Host/构建/设备分开记录。 当前100项Host检查、Release8529118B构建通过，493已装；浏览/搜索/详情全部绑定当前原收据。494/495普通路径HTTP200、现696章成立，496返回/497数据保持；自动探测分支尚待自然挑战。"
       }
     },
     {

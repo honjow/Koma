@@ -231,6 +231,10 @@ Host enforcement:
 
 已识别挑战的自动弹层会在同 origin 主文档加载无错误、当前 `cf_clearance` 非空且与打开前不同时，自动执行一次相同的完成与原请求重试；凭据只作重试候选，不代表站点已通过。主文档失败、旧导航、关闭、换会话或取消会阻止旧回调完成；没有可靠候选时保留人工验证和“完成并重试”。登录要求（auth_required）及手动打开的登录页不自动退出。
 
+对于明确站点挑战但不产生 `cf_clearance` 的流程，主文档先收到403、随后同一请求地址正常加载时，宿主可在网页仍可见的情况下验证一次原失败的无请求体GET。验证必须同时满足当前已领取挑战收据、查询/筛选/设置、源版本及安装身份、pending会话和精确origin仍有效；普通请求不能使用pending会话。验证失败保留网页和人工完成，不自动循环，不探测POST/HEAD或登录提交。验证成功后才发布会话并完成原重试，成功响应仅按原生源上下文、完整请求JSON及同会话交接一次；不落磁盘，不交接响应头或Cookie。请求、会话或安装身份变化及取消均使交接失效。
+
+主文档失败状态在新的主框架加载请求前初始化；后到的 `onPageBegin` 不得清除已收到的HTTP错误。
+
 打开或取消验证不撤销先前可用会话；网页完成本身不证明站点验证成功，仍以普通源请求结果为准。
 
 宿主 HTTP 成功执行回包保留 `ok/status/bodyText/networkPerformed`，并可选附带 `accessSignal: "challenge_required"`。仅在实际响应头名（不区分大小写）为 `cf-mitigated`、字符串值精确为 `challenge` 时提供；普通403、其他缓解类型、正文关键词和源请求自报均不能产生该信号。原始响应头、Cookie和挑战正文不进入诊断日志。依据：[Cloudflare 挑战响应识别](https://developers.cloudflare.com/cloudflare-challenges/challenge-types/challenge-pages/detect-response/)。

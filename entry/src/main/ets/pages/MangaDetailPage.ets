@@ -373,6 +373,7 @@ export struct MangaDetailPage {
     SourceWebSessionSheet({
       params: this.detailWebChallengeParams,
       autoRetryOnClearance: this.detailWebChallengeParams.sourceSession?.allowClearanceRetry ?? false,
+      canProbeOriginal: (): boolean => { return this.chrome.visible && this.detailWebChallengeGate.isCurrentClaim(this.detailWebChallengeId) },
       onClose: () => { this.closeDetailWebChallenge() },
       onCompleted: () => { this.completeDetailWebChallenge() },
     })

@@ -1,6 +1,7 @@
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { hasNewSourceClearance, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
+import { cancelSourceWebProbe, probeSourceWebSession } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
@@ -16,6 +17,7 @@ import { KomaActionButton } from './ui/KomaActionButton'
 export struct SourceWebSessionSheet {
   @Param params: MangaWebRouteParam = { url: '', title: '' }
   @Param autoRetryOnClearance: boolean = false
+  @Event canProbeOriginal: () => boolean = (): boolean => false
   @Event onCompleted: (status: SourceWebSessionStatus) => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private loading: boolean = true
@@ -29,6 +31,7 @@ export struct SourceWebSessionSheet {
   private pageRevision: number = 0
   private pageUrl: string = ''
   private pageFailed: boolean = false
+  private sawMainChallengeFailure: boolean = false
   private active: boolean = false
   private epoch: number = 0
   private controller: webview.WebviewController = new webview.WebviewController()
@@ -44,6 +47,8 @@ export struct SourceWebSessionSheet {
     this.epoch += 1
     this.controllerReady = false
     this.clearanceBaseline = undefined
+    const session = this.params.sourceSession
+    if (!this.completed && session !== undefined) cancelSourceWebProbe(session.sourceId, session.sessionId)
   }
 
   @Monitor('params')
@@ -55,6 +60,7 @@ export struct SourceWebSessionSheet {
     this.autoRetryStarted = false
     this.pageUrl = ''
     this.pageFailed = false
+    this.sawMainChallengeFailure = false
     if (this.active && this.controllerReady) this.loadInitialPage()
   }
 
@@ -64,6 +70,8 @@ export struct SourceWebSessionSheet {
     this.active = false
     this.epoch += 1
     this.clearanceBaseline = undefined
+    const session = this.params.sourceSession
+    if (session !== undefined) cancelSourceWebProbe(session.sourceId, session.sessionId)
     this.onClose()
   }
 
@@ -176,15 +184,20 @@ export struct SourceWebSessionSheet {
       } catch (_error) {
         DiagnosticLogger.info('source_web_session', 'cookie_context', 'state=unavailable')
       }
-      if (!hasNewSourceClearance(this.clearanceBaseline, cookies)) {
+      const changedClearance = hasNewSourceClearance(this.clearanceBaseline, cookies)
+      // Some explicit site challenges use no CF cookie. A recovered document is
+      // only permission to validate the original read, never proof of success.
+      const needsNativeProbe = !changedClearance && this.sawMainChallengeFailure && currentUrl === this.params.url &&
+        sourceClearanceCookieState(this.clearanceBaseline) === 'missing' && sourceClearanceCookieState(cookies) === 'missing'
+      if (!changedClearance && !needsNativeProbe) {
         DiagnosticLogger.info('source_web_session', 'automatic_wait',
           'reason=' + (hasNewSourceClearance('', cookies) ? 'unchanged_clearance' : 'no_clearance'))
         return
       }
-      // Candidate only: the host consumes its guarded receipt and retries the exact native request once.
       this.autoRetryStarted = true
-      DiagnosticLogger.info('source_web_session', 'clearance_candidate', 'action=retry_original_once')
-      void this.completeSourceSession(true)
+      DiagnosticLogger.info('source_web_session', needsNativeProbe ? 'native_probe_candidate' : 'clearance_candidate',
+        needsNativeProbe ? 'action=validate_original_get_once' : 'action=retry_original_once')
+      void this.completeSourceSession(true, needsNativeProbe)
     } catch (_error) { /* Keep the visible challenge and manual control. No cookie values in diagnostics. */ }
   }
 
@@ -202,6 +215,9 @@ export struct SourceWebSessionSheet {
       'revision=' + this.pageRevision + ' kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
       ' matchingDocument=' + (request.getRequestUrl() === this.pageUrl) +
       ' challengeHost=' + (sourceWebOrigin(request.getRequestUrl()) === 'https://challenges.cloudflare.com'))
+    if (kind === 'http' && code === 403 && request.isMainFrame() && request.getRequestUrl() === this.pageUrl) {
+      this.sawMainChallengeFailure = true
+    }
     this.mainPageFailed(request)
   }
 
@@ -212,7 +228,7 @@ export struct SourceWebSessionSheet {
     this.updateNavState()
   }
 
-  private async completeSourceSession(automatic: boolean = false): Promise<void> {
+  private async completeSourceSession(automatic: boolean = false, needsNativeProbe: boolean = false): Promise<void> {
     if (!this.active || !this.controllerReady || this.loading || this.completing || this.completed ||
       this.params.sourceSession === undefined || this.params.sourceSession.sessionId.length === 0) return
     const epoch = this.epoch
@@ -228,6 +244,15 @@ export struct SourceWebSessionSheet {
       if (automatic && (this.pageFailed || this.loading || this.pageRevision !== pageRevision)) return
       const customUa = this.controller.getCustomUserAgent()
       const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
+      if (automatic && needsNativeProbe) {
+        if (!this.canProbeOriginal()) return
+        const ready = await probeSourceWebSession(sourceId, sessionId, this.controller.getUrl(), actualUa,
+          (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.canProbeOriginal() && !this.loading && !this.pageFailed && this.pageRevision === pageRevision)
+        if (!ready || !this.isCurrent(epoch, sourceId, sessionId) || !this.canProbeOriginal() || this.loading || this.pageFailed || this.pageRevision !== pageRevision) {
+          DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=native_probe_not_ready')
+          return
+        }
+      }
       const status = appSourceWebSessionStore.complete(sourceId, sessionId, this.controller.getUrl(), actualUa)
       if (status.state !== 'available') throw new Error('session_unavailable')
       this.completed = true

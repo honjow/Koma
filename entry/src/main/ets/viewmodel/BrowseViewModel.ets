@@ -473,6 +473,10 @@ export class BrowseViewModel {
     return this.challengeGate(scope).claim(id, routeVisible)
   }
 
+  canRetryWebChallenge(scope: SourceWebChallengeScope, id: number, routeVisible: boolean): boolean {
+    return routeVisible && this.challengeGate(scope).isCurrentClaim(id)
+  }
+
   cancelWebChallenge(scope: SourceWebChallengeScope, id: number): void {
     if (!this.challengeGate(scope).cancel(id)) return
     if (scope === 'browse') this.browseWebChallenge = null

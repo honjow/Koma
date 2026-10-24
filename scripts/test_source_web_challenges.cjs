@@ -16,7 +16,7 @@ const { SourceRuntimeError } = moduleFrom('model/SourceRuntimeError', () => ({
 }))
 const ast = ts.createSourceFile('vm.ts', read('viewmodel/BrowseViewModel'), ts.ScriptTarget.Latest, true)
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
-const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'cancelWebChallenge',
+const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
   'runSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'loadBrowseHome', 'setSelectedSource']
@@ -174,29 +174,31 @@ const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan'
   'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed','navigationRequested']
 const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
 function sheetFixture() {
-  let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve()
+  let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve(), probeResult = Promise.resolve(false)
+  const probes = [], cancelledProbes = []
   const exports = {}, granted = [], completed = [], events = []
   const webview = { WebCookieManager: {
     isCookieAllowed: () => true, isThirdPartyCookieAllowed: () => false,
     fetchCookieSync: () => { if (failRead) throw Error('unavailable'); return cookies },
     saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
   } }
-  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies', compile(sheetSource))(
+  new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies','probeSourceWebSession','cancelSourceWebProbe', compile(sheetSource))(
     exports, webview, { complete: (...args) => { granted.push(args); return { state:'available' } } },
     u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance, sourceClearanceCookieState,
     { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl,
-    fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false))
+    fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false),
+    (...args) => { probes.push(args); return probeResult }, (...args) => cancelledProbes.push(args))
   const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
   Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
-    autoRetryOnClearance:true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
-    autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,
+    autoRetryOnClearance:true,canProbeOriginal:()=>true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
+    autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,sawMainChallengeFailure:false,clearanceBaseline:undefined,
     controller:{loadUrl:()=>{},getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>'',getUserAgent:()=> 'Web UA',
       accessBackward:()=>false,accessForward:()=>false},
     onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
     getUIContext:()=>({getPromptAction:()=>({showToast:()=>{}})}),
   })
   sheet.loadInitialPage(); sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>initialUrl}}); sheet.pageBegan({url:initialUrl})
-  return { sheet, initialUrl, granted, completed, events, setCookies:s=>cookies=s, failRead:()=>failRead=true,
+  return { sheet, initialUrl, granted, completed, events, probes, cancelledProbes, setProbe:p=>probeResult=p, setCookies:s=>cookies=s, failRead:()=>failRead=true,
     delaySave:()=> { saveError=true; let resolve; saveWait=new Promise(r=>resolve=r); return resolve } }
 }
 const settled = () => new Promise(resolve=>setImmediate(resolve))
@@ -313,4 +315,49 @@ test('an initial main HTTP error before any pageBegin remains failed until a rea
   f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl},'http',403)
   f.sheet.pageBegan({url:f.initialUrl});f.sheet.pageEnded({url:f.initialUrl});await settled()
   assert.equal(f.sheet.pageFailed,true);assert.equal(f.granted.length,0)
+})
+
+function opaqueChallengeRecovered(f) {
+  f.sheet.clearanceBaseline='site_token=old';f.setCookies('site_token=new')
+  f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl},'http',403)
+  f.sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl}})
+  f.sheet.pageBegan({url:f.initialUrl});f.sheet.pageEnded({url:f.initialUrl})
+}
+test('a non-CF challenge keeps Web visible until the original native read actually passes',async()=>{
+  const f=sheetFixture();let resolve;f.setProbe(new Promise(r=>resolve=r));opaqueChallengeRecovered(f)
+  await settled();assert.equal(f.probes.length,1);assert.equal(f.completed.length,0);assert.equal(f.granted.length,0)
+  resolve(true);await settled();assert.equal(f.granted.length,1);assert.equal(f.completed.length,1)
+})
+test('failed non-CF native verification leaves the manual control usable and never automatically loops',async()=>{
+  const f=sheetFixture();opaqueChallengeRecovered(f);await settled()
+  assert.equal(f.completed.length,0);assert.equal(f.granted.length,0);assert.equal(f.probes.length,1)
+  f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,1)
+  await f.sheet.completeSourceSession();assert.equal(f.completed.length,1)
+})
+test('an arbitrary cookie change without an observed main-document challenge does not trigger a native probe',async()=>{
+  const f=sheetFixture();f.sheet.clearanceBaseline='site_token=old';f.setCookies('site_token=new')
+  f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,0);assert.equal(f.completed.length,0)
+})
+for(const action of ['close','aboutToDisappear','navigation'])test('an in-flight non-CF probe cannot finish after '+action,async()=>{
+  const f=sheetFixture();let resolve;f.setProbe(new Promise(r=>resolve=r));opaqueChallengeRecovered(f);await settled()
+  if(action==='navigation')f.sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>f.initialUrl}})
+  else f.sheet[action]()
+  resolve(true);await settled();assert.equal(f.granted.length,0);assert.equal(f.completed.length,0)
+})
+
+test('a native probe requires the original claimed receipt and current route/query/settings',async()=>{
+  const f=fixture();f.replies.push(challenge());await f.model.runSearch(f.source,'one')
+  const {id}=f.model.searchWebChallenge
+  assert.equal(f.model.canRetryWebChallenge('search',id,true),false)
+  f.model.claimWebChallenge('search',id,true)
+  assert.equal(f.model.canRetryWebChallenge('search',id,true),true)
+  assert.equal(f.model.canRetryWebChallenge('search',id,false),false)
+  f.changeSettings();assert.equal(f.model.canRetryWebChallenge('search',id,true),false)
+})
+test('a stale original receipt cannot start or complete the pending native verification',async()=>{
+  const f=sheetFixture();f.sheet.canProbeOriginal=()=>false;opaqueChallengeRecovered(f);await settled()
+  assert.equal(f.probes.length,0);assert.equal(f.granted.length,0)
+  const g=sheetFixture();let resolve;g.setProbe(new Promise(r=>resolve=r));opaqueChallengeRecovered(g);await settled()
+  g.sheet.canProbeOriginal=()=>false;resolve(true);await settled()
+  assert.equal(g.granted.length,0);assert.equal(g.completed.length,0)
 })

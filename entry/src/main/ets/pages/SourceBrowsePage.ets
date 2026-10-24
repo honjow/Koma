@@ -144,6 +144,7 @@ export struct SourceBrowsePage {
     SourceWebSessionSheet({
       params: this.webChallengeParams,
       autoRetryOnClearance: this.webChallengeParams.sourceSession?.allowClearanceRetry ?? false,
+      canProbeOriginal: (): boolean => { return this.viewModel.canRetryWebChallenge(this.webChallengeScope, this.webChallengeId, this.chrome.visible) },
       onClose: () => { this.closeWebChallenge() },
       onCompleted: () => { this.completeWebChallenge() },
     })

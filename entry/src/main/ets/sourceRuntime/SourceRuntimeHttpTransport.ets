@@ -1,5 +1,5 @@
 import { url as urlKit } from '@kit.ArkTS'
-import { appSourceWebSessionStore, SourceHttpIdentity } from './SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceWebOrigin, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
 import { sourceClearanceCookieState } from './SourceWebChallengeGate'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -14,6 +14,35 @@ interface SourceHttpRequestEnvelope {
   body?: Object | string | number | boolean | null
   timeoutMs?: Object | string | number | boolean | null
 }
+
+interface RejectedSourceGet {
+  requestJson: string
+  httpContextJson: string
+  identity: SourceHttpIdentity
+  rejectedUrl: string
+}
+
+interface SourceWebProbeContext {
+  proof: SourcePendingWebSessionRequest
+  current: () => boolean
+}
+
+interface ActiveSourceWebProbe {
+  sourceId: string
+  sessionId: string
+}
+
+interface VerifiedSourceGet {
+  request: RejectedSourceGet
+  sessionId: string
+  responseJson: string
+}
+
+// Keep only the last failed read per source and one response ready for immediate handoff.
+// Neither requests nor responses are persisted or exposed to the Web document.
+const rejectedSourceGets: Map<string, RejectedSourceGet> = new Map<string, RejectedSourceGet>()
+let activeSourceWebProbe: ActiveSourceWebProbe | undefined = undefined
+let verifiedSourceGet: VerifiedSourceGet | undefined = undefined
 
 const SOURCE_HTTP_DEFAULT_TIMEOUT_MS: number = 15000
 const SOURCE_HTTP_MAX_TIMEOUT_MS: number = 60000
@@ -142,7 +171,8 @@ function attachSourceRedirectStop(request: http.HttpRequest): boolean {
   }
 }
 
-async function executeSourceHttpRequest(requestJson: string, httpContextJson: string = ''): Promise<string> {
+async function executeSourceHttpRequest(requestJson: string, httpContextJson: string = '',
+  probe?: SourceWebProbeContext): Promise<string> {
   let envelope: SourceHttpRequestEnvelope
   try {
     envelope = JSON.parse(requestJson) as SourceHttpRequestEnvelope
@@ -165,7 +195,25 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     if (typeof parsed.sourceId === 'string' && typeof parsed.sourceVersion === 'string' && typeof parsed.packageIdentity === 'string' &&
       Array.isArray(parsed.webSessionOrigins) && parsed.webSessionOrigins.every((item: string): boolean => typeof item === 'string')) identity = parsed
   } catch (_error) {}
-  const session = identity === undefined ? undefined : appSourceWebSessionStore.requestSession(identity, url)
+  if (probe === undefined && verifiedSourceGet !== undefined) {
+    const ready = verifiedSourceGet
+    verifiedSourceGet = undefined
+    if (identity !== undefined && ready.request.requestJson === requestJson &&
+      ready.request.httpContextJson === httpContextJson &&
+      appSourceWebSessionStore.status(identity.sourceId).sessionId === ready.sessionId &&
+      appSourceWebSessionStore.requestSession(identity, url) !== undefined) {
+      DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
+      trace.finish('completed', 'state=verification_response_reused')
+      return ready.responseJson
+    }
+  }
+  const session = identity === undefined ? undefined : probe === undefined
+    ? appSourceWebSessionStore.requestSession(identity, url)
+    : appSourceWebSessionStore.pendingRequestSession(identity, url, probe.proof)
+  if (probe !== undefined && (session === undefined || !probe.current())) {
+    trace.finish('failed', 'reason=web_session_probe_unavailable')
+    return transportError('web_session_unavailable', false)
+  }
   try {
     let currentUrl = url
     let currentMethod = method
@@ -179,8 +227,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       if (session === undefined || (name.toLowerCase() !== 'cookie' && name.toLowerCase() !== 'user-agent')) headers[name] = originalHeaders[name]
     })
     if (session !== undefined && identity !== undefined) {
-      const active = appSourceWebSessionStore.requestSession(identity, currentUrl)
-      if (active === undefined) {
+      const active = probe === undefined ? appSourceWebSessionStore.requestSession(identity, currentUrl) :
+        appSourceWebSessionStore.pendingRequestSession(identity, currentUrl, probe.proof)
+      if (active === undefined || (probe !== undefined && !probe.current())) {
         trace.finish('failed', 'reason=web_session_unavailable')
         return transportError('web_session_unavailable', false)
       }
@@ -215,6 +264,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       // A HttpRequest represents one hop and cannot be reused for the next URL.
       request.destroy()
     }
+    if (probe !== undefined && !probe.current()) {
+      trace.finish('failed', 'reason=web_session_probe_cancelled')
+      return transportError('web_session_unavailable', false)
+    }
     if (session !== undefined && identity !== undefined) {
       // NetworkKit exposes each Set-Cookie as an array entry; preserve Expires commas.
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
@@ -225,11 +278,17 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       else if (Array.isArray(raw)) {
         (raw as Object[]).forEach((value: Object) => { if (typeof value === 'string') values.push(value) })
       }
-      appSourceWebSessionStore.acceptResponseCookies(identity, currentUrl, values)
+      if (probe === undefined) appSourceWebSessionStore.acceptResponseCookies(identity, currentUrl, values)
+      else appSourceWebSessionStore.acceptPendingResponseCookies(identity, currentUrl, probe.proof, values)
     }
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
     if (identity !== undefined && response.responseCode === 403) {
       appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
+      const origin = sourceWebOrigin(currentUrl)
+      if (probe === undefined && method === 'GET' && body.length === 0 && requestJson.length <= 65536 &&
+        origin.length > 0 && identity.webSessionOrigins.includes(origin)) {
+        rejectedSourceGets.set(identity.sourceId, { requestJson, httpContextJson, identity, rejectedUrl: currentUrl })
+      }
     }
     if (session !== undefined && [301, 302, 303, 307, 308].includes(response.responseCode)) {
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
@@ -241,7 +300,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
       const nextUrl = new urlKit.URL(location, currentUrl).toString()
       // Re-check the full next URL against this source's explicit session grant.
-      if (identity === undefined || appSourceWebSessionStore.requestSession(identity, nextUrl) === undefined) {
+      const nextSession = identity === undefined ? undefined : probe === undefined
+        ? appSourceWebSessionStore.requestSession(identity, nextUrl)
+        : appSourceWebSessionStore.pendingRequestSession(identity, nextUrl, probe.proof)
+      if (nextSession === undefined) {
         trace.finish('failed', 'reason=web_session_redirect_rejected')
         return transportError('web_session_redirect_rejected', false)
       }
@@ -265,6 +327,40 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     DiagnosticLogger.warn('source_http', 'transport_failed', 'platformCode=' + platformCode)
     return transportError(platformCode === 2300028 ? 'timeout' : 'network_error')
   }
+}
+
+/** One same-origin read of the exact rejected GET, while its verification sheet stays visible. */
+export async function probeSourceWebSession(sourceId: string, sessionId: string, documentUrl: string,
+  userAgent: string, current: () => boolean): Promise<boolean> {
+  const request = rejectedSourceGets.get(sourceId)
+  if (request === undefined || !current()) return false
+  const active: ActiveSourceWebProbe = { sourceId, sessionId }
+  if (activeSourceWebProbe !== undefined) return false
+  activeSourceWebProbe = active
+  const probe: SourceWebProbeContext = {
+    proof: { sessionId, initialUrl: request.rejectedUrl, documentUrl, userAgent },
+    current: (): boolean => activeSourceWebProbe === active && current(),
+  }
+  try {
+    const responseJson = await executeSourceHttpRequest(request.requestJson, request.httpContextJson, probe)
+    if (!probe.current() || rejectedSourceGets.get(sourceId) !== request || responseJson.length > 4 * 1024 * 1024) return false
+    const response = JSON.parse(responseJson) as SourceHttpSuccessEnvelope
+    if (response.ok !== true || !Number.isInteger(response.status) || response.status < 200 || response.status >= 300 ||
+      response.accessSignal === 'challenge_required') return false
+    if (appSourceWebSessionStore.pendingRequestSession(request.identity, request.rejectedUrl, probe.proof) === undefined) return false
+    verifiedSourceGet = { request, sessionId, responseJson }
+    DiagnosticLogger.info('source_http', 'verification_probe', 'state=ready_for_original_request')
+    return true
+  } catch (_error) {
+    return false
+  } finally {
+    if (activeSourceWebProbe === active) activeSourceWebProbe = undefined
+  }
+}
+
+export function cancelSourceWebProbe(sourceId: string, sessionId: string): void {
+  if (activeSourceWebProbe?.sourceId === sourceId && activeSourceWebProbe.sessionId === sessionId) activeSourceWebProbe = undefined
+  if (verifiedSourceGet?.request.identity.sourceId === sourceId && verifiedSourceGet.sessionId === sessionId) verifiedSourceGet = undefined
 }
 
 export function configureSourceRuntimeHttpTransport(): boolean {
