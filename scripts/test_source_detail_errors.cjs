@@ -74,6 +74,16 @@ for (const [code, kind] of [['not_implemented','unsupported'], ['not_supported',
     assert.ok(!error.userText.includes('private.invalid'))
   })
 }
+test('a provider-confirmed region restriction retains its cause without exposing its message', () => {
+  const error = new SourceRuntimeError({ok:false,error:{code:'region_restricted',message:'HTTP 400: PRIVATE_TOKEN'}})
+  assert.equal(error.diagnostic.kind,'region')
+  assert.equal(error.diagnostic.status,400)
+  assert.equal(error.userText,'source_failure_region HTTP 400')
+  assert.ok(!JSON.stringify(error.diagnostic).includes('PRIVATE_TOKEN'))
+  assert.ok(!error.userText.includes('PRIVATE_TOKEN'))
+  const denied = new SourceRuntimeError({ok:false,error:{code:'region_restricted',status:403}})
+  assert.equal(denied.diagnostic.kind,'access')
+})
 test('explicit HTTP status still takes precedence over a provider alias', () => {
   const error = new SourceRuntimeError({ok:false,error:{code:'not_implemented',status:403}})
   assert.equal(error.diagnostic.kind,'access');assert.equal(error.diagnostic.code,'not_implemented')

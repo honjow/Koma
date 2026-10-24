@@ -9,7 +9,7 @@ export interface SourceFailureDetails {
 }
 
 const SOURCE_FAILURE_CODES: string[] = [
-  'timeout', 'network_error', 'http_error', 'permission_denied', 'challenge_required', 'auth_required',
+  'timeout', 'network_error', 'http_error', 'region_restricted', 'permission_denied', 'challenge_required', 'auth_required',
   'unauthorized', 'forbidden', 'rate_limited', 'rate_limit', 'not_found', 'server_error', 'client_error', 'parse_error',
   'invalid_response', 'invalid_json', 'malformed_result', 'result_too_large', 'request_too_large',
   'source_disabled', 'source_changed', 'source_id_not_registered', 'wasm_missing', 'unsupported',
@@ -47,6 +47,7 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   else if (status === 429 || candidates.some((item: string): boolean => ['rate_limited', 'rate_limit'].includes(item))) kind = 'rate_limit'
   else if (status === 404 || candidates.includes('not_found')) kind = 'not_found'
   else if (status >= 500 || candidates.includes('server_error')) kind = 'server'
+  else if ((status === 0 || status === 400) && candidates.includes('region_restricted')) kind = 'region'
   else if (candidates.includes('timeout')) kind = 'timeout'
   else if (candidates.some((item: string): boolean => ['network_error', 'http_error', 'client_error'].includes(item))) kind = 'network'
   else if (candidates.some((item: string): boolean =>

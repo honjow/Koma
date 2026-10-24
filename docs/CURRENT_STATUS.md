@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T10:09:32.542856+00:00",
+  "updatedAt": "2026-10-24T12:53:56.611198+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "REFRESH_RETAIN_EXISTING_CONTENT",
-  "activity": "已用576真实Text卡与两次200搜索核正常重搜，577三域保持；收口当前刷新修复，随后处理已实证漫画160挑战信号丢失。",
-  "nextAction": "审本次六文件精确diff、提交推送并跟进CI；不把Host失败保留或未出现的错误footer说成Native验收。",
+  "activeId": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+  "activity": "Root：237東立有限结果完成，App范围提交CI；共同窗口准入继续核真实平台契约，提问不阻止其他工作。",
+  "nextAction": "提交同步准确地区提示及本轮事实；跟精确CI同时核N/E/K原窗口写入者和已接受路径，不改现有动画。",
   "proof": [
     {
       "label": "正式主仓",
@@ -984,18 +984,54 @@
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "73a46588已push，仅gitlink→Kit6f915f；CI40015249492 success",
-      "hap": "38177598B/defaultRelease1.3.6code42；039装机、040普通NonH13/19、041–043设置暂停及模式往返19/19、044恢复LTR13/19、045回原2项下载。"
+      "appHead": "26a447c2已push；Kit4bf42eb；精确CI40092801362 completed/success",
+      "hap": "197025明确安装38178566B/defaultRelease1.3.6code42；027普通Non-H4277955缩略图原图交接151帧全审；034正常返画廊，原4212986未操作。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "a3e6a1eb已push，仅gitlink→Kit6f915f；CI40015225284 success",
-      "hap": "38201134B/defaultRelease1.0.7code10；018装机、019普通NonH2/2、020–022设置暂停及模式往返2/2、023原LTR2/2正常返回重开；024已正常返回原7项完成下载，实际文本锚点核对。"
+      "appHead": "a0211fa7已push；Kit4bf42eb；精确CI40092801190 completed/success",
+      "hap": "197028明确安装38202032B/defaultRelease1.0.7code10；032普通Non-H686734缩略图原图交接269帧全审；033恢复原下载/6867442/2。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
   "items": [
+    {
+      "id": "READER_THUMBNAIL_LOADING_REGRESSION",
+      "title": "NextE/NextN缩略图进入阅读时加载指示器消失",
+      "status": "N/E具名路径与两笔精确CI完成",
+      "kind": "accepted",
+      "priority": "P1",
+      "owner": "冻结：Root按新反例或相关依赖变化重开",
+      "dependencies": [],
+      "result": "共同4bf42eb已push；N a0211fa7、E26a447c2均采用并push。197实际N032 Non-H686734全269帧/8表、E0274277955全151帧/5表顺序亲审及原91/92：最后低清仍有加载面板，首清晰图时面板退出；普通返同缩略图。旧E022第120帧反例和误判撤回永久保留。N033原下载/6867442/2保持，034回E画廊/K书架。 N CI40092801190和E CI40092801362均completed/success；无新tag/发布。",
+      "remaining": "本次N/E两个真实缩略图→原图→返回范围冻结；其他布局、Legacy、自然异常未扩大。",
+      "reportedAt": null,
+      "reportedAtSource": "当前可见人类反馈；未取得原始消息时间，不能猜报时。",
+      "firstEvidenceAt": "2026-10-24T10:23:04+00:00",
+      "firstHandlingAt": "2026-10-24T10:23:04+00:00",
+      "handling": "根据当前人类反例重开",
+      "closedAt": "2026-10-24T12:19:29.702818+00:00",
+      "evidencePoints": [
+        "当前真实ReaderImagePlaceholder.ets：previewVisible将awaitingPixels改成preview；原图尚未可读却loading=false。",
+        "reader-continuous-loading.test.cjs明确要求preview.loading=false；本次撤回这条错误预期的正确性结论。",
+        "009普通Non-H688588旧包asset18:39:28.680、decoding29.329、原图presented29.428；期间保留缩略图却无加载反馈。",
+        "最新人类直接指出E022/frame_000120.png仍是低清图但进度已消失；本帧否决刚才通过结论。",
+        "E027普通Non-H4277955，151帧；原91低清+进度、92清晰且退出，无揭示前空档。仅该E路径。"
+      ],
+      "remainingActions": [
+        "本次N/E两个真实缩略图→原图→返回范围冻结；其他布局、Legacy、自然异常未扩大。"
+      ],
+      "boundaries": [
+        "不改变原指示器样式/尺寸/转场/全屏时机，不新增宿主遮罩，不清缓存或造延时。",
+        "不改变MH160与原其余队列；本次局部完成后由Root接续源错误契约及普通远端更新。"
+      ],
+      "evidence": [
+        "NextN .hvigor/outputs/reader-loading-background-20261011/.../shared-mutual/thumbnail-loading-*：N014原60/82，E022原85/118/120；024原7下载及686744 2/2，Koma原书架恢复。023错误N包名未作为N恢复证据。",
+        "Kit536项通过；旧N688588/009与E4277842/019无反馈反例保留。新N014全255帧/E022全189帧按序亲审，实际E4277864取代manifest预期4277811，不修改原回执。",
+        "197原N686744 2/2与7项下载在024确认，Koma原书架恢复；N无关两脚本WIP保留，E原4212986未操作，无偏好/缓存改动，无新tag。"
+      ]
+    },
     {
       "id": "READER_WINDOW_LIFECYCLE",
       "title": "三App五入口全屏/状态栏早于转场完成",
@@ -1014,10 +1050,12 @@
       "closedAt": null,
       "evidencePoints": [
         "官方Navigation FAQ及SDK均未承诺onShown/onActive/didShow发生在默认转场结束后。",
-        "OpenHarmony navigation_pattern.cpp中，生命周期与HideSystemBarIfNeeded均早于转场；临时探针已撤。"
+        "OpenHarmony navigation_pattern.cpp中，生命周期与HideSystemBarIfNeeded均早于转场；临时探针已撤。",
+        "2026-10-24官方HDS systemBarStyle明确“页面转场开始时生效”；NavDestination guide仅保证onShown布局完成。官方Navigation转场指南说明默认弹簧时长不可控，监听结束建议自定义转场；未把onShown/onActive误写为官方结束事件，现有样式/动画边界继续。"
       ],
       "remainingActions": [
-        "继续查保留现有native动画的真实完成信号；并行推进无此依赖的已授权事项。"
+        "继续查保留现有native动画的真实完成信号；并行推进无此依赖的已授权事项。",
+        "核现有NextE两条已接受转场的实际共同窗口准入与原默认回退；若需改变现存native效果，先形成具体差异供用户决定，不加固定延时或把可见回调冒作结束。"
       ],
       "boundaries": [
         "不能用didShow、enableStatusBar、布局坐标冒充动画结束；不用延时或改变已定转场效果绕过。"
@@ -1410,7 +1448,7 @@
       "status": "明确unsupported/限流别名已推且精确CI成功",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：限定错误别名已同步/精确CI成功；其余自然样本待条件",
+      "owner": "Root：MH160014远端发布与普通更新；其他自然错误边界保留",
       "dependencies": [],
       "result": "保原237自然超时与abed388b范围；本次只补三个源既有错误码。95项Host/Release通过，554已安装且三业务域逐字同，556真实漫画160 get_image_request179字节响应诊断为not_implemented/unsupported。",
       "remaining": "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
@@ -1438,11 +1476,12 @@
         "source-failure-alias两组29+66=95检查通过；8529046B签名Release/0.1.2-pre code3安装明确成功。556当前日志reason=not_implemented/error=not_implemented/kind=unsupported；未知私密code/message仍脱敏。",
         "560普通返回原详情784→源→书架；561 library/reader/registry与554安装后全部逐字同，无开书或手动重试。",
         "6ca1b69477a2bb9812b75b9c9b8fbc26e29d5ea0已push，精确CI40080793887 completed/success；无新tag/发布。",
-        "572具名新反例：漫画160搜索底层HTTP403/5839chars且明确access_signal=challenge_required；源将其降成permission_denied/http0，manifest无webSessionOrigins，所以原生仅普通拒绝提示、未自动验证。571文本断言只命中SearchField，纠正文件保留。"
+        "572具名新反例：漫画160搜索底层HTTP403/5839chars且明确access_signal=challenge_required；源将其降成permission_denied/http0，manifest无webSessionOrigins，所以原生仅普通拒绝提示、未自动验证。571文本断言只命中SearchField，纠正文件保留。",
+        "MH160014公开包22572B三成员与两个origin成立，579“已更新 漫画160”原图亲审；025按真实底栏恢复原Koma书架，581因同名“书架”两节点未点击，不当恢复证据。"
       ],
       "remainingActions": [
         "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
-        "漫画160搜索准确传播HTTP状态和Host明确挑战信号；必要源origin权限须按真实站点限定，先补源端契约调查，不重试现失败。"
+        "MH160014/0a6ff4a已公开并正常更新；583一次普通元尊搜索保留HTTP403/明确challenge并自动弹出Web验证。584网页后来实际到/statics/search.aspx主框架404，尚不能接受搜索成功；587回书架，588三域与580逐字同。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -1452,7 +1491,14 @@
         "history": "34ab280d引入结构化分类和保密白名单；SourceSettingsStore已接受两个unsupported别名。",
         "originalReason": "保留明确原因且不将源任意message/code泄露给用户或日志，HTTP明确状态优先。",
         "reopenEvidence": "547当前179字节not_implemented被落为unknown；现两个源rate_limit亦未被识别，和真实契约不一致。",
-        "allowedDifference": "只补not_implemented/not_supported/rate_limit三个明确既有代码的对应类别，保原代码诊断、HTTP优先级、未知脱敏、UI布局及原有翻译。不得据此声称图片403或全源错误已修复。"
+        "allowedDifference": "只补not_implemented/not_supported/rate_limit三个明确既有代码的对应类别，保原代码诊断、HTTP优先级、未知脱敏、UI布局及原有翻译。不得据此声称图片403或全源错误已修复。",
+        "mh160Challenge": {
+          "object": "mh160 fetch→detail/list/chapters/pages→execute的错误契约及源web-session-origins声明",
+          "history": "bcfb9261引入源时以静态字符串丢弃HTTP状态；62a1d18只补URL，不改错误。现漫画屋已有类型化Http/Challenge传播，包子亦单独保明确访问信号。",
+          "originalReason": "HTML解析错误与网络失败分开；403本身不推断CF，只有Host标准化挑战信号可触发。",
+          "reopenEvidence": "572搜索Host原GET403/5839chars且access_signal=challenge_required，源operation却permission_denied/http0；源无webSessionOrigins。",
+          "allowedDifference": "将真实HTTP状态与Host顶层明确challenge_required按类型传到既有错误envelope，并声明仅已使用的www.mh160mh.com/m.mh160mh.com两个HTTPS源origin。保URL、请求方法/次数/UA、站点选择、成功解析、章节身份/排序、图标及App版本；不把任意403或正文标记识别成CF。源小版本步进供正常远端更新。"
+        }
       }
     },
     {
@@ -1500,10 +1546,12 @@
         "当前新分支：557正确源URL打开WebView，558 Webbounds有效/站点标题存在但白屏；559等待31.290s加载指示仍在。没有DevTools socket，不启调试或换客户端。原MangaWebPage无持久阶段诊断，根因未知，不将入口成功冒网站可用。",
         "562 Release8540066B明确安装成功，首版11项Host通过；564原图白屏/真实Web几何且业务三域与562同。日志17:21:48.881一次start，至17:23:23.436为261begin/260end/65visible；无主/子resource_failed，标题已有站点名。565普通返回详情784→原书架。",
         "567 Release8539452B/0.1.2-pre code3明确安装，三域前后同；12项Host通过。569原始日志：revision奇数matchesInitialUrl/sameInitialOrigin均true，偶数均false；一次start，18.662s/58doc，48阶段+抑制标志+结束总51条。568普通Back到详情784再原书架，569三业务域与567逐字同。",
-        "7b06ad5226b4ab0f96b020051036161f7170c290已push，精确CI40082499024 completed/success，无tag。"
+        "7b06ad5226b4ab0f96b020051036161f7170c290已push，精确CI40082499024 completed/success，无tag。",
+        "583漫画160014普通搜索自动Web已实机出现，原生正确HTTP403与挑战提示；584原图网站/statics/search.aspx404，588日志主框架404及不同原请求origin/文档，未触原GET probe/未自动完成。未按完成重试；587正常回书架，588三域全同580。"
       ],
       "remainingActions": [
-        "漫画160跨origin跳转具体站点链仍未知；源搜索挑战信号丢失按SOURCE_RUNTIME_ERRORS独立处理。其余CF人工验证/登录按自然样本保留，不无依据重复网页请求。"
+        "漫画160跨origin跳转具体站点链仍未知；源搜索挑战信号丢失按SOURCE_RUNTIME_ERRORS独立处理。其余CF人工验证/登录按自然样本保留，不无依据重复网页请求。",
+        "漫画160本次自动弹出只接受触发；站点跳转到404原因、原搜索URL与实际网站路由继续核，不能称CF或搜索恢复。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -2660,7 +2708,7 @@
         "MANGA_DETAIL_PULL_REFRESH"
       ],
       "kind": "open",
-      "status": "同查询刷新保留已实现/94 Host通过；576原生正常重搜具名通过",
+      "status": "同查询刷新保留已推4d806fa；精确CI40084821198成功",
       "result": "生产方法Host先复现失败清空，修复后94相关检查通过。570安装Release8537665B，576包子真实内容Text卡成立；两次搜索HTTP200/368ms与356ms，同卡几何保持，577三域与570逐字同。",
       "evidencePoints": [
         "306转场0.597秒已见缓存列表，3.469秒check结束；重新入页图标1.005秒全真图，不当原有内容刷新清空。",
@@ -2669,9 +2717,9 @@
         "576包子初始首页自然403后现有自动会话恢复原GET200/385ms；无人工完成。查询大奉打更人真实Text在[39,1080,407,1139]，与输入框分开，两次search响应506字节/HTTP200；原Library恢复，577三域保持。571误匹配与574源定位失败原件保留，不作通过。"
       ],
       "remainingActions": [
-        "本次范围提交推送并跟进精确CI；真实同查询失败保留与原因footer布局、独立SourceSearch普通入口仍待自然样本。其他页面按原队列，已验源管理/详情不重复跑。"
+        "真实同查询失败保留与原因footer布局、独立SourceSearch普通入口仍待自然样本；576普通正常重搜已具名通过，不重跑。"
       ],
-      "remaining": "本次范围提交推送并跟进精确CI；真实同查询失败保留与原因footer布局、独立SourceSearch普通入口仍待自然样本。其他页面按原队列，已验源管理/详情不重复跑。",
+      "remaining": "真实同查询失败保留与原因footer布局、独立SourceSearch普通入口仍待自然样本；576普通正常重搜已具名通过，不重跑。",
       "boundaries": [
         "当前源图标闪烁/安装阻塞仍主线，新反馈不替换旧顺序。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
@@ -2998,6 +3046,50 @@
       "handling": null,
       "closedAt": null,
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+    },
+    {
+      "id": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+      "title": "東立任意作品章节加载失败、设置提示验证失败",
+      "priority": "P1",
+      "kind": "open",
+      "status": "章节认证已修；237原生确认3166地区限制，正文未可读",
+      "owner": "Root：237章节/设置独立原因核查",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_RUNTIME_ERRORS",
+        "MANXIAOSI_SETTINGS_VALIDATION_FAILURE"
+      ],
+      "result": "012/b28已正常远端更新，237同膽大黨目录恢复4章。013/f5已push，CI40094748912 success；公开85索引、53654B三成员包。当前8525150B App+013在028实际显示“站点对该作品有地区限制…（HTTP400）”，原生3166原因已成立。原请求拒绝保持，未称可读。",
+      "remaining": "App范围提交推送及精确CI；正文受站点3166限制，已异步询问用户同网官网是否可读，只影响该分支。",
+      "reportedAt": null,
+      "reportedAtSource": "当前人类消息无可信精确首报时间，留空。",
+      "firstHandlingAt": "2026-10-24T12:02:09.354493+00:00",
+      "closedAt": null,
+      "evidencePoints": [
+        "237当前Connected，空闲原租约已released；Root新租约20261024-120049-052619f8。",
+        "3d5d114原提交只写build verified；后续图标验收未证明章节/阅读可用。010只因已安装toast文本未匹配超时，012真实列表20本证明已装并打开，不重复安装。",
+        "013失败原图：详情已加载但章节加载失败；014诊断20:12:16.264章节→POST400→client_error；016原图设置验证失败。",
+        "已审源码只恢复已有备用分支的400路径及无设置契约；原key/URL/权限/章节身份和图标保持。",
+        "桌面同接口错误白名单字段明确Errors.Code3166/当前地区不可读；不把桌面US推定为Native位置。源013识别确切业务结构，15实际WASM场景通过；App region白名单/固定本地化说明143项既有检查通过。",
+        "023当前8525150B签名Release已明确覆盖237/0.1.2-pre code3，library/reader/registry前后逐字同。仅部署，不作阅读已成功。",
+        "024误把官网图标当更多菜单；025实际是有内容的东立官网WebView，非更多菜单验收。当前源无无效设置入口，不再出现原设置验证失败。",
+        "027普通013更新后028原生同第1話显示region/HTTP400；原图已亲审，29普通返回原章/源/书架。",
+        "029已正常回原书架；030 Library/reader与本轮007起点逐字同，注册67→68仅新增東立013，原67条逐项同；未点地区失败重试、未操作网页登录。"
+      ],
+      "remainingActions": [
+        "App范围提交推送及精确CI；正文受站点3166限制，已异步询问用户同网官网是否可读，只影响该分支。"
+      ],
+      "boundaries": [
+        "本次只接受東立认证/目录/无设置契约/准确地区原因；正文未通过，其他作品和授权地区未扩大。",
+        "未更改网络/账户或绕过站点地区限制；197/237原阅读数据保持，私库PARKED_USER不复活。"
+      ],
+      "modificationBasis": {
+        "object": "東立认证回退、无设置响应及明确3166错误；App既有SourceRuntimeError受控原因映射",
+        "history": "3d5d114引入，5965937仅图标；SDK a36a6a5分类状态后原primary post?提前退出。App34ab280d/6ca1b694保错误白名单与unsupported别名。",
+        "originalReason": "仅用已有公开认证分支；不能解锁付费或地区授权，未知服务端正文不得泄露到UI/诊断。",
+        "reopenEvidence": "237013认证HTTP400/章节失败，016设置operation_response_mismatch；019修后4章，020页图GET400。桌面同接口业务Errors.Code3166明确地区限制。",
+        "allowedDifference": "恢复既有400备用分支、返回not_supported；只认HTTP400+Succeeded=false+Errors.Code3166，源发固定region_restricted原因，App固定本地化并保HTTP优先级/未知脱敏。网址/身份/原认证key/图标/布局/网络与账户保持。"
+      }
     }
   ],
   "source": {

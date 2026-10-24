@@ -411,6 +411,7 @@
     {"name": "source_failure_server", "value": "The source website is temporarily unavailable. Try again later."},
     {"name": "source_failure_timeout", "value": "The source connection timed out. Check your network and retry."},
     {"name": "source_failure_network", "value": "Cannot connect to the source. Check your network connection."},
+    {"name": "source_failure_region","value": "The website does not allow this work to be read from your current region."},
     {"name": "source_failure_parse", "value": "The source could not read the website content. The site may have changed; update the source or report it."},
     {"name": "source_failure_capacity", "value": "The source returned more data than is supported. Share diagnostic logs."},
     {"name": "source_failure_unavailable", "value": "The source is disabled or its files are incomplete. Enable or reinstall it."},

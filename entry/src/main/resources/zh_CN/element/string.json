@@ -410,6 +410,7 @@
     {"name": "source_failure_server", "value": "书源网站暂时异常，请稍后再试。"},
     {"name": "source_failure_timeout", "value": "连接书源超时，请检查网络后重试。"},
     {"name": "source_failure_network", "value": "无法连接书源，请检查网络连接。"},
+    {"name": "source_failure_region","value": "站点对该作品有地区限制，当前网络所在地区无法阅读。"},
     {"name": "source_failure_parse", "value": "书源无法解析网站内容，网站可能已改版，请更新书源或反馈。"},
     {"name": "source_failure_capacity", "value": "书源返回的数据超出支持范围，请导出诊断日志反馈。"},
     {"name": "source_failure_unavailable", "value": "书源未启用或文件不完整，请启用或重新安装书源。"},
