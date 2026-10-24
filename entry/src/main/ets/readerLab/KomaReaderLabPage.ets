@@ -1,5 +1,6 @@
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
-import { FrameCallback, LengthMetrics } from '@kit.ArkUI'
+import { Binding, FrameCallback, LengthMetrics } from '@kit.ArkUI'
+import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderDirectionControl, ReaderDirectionChoice } from '../components/ReaderDirectionControl'
 import { ReadingDirection } from '../model/ComicModels'
@@ -9,7 +10,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderIma
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderActivitySink, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderModeControlParams } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -59,6 +60,14 @@ export struct KomaReaderLabPage {
   @Event onRouteVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onRouteDisappear: () => void = () => {}
   @Local private seriesOverrideActive: boolean = false
+  // Original Koma ReaderChrome geometry and action placement. Shared routing
+  // does not authorize replacing it with the Kit's default appearance.
+  private chromeAppearance: ReaderChromeAppearance = {
+    bottomHeight: 104, sliderHeight: 32, controlsHeight: 52,
+    controlsPadding: ThemeConstants.SPACE_LG, columnSpacing: 0,
+    topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: true, mediaActionsInMenu: true,
+    spreadControlsLeading: true,
+  }
   private observedCloseRequestId: number = 0
 
   @Event readInitialColumn: (work: string, unit: string) => ReaderColumnMode = () => {
@@ -529,6 +538,13 @@ export struct KomaReaderLabPage {
   }
 
   @Builder
+  private HostTitleControl(params: Binding<ReaderTitleParams>) {
+    ReaderTitleContent({ title: this.adapter?.workTitle(params.value.unitKey ?? this.unitKey) ?? '',
+      chapterTitle: this.adapter?.chapterTitle(params.value.unitKey ?? this.unitKey) ?? '',
+      pageIndex: params.value.pageIndex, pageTotal: params.value.pageCount })
+  }
+
+  @Builder
   private HostModeControl(params: ReaderModeControlParams) {
     ReaderDirectionControl({
       readingMode: params.policy.layout === 'continuous' ? 'continuous' :
@@ -719,7 +735,9 @@ export struct KomaReaderLabPage {
           ForEach(this.surfaceEntries, (entry: KomaReaderSessionEntry) => {
             if (this.request.readingChrome) {
               ReaderSurface({ session: entry.session, initialUnit: entry.unit, initialIndex: entry.initialIndex,
+                chromeAppearance: this.chromeAppearance,
                 modeControl: (params: ReaderModeControlParams): void => { this.HostModeControl(params) },
+                titleControl: (params: Binding<ReaderTitleParams>): void => { this.HostTitleControl(params) },
                 catalogFailureText: (): string => this.adapter?.catalogFailureMessage() ?? '',
                 imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
                   ? ImageInterpolation.Low :

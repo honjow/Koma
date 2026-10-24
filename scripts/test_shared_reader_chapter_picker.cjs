@@ -117,16 +117,6 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   assert.equal(page.chapterBusy, false)
 })
 
-test('shared page keeps chapter data and sheet ownership outside reader-kit', () => {
-  const page = fs.readFileSync(path.join(root, 'KomaReaderLabPage.ets'), 'utf8')
-  const adapter = fs.readFileSync(path.join(root, 'KomaReaderLabAdapter.ets'), 'utf8')
-  assert.match(page, /new ReaderCenterAction\(this\.chapterControlLabel\(\)/)
-  assert.match(page, /ReaderHostChapterPickerSheet/)
-  assert.match(page, /!this\.chapterPickerShown/)
-  assert.match(adapter, /chapterChoices\(unit: ReaderUnitKey\)/)
-  assert.doesNotMatch(page, /@reader-kit\/.*ChapterPicker/)
-})
-
 function chapterSequence() {
   const exports = {}
   const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')

@@ -1,3 +1,4 @@
+import { ReaderTitleContent } from './ReaderTitleContent'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { ReaderModeControl } from './ReaderModeControl'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
@@ -281,43 +282,8 @@ export struct ReaderChrome {
         onDisappear: () => { this.imageInfoShown = false },
       }))
 
-      Column({ space: 2 }) {
-        Text(this.title.length > 0 ? this.title : s('reader_title_default'))
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(Color.White)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .lineBreakStrategy(LineBreakStrategy.BALANCED)
-          .textAlign(TextAlign.Start)
-          .width('100%')
-
-        Row({ space: ThemeConstants.SPACE_XS }) {
-          if (this.pageTotal > 0) {
-            Text(this.pageText())
-              .fontSize(11)
-              .fontColor('#CCFFFFFF')
-              .maxLines(1)
-              .flexShrink(0)
-            Text('·')
-              .fontSize(11)
-              .fontColor('#CCFFFFFF')
-              .flexShrink(0)
-          }
-          Text(this.chapterTitleText())
-            .fontSize(11)
-            .fontColor('#CCFFFFFF')
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .textAlign(TextAlign.Start)
-            .layoutWeight(1)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-      }
-      .layoutWeight(1)
-      .padding({ left: ThemeConstants.SPACE_XS, right: ThemeConstants.SPACE_SM })
-      .alignItems(HorizontalAlign.Start)
+      ReaderTitleContent({ title: this.title, chapterTitle: this.chapterTitleText(),
+        pageIndex: this.pageIndex, pageTotal: this.pageTotal })
 
       Row({ space: ThemeConstants.SPACE_XS }) {
         Button({ type: ButtonType.Circle, stateEffect: true }) {

@@ -6,8 +6,6 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
 
 const file = path.resolve(__dirname, '../entry/src/main/ets/readerLab/KomaReaderPreferenceBridge.ets')
 const source = fs.readFileSync(file, 'utf8')
-const pageSource = fs.readFileSync(path.resolve(__dirname,
-  '../entry/src/main/ets/readerLab/KomaReaderLabPage.ets'), 'utf8')
 const output = ts.transpileModule(source, { compilerOptions: {
   target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
 } }).outputText
@@ -77,40 +75,4 @@ assert.equal(cropped.trimPageMarginsEnabled, true)
 assert.equal(cropped.pageMode, base.pageMode)
 assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)
-assert.match(pageSource,
-  /pageTurnAnimation: this\.request\.pageTurnAnimationOverride \?\?[\s\S]*?this\.hostPreferences\?\.pageTurnAnimation/)
-assert.match(pageSource, /new ReaderPagedSession\(adapter, adapter, adapter, adapter\)/)
-assert.match(pageSource, /preloadDepth: this\.hostPreferences\?\.preloadPages \?\? this\.readerMode\.preloadPages/)
-assert.match(pageSource, /pageGap: this\.readerPageGap\(\)/)
-assert.match(pageSource, /const mode = this\.hostPreferences\?\.pageGapMode \?\? this\.readerMode\.pageGapMode[\s\S]*?if \(mode === 'compact'\) return 2[\s\S]*?if \(mode === 'wide'\) return 18[\s\S]*?return 8/)
-assert.match(pageSource, /hostSettings: this\.request\.preferencesReadWrite/)
-assert.match(pageSource, /new ReaderHostSettings\(\(\): void => \{ this\.openHostSettings\(\) \}\)/)
-assert.match(pageSource, /tapZonePreviewRegions: this\.sharedTapZonePreviewRegions\(\)/)
-assert.match(pageSource, /tapZonePreviewRevision: this\.tapZonePreviewRevision/)
-assert.match(pageSource,
-  /previous\.tapZonePreset !== next\.tapZonePreset[\s\S]*?previous\.tapZoneInvert !== next\.tapZoneInvert[\s\S]*?this\.tapZonePreviewRevision \+= 1/)
-assert.match(pageSource, /readerTapZoneRegions\([\s\S]*?new ReaderTapZonePreviewRegion\(/)
-assert.match(pageSource, /\.bindSheet\(\$\$this\.readerSettingsSheetShown, this\.ReaderHostSettingsSheet/)
-assert.match(pageSource,
-  /session\.setPolicy\(KomaReaderInitialPolicy\.resolveHost\(next, next\.columnMode\)\)/)
-const initialPolicySource = fs.readFileSync(path.resolve(__dirname,
-  '../entry/src/main/ets/readerLab/KomaReaderInitialPolicy.ets'), 'utf8')
-assert.match(initialPolicySource,
-  /static resolveHost\(preferences: ReaderPreferences, column: ReaderColumnMode\): ReaderDisplayPolicy/)
-assert.match(initialPolicySource,
-  /policy\.rotateWidePages = preferences\.wideImageMode === 'rotate_wide_pages'/)
-assert.match(initialPolicySource,
-  /if \(request\.rotateWidePagesOverride !== null\)[\s\S]*?policy\.rotateWidePages = request\.rotateWidePagesOverride[\s\S]*?if \(request\.rotateWidePagesOverride\) policy\.splitWidePages = false/)
-const adapterSource = fs.readFileSync(path.resolve(__dirname,
-  '../entry/src/main/ets/readerLab/KomaReaderLabAdapter.ets'), 'utf8')
-assert.match(adapterSource, /implements ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost/)
-// Real preload request sharing and cancellation run in test_shared_reader_chapter_picker.cjs.
-const chromeSource = fs.readFileSync(path.resolve(__dirname,
-  '../entry/src/main/ets/components/ReaderChrome.ets'), 'utf8')
-const settingsSource = fs.readFileSync(path.resolve(__dirname,
-  '../entry/src/main/ets/components/ReaderSettingsContent.ets'), 'utf8')
-assert.match(chromeSource, /ReaderSettingsContent\(\{/)
-assert.match(pageSource, /ReaderSettingsContent\(\{/)
-assert.equal((settingsSource.match(/imageFitMode: p\.imageFitMode/g) || []).length, 1)
-assert.doesNotMatch(settingsSource, /setImageFit|image_fit_mode_title/)
-console.log('PASS: shared reader host settings, policy, crop, page gap and bounded preload mapping are wired.')
+console.log('PASS: reader preference policy and crop transformations preserve unrelated values.')

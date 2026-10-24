@@ -238,6 +238,15 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     })
   }
 
+  // The title leaf reads only current metadata; page changes must not clone the full catalog.
+  workTitle(unit: ReaderUnitKey): string {
+    return this.configs.get(this.unitId(unit))?.title ?? this.library.getComic(unit.work)?.title ?? ''
+  }
+  chapterTitle(unit: ReaderUnitKey): string {
+    return this.configs.get(this.unitId(unit))?.chapterTitle ??
+      this.library.getComic(unit.work)?.chapters.find((chapter) => chapter.id === unit.unit)?.title ?? ''
+  }
+
   sessionConfig(unit: ReaderUnitKey): ReaderSessionConfig | null {
     const config = this.configs.get(this.unitId(unit))
     return config === undefined ? null : cloneReaderSessionConfig(config)

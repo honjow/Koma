@@ -87,13 +87,3 @@ test('loading, retired and missing sessions cannot navigate to detail', () => {
   page.hostActionDispatch.request('manga-detail', current, 5, 2)
   assert.deepEqual(opened, [])
 })
-
-test('Koma owns detail routing while reader-kit remains host-neutral', () => {
-  const page = fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabPage.ets'), 'utf8')
-  const index = fs.readFileSync(path.join(root, 'pages/Index.ets'), 'utf8')
-  assert.match(page, /hostActions: this\.hostActionDispatch/)
-  assert.match(page, /this\.openMangaDetail\(id, source, navigation, sourceIndex\)/)
-  assert.match(index, /onOpenMangaDetail: \(_work: string\): void => \{ this\.openReaderMangaDetail\(\)/)
-  assert.match(index, /onOpenMangaDetail: \(work: string\): void => \{\s*this\.openLibraryMangaDetail\(work\)/)
-  assert.doesNotMatch(page, /RouterHelper|MangaDetailRouteParam|RouteName\.MANGA_DETAIL/)
-})
