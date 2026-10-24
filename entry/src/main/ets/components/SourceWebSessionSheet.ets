@@ -31,7 +31,6 @@ export struct SourceWebSessionSheet {
   private pageRevision: number = 0
   private pageUrl: string = ''
   private pageFailed: boolean = false
-  private sawMainChallengeFailure: boolean = false
   private active: boolean = false
   private epoch: number = 0
   private controller: webview.WebviewController = new webview.WebviewController()
@@ -60,7 +59,6 @@ export struct SourceWebSessionSheet {
     this.autoRetryStarted = false
     this.pageUrl = ''
     this.pageFailed = false
-    this.sawMainChallengeFailure = false
     if (this.active && this.controllerReady) this.loadInitialPage()
   }
 
@@ -185,9 +183,10 @@ export struct SourceWebSessionSheet {
         DiagnosticLogger.info('source_web_session', 'cookie_context', 'state=unavailable')
       }
       const changedClearance = hasNewSourceClearance(this.clearanceBaseline, cookies)
-      // Some explicit site challenges use no CF cookie. A recovered document is
-      // only permission to validate the original read, never proof of success.
-      const needsNativeProbe = !changedClearance && this.sawMainChallengeFailure && currentUrl === this.params.url &&
+      // A claimed native challenge may open an already-working Web session.
+      // No Web403 or cookie change is required to test that original read once;
+      // the pending native probe, not this document, must establish success.
+      const needsNativeProbe = !changedClearance && this.canProbeOriginal() && currentUrl === this.params.url &&
         sourceClearanceCookieState(this.clearanceBaseline) === 'missing' && sourceClearanceCookieState(cookies) === 'missing'
       if (!changedClearance && !needsNativeProbe) {
         DiagnosticLogger.info('source_web_session', 'automatic_wait',
@@ -215,9 +214,6 @@ export struct SourceWebSessionSheet {
       'revision=' + this.pageRevision + ' kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
       ' matchingDocument=' + (request.getRequestUrl() === this.pageUrl) +
       ' challengeHost=' + (sourceWebOrigin(request.getRequestUrl()) === 'https://challenges.cloudflare.com'))
-    if (kind === 'http' && code === 403 && request.isMainFrame() && request.getRequestUrl() === this.pageUrl) {
-      this.sawMainChallengeFailure = true
-    }
     this.mainPageFailed(request)
   }
 

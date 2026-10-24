@@ -191,7 +191,7 @@ function sheetFixture() {
   const sheet = new exports.Sheet(), initialUrl = 'https://test.invalid/catalog'
   Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
     autoRetryOnClearance:true,canProbeOriginal:()=>true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
-    autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,sawMainChallengeFailure:false,clearanceBaseline:undefined,
+    autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,
     controller:{loadUrl:()=>{},getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>'',getUserAgent:()=> 'Web UA',
       accessBackward:()=>false,accessForward:()=>false},
     onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
@@ -334,8 +334,8 @@ test('failed non-CF native verification leaves the manual control usable and nev
   f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,1)
   await f.sheet.completeSourceSession();assert.equal(f.completed.length,1)
 })
-test('an arbitrary cookie change without an observed main-document challenge does not trigger a native probe',async()=>{
-  const f=sheetFixture();f.sheet.clearanceBaseline='site_token=old';f.setCookies('site_token=new')
+test('an arbitrary cookie change without a current original native challenge cannot trigger a probe',async()=>{
+  const f=sheetFixture();f.sheet.canProbeOriginal=()=>false;f.sheet.clearanceBaseline='site_token=old';f.setCookies('site_token=new')
   f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,0);assert.equal(f.completed.length,0)
 })
 for(const action of ['close','aboutToDisappear','navigation'])test('an in-flight non-CF probe cannot finish after '+action,async()=>{
@@ -360,4 +360,17 @@ test('a stale original receipt cannot start or complete the pending native verif
   const g=sheetFixture();let resolve;g.setProbe(new Promise(r=>resolve=r));opaqueChallengeRecovered(g);await settled()
   g.sheet.canProbeOriginal=()=>false;resolve(true);await settled()
   assert.equal(g.granted.length,0);assert.equal(g.completed.length,0)
+})
+
+test('an already-working non-CF Web document validates the claimed native read without a Web403 or cookie change',async()=>{
+  const f=sheetFixture();f.sheet.clearanceBaseline='site_token=unchanged';f.setCookies('site_token=unchanged')
+  let resolve;f.setProbe(new Promise(r=>resolve=r));f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.probes.length,1);assert.equal(f.granted.length,0);assert.equal(f.completed.length,0)
+  resolve(true);await settled();assert.equal(f.granted.length,1);assert.equal(f.completed.length,1)
+})
+test('a normal non-CF document alone never grants access when its original native read still fails',async()=>{
+  const f=sheetFixture();f.sheet.clearanceBaseline='site_token=unchanged';f.setCookies('site_token=unchanged')
+  f.sheet.pageEnded({url:f.initialUrl});await settled()
+  assert.equal(f.probes.length,1);assert.equal(f.granted.length,0);assert.equal(f.completed.length,0)
+  f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,1)
 })
