@@ -931,11 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T19:52:31.227399+00:00",
+  "updatedAt": "2026-10-24T20:11:44.260077+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "Root：237真实末项安装已验分隔线与保留行；提交此限定修复后接回N068跳页相邻解码空缺。",
-  "nextAction": "提交同步源列表末项key修复，跟进精确CI；定位N068跳页后的文件命中、原生解码和呈现交接，不重跑已冻结路径。",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activity": {
+    "title": "验证后台浏览源行的稳定身份",
+    "detail": "237已部署8546371B候选；下一次真实安装检查后台Browse是否还重建相邻源行。",
+    "startedAt": "2026-10-24T20:11:44.260077+00:00"
+  },
+  "nextAction": "完成237一次真实安装及trace核对，提交同步持久化/浏览行身份修复；连续性能N068保留独立定位。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1109,7 +1113,7 @@
         "E cdb9c22明确安装38181768B；061原下载4212986的13/19，063原生条实选14且正文/选中一致。064全294帧/9联系表顺序亲审，三组快速往返正文连续，无整屏空白/错页；065原LTR勾选13/19亲核，066原2项完成下载保持。E现有CI preflight通过。"
       ],
       "remainingActions": [
-        "现有N068跳页相邻页短空缺约116ms（240→247原PTS4.614667→4.730522）待核请求/解码/定位；非整屏空白，不据此推断单因。三端本轮CI已成功，下一当前处理项为已批准全屏入场候选。"
+        "N068跳页相邻短空缺240→247/约116ms仍待定位。23:19:00.537 seek后.539–.552有两组文件cache hit，.553–.573既有增强结果ready；原生JPEG解码发生至.983，但缺逐slot对齐，不能据此断言空缺唯一成因。下一核资源需求/解码/可见范围交接，保原图加载反馈与所有宿主旧路径。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
@@ -2725,7 +2729,21 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-missing-tail-112",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-zerobyw-install-trace-113"
-      ]
+      ],
+      "modificationBasisPersistence": {
+        "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
+        "history": "7dabc1e3持久化前逐文件readBytesSync验证长度；41e753dd删除重复注册/重算哈希，但保留整库同步读取。",
+        "originalReason": "保证被持久化的WASM路径存在、可读且长度匹配，冷启动仍能加载。",
+        "reopenEvidence": "237113 persistSync32ms；当前调用链确认69个已装WASM都经open/read/close，仅使用读取结果byteLength，无内容比较。",
+        "allowedDifference": "仅元数据持久化前改为READ_ONLY打开后stat(fd).isFile/size并关闭；保存在性/可读性/普通文件/长度检查、原子写入、同步事务与回滚。导入和冷启动继续读真实WASM，不增加异步并发窗口。"
+      },
+      "modificationBasisBrowse": {
+        "object": "BrowsePage.RuntimeSourceListItems的ForEach身份与末项分隔线",
+        "history": "9541bfed基线已有itemGenerator的index参数及无index的keyGenerator；后继增加按名排序后继续保留。",
+        "originalReason": "index只用于末项分隔线，key本意用源身份/版本/显示名保留行。",
+        "reopenEvidence": "237115后台Browse ForEach69→70，6个既有SourceListItem销毁/重建。官方ForEach键规则明确这组参数组合会自动拼接index。",
+        "allowedDifference": "仅改运行时源组：末项ID由Computed字符串维护，itemGenerator移除不再使用的index；保实际源身份/版本/显示名key及全部HDS行、排序、动作、尺寸和私库。"
+      }
     },
     {
       "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
@@ -3162,6 +3180,25 @@
         "reopenEvidence": "237013认证HTTP400/章节失败，016设置operation_response_mismatch；019修后4章，020页图GET400。桌面同接口业务Errors.Code3166明确地区限制。",
         "allowedDifference": "恢复既有400备用分支、返回not_supported；只认HTTP400+Succeeded=false+Errors.Code3166，源发固定region_restricted原因，App固定本地化并保HTTP优先级/未知脱敏。网址/身份/原认证key/图标/布局/网络与账户保持。"
       }
+    },
+    {
+      "id": "PROGRESS_TIMELINE_THEME",
+      "title": "进度页工作时间线与自动明暗主题",
+      "kind": "done",
+      "status": "简洁时间线与三种主题已在现有页面验证",
+      "priority": "P2（工具呈现，不丢产品主线）",
+      "owner": "Root",
+      "dependencies": [],
+      "reportedAt": "2026-10-24T20:05:28.004158+00:00",
+      "reportedAtSource": "本轮登记时间；原始提出时间不推算。",
+      "firstHandlingAt": "2026-10-24T20:05:28.004158+00:00",
+      "closedAt": "2026-10-24T20:11:44.260077+00:00",
+      "result": "当前卡片内一行折叠入口，展开竖线连接实际工作事件与原检查点。原生外观选择器提供自动/浅色/深色；选择保存在本机，深色刷新后仍保持；自动由prefers-color-scheme跟随系统。",
+      "remaining": "本次页面范围完成；后续实际工作节点继续维护在同一工作单timeline字段，不补造历史时间或工时。",
+      "evidence": [
+        ".hvigor/outputs/progress-timeline-theme/koma-progress-timeline-light.png",
+        ".hvigor/outputs/progress-timeline-theme/koma-progress-timeline-dark.png"
+      ]
     }
   ],
   "source": {
@@ -3213,7 +3250,49 @@
     }
   ],
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
-  "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。"
+  "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
+  "timeline": [
+    {
+      "id": "terminal-row-113",
+      "at": "2026-10-25T03:50:24.629575+08:00",
+      "title": "相邻源行重建修复通过237实测",
+      "detail": "真实安装Zerobyw，分隔线正确更新，trace未再重建相邻行。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "verified"
+    },
+    {
+      "id": "terminal-row-commit",
+      "at": "2026-10-25T03:52:55+08:00",
+      "title": "提交源列表行身份修复",
+      "detail": "d6dcb4c；精确CI40127317871随后已成功。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "registry-size-115",
+      "at": "2026-10-25T04:01:47.582390+08:00",
+      "title": "注册表重复读取修复通过正常安装",
+      "detail": "237安装Simply Hentai成功；原69源及书架、阅读记录保持，持久化记录10ms。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "verified"
+    },
+    {
+      "id": "progress-timeline-start",
+      "at": "2026-10-24T20:07:26.848989+00:00",
+      "title": "开始完善工作时间线和主题切换",
+      "detail": "保留简洁折叠入口；增加自动、浅色、深色，并验证刷新后的状态。",
+      "itemId": "PROGRESS_TIMELINE_THEME",
+      "kind": "work"
+    },
+    {
+      "id": "progress-timeline-theme-verified",
+      "at": "2026-10-24T20:11:44.260077+00:00",
+      "title": "进度页时间线与明暗主题已验证",
+      "detail": "折叠入口、连续节点、明暗切换及刷新记忆均已检查；后续记录沿用同一工作单。",
+      "itemId": "PROGRESS_TIMELINE_THEME",
+      "kind": "verified"
+    }
+  ]
 }
 -->
 
