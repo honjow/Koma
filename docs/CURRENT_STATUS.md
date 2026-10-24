@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T03:26:06.913316+00:00",
+  "updatedAt": "2026-10-24T03:48:13.890921+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": {
-    "title": "漫画屋网页会话与原生请求差异排查",
-    "detail": "015已能识别挑战并自动弹出网页。网页已显示分类，Cookie接口却没有clearance；人工完成后原生请求仍403。当前未恢复可用，不清Cookie或重复碰运气。",
+    "title": "漫画屋验证未通过，继续区分原因",
+    "detail": "197自动弹出网页后仍停留在安全验证；当前URL没有读到Cookie。第三方Cookie关闭只是配置事实，不能据此认定根因。该失败已保留，图标闪烁调查继续。",
     "startedAt": null
   },
-  "nextAction": "核对网页上下文与系统Cookie接口的差异；继续本行图标重建和大奉695章排序调查。",
+  "nextAction": "读取当前Web环境和页面错误的有界诊断；同时继续源图标因按钮更新重建的因果调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "9dcc1ad86f6f198e75f265c694429637083e2c41已push master；精确CI40056371060 completed/success，无新tag。",
-      "hap": "197438诊断Release8517496B/0.1.2-pre code3已安装；本机profile已恢复。438安装前后，以及442相对434的library/reader/registry均精确相同；源015，无新tag。"
+      "appHead": "34da2ea9c993d8d5f24af9392e4fba09e6a2ce88已push；精确CI40058325930 completed/success，无新tag。",
+      "hap": "197447已安装8516973B Release/0.1.2-pre code3，仅增加Cookie权限/URL作用域布尔诊断；profile已恢复，447安装前后及449三域逐字保持。无新tag。"
     },
     {
       "name": "NextE",
@@ -1435,10 +1435,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "440门禁明确no_clearance；442人工重试仍403",
+      "status": "449仍安全验证、无Cookie/clearance；原因未核",
       "kind": "open",
-      "result": "439网页有内容仍不自动收起，440诊断确认无clearance；441人工点完成能关闭Web，但442原生请求仍403/challenge_required，自动完成与业务回流均未过。",
-      "remaining": "查网页上下文与系统Cookie接口差异，再修自动完成；搜索、分页、详情及过期边界仍保各自范围。不清Cookie或盲重试。",
+      "result": "449原图仍为www.mhua5.com安全验证页，未网页就绪；文档门禁匹配但请求/当前Cookie均无，自动等待no_clearance。第三方Cookie关闭已证，尚不能归为挑战原因。",
+      "remaining": "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1458,17 +1458,18 @@
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "evidencePoints": [
-        "旧318自动弹及320/341包子人工回流范围保留，不覆盖漫画屋本轮失败；439自然自动Web约30.269秒后真实热门分类出现。",
-        "440两次文档结束的安全门禁均满足，但automatic_wait=no_clearance；无证据说unchanged、旧Cookie或TLS根因。",
-        "442重试598ms，session attached/cookieState empty/uaSource webview仍challenge_required/HTTP403；438诊断包安装前后三域同，29回归通过。"
+        "449亲审原图仍“正在进行安全验证”；多次document_end为automatic=true/attempted=false/failed=false，baselineKnown/matchingDocument/sessionPresent均true。",
+        "cookie_context：firstPartyAllowed=true、thirdPartyAllowed=false、sameRequestUrl=true；requestCookiePresent/currentCookiePresent均false，automatic_wait=no_clearance。",
+        "449三业务文件与447逐字同；原440–442就绪后人工关Web仍Native403范围保留，不将本轮安全验证页写成已就绪。",
+        "新增权限诊断不改变验证行为；现有29项挑战生命周期回归全过，源码与安装证据分别保留。"
       ],
       "remainingActions": [
-        "查同源已就绪网页为何没有可供原生请求使用的Cookie。",
-        "自动完成须用原生请求结果验证；旧包子人工回流不覆盖本轮漫画屋失败。"
+        "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。"
       ],
       "boundaries": [
-        "只对已确认challenge自动弹；普通403不弹，同attempt取消/再次挑战不自动循环。不伪造或清Cookie取样，不记录Cookie值，不把现有首页范围扩成所有源/所有CF支持。",
-        "旧135已自动弹、136由Root取消、138为取消后403；当前新实现不抹去旧证据。Cookie变化只是重试候选，不称站点验证成功。"
+        "第一方允许、第三方关闭只是已观测配置，不证明它是挑战根因；不清Cookie、不盲重试，不输出Cookie值。",
+        "原自动完成安全条件不变；安全验证页面不等内容就绪，未证明Native回流或源恢复。",
+        "取消、离页、旧请求失效及同次再次挑战不自动循环；只有明确信号才自动弹，普通403保持原错误。"
       ],
       "modificationBasis": {
         "object": "SourceWebSessionSheet.pageEnded诊断",
@@ -2459,21 +2460,19 @@
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
-      "kind": "open",
-      "status": "manager/Browse空项隐藏成立；已含范围CI成功",
-      "result": "245管理无项、有项247包子控件及253源Browse无空设置入口已核；独立Search与其他失败状态仍未扩认。",
+      "kind": "accepted",
+      "status": "manager/Browse及独立Search空设置入口具名验收通过",
+      "result": "446爱奇艺叭嗒独立Search标题正确、无query，右上仅原生house，无gear或空设置；manager/Browse既有通过范围保留。仅原空设置入口缺陷收口，未知/失败描述符不扩认。",
       "evidencePoints": [
-        "311漫小肆manager仅浏览/搜索已审且309→311三域相同；旧管理/Browse空项与包子有项范围保留。",
-        "Manager/Store均读response.ok；fixture问题只证Host summary/日志误报，不能称显式设置验证失败根因。",
-        "本范围已含876b435f，精确CI40033988416 success；不推断祖先独立run状态，也不提升未验Search。"
+        "245 manager无项、247包子有两控件、253 Browse无空设置入口及311漫小肆manager范围保持。",
+        "445/446普通Manager→Details→独立Search，Search=1且标题正确；get_settings=com.iqiyi.koma/not_supported23ms（11:32:12.766–12.789），三域与442精确同。",
+        "443/444错选无search能力的3Hentai011，原图禁用/暂不支持是正确行为，不记导航Bug，原失败留存。34da2ea9精确CI40058325930成功。"
       ],
-      "remainingActions": [
-        "独立Search菜单及其他未知/失败边界仍待；保合法空与unsupported不等价，不泛化所有源设置已修。"
-      ],
-      "remaining": "独立Search菜单及其他未知/失败边界仍待；保合法空与unsupported不等价，不泛化所有源设置已修。",
+      "remainingActions": [],
+      "remaining": "原空入口缺陷具名范围已验收；未知/失败描述符未扩认，后继真实新反例按原规则登记。",
       "boundaries": [
-        "不重开已验源设置直接弹出整体；原表单、保存/清除、关闭返回范围保持。",
-        "未知/失败不能误隐藏成无设置，其他已授权WIP保持。"
+        "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
+        "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2482,7 +2481,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-24T03:35:01.638296+00:00",
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
     },
     {
@@ -2750,21 +2749,21 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "网页就绪仍无clearance；人工完成后Native仍挑战403",
-      "result": "439自动网页约30.269秒后有真实分类仍不关闭；440门禁等no_clearance。441仅人工完成一次后Web关闭，442原生598ms重试仍challenge_required/HTTP403，未恢复。",
+      "status": "449仍安全验证、无Cookie/clearance；原因未核",
+      "result": "449原图仍为www.mhua5.com安全验证页，未网页就绪；文档门禁匹配但请求/当前Cookie均无，自动等待no_clearance。第三方Cookie关闭已证，尚不能归为挑战原因。",
       "evidencePoints": [
-        "源902f157精确CI40055887334成功；公开85项含015，真实包86607B/WASM54808B、单域www.mhua5.com、原图标相同，实际远端80项回放通过。",
-        "438诊断Release8517496B安装、29项回归通过；profile恢复，442与434三域数据精确相同。",
-        "440两次当前文档正常结束，但都记录no_clearance；不能说是Cookie未变化或TLS问题。",
-        "442人工完成后仅Web关闭；原生重试598ms，session=attached、cookieState=empty、uaSource=webview，仍返回challenge_required/403。"
+        "449亲审原图仍“正在进行安全验证”；多次document_end为automatic=true/attempted=false/failed=false，baselineKnown/matchingDocument/sessionPresent均true。",
+        "cookie_context：firstPartyAllowed=true、thirdPartyAllowed=false、sameRequestUrl=true；requestCookiePresent/currentCookiePresent均false，automatic_wait=no_clearance。",
+        "449三业务文件与447逐字同；原440–442就绪后人工关Web仍Native403范围保留，不将本轮安全验证页写成已就绪。"
       ],
       "remainingActions": [
-        "查网页与系统Cookie接口差异及原生403；自动完成和业务回流均未通过，不清Cookie或盲重试。"
+        "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。"
       ],
-      "remaining": "查网页与系统Cookie接口差异及原生403；自动完成和业务回流均未通过，不清Cookie或盲重试。",
+      "remaining": "读取当前Web环境/页面错误，并核对NextE原UA证据；原因未明前不改Cookie策略、UA或自动完成条件。",
       "boundaries": [
-        "只有官方精确信号才识别挑战，普通403仍保原错误；官网自然验证不等Native会话授权或回流。",
-        "015已采用，自动弹出成立；本轮自动及一次人工完成后均未恢复原生业务。442与434三域相同，不外推TLS原因。"
+        "第一方允许、第三方关闭只是已观测配置，不证明它是挑战根因；不清Cookie、不盲重试，不输出Cookie值。",
+        "原自动完成安全条件不变；安全验证页面不等内容就绪，未证明Native回流或源恢复。",
+        "取消、离页、旧请求失效及同次再次挑战不自动循环；只有明确信号才自动弹，普通403保持原错误。"
       ],
       "reportedAt": null,
       "reportedDate": null,

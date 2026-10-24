@@ -138,6 +138,17 @@ export struct SourceWebSessionSheet {
         return
       }
       const cookies = webview.WebCookieManager.fetchCookieSync(this.params.url, false)
+      try {
+        const currentCookies = currentUrl === this.params.url ? cookies :
+          webview.WebCookieManager.fetchCookieSync(currentUrl, false)
+        DiagnosticLogger.info('source_web_session', 'cookie_context',
+          'firstPartyAllowed=' + webview.WebCookieManager.isCookieAllowed() +
+          ' thirdPartyAllowed=' + webview.WebCookieManager.isThirdPartyCookieAllowed() +
+          ' sameRequestUrl=' + (currentUrl === this.params.url) +
+          ' requestCookiePresent=' + (cookies.length > 0) + ' currentCookiePresent=' + (currentCookies.length > 0))
+      } catch (_error) {
+        DiagnosticLogger.info('source_web_session', 'cookie_context', 'state=unavailable')
+      }
       if (!hasNewSourceClearance(this.clearanceBaseline, cookies)) {
         DiagnosticLogger.info('source_web_session', 'automatic_wait',
           'reason=' + (hasNewSourceClearance('', cookies) ? 'unchanged_clearance' : 'no_clearance'))
