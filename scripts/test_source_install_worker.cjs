@@ -109,9 +109,10 @@ function persistenceFixture() {
     const exports={};new Function('exports','require',code)(exports,requireModule);return exports
   }
   const names=evaluate('sourceRuntime/SourceLocalizedNames.ets',()=>{throw Error('unexpected name dependency')})
-  const files=new Map(),reads=[],writes=[];let writeFails=false
+  const files=new Map(),reads=[],writes=[],opened=[],closed=[],directories=new Set(),unreadable=new Set();let writeFails=false
   const nativeFs={OpenMode:{READ_ONLY:0},accessSync:p=>p==='/files'||files.has(p),
-    readTextSync:p=>files.get(p),statSync:p=>({size:files.get(p).length}),openSync:p=>({fd:p}),closeSync:()=>{},
+    readTextSync:p=>files.get(p),statSync:p=>({size:files.get(p).length,isFile:()=>!directories.has(p)}),
+    openSync:p=>{if(unreadable.has(p))throw Error('unreadable');opened.push(p);return {fd:p}},closeSync:f=>closed.push(f.fd),
     readSync:(fd,buffer)=>{reads.push(fd);const bytes=files.get(fd);new Uint8Array(buffer).set(bytes);return bytes.length},
     mkdirSync:()=>{throw Error('unexpected directory creation')}}
   const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
@@ -131,7 +132,7 @@ function persistenceFixture() {
         permissions:{network:false,hostImports:[],webSessionOrigins:['https://example.org']}}}
     assert.equal(registry.register(input).ok,true);return input
   }
-  return {registry,add,files,reads,writes,api,guards,names,set writeFails(value){writeFails=value}}
+  return {registry,add,files,reads,writes,opened,closed,directories,unreadable,api,guards,names,set writeFails(value){writeFails=value}}
 }
 test('installed projection retains the exact existing metadata while excluding staged, unarchived and removed sources',()=>{
   const f=persistenceFixture();f.add('keep',{enabled:false});f.add('removed');f.add('staged',{status:'staged'});f.add('unarchived',{archive:undefined})
@@ -141,7 +142,7 @@ test('installed projection retains the exact existing metadata while excluding s
   const before=f.registry.list().slice()
   const result=f.registry.persistImportedToAppLocalMetadata('/files/registry.json','removed')
   assert.equal(result.ok,true);assert.equal(result.persistedSourceCount,1)
-  assert.deepEqual(f.writes,expected.writes);assert.deepEqual(f.reads,['/packages/keep.wasm'])
+  assert.deepEqual(f.writes,expected.writes);assert.deepEqual(f.reads,[]);assert.deepEqual(f.opened,['/packages/keep.wasm']);assert.deepEqual(f.closed,f.opened)
   assert.deepEqual(f.registry.list(),before);assert.equal(f.registry.lookup('keep').entry,before[0])
   assert.equal(f.writes[0].metadata.entries[0].enabled,false)
 })
@@ -157,8 +158,22 @@ for(const failure of ['missingPath','missingFile','wrongSize'])test('installed p
 test('projection write errors propagate to the existing rollback owner without mutating live entries',()=>{
   const f=persistenceFixture();f.add('one');const entry=f.registry.lookup('one').entry;f.writeFails=true
   assert.throws(()=>f.registry.persistImportedToAppLocalMetadata('/files/registry.json'),/disk/)
-  assert.equal(f.registry.lookup('one').entry,entry);assert.deepEqual(f.reads,['/packages/one.wasm'])
+  assert.equal(f.registry.lookup('one').entry,entry);assert.deepEqual(f.reads,[]);assert.deepEqual(f.closed,f.opened)
 })
+test('persisting a full installed registry checks file descriptors without reading all WASM bytes; cold reload still reads them',()=>{
+  const f=persistenceFixture();for(let n=0;n<69;n++)f.add('source'+n,{enabled:n%2===0})
+  assert.equal(f.registry.persistImportedToAppLocalMetadata('/files/registry.json').persistedSourceCount,69)
+  assert.equal(f.reads.length,0);assert.equal(f.opened.length,69);assert.deepEqual(f.closed,f.opened)
+  const restored=f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata('/files/registry.json')
+  assert.equal(restored.ok,true);assert.equal(restored.reloadedSourceCount,69);assert.equal(f.reads.length,69)
+  assert.deepEqual(restored.registry.list().map(e=>[e.sourceId,e.enabled]),f.registry.list().map(e=>[e.sourceId,e.enabled]))
+})
+for(const failure of ['directory','unreadable'])test('metadata commit rejects '+failure+' before publishing and closes opened descriptors',()=>{
+  const f=persistenceFixture();f.add('one');f[failure==='directory'?'directories':'unreadable'].add('/packages/one.wasm')
+  assert.throws(()=>f.registry.persistImportedToAppLocalMetadata('/files/registry.json'),failure==='directory'?/regular/:/unreadable/)
+  assert.equal(f.writes.length,0);assert.deepEqual(f.closed,f.opened);assert.equal(f.registry.count(),1)
+})
+
 test('app persistence uses the admitted registry projection without reconstructing or hashing all WASM bytes',()=>{
   const calls=[]
   const api=functions(registryFile,['persistInstalledSources'],{

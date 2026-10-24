@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T20:11:44.260077+00:00",
+  "updatedAt": "2026-10-24T20:17:09.817012+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
   "activity": {
-    "title": "验证后台浏览源行的稳定身份",
-    "detail": "237已部署8546371B候选；下一次真实安装检查后台Browse是否还重建相邻源行。",
-    "startedAt": "2026-10-24T20:11:44.260077+00:00"
+    "title": "提交源安装数据与行身份修复",
+    "detail": "237正常返回71源，用户数据保持；仅提交两个已测实现，不关闭整体卡顿。",
+    "startedAt": "2026-10-24T20:17:09.817012+00:00"
   },
-  "nextAction": "完成237一次真实安装及trace核对，提交同步持久化/浏览行身份修复；连续性能N068保留独立定位。",
+  "nextAction": "同步本笔修复并跟进精确CI；继续保留行响应式更新范围与Reader N068短缺页定位。",
   "proof": [
     {
       "label": "正式主仓",
@@ -983,7 +983,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "f6f1c1a已push，CI40123012297成功；末项key限定修复已构建/237113验证，待范围提交。",
-      "hap": "237 source-terminal-row-release-signed.hap8547220B，0.1.2-pre/code3/Kit9b94e98；113正常安装源后69项，库/阅读记录同111。"
+      "hap": "237 source-identity-release-signed.hap8546371B，0.1.2-pre/code3/Kit9b94e98；118普通Browse71启用，三域同117。"
     },
     {
       "name": "NextE",
@@ -2691,20 +2691,21 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "相邻行重建限定修复已验，持久化与整体UI耗时继续OPEN",
-      "result": "237候选8547220B普通Zerobyw首次安装成功，missing17→16、installed68→69；原前一项Simply Hentai末尾分隔线正确收回。113 trace仅移除目标ConciseListRow，ForEach additionalChildComps=0，相邻行未因末项位置变化重建。library/reader逐字同111，registry只新增Zerobyw，原68项逐项相同。",
+      "status": "两处行身份重建和重复WASM读取已实测；剩余UI更新开放",
+      "result": "d6dcb4c已推且CI40127317871成功。最新8546371B候选237正常新装：117 Browse70→71 tempOldIdsSet0/additional1，管理页15→14只移目标；118返回真实71启用。115/117持久化记录10/8ms，45项检查通过；原70源与library/reader保持。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "434注册84IDs/顺序保持，仅漫画屋015/WASM54808/单域变化，其他83及library/reader逐字同；与379本地导入为不同具名路径，不作严格A/B。",
         "main63980既有12秒安装trace读回：depth0最长29.616ms、rmdir22.115ms，12实际帧max23.439ms/均3.622ms；本次没有录像，不判断418视觉反例通过。",
         "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。",
         "434 trace.db事件5986/5987：execute 0.288ms在callid369；complete 22.115ms在主callid262，仅3个子span（序列化两次/提示），无细分JS栈。官方TaskPool指南说明NAPI complete计入后续微任务；目前无法把22ms归给rmdir本身。",
-        "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。"
+        "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。",
+        "237115后台Browse因index隐式拼key重建6旧行；117修后70→71仅新增1、旧行0销毁，管理页仅移1。SourceRuntimeRegistry元数据提交改只读fd stat普通文件/长度，原子写与冷启动readBytes保持；Host24项及相关45项通过。116覆盖后70条注册及书架/阅读逐字同115，118正常返回71启用、三域同117。"
       ],
       "remainingActions": [
-        "本轮只关闭位置布尔key导致的相邻行重建；整体stall仍OPEN：113 import持久化同步32ms、row projection5ms、最长FlushDirty26.263ms。与079不同源/更新动作，不作耗时AB。后继定位同步持久化与剩余UI工作；本行图标仍独立项。"
+        "本轮冻结末项位置key、Browse隐式index key、持久化重复整库WASM读取三处限定缺陷。117仍有24.572ms FlushDirty更新/row projection6ms，总体stall不关闭；不同源安装不当严格性能AB。继续定位保留行的实际响应式更新范围，本行图标闪烁独立OPEN。"
       ],
-      "remaining": "本轮只关闭位置布尔key导致的相邻行重建；整体stall仍OPEN：113 import持久化同步32ms、row projection5ms、最长FlushDirty26.263ms。与079不同源/更新动作，不作耗时AB。后继定位同步持久化与剩余UI工作；本行图标仍独立项。",
+      "remaining": "本轮冻结末项位置key、Browse隐式index key、持久化重复整库WASM读取三处限定缺陷。117仍有24.572ms FlushDirty更新/row projection6ms，总体stall不关闭；不同源安装不当严格性能AB。继续定位保留行的实际响应式更新范围，本行图标闪烁独立OPEN。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -2728,7 +2729,10 @@
       },
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-missing-tail-112",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-zerobyw-install-trace-113"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-zerobyw-install-trace-113",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-registry-size237-simply-install-trace-115",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-identity237-nhentaito-install-trace-117",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-identity237-natural-return-118"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -3290,6 +3294,14 @@
       "title": "进度页时间线与明暗主题已验证",
       "detail": "折叠入口、连续节点、明暗切换及刷新记忆均已检查；后续记录沿用同一工作单。",
       "itemId": "PROGRESS_TIMELINE_THEME",
+      "kind": "verified"
+    },
+    {
+      "id": "browse-stable-117",
+      "at": "",
+      "title": "源安装不再重建后台浏览旧行",
+      "detail": "237真实新装后71项，trace旧行销毁0；书架和阅读记录保持。整体24.572ms更新仍继续定位。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "verified"
     }
   ]

@@ -295,6 +295,20 @@ function readBytesSync(path: string): Uint8Array {
   }
 }
 
+// Metadata commits need a readable, regular file of the admitted size, not
+// another copy of every installed WASM. Import and cold reload still read bytes.
+function readableFileSizeSync(path: string): number {
+  let file: fs.File | undefined = undefined
+  try {
+    file = fs.openSync(path, fs.OpenMode.READ_ONLY)
+    const stat = fs.statSync(file.fd)
+    if (!stat.isFile()) throw new Error('Source WASM must be a regular file')
+    return stat.size
+  } finally {
+    closeFileQuietly(file)
+  }
+}
+
 function ensureDirSync(path: string): void {
   if (fs.accessSync(path)) {
     return
@@ -672,8 +686,7 @@ export class SourceRuntimeRegistry {
           persistedSourceCount: 0,
         }
       }
-      const wasmBytes = readBytesSync(entry.wasmPath)
-      if (wasmBytes.byteLength !== entry.wasmByteCount) {
+      if (readableFileSizeSync(entry.wasmPath) !== entry.wasmByteCount) {
         return {
           ok: false,
           reasonCode: 'wasm_byte_count_mismatch',

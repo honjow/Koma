@@ -150,6 +150,12 @@ export struct BrowsePage {
           resolveSourceLocalizedName(right.displayName, right.localizedNames, locale), right.sourceId))
   }
 
+  @Computed
+  private get lastEnabledRuntimeSourceId(): string {
+    const sources = this.enabledRuntimeSources
+    return sources.length > 0 ? sources[sources.length - 1].sourceId : ''
+  }
+
   private runtimeSourceSummary(source: SourceRuntimeRegistryInstalledSourceSummary): string {
     const language = this.viewModel.sourceLanguageBadge(source)
     return `v${source.version}` + (language.length > 0 ? ` · ${language}` : '')
@@ -195,7 +201,7 @@ export struct BrowsePage {
         title: s('browse_installed_sources_heading'),
         subtitle: s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources.length}`),
       }) {
-        ForEach(this.enabledRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+        ForEach(this.enabledRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
           SourceListItem({
             source: source,
             subtitle: this.runtimeSourceSummary(source),
@@ -209,7 +215,7 @@ export struct BrowsePage {
               this.openSourceSearch(selected)
             },
           })
-          if (index + 1 < this.enabledRuntimeSources.length) {
+          if (source.sourceId !== this.lastEnabledRuntimeSourceId) {
             ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
         }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
