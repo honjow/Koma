@@ -33,6 +33,13 @@ import {
 
 export type BrowseSourceSection = 'popular' | 'latest'
 
+interface SourceSearchResultsIdentity {
+  entry?: SourceRuntimeRegistryEntry
+  fingerprint: string
+  page: number
+  cursor: string
+}
+
 type RuntimeValue = Object | string | number | boolean | null
 type RuntimeRecord = Record<string, RuntimeValue>
 
@@ -531,6 +538,8 @@ export class BrowseViewModel {
 
   private browseRequestId: number = 0
   private searchRequestId: number = 0
+  private searchResultsIdentity?: SourceSearchResultsIdentity
+  private searchErrorIsFirstPage: boolean = false
   private persistSearchFilters: boolean = true
   private failedBrowseListing?: SourceListingDescriptor
 
@@ -945,13 +954,24 @@ export class BrowseViewModel {
     }
   }
 
+  private searchResultFingerprint(source: SourceRuntimeRegistryInstalledSourceSummary, query: string): string {
+    return JSON.stringify([source.sourceId, source.version, source.wasmByteCount,
+      appSourceSettingsStore.revisionForSource(source.sourceId), query.trim(), this.searchFilterValues])
+  }
+
   async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false): Promise<void> {
+    const entry = this.registry.lookup(source.sourceId).entry
+    const fingerprint = this.searchResultFingerprint(source, query)
+    const retained = this.searchResultsIdentity
+    const retainsCurrentResults = this.searchResults.length > 0 && entry !== undefined &&
+      retained?.entry === entry && retained.fingerprint === fingerprint
     const requestId = this.searchRequestId + 1
     this.searchRequestId = requestId
     this.selectedSource = source
     this.searchQuery = query
-    this.searchPage = 1
-    this.searchNextCursor = ''
+    this.searchPage = retainsCurrentResults ? retained!.page : 1
+    this.searchNextCursor = retainsCurrentResults ? retained!.cursor : ''
+    this.searchErrorIsFirstPage = false
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
@@ -969,8 +989,10 @@ export class BrowseViewModel {
         return
       }
       this.searchResults = result.manga
+      this.searchPage = 1
       this.hasMoreSearch = result.hasNextPage
       this.searchNextCursor = result.nextCursor ?? ''
+      this.searchResultsIdentity = { entry, fingerprint, page: 1, cursor: this.searchNextCursor }
     } catch (error) {
       if (requestId !== this.searchRequestId) {
         return
@@ -981,9 +1003,12 @@ export class BrowseViewModel {
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
         async (): Promise<void> => { await this.runSearch(source, query, true) })
-      this.searchResults = []
+      this.searchErrorIsFirstPage = true
+      if (!retainsCurrentResults) {
+        this.searchResults = []
+        this.searchNextCursor = ''
+      }
       this.hasMoreSearch = false
-      this.searchNextCursor = ''
     } finally {
       if (requestId === this.searchRequestId) {
         this.loadingSearch = false
@@ -998,6 +1023,8 @@ export class BrowseViewModel {
       this.selectedSource = source
     }
     this.searchQuery = ''
+    this.searchResultsIdentity = undefined
+    this.searchErrorIsFirstPage = false
     this.searchPage = 1
     this.searchResults = []
     this.hasMoreSearch = false
@@ -1010,6 +1037,10 @@ export class BrowseViewModel {
   async retrySearchPage(automaticRecovery: boolean = false): Promise<void> {
     if (this.loadingSearch || this.searchErrorMessage.length === 0 || this.searchResults.length === 0 ||
       this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
+      return
+    }
+    if (this.searchErrorIsFirstPage) {
+      await this.runSearch(this.selectedSource, this.searchQuery, automaticRecovery)
       return
     }
     this.hasMoreSearch = true
@@ -1025,6 +1056,7 @@ export class BrowseViewModel {
     const query = this.searchQuery.trim()
     const page = this.searchPage + 1
     const cursor = this.searchNextCursor
+    this.searchErrorIsFirstPage = false
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
@@ -1039,6 +1071,10 @@ export class BrowseViewModel {
       this.searchResults = appendUniqueSourceManga(this.searchResults, more.manga)
       this.hasMoreSearch = more.hasNextPage
       this.searchNextCursor = more.nextCursor ?? ''
+      if (this.searchResultsIdentity !== undefined) {
+        this.searchResultsIdentity.page = page
+        this.searchResultsIdentity.cursor = this.searchNextCursor
+      }
     } catch (error) {
       if (requestId !== this.searchRequestId) {
         return

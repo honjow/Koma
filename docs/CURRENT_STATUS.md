@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T09:33:49.545049+00:00",
+  "updatedAt": "2026-10-24T10:09:32.542856+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "REFRESH_RETAIN_EXISTING_CONTENT",
-  "activity": "网页诊断已完成具名实录，跨站点往返仍OPEN；正在审其它刷新内容保留写入链，先审差异再同步诊断。",
-  "nextAction": "精确审4文件并提交推送诊断、跟进CI；继续SourceSearch/详情及其他刷新所有者，区分新查询和同内容刷新，不复跑已接受路径。",
+  "activity": "已用576真实Text卡与两次200搜索核正常重搜，577三域保持；收口当前刷新修复，随后处理已实证漫画160挑战信号丢失。",
+  "nextAction": "审本次六文件精确diff、提交推送并跟进CI；不把Host失败保留或未出现的错误footer说成Native验收。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1437,10 +1437,12 @@
         "547真实漫画160 get_image_request 179字节结果被记为reason=unknown/error=unknown/kind=runtime；现源run_get_image_request明确返回not_implemented。mh160/manhuawu限流返回rate_limit，现白名单只接受rate_limited；SourceSettingsStore已接受not_implemented/not_supported。",
         "source-failure-alias两组29+66=95检查通过；8529046B签名Release/0.1.2-pre code3安装明确成功。556当前日志reason=not_implemented/error=not_implemented/kind=unsupported；未知私密code/message仍脱敏。",
         "560普通返回原详情784→源→书架；561 library/reader/registry与554安装后全部逐字同，无开书或手动重试。",
-        "6ca1b69477a2bb9812b75b9c9b8fbc26e29d5ea0已push，精确CI40080793887 completed/success；无新tag/发布。"
+        "6ca1b69477a2bb9812b75b9c9b8fbc26e29d5ea0已push，精确CI40080793887 completed/success；无新tag/发布。",
+        "572具名新反例：漫画160搜索底层HTTP403/5839chars且明确access_signal=challenge_required；源将其降成permission_denied/http0，manifest无webSessionOrigins，所以原生仅普通拒绝提示、未自动验证。571文本断言只命中SearchField，纠正文件保留。"
       ],
       "remainingActions": [
-        "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。"
+        "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
+        "漫画160搜索准确传播HTTP状态和Host明确挑战信号；必要源origin权限须按真实站点限定，先补源端契约调查，不重试现失败。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -1462,7 +1464,7 @@
       "status": "普通Web跨origin重复导航已实录；自动验证具名冻结",
       "kind": "open",
       "result": "537/538自动会话回流冻结。568/569漫画160普通Web一次初始调用后，原网址与另一个origin交替；18.662秒58个文档，前48条阶段未见资源错误；后续仅计数。48条阶段上限实录生效；正常返回且三业务域保持。白屏未修。",
-      "remaining": "同步仅阶段诊断并跟进精确CI；漫画160跨origin跳转的具体站点链尚未知，不改UA/域/会话或重试规避。其余CF人工验证/登录边界按自然样本保留。",
+      "remaining": "漫画160跨origin跳转具体站点链仍未知；源搜索挑战信号丢失按SOURCE_RUNTIME_ERRORS独立处理。其余CF人工验证/登录按自然样本保留，不无依据重复网页请求。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1497,10 +1499,11 @@
         "922d153fcb7ae92a381e2607b86d35ae900a5e77已push，精确CI40077208291 completed/success；无tag/发布。",
         "当前新分支：557正确源URL打开WebView，558 Webbounds有效/站点标题存在但白屏；559等待31.290s加载指示仍在。没有DevTools socket，不启调试或换客户端。原MangaWebPage无持久阶段诊断，根因未知，不将入口成功冒网站可用。",
         "562 Release8540066B明确安装成功，首版11项Host通过；564原图白屏/真实Web几何且业务三域与562同。日志17:21:48.881一次start，至17:23:23.436为261begin/260end/65visible；无主/子resource_failed，标题已有站点名。565普通返回详情784→原书架。",
-        "567 Release8539452B/0.1.2-pre code3明确安装，三域前后同；12项Host通过。569原始日志：revision奇数matchesInitialUrl/sameInitialOrigin均true，偶数均false；一次start，18.662s/58doc，48阶段+抑制标志+结束总51条。568普通Back到详情784再原书架，569三业务域与567逐字同。"
+        "567 Release8539452B/0.1.2-pre code3明确安装，三域前后同；12项Host通过。569原始日志：revision奇数matchesInitialUrl/sameInitialOrigin均true，偶数均false；一次start，18.662s/58doc，48阶段+抑制标志+结束总51条。568普通Back到详情784再原书架，569三业务域与567逐字同。",
+        "7b06ad5226b4ab0f96b020051036161f7170c290已push，精确CI40082499024 completed/success，无tag。"
       ],
       "remainingActions": [
-        "同步仅阶段诊断并跟进精确CI；漫画160跨origin跳转的具体站点链尚未知，不改UA/域/会话或重试规避。其余CF人工验证/登录边界按自然样本保留。"
+        "漫画160跨origin跳转具体站点链仍未知；源搜索挑战信号丢失按SOURCE_RUNTIME_ERRORS独立处理。其余CF人工验证/登录按自然样本保留，不无依据重复网页请求。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -2649,7 +2652,7 @@
       "id": "REFRESH_RETAIN_EXISTING_CONTENT",
       "title": "刷新与首次加载分离，保已有内容与图标",
       "priority": "P1（当前源闪烁主线关联要求）",
-      "owner": "Root",
+      "owner": "Root：SourceBrowse内搜索与独立SourceSearch同查询重试/失败保内容写入链",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_PACKAGE_ICON_INVALIDATION",
@@ -2657,16 +2660,18 @@
         "MANGA_DETAIL_PULL_REFRESH"
       ],
       "kind": "open",
-      "status": "306普通重入先显完整运动已审；其他页面未全查",
-      "result": "8511716B的306全部82帧及关键原图已审，缓存组先于后台检查显现；旧300保内容范围仍冻结，其他页面未全查。",
+      "status": "同查询刷新保留已实现/94 Host通过；576原生正常重搜具名通过",
+      "result": "生产方法Host先复现失败清空，修复后94相关检查通过。570安装Release8537665B，576包子真实内容Text卡成立；两次搜索HTTP200/368ms与356ms，同卡几何保持，577三域与570逐字同。",
       "evidencePoints": [
         "306转场0.597秒已见缓存列表，3.469秒check结束；重新入页图标1.005秒全真图，不当原有内容刷新清空。",
-        "302/303及305业务域保持已核；不把源管理具名结果写成全App状态检查完成。"
+        "302/303及305业务域保持已核；不把源管理具名结果写成全App状态检查完成。",
+        "search-refresh-retention-before.txt：53项52过/1真实失败，已有p1/p2被清空；修改后消费者94/94。同源/包/entry/设置/查询/筛选严格归属，首屏失败footer回第一页，分页仍原cursor。",
+        "576包子初始首页自然403后现有自动会话恢复原GET200/385ms；无人工完成。查询大奉打更人真实Text在[39,1080,407,1139]，与输入框分开，两次search响应506字节/HTTP200；原Library恢复，577三域保持。571误匹配与574源定位失败原件保留，不作通过。"
       ],
       "remainingActions": [
-        "保源管理当前普通重入/刷新具名范围；其他页面逐写入链后继核，失败/换库/cold不外推。"
+        "本次范围提交推送并跟进精确CI；真实同查询失败保留与原因footer布局、独立SourceSearch普通入口仍待自然样本。其他页面按原队列，已验源管理/详情不重复跑。"
       ],
-      "remaining": "保源管理当前普通重入/刷新具名范围；其他页面逐写入链后继核，失败/换库/cold不外推。",
+      "remaining": "本次范围提交推送并跟进精确CI；真实同查询失败保留与原因footer布局、独立SourceSearch普通入口仍待自然样本。其他页面按原队列，已验源管理/详情不重复跑。",
       "boundaries": [
         "当前源图标闪烁/安装阻塞仍主线，新反馈不替换旧顺序。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
@@ -2679,7 +2684,14 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null,
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "modificationBasis": {
+        "object": "BrowseViewModel.runSearch/clearSearch/retrySearchPage与SourceSearchPage现有footer调用",
+        "history": "113918872实源搜索引入失败无条件清空；3882d9e86加请求号守卫，f831e16f4加入cursor；3b662bd6b恢复原请求挑战。",
+        "originalReason": "初始搜索失败展示空错误，分页失败保已成功行并重试原页；当前实现未分已有同查询的重新搜索失败。",
+        "reopenEvidence": "本次完整刷新写入链审查发现runSearch catch无条件searchResults=[]，开始即page=1/cursor空；原生源搜索菜单验证返回会retrySearch同query。",
+        "allowedDifference": "只对同sourceId/版本/字节数、同registry entry、同settings revision、同query和filters的已成功结果保留；失败仍走已有footer，重试明确回第一页。保留原safe错误原因到现有footer文字，尺寸/排布/字号/颜色保持，未给消息的Browse footer保持原样。新查询/换源/换包/设置/筛选变化不继承旧归属。保UI/翻译/排序/请求次数和挑战守卫，无失败注入到设备。"
+      }
     },
     {
       "id": "LIBRARY_READING_PROGRESS_SEMANTICS",

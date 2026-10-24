@@ -6,6 +6,7 @@ export struct SourcePaginationFooter {
   @Param isLoading: boolean = false
   @Param hasMore: boolean = true
   @Param isError: boolean = false
+  @Param errorMessage: string = ''
   @Event onRetry: () => void = () => {}
 
   build() {
@@ -20,7 +21,7 @@ export struct SourcePaginationFooter {
           .fontColor(ThemeConstants.TEXT_SECONDARY)
           .margin({ left: ThemeConstants.SPACE_SM })
       } else if (this.isError) {
-        Text($r('app.string.common_load_failed_tap_retry'))
+        Text(this.errorMessage.length > 0 ? this.errorMessage : $r('app.string.common_load_failed_tap_retry'))
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
       } else if (!this.hasMore) {

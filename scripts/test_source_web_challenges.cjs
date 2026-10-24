@@ -18,7 +18,7 @@ const ast = ts.createSourceFile('vm.ts', read('viewmodel/BrowseViewModel'), ts.S
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
 const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
-  'runSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
+  'searchResultFingerprint', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'loadBrowseHome', 'setSelectedSource']
 const source = `export class Model { ${methods.map(name => owner.members.find(node => node.name?.text === name).getText(ast)).join('\n')} }`
 const intents = { NONE: 'none', INITIAL: 'initial', REFRESH: 'refresh', PAGINATION: 'page', LISTING_REPLACEMENT: 'listing' }
@@ -373,4 +373,45 @@ test('a normal non-CF document alone never grants access when its original nativ
   f.sheet.pageEnded({url:f.initialUrl});await settled()
   assert.equal(f.probes.length,1);assert.equal(f.granted.length,0);assert.equal(f.completed.length,0)
   f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,1)
+})
+
+
+test('same-query refresh failure retains loaded rows and retries page one through the existing footer', async () => {
+  const f=fixture();f.replies.push({manga:[{id:'p1'}],hasNextPage:true,nextCursor:'cursor2'},
+    {manga:[{id:'p2'}],hasNextPage:true,nextCursor:'cursor3'})
+  await f.model.runSearch(f.source,'one');await f.model.loadMoreSearch()
+  const rows=f.model.searchResults
+  let reject;f.replies.push(new Promise((_resolve,r)=>{reject=r}))
+  const refresh=f.model.runSearch(f.source,' one ')
+  const pending={rows:f.model.searchResults,page:f.model.searchPage,cursor:f.model.searchNextCursor}
+  reject(challenge());await refresh
+  assert.equal(f.model.searchResults,rows,'a failed refresh preserves previously loaded rows')
+  assert.equal(pending.rows,rows,'retain the exact displayed row array while pending')
+  assert.equal(pending.page,2);assert.equal(pending.cursor,'cursor3')
+  assert.equal(f.model.searchPage,2)
+  assert.equal(f.model.searchNextCursor,'cursor3');assert.equal(f.model.hasMoreSearch,false)
+  f.replies.push({manga:[{id:'fresh1'}],hasNextPage:true,nextCursor:'fresh2'})
+  await f.model.retrySearchPage()
+  assert.deepEqual(f.calls.map(x=>x.page),[1,2,1,1],'footer retries failed refresh, never appends page three')
+  assert.deepEqual(f.model.searchResults,[{id:'fresh1'}]);assert.equal(f.model.searchPage,1)
+  assert.equal(f.model.searchNextCursor,'fresh2')
+})
+
+for(const [name,change] of [
+  ['query',f=>{f.query='different'}],['source',f=>{f.source={...f.source,sourceId:'other'}}],
+  ['package version',f=>{f.source={...f.source,version:'2'}}],['entry',f=>f.replaceEntry()],
+  ['settings',f=>f.changeSettings()],['filters',f=>{f.model.searchFilterValues={region:'new'}}],
+])test('first-page failure does not inherit rows from a different '+name,async()=>{
+  const f=fixture();f.query='one';f.replies.push({manga:[{id:'old'}],hasNextPage:false})
+  await f.model.runSearch(f.source,'one');change(f);f.replies.push(challenge())
+  await f.model.runSearch(f.source,f.query);assert.deepEqual(f.model.searchResults,[])
+})
+
+test('successful same-query empty refresh replaces old rows and clearSearch invalidates retention',async()=>{
+  const f=fixture();f.replies.push({manga:[{id:'old'}],hasNextPage:false},{manga:[],hasNextPage:false})
+  await f.model.runSearch(f.source,'one');await f.model.runSearch(f.source,'one')
+  assert.deepEqual(f.model.searchResults,[]);assert.equal(f.model.searchErrorMessage,'')
+  f.replies.push({manga:[{id:'again'}],hasNextPage:false});await f.model.runSearch(f.source,'one')
+  f.model.clearSearch(f.source);f.replies.push(challenge());await f.model.runSearch(f.source,'one')
+  assert.deepEqual(f.model.searchResults,[])
 })

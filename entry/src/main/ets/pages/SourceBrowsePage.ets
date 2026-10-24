@@ -553,6 +553,8 @@ export struct SourceBrowsePage {
         hasMore: this.isSearchActive() ? this.viewModel.hasMoreSearch : this.viewModel.hasMoreBrowse,
         isError: this.isSearchActive() ? this.viewModel.errorMessage.length > 0 :
           this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION,
+        errorMessage: this.isSearchActive() && this.viewModel.searchErrorMessage.length > 0
+          ? `${this.viewModel.searchErrorMessage} · ${s('common_retry')}` : '',
         onRetry: () => {
           if (this.isSearchActive()) void this.viewModel.retrySearchPage()
           else void this.viewModel.retryBrowseFailure()

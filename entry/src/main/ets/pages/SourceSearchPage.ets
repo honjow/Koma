@@ -387,6 +387,8 @@ export struct SourceSearchPage {
         isLoading: this.viewModel.loadingSearch,
         hasMore: this.viewModel.hasMoreSearch,
         isError: this.viewModel.searchErrorMessage.length > 0,
+        errorMessage: this.viewModel.searchErrorMessage.length > 0
+          ? `${this.viewModel.searchErrorMessage} · ${s('common_retry')}` : '',
         onRetry: () => { void this.viewModel.retrySearchPage() },
       })
     }
