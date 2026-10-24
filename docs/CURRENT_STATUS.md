@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T01:47:11.321279+00:00",
+  "updatedAt": "2026-10-24T02:31:06.536037+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_READING_PROGRESS_SEMANTICS",
+  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": {
-    "title": "书架100%：最近章比例与保存语义只读调查",
-    "detail": "现有三书只读生产投影证实：全书未读完仍显示最近章100%。继续核初始位置/保存/退出刷新；尚未改阅读记录或显示定义。",
-    "startedAt": "2026-10-24T01:42:00+00:00"
+    "title": "漫画屋403地址取证；安装本行图标更新范围调查",
+    "detail": "Root已亲审423 Native014保留HTTP403；源owner用现存HTML核地址。418本行图标瞬空仍复现，Root追原生HDS前后缀更新路径；不以错误文案补齐冒源可用。",
+    "startedAt": null
   },
-  "nextAction": "继续追最近章位置保存与书架/全书读态消费者，先证用户样本原因，不改数据或冒Native复现；Web四例外/未加载边界保留。",
+  "nextAction": "沿现存HTML/历史核漫画屋403请求依据；继续查418图标为何在按钮状态变化时瞬空，保原生HDS样式和其他源数据。",
   "proof": [
     {
       "label": "正式主仓",
@@ -2490,16 +2490,16 @@
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "316本行瞬空仍OPEN；317组尾divider已核",
-      "result": "317只剩HANMAN18一未装行，无尾divider且已装divider正常；83→84仅Zerobyw新增、旧83及library/reader同315。316本行瞬空/卡片异常仍OPEN。",
+      "status": "418自然漫画屋更新复现本行瞬空，仍OPEN",
+      "result": "真实0.1.3→公开0.1.4更新时，418第8帧0.146778s本行图标瞬空，第9帧0.165611s恢复；其他可见行图保留。旧316反例现有新鲜复现，未接受。",
       "evidencePoints": [
-        "Root完整审317screen/layout：单未装无尾divider，已装分隔正常；registry仅Zerobyw新增，其余数据逐字同315。",
-        "有效修复代码f4caffaa已push，未把提交当316视觉反例通过；旧300有内容刷新不闪范围保留。"
+        "Root顺审418完整114帧/4表及7–9、64–66原帧，确认本行短暂空白；未外推所有源图标。",
+        "419 registry84仅com.manhuawu.koma更新014/WASM54328/homepage，其余83及enabled保持，library/reader逐字同417。"
       ],
       "remainingActions": [
-        "保316安装本行瞬空/原生卡片反例，Root暂切包子不可读具名链后接回，未取消。"
+        "Root继续追418本行图标失效/回填因果，保持原生行布局，不把阶段耗时或更新成功当视觉通过。"
       ],
-      "remaining": "保316安装本行瞬空/原生卡片反例，Root暂切包子不可读具名链后接回，未取消。",
+      "remaining": "Root继续追418本行图标失效/回填因果，保持原生行布局，不把阶段耗时或更新成功当视觉通过。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
@@ -2526,21 +2526,22 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "具名本地导入改善已推且本笔CI成功；自然远端边界保留",
-      "result": "379无探针同84源/同公开包本地导入46ms，Vsync31.559/Dirty15.652ms且>33.34ms为0；具名改善成立，远端自然更新/316行瞬空仍另保OPEN。",
+      "status": "418自然远端更新完成；阶段耗时已取，主线程边界未验",
+      "result": "漫画屋真实远端更新完成：install_requested至done1.305s，import60ms；仅阶段耗时，不等主线程或帧率验收。379本地导入改善保留，418本行瞬空仍开放。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "379库reader同377，registry84/顺序/余83同，仅包子4路径；380正常Back至根Browse，84已启用/包子存在。",
         "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。",
-        "381正常根Browse原图Root已审，84启用/包子0.1.10图标可见；library/reader/registry与379逐字同。仅本轮CPU设备副本已移除并读回为空，本地373原件保留。"
+        "381正常根Browse原图Root已审，84启用/包子0.1.10图标可见；library/reader/registry与379逐字同。仅本轮CPU设备副本已移除并读回为空，本地373原件保留。",
+        "418日志10:21:37.060请求→38.276导入→38.336成功→38.365完成；419仅该源更新、其余83/library/reader保持。未取得该次主线程定量结论。"
       ],
       "remainingActions": [
-        "本笔提交/CI已完成；仅在后继真实远端更新时补316原生行运动，不造版本、不扩大379具名改善。"
+        "当前真实远端更新条件已执行；补该分支主线程定量与418本行图标因果，不能用1.305s阶段耗时替代性能验收。"
       ],
-      "remaining": "本笔提交/CI已完成；仅在后继真实远端更新时补316原生行运动，不造版本、不扩大379具名改善。",
+      "remaining": "当前真实远端更新条件已执行；补该分支主线程定量与418本行图标因果，不能用1.305s阶段耗时替代性能验收。",
       "boundaries": [
         "仅具名同数据本地导入性能改善；不外推FPS/全App/远端更新或安装行瞬空已修。",
-        "当前无自然远端更新条件，不伪造版本；kind仍open，316独立反例保持。",
+        "漫画屋自然0.1.3→0.1.4已执行，更新完成不代表远端UI性能或418图标瞬空通过；kind仍open。",
         "诊断源码均撤；仅清本轮device CPU副本，本地373原件保留，不新tag。"
       ],
       "reportedAt": null,
@@ -2565,18 +2566,19 @@
         "LIST_EDGE_SCROLL_FEEL"
       ],
       "kind": "open",
-      "status": "新反馈已登记，具体因果待核",
-      "result": "用户新报详情下拉时顶部露底颜色不同；这是需修的可见缺陷，尚未定位或取得原图。",
+      "status": "原图背景分界与固定父层缺色已核；颜色候选待答未实施",
+      "result": "Root亲看114/frame000062.png白色固定区/下移灰列表分界；746e3b8e父树中BG_SUB随内容下移、固定Stack无同色背景。候选仅详情固定Stack补BG_SUB，颜色选择待答未实施。",
       "evidencePoints": [
-        "当前仅用户实际观察；不能以不崩溃排除，不猜背景所有者。"
+        "现完整父树：SecondaryListScaffold.BG_SUB随PullRefresh.content offset移动；MangaDetailPage固定Stack/PullRefresh未持同色背景。",
+        "原114帧已亲审，不再写未取图；未实施/构建，不冒当前399包的Native修复通过。"
       ],
       "remainingActions": [
-        "当前源性能后取得普通下拉原图，追PullRefresh/详情/父层背景所有者并限定修正。"
+        "仅该固定Stack背景颜色候选等异步答复；不改布局/动画或公共PullRefresh，其他调查继续。"
       ],
-      "remaining": "当前源性能后取得普通下拉原图，追PullRefresh/详情/父层背景所有者并限定修正。",
+      "remaining": "仅该固定Stack背景颜色候选等异步答复；不改布局/动画或公共PullRefresh，其他调查继续。",
       "boundaries": [
-        "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
-        "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
+        "允许候选仅详情固定Stack.backgroundColor(ThemeConstants.BG_SUB)，待明确颜色选择后实施；公共PullRefresh/布局/动画不动。",
+        "旧原图证明可见缺陷，不等当前399包新Native通过；提问只阻该显示候选，不暂停独立工作。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2586,7 +2588,8 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null,
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。"
     },
     {
       "id": "REFRESH_RETAIN_EXISTING_CONTENT",
@@ -2635,17 +2638,17 @@
         "SHARED_ROUTE"
       ],
       "kind": "open",
-      "status": "现有数据证实章内100%被用于书架；保存链与显示方案待核",
-      "result": "只读运行实际生产显示方法：Meme Girls已读2/288章、大理寺日志1/392章、战双日常1/33章，全书均reading而卡片和继续阅读均100%；来自406现有数据，未写设备，未冒用户原书或Native画面复现。",
+      "status": "三书真实投影证实章内100%；显示候选待答，保存链继续",
+      "result": "406现有三书非全读却书架/continue100已由生产方法只读证实；候选多章书卡片显示已读N/M章，单章本地与continue章内百分比保持，表达选择待答。",
       "evidencePoints": [
         "MockLibraryData的卡片/继续阅读共用最近章节progressRatio；ComicModels按当前章页数计算，ReaderSessionStore每书保存最近位置，章已读事实另存。",
         "以406现有library/reader只读输入运行实际createLibraryViewModelFromComics及getComicProgress/comicReadingState，三书非全读仍100%，不是全书进度。",
-        "Index共享宿主保存观察到的页位置、退出发布revision；是否另有首次位置丢失或用户样本保存缺口仍需逐链核。"
+        "实际InMemory及Persistent类配内存adapter验证最近位置100%→10%可覆盖，flush后重开保持；旧章已读独立。尚未证明设备首次位置回调无缺口。"
       ],
       "remainingActions": [
-        "追最近章选择/初始保存/全书读态与卡片消费者，结合真实样本厘清语义后限定修复。"
+        "仅显示候选等待异步选择；继续追初始位置/保存链与用户样本，不让提问暂停独立调查。"
       ],
-      "remaining": "追最近章选择/初始保存/全书读态与卡片消费者，结合真实样本厘清语义后限定修复。",
+      "remaining": "仅显示候选等待异步选择；继续追初始位置/保存链与用户样本，不让提问暂停独立调查。",
       "boundaries": [
         "源图标本行瞬空等独立未闭项保留；已验安装性能具名范围不重跑，也不因本项丢弃其他反馈。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
@@ -2655,11 +2658,11 @@
       "reportedAtSource": "最新人类原文，无精确UTC首报，留空不猜；原始提出日期亦未核，reportedAt/reportedDate均未知。",
       "firstEvidenceAt": "2026-10-23T21:16:09.194667+00:00",
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
-      "firstHandlingAt": "2026-10-24T01:42:00+00:00",
+      "firstHandlingAt": null,
       "handling": null,
       "closedAt": null,
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
-      "firstHandlingAtSource": "Root本轮实际开始只读调查时间；更早处理未知，不倒填。"
+      "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。"
     },
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
@@ -2734,26 +2737,30 @@
     },
     {
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
-      "title": "漫画屋源不可用，失败阶段待核",
+      "title": "漫画屋列表403与错误状态丢失",
       "priority": "P1（具名源不可用）",
-      "owner": "Root：核真实包身份及普通列表/详情/正文阶段",
+      "owner": "Root：普通Native取证/远端跟进；源owner：OperationError诊断修复",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "用户具名反馈，包身份/阶段/根因未知",
-      "result": "用户报告漫画屋源不能用，未给失败阶段；先核实际包ID/版本，不猜与别名关系或失败原因。",
+      "status": "公开0.1.4普通更新/NativeHTTP403诊断通过；访问仍未恢复",
+      "result": "真实远端0.1.4已普通更新至197；423列表仍HTTP403，但页面与日志现保留403/access。只完成错误保真，漫画屋不可用仍开放。",
       "evidencePoints": [
-        "当前仅具名用户反馈，尚未普通入口复现；既有其他源通过不抵消本项。"
+        "408原生get_listings完成18ms、get_manga_list722ms返回403；get_settings未实现为独立能力。410真实mhua5.com首页已亲审，411正常返回原403及根浏览页，三域同406。",
+        "本地0.1.4构建86844B/WASM55166B；公开远端包86396B/WASM54328B三成员且原图标同，两种构建字节分开。Root对真实远端WASM独立49/49回放通过。",
+        "745856a160d3d64013b51939e4b52d8eaacd876c精确CI40052769845成功，全85源+demo/metadata/原子发布成立；真实latest85项/漫画屋0.1.4。原件/private/tmp/koma-manhuawu-http-status-20261024/remote-0.1.4-verification.json。",
+        "417自然发现1项更新；418正常更新完成，419注册84仅漫画屋014/WASM54328/homepage变化，其余83/enabled及library/reader保持。无新App包或tag。",
+        "422普通RootBrowse进014、423原图与日志亲审：get_manga_list637ms/permission_denied/http403/kindaccess；三域逐字同419。420选择器查找失败保原件，不作源故障。"
       ],
       "remainingActions": [
-        "Root后继核包ID/版本，走普通列表→详情→正文区分失败阶段并保真记录。"
+        "源owner只读核现存真实HTML导航与列表请求URL/历史，不加GET或换UA；403具体拒绝原因及普通列表恢复仍未完成。"
       ],
-      "remaining": "核真实包身份与普通入口失败阶段，再按证据定位。",
+      "remaining": "源owner只读核现存真实HTML导航与列表请求URL/历史，不加GET或换UA；403具体拒绝原因及普通列表恢复仍未完成。",
       "boundaries": [
-        "当前源UI/安装主线不替换；不按名称擅合并其他源或猜网络/挑战根因。",
-        "不清数据、不盲重试；未复现不能写已定位或已通过。"
+        "普通403不自动认挑战；410网页能打开不等源请求恢复，未重试或增加会话授权。",
+        "HTTP受控离线行为检查不替代Native0.1.4；不清用户数据，保其他源及阅读进度。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2767,7 +2774,7 @@
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
-      "title": "漫画柜超时，当前包及阶段待核",
+      "title": "漫画柜0.1.6列表请求超时",
       "priority": "P1（具名源运行失败）",
       "owner": "Root",
       "dependencies": [],
@@ -2776,15 +2783,16 @@
         "FIRST_CHAPTER_SELECTION"
       ],
       "kind": "open",
-      "status": "最新用户反馈/授权已登记，待核实施",
-      "result": "用户新报漫画柜超时，未提供阶段或时刻；当前包/版本与失败阶段待核，不能认作旧237相同根因。",
+      "status": "413列表超时；415普通网页仍白页，原因未核",
+      "result": "197漫画柜0.1.6 get_manga_list15038ms返回timeout/HTTP0，原生显示连接超时；具体网络阶段未明，不能归为旧237相同根因。",
       "evidencePoints": [
-        "既有237超时为调查线索，不证明本次同因；FIRST_CHAPTER_SELECTION只关联目录语义，不等于超时原因。"
+        "413实际列表请求15038ms超时；get_settings未实现是独立能力，不是该列表超时原因。",
+        "415完整原图已亲审：manhuagui.com加载指示消失后仍白页，仅Web节点/原生导航，无正文或挑战UI；三域同406，AWAKE/override86400000。"
       ],
       "remainingActions": [
-        "核当前实际包与列表/详情/正文阶段，读取本次原始错误后再定位。"
+        "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。"
       ],
-      "remaining": "核当前实际包与列表/详情/正文阶段，读取本次原始错误后再定位。",
+      "remaining": "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。",
       "boundaries": [
         "保当前源UI/安装性能主线；旧证据不冒本次复现，不盲重试或清缓存。"
       ],
@@ -2814,7 +2822,8 @@
       "evidencePoints": [
         "App c5ad7b8074c04adcbc09ef5a01284cd735c4211b精确CI40049912720已completed/success；399最终8514625B包保持。",
         "本App39909的402 source_index fetch_ok count85写缓存；另配置repo CURL7/404为独立请求，393旧2300999原因仍未知。",
-        "旧Weicomic无packageHomepage/origins，采用402新缓存打开www.weicomic.com，404首页与原生控件亲审；405自然返回成功，406完成：三域与404/399/382逐字同，AWAKE/override86400000、根Browse84源。"
+        "旧Weicomic无packageHomepage/origins，采用402新缓存打开www.weicomic.com，404首页与原生控件亲审；405自然返回成功，406完成：三域与404/399/382逐字同，AWAKE/override86400000、根Browse84源。",
+        "415漫画柜普通Web入口可打开原生Web页，但加载指示消失后仍白页、无正文/挑战；三域同406，不当官网成功或判断超时原因。"
       ],
       "remainingActions": [
         "本次普通Web打开/返回/数据保持具名范围冻结；4个homepage例外及未加载Native边界仍open，不扩全部源/CF。"
@@ -2918,7 +2927,7 @@
     "kind": "open",
     "title": "源homepage发布与App采用边界",
     "result": "ae83e07aed5718dccb9c5a3c9049e5a721e47773已push，精确CI40048652108 success；真实公开非draft/pre release、85索引81homepage，Root已读回原件。",
-    "remaining": "App c5ad7b80精确CI40049912720成功；402缓存支持旧Weicomic普通Web打开返回具名成立，406终点三域保持已核。源81/85发布保持，4homepage例外/未加载Native未扩认；393旧2300999原因未知。",
+    "remaining": "App c5ad7b80精确CI40049912720成功；402缓存支持旧Weicomic普通Web打开返回具名成立，406终点三域保持已核。源81/85发布保持，4homepage例外/未加载Native未扩认；393旧2300999原因未知。 漫画屋745856a精确CI40052769845成功，公开0.1.4与真实远端49回放通过；419普通更新已采用0.1.4，423 Native诊断字段具名通过，403原因未核。",
     "commit": "ae83e07aed5718dccb9c5a3c9049e5a721e47773"
   },
   "milestones": [
