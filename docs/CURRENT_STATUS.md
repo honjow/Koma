@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T02:57:09.002414+00:00",
+  "updatedAt": "2026-10-24T03:26:06.913316+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": {
-    "title": "漫画屋015标准信号与自动验证闭环准备",
-    "detail": "Host8517401B已装且数据保持；源015的80项回放与标准构建通过，902f157已推送，精确CI40055887334成功。Root核真实索引后普通升级，再核一次自然请求的标准信号、自动半模态与回流；418图标闪烁另项仍开放。",
+    "title": "漫画屋网页会话与原生请求差异排查",
+    "detail": "015已能识别挑战并自动弹出网页。网页已显示分类，Cookie接口却没有clearance；人工完成后原生请求仍403。当前未恢复可用，不清Cookie或重复碰运气。",
     "startedAt": null
   },
-  "nextAction": "核公开015索引与真实包，再普通升级并验证一次自然请求的标准信号、自动弹层及回流；两个显示候选待答不阻其他调查。",
+  "nextAction": "核对网页上下文与系统Cookie接口的差异；继续本行图标重建和大奉695章排序调查。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,8 +982,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "0a24f63b145754bae8e28080120ee4e87658814d进度提交已push；精确CI40054577368 success。标准信号Host本轮本地候选未称已提交。",
-      "hap": "197430 Release8517401B/0.1.2-pre code3/debugfalse兼容签名已install/start成功；library/reader/registry前后逐字同，源仍014；profile已finally字节恢复。无新tag。"
+      "appHead": "9dcc1ad86f6f198e75f265c694429637083e2c41已push master；精确CI40056371060 completed/success，无新tag。",
+      "hap": "197438诊断Release8517496B/0.1.2-pre code3已安装；本机profile已恢复。438安装前后，以及442相对434的library/reader/registry均精确相同；源015，无新tag。"
     },
     {
       "name": "NextE",
@@ -1435,10 +1435,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：当前403分类与自动半模态流程；原源后端owner协作",
       "dependencies": [],
-      "status": "旧自动弹/人工回流范围保持；漫画屋标准信号闭环待验",
+      "status": "440门禁明确no_clearance；442人工重试仍403",
       "kind": "open",
-      "result": "318自动弹与320/341人工完成回流具名成立；本轮Host标准挑战信号已装，漫画屋015未采用。官网427→429自然通过不等Native自动完成/回流。",
-      "remaining": "真实015普通更新后，一次自然请求核标准信号→自动半模态→原请求回流；不得把官网独立验证或人工完成扩作自动关闭通过；其他搜索/分页/详情及会话过期边界按真实自然样本接续，不清Cookie或造挑战。",
+      "result": "439网页有内容仍不自动收起，440诊断确认无clearance；441人工点完成能关闭Web，但442原生请求仍403/challenge_required，自动完成与业务回流均未过。",
+      "remaining": "查网页上下文与系统Cookie接口差异，再修自动完成；搜索、分页、详情及过期边界仍保各自范围。不清Cookie或盲重试。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1458,18 +1458,25 @@
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "evidencePoints": [
-        "实现e839ec87：仅challenge receipt允许自动回流；auth_required及手动登录不自动退出。保主文档错误、离页、换会话和一次性守卫。",
-        "318自然403确自动弹WebView；320手点原完成并重试后首页/列表成功。只证自动弹与人工完成回流，未证自动关闭。",
-        "430 Host仅转cf-mitigated:challenge为常量accessSignal，29受控检查通过；源015仅www.mhua5.com声明，远端与Native闭环待。"
+        "旧318自动弹及320/341包子人工回流范围保留，不覆盖漫画屋本轮失败；439自然自动Web约30.269秒后真实热门分类出现。",
+        "440两次文档结束的安全门禁均满足，但automatic_wait=no_clearance；无证据说unchanged、旧Cookie或TLS根因。",
+        "442重试598ms，session attached/cookieState empty/uaSource webview仍challenge_required/HTTP403；438诊断包安装前后三域同，29回归通过。"
       ],
       "remainingActions": [
-        "真实015普通更新后，一次自然请求核标准信号→自动半模态→原请求回流；不得把官网独立验证或人工完成扩作自动关闭通过。",
-        "其他搜索/分页/详情及会话过期边界按真实自然样本接续，不清Cookie或造挑战。"
+        "查同源已就绪网页为何没有可供原生请求使用的Cookie。",
+        "自动完成须用原生请求结果验证；旧包子人工回流不覆盖本轮漫画屋失败。"
       ],
       "boundaries": [
         "只对已确认challenge自动弹；普通403不弹，同attempt取消/再次挑战不自动循环。不伪造或清Cookie取样，不记录Cookie值，不把现有首页范围扩成所有源/所有CF支持。",
         "旧135已自动弹、136由Root取消、138为取消后403；当前新实现不抹去旧证据。Cookie变化只是重试候选，不称站点验证成功。"
-      ]
+      ],
+      "modificationBasis": {
+        "object": "SourceWebSessionSheet.pageEnded诊断",
+        "history": "e839ec87仅新clearance、同源、当前文档且无失败才允许自动完成",
+        "originalReason": "避免旧会话、失败文档或异源变化触发不安全自动回流；保一次性守卫",
+        "reopenEvidence": "436网页已有分类/多封面仍停留，437确challenge信号但无clearance_candidate，缺门禁跳过原因",
+        "allowedDifference": "仅布尔门禁与常量原因的非秘密诊断；不改安全条件，不输出Cookie/header值或宣称自动完成修复"
+      }
     },
     {
       "id": "SOURCE_SETTINGS_ACTION_ALIGNMENT",
@@ -2525,22 +2532,21 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "418自然远端更新完成；阶段耗时已取，主线程边界未验",
-      "result": "漫画屋真实远端更新完成：install_requested至done1.305s，import60ms；仅阶段耗时，不等主线程或帧率验收。379本地导入改善保留，418本行瞬空仍开放。",
+      "status": "434自然远端更新trace有界结果成立；整体仍OPEN",
+      "result": "434普通014→015安装的12秒trace：最长depth0回调29.616ms、fs.rmdir22.115ms，12个实际帧max23.439ms/均3.622ms；仅该窗口，不称全程满帧或无阻塞。418本行瞬空未复验。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
-        "379库reader同377，registry84/顺序/余83同，仅包子4路径；380正常Back至根Browse，84已启用/包子存在。",
-        "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。",
-        "381正常根Browse原图Root已审，84启用/包子0.1.10图标可见；library/reader/registry与379逐字同。仅本轮CPU设备副本已移除并读回为空，本地373原件保留。",
-        "418日志10:21:37.060请求→38.276导入→38.336成功→38.365完成；419仅该源更新、其余83/library/reader保持。未取得该次主线程定量结论。"
+        "434注册84IDs/顺序保持，仅漫画屋015/WASM54808/单域变化，其他83及library/reader逐字同；与379本地导入为不同具名路径，不作严格A/B。",
+        "main63980既有12秒安装trace读回：depth0最长29.616ms、rmdir22.115ms，12实际帧max23.439ms/均3.622ms；本次没有录像，不判断418视觉反例通过。",
+        "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。"
       ],
       "remainingActions": [
-        "当前真实远端更新条件已执行；补该分支主线程定量与418本行图标因果，不能用1.305s阶段耗时替代性能验收。"
+        "保有界远端安装trace结果；418一帧本行图标瞬空仍待具名录像与因果，不用少量实际帧宣告全程流畅。"
       ],
-      "remaining": "当前真实远端更新条件已执行；补该分支主线程定量与418本行图标因果，不能用1.305s阶段耗时替代性能验收。",
+      "remaining": "保有界远端安装trace结果；418一帧本行图标瞬空仍待具名录像与因果，不用少量实际帧宣告全程流畅。",
       "boundaries": [
-        "仅具名同数据本地导入性能改善；不外推FPS/全App/远端更新或安装行瞬空已修。",
-        "漫画屋自然0.1.3→0.1.4已执行，更新完成不代表远端UI性能或418图标瞬空通过；kind仍open。",
+        "379本地导入与434自然远端更新分别有界取证；不外推全App、满帧或安装行瞬空已修。",
+        "漫画屋014→015自然远端更新已执行并取得有界trace；本次无录像，418图标瞬空仍OPEN。",
         "诊断源码均撤；仅清本轮device CPU副本，本地373原件保留，不新tag。"
       ],
       "reportedAt": null,
@@ -2744,21 +2750,21 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "Host430已装；902f157已推且015精确源CI成功",
-      "result": "430 App8517401B已安装并保持三域，源仍014。Host仅将官方cf-mitigated:challenge转accessSignal常量；源015的80项回放与标准构建通过，902f157已推且精确CI成功；公开包读回与Native回流未验。",
+      "status": "网页就绪仍无clearance；人工完成后Native仍挑战403",
+      "result": "439自动网页约30.269秒后有真实分类仍不关闭；440门禁等no_clearance。441仅人工完成一次后Web关闭，442原生598ms重试仍challenge_required/HTTP403，未恢复。",
       "evidencePoints": [
-        "423远端014普通列表仍403，HTTP/access诊断已保真；427官网分类真实安全验证→428自然完成→429真实热门分类多封面，不含源session授权或Native回流。",
-        "Host可选accessSignal保status/body，不传原headers或Cookie；29项生产Host/会话受控检查通过。430兼容签名Release8517401B安装启动及三域保持成立，本地profile字节恢复。",
-        "015标准包87172B/WASM55896B，仅声明https://www.mhua5.com且原icon相同；Root独立80项回放通过。",
-        "902f157d4c3fafce9e4a0cd3a9e4abe7584bf272已实际推送，精确源CI40055887334成功；公开015读回及Native回流仍待。"
+        "源902f157精确CI40055887334成功；公开85项含015，真实包86607B/WASM54808B、单域www.mhua5.com、原图标相同，实际远端80项回放通过。",
+        "438诊断Release8517496B安装、29项回归通过；profile恢复，442与434三域数据精确相同。",
+        "440两次当前文档正常结束，但都记录no_clearance；不能说是Cookie未变化或TLS问题。",
+        "442人工完成后仅Web关闭；原生重试598ms，session=attached、cookieState=empty、uaSource=webview，仍返回challenge_required/403。"
       ],
       "remainingActions": [
-        "核公开015索引与真实包，再普通远端更新，核一次自然请求的标准信号、自动弹层与回流；不清Cookie或造挑战。"
+        "查网页与系统Cookie接口差异及原生403；自动完成和业务回流均未通过，不清Cookie或盲重试。"
       ],
-      "remaining": "核公开015索引与真实包，再普通远端更新，核一次自然请求的标准信号、自动弹层与回流；不清Cookie或造挑战。",
+      "remaining": "查网页与系统Cookie接口差异及原生403；自动完成和业务回流均未通过，不清Cookie或盲重试。",
       "boundaries": [
         "只有官方精确信号才识别挑战，普通403仍保原错误；官网自然验证不等Native会话授权或回流。",
-        "离线回放、构建、430安装及精确源CI成功各自成立；公开015读回与Native恢复未验，不清用户数据。"
+        "015已采用，自动弹出成立；本轮自动及一次人工完成后均未恢复原生业务。442与434三域相同，不外推TLS原因。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2932,7 +2938,7 @@
     "kind": "open",
     "title": "源homepage发布与App采用边界",
     "result": "ae83e07aed5718dccb9c5a3c9049e5a721e47773已push，精确CI40048652108 success；真实公开非draft/pre release、85索引81homepage，Root已读回原件。",
-    "remaining": "App c5ad7b80精确CI40049912720成功；402缓存支持旧Weicomic普通Web打开返回具名成立，406终点三域保持已核。源81/85发布保持，4homepage例外/未加载Native未扩认；393旧2300999原因未知。 漫画屋745856a精确CI40052769845成功，公开0.1.4与真实远端49回放通过；419普通更新已采用0.1.4，423 Native诊断字段具名通过，403原因未核。",
+    "remaining": "App c5ad7b80精确CI40049912720成功；402缓存支持旧Weicomic普通Web打开返回具名成立，406终点三域保持已核。源81/85发布保持，4homepage例外/未加载Native未扩认；393旧2300999原因未知。 漫画屋745856a精确CI40052769845成功，公开0.1.4与真实远端49回放通过；434普通更新已采用公开0.1.5，435/439自动弹出成立，440无clearance，442人工完成后原生仍403；业务及自动完成未恢复。",
     "commit": "ae83e07aed5718dccb9c5a3c9049e5a721e47773"
   },
   "milestones": [

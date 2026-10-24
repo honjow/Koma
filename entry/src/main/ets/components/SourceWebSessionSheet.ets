@@ -122,14 +122,27 @@ export struct SourceWebSessionSheet {
     if (!this.active) return
     this.loading = false
     this.updateNavState()
+    // Record gate facts only: URLs, cookie values and session identifiers stay private.
+    DiagnosticLogger.info('source_web_session', 'document_end',
+      'automatic=' + this.autoRetryOnClearance + ' attempted=' + this.autoRetryStarted +
+      ' failed=' + this.pageFailed + ' baselineKnown=' + (this.clearanceBaseline !== undefined) +
+      ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
+      ' sessionPresent=' + (this.params.sourceSession !== undefined))
     if (!this.autoRetryOnClearance || this.autoRetryStarted || this.pageFailed ||
       this.clearanceBaseline === undefined || event === undefined || event.url !== this.pageUrl || this.params.sourceSession === undefined) return
     try {
       const currentUrl = this.controller.getUrl()
       const origin = sourceWebOrigin(this.params.url)
-      if (origin.length === 0 || sourceWebOrigin(currentUrl) !== origin || currentUrl !== event.url) return
+      if (origin.length === 0 || sourceWebOrigin(currentUrl) !== origin || currentUrl !== event.url) {
+        DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=document_origin_mismatch')
+        return
+      }
       const cookies = webview.WebCookieManager.fetchCookieSync(this.params.url, false)
-      if (!hasNewSourceClearance(this.clearanceBaseline, cookies)) return
+      if (!hasNewSourceClearance(this.clearanceBaseline, cookies)) {
+        DiagnosticLogger.info('source_web_session', 'automatic_wait',
+          'reason=' + (hasNewSourceClearance('', cookies) ? 'unchanged_clearance' : 'no_clearance'))
+        return
+      }
       // Candidate only: the host consumes its guarded receipt and retries the exact native request once.
       this.autoRetryStarted = true
       DiagnosticLogger.info('source_web_session', 'clearance_candidate', 'action=retry_original_once')
