@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T14:31:18.119614+00:00",
+  "updatedAt": "2026-10-24T14:56:59.587828+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "Root：隐藏缩略条修正完成N/E/K具名路径，正在同步精确提交；连续阅读仍有慢帧。",
-  "nextAction": "同步三宿主有限实测结果并跟精确CI；继续定位ContinuousCell高频更新。已批准全屏候选仍待制作与录屏。",
+  "activity": "Root：bb2a80d空入场测量修正完成三宿主普通路径，N/E采用已push；继续剩余慢帧调查。",
+  "nextAction": "同步Koma精确CI依赖并跟本轮三宿主CI；继续核ContinuousCell高频更新，不关闭性能项。已批准共用全屏候选仍待制作录屏。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,20 +978,20 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "b6911d76已push，精确CI40096068659 success；本轮Kit c9494dd构建，文档同步中，无新tag/发版。",
-      "hap": "237042明确安装Release8524605B/0.1.2-pre code3；049–055本地10页连续/选页/隐藏重开及恢复LTR6/10具名完成。library/registry逐字同安装时，reader仅本地书3处正常updatedAt变化。"
+      "appHead": "a7806068已push，CI40103054948 success；本轮CI Kit pin改为bb2a80d待同步，无新tag/发版。",
+      "hap": "237057明确安装defaultRelease8524725B/0.1.2-pre code3；060普通本地连续第6页，061原LTR6/10亲核，062回书架。library/registry逐字同057，reader仅本地书3处正常updatedAt。056误选release签名产品被拒绝，未安装/数据保持。"
     },
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "acdb63bf已push；Kit c9494dd；精确CI40102240485 completed/success。",
-      "hap": "197046明确安装38178001B/1.3.6code42；048–054连续/缩略条选页及稳定后重开完成，原LTR13/19和2项完成下载已恢复。"
+      "appHead": "a06c406b采用Kitbb2a80d已push，精确CI跟进中；上一笔acdb63bf CI40102240485 success。",
+      "hap": "197055明确安装38178149B/1.3.6code42；058当前Non-H韩文T-MOON105P首缩略图原图交接217帧全审，原156加载100%仍低清、157清晰原图与反馈同退；059原2项完成下载保持，原4212986的13/19未操作。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "a1784577已push；Kit c9494dd；精确CI40102824291 in_progress。",
-      "hap": "197046明确安装38201434B/1.0.7code10；050同34页快速反向隐藏Rail/Tile更新归零，仍有慢帧；053–057缩略条/选页及原LTR1/34与7项下载保持。"
+      "appHead": "61d6e32d采用Kitbb2a80d已push，精确CI跟进中；上一笔a1784577 CI40102824291 success。",
+      "hap": "197058明确安装38201451B/1.0.7code10；059同34页缩略图普通入场/返回95帧全审；061同12页起六组反向仍有2帧>33.34ms；062原LTR1/34和063原7下载保持。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
@@ -1064,13 +1064,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "隐藏缩略条修正三宿主具名验证完成；仍有慢帧",
+      "status": "隐藏缩略条及空入场测量修正具名完成；仍有慢帧",
       "kind": "open",
       "priority": "P0（最高）",
-      "owner": "Root：同步有限结果并继续ContinuousCell更新原因",
+      "owner": "Root：精确CI同步及可见单元更新原因",
       "dependencies": [],
-      "result": "同686734/34页、同12页起点及六组8000速度反向：042→050宿主frame_slice均值9.492→6.115ms，最大51.843→48.364ms，>33.34ms18→5。顺序暖缓存样本，不是clean AB或显示FPS；性能项仍OPEN。",
-      "remaining": "继续定位ContinuousCell等可见单元高频更新，保留原图加载反馈与有效资源身份；不据隐藏工作消除关闭性能。",
+      "result": "同686734/34页第12页六组8000反向，050→061主线程frame_slice均值6.115→5.877ms、最大48.364→38.032ms、>33.34ms5→2。顺序暖缓存样本，不是clean AB/显示FPS；性能仍OPEN。",
+      "remaining": "跟进本轮精确CI；继续定位可见ContinuousCell/ZoomImage的高频状态投影，保原图加载反馈与有效资源身份。性能不以两处额外工作消除收口。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1096,20 +1096,23 @@
         "Kit c9494dd，537项检查、N/E/K签名Release均构建成功。N046明确安装38201434B；050中隐藏Rail/Tile更新均0，旧042 Rail93/Tile304。051完整424帧/12联系表已按序亲审，未见整屏白空或额外页间黑隔条；未据录像声称满帧。",
         "N053第10页打开Rail，054选12，055滑块17后隐藏再开正确17；056原LTR1/34亲核，057原7项下载及6867442/2保持。",
         "E046明确安装38178001B；048连续第13页开Rail、049选14；050全252帧/7联系表顺序亲审。录像末次计划重开未发生，052在稳定控件上实际重开第13页并保原解码节点；053原LTR13/19勾选已亲看，054原2项完成下载保持。",
-        "K237042明确安装8524605B，049连续第6页开条、050选7、051全298帧/9联系表顺序亲审；053重新打开选中6，054原LTR6/10已亲核，055普通返回书架。library/registry与042逐字同，reader仅该书3处updatedAt正常改变，页码及其余字段同。"
+        "K237042明确安装8524605B，049连续第6页开条、050选7、051全298帧/9联系表顺序亲审；053重新打开选中6，054原LTR6/10已亲核，055普通返回书架。library/registry与042逐字同，reader仅该书3处updatedAt正常改变，页码及其余字段同。",
+        "bb2a80d仅提前无入场/入场已结束的既有判断；旧2ce53ee原有资格门在后继帧后测量移入measure，而publish仍逐次排队。真实方法测试先30过1失败、修后31过，共享538项及三宿主签名构建完成。",
+        "197 N058明确覆盖38201451B，059全95帧/3表普通缓存原图进入返回已审；06012/34及061同六组反向。Area回调总时860.548→825.912ms，可见Cell更新833→808，仍不能归为唯一根因。062原LTR1/34、0637下载保持。",
+        "E055明确覆盖38178149B，058全217帧/7表及156/157原图亲审：156低清+100%反馈，157清晰原图与反馈同退，正常返回；0592项完成下载保持。K056签名拒绝未安装，057用原default信任8524725B成功；058早tap未进详情，059按当前卡片进入，060连续原图6/10、061原LTR6/10、062回书架；库/注册逐字同057，reader仅本地书3处updatedAt。"
       ],
       "remainingActions": [
-        "继续定位ContinuousCell等可见单元高频更新，保留原图加载反馈与有效资源身份；不据隐藏工作消除关闭性能。"
+        "跟进本轮精确CI；继续定位可见ContinuousCell/ZoomImage的高频状态投影，保原图加载反馈与有效资源身份。性能不以两处额外工作消除收口。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
       ],
       "modificationBasis": {
-        "object": "共同ReaderThumbnailRail位置跟随和范围请求；ReaderSurface传既有可见状态",
-        "history": "8918dc3保留挂载以留缓存；7587ee4恢复可见条的动画跟随，未区分隐藏",
-        "originalReason": "保原native List、已解码预览、可见条页变化动画和拖动直接跟手，不清缓存不按页重挂",
-        "reopenEvidence": "042隐藏条仍更新/动画/请求，长样本18个>33ms帧；仅定位额外工作，不认作唯一根因",
-        "allowedDifference": "隐藏条不追随页变化或发新范围请求；保留实例与已有租约，显示时直接对齐当前页，显示中的页变化/slider预览沿原语义。原图加载/进度/几何/样式/转场保持。"
+        "object": "ReaderPagedImage.publishEntryTarget排队前的入场资格",
+        "history": "2ce53ee原来先判断entry pending再测量；后继帧后测量把资格判断放在measureEntryTarget中，publish仍每次排队。原分帧测量用于等真实native布局，必须保留。",
+        "originalReason": "入场几何必须在实际布局后测量，不用回调顺序猜原图ready。",
+        "reopenEvidence": "050主线程HandleOnAreaChange在约551帧窗口重复，源码无入场/结束入场也postFrame；现有实际方法测试100次触发仍入队100次，旧实现30过1失败。",
+        "allowedDifference": "仅在publish排队前提前现有transition为空或非pending判断；pending的原测量、逐帧条件、原图加载反馈、几何、转场、资源及菜单保持。不是替换onAreaChange或改成尺寸事件。"
       }
     },
     {
