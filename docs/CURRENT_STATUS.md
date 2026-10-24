@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T20:17:09.817012+00:00",
+  "updatedAt": "2026-10-24T20:52:52.425620+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": {
-    "title": "提交源安装数据与行身份修复",
-    "detail": "237正常返回71源，用户数据保持；仅提交两个已测实现，不关闭整体卡顿。",
-    "startedAt": "2026-10-24T20:17:09.817012+00:00"
+    "title": "分析连续跳页的原生图片工作",
+    "detail": "本轮取证与恢复已完成；正在区分获取后的解码、几何和呈现成本，保留原预载与加载反馈。",
+    "startedAt": "2026-10-24T20:52:52.424934+00:00"
   },
-  "nextAction": "同步本笔修复并跟进精确CI；继续保留行响应式更新范围与Reader N068短缺页定位。",
+  "nextAction": "对照既有原生图片阶段与共享呈现实现；同时保留源安装行更新与图标闪烁的未完成边界。",
   "proof": [
     {
       "label": "正式主仓",
@@ -982,7 +982,7 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "f6f1c1a已push，CI40123012297成功；末项key限定修复已构建/237113验证，待范围提交。",
+      "appHead": "270e9d83已push，精确CI40129096200成功；0452a7bd进度页CI40128817692成功。",
       "hap": "237 source-identity-release-signed.hap8546371B，0.1.2-pre/code3/Kit9b94e98；118普通Browse71启用，三域同117。"
     },
     {
@@ -1110,10 +1110,13 @@
         "E055明确覆盖38178149B，058全217帧/7表及156/157原图亲审：156低清+100%反馈，157清晰原图与反馈同退，正常返回；0592项完成下载保持。K056签名拒绝未安装，057用原default信任8524725B成功；058早tap未进详情，059按当前卡片进入，060连续原图6/10、061原LTR6/10、062回书架；库/注册逐字同057，reader仅本地书3处updatedAt。",
         "cdb9c22：N067同34页/12起点六组8000往返，Cell808→85、主线程最大38.032→20.362ms。N068全284帧/8联系表顺序亲审，快速往返无整屏空白或错页；滑块17后正文/原生条同17。跳页相邻页240–247附近短暂空缺保留待查，不能称整项通过。070亲核原LTR1/34，071原7下载保持。",
         "K237 cdb9c22明确安装8528865B；066原生条实选7/10，067全222帧/7联系表已按序亲审，正文持续显示。068原LTR勾选6/10亲核；069正常回书架，库/注册与063逐字同，reader仅同本地书3处updatedAt1792853526148→1792855345873，页码与其他字段同。",
-        "E cdb9c22明确安装38181768B；061原下载4212986的13/19，063原生条实选14且正文/选中一致。064全294帧/9联系表顺序亲审，三组快速往返正文连续，无整屏空白/错页；065原LTR勾选13/19亲核，066原2项完成下载保持。E现有CI preflight通过。"
+        "E cdb9c22明确安装38181768B；061原下载4212986的13/19，063原生条实选14且正文/选中一致。064全294帧/9联系表顺序亲审，三组快速往返正文连续，无整屏空白/错页；065原LTR勾选13/19亲核，066原2项完成下载保持。E现有CI preflight通过。",
+        "N101普通686734/34页滑块1→17→1，全100帧/3联系表顺序审阅：目标等待有加载反馈，先相邻图后目标图。Core身份日志证明source16默认获取48ms、enhanced1ms，增强资源04:42:28.269→呈现回执.554；source17为.266→.504。仅定位至获取之后，不把这段全称解码或主线程阻塞。",
+        "临时8行Core日志已从Root及N消费目录精确撤下。N103明确恢复原38205248B稳定包，105普通重开读回LTR与1/34，107原7下载及既有2/2保留，108回原桌面；无缓存/网络/用户数据注入。"
       ],
       "remainingActions": [
-        "N068跳页相邻短空缺240→247/约116ms仍待定位。23:19:00.537 seek后.539–.552有两组文件cache hit，.553–.573既有增强结果ready；原生JPEG解码发生至.983，但缺逐slot对齐，不能据此断言空缺唯一成因。下一核资源需求/解码/可见范围交接，保原图加载反馈与所有宿主旧路径。"
+        "N068相邻116ms缺页及连续性能总体仍OPEN。N101将等待收敛到文件获取后；继续区分原生解码、几何就绪与呈现回执，不删除加载反馈、不按未知原因改尺寸/质量。",
+        "预载5对应原生缓存窗口是f260c8a恢复的既有能力；不能为了缩短跳页把已批准预载深度减少。按旧trace核实际native图片工作，再决定下一有限探针。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
@@ -1124,6 +1127,12 @@
         "originalReason": "按稳定page key复用native List及单元；Core负责资源状态和请求身份，UI不能另建选章/进度owner。",
         "reopenEvidence": "061两个最慢FlushDirtyNode窗口均更新约13个连续单元；64次全局快照附近，多个稳定单元各61次更新，全窗口Cell808次/577.385ms。forItem生成新对象，单页无变化也改变Param引用。",
         "allowedDifference": "仅连续单元使用最小渲染投影；稳定displayed original且无新请求/retained/失败/notice/cropPending时，按完整页元数据、slot/request/URI/variant/visual/crop及navigation比较复用；加载/替换/失败仍逐次接新frame。保全局Core快照/进度、native key、图片与缩略条实例、几何、样式、转场。缓存仅现有窗口，离开/拓扑变化丢弃。"
+      },
+      "diagnosticBasis": {
+        "object": "ReaderSession.load与ReaderPagedSession.reportPresentation的临时阶段日志",
+        "history": "现有N068宿主日志只有slot/request/尺寸；共同Core中load和原生呈现回执仍独立。",
+        "reopenEvidence": "N068相邻页116ms短空缺已有原片；同区间file cache hit、增强ready及多张JPEG原生decode日志，但无法按source/variant/request一一对齐。",
+        "allowedDifference": "仅在当前原图获取成功和有效解码回执补source/request/variant/阶段与耗时；不记录URI/书名/凭据，不改任何状态、窗口、加载反馈、样式、资源、预载或进度。临时诊断完成后撤下，保留原片/日志和精确补丁。"
       }
     },
     {
@@ -2700,7 +2709,8 @@
         "19检查通过、临时HiTrace/CPU/timer全撤；6文件已同步41e753dd20078e7f4cf7ab87e0ec0e7cdfb6d191，CI40046505483 completed/success，Release成功/tag发布skipped，无新tag。",
         "434 trace.db事件5986/5987：execute 0.288ms在callid369；complete 22.115ms在主callid262，仅3个子span（序列化两次/提示），无细分JS栈。官方TaskPool指南说明NAPI complete计入后续微任务；目前无法把22ms归给rmdir本身。",
         "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。",
-        "237115后台Browse因index隐式拼key重建6旧行；117修后70→71仅新增1、旧行0销毁，管理页仅移1。SourceRuntimeRegistry元数据提交改只读fd stat普通文件/长度，原子写与冷启动readBytes保持；Host24项及相关45项通过。116覆盖后70条注册及书架/阅读逐字同115，118正常返回71启用、三域同117。"
+        "237115后台Browse因index隐式拼key重建6旧行；117修后70→71仅新增1、旧行0销毁，管理页仅移1。SourceRuntimeRegistry元数据提交改只读fd stat普通文件/长度，原子写与冷启动readBytes保持；Host24项及相关45项通过。116覆盖后70条注册及书架/阅读逐字同115，118正常返回71启用、三域同117。",
+        "270e9d83已推，精确CI40129096200 success；进度页0452a7bd精确CI40128817692 success，无新tag/发版。"
       ],
       "remainingActions": [
         "本轮冻结末项位置key、Browse隐式index key、持久化重复整库WASM读取三处限定缺陷。117仍有24.572ms FlushDirty更新/row projection6ms，总体stall不关闭；不同源安装不当严格性能AB。继续定位保留行的实际响应式更新范围，本行图标闪烁独立OPEN。"
@@ -3193,8 +3203,8 @@
       "priority": "P2（工具呈现，不丢产品主线）",
       "owner": "Root",
       "dependencies": [],
-      "reportedAt": "2026-10-24T20:05:28.004158+00:00",
-      "reportedAtSource": "本轮登记时间；原始提出时间不推算。",
+      "reportedAt": null,
+      "reportedAtSource": "未核原始消息时间；最早登记时间由firstEvidenceAt保留，不冒充原始提出时间。",
       "firstHandlingAt": "2026-10-24T20:05:28.004158+00:00",
       "closedAt": "2026-10-24T20:11:44.260077+00:00",
       "result": "当前卡片内一行折叠入口，展开竖线连接实际工作事件与原检查点。原生外观选择器提供自动/浅色/深色；选择保存在本机，深色刷新后仍保持；自动由prefers-color-scheme跟随系统。",
@@ -3202,7 +3212,8 @@
       "evidence": [
         ".hvigor/outputs/progress-timeline-theme/koma-progress-timeline-light.png",
         ".hvigor/outputs/progress-timeline-theme/koma-progress-timeline-dark.png"
-      ]
+      ],
+      "firstEvidenceAt": "2026-10-24T20:05:28.004158+00:00"
     }
   ],
   "source": {
@@ -3298,11 +3309,43 @@
     },
     {
       "id": "browse-stable-117",
-      "at": "",
+      "at": "2026-10-25T04:13:41.372837+08:00",
       "title": "源安装不再重建后台浏览旧行",
       "detail": "237真实新装后71项，trace旧行销毁0；书架和阅读记录保持。整体24.572ms更新仍继续定位。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "verified"
+    },
+    {
+      "id": "reader-gap-phase-start",
+      "at": "2026-10-24T20:20:02.171341+00:00",
+      "title": "接回连续阅读短缺页定位",
+      "detail": "N068旧日志不足以对应每张图；仅补获取/解码阶段身份后取自然样本。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "reader-phase-install-091",
+      "at": "2026-10-25T04:24:03.373539+08:00",
+      "title": "197部署临时阅读阶段日志",
+      "detail": "38212929B普通启动，原7项下载保持；34页样本不在下载列表，改由既有历史定位，不新增下载。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "reader-phase-capture-101",
+      "at": "2026-10-24T20:42:33.622Z",
+      "title": "完成连续跳页阶段取证",
+      "detail": "普通1→17→1录屏已审；等待主要在文件获取后，原因继续细分。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "reader-phase-restored-108",
+      "at": "2026-10-25T04:51:15.837282+08:00",
+      "title": "阅读诊断恢复完成",
+      "detail": "已撤临时日志并恢复稳定包；原LTR、1/34、7项下载均读回，返回桌面。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "checkpoint"
     }
   ]
 }
