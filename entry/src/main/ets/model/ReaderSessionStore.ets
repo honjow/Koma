@@ -494,9 +494,10 @@ export abstract class ReaderSessionStore {
   }
 
   unreadChapterCount(comic: Comic): number | undefined {
-    // A missing/partial catalog cannot supply an exact unread count.
+    // Compare completeness with received rows; a complete source catalog may repeat IDs.
+    // Count logical chapters only once, without treating duplicates as missing chapters.
     const chapterIds = new Set<ChapterId>(comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
-    if (chapterIds.size === 0 || comic.chapterCount > chapterIds.size) return undefined
+    if (chapterIds.size === 0 || comic.chapterCount > comic.chapters.length) return undefined
     let unread = 0
     chapterIds.forEach((chapterId: ChapterId): void => {
       if (!this.isChapterRead(comic.id, chapterId)) unread += 1

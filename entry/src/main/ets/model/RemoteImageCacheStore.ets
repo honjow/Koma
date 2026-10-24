@@ -172,6 +172,7 @@ export class RemoteImageCacheStore {
 
   private operationTail: Promise<void> = Promise.resolve()
   private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
+  private reloadRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.operationTail.then(operation, operation)
@@ -216,19 +217,30 @@ export class RemoteImageCacheStore {
     headers: RemoteImageCacheHeaders | undefined,
     fetchBytes: () => Promise<ArrayBuffer>,
     cacheKeySeed?: string,
+    forceReload: boolean = false,
   ): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
+    const refreshing = this.reloadRequests.get(key)
+    if (refreshing !== undefined) return refreshing
     const pending = this.imageRequests.get(key)
-    if (pending !== undefined) return pending
+    if (pending !== undefined && !forceReload) return pending
     const request = (async (): Promise<string> => {
-      const cached = await this.get(url, headers, cacheKeySeed)
-      if (cached !== undefined && cached.length > 0) return cached
+      if (forceReload && pending !== undefined) {
+        // Retire the old publisher first; it must not overwrite the explicit replacement later.
+        try { await pending } catch (_error) {}
+      }
+      if (!forceReload) {
+        const cached = await this.get(url, headers, cacheKeySeed)
+        if (cached !== undefined && cached.length > 0) return cached
+      }
       const bytes = await fetchBytes()
       return this.put(url, headers, bytes, cacheKeySeed)
     })()
     this.imageRequests.set(key, request)
+    if (forceReload) this.reloadRequests.set(key, request)
     const release = (): void => {
       if (this.imageRequests.get(key) === request) this.imageRequests.delete(key)
+      if (this.reloadRequests.get(key) === request) this.reloadRequests.delete(key)
     }
     // Release both success and failure; a failed shared request must permit an ordinary retry.
     void request.then(release, release)

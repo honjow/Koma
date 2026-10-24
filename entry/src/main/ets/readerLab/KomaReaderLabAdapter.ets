@@ -7,6 +7,7 @@ import {
   ReaderAssetFailure, ReaderAssetFailureClassifier,
 } from '@reader-kit/core'
 import { KomaReaderFailure } from './KomaReaderFailure'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { ReaderFileCropSource, ReaderFileInformation } from '@reader-kit/ui'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
@@ -65,6 +66,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private preparingUnits: Map<string, Promise<ReaderUnit>> = new Map()
   private preparationCancellation: ReaderCancellation = new ReaderCancellation()
   private sourceRequests: Map<string, Promise<string>> = new Map()
+  private refreshingSources: Map<string, Promise<void>> = new Map()
+  private automaticallyRefreshedUnits: Set<string> = new Set()
+  private automaticPageRetries: Set<string> = new Set()
   private chapterPreloadEnabled: boolean
   private closed: boolean = false
   private catalogFailureText: string = ''
@@ -256,15 +260,55 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     }
   }
 
+  /** Explicit retry refreshes the host-owned page addresses without replacing the live unit.
+   * Match stable page IDs so a reordered provider response cannot open another image. */
+  private async refreshPageSources(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<void> {
+    const id = this.unitId(key)
+    let pending = this.refreshingSources.get(id)
+    if (pending === undefined) {
+      const request = (async (): Promise<void> => {
+        const config = await this.catalogHost?.prepare(key, this.preparationCancellation, true) ?? null
+        this.preparationCancellation.check()
+        if (this.closed) throw new Error('closed_koma_reader')
+        if (config === null || config.comicId !== key.work || config.chapterId !== key.unit) {
+          throw new Error('missing_koma_chapter_pages')
+        }
+        const fresh = createReaderPageRenderSources(config, { preferOffline: true })
+        const byId = new Map<string, ReaderPageRenderSource>()
+        fresh.forEach((source: ReaderPageRenderSource): void => {
+          if (source.pageId !== undefined) byId.set(source.pageId, source)
+        })
+        const current = this.sources.get(id)
+        if (current === undefined) throw new Error('missing_koma_page_source')
+        const next = current.map((source: ReaderPageRenderSource): ReaderPageRenderSource => {
+          if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) return source
+          const replacement = source.pageId === undefined ? undefined : byId.get(source.pageId)
+          if (replacement === undefined) throw new Error('missing_koma_page_source')
+          return replacement
+        })
+        this.sources.set(id, next)
+      })()
+      this.refreshingSources.set(id, request)
+      const retire = (): void => {
+        if (this.refreshingSources.get(id) === request) this.refreshingSources.delete(id)
+      }
+      void request.then(retire, retire)
+      pending = request
+    }
+    await pending
+    cancellation.check()
+    if (this.closed) throw new Error('closed_koma_reader')
+  }
+
   /** Share descriptor resolution and image transport before the file-cache layer. */
-  private sourceFile(key: ReaderUnitKey, index: number): Promise<string> {
+  private sourceFile(key: ReaderUnitKey, index: number, forceReload: boolean = false): Promise<string> {
     if (this.closed) return Promise.reject(new Error('closed_koma_reader'))
     const source = this.sources.get(this.unitId(key))?.[index]
     if (source === undefined) return Promise.reject(new Error('missing_koma_page_source'))
     const id = JSON.stringify([this.unitId(key), index])
     const pending = this.sourceRequests.get(id)
-    if (pending !== undefined) return pending
-    const request = fetchAndCacheReaderRemoteSource(source, this.requestContext)
+    if (pending !== undefined && !forceReload) return pending
+    const request = fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload)
     this.sourceRequests.set(id, request)
     const retire = (): void => {
       if (this.sourceRequests.get(id) === request) this.sourceRequests.delete(id)
@@ -300,8 +344,21 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       `${target.unit.title} ${target.sourceIndex + 1}`.trim().slice(0, 96))
   }
 
-  async load(page: ReaderPage, kind: ReaderAssetKind, cancellation: ReaderCancellation, _forceReload: boolean): Promise<ReaderAsset> {
+  private recoverableImageFailure(error: Error): boolean {
+    // Authentication/challenge, TLS, invalid source data and decode errors need their own handling.
+    return [2300006, 2300007, 2300018, 2300028, 2300052, 2300055, 2300056, 2300999]
+      .some((code: number): boolean => error.message === `reader_remote_image_fetch_failed_${code}`) ||
+      [404, 408, 410, 500, 502, 503, 504]
+        .some((status: number): boolean => error.message === `reader_remote_image_http_${status}`)
+  }
+
+  async load(page: ReaderPage, kind: ReaderAssetKind, cancellation: ReaderCancellation, forceReload: boolean): Promise<ReaderAsset> {
     cancellation.check()
+    const prior = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
+    if (forceReload && prior?.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+      prior.sourceRuntimeId !== undefined && prior.sourceRuntimeId.length > 0) {
+      await this.refreshPageSources(page.unit, cancellation)
+    }
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
     if (source === undefined) throw new Error('unsupported_koma_lab_asset')
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
@@ -309,7 +366,32 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       const config = this.configs.get(this.unitId(page.unit))
       throw KomaReaderFailure.sourceError(config?.sourceFailureReason, config?.sourceFailure)
     }
-    const filePath = await this.sourceFile(page.unit, page.sourceIndex)
+    let filePath: string
+    try {
+      filePath = await this.sourceFile(page.unit, page.sourceIndex, forceReload)
+    } catch (error) {
+      cancellation.check()
+      if (this.closed) throw new Error('closed_koma_reader')
+      const retryId = JSON.stringify([this.unitId(page.unit), page.key])
+      if (forceReload || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE ||
+        source.sourceRuntimeId === undefined || source.sourceRuntimeId.length === 0 ||
+        this.automaticPageRetries.has(retryId) || !this.recoverableImageFailure(error as Error)) {
+        throw error as Error
+      }
+      this.automaticPageRetries.add(retryId)
+      DiagnosticLogger.info('reader', 'automatic_page_retry', 'attempt=1 reason=' + (error as Error).message)
+      const unitId = this.unitId(page.unit)
+      if (!this.automaticallyRefreshedUnits.has(unitId)) {
+        this.automaticallyRefreshedUnits.add(unitId)
+        await this.refreshPageSources(page.unit, cancellation)
+      } else {
+        // Neighbour failures join the same fresh plan, rather than refetching the chapter per image.
+        await this.refreshingSources.get(unitId)
+      }
+      cancellation.check()
+      if (this.closed) throw new Error('closed_koma_reader')
+      filePath = await this.sourceFile(page.unit, page.sourceIndex, true)
+    }
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
     if (kind === 'thumbnail') return this.thumbnails.load(filePath, cancellation)
@@ -325,6 +407,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.preparationCancellation.cancel()
     this.preparingUnits.clear()
     this.sourceRequests.clear()
+    this.refreshingSources.clear()
+    this.automaticallyRefreshedUnits.clear()
+    this.automaticPageRetries.clear()
     this.thumbnails.close()
     this.configs.clear()
     this.sources.clear()

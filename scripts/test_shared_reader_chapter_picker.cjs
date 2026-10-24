@@ -249,16 +249,16 @@ const sharedCore = require('../../reader-kit/tests/load-core.cjs')('ReaderSessio
 function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri) {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'preloadNextUnit',
-      'page', 'preload', 'sourceFile', 'load', 'close'], {
-      ...sharedCore, KomaReaderFailure: { catalogMessage: error => error.message },
+      'page', 'preload', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
+      ...sharedCore, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
       ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2 },
-      createReaderPageRenderSources: config => config.pageUris.map(imageUri => ({ kind: 1, imageUri })),
+      createReaderPageRenderSources: config => config.pageUris.map((imageUri, index) => ({ kind: 1, imageUri, sourceRuntimeId: config.sourceRuntimeId, pageId: config.pageIds?.[index] })),
       fetchAndCacheReaderRemoteSource: fetchSource,
       KomaReaderFileInformation: class {}, ReaderFileCropSource: class {},
     })
   const adapter = new Adapter()
   Object.assign(adapter, { configs: new Map(), sources: new Map(), preparedUnits: new Map(),
-    preparingUnits: new Map(), sourceRequests: new Map(), closed: false, chapterPreloadEnabled: true,
+    preparingUnits: new Map(), sourceRequests: new Map(), refreshingSources: new Map(), automaticallyRefreshedUnits: new Set(), automaticPageRetries: new Set(), closed: false, chapterPreloadEnabled: true,
     preparationCancellation: new sharedCore.ReaderCancellation(), catalogFailureText: 'visible failure',
     catalogHost: { prepare: hostPrepare }, thumbnails: { close() {} },
   })
@@ -348,4 +348,95 @@ test('closing retires a pending catalog before it can install late pages', async
   adapter.close(); finish(chapterConfig()); await rejected
   assert.equal(adapter.configs.size, 0)
   assert.equal(adapter.preparedUnits.size, 0)
+})
+
+function retryConfig(uris = ['old0', 'old1', 'old2'], ids = ['p0', 'p1', 'p2']) {
+  return { ...chapterConfig(), sourceRuntimeId: 'source', pageIds: ids, pageUris: uris }
+}
+test('explicit image retry refreshes the chapter descriptors and bypasses the byte cache', async () => {
+  const hostCalls = [], fetched = []
+  const adapter = preparationFixture(async (_key, _cancel, force) => {
+    hostCalls.push(force); return retryConfig(['new0', 'new1', 'new2'])
+  }, async (source, _context, force) => { fetched.push([source.imageUri, force]); return '/cache/' + source.imageUri })
+  const cancel = new sharedCore.ReaderCancellation(), key = unitKey('B')
+  const unit = adapter.installConfig(key, retryConfig(), cancel), page = await adapter.page(unit, 0, cancel)
+  await adapter.load(page, 'original', cancel, false)
+  assert.equal(hostCalls.length, 0, 'ordinary opening remains cache-first')
+  const result = await adapter.load(page, 'original', cancel, true)
+  assert.equal(hostCalls.length, 1)
+  assert.equal(hostCalls[0], true)
+  assert.equal(result.uri, 'file:///cache/new0')
+  assert.deepEqual(fetched.at(-1), ['new0', true])
+  assert.equal(adapter.configs.get(adapter.unitId(key)).pageUris[0], 'old0', 'retry must not replace the live catalog or jump position')
+  adapter.close()
+})
+test('concurrent page retries share refresh, match stable IDs and allow retry after a refresh failure', async () => {
+  let resolve, calls = 0
+  const adapter = preparationFixture(async () => {
+    calls++
+    if (calls === 1) throw Error('temporary provider failure')
+    return new Promise(done => { resolve = done })
+  })
+  const cancel = new sharedCore.ReaderCancellation(), key = unitKey('B')
+  const unit = adapter.installConfig(key, retryConfig(), cancel)
+  const first = await adapter.page(unit, 0, cancel), second = await adapter.page(unit, 1, cancel)
+  await assert.rejects(adapter.load(first, 'original', cancel, true), /temporary provider failure/)
+  assert.equal(adapter.sources.get(adapter.unitId(key))[0].imageUri, 'old0')
+  const a = adapter.load(first, 'original', cancel, true), b = adapter.load(second, 'original', cancel, true)
+  await later(); assert.equal(calls, 2)
+  resolve(retryConfig(['new1', 'new0', 'new2'], ['p1', 'p0', 'p2']))
+  assert.equal((await a).uri, 'file:///cache/new0')
+  assert.equal((await b).uri, 'file:///cache/new1')
+  adapter.close()
+})
+test('local/offline image retry never refreshes a source catalog', async () => {
+  const adapter = preparationFixture(async () => { throw Error('must not request provider') })
+  const cancel = new sharedCore.ReaderCancellation(), key = unitKey('B')
+  const unit = adapter.installConfig(key, chapterConfig(), cancel), page = await adapter.page(unit, 0, cancel)
+  adapter.sources.set(adapter.unitId(key), [{ kind: 0, imageUri: '/offline/page.jpg', pageId: 'p0' }])
+  assert.equal((await adapter.load(page, 'original', cancel, true)).uri, 'file:///cache//offline/page.jpg')
+  adapter.close()
+})
+
+test('a recoverable source image failure automatically refreshes and retries once', async () => {
+  let refreshes = 0
+  const fetched = []
+  const adapter = preparationFixture(async () => { refreshes++; return retryConfig(['new0', 'new1', 'new2']) },
+    async (source, _context, force) => {
+      fetched.push([source.imageUri, force])
+      if (source.imageUri === 'old0') throw Error('reader_remote_image_fetch_failed_2300999')
+      return '/cache/' + source.imageUri
+    })
+  const cancel = new sharedCore.ReaderCancellation(), key = unitKey('B')
+  const unit = adapter.installConfig(key, retryConfig(), cancel), page = await adapter.page(unit, 0, cancel)
+  assert.equal((await adapter.load(page, 'original', cancel, false)).uri, 'file:///cache/new0')
+  assert.equal(refreshes, 1)
+  assert.deepEqual(fetched, [['old0', false], ['new0', true]])
+  adapter.close()
+})
+test('persistent failure has a finite automatic budget and explicit retry remains available', async () => {
+  let refreshes = 0, requests = 0
+  const adapter = preparationFixture(async () => { refreshes++; return retryConfig() }, async () => {
+    requests++; throw Error('reader_remote_image_fetch_failed_2300999')
+  })
+  const cancel = new sharedCore.ReaderCancellation(), key = unitKey('B')
+  const unit = adapter.installConfig(key, retryConfig(), cancel), page = await adapter.page(unit, 0, cancel)
+  await assert.rejects(adapter.load(page, 'original', cancel, false), /2300999/)
+  assert.equal(requests, 2); assert.equal(refreshes, 1)
+  await assert.rejects(adapter.load(page, 'original', cancel, false), /2300999/)
+  assert.equal(requests, 3); assert.equal(refreshes, 1, 'ordinary rerender cannot create a retry loop')
+  await assert.rejects(adapter.load(page, 'original', cancel, true), /2300999/)
+  assert.equal(requests, 4); assert.equal(refreshes, 2, 'manual retry has its own explicit refresh')
+  adapter.close()
+})
+test('known web challenges, authorization failures, cancellation and missing files are not auto-retried', async () => {
+  for (const reason of ['reader_remote_image_http_403', 'reader_remote_image_http_401', 'source_challenge_required', 'cancelled', 'missing_file']) {
+    let requests = 0
+    const adapter = preparationFixture(async () => { throw Error('must not refresh') }, async () => { requests++; throw Error(reason) })
+    const cancel = new sharedCore.ReaderCancellation(), key = unitKey('B')
+    const unit = adapter.installConfig(key, retryConfig(), cancel), page = await adapter.page(unit, 0, cancel)
+    await assert.rejects(adapter.load(page, 'original', cancel, false), e => e.message === reason)
+    assert.equal(requests, 1)
+    adapter.close()
+  }
 })

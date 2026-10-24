@@ -408,8 +408,9 @@ struct Index {
   }
 
   private async ensureReaderSourceChapterPages(comic: Comic, chapterId: string | undefined,
-    onSourceFailure?: (reason: string | undefined, details?: SourceFailureDetails) => void): Promise<boolean> {
-    if (!this.chapterNeedsReaderSourcePages(comic, chapterId)) {
+    onSourceFailure?: (reason: string | undefined, details?: SourceFailureDetails) => void,
+    forceRefresh: boolean = false): Promise<boolean> {
+    if (!forceRefresh && !this.chapterNeedsReaderSourcePages(comic, chapterId)) {
       return true
     }
     try {
@@ -420,7 +421,7 @@ struct Index {
         () => {
           this.refreshLibrarySnapshot()
         },
-      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, false)
+      ).ensureChapterPages(comic.id, comic.sourceRuntimeId, chapterId as string, forceRefresh)
       if (!result.hydrated) {
         onSourceFailure?.(result.sourceFailureReason, result.sourceFailure)
         this.logReaderSourcePagesUnavailable(result.reasonCode)
@@ -598,13 +599,13 @@ struct Index {
   }
 
   private async prepareReaderLabCatalog(target: ReaderUnitKey,
-    cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> {
+    cancellation: ReaderCancellation, forceRefresh: boolean = false): Promise<ReaderSessionConfig | null> {
     if (target.scope !== 'koma-local') return null
     const sourceRequest = this.activeSourceReaderRequest
     if (sourceRequest !== undefined && sourceRequest.comicId === target.work) {
       const nextRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
       if (nextRequest === undefined) return null
-      if (sourceRequest.chapterId === target.unit &&
+      if (!forceRefresh && sourceRequest.chapterId === target.unit &&
         this.readerSessionConfig.comicId === target.work && this.readerSessionConfig.chapterId === target.unit &&
         this.readerSessionConfig.totalPages > 0 &&
         this.readerSessionConfig.pageUris.length === this.readerSessionConfig.totalPages &&
@@ -635,8 +636,13 @@ struct Index {
     const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
     let sourceFailureReason: string | undefined = undefined
     let sourceFailure: SourceFailureDetails | undefined = undefined
-    if (!offlineReady) await this.ensureReaderSourceChapterPages(original, target.unit,
-      (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details })
+    if (!offlineReady) {
+      const hydrated = await this.ensureReaderSourceChapterPages(original, target.unit,
+        (reason: string | undefined, details?: SourceFailureDetails): void => { sourceFailureReason = reason; sourceFailure = details },
+        forceRefresh)
+      // A failed explicit refresh must not silently reuse the same stale page plan.
+      if (forceRefresh && !hydrated) throw KomaReaderFailure.sourceError(sourceFailureReason, sourceFailure)
+    }
     cancellation.check()
     const comic = this.readerComicForOpen(target.work) ?? original
     cancellation.check()
@@ -661,7 +667,8 @@ struct Index {
     let initialProductionPending = production
     return new KomaReaderCatalogHost(
       (work: string, unit: string): ReaderSessionConfig | null => this.readerLabInitialConfig(work, unit),
-      async (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> => {
+      async (target: ReaderUnitKey, cancellation: ReaderCancellation, forceRefresh: boolean): Promise<ReaderSessionConfig | null> => {
+        if (forceRefresh) return this.prepareReaderLabCatalog(target, cancellation, true)
         if (initialProductionPending && target.work === initialWork && target.unit === initialUnit) {
           initialProductionPending = false
           await this.readerPreparation

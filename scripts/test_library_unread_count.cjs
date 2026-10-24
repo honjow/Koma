@@ -103,3 +103,15 @@ test('projection is read-only and preserves a local single-chapter continue posi
   assert.equal(projected.continueReading.progress, 30)
   assert.deepEqual({ book, progress: store.listProgress(), chapters: store.listChapterStates() }, before)
 })
+
+test('a complete source response with duplicate IDs still exposes its exact logical unread count', () => {
+  const store = new stores.InMemoryReaderSessionStore()
+  const book = comic(Array.from({ length: 600 }, (_, i) => `chapter${i}`))
+  book.chapters.push(...book.chapters.slice(0, 24))
+  book.chapterCount = 624
+  for (let i = 0; i < 4; i++) store.markChapterReadState(book.id, `chapter${i}`, true)
+  const before = structuredClone({ book, states: store.listChapterStates() })
+  assert.equal(store.unreadChapterCount(book), 596)
+  assert.equal(view.createLibraryViewModelFromComics([book], store).comics[0].unreadChapterCount, 596)
+  assert.deepEqual({ book, states: store.listChapterStates() }, before)
+})

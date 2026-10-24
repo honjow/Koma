@@ -379,6 +379,8 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       ' responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes)
     return response.result as ArrayBuffer
   } catch (error) {
+    // Keep an observed HTTP status intact instead of rewrapping it as transport "unknown".
+    if (/^reader_remote_image_http_\d+$/.test((error as Error).message)) throw error as Error
     const e = error as BusinessError
     trace.finish('failed', 'responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes +
       ' receivedBytes=unknown ' + DiagnosticLogger.errorSummary(e))
@@ -393,11 +395,12 @@ export async function fetchAndCacheReaderRemoteImage(
   uri: string,
   identity?: ReaderRemoteIdentity,
   context?: common.UIAbilityContext,
+  forceReload: boolean = false,
 ): Promise<string> {
   if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
   const request = await resolveReaderRemoteRequest(uri, identity, context)
   const path = await readerImageCacheStore.getOrFetch(request.url, request.headers,
-    () => downloadReaderRemoteBytes(request.requestUrl, request.headers))
+    () => downloadReaderRemoteBytes(request.requestUrl, request.headers), undefined, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
@@ -578,31 +581,32 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   uri: string,
   sourceImageId: string,
   mangaUrl?: string,
+  forceReload: boolean = false,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
   }
   const sourceId = sourceRuntimeId.trim()
   if (sourceId.length === 0) {
-    return fetchAndCacheReaderRemoteImage(uri)
+    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload)
   }
   // Source page IDs can be chapter-local, so the original image URI belongs in the cache identity.
   const route = sourceImageMangaRoute(mangaUrl)
   const cacheIdentity = route === undefined
     ? [sourceId, sourceImageId, uri] : [sourceId, sourceImageId, uri, route]
   const cacheKeySeed = `source-page-v2:${JSON.stringify(cacheIdentity)}`
-  const cachedFast = await readerImageCacheStore.get('', undefined, cacheKeySeed)
+  const cachedFast = forceReload ? undefined : await readerImageCacheStore.get('', undefined, cacheKeySeed)
   if (cachedFast !== undefined && cachedFast.length > 0) {
     return cachedFast
   }
   const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route)
   if (imageRequest === undefined) {
     DiagnosticLogger.warn('reader_page_source_adapter', 'image_request_unavailable', `[ReaderImage] step=image_request_unavailable source=${sourceId} kind=image_descriptor`)
-    return fetchAndCacheReaderRemoteImage(uri)
+    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload)
   }
   const cacheHeaders = imageRequest.headers
   const path = await readerImageCacheStore.getOrFetch(imageRequest.url, cacheHeaders,
-    () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers), cacheKeySeed)
+    () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers), cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
@@ -802,15 +806,15 @@ export function createReaderPageRenderSources(
   return sources
 }
 
-export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<string> {
+export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false): Promise<string> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
     return source.imageUri
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
-      return fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
+      return fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload)
     }
-    return fetchAndCacheReaderRemoteImage(source.imageUri, source, context)
+    return fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload)
   }
   return source.uri
 }

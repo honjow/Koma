@@ -931,15 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T21:14:40.548476+00:00",
+  "updatedAt": "2026-10-24T22:11:38.285086+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": {
-    "title": "核对原生卡片前缀资源的更新",
-    "detail": "每源状态投影已测试；第9帧图标瞬空仍存在，正在查前缀/后缀更新契约。",
-    "startedAt": "2026-10-24T21:14:40.548050+00:00"
-  },
-  "nextAction": "提交按源状态的限定修复并同步；继续以120原始反例调查图标，不外推整体性能通过。",
+  "activeId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+  "activity": "本地重试链与未读数修复通过37项回归及Release构建；200已退出控制",
+  "nextAction": "审精确diff后范围提交/推送并跟精确CI；个人手机不再操作。随后接续已批准两级缓存候选。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1039,13 +1035,13 @@
     {
       "id": "READER_WINDOW_LIFECYCLE",
       "title": "三App五入口全屏/状态栏早于转场完成",
-      "status": "共用候选待选择；用户所问右侧黑区已核源图固有",
+      "status": "新反例：上栏早于状态栏；待共同层修复，禁止恢复无状态栏死锁",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：共用候选实现及双设备原片",
       "dependencies": [],
       "result": "共享真实animation.onFinish＋native.onTransitionEnd双完成门，300ms水平进入。549项检查、N/K签名构建完成；N07472帧/2表、K237073108帧/3表均完整顺序亲审，进入与普通返回成立。K日志animation_started→finished301ms，再native_finished4ms；N晚取日志已空，未冒称同等日志时序证明。",
-      "remaining": "用户尚未采用动效。候选源码已撤，四份精确patch及HAP保存在NextN .hvigor/outputs/reader-route-candidate-20261025；采用后恢复并验证取消/重入及N缺失的事件日志。两设备已恢复稳定版，N临时HD已恢复并返回原7项下载。",
+      "remaining": "核0e15ed7删除prepareChromeShow/beforeShowChrome的完整原因；共同状态区分状态栏已完成、确实不可用、尚待应用。保有状态栏时先完成再显示上栏，无状态栏直接可用；不得把旧强制门控原样放回。个人手机不再操作。",
       "reportedAt": "2026-10-22T19:12:58.799Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:12:58.799Z",
@@ -1060,10 +1056,11 @@
         "N候选38209576B/1.0.7code10，从073实际686744下载阅读列进入2/2；074全72帧与返回已审。075布局为原7下载；075接收截图误写到072路径覆盖其截图，该截图不作原安装前置证据，074原片及布局仍独立保留。",
         "K候选8532590B/defaultRelease0.1.2-precode3，070安装三域同069；072普通Download详情→073继续6/10→正常Back；全108帧/3表顺序亲审。日志armed1792857971896、animation_started1990、animation_finished2291、native_finished2295；074正常回原书架，数据对比待补。",
         "用户问N图右侧黑区及是否关闭缩放：074为普通下载阅读列直接进入，不经过缩略图缩放，未改缩放开关。076已恢复稳定cdb38205248B；077同页仍有黑区，节点全1260px。079增强JPEG5120x7172；080临时关闭本会话HD，085确认实际源WEBP1280x1793，黑区同。下载RDB精确media4230305/page2，CDN一次HTTP200175362B，原图全高右侧135列近黑（RGB通道≤8）；本机公共文件接收权限拒绝未绕过，未冒称字节相同。087保留cdn-source-page2.webp和像素事实。",
-        "候选未混入后续构建：Kit/N消费/两宿主候选diff均经reverse check精确撤下；N089正常返回原7项下载、HD已恢复。4patch与candidate-state.json留忽略产物目录。"
+        "候选未混入后续构建：Kit/N消费/两宿主候选diff均经reverse check精确撤下；N089正常返回原7项下载、HD已恢复。4patch与candidate-state.json留忽略产物目录。",
+        "用户本轮同时明确两条约束：状态栏显示后再显示上工具栏；无状态栏时不得永久阻止工具栏。0e15ed7现注释只保“不因不可用阻止chrome”，Surface同步chromeVisible再异步presentChrome。Root刚才把旧等待流程视为正确的判断不完整，已更正，共同源码尚未修改。"
       ],
       "remainingActions": [
-        "用户尚未采用动效。候选源码已撤，四份精确patch及HAP保存在NextN .hvigor/outputs/reader-route-candidate-20261025；采用后恢复并验证取消/重入及N缺失的事件日志。两设备已恢复稳定版，N临时HD已恢复并返回原7项下载。"
+        "核0e15ed7删除prepareChromeShow/beforeShowChrome的完整原因；共同状态区分状态栏已完成、确实不可用、尚待应用。保有状态栏时先完成再显示上栏，无状态栏直接可用；不得把旧强制门控原样放回。个人手机不再操作。"
       ],
       "boundaries": [
         "不能用didShow、enableStatusBar、布局坐标冒充动画结束；不用延时或改变已定转场效果绕过。"
@@ -1072,13 +1069,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "投影修复三端CI成功；总体性能仍OPEN",
+      "status": "原生阶段发现78MB缓存主线程批量释放；两级缓存候选已获允许",
       "kind": "open",
       "priority": "P0（最高）",
       "owner": "Root：跳页相邻请求/解码/呈现因果定位",
       "dependencies": [],
       "result": "061→067同686734/34页第12页六组8000反向，Cell808→85，Zoom更新71；主线程frame_slice均值5.877→4.047ms、最大38.032→20.362ms、>16.67ms61→2、>33.34ms2→0。顺序暖缓存样本，不是clean AB/显示FPS；共同Kit已推送，性能仍OPEN。",
-      "remaining": "N068跳页相邻短空缺240→247/约116ms仍待定位。23:19:00.537 seek后.539–.552有两组文件cache hit，.553–.573既有增强结果ready；原生JPEG解码发生至.983，但缺逐slot对齐，不能据此断言空缺唯一成因。下一核资源需求/解码/可见范围交接，保原图加载反馈与所有宿主旧路径。",
+      "remaining": "用户已允许候选：文件预取仍5页，连续原生解码仅近屏窗口，远处保文件、放大保原清晰度；仅候选，正式采用待普通/快往返/加载验证。当前先处理200章级持续失败，不丢性能候选。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1112,11 +1109,11 @@
         "K237 cdb9c22明确安装8528865B；066原生条实选7/10，067全222帧/7联系表已按序亲审，正文持续显示。068原LTR勾选6/10亲核；069正常回书架，库/注册与063逐字同，reader仅同本地书3处updatedAt1792853526148→1792855345873，页码与其他字段同。",
         "E cdb9c22明确安装38181768B；061原下载4212986的13/19，063原生条实选14且正文/选中一致。064全294帧/9联系表顺序亲审，三组快速往返正文连续，无整屏空白/错页；065原LTR勾选13/19亲核，066原2项完成下载保持。E现有CI preflight通过。",
         "N101普通686734/34页滑块1→17→1，全100帧/3联系表顺序审阅：目标等待有加载反馈，先相邻图后目标图。Core身份日志证明source16默认获取48ms、enhanced1ms，增强资源04:42:28.269→呈现回执.554；source17为.266→.504。仅定位至获取之后，不把这段全称解码或主线程阻塞。",
-        "临时8行Core日志已从Root及N消费目录精确撤下。N103明确恢复原38205248B稳定包，105普通重开读回LTR与1/34，107原7下载及既有2/2保留，108回原桌面；无缓存/网络/用户数据注入。"
+        "临时8行Core日志已从Root及N消费目录精确撤下。N103明确恢复原38205248B稳定包，105普通重开读回LTR与1/34，107原7下载及既有2/2保留，108回原桌面；无缓存/网络/用户数据注入。",
+        "NextN109完整finally恢复已完成：资源ready→原生mounted94ms→onComplete142ms→presented7ms；HiTrace最慢主线程60.573ms，8块78241792B缓存释放21.640ms（嵌套不相加）。临时源码已撤、稳定38205248B/LTR1/34/7下载/桌面恢复，未称109视觉验收。"
       ],
       "remainingActions": [
-        "N068相邻116ms缺页及连续性能总体仍OPEN。N101将等待收敛到文件获取后；继续区分原生解码、几何就绪与呈现回执，不删除加载反馈、不按未知原因改尺寸/质量。",
-        "预载5对应原生缓存窗口是f260c8a恢复的既有能力；不能为了缩短跳页把已批准预载深度减少。按旧trace核实际native图片工作，再决定下一有限探针。"
+        "用户已允许候选：文件预取仍5页，连续原生解码仅近屏窗口，远处保文件、放大保原清晰度；仅候选，正式采用待普通/快往返/加载验证。当前先处理200章级持续失败，不丢性能候选。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
@@ -1133,6 +1130,12 @@
         "history": "现有N068宿主日志只有slot/request/尺寸；共同Core中load和原生呈现回执仍独立。",
         "reopenEvidence": "N068相邻页116ms短空缺已有原片；同区间file cache hit、增强ready及多张JPEG原生decode日志，但无法按source/variant/request一一对齐。",
         "allowedDifference": "仅在当前原图获取成功和有效解码回执补source/request/variant/阶段与耗时；不记录URI/书名/凭据，不改任何状态、窗口、加载反馈、样式、资源、预载或进度。临时诊断完成后撤下，保留原片/日志和精确补丁。"
+      },
+      "diagnosticBasisNative": {
+        "object": "ReaderPagedViewport.ReaderPagedImage的临时native-mounted/decoded/drawable阶段日志",
+        "history": "f340474恢复原生几何及加载回执；onComplete之后仍通过postFrameCallback验证实际几何和呈现。Legacy相同使用URI Image，没有sourceSize/autoResize特殊优化。",
+        "reopenEvidence": "N101目标增强资源04:42:28.269已获取，.554才呈现；现有记录不能分开native Image挂载、onComplete和稳定可见门。",
+        "allowedDifference": "仅增加source/slot/request/variant/阶段/几何的观察日志，并保留原条件、回调与资源顺序；同一普通路径有限取证后完整撤下并恢复稳定包/LTR1/34/下载。不得删除加载反馈、几何保护或改变质量/预载。"
       }
     },
     {
@@ -2712,10 +2715,11 @@
         "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。",
         "237115后台Browse因index隐式拼key重建6旧行；117修后70→71仅新增1、旧行0销毁，管理页仅移1。SourceRuntimeRegistry元数据提交改只读fd stat普通文件/长度，原子写与冷启动readBytes保持；Host24项及相关45项通过。116覆盖后70条注册及书架/阅读逐字同115，118正常返回71启用、三域同117。",
         "270e9d83已推，精确CI40129096200 success；进度页0452a7bd精确CI40128817692 success，无新tag/发版。",
-        "按源动作状态回归先20/21：旧行读取全局队列被反例拒绝；改后相关45/45。Release8545875B已装237；120正常安装92漫画0.1.1，全83帧/3联系表及8/9/59/60原帧已审，其他源按钮保持安装。121注册71→72只增com.jiuermanhua.koma，旧71每字段相同，书架/阅读逐字保持。此轮未采HiTrace，不声称24.572ms已消除。"
+        "按源动作状态回归先20/21：旧行读取全局队列被反例拒绝；改后相关45/45。Release8545875B已装237；120正常安装92漫画0.1.1，全83帧/3联系表及8/9/59/60原帧已审，其他源按钮保持安装。121注册71→72只增com.jiuermanhua.koma，旧71每字段相同，书架/阅读逐字保持。此轮未采HiTrace，不声称24.572ms已消除。",
+        "122正常Back回Browse显示72个已启用，registry/library/reader逐字同121；本次设备安装场景完整返回。"
       ],
       "remainingActions": [
-        "每源按钮已独立观察稳定状态对象，原共享队列、去重、串行及聚合活动保持；本次限定投影修复待提交同步/精确CI。",
+        "限定按源状态投影已同步8efc61a3，精确CI40133495836正在执行；其他卡顿/图标边界保持。",
         "120第9帧本行92图标仍瞬空，59/60已恢复；图标闪烁独立OPEN。继续核原生HDS前缀在后缀变化时的实际资源持有，不能以状态隔离或稳定PrefixCustomBuilder抵消此反例。",
         "保留行最终投影及24.572ms旧主线程窗口继续定位；本次视频不是耗时AB或全列表性能通过。"
       ],
@@ -2855,24 +2859,25 @@
       "id": "LIBRARY_READING_PROGRESS_SEMANTICS",
       "title": "误开末话后书架进度长期显示100%",
       "priority": "P1（阅读进度语义正确性）",
-      "owner": "Root：本次网格/列表显示范围冻结",
+      "owner": "Root：本地统计修复；不再操作200",
       "dependencies": [],
       "relatedItems": [
         "FIRST_CHAPTER_SELECTION",
         "SHARED_ROUTE"
       ],
-      "kind": "accepted",
-      "status": "197网格/列表未读角标已验，继续阅读与原数据保持",
-      "result": "8536845B Release已覆盖197。522网格/524列表实际左上7、457、76、1、669与当前逐章已读数据一致，Nemo零未读隐藏；继续阅读仍为原章第1页100%。原卡片章内百分比已移除。",
+      "kind": "open",
+      "status": "重复目录误隐藏未读数的本地修复完成；未安装",
+      "result": "完整性比较改为保存目录条数，未读数仍按不同章节ID和原isRead计算。624条/600个ID/4已读回归返回596，并验证读态和目录不变；没有重新操作200。",
       "evidencePoints": [
         "生产ReaderSessionStore按当前去重目录和isChapterRead统一统计；目录空/已知不完整不猜数量。六项方法回归覆盖末章100%、手动读态、孤立章/他书、缺目录、696大计数、新章及单章继续阅读保持。",
         "521原图、522网格、524列表已亲看；封面frame/标题/分类与稳定ID保持，原生Badge参数共用，不截99+。522/524三业务文件均与521逐字节相同。",
-        "原生同ID手动已读操作未另造状态；其UI回显未在此新增声明。525初次等下载章节失败，实际为已下载的重新下载，526原件证明正常详情，非产品失败。"
+        "原生同ID手动已读操作未另造状态；其UI回显未在此新增声明。525初次等下载章节失败，实际为已下载的重新下载，526原件证明正常详情，非产品失败。",
+        "本轮仅离线读取已保存200现场：大象無形chapterCount624、chapters624、uniqueId600、现有isRead4；并非读完。"
       ],
       "remainingActions": [
-        "本次两种书架展示和Host统计范围冻结；未扩认所有字号、主题或Native手动读态操作。其他队列继续。"
+        "跟随本轮提交/精确CI；角标在实际新包的显示未验，保200禁止操作。"
       ],
-      "remaining": "本次两种书架展示和Host统计范围冻结；未扩认所有字号、主题或Native手动读态操作。其他队列继续。",
+      "remaining": "跟随本轮提交/精确CI；角标在实际新包的显示未验，保200禁止操作。",
       "boundaries": [
         "源图标本行瞬空等独立未闭项保留；已验安装性能具名范围不重跑，也不因本项丢弃其他反馈。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。",
@@ -2885,7 +2890,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": "2026-10-24T07:39:41.166025+00:00",
+      "closedAt": null,
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。"
     },
@@ -2893,28 +2898,31 @@
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
       "title": "包子《大奉打更人》正文无法加载",
       "priority": "P1（具名正文不可读）",
-      "owner": "Root：精确远端首话及读态保持具名完成；排序问题归独立项",
+      "owner": "Root：本地源码与已保存日志；200禁止继续操作",
       "dependencies": [],
       "relatedItems": [
         "BAOZIMH_BROWSE_FAILURE",
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "限定首话恢复与精确远端发布完成；未扩大cold/整书",
-      "result": "精确远端包普通搜索/695详情/首话继续3/24及读态保持已核，本轮限定恢复与发布范围完成；cold/整书/排序仍未扩认，不阻本轮收口。",
+      "status": "有界自动恢复及手动强刷本地完成；40回归/Release构建成功",
+      "result": "普通源图网络失败自动刷新一次章页计划、每页最多再取一次；明确挑战/授权/取消/TLS错误不盲重试。手动重试可独立再次强刷，保下载/读态与当前阅读单元。40回归通过，default Release8550194B，未安装。",
       "evidencePoints": [
         "353真实远端3/24图与三次HEAD fallback日志已审；registry84顺序保持仅包子WASM变119798B，library同349。",
         "reader逐字段仅同书同章正常updatedAt/position.updatedAt变化，原page3/24和其余记录保持；不再待reader核查。",
-        "App/源精确CI成功与公开真实远端包13回放/Native范围均保留，原325失败不抹去。"
+        "App/源精确CI成功与公开真实远端包13回放/Native范围均保留，原325失败不抹去。",
+        "200原书架已保存001的24个s1.bzcdn.net页地址；当前Koma adapter忽略forceReload，Index见pages非空跳过源get_pages。原日志多次图片请求返回declaredBytes=154后code2300999；该码根因尚未核实。",
+        "新增回归改前2项重试失败，修后相关31项及扩展37项通过；8551719B default Release构建exit0，无设备安装。缓存失败保旧完整文件、force刷新去重、旧请求晚写先退役；章页刷新失败不会假用旧计划报成功。"
       ],
       "remainingActions": [
-        "冻结本轮限定恢复/发布；cold/整书/排序不外推，后继只按真实新样本或独立排序项推进。"
+        "本轮代码审查、提交推送和精确CI；实际001恢复未验，200禁止操作。网络2300999的底层CURL码尚缺日志，不能宣称具体网络根因已查清。"
       ],
-      "remaining": "冻结本轮限定恢复/发布；cold/整书/排序不外推，后继只按真实新样本或独立排序项推进。",
+      "remaining": "本轮代码审查、提交推送和精确CI；实际001恢复未验，200禁止操作。网络2300999的底层CURL码尚缺日志，不能宣称具体网络根因已查清。",
       "boundaries": [
         "允许差异仅source图片选路与Host请求方法；保ID/章节/页数/进度，Reader布局不动。",
         "不写死rsa、不绕TLS、不新增UI或Cookie权限；五CDN仅按站点声明有界选择，每章一次，不盲目多路下载。",
-        "Mac匿名样本不称Native通过，原325失败保留，其他请求method/会话边界保持。"
+        "Mac匿名样本不称Native通过，原325失败保留，其他请求method/会话边界保持。",
+        "Root错误扩大取日志为界面点击：点击实际进入《预告》1/12而非001；本地前后读态确认当前章改变，书架记录逐字段保持。200租约f76eb5d2已释放；24小时熄屏覆盖仍写入，未获允许不得再操作手机恢复或写回进度。原覆盖值未记录，正常timeout读回120000ms。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -3372,6 +3380,33 @@
       "title": "按源状态投影已实测，图标反例保留",
       "detail": "237安装92成功，其他按钮保持正常；本行图标仍有一帧瞬空，继续处理。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "reader-native-phase-start",
+      "at": "2026-10-24T21:21:14.910025+00:00",
+      "title": "继续细分原生图片显示阶段",
+      "detail": "对照旧版后保留图片质量和几何保护；补齐挂载、解码与可见阶段的取证。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-24T21:55:34.719359+00:00",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "title": "200失败已留证；越界操作已停止",
+      "detail": "用户001持续失败保留。Root误将取日志扩成点击并改当前章，已释放租约；仅本地分析。大象無形缺角标已定位重复ID触发目录不完整判断，596章未读。"
+    },
+    {
+      "at": "2026-10-24T22:03:59.027842+00:00",
+      "title": "重试链与未读数本地修复",
+      "detail": "37项回归通过，Release8551719B构建；尚未安装。显式重试刷新章页地址和图片缓存，重复目录未读数恢复精确统计。",
+      "kind": "work",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE"
+    },
+    {
+      "at": "2026-10-24T22:11:38.285086+00:00",
+      "title": "自动恢复完成本地检查；上栏时序新增反例",
+      "detail": "40回归、Release8550194B；未安装。上栏必须兼顾状态栏先完成与无状态栏可用，两项均保留；禁止原样恢复旧强制门控。",
       "kind": "work"
     }
   ]

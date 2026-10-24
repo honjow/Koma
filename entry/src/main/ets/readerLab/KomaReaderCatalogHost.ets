@@ -5,13 +5,13 @@ import { ReaderSessionConfig, cloneReaderSessionConfig } from '../model/ReaderSe
 export class KomaReaderCatalogHost {
   private initialResolver: (work: string, unit: string) => ReaderSessionConfig | null
   private prepareResolver: (target: ReaderUnitKey,
-    cancellation: ReaderCancellation) => Promise<ReaderSessionConfig | null>
+    cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>
   private commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void
 
   constructor(
     initialResolver: (work: string, unit: string) => ReaderSessionConfig | null,
     prepareResolver: (target: ReaderUnitKey,
-      cancellation: ReaderCancellation) => Promise<ReaderSessionConfig | null>,
+      cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>,
     commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void,
   ) {
     this.initialResolver = initialResolver
@@ -24,9 +24,9 @@ export class KomaReaderCatalogHost {
     return config === null ? null : cloneReaderSessionConfig(config)
   }
 
-  async prepare(target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderSessionConfig | null> {
+  async prepare(target: ReaderUnitKey, cancellation: ReaderCancellation, forceRefresh: boolean = false): Promise<ReaderSessionConfig | null> {
     cancellation.check()
-    const config = await this.prepareResolver(target.copy(), cancellation)
+    const config = await this.prepareResolver(target.copy(), cancellation, forceRefresh)
     cancellation.check()
     return config === null ? null : cloneReaderSessionConfig(config)
   }
