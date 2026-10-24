@@ -32,7 +32,7 @@ export interface LibraryComicCardViewModel {
   id: ComicId
   title: string
   subtitle: string
-  progressText: string
+  unreadChapterCount?: number
   coverColor: string
   accentColor: string
   pageCount: number
@@ -329,17 +329,6 @@ function getProgressChapterTitle(comic: Comic, presentation: LibraryComicPresent
   return comic.chapters.length === 0 ? comic.title : comic.chapters[0].title
 }
 
-function formatProgressText(fallbackProgressText: string, progress?: ReadingProgress, completed?: boolean): string {
-  if (completed === true) return AppStrings.get('library_progress_finished')
-  if (progress === undefined) {
-    return fallbackProgressText
-  }
-  if (completed === undefined && progress.completed) {
-    return AppStrings.get('library_progress_finished')
-  }
-  return `${progressPercent(progress)}%`
-}
-
 function isTechnicalChapterTitle(chapterTitle: string): boolean {
   const trimmed = chapterTitle.trim()
   if (trimmed.length === 0) {
@@ -386,14 +375,12 @@ export function createLibraryViewModelFromComics(
   presentationByComicId: LibraryPresentationByComicId = new Map<ComicId, LibraryComicPresentation>()
 ): LibraryViewModel {
   const cards = comics.map((comic: Comic): LibraryComicCardViewModel => {
-    const progress = sessionStore === undefined ? undefined : sessionStore.getComicProgress(comic)
     const presentation = presentationByComicId.get(comic.id) ?? createFallbackPresentation(comic)
     return {
       id: comic.id,
       title: comic.title,
       subtitle: presentation.subtitle ?? formatSourceSubtitle(comic),
-      progressText: formatProgressText(presentation.fallbackProgressText, progress,
-        sessionStore === undefined ? undefined : sessionStore.comicReadingState(comic) === 'completed'),
+      unreadChapterCount: sessionStore?.unreadChapterCount(comic),
       coverColor: presentation.coverColor,
       accentColor: presentation.accentColor,
       pageCount: comic.pageCount,

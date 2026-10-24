@@ -2615,6 +2615,7 @@ export struct MangaDetailPage {
       }
       .width('100%')
       .height('100%')
+      .backgroundColor(ThemeConstants.BG_SUB)
     }
   }
 }

@@ -931,15 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T06:52:16.861514+00:00",
+  "updatedAt": "2026-10-24T07:39:41.166480+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "CHAPTER_SORT_MENU",
-  "activity": {
-    "title": "大奉缺章号原因已定位，整理包子0.1.11修复",
-    "detail": "507真实696章仅101条有效章号、595条unknown；508原生unknown标题687赤尾烈鷹等为非零三位数字直接接中文，旧源仅允许零开头，具体缺口已证。509已恢复原降序并自然返回，510三业务域逐字同。",
-    "startedAt": null
-  },
-  "nextAction": "同步目录诊断；审包子限定三位中文标题修复、patch0.1.11并跟进远端自动构建，197使用原索引正常更新后核目录/读态。安装图标瞬空独立保留。",
+  "activity": "两项最新UI决定已在197具名验收；Root恢复网格并从原索引推进包子012正常采用。源闪烁/安装性能仍open。",
+  "nextAction": "529普通源包管理等后台索引，核Baozi011→012唯一更新，再按原操作安装和实机目录验收；同步已验App代码并跟进精确CI。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1108,13 +1104,13 @@
     {
       "id": "CHAPTER_SORT_MENU",
       "title": "章节排序菜单无作用",
-      "status": "大奉595条缺章号已定位到非零三位中文紧接标题",
+      "status": "012精确CI/公开索引已完成，待197普通更新",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：未知metadata规则；包子019具名范围冻结",
+      "owner": "Root：012远端已发布，197普通采用中",
       "dependencies": [],
-      "result": "507实际696章只有101条有效章号、595条unknown，min1/max583；508原生unknown标题687赤尾烈鷹等十条，旧包子parser仅允许首位0，导致这些真实标题丢metadata。App未知-1/同号稳定规则未改。",
-      "remaining": "整理同步包子限定三位中文标题metadata修复/0.1.11远端；197原索引正常更新后核696目录升降序、原3/24读态及数据保持。其他未知标题不泛化推断。",
+      "result": "011已由原latest索引正常更新到197；518实录696唯一章，688编号/8未知，降序687/686/685且原001第3/24页保持。519升序实际发现138、285及624“雞”不可失在未知组，限定解析补丁10项模块测试已过，待012构建/发布/原生。",
+      "remaining": "197经原远端索引正常更新012，再核实际编号/未知数、升降序及001第3/24页；新分支不冒正文或整书通过。",
       "reportedAt": "2026-10-22T18:49:32.812Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:49:32.812Z",
@@ -1128,10 +1124,11 @@
         "324普通大奉详情695章，目录583后099异常已发现；本轮未改源码/未清数据，原件baozimh-dafeng197-detail-324。",
         "485另见元尊同号下→上；8个unknown置前符合19ad9143既定对称-1规则，不将它冒新实现错误或恢复已拒unknown恒末尾。",
         "495现站更新为696/696，原生降序仍583陽神→099萬妖國→098銅皮鐵骨；HTTP200，原3/24读态保持。旧695固定等待未命中仅因站点章数变更，不作加载失败。",
-        "505诊断包8536633B，21项Host/Release通过；507 catalog_order total696 numbered101 unknown595 min1 max583，leading前8全unknown。508升序unknown原序十题687..678亲读，509恢复降序并返回，510三域同505。"
+        "505诊断包8536633B，21项Host/Release通过；507 catalog_order total696 numbered101 unknown595 min1 max583，leading前8全unknown。508升序unknown原序十题687..678亲读，509恢复降序并返回，510三域同505。",
+        "c21d58d8五文件限定三位裸整数及配对中文引号题名，10模块测试/生产WASM120849B和source_info0.1.12成立；精确CI40074281080成功，公开sources-c21d58d8于07:31:12Z发布，原latest索引85条且Baozi0.1.12。"
       ],
       "remainingActions": [
-        "整理同步包子限定三位中文标题metadata修复/0.1.11远端；197原索引正常更新后核696目录升降序、原3/24读态及数据保持。其他未知标题不泛化推断。"
+        "197经原远端索引正常更新012，再核实际编号/未知数、升降序及001第3/24页；新分支不冒正文或整书通过。"
       ],
       "boundaries": [
         "包子019具名目录/邻接/原进度冻结，不外推所有排序。漫画160跨季无metadata不能用已否决的非对称比较器、标题首数或全reverse修。",
@@ -2590,20 +2587,20 @@
         "MANGA_DETAIL_PULL_REFRESH",
         "LIST_EDGE_SCROLL_FEEL"
       ],
-      "kind": "open",
-      "status": "原图背景分界与固定父层缺色已核；颜色候选待答未实施",
-      "result": "Root亲看114/frame000062.png白色固定区/下移灰列表分界；746e3b8e父树中BG_SUB随内容下移、固定Stack无同色背景。候选仅详情固定Stack补BG_SUB，颜色选择待答未实施。",
+      "kind": "accepted",
+      "status": "197原详情同手势168帧已审，露出区域同色",
+      "result": "仅固定外Stack补BG_SUB。527沿114同一猎行者458章详情/同手势连续录像168帧已亲审，最大下拉/回弹/终态背景同色，原内容保持；528原第一话15/16与读态保持。",
       "evidencePoints": [
-        "现完整父树：SecondaryListScaffold.BG_SUB随PullRefresh.content offset移动；MangaDetailPage固定Stack/PullRefresh未持同色背景。",
-        "原114帧已亲审，不再写未取图；未实施/构建，不冒当前399包的Native修复通过。"
+        "背景根因来自746e3b8e父树中灰底随PullRefresh内容移动，固定Stack无底色；本次只补这一行，不动公共Scaffold/布局/动画/标题栏。",
+        "527五张联系表0–167及关键原帧62/146/167已亲看：无旧白灰分界；原猎行者458章、第一话第15/16页及既有正文/封面保持。",
+        "526→528书库/reader/registry逐字节相同；521→526仅Hunter封面URI由正常详情加载更新，原章节与阅读不变，不写整库零变化。"
       ],
       "remainingActions": [
-        "仅该固定Stack背景颜色候选等异步答复；不改布局/动画或公共PullRefresh，其他调查继续。"
+        "本次浅色普通详情具名范围冻结；未以此扩认深色/全部源/全部刷新失败状态。其他队列继续。"
       ],
-      "remaining": "仅该固定Stack背景颜色候选等异步答复；不改布局/动画或公共PullRefresh，其他调查继续。",
+      "remaining": "本次浅色普通详情具名范围冻结；未以此扩认深色/全部源/全部刷新失败状态。其他队列继续。",
       "boundaries": [
-        "允许候选仅详情固定Stack.backgroundColor(ThemeConstants.BG_SUB)，待明确颜色选择后实施；公共PullRefresh/布局/动画不动。",
-        "旧原图证明可见缺陷，不等当前399包新Native通过；提问只阻该显示候选，不暂停独立工作。"
+        "用户本次明确批准该露出区域同色修正；此许可不扩大为布局/刷新组件改造。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2612,7 +2609,7 @@
       "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-24T07:39:41.166476+00:00",
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。"
     },
@@ -2656,27 +2653,28 @@
       "id": "LIBRARY_READING_PROGRESS_SEMANTICS",
       "title": "误开末话后书架进度长期显示100%",
       "priority": "P1（阅读进度语义正确性）",
-      "owner": "Root：最近章百分比/保存与全书读态消费者只读追查",
+      "owner": "Root：本次网格/列表显示范围冻结",
       "dependencies": [],
       "relatedItems": [
         "FIRST_CHAPTER_SELECTION",
         "SHARED_ROUTE"
       ],
-      "kind": "open",
-      "status": "三书真实投影证实章内100%；显示候选待答，保存链继续",
-      "result": "406现有三书非全读却书架/continue100已由生产方法只读证实；候选多章书卡片显示已读N/M章，单章本地与continue章内百分比保持，表达选择待答。",
+      "kind": "accepted",
+      "status": "197网格/列表未读角标已验，继续阅读与原数据保持",
+      "result": "8536845B Release已覆盖197。522网格/524列表实际左上7、457、76、1、669与当前逐章已读数据一致，Nemo零未读隐藏；继续阅读仍为原章第1页100%。原卡片章内百分比已移除。",
       "evidencePoints": [
-        "MockLibraryData的卡片/继续阅读共用最近章节progressRatio；ComicModels按当前章页数计算，ReaderSessionStore每书保存最近位置，章已读事实另存。",
-        "以406现有library/reader只读输入运行实际createLibraryViewModelFromComics及getComicProgress/comicReadingState，三书非全读仍100%，不是全书进度。",
-        "实际InMemory及Persistent类配内存adapter验证最近位置100%→10%可覆盖，flush后重开保持；旧章已读独立。尚未证明设备首次位置回调无缺口。"
+        "生产ReaderSessionStore按当前去重目录和isChapterRead统一统计；目录空/已知不完整不猜数量。六项方法回归覆盖末章100%、手动读态、孤立章/他书、缺目录、696大计数、新章及单章继续阅读保持。",
+        "521原图、522网格、524列表已亲看；封面frame/标题/分类与稳定ID保持，原生Badge参数共用，不截99+。522/524三业务文件均与521逐字节相同。",
+        "原生同ID手动已读操作未另造状态；其UI回显未在此新增声明。525初次等下载章节失败，实际为已下载的重新下载，526原件证明正常详情，非产品失败。"
       ],
       "remainingActions": [
-        "仅显示候选等待异步选择；继续追初始位置/保存链与用户样本，不让提问暂停独立调查。"
+        "本次两种书架展示和Host统计范围冻结；未扩认所有字号、主题或Native手动读态操作。其他队列继续。"
       ],
-      "remaining": "仅显示候选等待异步选择；继续追初始位置/保存链与用户样本，不让提问暂停独立调查。",
+      "remaining": "本次两种书架展示和Host统计范围冻结；未扩认所有字号、主题或Native手动读态操作。其他队列继续。",
       "boundaries": [
         "源图标本行瞬空等独立未闭项保留；已验安装性能具名范围不重跑，也不因本项丢弃其他反馈。",
-        "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
+        "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。",
+        "最新答复明确选择左上未读角标，取代原多章已读N/M文案；不将继续阅读章内百分比一并重做。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -2685,7 +2683,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-24T07:39:41.166025+00:00",
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。"
     },

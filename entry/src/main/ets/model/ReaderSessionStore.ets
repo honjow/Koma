@@ -493,6 +493,17 @@ export abstract class ReaderSessionStore {
     return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.isRead === true
   }
 
+  unreadChapterCount(comic: Comic): number | undefined {
+    // A missing/partial catalog cannot supply an exact unread count.
+    const chapterIds = new Set<ChapterId>(comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
+    if (chapterIds.size === 0 || comic.chapterCount > chapterIds.size) return undefined
+    let unread = 0
+    chapterIds.forEach((chapterId: ChapterId): void => {
+      if (!this.isChapterRead(comic.id, chapterId)) unread += 1
+    })
+    return unread
+  }
+
   listChapterStates(): ChapterReadingState[] {
     return Array.from(this.chapterStates.values())
   }

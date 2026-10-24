@@ -1,3 +1,4 @@
+import { libraryUnreadBadgeOptions } from './LibraryUnreadBadge'
 import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ComicSourceKind } from '../model/ComicModels'
@@ -6,7 +7,7 @@ export interface ComicCoverInfo {
   id: string
   title: string
   subtitle: string
-  progressText: string
+  unreadChapterCount?: number
   coverColor: string
   accentColor: string
   pageCount?: number
@@ -25,13 +26,11 @@ export struct ComicCoverCard {
     id: '',
     title: '',
     subtitle: '',
-    progressText: '',
     coverColor: ThemeConstants.SOURCE_LOCAL_COLOR,
     accentColor: ThemeConstants.SOURCE_OPDS_COLOR
   }
   @Param title: string = ''
   @Param subtitle: string = ''
-  @Param progressText: string = ''
   @Param coverColor: string = ''
   @Param accentColor: string = ''
   @Param categoryLabels: string[] = []
@@ -66,10 +65,6 @@ export struct ComicCoverCard {
 
   private displaySubtitle(): string {
     return this.subtitle.length > 0 ? this.subtitle : this.comic.subtitle
-  }
-
-  private displayProgressText(): string {
-    return this.progressText.length > 0 ? this.progressText : this.comic.progressText
   }
 
   private displayCoverColor(): string {
@@ -131,52 +126,39 @@ export struct ComicCoverCard {
 
   build() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Stack({ alignContent: Alignment.BottomStart }) {
-        this.CoverPlaceholder()
+      Badge(libraryUnreadBadgeOptions(this.comic.unreadChapterCount, this.displayAccentColor())) {
+        Stack() {
+          this.CoverPlaceholder()
 
-        if (this.shouldDisplayCoverImage()) {
-          CachedCoverImage({
-            uri: this.displayCoverUri(),
-            objectFit: ImageFit.Cover,
-            sourceRuntimeId: this.displaySourceRuntimeId(),
-            sourceImageId: this.displaySourceImageId(),
-            sourceKind: this.comic.sourceKind,
-            remoteServerId: this.comic.remoteServerId ?? '',
-            sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
-            onError: () => {
-              this.failedCoverUri = this.coverFailureKey()
-            },
-          })
-        }
-
-        if (this.selected) {
-          Column()
-            .width('100%')
-            .height('100%')
-            .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
-        }
-
-        if (this.displayProgressText().length > 0) {
-          Row() {
-            Text(this.displayProgressText())
-              .fontSize(ThemeConstants.FONT_SIZE_TAG)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeConstants.TEXT_ON_BRAND)
-              .maxLines(1)
+          if (this.shouldDisplayCoverImage()) {
+            CachedCoverImage({
+              uri: this.displayCoverUri(),
+              objectFit: ImageFit.Cover,
+              sourceRuntimeId: this.displaySourceRuntimeId(),
+              sourceImageId: this.displaySourceImageId(),
+              sourceKind: this.comic.sourceKind,
+              remoteServerId: this.comic.remoteServerId ?? '',
+              sourceMangaUrl: this.comic.sourceMangaUrl ?? '',
+              onError: () => {
+                this.failedCoverUri = this.coverFailureKey()
+              },
+            })
           }
-          .height(26)
-          .padding({ left: 10, right: 10 })
-          .margin({ left: 10, bottom: 10 })
-          .borderRadius(13)
-          .backgroundColor(this.displayAccentColor())
-        }
 
+          if (this.selected) {
+            Column()
+              .width('100%')
+              .height('100%')
+              .backgroundColor(ThemeConstants.SELECTED_OVERLAY)
+          }
+        }
+        .width('100%')
+        .aspectRatio(0.68)
+        .borderRadius(ThemeConstants.RADIUS_COVER)
+        .clip(true)
+        .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
       }
       .width('100%')
-      .aspectRatio(0.68)
-      .borderRadius(ThemeConstants.RADIUS_COVER)
-      .clip(true)
-      .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
 
       Text(this.displayTitle())
         .width('100%')

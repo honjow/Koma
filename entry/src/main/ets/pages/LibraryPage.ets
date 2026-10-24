@@ -1,3 +1,4 @@
+import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
@@ -995,7 +996,7 @@ export struct LibraryPage {
         id: comic.id,
         title: comic.title,
         subtitle: comic.subtitle,
-        progressText: comic.progressText,
+        unreadChapterCount: comic.unreadChapterCount,
         coverColor: comic.coverColor,
         accentColor: comic.accentColor,
         pageCount: comic.pageCount,
@@ -2017,7 +2018,6 @@ export struct LibraryPage {
         comic: params.comic,
         title: params.comic.title,
         subtitle: params.comic.subtitle,
-        progressText: params.comic.progressText,
         coverColor: params.comic.coverColor,
         accentColor: params.comic.accentColor,
         categoryLabels: params.comic.categoryLabels ?? [],
@@ -2180,56 +2180,57 @@ export struct LibraryPage {
 
   @Builder
   private LibraryListCover(comic: ComicCoverInfo) {
-    Stack({ alignContent: Alignment.Center }) {
-      if (this.shouldShowCoverUri(
-        comic.coverUri,
-        comic.sourceRuntimeId,
-        this.sourceImageIdForComic(comic),
-        comic.sourceKind,
-        comic.remoteServerId,
-        comic.sourceMangaUrl,
-      )) {
-        CachedCoverImage({
-          uri: comic.coverUri ?? '',
-          objectFit: ImageFit.Cover,
-          sourceRuntimeId: comic.sourceRuntimeId ?? '',
-          sourceImageId: this.sourceImageIdForComic(comic),
-          sourceKind: comic.sourceKind,
-          remoteServerId: comic.remoteServerId ?? '',
-          sourceMangaUrl: comic.sourceMangaUrl ?? '',
-          onError: () => {
-            this.markCoverUriFailed(
-              comic.coverUri,
-              comic.sourceRuntimeId,
-              this.sourceImageIdForComic(comic),
-              comic.sourceKind,
-              comic.remoteServerId,
-              comic.sourceMangaUrl,
-            )
-          },
-        })
-      } else {
-        SymbolGlyph($r('sys.symbol.book'))
-          .fontSize(ThemeConstants.FONT_SIZE_H2)
-          .fontColor([ThemeConstants.TEXT_TERTIARY])
+    Badge(libraryUnreadBadgeOptions(comic.unreadChapterCount, comic.accentColor)) {
+      Stack({ alignContent: Alignment.Center }) {
+        if (this.shouldShowCoverUri(
+          comic.coverUri,
+          comic.sourceRuntimeId,
+          this.sourceImageIdForComic(comic),
+          comic.sourceKind,
+          comic.remoteServerId,
+          comic.sourceMangaUrl,
+        )) {
+          CachedCoverImage({
+            uri: comic.coverUri ?? '',
+            objectFit: ImageFit.Cover,
+            sourceRuntimeId: comic.sourceRuntimeId ?? '',
+            sourceImageId: this.sourceImageIdForComic(comic),
+            sourceKind: comic.sourceKind,
+            remoteServerId: comic.remoteServerId ?? '',
+            sourceMangaUrl: comic.sourceMangaUrl ?? '',
+            onError: () => {
+              this.markCoverUriFailed(
+                comic.coverUri,
+                comic.sourceRuntimeId,
+                this.sourceImageIdForComic(comic),
+                comic.sourceKind,
+                comic.remoteServerId,
+                comic.sourceMangaUrl,
+              )
+            },
+          })
+        } else {
+          SymbolGlyph($r('sys.symbol.book'))
+            .fontSize(ThemeConstants.FONT_SIZE_H2)
+            .fontColor([ThemeConstants.TEXT_TERTIARY])
+        }
       }
+      .width(this.libraryListCoverWidth())
+      .height(this.libraryListCoverHeight())
+      .borderRadius(ThemeConstants.RADIUS_COVER)
+      .clip(true)
+      .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
     }
-    .width(this.libraryListCoverWidth())
-    .height(this.libraryListCoverHeight())
-    .borderRadius(ThemeConstants.RADIUS_COVER)
-    .clip(true)
-    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
 
   @Builder
   private LibraryList() {
     Column({ space: this.libraryListSpace() }) {
-      ForEach(this.gridComics(), (comic: ComicCoverInfo) => {
+      ForEach(this.gridProjection.comics, (comic: ComicCoverInfo) => {
         Row({ space: ThemeConstants.SPACE_SM }) {
           ConciseListRow({
             title: comic.title,
             subtitle: this.listRowSubtitle(comic),
-            trailingText: comic.progressText,
             showChevron: false,
             prefixActsAsLeading: true,
             isEnabled: !this.selectionMode || this.canSelectComic(comic.id),
@@ -2237,7 +2238,7 @@ export struct LibraryPage {
               this.handleComicClick(comic.id)
             },
             prefixBuilderParam: () => {
-              this.LibraryListCover(comic)
+              this.LibraryListCover(this.currentGridComic(comic))
             },
           })
             .layoutWeight(1)
