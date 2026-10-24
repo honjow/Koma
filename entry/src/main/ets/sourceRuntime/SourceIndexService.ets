@@ -80,6 +80,11 @@ export interface SourceIndexInstallResult {
   install?: SourcePackageInstallResult
 }
 
+@ObservedV2
+export class SourcePackageInstallState {
+  @Trace phase: 'idle' | 'queued' | 'running' = 'idle'
+}
+
 // One process-wide install lane. Other sources remain enqueueable while a
 // package is downloading; duplicate taps for one source share the same result.
 @ObservedV2
@@ -88,18 +93,32 @@ export class SourcePackageInstallTasks {
   @Trace runningId: string = ''
   private pending: Map<string, Promise<SourceIndexInstallResult>> = new Map()
   private tail: Promise<void> = Promise.resolve()
+  private states: Map<string, SourcePackageInstallState> = new Map()
+
+  stateFor(sourceId: string): SourcePackageInstallState {
+    let state = this.states.get(sourceId)
+    if (state === undefined) {
+      state = new SourcePackageInstallState()
+      this.states.set(sourceId, state)
+    }
+    return state
+  }
 
   run(sourceId: string, work: () => Promise<SourceIndexInstallResult>): Promise<SourceIndexInstallResult> {
     const existing = this.pending.get(sourceId)
     if (existing !== undefined) return existing
+    const state = this.stateFor(sourceId)
+    state.phase = 'queued'
     this.pendingIds = this.pendingIds.concat(sourceId)
     const result = this.tail.then(async (): Promise<SourceIndexInstallResult> => {
       this.runningId = sourceId
+      state.phase = 'running'
       return work()
     }).finally(() => {
       this.pending.delete(sourceId)
       this.pendingIds = this.pendingIds.filter((id: string): boolean => id !== sourceId)
       if (this.runningId === sourceId) this.runningId = ''
+      state.phase = 'idle'
     })
     this.pending.set(sourceId, result)
     this.tail = result.then((): void => {}, (): void => {})

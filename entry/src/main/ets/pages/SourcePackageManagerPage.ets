@@ -871,12 +871,15 @@ export struct SourcePackageManagerPage {
   }
 
   private packageInstallPending(sourceId: string): boolean {
-    return this.packageInstallTasks.pendingIds.includes(sourceId)
+    return this.packageInstallTasks.stateFor(sourceId).phase !== 'idle'
   }
 
   private packageActionLabel(sourceId: string, update: boolean): string {
-    if (this.packageInstallPending(sourceId)) {
-      return this.packageInstallTasks.runningId === sourceId
+    // Aggregate queue fields belong to the activity summary. A row observes
+    // only its stable per-source projection, so another install cannot dirty it.
+    const phase = this.packageInstallTasks.stateFor(sourceId).phase
+    if (phase !== 'idle') {
+      return phase === 'running'
         ? t(update ? 'source_pkg_action_updating' : 'source_pkg_installing') : t('source_pkg_action_queued')
     }
     return t(update ? 'source_pkg_action_update' : 'source_pkg_install')

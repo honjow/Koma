@@ -218,7 +218,7 @@ test('group update uses its repository and preserves a disabled source through t
     ...globals, tf: key => key, t: key => key, sourceDisplayName: (_id, name) => name,
     setEnabled: (_context, id, value) => calls.push(['enabled', id, value]),
   })
-  Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false, packageInstallTasks:{pendingIds:[]},
+  Object.assign(manager, { updateInstallSourceId:'', indexInstallBusy:false, busy:false, packageInstallTasks:installLane(),
     context: () => ({}), refreshInstalledPackage() {}, installedPackage: () => installed('A','1.1',false),
     setUpdateStatus: status => calls.push(['status', status.status]), showToast() {},
     sourceIndexService: { installPackage: async (url, entry) => { calls.push(['install',url,entry.id]); return {ok:true} } },
@@ -231,23 +231,39 @@ test('group update uses its repository and preserves a disabled source through t
 })
 
 function installLane() {
-  const queue = subject('sourceRuntime/SourceIndexService.ets', 'SourcePackageInstallTasks', ['run'], {})
-  Object.assign(queue, {pendingIds: [], runningId: '', pending: new Map(), tail: Promise.resolve()})
-  return queue
+  // Run the real queue and per-source state constructors, including field
+  // initialization; strip only platform observation decorators for Node.
+  const source = fs.readFileSync(path.join(root,'sourceRuntime/SourceIndexService.ets'),'utf8')
+  const tree = ts.createSourceFile('queue.ets',source,ts.ScriptTarget.Latest,true)
+  const names = ['SourcePackageInstallState','SourcePackageInstallTasks']
+  const code = names.map(name=>{
+    const cls = tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text===name)
+    assert.ok(cls,name)
+    return cls.getText(tree).replace(/@ObservedV2\b/g,'').replace(/@Trace\b/g,'')
+  }).join('\n')
+  const exports = {}
+  vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports})
+  return new exports.SourcePackageInstallTasks()
 }
 test('other packages enqueue during an install; one identity shares one result and writes remain serial', async () => {
   const lane = installLane(), starts = []; let finishA, finishB
+  const stateA=lane.stateFor('A'),stateB=lane.stateFor('B'),stateC=lane.stateFor('C')
+  assert.equal(stateC.phase,'idle');assert.equal(lane.stateFor('C'),stateC)
   const a = lane.run('A', () => new Promise(resolve => {starts.push('A'); finishA = resolve}))
   const b = lane.run('B', () => new Promise(resolve => {starts.push('B'); finishB = resolve}))
   assert.equal(lane.run('A', () => {throw Error('duplicate install')}), a)
   assert.deepEqual(Array.from(lane.pendingIds), ['A','B'])
+  assert.equal(stateA.phase,'queued');assert.equal(stateB.phase,'queued');assert.equal(stateC.phase,'idle')
   await new Promise(setImmediate)
   assert.deepEqual(starts, ['A']); assert.equal(lane.runningId, 'A')
+  assert.equal(stateA.phase,'running');assert.equal(stateB.phase,'queued');assert.equal(stateC.phase,'idle')
   finishA({ok:true}); await a; await new Promise(setImmediate)
   assert.deepEqual(starts, ['A','B']); assert.equal(lane.runningId, 'B')
+  assert.equal(stateA.phase,'idle');assert.equal(stateB.phase,'running');assert.equal(lane.stateFor('A'),stateA)
   assert.deepEqual(Array.from(lane.pendingIds), ['B'])
   finishB({ok:true}); await b
   assert.equal(lane.pendingIds.length, 0); assert.equal(lane.runningId, '')
+  assert.equal(stateA.phase,'idle');assert.equal(stateB.phase,'idle');assert.equal(stateC.phase,'idle')
 })
 test('an installation rejection retires that source and does not poison the next queued package', async () => {
   const lane = installLane(); let failA
@@ -257,12 +273,18 @@ test('an installation rejection retires that source and does not poison the next
   await new Promise(setImmediate); failA(Error('network')); await rejected
   assert.equal((await b).ok, true)
   assert.equal(lane.pendingIds.length,0)
+  assert.equal(lane.stateFor('A').phase,'idle');assert.equal(lane.stateFor('B').phase,'idle')
   assert.equal((await lane.run('A', async () => ({ok:true}))).ok,true)
 })
 test('only queued identities are pending and each action reports its actual running or waiting state', () => {
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage',
     ['packageInstallPending', 'packageActionLabel'], {t:key=>key})
-  manager.packageInstallTasks={pendingIds:['A','B'],runningId:'A'}
+  const states = {A:{phase:'running'}, B:{phase:'queued'}, C:{phase:'idle'}}
+  manager.packageInstallTasks={
+    stateFor:id=>states[id],
+    get pendingIds(){throw Error('row subscribed to aggregate queue')},
+    get runningId(){throw Error('row subscribed to aggregate running identity')},
+  }
   assert.equal(manager.packageInstallPending('A'),true)
   assert.equal(manager.packageInstallPending('B'),true)
   assert.equal(manager.packageInstallPending('C'),false)

@@ -931,15 +931,15 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-24T20:52:52.425620+00:00",
+  "updatedAt": "2026-10-24T21:14:40.548476+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
   "activity": {
-    "title": "分析连续跳页的原生图片工作",
-    "detail": "本轮取证与恢复已完成；正在区分获取后的解码、几何和呈现成本，保留原预载与加载反馈。",
-    "startedAt": "2026-10-24T20:52:52.424934+00:00"
+    "title": "核对原生卡片前缀资源的更新",
+    "detail": "每源状态投影已测试；第9帧图标瞬空仍存在，正在查前缀/后缀更新契约。",
+    "startedAt": "2026-10-24T21:14:40.548050+00:00"
   },
-  "nextAction": "对照既有原生图片阶段与共享呈现实现；同时保留源安装行更新与图标闪烁的未完成边界。",
+  "nextAction": "提交按源状态的限定修复并同步；继续以120原始反例调查图标，不外推整体性能通过。",
   "proof": [
     {
       "label": "正式主仓",
@@ -983,7 +983,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "270e9d83已push，精确CI40129096200成功；0452a7bd进度页CI40128817692成功。",
-      "hap": "237 source-identity-release-signed.hap8546371B，0.1.2-pre/code3/Kit9b94e98；118普通Browse71启用，三域同117。"
+      "hap": "237 source-action-state-release-signed.hap8545875B，0.1.2-pre/code3/Kit9b94e98；119原三域保持，121正常新装92后72源，旧71和书架/阅读保持。"
     },
     {
       "name": "NextE",
@@ -2659,7 +2659,7 @@
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "503新装再现本行瞬空；同索引检查保持范围不变",
+      "status": "120本行92第9帧仍瞬空；其他按钮按源独立",
       "result": "503真实HANMAN18安装复现：第9帧0.197422s图标瞬空，第10帧0.215244s恢复；其他可见图标保持。504仅新增该源，原84项全字段/顺序及书架读态不变。",
       "evidencePoints": [
         "418完整114帧已审：第8帧0.146778秒本行图标瞬空，第9帧恢复；419仅漫画屋014更新，用户数据保持。",
@@ -2668,10 +2668,11 @@
         "503/504真实远端新装：115编码帧、4全页表和8/9/10原帧亲审；当行按钮从安装变安装中时图标空1帧，不能用已缓存PrefixCustomBuilder对象宣称完全解决。录像890x1920，设备1260x2720。",
         "531真实011→012更新118帧四联系表已亲看；原帧5图标正常，6(PTS0.099656s)本行图标瞬空，7(0.116111s)恢复，其他原可见源图标保持；问题仍open，不以Native按钮更新正常当已修。",
         "本轮SDK声明仅CommonMethod，未发现按区域更新setter；预览HdsComponent.hsp解读明确标为mocked implementation，不作实机因果。434实际主线程最长回调29.616ms/一次23.406msUIVsync保有界，不能抵消531一帧瞬空。",
-        "官方HdsListItemCard文档已核：A/B/C仅在整卡Options中配置，公开通用属性不可单独修改内部区域；SuffixButton.options可写，但文档未承诺复用对象即可局部更新。未据此认定平台根因，未改原生样式或重复安装。"
+        "官方HdsListItemCard文档已核：A/B/C仅在整卡Options中配置，公开通用属性不可单独修改内部区域；SuffixButton.options可写，但文档未承诺复用对象即可局部更新。未据此认定平台根因，未改原生样式或重复安装。",
+        "237120原生后缀由安装→安装中时，第9帧本行92图标为空，8帧存在，59/60恢复；全83帧/3联系表及四原帧亲审。单行状态隔离未解决这个反例，不能关闭图标项。"
       ],
       "remainingActions": [
-        "本行按钮改变仍有图标瞬空；待实机HDS A区/C区更新边界的有效实现依据，保原生卡片及已定30vp/R7。不用预览mock或重复造安装验证。"
+        "核对HDS原生前缀/后缀更新及图标持有契约；不能靠改样式、自绘按钮或去掉光学校准掩盖瞬空。"
       ],
       "remaining": "本行按钮改变仍有图标瞬空；待实机HDS A区/C区更新边界的有效实现依据，保原生卡片及已定30vp/R7。不用预览mock或重复造安装验证。",
       "boundaries": [
@@ -2710,10 +2711,13 @@
         "434 trace.db事件5986/5987：execute 0.288ms在callid369；complete 22.115ms在主callid262，仅3个子span（序列化两次/提示），无细分JS栈。官方TaskPool指南说明NAPI complete计入后续微任务；目前无法把22ms归给rmdir本身。",
         "237诊断Release8535161B明确安装；079真实漫画屋013→015，68条仅该源变化，library/reader逐字同。新日志persistSyncMs12、cleanupAwaitMs3、publishSyncMs0、row_projection5；trace主回调29.223ms/UIVsync38.379ms、FlushDirtyNodeUpdate29.459ms，不能称安装全程流畅。",
         "237115后台Browse因index隐式拼key重建6旧行；117修后70→71仅新增1、旧行0销毁，管理页仅移1。SourceRuntimeRegistry元数据提交改只读fd stat普通文件/长度，原子写与冷启动readBytes保持；Host24项及相关45项通过。116覆盖后70条注册及书架/阅读逐字同115，118正常返回71启用、三域同117。",
-        "270e9d83已推，精确CI40129096200 success；进度页0452a7bd精确CI40128817692 success，无新tag/发版。"
+        "270e9d83已推，精确CI40129096200 success；进度页0452a7bd精确CI40128817692 success，无新tag/发版。",
+        "按源动作状态回归先20/21：旧行读取全局队列被反例拒绝；改后相关45/45。Release8545875B已装237；120正常安装92漫画0.1.1，全83帧/3联系表及8/9/59/60原帧已审，其他源按钮保持安装。121注册71→72只增com.jiuermanhua.koma，旧71每字段相同，书架/阅读逐字保持。此轮未采HiTrace，不声称24.572ms已消除。"
       ],
       "remainingActions": [
-        "本轮冻结末项位置key、Browse隐式index key、持久化重复整库WASM读取三处限定缺陷。117仍有24.572ms FlushDirty更新/row projection6ms，总体stall不关闭；不同源安装不当严格性能AB。继续定位保留行的实际响应式更新范围，本行图标闪烁独立OPEN。"
+        "每源按钮已独立观察稳定状态对象，原共享队列、去重、串行及聚合活动保持；本次限定投影修复待提交同步/精确CI。",
+        "120第9帧本行92图标仍瞬空，59/60已恢复；图标闪烁独立OPEN。继续核原生HDS前缀在后缀变化时的实际资源持有，不能以状态隔离或稳定PrefixCustomBuilder抵消此反例。",
+        "保留行最终投影及24.572ms旧主线程窗口继续定位；本次视频不是耗时AB或全列表性能通过。"
       ],
       "remaining": "本轮冻结末项位置key、Browse隐式index key、持久化重复整库WASM读取三处限定缺陷。117仍有24.572ms FlushDirty更新/row projection6ms，总体stall不关闭；不同源安装不当严格性能AB。继续定位保留行的实际响应式更新范围，本行图标闪烁独立OPEN。",
       "boundaries": [
@@ -2757,6 +2761,13 @@
         "originalReason": "index只用于末项分隔线，key本意用源身份/版本/显示名保留行。",
         "reopenEvidence": "237115后台Browse ForEach69→70，6个既有SourceListItem销毁/重建。官方ForEach键规则明确这组参数组合会自动拼接index。",
         "allowedDifference": "仅改运行时源组：末项ID由Computed字符串维护，itemGenerator移除不再使用的index；保实际源身份/版本/显示名key及全部HDS行、排序、动作、尺寸和私库。"
+      },
+      "modificationBasisActions": {
+        "object": "SourceIndexService.SourcePackageInstallTasks与SourcePackageManagerPage的单行动作状态投影",
+        "history": "0de9d3dc引入共享pendingIds/runningId，确保去重、串行事务及其他源可排队。",
+        "originalReason": "每源按钮显示运行/等待且只禁用本源；队列仍是进程内唯一安装事务owner。",
+        "reopenEvidence": "117已消除旧行销毁，仍24.572ms FlushDirty；源码每一行packageInstallPending/Label均读取同一@Trace pendingIds/runningId，单源队列变化触发全体动作依赖。此处不能据此等同为全部24ms或图标闪烁原因。",
+        "allowedDifference": "保留共享队列/去重/串行/全部更新与聚合活动行；仅增加稳定的按sourceId可观察状态投影，使行按钮不再读取全局数组。原生HDS、文字、样式、排序、图标及操作保持。"
       }
     },
     {
@@ -3346,6 +3357,22 @@
       "detail": "已撤临时日志并恢复稳定包；原LTR、1/34、7项下载均读回，返回桌面。",
       "itemId": "CONTINUOUS_PERFORMANCE",
       "kind": "checkpoint"
+    },
+    {
+      "id": "source-action-projection-start",
+      "at": "2026-10-24T21:00:39.179878+00:00",
+      "title": "接续源安装行更新范围",
+      "detail": "已查到所有按钮共享排队数组依赖；改为每源状态投影，保留原安装队列。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-action-state-121",
+      "at": "2026-10-25T05:08:52.421595+08:00",
+      "title": "按源状态投影已实测，图标反例保留",
+      "detail": "237安装92成功，其他按钮保持正常；本行图标仍有一帧瞬空，继续处理。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
     }
   ]
 }
