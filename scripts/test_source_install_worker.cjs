@@ -229,17 +229,43 @@ test('app persistence uses the admitted registry projection without reconstructi
 
 // Run the real manager method so local imports preserve the same row-update
 // boundary as remote installs. No ArkUI rendering is simulated by this check.
-function localImportMethod(globals) {
+function localImportMethod(globals, methodName='importPackage') {
   const source=fs.readFileSync(path.join(root,'pages/SourcePackageManagerPage.ets'),'utf8')
   const tree=ts.createSourceFile('manager',source.replace('export struct SourcePackageManagerPage','export class SourcePackageManagerPage'),ts.ScriptTarget.Latest,true)
   const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='SourcePackageManagerPage')
-  const method=owner.members.find(n=>ts.isMethodDeclaration(n)&&n.name.getText(tree)==='importPackage')
+  const method=owner.members.find(n=>ts.isMethodDeclaration(n)&&n.name.getText(tree)===methodName)
   assert.ok(method)
   const code=ts.transpileModule('class Manager {'+method.getText(tree)+'} exports.Manager=Manager',{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
   const exports={};new Function('exports',...Object.keys(globals),code)(exports,...Object.values(globals))
   return exports.Manager
 }
+test('single installed-row refresh preserves localized ordering, fallback and neighboring row identities',()=>{
+  const names=functions('sourceRuntime/SourceLocalizedNames.ets',
+    ['hasUnpairedSurrogate','normalizeSourceLocalizedNames','resolveSourceLocalizedName'],{})
+  const order=functions('sourceRuntime/SourceListOrder.ets',['compareSourceNames'],{})
+  const previous={id:'target',name:'Old',enabled:false}
+  const replacement={id:'target',name:'Beta',localizedNames:{'zh-Hans':'Alpha','zh-Hant':'Zulu',en:'Same'},enabled:false}
+  const neighbor={id:'neighbor',name:'Zulu',localizedNames:{'zh-Hans':'Zulu','zh-Hant':'Alpha',en:'same'},enabled:true}
+  const fallback={id:'fallback',name:'Middle',localizedNames:{en:' invalid '},enabled:true}
+  const Manager=localImportMethod({...names,...order,getInstalledSourcePackage:id=>id==='target'?replacement:undefined,
+    appSourceSettingsStore:{loadForSource:()=>({region:'one'})},DiagnosticLogger:{info(){}}},'refreshInstalledPackage')
+  for(const [locale,expected] of [['zh-Hans',['target','fallback','neighbor']],['zh-Hant',['neighbor','fallback','target']],
+    ['en',['fallback','neighbor','target']],['invalid!',['target','fallback','neighbor']]]) {
+    const manager=new Manager();manager.packages=[neighbor,previous,fallback];manager.languageState={effectiveLocale:locale}
+    manager.sourceSheetSourceId='target';manager.savedSettingCounts={neighbor:2};manager.settingsValidationStatuses=[]
+    manager.settingsSourceReloads={};manager.settingsReloadRevision=1
+    manager.publishSourceSettings=()=>{};manager.reloadInstalledPackageSettings=async()=>{}
+    manager.refreshInstalledPackage('target')
+    assert.deepEqual(manager.packages.map(source=>source.id),expected)
+    assert.equal(manager.packages.find(source=>source.id==='target'),replacement)
+    assert.equal(manager.packages.find(source=>source.id==='neighbor'),neighbor)
+    assert.equal(manager.packages.find(source=>source.id==='fallback'),fallback)
+    assert.equal(manager.sourceSheetRetainedSource,replacement);assert.equal(replacement.enabled,false)
+    assert.deepEqual(manager.savedSettingCounts,{neighbor:2,target:1})
+    const snapshot=manager.packages;manager.refreshInstalledPackage('missing');assert.equal(manager.packages,snapshot)
+  }
+})
 for(const outcome of ['installed','cancelled','failed','exception'])test('local archive '+outcome+' retains its declared update boundary',async()=>{
   const events=[],pending=deferred()
   const Manager=localImportMethod({t:k=>k,tf:(k,r)=>k+':'+r,

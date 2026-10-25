@@ -3,17 +3,19 @@
 <!-- current-continuation -->
 ## 当前接续入口（2026-10-25，新会话已接手）
 
-完整69项snapshot仍是唯一队列；已核全部未完成项id/kind/status/owner/remainingActions。旧会话不再执行，原10分钟heartbeat已迁到本会话，未新增任务。不要全量重载旧聊天或本文件历史。
+完整69项snapshot仍是唯一队列；旧已核未完成项的id/kind/status/owner/remainingActions保留。旧会话不再执行；不要全量重载旧聊天或本文件历史，不因单项完成终止原开发队列。
 
-- 当前：人类已采用Mihon默认源序/最早未读规则，原改源序候选已撤回。237最终8588931B+漫画屋016已冷恢复，斗破无历史普通首读实到01/36，正验元尊上篇；原目录/ID/样式/单章下载目标保持。待范围提交/双仓精确CI。
-- 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63合法源状态键/40192851633。固定Kit e3f3cc1；缓存v3未采用，无新tag/发布。
-- 当前237最终无CPU探针8588931B/0.1.2-pre code3/debug=false，239明确覆盖；80源只新增本会话我是馬克/杂志迷/Happy/简繁MangaDex，漫画屋016含明确方向。旧书库完整不变、旧读态保持，合法新斗破01/36进度已保留，不清记录伪造首次。
-- 性能总项仍OPEN：206的56.060ms有共享GC/低频，224带CPU采样主回调26.079ms，含stop开销，不作严格AB或FPS结论。2321样本中persist6.222/row4.069/log4.870ms；主线程原摘要热点不再出现。临时探针已精确撤且源码diff空，仅自身CPUJSON删除并读回ABSENT。其他2条非法键警告尚未归属，不据此修改公共安全区/样式。
-- Happy图标211完整96帧已审，0–69保留、70正常移行，只限具名范围。源状态键218原UI77→78及原书架/219四份JSON保持，只限该范围；不重跑包子或85源矩阵。
-- 设备237完整target本轮192.168.50.237:12345，VDE-AL00展开竖屏1320×2120，租约20261025-112030-77b84cd9已续到23:01:29+08；持续AWAKE/86400000、正常timeout120000。继续先核实时租约/Connected。197已授权但本轮未操作；200禁止操作。
-- 原协议source-validation237.protocol.json当前248，原diagnostics197.semantic.py实际237，原source-browse237.recording.json。所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0。当前无其他执行代理。
-- 各原主仓工作，不建worktree/克隆/源码副本/hook/Goal；保护.idea、scripts/__pycache__、NextN两个validator WIP，禁git add .。当前人类明确后续推送不用问，直接推送；未授权新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器范围冻结。
-- 源仓材料46948b0/b24e6a0/4b1d977待后继真实源变更同推，避免仅材料重发85源；本次漫画屋016六文件实际变更待一同同步，尚未推送。
+- 最新UI纠正已处理：人类要求清理WebView验证半模态底部两行；仅SourceWebSessionSheet收成一行三图标与靠右完成。250签名8589011B装237；251整图亲审，Web多出144px/48vp；255全部来源书架及254四域保持。eda1dada/CI40197838097同head成功，具名浅色展开竖屏范围冻结；没有把补问确认当保留错误的理由，其他网页失败未因此关闭。
+- 首次阅读已按人类采用Mihon源序/最早未读接通全部入口，旧改源DOM序候选撤回；原目录/ID/样式/单章下载保持。App68f576d随eda1dad已推/精确CI成功。漫画屋016/00f88b1已推，CI40197770744成功，固定公开tag下85源与86629B三成员包均200，方向声明成立；本地87192B不冒二进制相同。斗破真实首读01/36已验，元尊248普通源入口止于自然挑战，不能称其首次正文通过。
+- 漫画160固定参考及237旧782章全表已核；保番外/请假条/异常插入，不猜话数、去重或重排。01522644B声明newest_first，257普通014→015仅7个预期字段变化，旧79源/顺序及library/reader/web元数据保持；259进程40851→49736且新进程书架亲审，未观察空PID阶段；260四域同258，自传包ABSENT。生产helper+现有782章选第1话43350001、后一个未读第2话73620002，未重请已失败网页/章节/图。源9bba7ba52c25691557c785fa3feb08fe764c9245已推，精确CI40199109508成功，固定公开tag索引85项与22588B015三成员包均200、方向声明成立（不同于本地22644B，不冒二进制等价）。
+- 当前237最终无探针App8582236B/0.1.2-pre code3/debug=false，80源；只新增本会话我是馬克/杂志迷/Happy/简繁MangaDex，漫画屋016和漫画160015均有明确方向。旧书库完整不变，原读态保持，合法新斗破01/36保留，不清记录伪造首次。
+- 性能总项OPEN：230正式46.305ms回调/43.358ms Running，其中21.301ms位于418MHz；224带CPU的26.079ms/24.249ms Running，加权频率分别913053/1638515kHz。约39.59/39.73百万频率加权周期不是严格AB或FPS；不据此缩减同步事务/校验或改设备电源。主摘要热点已后台；其他2条非法键警告未归属，不擅改公共安全区/样式。
+- 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；候选文案已解释但用户尚未采用。273重连后原全部来源书架与四域保持。单次行排序名称复算已237普通更新具名通过，3文件待同步，不更改摘要/样式/事务。
+- 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。固定Kit e3f3cc1；缓存v3未采用，无App新tag/发版。源标准CI自动发布与App发版分开。
+- Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
+- 设备237完整target本轮192.168.50.237:12345，VDE-AL00展开竖屏1320×2120；租约20261025-112030-77b84cd9已续到2026-10-26 00:41:41+08，持续AWAKE/86400000、正常timeout120000。继续先核实时Connected/租约；197本轮599–601仅只读现存缓存、权限拒绝后已释租，未部署/启动/改电源；200禁止操作。
+- 原source-validation237.protocol.json当前281，diagnostics197.semantic.py实际237，source-browse237.recording.json保留；所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0。UI阶段必须清空继承postflight；运行后先读结果再下一依赖动作，避免路径复用/提前写成功状态。252字符串press_key、253离屏计数以及257旧版本context均已留原件和勘误，不据工具错误改产品。
+- 原主仓工作，不建worktree/克隆/源码副本/hook/Goal/子代理；保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器范围冻结。
 
 <!-- /current-continuation -->
 
@@ -948,11 +950,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T13:29:00.815166+00:00",
+  "updatedAt": "2026-10-25T15:03:09.401068+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_WEB_SESSION",
-  "activity": "验证半模态单行底栏237具名实机已亲看；全部来源书架/四域数据及自传包清理已核，收尾推送和准确CI。",
-  "nextAction": "推送App首次阅读与单行工具栏范围提交，跟各自准确CI；元尊248自然挑战尚未首次开书，安装46ms仍按原队列独立调查。",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activity": "单次行排序名称复算已消除，276签名8582236B装237；278普通015同版本本地更新74帧/3sheet与280两完整图已审，281四域保持且本次传包清理。待范围提交推送与精确CI；安装46ms总项仍OPEN。",
+  "nextAction": "提交本次3文件限定修复并跟精确CI；独立只读核224既有CPU起止和HTrace标记，只有明确对齐事件才缩小安装完成回调，不猜时钟偏移或耗新首装样本。",
   "proof": [
     {
       "label": "正式主仓",
@@ -995,8 +997,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "cee28e368c4be37bfb42546caeffb23f27348378已推；精确CI40190939072 completed/success；固定Kit e3f3cc1。",
-      "hap": "237当前图标加载候选8583407B/code3/debugfalse，209明确装；211仅新增Happy013至78源，旧77/library/reader保持，213原书架，214三域同212。197仍8569832B。"
+      "appHead": "eda1dada已推/精确CI40197838097成功；当前仅行排序名称单次解析、真实行为测试及原工作单3文件待提交。固定Kit e3f3cc1，源两方向声明已发布核验。",
+      "hap": "237当前无探针Release8582236B/0.1.2-pre code3/debugfalse，276明确覆盖成功，278普通015同版本本地更新与280原书架已亲审；281数据保持/自传包已清。197仍原8571264B，此次只读缓存被拒后已释租。"
     },
     {
       "name": "NextE",
@@ -1155,13 +1157,13 @@
     {
       "id": "FIRST_CHAPTER_SELECTION",
       "title": "无历史书架首次阅读误开最新一话",
-      "status": "斗破普通首次01/36具名通过；元尊248源入口自然挑战，当前处理新UI反馈",
+      "status": "Mihon源序规则已交付；漫画屋斗破首读通过，漫画160015新进程声明已恢复",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：方向声明导入/恢复与全部首次入口接线",
       "dependencies": [],
       "result": "采用Mihon源序最早未读，方向仅源包明确声明；斗破237无历史普通开始阅读已实际01/36。旧进度与显式选择优先，原下载/目录菜单/样式保持。",
-      "remaining": "元尊普通源入口248触发网页挑战，尚未走到首次开书；不改UA/清会话/盲重试。斗破实际正文与249独立数据回读保持原具名范围，宿主/源范围提交及CI待收尾。",
+      "remaining": "方向声明目前仅漫画屋和漫画160经各自合同核实并发布；其余源保旧fallback。元尊/漫画160正文/漫画柜的具体网络失败保持原停止边界；两源首次规则与实际正文接受分开。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
@@ -1190,10 +1192,13 @@
         "现有测试装载器补实际纯模块依赖，旧期望未改；89关键行为/冷恢复与62既有阅读入口检查通过，源原homepage7项通过。最终Release8588931B/code3/debugfalse构建成功，239明确覆盖237并普通冷启动；80源仅漫画屋015→016及新声明/交付路径变化，旧79每字段/顺序及library/reader/网页会话元数据保持。",
         "普通本地导入016已真实成功。234误找根页本地导入、236下载Row/Text同名、238误写导入完成文案超时、242 MenuItem/Text同名均保留；实际238失败原件明确导入成功，未据工具断言修产品或重复导入。243原书架临时来源漫画屋→唯一旧斗破详情670/670→开始阅读；244完整正文首图1/36亲审，真实新增读态chapter196437/page0/total36。239前无该书进度，未清历史或注入读态。",
         "245本地数据文件因246误复用目的路径被重写，245不单作不可变原件；246回执保存实际再次接收时刻，已新增复用说明，最终将以独立新目录完整读回为准。已核当时library/registry完整JSON保持、旧progress每字段/顺序保持，仅合法新增斗破01记录/页缓存。246自然返回详情/书架已原图亲审，筛选标签变筛选·1导致工具停，247按实际入口恢复全部来源，筛选计数消失，未删除本次合法读态。",
-        "249独立目录与239完整比较：library/registry全同，全部旧progress与chapter记录/相对顺序保持，仅新增斗破196437的01/page0/36合法读态；sourceHistory/remoteHistory全同。254与249四域完整JSON全同，自传016包已ABSENT；255实际全部来源书架原图亲看，保本次合法最近阅读斗破与大奉原进度。"
+        "249独立目录与239完整比较：library/registry全同，全部旧progress与chapter记录/相对顺序保持，仅新增斗破196437的01/page0/36合法读态；sourceHistory/remoteHistory全同。254与249四域完整JSON全同，自传016包已ABSENT；255实际全部来源书架原图亲看，保本次合法最近阅读斗破与大奉原进度。",
+        "App68f576d已随eda1dada9e49f290d67fa7e8e41dc57d83088b5e推送，精确CI40197838097同head/completed-success。源00f88b12bd53215e584fc146003c7dea02a87a6f已推，精确CI40197770744同head/completed-success；标准非draft/pre Release于13:30:50Z发布。固定该tag index与漫画屋016包均HTTP200，85源/唯一本源；CI包86629B三成员及chapterOrder=newest_first成立，与本地87192B不冒二进制相同或追加Native范围。",
+        "漫画160015标准22644B三成员包已257普通文件选择器014→015，258对254仅本源7字段变化，原80源顺序/旧79完整项及library/reader/网页元数据相同。257 context误用旧摘要012已按实际254基线另留勘误。259主PID40851→49736，停止后已见新进程，未见空PID阶段；新进程全部来源书架原图亲审，260全部四域同258且本次传包ABSENT。生产helper对实际782旧目录+015声明执行，首次43350001第1话，后一个未读73620002第2话，目录数组不变、没有新增阅读记录或provider请求。",
+        "漫画160源9bba7ba52c25691557c785fa3feb08fe764c9245精确CI40199109508同head/completed-success；固定该tag下index85项与015包均HTTP200，22588B三成员、准确ID/版本/newest_first声明成立。与本地22644B不冒二进制同一，也不新增Native开书/正文结论。"
       ],
       "remainingActions": [
-        "App68f576dc5a0e63748f43d850de188774478abe6b与源00f88b12bd53215e584fc146003c7dea02a87a6f（已推）范围同步/精确CI收尾；元尊普通路径仍止于248自然挑战，不重跑失败网页、清历史或冒称首读验收。",
+        "当前两源方向声明交付闭环具名冻结；元尊止于248自然挑战、漫画160正文旧403/首图及漫画柜016网络仍各自独立，不重请旧失败网站或称整源可读。",
         "缺方向声明的其他源保持旧fallback；漫画160跨季原403和漫画柜016网络继续独立，不据漫画屋接受全局首次阅读。"
       ],
       "boundaries": [
@@ -1206,6 +1211,13 @@
         "originalReason": "没有统一来源方向时避免盲目全反转，保已存进度和显式章选择。",
         "reopenEvidence": "228准确桌面HTML/原015WASM复现元尊下篇与斗破131；当前人类在问清MihonSOURCE+DESC/最早未读后明确采用这条规则。",
         "allowedDifference": "有准确章序声明的源，按其源序选择最早未读，既有进度/显式目标优先；源输出/菜单/样式不改。声明归源包metadata，经现有导入/持久/冷恢复/备份合同保留，不按源ID硬编码，不从标题/编号猜时间方向。缺声明保持旧fallback，后继逐源核清再声明。"
+      },
+      "modificationBasisMh160Chronology": {
+        "object": "漫画160源包chapterOrder声明，不改get_chapters输出",
+        "history": "bcfb926至0a6ff4a保原DOM选择和map顺序；固定Keiyoushi10f06eb Mh160.parseChapters也按相同selector直接map，属于Mihon最新在前的源接口合同。237保留782章快照，无该书阅读进度。",
+        "originalReason": "跨季和番外目录没有可靠话数，不得凭标题首数排序或伪造编号。",
+        "reopenEvidence": "用户当前已采用Mihon源序最早未读，其他源核清合同后才声明。实际782首第2季352、末第1话43350001；整表还含无第前缀标题、番外/请假条及第8话异常插入，因此不把标题猜数或全表严格章号单调当依据。固定原源/宿主接口和保留输出才是依据。",
+        "allowedDifference": "仅本源新增newest_first声明及交付版本014→015；全部782旧ID/顺序/未知话数、请求、权限、源UI/图标保持。生产选择器对已有源序取最早未读，不改目录展示、不重请已失败章节/网站或称正文恢复。"
       }
     },
     {
@@ -1648,10 +1660,10 @@
       "priority": "P1（明确必须做，原队列保留）",
       "owner": "Root：本站两版跳转条件仍待证；自动验证具名范围冻结",
       "dependencies": [],
-      "status": "598确定桌面/手机版反复导航；正式包与数据已恢复，白屏未修",
+      "status": "单行底栏已交付；598跳转循环原因仍未知，601缓存被拒",
       "kind": "open",
       "result": "自动验证537/538原具名范围冻结。598普通Web仅一次initial load，9.604秒27个文档；已记录导航在已声明origin下标0/1间交替，redirect=false/userGesture=false。截图仍无正文，原生详情784/784。197明确恢复正式8571264B包并回书架，library/reader/registry与589完全相同。",
-      "remaining": "跳转脚本当前匿名读取HTTP403，尚不能确定站点具体条件；不改UA、Cookie或拦导航，不重复打开同一失败页。继续保存证据并查已有HTML/平台与源合同，其他队列推进。",
+      "remaining": "既有根HTML含外部m.js、移动HTML仅indexResize内联，不能据此确定跳转条件；脚本匿名读取旧403不重试。601正常app-bound shell读自身cache两路径均Permission denied，未取得脚本，不root/smode/chmod或重开失败网站。197只读租约已正常释放，前台/权限/电源/数据保持；需新的合法既存脚本或可用会话证据再定位。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1697,11 +1709,13 @@
         "598：导航op一次start，已声明桌面0/手机版1交替、isRedirect与isRequestGesture均false；9.604s/27doc，48阶段上限生效，首子资源transport -2。web-observed.png仍无正文；原生详情784/784。临时MangaWebPage差异已精确reverse，正式8571264B覆盖安装明确成功，原书架及589→598三个业务JSON完整相同。静态m.js为新的只读定位请求，默认匿名urllib一次403；不重试/改客户端/UA。",
         "本轮底栏已改用现有KomaIconButton ghost/40vp与原KomaActionButton compact，原导航及完成enabled守卫逐项保持；既有56项挑战/回流检查通过，正式Release构建成功。新实机画面未看前不称UI通过。",
         "当前新UI反馈：250签名Release8589011B/code3/debugfalse已明确覆盖237；251普通Browse→漫画屋自然挑战实机整图亲审，导航为无底板三图标、右侧完成同在y1880–2000，Web底边1712→1856，匹配viewport增加144px（48vp）。顶部/网页请求/安全区和所有状态守卫未改；仅此具名浅色展开竖屏范围，不扩认暗色/横屏。",
-        "252观察时sheet已消失，原生仍HTTP403，不猜自动成功或人工关闭；错误press_key字符串在输入前被driver拒绝，253改已核go_back实际回RootBrowse，等待离屏80计数失败。两次工具错误原件保留；254回执页面描述提前写书架已另留context-correction，实际只读及清自传包成立。255按当前真实底栏书架回全部来源，原图已亲审。未为验收反复重开失败网页或制造挑战，不把该次关闭/完成路径记为新通过。"
+        "252观察时sheet已消失，原生仍HTTP403，不猜自动成功或人工关闭；错误press_key字符串在输入前被driver拒绝，253改已核go_back实际回RootBrowse，等待离屏80计数失败。两次工具错误原件保留；254回执页面描述提前写书架已另留context-correction，实际只读及清自传包成立。255按当前真实底栏书架回全部来源，原图已亲审。未为验收反复重开失败网页或制造挑战，不把该次关闭/完成路径记为新通过。",
+        "单行底栏2文件范围eda1dada9e49f290d67fa7e8e41dc57d83088b5e已推，精确CI40197838097同head/completed-success，Release构建成功/Publish tagged Release skipped；无App新tag或发版。当前浅色237具名布局冻结，其他网页失败和未实测状态继续原边界。",
+        "197599–601仅只读缓存定位：601命令exit0但stdout两处Permission denied，结果按实际拒绝而非成功。未复制整缓存、Cookie/请求头或其他历史，未改变权限/前台/部署/电源；本次租约20261025-144107-e227b149已正常release。"
       ],
       "remainingActions": [
-        "跳转脚本当前匿名读取HTTP403，尚不能确定站点具体条件；不改UA、Cookie或拦导航，不重复打开同一失败页。继续保存证据并查已有HTML/平台与源合同，其他队列推进。",
-        "漫画160搜索网页404路由仍未恢复；其余CF人工验证/登录仅待自然适用样本，不从已过自动验证范围外推。"
+        "既有根HTML含外部m.js、移动HTML仅indexResize内联，不能据此确定跳转条件；脚本匿名读取旧403不重试。601正常app-bound shell读自身cache两路径均Permission denied，未取得脚本，不root/smode/chmod或重开失败网站。197只读租约已正常释放，前台/权限/电源/数据保持；需新的合法既存脚本或可用会话证据再定位。",
+        "漫画160搜索网页404仍未恢复；其他CF人工验证/登录仅待自然适用样本。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -2826,14 +2840,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：现有CPU/事务边界已核；公共状态键警告待精确归属，不擅改布局",
+      "owner": "Root：限定行投影修复待同步；既有CPU/轨迹对齐只读调查",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "合法源键已推/CI成功；当前CPU样本已回，性能总项OPEN",
+      "status": "单次名称解析237普通更新已验；46ms首次安装总项OPEN",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -2876,13 +2890,20 @@
         "222临时简体MangaDex专用CPU包8584453B明确装237，四份完整JSON同219。224一次普通首装78→79仅新增org.mangadex.zh-hans.koma010，旧78每字段/顺序及library/reader保持。官方CPU启动/结束成对，2321样本/1691.558ms；主线程不再有原createMd摘要热点，后台日志bytes81630/5ms。采样权重persistEntries6.222ms、row4.069ms、log4.870ms；实际persistSync6ms、Native79文件1861us、row4ms。",
         "224当前主回调6594为26.079ms，含CPU采样结束处理；输入37.077ms含采样启动，不和无探针206作严格AB。主Vsync14.514ms，仅本轨迹。安装后20:26:22.915/.916仍有两条非法key警告，具体连接点未归属；其他现有冒号键涉及公共安全区/外观/阅读状态，不能据两条日志改布局或重开全部阅读器。",
         "临时补丁已git apply -R精确撤回且SourcePackageManagerPage diff为空。225明确恢复无CPU探针正式8583412B/code3/debugfalse，三域完整JSON同224，网页会话元数据同222；仅本次CPUJSON已删除且ABSENT。226原书架大奉001第6页25%完整原图已亲审；79源合法新增保持，未打开MangaDex正文/改网络/电源/缓存。",
-        "230正式无CPU探针8583412B下一次未装繁体MangaDex010首装：79→80仅新增org.mangadex.zh-hant.koma，旧79每字段/顺序及library/reader保持。后台摘要81756B/11ms；Native80文件6386us、persistSync22ms、row3ms。主7149完成46.305ms，Running43.358/R0.298/D-IO2.606/R+0.043，无重叠主GC；Vsync14.280ms。明确仍有安装阻塞，不把224带探针26ms视为正式包结果或把低于一帧的Vsync冒全程流畅。231自然原书架原图亲审，232三域完整JSON同230，网页会话元数据同225。"
+        "230正式无CPU探针8583412B下一次未装繁体MangaDex010首装：79→80仅新增org.mangadex.zh-hant.koma，旧79每字段/顺序及library/reader保持。后台摘要81756B/11ms；Native80文件6386us、persistSync22ms、row3ms。主7149完成46.305ms，Running43.358/R0.298/D-IO2.606/R+0.043，无重叠主GC；Vsync14.280ms。明确仍有安装阻塞，不把224带探针26ms视为正式包结果或把低于一帧的Vsync冒全程流畅。231自然原书架原图亲审，232三域完整JSON同230，网页会话元数据同225。",
+        "现有224/230离线调度频率复核：230正式46.305ms回调的43.358ms Running中21.301ms位于418MHz，加权913053kHz；224带CPU的26.079ms回调Running24.249ms，加权1638515kHz。两者约39.59/39.73百万频率加权周期，仍受采样/来源不同限制，不能严格AB或归因新代码回归。224 self采样JSON.stringify0.564ms、fsync1.007ms、其余原子写调用及日志regex均已有，未跳过验证或改线程/电源来制造通过。230 trace无log表事件且主回调只有4个极短子span，缺细栈；不把persistSync22ms直接当JSON字符串化或单项I/O耗时。原件230/audit/frequency-comparison-224-230.json。",
+        "261临时纯数字分段包8588579B明确覆盖237，四域同260；既有27项事务/回滚检查通过。262进入Happy原sheet但停用项离屏，未变更前停止，原图保留；263沿原sheet内滚动找按钮，普通停用→启用恢复，返回全部来源书架。264四域完整JSON同261。普通命令stdout被runner截为8000字符，未误称无日志；265通过唯一自有临时文件取回159202B/1078行完整日志后已删设备临时文件，实际两条count80阶段：paths0/files2/projection1/parentAndJson1/write2/total6ms；第二paths0/files2/projection1/parentAndJson0/write2/total5ms。仅同函数启停路径、毫秒精度，无新首装/帧率/安装46ms归因结论。",
+        "临时15增1删补丁已精确git apply -R，SourceRuntimeRegistry和ManagerPage实际diff为空。266明确装回正式8589011B/0.1.2-pre/code3/debugfalse，普通全部来源书架原图亲审；266与260的library/reader/registry/web元数据四份完整JSON相同，Happy保持原启用、80源和两个方向声明保留。CPU224.startTime与HTrace时钟不在同一零点，不能直接切6594区间给叶函数精确耗时；未猜偏移对齐。",
+        "224现存CPU按调用父链区分：4.870ms日志在installFromBytes较早分支，最后注册后的日志采样0.691ms，不能移用前者解释46ms。refreshInstalledPackage排序下hasUnpairedSurrogate采样1.123ms；273真实80项Host对照，单次暂存名称后原顺序/对象一致，zhHans/Hant180→80、en176→80次解析。Host500轮×5批基准保274，不冒设备耗时；新增1个真实方法行为用例在原实现与候选均通过，总28项，不改旧期望。",
+        "274新增真实refreshInstalledPackage用例先在原实现通过，再在候选通过（总28项）；原规则及期望保持。仅在该次刷新内Map暂存本地化名称，仍原compareSourceNames/locale/行对象，未改初始全量加载/事务/持久校验/样式/失败摘要。default Release构建完成，276明确装8582236B、code3/debugfalse且四域同275/273。",
+        "277普通Settings→Services→源包→本地导入选择本人已存在mh160015，278一次Done连续74编码帧/3sheet全部亲审，索引弹层保持；280关闭原弹层后实际导入成功/原分组列表及全部来源书架两完整原图亲审。279与276共80项同原注册顺序，只有漫画160 archivePath/manifestPath/packageIconPath/wasmPath变化，旧79完整项保持；library/reader/web元数据相同。281四域同279，自传015和自有日志临时文件已清，原斗破01/36进度保留。",
+        "281当前PID31596完整日志36319B：这一次同版本本地更新persistSync4ms、cleanupAwait2ms、publish0ms、row_projection2ms。不是首次安装、无新HTrace/CPU或同频AB，不声称46ms/FPS通过；无临时产品探针。"
       ],
       "remainingActions": [
-        "合法SourceRuntimeState键30842d63/CI40192851633具名范围冻结。安装总项仍OPEN；25.322/56.060ms与当前带探针26.079ms条件不同。",
-        "当前样本剩余持久化/日志/行投影已核，保原同步事务和脱敏，不为减少开销跳过完整性检查；两条其他内存键警告需要具体连接因果证据后再改公共层，不广改已接受样式。"
+        "原正式首装230仍46.305ms主回调，安装总项OPEN；本次单次名称解析/237普通同版本本地更新具名通过，待同步。下一只读核现存CPU起止和trace明确标记是否能给出对齐区间，不能凭时间差猜偏移。",
+        "保80源/原书架/旧读态及同步事务完整；不为测数重复耗未装源，不删除脱敏/文件校验或改电源频率。"
       ],
-      "remaining": "当前正式无探针样本仍46.305ms主回调，安装总项OPEN；80源/原书架及旧数据保持。需要减少同步工作并保完整事务，不再仅重复测不同源。",
+      "remaining": "原正式首装230仍46.305ms主回调，安装总项OPEN；本次单次名称解析/237普通同版本本地更新具名通过，待同步。下一只读核现存CPU起止和trace明确标记是否能给出对齐区间，不能凭时间差猜偏移。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -3011,6 +3032,12 @@
         "originalReason": "Browse/SourceBrowse与写入者共享一个进程内revision，安装/启停/移除后使消费者刷新；不落盘。",
         "reopenEvidence": "206/211本次安装完成notifyChanged前后仍有具体Cannot use the key警告；官方AppStorageV2 key仅字母数字下划线，非法键行为未定义。",
         "allowedDifference": "仅改为唯一合法koma_source_runtime_revision，所有生产者/消费者仍共用同一入口，不改revision算法/触发/源数据/偏好/UI。构建后237普通源启停并恢复、根Browse消费者及三域完整数据验证；不把单项警告消除冒56ms根因。"
+      },
+      "diagnosticBasisPersistPhases": {
+        "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata临时数字阶段计时",
+        "history": "62621dd1批量校验保同步事务；68f576d只在持久化投影保留chapterOrder。当前80源同函数由安装和启停共同调用，BackupRestoreActivity只是restore准入计数，不能当写序列锁。",
+        "reopenEvidence": "230正式46ms与224带CPU26ms频率差异已证；原persistSync22ms包含多段且无JS细栈，不能归为JSON或文件写之一。需要分开现有同步成本，不重复耗新源首装样本。",
+        "allowedDifference": "仅在原调用顺序间读取Date.now，并在完成后写一条固定数字诊断；不加await/cache、不删fd/fstat、完整metadata/JSON、fsync/readback/rename或回滚，保护原样式。只对既有无origin/无网页会话Happy做一次停用/恢复，四域读回；诊断补丁精确撤回并装回8589011B正式包后才离开此分支。"
       }
     },
     {
@@ -3412,7 +3439,7 @@
       "id": "SOURCE_INDEX_CACHE_REVALIDATE",
       "title": "源管理先显示持久索引缓存并后台更新",
       "priority": "P1（明确授权的初载/刷新体验）",
-      "owner": "Root：普通重入范围冻结；后台失败/换库/cold边界保留",
+      "owner": "Root：缓存具名范围冻结；部分失败事实已解释，文案未采用",
       "dependencies": [],
       "relatedItems": [
         "REFRESH_RETAIN_EXISTING_CONTENT",
@@ -3420,19 +3447,21 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "普通重入缓存先显/后台检查具名成立；未扩大cold",
-      "result": "306普通重入无需点check，0.597秒转场时缓存列表已出现，后台检查3.469秒才完成；先显范围成立，失败/换库/cold未验。",
+      "status": "新进程缓存先显已审；自然部分地址失败漏报待文案决定",
+      "result": "306暖重入范围保持。266正式包新进程在未访问Manager前，经267普通设置→服务，268连续转场录像69编码帧及两张contact-sheet全审：录像PTS0.371033秒已有五个未装源文字/图标且正在检查，1.072256仍检查，1.879411完成并保持至8.794567。PTS不是tap后延迟，不作FPS结论。269日志主索引85项成功、另一个保存地址code2300007失败，最终update0/latest80/missing0/failed_indexes1；实际界面未提示这次失败。四域同266，273恢复原书架后仍同269。",
       "evidencePoints": [
         "Root亲审306全部82帧/3表及39/58/72/81原图；未安装3项与已装组在网络检查完成前已显。",
-        "重新进页3图先默认，1.005秒全真图；仅当前profile重入，不冒跨页全图瞬显、离线或冷启动。"
+        "重新进页3图先默认，1.005秒全真图；仅当前profile重入，不冒跨页全图瞬显、离线或冷启动。",
+        "268录像全部69帧/两张sheet及17/60原帧已亲审；269完整当前PID日志取回、设备临时日志已删除；270离线前未输入/未建结果目录，271–273正常重连/中性解锁/原书架与四域保持。"
       ],
       "remainingActions": [
-        "冻结本次普通重入先显范围；后台失败/换库/cold等待真实适用场景，不造故障。"
+        "新进程先显及后台部分失败保留列表已具名成立；另一个地址失败未显示是新反例。候选只补“1个地址检查失败”，用户答“没看明白”，已用一个成功/一个失败说明，尚无采用决定，生产文案未改；换库/全部失败未扩大。"
       ],
-      "remaining": "冻结本次普通重入先显范围；后台失败/换库/cold等待真实适用场景，不造故障。",
+      "remaining": "新进程先显及后台部分失败保留列表已具名成立；另一个地址失败未显示是新反例。候选只补“1个地址检查失败”，用户答“没看明白”，已用一个成功/一个失败说明，尚无采用决定，生产文案未改；换库/全部失败未扩大。",
       "boundaries": [
         "当前profile普通重入缓存先显已实现且具名运动成立；新缓存项不覆盖其余缺陷，后台失败/换库/cold仍未验。",
-        "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。"
+        "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。",
+        "不得把“没看明白”当文案采用，不加行/控件、不改全成功摘要或成功地址的结果；失败地址不通过改URL/重请/清缓存制造样本。"
       ],
       "reportedAt": null,
       "reportedDate": null,
@@ -3943,6 +3972,14 @@
       "title": "本行图标Happy普通安装96帧具名保持",
       "detail": "首次异步/同URI已解码同步回交，保所有原生样式。完整原片/5联系表及全部0–69图标表亲审；旧77与用户数据保持，原书架自然返回。",
       "itemId": "SOURCE_PACKAGE_ICON_INVALIDATION",
+      "kind": "work"
+    },
+    {
+      "id": "source-row-names-once-20261025",
+      "at": "2026-10-25T23:03:09+08:00",
+      "title": "消除单次源行排序的重复名称解析，237普通更新数据保持",
+      "detail": "274原实现与候选真实方法同28项通过；276签名8582236B明确装。278普通本地015同版本更新74帧/3sheet已审，280管理/原书架亲审，281四域保持/传包已清；2ms行投影只属本样本，安装46ms仍OPEN。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "work"
     }
   ]

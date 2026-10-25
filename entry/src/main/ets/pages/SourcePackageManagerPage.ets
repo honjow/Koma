@@ -328,9 +328,16 @@ export struct SourcePackageManagerPage {
     // These DTOs already carry the registry names. Read the page's locale once;
     // connecting global state again inside every comparison adds work per row.
     const locale = this.languageState.effectiveLocale
+    // CPU224 also sampled localized-name validation inside sort comparisons.
+    // Resolve once for this refresh only; keep the original comparator and DTO
+    // identities. Do not retain this map across locale or package changes.
+    const displayNames = new Map<string, string>()
+    packages.forEach((item: InstalledSourcePackage): void => {
+      displayNames.set(item.id, resolveSourceLocalizedName(item.name, item.localizedNames, locale))
+    })
     this.packages = packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
-      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale), left.id,
-        resolveSourceLocalizedName(right.name, right.localizedNames, locale), right.id))
+      compareSourceNames(displayNames.get(left.id) ?? left.name, left.id,
+        displayNames.get(right.id) ?? right.name, right.id))
     if (this.sourceSheetSourceId === sourceId) this.sourceSheetRetainedSource = source
     try {
       const count = Object.keys(appSourceSettingsStore.loadForSource(sourceId)).length
