@@ -1935,6 +1935,25 @@ export struct SourcePackageManagerPage {
     return parts.join(' · ')
   }
 
+  // Keep the cross-source scan out of every row's dependency recording. CPU384
+  // found repeated find/addRef work here during the actual Blue011 update.
+  // Rendering may use frame-cached scalars; business actions keep updateStatus
+  // so a same-task status write is never read through a stale @Computed cache.
+  @Computed
+  private get packageListUpdateStates(): Map<string, SourcePackageUpdateState> {
+    const states = new Map<string, SourcePackageUpdateState>()
+    this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
+      if (!states.has(status.sourceId)) states.set(status.sourceId, status.status)
+    })
+    return states
+  }
+
+  @Computed
+  private get incompleteUpdateStatusText(): string {
+    // AppStrings retains its locale dependency; share this unchanged label.
+    return t('source_pkg_update_status_incomplete')
+  }
+
   private packageListMetaText(source: InstalledSourcePackage | undefined): string {
     if (source === undefined) {
       return ''
@@ -1945,8 +1964,8 @@ export struct SourcePackageManagerPage {
     }
     // The adopted partial-check state belongs in this existing subtitle.
     // updateStatusText in the update action is absent for non-updatable rows.
-    if (this.updateStatus(source.id).status === 'incomplete') {
-      parts.push(this.updateStatusText(source))
+    if (this.packageListUpdateStates.get(source.id) === 'incomplete') {
+      parts.push(this.incompleteUpdateStatusText)
     }
     return parts.join(' · ')
   }
