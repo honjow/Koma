@@ -104,6 +104,26 @@ test('reused, copied and externally frozen events remain redacted through storag
   }
 })
 
+test('event reuse retains the original extra-pass handling of quoted credential tails', () => {
+  const r=runtime(), { DiagnosticsRedactor: redactor }=r.load('DiagnosticsRedactor')
+  const { DiagnosticsStore: store }=r.load('DiagnosticsStore')
+  const { DiagnosticsLogFileSink: sink }=r.load('DiagnosticsLogFileSink')
+  const { DiagnosticsLogFormatter: formatter }=r.load('DiagnosticsLogFormatter')
+  sink.initialize({filesDir:'/sandbox'})
+  for(const [message,expected] of [
+    ['token="fixtureSecretA"fixtureSecretB','token=<redacted>'],
+    ["password='fixtureSecretC'fixtureSecretD",'password=<redacted>'],
+    ['token="a"b status=done','token=<redacted> status=done'],
+  ]) {
+    const once=redactor.sanitizeEvent({ts:1,level:'info',category:'source',event:'test',message})
+    assert.equal(formatter.formatEntry(once).endsWith(' '+expected),true)
+    store.append(once);sink.append(once)
+    assert.equal(store.snapshot().at(-1).message,expected)
+  }
+  assert.equal([...r.files.values()].join('').includes('fixtureSecret'),false)
+  assert.equal(store.exportText().includes('fixtureSecret'),false)
+})
+
 test('memory ring, rotation, total retention and previous-launch recovery stay bounded', () => {
   const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
   const { DiagnosticsLogFileSink: sink } = r.load('DiagnosticsLogFileSink')
