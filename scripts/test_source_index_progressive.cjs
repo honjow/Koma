@@ -177,14 +177,14 @@ test('refresh keeps displayed icons until replacements arrive, including changed
 })
 
 test('failed explicit refresh preserves the existing metadata, artwork and installed state', async () => {
-  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['fetchIndex'], {
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', ['fetchIndex', 'setSavedIndexFailure'], {
     ...globals, tf: key => key, t: key => key,
   })
   const metadata = [entry('A')], icons = { A: { uri: 'file://A.png' } }, packages = [installed('A', '1')]
   let finish
   Object.assign(manager, {
     sourceIndexUrl: 'https://same.test/index.json', indexLoadRevision: 1, indexDisplayRevision: 0, savedIndexLoadRevision: 0,
-    indexFetchBusy: false, indexEntries: metadata, indexIconStates: icons, packages,
+    indexFetchBusy: false, indexEntries: metadata, indexIconStates: icons, packages, sourceIndexFailures: {},
     sourceReasonText: reason => reason,
     sourceIndexService: { saveUrl: async () => {}, loadSavedRepositories: async () => [],
       fetchIndex: () => new Promise(resolve => { finish = resolve }) },
@@ -484,4 +484,68 @@ test('late cached metadata cannot overwrite another selected repository or trigg
   finish([entry('old')]);await running
   assert.equal(f.shown.length,0);assert.equal(f.checks.length,0)
   assert.equal(f.manager.sourceIndexUrl,'https://other.test/index.json')
+})
+
+function updateCheckManager(packages, replies, statuses = []) {
+  packages = packages.map(source => ({ ...source, lang: '' }))
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
+    'checkInstalledUpdates', 'sourceIndexUrlsForUpdate', 'checkedUpdateStatuses', 'installedPackage',
+    'compareVersion', 'entryDeclaresPackageIcon', 'needsPackageIdentityIconRepair', 'updateAvailableFor',
+    'updateStatus', 'updateStatusText', 'packageListMetaText', 'savedIndexSubtitle', 'setSavedIndexFailure', 'fetchIndex',
+  ], { ...globals, t: key => key, tf: (key, ...values) => JSON.stringify([key, ...values]) })
+  Object.assign(manager, { packages, packageUpdateStatuses: statuses, sourceIndexFailures: {},
+    sourceIndexUrl: 'https://active.test/index.json', indexEntries: [], indexIconStates: {},
+    sourceIndexRepositories: [], indexLoadRevision: 0, savedIndexLoadRevision: 0,
+    indexFetchBusy: false, updateCheckBusy: false,
+    currentIndexUrlOrPrompt: async () => manager.sourceIndexUrl,
+    sourceReasonText: reason => reason, sourceRedactedReasonText: reason => reason,
+    sourceIndexService: { saveUrl: async () => {},
+      loadSavedRepositories: async () => [...replies.keys()].map(url => ({ url })),
+      fetchIndex: async url => replies.get(url) },
+    showIndexEntries: (_url, entries) => { manager.indexEntries = entries },
+  })
+  return manager
+}
+
+test('partial repository check cannot conclude latest/missing and retains fresh and previously confirmed updates', async () => {
+  const active = 'https://active.test/index.json', other = 'https://other.test/index.json'
+  const known = indexed('C', '2.0')
+  const replies = new Map([[active, { ok: true, entries: [indexed('A', '1.0'), indexed('D', '2.0')] }],
+    [other, { ok: false, reasonCode: 'network_error', entries: [] }]])
+  const manager = updateCheckManager(['A','B','C','D'].map(id => installed(id, '1.0')), replies,
+    [{ sourceId: 'C', status: 'update', localVersion: '1.0', remoteEntry: known, remoteIndexUrl: other }])
+  await manager.checkInstalledUpdates()
+  assert.deepEqual(Array.from(manager.packageUpdateStatuses, value => [value.sourceId, value.status]),
+    [['A','incomplete'], ['B','incomplete'], ['C','update'], ['D','update']])
+  assert.equal(manager.updateStatus('C').remoteEntry, known)
+  assert.equal(manager.updateStatus('D').remoteIndexUrl, active)
+  assert.equal(manager.statusText, JSON.stringify(['source_pkg_check_incomplete', 2]))
+  assert.equal(manager.updateStatusText(manager.packages[0]), 'source_pkg_update_status_incomplete')
+  assert.equal(manager.packageListMetaText(manager.packages[0]), 'v1.0 · source_pkg_update_status_incomplete')
+  assert.equal(manager.savedIndexSubtitle({ url: other }), JSON.stringify(['source_pkg_check_failed','network_error']))
+  assert.equal(manager.savedIndexSubtitle({ url: active }), 'source_pkg_current_index')
+  assert.equal(manager.updateCheckBusy, false)
+})
+
+test('successful address retry clears its failure; complete and all-failed checks retain their original conclusions', async () => {
+  const active = 'https://active.test/index.json', other = 'https://other.test/index.json'
+  const replies = new Map([[active, { ok: true, entries: [indexed('A','1.0')] }],
+    [other, { ok: false, reasonCode: 'network_error', entries: [] }]])
+  const manager = updateCheckManager(['A','B','C'].map(id => installed(id,'1.0')), replies)
+  await manager.checkInstalledUpdates()
+  replies.set(other, { ok: true, entries: [indexed('B','2.0')] })
+  manager.sourceIndexUrl = other
+  await manager.fetchIndex()
+  assert.equal(manager.sourceIndexFailures[other], undefined)
+  assert.equal(manager.savedIndexSubtitle({ url: other }), 'source_pkg_current_index')
+  await manager.checkInstalledUpdates()
+  assert.deepEqual(Array.from(manager.packageUpdateStatuses, value => [value.sourceId,value.status]),
+    [['A','latest'],['B','update'],['C','missing']])
+  assert.equal(manager.statusText, JSON.stringify(['source_pkg_check_complete',1,1,1]))
+  assert.equal(manager.packageListMetaText(manager.packages[0]), 'v1.0')
+  for (const url of replies.keys()) replies.set(url, { ok: false, entries: [], reasonCode: 'network_error' })
+  await manager.checkInstalledUpdates()
+  assert.deepEqual(Array.from(manager.packageUpdateStatuses, value => value.status), ['failed','failed','failed'])
+  assert.equal(manager.statusText, JSON.stringify(['source_pkg_check_failed','network_error']))
+  assert.equal(Object.keys(manager.sourceIndexFailures).length, 0)
 })

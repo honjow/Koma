@@ -64,7 +64,7 @@ function tf(name: string, ...args: Array<string | number>): string {
   return AppStrings.format(name, ...args)
 }
 
-type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed'
+type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed' | 'incomplete'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
 type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'open_web' | 'confirm_remove'
 
@@ -138,6 +138,7 @@ export struct SourcePackageManagerPage {
   @Local private settingDraft: SourceSettingsRecord = {}
   @Local private sourceIndexUrl: string = ''
   @Local private sourceIndexRepositories: SourceIndexRepository[] = []
+  @Local private sourceIndexFailures: Record<string, string> = {}
   @Local private indexEntries: SourceIndexEntry[] = []
   @Local private indexIconStates: Record<string, SourceIdentityIconState> = {}
   @Local private indexFetchBusy: boolean = false
@@ -859,6 +860,8 @@ export struct SourcePackageManagerPage {
         return tf('source_pkg_update_status_available', status.localVersion ?? source.version, status.remoteVersion ?? '')
       case 'missing':
         return t('source_pkg_update_status_missing')
+      case 'incomplete':
+        return t('source_pkg_update_status_incomplete')
       case 'failed':
         return tf('source_pkg_update_status_failed', this.sourceRedactedReasonText(status.reasonCode))
       case 'unknown':
@@ -941,6 +944,24 @@ export struct SourcePackageManagerPage {
     return (error as Error)?.message?.startsWith('source_index_preferences_') ? 'unknown' : 'network_error'
   }
 
+  private setSavedIndexFailure(indexUrl: string, reason?: string): void {
+    if (this.sourceIndexFailures[indexUrl] === reason) return
+    const next: Record<string, string> = {}
+    Object.keys(this.sourceIndexFailures).forEach((key: string): void => {
+      if (key !== indexUrl) next[key] = this.sourceIndexFailures[key]
+    })
+    if (reason !== undefined) next[indexUrl] = reason
+    this.sourceIndexFailures = next
+  }
+
+  private savedIndexSubtitle(repository: SourceIndexRepository): string {
+    const current = repository.url === this.sourceIndexUrl.trim() ? t('source_pkg_current_index') : ''
+    const reason = this.sourceIndexFailures[repository.url]
+    if (reason === undefined) return current
+    const failure = tf('source_pkg_check_failed', this.sourceRedactedReasonText(reason))
+    return current.length > 0 ? current + ' · ' + failure : failure
+  }
+
   private async currentIndexUrlOrPrompt(): Promise<string> {
     let url = this.sourceIndexUrl.trim()
     if (url.length === 0) {
@@ -983,9 +1004,12 @@ export struct SourcePackageManagerPage {
     // results (and their groups) until this check has a replacement result.
     try {
       await this.sourceIndexService.saveUrl(url)
-      this.sourceIndexRepositories = await this.sourceIndexService.loadSavedRepositories()
+      const repositories = await this.sourceIndexService.loadSavedRepositories()
+      if (revision !== this.indexLoadRevision) return
+      this.sourceIndexRepositories = repositories
       const updateIndexUrls = this.sourceIndexUrlsForUpdate(url)
       const candidates: Record<string, SourcePackageUpdateCandidate> = {}
+      const indexFailures: Record<string, string> = {}
       let loadedIndexCount = 0
       let failedIndexCount = 0
       let firstFailureReason = 'network_error'
@@ -996,6 +1020,7 @@ export struct SourcePackageManagerPage {
         if (!result.ok) {
           failedIndexCount += 1
           firstFailureReason = result.reasonCode ?? firstFailureReason
+          indexFailures[indexUrl] = result.reasonCode ?? 'network_error'
           continue
         }
         loadedIndexCount += 1
@@ -1015,6 +1040,7 @@ export struct SourcePackageManagerPage {
         })
       }
       if (loadedIndexCount === 0) {
+        this.sourceIndexFailures = {}
         this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
           return {
             sourceId: source.id,
@@ -1032,28 +1058,46 @@ export struct SourcePackageManagerPage {
       let latestCount = 0
       let missingCount = 0
       const nextStatuses: SourcePackageUpdateStatus[] = []
+      const retainedUpdates: Record<string, SourcePackageUpdateCandidate> = {}
+      if (failedIndexCount > 0) {
+        this.checkedUpdateStatuses().forEach((status: SourcePackageUpdateStatus): void => {
+          retainedUpdates[status.sourceId] = {
+            entry: status.remoteEntry as SourceIndexEntry,
+            indexUrl: status.remoteIndexUrl as string,
+          }
+        })
+      }
       this.packages.forEach((source: InstalledSourcePackage) => {
-        const candidate = candidates[source.id]
-        if (candidate === undefined) {
-          missingCount += 1
-          nextStatuses.push({
-            sourceId: source.id,
-            status: 'missing',
-            localVersion: source.version,
-          })
-          return
+        let candidate = candidates[source.id]
+        const retained = retainedUpdates[source.id]
+        if (retained !== undefined && this.updateAvailableFor(source, retained.entry) &&
+          (candidate === undefined || this.compareVersion(retained.entry.version, candidate.entry.version) > 0)) {
+          candidate = retained
         }
-        const entry = candidate.entry
-        if (entry.version.length > 0 && source.version.length > 0 && this.updateAvailableFor(source, entry)) {
+        const entry = candidate?.entry
+        if (entry !== undefined && entry.version.length > 0 && source.version.length > 0 &&
+          this.updateAvailableFor(source, entry)) {
           updateCount += 1
           nextStatuses.push({
             sourceId: source.id,
             status: 'update',
             remoteEntry: entry,
-            remoteIndexUrl: candidate.indexUrl,
+            remoteIndexUrl: candidate?.indexUrl,
             remoteVersion: entry.version,
             localVersion: source.version,
           })
+          return
+        }
+        // A failed repository may contain a newer version or the missing ID.
+        // The adopted partial-check contract retains positive updates only;
+        // it cannot establish either negative conclusion across all indexes.
+        if (failedIndexCount > 0) {
+          nextStatuses.push({ sourceId: source.id, status: 'incomplete', localVersion: source.version })
+          return
+        }
+        if (entry === undefined) {
+          missingCount += 1
+          nextStatuses.push({ sourceId: source.id, status: 'missing', localVersion: source.version })
           return
         }
         latestCount += 1
@@ -1061,16 +1105,21 @@ export struct SourcePackageManagerPage {
           sourceId: source.id,
           status: 'latest',
           remoteEntry: entry,
-          remoteIndexUrl: candidate.indexUrl,
+          remoteIndexUrl: candidate?.indexUrl,
           remoteVersion: entry.version,
           localVersion: source.version,
         })
       })
       this.packageUpdateStatuses = nextStatuses
-      this.statusText = tf('source_pkg_check_complete', updateCount, latestCount, missingCount)
+      this.sourceIndexFailures = failedIndexCount > 0 ? indexFailures : {}
+      this.statusText = failedIndexCount > 0
+        ? tf('source_pkg_check_incomplete', updateCount)
+        : tf('source_pkg_check_complete', updateCount, latestCount, missingCount)
       console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount +
         ' failed_indexes=' + failedIndexCount)
     } catch (_error) {
+      if (revision !== this.indexLoadRevision) return
+      this.sourceIndexFailures = {}
       this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
         return {
           sourceId: source.id,
@@ -1350,12 +1399,19 @@ export struct SourcePackageManagerPage {
       const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
       if (revision !== this.indexLoadRevision) return
       if (result.ok) {
+        this.setSavedIndexFailure(url)
         this.showIndexEntries(url, result.entries, revision)
       } else {
+        if (this.sourceIndexFailures[url] !== undefined) {
+          this.setSavedIndexFailure(url, result.reasonCode ?? 'network_error')
+        }
         this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(result.reasonCode))
       }
     } catch (_error) {
       if (revision !== this.indexLoadRevision) return
+      if (this.sourceIndexFailures[url] !== undefined) {
+        this.setSavedIndexFailure(url, this.sourceIndexFailureReason(_error))
+      }
       this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText(this.sourceIndexFailureReason(_error)))
     } finally {
       if (revision === this.indexLoadRevision) this.indexFetchBusy = false
@@ -1371,6 +1427,7 @@ export struct SourcePackageManagerPage {
     this.savedIndexLoadRevision += 1
     void this.sourceIndexService.removeSavedRepository(repository.url)
       .then((repositories: SourceIndexRepository[]) => {
+        this.setSavedIndexFailure(repository.url)
         this.sourceIndexRepositories = repositories
         if (this.sourceIndexUrl.trim() === repository.url && repositories.length > 0) {
           this.setSourceIndexUrl(repositories[0].url)
@@ -1886,6 +1943,11 @@ export struct SourcePackageManagerPage {
     if (source.lang.length > 0) {
       parts.push(sourceLanguageName(source.lang))
     }
+    // The adopted partial-check state belongs in this existing subtitle.
+    // updateStatusText in the update action is absent for non-updatable rows.
+    if (this.updateStatus(source.id).status === 'incomplete') {
+      parts.push(this.updateStatusText(source))
+    }
     return parts.join(' · ')
   }
 
@@ -1925,6 +1987,8 @@ export struct SourcePackageManagerPage {
         return this.sourceReasonText(status.reasonCode ?? 'ok')
       case 'missing':
         return t('source_pkg_update_status_missing_brief')
+      case 'incomplete':
+        return t('source_pkg_update_status_incomplete')
       case 'failed':
         return this.sourceRedactedReasonText(status.reasonCode)
       case 'unknown':
@@ -2079,7 +2143,7 @@ export struct SourcePackageManagerPage {
                 ConciseListRow({
                   title: repository.url,
                   wrapTitle: true,
-                  subtitle: repository.url === this.sourceIndexUrl.trim() ? t('source_pkg_current_index') : '',
+                  subtitle: this.savedIndexSubtitle(repository),
                   subtitleMaxLines: 1,
                   suffixBuilderParam: () => {
                     this.SavedIndexRemoveButton(repository)
