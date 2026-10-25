@@ -1,17 +1,18 @@
 # Koma 当前状态、缺口与执行基线
 
 <!-- current-continuation -->
-## 当前接续入口（2026-10-25，新会话迁移）
+## 当前接续入口（2026-10-25，新会话已接手）
 
-用户因本会话压缩摘要不断膨胀，明确要求新对话续接并迁移定时任务。旧会话 `01a11fb1-9f44-7123-8590-b6e849190eab` 已停止产品修改；新会话已接管，并完成全部69项id/kind/status/owner/remainingActions核对。本段是定位入口，69项 snapshot 仍是唯一完整队列；先解析全部未完成项的状态/owner/下一动作，再只展开当前项所需最新证据。不要全量重载旧聊天、旧长摘要或本文件历史段。
+本会话已按用户请求轻量接手；完整69项snapshot仍是唯一队列，已核全部未完成项id/kind/status/owner/remainingActions。旧会话不再执行，原10分钟heartbeat已读回迁到本会话，未新增任务。不要全量重载旧聊天/本文件历史长段。
 
-- 当前：`SOURCE_PACKAGE_INSTALL_UI_STALL`。首页统一`SOURCE_BROWSE_HOME_STRUCTURE`已具名完成，用户已明确采用“搜索下方原生分类入口、一次只显示所选内容”；现有材质、网格、筛选保持。代码/三语/既有行为用例及运行合同共8文件已提交推送`e6404c5b`，精确CI`40188955447`成功。最终签名包 `.hvigor/outputs/user-flow-audit/Koma-source-home-selection-final-8577441.hap` 已装237；0.1.2-pre/code3/debug=false。
-- 已证：237包子首页↔熱門原生菜单及对勾，单一熱門36本，刷新保当前选择/旧封面，首页筛选进入原默认栏目及原UI重置。最新证据为该项182–190目录；184连续录像已审。190三域及筛选完整JSON保持；189已自然回原书架“大奉001第6页25%”。56项既有真实VM行为检查通过；新增3个关键行为案例，没有源码字符串或界面形状测试。本会话193–195已补无首页Comic Fury热门→最新及自然返回；三域/筛选完整JSON保持。精确diff与本笔提交CI已完成；其他缺陷仍按snapshot，当前定位安装残余。
-- 设备：237实时连接曾为 `192.168.50.237:12345`、VDE-AL00展开竖屏1320×2120。旧租约已释放；本会话live唯一解析237并取得新租约 `20261025-112030-77b84cd9`，191/195均实读AWAKE/86400000与Koma前台。持续验收的AWAKE/override86400000保持未改，正常timeout120000；不要把更早10000的旧样本冒作当前原值。197仍正式8569832B。**200禁止操作**，不因用户报设备号取得控制许可。
-- 已同步检查点：Koma HEAD/master `62621dd1b0076949fd0173a991ca4ddde304dfc8`，精确CI `40185795266` completed/success；此前六Native worker修复 `34e83b8b`/CI40179763215成功。安装75文件只读校验约2ms/持久化6ms已证，但主回调仍25.322ms与本行图标瞬空未闭，不能称安装总项完成。
-- 原仓与边界：只用 `/Users/honjow/git/Koma`、同级NextN/NextE/reader-kit/koma-sources。禁止工作树/源码副本、hook、Goal与无关UI改动；用户已授权后续代码提交推送不用再问，未授权新tag/发布。保护Koma `.idea`生成物和 `scripts/__pycache__`，NextN两个validator WIP；禁止 `git add .`。原图标/四私库PARKED_USER及已过具名阅读器路径冻结；缓存v3候选未采用，不合入。
-- 源仓本地材料提交 `46948b0`、`b24e6a0`、`4b1d977` 未单独推送：当前任何master push会重发85源，随后继实际源变更同推。不改成长期不同步借口。
-- 操作入口：继续使用 `.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前208）与原语义脚本（文件名diagnostics197，内容237），原录屏输入 `source-browse237.recording.json`。所有HDC/helper/dry-run在沙盒外并经有效租约；`HARMONY_DEVICE_ARTIFACT_HASHES=0`。Harmony技能恢复后重读，不打印签名口令。当前无其他执行代理；本会话199配对CPU诊断已结束、补丁精确撤回，237正式8578908B已恢复，CPUJSON仅本次清理且ABSENT。
+- 当前：`SOURCE_PACKAGE_ICON_INVALIDATION`具名修复准备范围同步；随后接安装剩余回调与`SourceRuntimeState`非法内存键。首页统一、筛选清除文案均已具名/推送/精确CI成功，已过路径冻结，不重跑包子/85源矩阵。
+- 已同步：Koma `e6404c5b`首页/CI40188955447、`d32bec97`筛选文案/CI40189962844、`cee28e36`摘要后台/CI40190939072均completed-success。固定Kit e3f3cc1；缓存v3未采用，不合入。没有新tag/发布。
+- 当前包：237无CPU探针签名Release8583407B/0.1.2-pre code3/debug=false，209明确安装。211一次Happy013安装的96原PTS帧、5全页表/0–69图标表及交接原帧已亲审，图标持续保留至正常移行；只限本具名路径。213原书架大奉001第6页25%，214三域同212；78源仅本会话合法新增我是馬克/杂志迷/Happy，所有旧对象逐字段/顺序保持。
+- 性能边界：摘要已在worker真实10ms；原25ms总项未闭。206 callback56.060ms有共享GC且39.467ms运行在≤558MHz，旧174主要约1.48GHz，不能作严格AB或归因新Worker；不改设备频率/网络/电源。临时CPU2060B补丁已精确撤，诊断文件仅本次删除且ABSENT。
+- 设备：237实时完整target在本轮为`192.168.50.237:12345`，VDE-AL00展开竖屏1320×2120；有效租约`20261025-112030-77b84cd9`，持续AWAKE/override86400000，正常timeout120000。继续前按当前租约有效期/实时Connected核，不用旧租约。197仍正式8569832B，已授权；**200禁止操作**。
+- 入口：沿`.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前214）、原`diagnostics197.semantic.py`（实际内容237）和`source-browse237.recording.json`；全部HDC/helper/dry-run沙盒外、有效租约、`HARMONY_DEVICE_ARTIFACT_HASHES=0`。当前无其他执行代理。
+- 原仓与权限：只在各原主仓，不建worktree/克隆/源码副本、hook或Goal；保护`.idea`、`scripts/__pycache__`及NextN两个validator WIP；禁`git add .`。用户持续授权后续代码提交推送不用再问，未授权新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器路径冻结。
+- 源仓材料提交46948b0/b24e6a0/4b1d977仍待后继实际源变更同推，避免仅材料重发85源；不是长期不同步借口。当前索引/源代码未改。
 
 <!-- /current-continuation -->
 
@@ -946,11 +947,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T11:55:58.652959+00:00",
+  "updatedAt": "2026-10-25T12:07:27.443409+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "筛选文案d32bec97精确CI成功；摘要Worker当前237一次杂志迷普通首装/真实后台线程及自然返回已验，正在按限定范围同步。主回调总项仍OPEN，后继接图标瞬空。",
-  "nextAction": "同步隔离摘要Worker5文件并跟精确CI；仅对已成功加载的本地图标调查syncLoad回交，保首次异步与所有原生样式，录完整安装过程。",
+  "activeId": "SOURCE_PACKAGE_ICON_INVALIDATION",
+  "activity": "本行图标候选237 Happy013普通安装完整96帧已亲审，0–69图标持续存在、70正常移行；当前原书架/78源与三域保持。正在范围同步图标加载修复，安装总卡顿仍未闭。",
+  "nextAction": "提交推送图标加载4文件并跟精确CI；继续实际非法SourceRuntimeState内存键及剩余回调，不重跑已接受图标/正文或85源矩阵。",
   "proof": [
     {
       "label": "正式主仓",
@@ -993,8 +994,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "d32bec97a76db198cc265d8221967b7130fe1b2d已推；精确CI40189962844 completed/success；固定Kit e3f3cc1。",
-      "hap": "237当前摘要Worker候选8577712B/code3/debugfalse；204明确安装，206新增杂志迷至77源，旧76与library/reader保持，207原书架，208三域同206。197仍8569832B。"
+      "appHead": "cee28e368c4be37bfb42546caeffb23f27348378已推；精确CI40190939072 completed/success；固定Kit e3f3cc1。",
+      "hap": "237当前图标加载候选8583407B/code3/debugfalse，209明确装；211仅新增Happy013至78源，旧77/library/reader保持，213原书架，214三域同212。197仍8569832B。"
     },
     {
       "name": "NextE",
@@ -2734,15 +2735,15 @@
       "id": "SOURCE_PACKAGE_ICON_INVALIDATION",
       "title": "安装或检查更新导致源图标闪烁",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root",
+      "owner": "Root：Happy具名图标修复范围提交/CI，未覆盖边界保留",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INDEX_PROGRESSIVE",
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "120本行92第9帧仍瞬空；其他按钮按源独立",
-      "result": "503真实HANMAN18安装复现：第9帧0.197422s图标瞬空，第10帧0.215244s恢复；其他可见图标保持。504仅新增该源，原84项全字段/顺序及书架读态不变。",
+      "status": "237 Happy013安装整段图标保持；本笔范围同步CI待",
+      "result": "已解码本地fileURI后续回交用syncLoad，首次/换图/远程仍异步。209签名Release8583407B明确安装且三域同208；211一次Happy013安装完整96原PTS编码帧已亲审，源图标在0–69均可见，9切安装中、70正常整行移出。其他可见图标保持；不外推197更新或旧92样本。",
       "evidencePoints": [
         "418完整114帧已审：第8帧0.146778秒本行图标瞬空，第9帧恢复；419仅漫画屋014更新，用户数据保持。",
         "434 trace显示旧图标重解码早于SourcePackageListItem销毁约1.439秒；仅定位到原生行内部更新线索，不宣称已证HDS根因。",
@@ -2751,12 +2752,16 @@
         "531真实011→012更新118帧四联系表已亲看；原帧5图标正常，6(PTS0.099656s)本行图标瞬空，7(0.116111s)恢复，其他原可见源图标保持；问题仍open，不以Native按钮更新正常当已修。",
         "本轮SDK声明仅CommonMethod，未发现按区域更新setter；预览HdsComponent.hsp解读明确标为mocked implementation，不作实机因果。434实际主线程最长回调29.616ms/一次23.406msUIVsync保有界，不能抵消531一帧瞬空。",
         "官方HdsListItemCard文档已核：A/B/C仅在整卡Options中配置，公开通用属性不可单独修改内部区域；SuffixButton.options可写，但文档未承诺复用对象即可局部更新。未据此认定平台根因，未改原生样式或重复安装。",
-        "237120原生后缀由安装→安装中时，第9帧本行92图标为空，8帧存在，59/60恢复；全83帧/3联系表及四原帧亲审。单行状态隔离未解决这个反例，不能关闭图标项。"
+        "237120原生后缀由安装→安装中时，第9帧本行92图标为空，8帧存在，59/60恢复；全83帧/3联系表及四原帧亲审。单行状态隔离未解决这个反例，不能关闭图标项。",
+        "官方Image文档明确syncLoad用于小本地图刷新闪烁，onComplete0为数据/1才解码。候选只在同一fileURI已解码后同步回交；同组件URI快照拒旧回调，首载/换URI/remote仍异步，HDS卡片/原生按钮/30vp/R7/Contain/每版本缩放全保持。新增1个真实Builder回调用例执行0/1/换URI/旧完成与旧错误/当前错误/remote；原21项期望未改，22项通过，正式Release构建成功。",
+        "211普通Happy013首次安装连续录像454873B/1196×1920，96编码帧/5全页联系表按序亲审；额外0–69本行图标原像素裁取表全部亲审，原帧8(0.146289)/9(0.162644)及69(1.167678)/70(1.736089)亲看。安装中期间Happy完整绿字保持，70整行正常移出；未用静态终点或平均FPS替代。原系统录像媒体与本次唯一导出由runner删除/验证完成，哈希关闭。",
+        "212 registry77→78仅新增com.happymh.koma013，原77每字段/顺序及library/reader完整JSON同209。213自然返回原书架大奉001第6页25%完整图亲审，214三域同212；AWAKE/86400000保持。没有打开Happy正文、切网络/清缓存/改图标素材。"
       ],
       "remainingActions": [
-        "核对HDS原生前缀/后缀更新及图标持有契约；不能靠改样式、自绘按钮或去掉光学校准掩盖瞬空。"
+        "提交推送本笔图标加载4文件并跟精确CI；当前Happy具名加载/运动范围冻结。",
+        "197更新、原92和换新URI自然失败等未扩认；仅按自然新样本/真实反例继续，不重复造安装矩阵。"
       ],
-      "remaining": "本行按钮改变仍有图标瞬空；待实机HDS A区/C区更新边界的有效实现依据，保原生卡片及已定30vp/R7。不用预览mock或重复造安装验证。",
+      "remaining": "本次Happy普通安装具名成立；本笔未提交CI。现有所有资源/样式和初次异步加载保持，其他包/宿主未扩认。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
@@ -2770,7 +2775,22 @@
       "handling": null,
       "closedAt": null,
       "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。",
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "modificationBasisDecodedLocalSync": {
+        "object": "ConciseListRow.SourceIdentityPrefix内仅图标Image的加载时机",
+        "history": "096730b1建立host-owned前缀，保原生HDS/NAPI职责；f4caffaa复用PrefixCustomBuilder但120按钮更新仍瞬空。现URI来自版本化package文件或已校验本地index缓存。未发现本组件syncLoad既有引入/撤销记录，未据此称历史从未尝试。",
+        "originalReason": "保持HDS原生卡片/动作、图标Contain/30vp/R7/光学校准，异步首载避免全部源图标阻塞主线程。",
+        "reopenEvidence": "官方Image/显示图片明确syncLoad可避免刷新闪烁，同时警示大图主线程阻塞；onComplete状态0只是数据完成、1才解码完成。当前前缀Image一直默认异步，HDS后缀变化有具名一帧空白；仍需真实录像验证候选，不当已证平台根因。",
+        "allowedDifference": "仅同一file://URI在本行已成功解码后，后续前缀重建用syncLoad；首载/新URI保持异步。按构建时URI快照处理完成/错误，拒过期回调；不新增全局像素缓存、不改资源/大小/圆角/缩放/材质/原生按钮。"
+      },
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-icon237-decoded-sync-candidate-209",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-icon237-happy-manager-position-210",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-icon237-happy-firstinstall-motion-211",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-icon237-happy-after-recording-212",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-icon237-happy-natural-return-213",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-icon237-happy-final-readback-214"
+      ]
     },
     {
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
@@ -2818,13 +2838,14 @@
         "199原HTrace正常finish/只读接收，离线streamer初因工作目录缺libc++失败，保失败后在其原目录运行audit-cwd成功。当前主Callback6796为27.988ms/+11.184ms提示，另Release6788为12.236ms；点击35.403ms含CPU启动开销，末回调含stopJsCpuProfiling，不和无探针174作严格AB/FPS。200已精确撤2060B临时补丁，覆盖无探针正式8578908B成功，三域同199；仅本次CPUJSON清理且ABSENT读回。",
         "隔离SourcePackageHashWorker仅Crypto依赖，异步导入传副本；同一完整SHA256、size/max及checksum_mismatch保持，恢复/rawfile同步入口保持。新增1个真实方法用例，实际摘要abc、匹配/不匹配/空声明/size/max、输入转移与worker异常；既有25项期望未改，26项通过。首次漏rawfile同步helper被构建拦，第二次Concurrent同模块helper捕获被es2abc拦，改为import/局部变量的单一primitive后正式构建成功；失败日志保留，没有用Host通过代替ArkTS。",
         "204签名Release8577712B明确装237，三域同203。206一次未装杂志迷010首装，Native sourceInfo6能力真实返回，76→77仅新增com.zazhimi.koma，旧76每字段/顺序及library/reader完整JSON保持。摘要日志pid55182/tid55338、38985B/10ms，线程不同于main55182；Native文件检查count77/matched1/10493us，persistSync25/row9ms。本次无CPU探针。207普通返回原大奉001第6页25%完整PNG亲审，208三域同206。",
-        "206实际主callback6542为56.060ms（Running50.086ms、DIO0.665/DNIO0.258、R/R+2.135、S2.916）；共享GC根与wait可见，不能把它全算摘要或宣称卡顿改善。其Running频率加权约760246kHz，其中39.467ms≤558MHz；174旧callback Running24.523ms、加权1478071kHz、无≤558MHz区间。来源/源数/GC/频率不同，不作严格AB或归因Worker引入回归；未改设备频率/网络/电源设置。39个UIVsyncTask最大11.898ms，仅轨迹范围，不是FPS/全程视觉接受。"
+        "206实际主callback6542为56.060ms（Running50.086ms、DIO0.665/DNIO0.258、R/R+2.135、S2.916）；共享GC根与wait可见，不能把它全算摘要或宣称卡顿改善。其Running频率加权约760246kHz，其中39.467ms≤558MHz；174旧callback Running24.523ms、加权1478071kHz、无≤558MHz区间。来源/源数/GC/频率不同，不作严格AB或归因Worker引入回归；未改设备频率/网络/电源设置。39个UIVsyncTask最大11.898ms，仅轨迹范围，不是FPS/全程视觉接受。",
+        "摘要5文件已范围提交推送cee28e368c4be37bfb42546caeffb23f27348378，精确CI40190939072同head/completed-success；仅摘要后台具名范围，不关闭安装主回调总项。"
       ],
       "remainingActions": [
-        "仅同步摘要移出主线程的已证范围并跟精确CI；原25.322ms/本次56.060ms总项仍OPEN，不能宣布安装整体流畅。",
-        "图标瞬空接原独立项；后续回调继续以具体函数/实际路径证据处理，不盲重复已过源。"
+        "摘要后台范围已同步/CI成功，原25.322ms与不同频率/GC的56.060ms总项仍OPEN。",
+        "206/211仍有SourceRuntimeState非法内存键警告，按当前真实键与官方字符合同限定修复；不能冒所有56ms根因。其他回调继续按具体函数证据推进，不盲重复已过源。"
       ],
-      "remaining": "摘要Worker已具名证明后台10ms/普通安装成功并保持原字节与数据，5文件待范围同步CI。主回调56ms与旧25ms不同频率/GC样本，整体卡顿未关闭；本行图标未验。",
+      "remaining": "摘要cee28e36/CI40190939072成功；图标具名进展在独立项。主回调总项与其他状态键继续，不能宣称安装整体流畅。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -3870,6 +3891,14 @@
       "title": "摘要真实后台10ms，原安装总项继续开放",
       "detail": "237一次杂志迷首装成功且旧76/书架/读态保持，原书架自然返回。当前56ms回调与旧25ms频率/GC不同，不作AB或整体流畅结论。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-local-icon-decoded-handoff-native",
+      "at": "2026-10-25T12:07:27.443409+00:00",
+      "title": "本行图标Happy普通安装96帧具名保持",
+      "detail": "首次异步/同URI已解码同步回交，保所有原生样式。完整原片/5联系表及全部0–69图标表亲审；旧77与用户数据保持，原书架自然返回。",
+      "itemId": "SOURCE_PACKAGE_ICON_INVALIDATION",
       "kind": "work"
     }
   ]

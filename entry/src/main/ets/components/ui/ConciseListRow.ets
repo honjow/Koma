@@ -48,6 +48,7 @@ export struct ConciseListRow {
   @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
   @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
   private sourceIdentityPrefixItem: PrefixCustomBuilder | undefined = undefined
+  @Local private decodedSourceIdentityUri: string = ''
   @Param count: number = -1
   @Param destructive: boolean = false
   @Param showChevron: boolean = true
@@ -434,16 +435,47 @@ export struct ConciseListRow {
     return this.sourceIdentityIconState?.uri ?? this.sourceIdentityIconUri
   }
 
+  private sourceIdentityCanSyncLoad(uri: string): boolean {
+    return uri.startsWith('file://') && this.decodedSourceIdentityUri === uri
+  }
+
+  private sourceIdentityDecoded(uri: string): void {
+    if (this.sourceIdentityUri() === uri && this.decodedSourceIdentityUri !== uri) {
+      this.decodedSourceIdentityUri = uri
+    }
+  }
+
+  private sourceIdentityDecodeFailed(uri: string): void {
+    if (this.sourceIdentityUri() === uri && this.decodedSourceIdentityUri === uri) {
+      this.decodedSourceIdentityUri = ''
+    }
+  }
+
+  @Builder
+  private SourceIdentityImage(uri: string) {
+    Image(uri)
+      .width('100%')
+      .height('100%')
+      .objectFit(ImageFit.Contain)
+      .interpolation(ImageInterpolation.Medium)
+      .scale({ x: this.sourceIdentityOpticalScale(), y: this.sourceIdentityOpticalScale() })
+      // Only an already decoded local asset may load synchronously when HDS
+      // rebuilds its prefix. First loads/new URIs stay asynchronous; do not
+      // turn the entire source list's initial decode into UI-thread work.
+      .syncLoad(this.sourceIdentityCanSyncLoad(uri))
+      .onComplete((event) => {
+        if (event?.loadingStatus === 1) this.sourceIdentityDecoded(uri)
+      })
+      .onError(() => { this.sourceIdentityDecodeFailed(uri) })
+  }
+
   @Builder
   private SourceIdentityPrefix() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.sourceIdentityUri().trim().length > 0) {
-        Image(this.sourceIdentityUri())
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Contain)
-          .interpolation(ImageInterpolation.Medium)
-          .scale({ x: this.sourceIdentityOpticalScale(), y: this.sourceIdentityOpticalScale() })
+        // Keep the render's URI snapshot in callbacks; an old asset completing
+        // after a package/icon replacement must never mark the new URI ready.
+        this.SourceIdentityImage(this.sourceIdentityUri())
       } else {
         Stack() {
           SymbolGlyph(this.sourceIdentityFallbackIcon)

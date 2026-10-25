@@ -28,6 +28,39 @@ const globals = {
   DiagnosticLogger: { info() {}, error() {}, warn() {} },
 }
 
+test('identity image callbacks retain first-load async and cannot mark a replacement URI decoded', () => {
+  const rendered = []
+  const row = subject('components/ui/ConciseListRow.ets', 'ConciseListRow',
+    ['sourceIdentityUri', 'sourceIdentityCanSyncLoad', 'sourceIdentityDecoded', 'sourceIdentityDecodeFailed', 'SourceIdentityImage'], {
+      Builder() {}, ImageFit: { Contain: 0 }, ImageInterpolation: { Medium: 0 },
+      Image(uri) {
+        const image = { uri }; rendered.push(image)
+        let chain
+        chain = new Proxy({}, { get: (_target, key) => value => {
+          if (key === 'syncLoad') image.sync = value
+          if (key === 'onComplete') image.complete = value
+          if (key === 'onError') image.error = value
+          return chain
+        } })
+        return chain
+      },
+    })
+  Object.assign(row, { sourceIdentityIconUri: 'file://A', decodedSourceIdentityUri: '', sourceIdentityOpticalScale: () => 1 })
+  const image = uri => { row.SourceIdentityImage(uri); return rendered.at(-1) }
+  const a = image('file://A'); assert.equal(a.sync, false)
+  a.complete({ loadingStatus: 0 }); assert.equal(image('file://A').sync, false)
+  a.complete({ loadingStatus: 1 }); assert.equal(image('file://A').sync, true)
+  row.sourceIdentityIconUri = 'file://B'
+  const b = image('file://B'); assert.equal(b.sync, false)
+  a.complete({ loadingStatus: 1 }); assert.equal(image('file://B').sync, false)
+  b.complete({ loadingStatus: 1 }); assert.equal(image('file://B').sync, true)
+  a.error(); assert.equal(image('file://B').sync, true)
+  b.error(); assert.equal(image('file://B').sync, false)
+  row.sourceIdentityIconUri = 'https://remote.test/icon'
+  const remote = image(row.sourceIdentityIconUri); remote.complete({ loadingStatus: 1 })
+  assert.equal(image(row.sourceIdentityIconUri).sync, false)
+})
+
 test('usable index metadata returns without waiting for any icon download', async () => {
   let iconFetches = 0, destroyed = false
   const service = subject('sourceRuntime/SourceIndexService.ets', 'SourceIndexService', ['fetchIndex'], {
