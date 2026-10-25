@@ -46,6 +46,10 @@ That means the runtime must eventually support:
 - settings/auth references without exposing raw credentials;
 - repeatable Linux/archive/device smokes.
 
+## App-local metadata commits
+
+`SourceRuntimeRegistry.persistEntriesToAppLocalMetadata` keeps the commit synchronous. The Native batch in `source_package_file_checks.h` opens every admitted WASM read-only and checks its descriptor's regular-file type and size; it caches no filesystem state and reads no WASM contents. Any mismatch returns to the original per-entry checks, preserving their reason codes, thrown file errors and rollback owner. JSON serialization and atomic metadata writing stay on the existing path. The bounded Native diagnostic reports only count, match and duration, never paths. Do not turn this optimization into skipped validation or an asynchronous publication window.
+
 ## TaskPool module boundary
 
 `sourceRuntime/SourceRuntimeWorker.ets` owns the concurrent Native entry and its dependency boundary. Keep UI state, localization, registry admission, web-session lookup and diagnostics on the calling side; importing them into the worker can execute UI decorators during module initialization. Preserve the Service's copied WASM bytes, restricted HTTP context and source-changed check. See the implementation comment and CURRENT_STATUS's `SOURCE_RUNTIME_ERRORS` for the observed failure and change basis.

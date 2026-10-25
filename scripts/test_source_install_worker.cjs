@@ -118,6 +118,8 @@ function persistenceFixture() {
   const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
     if(name==='@kit.CoreFileKit')return {fileIo:nativeFs,fileUri:{getUriFromPath:p=>'file://'+p}}
     if(name==='./SourceLocalizedNames')return names
+    // Exercise the original per-entry failure contract; the real native fast path is checked below.
+    if(name==='./NativeSourceRuntime')return {NativeSourceRuntime:{sourcePackageFilesMatch:()=>false}}
     if(name==='./SourcePackageImporter')return {...guards,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm'}
     if(name==='../model/AppFileTextPersistence')return {writeAppTextFile:(p,text)=>{if(writeFails)throw Error('disk');writes.push({path:p,metadata:JSON.parse(text)});files.set(p,text)}}
     throw Error('unexpected registry dependency '+name)
@@ -174,6 +176,15 @@ for(const failure of ['directory','unreadable'])test('metadata commit rejects '+
   assert.equal(f.writes.length,0);assert.deepEqual(f.closed,f.opened);assert.equal(f.registry.count(),1)
 })
 
+test('native metadata batch checks real readable files, symlinks, sizes and failures without leaking descriptors',()=>{
+  const temp=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'koma-native-file-checks-'))
+  try {
+    const run=require('node:child_process').execFileSync, binary=path.join(temp,'check')
+    run('c++',['-std=c++17','-I',path.join(__dirname,'../entry/src/main/cpp'),
+      path.join(__dirname,'native/source_package_file_checks_test.cpp'),'-o',binary],{stdio:'pipe'})
+    run(binary,[temp],{stdio:'pipe'})
+  } finally { fs.rmSync(temp,{recursive:true,force:true}) }
+})
 test('app persistence uses the admitted registry projection without reconstructing or hashing all WASM bytes',()=>{
   const calls=[]
   const api=functions(registryFile,['persistInstalledSources'],{

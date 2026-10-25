@@ -1,11 +1,13 @@
 #include <napi/native_api.h>
 
 #include <cstddef>
+#include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
 
 #include "http_host.h"
+#include "source_package_file_checks.h"
 #include "wasm_runtime_adapter.h"
 
 #if __has_include(<hilog/log.h>)
@@ -134,6 +136,54 @@ napi_value RunJsonCallFromBytes(napi_env env, napi_callback_info info)
     return CreateUtf8(env, response);
 }
 
+napi_value SourcePackageFilesMatch(napi_env env, napi_callback_info info)
+{
+#if defined(KOMA_HAS_HILOG)
+    const auto startedAt = std::chrono::steady_clock::now();
+#endif
+    auto result = [env](bool matches) {
+        napi_value value = nullptr;
+        napi_get_boolean(env, matches, &value);
+        return value;
+    };
+    size_t argc = 2;
+    napi_value argv[2] = {nullptr, nullptr};
+    napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
+    bool pathsArray = false;
+    bool sizesArray = false;
+    if (argc < 2 || napi_is_array(env, argv[0], &pathsArray) != napi_ok || !pathsArray ||
+        napi_is_array(env, argv[1], &sizesArray) != napi_ok || !sizesArray) return result(false);
+    uint32_t count = 0;
+    uint32_t sizesCount = 0;
+    if (napi_get_array_length(env, argv[0], &count) != napi_ok ||
+        napi_get_array_length(env, argv[1], &sizesCount) != napi_ok || count != sizesCount) return result(false);
+    std::vector<std::string> paths;
+    std::vector<double> sizes;
+    paths.reserve(count);
+    sizes.reserve(count);
+    for (uint32_t index = 0; index < count; ++index) {
+        napi_value path = nullptr;
+        napi_value size = nullptr;
+        napi_valuetype type = napi_undefined;
+        double expected = 0;
+        if (napi_get_element(env, argv[0], index, &path) != napi_ok ||
+            napi_typeof(env, path, &type) != napi_ok || type != napi_string ||
+            napi_get_element(env, argv[1], index, &size) != napi_ok ||
+            napi_get_value_double(env, size, &expected) != napi_ok) return result(false);
+        paths.push_back(GetStringArg(env, path));
+        sizes.push_back(expected);
+    }
+    const bool matches = koma::SourcePackageFilesMatch(paths, sizes);
+#if defined(KOMA_HAS_HILOG)
+    const auto elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - startedAt).count();
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime",
+        "[SourceRuntime] step=metadata_files_checked count=%{public}u matched=%{public}d durationUs=%{public}lld",
+        count, matches, static_cast<long long>(elapsedUs));
+#endif
+    return result(matches);
+}
+
 napi_value ConfigureHttpTransport(napi_env env, napi_callback_info info)
 {
     size_t argc = 1;
@@ -156,6 +206,7 @@ static napi_value Init(napi_env env, napi_value exports)
         {"runJsonCall", nullptr, RunJsonCall, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCallFromBytes", nullptr, RunJsonCallFromBytes, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"configureHttpTransport", nullptr, ConfigureHttpTransport, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"sourcePackageFilesMatch", nullptr, SourcePackageFilesMatch, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
     return exports;

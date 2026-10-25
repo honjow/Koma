@@ -6,6 +6,7 @@ interface NativeSourceRuntimeModule {
   runJsonCall(requestJson: string): string;
   runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson?: string): string;
   configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean;
+  sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean;
 }
 
 const nativeSourceRuntime = nativeRuntime as NativeSourceRuntimeModule;
@@ -51,6 +52,10 @@ export class NativeSourceRuntime {
     const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
     const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson);
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
+  }
+
+  static sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean {
+    return nativeSourceRuntime.sourcePackageFilesMatch(paths, expectedByteCounts);
   }
 
   static configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean {

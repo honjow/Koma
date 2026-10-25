@@ -1,3 +1,4 @@
+import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import {
@@ -668,30 +669,41 @@ export class SourceRuntimeRegistry {
   }
 
   private persistEntriesToAppLocalMetadata(metadataPath: string, entries: SourceRuntimeRegistryEntry[]): SourceRuntimeRegistryPersistResult {
-    for (let index = 0; index < entries.length; index += 1) {
-      const entry = entries[index]
-      if (entry.wasmPath === undefined || entry.wasmPath.trim().length === 0) {
-        return {
-          ok: false,
-          reasonCode: 'missing_wasm_path',
-          metadataPath,
-          persistedSourceCount: 0,
+    const paths = entries.map((entry: SourceRuntimeRegistryEntry): string => {
+      const path = entry.wasmPath
+      return typeof path === 'string' && path.trim().length > 0 ? path : ''
+    })
+    const byteCounts = entries.map((entry: SourceRuntimeRegistryEntry): number => entry.wasmByteCount)
+    // One synchronous bridge call still validates every file with read-only fd/fstat.
+    // On any failure retain the original checks below: missing-path/missing-file/
+    // length reasons and unreadable/directory exceptions must keep their rollback.
+    // Do not replace these checks with a cache or add an await inside this commit.
+    if (!NativeSourceRuntime.sourcePackageFilesMatch(paths, byteCounts)) {
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index]
+        if (entry.wasmPath === undefined || entry.wasmPath.trim().length === 0) {
+          return {
+            ok: false,
+            reasonCode: 'missing_wasm_path',
+            metadataPath,
+            persistedSourceCount: 0,
+          }
         }
-      }
-      if (!fs.accessSync(entry.wasmPath)) {
-        return {
-          ok: false,
-          reasonCode: 'wasm_missing',
-          metadataPath,
-          persistedSourceCount: 0,
+        if (!fs.accessSync(entry.wasmPath)) {
+          return {
+            ok: false,
+            reasonCode: 'wasm_missing',
+            metadataPath,
+            persistedSourceCount: 0,
+          }
         }
-      }
-      if (readableFileSizeSync(entry.wasmPath) !== entry.wasmByteCount) {
-        return {
-          ok: false,
-          reasonCode: 'wasm_byte_count_mismatch',
-          metadataPath,
-          persistedSourceCount: 0,
+        if (readableFileSizeSync(entry.wasmPath) !== entry.wasmByteCount) {
+          return {
+            ok: false,
+            reasonCode: 'wasm_byte_count_mismatch',
+            metadataPath,
+            persistedSourceCount: 0,
+          }
         }
       }
     }
