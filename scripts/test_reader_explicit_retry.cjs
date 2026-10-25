@@ -88,3 +88,76 @@ test('available offline chapters bypass provider refresh even on explicit retry'
   assert.equal((await index.prepareReaderLabCatalog(target, cancel, true)).totalPages, 24)
   assert.deepEqual(calls, [])
 })
+
+// Load the actual descriptor resolver, with worker/network ports controlled in memory.
+function sourceImageRequestSubject(ports) {
+  const file = 'model/ReaderPageSourceAdapter.ets'
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets', file), 'utf8')
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+  const names = new Set(['sourceImageDescriptorAbsence', 'sourceExplicitlyLacksImageRequest', 'unavailableSourceImageDescriptor',
+    'SourceImageRequestDescriptor', 'parseSourceImageRequestHeaders', 'parseSourceImageRequestDescriptor',
+    'readerImageRequestForPage', 'sourceImageMangaRoute', 'ReaderImageRuntimeArgs',
+    'ReaderImageRuntimeHostHints', 'resolveSourceRuntimeImageRequest'])
+  const nodes = tree.statements.filter(n => names.has(n.name?.getText(tree)) ||
+    (ts.isVariableStatement(n) && n.declarationList.declarations.some(d => names.has(d.name.getText(tree)))))
+  const exports = {}
+  vm.runInNewContext(ts.transpileModule(nodes.map(n => n.getText(tree)).join('\n') +
+    '\nexport { resolveSourceRuntimeImageRequest };', {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports, WeakMap, Uint8Array, console, sourceHttpIdentityJson: () => '{}',
+    appSourceSettingsStore: { loadForSource: () => ({}) }, DiagnosticLogger: { warn() {} }, executeReaderSourceImageRequestOperation() {},
+    diagnoseSourceOperation: (_request, execute) => execute(), ...ports })
+  return exports.resolveSourceRuntimeImageRequest
+}
+
+test('explicit unsupported metadata skips concurrent descriptor calls and a new package is probed independently', async () => {
+  let entry = { enabled: true, capabilities: [], wasmBytes: new Uint8Array([1]) }
+  let probes = 0, imageCalls = 0, warnings = 0
+  const resolve = sourceImageRequestSubject({
+    DiagnosticLogger: { warn() { warnings++ } },
+    appSourceRuntimeRegistry: { lookup: () => ({ ok: true, entry }) },
+    runSourceOperationFromValidatedBytesAsync: async (request, bytes) => {
+      probes++; assert.equal(JSON.parse(request).hostHints.network, false)
+      await new Promise(setImmediate)
+      return { ok: true, operation: 'source_info', data: { capabilities: { imageRequest: bytes[0] !== 1 } } }
+    },
+    taskpool: { execute: async () => {
+      imageCalls++; return JSON.stringify({ ok: true, data: { url: 'https://images.example/page.jpg', headers: { Referer: 'https://site.example/' } } })
+    } },
+  })
+  const pages = await Promise.all(Array.from({ length: 20 }, (_, i) => resolve('source', 'https://images.example/' + i, 'page-' + i)))
+  assert.ok(pages.every(p => p === undefined)); assert.equal(probes, 1); assert.equal(imageCalls, 0); assert.equal(warnings, 0)
+  entry = { ...entry, wasmBytes: new Uint8Array([2]) }
+  const descriptor = await resolve('source', 'https://images.example/new', 'new-page')
+  assert.equal(probes, 2); assert.equal(imageCalls, 1)
+  assert.equal(descriptor.headers.Referer, 'https://site.example/')
+})
+
+test('unknown and failed metadata preserve legacy attempts; required descriptors keep headers and fail closed', async () => {
+  for (const metadata of [undefined, { capabilities: {} }, { capabilities: { imageRequest: 'false' } }, 'failed']) {
+    let attempts = 0
+    const resolve = sourceImageRequestSubject({
+      appSourceRuntimeRegistry: { lookup: () => ({ ok: true, entry: { enabled: true, capabilities: [], wasmBytes: new Uint8Array([1]) } }) },
+      runSourceOperationFromValidatedBytesAsync: async () => {
+        if (metadata === 'failed') throw Error('worker failed')
+        return { ok: true, operation: 'source_info', data: metadata }
+      },
+      taskpool: { execute: async () => { attempts++; return JSON.stringify({ ok: true, data: { request: { method: 'GET', url: 'https://images.example/ticket', headers: { Referer: 'https://site.example/' } } } }) } },
+    })
+    assert.equal((await resolve('source', 'https://images.example/page', 'page')).headers.Referer, 'https://site.example/')
+    assert.equal(attempts, 1)
+  }
+  let fail = false, requiredProbes = 0
+  const resolve = sourceImageRequestSubject({
+    appSourceRuntimeRegistry: { lookup: () => ({ ok: true, entry: { enabled: true, capabilities: ['imageRequest'], wasmBytes: new Uint8Array([1]) } }) },
+    runSourceOperationFromValidatedBytesAsync: async () => { requiredProbes++; throw Error('required descriptor must not be probed') },
+    taskpool: { execute: async () => {
+      if (fail) throw Error('image worker failed')
+      return JSON.stringify({ ok: true, data: { url: 'https://images.example/ticket', headers: { Referer: 'https://site.example/' } } })
+    } },
+  })
+  assert.equal((await resolve('source', 'https://images.example/page', 'page')).headers.Referer, 'https://site.example/')
+  assert.equal(requiredProbes, 0)
+  fail = true
+  await assert.rejects(resolve('source', 'https://images.example/page', 'page'), /reader_source_image_request_failed/)
+})

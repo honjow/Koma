@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T05:08:31.674190+00:00",
+  "updatedAt": "2026-10-25T06:50:58.311802+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "共同加载修复e3f3cc1已提交；N/E模式与普通缩略图路径已审，原读位和下载保持，三宿主精确引用收尾。",
-  "nextAction": "仅同步e3f3cc1宿主引用并跟进精确CI；缓存v3仍未采用，随后给出具体候选取舍。",
+  "activeId": "SOURCE_RUNTIME_ERRORS",
+  "activity": "明确不支持图片描述的空WASM调用已在197最终包602/603消失；50本列表成立，封面仍原HTTP403。准备范围提交及精确CI，之后接源首页结构调查。",
+  "nextAction": "提交本次图片描述空调用修复及工作单，按既有授权推送并跟进精确CI；同时接续源首页/listing结构依据调查，不擅改UI。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,19 +978,19 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "389400f9；精确CI40149014243成功。",
-      "hap": "237仅加载修复v2，8571264B/0.1.2-pre/code3；152原001第6/24、单页/LTR跟随全局，library/registry同值，reader仅3处时间变化。"
+      "appHead": "a57a8a10已推，精确CI40164624739 completed/success；固定Kit e3f3cc1。",
+      "hap": "197最终图片描述修复8570068B/0.1.2-pre code3已明确安装；602普通漫画160列表50、正常回书架，三个业务域与598完整相同。237仍正式仅加载修复8571264B/原001第6/24，未操作。"
     },
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "61bde5ef已范围提交，固定Kit e3f3cc1；本次精确CI待同步后跟进。",
+      "appHead": "61bde5ef已推，精确CI40164464749 completed/success；固定Kit e3f3cc1。",
       "hap": "197仅加载修复v2，38191754B/1.3.6/code42；080模式往返、085普通缩略图及恢复13已审；086详情P13、2下载及桌面读回。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "e928c108已范围提交，固定Kit e3f3cc1；本次精确CI待同步后跟进。",
+      "appHead": "e928c108已推，精确CI40164464626 completed/success；固定Kit e3f3cc1。",
       "hap": "197仅加载修复v2，38223466B/1.0.7/code10；145模式往返及147缓存缩略图已审，148原1/34、另一记录2/201、7下载及桌面已读回。"
     }
   ],
@@ -1065,13 +1065,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "v3三宿主运动已审；独立模式切换反馈修复收尾",
+      "status": "v3三宿主具名运动已审；等待用户采用决定",
       "kind": "open",
       "priority": "P0（最高）",
       "owner": "Root：共同候选实现及197/237具名对照",
       "dependencies": [],
       "result": "N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。",
-      "remaining": "v3三宿主具名运动已审，完整14803B补丁保留、源码暂撤，不自动采用；先完成独立模式切换反馈修复，再呈现候选决定。",
+      "remaining": "已通过异步问题给出候选完整录屏与实际取舍；尚未收到采用决定，源码保持撤出。采用后仅补与e3f3cc1加载修复相关的合并验证，不重跑旧矩阵。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -1096,10 +1096,11 @@
         "N139具名686734、12/34起点与123页面几何相同；140与124测量manifest完全相同，均值4.229→3.224ms、最大24.686→17.883ms。顺序暖缓存，140结束11页而124为10页，不能扩成cleanAB或满帧结论。",
         "N141全661编码帧/19联系表顺序亲审，原64/65加载交接及285/553页接缝另审；跳页保原反馈，普通和六组快速回翻未见133那类短空。142原LTR1/34及已知689486P2读回；143已恢复稳定57、7项下载和桌面。",
         "135误选689486已恢复原P2，134下载保持结论已撤。E073全547帧已审：普通/三组快回翻连续，但切回LTR的454–457黑屏无反馈；稳定57的075全198帧也复现同类黑屏，另归设置/加载交接调查。",
-        "K147全399帧已审：普通/三组快回翻未见133式短空，固定黑接缝已核是第7张源图自带黑边。148近滑块点击未恢复6页，149用原控件远移后恢复001第6/24；稳定57已装，library/registry同值，reader仅3处时间变化。N/E/K候选均已撤出设备，源码v3仍未提交/采用。 后继原图确认固定黑带为第7张自带黑边；不是解码短空。"
+        "K147全399帧已审：普通/三组快回翻未见133式短空，固定黑接缝已核是第7张源图自带黑边。148近滑块点击未恢复6页，149用原控件远移后恢复001第6/24；稳定57已装，library/registry同值，reader仅3处时间变化。N/E/K候选均已撤出设备，源码v3仍未提交/采用。 后继原图确认固定黑带为第7张自带黑边；不是解码短空。",
+        "独立旁路调查：588原漫画160每图空WASM返回not_implemented约14–28ms；602/603明确否定能力后空调用为0。此为源图片准备开销修正，不证明解码/释放/FPS改善；两级缓存v3采用问题仍独立待答。"
       ],
       "remainingActions": [
-        "v3三宿主具名运动已审，完整14803B补丁保留、源码暂撤，不自动采用；先完成独立模式切换反馈修复，再呈现候选决定。"
+        "已通过异步问题给出候选完整录屏与实际取舍；尚未收到采用决定，源码保持撤出。采用后仅补与e3f3cc1加载修复相关的合并验证，不重跑旧矩阵。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
@@ -1253,13 +1254,13 @@
     {
       "id": "READER_SETTINGS_STABILITY",
       "title": "阅读设置菜单跳变及动态本书后缀",
-      "status": "共同加载修复已提交；三宿主引用/CI收尾",
+      "status": "共同加载修复已推；三宿主精确CI成功",
       "kind": "open",
       "priority": "P1（阅读设置正确性）",
-      "owner": "Root：共同加载修复实机与范围同步",
+      "owner": "Root：本次具名范围冻结，遮挡/未验边界保留",
       "dependencies": [],
       "result": "E080完整202帧、N145完整169帧及原分辨率交接已审：原图前沿用加载反馈，原图显示后退出；v1 E078的首次Pager测量短空未复现。K151完整347帧及原99/247/250已审，设置sheet遮住反馈位置，不据此声称这段反馈可见。",
-      "remaining": "同步Kit e3f3cc1和三个宿主精确引用并跟进CI；K151反馈位置被设置sheet遮挡仍保留该边界，不扩大接受。缓存v3不夹带。",
+      "remaining": "本次模式切换反馈及所列普通入口范围冻结；K151设置sheet遮挡段、Legacy和自然异常未扩大。缓存v3仍待用户采用，不由本项通过自动合入。",
       "reportedAt": "2026-10-22T18:52:07.192Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:52:07.192Z",
@@ -1277,10 +1278,11 @@
         "三宿主精确CI均成功；N材料a3ae6d81/CI39964150108成功。原121的16→15反例、125/127未达预期点击原件仍保留。",
         "E075整段198帧及原45/47、112/115亲审：LTR→连续45–46、连续→LTR112–114正文全黑且无加载反馈，随后原图出现；旧具名保位结论不覆盖这段呈现。",
         "加载修复v2：E080、N145原图解码前反馈保持；N147全91帧及原29/31核缓存缩略图飞行与返回，原图命中快，不能据此证明自然网络等待。K152原第6/24页及全局设置恢复，library/registry同值，reader仅3处updatedAt。",
-        "N148原1/34与另一原记录2/201、7下载/桌面读回。E085完整144帧及原31/35/39、80/82已审：缩略图飞入、缓存原图及跳13加载交接保持；086详情继续P13、2下载/桌面读回。共同4文件e3f3cc1，三宿主所测代码相同，缓存v3源码已撤。"
+        "N148原1/34与另一原记录2/201、7下载/桌面读回。E085完整144帧及原31/35/39、80/82已审：缩略图飞入、缓存原图及跳13加载交接保持；086详情继续P13、2下载/桌面读回。共同4文件e3f3cc1，三宿主所测代码相同，缓存v3源码已撤。",
+        "共同e3f3cc1已推；N e928c108/40164464626、E61bde5ef/40164464749、K a57a8a10/40164624739均精确completed/success。K SSH22连接关闭及443别名账户无权的失败保留，最终使用已核实的honjow现有HTTPS凭据完成同远端同步；未改远端配置或泄露凭据。"
       ],
       "remainingActions": [
-        "同步Kit e3f3cc1和三个宿主精确引用并跟进CI；K151反馈位置被设置sheet遮挡仍保留该边界，不扩大接受。缓存v3不夹带。"
+        "本次模式切换反馈及所列普通入口范围冻结；K151设置sheet遮挡段、Legacy和自然异常未扩大。缓存v3仍待用户采用，不由本项通过自动合入。"
       ],
       "boundaries": [
         "E080与N145仅当前样本模式往返；N147是缓存缩略图入口，无自然请求等待。K151反馈位置被sheet遮挡，未声明等待段可见。Legacy、失败恢复、全屏入场总项不扩认。"
@@ -1522,13 +1524,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "明确unsupported/限流别名已推且精确CI成功",
+      "status": "图片描述空调用197具名修正完成；范围提交/精确CI收尾",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：MH160014远端发布与普通更新；其他自然错误边界保留",
+      "owner": "Root：本次图片能力修正提交/CI，其他自然错误边界保持",
       "dependencies": [],
-      "result": "保原237自然超时与abed388b范围；本次只补三个源既有错误码。95项Host/Release通过，554已安装且三业务域逐字同，556真实漫画160 get_image_request179字节响应诊断为not_implemented/unsupported。",
-      "remaining": "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
+      "result": "原明确unsupported/限流别名验收保持。新增只在source_info明确imageRequest=false时跳过空调用，旧包未知/失败及必需描述/票据流程保留。最终8570068B签名Release已安装197，602/603漫画160普通列表50、get_manga_list717ms；本进程该源get_image_request与unavailable警告均0，真实图片HTTP403仍如实记录。三业务域与598完整相同。",
+      "remaining": "本次范围提交、推送及精确CI。rate_limit用户提示仍仅Host通过；图片403、全局搜索自然失败及3H业务恢复仍按原条件，漫画160搜索404续SOURCE_WEB_SESSION。不将空调用修正冒成封面、正文或滚动FPS改善。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1554,11 +1556,13 @@
         "560普通返回原详情784→源→书架；561 library/reader/registry与554安装后全部逐字同，无开书或手动重试。",
         "6ca1b69477a2bb9812b75b9c9b8fbc26e29d5ea0已push，精确CI40080793887 completed/success；无新tag/发布。",
         "572具名新反例：漫画160搜索底层HTTP403/5839chars且明确access_signal=challenge_required；源将其降成permission_denied/http0，manifest无webSessionOrigins，所以原生仅普通拒绝提示、未自动验证。571文本断言只命中SearchField，纠正文件保留。",
-        "MH160014公开包22572B三成员与两个origin成立，579“已更新 漫画160”原图亲审；025按真实底栏恢复原Koma书架，581因同名“书架”两节点未点击，不当恢复证据。"
+        "MH160014公开包22572B三成员与两个origin成立，579“已更新 漫画160”原图亲审；025按真实底栏恢复原Koma书架，581因同名“书架”两节点未点击，不当恢复证据。",
+        "图片能力修正：8项实际方法检查（只新增2项运行案例）通过，保原6项缓存/强刷边界；首次ArkTS需显式空接口的编译失败保留，修正后最终Release成功。602明确安装8570068B，漫画160普通列表50及返回原书架；603只收实际新进程144833日志，该源图片描述调用/无效警告均0、图片403仍保留。library/reader/registry与598完整相同。无UI/HTTP/缓存身份/源包改动，缓存v3未合入。"
       ],
       "remainingActions": [
+        "本次图片描述空调用修正范围提交、推送并跟进精确CI。",
         "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
-        "MH160014/0a6ff4a已公开并正常更新；583一次普通元尊搜索保留HTTP403/明确challenge并自动弹出Web验证。584网页后来实际到/statics/search.aspx主框架404，尚不能接受搜索成功；587回书架，588三域与580逐字同。"
+        "漫画160014搜索自动弹出仅接受触发；网页/statics/search.aspx404及回流仍续SOURCE_WEB_SESSION，不能称搜索恢复。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -1575,6 +1579,13 @@
           "originalReason": "HTML解析错误与网络失败分开；403本身不推断CF，只有Host标准化挑战信号可触发。",
           "reopenEvidence": "572搜索Host原GET403/5839chars且access_signal=challenge_required，源operation却permission_denied/http0；源无webSessionOrigins。",
           "allowedDifference": "将真实HTTP状态与Host顶层明确challenge_required按类型传到既有错误envelope，并声明仅已使用的www.mh160mh.com/m.mh160mh.com两个HTTPS源origin。保URL、请求方法/次数/UA、站点选择、成功解析、章节身份/排序、图标及App版本；不把任意403或正文标记识别成CF。源小版本步进供正常远端更新。"
+        },
+        "imageDescriptorAbsence": {
+          "object": "ReaderPageSourceAdapter.resolveSourceRuntimeImageRequest与既有source_info worker",
+          "history": "0067b4b5在安装时检测能力；980cc8a4保留未声明imageRequest的旧包尝试与直接URL回退，3a8fef32保文件命中优先。",
+          "originalReason": "旧包能力缺失不等于不支持；票据/Referer/源设置不能靠猜测跳过。",
+          "reopenEvidence": "588真实漫画160逐图get_image_request反复not_implemented、每次约14–28ms；589注册表无imageRequest，当前源码明确image_request:false且处理器始终not_implemented。",
+          "allowedDifference": "仅在未声明imageRequest时，用同包source_info明确布尔false确认；每份WASM对象只共享一次无网络worker查询。未知、失败及支持者保原流程；不改变缓存身份/强刷/HTTP/凭据/UA/UI，不持久化能力推测。 明确不需要不再逐图记失败；未知/实际描述失败保原警告，已声明必需能力仍失败关闭。"
         }
       }
     },
@@ -1582,12 +1593,12 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（明确必须做，原队列保留）",
-      "owner": "Root：普通Web白屏有限阶段诊断；自动验证具名范围冻结",
+      "owner": "Root：本站两版跳转条件仍待证；自动验证具名范围冻结",
       "dependencies": [],
-      "status": "普通Web跨origin重复导航已实录；自动验证具名冻结",
+      "status": "598确定桌面/手机版反复导航；正式包与数据已恢复，白屏未修",
       "kind": "open",
-      "result": "537/538自动会话回流冻结。568/569漫画160普通Web一次初始调用后，原网址与另一个origin交替；18.662秒58个文档，前48条阶段未见资源错误；后续仅计数。48条阶段上限实录生效；正常返回且三业务域保持。白屏未修。",
-      "remaining": "漫画160跨origin跳转具体站点链仍未知；源搜索挑战信号丢失按SOURCE_RUNTIME_ERRORS独立处理。其余CF人工验证/登录按自然样本保留，不无依据重复网页请求。",
+      "result": "自动验证537/538原具名范围冻结。598普通Web仅一次initial load，9.604秒27个文档；已记录导航在已声明origin下标0/1间交替，redirect=false/userGesture=false。截图仍无正文，原生详情784/784。197明确恢复正式8571264B包并回书架，library/reader/registry与589完全相同。",
+      "remaining": "跳转脚本当前匿名读取HTTP403，尚不能确定站点具体条件；不改UA、Cookie或拦导航，不重复打开同一失败页。继续保存证据并查已有HTML/平台与源合同，其他队列推进。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；明确必须做时间2026-10-23T01:46:03.842Z。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1624,11 +1635,12 @@
         "562 Release8540066B明确安装成功，首版11项Host通过；564原图白屏/真实Web几何且业务三域与562同。日志17:21:48.881一次start，至17:23:23.436为261begin/260end/65visible；无主/子resource_failed，标题已有站点名。565普通返回详情784→原书架。",
         "567 Release8539452B/0.1.2-pre code3明确安装，三域前后同；12项Host通过。569原始日志：revision奇数matchesInitialUrl/sameInitialOrigin均true，偶数均false；一次start，18.662s/58doc，48阶段+抑制标志+结束总51条。568普通Back到详情784再原书架，569三业务域与567逐字同。",
         "7b06ad5226b4ab0f96b020051036161f7170c290已push，精确CI40082499024 completed/success，无tag。",
-        "583漫画160014普通搜索自动Web已实机出现，原生正确HTTP403与挑战提示；584原图网站/statics/search.aspx404，588日志主框架404及不同原请求origin/文档，未触原GET probe/未自动完成。未按完成重试；587正常回书架，588三域全同580。"
+        "583漫画160014普通搜索自动Web已实机出现，原生正确HTTP403与挑战提示；584原图网站/statics/search.aspx404，588日志主框架404及不同原请求origin/文档，未触原GET probe/未自动完成。未按完成重试；587正常回书架，588三域全同580。",
+        "598：导航op一次start，已声明桌面0/手机版1交替、isRedirect与isRequestGesture均false；9.604s/27doc，48阶段上限生效，首子资源transport -2。web-observed.png仍无正文；原生详情784/784。临时MangaWebPage差异已精确reverse，正式8571264B覆盖安装明确成功，原书架及589→598三个业务JSON完整相同。静态m.js为新的只读定位请求，默认匿名urllib一次403；不重试/改客户端/UA。"
       ],
       "remainingActions": [
-        "漫画160跨origin跳转具体站点链仍未知；源搜索挑战信号丢失按SOURCE_RUNTIME_ERRORS独立处理。其余CF人工验证/登录按自然样本保留，不无依据重复网页请求。",
-        "漫画160本次自动弹出只接受触发；站点跳转到404原因、原搜索URL与实际网站路由继续核，不能称CF或搜索恢复。"
+        "跳转脚本当前匿名读取HTTP403，尚不能确定站点具体条件；不改UA、Cookie或拦导航，不重复打开同一失败页。继续保存证据并查已有HTML/平台与源合同，其他队列推进。",
+        "漫画160搜索网页404路由仍未恢复；其余CF人工验证/登录仅待自然适用样本，不从已过自动验证范围外推。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1645,8 +1657,8 @@
           "object": "MangaWebPage标准ArkWeb回调及MangaWebView可选onPageVisible事件转发",
           "history": "53cbc39a沿NextE GalleryWebPage/EhWebView的完整Scaffold/List/Web与导航控件；当前onPageBegin/End/Error只更新原loading，没有持久阶段事实。",
           "originalReason": "保NextE原页面层次、加载和导航行为，不引入EH登录/UA逻辑；网页内容不写诊断。",
-          "reopenEvidence": "558/559白屏31秒仍加载；564阶段日志进一步证实单次初始调用后重复文档导航。",
-          "allowedDifference": "仅官方回调、初始URL/origin相等布尔、数值与临时操作号；25%桶、首子资源、单次操作最多48条阶段加抑制标志/结束汇总。保所有UI、loading、Web请求/UA/Cookie/权限；不抓网页内容或URL。"
+          "reopenEvidence": "558/559白屏31秒仍加载；564阶段日志进一步证实单次初始调用后重复文档导航。 本次核对Keiyoushi当前实现，搜索端点与本源一致；原布尔无法区分www/mobile两项已声明origin与外站，也缺实际导航是否redirect的事实。",
+          "allowedDifference": "仅官方回调、初始URL/origin相等布尔、数值与临时操作号；25%桶、首子资源、单次操作最多48条阶段加抑制标志/结束汇总。保所有UI、loading、Web请求/UA/Cookie/权限；不抓网页内容或URL。 本次仅临时增加初始源声明origin下标、主框架isRedirect/isRequestGesture；初始化只读已装元数据一次。仍最多48阶段，不写origin/URL/headers/body，不拦导航、不调用loadUrl/refresh/UA接口；一次有限普通路径后撤诊断并恢复正式包。"
         }
       }
     },
@@ -3508,6 +3520,30 @@
       "detail": "e3f3cc1保留现有加载样式；N/E具名路径与读位恢复完成。仅宿主引用/CI收尾，缓存候选未夹带。",
       "itemId": "READER_SETTINGS_STABILITY",
       "kind": "checkpoint"
+    },
+    {
+      "id": "mode-loading-v2-exact-ci",
+      "at": "2026-10-25T05:29:41.588880+00:00",
+      "title": "共同加载修复三端CI完成",
+      "detail": "N/E/K各自精确提交构建成功；未打tag或发布。缓存候选等待采用决定，其余源缺陷继续。",
+      "itemId": "READER_SETTINGS_STABILITY",
+      "kind": "verified"
+    },
+    {
+      "at": "2026-10-25T06:25:54.527523+00:00",
+      "itemId": "SOURCE_WEB_SESSION",
+      "id": "mh160-declared-origin-observation",
+      "title": "漫画160两版循环已取证，正式包已恢复",
+      "detail": "漫画160598定位至本站桌面/手机版交替导航；白屏未修。197已恢复正式包，三业务域完整相同；临时诊断已撤。",
+      "kind": "work"
+    },
+    {
+      "id": "image-descriptor-explicit-negative-native",
+      "at": "2026-10-25T06:50:58.311802+00:00",
+      "title": "图片描述空调用已在197消除",
+      "detail": "仅明确不支持者跳过；普通列表50、原书架与数据保持。真实封面403另留，未宣称性能或整源通过。",
+      "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "verified"
     }
   ]
 }

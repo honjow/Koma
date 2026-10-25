@@ -80,6 +80,12 @@ Validation rules:
 - `publicIndex` and `marketplace` must be false for Koma-distributed builds.
 - Manifest cannot request direct file, socket, process, dynamic library, clipboard, contacts, location, notification, camera, microphone, or background task access.
 
+### Optional image descriptors
+
+The Reader preserves the cache-first and explicit-reload behavior of the existing image pipeline. A registered `imageRequest` capability remains required: its descriptor or worker failure must not silently fall back to an uncredentialed URL.
+
+Legacy capability lists can be incomplete, so absence from that list alone does not authorize skipping `get_image_request`. For an undeclared operation, a shared, network-disabled `source_info` query may confirm the exact boolean `data.capabilities.imageRequest: false`. Only this explicit negative bypasses the optional descriptor operation and continues the existing direct-URL path; it is not logged as a descriptor failure. Unexpected descriptor absence retains its existing warning. Missing, malformed or failed metadata keeps the legacy attempt. This result is in-memory and keyed by the installed WASM object; concurrent covers share one query and replacement packages are queried independently. No capability guess is persisted, and no HTTP, headers, session, cache identity or UI contract changes.
+
 ## Runtime Calls
 
 All calls are request/response and return normalized JSON strings. Native runtimes may expose C ABI functions; ArkTS rules expose equivalent interpreter functions.

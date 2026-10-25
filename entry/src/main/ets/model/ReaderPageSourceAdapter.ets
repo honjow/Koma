@@ -33,6 +33,7 @@ import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { runSourceOperationFromValidatedBytesAsync } from '../sourceRuntime/SourceRuntimeService'
 
 @Concurrent
 function executeReaderSourceImageRequestOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
@@ -526,6 +527,52 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
   }
 }
 
+interface ReaderImageCapabilityArgs {}
+
+interface ReaderImageCapabilityHostHints {
+  network: boolean
+}
+
+interface ReaderImageCapabilityRequest {
+  type: string
+  version: number
+  requestId: string
+  operation: string
+  sourceId: string
+  args: ReaderImageCapabilityArgs
+  settings: ReaderImageCapabilityArgs
+  hostHints: ReaderImageCapabilityHostHints
+}
+
+const sourceImageDescriptorAbsence: WeakMap<Uint8Array, Promise<boolean>> = new WeakMap<Uint8Array, Promise<boolean>>()
+
+function sourceExplicitlyLacksImageRequest(sourceId: string, wasmBytes: Uint8Array): Promise<boolean> {
+  const pending = sourceImageDescriptorAbsence.get(wasmBytes)
+  if (pending !== undefined) return pending
+  // 0067b4b5/980cc8a4: a legacy capability list can be incomplete. Only an
+  // explicit source_info false permits bypass; unknown/failed probes keep the
+  // old descriptor attempt. Package replacement changes the weak key, and
+  // concurrent covers share this one network-disabled worker query.
+  const request: ReaderImageCapabilityRequest = {
+    type: 'request', version: 1, requestId: 'reader-image-capability',
+    operation: 'source_info', sourceId, args: {}, settings: {}, hostHints: { network: false },
+  }
+  const query = runSourceOperationFromValidatedBytesAsync(JSON.stringify(request), wasmBytes).then((response): boolean => {
+    if (response.ok !== true || response.operation !== 'source_info') return false
+    const capabilities = (response.data as Record<string, Object> | undefined)?.['capabilities'] as Record<string, Object> | undefined
+    return capabilities !== undefined && capabilities !== null && !Array.isArray(capabilities) &&
+      typeof capabilities === 'object' && capabilities['imageRequest'] === false
+  }).catch((): boolean => false)
+  sourceImageDescriptorAbsence.set(wasmBytes, query)
+  return query
+}
+
+function unavailableSourceImageDescriptor(sourceId: string): undefined {
+  DiagnosticLogger.warn('reader_page_source_adapter', 'image_request_unavailable',
+    `[ReaderImage] step=image_request_unavailable source=${sourceId} kind=image_descriptor`)
+  return undefined
+}
+
 async function resolveSourceRuntimeImageRequest(
   sourceRuntimeId: string,
   uri: string,
@@ -538,12 +585,15 @@ async function resolveSourceRuntimeImageRequest(
   }
   const lookup = appSourceRuntimeRegistry.lookup(sourceId)
   if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled) {
+    return unavailableSourceImageDescriptor(sourceId)
+  }
+  const descriptorRequired = lookup.entry.capabilities.includes('imageRequest')
+  if (!descriptorRequired && await sourceExplicitlyLacksImageRequest(sourceId, lookup.entry.wasmBytes)) {
     return undefined
   }
   const requestJson = readerImageRequestForPage(sourceId, sourceImageId, uri, mangaUrl)
   const wasmBytes = new Uint8Array(lookup.entry.wasmBytes.byteLength)
   wasmBytes.set(lookup.entry.wasmBytes)
-  const descriptorRequired = lookup.entry.capabilities.includes('imageRequest')
   const httpContextJson = sourceHttpIdentityJson(lookup.entry)
   let responseJson: string
   try {
@@ -559,21 +609,21 @@ async function resolveSourceRuntimeImageRequest(
     ) as Promise<string>)
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_failed')
-    return undefined
+    return unavailableSourceImageDescriptor(sourceId)
   }
   try {
     const response = JSON.parse(responseJson) as Record<string, Object>
     if (response['ok'] !== true) {
       if (descriptorRequired) throw new Error('reader_source_image_request_rejected')
-      return undefined
+      return unavailableSourceImageDescriptor(sourceId)
     }
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_rejected')
-    return undefined
+    return unavailableSourceImageDescriptor(sourceId)
   }
   const descriptor = parseSourceImageRequestDescriptor(responseJson)
   if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
-  return descriptor
+  return descriptor ?? unavailableSourceImageDescriptor(sourceId)
 }
 
 export async function fetchAndCacheSourceRuntimeRemoteImage(
@@ -601,7 +651,6 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   }
   const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route)
   if (imageRequest === undefined) {
-    DiagnosticLogger.warn('reader_page_source_adapter', 'image_request_unavailable', `[ReaderImage] step=image_request_unavailable source=${sourceId} kind=image_descriptor`)
     return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload)
   }
   const cacheHeaders = imageRequest.headers
