@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T06:50:58.311802+00:00",
+  "updatedAt": "2026-10-25T07:49:01.890199+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_RUNTIME_ERRORS",
-  "activity": "明确不支持图片描述的空WASM调用已在197最终包602/603消失；50本列表成立，封面仍原HTTP403。准备范围提交及精确CI，之后接源首页结构调查。",
-  "nextAction": "提交本次图片描述空调用修复及工作单，按既有授权推送并跟进精确CI；同时接续源首页/listing结构依据调查，不擅改UI。",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activity": "197已装8569832B并完成普通源包页/原书架读回，三业务数据保持；限定语言热路径修复准备同步，安装总项仍OPEN。",
+  "nextAction": "范围提交语言键与排序连接修正并跟进本笔CI；继续605未细分CPU调用链及漫画屋正文协议调查，不重装造样本。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,8 +978,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "a57a8a10已推，精确CI40164624739 completed/success；固定Kit e3f3cc1。",
-      "hap": "197最终图片描述修复8570068B/0.1.2-pre code3已明确安装；602普通漫画160列表50、正常回书架，三个业务域与598完整相同。237仍正式仅加载修复8571264B/原001第6/24，未操作。"
+      "appHead": "301100627dd04eb20a1e5787e5b108e81f8590b7已推；精确CI40170659239 completed/success；固定Kit e3f3cc1。",
+      "hap": "197当前语言热路径修复8569832B/0.1.2-pre code3已明确覆盖安装；606普通管理页与607原书架/三域保持。237仍正式仅加载修复8571264B/原001第6/24，未操作。"
     },
     {
       "name": "NextE",
@@ -1524,13 +1524,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "图片描述空调用197具名修正完成；范围提交/精确CI收尾",
+      "status": "图片描述空调用197具名完成；30110062精确CI成功",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：本次图片能力修正提交/CI，其他自然错误边界保持",
+      "owner": "Root：本次具名空调用冻结；其他自然运行错误按原条件",
       "dependencies": [],
       "result": "原明确unsupported/限流别名验收保持。新增只在source_info明确imageRequest=false时跳过空调用，旧包未知/失败及必需描述/票据流程保留。最终8570068B签名Release已安装197，602/603漫画160普通列表50、get_manga_list717ms；本进程该源get_image_request与unavailable警告均0，真实图片HTTP403仍如实记录。三业务域与598完整相同。",
-      "remaining": "本次范围提交、推送及精确CI。rate_limit用户提示仍仅Host通过；图片403、全局搜索自然失败及3H业务恢复仍按原条件，漫画160搜索404续SOURCE_WEB_SESSION。不将空调用修正冒成封面、正文或滚动FPS改善。",
+      "remaining": "rate_limit用户提示仅Host通过；图片403、全局搜索自然失败及3H业务恢复仍按原条件，漫画160搜索404续SOURCE_WEB_SESSION。不将空调用修正冒成封面、正文或滚动FPS改善。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1557,10 +1557,10 @@
         "6ca1b69477a2bb9812b75b9c9b8fbc26e29d5ea0已push，精确CI40080793887 completed/success；无新tag/发布。",
         "572具名新反例：漫画160搜索底层HTTP403/5839chars且明确access_signal=challenge_required；源将其降成permission_denied/http0，manifest无webSessionOrigins，所以原生仅普通拒绝提示、未自动验证。571文本断言只命中SearchField，纠正文件保留。",
         "MH160014公开包22572B三成员与两个origin成立，579“已更新 漫画160”原图亲审；025按真实底栏恢复原Koma书架，581因同名“书架”两节点未点击，不当恢复证据。",
-        "图片能力修正：8项实际方法检查（只新增2项运行案例）通过，保原6项缓存/强刷边界；首次ArkTS需显式空接口的编译失败保留，修正后最终Release成功。602明确安装8570068B，漫画160普通列表50及返回原书架；603只收实际新进程144833日志，该源图片描述调用/无效警告均0、图片403仍保留。library/reader/registry与598完整相同。无UI/HTTP/缓存身份/源包改动，缓存v3未合入。"
+        "图片能力修正：8项实际方法检查（只新增2项运行案例）通过，保原6项缓存/强刷边界；首次ArkTS需显式空接口的编译失败保留，修正后最终Release成功。602明确安装8570068B，漫画160普通列表50及返回原书架；603只收实际新进程144833日志，该源图片描述调用/无效警告均0、图片403仍保留。library/reader/registry与598完整相同。无UI/HTTP/缓存身份/源包改动，缓存v3未合入。",
+        "301100627dd04eb20a1e5787e5b108e81f8590b7已按既有授权同步honjow/Koma master；精确CI40170659239 head同值、completed/success；Release构建成功，tag发布job为skipped，没有新tag/发布。"
       ],
       "remainingActions": [
-        "本次图片描述空调用修正范围提交、推送并跟进精确CI。",
         "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
         "漫画160014搜索自动弹出仅接受触发；网页/statics/search.aspx404及回流仍续SOURCE_WEB_SESSION，不能称搜索恢复。"
       ],
@@ -2718,15 +2718,15 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：限定key修复已实机验证，整体安装主线程工作继续定位",
+      "owner": "Root：605现有轨迹与安装完成后消费者的CPU工作拆查",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "两处行身份重建和重复WASM读取已实测；剩余UI更新开放",
-      "result": "d6dcb4c已推且CI40127317871成功。最新8546371B候选237正常新装：117 Browse70→71 tempOldIdsSet0/additional1，管理页15→14只移目标；118返回真实71启用。115/117持久化记录10/8ms，45项检查通过；原70源与library/reader保持。",
+      "status": "语言键高频警告具名修正；安装74ms总项仍OPEN",
+      "result": "605当前正式包正常更新東立后仍有74.368ms主回调/33.208ms实际帧；日志同时揭出0.1秒287条非法键警告。本轮只修语言内存键和排序重复连接，签名Release8569832B已装197；606普通源包页名称/顺序保持，607已回原书架，三业务JSON相同。未重装源造样本，安装总耗时未扩认修好。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "434注册84IDs/顺序保持，仅漫画屋015/WASM54808/单域变化，其他83及library/reader逐字同；与379本地导入为不同具名路径，不作严格A/B。",
@@ -2737,14 +2737,17 @@
         "237115后台Browse因index隐式拼key重建6旧行；117修后70→71仅新增1、旧行0销毁，管理页仅移1。SourceRuntimeRegistry元数据提交改只读fd stat普通文件/长度，原子写与冷启动readBytes保持；Host24项及相关45项通过。116覆盖后70条注册及书架/阅读逐字同115，118正常返回71启用、三域同117。",
         "270e9d83已推，精确CI40129096200 success；进度页0452a7bd精确CI40128817692 success，无新tag/发版。",
         "按源动作状态回归先20/21：旧行读取全局队列被反例拒绝；改后相关45/45。Release8545875B已装237；120正常安装92漫画0.1.1，全83帧/3联系表及8/9/59/60原帧已审，其他源按钮保持安装。121注册71→72只增com.jiuermanhua.koma，旧71每字段相同，书架/阅读逐字保持。此轮未采HiTrace，不声称24.572ms已消除。",
-        "122正常Back回Browse显示72个已启用，registry/library/reader逐字同121；本次设备安装场景完整返回。"
+        "122正常Back回Browse显示72个已启用，registry/library/reader逐字同121；本次设备安装场景完整返回。",
+        "离线复核117的24.572ms FlushDirty：具名ForEach更新本体0.014/0.011/0.903ms，其余缺JS细栈，不归因目录删除或全部重建。当前包已在后继8efc完成动作状态隔离，旧轨迹不足以证明当前阻塞仍同样存在。公开latest/source-b7face索引HTTP200/85项与602注册85项相比，仅東立0.1.1→0.1.3，作为正常更新样本。",
+        "605原生已更新東立与返回书架均已读回，更新后原图亲审；registry85→85仅東立版本/文件路径/大小/最低App版本/主页变化，library/reader完整JSON相同。未录像，本行图标瞬空未验收。",
+        "605主回调6576为fs.rmdir的complete及后续微任务74.368ms；Running71.414ms、D-NIO2.609ms，不能说目录删除本身耗时74ms。6542回调27.665ms；6608实际帧33.208ms，6623 FlushDirty14.280ms。import日志persistSync25/cleanupAwait9/publishSync1ms、行投影14ms；缺JS细栈，具体CPU函数尚未证实。",
+        "606/607普通设置→服务→源包→返回：无高频语言键警告，所采当前进程1093行只余返回时2条其他状态键警告；没有删除原响应式locale依赖或修改app.language偏好。606先因“书架”设置行/底栏两同名而停止，607原底栏恢复；失败保留，未重放源路线。"
       ],
       "remainingActions": [
-        "限定按源状态投影已同步8efc61a3；精确CI40133495836/head8efc61a30db66f260c2f7f7ab4e993644b5f594c已completed-success。其他卡顿/图标边界保持。",
-        "120第9帧本行92图标仍瞬空，59/60已恢复；图标闪烁独立OPEN。继续核原生HDS前缀在后缀变化时的实际资源持有，不能以状态隔离或稳定PrefixCustomBuilder抵消此反例。",
-        "保留行最终投影及24.572ms旧主线程窗口继续定位；本次视频不是耗时AB或全列表性能通过。"
+        "安装总项保605的74ms反例；继续核已有回调与Browse摘要/全量投影链，当前85全最新，不重装源制造采样。",
+        "本次语言修复具名范围已验，提交后跟进精确CI；其他状态键的2条警告不等于本次高频问题，未擅扩Reader状态迁移。120本行图标瞬空独立OPEN。"
       ],
-      "remaining": "本轮冻结末项位置key、Browse隐式index key、持久化重复整库WASM读取三处限定缺陷。117仍有24.572ms FlushDirty更新/row projection6ms，总体stall不关闭；不同源安装不当严格性能AB。继续定位保留行的实际响应式更新范围，本行图标闪烁独立OPEN。",
+      "remaining": "已修一条实际热路径：语言状态非法键与排序重复连接。605其余CPU工作仍缺JS细栈，后继先查现有合同及可用细分证据；没有当前真实源更新时不造样本。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -2771,7 +2774,10 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-terminal237-zerobyw-install-trace-113",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-registry-size237-simply-install-trace-115",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-identity237-nhentaito-install-trace-117",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-identity237-natural-return-118"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-identity237-natural-return-118",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-install197-tongli013-current-trace-605",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-language197-manager-key-606",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-language197-return-readback-607"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -2793,6 +2799,17 @@
         "originalReason": "每源按钮显示运行/等待且只禁用本源；队列仍是进程内唯一安装事务owner。",
         "reopenEvidence": "117已消除旧行销毁，仍24.572ms FlushDirty；源码每一行packageInstallPending/Label均读取同一@Trace pendingIds/runningId，单源队列变化触发全体动作依赖。此处不能据此等同为全部24ms或图标闪烁原因。",
         "allowedDifference": "保留共享队列/去重/串行/全部更新与聚合活动行；仅增加稳定的按sourceId可观察状态投影，使行按钮不再读取全局数组。原生HDS、文字、样式、排序、图标及操作保持。"
+      },
+      "modificationBasisLanguage": {
+        "object": "LanguageState应用内存键；SourcePackageManagerPage两处已安装名称排序",
+        "history": "b6eb587f初始语言状态使用koma:language，341b24a5源revision另有相同冒号形态；f4caffaa单行投影继续通过sourceDisplayName在每次比较中连接全局语言状态。现有索引排序已直接使用页面languageState及resolveSourceLocalizedName。",
+        "originalReason": "跨页共享当前语言，按当前界面语言显示名称并保持zh-CN比较/ID兜底；持久偏好实际由LanguageSettings的app.language负责，AppStorageV2键不落盘。",
+        "reopenEvidence": "605安装完成0.1秒内287条明确非法键警告，53.781–53.791间约190条落在14ms投影中；官方文档约束键为字母数字下划线，上游v2_persistence目前为每次connect警告而仍按原键共享。不能由此称全部74ms都来自警告。",
+        "allowedDifference": "仅将LanguageState内存键改合法唯一koma_language；两处排序读取页面已有locale和同一DTO名称。保持比较器、排列、对象身份、偏好键/值、语言跟随、资源管理器及所有UI；不改其他状态键/文件校验/注册事务。",
+        "references": [
+          "https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-new-appstoragev2",
+          "https://github.com/openharmony/arkui_ace_engine/blob/master/frameworks/bridge/declarative_frontend/state_mgmt/src/lib/sdk/v2_persistence.ts"
+        ]
       }
     },
     {
@@ -2966,15 +2983,17 @@
         "BROWSE_HEADER_REFRESH"
       ],
       "kind": "open",
-      "status": "用户质疑已登记，历史与允许差异待核",
-      "result": "用户质疑部分源用左上分类下拉、部分首页为纵向长分区；当前代码差异已读，历史依据与应采用结构尚未核。",
+      "status": "首页与栏目叠加原因/历史已核；统一入口方案待用户决定",
+      "result": "当前6个已装源声明home；loadBrowseHome先读首页分区再读默认栏目，gridProjection按首页→栏目连续拼接。包子首页4组各12项，另有热门栏目；只有单一栏目时还不会出现分类下拉。无home的漫画160直接显示栏目，所以入口结构不同。",
       "evidencePoints": [
-        "SourceBrowsePage.SectionHeader仅listings>1显示menu，homeSections按序append；BrowseVM.loadBrowseHome可同时装首页分区与default listing。"
+        "SourceBrowsePage.SectionHeader仅listings>1显示menu，homeSections按序append；BrowseVM.loadBrowseHome可同时装首页分区与default listing。",
+        "4caff25f增加首页分区并与栏目同页；9541bfed删除顶部独立选择器，把下拉并入栏目头。当前仍home-first/栏目录后；未查到该组合的独立产品确认，不从当前实现反推合理。",
+        "已读Mihon当前BrowseSourceScreen：顶部热门/按能力显示最新/筛选，单一分页内容；仅借鉴内容选择边界，不复制Android样式。包子get_home四次classify摘要，再由Host默认get_manga_list取栏目，二者不是互斥内容。"
       ],
       "remainingActions": [
-        "追各能力/listing/homeSections契约及历史设计，再整理选项与允许差异；未批准前保首页结构。"
+        "异步问题已给出统一分类入口与单一内容区的具体方案；等待人类决定。未修改源首页结构或默认内容，不阻止其他缺陷。"
       ],
-      "remaining": "调查能力差异及原设计依据后提出具体方案，不自改首页结构。",
+      "remaining": "异步问题已给出统一分类入口与单一内容区的具体方案；等待人类决定。未修改源首页结构或默认内容，不阻止其他缺陷。",
       "boundaries": [
         "当前代码不证明原设计无历史依据；允许差异待定，未授权自作主张重构首页。",
         "保当前源UI/性能与包子正文主线，新设计调查不替换旧队列。"
@@ -2987,7 +3006,17 @@
       "firstHandlingAt": null,
       "handling": null,
       "closedAt": null,
-      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。"
+      "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
+      "modificationBasis": {
+        "object": "BrowseViewModel.loadBrowseHome/selectBrowseListing与SourceBrowsePage分类入口和内容投影",
+        "history": "03e84bcd引入栏目；4caff25f增加首页分区；9541bfed将顶部选择器并入栏目标题；后续原生Grid恢复保留该组合。",
+        "originalReason": "支持源推荐摘要与可分页栏目两种合同；移除独立选择器的具体产品取舍未查明，不能自行取代。",
+        "reopenEvidence": "用户明确质疑同一源页有时下拉、有时长分区；现源码确实将home和默认listing同时加载与显示。",
+        "proposedDifference": "待确认：搜索框下方统一用原生下拉选择现有首页/栏目，只显示当前所选内容；有home仍默认home，否则默认原栏目；保材质、网格、筛选与搜索，不追加第二份默认栏目。",
+        "references": [
+          "https://github.com/mihonapp/mihon/blob/main/app/src/main/java/eu/kanade/tachiyomi/ui/browse/source/browse/BrowseSourceScreen.kt"
+        ]
+      }
     },
     {
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
@@ -3543,6 +3572,30 @@
       "title": "图片描述空调用已在197消除",
       "detail": "仅明确不支持者跳过；普通列表50、原书架与数据保持。真实封面403另留，未宣称性能或整源通过。",
       "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "verified"
+    },
+    {
+      "id": "source-home-content-contract-review",
+      "at": "2026-10-25T06:59:08.455064+00:00",
+      "title": "源首页与栏目结构已查清",
+      "detail": "发现两类内容同时加载、首尾拼接；具体统一方案待用户决定，尚未改界面。空调用修复CI已成功。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "source-install-current197-trace605",
+      "at": "2026-10-25T07:32:35.653340+00:00",
+      "title": "当前包安装卡顿仍存在",
+      "detail": "東立正常更新并返回，其他84源与书架/阅读保持；主线程回调74ms、实际帧33ms，具体CPU函数继续定位。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-language-key197-verified",
+      "at": "2026-10-25T07:49:01.890199+00:00",
+      "title": "语言热路径警告已修正",
+      "detail": "197普通源包页及返回已核，名称/顺序/原数据保持。74ms安装总项仍开放；没有重装源制造通过。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "verified"
     }
   ]

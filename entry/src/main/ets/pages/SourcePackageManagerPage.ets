@@ -256,8 +256,10 @@ export struct SourcePackageManagerPage {
   }
 
   private reload(): void {
+    const locale = this.languageState.effectiveLocale
     this.packages = listInstalled().slice().sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
-      compareSourceNames(sourceDisplayName(left.id, left.name), left.id, sourceDisplayName(right.id, right.name), right.id))
+      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale), left.id,
+        resolveSourceLocalizedName(right.name, right.localizedNames, locale), right.id))
     this.refreshSavedSettingsCounts()
     const sheetSource = this.sourceSheetSource()
     if (sheetSource !== undefined) {
@@ -323,8 +325,12 @@ export struct SourcePackageManagerPage {
     // Preserve every unaffected row's input identity; only this package changed.
     const packages = this.packages.filter((item: InstalledSourcePackage): boolean => item.id !== sourceId)
     packages.push(source)
+    // These DTOs already carry the registry names. Read the page's locale once;
+    // connecting global state again inside every comparison adds work per row.
+    const locale = this.languageState.effectiveLocale
     this.packages = packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
-      compareSourceNames(sourceDisplayName(left.id, left.name), left.id, sourceDisplayName(right.id, right.name), right.id))
+      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale), left.id,
+        resolveSourceLocalizedName(right.name, right.localizedNames, locale), right.id))
     if (this.sourceSheetSourceId === sourceId) this.sourceSheetRetainedSource = source
     try {
       const count = Object.keys(appSourceSettingsStore.loadForSource(sourceId)).length

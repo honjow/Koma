@@ -391,9 +391,10 @@ function incrementalManager(oldPackages, getReplacement, load) {
   ], { ...globals, getInstalledSourcePackage: getReplacement,
     appSourceRuntimeRegistry: {}, appSourceSettingsStore: {loadForSource:()=>({})},
     loadSourceSettingsDescriptorsAsync: load, t:key=>key, tf:key=>key,
-    sourceDisplayName:(_id,name)=>name, compareSourceNames:(left,_id,right)=>left.localeCompare(right),
+    resolveSourceLocalizedName:(name,names,locale)=>names?.[locale]??name,
+    compareSourceNames:(left,_id,right)=>left.localeCompare(right),
   })
-  Object.assign(manager,{packages:oldPackages,settingsReloadRevision:1,settingsSourceReloads:{},
+  Object.assign(manager,{languageState:{effectiveLocale:'zh-Hans'},packages:oldPackages,settingsReloadRevision:1,settingsSourceReloads:{},
     settingsDescriptorSnapshot:{},settingsAvailability:{},savedSettingCounts:{},settingsValidationStatuses:[],sourceSheetSourceId:''})
   return manager
 }
