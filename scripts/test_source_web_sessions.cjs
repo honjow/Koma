@@ -267,7 +267,8 @@ function declarations(relative, names, owner) {
 
 test('ordinary Browse queue derives native identity from the admitted registry entry, not source JSON', async () => {
   const f = fixture(), nativeCalls = [], exports = {}
-  const queue = declarations('viewmodel/BrowseViewModel', ['runBrowseSourceOperationTask', 'sourceOperationQueue', 'enqueueSourceOperation'])
+  const queue = declarations('sourceRuntime/SourceRuntimeWorker', ['runBrowseSourceOperationTask']) + '\n' +
+    declarations('viewmodel/BrowseViewModel', ['sourceOperationQueue', 'enqueueSourceOperation'])
   const method = declarations('viewmodel/BrowseViewModel', ['runSourceOperationResponse'], 'BrowseViewModel')
   const source = `${queue}\nexport class Host { ${method} }`
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
@@ -292,24 +293,22 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   assert(!nativeCalls[0].context.includes('cookie-value'))
 })
 
-test('detail, chapter list, page and image-request workers retain each invocation native context', () => {
-  const lanes = [
-    ['pages/MangaDetailPage', 'executeMangaDetailSourceOperation'],
-    ['model/SourceChapterListResolver', 'executeSourceChapterListOperation'],
-    ['model/SourceChapterPageHydrator', 'executeSourceChapterPagesOperation'],
-    ['model/ReaderPageSourceAdapter', 'executeReaderSourceImageRequestOperation'],
-  ]
-  for (const [file, name] of lanes) {
-    const calls = [], exports = {}
-    const js = ts.transpileModule(declarations(file, [name]) + `\nexports.run = ${name}`, {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-    }).outputText
-    vm.runInNewContext(js, { exports, runSourceOperationFromBytes: (...args) => { calls.push(args); return { ok: true } } })
-    const bytes = new Uint8Array([1]), context = JSON.stringify({ sourceId: file })
-    assert.equal(JSON.parse(exports.run('public-request', bytes, context)).ok, true)
-    assert.equal(calls.length, 1, file)
-    assert.equal(calls[0][2], context, file)
+test('shared Native worker retains each invocation request, bytes, HTTP context, reply and thrown error', () => {
+  const calls = [], bytes = new Uint8Array([1]); let failure
+  const worker = moduleFrom('SourceRuntimeWorker', name => {
+    if (name !== './NativeSourceRuntime') throw Error('unexpected worker dependency: ' + name)
+    return { NativeSourceRuntime: { runJsonCallFromBytes: (...args) => {
+      if (failure) throw failure
+      calls.push(args); return { ok: false, reasonCode: 'not_implemented' }
+    } } }
+  })
+  for (const operation of ['get_manga', 'get_chapters', 'get_pages', 'get_image_request', 'source_info', 'get_settings']) {
+    const request = JSON.stringify({ operation }), context = JSON.stringify({ sourceId: operation })
+    assert.deepEqual(JSON.parse(worker.executeSourceRuntimeRequest(request, bytes, context)), { ok: false, reasonCode: 'not_implemented' })
+    assert.equal(calls.at(-1)[0], request); assert.equal(calls.at(-1)[1], bytes); assert.equal(calls.at(-1)[2], context)
   }
+  failure = Error('Native failure')
+  assert.throws(() => worker.executeSourceRuntimeRequest('{}', bytes, ''), error => error === failure)
 })
 
 test('redirect interceptor setup failure never sends a credentialed request or falls back to automatic following', async () => {

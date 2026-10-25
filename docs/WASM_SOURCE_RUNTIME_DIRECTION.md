@@ -46,6 +46,10 @@ That means the runtime must eventually support:
 - settings/auth references without exposing raw credentials;
 - repeatable Linux/archive/device smokes.
 
+## TaskPool module boundary
+
+`sourceRuntime/SourceRuntimeWorker.ets` owns the concurrent Native entry and its dependency boundary. Keep UI state, localization, registry admission, web-session lookup and diagnostics on the calling side; importing them into the worker can execute UI decorators during module initialization. Preserve the Service's copied WASM bytes, restricted HTTP context and source-changed check. See the implementation comment and CURRENT_STATUS's `SOURCE_RUNTIME_ERRORS` for the observed failure and change basis.
+
 ## Reference model: Aidoku/AidokuRunner patterns worth adapting
 
 Use Aidoku as architecture reference, not as code to copy.

@@ -17,7 +17,8 @@ import {
   SourceRuntimeRegistryEntry,
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { executeSourceRuntimeRequest as executeSourceChapterPagesOperation } from '../sourceRuntime/SourceRuntimeWorker'
 import {
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -94,12 +95,6 @@ function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): s
     return 'source_not_installed'
   }
   return reasonCode ?? 'source_lookup_failed'
-}
-
-@Concurrent
-function executeSourceChapterPagesOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
-  const response = runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson)
-  return JSON.stringify(response)
 }
 
 function cloneWasmBytes(entry: SourceRuntimeRegistryEntry): Uint8Array {

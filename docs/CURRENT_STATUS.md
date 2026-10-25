@@ -931,11 +931,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T07:49:01.890199+00:00",
+  "updatedAt": "2026-10-25T09:13:06.344120+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "197已装8569832B并完成普通源包页/原书架读回，三业务数据保持；限定语言热路径修复准备同步，安装总项仍OPEN。",
-  "nextAction": "范围提交语言键与排序连接修正并跟进本笔CI；继续605未细分CPU调用链及漫画屋正文协议调查，不重装造样本。",
+  "activeId": "SOURCE_RUNTIME_ERRORS",
+  "activity": "Native并发入口已集中到独立模块；237新进程具名普通路径与完整日志核实，原数据保持。当前整理范围提交/推送与精确CI，安装47/74ms仍开放。",
+  "nextAction": "同步本笔Native入口修复并跟精确CI；继续安装CPU长回调分解及原待验源，不重复已过路线。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,8 +978,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "301100627dd04eb20a1e5787e5b108e81f8590b7已推；精确CI40170659239 completed/success；固定Kit e3f3cc1。",
-      "hap": "197当前语言热路径修复8569832B/0.1.2-pre code3已明确覆盖安装；606普通管理页与607原书架/三域保持。237仍正式仅加载修复8571264B/原001第6/24，未操作。"
+      "appHead": "7b0f3bac已推且精确CI40174256817成功；本地六Native入口隔离待提交，固定Kit e3f3cc1。",
+      "hap": "237已明确安装最终8569786B/0.1.2-pre code3/debugfalse，162–164新进程普通幻塔及自然返回已审；197仍正式8569832B，均未合缓存v3。"
     },
     {
       "name": "NextE",
@@ -1524,13 +1524,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "图片描述空调用197具名完成；30110062精确CI成功",
+      "status": "六个Native入口已隔离；237具名路径通过，待本笔远端CI",
       "kind": "open",
       "priority": "P1",
-      "owner": "Root：本次具名空调用冻结；其他自然运行错误按原条件",
+      "owner": "Root：范围提交/同步/精确CI；其他自然错误仍按原条件",
       "dependencies": [],
-      "result": "原明确unsupported/限流别名验收保持。新增只在source_info明确imageRequest=false时跳过空调用，旧包未知/失败及必需描述/票据流程保留。最终8570068B签名Release已安装197，602/603漫画160普通列表50、get_manga_list717ms；本进程该源get_image_request与unavailable警告均0，真实图片HTTP403仍如实记录。三业务域与598完整相同。",
-      "remaining": "rate_limit用户提示仅Host通过；图片403、全局搜索自然失败及3H业务恢复仍按原条件，漫画160搜索404续SOURCE_WEB_SESSION。不将空调用修正冒成封面、正文或滚动FPS改善。",
+      "result": "六个生产Native并发入口已集中到独立SourceRuntimeWorker，原请求/会话/复制字节/队列/取消/诊断保留。237明确安装8569786B签名Release，新进程42856完整159行hilog覆盖17:07:17–17:10:33，首次worker43025及取页worker44500无ReferenceError；正常幻塔列表/详情/章节/取页及正文、自然返回成立。197空图片描述修复旧范围继续冻结。",
+      "remaining": "本笔待提交/推送及精确CI；安装source_info、票据图片fresh调用及下载未在本次Native路由扩认。原rate_limit用户提示、图片403、全局搜索自然失败和3H恢复仍按原条件，不将模块隔离冒称它们已恢复或安装卡顿已消除。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1558,9 +1558,14 @@
         "572具名新反例：漫画160搜索底层HTTP403/5839chars且明确access_signal=challenge_required；源将其降成permission_denied/http0，manifest无webSessionOrigins，所以原生仅普通拒绝提示、未自动验证。571文本断言只命中SearchField，纠正文件保留。",
         "MH160014公开包22572B三成员与两个origin成立，579“已更新 漫画160”原图亲审；025按真实底栏恢复原Koma书架，581因同名“书架”两节点未点击，不当恢复证据。",
         "图片能力修正：8项实际方法检查（只新增2项运行案例）通过，保原6项缓存/强刷边界；首次ArkTS需显式空接口的编译失败保留，修正后最终Release成功。602明确安装8570068B，漫画160普通列表50及返回原书架；603只收实际新进程144833日志，该源图片描述调用/无效警告均0、图片403仍保留。library/reader/registry与598完整相同。无UI/HTTP/缓存身份/源包改动，缓存v3未合入。",
-        "301100627dd04eb20a1e5787e5b108e81f8590b7已按既有授权同步honjow/Koma master；精确CI40170659239 head同值、completed/success；Release构建成功，tag发布job为skipped，没有新tag/发布。"
+        "301100627dd04eb20a1e5787e5b108e81f8590b7已按既有授权同步honjow/Koma master；精确CI40170659239 head同值、completed/success；Release构建成功，tag发布job为skipped，没有新tag/发布。",
+        "237157原hilog有后台线程24633的InteropConfigureStateMgmt及Trace ReferenceError，随后幻塔能力探测仍成功；158首篇正文HTTP200。明确这是模块边界缺陷，不把它冒称正文失败原因或安装47ms完整根因。",
+        "六生产调用者只删内联Concurrent并改公共函数导入；Browse保原异步动态Native/raw返回，其他入口保原静态Native对象JSON往返，避免票据图片旧崩溃。现有会话/图片恢复检查58项、安装/索引45项通过；复用原worker案例覆盖6种请求及异常，未新增源码匹配/界面形状检查。最终六入口签名Release构建成功；前一单入口8569930B仅离线构建，未装设备。",
+        "237162明确安装8569786B/0.1.2-pre code3/debugfalse，新PID42856。普通get_listings14ms、get_settings明确not_implemented、列表199ms、详情487ms、章节103ms、get_pages287ms；163完整长图1/1已亲审。164自然返回原大奉001第6页25%；library/registry完整JSON同162-before，Reader59进度/75章节数量与顺序保持，仅本次幻塔的updatedAt/缓存position字段变化，其他旧记录及history完全同。图片本次走已有缓存，不称fresh描述/HTTP已验证。",
+        "162脚本误把已有本次阅读记录的“继续阅读”当“开始阅读”而停在正确详情；163已回RootBrowse，但脚本把标题+底栏两个“浏览”误判失败。原失败PNG/JSON保留，164按真实底栏回原书架。只修场景前提，没有改产品来迎合断言。metadata中的hilog只存8000字符截尾，完整159行原日志另由164 measurement.hilog保存，不据截尾宣称无异常。"
       ],
       "remainingActions": [
+        "按既有授权范围提交/同步六入口修复并跟精确CI；具名实机结果不外推所有源、票据图片、下载或自然失败恢复。",
         "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
         "漫画160014搜索自动弹出仅接受触发；网页/statics/search.aspx404及回流仍续SOURCE_WEB_SESSION，不能称搜索恢复。"
       ],
@@ -1586,8 +1591,23 @@
           "originalReason": "旧包能力缺失不等于不支持；票据/Referer/源设置不能靠猜测跳过。",
           "reopenEvidence": "588真实漫画160逐图get_image_request反复not_implemented、每次约14–28ms；589注册表无imageRequest，当前源码明确image_request:false且处理器始终not_implemented。",
           "allowedDifference": "仅在未声明imageRequest时，用同包source_info明确布尔false确认；每份WASM对象只共享一次无网络worker查询。未知、失败及支持者保原流程；不改变缓存身份/强刷/HTTP/凭据/UA/UI，不持久化能力推测。 明确不需要不再逐图记失败；未知/实际描述失败保原警告，已声明必需能力仍失败关闭。"
+        },
+        "workerModule": {
+          "object": "Service、Browse、详情、章节、取页与图片请求六个生产Native并发入口的共同模块边界",
+          "history": "c43cf027恢复复制字节的TaskPool请求；f4caffaa复用此入口探测能力；34ab280d保受限网页会话参数。Runner的runSourceOperationFromBytes当前仅原样调用NativeSourceRuntime。；40f476c1保Browse异步raw Native与串行队列；8eaeb26e取页、b486da30详情/章节及既有图片入口为同类内联Concurrent。",
+          "originalReason": "让主线程在WAMR与HTTP等待时yield，保请求准入、复制字节、受限Cookie/UA与返回时source_changed检查。",
+          "reopenEvidence": "237157首次worker24633在16:21:36.136报InteropConfigureStateMgmt/Trace未定义，堆栈直指LanguageState。官方TaskPool使用规范明确：子线程会解析传递依赖中的UI装饰器，即使未调用也会失败。不能据此归因47ms或全源失败。",
+          "allowedDifference": "六个Native并发入口集中到Native-only模块，四个重复包装与Service使用同一执行函数；Browse的动态导入/raw字符串保持独立原样，图片的静态Native包装也保持，避免复活票据图动态导入崩溃。全部调用者的准入/复制字节/队列/取消/会话/诊断/解析逻辑不动。QA smoke及下载队列不在本次Native入口修复范围。",
+          "references": [
+            "https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/task-pool-usage-guidelines"
+          ]
         }
-      }
+      },
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-worker237-native-only-162",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-worker237-resume-detail-163",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-worker237-return-readback-164"
+      ]
     },
     {
       "id": "SOURCE_WEB_SESSION",
@@ -2261,7 +2281,8 @@
       "handling": null,
       "closedAt": null,
       "evidencePoints": [
-        "README面向用户整理为86行，85源核实；9243deb已提交，CI39894595111成功。"
+        "README面向用户整理为86行，85源核实；9243deb已提交，CI39894595111成功。",
+        "幻塔首篇237真实正文结果已就地补源README，并本地材料提交46948b0；源码/包/图标未变。当前source master的ci对任何push会重打并发布85源，因此本材料暂未独立推送，随后继实际源变更同步，不为本次说明触发重复发布。"
       ],
       "remainingActions": [
         "本轮README整理范围已完成并冻结；后续仅随真实源发布/用户反馈按需更新，不重开已完成整理。"
@@ -2718,15 +2739,15 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：605现有轨迹与安装完成后消费者的CPU工作拆查",
+      "owner": "Root：安装47/74ms分解；237幻塔首篇普通正文已完成",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "语言键高频警告具名修正；安装74ms总项仍OPEN",
-      "result": "605当前正式包正常更新東立后仍有74.368ms主回调/33.208ms实际帧；日志同时揭出0.1秒287条非法键警告。本轮只修语言内存键和排序重复连接，签名Release8569832B已装197；606普通源包页名称/顺序保持，607已回原书架，三业务JSON相同。未重装源造样本，安装总耗时未扩认修好。",
+      "status": "237真实首次安装仍47ms主回调；幻塔普通正文接续",
+      "result": "语言热路径7b0f3bac精确CI40174256817成功，正式8569832B已装197/237。237157正常首次安装原待验幻塔011，72→73仅新增该源，原72/书架/阅读保持；主回调47.060ms、实际帧max13.885ms、FlushDirty10.841ms，persistSync23/行投影7ms。当前安装仍有同步长任务，不能因帧值较小关闭或与197旧更新作AB。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
         "434注册84IDs/顺序保持，仅漫画屋015/WASM54808/单域变化，其他83及library/reader逐字同；与379本地导入为不同具名路径，不作严格A/B。",
@@ -2741,13 +2762,19 @@
         "离线复核117的24.572ms FlushDirty：具名ForEach更新本体0.014/0.011/0.903ms，其余缺JS细栈，不归因目录删除或全部重建。当前包已在后继8efc完成动作状态隔离，旧轨迹不足以证明当前阻塞仍同样存在。公开latest/source-b7face索引HTTP200/85项与602注册85项相比，仅東立0.1.1→0.1.3，作为正常更新样本。",
         "605原生已更新東立与返回书架均已读回，更新后原图亲审；registry85→85仅東立版本/文件路径/大小/最低App版本/主页变化，library/reader完整JSON相同。未录像，本行图标瞬空未验收。",
         "605主回调6576为fs.rmdir的complete及后续微任务74.368ms；Running71.414ms、D-NIO2.609ms，不能说目录删除本身耗时74ms。6542回调27.665ms；6608实际帧33.208ms，6623 FlushDirty14.280ms。import日志persistSync25/cleanupAwait9/publishSync1ms、行投影14ms；缺JS细栈，具体CPU函数尚未证实。",
-        "606/607普通设置→服务→源包→返回：无高频语言键警告，所采当前进程1093行只余返回时2条其他状态键警告；没有删除原响应式locale依赖或修改app.language偏好。606先因“书架”设置行/底栏两同名而停止，607原底栏恢复；失败保留，未重放源路线。"
+        "606/607普通设置→服务→源包→返回：无高频语言键警告，所采当前进程1093行只余返回时2条其他状态键警告；没有删除原响应式locale依赖或修改app.language偏好。606先因“书架”设置行/底栏两同名而停止，607原底栏恢复；失败保留，未重放源路线。",
+        "7b0f3bac5f941116c91ea33cee5d57593bdfbf08已同步master，精确CI40174256817 head同值/completed/success；没有新tag或发布。",
+        "608临时只读计时：85源摘要/发布6ms（图标4ms），Manager DTO两次4/5ms，不能归因为605的74ms或称同条件AB。609明确恢复正式8569832B成功，三域与608-before完整相同；3422B探针补丁已精确撤回，三个临时源码diff为空。官方Ark当前localeCompare在固定locale/无options时已有Collator缓存，未凭猜测替换比较器。",
+        "237153/154实时Connected、AWAKE/86400000、1320×2120/koma0焦点79；实际72已装源与sources-b7face固定85源索引比对无待更新，13未装。原书架大奉001第6页25%。当前工作单454及幻塔README只验图标，明确正文未验；选其现有011生产源补原待验，不重复安装已验源或启动85源矩阵。",
+        "237155明确覆盖正式8569832B成功，三域同154；156原生幻塔未装行及Button[1056,1167][1248,1251]完整原图亲审。157一次普通安装成功，72→73仅新增com.huanta.zh.koma011，原72每字段/顺序及library/reader完整JSON保持，HTrace20秒/31538634B正常finish，hash为空。",
+        "157离线实际DB：main21380/itid216，6830 Cancelable Event callback47.060ms；6808 Release complete14.211ms；6765 fs.rmdir complete9.329ms。实际帧max13.885ms，FlushDirty10.841ms；阶段日志persistSync23/cleanupAwait0/publishSync0/row_projection7ms。只属本次首次安装，不冒197更新修好、FPS或图标闪烁已验。",
+        "237158普通Browse→幻塔→《试用体验》→开始阅读，完整四格长图1/1已亲审。161持久日志：列表446ms、详情331ms、章节111ms、取页186ms、图片描述121ms，正文HTTP200/1620075B/355ms。159返回已到Browse但头部出屏导致工具断言失败；160原底栏回书架，大奉001第6页25%保持。注册73及library完整JSON保持，Reader仅新增本次幻塔1条进度/历史/章节缓存，所有旧记录及顺序保持。"
       ],
       "remainingActions": [
-        "安装总项保605的74ms反例；继续核已有回调与Browse摘要/全量投影链，当前85全最新，不重装源制造采样。",
-        "本次语言修复具名范围已验，提交后跟进精确CI；其他状态键的2条警告不等于本次高频问题，未擅扩Reader状态迁移。120本行图标瞬空独立OPEN。"
+        "237幻塔011首篇正文与自然返回已完成；157安装47ms回调继续分解，不因正文可用或帧值较小关闭安装卡顿。",
+        "语言热路径修复7b0f3bac已推，精确CI40174256817 completed/success；本具名范围冻结。120本行图标瞬空及其他状态键仍保各自边界。"
       ],
-      "remaining": "已修一条实际热路径：语言状态非法键与排序重复连接。605其余CPU工作仍缺JS细栈，后继先查现有合同及可用细分证据；没有当前真实源更新时不造样本。",
+      "remaining": "安装总项仍有605的74ms和157的47ms反例。237幻塔首篇已显示并自然返回原书架；未验其他15篇、第二页、下载或cold，不扩成85源矩阵。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -2777,7 +2804,15 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-identity237-natural-return-118",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-install197-tongli013-current-trace-605",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-language197-manager-key-606",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-language197-return-readback-607"
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/source-language197-return-readback-607",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-registry-baseline-154",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-current-app-deployed-155",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-huanta011-manager-position-156",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-huanta011-first-trace-157",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/huanta011-native237-first-reader-158",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/huanta011-native237-natural-return-159",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/huanta011-native237-shelf-data-readback-160",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/huanta011-native237-diagnostic-log-161"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -3597,6 +3632,38 @@
       "detail": "197普通源包页及返回已核，名称/顺序/原数据保持。74ms安装总项仍开放；没有重装源制造通过。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "verified"
+    },
+    {
+      "id": "source-projection-probe197-restored",
+      "at": "2026-10-25T08:09:05.299444+00:00",
+      "title": "只读分段计时完成并撤回",
+      "detail": "摘要6ms、Manager DTO4–5ms，不足解释74ms。197正式包及原数据已恢复，后继核237真实更新。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-huanta011-first-install237",
+      "at": "2026-10-25T08:30:50.578477+00:00",
+      "title": "237幻塔首次安装完成",
+      "detail": "72→73只增幻塔，原数据保持。安装主回调仍47ms；接续该源原待验正文，不据安装成功关闭卡顿。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "huanta237-native-first-reader-and-worker-boundary",
+      "at": "2026-10-25T08:59:04.009414+00:00",
+      "title": "幻塔237首篇正文成功；发现后台模块边界异常",
+      "detail": "完整长图与HTTP200已核，原书架/旧记录保持。安装47ms未闭；接独立Native worker入口修复。",
+      "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "work"
+    },
+    {
+      "id": "native-worker237-six-entry-route",
+      "at": "2026-10-25T09:13:06.344120+00:00",
+      "title": "Native后台入口隔离：237普通阅读与原数据保持",
+      "detail": "新进程首次源worker及取页worker未再出现UI状态异常，正文与返回已审；接范围提交及精确CI。安装长回调继续开放。",
+      "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "work"
     }
   ]
 }

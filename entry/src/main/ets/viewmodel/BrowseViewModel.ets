@@ -1,3 +1,4 @@
+import { runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorker'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
@@ -129,13 +130,6 @@ interface SourceOperationRequest {
 }
 
 const SOURCE_OPERATION_PAGE_SIZE: number = 20
-
-@Concurrent
-async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): Promise<string> {
-  const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
-  const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
-  return nativeRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson) as string
-}
 
 // Native WAMR execution is process-serial. Keep waiting work out of taskpool
 // and discard obsolete searches before they consume a runtime/network slot.

@@ -88,7 +88,8 @@ import {
   SourceRuntimeRegistryEntry,
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { executeSourceRuntimeRequest as executeMangaDetailSourceOperation } from '../sourceRuntime/SourceRuntimeWorker'
 import {
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -172,12 +173,6 @@ interface SourceDetailRequest {
   args: SourceMangaRequestArgs
   settings: SourceSettingsRecord
   hostHints: SourceDetailRequestHostHints
-}
-
-@Concurrent
-function executeMangaDetailSourceOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
-  const response = runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson)
-  return JSON.stringify(response)
 }
 
 function s(name: string): string {

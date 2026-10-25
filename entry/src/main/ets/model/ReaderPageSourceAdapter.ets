@@ -32,13 +32,9 @@ import { KomgaHeaders } from '../remote/KomgaClient'
 import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
-import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { executeSourceRuntimeRequest as executeReaderSourceImageRequestOperation } from '../sourceRuntime/SourceRuntimeWorker'
 import { runSourceOperationFromValidatedBytesAsync } from '../sourceRuntime/SourceRuntimeService'
-
-@Concurrent
-function executeReaderSourceImageRequestOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
-  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
-}
 
 export interface ReaderRemoteImageCachePreferences {
   maxBytes: number

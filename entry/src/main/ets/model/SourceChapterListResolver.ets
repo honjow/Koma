@@ -6,7 +6,8 @@ import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
 import { taskpool } from '@kit.ArkTS'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
-import { runSourceOperationFromBytes, diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
+import { executeSourceRuntimeRequest as executeSourceChapterListOperation } from '../sourceRuntime/SourceRuntimeWorker'
 import { SourceSettingsRecord, appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 
 interface SourceChapterPage {
@@ -64,11 +65,6 @@ export interface SourceChapterListResult {
   chapters: MangaChapterItem[]
   resolved: boolean
   reasonCode?: string
-}
-
-@Concurrent
-function executeSourceChapterListOperation(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
-  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
 }
 
 /** Existing detail pagination/settings flow, shared without writing Library or history. */

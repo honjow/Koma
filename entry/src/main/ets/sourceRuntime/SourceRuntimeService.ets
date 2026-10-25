@@ -5,6 +5,7 @@ import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { SourceRuntimeCallRequest, SourceRuntimeCallResponse } from './NativeSourceRuntime'
+import { executeSourceRuntimeRequest as executeRegisteredSourceRequest } from './SourceRuntimeWorker'
 import {
   importArchiveNegativeFixtures,
   importLocalSourceArchive,
@@ -546,11 +547,6 @@ export function runRegisteredSourceRequestById(
     trace.finish(result.ok ? 'completed' : 'failed', 'operation=' + admission.operation + ' reason=' + (result.reasonCode ?? 'none'))
     return result
   } catch (error) { trace.fail(error as Error); throw error as Error }
-}
-
-@Concurrent
-function executeRegisteredSourceRequest(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
-  return JSON.stringify(runSourceOperationFromBytes(requestJson, wasmBytes, httpContextJson))
 }
 
 /** Run already validated package bytes without publishing a temporary registry entry. */
