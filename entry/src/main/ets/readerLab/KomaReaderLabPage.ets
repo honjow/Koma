@@ -10,7 +10,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderIma
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
 import { ReaderActivitySink, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -55,6 +55,7 @@ class KomaReaderAfterLayout extends FrameCallback {
 export struct KomaReaderLabPage {
   @Require @Param request: ReaderLabRequest
   @Param productionEntry: boolean = false
+  @Param routeTransition: ReaderRouteTransition = new ReaderRouteTransition()
   @Param closeRequestId: number = 0
   @Event prepareInitial: () => Promise<void> = async (): Promise<void> => {}
   @Event onRouteVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
@@ -99,7 +100,7 @@ export struct KomaReaderLabPage {
   private unitKey: ReaderUnitKey = new ReaderUnitKey('', '', '')
   private initialPageIndex: number = 0
   private trialWindow: ReaderTrialWindow = new ReaderTrialWindow(null, true,
-    undefined, (): boolean => !this.readerClosed && this.routeActive && this.labVisibility.foreground)
+    undefined, (): boolean => !this.readerClosed && this.routeActive && this.labVisibility.foreground && this.routeTransition.ready())
   private keepScreenOn: ReaderKeepScreenOn | null = null
   private imageSave: ReaderImageSaveHost | null = null
   private imageShare: ReaderImageShareHost | null = null
@@ -298,6 +299,15 @@ export struct KomaReaderLabPage {
     this.adapter?.close()
     void this.keepScreenOn?.close()
     if (this.request.readingChrome) this.trialWindow.close()
+  }
+
+  @Monitor('routeTransition.phase')
+  private replayRouteWindowAdmission(): void {
+    if (!this.readerClosed && this.routeActive && this.labVisibility.foreground && this.routeTransition.ready()) {
+      // open() retires its started flag while the root transition is pending.
+      // Re-admit that same lease; replay alone would remain blocked by it.
+      this.trialWindow.open(this.getUIContext().getHostContext() as common.UIAbilityContext)
+    }
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake',
@@ -830,6 +840,7 @@ export struct KomaReaderLabPage {
       content: { title: { mainTitle: $r('app.string.rkit_lab_title') } },
     })
     .hideTitleBar(this.productionEntry || this.request.readingChrome && this.session !== null)
+    .translate({ x: this.productionEntry ? this.routeTransition.offset() : '0%' })
     .onBackPressed((): boolean => {
       if (!this.request.readingChrome) return false
       this.closeReader()

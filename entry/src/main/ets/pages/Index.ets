@@ -10,7 +10,7 @@ import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
 import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
 import { SourceFailureDetails } from '../model/SourceRuntimeError'
 import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
-import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch } from '@reader-kit/ui'
+import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch, ReaderRouteTransition } from '@reader-kit/ui'
 import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
 import {
   BlurStrategy,
@@ -198,9 +198,14 @@ struct Index {
   @Local private sharedReaderRequest: ReaderLabRequest = new ReaderLabRequest('', '', 0)
   private sharedReaderCatalogHost: KomaReaderCatalogHost | null = null
   private readerPreparation: Promise<void> | null = null
+  @Local private readerRouteTransition: ReaderRouteTransition = new ReaderRouteTransition()
 
   private captureSharedReaderEntry(newRoute: boolean): void {
-    if (newRoute) this.readerRouteBackend = connectKomaReaderBackendSelection().current(false)
+    if (newRoute) {
+      this.readerRouteBackend = connectKomaReaderBackendSelection().current(false)
+      if (this.readerRouteBackend === KomaReaderBackend.SHARED) this.readerRouteTransition.begin()
+      else this.readerRouteTransition.skip()
+    }
     const config = this.readerSessionConfig
     const request = new ReaderLabRequest(config.comicId, config.chapterId, this.readerPageIndex)
     request.readingChrome = true
@@ -1940,12 +1945,20 @@ struct Index {
     })
   }
 
+  private readerOrdinaryNavTransition(_from: NavContentInfo, to: NavContentInfo,
+    operation: NavigationOperation): NavigationAnimatedTransition | undefined {
+    if (operation !== NavigationOperation.PUSH || to.name !== RouteName.READER ||
+      this.readerRouteBackend !== KomaReaderBackend.SHARED || !this.readerRouteTransition.pending()) return undefined
+    return this.readerRouteTransition.transition(this.getUIContext(), (_success: boolean): void => {})
+  }
+
   @Builder
   private ReaderDestination() {
     if (this.readerRouteBackend === KomaReaderBackend.SHARED) {
       KomaReaderLabPage({
         request: this.sharedReaderRequest,
         productionEntry: true,
+        routeTransition: this.readerRouteTransition,
         closeRequestId: this.readerCloseRequestId,
         catalogHost: this.sharedReaderCatalogHost,
         prepareInitial: async (): Promise<void> => { await this.readerPreparation },
@@ -1963,7 +1976,10 @@ struct Index {
         },
         flushObserved: (): void => { if (this.readerSessionPersistenceReady) this.readerSessionStore.flush() },
         onOpenMangaDetail: (_work: string): void => { this.openReaderMangaDetail() },
-        onRouteVisibleChange: (visible: boolean): void => { this.readerRouteVisible = visible },
+        onRouteVisibleChange: (visible: boolean): void => {
+          this.readerRouteVisible = visible
+          if (!visible) this.readerRouteTransition.cancel()
+        },
         onRouteDisappear: (): void => { this.finishReaderRouteClose() },
         onClose: (): void => { this.popReaderRouteAfterSystemBarRestore() },
       })
@@ -2612,6 +2628,9 @@ struct Index {
           mode: HideMode.SCROLL_UP,
         })
         .navDestination(this.AppDestination)
+        .customNavContentTransition((from: NavContentInfo, to: NavContentInfo,
+          operation: NavigationOperation): NavigationAnimatedTransition | undefined =>
+          this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
         .width('100%')
         .height('100%')
