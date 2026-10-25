@@ -8,13 +8,13 @@
 - 最新UI纠正已处理：人类要求清理WebView验证半模态底部两行；仅SourceWebSessionSheet收成一行三图标与靠右完成。250签名8589011B装237；251整图亲审，Web多出144px/48vp；255全部来源书架及254四域保持。eda1dada/CI40197838097同head成功，具名浅色展开竖屏范围冻结；没有把补问确认当保留错误的理由，其他网页失败未因此关闭。
 - 首次阅读已按人类采用Mihon源序/最早未读接通全部入口，旧改源DOM序候选撤回；原目录/ID/样式/单章下载保持。App68f576d随eda1dad已推/精确CI成功。漫画屋016/00f88b1已推，CI40197770744成功，固定公开tag下85源与86629B三成员包均200，方向声明成立；本地87192B不冒二进制相同。斗破真实首读01/36已验，元尊248普通源入口止于自然挑战，不能称其首次正文通过。
 - 漫画160固定参考及237旧782章全表已核；保番外/请假条/异常插入，不猜话数、去重或重排。01522644B声明newest_first，257普通014→015仅7个预期字段变化，旧79源/顺序及library/reader/web元数据保持；259进程40851→49736且新进程书架亲审，未观察空PID阶段；260四域同258，自传包ABSENT。生产helper+现有782章选第1话43350001、后一个未读第2话73620002，未重请已失败网页/章节/图。源9bba7ba52c25691557c785fa3feb08fe764c9245已推，精确CI40199109508成功，固定公开tag索引85项与22588B015三成员包均200、方向声明成立（不同于本地22644B，不冒二进制等价）。
-- 当前237最终无探针App8582236B/0.1.2-pre code3/debug=false，80源；只新增本会话我是馬克/杂志迷/Happy/简繁MangaDex，漫画屋016和漫画160015均有明确方向。旧书库完整不变，原读态保持，合法新斗破01/36保留，不清记录伪造首次。
+- 当前237最终无探针App8581492B/0.1.2-pre code3/debug=false，80源；只新增本会话我是馬克/杂志迷/Happy/简繁MangaDex，漫画屋016和漫画160015均有明确方向。旧书库完整不变，原读态保持，合法新斗破01/36保留，不清记录伪造首次。
 - 性能总项OPEN：230正式46.305ms回调/43.358ms Running，其中21.301ms位于418MHz；224带CPU的26.079ms/24.249ms Running，加权频率分别913053/1638515kHz。约39.59/39.73百万频率加权周期不是严格AB或FPS；不据此缩减同步事务/校验或改设备电源。主摘要热点已后台；其他2条非法键警告未归属，不擅改公共安全区/样式。
-- 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；候选文案已解释但用户尚未采用。273重连后原全部来源书架与四域保持。单次行排序名称复算已237普通更新具名通过，3文件待同步，不更改摘要/样式/事务。
+- 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；候选文案已解释但用户尚未采用。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；诊断TXT参数候选改变原生显示，已撤且独立等用户决定，不更改摘要/样式/事务。
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。固定Kit e3f3cc1；缓存v3未采用，无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
 - 设备237完整target本轮192.168.50.237:12345，VDE-AL00展开竖屏1320×2120；租约20261025-112030-77b84cd9已续到2026-10-26 00:41:41+08，持续AWAKE/86400000、正常timeout120000。继续先核实时Connected/租约；197本轮599–601仅只读现存缓存、权限拒绝后已释租，未部署/启动/改电源；200禁止操作。
-- 原source-validation237.protocol.json当前281，diagnostics197.semantic.py实际237，source-browse237.recording.json保留；所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0。UI阶段必须清空继承postflight；运行后先读结果再下一依赖动作，避免路径复用/提前写成功状态。252字符串press_key、253离屏计数以及257旧版本context均已留原件和勘误，不据工具错误改产品。
+- 原source-validation237.protocol.json当前295，diagnostics197.semantic.py实际237，source-browse237.recording.json保留；所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0。UI阶段必须清空继承postflight；运行后先读结果再下一依赖动作，避免路径复用/提前写成功状态。252字符串press_key、253离屏计数以及257旧版本context均已留原件和勘误，不据工具错误改产品。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal/子代理；保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器范围冻结。
 
 <!-- /current-continuation -->
@@ -950,11 +950,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T15:03:09.401068+00:00",
+  "updatedAt": "2026-10-25T15:58:06.418853+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "单次行排序名称复算已消除，276签名8582236B装237；278普通015同版本本地更新74帧/3sheet与280两完整图已审，281四域保持且本次传包清理。待范围提交推送与精确CI；安装46ms总项仍OPEN。",
-  "nextAction": "提交本次3文件限定修复并跟精确CI；独立只读核224既有CPU起止和HTrace标记，只有明确对齐事件才缩小安装完成回调，不猜时钟偏移或耗新首装样本。",
+  "activity": "日志私有快照已237普通标记/持久/HiLog/外部文件内容具名通过；TXT正确参数会令原生选择框变.txt，292在确认前因显示差异停止，293取消、294恢复仅日志优化8581492B、295原书架亲审，四域保持。TXT候选独立等UI决定，当前4文件日志优化准备同步。",
+  "nextAction": "范围提交日志私有安全快照/真实安全用例/唯一工作单及既有规范，跟精确CI；名字单次解析+日志去重复两处真实修改后，补一次无CPU/产品探针的正式首装轨迹，不为测数连续换源。TXT原生显示与索引失败摘要两个UI选择各自待决定，不影响独立性能工作。",
   "proof": [
     {
       "label": "正式主仓",
@@ -997,8 +997,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "eda1dada已推/精确CI40197838097成功；当前仅行排序名称单次解析、真实行为测试及原工作单3文件待提交。固定Kit e3f3cc1，源两方向声明已发布核验。",
-      "hap": "237当前无探针Release8582236B/0.1.2-pre code3/debugfalse，276明确覆盖成功，278普通015同版本本地更新与280原书架已亲审；281数据保持/自传包已清。197仍原8571264B，此次只读缓存被拒后已释租。"
+      "appHead": "7a14eba1df4861b6cac56f2fdbbb5b578c5c8445已推，精确CI40205134326 completed/success，unsignedRelease成功、tag发布跳过；固定Kit e3f3cc1。当前仅日志副本复用候选待构建/实机，源两方向声明已发布核验。",
+      "hap": "237当前仅日志私有快照Release8581492B/code3/debugfalse，294明确恢复，295原全部来源书架亲审；294四域同291/287/283，80源/原进度保持。TXT候选已撤且未确认保存。197本次未部署，最后具名正式包8571264B；599–601只读缓存被拒后已释租。"
     },
     {
       "name": "NextE",
@@ -2840,14 +2840,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：限定行投影修复待同步；既有CPU/轨迹对齐只读调查",
+      "owner": "Root：日志安全快照范围同步；两处真实修改后的正式首装待验",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "单次名称解析237普通更新已验；46ms首次安装总项OPEN",
+      "status": "单次名称解析已推/CI成功；日志优化输出237已验，首装总项OPEN",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -2897,13 +2897,24 @@
         "224现存CPU按调用父链区分：4.870ms日志在installFromBytes较早分支，最后注册后的日志采样0.691ms，不能移用前者解释46ms。refreshInstalledPackage排序下hasUnpairedSurrogate采样1.123ms；273真实80项Host对照，单次暂存名称后原顺序/对象一致，zhHans/Hant180→80、en176→80次解析。Host500轮×5批基准保274，不冒设备耗时；新增1个真实方法行为用例在原实现与候选均通过，总28项，不改旧期望。",
         "274新增真实refreshInstalledPackage用例先在原实现通过，再在候选通过（总28项）；原规则及期望保持。仅在该次刷新内Map暂存本地化名称，仍原compareSourceNames/locale/行对象，未改初始全量加载/事务/持久校验/样式/失败摘要。default Release构建完成，276明确装8582236B、code3/debugfalse且四域同275/273。",
         "277普通Settings→Services→源包→本地导入选择本人已存在mh160015，278一次Done连续74编码帧/3sheet全部亲审，索引弹层保持；280关闭原弹层后实际导入成功/原分组列表及全部来源书架两完整原图亲审。279与276共80项同原注册顺序，只有漫画160 archivePath/manifestPath/packageIconPath/wasmPath变化，旧79完整项保持；library/reader/web元数据相同。281四域同279，自传015和自有日志临时文件已清，原斗破01/36进度保留。",
-        "281当前PID31596完整日志36319B：这一次同版本本地更新persistSync4ms、cleanupAwait2ms、publish0ms、row_projection2ms。不是首次安装、无新HTrace/CPU或同频AB，不声称46ms/FPS通过；无临时产品探针。"
+        "281当前PID31596完整日志36319B：这一次同版本本地更新persistSync4ms、cleanupAwait2ms、publish0ms、row_projection2ms。不是首次安装、无新HTrace/CPU或同频AB，不声称46ms/FPS通过；无临时产品探针。",
+        "7a14eba1df4861b6cac56f2fdbbb5b578c5c8445已推master，精确CI40205134326同head/completed-success；unsignedRelease任务成功、Publish taggedRelease skipped，无新App tag/发版。本次单次名称解析具名范围冻结。",
+        "现存224只读时钟调查有新依据：固定官方ArkUI21b150e7 GetSysTimestamp与ArkTS edc5231f SamplingProcessor均CLOCK_MONOTONIC，记录格式匹配；14个同trace UI根span/布局起止/结束marker的包含关系给offset区间1133590103150–1133590123525ns，宽20.375us（含1us量化）。这是公开实现与记录一致性推断，不冒两源码提交等于设备商业运行时。6594内50个完整采样区间权重13720us、边界1个558us；persist6222/row4069/log1926us是有重叠的采样权重，不是精确墙钟；日志4870us分支位于更早阶段。",
+        "CPU JSON endTime实际为最后采样timestamp；原mdx-cpu补丁finally同步stopJsCpuProfiling，故26.079ms回调约后12ms含结束采样处理且不在CPU文件中，不能全归为正式安装业务成本。未把这次条件映射应用到无CPU的230或猜偏移归因46ms。原件trace-clock224-official-review含固定官方4文件、14对时间、对齐脚本及完整结果。",
+        "公共日志引入eb160c0a与42a56efa、全部sanitizeEvent调用及snapshot消费者已核；同一event由Logger→Store→Formatter重复清洗。当前候选仅WeakSet识别本模块完整脱敏并Object.freeze后的副本，不信任任意外部冻结/复制对象；原sanitizeString/safeToken/输出/留存/失败回退不动。Host三次脱敏30000事件×5批约270–358ms→92–98ms，原7条代表消息4次输出相同，仅V8基准。新增1个真实多输出安全用例先在原实现通过，再在候选通过，总10项，旧期望未改；尚待ArkTS构建和237普通路径，不宣称设备加速。",
+        "第一日志候选Object.freeze在DiagnosticsRedactor45行被ArkTS限制10605144/arkts-limited-stdlib拦下，未安装、旧失败build.log保留；已撤回。当前替代WeakMap仅跟踪本模块产生、字段为原始值的私有脱敏快照；五字段不变才免重复清洗，命中仍返回新副本，缓存快照不暴露。字段改变则重新完整脱敏，保原可变对象行为；不换JS/关闭编译检查或经Native绕路冻结。",
+        "扩展同一个新增安全用例涵盖改后status信息保留、原始/复制/外部冻结对象及会改变返回值的getter；固定7a14eba原实现与最终私有快照实现在同一10项检查均通过，旧期望未改。新Host30000事件三层处理5批约278–287ms→106–115ms、7条代表消息多次处理输出相同，仅V8基准。最终含原始值保护的签名Release8581492B/code3/debugfalse已构建，freeze受限路径没有留在生产代码。",
+        "283最终私有快照候选8581492B/code3/debugfalse明确装237，四域同282/281。284关于离屏前停止，没有标记/保存；285按实际列表滚动后普通About/诊断页面，开启/INFO保持，标记当前时间实际5→6。保存已进入系统Picker但脚本错等保存文字，285原图证实为右上原生对勾，不作导出失败。286按实际Button1155,186–1275,306确认后选择路径0，回Diagnostics计数7。",
+        "287当前持久日志628B、PID42981 HiLog4028B均marker1/file_saved1；四域同283。外部期望.txt的HDC exit0实际stdout[Fail]未生成本地文件，未作成功。288只按本次basename在已有Download深度1查询，实际文件名是koma-log-export-20261025-232915文本 (.txt)；SDK正常alias不存在不改权限。289按查得精确名称实际收到563B；时间标记行与持久相同，内容是当前持久前缀，其他原数据保持。",
+        "真实SDK边界反例：DiagnosticsSettingsContent.saveCurrent自eb160c0a将本地化标签直接传fileSuffixChoices，SDK声明要求描述|后缀，实际把文本 (.txt)追加成扩展名。只将原标签拼|.txt，不改三语、选择器、文件名生成、保存逻辑或样式；新增1个真实save方法/SDK边界用例，旧实现正确.txt目标缺失而失败（原10项通过），修后11项全过。原label必须在实机Picker继续相同后才接受，不以Host结果代替。",
+        "292实机反例推翻了“补|.txt即可保原选中标签”的预期：原生Select实际只显示.txt，TextInput右边界954→1028px。未确认保存即停止，不能用11项Host测试或description字符串相同冒UI通过。293正常取消；SDK参数+对应真实回归仅作为2文件候选patch保存在diagnostics-redaction-reuse-review/txt-suffix-unadopted-candidate.patch，活动源码DiagnosticsSettingsContent diff为空，活动10项原日志/安全检查通过。已给用户前后两原图及明确显示差异，等待采用；原错误文件名缺陷未关闭。",
+        "294明确覆盖恢复仅私有快照8581492B成功，四域完整JSON同291/287/283/282。只删除已289收取563B的本人错误后缀导出，并test读回ABSENT；正常持久日志和App自管缓存未清。295原全部来源书架/斗破01第1页3%完整原图亲审；未打开章节、改日志开关或级别、清缓存或继续候选TXT保存。"
       ],
       "remainingActions": [
-        "原正式首装230仍46.305ms主回调，安装总项OPEN；本次单次名称解析/237普通同版本本地更新具名通过，待同步。下一只读核现存CPU起止和trace明确标记是否能给出对齐区间，不能凭时间差猜偏移。",
-        "保80源/原书架/旧读态及同步事务完整；不为测数重复耗未装源，不删除脱敏/文件校验或改电源频率。"
+        "正式首装23046.305ms总项OPEN；单次名称解析7a14eba/CI40205134326成功并冻结；当前日志安全快照已237普通多输出及原数据通过，待同步。两处真实代码修复后只补一次正式无CPU探针首装轨迹，继续保频率/GC/来源差异边界。",
+        "TXT文件后缀修复的原生.txt显示需用户决定，候选已撤、实际缺陷及回归保留；索引部分地址失败摘要也未采用，均不擅改显示。"
       ],
-      "remaining": "原正式首装230仍46.305ms主回调，安装总项OPEN；本次单次名称解析/237普通同版本本地更新具名通过，待同步。下一只读核现存CPU起止和trace明确标记是否能给出对齐区间，不能凭时间差猜偏移。",
+      "remaining": "正式首装23046.305ms总项OPEN；单次名称解析7a14eba/CI40205134326成功并冻结；当前日志安全快照已237普通多输出及原数据通过，待同步。两处真实代码修复后只补一次正式无CPU探针首装轨迹，继续保频率/GC/来源差异边界。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -3979,6 +3990,14 @@
       "at": "2026-10-25T23:03:09+08:00",
       "title": "消除单次源行排序的重复名称解析，237普通更新数据保持",
       "detail": "274原实现与候选真实方法同28项通过；276签名8582236B明确装。278普通本地015同版本更新74帧/3sheet已审，280管理/原书架亲审，281四域保持/传包已清；2ms行投影只属本样本，安装46ms仍OPEN。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "diagnostics-safe-snapshot-20261025",
+      "at": "2026-10-25T23:58:06+08:00",
+      "title": "日志重复脱敏优化普通多输出通过；TXT显示候选单独待决定",
+      "detail": "实际时间标记5→6、保存后7，628B持久/4028B HiLog各含marker和saved事件；实际外部563B内容与持久前缀一致。错误文件后缀由真实文件名定位；正确SDK参数改变原生选中显示，候选已撤。294恢复日志优化包和四域，295原书架亲审。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "work"
     }

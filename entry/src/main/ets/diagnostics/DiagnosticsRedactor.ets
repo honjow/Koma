@@ -12,6 +12,12 @@ interface DiagnosticErrorFields {
 }
 
 export class DiagnosticsRedactor {
+  // Logger, memory and file/export sinks repeat the same event. Only unchanged
+  // values produced here can reuse a private redacted snapshot. Return a fresh
+  // copy even on a hit: neither callers nor getters can alter that snapshot.
+  // Weak keys do not retain events after the existing log ring releases them.
+  private static safeEvents: WeakMap<DiagnosticLogEntry, DiagnosticLogEntry> = new WeakMap<DiagnosticLogEntry, DiagnosticLogEntry>()
+
   static errorSummary(error: Error): string {
     try {
       const fields = error as DiagnosticErrorFields
@@ -29,13 +35,31 @@ export class DiagnosticsRedactor {
   }
 
   static sanitizeEvent(entry: DiagnosticLogEntry): DiagnosticLogEntry {
-    return {
+    const previous = DiagnosticsRedactor.safeEvents.get(entry)
+    if (previous !== undefined && entry.ts === previous.ts && entry.level === previous.level &&
+      entry.category === previous.category && entry.event === previous.event && entry.message === previous.message) {
+      const copy = DiagnosticsRedactor.copyEvent(previous)
+      DiagnosticsRedactor.safeEvents.set(copy, previous)
+      return copy
+    }
+    const safe: DiagnosticLogEntry = {
       ts: entry.ts > 0 ? entry.ts : Date.now(),
       level: DiagnosticsRedactor.safeToken(entry.level),
       category: DiagnosticsRedactor.safeToken(entry.category),
       event: DiagnosticsRedactor.safeToken(entry.event),
       message: DiagnosticsRedactor.sanitizeString(entry.message),
     }
+    // Preserve the original handling of malformed runtime inputs, but never
+    // treat mutable nested values as a reusable primitive-value snapshot.
+    if (typeof safe.ts === 'number' && typeof safe.level === 'string' && typeof safe.category === 'string' &&
+      typeof safe.event === 'string' && typeof safe.message === 'string') {
+      DiagnosticsRedactor.safeEvents.set(safe, DiagnosticsRedactor.copyEvent(safe))
+    }
+    return safe
+  }
+
+  private static copyEvent(entry: DiagnosticLogEntry): DiagnosticLogEntry {
+    return { ts: entry.ts, level: entry.level, category: entry.category, event: entry.event, message: entry.message }
   }
 
   static sanitizeString(value: string): string {

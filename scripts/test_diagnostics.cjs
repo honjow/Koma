@@ -69,6 +69,41 @@ test('filtering and disabling apply to every sink; file and HiLog receive only r
   assert.equal(log.count(), 2)
 })
 
+test('reused, copied and externally frozen events remain redacted through storage and export', () => {
+  const r=runtime(), { DiagnosticsRedactor: redactor }=r.load('DiagnosticsRedactor')
+  const { DiagnosticsStore: store }=r.load('DiagnosticsStore')
+  const { DiagnosticsLogFileSink: sink }=r.load('DiagnosticsLogFileSink')
+  const { DiagnosticsLogFormatter: formatter }=r.load('DiagnosticsLogFormatter')
+  sink.initialize({filesDir:'/sandbox'})
+  const raw={ts:1,level:'info',category:'source',event:'done',message:'token=fixtureSecretA'}
+  const safe=redactor.sanitizeEvent(raw)
+  store.append(safe)
+  // A retained event must not gain secrets if its caller later changes either
+  // the original input or the sanitized value it handed to the store.
+  raw.message='Cookie: sid=fixtureSecretB'
+  Reflect.set(safe,'message','status=changed token=fixtureSecretC')
+  assert.equal(formatter.formatEntry(safe).includes('status=changed'),true)
+  const forged={...safe,message:'password=fixtureSecretD'}
+  const external=Object.freeze({...raw,message:'token=fixtureSecretE'})
+  for(const entry of [safe,forged,external,raw]) {
+    store.append(entry);sink.append(entry)
+    assert.equal(formatter.formatEntry(entry).includes('fixtureSecret'),false)
+  }
+  const getter=redactor.sanitizeEvent({...raw,message:'safe'})
+  let reads=0
+  Object.defineProperty(getter,'message',{get:()=>++reads===1?'safe':'token=fixtureSecretF'})
+  assert.equal(formatter.formatEntry(getter).includes('fixtureSecret'),false)
+  store.append(getter);sink.append(getter)
+  const output=store.exportText()+store.exportJsonlText()+[...r.files.values()].join('')
+  assert.equal(output.includes('fixtureSecret'),false)
+  assert.equal(store.count(),6)
+  for(const line of store.exportJsonlText().split('\n')) {
+    const entry=JSON.parse(line)
+    assert.equal(entry.category,'source');assert.equal(entry.event,'done')
+    assert.equal(typeof entry.message,'string')
+  }
+})
+
 test('memory ring, rotation, total retention and previous-launch recovery stay bounded', () => {
   const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
   const { DiagnosticsLogFileSink: sink } = r.load('DiagnosticsLogFileSink')
