@@ -6,7 +6,7 @@
 完整69项snapshot仍是唯一队列；旧已核未完成项的id/kind/status/owner/remainingActions保留。旧会话不再执行；不要全量重载旧聊天或本文件历史，不因单项完成终止原开发队列。
 
 - 最新人类纠偏：把精力用于实际修复/补验，不以摘要文案、采样微调、测试数量或记录代替推进；文档交progress_docs，Root独占实机/代码。339阅读菜单稳定/选中/保位、344本地详情普通pull、353独立SourceSearch同query刷新已具名补核，各自失败/加载边界分别保留。N/E两处RuntimeMenu已核普通生产不适用，不造入口验fallback；174/176/178已补核原生sheet/Grid底部及恢复；339遮挡加载仅EVIDENCE_ONLY，原菜单范围收束；Blue011当前已交付与普通更新/冷恢复完成，不重跑三源或扩成其他源矩阵。本段沿原队列接续，不新建计划，不把局部交付当首版完成。
-- 最新核账口径：原69项记录中现41 accepted、4 done、23 open、1 parked（本轮以新实证/实际消费合同及原需求范围收束设置、普通List/Grid边缘和当前适用Koma自动跨章；未把遮挡加载、内部独立弹簧或N/E跨章冒通过）；open同时混有主缺陷未交付及具名已交付后自然边界未验，不能把open总数直接说成同数量原问题原样未动，也不能将其统称只差验收。不通过改其他kind美化数字。
+- 最新核账口径：原69项记录中现55 accepted、5 done、8 open、1 parked（本轮以新实证/实际消费合同及原需求范围收束设置、普通List/Grid边缘、当前适用Koma自动跨章、已采用的索引部分失败完整修正及详情下拉具名普通路径；未把遮挡加载、内部独立弹簧或N/E跨章冒通过）；open同时混有主缺陷未交付及具名已交付后自然边界未验，不能把open总数直接说成同数量原问题原样未动，也不能将其统称只差验收。不通过改其他kind美化数字。
 - 人类最新要求核首报至今：截至2026-10-26 03:33:52（北京时间），26个open中7项保既有已核首报；新增18项核到当前10-22续接窗口内最早明确人类反馈，但未排除原主档更早同问题，故只给“至少”时长，不冒全历史首次。源内筛选最初首报未得，但2026-10-20 00:05:45已明确要求修正并验收，故至少6天3小时28分。各原项保原始timestamp、来源/字节偏移与计时边界；登记、firstHandling和firstEvidence不冒首报，不能靠窗口截断缩短实际拖延。四私库parked另列且不复活。
 
 - 最新UI纠正已处理：人类要求清理WebView验证半模态底部两行；仅SourceWebSessionSheet收成一行三图标与靠右完成。250签名8589011B装237；251整图亲审，Web多出144px/48vp；255全部来源书架及254四域保持。eda1dada/CI40197838097同head成功，具名浅色展开竖屏范围冻结；没有把补问确认当保留错误的理由，其他网页失败未因此关闭。
@@ -14,10 +14,10 @@
 - 漫画160固定参考及237旧782章全表已核；保番外/请假条/异常插入，不猜话数、去重或重排。01522644B声明newest_first，257普通014→015仅7个预期字段变化，旧79源/顺序及library/reader/web元数据保持；259进程40851→49736且新进程书架亲审，未观察空PID阶段；260四域同258，自传包ABSENT。生产helper+现有782章选第1话43350001、后一个未读第2话73620002，未重请已失败网页/章节/图。源9bba7ba52c25691557c785fa3feb08fe764c9245已推，精确CI40199109508成功，固定公开tag索引85项与22588B015三成员包均200、方向声明成立（不同于本地22644B，不冒二进制等价）。
 - 此前309无探针App8581941B/0.1.2-pre code3/debug=false，81源；只新增本会话我是馬克/杂志迷/Happy/简繁MangaDex/爱看漫，漫画屋016和漫画160015均有明确方向。旧书库完整不变，原读态保持，合法新斗破01/36保留，不清记录伪造首次。
 - 性能总项OPEN：230正式46.305ms回调/43.358ms Running，其中21.301ms位于418MHz；224带CPU的26.079ms/24.249ms Running，加权频率分别913053/1638515kHz。约39.59/39.73百万频率加权周期不是严格AB或FPS；不据此缩减同步事务/校验或改设备电源。主摘要热点已后台；其他2条非法键警告未归属，不擅改公共安全区/样式。
-- 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；旧追加计数候选已撤回。人类本轮已明确采用完整修正：部分失败摘要检查未完成 · 已确认可更新 N、其余未查全源未能确认、原地址行subtitle失败原因/沿用点行重试，无新提示条按钮，全成功保持。终版已237具名验收，待范围提交与精确CI。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；旧TXT参数候选已由用户本轮.log纠正取代；301–304新.log落盘/分享与旧TXT读取具名通过；本轮部分失败完整修正已获采用，允许差异见SOURCE_INDEX_CACHE_REVALIDATE，其他布局/事务保持。
+- 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；旧追加计数候选已撤回。人类本轮已明确采用完整修正：部分失败摘要检查未完成 · 已确认可更新 N、其余未查全源未能确认、原地址行subtitle失败原因/沿用点行重试，无新提示条按钮，全成功保持。终版已237具名验收并随68b6b234提交推送，精确CI40235545574同head completed/success，无新tag/发版。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；旧TXT参数候选已由用户本轮.log纠正取代；301–304新.log落盘/分享与旧TXT读取具名通过；本轮部分失败完整修正已获采用，允许差异见SOURCE_INDEX_CACHE_REVALIDATE，其他布局/事务保持。
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。上述旧提交固定Kit e3f3cc1；本轮已采用v3与普通入场，当前a9d7c641组合三宿主具名实机通过，三宿主范围提交/同步及精确CI均成功；无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
-- 当前设备状态：237本轮192.168.50.237:12345/VDE-AL00展开竖屏1320×2120，355最终已恢复系统timeout120000/无Override并释fc5bb3e2；包子会话UA自然版本差异按SOURCE_WEB_SESSION保留，不手工回写。197在cded1338租约下完成174/176观察；178已回原顶部/原首三书，library-store/reader偏好同173，AWAKE/系统120000无Override并正常释租，未启动/重装N/E。旧237/197租约与已接受场景均已结束，不复用；200禁止操作。
+- 当前设备状态：237370已恢复AWAKE/原系统timeout120000且无Override、五域相363/361逐字同、自有scratch清，ee87a93d正常释租；197379已回原顶部/原首三书及继续读原位，五域相372逐字同，AWAKE/系统120000无Override、自有scratch清、866bdff5正常release0。当前两设备无本轮占用；200禁止操作。旧237355/197178为前阶段已结束事实，不复用其租约或已接受场景。
 - 原source-validation237.protocol.json当前已接至361最终冷恢复/读回；355保留为前阶段最终读回，diagnostics197.semantic.py实际237，source-browse237.recording.json保留；197接续复用NextN shared-mutual-input.json，171锁屏/172中性解锁门禁结果已核；不把当前不适用RuntimeMenu fallback写成设备通过；所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0。后继Blue011的2371db791e0租约已在361正常恢复超时后释租；UI阶段必须清空继承postflight；运行后先读结果再下一依赖动作，避免路径复用/提前写成功状态。252字符串press_key、253离屏计数以及257旧版本context均已留原件和勘误，不据工具错误改产品。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal；最新人类明确让子代理处理文档，现progress_docs独占本工作单核账，Root独占实机/代码，不新增其他派工。保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器具名范围保持。
 
@@ -953,12 +953,12 @@
   "schemaVersion": 1,
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
-  "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及部分检查结果等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-25T21:26:29+00:00",
+  "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
+  "updatedAt": "2026-10-25T21:58:39+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_INDEX_CACHE_REVALIDATE",
-  "activity": "Root已完成8591318B终版237具名自然partial0验收：368普通5条副标题、369原地址行与原书架返回、370五域及原设备状态恢复。仅自然partial0 UI获实机证据，正面updates/成功重试及全成败仍保真实方法case边界；现待范围提交/推送与精确CI。progress_docs更新完成后暂停写供Root审diff；197现有Local Folder Smoke可由已保存comic推导root，当前权限/目录存在另待核，不称全队列阻塞。",
-  "nextAction": "Root审精确diff后范围提交/推送本次已具名验收修正并核精确CI；文档owner暂停写供审，不自行提交。后继接197现存Local Folder Smoke推导root的合法只读可用性核对，或既有Web契约调查，不重跑已接受路径。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "本轮核账及具名修复已完成，8open各自continuationGate的具体条件仍未满足，缺陷保持open；Root当前无设备租约或临时诊断。已接受路径及真实失败证据保留，资料核清不等整体目标完成；本轮文档提交由Root当轮执行，不预写已推或留下重复提交待办。",
+  "nextAction": "依原8项continuationGate出现合法新条件后由Root续接，不重跑已接受路径或旧失败；无条件变化不新增测试或改实现。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1178,13 +1178,13 @@
     {
       "id": "FIRST_CHAPTER_SELECTION",
       "title": "无历史书架首次阅读误开最新一话",
-      "status": "Mihon规则及已核三源具名交付闭环；其他源不自动成全量声明任务",
-      "kind": "open",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
+      "kind": "accepted",
       "priority": "P1",
-      "owner": "Root：本次三源具名交付闭环，余源仅改前核合同",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "result": "原Mihon源序/最早未读规则及漫画屋/漫画160方向交付保持，斗破普通首次01/36已有具名证据。新增BlueArchive011已核当前官网15→1及互逆1→15链、标准包/实际WASM/生产firstReaderChapter回放，d936a31e已推且精确CI40231212151含原子发布成功；固定tag公开包325356B实际ZIP/011/newest_first/icon字节已核。237358一次普通本地更新成功，359原81顺序/enabled保持；361真实旧PID→ABSENT→新PID冷恢复后方向声明及五域同359。保已有读态，不冒Native新首次正文，也不把改余源前核合同变成必须给其他源全声明。",
-      "remaining": "本次三源具名交付已完成；其它源改前先核合同的规则保留，不自动派其他源声明或重跑本次三源。正文可用性按各自源项，不外推Native新首次正文。",
+      "remaining": "本项原首次选择规则已具名闭环；其他源改前核方向是实施门禁，不是必须全源声明。元尊挑战/漫画160与漫画柜正文网络归各自源项，不冒Native新首次正文。",
       "reportedAt": "2026-10-22T18:44:10.746Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 171556010 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-22T18:44:10.746Z",
@@ -1196,7 +1196,7 @@
         "activeUntil": null,
         "note": "仅从本轮实现开始记录；此前调查与处理工时未知。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "evidencePoints": [
         "详情旧34ab280d仅投影；沿b486da30的同ID规则补持久化，34项行为检查及签名Release构建通过。",
         "197158–162：仅Super Lovers三条番外的旧章号/排序字段更新，76章ID/页缓存及全部reader数据保持，重入库内容全同。",
@@ -1223,11 +1223,11 @@
         "源d936a31e41b26bf7e463af230aea147e5ddc5e6e已HTTPS推；精确CI40231212151 completed/success含原子发布，固定提交对应sources-d936…tag非draft。固定tag index HTTP200/44233B/85项且Blue011/newest_first，公开资产325356B/uploaded。原direct urllib取包302后TLS握手timeout失败保留，不冒该次HTTP200或与本地325253B等价。",
         "后继用现有gh release download一次内存取得公开325356B包，ZIP恰manifest/source.wasm/icon.png，manifest011/newest_first，icon原字节同；未落binary/未hash，不宣称与已装本地325253B二进制等价。结果bluearchive011-publication-20261026.json保原失败及本次成功，未重复源网站失败。",
         "237358系统原选择器一次011更新成功，原图Root已审。359相357：原81条顺序/enabled一致，library/reader/web/reader-prefs全部字节同；registry仅entries[8]共13paths变化（版本/path/bytes/声明、继承已批准现存homepage、cap数组sourceInfo移首但集合相同），不能写仅7字段。360普通回原书架整图已审。",
-        "361真实进程34534→ABSENT→3544普通重启，原书架斗破01第1页3%整图已审；五域相359逐字相同，Blue011/newest_first保持。自传包实核ABSENT/本人scratch清，AWAKE/系统120000无Override，新237租约1db791e0正常释放。361首多行hdcArgs被validator拒绝且未执行，拒绝manifest留bluearchive011-cold-rejected-multiline-361.json；正确单行if后才执行。无清数据/开章，不冒Native新首次正文。"
+        "361真实进程34534→ABSENT→3544普通重启，原书架斗破01第1页3%整图已审；五域相359逐字相同，Blue011/newest_first保持。自传包实核ABSENT/本人scratch清，AWAKE/系统120000无Override，新237租约1db791e0正常释放。361首多行hdcArgs被validator拒绝且未执行，拒绝manifest留bluearchive011-cold-rejected-multiline-361.json；正确单行if后才执行。无清数据/开章，不冒Native新首次正文。",
+        "本轮按reportedAtSource原归档精确字节171556010重读response_item/user核原范围：原报无历史从书架开始阅读却选最新章；本轮人类明确采用Mihon源序最早未读规则。漫画屋普通首次斗破01/36与旧进度保持、三源方向交付及精确CI已成立。仅据此收束，不为数字改kind；本项原首次选择规则已具名闭环；其他源改前核方向是实施门禁，不是必须全源声明。元尊挑战/漫画160与漫画柜正文网络归各自源项，不冒Native新首次正文。"
       ],
       "remainingActions": [
-        "本次App规则与已核三源方向交付的具名范围已闭环，按原结果保持，不再重跑。其它源方向合同是修改某源前的门禁，不自动等于其他源都要声明或新增全源矩阵。",
-        "元尊正文自然挑战、漫画160旧403/首图及漫画柜网络仍归各自源项；本项没有据此声称它们正文可用。xkcd插入序未核，保原顺序/fallback，不猜方向。"
+        "本项原首次选择规则已具名闭环；其他源改前核方向是实施门禁，不是必须全源声明。元尊挑战/漫画160与漫画柜正文网络归各自源项，不冒Native新首次正文。"
       ],
       "boundaries": [
         "197只验同ID信息保存和原Extra2进度保持；没有清历史伪造首次阅读，不称全源首章/排序已完成。",
@@ -1448,16 +1448,16 @@
       "id": "NEXT_CHAPTER_PREFETCH_REUSE",
       "title": "接近章末预加载下一章及跨章请求复用",
       "priority": "P2（当前P0后，与跨章联动核查）",
-      "owner": "Root：鲜网络/ready采用范围冻结；仅自然inflight join边界待验",
+      "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
       "dependencies": [],
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET",
         "CONTINUOUS_PERFORMANCE"
       ],
-      "status": "预取505651f已推且CI成功；原14恢复完成，join边界开放",
-      "kind": "open",
+      "status": "近章尾预取及跨章ready复用已具名交付，inflight时序未外推",
+      "kind": "accepted",
       "result": "d3187726含505651f精确CI40021847034 success；274已恢复原14（原2/15）并close成功。鲜网络/ready采用具名范围保留，inflight join仍未自然命中。",
-      "remaining": "保fresh/ready有界结果冻结；inflight join待真实自然样本，不造并发/清缓存取证。",
+      "remaining": "原近章尾预加载/跨章复用请求已由fresh与ready具名路径覆盖，无当前待办；inflight join仍未自然命中且未外推，仅新真实反例重开，不造并发/清缓存。",
       "reportedAt": "2026-10-23T05:33:34.382Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 381614824 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-23T05:33:34.382Z",
@@ -1469,13 +1469,14 @@
         "activeUntil": "2026-10-23T18:55:19.657493+00:00",
         "note": "仅累计明确登记窗口；当前窗口从真实续接时刻起，空档不倒填。含构建/设备等待，非纯编码工时。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:52:22+00:00",
       "evidencePoints": [
         "265 fresh8/9下载与仅8读态、270章9 ready采用范围保持；274原14恢复为2/15并close成功。",
-        "505651f已推且包含它的CI40021847034成功；不因提交/恢复关闭未自然命中的inflight join。"
+        "505651f已推且包含它的CI40021847034成功；inflight join未自然命中且未外推，保该证据边界。",
+        "本轮精确重读reportedAtSource字节381614824的user：要求接近章末预加载下一章，并指出跨章似未复用缓存而重复请求。265 fresh8/9与270章9 ready采用直接覆盖原预取/复用要求，274恢复原14及CI成功已具名；未自然命中inflight join是另一时序未外推，不追加人为并发样本矩阵。"
       ],
       "remainingActions": [
-        "保fresh/ready有界结果冻结；inflight join待真实自然样本，不造并发/清缓存取证。"
+        "原近章尾预加载/跨章复用请求已由fresh与ready具名路径覆盖，无当前待办；inflight join仍未自然命中且未外推，仅新真实反例重开，不造并发/清缓存。"
       ],
       "boundaries": [
         "只预取严格continuation的下一章，不用完整手选目录回退；至多一章、顺序暖不超过既有预加载页数。",
@@ -1650,13 +1651,13 @@
     {
       "id": "SOURCE_RUNTIME_ERRORS",
       "title": "源错误只显示source_runtime且日志不可诊断",
-      "status": "六Native入口修复已推；237具名路径与精确CI成功",
-      "kind": "open",
+      "status": "原笼统错误/日志及六Native边界具名修复已交付，网站可用性独立",
+      "kind": "accepted",
       "priority": "P1",
-      "owner": "Root：具名模块缺陷冻结；其他自然运行错误继续原边界",
+      "owner": "Root：原人类触发的具名范围已交付，保其它源/失败分支边界",
       "dependencies": [],
       "result": "六个生产Native并发入口已集中到独立SourceRuntimeWorker，原请求/会话/复制字节/队列/取消/诊断保留。237明确安装8569786B签名Release，新进程42856完整159行hilog覆盖17:07:17–17:10:33，首次worker43025及取页worker44500无ReferenceError；正常幻塔列表/详情/章节/取页及正文、自然返回成立。197空图片描述修复旧范围继续冻结。 已同步master：34e83b8bd10f2b1c61c002e070800226551b332a；精确CI40179763215 completed/success，tag发布job skipped，无新tag/发布。",
-      "remaining": "source_info已由SOC/IPmini正常首装成立；需票据图片及下载恢复等未扩认。原rate_limit用户提示、图片403、全局搜索自然失败和3H恢复仍按原条件，不将模块隔离冒称它们已恢复或安装卡顿已消除。",
+      "remaining": "原笼统source_runtime/日志不足的具名诊断范围已交付，无本项当前待办；rate_limit用户提示、票据图片/下载恢复等自然分支未外推，包子/3H/漫画160网站可用性仍归各自原项，不把模块隔离冒正文恢复或性能解决。",
       "reportedAt": "2026-10-22T18:40:36.532Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 171216188 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-22T18:40:36.532Z",
@@ -1668,7 +1669,7 @@
         "activeUntil": null,
         "note": "早期处理工时未知，不倒填。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:55:15+00:00",
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ],
@@ -1689,12 +1690,11 @@
         "六生产调用者只删内联Concurrent并改公共函数导入；Browse保原异步动态Native/raw返回，其他入口保原静态Native对象JSON往返，避免票据图片旧崩溃。现有会话/图片恢复检查58项、安装/索引45项通过；复用原worker案例覆盖6种请求及异常，未新增源码匹配/界面形状检查。最终六入口签名Release构建成功；前一单入口8569930B仅离线构建，未装设备。",
         "237162明确安装8569786B/0.1.2-pre code3/debugfalse，新PID42856。普通get_listings14ms、get_settings明确not_implemented、列表199ms、详情487ms、章节103ms、get_pages287ms；163完整长图1/1已亲审。164自然返回原大奉001第6页25%；library/registry完整JSON同162-before，Reader59进度/75章节数量与顺序保持，仅本次幻塔的updatedAt/缓存position字段变化，其他旧记录及history完全同。图片本次走已有缓存，不称fresh描述/HTTP已验证。",
         "162脚本误把已有本次阅读记录的“继续阅读”当“开始阅读”而停在正确详情；163已回RootBrowse，但脚本把标题+底栏两个“浏览”误判失败。原失败PNG/JSON保留，164按真实底栏回原书架。只修场景前提，没有改产品来迎合断言。metadata中的hilog只存8000字符截尾，完整159行原日志另由164 measurement.hilog保存，不据截尾宣称无异常。",
-        "237166正常SOC001首装source_info在同一公共Native入口成功，注册能力8项；不把本次HTTP0能力探测冒成SOC正文网络已验。"
+        "237166正常SOC001首装source_info在同一公共Native入口成功，注册能力8项；不把本次HTTP0能力探测冒成SOC正文网络已验。",
+        "本轮精确重读reportedAtSource字节171216188的原user：包子进入报源浏览失败/source_runtime、重试无效，指出错误信息太少且不确定日志足够。237004已实际区分timeout，556实际记录not_implemented，六Native公共隔离与完整159行hilog及精确CI具名成立；这覆盖原诊断信息/日志触发。网站请求或正文仍失败不等于诊断原项仍未交付，分别保各源/Web原项；rate_limit等未出现UI不冒已验，不为它造故障。"
       ],
       "remainingActions": [
-        "34e83b8b/精确CI40179763215成功，具名模块修复冻结；安装source_info按安装项普通新源首装验证，不重放旧通过路径。",
-        "rate_limit用户提示仅Host通过，未造限流；图片403、全局搜索自然失败及3H业务恢复仍按原边界。",
-        "漫画160014搜索自动弹出仅接受触发；网页/statics/search.aspx404及回流仍续SOURCE_WEB_SESSION，不能称搜索恢复。"
+        "原笼统source_runtime/日志不足的具名诊断范围已交付，无本项当前待办；rate_limit用户提示、票据图片/下载恢复等自然分支未外推，包子/3H/漫画160网站可用性仍归各自原项，不把模块隔离冒正文恢复或性能解决。"
       ],
       "boundaries": [
         "首页/首搜/两书详情具名范围冻结；正常空结果、所有错误未扩认。漫画柜不能归因parser/CF；包子403性质按日志区分，不能仅HTTP即挑战。"
@@ -1749,12 +1749,12 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（明确必须做，原队列保留）",
-      "owner": "Root：本站两版跳转条件仍待证；自动验证具名范围冻结",
+      "owner": "Root：静态参考已核完；598准确脚本/当时文档/UA视口仍缺",
       "dependencies": [],
-      "status": "单行底栏已交付；598跳转循环原因仍未知，601缓存被拒",
+      "status": "单行底栏已交付；静态导航/viewport排除已核，598脚本/文档/UA视口仍缺关键证据",
       "kind": "open",
       "result": "自动验证537/538原具名范围冻结。598普通Web仅一次initial load，9.604秒27个文档；已记录导航在已声明origin下标0/1间交替，redirect=false/userGesture=false。截图仍无正文，原生详情784/784。197明确恢复正式8571264B包并回书架，library/reader/registry与589完全相同。",
-      "remaining": "既有根HTML含外部m.js、移动HTML仅indexResize内联，不能据此确定跳转条件；脚本匿名读取旧403不重试。601正常app-bound shell读自身cache两路径均Permission denied，未取得脚本，不root/smode/chmod或重开失败网站。197只读租约已正常释放，前台/权限/电源/数据保持；需新的合法既存脚本或可用会话证据再定位。",
+      "remaining": "现存HTML/宿主/本地Mihon静态参考已核完，没有直接证明598循环根因的差异；仍缺598准确脚本、当时文档或UA/viewport关键证据，保持未知。旧读取拒绝/403不重放，不新站点请求/导航、不改UA/zoom/阻跳；413/460 HTTP日志结论仅归漫画柜/漫画屋原项。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1803,10 +1803,13 @@
         "252观察时sheet已消失，原生仍HTTP403，不猜自动成功或人工关闭；错误press_key字符串在输入前被driver拒绝，253改已核go_back实际回RootBrowse，等待离屏80计数失败。两次工具错误原件保留；254回执页面描述提前写书架已另留context-correction，实际只读及清自传包成立。255按当前真实底栏书架回全部来源，原图已亲审。未为验收反复重开失败网页或制造挑战，不把该次关闭/完成路径记为新通过。",
         "单行底栏2文件范围eda1dada9e49f290d67fa7e8e41dc57d83088b5e已推，精确CI40197838097同head/completed-success，Release构建成功/Publish tagged Release skipped；无App新tag或发版。当前浅色237具名布局冻结，其他网页失败和未实测状态继续原边界。",
         "197599–601仅只读缓存定位：601命令exit0但stdout两处Permission denied，结果按实际拒绝而非成功。未复制整缓存、Cookie/请求头或其他历史，未改变权限/前台/部署/电源；本次租约20261025-144107-e227b149已正常release。",
-        "355最终相对335/345：library/registry/reader-preferences逐字同；reader逐字同345，相对335仍只progress61.updatedAt、chapters77.updatedAt、position.updatedAt三处正常时间。web metadata仅包子session的userAgent中ArkWeb尾段7.0.0.107→7.0.0.111，长度131/Chrome144及其他内容同，漫画屋session/其余元数据同值；Root未手工改UA或网络，普通搜索后经App现有complete保存路径发生。初始查询未录完整Web阶段，不冒自动验证全路径证明，不手动恢复会话。355实际AWAKE/系统Timeout120000无Override，新237租约fc5bb3e2已正常释放。"
+        "355最终相对335/345：library/registry/reader-preferences逐字同；reader逐字同345，相对335仍只progress61.updatedAt、chapters77.updatedAt、position.updatedAt三处正常时间。web metadata仅包子session的userAgent中ArkWeb尾段7.0.0.107→7.0.0.111，长度131/Chrome144及其他内容同，漫画屋session/其余元数据同值；Root未手工改UA或网络，普通搜索后经App现有complete保存路径发生。初始查询未录完整Web阶段，不冒自动验证全路径证明，不手动恢复会话。355实际AWAKE/系统Timeout120000无Override，新237租约fc5bb3e2已正常释放。",
+        "本轮静态只读未改生产且无新站点请求/导航：历史根HTML在外部m.js后调用qingtiancms_m.turn(m站)；移动HTML仅device-width/height viewport及indexResize/ad_size内联，完整无location/navigator/refresh或自动反跳代码，也无任何script src。两份为历史匿名取得材料，不能冒598实际Web文档。当前MangaWebView未自设UA/initialScale/metaViewport，onLoadIntercept未提供时原生放行；MangaWebPage仅onControllerAttached首load，pageBegin/End只状态与日志；598原观察patch始终return false且无loadUrl。",
+        "Root实时核官方metaViewport文档：默认支持meta viewport，但无Mobile UA时默认关闭；598未取得实际UA/viewport/脚本正文，不能归因默认关闭或擅加metaViewport(true)。NextE现EhWebView使用同默认viewport封装，本地Mihon c3bf7a78的setDefaultSettings/wideviewport与通用导航仍由Root核对。现仅形成排除/未知，不把参考配置不同当修复许可；不靠强制缩放、禁跳或替换UA造通过。",
+        "本地Mihon c3bf7a78已核：WebViewUtil.setDefaultSettings启JS/DOM/wideViewport/overview；WebViewScreenContent仅onCreated设置、headers UA可选，导航override仅对新HTTP地址重载保headers。没有可直接证明598循环根因的差异，不照搬UA/zoom/阻跳；后继413/460持久HTTP日志结论单独归漫画柜/漫画屋原项，不作为598循环根因；无新站点请求。"
       ],
       "remainingActions": [
-        "既有根HTML含外部m.js、移动HTML仅indexResize内联，不能据此确定跳转条件；脚本匿名读取旧403不重试。601正常app-bound shell读自身cache两路径均Permission denied，未取得脚本，不root/smode/chmod或重开失败网站。197只读租约已正常释放，前台/权限/电源/数据保持；需新的合法既存脚本或可用会话证据再定位。",
+        "现存HTML/宿主/本地Mihon静态参考已核完，没有直接证明598循环根因的差异；仍缺598准确脚本、当时文档或UA/viewport关键证据，保持未知。旧读取拒绝/403不重放，不新站点请求/导航、不改UA/zoom/阻跳；413/460 HTTP日志结论仅归漫画柜/漫画屋原项。",
         "漫画160搜索网页404仍未恢复；其他CF人工验证/登录仅待自然适用样本。"
       ],
       "boundaries": [
@@ -1836,9 +1839,9 @@
         "allowedDifference": "仅本sheet底部收为一行：左侧三个无底板图标导航，右侧原完成并重试；保顶部、材质、安全区、验证/关闭/自动回流及全部状态守卫。当前后继清理要求作为修改依据，不把用户反问登记为采用异步选项。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-25T21:00:16.188000+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "601拒绝限制该缓存读取通道，不能据此宣布全部静态定位尽。当前先完成已采用的部分失败修正；后继可只读核既存根/移动HTML的viewport/indexResize与宿主Web/参考封装导航合同，不新导航/重请旧403、不改UA/排版、不预认根因；合法既存脚本/新会话仍可提供额外证据。"
+        "condition": "既存HTML/宿主/Mihon静态材料已核完，仍缺598当时实际文档、准确脚本或UA/viewport关键证据，循环根因未知。漫画160保存官网form action及当前源均为/statics/searchelxt1e1.aspx?key=，未证源用错search.aspx，旧Web404不能直接授权改端点。601读取拒绝及匿名脚本403不重放，不新请求/导航/UA/缩放/禁跳；待新的合法既存关键证据，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "2天17小时49分43秒",
       "reportedAgeSecondsAtAudit": 236983,
@@ -2004,7 +2007,7 @@
       "status": "清除文案/原动作237通过；d32bec97精确CI成功",
       "kind": "open",
       "result": "首项仅改为清除此项筛选，源All与原顺序/材质保留。237201菜单原图已亲看，202实际清除后All对勾消失，原重置恢复并自然回原大奉001第6页25%；203三域完整JSON同200，筛选schema1/sources{}。",
-      "remaining": "普通/快速切换已过不重跑；自然失败重试仅待实际样本，不为获取样本清数据/造故障或重复请求。",
+      "remaining": "原批准的自然失败提示/重试恢复仍缺实际适用样本，保open；普通/快速切换与本轮清除文案已具名验收，不重跑、不造故障。",
       "reportedAt": null,
       "reportedAtSource": "最初用户提出时间仍未找到；已查到原会话2026-10-19T16:05:45.582Z明确采用筛选并发/失败提示重试三项并要求实施后验收，不以这次批准冒初次首报。",
       "firstEvidenceAt": null,
@@ -2016,11 +2019,11 @@
         "本会话只读查实：FilterOptionMenu首个common_all发undefined并清除字段；包子源另声明value=all/label全部，并按defaultRegion/defaultState回退。不可直接合并；已提出只将App首项文案改清除此项筛选的异步选择，尚待人类决定，未改UI。",
         "用户本轮实际异步答复call_923a69843c004d9fa8116be8e1f22b41：采用“清除此项筛选”。本决定取代此前该文案待答状态，不合并undefined/all。",
         "200正式签名Release8578908B覆盖安装明确成功；临时CPU补丁2060B已精确撤、Manager diff为空。201新首项清除此项筛选/源全部/其余4地区共6项真实可见；202清除后源All不再有对勾，原重置/关闭/自然返回完整PNG亲审；203三域及空筛选完整保持。三语检查/Release构建通过，无新增测试或修改期望。",
-        "本笔6文件范围已提交推送d32bec97a76db198cc265d8221967b7130fe1b2d，精确CI40189962844同head/completed-success。"
+        "本笔6文件范围已提交推送d32bec97a76db198cc265d8221967b7130fe1b2d，精确CI40189962844同head/completed-success。",
+        "本轮仅按已知原主档字节6757277955重读原user批准，不冒初次首报：2026-10-19T16:05:45.582Z明确采用加载中切换忽略旧结果、支持能力读取失败显示现有失败并可重试、有效首页导航显示三项且实施后另验收。自然失败恢复仍未具名验证，属于这次原批准范围而非单纯额外矩阵；故保open，不造故障或重复请求。"
       ],
       "remainingActions": [
-        "本次包子清除文案/原动作/重置/返回与d32bec97/40189962844范围冻结；普通/快速切换已过不重跑。",
-        "自然失败恢复仍待实际样本，不造故障。"
+        "原批准的自然失败提示/重试恢复仍缺实际适用样本，保open；普通/快速切换与本轮清除文案已具名验收，不重跑、不造故障。"
       ],
       "boundaries": [],
       "modificationBasisClearLabel": {
@@ -2037,9 +2040,9 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-final-readback-203"
       ],
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:11:53.603541+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "文案和普通/快速切换冻结；只待自然失败恢复，不造故障。"
+        "condition": "普通/快速切换及清除文案具名范围冻结；原人类批准中的自然失败提示与重试恢复仍缺实际适用失败样本，保open。不造网络/地址/数据故障，不重复已通过请求，不把尚缺样本冒已验。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "至少6天3小时28分6秒；从可核明确修正/验收指令起算，最初首报时间仍未知",
       "reportedAgeSecondsAtAudit": null,
@@ -2436,27 +2439,28 @@
       "id": "CBZ_IMAGE_ORIENTATION",
       "title": "导入CBZ部分图片颠倒的第三方反馈",
       "priority": "P3（用户明确低优先级）",
-      "owner": "Root：后继只读分析，真实样本待提供",
+      "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
       "dependencies": [],
-      "status": "P3只读分析完成，实际样本未验",
-      "kind": "open",
+      "status": "原授权P3只读分析已完成；未复现且未授权实施",
+      "kind": "done",
       "result": "缺实际CBZ，未复现；已发现EXIF方向处理不一致的条件风险，仍为P3只读结论。",
-      "remaining": "等待真实样本再确认本次反馈原因；后继实施需共同处理正文/尺寸/裁切/缩略图。",
+      "remaining": "本轮检查分析交付已完成，不把无真实CBZ变成无限待实施任务。实际样本根因/修复均未证；新真实材料或明确实施指令到来时另按原项重开，不造样本或擅改正文/尺寸/裁切/缩略图。",
       "reportedAt": "2026-10-23T01:59:16.553Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 262071646 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-23T01:59:16.553Z",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:52:22+00:00",
       "references": [
         "https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ts-basic-components-image#orientation14"
       ],
       "evidencePoints": [
         "无实际CBZ，尚未复现。正文、尺寸、裁切、缩略图当前未统一EXIF方向，只读发现条件风险，未改源码。",
-        "官方Image文档orientation14：默认UP按像素，AUTO读取EXIF及镜像；不能据此认定用户样本根因。"
+        "官方Image文档orientation14：默认UP按像素，AUTO读取EXIF及镜像；不能据此认定用户样本根因。",
+        "本轮精确重读reportedAtSource字节262071646的user：暂无实际CBZ文件、需要检查分析、优先级不高。已完成P3只读检查与条件EXIF风险分析，未复现、未确定用户根因、未改源码。原请求只授权分析，因此按分析交付done，不冒倒图已修或等待未经授权实施。"
       ],
       "remainingActions": [
-        "等待真实样本再确认本次反馈原因；后继实施需共同处理正文/尺寸/裁切/缩略图。"
+        "本轮检查分析交付已完成，不把无真实CBZ变成无限待实施任务。实际样本根因/修复均未证；新真实材料或明确实施指令到来时另按原项重开，不造样本或擅改正文/尺寸/裁切/缩略图。"
       ],
       "boundaries": [
         "源码未改，不把条件风险称用户根因；不造合成样本冒实机复现、不全局转180度、不抢当前高优先事项。"
@@ -2576,30 +2580,33 @@
       "id": "MANGA_DETAIL_PULL_REFRESH",
       "title": "漫画详情页接入下拉刷新",
       "priority": "P2（当前P0后，与源详情失败恢复关联）",
-      "owner": "Root：源具名结果保留；本地详情普通分支接续",
-      "kind": "open",
-      "status": "普通本地详情下拉/保内容已补核；注册根重扫及自然异常仍待",
+      "owner": "Root：详情下拉原具名范围已闭环，当前接Web只读合同",
+      "kind": "accepted",
+      "status": "源与两类本地普通pull/保内容及自然重选已具名闭环；成功授权根重扫未外推",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS",
         "SOURCE_WEB_SESSION"
       ],
-      "result": "保留197漫画1234已有源详情下拉结果。本轮237343原本地Download详情1章10页/6/10；344普通下拉完整161帧/5表经Root全部顺序亲审，内容/章节/进度持续保留且spinner正常结束，实际提示没有本地书架。当前唯一local_folder为旧cache/import样本，所以只接受普通本地pull消费者/保内容，不冒注册根重扫成功。345整图仍1章10页/6/10。",
-      "remaining": "普通本地pull/保内容已完成；注册根重扫/失效重选与自然失败/挑战仍缺真实适用条件。",
+      "result": "保留197漫画1234已有源详情下拉结果。本轮237343原本地Download详情1章10页/6/10；344普通下拉完整161帧/5表经Root全部顺序亲审，内容/章节/进度持续保留且spinner正常结束，实际提示没有本地书架。237当时唯一local_folder为旧cache/import样本，所以该次只接受普通本地pull消费者/保内容，不冒注册根重扫成功。345整图仍1章10页/6/10。",
+      "remaining": "原人类要求接入详情下拉的具名路径已闭环，无当前动作待办；成功授权根重扫仅未外推，自然挑战/失败保边界，不造样本/授权或重跑已验路径。",
       "reportedAt": "2026-10-23T10:40:04.632Z",
       "reportedDate": "2026-10-23",
       "reportedAtSource": "当前定位的10-22续接窗口内最早明确人类反馈，原始timestamp实值；尚未排除原主档有更早同问题，不冒全历史首次。原始会话JSONL response_item/user实际反馈；已限定唯一原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 627051937 读取原文，不是登记/处理/取证时间。",
       "firstEvidenceAt": null,
       "firstHandlingAt": "2026-10-23T11:26:44.075783+00:00",
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:38:31+00:00",
       "evidencePoints": [
         "197114完整217帧已审：详情/目录持续可见，仅单一刷新位移；真实详情与章节各请求一次200，458章保持。",
         "113原15/16与117书架15页94%均保持；746e3b8e已推，CI39950964499成功。沿原唯一List/Scroller，未清内容或缓存。",
         "344原录像因复用source-browse237遗留runId278，实际落在pending-detail237-local-refresh-motion-344/source-row-names237-local-import-motion-278/；context为当前场景，161帧/5表已Root完整审阅，路径legacy如实保留，不伪装独立344目录。343→345未进入reader/导入或造样本，library/registry/web/prefs同335；reader仅此前三处updatedAt变化。",
-        "355最终本地/阅读偏好数据边界：library/registry/reader-preferences同335/345，reader同345，未因详情下拉改动原章页；包子会话UA版本有自然更新另列，不能合写四域全同。"
+        "355最终本地/阅读偏好数据边界：library/registry/reader-preferences同335/345，reader同345，未因详情下拉改动原章页；包子会话UA版本有自然更新另列，不能合写四域全同。",
+        "197的372核当前Local Folder Smoke仍为local_folder、2章3页，推导root物理目录ls-ld实际存在；Koma PID4221/window384，未部署237新索引包。374一次前滚后正确打开详情，脚本误等开始阅读超时，实际是原继续阅读Chapter01第1/2，保失败且未重复开书。376一次普通pull完整140帧/4sheet及90/139原帧经Root亲审，自然提示1个本地目录在持久访问可用前导入或授权失效并要求重新选择，原导入菜单出现，随后spinner结束；原2章、2页+1页及1of2保留。377五域相372逐字同；没有选导入/造数据/权限/网络，不称成功重扫。后继378/379已完成普通返回与最终恢复，见下一条。",
+        "379 completed：378实际已关闭原导入菜单/详情并回书架中段，脚本误等离屏继续阅读而失败，原图证实实际返回，保失败且不重复返回。379沿原178三次fling回原顶部，Blue/猎行者/SuperLovers及原继续读第1页100%整图由Root亲审；五域相372全字节同，AWAKE/系统120000无Override、自有scratch清、866bdff5正常release0，376媒体cleanup通过。",
+        "本轮按原项reportedAtSource精确字节627051937重读原始response_item/user：2026-10-23T10:40:04.632Z原话为我建议把下拉刷新接入漫画详情页。没有指定必须新增成功授权根样本或强制重导。按原接入请求，源/237旧cache普通pull/197真实root自然重选均已实际走通并保内容，成功授权根重扫仅未外推，不以此制造无限验收欠账。"
       ],
       "remainingActions": [
-        "普通本地详情pull消费者、内容/章节/6/10保留及spinner结束已具名补核；实际提示没有本地书架，现有旧cache/import条目不能证明注册根重扫。已注册根/授权失效重选等边界待真实适用根，不导入或造新样本凑验收。",
+        "本轮源、237旧cache普通pull和197真实root自然重选/保内容及最终恢复已闭环；成功授权根重扫保持未外推，不为原接入请求增加导入/造权限矩阵。",
         "源与本地已有具名范围保留；自然失败/挑战分别待真实条件，不清Cookie/缓存、不造网络故障或复活私库。"
       ],
       "boundaries": [
@@ -2608,7 +2615,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-25T21:00:16.188000+00:00",
         "owner": "Root",
-        "condition": "237普通本地pull已补验；该已观察local_folder为旧cache/import样本不能冒注册根重扫。Root另在197视频看到LocalFolderSmoke，其实际root尚未核，本次部分失败修复后有可安全只读调查，未核清不能写整个本地分支阻塞；不造样本/重新导入。"
+        "condition": "Root当前接197既存Local Folder Smoke：已保存173/library-before.json内为local_folder、2章3页，sourcePath为files/import/local-library-folder-smoke-root/extract/Fixture%20Series，remoteResourceId尾为Fixture Series；依LocalLibraryFolderContract:326可推rootUri为file:///data/storage/el2/base/haps/entry/files/import/local-library-folder-smoke-root/extract。Index:1598从comic推rootUris，经LocalImportCoordinator:755激活持久访问再扫描，并非凭空等独立rootStore。372已核物理目录存在，376自然命中持久访问缺失/失效重选并保内容，377五域保持；成功授权根扫描未外推，378/379返回及五域/timeout/释租已闭环。不造样本/重导，不把未验边界扩大为整分支阻塞。原件为NextN shared-mutual/pending-koma197-modal-baseline-173/library-before.json。"
       },
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "reportedAgeAtAudit": "至少2天8小时53分47秒",
@@ -2674,11 +2681,11 @@
       "id": "TAB_ICON_SELECTION_FEEDBACK",
       "title": "主页Tab选中填充图标与点击弹跳",
       "priority": "P1（Tab切换动效新反例）",
-      "owner": "Root：跨Tab动效具名完成并冻结；后继只按新反例重开",
-      "kind": "open",
-      "status": "跨Tab具名动效已推，精确CI成功",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "b8a50cf已push，精确CI40015663006 success；243完整539PTS四跨选形变/回稳具名成立，原重复段与底栏范围保持。",
-      "remaining": "本具名动效范围冻结；不外推所有输入或显示FPS。",
+      "remaining": "原图标/跨Tab动效具名范围已闭环；所有输入或FPS未外推不构成待办，不重跑已验动效。",
       "reportedAt": "2026-10-23T16:04:59.789Z",
       "reportedDate": "2026-10-24",
       "reportedAtSource": "当前定位的10-22续接窗口内最早明确人类反馈，原始timestamp实值；尚未排除原主档有更早同问题，不冒全历史首次。原始会话JSONL response_item/user实际反馈；已限定唯一原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 822568417 读取原文，不是登记/处理/取证时间。",
@@ -2691,13 +2698,14 @@
         "activeUntil": null,
         "note": "只计已登记窗口，工具/上下文空档不倒填。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "evidencePoints": [
         "library约0.18–0.5秒、history3.84–4.2秒、settings7.17–7.6秒、browse10.8–11.2秒均见选中symbol形变/回稳。",
-        "243完整539原PTS与10张底栏全帧联系表Root已顺审；重复当前Tab段单独保留，不混成跨Tab证据。"
+        "243完整539原PTS与10张底栏全帧联系表Root已顺审；重复当前Tab段单独保留，不混成跨Tab证据。",
+        "本轮按reportedAtSource原归档精确字节822568417重读response_item/user核原范围：原报选中fill/未选普通与compass_circle；后继894684890原报跨Tab没有弹跳仅重复点击有。既定图标范围保持，243完整539PTS四次跨Tab形变/回稳及精确CI直接补齐后继反例。仅据此收束，不为数字改kind；原图标/跨Tab动效具名范围已闭环；所有输入或FPS未外推不构成待办，不重跑已验动效。"
       ],
       "remainingActions": [
-        "本具名动效范围冻结；不外推所有输入或显示FPS。"
+        "原图标/跨Tab动效具名范围已闭环；所有输入或FPS未外推不构成待办，不重跑已验动效。"
       ],
       "boundaries": [
         "只重开跨Tab弹跳动效，不重开填充或普通源图标已验范围；底栏结构、文字、尺寸、颜色及根导航/滚动所有权保持。",
@@ -2775,23 +2783,24 @@
       "id": "BROWSE_PULL_REFRESH_STALL",
       "title": "浏览页下拉刷新停住数秒才收回",
       "priority": "P1（交互阻塞新反例）",
-      "owner": "Root：根Browse具名范围冻结；其他消费者不外推",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "relatedItems": [
         "LIST_EDGE_SCROLL_FEEL",
         "SOURCE_INDEX_PROGRESSIVE"
       ],
-      "kind": "open",
-      "status": "根Browse回缩/数据保持具名成立；包含本范围CI成功",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "233完整回缩、匹配trace与数据保持成立；该派生修复已含876b435f，精确CI40033988416 success。原80源根Browse范围冻结。",
       "evidencePoints": [
         "229→232主线程最长1604.765→8.76ms、dirty1600.618→5.547ms；前24行文字/bounds保持。",
-        "233全部117原PTS帧/4联系表回缩已审；230→234前三域JSON逐份相等，未以trace代视觉。"
+        "233全部117原PTS帧/4联系表回缩已审；230→234前三域JSON逐份相等，未以trace代视觉。",
+        "本轮按reportedAtSource原归档精确字节885259792重读response_item/user核原范围：原报浏览页下拉卡数秒才收回；233完整回缩与匹配trace/数据保持及精确CI直接覆盖根Browse触发。仅据此收束，不为数字改kind；原根Browse卡顿缺陷具名闭环；单源页/FPS未外推，不增矩阵，不改原样式或私库。"
       ],
       "remainingActions": [
-        "本笔已含范围CI完成；单源页面/FPS未扩认，不重跑具名根Browse。"
+        "原根Browse卡顿缺陷具名闭环；单源页/FPS未外推，不增矩阵，不改原样式或私库。"
       ],
-      "remaining": "本笔已含范围CI完成；单源页面/FPS未扩认，不重跑具名根Browse。",
+      "remaining": "原根Browse卡顿缺陷具名闭环；单源页/FPS未外推，不增矩阵，不改原样式或私库。",
       "boundaries": [
         "修改对象仅BrowsePage重复派生列表：按53cbc39a历史保名称排序，允许差异仅缓存同一响应式派生值。",
         "行结构、计数、分隔线、样式、动画及私库请求行为保持；不凭credential线索擅改，不复活私库验收。",
@@ -2810,7 +2819,7 @@
         "activeUntil": "2026-10-23T19:08:36.630490+00:00",
         "note": "仅从当前真实登记时刻起计，不补此前取证或空档。"
       },
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "firstHandlingAtSource": "本次真实执行登记起点，早先分析与取证未分段，不倒填。",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
@@ -2827,22 +2836,23 @@
       "id": "SOURCE_ROW_NATIVE_ARROW",
       "title": "源列表右箭头应采用设置同款原生尾部",
       "priority": "P1（UI一致性与准确性）",
-      "owner": "Root：源尾部具名范围冻结；同类批准未知边界保留",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
-      "kind": "open",
-      "status": "原生箭头视觉/点击成立；已含范围CI成功",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "235箭头与设置一致，253普通源行实际进入3Hentai源页；Root亲审，尾部/点击范围成立，源正文失败另留。",
       "evidencePoints": [
         "253原图确认普通源行点击到3Hentai，右上无空设置；3Hentai0.1.0正文runtime失败，不是箭头点击失败，也不称源可用。",
-        "源尾部0de9d3d已含876b435f，CI40033988416成功；已批准卡片/原生槽扩展和私库PARKED审计边界保持。"
+        "源尾部0de9d3d已含876b435f，CI40033988416成功；已批准卡片/原生槽扩展和私库PARKED审计边界保持。",
+        "本轮按reportedAtSource原归档精确字节886434027重读response_item/user核原范围：原报源选项右箭头手绘且与设置不同；235原生箭头视觉与253普通源行实际进入、精确CI已直接覆盖。仅据此收束，不为数字改kind；原源行尾部箭头视觉/点击具名闭环；同类批准未知不等于全局重做待办，3H正文另项、私库PARKED保持。"
       ],
       "remainingActions": [
-        "源尾部已含876b435f且CI40033988416成功；保同类批准未知/私库PARKED，不重跑已验尾部点击。"
+        "原源行尾部箭头视觉/点击具名闭环；同类批准未知不等于全局重做待办，3H正文另项、私库PARKED保持。"
       ],
-      "remaining": "源尾部已含876b435f且CI40033988416成功；保同类批准未知/私库PARKED，不重跑已验尾部点击。",
+      "remaining": "原源行尾部箭头视觉/点击具名闭环；同类批准未知不等于全局重做待办，3H正文另项、私库PARKED保持。",
       "boundaries": [
         "具体实施授权仍限定源行尾部，保图标、行高、动作；同类审计不等于全局重做授权。",
         "不擅改已批准定制或冻结界面，不重开ICONS矩阵；预加载及其他WIP保留。"
@@ -2854,7 +2864,7 @@
       "firstEvidenceAtSource": "本次登记，Root已查源码；不冒充用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T19:11:53.603541+00:00",
@@ -2870,23 +2880,24 @@
       "id": "SOURCE_LANGUAGE_DISPLAY_CONSISTENCY",
       "title": "源语言展示统一格式化入口",
       "priority": "P1（跨页面展示一致性）",
-      "owner": "Root：源列表与源包管理语言展示消费者",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_ROW_NATIVE_ARROW",
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
-      "kind": "open",
-      "status": "已安装/未安装两组语言名称与红18+具名可见",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "259原生终图已显示已安装与未安装两组的语言名称/红18+；两页既有范围保留，未知标签不外推。",
       "evidencePoints": [
         "245两页已安装源语言/标记已审；259已安装/未安装两组均实际可见，metadata原值不变。",
-        "0de9d3d所在Koma精确CI40015663006已成功；后续全部更新摘要另在260安装，88d6fb5/CI40018530912成功，不混同语言消费者验收。"
+        "0de9d3d所在Koma精确CI40015663006已成功；后续全部更新摘要另在260安装，88d6fb5/CI40018530912成功，不混同语言消费者验收。",
+        "本轮按reportedAtSource原归档精确字节892238294重读response_item/user核原范围：原报源包管理小写与源列表大写不统一；按有效语言自称/红18+决定，245两页及259已安装/未安装两组实际名称与标记、精确CI已覆盖。仅据此收束，不为数字改kind；两页语言一致性具名闭环；未知语言仅未外推，不造metadata样本，不改源身份/筛选语义。"
       ],
       "remainingActions": [
-        "未知语言等未覆盖边界仅待实际样本；不重跑已审语言与标记范围。"
+        "两页语言一致性具名闭环；未知语言仅未外推，不造metadata样本，不改源身份/筛选语义。"
       ],
-      "remaining": "未知语言等未覆盖边界仅待实际样本；不重跑已审语言与标记范围。",
+      "remaining": "两页语言一致性具名闭环；未知语言仅未外推，不造metadata样本，不改源身份/筛选语义。",
       "boundaries": [
         "当前有效决定是实际语言名称（语言自称）与红18+，不再按raw代码安排。",
         "只改展示语言/标记文案，原metadata/身份/筛选语义保持；18+仍在语言后，不扩大布局或样式重做。"
@@ -2898,7 +2909,7 @@
       "firstEvidenceAtSource": "本次登记时刻，不冒充用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T19:11:53.603541+00:00",
@@ -2914,22 +2925,23 @@
       "id": "SOURCE_INSTALL_GLOBAL_DISABLE",
       "title": "单源安装或更新导致其他源按钮全部禁用",
       "priority": "P1（安装交互阻塞）",
-      "owner": "Root：按源运行/等待/排空具名完成；其他自然失败边界待验",
+      "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
-      "kind": "open",
-      "status": "一次全部更新运行/等待/排空具名通过",
+      "kind": "accepted",
+      "status": "原全局禁用触发已由具名安全队列/排空覆盖，提交CI已完成",
       "result": "258一次触发形成1运行+7等待，随后排空；259实际23项升级、80源身份与enabled保持，library/reader同值，安全队列具名成立。",
       "evidencePoints": [
         "258 pending与259终图Root亲审；257→259 registry80→80同ID、23 manifestVersion升级且enabled全保持，library/reader逐字节相等。",
-        "顶部任务摘要候选已在260明确安装成功；88d6fb5已提交，精确CI40018530912成功。队列通过不扩大为所有错误/并发状态。"
+        "顶部任务摘要候选已在260明确安装成功；88d6fb5已提交，精确CI40018530912成功。队列通过不扩大为所有错误/并发状态。",
+        "本轮精确重读原reportedAtSource字节894124364的user：原报安装/更新某一源时其它项全部禁用。258一次全部更新形成1运行+7等待且排空，259实际23项升级/80源身份enabled与library/reader保持，已直接覆盖原触发；88d6fb5精确CI已成功。原话没有追加所有取消/失败时序矩阵。"
       ],
       "remainingActions": [
-        "保具名队列与摘要采用范围；失败、取消和重复提交等其他自然边界未扩认。"
+        "原安装/更新其它项全禁用问题已具名闭环；失败/取消/重复提交为未外推自然边界，不造失败样本或重跑排空。"
       ],
-      "remaining": "保具名队列与摘要采用范围；失败、取消和重复提交等其他自然边界未扩认。",
+      "remaining": "原安装/更新其它项全禁用问题已具名闭环；失败/取消/重复提交为未外推自然边界，不造失败样本或重跑排空。",
       "boundaries": [
         "安全排队仍由各包状态和registry串行写入共同负责，不能只删disabled后裸并发；箭头和语言已有各自具名结果。",
         "浏览卡顿具名范围和跨章预加载WIP保留，不因新项抛掉原队列。"
@@ -2941,7 +2953,7 @@
       "firstEvidenceAtSource": "本次登记，源码链由Root核实；非用户精确首报时间。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:52:22+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T19:11:53.603541+00:00",
@@ -2990,14 +3002,14 @@
       "id": "SOURCE_PACKAGE_ICON_INVALIDATION",
       "title": "安装或检查更新导致源图标闪烁",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：具名路径与精确CI完成，冻结",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INDEX_PROGRESSIVE",
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
-      "kind": "open",
-      "status": "Happy具名修复a0926f45已推；精确CI成功",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "已解码本地fileURI后续回交用syncLoad，首次/换图/远程仍异步。209签名Release8583407B明确安装且三域同208；211一次Happy013安装完整96原PTS编码帧已亲审，源图标在0–69均可见，9切安装中、70正常整行移出。其他可见图标保持；不外推197更新或旧92样本。",
       "evidencePoints": [
         "418完整114帧已审：第8帧0.146778秒本行图标瞬空，第9帧恢复；419仅漫画屋014更新，用户数据保持。",
@@ -3010,12 +3022,13 @@
         "237120原生后缀由安装→安装中时，第9帧本行92图标为空，8帧存在，59/60恢复；全83帧/3联系表及四原帧亲审。单行状态隔离未解决这个反例，不能关闭图标项。",
         "官方Image文档明确syncLoad用于小本地图刷新闪烁，onComplete0为数据/1才解码。候选只在同一fileURI已解码后同步回交；同组件URI快照拒旧回调，首载/换URI/remote仍异步，HDS卡片/原生按钮/30vp/R7/Contain/每版本缩放全保持。新增1个真实Builder回调用例执行0/1/换URI/旧完成与旧错误/当前错误/remote；原21项期望未改，22项通过，正式Release构建成功。",
         "211普通Happy013首次安装连续录像454873B/1196×1920，96编码帧/5全页联系表按序亲审；额外0–69本行图标原像素裁取表全部亲审，原帧8(0.146289)/9(0.162644)及69(1.167678)/70(1.736089)亲看。安装中期间Happy完整绿字保持，70整行正常移出；未用静态终点或平均FPS替代。原系统录像媒体与本次唯一导出由runner删除/验证完成，哈希关闭。",
-        "212 registry77→78仅新增com.happymh.koma013，原77每字段/顺序及library/reader完整JSON同209。213自然返回原书架大奉001第6页25%完整图亲审，214三域同212；AWAKE/86400000保持。没有打开Happy正文、切网络/清缓存/改图标素材。"
+        "212 registry77→78仅新增com.happymh.koma013，原77每字段/顺序及library/reader完整JSON同209。213自然返回原书架大奉001第6页25%完整图亲审，214三域同212；AWAKE/86400000保持。没有打开Happy正文、切网络/清缓存/改图标素材。",
+        "本轮按reportedAtSource原归档精确字节937227707重读response_item/user核原范围：原报安装按钮状态变化时左图闪；Happy013一次正常安装96帧全片及0–69本行原像素均保持，a0926f45已推且精确CI同head成功，直接覆盖该触发。旧失败片段保留为修复前反例。仅据此收束，不为数字改kind；Happy具名安装触发已闭环；197更新/旧92/换URI未扩认，仅有新适用反例时重开，不清缓存/重装造样本。"
       ],
       "remainingActions": [
-        "197更新/旧92/换URI自然异常未扩认，只有新适用样本或反例重开。"
+        "Happy具名安装触发已闭环；197更新/旧92/换URI未扩认，仅有新适用反例时重开，不清缓存/重装造样本。"
       ],
-      "remaining": "a0926f4563075a5fe663c796ddfa49c0dc7ee825已推，精确CI40191902370同head/completed-success。未新tag/发布，Happy具名范围冻结。",
+      "remaining": "Happy具名安装触发已闭环；197更新/旧92/换URI未扩认，仅有新适用反例时重开，不清缓存/重装造样本。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
@@ -3027,7 +3040,7 @@
       "firstEvidenceAtSource": "本次记录时刻，不冒充用户首报。",
       "firstHandlingAt": "2026-10-23T21:12:10.554202+00:00",
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "firstHandlingAtSource": "源码调查已由Root进行；仅本次可核登记起点，更早未分段不倒填。",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "modificationBasisDecodedLocalSync": {
@@ -3148,7 +3161,7 @@
       ],
       "remainingActions": [
         "正式首装31.42ms仍OPEN；保留300与307原件，现有CPU不足把整个回调归给某函数，不再主动消耗剩余4源首装或追加低收益微调。",
-        "阅读核心两项已正式合入、三宿主具名验证及精确CI完成；安装31.42ms保持独立OPEN；多地址部分失败完整修正已237具名验收，独立待Root范围提交/精确CI。"
+        "阅读核心两项已正式合入、三宿主具名验证及精确CI完成；安装31.42ms保持独立OPEN；多地址部分失败完整修正已237具名验收并提交推送68b6b234，精确CI40235545574同head completed/success，无新tag/发版。"
       ],
       "remaining": "正式首装31.42ms仍OPEN；保留300与307原件，现有CPU不足把整个回调归给某函数，不再主动消耗剩余4源首装或追加低收益微调。",
       "boundaries": [
@@ -3293,9 +3306,9 @@
         "allowedDifference": "只在普通picker返回已选URI之后startJsCpuProfiling，原import/校验/事务/刷新完成后finally stop；不改UI/响应/校验/队列，不清数据不装新源。仅新profile文件自有临时产物，完成精确撤补丁并装回8581941B正式包。当前为正常同版本更新路径，不当首次首装或严格AB/FPS。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:27:00.913651+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "300回调的JS profiler node/sample均0，仅4短child无业务栈；308为另一次导入，不能跨运行映射。须下一真实安装/更新的同回调配对证据，不再消耗剩余4源首装或重放成功导入。"
+        "condition": "正式31.42ms回调仍未消除；300无业务JS栈，308非同次回调，现有证据不足作因果修正。须下一真实业务安装/更新同次CPU及回调配对证据；不再单为采样主动消耗剩余4源首装、重放成功导入或以HAP覆盖充样本；等待真实业务安装/更新的同次证据。这是当前证据策略，不是新增权限禁令，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3342,15 +3355,15 @@
       "id": "REFRESH_RETAIN_EXISTING_CONTENT",
       "title": "刷新与首次加载分离，保已有内容与图标",
       "priority": "P1（当前源闪烁主线关联要求）",
-      "owner": "Root：独立SourceSearch具名普通入口已补齐；自然失败footer另待适用样本",
+      "owner": "Root：原人类触发的具名范围已交付，保其它源/失败分支边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_PACKAGE_ICON_INVALIDATION",
         "SOURCE_INDEX_PROGRESSIVE",
         "MANGA_DETAIL_PULL_REFRESH"
       ],
-      "kind": "open",
-      "status": "独立SourceSearch普通入口/同查询成功刷新已补核；自然失败footer仍未验",
+      "kind": "accepted",
+      "status": "刷新开始清空已有内容的原触发已具名覆盖；自然失败footer未外推",
       "result": "保留576 SourceBrowse内普通同查询结果。新增353独立SourceSearch包子query斗破下拉完整109帧/4表经Root全部顺序亲审，七个结果与封面持续保持、query不变、正常收回。354实际繁体结果鬥破蒼穹仍在，普通Back→源包管理→服务→设置→原书架断言通过；未点作品或新增query。350繁简误等为脚本失败并保原件。",
       "evidencePoints": [
         "306转场0.597秒已见缓存列表，3.469秒check结束；重新入页图标1.005秒全真图，不当原有内容刷新清空。",
@@ -3359,13 +3372,13 @@
         "576包子初始首页自然403后现有自动会话恢复原GET200/385ms；无人工完成。查询大奉打更人真实Text在[39,1080,407,1139]，与输入框分开，两次search响应506字节/HTTP200；原Library恢复，577三域保持。571误匹配与574源定位失败原件保留，不作通过。",
         "本轮350原独立搜索已显示源原名繁体鬥破蒼穹；脚本误等简体超时，原图/原件保留，无额外查询重试。351当前PID34534已核；352按真实繁体结果收键盘成功，353普通同查询下拉完整录像已完成，具名保内容及返回见本项后继353/354原记录；失败footer边界仍保留。",
         "353完整109帧/4表已Root全部顺审，独立SourceSearch普通入口与同query成功刷新保内容已具名补齐；354正常逐层返回原书架，未打开作品/增加query。失败footer、真实同query失败重试和自然挑战仍没有本次实机反例，不能借成功刷新声称这些分支通过。",
-        "355最终library/registry/reader-preferences同335/345；reader同345，相对335仍只三处正常updatedAt。包子Web会话UA的自然版本差异与未录初始Web阶段边界见SOURCE_WEB_SESSION的355原记录，不写四域全同，也不手动回写会话。237已恢复Timeout120000/无Override并正常释fc5bb3e2。"
+        "355最终library/registry/reader-preferences同335/345；reader同345，相对335仍只三处正常updatedAt。包子Web会话UA的自然版本差异与未录初始Web阶段边界见SOURCE_WEB_SESSION的355原记录，不写四域全同，也不手动回写会话。237已恢复Timeout120000/无Override并正常释fc5bb3e2。",
+        "本轮精确重读reportedAtSource字节944920363的原user：批评已有内容刷新先置空再全屏加载，即复用初始化流程。353完整109帧与576普通刷新全过程保结果，直接覆盖该开始刷新触发，并完成自然返回/数据恢复。原user没有指定必须构造同query失败场景；真实失败footer与第一页重试仍未知且不冒通过，不能仅因该额外未外推分支无限保原清空缺陷open。"
       ],
       "remainingActions": [
-        "SourceBrowse576与独立SourceSearch353/354普通入口、同query成功刷新/保结果及自然返回均具名成立；不重跑已通过普通路径。",
-        "同查询自然失败保内容、原因footer与原第一页重试仍待实际失败样本，不造故障、不改网络/地址/缓存；成功路径不证明这些失败分支。"
+        "原已有内容刷新先清空/全屏加载触发已由SourceBrowse576和独立SourceSearch353/354完整普通路径覆盖，无当前重跑待办。自然失败保内容/footer/第一页重试仍未外推；不声称全App或所有失败已验，不造网络故障补矩阵。"
       ],
-      "remaining": "普通独立入口及同query成功刷新已补齐；真实失败保内容/原因footer/第一页重试及自然挑战仍独立未验。",
+      "remaining": "原已有内容刷新先清空/全屏加载触发已由SourceBrowse576和独立SourceSearch353/354完整普通路径覆盖，无当前重跑待办。自然失败保内容/footer/第一页重试仍未外推；不声称全App或所有失败已验，不造网络故障补矩阵。",
       "boundaries": [
         "当前源图标闪烁/安装阻塞仍主线，新反馈不替换旧顺序。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。"
@@ -3377,7 +3390,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:55:15+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "modificationBasis": {
         "object": "BrowseViewModel.runSearch/clearSearch/retrySearchPage与SourceSearchPage现有footer调用",
@@ -3435,9 +3448,9 @@
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。",
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:11:53.603541+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "真实624行/600ID重复样本在200，禁止操作；237无同类样本，不注入。"
+        "condition": "原真实624行/600ID重复样本在200且禁止操作，237无同类；逻辑交付不等该真实样本验收。待合法现存同类适用样本，不能注入数据或操作200，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "至少1天22小时18分21秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3484,9 +3497,9 @@
       "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:11:53.603541+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "原失败样本在200且禁止操作；237可读001不证明恢复，不重请旧失败。"
+        "condition": "原真实失败样本在200且禁止操作；237可读001不替代原失败恢复。底层2300999原因与真实恢复仍未证，待合法现存适用失败证据，不操作200/重请旧失败或造故障，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "至少1天22小时16分47秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3580,12 +3593,13 @@
         "473日志13:19:38原请求附会话/Cookie/WebViewUA，HTTP403/5727chars；13:20:10.855 clearance_candidate触发retry_original_once，随后原生161仍403/5727chars/186ms。",
         "473与471的library/reader/registry逐字比较均相同；没有再次点击重试。原件diagnostics/manhuawu015-firstgroup197-failure-473。",
         "455–458既有会话列表/详情200及460正文页表超时不抹去；472在27.439秒未见元尊，未进入排序或开书。",
-        "478/479原生列表get_manga_list HTTP200，30本封面/标题已显示；没有人工完成或再次点重试。"
+        "478/479原生列表get_manga_list HTTP200，30本封面/标题已显示；没有人工完成或再次点重试。",
+        "本轮仅只读既存460诊断原件koma-log-20261024-120407.txt：12:16:14.370 GET（op尾:56）sessionattached/Cookiepresent/WebUA，12:16:29.384返回code2300028/15014，外层get_pages（op尾:55）总15146。此前get_chapters200/530249是另一op尾:54，不混成页表成功。当前pages仅一次fetch章节HTML后取img[data-original]，不是多图片串行；当前后继源码不冒当时字节等价。尚不能从Host await request失败前旧timing定位DNS/TCP/TLS，无新请求/导航或网络改动。"
       ],
       "remainingActions": [
-        "继续元尊目录顺序与原页表超时，不据列表成功声明整源可读。"
+        "元尊自然挑战/正文页表网络超时仍未闭，不据列表成功声明整源可读；目录/首次选择规则已由Mihon/FIRST交付，不重开排序或重跑已定目录。"
       ],
-      "remaining": "继续元尊目录顺序与原页表超时，不据列表成功声明整源可读。",
+      "remaining": "元尊自然挑战/正文页表网络超时仍未闭，不据列表成功声明整源可读；目录/首次选择规则已由Mihon/FIRST交付，不重开排序或重跑已定目录。",
       "boundaries": [
         "仅漫画屋015列表/元尊详情恢复；无页表或正文，不扩整源可用。",
         "页表Cookie present与2300028超时是本次事实，不足以推断网络具体阶段或否定分区读取修复。"
@@ -3607,9 +3621,9 @@
         "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:11:53.603541+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "元尊最新248止于自然挑战，旧460页表超时缺新合法可用会话/页表证据，不重请旧失败或据列表200称正文恢复。"
+        "condition": "目录/首次选择已由Mihon/FIRST交付，不重开。元尊自然挑战与460页表HTTP请求15014ms超时仍未闭；现存日志未给具体DNS/TCP/TLS阶段，缺新的合法同次会话/页表或失败阶段证据，不重请旧失败、改UA/网络或据列表200称正文恢复，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "至少1天22小时7分51秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3633,7 +3647,8 @@
         "413实际列表请求15038ms超时；get_settings未实现是独立能力，不是该列表超时原因。",
         "415完整原图已亲审：manhuagui.com加载指示消失后仍白页，仅Web节点/原生导航，无正文或挑战UI；三域同406，AWAKE/override86400000。",
         "237081同普通Browse→漫画柜016，本次HTTP200/27920chars；头1599ms、总1609ms，官方累计dns6.557/tcp9.382/tls1194.953/首字节1593.163/完成1595.842ms。新阶段日志已实机可用；不反推旧197超时原因或整源正文可读。",
-        "本会话191在最终首页签名包下普通Browse→漫画柜，实际显示连接书源超时；原图保留，未重复请求/改网络/打开Web。该次未取到准确网络阶段，不由此归因旧197。"
+        "本会话191在最终首页签名包下普通Browse→漫画柜，实际显示连接书源超时；原图保留，未重复请求/改网络/打开Web。该次未取到准确网络阶段，不由此归因旧197。",
+        "本轮仅只读既存460诊断原件koma-log-20261024-092500.txt：10:09:40.990 source_http的GET（op尾:99）timeout15000/sessionnone/sourceUA，10:09:56.002返回code2300028/duration15012；与413同次WASM request_ready→http_return→transport_failed相符，外层op尾:98总15038，未到body_ready/解析。当前漫画柜pc_request显式15000，但当前后继源代码不冒当时字节等价；Host await request失败前旧performanceTiming不能区分DNS/TCP/TLS。无新请求，未确定具体网络阶段或实现错误。"
       ],
       "remainingActions": [
         "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。"
@@ -3652,9 +3667,9 @@
       "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:11:53.603541+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "旧Native超时/Web白页缺失败同次阶段证据；237一次200不替代，待新真实失败轨迹，不盲重试。"
+        "condition": "413/460现存日志已核明确GET15000ms在body_ready前以2300028失败，但缺失败同次具体网络阶段，不能由当前源码或237一次200反推根因。待新的合法真实同次阶段证据，不盲重试/改网络/UA或把Web白页当官网可用，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedAgeAtAudit": "至少1天22小时6分24秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3665,14 +3680,14 @@
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
       "title": "源浏览菜单常驻使用WebView打开",
       "priority": "P1（明确授权的失败恢复入口）",
-      "owner": "Root：漫画160源URL限定补齐及197普通更新",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION",
         "SOURCE_RUNTIME_ERRORS"
       ],
-      "kind": "open",
-      "status": "五处网页动作已改官方website符号；原生溢出菜单文本仍由HDS持有",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "源62a1d185精确CI40079042677成功，08:43:50Z公开非draft/pre，原latest85条/MH1600.1.3。553唯一普通远端更新成功；554源85→85仅MH160变且原顺序/书库/reader保持。556两原网页MenuItem均enabled/clickable，557实际WebView已打开；558只有站点标题/加载指示，未证明正文可见。",
       "evidencePoints": [
         "App c5ad7b8074c04adcbc09ef5a01284cd735c4211b精确CI40049912720已completed/success；399最终8514625B包保持。",
@@ -3684,12 +3699,13 @@
         "555断言把MenuItem及子Text同名两节点当1而停，原工具失败保留；556原图/原MenuItem六项已亲核，未改产品迎合断言。",
         "558当前Web拥有正确站点标题，Webbounds[0,305][1260,2720]，但当前没有WebView DevTools socket；未启调试、无UA/Cookie或客户端变更。",
         "559仅等待页面就绪，31.290s仍见LoadingProgress；560一次普通Back回原详情784并自然回书架，561三业务域同554。未点刷新/外部浏览器，无Cookie或UA改动。",
-        "最新人类反馈：WebView打开网页入口使用房子图标，应表达网页打开而非主页；已登记，未转移当前通用章节排序修复。"
+        "最新人类反馈：WebView打开网页入口使用房子图标，应表达网页打开而非主页；已登记，未转移当前通用章节排序修复。",
+        "本轮按reportedAtSource原归档精确字节947813847重读response_item/user核原范围：原报即使源页未加载也应在右上菜单固定WebView入口，类似详情页以核站点；556入口enabled/clickable与557实际打开、既有失败源入口和提交CI已覆盖。website符号已交付，HDS菜单不绘图标不应造菜单补验。仅据此收束，不为数字改kind；常驻合法站点入口具名闭环；白屏/跳转循环及漫画160搜索404归SOURCE_WEB_SESSION，不将入口可达冒网站正文可用。"
       ],
       "remainingActions": [
-        "5处网页动作采用官方website符号已随f6f1c1a推送且精确CI40123012297成功；HDS溢出菜单103不显示动作图标，不以文字截图冒图标实测。"
+        "常驻合法站点入口具名闭环；白屏/跳转循环及漫画160搜索404归SOURCE_WEB_SESSION，不将入口可达冒网站正文可用。"
       ],
-      "remaining": "5处网页动作采用官方website符号已随f6f1c1a推送且精确CI40123012297成功；HDS溢出菜单103不显示动作图标，不以文字截图冒图标实测。",
+      "remaining": "常驻合法站点入口具名闭环；白屏/跳转循环及漫画160搜索404归SOURCE_WEB_SESSION，不将入口可达冒网站正文可用。",
       "boundaries": [
         "常驻入口不能替代自动CF挑战流程，现有自动验证/重试入口必须保留。",
         "只按当前源合法站点打开，不猜任意URL，不因列表加载失败丢入口。"
@@ -3701,7 +3717,7 @@
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": "2026-10-24T00:55:38.030011+00:00",
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "modificationBasis": {
         "object": "sources/mh160/src/lib.rs 列表与详情url字段",
@@ -3724,23 +3740,24 @@
       "id": "MANXIAOSI_SETTINGS_VALIDATION_FAILURE",
       "title": "漫小肆打开设置提示设置验证失败",
       "priority": "P1（具名源设置能力/运行失败）",
-      "owner": "Root：无效入口与Host误报修正具名完成；其他真实设置失败另查",
+      "owner": "Root：原人类具名范围已交付，保未外推边界",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY",
         "SOURCE_RUNTIME_ERRORS"
       ],
-      "kind": "open",
-      "status": "manager无无效入口成立；Host日志误报修正具名成立",
+      "kind": "accepted",
+      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "311漫小肆manager无无效设置入口且与309三域同。fixture误判仅证Host summary/日志误报，Manager和Store均读response.ok，不能据此归因原菜单失败。",
       "evidencePoints": [
         "Root核Manager.validateSettings1648消费response.ok而非summary.ok；原not_supported原因独立，不冒源失败全解决。",
-        "316 pid36728合法get_settings（包子/九儿/Zerobyw）completed，Host fixture误报修正具名成立；显式Record类型修后正式build成功。"
+        "316 pid36728合法get_settings（包子/九儿/Zerobyw）completed，Host fixture误报修正具名成立；显式Record类型修后正式build成功。",
+        "本轮按reportedAtSource原归档精确字节947873278重读response_item/user核原范围：原报漫小肆点设置出现验证失败；311 manager无无效设置入口且三域保持，另316合法get_settings修复Host日志误报及正式build均有各自证据，不将Host误报错归原菜单原因。仅据此收束，不为数字改kind；本源无效入口/验证失败触发已具名收束；其它源设置失败按真实响应另查，不以其保本源无限open或盲重试。"
       ],
       "remainingActions": [
-        "保manager/not_supported与Host日志修正各自范围；其余源设置失败按真实响应另查，不扩大归因。"
+        "本源无效入口/验证失败触发已具名收束；其它源设置失败按真实响应另查，不以其保本源无限open或盲重试。"
       ],
-      "remaining": "保manager/not_supported与Host日志修正各自范围；其余源设置失败按真实响应另查，不扩大归因。",
+      "remaining": "本源无效入口/验证失败触发已具名收束；其它源设置失败按真实响应另查，不以其保本源无限open或盲重试。",
       "boundaries": [
         "SOURCE_PACKAGE_ICON_INVALIDATION/INSTALL_UI_STALL当前主线保持，新反馈不替换旧队列。",
         "不复活旧空源验收，不以验证失败推断无设置，不盲重试/清用户数据。"
@@ -3752,7 +3769,7 @@
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:46:33+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T19:11:53.603541+00:00",
@@ -3768,15 +3785,15 @@
       "id": "SOURCE_INDEX_CACHE_REVALIDATE",
       "title": "源管理先显示持久索引缓存并后台更新",
       "priority": "P1（明确授权的初载/刷新体验）",
-      "owner": "Root：终版已237具名验收，审范围提交/推送及精确CI",
+      "owner": "Root：本轮具名修正已闭环，保未外推设备状态",
       "dependencies": [],
       "relatedItems": [
         "REFRESH_RETAIN_EXISTING_CONTENT",
         "SOURCE_INDEX_PROGRESSIVE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
-      "kind": "open",
-      "status": "完整部分失败修正已237具名自然partial0验收，待范围提交/推送与精确CI",
+      "kind": "accepted",
+      "status": "本轮完整部分失败修正已具名验收、提交推送及同head精确CI成功",
       "result": "306暖重入范围保持。266正式包新进程在未访问Manager前，经267普通设置→服务，268连续转场录像69编码帧及两张contact-sheet全审：录像PTS0.371033秒已有五个未装源文字/图标且正在检查，1.072256仍检查，1.879411完成并保持至8.794567。PTS不是tap后延迟，不作FPS结论。269日志主索引85项成功、另一个保存地址code2300007失败，最终update0/latest80/missing0/failed_indexes1；实际界面未提示这次失败。四域同266，273恢复原书架后仍同269。",
       "evidencePoints": [
         "Root亲审306全部82帧/3表及39/58/72/81原图；未安装3项与已装组在网络检查完成前已显。",
@@ -3789,12 +3806,12 @@
         "237新租约ee87a93d：364候选8591409B安装成功，五域同363/361，原书架由Root亲审；365普通设置→服务→源包只触发一次自然部分失败，实际摘要检查未完成 · 已确认可更新0；366原保存地址行实际检查失败：网络请求失败，原图亲审。普通非更新源副标题未消费仅写入updateStatusText的incomplete状态，完整验收未通过，不能把摘要/地址结果扩大成全修复。366的swipe误传0.6被库警告回落实际2000，只滚既有sheet，保原失败证据、不重跑。",
         "Root据普通列表真实反例补既有packageListMetaText，仅incomplete时附已采用文字，版本/语言/18+与原行控件保持；两新增case执行真实普通subtitle，全成功原期望保持。签名Release终候选8591318B（0.1.2-pre/code3、debugfalse、app.buildMode=release）构建及24项原检查通过；这是当时的实现/构建证据，当时尚待安装后普通列表实机验收，不预写通过；后继结果见368–370。",
         "368终版普通进入只触发一次自然部分失败，摘要实际检查未完成 · 已确认可更新0；同existingSourceRow的5条可见普通副标题实际含更新：未能确认。Root已亲审整图，原版本/语言/18+、开关、图标、箭头保持，限定实际5条可见行，不外推所有源或未出现的可更新项。369终版摘要及原失败地址行原因仍实际可见，普通返回原书架斗破01第1页3%由Root亲审，无新控件。",
-        "370 completed：library/reader/registry/web/reader-preferences五域相363/361全部逐字同，自有scratch已清，AWAKE/原系统120000且无Override已读回，ee87a93d正常release exit0。正面updates保留、重试成功清该地址原因及全成功/全失败原判定仅由真实方法的2个关键case覆盖，不冒实机全矩阵；自然partial0的普通UI、返回及数据恢复已具名验收，尚待范围提交/推送和精确CI。"
+        "370 completed：library/reader/registry/web/reader-preferences五域相363/361全部逐字同，自有scratch已清，AWAKE/原系统120000且无Override已读回，ee87a93d正常release exit0。正面updates保留、重试成功清该地址原因及全成功/全失败原判定仅由真实方法的2个关键case覆盖，不冒实机全矩阵；自然partial0的普通UI、返回及数据恢复已具名验收。后继范围提交68b6b234bcf919423502414e55e476485c550caa已HTTPS推送（7文件180增38删）；精确CI40235545574的head吻合，现经gh run view实核completed/success、unsigned Release HAP成功，Publish tagged Release skipped，无新tag/发版。Root报告index为空，仅受保护.idea/pycache余留。"
       ],
       "remainingActions": [
-        "Root审精确范围并提交/推送已237具名验收的完整部分失败修正，按完整head核精确CI；不再待安装或重跑自然partial0。正面updates/成功重试/全成功与全失败仅保真实方法case证据，不冒设备全矩阵。"
+        "本轮已采用的完整部分失败修正闭环，无提交/CI待办，不重跑自然partial0。实机仅覆盖自然partial0及5条可见普通行、地址原因、返回与五域恢复；正面updates/成功重试/全成功与全失败保真实方法case证据，不冒设备全矩阵。"
       ],
-      "remaining": "Root审精确范围并提交/推送已237具名验收的完整部分失败修正，按完整head核精确CI；不再待安装或重跑自然partial0。正面updates/成功重试/全成功与全失败仅保真实方法case证据，不冒设备全矩阵。",
+      "remaining": "本轮已采用的完整部分失败修正闭环，无提交/CI待办，不重跑自然partial0。实机仅覆盖自然partial0及5条可见普通行、地址原因、返回与五域恢复；正面updates/成功重试/全成功与全失败保真实方法case证据，不冒设备全矩阵。",
       "boundaries": [
         "当前profile普通重入缓存先显已实现且具名运动成立；新缓存项不覆盖其余缺陷，后台失败/换库/cold仍未验。",
         "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。",
@@ -3807,12 +3824,12 @@
       "firstEvidenceAtSource": "本次登记，非用户首报精确时刻。",
       "firstHandlingAt": null,
       "handling": null,
-      "closedAt": null,
+      "closedAt": "2026-10-25T21:29:51+00:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T21:00:16.188000+00:00",
         "owner": "Root",
-        "condition": "完整修正已获采用且终版已237自然partial0具名验收；Root现审范围提交/推送及精确CI。保未出现的设备状态边界，不再等待安装或重跑已验路径。"
+        "condition": "本轮具名修正已闭环：237自然partial0验收、68b6b234提交推送及精确CI40235545574同head成功；保未出现的设备状态边界，不制造全矩阵或重跑已验路径。"
       },
       "proposalReview": {
         "object": "checkInstalledUpdates的部分成功状态、原检查更新副标题及现有保存地址行",
@@ -3875,9 +3892,9 @@
         "allowedDifference": "恢复既有400备用分支、返回not_supported；只认HTTP400+Succeeded=false+Errors.Code3166，源发固定region_restricted原因，App固定本地化并保HTTP优先级/未知脱敏。网址/身份/原认证key/图标/布局/网络与账户保持。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-25T19:11:53.603541+00:00",
+        "checkedAt": "2026-10-25T21:56:53+00:00",
         "owner": "Root",
-        "condition": "原生3166地区限制，同机同网官网首话也黑无正文；不改账户/地区/网络，待合法可读环境/新样本。"
+        "condition": "原生3166地区限制已证，同机同网官网首话黑页无正文是另一有限观察；当前合法网络不能完成正文验收。待合法可读环境/真实新样本，不自行改账户/地区/网络或重放失败，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
       },
       "reportedDate": "2026-10-24",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
