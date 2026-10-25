@@ -1,3 +1,4 @@
+import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -1316,7 +1317,14 @@ export struct MangaDetailPage {
   }
 
   private firstChapterId(): string | undefined {
+    // The standalone download action retains its existing chapter target.
+    // Earliest-unread is the adopted reading rule, not a download retargeting.
     return firstReaderChapter(this.chapters)?.id
+  }
+
+  private firstUnreadChapterId(): string | undefined {
+    return firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
+      (id: string): boolean => this.readerSessionStore.isChapterRead(this.currentComicId(), id))?.id
   }
 
   private currentReadingProgress(): ReadingProgress | undefined {
@@ -1337,7 +1345,7 @@ export struct MangaDetailPage {
   }
 
   private primaryReadChapterId(): string | undefined {
-    return this.progressChapterId() ?? this.firstChapterId()
+    return this.progressChapterId() ?? this.firstUnreadChapterId()
   }
 
   private hasReadableChapters(): boolean {
@@ -2306,7 +2314,7 @@ export struct MangaDetailPage {
           fill: true,
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.hasReadableChapters() && !this.downloadBusy && !this.isSourceDetailLoading(),
+          isEnabled: this.firstChapterId() !== undefined && !this.downloadBusy && !this.isSourceDetailLoading(),
           action: () => {
             this.handleDownloadChapter()
           },

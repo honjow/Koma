@@ -1,3 +1,4 @@
+import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { common } from '@kit.AbilityKit'
 import {
@@ -100,7 +101,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       return new ReaderUnitKey('koma-local', work, unit)
     }
     const comic = this.library.getComic(work)
-    const chapter = unit.length > 0 ? unit : (firstReaderChapter(comic?.chapters ?? [])?.id ?? '')
+    const chapter = unit.length > 0 ? unit : (firstReaderChapter(comic?.chapters ?? [], sourceChapterOrderFor(comic?.sourceRuntimeId))?.id ?? '')
     return new ReaderUnitKey('koma-local', work, chapter)
   }
 

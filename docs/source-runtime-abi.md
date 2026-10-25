@@ -356,3 +356,7 @@ call search("test")
   source returns normalized SearchResult JSON
 assert no token/url query/full HTML appears in logs
 ```
+
+### Optional package catalog chronology
+
+Source-repo `manifest.json` may declare `chapterOrder` as `newest_first` or `oldest_first`. It describes the complete raw catalog across `get_chapters` pages, not display sorting. The host validates and retains it through the normalized package, registry and backup. Absence retains legacy selection; invalid values reject admission. Only declare a direction after checking the actual source contract. Initial reading selects earliest unread in that direction; saved progress and explicit chapter targets take precedence. The shared first-read implementation and rationale are in `model/ReaderChapterSequence.ets` and WASM_SOURCE_RUNTIME_DIRECTION's source chronology section. No chapter identities or numbers are synthesized.

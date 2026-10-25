@@ -430,3 +430,44 @@ test('known web challenges, authorization failures, cancellation and missing fil
     adapter.close()
   }
 })
+
+
+test('declared source chronology picks earliest unread without sorting tied or unknown chapter numbers',()=>{
+ const {firstReaderChapter}=chapterSequence()
+ const catalog=[{id:'notice',title:'中奖公告'},
+  {id:'two-down',title:'第2话下 蟒雀吞龙',chapterNumber:2},
+  {id:'two-up',title:'第2话 蟒雀吞龙（上）',chapterNumber:2},
+  {id:'228919',title:'第1话 周家圣龙（下）',chapterNumber:1},
+  {id:'228928',title:'第1话 周家圣龙（上）',chapterNumber:1}]
+ const before=JSON.stringify(catalog),read=new Set()
+ const choose=()=>firstReaderChapter(catalog,'newest_first',id=>read.has(id))
+ assert.equal(choose().id,'228928');read.add('228928');assert.equal(choose().id,'228919')
+ catalog.forEach(c=>read.add(c.id));assert.equal(choose(),undefined)
+ assert.equal(firstReaderChapter([...catalog].reverse(),'oldest_first',()=>false).id,'228928')
+ assert.equal(JSON.stringify(catalog),before)
+ assert.equal(firstReaderChapter([{id:'latest',title:'第519回',chapterNumber:519},
+  {id:'numbered',title:'第131回',chapterNumber:131},{id:'196437',title:'01'}],'newest_first').id,'196437')
+})
+
+
+test('ordinary first-read owners keep explicit chapter and resume before earliest-unread policy',()=>{
+ const {firstReaderChapter}=chapterSequence()
+ const globals={firstReaderChapter,sourceChapterOrderFor:()=> 'newest_first'}
+ const comic={id:'work',sourceRuntimeId:'declared',chapters:[
+  {id:'down',title:'第1话下',chapterNumber:1},{id:'up',title:'第1话上',chapterNumber:1}]}
+ let progress,read=new Set()
+ const store={getProgress:()=>progress,getComicProgress:()=>progress,isChapterRead:(_work,id)=>read.has(id)}
+ const Index=subject('../pages/Index.ets','Index',['readerChapterIdForOpen'],globals)
+ const index=new Index();index.readerSessionStore=store
+ assert.equal(index.readerChapterIdForOpen(comic),'up')
+ assert.equal(index.readerChapterIdForOpen(comic,'down'),'down')
+ progress={chapterId:'down'};assert.equal(index.readerChapterIdForOpen(comic),'down')
+ progress=undefined;read.add('up');assert.equal(index.readerChapterIdForOpen(comic),'down')
+ const Library=subject('../pages/LibraryPage.ets','LibraryPage',['readerChapterIdForComic'],globals)
+ const library=new Library();library.readerSessionStore=store
+ assert.equal(library.readerChapterIdForComic(comic),'down')
+ const Detail=subject('../pages/MangaDetailPage.ets','MangaDetailPage',['firstChapterId','firstUnreadChapterId','primaryReadChapterId'],globals)
+ const detail=new Detail();Object.assign(detail,{readerSessionStore:store,manga:{sourceId:'declared'},chapters:comic.chapters,currentComicId:()=>comic.id,progressChapterId:()=>undefined})
+ assert.equal(detail.primaryReadChapterId(),'down');read.clear();assert.equal(detail.primaryReadChapterId(),'up')
+ assert.equal(detail.firstChapterId(),'down','standalone download target keeps the prior metadata rule')
+})

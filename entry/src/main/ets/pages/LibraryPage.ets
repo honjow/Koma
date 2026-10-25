@@ -1,3 +1,4 @@
+import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
@@ -1336,7 +1337,8 @@ export struct LibraryPage {
     if (progress !== undefined && comic.chapters.some((chapter: Chapter): boolean => chapter.id === progress.chapterId)) {
       return progress.chapterId
     }
-    return firstReaderChapter(comic.chapters)?.id
+    return firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
+      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id))?.id
   }
 
   private openComicFromLibrary(comicId: ComicId): void {

@@ -138,6 +138,7 @@ function persistenceFixture() {
       compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
     const exports={};new Function('exports','require',code)(exports,requireModule);return exports
   }
+  Object.assign(guards,evaluate('sourceRuntime/SourceChapterOrder.ets',()=>{throw Error('unexpected order dependency')}))
   const names=evaluate('sourceRuntime/SourceLocalizedNames.ets',()=>{throw Error('unexpected name dependency')})
   const files=new Map(),reads=[],writes=[],opened=[],closed=[],directories=new Set(),unreadable=new Set();let writeFails=false
   const nativeFs={OpenMode:{READ_ONLY:0},accessSync:p=>p==='/files'||files.has(p),
@@ -147,6 +148,7 @@ function persistenceFixture() {
     mkdirSync:()=>{throw Error('unexpected directory creation')}}
   const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
     if(name==='@kit.CoreFileKit')return {fileIo:nativeFs,fileUri:{getUriFromPath:p=>'file://'+p}}
+    if(name==='./SourceChapterOrder')return guards
     if(name==='./SourceLocalizedNames')return names
     // Exercise the original per-entry failure contract; the real native fast path is checked below.
     if(name==='./NativeSourceRuntime')return {NativeSourceRuntime:{sourcePackageFilesMatch:()=>false}}
@@ -298,4 +300,35 @@ test('flat package homepage survives import normalization and backup projection 
   ...f.guards,...f.names,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm',SOURCE_PACKAGE_WASM_FILE:'fixture.wasm',sha256Hex:()=>''})
  const restored=backup.manifestFromRegistryEntry(f.registry.lookup('one').entry)
  assert.equal(restored.package.homepage,raw.homepage);assert.deepEqual(restored.permissions.webSessionOrigins,[])
+})
+
+
+test('explicit chapter chronology survives normalized import, metadata cold reload and backup; invalid values never admit',()=>{
+ const f=persistenceFixture()
+ const parser=functions('sourceRuntime/SourcePackageImporter.ets',[
+  'isPlainObject','nonEmptyString','optionalPackageMetadataText','packageMetadataValueInvalid',
+  'optionalBoolean','optionalNumber','optionalStringArray','parseSourceRepoPackageManifest'],{
+   ...f.guards,...f.names,SOURCE_PACKAGE_WASM_MAX_BYTES:131072,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm'})
+ const raw={id:'one',name:'One',version:'0.1.6',lang:'zh',chapterOrder:'newest_first'}
+ const manifest=parser.parseSourceRepoPackageManifest(JSON.stringify(raw),3)
+ assert.equal(manifest.package.chapterOrder,'newest_first')
+ const input=f.add('one');f.registry.remove('one');input.manifest=manifest
+ assert.equal(f.registry.register(input).ok,true)
+ assert.equal(f.registry.persistImportedToAppLocalMetadata('/files/registry.json').ok,true)
+ const cold=f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata('/files/registry.json')
+ assert.equal(cold.ok,true);assert.equal(cold.registry.lookup('one').entry.chapterOrder,'newest_first')
+ const admitted=functions(registryFile,['sourceChapterOrderFor'],{appSourceRuntimeRegistry:cold.registry})
+ assert.equal(admitted.sourceChapterOrderFor('one'),'newest_first');assert.equal(admitted.sourceChapterOrderFor('missing'),undefined)
+ const backup=functions(registryFile,['manifestWasmPathFromRegistryEntry','manifestFromRegistryEntry'],{
+  ...f.guards,...f.names,SOURCE_REPO_PACKAGE_WASM_FILE:'source.wasm',SOURCE_PACKAGE_WASM_FILE:'fixture.wasm',sha256Hex:()=>''})
+ assert.equal(backup.manifestFromRegistryEntry(cold.registry.lookup('one').entry).package.chapterOrder,'newest_first')
+ for(const chapterOrder of ['oldest_first',undefined]){
+  assert.equal(parser.parseSourceRepoPackageManifest(JSON.stringify({...raw,chapterOrder}),3).package.chapterOrder,chapterOrder)
+ }
+ for(const chapterOrder of ['guess',null,42,{},[]]){
+  assert.equal(parser.parseSourceRepoPackageManifest(JSON.stringify({...raw,chapterOrder}),3),undefined)
+  const document=JSON.parse(f.files.get('/files/registry.json'));document.entries[0].chapterOrder=chapterOrder
+  f.files.set('/files/registry.json',JSON.stringify(document))
+  assert.equal(f.api.SourceRuntimeRegistry.reloadFromAppLocalMetadata('/files/registry.json').ok,false)
+ }
 })

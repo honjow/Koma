@@ -1,3 +1,4 @@
+import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { taskpool, url } from '@kit.ArkTS'
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
@@ -58,6 +59,7 @@ export interface SourceArchiveNegativeImportResult {
 }
 
 export interface LocalSourcePackageInfo {
+  chapterOrder?: SourceChapterOrder
   id: string
   name: string
   localizedNames?: Record<string, string>
@@ -106,6 +108,7 @@ export interface LocalSourcePackageManifest {
 }
 
 interface SourceRepoPackageManifest {
+  chapterOrder?: SourceChapterOrder
   webSessionOrigins?: string[]
   icon?: string
   id: string
@@ -590,7 +593,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   if (id === undefined || name === undefined || version === undefined || id.length > 96) {
     return undefined
   }
-  if (isInvalidSourceLocalizedNames(parsed.localizedNames)) {
+  if (!isValidSourceChapterOrder(parsed.chapterOrder) || isInvalidSourceLocalizedNames(parsed.localizedNames)) {
     return undefined
   }
   if (packageMetadataValueInvalid(parsed.author) || packageMetadataValueInvalid(parsed.description) ||
@@ -612,6 +615,7 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       id,
       name,
       localizedNames: normalizeSourceLocalizedNames(parsed.localizedNames),
+      chapterOrder: parsed.chapterOrder,
       version,
       language: nonEmptyString(parsed.language) ?? nonEmptyString(parsed.lang) ?? 'multi',
       type: nonEmptyString(parsed.runtime) ?? 'wasm-source',
@@ -660,7 +664,7 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
   if (manifest.runtime.wasmPath !== SOURCE_PACKAGE_WASM_FILE && manifest.runtime.wasmPath !== SOURCE_REPO_PACKAGE_WASM_FILE) {
     return 'manifest_invalid'
   }
-  if (isInvalidSourceLocalizedNames(manifest.package.localizedNames)) {
+  if (!isValidSourceChapterOrder(manifest.package.chapterOrder) || isInvalidSourceLocalizedNames(manifest.package.localizedNames)) {
     return 'manifest_invalid'
   }
   if (packageMetadataValueInvalid(manifest.package.author) || packageMetadataValueInvalid(manifest.package.description) ||

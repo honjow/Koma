@@ -1,3 +1,4 @@
+import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -356,7 +357,8 @@ struct Index {
       (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0))) {
       return progress.chapterId
     }
-    const firstChapter = firstReaderChapter(comic.chapters)
+    const firstChapter = firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId),
+      (id: string): boolean => this.readerSessionStore.isChapterRead(comic.id, id))
     return firstChapter?.id
   }
 

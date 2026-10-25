@@ -1,3 +1,4 @@
+import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
@@ -41,6 +42,7 @@ export interface SourceRuntimeRegistryEntryInput {
 }
 
 export interface SourceRuntimeRegistryEntry {
+  chapterOrder?: SourceChapterOrder
   sourceId: string
   manifestId: string
   manifestName: string
@@ -87,6 +89,7 @@ export interface SourceRuntimeRegistryLookupResult {
 }
 
 export interface SourceRuntimeRegistryPersistedEntry {
+  chapterOrder?: SourceChapterOrder
   sourceId: string
   manifestId: string
   manifestName: string
@@ -337,6 +340,7 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       id: entry.manifestId,
       name: entry.manifestName,
       localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+      chapterOrder: entry.chapterOrder,
       version: entry.manifestVersion,
       language: entry.language ?? 'en',
       type: entry.type ?? 'wasm-source-fixture',
@@ -376,6 +380,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     manifestId: entry.manifestId,
     manifestName: entry.manifestName,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+    chapterOrder: entry.chapterOrder,
     manifestVersion: entry.manifestVersion,
     route: entry.route,
     importStatus: entry.importStatus,
@@ -442,7 +447,7 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
     typeof entry.wasmPath !== 'string') {
     return true
   }
-  if (isInvalidSourceLocalizedNames(entry.localizedNames)) {
+  if (!isValidSourceChapterOrder(entry.chapterOrder) || isInvalidSourceLocalizedNames(entry.localizedNames)) {
     return true
   }
   if (entry.importStatus !== 'staged' && entry.importStatus !== 'imported') {
@@ -517,7 +522,8 @@ export class SourceRuntimeRegistry {
     if (!input.hashOk || input.network !== false || input.wasmBytes.byteLength <= 0) {
       return { ok: false, reasonCode: 'validation_failed', sourceCount: this.entries.length }
     }
-    if (isInvalidSourceLocalizedNames(input.manifest.package.localizedNames) ||
+    if (!isValidSourceChapterOrder(input.manifest.package.chapterOrder) ||
+      isInvalidSourceLocalizedNames(input.manifest.package.localizedNames) ||
       !isValidSourcePackageMinAppVersion(input.manifest.package.minAppVersion)) {
       return { ok: false, reasonCode: 'validation_failed', sourceCount: this.entries.length }
     }
@@ -532,6 +538,7 @@ export class SourceRuntimeRegistry {
       manifestId: input.manifest.package.id,
       manifestName: input.manifest.package.name,
       localizedNames: normalizeSourceLocalizedNames(input.manifest.package.localizedNames),
+      chapterOrder: input.manifest.package.chapterOrder,
       manifestVersion: input.manifest.package.version,
       route: input.route,
       importStatus: input.importStatus,

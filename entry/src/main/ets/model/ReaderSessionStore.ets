@@ -1,3 +1,4 @@
+import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -922,7 +923,7 @@ export function createReaderSessionConfigFromComic(
 ): ReaderSessionConfig {
   const targetChapterId = chapterId !== undefined && chapterId.length > 0
     ? chapterId
-    : (firstReaderChapter(comic.chapters)?.id ?? '')
+    : (firstReaderChapter(comic.chapters, sourceChapterOrderFor(comic.sourceRuntimeId))?.id ?? '')
   const chapter = comic.chapters.find((item) => item.id === targetChapterId)
   return {
     comicId: comic.id,

@@ -1,3 +1,4 @@
+import { SourceChapterOrder } from './SourceChapterOrder'
 import { appSourceWebSessionStore } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
@@ -614,6 +615,7 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       id: entry.manifestId,
       name: entry.manifestName,
       localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+      chapterOrder: entry.chapterOrder,
       version: entry.manifestVersion,
       language: entry.language,
       type: entry.type,
@@ -976,6 +978,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
     if (existing !== undefined) {
       const unchanged = existing.importStatus === entry.importStatus &&
         existing.manifestVersion === entry.manifestVersion &&
+        existing.chapterOrder === entry.chapterOrder &&
         JSON.stringify(normalizeSourceLocalizedNames(existing.localizedNames)) ===
           JSON.stringify(normalizeSourceLocalizedNames(entry.localizedNames)) &&
         existing.wasmByteCount === entry.wasmByteCount &&
@@ -1003,6 +1006,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
           id: entry.manifestId,
           name: entry.manifestName,
           localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
+          chapterOrder: entry.chapterOrder,
           version: entry.manifestVersion,
           language: entry.language,
           type: entry.type,
@@ -1430,4 +1434,9 @@ export async function runSmokeAsync(id: string): Promise<SourcePackageSmokeResul
   const passed: SourcePackageSmokeResult = { ok: true, id, firstTitle: 'Fixture Series' }
   setSourceRuntimeDiagnostic(passed)
   return passed
+}
+
+/** Read the admitted package declaration; never guess chronology from IDs or titles. */
+export function sourceChapterOrderFor(sourceId: string | undefined): SourceChapterOrder | undefined {
+  return sourceId === undefined ? undefined : appSourceRuntimeRegistry.lookup(sourceId).entry?.chapterOrder
 }

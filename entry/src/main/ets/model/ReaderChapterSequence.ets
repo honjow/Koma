@@ -1,3 +1,5 @@
+import { SourceChapterOrder } from '../sourceRuntime/SourceChapterOrder'
+
 /** Complete manual catalog metadata; never derives edition or order from a title. */
 export interface ReaderChapterDescriptor {
   id: string
@@ -22,7 +24,23 @@ export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): 
 }
 
 /** Initial reading follows published chapter metadata, never the display-list direction. */
-export function firstReaderChapter(chapters: ReaderChapterDescriptor[]): ReaderChapterDescriptor | undefined {
+export function firstReaderChapter(
+  chapters: ReaderChapterDescriptor[],
+  sourceOrder?: SourceChapterOrder,
+  isRead?: (chapterId: string) => boolean,
+): ReaderChapterDescriptor | undefined {
+  // Adopted Mihon rule: chronology belongs to the source contract, not the
+  // user's display direction or inferred numbers. Existing resume/explicit
+  // targets remain owned by callers. Undeclared sources keep the legacy
+  // fallback until their actual catalog direction has been established.
+  if (sourceOrder === 'newest_first' || sourceOrder === 'oldest_first') {
+    for (let offset = 0; offset < chapters.length; offset += 1) {
+      const index = sourceOrder === 'newest_first' ? chapters.length - 1 - offset : offset
+      const chapter = chapters[index]
+      if (isRead === undefined || !isRead(chapter.id)) return chapter
+    }
+    return undefined
+  }
   let numbered: ReaderChapterDescriptor | undefined = undefined
   let dated: ReaderChapterDescriptor | undefined = undefined
   chapters.forEach((chapter: ReaderChapterDescriptor): void => {

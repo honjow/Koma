@@ -60,6 +60,10 @@ Archive import computes its full WASM digest in a dedicated Crypto-only TaskPool
 
 `SourceRuntimeState` shares one process-local revision through its single connector. Its AppStorageV2 key must use only letters, digits and underscores; do not reuse a persistent preference or registry key. Renaming this in-memory key does not migrate source data or change notification timing.
 
+## Source catalog chronology and first unread
+
+An optional package `chapterOrder` (`newest_first` or `oldest_first`) describes the unchanged source output, independently of the user's list sort. Admit only these exact values and preserve the declaration through registry persistence, cold reload and backup. Missing means unverified; do not infer chronology from a source ID, title, chapter number or upload date. A declared source uses its earliest unread chapter for an initial open; saved progress and explicit targets remain caller-owned and take priority. Undeclared sources keep the prior fallback until their chronology is established. This adapts Mihon's complete source/host contract; copying only its newest-first adapter without the host's earliest-unread selection is insufficient. See CURRENT_STATUS `FIRST_CHAPTER_SELECTION` for the explicit user adoption and named evidence. It does not authorize changing source output, catalog menus, styles or other source declarations.
+
 ## Source identity image handoff
 
 Keep source identity images inside the existing HDS-owned prefix with the approved slot, corner radius, Contain and per-version optical scale. Only the same local `file://` URI that this row has already decoded may use `syncLoad` during a later prefix rebuild; first loads, replacement URIs and remote images stay asynchronous. `onComplete` status 0 is data arrival, while status 1 establishes decode readiness. Completion/error callbacks retain their render's URI and cannot mark or invalidate a newer URI. This is per-row readiness, not a global image cache or permission to move initial list decoding onto the UI thread.
