@@ -6,7 +6,8 @@ import { DiagnosticsSettings } from './DiagnosticsSettings'
 
 const DIAGNOSTICS_EXPORT_DIR: string = 'diagnostics_exports'
 const DIAGNOSTICS_EXPORT_PREFIX: string = 'koma-log-export-'
-const DIAGNOSTICS_EXPORT_SUFFIX: string = '.txt'
+const DIAGNOSTICS_EXPORT_SUFFIX: string = '.log'
+const LEGACY_DIAGNOSTICS_EXPORT_SUFFIX: string = '.txt'
 const DIAGNOSTICS_EXPORT_KEEP_COUNT: number = 3
 
 export interface DiagnosticsExportFile {
@@ -131,13 +132,16 @@ export class DiagnosticsFileExport {
   }
 
   private static isDiagnosticsExportFileName(fileName: string): boolean {
-    if (!fileName.startsWith(DIAGNOSTICS_EXPORT_PREFIX) || !fileName.endsWith(DIAGNOSTICS_EXPORT_SUFFIX)) {
+    const suffix = fileName.endsWith(DIAGNOSTICS_EXPORT_SUFFIX) ? DIAGNOSTICS_EXPORT_SUFFIX
+      : fileName.endsWith(LEGACY_DIAGNOSTICS_EXPORT_SUFFIX) ? LEGACY_DIAGNOSTICS_EXPORT_SUFFIX : ''
+    // Include old temporary TXT exports in the same bounded retention policy.
+    if (!fileName.startsWith(DIAGNOSTICS_EXPORT_PREFIX) || suffix.length === 0) {
       return false
     }
     if (fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
       return false
     }
-    const middle = fileName.substring(DIAGNOSTICS_EXPORT_PREFIX.length, fileName.length - DIAGNOSTICS_EXPORT_SUFFIX.length)
+    const middle = fileName.substring(DIAGNOSTICS_EXPORT_PREFIX.length, fileName.length - suffix.length)
     if (middle.length !== 'YYYYMMDD-HHMMSS'.length || middle.charAt(8) !== '-') {
       return false
     }

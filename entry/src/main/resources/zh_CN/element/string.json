@@ -1500,7 +1500,7 @@
     {"name": "diagnostics_export_failed", "value": "日志导出失败"},
     {"name": "diagnostics_saved", "value": "日志已保存"},
     {"name": "diagnostics_settings_failed", "value": "日志设置保存失败"},
-    {"name": "diagnostics_file_choice", "value": "文本 (.txt)"},
+    {"name": "diagnostics_file_choice", "value": "日志 (.log)"},
     {
       "name": "source_homepage_unavailable",
       "value": "暂时无法取得此源的站点地址，请检查网络及源包更新后重试。"

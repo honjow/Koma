@@ -90,7 +90,8 @@ export struct DiagnosticsSettingsContent {
       const exported = DiagnosticsFileExport.create(this.context())
       const options = new picker.DocumentSaveOptions()
       options.newFileNames = [exported.fileName]
-      options.fileSuffixChoices = [AppStrings.get('diagnostics_file_choice')]
+      // Picker separates the description from the actual extension with "|".
+      options.fileSuffixChoices = [AppStrings.get('diagnostics_file_choice') + '|.log']
       const uris = await new picker.DocumentViewPicker(this.context()).save(options)
       if (uris.length === 0) return
       file = fileIo.openSync(uris[0], fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC)

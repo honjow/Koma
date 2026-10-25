@@ -1497,7 +1497,7 @@
     {"name": "diagnostics_export_failed", "value": "Log export failed"},
     {"name": "diagnostics_saved", "value": "Log saved"},
     {"name": "diagnostics_settings_failed", "value": "Could not save logging settings"},
-    {"name": "diagnostics_file_choice", "value": "Text (.txt)"},
+    {"name": "diagnostics_file_choice", "value": "Log (.log)"},
     {
       "name": "source_homepage_unavailable",
       "value": "Could not get this source's website address. Check the connection and source updates, then try again."

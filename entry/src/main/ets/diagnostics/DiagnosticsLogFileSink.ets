@@ -5,7 +5,9 @@ import { DiagnosticsLogFormatter } from './DiagnosticsLogFormatter'
 
 export const DIAGNOSTICS_LOG_DIR: string = 'diagnostics_logs'
 export const DIAGNOSTICS_LOG_PREFIX: string = 'koma-log-'
-export const DIAGNOSTICS_LOG_SUFFIX: string = '.txt'
+// User-directed log format: new files use .log; legacy TXT history stays readable and bounded.
+export const DIAGNOSTICS_LOG_SUFFIX: string = '.log'
+const LEGACY_DIAGNOSTICS_LOG_SUFFIX: string = '.txt'
 export const DIAGNOSTICS_LOG_KEEP_COUNT: number = 12
 export const DIAGNOSTICS_LOG_MAX_AGE_DAYS: number = 14
 export const DIAGNOSTICS_LOG_MAX_TOTAL_BYTES: number = 2 * 1024 * 1024
@@ -134,13 +136,16 @@ export class DiagnosticsLogFileSink {
   }
 
   static isDiagnosticsLogFileName(fileName: string): boolean {
-    if (!fileName.startsWith(DIAGNOSTICS_LOG_PREFIX) || !fileName.endsWith(DIAGNOSTICS_LOG_SUFFIX)) {
+    const suffix = fileName.endsWith(DIAGNOSTICS_LOG_SUFFIX) ? DIAGNOSTICS_LOG_SUFFIX
+      : fileName.endsWith(LEGACY_DIAGNOSTICS_LOG_SUFFIX) ? LEGACY_DIAGNOSTICS_LOG_SUFFIX : ''
+    // Read and retain previous TXT files without renaming or rewriting them.
+    if (!fileName.startsWith(DIAGNOSTICS_LOG_PREFIX) || suffix.length === 0) {
       return false
     }
     if (fileName.includes('/') || fileName.includes('\\') || fileName.includes('..')) {
       return false
     }
-    const middle = fileName.substring(DIAGNOSTICS_LOG_PREFIX.length, fileName.length - DIAGNOSTICS_LOG_SUFFIX.length)
+    const middle = fileName.substring(DIAGNOSTICS_LOG_PREFIX.length, fileName.length - suffix.length)
     const baseLength = 'YYYYMMDD-HHMMSS'.length
     if (middle.length !== baseLength && (middle.length <= baseLength + 1 || middle.charAt(baseLength) !== '-')) {
       return false

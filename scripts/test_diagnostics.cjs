@@ -7,13 +7,16 @@ const ts = require(process.env.KOMA_TYPESCRIPT ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.join(__dirname, '../entry/src/main/ets/diagnostics')
 
-function runtime() {
+function runtime(overrides = {}) {
   const files = new Map(), modules = new Map(), emitted = []
   let failWrites = false
   const io = {
     OpenMode: { READ_WRITE: 1, CREATE: 2, APPEND: 4, TRUNC: 8 },
     mkdirSync() {}, accessSync: name => files.has(name),
-    openSync(name) { if (!files.has(name)) files.set(name, ''); return { fd: name } },
+    openSync(name, flags=0) {
+      if (!files.has(name) || (flags & io.OpenMode.TRUNC)) files.set(name, '')
+      return { fd: name }
+    },
     closeSync() {},
     writeSync(name, value) { if (failWrites) throw Error('disk full'); files.set(name, files.get(name) + value) },
     listFileSync: dir => [...files.keys()].filter(name => name.startsWith(dir + '/')).map(name => name.slice(dir.length + 1)),
@@ -22,6 +25,7 @@ function runtime() {
     unlinkSync: name => files.delete(name),
   }
   function load(name) {
+    if (Object.prototype.hasOwnProperty.call(overrides,name)) return overrides[name]
     if (name === '@kit.CoreFileKit') return { fileIo: io, fileUri: { getUriFromPath: value => 'file://' + value } }
     if (name === '@kit.PerformanceAnalysisKit') return { hilog: new Proxy({}, { get: () => (...args) => emitted.push(args) }) }
     if (name === '@kit.AbilityKit') return {}
@@ -124,10 +128,54 @@ test('event reuse retains the original extra-pass handling of quoted credential 
   assert.equal(store.exportText().includes('fixtureSecret'),false)
 })
 
+test('real export and ordinary save use log files while retaining legacy cache bounds', async () => {
+  const text='diagnostics.manual_marker user_marked=true'
+  const r=runtime({'./DiagnosticsSettings':{DiagnosticsSettings:{exportText:()=>text}}})
+  const { DiagnosticsFileExport: exporter }=r.load('DiagnosticsFileExport')
+  const context={filesDir:'/sandbox',cacheDir:'/sandbox/cache'}
+  for(let i=1;i<=4;i++)r.files.set('/sandbox/cache/diagnostics_exports/koma-log-export-2000010'+i+'-000000.txt','old-export')
+  const source=fs.readFileSync(path.join(root,'../pages/DiagnosticsSettingsContent.ets'),'utf8')
+    .replace('export struct DiagnosticsSettingsContent','export class DiagnosticsSettingsContent')
+  const tree=ts.createSourceFile('diagnostics-page',source,ts.ScriptTarget.Latest,true)
+  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='DiagnosticsSettingsContent')
+  const method=owner.members.find(n=>ts.isMethodDeclaration(n)&&n.name.getText(tree)==='saveCurrent')
+  const code=ts.transpileModule('class Content {'+method.getText(tree)+'} exports.Content=Content',{
+    compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
+  for(const label of ['日志 (.log)','Log (.log)']) {
+    const exports={},descriptions=[];let savedUri=''
+    const picker={DocumentSaveOptions:class {},DocumentViewPicker:class {
+      async save(options) {
+        // SDK suffix resolution only; native selector rendering is verified on device.
+        const parts=options.fileSuffixChoices[0].split('|');descriptions.push(parts[0])
+        savedUri='file://docs/Download/'+options.newFileNames[0].replace(/\.[^.]+$/,'')+parts.at(-1)
+        return [savedUri]
+      }
+    }}
+    new Function('exports','picker','fileIo','AppStrings','DiagnosticsFileExport','DiagnosticLogger',code)(
+      exports,picker,r.load('@kit.CoreFileKit').fileIo,{get:key=>key==='diagnostics_file_choice'?label:key},
+      exporter,r.load('DiagnosticLogger').DiagnosticLogger)
+    const page=new exports.Content();page.busy=false;page.context=()=>context;page.toast=()=>{};page.refresh=()=>{}
+    await page.saveCurrent()
+    assert.match(savedUri,/\.log$/);assert.equal(r.files.get(savedUri),text)
+    assert.deepEqual(descriptions,[label]);assert.equal(page.busy,false)
+  }
+  const cached=[...r.files.keys()].filter(name=>name.startsWith('/sandbox/cache/diagnostics_exports/'))
+  assert.equal(cached.length,3)
+  assert.ok(cached.some(name=>name.endsWith('.txt')))
+  assert.ok(cached.some(name=>name.endsWith('.log')))
+})
+
 test('memory ring, rotation, total retention and previous-launch recovery stay bounded', () => {
   const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
   const { DiagnosticsLogFileSink: sink } = r.load('DiagnosticsLogFileSink')
+  const date=new Date(Date.now()-3600000), pad=value=>String(value).padStart(2,'0')
+  const stamp=date.getFullYear()+pad(date.getMonth()+1)+pad(date.getDate())+'-'+pad(date.getHours())+pad(date.getMinutes())+pad(date.getSeconds())
+  const legacy='koma-log-'+stamp+'.txt'
+  r.files.set('/sandbox/diagnostics_logs/'+legacy,'previous-launch-log')
   log.initializePersistentSink({ filesDir: '/sandbox' })
+  assert.equal(sink.currentInfo().fileName.endsWith('.log'),true)
+  assert.equal(sink.readLogFileText(legacy),'previous-launch-log')
+  assert.ok(sink.listRetainedLogFiles().some(file=>file.fileName===legacy))
   for (let i=0; i<12000; i++) log.info('app','status', '中'.repeat(200))
   assert.equal(log.count(), 500)
   assert.ok(sink.listRetainedLogFiles().length > 1)
