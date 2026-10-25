@@ -5,7 +5,10 @@ export class SourceRuntimeState {
   @Trace revision: number = 0
 }
 
-const SOURCE_RUNTIME_STATE_KEY: string = 'v2:sourceRuntime'
+// This key owns only the process-local revision shared by Browse and its source
+// routes. AppStorageV2 permits letters/digits/underscores; this is not a persisted
+// registry/preference key. Keep all writers and consumers on this same connector.
+const SOURCE_RUNTIME_STATE_KEY: string = 'koma_source_runtime_revision'
 
 export function connectSourceRuntimeState(): SourceRuntimeState {
   return AppStorageV2.connect(SourceRuntimeState, SOURCE_RUNTIME_STATE_KEY, () => new SourceRuntimeState())!

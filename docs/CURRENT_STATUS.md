@@ -5,12 +5,12 @@
 
 本会话已按用户请求轻量接手；完整69项snapshot仍是唯一队列，已核全部未完成项id/kind/status/owner/remainingActions。旧会话不再执行，原10分钟heartbeat已读回迁到本会话，未新增任务。不要全量重载旧聊天/本文件历史长段。
 
-- 当前：`SOURCE_PACKAGE_ICON_INVALIDATION`具名修复准备范围同步；随后接安装剩余回调与`SourceRuntimeState`非法内存键。首页统一、筛选清除文案均已具名/推送/精确CI成功，已过路径冻结，不重跑包子/85源矩阵。
-- 已同步：Koma `e6404c5b`首页/CI40188955447、`d32bec97`筛选文案/CI40189962844、`cee28e36`摘要后台/CI40190939072均completed-success。固定Kit e3f3cc1；缓存v3未采用，不合入。没有新tag/发布。
-- 当前包：237无CPU探针签名Release8583407B/0.1.2-pre code3/debug=false，209明确安装。211一次Happy013安装的96原PTS帧、5全页表/0–69图标表及交接原帧已亲审，图标持续保留至正常移行；只限本具名路径。213原书架大奉001第6页25%，214三域同212；78源仅本会话合法新增我是馬克/杂志迷/Happy，所有旧对象逐字段/顺序保持。
+- 当前：`SourceRuntimeState`合法键已走237原UI Happy停用/恢复，Browse77→78和原书架成立；四份完整JSON保持，正范围同步/CI。随后核安装剩余回调。首页统一、筛选清除文案均已具名/推送/精确CI成功，已过路径冻结，不重跑包子/85源矩阵。
+- 已同步：Koma `e6404c5b`首页/CI40188955447、`d32bec97`筛选文案/CI40189962844、`cee28e36`摘要后台/CI40190939072、`a0926f45`图标/CI40191902370均completed-success。固定Kit e3f3cc1；缓存v3未采用，不合入。没有新tag/发布。
+- 当前包：237无CPU探针签名Release8583412B/0.1.2-pre code3/debug=false，215明确安装。211一次Happy013安装的96原PTS帧、5全页表/0–69图标表及交接原帧已亲审，图标持续保留至正常移行；只限本具名路径。213原书架大奉001第6页25%，214三域同212；78源仅本会话合法新增我是馬克/杂志迷/Happy，所有旧对象逐字段/顺序保持。
 - 性能边界：摘要已在worker真实10ms；原25ms总项未闭。206 callback56.060ms有共享GC且39.467ms运行在≤558MHz，旧174主要约1.48GHz，不能作严格AB或归因新Worker；不改设备频率/网络/电源。临时CPU2060B补丁已精确撤，诊断文件仅本次删除且ABSENT。
 - 设备：237实时完整target在本轮为`192.168.50.237:12345`，VDE-AL00展开竖屏1320×2120；有效租约`20261025-112030-77b84cd9`，持续AWAKE/override86400000，正常timeout120000。继续前按当前租约有效期/实时Connected核，不用旧租约。197仍正式8569832B，已授权；**200禁止操作**。
-- 入口：沿`.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前214）、原`diagnostics197.semantic.py`（实际内容237）和`source-browse237.recording.json`；全部HDC/helper/dry-run沙盒外、有效租约、`HARMONY_DEVICE_ARTIFACT_HASHES=0`。当前无其他执行代理。
+- 入口：沿`.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前220只读日志）、原`diagnostics197.semantic.py`（实际内容237）和`source-browse237.recording.json`；全部HDC/helper/dry-run沙盒外、有效租约、`HARMONY_DEVICE_ARTIFACT_HASHES=0`。当前无其他执行代理。
 - 原仓与权限：只在各原主仓，不建worktree/克隆/源码副本、hook或Goal；保护`.idea`、`scripts/__pycache__`及NextN两个validator WIP；禁`git add .`。用户持续授权后续代码提交推送不用再问，未授权新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器路径冻结。
 - 源仓材料提交46948b0/b24e6a0/4b1d977仍待后继实际源变更同推，避免仅材料重发85源；不是长期不同步借口。当前索引/源代码未改。
 
@@ -947,11 +947,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T12:07:27.443409+00:00",
+  "updatedAt": "2026-10-25T12:21:44.453471+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_ICON_INVALIDATION",
-  "activity": "本行图标候选237 Happy013普通安装完整96帧已亲审，0–69图标持续存在、70正常移行；当前原书架/78源与三域保持。正在范围同步图标加载修复，安装总卡顿仍未闭。",
-  "nextAction": "提交推送图标加载4文件并跟精确CI；继续实际非法SourceRuntimeState内存键及剩余回调，不重跑已接受图标/正文或85源矩阵。",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activity": "合法进程键237原UI Happy停用/恢复已验，Browse77→78且原书架恢复；219四份完整JSON同215。正范围同步该键修复；安装56ms总项仍OPEN。",
+  "nextAction": "提交推送合法键修复并跟精确CI，随后用既有206/199性能证据核剩余主回调具体函数；不重跑已接受矩阵。",
   "proof": [
     {
       "label": "正式主仓",
@@ -2735,14 +2735,14 @@
       "id": "SOURCE_PACKAGE_ICON_INVALIDATION",
       "title": "安装或检查更新导致源图标闪烁",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：Happy具名图标修复范围提交/CI，未覆盖边界保留",
+      "owner": "Root：具名路径与精确CI完成，冻结",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INDEX_PROGRESSIVE",
         "SOURCE_PACKAGE_INSTALL_LIST_UI"
       ],
       "kind": "open",
-      "status": "237 Happy013安装整段图标保持；本笔范围同步CI待",
+      "status": "Happy具名修复a0926f45已推；精确CI成功",
       "result": "已解码本地fileURI后续回交用syncLoad，首次/换图/远程仍异步。209签名Release8583407B明确安装且三域同208；211一次Happy013安装完整96原PTS编码帧已亲审，源图标在0–69均可见，9切安装中、70正常整行移出。其他可见图标保持；不外推197更新或旧92样本。",
       "evidencePoints": [
         "418完整114帧已审：第8帧0.146778秒本行图标瞬空，第9帧恢复；419仅漫画屋014更新，用户数据保持。",
@@ -2758,10 +2758,9 @@
         "212 registry77→78仅新增com.happymh.koma013，原77每字段/顺序及library/reader完整JSON同209。213自然返回原书架大奉001第6页25%完整图亲审，214三域同212；AWAKE/86400000保持。没有打开Happy正文、切网络/清缓存/改图标素材。"
       ],
       "remainingActions": [
-        "提交推送本笔图标加载4文件并跟精确CI；当前Happy具名加载/运动范围冻结。",
-        "197更新、原92和换新URI自然失败等未扩认；仅按自然新样本/真实反例继续，不重复造安装矩阵。"
+        "197更新/旧92/换URI自然异常未扩认，只有新适用样本或反例重开。"
       ],
-      "remaining": "本次Happy普通安装具名成立；本笔未提交CI。现有所有资源/样式和初次异步加载保持，其他包/宿主未扩认。",
+      "remaining": "a0926f4563075a5fe663c796ddfa49c0dc7ee825已推，精确CI40191902370同head/completed-success。未新tag/发布，Happy具名范围冻结。",
       "boundaries": [
         "新反馈不替换原队列；Reader未完、3HNative及已批准/冻结范围继续保留。",
         "源码线索不等实测根因；不清缓存或批量重做界面制造通过。"
@@ -2796,14 +2795,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：摘要范围同步；主回调与本行图标继续",
+      "owner": "Root：合法键范围同步/CI；剩余回调具体函数核查",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "摘要真实后台10ms/首装返回已验；56ms回调总项仍OPEN",
+      "status": "合法键237启停/恢复已验；安装总56ms仍OPEN",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -2839,11 +2838,13 @@
         "隔离SourcePackageHashWorker仅Crypto依赖，异步导入传副本；同一完整SHA256、size/max及checksum_mismatch保持，恢复/rawfile同步入口保持。新增1个真实方法用例，实际摘要abc、匹配/不匹配/空声明/size/max、输入转移与worker异常；既有25项期望未改，26项通过。首次漏rawfile同步helper被构建拦，第二次Concurrent同模块helper捕获被es2abc拦，改为import/局部变量的单一primitive后正式构建成功；失败日志保留，没有用Host通过代替ArkTS。",
         "204签名Release8577712B明确装237，三域同203。206一次未装杂志迷010首装，Native sourceInfo6能力真实返回，76→77仅新增com.zazhimi.koma，旧76每字段/顺序及library/reader完整JSON保持。摘要日志pid55182/tid55338、38985B/10ms，线程不同于main55182；Native文件检查count77/matched1/10493us，persistSync25/row9ms。本次无CPU探针。207普通返回原大奉001第6页25%完整PNG亲审，208三域同206。",
         "206实际主callback6542为56.060ms（Running50.086ms、DIO0.665/DNIO0.258、R/R+2.135、S2.916）；共享GC根与wait可见，不能把它全算摘要或宣称卡顿改善。其Running频率加权约760246kHz，其中39.467ms≤558MHz；174旧callback Running24.523ms、加权1478071kHz、无≤558MHz区间。来源/源数/GC/频率不同，不作严格AB或归因Worker引入回归；未改设备频率/网络/电源设置。39个UIVsyncTask最大11.898ms，仅轨迹范围，不是FPS/全程视觉接受。",
-        "摘要5文件已范围提交推送cee28e368c4be37bfb42546caeffb23f27348378，精确CI40190939072同head/completed-success；仅摘要后台具名范围，不关闭安装主回调总项。"
+        "摘要5文件已范围提交推送cee28e368c4be37bfb42546caeffb23f27348378，精确CI40190939072同head/completed-success；仅摘要后台具名范围，不关闭安装主回调总项。",
+        "SourceRuntimeState仅将含冒号v2:sourceRuntime改唯一合法koma_source_runtime_revision；同connector/revision与所有持久键/元数据保持。官方key非法字符行为未定义；不以此宣称56ms根因。215签名8583412B明确装237，三域完整JSON同214；新增Happy的webSessionOrigins为空且网页会话元数据无该源记录，允许限定启停后恢复，避免撤销既有授权。",
+        "218按普通UI临时停用本轮新增且无网页会话的Happy，再进入根Browse显示77个已启用；原UI恢复启用后Browse显示78，最后原书架大奉001第6页25%保持，三张完整PNG已亲审。219 library/reader/registry/网页会话元数据四份完整JSON均同215，无其他数据变化。219后台日志流因无动作即结束为0B，不作日志接受；220改同步有界读取当前PID3459，已存片段58行/8000B无Cannot use the key，仅该片段不外推全部生命周期。"
       ],
       "remainingActions": [
-        "摘要后台范围已同步/CI成功，原25.322ms与不同频率/GC的56.060ms总项仍OPEN。",
-        "206/211仍有SourceRuntimeState非法内存键警告，按当前真实键与官方字符合同限定修复；不能冒所有56ms根因。其他回调继续按具体函数证据推进，不盲重复已过源。"
+        "合法进程键范围提交推送并跟精确CI；原25.322ms与不同频率/GC的56.060ms安装总项仍OPEN。",
+        "后继沿199/206已有具体函数/调用栈继续，不盲重复已过源；不将内存键警告与全部56ms等同。"
       ],
       "remaining": "摘要cee28e36/CI40190939072成功；图标具名进展在独立项。主回调总项与其他状态键继续，不能宣称安装整体流畅。",
       "boundaries": [
@@ -2967,6 +2968,13 @@
         "originalReason": "完整实际WASM SHA256、声明hash（可空）及准确size/maxSize必须全部验证；恢复原同步合同保持，未验证字节不得发布到registry。",
         "reopenEvidence": "199官方CPU主线程validateImportedWasmBytes/sha256Hex11.048ms，其中createMd10.476ms，具体函数已证，不把它称最终27ms回调全部根因。",
         "allowedDifference": "仅普通异步导入将同一SHA256算法放入独立仅Crypto依赖的Concurrent模块，传副本避免输入detach，await完成后仍走原hash/size/max和checksum_mismatch；worker异常交原外层清理，不回退主线程。同步备份恢复调用保持同步，注册/metadata原子写/回滚/UI不改。"
+      },
+      "modificationBasisRuntimeStateKey": {
+        "object": "SourceRuntimeState的AppStorageV2进程内键",
+        "history": "341b24a5为安全刷新已装源建立共享revision，键v2:sourceRuntime沿用至今；所有连接都由同一connectSourceRuntimeState入口，持久registry和app.language等偏好不使用该键。",
+        "originalReason": "Browse/SourceBrowse与写入者共享一个进程内revision，安装/启停/移除后使消费者刷新；不落盘。",
+        "reopenEvidence": "206/211本次安装完成notifyChanged前后仍有具体Cannot use the key警告；官方AppStorageV2 key仅字母数字下划线，非法键行为未定义。",
+        "allowedDifference": "仅改为唯一合法koma_source_runtime_revision，所有生产者/消费者仍共用同一入口，不改revision算法/触发/源数据/偏好/UI。构建后237普通源启停并恢复、根Browse消费者及三域完整数据验证；不把单项警告消除冒56ms根因。"
       }
     },
     {

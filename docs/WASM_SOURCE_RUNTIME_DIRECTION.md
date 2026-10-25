@@ -58,6 +58,8 @@ Archive import computes its full WASM digest in a dedicated Crypto-only TaskPool
 
 `SourceRuntimeRegistry.persistEntriesToAppLocalMetadata` keeps the commit synchronous. The Native batch in `source_package_file_checks.h` opens every admitted WASM read-only and checks its descriptor's regular-file type and size; it caches no filesystem state and reads no WASM contents. Any mismatch returns to the original per-entry checks, preserving their reason codes, thrown file errors and rollback owner. JSON serialization and atomic metadata writing stay on the existing path. The bounded Native diagnostic reports only count, match and duration, never paths. Do not turn this optimization into skipped validation or an asynchronous publication window.
 
+`SourceRuntimeState` shares one process-local revision through its single connector. Its AppStorageV2 key must use only letters, digits and underscores; do not reuse a persistent preference or registry key. Renaming this in-memory key does not migrate source data or change notification timing.
+
 ## Source identity image handoff
 
 Keep source identity images inside the existing HDS-owned prefix with the approved slot, corner radius, Contain and per-version optical scale. Only the same local `file://` URI that this row has already decoded may use `syncLoad` during a later prefix rebuild; first loads, replacement URIs and remote images stay asynchronous. `onComplete` status 0 is data arrival, while status 1 establishes decode readiness. Completion/error callbacks retain their render's URI and cannot mark or invalidate a newer URI. This is per-row readiness, not a global image cache or permission to move initial list decoding onto the UI thread.
