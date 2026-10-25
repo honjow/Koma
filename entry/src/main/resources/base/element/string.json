@@ -731,6 +731,7 @@
     { "name": "common_filter", "value": "Filter" },
     { "name": "common_description", "value": "Description" },
     { "name": "common_tags", "value": "Tags" },
+    { "name": "common_home", "value": "Home" },
     { "name": "common_popular", "value": "Popular" },
     { "name": "common_latest", "value": "Latest" },
     { "name": "common_start_reading", "value": "Start reading" },

@@ -731,6 +731,7 @@
     { "name": "common_filter", "value": "筛选" },
     { "name": "common_description", "value": "简介" },
     { "name": "common_tags", "value": "标签" },
+    { "name": "common_home", "value": "首页" },
     { "name": "common_popular", "value": "热门" },
     { "name": "common_latest", "value": "最新" },
     { "name": "common_start_reading", "value": "开始阅读" },

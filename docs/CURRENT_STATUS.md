@@ -1,5 +1,20 @@
 # Koma 当前状态、缺口与执行基线
 
+<!-- current-continuation -->
+## 当前接续入口（2026-10-25，新会话迁移）
+
+用户因本会话压缩摘要不断膨胀，明确要求新对话续接并迁移定时任务。旧会话 `01a11fb1-9f44-7123-8590-b6e849190eab` 已停止产品修改；新会话已接管，并完成全部69项id/kind/status/owner/remainingActions核对。本段是定位入口，69项 snapshot 仍是唯一完整队列；先解析全部未完成项的状态/owner/下一动作，再只展开当前项所需最新证据。不要全量重载旧聊天、旧长摘要或本文件历史段。
+
+- 当前：`SOURCE_BROWSE_HOME_STRUCTURE`。用户已明确采用“搜索下方原生分类入口、一次只显示所选内容”；现有材质、网格、筛选保持。代码/三语/既有行为用例及运行合同共8文件，原仓准备范围提交。最终签名包 `.hvigor/outputs/user-flow-audit/Koma-source-home-selection-final-8577441.hap` 已装237；0.1.2-pre/code3/debug=false。
+- 已证：237包子首页↔熱門原生菜单及对勾，单一熱門36本，刷新保当前选择/旧封面，首页筛选进入原默认栏目及原UI重置。最新证据为该项182–190目录；184连续录像已审。190三域及筛选完整JSON保持；189已自然回原书架“大奉001第6页25%”。56项既有真实VM行为检查通过；新增3个关键行为案例，没有源码字符串或界面形状测试。本会话193–195已补无首页Comic Fury热门→最新及自然返回；三域/筛选完整JSON保持。精确diff已审；未闭：提交/推送/精确CI，其他缺陷仍按snapshot。
+- 设备：237实时连接曾为 `192.168.50.237:12345`、VDE-AL00展开竖屏1320×2120。旧租约已释放；本会话live唯一解析237并取得新租约 `20261025-112030-77b84cd9`，191/195均实读AWAKE/86400000与Koma前台。持续验收的AWAKE/override86400000保持未改，正常timeout120000；不要把更早10000的旧样本冒作当前原值。197仍正式8569832B。**200禁止操作**，不因用户报设备号取得控制许可。
+- 已同步检查点：Koma HEAD/master `62621dd1b0076949fd0173a991ca4ddde304dfc8`，精确CI `40185795266` completed/success；此前六Native worker修复 `34e83b8b`/CI40179763215成功。安装75文件只读校验约2ms/持久化6ms已证，但主回调仍25.322ms与本行图标瞬空未闭，不能称安装总项完成。
+- 原仓与边界：只用 `/Users/honjow/git/Koma`、同级NextN/NextE/reader-kit/koma-sources。禁止工作树/源码副本、hook、Goal与无关UI改动；用户已授权后续代码提交推送不用再问，未授权新tag/发布。保护Koma `.idea`生成物和 `scripts/__pycache__`，NextN两个validator WIP；禁止 `git add .`。原图标/四私库PARKED_USER及已过具名阅读器路径冻结；缓存v3候选未采用，不合入。
+- 源仓本地材料提交 `46948b0`、`b24e6a0`、`4b1d977` 未单独推送：当前任何master push会重发85源，随后继实际源变更同推。不改成长期不同步借口。
+- 操作入口：继续使用 `.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前195）与原语义脚本（文件名diagnostics197，内容237），原录屏输入 `source-browse237.recording.json`。所有HDC/helper/dry-run在沙盒外并经有效租约；`HARMONY_DEVICE_ARTIFACT_HASHES=0`。Harmony技能恢复后重读，不打印签名口令。旧运行进程均已结束，当前无其他执行代理。
+
+<!-- /current-continuation -->
+
 ## 本轮反馈登记与稳定修复顺序（2026-10-23 / feedback_registry）
 
 - 沿用现有 `docs/qa/koma-production-progress.html`、`scripts/serve-reader-progress.py` 和本文件唯一 snapshot，未另建网页或清单。用户每次新报问题先由 feedback_registry 登记：缺陷、用户验证观察与原因推测分开；登记不抢占Root正在处理的修复。
@@ -931,11 +946,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T10:40:24.973027+00:00",
+  "updatedAt": "2026-10-25T11:27:24.815372+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "237 Native批量文件检查与IPmini首篇/自然返回已收口，正在范围提交同步；已批准的首页统一接续实施。",
-  "nextAction": "提交同步Native文件检查修复并跟进精确CI；实施SOURCE_BROWSE_HOME_STRUCTURE批准范围，保菜单材质/网格/筛选与刷新旧内容。",
+  "activeId": "SOURCE_BROWSE_HOME_STRUCTURE",
+  "activity": "新会话已接手全部69项；237无首页Comic Fury热门→最新及自然返回已验，三域/筛选保持。首页8文件差异已审，正在范围提交同步。",
+  "nextAction": "提交推送本笔首页统一8文件并跟精确CI；随后继续安装残余25ms与本行图标原项，不重放已过路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -978,8 +993,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "34e83b8bd10f2b1c61c002e070800226551b332a已推；精确CI40179763215 completed/success；固定Kit e3f3cc1。",
-      "hap": "237173明确安装Native批量文件检查候选8580548B/0.1.2-pre code3/debugfalse；正式可退包8569786B。197仍正式8569832B，Reader/缓存v3未改。"
+      "appHead": "62621dd1b0076949fd0173a991ca4ddde304dfc8已推；精确CI40185795266 completed/success；固定Kit e3f3cc1。",
+      "hap": "237当前首页统一WIP最终签名Release8577441B/0.1.2-pre code3/debugfalse；182明确安装，189原书架，190三域/筛选保持。197仍正式8569832B。"
     },
     {
       "name": "NextE",
@@ -1849,10 +1864,12 @@
       "closedAt": null,
       "owner": "Root / 197（等待自然失败样本）",
       "evidencePoints": [
-        "197 MangaDex连续切换All→Completed→Ongoing，最终值与列表一致；127帧已审，原全部筛选与Relevance排序已恢复。"
+        "197 MangaDex连续切换All→Completed→Ongoing，最终值与列表一致；127帧已审，原全部筛选与Relevance排序已恢复。",
+        "本轮187实见包子地區原生菜单有两条“全部”，另有國漫/日本/韓國/歐美；只登记实际重复标签，尚未核两个值是否等义，未改菜单。首页筛选/原UI重置与190偏好恢复具名成立。"
       ],
       "remainingActions": [
-        "普通/快速切换已过不重跑；自然失败重试仅待实际样本，不为获取样本清数据/造故障或重复请求。"
+        "普通/快速切换已过不重跑；自然失败重试仅待实际样本，不为获取样本清数据/造故障或重复请求。",
+        "后续调查187地区双“全部”的来源及值语义；若需改变可见选项按现有产品批准边界处理，不顺手重做筛选。"
       ],
       "boundaries": []
     },
@@ -2284,7 +2301,8 @@
       "evidencePoints": [
         "README面向用户整理为86行，85源核实；9243deb已提交，CI39894595111成功。",
         "幻塔首篇237真实正文结果已就地补源README，并本地材料提交46948b0；源码/包/图标未变。当前source master的ci对任何push会重打并发布85源，因此本材料暂未独立推送，随后继实际源变更同步，不为本次说明触发重复发布。",
-        "SOC首篇237 Native范围与原图封面成本已就地说明，本地材料提交b24e6a0；与幻塔46948b0均待后继实际源变更一并同步，未单为材料触发85源重发。"
+        "SOC首篇237 Native范围与原图封面成本已就地说明，本地材料提交b24e6a0；与幻塔46948b0均待后继实际源变更一并同步，未单为材料触发85源重发。",
+        "IPmini首12/#22完整原图及自然返回限定结果已本地材料提交4b1d977；与46948b0/b24e6a0待实际源变更同推，避免仅材料重复重发85源。"
       ],
       "remainingActions": [
         "本轮README整理范围已完成并冻结；后续仅随真实源发布/用户反馈按需更新，不重开已完成整理。"
@@ -2741,14 +2759,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：Native检查范围提交/精确CI；残余25ms与图标另保原项",
+      "owner": "Root：后续残余25ms与本行图标按实际因果继续",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "237普通首装与首篇返回已核；本笔待提交CI，总项仍OPEN",
+      "status": "Native文件检查62621dd1已推且精确CI成功；残余总项OPEN",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -2781,10 +2799,10 @@
         "177原图已亲审：IP手札mini #22完整四格及知识解说JPEG1/1，正文HTTP200/5351599B/1489ms；178自然返回原书架大奉001第6页25%。179 library/75源registry完整JSON同174；Reader仅本次新增progress/sourceHistory/chapters各1，旧60/29/76每字段与相对顺序保持。未扩认第二页3篇、其余正文、下载或cold。"
       ],
       "remainingActions": [
-        "本笔Native批量检查范围提交/推送并跟精确CI；总项继续保留25.322ms回调及本行图标未验，不重复已过IPmini路径。",
+        "本次Native检查范围已同步且CI成功；残余主回调25.322ms及本行图标未闭，按新因果继续，不重跑已过首装/正文。",
         "语言热路径修复7b0f3bac已推，精确CI40174256817 completed/success；本具名范围冻结。120本行图标瞬空及其他状态键仍保各自边界。"
       ],
-      "remaining": "75文件Native核对2010us/持久化6ms已实测；主回调仍25.322ms，本行图标未录像，不关闭总项。当前提交CI后接已批准首页统一。",
+      "remaining": "62621dd1已推master，精确CI40185795266 completed/success。75文件检查约2ms/持久化6ms实测；主回调仍25.322ms，本行图标未录像，不关闭总项。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -3050,26 +3068,31 @@
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
       "title": "源浏览分类下拉与首页分区结构待整理",
       "priority": "P2（设计结构调查）",
-      "owner": "Root：当前修复提交后实施VM内容选择与原生入口",
+      "owner": "Root：本笔范围提交/推送与精确CI",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_FILTERS",
         "BROWSE_HEADER_REFRESH"
       ],
       "kind": "open",
-      "status": "明确采用已登记；实现前历史/父树核对中",
-      "result": "当前6个已装源声明home；loadBrowseHome先读首页分区再读默认栏目，gridProjection按首页→栏目连续拼接。包子首页4组各12项，另有热门栏目；只有单一栏目时还不会出现分类下拉。无home的漫画160直接显示栏目，所以入口结构不同。",
+      "status": "237包子及无首页Comic Fury具名通过；本笔待提交CI",
+      "result": "最终签名Release8577441B已明确装237。包子首页/熱門为互斥内容，原生分类菜单在搜索下方，首页/熱門对勾随实际选择切换。熱門36本单一列表，首页不再额外请求默认栏目。正常下拉刷新仍选熱門、旧封面与内容保留；首页地区筛选进入原默认熱門，重置后原内容恢复。 本轮193–194无首页Comic Fury默认热门12本，菜单仅热门/最新，选最新后单一12本且首排实际变化，对勾正确；自然返回原大奉001第6页25%。",
       "evidencePoints": [
         "SourceBrowsePage.SectionHeader仅listings>1显示menu，homeSections按序append；BrowseVM.loadBrowseHome可同时装首页分区与default listing。",
         "4caff25f增加首页分区并与栏目同页；9541bfed删除顶部独立选择器，把下拉并入栏目头。当前仍home-first/栏目录后；未查到该组合的独立产品确认，不从当前实现反推合理。",
         "已读Mihon当前BrowseSourceScreen：顶部热门/按能力显示最新/筛选，单一分页内容；仅借鉴内容选择边界，不复制Android样式。包子get_home四次classify摘要，再由Host默认get_manga_list取栏目，二者不是互斥内容。",
-        "最新人类异步答复明确选择“采用统一入口和单一内容区”。不是待答；不再索要相同产品授权，也不抢占正在执行的普通阅读场景。"
+        "最新人类异步答复明确选择“采用统一入口和单一内容区”。不是待答；不再索要相同产品授权，也不抢占正在执行的普通阅读场景。",
+        "本轮亲核Mihon BrowseSourceScreen的互斥listing及单一内容分页；本地沿现有原生Button/Menu与komaMenuOptions，官方MenuItem selected/selectIcon支持系统对勾。既有VM真实行为56项通过，新加3个互斥/失败恢复/过期响应案例，无源码形状检查；签名Release产物8577440B，尚未装机，不能据此宣布UI通过。",
+        "182明确安装8577441B后library/reader/registry与装前完整JSON相同；亲审首页及原生菜单，实际仅首页/熱門两项，Home与熱門分别selected=true。183熱門36本且原首頁熱門漫畫header消失；返回Home仍正确。",
+        "184正常下拉连续MP4 2663838B、146原PTS编码帧，5张有序联系表及50/130原分辨率交接帧已亲审：封面与熱門选择持续保留，回缩完成，无全屏清空。只证明本动作，不宣称FPS/所有刷新都通过。",
+        "186–188原生筛选半模态保持；从Home选日本后进入默认熱門且实际列表内容变化，经原重置入口恢复原列表。189自然返回原书架大奉001第6页25%；190三域与182-before完整JSON相同，筛选schema1/sources{}与185原基线相同。237旧租约20261025-104754-1dae813e已释放；新会话需live resolve与新租约。",
+        "本会话191漫画柜普通进入连接超时，原图保留且未重试，不归因本次UI；192查找Comic Fury时向顶部滚动未找到，属脚本方向错误，未据此改产品。193从实际列表顶部沿名称顺序到Comic Fury，热门12本及仅两栏目原生菜单；194选择最新、首排变化/对勾及原书架完整PNG均已亲看。195 library/reader/75源registry完整JSON均同190，筛选仍schema1/sources{}，AWAKE/86400000保持。"
       ],
       "remainingActions": [
-        "核原生菜单与完整父树/历史；移动既有分类入口到搜索下方，支持项含首页；VM只请求和显示所选内容，刷新保选择/旧内容，失败重试保目标。",
-        "构建后237按首页源与无首页源普通入口验证分类切换、筛选、刷新和返回；已接受路径不重跑。"
+        "范围提交推送本笔8文件并跟精确CI；具名首页/无首页路径冻结。",
+        "后继继续安装残余25ms/本行图标及原未闭缺陷，不以单项完成关闭整体任务。"
       ],
-      "remaining": "已收到本会话对call_95fb60c14900499080e9c7ec34d82b91的明确采用。按所列范围改：搜索框下方现有原生分类下拉，仅支持项，一次显示所选内容；有首页仍默认首页，其他保原默认列表/热门语义；首页不再额外拼热门。菜单材质、网格、筛选保持。",
+      "remaining": "237包子首页/热门/刷新/筛选与Comic Fury无首页热门→最新/自然返回具名通过；独立搜索与自然失败边界未扩认。本笔待提交推送和精确CI。",
       "boundaries": [
         "人类已明确允许所列入口位置与内容组合差异；菜单材质、网格、筛选、搜索及原默认栏目语义保持。",
         "安装残余、包子正文及其他原队列继续保留；不把本项批准扩大为重构根导航或共享阅读器。"
@@ -3098,7 +3121,19 @@
         "decision": "采用统一入口和单一内容区",
         "recordedAt": "2026-10-25T10:19:40.067847+00:00",
         "allowedDifference": "移动分类入口至搜索框下方；仅列源支持的首页/热门/最新/其他栏目并一次只显示所选内容。有首页默认首页，其他保原默认列表；不再首页后拼热门。现有菜单材质、网格和筛选不改。"
-      }
+      },
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-single-content-installed-182",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-popular-selection-183",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-popular-refresh-motion-184",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-filter-home-route-188",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-migration-natural-return-189",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-migration-final-readback-190",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-nohome-preflight-191",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-nohome-comicfury-193",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-nohome-latest-return-194",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-nohome-final-readback-195"
+      ]
     },
     {
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
@@ -3159,7 +3194,8 @@
       "evidencePoints": [
         "413实际列表请求15038ms超时；get_settings未实现是独立能力，不是该列表超时原因。",
         "415完整原图已亲审：manhuagui.com加载指示消失后仍白页，仅Web节点/原生导航，无正文或挑战UI；三域同406，AWAKE/override86400000。",
-        "237081同普通Browse→漫画柜016，本次HTTP200/27920chars；头1599ms、总1609ms，官方累计dns6.557/tcp9.382/tls1194.953/首字节1593.163/完成1595.842ms。新阶段日志已实机可用；不反推旧197超时原因或整源正文可读。"
+        "237081同普通Browse→漫画柜016，本次HTTP200/27920chars；头1599ms、总1609ms，官方累计dns6.557/tcp9.382/tls1194.953/首字节1593.163/完成1595.842ms。新阶段日志已实机可用；不反推旧197超时原因或整源正文可读。",
+        "本会话191在最终首页签名包下普通Browse→漫画柜，实际显示连接书源超时；原图保留，未重复请求/改网络/打开Web。该次未取到准确网络阶段，不由此归因旧197。"
       ],
       "remainingActions": [
         "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。"
@@ -3742,6 +3778,30 @@
       "title": "IPmini首篇与自然返回完成；提交安装检查优化",
       "detail": "原图HTTP200，原书架和旧记录保持；75文件检查约2ms，残余主回调25ms保留。接已批准首页统一。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-native-selector-implemented",
+      "at": "2026-10-25T10:50:33.497995+00:00",
+      "title": "首页统一已实现；进入237普通路径验证",
+      "detail": "安装检查62621dd1精确CI成功。新源页面只加载当前首页/栏目，保刷新旧内容与失败目标，实机待验。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "fresh-thread-migration-handoff",
+      "at": "2026-10-25T11:18:17.987020+00:00",
+      "title": "按用户要求准备轻量新会话续接",
+      "detail": "当前筛选验证已收口；237原书架、三域及筛选保持，旧租约已释放。首页WIP与其余原队列交新会话，定时任务将保原频率迁移。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-nohome-accepted",
+      "at": "2026-10-25T11:27:24.815372+00:00",
+      "title": "无首页Comic Fury分类路径通过，准备范围同步",
+      "detail": "237热门/最新两栏目及单一12本内容、对勾、原书架自然返回均亲审；195三域/筛选保持。漫画柜本次连接超时仅限制该样本。10分钟heartbeat已读回迁到本会话。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
       "kind": "work"
     }
   ]

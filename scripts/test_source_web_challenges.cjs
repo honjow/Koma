@@ -19,7 +19,9 @@ const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.na
 const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
   'searchResultFingerprint', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
-  'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'loadBrowseHome', 'setSelectedSource']
+  'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'selectBrowseHome', 'loadBrowseHome', 'setSelectedSource',
+  'sourceSupportsOperation', 'clearBrowseContent', 'clearBrowseListing', 'hasBrowseContent', 'resolveBrowseLoad',
+  'currentListing', 'defaultListingForBrowse', 'applyBrowseListing']
 const source = `export class Model { ${methods.map(name => owner.members.find(node => node.name?.text === name).getText(ast)).join('\n')} }`
 const intents = { NONE: 'none', INITIAL: 'initial', REFRESH: 'refresh', PAGINATION: 'page', LISTING_REPLACEMENT: 'listing' }
 const challenge = () => new SourceRuntimeError({ ok: false, error: { code: 'challenge_required', status: 403 } })
@@ -29,7 +31,7 @@ function fixture() {
   new Function('exports', 'SourceRuntimeError', 'appSourceSettingsStore', 'safeSearchDiagnostic',
     'safeSourceBrowseErrorText', 'BrowseLoadIntent', 'BrowseContentState', 'appendUniqueSourceManga', compile(source))(
     exports, SourceRuntimeError, { revisionForSource: () => revision }, error => ({ userText: error.userText }),
-    error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error' }, (a,b) => a.concat(b))
+    error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error', EMPTY: 'empty', UNRESOLVED: 'unresolved' }, (a,b) => a.concat(b))
   const model = new exports.Model(), calls = [], replies = []
   const sourceSummary = { sourceId: 'test', version: '1', wasmByteCount: 12, webSessionOrigins: ['https://test.invalid'], capabilities: ['home'] }
   Object.assign(model, { selectedSource: sourceSummary, registry: { lookup: () => ({ ok: true, entry }) },
@@ -41,7 +43,9 @@ function fixture() {
     searchSource: async (_source, query, page, cursor) => {
       calls.push({ query, page, cursor }); const reply = replies.shift(); if (reply instanceof Error) throw reply; return reply
     },
-    clearBrowseContent: () => {}, currentListing: () => ({ id: model.selectedListingId }), hasBrowseContent: () => true,
+    homeAvailable: true, homeSections: [], listings: [{ id: 'popular', name: 'Popular', kind: 'popular' }],
+    browseSections: [{ listing: { id: 'popular' }, manga: [{ id: 'old' }] }], popularManga: [{ id: 'old' }],
+    defaultSourceFilterValues: () => ({}), mergeSavedSourceFilterValues: (_source, _kind, values) => values,
     isCurrentBrowseSource: () => true, isSameBrowseSource: () => true,
     loadSourceListings: async () => [], loadSourceFilters: async () => [],
     loadSourceHomeSections: async () => { calls.push('home'); throw challenge() },
@@ -139,14 +143,14 @@ test('completion rejected on hidden route consumes the old claim, even after rou
   assert.equal(f.model.searchWebChallengeGate.claim(id, true), false)
   assert.equal(f.calls.length, 1)
 })
-test('home preliminary listing/filter results do not invalidate its later listing challenge', async () => {
+test('browse metadata results do not invalidate its later listing challenge', async () => {
   const f = fixture()
   f.model.loadSourceListings = async () => [{ id: 'latest' }]
   f.model.loadSourceFilters = async () => [{ id: 'genre' }]
   f.model.loadSourceHomeSections = async () => []
   f.model.mergeSavedSourceFilterValues = (_source, _kind, values) => values
   f.model.defaultSourceFilterValues = () => ({ genre: 'all' })
-  f.model.sourceSupportsOperation = () => true
+  f.source.capabilities = ['sourceInfo', 'mangaList', 'listings', 'filters']
   f.model.defaultListingForBrowse = listings => listings[0]
   await f.model.loadBrowseHome(f.source)
   const receipt = f.model.browseWebChallenge
@@ -154,6 +158,60 @@ test('home preliminary listing/filter results do not invalidate its later listin
   assert.equal(f.model.claimWebChallenge('browse', receipt.id, true), true)
   assert.equal(await f.model.completeWebChallenge('browse', receipt.id, true), true)
   assert.deepEqual(f.calls, [{ listing: 'latest', page: 1, cursor: '' }, { listing: 'latest', page: 1, cursor: '' }])
+})
+
+
+// User adoption of SOURCE_BROWSE_HOME_STRUCTURE replaces the old mixed
+// Home+default-listing behavior; these execute the production VM methods.
+test('Home and listings are exclusive; refreshing a selected listing keeps its rows and destination', async () => {
+  const f = fixture(), home = [{ id: 'recommend', manga: [{ id: 'home1' }] }]
+  f.source.capabilities = ['sourceInfo', 'home', 'mangaList', 'listings']
+  f.model.loadSourceListings = async () => [{ id: 'popular', kind: 'popular' }, { id: 'latest' }]
+  f.model.loadSourceHomeSections = async () => { f.calls.push('home'); return home }
+  f.model.loadMangaListing = async (_source, id) => { f.calls.push(id); return { manga: [{ id }], hasNextPage: false } }
+  await f.model.loadBrowseHome(f.source)
+  assert.deepEqual(f.calls, ['home']); assert.equal(f.model.selectedListingId, '')
+  assert.deepEqual(f.model.homeSections, home); assert.deepEqual(f.model.browseSections, [])
+  assert.equal(f.model.hasMoreBrowse, false)
+  assert.equal(f.model.currentListing().id, 'popular') // existing filter destination from Home
+  await f.model.selectBrowseListing({ id: 'latest' })
+  assert.deepEqual(f.model.homeSections, []); assert.equal(f.model.homeAvailable, true)
+  const oldRows = f.model.browseSections
+  let reject
+  f.model.loadMangaListing = async (_source, id) => { f.calls.push(id); return new Promise((_r, fail) => { reject = fail }) }
+  const refreshing = f.model.loadBrowseHome(f.source, intents.REFRESH)
+  await new Promise(setImmediate)
+  assert.equal(f.model.browseSections, oldRows); assert.equal(f.model.selectedListingId, 'latest')
+  reject(Error('offline')); await refreshing
+  assert.equal(f.model.browseSections, oldRows); assert.equal(f.model.browseErrorIntent, intents.REFRESH)
+  f.model.loadMangaListing = async (_source, id) => { f.calls.push(id); return { manga: [{ id: 'new' }], hasNextPage: false } }
+  await f.model.retryBrowseFailure()
+  assert.deepEqual(f.calls, ['home', 'latest', 'latest', 'latest'])
+  assert.equal(f.model.selectedListingId, 'latest'); assert.deepEqual(f.model.homeSections, [])
+})
+test('a failed switch to Home keeps listing rows and verification retries Home only', async () => {
+  const f = fixture(), oldRows = f.model.browseSections
+  f.model.hasMoreBrowse = true
+  await f.model.selectBrowseHome()
+  assert.equal(f.model.browseSections, oldRows); assert.equal(f.model.selectedListingId, 'popular')
+  await f.model.loadMoreBrowse() // retained tail must not consume the failed Home target
+  assert.deepEqual(f.calls, ['home'])
+  const receipt = f.model.browseWebChallenge
+  assert.ok(receipt); f.model.claimWebChallenge('browse', receipt.id, true)
+  f.model.loadSourceHomeSections = async () => { f.calls.push('home'); return [{ id: 'home', manga: [{ id: 'ready' }] }] }
+  assert.equal(await f.model.completeWebChallenge('browse', receipt.id, true), true)
+  assert.deepEqual(f.calls, ['home', 'home']); assert.equal(f.model.selectedListingId, '')
+  assert.deepEqual(f.model.browseSections, []); assert.equal(f.model.homeSections[0].manga[0].id, 'ready')
+})
+test('a late Home response cannot overwrite a newly selected source', async () => {
+  const f = fixture(); let resolve
+  f.model.loadSourceHomeSections = async () => new Promise(done => { resolve = done })
+  const switching = f.model.selectBrowseHome()
+  f.model.setSelectedSource({ ...f.source, sourceId: 'other' })
+  resolve([{ id: 'stale', manga: [{ id: 'wrong' }] }]); await switching
+  assert.equal(f.model.selectedSource.sourceId, 'other')
+  assert.deepEqual(f.model.homeSections, []); assert.deepEqual(f.model.browseSections, [])
+  assert.equal(f.model.homeAvailable, false)
 })
 
 

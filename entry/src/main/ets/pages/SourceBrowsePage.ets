@@ -40,17 +40,13 @@ function s(name: string): string {
 
 interface SourceBrowseGridRow {
   key: string
-  kind: 'home-header' | 'browse-header' | 'manga' | 'loading' | 'empty-search' | 'empty-browse' | 'error' | 'footer'
+  kind: 'home-header' | 'browse-selector' | 'manga' | 'loading' | 'empty-search' | 'empty-browse' | 'error' | 'footer'
   manga?: SourceManga
   homeSection?: SourceHomeSectionState
-  browseSection?: BrowseSourceSectionState
   bottomPadding: number
 }
 interface SourceBrowseGridRowParams {
   row: SourceBrowseGridRow
-}
-interface SourceBrowseSectionHeaderParams {
-  section: BrowseSourceSectionState
 }
 interface SourceHomeSectionHeaderParams {
   section: SourceHomeSectionState
@@ -356,11 +352,22 @@ export struct SourceBrowsePage {
   @Builder
   private ListingMenu() {
     Menu() {
-      ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
-        MenuItem({ content: listing.name })
+      if (this.viewModel.homeAvailable) {
+        MenuItem({ content: s('common_home') })
+          .selected(this.viewModel.selectedListingId.length === 0)
+          .selectIcon(true)
           .onClick(() => {
             this.listingMenuOpen = false
-            void this.viewModel.selectBrowseListing(listing)
+            if (this.viewModel.selectedListingId.length > 0) void this.viewModel.selectBrowseHome()
+          })
+      }
+      ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
+        MenuItem({ content: listing.name })
+          .selected(this.viewModel.selectedListingId === listing.id)
+          .selectIcon(true)
+          .onClick(() => {
+            this.listingMenuOpen = false
+            if (this.viewModel.selectedListingId !== listing.id) void this.viewModel.selectBrowseListing(listing)
           })
       }, (listing: SourceListingDescriptor) => listing.id)
     }
@@ -383,18 +390,28 @@ export struct SourceBrowsePage {
   }
 
   private openListingMenu(): void {
-    if (this.viewModel.listings.length > 1 && !this.viewModel.loadingBrowse) {
+    if (this.listingChoiceCount() > 1 && !this.viewModel.loadingBrowse) {
       this.listingMenuOpen = true
     }
   }
 
+  private listingChoiceCount(): number {
+    return this.viewModel.listings.length + (this.viewModel.homeAvailable ? 1 : 0)
+  }
+
+  private selectedListingName(): string {
+    if (this.viewModel.homeAvailable && this.viewModel.selectedListingId.length === 0) return s('common_home')
+    return this.viewModel.listings.find((listing: SourceListingDescriptor): boolean =>
+      listing.id === this.viewModel.selectedListingId)?.name ?? ''
+  }
+
   @Builder
-  private SectionHeader(params: SourceBrowseSectionHeaderParams) {
+  private ListingSelector() {
     Row() {
-      if (this.viewModel.listings.length > 1) {
+      if (this.listingChoiceCount() > 1) {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
           Row({ space: ThemeConstants.SPACE_XS }) {
-            Text(params.section.listing.name)
+            Text(this.selectedListingName())
               .fontSize(ThemeConstants.FONT_SIZE_H3)
               .fontWeight(FontWeight.Bold)
               .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -415,12 +432,12 @@ export struct SourceBrowsePage {
             this.listingMenuOpen = false
           },
         }))
-        .accessibilityText(params.section.listing.name)
+        .accessibilityText(this.selectedListingName())
         .onClick(() => {
           this.openListingMenu()
         })
       } else {
-        Text(params.section.listing.name)
+        Text(this.selectedListingName())
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
@@ -428,9 +445,11 @@ export struct SourceBrowsePage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       Blank()
-      Text(s('library_count_books').replace('%s', `${params.section.manga.length}`))
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
+      if (this.viewModel.selectedListingId.length > 0) {
+        Text(s('library_count_books').replace('%s', `${this.viewModel.popularManga.length}`))
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
     }
     .width('100%')
   }
@@ -492,6 +511,11 @@ export struct SourceBrowsePage {
         rows.push({ key: 'search-footer', kind: 'footer', bottomPadding: ThemeConstants.SPACE_MD })
       }
     } else if (!this.isBlockingBrowseLoading()) {
+      // Keep one selector immediately below the existing pinned search field.
+      // It shares the Grid owner; selecting a listing never appends Home rows.
+      if (this.listingChoiceCount() > 0) {
+        rows.push({ key: 'browse-selector', kind: 'browse-selector', bottomPadding: ThemeConstants.SPACE_MD })
+      }
       if (this.viewModel.browseContentState === BrowseContentState.ERROR && !this.hasBrowseContent()) {
         rows.push({ key: 'browse-error', kind: 'error', bottomPadding: ThemeConstants.SPACE_MD })
       } else if (this.viewModel.browseContentState === BrowseContentState.EMPTY) {
@@ -505,8 +529,6 @@ export struct SourceBrowsePage {
         })
         this.viewModel.browseSections.forEach((section: BrowseSourceSectionState) => {
           const prefix = `browse:${section.listing.id}`
-          rows.push({ key: `${prefix}:header`, kind: 'browse-header', browseSection: section,
-            bottomPadding: section.manga.length > 0 ? ThemeConstants.SPACE_MD : ThemeConstants.SPACE_MD * 2 })
           this.appendMangaRows(rows, prefix, section.manga)
         })
         if (this.viewModel.browseContentState === BrowseContentState.ERROR &&
@@ -536,8 +558,8 @@ export struct SourceBrowsePage {
       MangaGridItem({ manga: params.row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (params.row.kind === 'home-header') {
       this.HomeSectionHeader({ section: params.row.homeSection! })
-    } else if (params.row.kind === 'browse-header') {
-      this.SectionHeader({ section: params.row.browseSection! })
+    } else if (params.row.kind === 'browse-selector') {
+      this.ListingSelector()
     } else if (params.row.kind === 'loading') {
       this.LoadingBrowseState()
     } else if (params.row.kind === 'empty-search') {
