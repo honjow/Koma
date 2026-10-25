@@ -11,6 +11,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaModalScaffold } from './KomaModalScaffold'
 import { MangaWebView } from './MangaWebView'
 import { KomaActionButton } from './ui/KomaActionButton'
+import { KomaIconButton } from './ui/KomaIconButton'
 
 /** Host begins/cancels the scoped grant and owns sheet dismissal and request retry. */
 @ComponentV2
@@ -293,28 +294,32 @@ export struct SourceWebSessionSheet {
         }
         .width('100%')
         .layoutWeight(1)
-        Column({ space: ThemeConstants.SPACE_SM }) {
-          Row({ space: ThemeConstants.SPACE_SM }) {
-            KomaActionButton({
-              label: AppStrings.get('web_nav_back'), icon: $r('sys.symbol.chevron_left'),
-              compact: true, fill: true, isEnabled: this.canBack && !this.completing && !this.completed,
-              action: () => { this.navigate('back') },
-            })
-            KomaActionButton({
-              label: AppStrings.get('web_nav_forward'), icon: $r('sys.symbol.chevron_right'),
-              compact: true, fill: true, isEnabled: this.canForward && !this.completing && !this.completed,
-              action: () => { this.navigate('forward') },
-            })
-            KomaActionButton({
-              label: AppStrings.get('web_nav_refresh'), icon: $r('sys.symbol.arrow_clockwise'),
-              compact: true, fill: true, isEnabled: this.controllerReady && !this.completing && !this.completed,
-              action: () => { this.navigate('refresh') },
-            })
-          }
-          .width('100%')
+        // User rejected the two-row button stack: navigation and completion share
+        // one compact toolbar. Keep verification, dismissal and retry ownership above.
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          KomaIconButton({
+            icon: $r('sys.symbol.chevron_left'), controlSize: ThemeConstants.BUTTON_HEIGHT,
+            isEnabled: this.canBack && !this.completing && !this.completed,
+            action: () => { this.navigate('back') },
+          })
+          .accessibilityText(AppStrings.get('web_nav_back'))
+          KomaIconButton({
+            icon: $r('sys.symbol.chevron_right'), controlSize: ThemeConstants.BUTTON_HEIGHT,
+            isEnabled: this.canForward && !this.completing && !this.completed,
+            action: () => { this.navigate('forward') },
+          })
+          .accessibilityText(AppStrings.get('web_nav_forward'))
+          KomaIconButton({
+            icon: $r('sys.symbol.arrow_clockwise'), controlSize: ThemeConstants.BUTTON_HEIGHT,
+            isEnabled: this.controllerReady && !this.completing && !this.completed,
+            action: () => { this.navigate('refresh') },
+          })
+          .accessibilityText(AppStrings.get('web_nav_refresh'))
+          Blank()
+            .layoutWeight(1)
           KomaActionButton({
             label: AppStrings.get('source_web_complete'), icon: $r('sys.symbol.checkmark'),
-            kind: 'primary', fullWidth: true, busy: this.completing,
+            kind: 'primary', compact: true, busy: this.completing,
             isEnabled: this.controllerReady && !this.loading && !this.completed && this.params.sourceSession !== undefined,
             action: () => { void this.completeSourceSession() },
           })
