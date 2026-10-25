@@ -726,6 +726,7 @@
     { "name": "common_expand", "value": "Expand" },
     { "name": "common_collapse", "value": "Collapse" },
     { "name": "common_filter", "value": "Filter" },
+    { "name": "source_filter_clear_one", "value": "Clear this filter" },
     { "name": "common_description", "value": "Description" },
     { "name": "common_tags", "value": "Tags" },
     { "name": "common_home", "value": "Home" },

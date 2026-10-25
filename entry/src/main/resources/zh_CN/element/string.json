@@ -729,6 +729,7 @@
     { "name": "common_expand", "value": "展开" },
     { "name": "common_collapse", "value": "收起" },
     { "name": "common_filter", "value": "筛选" },
+    { "name": "source_filter_clear_one", "value": "清除此项筛选" },
     { "name": "common_description", "value": "简介" },
     { "name": "common_tags", "value": "标签" },
     { "name": "common_home", "value": "首页" },

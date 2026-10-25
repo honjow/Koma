@@ -195,7 +195,9 @@ export struct SourceFilterControls {
   @Builder
   private FilterOptionMenu(filter: SourceFilter, select: (action: () => void) => void) {
     Menu() {
-      MenuItem({ content: s('common_all') })
+      // App clear removes this field; source-declared All is a distinct value.
+      // Keep both actions (CURRENT_STATUS SOURCE_FILTERS, explicit user choice).
+      MenuItem({ content: s('source_filter_clear_one') })
         .onClick(() => {
           select(() => {
             this.onFilterChange(filter, undefined)

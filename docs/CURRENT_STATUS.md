@@ -5,13 +5,13 @@
 
 用户因本会话压缩摘要不断膨胀，明确要求新对话续接并迁移定时任务。旧会话 `01a11fb1-9f44-7123-8590-b6e849190eab` 已停止产品修改；新会话已接管，并完成全部69项id/kind/status/owner/remainingActions核对。本段是定位入口，69项 snapshot 仍是唯一完整队列；先解析全部未完成项的状态/owner/下一动作，再只展开当前项所需最新证据。不要全量重载旧聊天、旧长摘要或本文件历史段。
 
-- 当前：`SOURCE_BROWSE_HOME_STRUCTURE`。用户已明确采用“搜索下方原生分类入口、一次只显示所选内容”；现有材质、网格、筛选保持。代码/三语/既有行为用例及运行合同共8文件，原仓准备范围提交。最终签名包 `.hvigor/outputs/user-flow-audit/Koma-source-home-selection-final-8577441.hap` 已装237；0.1.2-pre/code3/debug=false。
-- 已证：237包子首页↔熱門原生菜单及对勾，单一熱門36本，刷新保当前选择/旧封面，首页筛选进入原默认栏目及原UI重置。最新证据为该项182–190目录；184连续录像已审。190三域及筛选完整JSON保持；189已自然回原书架“大奉001第6页25%”。56项既有真实VM行为检查通过；新增3个关键行为案例，没有源码字符串或界面形状测试。本会话193–195已补无首页Comic Fury热门→最新及自然返回；三域/筛选完整JSON保持。精确diff已审；未闭：提交/推送/精确CI，其他缺陷仍按snapshot。
+- 当前：`SOURCE_PACKAGE_INSTALL_UI_STALL`。首页统一`SOURCE_BROWSE_HOME_STRUCTURE`已具名完成，用户已明确采用“搜索下方原生分类入口、一次只显示所选内容”；现有材质、网格、筛选保持。代码/三语/既有行为用例及运行合同共8文件已提交推送`e6404c5b`，精确CI`40188955447`成功。最终签名包 `.hvigor/outputs/user-flow-audit/Koma-source-home-selection-final-8577441.hap` 已装237；0.1.2-pre/code3/debug=false。
+- 已证：237包子首页↔熱門原生菜单及对勾，单一熱門36本，刷新保当前选择/旧封面，首页筛选进入原默认栏目及原UI重置。最新证据为该项182–190目录；184连续录像已审。190三域及筛选完整JSON保持；189已自然回原书架“大奉001第6页25%”。56项既有真实VM行为检查通过；新增3个关键行为案例，没有源码字符串或界面形状测试。本会话193–195已补无首页Comic Fury热门→最新及自然返回；三域/筛选完整JSON保持。精确diff与本笔提交CI已完成；其他缺陷仍按snapshot，当前定位安装残余。
 - 设备：237实时连接曾为 `192.168.50.237:12345`、VDE-AL00展开竖屏1320×2120。旧租约已释放；本会话live唯一解析237并取得新租约 `20261025-112030-77b84cd9`，191/195均实读AWAKE/86400000与Koma前台。持续验收的AWAKE/override86400000保持未改，正常timeout120000；不要把更早10000的旧样本冒作当前原值。197仍正式8569832B。**200禁止操作**，不因用户报设备号取得控制许可。
 - 已同步检查点：Koma HEAD/master `62621dd1b0076949fd0173a991ca4ddde304dfc8`，精确CI `40185795266` completed/success；此前六Native worker修复 `34e83b8b`/CI40179763215成功。安装75文件只读校验约2ms/持久化6ms已证，但主回调仍25.322ms与本行图标瞬空未闭，不能称安装总项完成。
 - 原仓与边界：只用 `/Users/honjow/git/Koma`、同级NextN/NextE/reader-kit/koma-sources。禁止工作树/源码副本、hook、Goal与无关UI改动；用户已授权后续代码提交推送不用再问，未授权新tag/发布。保护Koma `.idea`生成物和 `scripts/__pycache__`，NextN两个validator WIP；禁止 `git add .`。原图标/四私库PARKED_USER及已过具名阅读器路径冻结；缓存v3候选未采用，不合入。
 - 源仓本地材料提交 `46948b0`、`b24e6a0`、`4b1d977` 未单独推送：当前任何master push会重发85源，随后继实际源变更同推。不改成长期不同步借口。
-- 操作入口：继续使用 `.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前195）与原语义脚本（文件名diagnostics197，内容237），原录屏输入 `source-browse237.recording.json`。所有HDC/helper/dry-run在沙盒外并经有效租约；`HARMONY_DEVICE_ARTIFACT_HASHES=0`。Harmony技能恢复后重读，不打印签名口令。旧运行进程均已结束，当前无其他执行代理。
+- 操作入口：继续使用 `.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前203）与原语义脚本（文件名diagnostics197，内容237），原录屏输入 `source-browse237.recording.json`。所有HDC/helper/dry-run在沙盒外并经有效租约；`HARMONY_DEVICE_ARTIFACT_HASHES=0`。Harmony技能恢复后重读，不打印签名口令。当前无其他执行代理；本会话199配对CPU诊断已结束、补丁精确撤回，237正式8578908B已恢复，CPUJSON仅本次清理且ABSENT。
 
 <!-- /current-continuation -->
 
@@ -946,11 +946,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T11:27:24.815372+00:00",
+  "updatedAt": "2026-10-25T11:41:55.799844+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_BROWSE_HOME_STRUCTURE",
-  "activity": "新会话已接手全部69项；237无首页Comic Fury热门→最新及自然返回已验，三域/筛选保持。首页8文件差异已审，正在范围提交同步。",
-  "nextAction": "提交推送本笔首页统一8文件并跟精确CI；随后继续安装残余25ms与本行图标原项，不重放已过路径。",
+  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+  "activity": "首页统一e6404c5b精确CI已成功；237安装CPU取证结束且已恢复无探针正式8578908B。批准的筛选首项文案/原清除动作已具名验收，准备范围同步。",
+  "nextAction": "范围提交同步筛选首项文案并跟精确CI；按199真实CPU栈处理导入摘要校验约11ms，保持校验/同步注册事务和错误回滚。",
   "proof": [
     {
       "label": "正式主仓",
@@ -993,8 +993,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "62621dd1b0076949fd0173a991ca4ddde304dfc8已推；精确CI40185795266 completed/success；固定Kit e3f3cc1。",
-      "hap": "237当前首页统一WIP最终签名Release8577441B/0.1.2-pre code3/debugfalse；182明确安装，189原书架，190三域/筛选保持。197仍正式8569832B。"
+      "appHead": "e6404c5b543653e2684ef4c5559f683484d64ceb已推；精确CI40188955447 completed/success；固定Kit e3f3cc1。",
+      "hap": "237当前正式无CPU探针8578908B/0.1.2-pre code3/debugfalse，200明确安装；203原书架/三域/空筛选保持，76源仅本轮新增我是馬克。197仍8569832B。"
     },
     {
       "name": "NextE",
@@ -1854,24 +1854,40 @@
     {
       "id": "SOURCE_FILTERS",
       "title": "已批准源筛选行为的当前设备路径",
-      "status": "已过切换路径冻结，自然失败分支待条件",
+      "status": "批准的清除文案与原动作237具名通过；本笔待同步CI",
       "kind": "open",
-      "result": "已过切换路径冻结，自然失败分支待条件",
+      "result": "首项仅改为清除此项筛选，源All与原顺序/材质保留。237201菜单原图已亲看，202实际清除后All对勾消失，原重置恢复并自然回原大奉001第6页25%；203三域完整JSON同200，筛选schema1/sources{}。",
       "remaining": "普通/快速切换已过不重跑；自然失败重试仅待实际样本，不为获取样本清数据/造故障或重复请求。",
       "reportedAt": null,
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": null,
-      "owner": "Root / 197（等待自然失败样本）",
+      "owner": "Root：筛选文案范围同步；自然失败样本仍待条件",
       "evidencePoints": [
         "197 MangaDex连续切换All→Completed→Ongoing，最终值与列表一致；127帧已审，原全部筛选与Relevance排序已恢复。",
-        "本轮187实见包子地區原生菜单有两条“全部”，另有國漫/日本/韓國/歐美；只登记实际重复标签，尚未核两个值是否等义，未改菜单。首页筛选/原UI重置与190偏好恢复具名成立。"
+        "本轮187实见包子地區原生菜单有两条“全部”，另有國漫/日本/韓國/歐美；只登记实际重复标签，尚未核两个值是否等义，未改菜单。首页筛选/原UI重置与190偏好恢复具名成立。",
+        "本会话只读查实：FilterOptionMenu首个common_all发undefined并清除字段；包子源另声明value=all/label全部，并按defaultRegion/defaultState回退。不可直接合并；已提出只将App首项文案改清除此项筛选的异步选择，尚待人类决定，未改UI。",
+        "用户本轮实际异步答复call_923a69843c004d9fa8116be8e1f22b41：采用“清除此项筛选”。本决定取代此前该文案待答状态，不合并undefined/all。",
+        "200正式签名Release8578908B覆盖安装明确成功；临时CPU补丁2060B已精确撤、Manager diff为空。201新首项清除此项筛选/源全部/其余4地区共6项真实可见；202清除后源All不再有对勾，原重置/关闭/自然返回完整PNG亲审；203三域及空筛选完整保持。三语检查/Release构建通过，无新增测试或修改期望。"
       ],
       "remainingActions": [
-        "普通/快速切换已过不重跑；自然失败重试仅待实际样本，不为获取样本清数据/造故障或重复请求。",
-        "后续调查187地区双“全部”的来源及值语义；若需改变可见选项按现有产品批准边界处理，不顺手重做筛选。"
+        "范围提交推送本笔6文件并跟精确CI；本次文案/清除/原重置范围冻结。",
+        "原普通/快速切换具名路径冻结；自然失败恢复仍待实际样本，不造故障。"
       ],
-      "boundaries": []
+      "boundaries": [],
+      "modificationBasisClearLabel": {
+        "object": "SourceFilterControls.FilterOptionMenu的App生成首项文案，Browse与SourceSearch共用",
+        "history": "59ae4937引入首个common_all/undefined，9541bfed后续选择器共同组件沿用；187真实菜单显示App首项与源all重复全部。",
+        "originalReason": "App首项清除一个字段，源options独立保原始值与标签；原标签误把清除动作表成全部。",
+        "reopenEvidence": "187菜单重复标签与本会话源region=all/defaultRegion、VM undefined移除字段调用链已亲核。",
+        "allowedDifference": "用户本轮异步答复采用清除此项筛选。只替换App首项三语文案，保源全部、所有动作/顺序/样式，普通包子筛选菜单与清除后返回/偏好恢复验证。"
+      },
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-formal-restored-200",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-menu-201",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-action-return-202",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-final-readback-203"
+      ]
     },
     {
       "id": "SHARED_ROUTE",
@@ -2759,14 +2775,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：后续残余25ms与本行图标按实际因果继续",
+      "owner": "Root：199栈指向的导入摘要校验；原25ms总项仍OPEN",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "Native文件检查62621dd1已推且精确CI成功；残余总项OPEN",
+      "status": "199配对CPU已取回且恢复正式包；摘要校验约11ms待处理",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -2796,13 +2812,15 @@
         "237168–172正式8569786B下SOC源当前首屏10条；首篇《行动观察日记》原四格长图1/1亲审。169初始PNG仍有正确原图加载进度，不算正文；170加载后完整原图、171正常返回原大奉001第6页25%。172 registry74/library完整JSON同167，Reader仅本次SOC新增progress/sourceHistory/chapters各1，旧项及顺序完全同。实际正文HTTP200/7619323B/331ms；详情1192ms、章节1054ms、取页1251ms、图片描述1362ms，均具名完成。",
         "新增一次同步Native成功快路：每文件仍READ_ONLY fd/fstat普通文件/长度且关闭fd，任一不符执行原逐项错误/throw路径；元数据JSON/原子写/同步事务不变。只新增1个真实C++文件用例，检查普通文件/软链接/目录/缺失/权限/长度及fd关闭；原24项期望未改，25项全过。两次最终构建均成功（最后一次补无路径的批次数量/结果/微秒诊断），不据构建或Host检查宣布性能通过。",
         "174无CPU探针普通首装74→75，仅新增IPmini011，旧74及library/reader保持。Native日志count75/matched1/durationUs2010，persistSync6ms/row_projection4ms。实际DB main1042/itid228：回调6988 25.322ms，Running24.523ms；Release10.366ms、rmdir5.080ms、Vsync16.642ms。15实际帧max16.582ms/均2.2598；安装完成后约15秒另有34.801ms GC。不同源/数量及166带CPU采样，不作严格AB或宣称FPS/全部UI流畅。",
-        "177原图已亲审：IP手札mini #22完整四格及知识解说JPEG1/1，正文HTTP200/5351599B/1489ms；178自然返回原书架大奉001第6页25%。179 library/75源registry完整JSON同174；Reader仅本次新增progress/sourceHistory/chapters各1，旧60/29/76每字段与相对顺序保持。未扩认第二页3篇、其余正文、下载或cold。"
+        "177原图已亲审：IP手札mini #22完整四格及知识解说JPEG1/1，正文HTTP200/5351599B/1489ms；178自然返回原书架大奉001第6页25%。179 library/75源registry完整JSON同174；Reader仅本次新增progress/sourceHistory/chapters各1，旧60/29/76每字段与相对顺序保持。未扩认第二页3篇、其余正文、下载或cold。",
+        "196诊断8578331B安装明确成功/三域同；197原书架被系统7.0.0.111SP12更新弹窗遮挡导致工具断言失败，198仅点稍后后原设置路径正常，未下载/改系统。199一次未装我是馬克010普通首装，75→76只新增该源，旧75每字段/顺序及library/reader完整JSON保持。官方CPU started/stopped成对，2279样本/1602.827ms；摘要校验11.048ms（createMd10.476ms）位于Release完成回调前后，persistEntries7.987ms、AppFileTextPersistence4.028ms、row4.079ms、日志5.415ms，均是采样权重而非精确独立耗时。",
+        "199原HTrace正常finish/只读接收，离线streamer初因工作目录缺libc++失败，保失败后在其原目录运行audit-cwd成功。当前主Callback6796为27.988ms/+11.184ms提示，另Release6788为12.236ms；点击35.403ms含CPU启动开销，末回调含stopJsCpuProfiling，不和无探针174作严格AB/FPS。200已精确撤2060B临时补丁，覆盖无探针正式8578908B成功，三域同199；仅本次CPUJSON清理且ABSENT读回。"
       ],
       "remainingActions": [
-        "本次Native检查范围已同步且CI成功；残余主回调25.322ms及本行图标未闭，按新因果继续，不重跑已过首装/正文。",
-        "语言热路径修复7b0f3bac已推，精确CI40174256817 completed/success；本具名范围冻结。120本行图标瞬空及其他状态键仍保各自边界。"
+        "按199真实栈仅处理导入WASM摘要校验约11ms：采用隔离worker并保完整校验、原字节、失败、同步提交与回滚；构建后选未装具名源验证，不重装已过源。",
+        "原25.322ms总项和本行图标仍OPEN；摘要阶段进展不等于总项流畅或图标已修。"
       ],
-      "remaining": "62621dd1已推master，精确CI40185795266 completed/success。75文件检查约2ms/持久化6ms实测；主回调仍25.322ms，本行图标未录像，不关闭总项。",
+      "remaining": "首页统一与Native文件检查精确CI均成功。199诊断确认导入摘要校验仍在主线程约11ms；200正式无探针8578908B已恢复，76源/用户数据保持。原25ms及图标未闭。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -2855,7 +2873,11 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/ipmini011-native237-browse-result-176",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/ipmini011-native237-first-reader-177",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/ipmini011-native237-natural-return-178",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/ipmini011-native237-final-readback-179"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/ipmini011-native237-final-readback-179",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-cpu-prepared-196",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-manager-position-198",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-cpu-trace-199",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-formal-restored-200"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -2902,6 +2924,12 @@
         "originalReason": "每份持久化WASM必须存在、可读、为普通文件且长度匹配；任何失败不得写元数据，写失败仍交原事务回滚。",
         "reopenEvidence": "166真实主线程CPU栈约27.167ms注册持久化中readableFileSize约13.323ms，逐文件Native桥接为已定位同步开销；原代码和旧错误/throw语义已亲核。",
         "allowedDifference": "仅把成功路径所有文件的READ_ONLY fd/fstat/长度核对放进一次同步Native调用，每个文件仍实际检查并关闭fd，不缓存文件状态、不读整WASM、不添加await。任一不符回到原逐项检查，原缺路径/缺文件/长度错误及不可读/目录抛异常和回滚保持；元数据JSON、写入/fsync/原子替换、当前注册顺序完全不动。Native函数不暴露为WASM host import。"
+      },
+      "modificationBasisCurrentCpuProbe": {
+        "object": "SourcePackageManagerPage.installIndexEntry临时我是馬克专用CPU采样",
+        "history": "前次SOC166诊断定位readableFileSize，62621dd1已用同步Native批量检查解决该段；174仍25.322ms且无JS子栈。",
+        "reopenEvidence": "本会话亲读174回调6988：25.322ms，promptAction在+8.281ms、序列化在+13.248ms，没有函数细栈，旧SOC采样不能代表Native修复后的剩余函数。",
+        "allowedDifference": "仅未装com.immark.pixnet.zh-hant.koma一次普通安装前后调用官方startJsCpuProfiling/stopJsCpuProfiling；不改UI/网络/事务。采样会带开销，不冒严格AB或FPS；完成后精确撤2060B补丁并覆盖正式8577441B包。"
       }
     },
     {
@@ -3068,14 +3096,14 @@
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
       "title": "源浏览分类下拉与首页分区结构待整理",
       "priority": "P2（设计结构调查）",
-      "owner": "Root：本笔范围提交/推送与精确CI",
+      "owner": "冻结：Root按新反例或相关依赖变化重开",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_FILTERS",
         "BROWSE_HEADER_REFRESH"
       ],
-      "kind": "open",
-      "status": "237包子及无首页Comic Fury具名通过；本笔待提交CI",
+      "kind": "accepted",
+      "status": "首页/无首页具名通过，e6404c5b精确CI成功",
       "result": "最终签名Release8577441B已明确装237。包子首页/熱門为互斥内容，原生分类菜单在搜索下方，首页/熱門对勾随实际选择切换。熱門36本单一列表，首页不再额外请求默认栏目。正常下拉刷新仍选熱門、旧封面与内容保留；首页地区筛选进入原默认熱門，重置后原内容恢复。 本轮193–194无首页Comic Fury默认热门12本，菜单仅热门/最新，选最新后单一12本且首排实际变化，对勾正确；自然返回原大奉001第6页25%。",
       "evidencePoints": [
         "SourceBrowsePage.SectionHeader仅listings>1显示menu，homeSections按序append；BrowseVM.loadBrowseHome可同时装首页分区与default listing。",
@@ -3086,13 +3114,13 @@
         "182明确安装8577441B后library/reader/registry与装前完整JSON相同；亲审首页及原生菜单，实际仅首页/熱門两项，Home与熱門分别selected=true。183熱門36本且原首頁熱門漫畫header消失；返回Home仍正确。",
         "184正常下拉连续MP4 2663838B、146原PTS编码帧，5张有序联系表及50/130原分辨率交接帧已亲审：封面与熱門选择持续保留，回缩完成，无全屏清空。只证明本动作，不宣称FPS/所有刷新都通过。",
         "186–188原生筛选半模态保持；从Home选日本后进入默认熱門且实际列表内容变化，经原重置入口恢复原列表。189自然返回原书架大奉001第6页25%；190三域与182-before完整JSON相同，筛选schema1/sources{}与185原基线相同。237旧租约20261025-104754-1dae813e已释放；新会话需live resolve与新租约。",
-        "本会话191漫画柜普通进入连接超时，原图保留且未重试，不归因本次UI；192查找Comic Fury时向顶部滚动未找到，属脚本方向错误，未据此改产品。193从实际列表顶部沿名称顺序到Comic Fury，热门12本及仅两栏目原生菜单；194选择最新、首排变化/对勾及原书架完整PNG均已亲看。195 library/reader/75源registry完整JSON均同190，筛选仍schema1/sources{}，AWAKE/86400000保持。"
+        "本会话191漫画柜普通进入连接超时，原图保留且未重试，不归因本次UI；192查找Comic Fury时向顶部滚动未找到，属脚本方向错误，未据此改产品。193从实际列表顶部沿名称顺序到Comic Fury，热门12本及仅两栏目原生菜单；194选择最新、首排变化/对勾及原书架完整PNG均已亲看。195 library/reader/75源registry完整JSON均同190，筛选仍schema1/sources{}，AWAKE/86400000保持。",
+        "本轮8文件范围已审并提交推送e6404c5b543653e2684ef4c5559f683484d64ceb，精确CI40188955447 head完全相同、completed/success。现有56项实际VM行为、三语键集/重复与diff检查通过；未改断言放行产品。"
       ],
       "remainingActions": [
-        "范围提交推送本笔8文件并跟精确CI；具名首页/无首页路径冻结。",
-        "后继继续安装残余25ms/本行图标及原未闭缺陷，不以单项完成关闭整体任务。"
+        "本次包子/Comic Fury具名路径与提交CI冻结；独立搜索与自然失败未扩认，其他原未闭缺陷继续各项。"
       ],
-      "remaining": "237包子首页/热门/刷新/筛选与Comic Fury无首页热门→最新/自然返回具名通过；独立搜索与自然失败边界未扩认。本笔待提交推送和精确CI。",
+      "remaining": "e6404c5b543653e2684ef4c5559f683484d64ceb已推master，精确CI40188955447 completed/success；没有新tag或发布。",
       "boundaries": [
         "人类已明确允许所列入口位置与内容组合差异；菜单材质、网格、筛选、搜索及原默认栏目语义保持。",
         "安装残余、包子正文及其他原队列继续保留；不把本项批准扩大为重构根导航或共享阅读器。"
@@ -3802,6 +3830,22 @@
       "title": "无首页Comic Fury分类路径通过，准备范围同步",
       "detail": "237热门/最新两栏目及单一12本内容、对勾、原书架自然返回均亲审；195三域/筛选保持。漫画柜本次连接超时仅限制该样本。10分钟heartbeat已读回迁到本会话。",
       "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-exact-ci-success",
+      "at": "2026-10-25T11:31:54.880323+00:00",
+      "title": "首页统一已推且精确CI成功，继续安装残余",
+      "detail": "e6404c5b/40188955447 completed-success；237正式首页具名范围冻结，新的CPU诊断仅定位安装回调。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "done"
+    },
+    {
+      "id": "filter-clear-label-native-accepted",
+      "at": "2026-10-25T11:41:55.799844+00:00",
+      "title": "筛选清除文案/原动作237具名通过",
+      "detail": "只将App首项改清除此项筛选，源全部和材质/顺序保留；原重置/返回及三域/空偏好保持。CPU临时代码已撤，继续安装残余。",
+      "itemId": "SOURCE_FILTERS",
       "kind": "work"
     }
   ]
