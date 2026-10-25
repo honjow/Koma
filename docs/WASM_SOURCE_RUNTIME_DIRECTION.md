@@ -54,6 +54,8 @@ The first filter-menu action is the App-owned “Clear this filter”: it remove
 
 ## App-local metadata commits
 
+Archive import computes its full WASM digest in a dedicated Crypto-only TaskPool entry before capability probing or registration. Pass a private byte copy so worker transfer cannot detach the importer-owned bytes. Await the same digest/declared-size/maximum-size validation and preserve checksum rejection; worker errors use the original import cleanup path without a UI-thread fallback. Synchronous backup validation keeps its existing calling contract and shares the digest primitive. No registry publication or metadata transaction is moved across an asynchronous boundary.
+
 `SourceRuntimeRegistry.persistEntriesToAppLocalMetadata` keeps the commit synchronous. The Native batch in `source_package_file_checks.h` opens every admitted WASM read-only and checks its descriptor's regular-file type and size; it caches no filesystem state and reads no WASM contents. Any mismatch returns to the original per-entry checks, preserving their reason codes, thrown file errors and rollback owner. JSON serialization and atomic metadata writing stay on the existing path. The bounded Native diagnostic reports only count, match and duration, never paths. Do not turn this optimization into skipped validation or an asynchronous publication window.
 
 ## TaskPool module boundary

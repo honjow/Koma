@@ -11,7 +11,7 @@
 - 已同步检查点：Koma HEAD/master `62621dd1b0076949fd0173a991ca4ddde304dfc8`，精确CI `40185795266` completed/success；此前六Native worker修复 `34e83b8b`/CI40179763215成功。安装75文件只读校验约2ms/持久化6ms已证，但主回调仍25.322ms与本行图标瞬空未闭，不能称安装总项完成。
 - 原仓与边界：只用 `/Users/honjow/git/Koma`、同级NextN/NextE/reader-kit/koma-sources。禁止工作树/源码副本、hook、Goal与无关UI改动；用户已授权后续代码提交推送不用再问，未授权新tag/发布。保护Koma `.idea`生成物和 `scripts/__pycache__`，NextN两个validator WIP；禁止 `git add .`。原图标/四私库PARKED_USER及已过具名阅读器路径冻结；缓存v3候选未采用，不合入。
 - 源仓本地材料提交 `46948b0`、`b24e6a0`、`4b1d977` 未单独推送：当前任何master push会重发85源，随后继实际源变更同推。不改成长期不同步借口。
-- 操作入口：继续使用 `.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前203）与原语义脚本（文件名diagnostics197，内容237），原录屏输入 `source-browse237.recording.json`。所有HDC/helper/dry-run在沙盒外并经有效租约；`HARMONY_DEVICE_ARTIFACT_HASHES=0`。Harmony技能恢复后重读，不打印签名口令。当前无其他执行代理；本会话199配对CPU诊断已结束、补丁精确撤回，237正式8578908B已恢复，CPUJSON仅本次清理且ABSENT。
+- 操作入口：继续使用 `.hvigor/outputs/user-flow-audit/source-validation237.protocol.json`（当前208）与原语义脚本（文件名diagnostics197，内容237），原录屏输入 `source-browse237.recording.json`。所有HDC/helper/dry-run在沙盒外并经有效租约；`HARMONY_DEVICE_ARTIFACT_HASHES=0`。Harmony技能恢复后重读，不打印签名口令。当前无其他执行代理；本会话199配对CPU诊断已结束、补丁精确撤回，237正式8578908B已恢复，CPUJSON仅本次清理且ABSENT。
 
 <!-- /current-continuation -->
 
@@ -946,11 +946,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；发布后用户普通使用反馈已登记。当前存在全屏时机、连续滚动、选章/排序等未闭缺陷，不以旧验收或发布成功抵消。",
-  "updatedAt": "2026-10-25T11:41:55.799844+00:00",
+  "updatedAt": "2026-10-25T11:55:58.652959+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "首页统一e6404c5b精确CI已成功；237安装CPU取证结束且已恢复无探针正式8578908B。批准的筛选首项文案/原清除动作已具名验收，准备范围同步。",
-  "nextAction": "范围提交同步筛选首项文案并跟精确CI；按199真实CPU栈处理导入摘要校验约11ms，保持校验/同步注册事务和错误回滚。",
+  "activity": "筛选文案d32bec97精确CI成功；摘要Worker当前237一次杂志迷普通首装/真实后台线程及自然返回已验，正在按限定范围同步。主回调总项仍OPEN，后继接图标瞬空。",
+  "nextAction": "同步隔离摘要Worker5文件并跟精确CI；仅对已成功加载的本地图标调查syncLoad回交，保首次异步与所有原生样式，录完整安装过程。",
   "proof": [
     {
       "label": "正式主仓",
@@ -993,8 +993,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "e6404c5b543653e2684ef4c5559f683484d64ceb已推；精确CI40188955447 completed/success；固定Kit e3f3cc1。",
-      "hap": "237当前正式无CPU探针8578908B/0.1.2-pre code3/debugfalse，200明确安装；203原书架/三域/空筛选保持，76源仅本轮新增我是馬克。197仍8569832B。"
+      "appHead": "d32bec97a76db198cc265d8221967b7130fe1b2d已推；精确CI40189962844 completed/success；固定Kit e3f3cc1。",
+      "hap": "237当前摘要Worker候选8577712B/code3/debugfalse；204明确安装，206新增杂志迷至77源，旧76与library/reader保持，207原书架，208三域同206。197仍8569832B。"
     },
     {
       "name": "NextE",
@@ -1854,7 +1854,7 @@
     {
       "id": "SOURCE_FILTERS",
       "title": "已批准源筛选行为的当前设备路径",
-      "status": "批准的清除文案与原动作237具名通过；本笔待同步CI",
+      "status": "清除文案/原动作237通过；d32bec97精确CI成功",
       "kind": "open",
       "result": "首项仅改为清除此项筛选，源All与原顺序/材质保留。237201菜单原图已亲看，202实际清除后All对勾消失，原重置恢复并自然回原大奉001第6页25%；203三域完整JSON同200，筛选schema1/sources{}。",
       "remaining": "普通/快速切换已过不重跑；自然失败重试仅待实际样本，不为获取样本清数据/造故障或重复请求。",
@@ -1862,17 +1862,18 @@
       "reportedAtSource": "不以摘要、当前时间或Git提交猜测原始人类提出时间。",
       "firstEvidenceAt": null,
       "closedAt": null,
-      "owner": "Root：筛选文案范围同步；自然失败样本仍待条件",
+      "owner": "Root：具名文案与切换范围冻结，自然失败待样本",
       "evidencePoints": [
         "197 MangaDex连续切换All→Completed→Ongoing，最终值与列表一致；127帧已审，原全部筛选与Relevance排序已恢复。",
         "本轮187实见包子地區原生菜单有两条“全部”，另有國漫/日本/韓國/歐美；只登记实际重复标签，尚未核两个值是否等义，未改菜单。首页筛选/原UI重置与190偏好恢复具名成立。",
         "本会话只读查实：FilterOptionMenu首个common_all发undefined并清除字段；包子源另声明value=all/label全部，并按defaultRegion/defaultState回退。不可直接合并；已提出只将App首项文案改清除此项筛选的异步选择，尚待人类决定，未改UI。",
         "用户本轮实际异步答复call_923a69843c004d9fa8116be8e1f22b41：采用“清除此项筛选”。本决定取代此前该文案待答状态，不合并undefined/all。",
-        "200正式签名Release8578908B覆盖安装明确成功；临时CPU补丁2060B已精确撤、Manager diff为空。201新首项清除此项筛选/源全部/其余4地区共6项真实可见；202清除后源All不再有对勾，原重置/关闭/自然返回完整PNG亲审；203三域及空筛选完整保持。三语检查/Release构建通过，无新增测试或修改期望。"
+        "200正式签名Release8578908B覆盖安装明确成功；临时CPU补丁2060B已精确撤、Manager diff为空。201新首项清除此项筛选/源全部/其余4地区共6项真实可见；202清除后源All不再有对勾，原重置/关闭/自然返回完整PNG亲审；203三域及空筛选完整保持。三语检查/Release构建通过，无新增测试或修改期望。",
+        "本笔6文件范围已提交推送d32bec97a76db198cc265d8221967b7130fe1b2d，精确CI40189962844同head/completed-success。"
       ],
       "remainingActions": [
-        "范围提交推送本笔6文件并跟精确CI；本次文案/清除/原重置范围冻结。",
-        "原普通/快速切换具名路径冻结；自然失败恢复仍待实际样本，不造故障。"
+        "本次包子清除文案/原动作/重置/返回与d32bec97/40189962844范围冻结；普通/快速切换已过不重跑。",
+        "自然失败恢复仍待实际样本，不造故障。"
       ],
       "boundaries": [],
       "modificationBasisClearLabel": {
@@ -2775,14 +2776,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：199栈指向的导入摘要校验；原25ms总项仍OPEN",
+      "owner": "Root：摘要范围同步；主回调与本行图标继续",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "199配对CPU已取回且恢复正式包；摘要校验约11ms待处理",
+      "status": "摘要真实后台10ms/首装返回已验；56ms回调总项仍OPEN",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -2814,13 +2815,16 @@
         "174无CPU探针普通首装74→75，仅新增IPmini011，旧74及library/reader保持。Native日志count75/matched1/durationUs2010，persistSync6ms/row_projection4ms。实际DB main1042/itid228：回调6988 25.322ms，Running24.523ms；Release10.366ms、rmdir5.080ms、Vsync16.642ms。15实际帧max16.582ms/均2.2598；安装完成后约15秒另有34.801ms GC。不同源/数量及166带CPU采样，不作严格AB或宣称FPS/全部UI流畅。",
         "177原图已亲审：IP手札mini #22完整四格及知识解说JPEG1/1，正文HTTP200/5351599B/1489ms；178自然返回原书架大奉001第6页25%。179 library/75源registry完整JSON同174；Reader仅本次新增progress/sourceHistory/chapters各1，旧60/29/76每字段与相对顺序保持。未扩认第二页3篇、其余正文、下载或cold。",
         "196诊断8578331B安装明确成功/三域同；197原书架被系统7.0.0.111SP12更新弹窗遮挡导致工具断言失败，198仅点稍后后原设置路径正常，未下载/改系统。199一次未装我是馬克010普通首装，75→76只新增该源，旧75每字段/顺序及library/reader完整JSON保持。官方CPU started/stopped成对，2279样本/1602.827ms；摘要校验11.048ms（createMd10.476ms）位于Release完成回调前后，persistEntries7.987ms、AppFileTextPersistence4.028ms、row4.079ms、日志5.415ms，均是采样权重而非精确独立耗时。",
-        "199原HTrace正常finish/只读接收，离线streamer初因工作目录缺libc++失败，保失败后在其原目录运行audit-cwd成功。当前主Callback6796为27.988ms/+11.184ms提示，另Release6788为12.236ms；点击35.403ms含CPU启动开销，末回调含stopJsCpuProfiling，不和无探针174作严格AB/FPS。200已精确撤2060B临时补丁，覆盖无探针正式8578908B成功，三域同199；仅本次CPUJSON清理且ABSENT读回。"
+        "199原HTrace正常finish/只读接收，离线streamer初因工作目录缺libc++失败，保失败后在其原目录运行audit-cwd成功。当前主Callback6796为27.988ms/+11.184ms提示，另Release6788为12.236ms；点击35.403ms含CPU启动开销，末回调含stopJsCpuProfiling，不和无探针174作严格AB/FPS。200已精确撤2060B临时补丁，覆盖无探针正式8578908B成功，三域同199；仅本次CPUJSON清理且ABSENT读回。",
+        "隔离SourcePackageHashWorker仅Crypto依赖，异步导入传副本；同一完整SHA256、size/max及checksum_mismatch保持，恢复/rawfile同步入口保持。新增1个真实方法用例，实际摘要abc、匹配/不匹配/空声明/size/max、输入转移与worker异常；既有25项期望未改，26项通过。首次漏rawfile同步helper被构建拦，第二次Concurrent同模块helper捕获被es2abc拦，改为import/局部变量的单一primitive后正式构建成功；失败日志保留，没有用Host通过代替ArkTS。",
+        "204签名Release8577712B明确装237，三域同203。206一次未装杂志迷010首装，Native sourceInfo6能力真实返回，76→77仅新增com.zazhimi.koma，旧76每字段/顺序及library/reader完整JSON保持。摘要日志pid55182/tid55338、38985B/10ms，线程不同于main55182；Native文件检查count77/matched1/10493us，persistSync25/row9ms。本次无CPU探针。207普通返回原大奉001第6页25%完整PNG亲审，208三域同206。",
+        "206实际主callback6542为56.060ms（Running50.086ms、DIO0.665/DNIO0.258、R/R+2.135、S2.916）；共享GC根与wait可见，不能把它全算摘要或宣称卡顿改善。其Running频率加权约760246kHz，其中39.467ms≤558MHz；174旧callback Running24.523ms、加权1478071kHz、无≤558MHz区间。来源/源数/GC/频率不同，不作严格AB或归因Worker引入回归；未改设备频率/网络/电源设置。39个UIVsyncTask最大11.898ms，仅轨迹范围，不是FPS/全程视觉接受。"
       ],
       "remainingActions": [
-        "按199真实栈仅处理导入WASM摘要校验约11ms：采用隔离worker并保完整校验、原字节、失败、同步提交与回滚；构建后选未装具名源验证，不重装已过源。",
-        "原25.322ms总项和本行图标仍OPEN；摘要阶段进展不等于总项流畅或图标已修。"
+        "仅同步摘要移出主线程的已证范围并跟精确CI；原25.322ms/本次56.060ms总项仍OPEN，不能宣布安装整体流畅。",
+        "图标瞬空接原独立项；后续回调继续以具体函数/实际路径证据处理，不盲重复已过源。"
       ],
-      "remaining": "首页统一与Native文件检查精确CI均成功。199诊断确认导入摘要校验仍在主线程约11ms；200正式无探针8578908B已恢复，76源/用户数据保持。原25ms及图标未闭。",
+      "remaining": "摘要Worker已具名证明后台10ms/普通安装成功并保持原字节与数据，5文件待范围同步CI。主回调56ms与旧25ms不同频率/GC样本，整体卡顿未关闭；本行图标未验。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -2877,7 +2881,12 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-cpu-prepared-196",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-manager-position-198",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-cpu-trace-199",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-formal-restored-200"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-formal-restored-200",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-hash-worker-candidate-204",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-zazhimi-manager-position-205",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-zazhimi-hash-worker-trace-206",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-hash-worker-natural-return-207",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-hash-worker-final-readback-208"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -2930,6 +2939,13 @@
         "history": "前次SOC166诊断定位readableFileSize，62621dd1已用同步Native批量检查解决该段；174仍25.322ms且无JS子栈。",
         "reopenEvidence": "本会话亲读174回调6988：25.322ms，promptAction在+8.281ms、序列化在+13.248ms，没有函数细栈，旧SOC采样不能代表Native修复后的剩余函数。",
         "allowedDifference": "仅未装com.immark.pixnet.zh-hant.koma一次普通安装前后调用官方startJsCpuProfiling/stopJsCpuProfiling；不改UI/网络/事务。采样会带开销，不冒严格AB或FPS；完成后精确撤2060B补丁并覆盖正式8577441B包。"
+      },
+      "modificationBasisImportHash": {
+        "object": "SourcePackageImporter.importLocalSourceArchive的导入WASM摘要计算；独立SourcePackageHashWorker",
+        "history": "73d38c76将校验统一为validateImportedWasmBytes；bfd55621令备份恢复复用同步校验。34e83b8b已确认TaskPool入口须隔离UI/语言状态依赖。",
+        "originalReason": "完整实际WASM SHA256、声明hash（可空）及准确size/maxSize必须全部验证；恢复原同步合同保持，未验证字节不得发布到registry。",
+        "reopenEvidence": "199官方CPU主线程validateImportedWasmBytes/sha256Hex11.048ms，其中createMd10.476ms，具体函数已证，不把它称最终27ms回调全部根因。",
+        "allowedDifference": "仅普通异步导入将同一SHA256算法放入独立仅Crypto依赖的Concurrent模块，传副本避免输入detach，await完成后仍走原hash/size/max和checksum_mismatch；worker异常交原外层清理，不回退主线程。同步备份恢复调用保持同步，注册/metadata原子写/回滚/UI不改。"
       }
     },
     {
@@ -3846,6 +3862,14 @@
       "title": "筛选清除文案/原动作237具名通过",
       "detail": "只将App首项改清除此项筛选，源全部和材质/顺序保留；原重置/返回及三域/空偏好保持。CPU临时代码已撤，继续安装残余。",
       "itemId": "SOURCE_FILTERS",
+      "kind": "work"
+    },
+    {
+      "id": "source-import-digest-background-native",
+      "at": "2026-10-25T11:55:58.652959+00:00",
+      "title": "摘要真实后台10ms，原安装总项继续开放",
+      "detail": "237一次杂志迷首装成功且旧76/书架/读态保持，原书架自然返回。当前56ms回调与旧25ms频率/GC不同，不作AB或整体流畅结论。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "work"
     }
   ]

@@ -1,8 +1,8 @@
-import { url } from '@kit.ArkTS'
+import { taskpool, url } from '@kit.ArkTS'
+import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
 import { zlib } from '@kit.BasicServicesKit'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { resourceManager } from '@kit.LocalizationKit'
@@ -236,14 +236,7 @@ async function removeDirectoryIfPresent(path: string): Promise<void> {
 }
 
 function sha256Hex(bytes: Uint8Array): string {
-  const md = cryptoFramework.createMd('SHA256')
-  md.updateSync({ data: bytes })
-  const digest = md.digestSync().data
-  let result = ''
-  for (let index = 0; index < digest.length; index += 1) {
-    result += digest[index].toString(16).padStart(2, '0')
-  }
-  return result
+  return computeSourcePackageSha256(bytes)
 }
 
 function readUInt16Le(bytes: Uint8Array, offset: number): number {
@@ -685,11 +678,28 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
 }
 
 export function validateImportedWasmBytes(manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array): boolean {
-  const importedHash = sha256Hex(importedWasmBytes)
+  return importedWasmDigestMatches(manifest, importedWasmBytes, sha256Hex(importedWasmBytes))
+}
+
+function importedWasmDigestMatches(
+  manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array, importedHash: string,
+): boolean {
   const sizeOk = importedWasmBytes.byteLength === manifest.runtime.wasmSizeBytes &&
     importedWasmBytes.byteLength <= manifest.runtime.maxWasmBytes
   const declaredHash = manifest.runtime.wasmSha256
   return sizeOk && (declaredHash.length === 0 || importedHash === declaredHash)
+}
+
+export async function validateImportedWasmBytesAsync(
+  manifest: LocalSourcePackageManifest, importedWasmBytes: Uint8Array,
+): Promise<boolean> {
+  // Import already awaits extraction/decoding under the writer admission. Only
+  // move the digest work; validated bytes must remain owned by the importer for
+  // capability probing/registration. Never publish or fall back while awaiting.
+  const workerBytes = new Uint8Array(importedWasmBytes.byteLength)
+  workerBytes.set(importedWasmBytes)
+  const importedHash = await taskpool.execute(computeSourcePackageSha256, workerBytes) as string
+  return importedWasmDigestMatches(manifest, importedWasmBytes, importedHash)
 }
 
 export function validateRestoredSourcePackage(
@@ -865,7 +875,7 @@ export async function importLocalSourceArchive(
   }
 
   const importedWasmBytes = readBytesSync(importedWasmPath)
-  const hashOk = validateImportedWasmBytes(manifest, importedWasmBytes)
+  const hashOk = await validateImportedWasmBytesAsync(manifest, importedWasmBytes)
   if (!hashOk) {
     return {
       ok: false,

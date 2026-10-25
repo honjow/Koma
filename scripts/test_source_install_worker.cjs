@@ -46,6 +46,36 @@ test('validated bytes use the existing worker executor, copied bytes and no HTTP
   assert.equal(call[0],executor);assert.notEqual(call[2],original);assert.deepEqual(Array.from(call[2]),[7,8]);assert.equal(call[3],'');assert.equal(executed,0)
   original[0]=9;assert.equal(call[2][0],7);pending.resolve(JSON.stringify(response));assert.deepEqual(await running,response)
 })
+test('archive digest worker keeps importer bytes and the synchronous validation boundaries',async()=>{
+  const { createHash } = require('node:crypto')
+  const digest = functions('sourceRuntime/SourcePackageHashWorker.ets',['computeSourcePackageSha256'],{
+    cryptoFramework:{createMd:algorithm=>{
+      assert.equal(algorithm,'SHA256');const md=createHash('sha256')
+      return {updateSync:blob=>md.update(blob.data),digestSync:()=>({data:md.digest()})}
+    }},
+  })
+  const worker=digest.computeSourcePackageSha256
+  let pending, transferred
+  const api=functions('sourceRuntime/SourcePackageImporter.ets',
+    ['validateImportedWasmBytes','importedWasmDigestMatches','validateImportedWasmBytesAsync'],{
+      computeSourcePackageSha256:worker,sha256Hex:worker,taskpool:{execute:(fn,bytes)=>{
+        assert.equal(fn,worker)
+        transferred=structuredClone(bytes,{transfer:[bytes.buffer]})
+        pending=deferred();return pending.promise
+      }},
+    })
+  const bytes=new Uint8Array([97,98,99]), hash='ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+  for(const [declared,size,max,expected] of [[hash,3,3,true],['wrong',3,3,false],['',3,3,true],[hash,2,3,false],[hash,3,2,false]]){
+    const manifest={runtime:{wasmSha256:declared,wasmSizeBytes:size,maxWasmBytes:max}}
+    const running=api.validateImportedWasmBytesAsync(manifest,bytes)
+    assert.deepEqual(Array.from(bytes),[97,98,99]);assert.notEqual(transferred.buffer,bytes.buffer)
+    pending.resolve(worker(transferred));assert.equal(await running,expected)
+    assert.equal(api.validateImportedWasmBytes(manifest,bytes),expected)
+  }
+  const failed=api.validateImportedWasmBytesAsync({runtime:{}},bytes)
+  pending.reject(Error('worker unavailable'));await assert.rejects(failed,/worker unavailable/)
+  assert.deepEqual(Array.from(bytes),[97,98,99])
+})
 test('old source remains visible while probing; latest disabled state and position survive replacement',async()=>{
   const f=installFixture(), running=f.api.registerSourcePackageFromBytes({},new Uint8Array([1]),'source.koma','one','/packages/new')
   await new Promise(setImmediate);assert.deepEqual(f.events,['probe']);assert.equal(f.registry.lookup('one').entry,f.old)
