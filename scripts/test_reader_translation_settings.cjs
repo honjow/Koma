@@ -140,3 +140,29 @@ test('changed configuration prevents text, Torii, sidecar and login transports f
   await accepted()
   assert.equal(requests, 1)
 })
+
+// Regression: the original fallback-only policy never admitted preloaded
+// enhancement work. Run the production host policy against the real Kit policy.
+test('enhancement without configured translation admits future-page processing and keeps disabled reading idle', () => {
+  const raw = process.env.KOMA_POLICY_BEFORE === '1'
+    ? require('node:child_process').execFileSync('git', ['show', '85eac652:entry/src/main/ets/readerLab/KomaReaderLabPage.ets'], {cwd:path.resolve(__dirname,'..'),encoding:'utf8'})
+    : fs.readFileSync(path.join(base,'readerLab/KomaReaderLabPage.ets'),'utf8')
+  const tree=ts.createSourceFile('host',raw.replace('export struct KomaReaderLabPage','export class KomaReaderLabPage'),ts.ScriptTarget.Latest,true)
+  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='KomaReaderLabPage')
+  const method=owner.members.find(n=>n.name?.text==='translationPolicy').getText(tree)
+  class Preference { constructor(variant='default',identity=''){this.variant=variant;this.identity=identity} }
+  const policyExports={}
+  new Function('exports','require',ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'../../reader-kit/reader-ui/src/main/ets/ReaderVariantPolicy.ets'),'utf8'),
+    {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(policyExports,()=>({ReaderVariantPreference:Preference}))
+  const exports={}
+  new Function('exports','ReaderVariantPolicy',ts.transpileModule(`export class Host {${method}}`,
+    {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(exports,policyExports.ReaderVariantPolicy)
+  const host=new exports.Host()
+  Object.assign(host,{translationSettings:{configured:()=>false},enhancementPreference:()=>new Preference('enhanced','model-v1')})
+  const enabled=host.translationPolicy()
+  assert.equal(enabled.supportsProcessing(),true)
+  const future=enabled.processingPreference({sourceIndex:4,copy(){return this}},false)
+  assert.deepEqual([future.variant,future.identity],['enhanced','model-v1'])
+  host.enhancementPreference=()=>new Preference()
+  assert.equal(host.translationPolicy().supportsProcessing(),false)
+})

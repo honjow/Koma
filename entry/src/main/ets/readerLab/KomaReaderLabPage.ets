@@ -14,7 +14,7 @@ import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderIma
   ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout, ReaderVariantPreference, ReaderAsset, ReaderPage, ReaderPagedFrame } from '@reader-kit/core'
 import { ReaderActivitySink, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition, ReaderVariantPolicy, ReaderHostStatus } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition, ReaderVariantPolicy, ReaderTemporaryVariantControl, ReaderHostStatus } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -730,11 +730,17 @@ export struct KomaReaderLabPage {
   }
 
   private translationPolicy(): ReaderVariantPolicy {
-    // The default reader keeps the original cheap enhancement-only policy.
-    // Configuring a service alone must not scan page metadata or request processing.
+    // Enhancement needs the shared processing lane even without translation:
+    // fallback-only policies select visible assets and never warm future pages.
+    // Keep disabled/default reading cheap and do not call a translation service
+    // merely because it is configured (2026-10-26 user preload regression).
     if (!this.translationSettings.configured() || (!this.translationAutoEnabled &&
       this.translationRequestedPages.length === 0 && this.translationHiddenPages.length === 0)) {
-      return new ReaderVariantPolicy(this.enhancementPreference())
+      const enhancement = this.enhancementPreference()
+      return enhancement.variant === 'enhanced'
+        ? new ReaderVariantPolicy(enhancement, 0, null, null,
+          (_page: ReaderPage, _automatic: boolean): ReaderVariantPreference => this.enhancementPreference())
+        : new ReaderVariantPolicy(enhancement)
     }
     const unit = this.translationUnit?.copy() ?? null
     const settingsRevision = this.translationSettings.revision
@@ -1030,6 +1036,10 @@ export struct KomaReaderLabPage {
                 activitySink: new ReaderActivitySink(null,
                   (busy: boolean): void => { this.setEnhancementInteractionBusy(busy) }),
                 variantPolicy: this.translationPolicy(),
+                // NextE's existing per-visible-unit override: this toggles the
+                // current page(s), never the saved global enhancement setting.
+                temporaryVariantControl: new ReaderTemporaryVariantControl(
+                  this.enhancementPreference().variant === 'enhanced'),
                 cropPolicy: new ReaderCropPolicy(
                   this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true,
                   this.hostPreferences?.cropStrength ?? this.readerMode.cropStrength),

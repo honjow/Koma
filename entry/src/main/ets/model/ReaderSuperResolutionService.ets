@@ -1,5 +1,5 @@
 // Ported from NextE; Koma owns processing preferences, model files and cache.
-import { readerProcessingOwnerHash } from './ReaderProcessingDiagnostics'
+import { readerProcessingOwnerHash, readerSuperResolutionFailureCode } from './ReaderProcessingDiagnostics'
 import { common } from '@kit.AbilityKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo } from '@kit.CoreFileKit'
@@ -187,7 +187,8 @@ export class ReaderSuperResolutionCapabilities {
 
 /**
  * On-device reader image enhancement. The original image remains the display fallback and only the
- * active/visible reader page asks this service to generate a 2x cached derivative.
+ * current and bounded prefetch demands share this service's priority queue for
+ * generating a 2x cached derivative. reader-kit owns the actual demand window.
  */
 export class ReaderSuperResolutionService {
   private static inFlight: Map<string, ReaderSuperResolutionInFlightTask> = new Map<
@@ -299,7 +300,7 @@ export class ReaderSuperResolutionService {
           DiagnosticLogger.warn(
             'reader-super-resolution',
             'prepare_nnrt_failed',
-            `model=${model} message=${(error as Error).message}`,
+            `model=${model} reason=${readerSuperResolutionFailureCode((error as Error).message)} message=${(error as Error).message}`,
           )
           if (backendPreference === NNRT_VALIDATION_BACKEND) {
             throw error as Error
@@ -325,7 +326,7 @@ export class ReaderSuperResolutionService {
       DiagnosticLogger.warn(
         'reader-super-resolution',
         'prepare_failed',
-        `model=${model} message=${(error as Error).message}`,
+        `model=${model} reason=${readerSuperResolutionFailureCode((error as Error).message)} message=${(error as Error).message}`,
       )
     }
   }
@@ -1056,11 +1057,15 @@ export class ReaderSuperResolutionService {
           'model_not_installed',
         )
       }
-      const decodedInfo: image.ImageInfo = await sourcePixelMap.getImageInfo()
       const inputBuffer: ArrayBuffer = new ArrayBuffer(sourcePixelMap.getPixelBytesNumber())
       await sourcePixelMap.readPixelsToBuffer(inputBuffer)
       ReaderSuperResolutionService.ensureTaskActive(inFlight)
-      const stride: number = Math.max(Math.floor(decodedInfo.stride), sourceWidth * 4)
+      // PixelMap.readPixelsToBuffer exports tightly packed pixels WITHOUT its
+      // allocator's row padding (official ImageKit contract). ImageInfo.stride
+      // describes the PixelMap allocation, not this exported RGBA buffer. On
+      // 197's 800px pages that mismatch rejected current and prefetch alike as
+      // short_rgba_buffer. Keep the original RGBA format and processing path.
+      const stride: number = sourceWidth * 4
       let enhancedPixels: ArrayBuffer = new ArrayBuffer(0)
       let modelLoadMs: number = 0
       let inferenceMs: number = 0
@@ -1090,7 +1095,7 @@ export class ReaderSuperResolutionService {
           DiagnosticLogger.warn(
             'reader-super-resolution',
             'nnrt_fallback',
-            `model=${model} message=${(error as Error).message}`,
+            `model=${model} reason=${readerSuperResolutionFailureCode((error as Error).message)} message=${(error as Error).message}`,
           )
         }
       }
@@ -1198,7 +1203,7 @@ export class ReaderSuperResolutionService {
       DiagnosticLogger.warn(
         'reader-super-resolution',
         'process_failed',
-        `message=${message} keyHash=${readerProcessingOwnerHash(sourceKey)}`,
+        `reason=${readerSuperResolutionFailureCode(message)} message=${message} keyHash=${readerProcessingOwnerHash(sourceKey)}`,
       )
       return ReaderSuperResolutionService.originalResult(sourcePath, 'processing_failed')
     } finally {
