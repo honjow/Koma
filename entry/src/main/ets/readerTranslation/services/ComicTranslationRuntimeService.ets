@@ -158,7 +158,7 @@ export class ComicTranslationRuntimeService {
       )
     }
     const backend: ComicRegionRenderBackend =
-      ComicTranslationRuntimeService.localBackendFor(context)
+      await ComicTranslationRuntimeService.localBackendFor(context)
     return ComicTranslationRuntimeService.runRegionPage(
       context,
       input,
@@ -385,18 +385,18 @@ export class ComicTranslationRuntimeService {
     return created
   }
 
-  private static localBackendFor(context: common.UIAbilityContext): ComicRegionRenderBackend {
+  private static async localBackendFor(context: common.UIAbilityContext): Promise<ComicRegionRenderBackend> {
     const detectorPaths: ComicTranslationModelPaths | null =
-      ComicTranslationModelService.pathsIfReady(context)
+      await ComicTranslationModelService.pathsIfReady(context)
     if (detectorPaths === null) {
       return new ComicLocalVisualBackend(context)
     }
     const recognizerPaths: ComicTextRecognitionModelPaths | null =
-      ComicTranslationModelService.ocrPathsIfReady(context)
+      await ComicTranslationModelService.ocrPathsIfReady(context)
     const inpaintingPaths: ComicSourceInpaintingModelPaths | null =
-      ComicTranslationModelService.inpaintingPathsIfReady(context)
+      await ComicTranslationModelService.inpaintingPathsIfReady(context)
     const textMaskPaths: ComicTextMaskModelPaths | null =
-      ComicTranslationModelService.textMaskPathsIfReady(context)
+      await ComicTranslationModelService.textMaskPathsIfReady(context)
     return new ComicLocalVisualBackend(
       context,
       new HarmonyComicLocalOcrEngine(),

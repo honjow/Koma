@@ -267,7 +267,7 @@ export class ReaderSuperResolutionService {
         return
       }
       const nnrtModelPath: string | null =
-        ReaderSuperResolutionService.nnrtModelPath(context, model, backendPreference)
+        await ReaderSuperResolutionService.nnrtModelPath(context, model, backendPreference)
       const modelPaths: ReaderSuperResolutionModelPaths | null =
         await ReaderSuperResolutionModelService.pathsIfReady(context, model)
       const readMode = connectReadMode()
@@ -1046,7 +1046,7 @@ export class ReaderSuperResolutionService {
       const modelPaths: ReaderSuperResolutionModelPaths | null =
         await ReaderSuperResolutionModelService.pathsIfReady(context, model)
       const nnrtModelPath: string | null =
-        ReaderSuperResolutionService.nnrtModelPath(context, model, backendPreference)
+        await ReaderSuperResolutionService.nnrtModelPath(context, model, backendPreference)
       ReaderSuperResolutionService.ensureTaskActive(inFlight)
       if (modelPaths === null && nnrtModelPath === null) {
         return ReaderSuperResolutionService.skipResult(
@@ -1264,11 +1264,11 @@ export class ReaderSuperResolutionService {
     return config
   }
 
-  private static nnrtModelPath(
+  private static async nnrtModelPath(
     context: common.UIAbilityContext,
     model: string,
     backendPreference: string,
-  ): string | null {
+  ): Promise<string | null> {
     const nnrtSupported: boolean =
       model === ReaderSuperResolutionModel.REAL_ESRGAN_X2PLUS ||
         model === ReaderSuperResolutionModel.WAIFU2X_PHOTO_NOISE0_2X ||
@@ -1285,7 +1285,7 @@ export class ReaderSuperResolutionService {
       const acceleratorAvailable: boolean =
         ReaderMindSporeSuperResolution.acceleratorAvailable()
       const modelPath: string | null = acceleratorAvailable
-        ? ReaderSuperResolutionModelService.acceleratedModelPathIfReady(context, model)
+        ? await ReaderSuperResolutionModelService.acceleratedModelPathIfReady(context, model)
         : null
       DiagnosticLogger.info(
         'reader-super-resolution',

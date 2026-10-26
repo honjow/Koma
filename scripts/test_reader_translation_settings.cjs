@@ -18,6 +18,93 @@ function moduleFrom(relative, imports, globals = {}) {
 }
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 
+test('model verification reads real files on a worker and still rejects missing, truncated and corrupt assets', async () => {
+  const { Worker } = require('node:worker_threads')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-model-verify-'))
+  const filename = path.join(directory, 'model.bin')
+  const bytes = crypto.randomBytes(600013) // Multiple chunks, including a non-aligned final chunk.
+  fs.writeFileSync(filename, bytes)
+  const digest = crypto.createHash('sha256').update(bytes).digest('hex')
+  const compiled = ts.transpileModule(fs.readFileSync(path.join(base, 'model/ReaderModelAssetValidation.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const runOnWorker = (fn, ...args) => new Promise((resolve, reject) => {
+    const worker = new Worker(`
+      const { parentPort, workerData, threadId } = require('node:worker_threads')
+      const fs = require('node:fs'), crypto = require('node:crypto'), output = {}
+      const io = { OpenMode: { READ_ONLY: 0 }, openSync: p => ({ fd: fs.openSync(p, 'r') }),
+        statSync: fd => fs.fstatSync(fd), closeSync: file => fs.closeSync(file.fd),
+        readSync: (fd, bytes, options) => fs.readSync(fd, new Uint8Array(bytes), 0, options.length, null) }
+      const nativeCrypto = { createMd() { const md = crypto.createHash('sha256'); return {
+        updateSync({ data }) { md.update(data) }, digestSync() { return { data: new Uint8Array(md.digest()) } } } } }
+      new Function('exports', 'require', workerData.compiled)(output, name =>
+        name === '@kit.CoreFileKit' ? { fileIo: io } : name === '@kit.CryptoArchitectureKit'
+          ? { cryptoFramework: nativeCrypto } : {})
+      parentPort.postMessage({ threadId, valid: output.validateReaderModelAssetWorker(...workerData.args) })
+    `, { eval: true, workerData: { compiled, args } })
+    worker.once('error', reject)
+    worker.once('message', result => { assert.notEqual(result.threadId, 0); resolve(result.valid) })
+  })
+  const validation = moduleFrom('model/ReaderModelAssetValidation.ets', {
+    '@kit.ArkTS': { taskpool: { execute: runOnWorker } },
+    '@kit.CoreFileKit': { fileIo: new Proxy({}, { get() { throw new Error('UI-thread model I/O') } }) },
+    '@kit.CryptoArchitectureKit': { cryptoFramework: new Proxy({}, { get() { throw new Error('UI-thread model hashing') } }) },
+  })
+  try {
+    assert.equal(await validation.validateReaderModelAsset(filename, bytes.length, digest), true)
+    assert.equal(await validation.validateReaderModelAsset(filename, bytes.length - 1, digest), false)
+    assert.equal(await validation.validateReaderModelAsset(filename, bytes.length, '0'.repeat(64)), false)
+    assert.equal(await validation.validateReaderModelAsset(filename + '.missing', bytes.length, digest), false)
+    const pair = path.join(directory, 'reader-super-resolution-models/fixture')
+    fs.mkdirSync(pair, { recursive: true })
+    fs.writeFileSync(path.join(pair, 'param'), bytes)
+    fs.writeFileSync(path.join(pair, 'model'), bytes)
+    const definition = { id: 'fixture', directoryName: 'fixture', paramFileName: 'param', modelFileName: 'model',
+      paramBytes: bytes.length, modelBytes: bytes.length, paramSha256: digest, modelSha256: digest,
+      acceleratedModelFileName: '', acceleratedModelBytes: 0, installStrategy: 'direct', downloadBytes: () => bytes.length * 2 }
+    const sr = moduleFrom('model/ReaderSuperResolutionModelService.ets', {
+      '@kit.ArkTS': {}, '@kit.BasicServicesKit': {}, '@kit.CoreFileKit': {},
+      '../diagnostics/DiagnosticLogger': {}, './ReaderModelAssetDownload': {},
+      './ReaderModelAssetValidation': validation, '../state/ReaderModeState': {},
+      './ReaderSuperResolutionModelRegistry': { ReaderSuperResolutionModelRegistry: { find: () => definition },
+        ReaderSuperResolutionInstallStrategy: { REAL_ESRGAN_X2PLUS_COMPAT: 'compat' } },
+    }).ReaderSuperResolutionModelService
+    const context = { filesDir: directory }
+    assert.equal(await sr.isInstalled(context, 'fixture'), true)
+    assert.equal(await sr.remainingDownloadBytes(context, 'fixture'), 0)
+    assert.ok(await sr.pathsIfReady(context, 'fixture'))
+    fs.writeFileSync(path.join(pair, 'model'), Buffer.alloc(bytes.length))
+    assert.equal(await sr.isInstalled(context, 'fixture'), false)
+    assert.equal(await sr.pathsIfReady(context, 'fixture'), null)
+    assert.equal(await sr.remainingDownloadBytes(context, 'fixture'), bytes.length * 2)
+  } finally { fs.rmSync(directory, { recursive: true, force: true }) }
+})
+
+test('late model verification cannot resurrect paths after removal and readiness remains cached', async () => {
+  let calls = 0
+  const release = deferred()
+  const model = moduleFrom('readerTranslation/services/ComicTranslationModelService.ets', {
+    '@kit.CoreFileKit': { fileIo: { accessSync: () => false } },
+    '../../diagnostics/DiagnosticLogger': { DiagnosticLogger: {} },
+    '../../model/ReaderModelAssetDownload': {},
+    '../../model/ReaderModelAssetValidation': { async validateReaderModelAsset() { calls++; await release.promise; return true } },
+  }).ComicTranslationModelService
+  const context = { filesDir: '/owned/models' }
+  const pending = model.pathsIfReady(context)
+  assert.equal(calls, 1)
+  model.remove(context)
+  release.resolve()
+  assert.equal(await pending, null)
+  const after = calls
+  assert.equal(await model.isInstalled(context), false)
+  assert.equal(calls, after, 'Removal must stay authoritative after the old worker finishes')
+  const other = { filesDir: '/owned/other' }
+  assert.ok(await model.pathsIfReady(other))
+  const warmed = calls
+  assert.ok(await model.pathsIfReady(other))
+  assert.equal(calls, warmed, 'A warm readiness lookup must not hash the model again')
+})
+
 test('translation configuration serializes reads with atomic secure writes and recovers a rejected save', async () => {
   const assets = new Map(); let fail = false, nonce = 0
   const reached = deferred(), release = deferred()

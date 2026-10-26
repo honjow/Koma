@@ -2,10 +2,10 @@
 import { common } from '@kit.AbilityKit'
 import { util } from '@kit.ArkTS'
 import { deviceInfo, zlib } from '@kit.BasicServicesKit'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderModelAssetDownload } from './ReaderModelAssetDownload'
+import { validateReaderModelAsset } from './ReaderModelAssetValidation'
 import { ReaderSuperResolutionModel } from '../state/ReaderModeState'
 import {
   ReaderSuperResolutionInstallStrategy,
@@ -109,7 +109,7 @@ export class ReaderSuperResolutionModelService {
     return definition === null ? 0 : definition.bytes()
   }
 
-  static remainingDownloadBytes(context: common.UIAbilityContext, model: string): number {
+  static async remainingDownloadBytes(context: common.UIAbilityContext, model: string): Promise<number> {
     const definition: ReaderSuperResolutionModelDefinition | null =
       ReaderSuperResolutionModelRegistry.find(model)
     if (definition === null) {
@@ -120,11 +120,11 @@ export class ReaderSuperResolutionModelService {
     }
     const paths: ReaderSuperResolutionModelPaths =
       ReaderSuperResolutionModelService.paths(context, definition)
-    const runtimeInstalled: boolean = ReaderSuperResolutionModelService.validateFile(
+    const runtimeInstalled: boolean = await validateReaderModelAsset(
       paths.paramPath,
       definition.paramBytes,
       definition.paramSha256,
-    ) && ReaderSuperResolutionModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       definition.modelBytes,
       definition.modelSha256,
@@ -134,7 +134,7 @@ export class ReaderSuperResolutionModelService {
       const fullDownloadBytes: number = definition.downloadBytes()
       bytes += Math.max(0, fullDownloadBytes - definition.acceleratedModelBytes)
     }
-    if (!ReaderSuperResolutionModelService.acceleratedAssetInstalled(paths, definition)) {
+    if (!await ReaderSuperResolutionModelService.acceleratedAssetInstalled(paths, definition)) {
       bytes += definition.acceleratedModelBytes
     }
     return bytes
@@ -151,16 +151,16 @@ export class ReaderSuperResolutionModelService {
     }
     const paths: ReaderSuperResolutionModelPaths =
       ReaderSuperResolutionModelService.paths(context, definition)
-    const runtimeInstalled: boolean = ReaderSuperResolutionModelService.validateFile(
+    const runtimeInstalled: boolean = await validateReaderModelAsset(
       paths.paramPath,
       definition.paramBytes,
       definition.paramSha256,
-    ) && ReaderSuperResolutionModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       definition.modelBytes,
       definition.modelSha256,
     )
-    return runtimeInstalled && ReaderSuperResolutionModelService.acceleratedAssetInstalled(
+    return runtimeInstalled && await ReaderSuperResolutionModelService.acceleratedAssetInstalled(
       paths,
       definition,
     )
@@ -196,7 +196,7 @@ export class ReaderSuperResolutionModelService {
     }
     const paths: ReaderSuperResolutionModelPaths =
       ReaderSuperResolutionModelService.paths(context, definition)
-    if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+    if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
       return null
     }
     return paths
@@ -318,8 +318,8 @@ export class ReaderSuperResolutionModelService {
     }
     let paths: ReaderSuperResolutionModelPaths =
       ReaderSuperResolutionModelService.realEsrganPaths(context)
-    if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition) &&
-      ReaderSuperResolutionModelService.hasRealEsrganSourceAssets(context)) {
+    if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition) &&
+      await ReaderSuperResolutionModelService.hasRealEsrganSourceAssets(context)) {
       DiagnosticLogger.info(
         'reader-super-resolution',
         'model_migration_start',
@@ -333,23 +333,23 @@ export class ReaderSuperResolutionModelService {
       )
       paths = ReaderSuperResolutionModelService.realEsrganPaths(context)
     }
-    if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+    if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
       return null
     }
     return paths
   }
 
-  static realEsrganNnrtPathIfReady(context: common.UIAbilityContext): string | null {
+  static async realEsrganNnrtPathIfReady(context: common.UIAbilityContext): Promise<string | null> {
     return ReaderSuperResolutionModelService.acceleratedModelPathIfReady(
       context,
       ReaderSuperResolutionModel.REAL_ESRGAN_X2PLUS,
     )
   }
 
-  static acceleratedModelPathIfReady(
+  static async acceleratedModelPathIfReady(
     context: common.UIAbilityContext,
     model: string,
-  ): string | null {
+  ): Promise<string | null> {
     const definition: ReaderSuperResolutionModelDefinition | null =
       ReaderSuperResolutionModelRegistry.find(model)
     if (definition === null || definition.systemModel) {
@@ -362,7 +362,7 @@ export class ReaderSuperResolutionModelService {
     if (path.length === 0) {
       return null
     }
-    return ReaderSuperResolutionModelService.validateFile(
+    return await validateReaderModelAsset(
       path,
       definition.acceleratedModelBytes,
       definition.acceleratedModelSha256,
@@ -476,9 +476,9 @@ export class ReaderSuperResolutionModelService {
       `model=${definition.id}`,
     )
     try {
-      if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+      if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
         await ReaderSuperResolutionModelService.downloadAsset(definition.paramUrls, paramPart)
-        if (!ReaderSuperResolutionModelService.validateFile(
+        if (!await validateReaderModelAsset(
           paramPart,
           definition.paramBytes,
           definition.paramSha256,
@@ -486,7 +486,7 @@ export class ReaderSuperResolutionModelService {
           throw new Error(`${definition.id} param checksum mismatch`)
         }
         await ReaderSuperResolutionModelService.downloadAsset(definition.modelUrls, modelPart)
-        if (!ReaderSuperResolutionModelService.validateFile(
+        if (!await validateReaderModelAsset(
           modelPart,
           definition.modelBytes,
           definition.modelSha256,
@@ -538,7 +538,7 @@ export class ReaderSuperResolutionModelService {
       `model=${definition.id}`,
     )
     try {
-      if (ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+      if (await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
         await ReaderSuperResolutionModelService.installAcceleratedAsset(paths, definition)
         DiagnosticLogger.info(
           'reader-super-resolution',
@@ -549,7 +549,7 @@ export class ReaderSuperResolutionModelService {
         return
       }
       await ReaderSuperResolutionModelService.downloadAsset(definition.packageUrls, packagePath)
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         packagePath,
         definition.packageBytes,
         definition.packageSha256,
@@ -561,7 +561,7 @@ export class ReaderSuperResolutionModelService {
         pathSeparatorStrategy: zlib.PathSeparatorStrategy.PATH_SEPARATOR_STRATEGY_REPLACE_BACKSLASH,
       }
       await zlib.decompressFile(packagePath, extractDir, options)
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         onnxPath,
         ESPCN_ONNX_BYTES,
         ESPCN_ONNX_SHA256,
@@ -573,14 +573,14 @@ export class ReaderSuperResolutionModelService {
         paramPart,
         modelPart,
       )
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         paramPart,
         definition.paramBytes,
         definition.paramSha256,
       )) {
         throw new Error('ESPCN generated param checksum mismatch')
       }
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         modelPart,
         definition.modelBytes,
         definition.modelSha256,
@@ -780,12 +780,12 @@ export class ReaderSuperResolutionModelService {
     ReaderSuperResolutionModelService.removeIfExists(modelPart)
     DiagnosticLogger.info('reader-super-resolution', 'model_download_start', 'model=waifu2x_photo_noise0_2x')
     try {
-      if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+      if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
         await ReaderSuperResolutionModelService.downloadAsset(
           definition.paramUrls,
           paramPart,
         )
-        if (!ReaderSuperResolutionModelService.validateFile(
+        if (!await validateReaderModelAsset(
           paramPart,
           WAIFU2X_PARAM_BYTES,
           WAIFU2X_PARAM_SHA256,
@@ -796,7 +796,7 @@ export class ReaderSuperResolutionModelService {
           definition.modelUrls,
           modelPart,
         )
-        if (!ReaderSuperResolutionModelService.validateFile(
+        if (!await validateReaderModelAsset(
           modelPart,
           WAIFU2X_MODEL_BYTES,
           WAIFU2X_MODEL_SHA256,
@@ -844,7 +844,7 @@ export class ReaderSuperResolutionModelService {
       'model=realesrgan_x2plus',
     )
     try {
-      if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+      if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
         await ReaderSuperResolutionModelService.installRealEsrganRuntime(
           context,
           definition,
@@ -882,7 +882,7 @@ export class ReaderSuperResolutionModelService {
     ReaderSuperResolutionModelService.removeIfExists(runtimeParamPart)
     ReaderSuperResolutionModelService.removeIfExists(modelPart)
     try {
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         sourceParamPath,
         REAL_ESRGAN_SOURCE_PARAM_BYTES,
         REAL_ESRGAN_SOURCE_PARAM_SHA256,
@@ -893,7 +893,7 @@ export class ReaderSuperResolutionModelService {
           ),
           sourceParamPart,
         )
-        if (!ReaderSuperResolutionModelService.validateFile(
+        if (!await validateReaderModelAsset(
           sourceParamPart,
           REAL_ESRGAN_SOURCE_PARAM_BYTES,
           REAL_ESRGAN_SOURCE_PARAM_SHA256,
@@ -907,21 +907,21 @@ export class ReaderSuperResolutionModelService {
         sourceParamPath,
         runtimeParamPart,
       )
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         runtimeParamPart,
         REAL_ESRGAN_RUNTIME_PARAM_BYTES,
         REAL_ESRGAN_RUNTIME_PARAM_SHA256,
       )) {
         throw new Error('Real-ESRGAN runtime param checksum mismatch')
       }
-      if (ReaderSuperResolutionModelService.validateFile(
+      if (await validateReaderModelAsset(
         paths.modelPath,
         REAL_ESRGAN_SOURCE_MODEL_BYTES,
         REAL_ESRGAN_SOURCE_MODEL_SHA256,
       )) {
-        ReaderSuperResolutionModelService.createRealEsrganRuntimeModel(paths.modelPath)
+        await ReaderSuperResolutionModelService.createRealEsrganRuntimeModel(paths.modelPath)
       }
-      if (!ReaderSuperResolutionModelService.validateFile(
+      if (!await validateReaderModelAsset(
         paths.modelPath,
         REAL_ESRGAN_RUNTIME_MODEL_BYTES,
         REAL_ESRGAN_RUNTIME_MODEL_SHA256,
@@ -930,15 +930,15 @@ export class ReaderSuperResolutionModelService {
           ReaderSuperResolutionModelService.realEsrganAssetUrls(REAL_ESRGAN_MODEL_FILE_NAME),
           modelPart,
         )
-        if (!ReaderSuperResolutionModelService.validateFile(
+        if (!await validateReaderModelAsset(
           modelPart,
           REAL_ESRGAN_SOURCE_MODEL_BYTES,
           REAL_ESRGAN_SOURCE_MODEL_SHA256,
         )) {
           throw new Error('Real-ESRGAN source model checksum mismatch')
         }
-        ReaderSuperResolutionModelService.createRealEsrganRuntimeModel(modelPart)
-        if (!ReaderSuperResolutionModelService.validateFile(
+        await ReaderSuperResolutionModelService.createRealEsrganRuntimeModel(modelPart)
+        if (!await validateReaderModelAsset(
           modelPart,
           REAL_ESRGAN_RUNTIME_MODEL_BYTES,
           REAL_ESRGAN_RUNTIME_MODEL_SHA256,
@@ -951,7 +951,7 @@ export class ReaderSuperResolutionModelService {
       ReaderSuperResolutionModelService.removeIfExists(paths.paramPath)
       fileIo.renameSync(runtimeParamPart, paths.paramPath)
       ReaderSuperResolutionModelService.removeIfExists(sourceParamPath)
-      if (!ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
+      if (!await ReaderSuperResolutionModelService.runtimePairInstalled(paths, definition)) {
         throw new Error('Real-ESRGAN runtime pair validation failed')
       }
     } catch (error) {
@@ -1014,7 +1014,7 @@ export class ReaderSuperResolutionModelService {
    * prelude. They are verified as part of the immutable source hash, then omitted while writing a
    * temporary runtime file. The verified runtime file atomically replaces the source file.
    */
-  private static createRealEsrganRuntimeModel(path: string): void {
+  private static async createRealEsrganRuntimeModel(path: string): Promise<void> {
     if (fileIo.statSync(path).size !== REAL_ESRGAN_SOURCE_MODEL_BYTES) {
       throw new Error('unexpected Real-ESRGAN source model size')
     }
@@ -1070,7 +1070,7 @@ export class ReaderSuperResolutionModelService {
         fileIo.closeSync(source)
       }
     }
-    if (!ReaderSuperResolutionModelService.validateFile(
+    if (!await validateReaderModelAsset(
       runtimePath,
       REAL_ESRGAN_RUNTIME_MODEL_BYTES,
       REAL_ESRGAN_RUNTIME_MODEL_SHA256,
@@ -1117,7 +1117,7 @@ export class ReaderSuperResolutionModelService {
     paths: ReaderSuperResolutionModelPaths,
     definition: ReaderSuperResolutionModelDefinition,
   ): Promise<void> {
-    if (ReaderSuperResolutionModelService.acceleratedAssetInstalled(paths, definition)) {
+    if (await ReaderSuperResolutionModelService.acceleratedAssetInstalled(paths, definition)) {
       return
     }
     if (definition.acceleratedModelFileName.length === 0 ||
@@ -1130,7 +1130,7 @@ export class ReaderSuperResolutionModelService {
       definition.acceleratedModelUrls,
       partPath,
     )
-    if (!ReaderSuperResolutionModelService.validateFile(
+    if (!await validateReaderModelAsset(
       partPath,
       definition.acceleratedModelBytes,
       definition.acceleratedModelSha256,
@@ -1142,29 +1142,29 @@ export class ReaderSuperResolutionModelService {
     fileIo.renameSync(partPath, paths.acceleratedModelPath)
   }
 
-  private static runtimePairInstalled(
+  private static async runtimePairInstalled(
     paths: ReaderSuperResolutionModelPaths,
     definition: ReaderSuperResolutionModelDefinition,
-  ): boolean {
-    return ReaderSuperResolutionModelService.validateFile(
+  ): Promise<boolean> {
+    return await validateReaderModelAsset(
       paths.paramPath,
       definition.paramBytes,
       definition.paramSha256,
-    ) && ReaderSuperResolutionModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       definition.modelBytes,
       definition.modelSha256,
     )
   }
 
-  private static acceleratedAssetInstalled(
+  private static async acceleratedAssetInstalled(
     paths: ReaderSuperResolutionModelPaths,
     definition: ReaderSuperResolutionModelDefinition,
-  ): boolean {
+  ): Promise<boolean> {
     if (definition.acceleratedModelFileName.length === 0) {
       return true
     }
-    return ReaderSuperResolutionModelService.validateFile(
+    return await validateReaderModelAsset(
       paths.acceleratedModelPath,
       definition.acceleratedModelBytes,
       definition.acceleratedModelSha256,
@@ -1178,45 +1178,6 @@ export class ReaderSuperResolutionModelService {
       `https://huggingface.co/${REAL_ESRGAN_SOURCE_REPOSITORY}/resolve/` +
         `${REAL_ESRGAN_SOURCE_REVISION}/${fileName}`,
     ]
-  }
-
-  private static validateFile(path: string, expectedBytes: number, expectedSha256: string): boolean {
-    try {
-      const stat: fileIo.Stat = fileIo.statSync(path)
-      return stat.size === expectedBytes &&
-        ReaderSuperResolutionModelService.hashFile(path) === expectedSha256
-    } catch (_error) {
-      return false
-    }
-  }
-
-  private static hashFile(path: string): string {
-    const md = cryptoFramework.createMd('SHA256')
-    let file: fileIo.File | null = null
-    try {
-      file = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
-      while (true) {
-        const buffer: ArrayBuffer = new ArrayBuffer(HASH_CHUNK_BYTES)
-        const read: number = fileIo.readSync(file.fd, buffer, { length: HASH_CHUNK_BYTES })
-        if (read <= 0) {
-          break
-        }
-        md.updateSync({ data: new Uint8Array(buffer, 0, read) })
-      }
-      return ReaderSuperResolutionModelService.toHex(md.digestSync().data)
-    } finally {
-      if (file !== null) {
-        fileIo.closeSync(file)
-      }
-    }
-  }
-
-  private static toHex(bytes: Uint8Array): string {
-    const parts: string[] = []
-    for (let i: number = 0; i < bytes.length; i++) {
-      parts.push(bytes[i].toString(16).padStart(2, '0'))
-    }
-    return parts.join('')
   }
 
   private static waifu2xPaths(context: common.UIAbilityContext): ReaderSuperResolutionModelPaths {
@@ -1255,14 +1216,14 @@ export class ReaderSuperResolutionModelService {
       REAL_ESRGAN_SOURCE_PARAM_FILE_NAME
   }
 
-  private static hasRealEsrganSourceAssets(context: common.UIAbilityContext): boolean {
+  private static async hasRealEsrganSourceAssets(context: common.UIAbilityContext): Promise<boolean> {
     const paths: ReaderSuperResolutionModelPaths =
       ReaderSuperResolutionModelService.realEsrganPaths(context)
-    return ReaderSuperResolutionModelService.validateFile(
+    return await validateReaderModelAsset(
       ReaderSuperResolutionModelService.realEsrganSourceParamPath(context),
       REAL_ESRGAN_SOURCE_PARAM_BYTES,
       REAL_ESRGAN_SOURCE_PARAM_SHA256,
-    ) && ReaderSuperResolutionModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       REAL_ESRGAN_SOURCE_MODEL_BYTES,
       REAL_ESRGAN_SOURCE_MODEL_SHA256,

@@ -61,20 +61,26 @@ export struct ReaderSuperResolutionModelsContent {
   }
 
   private async refreshInstallState(): Promise<void> {
+    const lifetime: number = this.lifetime
     for (let i: number = 0; i < this.modelStates.length; i++) {
-      this.modelStates[i].installed = await ReaderSuperResolutionModelService.isInstalled(
+      const state: ReaderSuperResolutionModelFileState = this.modelStates[i]
+      const installed: boolean = await ReaderSuperResolutionModelService.isInstalled(
         this.context(),
-        this.modelStates[i].definition.id,
+        state.definition.id,
       )
-      this.modelStates[i].remainingDownloadBytes =
-        ReaderSuperResolutionModelService.remainingDownloadBytes(
+      const remainingDownloadBytes: number =
+        await ReaderSuperResolutionModelService.remainingDownloadBytes(
           this.context(),
-          this.modelStates[i].definition.id,
+          state.definition.id,
         )
+      if (!this.active || lifetime !== this.lifetime) return
+      state.installed = installed
+      state.remainingDownloadBytes = remainingDownloadBytes
     }
   }
 
   private async appendInstalledLegacyModels(): Promise<void> {
+    const lifetime: number = this.lifetime
     const definitions: ReaderSuperResolutionModelDefinition[] =
       ReaderSuperResolutionModelService.definitions()
     const states: ReaderSuperResolutionModelFileState[] = this.modelStates.slice()
@@ -89,6 +95,7 @@ export struct ReaderSuperResolutionModelsContent {
         this.context(),
         definition.id,
       )
+      if (!this.active || lifetime !== this.lifetime) return
       if (!installed) {
         continue
       }

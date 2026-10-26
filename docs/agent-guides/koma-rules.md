@@ -108,6 +108,8 @@
 
 - Reader 即时控制与全局长期配置分责；具体采用入口、分组和日志归属见 CURRENT_STATUS 的 NEXTE_READER_FEATURE_MIGRATION。增强模型未选/不可用仍保留可见开关；模型选择与模型文件管理沿 NextE 原职责，不能自行合并成下载选择菜单。各入口消费同一配置及能力状态。
 
+- 翻译和超分模型完整文件的长度与固定摘要校验由独立 TaskPool 入口执行，设置、下载提交及首次处理共用同一校验；readiness 仍归原模型服务，异步旧结果不能复活已删除路径或覆盖已安装结果。不把 `async` 函数中的同步读盘/摘要当作后台执行，也不为减负删去校验。
+
 - 漫画翻译只在明确的当前页动作或本次阅读主动开启自动翻译后执行，退出后自动翻译关闭。Koma 的翻译配置由独立安全资产串行读写，内容遵守官方每条1024字节限制分块，最后以短索引原子提交，只发布无凭据的 revision；不得读取 NextE 的账户、密钥或库。源文件、章节、目标语言、配置 revision 和当前 Reader 共同限定处理身份，配置改变后旧请求不能再发起提供方调用或覆盖当前页；已开始的调用仍可完成并保留合法缓存，但迟到结果不得发布。唯一主结果是经过身份与文件校验的本地译图，失败保留原图，不能以 OCR 文本、占位图或模拟提供方响应代替实际译图验收。制图与文本提供方沿现有 NextE 处理合同，各自的配置、模型资产和生成缓存留在 Koma 宿主；不在公共 Kit 内放服务、账户或持久设置。 ImageKit `readPixelsToBuffer` 导出不含内存对齐填充字节，RGBA8888紧密buffer的行距使用width×4，不沿用分配内存的ImageInfo.stride；保模型/后端、原处理路径与性能预算，依据为CURRENT_STATUS原NEXTE项及[官方PixelMap合同](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/arkts-apis-image-pixelmap)。
 
 ### 诊断日志

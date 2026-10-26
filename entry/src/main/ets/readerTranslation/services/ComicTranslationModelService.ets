@@ -1,9 +1,9 @@
 // Adapted from NextE59a7a679. Koma owns configuration, credentials and files.
 import { common } from '@kit.AbilityKit'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../../diagnostics/DiagnosticLogger'
 import { ReaderModelAssetDownload } from '../../model/ReaderModelAssetDownload'
+import { validateReaderModelAsset } from '../../model/ReaderModelAssetValidation'
 
 const MODEL_DIRECTORY: string = 'comic-translation-models/ysgyolo-1.2-os1-ncnn-fp32-v1'
 const MODEL_RELEASE_TAG: string = 'model-pack-v1.1.6'
@@ -55,7 +55,6 @@ const TEXT_MASK_PARAM_SHA256: string =
   '1f7e14f5c327e0341e775bf23fd61f4ec34a4d3661bf13ff06ea32e3c5c8d072'
 const TEXT_MASK_MODEL_SHA256: string =
   'c0bdafdc17e194fa28496532abd860aeb1ee08f60f08b919215abd45191f4deb'
-const HASH_CHUNK_BYTES: number = 256 * 1024
 const DOWNLOAD_CONNECT_TIMEOUT_MS: number = 15000
 // Allow slow model transfers; the separate stall deadline bounds periods without new bytes.
 const DOWNLOAD_READ_TIMEOUT_MS: number = 45 * 60 * 1000
@@ -123,96 +122,110 @@ export class ComicTranslationModelService {
       TEXT_MASK_PARAM_BYTES + TEXT_MASK_MODEL_BYTES
   }
 
-  static pathsIfReady(context: common.UIAbilityContext): ComicTranslationModelPaths | null {
+  static async pathsIfReady(context: common.UIAbilityContext): Promise<ComicTranslationModelPaths | null> {
     const directory: string = ComicTranslationModelService.directory(context)
     if (ComicTranslationModelService.readiness.has(directory)) {
       return ComicTranslationModelService.readiness.get(directory) ?? null
     }
     const paths: ComicTranslationModelPaths = ComicTranslationModelService.paths(context)
-    const ready: boolean = ComicTranslationModelService.validateFile(
+    const ready: boolean = await validateReaderModelAsset(
       paths.paramPath,
       PARAM_BYTES,
       PARAM_SHA256,
-    ) && ComicTranslationModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       MODEL_BYTES,
       MODEL_SHA256,
     )
+    // A remove/install may publish a newer result while the worker is reading.
+    // Never resurrect removed paths or replace a newly installed model with an old miss.
+    if (ComicTranslationModelService.readiness.has(directory)) {
+      return ComicTranslationModelService.readiness.get(directory) ?? null
+    }
     ComicTranslationModelService.readiness.set(directory, ready ? paths : null)
     return ready ? paths : null
   }
 
-  static ocrPathsIfReady(context: common.UIAbilityContext): ComicTextRecognitionModelPaths | null {
+  static async ocrPathsIfReady(context: common.UIAbilityContext): Promise<ComicTextRecognitionModelPaths | null> {
     const directory: string = ComicTranslationModelService.directory(context)
     if (ComicTranslationModelService.ocrReadiness.has(directory)) {
       return ComicTranslationModelService.ocrReadiness.get(directory) ?? null
     }
     const paths: ComicTextRecognitionModelPaths = ComicTranslationModelService.ocrPaths(context)
-    const ready: boolean = ComicTranslationModelService.validateFile(
+    const ready: boolean = await validateReaderModelAsset(
       paths.paramPath,
       OCR_PARAM_BYTES,
       OCR_PARAM_SHA256,
-    ) && ComicTranslationModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       OCR_MODEL_BYTES,
       OCR_MODEL_SHA256,
-    ) && ComicTranslationModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.dictionaryPath,
       OCR_DICTIONARY_BYTES,
       OCR_DICTIONARY_SHA256,
     )
+    if (ComicTranslationModelService.ocrReadiness.has(directory)) {
+      return ComicTranslationModelService.ocrReadiness.get(directory) ?? null
+    }
     ComicTranslationModelService.ocrReadiness.set(directory, ready ? paths : null)
     return ready ? paths : null
   }
 
-  static inpaintingPathsIfReady(
+  static async inpaintingPathsIfReady(
     context: common.UIAbilityContext,
-  ): ComicSourceInpaintingModelPaths | null {
+  ): Promise<ComicSourceInpaintingModelPaths | null> {
     const directory: string = ComicTranslationModelService.directory(context)
     if (ComicTranslationModelService.inpaintingReadiness.has(directory)) {
       return ComicTranslationModelService.inpaintingReadiness.get(directory) ?? null
     }
     const paths: ComicSourceInpaintingModelPaths =
       ComicTranslationModelService.inpaintingPaths(context)
-    const ready: boolean = ComicTranslationModelService.validateFile(
+    const ready: boolean = await validateReaderModelAsset(
       paths.paramPath,
       INPAINTER_PARAM_BYTES,
       INPAINTER_PARAM_SHA256,
-    ) && ComicTranslationModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       INPAINTER_MODEL_BYTES,
       INPAINTER_MODEL_SHA256,
     )
+    if (ComicTranslationModelService.inpaintingReadiness.has(directory)) {
+      return ComicTranslationModelService.inpaintingReadiness.get(directory) ?? null
+    }
     ComicTranslationModelService.inpaintingReadiness.set(directory, ready ? paths : null)
     return ready ? paths : null
   }
 
-  static textMaskPathsIfReady(
+  static async textMaskPathsIfReady(
     context: common.UIAbilityContext,
-  ): ComicTextMaskModelPaths | null {
+  ): Promise<ComicTextMaskModelPaths | null> {
     const directory: string = ComicTranslationModelService.directory(context)
     if (ComicTranslationModelService.textMaskReadiness.has(directory)) {
       return ComicTranslationModelService.textMaskReadiness.get(directory) ?? null
     }
     const paths: ComicTextMaskModelPaths = ComicTranslationModelService.textMaskPaths(context)
-    const ready: boolean = ComicTranslationModelService.validateFile(
+    const ready: boolean = await validateReaderModelAsset(
       paths.paramPath,
       TEXT_MASK_PARAM_BYTES,
       TEXT_MASK_PARAM_SHA256,
-    ) && ComicTranslationModelService.validateFile(
+    ) && await validateReaderModelAsset(
       paths.modelPath,
       TEXT_MASK_MODEL_BYTES,
       TEXT_MASK_MODEL_SHA256,
     )
+    if (ComicTranslationModelService.textMaskReadiness.has(directory)) {
+      return ComicTranslationModelService.textMaskReadiness.get(directory) ?? null
+    }
     ComicTranslationModelService.textMaskReadiness.set(directory, ready ? paths : null)
     return ready ? paths : null
   }
 
   static async isInstalled(context: common.UIAbilityContext): Promise<boolean> {
-    return ComicTranslationModelService.pathsIfReady(context) !== null &&
-      ComicTranslationModelService.ocrPathsIfReady(context) !== null &&
-      ComicTranslationModelService.inpaintingPathsIfReady(context) !== null &&
-      ComicTranslationModelService.textMaskPathsIfReady(context) !== null
+    return await ComicTranslationModelService.pathsIfReady(context) !== null &&
+      await ComicTranslationModelService.ocrPathsIfReady(context) !== null &&
+      await ComicTranslationModelService.inpaintingPathsIfReady(context) !== null &&
+      await ComicTranslationModelService.textMaskPathsIfReady(context) !== null
   }
 
   static async install(context: common.UIAbilityContext): Promise<void> {
@@ -351,10 +364,10 @@ export class ComicTranslationModelService {
       ComicTranslationModelService.ocrReadiness.delete(directory)
       ComicTranslationModelService.inpaintingReadiness.delete(directory)
       ComicTranslationModelService.textMaskReadiness.delete(directory)
-      ComicTranslationModelService.pathsIfReady(context)
-      ComicTranslationModelService.ocrPathsIfReady(context)
-      ComicTranslationModelService.inpaintingPathsIfReady(context)
-      ComicTranslationModelService.textMaskPathsIfReady(context)
+      await ComicTranslationModelService.pathsIfReady(context)
+      await ComicTranslationModelService.ocrPathsIfReady(context)
+      await ComicTranslationModelService.inpaintingPathsIfReady(context)
+      await ComicTranslationModelService.textMaskPathsIfReady(context)
       DiagnosticLogger.warn(
         'comic-translation-model',
         'download_failed',
@@ -370,7 +383,7 @@ export class ComicTranslationModelService {
     expectedBytes: number,
     expectedSha256: string,
   ): Promise<void> {
-    if (ComicTranslationModelService.validateFile(
+    if (await validateReaderModelAsset(
       destination,
       expectedBytes,
       expectedSha256,
@@ -402,7 +415,7 @@ export class ComicTranslationModelService {
       const index: number = (firstSource + step) % sources.length
       try {
         await ComicTranslationModelService.downloadFrom(sources[index], fileName, path)
-        if (!ComicTranslationModelService.validateFile(path, expectedBytes, expectedSha256)) {
+        if (!await validateReaderModelAsset(path, expectedBytes, expectedSha256)) {
           throw new Error(`${fileName} checksum mismatch`)
         }
         ComicTranslationModelService.preferredSource = index
@@ -481,46 +494,6 @@ export class ComicTranslationModelService {
 
   private static directory(context: common.UIAbilityContext): string {
     return `${context.filesDir}/${MODEL_DIRECTORY}`
-  }
-
-  private static validateFile(
-    path: string,
-    expectedBytes: number,
-    expectedSha256: string,
-  ): boolean {
-    try {
-      const stat: fileIo.Stat = fileIo.statSync(path)
-      return stat.isFile() && stat.size === expectedBytes &&
-        ComicTranslationModelService.hashFile(path) === expectedSha256
-    } catch (_error) {
-      return false
-    }
-  }
-
-  private static hashFile(path: string): string {
-    const digest = cryptoFramework.createMd('SHA256')
-    let file: fileIo.File | null = null
-    try {
-      file = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
-      while (true) {
-        const buffer: ArrayBuffer = new ArrayBuffer(HASH_CHUNK_BYTES)
-        const read: number = fileIo.readSync(file.fd, buffer, { length: HASH_CHUNK_BYTES })
-        if (read <= 0) {
-          break
-        }
-        digest.updateSync({ data: new Uint8Array(buffer, 0, read) })
-      }
-      const bytes: Uint8Array = digest.digestSync().data
-      const output: string[] = []
-      for (let index: number = 0; index < bytes.length; index++) {
-        output.push(bytes[index].toString(16).padStart(2, '0'))
-      }
-      return output.join('')
-    } finally {
-      if (file !== null) {
-        fileIo.closeSync(file)
-      }
-    }
   }
 
   private static ensureDir(path: string): void {
