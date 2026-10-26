@@ -17,8 +17,8 @@
 - 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；旧追加计数候选已撤回。人类本轮已明确采用完整修正：部分失败摘要检查未完成 · 已确认可更新 N、其余未查全源未能确认、原地址行subtitle失败原因/沿用点行重试，无新提示条按钮，全成功保持。终版已237具名验收并随68b6b234提交推送，精确CI40235545574同head completed/success，无新tag/发版。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；旧TXT参数候选已由用户本轮.log纠正取代；301–304新.log落盘/分享与旧TXT读取具名通过；本轮部分失败完整修正已获采用，允许差异见SOURCE_INDEX_CACHE_REVALIDATE，其他布局/事务保持。
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。上述旧提交固定Kit e3f3cc1；本轮已采用v3与普通入场，当前a9d7c641组合三宿主具名实机通过，三宿主范围提交/同步及精确CI均成功；无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
-- 当前设备状态：197401五域相396逐字同，scratch与399trace的find exit0空，AWAKE/原系统Timeout120000无Override、Koma405焦点，b3f72fe4正常release0，无活设备操作；保持正常8590100B，未装8a94候选、无临时源码。237正常8591318B本阶段未操作。200禁止操作，不复用旧租约或重跑已接受场景。
-- 当前实机入口：本轮Koma的diagnostics197.protocol.json当前回执至401，diagnostics197.semantic.py本轮用于400普通返回；source-package-actions197.recording.json本阶段未运行，其最后原回执按原件保留，不将本轮网络trace取证记作录屏。237的source-validation237.protocol.json/source-browse237.recording.json以及197旧NextN shared-mutual-input.json为各自前阶段原件，不决定本轮目标。所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0；UI阶段清空继承postflight，运行后先读回执再做依赖动作。252字符串press_key、253离屏计数、257旧context及本轮391录像提前结束的失败/边界均保原件，不据工具错误改产品，也不重跑已接受场景。
+- 当前设备状态：197405五域相401逐字同，AWAKE/原系统Timeout120000无Override，最终Focus16为系统锁屏；030738-0a78d84f已release0，无活租约/App UI或新源请求。保持正常8590100B、未装8a94候选/未改UA网络Cookie。400原书架锚点是前阶段实证，不称405回书架；237正常8591318B本阶段未操作，200禁止操作。
+- 当前实机入口：Koma diagnostics197.protocol.json本轮402–405仅help/过滤历史事件查询/恢复读回，最后405；diagnostics197.semantic.py最后400普通返回，source-package-actions197.recording.json本阶段未运行、原回执保留。本轮历史查询无App UI/新源请求，不误写录屏或405回书架。原HDC沙盒外/有效租约/HARMONY_DEVICE_ARTIFACT_HASHES=0及先读回执再做依赖动作边界保持。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal；最新人类明确让子代理处理文档，现progress_docs独占本工作单核账，Root独占实机/代码，不新增其他派工。保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器具名范围保持。
 
 <!-- /current-continuation -->
@@ -954,11 +954,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-26T02:56:17+00:00",
+  "updatedAt": "2026-10-26T03:17:57+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAGUI_RUNTIME_TIMEOUT",
-  "activity": "399当前197正常8590100B/漫画柜0.1.6一次浏览HTTP200/42本且成功Timing已核，但app+net无细分阶段标记，旧超时原因仍未知。400普通返回原锚点，401五域相396逐字同、scratch/trace清、AWAKE/系统120000无Override/Koma405、b3f72fe4 release0，当前无活设备操作。02:55:55Z源远端仍d936，无下一真实升级，不装8a94候选/耗首装。原8open+1parked完整核对后条件均仍保留，局部成功与资料核清不等整体完成。",
-  "nextAction": "依原8项continuationGate的合法新证据或真实业务条件由Root续接，私库仅用户重提；当前无新的安全代码/网络/设备动作依据，不重放旧失败/已接受路径、不注入数据、不改UA/权限或单为取样耗首装。文档事实更新不关闭原缺陷或整体目标。",
+  "activity": "文档c0cbdb62已推，精确CI40261839010同head completed/success、Release build成功/tag发布skipped，仅文档CI，不作产品验收；本地回执.hvigor/outputs/user-flow-audit/manhuagui-network-phase-review/documentation-ci.json。Root后继取得官方netstack_hisysevent实现并通过197实际hisysevent过滤历史故障：403两4分钟窗、404整日故障/成功对照共四查询均exit0且双输出空，本机未得到旧失败阶段，不能判事件未生成/设备同实现/旧根因已知。405五域相401同、AWAKE/120000无Override、Focus16锁屏，0a78d84f release0；无App UI/新请求/安装/UA网络Cookie或业务写入，当前无活租约。两源仍open，其它6open与parked不动。",
+  "nextAction": "原8open沿各自合法新证据/真实业务条件续接，私库仅用户重提；两源历史查询未得阶段不等故障已修或通道永不存在。不盲重试、无新取证目的不重复请求，保请求栈/UA/网络，不新增队列或为取样耗首装，资料核清不等整体完成。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3607,12 +3607,13 @@
         "473与471的library/reader/registry逐字比较均相同；没有再次点击重试。原件diagnostics/manhuawu015-firstgroup197-failure-473。",
         "455–458既有会话列表/详情200及460正文页表超时不抹去；472在27.439秒未见元尊，未进入排序或开书。",
         "478/479原生列表get_manga_list HTTP200，30本封面/标题已显示；没有人工完成或再次点重试。",
-        "本轮仅只读既存460诊断原件koma-log-20261024-120407.txt：12:16:14.370 GET（op尾:56）sessionattached/Cookiepresent/WebUA，12:16:29.384返回code2300028/15014，外层get_pages（op尾:55）总15146。此前get_chapters200/530249是另一op尾:54，不混成页表成功。当前pages仅一次fetch章节HTML后取img[data-original]，不是多图片串行；当前后继源码不冒当时字节等价。尚不能从Host await request失败前旧timing定位DNS/TCP/TLS，无新请求/导航或网络改动。"
+        "本轮仅只读既存460诊断原件koma-log-20261024-120407.txt：12:16:14.370 GET（op尾:56）sessionattached/Cookiepresent/WebUA，12:16:29.384返回code2300028/15014，外层get_pages（op尾:55）总15146。此前get_chapters200/530249是另一op尾:54，不混成页表成功。当前pages仅一次fetch章节HTML后取img[data-original]，不是多图片串行；当前后继源码不冒当时字节等价。尚不能从Host await request失败前旧timing定位DNS/TCP/TLS，无新请求/导航或网络改动。",
+        "本项原失败为24日12:16:29，日志文件名120407不是失败时刻；403对应4分钟/max30及404同域同故障整日/max100查询均exit0、无记录。本机未获得可回溯阶段，不能据此断言事件未产生、缺失原因或页表超时根因，原项仍open。公共官方通道依据、四查询完整边界及402–405租约/恢复事实统一见原MANHUAGUI_RUNTIME_TIMEOUT与405/history-result-receipt.json，不另重复。"
       ],
       "remainingActions": [
-        "元尊自然挑战/正文页表网络超时仍未闭，不据列表成功声明整源可读；目录/首次选择规则已由Mihon/FIRST交付，不重开排序或重跑已定目录。"
+        "元尊自然挑战/正文页表超时仍未闭；402–405只读历史故障查询本项24日12:16:29四分钟窗与整日均未取回阶段记录，不以文件名120407冒失败时刻，也不将空输出当根因。待合法同次会话/页表或阶段证据，不盲重试、无新取证目的不重复请求，保UA/网络；目录/FIRST已交付不重开。"
       ],
-      "remaining": "元尊自然挑战/正文页表网络超时仍未闭，不据列表成功声明整源可读；目录/首次选择规则已由Mihon/FIRST交付，不重开排序或重跑已定目录。",
+      "remaining": "元尊自然挑战/正文页表超时仍未闭；402–405只读历史故障查询本项24日12:16:29四分钟窗与整日均未取回阶段记录，不以文件名120407冒失败时刻，也不将空输出当根因。待合法同次会话/页表或阶段证据，不盲重试、无新取证目的不重复请求，保UA/网络；目录/FIRST已交付不重开。",
       "boundaries": [
         "仅漫画屋015列表/元尊详情恢复；无页表或正文，不扩整源可用。",
         "页表Cookie present与2300028超时是本次事实，不足以推断网络具体阶段或否定分区读取修复。"
@@ -3634,9 +3635,9 @@
         "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-25T21:56:53+00:00",
+        "checkedAt": "2026-10-26T03:17:57+00:00",
         "owner": "Root",
-        "condition": "目录/首次选择已由Mihon/FIRST交付，不重开。元尊自然挑战与460页表HTTP请求15014ms超时仍未闭；现存日志未给具体DNS/TCP/TLS阶段，缺新的合法同次会话/页表或失败阶段证据，不重请旧失败、改UA/网络或据列表200称正文恢复，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
+        "condition": "目录/FIRST保持已交付。元尊挑战及460页表15014ms超时仍缺合法新同次证据；402–405历史故障通道实际查询24日12:16:29四分钟窗（非文件名120407时刻）及同域整日为空，本机未得可回溯DNS/TCP/TLS记录，不断言事件未产生或空输出/旧根因已知。405五域/timeout保持、系统锁屏、租约release，无活设备操作。不盲重试、无新取证目的不重复请求，若有合法新阶段/会话证据再续接，保UA/网络，不据列表200称正文恢复，原项open。"
       },
       "reportedAgeAtAudit": "至少1天22小时7分51秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3647,7 +3648,7 @@
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
       "title": "漫画柜0.1.6列表请求超时",
       "priority": "P1（具名源运行失败）",
-      "owner": "Root：399正常包成功/400–401恢复闭环；旧超时失败同次阶段仍缺",
+      "owner": "Root：当前成功及历史只读查询已核；本机未取得旧失败阶段记录，原项仍open",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS",
@@ -3664,12 +3665,14 @@
         "本轮仅只读既存460诊断原件koma-log-20261024-092500.txt：10:09:40.990 source_http的GET（op尾:99）timeout15000/sessionnone/sourceUA，10:09:56.002返回code2300028/duration15012；与413同次WASM request_ready→http_return→transport_failed相符，外层op尾:98总15038，未到body_ready/解析。当前漫画柜pc_request显式15000，但当前后继源代码不冒当时字节等价；Host await request失败前旧performanceTiming不能区分DNS/TCP/TLS。无新请求，未确定具体网络阶段或实现错误。",
         "本轮Root查官方NetworkKit http：失败回调response为undefined，PerformanceTiming仅成功响应可用，RCP httpPhase不能套当前请求栈。公开OpenHarmony c8586cd76da91b90b34b1d700fd000c44ec24e14的request_tracer.cpp/trace_events.h虽定义net类别HttpRequest::DNS/TCP/TLS/SENDING/RECEIVING，但197本次399实际trace没有这些细分标记，不能据公开源码补出设备未记录的失败阶段。调查原件位于.hvigor/outputs/user-flow-audit/manhuagui-network-phase-review。",
         "197新租约20261026-024321-b3f72fe4：395–398实核实时Connected、ALN-AL80/API26、正常8590100B/PID60065，未安装8a94候选，未改UA/网络/Cookie/超时/请求栈。399仅一次普通Browse→漫画柜，GET HTTP200/27920chars、firstHeader1928ms/elapsed1935ms，成功响应累计dns105.614/tcp108.628/tls1515.685/firstByte1923.435/finish1925.291ms；WASM42本及封面原图Root亲审。153501B的app+net trace有主请求1931.602ms，HttpRequest::细分阶段标记0个。本次成功不解释旧15000ms超时/不关闭原项；原件.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manhuagui-netphase197-single-browse-399。取证当时400/401返回恢复待回执，后继完成事实见下一条。",
-        "400已普通Back→Browse→原书架，Blue/猎行者/SuperLovers与原第1页100%语义锚点保持。401 completed，library/reader/registry/web/reader-preferences相396全部逐字同；自有scratch与399trace的find均exit0/stdout空，Power AWAKE/系统Timeout120000无Override、Koma405焦点，b3f72fe4正常release exit0，无活设备操作。399实际registry manifestVersion0.1.6、WASM get_manga_list1984ms/42本。网络回执为399/network-result-receipt.json，恢复回执为401/restoration-receipt.json（均在本轮diagnostics原产物下）。本次成功与恢复不解释旧失败同次DNS/TCP/TLS阶段，原缺陷仍open。"
+        "400已普通Back→Browse→原书架，Blue/猎行者/SuperLovers与原第1页100%语义锚点保持。401 completed，library/reader/registry/web/reader-preferences相396全部逐字同；自有scratch与399trace的find均exit0/stdout空，Power AWAKE/系统Timeout120000无Override、Koma405焦点，b3f72fe4正常release exit0，无活设备操作。399实际registry manifestVersion0.1.6、WASM get_manga_list1984ms/42本。网络回执为399/network-result-receipt.json，恢复回执为401/restoration-receipt.json（均在本轮diagnostics原产物下）。本次成功与恢复不解释旧失败同次DNS/TCP/TLS阶段，原缺陷仍open。",
+        "本轮官方公开网络栈c8586cd76da91b90b34b1d700fd000c44ec24e14的utils/common_utils/src/netstack_hisysevent.cpp已实际取到既有manhuagui-network-phase-review目录。源码HTTP_PERF只累计成功请求耗时；故障NET_STACK_HTTP_RESPONSE_ERROR保DNS/TCP/TLS/error数组，但有数量/间隔门槛、成功会清队列且无请求URL。不能认定197必然编译同实现、事件必然生成或缺失原因已知。",
+        "新197租约030738-0a78d84f：402只读help，无设备状态变更，实际支持hisysevent -l及域/事件/时间/max过滤。403对本项原失败24日10:09:56取4分钟窗/max30；同轮另源有独立4分钟窗。404补同域同故障24日整日/max100以涵可能批量晚报，另26日HTTP_PERF对照/max5；四查询均exit0且stdout/stderr字节0。本机未取到可用于回溯的阶段记录，不能据空输出断言事件从未产生、系统可用性或旧网络根因。402–405无App UI输入、新源请求、安装、UA/网络/Cookie变更或业务数据写入。403/404协议均恢复系统timeout；405五域相401逐字同，AWAKE/系统120000无Override，最终Focus16系统锁屏，不冒405回原书架；0a78d84f实际release0，无活租约。历史查询回执405/history-result-receipt.json，400原书架语义事实仅保其当时边界。"
       ],
       "remainingActions": [
-        "399当前197正常0.1.6单次浏览成功与400/401返回/五域/原timeout/scratch/释租已闭环，无恢复待办。仍缺旧失败同次网络细分阶段，成功Timing与无细分主trace不解释旧超时，不直接改请求栈/UA/网络，也不重放旧失败取样。"
+        "399当前正常016成功及400/401恢复保其具名范围；402–405历史故障事件只读查询四次均空，未获得旧失败阶段记录，不解释空输出原因或旧超时。待合法新阶段证据再针对原项续接，不盲重试、无新取证目的不重复请求，保请求栈/UA/网络。"
       ],
-      "remaining": "399当前197正常0.1.6单次浏览成功与400/401返回/五域/原timeout/scratch/释租已闭环，无恢复待办。仍缺旧失败同次网络细分阶段，成功Timing与无细分主trace不解释旧超时，不直接改请求栈/UA/网络，也不重放旧失败取样。",
+      "remaining": "399当前正常016成功及400/401恢复保其具名范围；402–405历史故障事件只读查询四次均空，未获得旧失败阶段记录，不解释空输出原因或旧超时。待合法新阶段证据再针对原项续接，不盲重试、无新取证目的不重复请求，保请求栈/UA/网络。",
       "boundaries": [
         "保当前源UI/安装性能主线；旧证据不冒本次复现，不盲重试或清缓存。"
       ],
@@ -3683,9 +3686,9 @@
       "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
-        "checkedAt": "2026-10-26T02:58:17+00:00",
+        "checkedAt": "2026-10-26T03:17:57+00:00",
         "owner": "Root",
-        "condition": "399正常016包一次普通浏览成功（HTTP200/42本），400/401返回及五域/timeout/scratch/释租已闭环，无活租约或临时诊断。NetworkKit失败无response/PerformanceTiming，RCP接口不适用；本次app+net只有主请求、无HttpRequest细分标记，旧失败同次网络阶段仍缺，成功不解释旧超时/不判已修。当前采集仅成功主trace且无细分，未找到可区分旧失败阶段的新通道；不盲重试、无新取证目的不重复请求；若出现合法新阶段证据再针对原项续接，保请求栈/UA/网络，原缺陷仍open。"
+        "condition": "399成功主trace无HttpRequest细分，402–405官方历史事件通道已实际核：本项24日10:09:56四分钟窗及同故障整日/成功事件对照均无返回记录，未得到可回溯旧失败阶段；不能断言事件从未产生、设备编译同源码或空输出原因/旧网络根因。405五域/timeout保持、系统锁屏Focus16、租约已release，无活设备操作。不盲重试、无新取证目的不重复请求；若出现合法新阶段证据再针对原项续接，保请求栈/UA/网络，原项仍open。"
       },
       "reportedAgeAtAudit": "至少1天22小时6分24秒",
       "reportedAgeSecondsAtAudit": null,
