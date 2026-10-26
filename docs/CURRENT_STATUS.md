@@ -954,7 +954,7 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-25T23:51:39+00:00",
+  "updatedAt": "2026-10-26T00:10:40+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
   "activity": "重复行render限定修正及既有规则两文件已600589b00b769cb56c8f8b6a550eb731328a3b85提交并HTTPS推送；精确CI40246317496实核同head completed/success，Build unsigned Release HAP success、Publish tagged Release skipped，无tag/发版。具名正常更新及394恢复闭环保持；尾回调23.194/24.923ms仍在、无当前业务CPU细栈，卡顿总项open，其它7项及parked原条件保持，当前无本轮设备租约/临时诊断。",
@@ -3457,7 +3457,7 @@
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。",
       "continuationGate": {
-        "checkedAt": "2026-10-25T21:56:53+00:00",
+        "checkedAt": "2026-10-26T00:10:40+00:00",
         "owner": "Root",
         "condition": "原200真实624行/600ID重复章样本禁止操作；237无同类，最新197394/library-after.json离线76本/14902章逐本无重复非空chapter.id，亦无自然替代样本。reader91progress/151chapterstate不属该故障。当前只完成样本排除，未读计数未因此获实机通过；待合法现存同类，不注入/不触200，原缺陷仍open。"
       },
