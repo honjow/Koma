@@ -56,6 +56,8 @@ export interface Chapter {
   sourcePath: string
   sortKey: string
   pages: Page[]
+  /** Source settings snapshot used for this page plan; absent legacy plans use empty settings. */
+  sourceSettingsFingerprint?: string
   pageCount: number
   createdAt: number
   updatedAt: number

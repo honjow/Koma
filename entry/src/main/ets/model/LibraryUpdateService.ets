@@ -148,6 +148,7 @@ function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], n
         sourcePath: existing.sourcePath,
         sortKey: chapterSortKey(remote, index),
         pages: existing.pages,
+        sourceSettingsFingerprint: existing.sourceSettingsFingerprint,
         pageCount: existing.pageCount,
         createdAt: existing.createdAt,
         updatedAt: now,

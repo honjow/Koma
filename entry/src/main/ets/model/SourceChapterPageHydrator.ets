@@ -1,5 +1,6 @@
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
+import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import { sourceTextPage } from './SourceTextPageDescriptor'
 import { cacheSourceTextPageImage } from './ReaderPageSourceAdapter'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
@@ -89,9 +90,25 @@ export interface SourceChapterPagesResolveRequest {
 
 export interface SourceChapterPagesResolveResult {
   pages: Page[]
+  settingsFingerprint?: string
   reasonCode?: string
   sourceFailureReason?: string
   sourceFailure?: SourceFailureDetails
+}
+
+/** Reuse prepared pages across opens only while their generating settings match.
+ * Offline manifests remain owned by the offline reader, outside this check.
+ */
+export function sourceChapterPagesMatchSettings(chapter: Chapter, sourceId: string): boolean {
+  if (chapter.pages.length === 0) return false
+  try {
+    return (chapter.sourceSettingsFingerprint ?? '') ===
+      sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
+  } catch (_error) {
+    // Unknown settings cannot validate a plan. Normal resolution reports the
+    // storage failure and retains the existing usable pages without stamping them.
+    return false
+  }
 }
 
 function normalizeSourceLookupHydrationReason(reasonCode: string | undefined): string {
@@ -274,7 +291,8 @@ async function fetchSourceChapterPages(
       sourceFailure: sourceFailureDetails({ ok: false, reasonCode: response.reasonCode, error: response.error }) }
   }
   if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
-  return { pages: await pagesFromSourceRows(request.comicId, request.chapterId, rows) }
+  return { pages: await pagesFromSourceRows(request.comicId, request.chapterId, rows),
+    settingsFingerprint: sourceSettingsFingerprint(sourceRequest.settings) }
 }
 
 export async function resolveSourceChapterPages(
@@ -407,10 +425,11 @@ export class SourceChapterPageHydrator {
     if (comic === undefined || chapter === undefined) {
       return { hydrated: false, pageCount: 0, reasonCode: 'chapter_missing' }
     }
-    if (chapter.pages.length > 0 && !forceRefresh) {
+    const resolvedSourceId = sourceId ?? comic.sourceRuntimeId
+    if (chapter.pages.length > 0 && !forceRefresh && (resolvedSourceId === undefined ||
+      sourceChapterPagesMatchSettings(chapter, resolvedSourceId))) {
       return { hydrated: true, pageCount: chapter.pages.length }
     }
-    const resolvedSourceId = sourceId ?? comic.sourceRuntimeId
     if (resolvedSourceId === undefined || resolvedSourceId.trim().length === 0) {
       return { hydrated: false, pageCount: 0, reasonCode: 'source_missing' }
     }
@@ -427,10 +446,14 @@ export class SourceChapterPageHydrator {
       return { hydrated: false, pageCount: 0, reasonCode: resolution.reasonCode ?? 'pages_missing',
         sourceFailureReason: resolution.sourceFailureReason, sourceFailure: resolution.sourceFailure }
     }
-    return this.applyPages(baselineComic, baselineChapter, resolution.pages)
+    const fingerprint = resolution.settingsFingerprint ?? ''
+    if (fingerprint !== sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(resolvedSourceId))) {
+      return { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
+    }
+    return this.applyPages(baselineComic, baselineChapter, resolution.pages, fingerprint)
   }
 
-  private applyPages(comic: Comic, chapter: Chapter, pages: Page[]): SourceChapterPageHydrationResult {
+  private applyPages(comic: Comic, chapter: Chapter, pages: Page[], fingerprint: string): SourceChapterPageHydrationResult {
     const current = this.libraryStore.getComic(comic.id)
     const currentChapter = current?.chapters.find((item: Chapter): boolean => item.id === chapter.id)
     if (current === undefined || !sameComicIdentity(comic, current) || currentChapter === undefined ||
@@ -438,7 +461,8 @@ export class SourceChapterPageHydrator {
       return { hydrated: false, pageCount: 0, reasonCode: 'chapter_missing' }
     }
     // A newer page plan already committed while this request was resolving owns the chapter.
-    if (JSON.stringify(currentChapter.pages) !== JSON.stringify(chapter.pages)) {
+    if (JSON.stringify(currentChapter.pages) !== JSON.stringify(chapter.pages) ||
+      currentChapter.sourceSettingsFingerprint !== chapter.sourceSettingsFingerprint) {
       return {
         hydrated: currentChapter.pages.length > 0,
         pageCount: currentChapter.pages.length,
@@ -448,6 +472,7 @@ export class SourceChapterPageHydrator {
     const next = JSON.parse(JSON.stringify(current)) as Comic
     const nextChapter = next.chapters.find((item: Chapter): boolean => item.id === chapter.id) as Chapter
     nextChapter.pages = pages
+    nextChapter.sourceSettingsFingerprint = fingerprint
     nextChapter.pageCount = pages.length
     nextChapter.updatedAt = Date.now()
     next.pageCount = next.chapters.reduce((total: number, item: Chapter): number => total + item.pageCount, 0)

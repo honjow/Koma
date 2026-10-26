@@ -77,11 +77,18 @@ test('actual sliding windows share the CDN quota, isolate main-site quota and re
 test('source text survives persistence and session cloning, then rebuilds through the real image cache after cleanup', async () => {
   const { sourceTextPage } = load('model/SourceTextPageDescriptor.ets')
   const persistence = functions('model/LibraryPersistence.ets', ['assertPersistedObject', 'assertStringField',
-    'assertNumberField', 'assertOptionalNumberField', 'assertValidPersistedPage', 'persistPage', 'hydratePage'], { sourceTextPage })
+    'assertNumberField', 'assertOptionalNumberField', 'assertOptionalStringField', 'assertValidPersistedPage',
+    'assertValidPersistedChapter', 'persistPage', 'hydratePage', 'persistChapter', 'hydrateChapter'], { sourceTextPage })
   const spec = { template: 'dm5-chapter-comments', heading: '', paragraphs: ['甲: 原始评论 😀'] }
   const page = { id: 'text-page', comicId: 'comic', chapterId: 'chapter', index: 0,
     uri: '/cache/old.png', fileName: 'text.png', sortKey: '0', sourceText: spec }
   const restored = persistence.hydratePage(JSON.parse(JSON.stringify(persistence.persistPage(page))))
+  const chapter = { id: 'chapter', comicId: 'comic', title: 'Chapter', index: 0, sourcePath: 'source:chapter',
+    sortKey: '0', pages: [restored], pageCount: 1, createdAt: 1, updatedAt: 1, sourceSettingsFingerprint: 'a'.repeat(64) }
+  const cold = persistence.hydrateChapter(JSON.parse(JSON.stringify(persistence.persistChapter(chapter))))
+  assert.equal(cold.sourceSettingsFingerprint, chapter.sourceSettingsFingerprint)
+  delete chapter.sourceSettingsFingerprint
+  assert.equal(persistence.hydrateChapter(JSON.parse(JSON.stringify(persistence.persistChapter(chapter)))).sourceSettingsFingerprint, undefined)
   const session = functions('model/ReaderSessionStore.ets', ['createReaderSessionConfigFromComic', 'cloneReaderSessionConfig'], {
     sourceTextPage, continuationChapterIds: chapters => chapters.map(c => c.id), readerChapterDisplayTitle: chapter => chapter.title,
   })

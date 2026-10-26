@@ -43,27 +43,44 @@ assert.match(logEvents[0][2], /reason=missing_chapter_page/)
 KomaReaderFailure.from(new Error('https://private.example/secret-title?token=secret'))
 assert.equal(JSON.stringify(logEvents).includes('secret'), false)
 
-const adapter = fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabAdapter.ets'), 'utf8')
-assert.ok(adapter.indexOf('ReaderAssetFailureClassifier') >= 0)
-assert.ok(adapter.indexOf('classify(error: Error): ReaderAssetFailure') >= 0)
-assert.ok(adapter.indexOf('KomaReaderFailure.from(error)') >= 0)
-
-const page = fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabPage.ets'), 'utf8')
-assert.ok(page.indexOf('new ReaderPagedSession(adapter, adapter, adapter, adapter)') >= 0)
-
 const compile = source => ts.transpileModule(source, { compilerOptions: {
   target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
 } }).outputText
+// Execute the actual adapter handoff; source-shape/constructor-arity checks do
+// not establish this contract and became stale with the adopted provider chain.
+const adapterExports = {}
+new Function('exports','require',compile(fs.readFileSync(path.join(root,'readerLab/KomaReaderLabAdapter.ets'),'utf8')))
+  (adapterExports,name=>name==='./KomaReaderFailure'?{KomaReaderFailure}:{})
+const routed = adapterExports.KomaReaderLabAdapter.prototype.classify.call({},new Error('missing_chapter_page'))
+assert.equal(routed.code,'pageUnavailable')
+assert.equal(routed.title,'Koma page failed')
 async function sourcePageFailureChain() {
-  let response
+  let response, settings = {}, requestGate = null, requested = 0
+  const settingsIdentity = {}
+  const crypto = require('node:crypto')
+  new Function('exports', 'require', compile(fs.readFileSync(path.join(root,
+    'sourceRuntime/SourceSettingsIdentity.ets'), 'utf8')))(settingsIdentity, name => name === '@kit.ArkTS'
+      ? { util: { TextEncoder: class { encodeInto(value) { return new TextEncoder().encode(value) } } } } : { cryptoFramework: { createMd() { const hash = crypto.createHash('sha256'); return {
+        updateSync({data}) { hash.update(data) }, digestSync() { return {data: new Uint8Array(hash.digest())} },
+      } } } })
+  const models = {}
+  new Function('exports','require',compile(fs.readFileSync(path.join(root,'model/ComicModels.ets'),'utf8')))(models,()=>({}))
+  const hostFeatures = {}, requestPolicy = {}
+  new Function('exports',compile(fs.readFileSync(path.join(root,'sourceRuntime/SourceHostFeatures.ets'),'utf8')))(hostFeatures)
+  new Function('exports','require',compile(fs.readFileSync(path.join(root,'sourceRuntime/SourceRequestPolicy.ets'),'utf8')))
+    (requestPolicy,()=>({url:{URL}}))
   const hydratedExports = {}
   new Function('exports', 'require', compile(fs.readFileSync(
     path.join(root, 'model/SourceChapterPageHydrator.ets'), 'utf8')))(hydratedExports, name => {
     if (name === './SourceRuntimeError') return errorExports
-    if (name === '@kit.ArkTS') return { taskpool: { execute: async () => JSON.stringify(response) } }
+    if (name === '@kit.ArkTS') return { taskpool: { execute: async () => { requested++; if (requestGate) await requestGate; return JSON.stringify(response) } } }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
-    if (name === '../sourceRuntime/SourceSettingsStore') return { appSourceSettingsStore: { loadForSource: () => ({}) } }
+    if (name === '../sourceRuntime/SourceSettingsStore') return { appSourceSettingsStore: { loadForSource: () => JSON.parse(JSON.stringify(settings)) } }
+    if (name === '../sourceRuntime/SourceSettingsIdentity') return settingsIdentity
+    if (name === '../sourceRuntime/SourceHostFeatures') return hostFeatures
+    if (name === '../sourceRuntime/SourceRequestPolicy') return requestPolicy
+    if (name === './ComicModels') return models
     if (name === '../sourceRuntime/SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
     if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { warn: () => {} } }
     if (name === './SourceTextNormalizer') return { normalizeSourceImageUrl: value => value }
@@ -109,6 +126,42 @@ async function sourcePageFailureChain() {
   assert.equal(failed.hydrated, false)
   assert.equal(failed.sourceFailure.kind, 'network')
   assert.equal(writes, 0)
+
+  // 237 NamiComi counterexample: an existing /source/ plan bypassed get_pages
+  // after dataSaver was saved. Only a changed snapshot should renew that plan.
+  let book = { id: 'work', createdAt: 1, sourceRuntimeId: 'test.source', sourcePath: 'https://public.example/work',
+    chapters: [{ id: 'chapter', createdAt: 1, sourcePath: 'chapter', pages: [{id:'p1',uri:'https://public.example/source/1.png'}],pageCount:1 }] }
+  const bookHydrator = new hydratedExports.SourceChapterPageHydrator({ getComic: () => book,
+    upsertComic: next => { writes++; book=next } }, registry)
+  let calls = requested
+  assert.equal((await bookHydrator.ensureChapterPages('work','test.source','chapter')).hydrated,true)
+  assert.equal(requested,calls,'Empty legacy settings must keep existing pages cache-first')
+  settings={'dataSaver_zh-hans':true,thumbnailQuality_zh:'512'}
+  response={ok:true,data:{pages:[{id:'p1',url:'https://public.example/low/1.jpg'}]}}
+  assert.equal((await bookHydrator.ensureChapterPages('work','test.source','chapter')).hydrated,true)
+  assert.equal(requested,++calls);assert.equal(book.chapters[0].pages[0].uri,'https://public.example/low/1.jpg')
+  assert.equal(book.chapters[0].sourceSettingsFingerprint,settingsIdentity.sourceSettingsFingerprint(settings))
+  assert.equal(book.chapters[0].id,'chapter');assert.equal(book.chapters[0].createdAt,1)
+  settings={thumbnailQuality_zh:'512','dataSaver_zh-hans':true}
+  await bookHydrator.ensureChapterPages('work','test.source','chapter')
+  assert.equal(requested,calls,'Equivalent key ordering must reuse the same prepared plan')
+  settings={'dataSaver_zh-hans':false}
+  response={ok:false,error:{code:'network_error'}}
+  const kept=JSON.stringify(book),oldWrites=writes
+  assert.equal((await bookHydrator.ensureChapterPages('work','test.source','chapter')).hydrated,false)
+  assert.equal(JSON.stringify(book),kept);assert.equal(writes,oldWrites)
+  settings={}
+  response={ok:true,data:{pages:[{id:'p1',url:'https://public.example/source/1.png'}]}}
+  await bookHydrator.ensureChapterPages('work','test.source','chapter')
+  assert.equal(book.chapters[0].sourceSettingsFingerprint,'')
+  assert.equal(book.chapters[0].pages[0].uri,'https://public.example/source/1.png')
+  let release
+  requestGate=new Promise(resolve=>{release=resolve})
+  const pending=bookHydrator.ensureChapterPages('work','test.source','chapter',true)
+  await Promise.resolve();settings={'dataSaver_zh-hans':true};release()
+  assert.equal((await pending).hydrated,false)
+  assert.equal(book.chapters[0].sourceSettingsFingerprint,'','A late response cannot claim newly changed settings')
+  console.log('PASS Changed source settings renew only their chapter plan; warm plans, failure and old-response retention remain correct')
   console.log('PASS Koma page resolution preserves safe network/HTTP causes, unsupported copy, success, and library retention')
 }
 sourcePageFailureChain().catch(error => { console.error(error); process.exitCode = 1 })

@@ -140,7 +140,7 @@ import {
   getReaderSessionPageId,
 } from '../model/ReaderSessionStore'
 import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
-import { SourceChapterPageHydrator, resolveSourceChapterPages } from '../model/SourceChapterPageHydrator'
+import { SourceChapterPageHydrator, resolveSourceChapterPages, sourceChapterPagesMatchSettings } from '../model/SourceChapterPageHydrator'
 import {
   SourceReaderSessionRequest,
   cloneSourceReaderSessionRequest,
@@ -378,8 +378,9 @@ struct Index {
       return false
     }
     const chapter = comic.chapters.find((item: Chapter): boolean => item.id === chapterId)
-    // Cache-first: if the chapter already has resolved pages, do not block the reader
-    return chapter !== undefined && chapter.pages.length === 0
+    // Keep valid plans cache-first. A changed source preference must reach
+    // get_pages again; existing image files and downloaded chapters stay intact.
+    return chapter !== undefined && !sourceChapterPagesMatchSettings(chapter, comic.sourceRuntimeId)
   }
 
   private logReaderSourcePagesUnavailable(reasonCode?: string): void {

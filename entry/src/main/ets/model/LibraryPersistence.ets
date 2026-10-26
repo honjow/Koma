@@ -111,6 +111,7 @@ export interface PersistedChapter {
   sourcePath: string
   sortKey: string
   pages: PersistedPage[]
+  sourceSettingsFingerprint?: string
   pageCount: number
   createdAt: number
   updatedAt: number
@@ -190,6 +191,7 @@ function persistChapter(chapter: Chapter): PersistedChapter {
     sourcePath: chapter.sourcePath,
     sortKey: chapter.sortKey,
     pages: chapter.pages.map((page: Page) => persistPage(page)),
+    sourceSettingsFingerprint: chapter.sourceSettingsFingerprint,
     pageCount: chapter.pageCount,
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
@@ -221,6 +223,7 @@ function hydrateChapter(row: PersistedChapter): Chapter {
     sourcePath: row.sourcePath,
     sortKey: row.sortKey,
     pages,
+    sourceSettingsFingerprint: row.sourceSettingsFingerprint,
     pageCount: row.pageCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -470,6 +473,7 @@ function assertValidPersistedChapter(row: PersistedChapter): void {
   assertOptionalNumberField(row.dateUpload, 'chapter.dateUpload')
   assertStringField(row.sourcePath, 'chapter.sourcePath')
   assertStringField(row.sortKey, 'chapter.sortKey')
+  assertOptionalStringField(row.sourceSettingsFingerprint, 'chapter.sourceSettingsFingerprint')
   if (!Array.isArray(row.pages)) {
     throw new Error('Invalid library store persistence chapter.pages: expected array')
   }
