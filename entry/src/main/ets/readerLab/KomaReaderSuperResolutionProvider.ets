@@ -170,7 +170,11 @@ export class KomaReaderSuperResolutionProvider implements ReaderAssetProvider {
           this.rememberInformation(page, identity, configuration.model, false, state)
         }, ownerKey,
         cancellation instanceof ReaderProcessingCancellation && cancellation.priority === 'prefetch'
-          ? ReaderSuperResolutionTaskPriority.PREFETCH : ReaderSuperResolutionTaskPriority.CURRENT)
+          ? ReaderSuperResolutionTaskPriority.PREFETCH : ReaderSuperResolutionTaskPriority.CURRENT,
+        (): boolean => {
+          const current = this.configuration()
+          return !cancellation.isCancelled() && current.enabled && current.identity() === identity
+        })
       cancellation.check()
       this.rememberInformation(page, identity, configuration.model, result.applied, result.reason)
       const current = this.configuration()

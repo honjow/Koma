@@ -28,6 +28,9 @@ test('model verification reads real files on a worker and still rejects missing,
   const compiled = ts.transpileModule(fs.readFileSync(path.join(base, 'model/ReaderModelAssetValidation.ets'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText
+  const imageCompiled = ts.transpileModule(fs.readFileSync(path.join(base, 'model/ReaderImageFileIdentity.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
   const runOnWorker = (fn, ...args) => new Promise((resolve, reject) => {
     const worker = new Worker(`
       const { parentPort, workerData, threadId } = require('node:worker_threads')
@@ -40,8 +43,8 @@ test('model verification reads real files on a worker and still rejects missing,
       new Function('exports', 'require', workerData.compiled)(output, name =>
         name === '@kit.CoreFileKit' ? { fileIo: io } : name === '@kit.CryptoArchitectureKit'
           ? { cryptoFramework: nativeCrypto } : {})
-      parentPort.postMessage({ threadId, valid: output.validateReaderModelAssetWorker(...workerData.args) })
-    `, { eval: true, workerData: { compiled, args } })
+      parentPort.postMessage({ threadId, valid: output[workerData.method](...workerData.args) })
+    `, { eval: true, workerData: { compiled: fn.name === 'readerImageFileSha256Worker' ? imageCompiled : compiled, method: fn.name, args } })
     worker.once('error', reject)
     worker.once('message', result => { assert.notEqual(result.threadId, 0); resolve(result.valid) })
   })
@@ -55,6 +58,13 @@ test('model verification reads real files on a worker and still rejects missing,
     assert.equal(await validation.validateReaderModelAsset(filename, bytes.length - 1, digest), false)
     assert.equal(await validation.validateReaderModelAsset(filename, bytes.length, '0'.repeat(64)), false)
     assert.equal(await validation.validateReaderModelAsset(filename + '.missing', bytes.length, digest), false)
+    const originalIdentity = moduleFrom('model/ReaderImageFileIdentity.ets', {
+      '@kit.ArkTS': { taskpool: { execute: runOnWorker } },
+      '@kit.CoreFileKit': { fileIo: new Proxy({}, { get() { throw new Error('UI-thread original-file read') } }) },
+      '@kit.CryptoArchitectureKit': {},
+    })
+    assert.equal(await originalIdentity.readerImageFileSha256(filename), digest)
+    await assert.rejects(originalIdentity.readerImageFileSha256(filename + '.missing'), /ENOENT/)
     const pair = path.join(directory, 'reader-super-resolution-models/fixture')
     fs.mkdirSync(pair, { recursive: true })
     fs.writeFileSync(path.join(pair, 'param'), bytes)

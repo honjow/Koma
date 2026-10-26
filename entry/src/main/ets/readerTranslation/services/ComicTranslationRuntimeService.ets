@@ -8,6 +8,7 @@ import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
+import { readerImageFileSha256 } from '../../model/ReaderImageFileIdentity'
 import { ComicRenderProfile } from '../model/ComicVisualTranslation'
 import { DiagnosticLogger } from '../../diagnostics/DiagnosticLogger'
 import {
@@ -79,7 +80,6 @@ import {
 } from './ToriiWholePageSecretStore'
 
 const COMIC_READER_MAX_IMAGE_BYTES: number = 20 * 1024 * 1024
-const COMIC_READER_HASH_CHUNK_BYTES: number = 256 * 1024
 const COMIC_READER_RENDER_PROFILE_ID: string = 'reader-local-bubble-layout-v45'
 const COMIC_READER_SOURCE_TREATMENT_PROFILE_ID: string = 'local-ctd-aot-inpaint-v30'
 const COMIC_READER_LAYOUT_PROFILE_ID: string = 'local-bubble-typography-v39'
@@ -624,24 +624,12 @@ export class ComicTranslationRuntimeService {
       metadata.mimeType = ComicTranslationRuntimeService.detectMime(
         new Uint8Array(headerBuffer, 0, headerRead),
       )
-      const md = cryptoFramework.createMd('SHA256')
-      md.updateSync({ data: new Uint8Array(headerBuffer, 0, headerRead) })
-      while (true) {
-        const buffer: ArrayBuffer = new ArrayBuffer(COMIC_READER_HASH_CHUNK_BYTES)
-        const read: number = fileIo.readSync(file.fd, buffer, {
-          length: COMIC_READER_HASH_CHUNK_BYTES,
-        })
-        if (read <= 0) {
-          break
-        }
-        md.updateSync({ data: new Uint8Array(buffer, 0, read) })
-      }
-      metadata.imageHash = ComicTranslationRuntimeService.toHex(md.digestSync().data)
     } finally {
       if (file !== null) {
         fileIo.closeSync(file)
       }
     }
+    metadata.imageHash = await readerImageFileSha256(path)
     let source: image.ImageSource | undefined = undefined
     try {
       source = image.createImageSource(path)

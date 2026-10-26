@@ -1,7 +1,6 @@
 // Ported from NextE; Koma owns processing preferences, model files and cache.
 import { readerProcessingOwnerHash, readerSuperResolutionFailureCode } from './ReaderProcessingDiagnostics'
 import { common } from '@kit.AbilityKit'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileIo } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -34,6 +33,7 @@ import {
   ReaderSuperResolutionModelRegistry,
 } from './ReaderSuperResolutionModelRegistry'
 import { ReaderSystemSuperResolutionService } from './ReaderSystemSuperResolutionService'
+import { readerImageFileSha256 } from './ReaderImageFileIdentity'
 
 const CACHE_DIR_NAME: string = 'reader-super-resolution-cache'
 const OUTPUT_SCALE: number = 2
@@ -47,7 +47,6 @@ const SYSTEM_MAX_OUTPUT_PIXELS: number = SYSTEM_MAX_OUTPUT_EDGE * SYSTEM_MAX_OUT
 const SYSTEM_MAX_OUTPUT_PIXEL_BYTES: number = SYSTEM_MAX_OUTPUT_PIXELS * 4
 const MAX_CACHE_FILE_COUNT: number = 64
 const MAX_CACHE_BYTES: number = 256 * 1024 * 1024
-const HASH_CHUNK_BYTES: number = 256 * 1024
 const SUPER_RESOLUTION_SUPERSEDED_ERROR: string = 'super-resolution request superseded'
 const NNRT_VALIDATION_BACKEND: string = 'nnrt'
 // VkVersion encoding for Vulkan 1.3. This is a conservative proxy from the tested devices, not a
@@ -359,7 +358,9 @@ export class ReaderSuperResolutionService {
     onTaskState: (state: ReaderSuperResolutionTaskState) => void = (_state: ReaderSuperResolutionTaskState) => {},
     ownerKey: string = '',
     priority: number = ReaderSuperResolutionTaskPriority.CURRENT,
+    current: () => boolean = (): boolean => true,
   ): Promise<ReaderSuperResolutionResult> {
+    if (!current()) return ReaderSuperResolutionService.originalResult(sourcePath, 'cancelled')
     if (!connectReadMode().superResolutionEnabled) {
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'disabled')
@@ -388,7 +389,7 @@ export class ReaderSuperResolutionService {
     const maxHeight: number = connectReadMode().superResolutionMaxHeight
     let sourceDigest: string = ''
     try {
-      sourceDigest = ReaderSuperResolutionService.hashFile(sourcePath)
+      sourceDigest = await readerImageFileSha256(sourcePath)
     } catch (error) {
       DiagnosticLogger.warn(
         'reader-super-resolution',
@@ -397,6 +398,14 @@ export class ReaderSuperResolutionService {
       )
       ReaderSuperResolutionService.releaseOwner(ownerKey)
       return ReaderSuperResolutionService.originalResult(sourcePath, 'source_hash_failed')
+    }
+    // Hashing now yields to UI input. Retire a cancelled/changed request before
+    // claiming an owner, using a cached result or scheduling any native work.
+    const latest = connectReadMode()
+    if (!current() || !latest.superResolutionEnabled || latest.superResolutionModel !== model ||
+      latest.superResolutionBackend !== backendPreference || latest.superResolutionMaxHeight !== maxHeight) {
+      ReaderSuperResolutionService.releaseOwner(ownerKey)
+      return ReaderSuperResolutionService.originalResult(sourcePath, 'cancelled')
     }
     const cacheIdentity: string =
       `${ReaderSuperResolutionService.pipelineVersion(model)}|${model}|${sourceKey}|` +
@@ -1516,34 +1525,6 @@ export class ReaderSuperResolutionService {
     return hash.toString(16)
   }
 
-  private static hashFile(path: string): string {
-    const md = cryptoFramework.createMd('SHA256')
-    let file: fileIo.File | null = null
-    try {
-      file = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY)
-      while (true) {
-        const buffer: ArrayBuffer = new ArrayBuffer(HASH_CHUNK_BYTES)
-        const read: number = fileIo.readSync(file.fd, buffer, { length: HASH_CHUNK_BYTES })
-        if (read <= 0) {
-          break
-        }
-        md.updateSync({ data: new Uint8Array(buffer, 0, read) })
-      }
-      return ReaderSuperResolutionService.toHex(md.digestSync().data)
-    } finally {
-      if (file !== null) {
-        fileIo.closeSync(file)
-      }
-    }
-  }
-
-  private static toHex(bytes: Uint8Array): string {
-    const parts: string[] = []
-    for (let i: number = 0; i < bytes.length; i++) {
-      parts.push(bytes[i].toString(16).padStart(2, '0'))
-    }
-    return parts.join('')
-  }
 }
 
 /** Feature-HAR safe calls for the optional shared reader adapter. */
@@ -1567,6 +1548,7 @@ export function readerSuperResolutionProcess(
   onTaskState: (state: ReaderSuperResolutionTaskState) => void = (_state: ReaderSuperResolutionTaskState): void => {},
   ownerKey: string = '',
   priority: number = ReaderSuperResolutionTaskPriority.CURRENT,
+  current: () => boolean = (): boolean => true,
 ): Promise<ReaderSuperResolutionResult> {
-  return ReaderSuperResolutionService.process(context, sourcePath, sourceKey, onTaskState, ownerKey, priority)
+  return ReaderSuperResolutionService.process(context, sourcePath, sourceKey, onTaskState, ownerKey, priority, current)
 }

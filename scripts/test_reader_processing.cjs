@@ -77,6 +77,40 @@ function cropFileTask(source,image) {
   const js=ts.transpileModule(fn.getText(tree).replace('@Concurrent',''),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText
   return new Function('image','ReaderPageCropDetector','ReaderPageCropBounds',js+';return detectReaderPageCropFile;')(image,crop.ReaderPageCropDetector,crop.ReaderPageCropBounds)
 }
+
+test('source fingerprint preparation retires cancelled or changed enhancement before cache/native work', async () => {
+  const readMode={superResolutionEnabled:true,superResolutionModel:'photo',superResolutionBackend:'auto',superResolutionMaxHeight:2000}
+  let release,started,current=true,cacheReads=0
+  const imports={
+    '../state/ReaderModeState':{connectReaderModeState:()=>readMode,ReaderSuperResolutionModel:{NONE:'none',SYSTEM_CORE_VISION:'system'},READER_SUPER_RESOLUTION_MAX_SOURCE_HEIGHT:8000},
+    './ReaderSuperResolutionModelRegistry':{ReaderSuperResolutionModelRegistry:{find:()=>({})}},
+    './ReaderImageFileIdentity':{readerImageFileSha256:()=>new Promise(resolve=>{release=resolve;started()})},
+    '../diagnostics/DiagnosticLogger':{DiagnosticLogger:{info(){},warn(){}}},
+    './ReaderProcessingDiagnostics':{readerProcessingOwnerHash:()=>''},
+    '@kit.ImageKit':{image:{createImageSource:()=>({getImageInfo:async()=>({size:{width:2,height:3}}),release:async()=>{}})}},
+  }
+  const mod={}
+  new Function('exports','require',ts.transpileModule(fs.readFileSync(path.join(root,'model/ReaderSuperResolutionService.ets'),'utf8'),
+    {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(mod,name=>imports[name]??{})
+  const service=mod.ReaderSuperResolutionService
+  Object.assign(service,{fileStat:()=>({size:123}),releaseOwner(){},pipelineVersion:()=> 'pipeline',
+    outputPath(_context,identity){cacheReads++;assert.ok(identity.includes('|123|verified-content|maxHeight=2000|backend=auto'));return '/cache/output'},
+    fileSize:()=>42,touch(){},readBackendMetadata:()=> 'cpu'})
+  const begin=async()=>{
+    const ready=new Promise(resolve=>{started=resolve})
+    const request=service.process({},'/source','page',()=>{},'owner',0,()=>current)
+    await ready;return {request}
+  }
+  const cancelled=await begin();current=false;release('verified-content')
+  assert.equal((await cancelled.request).reason,'cancelled');assert.equal(cacheReads,0)
+  current=true
+  const changed=await begin();readMode.superResolutionModel='art';release('verified-content')
+  assert.equal((await changed.request).reason,'cancelled');assert.equal(cacheReads,0)
+  readMode.superResolutionModel='photo'
+  const valid=await begin();release('verified-content')
+  const result=await valid.request
+  assert.equal(result.applied,true);assert.equal(result.reason,'cache_hit:cpu');assert.equal(cacheReads,1)
+})
 test('packed PixelMap export keeps real border detection and translation-region native input valid',async()=>{
   const get=relative=>process.env.KOMA_RGBA_CONSUMERS_BEFORE==='1'
     ? require('node:child_process').execFileSync('git',['show','440c014f:entry/src/main/ets/'+relative],{encoding:'utf8'})
