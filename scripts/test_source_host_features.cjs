@@ -112,8 +112,10 @@ test('source text survives persistence and session cloning, then rebuilds throug
     const first = await adapter.fetchAndCacheReaderRemoteSource(source)
     assert(fs.existsSync(first)); assert.equal(renders, 1)
     assert.equal(await adapter.fetchAndCacheReaderRemoteSource(source), first); assert.equal(renders, 1)
+    await adapter.fetchAndCacheReaderRemoteSource(source, undefined, true)
+    assert.equal(renders, 2)
     await cache.clear(); assert.equal(fs.existsSync(first), false)
     const rebuilt = await adapter.fetchAndCacheReaderRemoteSource(source)
-    assert(fs.existsSync(rebuilt)); assert.equal(renders, 2)
+    assert(fs.existsSync(rebuilt)); assert.equal(renders, 3)
   } finally { fs.rmSync(directory, { recursive: true, force: true }) }
 })

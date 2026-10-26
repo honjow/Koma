@@ -407,13 +407,13 @@ export async function fetchAndCacheReaderRemoteImage(
   return path
 }
 
-export async function cacheSourceTextPageImage(spec: SourceTextPage): Promise<string> {
+export async function cacheSourceTextPageImage(spec: SourceTextPage, forceReload: boolean = false): Promise<string> {
   if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
   // Internal cache label only: getOrFetch receives the local renderer, never HTTP.
   // Cache identity includes the rendering contract and exact plain text, not a fake URL.
   const seed: string = `source-text-page-v1:${JSON.stringify(spec)}`
   const path = await readerImageCacheStore.getOrFetch('source-text-page.png', undefined,
-    () => renderSourceTextPage(spec), seed)
+    () => renderSourceTextPage(spec), seed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
@@ -872,7 +872,7 @@ export function createReaderPageRenderSources(
 
 export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false): Promise<string> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
-    return source.sourceText === undefined ? source.imageUri : cacheSourceTextPageImage(source.sourceText)
+    return source.sourceText === undefined ? source.imageUri : cacheSourceTextPageImage(source.sourceText, forceReload)
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
