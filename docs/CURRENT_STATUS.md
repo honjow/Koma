@@ -3590,7 +3590,7 @@
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
       "title": "漫画屋列表403与错误状态丢失",
       "priority": "P1（具名源不可用）",
-      "owner": "Root：普通Native取证/远端跟进；源owner：OperationError诊断修复",
+      "owner": "Root：原诊断修复已在源实现中；当前待元尊页表超时的合法新阶段证据",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS"
