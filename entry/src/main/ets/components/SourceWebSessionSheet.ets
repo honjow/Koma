@@ -32,6 +32,7 @@ export struct SourceWebSessionSheet {
   private pageRevision: number = 0
   private pageUrl: string = ''
   private pageFailed: boolean = false
+  private pageHttpStatus: number = 0
   private active: boolean = false
   private epoch: number = 0
   private controller: webview.WebviewController = new webview.WebviewController()
@@ -60,6 +61,7 @@ export struct SourceWebSessionSheet {
     this.autoRetryStarted = false
     this.pageUrl = ''
     this.pageFailed = false
+    this.pageHttpStatus = 0
     if (this.active && this.controllerReady) this.loadInitialPage()
   }
 
@@ -130,6 +132,7 @@ export struct SourceWebSessionSheet {
     this.pageRevision += 1
     this.pageUrl = event.data.getRequestUrl()
     this.pageFailed = false
+    this.pageHttpStatus = 0
     this.loading = true
     DiagnosticLogger.info('source_web_session', 'navigation_requested', 'revision=' + this.pageRevision)
     this.updateNavState()
@@ -159,7 +162,7 @@ export struct SourceWebSessionSheet {
       ' failed=' + this.pageFailed + ' baselineKnown=' + (this.clearanceBaseline !== undefined) +
       ' matchingDocument=' + (event !== undefined && event.url === this.pageUrl) +
       ' sessionPresent=' + (this.params.sourceSession !== undefined))
-    if (!this.autoRetryOnClearance || this.autoRetryStarted || this.pageFailed ||
+    if (!this.autoRetryOnClearance || this.autoRetryStarted ||
       this.clearanceBaseline === undefined || event === undefined || event.url !== this.pageUrl || this.params.sourceSession === undefined) return
     try {
       const currentUrl = this.controller.getUrl()
@@ -184,11 +187,19 @@ export struct SourceWebSessionSheet {
         DiagnosticLogger.info('source_web_session', 'cookie_context', 'state=unavailable')
       }
       const changedClearance = hasNewSourceClearance(this.clearanceBaseline, cookies)
+      // mh160 may solve CF, then redirect its mobile browser to a broken search
+      // landing page (CURRENT_STATUS SOURCE_WEB_SESSION,197599–605). The exact
+      // original GET recovered with that session while the landing was404.
+      // A same-origin404 is only permission to
+      // probe once with a present clearance; it can never grant a session itself.
+      const failedLanding = this.pageFailed && this.pageHttpStatus === 404 && currentUrl !== this.params.url &&
+        this.canProbeOriginal() && sourceClearanceCookieState(cookies) === 'present'
+      if (this.pageFailed && !failedLanding) return
       // A claimed native challenge may open an already-working Web session.
       // No Web403 or cookie change is required to test that original read once;
       // the pending native probe, not this document, must establish success.
-      const needsNativeProbe = !changedClearance && this.canProbeOriginal() && currentUrl === this.params.url &&
-        sourceClearanceCookieState(this.clearanceBaseline) === 'missing' && sourceClearanceCookieState(cookies) === 'missing'
+      const needsNativeProbe = failedLanding || (!changedClearance && this.canProbeOriginal() && currentUrl === this.params.url &&
+        sourceClearanceCookieState(this.clearanceBaseline) === 'missing' && sourceClearanceCookieState(cookies) === 'missing')
       if (!changedClearance && !needsNativeProbe) {
         DiagnosticLogger.info('source_web_session', 'automatic_wait',
           'reason=' + (hasNewSourceClearance('', cookies) ? 'unchanged_clearance' : 'no_clearance'))
@@ -197,7 +208,7 @@ export struct SourceWebSessionSheet {
       this.autoRetryStarted = true
       DiagnosticLogger.info('source_web_session', needsNativeProbe ? 'native_probe_candidate' : 'clearance_candidate',
         needsNativeProbe ? 'action=validate_original_get_once' : 'action=retry_original_once')
-      void this.completeSourceSession(true, needsNativeProbe)
+      void this.completeSourceSession(true, needsNativeProbe, failedLanding)
     } catch (_error) { /* Keep the visible challenge and manual control. No cookie values in diagnostics. */ }
   }
 
@@ -211,6 +222,9 @@ export struct SourceWebSessionSheet {
 
   private resourceFailed(request: WebResourceRequest, kind: string, code: number): void {
     if (!this.active) return
+    if (request.isMainFrame() && request.getRequestUrl() === this.pageUrl) {
+      this.pageHttpStatus = kind === 'http' ? code : 0
+    }
     DiagnosticLogger.info('source_web_session', 'resource_failed',
       'revision=' + this.pageRevision + ' kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
       ' matchingDocument=' + (request.getRequestUrl() === this.pageUrl) +
@@ -225,7 +239,8 @@ export struct SourceWebSessionSheet {
     this.updateNavState()
   }
 
-  private async completeSourceSession(automatic: boolean = false, needsNativeProbe: boolean = false): Promise<void> {
+  private async completeSourceSession(automatic: boolean = false, needsNativeProbe: boolean = false,
+    failedLanding: boolean = false): Promise<void> {
     if (!this.active || !this.controllerReady || this.loading || this.completing || this.completed ||
       this.params.sourceSession === undefined || this.params.sourceSession.sessionId.length === 0) return
     const epoch = this.epoch
@@ -238,14 +253,17 @@ export struct SourceWebSessionSheet {
       catch (_error) { await webview.WebCookieManager.saveCookieAsync() }
       // Neither a close, unmount nor replacement session may complete an old grant.
       if (!this.isCurrent(epoch, sourceId, sessionId) || !this.controllerReady) return
-      if (automatic && (this.pageFailed || this.loading || this.pageRevision !== pageRevision)) return
+      const canProbeFailedLanding = automatic && needsNativeProbe && failedLanding
+      if (automatic && ((this.pageFailed && !canProbeFailedLanding) || this.loading || this.pageRevision !== pageRevision)) return
       const customUa = this.controller.getCustomUserAgent()
       const actualUa = customUa.length > 0 ? customUa : this.controller.getUserAgent()
       if (automatic && needsNativeProbe) {
         if (!this.canProbeOriginal()) return
-        const ready = await probeSourceWebSession(sourceId, sessionId, this.controller.getUrl(), actualUa,
-          (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.canProbeOriginal() && !this.loading && !this.pageFailed && this.pageRevision === pageRevision)
-        if (!ready || !this.isCurrent(epoch, sourceId, sessionId) || !this.canProbeOriginal() || this.loading || this.pageFailed || this.pageRevision !== pageRevision) {
+        const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.canProbeOriginal() &&
+          !this.loading && this.pageRevision === pageRevision &&
+          (!this.pageFailed || (canProbeFailedLanding && this.pageHttpStatus === 404))
+        const ready = await probeSourceWebSession(sourceId, sessionId, this.controller.getUrl(), actualUa, current)
+        if (!ready || !current()) {
           DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=native_probe_not_ready')
           return
         }

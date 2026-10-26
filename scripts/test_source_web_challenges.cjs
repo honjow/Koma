@@ -433,6 +433,39 @@ test('a normal non-CF document alone never grants access when its original nativ
   f.sheet.pageEnded({url:f.initialUrl});await settled();assert.equal(f.probes.length,1)
 })
 
+// Native197599–605: CF completes, site redirects /searchelxt1e1.aspx to its
+// broken /search.aspx, while manual completion recovers the original GET200.
+function failedSearchLanding(f, url='https://test.invalid/search', kind='http', code=404) {
+  f.sheet.navigationRequested({data:{isMainFrame:()=>true,getRequestUrl:()=>url}})
+  f.sheet.resourceFailed({isMainFrame:()=>true,getRequestUrl:()=>url},kind,code)
+  f.sheet.pageBegan({url});f.sheet.pageEnded({url})
+  return url
+}
+test('a404 landing with clearance only grants after the exact original native probe passes, once',async()=>{
+  const f=sheetFixture();let resolve;f.setProbe(new Promise(r=>resolve=r))
+  const landing=failedSearchLanding(f);await settled()
+  assert.equal(f.sheet.pageFailed,true);assert.equal(f.probes.length,1)
+  assert.equal(f.probes[0][2],landing);assert.equal(f.granted.length,0)
+  f.sheet.pageEnded({url:landing});await settled();assert.equal(f.probes.length,1)
+  resolve(true);await settled();assert.equal(f.granted.length,1);assert.equal(f.completed.length,1)
+})
+test('failed landing cannot widen native probe eligibility or automatically loop after refusal',async()=>{
+  for(const [url,kind,code,cookies] of [
+    ['https://test.invalid/catalog','http',404,'cf_clearance=old'],
+    ['https://other.invalid/search','http',404,'cf_clearance=old'],
+    ['https://test.invalid/search','http',500,'cf_clearance=old'],
+    ['https://test.invalid/search','transport',404,'cf_clearance=old'],
+    ['https://test.invalid/search','http',404,'sid=only'],
+  ]) {
+    const f=sheetFixture();f.setCookies(cookies);failedSearchLanding(f,url,kind,code);await settled()
+    assert.equal(f.probes.length,0);assert.equal(f.granted.length,0)
+  }
+  const f=sheetFixture();const landing=failedSearchLanding(f);await settled()
+  assert.equal(f.probes.length,1);assert.equal(f.granted.length,0)
+  f.sheet.pageEnded({url:landing});await settled();assert.equal(f.probes.length,1)
+  await f.sheet.completeSourceSession();assert.equal(f.completed.length,1)
+})
+
 
 test('same-query refresh failure retains loaded rows and retries page one through the existing footer', async () => {
   const f=fixture();f.replies.push({manga:[{id:'p1'}],hasNextPage:true,nextCursor:'cursor2'},
