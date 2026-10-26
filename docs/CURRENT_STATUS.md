@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "当前规范与默认文档整理完成；产品候选和原缺陷仍未完成",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-26T19:28:10+00:00",
+  "updatedAt": "2026-10-26T19:34:00+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "NEXTE_READER_FEATURE_MIGRATION",
   "activity": "规范及默认文档整理已完成：Koma纯文档e5a0ba25已push master，reader-kit纯文档3290a78已push实际origin erosTeam/reader-kit main；八份当前链接遍历有效、历史档不可达，实际进度消费者schema1/70项解析成功。不是产品完成：功能WIP未commit/未验收，197留18856450、原库/120000无Override/无租约。",
@@ -664,7 +664,7 @@
       "dependencies": [],
       "status": "限定404修复c46提交推送/CI成功与普通回归留机闭环；自动新分支未自然实机，总项open",
       "kind": "open",
-      "result": "自动验证537/538原具名范围冻结。598普通Web仅一次initial load，9.604秒27个文档；已记录导航在已声明origin下标0/1间交替，redirect=false/userGesture=false。截图仍无正文，原生详情784/784。197明确恢复正式8571264B包并回书架，library/reader/registry与589完全相同。",
+      "result": "c1f73dd源网页/设置入口修复已push、精确CI40376596043成功；合法已知主页才显示网页入口，空/未知设置schema不显示，单源schema失败不污染全局已保存状态。Komiic016普通首页/官网网页及五源更新具名完成；漫画160现有会话普通搜索/手动回流已见，自动404新分支尚未自然Native，其他CF人工验证/登录不外推全通过。设备留机状态统一见当前设备meta。",
       "remaining": "本批入口App提交push/精确CI及最终包覆盖完成；85差异仅已核未采纳。漫画160自动404未自然Native、其他CF人工验证/登录边界仍open，不清Cookie撤权限造挑战，单条样本缺口不扩大整体停止。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
@@ -697,7 +697,7 @@
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
-        "未改UI/UA/第三方Cookie策略；未清会话。原请求失败仍保人工入口且不循环；包/设置/路由/claim失效与离开回调守卫保持。",
+        "验证会话的UA、Cookie策略和权限边界保持；漫画160普通网页的UA兼容仅按已采用专用规则处理，不扩大到源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。",
         "document_visible仅官方“即将可见”事件，不是绘制证明；closed/partial只是网页离开状态，不作为站点成功。阶段诊断不记录URL、标题、HTML、headers或body。"
       ],
       "modificationBasis": {
@@ -722,7 +722,7 @@
         "allowedDifference": "仅本sheet底部收为一行：左侧三个无底板图标导航，右侧原完成并重试；保顶部、材质、安全区、验证/关闭/自动回流及全部状态守卫。当前后继清理要求作为修改依据，不把用户反问登记为采用异步选项。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-26T12:55:54+00:00",
+        "checkedAt": "2026-10-26T19:34:00+00:00",
         "owner": "Root",
         "condition": "本批入口App提交push/精确CI及最终包覆盖完成；85差异仅已核未采纳。漫画160自动404未自然Native、其他CF人工验证/登录边界仍open，不清Cookie撤权限造挑战，单条样本缺口不扩大整体停止。"
       },
@@ -1962,9 +1962,9 @@
         "allowedDifference": "只在普通picker返回已选URI之后startJsCpuProfiling，原import/校验/事务/刷新完成后finally stop；不改UI/响应/校验/队列，不清数据不装新源。仅新profile文件自有临时产物，完成精确撤补丁并装回8581941B正式包。当前为正常同版本更新路径，不当首次首装或严格AB/FPS。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-26T19:28:10+00:00",
+        "checkedAt": "2026-10-26T19:34:00+00:00",
         "owner": "Root",
-        "condition": "Root跟进缓存440c014精确CI40365714873实际终态及744–748新版首页/Web普通结果；738–743缓存/未存草稿/两源原全部更新已具名，不留该批安装等待。原59.319ms及全闪根因未闭，不以1Hz、两源同步耗时或局部普通路径外推全部性能。"
+        "condition": "缓存/差量/worker与URL草稿owner修复已交付、精确CI成功；真实更新和普通首页/Web具名范围完成。原59.319ms/全卡顿及用户全闪根因未全证，不重跑已验业务造采样；产品操作服从人类当前沟通指令，单项未知不代表整体无事可做。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
@@ -2233,8 +2233,8 @@
       ],
       "remaining": "当前元尊页表200/首图及新增记录外原读态保持均已具名；旧460超时根因/首页自然CF仍未闭，不以本次成功追认旧原因，不重复查询取样，保网络/UA/Cookie/端点/超时。",
       "boundaries": [
-        "仅漫画屋015列表/元尊详情恢复；无页表或正文，不扩整源可用。",
-        "页表Cookie present与2300028超时是本次事实，不足以推断网络具体阶段或否定分区读取修复。"
+        "017搜索分页修复已交付；770–775元尊搜索→最早第1话→首图1/10具名，非完整叙事/全10页或全CF。首页get_manga_list仍403挑战，当前页表成功不追认旧460 timeout原因。",
+        "保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。"
       ],
       "reportedAt": "2026-10-23T21:26:00.332Z",
       "reportedDate": "2026-10-24",
@@ -2253,7 +2253,7 @@
         "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-26T19:28:10+00:00",
+        "checkedAt": "2026-10-26T19:34:00+00:00",
         "owner": "Root",
         "condition": "Root精确复核新增元尊外原91progress/8sourceHistory/151chapters；当前页表200/首图仅本次具名，不等旧460根因或首页CF解决。原搜索/目录修复不重开、不重复查询取样；保网络/UA/Cookie/端点/超时，未知仍调查。"
       },
