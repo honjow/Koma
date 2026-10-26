@@ -1,3 +1,6 @@
+import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
+import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
+import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
 import { readerModeSelection, readerDirectionSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettingsContent } from './DiagnosticsSettingsContent'
@@ -163,6 +166,9 @@ export type SettingsPaneKey =
   'backup' |
   'storage' |
   'about' |
+  'advanced' |
+  'translation' |
+  'enhancement-models' |
   'diagnostics'
 
 interface SettingsPaneItem {
@@ -233,6 +239,12 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
         { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
+        { key: 'reader-trim-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
+        { key: 'reader-crop-strength', titleKey: 'reader_crop_strength_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
+        { key: 'reader-super-resolution-model', titleKey: 'settings_reader_super_resolution_model', detailKey: 'settings_reader_super_resolution_models' },
+        { key: 'reader-super-resolution-max-height', titleKey: 'settings_reader_super_resolution_max_height', detailKey: 'settings_reader_super_resolution_max_height_hint' },
+        { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', detailKey: 'settings_row_reader_trim_page_margins_title' },
+        { key: 'enhancement-models', titleKey: 'settings_reader_super_resolution_models', detailKey: 'settings_reader_super_resolution_model' },
         { key: 'reader-reset-defaults', titleKey: 'settings_row_reader_reset_defaults_title', detailKey: 'settings_row_reader_reset_defaults_detail' },
       ],
     },
@@ -275,13 +287,20 @@ function createSettingsSections(): SettingsSection[] {
       ],
     },
     {
+      key: 'advanced', titleKey: 'settings_pane_advanced_title',
+      rows: [{ key: 'diagnostics', titleKey: 'diagnostics_title', detailKey: 'diagnostics_detail' }],
+    },
+    {
+      key: 'translation', titleKey: 'comic_translation_settings_title',
+      rows: [{ key: 'translation', titleKey: 'comic_translation_settings_title', detailKey: 'settings_pane_translation_detail' }],
+    },
+    {
       key: 'about',
       titleKey: 'settings_section_about',
       rows: [
         { key: 'about', titleKey: 'settings_row_about_title', detailKey: 'settings_row_about_detail' },
         { key: 'privacy-permissions', titleKey: 'settings_row_privacy_permissions_title', detailKey: 'settings_row_privacy_permissions_detail' },
         { key: 'version', titleKey: 'settings_row_version_title', detailKey: 'settings_row_version_detail' },
-        { key: 'diagnostics', titleKey: 'diagnostics_title', detailKey: 'diagnostics_detail' },
         { key: 'open-source', titleKey: 'settings_row_open_source_title', detailKey: 'settings_row_open_source_detail' },
       ],
     },
@@ -314,6 +333,10 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           detailKey: 'settings_pane_reader_detail',
           icon: $r('sys.symbol.clock'),
           color: ThemeConstants.STATUS_SUCCESS,
+        },
+        {
+          key: 'translation', titleKey: 'comic_translation_settings_title', detailKey: 'settings_pane_translation_detail',
+          icon: $r('sys.symbol.character'), color: ThemeConstants.STATUS_INFO,
         },
         {
           key: 'services',
@@ -357,6 +380,10 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           color: ThemeConstants.STATUS_MUTED,
         },
         {
+          key: 'advanced', titleKey: 'settings_pane_advanced_title', detailKey: 'settings_pane_advanced_detail',
+          icon: $r('sys.symbol.gearshape'), color: ThemeConstants.STATUS_MUTED,
+        },
+        {
           key: 'about',
           titleKey: 'settings_pane_about_title',
           detailKey: 'settings_pane_about_detail',
@@ -373,6 +400,9 @@ function safeSettingsErrorCode(error: Error): string {
 }
 
 export function settingsPaneTitle(pane: SettingsPaneKey): string {
+  if (pane === 'advanced') return s('settings_pane_advanced_title')
+  if (pane === 'translation') return s('comic_translation_settings_title')
+  if (pane === 'enhancement-models') return s('settings_reader_super_resolution_models')
   if (pane === 'diagnostics') return s('diagnostics_title')
   if (pane === 'appearance') {
     return s('settings_pane_appearance_title')
@@ -427,6 +457,13 @@ export struct SettingsPage {
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Param sourceRegistry?: SourceRuntimeRegistry = undefined
+  @Param enhancementModelsRevision: number = 0
+  @Event onEnhancementModelsChanged: () => void = () => {}
+  private imagePreferencesMutation: number = 0
+  private searchPreferencesLoaded: boolean = false
+  @Event onClosePane: () => void = () => {}
+  @Local private readerPreferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
+  @Local private readerPreferencesReady: boolean = false
   @Param pane: SettingsPaneKey = 'root'
   @Local private pageMode: ReaderPageMode = 'single_page'
   @Local private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
@@ -770,27 +807,22 @@ export struct SettingsPage {
       ]
     }
     if (pane === 'reader') {
-      if (!this.isReaderWebtoonLayout()) {
-        return this.sectionsByKeys(['reader'])
-      }
-      const sections = this.sectionsByKeys(['reader'])
-      const result: SettingsSection[] = []
-      sections.forEach((section: SettingsSection) => {
-        const rows: SettingsRow[] = []
-        section.rows.forEach((row: SettingsRow) => {
-          if (!READER_PAGED_ROW_KEYS.includes(row.key)) {
-            rows.push(row)
-          }
-        })
-        const filtered: SettingsSection = {
-          key: section.key,
-          titleKey: section.titleKey,
-          rows: rows,
-        }
-        result.push(filtered)
-      })
-      return result
+      const groups: SettingsSection[] = [
+        { key: 'reader-layout', titleKey: 'settings_reader_group_layout', rows: this.rowsByKeys([
+          'page-mode', 'reading-direction', 'reader-spread-layout', 'reader-page-animation', 'reader-wide-image-mode', 'reader-page-gap']) },
+        { key: 'reader-display', titleKey: 'settings_reader_group_display', rows: this.rowsByKeys([
+          'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
+        { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
+        { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
+          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
+        { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages']) },
+        { key: 'reader-defaults', titleKey: 'settings_reader_group_defaults', rows: this.rowsByKeys(['reader-reset-defaults']) },
+      ]
+      if (!this.isReaderWebtoonLayout()) return groups
+      return groups.map((section: SettingsSection): SettingsSection => ({ key: section.key, titleKey: section.titleKey,
+        rows: section.rows.filter((row: SettingsRow): boolean => !READER_PAGED_ROW_KEYS.includes(row.key)) }))
     }
+    if (pane === 'advanced' || pane === 'translation') return this.sectionsByKeys([pane])
     if (pane === 'services') {
       return [
         {
@@ -868,7 +900,7 @@ export struct SettingsPage {
   }
 
   private searchablePanes(): SettingsPaneKey[] {
-    return ['appearance', 'library', 'reader', 'services', 'downloads', 'tracking', 'backup', 'storage', 'about']
+    return ['appearance', 'library', 'reader', 'services', 'downloads', 'tracking', 'backup', 'storage', 'advanced', 'translation', 'about']
   }
 
   private normalizedSettingsSearchText(): string {
@@ -912,34 +944,10 @@ export struct SettingsPage {
   }
 
   private paneTitle(pane: SettingsPaneKey): string {
-    if (pane === 'appearance') {
-      return this.t('settings_pane_appearance_title')
-    }
-    if (pane === 'library') {
-      return this.t('settings_pane_library_title')
-    }
-    if (pane === 'reader') {
-      return this.t('settings_pane_reader_title')
-    }
-    if (pane === 'services') {
-      return this.t('settings_pane_services_title')
-    }
-    if (pane === 'downloads') {
-      return this.t('settings_pane_downloads_title')
-    }
-    if (pane === 'tracking') {
-      return this.t('settings_pane_tracking_title')
-    }
-    if (pane === 'backup') {
-      return this.t('settings_pane_backup_title')
-    }
-    if (pane === 'storage') {
-      return this.t('settings_pane_storage_title')
-    }
-    if (pane === 'about') {
-      return this.t('settings_pane_about_title')
-    }
-    return this.t('tab_settings')
+    return this.t(pane === 'advanced' ? 'settings_pane_advanced_title' :
+      pane === 'translation' ? 'comic_translation_settings_title' :
+      pane === 'enhancement-models' ? 'settings_reader_super_resolution_models' :
+      pane === 'diagnostics' ? 'diagnostics_title' : 'settings_pane_' + pane + '_title')
   }
 
   private searchResultSubtitle(result: SettingsSearchResult): string {
@@ -1046,6 +1054,19 @@ export struct SettingsPage {
     this.applyReaderPreferences(readerPreferencesFromRuntimeState('odd_left'))
   }
 
+  private saveImagePreferences(next: ReaderPreferences): void {
+    const revision: number = ++this.imagePreferencesMutation
+    const previous: ReaderPreferences = this.readerPreferences
+    this.applyReaderPreferences(next)
+    void this.preferencesStore().saveChanges(previous, next).then((saved: ReaderPreferences) => {
+      if (revision === this.imagePreferencesMutation) this.applyReaderPreferences(saved)
+    }).catch((error: Error) => {
+      DiagnosticLogger.warn('settings_page', 'save_image_preferences_failed',
+        '[Settings] step=save_image_preferences_failed code=' + safeSettingsErrorCode(error))
+      if (revision === this.imagePreferencesMutation) this.loadPreferences()
+    })
+  }
+
   private loadAppearancePreferences(): void {
     void this.appearancePreferencesStore().load()
       .then((preferences: AppearancePreferences) => {
@@ -1058,6 +1079,8 @@ export struct SettingsPage {
   }
 
   private applyReaderPreferences(preferences: ReaderPreferences): void {
+    this.readerPreferences = preferences
+    this.readerPreferencesReady = true
     this.pageMode = preferences.pageMode
     this.readingDirection = preferences.readingDirection
     this.readerSpreadLayoutMode = preferences.spreadLayoutMode
@@ -1725,7 +1748,7 @@ export struct SettingsPage {
 
   private saveLibraryListDensity(listDensity: LibraryListDensity): void {
     this.libraryListDensity = listDensity
-    this.saveLibraryFilterChanges({ listDensity }, s('settings_library_list_density_save_failed'))
+    this.saveLibraryFilterChanges({ listDensity }, s('library_category_display_save_failed'))
   }
 
   private saveLibraryBadgesEnabled(enabled: boolean): void {
@@ -2342,6 +2365,12 @@ export struct SettingsPage {
       this.showPrivacyPermissionsDialog()
     } else if (row.key === 'version') {
       this.showVersionDialog()
+    } else if (row.key === 'translation') {
+      this.onOpenSettingsPane('translation')
+    } else if (row.key === 'enhancement-models') {
+      this.onOpenSettingsPane('enhancement-models')
+    } else if (row.key === 'reader-images') {
+      this.onOpenSettingsPane('reader')
     } else if (row.key === 'diagnostics') {
       this.onOpenSettingsPane('diagnostics')
     } else if (row.key === 'open-source') {
@@ -2542,7 +2571,15 @@ export struct SettingsPage {
   private PaneSettings() {
     Column({ space: ThemeConstants.SPACE_LG }) {
       ForEach(this.paneSections(), (section: SettingsSection) => {
-        this.Section(section)
+        if (section.key === 'reader-images') {
+          if (this.readerPreferencesReady) {
+            ReaderImageSettingsContent({ preferences: this.readerPreferences, modelsRevision: this.enhancementModelsRevision,
+              onPreferencesChange: (next: ReaderPreferences) => { this.saveImagePreferences(next) },
+              onOpenModels: () => { this.onOpenSettingsPane('enhancement-models') } })
+          }
+        } else {
+          this.Section(section)
+        }
       }, (section: SettingsSection) => `${section.key}-${section.rows.length}`)
     }
     .width('100%')
@@ -2584,7 +2621,7 @@ export struct SettingsPage {
           }
         }, (row: SettingsRow) => row.key)
       }
-      if (section.key === 'reader' && !this.isReaderWebtoonLayout()) {
+      if (section.key === 'reader-operation' && !this.isReaderWebtoonLayout()) {
         this.ReaderTapZonePreview()
       }
     }
@@ -2597,6 +2634,13 @@ export struct SettingsPage {
       this.SearchResults()
     } else if (this.pane === 'diagnostics') {
       DiagnosticsSettingsContent()
+    } else if (this.pane === 'translation') {
+      KomaTranslationSettingsContent({ sheetPresentation: false, onClose: () => { this.onClosePane() } })
+    } else if (this.pane === 'enhancement-models') {
+      if (this.readerPreferencesReady) {
+        ReaderSuperResolutionModelsContent({ preferences: this.readerPreferences, modelsChanged: () => { this.onEnhancementModelsChanged() },
+          onPreferencesChange: (next: ReaderPreferences) => { this.saveImagePreferences(next) } })
+      }
     } else if (this.pane === 'root') {
       this.RootSettings()
     } else {
@@ -2621,6 +2665,15 @@ export struct SettingsPage {
 
   @Monitor('preferencesRestoreRevision')
   private onPreferencesRestored(): void {
+    this.searchPreferencesLoaded = false
+    this.loadPanePreferences()
+    this.loadSearchPreferences()
+  }
+
+  @Monitor('settingsSearchText')
+  private loadSearchPreferences(): void {
+    if (!this.isSettingsSearchActive() || this.searchPreferencesLoaded) return
+    this.searchPreferencesLoaded = true
     this.loadPreferences()
     this.loadAppearancePreferences()
     this.loadLibraryUpdatePreferences()
@@ -2629,6 +2682,26 @@ export struct SettingsPage {
     this.loadTrackerPreferences()
     this.loadBackupContentPreferences()
     this.loadImageCachePreferences()
+    this.loadVersion()
+  }
+
+  private loadPanePreferences(): void {
+    if (this.pane === 'reader' || this.pane === 'enhancement-models' || this.pane === 'appearance') this.loadPreferences()
+    if (this.pane === 'appearance') this.loadAppearancePreferences()
+    if (this.pane === 'library') {
+      this.loadLatestLibraryUpdateSummary()
+      this.loadLibraryUpdatePreferences()
+      this.loadLibraryUpdateNotificationStatus()
+      this.loadLibraryFilterPreferences()
+    }
+    if (this.pane === 'downloads') {
+      this.loadDownloadQueuePreferences()
+      this.loadDownloadNotificationStatus()
+    }
+    if (this.pane === 'tracking') this.loadTrackerPreferences()
+    if (this.pane === 'backup') this.loadBackupContentPreferences()
+    if (this.pane === 'storage') this.loadImageCachePreferences()
+    if (this.pane === 'about') this.loadVersion()
   }
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
@@ -2652,20 +2725,7 @@ export struct SettingsPage {
       })
   }
 
-  aboutToAppear(): void {
-    this.loadLatestLibraryUpdateSummary()
-    this.loadVersion()
-    this.loadPreferences()
-    this.loadAppearancePreferences()
-    this.loadLibraryUpdatePreferences()
-    this.loadLibraryUpdateNotificationStatus()
-    this.loadDownloadQueuePreferences()
-    this.loadDownloadNotificationStatus()
-    this.loadLibraryFilterPreferences()
-    this.loadTrackerPreferences()
-    this.loadBackupContentPreferences()
-    this.loadImageCachePreferences()
-  }
+  aboutToAppear(): void { this.loadPanePreferences() }
 
   build() {
     Column() {

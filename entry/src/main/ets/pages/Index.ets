@@ -193,6 +193,8 @@ interface BackupTaskRouteParam {
 @Entry
 @ComponentV2
 struct Index {
+  @Local private enhancementModelsRevision: number = 0
+
   @Local private tabIconBounceTriggers: number[] = [-1, -1, -1, -1]
   @Local private readerLabLaunch: ReaderLabLaunchState = connectReaderLabLaunch()
   @Local private readerRouteBackend: KomaReaderBackend = KomaReaderBackend.SHARED
@@ -1483,6 +1485,7 @@ struct Index {
       pane === 'tracking' ||
       pane === 'backup' ||
       pane === 'storage' ||
+      pane === 'advanced' || pane === 'translation' || pane === 'enhancement-models' ||
       pane === 'about' || pane === 'diagnostics') {
       return pane
     }
@@ -2316,8 +2319,11 @@ struct Index {
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({
-            preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
+          enhancementModelsRevision: this.enhancementModelsRevision,
+          onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
+          preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
           pane: this.settingsPaneFromParam(param),
+          onClosePane: () => { this.appPathStack.pop() },
           onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -2563,6 +2569,8 @@ struct Index {
 
             TabContent() {
               SettingsPage({
+                enhancementModelsRevision: this.enhancementModelsRevision,
+                onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
                 scroller: this.rootTabScrollers[TabIndex.SETTINGS],
             preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
                 pane: 'root',

@@ -13,9 +13,10 @@ import { ToriiTranslatorModel, ToriiTranslatorModelCatalog } from '../readerTran
 
 function t(key: string): string { return AppStrings.get(key) }
 
-/** Adopted translation configuration inside the existing reader sheet, using Koma's form rows. */
+/** Global translation configuration; reuse the same form and secure settings owner in either presentation. */
 @ComponentV2
 export struct KomaTranslationSettingsContent {
+  @Param sheetPresentation: boolean = true
   @Event onClose: () => void = () => {}
   @Local private draft: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()
   @Local private ready: boolean = false
@@ -147,11 +148,10 @@ export struct KomaTranslationSettingsContent {
     }
   }
 
-  build() {
-    KomaModalScaffold({ title: t('comic_translation_settings_title'),
-      modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'), onClose: (): void => { this.onClose() } }) {
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        GroupedListSection() {
+  @Builder
+  private SettingsForm() {
+      Column({ space: ThemeConstants.SPACE_LG }) {
+        GroupedListSection({ title: t('comic_translation_group_language') }) {
           ConciseListRow({ title: t('comic_visual_route'), trailingText: this.routeLabel(),
             trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.ready && !this.saving,
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.RouteMenu(select) } })
@@ -165,7 +165,7 @@ export struct KomaTranslationSettingsContent {
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.LanguageMenu(false, select) } })
         }
         if (this.draft.route === 'local') {
-          GroupedListSection() {
+          GroupedListSection({ title: t('comic_local_detector_model') }) {
             ConciseListRow({ title: t('comic_local_detector_model'),
               subtitle: t('comic_local_detector_notice'),
               trailingText: this.modelDownloading ? t('comic_local_detector_downloading') :
@@ -205,7 +205,7 @@ export struct KomaTranslationSettingsContent {
           }
         }
         if (this.draft.route === 'torii_whole_page') {
-          GroupedListSection() {
+          GroupedListSection({ title: t('comic_visual_route_torii') }) {
             KomaFormTextField({ label: t('comic_torii_api_key'), value: this.draft.toriiApiKey, isPassword: true,
               isEnabled: this.ready && !this.saving, change: (value: string) => { this.edit('torii-key', value) } })
               .padding(ThemeConstants.SPACE_MD)
@@ -220,8 +220,18 @@ export struct KomaTranslationSettingsContent {
           isEnabled: this.ready && !this.saving, action: (): void => { void this.save() } })
       }
       .width('100%')
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG,
-        top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+  }
+
+  build() {
+    if (this.sheetPresentation) {
+      KomaModalScaffold({ title: t('comic_translation_settings_title'),
+        modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'), onClose: (): void => { this.onClose() } }) {
+        Column() { this.SettingsForm() }
+          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG,
+            top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+      }
+    } else {
+      this.SettingsForm()
     }
   }
 }

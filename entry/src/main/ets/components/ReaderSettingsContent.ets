@@ -1,8 +1,5 @@
-import { KomaTranslationSettingsContent } from './KomaTranslationSettingsContent'
-import { common } from '@kit.AbilityKit'
-import { ReaderSuperResolutionModelService } from '../model/ReaderSuperResolutionModelService'
-import { ReaderSuperResolutionModelDefinition } from '../model/ReaderSuperResolutionModelRegistry'
-import { readerSuperResolutionModelLabel } from '../model/ReaderSuperResolutionPresentation'
+import { ReaderImageSettingsContent } from './ReaderImageSettingsContent'
+import { ReaderSuperResolutionModelsContent } from './ReaderSuperResolutionModelsContent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
 import {
@@ -21,7 +18,6 @@ import {
   ReaderWideImageMode,
   DEFAULT_READER_PREFERENCES,
   getReaderBackgroundModeLabel,
-  getReaderCropStrengthLabel,
   getReaderPageGapModeLabel,
   getReaderTapZoneInvertLabel,
   getReaderTapZonePresetLabel,
@@ -52,72 +48,9 @@ export struct ReaderSettingsContent {
   @Param seriesOverrideActive: boolean = false
   @Param cropControlsAvailable: boolean = false
   @Param enhancementControlsAvailable: boolean = false
-  @Local private translationSettingsShown: boolean = false
-  @Local private enhancementModels: ReaderSuperResolutionModelDefinition[] = []
-  @Local private installedEnhancementModels: string[] = []
-  @Local private installingEnhancementModel: string = ''
-  private settingsLifetime: number = 0
-  private settingsActive: boolean = false
-
-  aboutToAppear(): void {
-    this.settingsActive = true
-    const lifetime = ++this.settingsLifetime
-    if (!this.enhancementControlsAvailable) return
-    this.enhancementModels = ReaderSuperResolutionModelService.userAvailableDefinitions()
-    void this.refreshEnhancementModels(lifetime)
-  }
-
-  aboutToDisappear(): void {
-    this.settingsActive = false
-    this.settingsLifetime += 1
-  }
-
-  private context(): common.UIAbilityContext {
-    return this.getUIContext().getHostContext() as common.UIAbilityContext
-  }
-
-  private async refreshEnhancementModels(lifetime: number): Promise<void> {
-    const installed = await ReaderSuperResolutionModelService.installedModels(this.context())
-    if (this.settingsActive && this.settingsLifetime === lifetime) this.installedEnhancementModels = installed
-  }
-
-  private async selectEnhancementModel(model: string): Promise<void> {
-    if (!this.settingsActive || this.installingEnhancementModel.length > 0) return
-    if (model === 'none' || this.installedEnhancementModels.includes(model)) {
-      const next = this.copyPreferences()
-      next.superResolutionModel = model
-      if (model === 'none') next.superResolutionEnabled = false
-      this.update(next)
-      return
-    }
-    // The menu explicitly says Download. Merely opening settings never starts a download.
-    const lifetime = this.settingsLifetime
-    const priorModel = this.preferences.superResolutionModel
-    this.installingEnhancementModel = model
-    try {
-      await ReaderSuperResolutionModelService.install(this.context(), model)
-      if (!this.settingsActive || this.settingsLifetime !== lifetime) return
-      await this.refreshEnhancementModels(lifetime)
-      if (!this.settingsActive || this.settingsLifetime !== lifetime ||
-        this.preferences.superResolutionModel !== priorModel) return
-      const next = this.copyPreferences()
-      next.superResolutionModel = model
-      // Selecting/downloading and enabling are deliberately separate user actions.
-      this.update(next)
-    } catch (_error) {
-      if (this.settingsActive && this.settingsLifetime === lifetime) {
-        this.getUIContext().getPromptAction().showToast({ message: s('settings_reader_super_resolution_model_download_failed') })
-      }
-    } finally {
-      if (this.settingsActive && this.settingsLifetime === lifetime) this.installingEnhancementModel = ''
-    }
-  }
-
-  private enhancementModelActionLabel(model: ReaderSuperResolutionModelDefinition): string {
-    const title = readerSuperResolutionModelLabel(model.id)
-    if (this.installedEnhancementModels.includes(model.id)) return title
-    return `${title} · ${s('settings_reader_super_resolution_model_download')} ${(model.downloadBytes() / 1048576).toFixed(1)} MB`
-  }
+  // Reader owns immediate reading controls. Provider/account configuration belongs
+  // to the global translation settings route, not a form reachable only in this sheet.
+  @Local private modelManagementShown: boolean = false
 
   @Event onResetSeriesOverride: () => void = () => {}
 
@@ -223,12 +156,6 @@ export struct ReaderSettingsContent {
     this.update(next)
   }
 
-  private setCropStrength(strength: string): void {
-    const next = this.copyPreferences()
-    next.cropStrength = strength
-    this.update(next)
-  }
-
   private setAutoPageSeconds(seconds: number): void {
     const next = this.copyPreferences()
     next.autoPageSeconds = Math.max(1, Math.min(60, Math.round(seconds)))
@@ -261,7 +188,6 @@ export struct ReaderSettingsContent {
     if (key === 'awake') next.keepScreenAwake = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
     if (key === 'trim-margins') next.trimPageMarginsEnabled = value
-    if (key === 'super-resolution') next.superResolutionEnabled = value && this.installedEnhancementModels.includes(next.superResolutionModel)
     this.update(next)
   }
 
@@ -277,17 +203,6 @@ export struct ReaderSettingsContent {
   private isWebtoonLayout(): boolean {
     return this.readerMode === ReaderMode.CONTINUOUS_SCROLL ||
       (this.preferences.readingDirection === ReadingDirection.WEBTOON && this.readerMode !== ReaderMode.VERTICAL_PAGE)
-  }
-
-  @Builder
-  private CropStrengthMenu(select: (action: () => void) => void) {
-    Menu() {
-      ForEach(['conservative', 'standard', 'strong'], (strength: string) => {
-        MenuItem({ content: getReaderCropStrengthLabel(strength),
-          symbolEndIcon: this.preferences.cropStrength === strength ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-          .onClick(() => { select(() => { this.setCropStrength(strength) }) })
-      })
-    }
   }
 
   @Builder
@@ -365,20 +280,6 @@ export struct ReaderSettingsContent {
   }
 
   @Builder
-  private EnhancementModelMenu(select: (action: () => void) => void) {
-    Menu() {
-      MenuItem({ content: s('settings_reader_super_resolution_model_not_selected'),
-        symbolEndIcon: this.preferences.superResolutionModel === 'none' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-        .onClick(() => { select(() => { void this.selectEnhancementModel('none') }) })
-      ForEach(this.enhancementModels, (model: ReaderSuperResolutionModelDefinition) => {
-        MenuItem({ content: this.enhancementModelActionLabel(model),
-          symbolEndIcon: this.preferences.superResolutionModel === model.id ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-          .onClick(() => { select(() => { void this.selectEnhancementModel(model.id) }) })
-      }, (model: ReaderSuperResolutionModelDefinition): string => model.id)
-    }
-  }
-
-  @Builder
   private VolumeKeyBehaviorMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: getReaderVolumeKeyBehaviorLabel('up_previous_down_next'), symbolEndIcon: this.preferences.volumeKeyBehavior === 'up_previous_down_next' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setVolumeKeyBehavior('up_previous_down_next') }) })
@@ -423,8 +324,11 @@ export struct ReaderSettingsContent {
   }
 
   build() {
-    if (this.translationSettingsShown) {
-      KomaTranslationSettingsContent({ onClose: (): void => { this.translationSettingsShown = false } })
+    if (this.modelManagementShown) {
+      KomaModalScaffold({ title: s('settings_reader_super_resolution_models'), onClose: () => { this.modelManagementShown = false } }) {
+        ReaderSuperResolutionModelsContent({ preferences: this.preferences, onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
+          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+      }
     } else {
     KomaModalScaffold({
       title: s('settings_pane_reader_title'),
@@ -455,39 +359,16 @@ export struct ReaderSettingsContent {
           ListDivider()
           ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
           ListDivider()
-          if (this.cropControlsAvailable) {
-            ConciseListRow({ title: s('settings_row_reader_trim_page_margins_title'), hasSwitch: true,
-              checked: this.preferences.trimPageMarginsEnabled, showChevron: false,
-              switchAction: (value: boolean) => { this.setToggle('trim-margins', value) } })
-            ListDivider()
-            ConciseListRow({ title: s('reader_crop_strength_title'), trailingText: getReaderCropStrengthLabel(this.preferences.cropStrength),
-              trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.trimPageMarginsEnabled,
-              dropdownMenuBuilder: (select: (action: () => void) => void) => { this.CropStrengthMenu(select) } })
-            ListDivider()
-          }
-          if (this.enhancementControlsAvailable) {
-            ConciseListRow({ title: s('settings_reader_super_resolution'), hasSwitch: true,
-              checked: this.preferences.superResolutionEnabled, showChevron: false,
-              isEnabled: this.installedEnhancementModels.includes(this.preferences.superResolutionModel),
-              switchAction: (value: boolean) => { this.setToggle('super-resolution', value) } })
-            ListDivider()
-            ConciseListRow({ title: s('settings_reader_super_resolution_model'),
-              trailingText: this.installingEnhancementModel.length > 0
-                ? s('settings_reader_super_resolution_model_downloading_short')
-                : readerSuperResolutionModelLabel(this.preferences.superResolutionModel),
-              trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.installingEnhancementModel.length === 0,
-              dropdownMenuBuilder: (select: (action: () => void) => void) => { this.EnhancementModelMenu(select) } })
-            ListDivider()
-            ConciseListRow({ title: s('comic_translation_settings_title'),
-              action: (): void => { this.translationSettingsShown = true } })
-            ListDivider()
-          }
           ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
           ListDivider()
           ConciseListRow({ title: s('reader_fullscreen_title'), hasSwitch: true, checked: this.preferences.fullscreen, showChevron: false, switchAction: (value: boolean) => { this.setToggle('fullscreen', value) } })
           ListDivider()
           ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
         }
+        ReaderImageSettingsContent({ preferences: this.preferences,
+          cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: this.enhancementControlsAvailable,
+          onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
+          onOpenModels: () => { this.modelManagementShown = true } })
         GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
           ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
           ListDivider()
