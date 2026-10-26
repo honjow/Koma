@@ -17,7 +17,7 @@
 - 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；旧追加计数候选已撤回。人类本轮已明确采用完整修正：部分失败摘要检查未完成 · 已确认可更新 N、其余未查全源未能确认、原地址行subtitle失败原因/沿用点行重试，无新提示条按钮，全成功保持。终版已237具名验收并随68b6b234提交推送，精确CI40235545574同head completed/success，无新tag/发版。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；旧TXT参数候选已由用户本轮.log纠正取代；301–304新.log落盘/分享与旧TXT读取具名通过；本轮部分失败完整修正已获采用，允许差异见SOURCE_INDEX_CACHE_REVALIDATE，其他布局/事务保持。
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。上述旧提交固定Kit e3f3cc1；本轮已采用v3与普通入场，当前a9d7c641组合三宿主具名实机通过，三宿主范围提交/同步及精确CI均成功；无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
-- 当前设备状态：197588成功安装最终18852907并留机，原Reader Blue14/Library保持，587→589六域同/Reader3自然时刻变；591系统Timeout120000无Override、67ea0dad释放/errors[]，无活设备。579新安全manifest非默认English冷恢复及zh还原已成，不重跑；237正常8591318B未操作，200禁止操作。
+- 当前设备状态：19718852907最终包已留，现有功能随37cf提交push/精确CI成功；588原Reader Blue14/Library及589六域/Reader3自然时间、591系统Timeout120000无Override/67ea0dad释租保持，无活设备。真实provider/译图未验，不重跑已验配置/模型；237正常8591318B未操作，200禁止操作。
 - 当前实机入口：reader-translation197-session-579保新manifest English非默认冷恢复/还原；reader-translation197-session-586及formal-install-588/system-restored-591保最终包/原Reader简单policy与恢复，未重做模型配置。两轮errors[]/leaseReleased=true，572默认值/旧context及559失败原件仍保，不拼接扩大真实译图结论。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal；最新人类明确让子代理处理文档，现progress_docs独占本工作单核账，Root独占实机/代码，不新增其他派工。保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器具名范围保持。
 
@@ -954,11 +954,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-26T11:03:21+00:00",
+  "updatedAt": "2026-10-26T11:12:15+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "NEXTE_READER_FEATURE_MIGRATION",
-  "activity": "579–585新分块manifest English Save→582真实进程冷恢复读English→zh还原已实读/Root亲审，非默认持久成立；586–591最终18852907补无显式意图走原simple policy，588成功留197/原Blue14/Library保持，不重跑模型配置。两轮六域逐字同、Reader仅3自然时刻，591系统120000无Override/67ea0dad释租/errors[]，无执行中安装/恢复等待。产品翻译代码范围已审并显式暂存，当前待本轮commit/push/精确CI，未同步；真实提供方/译图未验，不再追问配置或关总项，原70项/旧8open完整保留。",
-  "nextAction": "Root提交已审翻译产品范围并push/核精确CI，原Native留机/非默认安全冷恢复/数据系统已完成不重留等待；不预写同步成功。真实提供方调用/译图保持未验，不再追问配置；原8open各接合法新证据/业务条件，私库仍人类parked，不以局部或文档更新等整体完成。",
+  "activity": "本批功能实现/独立验证/具名Native留机、37cf75241dff5c1754d29ca4395d47e2fdcd35a3范围提交push及精确CI40312629756同headcompleted/success已闭环；unsigned Release/i18n依赖编译检查上传成功，tag发布skipped，无新tag/发布，无commit/CI/安装待办。真实provider/实际译图仍未验，按人类先实现不追问配置；完整70项核账当前无新的已核安全执行动作，原8open/1parked限制保留，总迁移仍open，不扩单模型/布局或宣称整体完成。",
+  "nextAction": "只有合法新证据/真实业务条件或新指令出现时由Root按原条目续接；本批工程交付无提交/CI/安装等待，不重复已验路径或自动启真实翻译服务。真实译图未验与旧8open/用户parked条件保持，不因资料或局部交付关闭整体目标。",
   "proof": [
     {
       "label": "正式主仓",
@@ -4025,12 +4025,12 @@
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（后续迁移；不取消当前bugs）",
-      "owner": "Root：翻译新manifest非默认冷恢复/最终包Native留机完成，源码范围已审，待本轮commit/push/精确CI",
+      "owner": "Root：本批实现/具名Native/提交推送及精确CI闭环；真实provider译图未验，待合法后续条件",
       "kind": "open",
-      "status": "翻译独立配置/非默认安全冷恢复/最终原Reader链已验留机，待提交同步；真实提供方/译图未验，总项open",
+      "status": "本批实现/独立验证/留机/37cf推送及精确CI成功，工程交付无待办；真实服务译图未验，总项open",
       "dependencies": [],
       "relatedItems": [],
-      "result": "579–585已用18853089在新分块manifest保存English并真实进程冷恢复读回，再zh还原；586–591最终18852907只补无显式翻译意图时原simple policy，安装留197/原Blue14与Library保持，未重做模型配置。两轮errors[]/释租与六域同、Reader仅三正常时刻变化已核；产品翻译代码终审待提交push/精确CI，不预写已同步，真实服务/译图未验。",
+      "result": "本批裁切/单模型超分与翻译功能实现、独立验证/具名Native边界、最终18852907留197及37cf范围提交push/精确CI40312629756同head成功已闭环，无commit/CI/安装待办。真实provider调用/实际译图未验，人类先实现方向保持不追问配置；不扩单模型/布局/连续/未审片段，不关闭总迁移或旧8open。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
@@ -4064,11 +4064,12 @@
         "572–578候选18853232已Native恢复SPACE_LG原水平留白，Root两图亲审；已保存新manifest并冷开原zh配置/模型ready，六域逐字同。但目标值恰为默认zh，不能当新manifest非默认持久证明；旧context.page继承English描述不准确，以实际source-script/result保存zh为准，不改原回执。先前568旧短inline的English冷恢复保原时点边界，不挪作新manifest证明。",
         "最终Release18853089已构建/验签同证书profile；当时Root执行579–585新manifest English→真冷启→读回→zh还原，阶段结果未完成；后继实际结果见本轮新证据，不保执行中为当前待办。真实提供方/译图仍未验，人类先实现方向保持；此前82836670B模型资产已具名下载不重复，当前剩本批翻译范围提交/push/CI尚未完成。",
         "文档owner直接读reader-translation197-session-579/result.json：18853089普通Save将English写入新≤1024B分块manifest，582真实进程冷开再读English，Root亲审translation-secure-manifest-cold-English.png，后普通UI还原zh；errors=[]/englishSaved=true/secureManifestColdRestored及leaseReleased=true。580→583 library/registry/web/reader-preferences/search-preferences/source-settings六域逐字同；Reader仅progress51.updatedAt、chapters120.updatedAt及position.updatedAt三自然时刻变化，不冒七域同。此为新manifest非默认证明，不挪用572默认zh。",
-        "文档owner直接读reader-translation197-session-586/result.json：最终18852907仅加translationPolicy在无显式翻译意图时走原简单policy，586–591未重跑模型或配置；588 installer明确success，原Reader Blue14及返回Library由Root截图亲审，formalPackageLeftOn197=true/inactiveTranslationPreservesOriginalEntry/noModelOrConfigurationReplay成立。587→589同六域逐字同、Reader仍只三自然时刻，591系统120000无Override/67ea0dad释放/errors[]，最终包留197；本轮englishSaved=false只是未重放配置，不否定579非默认冷恢复。"
+        "文档owner直接读reader-translation197-session-586/result.json：最终18852907仅加translationPolicy在无显式翻译意图时走原简单policy，586–591未重跑模型或配置；588 installer明确success，原Reader Blue14及返回Library由Root截图亲审，formalPackageLeftOn197=true/inactiveTranslationPreservesOriginalEntry/noModelOrConfigurationReplay成立。587→589同六域逐字同、Reader仍只三自然时刻，591系统120000无Override/67ea0dad释放/errors[]，最终包留197；本轮englishSaved=false只是未重放配置，不否定579非默认冷恢复。",
+        "翻译产品实现61文件已范围提交37cf75241dff5c1754d29ca4395d47e2fdcd35a3并成功push；gh run list已匹配当时精确CI40312629756同完整head进行中；后继reader-translation-ci-detail.json已Root及文档owner实读completed/success，head37cf75241dff5c1754d29ca4395d47e2fdcd35a3，Build unsigned Release HAP及i18n/依赖/编译/检查上传各step成功，Publish tagged Release skipped，无新tag/发布。commit后仅IDE/__pycache__外部WIP，无产品漏提交；真实提供方调用/译图未验、不再追问配置及旧8open条件保持。"
       ],
-      "remaining": "产品翻译源码范围已由Root审完并显式暂存，当前待本轮commit/push/核精确CI，当前18852907已具名Native留197而代码尚未同步，不预写hash/成功。按人类先实现方向，不再追问提供方配置；真实提供方调用/实际译图仍未验，不冒整体关闭，不重跑已验模型/安全配置/Reader路径，原8open条件保留。",
+      "remaining": "本批代码实现/独立验证/具名Native留机、37cf提交push及精确CI40312629756同head成功均已完成，无commit/CI/安装待办。真实provider调用/实际译图仍未验，按人类先实现不追问配置或默认启服务；其后仅依据合法新条件续接，不重跑已验模型/配置/Reader路径、不扩单模型/布局验收，总迁移open及旧8open/parked限制不变。",
       "remainingActions": [
-        "Root完成产品翻译代码最终范围审查并commit/push/核精确CI，当前18852907已具名Native留197而代码尚未同步，不预写hash/成功。按人类先实现方向，不再追问提供方配置；真实提供方调用/实际译图仍未验，不冒整体关闭，不重跑已验模型/安全配置/Reader路径，原8open条件保留。"
+        "本批代码实现/独立验证/具名Native留机、37cf提交push及精确CI40312629756同head成功均已完成，无commit/CI/安装待办。真实provider调用/实际译图仍未验，按人类先实现不追问配置或默认启服务；其后仅依据合法新条件续接，不重跑已验模型/配置/Reader路径、不扩单模型/布局验收，总迁移open及旧8open/parked限制不变。"
       ],
       "boundaries": [
         "已采用的具体入口限现有Reader设置与更多控件样式，不任意复制全部Legacy UI或扩新样式；既定Reader/宿主数据与行为边界保持。",
@@ -4076,9 +4077,9 @@
         "本项后续迁移不取消其它未闭bugs；尚未实施不以源码/许可/入口决定代构建或Native验收。"
       ],
       "continuationGate": {
-        "checkedAt": "2026-10-26T11:03:21+00:00",
+        "checkedAt": "2026-10-26T11:12:15+00:00",
         "owner": "Root",
-        "condition": "579新分块manifest English真实进程冷恢复→zh已实读/亲审，非默认持久成立；586最终18852907普通无翻译意图走原simple policy，588成功安装留197/原ReaderLibrary保持，未重跑模型配置，591timeout/67ea0dad释租/errors[]完成。两轮六域字节同、Reader仅3正常时刻变化，非七域同。翻译产品代码范围已审，待本轮commit/push/精确CI，不预写已同步；人类先实现不再追问配置，真实provider/译图仍未验，不关总项或旧8问题。"
+        "condition": "本批功能实现/独立验证/具名Native留机及37cf提交push、精确CI40312629756同headcompleted/success已闭环，unsigned Release/i18n依赖编译检查上传成功、tag发布skipped，无新tag/发布；无commit/CI/安装待办。真实provider/实际译图未验，人类先实现不再追问配置或自动启外部服务。当前完整70项核账无新的已核安全执行动作，旧8open/1parked条件不变；有合法新条件再按原项续接，不把本批或资料闭环写整体完成，不扩单模型/布局/未审片段。"
       },
       "adoptedEntryScope": {
         "source": "本轮当前可见人类异步call_63f84fa…：采用这组现有入口（推荐）；精确服务端时间未给，登记时刻不冒答复时间。",
@@ -4090,7 +4091,7 @@
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
         "observedEvidence": "More/未配置保护、9资产下载校验、独立配置与新≤1024B分块manifest非默认English真实进程冷恢复/zh还原、原水平留白、最终无显式意图原Reader简单policy及Library/数据系统恢复。",
-        "pendingImplementationVerification": "最终18852907已Native留机/恢复，不再待安装或非默认冷恢复；产品代码范围已审/显式暂存，当前待本轮commit/push/精确CI，尚无同步结论。",
+        "pendingImplementationVerification": "本批实现/独立验证/最终18852907留机及37cf范围提交push/精确CI40312629756同head成功已闭环，无工程提交/CI/安装待办；真实provider调用/实际译图仍未验。",
         "unverifiedExternal": "真实提供方调用/实际译图未验；API URL/model/key为空，不读取NextE账户/secret、不默认调用服务或自动耗费。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
       }
