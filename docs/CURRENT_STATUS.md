@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-规范与默认技术/开发文档整理及同步已完成。原设置接入候选普通路径仍未通过、产品WIP未commit/未验收；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
+规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-设备：197留18856450。800–802恢复回执errors=[]，Koma原书架、120000ms且无Override已恢复，94cc租约已释放。这仅是恢复成功，不是菜单验收通过。200禁止，四私库维持用户搁置；所有产品WIP保留。
+设备：197当前18875963，921–926原书架p2/25%、120000ms/无Override、85a2227e释租已具名；237407后留18877202由source_fixes独占继续源依赖操作，尚未最终恢复。200禁止、四私库搁置，真实外部provider未调用。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "当前规范与默认文档整理完成；产品候选和原缺陷仍未完成",
+  "state": "设置与源宿主具名范围已交付；原未解决缺陷及真实provider验收继续",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-26T19:34:00+00:00",
+  "updatedAt": "2026-10-26T20:52:39+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "NEXTE_READER_FEATURE_MIGRATION",
-  "activity": "规范及默认文档整理已完成：Koma纯文档e5a0ba25已push master，reader-kit纯文档3290a78已push实际origin erosTeam/reader-kit main；八份当前链接遍历有效、历史档不可达，实际进度消费者schema1/70项解析成功。不是产品完成：功能WIP未commit/未验收，197留18856450、原库/120000无Override/无租约。",
-  "nextAction": "原已授权设置接入候选普通路径仍未通过；Root后续产品动作服从人类当前沟通指令，保留原bug队列与有效边界，不将规范整理当功能交付或自行恢复冲突操作。",
+  "activity": "54d设置已交付/CI成功，901全局配置保存返回与恢复、DM5/Canvas文字PNG、921–926同进程设置与数据系统恢复均具名；c801源宿主/快照已push且精确CI40398958854 success。197留18875963、原书架/120000无Override/85a2227e释租；237407后留18877202由source_fixes继续操作，未最终恢复。真实外部provider/译图及原59ms/全性能未外推闭环。",
+  "nextAction": "source_fixes完成原源依赖范围收口提交后继续Pixiv；Root续未解决缺陷及实际依赖接口，不重跑已接受设置/文字PNG。54d/c801工程同步CI完成，真实provider/持久Native及原59ms边界保持。",
   "proof": [
     {
       "label": "正式主仓",
@@ -34,15 +34,15 @@
     },
     {
       "label": "远端同步",
-      "state": "当前产品与源精确CI成功",
+      "state": "设置与源宿主精确CI成功",
       "kind": "accepted",
-      "detail": "Koma产品c1f73dd/master CI40376596043成功，源b406995/master CI40374115692成功/85索引；本次Koma纯文档e5a0ba25已push master，reader-kit纯文档3290a78已push实际origin erosTeam/reader-kit main。产品WIP未commit/未验收。"
+      "detail": "Koma设置54d35c4b/CI40394060181成功；c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。源独立56d87723已公开/CI40392743602成功，后继依赖源WIP等待实际提交回执。"
     },
     {
       "label": "共享阅读器",
       "state": "普通入口具名通过",
       "kind": "accepted",
-      "detail": "既有已接受具名范围冻结；本次reader-kit纯文档3290a78已push main，不改变产品验收。18856450设置接入候选普通路径未通过，800–802仅安全恢复。"
+      "detail": "既有单模型/未来页/图标临时开关及裁切具名冻结；当前54d设置/901普通路径与真文字PNG已具名，真实外部provider/译图和未覆盖持久Native仍未验，不以文档或CI替验收。"
     },
     {
       "label": "图标全范围",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "c1f73dd37a7f3c013c6490f2a7ddc521cb56a046已push，精确CI40376596043成功；当前产品WIP未交付。",
-      "hap": "197已797安装18856450；800–802恢复Koma书架/120000无Override/94cc释租，仅恢复成功，不是新菜单验收通过。"
+      "appHead": "设置54d35c4b已push/CI40394060181 success；源宿主/快照c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。Root Koma/197、source_fixes源仓/237各自串行独占，200/私库边界保持。",
+      "hap": "197当前18875963，921–926原书架p2/25%/120000无Override及85a2227e释租；本包设置/热读普通范围具名，不等外部译图或全性能验收。"
     },
     {
       "name": "NextE",
@@ -1712,21 +1712,21 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "Root：空入口/源schema隔离已交付，c1f73dd同步CI完成；85差异仅已核未采纳",
+      "owner": "source_fixes：notes/Komiic12与201目录已Native，漫画柜仍验；范围收口commit后继续Pixiv",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-      "result": "446爱奇艺叭嗒独立Search标题正确、无query，右上仅原生house，无gear或空设置；manager/Browse既有通过范围保留。仅原空设置入口缺陷收口，未知/失败描述符不扩认。",
+      "result": "App原空入口/隔离已交付accepted；独立56d源已公开/精确CI成功。DM5真实评论、WEBTOON Canvas真附言PNG及Komiic12/201目录已Native具名；漫画柜仍由source_fixes执行，依赖新源commit/CI未获回执不预写。App宿主/热读快照c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。临时Page不要求双持久descriptor，库内Page/清cache重建仅Host合同。",
       "evidencePoints": [
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb"
       ],
       "remainingActions": [
-        "本轮空入口/设置隔离具名Native及App提交push/精确CI完成，无该Bug同步等待。全部85对比/36参考设置差异仍为已核发现，未采纳全部默认/登录/章节身份迁移，不作为此已修Bug无限欠账；最后读取失败catch仅Host/build，不扩异常Native验收。"
+        "源agent新依赖候选notes与Komiic12/201目录已实际Native，漫画柜仍执行；Root已通知范围收口源commit后继续Pixiv，不停局部。原独立56d发布与DM5真PNG已具名不重跑；新源提交/CI待实际回执，不预写。"
       ],
-      "remaining": "本轮空入口/设置隔离具名Native及App提交push/精确CI完成，无该Bug同步等待。全部85对比/36参考设置差异仍为已核发现，未采纳全部默认/登录/章节身份迁移，不作为此已修Bug无限欠账；最后读取失败catch仅Host/build，不扩异常Native验收。",
+      "remaining": "源agent新依赖候选notes与Komiic12/201目录已实际Native，漫画柜仍执行；Root已通知范围收口源commit后继续Pixiv，不停局部。原独立56d发布与DM5真PNG已具名不重跑；新源提交/CI待实际回执，不预写。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -1804,22 +1804,22 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：缓存440c014已push/精确CI成功，具名更新完成；原59ms/全闪根因仍open，功能执行当前暂停",
+      "owner": "Root：c801精确CI40398958854已成功；热读/普通manager具名范围完成，原59ms未全闭",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "440c014f缓存/差量/worker已交付且精确CI成功，738–743真实更新具名；原59ms及全卡顿未外推闭环",
-      "result": "440c014f2afc65c760f90e2a2a7abbc2094be932缓存首帧/差量发布/worker及URL草稿owner修复已push、精确CI40365714873成功。738–743普通缓存重入/未存URL不捕获及Goda013/DM5018原全部更新成功，六域/原库/系统恢复；用户原全闪根因未完整实证，59.319ms及全部卡顿未证明消除。",
+      "status": "c801源宿主/热读快照已push、精确CI40398958854 success；普通manager具名，原59ms/全性能未闭",
+      "result": "源宿主/快照二十文件c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push、精确CI40398958854 success。197911装18875963并普通picker升级公开DM5 .19；保存回详情sheet是原行为，脚本误点背景同名行不作产品失败，912→915独立清own settings后整settings深同。921–926同包/同进程DM5 .19保存→重入on→清own、922→925 settings深同、原库p2/25%/120000无Override/85a2227e释租，无errors。913m连续271帧/七联图全亲审，初入/返回/重入无整表空白或图标集体消失，后台可更新组真实插入；不外推原59.319ms/所有性能。",
       "evidencePoints": [
         "直接产物索引：https://github.com/honjow/Koma/releases/tag/v0.1.3-pre；230/audit/frequency-comparison-224-230.json；build.log；diagnostics-redaction-reuse-review/txt-suffix-unadopted-candidate.patch；300/audit/callback6739-scheduler-frequency.json；koma-log-export-20261026-003924.log；307/audit/aligned-existing-cpu.json；audit/aligned-existing-cpu.json；/tmp/koma-computed-fresh-result-before.txt；test_source_index_progressive.cjs；receipt.json；Koma-source-current-result-fixed-signed.hap；manhuagui-network-phase-review/source-head-current.json；manager-after-real-update.png；browse-name-projection197-session-513/result.json；offline-window-review.json；mh160-web-entry-chain-review/browse-name-projection-ci-detail.json；scripts/test_source_install_worker.cjs；temporary-browse-row-count.patch；pre2-browse-source.png；restored-library.png；pre2-batch-update-before.log；pre2-batch-update-after.log；candidate2-manager-details.png；pre2-candidate2-ci-detail.json；index.json；pre2-current-source-index.json；pre2-current-source-update-comparison.json；manager-cache-url-before.log；manager-cache-reader-relevant-final-tests.log；manager-cache-url-final-build.log；registry-update-review.json"
       ],
       "remainingActions": [
-        "缓存440c014已push/精确CI成功，738–743缓存/未存草稿/两源真实批量更新具名范围完成；原59.319ms及用户全闪根因未闭，不以两源耗时/1Hz或CI代替全性能闭环。其余源更新与原缺陷按各项推进，不重跑已完成两源造采样。"
+        "c801精确CI40398958854已成功，Root续其他原项；921–926普通同进程设置/恢复与913m全271帧普通manager已具名，不重跑局部采样。原59.319ms及所有性能/全触发未证明消除，不以当前无整表消失扩大验收。"
       ],
-      "remaining": "缓存440c014已push/精确CI成功，738–743缓存/未存草稿/两源真实批量更新具名范围完成；原59.319ms及用户全闪根因未闭，不以两源耗时/1Hz或CI代替全性能闭环。其余源更新与原缺陷按各项推进，不重跑已完成两源造采样。",
+      "remaining": "c801精确CI40398958854已成功，Root续其他原项；921–926普通同进程设置/恢复与913m全271帧普通manager已具名，不重跑局部采样。原59.319ms及所有性能/全触发未证明消除，不以当前无整表消失扩大验收。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -1964,7 +1964,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T19:34:00+00:00",
         "owner": "Root",
-        "condition": "缓存/差量/worker与URL草稿owner修复已交付、精确CI成功；真实更新和普通首页/Web具名范围完成。原59.319ms/全卡顿及用户全闪根因未全证，不重跑已验业务造采样；产品操作服从人类当前沟通指令，单项未知不代表整体无事可做。"
+        "condition": "c801精确CI40398958854已成功，Root续其他原项；921–926普通同进程设置/恢复与913m全271帧普通manager已具名，不重跑局部采样。原59.319ms及所有性能/全触发未证明消除，不以当前无整表消失扩大验收。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
@@ -2516,12 +2516,12 @@
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（后续迁移；不取消当前bugs）",
-      "owner": "Root：规范/默认文档整理同步完成；原设置接入产品候选未通过，后续服从人类当前沟通指令",
+      "owner": "Root：54d设置已交付，c801源宿主/快照已push且精确CI成功；真实provider与未覆盖边界继续",
       "kind": "open",
-      "status": "全局翻译/高级/Reader分组/模型管理候选18856450未完整验收且WIP未commit；既有具名处理范围冻结",
+      "status": "54d设置已交付且901普通保存/返回完成；源宿主c801已push/CI40398958854 success，真实provider未验",
       "dependencies": [],
       "relatedItems": [],
-      "result": "已交付具名裁切/单模型超分、未来页实际处理与图标临时开关范围保持，真实provider/译图未验。当前全局翻译、高级/日志归属、Reader分组、共用图像设置与模型管理WIP已构建安装18856450，但普通完整任务未通过、未commit；800–802仅恢复Koma原书架/120000无Override及释租，不是菜单验收。",
+      "result": "54d35c4b设置已push且精确CI40394060181 success；901–906全局翻译English保存自动pop/重入与中文恢复具名，未调用provider。DM5评论/WEBTOON Canvas作者附言真PNG及921–926同进程设置重入/清own与恢复具名；c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。临时Page不要求reader-sessions持久descriptor，库内Page/清cache重建Host合同不冒Native持久验收；真实provider/译图未验。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
@@ -2529,9 +2529,9 @@
       "evidencePoints": [
         "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json"
       ],
-      "remaining": "规范/默认文档整理与同步已完成，不是产品任务完成。原已授权设置接入候选18856450普通路径未通过，功能WIP未commit/未验收；197原库/120000无Override/无租约。Root后续产品动作服从人类当前沟通指令，原未解决缺陷及验收边界保留，不因文档整理清空队列。",
+      "remaining": "c801精确CI40398958854已成功，Root续原未解决项；54d设置与901普通全局配置保存/返回、真文字PNG及921同进程设置恢复已具名，无该批安装/提交CI待办。真实外部provider/译图及未覆盖模型/持久Native仍未验，不扩整体通过。",
       "remainingActions": [
-        "规范/默认文档整理与同步已完成，不是产品任务完成。原已授权设置接入候选18856450普通路径未通过，功能WIP未commit/未验收；197原库/120000无Override/无租约。Root后续产品动作服从人类当前沟通指令，原未解决缺陷及验收边界保留，不因文档整理清空队列。"
+        "c801精确CI40398958854已成功，Root续原未解决项；54d设置与901普通全局配置保存/返回、真文字PNG及921同进程设置恢复已具名，无该批安装/提交CI待办。真实外部provider/译图及未覆盖模型/持久Native仍未验，不扩整体通过。"
       ],
       "boundaries": [
         "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
@@ -2541,36 +2541,36 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
-        "condition": "规范/默认文档整理与同步已完成，不是产品任务完成。原已授权设置接入候选18856450普通路径未通过，功能WIP未commit/未验收；197原库/120000无Override/无租约。Root后续产品动作服从人类当前沟通指令，原未解决缺陷及验收边界保留，不因文档整理清空队列。"
+        "condition": "c801精确CI40398958854已成功，Root续原未解决项；54d设置与901普通全局配置保存/返回、真文字PNG及921同进程设置恢复已具名，无该批安装/提交CI待办。真实外部provider/译图及未覆盖模型/持久Native仍未验，不扩整体通过。"
       },
       "adoptedEntryScope": {
         "source": "本轮当前可见人类异步call_63f84fa…：采用这组现有入口（推荐）；精确服务端时间未给，登记时刻不冒答复时间。",
         "settings": "当前已要求全局长期配置及Reader即时控制分工：全局翻译/图像处理配置、Reader既有即时设置与更多，按NextE实际职责接入；高级归开发排障，日志由关于移入。未选/不可用模型仍保可见开关，选择与文件管理分开。",
         "more": "既有更多：翻译当前页、自动翻译、显示原图。",
         "defaults": "trimPageMarginsEnabled原false保持；超分与自动翻译默认关闭。",
-        "serviceBoundary": "沿既有visual-page/安全持久owner，无默认外部服务或自动耗费；全局/Reader接入仍待完整任务验收，入口授权不扩大默认/凭据/章节身份。"
+        "serviceBoundary": "按NextE职责的全局长期配置/Reader即时分工与高级诊断入口已在54d交付并完成具名普通设置路径；不扩大默认/凭据/章节身份，不默认外部服务或自动耗费。"
       },
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
-        "observedEvidence": "More/未配置保护、9资产下载校验、独立配置与新≤1024B分块manifest非默认English真实进程冷恢复/zh还原、原水平留白、最终无显式意图原Reader简单policy及Library/数据系统恢复。",
-        "pendingImplementationVerification": "既有单模型/配置持久等具名范围冻结；当前全局翻译/高级/分组/模型管理18856450候选WIP未完整验收且未commit，800–802仅恢复。真实provider/实际译图仍未验。",
+        "observedEvidence": "既有独立安全配置/分块manifest冷恢复具名范围保持；54d全局翻译/高级/Reader分组/模型管理已交付，901–906 English保存pop重入及中文恢复、861设置与模型回退、DM5评论及Canvas附言真PNG具名，未调用翻译provider。",
+        "pendingImplementationVerification": "54d设置已交付/CI成功，901配置保存返回具名；c801源宿主与快照已push，精确CI40398958854 success。真实外部provider/译图及未覆盖持久Native仍未验，无该批工程交付等待。",
         "unverifiedExternal": "真实提供方调用/实际译图未验；API URL/model/key为空，不读取NextE账户/secret、不默认调用服务或自动耗费。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
       }
     }
   ],
   "source": {
-    "status": "85源homepage已发布；全85设置对照完成，迁移差异未采纳",
+    "status": "独立DM5/Webtoon设置56d已公开；评论/notes真PNG具名，其他依赖WIP继续",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "源b40699582d71dba7d21419d27361bdaa53c6dd69已push，精确CI40374115692成功；公开85源主页/五变更包及197五源真实更新已具名。",
-    "remaining": "36项参考设置差异为已核发现，未采纳照搬默认/登录/章节身份；各源未知与未验边界按原任务继续，当前功能执行暂停。",
-    "commit": "b40699582d71dba7d21419d27361bdaa53c6dd69"
+    "result": "56d87723fa6aa14e54d73ed13b5ee986a53390b2独立源提交已公开，精确CI40392743602 success，准确tag/85索引/包manifest已核。当前源+宿主依赖WIP中DM5评论及WEBTOON Canvas附言PNG已具名，未把其余设置/限速/筛选或持久化全验收。",
+    "remaining": "source_fixes notes/Komiic12/201已Native、漫画柜仍执行，按Root通知范围收口源commit并继续Pixiv；未有新commit/CI结果不预写。App宿主c801ba8c已push/精确CI成功，独立56d发布保持。",
+    "commit": "56d87723fa6aa14e54d73ed13b5ee986a53390b2"
   },
   "milestones": [],
   "releaseGates": [
     "v0.1.3-pre已发布：tag85eac652357d1bbd83ef128b9cfea5068f50e98b、产品bd108；后续Reader/缓存/源入口修复不在该tag，不由文档整理新增发布。",
-    "当前功能产品改动/验收暂停，先按人类要求重整规范；已有WIP全部保留，未验不改通过。",
+    "规范整理已完成，原已授权产品工作继续；已有WIP保留，当前未验不改通过。",
     "200禁止操作、四私库维持用户搁置；已接受具名范围冻结，新可见差异按人类当前明确决定执行。"
   ],
   "stopRule": "局部验收、提交、清理或写状态不是首版完成；继续安全且已授权的实际动作，具体分支缺条件不扩大为全局停止。",
