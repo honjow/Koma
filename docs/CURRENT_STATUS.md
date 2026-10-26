@@ -19,7 +19,7 @@
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。上述旧提交固定Kit e3f3cc1；本轮已采用v3与普通入场，当前a9d7c641组合三宿主具名实机通过，三宿主范围提交/同步及精确CI均成功；无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
 - 当前设备状态：197639已覆盖留candidate2 signed18852705/default Release/debugfalse；637–642普通管理入口/Library、七域逐字同、120000无Override恢复，fa07b26a已释放。无活租约；200禁止操作，237本阶段未操作。
-- 当前实机入口：637–642 candidate2普通Library/Browse/源包管理/Komiic只读详情/返回通过；无源升级、降级或启停，不冒Native批量及59ms消除。旧631/84161与619/626原件各自保持，当前待candidate2本批范围同步/精确CI。
+- 当前实机入口：637–642 candidate2普通Library/Browse/源包管理/Komiic只读详情/返回通过；无源升级、降级或启停，不冒Native批量及59ms消除。旧631/84161与619/626原件各自保持，candidate2本批范围提交push与精确CI/准确产物已核；保Native真实批量及59ms未闭边界。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal；最新人类明确让子代理处理文档，现progress_docs独占本工作单核账，Root独占实机/代码，不新增其他派工。保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器具名范围保持。
 
 <!-- /current-continuation -->
@@ -958,8 +958,8 @@
   "updatedAt": "2026-10-26T13:21:08+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "637–642 candidate2 signed18852705已覆盖留197，普通Library/Browse/管理页Komiic只读详情及返回、七域逐字同/系统恢复通过，fa07b26a释放。批量旧值Host修复成立，未Native批量升级、未证明59ms消除。当前待本批范围提交push/精确CI；旧84161候选1/CI及Linux产物独立冻结，不能作为候选2CI。",
-  "nextAction": "Root审candidate2批量旧值最小修复、分类变更说明及既有工作单后范围提交push并核该批精确CI；普通安装/管理回归已过，原缺陷未验边界保持，不新增tag/发布授权。",
+  "activity": "pre2候选2构建、普通覆盖升级/管理回归、bd108范围提交push及精确产品CI40332730200均完成。Root已核准确Linux unsigned18654576B/manifest bd108+a9d7+0.1.3-pre4及两必需库，与本地signed18852705/unsigned18642980身份分开；无本批交付等待。固定公开index单次HTTP200与641 registry的85源ID/版本全同，无真实升级包；Native真实批量及原59ms仍未闭，其他原限制保持。",
+  "nextAction": "Root继续承担现存未解决问题推进责任；本批pre2构建/普通回归/同步CI已完成，真实批量与59ms证据边界保持，不降升/假安装制造样本，不把某条缺样本扩大为整体停止，不新增tag/发布授权。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3135,14 +3135,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：candidate2普通入口/数据恢复已过，待本批范围提交push/精确CI；Native批量及59ms未闭",
+      "owner": "Root：pre2构建/普通升级管理回归/提交push/精确CI已完成；继续原真实批量与59ms未闭范围",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "637–642 candidate2覆盖及普通管理页/Library恢复通过；Native批量未验、59ms未消除证明，待本批同步CI",
+      "status": "bd108候选2产品CI及准确产物已核，交付等待清除；Native真实批量及原59ms仍open",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -3252,12 +3252,14 @@
         "631–636完整无临时日志pre2候选已构建并覆盖留197：signed18852687/unsigned18642996，0.1.3-pre/code4/default Release/debugfalse，两必需库齐、cert/profile与c46逐字同。633 bm实际版本吻合；Root实读result errors=[]，pre2Installed/pre2OrdinaryPathPassed/LibraryRestored/leaseReleased均true，亲审pre2-browse-source.png及restored-library.png原内容位置。七域全部逐字同，系统120000无Override/6c884f2a释放。仅普通升级/Library/Browse通过，没重跑Reader/源请求/启停；不外推Native行identity、59.319ms消除或自动404新分支。",
         "Root实读产品84161精确CI40330265094 completed/success：unsigned Release成功/Publish skipped。准确产物manifest84161/a9d7/0.1.3-pre4/release/unsigned，Linux18654592B、两必需库齐；与本地unsigned18642996B/signed18852687B不同，不混字节身份，旧631及84161产物冻结。",
         "批量updateCheckedPackages历史bad08288引入，f4caff仅改单源未覆盖此入口。新增1个真实生产方法Host逻辑case旧实现先失败localVersion 1!=2（pre2-batch-update-before.log），证明同task上一帧computed读旧版；最小生产修改仅成功分支reload()+installedPackage()换refreshInstalledPackage(status.sourceId)及短旁注，最终finally完整reconcile、原disabled、失败/跳过计数与状态/顺序保持。修后同case通过pre2-batch-update-after.log，覆盖成功1/失败1/移除跳过1及finally，仅Host，不认Native批量通过或59ms根因。Root正构建同0.1.3-pre/code4无诊断candidate2，尚无新构建/安装结论。",
-        "637–642实际完成：candidate2 signed18852705/unsigned18642980、同cert/profile/default Release/debugfalse；639明确覆盖留197。Root实读result errors=[]，candidate2Installed/ordinaryManagerPassed/LibraryRestored/leaseReleased均true；普通Library→Browse→设置/服务/源包→Komiic只读详情→关闭返回Library通过，candidate2-manager-details.png与restored-library.png已亲审。七域逐字同、120000无Override/fa07b26a释放。batchUpgradeNativeAccepted=false、stall59msEliminated=false，无源升级/降级/启停或造失败；旧84161候选1/CI原件冻结，不能作为candidate2 CI。"
+        "637–642实际完成：candidate2 signed18852705/unsigned18642980、同cert/profile/default Release/debugfalse；639明确覆盖留197。Root实读result errors=[]，candidate2Installed/ordinaryManagerPassed/LibraryRestored/leaseReleased均true；普通Library→Browse→设置/服务/源包→Komiic只读详情→关闭返回Library通过，candidate2-manager-details.png与restored-library.png已亲审。七域逐字同、120000无Override/fa07b26a释放。batchUpgradeNativeAccepted=false、stall59msEliminated=false，无源升级/降级/启停或造失败；旧84161候选1/CI原件冻结，不能作为candidate2 CI。",
+        "最终产品bd108563e828026b1fc128d601348751f515464a精确CI40332730200 completed/success，unsigned Release成功、Publish skipped；Root实读pre2-candidate2-ci-detail.json及准确产物pre2-candidate2-ci-40332730200：manifest同bd108/a9d7/0.1.3-pre4/release/unsigned，18654576B，HAP元数据一致、两必需库齐。与本地signed18852705B/unsigned18642980B不混二进制。pre2候选构建/普通升级/管理入口/范围提交push及精确CI均已完成，Native真实批量升级与59.319ms仍未闭。",
+        "Root本轮仅HTTP200读取固定公开index.json一次，与641原registry对照85/85公开ID匹配且版本全同，无真实可升级包；原件pre2-current-source-index.json及pre2-current-source-update-comparison.json。不降升、假安装或重放已完成业务制造样本。"
       ],
       "remainingActions": [
-        "Root接candidate2本批范围提交push及精确CI；637–642普通管理入口与数据恢复已过，不留构建/安装等待。批量旧值仅Host逻辑回归成立、Native批量未验，59.319ms未证明消除；不重复017/启停造采样，旧84161候选1及CI原件保持独立身份，不新增tag/发布授权。"
+        "本批pre2候选构建、普通覆盖升级/管理回归、提交push与产品精确CI/准确产物均已完成，无本批代码交付等待。Native真实批量升级及原59.319ms仍未闭，当前固定index与641原registry的85源版本全同、无真实可升级包；不降升或假安装造样本，不将该条样本限制扩大为整体停止，Root继续承担未解决问题推进责任。旧84161与本地/最终CI包身份各自保持，不新增tag/发布授权。"
       ],
-      "remaining": "Root接candidate2本批范围提交push及精确CI；637–642普通管理入口与数据恢复已过，不留构建/安装等待。批量旧值仅Host逻辑回归成立、Native批量未验，59.319ms未证明消除；不重复017/启停造采样，旧84161候选1及CI原件保持独立身份，不新增tag/发布授权。",
+      "remaining": "本批pre2候选构建、普通覆盖升级/管理回归、提交push与产品精确CI/准确产物均已完成，无本批代码交付等待。Native真实批量升级及原59.319ms仍未闭，当前固定index与641原registry的85源版本全同、无真实可升级包；不降升或假安装造样本，不将该条样本限制扩大为整体停止，Root继续承担未解决问题推进责任。旧84161与本地/最终CI包身份各自保持，不新增tag/发布授权。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -3402,7 +3404,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T13:21:08+00:00",
         "owner": "Root",
-        "condition": "Root接candidate2本批范围提交push及精确CI；637–642普通管理入口与数据恢复已过，不留构建/安装等待。批量旧值仅Host逻辑回归成立、Native批量未验，59.319ms未证明消除；不重复017/启停造采样，旧84161候选1及CI原件保持独立身份，不新增tag/发布授权。"
+        "condition": "本批pre2候选构建、普通覆盖升级/管理回归、提交push与产品精确CI/准确产物均已完成，无本批代码交付等待。Native真实批量升级及原59.319ms仍未闭，当前固定index与641原registry的85源版本全同、无真实可升级包；不降升或假安装造样本，不将该条样本限制扩大为整体停止，Root继续承担未解决问题推进责任。旧84161与本地/最终CI包身份各自保持，不新增tag/发布授权。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
