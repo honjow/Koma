@@ -954,11 +954,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-26T00:10:40+00:00",
+  "updatedAt": "2026-10-26T01:39:41+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "重复行render限定修正及既有规则两文件已600589b00b769cb56c8f8b6a550eb731328a3b85提交并HTTPS推送；精确CI40246317496实核同head completed/success，Build unsigned Release HAP success、Publish tagged Release skipped，无tag/发版。具名正常更新及394恢复闭环保持；尾回调23.194/24.923ms仍在、无当前业务CPU细栈，卡顿总项open，其它7项及parked原条件保持，当前无本轮设备租约/临时诊断。",
-  "nextAction": "依原8项continuationGate出现合法新条件后由Root续接；卡顿项需下一真实业务安装/更新配对当前CPU+trace，不重放三项更新或单为取样耗首装。无条件变化不新增测试或改实现，不重跑已接受路径/旧失败；本轮资料、局部交付及CI成功不等整体目标完成。",
+  "activity": "V2结果新鲜度Host生产方法回归（模拟官方上一帧缓存、虚拟源1.0→2.0）已同一最终case原HEAD失败/当前通过，suite25/25与Release/验签成立；8a94ef2fa85561ada599782d528632310644b1e3已提交/推送，精确CI40254432271同head completed/success，unsigned Release HAP成功、tag发布skipped，无tag。8590125B候选未装、真实升级未验；1978590100B/2378591318B保持、无本轮租约或临时诊断，原31ms/尾回调总项open，其它7项不动。",
+  "nextAction": "依原8项continuationGate出现合法新条件后Root续接；本次结果新鲜度需下一真实业务升级验版本/设置并配对CPU+trace，当前无新候选，不重放已完成3更新或单为取样耗首装。无条件变化不新增测试或改实现，不重跑已接受路径/旧失败；逻辑/CI通过不代Native或整体目标完成。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3074,14 +3074,14 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：限定render修正已提交推送/精确CI成功；总项待下一真实业务条件",
+      "owner": "Root：V2结果新鲜度已8a94ef2f提交推送及精确CI成功；真实升级未验",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "限定render修正具名更新及恢复/提交推送/精确CI成功；尾回调仍23–25ms，卡顿总项open",
+      "status": "V2结果新鲜度Host逻辑/构建/提交推送及精确CI通过，真实升级未验；原31ms及尾回调卡顿总项open",
       "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
       "evidencePoints": [
         "3778510277B安装三域同；379 main23468 rmdir17.389/event15.932ms，对照36483.566/67.433/42.145与37632.194/16.235/60.948，不能外推FPS或全App。",
@@ -3166,12 +3166,15 @@
         "391实读85源仅漫画160014→015的chapterOrder/version/4路径共6字段变化，其它84同389；library/reader/web/reader-preferences逐字同389。正常无CPU探针包import_ok：persistSync10ms/cleanupAwait7ms/publish0ms，projection5ms；同次trace50365持久callback11.296ms、50406完成23.194ms、后继Vsync23.991ms/Dirty11.747ms。不同源且有无CPU探针差异，不是严格AB，不据此关闭原31.42ms或整个卡顿。录像99帧/5sheet已Root全部亲审，但仅到正在更新：recorder stop23:35:45.890Z早于install_done23:35:48.036Z，缺完成画面，只计部分录像，绝不冒完整通过；原件保留，不重放漫画160。后继392同租约父进程先被动20秒录屏，5秒后trace单击剩余漫画屋015→016真实更新；当时结果尚未实读，完整结果见下一条；用途是完成197已采用源方向交付及正常界面检查，非额外首装采样或重复已接受更新。",
         "392真实漫画屋015→016，Root完整亲审125帧/7sheet及原分辨率85/86/124。85源仅漫画屋chapterOrder/version/4路径共6字段变化，其它84同391，library/reader/web/reader-preferences逐字同391；原采用的未能确认普通行、更新禁用态与完成反馈保持，具名路径无白屏或新布局变化。正常8590100B无CPU探针；import persist15ms/cleanup7ms/publish0ms、projection7ms。持久callback15.686ms/Running15.367ms，完成24.923ms/24.841ms，后继Vsync32.686ms/29.073ms、Dirty21.521ms/17.908ms；仍超预算，不称全部改善或原31.42ms关闭，不再单为采样耗首装。392自有Media删除成功且查询0、导出已清。393普通Back→服务→设置→书架成功，Root亲审原首三及Blue第1页100%；当时394最终五域/timeout/scratch进行中，最终恢复/释租结果见下一条。",
         "394 completed：五域逐字同392，cleanup及3个find均exit0/stdout空；Power AWAKE/Timeout120000无Override，Focus405为Koma，feb4c6c6正常release0。197保留正常8590100B、无临时源码或CPU探针；237正常8591318B未操作。本轮384/391/392离线材料均已核完；修复后两次真实更新尾回调23.194/24.923ms仍在，只有当前trace、无修复后业务CPU细栈，不能由旧384栈推定当前剩余瓶颈。不猜改持久事务/后台IO/延时/电源，不再单为取样消耗剩余4源首装或重放三项更新。",
-        "限定render修正与既有规则两文件已提交600589b00b769cb56c8f8b6a550eb731328a3b85，HTTPS master从9ba→6005推送成功。精确CI40246317496实核head600589b00b769cb56c8f8b6a550eb731328a3b85，completed/success；Build unsigned Release HAP success，Publish tagged Release skipped，无tag/发版；提交/构建状态不改变实际尾回调23.194/24.923ms与卡顿总项open边界。"
+        "限定render修正与既有规则两文件已提交600589b00b769cb56c8f8b6a550eb731328a3b85，HTTPS master从9ba→6005推送成功。精确CI40246317496实核head600589b00b769cb56c8f8b6a550eb731328a3b85，completed/success；Build unsigned Release HAP success，Publish tagged Release skipped，无tag/发版；提交/构建状态不改变实际尾回调23.194/24.923ms与卡顿总项open边界。",
+        "本轮新逻辑反例复用原INSTALL项：Root实时核官方arkts-new-computed明确V2缓存下一帧才更新，并追41e753dd引入installedPackagesById。生产updateInstalledPackage在refresh后立即读该缓存，Host生产方法回归模拟官方上一帧缓存，以虚拟源1.0→2.0执行更新，记录localVersion却仍1.0（不是Native安装观测），ready设置描述又被reloadInstalledPackageSettings旧Map身份守卫丢弃，字段/availability均undefined；修前/tmp/koma-computed-fresh-result-before.txt失败保留。既有test_source_index_progressive.cjs仅加入1条关键执行回归，原期望未改、不加源码形状检查。最小修复使refresh返回本次DTO并供完成直接消费；设置回写守卫改查当前packages身份，保revision/原UI/事务/邻行身份。当时尚待全suite/构建，后继25/25及构建结果见下一条；不冒Native验收或31ms关闭。现行3设置入口直接表单，RouterHelper.pushSourceSettings当前无调用；旧initialSettings入口未改，不据旧入口反推现行入口失败或重开已验3入口。",
+        "本轮结果新鲜度修复在Host生产方法回归（模拟上一帧缓存、虚拟源1.0→2.0）中版本已对，不是Native安装观测；最初字段断言未等fire-and-forget设置任务实际结束，后仅补spy等待原production Promise完成，期望值未改。以Git HEAD913原源码在内存执行同一最终case：before仍localVersion1.0且fields/availability undefined（失败1），当前fix为2.0且fields正确（通过）。原件归既有artifact/source-current-result-freshness-review/{before,after,suite,build.log,receipt.json}；临时只读重放helper已删，无checkout或生产数据。完整既有suite25/25，仅新增1业务回归，Release构建exit0。正常签名候选Koma-source-current-result-fixed-signed.hap为8590125B/debugfalse/code3，verify-app成功，与197正常8590100B同cert/profile，同次unsigned/signed ABC同，无CPU探针。未安装、未HDC、无租约，仅逻辑实现/构建通过，真实升级未验；原31ms及尾回调总项不因此关闭。当前无新真实升级候选，不重放3次已完成更新/单为取样耗首装。当时Root待审代码/规则/1case后提交，后继实际hash/CI见下一条；不将阶段等待保为当前待办。",
+        "本轮V2逻辑修复代码/既有规则/1关键case三文件已提交8a94ef2fa85561ada599782d528632310644b1e3，HTTPS master913→8a推送成功。精确CI40254432271实核head8a94ef2fa85561ada599782d528632310644b1e3，completed/success；Build unsigned Release HAP success，Publish tagged Release skipped，无tag。候选8590125B仍未装；197正常8590100B及2378591318B原状态保持，无本轮设备操作或租约，不将提交/CI代真实升级或31ms性能通过。"
       ],
       "remainingActions": [
-        "限定render修正已600589b0范围提交/HTTPS推送且精确CI40246317496同head成功，无代码提交/CI待办。卡顿总项仍open；下一真实业务安装/更新再配对当前CPU+trace，当前384/391/392均已核完，不据旧栈猜瓶颈、不改事务/IO/延时/电源，不为取样消耗4首装或重放三项更新。"
+        "V2逻辑修复已8a94ef2f提交推送且精确CI40254432271同head成功，无代码提交/CI待办。候选8590125B未安装、当前无新真实升级候选；下一合法业务更新验版本/设置及配对当前CPU+trace，不重放3次已完成更新或为取样耗首装。Host虚拟源逻辑通过不代Native真实升级验收，原31ms/尾回调总项仍open。"
       ],
-      "remaining": "限定render修正已600589b0范围提交/HTTPS推送且精确CI40246317496同head成功，无代码提交/CI待办。卡顿总项仍open；下一真实业务安装/更新再配对当前CPU+trace，当前384/391/392均已核完，不据旧栈猜瓶颈、不改事务/IO/延时/电源，不为取样消耗4首装或重放三项更新。",
+      "remaining": "V2逻辑修复已8a94ef2f提交推送且精确CI40254432271同head成功，无代码提交/CI待办。候选8590125B未安装、当前无新真实升级候选；下一合法业务更新验版本/设置及配对当前CPU+trace，不重放3次已完成更新或为取样耗首装。Host虚拟源逻辑通过不代Native真实升级验收，原31ms/尾回调总项仍open。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -3314,9 +3317,9 @@
         "allowedDifference": "只在普通picker返回已选URI之后startJsCpuProfiling，原import/校验/事务/刷新完成后finally stop；不改UI/响应/校验/队列，不清数据不装新源。仅新profile文件自有临时产物，完成精确撤补丁并装回8581941B正式包。当前为正常同版本更新路径，不当首次首装或严格AB/FPS。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-25T23:44:48+00:00",
+        "checkedAt": "2026-10-26T01:39:41+00:00",
         "owner": "Root",
-        "condition": "本轮限定render修正、391/392实际更新及394恢复/释租已完成，正常8590100B无探针，当前无本轮设备租约或临时诊断。尾回调23.194/24.923ms仍超预算，当前trace没有修复后业务CPU细栈；下一真实业务安装/更新才配对CPU+trace。现存384/391/392离线已核完，不用旧384栈推新瓶颈，不猜改事务/IO/延时/电源，也不单为取样消耗4首装或重放三项更新；总项仍open。 限定修正已600589b0提交推送，精确CI40246317496同head completed/success，unsigned Release HAP成功、tag发布skipped、无tag/发版；不自动关闭原卡顿总项。"
+        "condition": "V2结果新鲜度Host生产方法回归模拟官方上一帧缓存、虚拟源1.0→2.0；同一最终case原HEAD913失败/当前通过，最初设置断言未等任务结束，后仅补production Promise完成观察、期望不变。suite25/25、Release/验签及8a94ef2f提交推送/精确CI40254432271同head成功，仍非Native安装观测；8590125B未装、无HDC/租约，无新真实升级候选。下一合法业务更新验版本/设置及CPU+trace，不重放3更新/单为取样耗首装，原31ms/尾回调总项仍open。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
