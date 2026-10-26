@@ -1,64 +1,33 @@
-# 阅读器重写执行标准与验收标准（用户强制约束）
+# Reader 迁移参考与执行边界
 
-> 本文件是 Koma 阅读器重写的唯一执行依据。违反任意一条即视为失败，必须重写。
-> 用户原话："但凡跟旧版有一点相似，我他妈就让你重写！"
+本文件规定当前 Reader 的参考迁移方式。当前共享职责见 [reader-kit consumer contract](../../../reader-kit/README.md#consumer-contract)，具体采用范围、差异和状态见 [CURRENT_STATUS.md](../CURRENT_STATUS.md) 原项，通用执行/验收规则见 [koma-rules.md](koma-rules.md)。
 
-## 一、执行标准（怎么写）
+## 参考如何使用
 
-### 1. 蓝本唯一性
-- 阅读器 UI 的唯一蓝本：`/Users/honjow/git/NextE/feature/reader/src/main/ets/pages/ReaderPage.ets`（8367 行）与
-  `/Users/honjow/git/NextE/feature/settings/src/main/ets/pages/ReaderSettingsPage.ets`（1187 行）。
-- 写任何 UI 块之前，必须先在 NextE 源文件里找到对应块，然后逐块移植；NextE 里没有的结构禁止出现。
-- 允许按 Koma 实际能力删减 NextE 的 EH 专属功能（share / save-spread / original / translation / super-resolution / image-block），
-  但保留的每个控件（按钮、菜单项、设置行、手势、布局、间距、颜色）必须与 NextE 一致。
+- 修改一个已有能力时，先读 NextE 对应的完整实现及调用方，核菜单层级、状态 owner、默认值、无配置/失败、后台准备和返回后的同步，再适配 Koma。不能只取算法库并自行设计其余产品。
+- 参考源按实际文件/符号查找，不固定源码行数或旧快照参数。主要入口包括 NextE 的 ReaderPage、ReaderSettingsPage、ReaderSuperResolutionModelsPage 和 ComicTranslationSettingsPage；引用当前任务实际读取的版本，不把路径存在当成已核行为。
+- 已采用行为和结构直接沿用；仅调整必要宿主/平台接口。差异写清具体不兼容点及原取舍，涉及已确认产品行为时取得该差异的允许。不能用抽象的“更合理”另做一套。
+- 当前 Koma 原生外观与共享 Reader 边界继续有效。参考范围不自动授权对现有宿主全面换肤、替换导航或改公共 Kit。
+- 当前用户要求迁移的能力必须完整接入。功能范围由有效需求决定，不能因参考中的宿主专属差异省略通用能力。
 
-### 2. 旧版零容忍
-- 禁止从 git 历史（含 9411211b^、5675232d、d4958b8 及任何 commit）恢复 Koma 旧阅读器代码。
-- 禁止出现旧版 UI 形态：QuickSettingsPanel 浮层卡片、KomaSegmentedControl 分段控件、暖棕 pill（#66332C28）、
-  `HitTestMode.Transparent + responseRegion` 抢占阅读区手势。
-- 每写一段 UI，自问：这段在 NextE 里叫什么？如果在 NextE 找不到，删掉重写。
+## 公共职责与接入
 
-### 3. 结构照抄清单（NextE 逐块）
-- 顶栏 `ReaderTopBar`：Stack 居中页码；左圆钮返回（chevron_left）；右齿轮（gearshape）→ bindSheet 设置面板；右更多（dot_grid_2x2）→ bindMenu；
-  背景 `#CC000000`；高 = safeTopInset + 56。
-- 设置面板：bindSheet（detents MEDIUM/LARGE、showClose false），内容用
-  SectionHeader + GroupedListSection + ConciseListRow + ListDivider 分组列表；选择行 trailingDropdown + bindMenu 原生 Menu
-  （MenuItem + symbolStartIcon + symbolEndIcon checkmark）。
-- 底栏 `ReaderBottomBar`：Stack alignContent Bottom；进度行 = 左页码 + Slider（InSet、track `#33FFFFFF`、selected BRAND_PRIMARY、RTL reverse）+ 右页码；
-  工具栏 = 44 圆钮透明（icon 22），双页（book，激活 BRAND_PRIMARY）+ 模式（当前模式图标，bindMenu 带 checkmark）。
-- 手势：阅读区由透明 TapOverlay 负责（点按翻页/中间 toggle chrome），图片表面自己负责缩放（Pinch/Pan/DoubleTap）；
-  chrome 顶/底独立条各自 `HitTestMode.Default`，不得拦截阅读区。
+- Koma 现有会话、页面源、偏好、点击区域几何和持久化继续由原 owner 负责；共享 Kit 只按公共合同消费。不得为单个入口建立第二套偏好、缓存或导航状态。
+- 处理结果必须进入真实页面准备及显示链；同时核被使用的预载消费者，不能用当前页单次成功代替预处理。失败保持原图、原进度及原有恢复路径。
+- 完整接入包括普通入口、配置作用域、菜单/搜索、能力可用性、无配置状态、保存恢复、返回同步和旧请求失效；不能凭一个设置 sheet 或一段 provider 链宣告整项完成。
+- 具体当前配置归属、模型管理和翻译数据保护约束只维护在执行规则的模块边界与对应公共实现旁，本文件不复制易变的入口、默认值、参数或验收状态。
 
-### 4. 数据层
-- Koma 数据层（会话、页面源、偏好、点击区域几何）只提供数据与动作，不决定 UI 形态。
-- ReaderPage 事件接口保持与 Index.ets 调用一致（readerOpen / pageIndex / chromeVisible / webtoonMode / sessionStore / sessionConfig /
-  onPageIndexChange / onChromeVisibleChange / onWebtoonModeChange / onCloseReader / onOpenMangaDetail / onOpenChapter）。
+## 界面与行为边界
 
-### 5. 自主推进
-- 不询问"接下来做什么"；不因用户中途提问而停止主任务；回答完问题继续。
-- 中途任何纠正、批评、情绪表达都是路线修正信号，先按其修正，然后继续推进到验收完成。
+- 不恢复已被拒绝的 Koma 阅读器方案；既定禁止项不因重构或换轮次失效。
+- QuickSettingsPanel 浮层卡片、KomaSegmentedControl 替代方案、暖棕 pill，以及抢占阅读区手势的透明层/扩大响应区，不作为迁移捷径。
+- 不能通过删除设置入口、关闭正常功能、改阅读顺序或修改数据使缺陷消失。当前确有必要差异仍走用户决定，不能拿本文件推翻已采用行为。
 
-### 6. 禁止事项
-- 禁止添加任何 UI 合约、断言检查器、门禁脚本、验证脚本。
-- 禁止把"能编译"当作验收。
-- 禁止用口头承诺替代执行。
+## 如何判定这次迁移完成
 
-## 二、验收标准（怎么算完成）
-
-1. 构建成功：`hvigorw assembleHap`（product=default、debug、module=entry@default）无错误。
-2. 真机安装并运行：`hdc -t 192.168.50.197:12345` 安装、启动 Koma，进入阅读器。
-3. 设备证据（截图 + 布局 dump，存 `.hermes-artifacts/`）：
-   - 阅读页主体（页面渲染、翻页手势可用）；
-   - 顶栏：返回 + 居中页码 + 齿轮 + 更多；
-   - 设置面板：分组列表、选择行下拉菜单、开关行；
-   - 底栏：进度滑块 + 双页 + 模式按钮；
-   - 手势：中间点击 toggle chrome、边缘点击翻页、缩放可用、连续滚动模式下列表可滚动。
-4. 功能验收：单页 / 双页 / 连续滚动切换生效；章节切换生效；设置项（方向、背景、图片适应、点击区域、音量键等）修改后立即生效并持久化。
-5. NextE 对照：验收时逐块对照 NextE 源文件，输出里每个 UI 块都能在 NextE 找到对应块。
-6. 提交：删除或重写完成后提交（`git commit`），报告 SHA 与工作树状态。
-
-## 三、失败判定
-- 出现任何旧版 UI 形态（第 2 条清单）→ 失败，重写。
-- 任何 UI 块在 NextE 找不到对应 → 失败，重写。
-- 验收没有设备截图/布局证据 → 未完成，继续。
-- 停下来问"接下来做什么" → 违规，立即继续。
+- 先用已采用参考和原正常行为确定当前改动应保留的结果，再实现和验证；不能从新代码倒推测试期望。所有直接/间接受影响消费者都须考虑，不以文件未改排除。
+- 普通入口进入后，观察功能准备、实际使用、无配置/失败及返回状态；变更需要持久化时核真实恢复。只验与本次变化相关的路径，不重跑已接受矩阵填充测试数量。
+- UI/图像/转场用当前安装签名包及匹配设备状态观察完整过程。布局节点、模拟响应、成功终点图和构建/CI不能冒真实画面或完整路径通过。
+- 复用现有语义场景/设备协议；禁止源码字符串和组件嵌套断言、自造 UI 门禁或无效重复覆盖。必要真实路径验证与通用测试边界以 koma-rules 为准。
+- 当前授权设备由实时发现和租约决定，不使用文档中的固定 IP；包、构建模式和签名按当前交付要求核实，不假定 debug 构建即可交付。保留原数据，失败独立恢复临时状态。
+- 构建、安装、普通路径、验收、提交和同步分别据实记在原工作单。未验证或存在相关反例时整项未完成；不得因为已编译、已有大量用例或局部提交而关单。

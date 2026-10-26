@@ -1,85 +1,20 @@
-# Koma Controller Artifacts
+# Koma 本地验证产物
 
-Koma 的 controller/worker 流程统一把截图、证明文件、结果文件、长日志放在 `.hermes-artifacts/` 下，避免散落到源码目录或聊天里。
+产物服务于具名问题及普通使用路径，不作为另一套任务队列。状态、剩余动作和 owner 只维护在 CURRENT_STATUS 原项。
 
-## 目录结构
+## 位置与身份
 
-建议每一轮 controller 使用一个 run 目录：
+- 新产物接续当前场景已使用的根目录：设备流程通常在 .hvigor/outputs/user-flow-audit/，既有 controller 场景在 .hermes-artifacts/。不为统一目录搬动或覆盖有效证据。
+- 按稳定设备别名/型号、折叠方向及有效尺寸分区；连接 target 单独记录。一次运行用新的 runId，已有来源 manifest/语义场景继续复用，不按每个点击复制一份。
+- 只保留与当前结论相关的实际 diff、命令、运行结果、截图/录像、布局或有界日志；不要求每个简单修改凑齐一组模板文件，不上传原始凭据、私库内容或敏感日志。
 
-```text
-.hermes-artifacts/
-  YYYYMMDD-HHMM/
-    controller-summary.md
-    lane-name/
-      prompt.md
-      worker.log
-      worker.exit
-      result.json
-      notes.md
-      diff.patch
-      review/
-        result.json
-        notes.md
-      qa/
-        result.json
-        notes.md
-        screenshots/
-        layouts/
-        recordings/
-      logs/
-```
+## 如何使用证据
 
-## 必需文件
+- 状态跳转优先语义锚点；视觉结论亲审相关完整画面，转场/滚动用连续录像，性能用相关采样。节点存在、动作注入和脚本退出码不替代实际结果。
+- 保存实际包/版本、设备状态、普通路径、失败及恢复结果；构建、安装、具名路径和最终验收分别说明。散列是否需要按当前任务和既有工具模式执行，不额外遍历产物制造工作。
+- 失败原件不改成 PASS；修复后另存新运行。恢复、资料收集或单个子步骤成功不覆盖原失败，未命中分支保持未验证。
+- 主执行者审实际证据。代理仅在用户允许的分工范围内工作，不因产物规范自行创建代理、工作树、钩子或新验证框架。
 
-每个实现/调研 worker 至少产出：
+## 保留与沟通
 
-- `result.json`：机器可读结果。
-- `notes.md`：人类可读说明。
-- `worker.log`：完整运行日志。
-- `worker.exit`：进程退出码。
-
-`result.json` 最小格式：
-
-```json
-{
-  "verdict": "PASS|FAIL|BLOCKED",
-  "summary": "一句话总结",
-  "changed_files": [],
-  "evidence": [],
-  "artifact_dir": "/absolute/path",
-  "commit": ""
-}
-```
-
-## QA / Review 规则
-
-- controller 尽量不直接做完整审核，只做必要的 sanity check 和 gate 编排。
-- 代码审核、设备截图、布局 dump、截图自审等放到独立 `review/` 或 `qa/` worker。
-- UI/设备相关证据放在：
-  - `qa/screenshots/`
-  - `qa/layouts/`
-  - `qa/recordings/`
-- 长构建日志放 `logs/`，聊天只汇报状态、verdict、关键证据路径和 blocker。
-
-## 聊天汇报格式
-
-Feishu 没有输入中状态。controller 只要不是空闲等待，在继续动作前先发短状态：
-
-```text
-状态：继续推进 Koma Lane X，准备启动/回收 worker；日志写 artifact，不贴长输出。
-```
-
-完成后汇报：
-
-```text
-状态：PASS / FAIL / BLOCKED
-提交：<sha 或无>
-证据：<artifact path>
-下一步：<next lane/gate>
-```
-
-## 清理规则
-
-- `.hermes-artifacts/` 不提交 git。
-- 同一 lane 的临时散文件应合并进 lane artifact 目录。
-- 无保留价值的中间输出可删，只保留 prompt/log/result/notes/关键截图/布局/补丁。
+产物目录不提交 Git；不清掉唯一失败或已接受证据。删除自有无价值中间件前核引用，不删设备用户数据。对用户说明实际变化、结果和证据边界，不以测试数量、固定 PASS 模板或“下一步”代替推进。
