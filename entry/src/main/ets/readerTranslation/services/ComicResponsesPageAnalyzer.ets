@@ -1,0 +1,542 @@
+import { KomaTranslationSettings } from '../KomaTranslationSettings'
+// Adapted from NextE59a7a679. Koma owns configuration, credentials and files.
+import { TranslationHttpIdentity } from '../constants/TranslationHttpIdentity'
+import { DiagnosticLogger } from '../../diagnostics/DiagnosticLogger'
+import { AxiosHttpClient, AxiosTextResponse } from '../network/AxiosHttpClient'
+import { ComicPageAnalysisParser } from './ComicPageAnalysisParser'
+import {
+  ComicPageAnalysisRequest,
+  ComicPageAnalysisResult,
+  ComicPageAnalyzer,
+  ComicPageAnalyzerCapabilities,
+} from './ComicPageAnalyzer'
+import { ComicResponsesProtocol } from './ComicResponsesProtocol'
+import { ComicResponsesImagePayload } from './ComicResponsesImagePayload'
+
+const COMIC_RESPONSES_PROMPT_VERSION: string = 'comic-page-responses-v3'
+const COMIC_RESPONSES_MAX_RESPONSE_BYTES: number = 8 * 1024 * 1024
+const COMIC_RESPONSES_CONNECT_TIMEOUT_MS: number = 20000
+const COMIC_RESPONSES_READ_TIMEOUT_MS: number = 120000
+export const CODEX_RESPONSES_BASE_URL: string = 'https://chatgpt.com/backend-api/codex'
+const CODEX_RESPONSES_ORIGINATOR: string = 'codex_cli_rs'
+const CODEX_RESPONSES_USER_AGENT: string = 'codex_cli_rs/0.0.0 (NextE experimental)'
+
+interface ResponsesInputText {
+  type: string
+  text: string
+}
+
+interface ResponsesInputImage {
+  type: string
+  image_url: string
+  detail: string
+}
+
+type ResponsesInputContent = ResponsesInputText | ResponsesInputImage
+
+class ResponsesInputMessage {
+  role: string = 'user'
+  content: ResponsesInputContent[] = []
+}
+
+export class ComicResponsesLabeledImage {
+  label: string = ''
+  imageDataUrl: string = ''
+}
+
+class PublicResponsesRequestBody {
+  model: string = ''
+  input: ResponsesInputMessage[] = []
+  stream: boolean = false
+  store: boolean = false
+  max_output_tokens: number = 8192
+}
+
+class ResponsesReasoning {
+  effort: string = ''
+}
+
+class PublicResponsesRequestBodyWithReasoning extends PublicResponsesRequestBody {
+  reasoning: ResponsesReasoning = new ResponsesReasoning()
+}
+
+class CodexResponsesReasoning {
+  effort: string = ''
+}
+
+class CodexResponsesRequestBody {
+  model: string = ''
+  instructions: string = ''
+  input: ResponsesInputMessage[] = []
+  tool_choice: string = 'auto'
+  parallel_tool_calls: boolean = false
+  store: boolean = false
+  stream: boolean = true
+  include: string[] = []
+}
+
+class CodexResponsesRequestBodyWithReasoning extends CodexResponsesRequestBody {
+  reasoning: CodexResponsesReasoning = new CodexResponsesReasoning()
+}
+
+export class ComicResponsesRequestBuilder {
+  static build(
+    model: string,
+    prompt: string,
+    imageDataUrl: string,
+    eventStream: boolean,
+    codexCompatibility: boolean,
+    additionalImages: ComicResponsesLabeledImage[] = [],
+    reasoningEffort: string = '',
+  ): string {
+    const message: ResponsesInputMessage = new ResponsesInputMessage()
+    const promptItem: ResponsesInputText = {
+      type: 'input_text',
+      text: prompt,
+    }
+    message.content = [promptItem]
+    if (imageDataUrl.length > 0) {
+      if (!imageDataUrl.startsWith('data:image/')) {
+        throw new Error('Comic provider image is invalid')
+      }
+      const imageItem: ResponsesInputImage = {
+        type: 'input_image',
+        image_url: imageDataUrl,
+        detail: 'high',
+      }
+      message.content.push(imageItem)
+    }
+    if (imageDataUrl.length === 0 && additionalImages.length > 0) {
+      throw new Error('Comic provider additional images require a full-page image')
+    }
+    for (let index: number = 0; index < additionalImages.length; index++) {
+      const additional: ComicResponsesLabeledImage = additionalImages[index]
+      if (additional.label.trim().length <= 0 ||
+        !additional.imageDataUrl.startsWith('data:image/')) {
+        throw new Error('Comic provider labeled image is invalid')
+      }
+      message.content.push({ type: 'input_text', text: additional.label })
+      message.content.push({
+        type: 'input_image',
+        image_url: additional.imageDataUrl,
+        detail: 'high',
+      })
+    }
+    if (codexCompatibility) {
+      if (reasoningEffort.length === 0) {
+        const body: CodexResponsesRequestBody = new CodexResponsesRequestBody()
+        body.model = model
+        body.input = [message]
+        return JSON.stringify(body)
+      }
+      const body: CodexResponsesRequestBodyWithReasoning = new CodexResponsesRequestBodyWithReasoning()
+      body.model = model
+      body.input = [message]
+      body.reasoning.effort = reasoningEffort
+      return JSON.stringify(body)
+    }
+    if (reasoningEffort.length === 0) {
+      const body: PublicResponsesRequestBody = new PublicResponsesRequestBody()
+      body.model = model
+      body.stream = eventStream
+      body.input = [message]
+      return JSON.stringify(body)
+    }
+    const body: PublicResponsesRequestBodyWithReasoning = new PublicResponsesRequestBodyWithReasoning()
+    body.model = model
+    body.stream = eventStream
+    body.input = [message]
+    body.reasoning.effort = reasoningEffort
+    return JSON.stringify(body)
+  }
+}
+
+export interface ComicResponsesHttpTransport {
+  requestText(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    body: string,
+    connectTimeoutMs: number,
+    readTimeoutMs: number,
+  ): Promise<AxiosTextResponse>
+}
+
+export class DefaultComicResponsesHttpTransport implements ComicResponsesHttpTransport {
+  private readonly configurationRevision: number
+  constructor(configurationRevision: number = -1) { this.configurationRevision = configurationRevision }
+
+  requestText(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    body: string,
+    connectTimeoutMs: number,
+    readTimeoutMs: number,
+  ): Promise<AxiosTextResponse> {
+    KomaTranslationSettings.assertRevision(this.configurationRevision)
+    return AxiosHttpClient.requestText(
+      url,
+      method,
+      headers,
+      body,
+      connectTimeoutMs,
+      readTimeoutMs,
+      COMIC_RESPONSES_MAX_RESPONSE_BYTES,
+    )
+  }
+}
+
+export class ComicProviderHttpError extends Error {
+  readonly statusCode: number
+  readonly detailCode: string
+
+  constructor(statusCode: number, responseBody: string = '') {
+    super('Comic provider request failed (HTTP ' + statusCode + ')')
+    this.statusCode = statusCode
+    this.detailCode = ComicProviderHttpError.classifyResponse(responseBody)
+  }
+
+  static classifyResponse(responseBody: string): string {
+    const normalized: string = responseBody.toLowerCase()
+    const fields: string[] = [
+      'max_output_tokens',
+      'instructions',
+      'tools',
+      'tool_choice',
+      'parallel_tool_calls',
+      'reasoning',
+      'include',
+      'store',
+      'stream',
+      'input',
+      'image_url',
+      'model',
+      'text',
+      'prompt_cache_key',
+    ]
+    let category: string = ''
+    if (normalized.includes('unsupported') || normalized.includes('unrecognized') ||
+      normalized.includes('unknown field') || normalized.includes('not permitted') ||
+      normalized.includes('extra_forbidden')) {
+      category = 'unsupported'
+    } else if (normalized.includes('missing') || normalized.includes('required')) {
+      category = 'missing'
+    } else if (normalized.includes('invalid') || normalized.includes('expected')) {
+      category = 'invalid'
+    }
+    if (category.length === 0) {
+      return ''
+    }
+    for (let index: number = 0; index < fields.length; index++) {
+      if (normalized.includes(fields[index])) {
+        return category + '_' + fields[index]
+      }
+    }
+    return category + '_request'
+  }
+}
+
+/** A fixed, non-sensitive stage/detail pair for failures that happen around provider I/O. */
+export class ComicProviderStageError extends Error {
+  readonly stageCode: string
+  readonly detailCode: string
+
+  constructor(stageCode: string, detailCode: string) {
+    super('Comic provider ' + stageCode + ' failed (' + detailCode + ')')
+    this.stageCode = stageCode
+    this.detailCode = detailCode
+  }
+}
+
+export class ComicResponsesCallConfig {
+  providerId: string = ''
+  baseUrl: string = ''
+  model: string = ''
+  accessToken: string = ''
+  accountId: string = ''
+  eventStream: boolean = false
+  codexCompatibility: boolean = false
+  reasoningEffort: string = ''
+}
+
+export class ComicResponsesProviderCore {
+  private readonly transport: ComicResponsesHttpTransport
+
+  constructor(transport: ComicResponsesHttpTransport) {
+    this.transport = transport
+  }
+
+  async analyze(
+    request: ComicPageAnalysisRequest,
+    config: ComicResponsesCallConfig,
+  ): Promise<ComicPageAnalysisResult> {
+    ComicPageAnalysisParser.validateRequest(request)
+    ComicPageAnalysisParser.validateAnalyzerIdentity(
+      config.providerId,
+      config.model,
+      COMIC_RESPONSES_PROMPT_VERSION,
+    )
+    if (config.accessToken.length === 0) {
+      throw new Error('Comic translation provider credential is missing')
+    }
+    if (config.model.length === 0) {
+      throw new Error('Comic translation provider model is missing')
+    }
+    const prompt: string = ComicResponsesProtocol.buildPrompt(request)
+    const imageDataUrl: string = ComicResponsesImagePayload.dataUrl(
+      request.imageFilePath,
+      request.imageHash,
+      request.imagePreparationProfile.mimeType,
+    )
+    const providerJson: string = await this.requestJson(prompt, imageDataUrl, config)
+    try {
+      return ComicPageAnalysisParser.parse(
+        request,
+        providerJson,
+        config.providerId,
+        config.model,
+        COMIC_RESPONSES_PROMPT_VERSION,
+      )
+    } catch (error) {
+      throw ComicResponsesProviderCore.stageError('output', error as Error)
+    }
+  }
+
+  async requestJson(
+    prompt: string,
+    imageDataUrl: string,
+    config: ComicResponsesCallConfig,
+    additionalImages: ComicResponsesLabeledImage[] = [],
+  ): Promise<string> {
+    if (config.accessToken.length === 0) {
+      throw new Error('Comic translation provider credential is missing')
+    }
+    if (config.model.length === 0) {
+      throw new Error('Comic translation provider model is missing')
+    }
+    const requestBody: string = ComicResponsesRequestBuilder.build(
+      config.model,
+      prompt,
+      imageDataUrl,
+      config.eventStream,
+      config.codexCompatibility,
+      additionalImages,
+      config.reasoningEffort,
+    )
+    let response: AxiosTextResponse
+    try {
+      response = await this.transport.requestText(
+        ComicResponsesProviderCore.responsesUrl(config.baseUrl),
+        'POST',
+        ComicResponsesProviderCore.headers(config),
+        requestBody,
+        COMIC_RESPONSES_CONNECT_TIMEOUT_MS,
+        COMIC_RESPONSES_READ_TIMEOUT_MS,
+      )
+    } catch (error) {
+      const failure: Error = error as Error
+      DiagnosticLogger.warn(
+        'comic-translation',
+        'provider_transport_exception',
+        `name=${failure.name} message=${failure.message}`,
+      )
+      throw ComicResponsesProviderCore.stageError('transport', failure)
+    }
+    if (response.statusCode !== 200) {
+      throw new ComicProviderHttpError(response.statusCode, response.body)
+    }
+    try {
+      return ComicResponsesProtocol.extractAssistantJson(
+        response.body,
+        config.eventStream,
+      )
+    } catch (error) {
+      throw ComicResponsesProviderCore.stageError('protocol', error as Error)
+    }
+  }
+
+  static capabilities(): ComicPageAnalyzerCapabilities {
+    const capabilities: ComicPageAnalyzerCapabilities = new ComicPageAnalyzerCapabilities()
+    capabilities.transcript = true
+    capabilities.readingOrder = true
+    capabilities.geometry = false
+    capabilities.speakerAssociation = false
+    capabilities.mask = false
+    capabilities.contextAwareTranslation = true
+    return capabilities
+  }
+
+  private static headers(config: ComicResponsesCallConfig): Record<string, string> {
+    if (config.codexCompatibility) {
+      if (config.accountId.length > 0) {
+        return {
+          'User-Agent': CODEX_RESPONSES_USER_AGENT,
+          'Accept': 'text/event-stream',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + config.accessToken,
+          'originator': CODEX_RESPONSES_ORIGINATOR,
+          'ChatGPT-Account-ID': config.accountId,
+        }
+      }
+      return {
+        'User-Agent': CODEX_RESPONSES_USER_AGENT,
+        'Accept': 'text/event-stream',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + config.accessToken,
+        'originator': CODEX_RESPONSES_ORIGINATOR,
+      }
+    }
+    return {
+      'User-Agent': TranslationHttpIdentity.USER_AGENT,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + config.accessToken,
+    }
+  }
+
+  private static responsesUrl(baseUrl: string): string {
+    const normalized: string = baseUrl.trim().replace(/\/+$/, '')
+    if (normalized.length === 0) {
+      throw new Error('Comic provider base URL is missing')
+    }
+    if (!normalized.toLowerCase().startsWith('https://')) {
+      throw new Error('Comic provider base URL must use HTTPS')
+    }
+    if (normalized.endsWith('/responses')) {
+      return normalized
+    }
+    if (normalized.endsWith('/v1') || normalized.endsWith('/codex')) {
+      return normalized + '/responses'
+    }
+    return normalized + '/v1/responses'
+  }
+
+  static stageError(stageCode: string, error: Error): ComicProviderStageError {
+    const message: string = error.message.toLowerCase()
+    if (stageCode === 'transport') {
+      if (message.includes('timeout')) {
+        return new ComicProviderStageError(stageCode, 'timeout')
+      }
+      if (message.includes('certificate') || message.includes('tls')) {
+        return new ComicProviderStageError(stageCode, 'tls')
+      }
+      if (message.includes('dns')) {
+        return new ComicProviderStageError(stageCode, 'dns')
+      }
+      if (message.includes('socket') || message.includes('connection') ||
+        message.includes('network')) {
+        return new ComicProviderStageError(stageCode, 'connection')
+      }
+      return new ComicProviderStageError(stageCode, 'request_exception')
+    }
+    if (stageCode === 'protocol') {
+      if (message.includes('response size')) {
+        return new ComicProviderStageError(stageCode, 'response_size')
+      }
+      if (message.includes('stream failed')) {
+        return new ComicProviderStageError(stageCode, 'stream_failed')
+      }
+      if (message.includes('empty output') || message.includes('no output') ||
+        message.includes('no json')) {
+        return new ComicProviderStageError(stageCode, 'output_missing')
+      }
+      if (message.includes('json')) {
+        return new ComicProviderStageError(stageCode, 'invalid_json')
+      }
+      return new ComicProviderStageError(stageCode, 'invalid_response')
+    }
+    if (message.includes('project identity')) {
+      return new ComicProviderStageError(stageCode, 'identity_project')
+    }
+    if (message.includes('page identity')) {
+      return new ComicProviderStageError(stageCode, 'identity_page')
+    }
+    if (message.includes('image identity')) {
+      return new ComicProviderStageError(stageCode, 'identity_image')
+    }
+    if (message.includes('image width') || message.includes('image height')) {
+      return new ComicProviderStageError(stageCode, 'identity_dimensions')
+    }
+    if (message.includes('schema')) {
+      return new ComicProviderStageError(stageCode, 'schema')
+    }
+    if (message.includes('hastext')) {
+      return new ComicProviderStageError(stageCode, 'has_text')
+    }
+    if (message.includes('reading order')) {
+      return new ComicProviderStageError(stageCode, 'reading_order')
+    }
+    if (message.includes('quality signal')) {
+      return new ComicProviderStageError(stageCode, 'quality_signal')
+    }
+    if (message.includes('polygon')) {
+      return new ComicProviderStageError(stageCode, 'geometry')
+    }
+    if (message.includes('text kind')) {
+      return new ComicProviderStageError(stageCode, 'text_kind')
+    }
+    if (message.includes('source origin')) {
+      return new ComicProviderStageError(stageCode, 'source_origin')
+    }
+    if (message.includes('translation origin')) {
+      return new ComicProviderStageError(stageCode, 'translation_origin')
+    }
+    if (message.includes('confidence')) {
+      return new ComicProviderStageError(stageCode, 'confidence')
+    }
+    if (message.includes('block')) {
+      return new ComicProviderStageError(stageCode, 'block')
+    }
+    if (message.includes('payload size')) {
+      return new ComicProviderStageError(stageCode, 'payload_size')
+    }
+    return new ComicProviderStageError(stageCode, 'invalid_document')
+  }
+}
+
+export class OpenAiApiComicPageAnalyzer implements ComicPageAnalyzer {
+  private readonly config: ComicResponsesCallConfig
+  private readonly core: ComicResponsesProviderCore
+
+  constructor(
+    baseUrl: string,
+    apiKey: string,
+    model: string,
+    transport: ComicResponsesHttpTransport = new DefaultComicResponsesHttpTransport(),
+    providerId: string = 'openai-responses-api',
+    reasoningEffort: string = '',
+  ) {
+    this.config = new ComicResponsesCallConfig()
+    this.config.providerId = providerId
+    this.config.baseUrl = baseUrl
+    this.config.accessToken = apiKey
+    this.config.model = model
+    this.config.reasoningEffort = reasoningEffort
+    this.core = new ComicResponsesProviderCore(transport)
+  }
+
+  providerId(): string {
+    return this.config.providerId
+  }
+
+  modelId(): string {
+    return this.config.model
+  }
+
+  analysisPromptVersion(): string {
+    return COMIC_RESPONSES_PROMPT_VERSION
+  }
+
+  contextFingerprint(request: ComicPageAnalysisRequest): string {
+    return ComicResponsesProtocol.contextFingerprint(request)
+  }
+
+  capabilities(): ComicPageAnalyzerCapabilities {
+    return ComicResponsesProviderCore.capabilities()
+  }
+
+  analyze(request: ComicPageAnalysisRequest): Promise<ComicPageAnalysisResult> {
+    return this.core.analyze(request, this.config)
+  }
+}

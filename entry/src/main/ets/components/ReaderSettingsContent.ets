@@ -1,3 +1,4 @@
+import { KomaTranslationSettingsContent } from './KomaTranslationSettingsContent'
 import { common } from '@kit.AbilityKit'
 import { ReaderSuperResolutionModelService } from '../model/ReaderSuperResolutionModelService'
 import { ReaderSuperResolutionModelDefinition } from '../model/ReaderSuperResolutionModelRegistry'
@@ -51,6 +52,7 @@ export struct ReaderSettingsContent {
   @Param seriesOverrideActive: boolean = false
   @Param cropControlsAvailable: boolean = false
   @Param enhancementControlsAvailable: boolean = false
+  @Local private translationSettingsShown: boolean = false
   @Local private enhancementModels: ReaderSuperResolutionModelDefinition[] = []
   @Local private installedEnhancementModels: string[] = []
   @Local private installingEnhancementModel: string = ''
@@ -421,6 +423,9 @@ export struct ReaderSettingsContent {
   }
 
   build() {
+    if (this.translationSettingsShown) {
+      KomaTranslationSettingsContent({ onClose: (): void => { this.translationSettingsShown = false } })
+    } else {
     KomaModalScaffold({
       title: s('settings_pane_reader_title'),
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
@@ -473,6 +478,9 @@ export struct ReaderSettingsContent {
               trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.installingEnhancementModel.length === 0,
               dropdownMenuBuilder: (select: (action: () => void) => void) => { this.EnhancementModelMenu(select) } })
             ListDivider()
+            ConciseListRow({ title: s('comic_translation_settings_title'),
+              action: (): void => { this.translationSettingsShown = true } })
+            ListDivider()
           }
           ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
           ListDivider()
@@ -498,6 +506,7 @@ export struct ReaderSettingsContent {
       }
       .width('100%')
       .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+    }
     }
   }
 }

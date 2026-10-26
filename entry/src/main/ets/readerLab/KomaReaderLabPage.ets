@@ -1,3 +1,7 @@
+import { util } from '@kit.ArkTS'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { KomaReaderTranslationConfiguration, KomaReaderTranslationProvider } from './KomaReaderTranslationProvider'
+import { KomaTranslationSettings, KomaTranslationSettingsSnapshot, KomaTranslationSettingsState, connectKomaTranslationSettings } from '../readerTranslation/KomaTranslationSettings'
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { Binding, FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { ReaderTitleContent } from '../components/ReaderTitleContent'
@@ -7,10 +11,10 @@ import { ReadingDirection } from '../model/ComicModels'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
-  ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout, ReaderVariantPreference, ReaderAsset, ReaderPage } from '@reader-kit/core'
+  ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout, ReaderVariantPreference, ReaderAsset, ReaderPage, ReaderPagedFrame } from '@reader-kit/core'
 import { ReaderActivitySink, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition, ReaderVariantPolicy } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition, ReaderVariantPolicy, ReaderHostStatus } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -71,6 +75,20 @@ export struct KomaReaderLabPage {
     topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: true, mediaActionsInMenu: true,
     spreadControlsLeading: true,
   }
+  @Local private translationSettings: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()
+  @Local private translationState: KomaTranslationSettingsState = connectKomaTranslationSettings()
+  @Local private translationAutoEnabled: boolean = false
+  @Local private translationCurrentIndex: number = -1
+  @Local private translationRequestedPages: number[] = []
+  @Local private translationHiddenPages: number[] = []
+  @Local private translationAutoFailedPages: number[] = []
+  @Local private translationBusyPage: number = -1
+  @Local private translationErrorPage: number = -1
+  @Local private translationRevision: number = 0
+  private translationUnit: ReaderUnitKey | null = null
+  private translationProjectId: string = ''
+  private translationSettingsGeneration: number = 0
+  private translationProvider: KomaReaderTranslationProvider | null = null
   private enhancementInteractionTimer: number = -1
   private observedCloseRequestId: number = 0
 
@@ -218,6 +236,18 @@ export struct KomaReaderLabPage {
     this.surfaceEntries = []
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
+    // A replaced entry is a new reading session, even when this component is retained.
+    this.translationAutoEnabled = false
+    this.translationRequestedPages = []
+    this.translationHiddenPages = []
+    this.translationAutoFailedPages = []
+    this.translationBusyPage = -1
+    this.translationErrorPage = -1
+    this.translationCurrentIndex = -1
+    this.translationUnit = null
+    this.translationProjectId = ''
+    this.translationRevision += 1
+    void this.reloadTranslationSettings()
     try {
       const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry,
         (): string => this.hostPreferences?.cropStrength ?? 'standard')
@@ -231,7 +261,12 @@ export struct KomaReaderLabPage {
         (): string => this.hostPreferences?.cropStrength ?? 'standard',
         undefined, (page: ReaderPage, cancellation: ReaderCancellation): Promise<ReaderAsset> =>
           adapter.load(page, 'original', cancellation, false))
-      const session = new ReaderPagedSession(adapter, enhancement, adapter, adapter)
+      const translation = new KomaReaderTranslationProvider(context, enhancement,
+        (page: ReaderPage): KomaReaderTranslationConfiguration => this.translationConfiguration(page),
+        (): string => this.hostPreferences?.cropStrength ?? 'standard', undefined,
+        (page: ReaderPage, cancellation: ReaderCancellation): Promise<ReaderAsset> => adapter.load(page, 'original', cancellation, false))
+      this.translationProvider = translation
+      const session = new ReaderPagedSession(adapter, translation, adapter, adapter)
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
         this.keepScreenOn = new ReaderKeepScreenOn(context)
@@ -299,6 +334,8 @@ export struct KomaReaderLabPage {
 
   aboutToDisappear(): void {
     this.releaseEnhancementInteraction()
+    this.translationAutoEnabled = false
+    this.translationSettingsGeneration += 1
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
@@ -330,6 +367,8 @@ export struct KomaReaderLabPage {
 
   private closeReader(): void {
     this.releaseEnhancementInteraction()
+    this.translationAutoEnabled = false
+    this.translationSettingsGeneration += 1
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
@@ -527,6 +566,7 @@ export struct KomaReaderLabPage {
       if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
       this.observedCatalogUnit = position.anchor.unit.copy()
     }
+    this.observeTranslationPosition(position)
     this.observedSourceSignature = signature
     if (!this.request.progressReadWrite) return
     this.persistObserved(position, snapshot.policy.firstPageAlone ? 'even_left' : 'odd_left')
@@ -603,6 +643,189 @@ export struct KomaReaderLabPage {
     this.readerSettingsSheetShown = false
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
+  }
+
+  @Monitor('translationState.revision')
+  private translationSettingsChanged(): void {
+    if (!this.readerClosed && this.translationState.revision !== this.translationSettings.revision) {
+      void this.reloadTranslationSettings()
+    }
+  }
+
+  private async reloadTranslationSettings(): Promise<void> {
+    const generation = ++this.translationSettingsGeneration
+    try {
+      const settings = await KomaTranslationSettings.load(this.getUIContext().getHostContext() as common.UIAbilityContext)
+      if (this.readerClosed || generation !== this.translationSettingsGeneration) return
+      this.translationSettings = settings
+      this.translationRequestedPages = []
+      this.translationHiddenPages = []
+      this.translationAutoFailedPages = []
+      this.translationBusyPage = -1
+      this.translationErrorPage = -1
+      if (!settings.configured()) this.translationAutoEnabled = false
+      this.translationRevision += 1
+    } catch (_error) {
+      // An optional feature's unavailable secure storage must not prevent original-image reading.
+      DiagnosticLogger.warn('reader', 'translation_configuration_unavailable', 'configuration_read_failed')
+    }
+  }
+
+  private observeTranslationPosition(position: ReaderObservedPosition): void {
+    const unit = position.anchor.unit
+    if (this.translationUnit?.equals(unit) !== true) {
+      this.translationUnit = unit.copy()
+      const digest = cryptoFramework.createMd('SHA256')
+      digest.updateSync({ data: new util.TextEncoder().encodeInto(JSON.stringify([unit.scope, unit.work, unit.unit])) })
+      this.translationProjectId = 'koma:' + Array.from(digest.digestSync().data)
+        .map((value: number): string => value.toString(16).padStart(2, '0')).join('')
+      this.translationRequestedPages = []
+      this.translationHiddenPages = []
+      this.translationAutoFailedPages = []
+      this.translationBusyPage = -1
+      this.translationErrorPage = -1
+    }
+    this.translationCurrentIndex = position.anchor.sourceIndexHint
+    if (this.translationAutoEnabled && !this.translationAutoFailedPages.includes(this.translationCurrentIndex) &&
+      !this.translationHiddenPages.includes(this.translationCurrentIndex) &&
+      this.translationFrame(this.translationCurrentIndex)?.asset.variant !== 'translated') {
+      this.translationBusyPage = this.translationCurrentIndex
+    }
+    this.translationRevision += 1
+  }
+
+  private translationConfiguration(page: ReaderPage): KomaReaderTranslationConfiguration {
+    const settings = this.translationSettings
+    return new KomaReaderTranslationConfiguration(this.request.preferencesReadWrite && settings.configured() &&
+      settings.revision === this.translationState.revision &&
+      this.translationUnit?.equals(page.unit) === true, this.translationProjectId,
+      settings.targetLanguage, settings.sourceLanguage, settings.revision)
+  }
+
+  private translationFrame(sourceIndex: number): ReaderPagedFrame | undefined {
+    return this.session?.snapshot().frames.find((frame: ReaderPagedFrame): boolean => frame.part.sourceIndex === sourceIndex)
+  }
+
+  private enhancementPreference(): ReaderVariantPreference {
+    const enhancement = this.superResolutionConfiguration()
+    return enhancement.enabled && enhancement.model !== 'none'
+      ? new ReaderVariantPreference('enhanced', enhancement.identity()) : new ReaderVariantPreference()
+  }
+
+  private translationPreference(page: ReaderPage, automatic: boolean): ReaderVariantPreference {
+    const index = page.sourceIndex
+    const requested = this.translationRequestedPages.includes(index) ||
+      (this.translationAutoEnabled && automatic && !this.translationAutoFailedPages.includes(index))
+    const identity = this.translationConfiguration(page).identity()
+    return requested && !this.translationHiddenPages.includes(index) && identity.length > 0
+      ? new ReaderVariantPreference('translated', identity) : this.enhancementPreference()
+  }
+
+  private variantPreference(index: number): ReaderVariantPreference {
+    const state = this.session?.snapshot()
+    const page = this.translationFrame(index)?.asset.page ?? state?.pageMetadata.find(
+      (value: ReaderPage): boolean => value.sourceIndex === index)
+    return page === undefined || page === null ? this.enhancementPreference() :
+      this.translationPreference(page, index === this.translationCurrentIndex)
+  }
+
+  private translationPolicy(): ReaderVariantPolicy {
+    // The default reader keeps the original cheap enhancement-only policy.
+    // Configuring a service alone must not scan page metadata or request processing.
+    if (!this.translationSettings.configured() || (!this.translationAutoEnabled &&
+      this.translationRequestedPages.length === 0 && this.translationHiddenPages.length === 0)) {
+      return new ReaderVariantPolicy(this.enhancementPreference())
+    }
+    const unit = this.translationUnit?.copy() ?? null
+    const settingsRevision = this.translationSettings.revision
+    return new ReaderVariantPolicy(this.enhancementPreference(), this.translationRevision,
+      (index: number): ReaderVariantPreference => this.variantPreference(index),
+      (index: number, preference: ReaderVariantPreference, result: 'changed' | 'unchanged' | 'unavailable' | 'stale'): void => {
+        if (preference.variant !== 'translated' || unit === null || this.translationUnit?.equals(unit) !== true ||
+          this.translationSettings.revision !== settingsRevision || this.readerClosed || result === 'stale') return
+        if (this.translationBusyPage === index) this.translationBusyPage = -1
+        if (result === 'changed' || result === 'unchanged') {
+          if (!this.translationRequestedPages.includes(index)) this.translationRequestedPages = this.translationRequestedPages.concat([index])
+          if (this.translationErrorPage === index) this.translationErrorPage = -1
+        } else {
+          this.translationRequestedPages = this.translationRequestedPages.filter((value: number): boolean => value !== index)
+          if (this.translationAutoEnabled && !this.translationAutoFailedPages.includes(index)) {
+            this.translationAutoFailedPages = this.translationAutoFailedPages.concat([index])
+          }
+          if (index === this.translationCurrentIndex) this.translationErrorPage = index
+          this.translationRevision += 1
+        }
+      }, (page: ReaderPage, automatic: boolean): ReaderVariantPreference => this.translationPreference(page, automatic),
+      this.translationAutoEnabled)
+  }
+
+  private translationActions(): ReaderHostAction[] {
+    const index = this.translationCurrentIndex
+    if (index < 0 || !this.request.preferencesReadWrite) return []
+    const translated = this.translationFrame(index)?.asset.variant === 'translated' && !this.translationHiddenPages.includes(index)
+    return [new ReaderHostAction('translate-page', AppStrings.get('reader_comic_translation_action'), index >= 0,
+      false, this.translationBusyPage === index),
+      new ReaderHostAction('translate-auto', AppStrings.get('reader_comic_translation_auto'), index >= 0, this.translationAutoEnabled),
+      new ReaderHostAction('translate-original', AppStrings.get('reader_comic_translation_show_original'), index >= 0 && translated)]
+  }
+
+  private translationTargetCurrent(source: ReaderUnitKey, navigation: number, index: number): boolean {
+    const state = this.session?.snapshot()
+    return !this.readerClosed && this.routeActive && this.labVisibility.foreground && state?.phase === 'ready' &&
+      state.unit?.key.equals(source) === true && state.navigationRevision === navigation && state.anchor?.sourceIndexHint === index
+  }
+
+  private handleHostAction(id: string, source: ReaderUnitKey, navigation: number, index: number): void {
+    if (!id.startsWith('translate-')) { this.hostActionDispatch.request(id, source, navigation, index); return }
+    if (!this.translationTargetCurrent(source, navigation, index)) return
+    if (id === 'translate-original') {
+      if (!this.translationHiddenPages.includes(index)) this.translationHiddenPages = this.translationHiddenPages.concat([index])
+      this.translationRequestedPages = this.translationRequestedPages.filter((value: number): boolean => value !== index)
+      this.translationErrorPage = -1
+      this.translationRevision += 1
+      return
+    }
+    if (id === 'translate-auto' && this.translationAutoEnabled) {
+      this.translationAutoEnabled = false; this.translationRevision += 1; return
+    }
+    if (!this.translationSettings.configured()) {
+      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('reader_comic_translation_provider_unavailable') })
+      return
+    }
+    if (id === 'translate-auto') {
+      const revision = this.translationSettings.revision
+      this.getUIContext().showAlertDialog({ title: AppStrings.get('reader_comic_translation_auto'),
+        message: AppStrings.get('reader_comic_translation_auto_confirm'),
+        primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
+        secondaryButton: { value: AppStrings.get('common_on'), action: (): void => {
+          if (!this.translationTargetCurrent(source, navigation, index) || this.translationSettings.revision !== revision) return
+          this.translationAutoFailedPages = []
+          this.translationHiddenPages = this.translationHiddenPages.filter((value: number): boolean => value !== index)
+          if (this.translationFrame(index)?.asset.variant !== 'translated') this.translationBusyPage = index
+          this.translationAutoEnabled = true; this.translationRevision += 1
+        } } })
+      return
+    }
+    if (id !== 'translate-page' || this.translationBusyPage === index) return
+    this.translationHiddenPages = this.translationHiddenPages.filter((value: number): boolean => value !== index)
+    this.translationAutoFailedPages = this.translationAutoFailedPages.filter((value: number): boolean => value !== index)
+    if (!this.translationRequestedPages.includes(index)) this.translationRequestedPages = this.translationRequestedPages.concat([index])
+    this.translationBusyPage = index
+    this.translationErrorPage = -1
+    this.translationRevision += 1
+  }
+
+  private translationStatus(): ReaderHostStatus | null {
+    const index = this.translationCurrentIndex
+    if (index < 0) return null
+    if (this.translationBusyPage === index) return new ReaderHostStatus(AppStrings.get('reader_comic_translation_running'), true)
+    if (this.translationErrorPage !== index) return null
+    const code = this.translationProvider?.lastFailureCode(index) ?? ''
+    const key = code === 'provider_configuration' ? 'reader_comic_translation_provider_unavailable' :
+      code === 'local_visual_unavailable' ? 'reader_comic_translation_local_visual_unavailable' :
+      code === 'no_translatable_text' ? 'reader_comic_translation_no_translatable_text' : ''
+    return new ReaderHostStatus(key.length > 0 ? AppStrings.get(key) :
+      AppStrings.get('reader_comic_translation_failed').replace('%s', code || 'unavailable'))
   }
 
   /** Processing follows the store's published runtime snapshot, never an uncommitted sheet draft. */
@@ -806,15 +1029,17 @@ export struct KomaReaderLabPage {
                 preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
                 activitySink: new ReaderActivitySink(null,
                   (busy: boolean): void => { this.setEnhancementInteractionBusy(busy) }),
-                variantPolicy: new ReaderVariantPolicy(new ReaderVariantPreference(
-                  this.readerMode.superResolutionEnabled && this.readerMode.superResolutionModel !== 'none'
-                    ? 'enhanced' : 'default', this.superResolutionConfiguration().identity())),
+                variantPolicy: this.translationPolicy(),
                 cropPolicy: new ReaderCropPolicy(
                   this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true,
                   this.hostPreferences?.cropStrength ?? this.readerMode.cropStrength),
                 hostSettings: this.request.preferencesReadWrite
                   ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
-                hostActions: this.hostActionDispatch,
+                hostActions: new ReaderHostActions(this.hostActionDispatch.items().concat(this.translationActions()),
+                  (id: string, source: ReaderUnitKey, navigation: number, index: number): void => {
+                    this.handleHostAction(id, source, navigation, index)
+                  }),
+                hostStatus: this.translationStatus(),
                 active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
                   !this.chapterPickerShown,
                 centerAction: this.chapterChoices.length > 0

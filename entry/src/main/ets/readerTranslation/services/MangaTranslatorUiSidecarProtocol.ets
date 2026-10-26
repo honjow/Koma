@@ -1,0 +1,735 @@
+// Adapted from NextE59a7a679. Koma owns configuration, credentials and files.
+import { util } from '@kit.ArkTS'
+import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import {
+  ComicAnalysisState,
+  ComicPageDocument,
+  ComicPoint,
+  ComicSourceOrigin,
+  ComicTextBlock,
+  ComicTextKind,
+  ComicTranslationState,
+} from '../model/ComicTranslation'
+import {
+  ComicBackendTemplate,
+  ComicRegionAnalysisResult,
+  ComicTranslationBatch,
+} from '../model/ComicVisualTranslation'
+import { ComicRegionAnalysisRequest } from './ComicVisualTranslationBackend'
+import { ComicVisualTranslationContract } from './ComicVisualTranslationContract'
+
+export const MANGA_TRANSLATOR_UI_BACKEND_ID: string = 'manga-translator-ui'
+export const MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL: string = 'high_recall'
+export const MANGA_TRANSLATOR_UI_DETECTION_BALANCED: string = 'balanced'
+export const MANGA_TRANSLATOR_UI_INPAINTER_QUALITY: string = 'quality'
+export const MANGA_TRANSLATOR_UI_INPAINTER_FAST: string = 'fast'
+export const MANGA_TRANSLATOR_UI_PROFILE_ID: string =
+  'manga-translator-ui-v1.9.9-nexte-load-text-v2-recall-v2-geometry-v2'
+export const MANGA_TRANSLATOR_UI_NON_JAPANESE_PROFILE_ID: string =
+  'manga-translator-ui-v1.9.9-nexte-load-text-v2-non-japanese-v1-geometry-v2'
+export const MANGA_TRANSLATOR_UI_PROTOCOL_REVISION: number = 5
+export const MANGA_TRANSLATOR_UI_UPSTREAM_TAG: string = 'v1.9.9'
+export const MANGA_TRANSLATOR_UI_UPSTREAM_COMMIT: string =
+  '696dc63bd0b4803f96cc3d4f844322cef4910f8e'
+export const MANGA_TRANSLATOR_UI_EXPORT_PATH: string = '/translate/export/original'
+export const MANGA_TRANSLATOR_UI_IMPORT_PATH: string =
+  '/translate/import/json/nexte-load-text-v2'
+export const MANGA_TRANSLATOR_UI_AUTH_LOGIN_PATH: string = '/auth/login'
+export const MANGA_TRANSLATOR_UI_AUTH_CHECK_PATH: string = '/auth/check'
+export const MANGA_TRANSLATOR_UI_EXPORT_JSON_ENTRY: string = 'translation.json'
+export const MANGA_TRANSLATOR_UI_EXPORT_TEXT_ENTRY: string = 'original.txt'
+/**
+ * Keeps the sidecar visual-only: OCR text is copied through, then NextE's selected LLM translates it.
+ * The detector values pin the upstream v1.9.9 example's recall profile instead of inheriting the
+ * stricter Pydantic defaults. Hybrid OCR retries empty/low-confidence 48px lines with MangaOCR.
+ */
+export const MANGA_TRANSLATOR_UI_VISUAL_ONLY_CONFIG_JSON: string =
+  '{"translator":{"translator":"original","target_lang":"CHS"},' +
+    '"detector":{"detector":"default","detection_size":2048,"text_threshold":0.5,' +
+    '"det_rotate":false,"det_auto_rotate":false,"det_invert":false,' +
+    '"det_gamma_correct":false,"box_threshold":0.5,"unclip_ratio":2.5,' +
+    '"use_yolo_obb":true,"yolo_obb_conf":0.4,"yolo_obb_iou":0.6,' +
+    '"yolo_obb_overlap_threshold":0.1,"min_box_area_ratio":0},' +
+    '"ocr":{"ocr":"48px","use_hybrid_ocr":true,"secondary_ocr":"mocr",' +
+    '"min_text_length":0,"ignore_bubble":0,"prob":0.1}}'
+export const MANGA_TRANSLATOR_UI_NON_JAPANESE_CONFIG_JSON: string =
+  '{"translator":{"translator":"original","target_lang":"CHS"},' +
+    '"detector":{"detector":"default","detection_size":2048,"text_threshold":0.5,' +
+    '"det_rotate":false,"det_auto_rotate":false,"det_invert":false,' +
+    '"det_gamma_correct":false,"box_threshold":0.5,"unclip_ratio":2.5,' +
+    '"use_yolo_obb":true,"yolo_obb_conf":0.4,"yolo_obb_iou":0.6,' +
+    '"yolo_obb_overlap_threshold":0.1,"min_box_area_ratio":0},' +
+    '"ocr":{"ocr":"48px","use_hybrid_ocr":false,"secondary_ocr":"48px",' +
+    '"min_text_length":0,"ignore_bubble":0,"prob":0.1}}'
+
+/** Finite product profiles; callers cannot pass arbitrary manga-translator-ui JSON. */
+export class MangaTranslatorUiSidecarProfileCatalog {
+  static configJson(
+    sourceLanguage: string,
+    detectionProfile: string = MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL,
+    inpaintingProfile: string = MANGA_TRANSLATOR_UI_INPAINTER_QUALITY,
+  ): string {
+    MangaTranslatorUiSidecarProfileCatalog.assertOptions(
+      detectionProfile,
+      inpaintingProfile,
+    )
+    const japaneseProfile: boolean =
+      MangaTranslatorUiSidecarProfileCatalog.usesJapaneseOcr(sourceLanguage)
+    if (detectionProfile === MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL &&
+      inpaintingProfile === MANGA_TRANSLATOR_UI_INPAINTER_QUALITY) {
+      return japaneseProfile
+        ? MANGA_TRANSLATOR_UI_VISUAL_ONLY_CONFIG_JSON
+        : MANGA_TRANSLATOR_UI_NON_JAPANESE_CONFIG_JSON
+    }
+    return '{"translator":{"translator":"original","target_lang":"CHS"},' +
+      MangaTranslatorUiSidecarProfileCatalog.detectorJson(detectionProfile) + ',' +
+      MangaTranslatorUiSidecarProfileCatalog.ocrJson(japaneseProfile) +
+      MangaTranslatorUiSidecarProfileCatalog.inpainterJson(inpaintingProfile) + '}'
+  }
+
+  static profileId(
+    sourceLanguage: string,
+    detectionProfile: string = MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL,
+    inpaintingProfile: string = MANGA_TRANSLATOR_UI_INPAINTER_QUALITY,
+  ): string {
+    MangaTranslatorUiSidecarProfileCatalog.assertOptions(
+      detectionProfile,
+      inpaintingProfile,
+    )
+    let output: string = MangaTranslatorUiSidecarProfileCatalog.usesJapaneseOcr(sourceLanguage)
+      ? MANGA_TRANSLATOR_UI_PROFILE_ID
+      : MANGA_TRANSLATOR_UI_NON_JAPANESE_PROFILE_ID
+    if (detectionProfile === MANGA_TRANSLATOR_UI_DETECTION_BALANCED) {
+      output = output + '-balanced-v1'
+    }
+    if (inpaintingProfile === MANGA_TRANSLATOR_UI_INPAINTER_FAST) {
+      output = output + '-aot-v1'
+    }
+    return output
+  }
+
+  static profileIdForConfig(configJson: string): string {
+    const sourceLanguages: string[] = ['auto', 'non-japanese']
+    const detectionProfiles: string[] = [
+      MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL,
+      MANGA_TRANSLATOR_UI_DETECTION_BALANCED,
+    ]
+    const inpaintingProfiles: string[] = [
+      MANGA_TRANSLATOR_UI_INPAINTER_QUALITY,
+      MANGA_TRANSLATOR_UI_INPAINTER_FAST,
+    ]
+    for (let sourceIndex: number = 0; sourceIndex < sourceLanguages.length; sourceIndex++) {
+      for (let detectionIndex: number = 0;
+        detectionIndex < detectionProfiles.length;
+        detectionIndex++) {
+        for (let inpaintingIndex: number = 0;
+          inpaintingIndex < inpaintingProfiles.length;
+          inpaintingIndex++) {
+          if (configJson === MangaTranslatorUiSidecarProfileCatalog.configJson(
+            sourceLanguages[sourceIndex],
+            detectionProfiles[detectionIndex],
+            inpaintingProfiles[inpaintingIndex],
+          )) {
+            return MangaTranslatorUiSidecarProfileCatalog.profileId(
+              sourceLanguages[sourceIndex],
+              detectionProfiles[detectionIndex],
+              inpaintingProfiles[inpaintingIndex],
+            )
+          }
+        }
+      }
+    }
+    throw new Error('Manga translator UI config must use a pinned visual-only profile')
+  }
+
+  static supportsConfigJson(configJson: string): boolean {
+    try {
+      MangaTranslatorUiSidecarProfileCatalog.profileIdForConfig(configJson)
+      return true
+    } catch (_error) {
+      return false
+    }
+  }
+
+  static supportsProfileId(profileId: string): boolean {
+    const sourceLanguages: string[] = ['auto', 'non-japanese']
+    const detectionProfiles: string[] = [
+      MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL,
+      MANGA_TRANSLATOR_UI_DETECTION_BALANCED,
+    ]
+    const inpaintingProfiles: string[] = [
+      MANGA_TRANSLATOR_UI_INPAINTER_QUALITY,
+      MANGA_TRANSLATOR_UI_INPAINTER_FAST,
+    ]
+    for (let sourceIndex: number = 0; sourceIndex < sourceLanguages.length; sourceIndex++) {
+      for (let detectionIndex: number = 0;
+        detectionIndex < detectionProfiles.length;
+        detectionIndex++) {
+        for (let inpaintingIndex: number = 0;
+          inpaintingIndex < inpaintingProfiles.length;
+          inpaintingIndex++) {
+          if (profileId === MangaTranslatorUiSidecarProfileCatalog.profileId(
+            sourceLanguages[sourceIndex],
+            detectionProfiles[detectionIndex],
+            inpaintingProfiles[inpaintingIndex],
+          )) {
+            return true
+          }
+        }
+      }
+    }
+    return false
+  }
+
+  static assertOptions(detectionProfile: string, inpaintingProfile: string): void {
+    if ((detectionProfile !== MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL &&
+      detectionProfile !== MANGA_TRANSLATOR_UI_DETECTION_BALANCED) ||
+      (inpaintingProfile !== MANGA_TRANSLATOR_UI_INPAINTER_QUALITY &&
+        inpaintingProfile !== MANGA_TRANSLATOR_UI_INPAINTER_FAST)) {
+      throw new Error('Manga translator UI profile options are invalid')
+    }
+  }
+
+  private static usesJapaneseOcr(sourceLanguage: string): boolean {
+    const normalized: string = sourceLanguage.trim().toLowerCase()
+    return normalized === 'auto' || normalized === 'ja' || normalized === 'jp' ||
+      normalized === 'jpn' || normalized === 'japanese'
+  }
+
+  private static detectorJson(detectionProfile: string): string {
+    if (detectionProfile === MANGA_TRANSLATOR_UI_DETECTION_HIGH_RECALL) {
+      return '"detector":{"detector":"default","detection_size":2048,' +
+        '"text_threshold":0.5,"det_rotate":false,"det_auto_rotate":false,' +
+        '"det_invert":false,"det_gamma_correct":false,"box_threshold":0.5,' +
+        '"unclip_ratio":2.5,"use_yolo_obb":true,"yolo_obb_conf":0.4,' +
+        '"yolo_obb_iou":0.6,"yolo_obb_overlap_threshold":0.1,' +
+        '"min_box_area_ratio":0}'
+    }
+    return '"detector":{"detector":"default","detection_size":2048,' +
+      '"text_threshold":0.5,"det_rotate":false,"det_auto_rotate":false,' +
+      '"det_invert":false,"det_gamma_correct":false,"box_threshold":0.7,' +
+      '"unclip_ratio":2.3,"use_yolo_obb":true,"yolo_obb_conf":0.4,' +
+      '"yolo_obb_iou":0.6,"yolo_obb_overlap_threshold":0.1,' +
+      '"min_box_area_ratio":0.0009}'
+  }
+
+  private static ocrJson(japaneseProfile: boolean): string {
+    return japaneseProfile
+      ? '"ocr":{"ocr":"48px","use_hybrid_ocr":true,"secondary_ocr":"mocr",' +
+        '"min_text_length":0,"ignore_bubble":0,"prob":0.1}'
+      : '"ocr":{"ocr":"48px","use_hybrid_ocr":false,"secondary_ocr":"48px",' +
+        '"min_text_length":0,"ignore_bubble":0,"prob":0.1}'
+  }
+
+  private static inpainterJson(inpaintingProfile: string): string {
+    return inpaintingProfile === MANGA_TRANSLATOR_UI_INPAINTER_FAST
+      ? ',"inpainter":{"inpainter":"default","inpainting_size":2048}'
+      : ''
+  }
+}
+
+const MANGA_TRANSLATOR_UI_TEMPLATE_MIME: string =
+  'application/vnd.manga-translator-ui.translation+json'
+const MAX_EXPORT_JSON_BYTES: number = 4 * 1024 * 1024
+const MAX_EXPORT_TEXT_BYTES: number = 1024 * 1024
+const MAX_REGIONS: number = 512
+const MAX_LINES_PER_REGION: number = 64
+const MAX_SOURCE_TEXT_CHARS: number = 8192
+const COORDINATE_TOLERANCE: number = 1
+const LOW_SIGNAL_ASCII_CONFIDENCE_CEILING: number = 0.5
+const LOW_SIGNAL_ASCII_MAX_AREA_RATIO: number = 0.0005
+
+class RawMangaTranslatorUiRegion {
+  lines: number[][][] = []
+  texts: string[] = []
+  text: string = ''
+  translation: string = ''
+  angle: number = 0
+  font_size: number = 0
+  fg_colors: number[] = []
+  bg_colors: number[] = []
+  direction: string = ''
+  alignment: string = ''
+  target_lang: string = ''
+  source_lang: string = ''
+  line_spacing: number = 0
+  default_stroke_width: number = 0
+  adjust_bg_color: boolean = false
+  prob: number = 0
+}
+
+class RawMangaTranslatorUiPage {
+  regions: RawMangaTranslatorUiRegion[] = []
+  original_width: number = 0
+  original_height: number = 0
+  mask_raw: string | null = null
+  mask_is_refined: boolean = false
+}
+
+class RawMangaTranslatorUiEnvelope {
+  temp_image: RawMangaTranslatorUiPage | null = null
+}
+
+/**
+ * Narrow compatibility protocol for manga-translator-ui v1.9.9.
+ *
+ * The upstream JSON remains an opaque, regenerable render template. NextE only
+ * normalizes the source text and geometry needed by ComicPageDocument, then
+ * writes validated translations back to the matching region before /import/json.
+ */
+export class MangaTranslatorUiSidecarProtocol {
+  static parseExport(
+    request: ComicRegionAnalysisRequest,
+    translationJson: Uint8Array,
+    originalText: Uint8Array,
+    profileId: string = MANGA_TRANSLATOR_UI_PROFILE_ID,
+  ): ComicRegionAnalysisResult {
+    ComicVisualTranslationContract.validateRegionAnalysisRequest(request)
+    MangaTranslatorUiSidecarProtocol.validateProfileId(profileId)
+    MangaTranslatorUiSidecarProtocol.validateExportSizes(translationJson, originalText)
+    const jsonText: string = MangaTranslatorUiSidecarProtocol.decode(translationJson)
+    const envelope: RawMangaTranslatorUiEnvelope =
+      JSON.parse(jsonText) as RawMangaTranslatorUiEnvelope
+    const page: RawMangaTranslatorUiPage =
+      MangaTranslatorUiSidecarProtocol.requirePage(envelope, request)
+    MangaTranslatorUiSidecarProtocol.validateOriginalText(originalText, page.regions.length)
+    const filteredLowSignalRegions: boolean =
+      MangaTranslatorUiSidecarProtocol.filterLowSignalRegions(
+        page,
+        request.source.imageWidth,
+        request.source.imageHeight,
+      )
+
+    const document: ComicPageDocument = new ComicPageDocument()
+    document.projectId = request.source.projectId
+    document.pageIndex = request.source.pageIndex
+    document.imageHash = request.source.imageHash
+    document.imageWidth = request.source.imageWidth
+    document.imageHeight = request.source.imageHeight
+    document.imagePreparationProfile.profileId = profileId + ':source-original'
+    document.imagePreparationProfile.preparedWidth = request.source.imageWidth
+    document.imagePreparationProfile.preparedHeight = request.source.imageHeight
+    document.imagePreparationProfile.tileCount = 1
+    document.analysisRevision = request.requestedDocumentRevision
+    document.analysisState = ComicAnalysisState.READY
+    document.translationState = ComicTranslationState.MISSING
+    document.hasText = page.regions.length > 0
+
+    for (let index: number = 0; index < page.regions.length; index++) {
+      document.blocks.push(MangaTranslatorUiSidecarProtocol.normalizeRegion(
+        page.regions[index],
+        request.source.pageIndex,
+        index,
+        request.source.imageWidth,
+        request.source.imageHeight,
+        request.requestedDocumentRevision,
+      ))
+    }
+
+    const template: ComicBackendTemplate = new ComicBackendTemplate()
+    const templatePayload: Uint8Array = filteredLowSignalRegions
+      ? new util.TextEncoder().encodeInto(JSON.stringify(envelope))
+      : new Uint8Array(translationJson)
+    if (templatePayload.length <= 0 || templatePayload.length > MAX_EXPORT_JSON_BYTES) {
+      throw new Error('Manga translator UI filtered template size is invalid')
+    }
+    template.backendId = MANGA_TRANSLATOR_UI_BACKEND_ID
+    template.profileId = profileId
+    template.protocolRevision = MANGA_TRANSLATOR_UI_PROTOCOL_REVISION
+    template.contentHash = MangaTranslatorUiSidecarProtocol.sha256(templatePayload)
+    template.mimeType = MANGA_TRANSLATOR_UI_TEMPLATE_MIME
+    template.payload = templatePayload
+
+    const result: ComicRegionAnalysisResult = new ComicRegionAnalysisResult()
+    result.backendId = MANGA_TRANSLATOR_UI_BACKEND_ID
+    result.profileId = profileId
+    result.regionRevision = request.requestedRegionRevision
+    result.document = document
+    result.adapterTemplate = template
+    ComicVisualTranslationContract.validateRegionAnalysisResult(
+      request,
+      result.backendId,
+      result.profileId,
+      result.regionRevision,
+      result.document,
+      result.adapterTemplate,
+    )
+    return result
+  }
+
+  static buildImportJson(
+    document: ComicPageDocument,
+    translations: ComicTranslationBatch,
+    template: ComicBackendTemplate,
+  ): Uint8Array {
+    ComicVisualTranslationContract.validateTranslationBatch(document, translations)
+    MangaTranslatorUiSidecarProtocol.validateTemplate(template)
+    const envelope: RawMangaTranslatorUiEnvelope = JSON.parse(
+      MangaTranslatorUiSidecarProtocol.decode(template.payload),
+    ) as RawMangaTranslatorUiEnvelope
+    const page: RawMangaTranslatorUiPage = MangaTranslatorUiSidecarProtocol.requireTemplatePage(
+      envelope,
+      document,
+    )
+    const translated: Map<string, string> = new Map<string, string>()
+    for (let index: number = 0; index < translations.blocks.length; index++) {
+      translated.set(
+        translations.blocks[index].blockId,
+        translations.blocks[index].translatedText,
+      )
+    }
+    for (let index: number = 0; index < page.regions.length; index++) {
+      const expectedBlockId: string = MangaTranslatorUiSidecarProtocol.blockId(
+        document.pageIndex,
+        index,
+      )
+      const block: ComicTextBlock = document.blocks[index]
+      const translatedText: string | undefined = translated.get(expectedBlockId)
+      if (block.blockId !== expectedBlockId || block.readingOrder !== index ||
+        block.sourceText !== page.regions[index].text || translatedText === undefined) {
+        throw new Error('Manga translator UI template no longer matches the page document')
+      }
+      page.regions[index].translation = translatedText
+    }
+    const output: Uint8Array = new util.TextEncoder().encodeInto(JSON.stringify(envelope))
+    if (output.length <= 0 || output.length > MAX_EXPORT_JSON_BYTES) {
+      throw new Error('Manga translator UI import JSON size is invalid')
+    }
+    return output
+  }
+
+  private static validateExportSizes(translationJson: Uint8Array, originalText: Uint8Array): void {
+    if (translationJson.length <= 0 || translationJson.length > MAX_EXPORT_JSON_BYTES ||
+      originalText.length > MAX_EXPORT_TEXT_BYTES) {
+      throw new Error('Manga translator UI export size is invalid')
+    }
+  }
+
+  private static validateOriginalText(originalText: Uint8Array, regionCount: number): void {
+    const value: string = MangaTranslatorUiSidecarProtocol.decode(originalText)
+    if (regionCount > 0 && value.trim().length === 0) {
+      throw new Error('Manga translator UI export is missing original text')
+    }
+  }
+
+  private static requirePage(
+    envelope: RawMangaTranslatorUiEnvelope,
+    request: ComicRegionAnalysisRequest,
+  ): RawMangaTranslatorUiPage {
+    if (envelope === null || envelope.temp_image === null ||
+      typeof envelope.temp_image !== 'object') {
+      throw new Error('Manga translator UI export envelope is invalid')
+    }
+    const page: RawMangaTranslatorUiPage = envelope.temp_image
+    if (page.original_width !== request.source.imageWidth ||
+      page.original_height !== request.source.imageHeight ||
+      !Array.isArray(page.regions) || page.regions.length > MAX_REGIONS) {
+      const regionCount: string = Array.isArray(page.regions)
+        ? `${page.regions.length}`
+        : 'invalid'
+      throw new Error(
+        'Manga translator UI export page identity is invalid ' +
+          `(source=${request.source.imageWidth}x${request.source.imageHeight},` +
+          `export=${page.original_width}x${page.original_height},regions=${regionCount})`,
+      )
+    }
+    return page
+  }
+
+  private static requireTemplatePage(
+    envelope: RawMangaTranslatorUiEnvelope,
+    document: ComicPageDocument,
+  ): RawMangaTranslatorUiPage {
+    if (envelope === null || envelope.temp_image === null ||
+      typeof envelope.temp_image !== 'object') {
+      throw new Error('Manga translator UI template envelope is invalid')
+    }
+    const page: RawMangaTranslatorUiPage = envelope.temp_image
+    if (page.original_width !== document.imageWidth ||
+      page.original_height !== document.imageHeight ||
+      !Array.isArray(page.regions) || page.regions.length !== document.blocks.length ||
+      page.regions.length > MAX_REGIONS) {
+      throw new Error('Manga translator UI template page identity is invalid')
+    }
+    for (let index: number = 0; index < page.regions.length; index++) {
+      MangaTranslatorUiSidecarProtocol.validatePinnedRegion(page.regions[index])
+    }
+    return page
+  }
+
+  private static normalizeRegion(
+    region: RawMangaTranslatorUiRegion,
+    pageIndex: number,
+    regionIndex: number,
+    width: number,
+    height: number,
+    documentRevision: number,
+  ): ComicTextBlock {
+    MangaTranslatorUiSidecarProtocol.validatePinnedRegion(region)
+    const block: ComicTextBlock = new ComicTextBlock()
+    block.blockId = MangaTranslatorUiSidecarProtocol.blockId(pageIndex, regionIndex)
+    block.readingOrder = regionIndex
+    block.kind = ComicTextKind.OTHER
+    block.sourceText = region.text
+    block.normalizedSourceText = region.text.trim()
+    block.styleHint = region.direction
+    block.sourceOrigin = ComicSourceOrigin.OCR
+    block.providerConfidence = region.prob >= 0 && region.prob <= 1 ? region.prob : null
+    block.sourceRevision = documentRevision
+    const polygon: ComicPoint[] = MangaTranslatorUiSidecarProtocol.regionPolygon(
+      region,
+      regionIndex,
+      width,
+      height,
+    )
+    for (let index: number = 0; index < polygon.length; index++) {
+      block.polygon.push(polygon[index])
+    }
+    return block
+  }
+
+  /**
+   * High-recall detection can emit tiny low-confidence Latin strokes such as a panel line read as
+   * "I". Drop only that narrow, deterministic noise class before the LLM sees it. Clearing the
+   * exported mask makes load_text rebuild masking from the retained regions, so a rejected region
+   * remains pixel-identical instead of being inpainted without replacement text.
+   */
+  private static filterLowSignalRegions(
+    page: RawMangaTranslatorUiPage,
+    width: number,
+    height: number,
+  ): boolean {
+    const retained: RawMangaTranslatorUiRegion[] = []
+    let filtered: boolean = false
+    for (let index: number = 0; index < page.regions.length; index++) {
+      const region: RawMangaTranslatorUiRegion = page.regions[index]
+      MangaTranslatorUiSidecarProtocol.validatePinnedRegion(region)
+      if (MangaTranslatorUiSidecarProtocol.isLowSignalAsciiRegion(region, width, height)) {
+        filtered = true
+      } else {
+        retained.push(region)
+      }
+    }
+    if (filtered) {
+      page.regions = retained
+      page.mask_raw = null
+      page.mask_is_refined = false
+    }
+    return filtered
+  }
+
+  private static isLowSignalAsciiRegion(
+    region: RawMangaTranslatorUiRegion,
+    width: number,
+    height: number,
+  ): boolean {
+    if (!/^[A-Za-z]$/.test(region.text.trim()) ||
+      region.prob >= LOW_SIGNAL_ASCII_CONFIDENCE_CEILING) {
+      return false
+    }
+    let minX: number = Number.POSITIVE_INFINITY
+    let minY: number = Number.POSITIVE_INFINITY
+    let maxX: number = Number.NEGATIVE_INFINITY
+    let maxY: number = Number.NEGATIVE_INFINITY
+    for (let lineIndex: number = 0; lineIndex < region.lines.length; lineIndex++) {
+      const line: number[][] = region.lines[lineIndex]
+      for (let pointIndex: number = 0; pointIndex < line.length; pointIndex++) {
+        minX = Math.min(minX, line[pointIndex][0])
+        minY = Math.min(minY, line[pointIndex][1])
+        maxX = Math.max(maxX, line[pointIndex][0])
+        maxY = Math.max(maxY, line[pointIndex][1])
+      }
+    }
+    const areaRatio: number = ((maxX - minX) * (maxY - minY)) / (width * height)
+    return areaRatio <= LOW_SIGNAL_ASCII_MAX_AREA_RATIO
+  }
+
+  private static validatePinnedRegion(region: RawMangaTranslatorUiRegion): void {
+    if (region === null || typeof region !== 'object' || !Array.isArray(region.lines) ||
+      region.lines.length <= 0 || region.lines.length > MAX_LINES_PER_REGION ||
+      typeof region.text !== 'string' || region.text.trim().length === 0 ||
+      region.text.length > MAX_SOURCE_TEXT_CHARS ||
+      typeof region.translation !== 'string' || !Number.isFinite(region.angle) ||
+      !Number.isFinite(region.font_size) || !Array.isArray(region.fg_colors) ||
+      !Array.isArray(region.bg_colors) || typeof region.direction !== 'string' ||
+      typeof region.alignment !== 'string' || typeof region.target_lang !== 'string' ||
+      typeof region.source_lang !== 'string' || !Number.isFinite(region.line_spacing) ||
+      !Number.isFinite(region.default_stroke_width) ||
+      typeof region.adjust_bg_color !== 'boolean' || !Number.isFinite(region.prob)) {
+      throw new Error('Manga translator UI region does not match the pinned v1.9.9 profile')
+    }
+    MangaTranslatorUiSidecarProtocol.validateColor(region.fg_colors)
+    MangaTranslatorUiSidecarProtocol.validateColor(region.bg_colors)
+    for (let lineIndex: number = 0; lineIndex < region.lines.length; lineIndex++) {
+      const line: number[][] = region.lines[lineIndex]
+      if (!Array.isArray(line) || line.length !== 4) {
+        throw new Error('Manga translator UI region line is invalid')
+      }
+      for (let pointIndex: number = 0; pointIndex < line.length; pointIndex++) {
+        if (!Array.isArray(line[pointIndex]) || line[pointIndex].length !== 2 ||
+          !Number.isFinite(line[pointIndex][0]) || !Number.isFinite(line[pointIndex][1])) {
+          throw new Error('Manga translator UI region point is invalid')
+        }
+      }
+    }
+  }
+
+  private static validateColor(value: number[]): void {
+    if (value.length !== 3) {
+      throw new Error('Manga translator UI region color is invalid')
+    }
+    for (let index: number = 0; index < value.length; index++) {
+      if (!Number.isFinite(value[index]) || value[index] < 0 || value[index] > 255) {
+        throw new Error('Manga translator UI region color is invalid')
+      }
+    }
+  }
+
+  private static regionPolygon(
+    region: RawMangaTranslatorUiRegion,
+    regionIndex: number,
+    width: number,
+    height: number,
+  ): ComicPoint[] {
+    let exportedMinX: number = Number.POSITIVE_INFINITY
+    let exportedMinY: number = Number.POSITIVE_INFINITY
+    let exportedMaxX: number = Number.NEGATIVE_INFINITY
+    let exportedMaxY: number = Number.NEGATIVE_INFINITY
+    let sumX: number = 0
+    let sumY: number = 0
+    let pointCount: number = 0
+    for (let lineIndex: number = 0; lineIndex < region.lines.length; lineIndex++) {
+      const line: number[][] = region.lines[lineIndex]
+      for (let pointIndex: number = 0; pointIndex < line.length; pointIndex++) {
+        const x: number = line[pointIndex][0]
+        const y: number = line[pointIndex][1]
+        exportedMinX = Math.min(exportedMinX, x)
+        exportedMinY = Math.min(exportedMinY, y)
+        exportedMaxX = Math.max(exportedMaxX, x)
+        exportedMaxY = Math.max(exportedMaxY, y)
+        sumX += x
+        sumY += y
+        pointCount++
+      }
+    }
+    if (!(exportedMaxX > exportedMinX) || !(exportedMaxY > exportedMinY) ||
+      pointCount <= 0) {
+      throw new Error('Manga translator UI region bounds are invalid')
+    }
+    // v1.9.9 TextBlock.to_dict() unrotates every line around the mean of all vertices.
+    // Rotation preserves that mean, so the exported vertices retain the only exact inverse center.
+    // An AABB center is different for uneven multi-line blocks and can push valid edge text outside.
+    const centerX: number = sumX / pointCount
+    const centerY: number = sumY / pointCount
+    const radians: number = region.angle * Math.PI / 180
+    const cosine: number = Math.cos(radians)
+    const sine: number = Math.sin(radians)
+    let sourceMinX: number = Number.POSITIVE_INFINITY
+    let sourceMinY: number = Number.POSITIVE_INFINITY
+    let sourceMaxX: number = Number.NEGATIVE_INFINITY
+    let sourceMaxY: number = Number.NEGATIVE_INFINITY
+    for (let lineIndex: number = 0; lineIndex < region.lines.length; lineIndex++) {
+      const line: number[][] = region.lines[lineIndex]
+      for (let pointIndex: number = 0; pointIndex < line.length; pointIndex++) {
+        const dx: number = line[pointIndex][0] - centerX
+        const dy: number = line[pointIndex][1] - centerY
+        const x: number = centerX + dx * cosine - dy * sine
+        const y: number = centerY + dx * sine + dy * cosine
+        sourceMinX = Math.min(sourceMinX, x)
+        sourceMinY = Math.min(sourceMinY, y)
+        sourceMaxX = Math.max(sourceMaxX, x)
+        sourceMaxY = Math.max(sourceMaxY, y)
+      }
+    }
+    if (!(sourceMaxX > sourceMinX) || !(sourceMaxY > sourceMinY)) {
+      throw new Error('Manga translator UI restored region bounds are invalid')
+    }
+    const left: number = MangaTranslatorUiSidecarProtocol.boundedCoordinate(
+      sourceMinX,
+      width,
+      regionIndex,
+      'x',
+    )
+    const top: number = MangaTranslatorUiSidecarProtocol.boundedCoordinate(
+      sourceMinY,
+      height,
+      regionIndex,
+      'y',
+    )
+    const right: number = MangaTranslatorUiSidecarProtocol.boundedCoordinate(
+      sourceMaxX,
+      width,
+      regionIndex,
+      'x',
+    )
+    const bottom: number = MangaTranslatorUiSidecarProtocol.boundedCoordinate(
+      sourceMaxY,
+      height,
+      regionIndex,
+      'y',
+    )
+    return [
+      new ComicPoint(left, top),
+      new ComicPoint(right, top),
+      new ComicPoint(right, bottom),
+      new ComicPoint(left, bottom),
+    ]
+  }
+
+  private static boundedCoordinate(
+    value: number,
+    edge: number,
+    regionIndex: number,
+    axis: string,
+  ): number {
+    if (!Number.isFinite(value) || value < -COORDINATE_TOLERANCE ||
+      value > edge + COORDINATE_TOLERANCE) {
+      throw new Error(
+        'Manga translator UI region is outside the source image ' +
+          `(region=${regionIndex},axis=${axis},value=${value},edge=${edge})`,
+      )
+    }
+    return Math.min(edge, Math.max(0, value))
+  }
+
+  private static validateTemplate(template: ComicBackendTemplate): void {
+    if (template.backendId !== MANGA_TRANSLATOR_UI_BACKEND_ID ||
+      !MangaTranslatorUiSidecarProtocol.isProfileId(template.profileId) ||
+      template.protocolRevision !== MANGA_TRANSLATOR_UI_PROTOCOL_REVISION ||
+      template.mimeType !== MANGA_TRANSLATOR_UI_TEMPLATE_MIME ||
+      template.payload.length <= 0 || template.payload.length > MAX_EXPORT_JSON_BYTES ||
+      template.contentHash !== MangaTranslatorUiSidecarProtocol.sha256(template.payload)) {
+      throw new Error('Manga translator UI adapter template is invalid')
+    }
+  }
+
+  private static validateProfileId(profileId: string): void {
+    if (!MangaTranslatorUiSidecarProtocol.isProfileId(profileId)) {
+      throw new Error('Manga translator UI profile identity is invalid')
+    }
+  }
+
+  private static isProfileId(profileId: string): boolean {
+    return MangaTranslatorUiSidecarProfileCatalog.supportsProfileId(profileId)
+  }
+
+  private static blockId(pageIndex: number, regionIndex: number): string {
+    return 'p' + pageIndex + '-r' + regionIndex
+  }
+
+  private static decode(value: Uint8Array): string {
+    const decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
+    return decoder.decodeToString(value)
+  }
+
+  private static sha256(value: Uint8Array): string {
+    const md = cryptoFramework.createMd('SHA256')
+    md.updateSync({ data: value })
+    const digest: Uint8Array = md.digestSync().data
+    const parts: string[] = []
+    for (let index: number = 0; index < digest.length; index++) {
+      parts.push(digest[index].toString(16).padStart(2, '0'))
+    }
+    return parts.join('')
+  }
+}

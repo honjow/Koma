@@ -1591,6 +1591,202 @@
     {
       "name": "settings_reader_super_resolution_realesrgan_animevideov3_2x",
       "value": "Real-ESRGAN (animevideo-v3, 2x)"
+    },
+    {
+      "name": "comic_local_detector_downloading",
+      "value": "Downloading"
+    },
+    {
+      "name": "comic_local_detector_install",
+      "value": "Download"
+    },
+    {
+      "name": "comic_local_detector_install_success",
+      "value": "On-device manga model installed"
+    },
+    {
+      "name": "comic_local_detector_model",
+      "value": "On-device manga model"
+    },
+    {
+      "name": "comic_local_detector_notice",
+      "value": "79.0 MB · YSGYolo AGPL-3.0 · CTD/AOT GPL-3.0 · PP-OCRv5 Apache-2.0"
+    },
+    {
+      "name": "comic_render_service_password",
+      "value": "Password"
+    },
+    {
+      "name": "comic_render_service_title",
+      "value": "Self-hosted"
+    },
+    {
+      "name": "comic_render_service_url",
+      "value": "Service URL"
+    },
+    {
+      "name": "comic_render_service_username",
+      "value": "Username"
+    },
+    {
+      "name": "comic_torii_api_key",
+      "value": "Torii API key"
+    },
+    {
+      "name": "comic_torii_model",
+      "value": "Translation model"
+    },
+    {
+      "name": "comic_translation_multimodal_assist",
+      "value": "Upload images to assist translation"
+    },
+    {
+      "name": "comic_translation_multimodal_assist_notice",
+      "value": "On sends the full page and text-region crops to the selected LLM. Off sends only OCR text and context."
+    },
+    {
+      "name": "comic_translation_settings_title",
+      "value": "Comic translation"
+    },
+    {
+      "name": "comic_visual_route",
+      "value": "Image processing"
+    },
+    {
+      "name": "comic_visual_route_local",
+      "value": "On-device"
+    },
+    {
+      "name": "comic_visual_route_self_hosted",
+      "value": "Self-hosted"
+    },
+    {
+      "name": "comic_visual_route_torii",
+      "value": "Torii cloud image"
+    },
+    {
+      "name": "llm_binding_model",
+      "value": "Model"
+    },
+    {
+      "name": "llm_source_api_key",
+      "value": "API key"
+    },
+    {
+      "name": "llm_source_base_url",
+      "value": "Base URL"
+    },
+    {
+      "name": "llm_source_type_api",
+      "value": "OpenAI-compatible API"
+    },
+    {
+      "name": "reader_comic_translation_action",
+      "value": "Translate current page"
+    },
+    {
+      "name": "reader_comic_translation_auto",
+      "value": "Auto translate"
+    },
+    {
+      "name": "reader_comic_translation_auto_confirm",
+      "value": "Auto-translate pages in this reading session. This may use credits and upload images. It turns off when you leave the reader."
+    },
+    {
+      "name": "reader_comic_translation_failed",
+      "value": "Translation failed · %s"
+    },
+    {
+      "name": "reader_comic_translation_image_unavailable",
+      "value": "The current image is not ready yet"
+    },
+    {
+      "name": "reader_comic_translation_local_visual_unavailable",
+      "value": "On-device comic image processing is temporarily unavailable"
+    },
+    {
+      "name": "reader_comic_translation_no_translatable_text",
+      "value": "No translatable text was detected on this page"
+    },
+    {
+      "name": "reader_comic_translation_provider_unavailable",
+      "value": "Configure a comic translation provider and model in Settings first"
+    },
+    {
+      "name": "reader_comic_translation_running",
+      "value": "Transcribing and translating the current page…"
+    },
+    {
+      "name": "reader_comic_translation_show_original",
+      "value": "Show original page"
+    },
+    {
+      "name": "reader_translation_language_auto",
+      "value": "Detect automatically"
+    },
+    {
+      "name": "reader_translation_language_de",
+      "value": "Deutsch"
+    },
+    {
+      "name": "reader_translation_language_en",
+      "value": "English"
+    },
+    {
+      "name": "reader_translation_language_es",
+      "value": "Español"
+    },
+    {
+      "name": "reader_translation_language_fr",
+      "value": "Français"
+    },
+    {
+      "name": "reader_translation_language_ja",
+      "value": "日本語"
+    },
+    {
+      "name": "reader_translation_language_ko",
+      "value": "한국어"
+    },
+    {
+      "name": "reader_translation_language_pt",
+      "value": "Português"
+    },
+    {
+      "name": "reader_translation_language_ru",
+      "value": "Русский"
+    },
+    {
+      "name": "reader_translation_language_zh_CN",
+      "value": "Simplified Chinese"
+    },
+    {
+      "name": "reader_translation_language_zh_TW",
+      "value": "Traditional Chinese"
+    },
+    {
+      "name": "reader_translation_model_download_failed",
+      "value": "Unable to download local manga models"
+    },
+    {
+      "name": "reader_translation_settings_load_failed",
+      "value": "Unable to load translation settings"
+    },
+    {
+      "name": "reader_translation_settings_save_failed",
+      "value": "Unable to save translation settings"
+    },
+    {
+      "name": "reader_translation_source_language",
+      "value": "Source language"
+    },
+    {
+      "name": "reader_translation_target_language",
+      "value": "Target language"
+    },
+    {
+      "name": "settings_reader_super_resolution_system_ready",
+      "value": "Ready"
     }
   ]
 }

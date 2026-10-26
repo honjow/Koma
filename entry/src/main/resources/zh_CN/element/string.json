@@ -1594,6 +1594,202 @@
     {
       "name": "settings_reader_super_resolution_realesrgan_animevideov3_2x",
       "value": "Real-ESRGAN (animevideo-v3, 2x)"
+    },
+    {
+      "name": "comic_local_detector_downloading",
+      "value": "下载中"
+    },
+    {
+      "name": "comic_local_detector_install",
+      "value": "下载"
+    },
+    {
+      "name": "comic_local_detector_install_success",
+      "value": "端侧漫画模型已安装"
+    },
+    {
+      "name": "comic_local_detector_model",
+      "value": "端侧漫画模型"
+    },
+    {
+      "name": "comic_local_detector_notice",
+      "value": "79.0 MB · YSGYolo AGPL-3.0 · CTD/AOT GPL-3.0 · PP-OCRv5 Apache-2.0"
+    },
+    {
+      "name": "comic_render_service_password",
+      "value": "密码"
+    },
+    {
+      "name": "comic_render_service_title",
+      "value": "自部署"
+    },
+    {
+      "name": "comic_render_service_url",
+      "value": "服务地址"
+    },
+    {
+      "name": "comic_render_service_username",
+      "value": "用户名"
+    },
+    {
+      "name": "comic_torii_api_key",
+      "value": "Torii API Key"
+    },
+    {
+      "name": "comic_torii_model",
+      "value": "翻译模型"
+    },
+    {
+      "name": "comic_translation_multimodal_assist",
+      "value": "上传图片辅助翻译"
+    },
+    {
+      "name": "comic_translation_multimodal_assist_notice",
+      "value": "开启后会向所选 LLM 上传整页图片和文字区域裁图；关闭后只发送 OCR 文本与上下文"
+    },
+    {
+      "name": "comic_translation_settings_title",
+      "value": "漫画翻译"
+    },
+    {
+      "name": "comic_visual_route",
+      "value": "制图方式"
+    },
+    {
+      "name": "comic_visual_route_local",
+      "value": "端侧处理"
+    },
+    {
+      "name": "comic_visual_route_self_hosted",
+      "value": "自部署"
+    },
+    {
+      "name": "comic_visual_route_torii",
+      "value": "Torii 云端整图"
+    },
+    {
+      "name": "llm_binding_model",
+      "value": "模型"
+    },
+    {
+      "name": "llm_source_api_key",
+      "value": "API Key"
+    },
+    {
+      "name": "llm_source_base_url",
+      "value": "基础 URL"
+    },
+    {
+      "name": "llm_source_type_api",
+      "value": "OpenAI 兼容 API"
+    },
+    {
+      "name": "reader_comic_translation_action",
+      "value": "翻译当前页"
+    },
+    {
+      "name": "reader_comic_translation_auto",
+      "value": "自动翻译"
+    },
+    {
+      "name": "reader_comic_translation_auto_confirm",
+      "value": "本次阅读中自动翻译页面，可能消耗额度并上传图片；退出阅读器后关闭"
+    },
+    {
+      "name": "reader_comic_translation_failed",
+      "value": "翻译失败 · %s"
+    },
+    {
+      "name": "reader_comic_translation_image_unavailable",
+      "value": "当前图片尚未准备好"
+    },
+    {
+      "name": "reader_comic_translation_local_visual_unavailable",
+      "value": "端侧漫画图像处理暂不可用，请稍后重试"
+    },
+    {
+      "name": "reader_comic_translation_no_translatable_text",
+      "value": "当前页未检测到可翻译文字"
+    },
+    {
+      "name": "reader_comic_translation_provider_unavailable",
+      "value": "请先在设置中配置漫画翻译提供方和模型"
+    },
+    {
+      "name": "reader_comic_translation_running",
+      "value": "正在转录并翻译当前页…"
+    },
+    {
+      "name": "reader_comic_translation_show_original",
+      "value": "显示原图"
+    },
+    {
+      "name": "reader_translation_language_auto",
+      "value": "自动识别"
+    },
+    {
+      "name": "reader_translation_language_de",
+      "value": "Deutsch"
+    },
+    {
+      "name": "reader_translation_language_en",
+      "value": "English"
+    },
+    {
+      "name": "reader_translation_language_es",
+      "value": "Español"
+    },
+    {
+      "name": "reader_translation_language_fr",
+      "value": "Français"
+    },
+    {
+      "name": "reader_translation_language_ja",
+      "value": "日本語"
+    },
+    {
+      "name": "reader_translation_language_ko",
+      "value": "한국어"
+    },
+    {
+      "name": "reader_translation_language_pt",
+      "value": "Português"
+    },
+    {
+      "name": "reader_translation_language_ru",
+      "value": "Русский"
+    },
+    {
+      "name": "reader_translation_language_zh_CN",
+      "value": "简体中文"
+    },
+    {
+      "name": "reader_translation_language_zh_TW",
+      "value": "繁體中文"
+    },
+    {
+      "name": "reader_translation_model_download_failed",
+      "value": "端侧漫画模型下载失败"
+    },
+    {
+      "name": "reader_translation_settings_load_failed",
+      "value": "读取翻译设置失败"
+    },
+    {
+      "name": "reader_translation_settings_save_failed",
+      "value": "保存翻译设置失败"
+    },
+    {
+      "name": "reader_translation_source_language",
+      "value": "源语言"
+    },
+    {
+      "name": "reader_translation_target_language",
+      "value": "目标语言"
+    },
+    {
+      "name": "settings_reader_super_resolution_system_ready",
+      "value": "已就绪"
     }
   ]
 }

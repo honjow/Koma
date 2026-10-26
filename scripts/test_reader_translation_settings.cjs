@@ -1,0 +1,142 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const crypto = require('node:crypto')
+const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
+const base = path.resolve(__dirname, '../entry/src/main/ets')
+function moduleFrom(relative, imports, globals = {}) {
+  const exports = {}
+  const js = ts.transpileModule(fs.readFileSync(path.join(base, relative), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, experimentalDecorators: true },
+  }).outputText
+  new Function('exports', 'require', ...Object.keys(globals), js)(exports, name => {
+    if (!(name in imports)) throw new Error('Unexpected runtime dependency: ' + name)
+    return imports[name]
+  }, ...Object.values(globals))
+  return exports
+}
+function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
+
+test('translation configuration serializes reads with atomic secure writes and recovers a rejected save', async () => {
+  const assets = new Map(); let fail = false, nonce = 0
+  const reached = deferred(), release = deferred()
+  const state = { revision: 0 }
+  const tags = Object.fromEntries(['ALIAS', 'SECRET', 'RETURN_TYPE', 'RETURN_LIMIT', 'ACCESSIBILITY', 'CONFLICT_RESOLUTION'].map(k => [k, k]))
+  const settings = moduleFrom('readerTranslation/KomaTranslationSettings.ets', {
+    '@kit.AssetStoreKit': { asset: { Tag: tags, ReturnType: { ALL: 1 }, Accessibility: { DEVICE_FIRST_UNLOCKED: 1 }, ConflictResolution: { OVERWRITE: 1 },
+      async query(attrs) { const payload = assets.get(Buffer.from(attrs.get(tags.ALIAS)).toString('utf8')); return payload ? [new Map([[tags.SECRET, payload]])] : [] },
+      async add(attrs) {
+        reached.resolve(); await release.promise
+        if (fail) throw new Error('native write rejected')
+        assert.ok(attrs.get(tags.SECRET).byteLength <= 1024, 'Native SECRET limit from Huawei asset-js-add')
+        assets.set(Buffer.from(attrs.get(tags.ALIAS)).toString('utf8'), attrs.get(tags.SECRET).slice())
+      },
+      async remove(attrs) { assets.delete(Buffer.from(attrs.get(tags.ALIAS)).toString('utf8')) },
+    } },
+    '@kit.CryptoArchitectureKit': { cryptoFramework: {
+      createMd() { const digest = crypto.createHash('sha256'); return { updateSync({data}) { digest.update(data) }, digestSync() { return { data: new Uint8Array(digest.digest()) } } } },
+      createRandom() { return { generateRandomSync(length) { return { data: new Uint8Array(length).fill(++nonce) } } } },
+    } },
+    '@kit.ArkUI': { AppStorageV2: { connect() { return state } } },
+    '@kit.ArkTS': { buffer: { from(value, encoding) {
+      const buf = Buffer.from(value, encoding)
+      return { buffer: Uint8Array.from(buf).buffer, toString: codec => buf.toString(codec) }
+    } } },
+  }, { ObservedV2: value => value, Trace: () => {} })
+  const Store = settings.KomaTranslationSettings, Snapshot = settings.KomaTranslationSettingsSnapshot
+  const before = await Store.load({})
+  assert.equal(before.configured(), false)
+  assert.equal(before.targetLanguage, 'zh-CN')
+  const next = new Snapshot(); next.targetLanguage = 'en'
+  const write = Store.save({}, next)
+  await reached.promise
+  let completedBeforeCommit = false
+  const during = Store.load({}).then(value => { completedBeforeCommit = true; return value })
+  await Promise.resolve()
+  assert.equal(completedBeforeCommit, false, 'No read may overtake the pending native write')
+  release.resolve(); await write
+  const committed = await during
+  assert.equal(committed.targetLanguage, 'en')
+  assert.ok(committed.revision > 0)
+  Store.assertRevision(committed.revision)
+  assert.throws(() => Store.assertRevision(committed.revision - 1), /configuration_changed/)
+  fail = true
+  const rejected = committed.copy(); rejected.targetLanguage = 'ja'
+  await assert.rejects(Store.save({}, rejected), /configuration_write_failed/)
+  assert.equal((await Store.load({})).targetLanguage, 'en')
+  fail = false
+  const restored = committed.copy(); restored.targetLanguage = 'zh-CN'
+  await Store.save({}, restored)
+  assert.equal((await Store.load({})).targetLanguage, 'zh-CN')
+  // A real platform limit, not the old single-record mock, defines the storage boundary.
+  const long = restored.copy(); long.apiKey = 'k'.repeat(4096)
+  await Store.save({}, long)
+  assert.equal((await Store.load({})).apiKey, long.apiKey)
+  const rootKey = 'koma.reader.translation.configuration.v1'
+  const current = JSON.parse(Buffer.from(assets.get(rootKey)).toString('utf8'))
+  assert.equal(assets.size, current.chunks + 1, 'Superseded encrypted chunks are retired after commit')
+  assets.delete(rootKey + '.chunk.' + current.id + '.0')
+  await assert.rejects(Store.load({}), /configuration_invalid/, 'An incomplete configuration must never publish defaults')
+})
+
+test('model no-progress failure destroys transport and removes only its incomplete file', async () => {
+  const timers = new Map(); let timerId = 0, destroyed = 0; const removed = [], writes = []
+  let onData, onRequest
+  const started = deferred()
+  const download = moduleFrom('model/ReaderModelAssetDownload.ets', {
+    '@kit.NetworkKit': { http: { RequestMethod: { GET: 'GET' }, createHttp() { return {
+      on(name, fn) { if (name === 'dataReceive') onData = fn },
+      requestInStream() { started.resolve(); return new Promise(resolve => { onRequest = resolve }) },
+      destroy() { destroyed++ },
+    } } } },
+    '@kit.CoreFileKit': { fileIo: { OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 }, openSync() { return { fd: 10 } },
+      writeSync(fd, chunk, options) { writes.push([fd, chunk.byteLength, options.offset]); return chunk.byteLength },
+      closeSync() {}, unlinkSync(file) { removed.push(file) },
+    } },
+  }, { setTimeout(fn) { const id = ++timerId; timers.set(id, fn); return id }, clearTimeout(id) { timers.delete(id) } })
+  const task = download.ReaderModelAssetDownload.download('https://models.example/asset', '/owned/asset.part', () => {}, 15000, 60000, '*/*', 1, 2700000)
+  await started.promise
+  onData(new Uint8Array(8).buffer)
+  assert.deepEqual(writes, [[10, 8, 0]])
+  assert.equal(timers.size, 1)
+  const expire = [...timers.values()][0]; expire()
+  await assert.rejects(task, /download_stalled/)
+  assert.deepEqual(removed, ['/owned/asset.part'])
+  assert.ok(destroyed >= 1)
+  assert.equal(timers.size, 0)
+  onRequest(200)
+})
+
+test('changed configuration prevents text, Torii, sidecar and login transports from starting requests', async () => {
+  let revision = 8, requests = 0
+  const guard = { KomaTranslationSettings: { assertRevision(expected) {
+    if (expected !== revision) throw new Error('reader_translation_configuration_changed')
+  } } }
+  const http = { AxiosHttpClient: {
+    requestText() { requests++; return Promise.resolve({ statusCode: 200, body: '{}' }) },
+    requestBinaryWithBody() { requests++; return Promise.resolve({ statusCode: 200, bytes: null }) },
+  } }
+  const cases = [
+    ['ComicResponsesPageAnalyzer', 'DefaultComicResponsesHttpTransport', 'requestText'],
+    ['ToriiWholePageRenderBackend', 'DefaultToriiWholePageTransport', 'post'],
+    ['MangaTranslatorUiSidecarBackend', 'DefaultMangaTranslatorUiSidecarTransport', 'post'],
+    ['MangaTranslatorUiSidecarSessionService', 'DefaultMangaTranslatorUiSidecarSessionTransport', 'requestText'],
+  ]
+  let accepted
+  for (const [file, exported, method] of cases) {
+    const output = ts.transpileModule(fs.readFileSync(path.join(base, 'readerTranslation/services', file + '.ets'), 'utf8'), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    }).outputText
+    const mod = {}
+    new Function('exports', 'require', output)(mod, name => name.includes('KomaTranslationSettings') ? guard : name.includes('AxiosHttpClient') ? http : {})
+    const transport = new mod[exported](7)
+    const invoke = () => method === 'post' ? transport.post({}) : transport.requestText('https://provider.example', 'POST', {}, '{}', 1000, 1000)
+    await assert.rejects(Promise.resolve().then(invoke), /configuration_changed/)
+    assert.equal(requests, 0)
+    if (method === 'requestText') accepted = invoke
+  }
+  revision = 7
+  await accepted()
+  assert.equal(requests, 1)
+})
