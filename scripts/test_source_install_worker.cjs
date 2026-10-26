@@ -264,6 +264,34 @@ function localImportMethod(globals, methodName='importPackage') {
   const exports={};new Function('exports',...Object.keys(globals),code)(exports,...Object.values(globals))
   return exports.Manager
 }
+test('checked batch updates publish the installed DTO version and refresh only successful rows before final reconciliation',async()=>{
+  const calls=[],statuses=[],disabled=[]
+  const Manager=localImportMethod({t:k=>k,tf:(k,...values)=>[k,...values],
+    setEnabled:(_context,id,enabled)=>disabled.push([id,enabled]),DiagnosticLogger:{error(){}}},'updateCheckedPackages')
+  const manager=new Manager()
+  const one={id:'one',version:'1',enabled:false},two={id:'two',version:'1',enabled:true}
+  // A retained Computed index describes the current frame until ArkUI renders.
+  // The registry transaction has already committed the new DTO at completion.
+  manager.installedPackage=id=>id==='one'?one:id==='two'?two:undefined
+  manager.sourceIndexBatchBusy=()=>false
+  manager.checkedUpdateStatuses=()=>['one','two','removed'].map(sourceId=>({sourceId,
+    remoteEntry:{id:sourceId,version:'2'},remoteIndexUrl:'https://index.example/index.json'}))
+  manager.updateAvailableFor=()=>true;manager.context=()=>({});manager.showToast=()=>{}
+  manager.sourceIndexService={installPackage:async(_url,entry)=>{
+    calls.push('install:'+entry.id);return entry.id==='one'?{ok:true}:{ok:false,reasonCode:'network_error'}
+  }}
+  manager.refreshInstalledPackage=id=>{calls.push('row:'+id);return {...one,version:'2'}}
+  manager.reload=()=>calls.push('reconcile')
+  manager.setUpdateStatus=status=>statuses.push(status)
+  await manager.updateCheckedPackages()
+  assert.equal(statuses.find(s=>s.sourceId==='one').localVersion,'2','use the committed DTO, not the previous frame')
+  assert.equal(statuses.find(s=>s.sourceId==='two').status,'failed')
+  assert.equal(statuses.find(s=>s.sourceId==='two').localVersion,'1')
+  assert.deepEqual(disabled,[['one',false]])
+  assert.deepEqual(calls,['install:one','row:one','install:two','reconcile'])
+  assert.deepEqual(manager.statusText,['source_pkg_batch_update_done',1,1,1])
+  assert.equal(manager.indexInstallBusy,false);assert.equal(manager.updateInstallSourceId,'')
+})
 test('single installed-row refresh preserves localized ordering, fallback and neighboring row identities',()=>{
   const names=functions('sourceRuntime/SourceLocalizedNames.ets',
     ['hasUnpairedSurrogate','normalizeSourceLocalizedNames','resolveSourceLocalizedName'],{})

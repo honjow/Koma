@@ -1610,8 +1610,10 @@ export struct SourcePackageManagerPage {
           if (!wasEnabled) {
             setEnabled(this.context(), source.id, false)
           }
-          this.reload()
-          const installed = this.installedPackage(status.sourceId)
+          // As in a single update, publish only this committed package here.
+          // Reconcile the full batch once in finally; a render cache can still
+          // describe the previous frame when recording the installed version.
+          const installed = this.refreshInstalledPackage(status.sourceId)
           this.setUpdateStatus({
             sourceId: status.sourceId,
             status: 'latest',
