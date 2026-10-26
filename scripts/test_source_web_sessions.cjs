@@ -582,6 +582,26 @@ test('successful native verification hands the exact original GET response over 
   assert.equal(JSON.stringify(f.diagnostics).includes('cookie-value'),false)
 })
 
+test('an unrelated concurrent search request cannot consume the verified original response', async () => {
+  const f=fixture(26), context=JSON.stringify(f.identity())
+  const pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const original=JSON.stringify({url:'https://site.invalid/a',method:'GET'})
+  const result=await f.http([response(403),response(200),response(200),response(200)],context,{}, {
+    afterInitial:async ({transport,execute})=>{
+      assert.equal(await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true),true)
+      f.store.complete('source.one',pending.sessionId,'https://site.invalid/a','ActualUA')
+      await execute(JSON.stringify({url:'https://site.invalid/other',method:'GET'}),context)
+      const handed=JSON.parse(await execute(original,context))
+      const repeated=JSON.parse(await execute(original,context))
+      return {handed,repeated}
+    },
+  })
+  assert.equal(result.calls.length,4,'refusal + verification + unrelated request + later independent original')
+  assert.equal(result.after.handed.status,200)
+  assert.equal(result.after.repeated.status,200)
+  assert.equal(f.diagnostics.filter(x=>x==='state=used_once').length,1)
+})
+
 test('failed native probe keeps the pending manual completion usable and does not cache a refused response', async () => {
   const f=fixture(), context=JSON.stringify(f.identity()), pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
   const r=await f.http([response(403),response(403),response(200)],context,{}, {afterInitial:async ({transport,execute})=>{

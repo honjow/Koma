@@ -1,3 +1,10 @@
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
+import { MangaWebRouteParam } from '../common/RouterHelper'
+import { SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
+import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
+import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
+import { cancelSourceWebProbe } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -60,6 +67,13 @@ export struct SearchPage {
   @Local private sourceFilter: CrossSearchSourceFilter = 'all'
   @Local private sourceFilterMenuOpen: boolean = false
   @Local private failedCoverUris: string[] = []
+  @Local private webChallengeShown: boolean = false
+  @Local private webChallengeParams: MangaWebRouteParam = { url: '', title: '' }
+  private webChallengeReceipt: SourceWebChallengeReceipt | undefined = undefined
+  private webChallengeClosing: boolean = false
+  private webChallengeRetryPending: boolean = false
+  private webChallengeRetrySerial: number = 0
+  private webChallengeEpoch: number = 0
   private searchTimer: number = 0
   private searchSerial: number = 0
   private resultOpenSerial: number = 0
@@ -103,6 +117,7 @@ export struct SearchPage {
   }
 
   aboutToDisappear(): void {
+    this.invalidateWebChallenges()
     this.service?.cancelPendingSearch()
     this.routeActive = false
     this.routeEpoch += 1
@@ -111,6 +126,102 @@ export struct SearchPage {
       clearTimeout(this.searchTimer)
       this.searchTimer = 0
     }
+  }
+
+  @Monitor('chrome.visible')
+  private synchronizeWebChallengeVisibility(): void {
+    if (!this.chrome.visible) this.invalidateWebChallenges()
+    else this.handleWebChallenges()
+  }
+
+  private cancelCurrentWebSession(): void {
+    const session = this.webChallengeParams.sourceSession
+    if (session === undefined) return
+    cancelSourceWebProbe(session.sourceId, session.sessionId)
+    appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
+  }
+
+  private invalidateWebChallenges(): void {
+    this.webChallengeEpoch += 1
+    this.webChallengeRetrySerial += 1
+    this.webChallengeRetryPending = false
+    this.cancelCurrentWebSession()
+    this.service?.cancelWebChallenges()
+    this.webChallengeReceipt = undefined
+    if (this.webChallengeShown) this.webChallengeClosing = true
+    this.webChallengeShown = false
+  }
+
+  private handleWebChallenges(): void {
+    const service = this.service
+    if (!this.routeActive || !this.chrome.visible || service === undefined ||
+      this.webChallengeShown || this.webChallengeClosing || this.webChallengeRetryPending) return
+    for (const section of this.sections) {
+      const receipt = section.webChallenge
+      if (receipt === undefined || !service.claimWebChallenge(receipt, true)) continue
+      const params = prepareSourceWebSession(receipt.sourceId, section.title)
+      if (params?.sourceSession === undefined) {
+        service.cancelWebChallenge(receipt)
+        continue
+      }
+      params.sourceSession.allowClearanceRetry = receipt.allowClearanceRetry
+      this.webChallengeReceipt = receipt
+      this.webChallengeParams = params
+      this.webChallengeShown = true
+      return
+    }
+  }
+
+  private closeWebChallenge(): void {
+    const receipt = this.webChallengeReceipt
+    if (receipt !== undefined) {
+      this.cancelCurrentWebSession()
+      this.service?.cancelWebChallenge(receipt)
+    }
+    this.webChallengeReceipt = undefined
+    if (this.webChallengeShown) this.webChallengeClosing = true
+    this.webChallengeShown = false
+  }
+
+  private async completeWebChallenge(): Promise<void> {
+    const receipt = this.webChallengeReceipt
+    const service = this.service
+    this.webChallengeReceipt = undefined
+    this.webChallengeClosing = true
+    this.webChallengeShown = false
+    if (receipt === undefined || service === undefined) return
+    const retrySerial = ++this.webChallengeRetrySerial
+    this.webChallengeRetryPending = true
+    try {
+      // Finish this original read before another source can acquire the single
+      // native verification probe. Other ordinary search results still arrive.
+      await service.completeWebChallenge(receipt, this.routeActive && this.chrome.visible)
+    } finally {
+      if (retrySerial === this.webChallengeRetrySerial) {
+        this.webChallengeRetryPending = false
+        this.handleWebChallenges()
+      }
+    }
+  }
+
+  private finishWebChallengeDismiss(): void {
+    this.webChallengeClosing = false
+    this.handleWebChallenges()
+  }
+
+  @Builder
+  private WebChallengeSheet() {
+    SourceWebSessionSheet({
+      params: this.webChallengeParams,
+      autoRetryOnClearance: this.webChallengeParams.sourceSession?.allowClearanceRetry ?? false,
+      canProbeOriginal: (): boolean => {
+        const receipt = this.webChallengeReceipt
+        return receipt !== undefined && (this.service?.canRetryWebChallenge(receipt,
+          this.routeActive && this.chrome.visible) ?? false)
+      },
+      onClose: () => { this.closeWebChallenge() },
+      onCompleted: () => { void this.completeWebChallenge() },
+    })
   }
 
   private ownsRoute(routeEpoch: number): boolean {
@@ -122,6 +233,7 @@ export struct SearchPage {
     if (!this.ownsRoute(routeEpoch)) {
       return
     }
+    this.invalidateWebChallenges()
     this.service?.cancelPendingSearch()
     this.queryText = value
     if (this.searchTimer > 0) {
@@ -178,6 +290,8 @@ export struct SearchPage {
     if (!this.ownsRoute(routeEpoch)) {
       return
     }
+    this.invalidateWebChallenges()
+    const webChallengeEpoch = this.webChallengeEpoch
     const query = value.trim()
     this.searchSerial += 1
     const serial = this.searchSerial
@@ -205,13 +319,19 @@ export struct SearchPage {
         const nextSections = this.sections.slice()
         nextSections[sectionIndex] = section
         this.sections = nextSections
+        this.handleWebChallenges()
         console.info(`[Search] step=ui_section_resolved serial=${serial} source=${section.id} state=${section.state}`)
-      })
+      }, (): boolean => this.ownsRoute(routeEpoch) && serial === this.searchSerial &&
+        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible)
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
       }
-      this.sections = result
+      // A verified source may already have retried while the other original
+      // tasks were still pending. Their final aggregate must retain that result.
+      this.sections = result.map((section: CrossSearchSection): CrossSearchSection =>
+        this.sections.find((current: CrossSearchSection): boolean => current.id === section.id) ?? section)
+      this.handleWebChallenges()
       this.feedbackText = ''
       console.info(`[Search] step=ui_search_done serial=${serial} sections=${result.length}`)
     } catch (error) {
@@ -219,6 +339,7 @@ export struct SearchPage {
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         return
       }
+      this.invalidateWebChallenges()
       this.sections = []
       const diagnostic = safeSearchDiagnostic(e)
       this.feedbackText = diagnostic.userText
@@ -1069,5 +1190,14 @@ export struct SearchPage {
     .width('100%')
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
+    .bindSheet($$this.webChallengeShown, this.WebChallengeSheet, komaSheetOptions({
+      detents: [SheetSize.LARGE], showClose: false,
+      enableOutsideInteractive: false, enableFloatingDragBar: true,
+      onWillDismiss: (action: DismissSheetAction) => {
+        this.closeWebChallenge()
+        action.dismiss()
+      },
+      onDisappear: () => { this.finishWebChallengeDismiss() },
+    }))
   }
 }

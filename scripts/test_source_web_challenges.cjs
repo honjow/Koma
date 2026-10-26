@@ -473,3 +473,114 @@ test('successful same-query empty refresh replaces old rows and clearSearch inva
   f.model.clearSearch(f.source);f.replies.push(challenge());await f.model.runSearch(f.source,'one')
   assert.deepEqual(f.model.searchResults,[])
 })
+
+// Exercise the real global-search service and page owners together; no UI-tree
+// or source spelling assertions stand in for receipt/retry ordering.
+const crossAst = ts.createSourceFile('cross.ts', read('model/CrossSearchService'), ts.ScriptTarget.Latest, true)
+const crossOwner = crossAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'CrossSearchService')
+const crossMethods = ['search','cancelPendingSearch','cancelWebChallenges','claimWebChallenge','canRetryWebChallenge',
+  'cancelWebChallenge','completeWebChallenge','sourceWebChallengeGuard','pendingSections','sourceMatchesFilter',
+  'searchWasmSource','section','stateSection','errorSection','sourceSupportsSearch']
+const pageAst = ts.createSourceFile('page.ts', read('pages/SearchPage').replace('struct SearchPage', 'class SearchPage'), ts.ScriptTarget.Latest, true)
+const pageOwner = pageAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SearchPage')
+const pageMethods = ['ownsRoute','runSearch','prepareSearchResults','invalidateWebChallenges','cancelCurrentWebSession',
+  'handleWebChallenges','closeWebChallenge','completeWebChallenge','finishWebChallengeDismiss']
+const classText = (owner, ast, names) => `export class Owner { ${names.map(name => owner.members.find(n => n.name?.text === name).getText(ast)).join('\n')} }`
+function deferredSearchReply() {
+  let resolve, reject
+  const promise = new Promise((yes,no) => { resolve=yes; reject=no })
+  return {promise,resolve,reject}
+}
+const untilSearch = async predicate => {
+  for (let i=0;i<50&&!predicate();i++) await new Promise(resolve => setImmediate(resolve))
+  assert.equal(predicate(),true,'expected production async checkpoint')
+}
+function crossWebFixture(ids) {
+  const entries=new Map(ids.map(id=>[id,{enabled:true}])), revisions=new Map(ids.map(id=>[id,0]))
+  const sources=ids.map(sourceId=>({sourceId,displayName:sourceId,enabled:true,version:'1',wasmByteCount:12,
+    capabilities:['search'],webSessionOrigins:['https://source.invalid']}))
+  const registry={lookup:id=>({entry:entries.get(id)}),listInstalledSourceSummaries:()=>sources}
+  const exports={}
+  new Function('exports','SourceWebChallengeGate','SourceRuntimeError','appSourceRuntimeRegistry','appSourceSettingsStore',
+    'DiagnosticLogger','AppStrings','safeSearchDiagnostic','searchStateUserText','SOURCE_PAGE_SIZE','isCrossSearchQueryMeaningful',
+    compile(classText(crossOwner,crossAst,crossMethods)))(exports,SourceWebChallengeGate,SourceRuntimeError,registry,
+    {revisionForSource:id=>revisions.get(id)},
+    {begin:()=>({finish(){},fail(){}}),info(){},error(){}},{get:key=>key},
+    error=>({code:error.diagnostic?.code??'unknown',userText:error.userText??'failed'}),()=>'',20,q=>q.length>0)
+  const service=new exports.Owner(), replies=new Map(), calls=[]
+  Object.assign(service,{pagedSearchRuns:[],webChallengeGates:new Map(),sortSearchResultItems:(_q,items)=>items,
+    sourceViewModel:{searchSource:async(source,query,page,cursor,active)=>{
+      calls.push([source.sourceId,query,page,cursor])
+      const queue=replies.get(source.sourceId+'|'+query)
+      assert.ok(queue?.length,'unexpected source replay')
+      const reply=await queue.shift()
+      if(!active()) throw new Error('search_cancelled')
+      if(reply instanceof Error) throw reply
+      return reply
+    }}})
+  const pageExports={}; let session=0
+  new Function('exports','isCrossSearchQueryMeaningful','safeSearchDiagnostic','DiagnosticLogger',
+    'appSourceWebSessionStore','cancelSourceWebProbe','prepareSourceWebSession',
+    compile(classText(pageOwner,pageAst,pageMethods)))(pageExports,q=>q.length>0,()=>({userText:'failed',code:'failed'}),
+    {error(){}},{cancel(){}},()=>{},(sourceId,title)=>({url:'https://source.invalid/',title,
+      sourceSession:{sourceId,sessionId:String(++session)}}))
+  const page=new pageExports.Owner()
+  Object.assign(page,{service,routeEpoch:1,routeActive:true,chrome:{visible:true},searchSerial:0,sections:[],
+    sourceFilter:'source',resultsQuery:'',resultsSourceFilter:'source',webChallengeEpoch:0,webChallengeRetrySerial:0,
+    webChallengeRetryPending:false,webChallengeClosing:false,webChallengeShown:false,webChallengeParams:{url:'',title:''},
+    recordHistory(){}})
+  return {page,service,calls,revisions,entries,
+    reply:(id,query,...values)=>replies.set(id+'|'+query,values),
+    ready:id=>({manga:[{id,sourceId:id,title:id}],hasNextPage:false}),
+    section:id=>page.sections.find(s=>s.id==='wasm:'+id)}
+}
+
+test('global verification serializes sources, retains independent results and only replays the verified source', async () => {
+  const f=crossWebFixture(['one','two','three','four'])
+  const recovered=deferredSearchReply(), third=deferredSearchReply(), fourth=deferredSearchReply()
+  f.reply('one','q',challenge(),recovered.promise);f.reply('two','q',f.ready('two'))
+  f.reply('three','q',third.promise);f.reply('four','q',fourth.promise)
+  const search=f.page.runSearch('q')
+  await untilSearch(()=>f.page.webChallengeShown&&f.section('two')?.state==='ready')
+  assert.equal(f.page.webChallengeParams.sourceSession.sourceId,'one')
+  third.reject(challenge())
+  await untilSearch(()=>f.section('three')?.webChallenge!==undefined)
+  assert.equal(f.page.webChallengeParams.sourceSession.sourceId,'one','only one visible verification')
+  const retry=f.page.completeWebChallenge()
+  f.page.finishWebChallengeDismiss()
+  assert.equal(f.page.webChallengeShown,false,'next source waits for original replay, not only dismissal')
+  assert.equal(f.section('one').state,'running');assert.equal(f.section('two').state,'ready')
+  recovered.resolve(f.ready('one'));await retry
+  assert.equal(f.page.webChallengeParams.sourceSession.sourceId,'three')
+  fourth.resolve(f.ready('four'));await search
+  assert.equal(f.section('one').state,'ready','late initial aggregate must retain the recovered result')
+  assert.equal(f.section('two').state,'ready');assert.equal(f.section('four').state,'ready')
+  f.page.closeWebChallenge();f.page.finishWebChallengeDismiss()
+  assert.equal(f.page.webChallengeShown,false,'cancelled source does not immediately reopen')
+  assert.deepEqual(f.calls.map(c=>c[0]),['one','two','three','four','one'])
+})
+
+test('a replaced global query retires old claims, and generic403 or changed settings cannot trigger recovery', async () => {
+  const f=crossWebFixture(['one','two']), oldSecond=deferredSearchReply()
+  f.reply('one','old',challenge());f.reply('two','old',oldSecond.promise)
+  const oldSearch=f.page.runSearch('old')
+  await untilSearch(()=>f.page.webChallengeShown)
+  const oldReceipt=f.section('one').webChallenge
+  f.reply('one','new',challenge())
+  f.reply('two','new',new SourceRuntimeError({ok:false,error:{code:'http_error',status:403}}))
+  const newSearch=f.page.runSearch('new')
+  f.page.finishWebChallengeDismiss();await newSearch
+  const next=f.section('one').webChallenge
+  assert.ok(next.id>oldReceipt.id)
+  assert.equal(await f.service.completeWebChallenge(oldReceipt,true),false)
+  assert.equal(f.section('two').webChallenge,undefined,'plain403 is not a challenge')
+  assert.equal(f.service.canRetryWebChallenge(next,true),true)
+  f.revisions.set('one',1)
+  assert.equal(f.service.canRetryWebChallenge(next,true),false,'settings revision belongs to the original read')
+  f.page.chrome.visible=false;f.page.invalidateWebChallenges()
+  oldSecond.reject(challenge());await oldSearch
+  assert.equal(f.page.webChallengeShown,false)
+  assert.equal(f.section('one').webChallenge.id,next.id,'late old aggregate cannot replace new query')
+  assert.equal(await f.service.completeWebChallenge(next,true),false)
+  assert.equal(f.calls.length,4)
+})

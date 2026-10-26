@@ -32,6 +32,7 @@ vm.runInNewContext(compile(normalizer.getText(tree) + '\nexport class Subject {'
   AppStrings: { get: key => key === 'kavita_series_pages_progress' ? '%s/%s' : key },
   safeSearchDiagnostic: error => ({ code: error.message, userText: error.message }),
   searchStateUserText: (_state, code) => code,
+  DiagnosticLogger: { info() {}, error() {} },
   console: { info() {}, error() {} },
 })
 const record = { server: { id: 'owned-search', baseUrl: 'http://owned.invalid/', credentialRef: 'fixture' },

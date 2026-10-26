@@ -1,3 +1,6 @@
+import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
+import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { SourceRuntimeError } from './SourceRuntimeError'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import {
@@ -84,6 +87,7 @@ export interface CrossSearchSection {
   diagnosticCode: string
   errorText: string
   items: CrossSearchResultItem[]
+  webChallenge?: SourceWebChallengeReceipt
 }
 
 interface SourceSearchOutcome {
@@ -92,6 +96,7 @@ interface SourceSearchOutcome {
 
 interface PagedSearchRun {
   cancelled: boolean
+  webChallengeCurrent?: () => boolean
 }
 
 interface WebDavSearchRun {
@@ -138,6 +143,7 @@ export class CrossSearchService {
   private sourceViewModel: BrowseViewModel
   private libraryStore: LibraryStore
   private pagedSearchRuns: PagedSearchRun[] = []
+  private webChallengeGates: Map<string, SourceWebChallengeGate> = new Map<string, SourceWebChallengeGate>()
   private webDavSearchRun?: WebDavSearchRun = undefined
 
   constructor(context: common.UIAbilityContext, libraryStore: LibraryStore) {
@@ -151,6 +157,7 @@ export class CrossSearchService {
     query: string,
     sourceFilter: CrossSearchSourceFilter = 'all',
     onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
+    webChallengeCurrent: (() => boolean) | undefined = undefined,
   ): Promise<CrossSearchSection[]> {
     this.cancelPendingSearch()
     const normalizedQuery = query.trim()
@@ -196,12 +203,12 @@ export class CrossSearchService {
       }))
     }
 
-    const sourceRun: PagedSearchRun = { cancelled: false }
+    const sourceRun: PagedSearchRun = { cancelled: false, webChallengeCurrent }
     this.pagedSearchRuns.push(sourceRun)
     const sourceTasks: Promise<SourceSearchOutcome>[] = this.sourceMatchesFilter('wasm', sourceFilter) ?
       appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
         // Use the same execution and HTTP deadlines as source-internal search.
-        return this.searchWasmSource(source, normalizedQuery, sourceRun)
+        return this.searchWasmSource(source, normalizedQuery, sourceRun, onSectionResolved)
       }) :
       []
     const reportedTasks = tasks.concat(sourceTasks).map((task: Promise<SourceSearchOutcome>) => {
@@ -221,12 +228,44 @@ export class CrossSearchService {
   }
 
   cancelPendingSearch(): void {
+    this.cancelWebChallenges()
     this.pagedSearchRuns.forEach((run: PagedSearchRun) => { run.cancelled = true })
     this.pagedSearchRuns = []
     // Mark queued source calls obsolete before they enter WAMR, and stop
     // directory traversal before it can issue any further PROPFIND calls.
     if (this.webDavSearchRun !== undefined) this.webDavSearchRun.cancelled = true
     this.webDavSearchRun = undefined
+  }
+
+  // Global search owns one gate per source. Clearing keeps its sequence, so a
+  // retired query cannot collide with a later receipt for that same source.
+  cancelWebChallenges(): void {
+    this.webChallengeGates.forEach((gate: SourceWebChallengeGate) => { gate.clear() })
+  }
+
+  claimWebChallenge(receipt: SourceWebChallengeReceipt, visible: boolean): boolean {
+    return this.webChallengeGates.get(receipt.sourceId)?.claim(receipt.id, visible) ?? false
+  }
+
+  canRetryWebChallenge(receipt: SourceWebChallengeReceipt, visible: boolean): boolean {
+    return visible && (this.webChallengeGates.get(receipt.sourceId)?.isCurrentClaim(receipt.id) ?? false)
+  }
+
+  cancelWebChallenge(receipt: SourceWebChallengeReceipt): void {
+    this.webChallengeGates.get(receipt.sourceId)?.cancel(receipt.id)
+  }
+
+  async completeWebChallenge(receipt: SourceWebChallengeReceipt, visible: boolean): Promise<boolean> {
+    return await this.webChallengeGates.get(receipt.sourceId)?.complete(receipt.id, visible) ?? false
+  }
+
+  private sourceWebChallengeGuard(source: SourceRuntimeRegistryInstalledSourceSummary, run: PagedSearchRun): () => boolean {
+    const entry = appSourceRuntimeRegistry.lookup(source.sourceId).entry
+    const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
+    return (): boolean => !run.cancelled && entry !== undefined && entry.enabled &&
+      appSourceRuntimeRegistry.lookup(source.sourceId).entry === entry &&
+      appSourceSettingsStore.revisionForSource(source.sourceId) === settingsRevision &&
+      (run.webChallengeCurrent?.() ?? true)
   }
 
   private ensureWebDavSearchActive(run: WebDavSearchRun): void {
@@ -523,12 +562,16 @@ export class CrossSearchService {
     source: SourceRuntimeRegistryInstalledSourceSummary,
     query: string,
     run: PagedSearchRun,
+    onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
+    automaticRecovery: boolean = false,
   ): Promise<SourceSearchOutcome> {
+    const current = this.sourceWebChallengeGuard(source, run)
     try {
       if (!this.sourceSupportsSearch(source)) {
         return { section: this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported') }
       }
-      const result = await this.sourceViewModel.searchSource(source, query, 1, '', () => !run.cancelled)
+      const result = await this.sourceViewModel.searchSource(source, query, 1, '',
+        (): boolean => !run.cancelled && (!automaticRecovery || current()))
       const items = this.sortSearchResultItems(query, result.manga.map((manga: SourceManga): CrossSearchResultItem => {
         return {
           id: `wasm:${manga.sourceId}:${manga.id}`,
@@ -548,7 +591,24 @@ export class CrossSearchService {
       const e = error as Error
       const diagnostic = safeSearchDiagnostic(e)
       DiagnosticLogger.error('cross_search_service', 'wasm_failed', `[Search] step=wasm_failed source=${source.sourceId} code=${diagnostic.code}`)
-      return { section: this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', diagnostic) }
+      const section = this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', diagnostic)
+      const eligible = !automaticRecovery && e instanceof SourceRuntimeError &&
+        (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required') &&
+        (source.webSessionOrigins ?? []).length > 0
+      if (eligible && current()) {
+        let gate = this.webChallengeGates.get(source.sourceId)
+        if (gate === undefined) {
+          gate = new SourceWebChallengeGate()
+          this.webChallengeGates.set(source.sourceId, gate)
+        }
+        section.webChallenge = gate.issue(source.sourceId, 'search', true, current, async (): Promise<void> => {
+          onSectionResolved?.(this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running'))
+          const recovered = await this.searchWasmSource(source, query, run, onSectionResolved, true)
+          if (current()) onSectionResolved?.(recovered.section)
+          else if (!run.cancelled) onSectionResolved?.(section)
+        }, e.diagnostic.kind === 'challenge') ?? undefined
+      }
+      return { section }
     }
   }
 

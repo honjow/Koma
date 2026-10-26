@@ -212,14 +212,17 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   } catch (_error) {}
   if (probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
-    verifiedSourceGet = undefined
     if (identity !== undefined && ready.request.requestJson === requestJson &&
-      ready.request.httpContextJson === httpContextJson &&
-      appSourceWebSessionStore.status(identity.sourceId).sessionId === ready.sessionId &&
-      appSourceWebSessionStore.requestSession(identity, url) !== undefined) {
-      DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
-      trace.finish('completed', 'state=verification_response_reused')
-      return ready.responseJson
+      ready.request.httpContextJson === httpContextJson) {
+      // Other global-search sources can finish while this original read waits
+      // in WAMR's queue. Only its exact request may consume the single handoff.
+      verifiedSourceGet = undefined
+      if (appSourceWebSessionStore.status(identity.sourceId).sessionId === ready.sessionId &&
+        appSourceWebSessionStore.requestSession(identity, url) !== undefined) {
+        DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
+        trace.finish('completed', 'state=verification_response_reused')
+        return ready.responseJson
+      }
     }
   }
   const session = identity === undefined ? undefined : probe === undefined

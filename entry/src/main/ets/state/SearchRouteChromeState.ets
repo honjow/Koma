@@ -6,6 +6,7 @@
  */
 @ObservedV2
 export class SearchRouteChromeState {
+  @Trace visible: boolean = false
   @Trace query: string = ''
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0

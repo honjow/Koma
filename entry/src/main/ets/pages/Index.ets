@@ -2131,6 +2131,8 @@ struct Index {
         },
       })
     }
+    .onShown(() => { RouterHelper.ensureSearchRouteChrome(param).visible = true })
+    .onHidden(() => { RouterHelper.ensureSearchRouteChrome(param).visible = false })
     .titleBar(this.searchTitleBarOpts(param))
     .onDisAppear(() => {
       this.disposeSearchFieldContent(RouterHelper.ensureSearchRouteChrome(param))
