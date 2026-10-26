@@ -486,6 +486,42 @@ test('late cached metadata cannot overwrite another selected repository or trigg
   assert.equal(f.manager.sourceIndexUrl,'https://other.test/index.json')
 })
 
+test('fresh install results and settings survive the previous frame package cache', async () => {
+  const before = installed('A', '1.0'), after = installed('A', '2.0'), neighbor = installed('B', '1.0')
+  const descriptors = [{ key: 'language' }]
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
+    'updateInstalledPackage', 'refreshInstalledPackage', 'reloadInstalledPackageSettings',
+    'publishSourceSettings', 'setUpdateStatus', 'installedPackage',
+  ], { ...globals, getInstalledSourcePackage: () => after,
+    resolveSourceLocalizedName: name => name, compareSourceNames: (left, _id, right) => left.localeCompare(right),
+    appSourceSettingsStore: { loadForSource: () => ({}) }, appSourceRuntimeRegistry: {},
+    loadSourceSettingsDescriptorsAsync: async () => ({ ready: true, descriptors }),
+    sourceDisplayName: (_id, name) => name, t: key => key, tf: key => key,
+  })
+  Object.assign(manager, { packages: [before, neighbor], busy: false, packageUpdateStatuses: [],
+    languageState: { effectiveLocale: 'zh-CN' }, sourceSheetSourceId: '', savedSettingCounts: {},
+    settingsValidationStatuses: [], settingsSourceReloads: {}, settingsReloadRevision: 0,
+    settingsDescriptorSnapshot: { A: [] }, settingsAvailability: { A: 'old' },
+    settingsAvailabilityText: values => `fields:${values.length}`, packageInstallPending: () => false,
+    sourceIndexService: { installPackage: async () => ({ ok: true, id: 'A' }) }, showToast() {},
+  })
+  // Official V2 behavior: a Computed value retains its old result until the
+  // next frame, even after this task writes packages or awaits a ready result.
+  Object.defineProperty(manager, 'installedPackagesById', { value: new Map([['A', before], ['B', neighbor]]) })
+  const reloadSettings = manager.reloadInstalledPackageSettings.bind(manager)
+  let settingsCompleted
+  manager.reloadInstalledPackageSettings = (...args) => {
+    settingsCompleted = reloadSettings(...args)
+    return settingsCompleted
+  }
+  await manager.updateInstalledPackage(before, { entry: indexed('A', '2.0'), indexUrl: 'https://index.test/index.json' })
+  await settingsCompleted
+  assert.deepEqual({ version: manager.packageUpdateStatuses[0].localVersion,
+    fields: manager.settingsDescriptorSnapshot.A, availability: manager.settingsAvailability.A },
+  { version: '2.0', fields: descriptors, availability: 'fields:1' })
+  assert.equal(manager.packages.find(item => item.id === 'B'), neighbor)
+})
+
 function updateCheckManager(packages, replies, statuses = []) {
   packages = packages.map(source => ({ ...source, lang: '' }))
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [

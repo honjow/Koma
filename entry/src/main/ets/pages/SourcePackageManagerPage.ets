@@ -319,10 +319,10 @@ export struct SourcePackageManagerPage {
     this.settingsAvailability = availability
   }
 
-  private refreshInstalledPackage(sourceId: string): void {
+  private refreshInstalledPackage(sourceId: string): InstalledSourcePackage | undefined {
     const projectionStartedAt = Date.now()
     const source = getInstalledSourcePackage(sourceId)
-    if (source === undefined) return
+    if (source === undefined) return undefined
     // Preserve every unaffected row's input identity; only this package changed.
     const packages = this.packages.filter((item: InstalledSourcePackage): boolean => item.id !== sourceId)
     packages.push(source)
@@ -359,12 +359,15 @@ export struct SourcePackageManagerPage {
     void this.reloadInstalledPackageSettings(source, this.settingsReloadRevision, sourceRevision)
     DiagnosticLogger.info('source_package', 'row_projection', 'durationMs=' +
       Math.max(0, Date.now() - projectionStartedAt) + ' packageCount=' + this.packages.length)
+    // The Computed index still describes the previous frame in this task.
+    // Business completion needs this operation's DTO, not that render cache.
+    return source
   }
 
   private async reloadInstalledPackageSettings(source: InstalledSourcePackage, revision: number, sourceRevision: number): Promise<void> {
     const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
     if (revision !== this.settingsReloadRevision || sourceRevision !== this.settingsSourceReloads[source.id] ||
-      this.installedPackage(source.id) !== source || !result.ready) return
+      !this.packages.includes(source) || !result.ready) return
     this.publishSourceSettings(source.id, result.descriptors)
   }
 
@@ -1158,8 +1161,7 @@ export struct SourcePackageManagerPage {
         if (!wasEnabled) {
           setEnabled(this.context(), source.id, false)
         }
-        this.refreshInstalledPackage(source.id)
-        const installed = this.installedPackage(source.id)
+        const installed = this.refreshInstalledPackage(source.id)
         this.setUpdateStatus({
           sourceId: source.id,
           status: 'latest',
