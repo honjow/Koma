@@ -12,9 +12,10 @@ import { SourceTextPage } from './SourceTextPageDescriptor'
 @Concurrent
 export async function renderSourceTextPageWorker(spec: SourceTextPage): Promise<ArrayBuffer> {
   const notes: boolean = spec.template === 'webtoon-author-notes'
+  const chapterComments: boolean = spec.template === 'zaimanhua-chapter-comments'
   const width: number = notes ? 1000 : 1080
-  const x: number = notes ? 50 : 32
-  const padding: number = notes ? 25 : 32
+  const x: number = notes || chapterComments ? 50 : 32
+  const padding: number = notes || chapterComments ? 25 : 32
   const layouts: text.Paragraph[] = []
   let height: number = padding
   if (notes) {
@@ -23,6 +24,24 @@ export async function renderSourceTextPageWorker(spec: SourceTextPage): Promise<
     if (body.length > 0) layouts.push(sourceTextParagraph(body, width - 2 * x, 30, false, true))
     for (const layout of layouts) height += Math.ceil(layout.getHeight())
     height += padding
+  } else if (chapterComments) {
+    // Keiyoushi's Zaimanhua CommentsInterceptor owns a distinct layout: skip an
+    // oversized multiline comment, stop at an oversized single line, and keep
+    // the image at least square. Do not substitute DM5's cutoff or dimensions.
+    const heading = sourceTextParagraph('章末吐槽：', width - 2 * x, 36, true, false)
+    layouts.push(heading)
+    height += Math.ceil(heading.getHeight())
+    for (const comment of spec.paragraphs) {
+      const layout = sourceTextParagraph(comment, width - 2 * x, 30, false, false)
+      const lineHeight: number = Math.ceil(layout.getHeight()) + 30
+      if (height + lineHeight <= 1920) {
+        layouts.push(layout)
+        height += lineHeight
+      } else if (layout.getLineCount() === 1) {
+        break
+      }
+    }
+    height = Math.min(1920, Math.max(width, height + padding))
   } else {
     for (const comment of spec.paragraphs) {
       const layout = sourceTextParagraph(comment, width - 2 * x, 32, false, false)
@@ -44,7 +63,7 @@ export async function renderSourceTextPageWorker(spec: SourceTextPage): Promise<
     let y: number = padding
     for (const layout of layouts) {
       layout.paint(canvas, x, y)
-      y += Math.ceil(layout.getHeight()) + (notes ? 0 : padding)
+      y += Math.ceil(layout.getHeight()) + (notes ? 0 : (chapterComments ? 30 : padding))
     }
     return await packer.packing(pixelMap, { format: 'image/png', quality: 100 })
   } finally {

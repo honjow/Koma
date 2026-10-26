@@ -15,7 +15,8 @@ export function sourceTextPage(value: Object | undefined): SourceTextPage {
   const template = fields['template']
   const heading = fields['heading'] ?? ''
   const paragraphs = fields['paragraphs']
-  if ((template !== 'webtoon-author-notes' && template !== 'dm5-chapter-comments') ||
+  if ((template !== 'webtoon-author-notes' && template !== 'dm5-chapter-comments' &&
+    template !== 'zaimanhua-chapter-comments') ||
     typeof heading !== 'string' || !Array.isArray(paragraphs) || paragraphs.length > 1000) {
     throw new Error('source_text_page_invalid')
   }

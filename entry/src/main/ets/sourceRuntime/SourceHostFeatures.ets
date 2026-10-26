@@ -1,6 +1,8 @@
 /** Host-owned protocol support. Sources must not expose options requiring an absent host feature. */
 export function sourceHostFeatures(): string[] {
-  return ['text_page_image_v1', 'source_rate_limit_v1']
+  // New templates require their own feature: an older text_page_image_v1 host
+  // cannot render them, even if a saved source preference remains enabled.
+  return ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1']
 }
 
 export function sourceRequestWithHostFeatures(requestJson: string): string {

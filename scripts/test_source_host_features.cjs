@@ -26,14 +26,63 @@ test('host capability handoff preserves requests and validates plain text withou
   const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
   assert.deepEqual(enriched.args, request.args)
   assert.deepEqual(enriched.settings, request.settings)
-  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1'])
+  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1'])
+  assert.deepEqual(JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify({ operation: 'get_settings' }))).hostFeatures,
+    enriched.hostFeatures)
   assert.equal(host.sourceRequestWithHostFeatures('{'), '{')
   const { sourceTextPage } = load('model/SourceTextPageDescriptor.ets')
   const spec = { template: 'dm5-chapter-comments', heading: '', paragraphs: ['甲: 中文 & <literal> 😀'] }
   assert.deepEqual(sourceTextPage(spec), spec)
+  assert.deepEqual(sourceTextPage({ ...spec, template: 'zaimanhua-chapter-comments' }),
+    { ...spec, template: 'zaimanhua-chapter-comments' })
   assert.throws(() => sourceTextPage({ ...spec, template: 'remote-html' }))
   assert.throws(() => sourceTextPage({ ...spec, paragraphs: [123] }))
   assert.throws(() => sourceTextPage({ ...spec, paragraphs: ['x'.repeat(64001)] }))
+})
+
+test('native worker follows the adopted comment cutoff and minimum height without changing existing templates', async () => {
+  // Fixed paragraph metrics exercise layout policy and paint placement, not
+  // HarmonyOS glyph shaping or PNG output, which require an installed route.
+  let bitmapSize
+  let painted
+  let released = 0
+  const metrics = { '章末吐槽：': [40, 1], heading: [40, 1], small: [30, 1],
+    full: [1700, 20], oversized: [2000, 24], single: [100, 1] }
+  const paragraph = (value, width, size, bold, notes) => {
+    const [height, lines] = metrics[value]
+    return { getHeight: () => height, getLineCount: () => lines,
+      paint: (_canvas, x, y) => painted.push({ value, x, y, width, size, bold, notes }) }
+  }
+  const image = { PixelMapFormat: { RGBA_8888: 1 }, AlphaType: { OPAQUE: 1 },
+    createPixelMap: async (_buffer, options) => { bitmapSize = options.size; return { release: async () => released++ } },
+    createImagePacker: () => ({ packing: async () => new ArrayBuffer(1), release: async () => released++ }) }
+  const { renderSourceTextPageWorker } = load('model/SourceTextPageRenderer.ets', {
+    '@kit.ImageKit': { image }, '@kit.ArkGraphics2D': { drawing: { Canvas: class { drawColor() {} } } },
+    './SourceTextPageLayout': { sourceTextParagraph: paragraph },
+  })
+  const render = async (template, paragraphs, heading = '') => {
+    painted = []; await renderSourceTextPageWorker({ template, heading, paragraphs })
+  }
+  await render('zaimanhua-chapter-comments', ['small'])
+  assert.deepEqual(bitmapSize, { width: 1080, height: 1080 })
+  assert.deepEqual(painted, [
+    { value: '章末吐槽：', x: 50, y: 25, width: 980, size: 36, bold: true, notes: false },
+    { value: 'small', x: 50, y: 95, width: 980, size: 30, bold: false, notes: false },
+  ])
+  await render('zaimanhua-chapter-comments', ['full', 'oversized', 'small'])
+  assert.deepEqual(painted.map(p => p.value), ['章末吐槽：', 'full', 'small'])
+  assert.equal(painted[2].y, 1825)
+  assert.equal(bitmapSize.height, 1880)
+  await render('zaimanhua-chapter-comments', ['full', 'single', 'small'])
+  assert.deepEqual(painted.map(p => p.value), ['章末吐槽：', 'full'])
+  assert.equal(bitmapSize.height, 1820)
+  await render('dm5-chapter-comments', ['oversized', 'small'])
+  assert.deepEqual(painted, [])
+  assert.deepEqual(bitmapSize, { width: 1080, height: 32 })
+  await render('webtoon-author-notes', ['small'], 'heading')
+  assert.deepEqual(bitmapSize, { width: 1000, height: 120 })
+  assert.deepEqual(painted.map(p => [p.value, p.x, p.y, p.notes]), [['heading', 50, 25, true], ['small', 50, 65, true]])
+  assert.equal(released, 10)
 })
 
 test('actual sliding windows share the CDN quota, isolate main-site quota and release cancelled waiters', async () => {

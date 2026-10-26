@@ -40,9 +40,11 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 ## 宿主特性与文字页
 
-`get_settings` 与 `get_pages` 请求顶层由宿主加入 `hostFeatures`。当前支持 `text_page_image_v1` 和 `source_rate_limit_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原图像输出。特性不是网络权限或任意 HTML 执行许可。
+`get_settings` 与 `get_pages` 请求顶层由宿主加入 `hostFeatures`。当前支持 `text_page_image_v1`、`source_rate_limit_v1` 和 `text_page_image_zaimanhua_comments_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原图像输出。特性不是网络权限或任意 HTML 执行许可。
 
-文字页沿原 `data.pages` 返回 `image: { kind: "text", text: { template, heading?, paragraphs } }`；模板只接受 `webtoon-author-notes`、`dm5-chapter-comments`。源负责 JSON 转义及 HTML 实体解码，字段是普通 Unicode。宿主在章节页表发布前通过 TaskPool 原生字体排版生成本地 PNG，复用 Reader 图像缓存；经过校验的公共文字描述随 Page 和会话传递，缓存被清理时由同一准备/预载及离线下载链重建，缓存路径不是唯一内容。Reader、预载和增强消费同一本地图片，不请求虚构图像网址，正常制图不推迟到翻页。宽度、字号、段距及整条评论截断沿所采用的源参考，字形度量由 HarmonyOS 提供。
+文字页沿原 `data.pages` 返回 `image: { kind: "text", text: { template, heading?, paragraphs } }`；模板只接受 `webtoon-author-notes`、`dm5-chapter-comments`、`zaimanhua-chapter-comments`。前两种由 `text_page_image_v1` 声明；再漫画模板须同时具有 `text_page_image_zaimanhua_comments_v1`，设置展示与 `get_pages` 实际输出都要核对，不能因旧 App 留有开启设置就输出不支持的模板。ComicFury 作者注释采用同一公共 TextInterceptor 排版，可复用 `webtoon-author-notes`。
+
+源负责 JSON 转义及 HTML 实体解码，字段是普通 Unicode。宿主在章节页表发布前通过 TaskPool 原生字体排版生成本地 PNG，复用 Reader 图像缓存；经过校验的公共文字描述随 Page 和会话传递，缓存被清理时由同一准备/预载及离线下载链重建，缓存路径不是唯一内容。Reader、预载和增强消费同一本地图片，不请求虚构图像网址，正常制图不推迟到翻页。宽度、字号、段距及整条评论截断沿所采用的源参考，字形度量由 HarmonyOS 提供。再漫画模板固定标题“章末吐槽：”，按参考跳过放不下的多行评论、遇放不下的单行评论停止，图片高至少等于宽且不超过1920；不沿用 DM5 的截断规则。
 
 漫画柜限速由进程内共同 owner 执行：主站共享滑窗，已知 CDN 集合共享另一滑窗，元数据网络、封面和 Reader 图像缓存未命中均消费相应额度。额度来自请求已有设置快照；网络热路径不再读盘加载设置。其它源、无匹配站点及缓存命中保持原路径，排队后重核会话身份，不沿用排队前 Cookie。
 
