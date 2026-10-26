@@ -4,6 +4,19 @@ export interface SourceTextPage {
   paragraphs: string[]
 }
 
+/** A source-owned page resolved through get_image_request, never an invented URL. */
+export interface SourceTextPageRequest {
+  template: string
+}
+
+export function sourceTextPageRequest(value: Object | undefined): SourceTextPageRequest {
+  if (value === undefined || value === null || typeof value !== 'object' || Array.isArray(value) ||
+    (value as Record<string, Object>)['template'] !== 'zaimanhua-chapter-comments') {
+    throw new Error('source_text_page_request_invalid')
+  }
+  return { template: 'zaimanhua-chapter-comments' }
+}
+
 /** The source owns JSON/HTML decoding. This boundary only accepts plain Unicode;
  * it never interprets markup or loads fonts, scripts, URLs or credentials.
  */

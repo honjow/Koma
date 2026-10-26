@@ -353,7 +353,9 @@ export class OfflineDownloadService {
           continue
         }
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
-        const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri))
+        const extension = source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST ? 'png' :
+          extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri)
+        const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extension)
         let writtenPage: OfflineDownloadPageWriteResult
         try {
           writtenPage = await this.writePage(source, localPath)
@@ -426,7 +428,8 @@ export class OfflineDownloadService {
       }
       return copyLocalFile(source.imageUri, localPath)
     }
-    if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+    if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+      source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
       throw new Error('unsupported page source')
     }
     const bytes = await fetchReaderRemoteSourceBytes(source, this.requestContext)

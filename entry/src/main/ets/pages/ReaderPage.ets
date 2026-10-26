@@ -332,7 +332,8 @@ struct ReaderImageSurface {
     this.loading = true
     this.failed = false
     this.displayUri = ''
-    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.imageUri.length === 0) {
+    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
+      (this.source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && this.source.imageUri.length === 0)) {
       this.loading = false
       this.failed = true
       this.onFailed(this.pageIndex)
@@ -1549,7 +1550,8 @@ struct ReaderThumbnailTile {
     if (staleLease !== undefined) {
       await this.thumbnailCache.release(staleLease)
     }
-    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.imageUri.length === 0) {
+    if (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
+      (this.source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && this.source.imageUri.length === 0)) {
       this.loading = false
       this.failed = true
       return
@@ -2346,7 +2348,8 @@ export struct ReaderPage {
 
   private async pageImageFileForSystemAction(): Promise<string> {
     const source = this.sourceFor(this.pageIndex)
-    if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
+    if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
+      (source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.imageUri.length === 0)) {
       throw new Error('reader_page_source_unavailable')
     }
     const sourcePath = await fetchAndCacheReaderRemoteSource(source, getContext(this) as common.UIAbilityContext)
@@ -2859,7 +2862,8 @@ export struct ReaderPage {
     // not enter remote warming at all.  For a remote current page, construct
     // lookahead sources with offline preference disabled: warming never needs
     // a download-manifest lookup and still skips genuinely local archives.
-    if (this.sourceFor(startIndex).kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+    const currentKind = this.sourceFor(startIndex).kind
+    if (currentKind !== ReaderPageRenderKind.REMOTE_URL_IMAGE && currentKind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
       return
     }
     const epoch = ++this.prefetchEpoch
@@ -2869,7 +2873,7 @@ export struct ReaderPage {
         break
       }
       const source = createReaderPageRenderSource(this.sessionConfig, index, { preferOffline: false })
-      if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+      if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE && source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
         continue
       }
       void fetchAndCacheReaderRemoteSource(source, getContext(this) as common.UIAbilityContext).catch(() => {

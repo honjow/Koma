@@ -15,9 +15,21 @@ function load(relative, imports = {}, globals = {}) {
 function functions(relative, names, globals) {
   const source = fs.readFileSync(path.join(root, relative), 'utf8')
   const tree = ts.createSourceFile(relative, source, ts.ScriptTarget.Latest, true)
-  const body = names.map(name => tree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name).getText(tree)).join('\n')
+  const body = names.map(name => tree.statements.find(n => n.name?.text === name).getText(tree)).join('\n')
   const js = ts.transpileModule(body, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   return new Function('exports', ...Object.keys(globals), js + ';return {' + names.join(',') + '}')({}, ...Object.values(globals))
+}
+
+function fileCache(directory) {
+  const io = { accessSync: fs.existsSync, mkdirSync: p => fs.mkdirSync(p, { recursive: true }),
+    OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4, READ_ONLY: 0 }, openSync: (p, mode) => ({ fd: fs.openSync(p, mode === 0 ? 'r' : 'w') }),
+    closeSync: file => fs.closeSync(file.fd), statSync: fs.statSync, renameSync: fs.renameSync,
+    readSync: (fd, bytes) => fs.readSync(fd, new Uint8Array(bytes)),
+    writeSync: (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes)),
+    unlinkSync: fs.unlinkSync, unlink: p => fs.promises.unlink(p), listFile: p => fs.promises.readdir(p),
+    readTextSync: p => fs.readFileSync(p, 'utf8') }
+  const { RemoteImageCacheStore } = load('model/RemoteImageCacheStore.ets', { '@kit.CoreFileKit': { fileIo: io } })
+  return { io, cache: new RemoteImageCacheStore(directory) }
 }
 
 test('host capability handoff preserves requests and validates plain text without interpreting markup', () => {
@@ -26,7 +38,7 @@ test('host capability handoff preserves requests and validates plain text withou
   const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
   assert.deepEqual(enriched.args, request.args)
   assert.deepEqual(enriched.settings, request.settings)
-  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1'])
+  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1'])
   assert.deepEqual(JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify({ operation: 'get_settings' }))).hostFeatures,
     enriched.hostFeatures)
   assert.equal(host.sourceRequestWithHostFeatures('{'), '{')
@@ -83,6 +95,83 @@ test('native worker follows the adopted comment cutoff and minimum height withou
   assert.deepEqual(bitmapSize, { width: 1000, height: 120 })
   assert.deepEqual(painted.map(p => [p.value, p.x, p.y, p.notes]), [['heading', 50, 25, true], ['small', 50, 65, true]])
   assert.equal(released, 10)
+})
+
+test('deferred text keeps the body available, retries only its page, and shares prepared files with export', async () => {
+  const descriptor = load('model/SourceTextPageDescriptor.ets')
+  const feature = load('sourceRuntime/SourceHostFeatures.ets')
+  const hydrate = functions('model/SourceChapterPageHydrator.ets', ['optionalSourceString', 'optionalSourceNumber',
+    'sourcePageImageRecord', 'sourcePageImageUrl', 'sourcePageDimension', 'sourcePageId', 'pagesFromSourceRows'], {
+    ...descriptor, normalizeSourceImageUrl: value => value,
+    cacheSourceTextPageImage: async () => { throw Error('get_pages must not render the deferred page') },
+  })
+  const pages = await hydrate.pagesFromSourceRows('book', 'chapter', [
+    { id: 'body', image: { kind: 'url', url: 'https://images.example/body.jpg' } },
+    { id: 'chapter-comments:1/2', image: { kind: 'text_request', textRequest: { template: 'zaimanhua-chapter-comments' } } },
+  ])
+  assert.equal(pages[0].uri, 'https://images.example/body.jpg')
+  assert.equal(pages[1].uri, 'chapter-comments:1/2')
+  const persistence = functions('model/LibraryPersistence.ets', ['assertPersistedObject', 'assertStringField',
+    'assertNumberField', 'assertOptionalNumberField', 'assertValidPersistedPage', 'persistPage', 'hydratePage'], descriptor)
+  const restored = persistence.hydratePage(JSON.parse(JSON.stringify(persistence.persistPage(pages[1]))))
+  assert.deepEqual(restored.sourceTextRequest, { template: 'zaimanhua-chapter-comments' })
+  const session = functions('model/ReaderSessionStore.ets', ['cloneReaderSessionConfig'], descriptor)
+  const config = session.cloneReaderSessionConfig({ comicId: 'book', chapterId: 'chapter', chapterIds: ['chapter'],
+    totalPages: 2, pageIds: pages.map(p => p.id), pageUris: pages.map(p => p.uri),
+    pageTextRequests: [undefined, restored.sourceTextRequest], sourceRuntimeId: 'source' })
+  restored.sourceTextRequest.template = 'outside change'
+  assert.equal(config.pageTextRequests[1].template, 'zaimanhua-chapter-comments')
+
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-deferred-text-'))
+  const { cache, io } = fileCache(directory)
+  let settings = { COMMENTS: true }, calls = 0, renders = 0, fail = true, changeDuringRequest = false, changeDuringMaintenance = false
+  const entry = { sourceId: 'source', enabled: true, manifestVersion: '1', wasmPath: '/installed/1/source.wasm',
+    capabilities: ['imageRequest'], wasmBytes: new Uint8Array([1]) }
+  const error = load('model/SourceRuntimeError.ets', { '../i18n/AppStrings': { AppStrings: {
+    get: () => 'Source failure', format: () => 'Source failure HTTP 503',
+  } } })
+  const kinds = { LOCAL_FILE_IMAGE: 'local', REMOTE_URL_IMAGE: 'remote', URI_PLACEHOLDER: 'missing', SOURCE_TEXT_REQUEST: 'deferred' }
+  const adapter = functions('model/ReaderPageSourceAdapter.ets', ['sourceImageMangaRoute', 'ReaderImageRuntimeArgs',
+    'ReaderImageRuntimeHostHints', 'readerImageRequestForPage', 'runReaderSourceImageOperation', 'sourceTextRequestCurrent',
+    'fetchAndCacheSourceRuntimeTextPage', 'readerPageIdAt', 'createReaderPageRenderSourceWithOfflinePath',
+    'fetchAndCacheReaderRemoteSource', 'fetchReaderRemoteSourceBytes'], {
+    ...descriptor, ...feature, ...error, fs: io, ReaderPageRenderKind: kinds, readerImageCacheStore: cache,
+    appSourceRuntimeRegistry: { lookup: () => ({ ok: true, entry }) },
+    appSourceSettingsStore: { loadForSource: () => ({ ...settings }) }, sourceSettingsFingerprint: JSON.stringify,
+    configureSourceRequestPolicy() {}, sourceHttpIdentityJson: () => '{}',
+    diagnoseSourceOperation: (_request, execute) => execute(), taskpool: { execute: (fn, ...args) => fn(...args) },
+    maintainReaderImageCacheAfterWrite: async () => { if (changeDuringMaintenance) settings = { COMMENTS: false } },
+    createReaderOfflineMissingUri: () => 'offline-missing',
+    renderSourceTextPage: async spec => { renders++; assert.equal(spec.template, 'zaimanhua-chapter-comments'); return Uint8Array.of(1, 2, 3, 4).buffer },
+    executeReaderSourceImageRequestOperation: async request => {
+      calls++; const req = JSON.parse(request)
+      assert.equal(req.operation, 'get_image_request'); assert.equal(req.args.pageId, 'chapter-comments:1/2')
+      assert.equal(req.args.url, ''); assert(req.hostFeatures.includes('source_text_page_request_v1'))
+      if (changeDuringRequest) settings = { COMMENTS: false }
+      return JSON.stringify(fail ? { ok: false, error: { code: 'http_error', status: 503 } } :
+        { ok: true, data: { image: { kind: 'text', text: { template: 'zaimanhua-chapter-comments', paragraphs: ['真实文字'] } } } })
+    },
+  })
+  try {
+    const source = adapter.createReaderPageRenderSourceWithOfflinePath(config, 1, '', false)
+    assert.equal(source.kind, kinds.SOURCE_TEXT_REQUEST)
+    await assert.rejects(adapter.fetchAndCacheReaderRemoteSource(source), e => e instanceof error.SourceRuntimeError && e.diagnostic.status === 503)
+    assert.equal(pages[0].uri, 'https://images.example/body.jpg')
+    fail = false
+    const first = await adapter.fetchAndCacheReaderRemoteSource(source)
+    assert(fs.existsSync(first)); assert.equal(calls, 2); assert.equal(renders, 1)
+    assert.deepEqual(new Uint8Array(await adapter.fetchReaderRemoteSourceBytes(source)), Uint8Array.of(1, 2, 3, 4))
+    assert.equal(calls, 2)
+    await adapter.fetchAndCacheReaderRemoteSource(source, undefined, true)
+    assert.equal(calls, 3); assert.equal(renders, 2)
+    changeDuringRequest = true
+    await assert.rejects(adapter.fetchAndCacheReaderRemoteSource(source, undefined, true), /source_text_request_stale/)
+    assert.equal(renders, 2)
+    changeDuringRequest = false; settings = { COMMENTS: true }; changeDuringMaintenance = true
+    await assert.rejects(adapter.fetchAndCacheReaderRemoteSource(source), /source_text_request_stale/)
+    assert.equal(adapter.createReaderPageRenderSourceWithOfflinePath(config, 1, '', true).kind, kinds.URI_PLACEHOLDER)
+    assert.equal(adapter.createReaderPageRenderSourceWithOfflinePath(config, 1, first, true).kind, kinds.LOCAL_FILE_IMAGE)
+  } finally { fs.rmSync(directory, { recursive: true, force: true }) }
 })
 
 test('actual sliding windows share the CDN quota, isolate main-site quota and release cancelled waiters', async () => {

@@ -1,5 +1,5 @@
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { SourceTextPage, sourceTextPage } from './SourceTextPageDescriptor'
+import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -151,6 +151,7 @@ export interface ReaderSessionConfig {
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
   pageTextPages?: (SourceTextPage | null | undefined)[]
+  pageTextRequests?: (SourceTextPageRequest | null | undefined)[]
   sourceRuntimeId?: string
   /** Route-local provider category; never persisted with history or progress. */
   sourceFailureReason?: string
@@ -188,6 +189,8 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageHeights: config.pageHeights?.slice(),
     pageTextPages: config.pageTextPages?.map((page: SourceTextPage | null | undefined): SourceTextPage | undefined =>
       page === undefined || page === null ? undefined : sourceTextPage(page)),
+    pageTextRequests: config.pageTextRequests?.map((page: SourceTextPageRequest | null | undefined): SourceTextPageRequest | undefined =>
+      page === undefined || page === null ? undefined : sourceTextPageRequest(page)),
     sourceRuntimeId: config.sourceRuntimeId,
     sourceFailureReason: config.sourceFailureReason,
     sourceFailure: config.sourceFailure === undefined ? undefined : {
@@ -943,6 +946,7 @@ export function createReaderSessionConfigFromComic(
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
     pageTextPages: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceText),
+    pageTextRequests: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextRequest),
     sourceRuntimeId: comic.sourceRuntimeId,
     sourceMangaUrl: comic.sourceRuntimeId === undefined ? undefined : comic.sourcePath,
     sourceKind: comic.sourceKind,

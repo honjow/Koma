@@ -517,6 +517,7 @@ struct Index {
       pageWidths: pages.map((page: Page): number | undefined => page.width),
       pageHeights: pages.map((page: Page): number | undefined => page.height),
       pageTextPages: pages.map((page: Page) => page.sourceText),
+      pageTextRequests: pages.map((page: Page) => page.sourceTextRequest),
       sourceRuntimeId: request.sourceId,
       sourceMangaUrl: request.mangaUrl,
     }

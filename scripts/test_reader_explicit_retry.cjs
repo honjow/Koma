@@ -89,6 +89,31 @@ test('available offline chapters bypass provider refresh even on explicit retry'
   assert.deepEqual(calls, [])
 })
 
+test('a deferred-page failure leaves body reading available and its explicit retry never refreshes the chapter', async () => {
+  const kinds = { LOCAL_FILE_IMAGE: 'local', REMOTE_URL_IMAGE: 'remote', URI_PLACEHOLDER: 'missing', SOURCE_TEXT_REQUEST: 'deferred' }
+  const Reader = methods('readerLab/KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter', ['load', 'preload'], {
+    ReaderPageRenderKind: kinds, ReaderAsset: class { constructor(uri) { this.uri = uri } },
+    KomaReaderFileInformation: class {}, KomaReaderCropSource: class {},
+  })
+  const reader = new Reader(), calls = []
+  const sources = [{ kind: kinds.REMOTE_URL_IMAGE, uri: 'https://images.example/body.jpg', imageUri: 'https://images.example/body.jpg' },
+    { kind: kinds.SOURCE_TEXT_REQUEST, uri: 'chapter-comments:1/2', imageUri: '' }]
+  let noteFails = true
+  Object.assign(reader, { closed: false, sources: new Map([['unit', sources]]), unitId: () => 'unit',
+    refreshPageSources: async () => { throw Error('unrelated chapter refresh') },
+    sourceFile: async (_unit, index, force = false) => {
+      calls.push([index, force]); if (index === 1 && noteFails) throw Error('comment API failure')
+      return index === 0 ? '/cache/body.jpg' : '/cache/comments.png'
+    } })
+  const page = index => ({ unit: target, sourceIndex: index, key: index === 0 ? 'body' : 'chapter-comments:1/2' })
+  await assert.rejects(reader.load(page(1), 'original', cancel, false), /comment API failure/)
+  assert.equal((await reader.load(page(0), 'original', cancel, false)).uri, 'file:///cache/body.jpg')
+  noteFails = false
+  assert.equal((await reader.load(page(1), 'original', cancel, true)).uri, 'file:///cache/comments.png')
+  await reader.preload(page(1), cancel)
+  assert.deepEqual(calls, [[1, false], [0, false], [1, true], [1, false]])
+})
+
 // Load the actual descriptor resolver, with worker/network ports controlled in memory.
 function sourceImageRequestSubject(ports) {
   const file = 'model/ReaderPageSourceAdapter.ets'
@@ -97,7 +122,7 @@ function sourceImageRequestSubject(ports) {
   const names = new Set(['sourceImageDescriptorAbsence', 'sourceExplicitlyLacksImageRequest', 'unavailableSourceImageDescriptor',
     'SourceImageRequestDescriptor', 'parseSourceImageRequestHeaders', 'parseSourceImageRequestDescriptor',
     'readerImageRequestForPage', 'sourceImageMangaRoute', 'ReaderImageRuntimeArgs',
-    'ReaderImageRuntimeHostHints', 'resolveSourceRuntimeImageRequest'])
+    'ReaderImageRuntimeHostHints', 'runReaderSourceImageOperation', 'resolveSourceRuntimeImageRequest'])
   const nodes = tree.statements.filter(n => names.has(n.name?.getText(tree)) ||
     (ts.isVariableStatement(n) && n.declarationList.declarations.some(d => names.has(d.name.getText(tree)))))
   const exports = {}
@@ -105,7 +130,8 @@ function sourceImageRequestSubject(ports) {
     '\nexport { resolveSourceRuntimeImageRequest };', {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, WeakMap, Uint8Array, console, sourceHttpIdentityJson: () => '{}',
-    appSourceSettingsStore: { loadForSource: () => ({}) }, DiagnosticLogger: { warn() {} }, executeReaderSourceImageRequestOperation() {},
+    appSourceSettingsStore: { loadForSource: () => ({}) }, configureSourceRequestPolicy() {},
+    DiagnosticLogger: { warn() {} }, executeReaderSourceImageRequestOperation() {},
     diagnoseSourceOperation: (_request, execute) => execute(), ...ports })
   return exports.resolveSourceRuntimeImageRequest
 }

@@ -1,6 +1,11 @@
 import { configureSourceRequestPolicy, waitForSourceRequestSlot } from '../sourceRuntime/SourceRequestPolicy'
 import { renderSourceTextPage } from './SourceTextPageRenderer'
-import { SourceTextPage } from './SourceTextPageDescriptor'
+import { SourceTextPage, sourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
+import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
+import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
+import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
+import { SourceRuntimeError } from './SourceRuntimeError'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -418,7 +423,8 @@ export async function cacheSourceTextPageImage(spec: SourceTextPage, forceReload
   return path
 }
 
-function readerImageRequestForPage(sourceId: string, pageId: string, url: string, mangaUrl?: string): string {
+function readerImageRequestForPage(sourceId: string, pageId: string, url: string, mangaUrl?: string,
+  settings?: SourceSettingsRecord): string {
   const request: ReaderImageRuntimeRequest = {
     type: 'request',
     version: 1,
@@ -426,7 +432,7 @@ function readerImageRequestForPage(sourceId: string, pageId: string, url: string
     operation: 'get_image_request',
     sourceId,
     args: new ReaderImageRuntimeArgs(pageId, url, mangaUrl),
-    settings: appSourceSettingsStore.loadForSource(sourceId),
+    settings: settings ?? appSourceSettingsStore.loadForSource(sourceId),
     hostHints: new ReaderImageRuntimeHostHints(),
   }
   configureSourceRequestPolicy(sourceId, request.settings)
@@ -586,6 +592,16 @@ function unavailableSourceImageDescriptor(sourceId: string): undefined {
   return undefined
 }
 
+async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, requestJson: string): Promise<string> {
+  const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
+  wasmBytes.set(entry.wasmBytes)
+  const httpContextJson = sourceHttpIdentityJson(entry)
+  // Keep normal images and deferred text on the same worker/host HTTP bridge.
+  return diagnoseSourceOperation(requestJson, () => taskpool.execute(
+    executeReaderSourceImageRequestOperation, requestJson, wasmBytes, httpContextJson,
+  ) as Promise<string>)
+}
+
 async function resolveSourceRuntimeImageRequest(
   sourceRuntimeId: string,
   uri: string,
@@ -605,21 +621,13 @@ async function resolveSourceRuntimeImageRequest(
     return undefined
   }
   const requestJson = readerImageRequestForPage(sourceId, sourceImageId, uri, mangaUrl)
-  const wasmBytes = new Uint8Array(lookup.entry.wasmBytes.byteLength)
-  wasmBytes.set(lookup.entry.wasmBytes)
-  const httpContextJson = sourceHttpIdentityJson(lookup.entry)
   let responseJson: string
   try {
     // Match the source detail/chapter path: WAMR stays on a TaskPool worker,
     // while the configured host HTTP bridge dispatches NetworkKit on the UI
     // runtime. Loading the NAPI module dynamically inside the worker bypassed
     // that established execution path and crashed on a ticketed image request.
-    responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
-      executeReaderSourceImageRequestOperation,
-      requestJson,
-      wasmBytes,
-      httpContextJson,
-    ) as Promise<string>)
+    responseJson = await runReaderSourceImageOperation(lookup.entry, requestJson)
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_failed')
     return unavailableSourceImageDescriptor(sourceId)
@@ -637,6 +645,52 @@ async function resolveSourceRuntimeImageRequest(
   const descriptor = parseSourceImageRequestDescriptor(responseJson)
   if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
   return descriptor ?? unavailableSourceImageDescriptor(sourceId)
+}
+
+function sourceTextRequestCurrent(entry: SourceRuntimeRegistryEntry, fingerprint: string): boolean {
+  const latest = appSourceRuntimeRegistry.lookup(entry.sourceId)
+  return latest.ok && latest.entry !== undefined && latest.entry === entry && latest.entry.enabled &&
+    sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(entry.sourceId)) === fingerprint
+}
+
+async function fetchAndCacheSourceRuntimeTextPage(source: ReaderPageRenderSource, forceReload: boolean): Promise<string> {
+  if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
+  const sourceId = source.sourceRuntimeId?.trim() ?? ''
+  const pageId = source.pageId ?? ''
+  const request = source.sourceTextRequest
+  const lookup = appSourceRuntimeRegistry.lookup(sourceId)
+  if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled ||
+    !lookup.entry.capabilities.includes('imageRequest') || request === undefined || pageId.length === 0) {
+    throw new Error('reader_source_text_request_unavailable')
+  }
+  const entry = lookup.entry
+  const settings = appSourceSettingsStore.loadForSource(sourceId)
+  const fingerprint = sourceSettingsFingerprint(settings)
+  const route = sourceImageMangaRoute(source.sourceMangaUrl)
+  // The installed package path changes on replacement. Settings and template are
+  // part of this public PNG cache identity; no credential snapshot is persisted.
+  const seed = `source-text-request-v1:${JSON.stringify([
+    sourceId, entry.manifestVersion, entry.wasmPath ?? '', pageId, route ?? '', request.template, fingerprint,
+  ])}`
+  const path = await readerImageCacheStore.getOrFetch('source-text-request.png', undefined, async (): Promise<ArrayBuffer> => {
+    if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_text_request_stale')
+    const requestJson = sourceRequestWithHostFeatures(readerImageRequestForPage(sourceId, pageId, '', route, settings))
+    const responseJson = await runReaderSourceImageOperation(entry, requestJson)
+    if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_text_request_stale')
+    const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
+    if (response.ok !== true) throw new SourceRuntimeError(response)
+    const data = response.data as Record<string, Object> | undefined
+    const image = data?.['image'] as Record<string, Object> | undefined
+    if (image === undefined || image['kind'] !== 'text') throw new Error('reader_source_text_request_invalid')
+    const spec = sourceTextPage(image['text'])
+    if (spec.template !== request.template) throw new Error('reader_source_text_request_invalid')
+    const bytes = await renderSourceTextPage(spec)
+    if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_text_request_stale')
+    return bytes
+  }, seed, forceReload)
+  await maintainReaderImageCacheAfterWrite(path)
+  if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_text_request_stale')
+  return path
 }
 
 export async function fetchAndCacheSourceRuntimeRemoteImage(
@@ -685,6 +739,7 @@ export enum ReaderPageRenderKind {
   REMOTE_URL_IMAGE = 'remote_url_image',
   LOCAL_FILE_IMAGE = 'local_file_image',
   URI_PLACEHOLDER = 'uri_placeholder',
+  SOURCE_TEXT_REQUEST = 'source_text_request',
 }
 
 export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
@@ -697,6 +752,7 @@ export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   remoteServerId?: string
   pageId?: string
   sourceText?: SourceTextPage
+  sourceTextRequest?: SourceTextPageRequest
 }
 
 export interface ReaderPageRenderSourceOptions {
@@ -795,6 +851,16 @@ function createReaderPageRenderSourceWithOfflinePath(
       pageId,
     }
   }
+  const textRequest = config.pageTextRequests?.[index]
+  if (!offlineOnly && textRequest !== undefined && textRequest !== null) {
+    return {
+      kind: ReaderPageRenderKind.SOURCE_TEXT_REQUEST,
+      uri: pageId ?? '', imageUri: '', pageId,
+      sourceRuntimeId: config.sourceRuntimeId,
+      sourceMangaUrl: config.sourceMangaUrl,
+      sourceTextRequest: { template: textRequest.template },
+    }
+  }
   if (offlineOnly || pageUri.length === 0) {
     return {
       kind: ReaderPageRenderKind.URI_PLACEHOLDER,
@@ -871,6 +937,9 @@ export function createReaderPageRenderSources(
 }
 
 export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false): Promise<string> {
+  if (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
+    return fetchAndCacheSourceRuntimeTextPage(source, forceReload)
+  }
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
     return source.sourceText === undefined ? source.imageUri : cacheSourceTextPageImage(source.sourceText, forceReload)
   }
@@ -884,8 +953,8 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
 }
 
 export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<ArrayBuffer> {
-  if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
-    const path: string = source.sourceText === undefined ? source.imageUri : await cacheSourceTextPageImage(source.sourceText)
+  if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE || source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
+    const path = await fetchAndCacheReaderRemoteSource(source, context)
     const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     try {
       const stat = fs.statSync(path)

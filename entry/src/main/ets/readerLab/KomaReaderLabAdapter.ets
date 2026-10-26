@@ -214,7 +214,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     page.thumbnail.kind = 'derived'
     const source = this.sources.get(this.unitId(unit.key))?.[index]
     page.thumbnail.available = source !== undefined &&
-      source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER && source.imageUri.length > 0
+      source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER &&
+      (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST || source.imageUri.length > 0)
     return page
   }
 
@@ -334,7 +335,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
     cancellation.check()
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
-    if (source === undefined || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {
+    if (source === undefined || (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+      source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST)) {
       console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=local-skip`)
       return
     }
@@ -347,7 +349,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   async imageShareSource(target: ReaderImageShareTarget,
     cancellation: ReaderCancellation): Promise<KomaReaderLabImageShareSource> {
     const source = this.sources.get(this.unitId(target.unit.key))?.[target.sourceIndex]
-    if (source === undefined || source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || source.imageUri.length === 0) {
+    if (source === undefined || source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
+      (source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.imageUri.length === 0)) {
       throw new Error('koma_lab_share_source_unavailable')
     }
     cancellation.check()
@@ -376,7 +379,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
     if (source === undefined) throw new Error('unsupported_koma_lab_asset')
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
-      source.uri === 'source-placeholder://chapter' || source.imageUri.length === 0) {
+      source.uri === 'source-placeholder://chapter' ||
+      (source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.imageUri.length === 0)) {
       const config = this.configs.get(this.unitId(page.unit))
       throw KomaReaderFailure.sourceError(config?.sourceFailureReason, config?.sourceFailure)
     }

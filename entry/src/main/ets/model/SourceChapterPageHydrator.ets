@@ -1,7 +1,7 @@
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
-import { sourceTextPage } from './SourceTextPageDescriptor'
+import { sourceTextPage, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { cacheSourceTextPageImage } from './ReaderPageSourceAdapter'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -229,6 +229,16 @@ async function pagesFromSourceRows(comicId: string, chapterId: string, rows: Rec
       page.uri = await cacheSourceTextPageImage(spec)
       page.sourceText = spec
       page.width = spec.template === 'webtoon-author-notes' ? 1000 : 1080
+      page.height = undefined
+      page.fileName += '.png'
+    } else if (image?.['kind'] === 'text_request') {
+      // Publish the valid body pages before an optional page's network/render work.
+      // The Reader preparation lane owns this page's failure and explicit retry.
+      page.sourceTextRequest = sourceTextPageRequest(image['textRequest'])
+      // Durable Page URIs must be nonempty. Use the real source page identity;
+      // sourceTextRequest selects its resolver, so this never becomes an HTTP URL.
+      page.uri = pageId
+      page.width = 1080
       page.height = undefined
       page.fileName += '.png'
     }
