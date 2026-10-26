@@ -4,7 +4,7 @@
 
 规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-设备：197当前18875963，921–926原书架p2/25%、120000ms/无Override、85a2227e释租已具名；237407后留18877202由source_fixes独占继续源依赖操作，尚未最终恢复。200禁止、四私库搁置，真实外部provider未调用。
+设备：197当前18878809，原库p2/25%及120000无Override已恢复，b861只读补日志finally释租；237source_fixes已462自然回书架但继续MangaDex，原awake租约/最终继续目标及系统尚未恢复。200禁止、四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "设置与源宿主具名范围已交付；原未解决缺陷及真实provider验收继续",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-26T20:52:39+00:00",
+  "updatedAt": "2026-10-26T21:49:00+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "NEXTE_READER_FEATURE_MIGRATION",
-  "activity": "54d设置已交付/CI成功，901全局配置保存返回与恢复、DM5/Canvas文字PNG、921–926同进程设置与数据系统恢复均具名；c801源宿主/快照已push且精确CI40398958854 success。197留18875963、原书架/120000无Override/85a2227e释租；237407后留18877202由source_fixes继续操作，未最终恢复。真实外部provider/译图及原59ms/全性能未外推闭环。",
-  "nextAction": "source_fixes完成原源依赖范围收口提交后继续Pixiv；Root续未解决缺陷及实际依赖接口，不重跑已接受设置/文字PNG。54d/c801工程同步CI完成，真实provider/持久Native及原59ms边界保持。",
+  "activity": "App最终head1bcfffed52af830e167c35a2e78e7c09707ba385精确CI40406475305 completed/success，unsigned Release成功/tag发布skipped，无新App发布或产品WIP。197941原XML断言错误有34字段语义全同复核，原件保留，不冒七域原字节同。Nami6d30公开闭环保持；source_fixes仍MangaDex/237及最终恢复，真实provider/全性能与其他原未验边界保持。",
+  "nextAction": "source_fixes继续MangaDex质量与237全场系统/原继续目标恢复；Root按原队列继续未解决缺陷，最终1bc CI等待已清，文档范围提交不等于整体结束。",
   "proof": [
     {
       "label": "正式主仓",
@@ -34,9 +34,9 @@
     },
     {
       "label": "远端同步",
-      "state": "设置与源宿主精确CI成功",
+      "state": "App最终精确CI与源公开资产成功",
       "kind": "accepted",
-      "detail": "Koma设置54d35c4b/CI40394060181成功；c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。源独立56d87723已公开/CI40392743602成功，后继依赖源WIP等待实际提交回执。"
+      "detail": "App最终1bc精确CI40406475305 completed/success，unsigned Release成功/tag发布skipped，无新App发布；3bee同push祖先。源Nami6d30已push/双CI success、准确公开索引双包已核，MangaDex继续237。"
     },
     {
       "label": "共享阅读器",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "设置54d35c4b已push/CI40394060181 success；源宿主/快照c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。Root Koma/197、source_fixes源仓/237各自串行独占，200/私库边界保持。",
-      "hap": "197当前18875963，921–926原书架p2/25%/120000无Override及85a2227e释租；本包设置/热读普通范围具名，不等外部译图或全性能验收。"
+      "appHead": "3bee1d7b正文hash与1bcfffed52af830e167c35a2e78e7c09707ba385页表身份已push，当前无产品WIP，1bc精确CI40406475305 completed/success（3bee同push祖先）。",
+      "hap": "197当前18878809，增强信息及当前页/三个priority=1预载任务process_success具名，b861只读日志finally已释租；237同包由source_fixes继续MangaDex/最终系统尚未恢复。"
     },
     {
       "name": "NextE",
@@ -660,12 +660,12 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（当前优先：统一搜索逐源CF自动验证；旧Web/搜索范围保留）",
-      "owner": "Root：五源真实更新/官网及Komiic网页与c1f73dd同步CI完成；原自动404/CF范围仍open",
+      "owner": "Root：页表身份1bcfffed已push待精确CI，旧库source→low→source及同配置不重取具名闭环",
       "dependencies": [],
       "status": "限定404修复c46提交推送/CI成功与普通回归留机闭环；自动新分支未自然实机，总项open",
       "kind": "open",
-      "result": "c1f73dd源网页/设置入口修复已push、精确CI40376596043成功；合法已知主页才显示网页入口，空/未知设置schema不显示，单源schema失败不污染全局已保存状态。Komiic016普通首页/官网网页及五源更新具名完成；漫画160现有会话普通搜索/手动回流已见，自动404新分支尚未自然Native，其他CF人工验证/登录不外推全通过。设备留机状态统一见当前设备meta。",
-      "remaining": "本批入口App提交push/精确CI及最终包覆盖完成；85差异仅已核未采纳。漫画160自动404未自然Native、其他CF人工验证/登录边界仍open，不清Cookie撤权限造挑战，单条样本缺口不扩大整体停止。",
+      "result": "237旧书20页source→low→原source URI逐项还原，ID/index稳定、低清fingerprint64位/默认空串、书ID顺序同、Hans own清除；455/460图亲审，453/456/461直接数据复核完成，456/458同get_pages op集合新增0。461全source-settings同433，462自然回书架。页表身份1bcfffed52af830e167c35a2e78e7c09707ba385已push，精确CI待查；此设置身份关联已具名，不扩大原CF自动404/登录验收。",
+      "remaining": "页表身份1bc提交/精确CI40406475305成功，旧库设置身份三段/同配置零重取已具名，无该批CI等待；原CF自动404/登录等未验边界继续，不重跑已接受三段，不将Nami成功当全Web关闭。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -693,7 +693,7 @@
         "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap"
       ],
       "remainingActions": [
-        "本批入口App提交push/精确CI及最终包覆盖完成；85差异仅已核未采纳。漫画160自动404未自然Native、其他CF人工验证/登录边界仍open，不清Cookie撤权限造挑战，单条样本缺口不扩大整体停止。"
+        "页表身份1bc提交/精确CI40406475305成功，旧库设置身份三段/同配置零重取已具名，无该批CI等待；原CF自动404/登录等未验边界继续，不重跑已接受三段，不将Nami成功当全Web关闭。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1712,21 +1712,21 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "source_fixes：notes/Komiic12与201目录已Native，漫画柜仍验；范围收口commit后继续Pixiv",
+      "owner": "source_fixes：Nami6d30已push/双精确CI及准确公开资产成功，237续MangaDex/最终恢复未完",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-      "result": "App原空入口/隔离已交付accepted；独立56d源已公开/精确CI成功。DM5真实评论、WEBTOON Canvas真附言PNG及Komiic12/201目录已Native具名；漫画柜仍由source_fixes执行，依赖新源commit/CI未获回执不预写。App宿主/热读快照c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。临时Page不要求双持久descriptor，库内Page/清cache重建仅Host合同。",
+      "result": "Nami6d30a0c8ac910b3109766de15b9925cb9bbba93e已精确push，CI40406530291/40406530297均success；准确公开tag非draft/pre、published2026-10-26T21:44:10Z，实取85唯一索引/双中文.2各34786B包及WASM75473/75477B，manifest/index匹配（public-6d30a0c/inspection.json）。旧库source→low→默认source三段已Root亲审及元数据核，456fingerprint独立重算一致、461全设置同433、462书架。此前四源/Pixiv具名保持，不扩大全部源设置或正文范围。",
       "evidencePoints": [
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb"
       ],
       "remainingActions": [
-        "源agent新依赖候选notes与Komiic12/201目录已实际Native，漫画柜仍执行；Root已通知范围收口源commit后继续Pixiv，不停局部。原独立56d发布与DM5真PNG已具名不重跑；新源提交/CI待实际回执，不预写。"
+        "source_fixes继续MangaDex原安全质量矩阵及237全场系统/原继续目标恢复，Nami新源push/双CI/准确公开资产已完成无等待。已具名旧库三段/指纹重算不重跑，237仍未最终恢复，源总项不结束。"
       ],
-      "remaining": "源agent新依赖候选notes与Komiic12/201目录已实际Native，漫画柜仍执行；Root已通知范围收口源commit后继续Pixiv，不停局部。原独立56d发布与DM5真PNG已具名不重跑；新源提交/CI待实际回执，不预写。",
+      "remaining": "source_fixes继续MangaDex原安全质量矩阵及237全场系统/原继续目标恢复，Nami新源push/双CI/准确公开资产已完成无等待。已具名旧库三段/指纹重算不重跑，237仍未最终恢复，源总项不结束。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -2516,12 +2516,12 @@
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（后续迁移；不取消当前bugs）",
-      "owner": "Root：54d设置已交付，c801源宿主/快照已push且精确CI成功；真实provider与未覆盖边界继续",
+      "owner": "Root：最终1bc精确CI成功、产品无WIP；原外部provider/全性能未验，源237继续",
       "kind": "open",
-      "status": "54d设置已交付且901普通保存/返回完成；源宿主c801已push/CI40398958854 success，真实provider未验",
+      "status": "最终1bc已push/精确CI成功，无工程CI等待；现有具名模型/设置/文字范围保持，provider/全性能未验",
       "dependencies": [],
       "relatedItems": [],
-      "result": "54d35c4b设置已push且精确CI40394060181 success；901–906全局翻译English保存自动pop/重入与中文恢复具名，未调用provider。DM5评论/WEBTOON Canvas作者附言真PNG及921–926同进程设置重入/清own与恢复具名；c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push，精确CI40398958854 success。临时Page不要求reader-sessions持久descriptor，库内Page/清cache重建Host合同不冒Native持久验收；真实provider/译图未验。",
+      "result": "正文hash3bee1d7b（七文件96增49删）及页表身份1bcfffed52af830e167c35a2e78e7c09707ba385（九文件133增21删）已实际push master，当前无产品WIP；1bc精确CI40406475305 completed/success，3bee同push祖先不另编CI。19718878809原2/8增强信息及语义恢复具名，b861只读日志已完成/finally释租，当前页+三个priority=1预载均process_success、source_hash_failed=0；不扩FPS/provider。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
@@ -2529,9 +2529,9 @@
       "evidencePoints": [
         "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json"
       ],
-      "remaining": "c801精确CI40398958854已成功，Root续原未解决项；54d设置与901普通全局配置保存/返回、真文字PNG及921同进程设置恢复已具名，无该批安装/提交CI待办。真实外部provider/译图及未覆盖模型/持久Native仍未验，不扩整体通过。",
+      "remaining": "App最终1bc精确CI40406475305 completed/success，unsigned Release成功/tag发布skipped，无新App发布，无此CI等待；3bee同push祖先不设独立CI。197941原XML字节断言错误保原件，按key34字段语义全同，不当产品故障或全七域字节同。当前页+三个priority=1预载success未映射页序；真实provider/译图、全性能及未覆盖设置边界保留。source_fixes继续MangaDex/237最终恢复。",
       "remainingActions": [
-        "c801精确CI40398958854已成功，Root续原未解决项；54d设置与901普通全局配置保存/返回、真文字PNG及921同进程设置恢复已具名，无该批安装/提交CI待办。真实外部provider/译图及未覆盖模型/持久Native仍未验，不扩整体通过。"
+        "App最终1bc精确CI40406475305 completed/success，unsigned Release成功/tag发布skipped，无新App发布，无此CI等待；3bee同push祖先不设独立CI。197941原XML字节断言错误保原件，按key34字段语义全同，不当产品故障或全七域字节同。当前页+三个priority=1预载success未映射页序；真实provider/译图、全性能及未覆盖设置边界保留。source_fixes继续MangaDex/237最终恢复。"
       ],
       "boundaries": [
         "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
@@ -2541,7 +2541,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
-        "condition": "c801精确CI40398958854已成功，Root续原未解决项；54d设置与901普通全局配置保存/返回、真文字PNG及921同进程设置恢复已具名，无该批安装/提交CI待办。真实外部provider/译图及未覆盖模型/持久Native仍未验，不扩整体通过。"
+        "condition": "App最终1bc精确CI40406475305 completed/success，unsigned Release成功/tag发布skipped，无新App发布，无此CI等待；3bee同push祖先不设独立CI。197941原XML字节断言错误保原件，按key34字段语义全同，不当产品故障或全七域字节同。当前页+三个priority=1预载success未映射页序；真实provider/译图、全性能及未覆盖设置边界保留。source_fixes继续MangaDex/237最终恢复。"
       },
       "adoptedEntryScope": {
         "source": "本轮当前可见人类异步call_63f84fa…：采用这组现有入口（推荐）；精确服务端时间未给，登记时刻不冒答复时间。",
@@ -2560,12 +2560,12 @@
     }
   ],
   "source": {
-    "status": "独立DM5/Webtoon设置56d已公开；评论/notes真PNG具名，其他依赖WIP继续",
+    "status": "Nami6d30已push/双CI及准确公开资产成功；237继续MangaDex/最终恢复",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "56d87723fa6aa14e54d73ed13b5ee986a53390b2独立源提交已公开，精确CI40392743602 success，准确tag/85索引/包manifest已核。当前源+宿主依赖WIP中DM5评论及WEBTOON Canvas附言PNG已具名，未把其余设置/限速/筛选或持久化全验收。",
-    "remaining": "source_fixes notes/Komiic12/201已Native、漫画柜仍执行，按Root通知范围收口源commit并继续Pixiv；未有新commit/CI结果不预写。App宿主c801ba8c已push/精确CI成功，独立56d发布保持。",
-    "commit": "56d87723fa6aa14e54d73ed13b5ee986a53390b2"
+    "result": "准确sources-6d30公开非draft/pre，双CI40406530291/40406530297成功；85唯一索引/双中文.2包各34786B及WASM75473/75477B、manifest/index匹配已核。旧库source-low-source与独立fingerprint重算具名；此前四源/Pixiv公开及Native范围保持。",
+    "remaining": "source_fixes继续MangaDex下一原安全矩阵，237全场系统/继续目标未恢复；Nami无push/CI/公开包等待，不关闭源总项。",
+    "commit": "6d30a0c8ac910b3109766de15b9925cb9bbba93e"
   },
   "milestones": [],
   "releaseGates": [
