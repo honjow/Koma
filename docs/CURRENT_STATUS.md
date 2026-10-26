@@ -17,8 +17,8 @@
 - 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；旧追加计数候选已撤回。人类本轮已明确采用完整修正：部分失败摘要检查未完成 · 已确认可更新 N、其余未查全源未能确认、原地址行subtitle失败原因/沿用点行重试，无新提示条按钮，全成功保持。终版已237具名验收并随68b6b234提交推送，精确CI40235545574同head completed/success，无新tag/发版。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；旧TXT参数候选已由用户本轮.log纠正取代；301–304新.log落盘/分享与旧TXT读取具名通过；本轮部分失败完整修正已获采用，允许差异见SOURCE_INDEX_CACHE_REVALIDATE，其他布局/事务保持。
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。上述旧提交固定Kit e3f3cc1；本轮已采用v3与普通入场，当前a9d7c641组合三宿主具名实机通过，三宿主范围提交/同步及精确CI均成功；无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
-- 当前设备状态：197441正常8590100B/原Library锚点恢复，442五域逐字同438，443系统Timeout120000无Override、a7d6b64b正常释放，原子errors[]；临时探针源码精确撤回，无产品修改。拟议UA兼容候选未采用/未安装，237正常8591318B本阶段未操作，200禁止操作。
-- 当前实机入口：最新mh160-runtime197-atomic-session-437原子流程437–443，runtime-lines.txt/result.json保同revision条件结构及最终443恢复；430–436及423–429各自原件保留。source-package-actions197.recording.json本阶段未运行，截图/日志不冒完整录屏；HDC沙盒外/有效租约/原数据超时恢复与先读回执再依赖操作边界保持。
+- 当前设备状态：197448已恢复旧正常8590100B及原Library锚点，449五域逐字同445，450系统Timeout120000无Override、ccca713a正常释放/errors[]。19行无probe正式fix当前仅源码已应用，尚无提交hash/CI或正式197交付；非用户采用答复。237正常8591318B本阶段未操作，200禁止操作。
+- 当前实机入口：最新mh160-runtime197-atomic-session-444流程444–450，result.json/runtime-lines.txt/web-observed.png保原详情具名效果及最终450恢复；437–443及此前只读原件保留。source-package-actions197.recording.json本阶段未运行，截图/日志不冒完整录屏；HDC沙盒外/有效租约/原数据超时恢复与先读回执再依赖操作边界保持。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal；最新人类明确让子代理处理文档，现progress_docs独占本工作单核账，Root独占实机/代码，不新增其他派工。保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器具名范围保持。
 
 <!-- /current-continuation -->
@@ -954,11 +954,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-26T04:56:21+00:00",
+  "updatedAt": "2026-10-26T05:14:59+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
-  "activity": "Web普通mh160 UA兼容候选可审且已提一次具体采用决定，当前人类尚无答复，未采用/未安装。197保持正常8590100B，无租约或临时代码。04:54:37Z源master仍d936、无下一真实升级；最新442合法库76本/14902章无重复非空章ID，安装/未读原项条件仍缺。原69项及60 accepted/done边界已由Root完整复核，8open+1parked条件对齐且未闭；搜索404证据、其它CF自然样本/两源失败阶段/東立地区/原200禁止/筛选自然失败和人类parked均保持。",
-  "nextAction": "Web候选只有当前人类明确采用具体普通UA差异后方可安装验证，尚无答复不视为允许；原搜索404/CF登录独立范围保持。其它open按对应合法新证据/真实业务条件续接，不重跑已接受路径/旧失败、不制造样本或猜改实现，私库仅用户重提；不将本轮核账写成整体完成。",
+  "activity": "444–450限定19行fix已使原风起详情移动页实际绘封面/简介/章表，rev2/100%/document_end、离开closed/loadingfalse，对照旧约38次循环，具名普通详情触发已修；未点阅读/不扩正文。未知子资源404非mainFrame，不混搜索404。448旧正常8590100B/Library恢复、449五域同445、450timeout120000无Override/ccca713a释租/errors[]。正式无probe fix及规则已应用待Root审提交，当前无hash/CI/正式交付，非用户采用答复；总Web仍open保旧搜索404与CF独立范围，下一查584原路径/URL依据。",
+  "nextAction": "Root直接查旧584搜索404原路径/URL依据，审19行正式fix与规则范围提交推送后，用同一正式包交付197；当前设备仍恢复后的旧正常8590100B，不预写hash/CI/交付。仅普通风起详情循环触发已具名关闭，总Web搜索404/CF人工验证登录及其它原项仍保原范围。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1749,12 +1749,12 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（明确必须做，原队列保留）",
-      "owner": "Root：普通mh160兼容候选构建/验签完成且源码撤回，已提一次具体人类决定待答",
+      "owner": "Root：普通风起详情循环具名已验，19行fix待范围提交；继续旧584搜索404原路径/URL依据",
       "dependencies": [],
-      "status": "循环因果已定位，兼容候选可审/未采用未安装，普通正文效果尚未验证",
+      "status": "原普通风起详情循环已具名修复；总项open保搜索404/CF，代码待提交/正式交付未完成",
       "kind": "open",
       "result": "自动验证537/538原具名范围冻结。598普通Web仅一次initial load，9.604秒27个文档；已记录导航在已声明origin下标0/1间交替，redirect=false/userGesture=false。截图仍无正文，原生详情784/784。197明确恢复正式8571264B包并回书架，library/reader/registry与589完全相同。",
-      "remaining": "具体兼容候选已可审且已向人类提一次采用决定，尚无答复，不能安装或视为允许。候选初始限两https origin/普通sourceSession空、OpenHarmony+Mobile且无Android/iOS，默认字段后追加Android，同一网页instance后续链接沿用身份；无全局UA/源HTTP/sheet/样式变化。未Native验证或正文效果结论，搜索404/CF人工验证登录独立原范围保持。",
+      "remaining": "Root继续旧584搜索404原路径/URL依据调查，原普通风起详情循环已具名通过。当前19行无probe正式fix及规则已应用，待Root审精确范围提交推送；随后同一正式包交付197，当前设备仍旧正常8590100B，不预写hash/CI/交付。总项open，未知子资源404不混搜索404，未点阅读不冒正文可读。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1818,11 +1818,15 @@
         "本轮文档owner直接读mh160-runtime197-atomic-session-430/result.json与runtime-lines.txt：www完成文档n2含/template/skin1/js/m.js，q.turn函数有UA/location派生标记，内联调用turn；mobile完成文档n6含/template/wap2/js/public.js及p.js。所有采样mf0，无meta-refresh；未提取白名单UA正则，不能称已定位设备识别因果。14.542秒离开时revision41/loadingtrue，Root已看图仍白屏转圈。仅缩小实际执行脚本范围，不构成修复。",
         "434正常8590100B装回并保原Library内容/位置；435五域相431逐字同，436系统120000无Override、36d448af释放，原子result的errors=[]/normalRestored/leaseReleased均成立。临时源码精确撤销。host对公开原详情HTML各默认匿名一次403，回执mh160-web-entry-chain-review/public-detail-script-receipt.json，未换UA/Cookie/代理。该阶段Root继续读取已加载公共设备识别函数脱敏条件结构，后继437–443实读见下一条，不把当时未知冒当前结论。",
         "本轮文档owner直接读mh160-runtime197-atomic-session-437/runtime-lines.txt与result.json：440两端document complete、rq=rv同revision取到脱敏条件结构，未执行站点函数，非名单字符串替成LITERAL且长数字剔除。www的qingtiancms_m.turn以/AppleWebKit.*Mobile/i（或旧机名单）匹配后跳移动站；移动mobT只认/(ipod|ipad|iphone os|midp|ucweb|android|windows ce|windows mobile)/i，不匹配则把移动域替回pc域。结合423实际OpenHarmony/Mobile/Phone真且Android/iPhone/iPad假及原双向导航，Root据真实条件与观测定位为鸿蒙UA触发两端相反分流；不是viewport失效或App入口改search路径。14.100秒/revision38/loadingtrue仍循环，未修复。",
-        "441正常8590100B/原Library锚点恢复，442五域相438逐字同；443系统120000无Override、a7d6b64b已释放，result的errors=[]/normalRestored/leaseReleased均实读成立，探针源码精确撤回。Root正做最小普通MangaWebPage候选：仅漫画160两个origin入口，实际默认UA含OpenHarmony且不含Android/iOS时附Android兼容标记、保其余UA值；不改源HTTP、验证sheet、其它入口或样式。现行移植边界保UA，此候选改变行为，尚需具体人类决定；先核API/生成可审候选再提一次，当前未采用/未安装、未预写候选通过。",
-        "普通MangaWebPage候选已构建并精确撤回源码，仅保.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；Koma-mh160-ordinary-compatibility-candidate-signed.hap为8589401B，verify-app成功且与正常8590100B同cert/profile，build-receipt在同review目录。生产Git无MangaWebPage差异，未安装/未Native验证。实际guard为初始仅漫画160两个https origin且sourceSession===undefined、默认UA含OpenHarmony和Mobile且不含Android/iOS；保所有默认字段后追加空格Android。同一网页instance后续链接沿用该身份，无全局UA配置。官方UA guide推荐src为空时先设CustomUA再loadUrl并保默认字段。Root已通过request_user_input_async提一次具体采用决定，尚无答复，不能安装/视为允许；该普通身份变化超出现行保UA边界，网页正文效果未验。"
+        "441正常8590100B/原Library锚点恢复，442五域相438逐字同；443系统120000无Override、a7d6b64b已释放，result的errors=[]/normalRestored/leaseReleased均实读成立，探针源码精确撤回。Root正做最小普通MangaWebPage候选：仅漫画160两个origin入口，实际默认UA含OpenHarmony且不含Android/iOS时附Android兼容标记、保其余UA值；不改源HTTP、验证sheet、其它入口或样式。当时Root把诊断阶段保UA自限作为额外采用门槛，先生成候选/提问；该判断已由后继原授权核对撤回，不冒当前仍须新批准或已有批准。",
+        "普通MangaWebPage候选已构建并精确撤回源码，仅保.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；Koma-mh160-ordinary-compatibility-candidate-signed.hap为8589401B，verify-app成功且与正常8590100B同cert/profile，build-receipt在同review目录。生产Git无MangaWebPage差异，未安装/未Native验证。实际guard为初始仅漫画160两个https origin且sourceSession===undefined、默认UA含OpenHarmony和Mobile且不含Android/iOS；保所有默认字段后追加空格Android。同一网页instance后续链接沿用该身份，无全局UA配置。官方UA guide推荐src为空时先设CustomUA再loadUrl并保默认字段。当时Root通过request_user_input_async多提了一次具体采用决定，未收到答复；后继按原授权查证撤回多余提问，不把沉默冒采用，普通网页效果仍未验。",
+        "本轮Root实际核两个原会话response_item/user（原主档1385条、10-22续接窗口515条，保时间与offset），回执mh160-web-entry-chain-review/ua-authorization-original-message-review.json。原主档2026-10-21T13:31:12.499Z、offset7722909692的原人类要求：漫画界面右上菜单新增WebView/浏览器入口，借鉴NextE并带过来封装带控件WebView。10-23原消息offset254529135要求WebView处理CF、offset381504598要求自动CF半模态，offset947813847要求源页未载入时仍有固定Web入口。UA/User-Agent/中文用户代理等边界感知检索在这两份限定直接人类消息0命中；不扩大为全历史无禁令。",
+        "Root本轮核查确认当前保UA文字来自先前诊断阶段allowedDifference自限，未找到其作为人类单独产品决定的依据，遂撤回多余UA采用问题。该撤回不代表用户已答复或已采用：Root依据持续网页bugfix授权作实施判断，实际默认手机原本已被网站分流到移动站，兼容只使两端一致停在该移动页；控件样式/导航/源HTTP/验证会话不改。Root将应用现成19行最小候选，经既有197原子流程只验原详情后恢复原包/数据/电源，再按实际结果决定正式提交交付；此时尚未新HDC/部署/验证，不预写成功。",
+        "本轮文档owner直接读mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt并查看web-observed.png：原风起详情移动页真实封面、简介及章节列表已绘，revision仅2，进度100%/document_end，离开status=closed/loading=false、duration12.973秒；对照437原约38次循环，本次原触发不再发生。447只有一个HTTP404子资源且mainFrame=false，资源未知，不混成搜索404或宣称全站资源成功；未点阅读，不记漫画正文通过。",
+        "448明确恢复原正常8590100B/原Library锚点，449五域相445逐字同，450系统120000无Override、ccca713a释放，result errors=[]/normalRestored/leaseReleased成立。19行正式fix源码已应用且无runtime probe，原规则旁补限定scope/何时重审兼容；Root将审后范围提交推送，当前无提交hash/CI/正式197交付结论，这不是用户采用答复。只关闭原普通风起详情跳转循环触发，总SOURCE_WEB_SESSION保持open，搜索404与CF人工验证/登录独立范围不缩。Root接旧584搜索404原路径/URL依据，随后同一正式包交付197；当前197仍恢复后的旧正常8590100B。"
       ],
       "remainingActions": [
-        "具体兼容候选已可审且已向人类提一次采用决定，尚无答复，不能安装或视为允许。候选初始限两https origin/普通sourceSession空、OpenHarmony+Mobile且无Android/iOS，默认字段后追加Android，同一网页instance后续链接沿用身份；无全局UA/源HTTP/sheet/样式变化。未Native验证或正文效果结论，搜索404/CF人工验证登录独立原范围保持。",
+        "Root继续旧584搜索404原路径/URL依据调查，原普通风起详情循环已具名通过。当前19行无probe正式fix及规则已应用，待Root审精确范围提交推送；随后同一正式包交付197，当前设备仍旧正常8590100B，不预写hash/CI/交付。总项open，未知子资源404不混搜索404，未点阅读不冒正文可读。",
         "漫画160搜索网页404仍未恢复；其他CF人工验证/登录仅待自然适用样本。"
       ],
       "boundaries": [
@@ -1852,9 +1856,9 @@
         "allowedDifference": "仅本sheet底部收为一行：左侧三个无底板图标导航，右侧原完成并重试；保顶部、材质、安全区、验证/关闭/自动回流及全部状态守卫。当前后继清理要求作为修改依据，不把用户反问登记为采用异步选项。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-26T04:53:44+00:00",
+        "checkedAt": "2026-10-26T05:14:59+00:00",
         "owner": "Root",
-        "condition": "兼容候选已构建验签且源码精确撤回：8589401B未装/未Native验证。初始两https origin、sourceSession空、OpenHarmony+Mobile且无Android/iOS时保默认UA全部字段追加Android，同网页instance后续链接沿用，无全局UA。Root已提一次具体采用决定尚无答复；身份变化超出现行保UA边界，不凭沉默安装/宣称允许或正文通过，搜索404/CF独立待办保持。"
+        "condition": "444–450原风起详情已实际绘封面/简介/章表，仅rev2/100%/document_end、closed/loadingfalse，对照437约38次循环，原普通详情循环触发具名关闭；未点阅读，不扩正文。子资源404 mainFrame=false未知，不混旧搜索404。原8590100B/五域/系统timeout/ccca713a释租/errors[]已核。19行正式fix及规则已应用、无runtime probe，Root接旧584搜索URL依据并审提交后同正式包交付197，当前无提交hash/CI/正式交付结果。总项open保搜索404及CF/登录。"
       },
       "reportedAgeAtAudit": "2天17小时49分43秒",
       "reportedAgeSecondsAtAudit": 236983,
@@ -1863,7 +1867,8 @@
       "pendingOrdinaryWebUaCompatibility": {
         "cause": "两端设备识别条件对当前鸿蒙UA给出相反分流，已有同revision只读结构与实际双向导航支持。",
         "proposedDifference": "普通MangaWebPage初始仅漫画160两个https origin且sourceSession===undefined，默认UA含OpenHarmony与Mobile且不含Android/iOS时，保全部默认字段追加空格Android；同一网页instance后续链接沿用此身份，无全局UA配置。源HTTP/验证sheet/其它入口/样式不改。",
-        "authorization": "候选已构建验签并保存可审patch，源码精确撤回；已通过request_user_input_async提一次具体人类采用决定，尚无答复。未采用/未安装/未Native验证，普通网页效果未验；不得把沉默当批准。"
+        "authorization": "原多余采用提问已撤回，按已记录原会话与持续bugfix授权的Root实施判断推进，不冒用户新批准。19行正式fix已应用且原详情具名通过，但当前无hash/CI/正式197交付；旧正常8590100B已恢复，搜索404/CF独立范围保持。",
+        "decisionStatus": "Root依据既有授权实施判断，444–450原普通风起详情循环具名验证通过；非用户采用答复，尚待范围提交及正式包交付。"
       }
     },
     {

@@ -194,6 +194,24 @@ export struct MangaWebPage {
     if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
   }
 
+  private applyOrdinaryMh160Compatibility(url: string): void {
+    if (this.params.sourceSession !== undefined) return
+    const origin = sourceWebOrigin(url)
+    if (origin !== 'https://www.mh160mh.com' && origin !== 'https://m.mh160mh.com') return
+    try {
+      const userAgent = this.controller.getUserAgent()
+      // SOURCE_WEB_SESSION: www accepts Mobile while mobT omits OpenHarmony.
+      // Only this ordinary phone Web instance gets the compatibility marker;
+      // preserve all default fields, native transport and verification sessions.
+      if (/OpenHarmony/i.test(userAgent) && /Mobile/i.test(userAgent) &&
+        !/Android|iPhone|iPad|iPod/i.test(userAgent)) {
+        this.controller.setCustomUserAgent(userAgent + ' Android')
+      }
+    } catch (_error) {
+      this.webDiagnostic?.warn('compatibility_unavailable', 'reason=controller_ua_unavailable')
+    }
+  }
+
   private loadInitialPage(): void {
     this.controllerReady = true
     const url = mangaHttpUrl(this.params.url)
@@ -203,6 +221,7 @@ export struct MangaWebPage {
     }
     this.webDiagnostic = DiagnosticLogger.begin('web_page', 'navigation',
       'hasSourceSession=' + (this.params.sourceSession !== undefined))
+    this.applyOrdinaryMh160Compatibility(url)
     try {
       this.controller.loadUrl(url)
     } catch (_error) {
