@@ -440,7 +440,9 @@ test('missing or failed optional metadata does not push an invalid page; retired
 })
 
 
-test('ordinary Browse and Search menus keep the WebView entry before data loads or after failure',()=>{
+// 2026-10-27 user decision: no address means no advertised action;
+// retain independently known addresses even when browse/search contents fail.
+test('ordinary source menus advertise only already-known website addresses',()=>{
  const file=path.join(base,'../pages/Index.ets'),sourceText=fs.readFileSync(file,'utf8').replace(/\bstruct /g,'class ')
  const tree=ts.createSourceFile('Index',sourceText,ts.ScriptTarget.Latest,true)
  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='Index')
@@ -448,9 +450,10 @@ test('ordinary Browse and Search menus keep the WebView entry before data loads 
  const body=methods.map(name=>owner.members.find(n=>n.name?.getText(tree)===name).getText(tree)).join('\n')
  const exports={};vm.runInNewContext(ts.transpileModule('export class Subject {'+body+'}',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
   exports,AppStrings:{get:key=>key},$r:key=>key,sourceDisplayName:(_id,name)=>name,
+  normalizeSourceHomepage:homepageFixture().guard,appSourcePackageManagerCache:{indexEntries:[]},RouterHelper:{pushMangaWeb(){}},
   BottomBuilderShowType:{DIRECTLY_SHOW:1},SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT:1,SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT:1})
  const subject=new exports.Subject();subject.browseFieldContent=()=>({});subject.sourceSearchFieldContent=()=>({});subject.sourceRouteTitleBarOpts=opts=>opts
- const source={sourceId:'one',displayName:'Site',enabled:true},chrome={visible:true,filtersAvailable:false,settingsAvailable:false,webSessionAvailable:false}
+ const source={sourceId:'one',displayName:'Site',enabled:true,homepage:'https://site.example/'},chrome={visible:true,filtersAvailable:false,settingsAvailable:false,webSessionAvailable:false}
  for(const method of ['sourceBrowseTitleBarOpts','sourceSearchTitleBarOpts']){
   const opts=subject[method]({source,chrome})
   assert.deepEqual(Array.from(opts.menu.value,item=>item.content.label),['manga_detail_menu_open_webview'])
@@ -459,6 +462,8 @@ test('ordinary Browse and Search menus keep the WebView entry before data loads 
   const withSession=subject[method]({source,chrome})
   assert.deepEqual(Array.from(withSession.menu.value,item=>item.content.label),['manga_detail_menu_open_webview','source_web_open'])
   chrome.webSessionAvailable=false
+  const absent=subject[method]({source:{...source,homepage:undefined},chrome})
+  assert.equal(absent.menu.value.length,0)
  }
 })
 

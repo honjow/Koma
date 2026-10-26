@@ -157,7 +157,7 @@ import {
 import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
-import { openSourceHomepage } from '../sourceRuntime/SourceHomepageNavigation'
+import { normalizeSourceHomepage } from '../sourceRuntime/SourcePackageMetadata'
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -2840,17 +2840,19 @@ struct Index {
   }
 
   private sourceHomepageMenuItem(source: SourceRuntimeRegistryInstalledSourceSummary,
-    isCurrent: () => boolean): Record<string, Object> {
+    isCurrent: () => boolean): Record<string, Object> | undefined {
+    // 2026-10-27: only advertise an address already declared by this source.
+    // The user's no-empty-entry decision replaces optimistic IO on menu taps.
+    const homepage = normalizeSourceHomepage(source.homepage) ?? normalizeSourceHomepage(
+      appSourcePackageManagerCache.indexEntries.find((entry): boolean => entry.id === source.sourceId)?.homepage)
+    if (homepage === undefined) return undefined
     const content: Record<string, Object> = {
       'label': AppStrings.get('manga_detail_menu_open_webview'),
       'icon': $r('sys.symbol.website'),
       'isEnabled': true,
-      'action': async () => {
-        const opened = await openSourceHomepage(getContext(this) as common.UIAbilityContext, source.sourceId,
-          sourceDisplayName(source.sourceId, source.displayName), isCurrent)
-        if (!opened && isCurrent()) {
-          this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_homepage_unavailable') })
-        }
+      'action': (): void => {
+        if (isCurrent()) RouterHelper.pushMangaWeb({ url: homepage,
+          title: sourceDisplayName(source.sourceId, source.displayName) })
       },
     }
     return { 'content': content }
@@ -2890,7 +2892,8 @@ struct Index {
       }
       menuItems.push({ 'content': settingsContent })
     }
-    menuItems.push(this.sourceHomepageMenuItem(source, (): boolean => chrome.visible))
+    const homepage = this.sourceHomepageMenuItem(source, (): boolean => chrome.visible)
+    if (homepage !== undefined) menuItems.push(homepage)
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),
@@ -2969,7 +2972,8 @@ struct Index {
       }
       menuItems.push({ 'content': settingsContent })
     }
-    menuItems.push(this.sourceHomepageMenuItem(source, (): boolean => chrome.visible))
+    const homepage = this.sourceHomepageMenuItem(source, (): boolean => chrome.visible)
+    if (homepage !== undefined) menuItems.push(homepage)
     if (chrome.webSessionAvailable) {
       const webContent: Record<string, Object> = {
         'label': AppStrings.get('source_web_open'),

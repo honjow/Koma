@@ -1,5 +1,5 @@
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceSettingDescriptor, SourceSettingsRecord, appSourceSettingsStore,
   loadSourceSettingsDescriptorsAsync } from '../sourceRuntime/SourceSettingsStore'
@@ -31,10 +31,10 @@ export struct SourceSettingsSheetHost {
     const sourceId = this.sourceId
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
-      if (!this.mounted || sourceId !== this.sourceId || !result.ready) return
-      this.onAvailabilityChanged(result.descriptors.length > 0)
+      if (!this.mounted || sourceId !== this.sourceId) return
+      this.onAvailabilityChanged(result.ready && result.descriptors.length > 0)
     } catch (_error) {
-      // A failed/unknown capability probe must not hide a working settings entry.
+      if (this.mounted && sourceId === this.sourceId) this.onAvailabilityChanged(false)
     }
   }
 
@@ -62,6 +62,7 @@ export struct SourceSettingsSheetHost {
   private async openSettings(): Promise<void> {
     const epoch = ++this.epoch
     const sourceId = this.sourceId
+    let schemaReady = false
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
       if (!this.mounted || !this.active || epoch !== this.epoch || sourceId !== this.sourceId) return
@@ -69,13 +70,18 @@ export struct SourceSettingsSheetHost {
       const descriptors = result.descriptors
       this.onAvailabilityChanged(descriptors.length > 0)
       if (descriptors.length === 0) return
+      schemaReady = true
       this.draft = sourceSettingsDraft(descriptors, appSourceSettingsStore.loadForSource(sourceId))
       this.descriptors = descriptors
       this.saved = false
       this.shown = true
     } catch (_error) {
       if (!this.mounted || !this.active || epoch !== this.epoch) return
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_pkg_reason_settings_validation_failed') })
+      if (schemaReady) {
+        this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_pkg_reason_settings_read_failed') })
+      } else {
+        this.onAvailabilityChanged(false)
+      }
     }
   }
 

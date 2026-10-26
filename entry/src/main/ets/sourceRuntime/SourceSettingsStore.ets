@@ -458,6 +458,8 @@ export function configureSourceSettingsStore(context: common.UIAbilityContext): 
 }
 
 export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, sourceId: string): SourceSettingDescriptor[] {
+  const source = registry.lookup(sourceId).entry
+  if (source === undefined || !source.capabilities.includes('settings')) return []
   const args: SourceSettingsRequestArgs = {}
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }
@@ -476,6 +478,11 @@ export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, s
 }
 
 export async function loadSourceSettingsDescriptorsAsync(registry: SourceRuntimeRegistry, sourceId: string): Promise<SourceSettingsDescriptorResult> {
+  const source = registry.lookup(sourceId).entry
+  if (source === undefined) return { ready: false, descriptors: [] }
+  // A source which declares no settings is not a failed settings operation.
+  // Never call its absent export or advertise an optimistic settings entry.
+  if (!source.capabilities.includes('settings')) return { ready: true, descriptors: [] }
   const args: SourceSettingsRequestArgs = {}
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }

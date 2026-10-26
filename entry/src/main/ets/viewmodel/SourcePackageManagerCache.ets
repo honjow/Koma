@@ -283,6 +283,7 @@ export class SourcePackageManagerCache {
       case 'missing_response':
       case 'runtime_response_not_ok':
       case 'settings_validation_failed':
+      case 'settings_read_failed':
       case 'ok':
       case 'unknown':
         return this.sourceReasonText(code)
@@ -364,8 +365,10 @@ export class SourcePackageManagerCache {
         return t('source_pkg_reason_missing_response')
       case 'runtime_response_not_ok':
         return t('source_pkg_reason_runtime_response_not_ok')
+      case 'settings_read_failed':
+        return t('source_pkg_reason_settings_read_failed')
       case 'settings_validation_failed':
-        return t('source_pkg_reason_settings_validation_failed')
+        return t('source_pkg_reason_runtime_response_not_ok')
       case 'ok':
         return t('source_pkg_reason_ok')
       case 'unknown':

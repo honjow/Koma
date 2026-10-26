@@ -328,18 +328,21 @@ test('only queued identities are pending and each action reports its actual runn
   assert.equal(manager.packageActionLabel('C',true),'source_pkg_action_update')
 })
 
-function settingsCapability(response) {
+function settingsCapability(response, capabilities = ['settings'], onRequest = () => {}) {
   const source = fs.readFileSync(path.join(root,'sourceRuntime/SourceSettingsStore.ets'),'utf8')
   const tree = ts.createSourceFile('settings.ets',source,ts.ScriptTarget.Latest,true)
   const fn = tree.statements.find(n=>ts.isFunctionDeclaration(n) && n.name.text==='loadSourceSettingsDescriptorsAsync')
   const output={}
   vm.runInNewContext(ts.transpileModule(fn.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
-    exports:output, runRegisteredSourceRequestByIdAsync:async()=>({response}),
+    exports:output, runRegisteredSourceRequestByIdAsync:async()=>{onRequest();return {response}},
     normalizeSourceSettingDescriptors:r=>r.data?.settings ?? r.data?.items ?? [], Date, JSON, Array,
   })
-  return output.loadSourceSettingsDescriptorsAsync({},'source')
+  return output.loadSourceSettingsDescriptorsAsync({lookup:()=>({entry:{capabilities}})},'source')
 }
 test('only successful empty settings or explicit unsupported operation establish that no settings exist', async()=>{
+  let calls=0
+  const unsupported=await settingsCapability(undefined, [],()=>{calls++})
+  assert.equal(unsupported.ready,true);assert.equal(unsupported.descriptors.length,0);assert.equal(calls,0)
   const none=await settingsCapability({ok:true,data:{settings:[]}})
   assert.equal(none.ready,true); assert.equal(none.descriptors.length,0)
   const yes=await settingsCapability({ok:true,data:{settings:[{id:'region'}]}})
@@ -351,16 +354,17 @@ test('only successful empty settings or explicit unsupported operation establish
     assert.equal((await settingsCapability(response)).ready,false)
   }
 })
-test('route settings capability hides an empty source, preserves unknown, and ignores a departed route', async()=>{
+// The latest user prohibition replaces the old optimistic unknown settings entry.
+test('route settings capability hides empty and unavailable sources and ignores a departed route', async()=>{
   let result={ready:true,descriptors:[]},finish
   const changes=[]
   const host=subject('components/SourceSettingsSheetHost.ets','SourceSettingsSheetHost',
     ['loadAvailability'],{appSourceRuntimeRegistry:{},loadSourceSettingsDescriptorsAsync:()=>result})
   Object.assign(host,{mounted:true,sourceId:'A',onAvailabilityChanged:value=>changes.push(value)})
   await host.loadAvailability(); assert.deepEqual(changes,[false])
-  result={ready:false,descriptors:[]}; await host.loadAvailability();assert.deepEqual(changes,[false])
+  result={ready:false,descriptors:[]}; await host.loadAvailability();assert.deepEqual(changes,[false,false])
   result=new Promise(resolve=>{finish=resolve});const loading=host.loadAvailability();host.mounted=false
-  finish({ready:true,descriptors:[{id:'region'}]});await loading;assert.deepEqual(changes,[false])
+  finish({ready:true,descriptors:[{id:'region'}]});await loading;assert.deepEqual(changes,[false,false])
 })
 
 
@@ -632,4 +636,34 @@ test('editing a repository retires background results and cannot retain an unsav
   service.saveUrl=async()=>{throw Error('save failed')};await cache.check({filesDir:'data'},draft)
   assert.equal(cache.sourceIndexUrl,active)
   cache.rememberSavedIndex(draft);cache.rememberSavedIndex(active,[{url:other}]);assert.equal(cache.sourceIndexUrl,draft)
+})
+
+// A single failed source must never claim the shared saved-settings file is bad.
+test('opening an unavailable source schema leaves other saved settings healthy', async()=>{
+  const manager=subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',
+    ['openSourceSettingsFromSheet'],{...globals,appSourceRuntimeRegistry:{},
+      loadSourceSettingsDescriptorsAsync:async()=>{throw Error('missing export')},})
+  Object.assign(manager,{sourceSheetShown:true,sourceSheetSourceId:'A',savedSettingsReadFailed:false})
+  await manager.openSourceSettingsFromSheet({id:'A'})
+  assert.equal(manager.savedSettingsReadFailed,false)
+  const toasts=[]
+  const readFailure=subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',
+    ['openSourceSettingsFromSheet'],{...globals,appSourceRuntimeRegistry:{},t:x=>x,
+      loadSourceSettingsDescriptorsAsync:async()=>({ready:true,descriptors:[{id:'region'}]})})
+  Object.assign(readFailure,{sourceSheetShown:true,sourceSheetSourceId:'A',savedSettingsReadFailed:false,
+    openSettings(){throw Error('saved file read failed')},showToast:x=>toasts.push(x)})
+  await readFailure.openSourceSettingsFromSheet({id:'A'})
+  assert.equal(readFailure.savedSettingsReadFailed,true)
+  assert.deepEqual(toasts,['source_pkg_reason_settings_read_failed'])
+})
+
+test('a real saved-settings read failure retains its known settings action and reports the read stage', async()=>{
+  const visible=[],toast=[]
+  const host=subject('components/SourceSettingsSheetHost.ets','SourceSettingsSheetHost',
+    ['openSettings'],{appSourceRuntimeRegistry:{},loadSourceSettingsDescriptorsAsync:async()=>({ready:true,descriptors:[{id:'region'}]}),
+      sourceSettingsDraft:()=>{},appSourceSettingsStore:{loadForSource(){throw Error('read failed')}},AppStrings:{get:x=>x}})
+  Object.assign(host,{mounted:true,active:true,epoch:0,sourceId:'A',onAvailabilityChanged:x=>visible.push(x),
+    getUIContext:()=>({getPromptAction:()=>({showToast:x=>toast.push(x.message)})})})
+  await host.openSettings()
+  assert.deepEqual(visible,[true]);assert.deepEqual(toast,['source_pkg_reason_settings_read_failed'])
 })

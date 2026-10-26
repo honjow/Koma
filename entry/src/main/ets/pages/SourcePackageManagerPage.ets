@@ -173,15 +173,22 @@ export struct SourcePackageManagerPage {
   private async openRequestedSourceSettings(): Promise<void> {
     const source = this.installedPackage(this.initialSettingsSourceId)
     if (source === undefined) return
+    let schemaReady = false
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
       if (!this.settingsRouteActive) return
       if (!result.ready) throw new Error('source_settings_unavailable')
       if (result.descriptors.length === 0) return
+      schemaReady = true
       this.openSettings(source, result.descriptors)
       this.sourceSettingsSheetShown = true
     } catch (_error) {
-      this.showToast(t('source_pkg_reason_settings_validation_failed'))
+      if (schemaReady) {
+        this.savedSettingsReadFailed = true
+        this.showToast(t('source_pkg_reason_settings_read_failed'))
+      } else {
+        DiagnosticLogger.warn('source_settings', 'schema_unavailable', 'reason=source_settings_unavailable')
+      }
     }
   }
 
@@ -542,6 +549,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async openSourceSettingsFromSheet(source: InstalledSourcePackage): Promise<void> {
+    let schemaReady = false
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
       if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id) return
@@ -555,14 +563,19 @@ export struct SourcePackageManagerPage {
         this.settingsDescriptorSnapshot = snapshot
         return
       }
+      schemaReady = true
       this.openSettings(source, result.descriptors)
       this.pendingSourceSheetAction = 'none'
       this.pendingSourceSheetSourceId = ''
       this.sourceSettingsSheetShown = true
     } catch (_error) {
-      this.savedSettingsReadFailed = true
-      this.statusText = t('source_pkg_reason_settings_validation_failed')
-      this.showToast(this.statusText)
+      // A schema failure belongs to this source, never the shared saved file.
+      if (schemaReady) {
+        this.savedSettingsReadFailed = true
+        this.showToast(t('source_pkg_reason_settings_read_failed'))
+      } else {
+        DiagnosticLogger.warn('source_settings', 'schema_unavailable', 'reason=source_settings_unavailable')
+      }
     }
   }
 
@@ -1166,8 +1179,10 @@ export struct SourcePackageManagerPage {
         return t('source_pkg_reason_missing_response')
       case 'runtime_response_not_ok':
         return t('source_pkg_reason_runtime_response_not_ok')
+      case 'settings_read_failed':
+        return t('source_pkg_reason_settings_read_failed')
       case 'settings_validation_failed':
-        return t('source_pkg_reason_settings_validation_failed')
+        return t('source_pkg_reason_runtime_response_not_ok')
       case 'ok':
         return t('source_pkg_reason_ok')
       case 'unknown':
@@ -1214,6 +1229,7 @@ export struct SourcePackageManagerPage {
       case 'missing_response':
       case 'runtime_response_not_ok':
       case 'settings_validation_failed':
+      case 'settings_read_failed':
       case 'ok':
       case 'unknown':
         return this.sourceReasonText(code)
@@ -1615,7 +1631,7 @@ export struct SourcePackageManagerPage {
   }
 
   private settingsValidationText(source: InstalledSourcePackage): string {
-    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_validation_failed')
+    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_read_failed')
     const status = this.settingsValidationStatus(source.id)
     const savedText = tf('source_pkg_settings_saved_count', status.savedCount)
     switch (status.status) {
@@ -1680,20 +1696,20 @@ export struct SourcePackageManagerPage {
         savedCount,
         reasonCode: reason,
       })
-      this.statusText = tf('source_pkg_settings_validation_failed', this.sourceReasonText(reason))
-      this.showToast(t('source_pkg_settings_validation_toast_fail'))
+      this.statusText = this.sourceReasonText(reason)
+      this.showToast(this.statusText)
       DiagnosticLogger.error('source_package_manager_page', 'done', '[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } catch (_error) {
       if (!settingsLoaded) this.savedSettingsReadFailed = true
-      const reason = 'settings_validation_failed'
+      const reason = settingsLoaded ? 'runtime_response_not_ok' : 'settings_read_failed'
       this.setSettingsValidationStatus({
         sourceId: source.id,
         status: 'fail',
         savedCount,
         reasonCode: reason,
       })
-      this.statusText = tf('source_pkg_settings_validation_failed', this.sourceReasonText(reason))
-      this.showToast(t('source_pkg_settings_validation_toast_fail'))
+      this.statusText = this.sourceReasonText(reason)
+      this.showToast(this.statusText)
       DiagnosticLogger.error('source_package_manager_page', 'done', '[SourceSettingsValidation] step=done id=' + source.id + ' ok=false reason=' + reason + ' saved=' + savedCount)
     } finally {
       this.settingsValidationSourceId = ''
@@ -1919,13 +1935,13 @@ export struct SourcePackageManagerPage {
   }
 
   private diagnosticsSettingsText(source: InstalledSourcePackage): string {
-    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_validation_failed')
+    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_read_failed')
     const counts = this.diagnosticsSettingCounts(source.id)
     return tf('source_pkg_diagnostics_settings', counts.total, counts.editable, counts.sensitive, counts.saved)
   }
 
   private diagnosticsSettingsValidationText(source: InstalledSourcePackage): string {
-    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_validation_failed')
+    if (this.savedSettingsReadFailed) return t('source_pkg_reason_settings_read_failed')
     const status = this.settingsValidationStatus(source.id)
     const reason = status.status === 'fail'
       ? this.sourceReasonText(status.reasonCode)
@@ -2233,8 +2249,7 @@ export struct SourcePackageManagerPage {
             this.openSourceSearchFromSheet(params.source)
           },
         })
-        if (this.settingsDescriptorSnapshot[params.source.id] === undefined ||
-          this.settingsDescriptorSnapshot[params.source.id].length > 0) {
+        if ((this.settingsDescriptorSnapshot[params.source.id]?.length ?? 0) > 0) {
           ListDivider()
           ConciseListRow({
             title: t('source_pkg_settings'),
