@@ -165,7 +165,8 @@ export class ComicNcnnLocalRegionDetector implements ComicLocalRegionDetector {
     const info: image.ImageInfo = await pixelMap.getImageInfo()
     const width: number = Math.floor(info.size.width)
     const height: number = Math.floor(info.size.height)
-    const stride: number = Math.max(Math.floor(info.stride), width * 4)
+    // ImageKit exports packed RGBA, excluding PixelMap allocation padding.
+    const stride: number = width * 4
     const pixels: ArrayBuffer = new ArrayBuffer(pixelMap.getPixelBytesNumber())
     const pixelMapReadStartedAt: number = Date.now()
     await pixelMap.readPixelsToBuffer(pixels)

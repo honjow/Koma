@@ -70,3 +70,28 @@ test('native super resolution receives packed RGBA stride even when PixelMap all
   assert.deepEqual(received[0].pixels,payload);assert.equal(result.applied,true)
   assert.deepEqual(released.sort(),['output','packer','pixel','source'])
 })
+
+function cropFileTask(source,image) {
+  const tree=ts.createSourceFile('crop-file',source,ts.ScriptTarget.Latest,true)
+  const fn=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='detectReaderPageCropFile')
+  const js=ts.transpileModule(fn.getText(tree).replace('@Concurrent',''),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText
+  return new Function('image','ReaderPageCropDetector','ReaderPageCropBounds',js+';return detectReaderPageCropFile;')(image,crop.ReaderPageCropDetector,crop.ReaderPageCropBounds)
+}
+test('packed PixelMap export keeps real border detection and translation-region native input valid',async()=>{
+  const get=relative=>process.env.KOMA_RGBA_CONSUMERS_BEFORE==='1'
+    ? require('node:child_process').execFileSync('git',['show','440c014f:entry/src/main/ets/'+relative],{encoding:'utf8'})
+    :fs.readFileSync(path.join(root,relative),'utf8')
+  const payload=borderedPage(210),released=[]
+  const pixel={getImageInfo:async()=>({size:{width:100,height:100},stride:512}),getPixelBytesNumber:()=>payload.byteLength,
+    readPixelsToBuffer:async buffer=>new Uint8Array(buffer).set(payload),release:async()=>released.push('pixel')}
+  const task=cropFileTask(get('model/ReaderPageCropService.ets'),{PixelMapFormat:{RGBA_8888:1},createImageSource:()=>({
+    getImageInfo:async()=>({size:{width:100,height:100}}),createPixelMap:async()=>pixel,release:async()=>released.push('source')})})
+  const bounds=crop.ReaderPageCropBounds.parse(await task('file','strong'));assert.equal(bounds.applied(),true)
+  assert.deepEqual([bounds.left,bounds.top,bounds.right,bounds.bottom],[.12,.12,.12,.12]);assert.deepEqual(released,['pixel','source'])
+  const exports={},calls=[]
+  new Function('exports','require',ts.transpileModule(get('readerTranslation/services/ComicNativeRegionDetector.ets'),
+    {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(exports,name=>name==='libreader_enhancement.so'?{default:{
+      async detectComicRegions(pixels,width,height,stride){calls.push({width,height,stride});assert.deepEqual(new Uint8Array(pixels),payload);return{regions:[],backend:'cpu',modelLoadMs:0,inferenceMs:0}}}}: {})
+  const result=await new exports.ComicNcnnLocalRegionDetector('param','bin').detect(pixel)
+  assert.deepEqual(calls,[{width:100,height:100,stride:400}]);assert.equal(result.backend,'cpu')
+})
