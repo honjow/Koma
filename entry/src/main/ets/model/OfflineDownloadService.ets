@@ -11,6 +11,7 @@ import {
 } from './ComicModels'
 import {
   ReaderPageRenderKind,
+  cacheSourceTextPageImage,
   ReaderPageRenderSource,
   createReaderPageRenderSource,
   fetchReaderRemoteSourceBytes,
@@ -419,6 +420,10 @@ export class OfflineDownloadService {
 
   private async writePage(source: ReaderPageRenderSource, localPath: string): Promise<OfflineDownloadPageWriteResult> {
     if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
+      if (source.sourceText !== undefined) {
+        const path = await cacheSourceTextPageImage(source.sourceText)
+        return copyLocalFile(path, localPath)
+      }
       return copyLocalFile(source.imageUri, localPath)
     }
     if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE) {

@@ -1067,6 +1067,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
 /** A restored raw registry must replace newer in-process imported paths and
  * enabled values. The normal best-effort reload's unchanged shortcut cannot. */
 export function restoreInstalledSourcePackagesAfterBackup(context: common.UIAbilityContext): boolean {
+  appSourceSettingsStore.invalidateCachedDocument()
   const restored = SourceRuntimeRegistry.reloadFromAppLocalMetadata(appSourceMetadataPath(context))
   if (!restored.ok && restored.reasonCode !== 'metadata_missing') return false
   const imported = appSourceRuntimeRegistry.list().filter((entry: SourceRuntimeRegistryEntry): boolean => {
@@ -1320,15 +1321,17 @@ function sourceRemovePreferenceImages(context: common.UIAbilityContext): SourceR
 }
 
 function restoreSourceRemovePreferences(images: SourceRemovePreferenceImage[]): void {
-  images.forEach((image: SourceRemovePreferenceImage) => {
-    if (image.exists) {
-      if (!fs.accessSync(image.path) || fs.readTextSync(image.path, { encoding: 'utf-8' }) !== image.content) {
-        writeAppTextFile(image.path, image.content)
+  try {
+    images.forEach((image: SourceRemovePreferenceImage) => {
+      if (image.exists) {
+        if (!fs.accessSync(image.path) || fs.readTextSync(image.path, { encoding: 'utf-8' }) !== image.content) {
+          writeAppTextFile(image.path, image.content)
+        }
+      } else if (fs.accessSync(image.path)) {
+        fs.unlinkSync(image.path)
       }
-    } else if (fs.accessSync(image.path)) {
-      fs.unlinkSync(image.path)
-    }
-  })
+    })
+  } finally { appSourceSettingsStore.invalidateCachedDocument() }
 }
 
 export async function remove(context: common.UIAbilityContext, id: string): Promise<boolean> {

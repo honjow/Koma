@@ -1,3 +1,4 @@
+import { waitForSourceRequestSlot } from './SourceRequestPolicy'
 import { url as urlKit } from '@kit.ArkTS'
 import { appSourceWebSessionStore, sourceWebOrigin, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
 import { sourceClearanceCookieState } from './SourceWebChallengeGate'
@@ -237,8 +238,14 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     let currentMethod = method
     let currentBody = body
     const startedAt = Date.now()
+    let policyWaitMs: number = 0
     let redirects = 0
     while (true) {
+    const policyStartedAt: number = Date.now()
+    await waitForSourceRequestSlot(identity?.sourceId ?? '', currentUrl, () => probe === undefined || probe.current())
+    // A rate-limit queue is not network time. Keep the original request/redirect
+    // timeout budget intact once its slot becomes available.
+    policyWaitMs += Math.max(0, Date.now() - policyStartedAt)
     const originalHeaders = sourceHeaders(envelope.headers)
     const headers: Record<string, string> = {}
     Object.keys(originalHeaders).forEach((name: string) => {
@@ -260,7 +267,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' uaSource=' + (session === undefined ? 'source' : 'webview'))
     if (session !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
     const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
-      Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt))
+      Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     const request = http.createHttp()
     let response: http.HttpResponse
     const hopStartedAt = Date.now()
@@ -325,7 +332,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
       const locationKey = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'location')
       const location = locationKey === undefined ? undefined : sourceString(responseHeaders[locationKey])
-      if (location === undefined || redirects >= 30 || Date.now() - startedAt >= sourceTimeout(envelope.timeoutMs)) {
+      if (location === undefined || redirects >= 30 || Date.now() - startedAt - policyWaitMs >= sourceTimeout(envelope.timeoutMs)) {
         trace.finish('failed', 'reason=web_session_redirect_rejected')
         return transportError('web_session_redirect_rejected', false)
       }

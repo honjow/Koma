@@ -1,3 +1,7 @@
+import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
+import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
+import { sourceTextPage } from './SourceTextPageDescriptor'
+import { cacheSourceTextPageImage } from './ReaderPageSourceAdapter'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
@@ -180,8 +184,10 @@ function sourcePageId(item: Record<string, Object>, chapterId: string, index: nu
     `${chapterId}:page:${index + 1}`
 }
 
-function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<string, Object>[]): Page[] {
-  return rows.map((item: Record<string, Object>, index: number): Page => {
+async function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<string, Object>[]): Promise<Page[]> {
+  const pages: Page[] = []
+  for (let index: number = 0; index < rows.length; index++) {
+    const item = rows[index]
     const pageId = sourcePageId(item, chapterId, index)
     const page: Page = {
       id: pageId,
@@ -200,8 +206,18 @@ function pagesFromSourceRows(comicId: string, chapterId: string, rows: Record<st
     if (height !== undefined) {
       page.height = height
     }
-    return page
-  })
+    const image = sourcePageImageRecord(item)
+    if (image?.['kind'] === 'text') {
+      const spec = sourceTextPage(image['text'])
+      page.uri = await cacheSourceTextPageImage(spec)
+      page.sourceText = spec
+      page.width = spec.template === 'webtoon-author-notes' ? 1000 : 1080
+      page.height = undefined
+      page.fileName += '.png'
+    }
+    pages.push(page)
+  }
+  return pages
 }
 
 function sourceMangaIdFromComic(comic: Comic, sourceId: string): string | undefined {
@@ -239,9 +255,11 @@ async function fetchSourceChapterPages(
     settings: appSourceSettingsStore.loadForSource(entry.sourceId),
     hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
   }
-  const responseJson = await diagnoseSourceOperation(JSON.stringify(sourceRequest), () => taskpool.execute(
+  configureSourceRequestPolicy(entry.sourceId, sourceRequest.settings)
+  const requestJson: string = sourceRequestWithHostFeatures(JSON.stringify(sourceRequest))
+  const responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
     executeSourceChapterPagesOperation,
-    JSON.stringify(sourceRequest),
+    requestJson,
     cloneWasmBytes(entry),
     sourceHttpIdentityJson(entry),
   ) as Promise<string>)
@@ -256,7 +274,7 @@ async function fetchSourceChapterPages(
       sourceFailure: sourceFailureDetails({ ok: false, reasonCode: response.reasonCode, error: response.error }) }
   }
   if (rows.length === 0) return { pages: [], reasonCode: 'source_pages_failed' }
-  return { pages: pagesFromSourceRows(request.comicId, request.chapterId, rows) }
+  return { pages: await pagesFromSourceRows(request.comicId, request.chapterId, rows) }
 }
 
 export async function resolveSourceChapterPages(

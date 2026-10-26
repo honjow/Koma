@@ -1,4 +1,5 @@
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
+import { SourceTextPage, sourceTextPage } from './SourceTextPageDescriptor'
 import { MangaChapterItem } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
@@ -126,6 +127,7 @@ export interface PersistedPage {
   width?: number
   height?: number
   byteSize?: number
+  sourceText?: SourceTextPage
 }
 
 function persistPage(page: Page): PersistedPage {
@@ -147,6 +149,7 @@ function persistPage(page: Page): PersistedPage {
   if (page.byteSize !== undefined) {
     row.byteSize = page.byteSize
   }
+  if (page.sourceText !== undefined) row.sourceText = sourceTextPage(page.sourceText)
   return row
 }
 
@@ -170,6 +173,7 @@ function hydratePage(row: PersistedPage): Page {
   if (row.byteSize !== undefined) {
     page.byteSize = row.byteSize
   }
+  if (row.sourceText !== undefined) page.sourceText = sourceTextPage(row.sourceText)
   return page
 }
 

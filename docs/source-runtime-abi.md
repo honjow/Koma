@@ -35,7 +35,16 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 - WASM 只使用受控 host imports；当前原生注册表为 wasm_runtime_adapter.cpp 的 g_komaHostSymbols，HTTP/HTML 行为分别由 http_host 与 html_host 实现。不能从开发 runner 导入推定 App 提供同名能力。
 - 包、请求及响应大小、执行/网络期限和取消按当前 importer、service 与 native 常量执行，本文不复制易漂移的数值。未声明能力、无效身份和不支持操作不能默认放行。
 - 源设置须有真实 schema 及实际消费。schema 空/失败不显示空入口，也不污染已保存设置的全局状态；存储读取失败保留有效入口并报告具体阶段，不使用“设置验证失败”泛化提示。cookies、userId、token 不因存在导出而开放普通明文持久。
+- SourceSettingsStore 复用本进程最近提交的私有快照，调用方仅取得副本；单源请求及管理页统计不重复读盘解析全文件。写入成功才发布快照和 revision，失败保留旧值；路径切换、原文件事务回滚及备份回滚由同一 owner 失效，不以缓存掩盖尚未成功读取的错误。
 - 图像请求描述进入原有下载/缓存通道；源不直接接管文件、账户、图像处理、Reader 进度或共享 Kit。
+
+## 宿主特性与文字页
+
+`get_settings` 与 `get_pages` 请求顶层由宿主加入 `hostFeatures`。当前支持 `text_page_image_v1` 和 `source_rate_limit_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原图像输出。特性不是网络权限或任意 HTML 执行许可。
+
+文字页沿原 `data.pages` 返回 `image: { kind: "text", text: { template, heading?, paragraphs } }`；模板只接受 `webtoon-author-notes`、`dm5-chapter-comments`。源负责 JSON 转义及 HTML 实体解码，字段是普通 Unicode。宿主在章节页表发布前通过 TaskPool 原生字体排版生成本地 PNG，复用 Reader 图像缓存；经过校验的公共文字描述随 Page 和会话传递，缓存被清理时由同一准备/预载及离线下载链重建，缓存路径不是唯一内容。Reader、预载和增强消费同一本地图片，不请求虚构图像网址，正常制图不推迟到翻页。宽度、字号、段距及整条评论截断沿所采用的源参考，字形度量由 HarmonyOS 提供。
+
+漫画柜限速由进程内共同 owner 执行：主站共享滑窗，已知 CDN 集合共享另一滑窗，元数据网络、封面和 Reader 图像缓存未命中均消费相应额度。额度来自请求已有设置快照；网络热路径不再读盘加载设置。其它源、无匹配站点及缓存命中保持原路径，排队后重核会话身份，不沿用排队前 Cookie。
 
 ## 网页会话与章序
 

@@ -1,4 +1,5 @@
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceTextPage, sourceTextPage } from './SourceTextPageDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -149,6 +150,7 @@ export interface ReaderSessionConfig {
   pageIds?: string[]
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
+  pageTextPages?: (SourceTextPage | null | undefined)[]
   sourceRuntimeId?: string
   /** Route-local provider category; never persisted with history or progress. */
   sourceFailureReason?: string
@@ -184,6 +186,8 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageIds: config.pageIds?.slice(),
     pageWidths: config.pageWidths?.slice(),
     pageHeights: config.pageHeights?.slice(),
+    pageTextPages: config.pageTextPages?.map((page: SourceTextPage | null | undefined): SourceTextPage | undefined =>
+      page === undefined || page === null ? undefined : sourceTextPage(page)),
     sourceRuntimeId: config.sourceRuntimeId,
     sourceFailureReason: config.sourceFailureReason,
     sourceFailure: config.sourceFailure === undefined ? undefined : {
@@ -938,6 +942,7 @@ export function createReaderSessionConfigFromComic(
     pageIds: chapter === undefined ? [] : chapter.pages.map((page) => page.id),
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
+    pageTextPages: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceText),
     sourceRuntimeId: comic.sourceRuntimeId,
     sourceMangaUrl: comic.sourceRuntimeId === undefined ? undefined : comic.sourcePath,
     sourceKind: comic.sourceKind,

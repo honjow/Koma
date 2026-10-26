@@ -87,6 +87,15 @@ function emptyDocument(): SourceSettingsDocument {
   }
 }
 
+function copySettingsRecord(values: SourceSettingsRecord): SourceSettingsRecord {
+  const copy: SourceSettingsRecord = {}
+  Object.keys(values).forEach((key: string): void => {
+    const value = values[key]
+    copy[key] = Array.isArray(value) ? value.slice() : value
+  })
+  return copy
+}
+
 function isRuntimeRecord(value: RuntimeValue | undefined): boolean {
   return value !== undefined && value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -296,14 +305,15 @@ export class SourceSettingsStore {
   private storagePath: string = ''
   private scopeRevision: number = 0
   private readonly sourceRevisions: Map<string, number> = new Map<string, number>()
+  private document: SourceSettingsDocument | undefined = undefined
 
   configure(context: common.UIAbilityContext): void {
     const root = joinSourceSettingsPath(context.filesDir, SOURCE_SETTINGS_ROOT_NAME)
-    ensureDirSync(root)
     const nextPath = joinSourceSettingsPath(root, SOURCE_SETTINGS_FILE_NAME)
+    if (this.storagePath === nextPath) return
+    ensureDirSync(root)
     if (this.storagePath !== nextPath) {
-      this.scopeRevision += 1
-      this.sourceRevisions.clear()
+      this.invalidateCachedDocument()
     }
     this.storagePath = nextPath
   }
@@ -321,13 +331,23 @@ export class SourceSettingsStore {
     return this.storagePath.length > 0
   }
 
+  /** All production writes use this owner. Raw transaction rollback must invalidate
+   * it too. Readers get copies; a failed commit never publishes a newer snapshot.
+   * Reopening Manager or requesting another page must not re-read/parse the file.
+   */
+  invalidateCachedDocument(): void {
+    this.document = undefined
+    this.scopeRevision += 1
+    this.sourceRevisions.clear()
+  }
+
   loadForSource(sourceId: string): SourceSettingsRecord {
     const normalizedSourceId = sourceId.trim()
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
       return {}
     }
     const document = this.readDocument()
-    return document.sources[normalizedSourceId] ?? {}
+    return copySettingsRecord(document.sources[normalizedSourceId] ?? {})
   }
 
   saveForSource(sourceId: string, values: SourceSettingsRecord, descriptors: SourceSettingDescriptor[] = []): void {
@@ -336,9 +356,11 @@ export class SourceSettingsStore {
       return
     }
     const safeValues = this.filterSafeValues(values, descriptors)
-    const document = this.readDocument()
-    document.sources[normalizedSourceId] = safeValues
-    this.writeDocument(document)
+    const current = this.readDocument()
+    const sources: Record<string, SourceSettingsRecord> = {}
+    Object.keys(current.sources).forEach((id: string): void => { sources[id] = current.sources[id] })
+    sources[normalizedSourceId] = safeValues
+    this.writeDocument({ schemaVersion: current.schemaVersion, sources })
     this.sourceCommitted(normalizedSourceId)
   }
 
@@ -354,13 +376,15 @@ export class SourceSettingsStore {
         nextSources[key] = document.sources[key]
       }
     })
-    document.sources = nextSources
-    this.writeDocument(document)
+    this.writeDocument({ schemaVersion: document.schemaVersion, sources: nextSources })
     this.sourceCommitted(normalizedSourceId)
   }
 
   exportAll(): Record<string, SourceSettingsRecord> {
-    return this.readDocument().sources
+    const current = this.readDocument()
+    const copy: Record<string, SourceSettingsRecord> = {}
+    Object.keys(current.sources).forEach((id: string): void => { copy[id] = copySettingsRecord(current.sources[id]) })
+    return copy
   }
 
   importAll(sources: Record<string, SourceSettingsRecord> | undefined): void {
@@ -414,9 +438,11 @@ export class SourceSettingsStore {
     if (!this.isConfigured()) {
       return emptyDocument()
     }
+    if (this.document !== undefined) return this.document
     try {
       if (!fs.accessSync(this.storagePath)) {
-        return emptyDocument()
+        this.document = emptyDocument()
+        return this.document
       }
       const document = JSON.parse(fs.readTextSync(this.storagePath, { encoding: 'utf-8' })) as SourceSettingsDocument
       if (document === null || typeof document !== 'object' || Array.isArray(document) ||
@@ -437,6 +463,7 @@ export class SourceSettingsStore {
           if (!valid) throw new Error('source_settings_invalid')
         })
       })
+      this.document = document
       return document
     } catch (_error) {
       throw new Error('source_settings_invalid')
@@ -448,6 +475,7 @@ export class SourceSettingsStore {
       return
     }
     writeAppTextFile(this.storagePath, JSON.stringify(document))
+    this.document = document
   }
 }
 

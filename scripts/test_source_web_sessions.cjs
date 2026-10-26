@@ -7,12 +7,12 @@ const vm = require('node:vm')
 const path = require('node:path')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const base = path.join(__dirname, '../entry/src/main/ets/sourceRuntime')
-function moduleFrom(name, requireMock) {
+function moduleFrom(name, requireMock, globals = {}) {
   const exports = {}
   const javascript = ts.transpileModule(fs.readFileSync(path.join(base, name + '.ets'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText
-  vm.runInNewContext(javascript, { exports, require: requireMock, Map, Date, JSON, Error })
+  vm.runInNewContext(javascript, { exports, require: requireMock, Map, Date, JSON, Error, ...globals })
   return exports
 }
 function fixture(sdkApiVersion = 23) {
@@ -55,6 +55,7 @@ function fixture(sdkApiVersion = 23) {
     const trace = { info: (_event, detail) => diagnostics.push(detail), warn: (_event, detail) => diagnostics.push(detail), fail: () => {}, finish: (_state, detail) => diagnostics.push(detail) }
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === '@kit.ArkTS') return { url: { URL } }
+      if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
@@ -117,7 +118,7 @@ function fixture(sdkApiVersion = 23) {
       } }
       if (name === '@kit.BasicServicesKit') return {}
       throw Error('unexpected import: ' + name)
-    })
+    }, network.clock ? { Date: network.clock } : {})
     transport.configureSourceRuntimeHttpTransport()
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
     const after = network.afterInitial === undefined ? undefined : await network.afterInitial({ transport, execute: callback })
@@ -129,6 +130,18 @@ function fixture(sdkApiVersion = 23) {
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
 const response = (status = 200, header = {}) => ({ responseCode: status, result: 'public-body', header })
+test('rate queue waiting preserves the existing network timeout budget and rechecks session cookies', async () => {
+  const f = fixture(); f.grant()
+  let now = 1000
+  const result = await f.http([response()], JSON.stringify(f.identity()), { timeoutMs: 15000 }, {
+    clock: { now: () => now },
+    policy: { waitForSourceRequestSlot: async () => { now += 20000; f.setCookie('cookie-after-wait') } },
+  })
+  assert.equal(result.result.status, 200)
+  assert.equal(result.calls[0].options.readTimeout, 15000)
+  assert.equal(result.calls[0].options.connectTimeout, 15000)
+  assert.equal(result.calls[0].options.header.Cookie, 'cookie-after-wait')
+})
 test('source, origin, package identity and pending boundary isolate cookie access', () => {
   const f = fixture()
   assert.throws(() => f.store.begin(f.registry, 'missing', 'https://site.invalid/'))

@@ -1,3 +1,6 @@
+import { configureSourceRequestPolicy, waitForSourceRequestSlot } from '../sourceRuntime/SourceRequestPolicy'
+import { renderSourceTextPage } from './SourceTextPageRenderer'
+import { SourceTextPage } from './SourceTextPageDescriptor'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -244,6 +247,7 @@ class EmptyHttpHeader {
 interface ReaderRemoteIdentity {
   sourceKind?: ComicSourceKind
   remoteServerId?: string
+  sourceRuntimeId?: string
 }
 
 class ReaderRemoteRequest {
@@ -331,7 +335,8 @@ function isLocalFileUri(uri: string): boolean {
   return normalized.startsWith('file://') || normalized.startsWith('mock://')
 }
 
-async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders): Promise<ArrayBuffer> {
+async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = ''): Promise<ArrayBuffer> {
+  await waitForSourceRequestSlot(sourceId, url)
   const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=30000 readTimeoutMs=60000')
   const httpRequest = http.createHttp()
   let responseStarted: boolean = false
@@ -397,7 +402,18 @@ export async function fetchAndCacheReaderRemoteImage(
   if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
   const request = await resolveReaderRemoteRequest(uri, identity, context)
   const path = await readerImageCacheStore.getOrFetch(request.url, request.headers,
-    () => downloadReaderRemoteBytes(request.requestUrl, request.headers), undefined, forceReload)
+    () => downloadReaderRemoteBytes(request.requestUrl, request.headers, identity?.sourceRuntimeId ?? ''), undefined, forceReload)
+  await maintainReaderImageCacheAfterWrite(path)
+  return path
+}
+
+export async function cacheSourceTextPageImage(spec: SourceTextPage): Promise<string> {
+  if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
+  // Internal cache label only: getOrFetch receives the local renderer, never HTTP.
+  // Cache identity includes the rendering contract and exact plain text, not a fake URL.
+  const seed: string = `source-text-page-v1:${JSON.stringify(spec)}`
+  const path = await readerImageCacheStore.getOrFetch('source-text-page.png', undefined,
+    () => renderSourceTextPage(spec), seed)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
@@ -413,6 +429,7 @@ function readerImageRequestForPage(sourceId: string, pageId: string, url: string
     settings: appSourceSettingsStore.loadForSource(sourceId),
     hostHints: new ReaderImageRuntimeHostHints(),
   }
+  configureSourceRequestPolicy(sourceId, request.settings)
   return JSON.stringify(request)
 }
 
@@ -647,11 +664,11 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   }
   const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route)
   if (imageRequest === undefined) {
-    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload)
+    return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload)
   }
   const cacheHeaders = imageRequest.headers
   const path = await readerImageCacheStore.getOrFetch(imageRequest.url, cacheHeaders,
-    () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers), cacheKeySeed, forceReload)
+    () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, sourceId), cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
@@ -679,6 +696,7 @@ export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   sourceKind?: ComicSourceKind
   remoteServerId?: string
   pageId?: string
+  sourceText?: SourceTextPage
 }
 
 export interface ReaderPageRenderSourceOptions {
@@ -798,6 +816,7 @@ function createReaderPageRenderSourceWithOfflinePath(
       uri: pageUri,
       imageUri: localPath,
       pageId,
+      sourceText: config.pageTextPages?.[index] ?? undefined,
     }
   }
   return {
@@ -853,7 +872,7 @@ export function createReaderPageRenderSources(
 
 export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false): Promise<string> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
-    return source.imageUri
+    return source.sourceText === undefined ? source.imageUri : cacheSourceTextPageImage(source.sourceText)
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
@@ -866,9 +885,10 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
 
 export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<ArrayBuffer> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
-    const file = fs.openSync(source.imageUri, fs.OpenMode.READ_ONLY)
+    const path: string = source.sourceText === undefined ? source.imageUri : await cacheSourceTextPageImage(source.sourceText)
+    const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     try {
-      const stat = fs.statSync(source.imageUri)
+      const stat = fs.statSync(path)
       const buffer = new ArrayBuffer(stat.size)
       fs.readSync(file.fd, buffer)
       return buffer
@@ -880,11 +900,11 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
       const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
       if (imageRequest !== undefined) {
-        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers)
+        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId)
       }
     }
     const request = await resolveReaderRemoteRequest(source.imageUri, source, context)
-    return downloadReaderRemoteBytes(request.requestUrl, request.headers)
+    return downloadReaderRemoteBytes(request.requestUrl, request.headers, source.sourceRuntimeId ?? '')
   }
   throw new Error('reader_page_source_unavailable')
 }

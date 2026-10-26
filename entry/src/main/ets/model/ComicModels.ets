@@ -1,3 +1,4 @@
+import { SourceTextPage } from './SourceTextPageDescriptor'
 import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
 import { AppStrings } from '../i18n/AppStrings'
 
@@ -36,6 +37,8 @@ export interface Page {
   width?: number
   height?: number
   byteSize?: number
+  /** Rebuildable public source text; the cached PNG is never the sole copy. */
+  sourceText?: SourceTextPage
 }
 
 export interface Chapter {
