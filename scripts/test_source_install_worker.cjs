@@ -22,6 +22,30 @@ function functions(file, names, globals) {
 const registryFile = 'sourceRuntime/SourceRuntimeAppRegistry.ets'
 const response = { ok: true, operation: 'source_info', data: { capabilities: { search: true, pages: true } } }
 function deferred() { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b }); return {promise,resolve,reject} }
+test('Browse source publication keeps unchanged row inputs while retaining metadata, order and removal updates',()=>{
+  const source=fs.readFileSync(path.join(root,'viewmodel/BrowseViewModel.ets'),'utf8')
+  const tree=ts.createSourceFile('browse.ts',source,ts.ScriptTarget.Latest,true)
+  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='BrowseViewModel')
+  const method=owner.members.find(n=>n.name?.text==='loadInstalledSources').getText(tree)
+  const code=ts.transpileModule(`export class Model { ${method} }`,{
+    compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020},
+  }).outputText
+  const exports={};new Function('exports','safeSourceBrowseErrorText',code)(exports,()=> 'failed')
+  let rows=[{sourceId:'a',displayName:'A',version:'1',localizedNames:{zh:'甲'},capabilities:['search']},
+    {sourceId:'b',displayName:'B',version:'1',icon:'file:///b.png'}],failed=false
+  const model=new exports.Model();Object.assign(model,{sources:[],registry:{listInstalledSourceSummaries:()=>{
+    if(failed)throw Error('failed');return structuredClone(rows)
+  }}})
+  model.loadInstalledSources();const [a,b]=model.sources,first=model.sources
+  rows[0].version='2';model.loadInstalledSources()
+  assert.notEqual(model.sources,first);assert.notEqual(model.sources[0],a);assert.equal(model.sources[1],b)
+  assert.deepEqual(model.sources,rows)
+  const updated=model.sources[0];rows[0].localizedNames.zh='乙';model.loadInstalledSources()
+  assert.notEqual(model.sources[0],updated);assert.equal(model.sources[1],b)
+  rows=[rows[1]];model.loadInstalledSources();assert.deepEqual(model.sources,[b]);assert.equal(model.sources[0],b)
+  failed=true;model.loadInstalledSources();assert.deepEqual(model.sources,[])
+  assert.equal(model.sourceErrorMessage,'failed');assert.equal(model.loadingSources,false)
+})
 function installFixture() {
   const probe = deferred(), events = [], old = {sourceId:'one',enabled:false,archivePath:'/packages/old/source.koma'}, other = {sourceId:'other'}
   let entries=[other,old], persistFails=false, registerFails=false, next

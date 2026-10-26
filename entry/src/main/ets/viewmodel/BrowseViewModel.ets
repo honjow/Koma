@@ -564,7 +564,23 @@ export class BrowseViewModel {
     this.loadingSources = true
     this.sourceErrorMessage = ''
     try {
-      this.sources = this.registry.listInstalledSourceSummaries()
+      // Registry summaries are fresh descriptive DTOs. Stable ForEach keys do
+      // not prevent every unchanged SourceListItem receiving a new @Param.
+      // Keep equal row inputs within this model only; compare the complete DTO
+      // so names, icons, capabilities and future fields cannot become stale.
+      // Still publish a new ordered array. Request/package validity continues
+      // to use the live registry, never this presentation-only reuse.
+      // Preserve this boundary for SOURCE_PACKAGE_INSTALL_UI_STALL in the
+      // current work record; ordering and locale remain the callers' owners.
+      const previous = new Map<string, SourceRuntimeRegistryInstalledSourceSummary>()
+      this.sources.forEach((source: SourceRuntimeRegistryInstalledSourceSummary): void => {
+        previous.set(source.sourceId, source)
+      })
+      this.sources = this.registry.listInstalledSourceSummaries().map(
+        (source: SourceRuntimeRegistryInstalledSourceSummary): SourceRuntimeRegistryInstalledSourceSummary => {
+          const retained = previous.get(source.sourceId)
+          return retained !== undefined && JSON.stringify(retained) === JSON.stringify(source) ? retained : source
+        })
     } catch (error) {
       const e = error as Error
       this.sourceErrorMessage = safeSourceBrowseErrorText(e, 'browse_error_load_sources')
