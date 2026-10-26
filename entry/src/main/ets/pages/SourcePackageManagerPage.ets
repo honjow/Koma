@@ -1,3 +1,4 @@
+import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
@@ -64,24 +65,8 @@ function tf(name: string, ...args: Array<string | number>): string {
   return AppStrings.format(name, ...args)
 }
 
-type SourcePackageUpdateState = 'unknown' | 'checking' | 'latest' | 'update' | 'missing' | 'failed' | 'incomplete'
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
 type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'open_web' | 'confirm_remove'
-
-interface SourcePackageUpdateStatus {
-  sourceId: string
-  status: SourcePackageUpdateState
-  remoteEntry?: SourceIndexEntry
-  remoteIndexUrl?: string
-  remoteVersion?: string
-  localVersion?: string
-  reasonCode?: string
-}
-
-interface SourcePackageUpdateCandidate {
-  entry: SourceIndexEntry
-  indexUrl: string
-}
 
 interface SourcePackageListGroups {
   updates: SourcePackageUpdateCandidate[]
@@ -129,6 +114,8 @@ export struct SourcePackageManagerPage {
   @Param initialSettingsSourceId: string = ''
   @Event onSettingsSaved: () => void = () => {}
   private settingsRouteActive: boolean = false
+  private displayCacheRevision: number = 0
+  @Local private managerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   @Local private packages: InstalledSourcePackage[] = []
   @Local private busy: boolean = false
   @Local private statusText: string = ''
@@ -137,6 +124,7 @@ export struct SourcePackageManagerPage {
   @Local private settingDescriptors: SourceSettingDescriptor[] = []
   @Local private settingDraft: SourceSettingsRecord = {}
   @Local private sourceIndexUrl: string = ''
+  private sourceIndexUrlEdited: boolean = false
   @Local private sourceIndexRepositories: SourceIndexRepository[] = []
   @Local private sourceIndexFailures: Record<string, string> = {}
   @Local private indexEntries: SourceIndexEntry[] = []
@@ -172,8 +160,12 @@ export struct SourcePackageManagerPage {
 
   aboutToAppear(): void {
     configureSourceSettingsStore(this.context())
-    this.reload()
-    this.loadSavedIndexUrl()
+    if (this.initialSettingsSourceId.length > 0) this.reload()
+    else {
+      this.sourceIndexUrlEdited = false
+      this.restoreDisplayCache()
+    }
+    this.refreshSavedSettingsCounts()
     this.settingsRouteActive = true
     if (this.initialSettingsSourceId.length > 0) void this.openRequestedSourceSettings()
   }
@@ -194,6 +186,7 @@ export struct SourcePackageManagerPage {
   }
 
   aboutToDisappear(): void {
+    if (this.initialSettingsSourceId.length === 0) this.retainDisplayCache()
     this.settingsRouteActive = false
     this.indexLoadRevision += 1
     this.indexDisplayRevision += 1
@@ -201,19 +194,54 @@ export struct SourcePackageManagerPage {
     this.settingsReloadRevision += 1
   }
 
+  private retainDisplayCache(retireCheck: boolean = false): void {
+    this.managerCache.capture(this.displayCacheRevision, retireCheck, this.packages, this.sourceIndexUrl, this.sourceIndexRepositories, this.indexEntries,
+      this.indexIconStates, this.displayedIndexUrl, this.sourceIndexFailures, this.packageUpdateStatuses,
+      this.statusText, this.indexStatusText)
+  }
+
+  @Monitor('managerCache.revision')
+  private backgroundIndexChanged(): void {
+    if (this.settingsRouteActive && this.initialSettingsSourceId.length === 0) this.restoreDisplayCache()
+  }
+
+  private restoreDisplayCache(): void {
+    const cached = this.managerCache
+    this.displayCacheRevision = cached.revision
+    if (this.packages !== cached.packages) this.packages = cached.packages
+    if (!this.sourceIndexUrlEdited && this.sourceIndexUrl !== cached.sourceIndexUrl) this.sourceIndexUrl = cached.sourceIndexUrl
+    if (JSON.stringify(this.sourceIndexRepositories) !== JSON.stringify(cached.sourceIndexRepositories)) this.sourceIndexRepositories = cached.sourceIndexRepositories
+    if (this.indexEntries !== cached.indexEntries) {
+      // Already prepared and sorted before navigation. First paint performs no
+      // disk read, index parse, icon-cache walk or metadata reconstruction.
+      this.indexEntries = cached.indexEntries
+      this.indexIconStates = cached.indexIconStates
+      this.displayedIndexUrl = cached.displayedIndexUrl
+    }
+    if (JSON.stringify(this.packageUpdateStatuses) !== JSON.stringify(cached.packageUpdateStatuses)) this.packageUpdateStatuses = cached.packageUpdateStatuses
+    if (JSON.stringify(this.sourceIndexFailures) !== JSON.stringify(cached.sourceIndexFailures)) this.sourceIndexFailures = cached.sourceIndexFailures
+    this.statusText = cached.statusText
+    this.indexStatusText = cached.indexStatusText
+  }
+
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
   }
 
   private sortedIndexEntries(entries: SourceIndexEntry[]): SourceIndexEntry[] {
+    const locale = this.languageState.effectiveLocale
+    const names = new Map<string, string>()
+    entries.forEach((entry: SourceIndexEntry): void => {
+      names.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, locale))
+    })
     return entries.slice().sort((left: SourceIndexEntry, right: SourceIndexEntry): number =>
-      compareSourceNames(
-        resolveSourceLocalizedName(left.name, left.localizedNames, this.languageState.effectiveLocale), left.id,
-        resolveSourceLocalizedName(right.name, right.localizedNames, this.languageState.effectiveLocale), right.id))
+      compareSourceNames(names.get(left.id) ?? left.name, left.id, names.get(right.id) ?? right.name, right.id))
   }
 
   private setSourceIndexUrl(value: string): void {
     if (value === this.sourceIndexUrl) return
+    this.managerCache.retireCheck()
+    this.sourceIndexUrlEdited = true
     this.savedIndexLoadRevision += 1
     this.indexLoadRevision += 1
     this.indexDisplayRevision += 1
@@ -241,10 +269,16 @@ export struct SourcePackageManagerPage {
       this.indexIconStates = icons
     }
     this.displayedIndexUrl = indexUrl
-    this.indexEntries = this.sortedIndexEntries(entries)
+    const previousEntries = new Map<string, SourceIndexEntry>()
+    if (sameRepository) this.indexEntries.forEach((entry: SourceIndexEntry): void => { previousEntries.set(entry.id, entry) })
+    const nextEntries = this.sortedIndexEntries(sameRepository ? entries.map((entry: SourceIndexEntry): SourceIndexEntry => {
+      const old = previousEntries.get(entry.id)
+      return old !== undefined && JSON.stringify(old) === JSON.stringify(entry) ? old : entry
+    }) : entries)
+    if (nextEntries.length !== this.indexEntries.length || nextEntries.some((entry: SourceIndexEntry, index: number): boolean => entry !== this.indexEntries[index])) this.indexEntries = nextEntries
     this.indexStatusText = tf('source_pkg_index_loaded', entries.length)
     const iconRevision = ++this.indexDisplayRevision
-    void this.sourceIndexService.loadIndexIcons(indexUrl, entries, (ready: SourceIndexEntry): void => {
+    void this.sourceIndexService.loadIndexIcons(indexUrl, entries.filter((entry: SourceIndexEntry): boolean => !this.packages.some((source: InstalledSourcePackage): boolean => source.id === entry.id)), (ready: SourceIndexEntry): void => {
       if (iconRevision !== this.indexDisplayRevision) return
       if (!this.indexEntries.some((entry: SourceIndexEntry): boolean =>
         entry.id === ready.id && entry.version === ready.version && entry.icon === ready.icon)) return
@@ -283,6 +317,7 @@ export struct SourcePackageManagerPage {
     })
     this.settingsValidationStatuses = validationStatuses
     void this.reloadSettingsDescriptors(packages, revision)
+    if (this.settingsRouteActive && this.initialSettingsSourceId.length === 0) this.retainDisplayCache(true)
   }
 
   private settingsAvailabilityText(descriptors: SourceSettingDescriptor[]): string {
@@ -361,6 +396,7 @@ export struct SourcePackageManagerPage {
       Math.max(0, Date.now() - projectionStartedAt) + ' packageCount=' + this.packages.length)
     // The Computed index still describes the previous frame in this task.
     // Business completion needs this operation's DTO, not that render cache.
+    if (this.settingsRouteActive && this.initialSettingsSourceId.length === 0) this.retainDisplayCache(true)
     return source
   }
 
@@ -388,32 +424,6 @@ export struct SourcePackageManagerPage {
     this.settingsAvailability = availability
   }
 
-  private async loadSavedIndexUrl(): Promise<void> {
-    const revision = ++this.savedIndexLoadRevision
-    const previousUrl = this.sourceIndexUrl
-    try {
-      const saved = await this.sourceIndexService.loadSavedUrl()
-      const repositories = await this.sourceIndexService.loadSavedRepositories()
-      if (revision !== this.savedIndexLoadRevision) return
-      if (saved.length > 0 && this.sourceIndexUrl === previousUrl) this.setSourceIndexUrl(saved)
-      this.sourceIndexRepositories = repositories
-      // A direct source-settings route is not an index-browsing request.
-      if (this.initialSettingsSourceId.length > 0) return
-      const url = this.sourceIndexUrl.trim()
-      if (url.length === 0) return
-      const savedRevision = this.savedIndexLoadRevision
-      const indexRevision = ++this.indexLoadRevision
-      const cached = await this.sourceIndexService.loadCachedIndex(url)
-      if (savedRevision !== this.savedIndexLoadRevision || indexRevision !== this.indexLoadRevision ||
-        url !== this.sourceIndexUrl.trim()) return
-      if (cached !== undefined) this.showIndexEntries(url, cached, indexRevision)
-      // Existing metadata/artwork remains usable while the network revalidates.
-      void this.checkInstalledUpdates()
-    } catch (_error) {
-      if (revision !== this.savedIndexLoadRevision) return
-      this.indexStatusText = tf('source_pkg_index_load_failed', this.sourceReasonText('unknown'))
-    }
-  }
 
   private indexDisplayName(entry: SourceIndexEntry): string {
     return resolveSourceLocalizedName(entry.name, entry.localizedNames, this.languageState.effectiveLocale)
@@ -487,6 +497,9 @@ export struct SourcePackageManagerPage {
     this.sourceSheetRetainedSource = source
     this.sourceSheetSourceId = source.id
     this.sourceSheetShown = true
+    const revision = (this.settingsSourceReloads[source.id] ?? 0) + 1
+    this.settingsSourceReloads[source.id] = revision
+    void this.reloadInstalledPackageSettings(source, this.settingsReloadRevision, revision)
   }
 
   private openIndexSheet(): void {
@@ -990,149 +1003,18 @@ export struct SourcePackageManagerPage {
   }
 
   private async checkInstalledUpdates(): Promise<void> {
-    this.savedIndexLoadRevision += 1
-    if (this.updateCheckBusy || this.indexFetchBusy) {
-      return
-    }
+    if (this.updateCheckBusy || this.indexFetchBusy) return
     const url = await this.currentIndexUrlOrPrompt()
-    if (url.length === 0) {
-      return
-    }
-    const revision = ++this.indexLoadRevision
-    const count = this.packages.length
-    console.info('[SourcePackageUpdate] step=check_start count=' + count)
+    if (url.length === 0) return
+    this.retainDisplayCache(true)
     this.updateCheckBusy = true
     this.statusText = t('source_pkg_check_updates_running')
-    // The summary owns the in-flight indicator. Keep the last known per-source
-    // results (and their groups) until this check has a replacement result.
     try {
-      await this.sourceIndexService.saveUrl(url)
-      const repositories = await this.sourceIndexService.loadSavedRepositories()
-      if (revision !== this.indexLoadRevision) return
-      this.sourceIndexRepositories = repositories
-      const updateIndexUrls = this.sourceIndexUrlsForUpdate(url)
-      const candidates: Record<string, SourcePackageUpdateCandidate> = {}
-      const indexFailures: Record<string, string> = {}
-      let loadedIndexCount = 0
-      let failedIndexCount = 0
-      let firstFailureReason = 'network_error'
-      for (let index = 0; index < updateIndexUrls.length; index += 1) {
-        const indexUrl = updateIndexUrls[index]
-        const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(indexUrl)
-        if (revision !== this.indexLoadRevision) return
-        if (!result.ok) {
-          failedIndexCount += 1
-          firstFailureReason = result.reasonCode ?? firstFailureReason
-          indexFailures[indexUrl] = result.reasonCode ?? 'network_error'
-          continue
-        }
-        loadedIndexCount += 1
-        if (indexUrl === url || this.indexEntries.length === 0) {
-          this.showIndexEntries(indexUrl, result.entries, revision)
-        }
-        result.entries.forEach((entry: SourceIndexEntry) => {
-          const existing = candidates[entry.id]
-        if (existing === undefined || this.compareVersion(entry.version, existing.entry.version) > 0 ||
-          (this.compareVersion(entry.version, existing.entry.version) === 0 && this.entryDeclaresPackageIcon(entry) &&
-            !this.entryDeclaresPackageIcon(existing.entry))) {
-            candidates[entry.id] = {
-              entry,
-              indexUrl,
-            }
-          }
-        })
+      await this.managerCache.check(this.context(), url)
+      if (this.settingsRouteActive) {
+        if (this.sourceIndexUrl.trim() === url && this.managerCache.sourceIndexUrl === url) this.sourceIndexUrlEdited = false
+        this.restoreDisplayCache()
       }
-      if (loadedIndexCount === 0) {
-        this.sourceIndexFailures = {}
-        this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
-          return {
-            sourceId: source.id,
-            status: 'failed',
-            localVersion: source.version,
-            reasonCode: firstFailureReason,
-          }
-        })
-        this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(firstFailureReason))
-        console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
-        return
-      }
-
-      let updateCount = 0
-      let latestCount = 0
-      let missingCount = 0
-      const nextStatuses: SourcePackageUpdateStatus[] = []
-      const retainedUpdates: Record<string, SourcePackageUpdateCandidate> = {}
-      if (failedIndexCount > 0) {
-        this.checkedUpdateStatuses().forEach((status: SourcePackageUpdateStatus): void => {
-          retainedUpdates[status.sourceId] = {
-            entry: status.remoteEntry as SourceIndexEntry,
-            indexUrl: status.remoteIndexUrl as string,
-          }
-        })
-      }
-      this.packages.forEach((source: InstalledSourcePackage) => {
-        let candidate = candidates[source.id]
-        const retained = retainedUpdates[source.id]
-        if (retained !== undefined && this.updateAvailableFor(source, retained.entry) &&
-          (candidate === undefined || this.compareVersion(retained.entry.version, candidate.entry.version) > 0)) {
-          candidate = retained
-        }
-        const entry = candidate?.entry
-        if (entry !== undefined && entry.version.length > 0 && source.version.length > 0 &&
-          this.updateAvailableFor(source, entry)) {
-          updateCount += 1
-          nextStatuses.push({
-            sourceId: source.id,
-            status: 'update',
-            remoteEntry: entry,
-            remoteIndexUrl: candidate?.indexUrl,
-            remoteVersion: entry.version,
-            localVersion: source.version,
-          })
-          return
-        }
-        // A failed repository may contain a newer version or the missing ID.
-        // The adopted partial-check contract retains positive updates only;
-        // it cannot establish either negative conclusion across all indexes.
-        if (failedIndexCount > 0) {
-          nextStatuses.push({ sourceId: source.id, status: 'incomplete', localVersion: source.version })
-          return
-        }
-        if (entry === undefined) {
-          missingCount += 1
-          nextStatuses.push({ sourceId: source.id, status: 'missing', localVersion: source.version })
-          return
-        }
-        latestCount += 1
-        nextStatuses.push({
-          sourceId: source.id,
-          status: 'latest',
-          remoteEntry: entry,
-          remoteIndexUrl: candidate?.indexUrl,
-          remoteVersion: entry.version,
-          localVersion: source.version,
-        })
-      })
-      this.packageUpdateStatuses = nextStatuses
-      this.sourceIndexFailures = failedIndexCount > 0 ? indexFailures : {}
-      this.statusText = failedIndexCount > 0
-        ? tf('source_pkg_check_incomplete', updateCount)
-        : tf('source_pkg_check_complete', updateCount, latestCount, missingCount)
-      console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount +
-        ' failed_indexes=' + failedIndexCount)
-    } catch (_error) {
-      if (revision !== this.indexLoadRevision) return
-      this.sourceIndexFailures = {}
-      this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
-        return {
-          sourceId: source.id,
-          status: 'failed',
-          localVersion: source.version,
-          reasonCode: this.sourceIndexFailureReason(_error),
-        }
-      })
-      this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(this.sourceIndexFailureReason(_error)))
-      console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
     } finally {
       this.updateCheckBusy = false
     }
@@ -1390,13 +1272,17 @@ export struct SourcePackageManagerPage {
       this.indexStatusText = t('source_pkg_prompt_index_url')
       return
     }
+    this.managerCache.retireCheck()
     const revision = ++this.indexLoadRevision
     this.indexFetchBusy = true
     this.indexStatusText = t('source_pkg_index_loading')
     try {
       await this.sourceIndexService.saveUrl(url)
+      this.managerCache.rememberSavedIndex(url)
       const repositories = await this.sourceIndexService.loadSavedRepositories()
+      this.managerCache.rememberSavedIndex(url, repositories)
       if (revision !== this.indexLoadRevision) return
+      this.sourceIndexUrlEdited = false
       this.sourceIndexRepositories = repositories
       const result: SourceIndexFetchResult = await this.sourceIndexService.fetchIndex(url)
       if (revision !== this.indexLoadRevision) return
@@ -1426,9 +1312,13 @@ export struct SourcePackageManagerPage {
   }
 
   private removeSavedIndex(repository: SourceIndexRepository): void {
+    this.managerCache.retireCheck()
     this.savedIndexLoadRevision += 1
     void this.sourceIndexService.removeSavedRepository(repository.url)
-      .then((repositories: SourceIndexRepository[]) => {
+      .then(async (repositories: SourceIndexRepository[]): Promise<void> => {
+        const savedUrl = await this.sourceIndexService.loadSavedUrl()
+        this.managerCache.rememberSavedIndex(savedUrl)
+        this.managerCache.rememberSavedIndex(savedUrl, repositories)
         this.setSavedIndexFailure(repository.url)
         this.sourceIndexRepositories = repositories
         if (this.sourceIndexUrl.trim() === repository.url && repositories.length > 0) {
@@ -1504,6 +1394,8 @@ export struct SourcePackageManagerPage {
     console.info('[SourcePackageBatch] step=start mode=' + (replaceExisting ? 'update' : 'install') + ' count=' + entries.length)
     try {
       await this.sourceIndexService.saveUrl(url)
+      this.managerCache.rememberSavedIndex(url)
+      if (this.sourceIndexUrl.trim() === url) this.sourceIndexUrlEdited = false
       for (let index = 0; index < entries.length; index += 1) {
         const entry = entries[index]
         const existing = this.installedPackage(entry.id)
@@ -1944,12 +1836,11 @@ export struct SourcePackageManagerPage {
   // Rendering may use frame-cached scalars; business actions keep updateStatus
   // so a same-task status write is never read through a stale @Computed cache.
   @Computed
-  private get packageListUpdateStates(): Map<string, SourcePackageUpdateState> {
-    const states = new Map<string, SourcePackageUpdateState>()
-    this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
-      if (!states.has(status.sourceId)) states.set(status.sourceId, status.status)
-    })
-    return states
+  private get incompleteSourceIds(): string {
+    // The ordinary row only displays this state. A new 'latest' result must not
+    // invalidate every HDS prefix through a newly allocated aggregate Map.
+    return JSON.stringify(this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean =>
+      status.status === 'incomplete').map((status: SourcePackageUpdateStatus): string => status.sourceId).sort())
   }
 
   @Computed
@@ -1968,7 +1859,7 @@ export struct SourcePackageManagerPage {
     }
     // The adopted partial-check state belongs in this existing subtitle.
     // updateStatusText in the update action is absent for non-updatable rows.
-    if (this.packageListUpdateStates.get(source.id) === 'incomplete') {
+    if ((JSON.parse(this.incompleteSourceIds) as string[]).includes(source.id)) {
       parts.push(this.incompleteUpdateStatusText)
     }
     return parts.join(' · ')

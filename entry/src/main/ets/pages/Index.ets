@@ -1,3 +1,4 @@
+import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
@@ -1175,6 +1176,7 @@ struct Index {
   }
 
   private onBackupRestored(): void {
+    appSourcePackageManagerCache.invalidate()
     this.readerTrackerProgress?.resetAfterRestore()
     this.ensureLibraryPersistenceService()?.restore()
     this.libraryPreferencesRevision += 1
@@ -1413,8 +1415,22 @@ struct Index {
     }
   }
 
+  private sourceManagerOpening: boolean = false
+
   private openSettingsSecondary(routeName: string): void {
-    this.appPathStack.pushPath({ name: routeName })
+    if (routeName !== RouteName.SOURCE_PACKAGE_MANAGER) {
+      this.appPathStack.pushPath({ name: routeName })
+      return
+    }
+    if (this.sourceManagerOpening) return
+    this.sourceManagerOpening = true
+    const context = getContext(this) as common.UIAbilityContext
+    // Disk hydration finishes before the destination exists; a warm revisit
+    // consumes the same ready snapshot, without another network check.
+    void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale).then((): void => {
+      appSourcePackageManagerCache.revalidateInBackground(context)
+      this.appPathStack.pushPath({ name: routeName })
+    }).finally((): void => { this.sourceManagerOpening = false })
   }
 
   private openTrackerProvider(providerId: TrackerProviderId): void {
@@ -1900,6 +1916,9 @@ struct Index {
     if (this.sourceRegistry.count() === 0) {
       bootstrapSourceRuntimeAppRegistry(context)
     }
+    // Only local cache warming at startup. Network revalidation belongs to an
+    // actual manager-open intent; a direct settings route is not index browsing.
+    void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
     appSourceWebSessionStore.configure(context, this.sourceRegistry)
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true

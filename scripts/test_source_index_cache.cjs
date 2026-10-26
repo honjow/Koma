@@ -8,7 +8,7 @@ const cacheKey='source_index.metadata_cache.v1'
 const item=(id='A',extra={})=>({id,name:id,pkg:`${id}.koma`,icon:`${id}.png`,version:'1',nsfw:true,...extra})
 const tick=()=>new Promise(setImmediate)
 function homepageGuard(){
- const text=fs.readFileSync(require('node:path').join(__dirname,'../entry/src/main/ets/sourceRuntime/SourcePackageImporter.ets'),'utf8')
+ const text=fs.readFileSync(require('node:path').join(__dirname,'../entry/src/main/ets/sourceRuntime/SourcePackageMetadata.ets'),'utf8')
  const tree=ts.createSourceFile('importer',text,ts.ScriptTarget.Latest,true)
  const node=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='normalizeSourceHomepage')
  const exports={};new Function('exports','url',ts.transpileModule(node.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(exports,{URL:{parseURL:value=>new URL(value)}})
@@ -18,9 +18,11 @@ function harness(store=new Map()){
  let requests=[],flushes=0,failFlush=false,gate
  const pref={async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
  const exports={}
- const source=fs.readFileSync(sourcePath,'utf8').replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
+ const serviceSource=fs.readFileSync(sourcePath,'utf8')
+ const workerSource=(fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadata.ets'),'utf8')+'\n'+fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadataWorker.ets'),'utf8')).replace('const SOURCE_INDEX_REPOSITORY_LIMIT','const WORKER_REPOSITORY_LIMIT').replaceAll('SOURCE_INDEX_REPOSITORY_LIMIT','WORKER_REPOSITORY_LIMIT')
+ const source=(workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
  const globals={exports,Map,Date,JSON,Array,Number,Promise,console,
-  preferences:{getPreferences:async()=>pref},
+  preferences:{getPreferences:async()=>pref}, taskpool:{execute:async(fn,...args)=>fn(...args)},
   BackupRestoreActivity:{async runWrite(fn){return fn()}},
   RemoteImageCacheStore:class{}, DiagnosticLogger:{info(){},error(){}},
   isInvalidSourceLocalizedNames:v=>v!==undefined && (v===null || typeof v!=='object' || Array.isArray(v)),

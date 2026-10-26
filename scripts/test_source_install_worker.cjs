@@ -5,7 +5,7 @@ const path = require('node:path')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.join(__dirname, '../entry/src/main/ets')
 function functions(file, names, globals) {
-  const source = fs.readFileSync(path.join(root, file), 'utf8')
+  const source = (file.endsWith('SourcePackageImporter.ets') ? fs.readFileSync(path.join(root,'sourceRuntime/SourcePackageMetadata.ets'),'utf8')+'\n' : '') + fs.readFileSync(path.join(root, file), 'utf8')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   const declarations = names.map(name => {
     const node = tree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name)
@@ -150,7 +150,7 @@ test('settings response validation retains operation, network and array-shape bo
 // Execute the production registry, keeping native filesystem calls observable.
 // The import guards and localized-name rules also come from production code.
 function persistenceFixture() {
-  const importerSource=fs.readFileSync(path.join(root,'sourceRuntime/SourcePackageImporter.ets'),'utf8')
+  const importerSource=fs.readFileSync(path.join(root,'sourceRuntime/SourcePackageMetadata.ets'),'utf8')
   const tree=ts.createSourceFile('importer',importerSource,ts.ScriptTarget.Latest,true)
   const pattern=tree.statements.filter(ts.isVariableStatement).flatMap(n=>[...n.declarationList.declarations])
     .find(n=>n.name.getText(tree)==='SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN').initializer.getText(tree)

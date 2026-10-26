@@ -384,7 +384,7 @@ test('GET POST and extension verbs retain their request-method behavior', async 
 
 
 function homepageFixture({entry={sourceId:'one'},cached=[],fresh={ok:true,entries:[]},cacheFails=false,indexFails=false}={}){
- const source=fs.readFileSync(path.join(base,'SourcePackageImporter.ets'),'utf8')
+ const source=fs.readFileSync(path.join(base,'SourcePackageMetadata.ets'),'utf8')
  const tree=ts.createSourceFile('importer',source,ts.ScriptTarget.Latest,true)
  const guard=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='normalizeSourceHomepage')
  const exports={};vm.runInNewContext(ts.transpileModule(guard.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,

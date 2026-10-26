@@ -1,3 +1,4 @@
+import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { taskpool, url } from '@kit.ArkTS'
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
@@ -7,6 +8,7 @@ import { zlib } from '@kit.BasicServicesKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { resourceManager } from '@kit.LocalizationKit'
+export { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
 
 export const SOURCE_PACKAGE_MANIFEST_ID: string = 'local.test.koma.fixture'
 export const SOURCE_PACKAGE_MANIFEST_VERSION: string = '0.1.0'
@@ -19,17 +21,14 @@ export const SOURCE_REPO_PACKAGE_WASM_FILE: string = 'source.wasm'
 export const SOURCE_REPO_PACKAGE_ICON_FILE: string = 'icon.png'
 export const SOURCE_REPO_PACKAGE_ICON_MAX_BYTES: number = 1024 * 1024
 export const SOURCE_REPO_PACKAGE_ICON_MAX_PIXELS: number = 1024 * 1024
-export const SOURCE_REPO_PACKAGE_ICON_FILES: string[] = [
-  'icon.png', 'icon.jpg', 'icon.jpeg', 'icon.gif', 'icon.webp', 'icon.ico',
-]
+
 export const SOURCE_PACKAGE_WASM_SHA256: string = '255163710202d77fa218f1ccf96fbdcc7ec954b8f8bd1a04e6f15426a2d00161'
 export const SOURCE_PACKAGE_WASM_MAX_BYTES: number = 131072
 
 // Source packages deliberately use the same compact version shape as the
-// host app's versionName. Keeping this parser here makes archive import,
-// backup restore, index checks, and cold reload reject the same malformed
-// value instead of each path interpreting it differently.
-const SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN: RegExp = /^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$/
+// host app's versionName. SourcePackageMetadata owns the shared parser for
+// archive import, backup restore, index checks and cold reload; the re-export
+// keeps existing import callers on that same contract.
 
 export type SourceArchiveValidationReason =
   'checksum_mismatch' |
@@ -474,10 +473,6 @@ function packageMetadataValueInvalid(value: Object | undefined): boolean {
   return value !== undefined && typeof value !== 'string'
 }
 
-export function isValidSourcePackageMinAppVersion(value: string | undefined): boolean {
-  return value === undefined || value.length === 0 || SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN.test(value)
-}
-
 function optionalBoolean(value: Object | undefined, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
@@ -571,19 +566,6 @@ export function validSourceWebSessionOrigins(value: Object | undefined): boolean
   return true
 }
 
-/** Descriptive navigation only; this never grants network or cookie access. */
-export function normalizeSourceHomepage(value: Object | undefined): string | undefined {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 2048 ||
-    /[\s\u0000-\u001f\u007f\\<>"]/.test(value) || !/^https?:\/\//i.test(value)) return undefined
-  try {
-    const parsed = url.URL.parseURL(value)
-    if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || parsed.hostname.length === 0 ||
-      parsed.hostname.includes('%') || parsed.username.length > 0 || parsed.password.length > 0) return undefined
-    return value
-  } catch (_error) {
-    return undefined
-  }
-}
 
 function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSourcePackageManifest | undefined {
   const parsed = JSON.parse(raw) as SourceRepoPackageManifest

@@ -17,13 +17,15 @@ function subject(file, owner, methods, globals) {
   vm.runInNewContext(ts.transpileModule(`export class Subject {${body}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, console, ...globals })
-  return new exports.Subject()
+  return Object.assign(new exports.Subject(), {packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){}}})
 }
 const entry = id => ({ id, name: id, version: '1', icon: `${id}.png` })
 const globals = {
   resolveIndexDocumentUrl: value => value,
   entryWithCachedIcon: (entry, iconUri) => ({ ...entry, iconUri }),
   SOURCE_INDEX_ICON_FETCH_CONCURRENCY: 4,
+  taskpool: { execute: async (fn,...args) => fn(...args) },
+  parseSourceIndexDocumentTask: body => ({ok:true,entries:JSON.parse(body)}),
   SourceIdentityIconState: class { uri = '' },
   DiagnosticLogger: { info() {}, error() {}, warn() {} },
 }
@@ -457,33 +459,43 @@ test('older initial schema load cannot overwrite a newer installed package schem
   assert.equal(manager.settingsDescriptorSnapshot.B[0].id,'current-B')
 })
 
-function savedIndexManager(loadCachedIndex) {
-  const shown=[], checks=[]
-  const manager=subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',
-    ['loadSavedIndexUrl','setSourceIndexUrl'],{...globals,tf:key=>key})
-  Object.assign(manager,{savedIndexLoadRevision:0,indexLoadRevision:0,indexDisplayRevision:0,sourceIndexUrl:'',initialSettingsSourceId:'',
-    sourceIndexService:{loadSavedUrl:async()=> 'https://saved.test/index.json',loadSavedRepositories:async()=>[],loadCachedIndex},
-    showIndexEntries:(url,entries)=>shown.push({url,entries}),checkInstalledUpdates:async()=>{checks.push(shown.length)},sourceReasonText:r=>r})
-  return {manager,shown,checks}
+// The user rejected replaying cache hydration and automatic checks on every
+// destination creation. Exercise the retained production owner before navigation.
+function retainedCache(service, packages = []) {
+  const source=fs.readFileSync(path.join(root,'viewmodel/SourcePackageManagerCache.ets'),'utf8')
+    .replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
+  const exports={}
+  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{
+    exports,console,JSON,Map,Promise,Date,
+    AppStrings:{get:key=>key.startsWith('source_pkg_reason_')?key.slice('source_pkg_reason_'.length):key,format:(key,...values)=>JSON.stringify([key,...values])},
+    listInstalled:()=>packages,resolveSourceLocalizedName:name=>name,compareSourceNames:(a,_id,b)=>a.localeCompare(b),
+    SourceIdentityIconState:globals.SourceIdentityIconState,SourceIndexService:class{constructor(){return service}},
+  })
+  return new exports.SourcePackageManagerCache()
 }
-test('opening manager shows persisted metadata before launching background revalidation',async()=>{
-  const metadata=[entry('A')], f=savedIndexManager(async()=>metadata)
-  await f.manager.loadSavedIndexUrl()
-  assert.equal(f.shown[0].entries,metadata);assert.equal(f.shown[0].url,'https://saved.test/index.json')
-  assert.deepEqual(f.checks,[1])
-  const empty=savedIndexManager(async()=>[]);await empty.manager.loadSavedIndexUrl()
-  assert.equal(empty.shown.length,1);assert.equal(empty.shown[0].entries.length,0);assert.deepEqual(empty.checks,[1])
-  const missing=savedIndexManager(async()=>undefined);await missing.manager.loadSavedIndexUrl()
-  assert.equal(missing.shown.length,0);assert.deepEqual(missing.checks,[0])
+test('cache is ready before navigation, revisits retain row/icon inputs and do not recheck online',async()=>{
+  let reads=0,fetches=0;const metadata=[entry('A')]
+  const service={loadSavedUrl:async()=> 'https://saved.test/index.json',loadSavedRepositories:async()=>[],
+    loadCachedIndex:async()=>{reads++;return metadata},loadIndexIcons:async()=>{},
+    saveUrl:async()=>{},fetchIndex:async()=>{fetches++;return {ok:true,entries:metadata}}}
+  const cache=retainedCache(service,[installed('B','1')]),context={filesDir:'data'}
+  await cache.prepare(context,'zh');const rows=cache.indexEntries,icons=cache.indexIconStates,packages=cache.packages
+  assert.equal(rows[0],metadata[0]);assert.equal(fetches,0)
+  await cache.prepare(context,'zh');assert.equal(reads,1);assert.equal(fetches,0)
+  assert.equal(cache.indexEntries,rows);assert.equal(cache.indexIconStates,icons);assert.equal(cache.packages,packages)
+  cache.revalidateInBackground(context);await new Promise(setImmediate);assert.equal(fetches,1)
+  const revision=cache.revision;await cache.prepare(context,'zh');cache.revalidateInBackground(context)
+  await new Promise(setImmediate);assert.equal(fetches,1);assert.equal(cache.revision,revision)
+  assert.equal(cache.indexEntries,rows);assert.equal(cache.indexIconStates,icons)
 })
-test('late cached metadata cannot overwrite another selected repository or trigger its old refresh',async()=>{
-  let finish
-  const f=savedIndexManager(()=>new Promise(resolve=>{finish=resolve}))
-  const running=f.manager.loadSavedIndexUrl();await new Promise(setImmediate)
-  f.manager.setSourceIndexUrl('https://other.test/index.json')
-  finish([entry('old')]);await running
-  assert.equal(f.shown.length,0);assert.equal(f.checks.length,0)
-  assert.equal(f.manager.sourceIndexUrl,'https://other.test/index.json')
+test('invalidated hydration cannot publish an old repository over the new cache',async()=>{
+  let finish;let url='https://old.test/index.json'
+  const cache=retainedCache({loadSavedUrl:async()=>url,loadSavedRepositories:async()=>[],loadIndexIcons:async()=>{},
+    loadCachedIndex:async()=>url.includes('old')?new Promise(resolve=>{finish=resolve}):[entry('new')]})
+  const old=cache.prepare({filesDir:'data'},'zh');await new Promise(setImmediate)
+  cache.invalidate();url='https://new.test/index.json';await cache.prepare({filesDir:'data'},'zh')
+  finish([entry('old')]);await old
+  assert.equal(cache.sourceIndexUrl,url);assert.equal(cache.indexEntries[0].id,'new')
 })
 
 test('fresh install results and settings survive the previous frame package cache', async () => {
@@ -525,21 +537,24 @@ test('fresh install results and settings survive the previous frame package cach
 function updateCheckManager(packages, replies, statuses = []) {
   packages = packages.map(source => ({ ...source, lang: '' }))
   const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
-    'checkInstalledUpdates', 'sourceIndexUrlsForUpdate', 'checkedUpdateStatuses', 'installedPackage',
+    'checkInstalledUpdates', 'retainDisplayCache', 'restoreDisplayCache', 'sourceIndexUrlsForUpdate', 'checkedUpdateStatuses', 'installedPackage',
     'compareVersion', 'entryDeclaresPackageIcon', 'needsPackageIdentityIconRepair', 'updateAvailableFor',
     'updateStatus', 'updateStatusText', 'packageListMetaText', 'savedIndexSubtitle', 'setSavedIndexFailure', 'fetchIndex',
   ], { ...globals, t: key => key, tf: (key, ...values) => JSON.stringify([key, ...values]) })
   Object.assign(manager, { packages, packageUpdateStatuses: statuses, sourceIndexFailures: {},
     sourceIndexUrl: 'https://active.test/index.json', indexEntries: [], indexIconStates: {},
-    sourceIndexRepositories: [], indexLoadRevision: 0, savedIndexLoadRevision: 0,
+    sourceIndexRepositories: [], indexLoadRevision: 0, indexDisplayRevision:0, savedIndexLoadRevision: 0, displayCacheRevision:0, settingsRouteActive:true,
     indexFetchBusy: false, updateCheckBusy: false,
     currentIndexUrlOrPrompt: async () => manager.sourceIndexUrl,
     sourceReasonText: reason => reason, sourceRedactedReasonText: reason => reason,
-    sourceIndexService: { saveUrl: async () => {},
+    sourceIndexService: { saveUrl: async () => {}, loadIndexIcons:async()=>{},
       loadSavedRepositories: async () => [...replies.keys()].map(url => ({ url })),
       fetchIndex: async url => replies.get(url) },
     showIndexEntries: (_url, entries) => { manager.indexEntries = entries },
   })
+  manager.context=()=>({filesDir:'data'})
+  manager.managerCache=retainedCache(manager.sourceIndexService,packages)
+  manager.managerCache.packages=packages
   return manager
 }
 
@@ -584,4 +599,37 @@ test('successful address retry clears its failure; complete and all-failed check
   assert.deepEqual(Array.from(manager.packageUpdateStatuses, value => value.status), ['failed','failed','failed'])
   assert.equal(manager.statusText, JSON.stringify(['source_pkg_check_failed','network_error']))
   assert.equal(Object.keys(manager.sourceIndexFailures).length, 0)
+})
+
+test('invalidating a queued or in-flight cache check stops later repositories and cannot publish old results',async()=>{
+  let finish;const calls=[],active='https://active.test/index.json',other='https://other.test/index.json'
+  const service={loadSavedUrl:async()=>active,loadSavedRepositories:async()=>[{url:other}],loadCachedIndex:async()=>[entry('A')],loadIndexIcons:async()=>{},saveUrl:async()=>{},
+    fetchIndex:async url=>{calls.push(url);return url===active?new Promise(resolve=>{finish=resolve}):{ok:true,entries:[entry('B')]}}}
+  const cache=retainedCache(service,[installed('A','1')]);await cache.prepare({filesDir:'data'},'zh')
+  const running=cache.check({filesDir:'data'});await new Promise(setImmediate)
+  cache.invalidate();finish({ok:true,entries:[entry('A')]});await running
+  assert.deepEqual(calls,[active]);assert.equal(cache.packageUpdateStatuses.length,0)
+})
+
+// A URL typed in the sheet is a draft, not a saved repository. It must retire
+// old background work without becoming the retained URL when the route closes.
+test('editing a repository retires background results and cannot retain an unsaved URL',async()=>{
+  let finish;const active='https://saved.test/index.json',other='https://other.test/index.json',draft='https://draft.test/index.json',calls=[]
+  const service={loadSavedUrl:async()=>active,loadSavedRepositories:async()=>[{url:other}],loadCachedIndex:async()=>[entry('A')],loadIndexIcons:async()=>{},saveUrl:async()=>{},
+    fetchIndex:async url=>{calls.push(url);return new Promise(resolve=>{finish=resolve})}}
+  const cache=retainedCache(service,[installed('A','1')]);await cache.prepare({filesDir:'data'},'zh')
+  const originalRows=cache.indexEntries,originalIcons=cache.indexIconStates
+  const manager=subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',
+    ['restoreDisplayCache','retainDisplayCache','setSourceIndexUrl'],globals)
+  Object.assign(manager,{managerCache:cache,sourceIndexUrl:'',sourceIndexUrlEdited:false,indexLoadRevision:0,indexDisplayRevision:0,savedIndexLoadRevision:0})
+  manager.restoreDisplayCache()
+  const running=cache.check({filesDir:'data'});await new Promise(setImmediate)
+  manager.setSourceIndexUrl(draft);manager.retainDisplayCache()
+  assert.equal(cache.sourceIndexUrl,active);assert.equal(cache.indexEntries,originalRows);assert.equal(cache.indexIconStates,originalIcons)
+  finish({ok:true,entries:[entry('old-result')]});await running
+  assert.deepEqual(calls,[active]);assert.equal(cache.indexEntries,originalRows)
+  manager.sourceIndexUrlEdited=false;manager.restoreDisplayCache();assert.equal(manager.sourceIndexUrl,active)
+  service.saveUrl=async()=>{throw Error('save failed')};await cache.check({filesDir:'data'},draft)
+  assert.equal(cache.sourceIndexUrl,active)
+  cache.rememberSavedIndex(draft);cache.rememberSavedIndex(active,[{url:other}]);assert.equal(cache.sourceIndexUrl,draft)
 })
