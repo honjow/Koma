@@ -17,8 +17,8 @@
 - 261–266临时持久化分段只获得80源温启停total6/5ms，不代替首装46ms；补丁已精确撤、266正式8589011B及四域同260。268新进程源管理缓存先显已全片审，269自然一个索引成功/一个失败，摘要漏报失败；旧追加计数候选已撤回。人类本轮已明确采用完整修正：部分失败摘要检查未完成 · 已确认可更新 N、其余未查全源未能确认、原地址行subtitle失败原因/沿用点行重试，无新提示条按钮，全成功保持。终版已237具名验收并随68b6b234提交推送，精确CI40235545574同head completed/success，无新tag/发版。273重连后原全部来源书架与四域保持。单次行排序名称复算7a14eba已推/CI40205134326成功；日志私有快照已237普通输出通过并恢复；旧TXT参数候选已由用户本轮.log纠正取代；301–304新.log落盘/分享与旧TXT读取具名通过；本轮部分失败完整修正已获采用，允许差异见SOURCE_INDEX_CACHE_REVALIDATE，其他布局/事务保持。
 - 已同步/精确CI成功：e6404c5b首页/40188955447、d32bec97清除文案/40189962844、cee28e36摘要后台/40190939072、a0926f45图标/40191902370、30842d63源状态键/40192851633。上述旧提交固定Kit e3f3cc1；本轮已采用v3与普通入场，当前a9d7c641组合三宿主具名实机通过，三宿主范围提交/同步及精确CI均成功；无App新tag/发版。源标准CI自动发布与App发版分开。
 - Happy图标211完整96帧、源状态218启停及219四域均按原具名冻结；不重跑包子/85源矩阵。源材料46948b0/b24e6a0/4b1d977已随00f88b1真实变更推送，不再写待推。
-- 当前设备状态：197394五域逐字同392，cleanup/3find exit0空，AWAKE/原系统Timeout120000无Override、Focus405 Koma，feb4c6c6正常release0；保留正常8590100B、无临时源码或CPU探针。237保持正常8591318B，本阶段未操作（370已恢复五域/系统timeout并释ee87a93d）。当前无本轮设备租约；200禁止操作，不复用旧租约或重跑已接受场景。
-- 当前实机入口：本轮Koma的diagnostics197.protocol.json、diagnostics197.semantic.py及source-package-actions197.recording.json均实际用于197，最后回执394。237的source-validation237.protocol.json/source-browse237.recording.json以及197旧NextN shared-mutual-input.json为各自前阶段原件，不决定本轮目标。所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0；UI阶段清空继承postflight，运行后先读回执再做依赖动作。252字符串press_key、253离屏计数、257旧context及本轮391录像提前结束的失败/边界均保原件，不据工具错误改产品，也不重跑已接受场景。
+- 当前设备状态：197401五域相396逐字同，scratch与399trace的find exit0空，AWAKE/原系统Timeout120000无Override、Koma405焦点，b3f72fe4正常release0，无活设备操作；保持正常8590100B，未装8a94候选、无临时源码。237正常8591318B本阶段未操作。200禁止操作，不复用旧租约或重跑已接受场景。
+- 当前实机入口：本轮Koma的diagnostics197.protocol.json当前回执至401，diagnostics197.semantic.py本轮用于400普通返回；source-package-actions197.recording.json本阶段未运行，其最后原回执按原件保留，不将本轮网络trace取证记作录屏。237的source-validation237.protocol.json/source-browse237.recording.json以及197旧NextN shared-mutual-input.json为各自前阶段原件，不决定本轮目标。所有HDC/helper/dry-run均沙盒外+有效租约+HARMONY_DEVICE_ARTIFACT_HASHES=0；UI阶段清空继承postflight，运行后先读回执再做依赖动作。252字符串press_key、253离屏计数、257旧context及本轮391录像提前结束的失败/边界均保原件，不据工具错误改产品，也不重跑已接受场景。
 - 原主仓工作，不建worktree/克隆/源码副本/hook/Goal；最新人类明确让子代理处理文档，现progress_docs独占本工作单核账，Root独占实机/代码，不新增其他派工。保护.idea、scripts/__pycache__和NextN两个validator WIP，禁git add .。当前人类明确后续推送直接执行；未授权App新tag/发布。四私库PARKED_USER、图标素材和已接受阅读器具名范围保持。
 
 <!-- /current-continuation -->
@@ -954,11 +954,11 @@
   "title": "Koma 首版开发与普通路径验收",
   "state": "用户反馈缺陷修复与源开发并行",
   "outcome": "v0.1.2-pre发布已完成；用户采用的v3与普通入场已正式合入、三宿主具名实机与精确CI完成。源网页可用性、安装阻塞及自然失败筛选恢复等仍分别未闭，不以局部交付或发布成功抵消。",
-  "updatedAt": "2026-10-26T01:39:41+00:00",
+  "updatedAt": "2026-10-26T02:56:17+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
-  "activity": "V2结果新鲜度Host生产方法回归（模拟官方上一帧缓存、虚拟源1.0→2.0）已同一最终case原HEAD失败/当前通过，suite25/25与Release/验签成立；8a94ef2fa85561ada599782d528632310644b1e3已提交/推送，精确CI40254432271同head completed/success，unsigned Release HAP成功、tag发布skipped，无tag。8590125B候选未装、真实升级未验；1978590100B/2378591318B保持、无本轮租约或临时诊断，原31ms/尾回调总项open，其它7项不动。",
-  "nextAction": "依原8项continuationGate出现合法新条件后Root续接；本次结果新鲜度需下一真实业务升级验版本/设置并配对CPU+trace，当前无新候选，不重放已完成3更新或单为取样耗首装。无条件变化不新增测试或改实现，不重跑已接受路径/旧失败；逻辑/CI通过不代Native或整体目标完成。",
+  "activeId": "MANHUAGUI_RUNTIME_TIMEOUT",
+  "activity": "399当前197正常8590100B/漫画柜0.1.6一次浏览HTTP200/42本且成功Timing已核，但app+net无细分阶段标记，旧超时原因仍未知。400普通返回原锚点，401五域相396逐字同、scratch/trace清、AWAKE/系统120000无Override/Koma405、b3f72fe4 release0，当前无活设备操作。02:55:55Z源远端仍d936，无下一真实升级，不装8a94候选/耗首装。原8open+1parked完整核对后条件均仍保留，局部成功与资料核清不等整体完成。",
+  "nextAction": "依原8项continuationGate的合法新证据或真实业务条件由Root续接，私库仅用户重提；当前无新的安全代码/网络/设备动作依据，不重放旧失败/已接受路径、不注入数据、不改UA/权限或单为取样耗首装。文档事实更新不关闭原缺陷或整体目标。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3169,7 +3169,8 @@
         "限定render修正与既有规则两文件已提交600589b00b769cb56c8f8b6a550eb731328a3b85，HTTPS master从9ba→6005推送成功。精确CI40246317496实核head600589b00b769cb56c8f8b6a550eb731328a3b85，completed/success；Build unsigned Release HAP success，Publish tagged Release skipped，无tag/发版；提交/构建状态不改变实际尾回调23.194/24.923ms与卡顿总项open边界。",
         "本轮新逻辑反例复用原INSTALL项：Root实时核官方arkts-new-computed明确V2缓存下一帧才更新，并追41e753dd引入installedPackagesById。生产updateInstalledPackage在refresh后立即读该缓存，Host生产方法回归模拟官方上一帧缓存，以虚拟源1.0→2.0执行更新，记录localVersion却仍1.0（不是Native安装观测），ready设置描述又被reloadInstalledPackageSettings旧Map身份守卫丢弃，字段/availability均undefined；修前/tmp/koma-computed-fresh-result-before.txt失败保留。既有test_source_index_progressive.cjs仅加入1条关键执行回归，原期望未改、不加源码形状检查。最小修复使refresh返回本次DTO并供完成直接消费；设置回写守卫改查当前packages身份，保revision/原UI/事务/邻行身份。当时尚待全suite/构建，后继25/25及构建结果见下一条；不冒Native验收或31ms关闭。现行3设置入口直接表单，RouterHelper.pushSourceSettings当前无调用；旧initialSettings入口未改，不据旧入口反推现行入口失败或重开已验3入口。",
         "本轮结果新鲜度修复在Host生产方法回归（模拟上一帧缓存、虚拟源1.0→2.0）中版本已对，不是Native安装观测；最初字段断言未等fire-and-forget设置任务实际结束，后仅补spy等待原production Promise完成，期望值未改。以Git HEAD913原源码在内存执行同一最终case：before仍localVersion1.0且fields/availability undefined（失败1），当前fix为2.0且fields正确（通过）。原件归既有artifact/source-current-result-freshness-review/{before,after,suite,build.log,receipt.json}；临时只读重放helper已删，无checkout或生产数据。完整既有suite25/25，仅新增1业务回归，Release构建exit0。正常签名候选Koma-source-current-result-fixed-signed.hap为8590125B/debugfalse/code3，verify-app成功，与197正常8590100B同cert/profile，同次unsigned/signed ABC同，无CPU探针。未安装、未HDC、无租约，仅逻辑实现/构建通过，真实升级未验；原31ms及尾回调总项不因此关闭。当前无新真实升级候选，不重放3次已完成更新/单为取样耗首装。当时Root待审代码/规则/1case后提交，后继实际hash/CI见下一条；不将阶段等待保为当前待办。",
-        "本轮V2逻辑修复代码/既有规则/1关键case三文件已提交8a94ef2fa85561ada599782d528632310644b1e3，HTTPS master913→8a推送成功。精确CI40254432271实核head8a94ef2fa85561ada599782d528632310644b1e3，completed/success；Build unsigned Release HAP success，Publish tagged Release skipped，无tag。候选8590125B仍未装；197正常8590100B及2378591318B原状态保持，无本轮设备操作或租约，不将提交/CI代真实升级或31ms性能通过。"
+        "本轮V2逻辑修复代码/既有规则/1关键case三文件已提交8a94ef2fa85561ada599782d528632310644b1e3，HTTPS master913→8a推送成功。精确CI40254432271实核head8a94ef2fa85561ada599782d528632310644b1e3，completed/success；Build unsigned Release HAP success，Publish tagged Release skipped，无tag。候选8590125B仍未装；197正常8590100B及2378591318B原状态保持，无本轮设备操作或租约，不将提交/CI代真实升级或31ms性能通过。",
+        "2026-10-26T02:55:55Z Root只读新核源远端master仍d936a31e41b26bf7e463af230aea147e5ddc5e6e，没有下一真实升级版本；不安装8a94候选、不单为取样耗首装。本事实不改变Host逻辑/构建已通过但Native真实升级未验及卡顿总项open的边界。"
       ],
       "remainingActions": [
         "V2逻辑修复已8a94ef2f提交推送且精确CI40254432271同head成功，无代码提交/CI待办。候选8590125B未安装、当前无新真实升级候选；下一合法业务更新验版本/设置及配对当前CPU+trace，不重放3次已完成更新或为取样耗首装。Host虚拟源逻辑通过不代Native真实升级验收，原31ms/尾回调总项仍open。"
@@ -3319,7 +3320,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T01:39:41+00:00",
         "owner": "Root",
-        "condition": "V2结果新鲜度Host生产方法回归模拟官方上一帧缓存、虚拟源1.0→2.0；同一最终case原HEAD913失败/当前通过，最初设置断言未等任务结束，后仅补production Promise完成观察、期望不变。suite25/25、Release/验签及8a94ef2f提交推送/精确CI40254432271同head成功，仍非Native安装观测；8590125B未装、无HDC/租约，无新真实升级候选。下一合法业务更新验版本/设置及CPU+trace，不重放3更新/单为取样耗首装，原31ms/尾回调总项仍open。"
+        "condition": "V2结果新鲜度Host生产方法回归模拟官方上一帧缓存、虚拟源1.0→2.0；同一最终case原HEAD913失败/当前通过，最初设置断言未等任务结束，后仅补production Promise完成观察、期望不变。suite25/25、Release/验签及8a94ef2f提交推送/精确CI40254432271同head成功，仍非Native安装观测；8590125B未装、无HDC/租约，无新真实升级候选。下一合法业务更新验版本/设置及CPU+trace，不重放3更新/单为取样耗首装，原31ms/尾回调总项仍open。 2026-10-26T02:55:55Z远端master实核仍d936a31e41b26bf7e463af230aea147e5ddc5e6e，无下一真实升级，不装8a94候选或耗首装。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
@@ -3646,26 +3647,29 @@
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
       "title": "漫画柜0.1.6列表请求超时",
       "priority": "P1（具名源运行失败）",
-      "owner": "Root",
+      "owner": "Root：399正常包成功/400–401恢复闭环；旧超时失败同次阶段仍缺",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS",
         "FIRST_CHAPTER_SELECTION"
       ],
       "kind": "open",
-      "status": "237081当前列表HTTP200；旧197超时未据此撤销",
+      "status": "399当前197正常016列表成功且恢复闭环；旧超时原因未知仍open",
       "result": "197漫画柜0.1.6 get_manga_list15038ms返回timeout/HTTP0，原生显示连接超时；具体网络阶段未明，不能归为旧237相同根因。",
       "evidencePoints": [
         "413实际列表请求15038ms超时；get_settings未实现是独立能力，不是该列表超时原因。",
         "415完整原图已亲审：manhuagui.com加载指示消失后仍白页，仅Web节点/原生导航，无正文或挑战UI；三域同406，AWAKE/override86400000。",
         "237081同普通Browse→漫画柜016，本次HTTP200/27920chars；头1599ms、总1609ms，官方累计dns6.557/tcp9.382/tls1194.953/首字节1593.163/完成1595.842ms。新阶段日志已实机可用；不反推旧197超时原因或整源正文可读。",
         "本会话191在最终首页签名包下普通Browse→漫画柜，实际显示连接书源超时；原图保留，未重复请求/改网络/打开Web。该次未取到准确网络阶段，不由此归因旧197。",
-        "本轮仅只读既存460诊断原件koma-log-20261024-092500.txt：10:09:40.990 source_http的GET（op尾:99）timeout15000/sessionnone/sourceUA，10:09:56.002返回code2300028/duration15012；与413同次WASM request_ready→http_return→transport_failed相符，外层op尾:98总15038，未到body_ready/解析。当前漫画柜pc_request显式15000，但当前后继源代码不冒当时字节等价；Host await request失败前旧performanceTiming不能区分DNS/TCP/TLS。无新请求，未确定具体网络阶段或实现错误。"
+        "本轮仅只读既存460诊断原件koma-log-20261024-092500.txt：10:09:40.990 source_http的GET（op尾:99）timeout15000/sessionnone/sourceUA，10:09:56.002返回code2300028/duration15012；与413同次WASM request_ready→http_return→transport_failed相符，外层op尾:98总15038，未到body_ready/解析。当前漫画柜pc_request显式15000，但当前后继源代码不冒当时字节等价；Host await request失败前旧performanceTiming不能区分DNS/TCP/TLS。无新请求，未确定具体网络阶段或实现错误。",
+        "本轮Root查官方NetworkKit http：失败回调response为undefined，PerformanceTiming仅成功响应可用，RCP httpPhase不能套当前请求栈。公开OpenHarmony c8586cd76da91b90b34b1d700fd000c44ec24e14的request_tracer.cpp/trace_events.h虽定义net类别HttpRequest::DNS/TCP/TLS/SENDING/RECEIVING，但197本次399实际trace没有这些细分标记，不能据公开源码补出设备未记录的失败阶段。调查原件位于.hvigor/outputs/user-flow-audit/manhuagui-network-phase-review。",
+        "197新租约20261026-024321-b3f72fe4：395–398实核实时Connected、ALN-AL80/API26、正常8590100B/PID60065，未安装8a94候选，未改UA/网络/Cookie/超时/请求栈。399仅一次普通Browse→漫画柜，GET HTTP200/27920chars、firstHeader1928ms/elapsed1935ms，成功响应累计dns105.614/tcp108.628/tls1515.685/firstByte1923.435/finish1925.291ms；WASM42本及封面原图Root亲审。153501B的app+net trace有主请求1931.602ms，HttpRequest::细分阶段标记0个。本次成功不解释旧15000ms超时/不关闭原项；原件.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manhuagui-netphase197-single-browse-399。取证当时400/401返回恢复待回执，后继完成事实见下一条。",
+        "400已普通Back→Browse→原书架，Blue/猎行者/SuperLovers与原第1页100%语义锚点保持。401 completed，library/reader/registry/web/reader-preferences相396全部逐字同；自有scratch与399trace的find均exit0/stdout空，Power AWAKE/系统Timeout120000无Override、Koma405焦点，b3f72fe4正常release exit0，无活设备操作。399实际registry manifestVersion0.1.6、WASM get_manga_list1984ms/42本。网络回执为399/network-result-receipt.json，恢复回执为401/restoration-receipt.json（均在本轮diagnostics原产物下）。本次成功与恢复不解释旧失败同次DNS/TCP/TLS阶段，原缺陷仍open。"
       ],
       "remainingActions": [
-        "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。"
+        "399当前197正常0.1.6单次浏览成功与400/401返回/五域/原timeout/scratch/释租已闭环，无恢复待办。仍缺旧失败同次网络细分阶段，成功Timing与无细分主trace不解释旧超时，不直接改请求栈/UA/网络，也不重放旧失败取样。"
       ],
-      "remaining": "保留Native超时与普通Web白页两个有限观察，待定位具体网络阶段，不再盲重试或推断官网成功。",
+      "remaining": "399当前197正常0.1.6单次浏览成功与400/401返回/五域/原timeout/scratch/释租已闭环，无恢复待办。仍缺旧失败同次网络细分阶段，成功Timing与无细分主trace不解释旧超时，不直接改请求栈/UA/网络，也不重放旧失败取样。",
       "boundaries": [
         "保当前源UI/安装性能主线；旧证据不冒本次复现，不盲重试或清缓存。"
       ],
@@ -3679,9 +3683,9 @@
       "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
-        "checkedAt": "2026-10-25T21:56:53+00:00",
+        "checkedAt": "2026-10-26T02:58:17+00:00",
         "owner": "Root",
-        "condition": "413/460现存日志已核明确GET15000ms在body_ready前以2300028失败，但缺失败同次具体网络阶段，不能由当前源码或237一次200反推根因。待新的合法真实同次阶段证据，不盲重试/改网络/UA或把Web白页当官网可用，原缺陷仍open。 Root当前无设备租约或临时诊断；具体条件未满足，不表示整体目标完成。"
+        "condition": "399正常016包一次普通浏览成功（HTTP200/42本），400/401返回及五域/timeout/scratch/释租已闭环，无活租约或临时诊断。NetworkKit失败无response/PerformanceTiming，RCP接口不适用；本次app+net只有主请求、无HttpRequest细分标记，旧失败同次网络阶段仍缺，成功不解释旧超时/不判已修。当前采集仅成功主trace且无细分，未找到可区分旧失败阶段的新通道；不盲重试、无新取证目的不重复请求；若出现合法新阶段证据再针对原项续接，保请求栈/UA/网络，原缺陷仍open。"
       },
       "reportedAgeAtAudit": "至少1天22小时6分24秒",
       "reportedAgeSecondsAtAudit": null,
