@@ -144,10 +144,18 @@ export struct BrowsePage {
   @Computed
   private get enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
     const locale = this.languageState.effectiveLocale
-    return this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled)
-      .sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
-        compareSourceNames(resolveSourceLocalizedName(left.displayName, left.localizedNames, locale), left.sourceId,
-          resolveSourceLocalizedName(right.displayName, right.localizedNames, locale), right.sourceId))
+    const sources = this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled)
+    // A package update also invalidates this retained Browse projection. Resolve
+    // names once per source, as in the manager's single-row refresh, rather than
+    // revalidating localized metadata in every sort comparison. Keep this map
+    // local so a locale or source change always computes the original order.
+    const displayNames = new Map<string, string>()
+    sources.forEach((source: SourceRuntimeRegistryInstalledSourceSummary): void => {
+      displayNames.set(source.sourceId, resolveSourceLocalizedName(source.displayName, source.localizedNames, locale))
+    })
+    return sources.sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
+      compareSourceNames(displayNames.get(left.sourceId) ?? left.displayName, left.sourceId,
+        displayNames.get(right.sourceId) ?? right.displayName, right.sourceId))
   }
 
   @Computed

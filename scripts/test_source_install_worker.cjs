@@ -266,6 +266,34 @@ test('single installed-row refresh preserves localized ordering, fallback and ne
     const snapshot=manager.packages;manager.refreshInstalledPackage('missing');assert.equal(manager.packages,snapshot)
   }
 })
+test('browse ordering resolves each enabled name once while preserving locale order and DTO identities',()=>{
+  const names=functions('sourceRuntime/SourceLocalizedNames.ets',
+    ['hasUnpairedSurrogate','normalizeSourceLocalizedNames','resolveSourceLocalizedName'],{})
+  const order=functions('sourceRuntime/SourceListOrder.ets',['compareSourceNames'],{})
+  const source=fs.readFileSync(path.join(root,'pages/BrowsePage.ets'),'utf8')
+  const tree=ts.createSourceFile('browse',source.replace('export struct BrowsePage','export class BrowsePage'),ts.ScriptTarget.Latest,true)
+  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='BrowsePage')
+  const getter=owner.members.find(n=>ts.isGetAccessor(n)&&n.name.getText(tree)==='enabledRuntimeSources')
+  assert.ok(getter)
+  const code=ts.transpileModule('class Browse {'+getter.getText(tree)+'} exports.Browse=Browse',{
+    compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
+  let calls=0
+  const exports={};new Function('exports','compareSourceNames','resolveSourceLocalizedName','Computed',code)(exports,
+    order.compareSourceNames,(...args)=>{calls++;return names.resolveSourceLocalizedName(...args)},()=>{})
+  const a={sourceId:'target',displayName:'Beta',localizedNames:{'zh-Hans':'Alpha','zh-Hant':'Zulu',en:'Same'},enabled:true}
+  const b={sourceId:'neighbor',displayName:'Zulu',localizedNames:{'zh-Hans':'Zulu','zh-Hant':'Alpha',en:'same'},enabled:true}
+  const c={sourceId:'fallback',displayName:'Middle',localizedNames:{en:' invalid '},enabled:true}
+  const hidden={sourceId:'disabled',displayName:'First',enabled:false}
+  const inputs=[b,hidden,a,c],page=new exports.Browse();page.viewModel={sources:inputs}
+  for(const [locale,expected] of [['zh-Hans',['target','fallback','neighbor']],['zh-Hant',['neighbor','fallback','target']],
+    ['en',['fallback','neighbor','target']],['invalid!',['target','fallback','neighbor']]]) {
+    page.languageState={effectiveLocale:locale};calls=0
+    const result=page.enabledRuntimeSources
+    assert.deepEqual(result.map(x=>x.sourceId),expected)
+    assert.equal(calls,3,'only the three enabled sources need name resolution')
+    assert.ok(result.every(x=>inputs.includes(x)));assert.deepEqual(inputs,[b,hidden,a,c])
+  }
+})
 for(const outcome of ['installed','cancelled','failed','exception'])test('local archive '+outcome+' retains its declared update boundary',async()=>{
   const events=[],pending=deferred()
   const Manager=localImportMethod({t:k=>k,tf:(k,r)=>k+':'+r,
