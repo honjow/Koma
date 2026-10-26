@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：按人类最新要求重整规范与默认技术/开发文档，只保当前有效状态。功能产品改动与验收暂停，Root负责规范及默认文档；progress_docs仅维护本工作单。
+规范与默认技术/开发文档整理及同步已完成。原设置接入候选普通路径仍未通过、产品WIP未commit/未验收；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
 设备：197留18856450。800–802恢复回执errors=[]，Koma原书架、120000ms且无Override已恢复，94cc租约已释放。这仅是恢复成功，不是菜单验收通过。200禁止，四私库维持用户搁置；所有产品WIP保留。
 
@@ -11,14 +11,14 @@
 <!-- koma-progress-snapshot
 {
   "schemaVersion": 1,
-  "title": "Koma 当前工作与规范重整",
-  "state": "按最新人类要求重整规范；功能产品改动与验收暂停",
+  "title": "Koma 当前工作",
+  "state": "当前规范与默认文档整理完成；产品候选和原缺陷仍未完成",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-26T19:22:56+00:00",
+  "updatedAt": "2026-10-26T19:28:10+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "NEXTE_READER_FEATURE_MIGRATION",
-  "activity": "按最新人类要求暂停功能产品改动/验收，八份默认规范链已整理，待Root审查/范围提交。当前Koma产品c1f73dd/master CI40376596043成功，源b406995/master CI40374115692成功/85索引。197留18856450未完整验收候选；800–802仅恢复Koma书架/120000无Override并释94cc。共享Reader纯文档3290a78只在核真实origin远端，尚不宣称推送完成；所有产品WIP保留。",
-  "nextAction": "Root审查八份当前规范/默认文档链并范围提交；共享Reader3290a78只核真实origin git@github-3003h:erosTeam/reader-kit.git的远端状态。功能产品改动/验收保持暂停，不将恢复或文档整理当产品完成。",
+  "activity": "规范及默认文档整理已完成：Koma纯文档e5a0ba25已push master，reader-kit纯文档3290a78已push实际origin erosTeam/reader-kit main；八份当前链接遍历有效、历史档不可达，实际进度消费者schema1/70项解析成功。不是产品完成：功能WIP未commit/未验收，197留18856450、原库/120000无Override/无租约。",
+  "nextAction": "原已授权设置接入候选普通路径仍未通过；Root后续产品动作服从人类当前沟通指令，保留原bug队列与有效边界，不将规范整理当功能交付或自行恢复冲突操作。",
   "proof": [
     {
       "label": "正式主仓",
@@ -36,13 +36,13 @@
       "label": "远端同步",
       "state": "当前产品与源精确CI成功",
       "kind": "accepted",
-      "detail": "Koma/master c1f73dd37a7f3c013c6490f2a7ddc521cb56a046已push、CI40376596043成功；源/master b40699582d71dba7d21419d27361bdaa53c6dd69已push、CI40374115692成功，公开85源索引已核。共享Reader本轮纯文档3290a78远端仅在核对，不宣称推送完成。"
+      "detail": "Koma产品c1f73dd/master CI40376596043成功，源b406995/master CI40374115692成功/85索引；本次Koma纯文档e5a0ba25已push master，reader-kit纯文档3290a78已push实际origin erosTeam/reader-kit main。产品WIP未commit/未验收。"
     },
     {
       "label": "共享阅读器",
       "state": "普通入口具名通过",
       "kind": "accepted",
-      "detail": "既有已接受普通入口具名范围冻结，见原任务；本轮18856450是未完整验收的菜单候选，800–802仅恢复。共享Reader本轮纯文档3290a78只核远端，不能当产品验收。"
+      "detail": "既有已接受具名范围冻结；本次reader-kit纯文档3290a78已push main，不改变产品验收。18856450设置接入候选普通路径未通过，800–802仅安全恢复。"
     },
     {
       "label": "图标全范围",
@@ -96,8 +96,6 @@
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-24T12:19:29.702818+00:00",
       "evidencePoints": [
-        "N/E具名路径与两笔精确CI完成",
-        "当前结论：共同4bf42eb已push；N a0211fa7、E26a447c2均采用并push。197实际N032 Non-H686734全269帧/8表、E0274277955全151帧/5表顺序亲审及原91/92：最后低清仍有加载面板，首清晰图时面板退出；普通返同缩略图。旧E022第120帧反例和误判撤回永久保留。N033原下载/6867442/2保持，034回E画廊/K书架。 N CI40092801190和E CI40092801362均completed/success；无新tag/发布。",
         "直接产物索引：ReaderImagePlaceholder.ets；reader-continuous-loading.test.cjs；E022/frame_000120.png"
       ],
       "remainingActions": [
@@ -127,10 +125,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T18:34:37.357834+00:00",
-      "evidencePoints": [
-        "用户采用范围已正式合入，三宿主具名验证及精确CI完成",
-        "当前结论：共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。共同57c65de已推。N197119原1/34、E197070原13/19、K237141原001第6/24页，各自全片和两组交接原帧亲审：先状态栏，上栏出现即最终位置，无下移；正常返回保持。N/E已范围提交53ce80fc/cb052ce1，K389400f固定同依赖，三笔精确CI均success。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。"
       ],
@@ -170,10 +165,7 @@
         "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-fast197-trace-007/parsed-cwd/trace.db"
       ],
       "latestCounterexampleAt": "2026-10-23T04:57:37.180Z",
-      "evidencePoints": [
-        "用户采用范围已正式合入，三宿主具名验证及精确CI完成",
-        "当前结论：共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。"
       ],
@@ -232,8 +224,6 @@
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T21:46:33+00:00",
       "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：原Mihon源序/最早未读规则及漫画屋/漫画160方向交付保持，斗破普通首次01/36已有具名证据。新增BlueArchive011已核当前官网15→1及互逆1→15链、标准包/实际WASM/生产firstReaderChapter回放，d936a31e已推且精确CI40231212151含原子发布成功；固定tag公开包325356B实际ZIP/011/newest_first/icon字节已核。237358一次普通本地更新成功，359原81顺序/enabled保持；361真实旧PID→ABSENT→新PID冷恢复后方向声明及五域同359。保已有读态，不冒Native新首次正文，也不把改余源前核合同变成必须给其他源全声明。",
         "直接产物索引：.hvigor/outputs/user-flow-audit/bluearchive-current-catalogue-20261026.json及同目录bluearchive-current-chain-20261026.json；.hvigor/outputs/user-flow-audit/bluearchive-current-catalogue-20261026.json；bluearchive-current-chain-20261026.json；bluearchive011-chronology-replay-20261026.json；manifest/source.wasm/icon.png；bluearchive011-publication-20261026.json；bluearchive011-cold-rejected-multiline-361.json"
       ],
       "remainingActions": [
@@ -284,10 +274,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-24T19:25:24.086002+00:00",
-      "evidencePoints": [
-        "本轮限定修复已推送，三宿主构建与精确CI成功",
-        "当前结论：237784章全unknown的源原序/整表反序、独立依据/方向对勾、同项禁重选均成立；最终109反序后实际重置回源目录正序，无重置按钮，首行恢复第2季354。64相关检查通过。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "已具名路径冻结；只按新反馈或相关依赖变化重开。Reader跨季年代、旧系统/暗色及未打开菜单分支未外推。"
       ],
@@ -315,10 +302,7 @@
       "reportedAtSource": "本轮登记时间；原始提出时间未作推算。",
       "firstHandlingAt": "2026-10-24T18:01:49.053271+00:00",
       "closedAt": "2026-10-24T19:25:24.086002+00:00",
-      "evidencePoints": [
-        "Koma具名完成；N/E RuntimeMenu fallback普通生产不适用，仅保构建证据",
-        "当前结论：237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。"
-      ],
+      "evidencePoints": [],
       "status": "Koma具名完成；N/E RuntimeMenu fallback普通生产不适用，仅保构建证据",
       "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。",
       "remaining": "Koma已打开菜单/筛选/源设置具名范围保留；N/E这两处RuntimeMenu fallback在普通生产调用不展示，不再列为待执行普通实机验收。旧系统/暗色/其他未观察菜单不外推。",
@@ -364,10 +348,7 @@
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET"
       ],
-      "evidencePoints": [
-        "原菜单/方向回显/保位具名收束；K339遮挡段仅EVIDENCE_ONLY",
-        "当前结论：原设置菜单、方向回显与模式保位已有具名修复及三宿主精确CI；E080/N145加载v2反馈完整观察成立。本轮339全389帧/11表已Root顺审，菜单四项固定、单页→连续→单页选中正确、无动态本书后缀、关sheet/重开保1/36，340原书架与Single/LTR及和全局一致回读。K339约20.7ms/33.2ms可见上方正文短黑，但loading中心被sheet遮挡，不能证明反馈不存在或新违反，不冒全加载通过。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "按原人类菜单/模式方向回显/保位要求及E080/N145既有反馈具名结果收束；K339遮挡片段保EVIDENCE_ONLY，不外推全部加载或所有布局。未观察范围不自动派新矩阵。",
         "保3a7b56d/e3f3cc1及共同工作单2026-10-20图片/加载显示互斥合同；没有用户要求旧图一直保留/零黑的新依据，不为消片段让旧图+loading重叠或擅移loading到sheet上方。真实新反例另按当前证据重开。"
@@ -415,8 +396,6 @@
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T20:46:46.183996+00:00",
       "evidencePoints": [
-        "Koma具名跨章末页/重开与CI完成；N/E普通生产不适用",
-        "当前结论：当前实际多章消费者仅KomaReaderLabPage785传ReaderChapterNavigation，197079/080已证明自然进下一章1/10、回退上一章16/16、返回重开保位，543cbda/5d8de36e及精确CI已交付。N/E普通shared阅读为单图库unit，adapter.adjacent恒null且不传ReaderChapterNavigation，不存在此自动跨章路径；不将未外推N/E当验收欠账或造多章入口。",
         "直接产物索引：.hvigor/outputs/continuous-position-rejected-072.patch"
       ],
       "remainingActions": [
@@ -457,10 +436,7 @@
       "firstHandlingAt": "2026-10-23T18:06:01.504859+00:00",
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T21:52:22+00:00",
-      "evidencePoints": [
-        "近章尾预取及跨章ready复用已具名交付，inflight时序未外推",
-        "当前结论：d3187726含505651f精确CI40021847034 success；274已恢复原14（原2/15）并close成功。鲜网络/ready采用具名范围保留，inflight join仍未自然命中。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原近章尾预加载/跨章复用请求已由fresh与ready具名路径覆盖，无当前待办；inflight join仍未自然命中且未外推，仅新真实反例重开，不造并发/清缓存。"
       ],
@@ -497,10 +473,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
-      "evidencePoints": [
-        "具名实机通过，已随f7a6a7d提交推送并冻结",
-        "当前结论：具名实机通过，已随f7a6a7d提交推送并冻结"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原具名验收范围冻结，不重复操作；未覆盖设置分支仅保边界，不以此自行扩成新矩阵。"
       ],
@@ -524,8 +497,6 @@
       "closedAt": null,
       "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。",
       "evidencePoints": [
-        "Chibi具名接缝通过，已提交推送并冻结",
-        "当前结论：Chibi具名接缝通过，已提交推送并冻结",
         "直接产物索引：reader-controls197-interaction-002/continuous-before.png；6.jpg/7.jpg"
       ],
       "remainingActions": [
@@ -550,10 +521,7 @@
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
       "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。",
-      "evidencePoints": [
-        "方向/独立单双页具名通过，f7a6a7d已推，CI成功",
-        "当前结论：方向/独立单双页具名通过，f7a6a7d已推，CI成功"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "已具名动作/PNG冻结，不重跑；Legacy未改、运动区间未扩大。f7a6a7d精确CI39883471325已success，不等同后续WIP实机通过。"
       ],
@@ -575,10 +543,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
-      "evidencePoints": [
-        "Library/Settings具名通过，a4ec2eb已提交冻结",
-        "当前结论：Library/Settings具名通过，a4ec2eb已提交冻结"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "只冻结Library/Settings已审范围；其他Tab未覆盖，不从这项自动生成重复验收。"
       ],
@@ -611,10 +576,7 @@
           "summary": "网页完成后列表恢复、多详情失败部分有章、重入不恢复，缺不带缓存刷新；缓存根因未证。"
         }
       ],
-      "evidencePoints": [
-        "两书具名恢复/已推7b3f196，精确CI成功",
-        "当前结论：包子两书详情、强刷与一书正文已恢复；挑战会话稳定性与自动成功回流仍由WEB项继续。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "继续WEB项的会话revision、自动确认成功回流及自然失败恢复；重复章与排序分别维护。"
       ],
@@ -641,10 +603,7 @@
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ],
-      "evidencePoints": [
-        "原笼统错误/日志及六Native边界具名修复已交付，网站可用性独立",
-        "当前结论：六个生产Native并发入口已集中到独立SourceRuntimeWorker，原请求/会话/复制字节/队列/取消/诊断保留。237明确安装8569786B签名Release，新进程42856完整159行hilog覆盖17:07:17–17:10:33，首次worker43025及取页worker44500无ReferenceError；正常幻塔列表/详情/章节/取页及正文、自然返回成立。197空图片描述修复旧范围继续冻结。 已同步master：34e83b8bd10f2b1c61c002e070800226551b332a；精确CI40179763215 completed/success，tag发布job skipped，无新tag/发布。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原笼统source_runtime/日志不足的具名诊断范围已交付，无本项当前待办；rate_limit用户提示、票据图片/下载恢复等自然分支未外推，包子/3H/漫画160网站可用性仍归各自原项，不把模块隔离冒正文恢复或性能解决。"
       ],
@@ -731,8 +690,6 @@
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "evidencePoints": [
-        "限定404修复c46提交推送/CI成功与普通回归留机闭环；自动新分支未自然实机，总项open",
-        "当前结论：自动验证537/538原具名范围冻结。598普通Web仅一次initial load，9.604秒27个文档；已记录导航在已声明origin下标0/1间交替，redirect=false/userGesture=false。截图仍无正文，原生详情784/784。197明确恢复正式8571264B包并回书架，library/reader/registry与589完全相同。",
         "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap"
       ],
       "remainingActions": [
@@ -803,10 +760,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-23T03:38:15.620424+00:00",
-      "evidencePoints": [
-        "已验收+已推送，CI成功（冻结）",
-        "当前结论：源设置两动作的对齐、层级与保存退出已在237具名通过，提交及CI完成。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "具名sheet范围冻结；后续仅实际新反例重开。"
       ],
@@ -834,10 +788,7 @@
       "firstHandlingAt": "2026-10-23T13:32:30.338132+00:00",
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-23T14:17:47.457815+00:00",
-      "evidencePoints": [
-        "三入口限定验收完成，精确CI成功",
-        "当前结论：源浏览与独立源搜索直接弹出原设置表单；原管理入口保持。197保存刷新、关闭返回及测试设置恢复已核。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本次三入口具名范围冻结；非空查询保存、其他源字段类型未扩认。"
       ],
@@ -865,10 +816,7 @@
       "references": [
         "https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/arkts-rendering-control-foreach"
       ],
-      "evidencePoints": [
-        "r3具名通过，4b878926已推且精确CI成功",
-        "当前结论：现有profile的远端列表先出现、图标渐进补齐且文字稳定；普通源包更新通过。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "当前普通latest范围冻结；仅后续真实新反馈或自然失败补验证。"
       ],
@@ -893,8 +841,6 @@
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
       "evidencePoints": [
-        "两作品标题/返回具名通过，868dbb38 CI成功",
-        "当前结论：两作品标题/返回具名通过，868dbb38 CI成功",
         "直接产物索引：global-title197-detail-002/detail.png"
       ],
       "remainingActions": [
@@ -921,10 +867,7 @@
       "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。",
       "reopenedAt": "2026-10-23T04:56:52.153Z",
       "reopenedAtSource": "原始会话JSONL response_item/user当前定位反例首报实值。",
-      "evidencePoints": [
-        "197首开/手动保位通过，1e163c3e精确CI成功",
-        "当前结论：已补打开期间实际布局校正；Extra2首开可见，手动Booklet3关开位置相同，原章页保持。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "仅真实新反例或相关依赖变化重开。"
       ],
@@ -944,10 +887,7 @@
       "firstEvidenceAt": null,
       "closedAt": null,
       "owner": "Root：具名文案与切换范围冻结，自然失败待样本",
-      "evidencePoints": [
-        "清除文案/原动作237通过；d32bec97精确CI成功",
-        "当前结论：首项仅改为清除此项筛选，源All与原顺序/材质保留。237201菜单原图已亲看，202实际清除后All对勾消失，原重置恢复并自然回原大奉001第6页25%；203三域完整JSON同200，筛选schema1/sources{}。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原批准的自然失败提示/重试恢复仍缺实际适用样本，保open；普通/快速切换与本轮清除文案已具名验收，不重跑、不造故障。"
       ],
@@ -988,10 +928,7 @@
       "firstEvidenceAt": null,
       "closedAt": null,
       "owner": "Root：237同章同页上下栏恢复具名范围冻结",
-      "evidencePoints": [
-        "Koma原上下栏具名恢复；389400f精确CI成功",
-        "当前结论：8564926B已装237；141全129帧及原72/73/74、87/88/89已审，原书名/章页与104底栏、原按钮顺序保持。142回书架仍001第6/24页，library/registry全同，reader仅该本3处阅读时间更新。保存/分享原生菜单沿138已验入口，未执行媒体写入。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本次Koma237001第6/24页上下栏、正常返回与三域保持范围冻结；入场时机、缓存及失败恢复继续各自未闭项。"
       ],
@@ -1009,10 +946,7 @@
       "firstEvidenceAt": null,
       "closedAt": null,
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "用户确认完成",
-        "当前结论：用户确认完成"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不自主重开已关闭图标；官方高清原件的出处限制仍如实保留。"
       ],
@@ -1030,10 +964,7 @@
       "firstEvidenceAt": null,
       "closedAt": "2026-10-20T13:40:29.817024+00:00",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "版本/tag/CI/预发布均已完成",
-        "当前结论：版本/tag/CI/预发布均已完成"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "v0.1.2-pre发布任务冻结；后续197已安装0.1.2-pre/code3见本轮条目，旧“新版未安装”已不适用，不把后续修复自动视为已发布。"
       ],
@@ -1051,10 +982,7 @@
       "firstEvidenceAt": null,
       "closedAt": "2026-10-19T22:26:49Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "自然失败回滚、其他备份与跨设备仍未验；不外推全库所有字段相同。"
       ],
@@ -1072,10 +1000,7 @@
       "firstEvidenceAt": null,
       "closedAt": null,
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "原误报已澄清",
-        "当前结论：原误报已澄清"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不扩大到其他模式完整验收。"
       ],
@@ -1093,10 +1018,7 @@
       "firstEvidenceAt": null,
       "closedAt": "2026-10-19T23:20:11Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不扩大为ZIP/其它格式、全部内容或Shared；两侧点击原误报已由同页宽图左右半原件澄清。"
       ],
@@ -1111,10 +1033,7 @@
       "remaining": "不冒独立顺序绑定、图片分支cold或全部格式通过。",
       "closedAt": "2026-10-19T23:39:24Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不冒独立顺序绑定、图片分支cold或全部格式通过。"
       ],
@@ -1129,10 +1048,7 @@
       "remaining": "自然失效根仍为不可经系统选择器选取的旧私有Smoke根；新增/变更/缺失输入未有当前样本，不造夹具。",
       "closedAt": "2026-10-19T23:39:24Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "自然失效根仍为不可经系统选择器选取的旧私有Smoke根；新增/变更/缺失输入未有当前样本，不造夹具。"
       ],
@@ -1147,10 +1063,7 @@
       "remaining": "仅中文该查询/目的页，不冒全部语言或设置生效。",
       "closedAt": "2026-10-19T23:45:59Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "仅中文该查询/目的页，不冒全部语言或设置生效。"
       ],
@@ -1165,10 +1078,7 @@
       "remaining": "不冒所有语言设备或全部许可合规审计。",
       "closedAt": null,
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "已批准并具名验收",
-        "当前结论：已批准并具名验收"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不冒所有语言设备或全部许可合规审计。"
       ],
@@ -1183,10 +1093,7 @@
       "remaining": "不扩大到多书替换、迁移或失败回滚。",
       "closedAt": "2026-10-19T23:55:31Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不扩大到多书替换、迁移或失败回滚。"
       ],
@@ -1201,10 +1108,7 @@
       "remaining": "四私库实际验收已被人类明确搁置；不由heartbeat、旧记录或交接自主复活。",
       "closedAt": null,
       "owner": "PARKED_USER：等待用户重提",
-      "evidencePoints": [
-        "PARKED_USER：只待用户明确重提",
-        "当前结论：PARKED_USER：只待用户明确重提"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "四私库实际验收已被人类明确搁置；不由heartbeat、旧记录或交接自主复活。"
       ],
@@ -1226,10 +1130,7 @@
       "remaining": "全章、下载与Shared不在本次通过范围；分季标题未解析话数，稳定原序保持。",
       "closedAt": "2026-10-20T00:20:25Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "全章、下载与Shared不在本次通过范围；分季标题未解析话数，稳定原序保持。"
       ],
@@ -1244,10 +1145,7 @@
       "remaining": "不扩大为所有源与全部失败状态。",
       "closedAt": "2026-10-20T00:35:00Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不扩大为所有源与全部失败状态。"
       ],
@@ -1262,10 +1160,7 @@
       "remaining": "恢复、失败回滚与cold不在本次通过范围。",
       "closedAt": "2026-10-20T00:44:00Z",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "恢复、失败回滚与cold不在本次通过范围。"
       ],
@@ -1283,10 +1178,7 @@
       "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
       "closedAt": "2026-10-20T14:31:54.915842+00:00",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不扩大全部主题色、语言、页面或系统语言变化；自动章数后继已按批准接入语言资源并具名验收。"
       ],
@@ -1304,10 +1196,7 @@
       "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
       "closedAt": null,
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "已按人类批准实施并具名验收（既有记录）",
-        "当前结论：已按人类批准实施并具名验收（既有记录）"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "不外推所有页面/语言/源自带副标题。"
       ],
@@ -1322,10 +1211,7 @@
       "remaining": "仅当前版本/样本，不外推未验分支。",
       "closedAt": "2026-10-21T01:43:46.574409+00:00",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "仅当前版本/样本，不外推未验分支。"
       ],
@@ -1340,10 +1226,7 @@
       "remaining": "仅当前版本/样本，不外推未验分支。",
       "closedAt": "2026-10-21T01:43:46.574409+00:00",
       "owner": "冻结路径：无当前执行者",
-      "evidencePoints": [
-        "具名路径通过",
-        "当前结论：具名路径通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "仅当前版本/样本，不外推未验分支。"
       ],
@@ -1365,10 +1248,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-23T00:53:09.114846+00:00",
-      "evidencePoints": [
-        "原服务已恢复，本机HTTP及原浏览器通过",
-        "当前结论：原8766页面及/api/progress均HTTP200；本轮重新逐字段核对，页面实际返回与唯一snapshot的65项完全一致。反馈项未发现缺失，顶部HAP和源摘要的旧状态已纠正。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "随实际结果同步条目、主页摘要、当前包和下一动作；原已验证页面结构保持。"
       ],
@@ -1395,10 +1275,7 @@
       "references": [
         "https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ts-basic-components-image#orientation14"
       ],
-      "evidencePoints": [
-        "原授权P3只读分析已完成；未复现且未授权实施",
-        "当前结论：缺实际CBZ，未复现；已发现EXIF方向处理不一致的条件风险，仍为P3只读结论。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本轮检查分析交付已完成，不把无真实CBZ变成无限待实施任务。实际样本根因/修复均未证；新真实材料或明确实施指令到来时另按原项重开，不造样本或擅改正文/尺寸/裁切/缩略图。"
       ],
@@ -1432,10 +1309,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
-      "evidencePoints": [
-        "已完成，9243deb CI通过",
-        "当前结论：已完成，9243deb CI通过"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本轮README整理范围已完成并冻结；后续仅随真实源发布/用户反馈按需更新，不重开已完成整理。"
       ],
@@ -1457,10 +1331,7 @@
       "firstHandlingAt": "2026-10-23T16:00:12.538712+00:00",
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T19:11:53.603541+00:00",
-      "evidencePoints": [
-        "源管理及公共分组具名普通范围完成，剩余消费者已补核",
-        "当前结论：公共2c05ea6c、源更新f4caffaa与65项工作单876b435f已推；精确CI40033988416/head876b435f成功，unsigned Release成功，tag发布跳过，无新发版。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本次具名普通范围完成；旧ImportPage非普通入口、四私库PARKED和其他未观察状态不扩大，不为补矩阵复活旧页。"
       ],
@@ -1495,10 +1366,7 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
-      "evidencePoints": [
-        "015精确重复合并197已验，远端CI发布完成",
-        "当前结论：包子015精确重复合并后197目录206/206且旧阅读位置保留；输出ID冲突不等于真实同章。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本具名精确重复范围冻结；仅新的输出身份冲突反例重开。"
       ],
@@ -1526,10 +1394,7 @@
       "firstEvidenceAt": null,
       "firstHandlingAt": "2026-10-23T11:26:44.075783+00:00",
       "closedAt": "2026-10-25T21:38:31+00:00",
-      "evidencePoints": [
-        "源与两类本地普通pull/保内容及自然重选已具名闭环；成功授权根重扫未外推",
-        "当前结论：保留197漫画1234已有源详情下拉结果。本轮237343原本地Download详情1章10页/6/10；344普通下拉完整161帧/5表经Root全部顺序亲审，内容/章节/进度持续保留且spinner正常结束，实际提示没有本地书架。237当时唯一local_folder为旧cache/import样本，所以该次只接受普通本地pull消费者/保内容，不冒注册根重扫成功。345整图仍1章10页/6/10。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本轮源、237旧cache普通pull和197真实root自然重选/保内容及最终恢复已闭环；成功授权根重扫保持未外推，不为原接入请求增加导入/造权限矩阵。",
         "源与本地已有具名范围保留；自然失败/挑战分别待真实条件，不清Cookie/缓存、不造网络故障或复活私库。"
@@ -1568,8 +1433,6 @@
       "result": "保197116/117普通长短List、118书架Grid顶部原具名结果。新增174普通筛选sheet拖bar到LARGE后内部空白区上下滑，全261帧/8表已Root顺审：上滑标题/关闭/内容随外层原生Scroll移动、dragbar不动，释放复位；下滑走原生挡位缩放，Back正常原书架。175三次normal fling至实际末行；176全201帧/6表已顺审，底部一次边缘动作内容上移再自然弹回，标题/底Tab正常。178恢复原顶部/原首三书，library-store和reader-preferences逐字同173，恢复系统120000无Override并释cded1338。",
       "remaining": "本次普通List/Grid头尾及原生sheet具名范围完成；不外推所有页面/输入或封面载入，不以Root自行扩出的独立内部ListSpring/标题固定要求保留假缺口。",
       "evidencePoints": [
-        "普通长短List/Grid头尾及原生sheet具名范围已收束",
-        "当前结论：保197116/117普通长短List、118书架Grid顶部原具名结果。新增174普通筛选sheet拖bar到LARGE后内部空白区上下滑，全261帧/8表已Root顺审：上滑标题/关闭/内容随外层原生Scroll移动、dragbar不动，释放复位；下滑走原生挡位缩放，Back正常原书架。175三次normal fling至实际末行；176全201帧/6表已顺审，底部一次边缘动作内容上移再自然弹回，标题/底Tab正常。178恢复原顶部/原首三书，library-store和reader-preferences逐字同173，恢复系统120000无Override并释cded1338。",
         "直接产物索引：library-store.v1.json"
       ],
       "remainingActions": [
@@ -1615,10 +1478,7 @@
       "firstHandlingAt": "2026-10-23T16:16:13.824783+00:00",
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": "2026-10-25T21:46:33+00:00",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：b8a50cf已push，精确CI40015663006 success；243完整539PTS四跨选形变/回稳具名成立，原重复段与底栏范围保持。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原图标/跨Tab动效具名范围已闭环；所有输入或FPS未外推不构成待办，不重跑已验动效。"
       ],
@@ -1667,10 +1527,7 @@
       "kind": "accepted",
       "status": "197旧包缺图经正常更新恢复，具名范围冻结",
       "result": "197旧010安装包缺图，正常更新012后浏览显示既定蓝白W；未证实远端资源曾回退。",
-      "evidencePoints": [
-        "197旧包缺图经正常更新恢复，具名范围冻结",
-        "当前结论：197旧010安装包缺图，正常更新012后浏览显示既定蓝白W；未证实远端资源曾回退。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [],
       "remaining": "仅197旧包缺图、普通更新与浏览采用范围冻结；新具名反例再开。",
       "boundaries": [
@@ -1700,10 +1557,7 @@
       "kind": "accepted",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "233完整回缩、匹配trace与数据保持成立；该派生修复已含876b435f，精确CI40033988416 success。原80源根Browse范围冻结。",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：233完整回缩、匹配trace与数据保持成立；该派生修复已含876b435f，精确CI40033988416 success。原80源根Browse范围冻结。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原根Browse卡顿缺陷具名闭环；单源页/FPS未外推，不增矩阵，不改原样式或私库。"
       ],
@@ -1745,10 +1599,7 @@
       "kind": "accepted",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "235箭头与设置一致，253普通源行实际进入3Hentai源页；Root亲审，尾部/点击范围成立，源正文失败另留。",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：235箭头与设置一致，253普通源行实际进入3Hentai源页；Root亲审，尾部/点击范围成立，源正文失败另留。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原源行尾部箭头视觉/点击具名闭环；同类批准未知不等于全局重做待办，3H正文另项、私库PARKED保持。"
       ],
@@ -1789,10 +1640,7 @@
       "kind": "accepted",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "259原生终图已显示已安装与未安装两组的语言名称/红18+；两页既有范围保留，未知标签不外推。",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：259原生终图已显示已安装与未安装两组的语言名称/红18+；两页既有范围保留，未知标签不外推。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "两页语言一致性具名闭环；未知语言仅未外推，不造metadata样本，不改源身份/筛选语义。"
       ],
@@ -1832,10 +1680,7 @@
       "kind": "accepted",
       "status": "原全局禁用触发已由具名安全队列/排空覆盖，提交CI已完成",
       "result": "258一次触发形成1运行+7等待，随后排空；259实际23项升级、80源身份与enabled保持，library/reader同值，安全队列具名成立。",
-      "evidencePoints": [
-        "原全局禁用触发已由具名安全队列/排空覆盖，提交CI已完成",
-        "当前结论：258一次触发形成1运行+7等待，随后排空；259实际23项升级、80源身份与enabled保持，library/reader同值，安全队列具名成立。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "原安装/更新其它项全禁用问题已具名闭环；失败/取消/重复提交为未外推自然边界，不造失败样本或重跑排空。"
       ],
@@ -1876,8 +1721,6 @@
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
       "result": "446爱奇艺叭嗒独立Search标题正确、无query，右上仅原生house，无gear或空设置；manager/Browse既有通过范围保留。仅原空设置入口缺陷收口，未知/失败描述符不扩认。",
       "evidencePoints": [
-        "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-        "当前结论：446爱奇艺叭嗒独立Search标题正确、无query，右上仅原生house，无gear或空设置；manager/Browse既有通过范围保留。仅原空设置入口缺陷收口，未知/失败描述符不扩认。",
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb"
       ],
       "remainingActions": [
@@ -1911,10 +1754,7 @@
       "kind": "accepted",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "已解码本地fileURI后续回交用syncLoad，首次/换图/远程仍异步。209签名Release8583407B明确安装且三域同208；211一次Happy013安装完整96原PTS编码帧已亲审，源图标在0–69均可见，9切安装中、70正常整行移出。其他可见图标保持；不外推197更新或旧92样本。",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：已解码本地fileURI后续回交用syncLoad，首次/换图/远程仍异步。209签名Release8583407B明确安装且三域同208；211一次Happy013安装完整96原PTS编码帧已亲审，源图标在0–69均可见，9切安装中、70正常整行移出。其他可见图标保持；不外推197更新或旧92样本。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "Happy具名安装触发已闭环；197更新/旧92/换URI未扩认，仅有新适用反例时重开，不清缓存/重装造样本。"
       ],
@@ -1971,11 +1811,9 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "最新人类报入场检查/整列图标刷新严重回归，优先调查；原59ms及Native批量未验各自保持",
-      "result": "Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
+      "status": "440c014f缓存/差量/worker已交付且精确CI成功，738–743真实更新具名；原59ms及全卡顿未外推闭环",
+      "result": "440c014f2afc65c760f90e2a2a7abbc2094be932缓存首帧/差量发布/worker及URL草稿owner修复已push、精确CI40365714873成功。738–743普通缓存重入/未存URL不捕获及Goda013/DM5018原全部更新成功，六域/原库/系统恢复；用户原全闪根因未完整实证，59.319ms及全部卡顿未证明消除。",
       "evidencePoints": [
-        "最新人类报入场检查/整列图标刷新严重回归，优先调查；原59ms及Native批量未验各自保持",
-        "当前结论：Native批量检查候选8580548B已装237。174一次正常IPmini011首装：75文件全部匹配，批量2010us、持久化6ms、行投影4ms；原74源每字段/顺序及library/reader完整JSON保持。同步事务/原子写/错误回滚未改。",
         "直接产物索引：https://github.com/honjow/Koma/releases/tag/v0.1.3-pre；230/audit/frequency-comparison-224-230.json；build.log；diagnostics-redaction-reuse-review/txt-suffix-unadopted-candidate.patch；300/audit/callback6739-scheduler-frequency.json；koma-log-export-20261026-003924.log；307/audit/aligned-existing-cpu.json；audit/aligned-existing-cpu.json；/tmp/koma-computed-fresh-result-before.txt；test_source_index_progressive.cjs；receipt.json；Koma-source-current-result-fixed-signed.hap；manhuagui-network-phase-review/source-head-current.json；manager-after-real-update.png；browse-name-projection197-session-513/result.json；offline-window-review.json；mh160-web-entry-chain-review/browse-name-projection-ci-detail.json；scripts/test_source_install_worker.cjs；temporary-browse-row-count.patch；pre2-browse-source.png；restored-library.png；pre2-batch-update-before.log；pre2-batch-update-after.log；candidate2-manager-details.png；pre2-candidate2-ci-detail.json；index.json；pre2-current-source-index.json；pre2-current-source-update-comparison.json；manager-cache-url-before.log；manager-cache-reader-relevant-final-tests.log；manager-cache-url-final-build.log；registry-update-review.json"
       ],
       "remainingActions": [
@@ -2124,7 +1962,7 @@
         "allowedDifference": "只在普通picker返回已选URI之后startJsCpuProfiling，原import/校验/事务/刷新完成后finally stop；不改UI/响应/校验/队列，不清数据不装新源。仅新profile文件自有临时产物，完成精确撤补丁并装回8581941B正式包。当前为正常同版本更新路径，不当首次首装或严格AB/FPS。"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-26T16:24:42+00:00",
+        "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
         "condition": "Root跟进缓存440c014精确CI40365714873实际终态及744–748新版首页/Web普通结果；738–743缓存/未存草稿/两源原全部更新已具名，不留该批安装等待。原59.319ms及全闪根因未闭，不以1Hz、两源同步耗时或局部普通路径外推全部性能。"
       },
@@ -2153,10 +1991,7 @@
       "kind": "accepted",
       "status": "197原详情同手势168帧已审，露出区域同色",
       "result": "仅固定外Stack补BG_SUB。527沿114同一猎行者458章详情/同手势连续录像168帧已亲审，最大下拉/回弹/终态背景同色，原内容保持；528原第一话15/16与读态保持。",
-      "evidencePoints": [
-        "197原详情同手势168帧已审，露出区域同色",
-        "当前结论：仅固定外Stack补BG_SUB。527沿114同一猎行者458章详情/同手势连续录像168帧已亲审，最大下拉/回弹/终态背景同色，原内容保持；528原第一话15/16与读态保持。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本次浅色普通详情具名范围冻结；未以此扩认深色/全部源/全部刷新失败状态。其他队列继续。"
       ],
@@ -2190,8 +2025,6 @@
       "status": "刷新开始清空已有内容的原触发已具名覆盖；自然失败footer未外推",
       "result": "保留576 SourceBrowse内普通同查询结果。新增353独立SourceSearch包子query斗破下拉完整109帧/4表经Root全部顺序亲审，七个结果与封面持续保持、query不变、正常收回。354实际繁体结果鬥破蒼穹仍在，普通Back→源包管理→服务→设置→原书架断言通过；未点作品或新增query。350繁简误等为脚本失败并保原件。",
       "evidencePoints": [
-        "刷新开始清空已有内容的原触发已具名覆盖；自然失败footer未外推",
-        "当前结论：保留576 SourceBrowse内普通同查询结果。新增353独立SourceSearch包子query斗破下拉完整109帧/4表经Root全部顺序亲审，七个结果与封面持续保持、query不变、正常收回。354实际繁体结果鬥破蒼穹仍在，普通Back→源包管理→服务→设置→原书架断言通过；未点作品或新增query。350繁简误等为脚本失败并保原件。",
         "直接产物索引：search-refresh-retention-before.txt"
       ],
       "remainingActions": [
@@ -2242,8 +2075,6 @@
       "status": "96a2123已推CI成功并随新包装237；重复样本角标未验",
       "result": "完整性比较改为保存目录条数，未读数仍按不同章节ID和原isRead计算。624条/600个ID/4已读回归返回596，并验证读态和目录不变；没有重新操作200。",
       "evidencePoints": [
-        "96a2123已推CI成功并随新包装237；重复样本角标未验",
-        "当前结论：完整性比较改为保存目录条数，未读数仍按不同章节ID和原isRead计算。624条/600个ID/4已读回归返回596，并验证读态和目录不变；没有重新操作200。",
         "直接产物索引：197394/library-after.json；442/library-after.json；manhuagui-network-phase-review/current-queue-library-sample.json"
       ],
       "remainingActions": [
@@ -2289,8 +2120,6 @@
       "status": "96a2123已推，精确CI成功；200实际恢复未验",
       "result": "普通源图网络失败自动刷新一次章页计划、每页最多再取一次；明确挑战/授权/取消/TLS错误不盲重试。手动重试可独立再次强刷，保下载/读态与当前阅读单元。40回归通过，default Release8550194B，未安装。",
       "evidencePoints": [
-        "96a2123已推，精确CI成功；200实际恢复未验",
-        "当前结论：普通源图网络失败自动刷新一次章页计划、每页最多再取一次；明确挑战/授权/取消/TLS错误不盲重试。手动重试可独立再次强刷，保下载/读态与当前阅读单元。40回归通过，default Release8550194B，未安装。",
         "直接产物索引：open-001-failure-002/library.json；koma-log-20261025-053239.txt；failure.png；failure.json；baozi-image-worker-cache197-session-653/cache-coverage.json；page9-original-observed.png；original-page3-restored.png"
       ],
       "remainingActions": [
@@ -2336,8 +2165,6 @@
       "status": "首页/无首页具名通过，e6404c5b精确CI成功",
       "result": "最终签名Release8577441B已明确装237。包子首页/熱門为互斥内容，原生分类菜单在搜索下方，首页/熱門对勾随实际选择切换。熱門36本单一列表，首页不再额外请求默认栏目。正常下拉刷新仍选熱門、旧封面与内容保留；首页地区筛选进入原默认熱門，重置后原内容恢复。 本轮193–194无首页Comic Fury默认热门12本，菜单仅热门/最新，选最新后单一12本且首排实际变化，对勾正确；自然返回原大奉001第6页25%。",
       "evidencePoints": [
-        "首页/无首页具名通过，e6404c5b精确CI成功",
-        "当前结论：最终签名Release8577441B已明确装237。包子首页/熱門为互斥内容，原生分类菜单在搜索下方，首页/熱門对勾随实际选择切换。熱門36本单一列表，首页不再额外请求默认栏目。正常下拉刷新仍选熱門、旧封面与内容保留；首页地区筛选进入原默认熱門，重置后原内容恢复。 本轮193–194无首页Comic Fury默认热门12本，菜单仅热门/最新，选最新后单一12本且首排实际变化，对勾正确；自然返回原大奉001第6页25%。",
         "直接产物索引：https://www.dm5.cn实际title“动漫屋”"
       ],
       "remainingActions": [
@@ -2396,11 +2223,9 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "017搜索分页分支已具名Native修复交付；旧元尊页表/首页CF未过，总项open",
-      "result": "478/479普通自动Web在真正正常文档后回流，Native列表200/30本；473/476失败保留。原460正文get_pages2300028未扩认恢复。",
+      "status": "017搜索修复交付；770–775元尊搜索→最早第1话→首图1/10具名，首页403/旧超时原因仍open",
+      "result": "770–775漫画屋017单次元尊搜索→详情→最早第1话 周家圣龙（上）→真实首图1/10已亲审，search/detail/chapters/get_pages均200；新增元尊外旧91progress/8sourceHistory/151chapters及remoteHistory原对象/顺序全同。首页get_manga_list仍403挑战，当前成功不追认旧460 timeout原因；不外推完整叙事/十页或全CF，数据/系统/原Library已恢复。",
       "evidencePoints": [
-        "017搜索分页分支已具名Native修复交付；旧元尊页表/首页CF未过，总项open",
-        "当前结论：478/479普通自动Web在真正正常文档后回流，Native列表200/30本；473/476失败保留。原460正文get_pages2300028未扩认恢复。",
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json"
       ],
       "remainingActions": [
@@ -2428,7 +2253,7 @@
         "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界"
       },
       "continuationGate": {
-        "checkedAt": "2026-10-26T08:43:11+00:00",
+        "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
         "condition": "Root精确复核新增元尊外原91progress/8sourceHistory/151chapters；当前页表200/首图仅本次具名，不等旧460根因或首页CF解决。原搜索/目录修复不重开、不重复查询取样；保网络/UA/Cookie/端点/超时，未知仍调查。"
       },
@@ -2449,10 +2274,8 @@
       ],
       "kind": "open",
       "status": "399当前197正常016列表成功且恢复闭环；旧超时原因未知仍open",
-      "result": "197漫画柜0.1.6 get_manga_list15038ms返回timeout/HTTP0，原生显示连接超时；具体网络阶段未明，不能归为旧237相同根因。",
+      "result": "399当前197漫画柜016正常get_manga_list成功42本，HTTP200/27920chars及成功请求阶段数据具名，400/401恢复闭环；旧timeout具体阶段/根因未知，成功不倒证旧失败。原超时原因尚未查明，原项仍未关闭。",
       "evidencePoints": [
-        "399当前197正常016列表成功且恢复闭环；旧超时原因未知仍open",
-        "当前结论：197漫画柜0.1.6 get_manga_list15038ms返回timeout/HTTP0，原生显示连接超时；具体网络阶段未明，不能归为旧237相同根因。",
         "直接产物索引：.hvigor/outputs/user-flow-audit/manhuagui-network-phase-review；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manhuagui-netphase197-single-browse-399。取证当时400/401返回恢复待回执；koma-log-20261024-092500.txt；399/network-result-receipt.json；401/restoration-receipt.json；405/history-result-receipt.json"
       ],
       "remainingActions": [
@@ -2472,7 +2295,7 @@
       "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
-        "checkedAt": "2026-10-26T03:17:57+00:00",
+        "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
         "condition": "399成功主trace无HttpRequest细分，402–405官方历史事件通道已实际核：本项24日10:09:56四分钟窗及同故障整日/成功事件对照均无返回记录，未得到可回溯旧失败阶段；不能断言事件从未产生、设备编译同源码或空输出原因/旧网络根因。405五域/timeout保持、系统锁屏Focus16、租约已release，无活设备操作。不盲重试、无新取证目的不重复请求；若出现合法新阶段证据再针对原项续接，保请求栈/UA/网络，原项仍open。"
       },
@@ -2494,10 +2317,7 @@
       "kind": "accepted",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "源62a1d185精确CI40079042677成功，08:43:50Z公开非draft/pre，原latest85条/MH1600.1.3。553唯一普通远端更新成功；554源85→85仅MH160变且原顺序/书库/reader保持。556两原网页MenuItem均enabled/clickable，557实际WebView已打开；558只有站点标题/加载指示，未证明正文可见。",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：源62a1d185精确CI40079042677成功，08:43:50Z公开非draft/pre，原latest85条/MH1600.1.3。553唯一普通远端更新成功；554源85→85仅MH160变且原顺序/书库/reader保持。556两原网页MenuItem均enabled/clickable，557实际WebView已打开；558只有站点标题/加载指示，未证明正文可见。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "常驻合法站点入口具名闭环；白屏/跳转循环及漫画160搜索404归SOURCE_WEB_SESSION，不将入口可达冒网站正文可用。"
       ],
@@ -2545,10 +2365,7 @@
       "kind": "accepted",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "result": "311漫小肆manager无无效设置入口且与309三域同。fixture误判仅证Host summary/日志误报，Manager和Store均读response.ok，不能据此归因原菜单失败。",
-      "evidencePoints": [
-        "原人类具名范围已交付并有精确CI；未外推边界保留",
-        "当前结论：311漫小肆manager无无效设置入口且与309三域同。fixture误判仅证Host summary/日志误报，Manager和Store均读response.ok，不能据此归因原菜单失败。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "本源无效入口/验证失败触发已具名收束；其它源设置失败按真实响应另查，不以其保本源无限open或盲重试。"
       ],
@@ -2591,8 +2408,6 @@
       "status": "本轮完整部分失败修正已具名验收、提交推送及同head精确CI成功",
       "result": "306暖重入范围保持。266正式包新进程在未访问Manager前，经267普通设置→服务，268连续转场录像69编码帧及两张contact-sheet全审：录像PTS0.371033秒已有五个未装源文字/图标且正在检查，1.072256仍检查，1.879411完成并保持至8.794567。PTS不是tap后延迟，不作FPS结论。269日志主索引85项成功、另一个保存地址code2300007失败，最终update0/latest80/missing0/failed_indexes1；实际界面未提示这次失败。四域同266，273恢复原书架后仍同269。",
       "evidencePoints": [
-        "本轮完整部分失败修正已具名验收、提交推送及同head精确CI成功",
-        "当前结论：306暖重入范围保持。266正式包新进程在未访问Manager前，经267普通设置→服务，268连续转场录像69编码帧及两张contact-sheet全审：录像PTS0.371033秒已有五个未装源文字/图标且正在检查，1.072256仍检查，1.879411完成并保持至8.794567。PTS不是tap后延迟，不作FPS结论。269日志主索引85项成功、另一个保存地址code2300007失败，最终update0/latest80/missing0/failed_indexes1；实际界面未提示这次失败。四域同266，273恢复原书架后仍同269。",
         "直接产物索引：269/partial-check-existing-method-review.json"
       ],
       "remainingActions": [
@@ -2650,10 +2465,7 @@
       "reportedAtSource": "当前定位的10-22续接窗口内最早明确人类反馈，原始timestamp实值；尚未排除原主档有更早同问题，不冒全历史首次。原始会话JSONL response_item/user实际反馈；已限定唯一原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 1302381904 读取原文，不是登记/处理/取证时间。",
       "firstHandlingAt": "2026-10-24T12:02:09.354493+00:00",
       "closedAt": null,
-      "evidencePoints": [
-        "237同网官网同首话也无正文；原生3166原因明确",
-        "当前结论：012恢复4章与无设置契约、013地区原因及精确CI已成立。按人类要求自行核对：237官方膽大黨→第1話→直接閱讀，官网明确授权台湾地区，实际先Please Wait后黑页未有正文。官网黑页具体失败不强归3166，原生API3166为独立确证。"
-      ],
+      "evidencePoints": [],
       "remainingActions": [
         "保站点授权限制及官网黑页两个有限结果；当前网络不能完成正文验收，不改账户/地区/网络。其他源与App继续。"
       ],
@@ -2704,46 +2516,44 @@
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（后续迁移；不取消当前bugs）",
-      "owner": "Root：当前功能改动/验收暂停；设备恢复释租已完，八份默认规范链整理待审查/范围提交",
+      "owner": "Root：规范/默认文档整理同步完成；原设置接入产品候选未通过，后续服从人类当前沟通指令",
       "kind": "open",
-      "status": "18856450已797安装，高级→诊断到真实页；返回脚本误入后台NextE，非通过，功能验收暂停",
+      "status": "全局翻译/高级/Reader分组/模型管理候选18856450未完整验收且WIP未commit；既有具名处理范围冻结",
       "dependencies": [],
       "relatedItems": [],
-      "result": "本批裁切/单模型超分与翻译功能实现、独立验证/具名Native边界、最终18852907留197及37cf范围提交push/精确CI40312629756同head成功已闭环，无commit/CI/安装待办。真实provider调用/实际译图未验，人类先实现方向保持不追问配置；不扩单模型/布局/连续/未审片段，不关闭总迁移或旧8open。",
+      "result": "已交付具名裁切/单模型超分、未来页实际处理与图标临时开关范围保持，真实provider/译图未验。当前全局翻译、高级/日志归属、Reader分组、共用图像设置与模型管理WIP已构建安装18856450，但普通完整任务未通过、未commit；800–802仅恢复Koma原书架/120000无Override及释租，不是菜单验收。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
       "closedAt": null,
       "evidencePoints": [
-        "18856450已797安装，高级→诊断到真实页；返回脚本误入后台NextE，非通过，功能验收暂停",
-        "当前结论：本批裁切/单模型超分与翻译功能实现、独立验证/具名Native边界、最终18852907留197及37cf范围提交push/精确CI40312629756同head成功已闭环，无commit/CI/安装待办。真实provider调用/实际译图未验，人类先实现方向保持不追问配置；不扩单模型/布局/连续/未审片段，不关闭总迁移或旧8open。",
         "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json"
       ],
-      "remaining": "800–802已恢复Koma原书架/120000无Override并释94cc，留18856450，仅恢复成功不代表菜单验收。当前按人类要求功能改动/验收暂停；Root完成八份默认规范链整理，待审查/范围提交。产品代码WIP及原未验边界全保留，progress_docs不写Root独占规则，不续菜单或新功能。",
+      "remaining": "规范/默认文档整理与同步已完成，不是产品任务完成。原已授权设置接入候选18856450普通路径未通过，功能WIP未commit/未验收；197原库/120000无Override/无租约。Root后续产品动作服从人类当前沟通指令，原未解决缺陷及验收边界保留，不因文档整理清空队列。",
       "remainingActions": [
-        "800–802已恢复Koma原书架/120000无Override并释94cc，留18856450，仅恢复成功不代表菜单验收。当前按人类要求功能改动/验收暂停；Root完成八份默认规范链整理，待审查/范围提交。产品代码WIP及原未验边界全保留，progress_docs不写Root独占规则，不续菜单或新功能。"
+        "规范/默认文档整理与同步已完成，不是产品任务完成。原已授权设置接入候选18856450普通路径未通过，功能WIP未commit/未验收；197原库/120000无Override/无租约。Root后续产品动作服从人类当前沟通指令，原未解决缺陷及验收边界保留，不因文档整理清空队列。"
       ],
       "boundaries": [
-        "已采用的具体入口限现有Reader设置与更多控件样式，不任意复制全部Legacy UI或扩新样式；既定Reader/宿主数据与行为边界保持。",
+        "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
         "默认去白边false保持、超分/自动翻译关闭；翻译沿既有visual-page规则，无默认外部服务或自动耗费，入口采用不授权自动启服务。",
         "本项后续迁移不取消其它未闭bugs；尚未实施不以源码/许可/入口决定代构建或Native验收。"
       ],
       "continuationGate": {
-        "checkedAt": "2026-10-26T16:24:42+00:00",
+        "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
-        "condition": "800–802已恢复Koma原书架/120000无Override并释94cc，留18856450，仅恢复成功不代表菜单验收。当前按人类要求功能改动/验收暂停；Root完成八份默认规范链整理，待审查/范围提交。产品代码WIP及原未验边界全保留，progress_docs不写Root独占规则，不续菜单或新功能。"
+        "condition": "规范/默认文档整理与同步已完成，不是产品任务完成。原已授权设置接入候选18856450普通路径未通过，功能WIP未commit/未验收；197原库/120000无Override/无租约。Root后续产品动作服从人类当前沟通指令，原未解决缺陷及验收边界保留，不因文档整理清空队列。"
       },
       "adoptedEntryScope": {
         "source": "本轮当前可见人类异步call_63f84fa…：采用这组现有入口（推荐）；精确服务端时间未给，登记时刻不冒答复时间。",
-        "settings": "现有Reader设置：去白边/强度、超分/模型、翻译配置。",
+        "settings": "当前已要求全局长期配置及Reader即时控制分工：全局翻译/图像处理配置、Reader既有即时设置与更多，按NextE实际职责接入；高级归开发排障，日志由关于移入。未选/不可用模型仍保可见开关，选择与文件管理分开。",
         "more": "既有更多：翻译当前页、自动翻译、显示原图。",
         "defaults": "trimPageMarginsEnabled原false保持；超分与自动翻译默认关闭。",
-        "serviceBoundary": "沿既有visual-page规则，无默认外部服务/自动耗费；仅入口与实施范围采用，不预写实现。"
+        "serviceBoundary": "沿既有visual-page/安全持久owner，无默认外部服务或自动耗费；全局/Reader接入仍待完整任务验收，入口授权不扩大默认/凭据/章节身份。"
       },
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
         "observedEvidence": "More/未配置保护、9资产下载校验、独立配置与新≤1024B分块manifest非默认English真实进程冷恢复/zh还原、原水平留白、最终无显式意图原Reader简单policy及Library/数据系统恢复。",
-        "pendingImplementationVerification": "本批实现/独立验证/最终18852907留机及37cf范围提交push/精确CI40312629756同head成功已闭环，无工程提交/CI/安装待办；真实provider调用/实际译图仍未验。",
+        "pendingImplementationVerification": "既有单模型/配置持久等具名范围冻结；当前全局翻译/高级/分组/模型管理18856450候选WIP未完整验收且未commit，800–802仅恢复。真实provider/实际译图仍未验。",
         "unverifiedExternal": "真实提供方调用/实际译图未验；API URL/model/key为空，不读取NextE账户/secret、不默认调用服务或自动耗费。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
       }
