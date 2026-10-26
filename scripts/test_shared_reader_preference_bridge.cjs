@@ -33,7 +33,8 @@ const base = {
   keepScreenAwake: false, fullscreen: false, imageFitMode: 'fit_height', imageScalingQuality: 'high',
   showPageNumber: false, pageTurnAnimation: false, autoPageSeconds: 9, preloadPages: 4,
   spreadLayoutMode: 'joined', columnMode: 'odd_left', tapZonePreset: 'kindle', tapZoneInvert: 'both',
-  pageGapMode: 'wide', trimPageMarginsEnabled: false, wideImageMode: 'rotate_wide_pages',
+  pageGapMode: 'wide', trimPageMarginsEnabled: false, cropStrength: 'strong', superResolutionEnabled: true, superResolutionModel: 'waifu2xPhotoNoise0_2x',
+  superResolutionBackend: 'auto', superResolutionMaxHeight: 2000, wideImageMode: 'rotate_wide_pages',
   volumeKeyNavigationEnabled: true, volumeKeyBehavior: 'up_next_down_previous',
 }
 
@@ -65,13 +66,15 @@ assert.equal(continuous.readingDirection, base.readingDirection)
 
 for (const key of ['themeMode', 'backgroundMode', 'showProgressControls', 'keepScreenAwake', 'fullscreen',
   'imageFitMode', 'imageScalingQuality', 'showPageNumber', 'pageTurnAnimation', 'autoPageSeconds',
-  'preloadPages', 'tapZonePreset', 'tapZoneInvert', 'pageGapMode', 'trimPageMarginsEnabled',
+  'preloadPages', 'tapZonePreset', 'tapZoneInvert', 'pageGapMode', 'trimPageMarginsEnabled', 'cropStrength', 'superResolutionEnabled', 'superResolutionModel',
+  'superResolutionBackend', 'superResolutionMaxHeight',
   'volumeKeyNavigationEnabled', 'volumeKeyBehavior']) {
   assert.equal(spread[key], base[key], key)
 }
 
 const cropped = KomaReaderPreferenceBridge.applyCrop(base, true)
 assert.equal(cropped.trimPageMarginsEnabled, true)
+assert.equal(cropped.cropStrength, 'strong')
 assert.equal(cropped.pageMode, base.pageMode)
 assert.equal(cropped.wideImageMode, base.wideImageMode)
 assert.equal(base.trimPageMarginsEnabled, false)

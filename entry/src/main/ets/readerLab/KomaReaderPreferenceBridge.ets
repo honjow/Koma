@@ -25,6 +25,11 @@ export class KomaReaderPreferenceBridge {
       tapZoneInvert: current.tapZoneInvert,
       pageGapMode: current.pageGapMode,
       trimPageMarginsEnabled: current.trimPageMarginsEnabled,
+      cropStrength: current.cropStrength,
+      superResolutionEnabled: current.superResolutionEnabled,
+      superResolutionModel: current.superResolutionModel,
+      superResolutionBackend: current.superResolutionBackend,
+      superResolutionMaxHeight: current.superResolutionMaxHeight,
       wideImageMode: current.wideImageMode,
       volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,
       volumeKeyBehavior: current.volumeKeyBehavior,
@@ -52,6 +57,11 @@ export class KomaReaderPreferenceBridge {
       left.tapZoneInvert === right.tapZoneInvert &&
       left.pageGapMode === right.pageGapMode &&
       left.trimPageMarginsEnabled === right.trimPageMarginsEnabled &&
+      left.cropStrength === right.cropStrength &&
+      left.superResolutionEnabled === right.superResolutionEnabled &&
+      left.superResolutionModel === right.superResolutionModel &&
+      left.superResolutionBackend === right.superResolutionBackend &&
+      left.superResolutionMaxHeight === right.superResolutionMaxHeight &&
       left.wideImageMode === right.wideImageMode &&
       left.volumeKeyNavigationEnabled === right.volumeKeyNavigationEnabled &&
       left.volumeKeyBehavior === right.volumeKeyBehavior &&

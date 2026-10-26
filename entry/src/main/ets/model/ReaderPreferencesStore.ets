@@ -41,6 +41,11 @@ export interface ReaderPreferences {
   tapZoneInvert: ReaderTapZoneInvert
   pageGapMode: ReaderPageGapMode
   trimPageMarginsEnabled: boolean
+  cropStrength: string
+  superResolutionEnabled: boolean
+  superResolutionModel: string
+  superResolutionBackend: string
+  superResolutionMaxHeight: number
   wideImageMode: ReaderWideImageMode
   volumeKeyNavigationEnabled: boolean
   volumeKeyBehavior: ReaderVolumeKeyBehavior
@@ -103,10 +108,35 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   tapZoneInvert: 'none',
   pageGapMode: 'normal',
   trimPageMarginsEnabled: false,
+  cropStrength: 'standard',
+  superResolutionEnabled: false,
+  superResolutionModel: 'none',
+  superResolutionBackend: 'auto',
+  superResolutionMaxHeight: 2000,
   wideImageMode: 'keep_single',
   volumeKeyNavigationEnabled: false,
   volumeKeyBehavior: 'up_previous_down_next',
   readerImplementation: 'shared',
+}
+
+/** Preserve NextE model identities; availability is owned by the model registry. */
+export function normalizeReaderSuperResolutionModel(value: string): string {
+  const models: string[] = ['systemCoreVision', 'espcn2x', 'waifu2xPhotoNoise0_2x', 'waifu2xArtNoise0_2x',
+    'waifu2xCunetNoise0_2x', 'realCuganSe2xConservative', 'realEsrganX2plus', 'realEsrganAnimeVideoV3_2x']
+  return models.includes(value) ? value : 'none'
+}
+
+export function normalizeReaderSuperResolutionMaxHeight(value: number): number {
+  return Number.isFinite(value) ? Math.max(64, Math.min(2000, Math.round(value))) : 2000
+}
+
+/** Adopted NextE strengths; unknown/old preferences retain the standard default. */
+export function normalizeReaderCropStrength(value: string): string {
+  return value === 'conservative' || value === 'strong' ? value : 'standard'
+}
+
+export function getReaderCropStrengthLabel(value: string): string {
+  return AppStrings.get('reader_crop_strength_' + normalizeReaderCropStrength(value))
 }
 
 export function normalizeReaderPageMode(value: string): ReaderPageMode {
@@ -233,6 +263,11 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     tapZoneInvert: normalizeReaderTapZoneInvert(value.tapZoneInvert),
     pageGapMode: normalizeReaderPageGapMode(value.pageGapMode),
     trimPageMarginsEnabled: value.trimPageMarginsEnabled === true,
+    cropStrength: normalizeReaderCropStrength(value.cropStrength),
+    superResolutionEnabled: value.superResolutionEnabled === true,
+    superResolutionModel: normalizeReaderSuperResolutionModel(value.superResolutionModel),
+    superResolutionBackend: (value.superResolutionBackend === 'cpu' || value.superResolutionBackend === 'vulkan') ? value.superResolutionBackend : 'auto',
+    superResolutionMaxHeight: normalizeReaderSuperResolutionMaxHeight(value.superResolutionMaxHeight),
     readerImplementation: value.readerImplementation === 'legacy' ? 'legacy' : 'shared',
     wideImageMode: normalizeReaderWideImageMode(value.wideImageMode),
     volumeKeyNavigationEnabled: value.volumeKeyNavigationEnabled === true,
@@ -267,6 +302,11 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode):
     tapZoneInvert: normalizeReaderTapZoneInvert(runtime.tapZoneInvert),
     pageGapMode: normalizeReaderPageGapMode(runtime.pageGapMode),
     trimPageMarginsEnabled: runtime.trimPageMarginsEnabled,
+    cropStrength: normalizeReaderCropStrength(runtime.cropStrength),
+    superResolutionEnabled: runtime.superResolutionEnabled === true,
+    superResolutionModel: normalizeReaderSuperResolutionModel(runtime.superResolutionModel),
+    superResolutionBackend: (runtime.superResolutionBackend === 'cpu' || runtime.superResolutionBackend === 'vulkan') ? runtime.superResolutionBackend : 'auto',
+    superResolutionMaxHeight: normalizeReaderSuperResolutionMaxHeight(runtime.superResolutionMaxHeight),
     readerImplementation: connectKomaReaderBackendSelection().current(true),
     wideImageMode: normalizeReaderWideImageMode(runtime.wideImageMode),
     volumeKeyNavigationEnabled: runtime.volumeKeyNavigationEnabled,
@@ -299,6 +339,11 @@ function publishReaderModeState(preferences: ReaderPreferences): void {
     preferences.volumeKeyNavigationEnabled,
     preferences.volumeKeyBehavior,
     preferences.columnMode,
+    preferences.cropStrength,
+    preferences.superResolutionEnabled,
+    preferences.superResolutionModel,
+    preferences.superResolutionBackend,
+    preferences.superResolutionMaxHeight,
   ))
   connectKomaReaderBackendSelection().select(
     preferences.readerImplementation === 'legacy' ? KomaReaderBackend.LEGACY : KomaReaderBackend.SHARED, true)
@@ -348,6 +393,11 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     tapZoneInvert: normalizeReaderTapZoneInvert(stringField(record, 'tapZoneInvert', fallback.tapZoneInvert)),
     pageGapMode: normalizeReaderPageGapMode(stringField(record, 'pageGapMode', fallback.pageGapMode)),
     trimPageMarginsEnabled: booleanField(record, 'trimPageMarginsEnabled', fallback.trimPageMarginsEnabled),
+    cropStrength: normalizeReaderCropStrength(stringField(record, 'cropStrength', fallback.cropStrength)),
+    superResolutionEnabled: booleanField(record, 'superResolutionEnabled', fallback.superResolutionEnabled) === true,
+    superResolutionModel: normalizeReaderSuperResolutionModel(stringField(record, 'superResolutionModel', fallback.superResolutionModel)),
+    superResolutionBackend: (stringField(record, 'superResolutionBackend', fallback.superResolutionBackend) === 'cpu' || stringField(record, 'superResolutionBackend', fallback.superResolutionBackend) === 'vulkan') ? stringField(record, 'superResolutionBackend', fallback.superResolutionBackend) : 'auto',
+    superResolutionMaxHeight: normalizeReaderSuperResolutionMaxHeight(Number(record['superResolutionMaxHeight'] ?? fallback.superResolutionMaxHeight)),
     readerImplementation: normalizeReaderImplementation(
       stringField(record, 'readerImplementation', fallback.readerImplementation)),
     wideImageMode: normalizeReaderWideImageMode(stringField(record, 'wideImageMode', fallback.wideImageMode)),
@@ -456,6 +506,11 @@ export function applyReaderSeriesModeOverride(
     tapZoneInvert: preferences.tapZoneInvert,
     pageGapMode: preferences.pageGapMode,
     trimPageMarginsEnabled: preferences.trimPageMarginsEnabled,
+    cropStrength: preferences.cropStrength,
+    superResolutionEnabled: preferences.superResolutionEnabled,
+    superResolutionModel: preferences.superResolutionModel,
+    superResolutionBackend: preferences.superResolutionBackend,
+    superResolutionMaxHeight: preferences.superResolutionMaxHeight,
     wideImageMode: preferences.wideImageMode,
     volumeKeyNavigationEnabled: preferences.volumeKeyNavigationEnabled,
     volumeKeyBehavior: preferences.volumeKeyBehavior,
@@ -636,6 +691,11 @@ export function rebaseReaderPreferenceChanges(base: ReaderPreferences, previous:
   if (previous.tapZoneInvert !== next.tapZoneInvert) rebased.tapZoneInvert = next.tapZoneInvert
   if (previous.pageGapMode !== next.pageGapMode) rebased.pageGapMode = next.pageGapMode
   if (previous.trimPageMarginsEnabled !== next.trimPageMarginsEnabled) rebased.trimPageMarginsEnabled = next.trimPageMarginsEnabled
+  if (previous.cropStrength !== next.cropStrength) rebased.cropStrength = next.cropStrength
+  if (previous.superResolutionEnabled !== next.superResolutionEnabled) rebased.superResolutionEnabled = next.superResolutionEnabled
+  if (previous.superResolutionModel !== next.superResolutionModel) rebased.superResolutionModel = next.superResolutionModel
+  if (previous.superResolutionBackend !== next.superResolutionBackend) rebased.superResolutionBackend = next.superResolutionBackend
+  if (previous.superResolutionMaxHeight !== next.superResolutionMaxHeight) rebased.superResolutionMaxHeight = next.superResolutionMaxHeight
   if (previous.wideImageMode !== next.wideImageMode) rebased.wideImageMode = next.wideImageMode
   if (previous.volumeKeyNavigationEnabled !== next.volumeKeyNavigationEnabled) rebased.volumeKeyNavigationEnabled = next.volumeKeyNavigationEnabled
   if (previous.volumeKeyBehavior !== next.volumeKeyBehavior) rebased.volumeKeyBehavior = next.volumeKeyBehavior
@@ -703,6 +763,11 @@ export class ReaderPreferencesStore {
     const tapZoneInvert = await store.get('reader.tapZoneInvert', DEFAULT_READER_PREFERENCES.tapZoneInvert) as string
     const pageGapMode = await store.get('reader.pageGapMode', DEFAULT_READER_PREFERENCES.pageGapMode) as string
     const trimPageMarginsEnabled = await store.get('reader.trimPageMarginsEnabled', DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled) as boolean
+    const cropStrength = await store.get('reader.cropStrength', DEFAULT_READER_PREFERENCES.cropStrength) as string
+    const superResolutionEnabled = await store.get('reader.superResolutionEnabled', DEFAULT_READER_PREFERENCES.superResolutionEnabled) as boolean
+    const superResolutionModel = await store.get('reader.superResolutionModel', DEFAULT_READER_PREFERENCES.superResolutionModel) as string
+    const superResolutionBackend = await store.get('reader.superResolutionBackend', DEFAULT_READER_PREFERENCES.superResolutionBackend) as string
+    const superResolutionMaxHeight = await store.get('reader.superResolutionMaxHeight', DEFAULT_READER_PREFERENCES.superResolutionMaxHeight) as number
     const readerImplementation = await store.get('reader.readerImplementation', DEFAULT_READER_PREFERENCES.readerImplementation) as string
     const wideImageMode = await store.get('reader.wideImageMode', DEFAULT_READER_PREFERENCES.wideImageMode) as string
     const volumeKeyNavigationEnabled = await store.get('reader.volumeKeyNavigationEnabled', DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled) as boolean
@@ -731,6 +796,11 @@ export class ReaderPreferencesStore {
       tapZoneInvert: normalizeReaderTapZoneInvert(tapZoneInvert),
       pageGapMode: normalizeReaderPageGapMode(pageGapMode),
       trimPageMarginsEnabled,
+      cropStrength: normalizeReaderCropStrength(cropStrength),
+      superResolutionEnabled: superResolutionEnabled === true,
+      superResolutionModel: normalizeReaderSuperResolutionModel(superResolutionModel),
+      superResolutionBackend: (superResolutionBackend === 'cpu' || superResolutionBackend === 'vulkan') ? superResolutionBackend : 'auto',
+      superResolutionMaxHeight: normalizeReaderSuperResolutionMaxHeight(superResolutionMaxHeight),
       readerImplementation: normalizeReaderImplementation(readerImplementation),
       wideImageMode: normalizeReaderWideImageMode(wideImageMode),
       volumeKeyNavigationEnabled,
@@ -794,6 +864,11 @@ export class ReaderPreferencesStore {
       'reader.tapZoneInvert',
       'reader.pageGapMode',
       'reader.trimPageMarginsEnabled',
+      'reader.cropStrength',
+      'reader.superResolutionEnabled',
+      'reader.superResolutionModel',
+      'reader.superResolutionBackend',
+      'reader.superResolutionMaxHeight',
       'reader.readerImplementation',
       'reader.wideImageMode',
       'reader.volumeKeyNavigationEnabled',
@@ -825,6 +900,11 @@ export class ReaderPreferencesStore {
       await store.put('reader.tapZoneInvert', normalized.tapZoneInvert)
       await store.put('reader.pageGapMode', normalized.pageGapMode)
       await store.put('reader.trimPageMarginsEnabled', normalized.trimPageMarginsEnabled)
+      await store.put('reader.cropStrength', normalized.cropStrength)
+      await store.put('reader.superResolutionEnabled', normalized.superResolutionEnabled)
+      await store.put('reader.superResolutionModel', normalized.superResolutionModel)
+      await store.put('reader.superResolutionBackend', normalized.superResolutionBackend)
+      await store.put('reader.superResolutionMaxHeight', normalized.superResolutionMaxHeight)
       await store.put('reader.readerImplementation', normalized.readerImplementation)
       await store.put('reader.wideImageMode', normalized.wideImageMode)
       await store.put('reader.volumeKeyNavigationEnabled', normalized.volumeKeyNavigationEnabled)
@@ -983,6 +1063,11 @@ export class ReaderPreferencesStore {
       tapZoneInvert: current.tapZoneInvert,
       pageGapMode: current.pageGapMode,
       trimPageMarginsEnabled: current.trimPageMarginsEnabled,
+      cropStrength: current.cropStrength,
+      superResolutionEnabled: current.superResolutionEnabled,
+      superResolutionModel: current.superResolutionModel,
+      superResolutionBackend: current.superResolutionBackend,
+      superResolutionMaxHeight: current.superResolutionMaxHeight,
       readerImplementation: current.readerImplementation,
       wideImageMode: current.wideImageMode,
       volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,

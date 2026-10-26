@@ -10,7 +10,8 @@ import {
 import { KomaReaderFailure } from './KomaReaderFailure'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { ReaderFileCropSource, ReaderFileInformation } from '@reader-kit/ui'
+import { ReaderFileInformation } from '@reader-kit/ui'
+import { KomaReaderCropSource } from './KomaReaderCropSource'
 import { InMemoryLibraryStore } from '../model/LibraryStore'
 import { ComicSourceKind } from '../model/ComicModels'
 import { localLibraryFolderRootUriFromComic } from '../model/LocalLibraryFolderContract'
@@ -71,6 +72,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private automaticallyRefreshedUnits: Set<string> = new Set()
   private automaticPageRetries: Set<string> = new Set()
   private chapterPreloadEnabled: boolean
+  private cropStrength: () => string
   private closed: boolean = false
   private catalogFailureText: string = ''
 
@@ -83,8 +85,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private unitId(key: ReaderUnitKey): string { return JSON.stringify([key.scope, key.work, key.unit]) }
 
   constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null,
-    requestContext?: common.UIAbilityContext, chapterPreloadEnabled: boolean = false) {
+    requestContext?: common.UIAbilityContext, chapterPreloadEnabled: boolean = false,
+    cropStrength: () => string = (): string => 'standard') {
     this.chapterPreloadEnabled = chapterPreloadEnabled
+    this.cropStrength = cropStrength
     this.requestContext = requestContext
     this.filesDir = filesDir
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
@@ -407,8 +411,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (kind === 'thumbnail') return this.thumbnails.load(filePath, cancellation)
     const asset = new ReaderAsset(filePath.startsWith('/') ? `file://${filePath}` : filePath,
       () => {}, new KomaReaderFileInformation(filePath))
-    asset.crop = new ReaderFileCropSource(filePath,
-      `${page.unit.scope}:${page.unit.work}:${page.unit.unit}:${page.key}`)
+    asset.crop = new KomaReaderCropSource(filePath, this.cropStrength)
     return asset
   }
 

@@ -7,10 +7,10 @@ import { ReadingDirection } from '../model/ComicModels'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
-  ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout } from '@reader-kit/core'
+  ReaderObservedPosition, ReaderPagedSession, ReaderUnitKey, ReaderLayout, ReaderVariantPreference, ReaderAsset, ReaderPage } from '@reader-kit/core'
 import { ReaderActivitySink, ReaderAutoReadPolicy, ReaderCenterAction, ReaderCropPolicy, ReaderChapterNavigation, ReaderHostAction, ReaderHostSettings, ReaderObservationSink, ReaderPreferenceSink, ReaderHostActions, ReaderMediaActions, ReaderKeepScreenOn, ReaderLabRequest, ReaderLabSurface, ReaderSurface, ReaderTrialLayoutCommit, ReaderTrialWindow,
   ReaderLabVisibilityState, ReaderSystemImageSaveHost, ReaderVolumeKeys, connectReaderLabVisibility, ReaderTapAction,
-  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition } from '@reader-kit/ui'
+  ReaderTapZonePreviewRegion, ReaderModeControlParams, ReaderTitleParams, ReaderChromeAppearance, ReaderRouteTransition, ReaderVariantPolicy } from '@reader-kit/ui'
 import { KomaReaderLabAdapter, KomaReaderLabChapterChoice } from './KomaReaderLabAdapter'
 import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -27,6 +27,8 @@ import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { AppStrings } from '../i18n/AppStrings'
 import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
+import { KomaReaderSuperResolutionConfiguration, KomaReaderSuperResolutionProvider } from './KomaReaderSuperResolutionProvider'
+import { readerSuperResolutionSetInteractionPaused } from '../model/ReaderSuperResolutionService'
 
 // A surface keeps one non-null session for its whole component lifetime.
 // Re-entry replaces the entry, rather than updating a mounted surface to null.
@@ -69,6 +71,7 @@ export struct KomaReaderLabPage {
     topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: true, mediaActionsInMenu: true,
     spreadControlsLeading: true,
   }
+  private enhancementInteractionTimer: number = -1
   private observedCloseRequestId: number = 0
 
   @Event readInitialColumn: (work: string, unit: string) => ReaderColumnMode = () => {
@@ -216,13 +219,19 @@ export struct KomaReaderLabPage {
     if (this.request.readingChrome) this.session = null
     this.readerClosed = false
     try {
-      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry)
+      const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry,
+        (): string => this.hostPreferences?.cropStrength ?? 'standard')
       this.adapter = adapter
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
       this.initialPageIndex = this.request.pageIndex
-      const session = new ReaderPagedSession(adapter, adapter, adapter, adapter)
+      const enhancement = new KomaReaderSuperResolutionProvider(context, adapter,
+        (): KomaReaderSuperResolutionConfiguration => this.superResolutionConfiguration(),
+        (): string => this.hostPreferences?.cropStrength ?? 'standard',
+        undefined, (page: ReaderPage, cancellation: ReaderCancellation): Promise<ReaderAsset> =>
+          adapter.load(page, 'original', cancellation, false))
+      const session = new ReaderPagedSession(adapter, enhancement, adapter, adapter)
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
         this.keepScreenOn = new ReaderKeepScreenOn(context)
@@ -289,6 +298,7 @@ export struct KomaReaderLabPage {
 
 
   aboutToDisappear(): void {
+    this.releaseEnhancementInteraction()
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
@@ -319,6 +329,7 @@ export struct KomaReaderLabPage {
   }
 
   private closeReader(): void {
+    this.releaseEnhancementInteraction()
     this.readerClosed = true
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
@@ -594,6 +605,33 @@ export struct KomaReaderLabPage {
     this.syncVolumeKeys()
   }
 
+  /** Processing follows the store's published runtime snapshot, never an uncommitted sheet draft. */
+  private superResolutionConfiguration(): KomaReaderSuperResolutionConfiguration {
+    return new KomaReaderSuperResolutionConfiguration(this.readerMode.superResolutionEnabled,
+      this.readerMode.superResolutionModel, this.readerMode.superResolutionBackend,
+      this.readerMode.superResolutionMaxHeight)
+  }
+
+  private setEnhancementInteractionBusy(busy: boolean): void {
+    if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
+    this.enhancementInteractionTimer = -1
+    if (busy) {
+      readerSuperResolutionSetInteractionPaused(true)
+      return
+    }
+    // NextE's GPU interaction protection; this never delays navigation or pixels.
+    this.enhancementInteractionTimer = setTimeout((): void => {
+      this.enhancementInteractionTimer = -1
+      readerSuperResolutionSetInteractionPaused(false)
+    }, 420)
+  }
+
+  private releaseEnhancementInteraction(): void {
+    if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
+    this.enhancementInteractionTimer = -1
+    readerSuperResolutionSetInteractionPaused(false)
+  }
+
   private currentReaderMode(): ReaderMode {
     const policy = this.session?.snapshot().policy
     if (policy !== undefined) {
@@ -684,6 +722,8 @@ export struct KomaReaderLabPage {
         readerMode: this.currentReaderMode(),
         preferences: this.hostPreferences,
         seriesOverrideActive: this.seriesOverrideActive,
+        cropControlsAvailable: true,
+        enhancementControlsAvailable: true,
         onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
         onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
         onClose: (): void => { this.closeHostSettings() },
@@ -764,8 +804,14 @@ export struct KomaReaderLabPage {
                   (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
                 pageGap: this.readerPageGap(),
                 preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
+                activitySink: new ReaderActivitySink(null,
+                  (busy: boolean): void => { this.setEnhancementInteractionBusy(busy) }),
+                variantPolicy: new ReaderVariantPolicy(new ReaderVariantPreference(
+                  this.readerMode.superResolutionEnabled && this.readerMode.superResolutionModel !== 'none'
+                    ? 'enhanced' : 'default', this.superResolutionConfiguration().identity())),
                 cropPolicy: new ReaderCropPolicy(
-                  this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true),
+                  this.hostPreferences?.trimPageMarginsEnabled ?? this.readerMode.trimPageMarginsEnabled, true,
+                  this.hostPreferences?.cropStrength ?? this.readerMode.cropStrength),
                 hostSettings: this.request.preferencesReadWrite
                   ? new ReaderHostSettings((): void => { this.openHostSettings() }) : null,
                 hostActions: this.hostActionDispatch,

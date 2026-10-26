@@ -38,6 +38,14 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  const before=await store.load();const one={...before,showPageNumber:false};const two={...before,preloadPages:3};
  await Promise.all([store.saveChanges(before,one),other.saveChanges(before,two)]);
  const merged=await store.load();assert.equal(merged.showPageNumber,false);assert.equal(merged.preloadPages,3);
+ // Adopted crop strength uses the same serialized delta owner, not a shadow preference store.
+ const cropBefore=await store.load();
+ await Promise.all([
+  store.saveChanges(cropBefore,{...cropBefore,trimPageMarginsEnabled:true,cropStrength:'strong'}),
+  other.saveChanges(cropBefore,{...cropBefore,autoPageSeconds:8})
+ ]);
+ const cropped=await store.load();assert.equal(cropped.trimPageMarginsEnabled,true);assert.equal(cropped.cropStrength,'strong');assert.equal(cropped.autoPageSeconds,8);
+ assert.equal((await store.loadForComic('crop-book')).cropStrength,'strong');
  const baseline=await store.load();
  await Promise.all([
   store.saveChangesForComic('A',baseline,{...baseline,pageMode:'double_page',readingDirection:ReadingDirection.RIGHT_TO_LEFT,columnMode:'even_left'}),

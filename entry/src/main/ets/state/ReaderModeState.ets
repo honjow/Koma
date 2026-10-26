@@ -1,5 +1,26 @@
 import { AppStorageV2 } from '@kit.ArkUI'
 
+/** Same executable model identities as NextE; model installation stays host-owned. */
+export enum ReaderSuperResolutionModel {
+  NONE = 'none',
+  SYSTEM_CORE_VISION = 'systemCoreVision',
+  ESPCN_X2 = 'espcn2x',
+  WAIFU2X_PHOTO_NOISE0_2X = 'waifu2xPhotoNoise0_2x',
+  WAIFU2X_ART_NOISE0_2X = 'waifu2xArtNoise0_2x',
+  WAIFU2X_CUNET_NOISE0_2X = 'waifu2xCunetNoise0_2x',
+  REAL_CUGAN_SE_2X_CONSERVATIVE = 'realCuganSe2xConservative',
+  REAL_ESRGAN_X2PLUS = 'realEsrganX2plus',
+  REAL_ESRGAN_ANIMEVIDEO_V3_X2 = 'realEsrganAnimeVideoV3_2x',
+}
+
+export enum ReaderSuperResolutionBackend {
+  AUTO = 'auto',
+  VULKAN = 'vulkan',
+  CPU = 'cpu',
+}
+
+export const READER_SUPER_RESOLUTION_MAX_SOURCE_HEIGHT: number = 2000
+
 /**
  * The process-wide reader interaction state.
  *
@@ -28,6 +49,11 @@ export class ReaderModeSnapshot {
   tapZoneInvert: string
   pageGapMode: string
   trimPageMarginsEnabled: boolean
+  cropStrength: string
+  superResolutionEnabled: boolean
+  superResolutionModel: string
+  superResolutionBackend: string
+  superResolutionMaxHeight: number
   wideImageMode: string
   volumeKeyNavigationEnabled: boolean
   volumeKeyBehavior: string
@@ -56,6 +82,11 @@ export class ReaderModeSnapshot {
     volumeKeyNavigationEnabled: boolean,
     volumeKeyBehavior: string,
     columnMode: string,
+    cropStrength: string = 'standard',
+    superResolutionEnabled: boolean = false,
+    superResolutionModel: string = 'none',
+    superResolutionBackend: string = 'auto',
+    superResolutionMaxHeight: number = 2000,
   ) {
     this.pageMode = pageMode
     this.readingDirection = readingDirection
@@ -75,6 +106,11 @@ export class ReaderModeSnapshot {
     this.tapZoneInvert = tapZoneInvert
     this.pageGapMode = pageGapMode
     this.trimPageMarginsEnabled = trimPageMarginsEnabled
+    this.cropStrength = cropStrength
+    this.superResolutionEnabled = superResolutionEnabled
+    this.superResolutionModel = superResolutionModel
+    this.superResolutionBackend = superResolutionBackend
+    this.superResolutionMaxHeight = superResolutionMaxHeight
     this.wideImageMode = wideImageMode
     this.volumeKeyNavigationEnabled = volumeKeyNavigationEnabled
     this.volumeKeyBehavior = volumeKeyBehavior
@@ -102,6 +138,11 @@ export class ReaderModeState {
   @Trace tapZoneInvert: string = 'none'
   @Trace pageGapMode: string = 'normal'
   @Trace trimPageMarginsEnabled: boolean = false
+  @Trace cropStrength: string = 'standard'
+  @Trace superResolutionEnabled: boolean = false
+  @Trace superResolutionModel: string = 'none'
+  @Trace superResolutionBackend: string = 'auto'
+  @Trace superResolutionMaxHeight: number = 2000
   @Trace wideImageMode: string = 'keep_single'
   @Trace volumeKeyNavigationEnabled: boolean = false
   @Trace volumeKeyBehavior: string = 'up_previous_down_next'
@@ -142,6 +183,11 @@ export class ReaderModeStateBridge {
       state.tapZoneInvert !== next.tapZoneInvert ||
       state.pageGapMode !== next.pageGapMode ||
       state.trimPageMarginsEnabled !== next.trimPageMarginsEnabled ||
+      state.cropStrength !== next.cropStrength ||
+      state.superResolutionEnabled !== next.superResolutionEnabled ||
+      state.superResolutionModel !== next.superResolutionModel ||
+      state.superResolutionBackend !== next.superResolutionBackend ||
+      state.superResolutionMaxHeight !== next.superResolutionMaxHeight ||
       state.wideImageMode !== next.wideImageMode ||
       state.volumeKeyNavigationEnabled !== next.volumeKeyNavigationEnabled ||
       state.volumeKeyBehavior !== next.volumeKeyBehavior
@@ -164,6 +210,11 @@ export class ReaderModeStateBridge {
     state.tapZoneInvert = next.tapZoneInvert
     state.pageGapMode = next.pageGapMode
     state.trimPageMarginsEnabled = next.trimPageMarginsEnabled
+    state.cropStrength = next.cropStrength
+    state.superResolutionEnabled = next.superResolutionEnabled
+    state.superResolutionModel = next.superResolutionModel
+    state.superResolutionBackend = next.superResolutionBackend
+    state.superResolutionMaxHeight = next.superResolutionMaxHeight
     state.wideImageMode = next.wideImageMode
     state.volumeKeyNavigationEnabled = next.volumeKeyNavigationEnabled
     state.volumeKeyBehavior = next.volumeKeyBehavior
@@ -198,6 +249,11 @@ export class ReaderModeStateBridge {
       state.volumeKeyNavigationEnabled,
       state.volumeKeyBehavior,
       columnMode,
+      state.cropStrength,
+      state.superResolutionEnabled,
+      state.superResolutionModel,
+      state.superResolutionBackend,
+      state.superResolutionMaxHeight,
     )
   }
 }

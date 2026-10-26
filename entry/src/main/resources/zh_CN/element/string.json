@@ -297,6 +297,10 @@
     { "name": "settings_row_reader_page_gap_detail", "value": "页面之间的间距" },
     { "name": "settings_row_reader_trim_page_margins_title", "value": "裁剪页边空白" },
     { "name": "settings_row_reader_trim_page_margins_detail", "value": "裁掉页面空白边距" },
+    { "name": "reader_crop_strength_title", "value": "裁边强度" },
+    { "name": "reader_crop_strength_conservative", "value": "保守" },
+    { "name": "reader_crop_strength_standard", "value": "标准" },
+    { "name": "reader_crop_strength_strong", "value": "强力" },
     { "name": "settings_row_reader_wide_image_mode_title", "value": "宽图模式" },
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "宽页的处理方式" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "音量键翻页" },
@@ -1534,6 +1538,62 @@
     {
       "name": "source_web_disconnect_failed",
       "value": "未能保存会话断开状态，请重试。"
+    },
+    {
+      "name": "settings_reader_super_resolution",
+      "value": "图像增强"
+    },
+    {
+      "name": "settings_reader_super_resolution_model",
+      "value": "增强模型"
+    },
+    {
+      "name": "settings_reader_super_resolution_model_not_selected",
+      "value": "未选择"
+    },
+    {
+      "name": "settings_reader_super_resolution_model_download",
+      "value": "下载"
+    },
+    {
+      "name": "settings_reader_super_resolution_model_downloading_short",
+      "value": "下载中…"
+    },
+    {
+      "name": "settings_reader_super_resolution_model_download_failed",
+      "value": "超分模型下载失败"
+    },
+    {
+      "name": "settings_reader_super_resolution_system",
+      "value": "系统图像超分"
+    },
+    {
+      "name": "settings_reader_super_resolution_espcn_2x",
+      "value": "ESPCN (2x)"
+    },
+    {
+      "name": "settings_reader_super_resolution_waifu2x_photo_noise0_2x",
+      "value": "waifu2x (photo, 2x, noise0)"
+    },
+    {
+      "name": "settings_reader_super_resolution_waifu2x_art_noise0_2x",
+      "value": "waifu2x (art, 2x, noise0)"
+    },
+    {
+      "name": "settings_reader_super_resolution_waifu2x_cunet_noise0_2x",
+      "value": "waifu2x (CUNet, 2x, noise0)"
+    },
+    {
+      "name": "settings_reader_super_resolution_realcugan_se_2x_conservative",
+      "value": "Real-CUGAN (SE, 2x, conservative)"
+    },
+    {
+      "name": "settings_reader_super_resolution_realesrgan_x2plus",
+      "value": "Real-ESRGAN (photo, 2x)"
+    },
+    {
+      "name": "settings_reader_super_resolution_realesrgan_animevideov3_2x",
+      "value": "Real-ESRGAN (animevideo-v3, 2x)"
     }
   ]
 }
