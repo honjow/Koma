@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "设置与源宿主具名范围已交付；原未解决缺陷及真实provider验收继续",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-26T22:18:35+00:00",
+  "updatedAt": "2026-10-26T22:22:22+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_EMPTY_SETTINGS_ENTRY",
-  "activity": "当前源线MD三源e826已精确push，文档CI40411219836 success/构建发布CI40411220665 in_progress，公开资产尚未核。Root亲审471简中P1/15与474繁中P1/32；477settings/81源身份顺序及书ID顺序同，478修正reader recv只读路径错误，不冒全ledger恢复。source_fixes237自然管理边界接ComicFury/再漫画，Host19813CI成功但18885085新模板Native未验，941映射具名保持。",
-  "nextAction": "Root核e826构建发布CI及准确85索引/三包；source_fixes继续ComicFury/再漫画原源任务及237最终GUI/系统恢复，不重跑MD或将Host模板当NextE整项完成。",
+  "activity": "MD e826双精确CI成功且准确release/tag/85索引/三包manifest与WASM头核验完成，无本批源交付等待。477settings同461/81 sourceId启用顺序与书id顺序Root独立核；reader ledger未全恢复。source_fixes237继续ComicFury/再漫画，Host18885085新模板未Native。App纯文档dbb23f91已push，不当新产品或新增CI等待。",
+  "nextAction": "source_fixes继续ComicFury/再漫画原矩阵及237最终GUI/系统/原继续目标恢复；MD公开闭环不重跑，Host新模板须适用Native验证，原总项不终止。",
   "proof": [
     {
       "label": "正式主仓",
@@ -34,9 +34,9 @@
     },
     {
       "label": "远端同步",
-      "state": "Host最新精确CI成功；源当前WIP继续",
+      "state": "AppHost及MD源准确公开资产完成；下一源任务继续",
       "kind": "accepted",
-      "detail": "KomaHost19813dd3精确CI40410206428 success，无新App发版；源MD e826已push，40411219836 success/40411220665 in_progress，准确公开资产未核，237下一ComicFury/再漫画。"
+      "detail": "App产品19813精确CI成功，纯文档dbb23f91已push不作新产品/CI待办；MD e826双CI及准确公开85索引/三包核验成功，237后继ComicFury/再漫画与最终恢复仍执行。"
     },
     {
       "label": "共享阅读器",
@@ -61,7 +61,7 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Host五文件19813dd3dc0a2c7e241daef58529c609f7b2649d已push，精确CI40410206428 completed/success；无新App tag/release，18885085新模板Native未验。",
+      "appHead": "产品19813dd3精确CI40410206428 success；纯文档dbb23f91已push，不新增产品/CI等待，18885085新模板Native未验。",
       "hap": "197当前18878809，增强信息及当前页/三个priority=1预载任务process_success具名，b861只读日志finally已释租；237同包由source_fixes继续MangaDex/最终系统尚未恢复。"
     },
     {
@@ -1712,21 +1712,21 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "source_fixes：MD e826已push/文档CI成功/构建发布CI进行中；237接ComicFury/再漫画",
+      "owner": "source_fixes：MD e826精确公开资产闭环；237继续ComicFury/再漫画及最终恢复",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-      "result": "MD三源e8260f6eeebb75755cb4a1b9a05a423384369a33（父6d30，十一文件183增86删）Root逐文件审后精确HTTPS push成功。465/466英文中等Home/.512与详情封面具名，章节不支持未改未读；469简中中等/on持久、471P1/15真简中、472实际data-saver；473恢复简中+繁中低/on持久、474P1/32真繁体、475 .256/data-saver，Root亲审正文。476普通恢复、477settings同461/81源ID enabled order同/书ID order同；reader recv路径harness失败保留、478只读正确远端成功，不称全reader ledger恢复。CI40411219836文档success、40411220665构建发布in_progress，准确公开资产未核。",
+      "result": "MD三源真实质量/语言正文/data-saver Native具名，477settings同461、81真实sourceId/enabled/order及书id/order同已Root独立核；整体reader ledger未全恢复。e826双CI40411219836/40411220665 success，准确release424830084/tag sources-e8260f6eeebb75755cb4a1b9a05a423384369a33目标同SHA、非draft/pre、published2026-10-26T22:19:10Z。实取85唯一索引/三包，manifest关键字段与index同、WASM header有效：mangadex0.1.13包25660B/WASM98645B，Hans0.1.1为41647/83376B，Hant0.1.1为41737/83518B；public-e8260f6/inspection.json具据。",
       "evidencePoints": [
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb"
       ],
       "remainingActions": [
-        "Root核e826构建发布CI40411220665及准确85索引/三包，当前不称发布成功；source_fixes自然管理边界续ComicFury/再漫画，不重跑MD。237原租约awake与原继续目标/整体reader ledger待后继普通GUI恢复，不冒全读态同。18885085 Host新模板尚未Native，适用源接入由唯一237 owner验证。"
+        "MD e826该批源push/双CI/准确公开索引三包已闭环，无该批等待，不重跑MD。source_fixes继续ComicFury/再漫画与237最终GUI/系统/原继续目标恢复；整体reader ledger未全恢复保留，Host18885085新模板尚未Native，不把源局部完成当总项或所有70任务完成。"
       ],
-      "remaining": "Root核e826构建发布CI40411220665及准确85索引/三包，当前不称发布成功；source_fixes自然管理边界续ComicFury/再漫画，不重跑MD。237原租约awake与原继续目标/整体reader ledger待后继普通GUI恢复，不冒全读态同。18885085 Host新模板尚未Native，适用源接入由唯一237 owner验证。",
+      "remaining": "MD e826该批源push/双CI/准确公开索引三包已闭环，无该批等待，不重跑MD。source_fixes继续ComicFury/再漫画与237最终GUI/系统/原继续目标恢复；整体reader ledger未全恢复保留，Host18885085新模板尚未Native，不把源局部完成当总项或所有70任务完成。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -2560,11 +2560,11 @@
     }
   ],
   "source": {
-    "status": "MD e826已push/文档CI成功，构建发布CI进行中；237接ComicFury/再漫画",
+    "status": "MD e826双CI/准确公开资产完成；237继续ComicFury/再漫画",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "MD三源真实质量/语言正文与data-saver Native具名，477设置/81源身份启用顺序/书ID顺序保持；e826精确push成功，CI40411219836 success、40411220665 in_progress，准确公开85索引/三包未核。",
-    "remaining": "Root核e826构建发布CI及准确公开资产；source_fixes继续ComicFury/再漫画与237最终GUI/系统恢复，reader ledger不称全字节恢复，MD已具名范围不重跑。",
+    "result": "e826准确非draft/pre公开tag/目标SHA、85唯一索引、三包manifest/index/WASM header均核；包/WASM：MD25660/98645B、Hans41647/83376B、Hant41737/83518B。477settings/81源ID启用顺序/书ID顺序Root独立核同；整体reader ledger未全恢复。",
+    "remaining": "MD e826无push/CI/公开等待，source_fixes继续ComicFury/再漫画及237最终GUI/系统恢复；Host18885085新模板未Native，源总项不关闭。",
     "commit": "e8260f6eeebb75755cb4a1b9a05a423384369a33"
   },
   "milestones": [],
