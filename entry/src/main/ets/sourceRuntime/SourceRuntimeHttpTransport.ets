@@ -8,6 +8,7 @@ import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 
 interface SourceHttpRequestEnvelope {
+  requests?: SourceHttpRequestEnvelope[]
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
   headers?: Object | string | number | boolean | null
@@ -47,6 +48,9 @@ let verifiedSourceGet: VerifiedSourceGet | undefined = undefined
 
 const SOURCE_HTTP_DEFAULT_TIMEOUT_MS: number = 15000
 const SOURCE_HTTP_MAX_TIMEOUT_MS: number = 60000
+// Matches the reference's bounded source-probe concurrency; a source with a
+// large catalogue must submit successive groups, not fan out every edition.
+const SOURCE_HTTP_BATCH_MAX_REQUESTS: number = 5
 
 class SourceHttpErrorPayload {
   code: string
@@ -83,6 +87,15 @@ class SourceHttpSuccessEnvelope {
     this.status = status
     this.bodyText = bodyText
     if (accessSignal !== undefined) this.accessSignal = accessSignal
+  }
+}
+
+class SourceHttpBatchSuccessEnvelope {
+  ok: boolean = true
+  responses: Object[]
+
+  constructor(responses: Object[]) {
+    this.responses = responses
   }
 }
 
@@ -222,6 +235,33 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     envelope = JSON.parse(requestJson) as SourceHttpRequestEnvelope
   } catch (_error) {
     return transportError('invalid_request', false)
+  }
+  if (envelope === null || Array.isArray(envelope) || typeof envelope !== 'object') {
+    return transportError('invalid_request', false)
+  }
+  if (envelope.requests !== undefined) {
+    // A source may group independent reads without changing the synchronous
+    // WASM import. Reuse every ordinary request's identity, rate policy,
+    // redirects and transport errors; never grant a batch its own session.
+    const requests = envelope.requests
+    if (probe !== undefined || !Array.isArray(requests) || requests.length === 0 || requests.length > SOURCE_HTTP_BATCH_MAX_REQUESTS) {
+      return transportError('invalid_request', false)
+    }
+    // Validate the whole group before starting any network request. Nested
+    // groups would evade the concurrency bound and are not part of this ABI.
+    for (const request of requests) {
+      if (request === null || typeof request !== 'object' || Array.isArray(request) ||
+        request.requests !== undefined || sourceHttpUrl(request.url) === undefined || sourceMethod(request.method) === undefined) {
+        return transportError('invalid_request', false)
+      }
+      const body = sourceString(request.bodyBase64) ?? sourceString(request.body) ?? ''
+      if (body.length > 1024 * 1024) return transportError('request_too_large', false)
+    }
+    const responses = await Promise.all(requests.map(async (request: SourceHttpRequestEnvelope): Promise<Object> => {
+      const response = await executeSourceHttpRequest(JSON.stringify(request), httpContextJson)
+      return JSON.parse(response) as Object
+    }))
+    return JSON.stringify(new SourceHttpBatchSuccessEnvelope(responses))
   }
   const url = sourceHttpUrl(envelope.url)
   const method = sourceMethod(envelope.method)

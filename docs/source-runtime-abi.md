@@ -41,7 +41,9 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 ## 宿主特性
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`mangabz_language_cookie_v1` 和 `source_settings_context_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 和 `source_http_batch_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+
+`source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
 
 `mangabz_language_cookie_v1` 支持已采用的 MangaBz 简繁设置：源在请求中提供 `mangabz_lang=2`（默认简体）或 `1`（繁体）。只有宿主确认的 `com.mangabz.koma` 身份、实际请求域为 `mangabz.com` 或其子域、且源头包含唯一合法语言项时，该项才能替换同名会话 Cookie；其它 Cookie、验证/登录、UA、源会话及重定向边界保持。每跳重新核域，不写 Web Cookie 仓，也不允许源覆盖其它会话 Cookie；图像描述只有同站地址可带语言项，外域 CDN 不携带。源设置改变沿现有页表设置身份按需重取，不清图片缓存或主动改写书库已有标题；旧空设置页表仍沿原兼容合同保留，不能声称默认切换自动刷新了它。
 

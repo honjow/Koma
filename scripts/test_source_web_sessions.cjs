@@ -129,7 +129,56 @@ function fixture(sdkApiVersion = 23) {
     changeEntry: fn => { entry = fn(entry) }, setCookie: value => { cookie = value },
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
-const response = (status = 200, header = {}) => ({ responseCode: status, result: 'public-body', header })
+const response = (status = 200, header = {}, body = 'public-body') => ({ responseCode: status, result: body, header })
+test('one bounded HTTP group starts all original requests and keeps response order, session and failures', async () => {
+  const f = fixture(); f.grant()
+  const deferred = Array.from({ length: 5 }, () => {
+    let resolve, reject
+    const promise = new Promise((yes, no) => { resolve = yes; reject = no })
+    return { promise, resolve, reject }
+  })
+  const pending = deferred.map(item => item.promise)
+  const requests = pending.map((_, index) => ({ url: `https://site.invalid/probe/${index}`, method: 'POST',
+    bodyBase64: `request-${index}`, timeoutMs: 15000 }))
+  // Control the clock when checking the original timeout budget; fixture CPU
+  // time must not make the expected remaining budget nondeterministic.
+  const running = f.http(pending, JSON.stringify(f.identity()), { url: undefined, method: undefined, requests },
+    { clock: { now: () => 1000 } })
+  // None of the responses can complete yet. All five must already be in
+  // NetworkKit; a serial implementation leaves four promises unconsumed.
+  for (let i = 0; i < 30; i++) await Promise.resolve()
+  assert.equal(pending.length, 0)
+  deferred[4].resolve(response(200, {}, 'probe-4'))
+  deferred[2].resolve(response(503, {}, 'probe-2'))
+  deferred[3].reject(Object.assign(Error('timeout'), { code: 2300028 }))
+  deferred[1].resolve(response(200, {}, 'probe-1'))
+  deferred[0].resolve(response(200, {}, 'probe-0'))
+  const actual = await running
+  assert.equal(actual.result.ok, true)
+  assert.deepEqual(actual.result.responses.map(item => item.bodyText ?? item.error.code),
+    ['probe-0', 'probe-1', 'probe-2', 'timeout', 'probe-4'])
+  assert.equal(actual.result.responses[2].status, 503)
+  assert.equal(actual.result.responses[3].ok, false)
+  assert.equal(actual.calls.length, 5)
+  assert(actual.instances.every(item => item.destroyed))
+  actual.calls.forEach((call, index) => {
+    assert.equal(call.options.extraData, `request-${index}`)
+    assert.equal(call.options.header.Cookie, 'private-cookie-value')
+    assert.equal(call.options.header['User-Agent'], 'ActualWebViewUA')
+    assert.equal(call.options.readTimeout, 15000)
+  })
+})
+
+test('invalid, oversized or nested HTTP groups make no partial network request', async () => {
+  const request = { url: 'https://site.invalid/probe', method: 'POST' }
+  for (const requests of [[], Array(6).fill(request), [request, { requests: [request] }],
+    [request, { ...request, url: 'file:///private' }], [request, { ...request, bodyBase64: 'x'.repeat(1024 * 1024 + 1) }]]) {
+    const actual = await fixture().http([], '', { url: undefined, method: undefined, requests })
+    assert.equal(actual.result.ok, false)
+    assert.equal(actual.calls.length, 0)
+  }
+})
+
 test('rate queue waiting preserves the existing network timeout budget and rechecks session cookies', async () => {
   const f = fixture(); f.grant()
   let now = 1000
