@@ -9,6 +9,8 @@ const read = name => fs.readFileSync(path.join(root, 'entry/src/main/ets', name 
 const compile = source => ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
 }).outputText
+const chapterVisibility = {}
+new Function('exports', 'require', compile(read('model/SourceChapterVisibility')))(chapterVisibility, () => ({}))
 const strings = { get: key => key, format: (_key, text, status) => `${text} HTTP ${status}` }
 const errors = { exports: {} }
 new Function('module', 'exports', 'require', compile(read('model/SourceRuntimeError')))(errors, errors.exports,
@@ -42,7 +44,7 @@ function fixture() {
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) }, () => {},
     (_source, item) => item, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
-    async () => { if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters } },
+    async () => { if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
     { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) })
   const page = new exports.Page()
   Object.assign(page, {
@@ -138,9 +140,12 @@ test('directory resolver preserves legacy reason message alongside HTTP diagnost
   const response = { ok: false, reasonCode: 'http_error', error: { code: 'permission_denied', status: 403, message: 'PRIVATE_TOKEN' } }
   new Function('exports', 'require', compile(read('model/SourceChapterListResolver')))(exports, name => {
     if (name === './SourceRuntimeError') return { SourceRuntimeError }
+    if (name === './SourceChapterVisibility') return chapterVisibility
     if (name === '@kit.ArkTS') return { taskpool: { execute: async () => JSON.stringify(response) } }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
+    if (name === '../sourceRuntime/SourceSettingObservationStore') return { appSourceSettingObservationStore: { tokenForSource: () => 'same' } }
+    if (name === '../sourceRuntime/SourceHostFeatures') return { sourceRequestWithHostFeatures: json => json }
     if (name === '../sourceRuntime/SourceSettingsStore') return { appSourceSettingsStore: {
       revisionForSource: () => 'same', loadForSource: () => ({}) } }
     return {}
@@ -264,6 +269,9 @@ test('completed catalog diagnostic counts duplicate identities without merging t
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
     if (name === './MangaDetailModels') return { parseMangaChapterFromSourceItem: item => item }
+    if (name === './SourceChapterVisibility') return chapterVisibility
+    if (name === '../sourceRuntime/SourceSettingObservationStore') return { appSourceSettingObservationStore: { tokenForSource: () => 'same' } }
+    if (name === '../sourceRuntime/SourceHostFeatures') return { sourceRequestWithHostFeatures: json => json }
     if (name === '../sourceRuntime/SourceSettingsStore') return { appSourceSettingsStore: {
       revisionForSource: () => 'same', loadForSource: () => ({}) } }
     return {}
@@ -434,4 +442,47 @@ test('only complete chapter results and resolved cache snapshots permit metadata
   cached.state.cache = { detail: { title: 'Cached detail' }, chapters: f.state.chapters, chaptersResolved: true }
   await cached.page.loadSourceMangaDetail('source.test', 'work')
   assert.equal(cached.applied.length, 1); assert.equal(cached.applied[0][8], true)
+})
+
+test('an explicitly filtered empty catalog replaces retained rows on ordinary entry and stays complete in cache', async () => {
+  const f = fixture()
+  f.state.library = { chapters: [{ id: 'hidden', title: 'Saved', pages: [{ uri: 'local-original' }] }] }
+  const original = JSON.stringify(f.state.library)
+  f.page.manga = { title: 'Retained' }; f.page.chapters = f.state.library.chapters
+  f.state.excludedChapterIds = ['hidden']
+  await f.page.loadSourceMangaDetail('source.test', 'work')
+  assert.deepEqual(f.applied.at(-1)[5], [])
+  assert.deepEqual(f.applied.at(-1)[9], ['hidden'])
+  assert.equal(f.page.sourceChaptersResolved, true)
+  assert.equal(f.writes.at(-1)[3].chaptersResolved, true)
+  assert.deepEqual(f.writes.at(-1)[3].excludedChapterIds, ['hidden'])
+  assert.equal(JSON.stringify(f.state.library), original)
+  f.state.cache = f.writes.at(-1)[3]; f.applied.length = 0
+  await f.page.loadSourceMangaDetail('source.test', 'work')
+  assert.deepEqual(f.applied[0][9], ['hidden'], 'cached exclusions must reach the display merge too')
+})
+
+test('actual detail merge hides only explicit exclusions while preserving stored chapters and the old missing-row protection', () => {
+  const exported = {}
+  const retained = [{ id: 'hidden', title: 'Blocked', pages: [{ uri: 'keep-original' }] }, { id: 'missing', title: 'Retained' }]
+  const original = JSON.stringify(retained)
+  const globals = { SourceDetailContentState: { READY: 'ready' },
+    getContext: () => ({ filesDir: '/app' }), protectedSourceChapterIds: () => ['hidden'],
+    reconcileSourceChapterIdentity: (_comic, _manga, chapters) => ({ chapters, storedChapters: retained }),
+    mangaChapterItemFromComicChapter: value => ({ ...value }), sourceChapterDisplayRows: chapterVisibility.sourceChapterDisplayRows }
+  new Function('exports', ...Object.keys(globals), compile(`export class Page { ${method('applySourceMangaDetail')} }`))
+    (exported, ...Object.values(globals))
+  const page = new exported.Page()
+  Object.assign(page, { sourceChaptersResolved: true, isCurrentSourceDetailRequest: () => true,
+    sourceDetailWithRouteIdentity: value => ({ ...value }), sourceComicId: () => 'comic',
+    findSourceRuntimeComic: () => ({ id: 'comic', sourceKind: 'source', chapters: retained }),
+    decorateChapterStates: rows => rows, refreshSourceLibraryChapterMetadata() {}, refreshDownloadStatus() {} })
+  const entry = { manifestName: 'Source' }, current = [{ id: 'new', title: 'Visible' }]
+  page.applySourceMangaDetail(1, entry, 'source.test', 'work', {}, current, '', 'ready', true, ['hidden'])
+  assert.deepEqual(page.chapters.map(value => value.id), ['new', 'missing'])
+  assert.equal(page.manga.chapterCount, 2)
+  assert.equal(JSON.stringify(retained), original)
+  page.applySourceMangaDetail(1, entry, 'source.test', 'work', {}, current, '', 'ready', true)
+  assert.deepEqual(page.chapters.map(value => value.id), ['new', 'hidden', 'missing'])
+  assert.throws(() => chapterVisibility.sourceChapterExclusions([123]), /invalid/)
 })

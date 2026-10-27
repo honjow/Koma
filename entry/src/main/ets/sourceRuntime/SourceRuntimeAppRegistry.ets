@@ -29,6 +29,7 @@ import {
   runSourceOperationFromValidatedBytesAsync,
 } from './SourceRuntimeService'
 import { appSourceSettingsStore } from './SourceSettingsStore'
+import { appSourceSettingObservationStore } from './SourceSettingObservationStore'
 import { appSourceFilterPreferencesStore } from './SourceFilterPreferencesStore'
 import {
   SourceRuntimeRegistry,
@@ -1068,6 +1069,7 @@ export function reloadInstalledSourcePackages(context: common.UIAbilityContext):
  * enabled values. The normal best-effort reload's unchanged shortcut cannot. */
 export function restoreInstalledSourcePackagesAfterBackup(context: common.UIAbilityContext): boolean {
   appSourceSettingsStore.invalidateCachedDocument()
+  appSourceSettingObservationStore.invalidateCachedDocument()
   const restored = SourceRuntimeRegistry.reloadFromAppLocalMetadata(appSourceMetadataPath(context))
   if (!restored.ok && restored.reasonCode !== 'metadata_missing') return false
   const imported = appSourceRuntimeRegistry.list().filter((entry: SourceRuntimeRegistryEntry): boolean => {
@@ -1335,7 +1337,7 @@ function restoreSourceRemovePreferences(images: SourceRemovePreferenceImage[]): 
 }
 
 export async function remove(context: common.UIAbilityContext, id: string): Promise<boolean> {
-  return BackupRestoreActivity.runWrite(async (): Promise<boolean> => {
+  return BackupRestoreActivity.runWrite(() => appSourceSettingObservationStore.withSourceRemoved(id, async (): Promise<boolean> => {
     const entry = appSourceRuntimeRegistry.lookup(id).entry
     if (entry === undefined) return false
     appSourceSettingsStore.exportAll()
@@ -1368,7 +1370,7 @@ export async function remove(context: common.UIAbilityContext, id: string): Prom
       }
     }
     return true
-  })
+  }))
 }
 
 export function runSmoke(id: string): SourcePackageSmokeResult {

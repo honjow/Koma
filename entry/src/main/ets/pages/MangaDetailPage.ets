@@ -41,6 +41,7 @@ import {
   parseMangaDetailFromSourceItem,
 } from '../model/MangaDetailModels'
 import { sourceMangaDetailSnapshotCache } from '../model/SourceMangaDetailSnapshotCache'
+import { sourceChapterDisplayRows } from '../model/SourceChapterVisibility'
 import { resolveSourceChapterList } from '../model/SourceChapterListResolver'
 import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from '../model/ReaderChapterSequence'
 import {
@@ -815,6 +816,7 @@ export struct MangaDetailPage {
       const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
+      let excludedChapterIds: string[] = []
       if (retryStage === 'chapters' && retainedDetail !== undefined) {
         detail = retainedDetail
         chapters = retainedChapters
@@ -824,7 +826,7 @@ export struct MangaDetailPage {
         if (cached.chaptersResolved) {
           this.sourceChaptersResolved = true
           this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, detail, chapters, '',
-            SourceDetailContentState.READY, true)
+            SourceDetailContentState.READY, true, cached.excludedChapterIds)
           return
         }
       } else {
@@ -868,8 +870,10 @@ export struct MangaDetailPage {
           return
         }
         chaptersLoadFailed = !chapterResult.resolved
-        this.sourceChaptersResolved = chapterResult.resolved && chapterResult.chapters.length > 0
-        if (chapterResult.chapters.length > 0 || (forceReload && chapterResult.resolved)) {
+        excludedChapterIds = chapterResult.resolved ? chapterResult.excludedChapterIds ?? [] : []
+        this.sourceChaptersResolved = chapterResult.resolved &&
+          (chapterResult.chapters.length > 0 || excludedChapterIds.length > 0)
+        if (chapterResult.chapters.length > 0 || (chapterResult.resolved && (forceReload || excludedChapterIds.length > 0))) {
           chapters = chapterResult.chapters
         }
       } catch (_error) {
@@ -904,12 +908,14 @@ export struct MangaDetailPage {
           ? SourceDetailContentState.ERROR
           : SourceDetailContentState.READY,
         !chaptersLoadFailed && this.sourceChaptersResolved,
+        excludedChapterIds,
       )
       if (applied && !chaptersLoadFailed) {
         sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
           detail,
           chapters,
           chaptersResolved: this.sourceChaptersResolved,
+          excludedChapterIds,
         }, this.sourceDetailSettingsRevision)
       }
     } catch (error) {
@@ -1041,6 +1047,7 @@ export struct MangaDetailPage {
     feedbackText: string,
     contentState: SourceDetailContentState = SourceDetailContentState.READY,
     persistResolvedChapterMetadata: boolean = false,
+    excludedChapterIds: string[] = [],
   ): boolean {
     if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
       return false
@@ -1056,16 +1063,13 @@ export struct MangaDetailPage {
     if (persistResolvedChapterMetadata) {
       this.refreshSourceLibraryChapterMetadata(sourceId, mangaId, identity?.chapters ?? chapters)
     }
-    const displayedChapters = (identity?.chapters ?? chapters).slice()
-    const displayedIds = new Set<string>(displayedChapters.map((chapter: MangaChapterItem): string => chapter.id))
+    const retainedChapters: MangaChapterItem[] = []
     if (libraryComic !== undefined) {
       (identity?.storedChapters ?? libraryComic.chapters).forEach((chapter: Chapter): void => {
-        if (!displayedIds.has(chapter.id)) {
-          displayedChapters.push(mangaChapterItemFromComicChapter(chapter, libraryComic.sourceKind))
-          displayedIds.add(chapter.id)
-        }
+        retainedChapters.push(mangaChapterItemFromComicChapter(chapter, libraryComic.sourceKind))
       })
     }
+    const displayedChapters = sourceChapterDisplayRows(identity?.chapters ?? chapters, retainedChapters, excludedChapterIds)
     nextDetail.chapterCount = displayedChapters.length
     nextDetail.isInLibrary = libraryComic !== undefined
     nextDetail.sourceName = entry.manifestName

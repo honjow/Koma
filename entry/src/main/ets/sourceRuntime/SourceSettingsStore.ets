@@ -4,6 +4,8 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceRuntimeCallResponse } from './NativeSourceRuntime'
 import { runRegisteredSourceRequestById, runRegisteredSourceRequestByIdAsync } from './SourceRuntimeService'
 import { SourceRuntimeRegistry } from './SourceRuntimeRegistry'
+import { appSourceSettingObservationStore } from './SourceSettingObservationStore'
+import { SourceSettingObservations } from './SourceSettingObservations'
 
 export type SourceSettingValue = string | boolean | number | string[]
 export type SourceSettingsRecord = Record<string, SourceSettingValue>
@@ -17,6 +19,7 @@ export interface SourceSettingDescriptor {
   id: string
   label: string
   kind: string
+  description?: string
   defaultValue?: SourceSettingValue
   minValue?: number
   maxValue?: number
@@ -38,7 +41,9 @@ interface SourceSettingsDocument {
   sources: Record<string, SourceSettingsRecord>
 }
 
-interface SourceSettingsRequestArgs {}
+interface SourceSettingsRequestArgs {
+  settingObservations?: SourceSettingObservations
+}
 
 interface SourceSettingsRequestSettings {}
 
@@ -287,6 +292,7 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
       id,
       label: displayLabel(record, id),
       kind,
+      description: optionalString(record['description']),
       defaultValue: normalizedDefaultValue(record['default'], kind),
       minValue: optionalNumber(record['min']),
       maxValue: optionalNumber(record['max']),
@@ -308,6 +314,7 @@ export class SourceSettingsStore {
   private document: SourceSettingsDocument | undefined = undefined
 
   configure(context: common.UIAbilityContext): void {
+    appSourceSettingObservationStore.configure(context.filesDir)
     const root = joinSourceSettingsPath(context.filesDir, SOURCE_SETTINGS_ROOT_NAME)
     const nextPath = joinSourceSettingsPath(root, SOURCE_SETTINGS_FILE_NAME)
     if (this.storagePath === nextPath) return
@@ -488,7 +495,7 @@ export function configureSourceSettingsStore(context: common.UIAbilityContext): 
 export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, sourceId: string): SourceSettingDescriptor[] {
   const source = registry.lookup(sourceId).entry
   if (source === undefined || !source.capabilities.includes('settings')) return []
-  const args: SourceSettingsRequestArgs = {}
+  const args: SourceSettingsRequestArgs = { settingObservations: appSourceSettingObservationStore.snapshotForSource(sourceId) }
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }
   const request: SourceSettingsRequest = {
@@ -512,6 +519,13 @@ export async function loadSourceSettingsDescriptorsAsync(registry: SourceRuntime
   // Never call its absent export or advertise an optimistic settings entry.
   if (!source.capabilities.includes('settings')) return { ready: true, descriptors: [] }
   const args: SourceSettingsRequestArgs = {}
+  try {
+    args.settingObservations = await appSourceSettingObservationStore.loadForSource(sourceId)
+  } catch (_error) {
+    // Derived public candidates are optional. An unreadable observation file
+    // must not hide unrelated, otherwise working source settings.
+  }
+  if (registry.lookup(sourceId).entry !== source) return { ready: false, descriptors: [] }
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }
   const request: SourceSettingsRequest = {

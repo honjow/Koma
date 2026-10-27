@@ -40,6 +40,8 @@ import {
   appSourceSettingsStore,
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import { appSourceSettingObservationStore } from '../sourceRuntime/SourceSettingObservationStore'
+import { SourceSettingObservationSources, checkedSourceSettingObservationSources } from '../sourceRuntime/SourceSettingObservations'
 import {
   SourceFilterPreferenceSourceRecord,
   appSourceFilterPreferencesStore,
@@ -155,6 +157,7 @@ interface KomaBackupDocument {
   remoteServers: RemoteServerBackupDocument
   sourcePackages?: SourcePackageBackupEntry[]
   sourceSettings?: Record<string, SourceSettingsRecord>
+  sourceSettingObservations?: SourceSettingObservationSources
   sourceFilterPreferences?: Record<string, SourceFilterPreferenceSourceRecord>
   settings?: ReaderPreferences
   applicationSettings?: ApplicationSettingsBackup
@@ -803,6 +806,9 @@ function prepareBackupRestoreDocument(json: string, allowEncryptedContentSchema:
         if (sources[sourceId] !== null) asJsonObject(sources[sourceId], 'source settings record')
       })
     }
+    if (document.sourceSettingObservations !== undefined) {
+      document.sourceSettingObservations = checkedSourceSettingObservationSources(document.sourceSettingObservations)
+    }
     if (document.sourceFilterPreferences !== undefined) {
       asJsonObject(document.sourceFilterPreferences as Object, 'source filter preferences')
     }
@@ -1097,6 +1103,7 @@ export class BackupService {
       if (appReaderSessionStore(this.context.filesDir).flush() === false) {
         throw new Error('reader_progress_save_failed')
       }
+      const sourceSettingObservations = await appSourceSettingObservationStore.exportAll()
       const libraryStore = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
       assertValidLibraryStoreJson(libraryStore)
       const document: KomaBackupDocument = {
@@ -1111,6 +1118,7 @@ export class BackupService {
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: exportInstalledSourcePackages(),
         sourceSettings: appSourceSettingsStore.exportAll(),
+        sourceSettingObservations,
         sourceFilterPreferences: appSourceFilterPreferencesStore.exportAll(),
       }
       if (contentPreferences.includeSettings) {
@@ -1145,6 +1153,7 @@ export class BackupService {
   private async importDocument(json: string, allowEncryptedContentSchema: boolean): Promise<void> {
     const document = prepareBackupRestoreDocument(json, allowEncryptedContentSchema)
     BackupRestoreActivity.beginRestore()
+    appSourceSettingObservationStore.invalidateCachedDocument()
     let sourcePlan: PreparedSourcePackageRestore | undefined
     let checkpoint: BackupRestoreCheckpoint | undefined
     try {
@@ -1165,6 +1174,9 @@ export class BackupService {
       await this.importRemoteServers(document.remoteServers)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION) {
         this.importSourceSettings(document.sourceSettings)
+        if (document.sourceSettingObservations !== undefined) {
+          await appSourceSettingObservationStore.importDuringRestore(document.sourceSettingObservations)
+        }
         this.importSourceFilterPreferences(document.sourceFilterPreferences)
         await this.importSourceIndexUrl(document.sourceIndexUrl)
         this.importDownloadQueue(document.downloadQueue)

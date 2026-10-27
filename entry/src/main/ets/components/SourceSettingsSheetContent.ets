@@ -286,9 +286,14 @@ export struct SourceSettingsSheetContent {
       } else if (descriptor.kind === 'multiselect') {
         ConciseListRow({
           title: descriptor.label,
+          // An empty learned set is a real first-use state, not a working
+          // dropdown. Preserve the source's explanation until options exist.
+          subtitle: (descriptor.options?.length ?? 0) === 0 ? descriptor.description ?? '' : '',
+          subtitleMaxLines: 2147483647,
           trailingText: this.settingMultiSelectLabel(descriptor),
-          trailingDropdown: true,
-          dropdownMenuEnabled: true,
+          showChevron: false,
+          trailingDropdown: (descriptor.options?.length ?? 0) > 0,
+          dropdownMenuEnabled: (descriptor.options?.length ?? 0) > 0,
           dropdownMenuBuilder: (_select: (action: () => void) => void) => {
             // Multi-select stays open while options are toggled. The row still
             // owns the anchor and dismissal state through ConciseListRow.

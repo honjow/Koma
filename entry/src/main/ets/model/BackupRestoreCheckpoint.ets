@@ -7,7 +7,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { APPLICATION_SETTINGS_BACKUP_STORES } from './ApplicationSettingsBackup'
 
 const CHECKPOINT_FILE: string = 'backup-restore-checkpoint.v1.json'
-const RESTORE_FILES: string[] = [
+const RESTORE_FILES_V2: string[] = [
   'library-store.v1.json',
   'reader-sessions.v1.json',
   'source-runtime/source-settings.json',
@@ -15,6 +15,7 @@ const RESTORE_FILES: string[] = [
   'downloads/queue.v1.json',
   'source-runtime/source-runtime-registry.json',
 ]
+const RESTORE_FILES: string[] = RESTORE_FILES_V2.concat(['source-runtime/source-setting-observations.json'])
 const RESTORE_PREFERENCES_V1: string[] = [
   'koma_remote_servers_v1',
   'koma_source_package_manager_v1',
@@ -86,15 +87,16 @@ function readExactUtf8(path: string): string {
 
 function checkedDocument(payload: string): RestoreCheckpointDocument {
   const document = JSON.parse(payload) as RestoreCheckpointDocument
-  if (document === null || (document.schemaVersion !== 1 && document.schemaVersion !== 2) ||
+  if (document === null || (document.schemaVersion !== 1 && document.schemaVersion !== 2 && document.schemaVersion !== 3) ||
     (document.phase !== 'prepared' && document.phase !== 'committed') ||
-    !Array.isArray(document.files) || document.files.length !== RESTORE_FILES.length ||
+    !Array.isArray(document.files) || document.files.length !== (document.schemaVersion === 3 ? RESTORE_FILES.length : RESTORE_FILES_V2.length) ||
     !Array.isArray(document.preferences) || document.preferences.length !== (document.schemaVersion === 1 ? RESTORE_PREFERENCES_V1.length : RESTORE_PREFERENCES.length)) {
     throw new Error('backup_checkpoint_invalid_document')
   }
-  for (let index = 0; index < RESTORE_FILES.length; index += 1) {
+  const expectedFiles = document.schemaVersion === 3 ? RESTORE_FILES : RESTORE_FILES_V2
+  for (let index = 0; index < expectedFiles.length; index += 1) {
     const image = document.files[index]
-    if (image === null || image.path !== RESTORE_FILES[index] ||
+    if (image === null || image.path !== expectedFiles[index] ||
       typeof image.exists !== 'boolean' || typeof image.content !== 'string' ||
       (!image.exists && image.content.length !== 0)) {
       throw new Error('backup_checkpoint_invalid_file')
@@ -138,7 +140,7 @@ export class BackupRestoreCheckpoint {
       // Freeze a copy before later put/delete operations mutate the cache.
       images.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, RestorePreferenceValue> })
     }
-    const document: RestoreCheckpointDocument = { schemaVersion: 2, phase: 'prepared', files, preferences: images }
+    const document: RestoreCheckpointDocument = { schemaVersion: 3, phase: 'prepared', files, preferences: images }
     adapter.save(JSON.stringify(document))
     console.info('[BackupRecovery] step=prepared')
     return new BackupRestoreCheckpoint(context, document)

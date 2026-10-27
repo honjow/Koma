@@ -19,6 +19,7 @@ function fixture() {
   new Function('exports', 'require', js)(exports, name => {
     if (name === '@kit.CoreFileKit') return { fileIo: io }
     if (name === '../model/AppFileTextPersistence') return { writeAppTextFile }
+    if (name === './SourceSettingObservationStore') return { appSourceSettingObservationStore: { configure() {} } }
     return {}
   })
   const store = new exports.SourceSettingsStore(); store.configure({ filesDir: '/app' })

@@ -9,6 +9,7 @@ export interface SourceMangaDetailSnapshot {
   detail: MangaDetail
   chapters: MangaChapterItem[]
   chaptersResolved: boolean
+  excludedChapterIds?: string[]
 }
 
 function cloneMangaDetail(detail: MangaDetail): MangaDetail {
@@ -54,6 +55,7 @@ function cloneSnapshot(snapshot: SourceMangaDetailSnapshot): SourceMangaDetailSn
     detail: cloneMangaDetail(snapshot.detail),
     chapters: snapshot.chapters.map((chapter: MangaChapterItem): MangaChapterItem => cloneMangaChapterItem(chapter)),
     chaptersResolved: snapshot.chaptersResolved,
+    excludedChapterIds: snapshot.excludedChapterIds?.slice(),
   }
 }
 

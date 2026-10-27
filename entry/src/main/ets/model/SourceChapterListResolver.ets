@@ -9,6 +9,11 @@ import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegist
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { executeSourceRuntimeRequest as executeSourceChapterListOperation } from '../sourceRuntime/SourceRuntimeWorker'
 import { SourceSettingsRecord, appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { appSourceSettingObservationStore } from '../sourceRuntime/SourceSettingObservationStore'
+import { SourceSettingObservations } from '../sourceRuntime/SourceSettingObservations'
+import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { sourceChapterExclusions } from './SourceChapterVisibility'
 
 interface SourceChapterPage {
   hasMore?: boolean
@@ -19,6 +24,8 @@ interface SourceChapterPage {
 }
 
 interface SourceChapterData {
+  settingObservations?: SourceSettingObservations
+  excludedChapterIds?: string[]
   items?: Record<string, Object>[]
   chapters?: Record<string, Object>[]
   page?: SourceChapterPage
@@ -65,6 +72,7 @@ export interface SourceChapterListResult {
   chapters: MangaChapterItem[]
   resolved: boolean
   reasonCode?: string
+  excludedChapterIds?: string[]
 }
 
 /** Existing detail pagination/settings flow, shared without writing Library or history. */
@@ -97,10 +105,12 @@ async function fetchSourceChapterList(
   isCurrent?: () => boolean,
 ): Promise<SourceChapterListResult> {
   const chapters: MangaChapterItem[] = []
+  const excludedChapterIds: Set<string> = new Set<string>()
   let cursor: string | null = null
   const requestedCursors: Set<string> = new Set()
   const settingsRevision = appSourceSettingsStore.revisionForSource(entry.sourceId)
   const settings = appSourceSettingsStore.loadForSource(entry.sourceId)
+  const observationToken = appSourceSettingObservationStore.tokenForSource(entry.sourceId)
   const current = (): boolean => (isCurrent === undefined || isCurrent()) &&
     appSourceSettingsStore.revisionForSource(entry.sourceId) === settingsRevision
   while (true) {
@@ -120,8 +130,9 @@ async function fetchSourceChapterList(
     }
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
-    const responseJson = await diagnoseSourceOperation(JSON.stringify(request), () => taskpool.execute(
-      executeSourceChapterListOperation, JSON.stringify(request), wasmBytes, sourceHttpIdentityJson(entry),
+    const requestJson = sourceRequestWithHostFeatures(JSON.stringify(request))
+    const responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
+      executeSourceChapterListOperation, requestJson, wasmBytes, sourceHttpIdentityJson(entry),
     ) as Promise<string>)
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse
@@ -137,6 +148,27 @@ async function fetchSourceChapterList(
     }
     const rows = response.data?.items ?? response.data?.chapters ?? []
     rows.forEach((item: Record<string, Object>): void => { chapters.push(parseMangaChapterFromSourceItem(item)) })
+    try {
+      sourceChapterExclusions(response.data?.excludedChapterIds).forEach((id: string): void => { excludedChapterIds.add(id) })
+    } catch (_error) {
+      const error: Record<string, Object | string | number | boolean | null> = {}
+      error['code'] = 'invalid_response'
+      const invalid: SourceRuntimeCallResponse = { ok: false, error }
+      throw new SourceRuntimeError(invalid)
+    }
+    if (response.data?.settingObservations !== undefined) {
+      // Optional metadata must not delay/fail a readable catalog or rebuild any
+      // manager row. Only successful, still-current responses can contribute.
+      try {
+        void appSourceSettingObservationStore.observe(entry.sourceId, response.data.settingObservations,
+          observationToken, (): boolean => current() && entry.enabled &&
+            appSourceRuntimeRegistry.lookup(entry.sourceId).entry === entry).catch((): void => {
+          DiagnosticLogger.warn('source_settings', 'observations_not_saved', 'reason=source_setting_observations_write_failed')
+        })
+      } catch (_error) {
+        DiagnosticLogger.warn('source_settings', 'observations_ignored', 'reason=source_setting_observations_invalid')
+      }
+    }
     if (chapterId !== undefined) {
       const matched = chapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
       if (matched !== undefined) {
@@ -180,7 +212,9 @@ async function fetchSourceChapterList(
           ' min=' + (minNumber ?? 'none') + ' max=' + (maxNumber ?? 'none') +
           ' leading=' + leadingNumbers.join(','))
       }
-      return { chapters, resolved: true }
+      const result: SourceChapterListResult = { chapters, resolved: true }
+      if (excludedChapterIds.size > 0) result.excludedChapterIds = Array.from(excludedChapterIds)
+      return result
     }
     // A cursor belongs to the source. Never invent a numeric next page, or
     // turn a request budget into a complete catalog. Empty pages may continue.

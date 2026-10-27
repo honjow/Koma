@@ -17,6 +17,8 @@
 | BrowseViewModel / SourceRouteChromeState | 当前源内容描述、合法能力与导航入口的展示投影 |
 | SourcePackageManagerCache | 页面外可用快照及后台检查后的发布 |
 | SourceSettingsStore / SourceWebSessionStore | 配置和精确身份/origin 下的会话，不由展示对象授权 |
+| SourceSettingObservationStore / SourceSettingObservationFile | 本源公开设置候选的进程快照、串行后台提交及卸载/备份生命周期；不改用户选择或内容缓存身份 |
+| SourceChapterListResolver / SourceChapterVisibility / SourceMangaDetailSnapshotCache | 当前完整目录及源明确排除的显示投影；保留库章节/下载/进度，按安装及设置身份缓存 |
 
 ## 内容与准备
 
