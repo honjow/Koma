@@ -307,6 +307,8 @@ function createSettingsSections(): SettingsSection[] {
   ]
 }
 
+// Root symbols describe the destination. Generic settings gears belong to
+// Advanced; translation config is a service, while Reader keeps its live actions.
 function createSettingsRootSections(): SettingsPaneSection[] {
   return [
     {
@@ -317,7 +319,7 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           key: 'appearance',
           titleKey: 'settings_pane_appearance_title',
           detailKey: 'settings_pane_appearance_detail',
-          icon: $r('sys.symbol.gearshape'),
+          icon: $r('sys.symbol.paintpalette'),
           color: ThemeConstants.STATUS_INFO,
         },
         {
@@ -331,18 +333,14 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           key: 'reader',
           titleKey: 'settings_pane_reader_title',
           detailKey: 'settings_pane_reader_detail',
-          icon: $r('sys.symbol.clock'),
+          icon: $r('sys.symbol.doc_plaintext'),
           color: ThemeConstants.STATUS_SUCCESS,
-        },
-        {
-          key: 'translation', titleKey: 'comic_translation_settings_title', detailKey: 'settings_pane_translation_detail',
-          icon: $r('sys.symbol.character'), color: ThemeConstants.STATUS_INFO,
         },
         {
           key: 'services',
           titleKey: 'settings_pane_services_title',
           detailKey: 'settings_pane_services_detail',
-          icon: $r('sys.symbol.compass'),
+          icon: $r('sys.symbol.link'),
           color: ThemeConstants.SOURCE_KOMGA_COLOR,
         },
       ],
@@ -355,28 +353,28 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           key: 'downloads',
           titleKey: 'settings_pane_downloads_title',
           detailKey: 'settings_pane_downloads_detail',
-          icon: $r('sys.symbol.clock'),
+          icon: $r('sys.symbol.arrow_down_to_line'),
           color: ThemeConstants.STATUS_INFO,
         },
         {
           key: 'tracking',
           titleKey: 'settings_pane_tracking_title',
           detailKey: 'settings_pane_tracking_detail',
-          icon: $r('sys.symbol.magnifyingglass'),
+          icon: $r('sys.symbol.checkmark_circle'),
           color: ThemeConstants.STATUS_WARNING,
         },
         {
           key: 'backup',
           titleKey: 'settings_pane_backup_title',
           detailKey: 'settings_pane_backup_detail',
-          icon: $r('sys.symbol.gearshape'),
+          icon: $r('sys.symbol.arrow_clockwise'),
           color: ThemeConstants.SOURCE_WEBDAV_COLOR,
         },
         {
           key: 'storage',
           titleKey: 'settings_pane_storage_title',
           detailKey: 'settings_pane_storage_detail',
-          icon: $r('sys.symbol.square_fill_grid_2x2'),
+          icon: $r('sys.symbol.externaldrive'),
           color: ThemeConstants.STATUS_MUTED,
         },
         {
@@ -387,7 +385,7 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           key: 'about',
           titleKey: 'settings_pane_about_title',
           detailKey: 'settings_pane_about_detail',
-          icon: $r('sys.symbol.gearshape'),
+          icon: $r('sys.symbol.info_circle'),
           color: ThemeConstants.STATUS_MUTED,
         },
       ],
@@ -835,6 +833,11 @@ export struct SettingsPage {
           titleKey: 'settings_section_source_runtime',
           rows: this.rowsByKeys(['sources']),
         },
+        {
+          key: 'translation',
+          titleKey: '',
+          rows: this.rowsByKeys(['translation']),
+        },
       ]
     }
     if (pane === 'downloads') {
@@ -900,7 +903,9 @@ export struct SettingsPage {
   }
 
   private searchablePanes(): SettingsPaneKey[] {
-    return ['appearance', 'library', 'reader', 'services', 'downloads', 'tracking', 'backup', 'storage', 'advanced', 'translation', 'about']
+    // Translation is indexed once at its visible Services location. Its config
+    // pane remains the same route/owner and is not a second root destination.
+    return ['appearance', 'library', 'reader', 'services', 'downloads', 'tracking', 'backup', 'storage', 'advanced', 'about']
   }
 
   private normalizedSettingsSearchText(): string {
@@ -957,7 +962,7 @@ export struct SettingsPage {
     // current value into an explanatory subtitle here.
     const pane = this.paneTitle(result.pane)
     const section = result.sectionTitle
-    return pane === section ? pane : `${pane} / ${section}`
+    return section.length === 0 || pane === section ? pane : `${pane} / ${section}`
   }
 
   private sectionsByKeys(keys: string[]): SettingsSection[] {
@@ -2526,7 +2531,9 @@ export struct SettingsPage {
       showChevron: true,
       action: () => {
         this.settingsSearchText = ''
-        this.onOpenSettingsPane(result.pane)
+        // Show the Services location without adding an extra tap to the
+        // existing direct translation-config search result.
+        this.onOpenSettingsPane(result.row.key === 'translation' ? 'translation' : result.pane)
       },
     })
   }
@@ -2613,7 +2620,7 @@ export struct SettingsPage {
   @Builder
   private Section(section: SettingsSection) {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: this.sectionTitle(section) }) {
+      GroupedListSection({ title: section.titleKey.length > 0 ? this.sectionTitle(section) : undefined }) {
         ForEach(section.rows, (row: SettingsRow, index: number) => {
           this.SectionRow(row)
           if (index < section.rows.length - 1) {
