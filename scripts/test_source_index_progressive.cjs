@@ -332,12 +332,15 @@ function settingsCapability(response, capabilities = ['settings'], onRequest = (
   const source = fs.readFileSync(path.join(root,'sourceRuntime/SourceSettingsStore.ets'),'utf8')
   const tree = ts.createSourceFile('settings.ets',source,ts.ScriptTarget.Latest,true)
   const fn = tree.statements.find(n=>ts.isFunctionDeclaration(n) && n.name.text==='loadSourceSettingsDescriptorsAsync')
+  // The real registry preserves the admitted object until a package changes.
+  const entry = { capabilities }
   const output={}
   vm.runInNewContext(ts.transpileModule(fn.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
     exports:output, runRegisteredSourceRequestByIdAsync:async()=>{onRequest();return {response}},
     normalizeSourceSettingDescriptors:r=>r.data?.settings ?? r.data?.items ?? [], Date, JSON, Array,
+    appSourceSettingObservationStore: { loadForSource: async () => ({}) },
   })
-  return output.loadSourceSettingsDescriptorsAsync({lookup:()=>({entry:{capabilities}})},'source')
+  return output.loadSourceSettingsDescriptorsAsync({lookup:()=>({entry})},'source')
 }
 test('only successful empty settings or explicit unsupported operation establish that no settings exist', async()=>{
   let calls=0
@@ -575,8 +578,10 @@ test('partial repository check cannot conclude latest/missing and retains fresh 
   assert.equal(manager.updateStatus('C').remoteEntry, known)
   assert.equal(manager.updateStatus('D').remoteIndexUrl, active)
   assert.equal(manager.statusText, JSON.stringify(['source_pkg_check_incomplete', 2]))
-  assert.equal(manager.updateStatusText(manager.packages[0]), 'source_pkg_update_status_incomplete')
-  assert.equal(manager.packageListMetaText(manager.packages[0]), 'v1.0 · source_pkg_update_status_incomplete')
+  // The current user correction removes repeated global uncertainty from rows.
+  // Keep incomplete data and confirmed update actions while showing identity only.
+  assert.equal(manager.updateStatusText(manager.packages[0]), '')
+  assert.equal(manager.packageListMetaText(manager.packages[0]), 'v1.0')
   assert.equal(manager.savedIndexSubtitle({ url: other }), JSON.stringify(['source_pkg_check_failed','network_error']))
   assert.equal(manager.savedIndexSubtitle({ url: active }), 'source_pkg_current_index')
   assert.equal(manager.updateCheckBusy, false)

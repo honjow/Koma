@@ -890,7 +890,7 @@ export struct SourcePackageManagerPage {
       case 'missing':
         return t('source_pkg_update_status_missing')
       case 'incomplete':
-        return t('source_pkg_update_status_incomplete')
+        return ''
       case 'failed':
         return tf('source_pkg_update_status_failed', this.sourceRedactedReasonText(status.reasonCode))
       case 'unknown':
@@ -1847,24 +1847,6 @@ export struct SourcePackageManagerPage {
     return parts.join(' · ')
   }
 
-  // Keep the cross-source scan out of every row's dependency recording. CPU384
-  // found repeated find/addRef work here during the actual Blue011 update.
-  // Rendering may use frame-cached scalars; business actions keep updateStatus
-  // so a same-task status write is never read through a stale @Computed cache.
-  @Computed
-  private get incompleteSourceIds(): string {
-    // The ordinary row only displays this state. A new 'latest' result must not
-    // invalidate every HDS prefix through a newly allocated aggregate Map.
-    return JSON.stringify(this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean =>
-      status.status === 'incomplete').map((status: SourcePackageUpdateStatus): string => status.sourceId).sort())
-  }
-
-  @Computed
-  private get incompleteUpdateStatusText(): string {
-    // AppStrings retains its locale dependency; share this unchanged label.
-    return t('source_pkg_update_status_incomplete')
-  }
-
   private packageListMetaText(source: InstalledSourcePackage | undefined): string {
     if (source === undefined) {
       return ''
@@ -1873,11 +1855,8 @@ export struct SourcePackageManagerPage {
     if (source.lang.length > 0) {
       parts.push(sourceLanguageName(source.lang))
     }
-    // The adopted partial-check state belongs in this existing subtitle.
-    // updateStatusText in the update action is absent for non-updatable rows.
-    if ((JSON.parse(this.incompleteSourceIds) as string[]).includes(source.id)) {
-      parts.push(this.incompleteUpdateStatusText)
-    }
+    // A partial index check is reported by its check summary/address. Ordinary
+    // package rows keep identity metadata; confirmed updates retain their action.
     return parts.join(' · ')
   }
 
