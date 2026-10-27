@@ -309,13 +309,25 @@ export struct SourceSettingsSheetContent {
           showChevron: false,
         })
       } else {
-        KomaFormTextField({
-          label: descriptor.label,
-          value: this.settingStringValue(descriptor),
-          change: (value: string) => {
-            this.updateSettingValue(descriptor.id, value)
-          },
-        })
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          KomaFormTextField({
+            label: descriptor.label,
+            value: this.settingStringValue(descriptor),
+            change: (value: string) => {
+              this.updateSettingValue(descriptor.id, value)
+            },
+          })
+          // Source-defined input syntax must remain readable after entering a
+          // value; a placeholder would hide it and truncate longer instructions.
+          if ((descriptor.description?.length ?? 0) > 0) {
+            Text(descriptor.description ?? '')
+              .width('100%')
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+        }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
           .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
       }
     }
