@@ -4,9 +4,9 @@
 
 规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-当前工作：AGC启动guard修复61c79b6b已精确交付，实际AGC/API23实机回验未完；batch五WIP已apply恢复、stash仅作恢复点禁止再apply；Root Host18928136已冻结但五文件未commit，双X .6本地668c7852已冻结未push；两线Native未验。唯一队列71项，原70项保持，不另建计划。
+当前工作：App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。197双X简繁普通浏览→目录→返回已具名，未入Reader；237新设置场权限待具体答复。唯一队列71项，原70项保持。
 
-设备：197API26当前18910308普通启动/七文件保持与1017系统释租完成，冷启动/API23实机不外推。237当前18910787最终Host已归还，原Continue/数据有限保持及656八文件同654、657原SLEEP/120000无Override/a8de release0、19own文件agent/8012清理均核；读时间/11ledger差异按原语义保留，无活lease。200禁止、四私库搁置。
+设备：197当前Host18928136，本批六非Registry文件保持、双X预期升级，941a租约已释放。237既有最终18910787归还事实保持；新设置场两次自动审批在执行前拒绝，原租约已释放，权限尚待具体答复。200禁止、四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,13 +14,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "启动guard修复已交付，AGC实际回验未完；237已归还，Root恢复batch与源线",
+  "state": "双X普通并发路径、App/源精确CI与公开实体核验完成；原源后继继续",
   "outcome": "唯一当前队列71项：原70项id/kind不变，新增人类真实AGC启动兼容缺陷一项；既有权限/冻结范围/首次事实与未验边界保持，不以文档或局部测试当产品完成。",
-  "updatedAt": "2026-10-27T09:22:44+00:00",
+  "updatedAt": "2026-10-27T10:07:26+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_EMPTY_SETTINGS_ENTRY",
-  "activity": "batch已apply恢复/stash仅恢复点禁止再apply；双X .6冻结独立本地668c785257b959f006bece2fe2ead56dcec90480八文件Root已审，Hans212179-583266B/Hant212045-582465B，受控旧Host/新5-5-2子请求DTO保全过，未push/Native。Host post-AGC18928136同签编译冻结含61c启动guard，原五文件未commit/Native。237最终归还及AGC本地产物既有事实保持，实际AGC/API23回验仍待。",
-  "nextAction": "Root立即审并独立提交当前工作单，不等下一Native；后续按冻结post-AGC Host/双X .6原范围验证与交付，两线Native未验不写通过，batch恢复点禁止再apply，原安全叶保持。",
+  "activity": "197使用Host18928136与双XCOMIC简繁0.1.6，普通Browse各12卡→目录13/13及582/582后返回，未入Reader/未加库；四个get_manga/get_chapters同次操作实际峰值并发5、全部HTTP200且结束无残留，耗时23487/22592/22482/26896ms。与旧237不同时机/设备，不作严格性能AB或全卡顿闭环。App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。237新设置场两次自动审批均在执行前拒绝，原租约已释放；具体权限问题已向用户提出、尚无具体答复，不写新场已执行。 公开实体已核：85唯一ID索引及所有索引包/图标assets齐，211 assets非空；Linux Hans211635B/WASM575856B、Hant211320B/WASM574874B，manifest与index一致。复用原生产WASM runner指向公开实体，两源旧/新Host受控执行通过；197普通路径使用本地编译包，不冒公开包新安装。证据source-settings-repair/public-668c785/inspection.json及xcomic-batch-wasm-result.json。",
+  "nextAction": "Root与source_fixes继续核双X重复探测复用方案的ABI及失败恢复/源身份边界；MangaDex三源标题偏好0e276ecb已本地提交、未推/未Native；237等待明确授权。",
   "proof": [
     {
       "label": "正式主仓",
@@ -36,9 +36,9 @@
     },
     {
       "label": "远端同步",
-      "state": "AGC guard精确CI与修复包交付完成，实际AGC未回验",
+      "state": "App/源精确CI成功，源准确公开实体已核",
       "kind": "accepted",
-      "detail": "App61c79b6b精确push/CI40478671181 success；正式APP本地签名/身份核验通过未上传。原源准确公开保持，237最终归还闭环，batch恢复待新消费者/Native，不以修复包或进度提交冒整体完成。"
+      "detail": "App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。AGC61c79b6b既有交付与实际AGC/API23回验边界不变。 公开实体已核：85唯一ID索引及所有索引包/图标assets齐，211 assets非空；Linux Hans211635B/WASM575856B、Hant211320B/WASM574874B，manifest与index一致。复用原生产WASM runner指向公开实体，两源旧/新Host受控执行通过；197普通路径使用本地编译包，不冒公开包新安装。证据source-settings-repair/public-668c785/inspection.json及xcomic-batch-wasm-result.json。"
     },
     {
       "label": "共享阅读器",
@@ -63,8 +63,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "AGC启动guard修复61c79b6b665bb9f7a5b616466b7877c6c65f4e00已push/精确CI40478671181 success；batch五WIP已apply恢复（stash仅恢复点禁止再apply），Root Host联调/双X .6已冻结本地668c7852未push/Native，Root Host原五文件未commit/Native，用户版本/branding/IDE差异不夹带。",
-      "hap": "197API26当前18910308，普通启动亲审/1016七文件同1012/1017系统d344释租；不冒冷启动/API23实机。237当前18910787最终Host，655Continue/656八文件/657SLEEP120000无Override/a8de release0与own清理归还闭环，无活lease。"
+      "appHead": "AGC启动guard61c79b6b精确CI成功保持；batch五文件7230d110已精确推送、CI40485480396 completed/success，含guard的Host18928136已完成本批普通路径。batch恢复点只保留，不再次apply。",
+      "hap": "197当前Host18928136，双X .6普通浏览到目录后返回、六非Registry文件保持，941a已释租，未入Reader。237既有最终18910787归还事实保持；新设置场两次审批执行前拒绝、原租约已释放，权限待具体答复。"
     },
     {
       "name": "NextE",
@@ -1730,14 +1730,14 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "Root：Host post-AGC18928136同签冻结/原五文件未commit；source_fixes双X .6本地668c7852未push，两线Native未验",
+      "owner": "Root与source_fixes核双X重复探测复用方案及ABI/失败恢复/源身份边界；MangaDex标题偏好本地0e276ecb未推，237等待明确授权",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
-      "status": "原源设置具名交付保持；237最终Host/Continue/数据系统清理释租闭环，batch源后继接续",
-      "result": "App91f7ae41ee172bdea60d2079c2874f830eddd849已推master，精确CI40465425869 success；get_settings只读本源settingValues/context feature已交付。197998装final18910787同签包，新EN.18继承旧Safe菜单仅Safe勾选、1000继承readback与legacy字节同，显式Safe保存重入及普通Home十本九真封面具名，清own EN回参考Safe/Suggestive。1001对994六非Registry文件逐字同、85 IDs/order/enabled与其它84DTO同，仅EN.12→.18；own上传删空，1003系统120000无Override/ead21ec9释租。源e44 SOURCE_INCLUDE实际237 BERSERK13→madex4→clearown13，繁中保存重入清空；de041网页类别黑名单双开关持久、简中true Browse12卡具名。Nami c5受控/Native范围：默认false/旧Host保持，true仅锁定元数据，受控WASM保正文gating；237633–636设置与荆棘1/1自然目录通过，无自然锁章，不冒锁章Native或新正文。637本批七状态文件对632逐字同、81身份/enabled/序及other79同、own两包删空。精确源push/CI/公开由Root按串行批核。 de041准确release425150163/tag sources-de0413989d130811a03f742f123ed26fe67bdeaf已公开，实取85唯一索引与三Linux包manifest/index一致：XCOMIC Hans.5 210966/572250B、Hant.5 210571/571244B、EnglishMD.18 32419/115171B。原三WASM消费脚本改指真正公开实体，edition旧默认/过滤/归属、ignore两个query消费及EN context继承全部过；原回执不覆盖，public-de041/inspection.json、*-result.json、*-public-execution.mjs有据，不冒public新Native。Nami c5b2bb000425faace57a74e3bcab0cd5133871f6已精确push，CI40471172293 build/tests通过、最后发布HTTP500使conclusion=failure，准确release425173267已公开且实核，不重跑发布。 Nami准确sources-c5b2bb... release425173267非draft、08:07:59Z/211非空assets，与前版数同；85唯一index/双包manifest匹配，Hans.3 36516B-WASM79997B、Hant.3 36507B-WASM80001B，原生产runner改指公开两实体全通过，source-settings-repair/public-c5b2bb0/inspection.json及执行结果副本保原。CI failure不改成成功，真实公开不因最后API500重发。 当前源description已19718909972本批具名：公开XCOMIC Hans.5完整源说明三行/输入madex后仍在两原图、Simply.1 blacklist格式说明原图Root亲审，普通返回原书架；1009对1005六非Registry字节同、85IDs/order/enabled及other83DTO同，仅Hans.1→.5/Simply.0→.1，两个own上传删空，1010系统120000无Override/1ac1fa23实际release。证据source-settings-repair/source-text-description197-restoration-comparison.json及197 diagnostics/source-text-description197-ordinary-1004。首脚本Simply搜索方向假设失败原件保留，普通续接未重跑XCOMIC。产品两文件0510b5c20510b84a4bf4fcc134fbe749593d4134已精确push，CI40473371352 completed/success，说明本批交付等待已清。 当前XCOMIC真实625日志get_manga约93235/93340ms、get_chapters101015/100738ms，串行逐comic_ids probe与固定参考每批五async不同。Root有界公开请求中五alias被multiple root fields not allowed拒绝，原件保留不重试，第三single未发；Host additive source_http_batch_v1沿原import接受一至五请求Promise.all，保逐项身份/限速/CookieUA/redirect/timeout/错误与原序，不增import/C++/缓存/自动重试/超时改动。候选已编译及原传输/会话执行检查通过；batch五WIP路径已apply c6e6ae49…恢复，stash仅作恢复点禁止再apply。Root Host联调/source_fixes双XCOMIC .6 gated消费者已实现，真实受控WASM旧Host与新Host5/5/2子请求/DTO保全通过，双源已冻结独立本地commit668c785257b959f006bece2fe2ead56dcec90480（八文件、Root全diff已审），Hans212179B/WASM583266B、Hant212045B/WASM582465B，未push/Native；Root Host原五文件未commit/Native；旧Host串行保持。 237最终归还receipt已由doc writer实际读取核：最终18910787安装启动成功，655原斗破Continue P1/3%图有据；653原62progress/30history、49库身份序及Saya原PNG/20页保持，656八文件逐字同654，正式81源升级保。原CF/Global真实阅读时间戳差与11新增ledger按GUI语义保留，非全reader同393。十九own上传/agentbackup/owndaemon/8012清理，657仅SLEEP下timeout-r与Power读回，normal120000/noOverride且SLEEP，新a8de0540短lease已release exit0，无wake/UI/安装/app写入或suspend。",
+      "status": "双X .6与Host普通目录路径、App/源精确CI和公开实体核验完成；原源后继继续",
+      "result": "App91f7ae41ee172bdea60d2079c2874f830eddd849已推master，精确CI40465425869 success；get_settings只读本源settingValues/context feature已交付。197998装final18910787同签包，新EN.18继承旧Safe菜单仅Safe勾选、1000继承readback与legacy字节同，显式Safe保存重入及普通Home十本九真封面具名，清own EN回参考Safe/Suggestive。1001对994六非Registry文件逐字同、85 IDs/order/enabled与其它84DTO同，仅EN.12→.18；own上传删空，1003系统120000无Override/ead21ec9释租。源e44 SOURCE_INCLUDE实际237 BERSERK13→madex4→clearown13，繁中保存重入清空；de041网页类别黑名单双开关持久、简中true Browse12卡具名。Nami c5受控/Native范围：默认false/旧Host保持，true仅锁定元数据，受控WASM保正文gating；237633–636设置与荆棘1/1自然目录通过，无自然锁章，不冒锁章Native或新正文。637本批七状态文件对632逐字同、81身份/enabled/序及other79同、own两包删空。精确源push/CI/公开由Root按串行批核。 de041准确release425150163/tag sources-de0413989d130811a03f742f123ed26fe67bdeaf已公开，实取85唯一索引与三Linux包manifest/index一致：XCOMIC Hans.5 210966/572250B、Hant.5 210571/571244B、EnglishMD.18 32419/115171B。原三WASM消费脚本改指真正公开实体，edition旧默认/过滤/归属、ignore两个query消费及EN context继承全部过；原回执不覆盖，public-de041/inspection.json、*-result.json、*-public-execution.mjs有据，不冒public新Native。Nami c5b2bb000425faace57a74e3bcab0cd5133871f6已精确push，CI40471172293 build/tests通过、最后发布HTTP500使conclusion=failure，准确release425173267已公开且实核，不重跑发布。 Nami准确sources-c5b2bb... release425173267非draft、08:07:59Z/211非空assets，与前版数同；85唯一index/双包manifest匹配，Hans.3 36516B-WASM79997B、Hant.3 36507B-WASM80001B，原生产runner改指公开两实体全通过，source-settings-repair/public-c5b2bb0/inspection.json及执行结果副本保原。CI failure不改成成功，真实公开不因最后API500重发。 当前源description已19718909972本批具名：公开XCOMIC Hans.5完整源说明三行/输入madex后仍在两原图、Simply.1 blacklist格式说明原图Root亲审，普通返回原书架；1009对1005六非Registry字节同、85IDs/order/enabled及other83DTO同，仅Hans.1→.5/Simply.0→.1，两个own上传删空，1010系统120000无Override/1ac1fa23实际release。证据source-settings-repair/source-text-description197-restoration-comparison.json及197 diagnostics/source-text-description197-ordinary-1004。首脚本Simply搜索方向假设失败原件保留，普通续接未重跑XCOMIC。产品两文件0510b5c20510b84a4bf4fcc134fbe749593d4134已精确push，CI40473371352 completed/success，说明本批交付等待已清。 当前XCOMIC真实625日志get_manga约93235/93340ms、get_chapters101015/100738ms，串行逐comic_ids probe与固定参考每批五async不同。Root有界公开请求中五alias被multiple root fields not allowed拒绝，原件保留不重试，第三single未发；Host additive source_http_batch_v1沿原import接受一至五请求Promise.all，保逐项身份/限速/CookieUA/redirect/timeout/错误与原序，不增import/C++/缓存/自动重试/超时改动。197使用Host18928136与双XCOMIC简繁0.1.6，普通Browse各12卡→目录13/13及582/582后返回，未入Reader/未加库；四个get_manga/get_chapters同次操作实际峰值并发5、全部HTTP200且结束无残留，耗时23487/22592/22482/26896ms。与旧237不同时机/设备，不作严格性能AB或全卡顿闭环。六非Registry文件逐字同、85源ID/order/enabled及other83DTO同，仅双X升级；own上传已删，941a租约已释放。App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。 原传输/会话检查及旧Host/新Host5/5/2子请求DTO受控结果保留。237新设置场两次自动审批均在执行前拒绝，原租约已释放；具体权限问题已向用户提出、尚无具体答复，不写新场已执行。 237最终归还receipt已由doc writer实际读取核：最终18910787安装启动成功，655原斗破Continue P1/3%图有据；653原62progress/30history、49库身份序及Saya原PNG/20页保持，656八文件逐字同654，正式81源升级保。原CF/Global真实阅读时间戳差与11新增ledger按GUI语义保留，非全reader同393。十九own上传/agentbackup/owndaemon/8012清理，657仅SLEEP下timeout-r与Power读回，normal120000/noOverride且SLEEP，新a8de0540短lease已release exit0，无wake/UI/安装/app写入或suspend。 公开实体已核：85唯一ID索引及所有索引包/图标assets齐，211 assets非空；Linux Hans211635B/WASM575856B、Hant211320B/WASM574874B，manifest与index一致。复用原生产WASM runner指向公开实体，两源旧/新Host受控执行通过；197普通路径使用本地编译包，不冒公开包新安装。证据source-settings-repair/public-668c785/inspection.json及xcomic-batch-wasm-result.json。 MangaDex三源标题优先独立本地commit0e276ecb39bb7bc7f1f0159c0ac39e2b31a782a7（父29a3d32）未推；EN.20包33614B/WASM118345B、Hans.8 49027B/102211B、Hant.8 49111B/102397B。实际生产WASM默认/true保持原DTO与HTTP，false按参考标题顺序；EN列表/搜索/详情/Home及双中文消费者已执行，三源章节DTO/HTTP深同。无新provider HTTP或Native，原五包保持。直接证据source-settings-repair/mangadex-title-preference-wasm-result.json及candidates.json。",
       "evidencePoints": [
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb",
         "当前源功能/边界直接证据：Noya day/week/month设置持久（非auth/ADULT内容）见source-settings-repair/noyacg-ranking-restoration-comparison.json、public-ae71f7c/inspection.json；Global默认锁定目录/开关恢复（非付费正文或Native精确mobileURI）见public-44189ba/inspection.json；MangaBall已入库明确排除/清配置复原见public-5ed3d78/inspection.json及原575–579恢复receipts；XCOMIC默认/题名清理有限Native与实体执行见xcomic-title-restoration-comparison.json、public-037ce4f/entity-wasm-result.json；Gallery仅开关持久/临时Hfox移除与81恢复见gallery-short-title-restoration-comparison.json（非短标题内容Native/全场恢复）。以上路径均在source-settings-repair下，具体已验/未验不由后批摘要替换。",
@@ -1748,13 +1748,17 @@
         "EN只读context/旧Safe继承与恢复直接证据：source-settings-repair/mangadex-en-context197-restoration-comparison.json；197 diagnostics/settings-context197-ordinary-993。源de0413989d130811a03f742f123ed26fe67bdeaf已精确push/CI40468122999 success，准确release425150163/85唯一索引三公开包及生产消费脚本已核，见source-settings-repair/public-de041/inspection.json与各result/execution文件。",
         "Nami准确公开与执行直接证据：source-settings-repair/public-c5b2bb0/inspection.json及result/执行副本；CI40471172293最终failure与真实release425173267非空完整公开分别记，不重跑发布。",
         "源description197直接证据：source-settings-repair/source-text-description197-restoration-comparison.json；197 diagnostics/source-text-description197-ordinary-1004。1009六非Registry同1005/两源预期更新与1010系统释租具名，未重跑XCOMIC。",
-        "XCOMIC串行probe/批量请求边界直接证据：source-settings-repair/xcomic-probe-batching；五alias请求被站点拒绝的原件保留、不重试，Host一至五请求并行合同仅本地build/真实传输会话执行过，未Native。",
-        "237最终归还直接证据（已实际读取）：source-settings-repair/device237-final-handback-receipt.json；原category-membership/source-settings237-sleep-timeout-final-657/run-metadata.json。最终Host18910787/原Continue与653数据有限保持、656八文件同654、657SLEEP+120000无Override/release0核验，正式升级保/读态时间及11ledger差异不冒全字节同。"
+        "XCOMIC串行probe/批量请求边界直接证据：source-settings-repair/xcomic-probe-batching；五alias请求被站点拒绝的原件保留、不重试，Host一至五请求并行合同已build/真实传输会话执行，并在197双X .6普通浏览→目录路径具名：四操作实际峰值并发5、HTTP200、结束无残留；未入Reader，不作跨设备严格性能AB。直接回执见同目录xcomic-batch197-native-runtime-review.json及xcomic-batch197-restoration-comparison.json。",
+        "237最终归还直接证据（已实际读取）：source-settings-repair/device237-final-handback-receipt.json；原category-membership/source-settings237-sleep-timeout-final-657/run-metadata.json。最终Host18910787/原Continue与653数据有限保持、656八文件同654、657SLEEP+120000无Override/release0核验，正式升级保/读态时间及11ledger差异不冒全字节同。",
+        "source-settings-repair/xcomic-batch197-native-runtime-review.json",
+        "source-settings-repair/xcomic-batch197-restoration-comparison.json",
+        "source-settings-repair/public-668c785/inspection.json；xcomic-batch-wasm-result.json：真正公开Linux两源旧/新Host受控执行通过，非公开包新Native安装。",
+        "source-settings-repair/mangadex-title-preference-wasm-result.json；candidates.json：本地三源标题偏好与章节不变合同，非Native验收。"
       ],
       "remainingActions": [
-        "batch五WIP已apply恢复、stash仅恢复点禁止再apply。双X .6已冻结独立本地668c785257b959f006bece2fe2ead56dcec90480八文件，Root全diff已审；Hans212179/WASM583266B、Hant212045/WASM582465B，旧Host/新5-5-2子请求与DTO保全真实受控过，未push/Native。Root Host post-AGC18928136同签编译冻结、含61c启动guard，原五文件未commit/Native。237已归还不重复清理，原3H/MyComic等叶保留；本单立即交Root审提交，不等Native。"
+        "Root与source_fixes核双X重复探测复用的ABI及失败恢复/源身份边界；本地MangaDex标题偏好0e276ecb尚未推送，后续同步与Native不预写通过；237等待明确授权。"
       ],
-      "remaining": "batch五WIP已apply恢复、stash仅恢复点禁止再apply。双X .6已冻结独立本地668c785257b959f006bece2fe2ead56dcec90480八文件，Root全diff已审；Hans212179/WASM583266B、Hant212045/WASM582465B，旧Host/新5-5-2子请求与DTO保全真实受控过，未push/Native。Root Host post-AGC18928136同签编译冻结、含61c启动guard，原五文件未commit/Native。237已归还不重复清理，原3H/MyComic等叶保留；本单立即交Root审提交，不等Native。",
+      "remaining": "Root与source_fixes核双X重复探测复用的ABI及失败恢复/源身份边界；本地MangaDex标题偏好0e276ecb尚未推送，后续同步与Native不预写通过；237等待明确授权。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -2632,12 +2636,12 @@
     }
   ],
   "source": {
-    "status": "双X .6已冻结独立本地668c7852未push/Native；Root Host18928136冻结未commit/Native",
+    "status": "MangaDex三源标题偏好本地提交0e276ecb未推/未Native；双X重复探测复用仍核方案",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "最终18910787/655原斗破Continue、653原62progress30history49库SayaPNG20页保持，656八文件同654及657SLEEP/120000无Override/release0/ownagent上传清理均核。正式81源升级保，原真实读时间与11ledger按语义保留，不称全reader同393。此前Nami/de041等准确公开事实及CI差异保持。",
-    "remaining": "Root审过双X .6八文件本地668c7852/标准包冻结，未push/Native；Host post-AGC18928136同签编译冻结含61c guard，原五文件未commit/Native。受控结果保持，不重复apply batch恢复点，不等Native提交本单。",
-    "commit": "c5b2bb000425faace57a74e3bcab0cd5133871f6"
+    "result": "最终18910787/655原斗破Continue、653原62progress30history49库SayaPNG20页保持，656八文件同654及657SLEEP/120000无Override/release0/ownagent上传清理均核。正式81源升级保，原真实读时间与11ledger按语义保留，不称全reader同393。此前Nami/de041等准确公开事实及CI差异保持。 197使用Host18928136与双XCOMIC简繁0.1.6，普通Browse各12卡→目录13/13及582/582后返回，未入Reader/未加库；四个get_manga/get_chapters同次操作实际峰值并发5、全部HTTP200且结束无残留，耗时23487/22592/22482/26896ms。与旧237不同时机/设备，不作严格性能AB或全卡顿闭环。六非Registry文件逐字同、85源ID/order/enabled及other83DTO同，仅双X升级；own上传已删，941a租约已释放。App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。237新设置场两次自动审批均在执行前拒绝，原租约已释放；具体权限问题已向用户提出、尚无具体答复，不写新场已执行。 公开实体已核：85唯一ID索引及所有索引包/图标assets齐，211 assets非空；Linux Hans211635B/WASM575856B、Hant211320B/WASM574874B，manifest与index一致。复用原生产WASM runner指向公开实体，两源旧/新Host受控执行通过；197普通路径使用本地编译包，不冒公开包新安装。证据source-settings-repair/public-668c785/inspection.json及xcomic-batch-wasm-result.json。 MangaDex三源标题优先独立本地commit0e276ecb39bb7bc7f1f0159c0ac39e2b31a782a7（父29a3d32）未推；EN.20包33614B/WASM118345B、Hans.8 49027B/102211B、Hant.8 49111B/102397B。实际生产WASM默认/true保持原DTO与HTTP，false按参考标题顺序；EN列表/搜索/详情/Home及双中文消费者已执行，三源章节DTO/HTTP深同。无新provider HTTP或Native，原五包保持。直接证据source-settings-repair/mangadex-title-preference-wasm-result.json及candidates.json。",
+    "remaining": "本批App7230d110精确CI40485480396、源668c785精确CI40485503849及准确公开实体核验均已完成；197本批普通浏览→目录已具名，未入Reader，不扩全源或性能验收。237新设置场待当前权限问题具体答复；原3H/MyComic等已授权源后继保留，不把单场权限扩大为整体停止。 197实测从点击到完整目录仍约49.8/52.9秒；Root已核App依次请求详情和目录，两者对同一comic_ids重复全量版本探测，固定参考fetchMangaUpdate在同次更新复用解析结果。Root继续核现有ABI能否安全复用并保持失败恢复与源身份，尚无修复结论，不以并发批次交付关闭全部卡顿。",
+    "commit": "668c785257b959f006bece2fe2ead56dcec90480"
   },
   "milestones": [],
   "releaseGates": [
