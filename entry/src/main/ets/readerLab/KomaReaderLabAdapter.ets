@@ -1,6 +1,8 @@
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
+import { image } from '@kit.ImageKit'
 import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderAsset, ReaderAssetKind,
@@ -37,6 +39,30 @@ export class KomaReaderLabChapterChoice {
   }
 }
 
+/** Read only the cached file header off the UI thread; native decode remains the authority. */
+@Concurrent
+async function readPreloadedImageSize(path: string): Promise<string> {
+  let source: image.ImageSource | undefined = undefined
+  try {
+    source = image.createImageSource(path.startsWith('file://') ? path.substring(7) : path)
+    const info = await source.getImageInfo()
+    return `${info.size.width},${info.size.height}`
+  } finally {
+    if (source !== undefined) await source.release()
+  }
+}
+
+class KomaReaderPreloadedSize {
+  source: ReaderPageRenderSource
+  width: number
+  height: number
+  constructor(source: ReaderPageRenderSource, width: number, height: number) {
+    this.source = source
+    this.width = width
+    this.height = height
+  }
+}
+
 /** Defer metadata I/O until requested; its failure must not reject the displayed body asset. */
 class KomaReaderFileInformation implements ReaderImageInformationSource {
   private path: string
@@ -68,6 +94,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private preparingUnits: Map<string, Promise<ReaderUnit>> = new Map()
   private preparationCancellation: ReaderCancellation = new ReaderCancellation()
   private sourceRequests: Map<string, Promise<string>> = new Map()
+  private preloadedSizes: Map<string, KomaReaderPreloadedSize> = new Map()
+  private preloadedSizeVersions: Map<string, number> = new Map()
   private refreshingSources: Map<string, Promise<void>> = new Map()
   private automaticallyRefreshedUnits: Set<string> = new Set()
   private automaticPageRetries: Set<string> = new Set()
@@ -213,6 +241,11 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     page.height = config.pageHeights?.[index] ?? 0
     page.thumbnail.kind = 'derived'
     const source = this.sources.get(this.unitId(unit.key))?.[index]
+    const warmedSize = this.preloadedSizes.get(JSON.stringify([this.unitId(unit.key), index]))
+    if (warmedSize !== undefined && warmedSize.source === source && (page.width <= 0 || page.height <= 0)) {
+      page.width = warmedSize.width
+      page.height = warmedSize.height
+    }
     page.thumbnail.available = source !== undefined &&
       source.kind !== ReaderPageRenderKind.URI_PLACEHOLDER &&
       (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST || source.imageUri.length > 0)
@@ -253,26 +286,54 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       this.library.getComic(unit.work)?.chapters.find((chapter) => chapter.id === unit.unit)?.title ?? ''
   }
 
+  /** Catalog preparation is session-local and does not imply native image presentation. */
+  chapterPrepared(unit: ReaderUnitKey): boolean {
+    return this.preparedUnits.has(this.unitId(unit))
+  }
+
   sessionConfig(unit: ReaderUnitKey): ReaderSessionConfig | null {
     const config = this.configs.get(this.unitId(unit))
     return config === undefined ? null : cloneReaderSessionConfig(config)
   }
 
-  /** Only the host's verified continuation sequence authorizes speculative work. */
-  async preloadNextUnit(unit: ReaderUnit, depth: number, cancellation: ReaderCancellation): Promise<void> {
+  /** Spend the requested page budget across verified continuation chapters. */
+  async preloadNextUnit(unit: ReaderUnit, depth: number, cancellation: ReaderCancellation,
+    onPrepared?: (unit: ReaderUnit, indexes: number[], precedingPages: number) => void): Promise<void> {
     cancellation.check()
     if (!this.chapterPreloadEnabled || this.closed) return
     const sequence = this.configs.get(this.unitId(unit.key))?.continuationChapterIds
     if (sequence === undefined) return
     const index = sequence.indexOf(unit.key.unit)
-    if (index < 0 || index + 1 >= sequence.length) return
-    const next = new ReaderUnitKey(unit.key.scope, unit.key.work, sequence[index + 1])
-    const prepared = await this.prepareShared(next, cancellation)
-    for (let page = 0; page < Math.min(depth, prepared.pageCount); page += 1) {
+    const budget = Number.isFinite(depth) ? Math.max(0, Math.floor(depth)) : 0
+    if (index < 0 || budget === 0) return
+    let remaining = budget
+    let precedingPages = 0
+    const warming: Promise<Error | undefined>[] = []
+    for (let chapter = index + 1; chapter < sequence.length && remaining > 0; chapter += 1) {
       cancellation.check()
-      const descriptor = await this.page(prepared, page, cancellation)
-      await this.preload(descriptor, cancellation)
+      const next = new ReaderUnitKey(unit.key.scope, unit.key.work, sequence[chapter])
+      const prepared = await this.prepareShared(next, cancellation)
+      const count = Math.min(remaining, prepared.pageCount)
+      const indexes: number[] = []
+      for (let page = 0; page < count; page += 1) indexes.push(page)
+      onPrepared?.(prepared.copy(), indexes, precedingPages)
+      // Resolve the next chapter while this chapter's images warm; a series
+      // of single-page chapters must not wait for every image serially.
+      const warm = async (): Promise<void> => {
+        for (let page = 0; page < count; page += 1) {
+          cancellation.check()
+          const descriptor = await this.page(prepared, page, cancellation)
+          await this.preload(descriptor, cancellation)
+        }
+      }
+      warming.push(warm().then((): Error | undefined => undefined, (error: Error): Error | undefined => error))
+      remaining -= count
+      precedingPages += count
     }
+    const results = await Promise.all(warming)
+    cancellation.check()
+    const failure = results.find((error: Error | undefined): boolean => error !== undefined)
+    if (failure !== undefined) throw failure
   }
 
   /** Explicit retry refreshes the host-owned page addresses without replacing the live unit.
@@ -321,6 +382,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const source = this.sources.get(this.unitId(key))?.[index]
     if (source === undefined) return Promise.reject(new Error('missing_koma_page_source'))
     const id = JSON.stringify([this.unitId(key), index])
+    if (forceReload) {
+      this.preloadedSizes.delete(id)
+      this.preloadedSizeVersions.set(id, (this.preloadedSizeVersions.get(id) ?? 0) + 1)
+    }
     const pending = this.sourceRequests.get(id)
     if (pending !== undefined && !forceReload) return pending
     const request = fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload)
@@ -340,9 +405,27 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=local-skip`)
       return
     }
-    await this.sourceFile(page.unit, page.sourceIndex)
+    const sizeKey = JSON.stringify([this.unitId(page.unit), page.sourceIndex])
+    const sizeVersion = this.preloadedSizeVersions.get(sizeKey) ?? 0
+    const filePath = await this.sourceFile(page.unit, page.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
+    if (page.width <= 0 || page.height <= 0) {
+      try {
+        const size = await taskpool.execute<[string], string>(readPreloadedImageSize, filePath)
+        cancellation.check()
+        const values = size.split(',').map((value: string): number => Number(value))
+        if (!this.closed && (this.preloadedSizeVersions.get(sizeKey) ?? 0) === sizeVersion &&
+          this.sources.get(this.unitId(page.unit))?.[page.sourceIndex] === source &&
+          values.length === 2 && Number.isFinite(values[0]) && Number.isFinite(values[1]) &&
+          values[0] > 0 && values[1] > 0) {
+          this.preloadedSizes.set(sizeKey, new KomaReaderPreloadedSize(source, values[0], values[1]))
+        }
+      } catch (_error) {
+        // Header preparation is optional; the real native decode still owns failures and dimensions.
+        cancellation.check()
+      }
+    }
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
   }
 
@@ -424,6 +507,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.preparationCancellation.cancel()
     this.preparingUnits.clear()
     this.sourceRequests.clear()
+    this.preloadedSizes.clear()
+    this.preloadedSizeVersions.clear()
     this.refreshingSources.clear()
     this.automaticallyRefreshedUnits.clear()
     this.automaticPageRetries.clear()

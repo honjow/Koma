@@ -107,6 +107,10 @@
     { "name": "reader_column_mode_odd_left", "value": "奇数页在左" },
     { "name": "reader_column_mode_even_left", "value": "偶数页在左" },
     { "name": "reader_page_turn_animation_title", "value": "翻页动画" },
+    { "name": "reader_double_tap_zoom_title", "value": "双击缩放" },
+    { "name": "reader_double_tap_zoom_detail", "value": "关闭后单击立即响应" },
+    { "name": "reader_double_tap_interval_title", "value": "双击检测间隔" },
+    { "name": "reader_double_tap_interval_detail", "value": "两次点击之间的最长间隔" },
     { "name": "reader_show_page_number_title", "value": "显示页码" },
     { "name": "reader_fullscreen_title", "value": "全屏" },
     { "name": "reader_auto_page_title", "value": "自动翻页间隔" },
@@ -256,6 +260,7 @@
     { "name": "settings_section_library_updates", "value": "书架更新" },
     { "name": "settings_section_private_libraries", "value": "私有书库" },
     { "name": "settings_section_source_runtime", "value": "源运行时" },
+    { "name": "settings_section_translation", "value": "漫画翻译" },
     { "name": "settings_section_downloads", "value": "下载" },
     { "name": "settings_section_tracking", "value": "追踪" },
     { "name": "settings_section_backup", "value": "备份" },
@@ -1451,6 +1456,7 @@
     { "name": "source_pkg_close", "value": "关闭" },
     { "name": "source_pkg_no_settings", "value": "此源包未提供设置项" },
     { "name": "source_pkg_save_settings", "value": "保存设置" },
+    { "name": "source_pkg_invalid_uuid_list", "value": "包含无效的 UUID" },
     { "name": "source_pkg_clear_settings", "value": "清除已保存设置" },
     { "name": "source_pkg_clear_settings_title", "value": "清除源设置？" },
     { "name": "source_pkg_clear_settings_message", "value": "清除“%s”的已保存设置？登录相关设置不会通过这个操作恢复。" },
@@ -1505,10 +1511,6 @@
     {"name": "diagnostics_saved", "value": "日志已保存"},
     {"name": "diagnostics_settings_failed", "value": "日志设置保存失败"},
     {"name": "diagnostics_file_choice", "value": "日志 (.log)"},
-    {
-      "name": "source_homepage_unavailable",
-      "value": "暂时无法取得此源的站点地址，请检查网络及源包更新后重试。"
-    },
     {
       "name": "source_web_open",
       "value": "网页验证 / 登录"

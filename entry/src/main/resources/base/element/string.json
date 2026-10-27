@@ -107,6 +107,10 @@
     { "name": "reader_column_mode_odd_left", "value": "Odd page left" },
     { "name": "reader_column_mode_even_left", "value": "Even page left" },
     { "name": "reader_page_turn_animation_title", "value": "Page-turn animation" },
+    { "name": "reader_double_tap_zoom_title", "value": "Double-tap to zoom" },
+    { "name": "reader_double_tap_zoom_detail", "value": "Single taps respond immediately when disabled" },
+    { "name": "reader_double_tap_interval_title", "value": "Double-tap interval" },
+    { "name": "reader_double_tap_interval_detail", "value": "Maximum interval between taps" },
     { "name": "reader_show_page_number_title", "value": "Show page number" },
     { "name": "reader_fullscreen_title", "value": "Fullscreen" },
     { "name": "reader_auto_page_title", "value": "Auto page interval" },
@@ -256,6 +260,7 @@
     { "name": "settings_section_library_updates", "value": "Library updates" },
     { "name": "settings_section_private_libraries", "value": "Private libraries" },
     { "name": "settings_section_source_runtime", "value": "Source runtime" },
+    { "name": "settings_section_translation", "value": "Comic translation" },
     { "name": "settings_section_downloads", "value": "Downloads" },
     { "name": "settings_section_tracking", "value": "Tracking" },
     { "name": "settings_section_backup", "value": "Backup" },
@@ -1451,6 +1456,7 @@
     { "name": "source_pkg_close", "value": "Close" },
     { "name": "source_pkg_no_settings", "value": "This source package does not provide settings" },
     { "name": "source_pkg_save_settings", "value": "Save settings" },
+    { "name": "source_pkg_invalid_uuid_list", "value": "Contains an invalid UUID" },
     { "name": "source_pkg_clear_settings", "value": "Clear saved settings" },
     { "name": "source_pkg_clear_settings_title", "value": "Clear source settings?" },
     { "name": "source_pkg_clear_settings_message", "value": "Clear saved settings for \"%s\"? Login-related settings are never restored from this action." },
@@ -1505,10 +1511,6 @@
     {"name": "diagnostics_saved", "value": "Log saved"},
     {"name": "diagnostics_settings_failed", "value": "Could not save logging settings"},
     {"name": "diagnostics_file_choice", "value": "Log (.log)"},
-    {
-      "name": "source_homepage_unavailable",
-      "value": "Could not get this source's website address. Check the connection and source updates, then try again."
-    },
     {
       "name": "source_web_open",
       "value": "Web verification / sign in"

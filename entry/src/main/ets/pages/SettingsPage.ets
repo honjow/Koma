@@ -107,6 +107,7 @@ import {
 } from '../model/ReaderPageSourceAdapter'
 import {
   DEFAULT_READER_PREFERENCES,
+  READER_DOUBLE_TAP_INTERVALS,
   ReaderBackgroundMode,
   ReaderImageScalingQuality,
   ReaderPageGapMode,
@@ -230,6 +231,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-show-page-number', titleKey: 'reader_show_page_number_title', detailKey: 'reader_show_page_number_detail' },
         { key: 'reader-fullscreen', titleKey: 'reader_fullscreen_title', detailKey: 'reader_fullscreen_detail' },
         { key: 'reader-page-animation', titleKey: 'reader_page_turn_animation_title', detailKey: 'reader_page_turn_animation_detail' },
+        { key: 'reader-double-tap-zoom', titleKey: 'reader_double_tap_zoom_title', detailKey: 'reader_double_tap_zoom_detail' },
+        { key: 'reader-double-tap-interval', titleKey: 'reader_double_tap_interval_title', detailKey: 'reader_double_tap_interval_detail' },
         { key: 'reader-auto-page', titleKey: 'reader_auto_page_title', detailKey: 'reader_auto_page_detail' },
         { key: 'reader-preload-pages', titleKey: 'reader_preload_pages_title', detailKey: 'reader_preload_pages_detail' },
         { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
@@ -473,6 +476,8 @@ export struct SettingsPage {
   @Local private readerShowPageNumber: boolean = true
   @Local private readerFullscreen: boolean = true
   @Local private readerPageTurnAnimation: boolean = true
+  @Local private readerDoubleTapZoomEnabled: boolean = true
+  @Local private readerDoubleTapIntervalMs: number = 300
   @Local private readerAutoPageSeconds: number = 3
   @Local private readerPreloadPages: number = 2
   @Local private showReaderProgressControls: boolean = true
@@ -652,6 +657,8 @@ export struct SettingsPage {
     if (row.key === 'reader-page-animation') {
       return this.readerPageTurnAnimation ? this.t('common_on') : this.t('common_off')
     }
+    if (row.key === 'reader-double-tap-zoom') return this.readerDoubleTapZoomEnabled ? this.t('common_on') : this.t('common_off')
+    if (row.key === 'reader-double-tap-interval') return `${this.readerDoubleTapIntervalMs} ms`
     if (row.key === 'reader-auto-page') {
       return `${this.readerAutoPageSeconds}s`
     }
@@ -812,7 +819,7 @@ export struct SettingsPage {
           'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
-          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
+          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
         { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages']) },
         { key: 'reader-defaults', titleKey: 'settings_reader_group_defaults', rows: this.rowsByKeys(['reader-reset-defaults']) },
       ]
@@ -835,7 +842,7 @@ export struct SettingsPage {
         },
         {
           key: 'translation',
-          titleKey: '',
+          titleKey: 'settings_section_translation',
           rows: this.rowsByKeys(['translation']),
         },
       ]
@@ -1095,6 +1102,8 @@ export struct SettingsPage {
     this.readerShowPageNumber = preferences.showPageNumber
     this.readerFullscreen = preferences.fullscreen
     this.readerPageTurnAnimation = preferences.pageTurnAnimation
+    this.readerDoubleTapZoomEnabled = preferences.doubleTapZoomEnabled
+    this.readerDoubleTapIntervalMs = preferences.doubleTapIntervalMs
     this.readerAutoPageSeconds = preferences.autoPageSeconds
     this.readerPreloadPages = preferences.preloadPages
     this.showReaderProgressControls = preferences.showProgressControls
@@ -1457,6 +1466,20 @@ export struct SettingsPage {
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'save_reader_page_animation_failed', '[Settings] step=save_reader_page_animation_failed code=' + safeSettingsErrorCode(error))
       })
+  }
+
+  private saveReaderDoubleTapZoomEnabled(enabled: boolean): void {
+    this.readerDoubleTapZoomEnabled = enabled
+    void this.preferencesStore().saveDoubleTapZoomEnabled(enabled).catch((error: Error) => {
+      DiagnosticLogger.warn('settings_page', 'save_reader_double_tap_zoom_failed', safeSettingsErrorCode(error))
+    })
+  }
+
+  private saveReaderDoubleTapIntervalMs(interval: number): void {
+    this.readerDoubleTapIntervalMs = interval
+    void this.preferencesStore().saveDoubleTapIntervalMs(interval).catch((error: Error) => {
+      DiagnosticLogger.warn('settings_page', 'save_reader_double_tap_interval_failed', safeSettingsErrorCode(error))
+    })
   }
 
   private saveReaderAutoPageSeconds(autoPageSeconds: number): void {
@@ -2076,6 +2099,7 @@ export struct SettingsPage {
       row.key === 'reader-image-scaling' ||
       row.key === 'reader-auto-page' ||
       row.key === 'reader-preload-pages' ||
+      row.key === 'reader-double-tap-interval' ||
       row.key === 'reader-tap-zone-preset' ||
       row.key === 'reader-tap-zone-invert' ||
       row.key === 'reader-page-gap' ||
@@ -2102,6 +2126,7 @@ export struct SettingsPage {
       row.key === 'reader-show-page-number' ||
       row.key === 'reader-fullscreen' ||
       row.key === 'reader-page-animation' ||
+      row.key === 'reader-double-tap-zoom' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-volume-key-navigation'
   }
@@ -2149,6 +2174,7 @@ export struct SettingsPage {
     if (row.key === 'reader-page-animation') {
       return this.readerPageTurnAnimation
     }
+    if (row.key === 'reader-double-tap-zoom') return this.readerDoubleTapZoomEnabled
     return false
   }
 
@@ -2181,6 +2207,8 @@ export struct SettingsPage {
       this.saveReaderFullscreen(value)
     } else if (row.key === 'reader-page-animation') {
       this.saveReaderPageTurnAnimation(value)
+    } else if (row.key === 'reader-double-tap-zoom') {
+      this.saveReaderDoubleTapZoomEnabled(value)
     }
   }
 
@@ -2250,6 +2278,10 @@ export struct SettingsPage {
         ForEach([0, 1, 2, 3, 4, 5], (pages: number) => {
           this.SelectionMenuItem(select, `${pages}`, this.readerPreloadPages === pages, () => { this.saveReaderPreloadPages(pages) })
         }, (pages: number) => `${pages}`)
+      } else if (row.key === 'reader-double-tap-interval') {
+        ForEach(READER_DOUBLE_TAP_INTERVALS, (interval: number) => {
+          this.SelectionMenuItem(select, `${interval} ms`, this.readerDoubleTapIntervalMs === interval, () => { this.saveReaderDoubleTapIntervalMs(interval) })
+        }, (interval: number) => `${interval}`)
       } else if (row.key === 'reader-tap-zone-preset') {
         this.SelectionMenuItem(select, s('reader_tap_zone_edge'), this.readerTapZonePreset === 'edge', () => { this.saveReaderTapZonePreset('edge') })
         this.SelectionMenuItem(select, s('reader_tap_zone_wide'), this.readerTapZonePreset === 'wide_edges', () => { this.saveReaderTapZonePreset('wide_edges') })
