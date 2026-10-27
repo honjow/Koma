@@ -4,7 +4,7 @@
 
 规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-设备：19718906594空多选采用UI已亲审、六域保持，969原书架/上传清空/120000无Override及2a63释租完成。source_fixes唯一237同包继续Noya及全源后继/总场恢复，200禁止、四私库搁置。
+设备：197975最终18906611已装，采用设置普通路径及976七文件保持具名，977原书架/120000无Override/8d478f8f释租完成；source_fixes237续Gallery四源与总场恢复。无翻译配置保存/Reader/provider，200禁止、四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "设置与源宿主具名范围已交付；原未解决缺陷及真实provider验收继续",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-27T03:12:01+00:00",
+  "updatedAt": "2026-10-27T04:19:56+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_EMPTY_SETTINGS_ENTRY",
-  "activity": "App6bb精确CI40441836262 success、tag发布skipped无新App版；Global441双CI/准确release85索引27743B包53806B WASM与旧新cap schema闭环，Native/Linux实体分记。MangaBall403仅本地header传递核对未见丢字段，非抓包/非根因。source_fixes237续Noya安全排行+ADULT真实GET范围与原85后继，有可执行动作；全场恢复待，NEXTE外部译图归自身原项。",
-  "nextAction": "source_fixes继续Noya及85后继的实际安全范围，Root继续审相关实现与正式交付；本批Host/Global交付等待已清，237最终恢复和原未验缺陷仍推进。",
+  "activity": "XCOMIC037ce精确CI/原子发布成功，准确公开85索引/Hans185632-498310与Hant185469-497918实体核验，真正公开WASM八实体/双语函数与默认合同执行过，无新HTTP/Native安装。Gallery34f7 Root已审全diff/九原档及四开关原图，exactpush已成功，精确CI/资产待核；Noya/Global等当前功能/边界以直接receipts保留，237全场恢复仍待。",
+  "nextAction": "Root核已push的Gallery34f7精确CI/准确资产；source_fixes继续原85任务和237总场恢复，不把037公开执行当新Native，不重开已撤回description假设。",
   "proof": [
     {
       "label": "正式主仓",
@@ -34,9 +34,9 @@
     },
     {
       "label": "远端同步",
-      "state": "本批App源Host与Global准确公开已完成",
+      "state": "App设置已交付；X后继已push待CI资产，Gallery本地待审",
       "kind": "accepted",
-      "detail": "App6bb精确CI40441836262 success/发布skipped，无新App发版；Global441双CI及准确公开85索引27743B包/WASM53806核验成功。当前Noya源后继继续，不留旧CI等待。"
+      "detail": "App2821设置交付保持；源037ce精确CI/准确双X.3公开与生产实体合同已核。Gallery34f7 exactpush已成功，精确CI资产与237总场恢复待。"
     },
     {
       "label": "共享阅读器",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "App源Host6bb77f089b83629b70d1df1243bc4b3bdf29bd1f已push/精确CI40441836262 completed/success，Build成功/tagged Publish skipped，无新App tag/release；已交付NextE与纯简介保持。",
-      "hap": "19718906594采用空UI亲审/六域保持，969原书架/上传清空/120000无Override/2a63释租；237同包由源owner续Noya及全源后继与最终恢复。"
+      "appHead": "设置2821d0b746ef0dd025696c898ab93c57858b9e2f已push/精确CI40446834903 success，Build成功/Publish skipped，无新App tag/release；采用设置范围完整交付。",
+      "hap": "197975最终18906611已装，970采用图标/服务翻译/唯一搜索普通路径与976七文件保持具名，977书架/系统120000无Override及8d478f8f release；237source owner继续后继。"
     },
     {
       "name": "NextE",
@@ -1169,20 +1169,36 @@
     {
       "id": "APPEARANCE_CONSUMERS",
       "title": "主题、强调色和语言实际消费者",
-      "status": "具名路径通过",
+      "status": "已采用整组设置范围完整交付：最终各图亲审/普通返回/七文件保持，2821CI成功",
       "kind": "accepted",
-      "result": "具名路径通过",
-      "remaining": "不扩大全部主题色、语言、页面或系统语言变化；自动章数后继已按批准接入语言资源并具名验收。",
+      "result": "SettingsPage单文件2821d0b746ef0dd025696c898ab93c57858b9e2f已exactpush，精确CI40446834903 completed/success、Build success/Publish skipped，无新tag/release（settings-services-icons-identity/ci-2821d0b7.json）。最终18906611下root top/bottom/services/search/config全部原图Root亲审，服务翻译单处/搜索直达及普通返回原书架具名，976七文件逐字同971、977系统120000无Override/8d478f8f释租。原脚本失败原件保留、未改PASS，不冒配置保存/Reader/provider。",
+      "remaining": "本批人类采用整组图标/分类/唯一搜索入口交付完整，提交CI与原图审查等待均清，不重跑已验路径。原主题语言具名边界保持，后继实际源工作归原源项；provider/译图不由设置入口验收扩大。",
       "reportedAt": null,
       "reportedAtSource": "本轮普通路径实际观察。",
       "firstEvidenceAt": "2026-10-20T14:31:54.915842+00:00",
       "closedAt": "2026-10-20T14:31:54.915842+00:00",
-      "owner": "冻结路径：无当前执行者",
+      "owner": "Root：采用整组图标/翻译归服务已完整具名交付，2821精确CI成功，无本批等待",
       "evidencePoints": [],
       "remainingActions": [
-        "不扩大全部主题色、语言、页面或系统语言变化；自动章数后继已按批准接入语言资源并具名验收。"
+        "本批人类采用整组图标/分类/唯一搜索入口交付完整，提交CI与原图审查等待均清，不重跑已验路径。原主题语言具名边界保持，后继实际源工作归原源项；provider/译图不由设置入口验收扩大。"
       ],
-      "boundaries": []
+      "boundaries": [],
+      "userDecision": {
+        "source": "当前可见call_ac3a69d…明确“采用整组调整（推荐）”，不猜精确答复时间。",
+        "icons": {
+          "外观": "paintpalette",
+          "书库": "grid（原）",
+          "阅读": "doc_plaintext",
+          "服务": "link",
+          "下载": "arrow_down_to_line",
+          "追踪": "checkmark_circle",
+          "备份": "arrow_clockwise",
+          "存储": "externaldrive",
+          "高级": "gear（唯一）",
+          "关于": "info_circle"
+        },
+        "preserved": "卡片颜色/大小/间距保持，翻译配置页/Reader即时操作保持；仅入口符号和分类差异。"
+      }
     },
     {
       "id": "LIBRARY_COUNT_I18N",
@@ -1712,21 +1728,22 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "source_fixes：6bb Host/Global441准确公开闭环，237续Noya真实GET安全范围与85后继；总场恢复待",
+      "owner": "source_fixes：XCOMIC037准确公开及公开WASM实体执行闭环，Gallery34f7 exactpush已成功，精确CI/资产待核",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-      "result": "App源Host6bb77f089b83629b70d1df1243bc4b3bdf29bd1f精确CI40441836262 completed/success，Build成功/tagged Publish skipped，无新App tag/release（host-6bb77f08-ci.json）。Global441源CI40441835140/Docs40441835137 success，准确release424995138非draft/pre、03:09:53Z；85唯一索引/27743B包/WASM53806核验，生产旧Host只dataSaver=false，新exclusionscap加showLocked=true，公开MangaBall.2/English.14/Simply.1未混候选（public-44189ba/inspection.json）。Native27716/53824与Linux实体分开。",
+      "result": "037ce精确CI40448659153 completed/success且原子发布step成功，准确release425028843非draft/pre、04:16:28Z；85唯一index/公开Hans185632B-WASM498310B、Hant185469B-WASM497918B与manifest一致，唯一toggle默认false。真正Linux公开WASM复用八实体边界/两语言list+detail/default DTO与请求deepSame过，无站点HTTP或新Native重导（public-037ce4f/inspection.json、entity-wasm-result.json）。Gallery34f7全diff/九旧档逐字保留及四开关重入原图Root已审，exactpush工具已返回成功（037..34f7→master），精确CI/准确公开资产待核。",
       "evidencePoints": [
-        "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb"
+        "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb",
+        "当前源功能/边界直接证据：Noya day/week/month设置持久（非auth/ADULT内容）见source-settings-repair/noyacg-ranking-restoration-comparison.json、public-ae71f7c/inspection.json；Global默认锁定目录/开关恢复（非付费正文或Native精确mobileURI）见public-44189ba/inspection.json；MangaBall已入库明确排除/清配置复原见public-5ed3d78/inspection.json及原575–579恢复receipts；XCOMIC默认/题名清理有限Native与实体执行见xcomic-title-restoration-comparison.json、public-037ce4f/entity-wasm-result.json；Gallery仅开关持久/临时Hfox移除与81恢复见gallery-short-title-restoration-comparison.json（非短标题内容Native/全场恢复）。以上路径均在source-settings-repair下，具体已验/未验不由后批摘要替换。"
       ],
       "remainingActions": [
-        "source_fixes237继续Noya排行/ADULT安全设置真实GET范围核对与其余85已授权后继，仍有可执行动作；本批6bb/Global441无提交CI公开等待。MangaBall575既有ReaderHTTP403与原source UA/Referer/Origin经Adapter传NetworkKit未见本地丢字段代码（mangaball-host-image-header-review.json），仅本地核对非抓包/非403原因已知，恢复仍open。237全场系统/原目标/ownhistory及上传清理释租仍待；NextE外部译图未验归其原项，不夹源后继。"
+        "Root核Gallery34f7精确CI/准确公开资产，exactpush已成功；237源owner继续原85/总场系统Continue早期ownhistory清理释租，600本批恢复不代全场。既有Noya排行/Global目录等当前功能及其未验边界由直接receipts保留，不以新X公开执行冒新Native或所有源完整等价；597description不是Host待办。"
       ],
-      "remaining": "source_fixes237继续Noya排行/ADULT安全设置真实GET范围核对与其余85已授权后继，仍有可执行动作；本批6bb/Global441无提交CI公开等待。MangaBall575既有ReaderHTTP403与原source UA/Referer/Origin经Adapter传NetworkKit未见本地丢字段代码（mangaball-host-image-header-review.json），仅本地核对非抓包/非403原因已知，恢复仍open。237全场系统/原目标/ownhistory及上传清理释租仍待；NextE外部译图未验归其原项，不夹源后继。",
+      "remaining": "Root核Gallery34f7精确CI/准确公开资产，exactpush已成功；237源owner继续原85/总场系统Continue早期ownhistory清理释租，600本批恢复不代全场。既有Noya排行/Global目录等当前功能及其未验边界由直接receipts保留，不以新X公开执行冒新Native或所有源完整等价；597description不是Host待办。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -2523,12 +2540,12 @@
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（后续迁移；不取消当前bugs）",
-      "owner": "Root：NextE裁切/超分/翻译实现及54d全局接入具名范围已交付；真实翻译provider/译图仍未验",
+      "owner": "Root：翻译归服务/唯一搜索及原迁移具名范围已交付，2821CI成功；真实provider/译图仍未验",
       "kind": "open",
-      "status": "裁切/单模型处理与增强预载/即时开关、54d全局配置具名范围保持；真实provider未验，总迁移open",
+      "status": "采用翻译归服务已完整具名交付/2821CI成功，原迁移效果冻结，真实provider未验",
       "dependencies": [],
       "relatedItems": [],
-      "result": "NextE裁边强度、本地超分及漫画翻译实现已接Koma宿主，54d全局长期配置/Reader即时分组/模型管理/高级诊断已交付，901–906 English保存pop重入及中文恢复具名，既有独立安全配置冷恢复保持。裁切正样本/单模型处理/临时增强开关已具名；原941停P2无翻页，当前P2与预载P3/P4、回翻P1四项systemCoreVision process_success，ownerHash/sourceKey唯一映射见原941目录preload-page-mapping-review.json，不重跑已接受范围。真实外部翻译provider/实际译图未验，不以源评论文字PNG代译图，不扩全部模型/FPS/布局。",
+      "result": "既有NextE裁切/单模型/翻译实现与54d具名配置保持。采用翻译归服务/唯一搜索/同配置owner/Reader即时分工由2821单文件交付，精确CI40446834903 success，无新App发版；最终top/bottom/services/search/config均亲审、普通返回/七文件保持/197977释租具名，未保存配置或调用provider。原941停P2无翻页，P2/P3/P4/P1四项systemCoreVision成功及preload-page-mapping-review.json保持已接受范围，真实provider/译图未验不扩模型/FPS。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
@@ -2536,9 +2553,9 @@
       "evidencePoints": [
         "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json"
       ],
-      "remaining": "本项实现及54d全局接入/具名普通设置范围已交付，无源Host6bb、空多选或新源后继待办。真实翻译provider调用/实际译图仍未验，按人类先实现不追问配置或默认启动外部服务；既有裁切/单模型/预处理范围冻结，不扩大未验模型/布局/全性能，也不以此取消其他原bugs。",
+      "remaining": "本批入口分类/搜索与设置同步CI/原图审查无等待；真实翻译provider/实际译图仍未验，按人类先实现不追问配置或默认调用。既有裁切/增强/设置范围冻结，不把源Gallery/全85后继当本项剩余，不取消原bugs。",
       "remainingActions": [
-        "本项实现及54d全局接入/具名普通设置范围已交付，无源Host6bb、空多选或新源后继待办。真实翻译provider调用/实际译图仍未验，按人类先实现不追问配置或默认启动外部服务；既有裁切/单模型/预处理范围冻结，不扩大未验模型/布局/全性能，也不以此取消其他原bugs。"
+        "本批入口分类/搜索与设置同步CI/原图审查无等待；真实翻译provider/实际译图仍未验，按人类先实现不追问配置或默认调用。既有裁切/增强/设置范围冻结，不把源Gallery/全85后继当本项剩余，不取消原bugs。"
       ],
       "boundaries": [
         "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
@@ -2548,31 +2565,31 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
-        "condition": "本项实现及54d全局接入/具名普通设置范围已交付，无源Host6bb、空多选或新源后继待办。真实翻译provider调用/实际译图仍未验，按人类先实现不追问配置或默认启动外部服务；既有裁切/单模型/预处理范围冻结，不扩大未验模型/布局/全性能，也不以此取消其他原bugs。"
+        "condition": "本批入口分类/搜索与设置同步CI/原图审查无等待；真实翻译provider/实际译图仍未验，按人类先实现不追问配置或默认调用。既有裁切/增强/设置范围冻结，不把源Gallery/全85后继当本项剩余，不取消原bugs。"
       },
       "adoptedEntryScope": {
         "source": "本轮当前可见人类异步call_63f84fa…：采用这组现有入口（推荐）；精确服务端时间未给，登记时刻不冒答复时间。",
-        "settings": "当前已要求全局长期配置及Reader即时控制分工：全局翻译/图像处理配置、Reader既有即时设置与更多，按NextE实际职责接入；高级归开发排障，日志由关于移入。未选/不可用模型仍保可见开关，选择与文件管理分开。",
+        "settings": "当前可见call_ac3a69d…人类“采用整组调整（推荐）”：漫画翻译从root移services，既有配置页/Reader即时操作与卡片颜色大小间距保持。",
         "more": "既有更多：翻译当前页、自动翻译、显示原图。",
         "defaults": "trimPageMarginsEnabled原false保持；超分与自动翻译默认关闭。",
-        "serviceBoundary": "按NextE职责的全局长期配置/Reader即时分工与高级诊断入口已在54d交付并完成具名普通设置路径；不扩大默认/凭据/章节身份，不默认外部服务或自动耗费。"
+        "serviceBoundary": "仅services一处translation row/搜索索引，同form/route owner及Reader即时操作/卡片几何颜色保持；2821精确CI成功/最终各图与普通路径具名，已完整交付采用范围，不默认外部服务或扩大权限。"
       },
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
         "observedEvidence": "独立安全配置/分块manifest非默认English冷恢复及zh还原具名；54d全局翻译/高级/Reader分组/模型管理已交付，901–906 English保存pop重入及中文恢复、861增强设置/模型回退均具名，未调用翻译provider。",
-        "pendingImplementationVerification": "本项实现及54d具名全局/Reader接入已交付，无源Host工程等待；真实外部翻译provider/实际译图仍未验，未覆盖模型/布局/全性能不扩大。",
+        "pendingImplementationVerification": "翻译归服务/整组图标采用范围最终各图与普通路径/七文件恢复已具名，2821精确CI成功，无本批工程或图审等待；真实外部provider/译图仍未验，源后继不属本项。",
         "unverifiedExternal": "真实提供方调用/实际译图未验；API URL/model/key为空，不读取NextE账户/secret、不默认调用服务或自动耗费。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
       }
     }
   ],
   "source": {
-    "status": "源Host6bb/Global441准确公开等待清除，237续Noya与85后继",
+    "status": "XCOMIC037准确公开与公开WASM实体执行完成，Gallery34f7已push待精确CI/资产",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "App6bb精确CI40441836262 success/发布skipped无新App版；Global441双CI及准确85索引27743B包53806B WASM/cap schema完成，Native27716/53824不同实体分记。",
-    "remaining": "source_fixes237继续Noya安全排行/ADULT真实GET范围核对与原85后继；MangaBall403本地header未见丢字段不等根因，最终系统/原目标/ownhistory恢复仍待，已交付批次不留CI等待。",
-    "commit": "44189bae6e62f6f179ec698e18bec20167e6a1cb"
+    "result": "037ce精确CI/原子发布及准确85索引双X.3包(schema默认false)闭环；Linux公开WASM八实体与双语list/detail/default请求合同执行通过，无新站点HTTP或Native安装。已有Noya/Global等功能及未验边界直接receipts保留。",
+    "remaining": "34f7 exactpush已成功，目前仅精确CI/准确资产及237总场恢复仍待，原85后继继续。",
+    "commit": "34f7f78bdd22c8b8c8908c5f818daf5dab833ca4"
   },
   "milestones": [],
   "releaseGates": [
