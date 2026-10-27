@@ -129,6 +129,35 @@ function fixture(sdkApiVersion = 23) {
     changeEntry: fn => { entry = fn(entry) }, setCookie: value => { cookie = value },
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
+
+test('verification navigation uses the installed source name for the current language', () => {
+  const f = fixture()
+  const names = moduleFrom('SourceLocalizedNames', () => ({}))
+  f.changeEntry(entry => ({ ...entry, manifestName: 'DM5', localizedNames: { 'zh-Hans': '动漫屋', 'zh-Hant': '動漫屋' } }))
+  let locale = 'zh-CN'
+  const navigation = moduleFrom('SourceWebSessionNavigation', name => {
+    if (name === '../common/RouterHelper') return { RouterHelper: {} }
+    if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: f.store }
+    if (name === './SourceRuntimeAppRegistry') return {
+      appSourceRuntimeRegistry: f.registry,
+      sourceDisplayName: (id, fallback) => {
+        const entry = f.registry.lookup(id).entry
+        return entry ? names.resolveSourceLocalizedName(entry.manifestName, entry.localizedNames, locale) : fallback
+      },
+    }
+    throw Error('unexpected import: ' + name)
+  })
+  for (const [language, expected] of [['zh-CN', '动漫屋'], ['zh-TW', '動漫屋'], ['en-US', 'DM5']]) {
+    locale = language
+    const route = navigation.prepareSourceWebSession('source.one', 'DM5')
+    assert.equal(route.title, expected)
+    assert.equal(route.url, 'https://site.invalid/')
+    assert.equal(route.sourceSession.sourceId, 'source.one')
+    f.store.cancel('source.one', route.sourceSession.sessionId)
+  }
+  f.changeEntry(entry => ({ ...entry, enabled: false }))
+  assert.equal(navigation.prepareSourceWebSession('source.one', 'DM5'), undefined)
+})
 const response = (status = 200, header = {}, body = 'public-body') => ({ responseCode: status, result: body, header })
 test('one bounded HTTP group starts all original requests and keeps response order, session and failures', async () => {
   const f = fixture(); f.grant()

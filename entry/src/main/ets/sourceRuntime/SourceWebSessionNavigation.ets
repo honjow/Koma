@@ -1,14 +1,17 @@
 import { MangaWebRouteParam, RouterHelper } from '../common/RouterHelper'
-import { appSourceRuntimeRegistry } from './SourceRuntimeAppRegistry'
+import { appSourceRuntimeRegistry, sourceDisplayName } from './SourceRuntimeAppRegistry'
 import { appSourceWebSessionStore } from './SourceWebSessionStore'
 
 /** Prepare an origin-checked session without deciding how the host presents it. */
 export function prepareSourceWebSession(sourceId: string, title: string): MangaWebRouteParam | undefined {
   try {
     const url = appSourceWebSessionStore.launchUrl(appSourceRuntimeRegistry, sourceId)
+    // Verification sheets and full WebView routes must use the same localized
+    // source identity as Browse, Search and the source manager.
+    const displayName = sourceDisplayName(sourceId, title)
     const status = appSourceWebSessionStore.begin(appSourceRuntimeRegistry, sourceId, url)
     if (status.state !== 'pending') return undefined
-    return { url, title, sourceSession: { sourceId, sessionId: status.sessionId } }
+    return { url, title: displayName, sourceSession: { sourceId, sessionId: status.sessionId } }
   } catch (_error) {
     return undefined
   }
