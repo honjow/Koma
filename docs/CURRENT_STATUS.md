@@ -4,7 +4,7 @@
 
 规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-设备：197无活租约；237由source_fixes唯一owner继续MD繁中与源设置矩阵，后继需新Host时由其覆盖，Root不碰237。再漫画18885085候选仅构建验签、新模板Native未验。200禁止、四私库搁置。
+设备：197最终18888898已留机，正文/晚起逐页吐槽由18888600具名；960数据保持有限边界及上传清理、961系统120000无Override/8a9租约释放完成。237仍source_fixes独占后继，510数据保持不代最终系统/目标/清理/释租。200禁止、四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "设置与源宿主具名范围已交付；原未解决缺陷及真实provider验收继续",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-26T22:22:22+00:00",
+  "updatedAt": "2026-10-26T23:58:26+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_EMPTY_SETTINGS_ENTRY",
-  "activity": "MD e826双精确CI成功且准确release/tag/85索引/三包manifest与WASM头核验完成，无本批源交付等待。477settings同461/81 sourceId启用顺序与书id顺序Root独立核；reader ledger未全恢复。source_fixes237继续ComicFury/再漫画，Host18885085新模板未Native。App纯文档dbb23f91已push，不当新产品或新增CI等待。",
-  "nextAction": "source_fixes继续ComicFury/再漫画原矩阵及237最终GUI/系统/原继续目标恢复；MD公开闭环不重跑，Host新模板须适用Native验证，原总项不终止。",
+  "activity": "ff4e双中文准确公开/85唯一索引/双包与生产WASM schema已核，Build success/Docs一次rerun success，无源码改动，清该批交付等待。510实为settings/registry/library/reader四文件、reader四子域共七比对项，不是197七存储域；237 web/search/readerprefs无原before，仅当前建基线。source_fixes继续EnglishWEBTOON，EnglishMD20行未答及全场恢复仍待。",
+  "nextAction": "source_fixes237继续EnglishWEBTOON独立设置及最终恢复，EnglishMD显示差异等人类决定；不重跑已公开双中文或扩大510数据保持范围，原未验provider/性能边界保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -34,9 +34,9 @@
     },
     {
       "label": "远端同步",
-      "state": "AppHost及MD源准确公开资产完成；下一源任务继续",
+      "state": "App精确CI及双中文/既有源准确公开已完成",
       "kind": "accepted",
-      "detail": "App产品19813精确CI成功，纯文档dbb23f91已push不作新产品/CI待办；MD e826双CI及准确公开85索引/三包核验成功，237后继ComicFury/再漫画与最终恢复仍执行。"
+      "detail": "App4e精确CI成功且无新App发布；源Zai e20与双中文ff4e准确公开索引/包/schema及精确CI均闭环，237独立WEBTOON后继继续。"
     },
     {
       "label": "共享阅读器",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "产品19813dd3精确CI40410206428 success；纯文档dbb23f91已push，不新增产品/CI等待，18885085新模板Native未验。",
-      "hap": "197当前18878809，增强信息及当前页/三个priority=1预载任务process_success具名，b861只读日志finally已释租；237同包由source_fixes继续MangaDex/最终系统尚未恢复。"
+      "appHead": "逐页Host4e7814352e35005c6bb16dc4afc3ee78207a9e6e已push/精确CI40422239508 completed/success，tag发布skipped，无新App版。",
+      "hap": "197最终18888898同签Release已959覆盖，仅核原书架；逐页真正文/吐槽Native由18888600具名。949→960原152条chapters保持，唯一新增80808/164857一条chapter ledger仍isRead=true，不称字节全同；961系统恢复/8a9释租。237原源owner继续后继。"
     },
     {
       "name": "NextE",
@@ -1712,21 +1712,21 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "source_fixes：MD e826精确公开资产闭环；237继续ComicFury/再漫画及最终恢复",
+      "owner": "source_fixes：双中文ff4e准确公开闭环，510仅四文件七比对项保持；237续EnglishWEBTOON",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-      "result": "MD三源真实质量/语言正文/data-saver Native具名，477settings同461、81真实sourceId/enabled/order及书id/order同已Root独立核；整体reader ledger未全恢复。e826双CI40411219836/40411220665 success，准确release424830084/tag sources-e8260f6eeebb75755cb4a1b9a05a423384369a33目标同SHA、非draft/pre、published2026-10-26T22:19:10Z。实取85唯一索引/三包，manifest关键字段与index同、WASM header有效：mangadex0.1.13包25660B/WASM98645B，Hans0.1.1为41647/83376B，Hant0.1.1为41737/83518B；public-e8260f6/inspection.json具据。",
+      "result": "ff4e双中文MD/SDK准确公开release424891615非draft/pre、23:54:57Z，Build40422703640 success；Docs40422703591构建成功但attempt1远端gh-pages commit_refs失败、Root一次rerun attempt2 success，无源码变更。85唯一index及Hans44117B/WASM89261、Hant44180B/WASM89415身份/manifest/index元信息匹配，预期图标发布名除外；生产WASM各三项含别名false、无HTTP，public-ff4e3b0/inspection.json有据。English.13/Webtoon.4/Zai.7未混候选。MD Hans/Hant别名像素/还原具名；510仅settings/registry/library/reader四文件比较，reader四子域加前三项共七比对项，不是197七存储域，MD别名未入Reader。",
       "evidencePoints": [
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb"
       ],
       "remainingActions": [
-        "MD e826该批源push/双CI/准确公开索引三包已闭环，无该批等待，不重跑MD。source_fixes继续ComicFury/再漫画与237最终GUI/系统/原继续目标恢复；整体reader ledger未全恢复保留，Host18885085新模板尚未Native，不把源局部完成当总项或所有70任务完成。"
+        "source_fixes237继续English WEBTOON原独立叶源任务/最终全场恢复；ff4e push/CI/准确公开包无等待。English MD .14长简介20行仍待人类具体决定不混发布。237 web/search/readerprefs无本任务起始before，现只建立当前基线，不冒任务起全相等；510四文件既有保持范围不扩。"
       ],
-      "remaining": "MD e826该批源push/双CI/准确公开索引三包已闭环，无该批等待，不重跑MD。source_fixes继续ComicFury/再漫画与237最终GUI/系统/原继续目标恢复；整体reader ledger未全恢复保留，Host18885085新模板尚未Native，不把源局部完成当总项或所有70任务完成。",
+      "remaining": "source_fixes237继续English WEBTOON原独立叶源任务/最终全场恢复；ff4e push/CI/准确公开包无等待。English MD .14长简介20行仍待人类具体决定不混发布。237 web/search/readerprefs无本任务起始before，现只建立当前基线，不冒任务起全相等；510四文件既有保持范围不扩。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -2516,12 +2516,12 @@
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（后续迁移；不取消当前bugs）",
-      "owner": "Root：Host五文件19813dd3精确push/CI成功，新模板Native仍未验，源owner后继接入",
+      "owner": "Root：逐页Host4e精确CI成功/Zai准确源发布闭环；source_fixes续独立源后继",
       "kind": "open",
-      "status": "19813dd3精确CI40410206428成功，无新App发布；18885085新模板仅Host/build未Native，941页映射具名",
+      "status": "App4e精确CI成功/未新App发版，逐页Native与准确Zai资产闭环；自然失败重试/provider未验",
       "dependencies": [],
       "relatedItems": [],
-      "result": "Host再漫画独立文字模板与精确text_page_image_zaimanhua_comments_v1 gate已实现，沿固定Keiyoushi CommentsInterceptor，旧两模板行为保持；五文件19813dd3，HTTPS push及精确CI40410206428（head19813dd3dc0a2c7e241daef58529c609f7b2649d）均成功。四实际逻辑/Release构建成功，Koma-zaimanhua-text-template-signed.hap18885085B（release/debugfalse/code4）verify-app成功、cert/profile同原。新模板Native未验，不冒源侧已实现；既有设置/源宿主最终1bc精确CI成功及provider/性能未验边界保持。 941原目录preload-page-mapping-review.json以实际readerProcessingOwnerHash和942原库八页/Provider sourceKey逐一唯一匹配runtime.log，停P2无翻页：priority0=P2，三个priority1=P3/P4/P1，四项systemCoreVision process_success；source/output尺寸和时间日志有据。P3/P4及回翻P1实际预处理具名，不扩全模型/FPS/provider；旧XML误断/34值语义同保持。",
+      "result": "App逐页text_request十四文件4e7814352e35005c6bb16dc4afc3ee78207a9e6e已commit/push，十四关键现有测试过。18888600+Zai39520真实推图1-5首图1/6→末6/6“章末吐槽”五评论PNG→回1/6正文；runtime get_pages357ms后晚起get_image_request吐槽351chars/260ms，非凭SDK flag推断。无自然失败，Native重试未验。最终18888898补末次缓存维护后设置身份核对，同签Release/debugfalse/code4，959覆盖仅核原书架未重跑文字；旧18891502未装。 App4e781435精确CI40422239508 completed/success，tag release job skipped、无新App发布。Zai e20双CI40422195031/40422195032成功，准确公开release424889229非draft/pre，39683B包/WASM89153B与85索引/manifest元信息匹配；Native39520/89133与Linux公开实体不称同包Native。 原941具名增强预处理保持：停P2无翻页，P2当前及P3/P4预载、P1回翻四项均systemCoreVision process_success，真实ownerHash/sourceKey唯一映射见原941目录preload-page-mapping-review.json；不重跑已接受范围，不扩全部模型/FPS/provider。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
@@ -2529,9 +2529,9 @@
       "evidencePoints": [
         "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json"
       ],
-      "remaining": "Host五文件19813dd3dc0a2c7e241daef58529c609f7b2649d已push、精确CI40410206428 completed/success，无该批push/CI等待或新App tag/release。18885085新模板Native未验，原source owner接入并按适用路径验证；941映射P2/P3/P4/P1已具名不重跑，真实provider/全模型/FPS未验保持。",
+      "remaining": "App4e及Zai e20本批工程CI/准确公开资产已完成，无该批等待；当前自然失败重试、真实provider/译图及原全性能未验保持。source_fixes继续237 WEBTOON与源后继，最终系统/继续目标/上传清理/释租未全场完成，不重跑已具名MD/逐页Native。",
       "remainingActions": [
-        "Host五文件19813dd3dc0a2c7e241daef58529c609f7b2649d已push、精确CI40410206428 completed/success，无该批push/CI等待或新App tag/release。18885085新模板Native未验，原source owner接入并按适用路径验证；941映射P2/P3/P4/P1已具名不重跑，真实provider/全模型/FPS未验保持。"
+        "App4e及Zai e20本批工程CI/准确公开资产已完成，无该批等待；当前自然失败重试、真实provider/译图及原全性能未验保持。source_fixes继续237 WEBTOON与源后继，最终系统/继续目标/上传清理/释租未全场完成，不重跑已具名MD/逐页Native。"
       ],
       "boundaries": [
         "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
@@ -2541,7 +2541,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T19:28:10+00:00",
         "owner": "Root",
-        "condition": "Host五文件19813dd3dc0a2c7e241daef58529c609f7b2649d已push、精确CI40410206428 completed/success，无该批push/CI等待或新App tag/release。18885085新模板Native未验，原source owner接入并按适用路径验证；941映射P2/P3/P4/P1已具名不重跑，真实provider/全模型/FPS未验保持。"
+        "condition": "App4e及Zai e20本批工程CI/准确公开资产已完成，无该批等待；当前自然失败重试、真实provider/译图及原全性能未验保持。source_fixes继续237 WEBTOON与源后继，最终系统/继续目标/上传清理/释租未全场完成，不重跑已具名MD/逐页Native。"
       },
       "adoptedEntryScope": {
         "source": "本轮当前可见人类异步call_63f84fa…：采用这组现有入口（推荐）；精确服务端时间未给，登记时刻不冒答复时间。",
@@ -2560,12 +2560,12 @@
     }
   ],
   "source": {
-    "status": "MD e826双CI/准确公开资产完成；237继续ComicFury/再漫画",
+    "status": "双中文ff4e准确公开闭环；237继续EnglishWEBTOON与最终恢复",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "e826准确非draft/pre公开tag/目标SHA、85唯一索引、三包manifest/index/WASM header均核；包/WASM：MD25660/98645B、Hans41647/83376B、Hant41737/83518B。477settings/81源ID启用顺序/书ID顺序Root独立核同；整体reader ledger未全恢复。",
-    "remaining": "MD e826无push/CI/公开等待，source_fixes继续ComicFury/再漫画及237最终GUI/系统恢复；Host18885085新模板未Native，源总项不关闭。",
-    "commit": "e8260f6eeebb75755cb4a1b9a05a423384369a33"
+    "result": "ff4e准确release/85唯一索引/Hans44117B与Hant44180B包及WASM89261/89415、三项schema默认别名false已核；Build success/Docs rerun attempt2 success，无代码变更。510保持仅四文件七比对项，不等197七存储域；公开English.13/Webtoon.4/Zai.7不混候选。",
+    "remaining": "EnglishWEBTOON .5独立WIP由source_fixes237继续；English MD20行待答、最终系统/目标/清上传/释租仍待。web/search/readerprefs只当前新基线不冒起始保持。",
+    "commit": "ff4e3b09442a1ffecfa62e456d3ae379efdcf912"
   },
   "milestones": [],
   "releaseGates": [
