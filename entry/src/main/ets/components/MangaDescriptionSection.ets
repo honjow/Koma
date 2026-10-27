@@ -38,7 +38,9 @@ export struct MangaDescriptionSection {
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
         .fontColor(this.hasDescription() ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.TEXT_SECONDARY)
-        .maxLines(this.expanded || !this.hasDescription() ? 20 : 3)
+        // Expanded source descriptions must include their trailing aliases.
+        // Keep the existing three-line collapsed preview and empty placeholder.
+        .maxLines(this.expanded ? undefined : (this.hasDescription() ? 3 : 20))
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .animation({ duration: 180, curve: Curve.EaseInOut })
 
