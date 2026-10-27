@@ -597,8 +597,9 @@ async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, 
   wasmBytes.set(entry.wasmBytes)
   const httpContextJson = sourceHttpIdentityJson(entry)
   // Keep normal images and deferred text on the same worker/host HTTP bridge.
-  return diagnoseSourceOperation(requestJson, () => taskpool.execute(
-    executeReaderSourceImageRequestOperation, requestJson, wasmBytes, httpContextJson,
+  const hostRequest = sourceRequestWithHostFeatures(requestJson)
+  return diagnoseSourceOperation(hostRequest, () => taskpool.execute(
+    executeReaderSourceImageRequestOperation, hostRequest, wasmBytes, httpContextJson,
   ) as Promise<string>)
 }
 
@@ -674,7 +675,7 @@ async function fetchAndCacheSourceRuntimeTextPage(source: ReaderPageRenderSource
   ])}`
   const path = await readerImageCacheStore.getOrFetch('source-text-request.png', undefined, async (): Promise<ArrayBuffer> => {
     if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_text_request_stale')
-    const requestJson = sourceRequestWithHostFeatures(readerImageRequestForPage(sourceId, pageId, '', route, settings))
+    const requestJson = readerImageRequestForPage(sourceId, pageId, '', route, settings)
     const responseJson = await runReaderSourceImageOperation(entry, requestJson)
     if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_text_request_stale')
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse

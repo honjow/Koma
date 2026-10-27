@@ -199,6 +199,42 @@ test('WASM-supplied identity cannot acquire a session; separate native identity 
   assert(!JSON.stringify(actual.result).includes('cookie'))
   assert(f.diagnostics.every(item => !item.includes('cookie-value')))
 })
+test('MangaBz language overrides only its own cookie while verification survives every redirect', async () => {
+  function granted(sourceId = 'com.mangabz.koma', origin = 'https://www.mangabz.com') {
+    const f = fixture()
+    f.changeEntry(entry => ({ ...entry, sourceId, webSessionOrigins: [origin] }))
+    const pending = f.store.begin(f.registry, sourceId, origin + '/verify')
+    f.store.complete(sourceId, pending.sessionId, origin + '/done', 'ActualWebViewUA')
+    f.setCookie('cf_clearance=jar-clearance; session=jar-login; mangabz_lang=1; mangabz_lang=2; other=kept')
+    return f
+  }
+  for (const language of ['1', '2']) {
+    const f = granted()
+    const result = await f.http([response(302, { location: '/after' }), response()], JSON.stringify(f.identity()), {
+      url: 'https://www.mangabz.com/browse',
+      headers: { cookie: 'mangabz_lang=' + language + '; cf_clearance=source-attempt', 'User-Agent': 'source-agent' },
+    })
+    assert.equal(result.calls.length, 2)
+    for (const call of result.calls) {
+      assert.equal(call.options.header.Cookie,
+        'cf_clearance=jar-clearance; session=jar-login; other=kept; mangabz_lang=' + language)
+      assert.equal(call.options.header['User-Agent'], 'ActualWebViewUA')
+    }
+    assert.equal(f.configured.length, 0, 'Language selection does not write the Web cookie jar')
+    assert(f.writes.every(value => !value.includes('jar-login') && !value.includes('mangabz_lang')))
+    assert(f.diagnostics.every(value => !value.includes('jar-login') && !value.includes('jar-clearance')))
+  }
+  for (const [sourceId, origin, cookie] of [
+    ['source.other', 'https://www.mangabz.com', 'mangabz_lang=1'],
+    ['com.mangabz.koma', 'https://mangabz.com.evil.invalid', 'mangabz_lang=1'],
+    ['com.mangabz.koma', 'https://www.mangabz.com', 'mangabz_lang=9'],
+  ]) {
+    const f = granted(sourceId, origin)
+    const result = await f.http([response()], JSON.stringify(f.identity()), { url: origin + '/browse', headers: { Cookie: cookie } })
+    assert.equal(result.calls[0].options.header.Cookie,
+      'cf_clearance=jar-clearance; session=jar-login; mangabz_lang=1; mangabz_lang=2; other=kept')
+  }
+})
 test('same-origin redirects re-read cookies for the exact path; cross-origin redirects never issue the next request', async () => {
   const f = fixture(); f.grant()
   const allowed = await f.http([response(302, { location: '/next' }), response()], JSON.stringify(f.identity()))
@@ -280,12 +316,13 @@ function declarations(relative, names, owner) {
 
 test('ordinary Browse queue derives native identity from the admitted registry entry, not source JSON', async () => {
   const f = fixture(), nativeCalls = [], exports = {}
+  const features = moduleFrom('SourceHostFeatures', () => ({}))
   const queue = declarations('sourceRuntime/SourceRuntimeWorker', ['runBrowseSourceOperationTask']) + '\n' +
     declarations('viewmodel/BrowseViewModel', ['sourceOperationQueue', 'enqueueSourceOperation'])
   const method = declarations('viewmodel/BrowseViewModel', ['runSourceOperationResponse'], 'BrowseViewModel')
   const source = `${queue}\nexport class Host { ${method} }`
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  vm.runInNewContext(js, { exports, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
+  vm.runInNewContext(js, { exports, ...features, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
     diagnoseSourceOperation: (_request, run) => run(), taskpool: { execute: (fn, ...args) => fn(...args) },
     require: name => {
       assert.equal(name, 'libkoma_source_runtime.so')
@@ -296,19 +333,23 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   const host = new exports.Host()
   host.registry = { lookup: id => ({ ...f.registry.lookup(id), ok: id === 'source.one' }) }
   host.copyWasmBytes = () => new Uint8Array([0])
-  host.buildRequestJson = () => JSON.stringify({ sourceId: 'wasm-forged', packageIdentity: 'forged' })
+  host.buildRequestJson = () => JSON.stringify({ operation: 'get_home', settings: { traditional: false }, sourceId: 'wasm-forged', packageIdentity: 'forged' })
   await assert.rejects(host.runSourceOperationResponse('missing', 'get_home', {}, 1), /browse_error_source_unavailable/)
   assert.equal(nativeCalls.length, 0)
   await host.runSourceOperationResponse('source.one', 'get_home', {}, 1)
   assert.equal(nativeCalls.length, 1)
   assert.deepEqual(JSON.parse(nativeCalls[0].context), f.identity())
   assert.equal(JSON.parse(nativeCalls[0].request).sourceId, 'wasm-forged')
+  assert.deepEqual(JSON.parse(nativeCalls[0].request).settings, { traditional: false })
+  assert(JSON.parse(nativeCalls[0].request).hostFeatures.includes('mangabz_language_cookie_v1'))
   assert(!nativeCalls[0].context.includes('cookie-value'))
 })
 
 test('shared Native worker retains each invocation request, bytes, HTTP context, reply and thrown error', () => {
   const calls = [], bytes = new Uint8Array([1]); let failure
+  const features = moduleFrom('SourceHostFeatures', () => ({}))
   const worker = moduleFrom('SourceRuntimeWorker', name => {
+    if (name === './SourceHostFeatures') return features
     if (name !== './NativeSourceRuntime') throw Error('unexpected worker dependency: ' + name)
     return { NativeSourceRuntime: { runJsonCallFromBytes: (...args) => {
       if (failure) throw failure
@@ -316,9 +357,14 @@ test('shared Native worker retains each invocation request, bytes, HTTP context,
     } } }
   })
   for (const operation of ['get_manga', 'get_chapters', 'get_pages', 'get_image_request', 'source_info', 'get_settings']) {
-    const request = JSON.stringify({ operation }), context = JSON.stringify({ sourceId: operation })
+    const request = JSON.stringify({ operation, settings: { traditional: true } }), context = JSON.stringify({ sourceId: operation })
     assert.deepEqual(JSON.parse(worker.executeSourceRuntimeRequest(request, bytes, context)), { ok: false, reasonCode: 'not_implemented' })
-    assert.equal(calls.at(-1)[0], request); assert.equal(calls.at(-1)[1], bytes); assert.equal(calls.at(-1)[2], context)
+    const received = JSON.parse(calls.at(-1)[0])
+    assert.equal(received.operation, operation)
+    assert.deepEqual(received.settings, { traditional: true })
+    if (operation === 'source_info') assert.equal(calls.at(-1)[0], request)
+    else assert(received.hostFeatures.includes('mangabz_language_cookie_v1'))
+    assert.equal(calls.at(-1)[1], bytes); assert.equal(calls.at(-1)[2], context)
   }
   failure = Error('Native failure')
   assert.throws(() => worker.executeSourceRuntimeRequest('{}', bytes, ''), error => error === failure)

@@ -126,10 +126,15 @@ function sourceImageRequestSubject(ports) {
   const nodes = tree.statements.filter(n => names.has(n.name?.getText(tree)) ||
     (ts.isVariableStatement(n) && n.declarationList.declarations.some(d => names.has(d.name.getText(tree)))))
   const exports = {}
+  const hostFeatures = {}
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,
+    '../entry/src/main/ets/sourceRuntime/SourceHostFeatures.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: hostFeatures })
   vm.runInNewContext(ts.transpileModule(nodes.map(n => n.getText(tree)).join('\n') +
     '\nexport { resolveSourceRuntimeImageRequest };', {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports, WeakMap, Uint8Array, console, sourceHttpIdentityJson: () => '{}',
+  }).outputText, { exports, WeakMap, Uint8Array, console, ...hostFeatures, sourceHttpIdentityJson: () => '{}',
     appSourceSettingsStore: { loadForSource: () => ({}) }, configureSourceRequestPolicy() {},
     DiagnosticLogger: { warn() {} }, executeReaderSourceImageRequestOperation() {},
     diagnoseSourceOperation: (_request, execute) => execute(), ...ports })
@@ -147,7 +152,8 @@ test('explicit unsupported metadata skips concurrent descriptor calls and a new 
       await new Promise(setImmediate)
       return { ok: true, operation: 'source_info', data: { capabilities: { imageRequest: bytes[0] !== 1 } } }
     },
-    taskpool: { execute: async () => {
+    taskpool: { execute: async (_operation, request) => {
+      assert(JSON.parse(request).hostFeatures.includes('mangabz_language_cookie_v1'))
       imageCalls++; return JSON.stringify({ ok: true, data: { url: 'https://images.example/page.jpg', headers: { Referer: 'https://site.example/' } } })
     } },
   })

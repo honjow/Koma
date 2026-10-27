@@ -131,6 +131,34 @@ function sourceHeaders(value: Object | string | number | boolean | null | undefi
   return headers
 }
 
+/** The adopted MangaBz language preference is a public request option, not a
+ * source-supplied login session. Only this source/domain/key/value may replace
+ * its counterpart; WebView owns every other cookie and the user agent.
+ * Keep the override request-local, including redirects, without writing the jar.
+ */
+function sourceSessionCookies(sourceId: string, fullUrl: string,
+  originalHeaders: Record<string, string>, sessionCookie: string): string {
+  if (sourceId !== 'com.mangabz.koma') return sessionCookie
+  try {
+    const parsed = new urlKit.URL(fullUrl)
+    const host = parsed.hostname.toLowerCase()
+    if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') ||
+      (host !== 'mangabz.com' && !host.endsWith('.mangabz.com'))) return sessionCookie
+  } catch (_error) { return sessionCookie }
+  const values: string[] = []
+  Object.keys(originalHeaders).forEach((name: string) => {
+    if (name.toLowerCase() !== 'cookie') return
+    originalHeaders[name].split(';').forEach((part: string) => {
+      const pair = part.trim()
+      if (pair === 'mangabz_lang=1' || pair === 'mangabz_lang=2') values.push(pair)
+    })
+  })
+  if (values.length !== 1) return sessionCookie
+  const retained = sessionCookie.split(';').filter((part: string): boolean =>
+    part.split('=')[0].trim() !== 'mangabz_lang').join(';').trim()
+  return retained.length === 0 ? values[0] : retained + '; ' + values[0]
+}
+
 function sourceMethod(value: Object | string | number | boolean | null | undefined): string | undefined {
   const method = sourceString(value)?.trim().toUpperCase()
   if (method === undefined || !/^[A-Z]{3,12}$/.test(method)) {
@@ -259,7 +287,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         return transportError('web_session_unavailable', false)
       }
       headers['User-Agent'] = active.userAgent
-      if (active.cookie.length > 0) headers['Cookie'] = active.cookie
+      const cookie = sourceSessionCookies(identity.sourceId, currentUrl, originalHeaders, active.cookie)
+      if (cookie.length > 0) headers['Cookie'] = cookie
     }
     trace.info('session', 'identity=' + (identity === undefined ? 'none' : 'native') +
       ' session=' + (session === undefined ? 'none' : 'attached') +
