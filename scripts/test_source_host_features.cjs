@@ -38,7 +38,7 @@ test('host capability handoff preserves requests and validates plain text withou
   const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
   assert.deepEqual(enriched.args, request.args)
   assert.deepEqual(enriched.settings, request.settings)
-  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1', 'source_chapter_exclusions_v1', 'mangabz_language_cookie_v1'])
+  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1', 'source_chapter_exclusions_v1', 'mangabz_language_cookie_v1', 'source_settings_context_v1'])
   // The adopted language setting affects all same-site metadata requests too.
   for (const operation of ['search', 'get_manga', 'get_manga_list', 'get_listings', 'get_home', 'get_filters']) {
     const original = { ...request, operation }

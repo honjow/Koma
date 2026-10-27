@@ -339,6 +339,7 @@ function settingsCapability(response, capabilities = ['settings'], onRequest = (
     exports:output, runRegisteredSourceRequestByIdAsync:async()=>{onRequest();return {response}},
     normalizeSourceSettingDescriptors:r=>r.data?.settings ?? r.data?.items ?? [], Date, JSON, Array,
     appSourceSettingObservationStore: { loadForSource: async () => ({}) },
+    appSourceSettingsStore: { descriptorValuesForSource: () => ({}) },
   })
   return output.loadSourceSettingsDescriptorsAsync({lookup:()=>({entry})},'source')
 }

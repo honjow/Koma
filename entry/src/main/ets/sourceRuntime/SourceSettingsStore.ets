@@ -43,6 +43,7 @@ interface SourceSettingsDocument {
 
 interface SourceSettingsRequestArgs {
   settingObservations?: SourceSettingObservations
+  settingValues?: SourceSettingsRecord
 }
 
 interface SourceSettingsRequestSettings {}
@@ -357,6 +358,18 @@ export class SourceSettingsStore {
     return copySettingsRecord(document.sources[normalizedSourceId] ?? {})
   }
 
+  descriptorValuesForSource(sourceId: string): SourceSettingsRecord | undefined {
+    if (!this.isConfigured() || sourceId.trim().length === 0) return undefined
+    try {
+      return this.filterSafeValues(this.loadForSource(sourceId), [])
+    } catch (_error) {
+      // This optional context must not turn a saved-file read failure into a
+      // schema failure. The existing form owns that read error and keeps its entry.
+      // Absence differs from a successfully read empty record; never migrate on read.
+      return undefined
+    }
+  }
+
   saveForSource(sourceId: string, values: SourceSettingsRecord, descriptors: SourceSettingDescriptor[] = []): void {
     const normalizedSourceId = sourceId.trim()
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
@@ -496,6 +509,7 @@ export function fetchSourceSettingDescriptors(registry: SourceRuntimeRegistry, s
   const source = registry.lookup(sourceId).entry
   if (source === undefined || !source.capabilities.includes('settings')) return []
   const args: SourceSettingsRequestArgs = { settingObservations: appSourceSettingObservationStore.snapshotForSource(sourceId) }
+  args.settingValues = appSourceSettingsStore.descriptorValuesForSource(sourceId)
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }
   const request: SourceSettingsRequest = {
@@ -526,6 +540,7 @@ export async function loadSourceSettingsDescriptorsAsync(registry: SourceRuntime
     // must not hide unrelated, otherwise working source settings.
   }
   if (registry.lookup(sourceId).entry !== source) return { ready: false, descriptors: [] }
+  args.settingValues = appSourceSettingsStore.descriptorValuesForSource(sourceId)
   const settings: SourceSettingsRequestSettings = {}
   const hostHints: SourceSettingsRequestHostHints = { network: false }
   const request: SourceSettingsRequest = {
