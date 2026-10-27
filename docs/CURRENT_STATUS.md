@@ -4,7 +4,7 @@
 
 规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-设备：197975最终18906611已装，采用设置普通路径及976七文件保持具名，977原书架/120000无Override/8d478f8f释租完成；source_fixes237续Gallery四源与总场恢复。无翻译配置保存/Reader/provider，200禁止、四私库搁置。
+设备：197989当前18910496，Mangabz简繁metadata具名无Reader，988→990七文件字节同，992原书架/120000无Override/c14761b7释租完成。source_fixes237仍18906594/原leaseawake与原85后继，总场恢复待。200禁止、四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "设置与源宿主具名范围已交付；原未解决缺陷及真实provider验收继续",
   "outcome": "保持70项原任务状态、已接受范围、合法权限与未验边界；当前文档只承载有效结论、证据索引和未完成动作，不以整理文档代替修复或验收。",
-  "updatedAt": "2026-10-27T04:19:56+00:00",
+  "updatedAt": "2026-10-27T06:03:17+00:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_EMPTY_SETTINGS_ENTRY",
-  "activity": "XCOMIC037ce精确CI/原子发布成功，准确公开85索引/Hans185632-498310与Hant185469-497918实体核验，真正公开WASM八实体/双语函数与默认合同执行过，无新HTTP/Native安装。Gallery34f7 Root已审全diff/九原档及四开关原图，exactpush已成功，精确CI/资产待核；Noya/Global等当前功能/边界以直接receipts保留，237全场恢复仍待。",
-  "nextAction": "Root核已push的Gallery34f7精确CI/准确资产；source_fixes继续原85任务和237总场恢复，不把037公开执行当新Native，不重开已撤回description假设。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "AppWorker12204da8精确CI40458243006 completed/success；源前四笔e38→472→e5→654已一次push，精确Build40458357148 success、准确release425083614非draft/pre/85索引四包生产WASM与累计schema核验闭环。本批语言/首卷/原语/评级默认与显式消费复用原fixture通过，Native先前独立local实体不与Linux公开混，原baseline保持。237原85与全场恢复仍待，provider/全源/性能未知继续。",
+  "nextAction": "Root审本次唯一当前工作单diff并独立进度提交；source_fixes237继续原85安全后继及总场恢复，已清本批CI/公开等待不重跑Native，不以进度提交结束主任务。",
   "proof": [
     {
       "label": "正式主仓",
@@ -34,9 +34,9 @@
     },
     {
       "label": "远端同步",
-      "state": "App设置已交付；X后继已push待CI资产，Gallery本地待审",
+      "state": "本批Worker与四源准确公开等待已清",
       "kind": "accepted",
-      "detail": "App2821设置交付保持；源037ce精确CI/准确双X.3公开与生产实体合同已核。Gallery34f7 exactpush已成功，精确CI资产与237总场恢复待。"
+      "detail": "App1220精确CI40458243006 success；源四笔至654已push/Build40458357148 success、准确85索引四Linux包与生产合同核验完成，Native实体分别记，237后继与总场恢复继续。"
     },
     {
       "label": "共享阅读器",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "设置2821d0b746ef0dd025696c898ab93c57858b9e2f已push/精确CI40446834903 success，Build成功/Publish skipped，无新App tag/release；采用设置范围完整交付。",
-      "hap": "197975最终18906611已装，970采用图标/服务翻译/唯一搜索普通路径与976七文件保持具名，977书架/系统120000无Override及8d478f8f release；237source owner继续后继。"
+      "appHead": "App12204da8edfb707bf3e53710e3daf279f8556c4d已push/精确CI40458243006 completed/success；列表78f/设置2821等既有交付保持，197无新Reader。",
+      "hap": "197989当前18910496，Bz简繁metadata实际通过/无Reader，988→990七文件字节同，992书架/120000无Override及c14761b7释租；237源owner恢复独立待。"
     },
     {
       "name": "NextE",
@@ -660,12 +660,12 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（当前优先：统一搜索逐源CF自动验证；旧Web/搜索范围保留）",
-      "owner": "Root：页表设置身份1bc已交付/精确CI成功；原CF自动404/登录等未验边界继续",
+      "owner": "Root：MangabzWorker1220精确CI成功/源e38随654准确公开，简繁metadata具名；原CF未知继续",
       "dependencies": [],
-      "status": "限定404修复c46提交推送/CI成功与普通回归留机闭环；自动新分支未自然实机，总项open",
+      "status": "Worker1220精确CI40458243006成功/简繁metadataNative及源发布闭环，无Reader扩认",
       "kind": "open",
-      "result": "237旧书20页source→low→原source URI逐项还原，ID/index稳定、低清fingerprint64位/默认空串、书ID顺序同、Hans own清除；455/460图亲审，453/456/461直接数据复核完成，456/458同get_pages op集合新增0。461全source-settings同433，462自然回书架。页表身份1bcfffed52af830e167c35a2e78e7c09707ba385已push，精确CI待查；此设置身份关联已具名，不扩大原CF自动404/登录验收。",
-      "remaining": "页表身份1bc提交/精确CI40406475305成功，旧库设置身份三段/同配置零重取已具名，无该批CI等待；原CF自动404/登录等未验边界继续，不重跑已接受三段，不将Nami成功当全Web关闭。",
+      "result": "App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。",
+      "remaining": "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -693,7 +693,7 @@
         "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap"
       ],
       "remainingActions": [
-        "页表身份1bc提交/精确CI40406475305成功，旧库设置身份三段/同配置零重取已具名，无该批CI等待；原CF自动404/登录等未验边界继续，不重跑已接受三段，不将Nami成功当全Web关闭。"
+        "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1728,22 +1728,25 @@
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
-      "owner": "source_fixes：XCOMIC037准确公开及公开WASM实体执行闭环，Gallery34f7 exactpush已成功，精确CI/资产待核",
+      "owner": "source_fixes：e38→472→e5→654四笔精确push/准确公开生产核验闭环，237原85后继与全场恢复继续",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "kind": "accepted",
       "status": "本轮空入口回归已具名交付并同步CI；全85差异不作无限验收欠账",
-      "result": "037ce精确CI40448659153 completed/success且原子发布step成功，准确release425028843非draft/pre、04:16:28Z；85唯一index/公开Hans185632B-WASM498310B、Hant185469B-WASM497918B与manifest一致，唯一toggle默认false。真正Linux公开WASM复用八实体边界/两语言list+detail/default DTO与请求deepSame过，无站点HTTP或新Native重导（public-037ce4f/inspection.json、entity-wasm-result.json）。Gallery34f7全diff/九旧档逐字保留及四开关重入原图Root已审，exactpush工具已返回成功（037..34f7→master），精确CI/准确公开资产待核。",
+      "result": "源e38→472→e5→654四笔已一次push，精确Build40458357148 success，准确release425083614/tag sources-6544211a8835210efa691ec38c5f369728ea7808非draft/pre、06:00:46Z；85唯一索引/四Linux包已实取：Bz.8包53571B-WASM69095B、MD.17 30570-108423、Hans.6 47846-98926、Hant.6 47924-99096。真正公开WASM复用原fixture，旧Host Bz请求/schema不变、新Host默认lang2/true1六分支与同站图、MD首卷全部消费者/默认、原语query/默认及双中rating/default guard均执行通过，累计schema额外项精确核。Native为先前各独立local实体，未重装public不混包，原baseline记录不改。",
       "evidencePoints": [
         "直接产物索引：Komiic.kt；all85-source-settings-comparison.json；index.pb",
-        "当前源功能/边界直接证据：Noya day/week/month设置持久（非auth/ADULT内容）见source-settings-repair/noyacg-ranking-restoration-comparison.json、public-ae71f7c/inspection.json；Global默认锁定目录/开关恢复（非付费正文或Native精确mobileURI）见public-44189ba/inspection.json；MangaBall已入库明确排除/清配置复原见public-5ed3d78/inspection.json及原575–579恢复receipts；XCOMIC默认/题名清理有限Native与实体执行见xcomic-title-restoration-comparison.json、public-037ce4f/entity-wasm-result.json；Gallery仅开关持久/临时Hfox移除与81恢复见gallery-short-title-restoration-comparison.json（非短标题内容Native/全场恢复）。以上路径均在source-settings-repair下，具体已验/未验不由后批摘要替换。"
+        "当前源功能/边界直接证据：Noya day/week/month设置持久（非auth/ADULT内容）见source-settings-repair/noyacg-ranking-restoration-comparison.json、public-ae71f7c/inspection.json；Global默认锁定目录/开关恢复（非付费正文或Native精确mobileURI）见public-44189ba/inspection.json；MangaBall已入库明确排除/清配置复原见public-5ed3d78/inspection.json及原575–579恢复receipts；XCOMIC默认/题名清理有限Native与实体执行见xcomic-title-restoration-comparison.json、public-037ce4f/entity-wasm-result.json；Gallery仅开关持久/临时Hfox移除与81恢复见gallery-short-title-restoration-comparison.json（非短标题内容Native/全场恢复）。以上路径均在source-settings-repair下，具体已验/未验不由后批摘要替换。",
+        "Gallery公开生产合同直接证据：source-settings-repair/public-34f7f78/inspection.json与short-title-wasm-result.json；真正公开四Linux WASM受控执行通过，非新站点HTTP/Native内容验收。",
+        "MD HTTPS443直接证据：source-settings-repair/mangadex-port443-restoration-comparison.json及wasm-result.json；Native仅设置持久/保全，生产受控query唯一forcePort443=true不代Native URI。",
+        "本批四源准确公开直接证据：source-settings-repair/public-6544211/inspection.json及该目录四*-wasm-result.json；Linux真实生产WASM受控复用原fixture，Native各local实体/原baseline分别保持，不冒public新安装。"
       ],
       "remainingActions": [
-        "Root核Gallery34f7精确CI/准确公开资产，exactpush已成功；237源owner继续原85/总场系统Continue早期ownhistory清理释租，600本批恢复不代全场。既有Noya排行/Global目录等当前功能及其未验边界由直接receipts保留，不以新X公开执行冒新Native或所有源完整等价；597description不是Host待办。"
+        "本批四源push/CI/准确公开及生产合同核验等待已清；source_fixes237继续原85安全后继及总场Continue/早期ownhistory/系统/上传/释租。先前各local Native仍仅已验范围：首卷Home5真1占位、原语Home6图、双中仅收窄Safe/无成人请求Reader，公开fixture不扩全源/全部模型/真实provider。Root197无新Reader，原CF/provider/全性能未知继续。"
       ],
-      "remaining": "Root核Gallery34f7精确CI/准确公开资产，exactpush已成功；237源owner继续原85/总场系统Continue早期ownhistory清理释租，600本批恢复不代全场。既有Noya排行/Global目录等当前功能及其未验边界由直接receipts保留，不以新X公开执行冒新Native或所有源完整等价；597description不是Host待办。",
+      "remaining": "本批四源push/CI/准确公开及生产合同核验等待已清；source_fixes237继续原85安全后继及总场Continue/早期ownhistory/系统/上传/释租。先前各local Native仍仅已验范围：首卷Home5真1占位、原语Home6图、双中仅收窄Safe/无成人请求Reader，公开fixture不扩全源/全部模型/真实provider。Root197无新Reader，原CF/provider/全性能未知继续。",
       "boundaries": [
         "只收口manager/Browse/独立Search已有具名空设置入口；未知或失败不能误当无设置，不称所有源描述符已验。",
         "保设置直接弹出、保存/清除和关闭返回范围；3Hentai无search能力不构成新导航缺陷。"
@@ -1762,7 +1765,8 @@
         "description": "展开完整显示；仅取消expanded二十行上限，折叠三行/字号/间距/按钮保持。",
         "globalcomix": "按参考默认显示锁定章，仅目录；正文free guard、无登录付费保持。",
         "mangaball": "默认只非成人，隐藏成人默认开启/no_18；用户关闭后按参考all。",
-        "emptyMultiSelect": "当前人类明确采用：空候选原行完整源description、取消空点击/箭头，有候选恢复原样式；不再待答。"
+        "emptyMultiSelect": "当前人类明确采用：空候选原行完整源description、取消空点击/箭头，有候选恢复原样式；不再待答。",
+        "mangabz": "当前可见call_fa43df…人类采用“按参考补齐，默认简体（推荐）”；新cap mangabz_language_cookie_v1，false/未配lang2、true lang1，旧Host旧输出。"
       }
     },
     {
@@ -1828,7 +1832,7 @@
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
-      "owner": "Root：c801精确CI40398958854已成功；热读/普通manager具名范围完成，原59ms未全闭",
+      "owner": "Root：列表重复文案78f已push并普通Native完成，原59ms/全性能边界仍open",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
@@ -1841,9 +1845,9 @@
         "直接产物索引：https://github.com/honjow/Koma/releases/tag/v0.1.3-pre；230/audit/frequency-comparison-224-230.json；build.log；diagnostics-redaction-reuse-review/txt-suffix-unadopted-candidate.patch；300/audit/callback6739-scheduler-frequency.json；koma-log-export-20261026-003924.log；307/audit/aligned-existing-cpu.json；audit/aligned-existing-cpu.json；/tmp/koma-computed-fresh-result-before.txt；test_source_index_progressive.cjs；receipt.json；Koma-source-current-result-fixed-signed.hap；manhuagui-network-phase-review/source-head-current.json；manager-after-real-update.png；browse-name-projection197-session-513/result.json；offline-window-review.json；mh160-web-entry-chain-review/browse-name-projection-ci-detail.json；scripts/test_source_install_worker.cjs；temporary-browse-row-count.patch；pre2-browse-source.png；restored-library.png；pre2-batch-update-before.log；pre2-batch-update-after.log；candidate2-manager-details.png；pre2-candidate2-ci-detail.json；index.json；pre2-current-source-index.json；pre2-current-source-update-comparison.json；manager-cache-url-before.log；manager-cache-reader-relevant-final-tests.log；manager-cache-url-final-build.log；registry-update-review.json"
       ],
       "remainingActions": [
-        "c801精确CI40398958854已成功，Root续其他原项；921–926普通同进程设置/恢复与913m全271帧普通manager已具名，不重跑局部采样。原59.319ms及所有性能/全触发未证明消除，不以当前无整表消失扩大验收。"
+        "列表冗余文案当前纠正已197普通Native并push，精确CI归SOURCE_INDEX_CACHE_REVALIDATE；本项缓存/热读普通manager原具名交付保持，原59.319ms/全部性能未证全闭，不以文案修复扩大性能结论。"
       ],
-      "remaining": "c801精确CI40398958854已成功，Root续其他原项；921–926普通同进程设置/恢复与913m全271帧普通manager已具名，不重跑局部采样。原59.319ms及所有性能/全触发未证明消除，不以当前无整表消失扩大验收。",
+      "remaining": "列表冗余文案当前纠正已197普通Native并push，精确CI归SOURCE_INDEX_CACHE_REVALIDATE；本项缓存/热读普通manager原具名交付保持，原59.319ms/全部性能未证全闭，不以文案修复扩大性能结论。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -1988,7 +1992,7 @@
       "continuationGate": {
         "checkedAt": "2026-10-26T19:34:00+00:00",
         "owner": "Root",
-        "condition": "c801精确CI40398958854已成功，Root续其他原项；921–926普通同进程设置/恢复与913m全271帧普通manager已具名，不重跑局部采样。原59.319ms及所有性能/全触发未证明消除，不以当前无整表消失扩大验收。"
+        "condition": "列表冗余文案当前纠正已197普通Native并push，精确CI归SOURCE_INDEX_CACHE_REVALIDATE；本项缓存/热读普通manager原具名交付保持，原59.319ms/全部性能未证全闭，不以文案修复扩大性能结论。"
       },
       "reportedAgeAtAudit": "至少1天22小时28分14秒",
       "reportedAgeSecondsAtAudit": null,
@@ -2421,7 +2425,7 @@
       "id": "SOURCE_INDEX_CACHE_REVALIDATE",
       "title": "源管理先显示持久索引缓存并后台更新",
       "priority": "P1（明确授权的初载/刷新体验）",
-      "owner": "Root：本轮具名修正已闭环，保未外推设备状态",
+      "owner": "Root：列表78f精确CI40456280638成功/普通manager交付完成，原同类发现未改边界保持",
       "dependencies": [],
       "relatedItems": [
         "REFRESH_RETAIN_EXISTING_CONTENT",
@@ -2429,19 +2433,19 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "accepted",
-      "status": "本轮完整部分失败修正已具名验收、提交推送及同head精确CI成功",
-      "result": "306暖重入范围保持。266正式包新进程在未访问Manager前，经267普通设置→服务，268连续转场录像69编码帧及两张contact-sheet全审：录像PTS0.371033秒已有五个未装源文字/图标且正在检查，1.072256仍检查，1.879411完成并保持至8.794567。PTS不是tap后延迟，不作FPS结论。269日志主索引85项成功、另一个保存地址code2300007失败，最终update0/latest80/missing0/failed_indexes1；实际界面未提示这次失败。四域同266，273恢复原书架后仍同269。",
+      "status": "列表重复文案纠正已push/精确CI成功与197普通验证闭环，无该批等待",
+      "result": "App78f008d246d307695a12ca101c3e3dfdadee65ab已commit/push且精确CI40456280638 completed/success，公共row meta重复incomplete附文/Computed删除；正常行本来无latest/unknown，不写成新删除。197983安装18910591，manager-clean-result与manager-normal-range-result errors=[]，clean-manager-top/next/normal-range Root亲审：正常已安装区仅原版本语言、可更新区原按钮保持，内部partial/地址失败保持。985对979六非Registry字节同、85 IDs/order/enabled及其它84DTO同，仅Bz .8预期升级；986系统120000无Override/44636496释租。",
       "evidencePoints": [
         "直接产物索引：269/partial-check-existing-method-review.json"
       ],
       "remainingActions": [
-        "本轮已采用的完整部分失败修正闭环，无提交/CI待办，不重跑自然partial0。实机仅覆盖自然partial0及5条可见普通行、地址原因、返回与五域恢复；正面updates/成功重试/全成功与全失败保真实方法case证据，不冒设备全矩阵。"
+        "78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。"
       ],
-      "remaining": "本轮已采用的完整部分失败修正闭环，无提交/CI待办，不重跑自然partial0。实机仅覆盖自然partial0及5条可见普通行、地址原因、返回与五域恢复；正面updates/成功重试/全成功与全失败保真实方法case证据，不冒设备全矩阵。",
+      "remaining": "78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。",
       "boundaries": [
         "当前profile普通重入缓存先显已实现且具名运动成立；新缓存项不覆盖其余缺陷，后台失败/换库/cold仍未验。",
         "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。",
-        "此前没看明白/要求再想未构成采用；本轮明确采用完整修正后，以新授权为准。允许改变仅上述部分失败摘要、未确认状态与原地址行subtitle；全成功及原缓存/列表/动作合同保持，不新增提示条/按钮，不改URL/网络/UA或清缓存制造失败样本。"
+        "当前人类纠正取代旧逐行未能确认文案决定：移除公共row meta重复状态，保版本/语言、真实update按钮及内部partial/原地址失败。正常行原本无latest/unknown，不虚构新移除；未授权额外界面变化，不改URL/网络/UA或清缓存造失败。"
       ],
       "reportedAt": "2026-10-23T21:31:23.640Z",
       "reportedDate": "2026-10-24",
@@ -2455,16 +2459,16 @@
       "continuationGate": {
         "checkedAt": "2026-10-25T21:00:16.188000+00:00",
         "owner": "Root",
-        "condition": "本轮具名修正已闭环：237自然partial0验收、68b6b234提交推送及精确CI40235545574同head成功；保未出现的设备状态边界，不制造全矩阵或重跑已验路径。"
+        "condition": "78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。"
       },
       "proposalReview": {
         "object": "checkInstalledUpdates的部分成功状态、原检查更新副标题及现有保存地址行",
-        "history": "a81c0043引入保存地址合并与日志failed_indexes；cef0af792原摘要保持至今；8efc61a3保既有按源动作状态。269是真实部分失败且UI未显示的新反例。",
-        "withdrawn": "在原检查完成/最新/未找到计数后只追加1个地址检查失败。人类要求重新考虑，未实施。",
-        "proposed": "只在部分失败时明确检查未完成，保留已证实可更新结果，不将未查全的源新判为最新/未找到；在现有地址列表标出具体失败项和受控原因，复用原点行载入/检查入口。无需新增提示条、按钮或源地址归属持久层。",
-        "authorization": "本轮已明确采用完整修正，Root可信转交人类答复；本记录时刻不是用户精确答复时间。允许的可见/状态差异仅本项approvedDifference；全成功保持，无新提示条/按钮，不扩大其它样式或业务。",
-        "approvedDifference": "部分失败：摘要检查未完成 · 已确认可更新 N；已确认可更新项继续可用，其余源更新：未能确认；原保存地址行subtitle显示受控失败原因，沿用点行重试。全部成功文案和行为保持，不新增提示条或按钮。",
-        "approvalRecordedAt": "2026-10-25T21:00:16.188000+00:00"
+        "history": "旧逐行未能确认的采用决定被当前人类纠正取代，不作为现允许差异。",
+        "withdrawn": "逐源“更新：未能确认”不再采用；正常行本来没有latest/unknown，不能记成新删除。",
+        "proposed": "删公共row meta incomplete附文及两Computed投影，保版本/语言/真实update按钮，内部partial与地址失败保持。",
+        "authorization": "当前可见人类明确反对逐行重复状态并要求Root承担基本判断，取代旧逐行文案决定；不扩大为改其他未核界面。 当前纠正无精确原始时间，不沿用旧采用决定的登记时刻。",
+        "approvedDifference": "仅取消逐源重复“更新：未能确认”，partial摘要/真实更新动作/原地址失败保持；未核同类不编总数，不新增提示条按钮。",
+        "approvalRecordedAt": null
       },
       "reportedAgeAtAudit": "至少1天22小时2分28秒",
       "reportedAgeSecondsAtAudit": null,
@@ -2584,12 +2588,12 @@
     }
   ],
   "source": {
-    "status": "XCOMIC037准确公开与公开WASM实体执行完成，Gallery34f7已push待精确CI/资产",
+    "status": "Bz/MD首卷原语/双中评级四笔准确公开与生产合同闭环，237原85后继继续",
     "kind": "open",
     "title": "源homepage发布与App采用边界",
-    "result": "037ce精确CI/原子发布及准确85索引双X.3包(schema默认false)闭环；Linux公开WASM八实体与双语list/detail/default请求合同执行通过，无新站点HTTP或Native安装。已有Noya/Global等功能及未验边界直接receipts保留。",
-    "remaining": "34f7 exactpush已成功，目前仅精确CI/准确资产及237总场恢复仍待，原85后继继续。",
-    "commit": "34f7f78bdd22c8b8c8908c5f818daf5dab833ca4"
+    "result": "e38→472→e5→654已push，Build40458357148 success及准确release425083614/85索引/四Linux包WASM/schema核验完成；真实公开WASM旧新Host语言六支路/图、首卷消费者、原语query、评级guard/default均复用原fixture过，Native独立local实体不混，baseline不改。",
+    "remaining": "本批工程/公开等待清除，source_fixes237原85后继及全场Continue/早期ownhistory/系统/上传清理释租仍待；未验真实provider/全源/全性能保持，Root197无新Reader。",
+    "commit": "6544211a8835210efa691ec38c5f369728ea7808"
   },
   "milestones": [],
   "releaseGates": [
