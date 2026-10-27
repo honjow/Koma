@@ -227,8 +227,14 @@ export struct SourceSettingsSheetContent {
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .maxLines(2147483647)
+          .textOverflow({ overflow: TextOverflow.Clip })
+        if ((descriptor.description?.length ?? 0) > 0) {
+          Text(descriptor.description ?? '')
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
         Text(`${this.settingNumberValue(descriptor)}`)
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
@@ -257,15 +263,25 @@ export struct SourceSettingsSheetContent {
   @Builder
   private SettingRow(descriptor: SourceSettingDescriptor) {
     Column() {
+      // Source-provided labels and instructions must remain readable regardless
+      // of setting kind; the native row and its actions still own the layout.
       if (descriptor.sensitive || !descriptor.supported) {
         ConciseListRow({
           title: descriptor.label,
+          wrapTitle: true,
+          wrapTitleByWord: true,
+          subtitle: descriptor.description ?? '',
+          subtitleMaxLines: 2147483647,
           trailingText: descriptor.sensitive ? t('source_pkg_login_required') : t('source_pkg_unsupported'),
           showChevron: false,
         })
       } else if (descriptor.kind === 'boolean') {
         ConciseListRow({
           title: descriptor.label,
+          wrapTitle: true,
+          wrapTitleByWord: true,
+          subtitle: descriptor.description ?? '',
+          subtitleMaxLines: 2147483647,
           showChevron: false,
           hasSwitch: true,
           checked: this.settingBooleanValue(descriptor),
@@ -276,6 +292,10 @@ export struct SourceSettingsSheetContent {
       } else if (descriptor.kind === 'select') {
         ConciseListRow({
           title: descriptor.label,
+          wrapTitle: true,
+          wrapTitleByWord: true,
+          subtitle: descriptor.description ?? '',
+          subtitleMaxLines: 2147483647,
           trailingText: this.settingSelectLabel(descriptor),
           trailingDropdown: true,
           dropdownMenuEnabled: true,
@@ -286,9 +306,11 @@ export struct SourceSettingsSheetContent {
       } else if (descriptor.kind === 'multiselect') {
         ConciseListRow({
           title: descriptor.label,
-          // An empty learned set is a real first-use state, not a working
-          // dropdown. Preserve the source's explanation until options exist.
-          subtitle: (descriptor.options?.length ?? 0) === 0 ? descriptor.description ?? '' : '',
+          wrapTitle: true,
+          wrapTitleByWord: true,
+          // Keep the explanation after learned choices appear as well. An
+          // empty learned set still has no working dropdown.
+          subtitle: descriptor.description ?? '',
           subtitleMaxLines: 2147483647,
           trailingText: this.settingMultiSelectLabel(descriptor),
           showChevron: false,
@@ -312,6 +334,7 @@ export struct SourceSettingsSheetContent {
         Column({ space: ThemeConstants.SPACE_XS }) {
           KomaFormTextField({
             label: descriptor.label,
+            wrapLabel: true,
             value: this.settingStringValue(descriptor),
             change: (value: string) => {
               this.updateSettingValue(descriptor.id, value)

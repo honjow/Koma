@@ -22,6 +22,8 @@ export class SourceIdentityIconState {
 export struct ConciseListRow {
   @Param title: ResourceStr = ''
   @Param wrapTitle: boolean = false
+  // URL-like titles keep their existing character breaks; prose can opt into word breaks.
+  @Param wrapTitleByWord: boolean = false
   @Param subtitle: ResourceStr = ''
   @Param subtitleMaxLines: number = 2
   @Param subtitleContentRating: boolean = false
@@ -95,7 +97,7 @@ export struct ConciseListRow {
       .fontWeight(FontWeight.Regular)
       .fontColor(this.primaryColor ?? (this.destructive ? Color.Red : $r('sys.color.font_primary')))
       .maxLines(this.wrapTitle ? 2147483647 : 1)
-      .wordBreak(this.wrapTitle ? WordBreak.BREAK_ALL : WordBreak.BREAK_WORD)
+      .wordBreak(this.wrapTitle && !this.wrapTitleByWord ? WordBreak.BREAK_ALL : WordBreak.BREAK_WORD)
       .textOverflow({ overflow: this.wrapTitle ? TextOverflow.Clip : TextOverflow.Ellipsis })
     if (!this.hasLeading()) {
       modifier.padding({ left: ThemeConstants.LIST_ROW_TEXT_INDENT })

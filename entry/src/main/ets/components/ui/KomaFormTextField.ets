@@ -3,6 +3,8 @@ import { ThemeConstants } from '../../theme/ThemeConstants'
 @ComponentV2
 export struct KomaFormTextField {
   @Param label: ResourceStr = ''
+  // Source settings opt in; other forms retain their existing single-line label.
+  @Param wrapLabel: boolean = false
   @Param placeholder: ResourceStr = ''
   @Param value: string = ''
   @Param isPassword: boolean = false
@@ -16,8 +18,8 @@ export struct KomaFormTextField {
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontWeight(FontWeight.Regular)
         .fontColor($r('sys.color.font_secondary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .maxLines(this.wrapLabel ? 2147483647 : 1)
+        .textOverflow({ overflow: this.wrapLabel ? TextOverflow.Clip : TextOverflow.Ellipsis })
         .width('100%')
 
       TextInput({ placeholder: this.placeholder, text: this.value })
