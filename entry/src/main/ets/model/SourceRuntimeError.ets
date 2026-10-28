@@ -71,6 +71,7 @@ export function sourceFailureText(details: SourceFailureDetails): string {
 export class SourceRuntimeError extends Error {
   readonly diagnostic: SourceFailureDetails
   readonly userText: string
+  readonly challengeRequestId: string | undefined
 
   constructor(response: SourceRuntimeCallResponse) {
     const diagnostic = sourceFailureDetails(response)
@@ -79,5 +80,7 @@ export class SourceRuntimeError extends Error {
     this.name = 'SourceRuntimeError'
     this.diagnostic = diagnostic
     this.userText = userText
+    const challengeRequestId = response.error?.['challengeRequestId']
+    this.challengeRequestId = typeof challengeRequestId === 'string' && challengeRequestId.length <= 64 ? challengeRequestId : undefined
   }
 }

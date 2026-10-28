@@ -1,5 +1,7 @@
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
+import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard,
+  sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
 
 // TaskPool evaluates this module's transitive imports on a worker. Keep this
 // entry Native-only: Service/Runner pull in UI state and localization, whose
@@ -10,7 +12,9 @@ import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
 // protocol features here so their source settings reach the same Native boundary.
 @Concurrent
 export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
-  return JSON.stringify(NativeSourceRuntime.runJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson), wasmBytes, httpContextJson))
+  return JSON.stringify(NativeSourceRuntime.runJsonCallFromBytes(
+    sourceRequestWithHostFeatures(requestJson, sourceRuntimeExecutionHasGuard(httpContextJson),
+      sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)), wasmBytes, httpContextJson))
 }
 
 // Browse historically uses the asynchronous raw-string Native entry. Preserve
@@ -20,5 +24,7 @@ export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint
 export async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): Promise<string> {
   const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
   const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
-  return nativeRuntime.runJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson), wasmBytes, httpContextJson) as string
+  return nativeRuntime.runJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
+    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)), wasmBytes, httpContextJson,
+    sourceRuntimeExecutionSourceId(httpContextJson)) as string
 }

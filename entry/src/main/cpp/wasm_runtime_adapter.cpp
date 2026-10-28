@@ -3,9 +3,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #include <time.h>
@@ -28,7 +31,10 @@ namespace koma {
 namespace {
 
 constexpr uint32_t kKomaMagic = 0x4B4F4D41u;
-constexpr uint32_t kRuntimeHeapBytes = 8u * 1024u * 1024u;
+// Independent calls share one runtime and allocator. Size the shared pool at
+// the old 8 MiB single-call budget times the limit; it is not partitioned.
+constexpr uint32_t kMaxConcurrentSourceCalls = 4;
+constexpr uint32_t kRuntimeHeapBytes = kMaxConcurrentSourceCalls * 8u * 1024u * 1024u;
 constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
@@ -36,10 +42,6 @@ constexpr uint32_t kMaxHostLogBytes = 1024u;
 constexpr uint32_t kMaxFixtureWasmBytes = 1024u * 1024u;
 constexpr const char *kTestCancelGuard = "\"testGuard\":\"cancel\"";
 constexpr const char *kTestTimeoutGuard = "\"testGuard\":\"timeout\"";
-// WAMR runtime initialization and native-import registration are process
-// global. Reader page preloading can request several source image tickets at
-// once, so every execution must span init through teardown under one lock.
-std::mutex g_wamrExecutionMu;
 constexpr const char *kManifestJson =
     "{\"schemaVersion\":1,\"id\":\"local.example.private\","
     "\"runtime\":\"wasm-v1\",\"entry\":\"source_runtime_fixture.wasm\","
@@ -141,7 +143,7 @@ bool HasTestOnlyGuard(const std::string &requestJson, const char *guard)
 
 #if defined(KOMA_ENABLE_WAMR)
 
-bool g_forceCancelForCurrentCall = false;
+thread_local bool g_forceCancelForCurrentCall = false;
 
 class ForcedCancelScope {
 public:
@@ -501,6 +503,65 @@ private:
     bool initialized_ = false;
 };
 
+// WAMR initialization and its allocator are process-global. Keep both alive
+// until the last independent call has finished; never destroy them while a
+// different worker is waiting on HTTP or executing its own module.
+std::mutex g_runtimeLifetimeMu;
+std::condition_variable g_runtimeSlotAvailable;
+std::unique_ptr<Runtime> g_runtime;
+uint32_t g_runtimeUsers = 0;
+std::unordered_set<std::string> g_activeSources;
+bool g_unidentifiedSourceActive = false;
+
+class RuntimeLease {
+public:
+    explicit RuntimeLease(const std::string &sourceId = "") : sourceId_(sourceId)
+    {
+        std::unique_lock<std::mutex> lock(g_runtimeLifetimeMu);
+        // Preserve per-source serialization, including HTTP wait time. An
+        // unidentified call has no safe key, so it remains process-exclusive.
+        g_runtimeSlotAvailable.wait(lock, [this] {
+            if (sourceId_.empty()) return g_runtimeUsers == 0;
+            return !g_unidentifiedSourceActive && g_runtimeUsers < kMaxConcurrentSourceCalls &&
+                g_activeSources.find(sourceId_) == g_activeSources.end();
+        });
+        try {
+            if (sourceId_.empty()) g_unidentifiedSourceActive = true;
+            else g_activeSources.insert(sourceId_);
+            if (g_runtimeUsers == 0) {
+                g_runtime = std::make_unique<Runtime>();
+            }
+            ++g_runtimeUsers;
+        } catch (...) {
+            if (sourceId_.empty()) g_unidentifiedSourceActive = false;
+            else g_activeSources.erase(sourceId_);
+            lock.unlock();
+            g_runtimeSlotAvailable.notify_all();
+            throw;
+        }
+    }
+
+    ~RuntimeLease()
+    {
+        {
+            std::lock_guard<std::mutex> lock(g_runtimeLifetimeMu);
+            if (sourceId_.empty()) g_unidentifiedSourceActive = false;
+            else g_activeSources.erase(sourceId_);
+            if (--g_runtimeUsers == 0) {
+                g_runtime.reset();
+            }
+        }
+        // A same-source waiter may be ineligible while another source is free.
+        g_runtimeSlotAvailable.notify_all();
+    }
+
+    RuntimeLease(const RuntimeLease &) = delete;
+    RuntimeLease &operator=(const RuntimeLease &) = delete;
+
+private:
+    std::string sourceId_;
+};
+
 class ThreadEnv {
 public:
     ThreadEnv()
@@ -525,48 +586,69 @@ private:
     bool initialized_ = false;
 };
 
+class HtmlScope {
+public:
+    HtmlScope() { koma::html::Init(); }
+    ~HtmlScope() { koma::html::Shutdown(); }
+
+    HtmlScope(const HtmlScope &) = delete;
+    HtmlScope &operator=(const HtmlScope &) = delete;
+};
+
 class Module {
 public:
     explicit Module(std::vector<uint8_t> wasmBytes, const std::string &httpContextJson = "") : httpContextJson_(httpContextJson), wasmBytes_(std::move(wasmBytes))
     {
-        char errorBuf[256] = {0};
-        module_ = wasm_runtime_load(
-            wasmBytes_.data(),
-            static_cast<uint32_t>(wasmBytes_.size()),
-            errorBuf,
-            sizeof(errorBuf));
-        if (!module_) {
-            throw std::runtime_error(std::string("wasm_runtime_load failed: ") + errorBuf);
-        }
+        try {
+            char errorBuf[256] = {0};
+            module_ = wasm_runtime_load(
+                wasmBytes_.data(),
+                static_cast<uint32_t>(wasmBytes_.size()),
+                errorBuf,
+                sizeof(errorBuf));
+            if (!module_) {
+                throw std::runtime_error(std::string("wasm_runtime_load failed: ") + errorBuf);
+            }
 
-        moduleInst_ = wasm_runtime_instantiate(module_, kWasmStackBytes, kWasmHeapBytes, errorBuf, sizeof(errorBuf));
-        if (!moduleInst_) {
-            throw std::runtime_error(std::string("wasm_runtime_instantiate failed: ") + errorBuf);
-        }
+            moduleInst_ = wasm_runtime_instantiate(module_, kWasmStackBytes, kWasmHeapBytes, errorBuf, sizeof(errorBuf));
+            if (!moduleInst_) {
+                throw std::runtime_error(std::string("wasm_runtime_instantiate failed: ") + errorBuf);
+            }
 
-        execEnv_ = wasm_runtime_create_exec_env(moduleInst_, kWasmStackBytes);
-        if (!execEnv_) {
-            throw std::runtime_error("wasm_runtime_create_exec_env failed");
+            execEnv_ = wasm_runtime_create_exec_env(moduleInst_, kWasmStackBytes);
+            if (!execEnv_) {
+                throw std::runtime_error("wasm_runtime_create_exec_env failed");
+            }
+            wasm_runtime_set_user_data(execEnv_, &httpContextJson_);
+        } catch (...) {
+            Release();
+            throw;
         }
-        wasm_runtime_set_user_data(execEnv_, &httpContextJson_);
     }
 
-    ~Module()
-    {
-        if (execEnv_) {
-            wasm_runtime_destroy_exec_env(execEnv_);
-        }
-        if (moduleInst_) {
-            wasm_runtime_deinstantiate(moduleInst_);
-        }
-        if (module_) {
-            wasm_runtime_unload(module_);
-        }
-    }
+    ~Module() { Release(); }
 
     Module(const Module &) = delete;
     Module &operator=(const Module &) = delete;
 
+private:
+    void Release()
+    {
+        if (execEnv_) {
+            wasm_runtime_destroy_exec_env(execEnv_);
+            execEnv_ = nullptr;
+        }
+        if (moduleInst_) {
+            wasm_runtime_deinstantiate(moduleInst_);
+            moduleInst_ = nullptr;
+        }
+        if (module_) {
+            wasm_runtime_unload(module_);
+            module_ = nullptr;
+        }
+    }
+
+public:
     std::string RunOperation(const std::string &requestJson)
     {
         ValidateAdd();
@@ -710,9 +792,9 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
-        std::lock_guard<std::mutex> lock(g_wamrExecutionMu);
-        Runtime runtime;
+        RuntimeLease runtime;
         ThreadEnv threadEnv;
+        HtmlScope htmlScope;
         Module module(LoadWasmBytesFromBundledFixture());
         std::string response = module.RunOperation(requestJson);
 #if defined(KOMA_HAS_HILOG)
@@ -728,16 +810,17 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
 #endif
 }
 
-std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes, const std::string &httpContextJson)
+std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes,
+    const std::string &httpContextJson, const std::string &sourceId)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
         if (HasTestOnlyGuard(requestJson, kTestTimeoutGuard)) {
             return ErrorJson("WAMR_RUNTIME_TIMEOUT", "source runtime call timed out", "timeout");
         }
-        std::lock_guard<std::mutex> lock(g_wamrExecutionMu);
-        Runtime runtime;
+        RuntimeLease runtime(sourceId);
         ThreadEnv threadEnv;
+        HtmlScope htmlScope;
         Module module(LoadWasmBytesFromExternalBytes(wasmBytes), httpContextJson);
         std::string response = module.RunOperation(requestJson);
 #if defined(KOMA_HAS_HILOG)
@@ -755,6 +838,8 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
 #else
     (void)requestJson;
     (void)wasmBytes;
+    (void)httpContextJson;
+    (void)sourceId;
     return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR", "wamr_not_built");
 #endif
 }

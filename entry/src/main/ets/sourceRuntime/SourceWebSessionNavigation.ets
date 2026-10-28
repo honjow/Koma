@@ -1,17 +1,21 @@
-import { MangaWebRouteParam, RouterHelper } from '../common/RouterHelper'
+import { MangaWebRouteParam, RouterHelper, SourceWebSessionRouteParam } from '../common/RouterHelper'
 import { appSourceRuntimeRegistry, sourceDisplayName } from './SourceRuntimeAppRegistry'
 import { appSourceWebSessionStore } from './SourceWebSessionStore'
+import { sourceRejectedRequestUrl } from './SourceRuntimeHttpTransport'
 
 /** Prepare an origin-checked session without deciding how the host presents it. */
-export function prepareSourceWebSession(sourceId: string, title: string): MangaWebRouteParam | undefined {
+export function prepareSourceWebSession(sourceId: string, title: string, requestHandle?: string): MangaWebRouteParam | undefined {
   try {
-    const url = appSourceWebSessionStore.launchUrl(appSourceRuntimeRegistry, sourceId)
+    const exactRequestUrl = requestHandle === undefined ? undefined : sourceRejectedRequestUrl(sourceId, requestHandle)
+    const url = appSourceWebSessionStore.launchUrl(appSourceRuntimeRegistry, sourceId, exactRequestUrl)
     // Verification sheets and full WebView routes must use the same localized
     // source identity as Browse, Search and the source manager.
     const displayName = sourceDisplayName(sourceId, title)
     const status = appSourceWebSessionStore.begin(appSourceRuntimeRegistry, sourceId, url)
     if (status.state !== 'pending') return undefined
-    return { url, title: displayName, sourceSession: { sourceId, sessionId: status.sessionId } }
+    const sourceSession: SourceWebSessionRouteParam = { sourceId, sessionId: status.sessionId }
+    if (requestHandle !== undefined) sourceSession.requestHandle = requestHandle
+    return { url, title: displayName, sourceSession }
   } catch (_error) {
     return undefined
   }

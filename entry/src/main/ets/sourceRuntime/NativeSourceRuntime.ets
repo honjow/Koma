@@ -1,10 +1,11 @@
 import nativeRuntime from 'libkoma_source_runtime.so';
+import { sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity';
 
 interface NativeSourceRuntimeModule {
   hello(): string;
   add(a: number, b: number): number;
   runJsonCall(requestJson: string): string;
-  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson?: string): string;
+  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson?: string, sourceId?: string): string;
   configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean;
   sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean;
 }
@@ -50,7 +51,8 @@ export class NativeSourceRuntime {
 
   static runJsonCallFromBytes(request: SourceRuntimeCallRequest | string, wasmBytes: Uint8Array, httpContextJson: string = ''): SourceRuntimeCallResponse {
     const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
-    const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson);
+    const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson,
+      sourceRuntimeExecutionSourceId(httpContextJson));
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
   }
 

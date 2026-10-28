@@ -7,10 +7,10 @@
 namespace koma {
 namespace html {
 
-/// Initialize HTML subsystem (call once).
+/// Initialize the current source call's HTML subsystem.
 void Init();
 
-/// Shutdown HTML subsystem (call once).
+/// Release all documents and descriptors owned by the current source call.
 void Shutdown();
 
 /// Parse HTML bytes into a document. Returns descriptor >= 0 on success, -1 on failure.
@@ -31,7 +31,7 @@ int32_t Attr(int32_t descriptor, const char *attrName, uint32_t attrLen,
 /// Get inner text. Returns length written to out, or -1 on failure.
 int32_t Text(int32_t descriptor, char *out, uint32_t outCap);
 
-/// Close/release a descriptor.
+/// Close/release a descriptor. Closing a document also invalidates its children.
 int32_t Close(int32_t descriptor);
 
 } // namespace html

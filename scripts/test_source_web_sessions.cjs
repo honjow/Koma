@@ -18,6 +18,7 @@ function moduleFrom(name, requireMock, globals = {}) {
 function fixture(sdkApiVersion = 23) {
   const disk = new Map(), writes = [], fetched = [], diagnostics = [], configured = []
   const extraEntries = new Map(), cookieReads = []
+  const guards = moduleFrom('SourceRuntimeOperationGuard', () => ({}))
   let uuid = 0, cookie = 'private-cookie-value', failWrite = false
   let entry = { sourceId: 'source.one', manifestVersion: '1', enabled: true,
     wasmPath: '/app/packages/one/source.wasm', webSessionOrigins: ['https://site.invalid'] }
@@ -58,6 +59,7 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
+      if (name === './SourceRuntimeOperationGuard') return guards
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, info: (_category, _event, detail) => diagnostics.push(detail), warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
@@ -124,11 +126,32 @@ function fixture(sdkApiVersion = 23) {
     const after = network.afterInitial === undefined ? undefined : await network.afterInitial({ transport, execute: callback })
     return { calls, instances, intercepts, result: JSON.parse(result), after }
   }
-  return { api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http,
+  return { api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http, guards,
     addSource: e => extraEntries.set(e.sourceId, e), setWriteFailure: value => { failWrite = value },
     changeEntry: fn => { entry = fn(entry) }, setCookie: value => { cookie = value },
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
+
+test('a cancelled search cannot start an HTTP request after waiting for a policy slot', async () => {
+  const f = fixture()
+  const id = f.guards.newSourceRuntimeOperationGuardId()
+  let current = true, waiting, resume
+  const entered = new Promise(resolve => { waiting = resolve })
+  const gate = new Promise(resolve => { resume = resolve })
+  const release = f.guards.registerSourceRuntimeOperationGuard(id, () => current)
+  const context = JSON.stringify({ ...f.identity(), operationGuardId: id })
+  const request = f.http([response(200)], context, {}, { policy: { waitForSourceRequestSlot: async () => {
+    waiting(); await gate
+  } } })
+  await entered
+  current = false
+  resume()
+  const result = await request
+  assert.equal(result.calls.length, 0)
+  assert.equal(result.result.error.code, 'source_request_cancelled')
+  release()
+  assert.equal(f.guards.sourceRuntimeOperationIsCurrent(id), false)
+})
 
 test('verification navigation uses the installed source name for the current language', () => {
   const f = fixture()
@@ -138,6 +161,7 @@ test('verification navigation uses the installed source name for the current lan
   const navigation = moduleFrom('SourceWebSessionNavigation', name => {
     if (name === '../common/RouterHelper') return { RouterHelper: {} }
     if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: f.store }
+    if (name === './SourceRuntimeHttpTransport') return { sourceRejectedRequestUrl: () => '' }
     if (name === './SourceRuntimeAppRegistry') return {
       appSourceRuntimeRegistry: f.registry,
       sourceDisplayName: (id, fallback) => {
@@ -394,28 +418,33 @@ function declarations(relative, names, owner) {
 
 test('ordinary Browse queue derives native identity from the admitted registry entry, not source JSON', async () => {
   const f = fixture(), nativeCalls = [], exports = {}
+  const registeredBytes = new Uint8Array([0])
+  f.changeEntry(entry => ({ ...entry, wasmBytes: registeredBytes }))
   const features = moduleFrom('SourceHostFeatures', () => ({}))
+  const executionIdentity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
   const queue = declarations('sourceRuntime/SourceRuntimeWorker', ['runBrowseSourceOperationTask']) + '\n' +
-    declarations('viewmodel/BrowseViewModel', ['sourceOperationQueue', 'enqueueSourceOperation'])
+    declarations('viewmodel/BrowseViewModel', ['SOURCE_OPERATION_CONCURRENCY', 'sourceOperationQueue', 'enqueueSourceOperation'])
   const method = declarations('viewmodel/BrowseViewModel', ['runSourceOperationResponse'], 'BrowseViewModel')
   const source = `${queue}\nexport class Host { ${method} }`
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  vm.runInNewContext(js, { exports, ...features, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
+  vm.runInNewContext(js, { exports, ...features, ...executionIdentity, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
     diagnoseSourceOperation: (_request, run) => run(), taskpool: { execute: (fn, ...args) => fn(...args) },
     require: name => {
       assert.equal(name, 'libkoma_source_runtime.so')
-      return { runJsonCallFromBytes: (request, bytes, context) => {
-        nativeCalls.push({ request, context }); return JSON.stringify({ ok: true })
+      return { runJsonCallFromBytes: (request, bytes, context, sourceId) => {
+        nativeCalls.push({ request, bytes, context, sourceId }); return JSON.stringify({ ok: true })
       } }
     } })
   const host = new exports.Host()
   host.registry = { lookup: id => ({ ...f.registry.lookup(id), ok: id === 'source.one' }) }
-  host.copyWasmBytes = () => new Uint8Array([0])
   host.buildRequestJson = () => JSON.stringify({ operation: 'get_home', settings: { traditional: false }, sourceId: 'wasm-forged', packageIdentity: 'forged' })
   await assert.rejects(host.runSourceOperationResponse('missing', 'get_home', {}, 1), /browse_error_source_unavailable/)
   assert.equal(nativeCalls.length, 0)
   await host.runSourceOperationResponse('source.one', 'get_home', {}, 1)
   assert.equal(nativeCalls.length, 1)
+  assert.equal(nativeCalls[0].sourceId, 'source.one')
+  assert.notStrictEqual(nativeCalls[0].bytes, registeredBytes)
+  assert.deepEqual(Array.from(nativeCalls[0].bytes), Array.from(registeredBytes))
   assert.deepEqual(JSON.parse(nativeCalls[0].context), f.identity())
   assert.equal(JSON.parse(nativeCalls[0].request).sourceId, 'wasm-forged')
   assert.deepEqual(JSON.parse(nativeCalls[0].request).settings, { traditional: false })
@@ -423,16 +452,90 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   assert(!nativeCalls[0].context.includes('cookie-value'))
 })
 
+test('Browse queue lets another source proceed while discarding stale waiting searches', async () => {
+  const exports = {}, calls = []
+  const queue = declarations('viewmodel/BrowseViewModel', ['SOURCE_OPERATION_CONCURRENCY', 'sourceOperationQueue', 'enqueueSourceOperation']) +
+    '\nexport { enqueueSourceOperation }'
+  const js = ts.transpileModule(queue, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
+  vm.runInNewContext(js, {
+    exports,
+    runBrowseSourceOperationTask: () => {},
+    diagnoseSourceOperation: (_request, run) => run(),
+    taskpool: { execute: (_fn, request, _bytes, identity) => new Promise((resolve, reject) => {
+      calls.push({ request, identity, resolve, reject })
+    }) },
+  })
+  let current = true
+  const bytes = new Uint8Array([1])
+  const slow = exports.enqueueSourceOperation('slow', bytes, 'source-one', 'source-one', () => true)
+  const otherSlow = exports.enqueueSourceOperation('other-slow', bytes, 'source-two', 'source-two', () => true)
+  const failure = exports.enqueueSourceOperation('failed', bytes, 'source-three', 'source-three', () => true).catch(error => error.message)
+  const fast = exports.enqueueSourceOperation('fast', bytes, 'source-four', 'source-four', () => true)
+  const obsolete = exports.enqueueSourceOperation('obsolete', bytes, 'source-five', 'source-five', () => current).catch(error => error.message)
+  const next = exports.enqueueSourceOperation('next', bytes, 'source-six', 'source-six', () => true)
+  await new Promise(setImmediate)
+  assert.deepEqual(calls.map(call => call.request), ['slow', 'other-slow', 'failed', 'fast'])
+  current = false
+  calls[2].reject(new Error('network'))
+  assert.equal(await failure, 'network')
+  await new Promise(setImmediate)
+  assert.equal(await obsolete, 'search_cancelled')
+  assert.deepEqual(calls.map(call => call.request), ['slow', 'other-slow', 'failed', 'fast', 'next'])
+  assert.equal(calls[4].identity, 'source-six')
+  calls[4].resolve('next result')
+  calls[3].resolve('fast result')
+  calls[0].resolve('slow result')
+  calls[1].resolve('other slow result')
+  assert.equal(await next, 'next result')
+  assert.equal(await fast, 'fast result')
+  assert.equal(await slow, 'slow result')
+  assert.equal(await otherSlow, 'other slow result')
+})
+
+test('repeated operations for one source cannot occupy all workers and block another source', async () => {
+  const exports = {}, calls = []
+  const queue = declarations('viewmodel/BrowseViewModel', ['SOURCE_OPERATION_CONCURRENCY', 'sourceOperationQueue', 'enqueueSourceOperation']) +
+    '\nexport { enqueueSourceOperation }'
+  const js = ts.transpileModule(queue, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
+  vm.runInNewContext(js, {
+    exports, runBrowseSourceOperationTask: () => {}, diagnoseSourceOperation: (_request, run) => run(),
+    taskpool: { execute: (_fn, request) => new Promise(resolve => { calls.push({ request, resolve }) }) },
+  })
+  const bytes = new Uint8Array([1])
+  const first = exports.enqueueSourceOperation('a1', bytes, '{}', 'a')
+  const second = exports.enqueueSourceOperation('a2', bytes, '{}', 'a')
+  const third = exports.enqueueSourceOperation('a3', bytes, '{}', 'a')
+  const fourth = exports.enqueueSourceOperation('a4', bytes, '{}', 'a')
+  const other = exports.enqueueSourceOperation('b1', bytes, '{}', 'b')
+  await new Promise(setImmediate)
+  assert.deepEqual(calls.map(call => call.request), ['a1', 'b1'])
+  calls[1].resolve('b'); assert.equal(await other, 'b')
+  const serial = [first, second, third, fourth]
+  for (let index = 0; index < serial.length; index++) {
+    calls.find(call => call.request === `a${index + 1}`).resolve('done')
+    assert.equal(await serial[index], 'done')
+    await new Promise(setImmediate)
+  }
+  assert.deepEqual(calls.map(call => call.request), ['a1', 'b1', 'a2', 'a3', 'a4'])
+})
+
 test('shared Native worker retains each invocation request, bytes, HTTP context, reply and thrown error', () => {
   const calls = [], bytes = new Uint8Array([1]); let failure
   const features = moduleFrom('SourceHostFeatures', () => ({}))
+  const executionIdentity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
+  const native = moduleFrom('NativeSourceRuntime', name => {
+    if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
+    if (name === 'libkoma_source_runtime.so') return { default: { runJsonCallFromBytes: (...args) => {
+      if (failure) throw failure
+      calls.push(args); return JSON.stringify({ ok: false, reasonCode: 'not_implemented' })
+    } } }
+    throw Error('unexpected native dependency: ' + name)
+  })
   const worker = moduleFrom('SourceRuntimeWorker', name => {
     if (name === './SourceHostFeatures') return features
+    if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
     if (name !== './NativeSourceRuntime') throw Error('unexpected worker dependency: ' + name)
-    return { NativeSourceRuntime: { runJsonCallFromBytes: (...args) => {
-      if (failure) throw failure
-      calls.push(args); return { ok: false, reasonCode: 'not_implemented' }
-    } } }
+    return native
   })
   for (const operation of ['get_manga', 'get_chapters', 'get_pages', 'get_image_request', 'source_info', 'get_settings']) {
     const request = JSON.stringify({ operation, settings: { traditional: true } }), context = JSON.stringify({ sourceId: operation })
@@ -443,7 +546,18 @@ test('shared Native worker retains each invocation request, bytes, HTTP context,
     if (operation === 'source_info') assert.equal(calls.at(-1)[0], request)
     else assert(received.hostFeatures.includes('mangabz_language_cookie_v1'))
     assert.equal(calls.at(-1)[1], bytes); assert.equal(calls.at(-1)[2], context)
+    assert.equal(calls.at(-1)[3], operation)
   }
+  worker.executeSourceRuntimeRequest(JSON.stringify({operation:'get_manga'}), bytes,
+    JSON.stringify({sourceId:'one',detailChapterContext:true}))
+  assert(JSON.parse(calls.at(-1)[0]).hostFeatures.includes('source_detail_chapter_context_v1'))
+  worker.executeSourceRuntimeRequest(JSON.stringify({operation:'search'}), bytes,
+    JSON.stringify({sourceId:'one',operationGuardId:'search-1'}))
+  assert(JSON.parse(calls.at(-1)[0]).hostFeatures.includes('source_http_challenge_cause_v1'))
+  worker.executeSourceRuntimeRequest(JSON.stringify({operation:'get_manga'}), bytes, JSON.stringify({sourceId:'one'}))
+  const normalFeatures=JSON.parse(calls.at(-1)[0]).hostFeatures
+  assert(!normalFeatures.includes('source_detail_chapter_context_v1'))
+  assert(!normalFeatures.includes('source_http_challenge_cause_v1'))
   failure = Error('Native failure')
   assert.throws(() => worker.executeSourceRuntimeRequest('{}', bytes, ''), error => error === failure)
 })
@@ -722,6 +836,100 @@ test('successful native verification hands the exact original GET response over 
   assert.equal(result.after.handed.status,200);assert.equal(result.after.repeated.status,200)
   assert.equal(f.diagnostics.filter(x=>x==='state=used_once').length,1)
   assert.equal(JSON.stringify(f.diagnostics).includes('cookie-value'),false)
+})
+
+test('a verified search response is reserved for its original search even when another sends the same GET', async () => {
+  const f=fixture(26), first=f.guards.newSourceRuntimeOperationGuardId(), other=f.guards.newSourceRuntimeOperationGuardId()
+  let releaseFirst=f.guards.registerSourceRuntimeOperationGuard(first,()=>true)
+  const context=JSON.stringify({...f.identity(),operationGuardId:first})
+  const otherContext=JSON.stringify({...f.identity(),operationGuardId:other})
+  const pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+  const original=JSON.stringify({url:'https://site.invalid/a',method:'GET'})
+  const r=await f.http([response(403),response(200,{},'verified'),response(200,{},'other')],context,{}, {
+    afterInitial:async({transport,execute})=>{
+      releaseFirst()
+      assert.equal(await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true,first),true)
+      f.store.complete('source.one',pending.sessionId,'https://site.invalid/a','ActualUA')
+      const releaseOther=f.guards.registerSourceRuntimeOperationGuard(other,()=>true)
+      const unrelated=JSON.parse(await execute(original,otherContext));releaseOther()
+      releaseFirst=f.guards.registerSourceRuntimeOperationGuard(first,()=>true)
+      const handed=JSON.parse(await execute(original,context));releaseFirst()
+      return {unrelated,handed}
+    },
+  })
+  assert.equal(r.calls.length,3)
+  assert.equal(r.after.unrelated.bodyText,'other')
+  assert.equal(r.after.handed.bodyText,'verified')
+  assert.equal(f.diagnostics.filter(x=>x==='state=used_once').length,1)
+})
+
+test('same-source searches retain their own rejected GET for verification', async () => {
+  const f=fixture(26), first=f.guards.newSourceRuntimeOperationGuardId(), other=f.guards.newSourceRuntimeOperationGuardId()
+  const releaseFirst=f.guards.registerSourceRuntimeOperationGuard(first,()=>true)
+  const releaseOther=f.guards.registerSourceRuntimeOperationGuard(other,()=>true)
+  const firstContext=JSON.stringify({...f.identity(),operationGuardId:first})
+  const otherContext=JSON.stringify({...f.identity(),operationGuardId:other})
+  const original=JSON.stringify({url:'https://site.invalid/a',method:'GET'})
+  const r=await f.http([response(403),response(403),response(200,{},'first verified')],firstContext,{}, {
+    afterInitial:async({transport,execute})=>{
+      await execute(JSON.stringify({url:'https://site.invalid/b',method:'GET'}),otherContext)
+      assert.equal(transport.sourceRejectedRequestUrl('source.one',first),'https://site.invalid/a')
+      assert.equal(transport.sourceRejectedRequestUrl('source.one',other),'https://site.invalid/b')
+      const pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+      assert.equal(await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true,first),true)
+      f.store.complete('source.one',pending.sessionId,'https://site.invalid/a','ActualUA')
+      const handed=JSON.parse(await execute(original,firstContext))
+      transport.clearSourceRejectedRequest('source.one',first)
+      assert.equal(transport.sourceRejectedRequestUrl('source.one',first),'')
+      return handed
+    },
+  })
+  releaseFirst();releaseOther()
+  assert.equal(r.calls.length,3)
+  assert.equal(r.calls[2].fullUrl,'https://site.invalid/a')
+  assert.equal(r.after.bodyText,'first verified')
+})
+
+test('multiple different rejected GETs in one search cannot be mistaken for the challenged request', async () => {
+  const f=fixture(), id=f.guards.newSourceRuntimeOperationGuardId()
+  const release=f.guards.registerSourceRuntimeOperationGuard(id,()=>true)
+  const context=JSON.stringify({...f.identity(),operationGuardId:id})
+  const r=await f.http([response(403),response(403)],context,{}, {afterInitial:async({transport,execute})=>{
+    await execute(JSON.stringify({url:'https://site.invalid/b',method:'GET'}),context)
+    const pending=f.store.begin(f.registry,'source.one','https://site.invalid/a')
+    return {url:transport.sourceRejectedRequestUrl('source.one',id),
+      probed:await transport.probeSourceWebSession('source.one',pending.sessionId,'https://site.invalid/a','ActualUA',()=>true,id)}
+  }})
+  release()
+  assert.equal(r.calls.length,2)
+  assert.equal(r.after.url,'')
+  assert.equal(r.after.probed,false)
+})
+
+test('source-provided challenge ID selects only its own actual rejected GET', async () => {
+  const f=fixture(), id=f.guards.newSourceRuntimeOperationGuardId()
+  const release=f.guards.registerSourceRuntimeOperationGuard(id,()=>true)
+  const context=JSON.stringify({...f.identity(),operationGuardId:id})
+  const r=await f.http([response(403),response(403)],context,{wantChallengeRequestId:true}, {
+    afterInitial:async({transport,execute})=>{
+      const later=JSON.parse(await execute(JSON.stringify({url:'https://site.invalid/b',method:'GET',wantChallengeRequestId:true}),context))
+      return { transport,later }
+    },
+  })
+  assert.equal(typeof r.result.challengeRequestId,'string')
+  assert.notEqual(r.result.challengeRequestId,r.after.later.challengeRequestId)
+  const transport=r.after.transport
+  assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
+  transport.selectSourceRejectedRequest('source.one',id,r.result.challengeRequestId)
+  assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'https://site.invalid/a')
+  transport.selectSourceRejectedRequest('source.one',id,'forged')
+  assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
+  transport.selectSourceRejectedRequest('another.source',id,r.after.later.challengeRequestId)
+  assert.equal(transport.sourceRejectedRequestUrl('another.source',id),'')
+  transport.clearSourceRejectedRequest('source.one',id)
+  transport.selectSourceRejectedRequest('source.one',id,r.result.challengeRequestId)
+  assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
+  release()
 })
 
 test('an unrelated concurrent search request cannot consume the verified original response', async () => {

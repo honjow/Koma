@@ -159,7 +159,7 @@ export struct SearchPage {
     for (const section of this.sections) {
       const receipt = section.webChallenge
       if (receipt === undefined || !service.claimWebChallenge(receipt, true)) continue
-      const params = prepareSourceWebSession(receipt.sourceId, section.title)
+      const params = prepareSourceWebSession(receipt.sourceId, section.title, receipt.requestHandle)
       if (params?.sourceSession === undefined) {
         service.cancelWebChallenge(receipt)
         continue

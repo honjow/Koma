@@ -30,16 +30,19 @@ namespace {
 
 struct HtmlNode {
     lxb_dom_node_t *node = nullptr;
-    lxb_html_document_t *ownerDoc = nullptr; // non-null only if this is the root doc node
+    lxb_html_document_t *ownerDoc = nullptr;
+    bool ownsDocument = false;
 };
 
-int32_t g_nextDescriptor = 1;
-std::unordered_map<int32_t, HtmlNode> g_nodes;
+// Descriptors belong to a single source call on its worker thread. A source
+// must never see another call's document, even when executions overlap.
+thread_local int32_t g_nextDescriptor = 1;
+thread_local std::unordered_map<int32_t, HtmlNode> g_nodes;
 
-int32_t AllocDescriptor(lxb_dom_node_t *node, lxb_html_document_t *ownerDoc = nullptr)
+int32_t AllocDescriptor(lxb_dom_node_t *node, lxb_html_document_t *ownerDoc, bool ownsDocument = false)
 {
     int32_t desc = g_nextDescriptor++;
-    g_nodes[desc] = {node, ownerDoc};
+    g_nodes[desc] = {node, ownerDoc, ownsDocument};
     return desc;
 }
 
@@ -102,7 +105,7 @@ void Shutdown()
 {
     // Clean up any remaining nodes
     for (auto &pair : g_nodes) {
-        if (pair.second.ownerDoc != nullptr) {
+        if (pair.second.ownsDocument && pair.second.ownerDoc != nullptr) {
             lxb_html_document_destroy(pair.second.ownerDoc);
         }
     }
@@ -129,7 +132,7 @@ int32_t Parse(const char *html, uint32_t htmlLen)
     }
 
     lxb_dom_node_t *root = lxb_dom_interface_node(doc);
-    return AllocDescriptor(root, doc);
+    return AllocDescriptor(root, doc, true);
 }
 
 int32_t Select(int32_t parentDescriptor, const char *selector, uint32_t selectorLen)
@@ -183,7 +186,7 @@ int32_t Select(int32_t parentDescriptor, const char *selector, uint32_t selector
     }
 
     // Return first match
-    return AllocDescriptor(state.results[0]);
+    return AllocDescriptor(state.results[0], parent->ownerDoc);
 }
 
 int32_t SelectAll(int32_t parentDescriptor, const char *selector, uint32_t selectorLen,
@@ -237,8 +240,10 @@ int32_t SelectAll(int32_t parentDescriptor, const char *selector, uint32_t selec
     int32_t count = static_cast<int32_t>(state.results.size());
     uint32_t maxWrite = outCap / 4;
 
+    // AllocDescriptor can rehash g_nodes and invalidate the parent pointer.
+    lxb_html_document_t *ownerDoc = parent->ownerDoc;
     for (uint32_t i = 0; i < state.results.size() && i < maxWrite; i++) {
-        int32_t desc = AllocDescriptor(state.results[i]);
+        int32_t desc = AllocDescriptor(state.results[i], ownerDoc);
         uint32_t offset = i * 4;
         outBuf[offset + 0] = static_cast<char>(desc & 0xFF);
         outBuf[offset + 1] = static_cast<char>((desc >> 8) & 0xFF);
@@ -304,8 +309,18 @@ int32_t Close(int32_t descriptor)
         return -1;
     }
 
-    if (it->second.ownerDoc != nullptr) {
-        lxb_html_document_destroy(it->second.ownerDoc);
+    if (it->second.ownsDocument) {
+        lxb_html_document_t *ownerDoc = it->second.ownerDoc;
+        // Closing the document invalidates every selected child as well.
+        for (auto node = g_nodes.begin(); node != g_nodes.end();) {
+            if (node->second.ownerDoc == ownerDoc) {
+                node = g_nodes.erase(node);
+            } else {
+                ++node;
+            }
+        }
+        lxb_html_document_destroy(ownerDoc);
+        return 0;
     }
     g_nodes.erase(it);
     return 0;

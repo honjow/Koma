@@ -2,6 +2,7 @@ import { runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWork
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { taskpool } from '@kit.ArkTS'
@@ -130,27 +131,90 @@ interface SourceOperationRequest {
 }
 
 const SOURCE_OPERATION_PAGE_SIZE: number = 20
+const SOURCE_OPERATION_CONCURRENCY: number = 4
 
-// Native WAMR execution is process-serial. Keep waiting work out of taskpool
-// and discard obsolete searches before they consume a runtime/network slot.
-// HTTP transport owns request deadlines; queue time is not a network timeout.
-let sourceOperationQueue: Promise<void> = Promise.resolve()
+interface PendingBrowseSourceOperation {
+  sourceId: string
+  requestJson: string
+  wasmBytes: Uint8Array
+  httpContextJson: string
+  isActive?: () => boolean
+  resolve: (value: string) => void
+  reject: (reason: Object) => void
+}
+
+interface BrowseSourceOperationQueue {
+  active: number
+  activeSources: Set<string>
+  unidentifiedActive: boolean
+  pending: PendingBrowseSourceOperation[]
+}
+
+// The runtime permits four independent calls. Keep the remainder out of
+// taskpool, and check obsolete searches again immediately before admission.
+// A source already executing must wait here rather than occupying another
+// worker while the native per-source lock is held by its earlier operation.
+// Retain the admitted package's bytes while queued; only copy for the worker
+// after admission, so a global search doesn't copy every installed source at
+// once. Registry replacement creates a new entry instead of mutating its bytes.
+// Queue time is not part of the HTTP deadline.
+let sourceOperationQueue: BrowseSourceOperationQueue = {
+  active: 0, activeSources: new Set<string>(), unidentifiedActive: false, pending: [],
+}
 
 function enqueueSourceOperation(
   requestJson: string,
   wasmBytes: Uint8Array,
   httpContextJson: string,
+  sourceId: string,
   isActive: (() => boolean) | undefined = undefined,
 ): Promise<string> {
-  const result = sourceOperationQueue.then((): Promise<string> => {
-    if (isActive !== undefined && !isActive()) {
-      throw new Error('search_cancelled')
+  const startWaiting = (): void => {
+    while (sourceOperationQueue.active < SOURCE_OPERATION_CONCURRENCY && sourceOperationQueue.pending.length > 0) {
+      const index = sourceOperationQueue.pending.findIndex((candidate: PendingBrowseSourceOperation): boolean => {
+        if (sourceOperationQueue.unidentifiedActive) return false
+        return candidate.sourceId.length === 0 ? sourceOperationQueue.active === 0 :
+          !sourceOperationQueue.activeSources.has(candidate.sourceId)
+      })
+      if (index < 0) return
+      const next = sourceOperationQueue.pending.splice(index, 1)[0]
+      if (next === undefined) return
+      try {
+        if (next.isActive !== undefined && !next.isActive()) {
+          next.reject(new Error('search_cancelled'))
+          continue
+        }
+      } catch (error) {
+        next.reject(error as Object)
+        continue
+      }
+      sourceOperationQueue.active += 1
+      if (next.sourceId.length === 0) sourceOperationQueue.unidentifiedActive = true
+      else sourceOperationQueue.activeSources.add(next.sourceId)
+      const run = (): Promise<string> => {
+        if (next.isActive !== undefined && !next.isActive()) {
+          return Promise.reject(new Error('search_cancelled'))
+        }
+        const workerBytes = new Uint8Array(next.wasmBytes.byteLength)
+        workerBytes.set(next.wasmBytes)
+        return taskpool.execute(runBrowseSourceOperationTask,
+          next.requestJson, workerBytes, next.httpContextJson) as Promise<string>
+      }
+      Promise.resolve().then((): Promise<string> => diagnoseSourceOperation(next.requestJson, run)).then(
+        (value: string): void => { next.resolve(value) },
+        (error: Object): void => { next.reject(error) },
+      ).finally((): void => {
+        sourceOperationQueue.active -= 1
+        if (next.sourceId.length === 0) sourceOperationQueue.unidentifiedActive = false
+        else sourceOperationQueue.activeSources.delete(next.sourceId)
+        startWaiting()
+      })
     }
-    return diagnoseSourceOperation(requestJson, () => taskpool.execute(runBrowseSourceOperationTask, requestJson, wasmBytes, httpContextJson) as Promise<string>)
+  }
+  return new Promise<string>((resolve, reject) => {
+    sourceOperationQueue.pending.push({ sourceId, requestJson, wasmBytes, httpContextJson, isActive, resolve, reject })
+    startWaiting()
   })
-  // A failed source must not prevent the next source from running.
-  sourceOperationQueue = result.then(() => {}, () => {})
-  return result
 }
 
 function optionalString(value: RuntimeValue | undefined): string | undefined {
@@ -1159,6 +1223,7 @@ export class BrowseViewModel {
     page: number,
     cursor: string = '',
     isActive: (() => boolean) | undefined = undefined,
+    operationGuardId: string | undefined = undefined,
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: this.pageCursor(page, cursor),
@@ -1169,7 +1234,7 @@ export class BrowseViewModel {
       page: pageArg,
       filters: this.searchFilterValues,
     }
-    return this.runSourceOperation(source.sourceId, 'search', args, page, isActive)
+    return this.runSourceOperation(source.sourceId, 'search', args, page, isActive, operationGuardId)
   }
 
   async loadMangaList(
@@ -1437,19 +1502,27 @@ export class BrowseViewModel {
     args: SourceOperationArgs,
     page: number,
     isActive: (() => boolean) | undefined = undefined,
+    operationGuardId: string | undefined = undefined,
   ): Promise<SourceMangaList> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
-    const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, sourceHttpIdentityJson(lookup.entry), isActive)
-    const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
-    if (response.ok !== true) {
-      throw this.runtimeError(response, operation)
+    const guardId = isActive === undefined ? undefined : operationGuardId ?? newSourceRuntimeOperationGuardId()
+    const releaseGuard = isActive === undefined || guardId === undefined ? undefined :
+      registerSourceRuntimeOperationGuard(guardId, isActive)
+    try {
+      const responseJson = await enqueueSourceOperation(requestJson, lookup.entry.wasmBytes,
+        sourceHttpIdentityJson(lookup.entry, guardId), sourceId, isActive)
+      const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
+      if (response.ok !== true) {
+        throw this.runtimeError(response, operation)
+      }
+      return parseSourceMangaListFromResponse(sourceId, response)
+    } finally {
+      releaseGuard?.()
     }
-    return parseSourceMangaListFromResponse(sourceId, response)
   }
 
   private async runSourceOperationResponse(
@@ -1463,8 +1536,8 @@ export class BrowseViewModel {
       throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
-    const wasmBytes = this.copyWasmBytes(lookup.entry)
-    const responseJson = await enqueueSourceOperation(requestJson, wasmBytes, sourceHttpIdentityJson(lookup.entry))
+    const responseJson = await enqueueSourceOperation(requestJson, lookup.entry.wasmBytes,
+      sourceHttpIdentityJson(lookup.entry), sourceId)
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (response.ok !== true) {
       throw this.runtimeError(response, operation)
@@ -1491,12 +1564,6 @@ export class BrowseViewModel {
       hostHints,
     }
     return JSON.stringify(request)
-  }
-
-  private copyWasmBytes(entry: SourceRuntimeRegistryEntry): Uint8Array {
-    const copy = new Uint8Array(entry.wasmBytes.byteLength)
-    copy.set(entry.wasmBytes)
-    return copy
   }
 
   private runtimeError(response: SourceRuntimeCallResponse, operation: string): SourceRuntimeError {

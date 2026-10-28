@@ -533,17 +533,20 @@ function crossWebFixture(ids) {
   const sources=ids.map(sourceId=>({sourceId,displayName:sourceId,enabled:true,version:'1',wasmByteCount:12,
     capabilities:['search'],webSessionOrigins:['https://source.invalid']}))
   const registry={lookup:id=>({entry:entries.get(id)}),listInstalledSourceSummaries:()=>sources}
+  let guardSequence=0
   const exports={}
   new Function('exports','SourceWebChallengeGate','SourceRuntimeError','appSourceRuntimeRegistry','appSourceSettingsStore',
     'DiagnosticLogger','AppStrings','safeSearchDiagnostic','searchStateUserText','SOURCE_PAGE_SIZE','isCrossSearchQueryMeaningful',
+    'newSourceRuntimeOperationGuardId','clearSourceRejectedRequest','selectSourceRejectedRequest',
     compile(classText(crossOwner,crossAst,crossMethods)))(exports,SourceWebChallengeGate,SourceRuntimeError,registry,
     {revisionForSource:id=>revisions.get(id)},
     {begin:()=>({finish(){},fail(){}}),info(){},error(){}},{get:key=>key},
-    error=>({code:error.diagnostic?.code??'unknown',userText:error.userText??'failed'}),()=>'',20,q=>q.length>0)
+    error=>({code:error.diagnostic?.code??'unknown',userText:error.userText??'failed'}),()=>'',20,q=>q.length>0,
+    ()=>`search-${++guardSequence}`,()=>{},()=>{})
   const service=new exports.Owner(), replies=new Map(), calls=[]
-  Object.assign(service,{pagedSearchRuns:[],webChallengeGates:new Map(),sortSearchResultItems:(_q,items)=>items,
-    sourceViewModel:{searchSource:async(source,query,page,cursor,active)=>{
-      calls.push([source.sourceId,query,page,cursor])
+  Object.assign(service,{pagedSearchRuns:[],webChallengeGates:new Map(),webChallengeHandles:new Map(),sortSearchResultItems:(_q,items)=>items,
+    sourceViewModel:{searchSource:async(source,query,page,cursor,active,handle)=>{
+      calls.push([source.sourceId,query,page,cursor,handle])
       const queue=replies.get(source.sourceId+'|'+query)
       assert.ok(queue?.length,'unexpected source replay')
       const reply=await queue.shift()
@@ -555,8 +558,8 @@ function crossWebFixture(ids) {
   new Function('exports','isCrossSearchQueryMeaningful','safeSearchDiagnostic','DiagnosticLogger',
     'appSourceWebSessionStore','cancelSourceWebProbe','prepareSourceWebSession',
     compile(classText(pageOwner,pageAst,pageMethods)))(pageExports,q=>q.length>0,()=>({userText:'failed',code:'failed'}),
-    {error(){}},{cancel(){}},()=>{},(sourceId,title)=>({url:'https://source.invalid/',title,
-      sourceSession:{sourceId,sessionId:String(++session)}}))
+    {error(){}},{cancel(){}},()=>{},(sourceId,title,requestHandle)=>({url:'https://source.invalid/',title,
+      sourceSession:{sourceId,sessionId:String(++session),requestHandle}}))
   const page=new pageExports.Owner()
   Object.assign(page,{service,routeEpoch:1,routeActive:true,chrome:{visible:true},searchSerial:0,sections:[],
     sourceFilter:'source',resultsQuery:'',resultsSourceFilter:'source',webChallengeEpoch:0,webChallengeRetrySerial:0,
@@ -591,6 +594,8 @@ test('global verification serializes sources, retains independent results and on
   f.page.closeWebChallenge();f.page.finishWebChallengeDismiss()
   assert.equal(f.page.webChallengeShown,false,'cancelled source does not immediately reopen')
   assert.deepEqual(f.calls.map(c=>c[0]),['one','two','three','four','one'])
+  assert.equal(f.calls[0][4],f.calls[4][4],'verification retry retains the original operation identity')
+  assert.notEqual(f.calls[0][4],f.calls[2][4],'different sources retain different operation identities')
 })
 
 test('a replaced global query retires old claims, and generic403 or changed settings cannot trigger recovery', async () => {

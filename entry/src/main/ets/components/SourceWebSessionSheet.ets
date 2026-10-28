@@ -262,7 +262,8 @@ export struct SourceWebSessionSheet {
         const current = (): boolean => this.isCurrent(epoch, sourceId, sessionId) && this.canProbeOriginal() &&
           !this.loading && this.pageRevision === pageRevision &&
           (!this.pageFailed || (canProbeFailedLanding && this.pageHttpStatus === 404))
-        const ready = await probeSourceWebSession(sourceId, sessionId, this.controller.getUrl(), actualUa, current)
+        const ready = await probeSourceWebSession(sourceId, sessionId, this.controller.getUrl(), actualUa, current,
+          this.params.sourceSession?.requestHandle)
         if (!ready || !current()) {
           DiagnosticLogger.info('source_web_session', 'automatic_wait', 'reason=native_probe_not_ready')
           return

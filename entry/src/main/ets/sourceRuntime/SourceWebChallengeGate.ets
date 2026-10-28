@@ -6,6 +6,7 @@ export interface SourceWebChallengeReceipt {
   sourceId: string
   scope: SourceWebChallengeScope
   allowClearanceRetry: boolean
+  requestHandle?: string
 }
 
 /** One challenge attempt, claimed once and consumed before retrying. No UI or transport owner. */
@@ -17,10 +18,12 @@ export class SourceWebChallengeGate {
   private retry: () => Promise<void> = async (): Promise<void> => {}
 
   issue(sourceId: string, scope: SourceWebChallengeScope, eligible: boolean,
-    current: () => boolean, retry: () => Promise<void>, allowClearanceRetry: boolean = false): SourceWebChallengeReceipt | null {
+    current: () => boolean, retry: () => Promise<void>, allowClearanceRetry: boolean = false,
+    requestHandle?: string): SourceWebChallengeReceipt | null {
     this.clear()
     if (!eligible || !current()) return null
     const receipt: SourceWebChallengeReceipt = { id: ++this.sequence, sourceId, scope, allowClearanceRetry }
+    if (requestHandle !== undefined) receipt.requestHandle = requestHandle
     this.receipt = receipt
     this.current = current
     this.retry = retry

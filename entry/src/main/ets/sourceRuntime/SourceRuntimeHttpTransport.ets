@@ -2,6 +2,7 @@ import { waitForSourceRequestSlot } from './SourceRequestPolicy'
 import { url as urlKit } from '@kit.ArkTS'
 import { appSourceWebSessionStore, sourceWebOrigin, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
 import { sourceClearanceCookieState } from './SourceWebChallengeGate'
+import { sourceRuntimeOperationIsCurrent } from './SourceRuntimeOperationGuard'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
@@ -9,6 +10,7 @@ import { NativeSourceRuntime } from './NativeSourceRuntime'
 
 interface SourceHttpRequestEnvelope {
   requests?: SourceHttpRequestEnvelope[]
+  wantChallengeRequestId?: boolean
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
   headers?: Object | string | number | boolean | null
@@ -40,11 +42,40 @@ interface VerifiedSourceGet {
   responseJson: string
 }
 
-// Keep only the last failed read per source and one response ready for immediate handoff.
+// Legacy callers keep their last failed read per source. A unified-search
+// operation has its own handle, so another operation cannot replace that GET.
 // Neither requests nor responses are persisted or exposed to the Web document.
-const rejectedSourceGets: Map<string, RejectedSourceGet> = new Map<string, RejectedSourceGet>()
+const rejectedSourceGets: Map<string, RejectedSourceGet | null> = new Map<string, RejectedSourceGet | null>()
+const rejectedSourceCandidates: Map<string, Map<string, RejectedSourceGet>> = new Map<string, Map<string, RejectedSourceGet>>()
+let rejectedSourceSequence: number = 0
 let activeSourceWebProbe: ActiveSourceWebProbe | undefined = undefined
 let verifiedSourceGet: VerifiedSourceGet | undefined = undefined
+
+function rejectedSourceGetKey(sourceId: string, requestHandle?: string): string {
+  return JSON.stringify([sourceId, requestHandle ?? null])
+}
+
+export function sourceRejectedRequestUrl(sourceId: string, requestHandle: string): string {
+  return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.rejectedUrl ?? ''
+}
+
+export function clearSourceRejectedRequest(sourceId: string, requestHandle: string): void {
+  const key = rejectedSourceGetKey(sourceId, requestHandle)
+  rejectedSourceGets.delete(key)
+  rejectedSourceCandidates.delete(key)
+  if (verifiedSourceGet?.request.identity.sourceId === sourceId &&
+    verifiedSourceGet.request.identity.operationGuardId === requestHandle) verifiedSourceGet = undefined
+}
+
+/** Select only a host-observed GET belonging to this source and operation. */
+export function selectSourceRejectedRequest(sourceId: string, requestHandle: string, challengeRequestId?: string): void {
+  const key = rejectedSourceGetKey(sourceId, requestHandle)
+  const candidates = rejectedSourceCandidates.get(key)
+  // Old sources do not opt in. Retain their existing single-GET fallback.
+  if (candidates === undefined && challengeRequestId === undefined) return
+  const selected = challengeRequestId === undefined ? undefined : candidates?.get(challengeRequestId)
+  rejectedSourceGets.set(key, selected ?? null)
+}
 
 const SOURCE_HTTP_DEFAULT_TIMEOUT_MS: number = 15000
 const SOURCE_HTTP_MAX_TIMEOUT_MS: number = 60000
@@ -82,11 +113,13 @@ class SourceHttpSuccessEnvelope {
   networkPerformed: boolean = true
   // An additive host signal, without forwarding response headers or cookies.
   accessSignal?: string
+  challengeRequestId?: string
 
-  constructor(status: number, bodyText: string, accessSignal?: string) {
+  constructor(status: number, bodyText: string, accessSignal?: string, challengeRequestId?: string) {
     this.status = status
     this.bodyText = bodyText
     if (accessSignal !== undefined) this.accessSignal = accessSignal
+    if (challengeRequestId !== undefined) this.challengeRequestId = challengeRequestId
   }
 }
 
@@ -279,6 +312,14 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     if (typeof parsed.sourceId === 'string' && typeof parsed.sourceVersion === 'string' && typeof parsed.packageIdentity === 'string' &&
       Array.isArray(parsed.webSessionOrigins) && parsed.webSessionOrigins.every((item: string): boolean => typeof item === 'string')) identity = parsed
   } catch (_error) {}
+  // A verification probe has its own visible-session guard; the originating
+  // worker has already ended and its search guard is intentionally released.
+  const current = (): boolean => probe === undefined ?
+    sourceRuntimeOperationIsCurrent(identity?.operationGuardId) : probe.current()
+  if (!current()) {
+    trace.finish('cancelled', 'reason=source_request_cancelled')
+    return transportError('source_request_cancelled', false)
+  }
   if (probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
     if (identity !== undefined && ready.request.requestJson === requestJson &&
@@ -310,7 +351,11 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     let redirects = 0
     while (true) {
     const policyStartedAt: number = Date.now()
-    await waitForSourceRequestSlot(identity?.sourceId ?? '', currentUrl, () => probe === undefined || probe.current())
+    await waitForSourceRequestSlot(identity?.sourceId ?? '', currentUrl, current)
+    if (!current()) {
+      trace.finish('cancelled', 'reason=source_request_cancelled')
+      return transportError('source_request_cancelled', false)
+    }
     // A rate-limit queue is not network time. Keep the original request/redirect
     // timeout budget intact once its slot becomes available.
     policyWaitMs += Math.max(0, Date.now() - policyStartedAt)
@@ -389,12 +434,36 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       else appSourceWebSessionStore.acceptPendingResponseCookies(identity, currentUrl, probe.proof, values)
     }
     const responseBody = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
-    if (identity !== undefined && response.responseCode === 403) {
-      appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
+    const accessSignal = sourceResponseAccessSignal(response.header)
+    let challengeRequestId: string | undefined = undefined
+    const optedIn = envelope.wantChallengeRequestId === true && identity?.operationGuardId !== undefined
+    if (identity !== undefined && (response.responseCode === 403 ||
+      ((accessSignal === 'challenge_required' || optedIn) && (response.responseCode === 401 || response.responseCode === 503)))) {
+      if (response.responseCode === 403 || accessSignal === 'challenge_required') {
+        appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
+      }
       const origin = sourceWebOrigin(currentUrl)
       if (probe === undefined && method === 'GET' && body.length === 0 && requestJson.length <= 65536 &&
         origin.length > 0 && identity.webSessionOrigins.includes(origin)) {
-        rejectedSourceGets.set(identity.sourceId, { requestJson, httpContextJson, identity, rejectedUrl: currentUrl })
+        const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
+        const previous = rejectedSourceGets.get(key)
+        const rejected: RejectedSourceGet = { requestJson, httpContextJson, identity, rejectedUrl: currentUrl }
+        if (optedIn) {
+          rejectedSourceSequence += 1
+          challengeRequestId = `request-${rejectedSourceSequence}`
+          let candidates = rejectedSourceCandidates.get(key)
+          if (candidates === undefined) {
+            candidates = new Map<string, RejectedSourceGet>()
+            rejectedSourceCandidates.set(key, candidates)
+          }
+          candidates.set(challengeRequestId, rejected)
+        }
+        // Without a source-provided causal ID, two different rejected GETs
+        // in one operation are ambiguous and must not be probed as one.
+        if (identity.operationGuardId !== undefined && previous !== undefined &&
+          (previous === null || previous.requestJson !== requestJson || previous.rejectedUrl !== currentUrl)) {
+          rejectedSourceGets.set(key, null)
+        } else rejectedSourceGets.set(key, rejected)
       }
     }
     if (session !== undefined && [301, 302, 303, 307, 308].includes(response.responseCode)) {
@@ -422,12 +491,15 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       redirects += 1
       continue
     }
-    const accessSignal = sourceResponseAccessSignal(response.header)
     if (accessSignal !== undefined) trace.info('access_signal', 'signal=' + accessSignal)
     trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode + ' chars=' + responseBody.length)
-    return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal))
+    return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId))
     }
   } catch (_error) {
+    if (!current()) {
+      trace.finish('cancelled', 'reason=source_request_cancelled')
+      return transportError('source_request_cancelled', false)
+    }
     const error = _error as BusinessError
     const platformCode = typeof error.code === 'number' && Number.isFinite(error.code) ? error.code : 0
     trace.fail(error)
@@ -438,9 +510,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
 
 /** One same-origin read of the exact rejected GET, while its verification sheet stays visible. */
 export async function probeSourceWebSession(sourceId: string, sessionId: string, documentUrl: string,
-  userAgent: string, current: () => boolean): Promise<boolean> {
-  const request = rejectedSourceGets.get(sourceId)
-  if (request === undefined || !current()) return false
+  userAgent: string, current: () => boolean, requestHandle?: string): Promise<boolean> {
+  const key = rejectedSourceGetKey(sourceId, requestHandle)
+  const request = rejectedSourceGets.get(key)
+  if (request === undefined || request === null || !current()) return false
   const active: ActiveSourceWebProbe = { sourceId, sessionId }
   if (activeSourceWebProbe !== undefined) return false
   activeSourceWebProbe = active
@@ -450,7 +523,7 @@ export async function probeSourceWebSession(sourceId: string, sessionId: string,
   }
   try {
     const responseJson = await executeSourceHttpRequest(request.requestJson, request.httpContextJson, probe)
-    if (!probe.current() || rejectedSourceGets.get(sourceId) !== request || responseJson.length > 4 * 1024 * 1024) return false
+    if (!probe.current() || rejectedSourceGets.get(key) !== request || responseJson.length > 4 * 1024 * 1024) return false
     const response = JSON.parse(responseJson) as SourceHttpSuccessEnvelope
     if (response.ok !== true || !Number.isInteger(response.status) || response.status < 200 || response.status >= 300 ||
       response.accessSignal === 'challenge_required') return false

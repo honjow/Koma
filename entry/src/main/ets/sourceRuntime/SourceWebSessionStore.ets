@@ -28,6 +28,8 @@ export interface SourceHttpIdentity {
   sourceVersion: string
   packageIdentity: string
   webSessionOrigins: string[]
+  operationGuardId?: string
+  detailChapterContext?: boolean
 }
 
 export interface SourceWebRequestSession {
@@ -78,9 +80,12 @@ export function sourceWebPackageIdentity(entry: SourceRuntimeRegistryEntry): str
     JSON.stringify((entry.webSessionOrigins ?? []).slice().sort())])
 }
 
-export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry): string {
+export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operationGuardId?: string,
+  detailChapterContext: boolean = false): string {
   const identity: SourceHttpIdentity = { sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
     packageIdentity: sourceWebPackageIdentity(entry), webSessionOrigins: entry.webSessionOrigins ?? [] }
+  if (operationGuardId !== undefined) identity.operationGuardId = operationGuardId
+  if (detailChapterContext) identity.detailChapterContext = true
   return JSON.stringify(identity)
 }
 
@@ -115,10 +120,12 @@ export class SourceWebSessionStore {
     } catch (_error) {}
   }
 
-  launchUrl(registry: SourceRuntimeRegistry, sourceId: string): string {
+  launchUrl(registry: SourceRuntimeRegistry, sourceId: string, exactRequestUrl?: string): string {
     const entry = registry.lookup(sourceId).entry
     if (entry === undefined || !entry.enabled) throw new Error('source_web_session_not_allowed')
-    const previous = this.rejectedUrls.get(sourceId)
+    // A supplied empty string means this specific operation had no uniquely
+    // identified GET; never borrow a different operation's last rejection.
+    const previous = exactRequestUrl === undefined ? this.rejectedUrls.get(sourceId) : exactRequestUrl
     if (previous !== undefined && (entry.webSessionOrigins ?? []).includes(sourceWebOrigin(previous))) return previous
     const origin = (entry.webSessionOrigins ?? [])[0]
     if (origin === undefined) throw new Error('source_web_session_not_allowed')

@@ -16,6 +16,7 @@ export interface SourceWebSessionRouteParam {
   sourceId: string
   sessionId: string
   allowClearanceRetry?: boolean
+  requestHandle?: string
 }
 
 export interface MangaWebRouteParam {

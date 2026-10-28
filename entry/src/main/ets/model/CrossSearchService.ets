@@ -1,4 +1,6 @@
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
+import { newSourceRuntimeOperationGuardId } from '../sourceRuntime/SourceRuntimeOperationGuard'
+import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -144,6 +146,7 @@ export class CrossSearchService {
   private libraryStore: LibraryStore
   private pagedSearchRuns: PagedSearchRun[] = []
   private webChallengeGates: Map<string, SourceWebChallengeGate> = new Map<string, SourceWebChallengeGate>()
+  private webChallengeHandles: Map<string, string> = new Map<string, string>()
   private webDavSearchRun?: WebDavSearchRun = undefined
 
   constructor(context: common.UIAbilityContext, libraryStore: LibraryStore) {
@@ -241,6 +244,10 @@ export class CrossSearchService {
   // retired query cannot collide with a later receipt for that same source.
   cancelWebChallenges(): void {
     this.webChallengeGates.forEach((gate: SourceWebChallengeGate) => { gate.clear() })
+    this.webChallengeHandles.forEach((handle: string, sourceId: string) => {
+      clearSourceRejectedRequest(sourceId, handle)
+    })
+    this.webChallengeHandles.clear()
   }
 
   claimWebChallenge(receipt: SourceWebChallengeReceipt, visible: boolean): boolean {
@@ -252,11 +259,22 @@ export class CrossSearchService {
   }
 
   cancelWebChallenge(receipt: SourceWebChallengeReceipt): void {
-    this.webChallengeGates.get(receipt.sourceId)?.cancel(receipt.id)
+    const cancelled = this.webChallengeGates.get(receipt.sourceId)?.cancel(receipt.id) ?? false
+    if (cancelled && receipt.requestHandle !== undefined) {
+      clearSourceRejectedRequest(receipt.sourceId, receipt.requestHandle)
+      if (this.webChallengeHandles.get(receipt.sourceId) === receipt.requestHandle) this.webChallengeHandles.delete(receipt.sourceId)
+    }
   }
 
   async completeWebChallenge(receipt: SourceWebChallengeReceipt, visible: boolean): Promise<boolean> {
-    return await this.webChallengeGates.get(receipt.sourceId)?.complete(receipt.id, visible) ?? false
+    try {
+      return await this.webChallengeGates.get(receipt.sourceId)?.complete(receipt.id, visible) ?? false
+    } finally {
+      if (receipt.requestHandle !== undefined) {
+        clearSourceRejectedRequest(receipt.sourceId, receipt.requestHandle)
+        if (this.webChallengeHandles.get(receipt.sourceId) === receipt.requestHandle) this.webChallengeHandles.delete(receipt.sourceId)
+      }
+    }
   }
 
   private sourceWebChallengeGuard(source: SourceRuntimeRegistryInstalledSourceSummary, run: PagedSearchRun): () => boolean {
@@ -564,14 +582,19 @@ export class CrossSearchService {
     run: PagedSearchRun,
     onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
     automaticRecovery: boolean = false,
+    operationGuardId: string | undefined = undefined,
   ): Promise<SourceSearchOutcome> {
     const current = this.sourceWebChallengeGuard(source, run)
+    // Reuse this operation's ID for its one verification retry so the
+    // transport can distinguish it from an identical concurrent search.
+    const guardId = operationGuardId ?? newSourceRuntimeOperationGuardId()
+    let keepRejectedRequest = false
     try {
       if (!this.sourceSupportsSearch(source)) {
         return { section: this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported') }
       }
       const result = await this.sourceViewModel.searchSource(source, query, 1, '',
-        (): boolean => !run.cancelled && (!automaticRecovery || current()))
+        (): boolean => !run.cancelled && (!automaticRecovery || current()), guardId)
       const items = this.sortSearchResultItems(query, result.manga.map((manga: SourceManga): CrossSearchResultItem => {
         return {
           id: `wasm:${manga.sourceId}:${manga.id}`,
@@ -596,19 +619,31 @@ export class CrossSearchService {
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required') &&
         (source.webSessionOrigins ?? []).length > 0
       if (eligible && current()) {
+        // The source may echo an ID from its actual failed HTTP response. The
+        // transport validates it against this operation's host-owned records.
+        selectSourceRejectedRequest(source.sourceId, guardId,
+          e instanceof SourceRuntimeError ? e.challengeRequestId : undefined)
         let gate = this.webChallengeGates.get(source.sourceId)
         if (gate === undefined) {
           gate = new SourceWebChallengeGate()
           this.webChallengeGates.set(source.sourceId, gate)
         }
+        const previousHandle = this.webChallengeHandles.get(source.sourceId)
+        if (previousHandle !== undefined && previousHandle !== guardId) clearSourceRejectedRequest(source.sourceId, previousHandle)
         section.webChallenge = gate.issue(source.sourceId, 'search', true, current, async (): Promise<void> => {
           onSectionResolved?.(this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running'))
-          const recovered = await this.searchWasmSource(source, query, run, onSectionResolved, true)
+          const recovered = await this.searchWasmSource(source, query, run, onSectionResolved, true, guardId)
           if (current()) onSectionResolved?.(recovered.section)
           else if (!run.cancelled) onSectionResolved?.(section)
-        }, e.diagnostic.kind === 'challenge') ?? undefined
+        }, e.diagnostic.kind === 'challenge', guardId) ?? undefined
+        if (section.webChallenge !== undefined) {
+          this.webChallengeHandles.set(source.sourceId, guardId)
+          keepRejectedRequest = true
+        }
       }
       return { section }
+    } finally {
+      if (!keepRejectedRequest) clearSourceRejectedRequest(source.sourceId, guardId)
     }
   }
 
