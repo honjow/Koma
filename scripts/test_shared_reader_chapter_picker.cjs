@@ -274,6 +274,7 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'preloadNextUnit',
       'page', 'preload', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
       ...sharedCore, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
+      ComicSourceKind: { LOCAL_FOLDER: 'local_folder' },
       ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2 },
       createReaderPageRenderSources: config => config.pageUris.map((imageUri, index) => ({ kind: 1, imageUri, sourceRuntimeId: config.sourceRuntimeId, pageId: config.pageIds?.[index] })),
       fetchAndCacheReaderRemoteSource: fetchSource,
@@ -321,7 +322,7 @@ test('failed preparation is not cached and a real foreground retry can resolve i
   assert.equal(count, 2)
   adapter.close()
 })
-test('next-unit prefetch requires a verified sequence, warms only its configured prefix and never commits progress', async () => {
+test('source next-unit prefetch requires a verified sequence, warms only its configured prefix and never commits progress', async () => {
   let preparations = 0
   const fetched = []
   const adapter = preparationFixture(async () => { preparations++; return chapterConfig() },
@@ -341,6 +342,22 @@ test('next-unit prefetch requires a verified sequence, warms only its configured
   await adapter.preloadNextUnit(new sharedCore.ReaderUnit(unitKey('B'), 'next', 3), 2,
     new sharedCore.ReaderCancellation())
   assert.equal(preparations, 1, 'read-only/debug consumers do not gain network speculation')
+  adapter.close()
+})
+
+test('local folder page budget warms its existing adjacency without source edition metadata', async () => {
+  const prepared = [], fetched = []
+  const config = unit => ({ ...chapterConfig(unit), sourceKind: 'local_folder', continuationChapterIds: undefined })
+  const adapter = preparationFixture(async key => { prepared.push(key.unit); return config(key.unit) },
+    async source => { fetched.push(source.imageUri); return '/cache/' + source.imageUri })
+  const unit = new sharedCore.ReaderUnit(unitKey('A'), 'current', 8)
+  adapter.configs.set(adapter.unitId(unit.key), config('A'))
+  await adapter.preloadNextUnit(unit, 2, new sharedCore.ReaderCancellation())
+  assert.deepEqual(prepared, ['B'])
+  assert.deepEqual(fetched, ['B0', 'B1'])
+  assert.equal(unit.key.unit, 'A')
+  assert.equal(adapter.configs.get(adapter.unitId(unit.key)).continuationChapterIds, undefined,
+    'local preparation does not rewrite Legacy automatic-navigation permission')
   adapter.close()
 })
 

@@ -296,12 +296,18 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     return config === undefined ? null : cloneReaderSessionConfig(config)
   }
 
-  /** Spend the requested page budget across verified continuation chapters. */
+  /** Spend the requested page budget across host-owned continuation chapters. */
   async preloadNextUnit(unit: ReaderUnit, depth: number, cancellation: ReaderCancellation,
     onPrepared?: (unit: ReaderUnit, indexes: number[], precedingPages: number) => void): Promise<void> {
     cancellation.check()
     if (!this.chapterPreloadEnabled || this.closed) return
-    const sequence = this.configs.get(this.unitId(unit.key))?.continuationChapterIds
+    const config = this.configs.get(this.unitId(unit.key))
+    // Folder import already establishes the same chapter order used by adjacent().
+    // It has no WASM edition/group metadata, so warm that existing local adjacency
+    // without enabling or changing automatic navigation in the Legacy reader.
+    // Online sources still require their explicitly verified continuation group.
+    const sequence = config?.continuationChapterIds ??
+      (config?.sourceKind === ComicSourceKind.LOCAL_FOLDER ? config.chapterIds : undefined)
     if (sequence === undefined) return
     const index = sequence.indexOf(unit.key.unit)
     const budget = Number.isFinite(depth) ? Math.max(0, Math.floor(depth)) : 0
