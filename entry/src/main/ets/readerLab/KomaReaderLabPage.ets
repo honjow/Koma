@@ -941,6 +941,12 @@ export struct KomaReaderLabPage {
     return ThemeConstants.READER_FOREGROUND_DARK
   }
 
+  private readerLoadingInk(): ResourceColor {
+    const mode = this.hostPreferences?.backgroundMode ?? this.readerMode.backgroundMode
+    // Loading stays light on black/gray; only a white canvas uses dark ink.
+    return mode === 'gray' ? ThemeConstants.READER_FOREGROUND_LIGHT : this.readerCanvasForeground()
+  }
+
   /** Preserve Koma's existing spacing scale while reader-kit owns only layout. */
   private readerPageGap(): number {
     const pageMode = this.hostPreferences?.pageMode ?? this.readerMode.pageMode
@@ -1063,6 +1069,7 @@ export struct KomaReaderLabPage {
                   (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
                     ? ImageInterpolation.High : ImageInterpolation.Medium,
                 canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
+                loadingInk: this.readerLoadingInk(),
                 input: this.input, mediaActions: new ReaderMediaActions(this.imageShare, this.imageSave),
                 tapZoneResolver: (x: number, y: number, layout: ReaderLayout): ReaderTapAction => this.resolveTapZone(x, y, layout),
                 tapZonePreviewRegions: this.sharedTapZonePreviewRegions(),
