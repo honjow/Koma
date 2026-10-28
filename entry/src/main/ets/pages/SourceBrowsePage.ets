@@ -614,7 +614,7 @@ export struct SourceBrowsePage {
       showAction: true,
       action: () => {
         if (this.canVerifySource()) this.verifySource()
-        else if (this.isSearchActive()) void this.viewModel.runSearch(this.currentSource(), this.viewModel.searchQuery)
+        else if (this.isSearchActive()) void this.viewModel.retrySearchPage()
         else this.retryBrowseError()
       },
     })

@@ -1101,6 +1101,7 @@ export class BrowseViewModel {
     this.searchNeedsWebSession = false
     this.clearWebChallenge('search')
     const challengeCurrent = this.webChallengeGuard('search')
+    let continueEmptyPage = false
     try {
       const normalizedQuery = query.trim()
       if (normalizedQuery.length === 0) {
@@ -1117,6 +1118,7 @@ export class BrowseViewModel {
       this.hasMoreSearch = result.hasNextPage
       this.searchNextCursor = result.nextCursor ?? ''
       this.searchResultsIdentity = { entry, fingerprint, page: 1, cursor: this.searchNextCursor }
+      continueEmptyPage = result.manga.length === 0 && result.hasNextPage
     } catch (error) {
       if (requestId !== this.searchRequestId) {
         return
@@ -1137,6 +1139,11 @@ export class BrowseViewModel {
       if (requestId === this.searchRequestId) {
         this.loadingSearch = false
       }
+    }
+    if (continueEmptyPage && requestId === this.searchRequestId &&
+      this.registry.lookup(source.sourceId).entry === entry &&
+      this.searchResultFingerprint(source, query) === fingerprint) {
+      await this.loadMoreSearch(automaticRecovery)
     }
   }
 
@@ -1159,7 +1166,7 @@ export class BrowseViewModel {
   }
 
   async retrySearchPage(automaticRecovery: boolean = false): Promise<void> {
-    if (this.loadingSearch || this.searchErrorMessage.length === 0 || this.searchResults.length === 0 ||
+    if (this.loadingSearch || this.searchErrorMessage.length === 0 ||
       this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
       return
     }
@@ -1178,26 +1185,41 @@ export class BrowseViewModel {
     const requestId = this.searchRequestId
     const source = this.selectedSource
     const query = this.searchQuery.trim()
-    const page = this.searchPage + 1
-    const cursor = this.searchNextCursor
     this.searchErrorIsFirstPage = false
     this.loadingSearch = true
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
     this.clearWebChallenge('search')
-    const challengeCurrent = this.webChallengeGuard('search')
+    let challengeCurrent = this.webChallengeGuard('search')
     try {
-      const more = await this.searchSource(source, query, page, cursor)
-      if (requestId !== this.searchRequestId) {
-        return
-      }
-      this.searchPage = page
-      this.searchResults = appendUniqueSourceManga(this.searchResults, more.manga)
-      this.hasMoreSearch = more.hasNextPage
-      this.searchNextCursor = more.nextCursor ?? ''
-      if (this.searchResultsIdentity !== undefined) {
-        this.searchResultsIdentity.page = page
-        this.searchResultsIdentity.cursor = this.searchNextCursor
+      // Empty filtered pages do not change the native grid's geometry, so it
+      // cannot emit another reach-end event. Follow the source's advancing
+      // cursors until rows arrive or the source ends. Commit each valid cursor
+      // so failure/verification retries only the request that actually failed.
+      const visited = new Set<string>()
+      while (requestId === this.searchRequestId && this.hasMoreSearch) {
+        const page = this.searchPage + 1
+        const cursor = this.searchNextCursor
+        const requestedCursor = cursor.length > 0 ? cursor : `${page}`
+        challengeCurrent = this.webChallengeGuard('search')
+        if (!challengeCurrent()) return
+        if (visited.has(requestedCursor)) {
+          const failure: SourceRuntimeCallResponse = { ok: false, reasonCode: 'parse_error' }
+          throw new SourceRuntimeError(failure)
+        }
+        visited.add(requestedCursor)
+        const more = await this.searchSource(source, query, page, cursor, challengeCurrent)
+        if (requestId !== this.searchRequestId || !challengeCurrent()) return
+        const previousCount = this.searchResults.length
+        this.searchPage = page
+        this.searchResults = appendUniqueSourceManga(this.searchResults, more.manga)
+        this.hasMoreSearch = more.hasNextPage
+        this.searchNextCursor = more.nextCursor ?? ''
+        if (this.searchResultsIdentity !== undefined) {
+          this.searchResultsIdentity.page = page
+          this.searchResultsIdentity.cursor = this.searchNextCursor
+        }
+        if (this.searchResults.length > previousCount || !this.hasMoreSearch) return
       }
     } catch (error) {
       if (requestId !== this.searchRequestId) {

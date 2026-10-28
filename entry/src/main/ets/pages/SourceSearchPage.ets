@@ -211,7 +211,7 @@ export struct SourceSearchPage {
     if (this.query.trim().length === 0) {
       return
     }
-    void this.viewModel.runSearch(this.currentSource(), this.query)
+    void this.viewModel.retrySearchPage()
   }
 
   private setSearchFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {

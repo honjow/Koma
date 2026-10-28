@@ -101,6 +101,51 @@ test('pagination challenge retains rows and retries the exact failed page/cursor
   assert.deepEqual(f.calls, [{ query: 'one', page: 3, cursor: 'next3' }, { query: 'one', page: 3, cursor: 'next3' }])
   assert.equal(f.model.searchResults.length, 2)
 })
+test('empty continuation advances to the real end without losing existing results', async () => {
+  const f = fixture(); Object.assign(f.model, { searchQuery: 'english', searchPage: 1,
+    searchNextCursor: '3', searchResults: [{ id: '421586' }], hasMoreSearch: true })
+  f.replies.push({ manga: [], hasNextPage: true, nextCursor: '6' }, { manga: [], hasNextPage: false })
+  await f.model.loadMoreSearch()
+  assert.deepEqual(f.calls, [{ query: 'english', page: 2, cursor: '3' }, { query: 'english', page: 3, cursor: '6' }])
+  assert.deepEqual(f.model.searchResults, [{ id: '421586' }])
+  assert.equal(f.model.hasMoreSearch, false)
+  assert.equal(f.model.loadingSearch, false)
+})
+test('an empty first page with a next cursor does not become the empty-result screen', async () => {
+  const f = fixture()
+  f.replies.push({ manga: [], hasNextPage: true, nextCursor: '4' },
+    { manga: [{ id: 'found' }], hasNextPage: true, nextCursor: '5' })
+  await f.model.runSearch(f.source, 'one')
+  assert.deepEqual(f.calls.map(call => [call.page, call.cursor]), [[1, undefined], [2, '4']])
+  assert.deepEqual(f.model.searchResults, [{ id: 'found' }])
+  assert.equal(f.model.searchNextCursor, '5')
+  assert.equal(f.model.hasMoreSearch, true)
+})
+test('verification after empty pages retries the failed cursor even before any visible result', async () => {
+  const f = fixture()
+  f.replies.push({ manga: [], hasNextPage: true, nextCursor: '3' },
+    { manga: [], hasNextPage: true, nextCursor: '6' }, challenge(),
+    { manga: [{ id: 'found' }], hasNextPage: false })
+  await f.model.runSearch(f.source, 'one')
+  const receipt = f.model.searchWebChallenge
+  assert.ok(receipt)
+  assert.equal(f.model.claimWebChallenge('search', receipt.id, true), true)
+  assert.equal(await f.model.completeWebChallenge('search', receipt.id, true), true)
+  assert.deepEqual(f.calls.map(call => [call.page, call.cursor]), [[1, undefined], [2, '3'], [3, '6'], [3, '6']])
+  assert.deepEqual(f.model.searchResults, [{ id: 'found' }])
+})
+test('settings changing during an empty continuation prevents both publishing and further requests', async () => {
+  const f = fixture(); Object.assign(f.model, { searchQuery: 'one', searchPage: 1,
+    searchNextCursor: '3', searchResults: [{ id: 'old' }], hasMoreSearch: true })
+  f.model.searchSource = async () => {
+    f.calls.push('requested'); f.changeSettings()
+    return { manga: [], hasNextPage: true, nextCursor: '6' }
+  }
+  await f.model.loadMoreSearch()
+  assert.equal(f.calls.length, 1)
+  assert.equal(f.model.searchNextCursor, '3')
+  assert.deepEqual(f.model.searchResults, [{ id: 'old' }])
+})
 for (const intent of [intents.INITIAL, intents.LISTING_REPLACEMENT, intents.PAGINATION]) {
   test(`browse ${intent} retries only its original branch once`, async () => {
     const f = fixture()
