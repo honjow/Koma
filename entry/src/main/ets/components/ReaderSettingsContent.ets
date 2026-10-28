@@ -1,4 +1,6 @@
 import { ReaderImageSettingsContent } from './ReaderImageSettingsContent'
+import { ReaderDirectionMenuItems } from './ReaderDirectionMenu'
+import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { ReaderSuperResolutionModelsContent } from './ReaderSuperResolutionModelsContent'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderMode, getReaderModeLabel } from '../model/ReaderSessionStore'
@@ -111,6 +113,14 @@ export struct ReaderSettingsContent {
     this.update(next)
   }
 
+  private setReadingMethod(direction: ReaderDirectionChoice): void {
+    const next = this.copyPreferences()
+    const choice = readerControlDirectionSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, direction)
+    next.pageMode = choice.pageMode
+    next.readingDirection = choice.readingDirection
+    this.update(next)
+  }
+
   private setBackground(mode: ReaderBackgroundMode): void {
     const next = this.copyPreferences()
     next.backgroundMode = mode
@@ -206,8 +216,7 @@ export struct ReaderSettingsContent {
   }
 
   private effectiveDirectionLabel(): string {
-    return this.isHorizontalDirectionApplicable() ? getReadingDirectionLabel(this.preferences.readingDirection) :
-      s('reader_direction_effective_top_to_bottom')
+    return s(readerControlDirectionLabelKey(readerControlDirection({ pageMode: this.preferences.pageMode, readingDirection: this.preferences.readingDirection })))
   }
 
   private isWebtoonLayout(): boolean {
@@ -218,19 +227,17 @@ export struct ReaderSettingsContent {
   @Builder
   private PageModeMenu(select: (action: () => void) => void) {
     Menu() {
-      MenuItem({ content: getReaderModeLabel(ReaderMode.SINGLE_PAGE), symbolEndIcon: this.readerMode === ReaderMode.SINGLE_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('single_page') }) })
+      MenuItem({ content: getReaderModeLabel(ReaderMode.SINGLE_PAGE), symbolEndIcon: this.readerMode !== ReaderMode.DUAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('single_page') }) })
       MenuItem({ content: getReaderModeLabel(ReaderMode.DUAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.DUAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('double_page') }) })
-      MenuItem({ content: getReaderModeLabel(ReaderMode.VERTICAL_PAGE), symbolEndIcon: this.readerMode === ReaderMode.VERTICAL_PAGE ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('vertical_page') }) })
-      MenuItem({ content: getReaderModeLabel(ReaderMode.CONTINUOUS_SCROLL), symbolEndIcon: this.readerMode === ReaderMode.CONTINUOUS_SCROLL ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setPageMode('continuous_scroll') }) })
     }
   }
 
   @Builder
   private DirectionMenu(select: (action: () => void) => void) {
     Menu() {
-      MenuItem({ content: getReadingDirectionLabel(ReadingDirection.LEFT_TO_RIGHT), symbolEndIcon: this.preferences.readingDirection === ReadingDirection.LEFT_TO_RIGHT ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setDirection(ReadingDirection.LEFT_TO_RIGHT) }) })
-      MenuItem({ content: getReadingDirectionLabel(ReadingDirection.RIGHT_TO_LEFT), symbolEndIcon: this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setDirection(ReadingDirection.RIGHT_TO_LEFT) }) })
-      MenuItem({ content: getReadingDirectionLabel(ReadingDirection.WEBTOON), symbolEndIcon: this.preferences.readingDirection === ReadingDirection.WEBTOON ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setDirection(ReadingDirection.WEBTOON) }) })
+      ReaderDirectionMenuItems(readerControlDirection({ pageMode: this.preferences.pageMode, readingDirection: this.preferences.readingDirection }), (direction: ReaderDirectionChoice): void => {
+        select(() => { this.setReadingMethod(direction) })
+      })
     }
   }
 
@@ -357,9 +364,9 @@ export struct ReaderSettingsContent {
     }) {
       Column({ space: ThemeConstants.SPACE_SM }) {
         GroupedListSection({ title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
+          ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.DUAL_PAGE : ReaderMode.SINGLE_PAGE), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
           ListDivider()
-          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.isHorizontalDirectionApplicable(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
+          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
           ListDivider()
           ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
           ListDivider()

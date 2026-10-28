@@ -108,6 +108,8 @@
 
 ### Reader 迁移与翻译
 
+- 阅读控制栏的单双页按钮只控制单/双页，方向按钮提供从左到右、从右到左、纵向分页和连续滚动四个互斥方式；阅读设置与全局阅读设置复用 `ReaderDirectionMenuItems`，设置命令经 `readerControlDirectionSelection` 成对更新模式和方向。连续滚动时单双页操作沿控制栏的禁用状态；水平顺序在纵向方式下仍保留为休眠值。不得另写一份混入连续滚动的单双页菜单，或把连续滚动降成“从上到下”的别名。当前依据为 CURRENT_STATUS 原 READER_SETTINGS_PLACEMENT 项。
+
 - NextE 阅读能力迁移沿用户已采用的现有阅读设置和更多入口，具体允许差异以 CURRENT_STATUS 的 NEXTE_READER_FEATURE_MIGRATION 为唯一依据。裁边强度与超分配置复用 ReaderPreferencesStore 的有序写入、备份与 runtime 发布；处理器消费已发布配置，不能另立持久 owner。原去白边默认 false、超分默认关闭；选择或下载模型不自动开启，模型资产须校验后才可交原生处理。原图下载、预载、导出和进度仍由原宿主负责，处理失败保留原图；检测/增强结果只能经现有 Kit 的 crop/variant 合同进入画面，不改 Kit、目录顺序、阅读模式或既定转场来适配功能。
 
 - Reader 即时控制与全局长期配置分责；具体采用入口、分组和日志归属见 CURRENT_STATUS 的 NEXTE_READER_FEATURE_MIGRATION。增强模型未选/不可用仍保留可见开关；模型选择与模型文件管理沿 NextE 原职责，不能自行合并成下载选择菜单。各入口消费同一配置及能力状态。

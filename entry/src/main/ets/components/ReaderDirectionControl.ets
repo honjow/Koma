@@ -1,7 +1,7 @@
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
-import { SymbolGlyphModifier } from '@kit.ArkUI'
-
-export type ReaderDirectionChoice = 'ltr' | 'rtl' | 'vertical_page' | 'continuous'
+import { ReaderDirectionChoice } from '../model/ReaderControlChoices'
+import { ReaderDirectionMenuItems, readerDirectionIcon } from './ReaderDirectionMenu'
+export { ReaderDirectionChoice } from '../model/ReaderControlChoices'
 
 /** NextE's direction-only native control; spread selection has its own button. */
 @ComponentV2
@@ -20,10 +20,7 @@ export struct ReaderDirectionControl {
   }
 
   private icon(direction: ReaderDirectionChoice): Resource {
-    if (direction === 'rtl') return $r('sys.symbol.arrow_left_and_square')
-    if (direction === 'vertical_page') return $r('sys.symbol.square_and_arrow_down_1')
-    if (direction === 'continuous') return $r('sys.symbol.scroll_vertical')
-    return $r('sys.symbol.arrow_right_and_square')
+    return readerDirectionIcon(direction)
   }
 
   private choose(direction: ReaderDirectionChoice): void {
@@ -34,14 +31,7 @@ export struct ReaderDirectionControl {
   @Builder
   private DirectionMenu() {
     Menu() {
-      ForEach(['ltr', 'rtl', 'vertical_page', 'continuous'] as ReaderDirectionChoice[],
-        (direction: ReaderDirectionChoice) => {
-          MenuItem({ content: this.label(direction),
-            symbolStartIcon: new SymbolGlyphModifier(this.icon(direction)),
-            symbolEndIcon: this.readingMode === direction
-              ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-            .onClick((): void => { this.choose(direction) })
-        }, (direction: ReaderDirectionChoice): string => direction)
+      ReaderDirectionMenuItems(this.readingMode, (direction: ReaderDirectionChoice): void => { this.choose(direction) })
     }
   }
 

@@ -1115,6 +1115,14 @@ export class ReaderPreferencesStore {
     })
   }
 
+  /** A direction-menu command publishes its mode and direction together through the existing writer. */
+  async saveDisplayChoice(choice: ReaderSeriesModeOverride): Promise<ReaderPreferences> {
+    return this.mutatePreferences((next: ReaderPreferences): void => {
+      next.pageMode = choice.pageMode
+      next.readingDirection = choice.readingDirection
+    })
+  }
+
   async saveReadingDirection(readingDirection: ReadingDirection): Promise<ReaderPreferences> {
     return this.mutatePreferences((next: ReaderPreferences): void => {
       const choice = readerDirectionSelection({ pageMode: next.pageMode, readingDirection: next.readingDirection }, readingDirection)

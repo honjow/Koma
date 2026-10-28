@@ -2,6 +2,8 @@ import { KomaTranslationSettingsContent } from '../components/KomaTranslationSet
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
 import { readerModeSelection, readerDirectionSelection } from '../model/ReaderPreferencesStore'
+import { ReaderDirectionMenuItems } from '../components/ReaderDirectionMenu'
+import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettingsContent } from './DiagnosticsSettingsContent'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -621,10 +623,10 @@ export struct SettingsPage {
 
   private rowDetail(row: SettingsRow): string {
     if (row.key === 'page-mode') {
-      return getReaderPageModeLabel(this.pageMode)
+      return getReaderPageModeLabel(this.pageMode === 'double_page' && !this.isReaderWebtoonLayout() ? 'double_page' : 'single_page')
     }
     if (row.key === 'reading-direction') {
-      return getReadingDirectionLabel(this.readingDirection)
+      return s(readerControlDirectionLabelKey(readerControlDirection({ pageMode: this.pageMode, readingDirection: this.readingDirection })))
     }
     if (row.key === 'reader-spread-layout') {
       return this.readerSpreadLayoutMode === 'split'
@@ -1364,6 +1366,16 @@ export struct SettingsPage {
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'save_reading_direction_failed', '[Settings] step=save_reading_direction_failed code=' + safeSettingsErrorCode(error))
       })
+  }
+
+  private saveReadingMethod(direction: ReaderDirectionChoice): void {
+    const choice = readerControlDirectionSelection({ pageMode: this.pageMode, readingDirection: this.readingDirection }, direction)
+    this.pageMode = choice.pageMode
+    this.readingDirection = choice.readingDirection
+    void this.preferencesStore().saveDisplayChoice(choice).catch((error: Error) => {
+      DiagnosticLogger.warn('settings_page', 'save_reading_direction_failed', safeSettingsErrorCode(error))
+      this.loadPreferences()
+    })
   }
 
   private saveReaderSpreadLayoutMode(spreadLayoutMode: ReaderSpreadLayoutMode): void {
@@ -2236,14 +2248,11 @@ export struct SettingsPage {
   private SettingsSelectionMenu(row: SettingsRow, select: (action: () => void) => void) {
     Menu() {
       if (row.key === 'page-mode') {
-        this.SelectionMenuItem(select, s('reader_page_mode_single'), this.pageMode === 'single_page', () => { this.savePageMode('single_page') })
+        this.SelectionMenuItem(select, s('reader_page_mode_single'), this.pageMode !== 'double_page', () => { this.savePageMode('single_page') })
         this.SelectionMenuItem(select, s('reader_page_mode_double'), this.pageMode === 'double_page', () => { this.savePageMode('double_page') })
-        this.SelectionMenuItem(select, s('reader_page_mode_continuous'), this.pageMode === 'continuous_scroll', () => { this.savePageMode('continuous_scroll') })
-        this.SelectionMenuItem(select, s('reader_page_mode_vertical_page'), this.pageMode === 'vertical_page', () => { this.savePageMode('vertical_page') })
       } else if (row.key === 'reading-direction') {
-        this.SelectionMenuItem(select, s('reader_direction_ltr'), this.readingDirection === ReadingDirection.LEFT_TO_RIGHT, () => { this.saveReadingDirection(ReadingDirection.LEFT_TO_RIGHT) })
-        this.SelectionMenuItem(select, s('reader_direction_rtl'), this.readingDirection === ReadingDirection.RIGHT_TO_LEFT, () => { this.saveReadingDirection(ReadingDirection.RIGHT_TO_LEFT) })
-        this.SelectionMenuItem(select, s('reader_direction_vertical'), this.readingDirection === ReadingDirection.WEBTOON, () => { this.saveReadingDirection(ReadingDirection.WEBTOON) })
+        ReaderDirectionMenuItems(readerControlDirection({ pageMode: this.pageMode, readingDirection: this.readingDirection }),
+          (direction: ReaderDirectionChoice): void => { select(() => { this.saveReadingMethod(direction) }) })
       } else if (row.key === 'reader-spread-layout') {
         this.SelectionMenuItem(select, s('reader_spread_layout_joined'), this.readerSpreadLayoutMode === 'joined', () => { this.saveReaderSpreadLayoutMode('joined') })
         this.SelectionMenuItem(select, s('reader_spread_layout_split'), this.readerSpreadLayoutMode === 'split', () => { this.saveReaderSpreadLayoutMode('split') })
@@ -2473,6 +2482,7 @@ export struct SettingsPage {
           trailingMaxLines: this.rowDetailMaxLines(row),
           trailingDropdown: true,
           showChevron: true,
+          isEnabled: row.key !== 'page-mode' || !this.isReaderWebtoonLayout(),
           dropdownMenuEnabled: true,
           dropdownMenuBuilder: (select: (action: () => void) => void) => {
             this.SettingsSelectionMenu(row, select)
