@@ -4,9 +4,9 @@
 
 规范与默认技术/开发文档整理及同步已完成。设置54d与源宿主c801已提交推送且精确CI成功，普通设置与真文字PNG具名范围已完成；真实外部provider/译图和原未解决缺陷仍保留；Root后续产品动作服从人类当前沟通指令，progress_docs仅维护本工作单，不以文档完成清空bug队列。
 
-当前工作：App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。197双X简繁普通浏览→目录→返回已具名，未入Reader；237五包设置场已获授权并完成，书源验证默认237。唯一队列71项，原70项保持。
+当前工作：NHentai.xxx公开包搜索及空页续取已回验，其他源验证继续。
 
-设备：197当前Host18928136，本批六非Registry文件保持、双X预期升级，941a租约已释放。237既有最终18910787归还事实保持；五包设置场已完成并释租，书源验证默认237。200禁止、四私库搁置。
+设备：197已恢复原超时并休眠、释放租约；237书源验证按原授权执行。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,13 +14,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "双X普通并发路径、App/源精确CI与公开实体核验完成；原源后继继续",
-  "outcome": "唯一当前队列71项：原70项id/kind不变，新增人类真实AGC启动兼容缺陷一项；既有权限/冻结范围/首次事实与未验边界保持，不以文档或局部测试当产品完成。",
-  "updatedAt": "2026-10-27T10:07:26+00:00",
+  "state": "按用户反例修正真正连续跨章",
+  "outcome": "当前共95项，其中23项未完成。页面按提出时间排序，每项显示阶段与等待时长。",
+  "updatedAt": "2026-10-29T06:28:40+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_EMPTY_SETTINGS_ENTRY",
-  "activity": "197使用Host18928136与双XCOMIC简繁0.1.6，普通Browse各12卡→目录13/13及582/582后返回，未入Reader/未加库；四个get_manga/get_chapters同次操作实际峰值并发5、全部HTTP200且结束无残留，耗时23487/22592/22482/26896ms。与旧237不同时机/设备，不作严格性能AB或全卡顿闭环。App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。此前237新设置场两次审批在执行前拒绝，原租约已释放；后续用户明确授权并已完成五包设置场，见下方source项回执。 公开实体已核：85唯一ID索引及所有索引包/图标assets齐，211 assets非空；Linux Hans211635B/WASM575856B、Hant211320B/WASM574874B，manifest与index一致。复用原生产WASM runner指向公开实体，两源旧/新Host受控执行通过；197普通路径使用本地编译包，不冒公开包新安装。证据source-settings-repair/public-668c785/inspection.json及xcomic-batch-wasm-result.json。",
-  "nextAction": "237五个冻结包设置保存、重入和恢复已通过，原继续阅读位置及睡眠/120秒/租约归还见五包回执；旧source_fixes已结束，source_owner_terra是唯一源码owner，负责已推祖先29a3d32的公开包实体核验及后续工作。official_names_terra已完成本轮只读交接，85站后续官网身份核验由source_owner_terra接续，Root核展示链与证据；名称、图标、官网地址及所有展示须整体对应，85站尚未全部确定；源名称提交e36dfc4已推且CI 40494611232 success，237五个本地包展示已核；公开MangaBall、pixiv实体因429未取回，源简介开发备注待处理。双X重复探测复用后继、已随e36推送的MD标题偏好0e276ecb及真实验证窗口标题Native边界保留。 用户明确“书源相关的工作都默认使用237，不用重复问我。”书源相关验证默认237，当前五包具体验证授权继续有效；每次按流程取得租约，测试后恢复状态并释租，不扩为清用户数据或改账户/网络的许可。",
+  "activeId": "READER_MH1234_BOUNDARY_PRELOAD",
+  "activity": "Root处理漫画章末预载及加载提示对比，237同时修复Zero章节和网页入口。",
+  "nextAction": "核实漫画源及普通阅读路径，修复加载对比，并按已采用方案回验Zero。",
   "proof": [
     {
       "label": "正式主仓",
@@ -63,8 +63,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "AGC启动guard61c79b6b精确CI成功保持；batch五文件7230d110已精确推送、CI40485480396 completed/success，含guard的Host18928136已完成本批普通路径。batch恢复点只保留，不再次apply。",
-      "hap": "197当前Host18928136，双X .6普通浏览到目录后返回、六非Registry文件保持，941a已释租，未入Reader。237既有最终18910787归还事实保持；五包设置场已完成并释租，书源验证默认237。"
+      "appHead": "AGC启动guard61c79b6b精确CI成功保持；batch五文件7230d110已精确推送、CI40485480396 completed/success。Koma接入已本地提交5d966878；batch恢复点只保留，不再次apply。",
+      "hap": "197当前分页窗口修复HAP SHA-256 62aea4fcddc9c10a03f9468cc7e5c308c875d06628219ed6f5e7c43dd4724c47，RTL具名回验，LTR录制中；此前f3bba518原生行边界修正末端已回验；此前f6749b58303015d413fea24d2baf4030375a9958c27f7a760defb9793d8fe889清理包及双X普通路径证据保留。237书源验证默认237。"
     },
     {
       "name": "NextE",
@@ -79,8 +79,346 @@
       "hap": "本轮未安装或验收该宿主，既有已接受范围见原任务。"
     }
   ],
-  "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。",
+  "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。",
   "items": [
+    {
+      "id": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "title": "超分指示器在暗绿色等主题中辨识度不足",
+      "priority": "P1（用户本轮直接反馈）",
+      "kind": "accepted",
+      "status": "40%底色具名验证及197恢复已完成",
+      "stage": "具名范围已验收",
+      "owner": "Root：共享阅读器指示器修复",
+      "dependencies": [],
+      "relatedItems": [
+        "NEXTE_READER_FEATURE_MIGRATION"
+      ],
+      "result": "用户本轮反馈超分指示器背景过黑，暗绿色主题激活后几乎不可辨识，要求覆盖全部主题。当前源码核NextE背景#26000000而共享指示器为#66000000，存在迁移差异；本地调整idle浅底及处理中/已生效的主题底与高对比图标，保临时关闭和原点击语义。仅本地代码及执行检查，尚未构建或真机验证。 冻结release已装197且原Reader/Appearance偏好与库保持；xkcd2937原页真实system增强成功，暗绿底白HD清晰，点击关闭为浅底灰HD、再开恢复绿底白HD，页码不变且偏好逐字相等。Nemo因原高度限制正常skip，不改限制；其他处理日志不外推全部预载、翻译或性能。 197暗绿主题白HD、临时关弱化浅底与再开已核；琥珀#A66A1F激活显示实色琥珀圆与黑HD。恢复原翠绿及Reader偏好键值与02相等，偏好序列化顺序不同不称逐字相等。原Blue第四话第1页100%、Nemo 2/3及xkcd2937 1/1恢复；76书ID及676章ID保持，xkcd2974自然预载0→1页并更新页表指纹/count/updatedAt，其余75本完整相同。最终SLEEP、normal120000/Override10000与原基线一致并释租。shared四文件dc06d5ed758fc0ec68be4a397b5fccd3b3f87588已推origin/main；首次HTTPS错误账号403保留，未改账号，正确origin成功。Koma依赖提交f9de81cbc7671ff97a7ab5a3fa1fc4fcb2917efe已推且精确CI40721766878 completed/success。全局对比算法已交付，真机仅暗绿与琥珀两种具名样本，不冒每个主题逐一验证。 用户新批准超分底色适当透明化；当前本地改为80%不透明，图标按黑白漫画底色最差对比选择黑或白，两个关键执行检查通过，尚未真机验证。 最终release 6b53cbe9在197实际增强页亲审浅化绿底白HD；偏好及原Blue阅读状态恢复，76书完整library JSON与基线相等。设备恢复SLEEP、原超时并释租。shared 4460969f3aaf02b622346a0e68304020647f2b5f已推；Koma菜单及依赖pin 2a0c7aeb已本地提交，推送和CI待确认。 Koma 2a0c7aebbe998269a113a5730361cc16acca3711已推master，精确CI40733358529 completed/success。 用户最新明确要求底色40%不透明、60%透明；Root本地实施并在197真机验证，尚未取得结果。此前80%不透明方案的具名验收和CI证据保留。 197同签release候选37fd51已安装；暗绿主题xkcd2937黑底和同页临时白底均亲审白HD与淡底可辨。Reader偏好XML语义与21相等、76本library JSON全份相等，sessions正恢复原Blue读态。shared 0db00119b2f21338070c28ba85b3077ae852529a已本地提交，推送待核，Koma pin尚未更新。 shared 0db00119b2f21338070c28ba85b3077ae852529a已推main，Koma依赖pin fa6e728已推master，CI查询中。197唤醒解锁及超时操作、后续只读状态均被自动审批拒绝，理由未识别设备授权；已向用户说明并等待明确授权，未绕过。197租约仍有效，偏好及76本书库已恢复，sessions有xkcd访问时间变化，Blue普通返回仍待。 用户本轮明确允许继续197验收和恢复，并持续授权197、237本项目验收；此前审批拒绝记录保留。Koma fa6e728精确CI40742436354成功，40%黑白背景具名Native已核。 197普通Continue回原Blue第四话1/1，返回书架同章第1页100%；Reader和Appearance语义、76本library与基线相等，sessions仅updatedAt变化。最终SLEEP、normal120000/Override10000，租约已释放。",
+      "remaining": "本次40%底色黑白背景具名范围及设备恢复完成；其他主题未逐一真机验证。",
+      "remainingActions": [
+        "本次具名范围已完成。"
+      ],
+      "boundaries": [
+        "保原指示器状态语义与点击开关；不以源码检查或构建代替各主题实际视觉验证。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-28",
+      "reportedDateSource": "本轮可见用户反馈日期；消息精确时刻未核实，不以登记时刻冒充。",
+      "reportedAtSource": "本轮用户直接反馈：超分指示器背景过黑、暗绿色主题激活后几乎不可辨识，要求所有主题解决。",
+      "closedAt": "2026-10-29T02:44:58+08:00",
+      "stageNote": "40%底色黑白背景具名真机及提交CI已核，设备恢复并释租。",
+      "evidence": [
+        "/Users/honjow/git/reader-kit/reader-ui/src/main/ets/ReaderEnhancementStatus.ets",
+        "/Users/honjow/git/reader-kit/reader-ui/src/main/ets/ReaderEnhancementContrast.ets",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/install-contrast-host-03/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-active-reader-12/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-off-13/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-on-14/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/amber-active-reader-18/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/restore-reader-preferences-21/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/restore-original-reading-23/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/power-restore-and-sleep-24/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/translucent-active-xkcd-28/",
+        "https://github.com/honjow/Koma/actions/runs/40733358529",
+        "https://github.com/honjow/Koma/actions/runs/40742436354"
+      ],
+      "reopenedAt": "2026-10-29T01:46:02+08:00"
+    },
+    {
+      "id": "MIXFLAVOR_SEARCH_MISSING",
+      "title": "綜合口味搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.2普通搜索具名验证",
+      "owner": "source_terra：源修复；Root：237具名验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "本轮全源搜索自检发现原源搜索遗漏；0.1.2提交5fa311a已推且CI40697052579成功，公开WASM以真实保存HTML及原Host具名核对。237普通更新后实际ZIP/WASM与公开一致、设置同002；普通源内搜索食返回原栏目5个作品#64/#57/#45/#30/#18及没有更多了，未混入排除8481；未进入Reader。",
+      "remaining": "本源具名搜索漏实现范围已验证。",
+      "remainingActions": [
+        "本源具名搜索漏实现范围已验证。"
+      ],
+      "boundaries": [
+        "本项来自执行自检，非用户亲报；不外推Reader及其他站点。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现时间未核实。",
+      "closedAt": "2026-10-28T21:51:06+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-public-index-124/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-public-update-125/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-public-target-126/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-browse-target-127/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-ordinary-search-128/"
+      ]
+    },
+    {
+      "id": "FJUMONKEY_SEARCH_MISSING",
+      "title": "輔大猴搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.2普通搜索及续页具名验证",
+      "owner": "source_terra：源修复；Root：237具名验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "本轮全源搜索自检发现原源搜索遗漏；0.1.2提交5e397ee已推，本地生产WASM搜索分页及旧ID详情具名。117安装ZIP/WASM与当前公开实体完全相等；237同HAP0db普通源内搜索四格，121首批可见、122正常滚动见后续结果且查询保持。只验证具名搜索及续页，不冒正文或首末全页。先前5e旧CI查询因EOF及审批拒绝未核，不由当前实体反推。",
+      "remaining": "本源具名搜索及续页范围已验证。",
+      "remainingActions": [
+        "本源具名搜索及续页范围已验证。"
+      ],
+      "boundaries": [
+        "本项来自执行自检，非用户亲报；不外推正文及全部搜索分页。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现时间未核实。",
+      "closedAt": "2026-10-28T21:41:25+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/fjumonkey012-browse-target-120/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/fjumonkey012-ordinary-search-121/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/fjumonkey012-search-next-122/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/fjumonkey-search012/"
+      ]
+    },
+    {
+      "id": "PEOPLE2_SEARCH_MISSING",
+      "title": "人2搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.2普通搜索具名验证",
+      "owner": "source_terra：源修复；Root：237具名验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "本轮全源搜索自检发现原源搜索遗漏；人2 0.1.2提交aacee1f已推、精确CI40685768520成功，公开WASM及原Host真实保存HTML回放已核。237同HAP0db普通源内搜索春節，返回原生活：春節將至，從生肖交接看過年那些事，并显示没有更多了；未进入正文。117设备WASM与公开完全一致；实际安装ZIP与先前公开ZIP容器哈希不同，但每个成员内容全部相等，不误判可执行实体不同。",
+      "remaining": "本源具名搜索漏实现范围已验证。",
+      "remainingActions": [
+        "本源具名搜索漏实现范围已验证。"
+      ],
+      "boundaries": [
+        "本项来自执行自检，非用户亲报；不外推正文及其他搜索情况。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现时间未核实。",
+      "closedAt": "2026-10-28T21:36:04+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/public-search-packages-and-people2-target-117/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/people2012-ordinary-search-118/"
+      ]
+    },
+    {
+      "id": "IPMINI_SEARCH_MISSING",
+      "title": "IP手札mini搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.2普通搜索具名验证",
+      "owner": "source_terra：源修复；Root：237具名验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "本轮全源搜索自检发现原源搜索遗漏；0.1.2提交430b767已推且精确CI40688772764成功，公开WASM以真实保存HTML和原Host具名核对。237同HAP0db普通Browse搜索強化IP管理制度，返回原IP手札mini!#3待辦事項-強化IP管理制度并显示没有更多了。仅该搜索具名路径通过，不冒Reader或全部负例验收。",
+      "remaining": "本源具名搜索漏实现范围已验证。",
+      "remainingActions": [
+        "本源具名搜索漏实现范围已验证。"
+      ],
+      "boundaries": [
+        "本项来自执行自检，非用户亲报；不外推Reader及未覆盖搜索情况。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现时间未核实。",
+      "closedAt": "2026-10-28T21:29:40+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/ipmini012-browse-target-115/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/ipmini012-ordinary-search-116/"
+      ]
+    },
+    {
+      "id": "NHENTAIXXX_SEARCH_MISSING",
+      "title": "NHentai.xxx搜索遗漏与空页续取",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.4普通搜索及空页续取已验证",
+      "owner": "Root：宿主空页续取及237恢复；source_terra_resume：源合同核对",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT",
+        "SIXMH_SEARCH_UNSUPPORTED"
+      ],
+      "result": "本轮全源搜索自检确认搜索遗漏；237保存原0.1.3包，普通Picker安装冻结0.1.4候选并核安装字节、设置不变。english搜索显示首个中文421586；普通上滑后无终点且未再发搜索请求，单源日志op530/533有result552、op537有result249后无后续请求。候选未公开，未通过；原0.1.3恢复仍待完成。 BrowseViewModel已接空首批或续页按源明确nextCursor继续取到新条目或真结束，成功cursor逐批提交、失败验证只处理原失败页，包/设置/query过期即停止；SourceBrowse/Search现有重试入口共用。现有web_sessions与补充关键执行回归通过，旧测试和期望保留；空页合同已补入现有ABI文档。尚未构建或安装，237仍为候选0.1.4，原0.1.3待恢复。 首次release构建因嵌套响应对象ArkTS类型失败，改显式SourceRuntimeCallResponse后二次构建及签名校验成功；HAP 0db49bbb547640a9d5b1cf488d440c424ebe464e489a25c92bba623500bbcd24 debugfalse、profile debug并绑定当前237 UDID。102/103安装并普通启动后registry/settings/library JSON均与安装前相等；105 english首中文421586可见，106收键盘后同query原生触底，op8空批后op12成功至真实终点，首项保留并显示没有更多了。此为冻结候选及修复宿主的具名实机路径，原0.1.3恢复、公开源包及宿主提交/CI未完成。 Host 83f19391d454311e33aa85f95b1ae82f5353fe8a已推，CI40693094111成功；源c8f72ea及CI40690590752成功。108普通Picker恢复原0.1.3，109接收ZIP/WASM与094原包逐字相等，设置同002；随后自动更新事件后112当前公开包ZIP及WASM与公开实体完全相等，WASM f70e2d3c…不同于已验冻结9f2b5a89…，公开Native仍待验证。 113已删除本轮candidate014及restore013两项临时Downloads并读回不存在；114以当前公开0.1.4及HAP0db普通Browse搜索english，首中文421586保留且显示没有更多了，日志op31空批后op35至真实终点，无重试或清数据。此具名搜索遗漏及空页消费范围通过；237整体会话仍进行中，未称休眠或释租。",
+      "remaining": "本源具名公开搜索及空页续取范围已验证；其他源及设备会话独立继续。",
+      "remainingActions": [
+        "本源具名公开搜索及空页续取范围已验证；其他源及设备会话独立继续。"
+      ],
+      "boundaries": [
+        "本项来自执行自检，非用户亲报；不以候选安装或首个结果代替完整分页验收。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现时间未核实。",
+      "closedAt": "2026-10-28T21:25:34+08:00",
+      "stage": "公开包具名范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-baseline-094/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-import-097/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-browse-098/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-english-100/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-empty-next-101/",
+        "/private/tmp/koma-empty-search-tests.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-host-preinstall-102/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-host-install-103/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-fixed-host-target-104/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-fixed-host-english-105/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-fixed-host-tail-106/",
+        "/private/tmp/koma-empty-search-build.log",
+        "/private/tmp/koma-empty-search-build-v2.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-original-restore-picker-107/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-original-restored-108/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-index-109/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-target-110/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-update-state-readback-111/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-bytes-and-update-events-112/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-browse-113/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-english-114/"
+      ]
+    },
+    {
+      "id": "IMMARK_SEARCH_MISSING",
+      "title": "我是馬克搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.1搜索及旧格式结果详情已验证",
+      "owner": "source_terra_resume：源搜索修复；Root：237普通入口回验",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT",
+        "SIXMH_SEARCH_UNSUPPORTED"
+      ],
+      "result": "本轮全源搜索自检发现原源无搜索，官网目标分类有真实搜索；0.1.1提交699a3c7已推且CI40679769440成功，公开WASM search=true、職場第二页返回12个10位旧文章及nextCursor=3；保留18位旧ID兼容。Native未验。 237普通manager更新公开0.1.1，registry search=true/hashOk；普通源内搜索職場成功，首3封面可见，滚动真实第二页时旧10位文章封面可见。2036573392先显示加载，随后同一次请求成功显示1章详情；未进入正文。",
+      "remaining": "本源具名搜索及旧格式结果详情范围已验证。",
+      "remainingActions": [
+        "本源具名搜索及旧格式结果详情已验证。"
+      ],
+      "boundaries": [
+        "本项来自执行自检，非用户亲报；公开WASM不代替Native验收。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现时间未核实。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-28T19:42:42+08:00",
+      "stage": "具名搜索及旧格式详情已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/immark-search011/public-search2.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-public-update-087/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-ordinary-search-090/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-search-next-091/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-old-search-result-092/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-old-detail-settled-093/"
+      ]
+    },
+    {
+      "id": "NHENTAITO_SEARCH_MISSING",
+      "title": "NHentai.to搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.4普通入口搜索已通过",
+      "owner": "source_terra_resume：源修复；Root：237普通入口回验",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT",
+        "SIXMH_SEARCH_UNSUPPORTED"
+      ],
+      "result": "本轮全源搜索自检确认参考支持搜索而旧源未实现；0.1.4提交e8fa055已推，CI40676656848成功，公开包SHA256 43ee84bc40ac47a6a31bb8342788dd9e6cd6fa605d34abfebd961802685abdc3，公开WASM search=true及真实love搜索nextCursor=2；Native未验。 237普通manager更新到公开0.1.4，049 registry确认search=true；同0cd HAP普通Browse源内搜索love成功，053前6结果封面可见。仅该源搜索漏实现范围通过。",
+      "remaining": "本源具名搜索修复已验证；其他源单独核对。",
+      "remainingActions": [
+        "本源具名搜索修复已验证，其他源单独核对。"
+      ],
+      "boundaries": [
+        "仅记录本源自检发现；公开WASM不代替Native验收。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；首次发现原始时间未核实，非用户亲报。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-28T19:14:40+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/nhentaito-search014/public-search.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito014-public-update-049/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito014-ordinary-search-053/"
+      ]
+    },
+    {
+      "id": "THREE_HENTAI_SEARCH_MISSING",
+      "title": "3Hentai搜索未移植",
+      "priority": "P1（全源搜索自检发现）",
+      "kind": "accepted",
+      "status": "237公开0.1.4普通入口搜索已通过",
+      "owner": "source_terra_resume：搜索修复；Root：237普通入口回验",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT",
+        "SIXMH_SEARCH_UNSUPPORTED"
+      ],
+      "result": "本轮全源搜索自检发现：当前0.1.3 search=false且未实现；固定参考Hentai3.kt有搜索，真实官网搜索love及中文语言条件返回HTTP200、作品和下一页。Native未验；后续候选love.json记录了unobserved asset host错误，不能算候选成功。 0.1.4提交32de784已推，CI40675283851成功；公开包SHA256 40ba78730da4db743c3c7862b5071f8bccf0e9d0777dbeb8c3748c302b187b69，公开WASM search=true，真实love搜索25本、nextCursor=2。旧ID及默认标题不变，Native尚未验。 237同0cd HAP普通Browse进入3Hentai，公开0.1.4搜索love成功，前6个结果封面可见；公开WASM full_title true/false同一ID分别返回完整及短标题，Native设置持久仍沿既有0.1.3具名范围。",
+      "remaining": "本源具名搜索漏实现已验证，其他源单独核对。",
+      "remainingActions": [
+        "本源具名搜索范围已验证；其他源单独核对。"
+      ],
+      "boundaries": [
+        "不将固定参考不支持搜索的源认作漏移植；不凭源码或官网响应代替Native验收。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求全源搜索核查后的执行自检；未取得原始发现记录的可靠时间，不冒充用户亲报。",
+      "firstEvidenceAt": "2026-10-28T18:48:25+08:00",
+      "firstEvidenceAtSource": "候选love.json文件修改时间，只证明该候选错误记录的时间，不等于搜索遗漏首次发现时间。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-28T19:09:59+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/love.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/public-search.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/threehentai014-ordinary-search-046/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/public-title-true.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/public-title-false.json"
+      ]
+    },
+    {
+      "id": "SIXMH_SEARCH_UNSUPPORTED",
+      "title": "六漫画搜索提示书源不支持，排查其他无法搜索的源",
+      "priority": "P1（用户本轮直接反馈）",
+      "kind": "accepted",
+      "status": "237公开0.1.5普通源内搜索已通过",
+      "owner": "Root：237普通源内入口验证；source_terra_resume核对参考及其他不能搜索源",
+      "dependencies": [],
+      "result": "237真实统一搜索日志中com.sixmh.koma为unsupported，是具名线索；尚不能代替源内入口复现。 固定参考SixMH继承MCCMS搜索，官网有搜索表单；真实/search/一人之下/1返回HTTP200及两项。Koma 0.1.4声明search=false且run_search未实现，确认为漏移植，源侧实施中；237旧版普通Browse入口仍在定位，未称修复完成。原85快照17个search=false中六漫画确认遗漏、Simply旧记录过时，余15待核；设置/镜像另15项未收口，两组重叠不能相加为bug总数。 237同0cd HAP及已装六漫画0.1.4，普通Browse进入源目录30本正常；源内搜索一人之下实际显示“源搜索失败”“此书源暂不支持该操作。”“重试”。0.1.5候选09adb5486ab8ba1e75af5806425320819ea6a8ba已推，CI40674075133运行中；本地生产WASM真实搜索2结果、分页及空结果具名，官网繁忙JSON保留为错误，不伪造空结果。公开包及Native修复回验尚未完成。 六漫画0.1.5公开包及精确CI40674075133成功，公开WASM source_info search=true，真实一人之下返回两项；237普通入口升级回验仍进行中。 041普通公开索引更新后registry为0.1.5且实际具search；042同237及0cd HAP从普通Browse进入六漫画，搜索一人之下返回两本《一人之下（《异人之下》原著漫画》和《一人之下番外·锈铁》，两封面显示且没有更多，不再出现旧036不支持提示。仅本源搜索漏实现范围通过。",
+      "remaining": "本源具名搜索修复已验证；其他不能搜索的书源继续逐项核对，不由本项外推。",
+      "remainingActions": [
+        "本源具名范围已验证；其他源搜索能力继续逐项核对。"
+      ],
+      "boundaries": [
+        "保留现有已验收行为与样式；统一搜索unsupported线索不等于源内路径已复现。"
+      ],
+      "reportedAt": "2026-10-28T18:30:06+08:00",
+      "reportedAtSource": "本轮用户原文：“使用六漫画源里的搜索，提示搜索失败，书源不支持操作？还有不能搜索的书源？”时间为本轮接收登记时间，不推测历史首报。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-28T18:57:32+08:00",
+      "stage": "具名搜索范围已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/real-source-parallel-search-008/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh-ordinary-source-035/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh014-search-failure-036/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/sixmh-search015/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh015-update-completed-041/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh015-ordinary-search-042/"
+      ]
+    },
     {
       "id": "READER_THUMBNAIL_LOADING_REGRESSION",
       "title": "NextE/NextN缩略图进入阅读时加载指示器消失",
@@ -381,28 +719,27 @@
       "id": "AUTO_CHAPTER_BOUNDARY_TARGET",
       "title": "自动跨章回退误落首图，应落上一章末页",
       "priority": "P1（阅读正确性）",
-      "owner": "Root：当前适用Koma具名修复完成；N/E无普通跨章合同",
+      "owner": "Root：真正连续跨章实现",
       "dependencies": [],
       "relatedItems": [
         "READER_SETTINGS_STABILITY",
         "NEXT_CHAPTER_PREFETCH_REUSE"
       ],
-      "status": "Koma具名跨章末页/重开与CI完成；N/E普通生产不适用",
-      "kind": "accepted",
-      "result": "当前实际多章消费者仅KomaReaderLabPage785传ReaderChapterNavigation，197079/080已证明自然进下一章1/10、回退上一章16/16、返回重开保位，543cbda/5d8de36e及精确CI已交付。N/E普通shared阅读为单图库unit，adapter.adjacent恒null且不传ReaderChapterNavigation，不存在此自动跨章路径；不将未外推N/E当验收欠账或造多章入口。",
-      "remaining": "当前适用Koma具名原缺陷已完成；N/E普通生产无跨章路径，不列未验矩阵，不冒设备跨章通过。",
+      "status": "197最终包Blue RTL代表路径已回验，Nemo前向准备图片仍开放",
+      "kind": "open",
+      "result": "相邻章节已接入同一原生List并限制资源；197候选2199…已观察到两章同屏、双向自然滚动及Toast，普通返回后继续阅读卡片与控制栏均为第二部第六话：吃冰粉吗？。交付候选d0ad49…反向点击后短暂跳章；probe-motion-48定位Root新增元数据列表跨章删头后offset改变，并非用户方向设置。已移除跨章删头，保持目录与几何稳定，远处图像及处理资源仍按预算释放。197清理包52双向配置点击未再回跳，53正文、控制栏和书架均为第二部第四话：爱丽丝的长头发；相邻章仍在同一List。新反例：58自然滚动至同一List末端，下一章白子发带整图已显示且无法再向下，59控制栏和书架仍为第二部第六话：吃冰粉吗？、章节2/15。已修正可见位置判断并完成末端回验；显式选页优先，不用isAtEnd改页码。此前v3整章替换不算连续通过。 新HAP f3bba518…的61自然正反正滑动录屏已逐帧审查，未见重建、回跳、先小后大或黑帧；62末屏白子装备完整显示，控制栏为第二部第六话：蕴含强大力量的装备！、1/1、章节1/15，返回书架同标题第1页100%，与旧58/59相同物理末屏的错误状态区分。分页LTR点击前后及滑动到正确相邻单页章，但66录屏多处清空并显示正在准备图片，分页未通过；67/68为RTL第四话1/1、4/15准备态，不代表RTL跨章已验。 本地分页窗口修复安装于197（HAP 62aea4fcddc9c10a03f9468cc7e5c308c875d06628219ed6f5e7c43dd4724c47），71 RTL录屏309帧及9张全帧联系表已审：右点击/右滑下一章第五话，左点击/左滑前章第四话，图片跟随平移，无旧66清屏、准备图片或先小后大，Toast对应；72控制栏第四话1/1、章节4/15。三宿主构建成功，NextE V2为0文件，未作三宿主运行验收；当时本批尚未提交/推送。 74 LTR完整录屏328帧、10张联系表已审：左点击/左滑下一章、右点击/右滑上一章往返第四话，无清空加载或先小后大。76从章节7/15连续五次点击至2/15，284帧及8张联系表已审，均为原生图片平移、Toast对应，无整章重开或清空；77阅读器及普通返回书架同为第二部第六话：吃冰粉吗？第1页100%。同设备当前双击开启300ms档位，四次触摸抬起至分页命令分别317/319/310/314ms，排除动画，不外推其他档位或关闭状态。 81《Nemo》多页样本170帧及5张联系表已审，动作期间没有章节切换；82仍为Nemo 3/3、1/2，不能记前章末页通过。83已用原生slider恢复进入前2/3，并正常返回详情与书架；当时未命中原因待核。最终候选0cd18bb62c438a07d786323415f1a8a13b45b74bfae1aed73fca64adf6cdd135当时正在84安装回验，先前62ae具名证据范围保留。 最终HAP 0cd18bb62c438a07d786323415f1a8a13b45b74bfae1aed73fca64adf6cdd135已84安装。84原方向菜单确认Nemo为纵向分页，81横滑未触发属操作方向不符，不是跨章失败。85末页3/3后86改上下滑，320帧9张联系表已审：前向走host chapter_boundary/opened，frames131–135出现正在准备图片，不能记无缝；反向原生返回Nemo末页，87为Nemo 3/3、1/2。旧本无continuationChapterIds，预载仅采用verified sequence，不擅用manual chapterIds扩大范围。89已恢复Nemo原2/3；额外Back到Launcher后90正常启动，书架第2页67%确认。91–94 Blue普通入口、第四话及方向核对后恢复原RTL；95最终包右点击第五话、左滑返回第四话，163帧5张联系表已审，无准备图片、清空或先小后大，Toast匹配；96阅读器与详情为第四话1/1、4/15，97书架同章第1页100%，原读态与方向已恢复。reader-kit七文件f66187f6dcbfe273d2c9262bc82742b961df1cec已推main并由连接器精确读回；Koma仅pin和observedToast两文件d7225df6已推master，精确CI40664700417 completed/success，连接器读回head一致。98恢复原override 10000并读回AWAKE，休眠后读回SLEEP/Override10000，租约20261028-025625-11688fe4已释放。",
+      "remaining": "保留Nemo无verified sequence的前向加载边界，未扩大整体通过。",
       "reportedAt": "2026-10-23T04:55:39.469Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 372447921 重新读原文与时间戳，不是摘要/登记时间。",
       "firstEvidenceAt": "2026-10-23T04:55:39.469Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-25T20:46:46.183996+00:00",
+      "closedAt": null,
       "evidencePoints": [
-        "直接产物索引：.hvigor/outputs/continuous-position-rejected-072.patch"
+        "直接产物索引：.hvigor/outputs/continuous-position-rejected-072.patch；reader-kit提交7744665155743b4c62b2e21166e22ace76b9e27c，119关键回归通过；Koma接入提交5d966878；197清理HAP SHA-256 f6749b58303015d413fea24d2baf4030375a9958c27f7a760defb9793d8fe889。自然终点反例58/59；MeasuredPosition改用原生getItemRect实际边界而非推算imageHeight，参考官方API与Mihon同规则，61/62设备回验。reader-kit 7744665与cab2118已推main并读回cab；Koma 229daf3c精确CI40651937090失败，漏偏好/state/bridge等调用依赖；补齐提交091d2b6758c94bb0d58130f6b9626a052f6ce787已推master，精确CI40655062200 completed/success，连接器读回head_sha一致。"
       ],
       "remainingActions": [
-        "按当前实际适用Koma的197079/080及已交付修复收束；N/E当前无普通跨章合同，不造入口/样本，也不重跑Koma已验路径。",
-        "性能/预取分别在各自原项维护；不外推全Reader或Legacy。仅未来实际多章消费合同改变或新反例重开。"
+        "保留Nemo无verified sequence的前向加载边界，未扩大整体通过。"
       ],
       "boundaries": [
         "保显式选章与既有续读语义；不以isAtEnd强改页码、不延时抢滚动。不能从本路径宣称全部Reader通过。"
@@ -416,7 +753,60 @@
       "reportedAgeSecondsAtAudit": 225492,
       "reportedDate": "2026-10-23",
       "reportedDateSource": "按上述原始UTC首报换算Asia/Shanghai日期，不使用登记日。",
-      "closedAtSource": "Root本轮核当前N/E单unit/adjacent null消费合同并对照Koma既有具名实证后登记；不是N/E实机跨章验收或用户接受时间。"
+      "closedAtSource": "Root本轮核当前N/E单unit/adjacent null消费合同并对照Koma既有具名实证后登记；不是N/E实机跨章验收或用户接受时间。",
+      "stage": "Blue具名路径已验证，Nemo前向加载未闭",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-scroll-motion-05/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-motion-09/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v2-motion-12/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/candidate-v3-install-23/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/candidate-v3-reader-25/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v3-motion-26/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/candidate-v3-return-27/",
+        "/private/tmp/nextn-continuous-handoff-build.log",
+        "/private/tmp/nexte-continuous-handoff-build.log",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-reader-32/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-motion-33/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-progress-34/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-return-35/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-final-install-36/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-final-reader-37/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-final-motion-38/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-delivery-motion-43/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-delivery-return-44/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-reverse-lead-motion-46/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-position-probe-motion-48/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-stable-head-probe-motion-50/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-page-end-motion-52/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-page-end-return-53/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-clean-reenter-54/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-clean-natural-motion-55/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-clean-terminal-56/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-footer-motion-58/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-clean-return-59/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-ltr-boundary-motion-66/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-ltr-boundary-observed-67/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-rtl-boundary-ready-68/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-motion-71/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-observed-72/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-ltr-motion-74/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-chapters-motion-76/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-progress-77/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-multipage-boundary-motion-81/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-multipage-returned-82/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-multipage-restore-83/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-install-84/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-vertical-last-85/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-vertical-boundary-motion-86/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-vertical-returned-87/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-nemo-restore-89/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-bookshelf-resume-90/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-blue-direction-93/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-blue-motion-95/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-blue-return-96/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-bookshelf-97/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-session-restore-98/"
+      ]
     },
     {
       "id": "NEXT_CHAPTER_PREFETCH_REUSE",
@@ -662,12 +1052,12 @@
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P1（当前优先：统一搜索逐源CF自动验证；旧Web/搜索范围保留）",
-      "owner": "Root：MangabzWorker1220精确CI成功/源e38随654准确公开，简繁metadata具名；原CF未知继续",
+      "owner": "Root：宿主会话及请求身份；source_terra：237具名站点回验",
       "dependencies": [],
-      "status": "Worker1220精确CI40458243006成功/简繁metadataNative及源发布闭环，无Reader扩认",
+      "status": "宿主请求关联CI成功，237站点回验继续",
       "kind": "open",
-      "result": "App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。",
-      "remaining": "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。 App5748d0a8精确CI40486939289已成功；Root仍需真实验证窗口标题Native。",
+      "result": "App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。 237新会话普通统一搜索斗破苍穹：漫画160真实HTTP403触发验证sheet，随后无用户输入自动返回并显示10条作品；同次包子challenge_required排队，DM5、快看、腾讯、再漫画等已解析ready。007输入参数错误未产生查询或请求，不计验证。003安装最终0cd18 HAP，前后registry/settings JSON完全相等，原斗破01第1页3%保留；当时临时scope source，原local；013已恢复local，目前仍持租。 012单源过滤日志显示包子原请求验证一次、搜索完成并ready 6条；008后无点击、重试或关闭输入，漫画160的10条和包子6条分别自动回流。009零动作日志为空、010全量日志尾部无关，不作缺事件依据；包子Native标题未截图，不称第二标题亲验。 23个相关依赖文件e2946421152596bf766ce8acacb572f3cb21ede5已推master，精确CI40670008826 completed/success，连接器读回head一致；相关回归51通过，XCOMIC detailContext ABI仍为未提交WIP。013已Native确认sourceFilter恢复及返回书架；015手动检查，016尚未完成但确认13个更新。017–018漫画1234公开0.1.4更新成功且Native显示漫画1234网；019–020漫画社公开0.1.9安装成功，设置及正文未验；021–022妙趣0.1.3公开更新成功，registry 0.1.3及Native显示妙趣漫画。升级后对应源包版本允许变化，其他设置与设备仍待总恢复。 本轮237已回原书架、恢复设置及筛选，最终SLEEP/正常120000无override并释租；原404、取消防重复及未命中窗口标题等仍独立未验。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 宿主验证请求关联及原UA传递6d6ae7a已推，精确CI进行中；Simply仍403，get_home因果ID尚未接通，不称验证完成。 宿主验证请求关联及原UA传递6d6ae7a精确CI40779011098成功；Simply及get_home原未验边界保留。 6d6ae7a精确CI40779011098 completed/success。",
+      "remaining": "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。 App5748d0a8精确CI40486939289已成功；Root仍需真实验证窗口标题Native。 保留404原GET、取消防重复及未命中的真实窗口标题等边界，原scope和设备状态本轮已恢复，不外推全源。 继续核404、取消防重复及未命中的真实窗口标题等边界。 Simply验证会话及原API origin普通路径仍待回验。 Simply候选UA一致性修正及真实验证回流仍待回验。 Simply真实验证回流仍未通过，原因待核。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -695,6 +1085,8 @@
         "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap"
       ],
       "remainingActions": [
+        "继续核404、取消防重复及未命中的真实窗口标题等边界。",
+        "保留404原GET、取消防重复及未命中的真实窗口标题等边界，原scope和设备状态本轮已恢复；不外推全源。",
         "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。",
         "App5748d0a8精确CI40486939289已成功；Root仍需真实验证窗口当前语言标题Native；原CF未验边界不因名称修复关闭。"
       ],
@@ -745,7 +1137,26 @@
         "agreedScope": "逐源receipt/claim/guard(query/filter/route/entry/settingsRevision)，现有单sheet串行；其它源继续结果，完成仅retry该源并等待原重试/消失后下一源，取消/再次challenge不循环，旧任务失效；精确匹配原请求才一次消费验证响应。",
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
-      }
+      },
+      "stage": "237会话已恢复，其他挑战边界待验",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/real-source-parallel-search-007/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/real-source-parallel-search-008/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/first-challenge-state-009/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/automatic-retry-receipts-010/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/filtered-web-receipts-012/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/restore-original-scope-013/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/public-update-targets-016/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mh1234-public-completion-018/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe-public-completion-020/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/miaoqu-public-completion-022/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-old-log-439/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-host-sleep-487/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-sleep-509/",
+        "https://github.com/honjow/Koma/actions/runs/40779011098"
+      ]
     },
     {
       "id": "SOURCE_SETTINGS_ACTION_ALIGNMENT",
@@ -881,10 +1292,10 @@
     {
       "id": "SOURCE_FILTERS",
       "title": "已批准源筛选行为的当前设备路径",
-      "status": "清除文案/原动作237通过；d32bec97精确CI成功",
+      "status": "237 Comic Fury搜索及目录筛选具名回验，其他范围继续",
       "kind": "open",
-      "result": "首项仅改为清除此项筛选，源All与原顺序/材质保留。237201菜单原图已亲看，202实际清除后All对勾消失，原重置恢复并自然回原大奉001第6页25%；203三域完整JSON同200，筛选schema1/sources{}。",
-      "remaining": "原批准的自然失败提示/重试恢复仍缺实际适用样本，保open；普通/快速切换与本轮清除文案已具名验收，不重跑、不造故障。",
+      "result": "首项仅改为清除此项筛选，源All与原顺序/材质保留。237201菜单原图已亲看，202实际清除后All对勾消失，原重置恢复并自然回原大奉001第6页25%；203三域完整JSON同200，筛选schema1/sources{}。 237公开Comic Fury 0.1.6普通目录默认热门12本，八个筛选控件已观察；目录按更新时间排序实际成功，清除恢复默认。源内搜索a后选择Popularity，实际发目录请求而搜索结果不变。宿主已按搜索状态分流筛选读取、忙碌、修改与重置，保独立持久化及原样式；本地构建成功，修复包尚未真机回验。169日志为空不推断具体传输错误。 冻结release HAP SHA-256 0755556ec2d264637bbcf55fb071e63149670e17f5abca7acfc015025e864e30已170安装成功，171前台书架；registry/settings/library/filter与169全份相等。此前构建后输出目录变debug已拦下，冻结release及原profile/chain相同后才安装；首次launcher快照不称启动失败。Native筛选回验尚未完成。 237冻结release 0755：178–179搜索a选Popularity实际search op21成功，首Maor/慢话/MyDiary；180搜索重置实际search op23恢复原结果，search保存值删除且browse保持；181清查询后目录重置实际get_manga_list op25恢复12本首Maor。Comic Fury本轮筛选项已清除，其他源筛选与169逐字相同、全source-settings与131/002基线相等。旧168误发目录反例保留。宿主3文件4232f2a3已本地提交，推送进行中、精确CI未核；本地执行回归、release构建及同签冻结包与设备验证分别成立。 4232f2a3精确CI40712563864 completed/success已核。 瓜子0.1.4（6f218fc，CI40731076432成功）公开WASM与原C++ Host对实时保存HTML重放爱/cid9得36项及cursor2；H-Comic先有CI成功但索引仍旧版的反例，补修4949ea7后CI40733492093成功、公开0.1.3 filters=true，公开WASM重放具名random及love/full-color样本。两源公开二进制与本地验证边界各自记录，237 Native均未验。 237公开瓜子0.1.4及H-Comic0.1.3普通目录和搜索筛选已具名验收；本次设置及筛选恢复基线，原书架和设备状态恢复并释租。 具名范围：瓜子目录恋爱筛选36本，搜索爱后选恋爱实际search完成；H-Comic目录全彩10本，搜索love后选全彩实际search完成；两者重置后filterprefs为空。证据为layout及运行记录，筛选过程无截图，不扩其他值。",
+      "remaining": "原批准的自然失败提示/重试恢复仍缺实际适用样本，保open；普通/快速切换与本轮清除文案已具名验收，不重跑、不造故障。 Comic Fury具名筛选分流及精确CI已核。 瓜子0.1.4及H-Comic 0.1.3具名筛选已在237验收，不外推其他筛选值。",
       "reportedAt": null,
       "reportedAtSource": "最初用户提出时间仍未找到；已查到原会话2026-10-19T16:05:45.582Z明确采用筛选并发/失败提示重试三项并要求实施后验收，不以这次批准冒初次首报。",
       "firstEvidenceAt": null,
@@ -892,6 +1303,7 @@
       "owner": "Root：具名文案与切换范围冻结，自然失败待样本",
       "evidencePoints": [],
       "remainingActions": [
+        "Comic Fury具名筛选分流及精确CI已核。",
         "原批准的自然失败提示/重试恢复仍缺实际适用样本，保open；普通/快速切换与本轮清除文案已具名验收，不重跑、不造故障。"
       ],
       "boundaries": [],
@@ -906,7 +1318,24 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-immark-formal-restored-200",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-menu-201",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-action-return-202",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-final-readback-203"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-filter237-clear-final-readback-203",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-browse-160/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-controls-162/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-sort-last-update-164/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-cleared-and-rest-165/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-search-166/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-options-167/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-popularity-168/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-host-install-170/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-host-launch-readback-171/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-178/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-popularity-179/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-reset-180/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-browse-reset-181/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/guazi-search-category-246/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/hcomic-search-fullcolor-255/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-return-264/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-sleep-265/"
       ],
       "continuationGate": {
         "checkedAt": "2026-10-25T21:56:53+00:00",
@@ -917,7 +1346,8 @@
       "reportedAgeSecondsAtAudit": null,
       "firstKnownUserInstructionAt": "2026-10-19T16:05:45.582Z",
       "firstKnownUserInstructionSource": "原归档rollout-2026-10-09T16-04-56-01a11fb1-9f44-7123-8590-b6e849190eab.jsonl字节偏移6757277955，response_item/user异步答复call_5982499fa108414182a27f2672aaead4；“接入这三项（推荐）：按上述行为修正，实施后另做验收”。这是最迟已明确要求的时间，不证明最初提出。",
-      "knownInstructionAgeSecondsAtAudit": 530886
+      "knownInstructionAgeSecondsAtAudit": 530886,
+      "stage": "Comic Fury筛选分流已回验，其他范围待验"
     },
     {
       "id": "SHARED_ROUTE",
@@ -1259,8 +1689,8 @@
       "dependencies": [],
       "status": "原服务已恢复，本机HTTP及原浏览器通过",
       "kind": "accepted",
-      "result": "原8766页面及/api/progress均HTTP200；本轮重新逐字段核对，页面实际返回与唯一snapshot的65项完全一致。反馈项未发现缺失，顶部HAP和源摘要的旧状态已纠正。",
-      "remaining": "随实际结果同步条目、主页摘要、当前包和下一动作；原已验证页面结构保持。",
+      "result": "原8766页面及/api/progress均HTTP200；本轮重新逐字段核对，页面实际返回与唯一snapshot的65项完全一致。反馈项未发现缺失，顶部HAP和源摘要的旧状态已纠正。 2026-10-28本机8766无监听，原进程退出原因未知；使用原脚本恢复后HTTP页面及接口200，接口与当前snapshot逐字段一致，原Edge页面刷新可见93项与21:41:25更新时间。服务为当前后台进程，未发现自启动或崩溃重启配置；页面以stage优先于status，部分旧stage导致显示摘要滞后，需另行校正原事项字段。 后续已切至当前用户临时launchd服务，原脚本及127.0.0.1:8766不变；RunAtLoad与KeepAlive启用，当前进程父进程1，页面和接口200且接口与snapshot一致，原Edge页持续连接。临时配置不写入登录自启目录，退出登录或重启后的持续性未验证。",
+      "remaining": "保持当前用户会话内服务可用；退出登录或重启后的持续性未验证。",
       "reportedAt": null,
       "reportedAtSource": "Root转交用户当前无法打开反馈；原始人类提出的精确时间未核实，不猜填。",
       "firstEvidenceAt": "2026-10-23T00:53:09.114846+00:00",
@@ -1269,10 +1699,10 @@
       "closedAt": "2026-10-23T00:53:09.114846+00:00",
       "evidencePoints": [],
       "remainingActions": [
-        "随实际结果同步条目、主页摘要、当前包和下一动作；原已验证页面结构保持。"
+        "保持当前用户会话内服务可用；退出登录或重启后的持续性未验证。"
       ],
       "boundaries": [
-        "8766仅本机访问；服务恢复不等同系统自启动或崩溃自动重启，当前退出原因未知。"
+        "8766仅本机访问；当前用户会话使用临时launchd RunAtLoad与KeepAlive，非登录自启动文件；先前退出原因未知，退出登录或重启后的持续性未验证。"
       ]
     },
     {
@@ -1854,14 +2284,14 @@
       ],
       "kind": "open",
       "status": "c801源宿主/热读快照已push、精确CI40398958854 success；普通manager具名，原59ms/全性能未闭",
-      "result": "源宿主/快照二十文件c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push、精确CI40398958854 success。197911装18875963并普通picker升级公开DM5 .19；保存回详情sheet是原行为，脚本误点背景同名行不作产品失败，912→915独立清own settings后整settings深同。921–926同包/同进程DM5 .19保存→重入on→清own、922→925 settings深同、原库p2/25%/120000无Override/85a2227e释租，无errors。913m连续271帧/七联图全亲审，初入/返回/重入无整表空白或图标集体消失，后台可更新组真实插入；不外推原59.319ms/所有性能。",
+      "result": "源宿主/快照二十文件c801ba8c4b23cda3ad76c777580f2e6b1507a0c0已push、精确CI40398958854 success。197911装18875963并普通picker升级公开DM5 .19；保存回详情sheet是原行为，脚本误点背景同名行不作产品失败，912→915独立清own settings后整settings深同。921–926同包/同进程DM5 .19保存→重入on→清own、922→925 settings深同、原库p2/25%/120000无Override/85a2227e释租，无errors。913m连续271帧/七联图全亲审，初入/返回/重入无整表空白或图标集体消失，后台可更新组真实插入；不外推原59.319ms/所有性能。 237会话109结束21:14:02.388，112日志显示21:14:04.400同毫秒13个source install_requested，该时刻无清单输入；110下一滑动21:14:36开始。111读回13源版本更新、无新增ID，设置同002；触发原因未知，不断言来源或产品缺陷，不回滚13源。",
       "evidencePoints": [
         "直接产物索引：https://github.com/honjow/Koma/releases/tag/v0.1.3-pre；230/audit/frequency-comparison-224-230.json；build.log；diagnostics-redaction-reuse-review/txt-suffix-unadopted-candidate.patch；300/audit/callback6739-scheduler-frequency.json；koma-log-export-20261026-003924.log；307/audit/aligned-existing-cpu.json；audit/aligned-existing-cpu.json；/tmp/koma-computed-fresh-result-before.txt；test_source_index_progressive.cjs；receipt.json；Koma-source-current-result-fixed-signed.hap；manhuagui-network-phase-review/source-head-current.json；manager-after-real-update.png；browse-name-projection197-session-513/result.json；offline-window-review.json；mh160-web-entry-chain-review/browse-name-projection-ci-detail.json；scripts/test_source_install_worker.cjs；temporary-browse-row-count.patch；pre2-browse-source.png；restored-library.png；pre2-batch-update-before.log；pre2-batch-update-after.log；candidate2-manager-details.png；pre2-candidate2-ci-detail.json；index.json；pre2-current-source-index.json；pre2-current-source-update-comparison.json；manager-cache-url-before.log；manager-cache-reader-relevant-final-tests.log；manager-cache-url-final-build.log；registry-update-review.json"
       ],
       "remainingActions": [
         "列表冗余文案当前纠正已197普通Native并push，精确CI归SOURCE_INDEX_CACHE_REVALIDATE；本项缓存/热读普通manager原具名交付保持，原59.319ms/全部性能未证全闭，不以文案修复扩大性能结论。"
       ],
-      "remaining": "列表冗余文案当前纠正已197普通Native并push，精确CI归SOURCE_INDEX_CACHE_REVALIDATE；本项缓存/热读普通manager原具名交付保持，原59.319ms/全部性能未证全闭，不以文案修复扩大性能结论。",
+      "remaining": "列表冗余文案当前纠正已197普通Native并push，精确CI归SOURCE_INDEX_CACHE_REVALIDATE；本项缓存/热读普通manager原具名交付保持，原59.319ms/全部性能未证全闭，不以文案修复扩大性能结论。 保留237这次13源安装事件证据，继续核查触发原因。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -1923,7 +2353,11 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-zazhimi-manager-position-205",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-zazhimi-hash-worker-trace-206",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-hash-worker-natural-return-207",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-hash-worker-final-readback-208"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-install237-hash-worker-final-readback-208",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-index-109/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-target-110/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-update-state-readback-111/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-bytes-and-update-events-112/"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -2018,7 +2452,8 @@
         "allowedDifference": "只将排序比较内重复resolveSourceLocalizedName/元数据normalize改为同次计算逐源一次加局部Map，不改样式控件。",
         "preserved": "@Computed locale依赖、compareSourceNames、同名ID tie、enabled过滤、DTO身份和原数组保持。",
         "evidenceBoundary": "真实getter旧三源6!=3→一次、四locale/身份/输入与原54suite通过；513–518普通Native/29App节点/七域保持，不扩大59ms安装性能结论。"
-      }
+      },
+      "stage": "已在修，缺完整性能回归"
     },
     {
       "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
@@ -2146,7 +2581,8 @@
       "reportedAgeAtAudit": "至少1天22小时18分21秒",
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
-      "knownFeedbackAgeSecondsAtAudit": 166701
+      "knownFeedbackAgeSecondsAtAudit": 166701,
+      "stage": "等重复章节样本"
     },
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
@@ -2191,7 +2627,8 @@
       "reportedAgeAtAudit": "至少1天22小时16分47秒",
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
-      "knownFeedbackAgeSecondsAtAudit": 166607
+      "knownFeedbackAgeSecondsAtAudit": 166607,
+      "stage": "等允许设备复验"
     },
     {
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
@@ -2302,7 +2739,8 @@
       "reportedAgeAtAudit": "至少1天22小时7分51秒",
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
-      "knownFeedbackAgeSecondsAtAudit": 166071
+      "knownFeedbackAgeSecondsAtAudit": 166071,
+      "stage": "根因未知"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -2344,7 +2782,8 @@
       "reportedAgeAtAudit": "至少1天22小时6分24秒",
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
-      "knownFeedbackAgeSecondsAtAudit": 165984
+      "knownFeedbackAgeSecondsAtAudit": 165984,
+      "stage": "根因未知，当前可用"
     },
     {
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
@@ -2494,21 +2933,24 @@
       "title": "東立任意作品章节加载失败、设置提示验证失败",
       "priority": "P1",
       "kind": "open",
-      "status": "237同网官网同首话也无正文；原生3166原因明确",
+      "status": "237东立首页已显示，正文限制仍待",
       "owner": "Root：237同一网络官网同作品/首话核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS",
         "MANXIAOSI_SETTINGS_VALIDATION_FAILURE"
       ],
-      "result": "012恢复4章与无设置契约、013地区原因及精确CI已成立。按人类要求自行核对：237官方膽大黨→第1話→直接閱讀，官网明确授权台湾地区，实际先Please Wait后黑页未有正文。官网黑页具体失败不强归3166，原生API3166为独立确证。",
-      "remaining": "保站点授权限制及官网黑页两个有限结果；当前网络不能完成正文验收，不改账户/地区/网络。其他源与App继续。",
+      "result": "012恢复4章与无设置契约、013地区原因及精确CI已成立。按人类要求自行核对：237官方膽大黨→第1話→直接閱讀，官网明确授权台湾地区，实际先Please Wait后黑页未有正文。官网黑页具体失败不强归3166，原生API3166为独立确证。 用户本轮明确反馈东立空白首页仍未处理；此前官网章节黑页与3166是独立有限结果，不能用于解释或覆盖首页空白。 237已复现home=true但get_home返回空sections，同设备Popular有20本；源侧修正中，尚未回验。 237 tongli-home-fixed-263实见首页Popular六个封面及标题，修复了原空白首页；正文3166及官网黑页边界不变，设备恢复进行中。",
+      "remaining": "首页具名范围已修复；原正文受授权限制及官网黑页边界保持开放，设备会话恢复待完成。",
       "reportedAt": "2026-10-24T11:59:14.391Z",
       "reportedAtSource": "当前定位的10-22续接窗口内最早明确人类反馈，原始timestamp实值；尚未排除原主档有更早同问题，不冒全历史首次。原始会话JSONL response_item/user实际反馈；已限定唯一原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 1302381904 读取原文，不是登记/处理/取证时间。",
       "firstHandlingAt": "2026-10-24T12:02:09.354493+00:00",
       "closedAt": null,
-      "evidencePoints": [],
+      "evidencePoints": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/tongli-home-fixed-263/screen.png"
+      ],
       "remainingActions": [
+        "完成本轮东立设备恢复；首页已见，原正文范围仍未通过。",
         "保站点授权限制及官网黑页两个有限结果；当前网络不能完成正文验收，不改账户/地区/网络。其他源与App继续。"
       ],
       "boundaries": [
@@ -2532,7 +2974,8 @@
       "reportedAgeAtAudit": "至少1天7小时34分37秒",
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
-      "knownFeedbackAgeSecondsAtAudit": 113677
+      "knownFeedbackAgeSecondsAtAudit": 113677,
+      "stage": "首页具名修复，正文范围保持开放"
     },
     {
       "id": "PROGRESS_TIMELINE_THEME",
@@ -2560,19 +3003,24 @@
       "priority": "P2（后续迁移；不取消当前bugs）",
       "owner": "Root：翻译归服务/唯一搜索及原迁移具名范围已交付，2821CI成功；真实provider/译图仍未验",
       "kind": "open",
-      "status": "采用翻译归服务已完整具名交付/2821CI成功，原迁移效果冻结，真实provider未验",
+      "status": "197源管理具名路径已核，真实账户及Reader待验",
       "dependencies": [],
       "relatedItems": [],
-      "result": "既有NextE裁切/单模型/翻译实现与54d具名配置保持。采用翻译归服务/唯一搜索/同配置owner/Reader即时分工由2821单文件交付，精确CI40446834903 success，无新App发版；最终top/bottom/services/search/config均亲审、普通返回/七文件保持/197977释租具名，未保存配置或调用provider。原941停P2无翻页，P2/P3/P4/P1四项systemCoreVision成功及preload-page-mapping-review.json保持已接受范围，真实provider/译图未验不扩模型/FPS。",
+      "result": "既有NextE裁切/单模型/翻译实现与54d具名配置保持。采用翻译归服务/唯一搜索/同配置owner/Reader即时分工由2821单文件交付，精确CI40446834903 success，无新App发版；最终top/bottom/services/search/config均亲审、普通返回/七文件保持/197977释租具名，未保存配置或调用provider。原941停P2无翻页，P2/P3/P4/P1四项systemCoreVision成功及preload-page-mapping-review.json保持已接受范围，真实provider/译图未验不扩模型/FPS。 197真机：BlueArchive页增强关闭（superResolutionEnabled=false），ReaderEnhancementStatus不显示，无法验证临时关闭图标。 用户本轮明确表示已在237配置Torii key，指出设置过于简单，要求不只Torii而是完整迁移整个漫画翻译功能并尽快收口现存bug；服务已配置，但key有效性与真实译图尚未验证。当前源码初步确认缺Torii字体、credits、试译，自部署检测与修复档位UI，LLM源选择、模型获取、推理强度，端侧模型移除管理；三路线及Reader动作、上下文、缓存仍在完整对照，不称差异已核全。未读取或记录key。 197暗绿主题真实增强页已验证临时关闭及再开，偏好保持；此仅超分指示器子范围，不代表翻译迁移或真实译图通过。 本轮已补Torii按目标语言字体与免费额度缓存刷新、本地模型安装及移除确认、自部署检测与修复档位及能力和认证检测、思考深度发送、LLM多源管理绑定与模型目录、存储页译图缓存管理。首次构建因未知符号失败，改用NextE现有符号后Release构建成功；冻结包尚未安装或真机验证。 第二轮Release构建成功（21.29秒），新增NextE两页实测及原图/译图对比仍为WIP；237第一候选已安装，普通服务翻译入口和字体菜单已亲审，密钥保持掩码，真实译图未验。 237继续使用原租约，最终6b53候选已安装，普通服务Torii配置仍在；实机发现试译行动态资源缺失显示原始键，正在补资源并检查服务响应，真实译图尚未确认。 试译行四个缺失词条已补base、zh_CN及en_US资源，尚未重装；设备仍显示旧候选，修复未作Native验收。 237同签release 6b53普通设置→服务→漫画翻译→Torii真实评测两页ready，耗时11652ms；第一张中文译图、第二张日文原图和中文译图已亲审。密钥仅App消费未导出。试译行资源修复尚未重装验证。 237恢复18已回原斗破01书架第1页3%，Reader与Appearance XML语义相等，library与sessions JSON全份同02基线；电源恢复仍进行中。 237会话收尾：原斗破01书架第1页3%、Reader/Appearance XML语义及49本library与sessions JSON基线已核；首次suspend后系统重新添加10000 override，短租重新清除后读回SLEEP、normal120000且无Override，租约已释。 OAuth按source存储、登录/刷新基础及Reader两个提供方已本地补充；UI、usage及Native尚未完成。 本轮按NextE补API/Codex两类源入口、Codex设备码登录退出、账户独立5H/7D用量缓存及后台刷新、账户模型目录和Reader提供方选择。OAuth仅App触发，不读取NextE凭据；安全写入区分手动登录退出与自动轮换，UI仅保存连接状态。本地release构建成功，新增UI及网络账户路径尚未安装真机验证。 197候选4c24已核API/Codex源创建保存重入、列表同步和删除后旧页面不复活；原读态、数据及电源恢复并释租。",
       "reportedAt": null,
       "reportedAtSource": "本轮当前可见最新人类steering原文，由Root可信转交：我希望后面把nextE阅读器的更多功能也迁移过来，包括超分，去白边那些，还有翻译。未取得精确服务端时间，登记时刻不冒首报。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
       "closedAt": null,
       "evidencePoints": [
-        "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json"
+        "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json",
+        "本轮Release构建日志：/private/tmp/koma-translation-completion-build.log；冻结包：/private/tmp/koma-translation-completion-release.hap，SHA256 bbe9f3d7b204763fdab294ad0deee866c1efff28b95a7e0d73929a43d8a78651，19166717字节，release/debugfalse/0.1.3 code4；尚未安装。",
+        "237 Torii两页真实试译及显示：.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/torii-live-evaluation-result-13/、torii-first-translated-preview-14/、torii-second-translated-preview-15/、torii-second-translated-visible-16/。",
+        "237恢复：.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-original-shelf-restored-18/、translation-power-restored-19/、translation-final-timeout-cleared-20/。",
+        "本轮翻译源管理release构建日志：/private/tmp/koma-translation-sources-build.log；新增UI及网络账户路径未装机。"
       ],
-      "remaining": "本批入口分类/搜索与设置同步CI/原图审查无等待；真实翻译provider/实际译图仍未验，按人类先实现不追问配置或默认调用。既有裁切/增强/设置范围冻结，不把源Gallery/全85后继当本项剩余，不取消原bugs。",
+      "remaining": "197源管理具名路径及Torii两页试译已核；真实Codex/OAuth/API网络、Reader未来页预处理、试译新资源及整体迁移仍待验证。",
       "remainingActions": [
+        "验证API/Codex源管理、设备码登录退出与账户用量，完成Reader未来页预处理及NextE其余漫画翻译能力，并验证试译行新资源。",
         "本批入口分类/搜索与设置同步CI/原图审查无等待；真实翻译provider/实际译图仍未验，按人类先实现不追问配置或默认调用。既有裁切/增强/设置范围冻结，不把源Gallery/全85后继当本项剩余，不取消原bugs。"
       ],
       "boundaries": [
@@ -2595,24 +3043,25 @@
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
         "observedEvidence": "独立安全配置/分块manifest非默认English冷恢复及zh还原具名；54d全局翻译/高级/Reader分组/模型管理已交付，901–906 English保存pop重入及中文恢复、861增强设置/模型回退均具名，未调用翻译provider。",
-        "pendingImplementationVerification": "翻译归服务/整组图标采用范围最终各图与普通路径/七文件恢复已具名，2821精确CI成功，无本批工程或图审等待；真实外部provider/译图仍未验，源后继不属本项。",
-        "unverifiedExternal": "真实提供方调用/实际译图未验；API URL/model/key为空，不读取NextE账户/secret、不默认调用服务或自动耗费。",
+        "pendingImplementationVerification": "197 API/Codex源创建保存重入与删除具名路径已核；真实账户网络、Reader未来页预处理及完整迁移仍待。",
+        "unverifiedExternal": "237 Torii两页真实试译及具名原图/译图显示已核；不扩展为其他provider或Reader预处理已验。密钥未导出。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
-      }
+      },
+      "stage": "源管理具名已核，网络及Reader待验"
     },
     {
       "id": "APP_STARTUP_API23_CRASH",
       "title": "AGC 0.1.3在Harmony6.1/API23普通启动崩溃",
       "priority": "P0（启动不可用）",
-      "kind": "open",
+      "kind": "accepted",
       "owner": "Root：guard修复61c79b6b已push/精确CI成功，API26普通启动与正式APP本地交付完成；AGC实际回验待",
-      "status": "API23错误production helper已复现/修后两执行检查过，API26普通启动具名，正式APP签名通过未上传",
+      "status": "用户确认API23普通启动已恢复",
       "dependencies": [],
       "relatedItems": [],
-      "result": "四份AGC 0.1.3/code4 Harmony6.1/API23 jscrash同为komaMenuOptions→Index initialRender提前访问API26 ImmersiveStyle.THICK。旧production helper实际复现THICK且guard调用零次，修后两执行兼容检查过，保现代材质/低版solid。三文件61c79b6b665bb9f7a5b616466b7877c6c65f4e00已精确push、CI40478671181 success。197实际API26已1013装同签18910308，普通启动原Library图Root亲审，1016七文件同1012/1017系统120000无Override/d344释租。冷PID归零断言未过：force-stop后PID49479确为Koma、Launcher前台，未反复杀进程，不冒冷启动或API23实机通过。 正式AGC release assembleApp本地交付：.hvigor/outputs/agc-startup-20261027/Koma-0.1.3-4-61c79b6b-startup-fixed.app为7467270B、内HAP18698046B，release/debugfalse/minAPI60100023/target260000026；outer APP及独立Release HAP均正确验签，profile release/app_gallery，内ABC同当前Release HAP且不同旧App。当前未上传，实际AGC/API23实机回验未完。",
-      "remaining": "实际AGC与API23实机回验待完成；正式APP当前未上传，后续只按真实授权范围取得回验结果，不以API26普通启动、执行兼容检查或本地产物验签代API23/AGC通过。",
+      "result": "四份AGC 0.1.3/code4 Harmony6.1/API23 jscrash同为komaMenuOptions→Index initialRender提前访问API26 ImmersiveStyle.THICK。旧production helper实际复现THICK且guard调用零次，修后两执行兼容检查过，保现代材质/低版solid。三文件61c79b6b665bb9f7a5b616466b7877c6c65f4e00已精确push、CI40478671181 success。197实际API26已1013装同签18910308，普通启动原Library图Root亲审，1016七文件同1012/1017系统120000无Override/d344释租。冷PID归零断言未过：force-stop后PID49479确为Koma、Launcher前台，未反复杀进程，不冒冷启动或API23实机通过。 正式AGC release assembleApp本地交付：.hvigor/outputs/agc-startup-20261027/Koma-0.1.3-4-61c79b6b-startup-fixed.app为7467270B、内HAP18698046B，release/debugfalse/minAPI60100023/target260000026；outer APP及独立Release HAP均正确验签，profile release/app_gallery，内ABC同当前Release HAP且不同旧App。当前未上传，实际AGC/API23实机回验未完。 用户本轮明确反馈“API23普通启动崩溃实测已经好了。可以关闭。”按用户实测收口；未提供设备身份或新证据路径，不自行补造。",
+      "remaining": [],
       "remainingActions": [
-        "实际AGC与API23实机回验待完成；正式APP当前未上传，后续只按真实授权范围取得回验结果，不以API26普通启动、执行兼容检查或本地产物验签代API23/AGC通过。"
+        "用户已确认API23普通启动恢复，本项按用户验收关闭。"
       ],
       "boundaries": [
         "仅guard后读取API26枚举，保当前API26材质及低版solid fallback行为/样式；KomaSearchField及reader-kit ReaderChrome已有正确lazy guard，本次不改。",
@@ -2620,7 +3069,8 @@
       ],
       "evidencePoints": [
         "直接证据：.hvigor/outputs/agc-startup-20261027/，四原jscrash、两兼容production执行测试、formal-app-identity.json、startup-validation.json及正式startup-fixed.app。",
-        "197普通启动/保全及冷PID归零断言未过的1014/1014b/1014c原件保留，不改为冷启动PASS；最终outer APP与独立Release HAP正确验签依据formal-app-identity.json，其他原检查产物留原目录不改。"
+        "197普通启动/保全及冷PID归零断言未过的1014/1014b/1014c原件保留，不改为冷启动PASS；最终outer APP与独立Release HAP正确验签依据formal-app-identity.json，其他原检查产物留原目录不改。",
+        "本轮用户原话：API23普通启动崩溃实测已经好了。可以关闭。"
       ],
       "reportedAt": null,
       "reportedAtSource": "当前人类以四个Downloads zip反馈启动故障，由Root可信转交；未取得原始消息精确时间，不猜首报。",
@@ -2628,30 +3078,849 @@
       "firstEvidenceAtSource": "Root已核四份原jscrash，未提供首次取得证据精确时刻。",
       "firstHandlingAt": null,
       "firstHandlingAtSource": "Root已实施guard修复，未给首次处理精确时间，不以文档登记时刻冒首次。",
-      "closedAt": null,
+      "closedAt": "2026-10-29T01:32:38+08:00",
       "continuationGate": {
         "owner": "Root",
         "checkedAt": "2026-10-27T09:15:09+00:00",
-        "condition": "本批guard修复/精确CI、API26普通启动与正式APP本地正确验签已完成；本项只待真实AGC/API23回验，当前未上传，不冒冷PID归零或API23实机通过，其他原授权工作按各自范围继续。"
-      }
+        "condition": "用户本轮实测确认API23普通启动已恢复，本项按用户验收关闭；不推断未提供的设备身份或上传路径。"
+      },
+      "stage": "用户实测验收"
+    },
+    {
+      "id": "READER_DOUBLE_TAP_PREFERENCE",
+      "title": "双击缩放手势开关与双击间隔档位",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "197真机已验证：开关与150-500ms档位可用，关闭后单击可跨章",
+      "owner": "Root：197具名范围已验证",
+      "dependencies": [],
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET",
+        "READER_SETTINGS_STABILITY"
+      ],
+      "result": "197 真机：设置页显示双击缩放开关和双击检测间隔；档位菜单为150/200/250/300/400/500ms；选择150ms后在偏好中保存为150，随后恢复300。关闭双击缩放后单击可在章末跨到下一章，画面与进度同步到该章。",
+      "remaining": "本次范围已验收；不改默认，不扩展到其它宿主。",
+      "remainingActions": [
+        "本次具名设置与关闭双击后单击跨章范围已验证；其他宿主未扩验。"
+      ],
+      "boundaries": [
+        "保留单击/双击仲裁与点击分区；不改默认样式，不以模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-27T20:18:00Z",
+      "reportedAtSource": "用户本轮会话直接要求增加可关闭双击缩放开关与双击检测延时档位。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-28T06:07:00+08:00"
+    },
+    {
+      "id": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "title": "书源官方中文名未整体核验",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "已开始逐站核对，未全部完成",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_EMPTY_SETTINGS_ENTRY"
+      ],
+      "result": "已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网，与当前名称有后缀差异。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。",
+      "remaining": "继续核对85源官方中文名与官网展示一致性。",
+      "remainingActions": [
+        "继续核对85源官方中文名与官网展示一致性。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-25T12:00:00Z",
+      "reportedAtSource": "用户于10-25要求核对各书源官方中文名；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "已开始逐站核对，未全部完成",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/"
+      ]
+    },
+    {
+      "id": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "书源设置项未与Mihon/参考扩展整体对照",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "筛选作用域宿主候选已构建，AsmHentai源修复待回验",
+      "owner": "source_terra_resume：继续逐源对照及验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_EMPTY_SETTINGS_ENTRY",
+        "ASM_HENTAI_BROWSE_RUNTIME_FAILURE",
+        "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
+        "ZEROBYW_CHAPTERS_TRUNCATED"
+      ],
+      "result": "既有a6a36a8的3Hentai 0.1.3在237普通导入后，真实官网目录25本；默认完整标题，关闭设置并保存后同目录显示短标题，清除本次设置后完整标题恢复。前后settings JSON相等，原书架及斗破继续阅读已恢复，临时上传已清除；超时120000ms、休眠及释租已完成，设备保留升级的3Hentai 0.1.3。仅该源具名设置范围通过。Zerobyw 0.1.2原路由真实404，固定参考949dea2为新/pc/路由；0.1.4保原默认与旧manga:/chapter:身份，新身份为pc-。源5de9e98精确CI40639208193成功；公开0.1.4在237普通导入→目录24→详情5章→真实正文1/149，并已恢复。原默认域名EOF、旧ID及参考域名失败更新链路仍待调查。 Zerobyw 0.1.5的df2c2f9已推且CI 40646153719成功，公开索引与包已核；237本地候选在未保存地址时目录24、详情5章、正文1/162实图，设置、历史、书架及设备已恢复并释租。公开WASM真实默认目录24项、nextCursor 2；公开WASM字节与设备本地候选不同，公开0.1.5已在237普通picker导入，安装ZIP及WASM与公开包逐字一致，settings与002相等，唯一临时下载文件已删且读回通过，正常返回Browse；原有已存地址保留。 xkcd-zh 0.1.6已推，保SINGLE默认及旧ID；本地生产WASM分组、分页、正文URL与旧单本fixture通过，英文归档503的受控失败保持独立。公开WASM与本地字节不同，真实按年目录10项、首项2024和下一页2通过；237设置持久、分组浏览、旧书及正文未验。 源码复核WEBTOON繁中实际消费最高画质、连续章号、作者附言三项，默认均false，附言依赖宿主text_page_image_v1；MyComic既有默认cn、original为显式繁中，参考默认差异已记录。此为源码核对，不冒设备验收。 漫画社0.1.9提交ee13701已推且CI40667731479成功，默认311s、用户可显式选m206，保旧路径书章ID；具名作品m206目录20、搜索2、旧书800章、首章18页及首图200 WebP，公开WASM另核搜索及旧章。237公开包已安装，设置持久与正文未验，全旧库映射未验。GoDa 0.1.4提交2f7ade3已推且CI40669312858成功，固定参考六镜像均实测目录、搜索、详情、章节与首章44页；公开WASM明确godamh具名详情及旧首章通过，公开Native、设置持久、图片显示及全库身份未验。 xkcd 0.1.6公开包024–025已安装，设置及原缓存正文具名验证，新作品冷网络正文未验。 Simply Hentai旧search=false记录已过时：237公开0.1.1普通入口love搜索发出真实请求，但返回HTTP403，Native显示源搜索失败、请求被拒绝；不是不支持搜索，亦不能算搜索可用，拒绝原因待核。 237公开xkcd 0.1.6普通源内设置：默认Single目录1本；BY_YEAR保存后年度目录10本并重入读回；BY_YEAR_MONTH保存后月份标题目录并重入读回。经现有确认清除本次xkcd测试设置后默认恢复1本，整份settings JSON与002一致；旧书及正文Native仍未验。 237原库xkcd旧ID原书676章，普通Continue原缓存2978困住第1/1页真实可见，未翻页；返回同详情同章同页，library JSON与066完全一致、49本无增删或字段变化。仅原缓存页具名通过，不冒冷网络正文。 237 GoDa公开0.1.4默认baozimh.org保持，六镜像菜单中选godamh.com后目录18本，保存重入及preferredMirror读回一致；清除本次设置后整份settings与002相等。旧书武炼巅峰3875章，Continue夺酒第2/70原正文可见并返回同章同页，49本无增删、chapterId不变；库并非完全相等：该书自然预载3865章由0变77页、页表指纹与updatedAt及总页数87→164，其余48本和旧缓存章未变。公开WASM godamh具名旧4 chapterId存在，两个缓存章70/17页与首pageId/URL一致，首图200；不外推六镜像Native。 輔大猴0.1.2提交5e397ee已推，本地生产WASM搜索分页、空结果及旧ID详情具名；CI查询遇EOF后重复查询被自动审批拒绝，旧CI未核；当前公开实体与237实装ZIP/WASM一致，普通搜索及真实续页具名通过。 人2 aacee1f CI40685768520及IP手札mini 430b767 CI40688772764成功，公开WASM与原C++ Host按真实保存HTML具名回放；人2及IPmini普通搜索已具名验证，正文未验。devrunner 9a46bc3 CI40687391567成功。 綜合口味0.1.2提交5fa311a已推、CI40697052579成功；公开WASM及原Host以真实保存HTML核漫画分页、食分类及空结果，旧浏览两页数据一致；237公开包普通搜索食返回具名5项及终点，Reader未验。117实装IPmini及人2 ZIP与先前公开容器哈希不同，但所有成员内容相等，人2 WASM与公开一致；輔大猴实装ZIP/WASM与当前公开完全相等。 繁中WEBTOON公开0.1.8自检：真实搜索愛仅返回All首屏22且hasMore=false，漏取官网两分类分页。0.1.9提交bc9c66e、精确CI40700016006成功；237实装ZIP/WASM与公开字节一致，普通搜索愛并滚动后观察到旧All尾部之后的Originals后续作品与6张封面正常。同次搜索日志完成；仅具名普通续页通过，不冒全部411项Native通过，不混英文源WIP。 237漫画社0.1.9默认目录20本成功；显式选m206保存preferredMirror为https://www.m206.com，自动目录请求op217 531ms network_error/http0failed，旧20本保留；普通重入设置仍显示m206，故不是保存丢失。传输原因未知，桌面成功不代Native；当前正在清除本轮设置并核默认旧书。Comic Fury 0.1.6提交af3cd7b、CI40703509316成功；公开WASM在Host注入默认filter后热门、最新、搜索与0.1.5逐字段一致，显式筛选具名返回19项、非法值网络前拒绝；Native控件持久及消费待验。 149清除本轮m206后整份settings与131/002相等、无该源override，默认311s目录20本成功。150–152默认旧一人之下13871详情800章，Continue反杀第2/17缓存正文可见并返回同章同页；49本及800章ID保持，两个旧缓存页表及其他48本相同。库非逐字相等：786章正常补chapterNumber/sortKey。实装ZIP/WASM与公开完全一致。152日志op218在收到响应头前失败，platformCode2300999，限定header前失败，不推断DNS或TLS。 237公开Comic Fury 0.1.6普通目录默认热门12本，八个筛选控件已观察；目录按更新时间排序实际成功，清除恢复默认。源内搜索a后选择Popularity，实际发目录请求而搜索结果不变。宿主已按搜索状态分流筛选读取、忙碌、修改与重置，保独立持久化及原样式；本地构建成功，修复包尚未真机回验。169日志为空不推断具体传输错误。 NHentai.to 0.1.5 sort/exclude提交ec03651已推，CI40706302986成功；公开WASM在原Host以真实保存HTML验证默认搜索、显式筛选和热门页，默认热门旧游标对比使用受控分页HTML；Native筛选未验，参考登录收藏及跨语言随机未实现。 3Hentai 0.1.5筛选提交53098e1已推，参考排序及9文本筛选显式供Browse/Search消费，保默认URL、旧游标及full_title；真实筛选搜索/热门前两页各25项，本地Host回放具名，CI、公开及Native待验。参考静态提示行当前Host模型不支持，不冒UI说明全量完成。 237冻结release 0755：178–179搜索a选Popularity实际search op21成功，首Maor/慢话/MyDiary；180搜索重置实际search op23恢复原结果，search保存值删除且browse保持；181清查询后目录重置实际get_manga_list op25恢复12本首Maor。Comic Fury本轮筛选项已清除，其他源筛选与169逐字相同、全source-settings与131/002基线相等。旧168误发目录反例保留。宿主3文件4232f2a3已本地提交，推送进行中、精确CI未核；本地执行回归、release构建及同签冻结包与设备验证分别成立。 237公开NHentai.to 0.1.5与3Hentai 0.1.5普通Browse及Search分别选排序、观察结果变化并重置，源设置和filterprefs恢复基线；NH安装WASM与公开一致且ZIP成员一致，3H以系统picker导入，ZIP/WASM与公开一致且临时下载已清除。仅具名排序路径通过，其他筛选值及参考静态说明未验。226原斗破01第1/36回书架第1页3%，漫画屋身份为缓存推断；227库49本，228 SLEEP、正常120000无override并释租。 237公开瓜子0.1.4及H-Comic0.1.3普通目录和搜索筛选已具名验收；本次设置及筛选恢复基线，原书架和设备状态恢复并释租。 具名范围：瓜子目录恋爱筛选36本，搜索爱后选恋爱实际search完成；H-Comic目录全彩10本，搜索love后选全彩实际search完成；两者重置后filterprefs为空。证据为layout及运行记录，筛选过程无截图，不扩其他值。 Host筛选scope/Header核心和两页面已接，能力门槛保旧Host旧schema；release候选7f9cfe本地构建成功，237具名MH1234 Native待验。AsmHentai 0.1.2在237普通目录失败；持久脱敏日志显示get_manga_list HTTP200后runtime unknown，不是HTTP403或传输失败。同真实HTML及原C++ Host复现图片属性问题，缺失可选属性回退后目录19本、短标题ID不变及详情通过；源f8ecf37已推，CI、公开和Native待核。237当次会话已恢复SLEEP/120000无override并释租。 237 MPC本地014候选普通目录显示原参考提示及筛选，Action结果变化、love搜索与重置具名已核；搜索态筛选隐藏未单独证实。原013包、数据与设置已恢复，临时文件删除，设备SLEEP/120000无override并释租；候选未发布。 MPC公开0.1.4已推且CI成功，237普通更新后包与公开一致；Header、Action目录及重置具名核验，原数据/设置及设备状态恢复并释租。搜索态是否隐藏筛选仍未单独验证。 MPC公开0.1.4 Header及Action筛选具名范围已验收，整体85源审计继续开放。 Comic Fury 0.1.6精确CI40703509316成功及237具名筛选已核，页面筛选不冒持久sourceSettings验收。AsmHentai公开013具名目录及短标题设置已核。 237 MPC公开014普通love搜索标题栏无筛选入口，清查询后目录菜单恢复筛选；数据及设备状态恢复释租。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 237 xkcd按年月分组2024-08的2977冷页真实中文图已核；原书库及设置保持，reader自然新增本次组的进度、章节与来源历史各一条，设备恢复释租。",
+      "remaining": "继续逐源对照设置项、默认值与消费路径；调查Zerobyw自动域名发现及旧ID映射；85源审计未完成。 漫画社m206 Native失败原因、全旧库映射与冷页正文，以及GoDa其余镜像Native与全旧库映射仍需验证。 核查Simply Hentai搜索HTTP403的拒绝阶段与原因。 核漫画社m206 Native请求失败原因；Comic Fury筛选Native持久与消费未验。 Comic Fury筛选分流及精确CI已核；页面筛选不代替持久sourceSettings验收。 验证MH1234作用域宿主候选及MH1234相关普通路径。 Simply验证会话及原API origin普通路径仍待回验。 Simply候选UA一致性修正及真实验证回流仍待回验。 Simply真实验证回流仍未通过，原因待核。",
+      "remainingActions": [
+        "Comic Fury筛选分流及精确CI已核，持久sourceSettings另按原范围核验。",
+        "继续逐源对照设置、默认值与消费路径；调查Zerobyw域名发现及旧ID映射，不外推具名结果。",
+        "完成MH1234宿主scope/Header具名Native。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-25T12:30:00Z",
+      "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "宿主及源修复候选验证中",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zerobyw237-public/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zerobyw237-default015/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zerobyw237-public015/public-wasm-default-list.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xkcd-organization-reference/candidate-016/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuashe-mirror019/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/goda-mirror014/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-picker-import-031/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-proof-to-browse-032/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd-public-update-024/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd-completion-zero-identity-025/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simplyhentai011-ordinary-search-054/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-ordinary-entry-056/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-year-save-060/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-year-reentered-061/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-yearmonth-save-062/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-yearmonth-reentered-063/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-restore-confirm-064/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-restored-065/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-library-before-066/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-existing-book-067/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-existing-body-068/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-existing-return-069/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-settings-077/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-mirror-options-078/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-official-mirror-save-079/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-mirror-reentered-080/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-restore-confirm-081/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-restored-082/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-existing-book-083/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-existing-body-084/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-existing-return-085/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/fjumonkey-search012/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-public-browse-132/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-ordinary-search-133/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-ordinary-pagination-134/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-ordinary-originals-visible-135/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-default-browse-142/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-m206-saved-146/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-m206-reentered-147/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicfury-filter016/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-default-restored-149/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-existing-book-150/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-existing-reader-151/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-existing-return-152/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-browse-160/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-controls-162/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-sort-last-update-164/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-cleared-and-rest-165/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-search-166/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-options-167/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-popularity-168/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-178/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-popularity-179/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-reset-180/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-browse-reset-181/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-browse-192/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-browse-newest-195/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-search-newest-199/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-search-reset-200/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-installed-204/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-browse-209/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-browse-recent-212/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-search-popular-217/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-search-reset-218/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/restore-reading-return-226/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-closeout-final-227/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-closeout-sleep-timeout-228/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/guazi-search-category-246/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/hcomic-search-fullcolor-255/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-return-264/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-sleep-265/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-old-log-439/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-host-sleep-487/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-sleep-509/"
+      ],
+      "evidencePoints": [
+        "/private/tmp/koma-filter-scope-header-build.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-failure-273/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-log-recv-277/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-final-shelf-407/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-final-sleep-408/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-ui-431/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-cleared-432/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-final-433/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-sleep-437/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd-cold-read-518/"
+      ]
+    },
+    {
+      "id": "MANAGER_REFRESH_BACKGROUND",
+      "title": "进入源管理页时全表刷新且图标闪烁",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "197普通入口及后台发布连续过程已核",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_INDEX_CACHE_REVALIDATE",
+        "SOURCE_PACKAGE_ICON_INVALIDATION"
+      ],
+      "result": "已有缓存首帧修复，设备复验未完成 本轮普通入口连续录屏已审，但视频结束早于后台fetch_ok，未覆盖发布瞬间；正在补录，不能以现有录屏认定后台发布全程通过。 补录覆盖真实fetch_ok：普通浏览→管理→浏览→管理，首屏已有图标，后台发布前后和重入未见全列表清空或图标全闪。部分地址实际失败，不称全部仓库成功或性能达标；原书架与数据恢复、电源恢复并释租。",
+      "remaining": "本次197普通入口及后台发布具名范围完成；源包安装性能仍由原事项跟踪。",
+      "remainingActions": [
+        "本次具名范围已完成。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-26T02:00:00Z",
+      "reportedAtSource": "用户报告从浏览页进入源管理的转场中出现完整刷新；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-29T02:48:41+08:00",
+      "stage": "具名范围已验收",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/manager-background-refresh/ordinary-entry-through-completion-02/",
+        "/private/tmp/koma-manager-background197-recording.json"
+      ]
+    },
+    {
+      "id": "TRANSLATION_ENTRY_PLACEMENT",
+      "title": "漫画翻译设置入口缺失且位置不合理",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "237普通设置路径已确认漫画翻译入口可达",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "NEXTE_READER_FEATURE_MIGRATION"
+      ],
+      "result": "237普通路径设置→服务→漫画翻译已实际进入Torii设置，服务页分组及入口已观察；该路由为既有提交，整体翻译迁移与真实译图仍在原迁移事项中。",
+      "remaining": "本项具名入口范围已完成。",
+      "remainingActions": [
+        "本项具名入口范围已完成。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-26T12:00:00Z",
+      "reportedAtSource": "用户报告设置中找不到漫画翻译；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-29T01:18:29+08:00",
+      "stage": "具名入口已验收",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/settings-root-04/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/services-05/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-torii-settings-06/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/install-full-evaluation-10/"
+      ]
+    },
+    {
+      "id": "SETTINGS_GROUPING_ADVANCED",
+      "title": "设置页未分组且高级入口与图标不合理",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "197设置分组、高级与关于普通路径已核",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "APPEARANCE_CONSUMERS"
+      ],
+      "result": "197同签6b53普通设置页上下分组及原卡片、各入口图标已亲审；高级页面只有诊断日志，关于页面显示版本、隐私与开源且无日志。原Reader、Appearance、library及sessions未改；设备会话继续。",
+      "remaining": "本项具名设置分组与高级/关于范围已完成。",
+      "remainingActions": [
+        "本项具名范围已完成。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-26T12:30:00Z",
+      "reportedAtSource": "用户要求设置项分组、增加高级入口并检查图标；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-29T01:46:02+08:00",
+      "stage": "具名范围已验收",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-top-22/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-bottom-23/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-advanced-content-24/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-about-content-25/"
+      ]
+    },
+    {
+      "id": "ENHANCEMENT_SWITCH_VISIBILITY",
+      "title": "未选择增强模型时开关不可见",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "当前保留不可用开关与模型管理入口，设备验收未完成",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "NEXTE_READER_FEATURE_MIGRATION"
+      ],
+      "result": "当前保留不可用开关与模型管理入口，设备验收未完成",
+      "remaining": "在设备上确认未装模型时开关与模型管理可见。",
+      "remainingActions": [
+        "在设备上确认未装模型时开关与模型管理可见。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-26T13:00:00Z",
+      "reportedAtSource": "用户报告未选择模型时图像增强开关消失；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "当前保留不可用开关与模型管理入口，设备验收未完成"
+    },
+    {
+      "id": "READER_SETTINGS_PLACEMENT",
+      "title": "阅读器设置与全局设置职责混乱",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "197具名验证及提交CI完成",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "READER_SETTINGS_STABILITY",
+        "TRANSLATION_ENTRY_PLACEMENT"
+      ],
+      "result": "此前整理职责但旧菜单仍存在：源码实查阅读设置及全局设置仍将四项页面模式与三项方向分组；控制栏方向菜单已有四种互斥方式。用户再次明确要求按控制栏菜单复用，Root正在修正。 197候选4f66全局菜单实见单页/双页与四种方向；RTL选择后切纵向分页保留休眠RTL，普通菜单恢复原纵向分页及LTR后完整偏好XML键值与基线相等。用户采用名称“分页模式”，两处资源已改并构建中。 最终release 6b53cbe9在197亲审Reader及全局“分页模式”两项、方向四项；连续滚动下单双页禁用且原RTL休眠保留，控制栏原单双页按钮与四方向保留。偏好恢复与基线键值相等。 Koma 2a0c7aebbe998269a113a5730361cc16acca3711已推master，精确CI40733358529 completed/success。",
+      "remaining": "本次具名范围已交付；不外推其他阅读器缺陷或未经真机逐一验证的主题。",
+      "remainingActions": [
+        "本次具名范围已完成。"
+      ],
+      "boundaries": [
+        "左到右/右到左/纵向分页/连续滚动是互斥阅读方式；单一选择不得被两个菜单交叉改写。",
+        "控制栏单双页与方向按钮保持；阅读设置复用同菜单，方向四项互斥，连续滚动不进入单双页菜单。原旧菜单结构及误改回滚证据保留。"
+      ],
+      "reportedAt": "2026-10-27T00:30:00Z",
+      "reportedAtSource": "用户要求彻查设置项应放阅读器还是全局设置；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-29T01:16:57+08:00",
+      "stage": "具名范围已交付",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/global-two-page-options-05/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/global-four-directions-06/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/global-rtl-selected-07/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/reader-settings-final-menu-14/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/reader-four-directions-16/",
+        "https://github.com/honjow/Koma/actions/runs/40733358529"
+      ]
+    },
+    {
+      "id": "READER_PAGE_SIZE_SHRINK",
+      "title": "跨章图片先小后放大，应先按容器约束显示",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "197分页单页章双方向及连续跨章未见先小后大，多页章待验",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET"
+      ],
+      "result": "原录屏新章节首次显示先窄后扩，同时短暂黑屏；v2两处回翻各有一帧黑屏。v3在197蓝档单页章四次双向跨章录屏未见先小后大或黑帧，返回进度一致。 197分页窗口修复RTL单页章71全帧审查，图片跟随平移，未见先小后大或旧66清屏。 74 LTR往返与76五次连续单页章跨章全帧审查，未见清空或先小后大。",
+      "remaining": "验证多页章节跨章尺寸及画面衔接，不外推其他样本。",
+      "remainingActions": [
+        "验证多页章节跨章尺寸与画面衔接。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-27T04:00:00Z",
+      "reportedAtSource": "用户报告跨章时图片先缩小再放大；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "单页章跨章画面已验证，多页章待验",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-scroll-motion-05/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v2-motion-12/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v3-motion-26/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-motion-71/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-observed-72/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-ltr-motion-74/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-chapters-motion-76/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-progress-77/",
+        "MH1234新候选run103出现黑屏反例，归READER_MH1234_BOUNDARY_PRELOAD继续修复；不改变本项既有具名结论。",
+        "197公开MH1234 0.1.5 run171多页RTL往返跨章：无清空、先小后大或源详情等待，章节和进度对应；不扩原未验范围。"
+      ]
+    },
+    {
+      "id": "READER_SWIPE_DIRECTION_MISMATCH",
+      "title": "上一张/下一张滑动方向与翻页方向不一致",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "197分页单页章LTR/RTL双向跨章已验证，多页章待验",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET",
+        "READER_DIRECTION_MENU"
+      ],
+      "result": "197单页8页样本：RTL右滑2/8至3/8、左滑回2/8；LTR左滑2至3、右滑回2/8。样本已恢复最初纵向分页。 197分页RTL单页章71：右点击/右滑到下一章第五话，左点击/左滑回第四话，Toast对应；72为第四话1/1、章节4/15。 74 LTR左点击/左滑下一章、右点击/右滑上一章，往返第四话；76五次连续点击至2/15，Toast与章节相符。",
+      "remaining": "验证多页章末反向及其他未覆盖范围。",
+      "remainingActions": [
+        "验证多页章末反向及其他未覆盖范围。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-27T08:00:00Z",
+      "reportedAtSource": "用户报告滑动手势方向与翻页方向不一致；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "单页章双向跨章已验证，多页章待验",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-next-swipe-18/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-restore-ltr-19/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/ltr-next-swipe-20/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/restore-sample-original-mode-21/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-motion-71/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-observed-72/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-ltr-motion-74/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-chapters-motion-76/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-progress-77/",
+        "197公开MH1234 0.1.5 run171多页RTL往返跨章：无清空、先小后大或源详情等待，章节和进度对应；不扩原未验范围。"
+      ]
+    },
+    {
+      "id": "MANGA_TRANSLATION_PREPROCESS",
+      "title": "超分与翻译未对预载页预处理",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "零预载自动翻译执行回归已修，真实路径待验",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "NEXTE_READER_FEATURE_MIGRATION",
+        "NEXT_CHAPTER_PREFETCH_REUSE"
+      ],
+      "result": "已接未来页处理路径，真实服务与设备验收未完成 本轮发现跨章同步demand遗漏零预载自动翻译独立一页；分页及条漫已按原预算补回，既有执行期望未改且target通过，真实Torii预处理未验。",
+      "remaining": "完成真实翻译预处理普通路径验证及原事项未验范围，不以执行case代替真实Torii。",
+      "remainingActions": [
+        "在197验证预载页进入时已完成超分/翻译。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-27T12:00:00Z",
+      "reportedAtSource": "用户实测预载页未被超分，要求翻页前处理；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "预处理修复验证中"
+    },
+    {
+      "id": "PROGRESS_PAGE_READABILITY",
+      "title": "进度页被流水账占满且近期问题难查找",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "已恢复71项与72条时间线，页面改为按提出时间排序与阶段标签；近期缺项已补登记",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "PROGRESS_TIMELINE_THEME"
+      ],
+      "result": "已恢复71项与72条时间线，页面改为按提出时间排序与阶段标签；近期缺项已补登记",
+      "remaining": "持续核对25-28号反馈均已逐项登记、可按时间查找。",
+      "remainingActions": [
+        "持续核对25-28号反馈均已逐项登记、可按时间查找。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-27T15:39:00Z",
+      "reportedAtSource": "用户多次指出进度页不可读；本条按会话时间补登记，原始消息精确时刻未核，使用最早可定位的10-27晚间反馈时间。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "已恢复71项与72条时间线，页面改为按提出时间排序与阶段标签；近期缺项已补登记"
+    },
+    {
+      "id": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "title": "Goda网页打开成包子漫画、Komiic无地址提示",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "GoDa、Komiic及主页图标具名范围已核",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_EMPTY_SETTINGS_ENTRY"
+      ],
+      "result": "GoDa打开正确官网；Komiic 0.1.9普通菜单实际打开站点；197主页地球图标已核。",
+      "remaining": "本项具名范围完成；Komiic账户和阅读正文不由本项验收。",
+      "remainingActions": [
+        "本项具名范围已完成。"
+      ],
+      "boundaries": [
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+      ],
+      "reportedAt": "2026-10-27T15:30:00Z",
+      "reportedAtSource": "用户报告Goda跳转错误与Komiic地址提示；精确时刻未记录。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-29T04:25:50+08:00",
+      "stage": "具名范围已验收",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-public-update-071/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-official-webview-075/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-web-document-receipt-076/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/source-homepage-globe-honkai-45/",
+        "https://github.com/honjow/Koma/actions/runs/40742436354",
+        "原过程记录：公开索引已核含godamh.com，设备装旧包导致；旧提示已移除 237普通manager更新公开0.1.4，registry hashOk且packageHomepage为https://godamh.com/；普通GoDa源菜单打开WebView，亲审首页-G站漫畫、官方G标及官网首页。更正先前误读：076命令名带#1，实际stdout非空；document_begin、visible、end均matchingDocument、matchesInitialUrl及sameInitialOrigin为true，与071初始godamh.com地址一致。 用户本轮明确要求源右上角主页3W图标改为系统地球经纬线图标；Root实施及设备验证中。 系统globe资源不存在导致首构建失败，改用SDK现有worldclock后release构建成功；Koma fa6e728已推，CI查询中，197图标Native待验。 Koma fa6e728精确CI40742436354成功；worldclock主页图标197 Native正在验证，尚未通过。 197冻结候选63819554普通崩坏3 IP站目录实见23本封面及右上经纬地球图标，用户指定的3W替换具名验证；fa6e728精确CI40742436354成功。 237 Komiic 0.1.9普通源首页有内容，WebView实际显示站方登录页及komiic.cc提示，未见Koma无地址错误；最终URL和登录原因未核，不覆盖全部原失败。原数据与设备状态恢复并释租。"
+      ]
+    },
+    {
+      "id": "READER_RTL_SLIDER_COUNTERS",
+      "title": "阅读方向改为从右到左后，滑块两侧页码不随方向交换",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "197单页8页样本RTL页码与方向一致",
+      "owner": "Root：197具名样本范围已验证",
+      "dependencies": [],
+      "relatedItems": [
+        "READER_DIRECTION_MENU",
+        "READER_SETTINGS_PLACEMENT"
+      ],
+      "result": "Koma控制栏fixedCounterSides已改为false。197单页8页样本：RTL左8右2，右滑至3/8时左8右3，左滑回2/8；LTR左滑2至3、右滑回2/8，样本已恢复最初纵向分页。",
+      "remaining": "本次197单页8页样本范围已验证；其他样本与跨章方向不外推。",
+      "remainingActions": [
+        "本次197单页8页样本范围已验证；其他样本与跨章方向不外推。"
+      ],
+      "boundaries": [
+        "只改固定左右策略，不改滑块值域、页码格式或其它样式。"
+      ],
+      "reportedAt": "2026-10-28T02:30:00Z",
+      "reportedAtSource": "用户本轮直接反馈：方向改右到左后slide方向切换但两边数字没换。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-28T12:01:20+08:00",
+      "stage": "具名样本已验证",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-counters-17/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-next-swipe-18/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-restore-ltr-19/"
+      ]
+    },
+    {
+      "id": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "title": "通过系统分享已安装的源包",
+      "priority": "P3（低优先级，排在bug修复后）",
+      "kind": "open",
+      "status": "已登记，排队等待bug收口",
+      "stage": "低优先级排队",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [],
+      "result": "用户本轮提出通过系统分享本机已安装的源包，方便导出和发送给别人；当前未实施。",
+      "remaining": "在既有bug修复收口后实施，并验证系统分享普通路径。",
+      "remainingActions": [
+        "bug修复收口后实现并验证已安装源包的系统分享。"
+      ],
+      "boundaries": [
+        "按用户要求低优先级排队；登记不代表已开始实施。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户提出，由Root可信转交；原始消息精确时间未核实，登记时间不冒充提出时间。",
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户提出的可见日期；精确消息时刻未知。",
+      "closedAt": null
+    },
+    {
+      "id": "TONGLI_HOME_BLANK",
+      "title": "东立书源首页空白",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "237公开0.1.5首页具名验证通过",
+      "stage": "具名首页范围已验收",
+      "owner": "source_terra：东立首页修复及237验收",
+      "dependencies": [],
+      "relatedItems": [
+        "TONGLI_CHAPTERS_SETTINGS_FAILURE"
+      ],
+      "result": "用户本轮反馈东立空白首页仍未处理。237实机复现首页返回空内容；公开0.1.5修复后首页Popular六个封面和标题实际显示。原章节正文的地区限制和官网黑页仍由关联事项跟踪，不由本项结论代替。 237本次会话已恢复原斗破书架、设置及数据基线，最终SLEEP/120000无override并释租。",
+      "remaining": "本次237具名首页空白范围已完成；关联正文问题继续开放。",
+      "remainingActions": [
+        "本次具名首页范围已完成。"
+      ],
+      "boundaries": [
+        "首页显示验收不等于章节正文或其他作品验收。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈可见日期；精确消息时刻未核实。",
+      "reportedAtSource": "本轮用户原话：东立的空白首页还是没处理。由Root可信转交；精确时间未核实，不以登记时间冒充。",
+      "closedAt": "2026-10-29T02:13:00+08:00",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/tongli-home-fixed-263/screen.png"
+      ]
+    },
+    {
+      "id": "ASM_HENTAI_BROWSE_RUNTIME_FAILURE",
+      "title": "AsmHentai普通目录加载失败",
+      "priority": "P1（本轮实机自检）",
+      "kind": "accepted",
+      "status": "237目录及短标题设置具名验证完成",
+      "stage": "具名范围已验收",
+      "owner": "source_terra",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "公开0.1.3普通目录显示19本；237短标题开启、保存重入及清除后长标题恢复已核，设置及设备状态恢复并释租。",
+      "remaining": "本次具名目录与短标题设置范围完成，不外推其他作品和路径。",
+      "remainingActions": [
+        "本次具名范围已完成。"
+      ],
+      "boundaries": [
+        "本项来源为代理实机自检，非用户直接报告；不扩其他路径验收。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮代理实机自检发现，非用户报告；协议开始时间不冒充精确失败发生时间。",
+      "firstHandlingAt": "2026-10-29T02:45:45.147213+08:00",
+      "firstHandlingAtSource": "asmhentai-default-272/run-metadata.json startedAt，实机自检协议开始时间。",
+      "closedAt": "2026-10-29T05:04:31+08:00",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-default-272/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-failure-273/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-log-recv-277/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-public-browse-293/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-setting-295/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-short-enabled-296/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-clear-setting-297/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-setting-restored-298/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-shelf-373/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-sleep-374/"
+      ]
+    },
+    {
+      "priority": "P1（本轮用户反馈）",
+      "kind": "accepted",
+      "status": "237漫画网页及浏览器入口已验收",
+      "stage": "具名入口已验收",
+      "owner": "source_terra：237复现及参考/站点核查；Root：宿主入口消费者审查",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈的可见日期。",
+      "reportedAtSource": "本轮用户反馈，原始消息精确时刻未核；登记时间不冒充实际提出时间。",
+      "closedAt": "2026-10-29T03:56:37+08:00",
+      "id": "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
+      "title": "Zero搬运网漫画页面缺少网页打开入口",
+      "result": "公开Zero 0.1.6在237普通详情菜单提供两种网页入口，实际WebView及外部浏览器均打开该作品；本站登录及锁章目录另由关联事项跟踪。",
+      "remaining": "本次具名漫画网页入口范围完成。",
+      "remainingActions": [
+        "本次具名入口范围已完成。"
+      ],
+      "boundaries": [
+        "用户反馈不代替实机复现；不预判原因。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-detail-menu-343/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-webview-369/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-browser-371/"
+      ]
+    },
+    {
+      "priority": "P1（本轮用户反馈）",
+      "kind": "open",
+      "status": "无门槛候选32章及免费章具名回验中",
+      "stage": "新候选具名验证中",
+      "owner": "source_terra：237复现及参考/站点核查；Root：宿主入口消费者审查",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈的可见日期。",
+      "reportedAtSource": "本轮用户反馈，原始消息精确时刻未核；登记时间不冒充实际提出时间。",
+      "closedAt": null,
+      "id": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "title": "Zero搬运网章节显示不全",
+      "result": "7f9宿主与无门槛017候选实体已核，237显示32章、前5可用与后续锁定，免费首章1/46图像待Root亲审；此前旧候选结果不代替本次。",
+      "remaining": "完成新候选免费章画面亲审、登录会话、公开交付及设备恢复。",
+      "remainingActions": [
+        "复现并核对真实站点章节与源结果。"
+      ],
+      "boundaries": [
+        "5章为用户不确定观察，不作为已测事实。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-detail-342/",
+        "237新候选562实体、566目录32/32、567锁章与568/569免费首章；画面待Root亲审。"
+      ],
+      "allowedDifference": "按用户明确决定显示全32章目录、🔒标识与本站登录入口。"
+    },
+    {
+      "priority": "P1（本轮用户反馈）",
+      "kind": "accepted",
+      "status": "197具名验证、交付及设备恢复完成",
+      "stage": "具名范围已验收",
+      "owner": "Root：共享/宿主查因与197具名验证",
+      "dependencies": [],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈可见日期。",
+      "reportedAtSource": "本轮用户直接反馈，原始消息精确时刻未提供；登记时间不冒充提出时间。",
+      "closedAt": "2026-10-29T06:08:37+08:00",
+      "id": "READER_MH1234_BOUNDARY_PRELOAD",
+      "title": "漫画12342网RTL章末未提前预载",
+      "relatedItems": [
+        "AUTO_CHAPTER_BOUNDARY_TARGET"
+      ],
+      "result": "197公开0.1.5多页RTL提前预载并往返跨章，画面连续且章节与进度对应；Host阅读顺序合同及设备恢复待完成。 197原Blue阅读状态、四份数据及源注册表恢复；原013源文件保留，本轮临时文件已删，电源恢复并释租。 Host readingOrder d2995ef4已推且精确CI40776916652成功；公开015具名跨章已核，设备原013已恢复。",
+      "remaining": "本次197具名范围已完成；不外推其他未验路径。",
+      "remainingActions": [
+        "本次197具名范围已完成。"
+      ],
+      "boundaries": [
+        "Blue及Nemo的既有具名结果不能代替本源验收。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public014-rtl-boundary-motion-90/",
+        "旧版run90：chapter_boundary 04:04:55.792至chapter_opened 04:04:58.159约2.37秒；run88实际退页，不作为跨章证据。",
+        "run90路径含public014为命名误标；197 registry及backup run93确认原源0.1.3，原录屏不可变，复现事实不变。首次da11包非灰底最新修正，不作为最终候选验收。",
+        "run103 screen/layout为黑屏，仅cached-viewport-1可见；106 App脱敏日志确认当前及前一章get_pages成功。104日志命令被拒、105无效UTF8，均不作为日志证据。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-final015-rtl-fresh-chapter3-motion-110/",
+        "run110：第2话9/11→10→11→未访问第3话1/13；10/11时get_pages开始并完成，最终原生选择下一章，无chapter_boundary重开。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public015-entity-and-open-167/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public015-rtl-chapter5-roundtrip-171/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public015-chapter5-terminal-172/",
+        "run171公开015 ZIP/WASM与公开字节一致；动作期get_pages在9/10页完成，原生往返跨章无chapter_boundary/opened；录屏SHA256 5dacb29aac873186cd258ce23b11a3ef2a98d8edfa68efca3eb6dfce0dd44608。",
+        "https://github.com/honjow/Koma/actions/runs/40776916652"
+      ]
+    },
+    {
+      "priority": "P1（本轮用户反馈）",
+      "kind": "accepted",
+      "status": "197具名验证、交付及设备恢复完成",
+      "stage": "具名范围已验收",
+      "owner": "Root：共享/宿主查因与197具名验证",
+      "dependencies": [],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈可见日期。",
+      "reportedAtSource": "本轮用户直接反馈，原始消息精确时刻未提供；登记时间不冒充提出时间。",
+      "closedAt": "2026-10-29T06:08:37+08:00",
+      "id": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "title": "白灰阅读背景加载提示不可见",
+      "relatedItems": [],
+      "result": "197未访问页面加载时，白底深色进度与文字、灰底白色进度与文字均可见，最终图像正常。 shared ded07a61与Koma依赖0ac87bd已推，精确CI进行中；197恢复待完成。 Koma 0ac87bd精确CI40775085588 completed/success；197原状态恢复仍待。 197原Blue阅读状态、四份数据及源注册表恢复；原013源文件保留，本轮临时文件已删，电源恢复并释租。",
+      "remaining": "本次197具名范围已完成；不外推其他未验路径。",
+      "remainingActions": [
+        "本次197具名范围已完成。"
+      ],
+      "boundaries": [
+        "用户最新明确灰底白色、只有白底深色；仅调整加载提示，不改变其他画布文字。"
+      ],
+      "evidence": [
+        "197 run155/156：白底未访问13/13加载深色文字与条，最终图像显示，超分开启。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/reader-gray-uncached-page-loading-motion-159/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/reader-gray-loading-terminal-160/",
+        "灰底录屏SHA256 1f5e672a79ecdc21c56d4cdc6dbef8b3218ab5805b13f45e4a5d9c3135a5b008；223帧全审。",
+        "reader-kit ded07a61e90ba0729a5927f7f6305f1ce0a8e38f；Koma 0ac87bd21ec117354e6e069eb56fde9e2ac21723；CI40775085588进行中。",
+        "https://github.com/honjow/Koma/actions/runs/40775085588"
+      ]
+    },
+    {
+      "id": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "title": "去白边后重进关闭导致图片加载卡住",
+      "priority": "P1（本轮用户反馈）",
+      "kind": "accepted",
+      "status": "197具名验证、交付及设备恢复完成",
+      "stage": "具名范围已验收",
+      "owner": "Root：共享/宿主查因及197验证",
+      "dependencies": [],
+      "relatedItems": [],
+      "result": "197同作超分开启重进后关闭裁剪路径已核；共享裁剪缓存修复及零预载预算恢复已独立提交并推送，Koma依赖及设备恢复待完成。 shared ded07a61与Koma依赖0ac87bd已推，精确CI进行中；197恢复待完成。 Koma 0ac87bd精确CI40775085588 completed/success；197原状态恢复仍待。 197原Blue阅读状态、四份数据及源注册表恢复；原013源文件保留，本轮临时文件已删，电源恢复并释租。",
+      "remaining": "本次197同作超分与裁剪具名路径完成；用户旧包全部卡死细节未复现。",
+      "remainingActions": [
+        "本次197具名范围已完成。"
+      ],
+      "boundaries": [
+        "单次阅读周期内开启再关闭不复现，不能用作替代验收。",
+        "用户反馈尚未实机复现，具体共享或宿主原因未知。",
+        "用户本轮确认发生问题时超分已开启；单次开关及超分关闭条件不能替代该路径。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈可见日期。",
+      "reportedAtSource": "本轮用户直接反馈；精确消息时间未提供，登记时刻不冒提出时间。",
+      "closedAt": "2026-10-29T06:08:37+08:00",
+      "evidence": [
+        "197 run114–122：裁剪首次开启、正常退出重进、关闭后滑页具名未复现；run118旧坐标未实际切开关，不作复现证据。run124–125双开启路径进行中。",
+        "/tmp/reader-crop-processing-native-batch.log",
+        "197 run140录屏SHA256 304f8e33eb7784b34b197589c3b92dc1336239df443ff7c7da8a1ea28a79377a；动作区未见ReaderProcessing ready，旧五次ready属于重进初始准备；run131为Blue补充，不作为MH同作A/B。",
+        "reader-kit/main efa846a：裁剪缓存身份修复及自动翻译零预载一页预算恢复。",
+        "reader-kit ded07a61e90ba0729a5927f7f6305f1ce0a8e38f；Koma 0ac87bd21ec117354e6e069eb56fde9e2ac21723；CI40775085588进行中。",
+        "https://github.com/honjow/Koma/actions/runs/40775085588"
+      ]
+    },
+    {
+      "id": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "title": "漫画详情章节分割线及点击反馈异常",
+      "priority": "P1（本轮用户反馈）",
+      "kind": "open",
+      "status": "197具名验证、CI及设备恢复已完成",
+      "stage": "具名范围完成，103未安装候选",
+      "owner": "Root：103当前页面调查",
+      "dependencies": [],
+      "relatedItems": [],
+      "result": "197候选保原字号及行距，当前12行分割线可见；按压仅目标行内缩圆角底板，长按菜单、取消及普通进入已核。 Koma c68c75dd4151a3b7b112f90cc75644ff05b02c11精确CI40771912927成功；103未安装候选，197原数据恢复尚未完成。 197原数据及电源状态已恢复并释租；103未安装候选。",
+      "remaining": "197具名范围及CI已核，103未安装候选，不冒该设备修复验收。",
+      "remainingActions": [
+        "保留103未安装候选的验证边界。"
+      ],
+      "boundaries": [
+        "保持既有列表样式，仅恢复稳定分割线及原生行点击反馈；不重做列表。",
+        "按用户最新纠正，按压反馈不得覆盖外卡片或整列表。"
+      ],
+      "reportedAt": null,
+      "reportedDate": "2026-10-29",
+      "reportedDateSource": "本轮用户反馈可见日期。",
+      "reportedAtSource": "本轮用户直接反馈并授权103查看；精确消息时间未提供，登记时刻不冒充提出时间。",
+      "closedAt": null,
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device103__MLR-AL00/not-applicable/portrait-1600x2560/chapter-list/chapter-list-current-screen-004/",
+        "103仅查看当前页，未滚动、点章、启动或安装；恢复原600000ms无override，AWAKE同Koma窗口并释租。",
+        "197 run147 HDS默认文字改变字号/行高，已撤回；新候选73f3bd同profile，run148回验中。",
+        "197 run149/150/152：原字号行距、12行分割线、行内反馈、长按及普通进入具名；下载按钮独立回调，底板可在按钮后变色。Koma c68c75dd已推，CI待核。",
+        "https://github.com/honjow/Koma/actions/runs/40771912927"
+      ]
     }
   ],
   "source": {
     "status": "237五个冻结包设置保存重入及恢复已通过；官网身份逐源核验进行中",
     "kind": "open",
-    "title": "源homepage发布与App采用边界",
-    "result": "最终18910787/655原斗破Continue、653原62progress30history49库SayaPNG20页保持，656八文件同654及657SLEEP/120000无Override/release0/ownagent上传清理均核。正式81源升级保，原真实读时间与11ledger按语义保留，不称全reader同393。此前Nami/de041等准确公开事实及CI差异保持。 197使用Host18928136与双XCOMIC简繁0.1.6，普通Browse各12卡→目录13/13及582/582后返回，未入Reader/未加库；四个get_manga/get_chapters同次操作实际峰值并发5、全部HTTP200且结束无残留，耗时23487/22592/22482/26896ms。与旧237不同时机/设备，不作严格性能AB或全卡顿闭环。六非Registry文件逐字同、85源ID/order/enabled及other83DTO同，仅双X升级；own上传已删，941a租约已释放。App batch五文件已提交并精确推送7230d110，CI40485480396 completed/success；源668c785257b959f006bece2fe2ead56dcec90480已精确推送，CI40485503849 completed/success，release425283341/tag sources-668c785257b959f006bece2fe2ead56dcec90480已发布、211非空assets，公开实体核验完成。237前两次新设置场未执行、原租约已释放；后续授权的新场已完成，具体范围见五包回执。 公开实体已核：85唯一ID索引及所有索引包/图标assets齐，211 assets非空；Linux Hans211635B/WASM575856B、Hant211320B/WASM574874B，manifest与index一致。复用原生产WASM runner指向公开实体，两源旧/新Host受控执行通过；197普通路径使用本地编译包，不冒公开包新安装。证据source-settings-repair/public-668c785/inspection.json及xcomic-batch-wasm-result.json。 MangaDex三源标题优先独立本地commit0e276ecb39bb7bc7f1f0159c0ac39e2b31a782a7（父29a3d32）已随e36推送；EN.20包33614B/WASM118345B、Hans.8 49027B/102211B、Hant.8 49111B/102397B。实际生产WASM默认/true保持原DTO与HTTP，false按参考标题顺序；EN列表/搜索/详情/Home及双中文消费者已执行，三源章节DTO/HTTP深同。无新provider HTTP或Native，原五包保持。直接证据source-settings-repair/mangadex-title-preference-wasm-result.json及candidates.json。 用户最新纠正：名称、图标、官网地址与所有展示须整体对应；逐一核验85书源官网身份及展示，未核实者不称完成，不自行翻译无官方中文名品牌。miaoqu当前网站文字为妙趣，上游图标是喵字，官网声明图标404，名称及图标待核并保留；Happy现有图标是用户此前批准的临时Happy文字标识，并非官网原图；MangaBall官网及图标连写MangaBall，名称修正已随e36发布，237本地包展示已核，公开包实体因429未读取。源owner报告名称提交e36dfc4已推，CI 40494611232 success，release 425355154及tag sources-e36dfc4b0f57b3a045fb0d1e372c2989235f4cca已发布；公开index实读85项，五名称包及三MangaDex .20/.8/.8的ID/版本/包名一致。Happy、MyComic、WEBTOON及三MangaDex六包实体已下载读取manifest/WASM；MangaBall、pixiv实体下载自动审批429达重试上限未执行，资产元数据非空但实体未核。237/App v2普通导入本地Happy .4、MangaBall .3、MyComic .4、繁中LINE WEBTOON .7、pixiv .10，管理弹层和浏览列表均看到；设置JSON深同场前，81项ID/启用/顺序同，仅五源版本升级。五上传逐项删空、原Continue返回，最终SLEEP/120000ms/无Override，agent backup空及无8012，租约99d703e6释放成功；证据source-names237-native-684、source-names237-browse-685及source-names237-restored-686。管理弹层MyComic简介实际显示开发备注“MyComic public Chinese HTML catalogue adapter.”，待处理；其余四源sourceInfo简介待审。只读official_identity_terra已交接：92mh官网标题及版权为“92漫画网”，当前“92漫画”待源owner整体核；miaoqu、CManhua、ikmmh站点或图标身份仍不足，喵趣未决定，不能称85源全部核清。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。 源owner报告29a3d32已精确推至源仓master；源码CI 40490819657及Docs CI 40490819020均成功，release 425323368已发布，公开index 85项及五包ID/版本已读取；公开包实体尚未读取，不称公开包Native通过。237/App18910787五个冻结包3Hentai.2、MyComic.3、MangaDex EN.19/Hans.7/Hant.7均完成设置保存、重入及GUI恢复；664菜单重复匹配失败发生在保存前，665续接完成。666设置深同660，81源身份/序/enabled及其余76源DTO同；原Continue斗破苍穹第1页3% 01，最终SLEEP、normal120000、无Override，own上传已清，租约release exit0。回执source-settings-repair/five-settings237-handback-receipt.json及source-fixes-sol-handoff.md。仅验证设置持久与恢复，未进Reader或请求内容；后继MD标题偏好.20/.8不属于冻结包。旧source_fixes已结束，source_owner_terra为唯一源码owner，负责已推祖先29a3d32的公开包实体核验及后续工作；official_names_terra已完成本轮只读交接，85站后续官网身份核验由source_owner_terra接续。",
-    "remaining": "237五个冻结包设置保存、重入和恢复已通过，原继续阅读位置及睡眠/120秒/租约归还见五包回执；旧source_fixes已结束，source_owner_terra是唯一源码owner，负责已推祖先29a3d32的公开包实体核验及后续工作。official_names_terra已完成本轮只读交接，85站后续官网身份核验由source_owner_terra接续，Root核展示链与证据；名称、图标、官网地址及所有展示须整体对应，85站尚未全部确定；源名称提交e36dfc4已推且CI 40494611232 success，237五个本地包展示已核；公开MangaBall、pixiv实体因429未取回，源简介开发备注待处理。双X重复探测复用后继、已随e36推送的MD标题偏好0e276ecb及真实验证窗口标题Native边界保留。 用户明确“书源相关的工作都默认使用237，不用重复问我。”书源相关验证默认237，当前五包具体验证授权继续有效；每次按流程取得租约，测试后恢复状态并释租，不扩为清用户数据或改账户/网络的许可。",
+    "title": "书源进展",
+    "result": "书源仍在逐项核验：真实站点并发搜索、部分站点首页或正文加载、源设置可用性尚未完成。",
+    "remaining": "真实站点并发搜索；漫画屋首页、漫画柜旧超时、東立正文限制。",
     "commit": "668c785257b959f006bece2fe2ead56dcec90480",
     "authorization": "用户明确“书源相关的工作都默认使用237，不用重复问我。”书源相关验证默认237，当前五包具体验证授权继续有效；每次按流程取得租约，测试后恢复状态并释租，不扩为清用户数据或改账户/网络的许可。"
   },
-  "milestones": [],
-  "releaseGates": [
-    "v0.1.3-pre已发布：tag85eac652357d1bbd83ef128b9cfea5068f50e98b、产品bd108；后续Reader/缓存/源入口修复不在该tag，不由文档整理新增发布。",
-    "规范整理已完成，原已授权产品工作继续；已有WIP保留，当前未验不改通过。",
-    "200禁止操作、四私库维持用户搁置；已接受具名范围冻结，新可见差异按人类当前明确决定执行。"
+  "milestones": [
+    {
+      "at": "2026-10-19T22:26:49Z",
+      "text": "本地未加密备份创建/读回/清理完成；书源主分支已同步，Kit推送403已核权限。"
+    },
+    {
+      "at": "2026-10-19T23:20:11Z",
+      "text": "197现成CBZ导入、纵向翻页及真实进程死亡后进度重开通过；本轮条目已移出，点击反例继续追。"
+    },
+    {
+      "at": "2026-10-19T23:39:24Z",
+      "text": "设置具名入口、本地重扫自然重选分支及两图导入/翻页/重开已实际观察，临时条目与排序已恢复。"
+    }
   ],
-  "stopRule": "局部验收、提交、清理或写状态不是首版完成；继续安全且已授权的实际动作，具体分支缺条件不扩大为全局停止。",
+  "releaseGates": [
+    "跨章翻页与真实站点并发搜索需在真机完成。",
+    "真实翻译服务与译图效果仍未验证。",
+    "API23模拟器启动已过；真机与正式AGC审核仍未完成。"
+  ],
+  "stopRule": "以上未完成事项仍需真实设备或真实站点证据。",
   "evidence": [
     {
       "id": "b744-preservation",
@@ -2674,7 +3943,2601 @@
   ],
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
-  "timeline": [],
+  "timeline": [
+    {
+      "id": "terminal-row-113",
+      "at": "2026-10-25T03:50:24.629575+08:00",
+      "title": "相邻源行重建修复通过237实测",
+      "detail": "真实安装Zerobyw，分隔线正确更新，trace未再重建相邻行。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "verified"
+    },
+    {
+      "id": "terminal-row-commit",
+      "at": "2026-10-25T03:52:55+08:00",
+      "title": "提交源列表行身份修复",
+      "detail": "d6dcb4c；精确CI40127317871随后已成功。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "registry-size-115",
+      "at": "2026-10-25T04:01:47.582390+08:00",
+      "title": "注册表重复读取修复通过正常安装",
+      "detail": "237安装Simply Hentai成功；原69源及书架、阅读记录保持，持久化记录10ms。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "verified"
+    },
+    {
+      "id": "progress-timeline-start",
+      "at": "2026-10-24T20:07:26.848989+00:00",
+      "title": "开始完善工作时间线和主题切换",
+      "detail": "保留简洁折叠入口；增加自动、浅色、深色，并验证刷新后的状态。",
+      "itemId": "PROGRESS_TIMELINE_THEME",
+      "kind": "work"
+    },
+    {
+      "id": "progress-timeline-theme-verified",
+      "at": "2026-10-24T20:11:44.260077+00:00",
+      "title": "进度页时间线与明暗主题已验证",
+      "detail": "折叠入口、连续节点、明暗切换及刷新记忆均已检查；后续记录沿用同一工作单。",
+      "itemId": "PROGRESS_TIMELINE_THEME",
+      "kind": "verified"
+    },
+    {
+      "id": "browse-stable-117",
+      "at": "2026-10-25T04:13:41.372837+08:00",
+      "title": "源安装不再重建后台浏览旧行",
+      "detail": "237真实新装后71项，trace旧行销毁0；书架和阅读记录保持。整体24.572ms更新仍继续定位。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-gap-phase-start",
+      "at": "2026-10-24T20:20:02.171341+00:00",
+      "title": "接回连续阅读短缺页定位",
+      "detail": "N068旧日志不足以对应每张图；仅补获取/解码阶段身份后取自然样本。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "reader-phase-install-091",
+      "at": "2026-10-25T04:24:03.373539+08:00",
+      "title": "197部署临时阅读阶段日志",
+      "detail": "38212929B普通启动，原7项下载保持；34页样本不在下载列表，改由既有历史定位，不新增下载。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "reader-phase-capture-101",
+      "at": "2026-10-24T20:42:33.622Z",
+      "title": "完成连续跳页阶段取证",
+      "detail": "普通1→17→1录屏已审；等待主要在文件获取后，原因继续细分。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "reader-phase-restored-108",
+      "at": "2026-10-25T04:51:15.837282+08:00",
+      "title": "阅读诊断恢复完成",
+      "detail": "已撤临时日志并恢复稳定包；原LTR、1/34、7项下载均读回，返回桌面。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-action-projection-start",
+      "at": "2026-10-24T21:00:39.179878+00:00",
+      "title": "接续源安装行更新范围",
+      "detail": "已查到所有按钮共享排队数组依赖；改为每源状态投影，保留原安装队列。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-action-state-121",
+      "at": "2026-10-25T05:08:52.421595+08:00",
+      "title": "按源状态投影已实测，图标反例保留",
+      "detail": "237安装92成功，其他按钮保持正常；本行图标仍有一帧瞬空，继续处理。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "reader-native-phase-start",
+      "at": "2026-10-24T21:21:14.910025+00:00",
+      "title": "继续细分原生图片显示阶段",
+      "detail": "对照旧版后保留图片质量和几何保护；补齐挂载、解码与可见阶段的取证。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-24T21:55:34.719359+00:00",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "title": "200失败已留证；越界操作已停止",
+      "detail": "用户001持续失败保留。Root误将取日志扩成点击并改当前章，已释放租约；仅本地分析。大象無形缺角标已定位重复ID触发目录不完整判断，596章未读。"
+    },
+    {
+      "at": "2026-10-24T22:03:59.027842+00:00",
+      "title": "重试链与未读数本地修复",
+      "detail": "37项回归通过，Release8551719B构建；尚未安装。显式重试刷新章页地址和图片缓存，重复目录未读数恢复精确统计。",
+      "kind": "work",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE"
+    },
+    {
+      "at": "2026-10-24T22:11:38.285086+00:00",
+      "title": "自动恢复完成本地检查；上栏时序新增反例",
+      "detail": "40回归、Release8550194B；未安装。上栏必须兼顾状态栏先完成与无状态栏可用，两项均保留；禁止原样恢复旧强制门控。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-24T22:28:22.413407+00:00",
+      "title": "重试CI成功；Koma上下栏退化已定位接线差异",
+      "detail": "96a2123精确CI成功。原Koma上下栏被共享默认组件替代，书名/章名未接回，底栏高度不同；当前只读调查。上栏顺序的共同修复仅本地，未装机。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-24T23:17:32.911413+00:00",
+      "title": "237原包栏位基线完成，恢复候选补齐按钮顺序",
+      "detail": "仅操作已授权237；001第6/24页正常进出，书架和源注册数据不变。恢复候选尚未安装，200保持不操作。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-24T23:30:40.397860+00:00",
+      "title": "原片否决上栏时序候选，继续修共同绘制边界",
+      "detail": "237133标题先高后低，第二次早于状态栏；外观恢复不能抵消此反例。8568166B追加官方单次帧结束回调，待实录。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-24T23:44:16.563981+00:00",
+      "title": "Koma237原栏与显隐具名成立，继续另两宿主",
+      "detail": "136两次先状态栏后上栏且无下移；138保存/分享回原生菜单，139同章同页返回。共同8248654已推，N/E构建完但实机仍待。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T00:01:07.871854+00:00",
+      "title": "NextN原帧否决共同上栏完成结论",
+      "detail": "197113第19→20帧仍下移；保Koma237独立结果，继续查原生安全区与宿主参数顺序。NextE仅安装到下载页，未通过。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T00:18:26.739764+00:00",
+      "title": "状态栏真实完成信号修复，NextN原反例消失",
+      "detail": "117日志与官方文档定位API回执早于实际显示；119两次原帧已核，E/K继续。原失败和边界保留。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T00:30:46.027208+00:00",
+      "title": "共同上栏三宿主具名完成，接回性能候选",
+      "detail": "N197119、E197070、K237141原片均已审；K142同章同页与三域保持。原生显示时序共同修复已推，宿主CI收尾与已批准两级缓存候选继续。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T01:12:57.156262+00:00",
+      "title": "两级缓存候选开始实机对照",
+      "detail": "三宿主签名构建完成；197先用稳定57原内容第12/34页测基线。原5页文件预算保留，分页和清晰度不改；候选未采用。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T02:16:33.961491+00:00",
+      "title": "缓存首候选未采用，保留反例后修近邻回翻",
+      "detail": "133两处短空保留；N134已恢复稳定包与原LTR1/34。v2保一个现有邻接租约及处理需求，等待真实往返复核。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T02:31:33.432101+00:00",
+      "title": "文件需求反例修复，校正实机入口",
+      "detail": "v3保住原生退休后仍在预算的文件任务，112检查通过。135误入历史首行已恢复原P2，改按具名686734核入口。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-25T03:08:15.732364+00:00",
+      "title": "连续候选在NextN完成同起点对照",
+      "detail": "主线程均值4.229→3.224ms、最大24.686→17.883ms；整段快回翻未再见首候选短空。原包/读位已恢复，E/K继续。",
+      "kind": "work",
+      "itemId": "CONTINUOUS_PERFORMANCE"
+    },
+    {
+      "at": "2026-10-25T03:57:07.211105+00:00",
+      "title": "三宿主候选原片审完，保留两处新反例",
+      "detail": "N/E/K普通快回翻未再见首候选短空，原包与读位已恢复；E稳定包也有模式切换黑屏无反馈，K固定接缝来源待核，继续共同交接调查。",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "kind": "work"
+    },
+    {
+      "id": "mode-loading-v2-host-observation",
+      "at": "2026-10-25T04:47:17.414311+00:00",
+      "title": "模式切换加载反馈已在E/N观察到",
+      "detail": "E080/N145原图前保留反馈；K151设置遮挡段仍不扩大验收。缓存候选源码已撤出，独立加载修复继续收尾。",
+      "itemId": "READER_SETTINGS_STABILITY",
+      "kind": "verified"
+    },
+    {
+      "id": "mode-loading-v2-local-commit",
+      "at": "2026-10-25T05:01:05.112050+00:00",
+      "title": "共同加载修复已独立提交",
+      "detail": "e3f3cc1保留现有加载样式；N/E具名路径与读位恢复完成。仅宿主引用/CI收尾，缓存候选未夹带。",
+      "itemId": "READER_SETTINGS_STABILITY",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mode-loading-v2-exact-ci",
+      "at": "2026-10-25T05:29:41.588880+00:00",
+      "title": "共同加载修复三端CI完成",
+      "detail": "N/E/K各自精确提交构建成功；未打tag或发布。缓存候选等待采用决定，其余源缺陷继续。",
+      "itemId": "READER_SETTINGS_STABILITY",
+      "kind": "verified"
+    },
+    {
+      "at": "2026-10-25T06:25:54.527523+00:00",
+      "itemId": "SOURCE_WEB_SESSION",
+      "id": "mh160-declared-origin-observation",
+      "title": "漫画160两版循环已取证，正式包已恢复",
+      "detail": "漫画160598定位至本站桌面/手机版交替导航；白屏未修。197已恢复正式包，三业务域完整相同；临时诊断已撤。",
+      "kind": "work"
+    },
+    {
+      "id": "image-descriptor-explicit-negative-native",
+      "at": "2026-10-25T06:50:58.311802+00:00",
+      "title": "图片描述空调用已在197消除",
+      "detail": "仅明确不支持者跳过；普通列表50、原书架与数据保持。真实封面403另留，未宣称性能或整源通过。",
+      "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "verified"
+    },
+    {
+      "id": "source-home-content-contract-review",
+      "at": "2026-10-25T06:59:08.455064+00:00",
+      "title": "源首页与栏目结构已查清",
+      "detail": "发现两类内容同时加载、首尾拼接；具体统一方案待用户决定，尚未改界面。空调用修复CI已成功。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "source-install-current197-trace605",
+      "at": "2026-10-25T07:32:35.653340+00:00",
+      "title": "当前包安装卡顿仍存在",
+      "detail": "東立正常更新并返回，其他84源与书架/阅读保持；主线程回调74ms、实际帧33ms，具体CPU函数继续定位。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-language-key197-verified",
+      "at": "2026-10-25T07:49:01.890199+00:00",
+      "title": "语言热路径警告已修正",
+      "detail": "197普通源包页及返回已核，名称/顺序/原数据保持。74ms安装总项仍开放；没有重装源制造通过。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "verified"
+    },
+    {
+      "id": "source-projection-probe197-restored",
+      "at": "2026-10-25T08:09:05.299444+00:00",
+      "title": "只读分段计时完成并撤回",
+      "detail": "摘要6ms、Manager DTO4–5ms，不足解释74ms。197正式包及原数据已恢复，后继核237真实更新。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-huanta011-first-install237",
+      "at": "2026-10-25T08:30:50.578477+00:00",
+      "title": "237幻塔首次安装完成",
+      "detail": "72→73只增幻塔，原数据保持。安装主回调仍47ms；接续该源原待验正文，不据安装成功关闭卡顿。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "huanta237-native-first-reader-and-worker-boundary",
+      "at": "2026-10-25T08:59:04.009414+00:00",
+      "title": "幻塔237首篇正文成功；发现后台模块边界异常",
+      "detail": "完整长图与HTTP200已核，原书架/旧记录保持。安装47ms未闭；接独立Native worker入口修复。",
+      "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "work"
+    },
+    {
+      "id": "native-worker237-six-entry-route",
+      "at": "2026-10-25T09:13:06.344120+00:00",
+      "title": "Native后台入口隔离：237普通阅读与原数据保持",
+      "detail": "新进程首次源worker及取页worker未再出现UI状态异常，正文与返回已审；接范围提交及精确CI。安装长回调继续开放。",
+      "itemId": "SOURCE_RUNTIME_ERRORS",
+      "kind": "work"
+    },
+    {
+      "id": "source-worker-pushed-cpu-soc237",
+      "at": "2026-10-25T09:19:37.696005+00:00",
+      "title": "六Native入口修复已同步；继续安装CPU定位",
+      "detail": "精确CI40179763215执行中；以原待验SOC001正常首装采一次主线程函数栈，采后恢复。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-install-soc237-cpu-and-restore",
+      "at": "2026-10-25T09:31:11.020873+00:00",
+      "title": "安装CPU栈已取；临时采样已撤回",
+      "detail": "SOC正常首装73→74，旧数据保持；定位注册持久化27ms与校验11ms。237已恢复正式包，继续原待验正文。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-approved-native-batch-observed",
+      "at": "2026-10-25T10:19:40.067847+00:00",
+      "title": "首页统一方案已获采用；当前修复继续收尾",
+      "detail": "Native文件检查本次2010us/持久化6ms，主回调仍25ms。先完成当前IPmini路径与提交CI，再实施已批准入口/内容变化。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "decision"
+    },
+    {
+      "id": "native-file-batch-ipmini237-readback",
+      "at": "2026-10-25T10:40:24.973027+00:00",
+      "title": "IPmini首篇与自然返回完成；提交安装检查优化",
+      "detail": "原图HTTP200，原书架和旧记录保持；75文件检查约2ms，残余主回调25ms保留。接已批准首页统一。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-native-selector-implemented",
+      "at": "2026-10-25T10:50:33.497995+00:00",
+      "title": "首页统一已实现；进入237普通路径验证",
+      "detail": "安装检查62621dd1精确CI成功。新源页面只加载当前首页/栏目，保刷新旧内容与失败目标，实机待验。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "fresh-thread-migration-handoff",
+      "at": "2026-10-25T11:18:17.987020+00:00",
+      "title": "按用户要求准备轻量新会话续接",
+      "detail": "当前筛选验证已收口；237原书架、三域及筛选保持，旧租约已释放。首页WIP与其余原队列交新会话，定时任务将保原频率迁移。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-nohome-accepted",
+      "at": "2026-10-25T11:27:24.815372+00:00",
+      "title": "无首页Comic Fury分类路径通过，准备范围同步",
+      "detail": "237热门/最新两栏目及单一12本内容、对勾、原书架自然返回均亲审；195三域/筛选保持。漫画柜本次连接超时仅限制该样本。10分钟heartbeat已读回迁到本会话。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "work"
+    },
+    {
+      "id": "source-home-exact-ci-success",
+      "at": "2026-10-25T11:31:54.880323+00:00",
+      "title": "首页统一已推且精确CI成功，继续安装残余",
+      "detail": "e6404c5b/40188955447 completed-success；237正式首页具名范围冻结，新的CPU诊断仅定位安装回调。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "done"
+    },
+    {
+      "id": "filter-clear-label-native-accepted",
+      "at": "2026-10-25T11:41:55.799844+00:00",
+      "title": "筛选清除文案/原动作237具名通过",
+      "detail": "只将App首项改清除此项筛选，源全部和材质/顺序保留；原重置/返回及三域/空偏好保持。CPU临时代码已撤，继续安装残余。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "work"
+    },
+    {
+      "id": "source-import-digest-background-native",
+      "at": "2026-10-25T11:55:58.652959+00:00",
+      "title": "摘要真实后台10ms，原安装总项继续开放",
+      "detail": "237一次杂志迷首装成功且旧76/书架/读态保持，原书架自然返回。当前56ms回调与旧25ms频率/GC不同，不作AB或整体流畅结论。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "source-local-icon-decoded-handoff-native",
+      "at": "2026-10-25T12:07:27.443409+00:00",
+      "title": "本行图标Happy普通安装96帧具名保持",
+      "detail": "首次异步/同URI已解码同步回交，保所有原生样式。完整原片/5联系表及全部0–69图标表亲审；旧77与用户数据保持，原书架自然返回。",
+      "itemId": "SOURCE_PACKAGE_ICON_INVALIDATION",
+      "kind": "work"
+    },
+    {
+      "id": "source-row-names-once-20261025",
+      "at": "2026-10-25T23:03:09+08:00",
+      "title": "消除单次源行排序的重复名称解析，237普通更新数据保持",
+      "detail": "274原实现与候选真实方法同28项通过；276签名8582236B明确装。278普通本地015同版本更新74帧/3sheet已审，280管理/原书架亲审，281四域保持/传包已清；2ms行投影只属本样本，安装46ms仍OPEN。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "diagnostics-safe-snapshot-20261025",
+      "at": "2026-10-25T23:58:06+08:00",
+      "title": "日志重复脱敏优化普通多输出通过；TXT显示候选单独待决定",
+      "detail": "实际时间标记5→6、保存后7，628B持久/4028B HiLog各含marker和saved事件；实际外部563B内容与持久前缀一致。错误文件后缀由真实文件名定位；正确SDK参数改变原生选中显示，候选已撤。294恢复日志优化包和四域，295原书架亲审。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "work"
+    },
+    {
+      "id": "partial-index-review-20261026",
+      "at": "2026-10-25T19:27:00.913651+00:00",
+      "title": "按人类纠正撤回追加计数候选，核清部分成功完整性缺口",
+      "detail": "原生产方法离线受控输入复现最新/未找到误判；已有地址行可定位并重载，无新UI或状态许可。307采样另完成同trace对齐，排除program等同忙CPU与诊断开销误归因，正式300阻塞仍未闭。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-27T17:06:39+08:00",
+      "title": "提交启动兼容修复",
+      "detail": "61c79b6b；API23实机和AGC回验未完成。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T18:02:54+08:00",
+      "title": "提交源HTTP批量能力",
+      "detail": "7230d110；具名目录路径已验，未外推全部卡顿。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T19:12:51+08:00",
+      "title": "提交源设置标题和说明修复",
+      "detail": "3058c4c0；237具名设置范围已验证，其他边界保留。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T20:21:55+08:00",
+      "title": "提交FGO官方系列名称",
+      "detail": "源提交779a3a8；本地237包展示具名，公开包Native未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T20:24:29+08:00",
+      "title": "提交源说明文档整理",
+      "detail": "c5bd024及前序提交已推；源CI和Docs CI成功，公开FGO包已读取。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T23:28:23+08:00",
+      "title": "提交Komiic筛选身份候选",
+      "detail": "源仓本地50ac39f；真实站点和237未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T15:31:05Z",
+      "title": "Komiic .8 已公开",
+      "detail": "源owner实时核release 425642863及公开实体；CI 40531345834 success，Native目录和旧章未验。",
+      "kind": "verified"
+    },
+    {
+      "at": "2026-10-27T23:37:28+08:00",
+      "title": "提交漫画社简介候选",
+      "detail": "源仓本地c278dcc；公开发布和设备验收未确认。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T15:39:48Z",
+      "title": "漫画社 .8 已公开",
+      "detail": "源owner实时核release 425653118及公开实体；CI 40532855572 success，Native未验。",
+      "kind": "verified"
+    },
+    {
+      "at": "2026-10-27T15:45:16.472345Z",
+      "title": "进度页显示修正",
+      "detail": "时间依据为页面文件修改时间，不代表用户操作时刻。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-27T15:49:21.096710Z",
+      "title": "NextE共享Reader候选构建通过",
+      "detail": "时间依据为构建日志最后写入；临时依赖已恢复，设备未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T15:50:25.144010Z",
+      "title": "NextN共享Reader候选构建通过",
+      "detail": "时间依据为构建日志最后写入；临时依赖已恢复，设备未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T16:02:15.778404Z",
+      "title": "NextE旧阅读器双页候选构建完成",
+      "detail": "时间为构建日志最后写入；设备画面未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T16:04:20.561295Z",
+      "title": "NextN旧阅读器双页候选构建完成",
+      "detail": "时间为构建日志最后写入；设备画面未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T16:15:47Z",
+      "title": "动漫屋简介修复已发布",
+      "detail": "发布及公开包已核；设备验证使用本地候选。",
+      "kind": "verified"
+    },
+    {
+      "at": "2026-10-27T16:19:32.532604Z",
+      "title": "进度页面板已整理",
+      "detail": "时间为页面文件最后写入；保留当前待办与历史证据。",
+      "kind": "work"
+    },
+    {
+      "at": "2026-10-27T16:29:17.430040Z",
+      "title": "旧阅读器滑动后点击修正已构建",
+      "detail": "时间为构建日志最后写入；本地构建通过，设备未验。",
+      "kind": "checkpoint"
+    },
+    {
+      "at": "2026-10-27T16:36:16Z",
+      "title": "Comic Fury作者附言说明修正已发布",
+      "detail": "公开包已核；设备验证使用本地候选。",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-rtl-counter-fix-20261028",
+      "at": "2026-10-28T10:35:00+08:00",
+      "title": "RTL滑块页码修复已编译",
+      "detail": "Koma fixedCounterSides改为false，使页码随RTL滑块交换；设备未验。",
+      "itemId": "READER_RTL_SLIDER_COUNTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-crosschapter-197-20261028",
+      "at": "2026-10-28T06:07:00+08:00",
+      "title": "197分页跨章点击与竖滑通过",
+      "detail": "蓝色档案每章1页，连点跨到第12章，进度同步；条漫模式未验。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-doubletap-197-20261028",
+      "at": "2026-10-28T06:05:00+08:00",
+      "title": "双击缩放开关与档位197验证",
+      "detail": "150-500ms档位可保存，关闭双击后单击跨章成功；原名值已恢复。",
+      "itemId": "READER_DOUBLE_TAP_PREFERENCE",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-settings-placement-audit-20261028",
+      "at": "2026-10-28T10:40:00+08:00",
+      "title": "方向/模式菜单重复入口记录",
+      "detail": "控制栏两按钮与设置PageModeMenu/DirectionMenu重复；未实施结构改动。",
+      "itemId": "READER_SETTINGS_PLACEMENT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-translation-crosschapter-fix-20261028",
+      "at": "2026-10-28T10:42:00+08:00",
+      "title": "跨章翻译不继承当前章页控制",
+      "detail": "KomaReaderLabPage translationPreference修复；28项测试通过。",
+      "itemId": "MANGA_TRANSLATION_PREPROCESS",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-rtl-counter-fix-20261028b",
+      "at": "2026-10-28T10:43:00+08:00",
+      "title": "RTL滑块页码修复已编译",
+      "detail": "fixedCounterSides改为false；设备未验。",
+      "itemId": "READER_RTL_SLIDER_COUNTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-enhancement-toggle-code-20261028",
+      "at": "2026-10-28T10:46:00+08:00",
+      "title": "超分临时关闭入口已核清",
+      "detail": "ReaderEnhancementStatus点击切换ReaderTemporaryVariantControl，仅当前单元临时覆盖；设备未验。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-toggle-device-20261028",
+      "at": "2026-10-28T10:48:00+08:00",
+      "title": "超分临时关闭图标设备未出现",
+      "detail": "197增强关闭，控制栏无AI-HD图标；代码路径已核清，设备验证缺已处理页。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-boundary-guard-20261028",
+      "at": "2026-10-28T10:52:00+08:00",
+      "title": "条漫章末跨章请求已加防重入",
+      "detail": "滚动到底仅每拓扑/导航请求一次下一章，导航变化后重置；测试与release构建通过，实机未验。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "cont-device-awake-blocked-20261028",
+      "at": "2026-10-28T10:56:00+08:00",
+      "title": "条漫跨章实机验证被设备状态门禁拒绝",
+      "detail": "自动审批拒绝唤醒/解锁/改超时；未发生设备动作，租约已释放。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-197-resume-2026-10-28T10-59-24+08-00",
+      "at": "2026-10-28T10:59:24+08:00",
+      "title": "接续197条漫跨章验证",
+      "detail": "已完成唤醒、解锁和亮屏读回，继续原样本；条漫结果尚未验证。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "open",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/wake-resume-01/"
+      ]
+    },
+    {
+      "id": "reader-continuous-motion-failed-2026-10-28T11-03-30+08-00",
+      "at": "2026-10-28T11:03:30+08:00",
+      "title": "条漫跨章真实复现黑屏和图片缩放",
+      "detail": "197两次上滑均跨章且章节名提示出现；画面衔接未通过，继续修复。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-scroll-motion-05/"
+      ]
+    },
+    {
+      "id": "continuous-handoff-fix-2026-10-28T11-27-36+08-00",
+      "at": "2026-10-28T11:27:36+08:00",
+      "title": "条漫跨章黑屏及缩放修复进入本地构建",
+      "detail": "补本地页预载尺寸，保留旧章画面到新章真实可见；尚未取得修复后真机结果。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-binding-repair-2026-10-28T11-37-52+08-00",
+      "at": "2026-10-28T11:37:52+08:00",
+      "title": "条漫候选未通过，已修正快照传递回归",
+      "detail": "保留失败录屏；重新构建后仍需197真实回验。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-motion-09/"
+      ]
+    },
+    {
+      "id": "continuous-remaining-black-frame-2026-10-28T11-47-20+08-00",
+      "at": "2026-10-28T11:47:20+08:00",
+      "title": "条漫图片尺寸正常，回翻黑帧继续修复",
+      "detail": "双向跨章、章节名和进度已观察；回翻仍有一帧加载黑屏，整项未通过。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v2-motion-12/"
+      ]
+    },
+    {
+      "id": "reader-rtl-counters-observed-20261028",
+      "at": "2026-10-28T11:57:15+08:00",
+      "title": "197观察到RTL滑块两侧数字交换",
+      "detail": "RTL左8右2，原LTR左2右8；完整滑动方向仍待确认。此时间是记录时间。",
+      "itemId": "READER_RTL_SLIDER_COUNTERS",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-counters-17/"
+      ]
+    },
+    {
+      "id": "reader-197-rtl-ltr-page-direction-20261028",
+      "at": "2026-10-28T12:01:20+08:00",
+      "title": "197单页样本RTL页码及页内方向通过",
+      "detail": "RTL右滑2到3、左滑返回，页码左8右3；LTR左滑2到3、右滑返回。已恢复样本原纵向分页；跨章方向未验。此时间是记录时间。",
+      "itemId": "READER_RTL_SLIDER_COUNTERS",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-next-swipe-18/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/rtl-restore-ltr-19/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/ltr-next-swipe-20/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/restore-sample-original-mode-21/"
+      ]
+    },
+    {
+      "id": "reader-197-swipe-page-direction-20261028",
+      "at": "2026-10-28T12:01:20+08:00",
+      "title": "197单页样本左右滑动方向通过",
+      "detail": "RTL右滑前进、左滑返回；LTR左滑前进、右滑返回。跨章及其他未覆盖范围仍开放。此时间是记录时间。",
+      "itemId": "READER_SWIPE_DIRECTION_MISMATCH",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-pixel-receipt-v3-built-20261028",
+      "at": "2026-10-28T12:01:20+08:00",
+      "title": "条漫真实像素回执候选已构建",
+      "detail": "v3构建产物hash以4444ee46开头，尚未安装；v2两处回翻各一帧黑屏仍未通过。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-v3-197-recorded-20261028",
+      "at": "2026-10-28T12:08:34+08:00",
+      "title": "条漫v3候选197已安装并完成录屏",
+      "detail": "候选4444ee46c726a2f928e40bbd748933e0af8acbc68b0137000a6aed19a9e345cf已安装；普通蓝档正文显示无loading，四次双向跨章录屏正在解码审查，未判通过。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/candidate-v3-install-23/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/candidate-v3-reader-25/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v3-motion-26/"
+      ]
+    },
+    {
+      "id": "reader-size-v3-197-reviewed-20261028",
+      "at": "2026-10-28T12:12:54+08:00",
+      "title": "197蓝档单页章条漫尺寸交接通过",
+      "detail": "v3四次跨章旧图直接交接最终尺寸新图，未见先小后大或黑帧；分页范围仍待验证。此时间是记录时间。",
+      "itemId": "READER_PAGE_SIZE_SHRINK",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v3-motion-26/"
+      ]
+    },
+    {
+      "id": "continuous-v3-197-reviewed-20261028",
+      "at": "2026-10-28T12:12:54+08:00",
+      "title": "197蓝档单页章条漫双向跨章通过",
+      "detail": "四次跨章与四个Toast已逐区间审查，画面未见黑帧或先小后大；返回书架第六话第1页100%与起点往返一致。分页跨章与点击延迟待补验；两宿主构建成功不等于运行验收。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-candidate-v3-motion-26/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/candidate-v3-return-27/"
+      ]
+    },
+    {
+      "id": "source-settings-3hentai-237-20261028",
+      "at": "2026-10-28T12:16:50+08:00",
+      "title": "3Hentai设置往返237已验证",
+      "detail": "真实官网25本目录中，完整标题切为短标题并保存，清除本次设置后完整标题恢复；设置前后相等，原书架和继续阅读恢复，临时上传清除，设备休眠并释租。仅该源具名范围通过，全源审计继续。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json"
+      ]
+    },
+    {
+      "id": "continuous-user-counterexample-2026-10-28T12-20-45+08-00",
+      "at": "2026-10-28T12:20:45+08:00",
+      "title": "撤回条漫连续通过，用户指出仍整章替换",
+      "detail": "v3只修复黑屏与缩放；连续列表衔接未实现，继续修复。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-strip-built-2026-10-28T12:33:01+08:00",
+      "at": "2026-10-28T12:33:01+08:00",
+      "title": "连续跨章改为同一列表，候选待验",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "detail": "已构建；不沿用v3整章替换的通过结论。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-strip-197-observed-20261028",
+      "at": "2026-10-28T12:43:02+08:00",
+      "title": "197已观察相邻章同屏与双向滚动",
+      "detail": "候选2199…同一列表内两章同屏、双向自然滚动及Toast；普通返回后继续阅读卡片与控制栏章节一致。最终候选38c5ef5e…正在录制滑动及点击，尚未验完。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-motion-33/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-return-35/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-final-motion-38/"
+      ]
+    },
+    {
+      "id": "source-zerobyw-pc-candidate-20261028",
+      "at": "2026-10-28T12:43:02+08:00",
+      "title": "Zerobyw新路由候选生产WASM已核",
+      "detail": "旧路由真实404；0.1.4候选按参考新/pc/路由，生产WASM返回目录24、中文搜索1、详情5章和首章118图；237新包、旧ID及图片实取未验，全源审计继续。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-strip-reverse-click-jump-20261028",
+      "at": "2026-10-28T13:02:26+08:00",
+      "title": "197反向点击出现章节跳动",
+      "detail": "交付候选d0ad49…录屏frame304–320短暂显示更早章再回到当前附近；返回后阅读器与书架同为第五话，不能抵消跳动。正在提前准备视口前邻章元数据，并让明确点击退休入场定位令牌；尚未修复验收。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-delivery-motion-43/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-strip-delivery-return-44/"
+      ]
+    },
+    {
+      "id": "continuous-strip-head-trim-diagnosis-20261028",
+      "at": "2026-10-28T13:30:58+08:00",
+      "title": "197定位跨章删头造成偏移变化",
+      "detail": "两次物理左点均解析action=right，无新seek或geometry；跨章rows删头后offset改变。已移除元数据跨章删头并保远处图像资源预算，281fe…候选正在197回验，尚未判通过。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-position-probe-motion-48/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-stable-head-probe-motion-50/"
+      ]
+    },
+    {
+      "id": "continuous-clean-197-clicks-20261028",
+      "at": "2026-10-28T14:22:18+08:00",
+      "title": "197清理包双向点击未再回跳",
+      "detail": "同一列表保留相邻章节；正文、控制栏和书架读回同为第四话。普通重入后自然滚动仍在补验，事项未关闭。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-page-end-motion-52/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-page-end-return-53/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-clean-reenter-54/"
+      ]
+    },
+    {
+      "id": "zerobyw-public-237-20261028",
+      "at": "2026-10-28T14:22:18+08:00",
+      "title": "Zerobyw公开包237具名阅读路径通过",
+      "detail": "公开0.1.4普通导入后目录24、详情5章、正文1/149，设备已恢复；原默认域名EOF及旧ID等仍待调查，不外推全源。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zerobyw237-public/"
+      ]
+    },
+    {
+      "id": "continuous-natural-terminal-mismatch-20261028",
+      "at": "2026-10-28T15:00:25+08:00",
+      "title": "197自然滚动末端章节状态未跟随画面",
+      "detail": "同一列表末端已完整显示下一章图且无法继续向下，控制栏和书架仍为第六话、章节2/15。正在以原生实际边界修复位置判断；候选尚未设备回验。此前双向点击具名结果保留。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-footer-motion-58/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-clean-return-59/"
+      ]
+    },
+    {
+      "id": "continuous-native-terminal-197-20261028",
+      "at": "2026-10-28T15:19:45+08:00",
+      "title": "197自然滚动末端章节状态已回验",
+      "detail": "新包正反正自然滑动录屏已审，末屏正文、控制栏和书架章节一致；旧58/59错误状态保留。分页跨章仍在验证，原生边界小修尚未提交。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-native-end-install-60/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-native-end-motion-61/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/continuous-native-end-return-62/"
+      ]
+    },
+    {
+      "id": "zerobyw-015-default-20261028",
+      "at": "2026-10-28T15:19:45+08:00",
+      "title": "Zerobyw默认地址本地候选237具名通过",
+      "detail": "本地候选未保存地址时目录24、详情5章及正文1/162实图；公开WASM默认目录24项。公开包字节与本地候选不同，公开Native仍待验证；全源审计未闭。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zerobyw237-default015/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zerobyw237-public015/public-wasm-default-list.json"
+      ]
+    },
+    {
+      "id": "source-two-names-reviewed-20261028",
+      "at": "2026-10-28T15:19:45+08:00",
+      "title": "CManhua和NoyAcg官网名称已核",
+      "detail": "两站主页标题与当前显示名一致；CManhua页脚关联站点的关系未知，全源名称审计未闭。此时间是记录时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "paged-boundary-loading-failed-20261028",
+      "at": "2026-10-28T16:12:10+08:00",
+      "title": "197分页跨章出现清空加载",
+      "detail": "LTR点击和滑动到正确相邻章，但录屏多处清空显示准备图片；RTL仅到准备态，跨章未验。条漫末端已验证范围保留。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-ltr-boundary-motion-66/"
+      ]
+    },
+    {
+      "id": "xkcd-016-public-wasm-20261028",
+      "at": "2026-10-28T16:12:10+08:00",
+      "title": "xkcd分组候选及公开WASM已核",
+      "detail": "0.1.6提交8e82be2已推，CI40652065192成功；保默认和旧ID，公开WASM真实按年目录通过；237设置、旧书和分组正文未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xkcd-organization-reference/candidate-016/"
+      ]
+    },
+    {
+      "id": "source-miaoqu-name-public-20261028",
+      "at": "2026-10-28T16:12:10+08:00",
+      "title": "妙趣名称修正已发布",
+      "detail": "妙趣0.1.3提交8b47f95已推，CI40653900755成功，公开包已核、Native未验；Zazhimi中文品牌未知、图标匹配，无限动漫标题及图标匹配。全源核验未闭。此时间是记录时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/miaoqu-name013/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/zazhimi-identity/"
+      ]
+    },
+    {
+      "id": "koma-reader-caller-dependencies-ci-20261028",
+      "at": "2026-10-28T16:19:16+08:00",
+      "title": "Koma阅读器调用依赖补齐并通过CI",
+      "detail": "原CI因漏调用依赖失败；补齐提交已推且精确CI成功。分页跨章清空加载仍未解决，设备验收不由CI代替。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "paged-window-rtl-auto_chapter_boundary_target-20261028",
+      "at": "2026-10-28T16:37:18+08:00",
+      "title": "197分页RTL单页章跨章具名回验",
+      "detail": "RTL点击及滑动双向跨章正确，画面连续且Toast对应；LTR及多页章、保存进度未验，本批未提交推送。 此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-motion-71/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-observed-72/"
+      ]
+    },
+    {
+      "id": "paged-window-rtl-reader_page_size_shrink-20261028",
+      "at": "2026-10-28T16:37:18+08:00",
+      "title": "197分页RTL单页章尺寸交接已观察",
+      "detail": "71全帧审查未见先小后大或旧清屏；LTR及多页章待验。 此时间是记录时间。",
+      "itemId": "READER_PAGE_SIZE_SHRINK",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-motion-71/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-observed-72/"
+      ]
+    },
+    {
+      "id": "paged-window-rtl-reader_swipe_direction_mismatch-20261028",
+      "at": "2026-10-28T16:37:18+08:00",
+      "title": "197分页RTL单页章双向方向已核",
+      "detail": "右点击及右滑下一章、左点击及左滑上一章；LTR跨章及多页章待验。 此时间是记录时间。",
+      "itemId": "READER_SWIPE_DIRECTION_MISMATCH",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-motion-71/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-rtl-observed-72/"
+      ]
+    },
+    {
+      "id": "source-name-batch-20261028",
+      "at": "2026-10-28T16:37:18+08:00",
+      "title": "书源名称与图标逐站核对",
+      "detail": "多站名称具名核对；92漫画网及漫画1234官网标志与现图不同，名称及图标差异尚未修改，部分站点不可访问或无法确认。全源未闭。此时间是记录时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/"
+      ]
+    },
+    {
+      "id": "source-webtoon-mycomic-settings-audit-20261028",
+      "at": "2026-10-28T16:37:18+08:00",
+      "title": "WEBTOON及MyComic设置消费源码复核",
+      "detail": "WEBTOON三项实际消费及默认已核，附言依赖宿主；MyComic沿用既有默认并记录参考差异，未作设备验收。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "paged-window-ltr-auto_chapter_boundary_target-20261028",
+      "at": "2026-10-28T16:44:20+08:00",
+      "title": "197分页单页章双方向及五次跨章已核",
+      "detail": "LTR双向点击及滑动往返，五次连续跨章无清空，返回进度一致；多页章末反向待验。 此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-ltr-motion-74/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-chapters-motion-76/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-progress-77/"
+      ]
+    },
+    {
+      "id": "paged-window-ltr-reader_page_size_shrink-20261028",
+      "at": "2026-10-28T16:44:20+08:00",
+      "title": "197分页单页章画面衔接已核",
+      "detail": "LTR双向及五次连续跨章未见清空或先小后大；多页章待验。 此时间是记录时间。",
+      "itemId": "READER_PAGE_SIZE_SHRINK",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-ltr-motion-74/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-chapters-motion-76/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-progress-77/"
+      ]
+    },
+    {
+      "id": "paged-window-ltr-reader_swipe_direction_mismatch-20261028",
+      "at": "2026-10-28T16:44:20+08:00",
+      "title": "197分页LTR单页章双向方向已核",
+      "detail": "左点击/左滑下一章、右点击/右滑上一章；多页章末反向待验。 此时间是记录时间。",
+      "itemId": "READER_SWIPE_DIRECTION_MISMATCH",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-ltr-motion-74/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-chapters-motion-76/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-five-progress-77/"
+      ]
+    },
+    {
+      "id": "paged-multipage-unreached-20261028",
+      "at": "2026-10-28T17:02:25+08:00",
+      "title": "197多页样本未触发跨章",
+      "detail": "Nemo录屏动作未发生章节切换，终态仍3/3、1/2；已恢复进入前2/3并返回书架。原因未确定，最终候选安装回验中。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-multipage-boundary-motion-81/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-multipage-returned-82/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-multipage-restore-83/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-install-84/"
+      ]
+    },
+    {
+      "id": "paged-nemo-vertical-boundary-20261028",
+      "at": "2026-10-28T17:19:11+08:00",
+      "title": "197 Nemo纵向返回前章末页已观察",
+      "detail": "原偏好为纵向分页，先前横滑未触发不代表产品失败；上下滑反向返回3/3，前向仍出现准备图片，未判无缝。最终包代表路径仍待回验。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-install-84/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-vertical-last-85/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-vertical-boundary-motion-86/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-vertical-returned-87/"
+      ]
+    },
+    {
+      "id": "paged-reviewed-blue-nemo-restored-20261028",
+      "at": "2026-10-28T17:27:52+08:00",
+      "title": "197最终包Blue代表路径及读态恢复",
+      "detail": "Nemo恢复2/3并返回书架；Blue恢复原RTL，最终包右点击前进、左滑返回画面连续，阅读器、详情及书架状态一致。Nemo无verified sequence前向仍有加载；共享提交正在推送，远端及CI未确认。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-nemo-restore-89/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-bookshelf-resume-90/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-blue-direction-93/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-blue-motion-95/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-blue-return-96/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-reviewed-bookshelf-97/"
+      ]
+    },
+    {
+      "id": "reader-delivery-restored-197-20261028",
+      "at": "2026-10-28T17:31:11+08:00",
+      "title": "阅读器提交已推，197状态已恢复",
+      "detail": "共享提交远端已精确读回，Koma接入已推、新CI尚未查；197恢复超时10000、休眠并释租。Nemo前向加载边界保留。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-continuation/paged-window-session-restore-98/"
+      ]
+    },
+    {
+      "id": "koma-d722-ci-success-20261028",
+      "at": "2026-10-28T17:34:56+08:00",
+      "title": "Koma阅读器接入精确CI成功",
+      "detail": "d7225df60a89d24d214bc0277000b6d2e8ed2244的CI40664700417 completed/success；不扩大197具名真机范围。此时间是记录时间。",
+      "itemId": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40664700417"
+      ]
+    },
+    {
+      "id": "source-concurrent-237-mh160-return-20261028",
+      "at": "2026-10-28T17:48:55+08:00",
+      "title": "237并发搜索漫画160验证自动回流",
+      "detail": "真实403触发验证后无用户输入回结果，显示10条作品；包子挑战排队及重试尚待确认，原scope与设备状态尚待恢复。007无查询不计验证。此时间是记录时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/real-source-parallel-search-007/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/real-source-parallel-search-008/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/first-challenge-state-009/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/automatic-retry-receipts-010/"
+      ]
+    },
+    {
+      "id": "source-concurrent-237-baozi-return-20261028",
+      "at": "2026-10-28T17:54:58+08:00",
+      "title": "237并发搜索包子挑战自动回流",
+      "detail": "单源过滤日志确认原请求验证一次并搜索ready 6条，008后无额外输入；漫画160显示10条。包子窗口标题未截图，其他挑战边界仍开放；设备待恢复。此时间是记录时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/filtered-web-receipts-012/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source-concurrent-commit-public-updates-20261028",
+      "at": "2026-10-28T18:11:46+08:00",
+      "title": "统一搜索修复已推，237公开包更新进行中",
+      "detail": "相关提交已推、精确CI运行中；漫画1234公开更新Native成功，漫画社已安装，妙趣仍观察，设备和设置待总恢复。此时间是记录时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/restore-original-scope-013/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/public-update-targets-016/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mh1234-public-completion-018/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe-public-completion-020/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/miaoqu-public-completion-022/"
+      ]
+    },
+    {
+      "id": "source-mirrors-published-20261028",
+      "at": "2026-10-28T18:11:46+08:00",
+      "title": "漫画社与GoDa镜像候选已发布",
+      "detail": "两源公开包及具名WASM路径已核；漫画社237已安装但设置/正文未验，GoDa Native及全旧库映射未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuashe-mirror019/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/goda-mirror014/"
+      ]
+    },
+    {
+      "id": "source-concurrent-ci-miaoqu-20261028",
+      "at": "2026-10-28T18:15:28+08:00",
+      "title": "统一搜索修复CI成功，妙趣公开更新完成",
+      "detail": "e294对应CI40670008826成功且head一致；237妙趣0.1.3更新及名称已读回，漫画社仅安装、设置和正文未验。scope已恢复，仍持租。此时间是记录时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40670008826",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/miaoqu-public-completion-022/"
+      ]
+    },
+    {
+      "id": "sixmh-search-user-report-20261028",
+      "at": "2026-10-28T18:30:58+08:00",
+      "title": "登记六漫画源内搜索不支持反馈",
+      "detail": "用户报告源内搜索失败并询问其他不能搜索的源；237统一搜索已有unsupported线索，源内入口尚待验证。此时间为记录时间。",
+      "itemId": "SIXMH_SEARCH_UNSUPPORTED",
+      "kind": "open",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/real-source-parallel-search-008/"
+      ]
+    },
+    {
+      "id": "sixmh-search-missing-port-20261028",
+      "at": "2026-10-28T18:40:31+08:00",
+      "title": "六漫画搜索确认漏移植",
+      "detail": "固定参考与官网支持搜索，真实请求200并有结果；Koma 0.1.4未实现，源侧修复中，Native旧版普通入口仍在核。其余源逐项核对，不把旧快照当当前结果。此时间是记录时间。",
+      "itemId": "SIXMH_SEARCH_UNSUPPORTED",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "zerobyw-public-import-identity-20261028",
+      "at": "2026-10-28T18:40:31+08:00",
+      "title": "237 Zerobyw公开包导入及字节核对",
+      "detail": "公开0.1.5普通导入，安装ZIP及WASM与公开实体逐字一致；设置保持，临时文件清除并返回Browse。xkcd公开包安装完成，设置及正文未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-picker-import-031/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-public-proof-to-browse-032/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd-public-update-024/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd-completion-zero-identity-025/"
+      ]
+    },
+    {
+      "id": "sixmh-native-old-failure-20261028",
+      "at": "2026-10-28T18:44:07+08:00",
+      "title": "237普通入口复现六漫画搜索不支持",
+      "detail": "0.1.4源目录正常，搜索一人之下显示源搜索失败及不支持该操作；0.1.5候选已推，本地WASM具名通过，公开包和Native修复仍待验。此时间是记录时间。",
+      "itemId": "SIXMH_SEARCH_UNSUPPORTED",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh-ordinary-source-035/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh014-search-failure-036/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/sixmh-search015/"
+      ]
+    },
+    {
+      "id": "3hentai-search-self-audit-20261028",
+      "at": "2026-10-28T18:49:00+08:00",
+      "title": "自检发现3Hentai搜索漏移植",
+      "detail": "固定参考及官网支持搜索，当前源未实现；候选遇asset host错误，Native尚未验。首次发现时间未独立核实，此为登记时间。",
+      "itemId": "THREE_HENTAI_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/love.json"
+      ]
+    },
+    {
+      "id": "sixmh-search-public-015-20261028",
+      "at": "2026-10-28T18:49:00+08:00",
+      "title": "六漫画搜索公开包已核",
+      "detail": "0.1.5精确CI成功，公开WASM具名搜索返回两项；237同入口回验仍在进行。此时间为登记时间。",
+      "itemId": "SIXMH_SEARCH_UNSUPPORTED",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/sixmh-search015/"
+      ]
+    },
+    {
+      "id": "sixmh-search-native-015-20261028",
+      "at": "2026-10-28T18:57:32+08:00",
+      "title": "237六漫画公开搜索修复已验证",
+      "detail": "公开更新0.1.5后普通入口搜索返回两本及封面，无旧不支持提示；只关闭该源搜索漏实现。此时间是记录时间。",
+      "itemId": "SIXMH_SEARCH_UNSUPPORTED",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh015-update-completed-041/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/sixmh015-ordinary-search-042/"
+      ]
+    },
+    {
+      "id": "3hentai-search-public-014-20261028",
+      "at": "2026-10-28T18:57:32+08:00",
+      "title": "3Hentai公开搜索WASM已核",
+      "detail": "0.1.4精确CI成功，公开WASM真实搜索返回25项及下一页；237 Native待验。此时间是记录时间。",
+      "itemId": "THREE_HENTAI_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/public-search.json"
+      ]
+    },
+    {
+      "id": "3hentai-search-native-014-20261028",
+      "at": "2026-10-28T19:09:59+08:00",
+      "title": "237 3Hentai公开搜索修复已验证",
+      "detail": "普通入口搜索love成功，前6项封面可见；仅关闭该源搜索漏实现范围。此时间是记录时间。",
+      "itemId": "THREE_HENTAI_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/threehentai014-ordinary-search-046/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/public-title-true.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-search014/public-title-false.json"
+      ]
+    },
+    {
+      "id": "nhentaito-search-self-audit-20261028",
+      "at": "2026-10-28T19:09:59+08:00",
+      "title": "自检发现NHentai.to搜索漏移植",
+      "detail": "0.1.4公开WASM真实搜索已核，237 Native待验；首次发现时间未核，此为记录时间。",
+      "itemId": "NHENTAITO_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/nhentaito-search014/public-search.json"
+      ]
+    },
+    {
+      "id": "nhentaito-search-native-014-20261028",
+      "at": "2026-10-28T19:14:40+08:00",
+      "title": "237 NHentai.to公开搜索修复已验证",
+      "detail": "公开更新0.1.4后registry确认search，普通入口搜索love成功且前6项封面可见；仅关闭该源搜索漏实现范围。此时间是记录时间。",
+      "itemId": "NHENTAITO_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito014-public-update-049/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito014-ordinary-search-053/"
+      ]
+    },
+    {
+      "id": "simplyhentai-237-search-403-20261028",
+      "at": "2026-10-28T19:15:56+08:00",
+      "title": "237 Simply Hentai搜索请求返回403",
+      "detail": "公开0.1.1普通搜索已发出请求，Native显示HTTP403；旧不支持搜索记录不适用，原因待核，不能称搜索可用。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simplyhentai011-ordinary-search-054/"
+      ]
+    },
+    {
+      "id": "xkcd-settings-237-public-016-20261028",
+      "at": "2026-10-28T19:21:02+08:00",
+      "title": "237 xkcd公开包组织设置已回验",
+      "detail": "默认单本、按年和按年月目录及保存重入已核，清除本次设置后默认及整份设置恢复；旧书和正文Native未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-ordinary-entry-056/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-year-save-060/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-year-reentered-061/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-yearmonth-save-062/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-yearmonth-reentered-063/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-restore-confirm-064/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-restored-065/"
+      ]
+    },
+    {
+      "id": "xkcd-existing-cached-reading-237-20261028",
+      "at": "2026-10-28T19:23:58+08:00",
+      "title": "237 xkcd原书继续阅读已核",
+      "detail": "旧ID原书676章，原缓存2978第1页真实可见并返回同章；库数据前后完全一致。仅缓存页，按年月新作品冷网络正文未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-library-before-066/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-existing-book-067/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-existing-body-068/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd016-existing-return-069/"
+      ]
+    },
+    {
+      "id": "goda-public-home-237-20261028",
+      "at": "2026-10-28T19:28:35+08:00",
+      "title": "237 GoDa公开包官网首页已观察",
+      "detail": "公开0.1.4 registry主页及普通WebView官网视觉已核；076日志实际非空，文档事件与初始godamh.com URL匹配；不外推其他源。此时间是记录时间。",
+      "itemId": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-public-update-071/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-official-webview-075/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-web-document-receipt-076/"
+      ]
+    },
+    {
+      "id": "immark-search-self-audit-20261028",
+      "at": "2026-10-28T19:28:35+08:00",
+      "title": "自检发现我是馬克搜索漏移植",
+      "detail": "公开0.1.1 WASM真实搜索已核，237 Native待验；首次发现时间未核，此为记录时间。",
+      "itemId": "IMMARK_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/immark-search011/public-search2.json"
+      ]
+    },
+    {
+      "id": "goda-mirror-settings-existing-book-237-20261028",
+      "at": "2026-10-28T19:35:28+08:00",
+      "title": "237 GoDa镜像设置与旧书继续阅读已核",
+      "detail": "godamh保存重入及清除设置后恢复，旧书原正文可见并返回同页；自然预载更新该书页表，其他48本及旧缓存章未变。公开WASM具名旧页和首图已核，不外推全部镜像Native。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-settings-077/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-mirror-options-078/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-official-mirror-save-079/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-mirror-reentered-080/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-restore-confirm-081/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-restored-082/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-existing-book-083/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-existing-body-084/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-existing-return-085/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/goda-mirror014/"
+      ]
+    },
+    {
+      "id": "immark-search-native-011-20261028",
+      "at": "2026-10-28T19:42:42+08:00",
+      "title": "237我是馬克搜索及旧格式详情已验证",
+      "detail": "公开0.1.1普通搜索、第二页旧文章及详情成功；首3和第二页具名封面可见，未进入正文。仅关闭搜索漏实现范围。此时间是记录时间。",
+      "itemId": "IMMARK_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-public-update-087/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-ordinary-search-090/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-search-next-091/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-old-search-result-092/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/immark011-old-detail-settled-093/"
+      ]
+    },
+    {
+      "id": "goda-document-receipt-correction-20261028",
+      "at": "2026-10-28T19:52:51+08:00",
+      "title": "更正GoDa文档日志读取",
+      "detail": "076命令名含#1，实际文档开始、可见、结束均与初始godamh.com URL及origin匹配；先前空日志结论撤回。此时间是记录时间。",
+      "itemId": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/goda014-web-document-receipt-076/"
+      ]
+    },
+    {
+      "id": "nhentaixxx-empty-page-self-audit-20261028",
+      "at": "2026-10-28T19:52:51+08:00",
+      "title": "NHentai.xxx候选空页后未续取",
+      "detail": "候选安装及首个中文结果已观察，普通上滑后无终点且无后续搜索；宿主修复及原包恢复未完成，首次发现时间未核。此时间是记录时间。",
+      "itemId": "NHENTAIXXX_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-baseline-094/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-import-097/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-browse-098/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-english-100/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-candidate-empty-next-101/"
+      ]
+    },
+    {
+      "id": "fjumonkey-search-local-20261028",
+      "at": "2026-10-28T19:52:51+08:00",
+      "title": "輔大猴搜索本地WASM具名核对",
+      "detail": "源提交已推，本地搜索及旧ID具名核对；CI重复查询被自动审批拒绝，公开状态未知，Native未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/fjumonkey-search012/"
+      ]
+    },
+    {
+      "id": "nhentaixxx-empty-page-host-implemented-20261028",
+      "at": "2026-10-28T20:05:48+08:00",
+      "title": "NHentai.xxx空页续取宿主实现及回归完成",
+      "detail": "按源游标继续取页，保成功cursor及失败原页重试；相关执行回归通过，尚未构建或真机验证，237原包待恢复。此时间是记录时间。",
+      "itemId": "NHENTAIXXX_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/koma-empty-search-tests.log"
+      ]
+    },
+    {
+      "id": "nhentaixxx-empty-page-host-237-20261028",
+      "at": "2026-10-28T20:45:04+08:00",
+      "title": "237候选空页续取已到真实终点",
+      "detail": "修复宿主与冻结候选安装后数据保持，同query触底经过空批继续至终点，首项保留；原包恢复、公开源包及宿主提交CI尚未完成。此时间是记录时间。",
+      "itemId": "NHENTAIXXX_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-host-preinstall-102/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-host-install-103/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-fixed-host-target-104/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-fixed-host-english-105/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-fixed-host-tail-106/",
+        "/private/tmp/koma-empty-search-build.log",
+        "/private/tmp/koma-empty-search-build-v2.log"
+      ]
+    },
+    {
+      "id": "nhentaixxx-public-identity-host-ci-20261028",
+      "at": "2026-10-28T21:21:53+08:00",
+      "title": "NHentai.xxx宿主CI及公开包身份已核",
+      "detail": "Host精确CI成功，原0.1.3曾恢复；随后当前公开包字节已核但不同已验冻结候选，公开Native仍待验证。此时间是记录时间。",
+      "itemId": "NHENTAIXXX_SEARCH_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-original-restore-picker-107/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-original-restored-108/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-index-109/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-target-110/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-update-state-readback-111/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-bytes-and-update-events-112/"
+      ]
+    },
+    {
+      "id": "source-ren2-ipmini-public-wasm-20261028",
+      "at": "2026-10-28T21:21:53+08:00",
+      "title": "人2与IP手札公开WASM已核",
+      "detail": "两个具名提交的精确CI成功，公开WASM按真实保存HTML经原Host回放；Native尚未验证。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-thirteen-install-unattributed-20261028",
+      "at": "2026-10-28T21:21:53+08:00",
+      "title": "237出现13个来源待查的安装请求",
+      "detail": "同毫秒13个安装请求发生时无清单输入，13源版本变化、无新增ID且设置保持；触发原因未知，不断言用户或产品缺陷，也不回滚。此时间是记录时间。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-index-109/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-update-target-110/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-update-state-readback-111/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-bytes-and-update-events-112/"
+      ]
+    },
+    {
+      "id": "nhentaixxx-public-native-empty-page-20261028",
+      "at": "2026-10-28T21:25:34+08:00",
+      "title": "237 NHentai.xxx公开搜索及空页续取已验证",
+      "detail": "公开0.1.4普通搜索保首项，空批后继续到真实终点；临时下载已清除。仅关闭具名搜索和空页消费范围，设备会话及13源事件另行处理。此时间是记录时间。",
+      "itemId": "NHENTAIXXX_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-browse-113/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaixxx-public-english-114/"
+      ]
+    },
+    {
+      "id": "ipmini-search-native-012-20261028",
+      "at": "2026-10-28T21:29:40+08:00",
+      "title": "237 IP手札mini公开搜索已验证",
+      "detail": "普通Browse搜索強化IP管理制度返回原作品并显示没有更多了；仅具名搜索，不外推Reader或全部负例。此时间是记录时间。",
+      "itemId": "IPMINI_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/ipmini012-browse-target-115/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/ipmini012-ordinary-search-116/"
+      ]
+    },
+    {
+      "id": "people2-search-native-012-20261028",
+      "at": "2026-10-28T21:36:04+08:00",
+      "title": "237人2公开搜索已验证",
+      "detail": "普通源内搜索春節返回具名原文章及终点，安装WASM与公开一致；未进入正文。此时间是记录时间。",
+      "itemId": "PEOPLE2_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/public-search-packages-and-people2-target-117/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/people2012-ordinary-search-118/"
+      ]
+    },
+    {
+      "id": "mixflavor-public-wasm-20261028",
+      "at": "2026-10-28T21:36:04+08:00",
+      "title": "綜合口味公开WASM搜索已核",
+      "detail": "公开0.1.2及精确CI成功，固定真实HTML经原Host回放；Native尚未验证。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/mixflavor-search012/"
+      ]
+    },
+    {
+      "id": "fjumonkey-search-native-012-20261028",
+      "at": "2026-10-28T21:41:25+08:00",
+      "title": "237輔大猴公开搜索及续页已验证",
+      "detail": "公开实体与设备安装ZIP/WASM相等；普通搜索四格并滚动看到真实续页，正文及首末全页未验。此时间是记录时间。",
+      "itemId": "FJUMONKEY_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/fjumonkey012-browse-target-120/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/fjumonkey012-ordinary-search-121/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/fjumonkey012-search-next-122/"
+      ]
+    },
+    {
+      "id": "webtoon-zh-search-truncation-20261028",
+      "at": "2026-10-28T21:41:25+08:00",
+      "title": "繁中WEBTOON搜索截断自检",
+      "detail": "公开WASM只返回All首屏22项并误称无更多，官网两分类查看全部各有分页；修复进行中，Native未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "progress-service-restored-20261028",
+      "at": "2026-10-28T21:46:53+08:00",
+      "title": "原8766进度服务已恢复",
+      "detail": "本机监听曾退出，原因未知；原脚本恢复后接口与snapshot一致，原浏览器页面实际显示并连接。未发现自启动或崩溃重启配置；部分事项stage摘要滞后待校正。",
+      "itemId": "MONITOR_AVAILABILITY",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "progress-service-launchd-session-20261028",
+      "at": "2026-10-28T21:50:31+08:00",
+      "title": "进度服务切换至当前用户会话托管",
+      "detail": "原脚本及原地址由临时launchd RunAtLoad与KeepAlive托管，接口和工作单一致、原浏览器保持连接；非登录自启动文件，跨登录或重启未验证。",
+      "itemId": "MONITOR_AVAILABILITY",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mixflavor-search-native-012-20261028",
+      "at": "2026-10-28T21:51:06+08:00",
+      "title": "237綜合口味公开搜索已验证",
+      "detail": "普通搜索食返回原栏目5项及终点，安装ZIP/WASM与公开一致、设置保持；未进入Reader。此时间是记录时间。",
+      "itemId": "MIXFLAVOR_SEARCH_MISSING",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-public-index-124/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-public-update-125/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-public-target-126/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-browse-target-127/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mixflavor012-ordinary-search-128/"
+      ]
+    },
+    {
+      "id": "webtoon-zh-search-pagination-237-20261028",
+      "at": "2026-10-28T22:12:41+08:00",
+      "title": "237繁中WEBTOON公开搜索续页已观察",
+      "detail": "0.1.9公开包与安装字节一致，普通搜索愛滚动后可见旧All首屏之外的作品及封面；仅具名续页通过，不冒全部411项Native通过。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-public-browse-132/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-ordinary-search-133/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-ordinary-pagination-134/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/webtoon019-ordinary-originals-visible-135/"
+      ]
+    },
+    {
+      "id": "manhuashe-mirror-237-failed-20261028",
+      "at": "2026-10-28T22:19:17+08:00",
+      "title": "237漫画社m206目录请求失败",
+      "detail": "默认目录20本成功，m206保存及重入一致但目录请求network_error/http0failed，旧内容保留；原因未知，正在恢复本轮设置并核默认旧书。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-default-browse-142/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-m206-saved-146/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-m206-reentered-147/"
+      ]
+    },
+    {
+      "id": "comicfury-filter-public-016-20261028",
+      "at": "2026-10-28T22:19:17+08:00",
+      "title": "Comic Fury筛选公开WASM已核",
+      "detail": "默认热门、最新、搜索与旧版一致，显式筛选具名返回；Native持久与消费未验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicfury-filter016/"
+      ]
+    },
+    {
+      "id": "manhuashe-default-restore-existing-237-20261028",
+      "at": "2026-10-28T22:23:07+08:00",
+      "title": "237漫画社默认设置及旧书缓存已核",
+      "detail": "清除本轮镜像设置后完整设置与基线相等，默认目录及旧书缓存正文返回同页；库正常补部分章节排序字段。m206失败限定收到响应头之前，原因未知。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-default-restored-149/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-existing-book-150/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-existing-reader-151/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuashe019-existing-return-152/"
+      ]
+    },
+    {
+      "id": "comicfury-search-filter-misrouting-20261028-source_filters",
+      "at": "2026-10-28T22:38:18+08:00",
+      "title": "237 Comic Fury搜索筛选误请求目录",
+      "detail": "目录筛选已观察成功；搜索结果中选排序却发目录请求且结果未变，宿主修复已构建、真机待验。此时间是记录时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-browse-160/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-controls-162/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-sort-last-update-164/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-cleared-and-rest-165/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-search-166/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-options-167/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-popularity-168/"
+      ]
+    },
+    {
+      "id": "comicfury-search-filter-misrouting-20261028-source_settings_migration_audit",
+      "at": "2026-10-28T22:38:18+08:00",
+      "title": "237 Comic Fury搜索筛选误请求目录",
+      "detail": "目录筛选已观察成功；搜索结果中选排序却发目录请求且结果未变，宿主修复已构建、真机待验。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-browse-160/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-controls-162/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-sort-last-update-164/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-filter-cleared-and-rest-165/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-default-search-166/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-options-167/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/comicfury016-search-sort-popularity-168/"
+      ]
+    },
+    {
+      "id": "translation-user-full-migration-20261028",
+      "at": "2026-10-28T22:47:43+08:00",
+      "title": "用户已配置翻译服务并要求完整迁移",
+      "detail": "用户明确不只Torii，要求对照整个漫画翻译功能；初步缺项与三路线、Reader上下文仍在核对，key有效性与真实译图未验。此时间是记录时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "comicfury-filter-host-installed-20261028",
+      "at": "2026-10-28T22:47:43+08:00",
+      "title": "237筛选修复release包已安装",
+      "detail": "冻结release安装成功，前台书架及四域数据保持；Comic Fury筛选Native回验尚未完成。此时间是记录时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-host-install-170/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-host-launch-readback-171/"
+      ]
+    },
+    {
+      "id": "3hentai-filter-candidate-015-20261028",
+      "at": "2026-10-28T22:47:43+08:00",
+      "title": "3Hentai筛选候选已推",
+      "detail": "排序与文本筛选本地具名核对；CI、公开及Native待验，参考静态提示行未实现。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai-filter015/"
+      ]
+    },
+    {
+      "id": "reader-enhancement-theme-user-report-20261028",
+      "at": "2026-10-28T22:59:53+08:00",
+      "title": "登记超分指示器主题对比度反馈",
+      "detail": "用户反馈暗绿色主题几乎不可辨识，要求所有主题解决；本地修复尚未构建和实机验证。此时间为登记时间，非用户消息精确时刻。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint",
+      "evidence": [
+        "/Users/honjow/git/reader-kit/reader-ui/src/main/ets/ReaderEnhancementStatus.ets",
+        "/Users/honjow/git/reader-kit/reader-ui/src/main/ets/ReaderEnhancementContrast.ets"
+      ]
+    },
+    {
+      "id": "comicfury-filter-scope-native-20261028-source_filters",
+      "at": "2026-10-28T23:06:43+08:00",
+      "title": "237 Comic Fury搜索与目录筛选分流已核",
+      "detail": "搜索排序与重置实际调用search，目录重置调用目录；本轮筛选清除、其他源筛选及设置保持。提交推送进行中，精确CI未核，其他范围不外推。此时间是记录时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-178/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-popularity-179/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-reset-180/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-browse-reset-181/"
+      ]
+    },
+    {
+      "id": "comicfury-filter-scope-native-20261028-source_settings_migration_audit",
+      "at": "2026-10-28T23:06:43+08:00",
+      "title": "237 Comic Fury搜索与目录筛选分流已核",
+      "detail": "搜索排序与重置实际调用search，目录重置调用目录；本轮筛选清除、其他源筛选及设置保持。提交推送进行中，精确CI未核，其他范围不外推。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-178/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-popularity-179/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-search-reset-180/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/active-filter-comicfury-browse-reset-181/"
+      ]
+    },
+    {
+      "id": "source-237-filter-closeout-20261028",
+      "at": "2026-10-28T23:38:59+08:00",
+      "title": "237筛选具名回验与设备恢复",
+      "detail": "NHentai.to及3Hentai公开包目录/搜索排序具名回验，设置筛选恢复；回原书架后休眠、超时恢复并释租，其他筛选与挑战边界保留。此时间是记录时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-browse-192/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-browse-newest-195/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-search-newest-199/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/nhentaito-search-reset-200/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-installed-204/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-browse-209/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-browse-recent-212/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-search-popular-217/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/3hentai-search-reset-218/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/restore-reading-return-226/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-closeout-final-227/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-closeout-sleep-timeout-228/"
+      ]
+    },
+    {
+      "id": "source-web-237-restored-20261028",
+      "at": "2026-10-28T23:38:59+08:00",
+      "title": "237网页验证会话已恢复",
+      "detail": "原范围及书架恢复，设备休眠并释租；404、取消及未命中标题等场景仍开放。此时间是记录时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/restore-reading-return-226/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-closeout-final-227/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-closeout-sleep-timeout-228/"
+      ]
+    },
+    {
+      "id": "enhancement-emerald-197-20261028",
+      "at": "2026-10-28T23:38:59+08:00",
+      "title": "197暗绿主题超分指示器已核",
+      "detail": "真实增强页激活、临时关闭及再开图标清晰，页码和偏好保持；浅色主题及设备恢复待完成。此时间是记录时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/install-contrast-host-03/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-active-reader-12/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-off-13/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-on-14/"
+      ]
+    },
+    {
+      "id": "source-name-identity-scope-20261028",
+      "at": "2026-10-28T23:38:59+08:00",
+      "title": "书源身份具名证据补充",
+      "detail": "咚漫名称及官网图标一致，嗨皮缓存名称有据但当前主页及图标未知；其余未证边界保留，不从85设置行推身份完成数。此时间是记录时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-theme-197-restored-20261029",
+      "at": "2026-10-29T00:03:11+08:00",
+      "title": "197超分指示器具名主题及设备恢复",
+      "detail": "暗绿白HD、琥珀黑HD及临时切换已核，原偏好与阅读状态恢复并释租；shared已推，Koma依赖推送/CI待核，不外推全部主题。此时间是记录时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-active-reader-12/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-off-13/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-on-14/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/amber-active-reader-18/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/restore-reader-preferences-21/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/restore-original-reading-23/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/power-restore-and-sleep-24/"
+      ]
+    },
+    {
+      "id": "reader-enhancement-toggle-197-20261029",
+      "at": "2026-10-29T00:03:11+08:00",
+      "title": "197超分临时关闭及再开已核",
+      "detail": "真实增强页暗绿主题临时关闭与再开已观察，偏好保持；不代表漫画翻译迁移及真实译图通过。此时间是记录时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-active-reader-12/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-off-13/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-enhancement-status/emerald-temporary-on-14/"
+      ]
+    },
+    {
+      "id": "source-filter-ci-success-20261029",
+      "at": "2026-10-29T00:03:11+08:00",
+      "title": "搜索筛选分流精确CI成功",
+      "detail": "4232f2a3对应CI40712563864成功，保原237具名范围与其他未验边界。此时间是记录时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-theme-koma-ci-20261029",
+      "at": "2026-10-29T00:10:42+08:00",
+      "title": "超分指示器依赖提交精确CI成功",
+      "detail": "共享修复已推，Koma f9de精确CI成功；197暗绿、琥珀和临时切换具名验证，其他主题未逐一真机验证。此时间是记录时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "verified",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40721766878"
+      ]
+    },
+    {
+      "id": "translation-completion-release-built-20261029",
+      "at": "2026-10-29T00:23:33+08:00",
+      "title": "漫画翻译补齐的Release已构建",
+      "detail": "Torii、本地模型、自部署、LLM多源与译图缓存管理已有本地实现；首次符号错误修正后Release构建成功。Codex OAuth、试译报告等后续能力及安装、真机和真实译图仍待完成。此时间是记录时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/koma-translation-completion-build.log",
+        "/private/tmp/koma-translation-completion-release.hap"
+      ]
+    },
+    {
+      "id": "reader-settings-menu-confirmed-20261029",
+      "at": "2026-10-29T00:33:59+08:00",
+      "title": "用户明确阅读设置菜单，旧结构仍在修正",
+      "detail": "源码确认旧页面模式与方向重组菜单仍存在；保留控制栏两按钮，阅读设置复用相同菜单及四种互斥方向，连续滚动不进入单双页菜单。正在修正，尚未验收。此时间为登记时间。",
+      "itemId": "READER_SETTINGS_PLACEMENT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "translation-candidate-installed-20261029",
+      "at": "2026-10-29T00:33:59+08:00",
+      "title": "翻译候选已在237安装并观察入口",
+      "detail": "第二轮Release构建成功；普通服务翻译路径与字体菜单已观察，密钥保持掩码；真实译图及整体迁移尚未验收。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-settings-global-menu-20261029",
+      "at": "2026-10-29T00:49:51+08:00",
+      "title": "197全局阅读菜单已具名核验",
+      "detail": "单双页和四方向菜单、RTL休眠与偏好恢复已核；用户采用分页模式名称，Reader内菜单、设备收尾及提交待完成。此时间是登记时间。",
+      "itemId": "READER_SETTINGS_PLACEMENT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-transparent-reopened-20261029",
+      "at": "2026-10-29T00:49:51+08:00",
+      "title": "超分指示器按用户批准调整透明度",
+      "detail": "本地80%不透明底及按黑白背景最差对比选择图标，关键执行检查通过；此前实色方案证据保留，新方案尚未真机验收。此时间是登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-menu-final-197-20261029",
+      "at": "2026-10-29T01:12:15+08:00",
+      "title": "197最终阅读菜单及设备恢复已核",
+      "detail": "最终分页模式、两项与四方向、连续滚动禁用单页行、控制栏及原偏好已核；Koma提交推送及精确CI待确认。此时间是登记时间。",
+      "itemId": "READER_SETTINGS_PLACEMENT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-translucent-197-20261029",
+      "at": "2026-10-29T01:12:15+08:00",
+      "title": "197半透明指示器及设备恢复已核",
+      "detail": "真实增强页浅化绿底白HD，原偏好、书架数据和设备状态恢复；共享提交已推，Koma依赖提交推送及CI待确认。此时间是登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-menu-and-enhancement-ci-20261029",
+      "at": "2026-10-29T01:16:57+08:00",
+      "title": "阅读菜单与指示器提交精确CI成功",
+      "detail": "Koma 2a0c已推，CI40733358529成功；197菜单及半透明绿底具名范围收口，不扩大其他缺陷或全部主题。此时间是登记时间。",
+      "itemId": "READER_SETTINGS_PLACEMENT",
+      "kind": "verified",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40733358529"
+      ]
+    },
+    {
+      "id": "source-guazi-hcomic-public-20261029",
+      "at": "2026-10-29T01:16:57+08:00",
+      "title": "瓜子与H-Comic筛选公开包具名核验",
+      "detail": "瓜子0.1.4及H-Comic补修后的0.1.3公开WASM回放通过，保H-Comic旧索引反例；237 Native未验。此时间是登记时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "translation-resource-gap-20261029",
+      "at": "2026-10-29T01:16:57+08:00",
+      "title": "237翻译候选发现试译资源缺口",
+      "detail": "最终候选已安装，普通Torii配置仍在；试译行动态资源缺失，正在修复并核服务响应，真实译图未确认。此时间是登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "translation-service-entry-237-20261029",
+      "at": "2026-10-29T01:18:29+08:00",
+      "title": "237漫画翻译服务入口普通路径已确认",
+      "detail": "设置→服务→漫画翻译已进入Torii设置，既有路由具名范围收口；翻译功能与试译资源新修复仍在原迁移事项继续。此时间是登记时间。",
+      "itemId": "TRANSLATION_ENTRY_PLACEMENT",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/settings-root-04/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/services-05/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-torii-settings-06/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/install-full-evaluation-10/"
+      ]
+    },
+    {
+      "id": "torii-two-page-live-evaluation-20261029",
+      "at": "2026-10-29T01:30:56+08:00",
+      "title": "237 Torii两页真实试译及对比显示已核",
+      "detail": "普通服务设置路径真实评测两页ready，具名原图和中文译图已观察；整体迁移、Reader预处理和新资源重装仍待完成。此时间是登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/torii-live-evaluation-result-13/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/torii-first-translated-preview-14/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/torii-second-translated-preview-15/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/torii-second-translated-visible-16/"
+      ]
+    },
+    {
+      "id": "api23-user-accepted-20261029",
+      "at": "2026-10-29T01:32:38+08:00",
+      "title": "用户确认API23普通启动恢复",
+      "detail": "用户本轮明确表示实测已好并要求关闭；不补造设备身份或证据路径。此时间为登记时间。",
+      "itemId": "APP_STARTUP_API23_CRASH",
+      "kind": "verified"
+    },
+    {
+      "id": "tongli-home-still-blank-20261029",
+      "at": "2026-10-29T01:32:38+08:00",
+      "title": "用户反馈东立首页仍空白",
+      "detail": "首页问题仍待处理，与此前章节官网黑页和地区限制证据分开。此时间为登记时间。",
+      "itemId": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "translation-237-reading-restored-20261029",
+      "at": "2026-10-29T01:32:38+08:00",
+      "title": "237原书架及数据已恢复",
+      "detail": "原斗破01第1页3%及偏好、书库和会话基线已核；电源恢复仍进行中。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "translation-237-session-restored-20261029",
+      "at": "2026-10-29T01:36:51+08:00",
+      "title": "237翻译会话恢复并释租",
+      "detail": "原书架、偏好与数据基线已核；suspend后重现override，重新清除后读回SLEEP、正常超时无override并释租。整体翻译迁移仍开放。此时间是登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-original-shelf-restored-18/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-power-restored-19/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-final-timeout-cleared-20/"
+      ]
+    },
+    {
+      "id": "settings-grouping-197-20261029",
+      "at": "2026-10-29T01:46:02+08:00",
+      "title": "197设置分组及高级与关于已核",
+      "detail": "普通设置页面分组图标、高级诊断日志及关于页面具名验收；设备会话继续。此时间为登记时间。",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-top-22/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-bottom-23/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-advanced-content-24/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-about-content-25/"
+      ]
+    },
+    {
+      "id": "enhancement-40-percent-20261029",
+      "at": "2026-10-29T01:46:02+08:00",
+      "title": "用户要求超分指示器40%不透明",
+      "detail": "本地实施及197真机验证中，保先前80%方案证据，不视新方案已通过。此时间为登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tongli-home-reproduced-20261029",
+      "at": "2026-10-29T01:46:02+08:00",
+      "title": "237东立首页空白已复现",
+      "detail": "home能力开启但get_home返回空sections，同设备Popular有20本；源侧正在修正。此时间为登记时间。",
+      "itemId": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-package-sharing-request-20261029",
+      "at": "2026-10-29T02:02:44+08:00",
+      "title": "登记分享已安装源包需求",
+      "detail": "用户要求通过系统分享已安装源包，低优先级排在bug修复后；当前未实施。此时间为登记时间，原始提出时刻未核。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-homepage-globe-icon-20261029",
+      "at": "2026-10-29T02:02:44+08:00",
+      "title": "用户指定书源主页图标",
+      "detail": "源主页图标改为系统地球经纬线图标，实施与设备验证中。此时间为登记时间。",
+      "itemId": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-40-black-white-20261029",
+      "at": "2026-10-29T02:02:44+08:00",
+      "title": "197超分40%底色黑白背景已观察",
+      "detail": "具名xkcd同页黑白背景可辨；偏好及书库已核，原读态恢复和交付仍进行中。此时间为登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tongli-home-fixed-237-20261029",
+      "at": "2026-10-29T02:10:25+08:00",
+      "title": "237东立首页具名显示",
+      "detail": "首页Popular六封面与标题可见，原正文限制保持开放，设备恢复进行中。此时间为登记时间。",
+      "itemId": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "homepage-icon-build-push-20261029",
+      "at": "2026-10-29T02:10:25+08:00",
+      "title": "书源主页图标修正已提交",
+      "detail": "首选资源构建失败，改用SDK现有图标后构建及推送；设备和CI待核。此时间为登记时间。",
+      "itemId": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "enhancement-device-approval-20261029",
+      "at": "2026-10-29T02:10:25+08:00",
+      "title": "197恢复操作被自动审批拒绝",
+      "detail": "审批未识别197授权，已向用户说明并等待明确授权；未绕过，租约和读态恢复待处理。共享及Koma依赖提交已推，CI待核。此时间为登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tongli-home-feedback-accepted-20261029",
+      "at": "2026-10-29T02:13:00+08:00",
+      "title": "东立首页空白反馈独立登记并具名验收",
+      "detail": "237公开0.1.5首页Popular封面及标题实际可见；原章节正文事项保持开放。此时间为登记时间，非用户反馈精确时间。",
+      "itemId": "TONGLI_HOME_BLANK",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/tongli-home-fixed-263/screen.png"
+      ]
+    },
+    {
+      "id": "source-session-237-filter-restored-20261029",
+      "at": "2026-10-29T02:20:16+08:00",
+      "title": "237书源筛选具名验证及会话恢复",
+      "detail": "瓜子与H-Comic公开包普通目录及搜索筛选具名验证；书架、设置、数据及电源恢复并释租，不扩大其他筛选值。此时间为登记时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/guazi-search-category-246/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/hcomic-search-fullcolor-255/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-return-264/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-sleep-265/"
+      ]
+    },
+    {
+      "id": "translation-oauth-foundation-20261029",
+      "at": "2026-10-29T02:20:16+08:00",
+      "title": "翻译OAuth基础本地补充",
+      "detail": "按source存储及登录刷新基础和Reader两个提供方已补；UI、usage与Native待完成。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-filter-237-detail-20261029",
+      "at": "2026-10-29T02:20:20+08:00",
+      "title": "补充237两源筛选具名范围",
+      "detail": "瓜子目录恋爱36本、搜索爱加恋爱；H-Comic目录全彩10本、搜索love加全彩，搜索请求实际完成，重置后筛选为空。具名证据为布局与运行记录，筛选过程无截图。此时间为登记时间。",
+      "itemId": "SOURCE_FILTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "device-197-237-authorization-20261029",
+      "at": "2026-10-29T02:24:29+08:00",
+      "title": "用户明确持续授权197及237验收",
+      "detail": "用户允许继续197本轮验收和恢复，并明确后续两台设备本项目验收无需重复询问；此前审批拒绝记录保留。40%超分具名结果及Koma精确CI已核，197设备恢复继续。此时间为登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40742436354"
+      ]
+    },
+    {
+      "id": "source-homepage-globe-197-20261029",
+      "at": "2026-10-29T02:41:23+08:00",
+      "title": "197书源主页地球图标已核",
+      "detail": "崩坏3 IP站普通目录可见经纬地球图标及23本封面；Komiic原未验范围继续开放。此时间为登记时间。",
+      "itemId": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/source-homepage-globe-honkai-45/",
+        "https://github.com/honjow/Koma/actions/runs/40742436354"
+      ]
+    },
+    {
+      "id": "enhancement-40-restored-197-20261029",
+      "at": "2026-10-29T02:44:58+08:00",
+      "title": "197超分具名范围及设备恢复完成",
+      "detail": "40%底色黑白背景已核并完成提交CI；原Blue读态、偏好、书库和电源恢复，租约已释。其他主题未逐一真机验证。此时间为登记时间。",
+      "itemId": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "kind": "verified"
+    },
+    {
+      "id": "manager-publication-video-gap-20261029",
+      "at": "2026-10-29T02:44:58+08:00",
+      "title": "管理器后台发布瞬间仍待录证",
+      "detail": "已有连续录屏结束早于实际fetch_ok，不能认定发布瞬间已覆盖；普通入口补录进行中。此时间为登记时间。",
+      "itemId": "MANAGER_REFRESH_BACKGROUND",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "manager-background-publication-197-20261029",
+      "at": "2026-10-29T02:48:41+08:00",
+      "title": "197管理器后台发布连续过程已核",
+      "detail": "普通入口录屏覆盖真实fetch_ok，发布前后及重入未见全表清空或图标全闪；部分地址失败保留，设备已恢复并释租。此时间为登记时间。",
+      "itemId": "MANAGER_REFRESH_BACKGROUND",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/manager-background-refresh/ordinary-entry-through-completion-02/",
+        "/private/tmp/koma-manager-background197-recording.json"
+      ]
+    },
+    {
+      "id": "source-scope-asmhentai-repair-20261029",
+      "at": "2026-10-29T02:52:24+08:00",
+      "title": "筛选作用域候选构建及AsmHentai解析修复",
+      "detail": "Host候选构建成功、MH1234真机待验；AsmHentai 237目录HTTP200后源操作失败，真实HTML复现并修属性回退，公开及Native待核。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/koma-filter-scope-header-build.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-failure-273/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-log-recv-277/"
+      ]
+    },
+    {
+      "id": "translation-codex-sources-build-20261029",
+      "at": "2026-10-29T02:58:42+08:00",
+      "title": "翻译源与Codex设备码流程本地构建",
+      "detail": "API/Codex源、设备码、独立用量及Reader提供方选择已补并构建；新增UI及网络账户路径未装机，Reader未来页预处理仍待。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/koma-translation-sources-build.log"
+      ]
+    },
+    {
+      "id": "asmhentai-browse-selfcheck-20261029",
+      "at": "2026-10-29T03:01:52+08:00",
+      "title": "AsmHentai目录失败独立登记",
+      "detail": "237自检0.1.2目录失败，源修复后公开0.1.3显示19本；短标题设置和设备恢复仍在进行。此时间是登记时间。",
+      "itemId": "ASM_HENTAI_BROWSE_RUNTIME_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-default-272/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-failure-273/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-log-recv-277/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-public-browse-293/"
+      ]
+    },
+    {
+      "id": "zerobyw-web-entry-feedback-20261029",
+      "at": "2026-10-29T03:25:17+08:00",
+      "title": "登记Zero搬运网网页入口反馈",
+      "detail": "用户反馈漫画页面缺少WebView及浏览器打开入口；待实机复现。此时间为登记时间。",
+      "itemId": "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "zerobyw-chapter-feedback-20261029",
+      "at": "2026-10-29T03:25:17+08:00",
+      "title": "登记Zero搬运网章节不全反馈",
+      "detail": "用户观察似乎只有5章，数量与真实章节待核实；尚未实机复现。此时间为登记时间。",
+      "itemId": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "zerobyw-237-reproduced-20261029",
+      "at": "2026-10-29T03:30:41+08:00",
+      "title": "237复现Zero详情入口与章节问题",
+      "detail": "《逐神骑士》详情显示5章且菜单无网页入口；宿主无5章截断，源详情未提供网页链接，章节原因仍调查。此时间为登记时间。",
+      "itemId": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-detail-342/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/zero-detail-menu-343/"
+      ]
+    },
+    {
+      "id": "translation-source-manager-197-20261029",
+      "at": "2026-10-29T03:30:41+08:00",
+      "title": "197翻译源管理具名路径已核",
+      "detail": "API/Codex源创建保存重入、删除后不复活及原状态恢复已核；真实账户网络与Reader预处理仍未验。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-mh1234-preload-feedback-20261029",
+      "at": "2026-10-29T03:46:12+08:00",
+      "title": "登记漫画12342网章末预载反馈",
+      "detail": "用户反馈RTL末页出现正在加载源详情后切章；源身份及普通路径待核。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-loading-contrast-feedback-20261029",
+      "at": "2026-10-29T03:46:12+08:00",
+      "title": "登记白灰背景加载提示不可见",
+      "detail": "用户反馈白灰背景下白色进度条与文字不可见，要求白底深色；待复现修复。此时间为登记时间。",
+      "itemId": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "zerobyw-adopted-32-20261029",
+      "at": "2026-10-29T03:46:12+08:00",
+      "title": "用户采用Zero完整目录及锁章方案",
+      "detail": "用户明确采用全32章、锁标识及本站登录入口；实现与237回验进行中。此时间为登记时间。",
+      "itemId": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-loading-preload-causes-20261029",
+      "at": "2026-10-29T03:56:37+08:00",
+      "title": "阅读器加载对比与章末预载定位",
+      "detail": "加载硬编码白色已改画布前景色；MH1234缺续读元数据，按真实阅读顺序接入合同，均待构建及真机。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "zerobyw-web-entry-237-20261029",
+      "at": "2026-10-29T03:56:37+08:00",
+      "title": "237 Zero漫画网页入口已验收",
+      "detail": "公开0.1.6两种入口均实际打开具名作品；完整锁章目录和登录会话另行跟踪。设备原状态已恢复并释租。此时间为登记时间。",
+      "itemId": "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
+      "kind": "verified"
+    },
+    {
+      "id": "reader-boundary-original-reproduced-20261029",
+      "at": "2026-10-29T04:07:30+08:00",
+      "title": "197旧版MH1234章末等待已复现",
+      "detail": "多页RTL最后页后才触发源详情加载并等待图片；旧88实际退页不作跨章证据。修复及加载配色候选已构建，197回验待完成。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public014-rtl-boundary-motion-90/"
+      ]
+    },
+    {
+      "id": "reader-loading-color-correction-20261029",
+      "at": "2026-10-29T04:11:00+08:00",
+      "title": "用户明确灰底白色、白底深色",
+      "detail": "仅加载提示按新要求调整，最新候选重建中；197原MH1234为0.1.3，run90目录名014属误标，原复现不变。此时间为登记时间。",
+      "itemId": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mh1234-native-prepend-black-20261029",
+      "at": "2026-10-29T04:19:51+08:00",
+      "title": "MH1234新候选出现黑屏",
+      "detail": "多页章准备后出现黑屏；原生前插重复位移为候选原因，已调整并重新构建，等待真机回验确认。无效日志不作证据。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mpc-candidate-237-20261029",
+      "at": "2026-10-29T04:19:51+08:00",
+      "title": "237 MPC筛选候选具名验证及恢复",
+      "detail": "目录筛选、提示、搜索及重置具名已核，搜索态筛选隐藏未单独证实；原包和设备已恢复，候选未发布。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-final-shelf-407/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-final-sleep-408/"
+      ]
+    },
+    {
+      "id": "trim-reopen-stall-feedback-20261029",
+      "at": "2026-10-29T04:25:19+08:00",
+      "title": "登记去白边重进后关闭卡加载",
+      "detail": "用户描述两次进入后关闭设置半模态时图片卡准备状态，另有开启重复加载；单次开关不能替代复现。此时间为登记时间。",
+      "itemId": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mpc-komiic-public-237-20261029",
+      "at": "2026-10-29T04:25:19+08:00",
+      "title": "237 MPC公开包与Komiic网页具名核验",
+      "detail": "MPC公开014筛选具名核验，搜索态筛选隐藏未单独证实；Komiic网页显示登录页及站方提示，最终URL和登录原因未核；设备已恢复释租。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mh1234-candidate-107-black-20261029",
+      "at": "2026-10-29T04:25:19+08:00",
+      "title": "MH1234索引候选仍黑屏",
+      "detail": "未生效索引调整已撤回，整章批量数据通知候选重建；根因未确认。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-homepage-scope-accepted-20261029",
+      "at": "2026-10-29T04:25:50+08:00",
+      "title": "书源主页原问题具名范围验收",
+      "detail": "GoDa官网、Komiic普通菜单真实站点及197地球图标均已核；账户和正文不在本项结论内。MPC公开014 Header与Action具名范围已验，整体源审计仍开放。此时间为登记时间。",
+      "itemId": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "kind": "verified"
+    },
+    {
+      "id": "mh1234-fresh-chapter-candidate-20261029",
+      "at": "2026-10-29T04:30:24+08:00",
+      "title": "197候选未访问章节连续跨章已核",
+      "detail": "RTL多页章提前准备并原生平移进入未访问下一章，未见源详情等待或黑底重载；公开源包及设备收尾仍待。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-final015-rtl-fresh-chapter3-motion-110/"
+      ]
+    },
+    {
+      "id": "trim-reopen-original-condition-20261029",
+      "at": "2026-10-29T04:39:54+08:00",
+      "title": "197纯原图条件两次进入未复现",
+      "detail": "超分关闭时，裁剪开启、退出重进再关闭及滑页未见卡加载；用户反馈仍开放，超分与裁剪同时开启路径正在验证。此时间为登记时间。",
+      "itemId": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "trim-superresolution-confirmed-20261029",
+      "at": "2026-10-29T04:50:53+08:00",
+      "title": "用户确认去白边故障时超分开启",
+      "detail": "197观察到整批增强重复与HD持续转圈，原图仍可见；缓存身份修复候选回验中，未冒用户全部卡死细节已复现。此时间为登记时间。",
+      "itemId": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "kind": "checkpoint",
+      "evidence": [
+        "/tmp/reader-crop-processing-native-batch.log"
+      ]
+    },
+    {
+      "id": "translation-zero-preload-demand-20261029",
+      "at": "2026-10-29T04:50:53+08:00",
+      "title": "零预载自动翻译执行回归已修",
+      "detail": "分页及条漫补回独立预处理页，原执行期望未改；真实Torii普通路径未验。此时间为登记时间。",
+      "itemId": "MANGA_TRANSLATION_PREPROCESS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "chapter-list-divider-feedback-20261029",
+      "at": "2026-10-29T04:54:29+08:00",
+      "title": "登记章节列表分割线和点击反馈",
+      "detail": "用户反馈分割线间歇消失、列表项缺点击反馈并授权103查看；当前页面待核，不安装或切章。此时间为登记时间。",
+      "itemId": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "chapter-list-103-reproduced-20261029",
+      "at": "2026-10-29T04:59:54+08:00",
+      "title": "103章节分割线异常已观察",
+      "detail": "当前作品列表具名见部分分割线消失，候选保原样式改原生分割及按压反馈，构建完成但197待验；103原状态恢复释租。此时间为登记时间。",
+      "itemId": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device103__MLR-AL00/not-applicable/portrait-1600x2560/chapter-list/chapter-list-current-screen-004/"
+      ]
+    },
+    {
+      "id": "asmhentai-settings-accepted-20261029",
+      "at": "2026-10-29T05:04:31+08:00",
+      "title": "AsmHentai目录与短标题设置具名验收",
+      "detail": "237公开013目录、短标题开启保存重入和清除恢复已核，设置数据及设备恢复释租；不扩其他路径。证据为layout。此时间为登记时间。",
+      "itemId": "ASM_HENTAI_BROWSE_RUNTIME_FAILURE",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-setting-295/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-short-enabled-296/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-clear-setting-297/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/asmhentai-setting-restored-298/"
+      ]
+    },
+    {
+      "id": "chapter-press-scope-corrected-20261029",
+      "at": "2026-10-29T05:04:31+08:00",
+      "title": "章节行按压反馈范围纠正",
+      "detail": "按用户明确要求反馈不覆盖外卡片或整列表，候选改复用内缩圆角反馈，构建与197验收待完成。此时间为登记时间。",
+      "itemId": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "trim-superresolution-same-manga-197-20261029",
+      "at": "2026-10-29T05:07:53+08:00",
+      "title": "197同作超分开启重进路径已核",
+      "detail": "开启超分与裁剪、退出重进后关闭裁剪及滑页，图像持续显示；交付及设备恢复待完成，旧包全部卡死细节未复现。此时间为登记时间。",
+      "itemId": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mpc-search-scope-237-20261029",
+      "at": "2026-10-29T05:09:41+08:00",
+      "title": "237 MPC搜索筛选作用域已核",
+      "detail": "搜索态无筛选入口，清查询后目录筛选恢复；原数据和设备状态恢复释租，整体源审计继续开放。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-ui-431/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-cleared-432/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-final-433/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/mpc-search-sleep-437/"
+      ]
+    },
+    {
+      "id": "trim-shared-pushed-20261029",
+      "at": "2026-10-29T05:15:17+08:00",
+      "title": "裁剪缓存修复已推共享仓",
+      "detail": "共享修复及自动翻译零预载预算恢复已推，Koma依赖和197恢复待完成。此时间为登记时间。",
+      "itemId": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "chapter-original-text-restored-20261029",
+      "at": "2026-10-29T05:15:17+08:00",
+      "title": "章节列表候选保留原文字样式",
+      "detail": "发现默认HDS文字导致字号和行高变化后已撤回，新候选复用内缩反馈并保原文字，197回验中。此时间为登记时间。",
+      "itemId": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "chapter-list-197-candidate-20261029",
+      "at": "2026-10-29T05:32:35+08:00",
+      "title": "197章节分割与行内反馈已核",
+      "detail": "原字号行距、12行分割线、内缩按压及既有长按普通进入具名验证；提交已推，精确CI待确认。此时间为登记时间。",
+      "itemId": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-white-loading-197-20261029",
+      "at": "2026-10-29T05:32:35+08:00",
+      "title": "197白底加载提示已核",
+      "detail": "未访问页加载时深色进度与文字可见，灰底白色待验。此时间为登记时间。",
+      "itemId": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "chapter-ci-success-20261029",
+      "at": "2026-10-29T05:34:51+08:00",
+      "title": "章节列表修复精确CI成功",
+      "detail": "c68c75dd对应CI40771912927成功；197原状态恢复仍待，103未安装候选。此时间为登记时间。",
+      "itemId": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40771912927"
+      ]
+    },
+    {
+      "id": "simply-challenge-host-candidate-20261029",
+      "at": "2026-10-29T05:34:51+08:00",
+      "title": "Simply验证信号接线候选待回验",
+      "detail": "原明确challenge信号被降级，旧Host候选仍403；普通目录及首搜索接线候选构建和237回验中，默认403与精确API origin边界保持。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-gray-loading-197-20261029",
+      "at": "2026-10-29T05:48:38+08:00",
+      "title": "197灰底加载提示已核",
+      "detail": "灰底白色进度和文字可见，最终图片正常；白底深色既有具名结果保留，共享及Koma交付和设备恢复待完成。此时间为登记时间。",
+      "itemId": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/reader-gray-uncached-page-loading-motion-159/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/reader-gray-loading-terminal-160/"
+      ]
+    },
+    {
+      "id": "reader-loading-crop-pushed-20261029",
+      "at": "2026-10-29T05:54:22+08:00",
+      "title": "加载及裁剪共享修复与依赖已推",
+      "detail": "共享及Koma依赖已推，精确CI进行中，197恢复未完成；保持具名真机边界。此时间为登记时间。",
+      "itemId": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "simply-first-candidate-restored-20261029",
+      "at": "2026-10-29T05:54:22+08:00",
+      "title": "Simply首轮候选仍403并已恢复",
+      "detail": "原包、用户数据、会话记录及设备状态已恢复释租；请求与验证页UA不一致，修正回验中，403原因未定。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "mh1234-public-rtl-roundtrip-197-20261029",
+      "at": "2026-10-29T06:02:15+08:00",
+      "title": "197公开MH1234多页RTL往返跨章已核",
+      "detail": "公开015实体一致，未访问下一章提前准备并连续往返，无清空、先小后大或源详情等待；Host合同交付及设备恢复待完成。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public015-rtl-chapter5-roundtrip-171/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/mh1234-public015-chapter5-terminal-172/"
+      ]
+    },
+    {
+      "id": "reader-loading-crop-ci-success-20261029",
+      "at": "2026-10-29T06:02:15+08:00",
+      "title": "阅读器共享依赖精确CI成功",
+      "detail": "Koma 0ac87bd精确CI40775085588成功；197原状态恢复待完成。此时间为登记时间。",
+      "itemId": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40775085588"
+      ]
+    },
+    {
+      "id": "reader-197-final-delivery-20261029",
+      "at": "2026-10-29T06:08:37+08:00",
+      "title": "197三项阅读器具名修复及恢复完成",
+      "detail": "加载配色、同作裁剪路径及公开015多页RTL跨章具名验证和交付已核；原源、阅读数据及电源恢复释租。旧包全图卡死细节未复现，不扩大范围。此时间为登记时间。",
+      "itemId": "READER_MH1234_BOUNDARY_PRELOAD",
+      "kind": "verified",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40776916652"
+      ]
+    },
+    {
+      "id": "simply-ua-candidate-restored-20261029",
+      "at": "2026-10-29T06:08:37+08:00",
+      "title": "Simply UA候选仍403并恢复",
+      "detail": "手动验证后仍403，日志中UA不一致及Cookie读取为空，原因未定；原宿主、源包、数据及设备已恢复释租。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "xkcd-grouped-cold-page-20261029",
+      "at": "2026-10-29T06:20:13+08:00",
+      "title": "237 xkcd年月分组冷页已核",
+      "detail": "2024-08分组2977中文正文真实显示，reader自然新增本次记录；原书库设置及设备恢复释租，其他页面未外推。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/xkcd-cold-read-518/"
+      ]
+    },
+    {
+      "id": "zerobyw-32-candidate-20261029",
+      "at": "2026-10-29T06:20:13+08:00",
+      "title": "237 Zero候选显示32章及锁标",
+      "detail": "具名目录已见，登录、游客权限、公开交付及设备恢复仍待。此时间为登记时间。",
+      "itemId": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "zero-existing-host-contract-20261029",
+      "at": "2026-10-29T06:26:34+08:00",
+      "title": "Zero采用既有宿主合同回验",
+      "detail": "先前候选具名目录及游客锁章已观察，新增门槛撤回，现用既有宿主重新回验；不将旧候选证据转移。宿主请求关联精确CI成功。此时间为登记时间。",
+      "itemId": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40779011098"
+      ]
+    },
+    {
+      "id": "zero-existing-host-candidate-237-20261029",
+      "at": "2026-10-29T06:28:40+08:00",
+      "title": "237 Zero无门槛候选具名回验",
+      "detail": "现有宿主搭配新候选实体已核，32章及游客锁章显示；免费首章画面待亲审，不以旧候选代验。此时间为登记时间。",
+      "itemId": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "kind": "checkpoint"
+    }
+  ],
   "reportAgeAudit": {
     "asOf": "2026-10-26T03:33:52+08:00",
     "openTotal": 26,
