@@ -80,6 +80,9 @@ export struct ConciseListRow {
   @Event actionButtonAction?: () => void
   @BuilderParam suffixBuilderParam?: () => void
   @BuilderParam prefixBuilderParam?: () => void
+  // Preserve a caller's established text geometry while sharing the native
+  // inset press/hover surface. Existing rows retain their HDS text contract.
+  @BuilderParam textBuilderParam?: () => void
   @BuilderParam dropdownMenuBuilder: (select: (action: () => void) => void) => void =
     this.EmptyDropdownMenu
   @Event switchAction?: (value: boolean) => void
@@ -525,15 +528,23 @@ export struct ConciseListRow {
   }
 
   @Builder
+  private WrappedTextBuilder() {
+    if (this.textBuilderParam) {
+      this.textBuilderParam()
+    }
+  }
+
+  @Builder
   private RowContent() {
     HdsListItemCard({
       textItem: {
-        customBuilder: this.subtitleContentRating ? () => { this.ContentRatedText() } : undefined,
-        primaryText: {
+        customBuilder: this.textBuilderParam ? () => { this.WrappedTextBuilder() }
+          : (this.subtitleContentRating ? () => { this.ContentRatedText() } : undefined),
+        primaryText: this.textBuilderParam ? undefined : {
           text: this.title,
           modifier: this.primaryTextModifier(),
         },
-        secondaryText: this.subtitle ? {
+        secondaryText: !this.textBuilderParam && this.subtitle ? {
           text: this.subtitle,
           modifier: this.secondaryTextModifier(),
         } : undefined,

@@ -5,7 +5,7 @@ import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
 import { KomaIconButton } from './ui/KomaIconButton'
 import { KomaMenuChip } from './ui/KomaMenuChip'
-import { ListDivider } from './ui/GroupedListSection'
+import { ConciseListRow } from './ui/ConciseListRow'
 import { ChapterSortBasis, ChapterSortDirection, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -555,49 +555,65 @@ export struct ChapterListSection {
   }
 
   @Builder
-  private ChapterRow(ri: RepeatItem<MangaChapterItem>) {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      Column({ space: ThemeConstants.SPACE_XS }) {
-        Text(this.chapterTitle(ri.item))
-          .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
-          .fontColor(ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
-          .fontWeight(ri.item.isRead ? FontWeight.Regular : FontWeight.Medium)
+  private ChapterDownloadAction(ri: RepeatItem<MangaChapterItem>) {
+    if (this.shouldShowDownloadStatus(ri.item)) {
+      this.DownloadStatusBadge(ri)
+    } else {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph(ri.item.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
+          .fontSize(18)
+          .fontColor([ri.item.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
+      }
+      .width(36)
+      .height(36)
+      .backgroundColor(Color.Transparent)
+      .onClick(() => {
+        if (!ri.item.isDownloaded) {
+          this.onDownloadChapter(ri.item.id)
+        }
+      })
+    }
+  }
+
+  @Builder
+  private ChapterText(ri: RepeatItem<MangaChapterItem>) {
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      Text(this.chapterTitle(ri.item))
+        .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
+        .fontColor(ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
+        .fontWeight(ri.item.isRead ? FontWeight.Regular : FontWeight.Medium)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.chapterSubtitle(ri.item).length > 0) {
+        Text(this.chapterSubtitle(ri.item))
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor($r('sys.color.font_secondary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        if (this.chapterSubtitle(ri.item).length > 0) {
-          Text(this.chapterSubtitle(ri.item))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor($r('sys.color.font_secondary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      if (this.shouldShowDownloadStatus(ri.item)) {
-        this.DownloadStatusBadge(ri)
-      } else {
-        Button({ type: ButtonType.Circle, stateEffect: true }) {
-          SymbolGlyph(ri.item.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
-            .fontSize(18)
-            .fontColor([ri.item.isDownloaded ? ThemeConstants.BRAND_PRIMARY : $r('sys.color.font_tertiary')])
-        }
-        .width(36)
-        .height(36)
-        .backgroundColor(Color.Transparent)
-        .onClick(() => {
-          if (!ri.item.isDownloaded) {
-            this.onDownloadChapter(ri.item.id)
-          }
-        })
       }
     }
     .width('100%')
-    .alignItems(VerticalAlign.Center)
-    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM, left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-    .onClick(() => {
-      this.onOpenChapter(ri.item.id)
+    .alignItems(HorizontalAlign.Start)
+    // HDS measures the text slot independently of a custom suffix. Preserve
+    // the original row's 36vp download-button minimum without fixing height.
+    .constraintSize({ minHeight: this.shouldShowDownloadStatus(ri.item) ? 0 : 36 })
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  private ChapterRow(ri: RepeatItem<MangaChapterItem>) {
+    // Use the same inset HDS press surface as other grouped rows. The outer
+    // ListItem/card never owns feedback; its 4vp margin stays unchanged.
+    ConciseListRow({
+      title: this.chapterTitle(ri.item),
+      subtitle: this.chapterSubtitle(ri.item),
+      subtitleMaxLines: 1,
+      showChevron: false,
+      primaryColor: ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'),
+      textBuilderParam: () => { this.ChapterText(ri) },
+      suffixPaddingRight: ThemeConstants.SPACE_SM,
+      suffixBuilderParam: () => { this.ChapterDownloadAction(ri) },
+      action: () => { this.onOpenChapter(ri.item.id) },
     })
     .bindContextMenu(this.ReadStateMenu(ri), ResponseType.LongPress, komaContextMenuOptions())
   }
@@ -753,15 +769,14 @@ export struct ChapterListSection {
                 } else {
                   this.ChapterRow(ri)
                 }
-                if (ri.index < this.sortedChapters.length - 1) {
-                  ListDivider()
-                }
               }
               .width('100%')
               .padding({
                 left: ThemeConstants.LIST_SECTION_INSET,
                 right: ThemeConstants.LIST_SECTION_INSET,
                 top: ri.index === 0 ? ThemeConstants.LIST_SECTION_INSET : 0,
+                // The native group reserves the separator's own stroke height;
+                // a second per-cell spacer would increase every row.
                 bottom: ri.index === this.sortedChapters.length - 1 ? ThemeConstants.LIST_SECTION_INSET : 0,
               })
               .backgroundColor(ThemeConstants.CARD)
@@ -779,5 +794,10 @@ export struct ChapterListSection {
       }
     }
     .width('100%')
+    // The native group owns separators across virtualized, independently
+    // clipped cells. Chapter/open/download/selection handlers stay independent.
+    .divider({ strokeWidth: 0.5, color: ThemeConstants.DIVIDER,
+      startMargin: ThemeConstants.LIST_SECTION_INSET + ThemeConstants.SPACE_LG,
+      endMargin: ThemeConstants.LIST_SECTION_INSET })
   }
 }
