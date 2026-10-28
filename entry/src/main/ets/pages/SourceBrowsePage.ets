@@ -307,8 +307,26 @@ export struct SourceBrowsePage {
     void this.viewModel.retryBrowseFailure()
   }
 
-  private setBrowseFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
+  private setRuntimeFilterValue(filter: SourceFilter, value: SourceFilterControlValue | undefined): void {
+    // This page owns both listings and source search. The shared sheet must
+    // target the visible result's scope, including its saved values and busy
+    // state (CURRENT_STATUS: SOURCE_SETTINGS_MIGRATION_AUDIT / SOURCE_FILTERS).
+    if (this.isSearchActive()) {
+      if (this.viewModel.setSearchFilterValue(filter.id, value)) {
+        this.submitBrowseSearch(this.chrome.query)
+      }
+      return
+    }
     void this.viewModel.setBrowseFilterValue(filter.id, value)
+  }
+
+  private resetRuntimeFilters(): void {
+    if (this.isSearchActive()) {
+      this.viewModel.resetSearchFilters()
+      this.submitBrowseSearch(this.chrome.query)
+      return
+    }
+    void this.viewModel.resetBrowseFilters()
   }
 
   private hasRuntimeFilters(): boolean {
@@ -377,14 +395,14 @@ export struct SourceBrowsePage {
   private RuntimeFilterControls() {
     SourceFilterControls({
       filters: this.viewModel.filters,
-      values: this.viewModel.browseFilterValues,
-      busy: this.viewModel.loadingBrowse,
+      values: this.isSearchActive() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
+      busy: this.isSearchActive() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse,
       vertical: true,
       onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
-        this.setBrowseFilterValue(filter, value)
+        this.setRuntimeFilterValue(filter, value)
       },
       onReset: () => {
-        void this.viewModel.resetBrowseFilters()
+        this.resetRuntimeFilters()
       },
     })
   }
@@ -626,12 +644,12 @@ export struct SourceBrowsePage {
       title: s('common_filter'),
       resetLabel: s('common_reset'),
       showReset: true,
-      resetEnabled: !this.viewModel.loadingBrowse,
+      resetEnabled: !(this.isSearchActive() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse),
       onClose: () => {
         this.closeFilters()
       },
       onReset: () => {
-        void this.viewModel.resetBrowseFilters()
+        this.resetRuntimeFilters()
       },
     }) {
       this.RuntimeFilterControls()
