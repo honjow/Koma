@@ -68,12 +68,13 @@ export struct KomaReaderLabPage {
   @Event onRouteVisibleChange: (visible: boolean) => void = (_visible: boolean) => {}
   @Event onRouteDisappear: () => void = () => {}
   @Local private seriesOverrideActive: boolean = false
-  // Original Koma ReaderChrome geometry and action placement. Shared routing
-  // does not authorize replacing it with the Kit's default appearance.
+  // Original Koma ReaderChrome geometry and action placement. The counter
+  // sides follow RTL together with the reversed slider; leaving them fixed
+  // made the neighbouring page numbers disagree with the track direction.
   private chromeAppearance: ReaderChromeAppearance = {
     bottomHeight: 104, sliderHeight: 32, controlsHeight: 52,
     controlsPadding: ThemeConstants.SPACE_LG, columnSpacing: 0,
-    topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: true, mediaActionsInMenu: true,
+    topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: false, mediaActionsInMenu: true,
     spreadControlsLeading: true,
   }
   @Local private translationSettings: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()
@@ -568,10 +569,15 @@ export struct KomaReaderLabPage {
     if (snapshot.phase !== 'ready' || snapshot.unit === null ||
       !snapshot.unit.key.equals(position.anchor.unit)) return
     if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
+      const continuousChapterChanged = this.observedCatalogUnit !== null && snapshot.policy.layout === 'continuous'
       this.syncChapterChoices(position.anchor.unit)
       const config = this.adapter?.sessionConfig(position.anchor.unit) ?? null
       if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
       this.observedCatalogUnit = position.anchor.unit.copy()
+      if (continuousChapterChanged && !this.chapterBusy) {
+        const title = this.adapter?.chapterTitle(position.anchor.unit).trim() ?? ''
+        if (title.length > 0) this.getUIContext().getPromptAction().showToast({ message: title })
+      }
     }
     this.observeTranslationPosition(position)
     this.observedSourceSignature = signature
@@ -741,9 +747,9 @@ export struct KomaReaderLabPage {
   private translationPreference(page: ReaderPage, automatic: boolean): ReaderVariantPreference {
     const index = page.sourceIndex
     const sameUnit = this.translationUnit?.equals(page.unit) === true
-    // An explicit page request stays with that page; preloading a later page must
-    // not turn an earlier manual choice into an automatic translation request.
-    const requested = this.translationRequestedPages.includes(index) ||
+    // An explicit page request belongs to its current chapter only. A later
+    // chapter may inherit the automatic setting, never another chapter's page controls.
+    const requested = (sameUnit && this.translationRequestedPages.includes(index)) ||
       (this.translationAutoEnabled && automatic && (!sameUnit || !this.translationAutoFailedPages.includes(index)))
     const identity = this.translationConfiguration(page).identity()
     return requested && (!sameUnit || !this.translationHiddenPages.includes(index)) && identity.length > 0

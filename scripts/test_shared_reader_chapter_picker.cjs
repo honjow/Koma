@@ -96,7 +96,8 @@ test('a newer picker target cancels preparation and is the only chapter opened',
   let releaseB
   const pendingB = new Promise(resolve => { releaseB = resolve })
   const opened = []
-  const adapter = { prepare: target => target.unit === 'B' ? pendingB : Promise.resolve() }
+  const adapter = { prepare: target => target.unit === 'B' ? pendingB : Promise.resolve(),
+    chapterPrepared: () => false, chapterTitle: () => '' }
   const session = {
     snapshot: () => ({ phase: 'ready', unit: { key: current } }),
     open: async target => { opened.push(target.unit); current = target },
@@ -169,7 +170,8 @@ test('backward chapter continuation uses prepared final page while next and pick
         snapshot: () => ({ phase: 'ready', unit: { key: current } }),
         open: async (target, index) => { opened.push([target.unit, index]); current = target },
       },
-      adapter: { prepare: async target => ({ key: target, pageCount: count }) },
+      adapter: { prepare: async target => ({ key: target, pageCount: count }),
+        chapterPrepared: () => false, chapterTitle: () => '' },
       routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
       chapterRequest: null, chapterBusy: false,
       runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
@@ -178,6 +180,36 @@ test('backward chapter continuation uses prepared final page while next and pick
     await page.openChapterTarget(key('B'), source, reason)
     assert.deepEqual(opened, [['B', expected]], reason)
     assert.equal(page.chapterBusy, false)
+  }
+})
+
+test('a prepared boundary skips the loading toast and announces only the opened chapter', async () => {
+  class ReaderCancellation {
+    cancel() { this.cancelled = true }
+    isCancelled() { return this.cancelled === true }
+  }
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['openChapterTarget'], {
+    ReaderCancellation, $r: value => value, DiagnosticLogger: { info() {}, warn() {} },
+  })
+  for (const [prepared, reason, expected] of [
+    [true, 'next', ['Beta']],
+    [false, 'next', ['app.string.manga_detail_loading_source', 'Beta']],
+    [true, 'picker', []],
+  ]) {
+    const page = new Page(), source = key('A'), toasts = []
+    let current = source
+    Object.assign(page, {
+      session: { snapshot: () => ({ phase: 'ready', unit: { key: current } }),
+        open: async target => { current = target } },
+      adapter: { chapterPrepared: () => prepared, chapterTitle: () => 'Beta',
+        prepare: async target => ({ key: target, pageCount: 1 }) },
+      routeActive: true, labVisibility: { foreground: true }, readerClosed: false,
+      chapterRequest: null, chapterBusy: false,
+      runChapterPreparationProbe: async () => {}, syncChapterChoices() {},
+      getUIContext: () => ({ getPromptAction: () => ({ showToast: value => toasts.push(value.message) }) }),
+    })
+    await page.openChapterTarget(key('B'), source, reason)
+    assert.deepEqual(toasts, expected)
   }
 })
 
@@ -236,7 +268,8 @@ test('a newer opening layout retires its earlier callback and closed/replaced ca
 
 
 const sharedCore = require('../../reader-kit/tests/load-core.cjs')('ReaderSession')
-function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri) {
+function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri,
+  readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'preloadNextUnit',
       'page', 'preload', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
@@ -244,11 +277,14 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
       ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2 },
       createReaderPageRenderSources: config => config.pageUris.map((imageUri, index) => ({ kind: 1, imageUri, sourceRuntimeId: config.sourceRuntimeId, pageId: config.pageIds?.[index] })),
       fetchAndCacheReaderRemoteSource: fetchSource,
-      KomaReaderFileInformation: class {}, ReaderFileCropSource: class {},
+      KomaReaderFileInformation: class {}, KomaReaderCropSource: class {},
+      KomaReaderPreloadedSize: class { constructor(source, width, height) { Object.assign(this, { source, width, height }) } },
+      readPreloadedImageSize() {}, taskpool: { execute: (_worker, path) => readSize(path) },
     })
   const adapter = new Adapter()
   Object.assign(adapter, { configs: new Map(), sources: new Map(), preparedUnits: new Map(),
     preparingUnits: new Map(), sourceRequests: new Map(), refreshingSources: new Map(), automaticallyRefreshedUnits: new Set(), automaticPageRetries: new Set(), closed: false, chapterPreloadEnabled: true,
+    preloadedSizes: new Map(), preloadedSizeVersions: new Map(),
     preparationCancellation: new sharedCore.ReaderCancellation(), catalogFailureText: 'visible failure',
     catalogHost: { prepare: hostPrepare }, thumbnails: { close() {} },
   })
@@ -305,6 +341,105 @@ test('next-unit prefetch requires a verified sequence, warms only its configured
   await adapter.preloadNextUnit(new sharedCore.ReaderUnit(unitKey('B'), 'next', 3), 2,
     new sharedCore.ReaderCancellation())
   assert.equal(preparations, 1, 'read-only/debug consumers do not gain network speculation')
+  adapter.close()
+})
+
+test('a warmed chapter exposes cached image dimensions and rejects a stale force-reload result', async () => {
+  let finish
+  const adapter = preparationFixture(async () => chapterConfig(), undefined,
+    async () => new Promise(resolve => { finish = resolve }))
+  const current = new sharedCore.ReaderCancellation()
+  const unit = await adapter.prepare(unitKey('B'), current)
+  const page = await adapter.page(unit, 0, current)
+  const first = adapter.preload(page, current)
+  await later()
+  finish('640,960'); await first
+  const warmed = await adapter.page(unit, 0, current)
+  assert.deepEqual([warmed.width, warmed.height], [640, 960])
+
+  const second = adapter.preload(page, current)
+  await later()
+  await adapter.sourceFile(unit.key, 0, true)
+  finish('100,200'); await second
+  const refreshed = await adapter.page(unit, 0, current)
+  assert.deepEqual([refreshed.width, refreshed.height], [0, 0])
+  adapter.close()
+})
+
+test('five-page lookahead crosses five verified single-page chapters without changing the active chapter', async () => {
+  const sequence = ['A','B','C','D','E','F','G'], prepared = [], fetched = [], processing = []
+  const config = chapter => ({ comicId:'work',chapterId:chapter,totalPages:1,pageUris:[chapter+'0'],
+    chapterIds:sequence,continuationChapterIds:sequence })
+  const adapter = preparationFixture(async key => { prepared.push(key.unit); return config(key.unit) },
+    async source => { fetched.push(source.imageUri); return '/cache/'+source.imageUri })
+  const unit = new sharedCore.ReaderUnit(unitKey('A'),'current',1)
+  adapter.configs.set(adapter.unitId(unit.key),config('A'))
+  await adapter.preloadNextUnit(unit,5,new sharedCore.ReaderCancellation(),
+    (future, indexes, preceding) => processing.push([future.key.unit, Array.from(indexes), preceding]))
+  assert.deepEqual(prepared,['B','C','D','E','F'])
+  assert.deepEqual(fetched,['B0','C0','D0','E0','F0'])
+  assert.deepEqual(processing, [['B',[0],0],['C',[0],1],['D',[0],2],['E',[0],3],['F',[0],4]])
+  assert.equal(unit.key.unit,'A')
+  assert.equal((await adapter.prepare(unitKey('B'),new sharedCore.ReaderCancellation())).key.unit,'B')
+  assert.deepEqual(prepared,['B','C','D','E','F'])
+  adapter.close()
+})
+
+test('automatic next-chapter translation does not inherit the current chapter page controls', () => {
+  class Config {
+    constructor(enabled, projectId) { Object.assign(this, { enabled, projectId }) }
+    identity() { return this.enabled && this.projectId ? 'configured' : '' }
+  }
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage',
+    ['translationConfiguration', 'translationPreference'], {
+      KomaReaderTranslationConfiguration: Config, ReaderVariantPreference: sharedCore.ReaderVariantPreference,
+    })
+  const page = new Page(), current = unitKey('A'), future = unitKey('B')
+  Object.assign(page, { request: { preferencesReadWrite: true },
+    translationSettings: { configured: () => true, revision: 3, targetLanguage: 'zh', sourceLanguage: 'ja' },
+    translationState: { revision: 3 }, translationUnit: current, translationProjectId: 'project-A',
+    translationProjectForUnit: unit => `project-${unit.unit}`, translationAutoEnabled: true,
+    translationRequestedPages: [0], translationHiddenPages: [0], translationAutoFailedPages: [0],
+    enhancementPreference: () => new sharedCore.ReaderVariantPreference('enhanced', 'model') })
+  const futurePage = new sharedCore.ReaderPage(future, 'B-0', 0)
+  assert.equal(page.translationPreference(futurePage, true).variant, 'translated')
+  assert.equal(page.translationConfiguration(futurePage).projectId, 'project-B')
+  assert.equal(page.translationPreference(futurePage, false).variant, 'enhanced')
+  page.translationAutoEnabled = false
+  assert.equal(page.translationPreference(futurePage, true).variant, 'enhanced')
+})
+
+test('a speculative translation failure is associated with the chapter only after it is observed', () => {
+  const Page = subject('KomaReaderLabPage.ets', 'KomaReaderLabPage', ['observeTranslationPosition'])
+  const page = new Page(), target = unitKey('B')
+  Object.assign(page, { translationUnit: unitKey('A'), translationProjectId: 'project-A',
+    translationProjectForUnit: unit => `project-${unit.unit}`, translationRequestedPages: [0],
+    translationHiddenPages: [0], translationAutoFailedPages: [0], translationAutoEnabled: true,
+    translationBusyPage: -1, translationErrorPage: -1, translationRevision: 0,
+    session: { snapshot: () => ({ processingStates: [{ sourceIndex: 0,
+      preference: { variant: 'translated' }, phase: 'unavailable' }] }) },
+    translationFrame: () => ({ asset: { variant: 'default' } }),
+  })
+  page.observeTranslationPosition({ anchor: { unit: target, sourceIndexHint: 0 } })
+  assert.equal(page.translationUnit.unit, 'B')
+  assert.equal(page.translationProjectId, 'project-B')
+  assert.deepEqual(Array.from(page.translationAutoFailedPages), [0])
+  assert.equal(page.translationBusyPage, -1)
+  assert.equal(page.translationErrorPage, 0)
+})
+
+test('single-page chapter lookahead overlaps image warming instead of waiting for each download', async () => {
+  const sequence=['A','B','C','D','E','F'], pending=[]
+  const config=chapter=>({comicId:'work',chapterId:chapter,totalPages:1,pageUris:[chapter+'0'],
+    chapterIds:sequence,continuationChapterIds:sequence})
+  const adapter=preparationFixture(async key=>config(key.unit),source=>new Promise(resolve=>pending.push([source.imageUri,resolve])))
+  const unit=new sharedCore.ReaderUnit(unitKey('A'),'current',1)
+  adapter.configs.set(adapter.unitId(unit.key),config('A'))
+  const warming=adapter.preloadNextUnit(unit,5,new sharedCore.ReaderCancellation())
+  await later()
+  assert.deepEqual(pending.map(item=>item[0]),['B0','C0','D0','E0','F0'])
+  pending.forEach(([uri,resolve])=>resolve('/cache/'+uri))
+  await warming
   adapter.close()
 })
 test('foreground body joins a warming image before descriptor resolution; retired prefetch stops further images', async () => {
@@ -470,4 +605,19 @@ test('ordinary first-read owners keep explicit chapter and resume before earlies
  const detail=new Detail();Object.assign(detail,{readerSessionStore:store,manga:{sourceId:'declared'},chapters:comic.chapters,currentComicId:()=>comic.id,progressChapterId:()=>undefined})
  assert.equal(detail.primaryReadChapterId(),'down');read.clear();assert.equal(detail.primaryReadChapterId(),'up')
  assert.equal(detail.firstChapterId(),'down','standalone download target keeps the prior metadata rule')
+})
+
+
+test('downloaded single-page lookahead prepares geometry without waiting for foreground decode', async () => {
+  const seen = []
+  const adapter = preparationFixture(async () => chapterConfig(), async source => source.imageUri,
+    async path => { seen.push(path); return '900,1400' })
+  const cancel = new sharedCore.ReaderCancellation(), unit = await adapter.prepare(unitKey('B'), cancel)
+  const source = adapter.sources.get(adapter.unitId(unit.key))[0]
+  source.kind = 3; source.imageUri = 'file:///downloaded/B0.png'
+  await adapter.preload(await adapter.page(unit, 0, cancel), cancel)
+  const page = await adapter.page(unit, 0, cancel)
+  assert.deepEqual(seen, ['file:///downloaded/B0.png'])
+  assert.deepEqual([page.width, page.height], [900, 1400])
+  adapter.close()
 })

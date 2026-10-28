@@ -400,9 +400,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   async preload(page: ReaderPage, cancellation: ReaderCancellation): Promise<void> {
     cancellation.check()
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
-    if (source === undefined || (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE &&
-      source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST)) {
-      console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=local-skip`)
+    if (source === undefined || source.kind === ReaderPageRenderKind.URI_PLACEHOLDER) {
       return
     }
     const sizeKey = JSON.stringify([this.unitId(page.unit), page.sourceIndex])
@@ -410,6 +408,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const filePath = await this.sourceFile(page.unit, page.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
+    // Downloaded/local pages need the same prepared geometry as remote files.
+    // Skipping them made a warmed single-page chapter reopen with unknown size.
     if (page.width <= 0 || page.height <= 0) {
       try {
         const size = await taskpool.execute<[string], string>(readPreloadedImageSize, filePath)
