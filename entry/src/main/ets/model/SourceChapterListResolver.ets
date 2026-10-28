@@ -51,6 +51,7 @@ interface SourceChapterArgs {
   mangaUrl?: string
   page: SourceChapterPageArgs
   chapterId?: string
+  chapterContext?: Record<string, Object>
 }
 
 interface SourceChapterHostHints {
@@ -81,8 +82,9 @@ export async function resolveSourceChapterList(
   mangaId: string,
   mangaUrl?: string,
   isCurrent?: () => boolean,
+  chapterContext?: Record<string, Object>,
 ): Promise<SourceChapterListResult> {
-  return fetchSourceChapterList(entry, mangaId, undefined, mangaUrl, isCurrent)
+  return fetchSourceChapterList(entry, mangaId, undefined, mangaUrl, isCurrent, chapterContext)
 }
 
 /** Exact-ID recovery never exposes its partial response as a full catalog. */
@@ -103,6 +105,7 @@ async function fetchSourceChapterList(
   chapterId?: string,
   mangaUrl?: string,
   isCurrent?: () => boolean,
+  chapterContext?: Record<string, Object>,
 ): Promise<SourceChapterListResult> {
   const chapters: MangaChapterItem[] = []
   const excludedChapterIds: Set<string> = new Set<string>()
@@ -128,11 +131,13 @@ async function fetchSourceChapterList(
     if (chapterId !== undefined) {
       request.args.chapterId = chapterId
     }
+    if (chapterId === undefined && chapterContext !== undefined) request.args.chapterContext = chapterContext
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
     const requestJson = sourceRequestWithHostFeatures(JSON.stringify(request))
     const responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
-      executeSourceChapterListOperation, requestJson, wasmBytes, sourceHttpIdentityJson(entry),
+      executeSourceChapterListOperation, requestJson, wasmBytes,
+      sourceHttpIdentityJson(entry, undefined, chapterContext !== undefined && chapterId === undefined),
     ) as Promise<string>)
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse

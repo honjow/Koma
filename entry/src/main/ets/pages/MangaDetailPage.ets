@@ -132,6 +132,7 @@ interface SourceOperationDataPayload {
   item?: Record<string, Object>
   items?: Record<string, Object>[]
   chapters?: Record<string, Object>[]
+  chapterContext?: Record<string, Object>
   pages?: Record<string, Object>[]
   page?: SourceRuntimePagePayload
   hasNextPage?: boolean
@@ -155,6 +156,7 @@ interface SourceOperationResponsePayload {
 interface SourceMangaDetailLoadResult {
   detail: MangaDetail
   embeddedChapters: MangaChapterItem[]
+  chapterContext?: Record<string, Object>
 }
 
 interface SourceMangaRequestArgs {
@@ -817,6 +819,9 @@ export struct MangaDetailPage {
       const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
+      // This value belongs only to the freshly loaded detail request. It must
+      // never enter the persisted snapshot or an unrelated chapter recovery.
+      let chapterContext: Record<string, Object> | undefined = undefined
       let excludedChapterIds: string[] = []
       if (retryStage === 'chapters' && retainedDetail !== undefined) {
         detail = retainedDetail
@@ -836,6 +841,7 @@ export struct MangaDetailPage {
           return
         }
         detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
+        chapterContext = loaded.chapterContext
         this.refreshSourceLibraryCover(sourceId, mangaId, detail.coverUrl)
         chapters = loaded.embeddedChapters.length > 0 ? loaded.embeddedChapters : retainedChapters
       }
@@ -866,7 +872,7 @@ export struct MangaDetailPage {
       let chaptersFailureText = s('manga_detail_load_source_chapters_failed')
       try {
         const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId, detail.url,
-          (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId))
+          (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId), chapterContext)
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
@@ -1108,7 +1114,7 @@ export struct MangaDetailPage {
       executeMangaDetailSourceOperation,
       request,
       this.copyWasmBytes(entry),
-      sourceHttpIdentityJson(entry),
+      sourceHttpIdentityJson(entry, undefined, operation === 'get_manga'),
     ) as Promise<string>)
     const runtimeResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (runtimeResponse.ok !== true) {
@@ -1120,10 +1126,13 @@ export struct MangaDetailPage {
       const invalidResponse: SourceRuntimeCallResponse = { ok: false, reasonCode: 'invalid_response' }
       throw new SourceRuntimeError(invalidResponse)
     }
+    const context = response.data?.chapterContext
     return {
       detail: parseMangaDetailFromSourceItem(entry.sourceId, item),
       embeddedChapters: this.sourceEmbeddedChapterItems(response, item)
         .map((chapter: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(chapter)),
+      chapterContext: context !== undefined && context !== null && typeof context === 'object' && !Array.isArray(context)
+        ? context : undefined,
     }
   }
 

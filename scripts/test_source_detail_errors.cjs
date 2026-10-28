@@ -28,7 +28,7 @@ const method = name => {
   return member.getText(file)
 }
 function fixture() {
-  const logs = [], writes = [], applied = [], reads = [], cancelledSessions = []
+  const logs = [], writes = [], applied = [], reads = [], cancelledSessions = [], chapterCalls = [], identities = []
   const entry = { sourceId: 'source.test', enabled: true, manifestName: 'Test', wasmBytes: new Uint8Array(1) }
   const state = { response: { ok: true, data: { manga: { title: 'Real detail' } } },
     chapterError: undefined, library: undefined, cache: undefined, chapters: [], task: undefined }
@@ -40,11 +40,12 @@ function fixture() {
     'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem',
     'parseMangaChapterFromSourceItem', 'sourceRuntimeEntryEnabled', 'sourceMangaDetailSnapshotCache',
     'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', code)(
-    exports, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key, () => '{}',
+    exports, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
+    (...args) => { identities.push(args); return '{}' },
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) }, () => {},
     (_source, item) => item, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
-    async () => { if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
+    async (...args) => { chapterCalls.push(args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
     { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) })
   const page = new exports.Page()
   Object.assign(page, {
@@ -62,8 +63,24 @@ function fixture() {
     sourceDetailFromInitialRouteManga: () => ({ title: 'Original preview' }),
     loadLocalOrMissingManga: () => { page.chapters = state.library.chapters; page.manga = state.library },
   })
-  return { page, state, entry, logs, applied, writes, reads, cancelledSessions }
+  return { page, state, entry, logs, applied, writes, reads, cancelledSessions, chapterCalls, identities }
 }
+
+test('a fresh detail passes its source context only to the same chapter load, never to the snapshot', async () => {
+  const f=fixture(), context={version:1,work:'work',editions:['one','two']}
+  f.state.response={ok:true,data:{manga:{title:'Real detail'},chapterContext:context}}
+  f.state.chapters=[{id:'one'}]
+  await f.page.loadSourceMangaDetail('source.test','work')
+  assert.equal(f.identities[0][2],true)
+  assert.deepEqual(f.chapterCalls[0][4],context)
+  assert.ok(f.writes.length>0)
+  assert.equal(JSON.stringify(f.writes).includes('chapterContext'),false)
+
+  const cached=fixture()
+  cached.state.cache={detail:{title:'Cached'},chapters:[],chaptersResolved:false}
+  await cached.page.loadSourceMangaDetail('source.test','work')
+  assert.equal(cached.chapterCalls[0][4],undefined)
+})
 for (const [code, kind] of [['not_implemented','unsupported'], ['not_supported','unsupported'], ['rate_limit','rate_limit']]) {
   for (const field of ['reasonCode', 'error']) test(`provider ${code} in ${field} retains its structured cause`, () => {
     const response = field === 'reasonCode' ? {ok:false,reasonCode:code} :
@@ -253,7 +270,7 @@ test('starting another reload invalidates the preceding request epoch', () => {
 })
 
 test('completed catalog diagnostic counts duplicate identities without merging titles or changing pagination', async () => {
-  const exports = {}, logs = [], requests = []
+  const exports = {}, logs = [], requests = [], identities = []
   const first = [{ id: 'private-id-a', title: 'Private title one', chapterNumber: 0 }, { id: 'private-id-b', title: 'Same title', chapterNumber: 99 }]
   const second = [{ id: 'private-id-a', title: 'Different title', chapterNumber: 583 }, { id: 'private-id-c', title: 'Same title' }]
   let responses = [
@@ -267,7 +284,7 @@ test('completed catalog diagnostic counts duplicate identities without merging t
       requests.push(JSON.parse(request)); return JSON.stringify(responses.shift())
     } } }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
-    if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
+    if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: (...args) => { identities.push(args); return '{}' } }
     if (name === './MangaDetailModels') return { parseMangaChapterFromSourceItem: item => item }
     if (name === './SourceChapterVisibility') return chapterVisibility
     if (name === '../sourceRuntime/SourceSettingObservationStore') return { appSourceSettingObservationStore: { tokenForSource: () => 'same' } }
@@ -277,11 +294,14 @@ test('completed catalog diagnostic counts duplicate identities without merging t
     return {}
   })
   const entry = { sourceId: 'source.test', wasmBytes: new Uint8Array(1) }
-  const result = await exports.resolveSourceChapterList(entry, 'private-work', 'https://private.invalid/work')
+  const context = { version: 1, work: 'private-work', editions: ['one'] }
+  const result = await exports.resolveSourceChapterList(entry, 'private-work', 'https://private.invalid/work', () => true, context)
   assert.equal(result.resolved, true)
   assert.deepEqual(result.chapters, [...first, ...second])
   assert.equal(requests.length, 2)
   assert.equal(requests[1].args.page.cursor, 'page-two')
+  assert.deepEqual(requests.map(request => request.args.chapterContext), [context, context])
+  assert.deepEqual(identities.map(args => args[2]), [true, true])
   assert.deepEqual(logs, [
     'source_chapters catalog_identity total=4 uniqueId=3 duplicateIdGroups=1 duplicateRows=1',
     'source_chapters catalog_order total=4 numbered=3 unknown=1 min=0 max=583 leading=0:0,1:99,2:583,3:?',
@@ -290,6 +310,8 @@ test('completed catalog diagnostic counts duplicate identities without merging t
   responses = [{ ok: true, data: { items: first, page: { hasMore: true } } }]
   const incomplete = await exports.resolveSourceChapterList(entry, 'private-work')
   assert.equal(incomplete.resolved, false)
+  assert.equal(requests.at(-1).args.chapterContext, undefined)
+  assert.equal(identities.at(-1)[2], false)
   assert.equal(logs.length, 2, 'Incomplete catalog must not publish completed catalog diagnostics')
 })
 
