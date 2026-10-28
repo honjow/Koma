@@ -1517,6 +1517,8 @@ export class BackupService {
       imageScalingQuality: settings.imageScalingQuality ?? DEFAULT_READER_PREFERENCES.imageScalingQuality,
       showPageNumber: settings.showPageNumber ?? DEFAULT_READER_PREFERENCES.showPageNumber,
       pageTurnAnimation: settings.pageTurnAnimation ?? DEFAULT_READER_PREFERENCES.pageTurnAnimation,
+      doubleTapZoomEnabled: settings.doubleTapZoomEnabled ?? DEFAULT_READER_PREFERENCES.doubleTapZoomEnabled,
+      doubleTapIntervalMs: settings.doubleTapIntervalMs ?? DEFAULT_READER_PREFERENCES.doubleTapIntervalMs,
       autoPageSeconds: settings.autoPageSeconds ?? DEFAULT_READER_PREFERENCES.autoPageSeconds,
       preloadPages: settings.preloadPages ?? DEFAULT_READER_PREFERENCES.preloadPages,
       spreadLayoutMode: settings.spreadLayoutMode ?? DEFAULT_READER_PREFERENCES.spreadLayoutMode,

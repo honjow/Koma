@@ -33,6 +33,8 @@ export interface ReaderPreferences {
   imageScalingQuality: ReaderImageScalingQuality
   showPageNumber: boolean
   pageTurnAnimation: boolean
+  doubleTapZoomEnabled: boolean
+  doubleTapIntervalMs: number
   autoPageSeconds: number
   preloadPages: number
   spreadLayoutMode: ReaderSpreadLayoutMode
@@ -98,6 +100,8 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   imageScalingQuality: 'medium',
   showPageNumber: true,
   pageTurnAnimation: true,
+  doubleTapZoomEnabled: true,
+  doubleTapIntervalMs: 300,
   autoPageSeconds: 3,
   preloadPages: 2,
   spreadLayoutMode: 'joined',
@@ -196,6 +200,12 @@ export function normalizeReaderAutoPageSeconds(value: number): number {
   return Math.max(1, Math.min(60, Math.round(value)))
 }
 
+/** Native double-tap defaults to 300 ms; shorter choices reduce single-tap latency. */
+export const READER_DOUBLE_TAP_INTERVALS: number[] = [150, 200, 250, 300, 400, 500]
+export function normalizeReaderDoubleTapIntervalMs(value: number): number {
+  return READER_DOUBLE_TAP_INTERVALS.includes(value) ? value : 300
+}
+
 export function normalizeReaderPreloadPages(value: number): number {
   if (!Number.isFinite(value)) {
     return 2
@@ -255,6 +265,8 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     imageScalingQuality: normalizeReaderImageScalingQuality(value.imageScalingQuality),
     showPageNumber: value.showPageNumber !== false,
     pageTurnAnimation: value.pageTurnAnimation !== false,
+    doubleTapZoomEnabled: value.doubleTapZoomEnabled !== false,
+    doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(value.doubleTapIntervalMs),
     autoPageSeconds: normalizeReaderAutoPageSeconds(value.autoPageSeconds),
     preloadPages: normalizeReaderPreloadPages(value.preloadPages),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(value.spreadLayoutMode),
@@ -294,6 +306,8 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode):
     imageScalingQuality: normalizeReaderImageScalingQuality(runtime.imageScalingQuality),
     showPageNumber: runtime.showPageNumber,
     pageTurnAnimation: runtime.pageTurnAnimation,
+    doubleTapZoomEnabled: runtime.doubleTapZoomEnabled,
+    doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(runtime.doubleTapIntervalMs),
     autoPageSeconds: normalizeReaderAutoPageSeconds(runtime.autoPageSeconds),
     preloadPages: normalizeReaderPreloadPages(runtime.preloadPages),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(runtime.spreadLayoutMode),
@@ -344,6 +358,8 @@ function publishReaderModeState(preferences: ReaderPreferences): void {
     preferences.superResolutionModel,
     preferences.superResolutionBackend,
     preferences.superResolutionMaxHeight,
+    preferences.doubleTapZoomEnabled,
+    preferences.doubleTapIntervalMs,
   ))
   connectKomaReaderBackendSelection().select(
     preferences.readerImplementation === 'legacy' ? KomaReaderBackend.LEGACY : KomaReaderBackend.SHARED, true)
@@ -385,6 +401,8 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     imageScalingQuality: normalizeReaderImageScalingQuality(stringField(record, 'imageScalingQuality', fallback.imageScalingQuality)),
     showPageNumber: booleanField(record, 'showPageNumber', fallback.showPageNumber),
     pageTurnAnimation: booleanField(record, 'pageTurnAnimation', fallback.pageTurnAnimation),
+    doubleTapZoomEnabled: booleanField(record, 'doubleTapZoomEnabled', fallback.doubleTapZoomEnabled),
+    doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(Number(record['doubleTapIntervalMs'] ?? fallback.doubleTapIntervalMs)),
     autoPageSeconds: normalizeReaderAutoPageSeconds(Number(record['autoPageSeconds'] ?? fallback.autoPageSeconds)),
     preloadPages: normalizeReaderPreloadPages(Number(record['preloadPages'] ?? fallback.preloadPages)),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(stringField(record, 'spreadLayoutMode', fallback.spreadLayoutMode)),
@@ -498,6 +516,8 @@ export function applyReaderSeriesModeOverride(
     imageScalingQuality: preferences.imageScalingQuality,
     showPageNumber: preferences.showPageNumber,
     pageTurnAnimation: preferences.pageTurnAnimation,
+    doubleTapZoomEnabled: preferences.doubleTapZoomEnabled,
+    doubleTapIntervalMs: preferences.doubleTapIntervalMs,
     autoPageSeconds: preferences.autoPageSeconds,
     preloadPages: preferences.preloadPages,
     spreadLayoutMode: preferences.spreadLayoutMode,
@@ -683,6 +703,8 @@ export function rebaseReaderPreferenceChanges(base: ReaderPreferences, previous:
   if (previous.imageScalingQuality !== next.imageScalingQuality) rebased.imageScalingQuality = next.imageScalingQuality
   if (previous.showPageNumber !== next.showPageNumber) rebased.showPageNumber = next.showPageNumber
   if (previous.pageTurnAnimation !== next.pageTurnAnimation) rebased.pageTurnAnimation = next.pageTurnAnimation
+  if (previous.doubleTapZoomEnabled !== next.doubleTapZoomEnabled) rebased.doubleTapZoomEnabled = next.doubleTapZoomEnabled
+  if (previous.doubleTapIntervalMs !== next.doubleTapIntervalMs) rebased.doubleTapIntervalMs = next.doubleTapIntervalMs
   if (previous.autoPageSeconds !== next.autoPageSeconds) rebased.autoPageSeconds = next.autoPageSeconds
   if (previous.preloadPages !== next.preloadPages) rebased.preloadPages = next.preloadPages
   if (previous.spreadLayoutMode !== next.spreadLayoutMode) rebased.spreadLayoutMode = next.spreadLayoutMode
@@ -755,6 +777,8 @@ export class ReaderPreferencesStore {
     const imageScalingQuality = await store.get('reader.imageScalingQuality', DEFAULT_READER_PREFERENCES.imageScalingQuality) as string
     const showPageNumber = await store.get('reader.showPageNumber', DEFAULT_READER_PREFERENCES.showPageNumber) as boolean
     const pageTurnAnimation = await store.get('reader.pageTurnAnimation', DEFAULT_READER_PREFERENCES.pageTurnAnimation) as boolean
+    const doubleTapZoomEnabled = await store.get('reader.doubleTapZoomEnabled', DEFAULT_READER_PREFERENCES.doubleTapZoomEnabled) as boolean
+    const doubleTapIntervalMs = await store.get('reader.doubleTapIntervalMs', DEFAULT_READER_PREFERENCES.doubleTapIntervalMs) as number
     const autoPageSeconds = await store.get('reader.autoPageSeconds', DEFAULT_READER_PREFERENCES.autoPageSeconds) as number
     const preloadPages = await store.get('reader.preloadPages', DEFAULT_READER_PREFERENCES.preloadPages) as number
     const spreadLayoutMode = await store.get('reader.spreadLayoutMode', DEFAULT_READER_PREFERENCES.spreadLayoutMode) as string
@@ -788,6 +812,8 @@ export class ReaderPreferencesStore {
       imageScalingQuality: normalizeReaderImageScalingQuality(imageScalingQuality),
       showPageNumber,
       pageTurnAnimation,
+      doubleTapZoomEnabled,
+      doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(doubleTapIntervalMs),
       autoPageSeconds: normalizeReaderAutoPageSeconds(autoPageSeconds),
       preloadPages: normalizeReaderPreloadPages(preloadPages),
       spreadLayoutMode: normalizeReaderSpreadLayoutMode(spreadLayoutMode),
@@ -856,6 +882,8 @@ export class ReaderPreferencesStore {
       'reader.imageScalingQuality',
       'reader.showPageNumber',
       'reader.pageTurnAnimation',
+      'reader.doubleTapZoomEnabled',
+      'reader.doubleTapIntervalMs',
       'reader.autoPageSeconds',
       'reader.preloadPages',
       'reader.spreadLayoutMode',
@@ -892,6 +920,8 @@ export class ReaderPreferencesStore {
       await store.put('reader.imageScalingQuality', normalized.imageScalingQuality)
       await store.put('reader.showPageNumber', normalized.showPageNumber)
       await store.put('reader.pageTurnAnimation', normalized.pageTurnAnimation)
+      await store.put('reader.doubleTapZoomEnabled', normalized.doubleTapZoomEnabled)
+      await store.put('reader.doubleTapIntervalMs', normalized.doubleTapIntervalMs)
       await store.put('reader.autoPageSeconds', normalized.autoPageSeconds)
       await store.put('reader.preloadPages', normalized.preloadPages)
       await store.put('reader.spreadLayoutMode', normalized.spreadLayoutMode)
@@ -1055,6 +1085,8 @@ export class ReaderPreferencesStore {
       imageScalingQuality: current.imageScalingQuality,
       showPageNumber: current.showPageNumber,
       pageTurnAnimation: current.pageTurnAnimation,
+      doubleTapZoomEnabled: current.doubleTapZoomEnabled,
+      doubleTapIntervalMs: current.doubleTapIntervalMs,
       autoPageSeconds: current.autoPageSeconds,
       preloadPages: current.preloadPages,
       spreadLayoutMode: current.spreadLayoutMode,
@@ -1130,6 +1162,16 @@ export class ReaderPreferencesStore {
   async savePageTurnAnimation(pageTurnAnimation: boolean): Promise<ReaderPreferences> {
     return this.mutatePreferences((next: ReaderPreferences): void => {
       next.pageTurnAnimation = pageTurnAnimation
+    })
+  }
+
+  async saveDoubleTapZoomEnabled(enabled: boolean): Promise<ReaderPreferences> {
+    return this.mutatePreferences((next: ReaderPreferences): void => { next.doubleTapZoomEnabled = enabled })
+  }
+
+  async saveDoubleTapIntervalMs(interval: number): Promise<ReaderPreferences> {
+    return this.mutatePreferences((next: ReaderPreferences): void => {
+      next.doubleTapIntervalMs = normalizeReaderDoubleTapIntervalMs(interval)
     })
   }
 

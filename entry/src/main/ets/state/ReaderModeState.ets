@@ -42,6 +42,8 @@ export class ReaderModeSnapshot {
   imageScalingQuality: string
   showPageNumber: boolean
   pageTurnAnimation: boolean
+  doubleTapZoomEnabled: boolean
+  doubleTapIntervalMs: number
   autoPageSeconds: number
   preloadPages: number
   spreadLayoutMode: string
@@ -87,6 +89,8 @@ export class ReaderModeSnapshot {
     superResolutionModel: string = 'none',
     superResolutionBackend: string = 'auto',
     superResolutionMaxHeight: number = 2000,
+    doubleTapZoomEnabled: boolean = true,
+    doubleTapIntervalMs: number = 300,
   ) {
     this.pageMode = pageMode
     this.readingDirection = readingDirection
@@ -99,6 +103,8 @@ export class ReaderModeSnapshot {
     this.imageScalingQuality = imageScalingQuality
     this.showPageNumber = showPageNumber
     this.pageTurnAnimation = pageTurnAnimation
+    this.doubleTapZoomEnabled = doubleTapZoomEnabled
+    this.doubleTapIntervalMs = doubleTapIntervalMs
     this.autoPageSeconds = autoPageSeconds
     this.preloadPages = preloadPages
     this.spreadLayoutMode = spreadLayoutMode
@@ -131,6 +137,8 @@ export class ReaderModeState {
   @Trace imageScalingQuality: string = 'medium'
   @Trace showPageNumber: boolean = true
   @Trace pageTurnAnimation: boolean = true
+  @Trace doubleTapZoomEnabled: boolean = true
+  @Trace doubleTapIntervalMs: number = 300
   @Trace autoPageSeconds: number = 3
   @Trace preloadPages: number = 2
   @Trace spreadLayoutMode: string = 'joined'
@@ -176,6 +184,8 @@ export class ReaderModeStateBridge {
       state.imageScalingQuality !== next.imageScalingQuality ||
       state.showPageNumber !== next.showPageNumber ||
       state.pageTurnAnimation !== next.pageTurnAnimation ||
+      state.doubleTapZoomEnabled !== next.doubleTapZoomEnabled ||
+      state.doubleTapIntervalMs !== next.doubleTapIntervalMs ||
       state.autoPageSeconds !== next.autoPageSeconds ||
       state.preloadPages !== next.preloadPages ||
       state.spreadLayoutMode !== next.spreadLayoutMode ||
@@ -203,6 +213,8 @@ export class ReaderModeStateBridge {
     state.imageScalingQuality = next.imageScalingQuality
     state.showPageNumber = next.showPageNumber
     state.pageTurnAnimation = next.pageTurnAnimation
+    state.doubleTapZoomEnabled = next.doubleTapZoomEnabled
+    state.doubleTapIntervalMs = next.doubleTapIntervalMs
     state.autoPageSeconds = next.autoPageSeconds
     state.preloadPages = next.preloadPages
     state.spreadLayoutMode = next.spreadLayoutMode
@@ -254,6 +266,8 @@ export class ReaderModeStateBridge {
       state.superResolutionModel,
       state.superResolutionBackend,
       state.superResolutionMaxHeight,
+      state.doubleTapZoomEnabled,
+      state.doubleTapIntervalMs,
     )
   }
 }

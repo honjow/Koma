@@ -17,6 +17,8 @@ export class KomaReaderPreferenceBridge {
       imageScalingQuality: current.imageScalingQuality,
       showPageNumber: current.showPageNumber,
       pageTurnAnimation: current.pageTurnAnimation,
+      doubleTapZoomEnabled: current.doubleTapZoomEnabled,
+      doubleTapIntervalMs: current.doubleTapIntervalMs,
       autoPageSeconds: current.autoPageSeconds,
       preloadPages: current.preloadPages,
       spreadLayoutMode: current.spreadLayoutMode,
@@ -49,6 +51,8 @@ export class KomaReaderPreferenceBridge {
       left.imageScalingQuality === right.imageScalingQuality &&
       left.showPageNumber === right.showPageNumber &&
       left.pageTurnAnimation === right.pageTurnAnimation &&
+      left.doubleTapZoomEnabled === right.doubleTapZoomEnabled &&
+      left.doubleTapIntervalMs === right.doubleTapIntervalMs &&
       left.autoPageSeconds === right.autoPageSeconds &&
       left.preloadPages === right.preloadPages &&
       left.spreadLayoutMode === right.spreadLayoutMode &&

@@ -100,7 +100,7 @@ export class KomaReaderTranslationProvider implements ReaderAssetProvider {
   private configuration: (page: ReaderPage) => KomaReaderTranslationConfiguration
   private sourcePaths: Map<string, string> = new Map<string, string>()
   private sourceRevisions: Map<string, number> = new Map<string, number>()
-  private failureCodes: Map<number, string> = new Map<number, string>()
+  private failureCodes: Map<string, string> = new Map<string, string>()
   private cropStrength: () => string
   private saveUriForPage: (page: ReaderPage) => string
   private preloadSource: ((page: ReaderPage, cancellation: ReaderCancellation) => Promise<ReaderAsset>) | null
@@ -231,10 +231,10 @@ export class KomaReaderTranslationProvider implements ReaderAssetProvider {
       task.runtimeStarted = true
       result = await ComicTranslationRuntimeService.runReaderPage(this.context, input, false, configuration.settingsRevision)
     } catch (error) {
-      this.failureCodes.set(page.sourceIndex, ComicTranslationErrorClassifier.classify(error as Error))
+      this.failureCodes.set(this.pageIdentity(page), ComicTranslationErrorClassifier.classify(error as Error))
       throw error as Error
     }
-    this.failureCodes.delete(page.sourceIndex)
+    this.failureCodes.delete(this.pageIdentity(page))
     cancellation.check()
     if (this.configuration(page).identity() !== identity || !configuration.resultMatches(page, result) ||
       result.renderedPage.localFilePath.length === 0) throw new Error('reader_translation_result_stale')
@@ -243,8 +243,8 @@ export class KomaReaderTranslationProvider implements ReaderAssetProvider {
   }
 
   /** Last classified translation failure for one source page; empty when none is recorded. */
-  lastFailureCode(sourceIndex: number): string {
-    return this.failureCodes.get(sourceIndex) ?? ''
+  lastFailureCode(page: ReaderPage): string {
+    return this.failureCodes.get(this.pageIdentity(page)) ?? ''
   }
 
   private pageIdentity(page: ReaderPage): string {

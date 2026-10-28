@@ -17,6 +17,7 @@ import {
   ReaderVolumeKeyBehavior,
   ReaderWideImageMode,
   DEFAULT_READER_PREFERENCES,
+  READER_DOUBLE_TAP_INTERVALS,
   getReaderBackgroundModeLabel,
   getReaderPageGapModeLabel,
   getReaderTapZoneInvertLabel,
@@ -73,6 +74,8 @@ export struct ReaderSettingsContent {
       imageScalingQuality: p.imageScalingQuality,
       showPageNumber: p.showPageNumber,
       pageTurnAnimation: p.pageTurnAnimation,
+      doubleTapZoomEnabled: p.doubleTapZoomEnabled,
+      doubleTapIntervalMs: p.doubleTapIntervalMs,
       autoPageSeconds: p.autoPageSeconds,
       preloadPages: p.preloadPages,
       spreadLayoutMode: p.spreadLayoutMode,
@@ -132,6 +135,12 @@ export struct ReaderSettingsContent {
     this.update(next)
   }
 
+  private setDoubleTapInterval(interval: number): void {
+    const next = this.copyPreferences()
+    next.doubleTapIntervalMs = interval
+    this.update(next)
+  }
+
   private setSpreadLayout(mode: ReaderSpreadLayoutMode): void {
     const next = this.copyPreferences()
     next.spreadLayoutMode = mode
@@ -185,6 +194,7 @@ export struct ReaderSettingsContent {
     if (key === 'fullscreen') next.fullscreen = value
     if (key === 'page-number') next.showPageNumber = value
     if (key === 'page-animation') next.pageTurnAnimation = value
+    if (key === 'double-tap-zoom') next.doubleTapZoomEnabled = value
     if (key === 'awake') next.keepScreenAwake = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
     if (key === 'trim-margins') next.trimPageMarginsEnabled = value
@@ -251,6 +261,16 @@ export struct ReaderSettingsContent {
       MenuItem({ content: getReaderTapZoneInvertLabel('horizontal'), symbolEndIcon: this.preferences.tapZoneInvert === 'horizontal' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setTapInvert('horizontal') }) })
       MenuItem({ content: getReaderTapZoneInvertLabel('vertical'), symbolEndIcon: this.preferences.tapZoneInvert === 'vertical' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setTapInvert('vertical') }) })
       MenuItem({ content: getReaderTapZoneInvertLabel('both'), symbolEndIcon: this.preferences.tapZoneInvert === 'both' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setTapInvert('both') }) })
+    }
+  }
+
+  @Builder
+  private DoubleTapIntervalMenu(select: (action: () => void) => void) {
+    Menu() {
+      ForEach(READER_DOUBLE_TAP_INTERVALS, (interval: number) => {
+        MenuItem({ content: `${interval} ms`, symbolEndIcon: this.preferences.doubleTapIntervalMs === interval ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+          .onClick(() => { select(() => { this.setDoubleTapInterval(interval) }) })
+      }, (interval: number) => `${interval}`)
     }
   }
 
@@ -353,6 +373,10 @@ export struct ReaderSettingsContent {
           ConciseListRow({ title: s('settings_row_reader_tap_zone_preset_title'), trailingText: getReaderTapZonePresetLabel(this.preferences.tapZonePreset), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapZoneMenu(select) } })
           ListDivider()
           ConciseListRow({ title: s('settings_row_reader_tap_zone_invert_title'), trailingText: getReaderTapZoneInvertLabel(this.preferences.tapZoneInvert), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapInvertMenu(select) } })
+          ListDivider()
+          ConciseListRow({ title: s('reader_double_tap_zoom_title'), hasSwitch: true, checked: this.preferences.doubleTapZoomEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('double-tap-zoom', value) } })
+          ListDivider()
+          ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
         }
         GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
           ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })

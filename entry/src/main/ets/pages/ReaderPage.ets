@@ -59,6 +59,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
+import { ReaderTapArbiter, ReaderTapPoint, ReaderBoundarySwipe, ReaderBoundaryAxis } from '@reader-kit/ui'
 
 interface ReaderRetryHitRegion {
   pageIndex: number
@@ -72,10 +73,7 @@ let nextReaderRetryHitRegionId: number = 1
 
 const READER_TAP_VERTICAL_TOLERANCE: number = 10
 const READER_TAP_ZONE_SCROLL_RATIO: number = 0.75
-// Harmony's device doubleClick path delivers the second click around 350ms;
-// a 240ms timer turns it into two single page actions.  Keep the single tap
-// pending long enough for a normal double tap to be arbitrated as one gesture.
-const READER_SINGLE_TAP_DELAY_MS: number = 400
+const READER_OVERLAY_TAP_SUPPRESSION_MS: number = 400
 const READER_DOUBLE_TAP_SCALE: number = 2
 const READER_ZOOM_ANIM_DURATION: number = 180
 const READER_MIN_DYNAMIC_MAX_SCALE: number = 4
@@ -186,6 +184,8 @@ struct ReaderImageSurface {
   @Param gesturesEnabled: boolean = true
   @Param active: boolean = true
   @Param allowDirectDoubleTap: boolean = true
+  @Param doubleTapEnabled: boolean = true
+  @Param doubleTapIntervalMs: number = 300
   @Param routeTaps: boolean = false
   @Param tapOriginX: number = 0
   @Param tapOriginY: number = 0
@@ -232,8 +232,11 @@ struct ReaderImageSurface {
   private tapStartX: number = 0
   private tapStartY: number = 0
   private tapCancelled: boolean = false
-  private skipNextTapUp: boolean = false
-  private singleTapTimerId: number = -1
+  private tapArbiter: ReaderTapArbiter = new ReaderTapArbiter(
+    (point: ReaderTapPoint): void => { if (!this.disposed && this.routeTaps) this.onTap(point.windowX, point.windowY) },
+    (point: ReaderTapPoint): void => {
+      if (!this.disposed && this.routeTaps && this.allowDirectDoubleTap) this.handleDoubleTapAt(point.x, point.y)
+    })
   private isPinching: boolean = false
   private ignorePanSequence: boolean = false
   private pinchAdjustedSinceDoubleTap: boolean = false
@@ -300,6 +303,7 @@ struct ReaderImageSurface {
 
   @Monitor('active')
   onActiveChanged(): void {
+    if (!this.active) this.clearSingleTap()
     // Paged surfaces deliberately release their transform when the pager
     // moves away. A vertical List reuses rows while its visible bounds move;
     // treating that bookkeeping change as a zoom reset races the target row's
@@ -308,6 +312,9 @@ struct ReaderImageSurface {
       this.resetZoom(true)
     }
   }
+
+  @Monitor('pageIndex', 'doubleTapEnabled', 'doubleTapIntervalMs')
+  onTapPreferenceChanged(): void { this.clearSingleTap() }
 
   private sourceKey(): string {
     return `${this.source.kind}:${this.source.uri}:${this.source.imageUri}:${this.source.pageId ?? ''}:${this.splitSide}:${this.rotateClockwise}:${this.retryToken}`
@@ -548,6 +555,7 @@ struct ReaderImageSurface {
     if (!this.zoomEnabled || (!this.active && !this.routeTaps)) {
       return
     }
+    this.clearSingleTap()
     this.isPinching = true
     this.ignorePanSequence = true
     this.zoomAnimating = false
@@ -616,9 +624,8 @@ struct ReaderImageSurface {
   }
 
   private handleDoubleTapAt(tapX: number, tapY: number): void {
-    if (!this.zoomEnabled || (!this.active && !this.routeTaps)) return
+    if (!this.doubleTapEnabled || !this.zoomEnabled || (!this.active && !this.routeTaps)) return
     this.clearSingleTap()
-    this.skipNextTapUp = false
     this.beginZoomAnimation()
     const target = this.doubleTapTarget()
     if (target <= 1.01) {
@@ -641,10 +648,7 @@ struct ReaderImageSurface {
   }
 
   private clearSingleTap(): void {
-    if (this.singleTapTimerId >= 0) {
-      clearTimeout(this.singleTapTimerId)
-      this.singleTapTimerId = -1
-    }
+    this.tapArbiter.cancel()
   }
 
   private onSurfaceTouch(event: TouchEvent): void {
@@ -663,10 +667,7 @@ struct ReaderImageSurface {
       return
     }
     if (event.type === TouchType.Down) {
-      if (this.singleTapTimerId >= 0) {
-        this.clearSingleTap()
-        this.skipNextTapUp = true
-      }
+      this.tapArbiter.down(touchX, touchY)
       this.tapStartX = touchX
       this.tapStartY = touchY
       this.tapCancelled = false
@@ -680,7 +681,7 @@ struct ReaderImageSurface {
     } else if (event.type === TouchType.Up) {
       const dx = touchX - this.tapStartX
       const dy = touchY - this.tapStartY
-      if (!this.tapCancelled && !this.skipNextTapUp &&
+      if (!this.tapCancelled &&
         Math.sqrt(dx * dx + dy * dy) <= READER_TAP_VERTICAL_TOLERANCE) {
         // Keep the vertical reader on the same coordinate contract as NextE:
         // touch routing crosses a virtualized ListItem boundary, so its local
@@ -689,18 +690,12 @@ struct ReaderImageSurface {
         // the dimensions passed to the tap-zone resolver.  Reconstructing
         // them from area positions was the reason a visual centre tap could
         // become a page-scroll action after a List re-layout.
-        const x = touch.windowX
-        const y = touch.windowY
-        this.singleTapTimerId = setTimeout(() => {
-          this.singleTapTimerId = -1
-          this.onTap(x, y)
-        }, READER_SINGLE_TAP_DELAY_MS)
+        this.tapArbiter.tap(new ReaderTapPoint(touchX, touchY, touch.windowX, touch.windowY),
+          this.doubleTapEnabled, this.doubleTapIntervalMs)
       }
-      this.skipNextTapUp = false
       this.tapCancelled = false
     } else if (event.type === TouchType.Cancel) {
       this.tapCancelled = true
-      this.skipNextTapUp = false
       this.clearSingleTap()
     }
   }
@@ -815,9 +810,9 @@ struct ReaderImageSurface {
       this.areaGlobalY = next.globalPosition.y as number
     })
     // Match NextE's vertical image contract: native List owns every
-    // unzoomed one-finger drag. Touch is used only to defer/cancel a single
-    // tap, while the image contributes its independent double-tap, pinch and
-    // zoomed-pan recognizers below. A single-tap recognizer here would join
+    // unzoomed one-finger drag. Touch arbitrates single and double taps while
+    // the image contributes its pinch and zoomed-pan recognizers below.
+    // A single-tap recognizer here would join
     // the recognizer race and starve the List before it can start scrolling.
     .onTouch((event: TouchEvent) => { this.onSurfaceTouch(event) })
     .hitTestBehavior(this.gesturesEnabled || this.failed ? HitTestMode.Default : HitTestMode.None)
@@ -832,14 +827,6 @@ struct ReaderImageSurface {
           .onActionUpdate((event?: GestureEvent) => { this.handlePinchUpdate(event) })
           .onActionEnd(() => { this.finishNativePinch() })
           .onActionCancel(() => { this.finishNativePinch() }),
-        TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
-          if (!this.allowDirectDoubleTap) {
-            return
-          }
-          const location = event?.tapLocation
-          this.handleDoubleTapAt(location === undefined ? this.viewportWidth / 2 : location.x as number,
-            location === undefined ? this.viewportHeight / 2 : location.y as number)
-        }),
         PanGesture({ fingers: 1, direction: PanDirection.All, distance: this.panDistance() })
           .onActionStart(() => {
             if (!this.active || this.zoomScale <= 1.01) return
@@ -1017,11 +1004,13 @@ struct ReaderSpreadSurface {
         return ratio
       }
     }
-    return 0.75
+    return 0
   }
 
   private usesJoinedLayout(): boolean {
-    return this.joined && this.hasSecond
+    // Until both real sizes are available, let each page fit its own half of
+    // the viewport; an invented aspect ratio must not size displayed images.
+    return this.joined && this.hasSecond && this.saneRatio(this.firstIndex) > 0 && this.saneRatio(this.secondIndex) > 0
   }
 
   private paneWidth(): number {
@@ -1793,6 +1782,23 @@ export struct ReaderPage {
   private overlayTapStartX: number = 0
   private overlayTapStartY: number = 0
   private overlayTapSuppressedUntilMs: number = 0
+  private pagedBoundarySwipe: ReaderBoundarySwipe = new ReaderBoundarySwipe()
+  private pagedBoundaryScope: string = ''
+  private overlayTapScope: string = ''
+  private overlayTapArbiter: ReaderTapArbiter = new ReaderTapArbiter(
+    (point: ReaderTapPoint): void => {
+      if (this.readerOpen && this.routeVisible && this.overlayTapScope === this.currentOverlayTapScope() &&
+        !this.consumeOverlayTapSuppression()) this.tapAction(point.x, point.y)
+    },
+    (point: ReaderTapPoint): void => {
+      if (this.readerOpen && this.routeVisible && this.overlayTapScope === this.currentOverlayTapScope()) {
+        this.onPagedOverlayDoubleTap(point.x, point.y)
+      }
+    })
+
+  private currentOverlayTapScope(): string {
+    return `${this.sourceSignature}:${this.pageIndex}:${this.activeDisplayIndex}`
+  }
 
   aboutToAppear(): void {
     this.closing = false
@@ -1803,6 +1809,8 @@ export struct ReaderPage {
   }
 
   aboutToDisappear(): void {
+    this.overlayTapArbiter.cancel()
+    this.pagedBoundarySwipe.cancel()
     this.retryHitRegions.clear()
     this.persistCurrentProgress()
     this.sessionStore.flush()
@@ -1815,12 +1823,16 @@ export struct ReaderPage {
 
   @Monitor('sessionConfig')
   onSessionChanged(): void {
+    this.overlayTapArbiter.cancel()
+    this.pagedBoundarySwipe.cancel()
     this.retryHitRegions.clear()
     this.syncSession(true)
   }
 
   @Monitor('pageIndex')
   onParentPageChanged(): void {
+    this.overlayTapArbiter.cancel()
+    this.pagedBoundarySwipe.cancel()
     if (this.usesDisplayPagePager()) {
       const current = this.currentDisplayPage()
       if (current === undefined || current.pageIndex !== this.pageIndex) {
@@ -1838,6 +1850,7 @@ export struct ReaderPage {
   onReaderVisibilityChanged(): void {
     this.chromeShown = this.chromeVisible
     if (!this.readerOpen) {
+      this.overlayTapArbiter.cancel()
       this.clearStatusBarHideTimer()
       return
     }
@@ -1849,6 +1862,7 @@ export struct ReaderPage {
   @Monitor('routeVisible')
   onReaderRouteVisibilityChanged(): void {
     if (!this.routeVisible) {
+      this.overlayTapArbiter.cancel()
       this.clearStatusBarHideTimer()
       // A pushed Reader-owned detail route covers this page without closing
       // it. Restore the application bar before that route becomes visible;
@@ -2703,6 +2717,8 @@ export struct ReaderPage {
       imageScalingQuality: p.imageScalingQuality,
       showPageNumber: p.showPageNumber,
       pageTurnAnimation: p.pageTurnAnimation,
+      doubleTapZoomEnabled: p.doubleTapZoomEnabled,
+      doubleTapIntervalMs: p.doubleTapIntervalMs,
       autoPageSeconds: p.autoPageSeconds,
       preloadPages: p.preloadPages,
       spreadLayoutMode: p.spreadLayoutMode,
@@ -3023,7 +3039,8 @@ export struct ReaderPage {
   }
 
   private suppressOverlayTap(): void {
-    this.overlayTapSuppressedUntilMs = Date.now() + READER_SINGLE_TAP_DELAY_MS
+    this.overlayTapArbiter.cancel()
+    this.overlayTapSuppressedUntilMs = Date.now() + READER_OVERLAY_TAP_SUPPRESSION_MS
   }
 
   private consumeOverlayTapSuppression(): boolean {
@@ -3050,6 +3067,11 @@ export struct ReaderPage {
       return
     }
     if (event.type === TouchType.Down) {
+      // Suppress only the preceding drag's tap callback. A fresh one-finger
+      // gesture must not inherit its 400 ms guard and lose a following tap.
+      this.overlayTapSuppressedUntilMs = 0
+      if (this.overlayTapScope !== this.currentOverlayTapScope()) this.overlayTapArbiter.cancel()
+      this.overlayTapArbiter.down(touch.x, touch.y)
       this.overlayTapStartX = touch.x
       this.overlayTapStartY = touch.y
       return
@@ -3084,7 +3106,7 @@ export struct ReaderPage {
   }
 
   private onPagedOverlayDoubleTap(x: number, y: number): void {
-    if (this.consumeOverlayTapSuppression()) {
+    if (!this.preferences.doubleTapZoomEnabled || this.consumeOverlayTapSuppression()) {
       return
     }
     this.readerDoubleTapX = x
@@ -3101,26 +3123,14 @@ export struct ReaderPage {
       .hitTestBehavior(HitTestMode.Transparent)
       .onTouchIntercept((event: TouchEvent): HitTestMode => this.retryTouchHitTest(event))
       .onTouch((event: TouchEvent) => { this.onPagedOverlayTouch(event) })
-      .gesture(
-        GestureGroup(
-          GestureMode.Exclusive,
-          TapGesture({ count: 2, distanceThreshold: 8 }).onAction((event?: GestureEvent) => {
-            const location = event?.tapLocation
-            const x = location === undefined ? this.viewportWidth / 2 : location.x as number
-            const y = location === undefined ? this.viewportHeight / 2 : location.y as number
-            this.onPagedOverlayDoubleTap(x, y)
-          }),
-          TapGesture({ count: 1 }).onAction((event?: GestureEvent) => {
-            if (this.consumeOverlayTapSuppression()) {
-              return
-            }
-            const location = event?.tapLocation
-            const x = location === undefined ? this.viewportWidth / 2 : location.x as number
-            const y = location === undefined ? this.viewportHeight / 2 : location.y as number
-            this.tapAction(x, y)
-          }),
-        ),
-      )
+      .gesture(TapGesture({ count: 1 }).onAction((event?: GestureEvent) => {
+        if (this.consumeOverlayTapSuppression()) return
+        const location = event?.tapLocation
+        if (location === undefined || !Number.isFinite(location.x) || !Number.isFinite(location.y)) return
+        this.overlayTapScope = this.currentOverlayTapScope()
+        this.overlayTapArbiter.tap(new ReaderTapPoint(location.x, location.y, location.windowX, location.windowY),
+          this.preferences.doubleTapZoomEnabled, this.preferences.doubleTapIntervalMs)
+      }))
   }
 
   private toggleChrome(): void {
@@ -3300,6 +3310,39 @@ export struct ReaderPage {
     return this.listScroller.currentOffset().yOffset <= 0 && this.verticalVisibleStart <= 0
   }
 
+  private pagedBoundaryTouch(event: TouchEvent, axis: ReaderBoundaryAxis): void {
+    if (!this.canCrossChapterBoundary() || event.touches.length > 1 || event.changedTouches.length === 0) {
+      this.pagedBoundarySwipe.cancel()
+      return
+    }
+    const point = event.changedTouches[0]
+    if (event.type === TouchType.Down) {
+      this.pagedBoundaryScope = `${this.sessionConfig.chapterId}:${this.currentOverlayTapScope()}`
+      this.pagedBoundarySwipe.begin(point.windowX, point.windowY,
+        this.isAtBackwardBoundaryUnit(), this.isAtForwardBoundaryUnit())
+    } else if (event.type === TouchType.Cancel) {
+      this.pagedBoundarySwipe.cancel()
+    } else if (event.type === TouchType.Up) {
+      const currentScope = `${this.sessionConfig.chapterId}:${this.currentOverlayTapScope()}`
+      if (currentScope !== this.pagedBoundaryScope) {
+        this.pagedBoundarySwipe.cancel()
+        return
+      }
+      const direction = this.pagedBoundarySwipe.finishNative(point.windowX, point.windowY, axis,
+        this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT ? 'rtl' : 'ltr')
+      if (direction === 'previous') this.crossToPreviousChapter()
+      if (direction === 'next') this.crossToNextChapter()
+    }
+  }
+
+  private pagedBoundaryMotion(index: number, offset: number): void {
+    const current = this.effectiveMode() === ReaderMode.DUAL_PAGE
+      ? this.spreadIndexForPage(this.pageIndex) : this.activeDisplayIndex
+    if (index === current && this.pagedBoundaryScope === `${this.sessionConfig.chapterId}:${this.currentOverlayTapScope()}`) {
+      this.pagedBoundarySwipe.observeNative(offset)
+    }
+  }
+
   /**
    * Forward edge: the next continuation chapter opens at its first unit and
    * the old chapter's final position is persisted under its own id first.
@@ -3410,6 +3453,8 @@ export struct ReaderPage {
         // owns the recognizer stream on this runtime; it remains the sole
         // local zoom owner, exactly as NextE's vertical image does.
         allowDirectDoubleTap: continuous,
+        doubleTapEnabled: this.preferences.doubleTapZoomEnabled,
+        doubleTapIntervalMs: this.preferences.doubleTapIntervalMs,
         routeTaps: continuous,
         tapOriginX: this.readerGlobalX,
         tapOriginY: this.readerGlobalY,
@@ -3468,6 +3513,8 @@ export struct ReaderPage {
     .indicator(false)
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
+    .onTouch((event: TouchEvent): void => { this.pagedBoundaryTouch(event, 'horizontal') })
+    .onGestureSwipe((index: number, info: SwiperAnimationEvent): void => { this.pagedBoundaryMotion(index, info.currentOffset) })
     .onChange((index: number) => {
       this.onDisplayPageChanged(index)
     })
@@ -3488,6 +3535,8 @@ export struct ReaderPage {
     .indicator(false)
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
+    .onTouch((event: TouchEvent): void => { this.pagedBoundaryTouch(event, 'vertical') })
+    .onGestureSwipe((index: number, info: SwiperAnimationEvent): void => { this.pagedBoundaryMotion(index, info.currentOffset) })
     .onChange((index: number) => {
       this.onDisplayPageChanged(index)
     })
@@ -3551,6 +3600,8 @@ export struct ReaderPage {
     .indicator(false)
     .disableSwipe(this.zoomed)
     .width('100%').height('100%')
+    .onTouch((event: TouchEvent): void => { this.pagedBoundaryTouch(event, 'horizontal') })
+    .onGestureSwipe((index: number, info: SwiperAnimationEvent): void => { this.pagedBoundaryMotion(index, info.currentOffset) })
     .onChange((index: number) => {
       this.resetZoomState()
       const starts = this.spreadIndexes()

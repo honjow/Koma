@@ -31,6 +31,12 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  ctx.failTheme=true;await assert.rejects(()=>store.saveThemeMode('dark'),/platform_fail/);assert.equal((await store.load()).themeMode,'system');ctx.failTheme=false;
  mod.unbindReaderThemeWindow();await store.saveThemeMode('dark');assert.equal(applied.at(-1),-1);mod.bindReaderThemeWindow(ctx);await store.load();assert.equal(applied.at(-1),0);
  await store.save(mod.DEFAULT_READER_PREFERENCES);published.length=0;
+ await Promise.all([store.saveDoubleTapZoomEnabled(false),other.saveDoubleTapIntervalMs(200)]);
+ const tapPrefs=await new mod.ReaderPreferencesStore(ctx).load();
+ assert.equal(tapPrefs.doubleTapZoomEnabled,false);assert.equal(tapPrefs.doubleTapIntervalMs,200);
+ assert.equal((await store.loadForComic('tap-book')).doubleTapIntervalMs,200);
+ failFlush=true;await assert.rejects(()=>store.saveDoubleTapZoomEnabled(true),/fixture_flush_failed/);
+ assert.equal((await store.load()).doubleTapZoomEnabled,false);
  await Promise.all([store.savePreloadPages(5),other.saveAutoPageSeconds(9)]);
  const both=await store.load();const preserved=both.preloadPages===5 && both.autoPageSeconds===9;
  console.log(JSON.stringify({crossInstanceFieldsPreserved:preserved,preloadPages:both.preloadPages,autoPageSeconds:both.autoPageSeconds}));
