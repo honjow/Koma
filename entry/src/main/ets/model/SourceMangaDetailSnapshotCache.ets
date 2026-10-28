@@ -38,6 +38,7 @@ function cloneMangaChapterItem(chapter: MangaChapterItem): MangaChapterItem {
     title: chapter.title,
     chapterNumber: chapter.chapterNumber,
     volumeNumber: chapter.volumeNumber,
+    readingOrder: chapter.readingOrder,
     readingGroup: chapter.readingGroup,
     continuationEligible: chapter.continuationEligible,
     scanlator: chapter.scanlator,

@@ -34,6 +34,7 @@ export interface MangaChapterItem extends ReaderChapterDescriptor {
   title: string
   chapterNumber?: number
   volumeNumber?: string
+  readingOrder?: number
   readingGroup?: string
   continuationEligible?: boolean
   scanlator?: string
@@ -237,6 +238,8 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
     item['chapter'],
   ])
   const sourceTitle = optionalSourceDisplayString(item['title'])
+  const sourceReadingOrder = optionalSourceNumber(item['readingOrder'])
+  const readingOrder = sourceReadingOrder !== undefined && sourceReadingOrder >= 0 ? sourceReadingOrder : undefined
   const readingGroup = optionalSourceString(item['readingGroup'])
   const volumeNumber = firstSourceString([
     optionalSourceString(item['volume_number']),
@@ -249,9 +252,10 @@ export function parseMangaChapterFromSourceItem(item: SourceRuntimeRecord): Mang
       ? AppStrings.get('manga_detail_chapter_untitled')
       : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${chapterNumber}`)),
     chapterNumber,
+    readingOrder,
     readingGroup,
     continuationEligible: hasContinuationContract ? item['continuationEligible'] === true &&
-      readingGroup !== undefined && (chapterNumber !== undefined || optionalSourceNumber(volumeNumber) !== undefined) : undefined,
+      readingGroup !== undefined && (readingOrder !== undefined || chapterNumber !== undefined || optionalSourceNumber(volumeNumber) !== undefined) : undefined,
     volumeNumber,
     scanlator: firstSourceDisplayString([
       item['scanlator'],

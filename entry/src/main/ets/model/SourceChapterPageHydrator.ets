@@ -399,6 +399,7 @@ export class SourceChapterPageHydrator {
       index: latest.chapters.length,
       chapterNumber: descriptor.chapterNumber,
       volumeNumber: descriptor.volumeNumber,
+      readingOrder: descriptor.readingOrder,
       readingGroup: descriptor.readingGroup,
       continuationEligible: descriptor.continuationEligible,
       scanlator: descriptor.scanlator,

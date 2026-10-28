@@ -621,3 +621,25 @@ test('downloaded single-page lookahead prepares geometry without waiting for for
   assert.deepEqual([page.width, page.height], [900, 1400])
   adapter.close()
 })
+
+test('verified source reading order preserves duplicate numbers and unnumbered extras through continuation', () => {
+  const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
+  const output = {}
+  vm.runInNewContext(ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: output })
+  const chapters = [
+    { id: 'end', chapterNumber: 3, readingOrder: 4 },
+    { id: 'one-b', chapterNumber: 1, readingOrder: 1 },
+    { id: 'extra', readingOrder: 2 },
+    { id: 'two', chapterNumber: 2, readingOrder: 3 },
+    { id: 'one-a', chapterNumber: 1, readingOrder: 0 },
+  ].map(chapter => ({ ...chapter, title: chapter.id, readingGroup: 'site-reader', continuationEligible: true }))
+  const alternate = { id: 'volume', title: 'volume', volumeNumber: '1', readingGroup: 'volume', continuationEligible: true }
+  assert.deepEqual(Array.from(output.continuationChapterIds([...chapters, alternate], 'extra')),
+    ['one-a', 'one-b', 'extra', 'two', 'end'])
+  assert.equal(output.continuationChapterIds([{ id: 'legacy', title: 'legacy', chapterNumber: 1 }], 'legacy'), undefined)
+  const legacy = chapters.filter(chapter => chapter.chapterNumber !== undefined)
+    .map(({ readingOrder, ...chapter }) => chapter)
+  assert.deepEqual(Array.from(output.continuationChapterIds(legacy, 'one-a')), ['one-b', 'one-a', 'two', 'end'])
+})

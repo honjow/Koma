@@ -7,6 +7,7 @@ export interface ReaderChapterDescriptor {
   chapterNumber?: number
   dateUpload?: number
   volumeNumber?: string
+  readingOrder?: number
   readingGroup?: string
   continuationEligible?: boolean
 }
@@ -18,6 +19,7 @@ export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): 
     chapterNumber: chapter.chapterNumber,
     dateUpload: chapter.dateUpload,
     volumeNumber: chapter.volumeNumber,
+    readingOrder: chapter.readingOrder,
     readingGroup: chapter.readingGroup,
     continuationEligible: chapter.continuationEligible,
   }
@@ -55,6 +57,11 @@ export function firstReaderChapter(
 }
 
 function readingOrder(chapter: ReaderChapterDescriptor): number | undefined {
+  // A source-verified reading sequence can contain duplicate chapter numbers
+  // and unnumbered extras. Its ordinal is distinct from displayed chapter/volume.
+  if (chapter.readingOrder !== undefined && Number.isFinite(chapter.readingOrder) && chapter.readingOrder >= 0) {
+    return chapter.readingOrder
+  }
   if (chapter.volumeNumber !== undefined && chapter.volumeNumber.trim().length > 0) {
     const volume = Number(chapter.volumeNumber)
     if (Number.isFinite(volume)) {

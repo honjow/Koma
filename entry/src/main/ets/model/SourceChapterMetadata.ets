@@ -33,6 +33,10 @@ export function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaC
       chapter.volumeNumber = remote.volumeNumber
       changed = true
     }
+    if (remote.readingOrder !== chapter.readingOrder) {
+      chapter.readingOrder = remote.readingOrder
+      changed = true
+    }
     if (remote.readingGroup !== chapter.readingGroup) {
       chapter.readingGroup = remote.readingGroup
       changed = true

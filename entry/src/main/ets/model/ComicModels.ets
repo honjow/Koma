@@ -49,6 +49,7 @@ export interface Chapter {
   index: number
   chapterNumber?: number
   volumeNumber?: string
+  readingOrder?: number
   readingGroup?: string
   continuationEligible?: boolean
   scanlator?: string
