@@ -2859,7 +2859,7 @@ struct Index {
     if (homepage === undefined) return undefined
     const content: Record<string, Object> = {
       'label': AppStrings.get('manga_detail_menu_open_webview'),
-      'icon': $r('sys.symbol.website'),
+      'icon': $r('sys.symbol.worldclock'),
       'isEnabled': true,
       'action': (): void => {
         if (isCurrent()) RouterHelper.pushMangaWeb({ url: homepage,
