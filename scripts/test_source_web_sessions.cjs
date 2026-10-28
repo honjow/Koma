@@ -910,7 +910,7 @@ test('source-provided challenge ID selects only its own actual rejected GET', as
   const f=fixture(), id=f.guards.newSourceRuntimeOperationGuardId()
   const release=f.guards.registerSourceRuntimeOperationGuard(id,()=>true)
   const context=JSON.stringify({...f.identity(),operationGuardId:id})
-  const r=await f.http([response(403),response(403)],context,{wantChallengeRequestId:true}, {
+  const r=await f.http([response(403),response(403)],context,{wantChallengeRequestId:true,headers:{'User-Agent':'Source UA'}}, {
     afterInitial:async({transport,execute})=>{
       const later=JSON.parse(await execute(JSON.stringify({url:'https://site.invalid/b',method:'GET',wantChallengeRequestId:true}),context))
       return { transport,later }
@@ -920,13 +920,17 @@ test('source-provided challenge ID selects only its own actual rejected GET', as
   assert.notEqual(r.result.challengeRequestId,r.after.later.challengeRequestId)
   const transport=r.after.transport
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
+  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/a'),undefined)
   transport.selectSourceRejectedRequest('source.one',id,r.result.challengeRequestId)
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'https://site.invalid/a')
+  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/a'),'Source UA')
+  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/b'),undefined)
   transport.selectSourceRejectedRequest('source.one',id,'forged')
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
   transport.selectSourceRejectedRequest('another.source',id,r.after.later.challengeRequestId)
   assert.equal(transport.sourceRejectedRequestUrl('another.source',id),'')
   transport.clearSourceRejectedRequest('source.one',id)
+  assert.equal(transport.sourceRejectedRequestUserAgent('source.one',id,'https://site.invalid/a'),undefined)
   transport.selectSourceRejectedRequest('source.one',id,r.result.challengeRequestId)
   assert.equal(transport.sourceRejectedRequestUrl('source.one',id),'')
   release()

@@ -1,7 +1,7 @@
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { hasNewSourceClearance, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
-import { cancelSourceWebProbe, probeSourceWebSession } from '../sourceRuntime/SourceRuntimeHttpTransport'
+import { cancelSourceWebProbe, probeSourceWebSession, sourceRejectedRequestUserAgent } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
@@ -99,6 +99,21 @@ export struct SourceWebSessionSheet {
     if (url === undefined) {
       this.loading = false
       return
+    }
+    const session = this.params.sourceSession
+    if (session?.requestHandle !== undefined) {
+      const requestUa = sourceRejectedRequestUserAgent(session.sourceId, session.requestHandle, url)
+      if (requestUa !== undefined) {
+        try { this.controller.setCustomUserAgent(requestUa) }
+        catch (_error) {
+          // Do not load or complete a session under a different identity.
+          this.controllerReady = false
+          this.loading = false
+          DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_user_agent')
+          this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_session_failed') })
+          return
+        }
+      }
     }
     if (this.autoRetryOnClearance && this.clearanceBaseline === undefined) {
       try { this.clearanceBaseline = readSourceWebCookies(url) }

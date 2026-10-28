@@ -24,6 +24,8 @@ interface RejectedSourceGet {
   httpContextJson: string
   identity: SourceHttpIdentity
   rejectedUrl: string
+  effectiveUserAgent?: string
+  selectedByChallengeId?: boolean
 }
 
 interface SourceWebProbeContext {
@@ -59,6 +61,15 @@ export function sourceRejectedRequestUrl(sourceId: string, requestHandle: string
   return rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))?.rejectedUrl ?? ''
 }
 
+/** Only the causally selected GET may lend its effective identity to its exact Web session. */
+export function sourceRejectedRequestUserAgent(sourceId: string, requestHandle: string, fullUrl: string): string | undefined {
+  const selected = rejectedSourceGets.get(rejectedSourceGetKey(sourceId, requestHandle))
+  if (selected === undefined || selected === null || selected.selectedByChallengeId !== true ||
+    selected.identity.sourceId !== sourceId || selected.identity.operationGuardId !== requestHandle ||
+    selected.rejectedUrl !== fullUrl || !selected.identity.webSessionOrigins.includes(sourceWebOrigin(fullUrl))) return undefined
+  return selected.effectiveUserAgent
+}
+
 export function clearSourceRejectedRequest(sourceId: string, requestHandle: string): void {
   const key = rejectedSourceGetKey(sourceId, requestHandle)
   rejectedSourceGets.delete(key)
@@ -74,6 +85,7 @@ export function selectSourceRejectedRequest(sourceId: string, requestHandle: str
   // Old sources do not opt in. Retain their existing single-GET fallback.
   if (candidates === undefined && challengeRequestId === undefined) return
   const selected = challengeRequestId === undefined ? undefined : candidates?.get(challengeRequestId)
+  if (selected !== undefined) selected.selectedByChallengeId = true
   rejectedSourceGets.set(key, selected ?? null)
 }
 
@@ -448,6 +460,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
         const previous = rejectedSourceGets.get(key)
         const rejected: RejectedSourceGet = { requestJson, httpContextJson, identity, rejectedUrl: currentUrl }
+        const uaNames = Object.keys(headers).filter((name: string): boolean => name.toLowerCase() === 'user-agent')
+        // Ambiguous differently-cased headers do not establish one effective identity.
+        const actualUa = uaNames.length === 1 ? headers[uaNames[0]] : undefined
+        if (actualUa !== undefined && actualUa.trim().length > 0 && !/[\r\n]/.test(actualUa)) {
+          rejected.effectiveUserAgent = actualUa
+        }
         if (optedIn) {
           rejectedSourceSequence += 1
           challengeRequestId = `request-${rejectedSourceSequence}`

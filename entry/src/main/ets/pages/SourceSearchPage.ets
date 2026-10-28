@@ -84,7 +84,7 @@ export struct SourceSearchPage {
     if (receipt === null || receipt.sourceId !== this.source.sourceId) return
     if (!this.viewModel.claimWebChallenge(receipt.scope, receipt.id, this.chrome.visible)) return
     const source = this.currentSource()
-    const params = prepareSourceWebSession(source.sourceId, source.displayName)
+    const params = prepareSourceWebSession(source.sourceId, source.displayName, receipt.requestHandle)
     if (params === undefined) {
       this.viewModel.cancelWebChallenge(receipt.scope, receipt.id)
       return

@@ -47,7 +47,7 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 和 `chapter_reading_order_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
 
-`source_http_challenge_cause_v1` 仅由可追踪生命周期的统一搜索请求声明。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次搜索身份匹配原 GET，验证后的响应仅由该次搜索的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
+`source_http_challenge_cause_v1` 仅由可追踪生命周期的统一搜索、单源搜索及 `get_manga_list` 请求声明。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。精确选中的原 GET 可在内存中将有效 UA 交给同 URL 的验证页，保持验证及原请求身份一致，不改源或全局默认 UA；会话仍保存其实际 Web UA，取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
 
 `source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
 
