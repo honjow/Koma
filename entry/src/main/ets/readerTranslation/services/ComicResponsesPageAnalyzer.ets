@@ -1,4 +1,8 @@
+import { CodexOAuthTokenSet } from '../model/CodexOAuth'
+import { LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL } from '../model/LlmSourceProfile'
+import { ExperimentalCodexOAuthService } from './ExperimentalCodexOAuthService'
 import { KomaTranslationSettings } from '../KomaTranslationSettings'
+import { common } from '@kit.AbilityKit'
 // Adapted from NextE59a7a679. Koma owns configuration, credentials and files.
 import { TranslationHttpIdentity } from '../constants/TranslationHttpIdentity'
 import { DiagnosticLogger } from '../../diagnostics/DiagnosticLogger'
@@ -19,7 +23,7 @@ const COMIC_RESPONSES_CONNECT_TIMEOUT_MS: number = 20000
 const COMIC_RESPONSES_READ_TIMEOUT_MS: number = 120000
 export const CODEX_RESPONSES_BASE_URL: string = 'https://chatgpt.com/backend-api/codex'
 const CODEX_RESPONSES_ORIGINATOR: string = 'codex_cli_rs'
-const CODEX_RESPONSES_USER_AGENT: string = 'codex_cli_rs/0.0.0 (NextE experimental)'
+const CODEX_RESPONSES_USER_AGENT: string = 'codex_cli_rs/0.0.0 (Koma experimental)'
 
 interface ResponsesInputText {
   type: string
@@ -538,5 +542,97 @@ export class OpenAiApiComicPageAnalyzer implements ComicPageAnalyzer {
 
   analyze(request: ComicPageAnalysisRequest): Promise<ComicPageAnalysisResult> {
     return this.core.analyze(request, this.config)
+  }
+}
+
+export class ExperimentalCodexComicPageAnalyzer implements ComicPageAnalyzer {
+  private readonly context: common.UIAbilityContext
+  private readonly model: string
+  private readonly sourceProfileId: string
+  private readonly sourceRevision: number
+  private readonly reasoningEffort: string
+  private readonly core: ComicResponsesProviderCore
+
+  constructor(
+    context: common.UIAbilityContext,
+    model: string,
+    transport: ComicResponsesHttpTransport = new DefaultComicResponsesHttpTransport(),
+    sourceProfileId: string = '',
+    sourceRevision: number = 0,
+    reasoningEffort: string = '',
+  ) {
+    this.context = context
+    this.model = model
+    this.sourceProfileId = sourceProfileId
+    this.sourceRevision = sourceRevision
+    this.reasoningEffort = reasoningEffort
+    this.core = new ComicResponsesProviderCore(transport)
+  }
+
+  providerId(): string {
+    return this.sourceProfileId.length === 0
+      ? 'codex-oauth-experimental'
+      : 'llm-source:' + this.sourceProfileId + ':r' + this.sourceRevision
+  }
+
+  modelId(): string {
+    return this.model
+  }
+
+  analysisPromptVersion(): string {
+    return COMIC_RESPONSES_PROMPT_VERSION
+  }
+
+  contextFingerprint(request: ComicPageAnalysisRequest): string {
+    return ComicResponsesProtocol.contextFingerprint(request)
+  }
+
+  capabilities(): ComicPageAnalyzerCapabilities {
+    return ComicResponsesProviderCore.capabilities()
+  }
+
+  async analyze(request: ComicPageAnalysisRequest): Promise<ComicPageAnalysisResult> {
+    let tokens: CodexOAuthTokenSet = await ExperimentalCodexOAuthService.usableSourceTokens(
+      this.context, this.sourceProfileId)
+    try {
+      return await this.core.analyze(request, this.callConfig(tokens))
+    } catch (error) {
+      if (!(error instanceof ComicProviderHttpError) || error.statusCode !== 401) {
+        throw error as Error
+      }
+      tokens = await ExperimentalCodexOAuthService.usableSourceTokens(
+        this.context, this.sourceProfileId, true)
+      return this.core.analyze(request, this.callConfig(tokens))
+    }
+  }
+
+  private callConfig(tokens: CodexOAuthTokenSet): ComicResponsesCallConfig {
+    const config: ComicResponsesCallConfig = new ComicResponsesCallConfig()
+    config.providerId = this.providerId()
+    config.baseUrl = CODEX_RESPONSES_BASE_URL
+    config.model = this.model
+    config.accessToken = tokens.accessToken
+    config.accountId = tokens.accountId
+    config.eventStream = true
+    config.codexCompatibility = true
+    config.reasoningEffort = this.reasoningEffort
+    return config
+  }
+}
+
+/** The settings evaluation resolves the same source/model/reasoning selection as the Reader. */
+export class ComicPageAnalyzerFactory {
+  static async create(context: common.UIAbilityContext): Promise<ComicPageAnalyzer> {
+    const settings = await KomaTranslationSettings.load(context)
+    if (!settings.textConfigured()) throw new Error('LLM source is not configured')
+    const source = settings.textSource()!
+    if (source.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL) {
+      return new ExperimentalCodexComicPageAnalyzer(context, settings.apiModel,
+        new DefaultComicResponsesHttpTransport(settings.revision), source.profile.sourceProfileId,
+        settings.revision, settings.reasoningEffort)
+    }
+    return new OpenAiApiComicPageAnalyzer(source.profile.baseUrl, source.apiKey, settings.apiModel,
+      new DefaultComicResponsesHttpTransport(settings.revision),
+      'llm-source:' + source.profile.sourceProfileId, settings.reasoningEffort)
   }
 }

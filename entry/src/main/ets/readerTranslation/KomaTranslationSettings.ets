@@ -4,6 +4,11 @@ import { asset } from '@kit.AssetStoreKit'
 import { AppStorageV2 } from '@kit.ArkUI'
 import { buffer } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { KomaTranslationLlmSource } from './KomaTranslationLlmSource'
+import { supportsMangaTranslation, LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL } from './model/LlmSourceProfile'
+import { CodexOAuthTokenSet } from './model/CodexOAuth'
+import { CodexOAuthTokenCodec, CODEX_OAUTH_TOKEN_STORE_MAX_CHARS } from './services/CodexOAuthTokenCodec'
+import { MAX_LLM_SOURCE_PROFILES, MAX_LLM_SOURCE_PROFILE_STORE_CHARS } from './services/LlmSourceProfileContract'
 
 /** Only this non-sensitive revision is reactive; credentials never enter AppStorage or backups. */
 @ObservedV2
@@ -24,6 +29,9 @@ export class KomaTranslationSettingsSnapshot {
   apiBaseUrl: string = ''
   apiModel: string = ''
   apiKey: string = ''
+  reasoningEffort: string = ''
+  llmSources: KomaTranslationLlmSource[] = []
+  sourceProfileId: string = ''
   multimodal: boolean = true
   sidecarUrl: string = ''
   sidecarUsername: string = ''
@@ -35,7 +43,15 @@ export class KomaTranslationSettingsSnapshot {
   toriiFont: string = 'noto'
 
   textConfigured(): boolean {
-    return this.apiBaseUrl.length > 0 && this.apiModel.length > 0 && this.apiKey.length > 0
+    const source = this.textSource()
+    return source !== null && supportsMangaTranslation(source.profile, this.multimodal) &&
+      (source.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL
+        ? CodexOAuthTokenCodec.parse(source.codexTokens) !== null : source.apiKey.length > 0) && this.apiModel.length > 0
+  }
+
+  textSource(): KomaTranslationLlmSource | null {
+    return this.llmSources.find((source: KomaTranslationLlmSource): boolean =>
+      source.profile.sourceProfileId === this.sourceProfileId) ?? null
   }
 
   configured(): boolean {
@@ -52,6 +68,9 @@ export class KomaTranslationSettingsSnapshot {
     value.apiBaseUrl = this.apiBaseUrl
     value.apiModel = this.apiModel
     value.apiKey = this.apiKey
+    value.reasoningEffort = this.reasoningEffort
+    value.llmSources = this.llmSources.map((source: KomaTranslationLlmSource): KomaTranslationLlmSource => source.copy())
+    value.sourceProfileId = this.sourceProfileId
     value.multimodal = this.multimodal
     value.sidecarUrl = this.sidecarUrl
     value.sidecarUsername = this.sidecarUsername
@@ -66,7 +85,10 @@ export class KomaTranslationSettingsSnapshot {
 }
 
 const TRANSLATION_ASSET_ALIAS: string = 'koma.reader.translation.configuration.v1'
-const MAX_CONFIGURATION_CHARS: number = 64 * 1024
+// Match NextE's 16-source/token/API-key capacities; keep the existing 1024-byte
+// encrypted chunks and atomic manifest rather than truncating a valid source.
+const MAX_CONFIGURATION_CHARS: number = MAX_LLM_SOURCE_PROFILE_STORE_CHARS +
+  MAX_LLM_SOURCE_PROFILES * (CODEX_OAUTH_TOKEN_STORE_MAX_CHARS + 16 * 1024) + 64 * 1024
 
 class KomaTranslationManifest {
   format: string = 'koma-reader-translation-chunks-v1'
@@ -205,42 +227,104 @@ export class KomaTranslationSettings {
   }
 
   static save(_context: common.UIAbilityContext, next: KomaTranslationSettingsSnapshot): Promise<void> {
+    return KomaTranslationSettings.enqueueSave(next, false)
+  }
+
+  // A consumer form owns its binding and visual options, never the source registry.
+  // A retained page can predate a source add/delete performed in the manager.
+  static saveConfiguration(_context: common.UIAbilityContext, next: KomaTranslationSettingsSnapshot): Promise<void> {
+    return KomaTranslationSettings.enqueueSave(next, true)
+  }
+
+  private static enqueueSave(next: KomaTranslationSettingsSnapshot, preserveSources: boolean): Promise<void> {
     const value = next.copy()
     const task = KomaTranslationSettings.writes.then(async (): Promise<void> => {
-      KomaTranslationSettings.validate(value)
-      const root = await KomaTranslationSettings.readAsset()
-      const previous = root === null ? null : KomaTranslationSettings.manifest(KomaTranslationSettings.text(root))
-      const previousRevision = previous?.revision ?? (root === null ? 0 :
-        KomaTranslationSettings.decode(KomaTranslationSettings.text(root)).revision)
-      value.revision = Math.max(Date.now(), KomaTranslationSettings.runtimeRevision() + 1, previousRevision + 1)
-      const raw = JSON.stringify(value)
-      if (raw.length > MAX_CONFIGURATION_CHARS) throw new Error('reader_translation_configuration_invalid')
-      const bytes = KomaTranslationSettings.bytes(raw)
-      const manifest = new KomaTranslationManifest()
-      manifest.id = KomaTranslationSettings.hex(cryptoFramework.createRandom().generateRandomSync(16).data)
-      if (manifest.id === previous?.id) throw new Error('reader_translation_configuration_write_failed')
-      manifest.revision = value.revision
-      manifest.bytes = bytes.byteLength
-      manifest.chunks = Math.ceil(bytes.byteLength / 1024)
-      manifest.sha256 = KomaTranslationSettings.digest(bytes)
-      let staged = 0
-      try {
-        for (let index = 0; index < manifest.chunks; index += 1) {
-          staged = index + 1
-          await KomaTranslationSettings.writeAsset(KomaTranslationSettings.chunkAlias(manifest.id, index),
-            bytes.slice(index * 1024, Math.min(bytes.byteLength, (index + 1) * 1024)))
-        }
-        await KomaTranslationSettings.writeAsset(TRANSLATION_ASSET_ALIAS,
-          KomaTranslationSettings.bytes(JSON.stringify(manifest)))
-      } catch (_error) {
-        await KomaTranslationSettings.removeChunks(manifest.id, staged)
-        throw new Error('reader_translation_configuration_write_failed')
+      const current = await KomaTranslationSettings.read()
+      if (preserveSources) {
+        value.llmSources = current.llmSources.map((source: KomaTranslationLlmSource): KomaTranslationLlmSource => source.copy())
       }
-      connectKomaTranslationSettings().revision = value.revision
-      if (previous !== null) await KomaTranslationSettings.removeChunks(previous.id, previous.chunks)
+      // Ordinary form saves cannot overwrite a refresh token rotated since the form loaded.
+      for (const source of value.llmSources) {
+        const existing = current.llmSources.find((item: KomaTranslationLlmSource): boolean =>
+          item.profile.sourceProfileId === source.profile.sourceProfileId)
+        if (source.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL &&
+          existing?.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL) {
+          source.codexTokens = existing.codexTokens
+          source.profile.accountIdentityHash = existing.profile.accountIdentityHash
+          source.profile.sourceRevision = Math.max(source.profile.sourceRevision, existing.profile.sourceRevision)
+        } else {
+          source.codexTokens = ''
+        }
+      }
+      await KomaTranslationSettings.commit(value, true)
     })
     KomaTranslationSettings.writes = task.then((): void => {}, (): void => {})
     return task
+  }
+
+  static updateSourceTokens(_context: common.UIAbilityContext, sourceProfileId: string,
+    tokens: CodexOAuthTokenSet | null, previousRefreshToken: string = ''): Promise<void> {
+    const encoded = tokens === null ? '' : CodexOAuthTokenCodec.serialize(tokens)
+    const task = KomaTranslationSettings.writes.then(async (): Promise<void> => {
+      const current = await KomaTranslationSettings.read()
+      const source = current.llmSources.find((item: KomaTranslationLlmSource): boolean =>
+        item.profile.sourceProfileId === sourceProfileId)
+      if (source === undefined || source.profile.sourceType !== LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL) {
+        throw new Error('LLM source no longer exists')
+      }
+      if (previousRefreshToken.length > 0 &&
+        CodexOAuthTokenCodec.parse(source.codexTokens)?.refreshToken !== previousRefreshToken) {
+        throw new Error('LLM source credentials changed')
+      }
+      source.codexTokens = encoded
+      if (previousRefreshToken.length === 0) {
+        source.profile.accountIdentityHash = tokens === null || tokens.accountId.length === 0 ? '' :
+          KomaTranslationSettings.digest(KomaTranslationSettings.bytes(tokens.accountId.trim()))
+        source.profile.sourceRevision += 1
+        source.profile.updatedAt = Date.now()
+      }
+      // A same-account automatic refresh is credential maintenance, not a user config change:
+      // advancing the revision here would invalidate the Reader request that caused the refresh.
+      await KomaTranslationSettings.commit(current, previousRefreshToken.length === 0)
+    })
+    KomaTranslationSettings.writes = task.then((): void => {}, (): void => {})
+    return task
+  }
+
+  private static async commit(value: KomaTranslationSettingsSnapshot, advanceRevision: boolean): Promise<void> {
+    KomaTranslationSettings.validate(value)
+    const root = await KomaTranslationSettings.readAsset()
+    const previous = root === null ? null : KomaTranslationSettings.manifest(KomaTranslationSettings.text(root))
+    const previousRevision = previous?.revision ?? (root === null ? 0 :
+      KomaTranslationSettings.decode(KomaTranslationSettings.text(root)).revision)
+    value.revision = advanceRevision
+      ? Math.max(Date.now(), KomaTranslationSettings.runtimeRevision() + 1, previousRevision + 1)
+      : previousRevision
+    const raw = JSON.stringify(value)
+    if (raw.length > MAX_CONFIGURATION_CHARS) throw new Error('reader_translation_configuration_invalid')
+    const bytes = KomaTranslationSettings.bytes(raw)
+    const manifest = new KomaTranslationManifest()
+    manifest.id = KomaTranslationSettings.hex(cryptoFramework.createRandom().generateRandomSync(16).data)
+    if (manifest.id === previous?.id) throw new Error('reader_translation_configuration_write_failed')
+    manifest.revision = value.revision
+    manifest.bytes = bytes.byteLength
+    manifest.chunks = Math.ceil(bytes.byteLength / 1024)
+    manifest.sha256 = KomaTranslationSettings.digest(bytes)
+    let staged = 0
+    try {
+      for (let index = 0; index < manifest.chunks; index += 1) {
+        staged = index + 1
+        await KomaTranslationSettings.writeAsset(KomaTranslationSettings.chunkAlias(manifest.id, index),
+          bytes.slice(index * 1024, Math.min(bytes.byteLength, (index + 1) * 1024)))
+      }
+      await KomaTranslationSettings.writeAsset(TRANSLATION_ASSET_ALIAS,
+        KomaTranslationSettings.bytes(JSON.stringify(manifest)))
+    } catch (_error) {
+      await KomaTranslationSettings.removeChunks(manifest.id, staged)
+      throw new Error('reader_translation_configuration_write_failed')
+    }
+    connectKomaTranslationSettings().revision = value.revision
+    if (previous !== null) await KomaTranslationSettings.removeChunks(previous.id, previous.chunks)
   }
 
   private static decode(raw: string): KomaTranslationSettingsSnapshot {
@@ -256,6 +340,24 @@ export class KomaTranslationSettings {
     value.apiBaseUrl = KomaTranslationSettings.stringField(record, 'apiBaseUrl', '')
     value.apiModel = KomaTranslationSettings.stringField(record, 'apiModel', '')
     value.apiKey = KomaTranslationSettings.stringField(record, 'apiKey', '')
+    value.reasoningEffort = KomaTranslationSettings.stringField(record, 'reasoningEffort', '')
+    value.sourceProfileId = KomaTranslationSettings.stringField(record, 'sourceProfileId', '')
+    if (Array.isArray(record['llmSources'])) {
+      value.llmSources = KomaTranslationLlmSource.decode(JSON.stringify(record['llmSources']))
+    } else if (value.apiBaseUrl.length > 0) {
+      // Migrate the existing single API source in memory; persist only on a successful user save.
+      const source = new KomaTranslationLlmSource()
+      source.profile.sourceProfileId = 'koma-api-original'
+      source.profile.displayName = 'OpenAI API'
+      source.profile.baseUrl = value.apiBaseUrl
+      source.profile.sourceRevision = 1
+      source.profile.capabilities.responses = true
+      source.profile.capabilities.imageInput = true
+      source.profile.capabilities.modelCatalog = true
+      source.apiKey = value.apiKey
+      value.llmSources = [source]
+      value.sourceProfileId = source.profile.sourceProfileId
+    }
     value.multimodal = record['multimodal'] !== false
     value.sidecarUrl = KomaTranslationSettings.stringField(record, 'sidecarUrl', '')
     value.sidecarUsername = KomaTranslationSettings.stringField(record, 'sidecarUsername', '')
@@ -275,10 +377,15 @@ export class KomaTranslationSettings {
   }
 
   private static validate(value: KomaTranslationSettingsSnapshot): void {
+    KomaTranslationLlmSource.decode(JSON.stringify(value.llmSources))
     const languages: string[] = ['auto', 'zh-CN', 'zh-TW', 'en', 'ja', 'ko', 'fr', 'de', 'es', 'pt', 'ru']
     if (!['local', 'self_hosted', 'torii_whole_page'].includes(value.route) ||
       !languages.includes(value.sourceLanguage) || value.targetLanguage === 'auto' ||
-      !languages.includes(value.targetLanguage) || !Number.isSafeInteger(value.revision) || value.revision < 0) {
+      !languages.includes(value.targetLanguage) || !Number.isSafeInteger(value.revision) || value.revision < 0 ||
+      !['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(value.reasoningEffort) ||
+      !['high_recall', 'balanced'].includes(value.detectionProfile) ||
+      !['quality', 'fast'].includes(value.inpaintingProfile) ||
+      !['noto', 'wildwords', 'mashanzheng'].includes(value.toriiFont)) {
       throw new Error('reader_translation_configuration_invalid')
     }
     if ([value.apiBaseUrl, value.sidecarUrl].some((url: string): boolean =>

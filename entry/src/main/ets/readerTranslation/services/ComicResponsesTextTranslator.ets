@@ -1,3 +1,6 @@
+import { CodexOAuthTokenSet } from '../model/CodexOAuth'
+import { LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL } from '../model/LlmSourceProfile'
+import { ExperimentalCodexOAuthService } from './ExperimentalCodexOAuthService'
 // Adapted from NextE59a7a679. Koma owns configuration, credentials and files.
 import { KomaTranslationSettings } from '../KomaTranslationSettings'
 import { common } from '@kit.AbilityKit'
@@ -157,12 +160,14 @@ export class OpenAiApiComicTextTranslator implements ComicTextTranslator {
     sourceProfileId: string = 'openai-responses-api',
     sourceRevision: number = 1,
     inputMode: string = COMIC_TEXT_TRANSLATION_INPUT_MULTIMODAL,
+    reasoningEffort: string = '',
   ) {
     this.config = new ComicResponsesCallConfig()
     this.config.providerId = sourceProfileId
     this.config.baseUrl = baseUrl
     this.config.accessToken = apiKey
     this.config.model = model
+    this.config.reasoningEffort = reasoningEffort
     this.revision = sourceRevision
     this.core = new ComicResponsesTextTranslatorCore(transport, inputMode)
   }
@@ -192,6 +197,85 @@ export class OpenAiApiComicTextTranslator implements ComicTextTranslator {
   }
 }
 
+export class ExperimentalCodexComicTextTranslator implements ComicTextTranslator {
+  private readonly context: common.UIAbilityContext
+  private readonly model: string
+  private readonly profileId: string
+  private readonly revision: number
+  private readonly reasoningEffort: string
+  private readonly core: ComicResponsesTextTranslatorCore
+
+  constructor(
+    context: common.UIAbilityContext,
+    model: string,
+    transport: ComicResponsesHttpTransport = new DefaultComicResponsesHttpTransport(),
+    sourceProfileId: string = 'codex-oauth-experimental',
+    sourceRevision: number = 1,
+    inputMode: string = COMIC_TEXT_TRANSLATION_INPUT_MULTIMODAL,
+    reasoningEffort: string = '',
+  ) {
+    this.context = context
+    this.model = model
+    this.profileId = sourceProfileId
+    this.revision = sourceRevision
+    this.reasoningEffort = reasoningEffort
+    this.core = new ComicResponsesTextTranslatorCore(transport, inputMode)
+  }
+
+  sourceProfileId(): string {
+    return this.profileId
+  }
+
+  sourceRevision(): number {
+    return this.revision
+  }
+
+  modelId(): string {
+    return this.model
+  }
+
+  promptVersion(): string {
+    return this.core.promptVersion()
+  }
+
+  contextFingerprint(request: ComicTextTranslationRequest): string {
+    return this.core.contextFingerprint(request)
+  }
+
+  async translate(request: ComicTextTranslationRequest): Promise<ComicTextTranslationResult> {
+    let tokens: CodexOAuthTokenSet = await ExperimentalCodexOAuthService.usableSourceTokens(
+      this.context,
+      this.profileId,
+    )
+    try {
+      return await this.core.translate(request, this.callConfig(tokens), this.revision)
+    } catch (error) {
+      if (!(error instanceof ComicProviderHttpError) || error.statusCode !== 401) {
+        throw error as Error
+      }
+      tokens = await ExperimentalCodexOAuthService.usableSourceTokens(
+        this.context,
+        this.profileId,
+        true,
+      )
+      return this.core.translate(request, this.callConfig(tokens), this.revision)
+    }
+  }
+
+  private callConfig(tokens: CodexOAuthTokenSet): ComicResponsesCallConfig {
+    const config: ComicResponsesCallConfig = new ComicResponsesCallConfig()
+    config.providerId = this.profileId
+    config.baseUrl = CODEX_RESPONSES_BASE_URL
+    config.model = this.model
+    config.accessToken = tokens.accessToken
+    config.accountId = tokens.accountId
+    config.eventStream = true
+    config.codexCompatibility = true
+    config.reasoningEffort = this.reasoningEffort
+    return config
+  }
+}
+
 /** Koma's explicit configuration is independent of NextE's accounts and credentials. */
 export class ComicTextTranslatorFactory {
   static async create(context: common.UIAbilityContext,
@@ -201,7 +285,12 @@ export class ComicTextTranslatorFactory {
     const settings = await KomaTranslationSettings.load(context)
     KomaTranslationSettings.assertRevision(expectedRevision, settings.revision)
     if (!settings.textConfigured()) throw new Error('LLM source is not configured')
-    return new OpenAiApiComicTextTranslator(settings.apiBaseUrl, settings.apiKey, settings.apiModel,
-      transport, 'koma-reader-translation', settings.revision, inputMode)
+    const source = settings.textSource()!
+    if (source.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL) {
+      return new ExperimentalCodexComicTextTranslator(context, settings.apiModel, transport,
+        source.profile.sourceProfileId, settings.revision, inputMode, settings.reasoningEffort)
+    }
+    return new OpenAiApiComicTextTranslator(source.profile.baseUrl, source.apiKey, settings.apiModel,
+      transport, 'llm-source:' + source.profile.sourceProfileId, settings.revision, inputMode, settings.reasoningEffort)
   }
 }

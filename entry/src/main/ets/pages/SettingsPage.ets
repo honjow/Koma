@@ -1,4 +1,6 @@
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
+import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
+import { KomaTranslationSourcesContent } from '../components/KomaTranslationSourcesContent'
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
 import { readerModeSelection, readerDirectionSelection } from '../model/ReaderPreferencesStore'
@@ -171,6 +173,7 @@ export type SettingsPaneKey =
   'about' |
   'advanced' |
   'translation' |
+  'llm-sources' |
   'enhancement-models' |
   'diagnostics'
 
@@ -405,6 +408,7 @@ function safeSettingsErrorCode(error: Error): string {
 export function settingsPaneTitle(pane: SettingsPaneKey): string {
   if (pane === 'advanced') return s('settings_pane_advanced_title')
   if (pane === 'translation') return s('comic_translation_settings_title')
+  if (pane === 'llm-sources') return s('llm_sources_title')
   if (pane === 'enhancement-models') return s('settings_reader_super_resolution_models')
   if (pane === 'diagnostics') return s('diagnostics_title')
   if (pane === 'appearance') {
@@ -2684,7 +2688,10 @@ export struct SettingsPage {
     } else if (this.pane === 'diagnostics') {
       DiagnosticsSettingsContent()
     } else if (this.pane === 'translation') {
-      KomaTranslationSettingsContent({ sheetPresentation: false, onClose: () => { this.onClosePane() } })
+      KomaTranslationSettingsContent({ sheetPresentation: false, onClose: () => { this.onClosePane() },
+        onOpenSources: () => { this.onOpenSettingsPane('llm-sources') } })
+    } else if (this.pane === 'llm-sources') {
+      KomaTranslationSourcesContent()
     } else if (this.pane === 'enhancement-models') {
       if (this.readerPreferencesReady) {
         ReaderSuperResolutionModelsContent({ preferences: this.readerPreferences, modelsChanged: () => { this.onEnhancementModelsChanged() },
@@ -2791,6 +2798,9 @@ export struct SettingsPage {
         }
         ListItem() {
           this.SettingsContent()
+        }
+        if (this.pane === 'storage') {
+          ListItem() { KomaTranslationCacheRow() }
         }
       }
     }

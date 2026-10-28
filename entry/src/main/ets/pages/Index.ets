@@ -1488,7 +1488,7 @@ struct Index {
       pane === 'tracking' ||
       pane === 'backup' ||
       pane === 'storage' ||
-      pane === 'advanced' || pane === 'translation' || pane === 'enhancement-models' ||
+      pane === 'advanced' || pane === 'translation' || pane === 'llm-sources' || pane === 'enhancement-models' ||
       pane === 'about' || pane === 'diagnostics') {
       return pane
     }

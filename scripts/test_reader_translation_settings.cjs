@@ -18,6 +18,38 @@ function moduleFrom(relative, imports, globals = {}) {
 }
 function deferred() { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 
+test('an in-flight source save or deletion retains its original identity after leaving the editor', async () => {
+  const sourceText = fs.readFileSync(path.join(base, 'components/KomaTranslationSourcesContent.ets'), 'utf8')
+    .replace('export struct KomaTranslationSourcesContent', 'export class KomaTranslationSourcesContent')
+  const ast = ts.createSourceFile('sources.ts', sourceText, ts.ScriptTarget.Latest, true)
+  const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'KomaTranslationSourcesContent')
+  const methods = ['saveSource', 'deleteSource', 'editorCurrent']
+  const executable = ts.transpileModule(`class Editor { ${methods.map(name =>
+    owner.members.find(node => node.name?.text === name).getText(ast)).join('\n')} }; exports.Editor = Editor`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const profile = id => ({ profile: { sourceProfileId: id, displayName: id, sourceRevision: 1 } })
+  for (const action of ['saveSource', 'deleteSource']) {
+    const gate = deferred(), output = {}, cleared = []; let saved, closed = false
+    new Function('exports', 'KomaTranslationSettings', 'ComicTranslationCodexUsageService', executable)(output,
+      { load: () => gate.promise, save: async (_context, next) => { saved = structuredClone(next) } },
+      { clearCachedSource: async (_context, id) => { cleared.push(id) } })
+    const editor = new output.Editor()
+    editor.active = true; editor.editorShown = true; editor.editorLifetime = 1; editor.busy = false
+    editor.editing = { ...profile('original'), copy: () => profile('original') }
+    editor.context = () => ({}); editor.load = async () => {}; editor.toast = () => assert.fail('unexpected error')
+    editor.closeEditor = () => { closed = true }
+    const pending = editor[action]()
+    editor.editing = profile('next-editor'); editor.editorLifetime = 2
+    gate.resolve({ llmSources: [profile('original'), profile('next-editor')] })
+    await pending
+    assert.equal(closed, false, 'a completed old operation must not close a different editor')
+    assert.equal(saved.llmSources.find(item => item.profile.sourceProfileId === 'next-editor').profile.sourceRevision, 1)
+    assert.equal(saved.llmSources.some(item => item.profile.sourceProfileId === 'original'), action === 'saveSource')
+    assert.deepEqual(cleared, action === 'deleteSource' ? ['original'] : [])
+  }
+})
+
 test('model verification reads real files on a worker and still rejects missing, truncated and corrupt assets', async () => {
   const { Worker } = require('node:worker_threads')
   const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-model-verify-'))
@@ -120,7 +152,20 @@ test('translation configuration serializes reads with atomic secure writes and r
   const reached = deferred(), release = deferred()
   const state = { revision: 0 }
   const tags = Object.fromEntries(['ALIAS', 'SECRET', 'RETURN_TYPE', 'RETURN_LIMIT', 'ACCESSIBILITY', 'CONFLICT_RESOLUTION'].map(k => [k, k]))
+  const profile = moduleFrom('readerTranslation/model/LlmSourceProfile.ets', { '@kit.ArkTS': {} })
+  const contract = moduleFrom('readerTranslation/services/LlmSourceProfileContract.ets', { '../model/LlmSourceProfile': profile })
+  const codec = moduleFrom('readerTranslation/services/LlmSourceProfileCodec.ets', {
+    '../model/LlmSourceProfile': profile, './LlmSourceProfileContract': contract,
+  })
+  const oauth = moduleFrom('readerTranslation/model/CodexOAuth.ets', {})
+  const tokenCodec = moduleFrom('readerTranslation/services/CodexOAuthTokenCodec.ets', { '../model/CodexOAuth': oauth })
+  const source = moduleFrom('readerTranslation/KomaTranslationLlmSource.ets', {
+    './model/LlmSourceProfile': profile, './services/LlmSourceProfileCodec': codec,
+    './services/CodexOAuthTokenCodec': tokenCodec,
+  })
   const settings = moduleFrom('readerTranslation/KomaTranslationSettings.ets', {
+    './KomaTranslationLlmSource': source, './model/LlmSourceProfile': profile,
+    './services/CodexOAuthTokenCodec': tokenCodec, './services/LlmSourceProfileContract': contract,
     '@kit.AssetStoreKit': { asset: { Tag: tags, ReturnType: { ALL: 1 }, Accessibility: { DEVICE_FIRST_UNLOCKED: 1 }, ConflictResolution: { OVERWRITE: 1 },
       async query(attrs) { const payload = assets.get(Buffer.from(attrs.get(tags.ALIAS)).toString('utf8')); return payload ? [new Map([[tags.SECRET, payload]])] : [] },
       async add(attrs) {
@@ -175,6 +220,58 @@ test('translation configuration serializes reads with atomic secure writes and r
   assert.equal(assets.size, current.chunks + 1, 'Superseded encrypted chunks are retired after commit')
   assets.delete(rootKey + '.chunk.' + current.id + '.0')
   await assert.rejects(Store.load({}), /configuration_invalid/, 'An incomplete configuration must never publish defaults')
+  // The real legacy inline schema must migrate the selected API without losing the independent Torii credential.
+  assets.clear()
+  assets.set(rootKey, new Uint8Array(Buffer.from(JSON.stringify({ apiBaseUrl: 'https://provider.example/v1',
+    apiKey: 'legacy-api', apiModel: 'legacy-model', toriiApiKey: 'existing-torii', revision: 1 }))))
+  const migrated = await Store.load({})
+  assert.equal(migrated.textSource().apiKey, 'legacy-api')
+  assert.equal(migrated.toriiApiKey, 'existing-torii')
+  assert.equal(migrated.apiModel, 'legacy-model')
+  await Store.save({}, migrated)
+  const loaded = await Store.load({})
+  assert.equal(loaded.textConfigured(), true)
+  loaded.llmSources = []
+  await Store.save({}, loaded)
+  assert.equal((await Store.load({})).textConfigured(), false, 'Deleting the bound source cannot fall back to legacy API fields')
+  const codex = new source.KomaTranslationLlmSource()
+  codex.profile.sourceProfileId = 'fixture-codex'
+  codex.profile.displayName = 'Fixture Codex'
+  codex.profile.sourceType = profile.LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL
+  codex.profile.sourceRevision = 1
+  codex.profile.capabilities.responses = true
+  codex.profile.capabilities.imageInput = true
+  const configuration = await Store.load({})
+  configuration.llmSources = [codex]
+  configuration.sourceProfileId = codex.profile.sourceProfileId
+  await Store.save({}, configuration)
+  const tokens = new oauth.CodexOAuthTokenSet()
+  tokens.accessToken = 'fixture-access'
+  tokens.refreshToken = 'fixture-refresh'
+  tokens.accountId = 'fixture-account'
+  await Store.updateSourceTokens({}, codex.profile.sourceProfileId, tokens)
+  const staleForm = await Store.load({})
+  const loginRevision = staleForm.revision
+  const rotated = tokens.copy(); rotated.accessToken = 'fixture-access-2'; rotated.refreshToken = 'fixture-refresh-2'
+  await Store.updateSourceTokens({}, codex.profile.sourceProfileId, rotated, tokens.refreshToken)
+  assert.equal((await Store.load({})).revision, loginRevision, 'Automatic refresh must not cancel its own Reader request')
+  await Store.save({}, staleForm)
+  assert.equal(tokenCodec.CodexOAuthTokenCodec.parse((await Store.load({})).textSource().codexTokens).refreshToken,
+    rotated.refreshToken, 'A stale settings form must not roll back a rotated credential')
+  const oldConsumerForm = staleForm.copy(); oldConsumerForm.llmSources = []
+  await Store.saveConfiguration({}, oldConsumerForm)
+  assert.equal((await Store.load({})).llmSources.length, 1,
+    'A consumer page retained before source creation must not erase the source registry')
+  assert.equal(tokenCodec.CodexOAuthTokenCodec.parse((await Store.load({})).textSource().codexTokens).refreshToken,
+    rotated.refreshToken)
+  const removed = await Store.load({}); removed.llmSources = []
+  await Store.save({}, removed)
+  await assert.rejects(Store.updateSourceTokens({}, codex.profile.sourceProfileId, rotated, tokens.refreshToken), /no longer exists/)
+  await Store.saveConfiguration({}, staleForm)
+  assert.equal((await Store.load({})).llmSources.length, 0,
+    'A retained consumer page must not resurrect a source removed in the manager')
+  assert.equal((await Store.load({})).toriiApiKey, 'existing-torii')
+
 })
 
 test('model no-progress failure destroys transport and removes only its incomplete file', async () => {
