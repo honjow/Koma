@@ -11,7 +11,7 @@ const pageText = fs.readFileSync(path.join(__dirname,
   .replace('export struct SourceBrowsePage', 'export class SourceBrowsePage')
 const ast = ts.createSourceFile('page.ts', pageText, ts.ScriptTarget.Latest, true)
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'SourceBrowsePage')
-const names = ['isSearchActive', 'clearPendingSearchTimer', 'submitBrowseSearch',
+const names = ['isSearchActive', 'hasSearchFilterQuery', 'clearPendingSearchTimer', 'submitBrowseSearch',
   'setRuntimeFilterValue', 'resetRuntimeFilters']
 const handlers = names.map(name => owner.members.find(node => node.name?.text === name).getText(ast)).join('\n')
 const compiled = ts.transpileModule(`export class Page { ${handlers} }`, {

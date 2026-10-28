@@ -16,7 +16,7 @@ import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
-import { SourceFilter, SourceManga } from '../model/SourceModels'
+import { SourceFilter, SourceManga, sourceFiltersForQuery } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectSourceRuntimeState, SourceRuntimeState } from '../state/SourceRuntimeState'
@@ -245,6 +245,7 @@ export struct SourceBrowsePage {
     }
     this.handledQueryChangeSeq = requestSeq
     this.scheduleBrowseSearch(this.chrome.query)
+    this.syncTitleActions()
   }
 
   @Monitor('chrome.querySubmitSeq')
@@ -255,6 +256,7 @@ export struct SourceBrowsePage {
     }
     this.handledQuerySubmitSeq = requestSeq
     this.submitBrowseSearch(this.chrome.query)
+    this.syncTitleActions()
   }
 
   aboutToDisappear(): void {
@@ -311,7 +313,7 @@ export struct SourceBrowsePage {
     // This page owns both listings and source search. The shared sheet must
     // target the visible result's scope, including its saved values and busy
     // state (CURRENT_STATUS: SOURCE_SETTINGS_MIGRATION_AUDIT / SOURCE_FILTERS).
-    if (this.isSearchActive()) {
+    if (this.hasSearchFilterQuery()) {
       if (this.viewModel.setSearchFilterValue(filter.id, value)) {
         this.submitBrowseSearch(this.chrome.query)
       }
@@ -321,8 +323,8 @@ export struct SourceBrowsePage {
   }
 
   private resetRuntimeFilters(): void {
-    if (this.isSearchActive()) {
-      this.viewModel.resetSearchFilters()
+    if (this.hasSearchFilterQuery()) {
+      this.viewModel.resetSearchFilters(this.chrome.query)
       this.submitBrowseSearch(this.chrome.query)
       return
     }
@@ -330,7 +332,15 @@ export struct SourceBrowsePage {
   }
 
   private hasRuntimeFilters(): boolean {
-    return this.viewModel.filters.length > 0
+    return this.runtimeFilters().length > 0
+  }
+
+  private hasSearchFilterQuery(): boolean {
+    return this.chrome.query.trim().length > 0
+  }
+
+  private runtimeFilters(): SourceFilter[] {
+    return sourceFiltersForQuery(this.viewModel.filters, this.chrome.query)
   }
 
   private shouldOfferSearchFromEmptyState(): boolean {
@@ -394,9 +404,9 @@ export struct SourceBrowsePage {
   @Builder
   private RuntimeFilterControls() {
     SourceFilterControls({
-      filters: this.viewModel.filters,
-      values: this.isSearchActive() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
-      busy: this.isSearchActive() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse,
+      filters: this.runtimeFilters(),
+      values: this.hasSearchFilterQuery() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
+      busy: this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse,
       vertical: true,
       onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
         this.setRuntimeFilterValue(filter, value)
@@ -644,7 +654,7 @@ export struct SourceBrowsePage {
       title: s('common_filter'),
       resetLabel: s('common_reset'),
       showReset: true,
-      resetEnabled: !(this.isSearchActive() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse),
+      resetEnabled: !(this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse),
       onClose: () => {
         this.closeFilters()
       },

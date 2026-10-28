@@ -224,7 +224,15 @@ export struct SourceFilterControls {
 
   @Builder
   private VerticalFilterRow(filter: SourceFilter) {
-    if (filter.type === 'check') {
+    if (filter.type === 'header') {
+      ConciseListRow({
+        title: filter.name,
+        wrapTitle: true,
+        subtitle: filter.description ?? '',
+        subtitleMaxLines: 2147483647,
+        showChevron: false,
+      })
+    } else if (filter.type === 'check') {
       ConciseListRow({
         title: filter.name,
         hasSwitch: true,
@@ -299,7 +307,7 @@ export struct SourceFilterControls {
 
   private visibleVerticalFilters(): SourceFilter[] {
     return this.filters.filter((filter: SourceFilter): boolean => {
-      return filter.type === 'check' || filter.type === 'text' || filter.type === 'range' ||
+      return filter.type === 'header' || filter.type === 'check' || filter.type === 'text' || filter.type === 'range' ||
         (filter.options ?? []).length > 0
     })
   }

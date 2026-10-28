@@ -17,7 +17,7 @@ import { SourceFilterControls, SourceFilterControlValue } from '../components/So
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { safeSearchDiagnostic } from '../model/SearchStateMapper'
-import { SourceFilter, SourceManga } from '../model/SourceModels'
+import { SourceFilter, SourceManga, sourceFiltersForQuery } from '../model/SourceModels'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -169,6 +169,7 @@ export struct SourceSearchPage {
 
   private scheduleSearch(value: string): void {
     this.query = value
+    this.syncTitleActions()
     this.clearPendingSearchTimer()
     if (!this.searchFiltersReady) {
       return
@@ -185,6 +186,7 @@ export struct SourceSearchPage {
 
   private submitSearch(value: string): void {
     this.query = value
+    this.syncTitleActions()
     this.clearPendingSearchTimer()
     if (!this.searchFiltersReady) {
       return
@@ -221,11 +223,15 @@ export struct SourceSearchPage {
   }
 
   private hasActiveSearchFilters(): boolean {
-    return this.viewModel.hasSearchFilterChanges()
+    return this.viewModel.hasSearchFilterChanges(this.query)
   }
 
   private hasRuntimeFilters(): boolean {
-    return this.viewModel.filters.length > 0
+    return this.runtimeFilters().length > 0
+  }
+
+  private runtimeFilters(): SourceFilter[] {
+    return sourceFiltersForQuery(this.viewModel.filters, this.query)
   }
 
   private isFilteredEmptySearch(): boolean {
@@ -233,7 +239,7 @@ export struct SourceSearchPage {
   }
 
   private resetSearchFilters(): void {
-    this.viewModel.resetSearchFilters()
+    this.viewModel.resetSearchFilters(this.query)
     this.rerunSearchIfReady()
   }
 
@@ -303,7 +309,7 @@ export struct SourceSearchPage {
   @Builder
   private RuntimeFilterControls() {
     SourceFilterControls({
-      filters: this.viewModel.filters,
+      filters: this.runtimeFilters(),
       values: this.viewModel.searchFilterValues,
       busy: this.viewModel.loadingSearch,
       vertical: true,

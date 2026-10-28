@@ -38,8 +38,10 @@ export interface SourceChapter {
 
 export interface SourceFilter {
   id: string
-  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group'
+  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group' | 'header'
   name: string
+  description?: string
+  scope?: 'browse' | 'search'
   options?: string[]
   optionIds?: string[]
   value?: string | number | boolean | string[]
@@ -141,6 +143,8 @@ interface SourceRuntimeFilterPayload {
   kind?: string
   name?: string
   label?: string
+  description?: string
+  scope?: 'browse' | 'search'
   options?: string[] | SourceRuntimeFilterOptionPayload[]
   value?: string | number | boolean | string[]
   default?: string | number | boolean | string[]
@@ -339,8 +343,8 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
   }
 }
 
-function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group' {
-  if (value === 'select' || value === 'text' || value === 'sort' || value === 'range' || value === 'group') {
+function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group' | 'header' {
+  if (value === 'select' || value === 'text' || value === 'sort' || value === 'range' || value === 'group' || value === 'header') {
     return value
   }
   if (value === 'multiselect' || value === 'multi-select' || value === 'multiSelect') {
@@ -405,6 +409,8 @@ function appendSourceFilters(target: SourceFilter[], rows: SourceRuntimeFilterPa
       id: firstNonEmpty([row.id, row.name, row.label]) ?? name,
       type,
       name,
+      description: row.description,
+      scope: row.scope === 'browse' || row.scope === 'search' ? row.scope : undefined,
       options: normalizeFilterOptions(row.options),
       optionIds: normalizeFilterOptionIds(row.options),
       value: row.value ?? row.default,
@@ -413,4 +419,11 @@ function appendSourceFilters(target: SourceFilter[], rows: SourceRuntimeFilterPa
       step: optionalNumber(row.step),
     })
   })
+}
+
+// A missing scope keeps legacy filters available on both routes. A header is
+// presentation only and remains in this list so both pages can render it.
+export function sourceFiltersForQuery(filters: SourceFilter[], query: string): SourceFilter[] {
+  const scope = query.trim().length === 0 ? 'browse' : 'search'
+  return filters.filter((filter: SourceFilter): boolean => filter.scope === undefined || filter.scope === scope)
 }

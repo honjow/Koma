@@ -14,6 +14,7 @@ import {
   SourceMangaList,
   SourceMangaStatus,
   parseSourceFiltersJson,
+  sourceFiltersForQuery,
 } from '../model/SourceModels'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
@@ -813,7 +814,7 @@ export class BrowseViewModel {
       const browseFilterValues = this.mergeSavedSourceFilterValues(
         source.sourceId,
         'browse',
-        this.defaultSourceFilterValues(filters),
+        this.defaultSourceFilterValues(filters, ''),
         filters,
       )
       const searchFilterValues = this.mergeSavedSourceFilterValues(
@@ -850,7 +851,7 @@ export class BrowseViewModel {
       let listingResult: SourceMangaList | undefined = undefined
       if (listing !== undefined) {
         challengeCurrent = this.webChallengeGuard('browse')
-        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, challengeCurrent, operationGuardId)
+        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, filters, challengeCurrent, operationGuardId)
         if (requestId !== this.browseRequestId) {
           return
         }
@@ -917,7 +918,7 @@ export class BrowseViewModel {
     this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, retainsCurrentContent)
     const challengeCurrent = this.webChallengeGuard('browse')
     try {
-      const result = await this.loadMangaListing(this.selectedSource, listing.id, 1, '', this.browseFilterValues, challengeCurrent, operationGuardId)
+      const result = await this.loadMangaListing(this.selectedSource, listing.id, 1, '', this.browseFilterValues, this.filters, challengeCurrent, operationGuardId)
       if (requestId !== this.browseRequestId) {
         return
       }
@@ -942,7 +943,7 @@ export class BrowseViewModel {
 
   private updateFilterValue(values: SourceMangaListFilters, filterId: string, value: SourceFilterValue | undefined): SourceMangaListFilters | undefined {
     const filter = this.filters.find((item: SourceFilter): boolean => item.id === filterId)
-    if (filter === undefined) {
+    if (filter === undefined || filter.type === 'header') {
       return undefined
     }
     const key = this.filterRequestKey(filter)
@@ -978,7 +979,7 @@ export class BrowseViewModel {
     if (this.selectedSource === undefined) {
       return
     }
-    const nextValues = this.defaultSourceFilterValues(this.filters)
+    const nextValues = this.defaultSourceFilterValues(this.filters, '')
     this.clearSavedSourceFilterValues('browse')
     this.browseFilterValues = nextValues
     const listing = this.currentListing()
@@ -1046,14 +1047,34 @@ export class BrowseViewModel {
     return true
   }
 
-  resetSearchFilters(): void {
-    const nextValues = this.initialSearchFilterValues()
-    this.clearSavedSourceFilterValues('search')
+  resetSearchFilters(query: string = this.searchQuery): void {
+    if (!this.filters.some((filter: SourceFilter): boolean => filter.scope !== undefined)) {
+      this.clearSavedSourceFilterValues('search')
+      this.searchFilterValues = this.initialSearchFilterValues()
+      return
+    }
+    // Reset only the active scope; choices in the other scope remain available
+    // when the query changes, including in the persisted search preferences.
+    const activeFilters = sourceFiltersForQuery(this.filters, query)
+    const nextValues: SourceMangaListFilters = {}
+    Object.keys(this.searchFilterValues).forEach((key: string) => {
+      if (!activeFilters.some((filter: SourceFilter): boolean => this.filterRequestKey(filter) === key)) {
+        nextValues[key] = this.searchFilterValues[key]
+      }
+    })
+    const defaults: SourceMangaListFilters = this.persistSearchFilters ? this.defaultSourceFilterValues(activeFilters) : {}
+    activeFilters.forEach((filter: SourceFilter) => {
+      if (filter.type === 'header') return
+      const key = this.filterRequestKey(filter)
+      if (defaults[key] !== undefined) nextValues[key] = defaults[key]
+    })
     this.searchFilterValues = nextValues
+    this.saveSourceFilterValues('search', nextValues)
   }
 
-  hasSearchFilterChanges(): boolean {
-    return !this.sourceFilterValuesEqual(this.searchFilterValues, this.initialSearchFilterValues())
+  hasSearchFilterChanges(query: string = this.searchQuery): boolean {
+    return !this.sourceFilterValuesEqual(this.filterValuesForQuery(this.searchFilterValues, query),
+      this.filterValuesForQuery(this.initialSearchFilterValues(), query))
   }
 
   private initialSearchFilterValues(): SourceMangaListFilters {
@@ -1082,7 +1103,7 @@ export class BrowseViewModel {
     this.beginBrowseLoad(BrowseLoadIntent.PAGINATION, true)
     const challengeCurrent = this.webChallengeGuard('browse')
     try {
-      const more = await this.loadMangaListing(source, listing.id, page, cursor, this.browseFilterValues, challengeCurrent, operationGuardId)
+      const more = await this.loadMangaListing(source, listing.id, page, cursor, this.browseFilterValues, this.filters, challengeCurrent, operationGuardId)
       if (requestId !== this.browseRequestId) {
         return
       }
@@ -1281,7 +1302,7 @@ export class BrowseViewModel {
     const args: SourceSearchArgs = {
       query,
       page: pageArg,
-      filters: this.searchFilterValues,
+      filters: this.filterValuesForQuery(this.searchFilterValues, query),
     }
     return this.runSourceOperation(source.sourceId, 'search', args, page, isActive, operationGuardId)
   }
@@ -1300,6 +1321,7 @@ export class BrowseViewModel {
     page: number,
     cursor: string = '',
     filterValues: SourceMangaListFilters = this.browseFilterValues,
+    filters: SourceFilter[] = this.filters,
     isActive: (() => boolean) | undefined = undefined,
     operationGuardId?: string,
   ): Promise<SourceMangaList> {
@@ -1310,7 +1332,7 @@ export class BrowseViewModel {
     const args: SourceMangaListArgs = {
       listingId,
       page: pageArg,
-      filters: filterValues,
+      filters: this.filterValuesForQuery(filterValues, '', filters),
     }
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page, isActive, operationGuardId)
   }
@@ -1422,15 +1444,29 @@ export class BrowseViewModel {
     ]
   }
 
-  private defaultSourceFilterValues(filters: SourceFilter[]): SourceMangaListFilters {
+  private defaultSourceFilterValues(filters: SourceFilter[], query?: string): SourceMangaListFilters {
     const values: SourceMangaListFilters = {}
-    filters.forEach((filter: SourceFilter) => {
-      if (filter.value !== undefined) {
+    const applicable = query === undefined ? filters : sourceFiltersForQuery(filters, query)
+    applicable.forEach((filter: SourceFilter) => {
+      if (filter.type !== 'header' && filter.value !== undefined) {
         const key = this.filterRequestKey(filter)
         values[key] = this.normalizeFilterRequestValue(key, filter.value)
       }
     })
     return values
+  }
+
+  private filterValuesForQuery(values: SourceMangaListFilters, query: string,
+    filters: SourceFilter[] = this.filters): SourceMangaListFilters {
+    const applicable = sourceFiltersForQuery(filters, query)
+    const result: SourceMangaListFilters = {}
+    Object.keys(values).forEach((key: string) => {
+      const matching = filters.filter((filter: SourceFilter): boolean => this.filterRequestKey(filter) === key)
+      // Preserve unknown legacy keys; declared headers and out-of-scope keys never reach a source.
+      if (matching.length === 0 || matching.some((filter: SourceFilter): boolean =>
+        filter.type !== 'header' && applicable.indexOf(filter) >= 0)) result[key] = values[key]
+    })
+    return result
   }
 
   private sourceFilterValueEqual(left: SourceFilterValue | undefined, right: SourceFilterValue | undefined): boolean {
@@ -1480,7 +1516,7 @@ export class BrowseViewModel {
     defaults: SourceMangaListFilters,
     filters: SourceFilter[] = this.filters,
   ): SourceMangaListFilters {
-    const saved = appSourceFilterPreferencesStore.loadForSource(sourceId, kind, filters)
+    const saved = appSourceFilterPreferencesStore.loadForSource(sourceId, kind, filters.filter((filter: SourceFilter): boolean => filter.type !== 'header'))
     const values: SourceMangaListFilters = {}
     Object.keys(defaults).forEach((key: string) => {
       values[key] = defaults[key]
@@ -1499,7 +1535,7 @@ export class BrowseViewModel {
     if (sourceId === undefined) {
       return
     }
-    appSourceFilterPreferencesStore.saveForSource(sourceId, kind, values, this.filters)
+    appSourceFilterPreferencesStore.saveForSource(sourceId, kind, values, this.filters.filter((filter: SourceFilter): boolean => filter.type !== 'header'))
   }
 
   private clearSavedSourceFilterValues(kind: SourceFilterPreferenceKind): void {
