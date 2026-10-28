@@ -569,12 +569,12 @@ export struct KomaReaderLabPage {
     if (snapshot.phase !== 'ready' || snapshot.unit === null ||
       !snapshot.unit.key.equals(position.anchor.unit)) return
     if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
-      const continuousChapterChanged = this.observedCatalogUnit !== null && snapshot.policy.layout === 'continuous'
+      const chapterChanged = this.observedCatalogUnit !== null
       this.syncChapterChoices(position.anchor.unit)
       const config = this.adapter?.sessionConfig(position.anchor.unit) ?? null
       if (config !== null) this.catalogHost?.commit(position.anchor.unit, config)
       this.observedCatalogUnit = position.anchor.unit.copy()
-      if (continuousChapterChanged && !this.chapterBusy) {
+      if (chapterChanged && !this.chapterBusy) {
         const title = this.adapter?.chapterTitle(position.anchor.unit).trim() ?? ''
         if (title.length > 0) this.getUIContext().getPromptAction().showToast({ message: title })
       }
