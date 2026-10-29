@@ -226,6 +226,37 @@ function readBytesSync(path: string): Uint8Array {
   }
 }
 
+// Import owns these temporary files until extraction and validation finish.
+// Keep full archive reads/writes and WASM reads off the UI thread without changing
+// the synchronous helpers used by restore and rawfile consumers.
+async function writeImportBytes(path: string, bytes: Uint8Array): Promise<void> {
+  let file: fs.File | undefined = undefined
+  try {
+    file = await fs.open(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    const written = await fs.write(file.fd, bytesToExactArrayBuffer(bytes))
+    if (written !== bytes.byteLength) throw new Error('source_archive_short_write')
+  } finally {
+    if (file !== undefined) {
+      try { await fs.close(file) } catch (_err) {}
+    }
+  }
+}
+
+export async function readImportBytes(path: string): Promise<Uint8Array> {
+  let file: fs.File | undefined = undefined
+  try {
+    const stat = await fs.stat(path)
+    const data = new ArrayBuffer(stat.size)
+    file = await fs.open(path, fs.OpenMode.READ_ONLY)
+    const count = await fs.read(file.fd, data)
+    return new Uint8Array(data, 0, count)
+  } finally {
+    if (file !== undefined) {
+      try { await fs.close(file) } catch (_err) {}
+    }
+  }
+}
+
 function readTextSync(path: string): string {
   return fs.readTextSync(path, { encoding: 'utf-8' })
 }
@@ -795,7 +826,7 @@ export async function importLocalSourceArchive(
 
   await removeDirectoryIfPresent(importedRoot)
   ensureDirSync(importedRoot)
-  writeBytesSync(archivePath, archiveBytes)
+  await writeImportBytes(archivePath, archiveBytes)
   await zlib.decompressFile(archivePath, importedRoot)
 
   let manifestPath = joinSourceRuntimePath(importedRoot, SOURCE_PACKAGE_MANIFEST_FILE)
@@ -860,7 +891,7 @@ export async function importLocalSourceArchive(
     }
   }
 
-  const importedWasmBytes = readBytesSync(importedWasmPath)
+  const importedWasmBytes = await readImportBytes(importedWasmPath)
   const hashOk = await validateImportedWasmBytesAsync(manifest, importedWasmBytes)
   if (!hashOk) {
     return {

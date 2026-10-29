@@ -10,6 +10,7 @@ import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   importLocalSourceArchive,
+  readImportBytes,
   LocalSourcePackageManifest,
   normalizeSourceOperationCapabilityTokens,
   SOURCE_PACKAGE_MANIFEST_FILE,
@@ -1146,7 +1147,8 @@ async function registerSourcePackageFromBytes(
   let registeredReplacementSourceId: string = ''
   try {
     ensureDirSync(packageDir)
-    writeBytesSync(archivePath, archiveBytes)
+    // The importer writes the same archive before extraction. Writing it here
+    // as well duplicated the entire file on the UI thread.
     const imported = await importLocalSourceArchive(archiveBytes, archivePath, importedRoot)
     if (!imported.ok || imported.manifest === undefined || imported.wasmBytes === undefined) {
       await removeAppSourcePackageDir(context, packageDir)
@@ -1238,7 +1240,9 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
     try {
       ensureDirSync(packageDir)
       await copyPickedArchiveUriToSandbox(uri, archivePath)
-      const archiveBytes = readBytesSync(archivePath)
+      // The picker has already copied the package into our sandbox. Reading
+      // the full archive must not block the source-management UI.
+      const archiveBytes = await readImportBytes(archivePath)
       return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, undefined, packageDir)
     } catch (_error) {
       try {

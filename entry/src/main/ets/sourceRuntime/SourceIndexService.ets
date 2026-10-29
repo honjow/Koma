@@ -1,4 +1,5 @@
 import { parseSourceIndexCacheTask, parseSourceIndexDocumentTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
+import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
 import {
   SourceIndexEntry, SourceIndexRepository, SourceIndexMetadataCacheRecord, SourceIndexMetadataCacheDocument,
@@ -13,7 +14,6 @@ import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { http } from '@kit.NetworkKit'
 import {
@@ -103,17 +103,6 @@ export class SourcePackageInstallTasks {
 export const appSourcePackageInstallTasks: SourcePackageInstallTasks = new SourcePackageInstallTasks()
 
 
-
-function sha256Hex(bytes: Uint8Array): string {
-  const md = cryptoFramework.createMd('SHA256')
-  md.updateSync({ data: bytes })
-  const digest = md.digestSync().data
-  let result = ''
-  for (let index = 0; index < digest.length; index += 1) {
-    result += digest[index].toString(16).padStart(2, '0')
-  }
-  return result
-}
 
 // Shared across service instances belonging to the same application data store.
 const sourceIndexMetadataRequests: Map<string, number> = new Map()
@@ -498,9 +487,16 @@ export class SourceIndexService {
         if (archiveBytes.byteLength === 0) {
           return { ok: false, reasonCode: 'empty_package' }
         }
-        if (entry.sha256.length > 0 && sha256Hex(archiveBytes) !== entry.sha256) {
-          DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail reason=checksum_mismatch')
-          return { ok: false, reasonCode: 'checksum_mismatch' }
+        if (entry.sha256.length > 0) {
+          // Keep the downloaded bytes owned by the installer while TaskPool hashes
+          // its copy; a failed or incomplete digest must never publish the package.
+          const hashBytes = new Uint8Array(archiveBytes.byteLength)
+          hashBytes.set(archiveBytes)
+          const digest = await taskpool.execute(computeSourcePackageSha256, hashBytes) as string
+          if (digest !== entry.sha256) {
+            DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail reason=checksum_mismatch')
+            return { ok: false, reasonCode: 'checksum_mismatch' }
+          }
         }
 
         const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)

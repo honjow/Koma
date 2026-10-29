@@ -65,7 +65,10 @@ function installFixture() {
 test('validated bytes use the existing worker executor, copied bytes and no HTTP identity',async()=>{
   const pending=deferred(), original=new Uint8Array([7,8]);let call, executed=0
   const executor=()=>{executed++}
-  const api=functions('sourceRuntime/SourceRuntimeService.ets',['runSourceOperationFromValidatedBytesAsync'],{taskpool:{execute:(...args)=>{call=args;return pending.promise}},executeRegisteredSourceRequest:executor})
+  // The production worker path now decorates requests with host features; use
+  // its real helper rather than leaving that dependency undefined in the fixture.
+  const hostFeatures=functions('sourceRuntime/SourceHostFeatures.ets',['sourceHostFeatures','sourceRequestWithHostFeatures'],{})
+  const api=functions('sourceRuntime/SourceRuntimeService.ets',['runSourceOperationFromValidatedBytesAsync'],{...hostFeatures,taskpool:{execute:(...args)=>{call=args;return pending.promise}},executeRegisteredSourceRequest:executor})
   const running=api.runSourceOperationFromValidatedBytesAsync('request',original)
   assert.equal(call[0],executor);assert.notEqual(call[2],original);assert.deepEqual(Array.from(call[2]),[7,8]);assert.equal(call[3],'');assert.equal(executed,0)
   original[0]=9;assert.equal(call[2][0],7);pending.resolve(JSON.stringify(response));assert.deepEqual(await running,response)
