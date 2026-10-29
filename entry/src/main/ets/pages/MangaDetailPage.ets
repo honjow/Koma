@@ -17,6 +17,7 @@ import { trackerChapterProgress, trackerChapterForProgress } from '../model/Trac
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
+import { ColorMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
@@ -279,7 +280,6 @@ export struct MangaDetailPage {
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
   @Local private detailScrollOffset: number = 0
-  @Local private detailHeaderHeight: number = 148
   private detailScroller: Scroller = new Scroller()
   private detailRefreshController: PullRefreshController = new PullRefreshController()
   private detailRefreshTask: Promise<void> | undefined = undefined
@@ -2544,31 +2544,42 @@ export struct MangaDetailPage {
     // inset list so it reaches the page edges without changing content layout.
     if (this.manga !== undefined && (this.manga.coverUrl?.length ?? 0) > 0) {
       Stack() {
-        CachedCoverImage({
-          uri: this.manga.coverUrl ?? '',
-          objectFit: ImageFit.Cover,
-          sourceRuntimeId: this.manga.sourceId ?? '',
-          sourceImageId: this.manga.sourceImageId ?? this.manga.id,
-          sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
-          remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
-          sourceMangaUrl: this.manga.url ?? '',
-        })
+        Column() {
+          CachedCoverImage({
+            uri: this.manga.coverUrl ?? '',
+            objectFit: ImageFit.Cover,
+            sourceRuntimeId: this.manga.sourceId ?? '',
+            sourceImageId: this.manga.sourceImageId ?? this.manga.id,
+            sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
+            remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+            sourceMangaUrl: this.manga.url ?? '',
+          })
+        }
+          .width('100%')
+          .height('100%')
           .blur(4)
           .opacity(0.2)
         Column() {}
           .width('100%')
           .height('100%')
           .linearGradient({ direction: GradientDirection.Bottom,
-            colors: [[Color.Transparent, 0], [ThemeConstants.BG_SUB, 1]],
+            colors: [[this.backdropFadeStart(), 0], [ThemeConstants.BG_SUB, 1]],
           })
       }
       .width('100%')
-      .height(this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT +
-        ThemeConstants.SPACE_LG + this.detailHeaderHeight)
+      .height('60%')
       .translate({ y: -this.detailScrollOffset })
       .clip(true)
       .hitTestBehavior(HitTestMode.None)
     }
+  }
+
+  private backdropFadeStart(): string {
+    // Transparent black interpolates through grey on a light page. Keep the
+    // theme background's RGB at both ends; only its alpha changes. The taller
+    // page-relative backdrop reaches the description without changing layout.
+    const background = ColorMetrics.resourceColor(ThemeConstants.BG_SUB)
+    return ColorMetrics.rgba(background.red, background.green, background.blue, 0).color
   }
 
   @Builder
@@ -2597,10 +2608,6 @@ export struct MangaDetailPage {
               sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
               remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
             })
-              .onAreaChange((_previous: Area, current: Area) => {
-                const height = Number(current.height)
-                if (height > 0 && this.detailHeaderHeight !== height) this.detailHeaderHeight = height
-              })
           }
         }
 
