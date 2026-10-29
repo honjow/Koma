@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-29T20:54:22+08:00",
+  "updatedAt": "2026-10-29T21:01:08+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "LIBRARY_READING_PROGRESS_SEMANTICS",
   "activity": "先修复、验证并关闭遗留故障；后续目标为正式0.1.4。",
@@ -2629,21 +2629,21 @@
         "BAOZIMH_BROWSE_FAILURE",
         "SOURCE_RUNTIME_ERRORS"
       ],
-      "kind": "open",
-      "status": "96a2123已推，精确CI成功；200实际恢复未验",
-      "result": "普通源图网络失败自动刷新一次章页计划、每页最多再取一次；明确挑战/授权/取消/TLS错误不盲重试。手动重试可独立再次强刷，保下载/读态与当前阅读单元。40回归通过，default Release8550194B，未安装。",
+      "kind": "done",
+      "status": "237自然未缓存正文路径具名通过",
+      "result": "修复已交付；237同一作品自然未缓存第9页六图成功并返回第3页，按具名范围关闭。",
       "evidencePoints": [
-        "直接产物索引：open-001-failure-002/library.json；koma-log-20261025-053239.txt；failure.png；failure.json；baozi-image-worker-cache197-session-653/cache-coverage.json；page9-original-observed.png；original-page3-restored.png"
+        "直接产物索引：open-001-failure-002/library.json；koma-log-20261025-053239.txt；failure.png；failure.json；baozi-image-worker-cache197-session-653/cache-coverage.json；page9-original-observed.png；original-page3-restored.png",
+        "96a2123已推及精确CI成功；237同001自然冷页9六图HTTP200并返回3页。依据用户本轮“验证过了就过了，不要总是想要具体设备复测”，不将原机复测设为关闭门槛。"
       ],
-      "remainingActions": [
-        "当前pre2同001自然未缓存页9的新worker/六图200及回3已具名，不代200原失败恢复或全24页。200禁止操作，Mac首跳302/154及目标SSLEOFError与197325 curl35各保来源，不直接套200旧2300999根因；原项继续调查未知，不重跑已验237页6或冷页9。"
-      ],
-      "remaining": "当前pre2同001自然未缓存页9的新worker/六图200及回3已具名，不代200原失败恢复或全24页。200禁止操作，Mac首跳302/154及目标SSLEOFError与197325 curl35各保来源，不直接套200旧2300999根因；原项继续调查未知，不重跑已验237页6或冷页9。",
+      "remainingActions": [],
+      "remaining": "",
       "boundaries": [
         "允许差异仅source图片选路与Host请求方法；保ID/章节/页数/进度，Reader布局不动。",
         "不写死rsa、不绕TLS、不新增UI或Cookie权限；五CDN仅按站点声明有界选择，每章一次，不盲目多路下载。",
         "Mac匿名样本不称Native通过，原325失败保留，其他请求method/会话边界保持。",
-        "Root错误扩大取日志为界面点击：点击实际进入《预告》1/12而非001；本地前后读态确认当前章改变，书架记录逐字段保持。200租约f76eb5d2已释放；24小时熄屏覆盖仍写入，未获允许不得再操作手机恢复或写回进度。原覆盖值未记录，正常timeout读回120000ms。"
+        "Root错误扩大取日志为界面点击：点击实际进入《预告》1/12而非001；本地前后读态确认当前章改变，书架记录逐字段保持。200租约f76eb5d2已释放；24小时熄屏覆盖仍写入，未获允许不得再操作手机恢复或写回进度。原覆盖值未记录，正常timeout读回120000ms。",
+        "原200故障根因未知，未操作200，不外推全部页或设备。"
       ],
       "reportedAt": "2026-10-23T21:17:04.802Z",
       "reportedDate": "2026-10-24",
@@ -2652,7 +2652,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-10-29T21:01:08+08:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T21:56:53+00:00",
@@ -2663,7 +2663,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166607,
-      "stage": "等允许设备复验"
+      "stage": "具名范围已交付"
     },
     {
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
@@ -8329,6 +8329,15 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/library-progress-real-snapshot-replay.json"
       ]
+    },
+    {
+      "id": "baozi-dafeng-validated-closure-20261029",
+      "at": "2026-10-29T21:01:08+08:00",
+      "title": "包子正文具名修复已验证",
+      "detail": "237自然未缓存页9六图成功并返回，既有修复及CI已交付；原200根因未知、未操作200的证据保留。此时间为登记时间。",
+      "itemId": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": []
     }
   ],
   "reportAgeAudit": {
