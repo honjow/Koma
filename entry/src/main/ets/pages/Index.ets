@@ -225,6 +225,7 @@ struct Index {
     if (request !== null) this.appPathStack.pushPath({ name: 'ReaderLab', param: request })
   }
   @Local selectedTab: number = TabIndex.LIBRARY
+  @Local private rootNavigationVisible: boolean = true
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
   @Local private applicationSettingsRestoreRevision: number = 0
@@ -2523,6 +2524,7 @@ struct Index {
               BrowsePage({
                 browseScroller: this.rootTabScrollers[TabIndex.BROWSE],
                 active: this.selectedTab === TabIndex.BROWSE,
+                navigationVisible: this.rootNavigationVisible,
                 sourceRegistry: this.sourceRegistry,
                 libraryStore: this.libraryStore,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -2664,6 +2666,7 @@ struct Index {
           operation: NavigationOperation): NavigationAnimatedTransition | undefined =>
           this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
+        .onNavBarStateChange((visible: boolean) => { this.rootNavigationVisible = visible })
         .width('100%')
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))

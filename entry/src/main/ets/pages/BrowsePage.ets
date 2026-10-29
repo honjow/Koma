@@ -46,6 +46,8 @@ export struct BrowsePage {
   @Local private webDavConfigured: boolean = false
   @Param browseScroller: Scroller = new Scroller()
   @Param active: boolean = false
+  @Param navigationVisible: boolean = true
+  private displayedSourceRevision: number = -1
   private availabilityEpoch: number = 0
   @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -236,6 +238,7 @@ export struct BrowsePage {
     reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
     this.viewModel = new BrowseViewModel(this.sourceRegistry)
     this.viewModel.loadInstalledSources()
+    this.displayedSourceRevision = this.sourceRuntimeState.revision
     this.loadRemoteAvailability()
   }
 
@@ -250,11 +253,18 @@ export struct BrowsePage {
     }
   }
 
-  @Monitor('sourceRuntimeState.revision')
+  @Monitor('sourceRuntimeState.revision', 'active', 'navigationVisible')
   private refreshInstalledSourceSummaries(): void {
     // Registry publishers have already committed the live mutation. Reloading
     // every WASM here repeats disk work inside the reactive UI update.
+    // A retained Browse page is also hidden under the manager. Keep its current
+    // rows there; consume the newest revision once it is visible again instead
+    // of rebuilding all summaries inside each package's completion callback.
+    // Active-tab remote availability remains a separate owner below.
+    if (!this.active || !this.navigationVisible ||
+      this.displayedSourceRevision === this.sourceRuntimeState.revision) return
     this.viewModel.loadInstalledSources()
+    this.displayedSourceRevision = this.sourceRuntimeState.revision
   }
 
   private async loadRemoteAvailability(reportFailure: boolean = false): Promise<void> {
