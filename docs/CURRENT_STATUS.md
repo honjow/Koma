@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T02:04:01+08:00",
+  "updatedAt": "2026-10-30T03:07:48+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "WUXIAN_GUJIAN_LOAD_FAILURE",
-  "activity": "漫画人修复已交付，随新版App生效；无限动漫指定作品空响应仍待定位。",
-  "nextAction": "继续核对无限动漫具名详情空响应及其他仍实际存在的源故障。",
+  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
+  "activity": "优先核漫画屋错误状态链；复杂外部问题及新增能力后置。",
+  "nextAction": "核对漫画屋错误状态是否存在明确小缺口；不重复已拒请求。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1059,12 +1059,12 @@
     {
       "id": "SOURCE_WEB_SESSION",
       "title": "源网页挑战会话回流、源内设置及登录入口",
-      "priority": "P1（当前优先：统一搜索逐源CF自动验证；旧Web/搜索范围保留）",
+      "priority": "P2（复杂故障后置）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "Simply验证后仍403，原因待定位",
+      "status": "Simply 403未解，本场已恢复、后置",
       "kind": "open",
-      "result": "Simply验证后仍403，原因尚未定位；本轮诊断未发请求，原设备状态已恢复。",
+      "result": "Simply 403仍未解决，本轮诊断未发目标请求，设备已恢复。",
       "remaining": "Simply验证后仍403的原因待定位。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
@@ -1092,7 +1092,10 @@
       "evidencePoints": [
         "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap",
         "原历史result归档（本次更新当前结论前保留）：App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。 237新会话普通统一搜索斗破苍穹：漫画160真实HTTP403触发验证sheet，随后无用户输入自动返回并显示10条作品；同次包子challenge_required排队，DM5、快看、腾讯、再漫画等已解析ready。007输入参数错误未产生查询或请求，不计验证。003安装最终0cd18 HAP，前后registry/settings JSON完全相等，原斗破01第1页3%保留；当时临时scope source，原local；013已恢复local，目前仍持租。 012单源过滤日志显示包子原请求验证一次、搜索完成并ready 6条；008后无点击、重试或关闭输入，漫画160的10条和包子6条分别自动回流。009零动作日志为空、010全量日志尾部无关，不作缺事件依据；包子Native标题未截图，不称第二标题亲验。 23个相关依赖文件e2946421152596bf766ce8acacb572f3cb21ede5已推master，精确CI40670008826 completed/success，连接器读回head一致；相关回归51通过，XCOMIC detailContext ABI仍为未提交WIP。013已Native确认sourceFilter恢复及返回书架；015手动检查，016尚未完成但确认13个更新。017–018漫画1234公开0.1.4更新成功且Native显示漫画1234网；019–020漫画社公开0.1.9安装成功，设置及正文未验；021–022妙趣0.1.3公开更新成功，registry 0.1.3及Native显示妙趣漫画。升级后对应源包版本允许变化，其他设置与设备仍待总恢复。 本轮237已回原书架、恢复设置及筛选，最终SLEEP/正常120000无override并释租；原404、取消防重复及未命中窗口标题等仍独立未验。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选完成并重试后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动点击完成并重试后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 宿主验证请求关联及原UA传递6d6ae7a已推，精确CI进行中；Simply仍403，get_home因果ID尚未接通，不称验证完成。 宿主验证请求关联及原UA传递6d6ae7a精确CI40779011098成功；Simply及get_home原未验边界保留。 6d6ae7a精确CI40779011098 completed/success。 Zero公开017游客锁章拒绝及本站登录入口具名已核，登录态正文未验；原源、数据和电源已恢复，reader自然新增第二章记录。 本轮手动全页包子官网标题由站点覆盖，仅为全页观察，不是自动验证sheet标题证据；sheet标题仍未验。 本轮197手动网页观察后，原源包、七域及电源已恢复并释租；不改变自动验证sheet标题未验边界。 包子首页验证请求关联已形成受控源候选，宿主接线修正中；自然挑战未验。 既有包子自然首页挑战布局含中文源名及完成重试节点；无截图，不外推其他语言或挑战成功。 包子首页宿主关联修复已推；237普通首页12部，自然挑战未出现，设备已恢复。 包子0.1.14公开实体与受控回放已核，自然挑战未出现；漫画屋首页及Simply原边界保持开放。",
-        "本轮1633滚动被自动审批拒绝，因1632可能仍运行、存在并行重复风险；未重试、未发Simply GET，无新header或网络证据。1635原包四成员等1624；1636原db31及六JSON等1622；1637临时文件清理；1638 SLEEP/120000无override，租约22:59:06 released；两产品文件临时patch reverse、无diff。"
+        "本轮1633滚动被自动审批拒绝，因1632可能仍运行、存在并行重复风险；未重试、未发Simply GET，无新header或网络证据。1635原包四成员等1624；1636原db31及六JSON等1622；1637临时文件清理；1638 SLEEP/120000无override，租约22:59:06 released；两产品文件临时patch reverse、无diff。",
+        "临时诊断HAP db9b0c933509a533767c124a76b518d60cb44e0bbf6be9b0af7eca4ec4b9ac7e已构建、验签同db31，未装；仅请求头分类及主帧安全performance数值/支持位，不改验证、缓存、UA或完成条件，后续不提交且恢复。237 lease20261029-181615-230f7416，1748完成awake/中立解锁/86400000读回及六域、Simply011四成员基线，registry/路径对应；目标HTTP及验证页尚未触发。",
+        "1750诊断Host db9 installer明确success并启动；1752普通导入源012，1753 ZIP/WASM与冻结a6d77d50…/31759fff…精确相等。原011缺API webSessionOrigins及challenge关联，012仅补两处，UA/Referer/Origin/Cache-Control不变；尚无新GET/挑战，同租约常亮，结束须恢复原包/六域/电源。",
+        "1761原011四成员及六域对1748全等、db31安装成功；1762候选与唯一下载不存在，SLEEP/120000无override，lease20261029-181615-230f7416 released及status读回；两源码临时patch精确撤回。"
       ],
       "remainingActions": [
         "定位Simply验证后仍403的原因。"
@@ -1146,7 +1149,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "源故障定位中",
+      "stage": "复杂问题后置",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -2681,11 +2684,12 @@
       "dependencies": [],
       "relatedItems": [
         "SOURCE_FILTERS",
-        "BROWSE_HEADER_REFRESH"
+        "BROWSE_HEADER_REFRESH",
+        "HAPPYMH_SOURCE_UNAVAILABLE"
       ],
-      "kind": "open",
-      "status": "三源首页修复已发布，嗨皮连接仍待处理",
-      "result": "动漫屋、东立及Komiic重复首页修复已发布；嗨皮仍无法连接。",
+      "kind": "done",
+      "status": "重复首页结构具名范围已修复",
+      "result": "动漫屋、东立、Komiic及嗨皮的重复首页结构已修正；嗨皮连接失败另行跟踪。",
       "evidencePoints": [
         "直接产物索引：https://www.dm5.cn实际title“动漫屋”",
         "本轮用户直接反馈：动漫屋首页已有热门，独立热门/最近更新tab及首页打开列表重复热门；东立同结构。精确发送时间未知，本次为登记时间；原已验范围与证据保持。",
@@ -2695,12 +2699,11 @@
         "237动漫屋.23：1666热门70、1667仅热门漫画/最新更新无首页/打开列表，1668最新70首项不同；东立.6：1670 Popular20、1671仅Popular/Latest、1672 Latest20首项不同。候选未提交公开。Happymh.7空首页/导航ABI错误已修，1682普通入口仍无法连接，未见选择器；Komiic同热门首屏包装，搜索WIP未隔离尚未修改。本场恢复进行中。",
         "源e6e2eeee3280f4c4a6c03577f38fdf0d71c02cec精确CI40907631439 completed/success；/private/tmp/koma-home-e6-public/contracts.jsonl公开WASM核dm5/tongli home=false、get_home not_implemented及各自热门/最新listing；公开WASM与设备候选不同，合同核验不冒公开实体Native。1683原三源12成员逐字等1652/1673备份，1684六JSON逐字等1639，1685临时包删除、1686 SLEEP/120000，source_terra回报已释租。嗨皮入口未连接、Komiic待修。",
         "Komiic隔离Home候选提交04c9686df3fe9368dfc774cfc911b0c63f0de75f已推，CI40918105665 in_progress；/private/tmp/komiic-home-0.1.11.koma 生产WASM home=false、NI零HTTP，旧新版列表/热门GET合同及合成data等价；未Native或实网通过。",
-        "Komiic 04c9686df3fe9368dfc774cfc911b0c63f0de75f精确CI40918105665 completed/success，公开release非draft、index/manifest 0.1.11；公开ZIP 049e95e274ec0b11e1c85b27f7ed269c69ebc4b92eef78085a1567feee3798ea / WASM a67411610232e6ba44b8789453c5c20e9d14ac82a4b589dc6fba37ec7ed4d39c，与隔离候选不同。/private/tmp/komiic-04c-public/contract.json实际公开WASM home=false、get_home not_implemented零HTTP、get_listings popular零HTTP；无新Native或实网列表，不误称公开Native。"
+        "Komiic 04c9686df3fe9368dfc774cfc911b0c63f0de75f精确CI40918105665 completed/success，公开release非draft、index/manifest 0.1.11；公开ZIP 049e95e274ec0b11e1c85b27f7ed269c69ebc4b92eef78085a1567feee3798ea / WASM a67411610232e6ba44b8789453c5c20e9d14ac82a4b589dc6fba37ec7ed4d39c，与隔离候选不同。/private/tmp/komiic-04c-public/contract.json实际公开WASM home=false、get_home not_implemented零HTTP、get_listings popular零HTTP；无新Native或实网列表，不误称公开Native。",
+        "本次将嗨皮1682连接失败与首页结构修复分开：结构生产能力/导航已修，连接故障未解决；动漫屋/东立237普通菜单及热门最新具名通过，其他公开合同证据保留。"
       ],
-      "remainingActions": [
-        "处理嗨皮入口连接问题。"
-      ],
-      "remaining": "处理嗨皮入口连接问题。",
+      "remainingActions": [],
+      "remaining": "",
       "boundaries": [
         "人类已明确允许所列入口位置与内容组合差异；菜单材质、网格、筛选、搜索及原默认栏目语义保持。",
         "安装残余、包子正文及其他原队列继续保留；不把本项批准扩大为重构根导航或共享阅读器。"
@@ -2712,7 +2715,7 @@
       "firstEvidenceAtSource": "本次登记，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-10-30T02:40:32+08:00",
       "reportedDateSource": "原始提出日期未核实；此前登记日2026-10-24不是独立首报日期证据，撤回该日期推定。",
       "modificationBasis": {
         "object": "BrowseViewModel.loadBrowseHome/selectBrowseListing与SourceBrowsePage分类入口和内容投影",
@@ -2742,23 +2745,25 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-nohome-latest-return-194",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-browse237-nohome-final-readback-195"
       ],
-      "stage": "新反例调查中",
+      "stage": "具名范围已交付",
       "reopenedAt": "2026-10-29T23:15:21+08:00"
     },
     {
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
-      "title": "漫画屋列表403与错误状态丢失",
-      "priority": "P1（具名源不可用）",
+      "title": "漫画屋首页403及原错误状态反馈",
+      "priority": "P2（复杂故障后置）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "017搜索修复交付；770–775元尊搜索→最早第1话→首图1/10具名，首页403/旧超时原因仍open",
-      "result": "770–775漫画屋017单次元尊搜索→详情→最早第1话 周家圣龙（上）→真实首图1/10已亲审，search/detail/chapters/get_pages均200；新增元尊外旧91progress/8sourceHistory/151chapters及remoteHistory原对象/顺序全同。首页get_manga_list仍403挑战，当前成功不追认旧460 timeout原因；不外推完整叙事/十页或全CF，数据/系统/原Library已恢复。",
+      "status": "首页自然403未解，错误状态丢失反例已排除",
+      "result": "原run773显示当前403进入挑战导航，未证明验证完成；首页403仍未解决。",
       "evidencePoints": [
-        "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json"
+        "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
+        "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
+        "原已验结果完整保留：770–775漫画屋017单次元尊搜索→详情→最早第1话 周家圣龙（上）→真实首图1/10已亲审，search/detail/chapters/get_pages均200；新增元尊外旧91progress/8sourceHistory/151chapters及remoteHistory原对象/顺序全同。首页get_manga_list仍403挑战，当前成功不追认旧460 timeout原因；不外推完整叙事/十页或全CF，数据/系统/原Library已恢复。"
       ],
       "remainingActions": [
         "定位并处理漫画屋首页自然403。"
@@ -3056,10 +3061,10 @@
     {
       "id": "NEXTE_READER_FEATURE_MIGRATION",
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
-      "priority": "P2（后续迁移；不取消当前bugs）",
+      "priority": "P2（翻译完整迁移核对）",
       "owner": "Root：漫画翻译完整迁移；Torii试译与Reader具名路径已核，其他提供方真实网络待验",
       "kind": "open",
-      "status": "197临时翻译源保存重入删除已核",
+      "status": "具名路径已核，完整翻译差集待核",
       "dependencies": [],
       "relatedItems": [],
       "result": "197普通设置下API/Codex无密钥临时源已保存、重新进入并删除，原书架、七份公开数据及电源已恢复；此前237 Torii试译和Reader预处理结果保持。真实账户网络未验。",
@@ -3079,9 +3084,9 @@
         "translation-completion/translation-source-state197-21/及22/23：已取原七域和电源基线；两次语义前置因同名标题与动作行停下，按HDS说明定位继续，非产品失败。此前基线及定位失败记录；后续完成见24/25。",
         "translation-completion/translation-source-state197-21/temporary-api-saved-reentered.png、temporary-codex-saved-reentered.png及profile-state-result-translation-source-delete-resume.json：两类无密钥临时源保存/重入/删除，未登录、调provider或拉模型。final-state-24七公开域逐字同、final-data-comparison全true；final-power-25 SLEEP/120000/Override10000，租约22:33:58 released。"
       ],
-      "remaining": "继续验证Codex/OAuth/API真实网络及整体翻译迁移其余路径，不以空表单代替账户调用。 真实账户扩验作为后续功能，不阻挡本轮已修bug发布。",
+      "remaining": "继续核清整个漫画翻译功能与参考的差集，并验证真实账户及提供方网络；已有具名验收保持。",
       "remainingActions": [
-        "按已授权范围验证其他提供方真实网络及整体迁移剩余路径。"
+        "继续核清整个漫画翻译功能与参考的差集，并验证真实账户及提供方网络；已有具名验收保持。"
       ],
       "boundaries": [
         "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
@@ -3103,11 +3108,11 @@
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
         "observedEvidence": "独立安全配置/分块manifest非默认English冷恢复及zh还原具名；54d全局翻译/高级/Reader分组/模型管理已交付，901–906 English保存pop重入及中文恢复、861增强设置/模型回退均具名，未调用翻译provider。",
-        "pendingImplementationVerification": "197 API/Codex无密钥临时源保存、重入及删除已核；真实账户及提供方网络仍待验证。",
+        "pendingImplementationVerification": "197 API/Codex无密钥临时源保存、重入及删除已核；完整漫画翻译功能差集仍须核清，真实账户及提供方网络未验。",
         "unverifiedExternal": "Torii两页试译及Reader未来页具名路径已核；Codex/OAuth/API真实网络尚未验证，不读取或记录密钥。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
       },
-      "stage": "具名配置持久化已核，真实账户网络待验",
+      "stage": "完整翻译功能对照中",
       "reportedDate": "2026-10-26"
     },
     {
@@ -3180,9 +3185,9 @@
     {
       "id": "SOURCE_OFFICIAL_CHINESE_NAMES",
       "title": "书源官方中文名未整体核验",
-      "priority": "P1（用户直接反馈）",
+      "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "名称审计保留，发版故障优先",
+      "status": "具名修复已交付，整体核验后置",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
@@ -3213,9 +3218,9 @@
     {
       "id": "SOURCE_SETTINGS_MIGRATION_AUDIT",
       "title": "书源设置项未与Mihon/参考扩展整体对照",
-      "priority": "P1（用户直接反馈）",
+      "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "能力扩展暂缓，源故障优先",
+      "status": "具名修复已交付，整体核验后置",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3811,7 +3816,7 @@
     {
       "id": "SOURCE_SHARE_INSTALLED_PACKAGE",
       "title": "通过系统分享已安装的源包",
-      "priority": "P3（低优先级，排在bug修复后）",
+      "priority": "P3（后续新功能）",
       "kind": "open",
       "status": "已登记，排队等待bug收口",
       "stage": "低优先级排队",
@@ -4272,9 +4277,9 @@
     {
       "id": "WUXIAN_GUJIAN_LOAD_FAILURE",
       "title": "无限动漫《古见同学》加载失败",
-      "priority": "P1（用户直接反馈）",
+      "priority": "P2（外部空响应后置）",
       "kind": "open",
-      "status": "详情空响应已跨客户端复现，原因待核",
+      "status": "具名详情空响应未知，后置",
       "stage": "待调查",
       "owner": "source_terra：237书源故障",
       "dependencies": [],
@@ -4299,6 +4304,36 @@
         "/private/tmp/comicabc-14884-control.headers及.body：Mac严格当前UA/Referer无cookie准确id14884一次GET，最终同URL HTTP/2 200、原始正文0字节、text/html，未见Length/Encoding/Transfer-Encoding；与237空字符串一致，不是237解码独有，不外推全源。",
         "/private/tmp/comicabc-referer-ab：去Referer单次GET仍HTTP200/0字节，排除该单项差异，根因仍未知。",
         "/private/tmp/comicabc-referer-ab/control-30513.{result,headers,body}及control-offline.jsonl：同源UA/Referer 30513 HTTP200、解压35355字节，真实HTML经生产0.1.10 WASM详情及6章成功；14884仍空。官方上游两文件blob与固定949一致，无新流程修复依据，不外推全站。"
+      ]
+    },
+    {
+      "id": "HAPPYMH_SOURCE_UNAVAILABLE",
+      "title": "嗨皮漫画普通入口无法连接",
+      "priority": "P2（外部不可用后置）",
+      "kind": "open",
+      "status": "上游已删除且当前域名不可用，后置",
+      "stage": "外部不可用，后续再核",
+      "owner": "source_terra：237书源故障",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_BROWSE_HOME_STRUCTURE",
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "当前域名解析失败，上游已删除该源；暂无可证修复或合法新域。",
+      "remaining": "待出现可验证的新站点条件后再核连接问题。",
+      "remainingActions": [
+        "待出现可验证的新站点条件后再核连接问题。"
+      ],
+      "boundaries": [
+        "1682提示无法连接未证明具体原因；既有DNS无Answer不等于NXDOMAIN或站点停运，不重发已拒请求。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮代理执行自检发现，首次精确时间未知，不冒用户反馈。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "evidence": [
+        "237 run1682普通入口仍无法连接，未见选择器；此前搜索GET平台2300006为域名解析失败，公开DNS A/AAAA NOERROR+SOA无Answer，非NXDOMAIN，证据 source-settings-repair/happymh-search-dns-20261029.json。",
+        "当前上游eec435735737a0b140f8f3a990391990b5f9437a于2026-08-25以dead source删除，删除前域与当前m.happymh.com相同；API路径差异不能解释DNS2300006。当前无可证小修或合法新域，不删除用户已装源。"
       ]
     }
   ],
@@ -8752,6 +8787,55 @@
         "https://github.com/honjow/Koma/actions/runs/40926490356",
         "https://github.com/honjow/koma-sources/actions/runs/40926531577"
       ]
+    },
+    {
+      "id": "simply-diagnostic-baseline-20261030",
+      "at": "2026-10-30T02:19:35+08:00",
+      "title": "Simply单次诊断基线已取",
+      "detail": "临时诊断包已构建验签，237完成基线；尚未安装或发目标请求。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        "db9b0c933509a533767c124a76b518d60cb44e0bbf6be9b0af7eca4ec4b9ac7e"
+      ]
+    },
+    {
+      "id": "simply-diagnostic-installed-20261030",
+      "at": "2026-10-30T02:28:09+08:00",
+      "title": "Simply诊断候选已安装",
+      "detail": "诊断宿主及源候选已装并核实体，目标请求尚未发出；本场结束仍须恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "home-structure-happymh-separated-20261030",
+      "at": "2026-10-30T02:40:32+08:00",
+      "title": "首页结构修复与嗨皮连接故障分开",
+      "detail": "重复首页结构按具名已修范围关闭；嗨皮连接失败独立保留未解决，并非连接已修。此时间为登记时间。",
+      "itemId": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/happymh-search-dns-20261029.json"
+      ]
+    },
+    {
+      "id": "source-priority-and-simply-restoration-20261030",
+      "at": "2026-10-30T02:58:40+08:00",
+      "title": "复杂源问题后置并完成设备恢复",
+      "detail": "Simply目标请求未发、原包数据电源已恢复；嗨皮上游已删除且当前域不可用，复杂源问题与能力扩展按用户要求后置。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "translation-scope-and-manhuawu-state-20261030",
+      "at": "2026-10-30T03:05:48+08:00",
+      "title": "翻译完整范围及漫画屋状态核清",
+      "detail": "翻译完整功能差集仍待核，不能仅视为账户扩验；漫画屋run773显示403进入挑战导航，首页403仍未解。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
     }
   ],
   "reportAgeAudit": {
