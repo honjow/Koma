@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T03:12:00+08:00",
+  "updatedAt": "2026-10-30T03:39:04+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
-  "activity": "优先核漫画屋错误状态链；复杂外部问题及新增能力后置。",
-  "nextAction": "核对漫画屋错误状态是否存在明确小缺口；不重复已拒请求。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "Simply重试仍403、设备已恢复；source_terra离线对照参考客户端。",
+  "nextAction": "离线核对原参考headers与客户端，保留原因未知。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1062,10 +1062,10 @@
       "priority": "P2（复杂故障后置）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "Simply 403未解，本场已恢复、后置",
+      "status": "Simply重试仍403，原因未知",
       "kind": "open",
-      "result": "Simply 403仍未解决，本轮诊断未发目标请求，设备已恢复。",
-      "remaining": "Simply验证后仍403的原因待定位。",
+      "result": "Simply验证页刷新后取得完整响应，但完成并重试仍403；原因未知，设备已恢复。",
+      "remaining": "离线对照原参考headers与客户端，定位Simply仍403的原因。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1095,10 +1095,12 @@
         "本轮1633滚动被自动审批拒绝，因1632可能仍运行、存在并行重复风险；未重试、未发Simply GET，无新header或网络证据。1635原包四成员等1624；1636原db31及六JSON等1622；1637临时文件清理；1638 SLEEP/120000无override，租约22:59:06 released；两产品文件临时patch reverse、无diff。",
         "临时诊断HAP db9b0c933509a533767c124a76b518d60cb44e0bbf6be9b0af7eca4ec4b9ac7e已构建、验签同db31，未装；仅请求头分类及主帧安全performance数值/支持位，不改验证、缓存、UA或完成条件，后续不提交且恢复。237 lease20261029-181615-230f7416，1748完成awake/中立解锁/86400000读回及六域、Simply011四成员基线，registry/路径对应；目标HTTP及验证页尚未触发。",
         "1750诊断Host db9 installer明确success并启动；1752普通导入源012，1753 ZIP/WASM与冻结a6d77d50…/31759fff…精确相等。原011缺API webSessionOrigins及challenge关联，012仅补两处，UA/Referer/Origin/Cache-Control不变；尚无新GET/挑战，同租约常亮，结束须恢复原包/六域/电源。",
-        "1761原011四成员及六域对1748全等、db31安装成功；1762候选与唯一下载不存在，SLEEP/120000无override，lease20261029-181615-230f7416 released及status读回；两源码临时patch精确撤回。"
+        "1761原011四成员及六域对1748全等、db31安装成功；1762候选与唯一下载不存在，SLEEP/120000无override，lease20261029-181615-230f7416 released及status读回；两源码临时patch精确撤回。",
+        "237新lease…fae08932，1763六域及原011基线、1764 db9诊断Host安装成功、1767实装012 ZIP/WASM与冻结相同，1768源列表已定位；尚未发目标GET或复现挑战。",
+        "1769验证初页timing status200/transfer0/encoded5140/decoded23475/deliverycache；1770现有刷新一次status200/transfer5379/encoded5079/decoded23187/deliveryempty，符合完整body传输；1772仅一次完成并重试后Native op9仍403、终态继续要求验证。缓存不是全部原因，不报根因/修复、不改缓存策略/UA/代码。1774原011四成员对1763全等，1775六JSON全等且原db31 installer成功，1776本轮候选/下载不存在、SLEEP/120000无override；lease…fae08932于03:38:30 released并status读回。"
       ],
       "remainingActions": [
-        "定位Simply验证后仍403的原因。"
+        "离线对照原参考headers与客户端，定位Simply仍403的原因。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1149,7 +1151,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "复杂问题后置",
+      "stage": "离线对照参考请求中",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -8849,6 +8851,24 @@
         "/private/tmp/manhuawu-ref150-once.headers",
         "/private/tmp/manhuawu-ref150-once.body"
       ]
+    },
+    {
+      "id": "simply-single-diagnostic-ready-20261030",
+      "at": "2026-10-30T03:23:36+08:00",
+      "title": "Simply单次安全诊断候选已安装",
+      "detail": "237原状态基线已取、诊断Host及源候选已安装；目标GET尚未发。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "simply-diagnostic-refresh-restored-20261030",
+      "at": "2026-10-30T03:39:04+08:00",
+      "title": "Simply刷新对照及设备恢复",
+      "detail": "验证页刷新取得完整响应，完成并重试后仍403；缓存不是全部原因，原包数据及电源恢复，原因未知。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": []
     }
   ],
   "reportAgeAudit": {
