@@ -10,9 +10,21 @@
 
 执行前先读 [执行规则](docs/agent-guides/koma-rules.md) 的“禁止编造记忆与无依据确认”；开始、压缩或交接后，以及回应纠正、历史要求或既定决定前再次阅读。其余资料只按当前任务选读。长期原则、模块约束、具体需求和临时进度分开维护；变更时更新唯一依据及失效引用，不在本入口堆叠细节。默认阅读链中的文档只描述当前有效状态；修订经过另存且不从本入口或其扩展资料链接，只有明确查证历史时才读取。
 
+## 强制设备与技能门禁
+
+凡涉及 HarmonyOS 源码、构建、devEco、hvigor、HDC、uitest、hilog、hidumper、截图、模拟器或真机操作，先读 `harmony-mandatory-preflight`；涉及设备、截图、日志、UI 操作还必须读 `harmony-run-device-diagnostics`。开始操作前说明选用的技能与原因。
+
+- HDC 及任何可能调用 HDC 的 helper，包括只读、dry-run 和租约包装，必须在沙盒外执行。实时解析完整 target 并持有有效租约；旧地址、端口、租约或沙盒报错不能用来判断设备离线。
+- 用户选定设备后，先解析当前完整 target，取得该设备的租约。租约只协调设备，不扩大用户授权，也不替代用户对功能、数据或安装操作的允许。
+- 设备状态与取证操作必须通过项目 checked manifest 和 `run_device_protocol` 执行。直接租约包装 HDC 只允许：发现/重连、`shell echo`、启动完成读回和文件接收。唤醒、解锁、设置超时、安装、启动、UI 输入、布局、截图、日志和 trace 都不得绕过清单直接发命令。
+- 锁屏不是“设备不可用”。按技能连续完成唤醒、在非通知区域滑开、解锁后写入并读回超时，再开始正常 UI 操作；把这一整套边界写进同一份 manifest，不要拆成多次零散命令。
+- 不自行启动、停止或重启模拟器；不用模拟器替代用户指定的真机，不用模拟器、构建、截图或命令 exit 码代替真机验收。模拟器结果不能写入工作单作为验收依据。
+- 一次 UI 路径视为一份完整协议；动作返回成功只证明命令被接受，必须读取前置页面、预期跳转和终态证据。失败先保留证据并执行该清单的恢复分支，不能连续猜坐标或连续 Back。
+- 无论成功失败，结束设备会话都独立执行恢复与释租，并读回最终状态。不得因为截图或页面断言失败跳过清理。
+
 | 工作 | 当前依据 |
 | --- | --- |
-| App 与中文源 | [唯一当前工作单](docs/CURRENT_STATUS.md) |
+| App 与中文源 | [唯一当前工作单](docs/CURRENT_STATUS.md)：用户查看的 bug 进度页，不是执行台账 |
 | 共享 Reader | [共同职责](../reader-kit/README.md#consumer-contract)、已指定跨宿主工作单、[迁移参考规则](docs/agent-guides/reader-rewrite-standards.md) |
 | 产品与架构 | [执行规则](docs/agent-guides/koma-rules.md)、原工作单中的当前已采用决定 |
 | 书源 | [运行方向](docs/WASM_SOURCE_RUNTIME_DIRECTION.md)、[ABI](docs/source-runtime-abi.md) |

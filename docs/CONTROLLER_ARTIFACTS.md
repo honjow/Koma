@@ -4,6 +4,7 @@
 
 ## 位置与身份
 
+- 当前用户会话的原进度服务使用 `scripts/serve-reader-progress.py` 和 `http://127.0.0.1:8766/`；临时 launchd 配置为 `/private/tmp/koma-progress-8766-session.plist`，日志为 `/private/tmp/koma-progress-8766-launchd.log`。该配置由当前用户会话加载，启用 RunAtLoad 与 KeepAlive；它不是登录自启动文件，重启或退出登录后的保留未验证。工作单仍是唯一数据来源。
 - 新产物接续当前场景已使用的根目录：设备流程通常在 .hvigor/outputs/user-flow-audit/，既有 controller 场景在 .hermes-artifacts/。不为统一目录搬动或覆盖有效证据。
 - 按稳定设备别名/型号、折叠方向及有效尺寸分区；连接 target 单独记录。一次运行用新的 runId，已有来源 manifest/语义场景继续复用，不按每个点击复制一份。
 - 只保留与当前结论相关的实际 diff、命令、运行结果、截图/录像、布局或有界日志；不要求每个简单修改凑齐一组模板文件，不上传原始凭据、私库内容或敏感日志。
