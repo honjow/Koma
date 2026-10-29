@@ -5,6 +5,7 @@ import { ConciseListRow } from './ui/ConciseListRow'
 import { ListDivider } from './ui/GroupedListSection'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFilter } from '../model/SourceModels'
+import { sourceTriStateValue, nextSourceTriStateValues } from '../model/SourceTriStateFilters'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 export type SourceFilterControlValue = string | number | boolean | string[]
@@ -19,6 +20,7 @@ export struct SourceFilterControls {
   @Param filters: SourceFilter[] = []
   @Param values: SourceFilterControlValues = {}
   @Param busy: boolean = false
+  @Param optionsLoading: boolean = false
   @Param vertical: boolean = false
   @Local private activeFilterMenuId: string = ''
   @Local private pendingTextFilters: Record<string, string> = {}
@@ -61,11 +63,14 @@ export struct SourceFilterControls {
   }
 
   private filterOptionLabel(filter: SourceFilter, valueText: string): string {
+    const excluded = filter.type === 'tristate' && valueText.startsWith('!')
+    const optionValue = excluded ? valueText.substring(1) : valueText
+    const marker = filter.type === 'tristate' ? (excluded ? '− ' : '✓ ') : ''
     const optionIds = filter.optionIds ?? []
     const options = filter.options ?? []
     for (let index = 0; index < optionIds.length || index < options.length; index += 1) {
-      if (this.filterOptionValue(filter, index) === valueText) {
-        return options[index] ?? valueText
+      if (this.filterOptionValue(filter, index) === optionValue) {
+        return marker + (options[index] ?? optionValue)
       }
     }
     return valueText
@@ -115,6 +120,21 @@ export struct SourceFilterControls {
     const next = selected.slice()
     next.push(optionValue)
     this.onFilterChange(filter, next)
+  }
+
+  private toggleTriStateFilter(filter: SourceFilter, index: number): void {
+    const next = nextSourceTriStateValues(this.multiSelectFilterValue(filter), this.filterOptionValue(filter, index))
+    this.onFilterChange(filter, next.length > 0 ? next : undefined)
+  }
+
+  private filterOptionSymbol(filter: SourceFilter, index: number): SymbolGlyphModifier | undefined {
+    if (filter.type === 'tristate') {
+      const state = sourceTriStateValue(this.multiSelectFilterValue(filter), this.filterOptionValue(filter, index))
+      if (state < 0) return new SymbolGlyphModifier($r('sys.symbol.xmark'))
+      if (state > 0) return new SymbolGlyphModifier($r('sys.symbol.checkmark'))
+      return undefined
+    }
+    return this.isFilterOptionSelected(filter, index) ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined
   }
 
   private rangeStep(filter: SourceFilter): number {
@@ -206,11 +226,12 @@ export struct SourceFilterControls {
       ForEach(filter.options ?? [], (option: string, index: number) => {
         MenuItem({
           content: option,
-          symbolEndIcon: this.isFilterOptionSelected(filter, index) ?
-            new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined,
+          symbolEndIcon: this.filterOptionSymbol(filter, index),
         })
           .onClick(() => {
-            if (filter.type === 'multiselect') {
+            if (filter.type === 'tristate') {
+              this.toggleTriStateFilter(filter, index)
+            } else if (filter.type === 'multiselect') {
               this.toggleMultiSelectFilter(filter, index)
             } else {
               select(() => {
@@ -321,6 +342,13 @@ export struct SourceFilterControls {
         }
         this.VerticalFilterRow(filter)
       }, (filter: SourceFilter) => filter.id)
+      if (this.optionsLoading) {
+        LoadingProgress()
+          .width(ThemeConstants.LOADING_SIZE_LARGE)
+          .height(ThemeConstants.LOADING_SIZE_LARGE)
+          .color(ThemeConstants.BRAND_PRIMARY)
+          .margin(ThemeConstants.SPACE_MD)
+      }
     }
     .width('100%')
   }

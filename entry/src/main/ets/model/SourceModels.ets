@@ -38,7 +38,7 @@ export interface SourceChapter {
 
 export interface SourceFilter {
   id: string
-  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group' | 'header'
+  type: 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'tristate' | 'range' | 'group' | 'header'
   name: string
   description?: string
   scope?: 'browse' | 'search'
@@ -157,6 +157,12 @@ interface SourceRuntimeFilterPayload {
 interface SourceRuntimeFiltersPayload {
   filters?: SourceRuntimeFilterPayload[]
   items?: SourceRuntimeFilterPayload[]
+  supportsFilterFetching?: boolean
+}
+
+export interface SourceFilterSchema {
+  filters: SourceFilter[]
+  supportsFilterFetching: boolean
 }
 
 function normalizeSourceMangaStatus(value: string | undefined): SourceMangaStatus {
@@ -343,8 +349,8 @@ export function parseSourceChaptersJson(json: string): SourceChapter[] {
   }
 }
 
-function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'range' | 'group' | 'header' {
-  if (value === 'select' || value === 'text' || value === 'sort' || value === 'range' || value === 'group' || value === 'header') {
+function normalizeFilterType(value: string | undefined): 'select' | 'text' | 'check' | 'sort' | 'multiselect' | 'tristate' | 'range' | 'group' | 'header' {
+  if (value === 'select' || value === 'text' || value === 'sort' || value === 'range' || value === 'group' || value === 'header' || value === 'tristate') {
     return value
   }
   if (value === 'multiselect' || value === 'multi-select' || value === 'multiSelect') {
@@ -387,13 +393,17 @@ function normalizeFilterOptionIds(options: string[] | SourceRuntimeFilterOptionP
 }
 
 export function parseSourceFiltersJson(json: string): SourceFilter[] {
+  return parseSourceFilterSchemaJson(json).filters
+}
+
+export function parseSourceFilterSchemaJson(json: string): SourceFilterSchema {
   try {
     const payload = JSON.parse(json) as SourceRuntimeFiltersPayload
     const filters: SourceFilter[] = []
     appendSourceFilters(filters, payload.filters ?? (payload.items ?? []))
-    return filters
+    return { filters, supportsFilterFetching: payload.supportsFilterFetching === true }
   } catch (_err) {
-    return []
+    return { filters: [], supportsFilterFetching: false }
   }
 }
 

@@ -2,6 +2,7 @@ import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { SourceFilter } from '../model/SourceModels'
+import { normalizeSourceTriStateValues } from '../model/SourceTriStateFilters'
 
 export type SourceFilterPreferenceValue = string | number | boolean | string[]
 export type SourceFilterPreferenceRecord = Record<string, SourceFilterPreferenceValue>
@@ -164,6 +165,15 @@ function sanitizeFilterValue(value: SourceFilterPreferenceValue, filter: SourceF
   }
   if (filter.type === 'multiselect') {
     return sanitizeMultiSelectFilterValue(value, filter)
+  }
+  if (filter.type === 'tristate') {
+    if (!Array.isArray(value)) return undefined
+    // Missing options are a declared deferred field, not an empty option set.
+    // Keep saved choices through the initial schema and validate known IDs
+    // when the source supplies its actual option list.
+    const allowed = filter.options === undefined ? undefined : filterOptionValues(filter)
+    const selected = normalizeSourceTriStateValues(value, allowed)
+    return selected.length > 0 ? selected : undefined
   }
   if (filter.type === 'range') {
     return normalizedRangeFilterValue(value, filter)

@@ -30,6 +30,10 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 `get_filters` 的每个筛选项可选 `scope: "browse" | "search"`：按当前查询内容判定，空白查询属于 browse，非空查询属于 search；缺省在两者均有效，兼容旧源。`type: "header"` 只携带源原文的 `name`/`label` 与可选 `description`，不产生请求值、默认值、计数或持久化值。宿主只向源提交当前作用域的值，并保留另一作用域的已保存选择；切换查询不删除选择。仅当请求顶层 `hostFeatures` 包含 `source_filter_scope_header_v1` 时，源才能返回依赖作用域或 Header 的新版 schema；未声明时必须返回该源原有 schema，旧宿主不得误暴露或消费新项。
 
+声明 `source_filter_fetching_v1` 的宿主支持可选动态筛选数据：初次 `get_filters` 返回基础 schema 和 `supportsFilterFetching: true`，不为可选标签数据阻塞目录。实际打开筛选时，宿主以 `args.fetchFilterData: true` 再调用 `get_filters`；成功返回包含基础项的完整 schema，失败保留原目录、基础筛选及已存选择，并允许下次打开时重试。稳定动态字段须在基础 schema 声明其 ID，省略 `options` 表示选项尚未加载，不能用空数组冒充。迟到响应受源包、设置版本和页面生命周期约束，不能覆盖别的源。
+
+`source_filter_tristate_v1` 支持 `type: "tristate"`：一个字段表示一组标签，`options` 使用原站 ID/名称，ID 不能以 `!` 开头。值为字符串数组，`id` 表示包含、`!id` 表示排除、缺省表示忽略；同一 ID 只能有一个状态。宿主复用原生多选菜单循环切换，清除此项移除整组选择。选项未加载时保留已存状态，不能因打开页面先收到基础 schema 而丢掉筛选。源未取得对应 Host 特性时，仍返回原 schema。
+
 是否允许某项操作仍由当前源声明、真实导出和准入共同决定；原生有映射不代表所有源实现。测试专用导出不构成产品能力。响应沿 NativeSourceRuntime 的 ok/operation/data/error/reasonCode/hostHints 合同，由服务及实际 DTO 消费者校验，不凭字段存在冒调用通过。
 
 ## 宿主边界
@@ -47,7 +51,7 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。重复话号、无号番外不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1` 和 `chapter_reading_order_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1` 和 `chapter_reading_order_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
 
 `source_setting_uuid_list_v1` 支持文本设置的 `validation: {kind:"uuid_list", message:"..."}`。沿 MangaDex 参考实现逐个校验逗号分隔并 trim 后的小写 UUID（版本 1–5，variant 8/9/a/b）；空白有效，空项或尾逗号无效。不执行源提供的正则。表单显示已采用的系统输入错误状态并禁用保存；持久化 owner 在写入前再次校验，失败保留原设置及 revision。
 

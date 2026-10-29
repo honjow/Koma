@@ -76,6 +76,7 @@ export struct SourceSearchPage {
   @Monitor('chrome.visible', 'viewModel.browseWebChallenge', 'viewModel.searchWebChallenge')
   private handleWebChallenge(): void {
     if (!this.chrome.visible) {
+      this.viewModel.cancelFilterDataLoad()
       this.closeWebChallenge()
       return
     }
@@ -245,6 +246,12 @@ export struct SourceSearchPage {
 
   private openFilters(): void {
     this.filtersShown = true
+    void this.loadFilterData()
+  }
+
+  private async loadFilterData(): Promise<void> {
+    const error = await this.viewModel.fetchSourceFilterData()
+    if (this.filtersShown && error.length > 0) this.getUIContext().getPromptAction().showToast({ message: error })
   }
 
   private closeFilters(): void {
@@ -312,6 +319,7 @@ export struct SourceSearchPage {
       filters: this.runtimeFilters(),
       values: this.viewModel.searchFilterValues,
       busy: this.viewModel.loadingSearch,
+      optionsLoading: this.viewModel.loadingFilterData,
       vertical: true,
       onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
         this.setSearchFilterValue(filter, value)
@@ -438,6 +446,7 @@ export struct SourceSearchPage {
   }
 
   aboutToDisappear(): void {
+    this.viewModel.cancelFilterDataLoad()
     this.closeWebChallenge()
     this.routeActive = false
     this.clearPendingSearchTimer()

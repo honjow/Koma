@@ -10,10 +10,11 @@ import { taskpool } from '@kit.ArkTS'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   SourceFilter,
+  SourceFilterSchema,
   SourceManga,
   SourceMangaList,
   SourceMangaStatus,
-  parseSourceFiltersJson,
+  parseSourceFilterSchemaJson,
   sourceFiltersForQuery,
 } from '../model/SourceModels'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
@@ -100,6 +101,10 @@ interface SourceHomeArgs {
 interface SourceListingsArgs {
 }
 
+interface SourceFilterDataArgs {
+  fetchFilterData: boolean
+}
+
 interface SourceSearchArgs {
   query: string
   page: SourceOperationPageArg
@@ -115,7 +120,7 @@ interface SourceMangaListArgs {
   filters: SourceMangaListFilters
 }
 
-type SourceOperationArgs = SourceHomeArgs | SourceListingsArgs | SourceSearchArgs | SourceMangaListArgs
+type SourceOperationArgs = SourceHomeArgs | SourceListingsArgs | SourceFilterDataArgs | SourceSearchArgs | SourceMangaListArgs
 
 interface SourceOperationHostHints {
   network: boolean
@@ -491,6 +496,10 @@ export class BrowseViewModel {
   @Trace latestManga: SourceManga[] = []
   @Trace listings: SourceListingDescriptor[] = []
   @Trace filters: SourceFilter[] = []
+  @Trace loadingFilterData: boolean = false
+  private supportsFilterFetching: boolean = false
+  private filterDataReady: boolean = false
+  private filterDataRevision: number = 0
   @Trace browseFilterValues: SourceMangaListFilters = {}
   @Trace searchFilterValues: SourceMangaListFilters = {}
   @Trace homeSections: SourceHomeSectionState[] = []
@@ -692,6 +701,9 @@ export class BrowseViewModel {
   }
 
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    this.cancelFilterDataLoad()
+    this.supportsFilterFetching = false
+    this.filterDataReady = false
     this.clearWebChallenge('browse')
     this.clearWebChallenge('search')
     this.browseRequestId += 1
@@ -807,7 +819,8 @@ export class BrowseViewModel {
       if (requestId !== this.browseRequestId) {
         return
       }
-      const filters = await this.loadSourceFilters(source)
+      const filterSchema = await this.loadSourceFilters(source)
+      const filters = filterSchema.filters
       if (requestId !== this.browseRequestId) {
         return
       }
@@ -858,7 +871,7 @@ export class BrowseViewModel {
       }
       this.listings = listings
       this.homeAvailable = homeAvailable
-      this.filters = filters
+      this.publishFilterSchema(filterSchema)
       this.browseFilterValues = browseFilterValues
       this.searchFilterValues = searchFilterValues
       this.homeSections = listing === undefined ? homeSections : []
@@ -1032,7 +1045,10 @@ export class BrowseViewModel {
       }
       return
     }
-    this.filters = await this.loadSourceFilters(source)
+    const selected = this.selectedSource
+    const schema = await this.loadSourceFilters(source)
+    if (this.selectedSource !== selected) return
+    this.publishFilterSchema(schema)
     this.searchFilterValues = this.initialSearchFilterValues()
     this.restoreSavedSearchFilterValues(source.sourceId)
   }
@@ -1337,19 +1353,60 @@ export class BrowseViewModel {
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page, isActive, operationGuardId)
   }
 
-  private async loadSourceFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceFilter[]> {
+  private publishFilterSchema(schema: SourceFilterSchema): void {
+    this.cancelFilterDataLoad()
+    this.filters = schema.filters
+    this.supportsFilterFetching = schema.supportsFilterFetching
+    this.filterDataReady = false
+  }
+
+  cancelFilterDataLoad(): void {
+    this.filterDataRevision += 1
+    this.loadingFilterData = false
+  }
+
+  // Initial filters contain defaults and stable deferred field IDs only.
+  // Optional network metadata belongs to opening the filter panel; its failure
+  // must not erase catalogue/search results or the user's saved selections.
+  async fetchSourceFilterData(): Promise<string> {
+    if (!this.supportsFilterFetching || this.filterDataReady || this.loadingFilterData) return ''
+    const source = this.selectedSource
+    if (source === undefined) return ''
+    const entry = this.registry.lookup(source.sourceId).entry
+    const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
+    const revision = ++this.filterDataRevision
+    const current = (): boolean => revision === this.filterDataRevision && this.selectedSource === source &&
+      this.registry.lookup(source.sourceId).entry === entry &&
+      appSourceSettingsStore.revisionForSource(source.sourceId) === settingsRevision
+    this.loadingFilterData = true
+    try {
+      const args: SourceFilterDataArgs = { fetchFilterData: true }
+      const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1, current)
+      if (!current()) return ''
+      const schema = parseSourceFilterSchemaJson(JSON.stringify(response.data ?? {}))
+      this.filters = schema.filters
+      this.filterDataReady = true
+      return ''
+    } catch (error) {
+      return current() ? safeSourceBrowseErrorText(error as Error, 'source_failure_runtime') : ''
+    } finally {
+      if (revision === this.filterDataRevision) this.loadingFilterData = false
+    }
+  }
+
+  private async loadSourceFilters(source: SourceRuntimeRegistryInstalledSourceSummary): Promise<SourceFilterSchema> {
     if (!this.sourceSupportsOperation(source, 'filters')) {
-      return []
+      return { filters: [], supportsFilterFetching: false }
     }
     try {
       const args: SourceListingsArgs = {}
       const response = await this.runSourceOperationResponse(source.sourceId, 'get_filters', args, 1)
-      return parseSourceFiltersJson(JSON.stringify(response.data ?? {}))
+      return parseSourceFilterSchemaJson(JSON.stringify(response.data ?? {}))
     } catch (error) {
       if (source.capabilities.indexOf('filters') >= 0) {
         throw error as Error
       }
-      return []
+      return { filters: [], supportsFilterFetching: false }
     }
   }
 
@@ -1634,19 +1691,26 @@ export class BrowseViewModel {
     operation: string,
     args: SourceOperationArgs,
     page: number,
+    isActive?: () => boolean,
   ): Promise<SourceRuntimeCallResponse> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
-    const responseJson = await enqueueSourceOperation(requestJson, lookup.entry.wasmBytes,
-      sourceHttpIdentityJson(lookup.entry), sourceId)
-    const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
-    if (response.ok !== true) {
-      throw this.runtimeError(response, operation)
+    const guardId = isActive === undefined ? undefined : newSourceRuntimeOperationGuardId()
+    const releaseGuard = guardId === undefined || isActive === undefined ? undefined :
+      registerSourceRuntimeOperationGuard(guardId, isActive)
+    try {
+      const responseJson = await enqueueSourceOperation(requestJson, lookup.entry.wasmBytes,
+        sourceHttpIdentityJson(lookup.entry, guardId), sourceId, isActive)
+      const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
+      if (response.ok !== true) throw this.runtimeError(response, operation)
+      return response
+    } finally {
+      releaseGuard?.()
+      if (guardId !== undefined) clearSourceRejectedRequest(sourceId, guardId)
     }
-    return response
   }
 
   private buildRequestJson(
