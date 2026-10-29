@@ -3,7 +3,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceSettingDescriptor, SourceSettingOption, SourceSettingValue, SourceSettingsRecord,
-  appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+  appSourceSettingsStore, sourceSettingValidationError } from '../sourceRuntime/SourceSettingsStore'
 import { KomaModalScaffold } from './KomaModalScaffold'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
@@ -40,7 +40,7 @@ export struct SourceSettingsSheetContent {
   }
 
   private saveSettings(): void {
-    if (this.settingsSourceId.length === 0) {
+    if (this.settingsSourceId.length === 0 || this.hasInvalidSettings()) {
       return
     }
     appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.settingDescriptors)
@@ -93,6 +93,17 @@ export struct SourceSettingsSheetContent {
   private settingStringValue(descriptor: SourceSettingDescriptor): string {
     const value = this.settingDraft[descriptor.id]
     return typeof value === 'string' ? value : ''
+  }
+
+  private settingValidationError(descriptor: SourceSettingDescriptor): string | undefined {
+    const error = sourceSettingValidationError(descriptor, this.settingDraft[descriptor.id])
+    if (error === undefined) return undefined
+    return descriptor.validation?.kind === 'uuid_list' ? t('source_pkg_invalid_uuid_list') : error
+  }
+
+  private hasInvalidSettings(): boolean {
+    return this.settingDescriptors.some((descriptor: SourceSettingDescriptor): boolean =>
+      descriptor.supported && !descriptor.sensitive && this.settingValidationError(descriptor) !== undefined)
   }
 
   private settingBooleanValue(descriptor: SourceSettingDescriptor): boolean {
@@ -336,6 +347,7 @@ export struct SourceSettingsSheetContent {
             label: descriptor.label,
             wrapLabel: true,
             value: this.settingStringValue(descriptor),
+            validationError: this.settingValidationError(descriptor),
             change: (value: string) => {
               this.updateSettingValue(descriptor.id, value)
             },
@@ -387,6 +399,7 @@ export struct SourceSettingsSheetContent {
           label: t('source_pkg_save_settings'),
           kind: 'primary',
           fullWidth: true,
+          isEnabled: !this.hasInvalidSettings(),
           action: () => {
             this.saveSettings()
           },

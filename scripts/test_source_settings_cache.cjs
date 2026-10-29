@@ -36,6 +36,63 @@ function fixture() {
     reads: () => reads, failWrite: value => { failWrite = value } }
 }
 
+test('UUID-list settings reject an invalid edit without overwriting the saved source settings', () => {
+  const f = fixture(), api = f.exports
+  const [groups] = api.normalizeSourceSettingDescriptors({ ok: true, data: { settings: [{
+    id: 'blockedGroups_en', kind: 'string', label: 'Groups', default: '',
+    validation: { kind: 'uuid_list', message: 'The text contains invalid UUIDs' },
+  }] } })
+  const uuid = '06a9fecb-b608-4f19-b93c-7caab06b7f44'
+  assert.equal(groups.supported, true)
+  for (const value of ['', '  ', uuid, ` ${uuid}, ${uuid} `]) {
+    assert.equal(api.sourceSettingValidationError(groups, value), undefined)
+  }
+  for (const value of [uuid.toUpperCase(), `${uuid},`, `,${uuid}`, 'not-a-uuid']) {
+    assert.equal(api.sourceSettingValidationError(groups, value), 'The text contains invalid UUIDs')
+  }
+  const revision = f.store.revisionForSource('A'), before = f.disk.get(f.file)
+  assert.throws(() => f.store.saveForSource('A', { blockedGroups_en: `${uuid},` }, [groups]), /source_settings_invalid_value/)
+  assert.equal(f.disk.get(f.file), before)
+  assert.equal(f.store.revisionForSource('A'), revision)
+  f.store.saveForSource('A', { blockedGroups_en: uuid }, [groups])
+  assert.equal(f.store.loadForSource('A').blockedGroups_en, uuid)
+})
+
+test('the source settings form disables saving when either UUID field is invalid', () => {
+  const f = fixture(), api = f.exports
+  const input = fs.readFileSync(path.join(root, '../components/SourceSettingsSheetContent.ets'), 'utf8')
+    .replace('export struct SourceSettingsSheetContent', 'export class SourceSettingsSheetContent')
+  const tree = ts.createSourceFile('settings-form', input, ts.ScriptTarget.Latest, true)
+  const owner = tree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'SourceSettingsSheetContent')
+  const methods = ['settingValidationError', 'hasInvalidSettings', 'saveSettings'].map(name =>
+    owner.members.find(node => node.name?.text === name).getText(tree)).join('\n')
+  const js = ts.transpileModule(`export class Form { ${methods} }`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const exports = {}, events = []
+  new Function('exports', 'sourceSettingValidationError', 'appSourceSettingsStore', 't', js)(exports,
+    api.sourceSettingValidationError, f.store, key => key)
+  const descriptors = api.normalizeSourceSettingDescriptors({ ok: true, data: { settings: ['groups','uploaders'].map(id => ({
+    id, kind: 'string', label: id, default: '', validation: { kind: 'uuid_list', message: 'invalid' },
+  })) } })
+  const form = new exports.Form()
+  Object.assign(form, { settingsSourceId: 'A', settingDescriptors: descriptors,
+    settingDraft: { groups: 'bad', uploaders: '' }, getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }),
+    onSaved: value => events.push(value), onClose: () => events.push('closed') })
+  const before = f.disk.get(f.file)
+  assert.equal(form.settingValidationError(descriptors[0]), 'source_pkg_invalid_uuid_list')
+  assert.equal(form.settingValidationError(descriptors[1]), undefined)
+  assert.equal(form.hasInvalidSettings(), true)
+  form.saveSettings()
+  assert.equal(f.disk.get(f.file), before)
+  assert.deepEqual(events, [])
+  form.settingDraft = { groups: '06a9fecb-b608-4f19-b93c-7caab06b7f44', uploaders: '' }
+  assert.equal(form.hasInvalidSettings(), false)
+  form.saveSettings()
+  assert.equal(f.store.loadForSource('A').groups, form.settingDraft.groups)
+  assert.deepEqual(events, [false, 'closed'])
+})
+
 test('descriptor requests carry only the current source public snapshot without migrating it, and unreadable differs from empty', async () => {
   const f = fixture(), api = f.exports
   f.disk.set(f.file, JSON.stringify({ schemaVersion: 1, sources: {

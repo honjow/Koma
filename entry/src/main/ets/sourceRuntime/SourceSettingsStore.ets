@@ -15,11 +15,17 @@ export interface SourceSettingOption {
   label: string
 }
 
+export interface SourceSettingValidation {
+  kind: string
+  message: string
+}
+
 export interface SourceSettingDescriptor {
   id: string
   label: string
   kind: string
   description?: string
+  validation?: SourceSettingValidation
   defaultValue?: SourceSettingValue
   minValue?: number
   maxValue?: number
@@ -175,6 +181,26 @@ function settingOptionIds(descriptor: SourceSettingDescriptor): string[] {
   return (descriptor.options ?? []).map((option: SourceSettingOption): string => option.id)
 }
 
+/** Match the source's fixed UUID-list contract; do not execute source-provided regexes. */
+export function sourceSettingValidationError(
+  descriptor: SourceSettingDescriptor, value: SourceSettingValue | undefined,
+): string | undefined {
+  if (descriptor.validation?.kind !== 'uuid_list' || value === undefined) return undefined
+  if (typeof value !== 'string') return descriptor.validation.message
+  if (value.trim().length === 0) return undefined
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  return value.split(',').every((part: string): boolean => uuid.test(part.trim())) ? undefined : descriptor.validation.message
+}
+
+function normalizeSettingValidation(value: RuntimeValue | undefined, kind: string): SourceSettingValidation | undefined {
+  if (!isRuntimeRecord(value) || kind !== 'string') return undefined
+  const record = value as RuntimeRecord
+  const validationKind = optionalString(record['kind'])
+  const message = optionalString(record['message'])
+  if (validationKind !== 'uuid_list' || message === undefined) return undefined
+  return { kind: validationKind, message }
+}
+
 function normalizedRangeValue(value: SourceSettingValue, descriptor: SourceSettingDescriptor): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return undefined
@@ -289,7 +315,8 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
     }
     const kind = normalizeSourceSettingKind(rawKind)
     const sensitive = descriptorIsCredentialLike(id, kind)
-    descriptors.push({
+    const validation = normalizeSettingValidation(record['validation'], kind)
+    const descriptor: SourceSettingDescriptor = {
       id,
       label: displayLabel(record, id),
       kind,
@@ -303,7 +330,9 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
       loginRefKey: optionalString(record['loginRefKey']) ?? optionalString(record['login_ref_key']),
       supported: SAFE_SETTING_KINDS.includes(kind) && !sensitive,
       sensitive,
-    })
+    }
+    if (validation !== undefined) descriptor.validation = validation
+    descriptors.push(descriptor)
   })
   return descriptors
 }
@@ -374,6 +403,12 @@ export class SourceSettingsStore {
     const normalizedSourceId = sourceId.trim()
     if (normalizedSourceId.length === 0 || !this.isConfigured()) {
       return
+    }
+    for (const descriptor of descriptors) {
+      if (descriptor.supported && sourceSettingValidationError(descriptor, values[descriptor.id]) !== undefined) {
+        // Reject the entire edit before any write; never silently drop a bad field.
+        throw new Error('source_settings_invalid_value')
+      }
     }
     const safeValues = this.filterSafeValues(values, descriptors)
     const current = this.readDocument()

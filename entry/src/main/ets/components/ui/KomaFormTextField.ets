@@ -9,6 +9,8 @@ export struct KomaFormTextField {
   @Param value: string = ''
   @Param isPassword: boolean = false
   @Param isEnabled: boolean = true
+  // Only forms with field validation opt in to the native error state.
+  @Param validationError: string | undefined = undefined
   @Event change: (value: string) => void = (_value: string) => {}
   @Event submit?: () => void
 
@@ -32,6 +34,7 @@ export struct KomaFormTextField {
         .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
         .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
         .enabled(this.isEnabled)
+        .showError(this.validationError)
         .onChange((next: string) => {
           this.change(next)
         })

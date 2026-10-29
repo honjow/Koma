@@ -47,7 +47,9 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。重复话号、无号番外不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1` 和 `chapter_reading_order_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1` 和 `chapter_reading_order_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+
+`source_setting_uuid_list_v1` 支持文本设置的 `validation: {kind:"uuid_list", message:"..."}`。沿 MangaDex 参考实现逐个校验逗号分隔并 trim 后的小写 UUID（版本 1–5，variant 8/9/a/b）；空白有效，空项或尾逗号无效。不执行源提供的正则。表单显示已采用的系统输入错误状态并禁用保存；持久化 owner 在写入前再次校验，失败保留原设置及 revision。
 
 `source_detail_chapter_context_v1` 仅由详情页本次 `get_manga` 和随后的目录请求声明。源可在成功详情的 `data.chapterContext` 返回非敏感 JSON 对象，宿主仅在同一仍有效的详情事务中将其原样传入 `get_chapters` 的 `args.chapterContext`，分页共用；不写缓存或日志，不跨刷新、源包或设置变更、其他作品或精确章恢复使用。源须核对上下文的版本和作品身份，缺失或不完整时沿原请求路径处理；旧宿主不声明该特性。
 
