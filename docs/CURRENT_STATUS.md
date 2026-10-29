@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T06:54:19+08:00",
+  "updatedAt": "2026-10-30T07:38:41+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "MangaDex及XCOMIC公开包设置ABI已核，继续处理具体差异。",
-  "nextAction": "处理XCOMIC去重、正则及其他已确认设置差异。",
+  "activity": "XCOMIC去重公开交付已核，继续处理具体源设置差异。",
+  "nextAction": "核对自定义标题规则、包子及漫小肆等剩余差异。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3226,7 +3226,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "五个公开包身份及设置ABI已核",
+      "status": "XCOMIC去重已公开，继续核对具体设置差异",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3235,16 +3235,15 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "MangaDex三语言及XCOMIC两语言公开包身份、摘要和设置ABI已核；整体源设置差异继续处理。",
-      "remaining": "继续处理XCOMIC去重/正则、包子等具体差异。",
+      "result": "XCOMIC去重及分组已交付，公开包身份和设置ABI已核；其他源设置差异继续处理。",
+      "remaining": "继续处理XCOMIC自定义正则、包子及漫小肆等具体差异。",
       "remainingActions": [
         "继续逐源对照参考设置、默认值及实际消费者。",
         "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。",
         "核对并实现XCOMIC简繁自定义标题删除规则，保默认标题行为。",
         "MangaDex公开实体已核；真实不可用目标行暂无样本、Native未验。",
         "核对包子章节排序与横幅偏好及既有身份/图片处理边界。",
-        "核对漫小肆镜像站点身份及有效性。",
-        "处理XCOMIC旧库合并下去重切换，保持原进度合同。"
+        "核对漫小肆镜像站点身份及有效性。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3254,7 +3253,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "源交付核验中",
+      "stage": "已交付子范围，整体审计继续",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3470,7 +3469,13 @@
         "XCOMIC已存真实单GraphQL operation多个根字段返回multiple root fields not allowed，见 source-settings-repair/xcomic-probe-batching/five-original-fields-one-request-{request,response}.json；不能依赖合并双根解决完整目录和去重差集，不绝对断言未来所有形式。两个单根查询仍可行但需各自fullList/uniqList分页、增加版本请求，须处理保留章excludedChapterIds及默认请求成本；本轮无新请求/源码/设备操作。",
         "精确run40967606642 head5c1f37889e8580bace76649cfe9c97dad63d02b1 completed/success，唯一build job123775965290全部成功含原子发布；公开索引/实体Root正核。XCOMIC去重正在实现两个支持的单根查询遍历必要元数据并输出真实ID差集，不重复225 probe，尚未构建/验收/推送，不影响已验分组冻结。",
         "release sources-5c1f37889e8580bace76649cfe9c97dad63d02b1 target同提交、非draft；MD三语言0.1.25/0.1.11/0.1.11及XCOMIC简繁0.1.9/0.1.10五包已下载，GitHub摘要、index/manifest版本与相对路径核对。证据 source-settings-repair/source-settings-final-20261030-ci-complete.json及source-settings-published-5c1f378/{release-metadata,index,entity-check}.json。公开WASM不同候选，info/settings ABI正在核；MD真实不可用目标缺样本/Native未验，XCOMIC去重尚未发版实现。",
-        "公开五包ABI结果 .hvigor/outputs/user-flow-audit/source-settings-repair/source-settings-published-5c1f378/abi-results.json：三种MD includeUnavailable均toggle false、旧Host不显示；XCOMIC简繁GROUP_BY_SOURCE均toggle false；get_settings零HTTP。仅证明公开WASM info/schema，不冒feed或公开包Native。"
+        "公开五包ABI结果 .hvigor/outputs/user-flow-audit/source-settings-repair/source-settings-published-5c1f378/abi-results.json：三种MD includeUnavailable均toggle false、旧Host不显示；XCOMIC简繁GROUP_BY_SOURCE均toggle false；get_settings零HTTP。仅证明公开WASM info/schema，不冒feed或公开包Native。",
+        "source-settings-repair/xcomic-dedup-real-single-roots/：BERSERK aerk8成员8r2va原身份单次metadata POST HTTP200，确认父作品aerk8、公有normal、英文390章，非中文源Native；同版本uniqList单根首页Mac匿名精简字段查询一次403，Referer https://xcomic.me/、Origin https://xcomic.me，curl可能自行加Accept；与源原具名完整查询不相同，不称完整Native请求相同、不推翻既有Native目录成功。按约停止，fullList未请求、不重试，原因未知。简0.1.10/繁0.1.11仅本地，受控Host合并通过，真实去重/Native/公开未验。",
+        "候选移除精简FULL模板，改由现有具名完整单根常量替字段和类型；重新编译及一次受控WASM+Host关键链通过，真实去重/Native/发布未验。",
+        "简0.1.10/繁0.1.11去重候选复用原完整单根query，本地构建、受控WASM+实际Host合并通过，不重发Mac 403试验。237 lease aa28f67b，1839原六域及简中四成员基线/AWAKE86400000，1840正常c274安装、1841本地导入选择器；仅核简中默认去重请求链，不重复分组或跨语言、不点章。Native未完成、未提交推送。",
+        "简0.1.10/繁0.1.11受控生产WASM+实际Host保留行合并核202→2/200排除、SOURCE_INCLUDE并集、关闭恢复、旧章/页与分页失败原子性。237简中冻结665157…/WASM1cc57…，1845/1847 BERSERK 13/13，1848 get_chapters op235完成4705ms、窗口9个HTTP200；日志无请求body，不能直接证明full字段，未自然命中重复，不称实机隐藏通过，繁中Native未验。1850原4成员、1851六JSON同1839及db31安装成功；1852清候选/下载、SLEEP120000无override，lease aa28f67b 07:26:39 released/status读回。证据 source-settings-repair/xcomic-dedup-wasm-native-20261030.json 与 xcomic-dedup-wasm-host-exec-20261030.mjs。提交公开待审。",
+        "XCOMIC去重f306a8fe586c56475acb5954b9daf7d08cc3ab39已推source master，精确CI40974179677 in_progress；公开尚未核。已交付MD三语言includeUnavailable和XCOMIC简繁分组对应矩阵当前状态已校正，旧审计文字保为历史。",
+        "f306a8fe586c56475acb5954b9daf7d08cc3ab39精确CI40974179677 completed/success，job123798016729含原子发布成功；release428500991非draft、target同SHA。公开XCOMIC简0.1.10/繁0.1.11及index已核摘要、大小、manifest/ABI版本及路径；公开WASM get_settings DEDUP默认简true/繁false、旧Host不显示且零HTTP，GROUP false。证据 source-settings-repair/xcomic-dedup-published-f306a8f/{release-ci-metadata,entity-check,abi-results}.json及abi-execution.mjs；既有候选Native范围冻结，不冒自然重复隐藏或繁中Native通过。"
       ]
     },
     {
@@ -9131,6 +9136,71 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/source-settings-published-5c1f378/abi-results.json"
+      ]
+    },
+    {
+      "id": "xcomic-dedup-single-root-403-20261030",
+      "at": "2026-10-30T07:02:26+08:00",
+      "title": "XCOMIC去重真实请求遇403",
+      "detail": "metadata单次200，uniqList首页单次403后停止，fullList未请求；真实去重及Native未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-real-single-roots/"
+      ]
+    },
+    {
+      "id": "xcomic-single-root-identity-correction-20261030",
+      "at": "2026-10-30T07:04:49+08:00",
+      "title": "XCOMIC单根403请求口径纠正",
+      "detail": "Mac匿名精简查询不等同源完整Native请求；候选改用完整查询模板并完成受控回放，真实去重仍未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "xcomic-dedup-native-start-20261030",
+      "at": "2026-10-30T07:10:56+08:00",
+      "title": "XCOMIC简中去重候选设备验收",
+      "detail": "完整单根候选已构建及受控回放，237原状态基线已取，普通导入进行中；尚未验收完成。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "xcomic-dedup-native-restored-20261030",
+      "at": "2026-10-30T07:28:16+08:00",
+      "title": "XCOMIC去重候选具名请求及恢复",
+      "detail": "受控合并及简中默认请求已核；未命中自然重复，繁中Native未验，候选交付待审。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-wasm-native-20261030.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-wasm-host-exec-20261030.mjs"
+      ]
+    },
+    {
+      "id": "xcomic-dedup-pushed-20261030",
+      "at": "2026-10-30T07:35:56+08:00",
+      "title": "XCOMIC去重提交已推",
+      "detail": "去重提交已推，精确CI进行中、公开实体待核；此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/40974179677"
+      ]
+    },
+    {
+      "id": "xcomic-dedup-public-delivery-20261030",
+      "at": "2026-10-30T07:38:41+08:00",
+      "title": "XCOMIC去重公开交付",
+      "detail": "精确CI、公开包身份及设置ABI已核；既有设备验收范围保持，整体源审计继续。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-published-f306a8f/release-ci-metadata.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-published-f306a8f/entity-check.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-published-f306a8f/abi-results.json"
       ]
     }
   ],
