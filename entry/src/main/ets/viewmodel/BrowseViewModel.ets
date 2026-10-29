@@ -847,7 +847,7 @@ export class BrowseViewModel {
         if (this.sourceSupportsOperation(source, 'home')) {
           try {
             challengeCurrent = this.webChallengeGuard('browse')
-            homeSections = await this.loadSourceHomeSections(source, listings)
+            homeSections = await this.loadSourceHomeSections(source, listings, challengeCurrent, operationGuardId)
             homeAvailable = source.capabilities.indexOf('home') >= 0 || homeSections.length > 0
           } catch (error) {
             if (source.capabilities.indexOf('home') >= 0 || retainsCurrentContent) throw error as Error
@@ -896,7 +896,7 @@ export class BrowseViewModel {
     }
   }
 
-  async selectBrowseHome(automaticRecovery: boolean = false): Promise<void> {
+  async selectBrowseHome(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
     if (this.selectedSource === undefined || !this.homeAvailable || this.loadingBrowse) return
     const source = this.selectedSource
     const requestId = this.browseRequestId + 1
@@ -904,7 +904,7 @@ export class BrowseViewModel {
     this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, this.hasBrowseContent())
     const challengeCurrent = this.webChallengeGuard('browse')
     try {
-      const sections = await this.loadSourceHomeSections(source, this.listings)
+      const sections = await this.loadSourceHomeSections(source, this.listings, challengeCurrent, operationGuardId)
       if (requestId !== this.browseRequestId) return
       this.clearBrowseListing()
       this.homeSections = sections
@@ -1011,7 +1011,7 @@ export class BrowseViewModel {
       return
     }
     if (intent === BrowseLoadIntent.LISTING_REPLACEMENT && this.failedBrowseHome) {
-      await this.selectBrowseHome(automaticRecovery)
+      await this.selectBrowseHome(automaticRecovery, operationGuardId)
       return
     }
     if (intent === BrowseLoadIntent.LISTING_REPLACEMENT && this.failedBrowseListing !== undefined) {
@@ -1433,12 +1433,14 @@ export class BrowseViewModel {
   private async loadSourceHomeSections(
     source: SourceRuntimeRegistryInstalledSourceSummary,
     listings: SourceListingDescriptor[],
+    isActive?: () => boolean,
+    operationGuardId?: string,
   ): Promise<SourceHomeSectionState[]> {
     if (!this.sourceSupportsOperation(source, 'home')) {
       return []
     }
     const args: SourceHomeArgs = {}
-    const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1)
+    const response = await this.runSourceOperationResponse(source.sourceId, 'get_home', args, 1, isActive, operationGuardId)
     return parseSourceHomeSectionsFromResponse(source.sourceId, response)
       .filter((section: SourceHomeSectionState): boolean => {
         if (section.kind === 'mangaList') return section.manga.length > 0
@@ -1692,24 +1694,38 @@ export class BrowseViewModel {
     args: SourceOperationArgs,
     page: number,
     isActive?: () => boolean,
+    operationGuardId?: string,
   ): Promise<SourceRuntimeCallResponse> {
     const lookup = this.registry.lookup(sourceId)
     if (!lookup.ok || lookup.entry === undefined) {
       throw new Error(AppStrings.get('browse_error_source_unavailable'))
     }
     const requestJson = this.buildRequestJson(sourceId, operation, args, page)
-    const guardId = isActive === undefined ? undefined : newSourceRuntimeOperationGuardId()
+    const ownGuard = isActive !== undefined && operationGuardId === undefined
+    const guardId = isActive === undefined ? undefined : operationGuardId ?? newSourceRuntimeOperationGuardId()
     const releaseGuard = guardId === undefined || isActive === undefined ? undefined :
       registerSourceRuntimeOperationGuard(guardId, isActive)
+    let keepRejected = false
     try {
       const responseJson = await enqueueSourceOperation(requestJson, lookup.entry.wasmBytes,
         sourceHttpIdentityJson(lookup.entry, guardId), sourceId, isActive)
       const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
       if (response.ok !== true) throw this.runtimeError(response, operation)
       return response
+    } catch (error) {
+      const e = error as Error
+      if (operation === 'get_home' && ownGuard && guardId !== undefined && isActive?.() &&
+        e instanceof SourceRuntimeError && (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required') &&
+        (lookup.entry.webSessionOrigins ?? []).length > 0) {
+        // Keep the rejected home request available until verification retries or cancels it.
+        selectSourceRejectedRequest(sourceId, guardId, e.challengeRequestId)
+        this.browseChallengeHandle = guardId
+        keepRejected = true
+      }
+      throw e
     } finally {
       releaseGuard?.()
-      if (guardId !== undefined) clearSourceRejectedRequest(sourceId, guardId)
+      if (ownGuard && guardId !== undefined && !keepRejected) clearSourceRejectedRequest(sourceId, guardId)
     }
   }
 
