@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T03:07:48+08:00",
+  "updatedAt": "2026-10-30T03:12:00+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": "优先核漫画屋错误状态链；复杂外部问题及新增能力后置。",
@@ -2763,7 +2763,8 @@
       "evidencePoints": [
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
         "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
-        "原已验结果完整保留：770–775漫画屋017单次元尊搜索→详情→最早第1话 周家圣龙（上）→真实首图1/10已亲审，search/detail/chapters/get_pages均200；新增元尊外旧91progress/8sourceHistory/151chapters及remoteHistory原对象/顺序全同。首页get_manga_list仍403挑战，当前成功不追认旧460 timeout原因；不外推完整叙事/十页或全CF，数据/系统/原Library已恢复。"
+        "原已验结果完整保留：770–775漫画屋017单次元尊搜索→详情→最早第1话 周家圣龙（上）→真实首图1/10已亲审，search/detail/chapters/get_pages均200；新增元尊外旧91progress/8sourceHistory/151chapters及remoteHistory原对象/顺序全同。首页get_manga_list仍403挑战，当前成功不追认旧460 timeout原因；不外推完整叙事/十页或全CF，数据/系统/原Library已恢复。",
+        "固定参考Firefox150身份一次GET仍403，证据 /private/tmp/manhuawu-ref150-once.headers 与 /private/tmp/manhuawu-ref150-once.body；仅排该身份小修假设，未改UA、不称根因已解。"
       ],
       "remainingActions": [
         "定位并处理漫画屋首页自然403。"
@@ -3063,15 +3064,15 @@
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（翻译完整迁移核对）",
       "owner": "Root：漫画翻译完整迁移；Torii试译与Reader具名路径已核，其他提供方真实网络待验",
-      "kind": "open",
-      "status": "具名路径已核，完整翻译差集待核",
+      "kind": "done",
+      "status": "功能迁移及已有具名验收已交付",
       "dependencies": [],
       "relatedItems": [],
-      "result": "197普通设置下API/Codex无密钥临时源已保存、重新进入并删除，原书架、七份公开数据及电源已恢复；此前237 Torii试译和Reader预处理结果保持。真实账户网络未验。",
+      "result": "配置和Reader消费已接入，Torii试译及预处理具名验证；其他服务真实账户网络未验。",
       "reportedAt": "2026-10-26T13:29:18.490+08:00",
       "reportedAtSource": "本会话首次可核的直接反馈：rollout-2026-10-25T19-19-24-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c.jsonl 第16082行，UserMessage item.id=01a176af-3d99-7333-82d4-eea670ce1107；不排除跨会话更早历史。",
       "firstHandlingAt": "2026-10-26T05:31:40+00:00",
-      "closedAt": null,
+      "closedAt": "2026-10-30T03:12:00+08:00",
       "evidencePoints": [
         "直接产物索引：crop-strong-settings.png；restored-crop-settings.png；result.json；failure.png；model-downloaded-selected-off.png；enhanced-reader-page.png；cold-crop-strong-settings.png；cold-enhancement-active-settings.png；reader-enhancement-ci-detail.json；reader-translation197-session-579/result.json；translation-secure-manifest-cold-English.png；reader-translation197-session-586/result.json；reader-translation-ci-detail.json；top-icon-off-on-review.png；runtime-before-any-flip.log；reader-packed-rgba-before/after-case.log；reader-packed-rgba-build.log；page-index-to-success-evidence.json；semantic-restore-review.json",
         "本轮Release构建日志：/private/tmp/koma-translation-completion-build.log；冻结包：/private/tmp/koma-translation-completion-release.hap，SHA256 bbe9f3d7b204763fdab294ad0deee866c1efff28b95a7e0d73929a43d8a78651，19166717字节，release/debugfalse/0.1.3 code4；尚未安装。",
@@ -3082,12 +3083,11 @@
         "https://github.com/honjow/Koma/actions/runs/40784766661",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/translation-completion/：run03–10普通设置入口、空API/Codex表单及取消；final-restoration原包、五文件和电源恢复释租。",
         "translation-completion/translation-source-state197-21/及22/23：已取原七域和电源基线；两次语义前置因同名标题与动作行停下，按HDS说明定位继续，非产品失败。此前基线及定位失败记录；后续完成见24/25。",
-        "translation-completion/translation-source-state197-21/temporary-api-saved-reentered.png、temporary-codex-saved-reentered.png及profile-state-result-translation-source-delete-resume.json：两类无密钥临时源保存/重入/删除，未登录、调provider或拉模型。final-state-24七公开域逐字同、final-data-comparison全true；final-power-25 SLEEP/120000/Override10000，租约22:33:58 released。"
+        "translation-completion/translation-source-state197-21/temporary-api-saved-reentered.png、temporary-codex-saved-reentered.png及profile-state-result-translation-source-delete-resume.json：两类无密钥临时源保存/重入/删除，未登录、调provider或拉模型。final-state-24七公开域逐字同、final-data-comparison全true；final-power-25 SLEEP/120000/Override10000，租约22:33:58 released。",
+        "44文件对照报告 .hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-migration-static-comparison-20261030.json，SHA256 6a785a107fe173af5fbeaf20e9e245258df8c7386bd6262c91b1c531d52aa99e。Root审三路线、设置、模型、源、缓存及Reader消费未发现明确采用功能缺失；不称全部provider真实可用。"
       ],
-      "remaining": "继续核清整个漫画翻译功能与参考的差集，并验证真实账户及提供方网络；已有具名验收保持。",
-      "remainingActions": [
-        "继续核清整个漫画翻译功能与参考的差集，并验证真实账户及提供方网络；已有具名验收保持。"
-      ],
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "按人类最新明确要求直接参照NextE职责接全局长期配置/Reader即时控制及高级归类，沿Koma既有控件，不任意复制Legacy UI或扩新样式；模型未选/不可用仍保可见开关，既定宿主数据/安全边界保持。",
         "默认去白边false保持、超分/自动翻译关闭；翻译沿既有visual-page规则，无默认外部服务或自动耗费，入口采用不授权自动启服务。",
@@ -3108,11 +3108,11 @@
       "translationVerificationBoundary": {
         "humanDirection": "本轮可见人类答先把功能都实现，当前不再要求其先给服务配置。",
         "observedEvidence": "独立安全配置/分块manifest非默认English冷恢复及zh还原具名；54d全局翻译/高级/Reader分组/模型管理已交付，901–906 English保存pop重入及中文恢复、861增强设置/模型回退均具名，未调用翻译provider。",
-        "pendingImplementationVerification": "197 API/Codex无密钥临时源保存、重入及删除已核；完整漫画翻译功能差集仍须核清，真实账户及提供方网络未验。",
+        "pendingImplementationVerification": "44文件对照及设置/Runtime/Reader消费未发现明确功能缺失；Codex/API/自部署等真实服务账户网络未验。",
         "unverifiedExternal": "Torii两页试译及Reader未来页具名路径已核；Codex/OAuth/API真实网络尚未验证，不读取或记录密钥。",
         "secureStorage": "按官方SECRET1–1024字节采用同owner immutable generation分块+短manifest最后原子发布；旧短inline可读，失败不换root，提交仅清owned旧代，凭据不入AppStorage/备份。"
       },
-      "stage": "完整翻译功能对照中",
+      "stage": "具名范围已交付",
       "reportedDate": "2026-10-26"
     },
     {
@@ -8836,6 +8836,19 @@
       "itemId": "NEXTE_READER_FEATURE_MIGRATION",
       "kind": "checkpoint",
       "evidence": []
+    },
+    {
+      "id": "translation-migration-scope-closed-20261030",
+      "at": "2026-10-30T03:12:00+08:00",
+      "title": "漫画翻译迁移具名范围交付",
+      "detail": "完整参考对照及已有配置、Torii试译和Reader预处理具名验收支持收口；其他服务真实账户网络未验。漫画屋参考身份一次请求仍403。此时间为登记时间。",
+      "itemId": "NEXTE_READER_FEATURE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/translation-completion/translation-migration-static-comparison-20261030.json",
+        "/private/tmp/manhuawu-ref150-once.headers",
+        "/private/tmp/manhuawu-ref150-once.body"
+      ]
     }
   ],
   "reportAgeAudit": {
