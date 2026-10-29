@@ -20,6 +20,7 @@ export enum MangaDetailTitleAction {
 export class MangaDetailRouteChromeState {
   @Trace visible: boolean = false
   @Trace resolvedTitle: string = ''
+  @Trace showTitle: boolean = false
   @Trace pageActionsAvailable: boolean = false
   @Trace sourceReloadAvailable: boolean = false
   @Trace webActionsAvailable: boolean = false

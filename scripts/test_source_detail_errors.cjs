@@ -39,14 +39,14 @@ function fixture() {
   new Function('exports', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
     'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem',
     'parseMangaChapterFromSourceItem', 'sourceRuntimeEntryEnabled', 'sourceMangaDetailSnapshotCache',
-    'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', code)(
+    'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', code)(
     exports, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
     (...args) => { identities.push(args); return '{}' },
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) }, () => {},
     (_source, item) => item, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
     async (...args) => { chapterCalls.push(args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
-    { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) })
+    { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) }, { loadForSource: () => ({}) }, () => '')
   const page = new exports.Page()
   Object.assign(page, {
     chrome: { visible: true }, detailWebChallenge: null, detailWebChallengeShown: false, detailWebChallengeId: 0,
@@ -57,7 +57,7 @@ function fixture() {
     buildSourceDetailRequestJson: () => '{}', copyWasmBytes: () => new Uint8Array(1),
     sourceEmbeddedChapterItems: () => [], sourceMangaRouteUrl: () => undefined,
     beginSourceDetailRequest: () => 1, isCurrentSourceDetailRequest: () => true,
-    sourceDetailWithRouteIdentity: detail => detail, refreshSourceLibraryCover: () => {},
+    sourceDetailWithRouteIdentity: detail => detail, refreshSourceLibraryDetail: () => {},
     applySourceMangaDetail: (...args) => { applied.push(args); page.manga = args[4]; page.chapters = args[5]; page.sourceDetailContentState = args[7]; page.sourceDetailDataResolved = true; return true },
     sourceComicId: () => 'saved', findSourceRuntimeComic: () => state.library,
     sourceDetailFromInitialRouteManga: () => ({ title: 'Original preview' }),
@@ -256,9 +256,9 @@ test('root menu exposes only recovery when regular detail actions are unavailabl
 })
 test('starting another reload invalidates the preceding request epoch', () => {
   const exports = {}, entry = {}
-  new Function('exports', 'appSourceSettingsStore', compile(`export class Page {
+  new Function('exports', 'appSourceSettingsStore', 'sourceSettingsFingerprint', compile(`export class Page {
     ${['beginSourceDetailRequest', 'isCurrentSourceDetailRequest'].map(method).join('\n')}
-  }`))(exports, { revisionForSource: () => 'same' })
+  }`))(exports, { revisionForSource: () => 'same', loadForSource: () => ({}) }, () => '')
   const page = new exports.Page()
   Object.assign(page, { sourceDetailRequestEpoch: 0, params: { sourceId: 's', mangaId: 'm' },
     sourceRegistry: { lookup: () => ({ entry }) } })
@@ -448,7 +448,7 @@ test('detail pull refresh uses the existing local check and does not revive unsu
 })
 
 
-test('only complete chapter results and resolved cache snapshots permit metadata persistence', async () => {
+test('only fresh complete chapter results permit chapter metadata persistence during revalidation', async () => {
   const f = fixture()
   f.state.chapters = [{ id: 'chapter', title: 'Resolved', chapterNumber: 1 }]
   f.page.sourceChaptersResolved = true
@@ -462,8 +462,11 @@ test('only complete chapter results and resolved cache snapshots permit metadata
   assert.equal(failed.applied.at(-1)[8], false)
   const cached = fixture()
   cached.state.cache = { detail: { title: 'Cached detail' }, chapters: f.state.chapters, chaptersResolved: true }
+  cached.state.chapters = f.state.chapters
   await cached.page.loadSourceMangaDetail('source.test', 'work')
-  assert.equal(cached.applied.length, 1); assert.equal(cached.applied[0][8], true)
+  // The user's 2026-10-29 request supersedes the cache-hit early return: revalidate it.
+  assert.equal(cached.applied.at(-1)[8], true)
+  assert.equal(cached.page.manga.title, 'Real detail')
 })
 
 test('an explicitly filtered empty catalog replaces retained rows on ordinary entry and stays complete in cache', async () => {
@@ -498,7 +501,7 @@ test('actual detail merge hides only explicit exclusions while preserving stored
   Object.assign(page, { sourceChaptersResolved: true, isCurrentSourceDetailRequest: () => true,
     sourceDetailWithRouteIdentity: value => ({ ...value }), sourceComicId: () => 'comic',
     findSourceRuntimeComic: () => ({ id: 'comic', sourceKind: 'source', chapters: retained }),
-    decorateChapterStates: rows => rows, refreshSourceLibraryChapterMetadata() {}, refreshDownloadStatus() {} })
+    decorateChapterStates: rows => rows, refreshSourceLibraryDetail() {}, refreshDownloadStatus() {} })
   const entry = { manifestName: 'Source' }, current = [{ id: 'new', title: 'Visible' }]
   page.applySourceMangaDetail(1, entry, 'source.test', 'work', {}, current, '', 'ready', true, ['hidden'])
   assert.deepEqual(page.chapters.map(value => value.id), ['new', 'missing'])
@@ -507,4 +510,30 @@ test('actual detail merge hides only explicit exclusions while preserving stored
   page.applySourceMangaDetail(1, entry, 'source.test', 'work', {}, current, '', 'ready', true)
   assert.deepEqual(page.chapters.map(value => value.id), ['new', 'hidden', 'missing'])
   assert.throws(() => chapterVisibility.sourceChapterExclusions([123]), /invalid/)
+})
+
+// Latest user requirement: a readable shelf/cache snapshot survives automatic
+// revalidation and its failures, rather than re-entering the loading lifecycle.
+test('automatic detail revalidation leaves cached content usable and failures silent', async () => {
+  const f = fixture(), original = { title: 'Persisted detail', artist: 'Artist', tags: ['Tag'] }
+  Object.assign(f.page, { manga: original, chapters: [{ id: 'saved' }], sourceDetailDataResolved: true,
+    sourceChaptersResolved: true, sourceDetailContentState: 'ready' })
+  let finish
+  f.state.task = () => new Promise(resolve => { finish = resolve })
+  const task = f.page.loadSourceMangaDetail('source.test', 'work')
+  assert.equal(f.page.manga, original)
+  assert.equal(f.page.sourceDetailContentState, 'ready')
+  assert.equal(f.page.feedbackText, '')
+  finish(JSON.stringify({ ok: false, error: { code: 'challenge_required', status: 403 } }))
+  await task
+  assert.equal(f.page.manga, original)
+  assert.equal(f.page.detailWebChallenge, null)
+  assert.equal(f.page.feedbackText, '')
+  assert.equal(f.page.sourceChaptersResolved, true)
+  f.state.task = undefined
+  f.state.chapterError = new SourceRuntimeError({ ok: false, error: { code: 'challenge_required', status: 403 } })
+  await f.page.loadSourceMangaDetail('source.test', 'work')
+  assert.equal(f.page.manga, original, 'failed catalog revalidation also keeps the complete saved view')
+  assert.equal(f.page.feedbackText, '')
+  assert.equal(f.page.detailWebChallenge, null)
 })

@@ -16,6 +16,7 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { trackerChapterProgress, trackerChapterForProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
+import { CachedCoverImage } from '../components/CachedCoverImage'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
@@ -66,8 +67,7 @@ import {
   removeComicRecordAndPersistLibraryStore,
   updateLocalLibraryMetadataAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
-  refreshSourceComicCoverAndPersistLibraryStore,
-  refreshSourceChapterMetadataAndPersistLibraryStore,
+  refreshSourceMangaDetailAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
   LocalLibraryMetadataStatus,
@@ -97,6 +97,7 @@ import {
   appSourceSettingsStore,
   configureSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
+import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import {
   InMemoryReaderSessionStore,
   ReaderSessionConfig,
@@ -277,6 +278,8 @@ export struct MangaDetailPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
+  @Local private detailScrollOffset: number = 0
+  @Local private detailHeaderHeight: number = 148
   private detailScroller: Scroller = new Scroller()
   private detailRefreshController: PullRefreshController = new PullRefreshController()
   private detailRefreshTask: Promise<void> | undefined = undefined
@@ -381,6 +384,8 @@ export struct MangaDetailPage {
 
   private sourceDetailRequestEpoch: number = 0
   private sourceDetailSettingsRevision: string = ''
+  private sourceDetailSettingsFingerprint: string = ''
+  private initialDetailLoadStarted: boolean = false
   private sourceDetailRegistryEntry?: SourceRuntimeRegistryEntry
   private handledTitleActionRequestSeq: number = 0
 
@@ -436,8 +441,18 @@ export struct MangaDetailPage {
 
   aboutToAppear(): void {
     configureSourceSettingsStore(getContext(this) as common.UIAbilityContext)
+    this.chrome.showTitle = false
     this.seedSourceDetailFromInitialRouteManga()
     this.syncTitleActions()
+    this.loadInitialDetailWhenVisible()
+  }
+
+  @Monitor('chrome.visible')
+  private loadInitialDetailWhenVisible(): void {
+    // The library/memory snapshot supplies the first frame. Start revalidation
+    // from the destination's actual shown lifecycle, not an arbitrary delay.
+    if (!this.chrome.visible || this.initialDetailLoadStarted) return
+    this.initialDetailLoadStarted = true
     void this.loadMangaDetail()
   }
 
@@ -793,7 +808,11 @@ export struct MangaDetailPage {
     automaticRecovery: boolean = false, retryStage: 'detail' | 'chapters' = 'detail'): Promise<void> {
     this.closeDetailWebChallenge()
     this.clearDetailWebChallenge()
-    const retainedDetail = forceReload && this.sourceDetailDataResolved ? this.manga : undefined
+    const retainedDetail = this.sourceDetailDataResolved ? this.manga : undefined
+    // Automatic revalidation must not interrupt a readable collected detail
+    // with loading/error text or a verification sheet. Explicit refresh keeps
+    // its existing progress and challenge/recovery behavior.
+    const backgroundRefresh = !forceReload && retainedDetail !== undefined
     const retainedChapters = retainedDetail === undefined ? [] : this.chapters.slice()
     const retainedChaptersResolved = this.sourceChaptersResolved
     const retainedState = this.isDetailPending() ? SourceDetailContentState.READY : this.sourceDetailContentState
@@ -816,6 +835,7 @@ export struct MangaDetailPage {
       if (!sourceRuntimeEntryEnabled(lookup.entry)) {
         throw new Error('source_disabled')
       }
+      this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
       const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
@@ -826,15 +846,6 @@ export struct MangaDetailPage {
       if (retryStage === 'chapters' && retainedDetail !== undefined) {
         detail = retainedDetail
         chapters = retainedChapters
-      } else if (cached !== undefined) {
-        detail = cached.detail
-        chapters = cached.chapters
-        if (cached.chaptersResolved) {
-          this.sourceChaptersResolved = true
-          this.applySourceMangaDetail(requestEpoch, lookup.entry, sourceId, mangaId, detail, chapters, '',
-            SourceDetailContentState.READY, true, cached.excludedChapterIds)
-          return
-        }
       } else {
         const loaded = await this.runSourceMangaOperation(lookup.entry, 'get_manga', mangaId)
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
@@ -842,13 +853,12 @@ export struct MangaDetailPage {
         }
         detail = this.sourceDetailWithRouteIdentity(loaded.detail, sourceId, mangaId)
         chapterContext = loaded.chapterContext
-        this.refreshSourceLibraryCover(sourceId, mangaId, detail.coverUrl)
         chapters = loaded.embeddedChapters.length > 0 ? loaded.embeddedChapters : retainedChapters
       }
       // The detail payload is already real data. Keep it visible while the
       // independent chapter request is pending instead of representing this
       // as an empty detail or a fabricated zero-chapter result.
-      const detailApplied = this.applySourceMangaDetail(
+      const detailApplied = retainedDetail !== undefined || this.applySourceMangaDetail(
         requestEpoch,
         lookup.entry,
         sourceId,
@@ -861,7 +871,7 @@ export struct MangaDetailPage {
       if (!detailApplied) {
         return
       }
-      if (cached === undefined) {
+      if (cached === undefined && retainedDetail === undefined) {
         sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
           detail,
           chapters,
@@ -889,7 +899,9 @@ export struct MangaDetailPage {
         }
         chaptersLoadFailed = true
         chaptersFailureText = this.sourceOperationFailureText(_error, 'get_chapters', 'manga_detail_load_source_chapters_failed')
-        this.publishDetailWebChallenge(_error, sourceId, mangaId, requestEpoch, 'chapters', automaticRecovery)
+        if (!backgroundRefresh) {
+          this.publishDetailWebChallenge(_error, sourceId, mangaId, requestEpoch, 'chapters', automaticRecovery)
+        }
         const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
         if (libraryComic !== undefined && libraryComic.chapters.length > 0) {
           chapters = libraryComic.chapters.map((chapter: Chapter): MangaChapterItem =>
@@ -897,6 +909,10 @@ export struct MangaDetailPage {
         }
       }
       if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
+        return
+      }
+      if (chaptersLoadFailed && backgroundRefresh) {
+        this.sourceChaptersResolved = retainedChaptersResolved
         return
       }
       if (!chaptersLoadFailed) {
@@ -910,13 +926,17 @@ export struct MangaDetailPage {
         mangaId,
         detail,
         chapters,
-        chaptersLoadFailed ? chaptersFailureText : '',
+        chaptersLoadFailed && !backgroundRefresh ? chaptersFailureText : '',
         chaptersLoadFailed && chapters.length === 0
           ? SourceDetailContentState.ERROR
           : SourceDetailContentState.READY,
         !chaptersLoadFailed && this.sourceChaptersResolved,
         excludedChapterIds,
       )
+      if (applied && (chaptersLoadFailed || !this.sourceChaptersResolved)) {
+        this.refreshSourceLibraryDetail(sourceId, mangaId, detail, chapters,
+          !chaptersLoadFailed && this.sourceChaptersResolved, excludedChapterIds)
+      }
       if (applied && !chaptersLoadFailed) {
         sourceMangaDetailSnapshotCache.write(lookup.entry, sourceId, mangaId, {
           detail,
@@ -930,14 +950,16 @@ export struct MangaDetailPage {
         return
       }
       const failureText = this.sourceOperationFailureText(error, 'get_manga', 'manga_detail_load_source_failed')
-      this.publishDetailWebChallenge(error, sourceId, mangaId, requestEpoch, 'detail', automaticRecovery)
+      if (!backgroundRefresh) {
+        this.publishDetailWebChallenge(error, sourceId, mangaId, requestEpoch, 'detail', automaticRecovery)
+      }
       if (retainedDetail !== undefined) {
         this.manga = retainedDetail
         this.chapters = retainedChapters
         this.sourceDetailDataResolved = true
         this.sourceChaptersResolved = retainedChaptersResolved
         this.sourceDetailContentState = retainedState
-        this.feedbackText = failureText
+        this.feedbackText = backgroundRefresh ? '' : failureText
         return
       }
       const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
@@ -973,20 +995,50 @@ export struct MangaDetailPage {
     }
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
+    const lookup = this.sourceRegistry.lookup(sourceId)
+    const cached = lookup.entry === undefined ? undefined : sourceMangaDetailSnapshotCache.read(
+      lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
+    if (cached !== undefined && cached.chaptersResolved) {
+      this.manga = cached.detail
+      this.manga.isInLibrary = libraryComic !== undefined
+      const stored = libraryComic?.chapters.map((ch: Chapter): MangaChapterItem =>
+        mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)) ?? []
+      this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(cached.chapters, stored, cached.excludedChapterIds))
+      this.manga.chapterCount = this.chapters.length
+      this.activeLibraryComicId = libraryComic?.id ?? ''
+      this.isInLibrary = libraryComic !== undefined
+      this.sourceDetailDataResolved = true
+      this.sourceChaptersResolved = true
+      this.sourceDetailContentState = SourceDetailContentState.READY
+      this.feedbackText = ''
+      return
+    }
+    if (libraryComic !== undefined) {
+      this.activeLibraryComicId = libraryComic.id
+      this.manga = mangaDetailFromComic(libraryComic, this.sourceRegistry)
+      const metadata = libraryComic.sourceMetadata
+      let excluded = metadata?.excludedChapterIds ?? []
+      if (excluded.length > 0) {
+        try {
+          const fingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
+          if (metadata?.settingsFingerprint !== fingerprint) excluded = []
+        } catch (error) {
+          // Settings read failure does not discard an otherwise readable saved detail.
+          DiagnosticLogger.exception('persistence', 'source_detail_settings_read_failed', error as Error)
+        }
+      }
+      this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(
+        libraryComic.chapters.map((ch: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)),
+        [], excluded))
+      this.manga.chapterCount = this.chapters.length
+      this.isInLibrary = true
+      this.sourceDetailDataResolved = true
+      this.sourceDetailContentState = SourceDetailContentState.LOCAL
+      this.feedbackText = ''
+      return
+    }
     const detail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
     if (detail === undefined) {
-      if (libraryComic !== undefined) {
-        this.activeLibraryComicId = libraryComic.id
-        this.manga = mangaDetailFromComic(libraryComic, this.sourceRegistry)
-        this.chapters = this.decorateChapterStates(
-          libraryComic.chapters.map((ch: Chapter) => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind))
-        )
-        this.isInLibrary = true
-        this.sourceDetailDataResolved = true
-        this.sourceDetailContentState = SourceDetailContentState.LOCAL
-        this.feedbackText = ''
-        return
-      }
       // A reused destination may previously have rendered another source. With no real list-row
       // preview for this route, start unresolved rather than carrying that prior detail forward.
       this.manga = undefined
@@ -1000,47 +1052,34 @@ export struct MangaDetailPage {
       this.localRefreshText = ''
       return
     }
-    const lookup = this.sourceRegistry.lookup(sourceId)
     if (lookup.ok && lookup.entry !== undefined) {
       detail.sourceName = lookup.entry.manifestName
     }
-    detail.isInLibrary = libraryComic !== undefined
+    detail.isInLibrary = false
     this.manga = detail
-    this.chapters = libraryComic !== undefined && libraryComic.chapters.length > 0
-      ? this.decorateChapterStates(libraryComic.chapters.map((ch: Chapter) => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)))
-      : []
-    this.isInLibrary = detail.isInLibrary
-    this.sourceDetailDataResolved = libraryComic !== undefined
-    this.activeLibraryComicId = libraryComic?.id ?? ''
-    this.sourceDetailContentState = libraryComic !== undefined ? SourceDetailContentState.LOCAL : SourceDetailContentState.LOADING
+    this.chapters = []
+    this.isInLibrary = false
+    this.sourceDetailDataResolved = false
+    this.activeLibraryComicId = ''
+    this.sourceDetailContentState = SourceDetailContentState.LOADING
     this.feedbackText = s('manga_detail_loading_source')
     this.downloadStatusText = ''
     this.localRefreshText = ''
   }
 
-  private refreshSourceLibraryCover(sourceId: string, mangaId: string, coverUri: string | undefined): void {
+  private refreshSourceLibraryDetail(sourceId: string, mangaId: string, detail: MangaDetail,
+    chapters: MangaChapterItem[], chaptersResolved: boolean, excludedChapterIds: string[]): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) return
     const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
     if (comic === undefined) return
     try {
-      if (refreshSourceComicCoverAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
-        comic.id, sourceId, mangaId, coverUri)) {
+      if (refreshSourceMangaDetailAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
+        comic.id, sourceId, mangaId, detail, chapters, chaptersResolved, excludedChapterIds,
+        this.sourceDetailSettingsFingerprint)) {
         this.onLibraryChanged()
       }
     } catch (error) {
-      DiagnosticLogger.exception('persistence', 'source_cover_refresh_failed', error as Error)
-    }
-  }
-
-  private refreshSourceLibraryChapterMetadata(sourceId: string, mangaId: string, chapters: MangaChapterItem[]): void {
-    if (!this.sourceChaptersResolved || this.libraryStore === undefined || this.libraryPersistenceService === undefined) return
-    const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
-    if (comic === undefined) return
-    try {
-      if (refreshSourceChapterMetadataAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
-        comic.id, sourceId, mangaId, chapters)) this.onLibraryChanged()
-    } catch (error) {
-      DiagnosticLogger.exception('persistence', 'source_chapter_metadata_refresh_failed', error as Error)
+      DiagnosticLogger.exception('persistence', 'source_detail_refresh_failed', error as Error)
     }
   }
 
@@ -1067,8 +1106,8 @@ export struct MangaDetailPage {
       ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
         protectedSourceChapterIds(libraryComic, (getContext(this) as common.UIAbilityContext).filesDir, this.readerSessionStore))
       : undefined
-    if (persistResolvedChapterMetadata) {
-      this.refreshSourceLibraryChapterMetadata(sourceId, mangaId, identity?.chapters ?? chapters)
+    if (persistResolvedChapterMetadata && this.sourceChaptersResolved) {
+      this.refreshSourceLibraryDetail(sourceId, mangaId, detail, identity?.chapters ?? chapters, true, excludedChapterIds)
     }
     const retainedChapters: MangaChapterItem[] = []
     if (libraryComic !== undefined) {
@@ -2499,14 +2538,56 @@ export struct MangaDetailPage {
   }
 
   @Builder
+  private CoverBackdrop() {
+    // Same cover/cache identity as the foreground. Mihon's 4dp blur and 20%
+    // image opacity sit under a theme-colour fade. Keep this layer outside the
+    // inset list so it reaches the page edges without changing content layout.
+    if (this.manga !== undefined && (this.manga.coverUrl?.length ?? 0) > 0) {
+      Stack() {
+        CachedCoverImage({
+          uri: this.manga.coverUrl ?? '',
+          objectFit: ImageFit.Cover,
+          sourceRuntimeId: this.manga.sourceId ?? '',
+          sourceImageId: this.manga.sourceImageId ?? this.manga.id,
+          sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
+          remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+          sourceMangaUrl: this.manga.url ?? '',
+        })
+          .blur(4)
+          .opacity(0.2)
+        Column() {}
+          .width('100%')
+          .height('100%')
+          .linearGradient({ direction: GradientDirection.Bottom,
+            colors: [[Color.Transparent, 0], [ThemeConstants.BG_SUB, 1]],
+          })
+      }
+      .width('100%')
+      .height(this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT +
+        ThemeConstants.SPACE_LG + this.detailHeaderHeight)
+      .translate({ y: -this.detailScrollOffset })
+      .clip(true)
+      .hitTestBehavior(HitTestMode.None)
+    }
+  }
+
+  @Builder
   private DetailList(nativeSpring: boolean) {
+    Stack({ alignContent: Alignment.TopStart }) {
+    this.CoverBackdrop()
     SecondaryListScaffold({
+          surfaceColor: Color.Transparent,
           scroller: this.detailScroller,
           scrollEnabled: this.detailScrollEnabled,
           alwaysEnableEdgeSpring: nativeSpring,
           listSpace: ThemeConstants.SPACE_LG,
           bottomPadding: ThemeConstants.SPACE_XL,
           reserveTitleBar: true,
+          onDidScroll: (offset: number) => {
+            this.detailScrollOffset = offset
+            const showTitle = offset > 160
+            if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
+          },
         }) {
         if (this.manga !== undefined) {
           ListItem() {
@@ -2516,6 +2597,10 @@ export struct MangaDetailPage {
               sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
               remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
             })
+              .onAreaChange((_previous: Area, current: Area) => {
+                const height = Number(current.height)
+                if (height > 0 && this.detailHeaderHeight !== height) this.detailHeaderHeight = height
+              })
           }
         }
 
@@ -2600,6 +2685,9 @@ export struct MangaDetailPage {
           })
         }
         }
+    }
+    .width('100%')
+    .height('100%')
   }
 
   build() {
@@ -2639,7 +2727,7 @@ export struct MangaDetailPage {
 }
 
 function mangaDetailFromComic(comic: Comic, registry: SourceRuntimeRegistry): MangaDetail {
-  let status = MangaStatus.UNKNOWN
+  let status = comic.sourceMetadata?.status as MangaStatus | undefined ?? MangaStatus.UNKNOWN
   if (comic.localMetadata?.status === 'ongoing') {
     status = MangaStatus.ONGOING
   } else if (comic.localMetadata?.status === 'completed') {
@@ -2650,9 +2738,11 @@ function mangaDetailFromComic(comic: Comic, registry: SourceRuntimeRegistry): Ma
     status = MangaStatus.CANCELLED
   }
   return {
-    id: comic.id,
+    id: comic.sourceRuntimeId === undefined ? comic.id : comic.remoteResourceId ?? comic.id,
     title: comic.title,
     author: comic.author,
+    artist: comic.sourceMetadata?.artist,
+    tags: comic.sourceMetadata?.tags?.slice(),
     description: comic.subtitle,
     coverUrl: comic.coverUri,
     status,
@@ -2663,6 +2753,7 @@ function mangaDetailFromComic(comic: Comic, registry: SourceRuntimeRegistry): Ma
     sourceName: comic.sourceRuntimeId === undefined ? '' :
       (registry.list().find((entry) => entry.sourceId === comic.sourceRuntimeId)?.manifestName?.trim() || s('library_source_package')),
     url: comic.sourcePath,
+    webUrl: comic.sourceMetadata?.webUrl,
   }
 }
 
@@ -2727,6 +2818,12 @@ function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], 
     sourceRuntimeId: manga.sourceId,
     remoteResourceId: manga.id,
     coverUri: manga.coverUrl,
+    sourceMetadata: {
+      artist: manga.artist,
+      status: manga.status,
+      tags: manga.tags?.slice(),
+      webUrl: manga.webUrl,
+    },
     sortTitle: normalizeSortKey(title),
     preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
     chapters: comicChapters,

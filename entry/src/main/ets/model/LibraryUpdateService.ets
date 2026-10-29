@@ -7,6 +7,7 @@ import {
   ComicSourceKind,
   Page,
   normalizeSortKey,
+  copySourceMangaMetadata,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -228,6 +229,9 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata
   }
+  if (comic.sourceMetadata !== undefined) {
+    nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
+  }
   return nextComic
 }
 
@@ -282,6 +286,9 @@ function updatedComicWithOnlyCoverUri(comic: Comic, coverUri: string, now: numbe
   }
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata
+  }
+  if (comic.sourceMetadata !== undefined) {
+    nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
   }
   return nextComic
 }

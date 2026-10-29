@@ -80,6 +80,29 @@ export function copyLocalImportOrigin(origin: LocalImportOrigin): LocalImportOri
   return { kind: origin.kind, sourceUris: origin.sourceUris.slice() }
 }
 
+/** Collected source detail, owned by the library alongside its chapter table.
+ * No page URLs, source settings or session credentials belong in this snapshot.
+ */
+export interface SourceMangaMetadata {
+  artist?: string
+  status?: string
+  tags?: string[]
+  webUrl?: string
+  excludedChapterIds?: string[]
+  settingsFingerprint?: string
+}
+
+export function copySourceMangaMetadata(value: SourceMangaMetadata): SourceMangaMetadata {
+  return {
+    artist: value.artist,
+    status: value.status,
+    tags: value.tags?.slice(),
+    webUrl: value.webUrl,
+    excludedChapterIds: value.excludedChapterIds?.slice(),
+    settingsFingerprint: value.settingsFingerprint,
+  }
+}
+
 export interface Comic {
   id: ComicId
   title: string
@@ -94,6 +117,7 @@ export interface Comic {
   coverUri?: string
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
+  sourceMetadata?: SourceMangaMetadata
   sortTitle: string
   preferredDirection: ReadingDirection
   chapters: Chapter[]
@@ -255,6 +279,9 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
   }
   if (comic.localMetadata !== undefined) {
     nextComic.localMetadata = comic.localMetadata
+  }
+  if (comic.sourceMetadata !== undefined) {
+    nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
   }
   if (normalizedCategoryIds.length > 0) {
     nextComic.categoryIds = normalizedCategoryIds

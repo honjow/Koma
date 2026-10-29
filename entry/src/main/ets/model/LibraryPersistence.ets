@@ -1,6 +1,6 @@
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
-import { MangaChapterItem } from './MangaDetailModels'
+import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import {
@@ -9,6 +9,8 @@ import {
   ComicId,
   LocalImportOrigin,
   copyLocalImportOrigin,
+  SourceMangaMetadata,
+  copySourceMangaMetadata,
   CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
   ComicSourceKind,
   CustomLibraryCategory,
@@ -86,6 +88,7 @@ export interface PersistedComic {
   coverUri?: string
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
+  sourceMetadata?: SourceMangaMetadata
   sortTitle: string
   preferredDirection: ReadingDirection
   chapters: PersistedChapter[]
@@ -289,6 +292,9 @@ export function persistComic(comic: Comic): PersistedComic {
   if (comic.localMetadata !== undefined) {
     row.localMetadata = normalizeLocalLibraryStoredMetadata(comic.localMetadata as Object)
   }
+  if (comic.sourceMetadata !== undefined) {
+    row.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
+  }
   return row
 }
 
@@ -336,6 +342,9 @@ export function hydrateComic(row: PersistedComic): Comic {
   }
   if (row.localMetadata !== undefined) {
     comic.localMetadata = normalizeLocalLibraryStoredMetadata(row.localMetadata as Object)
+  }
+  if (row.sourceMetadata !== undefined) {
+    comic.sourceMetadata = copySourceMangaMetadata(row.sourceMetadata)
   }
   return comic
 }
@@ -502,6 +511,16 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.remoteServerId, 'comic.remoteServerId')
   assertOptionalStringField(row.remoteResourceId, 'comic.remoteResourceId')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')
+  if (row.sourceMetadata !== undefined) {
+    const metadata = row.sourceMetadata
+    assertPersistedObject(metadata as Object, 'comic.sourceMetadata')
+    assertOptionalStringField(metadata.artist, 'comic.sourceMetadata.artist')
+    assertOptionalStringField(metadata.status, 'comic.sourceMetadata.status')
+    assertOptionalStringField(metadata.webUrl, 'comic.sourceMetadata.webUrl')
+    assertOptionalStringField(metadata.settingsFingerprint, 'comic.sourceMetadata.settingsFingerprint')
+    assertOptionalStringArrayField(metadata.tags, 'comic.sourceMetadata.tags')
+    assertOptionalStringArrayField(metadata.excludedChapterIds, 'comic.sourceMetadata.excludedChapterIds')
+  }
   if (row.localImportOrigin !== undefined) {
     copyLocalImportOrigin(row.localImportOrigin)
   }
@@ -781,6 +800,47 @@ export function refreshSourceComicCoverAndPersistLibraryStore(
   return true
 }
 
+/** Refresh a collected detail in one library transaction. Work identity and all
+ * user-owned fields come from the latest library value, never a route snapshot.
+ * Repeated equal responses do not rewrite the library or publish shelf rows.
+ */
+export function refreshSourceMangaDetailAndPersistLibraryStore(
+  libraryStore: LibraryStore,
+  persistenceService: LibraryStorePersistenceService,
+  comicId: string,
+  sourceId: string,
+  mangaId: string,
+  detail: MangaDetail,
+  chapters: MangaChapterItem[],
+  chaptersResolved: boolean,
+  excludedChapterIds: string[],
+  settingsFingerprint: string,
+): boolean {
+  const previous = libraryStore.getComic(comicId)
+  if (previous === undefined || previous.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
+    previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId) return false
+  const next = JSON.parse(JSON.stringify(previous)) as Comic
+  if (detail.title.trim().length > 0) {
+    next.title = detail.title
+    next.sortTitle = normalizeSortKey(detail.title)
+  }
+  next.subtitle = detail.description
+  next.author = detail.author
+  if (/^https?:\/\//i.test(detail.coverUrl?.trim() ?? '')) next.coverUri = detail.coverUrl
+  next.sourceMetadata = {
+    artist: detail.artist,
+    status: detail.status,
+    tags: detail.tags?.slice(),
+    webUrl: detail.webUrl,
+    excludedChapterIds: chaptersResolved ? excludedChapterIds.slice() : previous.sourceMetadata?.excludedChapterIds,
+    settingsFingerprint: chaptersResolved ? settingsFingerprint : previous.sourceMetadata?.settingsFingerprint,
+  }
+  if (chaptersResolved) enrichSourceChapterMetadata(next, chapters)
+  if (JSON.stringify(next) === JSON.stringify(previous)) return false
+  upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
+  return true
+}
+
 /** Persist metadata for matching stored chapters only, without adding/removing chapters or replacing reading state. */
 export function refreshSourceChapterMetadataAndPersistLibraryStore(
   libraryStore: LibraryStore,
@@ -890,6 +950,9 @@ export function updateLocalLibraryMetadataAndPersistLibraryStore(
   }
   if (previous.localMetadata !== undefined) {
     next.localMetadata = previous.localMetadata
+  }
+  if (previous.sourceMetadata !== undefined) {
+    next.sourceMetadata = copySourceMangaMetadata(previous.sourceMetadata)
   }
   next.localMetadata = normalized
   if (normalized.titleOverride !== undefined) {
@@ -1003,6 +1066,10 @@ function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic)
   }
   if (fresh.localMetadata !== undefined) {
     merged.localMetadata = fresh.localMetadata
+  }
+  const sourceMetadata = fresh.sourceMetadata ?? previous.sourceMetadata
+  if (sourceMetadata !== undefined) {
+    merged.sourceMetadata = copySourceMangaMetadata(sourceMetadata)
   }
   return merged
 }

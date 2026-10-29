@@ -22,6 +22,7 @@ export struct SecondaryListScaffold {
   @Param reserveTitleBar: boolean = true
   @Param alwaysEnableEdgeSpring: boolean = true
   @Param scrollEnabled: boolean = true
+  @Param surfaceColor: ResourceColor = ThemeConstants.BG_SUB
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
 
@@ -77,7 +78,7 @@ export struct SecondaryListScaffold {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(this.surfaceColor)
   }
 
   private keyboardPadding(): number {

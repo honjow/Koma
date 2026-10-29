@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-29T16:00:12+08:00",
+  "updatedAt": "2026-10-29T17:38:53+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "源导入卡顿修复已交付并通过精确CI，书源能力差集继续核验。",
-  "nextAction": "继续源能力差集与原未完成路径核验。",
+  "activeId": "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+  "activity": "漫画详情三项用户要求已登记，Root负责实现与197验收；书源核对并行继续。",
+  "nextAction": "对照NextE并落实详情持久化、滚动标题和封面背景。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1065,7 +1065,7 @@
       "status": "宿主请求关联CI成功，237站点回验继续",
       "kind": "open",
       "result": "App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。 237新会话普通统一搜索斗破苍穹：漫画160真实HTTP403触发验证sheet，随后无用户输入自动返回并显示10条作品；同次包子challenge_required排队，DM5、快看、腾讯、再漫画等已解析ready。007输入参数错误未产生查询或请求，不计验证。003安装最终0cd18 HAP，前后registry/settings JSON完全相等，原斗破01第1页3%保留；当时临时scope source，原local；013已恢复local，目前仍持租。 012单源过滤日志显示包子原请求验证一次、搜索完成并ready 6条；008后无点击、重试或关闭输入，漫画160的10条和包子6条分别自动回流。009零动作日志为空、010全量日志尾部无关，不作缺事件依据；包子Native标题未截图，不称第二标题亲验。 23个相关依赖文件e2946421152596bf766ce8acacb572f3cb21ede5已推master，精确CI40670008826 completed/success，连接器读回head一致；相关回归51通过，XCOMIC detailContext ABI仍为未提交WIP。013已Native确认sourceFilter恢复及返回书架；015手动检查，016尚未完成但确认13个更新。017–018漫画1234公开0.1.4更新成功且Native显示漫画1234网；019–020漫画社公开0.1.9安装成功，设置及正文未验；021–022妙趣0.1.3公开更新成功，registry 0.1.3及Native显示妙趣漫画。升级后对应源包版本允许变化，其他设置与设备仍待总恢复。 本轮237已回原书架、恢复设置及筛选，最终SLEEP/正常120000无override并释租；原404、取消防重复及未命中窗口标题等仍独立未验。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 宿主验证请求关联及原UA传递6d6ae7a已推，精确CI进行中；Simply仍403，get_home因果ID尚未接通，不称验证完成。 宿主验证请求关联及原UA传递6d6ae7a精确CI40779011098成功；Simply及get_home原未验边界保留。 6d6ae7a精确CI40779011098 completed/success。 Zero公开017游客锁章拒绝及本站登录入口具名已核，登录态正文未验；原源、数据和电源已恢复，reader自然新增第二章记录。 本轮手动全页包子官网标题由站点覆盖，仅为全页观察，不是自动验证sheet标题证据；sheet标题仍未验。 本轮197手动网页观察后，原源包、七域及电源已恢复并释租；不改变自动验证sheet标题未验边界。",
-      "remaining": "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。 App5748d0a8精确CI40486939289已成功；Root仍需真实验证窗口标题Native。 保留404原GET、取消防重复及未命中的真实窗口标题等边界，原scope和设备状态本轮已恢复，不外推全源。 继续核404、取消防重复及未命中的真实窗口标题等边界。 Simply验证会话及原API origin普通路径仍待回验。 Simply候选UA一致性修正及真实验证回流仍待回验。 Simply真实验证回流仍未通过，原因待核。",
+      "remaining": "特殊跳转、取消验证及窗口名称仍待具名实机回验；Simply验证后仍不可访问的原因待定位。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1093,10 +1093,8 @@
         "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap"
       ],
       "remainingActions": [
-        "继续核404、取消防重复及未命中的真实窗口标题等边界。",
-        "保留404原GET、取消防重复及未命中的真实窗口标题等边界，原scope和设备状态本轮已恢复；不外推全源。",
-        "Mangabz Host1220精确CI成功及源e38随654准确公开，无本批工程等待；197原简繁metadata/四HTTPcookiepresent200与七文件恢复具名，无新Reader、不扩全部旧页表重取。原CF自动404/登录及真实provider等未知按归属保持，237原85/总场恢复继续。",
-        "App5748d0a8精确CI40486939289已成功；Root仍需真实验证窗口当前语言标题Native；原CF未验边界不因名称修复关闭。"
+        "回验特殊跳转、取消验证及窗口名称。",
+        "定位 Simply 验证后仍不可访问的原因。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -2294,15 +2292,15 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "open",
-      "status": "197候选回验及恢复完成，交付和回调待查",
-      "result": "197公开更新候选具名采样完成，原源、七域数据及电源已恢复释租；候选待交付，清理完成回调耗时仍待定位。",
+      "status": "名称投影交付已核，清理回调耗时待定位",
+      "result": "197公开更新名称投影候选具名验证、设备恢复及精确CI均已完成；清理完成回调仍有耗时。",
       "evidencePoints": [
         "直接产物索引：https://github.com/honjow/Koma/releases/tag/v0.1.3-pre；230/audit/frequency-comparison-224-230.json；build.log；diagnostics-redaction-reuse-review/txt-suffix-unadopted-candidate.patch；300/audit/callback6739-scheduler-frequency.json；koma-log-export-20261026-003924.log；307/audit/aligned-existing-cpu.json；audit/aligned-existing-cpu.json；/tmp/koma-computed-fresh-result-before.txt；test_source_index_progressive.cjs；receipt.json；Koma-source-current-result-fixed-signed.hap；manhuagui-network-phase-review/source-head-current.json；manager-after-real-update.png；browse-name-projection197-session-513/result.json；offline-window-review.json；mh160-web-entry-chain-review/browse-name-projection-ci-detail.json；scripts/test_source_install_worker.cjs；temporary-browse-row-count.patch；pre2-browse-source.png；restored-library.png；pre2-batch-update-before.log；pre2-batch-update-after.log；candidate2-manager-details.png；pre2-candidate2-ci-detail.json；index.json；pre2-current-source-index.json；pre2-current-source-update-comparison.json；manager-cache-url-before.log；manager-cache-reader-relevant-final-tests.log；manager-cache-url-final-build.log；registry-update-review.json"
       ],
       "remainingActions": [
-        "完成候选交付并定位清理完成回调耗时。"
+        "定位清理完成回调耗时，保整体性能未闭边界。"
       ],
-      "remaining": "完成名称投影候选交付，继续定位清理完成回调耗时。",
+      "remaining": "继续定位55.698ms清理完成回调及原性能未闭边界。",
       "boundaries": [
         "434 fs.rmdir工作线程execute0.288ms，main complete22.115ms含Promise微任务，不当成主线程目录删除。",
         "237079 trace完成后才加入持久化/发布/投影分段，不以诊断日志代替性能修复；本行prefix瞬空另项保留。"
@@ -2387,7 +2385,9 @@
         "197 run29公开杂志迷010→012主UI帧最长37.201ms、目标图标解码4次合1.735ms；fs.rmdir完成回调67.787ms非vsync帧且原因未知。run31原生日志row_projection4ms、persistSync13/cleanupAwait6/publishSync1。",
         "run32七域与27逐字同、原杂志迷四成员与r1相同，唯一临时导入目录删除并读回不存在；run33 SLEEP/120000/Override10000，租约released。",
         "197 fb8809候选run38同85源及杂志迷010→公开012：主vsync30.221ms，fs.rmdir完成回调55.698ms，目标图标解码4次2.086ms；前场37.201/67.787并非严格AB，原因未定。",
-        "run39七域与34逐字同、原010四成员同r1，本轮012自有导入目录删除并读回不存在；run40 SLEEP/120000/Override10000且租约released。"
+        "run39七域与34逐字同、原010四成员同r1，本轮012自有导入目录删除并读回不存在；run40 SLEEP/120000/Override10000且租约released。",
+        "Koma 5bc04102已推；短SHA筛选返回0不作CI状态判断，精确CI待核。",
+        "Koma 5bc041023ba79e66fd8606c18bcc61b8787f1075 CI40839273297 completed/success；连接器传输失败后官方只读API核实，非CI失败或重跑。"
       ],
       "modificationBasisPersistence": {
         "object": "SourceRuntimeRegistry.persistEntriesToAppLocalMetadata的WASM长度检查",
@@ -2483,7 +2483,7 @@
         "preserved": "@Computed locale依赖、compareSourceNames、同名ID tie、enabled过滤、DTO身份和原数组保持。",
         "evidenceBoundary": "真实getter旧三源6!=3→一次、四locale/身份/输入与原54suite通过；513–518普通Native/29App节点/七域保持，不扩大59ms安装性能结论。"
       },
-      "stage": "提交审查与清理回调调查中"
+      "stage": "清理回调消费链调查中"
     },
     {
       "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
@@ -3188,7 +3188,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P1（用户直接反馈）",
       "kind": "open",
-      "status": "MangaBz候选已本地提交，待审查推送",
+      "status": "公开交付已核，继续核对书源能力差异",
       "owner": "source_terra：237书源线；Root：源交付审查",
       "dependencies": [],
       "relatedItems": [
@@ -3197,15 +3197,12 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "既有a6a36a8的3Hentai 0.1.3在237普通导入后，真实官网目录25本；默认完整标题，关闭设置并保存后同目录显示短标题，清除本次设置后完整标题恢复。前后settings JSON相等，原书架及斗破继续阅读已恢复，临时上传已清除；超时120000ms、休眠及释租已完成，设备保留升级的3Hentai 0.1.3。仅该源具名设置范围通过。Zerobyw 0.1.2原路由真实404，固定参考949dea2为新/pc/路由；0.1.4保原默认与旧manga:/chapter:身份，新身份为pc-。源5de9e98精确CI40639208193成功；公开0.1.4在237普通导入→目录24→详情5章→真实正文1/149，并已恢复。原默认域名EOF、旧ID及参考域名失败更新链路仍待调查。 Zerobyw 0.1.5的df2c2f9已推且CI 40646153719成功，公开索引与包已核；237本地候选在未保存地址时目录24、详情5章、正文1/162实图，设置、历史、书架及设备已恢复并释租。公开WASM真实默认目录24项、nextCursor 2；公开WASM字节与设备本地候选不同，公开0.1.5已在237普通picker导入，安装ZIP及WASM与公开包逐字一致，settings与002相等，唯一临时下载文件已删且读回通过，正常返回Browse；原有已存地址保留。 xkcd-zh 0.1.6已推，保SINGLE默认及旧ID；本地生产WASM分组、分页、正文URL与旧单本fixture通过，英文归档503的受控失败保持独立。公开WASM与本地字节不同，真实按年目录10项、首项2024和下一页2通过；237设置持久、分组浏览、旧书及正文未验。 源码复核WEBTOON繁中实际消费最高画质、连续章号、作者附言三项，默认均false，附言依赖宿主text_page_image_v1；MyComic既有默认cn、original为显式繁中，参考默认差异已记录。此为源码核对，不冒设备验收。 漫画社0.1.9提交ee13701已推且CI40667731479成功，默认311s、用户可显式选m206，保旧路径书章ID；具名作品m206目录20、搜索2、旧书800章、首章18页及首图200 WebP，公开WASM另核搜索及旧章。237公开包已安装，设置持久与正文未验，全旧库映射未验。GoDa 0.1.4提交2f7ade3已推且CI40669312858成功，固定参考六镜像均实测目录、搜索、详情、章节与首章44页；公开WASM明确godamh具名详情及旧首章通过，公开Native、设置持久、图片显示及全库身份未验。 xkcd 0.1.6公开包024–025已安装，设置及原缓存正文具名验证，新作品冷网络正文未验。 Simply Hentai旧search=false记录已过时：237公开0.1.1普通入口love搜索发出真实请求，但返回HTTP403，Native显示源搜索失败、请求被拒绝；不是不支持搜索，亦不能算搜索可用，拒绝原因待核。 237公开xkcd 0.1.6普通源内设置：默认Single目录1本；BY_YEAR保存后年度目录10本并重入读回；BY_YEAR_MONTH保存后月份标题目录并重入读回。经现有确认清除本次xkcd测试设置后默认恢复1本，整份settings JSON与002一致；旧书及正文Native仍未验。 237原库xkcd旧ID原书676章，普通Continue原缓存2978困住第1/1页真实可见，未翻页；返回同详情同章同页，library JSON与066完全一致、49本无增删或字段变化。仅原缓存页具名通过，不冒冷网络正文。 237 GoDa公开0.1.4默认baozimh.org保持，六镜像菜单中选godamh.com后目录18本，保存重入及preferredMirror读回一致；清除本次设置后整份settings与002相等。旧书武炼巅峰3875章，Continue夺酒第2/70原正文可见并返回同章同页，49本无增删、chapterId不变；库并非完全相等：该书自然预载3865章由0变77页、页表指纹与updatedAt及总页数87→164，其余48本和旧缓存章未变。公开WASM godamh具名旧4 chapterId存在，两个缓存章70/17页与首pageId/URL一致，首图200；不外推六镜像Native。 輔大猴0.1.2提交5e397ee已推，本地生产WASM搜索分页、空结果及旧ID详情具名；CI查询遇EOF后重复查询被自动审批拒绝，旧CI未核；当前公开实体与237实装ZIP/WASM一致，普通搜索及真实续页具名通过。 人2 aacee1f CI40685768520及IP手札mini 430b767 CI40688772764成功，公开WASM与原C++ Host按真实保存HTML具名回放；人2及IPmini普通搜索已具名验证，正文未验。devrunner 9a46bc3 CI40687391567成功。 綜合口味0.1.2提交5fa311a已推、CI40697052579成功；公开WASM及原Host以真实保存HTML核漫画分页、食分类及空结果，旧浏览两页数据一致；237公开包普通搜索食返回具名5项及终点，Reader未验。117实装IPmini及人2 ZIP与先前公开容器哈希不同，但所有成员内容相等，人2 WASM与公开一致；輔大猴实装ZIP/WASM与当前公开完全相等。 繁中WEBTOON公开0.1.8自检：真实搜索愛仅返回All首屏22且hasMore=false，漏取官网两分类分页。0.1.9提交bc9c66e、精确CI40700016006成功；237实装ZIP/WASM与公开字节一致，普通搜索愛并滚动后观察到旧All尾部之后的Originals后续作品与6张封面正常。同次搜索日志完成；仅具名普通续页通过，不冒全部411项Native通过，不混英文源WIP。 237漫画社0.1.9默认目录20本成功；显式选m206保存preferredMirror为https://www.m206.com，自动目录请求op217 531ms network_error/http0failed，旧20本保留；普通重入设置仍显示m206，故不是保存丢失。传输原因未知，桌面成功不代Native；当前正在清除本轮设置并核默认旧书。Comic Fury 0.1.6提交af3cd7b、CI40703509316成功；公开WASM在Host注入默认filter后热门、最新、搜索与0.1.5逐字段一致，显式筛选具名返回19项、非法值网络前拒绝；Native控件持久及消费待验。 149清除本轮m206后整份settings与131/002相等、无该源override，默认311s目录20本成功。150–152默认旧一人之下13871详情800章，Continue反杀第2/17缓存正文可见并返回同章同页；49本及800章ID保持，两个旧缓存页表及其他48本相同。库非逐字相等：786章正常补chapterNumber/sortKey。实装ZIP/WASM与公开完全一致。152日志op218在收到响应头前失败，platformCode2300999，限定header前失败，不推断DNS或TLS。 237公开Comic Fury 0.1.6普通目录默认热门12本，八个筛选控件已观察；目录按更新时间排序实际成功，清除恢复默认。源内搜索a后选择Popularity，实际发目录请求而搜索结果不变。宿主已按搜索状态分流筛选读取、忙碌、修改与重置，保独立持久化及原样式；本地构建成功，修复包尚未真机回验。169日志为空不推断具体传输错误。 NHentai.to 0.1.5 sort/exclude提交ec03651已推，CI40706302986成功；公开WASM在原Host以真实保存HTML验证默认搜索、显式筛选和热门页，默认热门旧游标对比使用受控分页HTML；Native筛选未验，参考登录收藏及跨语言随机未实现。 3Hentai 0.1.5筛选提交53098e1已推，参考排序及9文本筛选显式供Browse/Search消费，保默认URL、旧游标及full_title；真实筛选搜索/热门前两页各25项，本地Host回放具名，CI、公开及Native待验。参考静态提示行当前Host模型不支持，不冒UI说明全量完成。 237冻结release 0755：178–179搜索a选Popularity实际search op21成功，首Maor/慢话/MyDiary；180搜索重置实际search op23恢复原结果，search保存值删除且browse保持；181清查询后目录重置实际get_manga_list op25恢复12本首Maor。Comic Fury本轮筛选项已清除，其他源筛选与169逐字相同、全source-settings与131/002基线相等。旧168误发目录反例保留。宿主3文件4232f2a3已本地提交，推送进行中、精确CI未核；本地执行回归、release构建及同签冻结包与设备验证分别成立。 237公开NHentai.to 0.1.5与3Hentai 0.1.5普通Browse及Search分别选排序、观察结果变化并重置，源设置和filterprefs恢复基线；NH安装WASM与公开一致且ZIP成员一致，3H以系统picker导入，ZIP/WASM与公开一致且临时下载已清除。仅具名排序路径通过，其他筛选值及参考静态说明未验。226原斗破01第1/36回书架第1页3%，漫画屋身份为缓存推断；227库49本，228 SLEEP、正常120000无override并释租。 237公开瓜子0.1.4及H-Comic0.1.3普通目录和搜索筛选已具名验收；本次设置及筛选恢复基线，原书架和设备状态恢复并释租。 具名范围：瓜子目录恋爱筛选36本，搜索爱后选恋爱实际search完成；H-Comic目录全彩10本，搜索love后选全彩实际search完成；两者重置后filterprefs为空。证据为layout及运行记录，筛选过程无截图，不扩其他值。 Host筛选scope/Header核心和两页面已接，能力门槛保旧Host旧schema；release候选7f9cfe本地构建成功，237具名MH1234 Native待验。AsmHentai 0.1.2在237普通目录失败；持久脱敏日志显示get_manga_list HTTP200后runtime unknown，不是HTTP403或传输失败。同真实HTML及原C++ Host复现图片属性问题，缺失可选属性回退后目录19本、短标题ID不变及详情通过；源f8ecf37已推，CI、公开和Native待核。237当次会话已恢复SLEEP/120000无override并释租。 237 MPC本地014候选普通目录显示原参考提示及筛选，Action结果变化、love搜索与重置具名已核；搜索态筛选隐藏未单独证实。原013包、数据与设置已恢复，临时文件删除，设备SLEEP/120000无override并释租；候选未发布。 MPC公开0.1.4已推且CI成功，237普通更新后包与公开一致；Header、Action目录及重置具名核验，原数据/设置及设备状态恢复并释租。搜索态是否隐藏筛选仍未单独验证。 MPC公开0.1.4 Header及Action筛选具名范围已验收，整体85源审计继续开放。 Comic Fury 0.1.6精确CI40703509316成功及237具名筛选已核，页面筛选不冒持久sourceSettings验收。AsmHentai公开013具名目录及短标题设置已核。 237 MPC公开014普通love搜索标题栏无筛选入口，清查询后目录菜单恢复筛选；数据及设备状态恢复释租。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 237 xkcd按年月分组2024-08的2977冷页真实中文图已核；原书库及设置保持，reader自然新增本次组的进度、章节与来源历史各一条，设备恢复释租。 Host筛选scope/Header已推Koma master，保目录与搜索独立值、旧schema兼容及Header仅展示；既有237 MPC具名结果保持，精确CI待核。 Koma 59a1edb精确CI40784063216成功。 MH1234筛选0.1.6本地候选在237具名验证；源已公开且精确CI成功，公开WASM固定真实HTML回放通过，公开实体未新Native验证。设备原宿主、源包及数据已恢复释租。 UUID设置候选已补宿主能力声明与ABI，本地执行检查及同签release构建通过，237 Native待验。 NNHanman真实搜索错误已以生产WASM定位为声明分页但缺next链接，v5候选待237验证；MangaDex原生错误与合法重入已有节点证据，画面待亲审，不称全部消费者通过。 NNHanman候选在237真实love搜索列表不再报错，设备实体与冻结相等；源已推，公开CI待核。MangaDex旧截图路径误配导致画面无效，修正场景中；原包、五份数据及电源已恢复，实体字节仍待补核。 NNHanman源精确CI成功，公开WASM真实HTML搜索、分页及Header/schema具名通过；公开包未新Native验收。237原NNH/MD实体已与备份一致，MangaDex错误画面正在重验。 237 MangaDex UUID非法输入错误画面及禁用保存已亲审，合法值保存重入已核；真实章节feed消费仍待验证。Host提交已推、精确CI待核，原包、数据及设备已恢复释租。 237 MangaDex同作品保存真实组UUID后目录从22章变15章，保留其他组章节；真实feed重放确认排除7章，旧章exact请求仍可取，非设备exact阅读。原宿主、源包及设备恢复；源提交推送中。 MangaDex公开WASM真实feed重放确认15保留、7排除及旧章exact未过滤可取；公开包未新Native。 237繁中MangaDex候选已有库作品按真实组UUID过滤，目录由49章变0章，具名结果已核；公开包Native及其他语言未外推，设备恢复中。 繁中MangaDex源提交c4daf043已推，精确CI进行中；先前候选实体与冻结一致及原状态恢复已由Root核实。 繁中MangaDex公开包CI及真实feed重放已核，公开包未另Native；英文候选已修分页过滤组合，真实响应执行通过，237 Native及英文独有消费路径待验。 237英文候选已有库作品真实组过滤已核，原包数据和设备恢复；英文源提交及CI成功。较大结果集首卷封面存在遗漏，新候选已补全，待普通设置与目录回验；搜索转义仍待后续核实。 237英文首卷候选开关保存重入、真实组值及首页封面具名已核；独立Latest菜单未打开，仍未Native验证。原源包、数据及电源已恢复释租；候选尚未提交发布。 英文首卷0.1.22已公开，公开WASM按真实响应核Latest、Home及排序覆盖；公开包未新Native，独立Latest随新会话验证。 237英文023候选在已保存首卷和组设置下独立Latest具名显示，带引号搜索实际请求成功；未逐个验证全部封面，公开022未另Native。恢复已由Root独立核实；023已提交推送。 MangaDex英文023搜索已推且精确CI成功，公开WASM真实响应重放已核；两场原包、五份数据及电源恢复已独立核实。英文WEBTOON、动漫屋及嗨皮同类候选待237验证。 237三源候选已普通导入并核实体，正在验证搜索。 237动漫屋及英文WEBTOON搜索具名已核；嗨皮本次域名解析失败，未证站点停运。四源公开包已恢复发布并核实体；原CI因发布步骤HTTP500失败，设备原状态已恢复。下一批搜索候选待审及Native。 237快看、漫画人及MangaBz引号搜索有结果；CManhua引号空结果、普通词有结果。诊断日志读取被自动审批拒绝，未推HTTP状态；设备恢复已独立核实，源提交已推。 四源会话原宿主、源包、用户数据及电源恢复已由Root独立核实；源提交已推，精确CI进行中。 四源精确CI成功并公开，索引及包实体已核；公开WASM与设备冻结实体不同，未另作公开包Native。 包子候选进入首页即触发站点验证，新转义查询尚未发出；原包与会话身份已恢复。 包子原包、原路径、会话及用户数据已逐字恢复，设备休眠并释租；首页挑战前新查询未发出，搜索未验。puredecode源提交已本地完成，推送进行中。 包子纯decode提交及公开实体已核，搜索Native仍未验。NamiComi简繁当前未实现参考筛选，正在核对宿主筛选适配及真实标签接口。 NamiComi动态筛选宿主已完成首次构建，简繁源候选已核真实标签及默认请求；237尚未导入源候选，设备验收未开始。 237简中NamiComi动态标签包含和排除已取得不同真实目录结果；保存重入、忽略恢复、繁中与设备恢复仍在核验。 237简中包含、排除、重入及忽略恢复已核；繁中目录和动态组、独立搜索筛选具名已核。设备恢复及公开交付尚未完成。 237原包、六份数据及电源已独立核实恢复并释租；宿主提交已推，精确CI进行中，两源提交待完成。 NamiComi宿主及简繁源精确CI、公开索引和包实体已核；公开WASM与设备候选不同，未另作公开包Native。NoyAcg搜索筛选候选已冻结，237验证中。 237独立搜索被拒，HTTP状态和原因未知；三项筛选可见但未修改，消费及重入未验。原本地源、六份数据及电源已恢复释租；旧宿主筛选兼容正在修正，首候选未公开。 Komiic候选普通引号搜索自然显示空结果，不冒命中或HTTP200；NoyAcg兼容修正与Komiic提交已推，精确CI进行中。 237 MH1234本地候选动态题材恋爱选择、普通重入及重置具名已核，原包、数据及设备已恢复；候选尚未公开。 MH1234 0.1.7已公开，公开WASM真实HTML回放与设备候选一致；公开实体不同且尚未另作Native采用。 MangaBall参考筛选仅搜索消费，本地候选默认请求保持；一次真实组合请求返回403，原因未知，未重试或改请求身份。真实结果、Native及公开交付未验。 NoyAcg与Komiic源精确CI及公开实体已核，公开WASM受控回放通过；公开实体未另Native。NoyAcg设备搜索被拒原因未知，Komiic设备引号查询为空且HTTP未观测。 MangaBall与繁中WEBTOON候选已推，精确CI待核；237 WEBTOON筛选界面和选择已观察，但分类请求未证实，原包及设备状态已恢复。MangaBall真实组合仍仅有一次403反例。 两源精确CI及公开实体已核，公开WASM受控回放通过；公开实体不同于设备候选且未另Native。MangaBall真实组合403及WEBTOON设备分类请求未独立观测的边界保持。 漫画柜本地筛选候选核参考空查询及默认请求兼容；真实排行请求TLS失败，站点结果、Native及公开交付均未验。 237腾讯动漫候选恋爱筛选与官网具名结果对应，重入和重置已核，原包数据及电源恢复；候选尚未提交公开。 腾讯动漫候选已本地提交，向源仓推送被自动审批拒绝；CI及公开尚未开始，既有237具名结果保留。 腾讯动漫提交在核实持续推送授权、公开仓及精确提交范围后已正常推送，精确CI待核。 237杂志迷分类候选与真实官网具名结果对应，保存重入和重置已核；原包、数据及设备已恢复，候选尚未提交公开。 杂志迷候选已本地提交，推送被自动审批拒绝；CI和公开未开始，既有官网及237结果保持。 腾讯动漫精确CI及公开实体已核，公开WASM对真实保存页面回放与设备候选一致；公开WASM不同候选，未另Native。 237漫小肆候选韩国分类与官网具名结果对应，封面、续页、重入和重置已核；原包数据及电源恢复，候选尚未提交公开。 漫小肆最终候选将新域限定于已实证封面，正文域边界保持；真实分类回放与设备候选相同，但最终实体尚未Native或推送。 237 92漫画候选儿童分类与官网具名结果对应，重入和重置已核；原源包、数据及电源恢复，候选尚未提交公开。 92漫画候选已独立本地提交，与漫小肆提交等待Root统一审查推送，均未公开。 HentaiFox公开0.1.2源码在目录和详情消费短标题设置；本次首次真实目录请求TLS失败且未重试，237基线未安装，真实站点及Native消费未验。 92漫画单独排序的真实站点请求及WASM回放已核，未选筛选路径保持；排序操作尚未Native验证。 杂志迷精确CI及公开WASM分类回放已核；公开实体不同于设备候选，未另Native。色漫网一次不同UA请求返回站点错误页，不能代表源同身份或全站状态。 92漫画儿童分类真实第二页单次请求403，原因未知且未重试；首页和next游标结果不代替第二页验收。 92漫画和漫小肆精确CI及正式包公开回放已核；公开WASM未另Native，92儿童第二页403原因仍未知。 237 MangaBz候选动态筛选及组合结果与官网具名对应，重入和重置已核；原源包、数据和电源恢复，候选未提交公开。 MangaBz具名候选已独立本地提交，尚未推送公开。",
-      "remaining": "完成MangaBz候选正式交付，继续整体源能力差集。",
+      "result": "既有a6a36a8的3Hentai 0.1.3在237普通导入后，真实官网目录25本；默认完整标题，关闭设置并保存后同目录显示短标题，清除本次设置后完整标题恢复。前后settings JSON相等，原书架及斗破继续阅读已恢复，临时上传已清除；超时120000ms、休眠及释租已完成，设备保留升级的3Hentai 0.1.3。仅该源具名设置范围通过。Zerobyw 0.1.2原路由真实404，固定参考949dea2为新/pc/路由；0.1.4保原默认与旧manga:/chapter:身份，新身份为pc-。源5de9e98精确CI40639208193成功；公开0.1.4在237普通导入→目录24→详情5章→真实正文1/149，并已恢复。原默认域名EOF、旧ID及参考域名失败更新链路仍待调查。 Zerobyw 0.1.5的df2c2f9已推且CI 40646153719成功，公开索引与包已核；237本地候选在未保存地址时目录24、详情5章、正文1/162实图，设置、历史、书架及设备已恢复并释租。公开WASM真实默认目录24项、nextCursor 2；公开WASM字节与设备本地候选不同，公开0.1.5已在237普通picker导入，安装ZIP及WASM与公开包逐字一致，settings与002相等，唯一临时下载文件已删且读回通过，正常返回Browse；原有已存地址保留。 xkcd-zh 0.1.6已推，保SINGLE默认及旧ID；本地生产WASM分组、分页、正文URL与旧单本fixture通过，英文归档503的受控失败保持独立。公开WASM与本地字节不同，真实按年目录10项、首项2024和下一页2通过；237设置持久、分组浏览、旧书及正文未验。 源码复核WEBTOON繁中实际消费最高画质、连续章号、作者附言三项，默认均false，附言依赖宿主text_page_image_v1；MyComic既有默认cn、original为显式繁中，参考默认差异已记录。此为源码核对，不冒设备验收。 漫画社0.1.9提交ee13701已推且CI40667731479成功，默认311s、用户可显式选m206，保旧路径书章ID；具名作品m206目录20、搜索2、旧书800章、首章18页及首图200 WebP，公开WASM另核搜索及旧章。237公开包已安装，设置持久与正文未验，全旧库映射未验。GoDa 0.1.4提交2f7ade3已推且CI40669312858成功，固定参考六镜像均实测目录、搜索、详情、章节与首章44页；公开WASM明确godamh具名详情及旧首章通过，公开Native、设置持久、图片显示及全库身份未验。 xkcd 0.1.6公开包024–025已安装，设置及原缓存正文具名验证，新作品冷网络正文未验。 Simply Hentai旧search=false记录已过时：237公开0.1.1普通入口love搜索发出真实请求，但返回HTTP403，Native显示源搜索失败、请求被拒绝；不是不支持搜索，亦不能算搜索可用，拒绝原因待核。 237公开xkcd 0.1.6普通源内设置：默认Single目录1本；BY_YEAR保存后年度目录10本并重入读回；BY_YEAR_MONTH保存后月份标题目录并重入读回。经现有确认清除本次xkcd测试设置后默认恢复1本，整份settings JSON与002一致；旧书及正文Native仍未验。 237原库xkcd旧ID原书676章，普通Continue原缓存2978困住第1/1页真实可见，未翻页；返回同详情同章同页，library JSON与066完全一致、49本无增删或字段变化。仅原缓存页具名通过，不冒冷网络正文。 237 GoDa公开0.1.4默认baozimh.org保持，六镜像菜单中选godamh.com后目录18本，保存重入及preferredMirror读回一致；清除本次设置后整份settings与002相等。旧书武炼巅峰3875章，Continue夺酒第2/70原正文可见并返回同章同页，49本无增删、chapterId不变；库并非完全相等：该书自然预载3865章由0变77页、页表指纹与updatedAt及总页数87→164，其余48本和旧缓存章未变。公开WASM godamh具名旧4 chapterId存在，两个缓存章70/17页与首pageId/URL一致，首图200；不外推六镜像Native。 輔大猴0.1.2提交5e397ee已推，本地生产WASM搜索分页、空结果及旧ID详情具名；CI查询遇EOF后重复查询被自动审批拒绝，旧CI未核；当前公开实体与237实装ZIP/WASM一致，普通搜索及真实续页具名通过。 人2 aacee1f CI40685768520及IP手札mini 430b767 CI40688772764成功，公开WASM与原C++ Host按真实保存HTML具名回放；人2及IPmini普通搜索已具名验证，正文未验。devrunner 9a46bc3 CI40687391567成功。 綜合口味0.1.2提交5fa311a已推、CI40697052579成功；公开WASM及原Host以真实保存HTML核漫画分页、食分类及空结果，旧浏览两页数据一致；237公开包普通搜索食返回具名5项及终点，Reader未验。117实装IPmini及人2 ZIP与先前公开容器哈希不同，但所有成员内容相等，人2 WASM与公开一致；輔大猴实装ZIP/WASM与当前公开完全相等。 繁中WEBTOON公开0.1.8自检：真实搜索愛仅返回All首屏22且hasMore=false，漏取官网两分类分页。0.1.9提交bc9c66e、精确CI40700016006成功；237实装ZIP/WASM与公开字节一致，普通搜索愛并滚动后观察到旧All尾部之后的Originals后续作品与6张封面正常。同次搜索日志完成；仅具名普通续页通过，不冒全部411项Native通过，不混英文源WIP。 237漫画社0.1.9默认目录20本成功；显式选m206保存preferredMirror为https://www.m206.com，自动目录请求op217 531ms network_error/http0failed，旧20本保留；普通重入设置仍显示m206，故不是保存丢失。传输原因未知，桌面成功不代Native；当前正在清除本轮设置并核默认旧书。Comic Fury 0.1.6提交af3cd7b、CI40703509316成功；公开WASM在Host注入默认filter后热门、最新、搜索与0.1.5逐字段一致，显式筛选具名返回19项、非法值网络前拒绝；Native控件持久及消费待验。 149清除本轮m206后整份settings与131/002相等、无该源override，默认311s目录20本成功。150–152默认旧一人之下13871详情800章，Continue反杀第2/17缓存正文可见并返回同章同页；49本及800章ID保持，两个旧缓存页表及其他48本相同。库非逐字相等：786章正常补chapterNumber/sortKey。实装ZIP/WASM与公开完全一致。152日志op218在收到响应头前失败，platformCode2300999，限定header前失败，不推断DNS或TLS。 237公开Comic Fury 0.1.6普通目录默认热门12本，八个筛选控件已观察；目录按更新时间排序实际成功，清除恢复默认。源内搜索a后选择Popularity，实际发目录请求而搜索结果不变。宿主已按搜索状态分流筛选读取、忙碌、修改与重置，保独立持久化及原样式；本地构建成功，修复包尚未真机回验。169日志为空不推断具体传输错误。 NHentai.to 0.1.5 sort/exclude提交ec03651已推，CI40706302986成功；公开WASM在原Host以真实保存HTML验证默认搜索、显式筛选和热门页，默认热门旧游标对比使用受控分页HTML；Native筛选未验，参考登录收藏及跨语言随机未实现。 3Hentai 0.1.5筛选提交53098e1已推，参考排序及9文本筛选显式供Browse/Search消费，保默认URL、旧游标及full_title；真实筛选搜索/热门前两页各25项，本地Host回放具名，CI、公开及Native待验。参考静态提示行当前Host模型不支持，不冒UI说明全量完成。 237冻结release 0755：178–179搜索a选Popularity实际search op21成功，首Maor/慢话/MyDiary；180搜索重置实际search op23恢复原结果，search保存值删除且browse保持；181清查询后目录重置实际get_manga_list op25恢复12本首Maor。Comic Fury本轮筛选项已清除，其他源筛选与169逐字相同、全source-settings与131/002基线相等。旧168误发目录反例保留。宿主3文件4232f2a3已本地提交，推送进行中、精确CI未核；本地执行回归、release构建及同签冻结包与设备验证分别成立。 237公开NHentai.to 0.1.5与3Hentai 0.1.5普通Browse及Search分别选排序、观察结果变化并重置，源设置和filterprefs恢复基线；NH安装WASM与公开一致且ZIP成员一致，3H以系统picker导入，ZIP/WASM与公开一致且临时下载已清除。仅具名排序路径通过，其他筛选值及参考静态说明未验。226原斗破01第1/36回书架第1页3%，漫画屋身份为缓存推断；227库49本，228 SLEEP、正常120000无override并释租。 237公开瓜子0.1.4及H-Comic0.1.3普通目录和搜索筛选已具名验收；本次设置及筛选恢复基线，原书架和设备状态恢复并释租。 具名范围：瓜子目录恋爱筛选36本，搜索爱后选恋爱实际search完成；H-Comic目录全彩10本，搜索love后选全彩实际search完成；两者重置后filterprefs为空。证据为layout及运行记录，筛选过程无截图，不扩其他值。 Host筛选scope/Header核心和两页面已接，能力门槛保旧Host旧schema；release候选7f9cfe本地构建成功，237具名MH1234 Native待验。AsmHentai 0.1.2在237普通目录失败；持久脱敏日志显示get_manga_list HTTP200后runtime unknown，不是HTTP403或传输失败。同真实HTML及原C++ Host复现图片属性问题，缺失可选属性回退后目录19本、短标题ID不变及详情通过；源f8ecf37已推，CI、公开和Native待核。237当次会话已恢复SLEEP/120000无override并释租。 237 MPC本地014候选普通目录显示原参考提示及筛选，Action结果变化、love搜索与重置具名已核；搜索态筛选隐藏未单独证实。原013包、数据与设置已恢复，临时文件删除，设备SLEEP/120000无override并释租；候选未发布。 MPC公开0.1.4已推且CI成功，237普通更新后包与公开一致；Header、Action目录及重置具名核验，原数据/设置及设备状态恢复并释租。搜索态是否隐藏筛选仍未单独验证。 MPC公开0.1.4 Header及Action筛选具名范围已验收，整体85源审计继续开放。 Comic Fury 0.1.6精确CI40703509316成功及237具名筛选已核，页面筛选不冒持久sourceSettings验收。AsmHentai公开013具名目录及短标题设置已核。 237 MPC公开014普通love搜索标题栏无筛选入口，清查询后目录菜单恢复筛选；数据及设备状态恢复释租。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 237 xkcd按年月分组2024-08的2977冷页真实中文图已核；原书库及设置保持，reader自然新增本次组的进度、章节与来源历史各一条，设备恢复释租。 Host筛选scope/Header已推Koma master，保目录与搜索独立值、旧schema兼容及Header仅展示；既有237 MPC具名结果保持，精确CI待核。 Koma 59a1edb精确CI40784063216成功。 MH1234筛选0.1.6本地候选在237具名验证；源已公开且精确CI成功，公开WASM固定真实HTML回放通过，公开实体未新Native验证。设备原宿主、源包及数据已恢复释租。 UUID设置候选已补宿主能力声明与ABI，本地执行检查及同签release构建通过，237 Native待验。 NNHanman真实搜索错误已以生产WASM定位为声明分页但缺next链接，v5候选待237验证；MangaDex原生错误与合法重入已有节点证据，画面待亲审，不称全部消费者通过。 NNHanman候选在237真实love搜索列表不再报错，设备实体与冻结相等；源已推，公开CI待核。MangaDex旧截图路径误配导致画面无效，修正场景中；原包、五份数据及电源已恢复，实体字节仍待补核。 NNHanman源精确CI成功，公开WASM真实HTML搜索、分页及Header/schema具名通过；公开包未新Native验收。237原NNH/MD实体已与备份一致，MangaDex错误画面正在重验。 237 MangaDex UUID非法输入错误画面及禁用保存已亲审，合法值保存重入已核；真实章节feed消费仍待验证。Host提交已推、精确CI待核，原包、数据及设备已恢复释租。 237 MangaDex同作品保存真实组UUID后目录从22章变15章，保留其他组章节；真实feed重放确认排除7章，旧章exact请求仍可取，非设备exact阅读。原宿主、源包及设备恢复；源提交推送中。 MangaDex公开WASM真实feed重放确认15保留、7排除及旧章exact未过滤可取；公开包未新Native。 237繁中MangaDex候选已有库作品按真实组UUID过滤，目录由49章变0章，具名结果已核；公开包Native及其他语言未外推，设备恢复中。 繁中MangaDex源提交c4daf043已推，精确CI进行中；先前候选实体与冻结一致及原状态恢复已由Root核实。 繁中MangaDex公开包CI及真实feed重放已核，公开包未另Native；英文候选已修分页过滤组合，真实响应执行通过，237 Native及英文独有消费路径待验。 237英文候选已有库作品真实组过滤已核，原包数据和设备恢复；英文源提交及CI成功。较大结果集首卷封面存在遗漏，新候选已补全，待普通设置与目录回验；搜索转义仍待后续核实。 237英文首卷候选开关保存重入、真实组值及首页封面具名已核；独立Latest菜单未打开，仍未Native验证。原源包、数据及电源已恢复释租；候选尚未提交发布。 英文首卷0.1.22已公开，公开WASM按真实响应核Latest、Home及排序覆盖；公开包未新Native，独立Latest随新会话验证。 237英文023候选在已保存首卷和组设置下独立Latest具名显示，带引号搜索实际请求成功；未逐个验证全部封面，公开022未另Native。恢复已由Root独立核实；023已提交推送。 MangaDex英文023搜索已推且精确CI成功，公开WASM真实响应重放已核；两场原包、五份数据及电源恢复已独立核实。英文WEBTOON、动漫屋及嗨皮同类候选待237验证。 237三源候选已普通导入并核实体，正在验证搜索。 237动漫屋及英文WEBTOON搜索具名已核；嗨皮本次域名解析失败，未证站点停运。四源公开包已恢复发布并核实体；原CI因发布步骤HTTP500失败，设备原状态已恢复。下一批搜索候选待审及Native。 237快看、漫画人及MangaBz引号搜索有结果；CManhua引号空结果、普通词有结果。诊断日志读取被自动审批拒绝，未推HTTP状态；设备恢复已独立核实，源提交已推。 四源会话原宿主、源包、用户数据及电源恢复已由Root独立核实；源提交已推，精确CI进行中。 四源精确CI成功并公开，索引及包实体已核；公开WASM与设备冻结实体不同，未另作公开包Native。 包子候选进入首页即触发站点验证，新转义查询尚未发出；原包与会话身份已恢复。 包子原包、原路径、会话及用户数据已逐字恢复，设备休眠并释租；首页挑战前新查询未发出，搜索未验。puredecode源提交已本地完成，推送进行中。 包子纯decode提交及公开实体已核，搜索Native仍未验。NamiComi简繁当前未实现参考筛选，正在核对宿主筛选适配及真实标签接口。 NamiComi动态筛选宿主已完成首次构建，简繁源候选已核真实标签及默认请求；237尚未导入源候选，设备验收未开始。 237简中NamiComi动态标签包含和排除已取得不同真实目录结果；保存重入、忽略恢复、繁中与设备恢复仍在核验。 237简中包含、排除、重入及忽略恢复已核；繁中目录和动态组、独立搜索筛选具名已核。设备恢复及公开交付尚未完成。 237原包、六份数据及电源已独立核实恢复并释租；宿主提交已推，精确CI进行中，两源提交待完成。 NamiComi宿主及简繁源精确CI、公开索引和包实体已核；公开WASM与设备候选不同，未另作公开包Native。NoyAcg搜索筛选候选已冻结，237验证中。 237独立搜索被拒，HTTP状态和原因未知；三项筛选可见但未修改，消费及重入未验。原本地源、六份数据及电源已恢复释租；旧宿主筛选兼容正在修正，首候选未公开。 Komiic候选普通引号搜索自然显示空结果，不冒命中或HTTP200；NoyAcg兼容修正与Komiic提交已推，精确CI进行中。 237 MH1234本地候选动态题材恋爱选择、普通重入及重置具名已核，原包、数据及设备已恢复；候选尚未公开。 MH1234 0.1.7已公开，公开WASM真实HTML回放与设备候选一致；公开实体不同且尚未另作Native采用。 MangaBall参考筛选仅搜索消费，本地候选默认请求保持；一次真实组合请求返回403，原因未知，未重试或改请求身份。真实结果、Native及公开交付未验。 NoyAcg与Komiic源精确CI及公开实体已核，公开WASM受控回放通过；公开实体未另Native。NoyAcg设备搜索被拒原因未知，Komiic设备引号查询为空且HTTP未观测。 MangaBall与繁中WEBTOON候选已推，精确CI待核；237 WEBTOON筛选界面和选择已观察，但分类请求未证实，原包及设备状态已恢复。MangaBall真实组合仍仅有一次403反例。 两源精确CI及公开实体已核，公开WASM受控回放通过；公开实体不同于设备候选且未另Native。MangaBall真实组合403及WEBTOON设备分类请求未独立观测的边界保持。 漫画柜本地筛选候选核参考空查询及默认请求兼容；真实排行请求TLS失败，站点结果、Native及公开交付均未验。 237腾讯动漫候选恋爱筛选与官网具名结果对应，重入和重置已核，原包数据及电源恢复；候选尚未提交公开。 腾讯动漫候选已本地提交，向源仓推送被自动审批拒绝；CI及公开尚未开始，既有237具名结果保留。 腾讯动漫提交在核实持续推送授权、公开仓及精确提交范围后已正常推送，精确CI待核。 237杂志迷分类候选与真实官网具名结果对应，保存重入和重置已核；原包、数据及设备已恢复，候选尚未提交公开。 杂志迷候选已本地提交，推送被自动审批拒绝；CI和公开未开始，既有官网及237结果保持。 腾讯动漫精确CI及公开实体已核，公开WASM对真实保存页面回放与设备候选一致；公开WASM不同候选，未另Native。 237漫小肆候选韩国分类与官网具名结果对应，封面、续页、重入和重置已核；原包数据及电源恢复，候选尚未提交公开。 漫小肆最终候选将新域限定于已实证封面，正文域边界保持；真实分类回放与设备候选相同，但最终实体尚未Native或推送。 237 92漫画候选儿童分类与官网具名结果对应，重入和重置已核；原源包、数据及电源恢复，候选尚未提交公开。 92漫画候选已独立本地提交，与漫小肆提交等待Root统一审查推送，均未公开。 HentaiFox公开0.1.2源码在目录和详情消费短标题设置；本次首次真实目录请求TLS失败且未重试，237基线未安装，真实站点及Native消费未验。 92漫画单独排序的真实站点请求及WASM回放已核，未选筛选路径保持；排序操作尚未Native验证。 杂志迷精确CI及公开WASM分类回放已核；公开实体不同于设备候选，未另Native。色漫网一次不同UA请求返回站点错误页，不能代表源同身份或全站状态。 92漫画儿童分类真实第二页单次请求403，原因未知且未重试；首页和next游标结果不代替第二页验收。 92漫画和漫小肆精确CI及正式包公开回放已核；公开WASM未另Native，92儿童第二页403原因仍未知。 237 MangaBz候选动态筛选及组合结果与官网具名对应，重入和重置已核；原源包、数据和电源恢复，候选未提交公开。 MangaBz具名候选已独立本地提交，尚未推送公开。 237 CManhua候选筛选选择、重入及重置已核，官网两种状态首屏结果相同；真实第二页未验，原包数据与设备已恢复，候选本地提交待推。 爱看漫与漫画160的参考分类筛选差异已定位，真实分类路径尚未验证；MangaBz和CManhua候选已审，正式推送进行中。 MangaBz与CManhua正式源包已公开，保存的官网页面回放与设备候选结果一致；公开WASM与设备候选不同，尚未另做Native验证。 漫画160分类候选在237具名验证日韩分类、重入和重置，原包、数据及电源已恢复；候选尚未公开，自然验证窗口未出现。 漫画160分类已独立本地提交，尚未推送公开。 再漫画本地候选周榜与连载筛选、重入及重置具名已核，原包数据及电源已恢复；候选尚未提交公开。 再漫画最终候选已独立本地提交并修正分类分页，最终版本未另作Native，尚未推送。 MyComic参考筛选差异已定位，真实筛选与Native未验。 Komiic动态筛选候选真实标签及回放已核；237首页无法连接，筛选未进入，原因未知。原状态已恢复，候选未公开。 漫画160与再漫画源提交已推，精确CI成功；公开实体及WASM回放正在核对。 漫画160及再漫画公开实体已核，公开WASM按真实保存响应回放与候选数据相同；公开包未另Native，再漫画真实末页未验。 快看筛选候选恋爱分类、重入和重置已在237具名验证；原状态已恢复，候选未公开。 快看筛选已独立本地提交，尚未推送公开。",
+      "remaining": "继续整体源能力差集核对；保留CManhua真实第二页未验及各源已有边界。",
       "remainingActions": [
-        "Comic Fury筛选分流及精确CI已核，持久sourceSettings另按原范围核验。",
-        "继续逐源对照设置、默认值与消费路径；调查Zerobyw域名发现及旧ID映射，不外推具名结果。",
-        "完成MH1234宿主scope/Header具名Native。",
-        "完成英文首卷候选独立Latest Native与正式交付。",
-        "完成英文WEBTOON、动漫屋及嗨皮搜索候选237验证。",
-        "继续85源能力差集及包子候选具名验证。"
+        "继续逐源对照参考设置、默认值及实际消费者。",
+        "调查Zerobyw域名发现及旧ID映射。",
+        "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
@@ -3214,7 +3211,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "源提交审查中",
+      "stage": "逐源能力差异核对中",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3371,7 +3368,23 @@
         "/private/tmp/cartoon18-sort-created-live.html：不同UA一次HTTP200站点错误页，不代表源同身份请求或全站状态。",
         "/private/tmp/source-190-public/：源190f511 CI40833609436 success，92漫画015及漫小肆014公开WASM与各最终候选真实HTML回放一致，未另Native。",
         "官网动态三组及恋爱/连载组合HTTP200；237 run1332/1336/1337/1339/1341/1343/1344，1346/1347/1349原包六数据及电源恢复释租。",
-        "本地17e49b4仅Cargo/lib及lock版本，lib SHA256 be24a9e7c948536c1fbaf401ec6a127bffda53b1ea729c1183573dbfd421e634与237冻结一致；旧description/query WIP保留。"
+        "本地17e49b4仅Cargo/lib及lock版本，lib SHA256 be24a9e7c948536c1fbaf401ec6a127bffda53b1ea729c1183573dbfd421e634与237冻结一致；旧description/query WIP保留。",
+        "已移除过期待办：MH1234动态筛选、英文MangaDex Latest、英文WEBTOON/动漫屋普通搜索均已有具名结果；嗨皮2300006 DNS无Answer非NXDOMAIN，包子challenge时查询未发。",
+        "/private/tmp/cmanhua-filter-ongoing-live.html",
+        "/private/tmp/cmanhua-filter-completed-live.html",
+        "237 run1358/1362/1364–1369筛选及重入，1371/1372/1374原包六数据电源恢复；本地6681f21未推，真实第二页未验。",
+        "爱看漫：固定参考 /booklists 消费地区、题材、状态及页面 next；现源仅默认分类并以48卡数量判断续页。真实筛选页面未保存，原站不可达，未修。漫画160：固定参考 CategoryFilter 使用移动分类及 #listbody，现源仅热门/最新 .itemBox、无分类筛选；此前搜索自动挑战通过不能代替分类验收，独立 challengeRequestId WIP 未改。",
+        "MangaBz 17e49b4 与 CManhua 6681f21a57903c743e3f8de07378134164ead52d 已推；精确 CI 40840714068 success，公开索引为 MangaBz 0.1.10 / CManhua 0.1.5。公开 WASM 使用保存的官网恋爱+连载、Completed HTML 回放，data 分别与设备候选逐字相同；公开 WASM 字节不同于设备候选，未另作 Native。CManhua 两状态官网首12相同、真实第二页未验。实体 /private/tmp/source-668-public/。",
+        "漫画160隔离016 v2：固定参考68项；真实日韩页面同域301→200、生产WASM回放12本。237 1381实体与冻结一致，1383热门50，1386日韩12本首三与保存官网响应一致，1387重入、1388重置；1390原015四成员等1376、1392 Registry及六JSON等1375且原会话路径恢复，1394 SLEEP/120000无override并释租。自然验证sheet未出现，候选未提交公开，独立challengeRequestId WIP保留。证据 source-web-session-concurrent 对应run。",
+        "漫画160分类独立本地提交 89cfc7b，仅源 lib/Cargo 和锁文件该源版本；原 challengeRequestId WIP 保留，未推送。",
+        "再漫画019候选：真实API连载20、周榜10及生产WASM回放；237 1401实体匹配，1403默认20，1406周榜10首三与官网一致，1409连载20首三与官网一致但同默认首屏，1410重入、1411重置。1413原018四成员等1396，1414六JSON等1395，1416 SLEEP/120000无override并释租。数字搜索先查详情行为保持，按ID开关差异未覆盖；候选未提交公开。证据 source-web-session-concurrent 对应run。",
+        "再漫画独立提交 c5e2022 未推；最终v4按真实 data.totalNum 判断分类分页。保存的真实首页与周榜回放同237 v3；真实total5792配受控page290末页判断通过，真实末页未验。冻结 /private/tmp/zaimanhua-filter019-v4.koma，v4未另Native。",
+        "MyComic固定参考排序、地区、类型、受众、年份和进度由目录及搜索消费，显式排行走独立路径；现015 filters=false。一次日本分类请求以同站Referer和curl默认UA返回403，原因未知且请求身份不同于设备，未重试；原语言设置验收不代替筛选验收。",
+        "Komiic 0.1.11 v3：allCategory真实HTTP200共71标签，爱情ID1参考GraphQL HTTP200 30项；生产WASM核静态schema零网络、动态71及爱情30，默认热门受控请求响应同公开010。237 1423候选实体匹配，1425首页无法连接书源，未进入筛选、未重试，原因未知；1427原019四成员等1418、1428 registry与六JSON等1417、1430 SLEEP/120000无override并释租。候选未提交公开，镜像等WIP已恢复。证据 source-web-session-concurrent 对应run。",
+        "源提交89cfc7b与c5e2022已推，精确CI 40849389869 success；公开归档实体及WASM回放尚核，不冒App采用。",
+        "公开实体 /private/tmp/source-c5-public/identity.json 与 candidate-public-equality.json：漫画160 0.1.6、再漫画0.1.9，公开WASM真实响应回放data与候选逐字相同；公开包未另Native，再漫画v4真实末页未验。",
+        "快看0.1.6候选：参考题材、区域、属性、进度、排序；真实恋爱页HTTP200、生产WASM回放41本。237 1437候选实体精确，1439热门42，1442恋爱41首三与官网对应，1443重入、1444重置；1446原014四成员等1432，1447 registry及六JSON等1431，1449 SLEEP/120000无override并释租。仅候选Native，未提交公开，原搜索WIP保留。证据 source-web-session-concurrent 对应run。",
+        "快看0.1.6筛选独立本地提交225468b，尚未推送公开；原搜索WIP保留。"
       ]
     },
     {
@@ -3656,26 +3669,24 @@
       "id": "PROGRESS_PAGE_READABILITY",
       "title": "进度页被流水账占满且近期问题难查找",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
-      "status": "动态展示及原入口已核，历史日期仍待核",
+      "kind": "done",
+      "status": "页面近期问题、时间及时间线具名可查",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
         "PROGRESS_TIMELINE_THEME"
       ],
-      "result": "浏览器已核动态计数、验收筛选、时间来源、证据链接及展开状态；25–28历史日期全量核对仍未完成。 已列出缺少提出及首次存证时间的事项并定向核原归档；归档中部分仅有旧状态，不足以确定原始人类时间，继续保未知。 当前会话原始记录已定位NextE迁移及超分指示器用户原话时间；API23原始故障首报与章节列表原话未在该记录定位，保持未知。 浏览器已复核当前动态筛选及双击事件时间；历史全部日期仍未完成核对。",
-      "remaining": "继续核25–28反馈原始日期及登记完整性；没有直接来源的时间保未知。",
-      "remainingActions": [
-        "继续核对25–28历史问题原始日期与来源。"
-      ],
+      "result": "浏览器已核近期问题、动态计数、已验收筛选、时间来源、证据链接和时间线；原始时间无直接依据的事项显示未核实。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
       ],
       "reportedAt": "2026-10-27T23:39:24.675+08:00",
       "reportedAtSource": "本会话首次可核直接反馈：rollout-2026-10-25T19-19-24-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c.jsonl 第56518行，UserMessage item.id=01a17e04-2a82-7682-9427-3275adb8a024；不排除跨会话更早历史。",
       "reopenedAt": null,
-      "closedAt": null,
-      "stage": "具名页面复核完成，历史日期核对未完",
+      "closedAt": "2026-10-29T16:25:56+08:00",
+      "stage": "页面具名范围已核",
       "evidence": [
         "原reportedAt 2026-10-27T15:39:00Z为约值；以本会话直接UserMessage事件替换，仍不排除跨会话更早反馈。"
       ],
@@ -4042,13 +4053,115 @@
         "197 run149/150/152：原字号行距、12行分割线、行内反馈、长按及普通进入具名；下载按钮独立回调，底板可在按钮后变色。Koma c68c75dd已推，CI待核。",
         "https://github.com/honjow/Koma/actions/runs/40771912927"
       ]
+    },
+    {
+      "id": "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+      "title": "书架漫画详情持久化与后台更新",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "实机已验证，提交中",
+      "owner": "Root：实现与197普通路径验收",
+      "dependencies": [],
+      "result": "197冷进程入场与重入已有详情和章节持续显示；库仅新增该书sourceMetadata，原章节、分类和进度保留。",
+      "boundaries": [
+        "保留章节、收藏、进度、动作及其余既有HDS样式，不重做详情布局。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接反馈；精确消息时刻未知。2026-10-29T16:33:30+08:00为登记时间，不冒历史首报。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "正式提交中",
+      "evidence": [
+        "候选 HAP ad3c2c47a4868063715d6e3b55c645e68e67dd33856ad2eaf19e42fb306baa2e；197 基线41/awake42/install43，尚未观察终态。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manga-detail197-entry-motion-46/；manga-detail197-header-47/。",
+        "197 8fd候选 run49库metadata及章节分类，run52完整往返291帧/9联系表，run53全宽渐变；深色回验及恢复进行中。",
+        "197 8fd候选：run52冷进程普通往返292帧/9表，53浅色及57深色背景；58恢复外观、59原书架读态、60恢复电源及释租。reader、registry、web、search、source-settings字节同前；reader-preferences XML键值相同。"
+      ],
+      "relatedItems": [
+        "MANGA_DETAIL_PULL_REFRESH",
+        "MANGA_DETAIL_REFRESH_BACKGROUND",
+        "MANGA_DETAIL_SCROLL_TITLE_VISIBILITY",
+        "MANGA_DETAIL_COVER_BLUR_GRADIENT"
+      ],
+      "remaining": "持久化已有详情，进入时立即展示，更新静默后台异步；核普通路径与内容保留。",
+      "remainingActions": [
+        "持久化已有详情，进入时立即展示，更新静默后台异步；核普通路径与内容保留。"
+      ]
+    },
+    {
+      "id": "MANGA_DETAIL_SCROLL_TITLE_VISIBILITY",
+      "title": "漫画详情标题栏按滚动阈值显示漫画名",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "实机已验证，提交中",
+      "owner": "Root：实现与197普通路径验收",
+      "dependencies": [],
+      "result": "197普通往返已观察顶部不重复标题、上滑后显示标题。",
+      "boundaries": [
+        "保留章节、收藏、进度、动作及其余既有HDS样式，不重做详情布局。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接反馈；精确消息时刻未知。2026-10-29T16:33:30+08:00为登记时间，不冒历史首报。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "正式提交中",
+      "evidence": [
+        "候选 HAP ad3c2c47a4868063715d6e3b55c645e68e67dd33856ad2eaf19e42fb306baa2e；197 基线41/awake42/install43，尚未观察终态。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manga-detail197-entry-motion-46/；manga-detail197-header-47/。",
+        "197 8fd候选 run49库metadata及章节分类，run52完整往返291帧/9联系表，run53全宽渐变；深色回验及恢复进行中。",
+        "197 8fd候选：run52冷进程普通往返292帧/9表，53浅色及57深色背景；58恢复外观、59原书架读态、60恢复电源及释租。reader、registry、web、search、source-settings字节同前；reader-preferences XML键值相同。"
+      ],
+      "relatedItems": [
+        "MANGA_DETAIL_PULL_REFRESH",
+        "MANGA_DETAIL_REFRESH_BACKGROUND",
+        "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+        "MANGA_DETAIL_COVER_BLUR_GRADIENT"
+      ],
+      "remaining": "按NextE行为滚动超过阈值后显示标题，核普通滚动过程。",
+      "remainingActions": [
+        "按NextE行为滚动超过阈值后显示标题，核普通滚动过程。"
+      ]
+    },
+    {
+      "id": "MANGA_DETAIL_COVER_BLUR_GRADIENT",
+      "title": "漫画详情封面模糊并渐变到背景色",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "实机已验证，提交中",
+      "owner": "Root：实现与197普通路径验收",
+      "dependencies": [],
+      "result": "197浅色及深色均观察全宽封面渐变，底部融入背景色。",
+      "boundaries": [
+        "保留章节、收藏、进度、动作及其余既有HDS样式，不重做详情布局。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接反馈；精确消息时刻未知。2026-10-29T16:33:30+08:00为登记时间，不冒历史首报。",
+      "reopenedAt": null,
+      "closedAt": null,
+      "stage": "正式提交中",
+      "evidence": [
+        "候选 HAP ad3c2c47a4868063715d6e3b55c645e68e67dd33856ad2eaf19e42fb306baa2e；197 基线41/awake42/install43，尚未观察终态。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manga-detail197-entry-motion-46/；manga-detail197-header-47/。",
+        "197 8fd候选 run49库metadata及章节分类，run52完整往返291帧/9联系表，run53全宽渐变；深色回验及恢复进行中。",
+        "197 8fd候选：run52冷进程普通往返292帧/9表，53浅色及57深色背景；58恢复外观、59原书架读态、60恢复电源及释租。reader、registry、web、search、source-settings字节同前；reader-preferences XML键值相同。"
+      ],
+      "relatedItems": [
+        "MANGA_DETAIL_PULL_REFRESH",
+        "MANGA_DETAIL_REFRESH_BACKGROUND",
+        "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+        "MANGA_DETAIL_SCROLL_TITLE_VISIBILITY"
+      ],
+      "remaining": "按用户指定使用封面模糊并渐变至背景色，核普通详情显示。",
+      "remainingActions": [
+        "按用户指定使用封面模糊并渐变至背景色，核普通详情显示。"
+      ]
     }
   ],
   "source": {
     "status": "书源设置与搜索逐项核验中",
     "kind": "open",
     "title": "书源进展",
-    "result": "书源仍在逐项核验，当前MangaDex及NNHanman后续工作进行中。",
+    "result": "MangaBz和CManhua筛选正式包已公开，继续核漫画160及全85源能力差集。",
     "remaining": "源设置、搜索、网页验证和未通过站点路径按原事项继续。",
     "commit": "668c785257b959f006bece2fe2ead56dcec90480",
     "authorization": "用户明确“书源相关的工作都默认使用237，不用重复问我。”书源相关验证默认237，当前五包具体验证授权继续有效；每次按流程取得租约，测试后恢复状态并释租，不扩为清用户数据或改账户/网络的许可。"
@@ -7628,6 +7741,213 @@
       "detail": "原源、七域数据及电源已恢复释租；名称投影候选待交付，清理完成回调耗时仍待定位。此时间为登记时间。",
       "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
       "kind": "checkpoint"
+    },
+    {
+      "id": "source-projection-push-and-remaining-reconciled-20261029",
+      "at": "2026-10-29T16:03:06+08:00",
+      "title": "名称投影提交已推，源审计待办校正",
+      "detail": "性能候选已推且精确CI待核；源审计移除已有具名验证的过期待办，保嗨皮与包子实际未验边界。此时间为登记时间。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-projection-ci-success-20261029",
+      "at": "2026-10-29T16:07:33+08:00",
+      "title": "源管理名称投影精确CI成功",
+      "detail": "197具名公开更新与设备恢复已核，精确CI成功；清理完成回调耗时仍待定位。此时间为登记时间。",
+      "itemId": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40839273297"
+      ]
+    },
+    {
+      "id": "cmanhua-filter-candidate-237-20261029",
+      "at": "2026-10-29T16:13:01+08:00",
+      "title": "237 CManhua筛选候选具名已核",
+      "detail": "筛选选择、重入及重置已核；官网两种状态首屏相同，真实第二页未验，原状态恢复，源提交待推。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/cmanhua-filter-ongoing-live.html",
+        "/private/tmp/cmanhua-filter-completed-live.html"
+      ]
+    },
+    {
+      "id": "source-reference-differences-20261029",
+      "at": "2026-10-29T16:17:09+08:00",
+      "title": "书源分类参考差异具名核对",
+      "detail": "爱看漫及漫画160的参考分类差异已定位，真实分类路径未验；MangaBz和CManhua候选已审，推送进行中。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "docs/CURRENT_STATUS.md"
+      ]
+    },
+    {
+      "id": "mangabz-cmanhua-public-20261029",
+      "at": "2026-10-29T16:21:53+08:00",
+      "title": "MangaBz与CManhua正式包已公开",
+      "detail": "精确CI成功，公开WASM对保存官网页面回放与设备候选一致；公开实体未另作Native，CManhua第二页未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/source-668-public/",
+        "https://github.com/honjow/koma-sources/actions/runs/40840714068"
+      ]
+    },
+    {
+      "id": "progress-page-verified-20261029",
+      "at": "2026-10-29T16:25:56+08:00",
+      "title": "进度页面具名范围复核完成",
+      "detail": "Root浏览器核近期问题、提出时间、动态分类与最新时间线可查；无直接依据的原始时间继续显示未核实，不声称已知全部历史首报。此时间为登记时间。",
+      "itemId": "PROGRESS_PAGE_READABILITY",
+      "kind": "checkpoint",
+      "evidence": [
+        "docs/CURRENT_STATUS.md"
+      ]
+    },
+    {
+      "id": "detail-three-user-directions-20261029",
+      "at": "2026-10-29T16:33:30+08:00",
+      "title": "登记漫画详情三项用户要求",
+      "detail": "详情持久化与静默更新、滚动标题和封面模糊渐变分别登记；时间为本轮反馈登记时间，精确消息时刻未知。",
+      "itemId": "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "manga160-category-candidate-20261029",
+      "at": "2026-10-29T16:36:55+08:00",
+      "title": "漫画160分类候选具名回验",
+      "detail": "237日韩分类、重入与重置已核，原状态恢复；候选未公开，自然验证窗口未出现。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/"
+      ]
+    },
+    {
+      "id": "manga160-category-commit-20261029",
+      "at": "2026-10-29T16:37:39+08:00",
+      "title": "漫画160分类候选独立提交",
+      "detail": "分类候选已本地提交，未推送公开；原challengeRequestId WIP保留。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "89cfc7b"
+      ]
+    },
+    {
+      "id": "zaimanhua-filter-candidate-20261029",
+      "at": "2026-10-29T16:58:21+08:00",
+      "title": "再漫画筛选候选具名回验",
+      "detail": "237周榜、连载筛选及重入重置已核，原状态恢复；候选未提交公开，数字搜索开关差异未覆盖。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/"
+      ]
+    },
+    {
+      "id": "zaimanhua-filter-final-candidate-20261029",
+      "at": "2026-10-29T17:00:26+08:00",
+      "title": "再漫画最终分页候选独立提交",
+      "detail": "v4修正分页读取，保存页面回放同设备v3；真实末页及v4 Native未验，尚未推送。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/zaimanhua-filter019-v4.koma",
+        "c5e2022"
+      ]
+    },
+    {
+      "id": "mycomic-filter-difference-20261029",
+      "at": "2026-10-29T17:02:11+08:00",
+      "title": "MyComic参考筛选差异已定位",
+      "detail": "当前源未提供参考筛选；一次不同设备请求身份返回403，真实筛选及Native未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "detail-three-candidate-build-20261029",
+      "at": "2026-10-29T17:06:30+08:00",
+      "title": "漫画详情三项首版构建完成",
+      "detail": "详情持久化后台更新、滚动标题和封面背景首版已构建，197普通路径验收中，尚未观察终态。此时间为登记时间。",
+      "itemId": "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+      "kind": "checkpoint",
+      "evidence": [
+        "ad3c2c47a4868063715d6e3b55c645e68e67dd33856ad2eaf19e42fb306baa2e"
+      ]
+    },
+    {
+      "id": "detail-entry-background-counterexample-20261029",
+      "at": "2026-10-29T17:17:02+08:00",
+      "title": "详情入场已观察，背景仍需修正",
+      "detail": "197入场已有详情和章节持续显示，顶部无重复标题；背景矩形边界明显，冷启动持久数据及滚动标题仍核验。此时间为登记时间。",
+      "itemId": "MANGA_DETAIL_COVER_BLUR_GRADIENT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manga-detail197-entry-motion-46/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manga-detail197-header-47/"
+      ]
+    },
+    {
+      "id": "komiic-filter-candidate-20261029",
+      "at": "2026-10-29T17:22:11+08:00",
+      "title": "Komiic动态筛选候选设备入口未通过",
+      "detail": "真实标签和WASM回放已核；237首页无法连接，未进入筛选，原因未知；原状态恢复，候选未公开。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/"
+      ]
+    },
+    {
+      "id": "detail-new-candidate-review-20261029",
+      "at": "2026-10-29T17:30:02+08:00",
+      "title": "详情新候选普通路径已观察",
+      "detail": "197内容入场及滚动标题具名观察，背景矩形边界消除；深色、恢复及正式交付仍待核。漫画160和再漫画源精确CI成功，公开实体待核。此时间为登记时间。",
+      "itemId": "MANGA_DETAIL_COVER_BLUR_GRADIENT",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/40849389869"
+      ]
+    },
+    {
+      "id": "detail-device-validation-20261029",
+      "at": "2026-10-29T17:37:04+08:00",
+      "title": "详情三项具名设备验证完成",
+      "detail": "197冷进程往返、滚动标题与浅深色渐变已观察，原读态、电源及租约已恢复；正式提交中。两源公开实体回放已核，公开包未另Native。此时间为登记时间。",
+      "itemId": "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/source-c5-public/identity.json",
+        "/private/tmp/source-c5-public/candidate-public-equality.json"
+      ]
+    },
+    {
+      "id": "kuaikan-filter-candidate-20261029",
+      "at": "2026-10-29T17:38:08+08:00",
+      "title": "快看筛选候选具名回验",
+      "detail": "237恋爱分类、重入及重置已核，原状态恢复；候选未提交公开。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/"
+      ]
+    },
+    {
+      "id": "kuaikan-filter-commit-20261029",
+      "at": "2026-10-29T17:38:53+08:00",
+      "title": "快看筛选候选独立提交",
+      "detail": "快看筛选已本地提交，尚未推送公开；原搜索WIP保留。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "225468b"
+      ]
     }
   ],
   "reportAgeAudit": {

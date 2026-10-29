@@ -3052,7 +3052,7 @@ struct Index {
 
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
-    const title: Record<string, Object> = { 'mainTitle': this.mangaDetailTitle(param) }
+    const title: Record<string, Object> = { 'mainTitle': chrome.showTitle ? this.mangaDetailTitle(param) : '' }
     const content: Record<string, Object> = { 'title': title }
     if (!chrome.pageActionsAvailable && !chrome.sourceReloadAvailable) {
       return this.sourceRouteTitleBarOpts(content)
