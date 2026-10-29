@@ -23,7 +23,6 @@ import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore
 import {
   InstalledSourcePackage,
   appSourceRuntimeRegistry,
-  installFromArchive,
   listInstalled,
   getInstalledSourcePackage,
   pickSourcePackageArchive,
@@ -118,6 +117,7 @@ export struct SourcePackageManagerPage {
   @Local private managerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   @Local private packages: InstalledSourcePackage[] = []
   @Local private busy: boolean = false
+  @Local private importingLocalArchive: boolean = false
   @Local private statusText: string = ''
   @Local private settingsSourceId: string = ''
   @Local private settingsSourceName: string = ''
@@ -1034,7 +1034,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async updateInstalledPackage(source: InstalledSourcePackage, candidate?: SourcePackageUpdateCandidate): Promise<void> {
-    if (this.packageInstallPending(source.id) || this.busy) {
+    if (this.packageInstallPending(source.id) || this.packageInstallAdmissionBlocked()) {
       return
     }
     const entry = candidate?.entry ?? this.updateEntry(source.id)
@@ -1249,6 +1249,7 @@ export struct SourcePackageManagerPage {
     if (this.busy) {
       return
     }
+    this.importingLocalArchive = true
     this.busy = true
     this.statusText = t('source_pkg_import_running')
     try {
@@ -1257,7 +1258,7 @@ export struct SourcePackageManagerPage {
         this.statusText = ''
         return
       }
-      const result = await installFromArchive(this.context(), uri)
+      const result = await this.sourceIndexService.installLocalArchive(uri)
       if (result.ok) {
         this.statusText = t('source_pkg_import_done')
         this.showToast(t('source_pkg_toast_imported'))
@@ -1275,7 +1276,15 @@ export struct SourcePackageManagerPage {
       this.reload()
     } finally {
       this.busy = false
+      this.importingLocalArchive = false
     }
+  }
+
+  private packageInstallAdmissionBlocked(): boolean {
+    // Local imports now share the serial install lane. Keep destructive actions
+    // and duplicate pickers blocked, without toggling every unrelated row's
+    // suffix and rebuilding its HDS prefix when one archive finishes.
+    return this.busy && !this.importingLocalArchive
   }
 
   private async fetchIndex(): Promise<void> {
@@ -1350,7 +1359,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async installIndexEntry(entry: SourceIndexEntry, replaceExisting: boolean = false): Promise<void> {
-    if (this.packageInstallPending(entry.id) || this.busy) {
+    if (this.packageInstallPending(entry.id) || this.packageInstallAdmissionBlocked()) {
       return
     }
     const existing = this.installedPackage(entry.id)
@@ -1974,7 +1983,7 @@ export struct SourcePackageManagerPage {
       showChevron: false,
       actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
         ? this.packageActionLabel(entry.id, this.hasUpdate(entry)) : '',
-      actionButtonEnabled: !this.busy && !this.packageInstallPending(entry.id),
+      actionButtonEnabled: !this.packageInstallAdmissionBlocked() && !this.packageInstallPending(entry.id),
       actionButtonAction: () => { void this.installIndexEntry(entry, this.hasUpdate(entry)) },
       trailingText: this.isSourceInstalled(entry.id) && !this.hasUpdate(entry) ? t('source_pkg_installed') : '',
     })
@@ -2196,7 +2205,7 @@ export struct SourcePackageManagerPage {
         : this.indexVersionText(candidate.entry) + (sourceLanguageName(candidate.entry.lang).length > 0 ? ' · ' + sourceLanguageName(candidate.entry.lang) : ''),
       updateAvailable: candidate !== undefined,
       updateLabel: candidate !== undefined ? this.updateActionLabel(source.id) : '',
-      updateEnabled: candidate === undefined || (!this.busy && !this.packageInstallPending(source.id)),
+      updateEnabled: candidate === undefined || (!this.packageInstallAdmissionBlocked() && !this.packageInstallPending(source.id)),
       remoteNsfw: candidate?.entry.nsfw ?? false,
       onUpdate: (selected: InstalledSourcePackage): void => {
         if (candidate !== undefined) void this.updateInstalledPackage(selected, candidate)

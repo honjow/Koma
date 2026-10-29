@@ -17,6 +17,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { fileUri } from '@kit.CoreFileKit'
 import { http } from '@kit.NetworkKit'
 import {
+  installFromArchive,
   installFromBytes,
   isSourcePackageMinAppVersionSatisfied,
   SourcePackageInstallResult,
@@ -78,7 +79,7 @@ export class SourcePackageInstallTasks {
     return state
   }
 
-  run(sourceId: string, work: () => Promise<SourceIndexInstallResult>): Promise<SourceIndexInstallResult> {
+  run(sourceId: string, work: () => Promise<SourceIndexInstallResult>, retainState: boolean = true): Promise<SourceIndexInstallResult> {
     const existing = this.pending.get(sourceId)
     if (existing !== undefined) return existing
     const state = this.stateFor(sourceId)
@@ -93,6 +94,7 @@ export class SourcePackageInstallTasks {
       this.pendingIds = this.pendingIds.filter((id: string): boolean => id !== sourceId)
       if (this.runningId === sourceId) this.runningId = ''
       state.phase = 'idle'
+      if (!retainState) this.states.delete(sourceId)
     })
     this.pending.set(sourceId, result)
     this.tail = result.then((): void => {}, (): void => {})
@@ -101,8 +103,7 @@ export class SourcePackageInstallTasks {
 }
 
 export const appSourcePackageInstallTasks: SourcePackageInstallTasks = new SourcePackageInstallTasks()
-
-
+let localArchiveTaskSequence: number = 0
 
 // Shared across service instances belonging to the same application data store.
 const sourceIndexMetadataRequests: Map<string, number> = new Map()
@@ -446,6 +447,18 @@ export class SourceIndexService {
 
   async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
     return appSourcePackageInstallTasks.run(entry.id, () => this.installPackageNow(indexUrl, entry))
+  }
+
+  async installLocalArchive(uri: string): Promise<SourcePackageInstallResult> {
+    // The archive's source ID is unknown until validation. Give this request a
+    // private identity, without a file URI, on the existing serial install lane.
+    // Other packages may enqueue; no registry writers run in parallel.
+    const taskId = 'local-archive:' + (++localArchiveTaskSequence)
+    const result = await appSourcePackageInstallTasks.run(taskId, async (): Promise<SourceIndexInstallResult> => {
+      const install = await installFromArchive(this.context, uri)
+      return { ok: install.ok, reasonCode: install.reasonCode, install }
+    }, false)
+    return result.install ?? { ok: false, reasonCode: result.reasonCode ?? 'import_failed' }
   }
 
   private async installPackageNow(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {

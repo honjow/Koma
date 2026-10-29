@@ -6,6 +6,7 @@ const vm = require('node:vm')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.join(__dirname, '../entry/src/main/ets')
 function subject(file, owner, methods, globals) {
+  if (owner === 'SourcePackageManagerPage') methods = methods.concat('packageInstallAdmissionBlocked')
   const source = fs.readFileSync(path.join(root, file), 'utf8').replace(/\bstruct /g, 'class ')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   const cls = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.getText(tree) === owner)
@@ -280,6 +281,36 @@ function installLane() {
   vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports})
   return new exports.SourcePackageInstallTasks()
 }
+test('local archives and index packages share one serial lane, retaining each archive result', async () => {
+  const lane = installLane(), starts = []
+  let finishFirst
+  const firstResult = {ok:true,id:'local.one'}, secondResult = {ok:false,reasonCode:'checksum_mismatch'}
+  const service = subject('sourceRuntime/SourceIndexService.ets', 'SourceIndexService', ['installLocalArchive'], {
+    appSourcePackageInstallTasks:lane, localArchiveTaskSequence:0,
+    installFromArchive:async (_context,uri) => {
+      starts.push(uri)
+      if (uri === 'archive-one') return new Promise(resolve => { finishFirst = () => resolve(firstResult) })
+      return secondResult
+    },
+  })
+  service.context = {}
+  const first = service.installLocalArchive('archive-one')
+  const indexed = lane.run('indexed',async () => { starts.push('index'); return {ok:true} })
+  const second = service.installLocalArchive('archive-two')
+  await new Promise(setImmediate)
+  assert.deepEqual(starts,['archive-one'])
+  finishFirst()
+  assert.equal(await first,firstResult)
+  assert.equal((await indexed).ok,true)
+  assert.equal(await second,secondResult)
+  assert.deepEqual(starts,['archive-one','index','archive-two'])
+  assert.equal(lane.pendingIds.length,0)
+  const manager = subject('pages/SourcePackageManagerPage.ets','SourcePackageManagerPage',[],{})
+  manager.busy=true; manager.importingLocalArchive=true
+  assert.equal(manager.packageInstallAdmissionBlocked(),false)
+  manager.importingLocalArchive=false
+  assert.equal(manager.packageInstallAdmissionBlocked(),true)
+})
 test('other packages enqueue during an install; one identity shares one result and writes remain serial', async () => {
   const lane = installLane(), starts = []; let finishA, finishB
   const stateA=lane.stateFor('A'),stateB=lane.stateFor('B'),stateC=lane.stateFor('C')
