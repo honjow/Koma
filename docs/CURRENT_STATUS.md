@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：继续核验85源能力差集，并验证包子搜索候选。
+当前工作：NamiComi已正式交付，正在验证NoyAcg搜索筛选候选。
 
 设备：197已恢复并释租；237按既有授权执行书源验证并在会话结束后恢复。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-29T11:59:29+08:00",
+  "updatedAt": "2026-10-29T13:07:37+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "继续85源能力差集核验，237正在验证包子搜索候选。",
-  "nextAction": "完成包子具名路径与设备恢复，继续其他源能力差集。",
+  "activity": "237正在验证NoyAcg搜索筛选候选，整体源能力核验继续。",
+  "nextAction": "完成NoyAcg具名设备验证及原状态恢复。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "AGC启动guard61c79b6b精确CI成功保持；batch五文件7230d110已精确推送、CI40485480396 completed/success。Koma接入已本地提交5d966878；batch恢复点只保留，不再次apply。",
-      "hap": "197当前分页窗口修复HAP SHA-256 62aea4fcddc9c10a03f9468cc7e5c308c875d06628219ed6f5e7c43dd4724c47，RTL具名回验，LTR录制中；此前f3bba518原生行边界修正末端已回验；此前f6749b58303015d413fea24d2baf4030375a9958c27f7a760defb9793d8fe889清理包及双X普通路径证据保留。237书源验证默认237。"
+      "appHead": "Koma/master 6dbb621d24048ca297f0caaa8250e7b0f03e904a，精确CI40820669074成功。",
+      "hap": "197已恢复原状态并释租；237当前原7f9用于NoyAcg候选Native验证，source_terra本轮持租，会话结束按基线恢复。"
     },
     {
       "name": "NextE",
@@ -3175,7 +3175,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P1（用户直接反馈）",
       "kind": "open",
-      "status": "四源已公开，继续源能力差集及包子候选",
+      "status": "NamiComi正式交付已核，NoyAcg候选待验",
       "owner": "source_terra：237源线验证；Root：审查及交付",
       "dependencies": [],
       "relatedItems": [
@@ -3184,8 +3184,8 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "既有a6a36a8的3Hentai 0.1.3在237普通导入后，真实官网目录25本；默认完整标题，关闭设置并保存后同目录显示短标题，清除本次设置后完整标题恢复。前后settings JSON相等，原书架及斗破继续阅读已恢复，临时上传已清除；超时120000ms、休眠及释租已完成，设备保留升级的3Hentai 0.1.3。仅该源具名设置范围通过。Zerobyw 0.1.2原路由真实404，固定参考949dea2为新/pc/路由；0.1.4保原默认与旧manga:/chapter:身份，新身份为pc-。源5de9e98精确CI40639208193成功；公开0.1.4在237普通导入→目录24→详情5章→真实正文1/149，并已恢复。原默认域名EOF、旧ID及参考域名失败更新链路仍待调查。 Zerobyw 0.1.5的df2c2f9已推且CI 40646153719成功，公开索引与包已核；237本地候选在未保存地址时目录24、详情5章、正文1/162实图，设置、历史、书架及设备已恢复并释租。公开WASM真实默认目录24项、nextCursor 2；公开WASM字节与设备本地候选不同，公开0.1.5已在237普通picker导入，安装ZIP及WASM与公开包逐字一致，settings与002相等，唯一临时下载文件已删且读回通过，正常返回Browse；原有已存地址保留。 xkcd-zh 0.1.6已推，保SINGLE默认及旧ID；本地生产WASM分组、分页、正文URL与旧单本fixture通过，英文归档503的受控失败保持独立。公开WASM与本地字节不同，真实按年目录10项、首项2024和下一页2通过；237设置持久、分组浏览、旧书及正文未验。 源码复核WEBTOON繁中实际消费最高画质、连续章号、作者附言三项，默认均false，附言依赖宿主text_page_image_v1；MyComic既有默认cn、original为显式繁中，参考默认差异已记录。此为源码核对，不冒设备验收。 漫画社0.1.9提交ee13701已推且CI40667731479成功，默认311s、用户可显式选m206，保旧路径书章ID；具名作品m206目录20、搜索2、旧书800章、首章18页及首图200 WebP，公开WASM另核搜索及旧章。237公开包已安装，设置持久与正文未验，全旧库映射未验。GoDa 0.1.4提交2f7ade3已推且CI40669312858成功，固定参考六镜像均实测目录、搜索、详情、章节与首章44页；公开WASM明确godamh具名详情及旧首章通过，公开Native、设置持久、图片显示及全库身份未验。 xkcd 0.1.6公开包024–025已安装，设置及原缓存正文具名验证，新作品冷网络正文未验。 Simply Hentai旧search=false记录已过时：237公开0.1.1普通入口love搜索发出真实请求，但返回HTTP403，Native显示源搜索失败、请求被拒绝；不是不支持搜索，亦不能算搜索可用，拒绝原因待核。 237公开xkcd 0.1.6普通源内设置：默认Single目录1本；BY_YEAR保存后年度目录10本并重入读回；BY_YEAR_MONTH保存后月份标题目录并重入读回。经现有确认清除本次xkcd测试设置后默认恢复1本，整份settings JSON与002一致；旧书及正文Native仍未验。 237原库xkcd旧ID原书676章，普通Continue原缓存2978困住第1/1页真实可见，未翻页；返回同详情同章同页，library JSON与066完全一致、49本无增删或字段变化。仅原缓存页具名通过，不冒冷网络正文。 237 GoDa公开0.1.4默认baozimh.org保持，六镜像菜单中选godamh.com后目录18本，保存重入及preferredMirror读回一致；清除本次设置后整份settings与002相等。旧书武炼巅峰3875章，Continue夺酒第2/70原正文可见并返回同章同页，49本无增删、chapterId不变；库并非完全相等：该书自然预载3865章由0变77页、页表指纹与updatedAt及总页数87→164，其余48本和旧缓存章未变。公开WASM godamh具名旧4 chapterId存在，两个缓存章70/17页与首pageId/URL一致，首图200；不外推六镜像Native。 輔大猴0.1.2提交5e397ee已推，本地生产WASM搜索分页、空结果及旧ID详情具名；CI查询遇EOF后重复查询被自动审批拒绝，旧CI未核；当前公开实体与237实装ZIP/WASM一致，普通搜索及真实续页具名通过。 人2 aacee1f CI40685768520及IP手札mini 430b767 CI40688772764成功，公开WASM与原C++ Host按真实保存HTML具名回放；人2及IPmini普通搜索已具名验证，正文未验。devrunner 9a46bc3 CI40687391567成功。 綜合口味0.1.2提交5fa311a已推、CI40697052579成功；公开WASM及原Host以真实保存HTML核漫画分页、食分类及空结果，旧浏览两页数据一致；237公开包普通搜索食返回具名5项及终点，Reader未验。117实装IPmini及人2 ZIP与先前公开容器哈希不同，但所有成员内容相等，人2 WASM与公开一致；輔大猴实装ZIP/WASM与当前公开完全相等。 繁中WEBTOON公开0.1.8自检：真实搜索愛仅返回All首屏22且hasMore=false，漏取官网两分类分页。0.1.9提交bc9c66e、精确CI40700016006成功；237实装ZIP/WASM与公开字节一致，普通搜索愛并滚动后观察到旧All尾部之后的Originals后续作品与6张封面正常。同次搜索日志完成；仅具名普通续页通过，不冒全部411项Native通过，不混英文源WIP。 237漫画社0.1.9默认目录20本成功；显式选m206保存preferredMirror为https://www.m206.com，自动目录请求op217 531ms network_error/http0failed，旧20本保留；普通重入设置仍显示m206，故不是保存丢失。传输原因未知，桌面成功不代Native；当前正在清除本轮设置并核默认旧书。Comic Fury 0.1.6提交af3cd7b、CI40703509316成功；公开WASM在Host注入默认filter后热门、最新、搜索与0.1.5逐字段一致，显式筛选具名返回19项、非法值网络前拒绝；Native控件持久及消费待验。 149清除本轮m206后整份settings与131/002相等、无该源override，默认311s目录20本成功。150–152默认旧一人之下13871详情800章，Continue反杀第2/17缓存正文可见并返回同章同页；49本及800章ID保持，两个旧缓存页表及其他48本相同。库非逐字相等：786章正常补chapterNumber/sortKey。实装ZIP/WASM与公开完全一致。152日志op218在收到响应头前失败，platformCode2300999，限定header前失败，不推断DNS或TLS。 237公开Comic Fury 0.1.6普通目录默认热门12本，八个筛选控件已观察；目录按更新时间排序实际成功，清除恢复默认。源内搜索a后选择Popularity，实际发目录请求而搜索结果不变。宿主已按搜索状态分流筛选读取、忙碌、修改与重置，保独立持久化及原样式；本地构建成功，修复包尚未真机回验。169日志为空不推断具体传输错误。 NHentai.to 0.1.5 sort/exclude提交ec03651已推，CI40706302986成功；公开WASM在原Host以真实保存HTML验证默认搜索、显式筛选和热门页，默认热门旧游标对比使用受控分页HTML；Native筛选未验，参考登录收藏及跨语言随机未实现。 3Hentai 0.1.5筛选提交53098e1已推，参考排序及9文本筛选显式供Browse/Search消费，保默认URL、旧游标及full_title；真实筛选搜索/热门前两页各25项，本地Host回放具名，CI、公开及Native待验。参考静态提示行当前Host模型不支持，不冒UI说明全量完成。 237冻结release 0755：178–179搜索a选Popularity实际search op21成功，首Maor/慢话/MyDiary；180搜索重置实际search op23恢复原结果，search保存值删除且browse保持；181清查询后目录重置实际get_manga_list op25恢复12本首Maor。Comic Fury本轮筛选项已清除，其他源筛选与169逐字相同、全source-settings与131/002基线相等。旧168误发目录反例保留。宿主3文件4232f2a3已本地提交，推送进行中、精确CI未核；本地执行回归、release构建及同签冻结包与设备验证分别成立。 237公开NHentai.to 0.1.5与3Hentai 0.1.5普通Browse及Search分别选排序、观察结果变化并重置，源设置和filterprefs恢复基线；NH安装WASM与公开一致且ZIP成员一致，3H以系统picker导入，ZIP/WASM与公开一致且临时下载已清除。仅具名排序路径通过，其他筛选值及参考静态说明未验。226原斗破01第1/36回书架第1页3%，漫画屋身份为缓存推断；227库49本，228 SLEEP、正常120000无override并释租。 237公开瓜子0.1.4及H-Comic0.1.3普通目录和搜索筛选已具名验收；本次设置及筛选恢复基线，原书架和设备状态恢复并释租。 具名范围：瓜子目录恋爱筛选36本，搜索爱后选恋爱实际search完成；H-Comic目录全彩10本，搜索love后选全彩实际search完成；两者重置后filterprefs为空。证据为layout及运行记录，筛选过程无截图，不扩其他值。 Host筛选scope/Header核心和两页面已接，能力门槛保旧Host旧schema；release候选7f9cfe本地构建成功，237具名MH1234 Native待验。AsmHentai 0.1.2在237普通目录失败；持久脱敏日志显示get_manga_list HTTP200后runtime unknown，不是HTTP403或传输失败。同真实HTML及原C++ Host复现图片属性问题，缺失可选属性回退后目录19本、短标题ID不变及详情通过；源f8ecf37已推，CI、公开和Native待核。237当次会话已恢复SLEEP/120000无override并释租。 237 MPC本地014候选普通目录显示原参考提示及筛选，Action结果变化、love搜索与重置具名已核；搜索态筛选隐藏未单独证实。原013包、数据与设置已恢复，临时文件删除，设备SLEEP/120000无override并释租；候选未发布。 MPC公开0.1.4已推且CI成功，237普通更新后包与公开一致；Header、Action目录及重置具名核验，原数据/设置及设备状态恢复并释租。搜索态是否隐藏筛选仍未单独验证。 MPC公开0.1.4 Header及Action筛选具名范围已验收，整体85源审计继续开放。 Comic Fury 0.1.6精确CI40703509316成功及237具名筛选已核，页面筛选不冒持久sourceSettings验收。AsmHentai公开013具名目录及短标题设置已核。 237 MPC公开014普通love搜索标题栏无筛选入口，清查询后目录菜单恢复筛选；数据及设备状态恢复释租。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 237 xkcd按年月分组2024-08的2977冷页真实中文图已核；原书库及设置保持，reader自然新增本次组的进度、章节与来源历史各一条，设备恢复释租。 Host筛选scope/Header已推Koma master，保目录与搜索独立值、旧schema兼容及Header仅展示；既有237 MPC具名结果保持，精确CI待核。 Koma 59a1edb精确CI40784063216成功。 MH1234筛选0.1.6本地候选在237具名验证；源已公开且精确CI成功，公开WASM固定真实HTML回放通过，公开实体未新Native验证。设备原宿主、源包及数据已恢复释租。 UUID设置候选已补宿主能力声明与ABI，本地执行检查及同签release构建通过，237 Native待验。 NNHanman真实搜索错误已以生产WASM定位为声明分页但缺next链接，v5候选待237验证；MangaDex原生错误与合法重入已有节点证据，画面待亲审，不称全部消费者通过。 NNHanman候选在237真实love搜索列表不再报错，设备实体与冻结相等；源已推，公开CI待核。MangaDex旧截图路径误配导致画面无效，修正场景中；原包、五份数据及电源已恢复，实体字节仍待补核。 NNHanman源精确CI成功，公开WASM真实HTML搜索、分页及Header/schema具名通过；公开包未新Native验收。237原NNH/MD实体已与备份一致，MangaDex错误画面正在重验。 237 MangaDex UUID非法输入错误画面及禁用保存已亲审，合法值保存重入已核；真实章节feed消费仍待验证。Host提交已推、精确CI待核，原包、数据及设备已恢复释租。 237 MangaDex同作品保存真实组UUID后目录从22章变15章，保留其他组章节；真实feed重放确认排除7章，旧章exact请求仍可取，非设备exact阅读。原宿主、源包及设备恢复；源提交推送中。 MangaDex公开WASM真实feed重放确认15保留、7排除及旧章exact未过滤可取；公开包未新Native。 237繁中MangaDex候选已有库作品按真实组UUID过滤，目录由49章变0章，具名结果已核；公开包Native及其他语言未外推，设备恢复中。 繁中MangaDex源提交c4daf043已推，精确CI进行中；先前候选实体与冻结一致及原状态恢复已由Root核实。 繁中MangaDex公开包CI及真实feed重放已核，公开包未另Native；英文候选已修分页过滤组合，真实响应执行通过，237 Native及英文独有消费路径待验。 237英文候选已有库作品真实组过滤已核，原包数据和设备恢复；英文源提交及CI成功。较大结果集首卷封面存在遗漏，新候选已补全，待普通设置与目录回验；搜索转义仍待后续核实。 237英文首卷候选开关保存重入、真实组值及首页封面具名已核；独立Latest菜单未打开，仍未Native验证。原源包、数据及电源已恢复释租；候选尚未提交发布。 英文首卷0.1.22已公开，公开WASM按真实响应核Latest、Home及排序覆盖；公开包未新Native，独立Latest随新会话验证。 237英文023候选在已保存首卷和组设置下独立Latest具名显示，带引号搜索实际请求成功；未逐个验证全部封面，公开022未另Native。恢复已由Root独立核实；023已提交推送。 MangaDex英文023搜索已推且精确CI成功，公开WASM真实响应重放已核；两场原包、五份数据及电源恢复已独立核实。英文WEBTOON、动漫屋及嗨皮同类候选待237验证。 237三源候选已普通导入并核实体，正在验证搜索。 237动漫屋及英文WEBTOON搜索具名已核；嗨皮本次域名解析失败，未证站点停运。四源公开包已恢复发布并核实体；原CI因发布步骤HTTP500失败，设备原状态已恢复。下一批搜索候选待审及Native。 237快看、漫画人及MangaBz引号搜索有结果；CManhua引号空结果、普通词有结果。诊断日志读取被自动审批拒绝，未推HTTP状态；设备恢复已独立核实，源提交已推。 四源会话原宿主、源包、用户数据及电源恢复已由Root独立核实；源提交已推，精确CI进行中。 四源精确CI成功并公开，索引及包实体已核；公开WASM与设备冻结实体不同，未另作公开包Native。",
-      "remaining": "继续85源能力差集核验及包子转义搜索候选设备验证，保其他原未验范围。",
+      "result": "既有a6a36a8的3Hentai 0.1.3在237普通导入后，真实官网目录25本；默认完整标题，关闭设置并保存后同目录显示短标题，清除本次设置后完整标题恢复。前后settings JSON相等，原书架及斗破继续阅读已恢复，临时上传已清除；超时120000ms、休眠及释租已完成，设备保留升级的3Hentai 0.1.3。仅该源具名设置范围通过。Zerobyw 0.1.2原路由真实404，固定参考949dea2为新/pc/路由；0.1.4保原默认与旧manga:/chapter:身份，新身份为pc-。源5de9e98精确CI40639208193成功；公开0.1.4在237普通导入→目录24→详情5章→真实正文1/149，并已恢复。原默认域名EOF、旧ID及参考域名失败更新链路仍待调查。 Zerobyw 0.1.5的df2c2f9已推且CI 40646153719成功，公开索引与包已核；237本地候选在未保存地址时目录24、详情5章、正文1/162实图，设置、历史、书架及设备已恢复并释租。公开WASM真实默认目录24项、nextCursor 2；公开WASM字节与设备本地候选不同，公开0.1.5已在237普通picker导入，安装ZIP及WASM与公开包逐字一致，settings与002相等，唯一临时下载文件已删且读回通过，正常返回Browse；原有已存地址保留。 xkcd-zh 0.1.6已推，保SINGLE默认及旧ID；本地生产WASM分组、分页、正文URL与旧单本fixture通过，英文归档503的受控失败保持独立。公开WASM与本地字节不同，真实按年目录10项、首项2024和下一页2通过；237设置持久、分组浏览、旧书及正文未验。 源码复核WEBTOON繁中实际消费最高画质、连续章号、作者附言三项，默认均false，附言依赖宿主text_page_image_v1；MyComic既有默认cn、original为显式繁中，参考默认差异已记录。此为源码核对，不冒设备验收。 漫画社0.1.9提交ee13701已推且CI40667731479成功，默认311s、用户可显式选m206，保旧路径书章ID；具名作品m206目录20、搜索2、旧书800章、首章18页及首图200 WebP，公开WASM另核搜索及旧章。237公开包已安装，设置持久与正文未验，全旧库映射未验。GoDa 0.1.4提交2f7ade3已推且CI40669312858成功，固定参考六镜像均实测目录、搜索、详情、章节与首章44页；公开WASM明确godamh具名详情及旧首章通过，公开Native、设置持久、图片显示及全库身份未验。 xkcd 0.1.6公开包024–025已安装，设置及原缓存正文具名验证，新作品冷网络正文未验。 Simply Hentai旧search=false记录已过时：237公开0.1.1普通入口love搜索发出真实请求，但返回HTTP403，Native显示源搜索失败、请求被拒绝；不是不支持搜索，亦不能算搜索可用，拒绝原因待核。 237公开xkcd 0.1.6普通源内设置：默认Single目录1本；BY_YEAR保存后年度目录10本并重入读回；BY_YEAR_MONTH保存后月份标题目录并重入读回。经现有确认清除本次xkcd测试设置后默认恢复1本，整份settings JSON与002一致；旧书及正文Native仍未验。 237原库xkcd旧ID原书676章，普通Continue原缓存2978困住第1/1页真实可见，未翻页；返回同详情同章同页，library JSON与066完全一致、49本无增删或字段变化。仅原缓存页具名通过，不冒冷网络正文。 237 GoDa公开0.1.4默认baozimh.org保持，六镜像菜单中选godamh.com后目录18本，保存重入及preferredMirror读回一致；清除本次设置后整份settings与002相等。旧书武炼巅峰3875章，Continue夺酒第2/70原正文可见并返回同章同页，49本无增删、chapterId不变；库并非完全相等：该书自然预载3865章由0变77页、页表指纹与updatedAt及总页数87→164，其余48本和旧缓存章未变。公开WASM godamh具名旧4 chapterId存在，两个缓存章70/17页与首pageId/URL一致，首图200；不外推六镜像Native。 輔大猴0.1.2提交5e397ee已推，本地生产WASM搜索分页、空结果及旧ID详情具名；CI查询遇EOF后重复查询被自动审批拒绝，旧CI未核；当前公开实体与237实装ZIP/WASM一致，普通搜索及真实续页具名通过。 人2 aacee1f CI40685768520及IP手札mini 430b767 CI40688772764成功，公开WASM与原C++ Host按真实保存HTML具名回放；人2及IPmini普通搜索已具名验证，正文未验。devrunner 9a46bc3 CI40687391567成功。 綜合口味0.1.2提交5fa311a已推、CI40697052579成功；公开WASM及原Host以真实保存HTML核漫画分页、食分类及空结果，旧浏览两页数据一致；237公开包普通搜索食返回具名5项及终点，Reader未验。117实装IPmini及人2 ZIP与先前公开容器哈希不同，但所有成员内容相等，人2 WASM与公开一致；輔大猴实装ZIP/WASM与当前公开完全相等。 繁中WEBTOON公开0.1.8自检：真实搜索愛仅返回All首屏22且hasMore=false，漏取官网两分类分页。0.1.9提交bc9c66e、精确CI40700016006成功；237实装ZIP/WASM与公开字节一致，普通搜索愛并滚动后观察到旧All尾部之后的Originals后续作品与6张封面正常。同次搜索日志完成；仅具名普通续页通过，不冒全部411项Native通过，不混英文源WIP。 237漫画社0.1.9默认目录20本成功；显式选m206保存preferredMirror为https://www.m206.com，自动目录请求op217 531ms network_error/http0failed，旧20本保留；普通重入设置仍显示m206，故不是保存丢失。传输原因未知，桌面成功不代Native；当前正在清除本轮设置并核默认旧书。Comic Fury 0.1.6提交af3cd7b、CI40703509316成功；公开WASM在Host注入默认filter后热门、最新、搜索与0.1.5逐字段一致，显式筛选具名返回19项、非法值网络前拒绝；Native控件持久及消费待验。 149清除本轮m206后整份settings与131/002相等、无该源override，默认311s目录20本成功。150–152默认旧一人之下13871详情800章，Continue反杀第2/17缓存正文可见并返回同章同页；49本及800章ID保持，两个旧缓存页表及其他48本相同。库非逐字相等：786章正常补chapterNumber/sortKey。实装ZIP/WASM与公开完全一致。152日志op218在收到响应头前失败，platformCode2300999，限定header前失败，不推断DNS或TLS。 237公开Comic Fury 0.1.6普通目录默认热门12本，八个筛选控件已观察；目录按更新时间排序实际成功，清除恢复默认。源内搜索a后选择Popularity，实际发目录请求而搜索结果不变。宿主已按搜索状态分流筛选读取、忙碌、修改与重置，保独立持久化及原样式；本地构建成功，修复包尚未真机回验。169日志为空不推断具体传输错误。 NHentai.to 0.1.5 sort/exclude提交ec03651已推，CI40706302986成功；公开WASM在原Host以真实保存HTML验证默认搜索、显式筛选和热门页，默认热门旧游标对比使用受控分页HTML；Native筛选未验，参考登录收藏及跨语言随机未实现。 3Hentai 0.1.5筛选提交53098e1已推，参考排序及9文本筛选显式供Browse/Search消费，保默认URL、旧游标及full_title；真实筛选搜索/热门前两页各25项，本地Host回放具名，CI、公开及Native待验。参考静态提示行当前Host模型不支持，不冒UI说明全量完成。 237冻结release 0755：178–179搜索a选Popularity实际search op21成功，首Maor/慢话/MyDiary；180搜索重置实际search op23恢复原结果，search保存值删除且browse保持；181清查询后目录重置实际get_manga_list op25恢复12本首Maor。Comic Fury本轮筛选项已清除，其他源筛选与169逐字相同、全source-settings与131/002基线相等。旧168误发目录反例保留。宿主3文件4232f2a3已本地提交，推送进行中、精确CI未核；本地执行回归、release构建及同签冻结包与设备验证分别成立。 237公开NHentai.to 0.1.5与3Hentai 0.1.5普通Browse及Search分别选排序、观察结果变化并重置，源设置和filterprefs恢复基线；NH安装WASM与公开一致且ZIP成员一致，3H以系统picker导入，ZIP/WASM与公开一致且临时下载已清除。仅具名排序路径通过，其他筛选值及参考静态说明未验。226原斗破01第1/36回书架第1页3%，漫画屋身份为缓存推断；227库49本，228 SLEEP、正常120000无override并释租。 237公开瓜子0.1.4及H-Comic0.1.3普通目录和搜索筛选已具名验收；本次设置及筛选恢复基线，原书架和设备状态恢复并释租。 具名范围：瓜子目录恋爱筛选36本，搜索爱后选恋爱实际search完成；H-Comic目录全彩10本，搜索love后选全彩实际search完成；两者重置后filterprefs为空。证据为layout及运行记录，筛选过程无截图，不扩其他值。 Host筛选scope/Header核心和两页面已接，能力门槛保旧Host旧schema；release候选7f9cfe本地构建成功，237具名MH1234 Native待验。AsmHentai 0.1.2在237普通目录失败；持久脱敏日志显示get_manga_list HTTP200后runtime unknown，不是HTTP403或传输失败。同真实HTML及原C++ Host复现图片属性问题，缺失可选属性回退后目录19本、短标题ID不变及详情通过；源f8ecf37已推，CI、公开和Native待核。237当次会话已恢复SLEEP/120000无override并释租。 237 MPC本地014候选普通目录显示原参考提示及筛选，Action结果变化、love搜索与重置具名已核；搜索态筛选隐藏未单独证实。原013包、数据与设置已恢复，临时文件删除，设备SLEEP/120000无override并释租；候选未发布。 MPC公开0.1.4已推且CI成功，237普通更新后包与公开一致；Header、Action目录及重置具名核验，原数据/设置及设备状态恢复并释租。搜索态是否隐藏筛选仍未单独验证。 MPC公开0.1.4 Header及Action筛选具名范围已验收，整体85源审计继续开放。 Comic Fury 0.1.6精确CI40703509316成功及237具名筛选已核，页面筛选不冒持久sourceSettings验收。AsmHentai公开013具名目录及短标题设置已核。 237 MPC公开014普通love搜索标题栏无筛选入口，清查询后目录菜单恢复筛选；数据及设备状态恢复释租。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选验证后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动验证后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 237 xkcd按年月分组2024-08的2977冷页真实中文图已核；原书库及设置保持，reader自然新增本次组的进度、章节与来源历史各一条，设备恢复释租。 Host筛选scope/Header已推Koma master，保目录与搜索独立值、旧schema兼容及Header仅展示；既有237 MPC具名结果保持，精确CI待核。 Koma 59a1edb精确CI40784063216成功。 MH1234筛选0.1.6本地候选在237具名验证；源已公开且精确CI成功，公开WASM固定真实HTML回放通过，公开实体未新Native验证。设备原宿主、源包及数据已恢复释租。 UUID设置候选已补宿主能力声明与ABI，本地执行检查及同签release构建通过，237 Native待验。 NNHanman真实搜索错误已以生产WASM定位为声明分页但缺next链接，v5候选待237验证；MangaDex原生错误与合法重入已有节点证据，画面待亲审，不称全部消费者通过。 NNHanman候选在237真实love搜索列表不再报错，设备实体与冻结相等；源已推，公开CI待核。MangaDex旧截图路径误配导致画面无效，修正场景中；原包、五份数据及电源已恢复，实体字节仍待补核。 NNHanman源精确CI成功，公开WASM真实HTML搜索、分页及Header/schema具名通过；公开包未新Native验收。237原NNH/MD实体已与备份一致，MangaDex错误画面正在重验。 237 MangaDex UUID非法输入错误画面及禁用保存已亲审，合法值保存重入已核；真实章节feed消费仍待验证。Host提交已推、精确CI待核，原包、数据及设备已恢复释租。 237 MangaDex同作品保存真实组UUID后目录从22章变15章，保留其他组章节；真实feed重放确认排除7章，旧章exact请求仍可取，非设备exact阅读。原宿主、源包及设备恢复；源提交推送中。 MangaDex公开WASM真实feed重放确认15保留、7排除及旧章exact未过滤可取；公开包未新Native。 237繁中MangaDex候选已有库作品按真实组UUID过滤，目录由49章变0章，具名结果已核；公开包Native及其他语言未外推，设备恢复中。 繁中MangaDex源提交c4daf043已推，精确CI进行中；先前候选实体与冻结一致及原状态恢复已由Root核实。 繁中MangaDex公开包CI及真实feed重放已核，公开包未另Native；英文候选已修分页过滤组合，真实响应执行通过，237 Native及英文独有消费路径待验。 237英文候选已有库作品真实组过滤已核，原包数据和设备恢复；英文源提交及CI成功。较大结果集首卷封面存在遗漏，新候选已补全，待普通设置与目录回验；搜索转义仍待后续核实。 237英文首卷候选开关保存重入、真实组值及首页封面具名已核；独立Latest菜单未打开，仍未Native验证。原源包、数据及电源已恢复释租；候选尚未提交发布。 英文首卷0.1.22已公开，公开WASM按真实响应核Latest、Home及排序覆盖；公开包未新Native，独立Latest随新会话验证。 237英文023候选在已保存首卷和组设置下独立Latest具名显示，带引号搜索实际请求成功；未逐个验证全部封面，公开022未另Native。恢复已由Root独立核实；023已提交推送。 MangaDex英文023搜索已推且精确CI成功，公开WASM真实响应重放已核；两场原包、五份数据及电源恢复已独立核实。英文WEBTOON、动漫屋及嗨皮同类候选待237验证。 237三源候选已普通导入并核实体，正在验证搜索。 237动漫屋及英文WEBTOON搜索具名已核；嗨皮本次域名解析失败，未证站点停运。四源公开包已恢复发布并核实体；原CI因发布步骤HTTP500失败，设备原状态已恢复。下一批搜索候选待审及Native。 237快看、漫画人及MangaBz引号搜索有结果；CManhua引号空结果、普通词有结果。诊断日志读取被自动审批拒绝，未推HTTP状态；设备恢复已独立核实，源提交已推。 四源会话原宿主、源包、用户数据及电源恢复已由Root独立核实；源提交已推，精确CI进行中。 四源精确CI成功并公开，索引及包实体已核；公开WASM与设备冻结实体不同，未另作公开包Native。 包子候选进入首页即触发站点验证，新转义查询尚未发出；原包与会话身份已恢复。 包子原包、原路径、会话及用户数据已逐字恢复，设备休眠并释租；首页挑战前新查询未发出，搜索未验。puredecode源提交已本地完成，推送进行中。 包子纯decode提交及公开实体已核，搜索Native仍未验。NamiComi简繁当前未实现参考筛选，正在核对宿主筛选适配及真实标签接口。 NamiComi动态筛选宿主已完成首次构建，简繁源候选已核真实标签及默认请求；237尚未导入源候选，设备验收未开始。 237简中NamiComi动态标签包含和排除已取得不同真实目录结果；保存重入、忽略恢复、繁中与设备恢复仍在核验。 237简中包含、排除、重入及忽略恢复已核；繁中目录和动态组、独立搜索筛选具名已核。设备恢复及公开交付尚未完成。 237原包、六份数据及电源已独立核实恢复并释租；宿主提交已推，精确CI进行中，两源提交待完成。 NamiComi宿主及简繁源精确CI、公开索引和包实体已核；公开WASM与设备候选不同，未另作公开包Native。NoyAcg搜索筛选候选已冻结，237验证中。",
+      "remaining": "完成NoyAcg候选具名Native与设备恢复，继续整体85源能力审计。",
       "remainingActions": [
         "Comic Fury筛选分流及精确CI已核，持久sourceSettings另按原范围核验。",
         "继续逐源对照设置、默认值与消费路径；调查Zerobyw域名发现及旧ID映射，不外推具名结果。",
@@ -3201,7 +3201,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "源能力差集及包子设备验证中",
+      "stage": "NoyAcg筛选设备验证中",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3320,7 +3320,18 @@
         "源170ba076d02b52b1dae7e9add22b56de20ebaf3c CI40812037522发布步骤HTTP500整体failure，既有草稿核对后发布恢复；不称CI成功。",
         "237 run1061/1065/1078引号搜索、1072空结果及1082普通词；1074日志自动审批拒绝未读取，1095–1097恢复由源owner报告待Root复核。",
         "run1095/1096五数据及四源实体逐字恢复，81项registry元数据/启用/顺序相同，仅四重导入路径变化；1097 SLEEP/120000无override。源f83d819300cd806a73be78580dd79a5d260ae251已推，CI40814846051进行中。",
-        "/private/tmp/source-f83-public/delivery.json；源f83d819300cd806a73be78580dd79a5d260ae251 CI40814846051 completed/success，公开release 427451027。"
+        "/private/tmp/source-f83-public/delivery.json；源f83d819300cd806a73be78580dd79a5d260ae251 CI40814846051 completed/success，公开release 427451027。",
+        "run1102/1104/1111–1113：候选首页403及验证、原012回装后会话仍指候选；SourceWebSessionStore:78–80身份含wasmPath，原路径与Registry需一并恢复，不读写系统Cookie或伪造grant。",
+        "run1120原包四成员逐字同1099；1121 registry/session/library/reader/settings/filters同1098；1122旧路径存在且孤立目录删除；1123 SLEEP/120000无override。1116/1119 OS权限失败保留，按同bundle正规收发恢复，未写系统Cookie或重绑定grant。puredecode 033c673本地提交，推送进行中；Koma 75b77fe9 CI40815289504 success。",
+        "/private/tmp/source-033-public/delivery.json；源033c6736a1ee52b5784ae1cdd05c233d064bc153 CI40816264651 success，release427458526公开。NamiComi固定参考含章节/评级/状态/排序及四组动态三态标签，现源filters=false。",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/namicomi-tags-reference-20261029.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/namicomi-filtered-hans-live-20261029.json",
+        "简繁014候选核真实95标签、旧013默认请求一致；组合API HTTP200空结果，不冒非空或Native通过。",
+        "237 run1147默认目录、1150四组动态标签、1152包含Action与1153排除Action；图像待Root亲审，最终验收未完成。",
+        "237 run1149/1152/1153模式及Action包含排除画面Root亲审；1155重入、1157忽略恢复；1160繁中目录，1172独立搜索仅search域。最终6b4c与简繁v5冻结，恢复进行中。",
+        "237 run1175原包八成员与1125逐字同，1176六JSON同1124及原7f9安装成功，1177清临时文件，1178 SLEEP/120000无override并释租；Koma 6dbb621d24048ca297f0caaa8250e7b0f03e904a CI40820669074进行中。",
+        "/private/tmp/source-1ce-public/delivery.json",
+        "Koma 6dbb621d CI40820669074 success；源1ce628e0c5c6e64898126fea295de0aca5da12ff CI40821026680 success，公开简繁014实体与本地v5不同。"
       ]
     },
     {
@@ -7170,6 +7181,84 @@
       "evidence": [
         "/private/tmp/source-f83-public/delivery.json"
       ]
+    },
+    {
+      "id": "baozimh-session-restoration-20261029",
+      "at": "2026-10-29T12:04:06+08:00",
+      "title": "包子搜索未发出，会话恢复中",
+      "detail": "候选首页触发验证，原包重导入改变身份路径；正在恢复原包路径及公开会话元数据，不读写系统Cookie或伪造grant。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "baozimh-session-restored-20261029",
+      "at": "2026-10-29T12:10:53+08:00",
+      "title": "包子原包及会话已恢复",
+      "detail": "原包、路径、会话及用户数据逐字恢复，设备休眠释租；首页挑战前搜索未发出，源候选推送中。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "baozimh-public-namicomi-filters-20261029",
+      "at": "2026-10-29T12:18:26+08:00",
+      "title": "包子源公开及NamiComi筛选缺口",
+      "detail": "包子精确CI和公开实体已核，搜索Native未验；NamiComi参考筛选未移植，正在核适配与真实接口。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/source-033-public/delivery.json"
+      ]
+    },
+    {
+      "id": "namicomi-filter-host-built-20261029",
+      "at": "2026-10-29T12:34:17+08:00",
+      "title": "NamiComi动态筛选宿主已编译",
+      "detail": "宿主首次构建及源候选真实标签执行已核；最终构建和237源候选导入与验收尚未完成。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "namicomi-hans-tristate-237-20261029",
+      "at": "2026-10-29T12:47:14+08:00",
+      "title": "237 NamiComi简中三态结果已取得",
+      "detail": "动态标签包含与排除产生不同真实目录结果；保存重入、忽略恢复、繁中和设备恢复继续核验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "namicomi-tristate-persistence-237-20261029",
+      "at": "2026-10-29T12:57:17+08:00",
+      "title": "237 NamiComi筛选重入与搜索具名已核",
+      "detail": "简中包含、排除、重入及忽略恢复，繁中目录及独立搜索筛选具名已核；设备恢复及公开交付仍在进行。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "namicomi-237-restored-host-pushed-20261029",
+      "at": "2026-10-29T13:00:55+08:00",
+      "title": "NamiComi设备恢复及宿主提交",
+      "detail": "原包、六份数据和电源已核恢复并释租；宿主提交已推，精确CI进行中，两源正式交付待完成。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "namicomi-public-noyacg-next-20261029",
+      "at": "2026-10-29T13:06:39+08:00",
+      "title": "NamiComi正式交付，NoyAcg候选待验",
+      "detail": "宿主及简繁源精确CI和公开实体已核；公开实体不同于设备候选，不冒再次Native。NoyAcg候选237验证中。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/source-1ce-public/delivery.json"
+      ]
+    },
+    {
+      "id": "koma-host-current-summary-20261029",
+      "at": "2026-10-29T13:07:37+08:00",
+      "title": "更新当前宿主与设备摘要",
+      "detail": "Koma当前提交精确CI成功；197已恢复释租，237正在原宿主下验证NoyAcg候选。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint"
     }
   ],
   "reportAgeAudit": {
