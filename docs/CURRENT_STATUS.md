@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：Root按NextE移植关于页更新与日志查看，source_terra收口源故障；后续目标为正式0.1.4。
+当前工作：关于页迁移已完成，source_terra继续源故障收口；后续目标为正式0.1.4。
 
 设备：197已恢复并释租；237按既有授权执行书源验证并在会话结束后恢复。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-29T21:33:43+08:00",
+  "updatedAt": "2026-10-29T21:43:12+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "ABOUT_PAGE_RELEASE_HISTORY_MIGRATION",
-  "activity": "Root移植关于页更新与日志查看，source_terra收口源故障。",
-  "nextAction": "按NextE实际结构完成关于页迁移并验证；继续处理源故障。",
+  "activity": "关于页具名路径及CI已完成；source_terra继续源故障收口。",
+  "nextAction": "继续具名源故障收口；后续正式0.1.4尚未打版。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1165,7 +1165,8 @@
         "包子get_home旧源错误无challengeRequestId，宿主首页调用未带guard/handle。冻结源014 /private/tmp/baozi-home-cause014.koma；/private/tmp/baozi-home-cause-replay.json：旧Host与公开013错误及请求深等，新feature受控挑战回相同ID、普通403不附ID。原包子WIP补丁逐字恢复；受控执行非自然挑战或站点成功，未发布。",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/baozi-search-home-1104/layout.json：半模态Text包子漫画与完成并重试，底层HTTP403验证提示；无截图，不冒像素/其他语言/挑战成功。",
         "宿主7e18b619已推；237 1616普通首页12部，无自然挑战；1618原包四成员、1619原db31及六JSON恢复一致，1621 SLEEP/120000无override并释租。源be69d618经Root核可信持续授权后正常HTTPS推送，CI/公开实体待核；此前子代理自动审批拒绝历史保留。Simply原API GET403 challenge，验证文档同origin且首方Cookie允许，按完整URL读取为空、自动probe及手动重试仍403；空值不证明站点未签发或根因，不重发。",
-        "源be69d6180a5212d851fb27c5fa24a9f088c18383精确CI40878834593 success；/private/tmp/baozi-be69-public/公开ZIP 88e6c13a60e53df84cf3a0ba55662e2ffa9a8770b5d4591433d1c51921d5c255、WASM 1bc6e846f5c17ab6b3f1ccb3c6ae39a91895286f7fde022cb61ba4271b8b3a2d。get_home/search受控回放旧Host等价、cause精确ID、普通403原错误保持；公开WASM不同候选未另Native，自然挑战未出现。漫画屋首页get_manga_list自然403不受此次get_home直接覆盖；Simply403原因未知。"
+        "源be69d6180a5212d851fb27c5fa24a9f088c18383精确CI40878834593 success；/private/tmp/baozi-be69-public/公开ZIP 88e6c13a60e53df84cf3a0ba55662e2ffa9a8770b5d4591433d1c51921d5c255、WASM 1bc6e846f5c17ab6b3f1ccb3c6ae39a91895286f7fde022cb61ba4271b8b3a2d。get_home/search受控回放旧Host等价、cause精确ID、普通403原错误保持；公开WASM不同候选未另Native，自然挑战未出现。漫画屋首页get_manga_list自然403不受此次get_home直接覆盖；Simply403原因未知。",
+        "Simply验证sheet复用MangaWebView，JavaScript/DOM storage/在线图片开启，主帧与子资源导航不主动阻断；499日志无资源失败或Turnstile错误，但无完整资源成功清单，不能推断全部资源加载。403仍未解决、原因未证，不称纯外部限制。"
       ]
     },
     {
@@ -2973,29 +2974,29 @@
       "id": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
       "title": "東立任意作品章节加载失败、设置提示验证失败",
       "priority": "P1",
-      "kind": "open",
-      "status": "237东立首页已显示，正文限制仍待",
+      "kind": "done",
+      "status": "目录及设置契约修复已交付，地区限制正确映射",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS",
         "MANXIAOSI_SETTINGS_VALIDATION_FAILURE"
       ],
-      "result": "012恢复4章与无设置契约、013地区原因及精确CI已成立。按人类要求自行核对：237官方膽大黨→第1話→直接閱讀，官网明确授权台湾地区，实际先Please Wait后黑页未有正文。官网黑页具体失败不强归3166，原生API3166为独立确证。 用户本轮明确反馈东立空白首页仍未处理；此前官网章节黑页与3166是独立有限结果，不能用于解释或覆盖首页空白。 237已复现home=true但get_home返回空sections，同设备Popular有20本；源侧修正中，尚未回验。 237 tongli-home-fixed-263实见首页Popular六个封面及标题，修复了原空白首页；正文3166及官网黑页边界不变；237已恢复原读态、数据和电源并释租。",
-      "remaining": "首页具名范围已修复；原正文受授权限制及官网黑页边界保持开放。",
+      "result": "东立目录与设置契约已修复、API地区限制已正确映射；首页空白亦已具名修复。",
+      "remaining": "",
       "reportedAt": "2026-10-24T11:59:14.391Z",
       "reportedAtSource": "当前定位的10-22续接窗口内最早明确人类反馈，原始timestamp实值；尚未排除原主档有更早同问题，不冒全历史首次。原始会话JSONL response_item/user实际反馈；已限定唯一原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 1302381904 读取原文，不是登记/处理/取证时间。",
       "firstHandlingAt": "2026-10-24T12:02:09.354493+00:00",
-      "closedAt": null,
+      "closedAt": "2026-10-29T21:38:18+08:00",
       "evidencePoints": [
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/tongli-home-fixed-263/screen.png"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/tongli-home-fixed-263/screen.png",
+        "012目录4章及无设置契约修复，013准确映射官方API3166地区限制，015首页空白237具名修复均已交付；原站授权及黑页证据不作额外设备重测门槛。"
       ],
-      "remainingActions": [
-        "保站点授权限制及官网黑页两个有限结果；当前网络不能完成正文验收，不改账户/地区/网络。其他源与App继续。"
-      ],
+      "remainingActions": [],
       "boundaries": [
         "本次只接受東立认证/目录/无设置契约/准确地区原因；正文未通过，其他作品和授权地区未扩大。",
-        "未更改网络/账户或绕过站点地区限制；197/237原阅读数据保持，私库PARKED_USER不复活。"
+        "未更改网络/账户或绕过站点地区限制；197/237原阅读数据保持，私库PARKED_USER不复活。",
+        "官网明确台湾授权，237同网首话黑页；原因不能强归API 3166，正文未验，不外推其他作品或地区。"
       ],
       "modificationBasis": {
         "object": "東立认证回退、无设置响应及明确3166错误；App既有SourceRuntimeError受控原因映射",
@@ -3015,7 +3016,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 113677,
-      "stage": "首页具名修复，正文范围保持开放"
+      "stage": "实现故障具名范围已交付"
     },
     {
       "id": "PROGRESS_TIMELINE_THEME",
@@ -4189,8 +4190,8 @@
       "title": "按NextE重整关于页并完整移植更新与日志查看",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
-      "status": "NextE结构迁移及197具名验证完成",
-      "stage": "具名范围完成，提交待核",
+      "status": "197具名验证与正式CI成功",
+      "stage": "具名范围及正式CI已交付",
       "owner": "Root：关于页及更新日志移植",
       "dependencies": [],
       "relatedItems": [],
@@ -4207,7 +4208,9 @@
       "closedAt": "2026-10-29T21:33:43+08:00",
       "evidence": [
         "同签0.1.3/code4 release候选HAP d47589…；diagnostics/about197-validation-94与98/99/101：真实GitHub历史、NativeMarkdown、v0.1.2/v0.1.3选择与双向滑动、取消及缓存重入已亲审；about197-external-loaded-99浏览器DOM多处v0.1.2-pre。首次脚本隐形/可见页签bounds不同而停，保失败后按共同区域恢复；浏览器单次Back未回关于页，保101现场并走恢复分支，不冒返回成功。三语言说明及隐私文档同步中，版本未变、未tag发布。",
-        "旧隐私/开源主列表行移除，许可仍包内；197最终原七域byteEqual、原书架、SLEEP/120000/Override10000及租约released，最终ae70同签0.1.3/code4保留，非新发版。diagnostics/about197-validation-94/delivery-findings.json、about-native-live-history.png、about-swipe-newer/older-release.png、about-selected-release-loaded.png及103/104回执。102 context旧d475标签但install argv指ae70，按delivery-findings说明。正式提交与CI待核。"
+        "旧隐私/开源主列表行移除，许可仍包内；197最终原七域byteEqual、原书架、SLEEP/120000/Override10000及租约released，最终ae70同签0.1.3/code4保留，非新发版。diagnostics/about197-validation-94/delivery-findings.json、about-native-live-history.png、about-swipe-newer/older-release.png、about-selected-release-loaded.png及103/104回执。102 context旧d475标签但install argv指ae70，按delivery-findings说明。正式提交与CI待核。",
+        "源码50e5cba93d180f67e348324d302c34e3ee45cedb已推，精确CI待核；未tag或发布新版本。",
+        "50e5cba93d180f67e348324d302c34e3ee45cedb精确CI40883358607 completed/success，unsigned Release HAP成功、tag发布skip；版本未变、未tag发布。宿主首页5f7f精确CI40878436371 success。"
       ]
     }
   ],
@@ -8427,6 +8430,37 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/about197-validation-94/delivery-findings.json"
+      ]
+    },
+    {
+      "id": "tongli-implementation-closure-20261029",
+      "at": "2026-10-29T21:38:18+08:00",
+      "title": "东立实现故障具名范围已交付",
+      "detail": "目录及设置契约、地区限制映射和首页修复已交付；官网授权及正文黑页边界保留。此时间为登记时间。",
+      "itemId": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "about-source-pushed-20261029",
+      "at": "2026-10-29T21:38:18+08:00",
+      "title": "关于页源码已推送",
+      "detail": "关于页源码已推，精确CI待核；未tag或发布新版本。此时间为登记时间。",
+      "itemId": "ABOUT_PAGE_RELEASE_HISTORY_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "50e5cba93d180f67e348324d302c34e3ee45cedb"
+      ]
+    },
+    {
+      "id": "about-ci-success-20261029",
+      "at": "2026-10-29T21:43:12+08:00",
+      "title": "关于页精确CI成功",
+      "detail": "关于页源码精确CI成功，未变版本、未tag或发布；此时间为登记时间。",
+      "itemId": "ABOUT_PAGE_RELEASE_HISTORY_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40883358607"
       ]
     }
   ],
