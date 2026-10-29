@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-29T22:35:47+08:00",
+  "updatedAt": "2026-10-29T23:01:04+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "NEXTE_READER_FEATURE_MIGRATION",
-  "activity": "翻译源具名持久化已核并恢复；source_terra继续源故障收口。",
-  "nextAction": "继续处理实际未解源故障；真实账户网络扩验保留后续范围。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "Simply与漫画屋的403仍待定位，源故障由source_terra负责。",
+  "nextAction": "依据已有证据定位源403，避免重复已拒请求。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1062,9 +1062,9 @@
       "priority": "P1（当前优先：统一搜索逐源CF自动验证；旧Web/搜索范围保留）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "宿主请求关联CI成功，237站点回验继续",
+      "status": "Simply验证后仍403，原因待定位",
       "kind": "open",
-      "result": "App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。 237新会话普通统一搜索斗破苍穹：漫画160真实HTTP403触发验证sheet，随后无用户输入自动返回并显示10条作品；同次包子challenge_required排队，DM5、快看、腾讯、再漫画等已解析ready。007输入参数错误未产生查询或请求，不计验证。003安装最终0cd18 HAP，前后registry/settings JSON完全相等，原斗破01第1页3%保留；当时临时scope source，原local；013已恢复local，目前仍持租。 012单源过滤日志显示包子原请求验证一次、搜索完成并ready 6条；008后无点击、重试或关闭输入，漫画160的10条和包子6条分别自动回流。009零动作日志为空、010全量日志尾部无关，不作缺事件依据；包子Native标题未截图，不称第二标题亲验。 23个相关依赖文件e2946421152596bf766ce8acacb572f3cb21ede5已推master，精确CI40670008826 completed/success，连接器读回head一致；相关回归51通过，XCOMIC detailContext ABI仍为未提交WIP。013已Native确认sourceFilter恢复及返回书架；015手动检查，016尚未完成但确认13个更新。017–018漫画1234公开0.1.4更新成功且Native显示漫画1234网；019–020漫画社公开0.1.9安装成功，设置及正文未验；021–022妙趣0.1.3公开更新成功，registry 0.1.3及Native显示妙趣漫画。升级后对应源包版本允许变化，其他设置与设备仍待总恢复。 本轮237已回原书架、恢复设置及筛选，最终SLEEP/正常120000无override并释租；原404、取消防重复及未命中窗口标题等仍独立未验。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选完成并重试后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动点击完成并重试后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 宿主验证请求关联及原UA传递6d6ae7a已推，精确CI进行中；Simply仍403，get_home因果ID尚未接通，不称验证完成。 宿主验证请求关联及原UA传递6d6ae7a精确CI40779011098成功；Simply及get_home原未验边界保留。 6d6ae7a精确CI40779011098 completed/success。 Zero公开017游客锁章拒绝及本站登录入口具名已核，登录态正文未验；原源、数据和电源已恢复，reader自然新增第二章记录。 本轮手动全页包子官网标题由站点覆盖，仅为全页观察，不是自动验证sheet标题证据；sheet标题仍未验。 本轮197手动网页观察后，原源包、七域及电源已恢复并释租；不改变自动验证sheet标题未验边界。 包子首页验证请求关联已形成受控源候选，宿主接线修正中；自然挑战未验。 既有包子自然首页挑战布局含中文源名及完成重试节点；无截图，不外推其他语言或挑战成功。 包子首页宿主关联修复已推；237普通首页12部，自然挑战未出现，设备已恢复。 包子0.1.14公开实体与受控回放已核，自然挑战未出现；漫画屋首页及Simply原边界保持开放。",
+      "result": "Simply验证后仍403，原因尚未定位；本轮诊断未发请求，原设备状态已恢复。",
       "remaining": "Simply验证后仍403的原因待定位。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
@@ -1090,7 +1090,9 @@
         "SOURCE_SETTINGS_DIRECT_ENTRY"
       ],
       "evidencePoints": [
-        "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap"
+        "直接产物索引：https://baozimh.org；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json。该结果只限制本次脚本取得；.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/mh160-runtime197-atomic-session-423/；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/ordinary-mh160-compatibility-candidate.patch；web-observed.png；.hvigor/outputs/user-flow-audit/mh160-web-entry-chain-review/public-script-receipt.json；mh160-web-entry-chain-review/temporary-runtime-probe.patch；temporary-probe-basis.json；413/web-observed.png；result.json；koma-log-20261026-120547.log；598/returned-original-detail.json；result.json/runtime-lines.txt；mh160-runtime197-atomic-session-430/result.json；runtime-lines.txt；mh160-web-entry-chain-review/public-detail-script-receipt.json；mh160-runtime197-atomic-session-437/runtime-lines.txt；Koma-mh160-ordinary-compatibility-candidate-signed.hap；mh160-web-entry-chain-review/ua-authorization-original-message-review.json；mh160-runtime197-atomic-session-444/result.json/runtime-lines.txt；formal-5908-ci.json；mh160-search197-atomic-session-451/result.json/search-runtime-lines.txt；search-observed.png；mh160-web-entry-chain-review/mihon-current-*.kt；global-search-web-build.log；global-search-web-owner-tests.txt；global-search-web197-atomic-session-458/result.json；atomic-session-467/result.json/search-runtime-lines.txt；global-search-web197-atomic-session-476/result.json；global-search-formal-ci-detail.json；global-search-web197-formal-delivery-485/result.json；formal-library.png；228/search-baseline-wasm.json；search-current-http.json；Mh160.kt；mh160-web-entry-chain-review/http-facts-basis.json；temporary-http-facts.patch；http-facts-build.log；mh160-search-return197-atomic-session-599/result.json；after-manual.png；search-landing-fix-build.log；search-landing-fix197-session-606/result.json；ordinary-result.png；restored-library.png；mh160-web-entry-chain-review/search-landing-fix-ci-detail.json；koma-sources/sources/goda/metadata.json；manifest.json/source.wasm/icon.png；source-b406995-public-review.json；Koma-source-known-actions-final-signed.hap",
+        "原历史result归档（本次更新当前结论前保留）：App12204da8edfb707bf3e53710e3daf279f8556c4d八文件Host/Worker/ABI/检查已push且精确CI40458243006 completed/success。197989安装同签18910496 Release/debugfalse/0.1.3/code4，987中性awake86400000/988→990七文件逐字同；default-result无errors，默认Browse鬼灭之刃/炎炎之消防队/高木同学简体12卡9图及detail标题简介235章亲审；traditional-result无errors，true普通Browse鬼滅之刃/消防隊/同學繁体12卡9图亲审，随后仅清本次Bz设置回原书架。991日志四实际HTTP session cookieState=present/200含default metadata/detail/chapters及trueBrowse；无Reader入场。992系统120000无Override/c14761b7释租，mangabz-worker197-restoration-comparison.json及worker-identity/identity.json具据。 浏览页、源内搜索与统一搜索的网页验证共用prepareSourceWebSession；该入口已按sourceId解析安装包当前语言名称，解析不可用回退原传入名，URL与验证状态流程保持。App5748d0a83c0b37653f5c20f097f6ece4c479cf29已提交推送，现有验证/session执行检查及Release HAP构建通过，精确CI40486939289 completed/success；真实验证窗口Native仍未验证，不写名称窗口已验收。 237新会话普通统一搜索斗破苍穹：漫画160真实HTTP403触发验证sheet，随后无用户输入自动返回并显示10条作品；同次包子challenge_required排队，DM5、快看、腾讯、再漫画等已解析ready。007输入参数错误未产生查询或请求，不计验证。003安装最终0cd18 HAP，前后registry/settings JSON完全相等，原斗破01第1页3%保留；当时临时scope source，原local；013已恢复local，目前仍持租。 012单源过滤日志显示包子原请求验证一次、搜索完成并ready 6条；008后无点击、重试或关闭输入，漫画160的10条和包子6条分别自动回流。009零动作日志为空、010全量日志尾部无关，不作缺事件依据；包子Native标题未截图，不称第二标题亲验。 23个相关依赖文件e2946421152596bf766ce8acacb572f3cb21ede5已推master，精确CI40670008826 completed/success，连接器读回head一致；相关回归51通过，XCOMIC detailContext ABI仍为未提交WIP。013已Native确认sourceFilter恢复及返回书架；015手动检查，016尚未完成但确认13个更新。017–018漫画1234公开0.1.4更新成功且Native显示漫画1234网；019–020漫画社公开0.1.9安装成功，设置及正文未验；021–022妙趣0.1.3公开更新成功，registry 0.1.3及Native显示妙趣漫画。升级后对应源包版本允许变化，其他设置与设备仍待总恢复。 本轮237已回原书架、恢复设置及筛选，最终SLEEP/正常120000无override并释租；原404、取消防重复及未命中窗口标题等仍独立未验。 Simply Hentai旧日志显示challenge信号被源降为http_error；012候选在旧Host仍403。Host普通目录和首搜索缺guard及requestHandle接线，三文件候选正构建并待237回验；默认403保持，API origin限定api.simply-hentai.com，不假定www共享会话。 Simply第一轮联合候选完成并重试后原请求仍403，无自动循环；原包、四份用户数据及会话记录已恢复，临时文件清除，237电源恢复并释租。发现原请求与验证页UA不一致，最小修正及单次回验中，403原因尚未确定。 Simply UA一致性候选在237手动点击完成并重试后仍403；日志显示UA不一致及Cookie读取为空，不认定根因。原宿主、原011包、五份数据及会话恢复，临时文件清除，设备休眠释租。 宿主验证请求关联及原UA传递6d6ae7a已推，精确CI进行中；Simply仍403，get_home因果ID尚未接通，不称验证完成。 宿主验证请求关联及原UA传递6d6ae7a精确CI40779011098成功；Simply及get_home原未验边界保留。 6d6ae7a精确CI40779011098 completed/success。 Zero公开017游客锁章拒绝及本站登录入口具名已核，登录态正文未验；原源、数据和电源已恢复，reader自然新增第二章记录。 本轮手动全页包子官网标题由站点覆盖，仅为全页观察，不是自动验证sheet标题证据；sheet标题仍未验。 本轮197手动网页观察后，原源包、七域及电源已恢复并释租；不改变自动验证sheet标题未验边界。 包子首页验证请求关联已形成受控源候选，宿主接线修正中；自然挑战未验。 既有包子自然首页挑战布局含中文源名及完成重试节点；无截图，不外推其他语言或挑战成功。 包子首页宿主关联修复已推；237普通首页12部，自然挑战未出现，设备已恢复。 包子0.1.14公开实体与受控回放已核，自然挑战未出现；漫画屋首页及Simply原边界保持开放。",
+        "本轮1633滚动被自动审批拒绝，因1632可能仍运行、存在并行重复风险；未重试、未发Simply GET，无新header或网络证据。1635原包四成员等1624；1636原db31及六JSON等1622；1637临时文件清理；1638 SLEEP/120000无override，租约22:59:06 released；两产品文件临时patch reverse、无diff。"
       ],
       "remainingActions": [
         "定位Simply验证后仍403的原因。"
@@ -1144,7 +1146,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "237会话已恢复，其他挑战边界待验",
+      "stage": "源故障定位中",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -8501,6 +8503,17 @@
         "translation-completion/translation-source-state197-21/temporary-api-saved-reentered.png",
         "translation-completion/translation-source-state197-21/temporary-codex-saved-reentered.png",
         "https://github.com/honjow/koma-sources/actions/runs/40872000708"
+      ]
+    },
+    {
+      "id": "simply-diagnostic-restored-20261029",
+      "at": "2026-10-29T23:01:04+08:00",
+      "title": "Simply诊断中止并恢复设备",
+      "detail": "本轮未发Simply请求，无新网络证据；原包、数据、电源及租约恢复，403仍未解决。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/"
       ]
     }
   ],
