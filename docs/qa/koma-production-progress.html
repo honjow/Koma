@@ -25,6 +25,7 @@ try{const theme=localStorage.getItem('koma-progress-theme');if(['light','dark'].
 <script>
 const content=document.querySelector('#content'),connection=document.querySelector('#connection');
 let data=null,lastKey='',lastSuccess=null,inFlight=false,queueFilter='open',timelineOpen=false,timelineScroll=0;
+const expandedRecords=new Set();
 const themeControl=document.querySelector('#theme');
 try{themeControl.value=localStorage.getItem('koma-progress-theme')||'auto'}catch(_){}
 if(!['auto','light','dark'].includes(themeControl.value))themeControl.value='auto';
@@ -36,9 +37,10 @@ const badge=(text,kind)=>el('span',text,'badge '+(kind||'open'));
 function panel(title){const n=el('section',null,'panel');n.append(el('h2',title));return n}
 function section(parent,label,lines,muted=false){
  if(!lines?.length)return;
- const heading=el('p',null,muted?'muted':'');heading.append(el('strong',label));parent.append(heading);
+ if(label){const heading=el('p',null,muted?'muted':'');heading.append(el('strong',label));parent.append(heading)}
  const list=el('ul',null,muted?'small muted':'small');for(const line of lines)list.append(el('li',line));parent.append(list);
 }
+function rememberDetails(details,key){details.open=expandedRecords.has(key);details.addEventListener('toggle',()=>{if(details.open)expandedRecords.add(key);else expandedRecords.delete(key)})}
 function queueGroup(g){return g.status.includes('PARKED_USER')?'parked':(g.kind==='accepted'||g.kind==='done')?'accepted':'open'}
 function workTimeline(d){
  const records=[...(d.timeline||[]),...(d.milestones||[]).map(m=>({at:m.at,title:'早期检查点',detail:m.text,kind:'checkpoint'}))]
@@ -56,39 +58,46 @@ function workTimeline(d){
  wrapper.append(body);wrapper.addEventListener('toggle',()=>{timelineOpen=wrapper.open});return wrapper;
 }
 function render(d){
- const f=document.createDocumentFragment(),hero=el('section');hero.append(badge('首个生产版本 · '+d.state),el('h1',d.title),el('p',d.outcome,'muted'),el('p','实质更新：'+date(d.updatedAt)+' · '+d.target,'small muted'));const stale=el('p',null);stale.id='stale';hero.append(stale);f.append(hero);
- const activity=typeof d.activity==='string'?{title:d.activity,detail:'',startedAt:null}:d.activity;const active=panel('当前在做什么');active.classList.add('active');active.append(el('h3',activity.title),el('p',activity.detail,'muted'),el('p','当前事项：'+d.activeId+' · 本次动作开始：'+date(activity.startedAt),'small muted'),el('p','下一项未完成动作：'+d.nextAction,'next'),workTimeline(d));f.append(active);
- const proofPanel=panel('当前候选：证据到哪一层'),proofs=el('div',null,'proofs');for(const p of d.proof){const n=el('div',null,'proof');n.append(el('strong',p.label),badge(p.state,p.kind),el('p',p.detail));proofs.append(n)}proofPanel.append(proofs);const details=el('details');details.append(el('summary','查看当前版本与工作范围'),el('p','Koma 工作树：'+d.hosts[0].checkout),el('code','App 基底 '+d.hosts[0].appHead),el('p','最近安装 HAP：'),el('code',d.hosts[0].hap),el('p','当前 Kit：'+(d.liveKitHeads?.Koma||'读取失败')),el('p',d.scope));proofPanel.append(details);f.append(proofPanel);
- const grid=el('div',null,'grid'),queue=panel('有限队列：已获得的能力与剩余边界');queue.append(el('p','按实际能力记录；不以测试数量或提交数量计算完成比例。','small muted'));
+ const f=document.createDocumentFragment(),hero=el('section');hero.append(badge('当前工作进度 · '+d.state),el('h1',d.title),el('p',d.outcome,'muted'),el('p','共 '+d.items.length+' 项 · '+d.items.filter(g=>queueGroup(g)==='open').length+' 项未完成','small muted'),el('p','最近更新：'+date(d.updatedAt),'small muted'));const stale=el('p',null);stale.id='stale';hero.append(stale);f.append(hero);
+ const activity=typeof d.activity==='string'?{title:d.activity,detail:'',startedAt:null}:d.activity;const active=panel('当前在做什么');active.classList.add('active');active.append(el('h3',activity.title),el('p',activity.detail,'muted'),el('p','下一项未完成动作：'+d.nextAction,'next'),workTimeline(d));f.append(active);
+ const proofPanel=panel('当前进展'),proofs=el('div',null,'proofs');for(const p of d.proof){const n=el('div',null,'proof');n.append(el('strong',p.label),badge(p.state,p.kind));if((p.detail||'').length>240){const detail=el('details');rememberDetails(detail,'proof:'+p.label);detail.append(el('summary','查看详情'),el('p',p.detail));n.append(detail)}else n.append(el('p',p.detail));proofs.append(n)}proofPanel.append(proofs);const versionDetails=el('details');rememberDetails(versionDetails,'version-scope');versionDetails.append(el('summary','查看当前版本与工作范围'),el('p','Koma 工作树：'+d.hosts[0].checkout),el('code','App 基底 '+d.hosts[0].appHead),el('p','最近安装 HAP：'),el('code',d.hosts[0].hap),el('p','当前 Kit：'+(d.liveKitHeads?.Koma||'读取失败')),el('p',d.scope));proofPanel.append(versionDetails);f.append(proofPanel);
+ const grid=el('div',null,'grid'),queue=panel('工作事项');queue.append(el('p','按实际能力记录；不以测试数量或提交数量计算完成比例。','small muted'));
  const filters=el('div',null,'evidence');filters.setAttribute('aria-label','事项范围');
  for(const [key,label] of [['open','未完成'],['accepted','已验收 / 冻结'],['parked','用户搁置'],['all','全部']]){
   const count=key==='all'?d.items.length:d.items.filter(g=>queueGroup(g)===key).length;
   const button=el('button',label+' · '+count,'badge '+(queueFilter===key?'accepted':'pending'));button.type='button';button.setAttribute('aria-pressed',String(queueFilter===key));
   button.onclick=()=>{queueFilter=key;render(data)};filters.append(button);
  }
- queue.append(filters,el('p','默认展示未完成事项；已验收范围和用户搁置项分别保留，切换上方范围查看。','small muted'));
- for(const g of d.items.filter(g=>queueFilter==='all'||queueGroup(g)===queueFilter)){
+ queue.append(filters,el('p','按提出时间从新到旧排列；时间未核实的排在最后。','small muted'));
+ const shown=d.items.filter(g=>queueFilter==='all'||queueGroup(g)===queueFilter);
+ const stamp=g=>{const v=Date.parse(g.reopenedAt||g.reportedAt||g.firstEvidenceAt||'');return Number.isFinite(v)?v:0};
+ shown.sort((a,b)=>stamp(b)-stamp(a));
+ for(const g of shown){
   const n=el('article',null,'item');n.id=g.id;
-  const row=el('div',null,'row');row.append(el('h3',g.title),badge(g.status,g.kind));n.append(row,el('p',g.id,'small muted'));
-  if(g.priority||g.owner)n.append(el('p','优先级：'+(g.priority||'未记录')+' · 负责人：'+(g.owner||'未记录'),'small muted'));
-  if(g.dependencies?.length)n.append(el('p','前置依赖：'+g.dependencies.join('、'),'small muted'));
-  const conclusion=el('p');conclusion.append(el('strong','当前结论：'),document.createTextNode(g.result));n.append(conclusion);
-  section(n,'关键证据',g.evidencePoints||[]);
-  section(n,queueGroup(g)==='accepted'?'冻结范围 / 后续条件':queueGroup(g)==='parked'?'恢复条件':'未完成动作',g.remainingActions||[g.remaining]);
-  section(n,'验收边界与禁止项',g.boundaries||[],true);
-  if(g.relatedItems?.length)n.append(el('p','关联事项：'+g.relatedItems.join('、'),'small muted'));
+  const stage=queueGroup(g)==='parked'?'已搁置':queueGroup(g)==='accepted'?'已验收':g.stage||'待处理';
+  const row=el('div',null,'row');row.append(el('h3',g.title),badge(stage,queueGroup(g)));n.append(row);
   const t=el('div',null,'timing');
-  t.append(el('div','提出：'+(g.reportedAt?date(g.reportedAt):'原始时间未核实')+' · 开始处理：'+(g.firstHandlingAt?date(g.firstHandlingAt):'未知（此前未分段记录）')));
+  t.append(el('div','提出：'+(g.reportedAt?date(g.reportedAt):'原始时间未核实')));
   if(g.reopenedAt)t.append(el('div','新反例重开：'+date(g.reopenedAt)));
   const elapsed=el('div');elapsed.dataset.elapsed=g.id;t.append(elapsed);
-  if(g.handling){const effort=el('div');effort.dataset.effort=g.id;t.append(effort)}else t.append(el('div','实际处理工时：未知（此前未分段记录）'));
-  const provenance=el('details');provenance.append(el('summary','时间来源与最早存证'),el('p',g.reportedAtSource||'原始提出时间未核实'),el('p','最早可核实记录：'+date(g.firstEvidenceAt)));if(g.firstHandlingAtSource)provenance.append(el('p',g.firstHandlingAtSource));if(g.handling?.note)provenance.append(el('p',g.handling.note));t.append(provenance);n.append(t);queue.append(n);
+  n.append(t);
+  section(n,queueGroup(g)==='accepted'?'当前状态':'还差什么',g.remainingActions||[g.remaining]);
+  const evidence=el('details');rememberDetails(evidence,'item:'+g.id);evidence.append(el('summary','依据与边界'),el('p','事项编号：'+g.id));
+  if(g.priority||g.owner)evidence.append(el('p','优先级：'+(g.priority||'未记录')+' · 负责人：'+(g.owner||'未记录')));
+  if(g.result)evidence.append(el('p','当前结论：'+g.result));
+  section(evidence,'关键证据',[...(g.evidencePoints||[]),...(g.evidence||[])]);
+  const provenance=el('details');rememberDetails(provenance,'time:'+g.id);provenance.append(el('summary','时间来源与最早存证'),el('p',g.reportedAtSource||'原始提出时间未核实'),el('p','最早可核实记录：'+date(g.firstEvidenceAt)));if(g.firstHandlingAtSource)provenance.append(el('p',g.firstHandlingAtSource));if(g.handling?.note)provenance.append(el('p',g.handling.note));evidence.append(provenance);
+  section(evidence,'验收边界与禁止项',g.boundaries||[],true);
+  if(g.relatedItems?.length)evidence.append(el('p','关联事项：'+g.relatedItems.join('、')));
+  if(g.handling?.note)evidence.append(el('p',g.handling.note));
+  n.append(evidence);queue.append(n);
  }
  grid.append(queue);
- const side=el('div'),source=panel('阅读源：独立并行轨');source.append(badge(d.source.status,d.source.kind),el('h3',d.source.title),el('p',d.source.result),el('p','尚未覆盖：'+d.source.remaining,'small muted'),el('code','源提交 '+d.source.commit));side.append(source);const release=panel('到生产发布还差什么');const list=el('ul');for(const s of d.releaseGates)list.append(el('li',s));release.append(list,el('p',d.stopRule,'small muted'));side.append(release);grid.append(side);f.append(grid);
- const evidence=panel('可查看的原生证据'),links=el('div',null,'evidence');for(const e of d.evidence){const a=el('a',e.label);a.href='/evidence?id='+encodeURIComponent(e.id);a.target='_blank';a.rel='noopener';links.append(a)}evidence.append(links,el('p',d.evidenceNote,'small muted'));f.append(evidence);const limits=panel('投入与范围');limits.append(el('p',d.excluded),el('p','经过时间与实际工时分开。原始提出时间无法核实的项显示最早存证；不会把等待、构建或整段会话时长伪装成处理工时。','small muted'));f.append(limits);content.replaceChildren(f);const timelineBody=document.querySelector('.timeline-body');if(timelineBody)timelineBody.scrollTop=timelineScroll;tick();
+ const side=el('div'),source=panel('书源进展');source.append(badge(d.source.status,d.source.kind),el('h3',d.source.title),el('p',d.source.result),el('p','尚未覆盖：'+d.source.remaining,'small muted'));side.append(source);const release=panel('仍需完成');const list=el('ul');for(const s of d.releaseGates)list.append(el('li',s));release.append(list,el('p',d.stopRule,'small muted'));side.append(release);grid.append(side);f.append(grid);
+ const evidencePanel=panel('可查看的原生证据'),evidenceDetails=el('details'),links=el('div',null,'evidence');rememberDetails(evidenceDetails,'evidence-links');for(const entry of d.evidence||[]){const a=el('a',entry.label);a.href='/evidence?id='+encodeURIComponent(entry.id);a.target='_blank';a.rel='noopener';links.append(a)}evidenceDetails.append(el('summary','查看证据链接'),links,el('p',d.evidenceNote,'small muted'));evidencePanel.append(evidenceDetails);f.append(evidencePanel);
+ content.replaceChildren(f);const timelineBody=document.querySelector('.timeline-body');if(timelineBody)timelineBody.scrollTop=timelineScroll;tick();
 }
-function tick(){if(!data)return;const age=Math.max(0,Math.floor((Date.now()-Date.parse(data.updatedAt))/60000)),stale=document.querySelector('#stale');if(stale){stale.style.display=age>=15?'block':'none';stale.textContent='已 '+age+' 分钟没有实质进度更新。以上是最后一次记录，不能据此认定工作仍在执行。'}for(const g of data.items){const n=document.querySelector('[data-elapsed="'+g.id+'"]'),start=g.reportedAt||g.firstEvidenceAt,end=g.closedAt||new Date().toISOString();if(n)n.textContent=(g.reportedAt?'提出后经过：':'最早记录后经过：')+(start?duration((Date.parse(end)-Date.parse(start))/1000):'未核实')+(g.closedAt?' · 此命名路径已收口':queueGroup(g)==='accepted'?' · 具名范围冻结（未录关闭时间）':queueGroup(g)==='parked'?' · 用户搁置，不自动恢复':' · 剩余边界仍开放');if(g.handling){const n=document.querySelector('[data-effort="'+g.id+'"]'),h=g.handling,until=h.activeUntil?Date.parse(h.activeUntil):0,active=h.activeSince?Math.max(0,(Math.min(Date.now(),until)-Date.parse(h.activeSince))/1000):0;if(n)n.textContent=Number.isFinite(h.recordedSeconds)?(h.measurement||'本次记录处理')+'：'+duration(h.recordedSeconds+active)+(h.activeSince?(Date.now()>until?' · 记录已到期，等待更新':' · 此前工时未知'):' · 分段记录已结束，早期工时未知'):'实际处理工时：未知（此前未分段记录）'}}}
+function tick(){if(!data)return;const age=Math.max(0,Math.floor((Date.now()-Date.parse(data.updatedAt))/60000)),stale=document.querySelector('#stale');if(stale){stale.style.display=age>=15?'block':'none';stale.textContent='已 '+age+' 分钟没有实质进度更新。以上是最后一次记录，不能据此认定工作仍在执行。'}for(const g of data.items){const group=queueGroup(g),closed=group==='accepted'&&g.closedAt;const n=document.querySelector('[data-elapsed="'+g.id+'"]'),start=g.reportedAt||g.firstEvidenceAt,end=closed?g.closedAt:new Date().toISOString();if(n)n.textContent=(g.reportedAt?'提出后经过：':'最早记录后经过：')+(start?duration((Date.parse(end)-Date.parse(start))/1000):'未核实')+(closed?' · 这项已完成':group==='accepted'?' · 已完成（未记录完成时间）':group==='parked'?' · 用户搁置，不自动恢复':' · 尚未完成');if(g.handling){const n=document.querySelector('[data-effort="'+g.id+'"]'),h=g.handling,until=h.activeUntil?Date.parse(h.activeUntil):0,active=h.activeSince?Math.max(0,(Math.min(Date.now(),until)-Date.parse(h.activeSince))/1000):0;if(n)n.textContent=Number.isFinite(h.recordedSeconds)?(h.measurement||'本次记录处理')+'：'+duration(h.recordedSeconds+active)+(h.activeSince?(Date.now()>until?' · 记录已到期，等待更新':' · 此前工时未知'):' · 分段记录已结束，早期工时未知'):'实际处理工时：未知（此前未分段记录）'}}}
 async function refresh(){if(inFlight)return;inFlight=true;try{const r=await fetch('/api/progress',{cache:'no-store',signal:AbortSignal.timeout(6000)});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(d.schemaVersion!==1||!Array.isArray(d.items))throw Error('工作单格式不完整');lastSuccess=Date.now();const key=JSON.stringify({...d,servedAt:null});data=d;if(key!==lastKey){render(d);lastKey=key}connection.replaceChildren(el('span',null,'dot'),el('span','已连接 · '+date(new Date(lastSuccess).toISOString())))}catch(e){connection.textContent='读取失败 · '+e.message+(lastSuccess?' · 保留上次记录':'');}finally{inFlight=false}}
 refresh();setInterval(refresh,3000);setInterval(tick,1000);
 </script>
