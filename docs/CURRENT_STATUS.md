@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T07:38:41+08:00",
+  "updatedAt": "2026-10-30T07:45:41+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "XCOMIC去重公开交付已核，继续处理具体源设置差异。",
-  "nextAction": "核对自定义标题规则、包子及漫小肆等剩余差异。",
+  "activity": "漫小肆备域候选已备待决定，其他具体设置合同差异继续核对。",
+  "nextAction": "待漫小肆候选决定并闭合已列具体设置差异。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3191,16 +3191,16 @@
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "具名修复已交付，整体核验后置",
+      "status": "85源名称覆盖已盘点，8项官方依据仍缺",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY"
       ],
-      "result": "已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网；该后缀差异已于0.1.4修正，现源码及metadata与官网名称对应。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。 搜索抓取的原神官方漫画页面含品牌及具体章节列表，支持现名称与漫画栏目；直接打开为动态空壳，不冒当前正文或图标验收。 漫画柜同域搜索缓存使用“看漫画”，当前源名漫画柜；直接访问受限，正式名与别名关系及图标未核。爱看漫官方地址不可达，第三方名称仅线索；雀魂、战双、王者及阴阳师栏目全称与图标仍缺可核官方证据，不改名。 本轮官网浏览支持雀魂品牌与漫画栏目、王者品牌与漫画栏目；现源名为描述性名称，非官网全称逐字相同。战双页面仅标题可核，阴阳师站点安全策略拦截未绕过；图标和其他未知范围不外推。 本轮官网核对支持MYCOMIC、HANMAN18、泰拉、DB Multiverse、繁中WEBTOON及多站英文品牌的现有对应；单部作品名不扩为全站名，未据英文页面断言无中文别名。部分站点访问失败或超时，保未知。 官网具名证据补充H-Comic、NHentai.xxx及XCOMIC现有品牌；NHentai.to未访问，MangaDex网页安全策略拦截未绕过，不从英文页面推断全站无中文别名。 pixiv官方简体帮助页与当前pixiv名称对应，未改名或图标。 本轮具名名称复核支持部分现名；GoDa官网页头直接使用GoDa漫畫，支持现名；同页另有并存称法。",
-      "remaining": "继续核对未覆盖站点的官方名称和图标，保访问失败及品牌范围边界。",
+      "result": "85源名称证据已逐项盘点；70项有品牌或栏目依据，7项仅英文参考，8项官方中文名称或对应关系仍未知。",
+      "remaining": "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。",
       "remainingActions": [
-        "继续核对85源官方中文名与官网展示一致性。"
+        "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
@@ -3215,10 +3215,12 @@
         "漫画1234名称修正 eb347401 已于0.1.4发布；现源码、metadata及README均对应漫画1234网，既有已接受图标保持。",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/pixiv-help-20261029.json：官方简体帮助页title为pixiv帮助，正文使用pixiv；pixiv漫画另指comic.pixiv.net，不作为当前www.pixiv.net源名称。",
         "九源名称证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/nine-source-followup-20261030.json：protectors官方论坛/四格既有原页、再漫画官网标题、Zero上月缓存标题、創漫官网自称及隆少年支持现名；再漫画正文0行、Zero非新鲜直连。創漫此前已有406，本次误重试如实保留。GoDa原页title G站漫畫、description GaDa漫畫，现GoDa漫画有字面差异且官网自称不一，暂保留现名，正式中文名仍待可靠依据。包子既有403未重试，东立本次403、soc cache miss、LoL timeout停止；图标无新验收。",
-        "GoDa名称疑点具名解决：.hvigor/outputs/user-flow-audit/source-settings-repair/goda-identity/koma-goda-home.html 页头主页链接、Logo.png旁直接显示GoDa漫畫，支持当前简繁名；同页og:site_name G站漫畫、description GaDa漫畫为并存称法。图标来源见 /Users/honjow/git/koma-sources/sources/goda/ASSET_SOURCES.md，本轮不改或重验图标。"
+        "GoDa名称疑点具名解决：.hvigor/outputs/user-flow-audit/source-settings-repair/goda-identity/koma-goda-home.html 页头主页链接、Logo.png旁直接显示GoDa漫畫，支持当前简繁名；同页og:site_name G站漫畫、description GaDa漫畫为并存称法。图标来源见 /Users/honjow/git/koma-sources/sources/goda/ASSET_SOURCES.md，本轮不改或重验图标。",
+        "原85矩阵各行officialNameCoverage20261030：正式注册源逐一对应，webtoons_zh_hant别名映射、example不计。70有品牌/明确栏目依据；7仅固定949英文参考品牌（3Hentai、AsmHentai、MangaBall、MangaDex三语言、NHentai.to），不能推无中文别名；8缺官网中文名/对应：包子403、阴阳师安全拦截、爱看漫不可达、漫画柜缓存看漫画关系未知、LoL超时、铃兰TapTap cache miss、东立403、杂志迷官网我是Zazhimi而中文名依据不足。优酷既有name-web-g6.txt官方title支持；无新访问/改产品或新确定错名。92/1234官网logo与源不同、妙趣404、嗨皮/叭嗒图标未核，不称85图标完成。"
       ],
       "evidencePoints": [
-        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json"
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
+        "更新当前结果前原result逐字保留：已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网；该后缀差异已于0.1.4修正，现源码及metadata与官网名称对应。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。 搜索抓取的原神官方漫画页面含品牌及具体章节列表，支持现名称与漫画栏目；直接打开为动态空壳，不冒当前正文或图标验收。 漫画柜同域搜索缓存使用“看漫画”，当前源名漫画柜；直接访问受限，正式名与别名关系及图标未核。爱看漫官方地址不可达，第三方名称仅线索；雀魂、战双、王者及阴阳师栏目全称与图标仍缺可核官方证据，不改名。 本轮官网浏览支持雀魂品牌与漫画栏目、王者品牌与漫画栏目；现源名为描述性名称，非官网全称逐字相同。战双页面仅标题可核，阴阳师站点安全策略拦截未绕过；图标和其他未知范围不外推。 本轮官网核对支持MYCOMIC、HANMAN18、泰拉、DB Multiverse、繁中WEBTOON及多站英文品牌的现有对应；单部作品名不扩为全站名，未据英文页面断言无中文别名。部分站点访问失败或超时，保未知。 官网具名证据补充H-Comic、NHentai.xxx及XCOMIC现有品牌；NHentai.to未访问，MangaDex网页安全策略拦截未绕过，不从英文页面推断全站无中文别名。 pixiv官方简体帮助页与当前pixiv名称对应，未改名或图标。 本轮具名名称复核支持部分现名；GoDa官网页头直接使用GoDa漫畫，支持现名；同页另有并存称法。"
       ]
     },
     {
@@ -3236,13 +3238,12 @@
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
       "result": "XCOMIC去重及分组已交付，公开包身份和设置ABI已核；其他源设置差异继续处理。",
-      "remaining": "继续处理XCOMIC自定义正则、包子及漫小肆等具体差异。",
+      "remaining": "核清包子章节身份与横幅处理兼容、XCOMIC Java正则合同及漫小肆备域图片边界。",
       "remainingActions": [
-        "继续逐源对照参考设置、默认值及实际消费者。",
+        "闭合已列具名设置差异。",
         "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。",
         "核对并实现XCOMIC简繁自定义标题删除规则，保默认标题行为。",
-        "MangaDex公开实体已核；真实不可用目标行暂无样本、Native未验。",
-        "核对包子章节排序与横幅偏好及既有身份/图片处理边界。",
+        "核对包子章节身份修复（参考CHAPTER_ORDER）及横幅处理，保既有进度与图片边界。",
         "核对漫小肆镜像站点身份及有效性。"
       ],
       "boundaries": [
@@ -3475,7 +3476,11 @@
         "简0.1.10/繁0.1.11去重候选复用原完整单根query，本地构建、受控WASM+实际Host合并通过，不重发Mac 403试验。237 lease aa28f67b，1839原六域及简中四成员基线/AWAKE86400000，1840正常c274安装、1841本地导入选择器；仅核简中默认去重请求链，不重复分组或跨语言、不点章。Native未完成、未提交推送。",
         "简0.1.10/繁0.1.11受控生产WASM+实际Host保留行合并核202→2/200排除、SOURCE_INCLUDE并集、关闭恢复、旧章/页与分页失败原子性。237简中冻结665157…/WASM1cc57…，1845/1847 BERSERK 13/13，1848 get_chapters op235完成4705ms、窗口9个HTTP200；日志无请求body，不能直接证明full字段，未自然命中重复，不称实机隐藏通过，繁中Native未验。1850原4成员、1851六JSON同1839及db31安装成功；1852清候选/下载、SLEEP120000无override，lease aa28f67b 07:26:39 released/status读回。证据 source-settings-repair/xcomic-dedup-wasm-native-20261030.json 与 xcomic-dedup-wasm-host-exec-20261030.mjs。提交公开待审。",
         "XCOMIC去重f306a8fe586c56475acb5954b9daf7d08cc3ab39已推source master，精确CI40974179677 in_progress；公开尚未核。已交付MD三语言includeUnavailable和XCOMIC简繁分组对应矩阵当前状态已校正，旧审计文字保为历史。",
-        "f306a8fe586c56475acb5954b9daf7d08cc3ab39精确CI40974179677 completed/success，job123798016729含原子发布成功；release428500991非draft、target同SHA。公开XCOMIC简0.1.10/繁0.1.11及index已核摘要、大小、manifest/ABI版本及路径；公开WASM get_settings DEDUP默认简true/繁false、旧Host不显示且零HTTP，GROUP false。证据 source-settings-repair/xcomic-dedup-published-f306a8f/{release-ci-metadata,entity-check,abi-results}.json及abi-execution.mjs；既有候选Native范围冻结，不冒自然重复隐藏或繁中Native通过。"
+        "f306a8fe586c56475acb5954b9daf7d08cc3ab39精确CI40974179677 completed/success，job123798016729含原子发布成功；release428500991非draft、target同SHA。公开XCOMIC简0.1.10/繁0.1.11及index已核摘要、大小、manifest/ABI版本及路径；公开WASM get_settings DEDUP默认简true/繁false、旧Host不显示且零HTTP，GROUP false。证据 source-settings-repair/xcomic-dedup-published-f306a8f/{release-ci-metadata,entity-check,abi-results}.json及abi-execution.mjs；既有候选Native范围冻结，不冒自然重复隐藏或繁中Native通过。",
+        "包子参考CHAPTER_ORDER通过标题追加URL改变章身份，现Host按ID合并，原样迁移影响旧进度，兼容方案待核；BAOZI_BANNER需Reader图片解码/识别/裁剪/重编码，现源URL/header接口不能单独承载，不能只补schema。本轮无源修改/网络/设备。",
+        "java_regex 0.1.0独立执行反例：合法200层分组包a，Java17 replaceAll返回空而该库replace_all返回a；私有固定深度/预算超限当false且公开String返回不能识别，不改依赖不能称完整Java合同。证据 /private/tmp/java-regex-contract，生产/锁未动。",
+        "漫小肆参考备域rank/book281/chapter9821各HTTP200，60页描述及首图JPEG200；候选默认主站不变、固定ID保留，但需将此前仅封面jjmhw11扩至精确正文host，Root已问用户待决定。候选未采用未提交，稳定证据落盘中。",
+        "稳定合同证据：.hvigor/outputs/user-flow-audit/source-settings-repair/java-regex-contract-20261030/{Cargo.toml,Cargo.lock,src/main.rs,result.txt}；漫小肆备域候选及真实响应、回放脚本、构建日志见同父目录mangaxiaosi-mirror-20261030/evidence.json。候选未采用，用户决定待复；原临时证据及边界保留。"
       ]
     },
     {
@@ -9201,6 +9206,29 @@
         ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-published-f306a8f/release-ci-metadata.json",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-published-f306a8f/entity-check.json",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-dedup-published-f306a8f/abi-results.json"
+      ]
+    },
+    {
+      "id": "source-settings-three-contract-boundaries-20261030",
+      "at": "2026-10-30T07:40:23+08:00",
+      "title": "源设置三项合同边界核清",
+      "detail": "包子章身份及横幅需兼容方案；Java正则存在实测差异；漫小肆备域候选需用户决定，尚未采用。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/java-regex-contract-20261030/result.txt",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/mangaxiaosi-mirror-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "official-name-coverage-85-20261030",
+      "at": "2026-10-30T07:43:21+08:00",
+      "title": "85源名称证据覆盖盘点",
+      "detail": "70项有品牌或栏目依据、7项仅英文参考、8项官方中文名称或对应关系未知；图标不在该计数内。此时间为登记时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json"
       ]
     }
   ],
