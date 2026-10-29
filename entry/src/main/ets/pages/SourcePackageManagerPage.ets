@@ -715,8 +715,17 @@ export struct SourcePackageManagerPage {
         candidates[index] = candidate
       }
     })
+    // Match the installed-row projection: validate localized metadata once per
+    // entry, while preserving the current locale, comparator and source-ID tie.
+    const locale = this.languageState.effectiveLocale
+    const displayNames = new Map<string, string>()
+    candidates.forEach((candidate: SourcePackageUpdateCandidate): void => {
+      const entry = candidate.entry
+      displayNames.set(entry.id, resolveSourceLocalizedName(entry.name, entry.localizedNames, locale))
+    })
     return candidates.sort((left: SourcePackageUpdateCandidate, right: SourcePackageUpdateCandidate): number =>
-      compareSourceNames(this.indexDisplayName(left.entry), left.entry.id, this.indexDisplayName(right.entry), right.entry.id))
+      compareSourceNames(displayNames.get(left.entry.id) ?? left.entry.name, left.entry.id,
+        displayNames.get(right.entry.id) ?? right.entry.name, right.entry.id))
   }
 
   private packageListGroups(): SourcePackageListGroups {
