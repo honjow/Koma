@@ -8,10 +8,11 @@ Koma is a private manga bookshelf and reader for local files, self-hosted librar
 - Komga, OPDS, and WebDAV requests are sent only to servers configured by the user.
 - Source packages are installed by the user and are not bundled as a public source index. Package network access is rejected unless the manifest declares it and the runtime policy accepts it.
 - Tracker services such as AniList or MyAnimeList are optional. Koma must not upload reading progress until the user connects an account and chooses or confirms a mapping.
+- Opening About reads public Koma releases from GitHub. Release notes are cached locally and refreshed in the background; no library, account credentials, or reading progress is sent with these requests.
 
 ## Permissions
 
-- `ohos.permission.INTERNET` is used for private library servers, source runtime network requests, tracker APIs, and remote image loading.
+- `ohos.permission.INTERNET` is used for private library servers, source runtime network requests, tracker APIs, remote image loading, and public application release metadata.
 - `ohos.permission.GET_NETWORK_INFO` is used for network-aware behavior such as Wi-Fi-only download checks.
 - `ohos.permission.VIBRATE` is used only for local interaction feedback.
 - Notification delivery is requested from Settings before Koma publishes download or library update notifications. Koma must report disabled or unavailable notification state honestly.
@@ -38,7 +39,7 @@ Koma is a private manga bookshelf and reader for local files, self-hosted librar
 
 ## Release Checklist
 
-- Settings exposes a visible Privacy and Permissions entry under About.
+- About shows application identity, version, updates, and release history. Permission requests remain at their feature entry points; third-party notices remain packaged with the app.
 - `scripts/check-public-build-profile.sh --staged` passes before commits that touch build profiles.
 - Static tests cover token redaction boundaries, notification permission state, source package network permission checks, and backup secret exclusion.
 - Signed install smoke verifies the release and debug build lanes use `com.honjow.koma`.

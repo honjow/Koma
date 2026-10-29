@@ -1,3 +1,4 @@
+import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
 import { KomaTranslationSourcesContent } from '../components/KomaTranslationSourcesContent'
@@ -306,10 +307,8 @@ function createSettingsSections(): SettingsSection[] {
       key: 'about',
       titleKey: 'settings_section_about',
       rows: [
-        { key: 'about', titleKey: 'settings_row_about_title', detailKey: 'settings_row_about_detail' },
-        { key: 'privacy-permissions', titleKey: 'settings_row_privacy_permissions_title', detailKey: 'settings_row_privacy_permissions_detail' },
         { key: 'version', titleKey: 'settings_row_version_title', detailKey: 'settings_row_version_detail' },
-        { key: 'open-source', titleKey: 'settings_row_open_source_title', detailKey: 'settings_row_open_source_detail' },
+        { key: 'app-release', titleKey: 'about_check_update', detailKey: 'about_update_hint' },
       ],
     },
   ]
@@ -2084,26 +2083,6 @@ export struct SettingsPage {
     }
   }
 
-  private showAboutDialog(): void {
-    console.info('[Settings] step=about_dialog')
-    this.showInfoDialog(s('settings_about_dialog_title'), s('settings_about_dialog_message'))
-  }
-
-  private showPrivacyPermissionsDialog(): void {
-    console.info('[Settings] step=privacy_permissions_dialog')
-    this.showInfoDialog(s('settings_privacy_permissions_dialog_title'), s('settings_privacy_permissions_dialog_message'))
-  }
-
-  private showOpenSourceDialog(): void {
-    console.info('[Settings] step=open_source_dialog')
-    this.showInfoDialog(s('settings_open_source_dialog_title'), s('settings_open_source_dialog_message'))
-  }
-
-  private showVersionDialog(): void {
-    console.info('[Settings] step=version_dialog')
-    this.showInfoDialog(s('settings_row_version_title'), this.versionDetail)
-  }
-
   private isSelectionRow(row: SettingsRow): boolean {
     return row.key === 'page-mode' ||
       row.key === 'reading-direction' ||
@@ -2409,12 +2388,8 @@ export struct SettingsPage {
       void this.checkLocalLibraryRefresh()
     } else if (row.key === 'reader-reset-defaults') {
       this.resetReaderPreferences()
-    } else if (row.key === 'about') {
-      this.showAboutDialog()
-    } else if (row.key === 'privacy-permissions') {
-      this.showPrivacyPermissionsDialog()
-    } else if (row.key === 'version') {
-      this.showVersionDialog()
+    } else if (row.key === 'version' || row.key === 'app-release') {
+      this.onOpenSettingsPane('about')
     } else if (row.key === 'translation') {
       this.onOpenSettingsPane('translation')
     } else if (row.key === 'enhancement-models') {
@@ -2423,8 +2398,6 @@ export struct SettingsPage {
       this.onOpenSettingsPane('reader')
     } else if (row.key === 'diagnostics') {
       this.onOpenSettingsPane('diagnostics')
-    } else if (row.key === 'open-source') {
-      this.showOpenSourceDialog()
     }
   }
 
@@ -2697,6 +2670,8 @@ export struct SettingsPage {
         ReaderSuperResolutionModelsContent({ preferences: this.readerPreferences, modelsChanged: () => { this.onEnhancementModelsChanged() },
           onPreferencesChange: (next: ReaderPreferences) => { this.saveImagePreferences(next) } })
       }
+    } else if (this.pane === 'about') {
+      KomaAboutContent()
     } else if (this.pane === 'root') {
       this.RootSettings()
     } else {

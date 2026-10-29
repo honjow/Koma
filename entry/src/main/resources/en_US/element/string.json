@@ -250,7 +250,7 @@
     { "name": "settings_pane_storage_title", "value": "Storage" },
     { "name": "settings_pane_storage_detail", "value": "Cache and cleanup" },
     { "name": "settings_pane_about_title", "value": "About" },
-    { "name": "settings_pane_about_detail", "value": "Version and notices" },
+    { "name": "settings_pane_about_detail", "value": "Version, updates and release notes" },
 
     { "name": "settings_section_appearance", "value": "Appearance" },
     { "name": "settings_section_reader", "value": "Reader" },
@@ -1908,6 +1908,21 @@
     {"name": "llm_source_support_manga_hint", "value": "Manga translation requires Responses with image input"},
     {"name": "llm_source_type", "value": "Source type"},
     {"name": "llm_source_type_codex", "value": "Codex OAuth (experimental)"},
-    {"name": "llm_sources_hint", "value": "Manage reusable API and Codex OAuth connections"}
+    {"name": "llm_sources_hint", "value": "Manage reusable API and Codex OAuth connections"},
+    {"name": "about_tagline", "value": "Private manga bookshelf and reader"},
+    {"name": "about_app_info", "value": "App"},
+    {"name": "about_app_name", "value": "Name"},
+    {"name": "about_version", "value": "Version"},
+    {"name": "about_check_update", "value": "Updates & release notes"},
+    {"name": "about_update_hint", "value": "Release history refreshes in the background"},
+    {"name": "about_update_checking", "value": "Refreshing"},
+    {"name": "about_update_available", "value": "Update to %s"},
+    {"name": "about_update_latest", "value": "Latest version %s"},
+    {"name": "about_release_notes", "value": "Release notes"},
+    {"name": "about_update_failed", "value": "Update check failed"},
+    {"name": "about_update_open_release", "value": "Open release"},
+    {"name": "about_update_open_failed", "value": "Failed to open release page"},
+    {"name": "about_update_no_notes", "value": "No release notes"},
+    {"name": "about_platform", "value": "Platform"}
   ]
 }
