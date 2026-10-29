@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T03:39:04+08:00",
+  "updatedAt": "2026-10-30T04:27:22+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
-  "activity": "Simply重试仍403、设备已恢复；source_terra离线对照参考客户端。",
-  "nextAction": "离线核对原参考headers与客户端，保留原因未知。",
+  "activity": "Simply诊断已结束并恢复，复杂源故障保留后续处理。",
+  "nextAction": "按当前优先级推进剩余工作，保留源故障实际边界。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1062,10 +1062,10 @@
       "priority": "P2（复杂故障后置）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "Simply重试仍403，原因未知",
+      "status": "Simply 403未解决，诊断已结束并恢复",
       "kind": "open",
-      "result": "Simply验证页刷新后取得完整响应，但完成并重试仍403；原因未知，设备已恢复。",
-      "remaining": "离线对照原参考headers与客户端，定位Simply仍403的原因。",
+      "result": "Simply完成并重试后仍403；临时TLS对照未取得HTTP响应，原因未知，设备已恢复。",
+      "remaining": "后续在适用条件下定位Simply验证后仍403的原因。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1097,10 +1097,12 @@
         "1750诊断Host db9 installer明确success并启动；1752普通导入源012，1753 ZIP/WASM与冻结a6d77d50…/31759fff…精确相等。原011缺API webSessionOrigins及challenge关联，012仅补两处，UA/Referer/Origin/Cache-Control不变；尚无新GET/挑战，同租约常亮，结束须恢复原包/六域/电源。",
         "1761原011四成员及六域对1748全等、db31安装成功；1762候选与唯一下载不存在，SLEEP/120000无override，lease20261029-181615-230f7416 released及status读回；两源码临时patch精确撤回。",
         "237新lease…fae08932，1763六域及原011基线、1764 db9诊断Host安装成功、1767实装012 ZIP/WASM与冻结相同，1768源列表已定位；尚未发目标GET或复现挑战。",
-        "1769验证初页timing status200/transfer0/encoded5140/decoded23475/deliverycache；1770现有刷新一次status200/transfer5379/encoded5079/decoded23187/deliveryempty，符合完整body传输；1772仅一次完成并重试后Native op9仍403、终态继续要求验证。缓存不是全部原因，不报根因/修复、不改缓存策略/UA/代码。1774原011四成员对1763全等，1775六JSON全等且原db31 installer成功，1776本轮候选/下载不存在、SLEEP/120000无override；lease…fae08932于03:38:30 released并status读回。"
+        "1769验证初页timing status200/transfer0/encoded5140/decoded23475/deliverycache；1770现有刷新一次status200/transfer5379/encoded5079/decoded23187/deliveryempty，符合完整body传输；1772仅一次完成并重试后Native op9仍403、终态继续要求验证。缓存不是全部原因，不报根因/修复、不改缓存策略/UA/代码。1774原011四成员对1763全等，1775六JSON全等且原db31 installer成功，1776本轮候选/下载不存在、SLEEP/120000无override；lease…fae08932于03:38:30 released并status读回。",
+        "固定949 KeiSource.kt 141–145继承头与Koma同WWW Referer/Origin/max-age600，先前无头猜测撤回、未据此改代码。基于Native HTTP2/TLS1.2及官方API18 tlsOptions进行一次临时TLS1.3对照，原011不换源；lease…11c69b48，1777原四成员/六JSON与1763同且AWAKE/86400000，1778同签TLS HAP安装与普通浏览定位进行中，目标GET未发。",
+        "1769初始Web timing 200/transfer0/encoded5140/decoded23475/deliverycache；1770刷新200/transfer5379/encoded5079/decoded23187/deliveryempty，符合编码体传输，但workerStart取整0不能绝对排除SW，不冒线路fresh200；1772一次完成并重试Native仍403。1781原011+临时TLS1.3候选请求461ms后2300999/unclassified，无HTTP响应或tls_probe，未证明TLS1.3协商、不归因或排除TLS；1782取消未执行。1783原db31安装成功、原011四成员及六JSON对1777逐字同；1784 SLEEP/120000无override，lease20261029-200719-11c69b48于04:26:47 released/status读回。临时Transport patch撤回无diff；无诊断重建 /private/tmp/koma-no-diagnostics.hap SHA256 c274fbf4706c868b338b4c8af733a1cfa4032733e7a6d080460be1be53dd2e72、默认signed同hash。诊断未发布、不称故障已修。"
       ],
       "remainingActions": [
-        "离线对照原参考headers与客户端，定位Simply仍403的原因。"
+        "后续在适用条件下定位Simply验证后仍403的原因。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1151,7 +1153,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "离线对照参考请求中",
+      "stage": "复杂源故障后置",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -3440,7 +3442,8 @@
         "英文MangaDex 1600三条件结果首三与官网回放一致，1601后按用户要求不再功能验证；1603原020四成员等1586，1604六JSON等1585，1606睡眠120000并释租。024候选WIP未提交，不列新增待测或本轮发布阻碍。",
         "7cbcfa04de294a3623bac4921d0174c8e37a0799精确CI40884954501 success，公开0.1.24 ZIP 3a1970d18536ad7567b8c247131c8d08b9762ebd3a2b40a34738a76834e7b7e2 / WASM fb3d6e2bf00f2bde971dd82751b4bd7038e120d0897fb883e8b4fcd95ea291f4；/private/tmp/md-en-7cbc-public/真实API20项请求/data与237 1600候选逐字相等，completed/shoujo/followedCount消费及defaultEqual=true。公开WASM不同候选未另Native；不重跑已验路径。",
         "简繁MangaDex 118bdaa 与XCOMIC繁中8802936已在master，精确CI40872000708 success；不再列工程待交付，既有具名Native与未覆盖范围保留。",
-        "Zero默认域发现df2c2f9已交付，公开015及237普通目录/正文具名；旧manga:/chapter:由5de9e98保留，新pc-数字ID独立。旧显式域www.zerobywgbo2.com目录EOF见source-settings-repair/zerobyw237-default015/zerobyw015-old.log；现无具名旧书slug映射结果，不能据EOF推断映射失败或成功。用户网页入口及5章对应事项均accepted。"
+        "Zero默认域发现df2c2f9已交付，公开015及237普通目录/正文具名；旧manga:/chapter:由5de9e98保留，新pc-数字ID独立。旧显式域www.zerobywgbo2.com目录EOF见source-settings-repair/zerobyw237-default015/zerobyw015-old.log；现无具名旧书slug映射结果，不能据EOF推断映射失败或成功。用户网页入口及5章对应事项均accepted。",
+        "Noy固定949三个API镜像与当前默认web域不同；公开015普通热门POST noymanga.com/api/readLeaderboard type=day&page=1与既存013构造相同，旧实网返回login/auth_required。参考api.noymanga.com同形无Cookie一次200/statuslogin，公开015回放auth_required；/private/tmp/noyacg-api-mirror-once.headers、.body及noyacg-public015-mirror-replay.mjs。镜像详情/页图兼容未证，未改UI/默认/源，不称已证可直接修。"
       ]
     },
     {
@@ -8869,6 +8872,31 @@
       "itemId": "SOURCE_WEB_SESSION",
       "kind": "checkpoint",
       "evidence": []
+    },
+    {
+      "id": "simply-tls-noy-reference-20261030",
+      "at": "2026-10-30T04:09:37+08:00",
+      "title": "Simply TLS对照与Noy参考范围",
+      "detail": "Simply继承请求头已核相同，临时TLS对照准备中；Noy镜像详情及页图兼容未证。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/noyacg-api-mirror-once.headers",
+        "/private/tmp/noyacg-api-mirror-once.body",
+        "/private/tmp/noyacg-public015-mirror-replay.mjs"
+      ]
+    },
+    {
+      "id": "simply-tls-diagnostic-restored-20261030",
+      "at": "2026-10-30T04:27:22+08:00",
+      "title": "Simply TLS对照及设备恢复",
+      "detail": "临时TLS候选未收到HTTP响应，未证明协商或根因；原包、六域及电源恢复并释租，故障仍开放。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-tls-open-1781/",
+        "/private/tmp/koma-no-diagnostics.hap"
+      ]
     }
   ],
   "reportAgeAudit": {
