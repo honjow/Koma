@@ -22,6 +22,8 @@ const strings = { AppStrings: { get: key => ({
 }[key] || key), format: (key, ...values) => `${key}:${values.join('/')}` } }
 const models = compile('model/ComicModels', { '../i18n/AppStrings': strings })
 const stores = compile('model/ReaderSessionStore', {
+  '../sourceRuntime/SourceRuntimeAppRegistry': { sourceChapterOrderFor: () => undefined },
+  './SourceTextPageDescriptor': compile('model/SourceTextPageDescriptor', {}),
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: {} },
   './AppFileTextPersistence': { writeAppTextFile() {} },
   '@kit.CoreFileKit': { fileIo: {} },
