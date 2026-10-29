@@ -28,6 +28,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 | get_settings | koma_source_get_settings |
 | get_image_request | koma_source_get_image_request |
 
+`home` 表示源的独立首页内容，不能仅把已有热门、最新等列表的第一页包装成同义首页。只有列表的源声明 `home: false`，由宿主直接进入既有默认列表；为兼容 ABI 保留的 `get_home` 导出返回 `not_implemented`，不为这个空能力再发请求。真实首页及其分区与完整列表的关系仍由源合同决定，宿主不能因为部分卡片相同就隐藏首页。
+
 `get_filters` 的每个筛选项可选 `scope: "browse" | "search"`：按当前查询内容判定，空白查询属于 browse，非空查询属于 search；缺省在两者均有效，兼容旧源。`type: "header"` 只携带源原文的 `name`/`label` 与可选 `description`，不产生请求值、默认值、计数或持久化值。宿主只向源提交当前作用域的值，并保留另一作用域的已保存选择；切换查询不删除选择。仅当请求顶层 `hostFeatures` 包含 `source_filter_scope_header_v1` 时，源才能返回依赖作用域或 Header 的新版 schema；未声明时必须返回该源原有 schema，旧宿主不得误暴露或消费新项。
 
 声明 `source_filter_fetching_v1` 的宿主支持可选动态筛选数据：初次 `get_filters` 返回基础 schema 和 `supportsFilterFetching: true`，不为可选标签数据阻塞目录。实际打开筛选时，宿主以 `args.fetchFilterData: true` 再调用 `get_filters`；成功返回包含基础项的完整 schema，失败保留原目录、基础筛选及已存选择，并允许下次打开时重试。稳定动态字段须在基础 schema 声明其 ID，省略 `options` 表示选项尚未加载，不能用空数组冒充。迟到响应受源包、设置版本和页面生命周期约束，不能覆盖别的源。
@@ -51,7 +53,24 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。重复话号、无号番外不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1` 和 `chapter_reading_order_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1` 和 `source_private_session_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+
+### 源私有会话
+
+`source_private_session_v1` 复用 `koma_host.http_request`，以 `{type:"private_session",version:1,op:...}` 区分本地 RPC；它不发送 HTTP，也不增加 WASM import。网站的游客初始化、请求签名、令牌解析及业务失效处理仍由源实现，Host 只提供不透明私有缓存、安全随机和 RSA 原语。依赖该能力的新源必须同时提高生产包 `minAppVersion`；旧 Host 不得误走新协议。
+
+| op | 请求及响应 |
+| --- | --- |
+| `begin` | 已有值返回 `state:"ready"`、`value` 和 `versionTag`；尚无值时仅一个调用返回 `state:"owner"`、`lease` 和 48 字节安全随机数的 `randomHex`，其它调用等待该初始化结束。两种结果均提供 `nowMs`、`gts`。 |
+| `commit` | 提交同次调用的 `lease` 和字符串 `value`，成功返回新 `versionTag`。 |
+| `abort` | 以同次调用的 `lease` 放弃初始化并释放等待者。 |
+| `invalidate` | 仅删除与 `versionTag` 相等的一代值；Host 不重发源的业务请求。 |
+| `clock` | 返回 `nowMs`、`gts` 和 16 字节安全随机数的 `randomHex`。 |
+| `rsa_pkcs1` | 对 X.509 base64 `publicKey` 和 UTF-8 `plaintext` 做 RSA2048/PKCS1 加密，返回 base64 `value`。 |
+
+RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` 为毫秒字符串，`gts` 为本地时间 `yyyy-MM-dd+HH:mm:ss`。缓存由可信 Native 调用上下文限定为当前启用的源及安装身份，源不能在请求中指定别源、命名空间或资产别名；探测和无有效调用身份的请求不得访问。UI 侧调用 owner 包住原有 Worker，结束或异常时释放初始化认领；等待不占用本源写队列，不把 Asset 或 UI 模块引入 Worker。
+
+私有值在当前调用内交给本源 WASM 构造请求，持久化只经 Asset 的 1024 字节分块和最后发布的短索引完成；不进入公开设置、备份或诊断。日志只记录操作、固定结果码及 ready/owner 状态，不记录值、随机标识或令牌。替换包的安装身份不同，不能读取旧包私有值；这不是用户配置迁移能力。读写失败保留错误，不以清除所有资产或改用明文文件恢复。
 
 `source_setting_uuid_list_v1` 支持文本设置的 `validation: {kind:"uuid_list", message:"..."}`。沿 MangaDex 参考实现逐个校验逗号分隔并 trim 后的小写 UUID（版本 1–5，variant 8/9/a/b）；空白有效，空项或尾逗号无效。不执行源提供的正则。表单显示已采用的系统输入错误状态并禁用保存；持久化 owner 在写入前再次校验，失败保留原设置及 revision。
 

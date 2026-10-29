@@ -28,6 +28,7 @@ export interface SourceHttpIdentity {
   sourceVersion: string
   packageIdentity: string
   webSessionOrigins: string[]
+  privateCallId?: string
   operationGuardId?: string
   detailChapterContext?: boolean
 }

@@ -3,11 +3,10 @@ import { SourceRuntimeError } from './SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
-import { taskpool } from '@kit.ArkTS'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { executeSourceRuntimeRequest as executeSourceChapterListOperation } from '../sourceRuntime/SourceRuntimeWorker'
+import { executeSourceRequestInWorker as executeSourceChapterListOperation } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { SourceSettingsRecord, appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceSettingObservationStore } from '../sourceRuntime/SourceSettingObservationStore'
 import { SourceSettingObservations } from '../sourceRuntime/SourceSettingObservations'
@@ -135,10 +134,9 @@ async function fetchSourceChapterList(
     const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
     wasmBytes.set(entry.wasmBytes)
     const requestJson = sourceRequestWithHostFeatures(JSON.stringify(request))
-    const responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
-      executeSourceChapterListOperation, requestJson, wasmBytes,
+    const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterListOperation( requestJson, wasmBytes,
       sourceHttpIdentityJson(entry, undefined, chapterContext !== undefined && chapterId === undefined),
-    ) as Promise<string>)
+    ))
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse
     if (response.ok !== true) {

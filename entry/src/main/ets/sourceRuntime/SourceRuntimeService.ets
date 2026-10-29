@@ -2,12 +2,11 @@ import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
 import { configureSourceRequestPolicy } from './SourceRequestPolicy'
 import { sourceHttpIdentityJson } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { taskpool } from '@kit.ArkTS'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { resourceManager } from '@kit.LocalizationKit'
 import { SourceRuntimeCallRequest, SourceRuntimeCallResponse } from './NativeSourceRuntime'
-import { executeSourceRuntimeRequest as executeRegisteredSourceRequest } from './SourceRuntimeWorker'
+import { executeSourceRequestInWorker as executeRegisteredSourceRequest } from './SourceRuntimeWorkerClient'
 import {
   importArchiveNegativeFixtures,
   importLocalSourceArchive,
@@ -558,7 +557,7 @@ export async function runSourceOperationFromValidatedBytesAsync(
 ): Promise<SourceRuntimeCallResponse> {
   const workerBytes = new Uint8Array(wasmBytes.byteLength)
   workerBytes.set(wasmBytes)
-  const responseJson = await taskpool.execute(executeRegisteredSourceRequest, sourceRequestWithHostFeatures(requestJson), workerBytes, '') as string
+  const responseJson = await executeRegisteredSourceRequest( sourceRequestWithHostFeatures(requestJson), workerBytes, '') as string
   return JSON.parse(responseJson) as SourceRuntimeCallResponse
 }
 
@@ -580,7 +579,7 @@ export async function runRegisteredSourceRequestByIdAsync(
   try {
     // A worker can hold the WAMR lock while HTTP awaits the UI runtime.
     // UI callers must yield here rather than synchronously wait for that lock.
-    const responseJson = await taskpool.execute(executeRegisteredSourceRequest, sourceRequestWithHostFeatures(requestJson), wasmBytes, sourceHttpIdentityJson(entry)) as string
+    const responseJson = await executeRegisteredSourceRequest( sourceRequestWithHostFeatures(requestJson), wasmBytes, sourceHttpIdentityJson(entry)) as string
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     const current = registry.lookup(sourceId).entry
     if (current !== entry || !sourceRuntimeEntryEnabled(entry)) {

@@ -92,7 +92,7 @@ import {
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { executeSourceRuntimeRequest as executeMangaDetailSourceOperation } from '../sourceRuntime/SourceRuntimeWorker'
+import { executeSourceRequestInWorker as executeMangaDetailSourceOperation } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import {
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -119,7 +119,6 @@ import {
   TrackerMappingSearchService,
   TrackerMappingSearchSummary,
 } from '../model/TrackerMappingSearchService'
-import { taskpool } from '@kit.ArkTS'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
 
@@ -1149,12 +1148,11 @@ export struct MangaDetailPage {
   ): Promise<SourceMangaDetailLoadResult> {
     const args: SourceMangaRequestArgs = { mangaId, mangaUrl: this.sourceMangaRouteUrl(entry.sourceId, mangaId) }
     const request = this.buildSourceDetailRequestJson(entry.sourceId, operation, args, { network: true })
-    const responseJson = await diagnoseSourceOperation(request, () => taskpool.execute(
-      executeMangaDetailSourceOperation,
+    const responseJson = await diagnoseSourceOperation(request, () => executeMangaDetailSourceOperation(
       request,
       this.copyWasmBytes(entry),
       sourceHttpIdentityJson(entry, undefined, operation === 'get_manga'),
-    ) as Promise<string>)
+    ))
     const runtimeResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (runtimeResponse.ok !== true) {
       throw new SourceRuntimeError(runtimeResponse)

@@ -10,7 +10,6 @@ import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
-import { taskpool } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -41,7 +40,7 @@ import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { executeSourceRuntimeRequest as executeReaderSourceImageRequestOperation } from '../sourceRuntime/SourceRuntimeWorker'
+import { executeSourceRequestInWorker as executeReaderSourceImageRequestOperation } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { runSourceOperationFromValidatedBytesAsync } from '../sourceRuntime/SourceRuntimeService'
 
 export interface ReaderRemoteImageCachePreferences {
@@ -598,9 +597,8 @@ async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, 
   const httpContextJson = sourceHttpIdentityJson(entry)
   // Keep normal images and deferred text on the same worker/host HTTP bridge.
   const hostRequest = sourceRequestWithHostFeatures(requestJson)
-  return diagnoseSourceOperation(hostRequest, () => taskpool.execute(
-    executeReaderSourceImageRequestOperation, hostRequest, wasmBytes, httpContextJson,
-  ) as Promise<string>)
+  return diagnoseSourceOperation(hostRequest, () => executeReaderSourceImageRequestOperation( hostRequest, wasmBytes, httpContextJson,
+  ))
 }
 
 async function resolveSourceRuntimeImageRequest(

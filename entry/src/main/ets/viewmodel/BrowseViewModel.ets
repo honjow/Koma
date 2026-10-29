@@ -1,4 +1,4 @@
-import { runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorker'
+import { runBrowseSourceRequestInWorker as runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
@@ -6,7 +6,6 @@ import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sour
 import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { taskpool } from '@kit.ArkTS'
 import { AppStrings } from '../i18n/AppStrings'
 import {
   SourceFilter,
@@ -204,8 +203,8 @@ function enqueueSourceOperation(
         }
         const workerBytes = new Uint8Array(next.wasmBytes.byteLength)
         workerBytes.set(next.wasmBytes)
-        return taskpool.execute(runBrowseSourceOperationTask,
-          next.requestJson, workerBytes, next.httpContextJson) as Promise<string>
+        return runBrowseSourceOperationTask(
+          next.requestJson, workerBytes, next.httpContextJson)
       }
       Promise.resolve().then((): Promise<string> => diagnoseSourceOperation(next.requestJson, run)).then(
         (value: string): void => { next.resolve(value) },
@@ -839,6 +838,8 @@ export class BrowseViewModel {
       // Home and a listing are mutually exclusive destinations (CURRENT_STATUS:
       // SOURCE_BROWSE_HOME_STRUCTURE, user adopted 2026-10-25). An empty selected
       // listing ID denotes Home; refresh must not append/reset to Popular.
+      // Only an independent source home may advertise this capability (source-runtime-abi).
+      // Do not invent it from an existing listing or infer it from matching sampled cards.
       let listing = listings.find((item: SourceListingDescriptor): boolean => item.id === previousListingId)
       let homeAvailable = source.capabilities.indexOf('home') >= 0 ||
         (source.capabilities.indexOf('sourceInfo') < 0 && previousHomeAvailable)

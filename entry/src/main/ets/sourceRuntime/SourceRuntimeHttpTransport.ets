@@ -1,6 +1,9 @@
 import { waitForSourceRequestSlot } from './SourceRequestPolicy'
 import { url as urlKit } from '@kit.ArkTS'
-import { appSourceWebSessionStore, sourceWebOrigin, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceWebOrigin, sourceWebPackageIdentity, SourceHttpIdentity, SourcePendingWebSessionRequest } from './SourceWebSessionStore'
+import { appSourceRuntimeRegistry } from './SourceRuntimeAppRegistry'
+import { sourceRuntimeEntryEnabled } from './SourceRuntimeRegistry'
+import { SourcePrivateSessionHost, SourcePrivateSessionScope } from './SourcePrivateSessionHost'
 import { sourceClearanceCookieState } from './SourceWebChallengeGate'
 import { sourceRuntimeOperationIsCurrent } from './SourceRuntimeOperationGuard'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -8,7 +11,26 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 
+interface SourcePrivateFailure {
+  ok: boolean
+  error: SourcePrivateFailureCode
+}
+interface SourcePrivateFailureCode { code: string }
+interface SourcePrivateResultSummary {
+  ok?: boolean
+  state?: string
+  error?: SourcePrivateFailureCode
+}
+
+function privateIdentityFailure(): string {
+  DiagnosticLogger.warn('source_private_session', 'rpc', 'ok=false reason=invalid_identity')
+  const failure: SourcePrivateFailure = { ok: false, error: { code: 'invalid_identity' } }
+  return JSON.stringify(failure)
+}
+
 interface SourceHttpRequestEnvelope {
+  type?: string
+  op?: string
   requests?: SourceHttpRequestEnvelope[]
   wantChallengeRequestId?: boolean
   url?: Object | string | number | boolean | null
@@ -283,6 +305,38 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   if (envelope === null || Array.isArray(envelope) || typeof envelope !== 'object') {
     return transportError('invalid_request', false)
+  }
+  if (envelope.type === 'private_session') {
+    // This RPC uses the existing bridge, but never performs HTTP or logs its
+    // opaque values. Its source/installation comes only from the Native context.
+    let identity: SourceHttpIdentity
+    try { identity = JSON.parse(httpContextJson) as SourceHttpIdentity }
+    catch (_error) { return privateIdentityFailure() }
+    if (probe !== undefined || identity === null || typeof identity.sourceId !== 'string' ||
+      typeof identity.sourceVersion !== 'string' || typeof identity.packageIdentity !== 'string' ||
+      typeof identity.privateCallId !== 'string') {
+      return privateIdentityFailure()
+    }
+    const scope: SourcePrivateSessionScope = { sourceId: identity.sourceId,
+      packageIdentity: identity.packageIdentity, callId: identity.privateCallId }
+    const current = (): boolean => {
+      const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
+      return entry !== undefined && sourceRuntimeEntryEnabled(entry) &&
+        entry.manifestVersion === identity.sourceVersion && sourceWebPackageIdentity(entry) === identity.packageIdentity &&
+        sourceRuntimeOperationIsCurrent(identity.operationGuardId) && SourcePrivateSessionHost.callIsActive(scope)
+    }
+    const result = await SourcePrivateSessionHost.execute(requestJson, scope, current)
+    const op = typeof envelope.op === 'string' &&
+      ['begin', 'commit', 'abort', 'invalidate', 'clock', 'rsa_pkcs1'].includes(envelope.op) ? envelope.op : 'unknown'
+    try {
+      const summary = JSON.parse(result) as SourcePrivateResultSummary
+      const state = summary.state === 'ready' || summary.state === 'owner' ? summary.state : 'none'
+      DiagnosticLogger.info('source_private_session', 'rpc', 'operation=' + op +
+        ' ok=' + (summary.ok === true) + ' state=' + state + ' reason=' + (summary.error?.code ?? 'none'))
+    } catch (_error) {
+      DiagnosticLogger.warn('source_private_session', 'rpc', 'operation=' + op + ' reason=invalid_private_response')
+    }
+    return result
   }
   if (envelope.requests !== undefined) {
     // A source may group independent reads without changing the synchronous

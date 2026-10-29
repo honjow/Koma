@@ -5,7 +5,6 @@ import { sourceTextPage, sourceTextPageRequest } from './SourceTextPageDescripto
 import { cacheSourceTextPageImage } from './ReaderPageSourceAdapter'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { taskpool } from '@kit.ArkTS'
 import {
   Chapter,
   Comic,
@@ -23,7 +22,7 @@ import {
   sourceRuntimeEntryEnabled,
 } from '../sourceRuntime/SourceRuntimeRegistry'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { executeSourceRuntimeRequest as executeSourceChapterPagesOperation } from '../sourceRuntime/SourceRuntimeWorker'
+import { executeSourceRequestInWorker as executeSourceChapterPagesOperation } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import {
   SourceSettingsRecord,
   appSourceSettingsStore,
@@ -284,12 +283,11 @@ async function fetchSourceChapterPages(
   }
   configureSourceRequestPolicy(entry.sourceId, sourceRequest.settings)
   const requestJson: string = sourceRequestWithHostFeatures(JSON.stringify(sourceRequest))
-  const responseJson = await diagnoseSourceOperation(requestJson, () => taskpool.execute(
-    executeSourceChapterPagesOperation,
+  const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterPagesOperation(
     requestJson,
     cloneWasmBytes(entry),
     sourceHttpIdentityJson(entry),
-  ) as Promise<string>)
+  ))
   const response = JSON.parse(responseJson) as SourceOperationResponsePayload
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])
   if (response.ok !== true) {
