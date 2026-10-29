@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T07:45:41+08:00",
+  "updatedAt": "2026-10-30T07:49:08+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
   "activity": "漫小肆备域候选已备待决定，其他具体设置合同差异继续核对。",
@@ -3216,7 +3216,8 @@
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/pixiv-help-20261029.json：官方简体帮助页title为pixiv帮助，正文使用pixiv；pixiv漫画另指comic.pixiv.net，不作为当前www.pixiv.net源名称。",
         "九源名称证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/nine-source-followup-20261030.json：protectors官方论坛/四格既有原页、再漫画官网标题、Zero上月缓存标题、創漫官网自称及隆少年支持现名；再漫画正文0行、Zero非新鲜直连。創漫此前已有406，本次误重试如实保留。GoDa原页title G站漫畫、description GaDa漫畫，现GoDa漫画有字面差异且官网自称不一，暂保留现名，正式中文名仍待可靠依据。包子既有403未重试，东立本次403、soc cache miss、LoL timeout停止；图标无新验收。",
         "GoDa名称疑点具名解决：.hvigor/outputs/user-flow-audit/source-settings-repair/goda-identity/koma-goda-home.html 页头主页链接、Logo.png旁直接显示GoDa漫畫，支持当前简繁名；同页og:site_name G站漫畫、description GaDa漫畫为并存称法。图标来源见 /Users/honjow/git/koma-sources/sources/goda/ASSET_SOURCES.md，本轮不改或重验图标。",
-        "原85矩阵各行officialNameCoverage20261030：正式注册源逐一对应，webtoons_zh_hant别名映射、example不计。70有品牌/明确栏目依据；7仅固定949英文参考品牌（3Hentai、AsmHentai、MangaBall、MangaDex三语言、NHentai.to），不能推无中文别名；8缺官网中文名/对应：包子403、阴阳师安全拦截、爱看漫不可达、漫画柜缓存看漫画关系未知、LoL超时、铃兰TapTap cache miss、东立403、杂志迷官网我是Zazhimi而中文名依据不足。优酷既有name-web-g6.txt官方title支持；无新访问/改产品或新确定错名。92/1234官网logo与源不同、妙趣404、嗨皮/叭嗒图标未核，不称85图标完成。"
+        "原85矩阵各行officialNameCoverage20261030：正式注册源逐一对应，webtoons_zh_hant别名映射、example不计。70有品牌/明确栏目依据；7仅固定949英文参考品牌（3Hentai、AsmHentai、MangaBall、MangaDex三语言、NHentai.to），不能推无中文别名；8缺官网中文名/对应：包子403、阴阳师安全拦截、爱看漫不可达、漫画柜缓存看漫画关系未知、LoL超时、铃兰TapTap cache miss、东立403、杂志迷官网我是Zazhimi而中文名依据不足。优酷既有name-web-g6.txt官方title支持；无新访问/改产品或新确定错名。92/1234官网logo与源不同、妙趣404、嗨皮/叭嗒图标未核，不称85图标完成。",
+        "漫画柜限定搜索受robots限制；Zazhimi旧页title/logo/footer仅见我是Zazhimi、限定搜索无可用结果。无新名称结论，不刷新访问或改名。"
       ],
       "evidencePoints": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
@@ -3480,7 +3481,8 @@
         "包子参考CHAPTER_ORDER通过标题追加URL改变章身份，现Host按ID合并，原样迁移影响旧进度，兼容方案待核；BAOZI_BANNER需Reader图片解码/识别/裁剪/重编码，现源URL/header接口不能单独承载，不能只补schema。本轮无源修改/网络/设备。",
         "java_regex 0.1.0独立执行反例：合法200层分组包a，Java17 replaceAll返回空而该库replace_all返回a；私有固定深度/预算超限当false且公开String返回不能识别，不改依赖不能称完整Java合同。证据 /private/tmp/java-regex-contract，生产/锁未动。",
         "漫小肆参考备域rank/book281/chapter9821各HTTP200，60页描述及首图JPEG200；候选默认主站不变、固定ID保留，但需将此前仅封面jjmhw11扩至精确正文host，Root已问用户待决定。候选未采用未提交，稳定证据落盘中。",
-        "稳定合同证据：.hvigor/outputs/user-flow-audit/source-settings-repair/java-regex-contract-20261030/{Cargo.toml,Cargo.lock,src/main.rs,result.txt}；漫小肆备域候选及真实响应、回放脚本、构建日志见同父目录mangaxiaosi-mirror-20261030/evidence.json。候选未采用，用户决定待复；原临时证据及边界保留。"
+        "稳定合同证据：.hvigor/outputs/user-flow-audit/source-settings-repair/java-regex-contract-20261030/{Cargo.toml,Cargo.lock,src/main.rs,result.txt}；漫小肆备域候选及真实响应、回放脚本、构建日志见同父目录mangaxiaosi-mirror-20261030/evidence.json。候选未采用，用户决定待复；原临时证据及边界保留。",
+        "TeaVM路线仅非编译核对：自有classlib非直接OpenJDK，现WasmGC后端需JS runtime；Koma当前WAMR未启GC/异常且WASI/多模块关闭，不能直接接入、不改生产runtime。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md。"
       ]
     },
     {
@@ -4329,9 +4331,9 @@
         "SOURCE_WEB_SESSION"
       ],
       "result": "《古見同學》指定详情返回空正文；另一作品同身份详情及章节正常，具体原因未知。",
-      "remaining": "核对官网及上游地址流程，定位具名详情空响应。",
+      "remaining": "等待该官方作品非空回应、实际新href等可区分原因的新材料后继续定位。",
       "remainingActions": [
-        "核对官网及上游地址流程，定位具名详情空响应。"
+        "等待该官方作品非空回应、实际新href等可区分原因的新材料后继续定位。"
       ],
       "boundaries": [
         "提示本身不证明HTTP403、CF或不支持。"
@@ -4345,7 +4347,8 @@
         "1651搜索HTTP200成功；点该作品详情GET200空body，源返回client_error，未解决。",
         "/private/tmp/comicabc-14884-control.headers及.body：Mac严格当前UA/Referer无cookie准确id14884一次GET，最终同URL HTTP/2 200、原始正文0字节、text/html，未见Length/Encoding/Transfer-Encoding；与237空字符串一致，不是237解码独有，不外推全源。",
         "/private/tmp/comicabc-referer-ab：去Referer单次GET仍HTTP200/0字节，排除该单项差异，根因仍未知。",
-        "/private/tmp/comicabc-referer-ab/control-30513.{result,headers,body}及control-offline.jsonl：同源UA/Referer 30513 HTTP200、解压35355字节，真实HTML经生产0.1.10 WASM详情及6章成功；14884仍空。官方上游两文件blob与固定949一致，无新流程修复依据，不外推全站。"
+        "/private/tmp/comicabc-referer-ab/control-30513.{result,headers,body}及control-offline.jsonl：同源UA/Referer 30513 HTTP200、解压35355字节，真实HTML经生产0.1.10 WASM详情及6章成功；14884仍空。官方上游两文件blob与固定949一致，无新流程修复依据，不外推全站。",
+        "本地可证地址流程已核：原生产搜索输出归一指向/html/14884.html，与固定参考及当前详情一致；章节domain不能作为详情新地址。既有同URL 200空body、30513正常均未重发。"
       ]
     },
     {
@@ -9229,6 +9232,30 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json"
+      ]
+    },
+    {
+      "id": "xcomic-teavm-regex-assessment-20261030",
+      "at": "2026-10-30T07:49:08+08:00",
+      "title": "XCOMIC正则候选运行时依赖核对",
+      "detail": "TeaVM现有WasmGC路线依赖与当前WAMR配置不兼容，未改生产运行时。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md"
+      ]
+    },
+    {
+      "id": "comicabc-address-flow-audit-20261030",
+      "at": "2026-10-30T07:49:08+08:00",
+      "title": "无限动漫详情地址流程已核",
+      "detail": "生产搜索归一地址与固定参考及当前详情一致；既有空体未重发，等待可区分原因的新材料。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/comicabc-14884-control.headers",
+        "/private/tmp/comicabc-14884-control.body",
+        "/private/tmp/comicabc-referer-ab/control-offline.jsonl"
       ]
     }
   ],
