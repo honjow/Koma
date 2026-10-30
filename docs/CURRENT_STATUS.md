@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T10:49:42+08:00",
+  "updatedAt": "2026-10-30T11:42:41+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "包子横幅受控Native与分享一致性已核，App正式交付待核。",
-  "nextAction": "完成App scoped提交及精确CI核验，保自然站点正例未验边界。",
+  "activity": "包子章节身份具名验证及恢复完成，Host交付待核。",
+  "nextAction": "完成Host正式交付并继续核对原设置差异。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3191,13 +3191,13 @@
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "85源名称覆盖已盘点，7项官方依据仍缺",
+      "status": "85源名称覆盖已盘点，6项官方依据仍缺",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY"
       ],
-      "result": "85源名称证据已逐项盘点；71项有品牌或栏目依据，7项仅英文参考，7项官方中文名称或对应关系仍未知。",
+      "result": "85源名称证据已逐项盘点；72项有品牌或栏目依据，7项仅英文参考，6项官方中文名称或对应关系仍未知。",
       "remaining": "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。",
       "remainingActions": [
         "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。"
@@ -3218,7 +3218,8 @@
         "GoDa名称疑点具名解决：.hvigor/outputs/user-flow-audit/source-settings-repair/goda-identity/koma-goda-home.html 页头主页链接、Logo.png旁直接显示GoDa漫畫，支持当前简繁名；同页og:site_name G站漫畫、description GaDa漫畫为并存称法。图标来源见 /Users/honjow/git/koma-sources/sources/goda/ASSET_SOURCES.md，本轮不改或重验图标。",
         "原85矩阵各行officialNameCoverage20261030：正式注册源逐一对应，webtoons_zh_hant别名映射、example不计。70有品牌/明确栏目依据；7仅固定949英文参考品牌（3Hentai、AsmHentai、MangaBall、MangaDex三语言、NHentai.to），不能推无中文别名；8缺官网中文名/对应：包子403、阴阳师安全拦截、爱看漫不可达、漫画柜缓存看漫画关系未知、LoL超时、铃兰TapTap cache miss、东立403、杂志迷官网我是Zazhimi而中文名依据不足。优酷既有name-web-g6.txt官方title支持；无新访问/改产品或新确定错名。92/1234官网logo与源不同、妙趣404、嗨皮/叭嗒图标未核，不称85图标完成。",
         "漫画柜限定搜索受robots限制；Zazhimi旧页title/logo/footer仅见我是Zazhimi、限定搜索无可用结果。无新名称结论，不刷新访问或改名。",
-        "铃兰官网作品与官方论坛趣味漫画栏目支持当前名称；栏目逐篇作者及图标未验，索引结果与直接读取区分。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/soc-official-name-20261030.json；原矩阵soc-zh改brand_supported，其余七项未知保留。"
+        "铃兰官网作品与官方论坛趣味漫画栏目支持当前名称；栏目逐篇作者及图标未验，索引结果与直接读取区分。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/soc-official-name-20261030.json；原矩阵soc-zh改brand_supported，其余七项未知保留。",
+        "包子同注册域cn官网搜索索引多条标题/首页使用包子漫画，固定949 Baozi.kt同源列cn/www，结合既有static-tw素材支持现名；www当前403未直读，繁体为繁简转换而非独立官网文字。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/baozimh-official-name-20261030.json，矩阵brand_supported。"
       ],
       "evidencePoints": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
@@ -3230,7 +3231,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "包子横幅Native已核，App本地提交待推及CI",
+      "status": "包子章节身份具名验证完成，Host交付待核",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3239,14 +3240,14 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "包子横幅默认与禁用设置、受控正文裁边及分享一致性已具名验证，设备已恢复；App交付待核。",
-      "remaining": "完成包子横幅App正式交付；继续处理XCOMIC正则、章节身份及漫小肆等原差异。",
+      "result": "包子章节身份设置、刷新与续读已具名验证，设备已恢复；源已发布，Host交付待核。",
+      "remaining": "完成包子章节身份Host交付，继续处理XCOMIC正则和漫小肆等现有差异。",
       "remainingActions": [
         "闭合已列具名设置差异。",
         "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。",
         "核对并实现XCOMIC简繁自定义标题删除规则，保默认标题行为。",
-        "核对包子章节身份修复（参考CHAPTER_ORDER）及横幅处理，保既有进度与图片边界。",
-        "核对漫小肆镜像站点身份及有效性。"
+        "核对漫小肆镜像站点身份及有效性。",
+        "完成包子章节身份Host正式交付及精确CI核验。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3256,7 +3257,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "App正式交付待核",
+      "stage": "Host正式交付待核",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3493,7 +3494,12 @@
         "sources 5b87942b2e137602598816e1995c5db0c668a460已推、CI40990993643 success；公开015 ZIP 1a6708f75fb8f7bf6652acb0e76e8c396c7b979cf15094f79bbeeb0ac8517467 / WASM dd2661178c73c3628c1af7973ff19bc691decc5adceac5818afe7359c1fa6cbc，/private/tmp/baozimh-5b879-public/实际执行旧Host无描述、新Host默认1及未存1/显式0/1/2一致。公开WASM不同237候选05715，未另Native。Root亲看237受控合成正例关闭保横幅、默认去横幅，不是自然站点正例或首页403解决；设备恢复进行中。",
         "包子横幅公开实体与CI稳定索引：.hvigor/outputs/user-flow-audit/source-settings-repair/baozimh-banner-published-5b87942/evidence.json；原矩阵baozimh行同步源015公开、Host待提交CI、Native受控合成边界，CHAPTER_ORDER仍未完成。",
         "237 source-baozi-banner：014默认普通、016/017禁用保存重入；028受控固定949横幅+真实正文输入保横幅，031缺省裁边、032 JPEG 1500x2798/217213B SHA103481923a762ff7210c4cba42966a11ad28f04ce348ffedd2454957230d2b8a。042菜单时序修正后系统分享面板Root亲审，043分享副本与032逐字一致，044取消后新目录消失仅旧KPgKbO保留。046六域及原cache023逐字恢复，047源012四成员逐字恢复、原db31及斗破1页3%；048 SLEEP/120000无override、偏好absent，lease dd9bbeac released，未动Torii凭据。Kit 12b8c5fee7dab206bf7a112d51ed89120beb2b2c已推main，NextE/NextN默认分享按钮分支未改；AppHost提交/CI待核。受控缓存合成输入非自然网站横幅，不称首页403解决。",
-        "App scoped本地提交775bdeb53a6134356ceec21073fbf9d81fb52ed1，12源码/ABI及workflow pin共13文件，尚未推送/CI；Kit12b已推。装机HAP 6d924f12…默认debug签/release build，cert/profile同db31。候选索引 .hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json已补Native及恢复，017实际路径disabled-reentered-017。"
+        "App scoped本地提交775bdeb53a6134356ceec21073fbf9d81fb52ed1，12源码/ABI及workflow pin共13文件，尚未推送/CI；Kit12b已推。装机HAP 6d924f12…默认debug签/release build，cert/profile同db31。候选索引 .hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json已补Native及恢复，017实际路径disabled-reentered-017。",
+        "Host775bdeb及docs8aa21a80c1ba2e085ef643d004c89422ddde8702已推，精确CI40993971192 completed/success；Kit12b远端已核。包子横幅源公开、受控Native/分享及恢复已核，真实自然站点正例及相册保存未验，首页403仍未解决。CHAPTER_ORDER固定949、当前生产身份、三调用方及同slot歧义见 .hvigor/outputs/user-flow-audit/source-settings-repair/baozimh-chapter-order-identity-20261030.md；默认关闭，歧义需产品决定，不称无损兼容或完成。",
+        "用户本轮明确CHAPTER_ORDER歧义时保留旧目录和进度、本次刷新失败。Root实施Host严格身份协调、不改排序或首次阅读；source_terra实施源default0及featuregate 0.1.6候选。少量生产helper执行已过，尚未构建或Native；原横幅CI成功保留。",
+        "Host协调、真实详情失败回退及真实书架更新失败回退已执行：歧义不写库/snapshot，显式失败及静默后台均保原内容。release同debug签HAP 8c9fe79e…已在237安装；源016隔离v2 ZIP20ac055c…/WASM f27d732d…受控WASM门槛、两模式及完整title已核。普通导入/Native设置验收中，未提交推送；lease20261030-031322-27a5a243常亮，六域及原012基线已备，结束需恢复db31/源012/六域/睡眠。",
+        "008默认0、009三参考选项、011保存1、012重入保持；014缓存库详情696及原6/24，016显式刷新自然403进入自动验证，017自动关闭后UI 697/697及新简介状态，Root亲审。018原库696存章ID/isRead/pages/pageCount全保，reader逐字同基线，sourceMetadata/settingsFingerprint推进；持久合同只enrich匹配旧章，库696/UI697正常，不称库加新章。19续读进行中；真实歧义/强力模式Native未自然命中，生产WASM及实际详情/Library方法受控执行已核。源016提交推送及设备恢复进行中。",
+        "020原001章6/24真实图片Root亲审，019首帧spinner不计通过；021原db31安装成功、源012四成员及六公共域逐字恢复，022原App普通启动继续斗破1页3%、SLEEP/120000无override，lease27a5a243 released。Host本地提交b138a8a4fa3404450d48c868722dcd0f0d47ceb5待推CI；源0111c1a7650897181bb26e9dbdce151da9e697fb已推、精确CI40998231797 success，公开WASM实际执行但不同设备候选，不冒公开Native。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/baozimh-chapter-order-016/evidence.json及native-catalog-result.json。"
       ]
     },
     {
@@ -9432,6 +9438,68 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "baozi-banner-host-delivery-20261030",
+      "at": "2026-10-30T10:55:52+08:00",
+      "title": "包子横幅受控范围正式交付",
+      "detail": "Host及依赖已推、精确CI成功，受控Native及恢复已核；自然站点正例与相册保存未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/40993971192",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/baozimh-chapter-order-identity-20261030.md"
+      ]
+    },
+    {
+      "id": "baozi-chapter-identity-user-decision-20261030",
+      "at": "2026-10-30T11:08:25+08:00",
+      "title": "包子章节身份歧义处理决定",
+      "detail": "用户决定保旧目录及进度并让本次刷新失败；Host及源候选实现中，尚未构建或Native。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "baozi-official-name-supported-20261030",
+      "at": "2026-10-30T11:08:25+08:00",
+      "title": "包子名称依据具名补全",
+      "detail": "同注册域索引与固定参考支持现名，未知由7减为6；www未直读及繁体来源边界保留。此时间为登记时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/baozimh-official-name-20261030.json"
+      ]
+    },
+    {
+      "id": "baozi-chapter-identity-native-start-20261030",
+      "at": "2026-10-30T11:17:56+08:00",
+      "title": "包子章节身份候选设备验证中",
+      "detail": "Host失败回退及源受控合同已核，候选已构建，237普通设置路径仍在验证与恢复前阶段。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "baozi-chapter-order-native-progress-20261030",
+      "at": "2026-10-30T11:35:39+08:00",
+      "title": "包子章节身份普通路径具名验证",
+      "detail": "设置保存重入及真实刷新已核，旧库章节和读态保持；续读、恢复与正式交付进行中。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "baozi-chapter-order-restored-20261030",
+      "at": "2026-10-30T11:42:41+08:00",
+      "title": "包子章节身份具名验证及恢复",
+      "detail": "设置、刷新与原章续读已核，设备恢复；源正式CI成功，Host交付待核。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/baozimh-chapter-order-016/evidence.json",
+        "https://github.com/honjow/koma-sources/actions/runs/40998231797"
       ]
     }
   ],
