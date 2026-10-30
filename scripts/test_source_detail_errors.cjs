@@ -21,6 +21,8 @@ new Function('exports', compile(read('sourceRuntime/SourceWebChallengeGate')))(g
 const { SourceWebChallengeGate } = gateModule.exports
 const chapterIdentity = {}
 new Function('exports', 'require', compile(read('model/SourceChapterIdentity')))(chapterIdentity, () => ({}))
+const chapterChronology = {}
+new Function('exports', 'require', compile(read('model/SourceChapterChronology')))(chapterChronology, () => ({}))
 const pageSource = read('pages/MangaDetailPage').replace(/\bstruct (\w+)/g, 'class $1')
 const file = ts.createSourceFile('page.ts', pageSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 const owner = file.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'MangaDetailPage')
@@ -192,6 +194,7 @@ test('directory resolver preserves legacy reason message alongside HTTP diagnost
   const exports = {}
   const response = { ok: false, reasonCode: 'http_error', error: { code: 'permission_denied', status: 403, message: 'PRIVATE_TOKEN' } }
   new Function('exports', 'require', compile(read('model/SourceChapterListResolver')))(exports, name => {
+    if (name === './SourceChapterChronology') return chapterChronology
     if (name === './SourceRuntimeError') return { SourceRuntimeError }
     if (name === './SourceChapterVisibility') return chapterVisibility
     if (name === '@kit.ArkTS') return { taskpool: { execute: async () => JSON.stringify(response) } }
@@ -315,6 +318,7 @@ test('completed catalog diagnostic counts duplicate identities without merging t
     { ok: true, data: { items: second, page: { nextCursor: null, hasMore: false } } },
   ]
   new Function('exports', 'require', compile(read('model/SourceChapterListResolver')))(exports, name => {
+    if (name === './SourceChapterChronology') return chapterChronology
     if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { info: (...args) => logs.push(args.join(' ')) } }
     if (name === './SourceRuntimeError') return { SourceRuntimeError }
     if (name === '@kit.ArkTS') return { taskpool: { execute: async (_worker, request) => {

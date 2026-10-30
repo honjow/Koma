@@ -643,8 +643,16 @@ struct Index {
       if (resolution.pages.length === 0) throw KomaReaderFailure.sourceError(resolution.sourceFailureReason, resolution.sourceFailure)
       return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
     }
-    const original = this.readerComicForOpen(target.work)
+    let original = this.readerComicForOpen(target.work)
     if (original === undefined) return null
+    if (original.sourceRuntimeId !== undefined &&
+      !original.chapters.some((chapter: Chapter): boolean => chapter.id === target.unit)) {
+      await new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
+        this.ensureLibraryPersistenceService()).ensureChapterDescriptor(target.work, target.unit,
+          (): boolean => !cancellation.isCancelled() && this.readerOpen && !this.readerClosing)
+      cancellation.check()
+      original = this.readerComicForOpen(target.work) ?? original
+    }
     // Keep local-folder permission activation in the adapter's established path.
     if (original.sourceKind === ComicSourceKind.LOCAL_FOLDER) return null
     const offlineReady = this.hasAvailableOfflineReaderPages(original.id, target.unit)
@@ -666,6 +674,37 @@ struct Index {
       throw KomaReaderFailure.sourceError(sourceFailureReason, sourceFailure)
     }
     return null
+  }
+
+  /** Legacy libraries acquire source ordinals in the background, never by
+   * reversing their possibly merged stored array or delaying the cached page. */
+  private async prepareReaderLabSequence(target: ReaderUnitKey,
+    cancellation: ReaderCancellation): Promise<string[] | undefined> {
+    const epoch = this.readerOpenEpoch
+    const isCurrent = (): boolean => !cancellation.isCancelled() && epoch === this.readerOpenEpoch &&
+      this.readerOpen && !this.readerClosing
+    const source = this.activeSourceReaderRequest
+    if (source !== undefined && source.comicId === target.work) {
+      const lookup = this.sourceRegistry.lookup(source.sourceId)
+      if (!lookup.ok || lookup.entry === undefined || !sourceRuntimeEntryEnabled(lookup.entry)) return undefined
+      const sourceCurrent = (): boolean => isCurrent() && this.sourceRegistry.lookup(source.sourceId).entry === lookup.entry
+      const catalog = await resolveSourceChapterList(lookup.entry, source.mangaId, source.mangaUrl, sourceCurrent)
+      cancellation.check()
+      if (!catalog.resolved || !sourceCurrent()) return undefined
+      const active = this.activeSourceReaderRequest
+      if (active === undefined || active.comicId !== source.comicId || active.sourceId !== source.sourceId ||
+        active.mangaId !== source.mangaId) return undefined
+      const updated = cloneSourceReaderSessionRequest(active)
+      updated.chapters = catalog.chapters.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor =>
+        cloneReaderChapterDescriptor(chapter))
+      updated.chapterIds = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.id)
+      updated.chapterTitles = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.title)
+      updated.chaptersResolved = true
+      this.activeSourceReaderRequest = updated
+      return continuationChapterIds(catalog.chapters, target.unit)
+    }
+    return new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
+      this.ensureLibraryPersistenceService()).resolveChapterSequence(target.work, target.unit, isCurrent)
   }
 
   private createReaderLabCatalogHost(production: boolean = false): KomaReaderCatalogHost {
@@ -703,6 +742,8 @@ struct Index {
         return this.prepareReaderLabCatalog(target, cancellation)
       },
       (target: ReaderUnitKey, config: ReaderSessionConfig): void => this.commitReaderLabCatalog(target, config),
+      (target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<string[] | undefined> =>
+        this.prepareReaderLabSequence(target, cancellation),
     )
   }
 

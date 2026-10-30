@@ -13,6 +13,7 @@ import { SourceSettingObservations } from '../sourceRuntime/SourceSettingObserva
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { sourceChapterExclusions } from './SourceChapterVisibility'
+import { sourceCatalogChronology } from './SourceChapterChronology'
 
 interface SourceChapterPage {
   hasMore?: boolean
@@ -215,7 +216,8 @@ async function fetchSourceChapterList(
           ' min=' + (minNumber ?? 'none') + ' max=' + (maxNumber ?? 'none') +
           ' leading=' + leadingNumbers.join(','))
       }
-      const result: SourceChapterListResult = { chapters, resolved: true }
+      const completeChapters = chapterId === undefined ? sourceCatalogChronology(chapters, entry.chapterOrder) : chapters
+      const result: SourceChapterListResult = { chapters: completeChapters, resolved: true }
       if (excludedChapterIds.size > 0) result.excludedChapterIds = Array.from(excludedChapterIds)
       return result
     }

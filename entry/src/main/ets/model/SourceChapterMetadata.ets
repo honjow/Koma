@@ -18,6 +18,12 @@ export function enrichSourceChapterMetadata(comic: Comic, remoteChapters: MangaC
   comic.chapters.forEach((chapter: Chapter): void => {
     const remote = remoteById.get(chapter.id)
     if (remote === undefined) {
+      // A retained offline/deleted chapter keeps its pages and progress. Its
+      // former ordinal/eligibility is not authority for the new full catalog.
+      if (chapter.continuationEligible === true) {
+        chapter.continuationEligible = false
+        changed = true
+      }
       return
     }
     // A successfully resolved source snapshot owns sequence metadata and language, including unknown.

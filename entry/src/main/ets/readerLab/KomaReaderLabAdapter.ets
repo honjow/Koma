@@ -92,6 +92,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private sources: Map<string, ReaderPageRenderSource[]> = new Map()
   private preparedUnits: Map<string, ReaderUnit> = new Map()
   private preparingUnits: Map<string, Promise<ReaderUnit>> = new Map()
+  private preparingSequences: Set<string> = new Set()
+  private resolvedSequences: Map<string, string[]> = new Map()
+  onSequenceReady: () => void = (): void => {}
   private preparationCancellation: ReaderCancellation = new ReaderCancellation()
   private sourceRequests: Map<string, Promise<string>> = new Map()
   private preloadedSizes: Map<string, KomaReaderPreloadedSize> = new Map()
@@ -226,10 +229,36 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const sources = createReaderPageRenderSources(config, { preferOffline: true })
     const unit = new ReaderUnit(key.copy(), `${config.title ?? ''} · ${config.chapterTitle ?? ''}`, config.totalPages)
     cancellation.check()
+    const sequence = this.resolvedSequences.get(this.unitId(key))
+    if (sequence !== undefined) config.continuationChapterIds = sequence.slice()
     this.configs.set(this.unitId(key), config)
     this.sources.set(this.unitId(key), sources)
     this.preparedUnits.set(this.unitId(key), unit)
+    if (config.sourceRuntimeId !== undefined && config.continuationChapterIds === undefined) {
+      void this.prepareSequence(key.copy())
+    }
     return unit.copy()
+  }
+
+  private async prepareSequence(key: ReaderUnitKey): Promise<void> {
+    const work = JSON.stringify([key.scope, key.work])
+    if (this.closed || this.catalogHost === null || this.preparingSequences.has(work)) return
+    this.preparingSequences.add(work)
+    try {
+      const sequence = await this.catalogHost.sequence(key.copy(), this.preparationCancellation)
+      if (this.closed || sequence === undefined || !sequence.includes(key.unit)) return
+      sequence.forEach((chapterId: string): void => {
+        const id = this.unitId(new ReaderUnitKey(key.scope, key.work, chapterId))
+        this.resolvedSequences.set(id, sequence)
+        const config = this.configs.get(id)
+        if (config !== undefined) config.continuationChapterIds = sequence.slice()
+      })
+      this.onSequenceReady()
+    } catch (_error) {
+      if (!this.closed) DiagnosticLogger.warn('reader', 'chapter_sequence_unavailable', 'reason=chapter_sequence_unavailable')
+    }
+    // One background attempt per work/session; a new Reader session can
+    // resolve a failed source request again without changing the current page.
   }
 
   async page(unit: ReaderUnit, index: number, cancellation: ReaderCancellation): Promise<ReaderPage> {
@@ -255,7 +284,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   adjacent(unit: ReaderUnit, direction: 'next' | 'previous'): ReaderUnitKey | null {
     const config = this.configs.get(this.unitId(unit.key))
     if (config === undefined) return null
-    const chapterIds = config.continuationChapterIds ?? config.chapterIds
+    // Online adjacency must use the same chronology as preloading. Raw source
+    // catalog order may be newest-first and is only the manual picker's order.
+    const chapterIds = config.continuationChapterIds ??
+      (config.sourceRuntimeId === undefined ? config.chapterIds : [])
     const index = chapterIds.indexOf(unit.key.unit)
     const target = index + (direction === 'next' ? 1 : -1)
     if (index < 0 || target < 0 || target >= chapterIds.length) return null
@@ -512,6 +544,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     this.closed = true
     this.preparationCancellation.cancel()
     this.preparingUnits.clear()
+    this.preparingSequences.clear()
+    this.resolvedSequences.clear()
     this.sourceRequests.clear()
     this.preloadedSizes.clear()
     this.preloadedSizeVersions.clear()

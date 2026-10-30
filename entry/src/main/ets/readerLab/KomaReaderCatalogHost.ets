@@ -7,16 +7,21 @@ export class KomaReaderCatalogHost {
   private prepareResolver: (target: ReaderUnitKey,
     cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>
   private commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void
+  private sequenceResolver: ((target: ReaderUnitKey, cancellation: ReaderCancellation) =>
+    Promise<string[] | undefined>) | null
 
   constructor(
     initialResolver: (work: string, unit: string) => ReaderSessionConfig | null,
     prepareResolver: (target: ReaderUnitKey,
       cancellation: ReaderCancellation, forceRefresh: boolean) => Promise<ReaderSessionConfig | null>,
     commitResolver: (target: ReaderUnitKey, config: ReaderSessionConfig) => void,
+    sequenceResolver: ((target: ReaderUnitKey, cancellation: ReaderCancellation) =>
+      Promise<string[] | undefined>) | null = null,
   ) {
     this.initialResolver = initialResolver
     this.prepareResolver = prepareResolver
     this.commitResolver = commitResolver
+    this.sequenceResolver = sequenceResolver
   }
 
   initial(work: string, unit: string): ReaderSessionConfig | null {
@@ -35,5 +40,12 @@ export class KomaReaderCatalogHost {
     if (config.comicId !== target.work || config.chapterId !== target.unit || config.totalPages < 1 ||
       config.pageUris.length !== config.totalPages) return
     this.commitResolver(target.copy(), cloneReaderSessionConfig(config))
+  }
+
+  async sequence(target: ReaderUnitKey, cancellation: ReaderCancellation): Promise<string[] | undefined> {
+    cancellation.check()
+    const result = await this.sequenceResolver?.(target.copy(), cancellation)
+    cancellation.check()
+    return result?.slice()
   }
 }

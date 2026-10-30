@@ -3289,7 +3289,8 @@ export struct ReaderPage {
   }
 
   private continuationChapterIds(): string[] {
-    return this.sessionConfig.continuationChapterIds ?? this.sessionConfig.chapterIds
+    return this.sessionConfig.continuationChapterIds ??
+      (this.sessionConfig.sourceRuntimeId === undefined ? this.sessionConfig.chapterIds : [])
   }
 
   /**

@@ -31,6 +31,16 @@ export function firstReaderChapter(
   sourceOrder?: SourceChapterOrder,
   isRead?: (chapterId: string) => boolean,
 ): ReaderChapterDescriptor | undefined {
+  const sourceCatalog = chapters.filter((chapter: ReaderChapterDescriptor): boolean =>
+    chapter.readingGroup === 'source-catalog' && chapter.continuationEligible === true &&
+    chapter.readingOrder !== undefined && Number.isFinite(chapter.readingOrder))
+  if (sourceCatalog.length > 0) {
+    // These are the source's saved chronological positions, not inferred
+    // chapter numbers or the library merge/display array's current position.
+    sourceCatalog.sort((left: ReaderChapterDescriptor, right: ReaderChapterDescriptor): number =>
+      (left.readingOrder as number) - (right.readingOrder as number))
+    return sourceCatalog.find((chapter: ReaderChapterDescriptor): boolean => isRead === undefined || !isRead(chapter.id))
+  }
   // Adopted Mihon rule: chronology belongs to the source contract, not the
   // user's display direction or inferred numbers. Existing resume/explicit
   // targets remain owned by callers. Undeclared sources keep the legacy
@@ -96,7 +106,7 @@ export function automaticContinuationChapterIds(
   return ids.includes(currentId) ? ids : undefined
 }
 
-/** undefined is legacy explicit navigation, not a verified automatic sequence. */
+/** Persistent source ordinals and edition metadata define reading order, never display sort. */
 export function continuationChapterIds(
   chapters: ReaderChapterDescriptor[],
   currentId: string,
@@ -106,6 +116,8 @@ export function continuationChapterIds(
     return undefined
   }
   if (current.readingGroup === undefined && current.continuationEligible === undefined) {
+    // Library merges can reorder this array. SourceChapterChronology assigns
+    // persistent ordinals only while consuming a complete original catalog.
     return undefined
   }
   const group = current.readingGroup
@@ -116,7 +128,28 @@ export function continuationChapterIds(
   // Filter before numeric comparison: unknown ordinals must not participate in sorting.
   const eligible = chapters.filter((chapter: ReaderChapterDescriptor): boolean =>
     chapter.readingGroup === group && chapter.continuationEligible === true && readingOrder(chapter) !== undefined)
-  eligible.sort((left: ReaderChapterDescriptor, right: ReaderChapterDescriptor): number =>
-    (readingOrder(left) as number) - (readingOrder(right) as number) || chapters.indexOf(left) - chapters.indexOf(right))
+  const explicitOrder = eligible.every((chapter: ReaderChapterDescriptor): boolean =>
+    chapter.readingOrder !== undefined && Number.isFinite(chapter.readingOrder) && chapter.readingOrder >= 0)
+  // An ordinal is not a volume or chapter number. Do not compare partial
+  // explicit ordinals with numbers from a different coordinate system.
+  if (!explicitOrder && eligible.some((chapter: ReaderChapterDescriptor): boolean =>
+    chapter.readingOrder !== undefined)) return [currentId]
+  const volumeOrder = !explicitOrder && eligible.every((chapter: ReaderChapterDescriptor): boolean =>
+    chapter.volumeNumber !== undefined && chapter.volumeNumber.trim().length > 0 &&
+    Number.isFinite(Number(chapter.volumeNumber)))
+  const compare = (left: ReaderChapterDescriptor, right: ReaderChapterDescriptor): number => {
+    if (explicitOrder) return (left.readingOrder as number) - (right.readingOrder as number)
+    // Legacy grouped metadata uses (volume, chapter), not volume alone. All
+    // chapters in volume 1 still need their 1/2/3 order before volume 2 begins.
+    const volumeDifference = volumeOrder ? Number(left.volumeNumber) - Number(right.volumeNumber) : 0
+    return volumeDifference || (left.chapterNumber ?? 0) - (right.chapterNumber ?? 0)
+  }
+  eligible.sort(compare)
+  // Equal source positions do not establish which chapter follows which.
+  // Display/library array order cannot break that tie; the source must supply
+  // a unique ordinal (duplicate displayed chapter numbers remain valid).
+  for (let index = 1; index < eligible.length; index += 1) {
+    if (compare(eligible[index - 1], eligible[index]) === 0) return [currentId]
+  }
   return eligible.map((chapter: ReaderChapterDescriptor): string => chapter.id)
 }

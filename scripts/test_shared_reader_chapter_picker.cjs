@@ -271,7 +271,7 @@ const sharedCore = require('../../reader-kit/tests/load-core.cjs')('ReaderSessio
 function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri,
   readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
-    ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'preloadNextUnit',
+    ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'prepareSequence', 'adjacent', 'preloadNextUnit',
       'page', 'preload', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
       ...sharedCore, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
       ComicSourceKind: { LOCAL_FOLDER: 'local_folder' },
@@ -284,7 +284,8 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
     })
   const adapter = new Adapter()
   Object.assign(adapter, { configs: new Map(), sources: new Map(), preparedUnits: new Map(),
-    preparingUnits: new Map(), sourceRequests: new Map(), refreshingSources: new Map(), automaticallyRefreshedUnits: new Set(), automaticPageRetries: new Set(), closed: false, chapterPreloadEnabled: true,
+    preparingUnits: new Map(), preparingSequences: new Set(), resolvedSequences: new Map(), onSequenceReady() {},
+    sourceRequests: new Map(), refreshingSources: new Map(), automaticallyRefreshedUnits: new Set(), automaticPageRetries: new Set(), closed: false, chapterPreloadEnabled: true,
     preloadedSizes: new Map(), preloadedSizeVersions: new Map(),
     preparationCancellation: new sharedCore.ReaderCancellation(), catalogFailureText: 'visible failure',
     catalogHost: { prepare: hostPrepare }, thumbnails: { close() {} },
@@ -342,6 +343,44 @@ test('source next-unit prefetch requires a verified sequence, warms only its con
   await adapter.preloadNextUnit(new sharedCore.ReaderUnit(unitKey('B'), 'next', 3), 2,
     new sharedCore.ReaderCancellation())
   assert.equal(preparations, 1, 'read-only/debug consumers do not gain network speculation')
+  adapter.close()
+})
+
+test('online adjacent chapters and lookahead consume the same sequence instead of reverse catalog order', async () => {
+  const opened = [], fetched = []
+  const adapter = preparationFixture(async target => {
+    opened.push(target.unit)
+    return { ...chapterConfig(target.unit), sourceRuntimeId: 'source',
+      chapterIds: ['C', 'B', 'A'], continuationChapterIds: ['A', 'B', 'C'] }
+  }, async source => { fetched.push(source.imageUri); return '/cache/' + source.imageUri })
+  const current = new sharedCore.ReaderUnit(unitKey('B'), 'middle', 3)
+  adapter.configs.set(adapter.unitId(current.key), { ...chapterConfig('B'), sourceRuntimeId: 'source',
+    chapterIds: ['C', 'B', 'A'], continuationChapterIds: ['A', 'B', 'C'] })
+  assert.equal(adapter.adjacent(current, 'previous').unit, 'A')
+  assert.equal(adapter.adjacent(current, 'next').unit, 'C')
+  await adapter.preloadNextUnit(current, 1, new sharedCore.ReaderCancellation())
+  assert.deepEqual(opened, ['C'])
+  assert.deepEqual(fetched, ['C0'])
+  adapter.configs.set(adapter.unitId(current.key), { ...chapterConfig('B'), sourceRuntimeId: 'source',
+    continuationChapterIds: undefined })
+  assert.equal(adapter.adjacent(current, 'next'), null, 'unknown chronology must not reverse the reading relation')
+  adapter.close()
+})
+
+test('legacy chronology resolves beside the current page and then enables the same lookahead', async () => {
+  const adapter = preparationFixture(async target => ({ ...chapterConfig(target.unit), sourceRuntimeId: 'source',
+    continuationChapterIds: undefined }))
+  let finish, publications = 0
+  adapter.catalogHost.sequence = () => new Promise(resolve => { finish = resolve })
+  adapter.onSequenceReady = () => { publications++ }
+  const unit = await adapter.prepare(unitKey('B'), new sharedCore.ReaderCancellation())
+  assert.equal(unit.pageCount, 3, 'cached current pages do not wait for chapter metadata')
+  assert.equal(adapter.adjacent(unit, 'next'), null)
+  finish(['A', 'B', 'C']); await later()
+  assert.equal(adapter.adjacent(unit, 'next').unit, 'C')
+  assert.equal(publications, 1)
+  const laterChapter = await adapter.prepare(unitKey('C'), new sharedCore.ReaderCancellation())
+  assert.equal(adapter.adjacent(laterChapter, 'previous').unit, 'B')
   adapter.close()
 })
 
@@ -658,5 +697,69 @@ test('verified source reading order preserves duplicate numbers and unnumbered e
   assert.equal(output.continuationChapterIds([{ id: 'legacy', title: 'legacy', chapterNumber: 1 }], 'legacy'), undefined)
   const legacy = chapters.filter(chapter => chapter.chapterNumber !== undefined)
     .map(({ readingOrder, ...chapter }) => chapter)
-  assert.deepEqual(Array.from(output.continuationChapterIds(legacy, 'one-a')), ['one-b', 'one-a', 'two', 'end'])
+  // The old expectation used array order to break equal chapter numbers.
+  // That conflicts with the user's absolute chapter relation requirement:
+  // reversing a displayed/merged list must never pick a different neighbour.
+  assert.deepEqual(Array.from(output.continuationChapterIds(legacy, 'one-a')), ['one-a'])
+  assert.deepEqual(Array.from(output.continuationChapterIds(legacy.slice().reverse(), 'one-a')), ['one-a'])
+  const repeatedOrdinal = chapters.map(chapter => ({ ...chapter, readingOrder: 1 }))
+  assert.deepEqual(Array.from(output.continuationChapterIds(repeatedOrdinal, 'extra')), ['extra'])
+  const volumes = [
+    { id: 'v2c1', volumeNumber: '2', chapterNumber: 1 },
+    { id: 'v1c3', volumeNumber: '1', chapterNumber: 3 },
+    { id: 'v1c2', volumeNumber: '1', chapterNumber: 2 },
+    { id: 'v1c1', volumeNumber: '1', chapterNumber: 1 },
+  ].map(chapter => ({ ...chapter, title: chapter.id, readingGroup: 'edition', continuationEligible: true }))
+  assert.deepEqual(Array.from(output.continuationChapterIds(volumes, 'v1c2')),
+    ['v1c1', 'v1c2', 'v1c3', 'v2c1'])
+})
+
+test('declared source chronology supplies the same chapter relation without edition metadata', () => {
+  const source = fs.readFileSync(path.join(root, '../model/ReaderChapterSequence.ets'), 'utf8')
+  const output = {}
+  vm.runInNewContext(ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: output })
+  const chronology = {}
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, '../model/SourceChapterChronology.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: chronology })
+  // Source order is newest first; unnumbered extras must not disappear or be
+  // sorted by their title. Display reversal works on a copy and is irrelevant.
+  const chapters = ['last', 'extra', 'first'].map(id => ({ id, title: id }))
+  const shown = chapters.slice().reverse()
+  assert.deepEqual(shown.map(chapter => chapter.id), ['first', 'extra', 'last'])
+  const persisted = chronology.sourceCatalogChronology(chapters, 'newest_first')
+  assert.deepEqual(Array.from(output.continuationChapterIds(persisted, 'extra')),
+    ['first', 'extra', 'last'])
+  assert.deepEqual(Array.from(output.continuationChapterIds([persisted[1], persisted[2], persisted[0]], 'extra')),
+    ['first', 'extra', 'last'], 'library merges do not change the saved source relation')
+  assert.equal(output.firstReaderChapter([persisted[1], persisted[2], persisted[0]], 'newest_first').id, 'first')
+  assert.equal(output.firstReaderChapter(persisted, 'newest_first', id => id === 'first').id, 'extra')
+  assert.deepEqual(chapters.map(chapter => chapter.id), ['last', 'extra', 'first'])
+  assert.deepEqual(Array.from(output.continuationChapterIds(chronology.sourceCatalogChronology(shown, 'oldest_first'), 'extra')),
+    ['first', 'extra', 'last'])
+  const grouped = chapters.map(chapter => ({ ...chapter, readingGroup: 'edition', continuationEligible: false }))
+  assert.deepEqual(Array.from(output.continuationChapterIds(chronology.sourceCatalogChronology(grouped, 'newest_first'), 'extra')), ['extra'],
+    'catalog chronology cannot override a source edition restriction')
+})
+
+
+test('a complete source catalog retires missing chapter adjacency without losing saved pages or progress', () => {
+  const output = {}
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, '../model/SourceChapterMetadata.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: output })
+  for (const readingGroup of ['source-catalog', 'source-edition']) {
+    const missing = { id: 'missing', index: 0, readingGroup, readingOrder: 0, continuationEligible: true,
+      pages: [{ uri: 'saved-original' }], isRead: true, lastReadPage: 4 }
+    const present = { id: 'present', index: 1, readingGroup, readingOrder: 1, continuationEligible: true }
+    const comic = { chapters: [missing, present] }
+    assert.equal(output.enrichSourceChapterMetadata(comic, [{ ...present }]), true)
+    assert.equal(missing.continuationEligible, false)
+    assert.deepEqual(missing.pages, [{ uri: 'saved-original' }])
+    assert.deepEqual([missing.isRead, missing.lastReadPage, missing.readingOrder], [true, 4, 0])
+    assert.equal(present.continuationEligible, true)
+    assert.equal(output.enrichSourceChapterMetadata(comic, [{ ...present }]), false)
+  }
 })

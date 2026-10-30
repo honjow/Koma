@@ -28,7 +28,10 @@ import {
   appSourceSettingsStore,
 } from '../sourceRuntime/SourceSettingsStore'
 import { normalizeSourceImageUrl } from './SourceTextNormalizer'
-import { resolveSourceChapterForResume } from './SourceChapterListResolver'
+import { resolveSourceChapterForResume, resolveSourceChapterList } from './SourceChapterListResolver'
+import { continuationChapterIds } from './ReaderChapterSequence'
+import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
+import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { SourceFailureDetails, sourceFailureDetails } from './SourceRuntimeError'
 
 interface SourceOperationDataPayload {
@@ -421,6 +424,32 @@ export class SourceChapterPageHydrator {
     }
     this.onLibraryChanged?.()
     return true
+  }
+
+  /** Upgrade legacy sequence metadata beside the displayed chapter. No page,
+   * progress, chapter deletion or visible catalog reordering is performed. */
+  async resolveChapterSequence(comicId: string, chapterId: string,
+    isCurrent: () => boolean): Promise<string[] | undefined> {
+    const comic = this.libraryStore.getComic(comicId)
+    const sourceId = comic?.sourceRuntimeId?.trim()
+    if (comic === undefined || sourceId === undefined || sourceId.length === 0) return undefined
+    const mangaId = sourceMangaIdFromComic(comic, sourceId)
+    const lookup = this.sourceRegistry.lookup(sourceId)
+    if (mangaId === undefined || !lookup.ok || lookup.entry === undefined ||
+      !sourceRuntimeEntryEnabled(lookup.entry)) return undefined
+    const sourceCurrent = (): boolean => isCurrent() && this.sourceRegistry.lookup(sourceId).entry === lookup.entry
+    const catalog = await resolveSourceChapterList(lookup.entry, mangaId, comic.sourcePath, sourceCurrent)
+    const latest = this.libraryStore.getComic(comicId)
+    if (!catalog.resolved || !sourceCurrent() || latest === undefined || !sameComicIdentity(comic, latest) ||
+      latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) return undefined
+    const resolved = reconcileSourceChapterIdentity(latest, mangaId, catalog.chapters, undefined)
+    const updated = JSON.parse(JSON.stringify(latest)) as Comic
+    if (enrichSourceChapterMetadata(updated, resolved.chapters)) {
+      if (this.libraryPersistenceService === undefined) this.libraryStore.upsertComic(updated)
+      else upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
+      this.onLibraryChanged?.()
+    }
+    return continuationChapterIds(resolved.chapters, chapterId)
   }
 
   async ensureChapterPages(

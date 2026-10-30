@@ -269,6 +269,7 @@ export struct KomaReaderLabPage {
         (page: ReaderPage, cancellation: ReaderCancellation): Promise<ReaderAsset> => adapter.load(page, 'original', cancellation, false))
       this.translationProvider = translation
       const session = new ReaderPagedSession(adapter, translation, adapter, adapter)
+      adapter.onSequenceReady = (): void => { session.refreshAdjacency() }
       if (this.request.readingChrome) {
         this.trialWindow.open(context)
         this.keepScreenOn = new ReaderKeepScreenOn(context)
