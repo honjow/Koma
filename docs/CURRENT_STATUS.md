@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T20:39:29+08:00",
+  "updatedAt": "2026-10-30T21:51:11+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
-  "activity": "漫画屋同路径浏览器对照完成，身份兼容候选待决定；237留用户登录。",
-  "nextAction": "继续定位源故障，并按用户对具体候选的决定处理。",
+  "activity": "Simply网络对照仍遇挑战；官方名称复核已缩小未知范围。",
+  "nextAction": "继续定位具名源故障，并按用户对漫画屋和嗨皮候选的决定处理。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "最近App代码为f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0，精确CI41042962997成功；本轮未改App代码。",
-      "hap": "197两场已恢复电源并释租，原App未换；237已恢复，留给用户登录。"
+      "hap": "197已恢复电源并释租；237留给用户Noy登录。"
     },
     {
       "name": "NextE",
@@ -1073,10 +1073,10 @@
       "priority": "P2（后续处理）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "两种网络路径同遇挑战403，设备已恢复",
+      "status": "网络协商对照仍遇挑战403",
       "kind": "open",
-      "result": "197同公开请求经HTTP和RCP均遇挑战403，设备已恢复；原因仍待定位。",
-      "remaining": "继续定位网页可读而原生请求被挑战的原因；不重跑已完成的无变化对照。",
+      "result": "受控网络对照仍遇挑战403；设备已恢复，原因尚未确定。",
+      "remaining": "继续定位原生请求遭挑战的原因。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1120,10 +1120,15 @@
         "Simply Origin A/B：公开012 A实装e0e60001…普通首页403，仅删API Origin本地B cd8890cb…同首页仍403，不视为修复；候选未提交，原源四成员及六域恢复、原宿主未换，清候选/下载，SLEEP/120000无override、lease8dec8f45 released。source_terra按已授权197进行同URL/同公开头HTTP与RCP单次对照，尚无RCP结论，不称改架构。",
         "source_terra持197 lease 3c6607b7，已唤醒备份，临时HTTP/RCP候选尚未安装；原恢复HAP /private/tmp/Koma-chapter-014-38d245.hap SHA256 38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5及335成功回执已核，设备安装字节读取拒绝边界保留。237已恢复交用户Noy登录；home_terra仅本地核Noy参考协议/现WIP，不碰237。",
         "197 NetworkKit/RCP同源相同公开请求各一次均HTTP403、CF challenge=true、非JSON、5770字节；不称两栈所有行为相同或更换网络栈可修。首包Logger禁用时请求是否发生未知。013原38d安装成功、六JSON与001逐字同，014 SLEEP/120000/Override10000，lease3c6607b7 released；稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/evidence.json。",
-        "Simply Referer/Cache-Control候选已精确撤回，App源码无diff；HEAD旧测试夹具补3个MangaBz mock导入后原challenge ID单测1个通过，无新测试或产品变化。"
+        "Simply Referer/Cache-Control候选已精确撤回，App源码无diff；HEAD旧测试夹具补3个MangaBz mock导入后原challenge ID单测1个通过，无新测试或产品变化。",
+        "Simply CDP时序复核：007于19:25:41读取时request/current Cookie均空且probe未就绪；009于19:26:17读取clearanceCount=0在reload之前；010于19:26:55 reload后才出现Web 200，现存013/014/015之前未见200后再手动完成或Native重试。因此此前403不能视为Web 200后同状态对照；无clearance不代表其他Cookie均空。237 API23用双参、API26及以上用三参，未扩大权限。原始证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-cdp-20261030/evidence.json。",
+        "197第一场文件选择后32–54秒尚未确认系统选择器底部完成按钮，不能据此认定App导入卡住；008 force-stop后恢复。第二场补系统完成后公开012正常导入，原014 App未换；007验证页显示API JSON，008一次完成重试后PID32607 op9于20:56:04.947 GET403，网页真实网络状态与缓存未知，不称线上200后403。010原源四成员、六域及诊断XML逐字同；011 SLEEP/120000/Override10000，lease1543cefb released。仅为核网页200/304及原生Cookie状态准备临时CDP诊断包2f8e2a33，未改UA、头或缓存；临时源码已撤，受控观测尚待执行，不称修复。",
+        "197同requestId CDP response.status=200而ExtraInfo.statusCode=304，属缓存重验证，不能称新线上200；响应后目标URL Cookie总数0、clearance0，手动日志present=false/SDK26；同op9实际session=attached、cookieState=empty、uaSource=webview，hop_response403。014原38d安装成功，原011四成员、六域及诊断XML相等；012本场fport撤除，015候选/下载不存在、SLEEP/120000/原Override10000，lease bf72ec13 released；临时16行已撤。现产品候选仅Simply且api.simply-hentai.com验证页设Online，默认仍Default；不清缓存、不改UA/头/权限。官方Online全网络不读缓存，None会读过期缓存；Mihon为LOAD_DEFAULT，不称同实现。联合构建及一次验证进行中，效果未知。",
+        "Online控制下同requestId response200/Extra200，非disk或SW；Cookie总数0、clearance0；手动后SDK26同op9实际attached/empty/webviewUA且Native403。缓存不是403的充分根因；五行Online及16行诊断均精确撤回，不采用或提交。原Host38d安装成功，源四成员、六域、诊断XML相等，fport及下载清理，SLEEP/120000/原Override10000，lease6d5687ee released。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-online-diagnostic-20261030/evidence.json。现仅准备RCP默认与gallery-dl参考套件集合对照，保系统代理、证书、默认TLS与HTTP协商，尚无结果、不改生产网络栈；参考 source-settings-repair/simply-network-ab197-20261030/rcp-firefox-cipher-reference.md。",
+        "RCP默认及17参考套件均403/challenge/非JSON/5770字节/HTTP2；另一次完整参考头、17套件、TLS最低1.2及HTTP1.1匿名GET仍403/challenge/非JSON/5941字节，实际1.1。属于可配置近似而非完整Firefox指纹，不称全站不可用。003回执已审；004原38d安装成功、六JSON全等，005 SLEEP/120000/原Override10000、lease e44b5710 released；所有临时代码及此前Online五行、CDP十六行均撤回，不采用候选。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/rcp-firefox-reference-evidence.json。"
       ],
       "remainingActions": [
-        "继续定位网页可读而原生请求被挑战的原因；不重跑已完成的无变化对照。"
+        "继续定位原生请求遭挑战的原因。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1174,7 +1179,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "继续定位挑战原因",
+      "stage": "继续定位原生请求挑战",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -3221,16 +3226,16 @@
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "5项官方依据仍缺",
+      "status": "3项官方对应关系仍缺",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY"
       ],
-      "result": "85源名称证据已逐项盘点；73项有品牌或栏目依据，7项仅英文参考，5项官方中文名称或对应关系仍未知。",
-      "remaining": "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。",
+      "result": "85源名称已逐项盘点：75项有品牌或栏目依据，7项仅英文参考，3项官方对应关系仍未知。",
+      "remaining": "继续核实爱看漫、漫画柜及LoL的官方对应关系；图标保原边界。",
       "remainingActions": [
-        "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。"
+        "继续核实爱看漫、漫画柜及LoL的官方对应关系；图标保原边界。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
@@ -3239,7 +3244,7 @@
       "reportedAtSource": "用户于10-25要求核对各书源官方中文名；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "5项名称或官方对应关系尚未核实",
+      "stage": "爱看漫、漫画柜及LoL栏目对应尚未核实",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/",
         "漫画1234名称修正 eb347401 已于0.1.4发布；现源码、metadata及README均对应漫画1234网，既有已接受图标保持。",
@@ -3255,7 +3260,8 @@
       ],
       "evidencePoints": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
-        "更新当前结果前原result逐字保留：已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网；该后缀差异已于0.1.4修正，现源码及metadata与官网名称对应。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。 搜索抓取的原神官方漫画页面含品牌及具体章节列表，支持现名称与漫画栏目；直接打开为动态空壳，不冒当前正文或图标验收。 漫画柜同域搜索缓存使用“看漫画”，当前源名漫画柜；直接访问受限，正式名与别名关系及图标未核。爱看漫官方地址不可达，第三方名称仅线索；雀魂、战双、王者及阴阳师栏目全称与图标仍缺可核官方证据，不改名。 本轮官网浏览支持雀魂品牌与漫画栏目、王者品牌与漫画栏目；现源名为描述性名称，非官网全称逐字相同。战双页面仅标题可核，阴阳师站点安全策略拦截未绕过；图标和其他未知范围不外推。 本轮官网核对支持MYCOMIC、HANMAN18、泰拉、DB Multiverse、繁中WEBTOON及多站英文品牌的现有对应；单部作品名不扩为全站名，未据英文页面断言无中文别名。部分站点访问失败或超时，保未知。 官网具名证据补充H-Comic、NHentai.xxx及XCOMIC现有品牌；NHentai.to未访问，MangaDex网页安全策略拦截未绕过，不从英文页面推断全站无中文别名。 pixiv官方简体帮助页与当前pixiv名称对应，未改名或图标。 本轮具名名称复核支持部分现名；GoDa官网页头直接使用GoDa漫畫，支持现名；同页另有并存称法。"
+        "更新当前结果前原result逐字保留：已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网；该后缀差异已于0.1.4修正，现源码及metadata与官网名称对应。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。 搜索抓取的原神官方漫画页面含品牌及具体章节列表，支持现名称与漫画栏目；直接打开为动态空壳，不冒当前正文或图标验收。 漫画柜同域搜索缓存使用“看漫画”，当前源名漫画柜；直接访问受限，正式名与别名关系及图标未核。爱看漫官方地址不可达，第三方名称仅线索；雀魂、战双、王者及阴阳师栏目全称与图标仍缺可核官方证据，不改名。 本轮官网浏览支持雀魂品牌与漫画栏目、王者品牌与漫画栏目；现源名为描述性名称，非官网全称逐字相同。战双页面仅标题可核，阴阳师站点安全策略拦截未绕过；图标和其他未知范围不外推。 本轮官网核对支持MYCOMIC、HANMAN18、泰拉、DB Multiverse、繁中WEBTOON及多站英文品牌的现有对应；单部作品名不扩为全站名，未据英文页面断言无中文别名。部分站点访问失败或超时，保未知。 官网具名证据补充H-Comic、NHentai.xxx及XCOMIC现有品牌；NHentai.to未访问，MangaDex网页安全策略拦截未绕过，不从英文页面推断全站无中文别名。 pixiv官方简体帮助页与当前pixiv名称对应，未改名或图标。 本轮具名名称复核支持部分现名；GoDa官网页头直接使用GoDa漫畫，支持现名；同页另有并存称法。",
+        "197原件确认阴阳师 comic.163.com 页面标题“阴阳师漫画屋”及官方漫画、阴阳师工作室；杂志迷 zazhimi.net 截图显示“杂志迷”logo。矩阵现为75有依据、7仅英文参考、3未知。爱看漫与漫画柜系统浏览器风险拦截未绕过；LoL原页内容与源合同吻合，但Riot与具体内容关系未证。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json 相应行。"
       ]
     },
     {
@@ -4430,7 +4436,7 @@
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ],
-      "result": "《古見同學》指定详情返回空正文；另一作品同身份详情及章节正常，具体原因未知。",
+      "result": "指定作品详情仍返回空正文；197系统浏览器打开该作品时也显示空白，原因未知。",
       "remaining": "指定作品官方详情仍为空，官方别名也跳回同址；未找到可用正文或有效替代入口，原因未知。",
       "remainingActions": [
         "核实该作品实际可用的官方详情入口及返回内容；保留原作品和阅读进度，不用其他书替换。"
@@ -4450,6 +4456,10 @@
         "/private/tmp/comicabc-referer-ab/control-30513.{result,headers,body}及control-offline.jsonl：同源UA/Referer 30513 HTTP200、解压35355字节，真实HTML经生产0.1.10 WASM详情及6章成功；14884仍空。官方上游两文件blob与固定949一致，无新流程修复依据，不外推全站。",
         "本地可证地址流程已核：原生产搜索输出归一指向/html/14884.html，与固定参考及当前详情一致；章节domain不能作为详情新地址。既有同URL 200空body、30513正常均未重发。",
         "官方别名候选 https://www.comicabc.com/html/14884.html 基于旧官网mode链接，单次自动跳原8comic同路径，HTTP200/body0，不能修；不推断作品下架。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-official-alias-20261030/evidence.json。"
+      ],
+      "evidencePoints": [
+        "197系统浏览器017单次打开官方14884后截图空白，地址栏为8comic.com；最终完整URL与HTTP状态未知，不据此判定作品类型或网站根因。证据与Simply同场 source-settings-repair/simply-online-diagnostic-20261030/evidence.json。",
+        "离线搜索仅得到作品14884及封面，未含章节ID；固定949目录依详情章节ID，现无可证另一官方目录API。不猜章号、不重发失败请求、不改作品；197浏览器空白的既有边界不变。"
       ]
     },
     {
@@ -10257,6 +10267,94 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/happymh-search-dns-20261029.json"
+      ]
+    },
+    {
+      "id": "simply-cdp-order-correction-20261030",
+      "at": "2026-10-30T20:45:48+08:00",
+      "title": "Simply网页与原生请求时序纠正",
+      "detail": "既有Web 200出现在先前Cookie读取和probe之后，尚无成功后完成并重试的同状态证据；197正在补核。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-cdp-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-json-complete-retry-20261030",
+      "at": "2026-10-30T21:01:48+08:00",
+      "title": "Simply显示JSON后重试结果",
+      "detail": "验证页显示JSON后一次完成并重试仍403；网页网络及缓存状态未知，前场已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-cdp-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-cache-revalidation-candidate-20261030",
+      "at": "2026-10-30T21:11:25+08:00",
+      "title": "Simply缓存重验证及限定候选",
+      "detail": "同请求显示200实际为304缓存重验证，原生仍403；限定在线加载候选待实际验证。前场已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-cdp-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-online-real-response-20261030",
+      "at": "2026-10-30T21:22:55+08:00",
+      "title": "Simply在线响应对照",
+      "detail": "在线响应后原生仍403，限定候选已撤；网络协商对照准备中，前场已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-online-diagnostic-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "comicabc-browser-blank-197-20261030",
+      "at": "2026-10-30T21:22:55+08:00",
+      "title": "古见作品浏览器对照",
+      "detail": "系统浏览器打开该作品显示空白，最终完整URL及HTTP状态未知。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-online-diagnostic-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-rcp-reference-result-20261030",
+      "at": "2026-10-30T21:51:11+08:00",
+      "title": "Simply网络协商对照",
+      "detail": "受控对照仍遇挑战403，临时代码撤回且设备恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/rcp-firefox-reference-evidence.json"
+      ]
+    },
+    {
+      "id": "official-names-two-verified-20261030",
+      "at": "2026-10-30T21:51:11+08:00",
+      "title": "官方名称复核",
+      "detail": "阴阳师及杂志迷名称有官方页面依据，仍有三项对应关系未知。此时间为登记时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json"
+      ]
+    },
+    {
+      "id": "comicabc-offline-chapter-id-20261030",
+      "at": "2026-10-30T21:51:11+08:00",
+      "title": "古见目录离线核对",
+      "detail": "搜索材料无章节ID，未发现可证替代官方目录接口。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-official-alias-20261030/evidence.json"
       ]
     }
   ],
