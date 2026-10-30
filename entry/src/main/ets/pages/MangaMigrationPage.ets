@@ -275,6 +275,7 @@ export struct MangaMigrationPage {
       Row({ space: ThemeConstants.SPACE_MD }) {
         Column({ space: ThemeConstants.SPACE_SM }) {
           MangaGridItem({ manga: this.originalManga(row.comic), onMangaTap: (): void => {
+            if (this.committing) return
             RouterHelper.pushMangaDetail({ mangaId: row.comic.remoteResourceId ?? row.comic.id, sourceId: row.comic.sourceRuntimeId })
           } })
           Text(this.sourceName(row.comic.sourceRuntimeId ?? '')).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
@@ -284,6 +285,7 @@ export struct MangaMigrationPage {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (row.target !== undefined) {
             MangaGridItem({ manga: row.target, onMangaTap: (manga: SourceManga): void => {
+              if (this.committing) return
               RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
             } })
             Text(this.sourceName(row.target.sourceId)).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
@@ -296,12 +298,14 @@ export struct MangaMigrationPage {
       }.alignItems(VerticalAlign.Center).padding(ThemeConstants.SPACE_MD)
       if (row.state === 'failed') {
         ConciseListRow({ title: row.error ?? s('migration_failed'), wrapTitle: true, showChevron: false,
+          isEnabled: !this.committing,
           actionButtonText: s('common_retry'), actionButtonAction: (): void => {
             if (row.target !== undefined) void this.selectTarget(row.comic, row.target)
             else void this.match(row)
           } })
         if ((this.registry.lookup(row.errorSourceId ?? '').entry?.webSessionOrigins?.length ?? 0) > 0) {
-          ConciseListRow({ title: s('source_web_open'), action: (): void => { this.verify(row) } })
+          ConciseListRow({ title: s('source_web_open'), isEnabled: !this.committing,
+            action: (): void => { this.verify(row) } })
         }
       }
       if (row.state === 'done') {
@@ -309,7 +313,7 @@ export struct MangaMigrationPage {
           subtitle: (row.unmatchedReadCount ?? 0) > 0
             ? s('migration_unmatched_read').replace('%s', `${row.unmatchedReadCount}`) : '' })
       } else if (row.state === 'skipped') {
-        ConciseListRow({ title: s('migration_skipped'), showChevron: false,
+        ConciseListRow({ title: s('migration_skipped'), showChevron: false, isEnabled: !this.committing,
           actionButtonText: s('common_retry'), actionButtonAction: (): void => { void this.match(row) } })
       } else {
         KomaMenuListRow({ title: s('migration_change_match'), isEnabled: !this.committing,
