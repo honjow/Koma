@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T20:16:48+08:00",
+  "updatedAt": "2026-10-30T20:36:54+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
-  "activity": "Noy搜索转义已公开；Simply两种网络路径均遇挑战403。",
-  "nextAction": "继续定位具名源故障及Noy登录后范围。",
+  "activity": "漫画屋同路径浏览器对照完成，身份兼容候选待决定；237留用户登录。",
+  "nextAction": "继续定位源故障，并按用户对具体候选的决定处理。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master 6dbb621d24048ca297f0caaa8250e7b0f03e904a，精确CI40820669074成功。",
-      "hap": "197及237本轮均已恢复原状态并释租；237 NoyAcg搜索被拒及筛选可见范围已记录。"
+      "appHead": "最近App代码为f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0，精确CI41042962997成功；本轮未改App代码。",
+      "hap": "197两场已恢复电源并释租，原App未换；237已恢复，留给用户登录。"
     },
     {
       "name": "NextE",
@@ -2786,8 +2786,8 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "真人验证仍未通过",
-      "result": "漫画屋首页仍要求真人验证，未观察到首页列表；设备原状态已恢复。",
+      "status": "同热门路径浏览器可见，App验证未通过",
+      "result": "系统浏览器提交同一热门路径后可见作品，App仍停在验证页；身份兼容候选待决定。",
       "evidencePoints": [
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
         "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
@@ -2796,12 +2796,14 @@
         "source_terra准备237漫画屋018候选一条首页路径：旧017未传因果ID，Host仅causal-selected才借原UA；新接线差异不同于旧无诊断失败，结果尚未取得。",
         "017→018因果ID候选接selectedByChallengeId，受控WASM核挑战/普通错误/旧Host及保存真实详情等价。237第二场021首页HTTP403出现CF真人复选框，022点击一次并等30秒仍要求真人验证，未观察列表；024原017四成员及六域逐字恢复，025清本轮临时文件、SLEEP/120000无override，lease054f5353 released，HAP未更换。两源接线暂存待审、未公开。证据 source-web-session-concurrent/manhuawu-cause-resume-*。",
         "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。",
-        "当前018热门、最新、搜索及selector与固定949及上游dbf6c05对照；参考latest入口 /category/order/addtime/page/1 按原121身份且不带Referer/Origin单次读取返回403、cf-mitigated challenge、5629字节。该结果不能替代热门入口或证明全部路由永久不可用。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-latest-20261030/。"
+        "当前018热门、最新、搜索及selector与固定949及上游dbf6c05对照；参考latest入口 /category/order/addtime/page/1 按原121身份且不带Referer/Origin单次读取返回403、cf-mitigated challenge、5629字节。该结果不能替代热门入口或证明全部路由永久不可用。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-latest-20261030/。",
+        "197公开018普通首页进入验证，真实复选框单击一次后20秒仍停验证页；限定日志main 403、challengeHost 400/401，无Turnstile六位码，不能将401判为根因。系统浏览器021显示漫画屋页面“更新/分类”，但请求站根 /，不同于Native热门 /category/order/hits/page/1，不能当同路径通过。该场原017四成员、六JSON、诊断偏好与电源均恢复，租约c90abe7a已释放；随后新租约仅作同热门路径浏览器对照，不重装App。证据 diagnostics/manhuawu-browser197-result-20261030-021/layout.json 及该场回执。",
+        "197浏览器024提交与Native相同热门路径，025可见漫画大全及作品链接、无验证文字；最终完整URL、重定向和HTTP状态未观测，不代表Native成功。026恢复SLEEP/120000及原Override10000，lease27ad1054 released；前场lease c90abe7a亦released，原017四成员、六域及诊断偏好恢复，原38d包未换。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-validation197-20261030/evidence.json。仅漫画屋及 https://www.mhua5.com 验证窗口使用引擎默认身份的候选尚未应用或构建，已询问用户采用决定；不将UA认定为根因。候选依据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/。"
       ],
       "remainingActions": [
-        "定位并处理漫画屋首页自然403。"
+        "等待身份兼容候选的采用决定，继续定位原生验证未通过的原因。"
       ],
-      "remaining": "漫画屋首页自然403仍待解决。",
+      "remaining": "等待身份兼容候选的采用决定，继续定位原生验证未通过的原因。",
       "boundaries": [
         "017搜索分页修复已交付；770–775元尊搜索→最早第1话→首图1/10具名，非完整叙事/全10页或全CF。首页get_manga_list仍403挑战，当前页表成功不追认旧460 timeout原因。",
         "保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。",
@@ -2832,7 +2834,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166071,
-      "stage": "首页挑战可用性待核"
+      "stage": "身份兼容候选待决定"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -10221,6 +10223,29 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-latest-20261030/"
+      ]
+    },
+    {
+      "id": "manhuawu-native-browser-197-20261030",
+      "at": "2026-10-30T20:30:36+08:00",
+      "title": "漫画屋验证与浏览器路径对照",
+      "detail": "原生真人验证后仍未通过；系统浏览器站根可见页面，同热门路径正在对照。前一设备场次已恢复。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/manhuawu-browser197-result-20261030-021/layout.json"
+      ]
+    },
+    {
+      "id": "manhuawu-same-path-browser-restored-20261030",
+      "at": "2026-10-30T20:36:54+08:00",
+      "title": "漫画屋同路径浏览器对照与恢复",
+      "detail": "浏览器提交同一热门路径可见作品，App验证仍未通过；身份兼容候选待决定，两场设备已恢复。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-validation197-20261030/evidence.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/basis.json"
       ]
     }
   ],
