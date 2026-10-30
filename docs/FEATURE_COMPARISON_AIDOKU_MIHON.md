@@ -1,94 +1,85 @@
-# Koma vs Aidoku vs Mihon 功能对比
+# Koma 与 Mihon、Aidoku 功能对照
 
-> **历史对标快照。** 本文用于理解能力差异，不维护 Koma 当前完成度；表内状态必须在采纳前按当前 HEAD 和指定设备复核。当前事实与队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+核对日期：2026-10-31。Koma 基线 b7e6a556；Mihon 稳定版 v0.21.3（feadad5e）；Aidoku 稳定版 v0.9-4（ceee58b2）。
 
-更新时间：2026-05-27
-Koma 基线：`master` / `1269199` 后续实现
+本页维护功能差异，不维护执行队列。进度、owner 和已采用决定统一见 [CURRENT_STATUS.md](CURRENT_STATUS.md)。本轮完成对照，不包含新功能实现授权。
 
-## 证据来源
+## 核对结论
 
-- Koma：当前仓库代码、`docs/FEATURE_PROGRESS_20260524.md`、`docs/ROADMAP.md`、最近 master 提交。
-- Aidoku：官方 README 与官网帮助文档。
-  - README 明确列出：no ads、robust WASM source system、online reading through external sources、downloads、AniList/MyAnimeList tracker。
-  - Getting Started 明确列出：安装 source、`.aix` 外部 source package、source list、加入 library。
-  - Backups 文档明确列出：创建、导出、导入、恢复、重命名/删除备份。
-- Mihon：官方 README 与官网文档。
-  - README 明确列出：local reading、configurable reader、tracker、categories、themes、scheduled library updating、backups。
-  - Getting Started 明确列出：local source、external repositories、manual extensions、global search。
-  - Reader settings 文档明确列出：reading mode、tap zones、crop borders、split/rotate wide pages、scale type、volume keys 等。
-  - Backups 文档明确列出：library/tracking/settings/source settings、automatic backups、cloud-sync suggestion。
-  - Tracking 文档明确列出：MAL/AniList/Kitsu/MangaUpdates/Shikimori/Bangumi；Komga/Kavita enhanced services。
+覆盖书库、详情与章节、更新、下载、阅读、备份、追踪和本地导入八个功能域。确认18项差异：11项尚无完整功能链，7项已有基础但范围或接线不全。以下顺序是建议，不代表已批准开发，不改变既有 bug 状态。
 
-## 总体判断
+依据是固定版本的入口、设置、数据所有者及消费者；不单凭某个词搜不到判断缺失。本轮未操作设备、构建或新增测试，不作新的运行通过或性能结论。
 
-Koma 不是完成态。当前是 **HarmonyOS 私有/本地优先漫画阅读器的功能骨架 + 可跑通的 source runtime E2E**：
+## 已有能力，避免重复立项
 
-- 本地导入、私有库、Reader、source URL index、MangaDex source runtime 到 Reader 图片已跑通。
-- 漫画源生态不作为 Koma App 本体缺口处理；source index/package/真实漫画源维护放在独立仓库 `/Users/honjow/git/koma-sources`。
-- App 本体剩余关键系统缺口见 `docs/APP_GAP_PLAN_AIDOKU.md`：下载增强、自动更新/通知、tracker、更多 reader 设置、本地库重扫、完整备份管理、release readiness。
+- 单本／批量跨源迁移及复制、已读与分类和本地追踪绑定转移已有，保留原项验收。
+- 自动本地备份、保留份数、加密、预览及恢复已有。
+- 书库到期检查、更新结果与通知已有。
+- 下载有 Wi-Fi 限制、1—3并发、队列持久化、失败恢复和手动删除。
+- 章节有语言、汉化组、已读／下载筛选和批量操作。
+- 有分类管理、每分类展示偏好、全局搜索及设置搜索。
+- 阅读有单／双页、方向、连续滚动、缩放手势设置、裁边、超分和翻译。
+- AniList／MyAnimeList 登录、映射和同步已接通，其他 provider 的声明不算接通。
 
-## 功能矩阵
+## 功能差异
 
-| 功能域 | Koma 当前状态 | Aidoku | Mihon | Koma 差距 / 下一步 |
+| 功能 | Koma状态 | 具体缺口与影响 | 已核参考 | 建议顺序 |
 | --- | --- | --- | --- | --- |
-| 平台 | HarmonyOS NEXT 原生 ArkUI；bundle `com.honjow.koma` | iOS / iPadOS | Android 8+ | 平台差异化成立；HarmonyOS 组件/安全区/设备行为仍需持续真机验证。 |
-| 产品边界 | 私有漫画书架 + 阅读器；不内置源、不源市场、不宣传聚合 | 在线阅读 + WASM/external source system | 本地 + 扩展源；官方不提供内容 | Koma 边界更保守，适合上架；功能补齐不能走内置源市场路线。 |
-| 本地漫画 | CBZ/ZIP 导入；多图片导入；导入后入书架 | 当前官方资料重点是 external sources，不是本地目录主线 | Local source：固定目录结构、文件夹/zip/chapter 结构 | Koma 已有导入，但缺 Mihon 式 local source 文件夹规范、重扫、元数据识别。 |
-| 书架 Library | 网格、继续阅读、历史、排序/过滤、移出、Favorite/Read Later 与用户自定义分类过滤、批量分类增删、自定义分类管理/排序、分类专属排序/阅读状态显示策略 | Library + bookmark/add to library | Library + categories + filters | 分类显示策略已有轻量版本；仍缺更多筛选维度。 |
-| 阅读器模式 | 单页、连续/Webtoon、双页、RTL 双页、沉浸 chrome、图片适配、点击翻页、页面间距、非裁剪收紧页边、宽图旋转、音量键翻页 runtime | 可在线/下载阅读；当前官方 README 未细分 reader 设置 | 多 viewer、阅读方向、paged/long strip、大量 reader settings | Koma 基础 reader 已成；仍缺宽图拆分、更多背景/手势设置和异常比例图片矩阵 QA。 |
-| 阅读进度 | 本地进度持久化；History；Komga progress pull/push | tracker 集成 | 本地进度 + tracker 更新；Komga/Kavita enhanced services | Koma 有 Komga 方向，但无 MAL/AniList/Kitsu 等公共 tracker。 |
-| 私有库 | Komga / OPDS / WebDAV 已接入；Browse/Reader/favorites/部分进度同步 | 主要 source 系统 | Komga/Kavita enhanced services；更多 tracker 生态 | Koma 私有库方向强，但需要 NAS/WebDAV、OPDS 1/2、Komga auth/大库兼容性矩阵。 |
-| 在线/自定义源 | WAMR source runtime；URL index 导入 `.koma`；MangaDex E2E 已到 Reader 图片；source author SDK 文档 | Robust WASM source system；`.aix` 外部 source；source list | Extension repos + APK extensions + manual extensions | Koma 架构接近 Aidoku 思路；仍缺真实源生态、源开发工具、签名/信任策略、错误恢复、更多真实源兼容。 |
-| Source 安装路径 | 用户输入 URL index → 列表 → 下载 `.koma` → install/enable；本地 picker fallback；已安装源更新状态/能力摘要 UX | 内置/外部 source、`.aix` 导入、source list URL | Extension repos + install extensions | Koma URL index 主路径已做；下一步是签名/信任、源升级完整真机 QA、兼容矩阵。 |
-| Source 设置 | 支持 source `get_settings` descriptor、非敏感 settings 持久化/backup 注入 | 当前摘录未确认设置细节 | backup 包含 source settings | Koma 有底层能力；真实 installed source 的设置 UI 仍需完整 device QA。 |
-| 下载离线 | Reader remote image cache + LRU + prefetch；下载队列 MVP；Settings 下载管理页；MangaDetail 批量下载；队列过滤/批量重试/清理；前台队列暂停/继续；前台并发上限偏好 | README 明确支持 Downloads | 下载队列、下载目录、重扫下载、并发策略 | 已有前台队列骨架与基础暂停/并发控制；仍缺系统后台下载、真实下载通知、下载目录/重扫、完整离线 reader QA。 |
-| 图片缓存 | Remote image cache、LRU、prefetch、设置页清理 | downloads 能力明确，缓存细节未摘录 | 下载/缓存成熟 | Koma 缓存只是 reader image cache，不等价于离线下载。 |
-| 搜索 | Cross-source search：local / Komga / OPDS / WebDAV / wasm sources，超时隔离，持久化搜索历史，按源展示 pending/running/empty/timeout/failed/unsupported 状态 | 源内搜索 | Global Search across sources | Koma 有全局搜索雏形；需结果质量、过滤、多源真实数据矩阵。 |
-| 详情页 | 真实 source detail、章节、收藏、开始阅读、章节筛选、章节 read/unread 操作 | 源内容详情 + add library | series detail + add library + tracking/downloads | 仍缺 scanlator/group、多语言版本、更完整的章节元数据操作。 |
-| History | 真实阅读历史，点击恢复 | 当前摘录未确认 | 有历史/最近阅读类能力 | Koma 基础可用；缺清理、分组、跨设备同步。 |
-| 备份 | Schema v3：library/progress/remote servers/source packages/source settings/reader settings；本地导入导出 | 创建、导出、导入、恢复、重命名/删除 | library/tracking/settings/source settings；自动备份；云同步建议 | Koma 有备份核心；缺自动备份、备份管理列表、加密/敏感字段 UX、跨设备恢复 QA。 |
-| 设置 | Komga/OPDS/WebDAV、reader prefs、theme、backup、about/license/source manager/cache clear | settings + backups | reader/download/library/tracking/storage 等大量设置 | Koma 设置功能化已开始，但深度远低于 Mihon。 |
-| 分类 Categories | Favorite / Read Later 与用户自定义分类过滤；多选批量 add/remove 多分类；Settings 分类管理支持创建/重命名/删除/上移下移排序；支持为全部/未分类/内置/自定义分类保存排序与阅读状态显示策略 | 当前摘录未确认 | 明确支持 categories，多分类、批量设置 | 已有轻量分类显示策略；后续可补更多筛选维度与视图模式。 |
-| Tracker | 本地-only tracker 设置骨架，无 MAL/AniList/Kitsu 等真实账号同步 | README：AniList、MyAnimeList | MAL/AniList/Kitsu/MangaUpdates/Shikimori/Bangumi；一向同步，离线后同步 | 可后置，但对标成熟 reader 必须有。 |
-| 自动更新库 | 前台 source-runtime 新章检查、app-open due-check 偏好、最新结果持久化、失败退避；未做后台调度 | 当前摘录未确认 | Scheduled library updates | 缺后台定时/系统调度、私有库刷新矩阵。 |
-| 通知 | 书架更新有通知就绪摘要与失败码脱敏持久化；暂无系统通知投递 | 当前摘录未确认 | 下载/更新/错误通知成熟 | 缺新章/下载完成/失败的真实系统通知与权限态 QA。 |
-| 章节下载队列 | 前台下载队列 MVP、状态过滤、批量重试/清理、MangaDetail 单章/可见章节批量下载；source-backed 可见章节批量下载会逐章 hydrate pages；Settings 可暂停/继续前台队列并设置前台并发上限；离线 Reader 路径存在 | Downloads | Download queue | 仍缺系统后台下载、真实下载通知、下载目录/重扫、完整 source 离线 reader 真机 QA。 |
-| 扩展/源安全 | `.koma` archive validator、WAMR sandbox、host imports、fail-closed 测试 | WASM source system | Android extension APK，有恶意扩展风险提示 | Koma 技术路线更安全；仍缺用户可理解的权限提示、source capability UI、签名/信任策略。 |
-| UI 成熟度 | Aidoku 风格骨架；安全区持续修；功能优先 | iOS 成熟交互 | Android/Material 成熟 | Koma UI 可用但未 polished；当前策略应继续功能优先，只修 blocking UI。 |
-| i18n | 未见完整多语言资源体系 | Weblate translations | Weblate translations | Koma 缺 i18n，对上架有影响。 |
-| 数据迁移 | backup schema 有 v1/v2/v3 兼容 | backup restore | fork-compatible backup restore | 需要正式 migration/version policy。 |
-| 发布成熟度 | debug 构建/签名/安装稳定；release 未作为本轮主线 | TestFlight/AltStore/manual IPA | stable/beta APK | 未 release-ready：隐私文案、图标、crash/log、权限说明、性能矩阵未收口。 |
+| 系统调度更新与自动备份 | 部分 | 当前在启动／回到前台时检查到期，尚无系统后台调度链。 | 两者 | 先补 |
+| 后台持续下载 | 部分 | 队列、恢复和并发已有，运行所有者明确是前台 runtime，未接系统持续任务托管。Mihon 接 WorkManager；Aidoku 的持续下载任务限 iOS 26 及以上，不能照搬平台结果。 | 两者 | 先补 |
+| 自动备份的外部目标目录 | 部分 | 自动备份固定写 filesDir/backups；系统选择器仅用于手动导出，自动任务未配置外部目标。 | Mihon | 先补 |
+| 智能更新范围及排除规则 | 缺失 | 目前逐书检查全库，未接分类纳入／排除、跳过已完结／未开读／有未读作品，以及按作品预计更新周期跳过检查的规则。 | 两者 | 先补 |
+| 发现新章后自动下载 | 缺失 | 更新完成后保存结果并通知，下载仍由用户手动入队，未接自动下载及分类范围。 | Mihon | 先补 |
+| 读后自动清理下载 | 缺失 | 有手动删除，未接读后清理、保留最近若干章及排除范围策略，也没有阅读完成到下载删除的接线。 | 两者 | 先补 |
+| 整章 CBZ 导出与分享 | 缺失 | 下载为私有目录图片及 manifest，未有整章打包／导出／分享；单图分享和源包分享是另两项已有能力。 | 两者 | 随后 |
+| 下载队列重排及置顶 | 缺失 | 已有开始、暂停、重试、删除和筛选，未有单章／整书置顶与持久优先顺序。 | Mihon | 随后 |
+| 按书记住章节筛选和排序 | 部分 | 语言、汉化组、已读和展示排序已有，但保存在 ChapterListSection 的页面状态，未按书持久化与恢复。 | 两者 | 随后 |
+| 独立章节书签 | 缺失 | 章节数据只有已读和位置，没有书签标记与筛选；详情 bookmark 图标当前表示收藏整本书。 | Mihon | 随后 |
+| 在线书自定义／恢复封面 | 部分 | 本地元数据编辑已有，封面路径编辑限本地目录；在线源作品没有自选封面及恢复源封面入口。 | 两者 | 随后 |
+| 每本漫画的个人笔记 | 缺失 | Comic 持久化没有用户笔记及编辑入口；源作者后记与翻译术语备注不是漫画个人笔记。 | Mihon | 后续增强 |
+| 阅读统计及阅读时长 | 缺失 | 已有最后阅读位置和时间，没有独立阅读会话／持续时长数据或统计页，不能只补图表。 | 两者 | 后续增强 |
+| 保存组合筛选／智能分类 | 缺失 | 已有手动分类、每分类展示偏好和当前筛选，未把多条件保存为命名规则并自动组成书单。 | Aidoku | 后续增强 |
+| 更多可用的追踪服务 | 部分 | 实际 available 只有 AniList、MyAnimeList；Bangumi／MangaUpdates 为 planned，Kitsu 为 unsupported，不把枚举名当接通。 | Bangumi 两者；其他各异 | 随后 |
+| 更多本地归档格式 | 部分 | 目前只导入 ZIP／CBZ 及图片；Mihon 还支持 RAR／CBR、7z／CB7、TAR／CBT、EPUB。Aidoku 固定版也仅 ZIP／CBZ，不列成共同缺口。 | Mihon | 后续增强 |
+| 仅 Wi-Fi 预载阅读图片 | 缺失 | 下载已有 Wi-Fi 限制，但 Reader 预载仅按页数和离线状态决定，没有独立网络条件。 | Mihon | 随后 |
+| 阅读器亮度及颜色滤镜 | 缺失 | 已有黑灰白背景、裁边、超分和翻译，未接阅读器独立亮度、叠色或混合模式。裁边算法的 contrast 是边界计算。 | Mihon | 后续增强 |
 
-## 优先级建议
+## 建议的取舍
 
-按“功能差距最大 + 对首版价值最大 + 不破坏上架边界”排序：
+1. 先完善更新与离线使用：核实系统后台任务的实际平台条件，补新章自动下载、读后清理和更新范围规则。
+2. 自动备份的外部目标目录也应靠前。目前自动文件位于应用私有 filesDir/backups，手动导出已有，自动任务还不能持续写到用户指定目录。华为文档明确 filesDir 随应用卸载清理，私有目录内的备份不等于应用外副本。
+3. 随后考虑每书章节筛选记忆、整章CBZ导出、队列置顶和Bangumi；统计图、笔记、滤镜放后面。
 
-1. **下载队列 / 离线章节增强**
-   - 对标 Aidoku Downloads、Mihon Downloads。
-   - 已有：前台队列、状态、失败重试/删除、Settings 下载管理入口、MangaDetail 可见章节批量下载、队列过滤/批量重试/清理、前台暂停/继续、前台并发上限。
-   - 仍需：系统后台下载、真实下载通知、下载目录/重扫、离线 reader 完整真机 QA。
+后台、自动清理等新增行为的默认值和入口需另行明确采用；本轮只完成对照。新增章节筛选也不能把列表显示顺序当成绝对阅读章序。
 
-2. **Library categories / 批量管理增强**
-   - 对标 Mihon categories。
-   - 已有：Favorite / Read Later 与用户自定义多分类归属、批量增删、分类过滤、Settings 分类创建/重命名/删除/排序、分类专属排序/阅读状态显示策略。
-   - 仍需：更多筛选维度与视图模式。
+## 保留的产品边界
 
-3. **Reader 高级设置增强**
-   - 对标 Mihon reader settings。
-   - 已有：tap navigation 开关、非裁剪 fit-width/fit-screen、页面间距、非裁剪收紧页边、音量键翻页 runtime、宽图旋转、屏幕常亮、进度显示开关。
-   - 仍需：宽图拆分、更多背景/手势设置、异常比例图片矩阵 QA。
+- 本书阅读设置当前有意只覆盖分页与方向，扩大其他按书覆盖项属于既定范围变化，不直接作为本轮漏接重做。
+- 不把Android APK安装器、iOS专属交互或源生态数量当成Koma宿主缺陷；后台目标与实际平台条件分开核对。
+- 不重开已验收的跨章、预载、迁移或源修复，不复活已暂缓的私库验收和大模型排序。
+- 未登录和站点返回异常等源故障保留在原项，不混入本次App功能差异。
 
-4. **自动更新 / 通知**
-   - 对标 Mihon scheduled library updates。
-   - 需要：私有库/source 新章检查、前台/后台策略、通知、失败退避。
+## 逐项源码依据
 
-5. **Tracker**
-   - 对标 Aidoku AniList/MyAnimeList、Mihon 多 tracker。
-   - Koma 主打私有/本地，tracker 可后置；但成熟 reader 最终需要。
+链接均固定到上列版本。后续实现后更新当前结论与依据。
 
-## 不建议优先做
+- **系统调度更新与自动备份**：[Koma Index.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/pages/Index.ets#L329)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateWorker.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Core/Backup/BackupManager.swift)。
+- **后台持续下载**：[Koma OfflineDownloadRuntime.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/OfflineDownloadRuntime.ets#L22)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/data/download/DownloadWorker.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Core/Downloads/DownloadQueue.swift)。
+- **自动备份的外部目标目录**：[Koma BackupService.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/BackupService.ets#L1447)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/domain/src/main/java/tachiyomi/domain/storage/service/StorageManager.kt)；[参考 2](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/data/backup/create/BackupCreateWorker.kt)。
+- **智能更新范围及排除规则**：[Koma LibraryUpdateService.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/LibraryUpdateService.ets#L477)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsLibraryScreen.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Core/Library/Services/MangaManager.swift)。
+- **发现新章后自动下载**：[Koma LibraryUpdateCoordinator.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/LibraryUpdateCoordinator.ets#L183)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt)；[参考 2](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/data/library/LibraryUpdateWorker.kt)。
+- **读后自动清理下载**：[Koma OfflineDownloadQueueStore.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/OfflineDownloadQueueStore.ets#L70)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Features/Reader/ReaderViewController.swift)。
+- **整章 CBZ 导出与分享**：[Koma OfflineDownloadStore.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/OfflineDownloadStore.ets#L59)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDownloadScreen.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Core/Downloads/DownloadManager.swift)。
+- **下载队列重排及置顶**：[Koma DownloadsPage.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/pages/DownloadsPage.ets#L685)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/ui/download/DownloadQueueViewModel.kt)。
+- **按书记住章节筛选和排序**：[Koma ChapterListSection.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/components/ChapterListSection.ets#L37)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/manga/components/ScanlatorFilterDialog.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Features/Manga/MangaView+ViewModel.swift)。
+- **独立章节书签**：[Koma ReaderSessionStore.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/ReaderSessionStore.ets#L25)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/manga/ChapterSettingsDialog.kt)；[参考 2](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/manga/MangaScreen.kt)。
+- **在线书自定义／恢复封面**：[Koma MangaDetailPage.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/pages/MangaDetailPage.ets#L713)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/manga/components/MangaCoverDialog.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Features/Manga/MangaCoverPageView.swift)。
+- **每本漫画的个人笔记**：[Koma ComicModels.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/ComicModels.ets#L106)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/manga/MangaNotesScreen.kt)。
+- **阅读统计及阅读时长**：[Koma ReaderSessionStore.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/ReaderSessionStore.ets#L246)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/ui/stats/StatsViewModel.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Core/Database/CoreDataManager+ReadingSession.swift)。
+- **保存组合筛选／智能分类**：[Koma LibraryFilterStore.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/LibraryFilterStore.ets#L18)；[参考 1](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Features/Settings/Categories/FilterGroupCreateView.swift)。
+- **更多可用的追踪服务**：[Koma TrackerModels.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/TrackerModels.ets#L175)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/tachiyomi/data/track/TrackerManager.kt)；[参考 2](https://github.com/Aidoku/Aidoku/blob/ceee58b29d4f48106cf63042ca0cb075a8ac22b4/Aidoku/Core/Tracking/TrackerManager.swift)。
+- **更多本地归档格式**：[Koma ImageSortUtils.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/import/ImageSortUtils.ets#L1)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/source-local/src/main/kotlin/tachiyomi/source/local/io/Archive.kt)；[参考 2](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/source-local/src/main/kotlin/tachiyomi/source/local/LocalSource.kt)。
+- **仅 Wi-Fi 预载阅读图片**：[Koma ReaderPage.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/pages/ReaderPage.ets#L2885)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsReaderScreen.kt)。
+- **阅读器亮度及颜色滤镜**：[Koma ReaderPreferencesStore.ets](https://github.com/honjow/Koma/blob/b7e6a5563524a9d83fc42f3df88e55eb62196ec4/entry/src/main/ets/model/ReaderPreferencesStore.ets#L24)；[参考 1](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/reader/settings/ColorFilterPage.kt)。
 
-- 内置源市场：违反 Koma 上架边界；漫画源生态维护放在 `/Users/honjow/git/koma-sources`，不纳入 Koma App 本体缺口排序。
-- 继续大面积 UI polish：当前功能缺口更大；只修 blocking 安全区/可用性问题。
-- 公共 tracker 先行：对 Koma 私有/本地定位不是第一价值点。
-- 复杂云同步：先把本地备份、下载、分类、自动更新做好。
+外部备份目录另核 [Mihon存储选择器](https://github.com/mihonapp/mihon/blob/feadad5e1e2bf638be6e2ca317d11657b09d4596/app/src/main/java/eu/kanade/presentation/more/settings/screen/SettingsDataScreen.kt)；私有目录生命周期依据 [华为应用沙箱目录](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/app-sandbox-directory)。

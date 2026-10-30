@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T06:12:46+08:00",
+  "updatedAt": "2026-10-31T06:33:32+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "WUXIAN_GUJIAN_LOAD_FAILURE",
-  "activity": "跨源迁移已交付，继续处理古见详情问题。",
-  "nextAction": "继续核实古见可用目录及剩余官方名称依据。",
+  "activeId": null,
+  "activity": "参考应用功能对照已完成，差异待用户决定。",
+  "nextAction": "根据用户对新增能力的选择继续。",
   "proof": [
     {
       "label": "正式主仓",
@@ -4640,6 +4640,33 @@
         "allowedDifference": "详情右上角和书库多选提供迁移；选目标源后逐书匹配，可修改搜索、换结果或跳过；确认选择已读进度和分类，追踪随书转移；可复制保留旧书，或迁移并移出旧书库。旧下载保留，不冒充新源下载；使用当前Koma控件。",
         "reference": "Mihon e588e04359fe1058206a2cbac1b01018ad787359；Aidoku ceee58b29d4f48106cf63042ca0cb075a8ac22b4，仅作行为参考。"
       }
+    },
+    {
+      "id": "FEATURE_PARITY_COMPARISON",
+      "title": "对照参考应用的其他功能缺口",
+      "priority": "P1",
+      "kind": "done",
+      "status": "功能对照完成",
+      "stage": "差异报告已完成",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "LIBRARY_CROSS_SOURCE_MIGRATION"
+      ],
+      "result": "已核出18项功能差异：11项缺失、7项部分实现。",
+      "remaining": "",
+      "remainingActions": [],
+      "boundaries": [
+        "本轮为源码及入口、持久化接线审查，不代表已批准新功能实现。",
+        "不操作设备，不重开已验迁移、旧修复或已暂缓事项。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮直接用户反馈，精确发送时间未知；登记时间不冒充首报。",
+      "closedAt": "2026-10-31T06:33:32+08:00",
+      "evidencePoints": [
+        "参考固定Mihon稳定v0.21.3/feadad5e、Aidoku v0.9-4/ceee58b及Koma HEAD b7e6a556；自动本地备份、通知、Wi-Fi下载及tracker已有实现，不列为缺失。",
+        "固定Koma b7e6a556、Mihon v0.21.3/feadad5e及Aidoku v0.9-4/ceee58b2源码与入口、持久化接线对照；报告 docs/FEATURE_COMPARISON_AIDOKU_MIHON.md，机器证据 .hvigor/outputs/feature-parity-audit-20261031/comparison.json。本轮无设备、构建或新测试；对照完成不代表18项功能已实现或获得开发批准。"
+      ]
     }
   ],
   "source": {
@@ -10896,6 +10923,27 @@
       "evidence": [
         "https://github.com/honjow/Koma/actions/runs/41135459269",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "feature-parity-comparison-request-20261031",
+      "at": "2026-10-31T06:22:51+08:00",
+      "title": "参考应用功能对照",
+      "detail": "用户要求继续对照其他功能缺口，当前为源码和接线审查。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_COMPARISON",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-comparison-complete-20261031",
+      "at": "2026-10-31T06:33:32+08:00",
+      "title": "参考应用功能对照完成",
+      "detail": "已核出11项缺失与7项部分实现，具体能力取舍待用户决定。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_COMPARISON",
+      "kind": "checkpoint",
+      "evidence": [
+        "docs/FEATURE_COMPARISON_AIDOKU_MIHON.md",
+        ".hvigor/outputs/feature-parity-audit-20261031/comparison.json"
       ]
     }
   ],
