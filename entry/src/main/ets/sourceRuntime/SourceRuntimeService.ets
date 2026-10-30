@@ -544,7 +544,7 @@ export function runRegisteredSourceRequestById(
       responseOk: false, attemptedWamrExecution: false }
   }
   try {
-    const response = runSourceOperationFromBytes(sourceRequestWithHostFeatures(requestJson), admission.entry.wasmBytes, sourceHttpIdentityJson(admission.entry))
+    const response = runSourceOperationFromBytes(sourceRequestWithHostFeatures(requestJson), admission.entry.wasmBytes, sourceHttpIdentityJson(admission.entry, undefined, false, admission.operation))
     const result = registeredSourceResponse(admission, admission.entry.sourceId, response)
     trace.finish(result.ok ? 'completed' : 'failed', 'operation=' + admission.operation + ' reason=' + (result.reasonCode ?? 'none'))
     return result
@@ -579,7 +579,7 @@ export async function runRegisteredSourceRequestByIdAsync(
   try {
     // A worker can hold the WAMR lock while HTTP awaits the UI runtime.
     // UI callers must yield here rather than synchronously wait for that lock.
-    const responseJson = await executeRegisteredSourceRequest( sourceRequestWithHostFeatures(requestJson), wasmBytes, sourceHttpIdentityJson(entry)) as string
+    const responseJson = await executeRegisteredSourceRequest( sourceRequestWithHostFeatures(requestJson), wasmBytes, sourceHttpIdentityJson(entry, undefined, false, admission.operation)) as string
     const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
     const current = registry.lookup(sourceId).entry
     if (current !== entry || !sourceRuntimeEntryEnabled(entry)) {

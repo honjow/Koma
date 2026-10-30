@@ -1,7 +1,14 @@
 import nativeRuntime from 'libkoma_source_runtime.so';
 import { sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity';
 
-export interface SourceBrowserHttpResult { eligible: boolean; cancelled: boolean; code: number; status: number; body: string; headers: string[] }
+export interface SourceBrowserHttpTiming {
+  dnsTiming?: number; tcpTiming?: number; tlsTiming?: number;
+  firstReceiveTiming?: number; totalFinishTiming?: number;
+}
+export interface SourceBrowserHttpResult {
+  eligible: boolean; cancelled: boolean; code: number; status: number; body: string; headers: string[];
+  performanceTiming?: SourceBrowserHttpTiming; createdConnections?: number;
+}
 
 interface NativeSourceRuntimeModule {
   sourceBrowserHttp(id: string, url: string, headers: string[], timeout: number, profile: string): Promise<SourceBrowserHttpResult>;

@@ -9,7 +9,7 @@ import { sourceRuntimeOperationIsCurrent } from './SourceRuntimeOperationGuard'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
-import { NativeSourceRuntime } from './NativeSourceRuntime'
+import { NativeSourceRuntime, SourceBrowserHttpTiming } from './NativeSourceRuntime'
 
 interface SourcePrivateFailure {
   ok: boolean
@@ -298,7 +298,7 @@ function sourceHttpTimingMs(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : -1
 }
 
-function sourceHttpTimingText(timing: http.PerformanceTiming | undefined): string {
+function sourceHttpTimingText(timing: http.PerformanceTiming | SourceBrowserHttpTiming | undefined): string {
   return 'dnsDoneMs=' + sourceHttpTimingMs(timing?.dnsTiming) +
     ' tcpDoneMs=' + sourceHttpTimingMs(timing?.tcpTiming) +
     ' tlsDoneMs=' + sourceHttpTimingMs(timing?.tlsTiming) +
@@ -306,10 +306,10 @@ function sourceHttpTimingText(timing: http.PerformanceTiming | undefined): strin
     ' finishMs=' + sourceHttpTimingMs(timing?.totalFinishTiming)
 }
 
-interface SourceHopResponse { responseCode: number; result: string | Object | ArrayBuffer; header: Object; performanceTiming?: http.PerformanceTiming }
+interface SourceHopResponse { responseCode: number; result: string | Object | ArrayBuffer; header: Object; performanceTiming?: http.PerformanceTiming | SourceBrowserHttpTiming }
 class SourceHopResult implements SourceHopResponse {
-  responseCode: number; result: string | Object | ArrayBuffer; header: Object; performanceTiming?: http.PerformanceTiming
-  constructor(code: number, body: string | Object | ArrayBuffer, headers: Object, timing?: http.PerformanceTiming) { this.responseCode = code; this.result = body; this.header = headers; this.performanceTiming = timing }
+  responseCode: number; result: string | Object | ArrayBuffer; header: Object; performanceTiming?: http.PerformanceTiming | SourceBrowserHttpTiming
+  constructor(code: number, body: string | Object | ArrayBuffer, headers: Object, timing?: http.PerformanceTiming | SourceBrowserHttpTiming) { this.responseCode = code; this.result = body; this.header = headers; this.performanceTiming = timing }
 }
 let sourceBrowserHttpSequence: number = 0
 class SourceBrowserHttpFailure extends Error { code: number = 0; constructor(code: number) { super('source transport failed'); this.code = code } }
@@ -511,6 +511,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' session=' + (session === undefined ? 'none' : 'attached') +
       ' cookieState=' + (typeof headers['Cookie'] === 'string' && headers['Cookie'].length > 0 ? 'present' : 'empty') +
       ' uaSource=' + (session === undefined ? 'source' : 'webview'))
+    trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
     if (session !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
     const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
@@ -518,8 +519,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const hopStartedAt = Date.now()
     let firstHeaderMs = -1
     let usedSourceBrowserHttp = false
-    // SOURCE_WEB_SESSION: this exact guest API needs the verified browser TLS
-    // profile; other sources and origins retain their existing transport.
+    // Only the named source/origin pairs use browser-compatible transport.
+    // Request identity and grant boundaries remain with the existing owner.
     let browserProfile = ''
     if (currentMethod === 'GET' && currentBody.length === 0) {
       const origin = sourceWebOrigin(currentUrl)
@@ -537,11 +538,14 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       const timer = setInterval(() => { if (!current()) NativeSourceRuntime.cancelSourceBrowserHttp(callId) }, 100)
       try {
         const native = await pending
+        trace.info('native_transfer', 'eligible=' + native.eligible + ' code=' + native.code +
+          ' status=' + native.status + ' connects=' + sourceHttpTimingMs(native.createdConnections) +
+          ' ' + sourceHttpTimingText(native.performanceTiming))
         if (!current() || native.cancelled) throw new SourceBrowserHttpFailure(0)
         if (native.eligible) {
           if (native.code !== 0) throw new SourceBrowserHttpFailure(native.code === 28 ? 2300028 : 0)
           usedSourceBrowserHttp = true
-          response = new SourceHopResult(native.status, native.body, sourceBrowserHttpHeaders(native.headers))
+          response = new SourceHopResult(native.status, native.body, sourceBrowserHttpHeaders(native.headers), native.performanceTiming)
         }
       } finally { clearInterval(timer) }
     }
@@ -576,7 +580,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       } finally { request.off('headersReceive'); request.destroy() }
     }
     trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode +
-      ' headersReceived=' + (firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
+      ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
     if (probe !== undefined && !probe.current()) {
       trace.finish('failed', 'reason=web_session_probe_cancelled')

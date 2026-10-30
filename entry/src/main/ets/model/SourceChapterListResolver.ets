@@ -136,7 +136,7 @@ async function fetchSourceChapterList(
     wasmBytes.set(entry.wasmBytes)
     const requestJson = sourceRequestWithHostFeatures(JSON.stringify(request))
     const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterListOperation( requestJson, wasmBytes,
-      sourceHttpIdentityJson(entry, undefined, chapterContext !== undefined && chapterId === undefined),
+      sourceHttpIdentityJson(entry, undefined, chapterContext !== undefined && chapterId === undefined, 'get_chapters'),
     ))
     if (!current()) return { chapters, resolved: false, reasonCode: 'source_chapters_cancelled' }
     const response = JSON.parse(responseJson) as SourceChapterResponse

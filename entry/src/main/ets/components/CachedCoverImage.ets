@@ -5,7 +5,7 @@ import { fileIo as fs } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import {
   configureReaderRemoteImageCache,
-  fetchAndCacheSourceRuntimeRemoteImage,
+  fetchAndCacheSourceRuntimeCoverImage,
 } from '../model/ReaderPageSourceAdapter'
 import { ComicSourceKind } from '../model/ComicModels'
 import { resolveCachedCoverImage } from '../model/CoverImageCacheService'
@@ -123,7 +123,7 @@ export struct CachedCoverImage {
     const context = getContext(this) as common.UIAbilityContext
     if (sourceRuntimeId.trim().length > 0) {
       configureReaderRemoteImageCache(context.cacheDir)
-      return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl)
+      return fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl)
     }
     return resolveCachedCoverImage(context, {
       uri,

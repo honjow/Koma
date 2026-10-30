@@ -1151,7 +1151,7 @@ export struct MangaDetailPage {
     const responseJson = await diagnoseSourceOperation(request, () => executeMangaDetailSourceOperation(
       request,
       this.copyWasmBytes(entry),
-      sourceHttpIdentityJson(entry, undefined, operation === 'get_manga'),
+      sourceHttpIdentityJson(entry, undefined, operation === 'get_manga', operation),
     ))
     const runtimeResponse = JSON.parse(responseJson) as SourceRuntimeCallResponse
     if (runtimeResponse.ok !== true) {

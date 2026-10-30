@@ -42,7 +42,7 @@ import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { executeSourceRequestInWorker as executeReaderSourceImageRequestOperation } from '../sourceRuntime/SourceRuntimeWorkerClient'
+import { executeSourceRequestInWorker as executeReaderSourceImageRequestOperation, SourceWorkerPriority } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { runSourceOperationFromValidatedBytesAsync } from '../sourceRuntime/SourceRuntimeService'
 
 export interface ReaderRemoteImageCachePreferences {
@@ -599,13 +599,14 @@ function unavailableSourceImageDescriptor(sourceId: string): undefined {
   return undefined
 }
 
-async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, requestJson: string): Promise<string> {
+async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, requestJson: string,
+  priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND): Promise<string> {
   const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
   wasmBytes.set(entry.wasmBytes)
-  const httpContextJson = sourceHttpIdentityJson(entry)
+  const httpContextJson = sourceHttpIdentityJson(entry, undefined, false, 'get_image_request')
   // Keep normal images and deferred text on the same worker/host HTTP bridge.
   const hostRequest = sourceRequestWithHostFeatures(requestJson)
-  return diagnoseSourceOperation(hostRequest, () => executeReaderSourceImageRequestOperation( hostRequest, wasmBytes, httpContextJson,
+  return diagnoseSourceOperation(hostRequest, () => executeReaderSourceImageRequestOperation( hostRequest, wasmBytes, httpContextJson, priority,
   ))
 }
 
@@ -614,6 +615,7 @@ async function resolveSourceRuntimeImageRequest(
   uri: string,
   sourceImageId: string,
   mangaUrl?: string,
+  priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND,
 ): Promise<SourceImageRequestDescriptor | undefined> {
   const sourceId = sourceRuntimeId.trim()
   if (sourceId.length === 0) {
@@ -634,7 +636,7 @@ async function resolveSourceRuntimeImageRequest(
     // while the configured host HTTP bridge dispatches NetworkKit on the UI
     // runtime. Loading the NAPI module dynamically inside the worker bypassed
     // that established execution path and crashed on a ticketed image request.
-    responseJson = await runReaderSourceImageOperation(lookup.entry, requestJson)
+    responseJson = await runReaderSourceImageOperation(lookup.entry, requestJson, priority)
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_failed')
     return unavailableSourceImageDescriptor(sourceId)
@@ -706,6 +708,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   sourceImageId: string,
   mangaUrl?: string,
   forceReload: boolean = false,
+  priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
@@ -723,7 +726,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   if (cachedFast !== undefined && cachedFast.length > 0) {
     return cachedFast
   }
-  const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route)
+  const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route, priority)
   if (imageRequest === undefined) {
     return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload)
   }
@@ -732,6 +735,13 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, sourceId), cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
+}
+
+/** Covers share the same cache and ownership checks; only pending Worker priority differs. */
+export function fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId: string, uri: string,
+  sourceImageId: string, mangaUrl?: string): Promise<string> {
+  return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId, mangaUrl,
+    false, SourceWorkerPriority.BACKGROUND)
 }
 
 export function createReaderOfflineMissingUri(

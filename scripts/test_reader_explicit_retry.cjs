@@ -136,7 +136,8 @@ function sourceImageRequestSubject(ports) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, WeakMap, Uint8Array, console, ...hostFeatures, sourceHttpIdentityJson: () => '{}',
     appSourceSettingsStore: { loadForSource: () => ({}) }, configureSourceRequestPolicy() {},
-    DiagnosticLogger: { warn() {} }, executeReaderSourceImageRequestOperation() {},
+    DiagnosticLogger: { warn() {} }, executeReaderSourceImageRequestOperation: (...args) => ports.taskpool.execute(undefined, ...args),
+    SourceWorkerPriority: { FOREGROUND: 'foreground', BACKGROUND: 'background' },
     diagnoseSourceOperation: (_request, execute) => execute(), ...ports })
   return exports.resolveSourceRuntimeImageRequest
 }

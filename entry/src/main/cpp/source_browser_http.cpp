@@ -16,6 +16,8 @@ struct CurlWork {
   std::vector<std::string> headers, responseHeaders;
   std::atomic<bool> cancelled{false};
   long timeout = 0, status = 0;
+  curl_off_t dnsUs = -1, tcpUs = -1, tlsUs = -1, firstByteUs = -1, totalUs = -1;
+  long createdConnections = 0;
   int code = 0;
   bool eligible = false;
 };
@@ -109,6 +111,14 @@ static void execute(napi_env, void *data) {
   curl_easy_setopt(c, CURLOPT_XFERINFODATA, &w);
   w.code = curl_easy_perform(c);
   curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &w.status);
+  // Cumulative microsecond checkpoints are available even for a failed transfer.
+  // Zero is not proof that a phase completed; no URL, headers or peer identity is logged.
+  curl_easy_getinfo(c, CURLINFO_NAMELOOKUP_TIME_T, &w.dnsUs);
+  curl_easy_getinfo(c, CURLINFO_CONNECT_TIME_T, &w.tcpUs);
+  curl_easy_getinfo(c, CURLINFO_APPCONNECT_TIME_T, &w.tlsUs);
+  curl_easy_getinfo(c, CURLINFO_STARTTRANSFER_TIME_T, &w.firstByteUs);
+  curl_easy_getinfo(c, CURLINFO_TOTAL_TIME_T, &w.totalUs);
+  curl_easy_getinfo(c, CURLINFO_NUM_CONNECTS, &w.createdConnections);
   curl_slist_free_all(list);
   curl_easy_cleanup(c);
 }
@@ -122,6 +132,11 @@ static void flag(napi_env e, napi_value o, const char *k, bool x) {
   napi_get_boolean(e, x, &v);
   napi_set_named_property(e, o, k, v);
 }
+static void milliseconds(napi_env env, napi_value object, const char *key, curl_off_t microseconds) {
+  napi_value value;
+  napi_create_double(env, microseconds < 0 ? -1 : microseconds / 1000.0, &value);
+  napi_set_named_property(env, object, key, value);
+}
 static void complete(napi_env e, napi_status st, void *data) {
   std::unique_ptr<CurlWork> w(static_cast<CurlWork *>(data));
   {
@@ -134,6 +149,15 @@ static void complete(napi_env e, napi_status st, void *data) {
   flag(e, o, "cancelled", w->cancelled.load());
   num(e, o, "code", st == napi_ok ? w->code : -1);
   num(e, o, "status", w->status);
+  num(e, o, "createdConnections", w->createdConnections);
+  napi_value timing;
+  napi_create_object(e, &timing);
+  milliseconds(e, timing, "dnsTiming", w->dnsUs);
+  milliseconds(e, timing, "tcpTiming", w->tcpUs);
+  milliseconds(e, timing, "tlsTiming", w->tlsUs);
+  milliseconds(e, timing, "firstReceiveTiming", w->firstByteUs);
+  milliseconds(e, timing, "totalFinishTiming", w->totalUs);
+  napi_set_named_property(e, o, "performanceTiming", timing);
   napi_create_string_utf8(e, w->body.data(), w->body.size(), &v);
   napi_set_named_property(e, o, "body", v);
   napi_create_array_with_length(e, w->responseHeaders.size(), &arr);

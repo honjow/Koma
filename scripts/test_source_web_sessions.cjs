@@ -145,7 +145,8 @@ test('browser-compatible source HTTP preserves the original request and stays wi
   const nativeCalls = []
   const network = { sourceBrowserHttp: async (...args) => {
     nativeCalls.push(args)
-    return { eligible: true, cancelled: false, code: 0, status: 200, body: '{"albums":[]}', headers: ['content-type: application/json'] }
+    return { eligible: true, cancelled: false, code: 0, status: 200, body: '{"albums":[]}', headers: ['content-type: application/json'],
+      performanceTiming: { dnsTiming: 2, tcpTiming: 4, tlsTiming: 7, firstReceiveTiming: 8, totalFinishTiming: 11 }, createdConnections: 1 }
   } }
   const result = await f.http([], JSON.stringify(f.identity()), {
     url: 'https://api.simply-hentai.com/v3/search/complex?query=dragon',
@@ -158,6 +159,7 @@ test('browser-compatible source HTTP preserves the original request and stays wi
   assert.ok(nativeCalls[0][2].includes('User-Agent: OriginalSourceUA'))
   assert.ok(nativeCalls[0][2].includes('Referer: https://simply-hentai.com/'))
   assert.equal(nativeCalls[0][4], 'firefox133')
+  assert.ok(f.diagnostics.some(line => line.includes('tlsDoneMs=7') && line.includes('finishMs=11')))
   for (const request of [
     { url: 'https://api.simply-hentai.com/v3/search/complex', body: 'keep-this-body' },
     { url: 'https://other.invalid/catalog' },
@@ -500,18 +502,43 @@ function declarations(relative, names, owner) {
   }).join('\n')
 }
 
+function sourceWorkerFixture(execute, workers = {}) {
+  const identity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
+  const client = moduleFrom('SourceRuntimeWorkerClient', name => {
+    if (name === '@kit.ArkTS') return { taskpool: { execute } }
+    if (name === './SourceRuntimeExecutionIdentity') return identity
+    if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: {
+      beginCall: context => ({ id: '', httpContextJson: context }), finishCall: () => {},
+    } }
+    if (name === './SourceRuntimeWorker') return workers
+    throw Error('unexpected worker dependency: ' + name)
+  })
+  const enqueueSourceOperation = (request, bytes, _legacyContext, sourceId, active) =>
+    client.runBrowseSourceRequestInWorker(request, bytes, JSON.stringify({ sourceId }), active)
+  return { client, enqueueSourceOperation }
+}
+
 test('ordinary Browse queue derives native identity from the admitted registry entry, not source JSON', async () => {
   const f = fixture(), nativeCalls = [], exports = {}
   const registeredBytes = new Uint8Array([0])
   f.changeEntry(entry => ({ ...entry, wasmBytes: registeredBytes }))
   const features = moduleFrom('SourceHostFeatures', () => ({}))
   const executionIdentity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
-  const queue = declarations('sourceRuntime/SourceRuntimeWorker', ['runBrowseSourceOperationTask']) + '\n' +
-    declarations('viewmodel/BrowseViewModel', ['SOURCE_OPERATION_CONCURRENCY', 'sourceOperationQueue', 'enqueueSourceOperation'])
+  const worker = moduleFrom('SourceRuntimeWorker', name => {
+    if (name === './SourceHostFeatures') return features
+    if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
+    if (name === './NativeSourceRuntime') return {}
+    assert.equal(name, 'libkoma_source_runtime.so')
+    return { runJsonCallFromBytes: (request, bytes, context, sourceId) => {
+      nativeCalls.push({ request, bytes, context, sourceId }); return JSON.stringify({ ok: true })
+    } }
+  })
+  const shared = sourceWorkerFixture((fn, ...args) => fn(...args), worker)
+  const queue = declarations('viewmodel/BrowseViewModel', ['enqueueSourceOperation'])
   const method = declarations('viewmodel/BrowseViewModel', ['runSourceOperationResponse'], 'BrowseViewModel')
   const source = `${queue}\nexport class Host { ${method} }`
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  vm.runInNewContext(js, { exports, ...features, ...executionIdentity, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
+  vm.runInNewContext(js, { exports, ...features, ...executionIdentity, runBrowseSourceOperationTask: shared.client.runBrowseSourceRequestInWorker, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
     diagnoseSourceOperation: (_request, run) => run(), taskpool: { execute: (fn, ...args) => fn(...args) },
     require: name => {
       assert.equal(name, 'libkoma_source_runtime.so')
@@ -529,7 +556,7 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   assert.equal(nativeCalls[0].sourceId, 'source.one')
   assert.notStrictEqual(nativeCalls[0].bytes, registeredBytes)
   assert.deepEqual(Array.from(nativeCalls[0].bytes), Array.from(registeredBytes))
-  assert.deepEqual(JSON.parse(nativeCalls[0].context), f.identity())
+  assert.deepEqual(JSON.parse(nativeCalls[0].context), { ...f.identity(), diagnosticOperation: 'get_home' })
   assert.equal(JSON.parse(nativeCalls[0].request).sourceId, 'wasm-forged')
   assert.deepEqual(JSON.parse(nativeCalls[0].request).settings, { traditional: false })
   assert(JSON.parse(nativeCalls[0].request).hostFeatures.includes('mangabz_language_cookie_v1'))
@@ -537,18 +564,11 @@ test('ordinary Browse queue derives native identity from the admitted registry e
 })
 
 test('Browse queue lets another source proceed while discarding stale waiting searches', async () => {
-  const exports = {}, calls = []
-  const queue = declarations('viewmodel/BrowseViewModel', ['SOURCE_OPERATION_CONCURRENCY', 'sourceOperationQueue', 'enqueueSourceOperation']) +
-    '\nexport { enqueueSourceOperation }'
-  const js = ts.transpileModule(queue, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  vm.runInNewContext(js, {
-    exports,
-    runBrowseSourceOperationTask: () => {},
-    diagnoseSourceOperation: (_request, run) => run(),
-    taskpool: { execute: (_fn, request, _bytes, identity) => new Promise((resolve, reject) => {
-      calls.push({ request, identity, resolve, reject })
-    }) },
-  })
+  const calls = []
+  const shared = sourceWorkerFixture((_fn, request, _bytes, identity) => new Promise((resolve, reject) => {
+    calls.push({ request, identity: JSON.parse(identity).sourceId, resolve, reject })
+  }))
+  const exports = shared
   let current = true
   const bytes = new Uint8Array([1])
   const slow = exports.enqueueSourceOperation('slow', bytes, 'source-one', 'source-one', () => true)
@@ -577,14 +597,8 @@ test('Browse queue lets another source proceed while discarding stale waiting se
 })
 
 test('repeated operations for one source cannot occupy all workers and block another source', async () => {
-  const exports = {}, calls = []
-  const queue = declarations('viewmodel/BrowseViewModel', ['SOURCE_OPERATION_CONCURRENCY', 'sourceOperationQueue', 'enqueueSourceOperation']) +
-    '\nexport { enqueueSourceOperation }'
-  const js = ts.transpileModule(queue, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  vm.runInNewContext(js, {
-    exports, runBrowseSourceOperationTask: () => {}, diagnoseSourceOperation: (_request, run) => run(),
-    taskpool: { execute: (_fn, request) => new Promise(resolve => { calls.push({ request, resolve }) }) },
-  })
+  const calls = []
+  const exports = sourceWorkerFixture((_fn, request) => new Promise(resolve => { calls.push({ request, resolve }) }))
   const bytes = new Uint8Array([1])
   const first = exports.enqueueSourceOperation('a1', bytes, '{}', 'a')
   const second = exports.enqueueSourceOperation('a2', bytes, '{}', 'a')
@@ -601,6 +615,26 @@ test('repeated operations for one source cannot occupy all workers and block ano
     await new Promise(setImmediate)
   }
   assert.deepEqual(calls.map(call => call.request), ['a1', 'b1', 'a2', 'a3', 'a4'])
+})
+
+test('pending cover tasks yield to same-source interaction while other sources keep their FIFO slot', async () => {
+  const calls = []
+  const { client } = sourceWorkerFixture((_fn, request) => new Promise(resolve => { calls.push({ request, resolve }) }))
+  const bytes = new Uint8Array([1]), context = JSON.stringify({ sourceId: 'a' })
+  const active = client.executeSourceRequestInWorker('cover-active', bytes, context, 'background')
+  const cover = client.executeSourceRequestInWorker('cover-waiting', bytes, context, 'background')
+  const reader = client.executeSourceRequestInWorker('reader-current', bytes, context)
+  const page = client.runBrowseSourceRequestInWorker('page-2', bytes, context)
+  const other = client.runBrowseSourceRequestInWorker('other-source', bytes, JSON.stringify({ sourceId: 'b' }))
+  await new Promise(setImmediate)
+  assert.deepEqual(calls.map(c => c.request), ['cover-active', 'other-source'])
+  calls[0].resolve('cover'); await active; await new Promise(setImmediate)
+  assert.deepEqual(calls.map(c => c.request), ['cover-active', 'other-source', 'reader-current'])
+  calls[2].resolve('reader'); await reader; await new Promise(setImmediate)
+  assert.equal(calls[3].request, 'page-2')
+  calls[3].resolve('page'); await page; await new Promise(setImmediate)
+  assert.equal(calls[4].request, 'cover-waiting')
+  calls[4].resolve('cover'); calls[1].resolve('other'); await Promise.all([cover, other])
 })
 
 test('shared Native worker retains each invocation request, bytes, HTTP context, reply and thrown error', () => {

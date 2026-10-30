@@ -289,7 +289,7 @@ async function fetchSourceChapterPages(
   const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterPagesOperation(
     requestJson,
     cloneWasmBytes(entry),
-    sourceHttpIdentityJson(entry),
+    sourceHttpIdentityJson(entry, undefined, false, 'get_pages'),
   ))
   const response = JSON.parse(responseJson) as SourceOperationResponsePayload
   const rows = response.data?.pages !== undefined ? response.data.pages : (response.data?.items ?? [])

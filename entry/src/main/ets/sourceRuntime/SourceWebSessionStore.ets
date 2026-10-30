@@ -31,6 +31,8 @@ export interface SourceHttpIdentity {
   privateCallId?: string
   operationGuardId?: string
   detailChapterContext?: boolean
+  // Host-owned trace label only; never part of a grant, package identity or persisted session.
+  diagnosticOperation?: string
 }
 
 export interface SourceWebRequestSession {
@@ -82,11 +84,15 @@ export function sourceWebPackageIdentity(entry: SourceRuntimeRegistryEntry): str
 }
 
 export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operationGuardId?: string,
-  detailChapterContext: boolean = false): string {
+  detailChapterContext: boolean = false, diagnosticOperation?: string): string {
   const identity: SourceHttpIdentity = { sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
     packageIdentity: sourceWebPackageIdentity(entry), webSessionOrigins: entry.webSessionOrigins ?? [] }
   if (operationGuardId !== undefined) identity.operationGuardId = operationGuardId
   if (detailChapterContext) identity.detailChapterContext = true
+  if (diagnosticOperation !== undefined && ['search', 'get_manga', 'get_chapters', 'get_pages',
+    'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_settings', 'get_image_request'].includes(diagnosticOperation)) {
+    identity.diagnosticOperation = diagnosticOperation
+  }
   return JSON.stringify(identity)
 }
 
