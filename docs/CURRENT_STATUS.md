@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T21:51:11+08:00",
+  "updatedAt": "2026-10-30T22:08:56+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
-  "activity": "Simply网络对照仍遇挑战；官方名称复核已缩小未知范围。",
-  "nextAction": "继续定位具名源故障，并按用户对漫画屋和嗨皮候选的决定处理。",
+  "activity": "237已具备Noy登录入口；继续定位其余具名源故障。",
+  "nextAction": "继续源故障定位，并按具体候选决定处理；Noy登录页面留给用户。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "最近App代码为f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0，精确CI41042962997成功；本轮未改App代码。",
-      "hap": "197已恢复电源并释租；237留给用户Noy登录。"
+      "hap": "197已恢复释租；237已保留正式Noy 0.1.9并恢复电源，登录页面留给用户。"
     },
     {
       "name": "NextE",
@@ -3226,16 +3226,16 @@
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "3项官方对应关系仍缺",
+      "status": "2项官方对应关系仍缺",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY"
       ],
-      "result": "85源名称已逐项盘点：75项有品牌或栏目依据，7项仅英文参考，3项官方对应关系仍未知。",
-      "remaining": "继续核实爱看漫、漫画柜及LoL的官方对应关系；图标保原边界。",
+      "result": "85源名称已逐项盘点：76项有品牌或栏目依据，7项仅英文参考，2项官方对应关系仍未知。",
+      "remaining": "继续核实爱看漫及漫画柜的官方对应关系；图标保原边界。",
       "remainingActions": [
-        "继续核实爱看漫、漫画柜及LoL的官方对应关系；图标保原边界。"
+        "继续核实爱看漫及漫画柜的官方对应关系；图标保原边界。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
@@ -3244,7 +3244,7 @@
       "reportedAtSource": "用户于10-25要求核对各书源官方中文名；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "爱看漫、漫画柜及LoL栏目对应尚未核实",
+      "stage": "爱看漫及漫画柜官方对应尚未核实",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/",
         "漫画1234名称修正 eb347401 已于0.1.4发布；现源码、metadata及README均对应漫画1234网，既有已接受图标保持。",
@@ -3261,7 +3261,8 @@
       "evidencePoints": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
         "更新当前结果前原result逐字保留：已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网；该后缀差异已于0.1.4修正，现源码及metadata与官网名称对应。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。 搜索抓取的原神官方漫画页面含品牌及具体章节列表，支持现名称与漫画栏目；直接打开为动态空壳，不冒当前正文或图标验收。 漫画柜同域搜索缓存使用“看漫画”，当前源名漫画柜；直接访问受限，正式名与别名关系及图标未核。爱看漫官方地址不可达，第三方名称仅线索；雀魂、战双、王者及阴阳师栏目全称与图标仍缺可核官方证据，不改名。 本轮官网浏览支持雀魂品牌与漫画栏目、王者品牌与漫画栏目；现源名为描述性名称，非官网全称逐字相同。战双页面仅标题可核，阴阳师站点安全策略拦截未绕过；图标和其他未知范围不外推。 本轮官网核对支持MYCOMIC、HANMAN18、泰拉、DB Multiverse、繁中WEBTOON及多站英文品牌的现有对应；单部作品名不扩为全站名，未据英文页面断言无中文别名。部分站点访问失败或超时，保未知。 官网具名证据补充H-Comic、NHentai.xxx及XCOMIC现有品牌；NHentai.to未访问，MangaDex网页安全策略拦截未绕过，不从英文页面推断全站无中文别名。 pixiv官方简体帮助页与当前pixiv名称对应，未改名或图标。 本轮具名名称复核支持部分现名；GoDa官网页头直接使用GoDa漫畫，支持现名；同页另有并存称法。",
-        "197原件确认阴阳师 comic.163.com 页面标题“阴阳师漫画屋”及官方漫画、阴阳师工作室；杂志迷 zazhimi.net 截图显示“杂志迷”logo。矩阵现为75有依据、7仅英文参考、3未知。爱看漫与漫画柜系统浏览器风险拦截未绕过；LoL原页内容与源合同吻合，但Riot与具体内容关系未证。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json 相应行。"
+        "197原件确认阴阳师 comic.163.com 页面标题“阴阳师漫画屋”及官方漫画、阴阳师工作室；杂志迷 zazhimi.net 截图显示“杂志迷”logo。矩阵现为75有依据、7仅英文参考、3未知。爱看漫与漫画柜系统浏览器风险拦截未绕过；LoL原页内容与源合同吻合，但Riot与具体内容关系未证。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json 相应行。",
+        "腾讯官方根页标题及元数据支持英雄联盟品牌，197 yz.lol.qq.com实际宇宙/织星/欣赏漫画栏目与源合同对应；据同站命名空间及栏目支持“英雄联盟官方漫画”描述性名称，为推论而非官网逐字标题，Riot独立对应未知的原证据保留。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/lol-root-official-20261030.json 及原85矩阵。导航main.shtml旧失败路径本轮误重试一次Timeout，已停止，不视为新突破。"
       ]
     },
     {
@@ -3269,7 +3270,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "Noy登录入口及搜索词修复已公开",
+      "status": "237已安装公开Noy 0.1.9，登录后内容待核",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3279,7 +3280,7 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "Noy登录入口及搜索词修复已公开；登录后内容和镜像仍待验证。",
+      "result": "237已安装Noy公开版本并显示登录入口；登录后内容及镜像仍待验证。",
       "remaining": "核对Noy登录后内容及镜像协议兼容，继续其他具名差异。",
       "remainingActions": [
         "核对Noy登录后内容及镜像协议兼容，继续其他具名差异。"
@@ -3292,7 +3293,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "Noy登录后内容及镜像协议待核",
+      "stage": "登录后内容及镜像协议待核",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3572,7 +3573,9 @@
         "用户call99f明确接同站登录入口；017链接修复b296670已推CI41046193778 success；018入口5612d7bcb273fa4bb39c45791220cebcd88bc884已推、CI41049335130进行中。237 Noy008普通源自然显示官网登录页、009菜单网页验证/登录，005/006唯一origin及实装WASM同候选；未输入账号、登录内容未验。011原015四成员及六域全等、012 SLEEP/120000无override，lease73272b93 released。原Noy evidence/session-018稳定记录。",
         "Noy018 commit5612d7bcb273fa4bb39c45791220cebcd88bc884 CI41049335130 completed/success、release428962179同SHA非draft；公开包/索引/manifest仅许可https://noymanga.com，ZIP 681761536ec152a5ae26342e54aacc5a3fcb2219aa6aa726196f7a4dcda43121、WASM ab254b54…；公开WASM受控DTO比016仅网页路由变、API旧请求保持。未冒账号内容验证；237已恢复释租并交用户，登录后内容待账号询问答复。",
         "Noy019 6d5e7ab8f37d935d304b55fda6da8c021f8769cf已推，精确CI41052932223 success并公开；普通词请求不变，引号词不再多反斜线，公开WASM受控执行已核。未重测Native/登录后真实内容，b1/v4镜像兼容未知；证据 /private/tmp/noy-search-019。",
-        "Noy019稳定公开实体及精确CI证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/evidence.json。"
+        "Noy019稳定公开实体及精确CI证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/evidence.json。",
+        "237只读状态显示Koma 0.1.4/code5、Noy 0.1.5，未发现Noy书库或阅读状态项；设备端按sourceId的会话计数为0，不能据此断言用户登录失败。设备保持睡眠无输入，lease a4c6364f released；回执 source-web-session-concurrent/noy-state237-{read-001,data-002,session-003}。公开0.1.9 ZIP d966ef52…的minApp 0.1.0与当前Host兼容，现按普通路径升级并保留正式版本，不更换Host、不清写Cookie或其他源数据；升级及入口尚待回执。",
+        "237正式0.1.9：005普通导入成功，registry版本及唯一 https://noymanga.com origin正确；006 ZIP/WASM与公开实体逐字相等；010菜单“网页验证 / 登录”，011布局显示NoyAcg/登入，未输入账号。002→012 library、reader、settings、filters、web-sessions五域逐字相等，registry sourceIds相同且仅Noy从0.1.5升0.1.9，Host未换。013最终SLEEP/120000无override，两租约22383f87/758516da released，下载已清；保留正式0.1.9，不回装旧015或覆盖未来Cookie。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/device237-delivery.json。"
       ]
     },
     {
@@ -10355,6 +10358,40 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-official-alias-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "noy-installed-version-correction-20261030",
+      "at": "2026-10-30T22:02:20+08:00",
+      "title": "Noy设备版本核对",
+      "detail": "237仍装旧版，正在通过普通路径补齐已公开版本；设备会话计数不能证明登录失败。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/noy-state237-read-20261030-001/run-metadata.json"
+      ]
+    },
+    {
+      "id": "noy-019-device-delivery-20261030",
+      "at": "2026-10-30T22:08:56+08:00",
+      "title": "Noy正式版本设备交付",
+      "detail": "237已安装公开0.1.9并显示登录入口，数据保留且设备恢复；登录后内容尚未验证。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/device237-delivery.json"
+      ]
+    },
+    {
+      "id": "lol-official-name-20261030",
+      "at": "2026-10-30T22:08:56+08:00",
+      "title": "英雄联盟栏目名称复核",
+      "detail": "官方品牌与同站漫画栏目支持现有描述性名称；其余两项对应关系仍未知。此时间为登记时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/lol-root-official-20261030.json",
+        ".hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json"
       ]
     }
   ],
