@@ -29,7 +29,7 @@ if [ ! -f "$cache_dir/host/.complete" ]; then
       CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= ASFLAGS= ICU_DATA_FILTER_FILE="$filter" \
       "$cache_dir/icu4c/source/runConfigureICU" "$platform" \
         --disable-tests --disable-samples --disable-shared --enable-static; then
-      tail -n 100 config.log >&2
+      sed -n '1,180p' config.log >&2
       exit 1
     fi
     make -j"${KOMA_BUILD_JOBS:-8}" && touch .complete)

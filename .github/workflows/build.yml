@@ -67,10 +67,8 @@ jobs:
 
       - name: Install native build dependencies
         run: |
-          if ! command -v xxd >/dev/null 2>&1; then
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xxd
-          fi
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd
 
       - name: Install OHPM dependencies
         run: ohpm install --all
