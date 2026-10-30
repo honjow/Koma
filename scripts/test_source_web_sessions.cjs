@@ -60,6 +60,9 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
       if (name === './SourceRuntimeOperationGuard') return guards
+      if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
+      if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
+      if (name === './SourcePrivateSessionHost') return {}
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, info: (_category, _event, detail) => diagnostics.push(detail), warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
