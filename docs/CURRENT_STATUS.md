@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：正式0.1.4已发布；继续处理MangaBz镜像及其他未解决源问题。
+当前工作：正式0.1.4已发布，MangaBz镜像已交付；其余源问题保留原状态。
 
 设备：197及237均已恢复数据和电源并释租，宿主保留0.1.4候选；200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T18:43:47+08:00",
+  "updatedAt": "2026-10-30T18:52:25+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": null,
-  "activity": "MangaBz镜像候选具名验证及恢复完成，正式交付准备中。",
-  "nextAction": "核对Host及源提交、精确CI与公开实体；Noy等待真实材料。",
+  "activity": "MangaBz镜像已交付；Noy等待可验证作品材料。",
+  "nextAction": "接续剩余源事项；缺少真实作品、官方依据或有效挑战线路证据的部分保留等待。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3254,7 +3254,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "MangaBz镜像候选237具名通过，交付待核",
+      "status": "MangaBz镜像已交付，Noy待材料",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3264,11 +3264,10 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "MangaBz镜像候选设置、旧作品及正文具名验证完成并恢复；正式交付待核。",
-      "remaining": "完成MangaBz Host及源正式交付；Noy仍待可验证作品材料。",
+      "result": "MangaBz完整镜像已交付；Noy镜像兼容仍需真实作品材料。",
+      "remaining": "等待Noy真实官方作品链接或成功响应，以核参考镜像与当前协议兼容。",
       "remainingActions": [
-        "完成MangaBz镜像候选Host及源提交、精确CI和公开实体核验。",
-        "等待Noy官方作品链接或真实成功响应，以核参考镜像与当前协议兼容。"
+        "等待Noy真实官方作品链接或成功响应，以核参考镜像与当前协议兼容。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3278,7 +3277,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "Host及源提交准备中",
+      "stage": "等待可验证官方作品材料",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3551,7 +3550,9 @@
         "MangaBz两个备域已取得同73/MID/235目录；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-reference-mirror-20261030/sample-73/result.json 与 sample-73-yy/result.json。完整镜像/按域语言/旧身份方案尚未实施，未称已向用户提出采用问题。",
         "本轮async call_fa5dd72e95e24268a7c241c64012139b用户选“补齐完整镜像切换”：mangabz.com/xmanhua.com/yymanhua.com三站，当前默认及旧进度保持，列表/搜索/正文及简繁跟随，各站独立验证/登录。source_terra已开始源及相关Host/ABI完整实施；不影响冻结的v0.1.4标签，尚未完成验收或交付。",
         "237 category-membership/mangabz-mirror-settings-20261030-009默认mangabz.com；choices-20261030-010三项域名；select-x-20261030-011普通选择/保存/重入xmanhua.com，原繁体开关与说明仍在。Root亲读layout；仅设置语义具名，不冒正文/图片或会话全通过。旧作品正文继续、设备持租尚未恢复。",
-        "MangaBz完整镜像011本地候选：默认bz/旧ID，x保存重入、yy繁体保存重入及列表，yy手动网页和旧作品网页、鬼灭235章/旧进度及第23卷1/230具名；015旧卷2/190与025正文画面Root亲看，图片网络/缓存来源未确认、未登录账户。027原27f332安装成功，六JSON对001及原源四成员对002逐字同；028清候选、SLEEP/120000无override，lease d0c8699a据source owner释放。Host新feature及源011尚未提交公开；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-mirror-candidate-20261030/evidence.json。"
+        "MangaBz完整镜像011本地候选：默认bz/旧ID，x保存重入、yy繁体保存重入及列表，yy手动网页和旧作品网页、鬼灭235章/旧进度及第23卷1/230具名；015旧卷2/190与025正文画面Root亲看，图片网络/缓存来源未确认、未登录账户。027原27f332安装成功，六JSON对001及原源四成员对002逐字同；028清候选、SLEEP/120000无override，lease d0c8699a据source owner释放。Host新feature及源011尚未提交公开；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-mirror-candidate-20261030/evidence.json。",
+        "Koma f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0已推，精确CI41042962997 in_progress；koma-sources 6e0d6b85863f544850a627b2fb7f57766e61f4ec已推，精确CI41042955770 in_progress。正式0.1.4已发布事实不变。",
+        "Host f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0精确CI41042962997 success；source 6e0d6b85863f544850a627b2fb7f57766e61f4ec精确CI41042955770 success、Release428915480同SHA非draft。公开011 ZIP c4ffaafd2df42bf672e048527e080e5165e4944c6dd9283771e5eba5a81e87c2 / WASM 6761d9f09aa9f3e6a66289dcd9da0b005b317aa72d227276c06f8bbe4809b939；index版本/三origins/default主页正确，公开WASM真实HTML、旧Host回退、旧bz身份、图片referer/按域语言/外CDN不带cookie执行通过。公开WASM不同Native候选，不冒重复Native；账号登录及图片冷网归属未验。新入口需后续含mangabz_mirror_session_v1 Host，已发布0.1.4旧Host仅默认站。Noy 237基线library/reader匹配0条、registry仅015已装无作品ID，待官方作品链接或成功响应。"
       ]
     },
     {
@@ -10104,6 +10105,31 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-mirror-candidate-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "mangabz-mirror-pushed-20261030",
+      "at": "2026-10-30T18:45:33+08:00",
+      "title": "MangaBz镜像两仓提交已推",
+      "detail": "具名设备路径已核，两仓精确CI进行中、源实体待核。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41042962997",
+        "https://github.com/honjow/koma-sources/actions/runs/41042955770"
+      ]
+    },
+    {
+      "id": "mangabz-mirror-public-delivery-20261030",
+      "at": "2026-10-30T18:52:25+08:00",
+      "title": "MangaBz完整镜像正式交付",
+      "detail": "两仓精确CI及公开WASM合同已核；旧0.1.4 Host仅默认站，Noy继续等待真实材料。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-mirror-candidate-20261030/evidence.json",
+        "https://github.com/honjow/Koma/actions/runs/41042962997",
+        "https://github.com/honjow/koma-sources/actions/runs/41042955770"
       ]
     }
   ],
