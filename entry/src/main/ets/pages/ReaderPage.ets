@@ -1,6 +1,7 @@
 import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
+import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { LengthMetrics, window } from '@kit.ArkUI'
 import { KeyCode } from '@kit.InputKit'
@@ -2374,7 +2375,23 @@ export struct ReaderPage {
     if (sandboxRoot.length === 0) {
       throw new Error('reader_files_dir_unavailable')
     }
-    const extension = this.imageExtension(source.imageUri.length > 0 ? source.imageUri : sourcePath)
+    let extension = this.imageExtension(source.imageUri.length > 0 ? source.imageUri : sourcePath)
+    const bannerMode = source.sourceRuntimeId === 'online.baozimh.koma'
+      ? appSourceSettingsStore.loadForSource(source.sourceRuntimeId)['BAOZI_BANNER'] : undefined
+    if (source.sourceRuntimeId === 'online.baozimh.koma' &&
+      (bannerMode === undefined || bannerMode === '1' || bannerMode === '2')) {
+      // A processed page is JPEG; unchanged pages retain their actual format.
+      let decoder: image.ImageSource | undefined = undefined
+      try {
+        decoder = image.createImageSource(sourcePath)
+        const mime = (await decoder.getImageInfo()).mimeType
+        if (mime === 'image/jpeg') extension = 'jpg'
+        else if (mime === 'image/png') extension = 'png'
+        else if (mime === 'image/webp') extension = 'webp'
+      } catch (_error) {
+        // Retain the original naming fallback when MIME inspection fails.
+      } finally { if (decoder !== undefined) await decoder.release() }
+    }
     const exportDir = `${this.filesDir}/reader-exports`
     const exportPath = `${exportDir}/${this.pageImageTitle()}.${extension}`
     if (!fs.accessSync(exportDir)) {

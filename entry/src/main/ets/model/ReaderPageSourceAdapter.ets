@@ -3,6 +3,8 @@ import { renderSourceTextPage } from './SourceTextPageRenderer'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
+import { SourceBaoziBannerService } from './SourceBaoziBannerService'
+import { url } from '@kit.ArkTS'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { SourceRuntimeError } from './SourceRuntimeError'
@@ -487,6 +489,7 @@ interface ReaderImageRuntimeRequest {
 class SourceImageRequestDescriptor {
   url: string
   headers: RemoteImageCacheHeaders | undefined
+  imageProcessingMode?: string
 
   constructor(url: string, headers?: RemoteImageCacheHeaders) {
     this.url = url
@@ -527,7 +530,12 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
     }
     const directUrl = record['url']
     if (typeof directUrl === 'string' && directUrl.length > 0) {
-      return new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']))
+      const descriptor = new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']))
+      const processing = record['imageProcessing'] as Record<string, Object> | undefined
+      if (processing?.['kind'] === 'baozi_banner' && (processing['mode'] === '1' || processing['mode'] === '2')) {
+        descriptor.imageProcessingMode = processing['mode'] as string
+      }
+      return descriptor
     }
     // The source operation also emits an explicit GET request envelope.
     // The image transport is GET-only; never reinterpret another method as GET.
@@ -750,6 +758,7 @@ export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   sourceKind?: ComicSourceKind
   remoteServerId?: string
   pageId?: string
+  sourceOriginalImageUri?: string
   sourceText?: SourceTextPage
   sourceTextRequest?: SourceTextPageRequest
 }
@@ -848,6 +857,11 @@ function createReaderPageRenderSourceWithOfflinePath(
       uri: `file://${offlinePath}`,
       imageUri: offlinePath,
       pageId,
+      // Downloaded pages retain their source identity for source-owned derived
+      // presentation; the downloaded file itself remains the original.
+      sourceRuntimeId: config.sourceRuntimeId,
+      sourceMangaUrl: config.sourceMangaUrl,
+      sourceOriginalImageUri: config.sourceOriginalImageUris?.[index] ?? pageUri,
     }
   }
   const textRequest = config.pageTextRequests?.[index]
@@ -857,6 +871,7 @@ function createReaderPageRenderSourceWithOfflinePath(
       uri: pageId ?? '', imageUri: '', pageId,
       sourceRuntimeId: config.sourceRuntimeId,
       sourceMangaUrl: config.sourceMangaUrl,
+      sourceOriginalImageUri: pageUri,
       sourceTextRequest: { template: textRequest.template },
     }
   }
@@ -882,6 +897,9 @@ function createReaderPageRenderSourceWithOfflinePath(
       imageUri: localPath,
       pageId,
       sourceText: config.pageTextPages?.[index] ?? undefined,
+      sourceRuntimeId: config.sourceRuntimeId,
+      sourceMangaUrl: config.sourceMangaUrl,
+      sourceOriginalImageUri: config.sourceOriginalImageUris?.[index],
     }
   }
   return {
@@ -935,16 +953,56 @@ export function createReaderPageRenderSources(
   return sources
 }
 
+async function prepareSourcePagePresentation(source: ReaderPageRenderSource, originalPath: string,
+  context?: common.UIAbilityContext): Promise<string> {
+  const sourceId = source.sourceRuntimeId?.trim() ?? ''
+  const pageId = source.pageId ?? ''
+  const originalUri = source.sourceOriginalImageUri ?? source.imageUri
+  if (sourceId !== 'online.baozimh.koma' || pageId.length === 0 || context === undefined ||
+    readerImageCacheStore === null) return originalPath
+  try {
+    const host = new url.URL(originalUri).hostname.toLowerCase()
+    if (!['baozimh.com', 'baozicdn.com', 'bzcdn.net'].some((domain: string): boolean =>
+      host === domain || host.endsWith('.' + domain))) return originalPath
+  } catch (_error) { return originalPath }
+  const lookup = appSourceRuntimeRegistry.lookup(sourceId)
+  if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled) return originalPath
+  const entry = lookup.entry
+  const settings = appSourceSettingsStore.loadForSource(sourceId)
+  // The source decides its own default; an older source returns no descriptor.
+  // An explicit disabled or unknown value never starts processing.
+  const mode = settings['BAOZI_BANNER']
+  if (mode !== undefined && mode !== '1' && mode !== '2') return originalPath
+  const fingerprint = sourceSettingsFingerprint(settings)
+  let descriptor: SourceImageRequestDescriptor | undefined
+  try {
+    descriptor = await resolveSourceRuntimeImageRequest(sourceId, originalUri, pageId, source.sourceMangaUrl)
+  } catch (_error) {
+    if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
+    return originalPath
+  }
+  if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
+  if (descriptor?.imageProcessingMode === undefined) return originalPath
+  const profileIdentity = JSON.stringify([sourceId, entry.manifestVersion, entry.wasmPath ?? '', fingerprint])
+  const path = await SourceBaoziBannerService.prepare(originalPath, descriptor.imageProcessingMode,
+    readerImageCacheStore, profileIdentity)
+  if (path !== originalPath) await maintainReaderImageCacheAfterWrite(path)
+  if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
+  return path
+}
+
 export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false): Promise<string> {
   if (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
     return fetchAndCacheSourceRuntimeTextPage(source, forceReload)
   }
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
-    return source.sourceText === undefined ? source.imageUri : cacheSourceTextPageImage(source.sourceText, forceReload)
+    if (source.sourceText !== undefined) return cacheSourceTextPageImage(source.sourceText, forceReload)
+    return prepareSourcePagePresentation(source, source.imageUri, context)
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
-      return fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload)
+      const original = await fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload)
+      return prepareSourcePagePresentation(source, original, context)
     }
     return fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload)
   }
@@ -953,7 +1011,11 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
 
 export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSource, context?: common.UIAbilityContext): Promise<ArrayBuffer> {
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE || source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
-    const path = await fetchAndCacheReaderRemoteSource(source, context)
+    // Downloads own the original bytes even when normal presentation has a
+    // source-specific derivative. Text pages still use their existing renderer.
+    const path = source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
+      ? (source.sourceText === undefined ? source.imageUri : await cacheSourceTextPageImage(source.sourceText))
+      : await fetchAndCacheReaderRemoteSource(source, context)
     const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     try {
       const stat = fs.statSync(path)

@@ -55,6 +55,10 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1` 和 `source_private_session_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
 
+`source_page_image_processing_v1` 是正文页派生图片的可选能力。包子源可在 `get_image_request` 响应提供 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }`；未存偏好时源默认普通模式，显式禁用或源未声明处理时保留原图。宿主只在正文页消费并核对源身份、图片域、当前安装包和设置，保留原始下载及其摘要；派生图用于阅读、预载和普通保存/分享，不处理封面。
+
+横幅派生缓存按源安装身份和设置指纹区分，设置变更后请求使用新缓存身份；因此不沿用参考源中要求清除已加载图片缓存的提示。
+
 ### 源私有会话
 
 `source_private_session_v1` 复用 `koma_host.http_request`，以 `{type:"private_session",version:1,op:...}` 区分本地 RPC；它不发送 HTTP，也不增加 WASM import。网站的游客初始化、请求签名、令牌解析及业务失效处理仍由源实现，Host 只提供不透明私有缓存、安全随机和 RSA 原语。依赖该能力的新源必须同时提高生产包 `minAppVersion`；旧 Host 不得误走新协议。

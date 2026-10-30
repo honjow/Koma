@@ -51,6 +51,8 @@ export interface OfflineDownloadedPage {
   localPath: string
   size: number
   contentHash?: string
+  /** Optional public source URL for source-owned presentation; never an access token. */
+  sourceOriginalUri?: string
   updatedAt: number
 }
 
@@ -58,6 +60,7 @@ export interface OfflineChapterDownloadManifest {
   schemaVersion: number
   sourceKind?: ComicSourceKind
   sourceId?: string
+  sourceMangaUrl?: string
   comicId: ComicId
   comicTitle?: string
   seriesId: ComicId
@@ -85,6 +88,7 @@ export interface OfflineDownloadSummary {
 export interface OfflineChapterManifestIdentity {
   sourceKind?: ComicSourceKind
   sourceId?: string
+  sourceMangaUrl?: string
   seriesId?: ComicId
 }
 
@@ -247,6 +251,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       parsed.sourceKind !== ComicSourceKind.OPDS_REMOTE &&
       parsed.sourceKind !== ComicSourceKind.WEBDAV_REMOTE) ||
     (parsed.sourceId !== undefined && typeof parsed.sourceId !== 'string') ||
+    (parsed.sourceMangaUrl !== undefined && typeof parsed.sourceMangaUrl !== 'string') ||
     typeof parsed.comicId !== 'string' ||
     (parsed.comicTitle !== undefined && typeof parsed.comicTitle !== 'string') ||
     typeof parsed.seriesId !== 'string' ||
@@ -269,6 +274,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       typeof page.localPath !== 'string' ||
       typeof page.size !== 'number' ||
       (page.contentHash !== undefined && typeof page.contentHash !== 'string') ||
+      (page.sourceOriginalUri !== undefined && typeof page.sourceOriginalUri !== 'string') ||
       typeof page.updatedAt !== 'number') {
       throw new Error('Unsupported offline download page manifest')
     }
@@ -795,6 +801,7 @@ export class OfflineDownloadStore {
         localPath: page.localPath,
         size: Math.max(0, Math.floor(page.size)),
         contentHash: page.contentHash?.trim(),
+        sourceOriginalUri: page.sourceOriginalUri,
         updatedAt: page.updatedAt,
       }
     })
@@ -802,6 +809,7 @@ export class OfflineDownloadStore {
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
       sourceKind: manifest.sourceKind,
       sourceId: manifest.sourceId,
+      sourceMangaUrl: manifest.sourceMangaUrl,
       comicId: manifest.comicId,
       comicTitle: normalizeOptionalManifestLabel(manifest.comicTitle),
       seriesId: manifest.seriesId,
@@ -832,6 +840,7 @@ export class OfflineDownloadStore {
       schemaVersion: OFFLINE_DOWNLOAD_SCHEMA_VERSION,
       sourceKind: identity?.sourceKind,
       sourceId: identity?.sourceId,
+      sourceMangaUrl: identity?.sourceMangaUrl,
       comicId,
       comicTitle: labels?.comicTitle,
       seriesId: identity?.seriesId ?? comicId,
@@ -862,6 +871,7 @@ export class OfflineDownloadStore {
       pages,
       sourceKind: manifest.sourceKind,
       sourceId: manifest.sourceId,
+      sourceMangaUrl: manifest.sourceMangaUrl,
       comicTitle: manifest.comicTitle,
       seriesId: manifest.seriesId,
       chapterTitle: manifest.chapterTitle,

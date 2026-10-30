@@ -1,7 +1,7 @@
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
-import { taskpool } from '@kit.ArkTS'
+import { taskpool, url } from '@kit.ArkTS'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
 import { connection } from '@kit.NetworkKit'
 import {
@@ -108,10 +108,27 @@ function pageAtIndex(chapter: Chapter, index: number): Page | undefined {
   return chapter.pages.find((page: Page): boolean => page.index === index) ?? chapter.pages[index]
 }
 
+// Public manifests retain only this source's allowlisted URL without userinfo,
+// query or fragment; all other source addresses stay out of the manifest.
+function publicBaoziUri(sourceId: string | undefined, value: string | undefined): string | undefined {
+  if (sourceId !== 'online.baozimh.koma' || value === undefined) return undefined
+  try {
+    const parsed = new url.URL(value)
+    const host = parsed.hostname.toLowerCase()
+    if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || parsed.username.length > 0 ||
+      parsed.password.length > 0 || parsed.search.length > 0 || parsed.hash.length > 0 ||
+      !['baozimh.com', 'baozicdn.com', 'bzcdn.net'].some((domain: string): boolean =>
+        host === domain || host.endsWith('.' + domain))) return undefined
+    return value
+  } catch (_error) { return undefined }
+}
+
 function manifestIdentityFromComic(comic: Comic): OfflineChapterManifestIdentity {
   return {
     sourceKind: comic.sourceKind,
     sourceId: comic.sourceRuntimeId ?? comic.remoteServerId ?? comic.sourceKind,
+    sourceMangaUrl: comic.sourceRuntimeId === 'online.baozimh.koma'
+      ? publicBaoziUri(comic.sourceRuntimeId, comic.sourcePath) : undefined,
     seriesId: comic.id,
   }
 }
@@ -347,6 +364,7 @@ export class OfflineDownloadService {
             localPath: reusablePage.localPath,
             size: reusablePage.size,
             contentHash: reusablePage.contentHash,
+            sourceOriginalUri: reusablePage.sourceOriginalUri,
             updatedAt: reusablePage.updatedAt,
           })
           this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
@@ -373,6 +391,7 @@ export class OfflineDownloadService {
           localPath,
           size: writtenPage.size,
           contentHash: writtenPage.contentHash,
+          sourceOriginalUri: publicBaoziUri(comic.sourceRuntimeId, page?.uri),
           updatedAt: Date.now(),
         }
         manifest = this.store.recordPage(manifest, row)

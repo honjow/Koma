@@ -147,6 +147,8 @@ export interface ReaderSessionConfig {
   chapterTitle?: string
   totalPages: number
   pageUris: string[]
+  /** Original public image URIs retained by newer offline manifests, when available. */
+  sourceOriginalImageUris?: (string | undefined)[]
   pageIds?: string[]
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
@@ -184,6 +186,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     chapterTitle: config.chapterTitle,
     totalPages: config.totalPages,
     pageUris: config.pageUris.slice(),
+    sourceOriginalImageUris: config.sourceOriginalImageUris?.slice(),
     pageIds: config.pageIds?.slice(),
     pageWidths: config.pageWidths?.slice(),
     pageHeights: config.pageHeights?.slice(),
