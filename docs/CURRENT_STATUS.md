@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T16:12:43+08:00",
+  "updatedAt": "2026-10-30T16:18:29+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": "漫画屋与Simply因果接线已交付，实际可用性仍待处理；漫小肆选择待答。",
@@ -3238,7 +3238,8 @@
         "漫画柜限定搜索受robots限制；Zazhimi旧页title/logo/footer仅见我是Zazhimi、限定搜索无可用结果。无新名称结论，不刷新访问或改名。",
         "铃兰官网作品与官方论坛趣味漫画栏目支持当前名称；栏目逐篇作者及图标未验，索引结果与直接读取区分。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/soc-official-name-20261030.json；原矩阵soc-zh改brand_supported，其余七项未知保留。",
         "包子同注册域cn官网搜索索引多条标题/首页使用包子漫画，固定949 Baozi.kt同源列cn/www，结合既有static-tw素材支持现名；www当前403未直读，繁体为繁简转换而非独立官网文字。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/baozimh-official-name-20261030.json，矩阵brand_supported。",
-        "东立出版社官方域文件索引称東立出版社有限公司及电子书同注册域，支持现名；ebook首页403未直读。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/tongli-official-name-20261030.json；图标不随之验收。"
+        "东立出版社官方域文件索引称東立出版社有限公司及电子书同注册域，支持现名；ebook首页403未直读。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/tongli-official-name-20261030.json；图标不随之验收。",
+        "阴阳师现实现使用comic.163.com及huajia.tongren.163.com；README所指官方父页→漫画域原始证据 /private/tmp/koma-onmyoji-zh-contract-20261014 已不存在，README不代原始href。本次只读一次此前未访问 https://yys.163.com/index.html 返回不可重试错误，未重打旧漫画页；名称仍未知，不判错。"
       ],
       "evidencePoints": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
@@ -9947,6 +9948,15 @@
         ".hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json",
         "https://github.com/honjow/koma-sources/actions/runs/41024411724"
       ]
+    },
+    {
+      "id": "onmyoji-name-evidence-gap-20261030",
+      "at": "2026-10-30T16:18:29+08:00",
+      "title": "阴阳师官方名称原始依据复核",
+      "detail": "旧父页关联原件不存在，本次新父页不可读取；名称保持未知，未重试旧漫画页。此时间为登记时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": []
     }
   ],
   "reportAgeAudit": {
