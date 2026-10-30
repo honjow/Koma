@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T23:48:33+08:00",
+  "updatedAt": "2026-10-31T00:02:32+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_INSTALL_PIPELINE_SERIAL",
-  "activity": "多个书源并行安装已实机验证，正在交付源码。",
-  "nextAction": "完成安装并发提交与CI，并继续漫画屋首页故障定位。",
+  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
+  "activity": "书源并行安装已交付；漫画屋首页仍受验证挑战。",
+  "nextAction": "继续定位漫画屋和其他具名源故障。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "最近App代码为f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0，精确CI41042962997成功；本轮未改App代码。",
-      "hap": "237并行安装验证后原源及数据恢复、已释租；0.1.4无诊断产品包保留。"
+      "appHead": "最近App实现提交2ea1adaf4d29c6345418749d67a9ef9b5923b990，精确CI41084355441成功。",
+      "hap": "237保留本地签名c6产品包0.1.4/code5；原两源及数据恢复、电源恢复并释租。CI产物未另做Native。"
     },
     {
       "name": "NextE",
@@ -2792,8 +2792,8 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "已取得验证凭据，首页仍403",
-      "result": "验证窗口取得凭据并自动回流，但首页请求仍被拒绝。",
+      "status": "限定身份代码已交付，首页仍受挑战",
+      "result": "限定身份代码已交付；取得验证凭据后首页仍遭挑战。",
       "evidencePoints": [
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
         "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
@@ -2807,12 +2807,13 @@
         "197浏览器024提交与Native相同热门路径，025可见漫画大全及作品链接、无验证文字；最终完整URL、重定向和HTTP状态未观测，不代表Native成功。026恢复SLEEP/120000及原Override10000，lease27ad1054 released；前场lease c90abe7a亦released，原017四成员、六域及诊断偏好恢复，原38d包未换。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-validation197-20261030/evidence.json。仅漫画屋及 https://www.mhua5.com 验证窗口使用引擎默认身份的候选尚未应用或构建，已询问用户采用决定；不将UA认定为根因。候选依据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/。",
         "用户最新明确采用并验证候选；仅com.manhuawu.koma及https://www.mhua5.com验证窗口和完成后的同站UA使用默认Web引擎身份，其他源、UI和Cookie权限保持。此具体决定取代原UA不变边界，旧记录保留；source_terra在237执行，尚未验证完成。",
         "237限定默认UA候选取得clearance并自动回流，但op6实际cookieState present、clearance present、uaSource webview仍403，首页未修好。原Host27f及原MHW源已恢复，Noy019及本次MHW会话保留，电源恢复释租；代码WIP待Root审交付。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json。",
-        "原边界（用户具体采用漫画屋UA例外前）：保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。"
+        "原边界（用户具体采用漫画屋UA例外前）：保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。",
+        "限定身份代码2e1fa9af已推master，后续精确CI41084355441成功；237候选009 op6已取得clearance但仍403，access_signal=challenge_required。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json；不称首页已修复。"
       ],
       "remainingActions": [
-        "审查限定身份候选并继续定位首页403。"
+        "继续定位漫画屋首页403。"
       ],
-      "remaining": "审查限定身份候选并继续定位首页403。",
+      "remaining": "继续定位漫画屋首页403。",
       "boundaries": [
         "017搜索分页修复已交付；770–775元尊搜索→最早第1话→首图1/10具名，非完整叙事/全10页或全CF。首页get_manga_list仍403挑战，当前页表成功不追认旧460 timeout原因。",
         "仅com.manhuawu.koma在https://www.mhua5.com验证窗口使用引擎默认UA，完成后本站请求沿该UA；Cookie、网络、端点、超时及目录/章节身份保持，不为取证重复已验查询或造挑战。",
@@ -2843,7 +2844,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166071,
-      "stage": "限定身份候选待审交付，首页故障继续定位"
+      "stage": "继续定位首页403"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -4558,30 +4559,29 @@
       "id": "SOURCE_INSTALL_PIPELINE_SERIAL",
       "title": "多个书源安装串行导致效率低",
       "priority": "P1",
-      "kind": "open",
-      "status": "普通路径并行安装已实机验证，待交付",
-      "stage": "代码及规范已审，提交与CI待完成",
+      "kind": "done",
+      "status": "并行安装已验证并交付",
+      "stage": "具名范围已交付",
       "owner": "Root/home_terra：代码；source_terra：真实验证",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_INSTALL_GLOBAL_DISABLE",
         "SOURCE_PACKAGE_INSTALL_UI_STALL"
       ],
-      "result": "两个书源更新在普通路径并行完成，原数据已恢复；源码交付待完成。",
-      "remaining": "完成源码提交、推送及精确CI核对。",
-      "remainingActions": [
-        "完成源码提交、推送及精确CI核对。"
-      ],
+      "result": "两个书源普通更新已验证可并行，原数据已恢复，源码和CI已完成。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "保同源去重、本地导入排他屏障、行身份及失败释放；已验收安装排队和界面行为保持。",
         "实际并行证据为两项普通更新的UI与registry关联及整体日志时序；脱敏单行日志不单独归属源ID。"
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，客户端日期2026-10-30；原messageId 01a18d62-c5c8-7b73-9348-3144538900cf / 01a18d63-db56-7c90-857b-9407730486a7，工具未提供精确时刻，不以登记时间或UUID推算。",
-      "closedAt": null,
+      "closedAt": "2026-10-31T00:02:32+08:00",
       "evidencePoints": [
         "Root核当前队列尾部全流程串行，登记同步段无await；候选为两个在线任务全流程并行，本地导入保持排他屏障，尚未构建或Native。",
-        "237无诊断产品HAP c6e494c9547877a8850cb5035dcca0e3a86fe5a306614e25f1b05e20cb8bf028，0.1.4/code5保留。XCOMIC繁中.6→.13及简中.7→.12均成功；第二下载23:40:34.828早于第一install_ok 35.882，首download 34.313、末install_ok 36.178，普通路径证明并行。两源原包八成员及六域逐字恢复，Noy019、MHW会话及84源缓存保留，SLEEP/120000无override，lease7b12de1f released。原实现与候选完整测试对照中六个失败均为相同既存fixture，未改测试期望。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/native237-evidence.json、verification.json。"
+        "237无诊断产品HAP c6e494c9547877a8850cb5035dcca0e3a86fe5a306614e25f1b05e20cb8bf028，0.1.4/code5保留。XCOMIC繁中.6→.13及简中.7→.12均成功；第二下载23:40:34.828早于第一install_ok 35.882，首download 34.313、末install_ok 36.178，普通路径证明并行。两源原包八成员及六域逐字恢复，Noy019、MHW会话及84源缓存保留，SLEEP/120000无override，lease7b12de1f released。原实现与候选完整测试对照中六个失败均为相同既存fixture，未改测试期望。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/native237-evidence.json、verification.json。",
+        "Koma 2ea1adaf4d29c6345418749d67a9ef9b5923b990已推master，精确CI41084355441 completed/success，unsigned Release HAP构建成功，tag发布步骤跳过；未新tag、发版或上传AGC。237保留本地签名c6产品HAP 0.1.4/code5，原两源及数据恢复并释租；CI artifact未另做Native，不作为重测门槛。https://github.com/honjow/Koma/actions/runs/41084355441"
       ],
       "reportedDate": "2026-10-30"
     }
@@ -10500,6 +10500,30 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/native237-evidence.json",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/verification.json"
+      ]
+    },
+    {
+      "id": "source-install-concurrency-delivered-20261031",
+      "at": "2026-10-31T00:02:32+08:00",
+      "title": "书源并行安装交付",
+      "detail": "具名实机验证及正式源码CI完成，原数据已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_INSTALL_PIPELINE_SERIAL",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41084355441",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/native237-evidence.json"
+      ]
+    },
+    {
+      "id": "manhuawu-engine-identity-delivered-20261031",
+      "at": "2026-10-31T00:02:32+08:00",
+      "title": "漫画屋限定身份代码交付",
+      "detail": "限定身份代码已交付，取得凭据后首页仍受挑战，故障继续定位。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41084355441",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json"
       ]
     }
   ],
