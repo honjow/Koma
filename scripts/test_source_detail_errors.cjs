@@ -19,6 +19,8 @@ const { SourceRuntimeError } = errors.exports
 const gateModule = { exports: {} }
 new Function('exports', compile(read('sourceRuntime/SourceWebChallengeGate')))(gateModule.exports)
 const { SourceWebChallengeGate } = gateModule.exports
+const chapterIdentity = {}
+new Function('exports', 'require', compile(read('model/SourceChapterIdentity')))(chapterIdentity, () => ({}))
 const pageSource = read('pages/MangaDetailPage').replace(/\bstruct (\w+)/g, 'class $1')
 const file = ts.createSourceFile('page.ts', pageSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 const owner = file.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'MangaDetailPage')
@@ -42,7 +44,8 @@ function fixture() {
     'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', code)(
     exports, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
     (...args) => { identities.push(args); return '{}' },
-    (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) }, () => {},
+    (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) },
+    async () => state.task ? state.task() : JSON.stringify(state.response),
     (_source, item) => item, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
     async (...args) => { chapterCalls.push(args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
@@ -65,6 +68,39 @@ function fixture() {
   })
   return { page, state, entry, logs, applied, writes, reads, cancelledSessions, chapterCalls, identities }
 }
+
+test('chapter identity ambiguity retains the readable catalog and skips snapshot writes', async () => {
+  for (const forceReload of [false, true]) {
+    const f = fixture(), id = 'chapter:fixture:7', title = '第7话'
+    const kept = { id, title, pages: [{ id: 'kept-page' }], pageCount: 1, isRead: true }
+    const comic = { id: 'saved', sourceRuntimeId: 'online.baozimh.koma', chapters: [kept] }
+    const detail = { title: 'Saved detail' }
+    f.state.library = comic
+    f.state.chapters = [{ id: id + '#different', title: 'different' }]
+    f.entry.sourceId = comic.sourceRuntimeId
+    Object.assign(f.page, { manga: detail, chapters: [kept], sourceDetailDataResolved: true,
+      sourceChaptersResolved: true, sourceDetailContentState: 'ready' })
+    let conflictObserved = false
+    const actual = {}
+    new Function('exports', 'reconcileSourceChapterIdentity', 'protectedSourceChapterIds', 'getContext',
+      compile(`export class Page { ${method('applySourceMangaDetail')} }`))(actual,
+      (...args) => {
+        try { return chapterIdentity.reconcileSourceChapterIdentity(...args) }
+        catch (error) { conflictObserved = error.message === 'source_chapter_identity_ambiguous'; throw error }
+      }, () => undefined, () => ({ filesDir: '/fixture' }))
+    f.page.applySourceMangaDetail = actual.Page.prototype.applySourceMangaDetail
+    await f.page.loadSourceMangaDetail(comic.sourceRuntimeId, 'manga:fixture', forceReload)
+    assert.equal(conflictObserved, true, JSON.stringify({ logs: f.logs, applied: f.applied,
+      chapterCalls: f.chapterCalls, feedback: f.page.feedbackText }))
+    assert.equal(f.page.manga, detail)
+    assert.deepEqual(f.page.chapters, [kept])
+    assert.equal(f.state.library, comic)
+    assert.equal(f.state.library.chapters[0], kept)
+    assert.equal(f.writes.length, 0)
+    assert.equal(f.page.sourceDetailContentState, 'ready')
+    assert.equal(f.page.feedbackText.length > 0, forceReload, 'only explicit refresh reports the existing failure')
+  }
+})
 
 test('a fresh detail passes its source context only to the same chapter load, never to the snapshot', async () => {
   const f=fixture(), context={version:1,work:'work',editions:['one','two']}
@@ -159,6 +195,7 @@ test('directory resolver preserves legacy reason message alongside HTTP diagnost
     if (name === './SourceRuntimeError') return { SourceRuntimeError }
     if (name === './SourceChapterVisibility') return chapterVisibility
     if (name === '@kit.ArkTS') return { taskpool: { execute: async () => JSON.stringify(response) } }
+    if (name === '../sourceRuntime/SourceRuntimeWorkerClient') return { executeSourceRequestInWorker: async () => JSON.stringify(response) }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
     if (name === '../sourceRuntime/SourceSettingObservationStore') return { appSourceSettingObservationStore: { tokenForSource: () => 'same' } }
@@ -283,6 +320,9 @@ test('completed catalog diagnostic counts duplicate identities without merging t
     if (name === '@kit.ArkTS') return { taskpool: { execute: async (_worker, request) => {
       requests.push(JSON.parse(request)); return JSON.stringify(responses.shift())
     } } }
+    if (name === '../sourceRuntime/SourceRuntimeWorkerClient') return { executeSourceRequestInWorker: async request => {
+      requests.push(JSON.parse(request)); return JSON.stringify(responses.shift())
+    } }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: (...args) => { identities.push(args); return '{}' } }
     if (name === './MangaDetailModels') return { parseMangaChapterFromSourceItem: item => item }

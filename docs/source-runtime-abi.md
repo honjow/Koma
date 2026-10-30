@@ -59,6 +59,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 横幅派生缓存按源安装身份和设置指纹区分，设置变更后请求使用新缓存身份；因此不沿用参考源中要求清除已加载图片缓存的提示。
 
+`source_baozi_chapter_identity_v1` 允许包子的 `CHAPTER_ORDER` 在显式启用时以完整标题扩展章节身份；默认关闭，正文仍按原 slot 请求，不改变目录顺序。宿主在详情和书架更新前共用 `SourceChapterIdentity`，仅同作品、slot及完整标题唯一匹配时沿用已有ID，双向切换都保留原进度、页表和下载归属；无法唯一匹配或会合并不同章节时整次更新失败，保留旧目录，不提交部分结果。历史中的标题身份可按同一精确规则恢复；缺少标题的孤立旧ID不猜测映射。旧宿主未声明能力时，源不得展示或消费该设置。
+
 ### 源私有会话
 
 `source_private_session_v1` 复用 `koma_host.http_request`，以 `{type:"private_session",version:1,op:...}` 区分本地 RPC；它不发送 HTTP，也不增加 WASM import。网站的游客初始化、请求签名、令牌解析及业务失效处理仍由源实现，Host 只提供不透明私有缓存、安全随机和 RSA 原语。依赖该能力的新源必须同时提高生产包 `minAppVersion`；旧 Host 不得误走新协议。

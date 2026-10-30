@@ -46,7 +46,8 @@ const serviceFile = ts.createSourceFile('LibraryUpdateService.ts', source('Libra
 const helperNames = ['countLibraryUpdateNewChapters', 'summarizeLibraryUpdateProviders', 'safeLibraryUpdateFailureCode']
 const helperNodes = serviceFile.statements.filter((node) => helperNames.includes(node.name?.text))
 assert.equal(helperNodes.length, helperNames.length)
-const service = compile(helperNodes.map((node) => node.getText(serviceFile)).join('\n'), {})
+const service = compile(helperNodes.map((node) => node.getText(serviceFile)).join('\n') +
+  '\nexport { safeLibraryUpdateFailureCode }', {})
 const strings = { AppStrings: { get: (key) => key } }
 const prefs = compile(source('LibraryUpdatePreferencesStore'), {
   '@kit.ArkData': arkData, '../i18n/AppStrings': strings,
@@ -108,8 +109,81 @@ function checkChapterIdentityProtection() {
     [{ ...incoming[0], id: '/comic/9999/123.html' }]), undefined)
 }
 
+function checkBaoziChapterIdentityProtection() {
+  const { reconcileSourceChapterIdentity: reconcile, sourceChapterForRetainedIdentity: resume } =
+    compile(source('SourceChapterIdentity'), {})
+  const sourceId = 'online.baozimh.koma'
+  const mangaId = 'manga:fixture'
+  const id = 'chapter:fixture:7'
+  const title = '第７话 "名字\\#"'
+  const titled = `${id}#${title}`
+  const kept = { id, title, isRead: true, pages: [{ id: 'page-1' }], pageCount: 1 }
+  const comic = { sourceRuntimeId: sourceId, chapters: [kept] }
+  const remote = [{ id: titled, title }, { id: `${id}#第８话`, title: '第８话' }]
+  const before = JSON.stringify({ comic, remote })
+  const enabled = reconcile(comic, mangaId, remote)
+  assert.deepEqual(enabled.chapters.map((row) => row.id), [id, remote[1].id])
+  assert.equal(enabled.storedChapters[0], kept, 'keep read state and downloaded page ownership')
+  assert.equal(JSON.stringify({ comic, remote }), before, 'identity preparation never writes a partial result')
+  const disabled = reconcile({ ...comic, chapters: [{ ...kept, id: titled }] }, mangaId, [{ id, title }])
+  assert.equal(disabled.chapters[0].id, titled, 'switching off retains the persisted title identity')
+  for (const rows of [
+    [{ id: `${id}#different`, title: 'different' }],
+    [{ id: titled, title }, { id: `${id}#other`, title }],
+  ]) assert.throws(() => reconcile(comic, mangaId, rows), /source_chapter_identity_ambiguous/)
+  const titleComic = { ...comic, chapters: [{ ...kept, id: titled }] }
+  assert.throws(() => reconcile(titleComic, mangaId,
+    [{ id, title }, { id, title: 'different' }]), /source_chapter_identity_ambiguous/,
+  'switching off cannot collapse distinct chapter rows')
+  assert.equal(reconcile({ ...comic, chapters: [] }, mangaId, remote).chapters, remote,
+    'first load keeps the full source catalog')
+  assert.equal(resume(sourceId, mangaId, titled, [{ id, title }]).id, titled)
+  assert.equal(resume(sourceId, mangaId, id, [{ id: titled, title }]), undefined,
+    'an orphaned legacy history ID has no title and cannot be guessed')
+  assert.equal(resume(sourceId, mangaId, titled, [{ id, title }, { id, title: 'different' }]), undefined)
+  const opaque = 'chapter:fixture:slot-A'
+  assert.equal(reconcile({ ...comic, chapters: [{ ...kept, id: opaque }] }, mangaId,
+    [{ id: `${opaque}#${title}`, title }]).chapters[0].id, opaque)
+}
+
+async function checkBaoziUpdateFailure() {
+  const identity = compile(source('SourceChapterIdentity'), {})
+  const owner = serviceFile.statements.find((node) => ts.isClassDeclaration(node) &&
+    node.name?.text === 'LibraryUpdateService')
+  const method = owner.members.find((node) => node.name?.text === 'checkSourceRuntimeComic')
+  let conflictObserved = false
+  const { Update } = compile(`const { sourceMangaIdFromComic, sourceRuntimeEntryEnabled,
+    reconcileSourceChapterIdentity, providerKindForComic, sourceKeyForComic,
+    safeLibraryUpdateFailureCode } = require('fixture');
+    export class Update { ${method.getText(serviceFile)} }`, { fixture: {
+    sourceMangaIdFromComic: () => 'manga:fixture', sourceRuntimeEntryEnabled: () => true,
+    reconcileSourceChapterIdentity: (...args) => {
+      try { return identity.reconcileSourceChapterIdentity(...args) }
+      catch (error) { conflictObserved = error.message === 'source_chapter_identity_ambiguous'; throw error }
+    },
+    providerKindForComic: () => 'source_runtime', sourceKeyForComic: () => 'source:fixture',
+    safeLibraryUpdateFailureCode: service.safeLibraryUpdateFailureCode,
+  } })
+  const kept = { id: 'chapter:fixture:7', title: '第7话', isRead: true, pages: [{ id: 'page-1' }] }
+  const comic = { id: 'saved', sourceRuntimeId: 'online.baozimh.koma', chapters: [kept] }
+  const update = new Update()
+  let writes = 0
+  update.sourceRegistry = { lookup: () => ({ ok: true, entry: { enabled: true } }) }
+  update.libraryStore = { upsertComic: () => { writes++ } }
+  update.fetchSourceRuntimeChapters = async () => [{ id: kept.id + '#different', title: 'different' }]
+  const before = JSON.stringify(comic)
+  const result = await update.checkSourceRuntimeComic(comic, 1)
+  assert.equal(result.status, 'failed')
+  assert.equal(result.newChapterCount, 1)
+  assert.equal(conflictObserved, true)
+  assert.equal(writes, 0, 'a failed whole-catalog match cannot publish a partial library update')
+  assert.equal(JSON.stringify(comic), before)
+}
+
 async function main() {
   checkChapterIdentityProtection()
+  checkBaoziChapterIdentityProtection()
+  await checkBaoziUpdateFailure()
   const cases = [
     [[], 'no-eligible', 'success'],
     [['skipped'], 'no-eligible', 'success'],
