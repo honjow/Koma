@@ -1332,7 +1332,7 @@ export struct SourcePackageManagerPage {
   }
 
   private packageInstallAdmissionBlocked(): boolean {
-    // Local imports now share the serial install lane. Keep destructive actions
+    // Local imports use an exclusive barrier in the shared install scheduler. Keep destructive actions
     // and duplicate pickers blocked, without toggling every unrelated row's
     // suffix and rebuilding its HDS prefix when one archive finishes.
     return this.busy && !this.importingLocalArchive

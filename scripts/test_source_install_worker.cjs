@@ -58,7 +58,7 @@ function installFixture() {
     runSourceOperationFromValidatedBytesAsync:async(request,bytes)=>{const r=JSON.parse(request);assert.equal(r.operation,'source_info');assert.deepEqual(r.settings,{});assert.equal(r.hostHints.network,false);assert.equal(registry.lookup('one').entry,old);events.push('probe');return probe.promise},
     IMPORTED_SOURCE_ROUTE:'imported', DiagnosticLogger:{error(){},info(){}},persistInstalledSources:()=>{events.push('persist');if(persistFails)throw Error('disk')},
     restoreRuntimeRegistryEntry:(entry,index)=>{events.push('restore');if(entry&&!entries.some(e=>e.sourceId===entry.sourceId))entries.splice(index,0,entry)},
-    SourceRuntimeStateBridge:{notifyChanged:()=>events.push('notify')},Date }
+    SourceRuntimeStateBridge:{notifyChanged:()=>events.push('notify')},newSourceImportDirectory:()=>'/packages/new',Date }
   const api=functions(registryFile,['sourceInfoCapabilityToken','detectSourceRuntimeCapabilities','registerSourcePackageFromBytes','installFromBytes'],{...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
   return {api,probe,events,old,registry,set persistFails(v){persistFails=v},set registerFails(v){registerFails=v},get next(){return next}}
 }
@@ -102,6 +102,15 @@ test('archive digest worker keeps importer bytes and the synchronous validation 
   const failed=api.validateImportedWasmBytesAsync({runtime:{}},bytes)
   pending.reject(Error('worker unavailable'));await assert.rejects(failed,/worker unavailable/)
   assert.deepEqual(Array.from(bytes),[97,98,99])
+})
+test('concurrent import directories remain distinct within the same millisecond',()=>{
+  const api=functions(registryFile,['newSourceImportDirectory'],{
+    sourceImportSequence:0, Date:{now:()=>123}, appSourcePackagesRoot:()=>'/packages',
+    joinSourceRuntimePath:(a,b)=>a+'/'+b,
+  })
+  const first=api.newSourceImportDirectory({}), second=api.newSourceImportDirectory({})
+  assert.notEqual(first,second)
+  assert.ok(first.startsWith('/packages/')); assert.ok(second.startsWith('/packages/'))
 })
 test('old source remains visible while probing; latest disabled state and position survive replacement',async()=>{
   const f=installFixture(), running=f.api.registerSourcePackageFromBytes({},new Uint8Array([1]),'source.koma','one','/packages/new')

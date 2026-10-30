@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T22:08:56+08:00",
+  "updatedAt": "2026-10-30T23:48:33+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_WEB_SESSION",
-  "activity": "237已具备Noy登录入口；继续定位其余具名源故障。",
-  "nextAction": "继续源故障定位，并按具体候选决定处理；Noy登录页面留给用户。",
+  "activeId": "SOURCE_INSTALL_PIPELINE_SERIAL",
+  "activity": "多个书源并行安装已实机验证，正在交付源码。",
+  "nextAction": "完成安装并发提交与CI，并继续漫画屋首页故障定位。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "最近App代码为f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0，精确CI41042962997成功；本轮未改App代码。",
-      "hap": "197已恢复释租；237已保留正式Noy 0.1.9并恢复电源，登录页面留给用户。"
+      "hap": "237并行安装验证后原源及数据恢复、已释租；0.1.4无诊断产品包保留。"
     },
     {
       "name": "NextE",
@@ -1125,14 +1125,15 @@
         "197第一场文件选择后32–54秒尚未确认系统选择器底部完成按钮，不能据此认定App导入卡住；008 force-stop后恢复。第二场补系统完成后公开012正常导入，原014 App未换；007验证页显示API JSON，008一次完成重试后PID32607 op9于20:56:04.947 GET403，网页真实网络状态与缓存未知，不称线上200后403。010原源四成员、六域及诊断XML逐字同；011 SLEEP/120000/Override10000，lease1543cefb released。仅为核网页200/304及原生Cookie状态准备临时CDP诊断包2f8e2a33，未改UA、头或缓存；临时源码已撤，受控观测尚待执行，不称修复。",
         "197同requestId CDP response.status=200而ExtraInfo.statusCode=304，属缓存重验证，不能称新线上200；响应后目标URL Cookie总数0、clearance0，手动日志present=false/SDK26；同op9实际session=attached、cookieState=empty、uaSource=webview，hop_response403。014原38d安装成功，原011四成员、六域及诊断XML相等；012本场fport撤除，015候选/下载不存在、SLEEP/120000/原Override10000，lease bf72ec13 released；临时16行已撤。现产品候选仅Simply且api.simply-hentai.com验证页设Online，默认仍Default；不清缓存、不改UA/头/权限。官方Online全网络不读缓存，None会读过期缓存；Mihon为LOAD_DEFAULT，不称同实现。联合构建及一次验证进行中，效果未知。",
         "Online控制下同requestId response200/Extra200，非disk或SW；Cookie总数0、clearance0；手动后SDK26同op9实际attached/empty/webviewUA且Native403。缓存不是403的充分根因；五行Online及16行诊断均精确撤回，不采用或提交。原Host38d安装成功，源四成员、六域、诊断XML相等，fport及下载清理，SLEEP/120000/原Override10000，lease6d5687ee released。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-online-diagnostic-20261030/evidence.json。现仅准备RCP默认与gallery-dl参考套件集合对照，保系统代理、证书、默认TLS与HTTP协商，尚无结果、不改生产网络栈；参考 source-settings-repair/simply-network-ab197-20261030/rcp-firefox-cipher-reference.md。",
-        "RCP默认及17参考套件均403/challenge/非JSON/5770字节/HTTP2；另一次完整参考头、17套件、TLS最低1.2及HTTP1.1匿名GET仍403/challenge/非JSON/5941字节，实际1.1。属于可配置近似而非完整Firefox指纹，不称全站不可用。003回执已审；004原38d安装成功、六JSON全等，005 SLEEP/120000/原Override10000、lease e44b5710 released；所有临时代码及此前Online五行、CDP十六行均撤回，不采用候选。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/rcp-firefox-reference-evidence.json。"
+        "RCP默认及17参考套件均403/challenge/非JSON/5770字节/HTTP2；另一次完整参考头、17套件、TLS最低1.2及HTTP1.1匿名GET仍403/challenge/非JSON/5941字节，实际1.1。属于可配置近似而非完整Firefox指纹，不称全站不可用。003回执已审；004原38d安装成功、六JSON全等，005 SLEEP/120000/原Override10000、lease e44b5710 released；所有临时代码及此前Online五行、CDP十六行均撤回，不采用候选。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/rcp-firefox-reference-evidence.json。",
+        "原UA边界（用户具体采用漫画屋例外前）：验证会话的UA、Cookie策略和权限边界保持；漫画160普通网页的UA兼容仅按已采用专用规则处理，不扩大到源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。"
       ],
       "remainingActions": [
         "继续定位原生请求遭挑战的原因。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
-        "验证会话的UA、Cookie策略和权限边界保持；漫画160普通网页的UA兼容仅按已采用专用规则处理，不扩大到源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。",
+        "验证会话一般仍沿原请求UA，漫画屋唯一当前例外见MANHUAWU_SOURCE_UNAVAILABLE；Cookie策略和权限边界保持。漫画160普通网页UA兼容仍按已采用专用规则处理，不扩大到其他源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。",
         "document_visible仅官方“即将可见”事件，不是绘制证明；closed/partial只是网页离开状态，不作为站点成功。阶段诊断不记录URL、标题、HTML、headers或body。",
         "取消、特殊跳转及其他语言窗口标题未自然命中，不外推已验；不作为普遍新增关闭门槛。"
       ],
@@ -2791,8 +2792,8 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "同热门路径浏览器可见，App验证未通过",
-      "result": "系统浏览器提交同一热门路径后可见作品，App仍停在验证页；身份兼容候选待决定。",
+      "status": "已取得验证凭据，首页仍403",
+      "result": "验证窗口取得凭据并自动回流，但首页请求仍被拒绝。",
       "evidencePoints": [
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
         "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
@@ -2803,15 +2804,18 @@
         "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。",
         "当前018热门、最新、搜索及selector与固定949及上游dbf6c05对照；参考latest入口 /category/order/addtime/page/1 按原121身份且不带Referer/Origin单次读取返回403、cf-mitigated challenge、5629字节。该结果不能替代热门入口或证明全部路由永久不可用。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-latest-20261030/。",
         "197公开018普通首页进入验证，真实复选框单击一次后20秒仍停验证页；限定日志main 403、challengeHost 400/401，无Turnstile六位码，不能将401判为根因。系统浏览器021显示漫画屋页面“更新/分类”，但请求站根 /，不同于Native热门 /category/order/hits/page/1，不能当同路径通过。该场原017四成员、六JSON、诊断偏好与电源均恢复，租约c90abe7a已释放；随后新租约仅作同热门路径浏览器对照，不重装App。证据 diagnostics/manhuawu-browser197-result-20261030-021/layout.json 及该场回执。",
-        "197浏览器024提交与Native相同热门路径，025可见漫画大全及作品链接、无验证文字；最终完整URL、重定向和HTTP状态未观测，不代表Native成功。026恢复SLEEP/120000及原Override10000，lease27ad1054 released；前场lease c90abe7a亦released，原017四成员、六域及诊断偏好恢复，原38d包未换。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-validation197-20261030/evidence.json。仅漫画屋及 https://www.mhua5.com 验证窗口使用引擎默认身份的候选尚未应用或构建，已询问用户采用决定；不将UA认定为根因。候选依据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/。"
+        "197浏览器024提交与Native相同热门路径，025可见漫画大全及作品链接、无验证文字；最终完整URL、重定向和HTTP状态未观测，不代表Native成功。026恢复SLEEP/120000及原Override10000，lease27ad1054 released；前场lease c90abe7a亦released，原017四成员、六域及诊断偏好恢复，原38d包未换。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-validation197-20261030/evidence.json。仅漫画屋及 https://www.mhua5.com 验证窗口使用引擎默认身份的候选尚未应用或构建，已询问用户采用决定；不将UA认定为根因。候选依据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/。",
+        "用户最新明确采用并验证候选；仅com.manhuawu.koma及https://www.mhua5.com验证窗口和完成后的同站UA使用默认Web引擎身份，其他源、UI和Cookie权限保持。此具体决定取代原UA不变边界，旧记录保留；source_terra在237执行，尚未验证完成。",
+        "237限定默认UA候选取得clearance并自动回流，但op6实际cookieState present、clearance present、uaSource webview仍403，首页未修好。原Host27f及原MHW源已恢复，Noy019及本次MHW会话保留，电源恢复释租；代码WIP待Root审交付。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json。",
+        "原边界（用户具体采用漫画屋UA例外前）：保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。"
       ],
       "remainingActions": [
-        "等待身份兼容候选的采用决定，继续定位原生验证未通过的原因。"
+        "审查限定身份候选并继续定位首页403。"
       ],
-      "remaining": "等待身份兼容候选的采用决定，继续定位原生验证未通过的原因。",
+      "remaining": "审查限定身份候选并继续定位首页403。",
       "boundaries": [
         "017搜索分页修复已交付；770–775元尊搜索→最早第1话→首图1/10具名，非完整叙事/全10页或全CF。首页get_manga_list仍403挑战，当前页表成功不追认旧460 timeout原因。",
-        "保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。",
+        "仅com.manhuawu.koma在https://www.mhua5.com验证窗口使用引擎默认UA，完成后本站请求沿该UA；Cookie、网络、端点、超时及目录/章节身份保持，不为取证重复已验查询或造挑战。",
         "旧460超时原因未知，原失败证据保留，不要求重现旧原因。"
       ],
       "reportedAt": "2026-10-23T21:26:00.332Z",
@@ -2828,7 +2832,7 @@
         "history": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
         "originalReason": "不向源暴露Cookie/任意响应头，不把全部403认挑战",
         "reopenEvidence": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
-        "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界"
+        "allowedDifference": "仅将精确标准响应头转可选accessSignal常量；保status/body/原错误；源仅对受支持状态消费并声明www.mhua5.com，保现有半模态/UI/权限边界；用户另已明确采用仅漫画屋及该origin验证窗口使用引擎默认UA，并在完成后本站请求沿该UA的例外，其他源和权限保持"
       },
       "continuationGate": {
         "checkedAt": "2026-10-26T19:34:00+00:00",
@@ -2839,7 +2843,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166071,
-      "stage": "身份兼容候选待决定"
+      "stage": "限定身份候选待审交付，首页故障继续定位"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -3270,7 +3274,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "237已安装公开Noy 0.1.9，登录后内容待核",
+      "status": "Noy正式版本已交付，账号相关内容未验",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3280,10 +3284,10 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "237已安装Noy公开版本并显示登录入口；登录后内容及镜像仍待验证。",
-      "remaining": "核对Noy登录后内容及镜像协议兼容，继续其他具名差异。",
+      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。",
+      "remaining": "继续其他具名差异；Noy登录后内容和依赖账号的镜像验证暂无法执行。",
       "remainingActions": [
-        "核对Noy登录后内容及镜像协议兼容，继续其他具名差异。"
+        "继续其他具名差异；Noy登录后内容和依赖账号的镜像验证暂无法执行。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3293,7 +3297,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "登录后内容及镜像协议待核",
+      "stage": "继续具名设置差异；Noy账号相关范围未验",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3575,7 +3579,8 @@
         "Noy019 6d5e7ab8f37d935d304b55fda6da8c021f8769cf已推，精确CI41052932223 success并公开；普通词请求不变，引号词不再多反斜线，公开WASM受控执行已核。未重测Native/登录后真实内容，b1/v4镜像兼容未知；证据 /private/tmp/noy-search-019。",
         "Noy019稳定公开实体及精确CI证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/evidence.json。",
         "237只读状态显示Koma 0.1.4/code5、Noy 0.1.5，未发现Noy书库或阅读状态项；设备端按sourceId的会话计数为0，不能据此断言用户登录失败。设备保持睡眠无输入，lease a4c6364f released；回执 source-web-session-concurrent/noy-state237-{read-001,data-002,session-003}。公开0.1.9 ZIP d966ef52…的minApp 0.1.0与当前Host兼容，现按普通路径升级并保留正式版本，不更换Host、不清写Cookie或其他源数据；升级及入口尚待回执。",
-        "237正式0.1.9：005普通导入成功，registry版本及唯一 https://noymanga.com origin正确；006 ZIP/WASM与公开实体逐字相等；010菜单“网页验证 / 登录”，011布局显示NoyAcg/登入，未输入账号。002→012 library、reader、settings、filters、web-sessions五域逐字相等，registry sourceIds相同且仅Noy从0.1.5升0.1.9，Host未换。013最终SLEEP/120000无override，两租约22383f87/758516da released，下载已清；保留正式0.1.9，不回装旧015或覆盖未来Cookie。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/device237-delivery.json。"
+        "237正式0.1.9：005普通导入成功，registry版本及唯一 https://noymanga.com origin正确；006 ZIP/WASM与公开实体逐字相等；010菜单“网页验证 / 登录”，011布局显示NoyAcg/登入，未输入账号。002→012 library、reader、settings、filters、web-sessions五域逐字相等，registry sourceIds相同且仅Noy从0.1.5升0.1.9，Host未换。013最终SLEEP/120000无override，两租约22383f87/758516da released，下载已清；保留正式0.1.9，不回装旧015或覆盖未来Cookie。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/device237-delivery.json。",
+        "用户最新明确目前没有Noy账号；不代建账号，237保留正式0.1.9及登录入口，不将未执行的账号内容验收写成通过。"
       ]
     },
     {
@@ -4469,31 +4474,33 @@
       "id": "HAPPYMH_SOURCE_UNAVAILABLE",
       "title": "嗨皮漫画普通入口无法连接",
       "priority": "P2（后续处理）",
-      "kind": "open",
-      "status": "域名不可用且上游已移除",
-      "stage": "安装目录处置待决定",
+      "kind": "accepted",
+      "status": "可安装入口已撤下",
+      "stage": "用户采用的目录处置已交付",
       "owner": "source_terra：237书源故障",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_BROWSE_HOME_STRUCTURE",
         "SOURCE_SETTINGS_MIGRATION_AUDIT"
       ],
-      "result": "当前域名解析失败，上游已删除该源；暂无可证修复或合法新域。",
-      "remaining": "现用域名未取得可用地址；撤下可安装入口的候选待用户决定，已装源和书库保留。",
-      "remainingActions": [
-        "按用户对安装目录处置的决定处理；未经决定不撤下入口，不猜新站替换旧源。"
-      ],
+      "result": "嗨皮已从可安装目录撤下，已安装源和数据保留；站点仍不可用。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "1682提示无法连接未证明具体原因；既有DNS无Answer不等于NXDOMAIN或站点停运，不重发已拒请求。"
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮代理执行自检发现，首次精确时间未知，不冒用户反馈。",
       "reopenedAt": null,
-      "closedAt": null,
+      "closedAt": "2026-10-30T23:34:04+08:00",
       "evidence": [
         "237 run1682普通入口仍无法连接，未见选择器；此前搜索GET平台2300006为域名解析失败，公开DNS A/AAAA NOERROR+SOA无Answer，非NXDOMAIN，证据 source-settings-repair/happymh-search-dns-20261029.json。",
         "当前上游eec435735737a0b140f8f3a990391990b5f9437a于2026-08-25以dead source删除，删除前域与当前m.happymh.com相同；API路径差异不能解释DNS2300006。当前无可证小修或合法新域，不删除用户已装源。",
         "本轮已异步询问是否从可安装目录撤下、保已装数据；尚未答，候选未实施。"
+      ],
+      "evidencePoints": [
+        "用户最新明确撤下可安装入口；home_terra正在原sources目录生成链最小实施，保已装源、书库、进度及旧公开实体，尚未验收交付。",
+        "c5ca337精确CI41078625088成功，正式index84移除Happy，其余84对象及顺序同旧；旧release包、图标可下载，manifest/WASM/icon内件同旧。237普通目录缓存84项ID/version/顺序与正式index一致，已安装嗨皮0.1.5保留，六域同基线，015 SLEEP/120000无override并释租。处置入口而非修复站点内容。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/happymh-catalog-withdrawal-20261030/evidence.json。"
       ]
     },
     {
@@ -4546,6 +4553,37 @@
         "category-membership/mh160-cover-observe-20261030-007、candidate-20261030-016、return-candidate-20261030-020；候选5/6及斗罗正文1/26具名。",
         "/private/tmp/mh160-11140-control/及image-url.txt：剩余具名同URL单次20秒超时、无HTTP。"
       ]
+    },
+    {
+      "id": "SOURCE_INSTALL_PIPELINE_SERIAL",
+      "title": "多个书源安装串行导致效率低",
+      "priority": "P1",
+      "kind": "open",
+      "status": "普通路径并行安装已实机验证，待交付",
+      "stage": "代码及规范已审，提交与CI待完成",
+      "owner": "Root/home_terra：代码；source_terra：真实验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_INSTALL_GLOBAL_DISABLE",
+        "SOURCE_PACKAGE_INSTALL_UI_STALL"
+      ],
+      "result": "两个书源更新在普通路径并行完成，原数据已恢复；源码交付待完成。",
+      "remaining": "完成源码提交、推送及精确CI核对。",
+      "remainingActions": [
+        "完成源码提交、推送及精确CI核对。"
+      ],
+      "boundaries": [
+        "保同源去重、本地导入排他屏障、行身份及失败释放；已验收安装排队和界面行为保持。",
+        "实际并行证据为两项普通更新的UI与registry关联及整体日志时序；脱敏单行日志不单独归属源ID。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮直接用户反馈，客户端日期2026-10-30；原messageId 01a18d62-c5c8-7b73-9348-3144538900cf / 01a18d63-db56-7c90-857b-9407730486a7，工具未提供精确时刻，不以登记时间或UUID推算。",
+      "closedAt": null,
+      "evidencePoints": [
+        "Root核当前队列尾部全流程串行，登记同步段无await；候选为两个在线任务全流程并行，本地导入保持排他屏障，尚未构建或Native。",
+        "237无诊断产品HAP c6e494c9547877a8850cb5035dcca0e3a86fe5a306614e25f1b05e20cb8bf028，0.1.4/code5保留。XCOMIC繁中.6→.13及简中.7→.12均成功；第二下载23:40:34.828早于第一install_ok 35.882，首download 34.313、末install_ok 36.178，普通路径证明并行。两源原包八成员及六域逐字恢复，Noy019、MHW会话及84源缓存保留，SLEEP/120000无override，lease7b12de1f released。原实现与候选完整测试对照中六个失败均为相同既存fixture，未改测试期望。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/native237-evidence.json、verification.json。"
+      ],
+      "reportedDate": "2026-10-30"
     }
   ],
   "source": {
@@ -10392,6 +10430,76 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/lol-root-official-20261030.json",
         ".hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json"
+      ]
+    },
+    {
+      "id": "noy-no-account-decision-20261030",
+      "at": "2026-10-30T23:06:32+08:00",
+      "title": "Noy账号范围",
+      "detail": "用户目前没有账号，登录后内容未验，正式版本保留。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "happymh-remove-entry-decision-20261030",
+      "at": "2026-10-30T23:06:32+08:00",
+      "title": "嗨皮入口处置",
+      "detail": "用户决定撤下可安装入口，保留已装数据；实施中。此时间为登记时间。",
+      "itemId": "HAPPYMH_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "manhuawu-engine-identity-adopted-20261030",
+      "at": "2026-10-30T23:06:32+08:00",
+      "title": "漫画屋身份候选",
+      "detail": "用户采用限定身份候选，237验证中，尚未证明修复。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "happymh-withdrawal-delivered-20261030",
+      "at": "2026-10-30T23:34:04+08:00",
+      "title": "嗨皮入口撤下已交付",
+      "detail": "目录入口撤下已验收，已装源保留，站点仍不可用。此时间为登记时间。",
+      "itemId": "HAPPYMH_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/happymh-catalog-withdrawal-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "manhuawu-clearance-still-403-20261030",
+      "at": "2026-10-30T23:34:04+08:00",
+      "title": "漫画屋验证后仍被拒绝",
+      "detail": "候选取得凭据并自动回流，但首页仍403；设备已恢复。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json"
+      ]
+    },
+    {
+      "id": "source-install-pipeline-feedback-20261030",
+      "at": "2026-10-30T23:34:04+08:00",
+      "title": "多个书源安装效率反馈",
+      "detail": "确认在线安装全流程串行，有限并行候选尚未构建及验证。此时间为登记时间。",
+      "itemId": "SOURCE_INSTALL_PIPELINE_SERIAL",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-install-concurrency-native-20261030",
+      "at": "2026-10-30T23:46:26+08:00",
+      "title": "书源并行安装实机验证",
+      "detail": "两个普通更新已证并行并恢复原数据，代码提交和CI待完成。此时间为登记时间。",
+      "itemId": "SOURCE_INSTALL_PIPELINE_SERIAL",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/native237-evidence.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-install-concurrency-20261030/verification.json"
       ]
     }
   ],

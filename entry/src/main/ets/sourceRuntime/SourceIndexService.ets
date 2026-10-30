@@ -60,15 +60,25 @@ export class SourcePackageInstallState {
   @Trace phase: 'idle' | 'queued' | 'running' = 'idle'
 }
 
-// One process-wide install lane. Other sources remain enqueueable while a
-// package is downloading; duplicate taps for one source share the same result.
+interface SourcePackageQueuedTask {
+  sourceId: string
+  exclusive: boolean
+  start: () => void
+}
+
+// Two independent online installs may prepare concurrently. Local archives have
+// no known source ID until validated, so they remain an exclusive barrier.
+// CURRENT_STATUS SOURCE_INSTALL_PIPELINE_SERIAL preserves same-source replacement
+// and rollback isolation without serializing unrelated package preparation.
 @ObservedV2
 export class SourcePackageInstallTasks {
   @Trace pendingIds: string[] = []
   @Trace runningId: string = ''
   private pending: Map<string, Promise<SourceIndexInstallResult>> = new Map()
-  private tail: Promise<void> = Promise.resolve()
   private states: Map<string, SourcePackageInstallState> = new Map()
+  private queue: SourcePackageQueuedTask[] = []
+  private running: string[] = []
+  private exclusiveRunning: boolean = false
 
   stateFor(sourceId: string): SourcePackageInstallState {
     let state = this.states.get(sourceId)
@@ -79,25 +89,44 @@ export class SourcePackageInstallTasks {
     return state
   }
 
-  run(sourceId: string, work: () => Promise<SourceIndexInstallResult>, retainState: boolean = true): Promise<SourceIndexInstallResult> {
+  private pump(): void {
+    while (!this.exclusiveRunning && this.running.length < 2 && this.queue.length > 0) {
+      const next = this.queue[0]
+      if (next.exclusive && this.running.length > 0) return
+      this.queue.shift()
+      this.running.push(next.sourceId)
+      this.runningId = this.running[0]
+      if (next.exclusive) this.exclusiveRunning = true
+      next.start()
+      if (next.exclusive) return
+    }
+  }
+
+  run(sourceId: string, work: () => Promise<SourceIndexInstallResult>, retainState: boolean = true,
+    exclusive: boolean = false): Promise<SourceIndexInstallResult> {
     const existing = this.pending.get(sourceId)
     if (existing !== undefined) return existing
     const state = this.stateFor(sourceId)
     state.phase = 'queued'
     this.pendingIds = this.pendingIds.concat(sourceId)
-    const result = this.tail.then(async (): Promise<SourceIndexInstallResult> => {
-      this.runningId = sourceId
+    let startTask: () => void = (): void => {}
+    const admission = new Promise<void>((resolve: () => void): void => { startTask = resolve })
+    const result = admission.then(async (): Promise<SourceIndexInstallResult> => {
       state.phase = 'running'
       return work()
     }).finally(() => {
       this.pending.delete(sourceId)
       this.pendingIds = this.pendingIds.filter((id: string): boolean => id !== sourceId)
-      if (this.runningId === sourceId) this.runningId = ''
+      this.running = this.running.filter((id: string): boolean => id !== sourceId)
+      this.runningId = this.running.length > 0 ? this.running[0] : ''
+      if (exclusive) this.exclusiveRunning = false
       state.phase = 'idle'
       if (!retainState) this.states.delete(sourceId)
+      this.pump()
     })
     this.pending.set(sourceId, result)
-    this.tail = result.then((): void => {}, (): void => {})
+    this.queue.push({ sourceId, exclusive, start: startTask })
+    this.pump()
     return result
   }
 }
@@ -451,13 +480,13 @@ export class SourceIndexService {
 
   async installLocalArchive(uri: string): Promise<SourcePackageInstallResult> {
     // The archive's source ID is unknown until validation. Give this request a
-    // private identity, without a file URI, on the existing serial install lane.
-    // Other packages may enqueue; no registry writers run in parallel.
+    // private identity without a file URI; run it as an exclusive barrier so
+    // it cannot race an online installation of the same source.
     const taskId = 'local-archive:' + (++localArchiveTaskSequence)
     const result = await appSourcePackageInstallTasks.run(taskId, async (): Promise<SourceIndexInstallResult> => {
       const install = await installFromArchive(this.context, uri)
       return { ok: install.ok, reasonCode: install.reasonCode, install }
-    }, false)
+    }, false, true)
     return result.install ?? { ok: false, reasonCode: result.reasonCode ?? 'import_failed' }
   }
 

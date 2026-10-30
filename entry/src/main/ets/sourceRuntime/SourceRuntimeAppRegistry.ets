@@ -1130,6 +1130,13 @@ export async function pickSourcePackageArchive(context: common.UIAbilityContext)
   return result.length > 0 ? result[0] : undefined
 }
 
+// The serial suffix prevents concurrent imports started in the same millisecond
+// from sharing a staging directory; saved paths remain ordinary import paths.
+let sourceImportSequence: number = 0
+function newSourceImportDirectory(context: common.UIAbilityContext): string {
+  return joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}-${++sourceImportSequence}`)
+}
+
 async function registerSourcePackageFromBytes(
   context: common.UIAbilityContext,
   archiveBytes: Uint8Array,
@@ -1139,7 +1146,7 @@ async function registerSourcePackageFromBytes(
 ): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
-  const packageDir = stagedPackageDir ?? joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
+  const packageDir = stagedPackageDir ?? newSourceImportDirectory(context)
   const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
   const importedRoot = joinSourceRuntimePath(packageDir, 'package')
   let removedExisting: SourceRuntimeRegistryEntry | undefined = undefined
@@ -1234,7 +1241,7 @@ export async function installFromArchive(context: common.UIAbilityContext, uri: 
     DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start')
     ensureDirSync(appSourceRoot(context))
     ensureDirSync(appSourcePackagesRoot(context))
-    const packageDir = joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}`)
+    const packageDir = newSourceImportDirectory(context)
     const archiveFileName = sourceArchiveSandboxFileName(uri)
     const archivePath = joinSourceRuntimePath(packageDir, archiveFileName)
     try {

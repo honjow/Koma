@@ -311,25 +311,33 @@ test('local archives and index packages share one serial lane, retaining each ar
   manager.importingLocalArchive=false
   assert.equal(manager.packageInstallAdmissionBlocked(),true)
 })
-test('other packages enqueue during an install; one identity shares one result and writes remain serial', async () => {
-  const lane = installLane(), starts = []; let finishA, finishB
-  const stateA=lane.stateFor('A'),stateB=lane.stateFor('B'),stateC=lane.stateFor('C')
-  assert.equal(stateC.phase,'idle');assert.equal(lane.stateFor('C'),stateC)
+test('two online packages run concurrently, duplicate shares result, third waits', async () => {
+  const lane = installLane(), starts = []; let finishA, finishB, finishC
+  const stateA = lane.stateFor('A'), stateB = lane.stateFor('B'), idle = lane.stateFor('idle')
+  assert.equal(lane.stateFor('idle'), idle); assert.equal(idle.phase, 'idle')
   const a = lane.run('A', () => new Promise(resolve => {starts.push('A'); finishA = resolve}))
   const b = lane.run('B', () => new Promise(resolve => {starts.push('B'); finishB = resolve}))
+  const c = lane.run('C', () => new Promise(resolve => {starts.push('C'); finishC = resolve}))
   assert.equal(lane.run('A', () => {throw Error('duplicate install')}), a)
-  assert.deepEqual(Array.from(lane.pendingIds), ['A','B'])
-  assert.equal(stateA.phase,'queued');assert.equal(stateB.phase,'queued');assert.equal(stateC.phase,'idle')
   await new Promise(setImmediate)
-  assert.deepEqual(starts, ['A']); assert.equal(lane.runningId, 'A')
-  assert.equal(stateA.phase,'running');assert.equal(stateB.phase,'queued');assert.equal(stateC.phase,'idle')
-  finishA({ok:true}); await a; await new Promise(setImmediate)
-  assert.deepEqual(starts, ['A','B']); assert.equal(lane.runningId, 'B')
-  assert.equal(stateA.phase,'idle');assert.equal(stateB.phase,'running');assert.equal(lane.stateFor('A'),stateA)
-  assert.deepEqual(Array.from(lane.pendingIds), ['B'])
-  finishB({ok:true}); await b
-  assert.equal(lane.pendingIds.length, 0); assert.equal(lane.runningId, '')
-  assert.equal(stateA.phase,'idle');assert.equal(stateB.phase,'idle');assert.equal(stateC.phase,'idle')
+  assert.deepEqual(starts, ['A','B']); assert.equal(lane.stateFor('C').phase,'queued')
+  finishB({ok:true}); await b; await new Promise(setImmediate)
+  assert.deepEqual(starts, ['A','B','C']); assert.equal(lane.stateFor('C').phase,'running')
+  finishA({ok:true}); finishC({ok:true}); await Promise.all([a,c])
+  assert.equal(lane.pendingIds.length,0); assert.equal(lane.runningId,'')
+  assert.equal(lane.stateFor('A'), stateA); assert.equal(lane.stateFor('B'), stateB)
+  assert.equal(stateA.phase, 'idle'); assert.equal(stateB.phase, 'idle'); assert.equal(idle.phase, 'idle')
+})
+test('local exclusive barrier waits for both preceding online installs and blocks following work', async () => {
+  const lane=installLane(), starts=[]; let finishA,finishB,finishLocal
+  const a=lane.run('A',()=>new Promise(resolve=>{starts.push('A');finishA=resolve}))
+  const b=lane.run('B',()=>new Promise(resolve=>{starts.push('B');finishB=resolve}))
+  const local=lane.run('local',()=>new Promise(resolve=>{starts.push('local');finishLocal=resolve}),false,true)
+  const c=lane.run('C',async()=>{starts.push('C');return {ok:true}})
+  await new Promise(setImmediate); assert.deepEqual(starts,['A','B'])
+  finishA({ok:true}); await a; await new Promise(setImmediate); assert.deepEqual(starts,['A','B'])
+  finishB({ok:true}); await b; await new Promise(setImmediate); assert.deepEqual(starts,['A','B','local'])
+  finishLocal({ok:true}); await local; await c; assert.deepEqual(starts,['A','B','local','C'])
 })
 test('an installation rejection retires that source and does not poison the next queued package', async () => {
   const lane = installLane(); let failA
@@ -433,11 +441,11 @@ test('update-all submits merged candidates through per-source actions without a 
   const tasks = Array.from(lane.pending.values())
   assert.deepEqual(Array.from(lane.pendingIds),['A','B','C'])
   await new Promise(setImmediate)
-  assert.deepEqual(calls,[['A','https://A.test/index.json']])
+  assert.deepEqual(calls,[['A','https://A.test/index.json'],['B','https://B.test/index.json'],['C','https://C.test/index.json']])
   assert.equal(lane.runningId,'A')
   finishA(); await Promise.all(tasks); await new Promise(setImmediate)
   assert.deepEqual(calls,[['A','https://A.test/index.json'],['B','https://B.test/index.json'],['C','https://C.test/index.json']])
-  assert.deepEqual(statuses,[['A','latest'],['B','latest'],['C','failed']])
+  assert.deepEqual(statuses.slice().sort(),[['A','latest'],['B','latest'],['C','failed']])
   assert.deepEqual(enabled,[['B',false]])
   assert.equal(lane.pendingIds.length,0)
 })
