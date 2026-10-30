@@ -9,6 +9,7 @@ endif()
 
 set(KOMA_SOURCE_RUNTIME_SOURCES
     source_runtime_sample.cpp
+    java_regex_host.cpp
     wasm_runtime_adapter.cpp
     html_host.cpp
     http_host.cpp)
@@ -17,6 +18,35 @@ add_library(koma_source_runtime SHARED ${KOMA_SOURCE_RUNTIME_SOURCES})
 target_compile_features(koma_source_runtime PRIVATE cxx_std_17)
 target_include_directories(koma_source_runtime PRIVATE ${NATIVERENDER_ROOT_PATH})
 target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z.so)
+
+# Build the pinned ICU dependency automatically for the active SDK. Include the
+# filter, build recipe and SDK identity in the cache key so stale data cannot
+# survive a recipe or toolchain change. The system's private ICU is never used.
+set(KOMA_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
+file(SHA256 "${KOMA_PROJECT_ROOT}/scripts/prepare-icu-regex.sh" KOMA_ICU_RECIPE_HASH)
+file(SHA256 "${KOMA_PROJECT_ROOT}/scripts/icu-regex-data-filter.json" KOMA_ICU_FILTER_HASH)
+file(SHA256 "${OHOS_SDK_NATIVE}/oh-uni-package.json" KOMA_ICU_SDK_HASH)
+get_filename_component(KOMA_ICU_COMPILER "${OHOS_SDK_NATIVE}/llvm/bin/clang" REALPATH)
+file(SHA256 "${KOMA_ICU_COMPILER}" KOMA_ICU_COMPILER_HASH)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${KOMA_PROJECT_ROOT}/scripts/prepare-icu-regex.sh"
+    "${KOMA_PROJECT_ROOT}/scripts/icu-regex-data-filter.json"
+    "${OHOS_SDK_NATIVE}/oh-uni-package.json" "${KOMA_ICU_COMPILER}")
+string(SHA256 KOMA_ICU_CACHE_HASH "${KOMA_ICU_RECIPE_HASH}:${KOMA_ICU_FILTER_HASH}:${KOMA_ICU_SDK_HASH}:${KOMA_ICU_COMPILER_HASH}:${OHOS_SDK_NATIVE_PLATFORM}:${CMAKE_SYSTEM_PROCESSOR}")
+string(SUBSTRING "${KOMA_ICU_CACHE_HASH}" 0 16 KOMA_ICU_CACHE_KEY)
+set(KOMA_ICU_ROOT "${KOMA_PROJECT_ROOT}/.hvigor/icu-regex-${KOMA_ICU_CACHE_KEY}")
+execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-icu-regex.sh" "${OHOS_SDK_NATIVE}" "${KOMA_ICU_ROOT}"
+    RESULT_VARIABLE KOMA_ICU_PREPARE_RESULT OUTPUT_VARIABLE KOMA_ICU_PREPARE_OUTPUT ERROR_VARIABLE KOMA_ICU_PREPARE_ERROR)
+if(NOT KOMA_ICU_PREPARE_RESULT EQUAL 0)
+    message(FATAL_ERROR "ICU preparation failed: ${KOMA_ICU_PREPARE_ERROR}")
+endif()
+target_include_directories(koma_source_runtime PRIVATE "${KOMA_ICU_ROOT}/icu4c/source/common" "${KOMA_ICU_ROOT}/icu4c/source/i18n")
+target_compile_definitions(koma_source_runtime PRIVATE U_STATIC_IMPLEMENTATION)
+target_link_options(koma_source_runtime PRIVATE "-Wl,--exclude-libs,ALL")
+target_link_libraries(koma_source_runtime PRIVATE
+    "${KOMA_ICU_ROOT}/target/lib/libicui18n.a"
+    "${KOMA_ICU_ROOT}/target/lib/libicuuc.a"
+    "${KOMA_ICU_ROOT}/target/lib/libicudata.a")
 
 if(DEFINED ENV{WAMR_ROOT_DIR} AND NOT DEFINED WAMR_ROOT_DIR)
     set(WAMR_ROOT_DIR "$ENV{WAMR_ROOT_DIR}")

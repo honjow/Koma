@@ -2,6 +2,7 @@ import nativeRuntime from 'libkoma_source_runtime.so';
 import { sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity';
 
 interface NativeSourceRuntimeModule {
+  javaRegex(pattern: string, texts: string[]): Promise<NativeJavaRegexResult>;
   hello(): string;
   add(a: number, b: number): number;
   runJsonCall(requestJson: string): string;
@@ -9,6 +10,9 @@ interface NativeSourceRuntimeModule {
   configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean;
   sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean;
 }
+
+export interface NativeJavaRegexResultData { valid: boolean; texts: string[] }
+export interface NativeJavaRegexResult { ok: boolean; data: NativeJavaRegexResultData }
 
 const nativeSourceRuntime = nativeRuntime as NativeSourceRuntimeModule;
 
@@ -35,6 +39,9 @@ export interface SourceRuntimeCallResponse {
 }
 
 export class NativeSourceRuntime {
+  static javaRegex(pattern: string, texts: string[]): Promise<NativeJavaRegexResult> {
+    return nativeSourceRuntime.javaRegex(pattern, texts)
+  }
   static hello(): string {
     return nativeSourceRuntime.hello();
   }

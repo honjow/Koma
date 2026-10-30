@@ -9,6 +9,8 @@ import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaFormTextField } from './ui/KomaFormTextField'
+import { NativeSourceRuntime } from '../sourceRuntime/NativeSourceRuntime'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 
 function t(name: string): string { return AppStrings.get(name) }
 function tf(name: string, ...args: Array<string | number>): string { return AppStrings.format(name, ...args) }
@@ -34,13 +36,44 @@ export struct SourceSettingsSheetContent {
   @Event onSaved: (cleared: boolean) => void = () => {}
   @Event onClose: () => void = () => {}
   @Local private settingDraft: SourceSettingsRecord = {}
+  @Local private regexErrors: Record<string, string> = {}
+  @Local private regexCheckPending: boolean = false
+  private regexCheckToken: number = 0
+  private regexCheckRunning: boolean = false
+  private regexCheckFailed: boolean = false
+  private regexCheckDescriptor: SourceSettingDescriptor | undefined = undefined
+  private regexCheckValue: string = ''
+  private regexValidatedSourceId: string = ''
+  private regexValidatedStoreRevision: string = ''
 
   aboutToAppear(): void {
     this.settingDraft = this.initialDraft
+    const descriptor = this.settingDescriptors.find((item: SourceSettingDescriptor): boolean =>
+      item.supported && !item.sensitive && item.validation?.kind === 'java_regex')
+    if (descriptor !== undefined) this.queueRegexCheck(descriptor, this.settingStringValue(descriptor))
+  }
+
+  aboutToDisappear(): void {
+    // Do not save a stale draft when native validation finishes after dismissal.
+    this.regexCheckToken += 1
+    this.regexCheckValue = ''
+    this.regexCheckPending = false
   }
 
   private saveSettings(): void {
-    if (this.settingsSourceId.length === 0 || this.hasInvalidSettings()) {
+    if (this.settingsSourceId.length === 0 || this.hasInvalidSettings() || this.regexCheckPending) {
+      return
+    }
+    if (this.regexCheckFailed) {
+      DiagnosticLogger.warn('source_settings', 'java_regex', 'reason=execution_failed')
+      this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_reason_runtime_response_not_ok') })
+      return
+    }
+    if (this.regexCheckDescriptor !== undefined &&
+      (this.regexValidatedSourceId !== this.settingsSourceId ||
+        this.regexValidatedStoreRevision !== appSourceSettingsStore.revisionForSource(this.settingsSourceId))) {
+      DiagnosticLogger.warn('source_settings', 'java_regex', 'reason=stale_draft')
+      this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_reason_runtime_response_not_ok') })
       return
     }
     appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.settingDescriptors)
@@ -53,6 +86,9 @@ export struct SourceSettingsSheetContent {
     if (this.settingsSourceId.length === 0) {
       return
     }
+    this.regexCheckToken += 1
+    this.regexCheckValue = ''
+    this.regexCheckPending = false
     appSourceSettingsStore.removeSource(this.settingsSourceId)
     this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_settings_cleared') })
     this.onSaved(true)
@@ -82,12 +118,74 @@ export struct SourceSettingsSheetContent {
   }
 
   private updateSettingValue(id: string, value: SourceSettingValue): void {
+    if (this.regexErrors[id] !== undefined) this.setRegexError(id, '')
     const nextDraft: SourceSettingsRecord = {}
     Object.keys(this.settingDraft).forEach((key: string) => {
       nextDraft[key] = this.settingDraft[key]
     })
     nextDraft[id] = value
     this.settingDraft = nextDraft
+    const descriptor = this.settingDescriptors.find((item: SourceSettingDescriptor): boolean => item.id === id)
+    if (descriptor?.validation?.kind === 'java_regex' && typeof value === 'string') {
+      this.queueRegexCheck(descriptor, value)
+    }
+  }
+
+  private queueRegexCheck(descriptor: SourceSettingDescriptor, value: string): void {
+    this.regexCheckToken += 1
+    this.regexCheckDescriptor = descriptor
+    this.regexCheckValue = value
+    this.regexCheckFailed = false
+    this.regexCheckPending = value.length > 0
+    this.regexValidatedSourceId = this.settingsSourceId
+    this.regexValidatedStoreRevision = appSourceSettingsStore.revisionForSource(this.settingsSourceId)
+    if (value.length > 0 && !this.regexCheckRunning) this.validateRegexDraft()
+  }
+
+  private async validateRegexDraft(): Promise<void> {
+    this.regexCheckRunning = true
+    try {
+      while (this.regexCheckValue.length > 0 && this.regexCheckDescriptor !== undefined) {
+        const descriptor = this.regexCheckDescriptor
+        const value = this.regexCheckValue
+        const token = this.regexCheckToken
+        const sourceId = this.settingsSourceId
+        const storeRevision = appSourceSettingsStore.revisionForSource(sourceId)
+        try {
+          const result = await NativeSourceRuntime.javaRegex(value, [])
+          if (token !== this.regexCheckToken) continue
+          if (sourceId !== this.settingsSourceId || storeRevision !== appSourceSettingsStore.revisionForSource(sourceId)) {
+            this.regexCheckFailed = true
+            this.regexCheckPending = false
+            return
+          }
+          this.regexCheckFailed = !result.ok
+          this.regexValidatedSourceId = sourceId
+          this.regexValidatedStoreRevision = storeRevision
+          if (result.ok && !result.data.valid) this.setRegexError(descriptor.id, descriptor.validation?.message ?? '')
+        } catch (_error) {
+          if (token !== this.regexCheckToken) continue
+          if (sourceId !== this.settingsSourceId || storeRevision !== appSourceSettingsStore.revisionForSource(sourceId)) {
+            this.regexCheckFailed = true
+            this.regexCheckPending = false
+            return
+          }
+          this.regexCheckFailed = true
+        }
+        if (token === this.regexCheckToken) { this.regexCheckPending = false; return }
+      }
+    } finally {
+      this.regexCheckRunning = false
+    }
+  }
+
+  private setRegexError(id: string, message: string): void {
+    const errors: Record<string, string> = {}
+    Object.keys(this.regexErrors).forEach((key: string) => {
+      if (key !== id) errors[key] = this.regexErrors[key]
+    })
+    if (message.length > 0) errors[id] = message
+    this.regexErrors = errors
   }
 
   private settingStringValue(descriptor: SourceSettingDescriptor): string {
@@ -96,6 +194,7 @@ export struct SourceSettingsSheetContent {
   }
 
   private settingValidationError(descriptor: SourceSettingDescriptor): string | undefined {
+    if (descriptor.validation?.kind === 'java_regex') return this.regexErrors[descriptor.id]
     const error = sourceSettingValidationError(descriptor, this.settingDraft[descriptor.id])
     if (error === undefined) return undefined
     return descriptor.validation?.kind === 'uuid_list' ? t('source_pkg_invalid_uuid_list') : error
@@ -374,6 +473,9 @@ export struct SourceSettingsSheetContent {
       title: t('source_pkg_settings_title'),
       subtitle: sourceDisplayName(this.settingsSourceId, this.settingsSourceName),
       onClose: () => {
+        this.regexCheckToken += 1
+        this.regexCheckValue = ''
+        this.regexCheckPending = false
         this.onClose()
       },
     }) {
@@ -399,7 +501,7 @@ export struct SourceSettingsSheetContent {
           label: t('source_pkg_save_settings'),
           kind: 'primary',
           fullWidth: true,
-          isEnabled: !this.hasInvalidSettings(),
+          isEnabled: !this.hasInvalidSettings() && !this.regexCheckPending,
           action: () => {
             this.saveSettings()
           },

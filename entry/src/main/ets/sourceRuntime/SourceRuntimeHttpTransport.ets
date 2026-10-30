@@ -16,6 +16,9 @@ interface SourcePrivateFailure {
   error: SourcePrivateFailureCode
 }
 interface SourcePrivateFailureCode { code: string }
+interface SourceRegexFailure { ok: boolean }
+interface SourceRegexTextData { valid: boolean; text: string }
+interface SourceRegexTextResult { ok: boolean; data: SourceRegexTextData }
 interface SourcePrivateResultSummary {
   ok?: boolean
   state?: string
@@ -30,7 +33,11 @@ function privateIdentityFailure(): string {
 
 interface SourceHttpRequestEnvelope {
   type?: string
+  version?: number
   op?: string
+  pattern?: string
+  text?: string
+  texts?: string[]
   requests?: SourceHttpRequestEnvelope[]
   wantChallengeRequestId?: boolean
   url?: Object | string | number | boolean | null
@@ -305,6 +312,39 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   if (envelope === null || Array.isArray(envelope) || typeof envelope !== 'object') {
     return transportError('invalid_request', false)
+  }
+  if (envelope.type === 'java_regex') {
+    // The source worker waits on this bridge; native async work avoids
+    // scheduling another task onto the same pool of blocked source workers.
+    if (probe !== undefined || envelope.version !== 1 || typeof envelope.pattern !== 'string' ||
+      (envelope.op !== 'validate' && envelope.op !== 'remove')) {
+      return JSON.stringify({ ok: false } as SourceRegexFailure)
+    }
+    let identity: SourceHttpIdentity
+    try { identity = (httpContextJson.length > 0 ? JSON.parse(httpContextJson) : {}) as SourceHttpIdentity }
+    catch (_error) { return JSON.stringify({ ok: false } as SourceRegexFailure) }
+    if (identity === null || !sourceRuntimeOperationIsCurrent(identity.operationGuardId)) {
+      return JSON.stringify({ ok: false } as SourceRegexFailure)
+    }
+    const texts: string[] = envelope.op === 'validate' ? [] :
+      Array.isArray(envelope.texts) ? envelope.texts :
+        typeof envelope.text === 'string' ? [envelope.text] : []
+    if (envelope.op === 'remove' && !Array.isArray(envelope.texts) && typeof envelope.text !== 'string') {
+      return JSON.stringify({ ok: false } as SourceRegexFailure)
+    }
+    try {
+      const result = await NativeSourceRuntime.javaRegex(envelope.pattern, texts)
+      if (!sourceRuntimeOperationIsCurrent(identity.operationGuardId)) {
+        return JSON.stringify({ ok: false } as SourceRegexFailure)
+      }
+      if (envelope.op === 'remove' && typeof envelope.text === 'string' && result.ok && result.data.valid) {
+        const single: SourceRegexTextResult = { ok: true, data: { valid: true, text: result.data.texts[0] } }
+        return JSON.stringify(single)
+      }
+      return JSON.stringify(result)
+    } catch (_error) {
+      return JSON.stringify({ ok: false } as SourceRegexFailure)
+    }
   }
   if (envelope.type === 'private_session') {
     // This RPC uses the existing bridge, but never performs HTTP or logs its

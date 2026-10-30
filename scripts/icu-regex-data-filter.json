@@ -1,0 +1,18 @@
+{
+  "featureFilters": {
+    "confusables": "exclude",
+    "conversion_mappings": "exclude",
+    "stringprep": "exclude",
+    "coll_ucadata": "exclude",
+    "curr_supplemental": "exclude",
+    "zone_supplemental": "exclude",
+    "translit": "exclude",
+    "curr_tree": "exclude",
+    "lang_tree": "exclude",
+    "region_tree": "exclude",
+    "zone_tree": "exclude",
+    "unit_tree": "exclude",
+    "coll_tree": "exclude",
+    "rbnf_tree": "exclude"
+  }
+}

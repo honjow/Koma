@@ -181,7 +181,7 @@ function settingOptionIds(descriptor: SourceSettingDescriptor): string[] {
   return (descriptor.options ?? []).map((option: SourceSettingOption): string => option.id)
 }
 
-/** Match the source's fixed UUID-list contract; do not execute source-provided regexes. */
+/** UUID lists are synchronous; Java regex validation uses the native async worker in the sheet. */
 export function sourceSettingValidationError(
   descriptor: SourceSettingDescriptor, value: SourceSettingValue | undefined,
 ): string | undefined {
@@ -197,7 +197,7 @@ function normalizeSettingValidation(value: RuntimeValue | undefined, kind: strin
   const record = value as RuntimeRecord
   const validationKind = optionalString(record['kind'])
   const message = optionalString(record['message'])
-  if (validationKind !== 'uuid_list' || message === undefined) return undefined
+  if ((validationKind !== 'uuid_list' && validationKind !== 'java_regex') || message === undefined) return undefined
   return { kind: validationKind, message }
 }
 

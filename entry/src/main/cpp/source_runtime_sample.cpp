@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "http_host.h"
+#include "java_regex_host.h"
 #include "source_package_file_checks.h"
 #include "wasm_runtime_adapter.h"
 
@@ -207,6 +208,7 @@ static napi_value Init(napi_env env, napi_value exports)
         {"runJsonCall", nullptr, RunJsonCall, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCallFromBytes", nullptr, RunJsonCallFromBytes, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"configureHttpTransport", nullptr, ConfigureHttpTransport, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"javaRegex", nullptr, KomaJavaRegex, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"sourcePackageFilesMatch", nullptr, SourcePackageFilesMatch, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);

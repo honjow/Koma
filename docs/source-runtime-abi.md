@@ -53,13 +53,19 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。同组排序位置重复时不能按数组位置决定先后，该组须补齐可区分的序号后才自动续读；有唯一阅读序号的重复话号、无号番外仍可正常续读。不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1` 和 `source_private_session_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1`、`source_baozi_chapter_identity_v1` 和 `source_java_regex_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
 
 `source_page_image_processing_v1` 是正文页派生图片的可选能力。包子源可在 `get_image_request` 响应提供 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }`；未存偏好时源默认普通模式，显式禁用或源未声明处理时保留原图。宿主只在正文页消费并核对源身份、图片域、当前安装包和设置，保留原始下载及其摘要；派生图用于阅读、预载和普通保存/分享，不处理封面。
 
 横幅派生缓存按源安装身份和设置指纹区分，设置变更后请求使用新缓存身份；因此不沿用参考源中要求清除已加载图片缓存的提示。
 
 `source_baozi_chapter_identity_v1` 允许包子的 `CHAPTER_ORDER` 在显式启用时以完整标题扩展章节身份；默认关闭，正文仍按原 slot 请求，不改变目录顺序。宿主在详情和书架更新前共用 `SourceChapterIdentity`，仅同作品、slot及完整标题唯一匹配时沿用已有ID，双向切换都保留原进度、页表和下载归属；无法唯一匹配或会合并不同章节时整次更新失败，保留旧目录，不提交部分结果。历史中的标题身份可按同一精确规则恢复；缺少标题的孤立旧ID不猜测映射。旧宿主未声明能力时，源不得展示或消费该设置。
+
+### 源正则执行
+
+`source_java_regex_v1` 复用 `koma_host.http_request` 的本地 RPC：`{type:"java_regex",version:1,op:"validate"|"remove",pattern,text?|texts?}`。校验返回 `data.valid`；替换使用空串并返回对应的 `text` 或 `texts`。仅明确的语法错误返回 `ok:true,valid:false`；资源限制、执行错误或已取消操作返回 `ok:false`，源必须保留原文。该能力不发送网络请求、不新增 WASM import；旧宿主不得展示或消费依赖它的设置。匹配运行有批次预算，复杂表达式失败不冒称不匹配。
+
+执行归宿主独立的原生异步工作，不占用 UI 线程，也不重新排入正在等待 RPC 的源任务池。引擎沿 Android 参考采用 ICU 正则，固定为静态 ICU 74.2；隐藏其符号，不链接平台私有 ICU。源码校验与所需 Unicode 数据由 [构建配方](../scripts/prepare-icu-regex.sh) 和 [数据过滤规则](../scripts/icu-regex-data-filter.json) 固定，CMake 按当前 SDK 自动准备并区分构建缓存。XCOMIC 的 `REMOVE_TITLE_CUSTOM` 沿参考实时校验，输入更新、关闭、清除及设置版本变化均使过期结果失效；不由后台校验回写草稿。
 
 ### 源私有会话
 
