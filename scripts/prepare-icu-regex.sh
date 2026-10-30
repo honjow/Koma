@@ -21,7 +21,18 @@ fi
 mkdir -p "$cache_dir/host" "$cache_dir/target"
 case "$(uname -s)" in Darwin) platform=MacOSX;; Linux) platform=Linux;; *) echo 'Unsupported build host' >&2; exit 1;; esac
 if [ ! -f "$cache_dir/host/.complete" ]; then
-  (cd "$cache_dir/host" && ICU_DATA_FILTER_FILE="$filter" "$cache_dir/icu4c/source/runConfigureICU" "$platform" --disable-tests --disable-samples --disable-shared --enable-static && make -j"${KOMA_BUILD_JOBS:-8}" && touch .complete)
+  # Hvigor can export the target compiler and flags while configuring CMake.
+  # ICU's build-time tools must execute on the build host, so they cannot
+  # inherit that cross-compilation environment.
+  (cd "$cache_dir/host" && \
+    if ! env CC=/usr/bin/cc CXX=/usr/bin/c++ AR=/usr/bin/ar RANLIB=/usr/bin/ranlib LD=/usr/bin/ld \
+      CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= ASFLAGS= ICU_DATA_FILTER_FILE="$filter" \
+      "$cache_dir/icu4c/source/runConfigureICU" "$platform" \
+        --disable-tests --disable-samples --disable-shared --enable-static; then
+      tail -n 100 config.log >&2
+      exit 1
+    fi
+    make -j"${KOMA_BUILD_JOBS:-8}" && touch .complete)
 fi
 if [ ! -f "$cache_dir/target/.complete" ]; then
   (cd "$cache_dir/target" && \
