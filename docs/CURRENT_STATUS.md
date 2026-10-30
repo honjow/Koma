@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T00:02:32+08:00",
+  "updatedAt": "2026-10-31T00:14:50+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
   "activity": "书源并行安装已交付；漫画屋首页仍受验证挑战。",
@@ -4468,7 +4468,8 @@
       ],
       "evidencePoints": [
         "197系统浏览器017单次打开官方14884后截图空白，地址栏为8comic.com；最终完整URL与HTTP状态未知，不据此判定作品类型或网站根因。证据与Simply同场 source-settings-repair/simply-online-diagnostic-20261030/evidence.json。",
-        "离线搜索仅得到作品14884及封面，未含章节ID；固定949目录依详情章节ID，现无可证另一官方目录API。不猜章号、不重发失败请求、不改作品；197浏览器空白的既有边界不变。"
+        "离线搜索仅得到作品14884及封面，未含章节ID；固定949目录依详情章节ID，现无可证另一官方目录API。不猜章号、不重发失败请求、不改作品；197浏览器空白的既有边界不变。",
+        "30513真实详情引用的官网comicview.js一次GET HTTP200；脚本仅按详情提供的章节ID选择阅读路由，未提供独立详情/目录API或14884章节ID。本轮未重发14884、别名、搜索或章节请求，未操作设备。URL、状态、SHA及原件见 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json。"
       ]
     },
     {
@@ -10524,6 +10525,17 @@
       "evidence": [
         "https://github.com/honjow/Koma/actions/runs/41084355441",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json"
+      ]
+    },
+    {
+      "id": "comicabc-reader-script-review-20261031",
+      "at": "2026-10-31T00:14:50+08:00",
+      "title": "无限动漫官网阅读脚本核对",
+      "detail": "官网阅读脚本依赖详情提供的章节ID，未发现独立目录入口；古见问题仍未解决。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json"
       ]
     }
   ],
