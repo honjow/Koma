@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T09:19:57+08:00",
+  "updatedAt": "2026-10-30T10:49:42+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "源包分享已完成；继续处理已列源设置差异，漫小肆候选等待既有决定。",
-  "nextAction": "按已有证据推进可处理的具体差异，不重复询问待定事项。",
+  "activity": "包子横幅受控Native与分享一致性已核，App正式交付待核。",
+  "nextAction": "完成App scoped提交及精确CI核验，保自然站点正例未验边界。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3230,7 +3230,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "包子横幅本地候选已构建，默认选择及实机待核",
+      "status": "包子横幅Native已核，App本地提交待推及CI",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3239,8 +3239,8 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "包子横幅处理本地候选已构建，默认选择、真实正例及Native仍待核。",
-      "remaining": "完成包子横幅默认选择及具名验证，并继续处理XCOMIC、章节身份及漫小肆等既有差异。",
+      "result": "包子横幅默认与禁用设置、受控正文裁边及分享一致性已具名验证，设备已恢复；App交付待核。",
+      "remaining": "完成包子横幅App正式交付；继续处理XCOMIC正则、章节身份及漫小肆等原差异。",
       "remainingActions": [
         "闭合已列具名设置差异。",
         "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。",
@@ -3256,7 +3256,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "候选验证与用户决定待完成",
+      "stage": "App正式交付待核",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3487,7 +3487,13 @@
         "包子CHAPTER_ORDER fragment只用于身份，参考正文保section/current固定0；现大象24个重复ID组的title/path/pages相同，缺真实不同section样本，不冒错读。旧持久信息无section，需唯一映射方案才可保进度。",
         "包子横幅拟保原下载字节/hash，仅派生处理；采用加法能力协商以兼容旧Host、无声明及未启用场景。source_terra准备候选，尚未采用或提交，默认及真实横幅正样本未决定/未验，不称已实现修复。",
         "包子横幅完整本地候选：Root审代码并修原图替换key竞态及LOCAL下载绕派生，Host release编译通过HAP 7dd153…；源WASM 735e54…能力/schema/description/descriptor及生产检测器受控模板、真实负例、缓存协调执行证据见 .hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json。真实横幅正例和Native未验、源码未提交推送；源WASM含原搜索WIP及版本回退，非可发布实体。默认保原图手动开启或参考默认普通的具体选择已询问，尚无答复，不视为采用。",
-        "TeaVM 0.13.1非GC Wasm实际编译运行200层分组replaceAll单例，与Java17该例一致但不证明完整兼容；真实生成物含teavm命名空间5 imports及main，与Koma ABI不同，当前宿主不能直接使用，未认定永久不可行。0.14移除旧后端及GC/JS限制独立，不称0.13需GC。精确SHA、官方来源及fixture/命令见 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md；未改runtime或生产锁。"
+        "TeaVM 0.13.1非GC Wasm实际编译运行200层分组replaceAll单例，与Java17该例一致但不证明完整兼容；真实生成物含teavm命名空间5 imports及main，与Koma ABI不同，当前宿主不能直接使用，未认定永久不可行。0.14移除旧后端及GC/JS限制独立，不称0.13需GC。精确SHA、官方来源及fixture/命令见 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md；未改runtime或生产锁。",
+        "用户本轮直接决定“那就默认开启”，采用包子横幅普通默认；schema、缺省请求及Host未存key语义已调整。候选source0.1.15 ZIP802be9…/WASM05715d…，release HAP f6d2bf…验签同db31；237 lease20261030-012643-dd9bbeac，baozi-banner237.protocol.json / source-baozi-banner场景001唤醒及基线进行中，Native未验。漫小肆原问题仍待答。",
+        "001原BAOZI_BANNER key缺失；006普通导入015、007实装WASM匹配；014 Native默认普通及说明Root亲审；016禁用保存、017重入仍禁用且settings值0。008首页自然403及009取消后回Browse保原回执，不称首页修复。新下载仅保包子无凭据query的公开原图URL，原文件/hash不变；完整旧下载不回填，旧manifest无URL仍原图。新同签HAP b30ce… 019安装success；受控fixture未上设备，不冒自然横幅正例/HTTP。237 lease dd9bbeac仍常亮，临时关闭缓存自动清理保护旧缓存；须恢复原absent偏好、原源012/六域/缓存/db31及电源释租。",
+        "sources 5b87942b2e137602598816e1995c5db0c668a460已推、CI40990993643 success；公开015 ZIP 1a6708f75fb8f7bf6652acb0e76e8c396c7b979cf15094f79bbeeb0ac8517467 / WASM dd2661178c73c3628c1af7973ff19bc691decc5adceac5818afe7359c1fa6cbc，/private/tmp/baozimh-5b879-public/实际执行旧Host无描述、新Host默认1及未存1/显式0/1/2一致。公开WASM不同237候选05715，未另Native。Root亲看237受控合成正例关闭保横幅、默认去横幅，不是自然站点正例或首页403解决；设备恢复进行中。",
+        "包子横幅公开实体与CI稳定索引：.hvigor/outputs/user-flow-audit/source-settings-repair/baozimh-banner-published-5b87942/evidence.json；原矩阵baozimh行同步源015公开、Host待提交CI、Native受控合成边界，CHAPTER_ORDER仍未完成。",
+        "237 source-baozi-banner：014默认普通、016/017禁用保存重入；028受控固定949横幅+真实正文输入保横幅，031缺省裁边、032 JPEG 1500x2798/217213B SHA103481923a762ff7210c4cba42966a11ad28f04ce348ffedd2454957230d2b8a。042菜单时序修正后系统分享面板Root亲审，043分享副本与032逐字一致，044取消后新目录消失仅旧KPgKbO保留。046六域及原cache023逐字恢复，047源012四成员逐字恢复、原db31及斗破1页3%；048 SLEEP/120000无override、偏好absent，lease dd9bbeac released，未动Torii凭据。Kit 12b8c5fee7dab206bf7a112d51ed89120beb2b2c已推main，NextE/NextN默认分享按钮分支未改；AppHost提交/CI待核。受控缓存合成输入非自然网站横幅，不称首页403解决。",
+        "App scoped本地提交775bdeb53a6134356ceec21073fbf9d81fb52ed1，12源码/ABI及workflow pin共13文件，尚未推送/CI；Kit12b已推。装机HAP 6d924f12…默认debug签/release build，cert/profile同db31。候选索引 .hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json已补Native及恢复，017实际路径disabled-reentered-017。"
       ]
     },
     {
@@ -9370,6 +9376,62 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md"
+      ]
+    },
+    {
+      "id": "baozi-banner-default-enabled-20261030",
+      "at": "2026-10-30T09:27:36+08:00",
+      "title": "包子横幅采用默认开启",
+      "detail": "用户明确默认开启；候选已调整并构建，237验收准备中、尚未通过。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/baozi-banner237.protocol.json"
+      ]
+    },
+    {
+      "id": "baozi-banner-settings-persisted-20261030",
+      "at": "2026-10-30T09:55:33+08:00",
+      "title": "包子横幅默认及禁用持久化具名通过",
+      "detail": "普通默认、禁用保存及重入已核；正文处理未验，设备及缓存偏好恢复仍在进行。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-baozi-banner/default-normal-settings-014/"
+      ]
+    },
+    {
+      "id": "baozi-banner-public-contract-20261030",
+      "at": "2026-10-30T10:22:28+08:00",
+      "title": "包子横幅公开源合同及受控正例",
+      "detail": "公开源设置合同与受控合成正例已核；自然站点正例未验，设备恢复中。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/baozimh-5b879-public/",
+        "https://github.com/honjow/koma-sources/actions/runs/40990993643"
+      ]
+    },
+    {
+      "id": "baozi-banner-native-share-restored-20261030",
+      "at": "2026-10-30T10:48:32+08:00",
+      "title": "包子横幅受控Native及分享一致性",
+      "detail": "默认/禁用设置、受控正文裁边及分享副本一致已核，原状态恢复；App正式交付待核，自然站点正例未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-baozi-banner/"
+      ]
+    },
+    {
+      "id": "baozi-banner-app-local-commit-20261030",
+      "at": "2026-10-30T10:49:42+08:00",
+      "title": "包子横幅App scoped本地提交",
+      "detail": "App源码及依赖pin已本地提交，推送和精确CI待核；此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json"
       ]
     }
   ],
