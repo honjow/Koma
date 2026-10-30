@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T08:55:53+08:00",
+  "updatedAt": "2026-10-30T09:19:57+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
   "activity": "源包分享已完成；继续处理已列源设置差异，漫小肆候选等待既有决定。",
@@ -3191,13 +3191,13 @@
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "85源名称覆盖已盘点，8项官方依据仍缺",
+      "status": "85源名称覆盖已盘点，7项官方依据仍缺",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY"
       ],
-      "result": "85源名称证据已逐项盘点；70项有品牌或栏目依据，7项仅英文参考，8项官方中文名称或对应关系仍未知。",
+      "result": "85源名称证据已逐项盘点；71项有品牌或栏目依据，7项仅英文参考，7项官方中文名称或对应关系仍未知。",
       "remaining": "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。",
       "remainingActions": [
         "继续核实缺官方中文名称或对应关系的具名来源；图标另按原边界。"
@@ -3217,7 +3217,8 @@
         "九源名称证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/nine-source-followup-20261030.json：protectors官方论坛/四格既有原页、再漫画官网标题、Zero上月缓存标题、創漫官网自称及隆少年支持现名；再漫画正文0行、Zero非新鲜直连。創漫此前已有406，本次误重试如实保留。GoDa原页title G站漫畫、description GaDa漫畫，现GoDa漫画有字面差异且官网自称不一，暂保留现名，正式中文名仍待可靠依据。包子既有403未重试，东立本次403、soc cache miss、LoL timeout停止；图标无新验收。",
         "GoDa名称疑点具名解决：.hvigor/outputs/user-flow-audit/source-settings-repair/goda-identity/koma-goda-home.html 页头主页链接、Logo.png旁直接显示GoDa漫畫，支持当前简繁名；同页og:site_name G站漫畫、description GaDa漫畫为并存称法。图标来源见 /Users/honjow/git/koma-sources/sources/goda/ASSET_SOURCES.md，本轮不改或重验图标。",
         "原85矩阵各行officialNameCoverage20261030：正式注册源逐一对应，webtoons_zh_hant别名映射、example不计。70有品牌/明确栏目依据；7仅固定949英文参考品牌（3Hentai、AsmHentai、MangaBall、MangaDex三语言、NHentai.to），不能推无中文别名；8缺官网中文名/对应：包子403、阴阳师安全拦截、爱看漫不可达、漫画柜缓存看漫画关系未知、LoL超时、铃兰TapTap cache miss、东立403、杂志迷官网我是Zazhimi而中文名依据不足。优酷既有name-web-g6.txt官方title支持；无新访问/改产品或新确定错名。92/1234官网logo与源不同、妙趣404、嗨皮/叭嗒图标未核，不称85图标完成。",
-        "漫画柜限定搜索受robots限制；Zazhimi旧页title/logo/footer仅见我是Zazhimi、限定搜索无可用结果。无新名称结论，不刷新访问或改名。"
+        "漫画柜限定搜索受robots限制；Zazhimi旧页title/logo/footer仅见我是Zazhimi、限定搜索无可用结果。无新名称结论，不刷新访问或改名。",
+        "铃兰官网作品与官方论坛趣味漫画栏目支持当前名称；栏目逐篇作者及图标未验，索引结果与直接读取区分。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/soc-official-name-20261030.json；原矩阵soc-zh改brand_supported，其余七项未知保留。"
       ],
       "evidencePoints": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
@@ -3229,7 +3230,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "XCOMIC去重已公开，继续核对具体设置差异",
+      "status": "包子横幅本地候选已构建，默认选择及实机待核",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3238,8 +3239,8 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "XCOMIC去重及分组已交付，公开包身份和设置ABI已核；其他源设置差异继续处理。",
-      "remaining": "核清包子章节身份与横幅处理兼容、XCOMIC Java正则合同及漫小肆备域图片边界。",
+      "result": "包子横幅处理本地候选已构建，默认选择、真实正例及Native仍待核。",
+      "remaining": "完成包子横幅默认选择及具名验证，并继续处理XCOMIC、章节身份及漫小肆等既有差异。",
       "remainingActions": [
         "闭合已列具名设置差异。",
         "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。",
@@ -3255,7 +3256,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "已交付子范围，整体审计继续",
+      "stage": "候选验证与用户决定待完成",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3483,7 +3484,10 @@
         "漫小肆参考备域rank/book281/chapter9821各HTTP200，60页描述及首图JPEG200；候选默认主站不变、固定ID保留，但需将此前仅封面jjmhw11扩至精确正文host，Root已问用户待决定。候选未采用未提交，稳定证据落盘中。",
         "稳定合同证据：.hvigor/outputs/user-flow-audit/source-settings-repair/java-regex-contract-20261030/{Cargo.toml,Cargo.lock,src/main.rs,result.txt}；漫小肆备域候选及真实响应、回放脚本、构建日志见同父目录mangaxiaosi-mirror-20261030/evidence.json。候选未采用，用户决定待复；原临时证据及边界保留。",
         "TeaVM路线仅非编译核对：自有classlib非直接OpenJDK，现WasmGC后端需JS runtime；Koma当前WAMR未启GC/异常且WASI/多模块关闭，不能直接接入、不改生产runtime。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md。",
-        "包子CHAPTER_ORDER fragment只用于身份，参考正文保section/current固定0；现大象24个重复ID组的title/path/pages相同，缺真实不同section样本，不冒错读。旧持久信息无section，需唯一映射方案才可保进度。"
+        "包子CHAPTER_ORDER fragment只用于身份，参考正文保section/current固定0；现大象24个重复ID组的title/path/pages相同，缺真实不同section样本，不冒错读。旧持久信息无section，需唯一映射方案才可保进度。",
+        "包子横幅拟保原下载字节/hash，仅派生处理；采用加法能力协商以兼容旧Host、无声明及未启用场景。source_terra准备候选，尚未采用或提交，默认及真实横幅正样本未决定/未验，不称已实现修复。",
+        "包子横幅完整本地候选：Root审代码并修原图替换key竞态及LOCAL下载绕派生，Host release编译通过HAP 7dd153…；源WASM 735e54…能力/schema/description/descriptor及生产检测器受控模板、真实负例、缓存协调执行证据见 .hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json。真实横幅正例和Native未验、源码未提交推送；源WASM含原搜索WIP及版本回退，非可发布实体。默认保原图手动开启或参考默认普通的具体选择已询问，尚无答复，不视为采用。",
+        "TeaVM 0.13.1非GC Wasm实际编译运行200层分组replaceAll单例，与Java17该例一致但不证明完整兼容；真实生成物含teavm命名空间5 imports及main，与Koma ABI不同，当前宿主不能直接使用，未认定永久不可行。0.14移除旧后端及GC/JS限制独立，不称0.13需GC。精确SHA、官方来源及fixture/命令见 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md；未改runtime或生产锁。"
       ]
     },
     {
@@ -9324,6 +9328,48 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-share/ci-ae693048.json"
+      ]
+    },
+    {
+      "id": "soc-official-name-verified-20261030",
+      "at": "2026-10-30T09:00:00+08:00",
+      "title": "铃兰官方名称依据补全",
+      "detail": "官方作品与论坛漫画栏目支持现名，未知项由8减为7；图标及逐篇作者未验。此时间为登记时间。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/soc-official-name-20261030.json"
+      ]
+    },
+    {
+      "id": "baozi-banner-adaptation-preparation-20261030",
+      "at": "2026-10-30T09:00:00+08:00",
+      "title": "包子横幅处理候选准备",
+      "detail": "已有派生处理复用接点，保原下载字节及旧Host兼容；候选未采用、默认及真实正样本未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "baozi-banner-local-candidate-20261030",
+      "at": "2026-10-30T09:17:30+08:00",
+      "title": "包子横幅本地候选已构建",
+      "detail": "候选执行证据已核，默认选择待答，真实正例及Native未验，尚未提交推送。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/baozi-banner-candidate-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "teavm-nongc-regex-probe-20261030",
+      "at": "2026-10-30T09:19:57+08:00",
+      "title": "TeaVM旧非GC正则单例核对",
+      "detail": "0.13.1非GC单例与Java一致，但生成物ABI不可直接用于当前宿主；完整兼容未证。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md"
       ]
     }
   ],
