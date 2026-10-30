@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T00:14:50+08:00",
+  "updatedAt": "2026-10-31T04:26:30+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
-  "activity": "书源并行安装已交付；漫画屋首页仍受验证挑战。",
-  "nextAction": "继续定位漫画屋和其他具名源故障。",
+  "activeId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+  "activity": "Simply具名修复已交付，继续定位古见详情空响应。",
+  "nextAction": "继续核实古见可用目录及剩余官方名称依据。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "最近App实现提交2ea1adaf4d29c6345418749d67a9ef9b5923b990，精确CI41084355441成功。",
-      "hap": "237保留本地签名c6产品包0.1.4/code5；原两源及数据恢复、电源恢复并释租。CI产物未另做Native。"
+      "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
+      "hap": "237共同调度验证后已恢复C6、源数据及电源并释租。"
     },
     {
       "name": "NextE",
@@ -1073,17 +1073,17 @@
       "priority": "P2（后续处理）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "网络协商对照仍遇挑战403",
-      "kind": "open",
-      "result": "受控网络对照仍遇挑战403；设备已恢复，原因尚未确定。",
-      "remaining": "继续定位原生请求遭挑战的原因。",
+      "status": "具名验证与修复已交付",
+      "kind": "done",
+      "result": "Simply浏览、搜索及封面争用下的后续查询已验证，源码与CI已完成。",
+      "remaining": "",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
       "firstEvidenceAt": "2026-10-23T01:44:08.576Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-10-31T04:26:30+08:00",
       "reopenedAt": "2026-10-23T05:31:18.350Z",
       "feedbackReports": [
         {
@@ -1126,11 +1126,24 @@
         "197同requestId CDP response.status=200而ExtraInfo.statusCode=304，属缓存重验证，不能称新线上200；响应后目标URL Cookie总数0、clearance0，手动日志present=false/SDK26；同op9实际session=attached、cookieState=empty、uaSource=webview，hop_response403。014原38d安装成功，原011四成员、六域及诊断XML相等；012本场fport撤除，015候选/下载不存在、SLEEP/120000/原Override10000，lease bf72ec13 released；临时16行已撤。现产品候选仅Simply且api.simply-hentai.com验证页设Online，默认仍Default；不清缓存、不改UA/头/权限。官方Online全网络不读缓存，None会读过期缓存；Mihon为LOAD_DEFAULT，不称同实现。联合构建及一次验证进行中，效果未知。",
         "Online控制下同requestId response200/Extra200，非disk或SW；Cookie总数0、clearance0；手动后SDK26同op9实际attached/empty/webviewUA且Native403。缓存不是403的充分根因；五行Online及16行诊断均精确撤回，不采用或提交。原Host38d安装成功，源四成员、六域、诊断XML相等，fport及下载清理，SLEEP/120000/原Override10000，lease6d5687ee released。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-online-diagnostic-20261030/evidence.json。现仅准备RCP默认与gallery-dl参考套件集合对照，保系统代理、证书、默认TLS与HTTP协商，尚无结果、不改生产网络栈；参考 source-settings-repair/simply-network-ab197-20261030/rcp-firefox-cipher-reference.md。",
         "RCP默认及17参考套件均403/challenge/非JSON/5770字节/HTTP2；另一次完整参考头、17套件、TLS最低1.2及HTTP1.1匿名GET仍403/challenge/非JSON/5941字节，实际1.1。属于可配置近似而非完整Firefox指纹，不称全站不可用。003回执已审；004原38d安装成功、六JSON全等，005 SLEEP/120000/原Override10000、lease e44b5710 released；所有临时代码及此前Online五行、CDP十六行均撤回，不采用候选。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/rcp-firefox-reference-evidence.json。",
-        "原UA边界（用户具体采用漫画屋例外前）：验证会话的UA、Cookie策略和权限边界保持；漫画160普通网页的UA兼容仅按已采用专用规则处理，不扩大到源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。"
+        "原UA边界（用户具体采用漫画屋例外前）：验证会话的UA、Cookie策略和权限边界保持；漫画160普通网页的UA兼容仅按已采用专用规则处理，不扩大到源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。",
+        "237同场Web同requestId response及Extra均200，h2/TLS1.2/AES128且无Cookie；Native op9 URL和UA与原请求及页面匹配、无clearance，HTTP2/TLS1.2、空Cookie仍403。远端地址记录不同，未据此认定物理节点或根因。回执 source-web-session-concurrent/simply-samescene237-complete-20261031-013、restore-016、power-018；C6回装，原011四成员及六域逐字相等，fport和临时包清理，SLEEP/120000无override，lease febaaf34 released。",
+        "依据同场Web与Native远端地址记录不同，source_terra正在对照RCP默认解析与Web实际公网peer；保持正常域名、证书和系统代理，不改手机网络。结果尚未取得，不称修复或把Mac只读DNS分类当手机证据。",
+        "同场Web response200/ExtraInfo304为缓存重验证；同URL RCP默认解析与映射至Web实际公网peer两次均403，映射请求dstAddr实测匹配。本次说明对齐节点不足以解决该次挑战，不排除所有DNS或网络因素。原C6安装成功、原Simply四成员及六域逐字恢复，临时文件与转发清理，SLEEP/120000无override，租约released。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-peer-dns-20261031/evidence.json。",
+        "同实际peer的RCP原头与本次捕获公开头组均403；完整捕获导航公开头的源候选普通首页亦403，未采用或提交。C6、原源四成员、六域及电源均恢复，租约released。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-header-profile-20261031/evidence.json。此前一次匿名WWW首页GET亦403/challenge，未取得应用HTML，不证明官网无相关能力；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-www-contract-20261031/evidence.json。当前237只在普通可见官网读取公开客户端引用，不新增WWW会话grant、不把网页正文交源；结果尚未取得。",
+        "官网可见，15条客户端脚本中14条可读，一条资源树缺席，现有/api命中不构成完整源合同；普通搜索及公开作品两文档200 HTML，但WWW新搜索原生仍403，不能视为源已恢复或证明旧ID及章节替代合同。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-official-client-20261031/evidence.json 与 simply-official-route-20261031/evidence.json。两场原C6、六域、电源及租约均恢复。此前误报旧37249转发已清，实为删除错误PID失败；013按实际映射删除并读回空，本场57961亦006删除并读回空。现仅核OHOS原生兼容库最小构建及NAPI接点，尚未正式接库、增加权限或发布，不证明TLS根因。",
+        "固定curl-impersonate v2.3.2 PoC实际OHOS arm64构建exit0，检查到的archive与so对象均AArch64；仅HTTP2、无ASM/HTTP3，未接入生产，系统CA、代理及真实请求未验。source archive与static库哈希分别记录在 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-ohos-impersonate-poc/evidence.json。正准备复用原NAPI的同签临时对照，保持正常校验与系统代理，不新增权限或发布。",
+        "237 Source Runtime普通路径 simply-runtime237-open-20261031-007显示中文列表24本，实际公开012源WASM与正式包逐字相等，Host为本地候选5d397；分页、详情及首图尚在验证，不称整源已修。先前同原请求普通curl403、Firefox133 profile 200且albums数组，两者证书验证成功、无系统代理，属结构初筛；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-ohos-impersonate-poc/native237/evidence.json。正式prepare-source-browser-http.sh已从归档实际构建，尚未接产品、Linux未验。",
+        "237候选5d397b46：007中文列表24本，010详情1章，012正文首图1/250可见；015回顶部仍24不能证明分页，017搜索dragon显示源搜索失败/书源运行异常，018日志无具体错误。020原C6安装成功、源四成员及六域逐字恢复；021 SLEEP/120000无override、临时清理，lease08ee2005 released。公开012 WASM结合旧真实search 200 body的V8离线执行成功仅排除该受控样本必然失败，WAMR根因仍待查。正式原生兼容配方、CMake和许可收尾中，尚未正式build/CI/push。证据 source-web-session-concurrent/simply-runtime237-{open-20261031-007,detail-20261031-010,reader-20261031-012,search-20261031-017,restore-20261031-020,final-20261031-021}。",
+        "旧017搜索持久日志最终op235 HTTP200/37229字符后源失败（unknown/kind runtime），首个op233因输入取消；原错误内容未记录，不能判定解析或其他原因。旧WAMR受控响应成功不证明本次实际响应成功。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-runtime-curl-20261031/evidence.json。新候选同场核搜索固定合同；原生配方及许可仍在收尾。",
+        "本次固定HOST_LOG为image filename，下一分类017已证PNG；原后缀白名单拒绝PNG导致整页搜索失败。source_terra正在验证去掉后缀白名单的候选，尚未Native通过或交付。",
+        "仅移除后缀白名单的093aa714候选：237 simply-fix237-search-screen-20261031-025普通dragon结果与封面已由Root亲看；024日志op20 source.operation completed/7831字符，HTTP op21=200。正式源提交/公开及本场恢复尚待source owner回执，不关项。",
+        "Simply 0.1.3提交2c4bc7bab610f4f602e02d8c81f1e1b83d61cee9、精确CI41114185742 success并公开；正式ZIP229f6e82…/WASM2da51c9e…，公开实体版本、PNG原URL、旧样本及遍历拒绝已执行，不冒公开WASM重复Native。022/025同词dragon结果及封面已亲审；027第二页失败，028多条HTTP 15秒超时，旧日志无HTTP→operation关联，不能归因自动重试；只读后核59/61/62为get_image_request与65搜索排队重叠，根因未知。正式013 WASM结合真实Host timeout envelope执行确认误报required field missing；014仅错误分类候选待Native/未提交，不改请求、UA、成功解析或新文案。诊断HAP仅加HTTP operation及累计耗时，编译成功，237新场测量中。前场030原C6/Simply四成员及六域全等，031 SLEEP/120000无override，lease8d024fe2 released。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-filename-fix-20261031/evidence.json 及 public-2c4bc7b/。",
+        "Simply 0.1.4 d83fafd792ea4de26b24eb1199ca2c2a2208b688已公开、精确CI41117632213 success；正式WASM timeout分类、旧成功/PNG及遍历负向合同执行通过，证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-timeout-fix-20261031/public-d83fafd/。共同Worker调度237带封面争用：活动封面op102于04:03:10.550结束，search141的HTTP143于.576先于旧待封面发，总1974ms；真实simply-cover237-screen-20261031-012/screen.png已Root亲看。十次滚动实际触发两后续查询，不称仅一次或比较倍数；前scheduler237-evidence-011截图不存在，误报撤回、原失败回执保留。原C6、四成员及六域恢复，SLEEP/120000无override、lease572e1071 released。完整索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-worker-admission-20261031/evidence.json。App十五文件准备提交推送及精确CI，尚未完成。",
+        "共同调度App提交0eadd9a3c4e2deb5df7804054f05561d39d97d95已推Koma/master，精确CI41121496728当前queued；尚未完成。",
+        "App 0eadd9a3c4e2deb5df7804054f05561d39d97d95已推，精确CI41121496728 completed/success，build/inspect/upload通过、tag发布步骤跳过；未新增App release/tag/AGC。Simply浏览器HTTP、PNG搜索、timeout错误分类及共同Worker封面让位已有具名验证，正式源014公开。旧网络15秒timeout根因未完全归因，不称所有网络超时消失，不外推全站、全部格式或漫画屋自动验证。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/source-worker-admission-20261031/evidence.json 及 https://github.com/honjow/Koma/actions/runs/41121496728。"
       ],
-      "remainingActions": [
-        "继续定位原生请求遭挑战的原因。"
-      ],
+      "remainingActions": [],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
         "验证会话一般仍沿原请求UA，漫画屋唯一当前例外见MANHUAWU_SOURCE_UNAVAILABLE；Cookie策略和权限边界保持。漫画160普通网页UA兼容仍按已采用专用规则处理，不扩大到其他源HTTP或验证会话。原请求失败仍保人工入口且不循环，包/设置/路由/claim失效与离开回调守卫保持。",
@@ -1180,7 +1193,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "继续定位原生请求挑战",
+      "stage": "具名范围已交付",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -2791,9 +2804,9 @@
       "relatedItems": [
         "SOURCE_RUNTIME_ERRORS"
       ],
-      "kind": "open",
-      "status": "限定身份代码已交付，首页仍受挑战",
-      "result": "限定身份代码已交付；取得验证凭据后首页仍遭挑战。",
+      "kind": "done",
+      "status": "正常验证后列表已恢复并交付",
+      "result": "正常完成网页验证后，漫画屋原生热门列表恢复；源码与CI已完成。",
       "evidencePoints": [
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
         "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
@@ -2808,12 +2821,13 @@
         "用户最新明确采用并验证候选；仅com.manhuawu.koma及https://www.mhua5.com验证窗口和完成后的同站UA使用默认Web引擎身份，其他源、UI和Cookie权限保持。此具体决定取代原UA不变边界，旧记录保留；source_terra在237执行，尚未验证完成。",
         "237限定默认UA候选取得clearance并自动回流，但op6实际cookieState present、clearance present、uaSource webview仍403，首页未修好。原Host27f及原MHW源已恢复，Noy019及本次MHW会话保留，电源恢复释租；代码WIP待Root审交付。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json。",
         "原边界（用户具体采用漫画屋UA例外前）：保持原Cookie/UA/网络/端点/超时和目录/章节身份，不为取证重复已验查询/升级或造挑战；当前产品操作服从人类当前沟通指令。",
-        "限定身份代码2e1fa9af已推master，后续精确CI41084355441成功；237候选009 op6已取得clearance但仍403，access_signal=challenge_required。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json；不称首页已修复。"
+        "限定身份代码2e1fa9af已推master，后续精确CI41084355441成功；237候选009 op6已取得clearance但仍403，access_signal=challenge_required。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/native237-evidence.json；不称首页已修复。",
+        "真实top/hot页面200但hot仅99条且无分页，分类官方index.php路径403；不能用它替代旧完整hits/addtime合同。",
+        "正式候选9424b350本地编译成功、固定配方已接，CI未跑。237日志015：op3无会话403、op6自动回流仍403；正常网页验证完成后op10同源session及clearance、实际WebUA返回200/49926字符。complete-013原生layout显示热门30本及斗破苍穹、元尊等；013仅layout无原生截图，网页011有截图，不冒原生图片亲审或自动流程全过。当前lease f4497748，恢复尚在进行。",
+        "Host ad533787e00fa637c19014d99db1ea0964e60361已推，精确CI41111246354 completed/success；正常网页验证后原GET200/49926字符，013原生layout显示热门30本，015原日志已亲读。自动op6仍403；013无原生截图，仅具名布局语义，不扩为无需验证或全站通过。023原C6安装成功、两源八成员及六域逐字相等，024 SLEEP/120000无override、候选清理，lease f4497748 released；Root复核原件中。未新发App、tag或AGC。https://github.com/honjow/Koma/actions/runs/41111246354"
       ],
-      "remainingActions": [
-        "继续定位漫画屋首页403。"
-      ],
-      "remaining": "继续定位漫画屋首页403。",
+      "remainingActions": [],
+      "remaining": "",
       "boundaries": [
         "017搜索分页修复已交付；770–775元尊搜索→最早第1话→首图1/10具名，非完整叙事/全10页或全CF。首页get_manga_list仍403挑战，当前页表成功不追认旧460 timeout原因。",
         "仅com.manhuawu.koma在https://www.mhua5.com验证窗口使用引擎默认UA，完成后本站请求沿该UA；Cookie、网络、端点、超时及目录/章节身份保持，不为取证重复已验查询或造挑战。",
@@ -2826,7 +2840,7 @@
       "firstEvidenceAtSource": "本次登记，非用户首报精确时间。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-10-31T03:11:15+08:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "modificationBasis": {
         "object": "SourceRuntimeHttpTransport HTTP envelope与漫画屋fetch/单域会话声明",
@@ -2844,7 +2858,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166071,
-      "stage": "继续定位首页403"
+      "stage": "具名范围已交付"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -3267,7 +3281,8 @@
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/browser-20261029.json",
         "更新当前结果前原result逐字保留：已开始逐站核对，未全部完成。2026-10-28只读核对：CManhua主页标题与当前中文环境显示名一致，同页Mgeko.cc关联或迁移未知；NoyAcg主页标题与现显示名一致。未修改这两源，不外推全源。 妙趣漫画桌面及移动官网名称已核，0.1.3更正名称已发布，公开Native未验；官网当前icon/logo链接404，保留既有参考图且当前官网图标未核。Zazhimi中文品牌依据不足不改名，官网192px图标实体与源icon SHA256相同；无限动漫标题与图标均与主站匹配。 本批只读核对：叭嗒官方隐私政策支持爱奇艺叭嗒名称；92漫画网、瓜子、六漫画、漫画人、漫画社、漫画屋、漫画160、快看、腾讯、色漫网、菇菇四格、鸟鸟韩漫、醫院也瘋狂、綜合口味、老夫子、幻塔、DOTA2、魔法纪录、輔大猴、我是馬克、人2、科技大觀園名称具名对应；漫小肆为品牌简称，原神页支持品牌但未见漫画内容，H-Comic未见中文品牌。漫画1234官网使用漫画1234网；该后缀差异已于0.1.4修正，现源码及metadata与官网名称对应。漫画柜、Happy、咚漫、爱看漫、阴阳师漫画屋、战双、雀魂漫画栏目与王者荣耀等因超时、无法访问或动态壳未核。92漫画网和漫画1234官网当前标志与既有源图不同，未修改；叭嗒图标身份未核，六漫画官网favicon与原图一致。除具名证据外未扩大到图标或设备验收。 咚漫官网名称及同站官方图标与当前源具名一致；嗨皮漫画缓存同域详情支持现名但主页当前502、图标未知。漫画柜受工具限制，阴阳师及爱看漫等主页不可访问，雀魂漫画栏目JS空壳仍未核；85设置行矩阵不提供完整身份审核差集，不据旧数推全源完成数。 搜索抓取的原神官方漫画页面含品牌及具体章节列表，支持现名称与漫画栏目；直接打开为动态空壳，不冒当前正文或图标验收。 漫画柜同域搜索缓存使用“看漫画”，当前源名漫画柜；直接访问受限，正式名与别名关系及图标未核。爱看漫官方地址不可达，第三方名称仅线索；雀魂、战双、王者及阴阳师栏目全称与图标仍缺可核官方证据，不改名。 本轮官网浏览支持雀魂品牌与漫画栏目、王者品牌与漫画栏目；现源名为描述性名称，非官网全称逐字相同。战双页面仅标题可核，阴阳师站点安全策略拦截未绕过；图标和其他未知范围不外推。 本轮官网核对支持MYCOMIC、HANMAN18、泰拉、DB Multiverse、繁中WEBTOON及多站英文品牌的现有对应；单部作品名不扩为全站名，未据英文页面断言无中文别名。部分站点访问失败或超时，保未知。 官网具名证据补充H-Comic、NHentai.xxx及XCOMIC现有品牌；NHentai.to未访问，MangaDex网页安全策略拦截未绕过，不从英文页面推断全站无中文别名。 pixiv官方简体帮助页与当前pixiv名称对应，未改名或图标。 本轮具名名称复核支持部分现名；GoDa官网页头直接使用GoDa漫畫，支持现名；同页另有并存称法。",
         "197原件确认阴阳师 comic.163.com 页面标题“阴阳师漫画屋”及官方漫画、阴阳师工作室；杂志迷 zazhimi.net 截图显示“杂志迷”logo。矩阵现为75有依据、7仅英文参考、3未知。爱看漫与漫画柜系统浏览器风险拦截未绕过；LoL原页内容与源合同吻合，但Riot与具体内容关系未证。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json 相应行。",
-        "腾讯官方根页标题及元数据支持英雄联盟品牌，197 yz.lol.qq.com实际宇宙/织星/欣赏漫画栏目与源合同对应；据同站命名空间及栏目支持“英雄联盟官方漫画”描述性名称，为推论而非官网逐字标题，Riot独立对应未知的原证据保留。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/lol-root-official-20261030.json 及原85矩阵。导航main.shtml旧失败路径本轮误重试一次Timeout，已停止，不视为新突破。"
+        "腾讯官方根页标题及元数据支持英雄联盟品牌，197 yz.lol.qq.com实际宇宙/织星/欣赏漫画栏目与源合同对应；据同站命名空间及栏目支持“英雄联盟官方漫画”描述性名称，为推论而非官网逐字标题，Riot独立对应未知的原证据保留。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/lol-root-official-20261030.json 及原85矩阵。导航main.shtml旧失败路径本轮误重试一次Timeout，已停止，不视为新突破。",
+        "漫画柜“同域缓存看漫画”目前仅见all85-source-settings-comparison.json转述note，未定位原始URL、HTML或搜索片段，不能作为官网自称证据；缺少的是可追溯原件，不另设必须证明两别名关系的门槛。名称及图标未改，仍计未知。"
       ]
     },
     {
@@ -3286,9 +3301,9 @@
         "MH160_COVER_IMAGES_REJECTED"
       ],
       "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。",
-      "remaining": "继续其他具名差异；Noy登录后内容和依赖账号的镜像验证暂无法执行。",
+      "remaining": "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。",
       "remainingActions": [
-        "继续其他具名差异；Noy登录后内容和依赖账号的镜像验证暂无法执行。"
+        "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -4469,7 +4484,10 @@
       "evidencePoints": [
         "197系统浏览器017单次打开官方14884后截图空白，地址栏为8comic.com；最终完整URL与HTTP状态未知，不据此判定作品类型或网站根因。证据与Simply同场 source-settings-repair/simply-online-diagnostic-20261030/evidence.json。",
         "离线搜索仅得到作品14884及封面，未含章节ID；固定949目录依详情章节ID，现无可证另一官方目录API。不猜章号、不重发失败请求、不改作品；197浏览器空白的既有边界不变。",
-        "30513真实详情引用的官网comicview.js一次GET HTTP200；脚本仅按详情提供的章节ID选择阅读路由，未提供独立详情/目录API或14884章节ID。本轮未重发14884、别名、搜索或章节请求，未操作设备。URL、状态、SHA及原件见 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json。"
+        "30513真实详情引用的官网comicview.js一次GET HTTP200；脚本仅按详情提供的章节ID选择阅读路由，未提供独立详情/目录API或14884章节ID。本轮未重发14884、别名、搜索或章节请求，未操作设备。URL、状态、SHA及原件见 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json。",
+        "本轮官方搜索原始HTML的正篇仍为 /html/14884.html，标示501集但未提供章节ID或其他入口；14883为独立短篇。global.js处理已有目录排序、历史、书签及评论，未发现独立目录或移动详情路由；未重发古见详情或请求章节，不能由数量构造目录。原件 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/search-body.html 与 global.js。",
+        "官网页面真实引用的PWA manifest一次HTTP200，仅含图标、颜色和standalone，无目录或API；两页未发现APP下载或独立移动客户端入口。三份既存搜索/30513/14884响应headers无Set-Cookie，不证明服务器永不依赖Cookie。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json；不称详情修复。",
+        "精确上游1386f490对应两个blob与固定949相同，没有新目录入口；不称已修复。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/upstream-reference-1386f490.json。"
       ]
     },
     {
@@ -10536,6 +10554,222 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "comicabc-search-original-20261031",
+      "at": "2026-10-31T00:55:51+08:00",
+      "title": "古见官方搜索原件核对",
+      "detail": "正篇仍指向原详情并标示501集，未发现可证的独立目录入口。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/search-body.html",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/global.js"
+      ]
+    },
+    {
+      "id": "simply-same-scene-237-20261031",
+      "at": "2026-10-31T00:59:38+08:00",
+      "title": "Simply同场网页与原生对照",
+      "detail": "同场网页200而原生仍403，设备和数据已恢复；原因未定。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-samescene237-complete-20261031-013/"
+      ]
+    },
+    {
+      "id": "simply-matched-peer-20261031",
+      "at": "2026-10-31T01:10:02+08:00",
+      "title": "Simply同节点对照",
+      "detail": "对齐网页实际节点后原生仍403，网页显示200为缓存重验证；设备已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-peer-dns-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "comicabc-pwa-review-20261031",
+      "at": "2026-10-31T01:10:02+08:00",
+      "title": "无限动漫页面入口核对",
+      "detail": "页面引用的PWA清单无目录或API，详情故障仍未解决。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-header-profile-20261031",
+      "at": "2026-10-31T01:32:30+08:00",
+      "title": "Simply公开头对照",
+      "detail": "同节点公开头对照及完整导航头候选仍403，候选未采用，前一设备场已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-header-profile-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-official-route-20261031",
+      "at": "2026-10-31T02:00:40+08:00",
+      "title": "Simply官网路径与原生挑战",
+      "detail": "官网搜索与作品页面可见，原生搜索仍403；设备恢复，兼容库可行性核查中。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-official-route-20261031/evidence.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-official-client-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-ohos-compat-build-20261031",
+      "at": "2026-10-31T02:10:03+08:00",
+      "title": "Simply兼容库本地构建",
+      "detail": "OHOS兼容库已编译，真实原生请求及系统网络配置尚待验证。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-ohos-impersonate-poc/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-runtime-first-page-20261031",
+      "at": "2026-10-31T02:24:33+08:00",
+      "title": "Simply普通路径首屏恢复",
+      "detail": "本地Host候选已显示书源首屏，分页、详情、正文及正式交付仍待核。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-runtime237-open-20261031-007/",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-ohos-impersonate-poc/native237/evidence.json"
+      ]
+    },
+    {
+      "id": "simply-runtime-chain-search-20261031",
+      "at": "2026-10-31T02:37:58+08:00",
+      "title": "Simply阅读链路与搜索结果",
+      "detail": "候选显示列表、详情和首图；搜索失败、分页未验证，设备已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-runtime237-reader-20261031-012/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-runtime237-search-20261031-017/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-runtime237-restore-20261031-020/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-runtime237-final-20261031-021/"
+      ]
+    },
+    {
+      "id": "manhuawu-profile-native-list-20261031",
+      "at": "2026-10-31T02:53:58+08:00",
+      "title": "漫画屋验证后列表恢复",
+      "detail": "正常网页验证后原生热门列表可见；设备恢复及正式交付仍在进行。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/manhuawu-profile237-http-20261031-015/"
+      ]
+    },
+    {
+      "id": "simply-search-response-failure-20261031",
+      "at": "2026-10-31T02:53:58+08:00",
+      "title": "Simply搜索失败阶段",
+      "detail": "搜索最终HTTP200后源运行失败，具体原因尚未记录；同场继续核对。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-runtime-curl-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "manhuawu-profile-delivered-20261031",
+      "at": "2026-10-31T03:11:15+08:00",
+      "title": "漫画屋验证后列表恢复并交付",
+      "detail": "正常验证后原生热门列表恢复，源码及CI完成；自动回流仍403的边界保留。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41111246354"
+      ]
+    },
+    {
+      "id": "simply-png-search-cause-20261031",
+      "at": "2026-10-31T03:11:15+08:00",
+      "title": "Simply搜索失败原因定位",
+      "detail": "搜索数据包含PNG，原后缀白名单拒绝导致整页失败；候选正在验证。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "simply-search-png-native-20261031",
+      "at": "2026-10-31T03:14:30+08:00",
+      "title": "Simply搜索候选实机验证",
+      "detail": "普通搜索结果及封面已显示，正式源交付和设备恢复仍待核。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-fix237-search-screen-20261031-025/"
+      ]
+    },
+    {
+      "id": "simply-search-published-page2-20261031",
+      "at": "2026-10-31T03:31:25+08:00",
+      "title": "Simply搜索修复公开与分页反例",
+      "detail": "普通搜索修复已公开；第二页超时及错误分类仍在定位，新场测量中。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-filename-fix-20261031/evidence.json",
+        "https://github.com/honjow/koma-sources/actions/runs/41114185742"
+      ]
+    },
+    {
+      "id": "simply-worker-admission-native-20261031",
+      "at": "2026-10-31T04:12:54+08:00",
+      "title": "Simply错误分类交付与调度验证",
+      "detail": "源错误分类已公开；封面争用下后续查询具名验证，App提交和CI待核。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-worker-admission-20261031/evidence.json",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-timeout-fix-20261031/public-d83fafd/"
+      ]
+    },
+    {
+      "id": "simply-worker-pushed-20261031",
+      "at": "2026-10-31T04:13:57+08:00",
+      "title": "Simply调度代码推送",
+      "detail": "App代码已推送，精确CI尚未完成。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41121496728"
+      ]
+    },
+    {
+      "id": "comicabc-upstream-reference-20261031",
+      "at": "2026-10-31T04:13:57+08:00",
+      "title": "无限动漫上游参考核对",
+      "detail": "精确上游对应实现与固定参考相同，未发现新目录入口。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/upstream-reference-1386f490.json"
+      ]
+    },
+    {
+      "id": "simply-worker-ci-delivered-20261031",
+      "at": "2026-10-31T04:26:30+08:00",
+      "title": "Simply具名修复交付",
+      "detail": "浏览、搜索及封面争用下查询已验证，App源码和精确CI完成；旧超时原因边界保留。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-worker-admission-20261031/evidence.json",
+        "https://github.com/honjow/Koma/actions/runs/41121496728"
       ]
     }
   ],
