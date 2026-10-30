@@ -1011,6 +1011,25 @@ export class TrackerPreferencesStore {
     return this.write(() => this.saveComicMappingsCurrent(mappings))
   }
 
+  /** Local title bindings only: no account/session transfer or remote progress write.
+   * Keep any destination binding selected by the user, including its rejection state. */
+  async copyComicMappings(fromComicId: string, toComicId: string): Promise<TrackerPreferences> {
+    return this.write(async (): Promise<TrackerPreferences> => {
+      const current = await this.loadCurrent()
+      const destinationProviders = new Set<TrackerProviderId>(current.comicMappings
+        .filter((row: ComicTrackerMapping): boolean => row.comicId === toComicId)
+        .map((row: ComicTrackerMapping): TrackerProviderId => row.providerId))
+      const copies = current.comicMappings.filter((row: ComicTrackerMapping): boolean =>
+        row.comicId === fromComicId && row.mappingState === 'confirmed' && row.userConfirmed &&
+        !destinationProviders.has(row.providerId))
+        .map((row: ComicTrackerMapping): ComicTrackerMapping => ({ comicId: toComicId,
+          providerId: row.providerId, providerTitleId: row.providerTitleId, providerTitle: row.providerTitle,
+          mappingState: row.mappingState, confidence: row.confidence, userConfirmed: row.userConfirmed,
+          createdAt: row.createdAt, updatedAt: row.updatedAt }))
+      return copies.length === 0 ? current : this.saveComicMappingsCurrent(current.comicMappings.concat(copies))
+    })
+  }
+
   private async saveComicMappingsCurrent(mappings: ComicTrackerMapping[]): Promise<TrackerPreferences> {
     const current = await this.loadCurrent()
     const next: TrackerPreferences = {

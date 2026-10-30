@@ -263,6 +263,9 @@ export struct HistoryPage {
     }
     const page = item.progress.pageIndex + 1
     const total = item.progress.totalPages > 0 ? item.progress.totalPages : item.pageCount
+    // A migrated position knows the corresponding chapter before the new
+    // edition's images are loaded. Do not present that unknown size as "1 / 0".
+    if (total <= 0) return this.chapterText(item)
     return s('history_page_progress')
       .replace('%s', `${page}`)
       .replace('%s', `${total}`)

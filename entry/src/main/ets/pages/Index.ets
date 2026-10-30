@@ -50,6 +50,8 @@ import {
 } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
+import { MangaMigrationPage } from './MangaMigrationPage'
+import { MangaMigrationRouteParam } from '../common/RouterHelper'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
 import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT, SourceBrowseTitleFieldContentBuilder } from '../components/SourceBrowseTitleField'
 import { KomgaSeriesPage, KomgaSeriesRouteParam } from './KomgaSeriesPage'
@@ -1232,7 +1234,7 @@ struct Index {
     this.refreshLibrarySnapshot()
   }
 
-  private openLibraryMangaDetail(comicId: ComicId): void {
+  private openLibraryMangaDetail(comicId: ComicId, newInstance: boolean = false): void {
     const comic = this.libraryStore.getComic(comicId)
     if (comic === undefined) {
       return
@@ -1252,7 +1254,7 @@ struct Index {
         },
       }
       : { mangaId: comic.id }
-    RouterHelper.pushMangaDetail(params)
+    RouterHelper.pushMangaDetail(params, newInstance)
   }
 
   private openReaderMangaDetail(): void {
@@ -2162,7 +2164,13 @@ struct Index {
         source: param.source,
         chrome: param.chrome,
         onMangaTap: (manga: SourceManga) => {
-          RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+          if (param.onMangaSelected !== undefined) {
+            const onSelected = param.onMangaSelected
+            this.appPathStack.pop()
+            onSelected(manga)
+          } else {
+            RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+          }
         },
       })
     }
@@ -2267,7 +2275,11 @@ struct Index {
           onOpenSourceReader: (request: SourceReaderSessionRequest) => { void this.openSourceReader(request) },
           onOpenImportRequested: () => { this.openImport() },
           onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
-          onLibraryChanged: () => { this.onMangaDetailLibraryChanged() }
+          onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
+          onMigrationRequested: (comicId: string) => {
+            this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION,
+              param: { comicIds: [comicId], fromDetail: true } as MangaMigrationRouteParam })
+          }
         })
       }
       .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
@@ -2278,6 +2290,32 @@ struct Index {
       .onHidden(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = false
       })
+    } else if (name === RouteName.MANGA_MIGRATION) {
+      HdsNavDestination() {
+        MangaMigrationPage({
+          comicIds: (param as MangaMigrationRouteParam).comicIds,
+          registry: this.sourceRegistry, libraryStore: this.libraryStore,
+          persistence: this.ensureLibraryPersistenceService(), readerStore: this.readerSessionStore,
+          onBusyChanged: (busy: boolean): void => { (param as MangaMigrationRouteParam).committing = busy },
+          onLibraryChanged: (): void => {
+            this.onMangaDetailLibraryChanged()
+            this.readerProgressRevision += 1
+          },
+          onComplete: (ids: string[]): void => {
+            const fromDetail = (param as MangaMigrationRouteParam).fromDetail === true
+            DiagnosticLogger.info('manga_migration', 'return', `fromDetail=${fromDetail} targets=${ids.length}`)
+            this.appPathStack.pop(false)
+            if (fromDetail && ids.length === 1) {
+              this.appPathStack.pop(false)
+              // NavPathStack otherwise reuses the just-popped same-name detail,
+              // retaining the old source's component state after the migration.
+              this.openLibraryMangaDetail(ids[0], true)
+            }
+          },
+        })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('migration_title')))
+      .onBackPressed((): boolean => (param as MangaMigrationRouteParam).committing === true)
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
@@ -2539,6 +2577,10 @@ struct Index {
                 },
                 onSearchRequested: () => {
                   RouterHelper.openSearch({})
+                },
+                onMigrationRequested: (comicIds: string[]): void => {
+                  this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION,
+                    param: { comicIds, fromDetail: false } as MangaMigrationRouteParam })
                 },
                 onOpenDownloadsRequested: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)
@@ -3127,6 +3169,12 @@ struct Index {
         'icon': $r('sys.symbol.arrow_right'),
         'isEnabled': true,
         'action': () => { chrome.requestAction(MangaDetailTitleAction.OPEN_BROWSER) },
+      } as Record<string, Object> })
+    }
+    if (chrome.migrationAvailable) {
+      menuItems.push({ 'content': {
+        'label': AppStrings.get('migration_title'), 'icon': $r('sys.symbol.arrow_right'), 'isEnabled': true,
+        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.MIGRATE) },
       } as Record<string, Object> })
     }
     const trackerMappingContent: Record<string, Object> = {

@@ -1,3 +1,5 @@
+import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
+import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
@@ -296,6 +298,7 @@ export struct MangaDetailPage {
   @Event onRefreshLocalFolder: (comicId: string) => Promise<LocalLibraryFolderRescanActionResult | undefined> =
     async (_comicId: string) => undefined
   @Event onLibraryChanged: () => void = () => {}
+  @Event onMigrationRequested: (comicId: string) => void = () => {}
   @Local private detailWebChallenge: SourceWebChallengeReceipt | null = null
   @Local private detailWebChallengeShown: boolean = false
   @Local private detailWebChallengeParams: MangaWebRouteParam = { url: '', title: '' }
@@ -474,7 +477,7 @@ export struct MangaDetailPage {
     this.runTitleAction(this.chrome.requestedAction)
   }
 
-  @Monitor('manga', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy')
+  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy')
   private syncTitleActionsFromDetailState(): void {
     this.syncTitleActions()
   }
@@ -491,6 +494,7 @@ export struct MangaDetailPage {
     this.chrome.webActionsAvailable = actionsAvailable && this.mangaWebUrl() !== undefined
     this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
     this.chrome.localMetadataAvailable = actionsAvailable && this.canEditLocalMetadata()
+    this.chrome.migrationAvailable = actionsAvailable && canMigrateLibraryComic(this.libraryStore?.getComic(this.currentComicId()))
     this.chrome.localRefreshBusy = this.localRefreshBusy
     this.chrome.trackerMappingBusy = this.trackerMappingBusy
     this.chrome.trackerSyncBusy = this.trackerSyncBusy
@@ -531,6 +535,11 @@ export struct MangaDetailPage {
   }
 
   private runTitleAction(action: MangaDetailTitleAction): void {
+    if (action === MangaDetailTitleAction.MIGRATE) {
+      const comic = this.libraryStore?.getComic(this.currentComicId())
+      if (canMigrateLibraryComic(comic) && comic !== undefined) this.onMigrationRequested(comic.id)
+      return
+    }
     // Recovery is route-owned and must remain available even before any manga loaded.
     if (action === MangaDetailTitleAction.RELOAD_SOURCE) {
       if (this.canReloadSourceDetail()) {
@@ -1334,11 +1343,7 @@ export struct MangaDetailPage {
   }
 
   private sourceComicId(sourceId: string | undefined, mangaId: string): string {
-    const normalizedSourceId = sourceId?.trim()
-    if (normalizedSourceId === undefined || normalizedSourceId.length === 0) {
-      return mangaId
-    }
-    return mangaId.startsWith(`${normalizedSourceId}:`) ? mangaId : `${normalizedSourceId}:${mangaId}`
+    return sourceLibraryComicId(sourceId, mangaId)
   }
 
   private currentComicId(): string {
@@ -2786,59 +2791,6 @@ function mangaChapterItemFromComicChapter(chapter: Chapter, sourceKind: ComicSou
   }
 }
 
-function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterItem[], comicId: string): Comic {
-  const now = Date.now()
-  const comicChapters = chapters.map((chapter: MangaChapterItem, index: number): Chapter => {
-    return {
-      id: chapter.id,
-      comicId,
-      title: chapter.title.length > 0
-        ? chapter.title
-        : AppStrings.get('library_update_chapter_fallback_title').replace('%s', `${index + 1}`),
-      index,
-      chapterNumber: chapter.chapterNumber,
-      volumeNumber: chapter.volumeNumber,
-      readingOrder: chapter.readingOrder,
-      readingGroup: chapter.readingGroup,
-      continuationEligible: chapter.continuationEligible,
-      scanlator: chapter.scanlator,
-      language: chapter.language,
-      dateUpload: chapter.dateUpload,
-      sourcePath: `${manga.url ?? manga.id}#${chapter.id}`,
-      sortKey: chapter.chapterNumber === undefined ? `${index}` : `${chapter.chapterNumber}`,
-      pages: [],
-      pageCount: chapter.pageCount ?? 0,
-      createdAt: now,
-      updatedAt: now,
-    }
-  })
-  const title = manga.title.length > 0 ? manga.title : AppStrings.get('manga_detail_title_fallback')
-  return {
-    id: comicId,
-    title,
-    subtitle: manga.description,
-    author: manga.author,
-    sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
-    sourcePath: manga.url ?? `source://${manga.sourceId ?? 'unknown'}/${manga.id}`,
-    sourceRuntimeId: manga.sourceId,
-    remoteResourceId: manga.id,
-    coverUri: manga.coverUrl,
-    sourceMetadata: {
-      artist: manga.artist,
-      status: manga.status,
-      tags: manga.tags?.slice(),
-      webUrl: manga.webUrl,
-    },
-    sortTitle: normalizeSortKey(title),
-    preferredDirection: ReadingDirection.RIGHT_TO_LEFT,
-    chapters: comicChapters,
-    chapterCount: comicChapters.length,
-    pageCount: comicChapters.reduce((total: number, chapter: Chapter): number => total + chapter.pageCount, 0),
-    createdAt: now,
-    updatedAt: now,
-    lastImportedAt: now,
-  }
-}
 
 function missingMangaDetail(mangaId: string | undefined, sourceId: string | undefined): MangaDetail {
   const normalizedMangaId = mangaId?.trim() ?? ''

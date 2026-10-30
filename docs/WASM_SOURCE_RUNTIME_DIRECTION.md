@@ -19,6 +19,7 @@
 | SourceSettingsStore / SourceWebSessionStore | 配置和精确身份/origin 下的会话，不由展示对象授权 |
 | SourceSettingObservationStore / SourceSettingObservationFile | 本源公开设置候选的进程快照、串行后台提交及卸载/备份生命周期；不改用户选择或内容缓存身份 |
 | SourceChapterListResolver / SourceChapterVisibility / SourceMangaDetailSnapshotCache | 当前完整目录及源明确排除的显示投影；保留库章节/下载/进度，按安装及设置身份缓存 |
+| SourceMangaMigration / SourceMangaMigrationService | 跨源作品匹配、已读对应与目标先提交；复用原书库、阅读记录和追踪持久化所有者 |
 
 ## 内容与准备
 
@@ -28,6 +29,8 @@
 - App 本地元数据提交保持有序和一致；后台工作减少 UI 线程负担，不削弱提交、回滚或身份校验。
 - 导入副本的完整归档读写和 WASM 读取使用异步文件接口，归档及 WASM 的完整摘要交给纯 Crypto 的 SourcePackageHashWorker；安装器保留原字节并等待校验后才注册。Importer 唯一写入解包前的归档，Registry 不重复写入；备份恢复及 rawfile 的同步辅助函数保持原合同。
 - 目录方向由已核源合同声明；首次阅读按对应方向选择最早未读，已保存进度和显式章节优先。共享章序所有者为 ReaderChapterSequence，不能通过猜话数、重排或改章节 ID 适配宿主。
+- 跨源迁移按源给出的唯一章号及卷号或唯一完整标题对应，不按任一目录的展示下标对应，也不填平明确未读的空洞。歧义章节留在原阅读记录；不同版本的页边界不同，续读只定位对应章，不搬旧页 ID、页码、图片 URI 或双页配对。目标已有进度、分类与追踪选择保留。
+- 复制与迁移均先持久化目标书、所选已读及分类、已确认的本地追踪绑定；全部成功后，迁移才将旧书移出书库。旧历史、下载和源会话不删除、不转移，不调用远程追踪写入；失败保留旧书，重试合并已形成的目标记录。入口与允许差异以工作单 `LIBRARY_CROSS_SOURCE_MIGRATION` 的已采用决定为准。
 
 ## 并发与能力
 

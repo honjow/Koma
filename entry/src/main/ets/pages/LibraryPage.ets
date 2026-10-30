@@ -1,4 +1,5 @@
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
@@ -308,6 +309,7 @@ export struct LibraryPage {
   @Event onProgressStoreReloadRequested: () => void = () => {}
   @Event onImportRequested: () => void = () => {}
   @Event onSearchRequested: () => void = () => {}
+  @Event onMigrationRequested: (comicIds: string[]) => void = () => {}
   @Event onOpenDownloadsRequested: () => void = () => {}
   @Event onTitleBarChange: (presentation: LibraryTitleBarPresentation) => void =
     (_presentation: LibraryTitleBarPresentation) => {}
@@ -325,6 +327,12 @@ export struct LibraryPage {
         () => { this.selectAllVisibleComics() }, this.hasVisibleLibraryContent()),
       this.titleMenuItem(s('library_action_categories'), $r('sys.symbol.folder'),
         () => { this.openTitleMenu('categories') }, this.selectedCount() > 0, 'library-title-categories'),
+      this.titleMenuItem(s('migration_title'), $r('sys.symbol.arrow_right'), () => {
+        const ids = Array.from(this.selectedIds)
+        this.exitSelectionMode()
+        this.onMigrationRequested(ids)
+      }, this.selectedCount() > 0 && Array.from(this.selectedIds).every((id: string): boolean =>
+        canMigrateLibraryComic(this.libraryStore.getComic(id)))),
       this.titleMenuItem(s('library_batch_mark_read'), $r('sys.symbol.book'),
         () => { this.markSelectedReadState(true) }, this.selectedCount() > 0),
       this.titleMenuItem(s('library_batch_mark_unread'), $r('sys.symbol.book'),

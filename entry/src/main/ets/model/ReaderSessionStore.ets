@@ -18,6 +18,7 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceFailureDetails } from './SourceRuntimeError'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
+import { MangaMigrationReadPlan, MangaMigrationReadState } from './SourceMangaMigration'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from './RemoteReaderSession'
 import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } from './ChapterReadStateStore'
 
@@ -450,6 +451,33 @@ export abstract class ReaderSessionStore {
     return { committed, changedCount: committed ? changedCount : 0 }
   }
 
+  /** Transfer only resolved chapter identities. Existing destination progress wins;
+   * the original history remains available after a shelf-only migration. */
+  commitMigrationReadPlan(plan: MangaMigrationReadPlan): boolean {
+    return this.commitUserMutation((): void => {
+      let changed = false
+      plan.states.forEach((state: MangaMigrationReadState): void => {
+        const key = chapterStateKey(state.comicId, state.chapterId)
+        const previous = this.chapterStates.get(key)
+        if (previous?.isRead === true) return
+        const next: ChapterReadingState = { comicId: state.comicId, chapterId: state.chapterId,
+          isRead: true, position: previous?.position, updatedAt: state.updatedAt }
+        projectChapterCompletion(next, next.position)
+        projectChapterCompletion(next, this.getProgress(state.comicId))
+        this.chapterStates.set(key, next)
+        changed = true
+      })
+      if (changed) this.chapterStatesChanged()
+      if (plan.progress !== undefined && this.getProgress(plan.progress.comicId) === undefined) {
+        this.saveTransferredProgress(plan.progress)
+      }
+    })
+  }
+
+  protected saveTransferredProgress(progress: ReadingProgress): void {
+    this.saveProgress(progress)
+  }
+
   protected commitUserMutation(mutation: () => void): boolean {
     mutation()
     return this.flush()
@@ -618,6 +646,12 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
     return this.progressByComicId.get(comicId)
   }
 
+  protected saveTransferredProgress(progress: ReadingProgress): void {
+    const copied = JSON.parse(JSON.stringify(progress)) as ReadingProgress
+    this.progressByComicId.set(copied.comicId, copied)
+    this.recordChapterProgress(copied)
+  }
+
   saveProgress(progress: ReadingProgress): void {
     const copied = copyReadingProgressWithTimestamp(progress)
     copied.completed = this.isChapterRead(progress.comicId, progress.chapterId) || progress.completed
@@ -736,6 +770,13 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
 
   getProgress(comicId: ComicId): ReadingProgress | undefined {
     return this.progressByComicId.get(comicId)
+  }
+
+  protected saveTransferredProgress(progress: ReadingProgress): void {
+    const copied = JSON.parse(JSON.stringify(progress)) as ReadingProgress
+    this.progressByComicId.set(copied.comicId, copied)
+    this.recordChapterProgress(copied)
+    this.schedulePersist()
   }
 
   saveProgress(progress: ReadingProgress): void {

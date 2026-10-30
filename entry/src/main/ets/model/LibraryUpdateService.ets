@@ -118,7 +118,7 @@ function sourceMangaIdFromComic(comic: Comic): string | undefined {
   return undefined
 }
 
-function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], now: number): Chapter[] {
+export function mergeSourceChapters(comic: Comic, remoteChapters: MangaChapterItem[], now: number): Chapter[] {
   const existingById = new Map<string, Chapter>()
   comic.chapters.forEach((chapter: Chapter) => {
     existingById.set(chapter.id, chapter)

@@ -48,6 +48,13 @@ export interface SourceBrowseRouteParam {
 export interface SourceSearchRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
   chrome: SourceSearchRouteChromeState
+  onMangaSelected?: (manga: SourceManga) => void
+}
+
+export interface MangaMigrationRouteParam {
+  comicIds: string[]
+  fromDetail: boolean
+  committing?: boolean
 }
 
 export class RouterHelper {
@@ -142,13 +149,17 @@ export class RouterHelper {
     RouterHelper.appPathStack?.pushPath({ name: RouteName.MANGA_WEB, param })
   }
 
-  static pushMangaDetail(param: MangaDetailRouteParam): void {
+  static pushMangaDetail(param: MangaDetailRouteParam, newInstance: boolean = false): void {
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
       return
     }
     RouterHelper.ensureMangaDetailRouteChrome(param)
-    stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param })
+    if (newInstance) {
+      stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param }, { launchMode: LaunchMode.NEW_INSTANCE })
+    } else {
+      stack.pushPath({ name: RouteName.MANGA_DETAIL, param: param })
+    }
   }
 
   static ensureMangaDetailRouteChrome(param: MangaDetailRouteParam): MangaDetailRouteChromeState {
@@ -173,7 +184,7 @@ export class RouterHelper {
     stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
   }
 
-  static pushSourceSearch(param: SourceRouteParam, initialQuery: string = ''): void {
+  static pushSourceSearch(param: SourceRouteParam, initialQuery: string = '', onMangaSelected?: (manga: SourceManga) => void): void {
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
       return
@@ -181,6 +192,7 @@ export class RouterHelper {
     const routeParam: SourceSearchRouteParam = {
       source: param.source,
       chrome: new SourceSearchRouteChromeState(param.source.displayName, initialQuery, param.source.sourceId),
+      onMangaSelected,
     }
     stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
   }

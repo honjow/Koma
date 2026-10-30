@@ -14,6 +14,7 @@ export enum MangaDetailTitleAction {
   PULL_TRACKER = 'pull_tracker',
   CHECK_LOCAL_LIBRARY_REFRESH = 'check_local_library_refresh',
   EDIT_LOCAL_METADATA = 'edit_local_metadata',
+  MIGRATE = 'migrate',
 }
 
 @ObservedV2
@@ -26,6 +27,7 @@ export class MangaDetailRouteChromeState {
   @Trace webActionsAvailable: boolean = false
   @Trace localRefreshAvailable: boolean = false
   @Trace localMetadataAvailable: boolean = false
+  @Trace migrationAvailable: boolean = false
   @Trace localRefreshBusy: boolean = false
   @Trace trackerMappingBusy: boolean = false
   @Trace trackerSyncBusy: boolean = false

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-manga-migration-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration",
+  "runId": "restored-power-045",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "restored-original197-38d2456b-0.1.4",
+    "page": "Migration acceptance completed; restore baseline10000ms override and SLEEP after original package and seven data files verified",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "197 existing authorization. Baseline read before install. No emulator/200/237. Save original HAP, library/Reader/tracker/session state before writes; restore owned differences and original power state at end. On failed precondition preserve evidence and stop dependent actions; only resume declared awake/neutral-unlock recovery after checking current layout. Baseline: SLEEP, system timeout120000ms, override10000ms. Current state-001 lock layout has clock and bottom tools but no notification start-bound at630,2200; accepted 665 neutral gesture fits same1260x2720 geometry. Restore exact10000ms override and sleep at end."
+  },
+  "preflight": [
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "window",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "WindowManagerService",
+        "-a",
+        "-a"
+      ]
+    }
+  ]
+}
