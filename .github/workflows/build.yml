@@ -68,7 +68,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential xxd pkg-config curl ca-certificates patch perl python3
 
       - name: Install OHPM dependencies
         run: ohpm install --all

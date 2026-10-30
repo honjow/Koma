@@ -49,6 +49,12 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 - SourceSettingsStore 复用本进程最近提交的私有快照，调用方仅取得副本；单源请求及管理页统计不重复读盘解析全文件。写入成功才发布快照和 revision，失败保留旧值；路径切换、原文件事务回滚及备份回滚由同一 owner 失效，不以缓存掩盖尚未成功读取的错误。
 - 图像请求描述进入原有下载/缓存通道；源不直接接管文件、账户、图像处理、Reader 进度或共享 Kit。
 
+### 站点原生 HTTP 兼容
+
+空正文 GET 仅在以下精确源和本跳 origin 使用原生浏览器兼容传输：Simply（`com.simplyhentai.zh.koma`，`https://api.simply-hentai.com`）与漫画屋（`com.manhuawu.koma`，`https://www.mhua5.com`）。URL、请求头、UA、Cookie、权限、限速、取消和重定向仍由现有宿主 HTTP 通道决定；不读取网页正文、不替换源解析、不扩大图像通道或会话域。原生工作异步执行，保留证书及主机名校验；系统代理存在或默认代理/信任目录不可用时沿 NetworkKit 原路径，不绕过代理。回退扣除本跳已消耗的网络预算。
+
+兼容库固定为 curl-impersonate 2.3.2，Simply 采用 Firefox 133 配置，漫画屋采用 Chrome 145 配置并保留已批准的实际 Web UA；均关闭库的默认请求头。依赖由[固定构建配方](../scripts/prepare-source-browser-http.sh)校验并静态链接，隐藏符号，不使用平台私有 curl/SSL。当前 arm64 构建保留 HTTP/2；因 SDK 缺少 HTTP/3 所需的 `recvmmsg` 而关闭 HTTP/3，BoringSSL 使用 C/C++ 实现。第三方版权全文随 App 打包。其它源及未匹配请求保留原传输；新增适用站点必须先有具名请求差异和实际验证依据。
+
 ## 宿主特性
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。同组排序位置重复时不能按数组位置决定先后，该组须补齐可区分的序号后才自动续读；有唯一阅读序号的重复话号、无号番外仍可正常续读。不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。

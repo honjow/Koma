@@ -10,6 +10,7 @@ endif()
 set(KOMA_SOURCE_RUNTIME_SOURCES
     source_runtime_sample.cpp
     java_regex_host.cpp
+    source_browser_http.cpp
     wasm_runtime_adapter.cpp
     html_host.cpp
     http_host.cpp)
@@ -18,11 +19,36 @@ add_library(koma_source_runtime SHARED ${KOMA_SOURCE_RUNTIME_SOURCES})
 target_compile_features(koma_source_runtime PRIVATE cxx_std_17)
 target_include_directories(koma_source_runtime PRIVATE ${NATIVERENDER_ROOT_PATH})
 target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z.so)
+# Keep the browser-compatible transport private to the source runtime. Static
+# dependencies avoid a second curl/SSL namespace and a versioned SO in the HAP.
+set(KOMA_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${KOMA_PROJECT_ROOT}/scripts/prepare-source-browser-http.sh")
+execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-source-browser-http.sh"
+    "${OHOS_SDK_NATIVE}" "${KOMA_PROJECT_ROOT}/.hvigor/source-browser-http" "${OHOS_ARCH}"
+    RESULT_VARIABLE KOMA_BROWSER_HTTP_RESULT
+    OUTPUT_VARIABLE KOMA_BROWSER_HTTP_ROOT ERROR_VARIABLE KOMA_BROWSER_HTTP_ERROR)
+if(NOT KOMA_BROWSER_HTTP_RESULT EQUAL 0)
+    message(FATAL_ERROR "Source browser HTTP preparation failed: ${KOMA_BROWSER_HTTP_ERROR}")
+endif()
+string(STRIP "${KOMA_BROWSER_HTTP_ROOT}" KOMA_BROWSER_HTTP_ROOT)
+target_include_directories(koma_source_runtime PRIVATE "${KOMA_BROWSER_HTTP_ROOT}/include")
+target_link_options(koma_source_runtime PRIVATE "-Wl,--exclude-libs,ALL")
+target_link_libraries(koma_source_runtime PRIVATE
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libcurl-impersonate.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libnghttp2.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libcares.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libbrotlidec.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libbrotlicommon.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libzstd.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libssl.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libcrypto.a"
+    "${KOMA_BROWSER_HTTP_ROOT}/lib/libz.a" libnet_connection.so)
+
 
 # Build the pinned ICU dependency automatically for the active SDK. Include the
 # filter, build recipe and SDK identity in the cache key so stale data cannot
 # survive a recipe or toolchain change. The system's private ICU is never used.
-set(KOMA_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
 file(SHA256 "${KOMA_PROJECT_ROOT}/scripts/prepare-icu-regex.sh" KOMA_ICU_RECIPE_HASH)
 file(SHA256 "${KOMA_PROJECT_ROOT}/scripts/icu-regex-data-filter.json" KOMA_ICU_FILTER_HASH)
 file(SHA256 "${OHOS_SDK_NATIVE}/oh-uni-package.json" KOMA_ICU_SDK_HASH)

@@ -63,7 +63,11 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
       if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
       if (name === './SourcePrivateSessionHost') return {}
-      if (name === './NativeSourceRuntime') return { NativeSourceRuntime: { configureHttpTransport: fn => { callback = fn; return true } } }
+      if (name === './NativeSourceRuntime') return { NativeSourceRuntime: {
+        configureHttpTransport: fn => { callback = fn; return true },
+        sourceBrowserHttp: network.sourceBrowserHttp,
+        cancelSourceBrowserHttp: network.cancelSourceBrowserHttp,
+      } }
       if (name === '../diagnostics/DiagnosticLogger') return { DiagnosticLogger: { begin: () => trace, info: (_category, _event, detail) => diagnostics.push(detail), warn: (_category, _event, detail) => diagnostics.push(detail) } }
       if (name === '@kit.NetworkKit') return { http: {
         RequestMethod: { GET: 'GET', POST: 'POST', HEAD: 'HEAD' }, HttpDataType: { STRING: 1 },
@@ -123,7 +127,7 @@ function fixture(sdkApiVersion = 23) {
       } }
       if (name === '@kit.BasicServicesKit') return {}
       throw Error('unexpected import: ' + name)
-    }, network.clock ? { Date: network.clock } : {})
+    }, { setInterval, clearInterval, ...(network.clock ? { Date: network.clock } : {}) })
     transport.configureSourceRuntimeHttpTransport()
     const result = await callback(JSON.stringify({ url: 'https://site.invalid/a', method: 'GET', ...sourceRequest }), context)
     const after = network.afterInitial === undefined ? undefined : await network.afterInitial({ transport, execute: callback })
@@ -134,6 +138,83 @@ function fixture(sdkApiVersion = 23) {
     changeEntry: fn => { entry = fn(entry) }, setCookie: value => { cookie = value },
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
+
+test('browser-compatible source HTTP preserves the original request and stays within its source and origin', async () => {
+  const f = fixture()
+  f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))
+  const nativeCalls = []
+  const network = { sourceBrowserHttp: async (...args) => {
+    nativeCalls.push(args)
+    return { eligible: true, cancelled: false, code: 0, status: 200, body: '{"albums":[]}', headers: ['content-type: application/json'] }
+  } }
+  const result = await f.http([], JSON.stringify(f.identity()), {
+    url: 'https://api.simply-hentai.com/v3/search/complex?query=dragon',
+    headers: { 'User-Agent': 'OriginalSourceUA', Referer: 'https://simply-hentai.com/' },
+  }, network)
+  assert.equal(result.result.ok, true)
+  assert.equal(result.calls.length, 0)
+  assert.equal(nativeCalls.length, 1)
+  assert.equal(nativeCalls[0][1], 'https://api.simply-hentai.com/v3/search/complex?query=dragon')
+  assert.ok(nativeCalls[0][2].includes('User-Agent: OriginalSourceUA'))
+  assert.ok(nativeCalls[0][2].includes('Referer: https://simply-hentai.com/'))
+  assert.equal(nativeCalls[0][4], 'firefox133')
+  for (const request of [
+    { url: 'https://api.simply-hentai.com/v3/search/complex', body: 'keep-this-body' },
+    { url: 'https://other.invalid/catalog' },
+  ]) {
+    const old = await f.http([response(200)], JSON.stringify(f.identity()), request, network)
+    assert.equal(old.calls.length, 1)
+  }
+  f.changeEntry(e => ({ ...e, sourceId: 'another.source' }))
+  await f.http([response(200)], JSON.stringify(f.identity()), { url: 'https://api.simply-hentai.com/v3/search/complex' }, network)
+  assert.equal(nativeCalls.length, 1)
+  f.changeEntry(e => ({ ...e, sourceId: 'com.manhuawu.koma', webSessionOrigins: ['https://www.mhua5.com'] }))
+  const mhw = await f.http([], JSON.stringify(f.identity()), { url: 'https://www.mhua5.com/category/order/hits' }, network)
+  assert.equal(mhw.result.ok, true)
+  assert.equal(mhw.calls.length, 0)
+  assert.equal(nativeCalls[1][4], 'chrome145')
+})
+
+test('proxy fallback and ordinary redirects retain only the remaining source HTTP budget', async () => {
+  for (const nativeResult of [
+    { eligible: false, cancelled: false, code: 0, status: 0, body: '', headers: [] },
+    { eligible: true, cancelled: false, code: 0, status: 302, body: '', headers: ['location: /next'] },
+  ]) {
+    const f = fixture()
+    f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))
+    let now = 1000
+    const result = await f.http([response(200)], JSON.stringify(f.identity()), {
+      url: 'https://api.simply-hentai.com/list', timeoutMs: 5000,
+    }, { clock: { now: () => now }, sourceBrowserHttp: async () => { now += 750; return nativeResult } })
+    assert.equal(result.result.ok, true)
+    assert.equal(result.calls.length, 1)
+    assert.equal(result.calls[0].options.readTimeout, 4250)
+    assert.equal(result.calls[0].options.connectTimeout, 4250)
+  }
+})
+
+test('a cancelled source request stops the native transfer and cannot publish its response', async () => {
+  const f = fixture()
+  f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))
+  const guardId = f.guards.newSourceRuntimeOperationGuardId()
+  let current = true, started, finish, callId
+  const entered = new Promise(resolve => { started = resolve })
+  const native = new Promise(resolve => { finish = resolve })
+  const release = f.guards.registerSourceRuntimeOperationGuard(guardId, () => current)
+  const pending = f.http([], JSON.stringify({ ...f.identity(), operationGuardId: guardId }), {
+    url: 'https://api.simply-hentai.com/list',
+  }, { sourceBrowserHttp: async id => { callId = id; started(); return native }, cancelSourceBrowserHttp: id => {
+    assert.equal(id, callId)
+    finish({ eligible: true, cancelled: true, code: 42, status: 200, body: 'late response', headers: [] })
+  } })
+  await entered
+  current = false
+  const result = await pending
+  release()
+  assert.equal(result.calls.length, 0)
+  assert.equal(result.result.ok, false)
+  assert.equal(result.result.error.code, 'source_request_cancelled')
+})
 
 test('a cancelled search cannot start an HTTP request after waiting for a policy slot', async () => {
   const f = fixture()

@@ -1,7 +1,11 @@
 import nativeRuntime from 'libkoma_source_runtime.so';
 import { sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity';
 
+export interface SourceBrowserHttpResult { eligible: boolean; cancelled: boolean; code: number; status: number; body: string; headers: string[] }
+
 interface NativeSourceRuntimeModule {
+  sourceBrowserHttp(id: string, url: string, headers: string[], timeout: number, profile: string): Promise<SourceBrowserHttpResult>;
+  cancelSourceBrowserHttp(id: string): void;
   javaRegex(pattern: string, texts: string[]): Promise<NativeJavaRegexResult>;
   hello(): string;
   add(a: number, b: number): number;
@@ -39,6 +43,10 @@ export interface SourceRuntimeCallResponse {
 }
 
 export class NativeSourceRuntime {
+  static sourceBrowserHttp(id: string, url: string, headers: string[], timeout: number, profile: string): Promise<SourceBrowserHttpResult> {
+    return nativeSourceRuntime.sourceBrowserHttp(id, url, headers, timeout, profile)
+  }
+  static cancelSourceBrowserHttp(id: string): void { nativeSourceRuntime.cancelSourceBrowserHttp(id) }
   static javaRegex(pattern: string, texts: string[]): Promise<NativeJavaRegexResult> {
     return nativeSourceRuntime.javaRegex(pattern, texts)
   }

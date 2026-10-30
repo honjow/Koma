@@ -8,6 +8,8 @@
 
 #include "http_host.h"
 #include "java_regex_host.h"
+napi_value KomaSourceBrowserHttp(napi_env, napi_callback_info);
+napi_value KomaCancelSourceBrowserHttp(napi_env, napi_callback_info);
 #include "source_package_file_checks.h"
 #include "wasm_runtime_adapter.h"
 
@@ -209,6 +211,8 @@ static napi_value Init(napi_env env, napi_value exports)
         {"runJsonCallFromBytes", nullptr, RunJsonCallFromBytes, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"configureHttpTransport", nullptr, ConfigureHttpTransport, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"javaRegex", nullptr, KomaJavaRegex, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"sourceBrowserHttp", nullptr, KomaSourceBrowserHttp, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"cancelSourceBrowserHttp", nullptr, KomaCancelSourceBrowserHttp, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"sourcePackageFilesMatch", nullptr, SourcePackageFilesMatch, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);

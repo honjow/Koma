@@ -306,6 +306,28 @@ function sourceHttpTimingText(timing: http.PerformanceTiming | undefined): strin
     ' finishMs=' + sourceHttpTimingMs(timing?.totalFinishTiming)
 }
 
+interface SourceHopResponse { responseCode: number; result: string | Object | ArrayBuffer; header: Object; performanceTiming?: http.PerformanceTiming }
+class SourceHopResult implements SourceHopResponse {
+  responseCode: number; result: string | Object | ArrayBuffer; header: Object; performanceTiming?: http.PerformanceTiming
+  constructor(code: number, body: string | Object | ArrayBuffer, headers: Object, timing?: http.PerformanceTiming) { this.responseCode = code; this.result = body; this.header = headers; this.performanceTiming = timing }
+}
+let sourceBrowserHttpSequence: number = 0
+class SourceBrowserHttpFailure extends Error { code: number = 0; constructor(code: number) { super('source transport failed'); this.code = code } }
+function sourceBrowserHttpHeaders(lines: string[]): Record<string, Object> {
+  const result: Record<string, Object> = {}
+  const cookies: string[] = []
+  lines.forEach((line: string) => {
+    const at = line.indexOf(':')
+    if (at <= 0) return
+    const name = line.substring(0, at).trim().toLowerCase()
+    const value = line.substring(at + 1).trim()
+    if (name === 'set-cookie') cookies.push(value)
+    else result[name] = value
+  })
+  if (cookies.length > 0) result['set-cookie'] = cookies
+  return result
+}
+
 async function executeSourceHttpRequest(requestJson: string, httpContextJson: string = '',
   probe?: SourceWebProbeContext): Promise<string> {
   let envelope: SourceHttpRequestEnvelope
@@ -492,36 +514,66 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     if (session !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
     const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
-    const request = http.createHttp()
-    let response: http.HttpResponse
+    let response: SourceHopResponse | undefined = undefined
     const hopStartedAt = Date.now()
     let firstHeaderMs = -1
-    try {
-      request.on('headersReceive', () => {
-        if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
-      })
-      if (session !== undefined && !attachSourceRedirectStop(request)) {
-        trace.finish('failed', 'reason=web_session_redirect_unavailable')
-        return transportError('web_session_redirect_unavailable', false)
+    let usedSourceBrowserHttp = false
+    // SOURCE_WEB_SESSION: this exact guest API needs the verified browser TLS
+    // profile; other sources and origins retain their existing transport.
+    let browserProfile = ''
+    if (currentMethod === 'GET' && currentBody.length === 0) {
+      const origin = sourceWebOrigin(currentUrl)
+      if (identity?.sourceId === 'com.simplyhentai.zh.koma' && origin === 'https://api.simply-hentai.com') {
+        browserProfile = 'firefox133'
+      } else if (identity?.sourceId === 'com.manhuawu.koma' && origin === 'https://www.mhua5.com') {
+        browserProfile = 'chrome145'
       }
-      response = await request.request(currentUrl, {
-      method: sourceNetworkMethod(currentMethod),
-      customMethod: currentMethod === 'GET' || currentMethod === 'POST' || currentMethod === 'HEAD' ? undefined : currentMethod,
-      extraData: currentBody.length > 0 ? currentBody : undefined,
-      expectDataType: http.HttpDataType.STRING,
-      usingCache: false,
-      header: headers,
-      readTimeout: remaining,
-      connectTimeout: remaining,
-      })
-    } catch (error) {
-      trace.warn('hop_failed', 'hop=' + redirects + ' headersReceived=' + (firstHeaderMs >= 0) +
-        ' firstHeaderMs=' + firstHeaderMs + ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt))
-      throw error as Error
-    } finally {
-      // A HttpRequest represents one hop and cannot be reused for the next URL.
-      request.off('headersReceive')
-      request.destroy()
+    }
+    if (browserProfile.length > 0) {
+      sourceBrowserHttpSequence += 1
+      const callId = 'source-browser-http-' + sourceBrowserHttpSequence
+      const requestHeaders: string[] = Object.keys(headers).map((name: string): string => name + ': ' + headers[name])
+      const pending = NativeSourceRuntime.sourceBrowserHttp(callId, currentUrl, requestHeaders, remaining, browserProfile)
+      const timer = setInterval(() => { if (!current()) NativeSourceRuntime.cancelSourceBrowserHttp(callId) }, 100)
+      try {
+        const native = await pending
+        if (!current() || native.cancelled) throw new SourceBrowserHttpFailure(0)
+        if (native.eligible) {
+          if (native.code !== 0) throw new SourceBrowserHttpFailure(native.code === 28 ? 2300028 : 0)
+          usedSourceBrowserHttp = true
+          response = new SourceHopResult(native.status, native.body, sourceBrowserHttpHeaders(native.headers))
+        }
+      } finally { clearInterval(timer) }
+    }
+    // NetworkKit owns proxy behavior when the native candidate cannot safely
+    // honor the platform proxy or trust store. A non-session redirect is
+    // replayed there so its existing automatic redirect semantics remain intact.
+    if (response === undefined || (usedSourceBrowserHttp && session === undefined &&
+      [301, 302, 303, 307, 308].includes(response.responseCode))) {
+      const remainingForFallback = remaining - Math.max(0, Date.now() - hopStartedAt)
+      if (remainingForFallback <= 0) throw new SourceBrowserHttpFailure(2300028)
+      const request = http.createHttp()
+      try {
+        request.on('headersReceive', () => {
+          if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
+        })
+        if (session !== undefined && !attachSourceRedirectStop(request)) {
+          trace.finish('failed', 'reason=web_session_redirect_unavailable')
+          return transportError('web_session_redirect_unavailable', false)
+        }
+        const networkResponse = await request.request(currentUrl, {
+          method: sourceNetworkMethod(currentMethod),
+          customMethod: currentMethod === 'GET' || currentMethod === 'POST' || currentMethod === 'HEAD' ? undefined : currentMethod,
+          extraData: currentBody.length > 0 ? currentBody : undefined,
+          expectDataType: http.HttpDataType.STRING, usingCache: false, header: headers,
+          readTimeout: remainingForFallback, connectTimeout: remainingForFallback,
+        })
+        response = new SourceHopResult(networkResponse.responseCode, networkResponse.result, networkResponse.header, networkResponse.performanceTiming)
+      } catch (error) {
+        trace.warn('hop_failed', 'hop=' + redirects + ' headersReceived=' + (firstHeaderMs >= 0) +
+          ' firstHeaderMs=' + firstHeaderMs + ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt))
+        throw error as Error
+      } finally { request.off('headersReceive'); request.destroy() }
     }
     trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode +
       ' headersReceived=' + (firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
