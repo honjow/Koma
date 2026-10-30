@@ -94,6 +94,9 @@ function emptyStatus(sourceId: string): SourceWebSessionStatus {
   return { sourceId, sessionId: '', initialUrl: '', origin: '', state: 'none' }
 }
 
+// Keep grants per exact origin; legacy persisted records already carry the origin.
+function sourceSessionKey(sourceId: string, origin: string): string { return JSON.stringify([sourceId, origin]) }
+
 export class SourceWebSessionStore {
   private sessions: Map<string, SourceWebSession> = new Map<string, SourceWebSession>()
   private pending: Map<string, SourceWebSession> = new Map<string, SourceWebSession>()
@@ -115,7 +118,7 @@ export class SourceWebSessionStore {
         if (typeof record.sourceId === 'string' && typeof record.sourceVersion === 'string' &&
           typeof record.packageIdentity === 'string' && typeof record.origin === 'string' && sourceWebOrigin(record.origin) === record.origin &&
           typeof record.userAgent === 'string' && record.userAgent.trim().length > 0 && !/[\r\n]/.test(record.userAgent)) {
-          this.persisted.set(record.sourceId, record)
+          this.persisted.set(sourceSessionKey(record.sourceId, record.origin), record)
         }
       })
     } catch (_error) {}
@@ -157,23 +160,24 @@ export class SourceWebSessionStore {
       session.registry.lookup(sourceId).entry?.enabled !== true ||
       sourceWebOrigin(currentFullUrl) !== session.status.origin || actualUserAgent.trim().length === 0 ||
       /[\r\n]/.test(actualUserAgent)) throw new Error('source_web_session_not_allowed')
-    const previous = this.sessions.get(sourceId)
-    const previousRecord = this.persisted.get(sourceId)
+    const key = sourceSessionKey(sourceId, session.status.origin)
+    const previous = this.sessions.get(key)
+    const previousRecord = this.persisted.get(key)
     session.userAgent = actualUserAgent
     session.status.state = 'available'
-    this.sessions.set(sourceId, session)
-    this.persisted.set(sourceId, { sourceId, sourceVersion: session.entry.manifestVersion,
+    this.sessions.set(key, session)
+    this.persisted.set(key, { sourceId, sourceVersion: session.entry.manifestVersion,
       packageIdentity: session.packageIdentity, origin: session.status.origin, userAgent: actualUserAgent })
     try { this.persist() } catch (error) {
-      this.sessions.delete(sourceId)
-      this.persisted.delete(sourceId)
-      if (previous !== undefined) this.sessions.set(sourceId, previous)
-      if (previousRecord !== undefined) this.persisted.set(sourceId, previousRecord)
+      this.sessions.delete(key)
+      this.persisted.delete(key)
+      if (previous !== undefined) this.sessions.set(key, previous)
+      if (previousRecord !== undefined) this.persisted.set(key, previousRecord)
       session.status.state = 'pending'
       throw error as Error
     }
     this.pending.delete(sourceId)
-    return this.status(sourceId)
+    return this.status(sourceId, session.status.origin)
   }
 
   cancel(sourceId: string, sessionId: string): void {
@@ -182,21 +186,22 @@ export class SourceWebSessionStore {
 
   revoke(sourceId: string): void {
     this.pending.delete(sourceId)
-    this.sessions.delete(sourceId)
-    this.persisted.delete(sourceId)
+    const keys: string[] = []
+    this.persisted.forEach((record: PersistedWebSession, key: string) => { if (record.sourceId === sourceId) keys.push(key) })
+    keys.forEach((key: string) => { this.sessions.delete(key); this.persisted.delete(key) })
     this.persist()
   }
 
-  status(sourceId: string): SourceWebSessionStatus {
-    const session = this.current(sourceId)
+  status(sourceId: string, origin?: string): SourceWebSessionStatus {
+    const session = this.current(sourceId, origin)
     if (session === undefined) return emptyStatus(sourceId)
     return { sourceId, sessionId: session.status.sessionId, initialUrl: session.status.initialUrl,
       origin: session.status.origin, state: session.status.state }
   }
 
   requestSession(identity: SourceHttpIdentity, fullUrl: string): SourceWebRequestSession | undefined {
-    const session = this.current(identity.sourceId)
     const origin = sourceWebOrigin(fullUrl)
+    const session = this.current(identity.sourceId, origin)
     if (session === undefined || session.status.state !== 'available' ||
       identity.sourceVersion !== session.entry.manifestVersion || identity.packageIdentity !== session.packageIdentity || origin !== session.status.origin ||
       !identity.webSessionOrigins.includes(origin)) return undefined
@@ -249,10 +254,17 @@ export class SourceWebSessionStore {
     }
   }
 
-  private current(sourceId: string): SourceWebSession | undefined {
-    let session = this.sessions.get(sourceId)
+  private current(sourceId: string, origin?: string): SourceWebSession | undefined {
+    let key: string | undefined = origin === undefined ? undefined : sourceSessionKey(sourceId, origin)
+    if (key === undefined) {
+      this.persisted.forEach((record: PersistedWebSession, candidate: string) => {
+        if (record.sourceId === sourceId) key = candidate
+      })
+    }
+    if (key === undefined) return undefined
+    let session = this.sessions.get(key)
     if (session === undefined) {
-      const record = this.persisted.get(sourceId)
+      const record = this.persisted.get(key)
       const registry = this.registry
       if (record === undefined || registry === undefined) return undefined
       const entry = registry.lookup(sourceId).entry
@@ -265,7 +277,7 @@ export class SourceWebSessionStore {
       const status: SourceWebSessionStatus = { sourceId, sessionId: util.generateRandomUUID(true),
         initialUrl: record.origin + '/', origin: record.origin, state: 'available' }
       session = { status, registry, entry, packageIdentity: record.packageIdentity, userAgent: record.userAgent }
-      this.sessions.set(sourceId, session)
+      this.sessions.set(key, session)
     }
     const entry = session.registry.lookup(sourceId).entry
     if (entry === undefined || entry.enabled !== true || sourceWebPackageIdentity(entry) !== session.packageIdentity ||
@@ -278,7 +290,6 @@ export class SourceWebSessionStore {
 
   private revokeInvalid(sourceId: string): void {
     try { this.revoke(sourceId) } catch (_error) {
-      // revoke already cleared memory; a storage error must not revive a grant or crash HTTP.
       DiagnosticLogger.warn('source_web_session', 'revoke_persist_failed', 'reason=storage_write_failed')
     }
   }

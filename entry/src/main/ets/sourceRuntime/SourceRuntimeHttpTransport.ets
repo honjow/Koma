@@ -226,23 +226,27 @@ function sourceHeaders(value: Object | string | number | boolean | null | undefi
 function sourceSessionCookies(sourceId: string, fullUrl: string,
   originalHeaders: Record<string, string>, sessionCookie: string): string {
   if (sourceId !== 'com.mangabz.koma') return sessionCookie
+  let languageKey: string = ''
   try {
     const parsed = new urlKit.URL(fullUrl)
     const host = parsed.hostname.toLowerCase()
-    if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') ||
-      (host !== 'mangabz.com' && !host.endsWith('.mangabz.com'))) return sessionCookie
+    if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || parsed.username.length > 0 || parsed.password.length > 0) return sessionCookie
+    if (host === 'mangabz.com' || host.endsWith('.mangabz.com')) languageKey = 'mangabz_lang'
+    else if (parsed.protocol === 'https:' && (host === 'xmanhua.com' || host.endsWith('.xmanhua.com'))) languageKey = 'xmanhua_lang'
+    else if (parsed.protocol === 'https:' && (host === 'yymanhua.com' || host.endsWith('.yymanhua.com'))) languageKey = 'yymanhua_lang'
+    else return sessionCookie
   } catch (_error) { return sessionCookie }
   const values: string[] = []
   Object.keys(originalHeaders).forEach((name: string) => {
     if (name.toLowerCase() !== 'cookie') return
     originalHeaders[name].split(';').forEach((part: string) => {
       const pair = part.trim()
-      if (pair === 'mangabz_lang=1' || pair === 'mangabz_lang=2') values.push(pair)
+      if (pair === languageKey + '=1' || pair === languageKey + '=2') values.push(pair)
     })
   })
   if (values.length !== 1) return sessionCookie
   const retained = sessionCookie.split(';').filter((part: string): boolean =>
-    part.split('=')[0].trim() !== 'mangabz_lang').join(';').trim()
+    part.split('=')[0].trim() !== languageKey).join(';').trim()
   return retained.length === 0 ? values[0] : retained + '; ' + values[0]
 }
 
@@ -433,7 +437,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       // Other global-search sources can finish while this original read waits
       // in WAMR's queue. Only its exact request may consume the single handoff.
       verifiedSourceGet = undefined
-      if (appSourceWebSessionStore.status(identity.sourceId).sessionId === ready.sessionId &&
+      if (appSourceWebSessionStore.status(identity.sourceId, sourceWebOrigin(url)).sessionId === ready.sessionId &&
         appSourceWebSessionStore.requestSession(identity, url) !== undefined) {
         DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
         trace.finish('completed', 'state=verification_response_reused')

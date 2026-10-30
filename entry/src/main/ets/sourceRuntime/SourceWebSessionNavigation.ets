@@ -1,3 +1,4 @@
+import { selectedMangaBzMirror } from './MangaBzMirrorNavigation'
 import { MangaWebRouteParam, RouterHelper, SourceWebSessionRouteParam } from '../common/RouterHelper'
 import { appSourceRuntimeRegistry, sourceDisplayName } from './SourceRuntimeAppRegistry'
 import { appSourceWebSessionStore } from './SourceWebSessionStore'
@@ -6,7 +7,7 @@ import { sourceRejectedRequestUrl } from './SourceRuntimeHttpTransport'
 /** Prepare an origin-checked session without deciding how the host presents it. */
 export function prepareSourceWebSession(sourceId: string, title: string, requestHandle?: string): MangaWebRouteParam | undefined {
   try {
-    const exactRequestUrl = requestHandle === undefined ? undefined : sourceRejectedRequestUrl(sourceId, requestHandle)
+    const exactRequestUrl = requestHandle === undefined ? selectedMangaBzMirror(sourceId) : sourceRejectedRequestUrl(sourceId, requestHandle)
     const url = appSourceWebSessionStore.launchUrl(appSourceRuntimeRegistry, sourceId, exactRequestUrl)
     // Verification sheets and full WebView routes must use the same localized
     // source identity as Browse, Search and the source manager.

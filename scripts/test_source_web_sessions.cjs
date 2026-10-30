@@ -1057,3 +1057,20 @@ test('HTTP response diagnostics expose only finite cumulative timing checkpoints
   assert.ok(timing.includes('dnsDoneMs=2.5 tcpDoneMs=4 tlsDoneMs=8 firstByteMs=12 finishMs=14'))
   assert.ok(!/NaN|Infinity|private|site.invalid/.test(timing))
 })
+
+test('mirror grants retain independent origin identities across restart and revoke on replacement', () => {
+  const f = fixture()
+  f.changeEntry(entry => ({ ...entry, webSessionOrigins: ['https://site.invalid', 'https://mirror.invalid'] }))
+  for (const [origin, ua] of [['https://site.invalid', 'SiteUA'], ['https://mirror.invalid', 'MirrorUA']]) {
+    const pending = f.store.begin(f.registry, 'source.one', origin + '/verify')
+    f.store.complete('source.one', pending.sessionId, origin + '/done', ua)
+  }
+  assert.equal(f.store.requestSession(f.identity(), 'https://site.invalid/page').userAgent, 'SiteUA')
+  assert.equal(f.store.requestSession(f.identity(), 'https://mirror.invalid/page').userAgent, 'MirrorUA')
+  const restarted = f.reload()
+  assert.equal(restarted.requestSession(f.identity(), 'https://site.invalid/page').userAgent, 'SiteUA')
+  assert.equal(restarted.requestSession(f.identity(), 'https://mirror.invalid/page').userAgent, 'MirrorUA')
+  f.changeEntry(entry => ({ ...entry, manifestVersion: '2' }))
+  assert.equal(restarted.requestSession(f.identity(), 'https://site.invalid/page'), undefined)
+  assert.equal(restarted.requestSession(f.identity(), 'https://mirror.invalid/page'), undefined)
+})
