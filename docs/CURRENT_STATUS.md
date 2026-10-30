@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：正式0.1.4已发布，MangaBz镜像已交付；其余源问题保留原状态。
+当前工作：正式0.1.4已发布，正在继续修复剩余源问题。
 
-设备：197及237均已恢复数据和电源并释租，宿主保留0.1.4候选；200禁止操作，四私库搁置。
+设备：197网络对照后已恢复并释租；237已恢复并留给用户登录。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T18:52:25+08:00",
+  "updatedAt": "2026-10-30T20:16:48+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": null,
-  "activity": "MangaBz镜像已交付；Noy等待可验证作品材料。",
-  "nextAction": "接续剩余源事项；缺少真实作品、官方依据或有效挑战线路证据的部分保留等待。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "Noy搜索转义已公开；Simply两种网络路径均遇挑战403。",
+  "nextAction": "继续定位具名源故障及Noy登录后范围。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1073,10 +1073,10 @@
       "priority": "P2（后续处理）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "验证后原生403，原因待核",
+      "status": "两种网络路径同遇挑战403，设备已恢复",
       "kind": "open",
-      "result": "Simply同场原请求与probe仍遇挑战403；对象UA接线一致，线路身份及原因仍未知。",
-      "remaining": "后续在适用条件下定位Simply验证后仍403的原因。",
+      "result": "197同公开请求经HTTP和RCP均遇挑战403，设备已恢复；原因仍待定位。",
+      "remaining": "继续定位Simply验证后403的请求身份差异。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1114,10 +1114,16 @@
         "Simply旧499原日志原GET op5、首次probe op6、完成重试op9均HTTP403且Host access_signal=challenge_required，其判定仅基于响应头cf-mitigated: challenge，故该场有Cloudflare挑战特征；496验证页呈API JSON，不是人工挑战完成。499原GET无会话/source UA，probe附Web会话/UA来自WebView，不能称完全同身份。1769–1772安全日志未保存marker或原始/自定义UA相等布尔，Web拦截对象未显示UA/Referer/Origin，Native probe入参带Referer/Origin，均为对象分类而非线路头；不推广499到所有场景。证据 source-web-session-concurrent/simply-ua-log-499/app.log及1769–1772 run-metadata。",
         "source_terra在237同场进行最小cause-UA/CF分类诊断，非重复原无诊断失败；结果与恢复尚待回执。",
         "237 Simply 012诊断Host351e一次普通入口008：原GET及自动probe均403且cf-mitigated=challenge；因果ID selected，原UA存在、Web custom与原UA相等、probe最终入参与两者相等。排除该场App对象UA接线差异，不证明Web线路身份/TLS，不解决403；未改UA/Cookie/代理或重复请求。010原011四成员等002，011原27f332安装成功、六JSON等001，012清候选/下载、SLEEP/120000无override，lease d6fe5cf7 released；临时patch已撤。证据 source-web-session-concurrent/simply-cause-ua-open-20261030-008及restore 010–012。",
-        "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。"
+        "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。",
+        "Mihon WebView loadUrl原公开头对照发现Koma遗漏Referer/Cache-Control；候选受因果ID/URL/origin约束，不传Origin或凭据，尚不能证明403根因；同签编译及237准备中。",
+        "本轮Simply CDP受限采样：同请求UA/Referer/Cache-Control匹配，Web response 200、disk=false/SW=false，精确URL限域Network.getCookies当时无cf_clearance，不能外推所有分区；Native probe仍403。临时端口、原包、六域及电源恢复、租约released。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-cdp-20261030/evidence.json。当前仅新Origin单变量A/B，未修复403。",
+        "Simply Origin A/B：公开012 A实装e0e60001…普通首页403，仅删API Origin本地B cd8890cb…同首页仍403，不视为修复；候选未提交，原源四成员及六域恢复、原宿主未换，清候选/下载，SLEEP/120000无override、lease8dec8f45 released。source_terra按已授权197进行同URL/同公开头HTTP与RCP单次对照，尚无RCP结论，不称改架构。",
+        "source_terra持197 lease 3c6607b7，已唤醒备份，临时HTTP/RCP候选尚未安装；原恢复HAP /private/tmp/Koma-chapter-014-38d245.hap SHA256 38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5及335成功回执已核，设备安装字节读取拒绝边界保留。237已恢复交用户Noy登录；home_terra仅本地核Noy参考协议/现WIP，不碰237。",
+        "197 NetworkKit/RCP同源相同公开请求各一次均HTTP403、CF challenge=true、非JSON、5770字节；不称两栈所有行为相同或更换网络栈可修。首包Logger禁用时请求是否发生未知。013原38d安装成功、六JSON与001逐字同，014 SLEEP/120000/Override10000，lease3c6607b7 released；稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/evidence.json。",
+        "Simply Referer/Cache-Control候选已精确撤回，App源码无diff；HEAD旧测试夹具补3个MangaBz mock导入后原challenge ID单测1个通过，无新测试或产品变化。"
       ],
       "remainingActions": [
-        "后续在适用条件下定位Simply验证后仍403的原因。"
+        "继续定位Simply验证后403的请求身份差异。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -1168,7 +1174,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "挑战回流原因待核",
+      "stage": "继续定位挑战原因",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -2789,7 +2795,8 @@
         "固定参考Firefox150身份一次GET仍403，证据 /private/tmp/manhuawu-ref150-once.headers 与 /private/tmp/manhuawu-ref150-once.body；仅排该身份小修假设，未改UA、不称根因已解。",
         "source_terra准备237漫画屋018候选一条首页路径：旧017未传因果ID，Host仅causal-selected才借原UA；新接线差异不同于旧无诊断失败，结果尚未取得。",
         "017→018因果ID候选接selectedByChallengeId，受控WASM核挑战/普通错误/旧Host及保存真实详情等价。237第二场021首页HTTP403出现CF真人复选框，022点击一次并等30秒仍要求真人验证，未观察列表；024原017四成员及六域逐字恢复，025清本轮临时文件、SLEEP/120000无override，lease054f5353 released，HAP未更换。两源接线暂存待审、未公开。证据 source-web-session-concurrent/manhuawu-cause-resume-*。",
-        "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。"
+        "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。",
+        "当前018热门、最新、搜索及selector与固定949及上游dbf6c05对照；参考latest入口 /category/order/addtime/page/1 按原121身份且不带Referer/Origin单次读取返回403、cf-mitigated challenge、5629字节。该结果不能替代热门入口或证明全部路由永久不可用。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-latest-20261030/。"
       ],
       "remainingActions": [
         "定位并处理漫画屋首页自然403。"
@@ -3254,7 +3261,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "MangaBz镜像已交付，Noy待材料",
+      "status": "Noy登录入口及搜索词修复已公开",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3264,10 +3271,10 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "MangaBz完整镜像已交付；Noy镜像兼容仍需真实作品材料。",
-      "remaining": "等待Noy真实官方作品链接或成功响应，以核参考镜像与当前协议兼容。",
+      "result": "Noy登录入口及搜索词修复已公开；登录后内容和镜像仍待验证。",
+      "remaining": "核对Noy登录后内容及镜像协议兼容，继续其他具名差异。",
       "remainingActions": [
-        "等待Noy真实官方作品链接或成功响应，以核参考镜像与当前协议兼容。"
+        "核对Noy登录后内容及镜像协议兼容，继续其他具名差异。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3277,7 +3284,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "等待可验证官方作品材料",
+      "stage": "Noy登录后内容及镜像协议待核",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3552,7 +3559,12 @@
         "237 category-membership/mangabz-mirror-settings-20261030-009默认mangabz.com；choices-20261030-010三项域名；select-x-20261030-011普通选择/保存/重入xmanhua.com，原繁体开关与说明仍在。Root亲读layout；仅设置语义具名，不冒正文/图片或会话全通过。旧作品正文继续、设备持租尚未恢复。",
         "MangaBz完整镜像011本地候选：默认bz/旧ID，x保存重入、yy繁体保存重入及列表，yy手动网页和旧作品网页、鬼灭235章/旧进度及第23卷1/230具名；015旧卷2/190与025正文画面Root亲看，图片网络/缓存来源未确认、未登录账户。027原27f332安装成功，六JSON对001及原源四成员对002逐字同；028清候选、SLEEP/120000无override，lease d0c8699a据source owner释放。Host新feature及源011尚未提交公开；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-mirror-candidate-20261030/evidence.json。",
         "Koma f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0已推，精确CI41042962997 in_progress；koma-sources 6e0d6b85863f544850a627b2fb7f57766e61f4ec已推，精确CI41042955770 in_progress。正式0.1.4已发布事实不变。",
-        "Host f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0精确CI41042962997 success；source 6e0d6b85863f544850a627b2fb7f57766e61f4ec精确CI41042955770 success、Release428915480同SHA非draft。公开011 ZIP c4ffaafd2df42bf672e048527e080e5165e4944c6dd9283771e5eba5a81e87c2 / WASM 6761d9f09aa9f3e6a66289dcd9da0b005b317aa72d227276c06f8bbe4809b939；index版本/三origins/default主页正确，公开WASM真实HTML、旧Host回退、旧bz身份、图片referer/按域语言/外CDN不带cookie执行通过。公开WASM不同Native候选，不冒重复Native；账号登录及图片冷网归属未验。新入口需后续含mangabz_mirror_session_v1 Host，已发布0.1.4旧Host仅默认站。Noy 237基线library/reader匹配0条、registry仅015已装无作品ID，待官方作品链接或成功响应。"
+        "Host f8bda2277ff0ed9b32934145fd7fe2d4629fb2d0精确CI41042962997 success；source 6e0d6b85863f544850a627b2fb7f57766e61f4ec精确CI41042955770 success、Release428915480同SHA非draft。公开011 ZIP c4ffaafd2df42bf672e048527e080e5165e4944c6dd9283771e5eba5a81e87c2 / WASM 6761d9f09aa9f3e6a66289dcd9da0b005b317aa72d227276c06f8bbe4809b939；index版本/三origins/default主页正确，公开WASM真实HTML、旧Host回退、旧bz身份、图片referer/按域语言/外CDN不带cookie执行通过。公开WASM不同Native候选，不冒重复Native；账号登录及图片冷网归属未验。新入口需后续含mangabz_mirror_session_v1 Host，已发布0.1.4旧Host仅默认站。Noy 237基线library/reader匹配0条、registry仅015已装无作品ID，待官方作品链接或成功响应。",
+        "当前Noy输出/book/id，固定949 getMangaUrl及已保存官网JS路由均/manga/id；home_terra已出017单行修复候选，合成DTO仅逻辑对照、不冒站点。官网客户端新/api/v4/book/random POST单次HTTP200/status=login，表明该入口也要求登录；不把缺ID转嫁用户或重复请求。",
+        "用户call99f明确接同站登录入口；017链接修复b296670已推CI41046193778 success；018入口5612d7bcb273fa4bb39c45791220cebcd88bc884已推、CI41049335130进行中。237 Noy008普通源自然显示官网登录页、009菜单网页验证/登录，005/006唯一origin及实装WASM同候选；未输入账号、登录内容未验。011原015四成员及六域全等、012 SLEEP/120000无override，lease73272b93 released。原Noy evidence/session-018稳定记录。",
+        "Noy018 commit5612d7bcb273fa4bb39c45791220cebcd88bc884 CI41049335130 completed/success、release428962179同SHA非draft；公开包/索引/manifest仅许可https://noymanga.com，ZIP 681761536ec152a5ae26342e54aacc5a3fcb2219aa6aa726196f7a4dcda43121、WASM ab254b54…；公开WASM受控DTO比016仅网页路由变、API旧请求保持。未冒账号内容验证；237已恢复释租并交用户，登录后内容待账号询问答复。",
+        "Noy019 6d5e7ab8f37d935d304b55fda6da8c021f8769cf已推，精确CI41052932223 success并公开；普通词请求不变，引号词不再多反斜线，公开WASM受控执行已核。未重测Native/登录后真实内容，b1/v4镜像兼容未知；证据 /private/tmp/noy-search-019。",
+        "Noy019稳定公开实体及精确CI证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/evidence.json。"
       ]
     },
     {
@@ -4434,7 +4446,8 @@
         "/private/tmp/comicabc-14884-control.headers及.body：Mac严格当前UA/Referer无cookie准确id14884一次GET，最终同URL HTTP/2 200、原始正文0字节、text/html，未见Length/Encoding/Transfer-Encoding；与237空字符串一致，不是237解码独有，不外推全源。",
         "/private/tmp/comicabc-referer-ab：去Referer单次GET仍HTTP200/0字节，排除该单项差异，根因仍未知。",
         "/private/tmp/comicabc-referer-ab/control-30513.{result,headers,body}及control-offline.jsonl：同源UA/Referer 30513 HTTP200、解压35355字节，真实HTML经生产0.1.10 WASM详情及6章成功；14884仍空。官方上游两文件blob与固定949一致，无新流程修复依据，不外推全站。",
-        "本地可证地址流程已核：原生产搜索输出归一指向/html/14884.html，与固定参考及当前详情一致；章节domain不能作为详情新地址。既有同URL 200空body、30513正常均未重发。"
+        "本地可证地址流程已核：原生产搜索输出归一指向/html/14884.html，与固定参考及当前详情一致；章节domain不能作为详情新地址。既有同URL 200空body、30513正常均未重发。",
+        "官方别名候选 https://www.comicabc.com/html/14884.html 基于旧官网mode链接，单次自动跳原8comic同路径，HTTP200/body0，不能修；不推断作品下架。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-official-alias-20261030/evidence.json。"
       ]
     },
     {
@@ -4464,7 +4477,8 @@
       "closedAt": null,
       "evidence": [
         "237 run1682普通入口仍无法连接，未见选择器；此前搜索GET平台2300006为域名解析失败，公开DNS A/AAAA NOERROR+SOA无Answer，非NXDOMAIN，证据 source-settings-repair/happymh-search-dns-20261029.json。",
-        "当前上游eec435735737a0b140f8f3a990391990b5f9437a于2026-08-25以dead source删除，删除前域与当前m.happymh.com相同；API路径差异不能解释DNS2300006。当前无可证小修或合法新域，不删除用户已装源。"
+        "当前上游eec435735737a0b140f8f3a990391990b5f9437a于2026-08-25以dead source删除，删除前域与当前m.happymh.com相同；API路径差异不能解释DNS2300006。当前无可证小修或合法新域，不删除用户已装源。",
+        "本轮已异步询问是否从可安装目录撤下、保已装数据；尚未答，候选未实施。"
       ]
     },
     {
@@ -10130,6 +10144,83 @@
         ".hvigor/outputs/user-flow-audit/source-settings-repair/mangabz-mirror-candidate-20261030/evidence.json",
         "https://github.com/honjow/Koma/actions/runs/41042962997",
         "https://github.com/honjow/koma-sources/actions/runs/41042955770"
+      ]
+    },
+    {
+      "id": "source-repair-resumed-20261030",
+      "at": "2026-10-30T19:04:40+08:00",
+      "title": "源故障修复继续推进",
+      "detail": "Noy作品链接及验证页公开头差异已有候选；候选尚未设备验证，其他源故障保持开放。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "noy-session-and-simply-cdp-20261030",
+      "at": "2026-10-30T19:41:05+08:00",
+      "title": "Noy登录入口与Simply线路证据",
+      "detail": "Noy同站登录入口具名已核、正式CI待核；Simply同场Web与Native结果不同，单变量对照继续。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-cdp-20261030/evidence.json",
+        "https://github.com/honjow/koma-sources/actions/runs/41049335130"
+      ]
+    },
+    {
+      "id": "noy-public-simply-origin-ab-20261030",
+      "at": "2026-10-30T19:59:15+08:00",
+      "title": "Noy入口公开及Simply Origin对照",
+      "detail": "Noy登录入口公开，登录后内容未验；Simply原样/去Origin均403，设备已恢复，网络路径对照继续。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/41049335130"
+      ]
+    },
+    {
+      "id": "simply-197-network-comparison-baseline-20261030",
+      "at": "2026-10-30T20:05:04+08:00",
+      "title": "Simply 197网络对照基线",
+      "detail": "197已唤醒备份、候选尚未安装；237已恢复供用户登录，原恢复包证据及设备读取限制保留。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/Koma-chapter-014-38d245.hap"
+      ]
+    },
+    {
+      "id": "noy-search-simply-network-ab-20261030",
+      "at": "2026-10-30T20:10:10+08:00",
+      "title": "Noy搜索修复及Simply网络对照",
+      "detail": "Noy转义修复已公开；197两种网络路径均遇挑战403，原状态恢复。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/simply-network-ab197-20261030/evidence.json",
+        "https://github.com/honjow/koma-sources/actions/runs/41052932223"
+      ]
+    },
+    {
+      "id": "comicabc-official-alias-check-20261030",
+      "at": "2026-10-30T20:14:24+08:00",
+      "title": "古见官方别名路径对照",
+      "detail": "官方别名自动跳回原路径且仍为空正文，原因未知，不推断下架。此时间为登记时间。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-official-alias-20261030/evidence.json"
+      ]
+    },
+    {
+      "id": "manhuawu-latest-reference-20261030",
+      "at": "2026-10-30T20:16:48+08:00",
+      "title": "漫画屋最新入口对照",
+      "detail": "参考最新入口单次读取仍遇挑战403，首页可用性问题继续定位。此时间为登记时间。",
+      "itemId": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-latest-20261030/"
       ]
     }
   ],
