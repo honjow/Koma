@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T07:49:08+08:00",
+  "updatedAt": "2026-10-30T08:55:53+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "漫小肆备域候选已备待决定，其他具体设置合同差异继续核对。",
-  "nextAction": "待漫小肆候选决定并闭合已列具体设置差异。",
+  "activity": "源包分享已完成；继续处理已列源设置差异，漫小肆候选等待既有决定。",
+  "nextAction": "按已有证据推进可处理的具体差异，不重复询问待定事项。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3482,7 +3482,8 @@
         "java_regex 0.1.0独立执行反例：合法200层分组包a，Java17 replaceAll返回空而该库replace_all返回a；私有固定深度/预算超限当false且公开String返回不能识别，不改依赖不能称完整Java合同。证据 /private/tmp/java-regex-contract，生产/锁未动。",
         "漫小肆参考备域rank/book281/chapter9821各HTTP200，60页描述及首图JPEG200；候选默认主站不变、固定ID保留，但需将此前仅封面jjmhw11扩至精确正文host，Root已问用户待决定。候选未采用未提交，稳定证据落盘中。",
         "稳定合同证据：.hvigor/outputs/user-flow-audit/source-settings-repair/java-regex-contract-20261030/{Cargo.toml,Cargo.lock,src/main.rs,result.txt}；漫小肆备域候选及真实响应、回放脚本、构建日志见同父目录mangaxiaosi-mirror-20261030/evidence.json。候选未采用，用户决定待复；原临时证据及边界保留。",
-        "TeaVM路线仅非编译核对：自有classlib非直接OpenJDK，现WasmGC后端需JS runtime；Koma当前WAMR未启GC/异常且WASI/多模块关闭，不能直接接入、不改生产runtime。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md。"
+        "TeaVM路线仅非编译核对：自有classlib非直接OpenJDK，现WasmGC后端需JS runtime；Koma当前WAMR未启GC/异常且WASI/多模块关闭，不能直接接入、不改生产runtime。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-teavm-regex-20261030/assessment.md。",
+        "包子CHAPTER_ORDER fragment只用于身份，参考正文保section/current固定0；现大象24个重复ID组的title/path/pages相同，缺真实不同section样本，不冒错读。旧持久信息无section，需唯一映射方案才可保进度。"
       ]
     },
     {
@@ -3861,17 +3862,15 @@
       "id": "SOURCE_SHARE_INSTALLED_PACKAGE",
       "title": "通过系统分享已安装的源包",
       "priority": "P3（后续新功能）",
-      "kind": "open",
-      "status": "已登记，排队等待bug收口",
-      "stage": "低优先级排队",
+      "kind": "done",
+      "status": "具名设备验证及精确CI完成",
+      "stage": "具名范围已交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "用户本轮提出通过系统分享本机已安装的源包，方便导出和发送给别人；当前未实施。",
-      "remaining": "在既有bug修复收口后实施，并验证系统分享普通路径。 该低优先级功能不阻挡本轮已修bug发布。",
-      "remainingActions": [
-        "bug修复收口后实现并验证已安装源包的系统分享。"
-      ],
+      "result": "已安装源包可通过系统分享；普通包及恢复包导出、回导已具名验证。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "按用户要求低优先级排队；登记不代表已开始实施。"
       ],
@@ -3879,7 +3878,14 @@
       "reportedAtSource": "本会话首次可核的直接反馈：rollout-2026-10-25T19-19-24-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c.jsonl 第85394行，UserMessage item.id=01a183a9-adce-7783-a697-74816b2c61f1；不排除跨会话更早历史。",
       "reportedDate": "2026-10-29",
       "reportedDateSource": "本轮用户提出的可见日期；精确消息时刻未知。",
-      "closedAt": null
+      "closedAt": "2026-10-30T08:55:53+08:00",
+      "evidence": [
+        "正常包异步复制原ZIP；备份恢复archivePath为JSON标记时，只读真实manifest/WASM/icon重建合法源包，无图旧备份保internal格式，不导App设置/会话。候选SHA256 66235060f37a8e5b46d5fc0c1d0486126da08a9d78829b9cbada5e63326fee66，构建及同db31证书/profile已核，日志 .hvigor/outputs/user-flow-audit/source-share/source-share-build-typed-manifest.log；237 lease20261030-000532-2e6ffe2f已唤醒及取六公开域基线，Native进行中，未提交。",
+        "92普通源008面板文件名及另存为正确，009取消后副本与原包逐字同29003字节/SHA e90ca…；菇菇恢复源013弹面板但014发现SDK自动追加.zip，原.koma URI不存在，不计通过。实际.koma.zip根仅manifest.json/source.wasm/icon.png，WASM/icon与012原件逐字同。已改先压.zip再rename .koma；最终候选e597355e5b75bc7fd9c1bfbbc64d9e40366c764484e005c6913cac3b0a5d6781构建及同签profile核过，237 015复验中。证据source-package-share/{ordinary-share-panel-008,ordinary-cancel-copy-009,restored-share-panel-013,restored-cancel-package-014}。",
+        "e597候选017系统面板显示菇菇.koma/23.72KB；018取消后文件23724B SHA256 51dc0e256780e40b66e741865be2a4d1c14c856fb1b54d7f8f921374f3b8bbf7，ZIP根仅manifest.json/source.wasm/icon.png，WASM/icon逐字原同。019–023普通选择器回导成功、同source ID/version及有效iconPath，024新导入WASM/icon同原。025原db31安装成功、六JSON及原4成员逐字同；026新importdir、3分享缓存、Download文件不存在，SLEEP/120000无override；lease20261030-000532-2e6ffe2f于08:48:22 released/status读回。未向接收方发送，Legacy无图备份未设备验；证据 .hvigor/outputs/user-flow-audit/source-share/evidence.json。",
+        "源码ae693048已推Koma/master，7文件仅分享服务/现有菜单/清单转换/三语言及对应规则；未tag或AGC，精确CI run待核。",
+        "ae693048a7a85536c13c48f0c2d3869a25f5b3eb精确CI40982238148 completed/success，build job123824804544含Release HAP与metadata全部成功；Publish tagged Release job123826043929 skipped，无tag/AGC/发布。证据 .hvigor/outputs/user-flow-audit/source-share/ci-ae693048.json。"
+      ]
     },
     {
       "id": "TONGLI_HOME_BLANK",
@@ -9256,6 +9262,68 @@
         "/private/tmp/comicabc-14884-control.headers",
         "/private/tmp/comicabc-14884-control.body",
         "/private/tmp/comicabc-referer-ab/control-offline.jsonl"
+      ]
+    },
+    {
+      "id": "source-share-implementation-start-20261030",
+      "at": "2026-10-30T08:00:00+08:00",
+      "title": "已安装源包系统分享实施准备",
+      "detail": "正在读取现有源包及系统分享实现，尚未修改或验收；包子身份映射证据已补原审计。此时间为登记时间。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-share-candidate-built-20261030",
+      "at": "2026-10-30T08:20:01+08:00",
+      "title": "源包系统分享候选构建完成",
+      "detail": "正常源包与恢复包导出路径已实现，237普通系统分享及恢复仍待验证。此时间为登记时间。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-share/source-share-build-typed-manifest.log"
+      ]
+    },
+    {
+      "id": "source-share-restored-extension-counterexample-20261030",
+      "at": "2026-10-30T08:34:21+08:00",
+      "title": "源包分享恢复包扩展名反例",
+      "detail": "普通包具名通过；恢复包发现自动追加.zip，修正候选正在复验。此时间为登记时间。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-share-native-restored-20261030",
+      "at": "2026-10-30T08:50:01+08:00",
+      "title": "源包分享具名路径验证及恢复",
+      "detail": "普通及恢复包分享、恢复包重新导入具名通过，原数据和设备恢复；源码交付CI待核。此时间为登记时间。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-share/evidence.json"
+      ]
+    },
+    {
+      "id": "source-share-pushed-20261030",
+      "at": "2026-10-30T08:51:45+08:00",
+      "title": "源包分享源码已推",
+      "detail": "具名设备路径及恢复已核，源码已推；精确CI待核，未tag或AGC。此时间为登记时间。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-share/evidence.json"
+      ]
+    },
+    {
+      "id": "source-share-ci-closed-20261030",
+      "at": "2026-10-30T08:55:53+08:00",
+      "title": "源包系统分享具名范围交付",
+      "detail": "普通及恢复包设备路径、源码及精确CI已核；本次未tag或发布。此时间为登记时间。",
+      "itemId": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-share/ci-ae693048.json"
       ]
     }
   ],
