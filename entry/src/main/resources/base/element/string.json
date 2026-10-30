@@ -1449,6 +1449,8 @@
     { "name": "source_pkg_settings", "value": "Settings" },
     { "name": "source_pkg_hide_diagnostics", "value": "Hide diagnostics" },
     { "name": "source_pkg_diagnostics", "value": "Diagnostics" },
+    { "name": "source_pkg_share", "value": "Share source package" },
+    { "name": "source_pkg_share_failed", "value": "Could not share source package" },
     { "name": "source_pkg_delete", "value": "Delete" },
     { "name": "source_pkg_diagnostics_title", "value": "Source runtime diagnostics" },
     { "name": "source_pkg_refresh_diagnostics", "value": "Refresh diagnostics" },

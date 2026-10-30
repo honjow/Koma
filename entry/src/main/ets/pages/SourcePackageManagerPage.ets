@@ -7,6 +7,9 @@ import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { common } from '@kit.AbilityKit'
+import { uniformTypeDescriptor as utd } from '@kit.ArkData'
+import { systemShare } from '@kit.ShareKit'
+import { canShareInstalledSourcePackage, prepareInstalledSourcePackageShare } from '../sourceRuntime/SourcePackageShare'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
@@ -65,7 +68,7 @@ function tf(name: string, ...args: Array<string | number>): string {
 }
 
 type SourceSettingsValidationState = 'unknown' | 'running' | 'pass' | 'fail'
-type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'open_web' | 'confirm_remove'
+type SourceManagerPendingAction = 'none' | 'open_browse' | 'open_search' | 'open_web' | 'share_package' | 'confirm_remove'
 
 interface SourcePackageListGroups {
   updates: SourcePackageUpdateCandidate[]
@@ -157,6 +160,8 @@ export struct SourcePackageManagerPage {
   @Local private pendingSourceSheetSourceId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
   private sourceIndexService: SourceIndexService = new SourceIndexService(this.context())
+  @Local private sharingSourceId: string = ''
+  private packageShareController?: systemShare.ShareController
 
   aboutToAppear(): void {
     configureSourceSettingsStore(this.context())
@@ -537,6 +542,43 @@ export struct SourcePackageManagerPage {
       }
     } else if (action === 'confirm_remove' && source !== undefined) {
       this.confirmRemovePackage(source)
+    } else if (action === 'share_package' && source !== undefined) {
+      void this.sharePackage(source.id)
+    }
+  }
+
+  private async sharePackage(sourceId: string): Promise<void> {
+    if (this.sharingSourceId.length > 0) return
+    this.sharingSourceId = sourceId
+    let controller: systemShare.ShareController | undefined = undefined
+    const dismissed = (): void => {
+      controller?.off('dismiss', dismissed)
+      if (this.packageShareController === controller) {
+        this.packageShareController = undefined
+        this.sharingSourceId = ''
+      }
+    }
+    try {
+      const exported = await prepareInstalledSourcePackageShare(this.context(), sourceId)
+      if (!this.settingsRouteActive) {
+        this.sharingSourceId = ''
+        return
+      }
+      controller = new systemShare.ShareController(new systemShare.SharedData({
+        utd: utd.UniformDataType.FILE, title: exported.fileName, uri: exported.uri,
+      }))
+      this.packageShareController = controller
+      controller.on('dismiss', dismissed)
+      await controller.show(this.context(), {
+        selectionMode: systemShare.SelectionMode.SINGLE,
+        previewMode: systemShare.SharePreviewMode.DEFAULT,
+      })
+    } catch (_error) {
+      controller?.off('dismiss', dismissed)
+      this.packageShareController = undefined
+      this.sharingSourceId = ''
+      DiagnosticLogger.warn('source_package', 'share_failed', 'result=failed')
+      if (this.settingsRouteActive) this.showToast(t('source_pkg_share_failed'))
     }
   }
 
@@ -2328,6 +2370,16 @@ export struct SourcePackageManagerPage {
       }
 
       GroupedListSection({ title: t('source_pkg_management_section') }) {
+        if (canShareInstalledSourcePackage(params.source.id)) {
+          ConciseListRow({
+            title: t('source_pkg_share'),
+            leadingIcon: $r('sys.symbol.share'),
+            showChevron: false,
+            isEnabled: this.sharingSourceId.length === 0,
+            action: () => { this.requestSourceSheetDismiss('share_package', params.source) },
+          })
+          ListDivider()
+        }
         if (this.updateEntry(params.source.id) !== undefined) {
           ConciseListRow({
             title: this.updateActionLabel(params.source.id),

@@ -143,6 +143,34 @@ interface SourceRepoPackageContentPolicy {
   remoteInstall?: boolean
 }
 
+// Backup restore retains the normalized source manifest, not the original ZIP.
+// Rebuild only its package contract; host presentation and saved settings are not package data.
+export function sourceRepoManifestForShare(manifest: LocalSourcePackageManifest, iconName: string): string {
+  const capabilities: SourceRepoPackageCapabilities = {
+    network: manifest.permissions.network,
+    operations: manifest.operationCapabilities,
+  }
+  const policy: SourceRepoPackageContentPolicy = {
+    publicIndex: manifest.contentPolicy.publicIndex,
+    marketplace: manifest.contentPolicy.marketplace,
+    builtInSource: manifest.contentPolicy.builtInSource,
+    remoteInstall: manifest.contentPolicy.remoteInstall,
+  }
+  const exported: SourceRepoPackageManifest = {
+    id: manifest.package.id, name: manifest.package.name, version: manifest.package.version,
+    localizedNames: manifest.package.localizedNames, chapterOrder: manifest.package.chapterOrder,
+    language: manifest.package.language, runtime: manifest.package.type, nsfw: manifest.package.nsfw,
+    homepage: manifest.package.homepage, author: manifest.package.author,
+    description: manifest.package.description, contentRating: manifest.package.contentRating,
+    minAppVersion: manifest.package.minAppVersion, icon: iconName,
+    wasmSha256: manifest.runtime.wasmSha256, maxWasmBytes: manifest.runtime.maxWasmBytes,
+    webSessionOrigins: manifest.permissions.webSessionOrigins,
+    capabilities,
+    contentPolicy: policy,
+  }
+  return JSON.stringify(exported)
+}
+
 export interface SourcePackageStageResult {
   manifest: LocalSourcePackageManifest
   wasmBytes: Uint8Array

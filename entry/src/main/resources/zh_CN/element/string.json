@@ -1449,6 +1449,8 @@
     { "name": "source_pkg_settings", "value": "设置" },
     { "name": "source_pkg_hide_diagnostics", "value": "收起诊断" },
     { "name": "source_pkg_diagnostics", "value": "诊断" },
+    { "name": "source_pkg_share", "value": "分享源包" },
+    { "name": "source_pkg_share_failed", "value": "源包分享失败" },
     { "name": "source_pkg_delete", "value": "删除" },
     { "name": "source_pkg_diagnostics_title", "value": "源运行诊断" },
     { "name": "source_pkg_refresh_diagnostics", "value": "刷新诊断" },
