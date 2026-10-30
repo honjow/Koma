@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T15:35:34+08:00",
+  "updatedAt": "2026-10-30T16:12:43+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_WEB_SESSION",
-  "activity": "Simply同场对象UA一致但仍遇挑战403，设备已恢复。",
-  "nextAction": "保留线路身份与原因未知，按现有证据继续核对。",
+  "activeId": "MANHUAWU_SOURCE_UNAVAILABLE",
+  "activity": "漫画屋与Simply因果接线已交付，实际可用性仍待处理；漫小肆选择待答。",
+  "nextAction": "继续处理已知源故障，等待漫小肆既有问题答复。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1113,7 +1113,8 @@
         "1769初始Web timing 200/transfer0/encoded5140/decoded23475/deliverycache；1770刷新200/transfer5379/encoded5079/decoded23187/deliveryempty，符合编码体传输，但workerStart取整0不能绝对排除SW，不冒线路fresh200；1772一次完成并重试Native仍403。1781原011+临时TLS1.3候选请求461ms后2300999/unclassified，无HTTP响应或tls_probe，未证明TLS1.3协商、不归因或排除TLS；1782取消未执行。1783原db31安装成功、原011四成员及六JSON对1777逐字同；1784 SLEEP/120000无override，lease20261029-200719-11c69b48于04:26:47 released/status读回。临时Transport patch撤回无diff；无诊断重建 /private/tmp/koma-no-diagnostics.hap SHA256 c274fbf4706c868b338b4c8af733a1cfa4032733e7a6d080460be1be53dd2e72、默认signed同hash。诊断未发布、不称故障已修。",
         "Simply旧499原日志原GET op5、首次probe op6、完成重试op9均HTTP403且Host access_signal=challenge_required，其判定仅基于响应头cf-mitigated: challenge，故该场有Cloudflare挑战特征；496验证页呈API JSON，不是人工挑战完成。499原GET无会话/source UA，probe附Web会话/UA来自WebView，不能称完全同身份。1769–1772安全日志未保存marker或原始/自定义UA相等布尔，Web拦截对象未显示UA/Referer/Origin，Native probe入参带Referer/Origin，均为对象分类而非线路头；不推广499到所有场景。证据 source-web-session-concurrent/simply-ua-log-499/app.log及1769–1772 run-metadata。",
         "source_terra在237同场进行最小cause-UA/CF分类诊断，非重复原无诊断失败；结果与恢复尚待回执。",
-        "237 Simply 012诊断Host351e一次普通入口008：原GET及自动probe均403且cf-mitigated=challenge；因果ID selected，原UA存在、Web custom与原UA相等、probe最终入参与两者相等。排除该场App对象UA接线差异，不证明Web线路身份/TLS，不解决403；未改UA/Cookie/代理或重复请求。010原011四成员等002，011原27f332安装成功、六JSON等001，012清候选/下载、SLEEP/120000无override，lease d6fe5cf7 released；临时patch已撤。证据 source-web-session-concurrent/simply-cause-ua-open-20261030-008及restore 010–012。"
+        "237 Simply 012诊断Host351e一次普通入口008：原GET及自动probe均403且cf-mitigated=challenge；因果ID selected，原UA存在、Web custom与原UA相等、probe最终入参与两者相等。排除该场App对象UA接线差异，不证明Web线路身份/TLS，不解决403；未改UA/Cookie/代理或重复请求。010原011四成员等002，011原27f332安装成功、六JSON等001，012清候选/下载、SLEEP/120000无override，lease d6fe5cf7 released；临时patch已撤。证据 source-web-session-concurrent/simply-cause-ua-open-20261030-008及restore 010–012。",
+        "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。"
       ],
       "remainingActions": [
         "后续在适用条件下定位Simply验证后仍403的原因。"
@@ -2776,13 +2777,16 @@
         "SOURCE_RUNTIME_ERRORS"
       ],
       "kind": "open",
-      "status": "首页自然403未解，错误状态丢失反例已排除",
-      "result": "原run773显示当前403进入挑战导航，未证明验证完成；首页403仍未解决。",
+      "status": "首页挑战仍未通过，设备已恢复",
+      "result": "漫画屋首页仍要求真人验证，未观察到首页列表；设备原状态已恢复。",
       "evidencePoints": [
         "直接产物索引：koma-log-20261024-120407.txt；405/history-result-receipt.json；228/search-baseline-wasm.json；search-current-http.json；228/search017-wasm-cases.json；manager-after-real-update.png；failure.png；manhuawu017-search197-only-session-507/result.json；native-source-search-results.png；recovery-773/runtime.log/reader-terminal.png；recovery-773/reader-records-review.json",
         "run773原证显示当前403进入challenge导航，排除该次错误状态丢失反例；不称验证完成或403已修。",
         "原已验结果完整保留：770–775漫画屋017单次元尊搜索→详情→最早第1话 周家圣龙（上）→真实首图1/10已亲审，search/detail/chapters/get_pages均200；新增元尊外旧91progress/8sourceHistory/151chapters及remoteHistory原对象/顺序全同。首页get_manga_list仍403挑战，当前成功不追认旧460 timeout原因；不外推完整叙事/十页或全CF，数据/系统/原Library已恢复。",
-        "固定参考Firefox150身份一次GET仍403，证据 /private/tmp/manhuawu-ref150-once.headers 与 /private/tmp/manhuawu-ref150-once.body；仅排该身份小修假设，未改UA、不称根因已解。"
+        "固定参考Firefox150身份一次GET仍403，证据 /private/tmp/manhuawu-ref150-once.headers 与 /private/tmp/manhuawu-ref150-once.body；仅排该身份小修假设，未改UA、不称根因已解。",
+        "source_terra准备237漫画屋018候选一条首页路径：旧017未传因果ID，Host仅causal-selected才借原UA；新接线差异不同于旧无诊断失败，结果尚未取得。",
+        "017→018因果ID候选接selectedByChallengeId，受控WASM核挑战/普通错误/旧Host及保存真实详情等价。237第二场021首页HTTP403出现CF真人复选框，022点击一次并等30秒仍要求真人验证，未观察列表；024原017四成员及六域逐字恢复，025清本轮临时文件、SLEEP/120000无override，lease054f5353 released，HAP未更换。两源接线暂存待审、未公开。证据 source-web-session-concurrent/manhuawu-cause-resume-*。",
+        "两源接线f624c85389b528d3304beb65ca9a440c169e46f2已推，精确CI41024411724 success，release428782014同SHA非draft；漫画屋018/Simply012正式包公开，摘要/manifest/index及Simply精确origin已核，公开WASM与本地不同，两个正式WASM既有四合同执行通过。稳定索引 .hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json；仅接线交付，可用性仍open，不冒公开实体Native。"
       ],
       "remainingActions": [
         "定位并处理漫画屋首页自然403。"
@@ -2818,7 +2822,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166071,
-      "stage": "根因未知"
+      "stage": "站点验证仍待核"
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
@@ -3246,16 +3250,17 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "XCOMIC规则源及Host CI已交付",
+      "status": "NoyAcg范围设置合同已公开交付",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY",
         "ASM_HENTAI_BROWSE_RUNTIME_FAILURE",
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
-        "ZEROBYW_CHAPTERS_TRUNCATED"
+        "ZEROBYW_CHAPTERS_TRUNCATED",
+        "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "XCOMIC规则源及Host构建依赖已交付，其他源设置差异继续处理。",
+      "result": "NoyAcg成人范围设置公开合同已核；网站效果及Native未验。 漫小肆镜像及备用正文域的具体选择已向用户提出，等待答复。",
       "remaining": "继续核对漫小肆镜像及其他已列具名差异，保留站点不可用边界。",
       "remainingActions": [
         "闭合已列具名设置差异。",
@@ -3270,7 +3275,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "继续已列具名设置差异",
+      "stage": "继续具名差异",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3531,7 +3536,10 @@
         "sources c4b04e940a493ffa931fd31f86e5b7bee6daa1c5精确CI41018356180 success、同SHA release公开；XCOMIC简0.1.12/繁0.1.13及爱看漫0.1.2三包/index/实际WASM已核。简繁公开WASM受控新旧Host及有效/非法/失败回放通过；爱看漫公开WASM info/listings/filters/settings同候选、manifest newest_first。公开WASM不同本地构建，未重复Native；237先前仅简中本地候选，繁中及爱看漫未Native，爱看漫原403保留。证据 /private/tmp/koma-source-public-c4b04e9/{identity.json,contract-equality.json,regex-replay.txt}。",
         "c4b公开证据稳定目录 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-ikmmh-published-c4b04e9/，含三正式包、index、WASM、identity及合同对照，脚本已用该路径重跑通过。",
         "Koma e9efcf01707196225061ea762e3be270e3762fc3精确CI41017177110 completed/success，Linux ICU工具链依赖已交付；XCOMIC简012/繁013及爱看漫012公开包CI41018356180成功，稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-ikmmh-published-c4b04e9/。",
-        "XCOMIC正则由Host 06f/e9及源0cf/c4b交付；漫画人源最低门槛与当前源码版本由b4/995同步0.1.4解决，未读取用户实际安装版本。原历史反例及具名验收保留，不再作为当前待实现动作。"
+        "XCOMIC正则由Host 06f/e9及源0cf/c4b交付；漫画人源最低门槛与当前源码版本由b4/995同步0.1.4解决，未读取用户实际安装版本。原历史反例及具名验收保留，不再作为当前待实现动作。",
+        "NoyAcg漏ADULT范围设置隔离4文件commit b854577，push中；默认图片由原capfalse空headers fallback改captrue同URL无headers，absent/both/invalid六业务请求对公开015逐字段等，显式true/false实际消费，已有filters和身份不改。生产WASM受控证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-adult-016/evidence.json；不冒站点筛选效果或Native。",
+        "b8545778e7871b26e7c82c2b6f8a399f9aa08f49已推，CI41021822880 completed/success，release428763807同SHA非draft、0.1.6 index公开；GitHub digest a585e8d6…、正式WASM88841ddd…，对公开015既有受控请求等价。稳定证据 source-settings-repair/noyacg-adult-published-b854577/{evidence.json,verify.mjs}；仅设置合同交付，不冒网站或Native。",
+        "本轮实际request_user_input_async提出漫小肆：补首选镜像两参考站、当前默认不变，允许备用站实际正文图片（此前精确域仅封面）；等待答复，不将旧摘要冒原始提问证明，不提前采用。"
       ]
     },
     {
@@ -4467,6 +4475,35 @@
       "reopenedAt": null,
       "closedAt": null,
       "evidence": []
+    },
+    {
+      "id": "MH160_COVER_IMAGES_REJECTED",
+      "title": "漫画160原生列表封面全部加载失败",
+      "priority": "P1（用户直接反馈）",
+      "kind": "done",
+      "status": "图片请求头修复已交付",
+      "stage": "具名修复范围已交付",
+      "owner": "source_terra：书源修复与设备验证",
+      "dependencies": [],
+      "relatedItems": [
+        "SOURCE_SETTINGS_MIGRATION_AUDIT"
+      ],
+      "result": "漫画160图片请求头修复已公开；237候选同列表5/6封面及正文可见。",
+      "remaining": "",
+      "remainingActions": [],
+      "boundaries": [
+        "单张斗罗2封面关联2300028、同URL Mac单次20秒无HTTP响应，原因未知；不称所有封面通过或全站故障。",
+        "公开WASM不同设备候选，未另作公开包Native。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "当前可见用户直接反馈，原始发送时刻未取得；不以执行或登记时间冒首报。",
+      "reopenedAt": null,
+      "closedAt": "2026-10-30T16:05:30+08:00",
+      "evidence": [
+        "原015首屏六封面占位、图片GET403；源017补参考Referer/Origin，db1e6ad公开及CI41005769688 success。",
+        "category-membership/mh160-cover-observe-20261030-007、candidate-20261030-016、return-candidate-20261030-020；候选5/6及斗罗正文1/26具名。",
+        "/private/tmp/mh160-11140-control/及image-url.txt：剩余具名同URL单次20秒超时、无HTTP。"
+      ]
     }
   ],
   "source": {
@@ -9863,6 +9900,52 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-cause-ua-open-20261030-008/"
+      ]
+    },
+    {
+      "id": "noyacg-adult-candidate-20261030",
+      "at": "2026-10-30T15:44:07+08:00",
+      "title": "NoyAcg成人范围设置隔离提交",
+      "detail": "默认请求及显式值受控消费已核，推送、CI及公开待核；未冒站点效果或Native。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-adult-016/evidence.json"
+      ]
+    },
+    {
+      "id": "noyacg-adult-public-20261030",
+      "at": "2026-10-30T15:53:29+08:00",
+      "title": "NoyAcg成人范围设置公开交付",
+      "detail": "公开源包及受控合同已核；漫画屋因果关联候选准备设备验证。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-adult-published-b854577/evidence.json",
+        "https://github.com/honjow/koma-sources/actions/runs/41021822880"
+      ]
+    },
+    {
+      "id": "mh160-cover-feedback-recorded-20261030",
+      "at": "2026-10-30T16:05:30+08:00",
+      "title": "漫画160封面反馈独立登记",
+      "detail": "请求头修复已交付，单张独立超时仍保边界；漫画屋候选仍要求验证并已恢复。此时间为登记时间。",
+      "itemId": "MH160_COVER_IMAGES_REJECTED",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/41005769688"
+      ]
+    },
+    {
+      "id": "source-challenge-cause-public-20261030",
+      "at": "2026-10-30T16:12:43+08:00",
+      "title": "两源验证因果接线正式交付",
+      "detail": "漫画屋及Simply正式包与WASM合同已核，实际可用性仍开放；漫小肆具体选择已提出待答。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-challenge-cause-published-f624c85/evidence.json",
+        "https://github.com/honjow/koma-sources/actions/runs/41024411724"
       ]
     }
   ],
