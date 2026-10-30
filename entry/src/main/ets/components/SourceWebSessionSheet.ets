@@ -103,8 +103,15 @@ export struct SourceWebSessionSheet {
     const session = this.params.sourceSession
     if (session?.requestHandle !== undefined) {
       const requestUa = sourceRejectedRequestUserAgent(session.sourceId, session.requestHandle, url)
-      if (requestUa !== undefined) {
-        try { this.controller.setCustomUserAgent(requestUa) }
+      // MANHUAWU_SOURCE_UNAVAILABLE: user adopted this source-and-origin exception.
+      // Explicitly reset the UA because unified search can reuse this controller.
+      const useEngineIdentity = session.sourceId === 'com.manhuawu.koma' &&
+        sourceWebOrigin(url) === 'https://www.mhua5.com'
+      if (requestUa !== undefined || useEngineIdentity) {
+        try {
+          const userAgent = useEngineIdentity ? this.controller.getUserAgent() : requestUa
+          if (userAgent !== undefined) this.controller.setCustomUserAgent(userAgent)
+        }
         catch (_error) {
           // Do not load or complete a session under a different identity.
           this.controllerReady = false
