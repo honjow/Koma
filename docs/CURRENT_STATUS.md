@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T04:26:30+08:00",
+  "updatedAt": "2026-10-31T06:12:46+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "WUXIAN_GUJIAN_LOAD_FAILURE",
-  "activity": "Simply具名修复已交付，继续定位古见详情空响应。",
+  "activity": "跨源迁移已交付，继续处理古见详情问题。",
   "nextAction": "继续核实古见可用目录及剩余官方名称依据。",
   "proof": [
     {
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "237共同调度验证后已恢复C6、源数据及电源并释租。"
+      "hap": "197已回装原38d245、恢复七文件和电源并释租。"
     },
     {
       "name": "NextE",
@@ -4603,6 +4603,43 @@
         "Koma 2ea1adaf4d29c6345418749d67a9ef9b5923b990已推master，精确CI41084355441 completed/success，unsigned Release HAP构建成功，tag发布步骤跳过；未新tag、发版或上传AGC。237保留本地签名c6产品HAP 0.1.4/code5，原两源及数据恢复并释租；CI artifact未另做Native，不作为重测门槛。https://github.com/honjow/Koma/actions/runs/41084355441"
       ],
       "reportedDate": "2026-10-30"
+    },
+    {
+      "id": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "title": "书库漫画跨源迁移",
+      "priority": "P1",
+      "kind": "done",
+      "status": "跨源迁移已验证并交付",
+      "stage": "具名范围已交付",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [],
+      "result": "单本及批量复制、迁移已接入并验收，已读进度、分类和追踪随选择处理，旧历史与下载保留。",
+      "remaining": "",
+      "remainingActions": [],
+      "boundaries": [
+        "使用当前Koma控件；仅按用户明确采用的入口和流程实施，不擅自扩展样式。",
+        "旧下载保留，不能冒充新源下载；Aidoku仅作行为参考，不复制代码或资源。",
+        "197普通路径已验；分类与本地追踪绑定有关键执行证据。最后忙碌控件修正已编译，未重复安装。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
+      "closedAt": "2026-10-31T06:12:46+08:00",
+      "evidencePoints": [
+        "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
+        "用户通过本轮async call_06bd595e97bf48dd9fcff06914f4be01明确采用完整流程；尚未实现或验收。",
+        "新增共用迁移页及详情/多选入口，复用源搜索原分页、筛选及验证；已接Library/Reader/Tracker，保原历史和下载。本地候选编译通过，关键执行覆盖倒序、未读空洞、卷号歧义、Reader写失败回滚、复制/替换、失败保原条目及追踪保目标选择。当前197候选e239d315，单本/批量普通路径验收中；原包38d245与前次install回执和当前updateTime吻合，但直接包导出与调试cp被系统拒绝，不能冒独立安装字节读回。已备份六域及tracker并核AWAKE/86400000，结束应恢复原override10000及睡眠；代码未提交、无新App发布。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json，协议 docs/device-protocols/koma-manga-migration-197.json。",
+        "197候选e239d315已安装，详情菜单迁移、源选择、包子手动搜索经CF后出现真实《獵行者》；选中后迁移行仍显示“正在查找”。定位MigrationRow plain interface被ForEach相同key保留旧对象，现改ObservedV2+Trace刷新原行字段，正在重建，尚未设备复验。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/manual-return-018 与 verified-search-017。",
+        "197 copy-result-022普通复制猎行者到包子獵行者219章，旧书及已读空洞保留；single-complete-032经NavPathStack NEW_INSTANCE修正后实际进入目标详情。batch-entry-033选2本，batch-move-result-038一项成功、一项无匹配跳过；持久化读回旧书移出、目标仅1本，旧Reader页14/16与sourceHistory保留；retained-history-040普通历史显示原猎行者第15/16页。未知新版本页数曾显示“第1/0页”，正在修为仅章节名；匹配阶段曾继承长源列表页尾位置，正修滚动归顶，两项重建待验。设备仍持租、未恢复或提交。证据 library-migration/{copy-result-022,single-complete-032,batch-entry-033,batch-move-result-038,retained-history-040}。",
+        "最终候选12cfa9ea已完成本地构建、同签/profile核对与六项关键执行。197 stage-position-fixed-042第一项归顶、unknown-page-history-fixed-043目标未知页数仅显示章节名及旧历史15/16页均已亲看。restore-original-044原38d245安装成功，library/reader/registry/source-settings/filters/web-sessions/tracker prefs七文件与baseline逐字相等，source-setting-observations仍不存在；045实读SLEEP/120000/Override10000，lease20261030-212132-0600bc72 released。代码43246fd0已推master，精确CI待核；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json。",
+        "主功能43246fd0的197普通路径验收保持有效；最后复核补齐提交期间禁用重试/验证/预览，复用ConciseListRow.isEnabled，不改数据路径。ebae91bd12329878f0074800b26e3148f8c9cc9f本地编译通过并经HTTPS推master；SSH临时连接关闭，永久远端未改。精确CI41135459269运行中；旧41134748704被并发规则自动替换为cancelled，不作为构建失败或新提交的成功证明。不重复197验收。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json。",
+        "精确CI41135459269 head ebae91bd12329878f0074800b26e3148f8c9cc9f completed/success，Build unsigned Release HAP job124336817401全步骤成功；Publish tagged Release skipped，未发新版本。Github artifact13016107812 ohos-hap-unsigned未过期，digest sha256:f332d59b9c2b51458a7294f23cccafcca693d1555862b6f4940013cbaeba6466，workflow_run head严格匹配。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json 与 https://github.com/honjow/Koma/actions/runs/41135459269。最后忙碌控件修正仅编译、未重复安装的边界保留。"
+      ],
+      "modificationBasis": {
+        "object": "书库漫画跨源迁移及其入口",
+        "allowedDifference": "详情右上角和书库多选提供迁移；选目标源后逐书匹配，可修改搜索、换结果或跳过；确认选择已读进度和分类，追踪随书转移；可复制保留旧书，或迁移并移出旧书库。旧下载保留，不冒充新源下载；使用当前Koma控件。",
+        "reference": "Mihon e588e04359fe1058206a2cbac1b01018ad787359；Aidoku ceee58b29d4f48106cf63042ca0cb075a8ac22b4，仅作行为参考。"
+      }
     }
   ],
   "source": {
@@ -10770,6 +10807,95 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/source-worker-admission-20261031/evidence.json",
         "https://github.com/honjow/Koma/actions/runs/41121496728"
+      ]
+    },
+    {
+      "id": "library-cross-source-migration-request-20261031",
+      "at": "2026-10-31T05:00:33+08:00",
+      "title": "书库漫画跨源迁移需求",
+      "detail": "用户要求实现参考应用已有的迁移功能；正在调查，入口及界面尚未采用。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "library-cross-source-migration-adopted-20261031",
+      "at": "2026-10-31T05:03:50+08:00",
+      "title": "跨源迁移流程已采用",
+      "detail": "用户采用详情及多选入口、逐书匹配与可选进度分类、追踪和复制或迁移；实现中。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "library-cross-source-migration-native-start-20261031",
+      "at": "2026-10-31T05:31:07+08:00",
+      "title": "跨源迁移进入真机验收",
+      "detail": "迁移入口及数据链已实现并完成本地执行检查，单本与批量普通路径正在验收。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json",
+        "docs/device-protocols/koma-manga-migration-197.json"
+      ]
+    },
+    {
+      "id": "library-migration-row-refresh-failure-20261031",
+      "at": "2026-10-31T05:40:28+08:00",
+      "title": "迁移搜索结果刷新反例",
+      "detail": "手动搜索取得真实结果后迁移行未刷新；已定位行状态更新问题，修正正在构建。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/manual-return-018/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/verified-search-017/"
+      ]
+    },
+    {
+      "id": "library-migration-single-batch-20261031",
+      "at": "2026-10-31T05:52:04+08:00",
+      "title": "跨源迁移单本及批量验证",
+      "detail": "单本复制、完成进入目标和批量迁移与跳过已具名验证；两个关联显示修正待验。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/copy-result-022/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/batch-move-result-038/"
+      ]
+    },
+    {
+      "id": "library-migration-native-restored-20261031",
+      "at": "2026-10-31T05:57:39+08:00",
+      "title": "跨源迁移设备验收及恢复",
+      "detail": "单本、批量及关联显示已验，原数据和电源恢复；源码已推，CI待核。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "library-migration-submit-guard-ci-20261031",
+      "at": "2026-10-31T06:04:14+08:00",
+      "title": "迁移提交保护及最终CI",
+      "detail": "提交期间的重试、验证和预览保护已补齐并推送，最终CI运行中。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41135459269",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json"
+      ]
+    },
+    {
+      "id": "library-migration-ci-delivered-20261031",
+      "at": "2026-10-31T06:12:46+08:00",
+      "title": "跨源迁移交付完成",
+      "detail": "具名设备验收及最终提交精确CI完成，旧历史与下载保留。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41135459269",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json"
       ]
     }
   ],
