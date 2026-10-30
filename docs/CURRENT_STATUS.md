@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T13:51:24+08:00",
+  "updatedAt": "2026-10-30T15:35:34+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "跨章具名路径已交付，继续处理剩余源合同及具名故障。",
-  "nextAction": "审查尚未交付的书源续读合同并保留未知组织边界。",
+  "activeId": "SOURCE_WEB_SESSION",
+  "activity": "Simply同场对象UA一致但仍遇挑战403，设备已恢复。",
+  "nextAction": "保留线路身份与原因未知，按现有证据继续核对。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1073,9 +1073,9 @@
       "priority": "P2（复杂故障后置）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
-      "status": "Simply 403未解决，诊断已结束并恢复",
+      "status": "Simply挑战403仍未解决，设备已恢复",
       "kind": "open",
-      "result": "Simply完成并重试后仍403；临时TLS对照未取得HTTP响应，原因未知，设备已恢复。",
+      "result": "Simply同场原请求与probe仍遇挑战403；对象UA接线一致，线路身份及原因仍未知。",
       "remaining": "后续在适用条件下定位Simply验证后仍403的原因。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
@@ -1110,7 +1110,10 @@
         "237新lease…fae08932，1763六域及原011基线、1764 db9诊断Host安装成功、1767实装012 ZIP/WASM与冻结相同，1768源列表已定位；尚未发目标GET或复现挑战。",
         "1769验证初页timing status200/transfer0/encoded5140/decoded23475/deliverycache；1770现有刷新一次status200/transfer5379/encoded5079/decoded23187/deliveryempty，符合完整body传输；1772仅一次完成并重试后Native op9仍403、终态继续要求验证。缓存不是全部原因，不报根因/修复、不改缓存策略/UA/代码。1774原011四成员对1763全等，1775六JSON全等且原db31 installer成功，1776本轮候选/下载不存在、SLEEP/120000无override；lease…fae08932于03:38:30 released并status读回。",
         "固定949 KeiSource.kt 141–145继承头与Koma同WWW Referer/Origin/max-age600，先前无头猜测撤回、未据此改代码。基于Native HTTP2/TLS1.2及官方API18 tlsOptions进行一次临时TLS1.3对照，原011不换源；lease…11c69b48，1777原四成员/六JSON与1763同且AWAKE/86400000，1778同签TLS HAP安装与普通浏览定位进行中，目标GET未发。",
-        "1769初始Web timing 200/transfer0/encoded5140/decoded23475/deliverycache；1770刷新200/transfer5379/encoded5079/decoded23187/deliveryempty，符合编码体传输，但workerStart取整0不能绝对排除SW，不冒线路fresh200；1772一次完成并重试Native仍403。1781原011+临时TLS1.3候选请求461ms后2300999/unclassified，无HTTP响应或tls_probe，未证明TLS1.3协商、不归因或排除TLS；1782取消未执行。1783原db31安装成功、原011四成员及六JSON对1777逐字同；1784 SLEEP/120000无override，lease20261029-200719-11c69b48于04:26:47 released/status读回。临时Transport patch撤回无diff；无诊断重建 /private/tmp/koma-no-diagnostics.hap SHA256 c274fbf4706c868b338b4c8af733a1cfa4032733e7a6d080460be1be53dd2e72、默认signed同hash。诊断未发布、不称故障已修。"
+        "1769初始Web timing 200/transfer0/encoded5140/decoded23475/deliverycache；1770刷新200/transfer5379/encoded5079/decoded23187/deliveryempty，符合编码体传输，但workerStart取整0不能绝对排除SW，不冒线路fresh200；1772一次完成并重试Native仍403。1781原011+临时TLS1.3候选请求461ms后2300999/unclassified，无HTTP响应或tls_probe，未证明TLS1.3协商、不归因或排除TLS；1782取消未执行。1783原db31安装成功、原011四成员及六JSON对1777逐字同；1784 SLEEP/120000无override，lease20261029-200719-11c69b48于04:26:47 released/status读回。临时Transport patch撤回无diff；无诊断重建 /private/tmp/koma-no-diagnostics.hap SHA256 c274fbf4706c868b338b4c8af733a1cfa4032733e7a6d080460be1be53dd2e72、默认signed同hash。诊断未发布、不称故障已修。",
+        "Simply旧499原日志原GET op5、首次probe op6、完成重试op9均HTTP403且Host access_signal=challenge_required，其判定仅基于响应头cf-mitigated: challenge，故该场有Cloudflare挑战特征；496验证页呈API JSON，不是人工挑战完成。499原GET无会话/source UA，probe附Web会话/UA来自WebView，不能称完全同身份。1769–1772安全日志未保存marker或原始/自定义UA相等布尔，Web拦截对象未显示UA/Referer/Origin，Native probe入参带Referer/Origin，均为对象分类而非线路头；不推广499到所有场景。证据 source-web-session-concurrent/simply-ua-log-499/app.log及1769–1772 run-metadata。",
+        "source_terra在237同场进行最小cause-UA/CF分类诊断，非重复原无诊断失败；结果与恢复尚待回执。",
+        "237 Simply 012诊断Host351e一次普通入口008：原GET及自动probe均403且cf-mitigated=challenge；因果ID selected，原UA存在、Web custom与原UA相等、probe最终入参与两者相等。排除该场App对象UA接线差异，不证明Web线路身份/TLS，不解决403；未改UA/Cookie/代理或重复请求。010原011四成员等002，011原27f332安装成功、六JSON等001，012清候选/下载、SLEEP/120000无override，lease d6fe5cf7 released；临时patch已撤。证据 source-web-session-concurrent/simply-cause-ua-open-20261030-008及restore 010–012。"
       ],
       "remainingActions": [
         "后续在适用条件下定位Simply验证后仍403的原因。"
@@ -1164,7 +1167,7 @@
         "state": "实现/构建/Host与具名Native边界、85e3提交推送、487正式8605304留197/六域/系统恢复及精确CI40282248501同head成功均已闭环；旧CF与同次双挑战恢复样本/Native清query未扩。",
         "boundaries": "复用现有样式/NativeProbe，不清Cookie/改验证UA；普通mh160人类采用不扩到CF sheet。"
       },
-      "stage": "复杂源故障后置",
+      "stage": "原因待核",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/awake-baseline-002/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/candidate-install-003/",
@@ -3243,7 +3246,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续整体核验）",
       "kind": "open",
-      "status": "包子章节身份具名范围已交付",
+      "status": "XCOMIC规则源及Host CI已交付",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3252,14 +3255,12 @@
         "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
         "ZEROBYW_CHAPTERS_TRUNCATED"
       ],
-      "result": "包子章节身份设置、刷新及续读具名范围已交付；其他源设置差异保持开放。 漫画人更新提示与当前源码版本门槛有关，用户实际安装包版本尚未读取。 漫画160设备列表有数据但首屏封面请求403，正在对照请求身份。 漫画160请求头候选普通路径部分封面及正文已显示，剩余封面未确认。 漫画160候选部分封面及正文可见，仍有占位原因未明，设备已恢复。 漫画160剩余占位已关联图片请求错误；设备保留0.1.4候选，原HAP未恢复。 漫画160请求头修复已公开，公开WASM合同已核；一张图片超时仍保留。 六源续读合同已发布并核公开实体，复杂分组范围仍待核。",
-      "remaining": "继续处理XCOMIC正则、漫小肆等现有差异。",
+      "result": "XCOMIC规则源及Host构建依赖已交付，其他源设置差异继续处理。",
+      "remaining": "继续核对漫小肆镜像及其他已列具名差异，保留站点不可用边界。",
       "remainingActions": [
         "闭合已列具名设置差异。",
         "嗨皮DNS及包子challenge保留未验，待适用新条件，不重发已拒请求。",
-        "核对并实现XCOMIC简繁自定义标题删除规则，保默认标题行为。",
-        "核对漫小肆镜像站点身份及有效性。",
-        "处理漫画人源最低App版本与当前源码版本的更新提示。"
+        "核对漫小肆镜像站点身份及有效性。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3269,7 +3270,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "继续其他已列设置差异",
+      "stage": "继续已列具名设置差异",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3521,7 +3522,16 @@
         "漫画160 db1e6ad精确CI41005769688 success，公开index 0.1.7、ZIP f1e4a8f0bad1f01c0372bcfdb3b487adde509edc60c978178e8d5e2e4636e160与release digest一致，WASM 3dd020eda5d6fbb02da12f761370711b881e48099da185f474b172b9bfdad75b；/private/tmp/mh160-db1-public/wasm-contract.json执行imageRequest=true、原URL及参考Referer/Origin、零HTTP。设备候选5/6实图及同作品正文1/26已核，剩具体一图超时保留，不冒公开WASM Native。",
         "漫画160已存官方移动页《斗罗大陆2绝世唐门》封面src稳定hash与237 031失败的7a43e1fd25131834一致；Mac同公开URL携参考Referer/Origin、无Cookie/无显式UA单次GET 20秒curl28、无HTTP及0字节，未重试。支持该URL本次跨客户端超时，不判DNS/TLS/服务器根因或全站故障；证据 /private/tmp/mh160-11140-image-url.txt、/private/tmp/mh160-11140-control/。",
         "章节续读：Zero/Pixiv/MHR/Iqiyi/XCOMIC六源合同候选待审发布，MangaDex/Nami/妙趣复杂组织未安全统一，不称所有源已补齐。漫画160第三本封面hash与031匹配，同URL Mac带Referer/Origin、无Cookie/额外UA单次GET 20秒curl28、0字节无HTTP；/private/tmp/mh160-11140-control及image-url.txt，不归因全站或DNS/TLS。全首屏403缺头修复已交付，具体单图外部超时保留。",
-        "sources 1f119efa451004dc4ef4f476c73b5cc123be32ac精确CI41010435758 success；公开6包digest/manifest/index及生产WASM执行已核。爱奇艺及XCOMIC双源最低App0.1.4、MHR原为0.1.4，Zero/Pixiv保原；Zero真实保存HTML、其余受控WASM新旧Host对照，不冒Native。证据 /private/tmp/koma-chapter-contract-public-1f119ef/identity.json及各-result.json；多组未核差异保留。"
+        "sources 1f119efa451004dc4ef4f476c73b5cc123be32ac精确CI41010435758 success；公开6包digest/manifest/index及生产WASM执行已核。爱奇艺及XCOMIC双源最低App0.1.4、MHR原为0.1.4，Zero/Pixiv保原；Zero真实保存HTML、其余受控WASM新旧Host对照，不冒Native。证据 /private/tmp/koma-chapter-contract-public-1f119ef/identity.json及各-result.json；多组未核差异保留。",
+        "Root审14 metadata+6显式组合同共20源公开交付冻结，Native范围依既有具名证据不外推。source_terra核XCOMIC规则Host执行：官方公开ICU API无uregex、固定参考Android用ICU，正在做本地静态ICU/Worker既有RPC适配候选；尚未实现/构建/Native，不新增UI或改默认。漫画160首屏403缺头修复017已交付，单张同URL跨客户端超时原因未知；公开版本工作树残留已精确对齐017、无其他WIP丢失。",
+        "Koma原仓候选接固定官方ICU74.2静态正则、独立NAPI async worker及既有java_regex RPC，Release HAP构建完成；首版约51MiB、原约21MiB。Root要求裁去正则不用的ICU数据，保Unicode、字边界及规范化等实际依赖；未安装/验收/提交发布。进度提交1615c585已推，功能代码995精确CI仍success。",
+        "237 API26 Host de422及简中本地源0829：012非法(显示Invalid regular expression且保存disabled；013有效(BERS)、014保存、015重入相同；016真实热门12本中BERSERK显示ERK。018原包四成员等002，019六JSON等001且原27f332安装成功；020清候选/下载、SLEEP/120000无override，lease ceeba62a released。候选未提交公开，API23 Native未验；证据category-membership/xcomic-regex-* 012–020。",
+        "XCOMIC正则精确暂存候选简0.1.12、繁0.1.13标准包已构建；旧Host schema同已发布1f119，新feature才暴露空默认设置。WASM受控有效/非法/执行失败保原及其余请求相等；237具名仅先前简中本地0.1.11候选，繁中不冒Native。当前未commit/push，Host交付中；证据 /private/tmp/koma-icu74/release-candidates/contract-result.json、/private/tmp/koma-icu74/release-regex-results.txt。",
+        "Host06f18e5f已推，CI41016110323 Linux ICU host configure报C compiler cannot create executables；43a3bbba隔离host CC/flags后CI41016751992仍同处失败，根因未确定。workflow原仅安装xxd，Root e9efcf01补build-essential及输出有效configure错误段，提交推送中、新CI待核。XCOMIC简012/繁013源8文件已精确审但暂存未push，等待HostCI；237非法/有效输入、保存重入及BERSERK→ERK与恢复不重跑。章关系矩阵24单章/明确组及方向复用，不称85全通过。",
+        "sources c4b04e940a493ffa931fd31f86e5b7bee6daa1c5精确CI41018356180 success、同SHA release公开；XCOMIC简0.1.12/繁0.1.13及爱看漫0.1.2三包/index/实际WASM已核。简繁公开WASM受控新旧Host及有效/非法/失败回放通过；爱看漫公开WASM info/listings/filters/settings同候选、manifest newest_first。公开WASM不同本地构建，未重复Native；237先前仅简中本地候选，繁中及爱看漫未Native，爱看漫原403保留。证据 /private/tmp/koma-source-public-c4b04e9/{identity.json,contract-equality.json,regex-replay.txt}。",
+        "c4b公开证据稳定目录 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-ikmmh-published-c4b04e9/，含三正式包、index、WASM、identity及合同对照，脚本已用该路径重跑通过。",
+        "Koma e9efcf01707196225061ea762e3be270e3762fc3精确CI41017177110 completed/success，Linux ICU工具链依赖已交付；XCOMIC简012/繁013及爱看漫012公开包CI41018356180成功，稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-ikmmh-published-c4b04e9/。",
+        "XCOMIC正则由Host 06f/e9及源0cf/c4b交付；漫画人源最低门槛与当前源码版本由b4/995同步0.1.4解决，未读取用户实际安装版本。原历史反例及具名验收保留，不再作为当前待实现动作。"
       ]
     },
     {
@@ -9744,6 +9754,115 @@
       "evidence": [
         "/private/tmp/koma-chapter-contract-public-1f119ef/identity.json",
         "https://github.com/honjow/koma-sources/actions/runs/41010435758"
+      ]
+    },
+    {
+      "id": "xcomic-regex-runtime-adaptation-20261030",
+      "at": "2026-10-30T13:58:56+08:00",
+      "title": "XCOMIC标题规则执行链适配",
+      "detail": "20源章序公开交付已核；静态ICU及既有Worker RPC适配候选尚未实现、构建或Native。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "xcomic-icu-candidate-built-20261030",
+      "at": "2026-10-30T14:08:46+08:00",
+      "title": "XCOMIC正则候选已构建",
+      "detail": "静态ICU及异步执行候选已构建，正在缩减包体；未设备验收或正式交付。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "xcomic-regex-native-candidate-20261030",
+      "at": "2026-10-30T14:44:10+08:00",
+      "title": "XCOMIC正则候选具名设备验证",
+      "detail": "非法输入拦截、有效规则保存重入及真实标题消费已核，原状态恢复；候选未交付、API23 Native未验。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/"
+      ]
+    },
+    {
+      "id": "xcomic-regex-release-candidate-20261030",
+      "at": "2026-10-30T14:49:11+08:00",
+      "title": "XCOMIC正则简繁发布候选构建",
+      "detail": "简繁候选旧Host兼容及受控执行已核；设备仅先前简中候选，未提交推送。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/koma-icu74/release-candidates/contract-result.json",
+        "/private/tmp/koma-icu74/release-regex-results.txt"
+      ]
+    },
+    {
+      "id": "icu-linux-ci-failure-20261030",
+      "at": "2026-10-30T14:59:29+08:00",
+      "title": "ICU Linux构建依赖补充",
+      "detail": "两次CI在host configure失败，补充构建工具及诊断后待新CI；源候选尚未推送。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41016110323",
+        "https://github.com/honjow/Koma/actions/runs/41016751992"
+      ]
+    },
+    {
+      "id": "xcomic-regex-source-public-20261030",
+      "at": "2026-10-30T15:12:59+08:00",
+      "title": "XCOMIC规则及爱看漫章序源包公开",
+      "detail": "三包公开身份及WASM合同已核；公开实体未另Native，Host交付状态待核。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "/private/tmp/koma-source-public-c4b04e9/identity.json",
+        "/private/tmp/koma-source-public-c4b04e9/contract-equality.json",
+        "https://github.com/honjow/koma-sources/actions/runs/41018356180"
+      ]
+    },
+    {
+      "id": "simply-499-challenge-header-evidence-20261030",
+      "at": "2026-10-30T15:21:05+08:00",
+      "title": "Simply既有挑战响应头证据",
+      "detail": "旧场景403具有响应头挑战特征；不同请求身份及后续场景线路头仍未知，故障未解决。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-log-499/app.log"
+      ]
+    },
+    {
+      "id": "icu-host-ci-and-simply-diagnostic-20261030",
+      "at": "2026-10-30T15:28:45+08:00",
+      "title": "ICU Host CI成功及Simply具名诊断",
+      "detail": "Linux ICU工具链精确CI成功，正式源包证据已固化；Simply最小诊断进行中，结果待核。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41017177110",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/xcomic-ikmmh-published-c4b04e9/"
+      ]
+    },
+    {
+      "id": "source-audit-stale-actions-corrected-20261030",
+      "at": "2026-10-30T15:29:44+08:00",
+      "title": "已交付源设置待办纠正",
+      "detail": "XCOMIC正则及漫画人源码版本门槛已交付，保历史与用户实际安装版本未知边界；继续其他具名差异。此时间为登记时间。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "simply-cause-ua-native-20261030",
+      "at": "2026-10-30T15:35:34+08:00",
+      "title": "Simply同场对象UA对照",
+      "detail": "原请求与probe均挑战403、对象UA一致；线路身份未知，原状态恢复并释租。此时间为登记时间。",
+      "itemId": "SOURCE_WEB_SESSION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-cause-ua-open-20261030-008/"
       ]
     }
   ],
