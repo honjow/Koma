@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-30T20:36:54+08:00",
+  "updatedAt": "2026-10-30T20:39:29+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SOURCE_WEB_SESSION",
   "activity": "漫画屋同路径浏览器对照完成，身份兼容候选待决定；237留用户登录。",
@@ -1076,7 +1076,7 @@
       "status": "两种网络路径同遇挑战403，设备已恢复",
       "kind": "open",
       "result": "197同公开请求经HTTP和RCP均遇挑战403，设备已恢复；原因仍待定位。",
-      "remaining": "继续定位Simply验证后403的请求身份差异。",
+      "remaining": "继续定位网页可读而原生请求被挑战的原因；不重跑已完成的无变化对照。",
       "reportedAt": "2026-10-23T01:44:08.576Z",
       "reportedAtSource": "原始会话JSONL response_item/user；本轮限定原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 254529135 重新读原文与时间戳，不是摘要/登记时间。",
       "requestedAt": "2026-10-23T01:46:03.842Z",
@@ -1123,7 +1123,7 @@
         "Simply Referer/Cache-Control候选已精确撤回，App源码无diff；HEAD旧测试夹具补3个MangaBz mock导入后原challenge ID单测1个通过，无新测试或产品变化。"
       ],
       "remainingActions": [
-        "继续定位Simply验证后403的请求身份差异。"
+        "继续定位网页可读而原生请求被挑战的原因；不重跑已完成的无变化对照。"
       ],
       "boundaries": [
         "漫画屋478/479与包子537/538自动回流分别具名成立；不外推全部CF、人工挑战、登录或正文。",
@@ -3239,7 +3239,7 @@
       "reportedAtSource": "用户于10-25要求核对各书源官方中文名；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "等待可靠官方材料",
+      "stage": "5项名称或官方对应关系尚未核实",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/",
         "漫画1234名称修正 eb347401 已于0.1.4发布；现源码、metadata及README均对应漫画1234网，既有已接受图标保持。",
@@ -4424,16 +4424,16 @@
       "priority": "P2（后续处理）",
       "kind": "open",
       "status": "指定详情返回空正文",
-      "stage": "等待可区分原因的新材料",
+      "stage": "官网指定作品空响应原因未明",
       "owner": "source_terra：237书源故障",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ],
       "result": "《古見同學》指定详情返回空正文；另一作品同身份详情及章节正常，具体原因未知。",
-      "remaining": "等待该官方作品非空回应、实际新href等可区分原因的新材料后继续定位。",
+      "remaining": "指定作品官方详情仍为空，官方别名也跳回同址；未找到可用正文或有效替代入口，原因未知。",
       "remainingActions": [
-        "等待该官方作品非空回应、实际新href等可区分原因的新材料后继续定位。"
+        "核实该作品实际可用的官方详情入口及返回内容；保留原作品和阅读进度，不用其他书替换。"
       ],
       "boundaries": [
         "提示本身不证明HTTP403、CF或不支持。"
@@ -4458,7 +4458,7 @@
       "priority": "P2（后续处理）",
       "kind": "open",
       "status": "域名不可用且上游已移除",
-      "stage": "等待可验证的新站点条件",
+      "stage": "安装目录处置待决定",
       "owner": "source_terra：237书源故障",
       "dependencies": [],
       "relatedItems": [
@@ -4466,9 +4466,9 @@
         "SOURCE_SETTINGS_MIGRATION_AUDIT"
       ],
       "result": "当前域名解析失败，上游已删除该源；暂无可证修复或合法新域。",
-      "remaining": "待出现可验证的新站点条件后再核连接问题。",
+      "remaining": "现用域名未取得可用地址；撤下可安装入口的候选待用户决定，已装源和书库保留。",
       "remainingActions": [
-        "待出现可验证的新站点条件后再核连接问题。"
+        "按用户对安装目录处置的决定处理；未经决定不撤下入口，不猜新站替换旧源。"
       ],
       "boundaries": [
         "1682提示无法连接未证明具体原因；既有DNS无Answer不等于NXDOMAIN或站点停运，不重发已拒请求。"
@@ -10246,6 +10246,17 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-validation197-20261030/evidence.json",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/manhuawu-engine-identity-candidate-20261030/basis.json"
+      ]
+    },
+    {
+      "id": "happymh-catalogue-choice-pending-20261030",
+      "at": "2026-10-30T20:39:29+08:00",
+      "title": "嗨皮安装目录处置待决定",
+      "detail": "现用域名无可用解析；已提交撤下可安装入口的具体候选，已装源和书库保留。候选未实施，此时间为登记时间。",
+      "itemId": "HAPPYMH_SOURCE_UNAVAILABLE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/happymh-search-dns-20261029.json"
       ]
     }
   ],
