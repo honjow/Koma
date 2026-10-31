@@ -1695,6 +1695,7 @@ export struct ReaderPage {
   @Event onChromeVisibleChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onWebtoonModeChange: (value: boolean) => void = (_value: boolean) => {}
   @Event onObservedProgress: (progress: ReadingProgress) => void = () => {}
+  @Event onObservedReadingPages: (comic: string, chapter: string, pages: number[]) => void = () => {}
   @Event onCloseReader: () => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onOpenChapter: (chapterId: string, intent?: ReaderChapterOpenIntent) => void =
@@ -2883,6 +2884,7 @@ export struct ReaderPage {
     }
     this.sessionStore.saveProgress(progress)
     this.onObservedProgress(progress)
+    this.reportVisibleReadingPages()
     this.prefetchLookahead(index)
   }
 
@@ -2951,6 +2953,20 @@ export struct ReaderPage {
 
   private persistCurrentProgress(): void { this.persistProgress(this.pageIndex) }
 
+  private reportVisibleReadingPages(): void {
+    if (!this.readerOpen || !this.routeVisible || !this.appForegroundState.active || this.sessionLoading || this.closing) return
+    let pages: number[] = [this.pageIndex]
+    if (this.effectiveMode() === ReaderMode.DUAL_PAGE) {
+      const second = this.spreadSecondIndex(this.pageIndex)
+      if (second >= 0 && second < this.sessionConfig.totalPages) pages.push(second)
+    } else if (!this.usesDisplayPagePager() && this.verticalVisibleStart >= 0) {
+      pages = []
+      for (let page = this.verticalVisibleStart; page <= this.verticalVisibleEnd; page++) pages.push(page)
+    }
+    this.onObservedReadingPages(this.sessionConfig.comicId, this.sessionConfig.chapterId,
+      pages.filter((page: number): boolean => this.loadedPageIndexes.includes(page) && !this.failedPages.includes(page)))
+  }
+
   private onImageFailed(index: number): void {
     if (!this.failedPages.includes(index)) this.failedPages = this.failedPages.concat([index])
     if (this.autoPageWaitingIndex === index) {
@@ -2964,6 +2980,7 @@ export struct ReaderPage {
       this.loadedPageIndexes = this.loadedPageIndexes.concat([index])
     }
     this.maybeResumeAutoPage(index)
+    this.reportVisibleReadingPages()
     if (this.isLastReadingUnitVisibleAndLoaded(this.pageIndex)) this.persistCurrentProgress()
   }
 

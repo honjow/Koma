@@ -20,6 +20,7 @@ import { SourceFailureDetails } from './SourceRuntimeError'
 import { SourceReadHistoryEntry } from './SourceReaderSession'
 import { MangaMigrationReadPlan, MangaMigrationReadState } from './SourceMangaMigration'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from './RemoteReaderSession'
+import { ReadingSessionRecord } from './ReadingStatistics'
 import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } from './ChapterReadStateStore'
 
 export interface ChapterReadingState {
@@ -225,6 +226,7 @@ export interface ReaderSessionPersistenceAdapter {
 export const READER_PROGRESS_PERSISTENCE_FILE_NAME: string = 'reader-sessions.v1.json'
 /**
  * v4 adds OPDS search intent to recent history without retaining signed URLs.
+ * Optional readingSessions are additive facts; missing legacy records mean no measured duration.
  * Keep v1/v2 progress and v3 independent chapter positions/read facts readable.
  */
 export const READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION = 4
@@ -237,6 +239,7 @@ interface ReaderSessionDocument {
   sourceHistory?: SourceReadHistoryEntry[]
   remoteHistory?: RemoteReadHistoryEntry[]
   chapters?: ChapterReadingState[]
+  readingSessions?: ReadingSessionRecord[]
 }
 
 interface LegacyChapterReadDocument {
@@ -249,6 +252,7 @@ export interface ReaderSessionDocumentSnapshot {
   sourceHistory: SourceReadHistoryEntry[]
   remoteHistory?: RemoteReadHistoryEntry[]
   chapters: ChapterReadingState[]
+  readingSessions?: ReadingSessionRecord[]
 }
 
 function projectChapterCompletion(state: ChapterReadingState, progress: ReadingProgress | undefined): void {
@@ -291,7 +295,8 @@ function readerSessionSnapshot(document: ReaderSessionDocument): ReaderSessionDo
       if (copied !== undefined) remoteHistory.push(copied)
     })
   }
-  return alignSnapshotChapterCompletion({ progress, sourceHistory, remoteHistory, chapters })
+  return alignSnapshotChapterCompletion({ progress, sourceHistory, remoteHistory, chapters,
+    readingSessions: document.readingSessions ?? [] })
 }
 
 /** Backup replacement never reads legacy overrides from the receiving device. */
@@ -307,6 +312,7 @@ export function normalizeReaderSessionBackupPayload(payload: string): string {
     schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
     progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, chapters: snapshot.chapters,
     remoteHistory: snapshot.remoteHistory,
+    readingSessions: snapshot.readingSessions,
   }
   return JSON.stringify(normalized)
 }
@@ -423,6 +429,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       sourceHistory: snapshot.sourceHistory,
       remoteHistory: snapshot.remoteHistory,
       chapters: snapshot.chapters,
+      readingSessions: snapshot.readingSessions,
     }
     writeAppTextFile(this.filePath, JSON.stringify(document))
     this.migrationPending = false
@@ -430,6 +437,20 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
 }
 
 export abstract class ReaderSessionStore {
+  protected readingSessions: ReadingSessionRecord[] = []
+
+  listReadingSessions(): ReadingSessionRecord[] {
+    return this.readingSessions.map((record: ReadingSessionRecord): ReadingSessionRecord => ({
+      comicId: record.comicId, chapterId: record.chapterId, startedAt: record.startedAt,
+      endedAt: record.endedAt, pagesRead: record.pagesRead,
+    }))
+  }
+
+  addReadingSession(record: ReadingSessionRecord): void {
+    this.readingSessions.push({ comicId: record.comicId, chapterId: record.chapterId,
+      startedAt: record.startedAt, endedAt: record.endedAt, pagesRead: record.pagesRead })
+    this.chapterStatesChanged()
+  }
   protected readonly chapterStates: Map<string, ChapterReadingState> = new Map<string, ChapterReadingState>()
   protected readonly remoteHistoryByComicId: Map<ComicId, RemoteReadHistoryEntry> = new Map<ComicId, RemoteReadHistoryEntry>()
   abstract getProgress(comicId: ComicId): ReadingProgress | undefined
@@ -506,6 +527,8 @@ export abstract class ReaderSessionStore {
         this.removeSourceHistory(comicId)
         this.removeRemoteHistory(comicId)
       })
+      this.readingSessions = this.readingSessions.filter((record: ReadingSessionRecord): boolean => !comicIds.includes(record.comicId))
+      this.chapterStatesChanged()
     })
   }
 
@@ -763,12 +786,14 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.sourceHistoryByComicId.clear()
       this.remoteHistoryByComicId.clear()
       this.chapterStates.clear()
+      this.readingSessions = []
     }
     progressRows.forEach((progress: ReadingProgress): void => {
       this.progressByComicId.set(progress.comicId, progress)
       if (snapshot === undefined) this.recordChapterProgress(progress)
     })
     if (snapshot !== undefined) {
+      this.readingSessions = snapshot.readingSessions ?? []
       snapshot.chapters.forEach((state: ChapterReadingState): void => {
         this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), state)
       })
@@ -825,7 +850,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     const ids = new Set<ComicId>(comicIds)
     const hasHistory = this.listProgress().some((row: ReadingProgress): boolean => ids.has(row.comicId)) ||
       this.listSourceHistory().some((row: SourceReadHistoryEntry): boolean => ids.has(row.comicId)) ||
-      this.listRemoteHistory().some((row: RemoteReadHistoryEntry): boolean => ids.has(row.comicId))
+      this.listRemoteHistory().some((row: RemoteReadHistoryEntry): boolean => ids.has(row.comicId)) ||
+      this.readingSessions.some((row: ReadingSessionRecord): boolean => ids.has(row.comicId))
     if (!hasHistory) return true
     return this.commitUserMutation((): void => {
       ids.forEach((comicId: ComicId): void => {
@@ -833,13 +859,15 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
         this.sourceHistoryByComicId.delete(comicId)
         this.remoteHistoryByComicId.delete(comicId)
       })
+      this.readingSessions = this.readingSessions.filter((record: ReadingSessionRecord): boolean => !ids.has(record.comicId))
       this.persistPending = true
     })
   }
 
   protected commitUserMutation(mutation: () => void): boolean {
     const current: ReaderSessionDocumentSnapshot = { progress: this.listProgress(),
-      sourceHistory: this.listSourceHistory(), remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates() }
+      sourceHistory: this.listSourceHistory(), remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(),
+      readingSessions: this.listReadingSessions() }
     // Read-state changes also mutate recent/position objects, so retain a detached snapshot.
     const previous = JSON.parse(JSON.stringify(current)) as ReaderSessionDocumentSnapshot
     const pendingBefore = this.persistPending
@@ -855,6 +883,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.sourceHistoryByComicId.clear()
     this.remoteHistoryByComicId.clear()
     this.chapterStates.clear()
+    this.readingSessions = previous.readingSessions ?? []
     previous.progress.forEach((row: ReadingProgress): void => { this.progressByComicId.set(row.comicId, row) })
     previous.sourceHistory.forEach((row: SourceReadHistoryEntry): void => { this.sourceHistoryByComicId.set(row.comicId, row) })
     previous.remoteHistory?.forEach((row: RemoteReadHistoryEntry): void => { this.remoteHistoryByComicId.set(row.comicId, row) })
@@ -962,7 +991,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     })
     if (this.adapter.saveSnapshot !== undefined) {
       this.adapter.saveSnapshot({ progress: rows, sourceHistory: this.listSourceHistory(),
-        remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates() })
+        remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(), readingSessions: this.listReadingSessions() })
       return
     }
     this.adapter.save(rows)

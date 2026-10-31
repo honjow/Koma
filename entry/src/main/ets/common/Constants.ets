@@ -9,6 +9,7 @@ export class TabIndex {
 
 export class RouteName {
   static readonly READER: string = 'ReaderPage'
+  static readonly READING_STATISTICS: string = 'ReadingStatisticsPage'
   static readonly IMPORT: string = 'ImportPage'
   static readonly SEARCH: string = 'SearchPage'
   static readonly MANGA_DETAIL: string = 'MangaDetailPage'

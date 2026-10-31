@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T09:40:13+08:00",
+  "updatedAt": "2026-10-31T09:57:55+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "第四批设备已恢复，正在准备源码交付。",
-  "nextAction": "完成第四批审查提交并继续其余功能。",
+  "activity": "阅读统计准备交付，智能分类方案已确定。",
+  "nextAction": "完成统计交付并实现已采用的智能分类。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已恢复原38d245、基线数据及电源并释租。"
+      "hap": "197已恢复原38d245、原数据及电源并释租。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "第四批设备已恢复，交付准备中",
-      "stage": "第四批最后修正已构建，待审提交",
+      "status": "统计收尾已构建，智能分类方案已采用",
+      "stage": "第五批提交准备及第六批合同核对",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "第四批具名设备路径已核并恢复，手动全库检查修正已完成本地验证。",
-      "remaining": "完成第四批审查与交付，继续其余已授权差异。",
+      "result": "阅读统计具名验收及最后逻辑构建已核；智能分类方案已确定。",
+      "remaining": "完成统计交付，实现并验证已采用智能分类及其余差异。",
       "remainingActions": [
-        "完成第四批审查与交付，继续其余已授权差异。"
+        "完成统计交付，实现并验证已采用智能分类及其余差异。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4714,7 +4714,10 @@
         "第三批精确CI41154283239 in_progress，未冒成功。第四批已向用户询问“跳过未到预计日期”和阅读预载旁“仅Wi-Fi”，两者拟默认关，尚未答复；未新增可见UI。独立代码已补固定Mihon feadad5e日历估算（周/月/批次/停更退避）、成功目录检查后持久预计时间、跨源不带旧源预计日；build025索引类型错误已修，build026成功。WiFi全局偏好/备份/运行态、Shared+Legacy预载与处理预取门接线中，build027尚待读回；设备未验，原默认行为仍关闭。",
         "build028成功；生产逻辑已核网络限制下停止在线页/跨章/处理预取但前台load可用，恢复允许后继续；配置冷store保存、common bridge字段保留，原覆盖不变。预计周/月日历、缺章保到期及未知不跳过逻辑通过。下一步197验证两项设置保存重入、WiFi真实读图及仅Blue范围更新，不改设备网络；尚未设备验收或提交第四批。第三批CI41154283239仍待核。",
         "第三批CI41154283239 success，Publish tagged Release skipped，无发版。第四批197 build028 SHA238e3eba259f62dd962200b1dba9a10d0528e3f5757ec42e144ddfb4dfe3fb17已安装：080 WiFi预载默认关，081开启离开重进checked=true且pref reader.preloadWifiOnly=true；083/084未到预计日期菜单保存重进且policy=true。085/086仅给Blue加read_later；087导航误进filter，088关闭菜单与sheet恢复settings，089进入scope；090实际due自动检查Blue unchanged、75 skip、0 failed，Blue.updateSchedule interval7/nextCheckAt1793721600000持久。092原WiFi网络下限制开启时在线章13完整正文1/1亲看；bounded hilog文件为空，不称观察到真实预载日志。非WiFi拦截由生产adapter执行测试覆盖，未切设备网络、不冒蜂窝实测。本轮设备尚未恢复，第四批未提交。证据 library-automation/policy4-*。",
-        "197 policy4-original-restored-093恢复原signed HAP SHA38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5，077基线七JSON与30prefs共37项逐字同、无多余pref，本次automation/reader临时文件已清；比较 .hvigor/outputs/feature-parity-implementation-20261031/policy4-restored-data.json。094 SLEEP/120000/Override10000，lease20261031-012758-d0770ea4 released并status确认。收尾发现自动检查在途时manual会吞自动过滤范围，已按手动全库决定改为auto后单飞完整manual；生产Coordinator测试通过、build029成功，最后小修未安装，不重跑已验设备。第四批待审提交。"
+        "197 policy4-original-restored-093恢复原signed HAP SHA38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5，077基线七JSON与30prefs共37项逐字同、无多余pref，本次automation/reader临时文件已清；比较 .hvigor/outputs/feature-parity-implementation-20261031/policy4-restored-data.json。094 SLEEP/120000/Override10000，lease20261031-012758-d0770ea4 released并status确认。收尾发现自动检查在途时manual会吞自动过滤范围，已按手动全库决定改为auto后单飞完整manual；生产Coordinator测试通过、build029成功，最后小修未安装，不重跑已验设备。第四批待审提交。",
+        "第四批666e70049069c250d9bae173456c8dd0b30f5464已推Koma/master，精确CI41156512169 in_progress，未发版。第五批阅读统计已接ReadingStatistics生产session recorder、ReaderSessionStore同文档可选readingSessions及root普通进度/lifecycle消费者，正在实现UI；尚未编译或设备验收。",
+        "197 build031普通历史柱状图入口：旧历史时长/页/作品均0，月份2026-10有效；真实Blue正文后Home保存session28419ms，后台Reader字节不变，前台继续；104实际切到第二部第三话，方向非本轮验收。105统计3页/1作品/1天，三条session合计85375ms，后台gap32356ms未计。build033 SHA792e57a21b590a82b2fdecca4561217191af01efab6f41fe747fdde06ca43ad9冷启动三session一致，统计和每日图、年份2026及书库76/开始75/全读17/章14902/已读59/下载87已亲看；数值行伪箭头已修，全部每日图近365天滚到最近日。109原signed38d245及七JSON+30prefs共37项逐字恢复、无多余pref，110 SLEEP/120000/Override10000，lease20261031-014655-15bad8b8 released；比较 .hvigor/outputs/feature-parity-implementation-20261031/reading-statistics-restored-data.json。计时/日历/持久备份normalizer和失败恢复、旧迁移/未读生产逻辑通过；最后清历史同步移除孤立会话build034及逻辑通过，但034未安装。备份统计仅原文档normalizer实际测试，未重跑整份备份UI，不称实际新备份导入验收。第五批未提交。",
+        "第四批精确CI41156512169 success。第五批交付前补双页/条漫实际可见原页计数：Shared使用ReaderObservedPosition.displayedSourceIndexes，先host提交真实章再上报，重复fractional原anchor不重写progress但可更新可见集合；Legacy在已加载可见页及imageLoaded上报，根生命周期统一计时。生产onObservedPosition测试覆盖切章提交顺序和fractional不重写，recorder多页/恢复测试通过，build036成功；最后收尾和清历史孤立会话仅编译及生产逻辑，未再安装，保033设备范围。第五批准备提交。第六批用户已采用智能分类，Root正核固定Aidoku消费者合同，尚未实现。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -4722,7 +4725,9 @@
         "decision": "用户本轮通过call_4bfc明确采用。",
         "secondBatchAllowedDifference": "用户call3537采用：已下载章节长按及下载页菜单导出/分享CBZ；队列单章或整本移顶部/底部，活动下载不中断；现有排序、已读下载、语言和汉化组按书记忆。",
         "thirdBatchAllowedDifference": "用户call63d597批准：章节菜单书签、小标识及独立书签筛选；已收藏详情菜单更换/恢复封面，使用系统picker并在源刷新时保留；详情个人笔记使用现有半模态及有内容详情展示，数据随备份。",
-        "fourthBatchAllowedDifference": "用户call_db09cabf23b94b828cb018cef58ef7a7采用：Settings阅读预载旁增加仅Wi-Fi开关、更新跳过菜单增加未到预计日期；均默认关闭，沿用原行/菜单，Reader半模态不新增全局网络开关。"
+        "fourthBatchAllowedDifference": "用户call_db09cabf23b94b828cb018cef58ef7a7采用：Settings阅读预载旁增加仅Wi-Fi开关、更新跳过菜单增加未到预计日期；均默认关闭，沿用原行/菜单，Reader半模态不新增全局网络开关。",
+        "fifthBatchAllowedDifference": "用户call_c7bd96ed59a7462aa1885289b0183258采用：历史右上chart_bar进入统计；全部/月/年，展示时长、页数、作品数、连续天数及每日图，另分组书库章节已读下载；沿用原控件，仅记录真实前台会话，不为旧历史补时长，数据随备份。",
+        "sixthBatchAllowedDifference": "用户call_ee93c3eb255247029310b7ff47c37fda采用：原分类管理增加独立智能分类组及创建、编辑、排序、删除；八类包含/排除/不限规则，书架分类栏动态更新并随备份；不改手动分类，不混入加入分类选择器。"
       }
     }
   ],
@@ -11212,6 +11217,40 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/feature-parity-implementation-20261031/policy4-restored-data.json"
+      ]
+    },
+    {
+      "id": "feature-parity-statistics-adopted-20261031",
+      "at": "2026-10-31T09:44:02+08:00",
+      "title": "阅读统计方案已采用",
+      "detail": "第四批已推待CI；用户采用阅读统计范围，数据链已开始接入，界面实现中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41156512169"
+      ]
+    },
+    {
+      "id": "feature-parity-reading-statistics-native-20261031",
+      "at": "2026-10-31T09:54:25+08:00",
+      "title": "阅读统计具名验证与恢复",
+      "detail": "真实前台会话、冷启动及统计页面已核，后台间隔未计；设备已恢复，源码待交付。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/reading-statistics-restored-data.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-statistics-finish-smart-adopted-20261031",
+      "at": "2026-10-31T09:57:55+08:00",
+      "title": "统计收尾与智能分类采用",
+      "detail": "统计最后可见页计数已完成逻辑及构建验证；用户采用智能分类方案，尚未实现。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41156512169"
       ]
     }
   ],

@@ -102,6 +102,7 @@ export struct KomaReaderLabPage {
     throw new Error('reader_lab_progress_owner_unavailable')
   }
   @Event persistObserved: (position: ReaderObservedPosition, column: ReaderColumnMode) => void = () => {}
+  @Event observeReadingPages: (work: string, chapter: string, pages: number[]) => void = () => {}
   @Event flushObserved: () => void = () => {}
   @Event onOpenMangaDetail: (work: string) => void = () => {}
   @Event onClose: () => void = () => {}
@@ -577,16 +578,20 @@ export struct KomaReaderLabPage {
     const session = this.session
     if (session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
+    const snapshot = session.snapshot()
+    if (snapshot.phase !== 'ready' || snapshot.unit === null ||
+      !snapshot.unit.key.equals(position.anchor.unit)) return
     const column = this.hostPreferences?.columnMode ?? 'odd_left'
     const signature = JSON.stringify([position.anchor.unit.scope, position.anchor.unit.work,
       position.anchor.unit.unit, position.anchor.pageKey, position.anchor.sourceIndexHint,
       position.pageCount, position.terminalSourceDisplayed, column])
     // Koma persists source pages, not pixel offsets. Fractional scroll on the
     // same page must not clone/commit its catalog or invalidate the root page.
-    if (signature === this.observedSourceSignature) return
-    const snapshot = session.snapshot()
-    if (snapshot.phase !== 'ready' || snapshot.unit === null ||
-      !snapshot.unit.key.equals(position.anchor.unit)) return
+    if (signature === this.observedSourceSignature) {
+      if (this.request.progressReadWrite) this.observeReadingPages(
+        position.anchor.unit.work, position.anchor.unit.unit, position.displayedSourceIndexes)
+      return
+    }
     session.setPreloadDepth(this.readerPreloadDepth())
     if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
       const chapterChanged = this.observedCatalogUnit !== null
@@ -602,6 +607,9 @@ export struct KomaReaderLabPage {
     this.observeTranslationPosition(position)
     this.observedSourceSignature = signature
     if (!this.request.progressReadWrite) return
+    // Publish after the host commits the actual chapter. Statistics count every
+    // visible original page; the position write still ignores fractional scroll.
+    this.observeReadingPages(position.anchor.unit.work, position.anchor.unit.unit, position.displayedSourceIndexes)
     this.persistObserved(position, snapshot.policy.firstPageAlone ? 'even_left' : 'odd_left')
   }
 

@@ -34,6 +34,8 @@ import { ComponentContent } from '@kit.ArkUI'
 import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
+import { ReadingStatisticsPage } from './ReadingStatisticsPage'
+import { ReadingSessionRecorder, ReadingSessionRecord } from '../model/ReadingStatistics'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
@@ -310,6 +312,17 @@ struct Index {
   }
 
   private readerTrackerProgress?: ReaderTrackerProgressCoordinator
+  private readingStatisticsRecorder: ReadingSessionRecorder = new ReadingSessionRecorder((record: ReadingSessionRecord): void => {
+    if (this.readerSessionPersistenceReady) this.readerSessionStore.addReadingSession(record)
+  })
+
+  @Monitor('readerRouteVisible', 'readerOpen', 'readerSessionLoading', 'appForegroundState.active')
+  private syncReadingSessionActivity(): void {
+    const active = this.readerSessionPersistenceReady && this.readerOpen && this.readerRouteVisible &&
+      !this.readerSessionLoading && this.appForegroundState.active
+    this.readingStatisticsRecorder.setActive(active)
+    if (!active && this.readerSessionPersistenceReady) this.readerSessionStore.flush()
+  }
 
   @Monitor('layoutSafeArea.keyboardHeight')
   private updateRootTabBarForKeyboard(): void {
@@ -1148,6 +1161,7 @@ struct Index {
     // ReaderPage calls this callback after it persists its current page. Keep
     // the explicit flush here as the boundary before publishing the snapshot
     // to the shelf, including future Reader close implementations.
+    this.readingStatisticsRecorder.close()
     const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
     this.cleanupProgressCommitted = committed
     this.readerTrackerProgress?.close(committed)
@@ -1233,6 +1247,12 @@ struct Index {
       sourceChapter?.chapterNumber ?? chapter?.chapterNumber ?? localNumber)
   }
 
+  private observeReadingPages(comicId: string, chapterId: string, pages: number[]): void {
+    if (!this.readerSessionPersistenceReady || comicId !== this.readerSessionConfig.comicId ||
+      chapterId !== this.readerSessionConfig.chapterId) return
+    this.syncReadingSessionActivity()
+    this.readingStatisticsRecorder.observePages(comicId, chapterId, pages)
+  }
 
   private persistReaderLabObserved(position: ReaderObservedPosition,
     column: 'odd_left' | 'even_left'): void {
@@ -1262,6 +1282,7 @@ struct Index {
   }
 
   private onBackupRestored(): void {
+    this.readingStatisticsRecorder.reset()
     appSourcePackageManagerCache.invalidate()
     this.readDownloadCleanup?.invalidateAfterRestore()
     this.readerTrackerProgress?.resetAfterRestore()
@@ -1991,6 +2012,8 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.readingStatisticsRecorder.close()
+    if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
     this.automaticDownloads?.dispose()
     this.automaticDownloads = undefined
   }
@@ -2091,6 +2114,9 @@ struct Index {
           }
         },
         flushObserved: (): void => { if (this.readerSessionPersistenceReady) this.readerSessionStore.flush() },
+        observeReadingPages: (work: string, chapter: string, pages: number[]): void => {
+          this.observeReadingPages(work, chapter, pages)
+        },
         onOpenMangaDetail: (_work: string): void => { this.openReaderMangaDetail() },
         onRouteVisibleChange: (visible: boolean): void => {
           this.readerRouteVisible = visible
@@ -2128,6 +2154,9 @@ struct Index {
         },
         onObservedProgress: (progress: ReadingProgress): void => {
           this.observeReaderTrackerProgress(progress)
+        },
+        onObservedReadingPages: (comic: string, chapter: string, pages: number[]): void => {
+          this.observeReadingPages(comic, chapter, pages)
         },
         onCloseReader: () => {
           this.popReaderRouteAfterSystemBarRestore()
@@ -2558,6 +2587,11 @@ struct Index {
       .titleBar(this.navDestTitleBarOpts(this.backupTaskTitle(param as BackupTaskRouteParam)))
       .onBackPressed(() => BackupRestoreActivity.isRestoring())
       .onShown(() => { this.backupSettingsRevision += 1 })
+    } else if (name === RouteName.READING_STATISTICS) {
+      HdsNavDestination() {
+        ReadingStatisticsPage({ libraryStore: this.libraryStore, sessionStore: this.readerSessionStore })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('reading_statistics_title')))
     } else if (name === RouteName.TRACKER_SETTINGS) {
       HdsNavDestination() {
         TrackerSettingsPage({
@@ -2842,6 +2876,13 @@ struct Index {
       }
       menu['value'] = this.libraryTitleBar.menuItems
       menu['maxCount'] = 3
+    } else if (this.selectedTab === TabIndex.HISTORY) {
+      const statisticsContent: Record<string, Object> = { 'label': AppStrings.get('reading_statistics_title'),
+        'icon': $r('app.media.ic_reading_statistics'),
+        'action': (): void => { this.appPathStack.pushPath({ name: RouteName.READING_STATISTICS }) } }
+      const statisticsItem: Record<string, Object> = { 'content': statisticsContent }
+      menu['value'] = [statisticsItem]
+      menu['maxCount'] = 1
     } else if (this.selectedTab === TabIndex.BROWSE) {
       const manageContent: Record<string, Object> = {
         'label': AppStrings.get('route_source_package_manager_title'),

@@ -5,21 +5,21 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
-  "runId": "policy4-power-restored-094",
+  "runId": "stats-power-restored-110",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "original197-38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5",
-    "page": "Restore original power state after fourth-batch validation",
+    "codeIdentity": "original197-38d2456b",
+    "page": "Restore statistics session original timeout and sleep and read back",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "User approved expected-date skip and Wi-Fi-only reader preload, both default off. No network changes. Save fresh baseline and restore original package, data, timeout, sleep and lease."
+    "notes": "Reading statistics approved; lease20261031-014655-15bad8b8. No network/account changes; restore original HAP, seven JSON, all preferences and power before release."
   },
   "preflight": [],
   "measurement": {

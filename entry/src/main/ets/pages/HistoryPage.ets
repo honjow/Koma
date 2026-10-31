@@ -330,7 +330,8 @@ export struct HistoryPage {
     }
     const comicIds = sessionStore.listProgress().map((progress: ReadingProgress): ComicId => progress.comicId)
       .concat(sessionStore.listSourceHistory().map((entry: SourceReadHistoryEntry): ComicId => entry.comicId),
-        sessionStore.listRemoteHistory().map((entry: RemoteReadHistoryEntry): ComicId => entry.comicId))
+        sessionStore.listRemoteHistory().map((entry: RemoteReadHistoryEntry): ComicId => entry.comicId),
+        sessionStore.listReadingSessions().map((entry): ComicId => entry.comicId))
     if (!sessionStore.removeHistoryEntries(comicIds)) {
       this.showHistorySaveFailed()
       return
