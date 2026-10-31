@@ -5,7 +5,7 @@ import { taskpool } from '@kit.ArkTS'
 import { image } from '@kit.ImageKit'
 import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
-  ReaderCancellation, ReaderAsset, ReaderAssetKind,
+  ReaderCancellation, ReaderProcessingCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
   ReaderAssetFailure, ReaderAssetFailureClassifier,
 } from '@reader-kit/core'
@@ -104,6 +104,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private automaticPageRetries: Set<string> = new Set()
   private chapterPreloadEnabled: boolean
   private cropStrength: () => string
+  private remotePreloadAllowed: () => boolean
   private closed: boolean = false
   private catalogFailureText: string = ''
 
@@ -117,9 +118,11 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
 
   constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null,
     requestContext?: common.UIAbilityContext, chapterPreloadEnabled: boolean = false,
-    cropStrength: () => string = (): string => 'standard') {
+    cropStrength: () => string = (): string => 'standard',
+    remotePreloadAllowed: () => boolean = (): boolean => true) {
     this.chapterPreloadEnabled = chapterPreloadEnabled
     this.cropStrength = cropStrength
+    this.remotePreloadAllowed = remotePreloadAllowed
     this.requestContext = requestContext
     this.filesDir = filesDir
     this.thumbnails = new KomaReaderLabThumbnailProvider(cacheDir)
@@ -334,6 +337,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     cancellation.check()
     if (!this.chapterPreloadEnabled || this.closed) return
     const config = this.configs.get(this.unitId(unit.key))
+    if (!this.remotePreloadAllowed() && config?.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
+      config?.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE) return
     // Folder import already establishes the same chapter order used by adjacent().
     // It has no WASM edition/group metadata, so warm that existing local adjacency
     // without enabling or changing automatic navigation in the Legacy reader.
@@ -349,6 +354,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     const warming: Promise<Error | undefined>[] = []
     for (let chapter = index + 1; chapter < sequence.length && remaining > 0; chapter += 1) {
       cancellation.check()
+      if (!this.remotePreloadAllowed() && config?.sourceKind !== ComicSourceKind.LOCAL_FOLDER &&
+        config?.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE) break
       const next = new ReaderUnitKey(unit.key.scope, unit.key.work, sequence[chapter])
       const prepared = await this.prepareShared(next, cancellation)
       const count = Math.min(remaining, prepared.pageCount)
@@ -441,6 +448,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (source === undefined || source.kind === ReaderPageRenderKind.URI_PLACEHOLDER) {
       return
     }
+    if (!this.remotePreloadAllowed() && (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE ||
+      source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST)) return
     const sizeKey = JSON.stringify([this.unitId(page.unit), page.sourceIndex])
     const sizeVersion = this.preloadedSizeVersions.get(sizeKey) ?? 0
     const filePath = await this.sourceFile(page.unit, page.sourceIndex)
@@ -465,6 +474,11 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       }
     }
     console.info(`[KomaReaderPreload] source=${page.sourceIndex} result=ready`)
+  }
+
+  unitUsesRemoteImages(unit: ReaderUnitKey): boolean {
+    return this.sources.get(this.unitId(unit))?.some((source: ReaderPageRenderSource): boolean =>
+      source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE || source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) === true
   }
 
   async imageShareSource(target: ReaderImageShareTarget,
@@ -499,6 +513,12 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     }
     const source = this.sources.get(this.unitId(page.unit))?.[page.sourceIndex]
     if (source === undefined) throw new Error('unsupported_koma_lab_asset')
+    if (cancellation instanceof ReaderProcessingCancellation && cancellation.priority === 'prefetch' &&
+      !this.remotePreloadAllowed() && (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE ||
+        source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST)) {
+      cancellation.cancel()
+      cancellation.check()
+    }
     if (source.kind === ReaderPageRenderKind.URI_PLACEHOLDER ||
       source.uri === 'source-placeholder://chapter' ||
       (source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.imageUri.length === 0)) {

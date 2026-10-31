@@ -1,6 +1,7 @@
 import { chapterSortKey, enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { estimateComicUpdateSchedule } from './ComicReleaseSchedule'
 import {
   Chapter,
   Comic,
@@ -10,6 +11,7 @@ import {
   copySourceMangaMetadata,
   copyComicPersonalFields,
   assignComicSourceCover,
+  copyComicUpdateSchedule,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -235,6 +237,7 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
     nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
   }
   copyComicPersonalFields(comic, nextComic)
+  copyComicUpdateSchedule(comic, nextComic)
   return nextComic
 }
 
@@ -294,6 +297,7 @@ function updatedComicWithOnlyCoverUri(comic: Comic, coverUri: string, now: numbe
     nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
   }
   copyComicPersonalFields(comic, nextComic)
+  copyComicUpdateSchedule(comic, nextComic)
   assignComicSourceCover(nextComic, coverUri)
   return nextComic
 }
@@ -515,6 +519,26 @@ export class LibraryUpdateService {
   }
 
   async checkComic(comic: Comic): Promise<LibraryUpdateComicResult> {
+    const result = await this.checkComicContent(comic)
+    if ((result.status === 'updated' || result.status === 'unchanged') &&
+      comic.sourceKind !== ComicSourceKind.LOCAL_ARCHIVE && comic.sourceKind !== ComicSourceKind.LOCAL_FOLDER) {
+      const current = this.libraryStore.getComic(comic.id)
+      if (current !== undefined) {
+        const schedule = estimateComicUpdateSchedule(current.chapters, Date.now(), current.updateSchedule,
+          result.status === 'updated')
+        if (schedule.nextCheckAt !== current.updateSchedule?.nextCheckAt ||
+          schedule.intervalDays !== current.updateSchedule?.intervalDays) {
+          const next = JSON.parse(JSON.stringify(current)) as Comic
+          next.updateSchedule = schedule
+          this.libraryStore.upsertComic(next)
+          result.metadataChanged = true
+        }
+      }
+    }
+    return result
+  }
+
+  private async checkComicContent(comic: Comic): Promise<LibraryUpdateComicResult> {
     const previousChapterCount = comic.chapters.length > 0 ? comic.chapters.length : comic.chapterCount
     if (this.includeComic !== undefined && !this.includeComic(comic)) {
       return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_automatic_policy'))

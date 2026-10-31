@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields } from './ComicModels'
+import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields, copyComicUpdateSchedule } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore,
   removeComicRecordAndPersistLibraryStore } from './LibraryPersistence'
@@ -143,6 +143,8 @@ export async function commitMangaMigration(
     // Preserve destination user choices; fill only missing personal data from the original.
     const targetSourceCover = target.coverUri
     copyComicPersonalFields(existing ?? source, target)
+    // The target's release history belongs to its source; never carry an old source's due date across.
+    if (existing !== undefined) copyComicUpdateSchedule(existing, target)
     if (existing === undefined && source.customCoverUri) target.sourceCoverUri = targetSourceCover
     if (!target.personalNotes) target.personalNotes = source.personalNotes
     if (!target.customCoverUri && source.customCoverUri) {

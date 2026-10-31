@@ -34,6 +34,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 import { KomaReaderSuperResolutionConfiguration, KomaReaderSuperResolutionProvider } from './KomaReaderSuperResolutionProvider'
 import { readerSuperResolutionSetInteractionPaused } from '../model/ReaderSuperResolutionService'
+import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
 
 // A surface keeps one non-null session for its whole component lifetime.
 // Re-entry replaces the entry, rather than updating a mounted surface to null.
@@ -110,6 +111,8 @@ export struct KomaReaderLabPage {
   private surfaceGeneration: number = 0
   @Local private labVisibility: ReaderLabVisibilityState = connectReaderLabVisibility()
   @Local private routeActive: boolean = false
+  @Local private preloadNetworkWifi: boolean = false
+  private preloadNetworkMonitor: ReaderPreloadNetworkMonitor | null = null
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private error: string = ''
   @Local private chapterBusy: boolean = false
@@ -203,7 +206,19 @@ export struct KomaReaderLabPage {
     this.chapterPickerFirstY = rect.y
   }
 
+  private readerPreloadDepth(): number {
+    const depth = this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages
+    const unit = this.session?.snapshot().unit?.key
+    const remote = unit === undefined || this.adapter?.unitUsesRemoteImages(unit) === true
+    const wifiOnly = this.hostPreferences?.preloadWifiOnly ?? this.readerMode.preloadWifiOnly
+    return wifiOnly && !this.preloadNetworkWifi && remote ? 0 : depth
+  }
+
   aboutToAppear(): void {
+    this.preloadNetworkMonitor = new ReaderPreloadNetworkMonitor((wifi: boolean): void => {
+      this.preloadNetworkWifi = wifi
+      this.session?.setPreloadDepth(this.readerPreloadDepth())
+    })
     this.initializeReader()
   }
 
@@ -252,7 +267,8 @@ export struct KomaReaderLabPage {
     void this.reloadTranslationSettings()
     try {
       const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry,
-        (): string => this.hostPreferences?.cropStrength ?? 'standard')
+        (): string => this.hostPreferences?.cropStrength ?? 'standard',
+        (): boolean => readerRemotePreloadAllowed(this.hostPreferences?.preloadWifiOnly === true))
       this.adapter = adapter
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
@@ -336,6 +352,8 @@ export struct KomaReaderLabPage {
 
 
   aboutToDisappear(): void {
+    this.preloadNetworkMonitor?.dispose()
+    this.preloadNetworkMonitor = null
     this.releaseEnhancementInteraction()
     this.translationAutoEnabled = false
     this.translationSettingsGeneration += 1
@@ -569,6 +587,7 @@ export struct KomaReaderLabPage {
     const snapshot = session.snapshot()
     if (snapshot.phase !== 'ready' || snapshot.unit === null ||
       !snapshot.unit.key.equals(position.anchor.unit)) return
+    session.setPreloadDepth(this.readerPreloadDepth())
     if (this.observedCatalogUnit?.equals(position.anchor.unit) !== true) {
       const chapterChanged = this.observedCatalogUnit !== null
       this.syncChapterChoices(position.anchor.unit)
@@ -1080,7 +1099,7 @@ export struct KomaReaderLabPage {
                 pageTurnAnimation: this.request.pageTurnAnimationOverride ??
                   (this.hostPreferences?.pageTurnAnimation ?? this.readerMode.pageTurnAnimation),
                 pageGap: this.readerPageGap(),
-                preloadDepth: this.hostPreferences?.preloadPages ?? this.readerMode.preloadPages,
+                preloadDepth: this.readerPreloadDepth(),
                 activitySink: new ReaderActivitySink(null,
                   (busy: boolean): void => { this.setEnhancementInteractionBusy(busy) }),
                 variantPolicy: this.translationPolicy(),

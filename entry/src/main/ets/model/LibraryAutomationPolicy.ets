@@ -1,6 +1,7 @@
 import { Chapter, Comic } from './ComicModels'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { continuationChapterIds } from './ReaderChapterSequence'
+import { comicUpdateScheduleDue } from './ComicReleaseSchedule'
 
 export interface LibraryAutomationPreferences {
   updateWifiOnly: boolean
@@ -10,6 +11,7 @@ export interface LibraryAutomationPreferences {
   skipCompleted: boolean
   skipNotStarted: boolean
   skipHasUnread: boolean
+  skipOutsideReleasePeriod: boolean
   autoDownloadNewChapters: boolean
   downloadUnreadOnly: boolean
   downloadIncludedCategories: string[]
@@ -23,7 +25,7 @@ export function defaultLibraryAutomationPreferences(): LibraryAutomationPreferen
   return {
     updateWifiOnly: false, updateChargingOnly: false,
     updateIncludedCategories: [], updateExcludedCategories: [],
-    skipCompleted: false, skipNotStarted: false, skipHasUnread: false,
+    skipCompleted: false, skipNotStarted: false, skipHasUnread: false, skipOutsideReleasePeriod: false,
     autoDownloadNewChapters: false, downloadUnreadOnly: true,
     downloadIncludedCategories: [], downloadExcludedCategories: [],
     removeAfterRead: -1, cleanupExcludedCategories: [],
@@ -41,6 +43,7 @@ export function shouldAutomaticallyUpdateComic(
   comic: Comic, reader: ReaderSessionStore, policy: LibraryAutomationPreferences,
 ): boolean {
   if (!comicMatchesAutomationCategories(comic, policy.updateIncludedCategories, policy.updateExcludedCategories)) return false
+  if (policy.skipOutsideReleasePeriod && !comicUpdateScheduleDue(comic.updateSchedule, Date.now())) return false
   if (policy.skipCompleted && (comic.sourceMetadata?.status ?? comic.localMetadata?.status) === 'completed') return false
   const started = reader.getProgress(comic.id) !== undefined || comic.chapters.some((chapter: Chapter): boolean =>
     reader.isChapterRead(comic.id, chapter.id) || reader.getChapterProgress(comic.id, chapter.id) !== undefined)

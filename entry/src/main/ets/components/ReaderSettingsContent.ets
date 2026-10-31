@@ -80,6 +80,7 @@ export struct ReaderSettingsContent {
       doubleTapIntervalMs: p.doubleTapIntervalMs,
       autoPageSeconds: p.autoPageSeconds,
       preloadPages: p.preloadPages,
+      preloadWifiOnly: p.preloadWifiOnly,
       spreadLayoutMode: p.spreadLayoutMode,
       columnMode: p.columnMode,
       tapZonePreset: p.tapZonePreset,

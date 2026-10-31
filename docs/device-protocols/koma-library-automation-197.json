@@ -5,21 +5,21 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
-  "runId": "power-restored-075",
+  "runId": "policy4-power-restored-094",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "restore-original-38d2456b",
-    "page": "Session cleanup: restore original timeout10000ms and SLEEP, with final power/window readback",
+    "codeIdentity": "original197-38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5",
+    "page": "Restore original power state after fourth-batch validation",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "197 continuing user authorization; lease 20261030-231310-6d2be85c. Model/geometry readback still required before coordinate inputs. Save original package/data and power state, then restore independently on success or failure. No emulator or 200. No account login or clearing user content. Actual baseline ALN-AL80/1260x2720; SLEEP; Timeout120000ms Override10000ms. Installed updateTime1793397263974 exactly matches prior successful original38d245 restore readback; raw installed bytes not independently retrievable."
+    "notes": "User approved expected-date skip and Wi-Fi-only reader preload, both default off. No network changes. Save fresh baseline and restore original package, data, timeout, sleep and lease."
   },
   "preflight": [],
   "measurement": {

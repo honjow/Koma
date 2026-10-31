@@ -72,10 +72,10 @@ export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): P
     DiagnosticLogger.info('library_update', 'admission', '[LibraryUpdateCoordinator] step=admission reason=' + request.reason + ' status=joined')
     if (request.reason === 'manual') {
       return active.then((result: LibraryUpdateCheckResult): Promise<LibraryUpdateCheckResult> | LibraryUpdateCheckResult => {
-        // A due admission may finish without checking anything. It must not consume a manual request.
-        const didNotRun = result.status === 'not-due' ||
-          (activeReason === 'due' && result.status === 'unavailable')
-        return didNotRun ? requestLibraryUpdateCheck(request) : result
+        // Automatic checks may exclude categories or books outside their release window.
+        // The adopted manual action still checks the whole library after that job finishes.
+        return activeReason === 'due' || result.status === 'not-due'
+          ? requestLibraryUpdateCheck(request) : result
       })
     }
     return active

@@ -2002,6 +2002,9 @@
     {"name": "manga_notes_placeholder", "value": "记录这本漫画的个人笔记"},
     {"name": "manga_cover_change", "value": "更换封面"},
     {"name": "manga_cover_restore", "value": "恢复源封面"},
-    {"name": "manga_personalization_failed", "value": "漫画个人设置保存失败"}
+    {"name": "manga_personalization_failed", "value": "漫画个人设置保存失败"},
+    {"name": "reader_preload_wifi_title", "value": "仅 Wi-Fi 预载"},
+    {"name": "reader_preload_wifi_detail", "value": "只在 Wi-Fi 下提前加载；当前阅读页面仍正常加载。"},
+    {"name": "automation_skip_not_due", "value": "未到预计更新日期"}
   ]
 }

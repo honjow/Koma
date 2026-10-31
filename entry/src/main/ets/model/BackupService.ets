@@ -1589,6 +1589,7 @@ export class BackupService {
       doubleTapIntervalMs: settings.doubleTapIntervalMs ?? DEFAULT_READER_PREFERENCES.doubleTapIntervalMs,
       autoPageSeconds: settings.autoPageSeconds ?? DEFAULT_READER_PREFERENCES.autoPageSeconds,
       preloadPages: settings.preloadPages ?? DEFAULT_READER_PREFERENCES.preloadPages,
+      preloadWifiOnly: settings.preloadWifiOnly ?? DEFAULT_READER_PREFERENCES.preloadWifiOnly,
       spreadLayoutMode: settings.spreadLayoutMode ?? DEFAULT_READER_PREFERENCES.spreadLayoutMode,
       columnMode: settings.columnMode ?? DEFAULT_READER_PREFERENCES.columnMode,
       tapZonePreset: settings.tapZonePreset ?? DEFAULT_READER_PREFERENCES.tapZonePreset,

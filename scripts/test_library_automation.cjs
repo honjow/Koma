@@ -14,7 +14,8 @@ function load(name, deps = {}) {
   return module.exports
 }
 const sequence = load('ReaderChapterSequence')
-const policy = load('LibraryAutomationPolicy', { './ReaderChapterSequence': sequence })
+const releaseSchedule = load('ComicReleaseSchedule')
+const policy = load('LibraryAutomationPolicy', { './ReaderChapterSequence': sequence, './ComicReleaseSchedule': releaseSchedule })
 const activity = load('BackupRestoreActivity')
 const read = new Set(['chapter-0', 'chapter-2', 'chapter-3'])
 const reader = { isChapterRead: (_comic, id) => read.has(id), getProgress: () => undefined, getChapterProgress: () => undefined }
@@ -23,6 +24,25 @@ const comic = { id: 'book', categoryIds: ['included', 'excluded'], sourceMetadat
 assert.equal(policy.comicMatchesAutomationCategories(comic, ['included'], ['excluded']), false)
 assert.equal(policy.comicMatchesAutomationCategories({ categoryIds: [] }, ['uncategorized'], []), true)
 assert.equal(policy.shouldAutomaticallyUpdateComic(comic, reader, policy.defaultLibraryAutomationPreferences()), true)
+// Calendar examples from the reference schedule, independent of catalog display order.
+const day = value => new Date(value + 'T12:00:00').getTime()
+const dates = values => values.map(value => ({ dateUpload: day(value), createdAt: day('2026-10-30') }))
+const weekly = dates(['2026-10-19', '2026-10-05', '2026-10-12'])
+const expected = releaseSchedule.estimateComicUpdateSchedule(weekly, day('2026-10-20'))
+assert.equal(new Date(expected.nextCheckAt).getDate(), 26)
+assert.equal(expected.intervalDays, 7)
+assert.equal(releaseSchedule.comicUpdateScheduleDue(expected, day('2026-10-24')), false)
+assert.equal(releaseSchedule.comicUpdateScheduleDue(expected, day('2026-10-25')), true)
+const awaiting = releaseSchedule.estimateComicUpdateSchedule(weekly, day('2026-10-26'), expected)
+assert.equal(awaiting.nextCheckAt, expected.nextCheckAt, 'A missing release stays due, rather than postponing itself')
+const monthly = releaseSchedule.estimateComicUpdateSchedule(dates(
+  ['02','03','04','05','06','07','08','09','10','11'].map(month => `2026-${month}-01`)), day('2026-11-28'))
+assert.equal(new Date(monthly.nextCheckAt).getMonth(), 11)
+assert.equal(new Date(monthly.nextCheckAt).getDate(), 1)
+const futurePolicy = policy.defaultLibraryAutomationPreferences(); futurePolicy.skipOutsideReleasePeriod = true
+assert.equal(policy.shouldAutomaticallyUpdateComic({ ...comic,
+  updateSchedule: { intervalDays: 7, nextCheckAt: Date.now() + 7 * 86400000 } }, reader, futurePolicy), false)
+assert.equal(policy.shouldAutomaticallyUpdateComic(comic, reader, futurePolicy), true, 'Unknown schedules must still be checked')
 for (const field of ['skipCompleted', 'skipHasUnread']) {
   const config = policy.defaultLibraryAutomationPreferences(); config[field] = true
   assert.equal(policy.shouldAutomaticallyUpdateComic(comic, reader, config), false)

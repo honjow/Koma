@@ -2,6 +2,7 @@ import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { ComicUpdateSchedule } from './ComicReleaseSchedule'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import {
   Chapter,
@@ -11,6 +12,7 @@ import {
   copyLocalImportOrigin,
   copyComicPersonalFields,
   assignComicSourceCover,
+  copyComicUpdateSchedule,
   SourceMangaMetadata,
   copySourceMangaMetadata,
   CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
@@ -91,6 +93,7 @@ export interface PersistedComic {
   personalNotes?: string
   customCoverUri?: string
   sourceCoverUri?: string
+  updateSchedule?: ComicUpdateSchedule
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
   sourceMetadata?: SourceMangaMetadata
@@ -257,6 +260,7 @@ function hydrateChapter(row: PersistedChapter): Chapter {
 export function persistComic(comic: Comic): PersistedComic {
   const row: PersistedComic = {
     personalNotes: comic.personalNotes, customCoverUri: comic.customCoverUri, sourceCoverUri: comic.sourceCoverUri,
+    updateSchedule: comic.updateSchedule,
     id: comic.id,
     title: comic.title,
     sourceKind: comic.sourceKind,
@@ -309,6 +313,7 @@ export function hydrateComic(row: PersistedComic): Comic {
   const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter))
   const comic: Comic = {
     personalNotes: row.personalNotes, customCoverUri: row.customCoverUri, sourceCoverUri: row.sourceCoverUri,
+    updateSchedule: row.updateSchedule,
     id: row.id,
     title: row.title,
     sourceKind: row.sourceKind,
@@ -521,6 +526,11 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.personalNotes, 'comic.personalNotes')
   assertOptionalStringField(row.customCoverUri, 'comic.customCoverUri')
   assertOptionalStringField(row.sourceCoverUri, 'comic.sourceCoverUri')
+  if (row.updateSchedule !== undefined) {
+    assertPersistedObject(row.updateSchedule as Object, 'comic.updateSchedule')
+    assertNumberField(row.updateSchedule.intervalDays, 'comic.updateSchedule.intervalDays')
+    assertNumberField(row.updateSchedule.nextCheckAt, 'comic.updateSchedule.nextCheckAt')
+  }
   if (row.sourceMetadata !== undefined) {
     const metadata = row.sourceMetadata
     assertPersistedObject(metadata as Object, 'comic.sourceMetadata')
@@ -965,6 +975,7 @@ export function updateLocalLibraryMetadataAndPersistLibraryStore(
     next.sourceMetadata = copySourceMangaMetadata(previous.sourceMetadata)
   }
   copyComicPersonalFields(previous, next)
+  copyComicUpdateSchedule(previous, next)
   next.localMetadata = normalized
   if (normalized.titleOverride !== undefined) {
     next.title = normalized.titleOverride
@@ -1083,6 +1094,7 @@ function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic)
     merged.sourceMetadata = copySourceMangaMetadata(sourceMetadata)
   }
   copyComicPersonalFields(previous, merged)
+  copyComicUpdateSchedule(previous, merged)
   return merged
 }
 

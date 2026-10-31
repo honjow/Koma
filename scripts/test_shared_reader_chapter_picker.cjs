@@ -268,14 +268,15 @@ test('a newer opening layout retires its earlier callback and closed/replaced ca
 
 
 const sharedCore = require('../../reader-kit/tests/load-core.cjs')('ReaderSession')
+const sharedProcessing = require('../../reader-kit/tests/load-core.cjs')('ReaderProcessingCoordinator')
 function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri,
   readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',
     ['unitId', 'open', 'prepare', 'prepareShared', 'prepareUnit', 'installConfig', 'prepareSequence', 'adjacent', 'preloadNextUnit',
       'page', 'preload', 'recoverableImageFailure', 'refreshPageSources', 'sourceFile', 'load', 'close'], {
-      ...sharedCore, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
-      ComicSourceKind: { LOCAL_FOLDER: 'local_folder' },
-      ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2 },
+      ...sharedCore, ...sharedProcessing, DiagnosticLogger: { info() {} }, KomaReaderFailure: { catalogMessage: error => error.message },
+      ComicSourceKind: { LOCAL_FOLDER: 'local_folder', LOCAL_ARCHIVE: 'local_archive' },
+      ReaderPageRenderKind: { REMOTE_URL_IMAGE: 1, URI_PLACEHOLDER: 2, LOCAL_FILE_IMAGE: 3 },
       createReaderPageRenderSources: config => config.pageUris.map((imageUri, index) => ({ kind: 1, imageUri, sourceRuntimeId: config.sourceRuntimeId, pageId: config.pageIds?.[index] })),
       fetchAndCacheReaderRemoteSource: fetchSource,
       KomaReaderFileInformation: class {}, KomaReaderCropSource: class {},
@@ -288,6 +289,7 @@ function preparationFixture(hostPrepare, fetchSource = async source => '/cache/'
     sourceRequests: new Map(), refreshingSources: new Map(), automaticallyRefreshedUnits: new Set(), automaticPageRetries: new Set(), closed: false, chapterPreloadEnabled: true,
     preloadedSizes: new Map(), preloadedSizeVersions: new Map(),
     preparationCancellation: new sharedCore.ReaderCancellation(), catalogFailureText: 'visible failure',
+    remotePreloadAllowed: () => true,
     catalogHost: { prepare: hostPrepare }, thumbnails: { close() {} },
   })
   return adapter
@@ -298,6 +300,30 @@ function chapterConfig(unit = 'B') {
     chapterIds: ['A', 'B', 'C'], continuationChapterIds: ['A', 'B', 'C'] }
 }
 const later = () => new Promise(setImmediate)
+test('network restrictions stop online page, chapter and processing prefetch while foreground loading remains usable', async () => {
+  const prepared = [], fetched = []
+  const adapter = preparationFixture(async key => { prepared.push(key.unit); return chapterConfig(key.unit) },
+    async source => { fetched.push(source.imageUri); return '/cache/' + source.imageUri })
+  const current = await adapter.prepare(unitKey('A'), new sharedCore.ReaderCancellation())
+  let allowed = false
+  adapter.remotePreloadAllowed = () => allowed
+  await adapter.preloadNextUnit(current, 2, new sharedCore.ReaderCancellation())
+  assert.deepEqual(prepared, ['A'])
+  const page = await adapter.page(current, 0, new sharedCore.ReaderCancellation())
+  await adapter.preload(page, new sharedCore.ReaderCancellation())
+  assert.equal(fetched.length, 0)
+  const processing = new sharedProcessing.ReaderProcessingCancellation('prefetch')
+  await assert.rejects(adapter.load(page, 'original', processing, false), /cancel/)
+  assert.equal(processing.isCancelled(), true)
+  const displayed = await adapter.load(page, 'original', new sharedCore.ReaderCancellation(), false)
+  assert.equal(fetched.length, 1, 'explicit foreground read must work off Wi-Fi')
+  displayed.release()
+  allowed = true
+  await adapter.preloadNextUnit(current, 2, new sharedCore.ReaderCancellation())
+  assert.deepEqual(prepared, ['A', 'B'])
+  assert.ok(fetched.includes('B0'))
+  adapter.close()
+})
 test('concurrent chapter consumers share host preparation; cancelling one does not reject the other', async () => {
   let finish, count = 0
   const adapter = preparationFixture(() => { count++; return new Promise(resolve => { finish = resolve }) })

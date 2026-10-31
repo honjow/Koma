@@ -1,6 +1,7 @@
 import { SourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
 import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
 import { AppStrings } from '../i18n/AppStrings'
+import { ComicUpdateSchedule } from './ComicReleaseSchedule'
 
 export type ComicId = string
 export type ChapterId = string
@@ -118,6 +119,7 @@ export interface Comic {
   personalNotes?: string
   customCoverUri?: string
   sourceCoverUri?: string
+  updateSchedule?: ComicUpdateSchedule
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
   sourceMetadata?: SourceMangaMetadata
@@ -142,6 +144,12 @@ export function copyComicPersonalFields(source: Comic, target: Comic): void {
 export function assignComicSourceCover(comic: Comic, coverUri: string): void {
   if (comic.customCoverUri) { comic.sourceCoverUri = coverUri; comic.coverUri = comic.customCoverUri }
   else comic.coverUri = coverUri
+}
+
+export function copyComicUpdateSchedule(source: Comic, target: Comic): void {
+  target.updateSchedule = source.updateSchedule === undefined ? undefined : {
+    intervalDays: source.updateSchedule.intervalDays, nextCheckAt: source.updateSchedule.nextCheckAt,
+  }
 }
 
 export function sameComicIdentity(baseline: Comic, current: Comic): boolean {
@@ -305,6 +313,7 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
     nextComic.categoryIds = undefined
   }
   copyComicPersonalFields(comic, nextComic)
+  copyComicUpdateSchedule(comic, nextComic)
   return nextComic
 }
 

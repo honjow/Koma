@@ -46,6 +46,7 @@ export class ReaderModeSnapshot {
   doubleTapIntervalMs: number
   autoPageSeconds: number
   preloadPages: number
+  preloadWifiOnly: boolean
   spreadLayoutMode: string
   tapZonePreset: string
   tapZoneInvert: string
@@ -91,6 +92,7 @@ export class ReaderModeSnapshot {
     superResolutionMaxHeight: number = 2000,
     doubleTapZoomEnabled: boolean = true,
     doubleTapIntervalMs: number = 300,
+    preloadWifiOnly: boolean = false,
   ) {
     this.pageMode = pageMode
     this.readingDirection = readingDirection
@@ -107,6 +109,7 @@ export class ReaderModeSnapshot {
     this.doubleTapIntervalMs = doubleTapIntervalMs
     this.autoPageSeconds = autoPageSeconds
     this.preloadPages = preloadPages
+    this.preloadWifiOnly = preloadWifiOnly
     this.spreadLayoutMode = spreadLayoutMode
     this.tapZonePreset = tapZonePreset
     this.tapZoneInvert = tapZoneInvert
@@ -141,6 +144,7 @@ export class ReaderModeState {
   @Trace doubleTapIntervalMs: number = 300
   @Trace autoPageSeconds: number = 3
   @Trace preloadPages: number = 2
+  @Trace preloadWifiOnly: boolean = false
   @Trace spreadLayoutMode: string = 'joined'
   @Trace tapZonePreset: string = 'right_left'
   @Trace tapZoneInvert: string = 'none'
@@ -188,6 +192,7 @@ export class ReaderModeStateBridge {
       state.doubleTapIntervalMs !== next.doubleTapIntervalMs ||
       state.autoPageSeconds !== next.autoPageSeconds ||
       state.preloadPages !== next.preloadPages ||
+      state.preloadWifiOnly !== next.preloadWifiOnly ||
       state.spreadLayoutMode !== next.spreadLayoutMode ||
       state.tapZonePreset !== next.tapZonePreset ||
       state.tapZoneInvert !== next.tapZoneInvert ||
@@ -217,6 +222,7 @@ export class ReaderModeStateBridge {
     state.doubleTapIntervalMs = next.doubleTapIntervalMs
     state.autoPageSeconds = next.autoPageSeconds
     state.preloadPages = next.preloadPages
+    state.preloadWifiOnly = next.preloadWifiOnly
     state.spreadLayoutMode = next.spreadLayoutMode
     state.tapZonePreset = next.tapZonePreset
     state.tapZoneInvert = next.tapZoneInvert
@@ -268,6 +274,7 @@ export class ReaderModeStateBridge {
       state.superResolutionMaxHeight,
       state.doubleTapZoomEnabled,
       state.doubleTapIntervalMs,
+      state.preloadWifiOnly,
     )
   }
 }

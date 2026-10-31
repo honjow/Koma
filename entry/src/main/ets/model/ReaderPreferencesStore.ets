@@ -37,6 +37,7 @@ export interface ReaderPreferences {
   doubleTapIntervalMs: number
   autoPageSeconds: number
   preloadPages: number
+  preloadWifiOnly: boolean
   spreadLayoutMode: ReaderSpreadLayoutMode
   columnMode: ReaderColumnMode
   tapZonePreset: ReaderTapZonePreset
@@ -104,6 +105,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   doubleTapIntervalMs: 300,
   autoPageSeconds: 3,
   preloadPages: 2,
+  preloadWifiOnly: false,
   spreadLayoutMode: 'joined',
   columnMode: 'odd_left',
   // NextE's default RIGHT_LEFT layout is the neutral three-zone contract;
@@ -269,6 +271,7 @@ export function normalizeReaderPreferences(value: ReaderPreferences): ReaderPref
     doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(value.doubleTapIntervalMs),
     autoPageSeconds: normalizeReaderAutoPageSeconds(value.autoPageSeconds),
     preloadPages: normalizeReaderPreloadPages(value.preloadPages),
+    preloadWifiOnly: value.preloadWifiOnly === true,
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(value.spreadLayoutMode),
     columnMode: normalizeReaderColumnMode(value.columnMode),
     tapZonePreset: normalizeReaderTapZonePreset(value.tapZonePreset),
@@ -310,6 +313,7 @@ export function readerPreferencesFromRuntimeState(columnMode: ReaderColumnMode):
     doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(runtime.doubleTapIntervalMs),
     autoPageSeconds: normalizeReaderAutoPageSeconds(runtime.autoPageSeconds),
     preloadPages: normalizeReaderPreloadPages(runtime.preloadPages),
+    preloadWifiOnly: runtime.preloadWifiOnly,
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(runtime.spreadLayoutMode),
     columnMode: normalizeReaderColumnMode(runtime.columnMode),
     tapZonePreset: normalizeReaderTapZonePreset(runtime.tapZonePreset),
@@ -360,6 +364,7 @@ function publishReaderModeState(preferences: ReaderPreferences): void {
     preferences.superResolutionMaxHeight,
     preferences.doubleTapZoomEnabled,
     preferences.doubleTapIntervalMs,
+    preferences.preloadWifiOnly,
   ))
   connectKomaReaderBackendSelection().select(
     preferences.readerImplementation === 'legacy' ? KomaReaderBackend.LEGACY : KomaReaderBackend.SHARED, true)
@@ -405,6 +410,7 @@ function preferencesFromRecord(record: Record<string, Object>, fallback: ReaderP
     doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(Number(record['doubleTapIntervalMs'] ?? fallback.doubleTapIntervalMs)),
     autoPageSeconds: normalizeReaderAutoPageSeconds(Number(record['autoPageSeconds'] ?? fallback.autoPageSeconds)),
     preloadPages: normalizeReaderPreloadPages(Number(record['preloadPages'] ?? fallback.preloadPages)),
+    preloadWifiOnly: booleanField(record, 'preloadWifiOnly', fallback.preloadWifiOnly),
     spreadLayoutMode: normalizeReaderSpreadLayoutMode(stringField(record, 'spreadLayoutMode', fallback.spreadLayoutMode)),
     columnMode: normalizeReaderColumnMode(stringField(record, 'columnMode', fallback.columnMode)),
     tapZonePreset: normalizeReaderTapZonePreset(stringField(record, 'tapZonePreset', fallback.tapZonePreset)),
@@ -520,6 +526,7 @@ export function applyReaderSeriesModeOverride(
     doubleTapIntervalMs: preferences.doubleTapIntervalMs,
     autoPageSeconds: preferences.autoPageSeconds,
     preloadPages: preferences.preloadPages,
+    preloadWifiOnly: preferences.preloadWifiOnly,
     spreadLayoutMode: preferences.spreadLayoutMode,
     columnMode: preferences.columnMode,
     tapZonePreset: preferences.tapZonePreset,
@@ -707,6 +714,7 @@ export function rebaseReaderPreferenceChanges(base: ReaderPreferences, previous:
   if (previous.doubleTapIntervalMs !== next.doubleTapIntervalMs) rebased.doubleTapIntervalMs = next.doubleTapIntervalMs
   if (previous.autoPageSeconds !== next.autoPageSeconds) rebased.autoPageSeconds = next.autoPageSeconds
   if (previous.preloadPages !== next.preloadPages) rebased.preloadPages = next.preloadPages
+  if (previous.preloadWifiOnly !== next.preloadWifiOnly) rebased.preloadWifiOnly = next.preloadWifiOnly
   if (previous.spreadLayoutMode !== next.spreadLayoutMode) rebased.spreadLayoutMode = next.spreadLayoutMode
   if (previous.columnMode !== next.columnMode) rebased.columnMode = next.columnMode
   if (previous.tapZonePreset !== next.tapZonePreset) rebased.tapZonePreset = next.tapZonePreset
@@ -781,6 +789,7 @@ export class ReaderPreferencesStore {
     const doubleTapIntervalMs = await store.get('reader.doubleTapIntervalMs', DEFAULT_READER_PREFERENCES.doubleTapIntervalMs) as number
     const autoPageSeconds = await store.get('reader.autoPageSeconds', DEFAULT_READER_PREFERENCES.autoPageSeconds) as number
     const preloadPages = await store.get('reader.preloadPages', DEFAULT_READER_PREFERENCES.preloadPages) as number
+    const preloadWifiOnly = await store.get('reader.preloadWifiOnly', false) as boolean
     const spreadLayoutMode = await store.get('reader.spreadLayoutMode', DEFAULT_READER_PREFERENCES.spreadLayoutMode) as string
     const columnMode = await store.get('reader.columnMode', DEFAULT_READER_PREFERENCES.columnMode) as string
     const tapZonePreset = await store.get('reader.tapZonePreset', DEFAULT_READER_PREFERENCES.tapZonePreset) as string
@@ -816,6 +825,7 @@ export class ReaderPreferencesStore {
       doubleTapIntervalMs: normalizeReaderDoubleTapIntervalMs(doubleTapIntervalMs),
       autoPageSeconds: normalizeReaderAutoPageSeconds(autoPageSeconds),
       preloadPages: normalizeReaderPreloadPages(preloadPages),
+      preloadWifiOnly: preloadWifiOnly === true,
       spreadLayoutMode: normalizeReaderSpreadLayoutMode(spreadLayoutMode),
       columnMode: normalizeReaderColumnMode(columnMode),
       tapZonePreset: normalizeReaderTapZonePreset(tapZonePreset),
@@ -886,6 +896,7 @@ export class ReaderPreferencesStore {
       'reader.doubleTapIntervalMs',
       'reader.autoPageSeconds',
       'reader.preloadPages',
+      'reader.preloadWifiOnly',
       'reader.spreadLayoutMode',
       'reader.columnMode',
       'reader.tapZonePreset',
@@ -924,6 +935,7 @@ export class ReaderPreferencesStore {
       await store.put('reader.doubleTapIntervalMs', normalized.doubleTapIntervalMs)
       await store.put('reader.autoPageSeconds', normalized.autoPageSeconds)
       await store.put('reader.preloadPages', normalized.preloadPages)
+      await store.put('reader.preloadWifiOnly', normalized.preloadWifiOnly)
       await store.put('reader.spreadLayoutMode', normalized.spreadLayoutMode)
       await store.put('reader.columnMode', normalized.columnMode)
       await store.put('reader.tapZonePreset', normalized.tapZonePreset)
@@ -1089,6 +1101,7 @@ export class ReaderPreferencesStore {
       doubleTapIntervalMs: current.doubleTapIntervalMs,
       autoPageSeconds: current.autoPageSeconds,
       preloadPages: current.preloadPages,
+      preloadWifiOnly: current.preloadWifiOnly,
       spreadLayoutMode: current.spreadLayoutMode,
       columnMode: current.columnMode,
       tapZonePreset: current.tapZonePreset,
@@ -1193,6 +1206,10 @@ export class ReaderPreferencesStore {
     return this.mutatePreferences((next: ReaderPreferences): void => {
       next.preloadPages = normalizeReaderPreloadPages(preloadPages)
     })
+  }
+
+  async savePreloadWifiOnly(enabled: boolean): Promise<ReaderPreferences> {
+    return this.mutatePreferences((next: ReaderPreferences): void => { next.preloadWifiOnly = enabled })
   }
 
   async saveShowProgressControls(showProgressControls: boolean): Promise<ReaderPreferences> {

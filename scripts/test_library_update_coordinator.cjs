@@ -131,6 +131,7 @@ async function environment(autoCheckEnabled = true) {
   const guardComic = { id: 'guard-comic', sourceRuntimeId: 'com.mh1234.koma' }
   const automationPolicy = compile(source('model/LibraryAutomationPolicy'), {
     './ReaderChapterSequence': compile(source('model/ReaderChapterSequence'), {}),
+    './ComicReleaseSchedule': compile(source('model/ComicReleaseSchedule'), {}),
   })
   const automationStore = compile(source('model/LibraryAutomationPreferencesStore'), {
     '@kit.ArkData': arkData, './BackupRestoreActivity': { BackupRestoreActivity: activity },
@@ -160,11 +161,12 @@ async function environment(autoCheckEnabled = true) {
     './BackupRestoreActivity': { BackupRestoreActivity: activity },
     './RemoteServerStore': { RemoteServerStore: class {} },
     './LibraryUpdateService': { ...helpers, LibraryUpdateService: class {
-      constructor(store, registry, persistence, _remote, protectedChapterIds) {
+      constructor(store, registry, persistence, _remote, protectedChapterIds, includeComic) {
         assert.equal(store, request.libraryStore)
         assert.equal(registry, request.sourceRegistry)
         assert.equal(persistence, request.libraryPersistenceService)
         assert.equal(protectedChapterIds(guardComic), protectedIds)
+        ;(calls.scopes ??= []).push(includeComic !== undefined)
       }
       async checkLibraryUpdates() {
         calls.service++
@@ -202,7 +204,8 @@ async function environment(autoCheckEnabled = true) {
 }
 
 async function main() {
-  for (const firstReason of ['manual', 'due']) {
+  {
+    const firstReason = 'manual'
     const env = await environment()
     env.controls.runningGate = deferred()
     env.controls.serviceGate = deferred()
@@ -235,6 +238,18 @@ async function main() {
     assert.equal(env.state.busy, false)
     assert.deepEqual(env.events.slice(0, 3), ['running', 'service', 'result'])
   }
+
+  // The adopted automatic-only filters cannot consume the user's full-library manual action.
+  // This replaces the earlier due/manual single-flight expectation with the agreed scope boundary.
+  const filtered = await environment()
+  filtered.controls.serviceGate = deferred()
+  const automatic = filtered.run('due')
+  await until(() => filtered.calls.service === 1)
+  const fullLibrary = filtered.run('manual')
+  filtered.controls.serviceGate.resolve()
+  await Promise.all([automatic, fullLibrary])
+  assert.equal(filtered.calls.service, 2)
+  assert.deepEqual(filtered.calls.scopes, [true, false])
 
   const notDue = await environment(false)
   notDue.controls.readGate = deferred()

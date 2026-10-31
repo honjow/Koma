@@ -31,7 +31,7 @@ const base = {
   pageMode: 'single_page', readingDirection: ReadingDirection.LEFT_TO_RIGHT,
   themeMode: 'dark', backgroundMode: 'gray', showProgressControls: false,
   keepScreenAwake: false, fullscreen: false, imageFitMode: 'fit_height', imageScalingQuality: 'high',
-  showPageNumber: false, pageTurnAnimation: false, autoPageSeconds: 9, preloadPages: 4,
+  showPageNumber: false, pageTurnAnimation: false, autoPageSeconds: 9, preloadPages: 4, preloadWifiOnly: true,
   spreadLayoutMode: 'joined', columnMode: 'odd_left', tapZonePreset: 'kindle', tapZoneInvert: 'both',
   pageGapMode: 'wide', trimPageMarginsEnabled: false, cropStrength: 'strong', superResolutionEnabled: true, superResolutionModel: 'waifu2xPhotoNoise0_2x',
   superResolutionBackend: 'auto', superResolutionMaxHeight: 2000, wideImageMode: 'rotate_wide_pages',
@@ -66,7 +66,7 @@ assert.equal(continuous.readingDirection, base.readingDirection)
 
 for (const key of ['themeMode', 'backgroundMode', 'showProgressControls', 'keepScreenAwake', 'fullscreen',
   'imageFitMode', 'imageScalingQuality', 'showPageNumber', 'pageTurnAnimation', 'autoPageSeconds',
-  'preloadPages', 'tapZonePreset', 'tapZoneInvert', 'pageGapMode', 'trimPageMarginsEnabled', 'cropStrength', 'superResolutionEnabled', 'superResolutionModel',
+  'preloadPages', 'preloadWifiOnly', 'tapZonePreset', 'tapZoneInvert', 'pageGapMode', 'trimPageMarginsEnabled', 'cropStrength', 'superResolutionEnabled', 'superResolutionModel',
   'superResolutionBackend', 'superResolutionMaxHeight',
   'volumeKeyNavigationEnabled', 'volumeKeyBehavior']) {
   assert.equal(spread[key], base[key], key)

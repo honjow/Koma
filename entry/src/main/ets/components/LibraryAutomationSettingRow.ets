@@ -66,6 +66,7 @@ export struct LibraryAutomationSettingRow {
       if (this.policy.skipCompleted) names.push(AppStrings.get('automation_skip_completed'))
       if (this.policy.skipNotStarted) names.push(AppStrings.get('automation_skip_not_started'))
       if (this.policy.skipHasUnread) names.push(AppStrings.get('automation_skip_unread'))
+      if (this.policy.skipOutsideReleasePeriod) names.push(AppStrings.get('automation_skip_not_due'))
       return names.join('、') || AppStrings.get('automation_none')
     }
     if (this.rowKey === 'download-cleanup-exclude') return this.excluded().map((id: string): string =>
@@ -97,11 +98,13 @@ export struct LibraryAutomationSettingRow {
   private skipChoices(): AutomationChoice[] {
     return [{ key: 'completed', title: AppStrings.get('automation_skip_completed') },
       { key: 'not_started', title: AppStrings.get('automation_skip_not_started') },
-      { key: 'unread', title: AppStrings.get('automation_skip_unread') }]
+      { key: 'unread', title: AppStrings.get('automation_skip_unread') },
+      { key: 'not_due', title: AppStrings.get('automation_skip_not_due') }]
   }
 
   private skipChecked(key: string): boolean {
-    return key === 'completed' ? this.policy.skipCompleted : key === 'not_started' ? this.policy.skipNotStarted : this.policy.skipHasUnread
+    return key === 'completed' ? this.policy.skipCompleted : key === 'not_started' ? this.policy.skipNotStarted :
+      key === 'not_due' ? this.policy.skipOutsideReleasePeriod : this.policy.skipHasUnread
   }
 
   @Builder
@@ -121,6 +124,7 @@ export struct LibraryAutomationSettingRow {
             .onClick(() => { select(() => { this.onChange((policy: LibraryAutomationPreferences): void => {
               if (choice.key === 'completed') policy.skipCompleted = !policy.skipCompleted
               else if (choice.key === 'not_started') policy.skipNotStarted = !policy.skipNotStarted
+              else if (choice.key === 'not_due') policy.skipOutsideReleasePeriod = !policy.skipOutsideReleasePeriod
               else policy.skipHasUnread = !policy.skipHasUnread
             }) }) })
         })

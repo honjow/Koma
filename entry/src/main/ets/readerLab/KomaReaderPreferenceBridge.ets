@@ -21,6 +21,7 @@ export class KomaReaderPreferenceBridge {
       doubleTapIntervalMs: current.doubleTapIntervalMs,
       autoPageSeconds: current.autoPageSeconds,
       preloadPages: current.preloadPages,
+      preloadWifiOnly: current.preloadWifiOnly,
       spreadLayoutMode: current.spreadLayoutMode,
       columnMode: current.columnMode,
       tapZonePreset: current.tapZonePreset,
@@ -55,6 +56,7 @@ export class KomaReaderPreferenceBridge {
       left.doubleTapIntervalMs === right.doubleTapIntervalMs &&
       left.autoPageSeconds === right.autoPageSeconds &&
       left.preloadPages === right.preloadPages &&
+      left.preloadWifiOnly === right.preloadWifiOnly &&
       left.spreadLayoutMode === right.spreadLayoutMode &&
       left.columnMode === right.columnMode &&
       left.tapZonePreset === right.tapZonePreset &&

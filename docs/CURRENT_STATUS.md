@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T09:12:25+08:00",
+  "updatedAt": "2026-10-31T09:40:13+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "前三批具名路径已验证，第三批正在准备交付。",
-  "nextAction": "完成第三批交付并继续剩余功能差异。",
+  "activity": "第四批设备已恢复，正在准备源码交付。",
+  "nextAction": "完成第四批审查提交并继续其余功能。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已恢复原38d245、原数据及电源并释租。"
+      "hap": "197已恢复原38d245、基线数据及电源并释租。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "前三批具名路径已验证，第三批交付准备中",
-      "stage": "第三批代码审查与提交准备",
+      "status": "第四批设备已恢复，交付准备中",
+      "stage": "第四批最后修正已构建，待审提交",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "前三批具名路径已验证并恢复设备，第三批正在准备交付。",
-      "remaining": "完成第三批交付，继续预计更新周期、统计、智能分类、tracker、更多格式、WiFi预载及亮度滤镜等已授权差异。",
+      "result": "第四批具名设备路径已核并恢复，手动全库检查修正已完成本地验证。",
+      "remaining": "完成第四批审查与交付，继续其余已授权差异。",
       "remainingActions": [
-        "完成第三批交付，继续预计更新周期、统计、智能分类、tracker、更多格式、WiFi预载及亮度滤镜等已授权差异。"
+        "完成第四批审查与交付，继续其余已授权差异。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4709,14 +4709,20 @@
         "首批head67a54bdf5d8ae2dc45ef13458d07cfe270e20f6b精确CI41149684809 success，Release job skipped，未发版。第二批build021成功；197 build020的035下载管理入口系统share显示1.89MB、未外发；036 force-stop/install后Blue详情仍已下载+反序，冷进程持久性已核。build021 SHA72107157d53a61504cf50537b895279fdc7179b0dbc9cedcaf18e17a1442c95f安装，038预设连点未达预期route，039从真实详情Back恢复library、040进入queue；041整本移底后6条Blue行含已完成按原序置末，其他86条逐字未变，未启动下载。Root准备第二批commit/push；同一设备会话接第三批，临时导出/导入、原数据/包/电源/租约最终仍待恢复。用户call63d597已批准第三批，数据合同及消费者准备中，尚未实现或验收。",
         "第二批4a4d2f2b5fea4dce56919941e955c9c202209976已推，精确CI41151835894 success。第三批build023 SHA7e9c1ce2be614497dabc2c0e7bd488bdfcd46acd0bd0db219a98feae94ee136e已装197：bookmark-added-044真bookmarked=true且原isRead/position不变；045独立书签筛选，046已下载+书签+反序1/15；notes-saved-049普通保存并在详情显示Koma_QA_notes_20261031、library已保存。custom-cover-confirmed-052系统PhotoPicker后customCoverUri/sourceCoverUri正确落盘，但封面显示占位；定位CachedCoverImage将本地file://按源网络resolver处理，正在修，未通过。197仍持租未恢复。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/。",
         "build024 SHA4d867c5ec91e0b5f9584745fbe752032e830b942d0e6f5df8c985778183a1a11已装197，CachedCoverImage对本地file早返回。054冷重入实图显示自选封面及背景，055真实源详情刷新后保customCoverUri、notes及bookmarked筛选。065普通本地备份中封面base64字节等于本轮图片，含notes/bookmarked及每书偏好；071正常导入本轮快照成功并生成新custom URI，072冷启动后新路径图片、笔记、书签筛选1/15亲看；073恢复源封面，原Blue图亲看，custom/sourceCoverUri清除且笔记和书签保留。当前清理本轮CBZ/导入/备份/restore临时源目录并恢复原包数据，设备尚未恢复、第三批未提交。证据 chapter-management/{cover-cold-reentry-054,custom-cover-source-refresh-055,personal-backup-readback-065,personal-backup-restored-071,restored-personal-data-visible-072,source-cover-restored-073}及实际目录。",
-        "197本场恢复：079系统UI永久删本轮CBZ，080 FileManager回Browse且原回收站1项保留；081原signed HAP38d245恢复，七JSON与30prefs逐字一致、无多余pref，本轮临时导入、封面2图、备份和85个本次backup-1793408906798源目录精确移除，原4备份保留。比较回执 .hvigor/outputs/feature-parity-implementation-20261031/chapter-management-restored-data.json；082实读SLEEP/120000/Override10000，lease20261031-002732-3291754a released并status确认。第三批具名路径及恢复已核，Root审提交，未推/未CI；整体18项未完成。"
+        "197本场恢复：079系统UI永久删本轮CBZ，080 FileManager回Browse且原回收站1项保留；081原signed HAP38d245恢复，七JSON与30prefs逐字一致、无多余pref，本轮临时导入、封面2图、备份和85个本次backup-1793408906798源目录精确移除，原4备份保留。比较回执 .hvigor/outputs/feature-parity-implementation-20261031/chapter-management-restored-data.json；082实读SLEEP/120000/Override10000，lease20261031-002732-3291754a released并status确认。第三批具名路径及恢复已核，Root审提交，未推/未CI；整体18项未完成。",
+        "第三批b69890d00f3299c3084651d764e1f8c49f1e14a0已推Koma/master；SSH连接关闭后使用一次性HTTPS insteadOf，未改永久远端配置、标签或发版。build024及生产书签迁移、封面真实字节备份/失败恢复、原章节显示与automation覆盖及i18n检查通过；精确CI尚待核。Root继续核预计更新周期及WiFi预载参考合同，尚未改两项产品默认或UI，具体接入待用户决定。",
+        "第三批精确CI41154283239 in_progress，未冒成功。第四批已向用户询问“跳过未到预计日期”和阅读预载旁“仅Wi-Fi”，两者拟默认关，尚未答复；未新增可见UI。独立代码已补固定Mihon feadad5e日历估算（周/月/批次/停更退避）、成功目录检查后持久预计时间、跨源不带旧源预计日；build025索引类型错误已修，build026成功。WiFi全局偏好/备份/运行态、Shared+Legacy预载与处理预取门接线中，build027尚待读回；设备未验，原默认行为仍关闭。",
+        "build028成功；生产逻辑已核网络限制下停止在线页/跨章/处理预取但前台load可用，恢复允许后继续；配置冷store保存、common bridge字段保留，原覆盖不变。预计周/月日历、缺章保到期及未知不跳过逻辑通过。下一步197验证两项设置保存重入、WiFi真实读图及仅Blue范围更新，不改设备网络；尚未设备验收或提交第四批。第三批CI41154283239仍待核。",
+        "第三批CI41154283239 success，Publish tagged Release skipped，无发版。第四批197 build028 SHA238e3eba259f62dd962200b1dba9a10d0528e3f5757ec42e144ddfb4dfe3fb17已安装：080 WiFi预载默认关，081开启离开重进checked=true且pref reader.preloadWifiOnly=true；083/084未到预计日期菜单保存重进且policy=true。085/086仅给Blue加read_later；087导航误进filter，088关闭菜单与sheet恢复settings，089进入scope；090实际due自动检查Blue unchanged、75 skip、0 failed，Blue.updateSchedule interval7/nextCheckAt1793721600000持久。092原WiFi网络下限制开启时在线章13完整正文1/1亲看；bounded hilog文件为空，不称观察到真实预载日志。非WiFi拦截由生产adapter执行测试覆盖，未切设备网络、不冒蜂窝实测。本轮设备尚未恢复，第四批未提交。证据 library-automation/policy4-*。",
+        "197 policy4-original-restored-093恢复原signed HAP SHA38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5，077基线七JSON与30prefs共37项逐字同、无多余pref，本次automation/reader临时文件已清；比较 .hvigor/outputs/feature-parity-implementation-20261031/policy4-restored-data.json。094 SLEEP/120000/Override10000，lease20261031-012758-d0770ea4 released并status确认。收尾发现自动检查在途时manual会吞自动过滤范围，已按手动全库决定改为auto后单飞完整manual；生产Coordinator测试通过、build029成功，最后小修未安装，不重跑已验设备。第四批待审提交。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
         "allowedDifference": "书库更新增加后台检查、分类范围、跳过条件以及WiFi和充电约束；下载支持新章自动下载及分类，读后清理提供关闭、读完、保留2/3/5和排除分类；备份管理增加目录及后台开关。沿用现有控件，新自动功能默认关闭，手动检查仍全库。",
         "decision": "用户本轮通过call_4bfc明确采用。",
         "secondBatchAllowedDifference": "用户call3537采用：已下载章节长按及下载页菜单导出/分享CBZ；队列单章或整本移顶部/底部，活动下载不中断；现有排序、已读下载、语言和汉化组按书记忆。",
-        "thirdBatchAllowedDifference": "用户call63d597批准：章节菜单书签、小标识及独立书签筛选；已收藏详情菜单更换/恢复封面，使用系统picker并在源刷新时保留；详情个人笔记使用现有半模态及有内容详情展示，数据随备份。"
+        "thirdBatchAllowedDifference": "用户call63d597批准：章节菜单书签、小标识及独立书签筛选；已收藏详情菜单更换/恢复封面，使用系统picker并在源刷新时保留；详情个人笔记使用现有半模态及有内容详情展示，数据随备份。",
+        "fourthBatchAllowedDifference": "用户call_db09cabf23b94b828cb018cef58ef7a7采用：Settings阅读预载旁增加仅Wi-Fi开关、更新跳过菜单增加未到预计日期；均默认关闭，沿用原行/菜单，Reader半模态不新增全局网络开关。"
       }
     }
   ],
@@ -11154,6 +11160,58 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/feature-parity-implementation-20261031/chapter-management-restored-data.json"
+      ]
+    },
+    {
+      "id": "feature-parity-third-batch-pushed-20261031",
+      "at": "2026-10-31T09:13:59+08:00",
+      "title": "第三批代码推送",
+      "detail": "第三批源码已推送，精确CI待核；后续功能合同继续核对。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-fourth-batch-implementation-20261031",
+      "at": "2026-10-31T09:22:49+08:00",
+      "title": "预计周期与Wi-Fi预载实现",
+      "detail": "预计周期独立逻辑已构建，Wi-Fi预载接线中；入口选择及设备验证待完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41154283239"
+      ]
+    },
+    {
+      "id": "feature-parity-fourth-batch-adopted-20261031",
+      "at": "2026-10-31T09:27:45+08:00",
+      "title": "预计日期与Wi-Fi预载入口采用",
+      "detail": "用户已采用两个默认关闭入口；本地逻辑通过，设备验证待完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-fourth-native-20261031",
+      "at": "2026-10-31T09:35:46+08:00",
+      "title": "第四批设置及范围更新实测",
+      "detail": "设置保存、Blue范围更新及Wi-Fi下在线正文已核；设备恢复和交付待完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41154283239",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-fourth-restored-20261031",
+      "at": "2026-10-31T09:40:13+08:00",
+      "title": "第四批设备恢复及手动检查修正",
+      "detail": "设备与数据已恢复；手动全库检查最后修正已通过本地逻辑及构建，尚未安装。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/policy4-restored-data.json"
       ]
     }
   ],

@@ -20,6 +20,7 @@ function normalize(value: LibraryAutomationPreferences): LibraryAutomationPrefer
     updateExcludedCategories: categoryIds(value.updateExcludedCategories),
     skipCompleted: value.skipCompleted === true, skipNotStarted: value.skipNotStarted === true,
     skipHasUnread: value.skipHasUnread === true, autoDownloadNewChapters: value.autoDownloadNewChapters === true,
+    skipOutsideReleasePeriod: value.skipOutsideReleasePeriod === true,
     downloadUnreadOnly: value.downloadUnreadOnly !== false,
     downloadIncludedCategories: categoryIds(value.downloadIncludedCategories),
     downloadExcludedCategories: categoryIds(value.downloadExcludedCategories),

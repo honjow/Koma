@@ -31,6 +31,8 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  ctx.failTheme=true;await assert.rejects(()=>store.saveThemeMode('dark'),/platform_fail/);assert.equal((await store.load()).themeMode,'system');ctx.failTheme=false;
  mod.unbindReaderThemeWindow();await store.saveThemeMode('dark');assert.equal(applied.at(-1),-1);mod.bindReaderThemeWindow(ctx);await store.load();assert.equal(applied.at(-1),0);
  await store.save(mod.DEFAULT_READER_PREFERENCES);published.length=0;
+ await store.savePreloadWifiOnly(true);
+ assert.equal((await new mod.ReaderPreferencesStore(ctx).load()).preloadWifiOnly,true);
  await Promise.all([store.saveDoubleTapZoomEnabled(false),other.saveDoubleTapIntervalMs(200)]);
  const tapPrefs=await new mod.ReaderPreferencesStore(ctx).load();
  assert.equal(tapPrefs.doubleTapZoomEnabled,false);assert.equal(tapPrefs.doubleTapIntervalMs,200);

@@ -1999,6 +1999,9 @@
     {"name": "manga_notes_placeholder", "value": "Your notes about this manga"},
     {"name": "manga_cover_change", "value": "Change cover"},
     {"name": "manga_cover_restore", "value": "Restore source cover"},
-    {"name": "manga_personalization_failed", "value": "Could not save manga personalization"}
+    {"name": "manga_personalization_failed", "value": "Could not save manga personalization"},
+    {"name": "reader_preload_wifi_title", "value": "Preload only on Wi-Fi"},
+    {"name": "reader_preload_wifi_detail", "value": "Load ahead only over Wi-Fi; pages you open still load normally."},
+    {"name": "automation_skip_not_due", "value": "Before expected update date"}
   ]
 }

@@ -1,6 +1,7 @@
 import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
+import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
 import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { LengthMetrics, window } from '@kit.ArkUI'
@@ -1707,6 +1708,8 @@ export struct ReaderPage {
   @Event $webtoonMode: (value: boolean) => void = (_value: boolean) => {}
 
   @Local private preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
+  @Local private preloadNetworkWifi: boolean = false
+  private preloadNetworkMonitor: ReaderPreloadNetworkMonitor | null = null
   @Local private preferenceRevision: number = 0
   /** The reader owns immediate chrome rendering; the route receives a sync event. */
   @Local private chromeShown: boolean = false
@@ -1803,6 +1806,10 @@ export struct ReaderPage {
 
   aboutToAppear(): void {
     this.closing = false
+    this.preloadNetworkMonitor = new ReaderPreloadNetworkMonitor((wifi: boolean): void => {
+      this.preloadNetworkWifi = wifi
+      if (wifi && this.readerOpen) this.prefetchLookahead(this.pageIndex)
+    })
     this.chromeShown = this.chromeVisible
     this.loadPreferences()
     this.syncSession(true)
@@ -1811,6 +1818,8 @@ export struct ReaderPage {
 
   aboutToDisappear(): void {
     this.overlayTapArbiter.cancel()
+    this.preloadNetworkMonitor?.dispose()
+    this.preloadNetworkMonitor = null
     this.pagedBoundarySwipe.cancel()
     this.retryHitRegions.clear()
     this.persistCurrentProgress()
@@ -2738,6 +2747,7 @@ export struct ReaderPage {
       doubleTapIntervalMs: p.doubleTapIntervalMs,
       autoPageSeconds: p.autoPageSeconds,
       preloadPages: p.preloadPages,
+      preloadWifiOnly: p.preloadWifiOnly,
       spreadLayoutMode: p.spreadLayoutMode,
       columnMode: p.columnMode,
       tapZonePreset: p.tapZonePreset,
@@ -2883,6 +2893,7 @@ export struct ReaderPage {
    * List transitions without introducing a second data source.
    */
   private prefetchLookahead(startIndex: number): void {
+    if (!readerRemotePreloadAllowed(this.preferences.preloadWifiOnly)) return
     const count = Math.max(0, Math.min(5, Math.round(this.preferences.preloadPages)))
     if (count <= 0 || this.sessionConfig.totalPages <= 0) {
       return
@@ -2934,6 +2945,7 @@ export struct ReaderPage {
     if (activeSource.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
       return 0
     }
+    if (this.preferences.preloadWifiOnly && !this.preloadNetworkWifi) return 0
     return Math.max(0, Math.min(5, Math.round(this.preferences.preloadPages)))
   }
 

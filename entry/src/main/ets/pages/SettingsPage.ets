@@ -9,7 +9,7 @@ import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
 import { KomaTranslationSourcesContent } from '../components/KomaTranslationSourcesContent'
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
-import { readerModeSelection, readerDirectionSelection } from '../model/ReaderPreferencesStore'
+import { readerModeSelection, readerDirectionSelection, normalizeReaderPreferences } from '../model/ReaderPreferencesStore'
 import { ReaderDirectionMenuItems } from '../components/ReaderDirectionMenu'
 import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -246,6 +246,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-double-tap-interval', titleKey: 'reader_double_tap_interval_title', detailKey: 'reader_double_tap_interval_detail' },
         { key: 'reader-auto-page', titleKey: 'reader_auto_page_title', detailKey: 'reader_auto_page_detail' },
         { key: 'reader-preload-pages', titleKey: 'reader_preload_pages_title', detailKey: 'reader_preload_pages_detail' },
+        { key: 'reader-preload-wifi-only', titleKey: 'reader_preload_wifi_title', detailKey: 'reader_preload_wifi_detail' },
         { key: 'reader-keep-screen-awake', titleKey: 'settings_row_reader_keep_screen_awake_title', detailKey: 'settings_row_reader_keep_screen_awake_detail' },
         { key: 'reader-tap-zone-preset', titleKey: 'settings_row_reader_tap_zone_preset_title', detailKey: 'settings_row_reader_tap_zone_preset_detail' },
         { key: 'reader-tap-zone-invert', titleKey: 'settings_row_reader_tap_zone_invert_title', detailKey: 'settings_row_reader_tap_zone_invert_detail' },
@@ -500,6 +501,7 @@ export struct SettingsPage {
   @Local private readerDoubleTapIntervalMs: number = 300
   @Local private readerAutoPageSeconds: number = 3
   @Local private readerPreloadPages: number = 2
+  @Local private readerPreloadWifiOnly: boolean = false
   @Local private showReaderProgressControls: boolean = true
   @Local private keepReaderScreenAwake: boolean = true
   @Local private readerTapZonePreset: ReaderTapZonePreset = 'edge'
@@ -846,7 +848,7 @@ export struct SettingsPage {
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
           'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
-        { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages']) },
+        { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages', 'reader-preload-wifi-only']) },
         { key: 'reader-defaults', titleKey: 'settings_reader_group_defaults', rows: this.rowsByKeys(['reader-reset-defaults']) },
       ]
       if (!this.isReaderWebtoonLayout()) return groups
@@ -1136,6 +1138,7 @@ export struct SettingsPage {
     this.readerDoubleTapIntervalMs = preferences.doubleTapIntervalMs
     this.readerAutoPageSeconds = preferences.autoPageSeconds
     this.readerPreloadPages = preferences.preloadPages
+    this.readerPreloadWifiOnly = preferences.preloadWifiOnly
     this.showReaderProgressControls = preferences.showProgressControls
     this.keepReaderScreenAwake = preferences.keepScreenAwake
     this.readerTapZonePreset = preferences.tapZonePreset
@@ -1542,6 +1545,12 @@ export struct SettingsPage {
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'save_reader_preload_pages_failed', '[Settings] step=save_reader_preload_pages_failed code=' + safeSettingsErrorCode(error))
       })
+  }
+
+  private saveReaderPreloadWifiOnly(enabled: boolean): void {
+    const next = normalizeReaderPreferences(this.readerPreferences)
+    next.preloadWifiOnly = enabled
+    this.saveImagePreferences(next)
   }
 
   private saveReaderProgressControls(showProgressControls: boolean): void {
@@ -2183,6 +2192,7 @@ export struct SettingsPage {
       row.key === 'reader-fullscreen' ||
       row.key === 'reader-page-animation' ||
       row.key === 'reader-double-tap-zoom' ||
+      row.key === 'reader-preload-wifi-only' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-volume-key-navigation'
   }
@@ -2232,10 +2242,12 @@ export struct SettingsPage {
       return this.readerPageTurnAnimation
     }
     if (row.key === 'reader-double-tap-zoom') return this.readerDoubleTapZoomEnabled
+    if (row.key === 'reader-preload-wifi-only') return this.readerPreloadWifiOnly
     return false
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
+    if (row.key === 'reader-preload-wifi-only') { this.saveReaderPreloadWifiOnly(value); return }
     if (row.key === 'library-background-update') { this.saveLibraryBackgroundUpdates(value); return }
     if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(value)
