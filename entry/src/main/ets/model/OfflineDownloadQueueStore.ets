@@ -56,6 +56,7 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
 ]
 
 export interface OfflineDownloadQueueEntry {
+  automatic?: boolean
   comicId: ComicId
   chapterId: string
   comicTitle?: string
@@ -146,6 +147,7 @@ export function normalizeOfflineDownloadFailureReasonCode(value: string | undefi
 
 function normalizeEntry(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
   const next: OfflineDownloadQueueEntry = {
+    automatic: entry.automatic === true ? true : undefined,
     comicId: entry.comicId,
     chapterId: entry.chapterId,
     status: entry.status,
@@ -230,6 +232,7 @@ function shouldReconcileEntry(entry: OfflineDownloadQueueEntry): boolean {
 
 function isSameEntry(left: OfflineDownloadQueueEntry, right: OfflineDownloadQueueEntry): boolean {
   return left.status === right.status &&
+    left.automatic === right.automatic &&
     left.pageCount === right.pageCount &&
     left.downloadedPageCount === right.downloadedPageCount &&
     left.failureReasonCode === right.failureReasonCode
@@ -340,6 +343,7 @@ export class OfflineDownloadQueueStore {
         store.reconcileDownloadedChapter(entry.comicId, entry.chapterId, options) :
         store.validateDownloadedChapter(entry.comicId, entry.chapterId, options)
       const next: OfflineDownloadQueueEntry = normalizeEntry({
+        automatic: entry.automatic,
         comicId: entry.comicId,
         chapterId: entry.chapterId,
         comicTitle: entry.comicTitle,
@@ -421,6 +425,7 @@ export class OfflineDownloadQueueStore {
         return
       }
       const next = normalizeEntry({
+        automatic: existing.automatic,
         comicId: existing.comicId,
         chapterId: existing.chapterId,
         comicTitle: existing.comicTitle,
@@ -527,7 +532,10 @@ export class OfflineDownloadQueueStore {
 
   upsert(entry: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry {
     const document = this.loadDocument()
+    const previous = document.entries.find((item: OfflineDownloadQueueEntry): boolean =>
+      item.comicId === entry.comicId && item.chapterId === entry.chapterId)
     const normalized = normalizeEntry({
+      automatic: entry.automatic ?? previous?.automatic,
       comicId: entry.comicId,
       chapterId: entry.chapterId,
       comicTitle: entry.comicTitle,

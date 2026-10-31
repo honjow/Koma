@@ -1,3 +1,8 @@
+import { BACKUP_BACKGROUND_RESULT, BackgroundBackupResult } from './BackgroundMaintenanceContract'
+import { localLibraryFolderRootUrisFromComics } from './LocalLibraryFolderContract'
+import { InMemoryLibraryStore } from './LibraryStore'
+import { hydrateLibraryStoreFromJson } from './LibraryPersistence'
+import { writeAutomaticBackupToDirectory, releaseAutomaticBackupDirectory } from './BackupAutomaticDirectory'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
@@ -9,6 +14,7 @@ import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { beginAutomationRestore, finishAutomationRestore, resetGeneratedAutomationWork } from './AutomationStateEpoch'
 import { connectAppForegroundState } from '../state/AppForegroundState'
 import { RemoteServerStore, REMOTE_SERVER_ENDPOINT_IDENTITIES_KEY, parseRemoteServerEndpointIdentities, rememberRemoteServerEndpointIdentity } from './RemoteServerStore'
 import { BackupRestoreCheckpoint } from './BackupRestoreCheckpoint'
@@ -112,6 +118,9 @@ const REMOTE_SERVER_STORE_NAME: string = 'koma_remote_servers_v1'
 const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const BACKUP_AUTOMATIC_PREFS_STORE_NAME: string = 'koma_backup_automatic_v1'
 const BACKUP_CONTENT_PREFS_STORE_NAME: string = 'koma_backup_content_v1'
+const BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY: string = 'backup.automatic.directoryOwnedModes'
+const BACKUP_AUTOMATIC_DIRECTORY_KEY: string = 'backup.automatic.directoryUri'
+const BACKUP_AUTOMATIC_BACKGROUND_KEY: string = 'backup.automatic.backgroundEnabled'
 const BACKUP_AUTOMATIC_ENABLED_KEY: string = 'backup.automatic.enabled'
 const BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY: string = 'backup.automatic.intervalHours'
 const BACKUP_AUTOMATIC_RETENTION_COUNT_KEY: string = 'backup.automatic.retentionCount'
@@ -212,6 +221,9 @@ export interface BackupLocalFileRecord {
 }
 
 export interface BackupAutomaticPreferences {
+  directoryOwnedModes?: number
+  directoryUri?: string
+  backgroundEnabled?: boolean
   enabled: boolean
   intervalHours: number
   retentionCount: number
@@ -226,6 +238,9 @@ export interface BackupContentPreferences {
 }
 
 export interface BackupAutomaticPreferencesPatch {
+  directoryOwnedModes?: number
+  directoryUri?: string
+  backgroundEnabled?: boolean
   enabled?: boolean
   intervalHours?: number
   retentionCount?: number
@@ -241,6 +256,7 @@ export interface BackupAutomaticRunResult {
 }
 
 export const DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: BackupAutomaticPreferences = {
+  directoryUri: '', directoryOwnedModes: 0, backgroundEnabled: false,
   enabled: false,
   intervalHours: 24,
   retentionCount: 5,
@@ -474,6 +490,8 @@ function normalizeBackupAutomaticLastRunAt(value: number): number {
 
 function normalizeBackupAutomaticPreferences(value: BackupAutomaticPreferences): BackupAutomaticPreferences {
   return {
+    directoryOwnedModes: value.directoryOwnedModes ?? 0,
+    directoryUri: value.directoryUri?.trim() ?? '', backgroundEnabled: value.backgroundEnabled === true,
     enabled: value.enabled === true,
     intervalHours: normalizeBackupAutomaticIntervalHours(value.intervalHours),
     retentionCount: normalizeBackupAutomaticRetentionCount(value.retentionCount),
@@ -859,6 +877,12 @@ export class BackupService {
     return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION))
   }
 
+  async exportBackgroundTemplate(): Promise<string> {
+    // Capture only UI-owned Preferences here; the Extension reads the current library
+    // and encodes packages itself, keeping the large export off the UI lifecycle.
+    return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION, true))
+  }
+
   async exportEncrypted(passphrase: string): Promise<string> {
     const document = await this.buildBackupDocument(BACKUP_ENCRYPTED_SCHEMA_VERSION)
     const payload = await new BackupEncryptionService().encrypt(JSON.stringify(document), passphrase)
@@ -891,9 +915,19 @@ export class BackupService {
     const enabled = await store.get(BACKUP_AUTOMATIC_ENABLED_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.enabled) as boolean
     const intervalHours = await store.get(BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.intervalHours) as number
     const retentionCount = await store.get(BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.retentionCount) as number
-    const lastRunAt = await store.get(BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.lastRunAt) as number
-    const lastFailureCode = await store.get(BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.lastFailureCode) as string
+    let lastRunAt = await store.get(BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.lastRunAt) as number
+    let lastFailureCode = await store.get(BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY, DEFAULT_BACKUP_AUTOMATIC_PREFERENCES.lastFailureCode) as string
+    const backgroundResultPath = `${this.context.filesDir}/${BACKUP_BACKGROUND_RESULT}`
+    if (fs.accessSync(backgroundResultPath)) {
+      const background = JSON.parse(fs.readTextSync(backgroundResultPath)) as BackgroundBackupResult
+      if (background.at > lastRunAt) lastFailureCode = background.failureCode
+      lastRunAt = Math.max(lastRunAt, background.lastRunAt)
+    }
+    const directoryOwnedModes = await store.get(BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY, 0) as number
+    const directoryUri = await store.get(BACKUP_AUTOMATIC_DIRECTORY_KEY, '') as string
+    const backgroundEnabled = await store.get(BACKUP_AUTOMATIC_BACKGROUND_KEY, false) as boolean
     return normalizeBackupAutomaticPreferences({
+      directoryUri, directoryOwnedModes, backgroundEnabled,
       enabled,
       intervalHours,
       retentionCount,
@@ -906,23 +940,45 @@ export class BackupService {
     return queueAutomaticPreferences(() => BackupRestoreActivity.runWrite(async (): Promise<BackupAutomaticPreferences> => {
       const current = await this.readAutomaticPreferences()
       const next = normalizeBackupAutomaticPreferences({
+        directoryUri: patch.directoryUri ?? current.directoryUri,
+        directoryOwnedModes: patch.directoryUri === undefined || patch.directoryUri === current.directoryUri
+          ? (current.directoryOwnedModes ?? 0) | (patch.directoryOwnedModes ?? 0) : patch.directoryOwnedModes ?? 0,
+        backgroundEnabled: patch.backgroundEnabled ?? current.backgroundEnabled,
         enabled: patch.enabled ?? current.enabled,
         intervalHours: patch.intervalHours ?? current.intervalHours,
         retentionCount: patch.retentionCount ?? current.retentionCount,
         lastRunAt: current.lastRunAt,
         lastFailureCode: current.lastFailureCode,
       })
-      await this.persistAutomaticPreferences(next)
+      try { await this.persistAutomaticPreferences(next) }
+      catch (error) {
+        if (next.directoryUri && next.directoryUri !== current.directoryUri && next.directoryOwnedModes) {
+          try { await this.releaseOwnedBackupDirectory(next.directoryUri, next.directoryOwnedModes) }
+          catch (releaseError) { DiagnosticLogger.exception('backup', 'directory_release_failed', releaseError as Error) }
+        }
+        throw error as Error
+      }
+      if (current.directoryUri && current.directoryUri !== next.directoryUri && current.directoryOwnedModes) {
+        try {
+          await this.releaseOwnedBackupDirectory(current.directoryUri, current.directoryOwnedModes)
+        } catch (error) { DiagnosticLogger.exception('backup', 'directory_release_failed', error as Error) }
+      }
       return next
     }))
+  }
+
+  private async releaseOwnedBackupDirectory(uri: string, ownedModes: number): Promise<void> {
+    const library = new InMemoryLibraryStore()
+    if (fs.accessSync(this.libraryPath())) hydrateLibraryStoreFromJson(library, fs.readTextSync(this.libraryPath()))
+    await releaseAutomaticBackupDirectory(uri, ownedModes, localLibraryFolderRootUrisFromComics(library.listComics()))
   }
 
   private async persistAutomaticPreferences(preferencesValue: BackupAutomaticPreferences): Promise<void> {
     const normalized = normalizeBackupAutomaticPreferences(preferencesValue)
     const store = await this.automaticPreferences()
-    const keys: string[] = [BACKUP_AUTOMATIC_ENABLED_KEY, BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY,
+    const keys: string[] = [BACKUP_AUTOMATIC_DIRECTORY_MODES_KEY, BACKUP_AUTOMATIC_DIRECTORY_KEY, BACKUP_AUTOMATIC_BACKGROUND_KEY, BACKUP_AUTOMATIC_ENABLED_KEY, BACKUP_AUTOMATIC_INTERVAL_HOURS_KEY,
       BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY]
-    const values: preferences.ValueType[] = [normalized.enabled, normalized.intervalHours,
+    const values: preferences.ValueType[] = [normalized.directoryOwnedModes ?? 0, normalized.directoryUri ?? '', normalized.backgroundEnabled === true, normalized.enabled, normalized.intervalHours,
       normalized.retentionCount, normalized.lastRunAt, normalized.lastFailureCode]
     const existed: boolean[] = keys.map((key: string): boolean => store.hasSync(key))
     const previous: preferences.ValueType[] = keys.map((key: string): preferences.ValueType => store.getSync(key, ''))
@@ -1097,14 +1153,14 @@ export class BackupService {
     }
   }
 
-  private async buildBackupDocument(schemaVersion: number): Promise<KomaBackupDocument> {
+  private async buildBackupDocument(schemaVersion: number, backgroundTemplate: boolean = false): Promise<KomaBackupDocument> {
     return BackupRestoreActivity.runWrite(async (): Promise<KomaBackupDocument> => {
       const contentPreferences = await this.loadContentPreferences()
       if (appReaderSessionStore(this.context.filesDir).flush() === false) {
         throw new Error('reader_progress_save_failed')
       }
       const sourceSettingObservations = await appSourceSettingObservationStore.exportAll()
-      const libraryStore = readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
+      const libraryStore = backgroundTemplate ? emptyLibraryStorePayload() : readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
       assertValidLibraryStoreJson(libraryStore)
       const document: KomaBackupDocument = {
         schemaVersion,
@@ -1116,7 +1172,7 @@ export class BackupService {
         libraryStore,
         readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
         remoteServers: await this.exportRemoteServers(),
-        sourcePackages: exportInstalledSourcePackages(),
+        sourcePackages: backgroundTemplate ? undefined : exportInstalledSourcePackages(),
         sourceSettings: appSourceSettingsStore.exportAll(),
         sourceSettingObservations,
         sourceFilterPreferences: appSourceFilterPreferencesStore.exportAll(),
@@ -1137,7 +1193,7 @@ export class BackupService {
         document.trackerMappings = await this.exportTrackerMappings()
       }
       document.localLibraryMetadata = exportLocalLibraryMetadataBackupEntries(document.libraryStore)
-      DiagnosticLogger.info('backup', 'export_json', '[Backup] step=export_json')
+      DiagnosticLogger.info('backup', backgroundTemplate ? 'background_template' : 'export_json', '')
       return document
     })
   }
@@ -1157,6 +1213,7 @@ export class BackupService {
     let sourcePlan: PreparedSourcePackageRestore | undefined
     let checkpoint: BackupRestoreCheckpoint | undefined
     try {
+      beginAutomationRestore(this.context)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
         const prepared = await prepareSourcePackagesFromBackup(this.context, document.sourcePackages)
         if (!prepared.ok || prepared.plan === undefined) {
@@ -1191,6 +1248,7 @@ export class BackupService {
         await this.importSettings(document.settings)
         await importApplicationSettings(this.context, document.applicationSettings)
       }
+      resetGeneratedAutomationWork(this.context)
       checkpoint.commit()
       DiagnosticLogger.info('backup', 'import_json', '[Backup] step=import_json')
     } catch (error) {
@@ -1217,7 +1275,7 @@ export class BackupService {
       try {
         await sourcePlan?.discard()
       } finally {
-        BackupRestoreActivity.finishRestore()
+        try { finishAutomationRestore(this.context) } finally { BackupRestoreActivity.finishRestore() }
       }
     }
     await reloadApplicationSettingsRuntime(this.context)
@@ -1585,6 +1643,10 @@ export class BackupService {
       let deletedCount = 0
       const nextPreferences = await queueAutomaticPreferences(async (): Promise<BackupAutomaticPreferences> => {
         const current = await this.readAutomaticPreferences()
+        if (current.directoryUri !== undefined && current.directoryUri.length > 0) {
+          await writeAutomaticBackupToDirectory(current.directoryUri,
+            await fs.readText(this.localBackupPath(created!.fileName)), current.retentionCount, now)
+        }
         deletedCount = await this.pruneLocalBackups(current.retentionCount)
         current.lastRunAt = normalizeBackupAutomaticLastRunAt(now)
         current.lastFailureCode = ''

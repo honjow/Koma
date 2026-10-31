@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T06:33:32+08:00",
+  "updatedAt": "2026-10-31T08:20:34+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": null,
-  "activity": "参考应用功能对照已完成，差异待用户决定。",
-  "nextAction": "根据用户对新增能力的选择继续。",
+  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
+  "activity": "首批功能已验证并准备提交，下一批数据工作进行中。",
+  "nextAction": "完成首批交付，并依用户决定接入下一批入口。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已回装原38d245、恢复七文件和电源并释租。"
+      "hap": "197已恢复原38d245、原数据及电源并释租。"
     },
     {
       "name": "NextE",
@@ -4667,6 +4667,49 @@
         "参考固定Mihon稳定v0.21.3/feadad5e、Aidoku v0.9-4/ceee58b及Koma HEAD b7e6a556；自动本地备份、通知、Wi-Fi下载及tracker已有实现，不列为缺失。",
         "固定Koma b7e6a556、Mihon v0.21.3/feadad5e及Aidoku v0.9-4/ceee58b2源码与入口、持久化接线对照；报告 docs/FEATURE_COMPARISON_AIDOKU_MIHON.md，机器证据 .hvigor/outputs/feature-parity-audit-20261031/comparison.json。本轮无设备、构建或新测试；对照完成不代表18项功能已实现或获得开发批准。"
       ]
+    },
+    {
+      "id": "FEATURE_PARITY_IMPLEMENTATION",
+      "title": "补齐参考应用功能差异",
+      "priority": "P1",
+      "kind": "open",
+      "status": "首批已验范围完成，待提交",
+      "stage": "首批交付准备，第二批数据工作进行中",
+      "owner": "Root",
+      "dependencies": [
+        "FEATURE_PARITY_COMPARISON"
+      ],
+      "relatedItems": [
+        "FEATURE_PARITY_COMPARISON"
+      ],
+      "result": "首批设置、后台下载、范围更新和备份预览已核，正在准备交付及下一批。",
+      "remaining": "完成首批提交；智能预计更新周期尚未接入，继续其余功能差异。第二批入口与样式待用户决定。",
+      "remainingActions": [
+        "完成首批提交；智能预计更新周期尚未接入，继续其余功能差异。第二批入口与样式待用户决定。"
+      ],
+      "boundaries": [
+        "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
+        "首批入口与默认值已获用户采用；197候选fdf340b6具名路径、完整备份预览及设备恢复已核。最后后台合并修正仅编译和逻辑验证，未安装。",
+        "保留既有已确认行为与样式。"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本轮直接用户反馈，精确发送时间未知；登记时间不冒充首报。",
+      "closedAt": null,
+      "evidencePoints": [
+        "用户明确要求开始实现功能对照报告的缺口；整体18项，第一批为更新、离线、备份六项。WorkScheduler平台合同为单次两分钟且独立进程，不能直接搬用前台runtime；执行所有者及跨进程数据边界正在核对。",
+        "用户已采用首批入口与默认值；Root候选已接策略及备份覆盖、更新过滤、章节ID差集入队、下载执行批次共用服务和读后退出清理，尚未编译或验收。",
+        "首批build-002与后台回调接入后的build-004通过；真实策略执行及原Coordinator覆盖通过。统一下载批次沿用原并发槽，DATA_TRANSFER长时任务提供进度/取消；WorkScheduler独立进程只读原数据、写不可变结果由前台owner合并；后台备份使用UI生成配置快照并刷新变化数据文件，避免跨进程读写XML首选项。未做设备验收；证据 .hvigor/outputs/feature-parity-implementation-20261031/build-004.log，脚本 scripts/test_library_automation.cjs 与 scripts/test_library_update_coordinator.cjs。",
+        "197普通界面已观察更新范围、后台检查、Wi-Fi、跳过完结、新章自动下载范围及读后清理五档入口，update-enabled-010/config.json实际读回保存值；downloads-settings-011、read-cleanup-menu-013、backup-auto-016保原证据。后台任务实际回调、下载及外部备份仍待验。build-008已通过，处理备份恢复使旧后台结果失效；008尚未安装。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/。",
+        "197普通章下载后410ms退后台，8.6秒后download_done 1/1；新章15完整显示，关闭Reader后cleanup[]，队列与本轮基线逐字同，旧下载保留。证据 library-automation/{download-background-034,background-download-result-035,read-downloaded-test-chapter-037,read-cleanup-result-038}。callback-journals-027实际处理76条范围筛选，因尚未加稍后分类而均skip；fixed-background-callback-031/backup-result.json有后台备份成功回执at1793403232723、lastRun同值、failureCode空，产物由前一轮回调稍后执行，不称031新触发立即成功。外部文件内容/恢复未核；stopWork参数401、下载结束实况publish 1600007及删后详情仍显示已下载已改候选，尚未复验。",
+        "scoped-update-evidence-045共76条journal，仅BlueArchive15章及猎行者458章真实GET目录，2项unchanged、74项范围skip；07:44:21 work_stopped7101成功无401，两书无实际新章，不称真实新增触发下载。transfer-fixed-result-048后台3283ms完成，无新1600007；cleanup-status-fixed-049完整Reader图→Back→详情首章已下载标识消失，原已下载第二章保留、queue原字节保持。系统picker在find-generated-backup-055找到外部备份23.72MB，预览正在解析、设备尚未恢复。build014通过；后续大library/sourcePackages编码从UI onBackground移到Extension，UI仅供偏好模板，同一生产Worker文件组装测试通过，build015进行中并补启动resume/目录失败回收。014/015未装机，当前fdf340b6候选。证据 library-automation/{scoped-update-evidence-045,transfer-fixed-result-048,cleanup-status-fixed-049,find-generated-backup-055}。",
+        "系统文件picker普通打开23.72MB自动备份并预览解析v3：76书、92阅读进度、59设置、88下载队列、85源包元数据、1源设置；仅预览未导入。062日志确认仅本轮owned_modes=3授权已撤，064 obtainAllWorks为空；072/073通过正常UI永久删除仅本轮新建空目录及其文件，原回收站1项保留。074原signed HAP38d2456b恢复，六JSON、原queue及30个pref逐字一致，比较 .hvigor/outputs/feature-parity-implementation-20261031/restore-data-comparison.json；075实读SLEEP/120000/Override10000，lease20261030-231310-6d2be85c released并status确认。真实两作品均无新章，不冒真实新增触发下载；正差集由测试验证。Root正修多轮后台journal取最新及partial cursor不推进全库时钟，首批尚未提交。证据 library-automation/{background-backup-parsed-057,backup-preview-readback-058,backup-detail-counts-059,backup-grant-release-062,cancel-background-works-064,owned-folder-cleaned-072,filemanager-return-073,restore-original-074,power-restored-075}。",
+        "最终build-016成功；生产策略、偏好、失败恢复、备份Worker组装及原Coordinator测试通过，三语言检查通过。BackgroundMaintenanceContract.latestBackgroundObservations按每comic取最新，真实执行覆盖倒序；有效cursor仍有remaining或无有效结果时不推进全库lastCheck。该小修仅编译和逻辑验证，未安装，设备保持原包。智能预计更新周期尚未接入。第二批准备CBZ导出、下载队列重排及每书章节偏好；新UI具体采用问题已询问，入口待答，独立数据工作继续。"
+      ],
+      "modificationBasis": {
+        "object": "首批书库更新、离线下载与备份设置",
+        "allowedDifference": "书库更新增加后台检查、分类范围、跳过条件以及WiFi和充电约束；下载支持新章自动下载及分类，读后清理提供关闭、读完、保留2/3/5和排除分类；备份管理增加目录及后台开关。沿用现有控件，新自动功能默认关闭，手动检查仍全库。",
+        "decision": "用户本轮通过call_4bfc明确采用。"
+      }
     }
   ],
   "source": {
@@ -10944,6 +10987,97 @@
       "evidence": [
         "docs/FEATURE_COMPARISON_AIDOKU_MIHON.md",
         ".hvigor/outputs/feature-parity-audit-20261031/comparison.json"
+      ]
+    },
+    {
+      "id": "feature-parity-implementation-start-20261031",
+      "at": "2026-10-31T06:43:08+08:00",
+      "title": "功能差异开始实施",
+      "detail": "用户授权开始实现报告中的功能差异，首批更新、离线和备份进行中；入口及默认值待答复。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "docs/FEATURE_COMPARISON_AIDOKU_MIHON.md"
+      ]
+    },
+    {
+      "id": "feature-parity-first-batch-adopted-20261031",
+      "at": "2026-10-31T06:48:28+08:00",
+      "title": "首批入口与默认值已采用",
+      "detail": "用户确定更新、下载清理及备份入口和默认值，候选实现中，尚未编译验收。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-first-batch-build-20261031",
+      "at": "2026-10-31T07:07:47+08:00",
+      "title": "首批功能本地构建",
+      "detail": "更新、离线及备份候选已构建，设备与后台回调仍待验证。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/build-004.log"
+      ]
+    },
+    {
+      "id": "feature-parity-settings-native-20261031",
+      "at": "2026-10-31T07:29:36+08:00",
+      "title": "首批设置实机核对",
+      "detail": "更新与下载设置入口及保存已观察，后台执行、下载和外部备份仍待验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/update-enabled-010/config.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/read-cleanup-menu-013/"
+      ]
+    },
+    {
+      "id": "feature-parity-background-download-20261031",
+      "at": "2026-10-31T07:43:37+08:00",
+      "title": "后台下载与清理实测",
+      "detail": "后台下载及读后清理已观察；备份内容和回调、下载显示修正仍待验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/background-download-result-035/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/fixed-background-callback-031/backup-result.json"
+      ]
+    },
+    {
+      "id": "feature-parity-scoped-update-backup-20261031",
+      "at": "2026-10-31T07:58:32+08:00",
+      "title": "范围更新及下载清理实测",
+      "detail": "范围更新、后台下载和删除后显示已观察；外部备份已找到，内容仍待核。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/scoped-update-evidence-045/",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/find-generated-backup-055/"
+      ]
+    },
+    {
+      "id": "feature-parity-backup-preview-restored-20261031",
+      "at": "2026-10-31T08:18:54+08:00",
+      "title": "自动备份预览及设备恢复",
+      "detail": "自动备份经系统文件选择器解析预览，设备数据及电源恢复；首批代码仍在收尾。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/restore-data-comparison.json",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/backup-preview-readback-058/"
+      ]
+    },
+    {
+      "id": "feature-parity-first-batch-final-build-20261031",
+      "at": "2026-10-31T08:20:34+08:00",
+      "title": "首批功能验证与构建完成",
+      "detail": "首批具名设备范围及最终逻辑构建已核，准备提交；智能周期与后续功能仍未完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/build-016.log",
+        ".hvigor/outputs/feature-parity-implementation-20261031/restore-data-comparison.json"
       ]
     }
   ],

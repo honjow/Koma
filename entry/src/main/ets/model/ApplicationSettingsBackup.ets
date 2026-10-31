@@ -24,6 +24,7 @@ export interface ApplicationSettingsBackup {
 // Portable user choices only. Runtime history, credentials, permissions, cache
 // contents and download pause/work state are not application preferences.
 const PORTABLE_FIELDS: Record<string, string[]> = {
+  'koma_library_automation_v1': ['automation.policy'],
   'koma_app_preferences_v1': ['app.language'],
   'koma_appearance_preferences_v1': ['appearance.accentColor'],
   'koma_library_filter_preferences': [
@@ -38,7 +39,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
     'readerRemoteImageCache.maxBytes', 'readerRemoteImageCache.autoCleanEnabled',
   ],
   'koma_backup_automatic_v1': [
-    'backup.automatic.enabled', 'backup.automatic.intervalHours', 'backup.automatic.retentionCount',
+    'backup.automatic.enabled', 'backup.automatic.intervalHours', 'backup.automatic.retentionCount', 'backup.automatic.backgroundEnabled',
   ],
   'koma_backup_content_v1': [
     'backup.content.includeSettings', 'backup.content.includeDownloadQueue', 'backup.content.includeTrackerMappings',

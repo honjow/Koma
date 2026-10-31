@@ -1,3 +1,8 @@
+import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
+import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
+import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
+import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
+import { LibraryCategoryDefinition } from '../model/ComicModels'
 import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
@@ -265,6 +270,16 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'kavita', titleKey: 'settings_row_kavita_title', detailKey: 'settings_row_kavita_detail' },
         { key: 'opds', titleKey: 'settings_row_opds_title', detailKey: 'settings_row_opds_detail' },
         { key: 'webdav', titleKey: 'settings_row_webdav_title', detailKey: 'settings_row_webdav_detail' },
+        { key: 'library-background-update', titleKey: 'automation_background_update', detailKey: 'automation_background_update' },
+        { key: 'library-update-range', titleKey: 'automation_update_range', detailKey: 'automation_update_range' },
+        { key: 'library-update-skip', titleKey: 'automation_update_skip', detailKey: 'automation_update_skip' },
+        { key: 'library-update-wifi-only', titleKey: 'automation_update_wifi', detailKey: 'automation_update_wifi' },
+        { key: 'library-update-charging-only', titleKey: 'automation_update_charging', detailKey: 'automation_update_charging' },
+        { key: 'download-auto-new', titleKey: 'automation_download_new', detailKey: 'automation_download_new' },
+        { key: 'download-auto-unread', titleKey: 'automation_download_unread', detailKey: 'automation_download_unread' },
+        { key: 'download-auto-range', titleKey: 'automation_download_range', detailKey: 'automation_download_range' },
+        { key: 'download-read-cleanup', titleKey: 'automation_read_cleanup', detailKey: 'automation_read_cleanup' },
+        { key: 'download-cleanup-exclude', titleKey: 'automation_cleanup_exclude', detailKey: 'automation_cleanup_exclude' },
         { key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' },
         { key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' },
         { key: 'library-update-notifications', titleKey: 'settings_row_library_update_notifications_title', detailKey: 'settings_row_library_update_notifications_detail' },
@@ -506,6 +521,7 @@ export struct SettingsPage {
   @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private libraryUpdateSummary?: LibraryUpdateSummary = undefined
   @Local private libraryUpdateJobSnapshot?: LibraryUpdateJobSnapshot = undefined
+  @Local private automationPolicy: LibraryAutomationPreferences = defaultLibraryAutomationPreferences()
   @Local private libraryUpdatePreferences: LibraryUpdatePreferences = DEFAULT_LIBRARY_UPDATE_PREFERENCES
   @Local private libraryUpdateNotificationStatus: LibraryUpdateNotificationStatus = 'unavailable'
   @Local private localLibraryRefreshBusy: boolean = false
@@ -808,6 +824,11 @@ export struct SettingsPage {
           rows: this.rowsByKeys([
             'library-auto-update',
             'library-update-interval',
+            'library-background-update',
+            'library-update-range',
+            'library-update-skip',
+            'library-update-wifi-only',
+            'library-update-charging-only',
             'library-update-notifications',
             'library-update',
             'library-update-results',
@@ -865,6 +886,10 @@ export struct SettingsPage {
             'download-wifi-only',
           ]),
         },
+        { key: 'automatic-downloads', titleKey: 'automation_download_group', rows: this.rowsByKeys([
+          'download-auto-new', 'download-auto-unread', 'download-auto-range']) },
+        { key: 'read-download-cleanup', titleKey: 'automation_cleanup_group', rows: this.rowsByKeys([
+          'download-read-cleanup', 'download-cleanup-exclude']) },
       ]
     }
     if (pane === 'tracking') {
@@ -1683,8 +1708,44 @@ export struct SettingsPage {
     this.onOpenLibraryUpdateResults()
   }
 
+  private automationCategories(): LibraryCategoryDefinition[] {
+    const categories: LibraryCategoryDefinition[] = [{ id: 'uncategorized', name: s('library_category_uncategorized') },
+      { id: 'favorite', name: s('library_category_favorite') },
+      { id: 'read_later', name: s('library_category_read_later') }]
+    return categories.concat(this.libraryStore?.listCustomCategories() ?? [])
+  }
+
+  private loadAutomationPolicy(): void {
+    void new LibraryAutomationPreferencesStore(this.context()).load()
+      .then((policy: LibraryAutomationPreferences): void => { this.automationPolicy = policy })
+      .catch((error: Error): void => { DiagnosticLogger.exception('settings', 'automation_load_failed', error) })
+  }
+
+  private saveAutomationPolicy(change: (policy: LibraryAutomationPreferences) => void): void {
+    void new LibraryAutomationPreferencesStore(this.context()).update(change)
+      .then(async (policy: LibraryAutomationPreferences): Promise<void> => {
+        this.automationPolicy = policy
+        await synchronizeBackgroundMaintenance(this.context())
+      })
+      .catch((error: Error): void => {
+        DiagnosticLogger.exception('settings', 'automation_save_failed', error)
+        this.showToast(s('automation_save_failed'))
+      })
+  }
+
+  private saveLibraryBackgroundUpdates(enabled: boolean): void {
+    void mutateLibraryUpdatePreferences(() => this.libraryUpdatePreferencesStore().saveForegroundOnly(!enabled))
+      .then((preferences: LibraryUpdatePreferences): void => { this.saveLibraryUpdatePreferences(preferences) })
+      .catch((error: Error): void => {
+        DiagnosticLogger.exception('settings', 'background_update_save_failed', error)
+        this.showToast(s('automation_save_failed'))
+      })
+  }
+
   private saveLibraryUpdatePreferences(preferences: LibraryUpdatePreferences): void {
     this.libraryUpdatePreferences = preferences
+    void synchronizeBackgroundMaintenance(this.context())
+      .catch((error: Error): void => { DiagnosticLogger.exception('maintenance', 'schedule_failed', error) })
   }
 
   private copyLibraryUpdateSummaryState(source: LibraryUpdatePreferences, target: LibraryUpdatePreferences): void {
@@ -2110,7 +2171,7 @@ export struct SettingsPage {
   }
 
   private isSwitchRow(row: SettingsRow): boolean {
-    return row.key === 'library-auto-update' ||
+    return row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
       row.key === 'backup-include-settings' ||
       row.key === 'backup-include-download-queue' ||
@@ -2127,6 +2188,7 @@ export struct SettingsPage {
   }
 
   private switchRowValue(row: SettingsRow): boolean {
+    if (row.key === 'library-background-update') return !this.libraryUpdatePreferences.foregroundOnly
     if (row.key === 'library-auto-update') {
       return this.libraryUpdatePreferences.autoCheckEnabled
     }
@@ -2174,6 +2236,7 @@ export struct SettingsPage {
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
+    if (row.key === 'library-background-update') { this.saveLibraryBackgroundUpdates(value); return }
     if (row.key === 'library-auto-update') {
       this.setLibraryAutoUpdateEnabled(value)
     } else if (row.key === 'library-badges') {
@@ -2424,7 +2487,12 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (this.isSwitchRow(row)) {
+    if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
+      LibraryAutomationSettingRow({ rowKey: row.key, title: this.rowTitle(row), policy: this.automationPolicy,
+        categories: this.automationCategories(), onChange: (change: (policy: LibraryAutomationPreferences) => void) => {
+          this.saveAutomationPolicy(change)
+        } })
+    } else if (this.isSwitchRow(row)) {
       ConciseListRow({
         title: this.rowTitle(row),
         // The switch itself is the state affordance. Repeating “on/off” in
@@ -2708,6 +2776,7 @@ export struct SettingsPage {
     this.loadPreferences()
     this.loadAppearancePreferences()
     this.loadLibraryUpdatePreferences()
+    this.loadAutomationPolicy()
     this.loadDownloadQueuePreferences()
     this.loadLibraryFilterPreferences()
     this.loadTrackerPreferences()
@@ -2717,6 +2786,7 @@ export struct SettingsPage {
   }
 
   private loadPanePreferences(): void {
+    if (this.pane === 'library' || this.pane === 'downloads') this.loadAutomationPolicy()
     if (this.pane === 'reader' || this.pane === 'enhancement-models' || this.pane === 'appearance') this.loadPreferences()
     if (this.pane === 'appearance') this.loadAppearancePreferences()
     if (this.pane === 'library') {

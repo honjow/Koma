@@ -432,9 +432,9 @@ interface RemoteServerPreferenceSnapshot {
 
 export class RemoteServerStore {
   private static operations: Map<string, Promise<void>> = new Map<string, Promise<void>>()
-  private context: common.UIAbilityContext
+  private context: common.Context
 
-  constructor(context: common.UIAbilityContext) {
+  constructor(context: common.Context) {
     this.context = context
   }
 

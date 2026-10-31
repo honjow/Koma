@@ -3,9 +3,13 @@
     "name": "entry",
     "type": "entry",
     "mainElement": "EntryAbility",
+    "extensionAbilities": [
+      { "name": "KomaMaintenanceAbility", "srcEntry": "./ets/maintenance/KomaMaintenanceAbility.ets", "type": "workScheduler", "exported": false }
+    ],
     "requestPermissions": [
       { "name": "ohos.permission.INTERNET" },
       { "name": "ohos.permission.GET_NETWORK_INFO" },
+      { "name": "ohos.permission.KEEP_BACKGROUND_RUNNING" },
       { "name": "ohos.permission.FILE_ACCESS_PERSIST" },
       { "name": "ohos.permission.VIBRATE" }
     ],
@@ -17,6 +21,7 @@
         "icon": "$media:app_icon_layered",
         "label": "$string:EntryAbility_label",
         "launchType": "singleton",
+        "backgroundModes": ["dataTransfer"],
         "exported": true,
         "startWindowIcon": "$media:startup_foreground",
         "startWindowBackground": "$color:start_window_background",

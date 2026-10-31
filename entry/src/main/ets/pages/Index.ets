@@ -1,9 +1,12 @@
+import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
+import { AutomaticDownloadController } from '../model/AutomaticDownloadController'
+import { ReadDownloadCleanup } from '../model/ReadDownloadCleanup'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
@@ -277,6 +280,9 @@ struct Index {
   private readerSessionPersistenceReady: boolean = false
   private libraryPersistenceRestored: boolean = false
   private libraryUpdateReady: boolean = false
+  private automaticDownloads?: AutomaticDownloadController
+  private readDownloadCleanup?: ReadDownloadCleanup
+  private cleanupProgressCommitted: boolean = false
   private automaticBackupPending: boolean = false
   private pendingTrackerProgressChecked: boolean = false
   private readerOpenEpoch: number = 0
@@ -323,6 +329,24 @@ struct Index {
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
     this.libraryRevision += 1
+    this.resumeAutomaticDownloadQueue()
+  }
+
+  private cleanupService(): ReadDownloadCleanup {
+    if (this.readDownloadCleanup === undefined) {
+      this.readDownloadCleanup = new ReadDownloadCleanup((getContext(this) as common.UIAbilityContext).filesDir)
+    }
+    return this.readDownloadCleanup
+  }
+
+  private resumeAutomaticDownloadQueue(): void {
+    if (!this.libraryUpdateReady || shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) return
+    if (this.automaticDownloads === undefined) {
+      this.automaticDownloads = new AutomaticDownloadController({ context: getContext(this) as common.UIAbilityContext,
+        library: this.libraryStore, registry: this.sourceRegistry, persistence: this.libraryPersistenceService,
+        onLibraryChanged: () => { this.refreshLibrarySnapshot() } })
+    }
+    this.automaticDownloads.wake()
   }
 
   @Monitor('appForegroundState.revision')
@@ -331,14 +355,17 @@ struct Index {
       shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       return
     }
-    void requestLibraryUpdateCheck({
-      context: getContext(this) as common.UIAbilityContext,
+    this.resumeAutomaticDownloadQueue()
+    const context = getContext(this) as common.UIAbilityContext
+    void (this.libraryUpdateState.busy ? Promise.resolve() :
+      applyBackgroundLibraryResults(context, this.libraryStore, this.libraryPersistenceService)).then(() => requestLibraryUpdateCheck({
+      context,
       libraryStore: this.libraryStore,
       sourceRegistry: this.sourceRegistry,
       libraryPersistenceService: this.libraryPersistenceService,
       reason: 'due',
       requireForeground: true,
-    }).then((result) => {
+    })).then((result) => {
       console.info('[LibraryUpdate] step=foreground_check status=' + result.status)
     }).catch((_error: Error) => {
       DiagnosticLogger.warn('index', 'foreground_check_failed', '[LibraryUpdate] step=foreground_check_failed')
@@ -1122,6 +1149,7 @@ struct Index {
     // the explicit flush here as the boundary before publishing the snapshot
     // to the shelf, including future Reader close implementations.
     const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
+    this.cleanupProgressCommitted = committed
     this.readerTrackerProgress?.close(committed)
     this.readerProgressRevision += 1
     this.readerClosing = true
@@ -1139,6 +1167,13 @@ struct Index {
     this.readerRouteVisible = false
     this.readerSessionLoading = false
     this.activeKavitaReaderComic = undefined
+    if (this.cleanupProgressCommitted) {
+      this.cleanupProgressCommitted = false
+      void this.cleanupService().run(getContext(this) as common.UIAbilityContext,
+        this.libraryStore, this.readerSessionStore).then(() => { this.readerProgressRevision += 1 }).catch((error: Error): void => {
+        DiagnosticLogger.exception('downloads', 'read_cleanup_failed', error)
+      })
+    }
   }
 
   private reloadReaderSessionStore(reason: string): void {
@@ -1184,6 +1219,8 @@ struct Index {
   private observeReaderTrackerProgress(progress: ReadingProgress): void {
     if (!this.readerOpen || !this.readerSessionPersistenceReady ||
       progress.comicId !== this.readerSessionConfig.comicId || progress.chapterId !== this.readerSessionConfig.chapterId) return
+    void this.cleanupService().observe(getContext(this) as common.UIAbilityContext, progress)
+      .catch((error: Error): void => { DiagnosticLogger.exception('downloads', 'read_cleanup_record_failed', error) })
     const source = this.activeSourceReaderRequest
     const comic = this.libraryStore.getComic(progress.comicId)
     const chapter = comic?.chapters.find((item: Chapter): boolean => item.id === progress.chapterId)
@@ -1226,9 +1263,12 @@ struct Index {
 
   private onBackupRestored(): void {
     appSourcePackageManagerCache.invalidate()
+    this.readDownloadCleanup?.invalidateAfterRestore()
     this.readerTrackerProgress?.resetAfterRestore()
     this.ensureLibraryPersistenceService()?.restore()
     this.libraryPreferencesRevision += 1
+    void synchronizeBackgroundMaintenance(getContext(this) as common.UIAbilityContext)
+      .catch((error: Error): void => { DiagnosticLogger.exception('maintenance', 'restore_schedule_failed', error) })
     this.applicationSettingsRestoreRevision += 1
     this.readerProgressRevision += 1
     this.refreshLibrarySnapshot()
@@ -1950,6 +1990,11 @@ struct Index {
       })
   }
 
+  aboutToDisappear(): void {
+    this.automaticDownloads?.dispose()
+    this.automaticDownloads = undefined
+  }
+
   aboutToAppear(): void {
     this.handleReaderLabLaunch()
     RouterHelper.setAppPathStack(this.appPathStack)
@@ -1987,7 +2032,9 @@ struct Index {
             .finally(() => {
               this.refreshLibrarySnapshot()
               this.libraryUpdateReady = true
+              this.resumeAutomaticDownloadQueue()
               this.runForegroundLibraryUpdate()
+              this.runForegroundAutomaticBackup()
             })
         } catch (error) {
           void error

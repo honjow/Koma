@@ -1,3 +1,4 @@
+import { runOfflineDownloadBatch } from '../model/OfflineDownloadBatch'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
@@ -790,55 +791,11 @@ export struct DownloadsPage {
   }
 
   private async runForegroundDownloadBatch(targets: OfflineDownloadQueueEntry[]): Promise<number> {
-    const concurrencyLimit = Math.max(1, Math.min(3, Math.floor(this.preferences.foregroundConcurrencyLimit)))
-    let nextIndex = 0
-    let completed = 0
-    const worker = async (): Promise<void> => {
-      while (nextIndex < targets.length && !this.queueStore().loadPreferences().isPaused) {
-        const entry = targets[nextIndex]
-        nextIndex += 1
-        const comic = this.libraryStore?.getComic(entry.comicId)
-        if (entry.status === OfflineDownloadStatus.BLOCKED && !this.isRecoverableBlockedEntry(entry)) {
-          continue
-        }
-        if (comic === undefined) {
-          this.blockUnavailableEntry(entry)
-          continue
-        }
-        const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
-        const currentComic = this.libraryStore?.getComic(entry.comicId)
-        if (currentComic === undefined) {
-          this.blockUnavailableEntry(entry)
-          continue
-        }
-        if (!sameComicIdentity(comic, currentComic)) {
-          this.loadQueue()
-          continue
-        }
-        if (!hydration.hydrated) {
-          await this.blockSourcePagesUnavailable(currentComic, entry, hydration.reasonCode ?? 'pages_missing')
-          continue
-        }
-        const service = new OfflineDownloadService(
-          new OfflineDownloadStore(this.context().filesDir),
-          this.queueStore(), this.context()
-        )
-        await service.downloadChapter(currentComic, entry.chapterId, {
-          comicTitle: entry.comicTitle ?? currentComic.title,
-          chapterTitle: entry.chapterTitle,
-        })
-        completed += 1
-      }
-    }
-    const workers: Promise<void>[] = []
-    for (let index = 0; index < concurrencyLimit && index < targets.length; index += 1) {
-      workers.push(worker())
-    }
-    const results = await Promise.allSettled(workers)
-    for (const result of results) {
-      if (result.status === 'rejected') throw result.reason as Error
-    }
-    return completed
+    if (this.libraryStore === undefined) return 0
+    return runOfflineDownloadBatch({ context: this.context(), library: this.libraryStore,
+      registry: this.sourceRegistry, persistence: this.libraryPersistenceService,
+      onLibraryChanged: () => { this.onLibraryChanged() },
+    }, targets)
   }
 
   private async ensureSourcePagesForDownload(comic: Comic, chapterId: string): Promise<SourceChapterPageHydrationResult> {

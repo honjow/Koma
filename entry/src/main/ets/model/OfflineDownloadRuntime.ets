@@ -18,7 +18,8 @@ interface OfflineDownloadSlots {
   waiting: OfflineDownloadAdmission[]
 }
 
-// Foreground runtime only. Worker reconciliation must finish before an execution starts.
+// App-process execution slots; BackgroundDownloadOwner keeps active transfers running after UI backgrounding.
+// Worker reconciliation must finish before an execution starts.
 export class OfflineDownloadRuntime {
   private static initializations: Map<string, Promise<void>> = new Map<string, Promise<void>>()
   private static initialized: Set<string> = new Set<string>()

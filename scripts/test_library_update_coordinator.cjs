@@ -88,7 +88,7 @@ async function environment(autoCheckEnabled = true) {
       return storage.get(key)
     } } },
   })
-  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: {}, sourceRegistry: {}, libraryPersistenceService: {}, reason: 'manual' }
+  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: { listComics: () => [] }, sourceRegistry: {}, libraryPersistenceService: {}, reason: 'manual' }
   class PreferencesStore extends preferences.LibraryUpdatePreferencesStore {
     async load(strict) {
       if (controls.readGate) await controls.readGate.promise
@@ -129,7 +129,24 @@ async function environment(autoCheckEnabled = true) {
   const readerStore = {}
   const protectedIds = new Set(['protected-chapter'])
   const guardComic = { id: 'guard-comic', sourceRuntimeId: 'com.mh1234.koma' }
+  const automationPolicy = compile(source('model/LibraryAutomationPolicy'), {
+    './ReaderChapterSequence': compile(source('model/ReaderChapterSequence'), {}),
+  })
+  const automationStore = compile(source('model/LibraryAutomationPreferencesStore'), {
+    '@kit.ArkData': arkData, './BackupRestoreActivity': { BackupRestoreActivity: activity },
+    './LibraryAutomationPolicy': automationPolicy,
+  })
+  const automaticDownload = compile(source('model/LibraryAutomaticDownload'), {
+    './LibraryAutomationPreferencesStore': automationStore, './LibraryAutomationPolicy': automationPolicy,
+    './LibraryBatchDownloadQueue': { LibraryBatchDownloadQueue: class {} },
+    '@kit.CoreFileKit': { fileIo: {} },
+    './AppFileTextPersistence': { writeAppTextFile: () => {} },
+  })
   const coordinator = compile(source('model/LibraryUpdateCoordinator'), {
+    './LibraryAutomationPolicy': automationPolicy,
+    './LibraryAutomationPreferencesStore': automationStore,
+    './LibraryAutomaticDownload': automaticDownload,
+    './AutomaticUpdateConditions': { automaticUpdateConditionsSatisfied: () => true },
     './ReaderSessionStore': { appReaderSessionStore: (filesDir) => {
       assert.equal(filesDir, request.context.filesDir)
       return readerStore

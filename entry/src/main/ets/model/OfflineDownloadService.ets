@@ -1,4 +1,5 @@
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
+import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool, url } from '@kit.ArkTS'
@@ -254,7 +255,9 @@ export class OfflineDownloadService {
       await OfflineDownloadService.ensureQueueInitialized(filesDir)
       const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
       const manifest = await OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
-        () => this.runChapterDownload(comic, chapterId, key, trace, labels),
+        () => canRunOfflineDownloadQueueNow(this.queueStore.loadPreferences())
+          ? BackgroundDownloadOwner.run(this.requestContext, () => this.runChapterDownload(comic, chapterId, key, trace, labels))
+          : this.runChapterDownload(comic, chapterId, key, trace, labels),
         () => this.queueStore.loadPreferences().foregroundConcurrencyLimit)
       trace.finish(manifest.status === OfflineDownloadStatus.DOWNLOADED ? 'completed' : manifest.status,
         'pages=' + manifest.downloadedPageCount + '/' + manifest.pageCount + ' reason=' + (manifest.failureReasonCode ?? 'none'))
@@ -395,6 +398,7 @@ export class OfflineDownloadService {
           updatedAt: Date.now(),
         }
         manifest = this.store.recordPage(manifest, row)
+        BackgroundDownloadOwner.progress(labels?.chapterTitle ?? chapter.title, manifest.downloadedPageCount, manifest.pageCount)
         this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
       }
       manifest.status = OfflineDownloadStatus.DOWNLOADED

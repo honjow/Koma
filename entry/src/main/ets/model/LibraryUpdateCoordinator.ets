@@ -28,6 +28,11 @@ import {
 } from './LibraryUpdateResultStore'
 import { LibraryUpdateStateBridge } from '../state/LibraryUpdateState'
 import { connectAppForegroundState } from '../state/AppForegroundState'
+import { LibraryAutomationPreferencesStore } from './LibraryAutomationPreferencesStore'
+import { shouldAutomaticallyUpdateComic } from './LibraryAutomationPolicy'
+import { libraryChapterIdSnapshot, enqueueAutomaticallyAddedChapters } from './LibraryAutomaticDownload'
+import { LibraryAutomationPreferences } from './LibraryAutomationPolicy'
+import { automaticUpdateConditionsSatisfied } from './AutomaticUpdateConditions'
 
 export interface LibraryUpdateCheckRequest {
   context: common.UIAbilityContext
@@ -125,6 +130,13 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   if (request.reason === 'due' && request.requireForeground && !connectAppForegroundState().active) {
     return result
   }
+  let policy: LibraryAutomationPreferences | undefined = undefined
+  try { policy = await new LibraryAutomationPreferencesStore(request.context).load() }
+  catch (error) {
+    DiagnosticLogger.exception('library_update', 'automation_policy_read_failed', error as Error)
+    if (request.reason === 'due') { result.persistenceFailed = true; return result }
+  }
+  if (request.reason === 'due' && policy !== undefined && !automaticUpdateConditionsSatisfied(policy)) return result
 
   LibraryUpdateStateBridge.setBusy(true)
   const startedAt = Date.now()
@@ -140,11 +152,16 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   }
 
   let summary: LibraryUpdateSummary
+  const reader = appReaderSessionStore(request.context.filesDir)
+  const previousChapterIds = libraryChapterIdSnapshot(request.libraryStore)
   try {
+    const automaticPolicy = policy
     const service = new LibraryUpdateService(request.libraryStore, request.sourceRegistry,
       request.libraryPersistenceService, new RemoteServerStore(request.context),
       (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(
-        comic, request.context.filesDir, appReaderSessionStore(request.context.filesDir)))
+        comic, request.context.filesDir, reader),
+      request.reason === 'due' && automaticPolicy !== undefined ?
+        (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, automaticPolicy) : undefined)
     summary = await service.checkLibraryUpdates()
   } catch (_error) {
     // Only a service exception reaches this branch; persistence and notification failures are separate.
@@ -182,6 +199,12 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
 
   result.status = 'completed'
   result.summary = summary
+  try {
+    // Persisted library changes come first. Queue only received new chapter IDs, never a count or list position.
+    await enqueueAutomaticallyAddedChapters(request.context, request.libraryStore, reader, summary, previousChapterIds)
+  } catch (error) {
+    DiagnosticLogger.exception('library_update', 'automatic_download_enqueue_failed', error as Error)
+  }
   setLatestLibraryUpdateSummary(summary)
   if (result.preferences !== undefined) {
     try {

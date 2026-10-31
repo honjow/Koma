@@ -1,3 +1,5 @@
+import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
+import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Binding, UIUtils } from '@kit.ArkUI'
@@ -262,6 +264,9 @@ export struct BackupManagementPage {
       .then((preferencesValue: BackupAutomaticPreferences) => {
         if (epoch !== this.automaticPreferencesEpoch) return
         this.autoPreferences = preferencesValue
+        void synchronizeBackgroundMaintenance(this.context()).catch((error: Error): void => {
+          DiagnosticLogger.exception('maintenance', 'backup_schedule_failed', error)
+        })
         this.showToast(t('backup_auto_saved_toast'))
       })
       .catch((_error: Error) => {
@@ -307,6 +312,17 @@ export struct BackupManagementPage {
       includeDownloadQueue: this.contentPreferences.includeDownloadQueue,
       includeTrackerMappings,
     })
+  }
+
+  private selectAutomaticDirectory(): void {
+    if (this.busy) return
+    void selectAutomaticBackupDirectory(this.context())
+      .then((selection: AutomaticBackupDirectorySelection | undefined): void => {
+        if (selection !== undefined) this.saveAutomaticPreferences({ directoryUri: selection.uri, directoryOwnedModes: selection.ownedModes })
+      }).catch((error: Error): void => {
+        DiagnosticLogger.exception('backup', 'automatic_directory_failed', error)
+        this.showToast(t('backup_auto_directory_select_failed'))
+      })
   }
 
   private setAutomaticBackupEnabled(enabled: boolean): void {
@@ -949,6 +965,16 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private AutomaticDirectoryMenu(select: (action: () => void) => void) {
+    Menu() {
+      MenuItem({ content: t('backup_auto_directory_local') })
+        .onClick(() => { select(() => { this.saveAutomaticPreferences({ directoryUri: '' }) }) })
+      MenuItem({ content: t('backup_auto_directory_choose') })
+        .onClick(() => { select(() => { this.selectAutomaticDirectory() }) })
+    }
+  }
+
+  @Builder
   private AutomaticBackupCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       SectionHeader({ title: t('backup_auto_heading') })
@@ -968,6 +994,15 @@ export struct BackupManagementPage {
           hasSwitch: true, checked: this.autoPreferences.enabled, showChevron: false,
           switchAction: (value: boolean) => { this.setAutomaticBackupEnabled(value) },
         })
+        ListDivider()
+        ConciseListRow({ title: t('backup_auto_directory'),
+          trailingText: this.autoPreferences.directoryUri ? decodeURIComponent(this.autoPreferences.directoryUri.split('/').pop() ?? '') : t('backup_auto_directory_local'),
+          isEnabled: !this.busy, trailingDropdown: true, dropdownMenuEnabled: true,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticDirectoryMenu(select) } })
+        ListDivider()
+        ConciseListRow({ title: t('backup_auto_background'), hasSwitch: true,
+          checked: this.autoPreferences.backgroundEnabled === true, showChevron: false, isEnabled: !this.busy,
+          switchAction: (enabled: boolean) => { this.saveAutomaticPreferences({ backgroundEnabled: enabled }) } })
         ListDivider()
         ConciseListRow({
           title: t('backup_auto_interval_label'),

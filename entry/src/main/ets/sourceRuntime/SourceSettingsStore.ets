@@ -343,7 +343,7 @@ export class SourceSettingsStore {
   private readonly sourceRevisions: Map<string, number> = new Map<string, number>()
   private document: SourceSettingsDocument | undefined = undefined
 
-  configure(context: common.UIAbilityContext): void {
+  configure(context: common.Context): void {
     appSourceSettingObservationStore.configure(context.filesDir)
     const root = joinSourceSettingsPath(context.filesDir, SOURCE_SETTINGS_ROOT_NAME)
     const nextPath = joinSourceSettingsPath(root, SOURCE_SETTINGS_FILE_NAME)
@@ -536,7 +536,7 @@ export class SourceSettingsStore {
 
 export const appSourceSettingsStore: SourceSettingsStore = new SourceSettingsStore()
 
-export function configureSourceSettingsStore(context: common.UIAbilityContext): void {
+export function configureSourceSettingsStore(context: common.Context): void {
   appSourceSettingsStore.configure(context)
 }
 

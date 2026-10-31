@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-library-automation-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
+  "runId": "power-restored-075",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "restore-original-38d2456b",
+    "page": "Session cleanup: restore original timeout10000ms and SLEEP, with final power/window readback",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "197 continuing user authorization; lease 20261030-231310-6d2be85c. Model/geometry readback still required before coordinate inputs. Save original package/data and power state, then restore independently on success or failure. No emulator or 200. No account login or clearing user content. Actual baseline ALN-AL80/1260x2720; SLEEP; Timeout120000ms Override10000ms. Installed updateTime1793397263974 exactly matches prior successful original38d245 restore readback; raw installed bytes not independently retrievable."
+  },
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "restore-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "final-window",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "WindowManagerService",
+        "-a",
+        "-a"
+      ]
+    }
+  ]
+}

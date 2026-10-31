@@ -1,3 +1,4 @@
+import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
@@ -31,6 +32,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { BackupRestoreCheckpoint } from '../model/BackupRestoreCheckpoint'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
+import { automationEpoch, finishAutomationRestore, resetGeneratedAutomationWork } from '../model/AutomationStateEpoch'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
 const ENTRY_PAGE: string = 'pages/Index'
@@ -67,6 +69,10 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.info('app', 'platform', 'os=' + deviceInfo.osFullName)
     } catch (error) { DiagnosticLogger.exception('app', 'metadata_failed', error as Error) }
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
+    if (automationEpoch(this.context).restoring) {
+      resetGeneratedAutomationWork(this.context)
+      finishAutomationRestore(this.context)
+    }
     await LanguageSettings.restore(this.context).catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')
     })
@@ -163,6 +169,10 @@ export default class EntryAbility extends UIAbility {
     DiagnosticLogger.info('app', 'background', '')
     updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      void this.startupPromise.then(() => synchronizeBackgroundMaintenance(this.context, true))
+        .catch((error: Error): void => { DiagnosticLogger.exception('maintenance', 'snapshot_failed', error) })
+    }
   }
 
   private bindLayoutWindow(win: window.Window): void {

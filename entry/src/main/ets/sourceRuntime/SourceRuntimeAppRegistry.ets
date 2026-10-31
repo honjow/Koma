@@ -207,15 +207,15 @@ function joinSourceRuntimePath(parent: string, child: string): string {
   return left.length === 0 ? right : `${left}/${right}`
 }
 
-function appSourceRoot(context: common.UIAbilityContext): string {
+function appSourceRoot(context: common.Context): string {
   return joinSourceRuntimePath(context.filesDir, APP_SOURCE_ROOT_NAME)
 }
 
-function appSourcePackagesRoot(context: common.UIAbilityContext): string {
+function appSourcePackagesRoot(context: common.Context): string {
   return joinSourceRuntimePath(appSourceRoot(context), APP_SOURCE_PACKAGES_DIR_NAME)
 }
 
-function appSourceMetadataPath(context: common.UIAbilityContext): string {
+function appSourceMetadataPath(context: common.Context): string {
   return joinSourceRuntimePath(appSourceRoot(context), APP_SOURCE_METADATA_FILE_NAME)
 }
 
@@ -960,7 +960,7 @@ async function commitStagedSourcePackages(
 
 // `metadata_missing` is the expected fresh-install state. Other reload failures
 // are returned so an interactive caller can report that it kept stale data.
-export function reloadInstalledSourcePackages(context: common.UIAbilityContext): boolean {
+export function reloadInstalledSourcePackages(context: common.Context): boolean {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
   const reloaded = SourceRuntimeRegistry.reloadFromAppLocalMetadata(appSourceMetadataPath(context))
@@ -1099,7 +1099,7 @@ export function persistedInstalledSourcePackageIconUri(
   return entry === undefined ? undefined : sourceRuntimePackageIconUri(entry)
 }
 
-export function bootstrapSourceRuntimeAppRegistry(context: common.UIAbilityContext): number {
+export function bootstrapSourceRuntimeAppRegistry(context: common.Context): number {
   reloadInstalledSourcePackages(context)
   return appSourceRuntimeRegistry.count()
 }

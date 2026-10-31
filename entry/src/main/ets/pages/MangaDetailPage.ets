@@ -601,11 +601,14 @@ export struct MangaDetailPage {
   @Monitor('readerProgressRevision')
   private onReadingStateRevision(): void {
     this.applyChapterStatesToCurrent()
+    this.refreshDownloadStatus()
   }
 
   private decorateChapterStates(chapters: MangaChapterItem[]): MangaChapterItem[] {
     const comicId = this.currentComicId()
     const downloadService = this.offlineDownloadService()
+    const comic = this.libraryStore?.getComic(comicId)
+    const localOffline = comic !== undefined && chapterPagesAreLocalOffline(comic.sourceKind)
     return chapters.map((chapter: MangaChapterItem): MangaChapterItem => {
       const next: MangaChapterItem = {
         id: chapter.id,
@@ -620,8 +623,10 @@ export struct MangaDetailPage {
         dateUpload: chapter.dateUpload,
         pageCount: chapter.pageCount,
         isRead: this.readerSessionStore.isChapterRead(comicId, chapter.id),
-        isDownloaded: chapter.isDownloaded,
-        downloadStatus: chapter.downloadStatus,
+        // Re-read host downloads after cleanup; the prior decorated row is not persistent truth.
+        // Local archives/folders remain available independently of the download queue.
+        isDownloaded: localOffline && (chapter.pageCount ?? 0) > 0,
+        downloadStatus: localOffline && (chapter.pageCount ?? 0) > 0 ? 'downloaded' : undefined,
       }
       const summary = downloadService?.getChapterSummary(comicId, chapter.id)
       if (summary !== undefined) {

@@ -293,7 +293,7 @@ function updatedComicWithOnlyCoverUri(comic: Comic, coverUri: string, now: numbe
   return nextComic
 }
 
-function summarizeResults(checkedAt: number, results: LibraryUpdateComicResult[]): LibraryUpdateSummary {
+export function summarizeResults(checkedAt: number, results: LibraryUpdateComicResult[]): LibraryUpdateSummary {
   const providerSummaries = summarizeLibraryUpdateProviders(results)
   return {
     checkedAt,
@@ -459,6 +459,7 @@ export class LibraryUpdateService {
   private persistenceService?: LibraryStorePersistenceService
   private remoteServerStore?: RemoteServerStore
   private protectedChapterIds?: (comic: Comic) => Set<string> | undefined
+  private includeComic?: (comic: Comic) => boolean
 
   constructor(
     libraryStore: LibraryStore,
@@ -466,12 +467,14 @@ export class LibraryUpdateService {
     persistenceService?: LibraryStorePersistenceService,
     remoteServerStore?: RemoteServerStore,
     protectedChapterIds?: (comic: Comic) => Set<string> | undefined,
+    includeComic?: (comic: Comic) => boolean,
   ) {
     this.libraryStore = libraryStore
     this.sourceRegistry = sourceRegistry
     this.persistenceService = persistenceService
     this.remoteServerStore = remoteServerStore
     this.protectedChapterIds = protectedChapterIds
+    this.includeComic = includeComic
   }
 
   async checkLibraryUpdates(): Promise<LibraryUpdateSummary> {
@@ -506,8 +509,11 @@ export class LibraryUpdateService {
     })
   }
 
-  private async checkComic(comic: Comic): Promise<LibraryUpdateComicResult> {
+  async checkComic(comic: Comic): Promise<LibraryUpdateComicResult> {
     const previousChapterCount = comic.chapters.length > 0 ? comic.chapters.length : comic.chapterCount
+    if (this.includeComic !== undefined && !this.includeComic(comic)) {
+      return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_skip_automatic_policy'))
+    }
     if (comic.sourceRuntimeId !== undefined && comic.sourceRuntimeId.trim().length > 0) {
       return this.checkSourceRuntimeComic(comic, previousChapterCount)
     }

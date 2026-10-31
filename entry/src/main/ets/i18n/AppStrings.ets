@@ -3,10 +3,10 @@ import { resourceManager } from '@kit.LocalizationKit'
 import { connectLanguageState } from '../state/LanguageState'
 
 export class AppStrings {
-  private static context: common.UIAbilityContext | null = null
+  private static context: common.Context | null = null
   private static overrideResMgr: resourceManager.ResourceManager | null = null
 
-  static init(context: common.UIAbilityContext): void {
+  static init(context: common.Context): void {
     AppStrings.context = context
   }
 

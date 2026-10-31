@@ -338,6 +338,13 @@ export class LibraryUpdatePreferencesStore {
     }
   }
 
+  async saveForegroundOnly(foregroundOnly: boolean): Promise<LibraryUpdatePreferences> {
+    const current = await this.load(true)
+    current.foregroundOnly = foregroundOnly
+    await this.save(current)
+    return current
+  }
+
   async saveAutoCheckEnabled(autoCheckEnabled: boolean): Promise<LibraryUpdatePreferences> {
     const current = await this.load(true)
     const next: LibraryUpdatePreferences = {

@@ -93,7 +93,7 @@ export class LibraryBatchDownloadQueue {
     return plan
   }
 
-  async enqueue(targets: LibraryBatchDownloadTarget[], unreadOnly: boolean): Promise<number> {
+  async enqueue(targets: LibraryBatchDownloadTarget[], unreadOnly: boolean, automatic: boolean = false): Promise<number> {
     const snapshot = targets.map((target: LibraryBatchDownloadTarget): LibraryBatchDownloadTarget => ({
       comicId: target.comicId, chapterId: target.chapterId, comicTitle: target.comicTitle,
       chapterTitle: target.chapterTitle, pageCount: target.pageCount,
@@ -110,6 +110,7 @@ export class LibraryBatchDownloadQueue {
         continue
       }
       additions.push({
+        automatic: automatic ? true : undefined,
         comicId: target.comicId, chapterId: target.chapterId,
         comicTitle: target.comicTitle, chapterTitle: target.chapterTitle,
         status: OfflineDownloadStatus.QUEUED, pageCount: target.pageCount,

@@ -111,7 +111,7 @@ export class SourceWebSessionStore {
   private registry?: SourceRuntimeRegistry
   private storagePath: string = ''
 
-  configure(context: common.UIAbilityContext, registry: SourceRuntimeRegistry): void {
+  configure(context: common.Context, registry: SourceRuntimeRegistry): void {
     this.registry = registry
     const directory = context.filesDir + '/source-runtime'
     if (!fs.accessSync(directory)) fs.mkdirSync(directory, true)

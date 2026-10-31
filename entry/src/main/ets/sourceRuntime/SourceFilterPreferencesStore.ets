@@ -184,7 +184,7 @@ function sanitizeFilterValue(value: SourceFilterPreferenceValue, filter: SourceF
 export class SourceFilterPreferencesStore {
   private storagePath: string = ''
 
-  configure(context: common.UIAbilityContext): void {
+  configure(context: common.Context): void {
     const root = joinSourceFilterPreferencesPath(context.filesDir, SOURCE_FILTER_PREFS_ROOT_NAME)
     ensureDirSync(root)
     this.storagePath = joinSourceFilterPreferencesPath(root, SOURCE_FILTER_PREFS_FILE_NAME)
@@ -379,6 +379,6 @@ export class SourceFilterPreferencesStore {
 
 export const appSourceFilterPreferencesStore: SourceFilterPreferencesStore = new SourceFilterPreferencesStore()
 
-export function configureSourceFilterPreferencesStore(context: common.UIAbilityContext): void {
+export function configureSourceFilterPreferencesStore(context: common.Context): void {
   appSourceFilterPreferencesStore.configure(context)
 }

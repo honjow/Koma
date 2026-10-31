@@ -140,7 +140,7 @@ async function publishOfflineDownloadNotificationText(
   }
 }
 
-async function createOfflineDownloadWantAgent(): Promise<WantAgent> {
+export async function createOfflineDownloadWantAgent(): Promise<WantAgent> {
   const parameters: Record<string, Object> = {}
   parameters[KOMA_LAUNCH_ROUTE_PARAM] = KOMA_LAUNCH_ROUTE_DOWNLOADS
   const launchWant: Want = {
