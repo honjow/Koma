@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：迁移、分类菜单及公共表单修正已交付，全应用普通入口完成一轮走查；额外展示问题及其它未验范围仍保留。
+当前结果：迁移原位重试和来源独立移除已修复交付；详情菜单原型已实测，可看效果后再决定是否调整。其它未验范围保留。
 
-设备：197本轮验证后已恢复原包、数据和休眠并释租；237本轮未操作。200禁止操作，四私库搁置。
+设备：197本轮已恢复原包、数据和休眠并释租；237本轮未操作。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T02:51:48+08:00",
+  "updatedAt": "2026-11-01T03:59:08+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "本轮修复与精确CI已完成；迁移细节和分类菜单已关闭，额外观察仍在原项。",
-  "nextAction": "处理短笔记多余展开与相邻LLM来源入口同名；账号依赖和既有源未决范围保留。",
+  "activeId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+  "activity": "本轮迁移修复与详情菜单原型已交付，CI成功，设备已恢复释租。",
+  "nextAction": "保留菜单试看反馈及原未验范围，不重复已接受路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -4634,13 +4634,13 @@
       "title": "书库漫画跨源迁移",
       "priority": "P1",
       "kind": "accepted",
-      "status": "迁移交互细节已验收",
+      "status": "原位重试和来源独立移除已验收",
       "stage": "已交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "可用来源已有分隔线；确认只保留目标标题，加载占固定摘要行；准备到就绪时窗口与按钮位置稳定，原复制和迁移事务保留。",
-      "remaining": "无；保留已验迁移数据事务与来源顺序范围。",
+      "result": "失败与重试共用原加载位置，底部不再新增；已选来源只由独立移除键移出，点整行不误删，拖动及重进选择记忆保留。",
+      "remaining": "无；保留已接受迁移数据事务范围。",
       "remainingActions": [],
       "boundaries": [
         "使用当前Koma控件；仅按用户明确采用的入口和流程实施，不擅自扩展样式。",
@@ -4649,7 +4649,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
-      "closedAt": "2026-11-01T02:51:48+08:00",
+      "closedAt": "2026-11-01T03:59:08+08:00",
       "evidencePoints": [
         "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
         "用户通过本轮async call_06bd595e97bf48dd9fcff06914f4be01明确采用完整流程；尚未实现或验收。",
@@ -4686,7 +4686,9 @@
         "产品66ece78fc698f499aa9704e0405602b1df9192a8精确CI41224591032 completed/success；Release构建、Inspect、Upload均成功，Publish tagged Release skipped，无新发版。最终回执 .hvigor/outputs/migration-simplification-ci-final.json；具名11/13/15/16实机及17编译边界与恢复详见 .hvigor/outputs/migration-simplification-acceptance/acceptance-binding.json。",
         "197 build018具名来源分隔线及单标题截图：detail-source-picker-166、detail-dialog-ready-170；连续录屏detail-dialog-recording-168原117帧已亲审。编码890x1920与UI1260x2720分开，不跨分辨率推几何；原视频帧80/104–108/116窗口中心白面上下边均619/1300，准备到ready无变化。",
         "本轮最终恢复：299原签名包installer明确成功，bm dump仅两处updateTime不同；fresh164七JSON+30首选项共37文件逐字同且无extra。300读回SLEEP/normal120000/Override10000，租约于02:45:01释放。恢复证据 .hvigor/outputs/shared-modal-acceptance/restoration-comparison.json。产品c74ea856已推，精确CI41230745273待终态。",
-        "本轮产品c74ea8566d35b133752a9d746e527ded0bd693b0精确CI41230745273 completed/success；Release构建、包检查和上传成功，tag发布skipped。018具名实机和连续原片范围保留；公共表单改动未改变迁移Dialog或数据路径。交付 .hvigor/outputs/shared-modal-acceptance/delivery-binding.json。"
+        "本轮产品c74ea8566d35b133752a9d746e527ded0bd693b0精确CI41230745273 completed/success；Release构建、包检查和上传成功，tag发布skipped。018具名实机和连续原片范围保留；公共表单改动未改变迁移Dialog或数据路径。交付 .hvigor/outputs/shared-modal-acceptance/delivery-binding.json。",
+        "本轮027/028：307真实同漫画安全失败分支显示固定摘要和原位重试；308连续75帧全亲审，点击重试窗口与主按钮位置稳定。未冒称远端完整目录失败原样复现。028的311点已选MDX行仍保留MDX+KO，312拖动KO到前，313只点击独立移除KO退回可用组，314重入仍只选MDX。原协议303曾误入未选择的picker，已返回，303不计迁移成功。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration。",
+        "迁移a5e2bbb8与详情菜单46e2dbe8均已推Koma/master，最终完整SHA46e2dbe8c6b6d2f484ff3c1427eea14f1dd54e58精确CI41235778354 completed/success。native027/028范围保留，无重跑数据事务。原包及fresh301共37文件完整恢复、10000ms/SLEEP与释租已读回。回执 .hvigor/outputs/migration-followup-acceptance/delivery-binding.json。"
       ],
       "modificationBasis": {
         "object": "书库漫画跨源迁移及其入口",
@@ -4697,9 +4699,11 @@
         "simplificationFeedback": "用户本轮明确要求去除冗余加号、优先级数字菜单及每卡目标按钮，改拖动排序并按同一顺序展示结果；移除单本强制中间搜索路由。手势与Dialog按本轮Mihon方式决定执行。",
         "simplificationGestureDecision": "用户call_784c34ba4c3a471aab11a46f7aad8f61明确采用Mihon方式：点卡片打开迁移选项Dialog，Dialog可选择复制/迁移及查看作品，长按直接查看。此决定取代之前点按预览及单本半模态，不再放每卡目标按钮。",
         "simplificationReference": "Mihon固定feadad5e1e2bf638be6e2ca317d11657b09d4596：MigrationConfigScreen使用replace进入单本搜索；MigrateSearchScreen点按打开MigrateMangaDialog，长按MangaScreen；Dialog含迁移选项及查看作品、复制、迁移。Koma沿宿主原生Dialog和现有数据提交事务适配。",
-        "dialogDetailFeedback": "用户本轮指出可用来源无分隔线、确认Dialog两个标题冗余、末尾加载指示器导致高度跳变。仅补同行分隔、保留目标作品单一标题及章节对照，把加载反馈并入固定摘要行；保留点按Dialog、长按预览、查看作品/复制/迁移、排序及原事务。"
+        "dialogDetailFeedback": "用户本轮指出可用来源无分隔线、确认Dialog两个标题冗余、末尾加载指示器导致高度跳变。仅补同行分隔、保留目标作品单一标题及章节对照，把加载反馈并入固定摘要行；保留点按Dialog、长按预览、查看作品/复制/迁移、排序及原事务。",
+        "retryPlacementFeedback": "用户本轮明确要求：目录获取失败的文字和重试不再放底部，复用原加载指示器位置，直接点该处重试；界面简洁且状态切换不变动布局。保留原验证入口及提交事务。",
+        "selectedRemovalFeedback": "用户本轮指出点击已选来源整行就移除不直观，明确要求参照现有独立删除键或左滑删除。采用原生独立移除键并保留拖动手柄，整行不再绑定移除。"
       },
-      "reopenedAt": "2026-11-01T01:52:45+08:00"
+      "reopenedAt": "2026-11-01T03:12:43+08:00"
     },
     {
       "id": "FEATURE_PARITY_COMPARISON",
@@ -4733,7 +4737,7 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "本轮交互修正已交付，仍有展示问题",
+      "status": "详情菜单试做已交付，待效果反馈",
       "stage": "部分已交付",
       "owner": "Root",
       "dependencies": [
@@ -4742,11 +4746,12 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "全应用普通入口完成一轮走查；智能分类、笔记和翻译保存固定于公共标题栏，统计菜单外部关闭后一次重开，LLM来源表单材质已统一。",
-      "remaining": "短笔记多余展开、相邻LLM来源入口同名仍待修正；三项追踪服务真实账号路径仍未验。",
+      "result": "WebView、分享链接、更多三个按钮已显示；更多有三段原生分隔，关闭后可重开、笔记入口可用，分享面板取消后可重新打开，WebView进入对应作品页。",
+      "remaining": "当前菜单供用户看效果后决定保留或改进；短笔记展开、LLM入口同名及三追踪真实账号范围仍保留。",
       "remainingActions": [
-        "修正短笔记多余展开和相邻LLM来源入口同名。",
-        "用户没有三项追踪服务账号，真实认证、绑定与远端同步保留未验。"
+        "详情菜单试做效果待用户反馈后决定是否继续调整。",
+        "短笔记多余展开、LLM来源相邻入口同名仍待修正。",
+        "三追踪服务用户暂无账号，真实认证、绑定和远端同步未验。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4812,7 +4817,10 @@
         "全应用普通路径新发现：阅读统计时间范围在256实际打开，点外部关闭后257同一次点击无菜单；公共KomaMenuListRow缺少onDisappear回传，其三个调用（统计范围/日期、自定义分类操作）一起修正，尚待新包验。翻译整页260与滚到底261证实保存只能在末尾，已接固定宿主标题栏，候选编译中。",
         "本轮全应用普通入口走查：197共享表单、原位分类、统计菜单、LLM来源草稿关闭及返回保存已核。证据 .hvigor/outputs/shared-modal-acceptance/audit-report.md。",
         "025/026：统计273范围外部关闭后一次重开，276日期同路径通过；277标题栏保存，278返回服务，296来源编辑统一公共材质及固定保存，297关闭草稿/回翻译后保存返回服务。没有保存LLM草稿或登录外部账号。代码c74ea856已推，本地026构建成功；本轮299/300恢复原包与37文件并释租。",
-        "本轮c74ea856完整SHA精确CI41230745273 completed/success；本地026签名包与197具名路径、连续录像及完整恢复见 .hvigor/outputs/shared-modal-acceptance/delivery-binding.json；全应用普通入口报告 .hvigor/outputs/shared-modal-acceptance/audit-report.md。不声称全主题、读屏、所有失败状态、账号远端同步通过。"
+        "本轮c74ea856完整SHA精确CI41230745273 completed/success；本地026签名包与197具名路径、连续录像及完整恢复见 .hvigor/outputs/shared-modal-acceptance/delivery-binding.json；全应用普通入口报告 .hvigor/outputs/shared-modal-acceptance/audit-report.md。不声称全主题、读屏、所有失败状态、账号远端同步通过。",
+        "030原型317发生BusinessError103806；已取精确Koma jscrash，堆栈定位新嵌套Builder数组参数导致ForEach非数组。031改为ComponentContent内直接遍历，与书架原行为一致。322真实三MenuItemGroup与8动作，323关闭一次重开，324笔记TextArea，325/326系统链接分享及取消后重开，327对应MangaDex作品WebView。只打开分享面板未选接收者、未发送。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration。",
+        "031关联回归328：原书架布局菜单显示网格/列表及当前勾选，未改选项。迁移提交a5e2bbb8与详情原型46e2dbe8已推，精确CI41235778354运行中。330原包安装明确成功、fresh301七JSON+30首选项共37文件逐字同，无extra；331 SLEEP/normal120000/Override10000，租约已释放。证据 .hvigor/outputs/migration-followup-acceptance/delivery-binding.json。",
+        "详情原型46e2dbe8完整SHA精确CI41235778354 completed/success，Release构建、Inspect与Upload成功、tag发布skipped；031实机原生分组、关闭重开、笔记、系统链接分享取消再开、对应作品WebView及书架单组回归均已核。没有选择分享接收者或发送；用户观感仍为试做反馈范围。证据 .hvigor/outputs/migration-followup-acceptance/report.md。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -4827,7 +4835,8 @@
         "trackerAllowedDifference": "用户call_0d45192172ec4b98b9b1dc5bbf1e8c91明确采用：Bangumi个人令牌、MangaUpdates用户名密码，使用现有详情表单并提供完整匹配、确认和同步流程。",
         "kitsuAllowedDifference": "用户call_45d3ff5aed77479f99474ae956d8be80采用Kitsu完整接入：现有追踪详情邮箱/密码登录、匹配确认及同步；密码仅用于登录，token安全存储且不备份。",
         "smartCategoryEditorCorrection": "用户本轮指出智能分类保存按钮在末尾、关闭与材质不规范，并明确要求复用扩展现有组件。替换该页手写Column/标题关闭/末尾保存为既有KomaModalScaffold；仅为公共标题栏增加可选确认操作，未传确认参数的现有消费者保持原单一关闭菜单。规则、表单和数据事务不改。",
-        "wholeAppAudit": "用户本轮明确要求改后全应用检查，包括菜单展开层级、动画、位置稳定、操作可达及复用现有公共组件。只按实际普通入口记录，不以静态扫描冒设备验收；不把双选项迁移到半模态。"
+        "wholeAppAudit": "用户本轮明确要求改后全应用检查，包括菜单展开层级、动画、位置稳定、操作可达及复用现有公共组件。只按实际普通入口记录，不以静态扫描冒设备验收；不把双选项迁移到半模态。",
+        "detailMenuPrototype": "用户本轮提出最多外露三项（超过三项则两个操作+更多），否决刷新常驻因为已有下拉刷新，随后明确允许先试做WebView/分享链接/更多并尝试分组，看效果再决定；优先先完成迁移问题。其它已采用操作不删。"
       }
     }
   ],
@@ -12227,6 +12236,114 @@
         ".hvigor/outputs/shared-modal-acceptance/audit-report.md",
         ".hvigor/outputs/shared-modal-acceptance/delivery-binding.json",
         "https://github.com/honjow/Koma/actions/runs/41230745273"
+      ]
+    },
+    {
+      "id": "migration-inline-retry-reopen-2026-11-01T03:12:43+08:00",
+      "at": "2026-11-01T03:12:43+08:00",
+      "title": "修正迁移失败后的底部重试遗漏",
+      "detail": "用户反馈原错误文字和重试仍在底部新增，重开失败分支，保留已验其它迁移行为。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "entry/src/main/ets/pages/MangaMigrationPage.ets"
+      ]
+    },
+    {
+      "id": "migration-source-removal-feedback-2026-11-01T03:20:31+08:00",
+      "at": "2026-11-01T03:20:31+08:00",
+      "title": "迁移补独立移除，详情菜单原型后续接续",
+      "detail": "已选来源不再整行误移除，采用独立操作并保留排序；详情页已获准试做WebView/分享/更多及分组，刷新留菜单，优先完成迁移。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "entry/src/main/ets/pages/MangaMigrationPage.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ]
+    },
+    {
+      "id": "migration-retry-remove-native-2026-11-01T03:28:05+08:00",
+      "at": "2026-11-01T03:28:05+08:00",
+      "title": "迁移原位重试和独立移除实测完成",
+      "detail": "失败行和重试保持原位；整行点按不误删，独立移除、拖动和重入记忆均实际核对。继续详情菜单原型，本轮恢复待统一完成。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/inline-retry-recording-308",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/inline-row-tap-kept-311",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/inline-source-reentry-314"
+      ]
+    },
+    {
+      "id": "detail-menu-prototype-implementation-2026-11-01T03:28:53+08:00",
+      "at": "2026-11-01T03:28:53+08:00",
+      "title": "开始试做详情页固定按钮与分组菜单",
+      "detail": "外露WebView、分享链接、更多；刷新留在原下拉和菜单。分组沿已有原生锚定菜单抽公共能力，现有书架单组菜单保持原行为。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "entry/src/main/ets/components/ui/KomaMenuController.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ]
+    },
+    {
+      "id": "detail-menu-prototype-crash-2026-11-01T03:33:39+08:00",
+      "at": "2026-11-01T03:33:39+08:00",
+      "title": "分组菜单原型真机失败已保留",
+      "detail": "317无菜单且前台回到文件管理；318取得Koma新BusinessError崩溃记录。停止盲点，读取该进程调用栈；原型未提交。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-menu-failure-diagnosis-318"
+      ]
+    },
+    {
+      "id": "detail-menu-prototype-native-2026-11-01T03:43:41+08:00",
+      "at": "2026-11-01T03:43:41+08:00",
+      "title": "详情分组与两个固定动作实机通过",
+      "detail": "菜单已分三段且可正常关闭重开，笔记命令可用，链接分享只展示并取消，WebView进入对应作品；030失败保留，031修正后的真实结果替代。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-menu-install031-322",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-share-reopen-326"
+      ]
+    },
+    {
+      "id": "migration-detail-followup-restore-2026-11-01T03:54:14+08:00",
+      "at": "2026-11-01T03:54:14+08:00",
+      "title": "迁移修复与菜单原型已推，设备恢复完成",
+      "detail": "公共菜单关联书架回归正常；本轮原包和数据完整恢复，设备休眠并释租。等待当前提交CI；菜单仍按用户试看原型保留。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-followup-acceptance/delivery-binding.json",
+        ".hvigor/outputs/migration-followup-acceptance/restoration-comparison.json",
+        "https://github.com/honjow/Koma/actions/runs/41235778354"
+      ]
+    },
+    {
+      "id": "migration-detail-final-library_cross_source_migration-2026-11-01T03:59:08+08:00",
+      "at": "2026-11-01T03:59:08+08:00",
+      "title": "迁移后续交互修正交付",
+      "detail": "原位重试和独立来源移除已实测并推送；本次精确CI成功，设备原包与数据、电源状态恢复并释租。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-followup-acceptance/delivery-binding.json",
+        "https://github.com/honjow/Koma/actions/runs/41235778354"
+      ]
+    },
+    {
+      "id": "migration-detail-final-feature_parity_implementation-2026-11-01T03:59:08+08:00",
+      "at": "2026-11-01T03:59:08+08:00",
+      "title": "详情菜单原型交付，可看效果反馈",
+      "detail": "WebView/分享/更多及三段原生菜单已核，原书架单组正常；本次CI成功。按试做范围保留，其他展示和账号未验不混作完成。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-followup-acceptance/delivery-binding.json",
+        "https://github.com/honjow/Koma/actions/runs/41235778354"
       ]
     }
   ],

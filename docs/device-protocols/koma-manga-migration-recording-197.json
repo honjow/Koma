@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "koma-migration-dialog-preparation-197",
+  "name": "koma-migration-dialog-inline-retry-197",
   "target": "192.168.50.197:12345",
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
@@ -10,29 +10,29 @@
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "migration-detail-build018",
-    "page": "Normal result tap through loading and ready: single title, stable summary and buttons",
+    "codeIdentity": "migration-inline-retry-build027-a4453952",
+    "page": "Actual same-work failure, tap retry in former loading slot",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "User approved selected-source persistence/grouping, top actions, grouped search and detail preview. Restore actual original HAP matched by installed receipt, seven JSON and all preferences, power10000/SLEEP; release197. No emulator, no accounts."
+    "notes": "选择真实原作品触发现有migration_same_manga失败，复用同一failed分支；只验证失败呈现和原位重试，不冒称真实远端目录错误已重现。不提交迁移。"
   },
-  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-dialog-recording-168",
-  "recordingFileName": "koma_migration_detail018_20261101_168.mp4",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/inline-retry-recording-308",
+  "recordingFileName": "koma_migration_retry027_20261101_308.mp4",
   "timeoutMs": 86400000,
   "warmupMs": 500,
   "idleRecordMs": 0,
   "actions": [
     {
-      "name": "choose-k...omiic-result",
+      "name": "tap-inline-retry",
       "uiInput": [
         "click",
-        "200",
-        "850"
+        "1091",
+        "1098"
       ],
-      "pauseAfterMs": 8000
+      "pauseAfterMs": 1200
     }
   ]
 }

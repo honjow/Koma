@@ -5,333 +5,65 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration",
-  "runId": "detail-data-restored-172",
+  "runId": "followup-power-restored-331",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "original197-38d2456b",
-    "page": "Restore original HAP and fresh baseline127 after simplified migration validation",
+    "codeIdentity": "46e2dbe8 / restored original197-38d245",
+    "page": "Restore original timeout and sleep after verified data restoration",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "User approved selected-source persistence/grouping, top actions, grouped search and detail preview. Restore actual original HAP matched by installed receipt, seven JSON and all preferences, power10000/SLEEP; release197. No emulator, no accounts."
+    "notes": "fresh301七JSON及30首选项逐字相同、无extra，原签名包安装成功；恢复10000ms、Sleep并读回后释放租约。"
   },
-  "preflight": [
-    {
-      "name": "stop-candidate",
-      "hdcArgs": [
-        "shell",
-        "aa",
-        "force-stop",
-        "com.honjow.koma"
-      ]
-    },
-    {
-      "name": "restore-original-signed",
-      "hdcArgs": [
-        "install",
-        "-r",
-        "/Users/honjow/git/Koma/.hvigor/outputs/feature-parity-implementation-20261031/original197-38d245.hap"
-      ],
-      "timeoutSeconds": 120
-    },
-    {
-      "name": "restore-library",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/library.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json"
-      ]
-    },
-    {
-      "name": "restore-reader",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/reader.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json"
-      ]
-    },
-    {
-      "name": "restore-registry",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/registry.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-runtime-registry.json"
-      ]
-    },
-    {
-      "name": "restore-source-settings",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/source-settings.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-settings.json"
-      ]
-    },
-    {
-      "name": "restore-filters",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/filters.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-filter-preferences.json"
-      ]
-    },
-    {
-      "name": "restore-web-sessions",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/web-sessions.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/web-sessions.json"
-      ]
-    },
-    {
-      "name": "restore-queue",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/queue.json",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/downloads/queue.v1.json"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_app_preferences_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_app_preferences_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_app_preferences_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_app_release_cache_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_app_release_cache_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_app_release_cache_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_appearance_preferences_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_appearance_preferences_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_appearance_preferences_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_backup_automatic_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_backup_automatic_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_backup_automatic_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_backup_content_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_backup_content_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_backup_content_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_diagnostics_settings",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_diagnostics_settings",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_diagnostics_settings"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_library_filter_preferences",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_library_filter_preferences",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_filter_preferences"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_library_update_preferences_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_library_update_preferences_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_preferences_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_library_update_results_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_library_update_results_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_results_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_reader_preferences_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_reader_preferences_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_reader_remote_image_cache_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_reader_remote_image_cache_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_remote_image_cache_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_remote_servers_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_remote_servers_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_remote_servers_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_search_history_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_search_history_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_search_history_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_source_package_manager_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_source_package_manager_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_package_manager_v1"
-      ]
-    },
-    {
-      "name": "restore-pref-koma_tracker_preferences_v1",
-      "hdcArgs": [
-        "file",
-        "send",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-baseline-164/preferences/koma_tracker_preferences_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_tracker_preferences_v1"
-      ]
-    },
-    {
-      "name": "remove-only-new-migration-preferences",
-      "hdcArgs": [
-        "shell",
-        "rm",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_manga_migration_v1",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_manga_migration_v1.lock"
-      ]
-    }
-  ],
+  "preflight": [],
   "measurement": {
     "actions": []
   },
   "postflight": [
     {
-      "name": "readback-library",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/library.json"
-      ]
-    },
-    {
-      "name": "readback-reader",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/reader.json"
-      ]
-    },
-    {
-      "name": "readback-registry",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-runtime-registry.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/registry.json"
-      ]
-    },
-    {
-      "name": "readback-source-settings",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-settings.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/source-settings.json"
-      ]
-    },
-    {
-      "name": "readback-filters",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-filter-preferences.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/filters.json"
-      ]
-    },
-    {
-      "name": "readback-web-sessions",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/web-sessions.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/web-sessions.json"
-      ]
-    },
-    {
-      "name": "readback-queue",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/downloads/queue.v1.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/queue.json"
-      ]
-    },
-    {
-      "name": "preferences-readback",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-data-restored-172/preferences"
-      ]
-    },
-    {
-      "name": "original-bundle",
+      "name": "restore-timeout",
       "hdcArgs": [
         "shell",
-        "bm",
-        "dump",
-        "-n",
-        "com.honjow.koma"
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "restore-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ]
+    },
+    {
+      "name": "final-power",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
+      ]
+    },
+    {
+      "name": "final-window",
+      "hdcArgs": [
+        "shell",
+        "hidumper",
+        "-s",
+        "WindowManagerService",
+        "-a",
+        "-a"
       ]
     }
   ]
