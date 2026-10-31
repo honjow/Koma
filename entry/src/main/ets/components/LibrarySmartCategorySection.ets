@@ -11,8 +11,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { ConciseListRow } from './ui/ConciseListRow'
-import { KomaActionButton } from './ui/KomaActionButton'
-import { KomaIconButton } from './ui/KomaIconButton'
+import { KomaModalScaffold } from './KomaModalScaffold'
 import { KomaFormTextField } from './ui/KomaFormTextField'
 
 interface SmartFilterChoice { value: string; title: string }
@@ -28,7 +27,6 @@ export struct LibrarySmartCategorySection {
   @Local private editingId: string = ''
   @Local private draftName: string = ''
   @Local private draftFilters: LibrarySmartFilter[] = []
-  @Local private expandedMethod: string = ''
 
   aboutToAppear(): void { this.groups = this.libraryStore?.listSmartCategories() ?? [] }
 
@@ -36,7 +34,6 @@ export struct LibrarySmartCategorySection {
     this.editingId = group?.id ?? ''
     this.draftName = group?.name ?? ''
     this.draftFilters = group === undefined ? [] : copyLibrarySmartCategory(group).filters
-    this.expandedMethod = ''
     this.editorShown = true
   }
 
@@ -129,7 +126,7 @@ export struct LibrarySmartCategorySection {
   private StateMenu(method: LibrarySmartFilterMethod, value: string | undefined, select: (action: () => void) => void) {
     Menu() {
       ForEach(['any', 'include', 'exclude'], (state: string) => {
-        MenuItem({ content: s(`library_smart_${state}`) }).selected(this.state(method, value) === state)
+        MenuItem({ content: s(`library_smart_${state}`) }).selected(this.state(method, value) === state).selectIcon(true)
           .onClick((): void => { select((): void => { this.setState(method, value, state) }) })
       })
     }
@@ -144,15 +141,11 @@ export struct LibrarySmartCategorySection {
 
   @Builder
   private Editor() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row() {
-        Text(s(this.editingId ? 'library_smart_edit' : 'library_smart_create'))
-          .fontSize(ThemeConstants.FONT_SIZE_H3).fontWeight(FontWeight.Bold).fontColor(ThemeConstants.TEXT_PRIMARY)
-        Blank()
-        KomaIconButton({ icon: $r('sys.symbol.xmark'), controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-          action: (): void => { this.editorShown = false } })
-      }.width('100%')
-      Scroll() {
+    KomaModalScaffold({ title: s(this.editingId ? 'library_smart_edit' : 'library_smart_create'),
+      contentHorizontalPadding: ThemeConstants.SPACE_LG,
+      confirmLabel: s('common_save'), confirmEnabled: this.draftName.trim().length > 0 && this.draftFilters.length > 0,
+      onConfirm: (): void => { this.saveDraft() }, onClose: (): void => { this.editorShown = false } }) {
+      ListItem() {
         Column({ space: ThemeConstants.SPACE_MD }) {
           GroupedListSection({ inset: ThemeConstants.SPACE_MD }) {
             KomaFormTextField({ label: s('library_category_name_label'), value: this.draftName,
@@ -170,21 +163,23 @@ export struct LibrarySmartCategorySection {
               ConciseListRow({ title: s(`library_smart_rule_${method}`),
                 trailingText: AppStrings.format('library_smart_rules_count',
                   this.draftFilters.filter((filter: LibrarySmartFilter): boolean => filter.method === method).length),
-                action: (): void => { this.expandedMethod = this.expandedMethod === method ? '' : method } })
-              if (this.expandedMethod === method) {
-                ForEach(this.choices(method), (choice: SmartFilterChoice) => {
-                  ListDivider()
-                  this.RuleRow(method, choice.title, choice.value)
-                }, (choice: SmartFilterChoice) => choice.value)
-              }
+                trailingDropdown: true, showChevron: false, dropdownMenuEnabled: true,
+                dropdownMenuBuilder: (select: (action: () => void) => void): void => { this.RuleChoicesMenu(method, select) } })
             }
           })
         }.width('100%')
-      }.layoutWeight(1).width('100%').scrollBar(BarState.Off)
-      KomaActionButton({ label: s('common_save'), fullWidth: true,
-        isEnabled: this.draftName.trim().length > 0 && this.draftFilters.length > 0,
-        action: (): void => { this.saveDraft() } })
-    }.width('100%').height('100%').padding(ThemeConstants.SPACE_LG)
+      }
+    }
+  }
+
+  @Builder
+  private RuleChoicesMenu(method: LibrarySmartFilterMethod, select: (action: () => void) => void) {
+    Menu() {
+      ForEach(this.choices(method), (choice: SmartFilterChoice) => {
+        MenuItem({ content: choice.title, labelInfo: s(`library_smart_${this.state(method, choice.value)}`),
+          builder: (): void => { this.StateMenu(method, choice.value, select) } })
+      }, (choice: SmartFilterChoice) => choice.value)
+    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
   @Builder

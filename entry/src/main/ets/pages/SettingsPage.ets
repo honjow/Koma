@@ -1,6 +1,7 @@
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
@@ -491,6 +492,7 @@ export struct SettingsPage {
   @Local private readerPreferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Local private readerPreferencesReady: boolean = false
   @Param pane: SettingsPaneKey = 'root'
+  @Param formTitleAction: FormTitleActionState = new FormTitleActionState()
   @Local private pageMode: ReaderPageMode = 'single_page'
   @Local private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @Local private readerSpreadLayoutMode: ReaderSpreadLayoutMode = 'joined'
@@ -2759,6 +2761,7 @@ export struct SettingsPage {
       DiagnosticsSettingsContent()
     } else if (this.pane === 'translation') {
       KomaTranslationSettingsContent({ sheetPresentation: false, onClose: () => { this.onClosePane() },
+        titleAction: this.formTitleAction,
         onOpenSources: () => { this.onOpenSettingsPane('llm-sources') } })
     } else if (this.pane === 'llm-sources') {
       KomaTranslationSourcesContent()

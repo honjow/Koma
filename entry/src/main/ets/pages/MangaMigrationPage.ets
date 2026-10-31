@@ -542,11 +542,16 @@ export struct MangaMigrationPage {
   private SingleConfirmationContent() {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (this.rows.length === 1) {
-            Text(this.rows[0].comic.title + ' → ' + (this.rows[0].target?.title ?? ''))
-              .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_PRIMARY).width('100%')
-            Text(this.chapterSummary(this.rows[0].comic.chapters.length, latestMigrationChapter(this.rows[0].comic.chapters))
-              + (this.rows[0].state === 'ready' ? ' → ' + this.targetChapterSummary(this.rows[0]) : ''))
-              .fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY).width('100%')
+            // Preparation updates this one-line summary in place. Keep the
+            // spinner's slot so ready/committing never add a trailing row.
+            Row({ space: ThemeConstants.SPACE_SM }) {
+              Text(this.chapterSummary(this.rows[0].comic.chapters.length, latestMigrationChapter(this.rows[0].comic.chapters))
+                + (this.rows[0].state === 'ready' ? ' → ' + this.targetChapterSummary(this.rows[0]) : ''))
+                .fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY)
+                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
+              LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
+                .visibility(this.rows[0].state === 'searching' || this.committing ? Visibility.Visible : Visibility.Hidden)
+            }.width('100%').constraintSize({ minHeight: 24 })
             Row({ space: ThemeConstants.SPACE_SM }) {
               Checkbox({ name: 'migrationReadProgress' }).select(this.readProgress).enabled(!this.committing)
                 .onChange((checked: boolean): void => { this.readProgress = checked })
@@ -559,9 +564,7 @@ export struct MangaMigrationPage {
               Text(s('migration_categories')).layoutWeight(1).fontColor(ThemeConstants.TEXT_PRIMARY)
                 .onClick((): void => { if (!this.committing) this.categories = !this.categories })
             }.width('100%')
-            if (this.rows[0].state === 'searching' || this.committing) {
-              LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
-            } else if (this.rows[0].state === 'failed') {
+            if (this.rows[0].state === 'failed') {
               Text(this.rows[0].error ?? s('migration_failed')).fontColor(ThemeConstants.DANGER).width('100%')
               Button(s('common_retry'), { buttonStyle: ButtonStyleMode.TEXTUAL })
                 .onClick((): void => { if (this.rows[0].target !== undefined) void this.selectTarget(this.rows[0].comic, this.rows[0].target!) })
@@ -577,7 +580,7 @@ export struct MangaMigrationPage {
   @Builder
   private SingleConfirmation() {
     CustomContentDialogV2({
-      primaryTitle: s('migration_include'),
+      primaryTitle: this.rows[0]?.target?.title ?? s('migration_include'),
       contentBuilder: () => { this.SingleConfirmationContent() },
       buttons: [
         new AdvancedDialogV2Button({ content: s('migration_show_manga'), enabled: !this.committing,
@@ -636,8 +639,9 @@ export struct MangaMigrationPage {
         ListItem() {
           GroupedListSection({ title: s('migration_available_sources') }) {
             ForEach(this.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
-              !this.selectedSources.includes(source.sourceId)), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+              !this.selectedSources.includes(source.sourceId)), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
               this.SourceSelectionRow(source, false)
+              if (index < this.sources.length - this.selectedSources.length - 1) ListDivider()
             }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
             if (this.sources.length === 0) ConciseListRow({ title: s('migration_no_sources'), showChevron: false })
           }

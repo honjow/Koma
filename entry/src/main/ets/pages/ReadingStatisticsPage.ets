@@ -141,12 +141,14 @@ export struct ReadingStatisticsPage {
         KomaMenuListRow({ title: s('reading_statistics_period'), trailingText: this.periodTitle(this.period),
           trailingDropdown: true, showChevron: false, isMenuOpen: this.menuKey === 'period',
           action: (): void => { this.menuKey = this.menuKey === 'period' ? '' : 'period' },
+          onDismiss: (): void => { if (this.menuKey === 'period') this.menuKey = '' },
           menuBuilderParam: (): void => { this.PeriodMenu() } })
         if (this.period !== 'all') {
           ListDivider()
           KomaMenuListRow({ title: this.periodTitle(this.period), trailingText: this.dateTitle(this.selectedDate),
             trailingDropdown: true, showChevron: false, isMenuOpen: this.menuKey === 'date',
             action: (): void => { this.menuKey = this.menuKey === 'date' ? '' : 'date' },
+            onDismiss: (): void => { if (this.menuKey === 'date') this.menuKey = '' },
             menuBuilderParam: (): void => { this.DateMenu() } })
         }
       }

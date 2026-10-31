@@ -13,6 +13,7 @@ export struct KomaMenuListRow {
   @Param isMenuOpen: boolean = false
   @Param menuPlacement: Placement = Placement.BottomRight
   @Event action: () => void = () => {}
+  @Event onDismiss: () => void = () => {}
   @BuilderParam menuBuilderParam?: () => void
 
   @Builder
@@ -40,6 +41,7 @@ export struct KomaMenuListRow {
     .width('100%')
     .bindMenu(this.isMenuOpen, this.MenuContent(), komaMenuOptions({
       placement: this.menuPlacement,
+      onDisappear: (): void => { this.onDismiss() },
     }))
   }
 }

@@ -262,12 +262,14 @@ export struct ConciseListRow {
     if (this.count >= 0) {
       return new SuffixTextAndArrow({ text: `${this.count}` }, { color: Color.Gray })
     }
+    // A menu can expose just its disclosure icon. Its anchor and lifecycle
+    // must not disappear merely because the caller has no trailing summary.
+    if (this.trailingDropdown) {
+      return new SuffixCustomBuilder(() => {
+        this.DropdownSuffix()
+      })
+    }
     if (this.trailingText) {
-      if (this.trailingDropdown) {
-        return new SuffixCustomBuilder(() => {
-          this.DropdownSuffix()
-        })
-      }
       if (this.showChevron) {
         return new SuffixTextAndArrow({
           text: this.trailingText,
@@ -351,11 +353,13 @@ export struct ConciseListRow {
 
   @Builder
   private DropdownSuffixContent() {
-    Text(this.trailingText)
-      .fontSize(ThemeConstants.FONT_SIZE_BODY)
-      .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
-      .maxLines(1)
-      .textOverflow({ overflow: TextOverflow.Ellipsis })
+    if (this.trailingText) {
+      Text(this.trailingText)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(this.secondaryColor ?? $r('sys.color.font_secondary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
     SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
       .fontSize(ThemeConstants.FONT_SIZE_TITLE)
       .fontColor([$r('sys.color.font_tertiary')])

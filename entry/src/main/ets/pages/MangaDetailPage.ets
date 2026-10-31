@@ -2,6 +2,7 @@ import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibra
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
@@ -2481,23 +2482,18 @@ export struct MangaDetailPage {
 
   @Builder
   private NotesEditor() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      Row() {
-        Text(s('manga_notes')).fontSize(ThemeConstants.FONT_SIZE_H3).fontWeight(FontWeight.Bold)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-        Blank()
-        KomaIconButton({ icon: $r('sys.symbol.xmark'), controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
-          iconSize: ThemeConstants.FONT_SIZE_BODY, action: () => { this.notesEditorShown = false } })
-      }.width('100%')
-      TextArea({ text: this.notesDraft, placeholder: s('manga_notes_placeholder') })
-        .height(240).fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_PRIMARY).backgroundColor($r('sys.color.ohos_id_color_button_normal'))
-        .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
-        .onChange((value: string): void => { this.notesDraft = value })
-      KomaActionButton({ label: s('common_save'), action: () => {
+    KomaModalScaffold({ title: s('manga_notes'), contentHorizontalPadding: ThemeConstants.SPACE_LG,
+      confirmLabel: s('common_save'), onClose: (): void => { this.notesEditorShown = false }, onConfirm: (): void => {
         if (this.commitPersonalization(this.notesDraft.trim(), undefined)) this.notesEditorShown = false
-      } })
-    }.width('100%').padding(ThemeConstants.SPACE_LG)
+      } }) {
+      ListItem() {
+        TextArea({ text: this.notesDraft, placeholder: s('manga_notes_placeholder') })
+          .height(240).fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontColor(ThemeConstants.TEXT_PRIMARY).backgroundColor($r('sys.color.ohos_id_color_button_normal'))
+          .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+          .onChange((value: string): void => { this.notesDraft = value })
+      }
+    }
   }
 
   private commitPersonalization(notes: string | undefined, cover: string | undefined,

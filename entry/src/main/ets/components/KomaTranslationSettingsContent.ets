@@ -2,11 +2,12 @@ import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { FormTitleActionState } from '../state/FormTitleActionState'
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { KomaModalScaffold } from './KomaModalScaffold'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaFormTextField } from './ui/KomaFormTextField'
-import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaTranslationSettings, KomaTranslationSettingsSnapshot, KomaTranslationSettingsState,
   connectKomaTranslationSettings } from '../readerTranslation/KomaTranslationSettings'
 import { ComicTranslationModelService } from '../readerTranslation/services/ComicTranslationModelService'
@@ -29,6 +30,7 @@ function t(key: string): string { return AppStrings.get(key) }
 @ComponentV2
 export struct KomaTranslationSettingsContent {
   @Param sheetPresentation: boolean = true
+  @Param titleAction: FormTitleActionState = new FormTitleActionState()
   @Event onClose: () => void = () => {}
   @Event onOpenSources: () => void = () => {}
   @Local private draft: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()
@@ -49,6 +51,7 @@ export struct KomaTranslationSettingsContent {
   @Local private evaluationShown: boolean = false
   private active: boolean = false
   private lifetime: number = 0
+  private handledSaveRequest: number = 0
   private connectedCodexSources: Set<string> = new Set<string>()
 
   aboutToAppear(): void {
@@ -57,7 +60,17 @@ export struct KomaTranslationSettingsContent {
     void this.load(lifetime)
   }
 
-  aboutToDisappear(): void { this.active = false; this.lifetime += 1 }
+  aboutToDisappear(): void { this.active = false; this.titleAction.enabled = false; this.lifetime += 1 }
+
+  @Monitor('ready', 'saving')
+  private publishSaveAvailability(): void { this.titleAction.enabled = this.active && this.ready && !this.saving }
+
+  @Monitor('titleAction.requestSeq')
+  private handleSaveRequest(): void {
+    if (this.titleAction.requestSeq <= this.handledSaveRequest) return
+    this.handledSaveRequest = this.titleAction.requestSeq
+    if (this.active && this.ready && !this.saving) void this.save()
+  }
 
   private context(): common.UIAbilityContext {
     return this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -569,16 +582,16 @@ export struct KomaTranslationSettingsContent {
               showChevron: false, action: () => { this.openEvaluation() } })
           }
         }
-        KomaActionButton({ label: t('common_save'), kind: 'primary', fullWidth: true,
-          isEnabled: this.ready && !this.saving, action: (): void => { void this.save() } })
       }
       .width('100%')
-      .bindSheet($$this.evaluationShown, this.EvaluationSheet(), { height: SheetSize.LARGE, showClose: false })
+      .bindSheet($$this.evaluationShown, this.EvaluationSheet(), komaSheetOptions({ height: SheetSize.LARGE, showClose: false }))
   }
 
   build() {
     if (this.sheetPresentation) {
       KomaModalScaffold({ title: t('comic_translation_settings_title'),
+        confirmLabel: t('common_save'), confirmEnabled: this.ready && !this.saving,
+        onConfirm: (): void => { void this.save() },
         modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'), onClose: (): void => { this.onClose() } }) {
         Column() { this.SettingsForm() }
           .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG,

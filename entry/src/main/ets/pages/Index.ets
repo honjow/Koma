@@ -44,6 +44,7 @@ import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from '../model/Rem
 import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
+import { FormTitleActionState } from '../state/FormTitleActionState'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
@@ -192,6 +193,7 @@ const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLib
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 interface SettingsPaneRouteParam {
   pane: string
+  formTitleAction: FormTitleActionState
 }
 
 interface TrackerProviderRouteParam {
@@ -1601,7 +1603,7 @@ struct Index {
   }
 
   private openSettingsPane(pane: SettingsPaneKey): void {
-    const routeParam: SettingsPaneRouteParam = { pane: pane }
+    const routeParam: SettingsPaneRouteParam = { pane: pane, formTitleAction: new FormTitleActionState() }
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
   }
 
@@ -2543,6 +2545,7 @@ struct Index {
           onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
           preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
           pane: this.settingsPaneFromParam(param),
+          formTitleAction: (param as SettingsPaneRouteParam).formTitleAction,
           onClosePane: () => { this.appPathStack.pop() },
           onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
           libraryStore: this.libraryStore,
@@ -2590,7 +2593,7 @@ struct Index {
           }
         })
       }
-      .titleBar(this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param))))
+      .titleBar(this.settingsPaneTitleBarOpts(param as SettingsPaneRouteParam))
     } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
       HdsNavDestination() {
         LibraryUpdateResultPage({
@@ -3236,6 +3239,21 @@ struct Index {
     const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
     content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
+  }
+
+  private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
+    if (param.pane !== 'translation') return options
+    const content = options['content'] as Record<string, Object>
+    const action: Record<string, Object> = {
+      'label': AppStrings.get('common_save'), 'icon': $r('sys.symbol.checkmark'),
+      'isEnabled': param.formTitleAction.enabled,
+      'action': (): void => { param.formTitleAction.requestSave() },
+    }
+    const item: Record<string, Object> = { 'content': action }
+    const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
+    content['menu'] = menu
+    return options
   }
 
   private navDestTitleBarOpts(title?: string): Record<string, Object> {

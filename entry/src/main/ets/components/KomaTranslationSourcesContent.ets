@@ -12,7 +12,7 @@ import { ExperimentalCodexOAuthService } from '../readerTranslation/services/Exp
 import { ComicTranslationCodexUsageService, CodexUsageSnapshot,
   CodexUsageWindow } from '../readerTranslation/services/ComicTranslationCodexUsageService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaFormTextField } from './ui/KomaFormTextField'
@@ -295,7 +295,9 @@ export struct KomaTranslationSourcesContent {
 
   @Builder
   private Editor() {
-    KomaModalScaffold({ title: t('llm_source_detail_title'), onClose: () => { this.closeEditor() } }) {
+    KomaModalScaffold({ title: t('llm_source_detail_title'),
+      confirmLabel: t('common_save'), confirmEnabled: !this.busy && !this.codexLoginBusy,
+      onConfirm: (): void => { void this.saveSource() }, onClose: () => { this.closeEditor() } }) {
       Column({ space: ThemeConstants.SPACE_LG }) {
         GroupedListSection() {
           ConciseListRow({ title: t('llm_source_type'), showChevron: false,
@@ -347,8 +349,6 @@ export struct KomaTranslationSourcesContent {
             .fontColor(ThemeConstants.TEXT_SECONDARY)
             .width('100%')
         }
-        KomaActionButton({ label: t('common_save'), fullWidth: true, kind: 'primary', isEnabled: !this.busy && !this.codexLoginBusy,
-          action: () => { void this.saveSource() } })
         if (this.settings.llmSources.some((source: KomaTranslationLlmSource): boolean =>
           source.profile.sourceProfileId === this.editing.profile.sourceProfileId)) {
           KomaActionButton({ label: t('common_delete'), fullWidth: true, isEnabled: !this.busy && !this.codexLoginBusy,
@@ -387,6 +387,6 @@ export struct KomaTranslationSourcesContent {
         isEnabled: this.ready && !this.busy, action: () => { this.addMenuShown = true } })
         .bindMenu(this.addMenuShown, this.AddSourceMenu(), komaMenuOptions())
     }
-    .bindSheet($$this.editorShown, this.Editor(), { height: SheetSize.LARGE, showClose: false })
+    .bindSheet($$this.editorShown, this.Editor(), komaSheetOptions({ height: SheetSize.LARGE, showClose: false }))
   }
 }

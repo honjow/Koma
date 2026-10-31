@@ -25,7 +25,6 @@ import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
-import { KomaDisclosureListRow } from '../components/ui/KomaDisclosureListRow'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaMenuListRow } from '../components/ui/KomaMenuListRow'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -49,7 +48,6 @@ export struct LibraryCategoryManagementPage {
   @Local private editingCategoryId: string = ''
   @Local private editingName: string = ''
   @Local private categoryMenuKey: string = ''
-  @Local private expandedStrategyCategoryId: LibraryCategoryDisplayCategoryId = 'all'
   @Local private languageState: LanguageState = connectLanguageState()
 
   private refreshCategories(): void {
@@ -158,10 +156,6 @@ export struct LibraryCategoryManagementPage {
     this.categoryMenuKey = ''
   }
 
-  private strategyMenuKey(categoryId: LibraryCategoryDisplayCategoryId, kind: string): string {
-    return `${categoryId}:${kind}`
-  }
-
   private categoryActionMenuKey(categoryId: string): string {
     return `${categoryId}:actions`
   }
@@ -169,11 +163,6 @@ export struct LibraryCategoryManagementPage {
   private categoryStrategySummary(categoryId: LibraryCategoryDisplayCategoryId): string {
     const strategy = this.categoryStrategy(categoryId)
     return `${this.sortLabel(strategy.sortBy)} · ${this.readStateLabel(strategy.readState)}`
-  }
-
-  private toggleStrategyExpansion(categoryId: LibraryCategoryDisplayCategoryId): void {
-    this.expandedStrategyCategoryId = this.expandedStrategyCategoryId === categoryId ? '' : categoryId
-    this.categoryMenuKey = ''
   }
 
   private persistCreate(): void {
@@ -247,9 +236,6 @@ export struct LibraryCategoryManagementPage {
     }
     try {
       if (deleteCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId)) {
-        if (this.expandedStrategyCategoryId === categoryId) {
-          this.expandedStrategyCategoryId = 'all'
-        }
         this.categoryMenuKey = ''
         this.refreshCategories()
         this.onLibraryChanged()
@@ -262,85 +248,76 @@ export struct LibraryCategoryManagementPage {
   }
 
   @Builder
-  private CategorySortMenu(categoryId: LibraryCategoryDisplayCategoryId) {
+  private CategorySortMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('library_sort_last_read') })
+        .selected(this.categoryStrategy(categoryId).sortBy === 'lastRead').selectIcon(true)
         .onClick(() => {
-          this.setCategorySort(categoryId, 'lastRead')
+          select(() => { this.setCategorySort(categoryId, 'lastRead') })
         })
       MenuItem({ content: s('library_sort_added') })
+        .selected(this.categoryStrategy(categoryId).sortBy === 'added').selectIcon(true)
         .onClick(() => {
-          this.setCategorySort(categoryId, 'added')
+          select(() => { this.setCategorySort(categoryId, 'added') })
         })
       MenuItem({ content: s('library_sort_title') })
+        .selected(this.categoryStrategy(categoryId).sortBy === 'title').selectIcon(true)
         .onClick(() => {
-          this.setCategorySort(categoryId, 'title')
+          select(() => { this.setCategorySort(categoryId, 'title') })
         })
       MenuItem({ content: s('library_sort_source') })
+        .selected(this.categoryStrategy(categoryId).sortBy === 'source').selectIcon(true)
         .onClick(() => {
-          this.setCategorySort(categoryId, 'source')
+          select(() => { this.setCategorySort(categoryId, 'source') })
         })
     }
   }
 
   @Builder
-  private CategoryReadStateMenu(categoryId: LibraryCategoryDisplayCategoryId) {
+  private CategoryReadStateMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: s('library_read_state_all') })
+        .selected(this.categoryStrategy(categoryId).readState === 'all').selectIcon(true)
         .onClick(() => {
-          this.setCategoryReadState(categoryId, 'all')
+          select(() => { this.setCategoryReadState(categoryId, 'all') })
         })
       MenuItem({ content: s('library_read_state_unread') })
+        .selected(this.categoryStrategy(categoryId).readState === 'unread').selectIcon(true)
         .onClick(() => {
-          this.setCategoryReadState(categoryId, 'unread')
+          select(() => { this.setCategoryReadState(categoryId, 'unread') })
         })
       MenuItem({ content: s('library_read_state_reading') })
+        .selected(this.categoryStrategy(categoryId).readState === 'reading').selectIcon(true)
         .onClick(() => {
-          this.setCategoryReadState(categoryId, 'reading')
+          select(() => { this.setCategoryReadState(categoryId, 'reading') })
         })
       MenuItem({ content: s('library_read_state_completed') })
+        .selected(this.categoryStrategy(categoryId).readState === 'completed').selectIcon(true)
         .onClick(() => {
-          this.setCategoryReadState(categoryId, 'completed')
+          select(() => { this.setCategoryReadState(categoryId, 'completed') })
         })
     }
   }
 
   @Builder
   private StrategySummaryRow(categoryId: LibraryCategoryDisplayCategoryId, title: string) {
-    KomaDisclosureListRow({
-      title,
-      subtitle: this.categoryStrategySummary(categoryId),
-      isExpanded: this.expandedStrategyCategoryId === categoryId,
-      toggle: () => {
-        this.toggleStrategyExpansion(categoryId)
-      },
-    }) {
-      KomaMenuListRow({
-        title: s('settings_row_library_default_sort_title'),
-        trailingText: this.sortLabel(this.categoryStrategy(categoryId).sortBy),
-        trailingDropdown: true,
-        showChevron: false,
-        isMenuOpen: this.categoryMenuKey === this.strategyMenuKey(categoryId, 'sort'),
-        action: () => {
-          this.categoryMenuKey = this.strategyMenuKey(categoryId, 'sort')
-        },
-      }) {
-        this.CategorySortMenu(categoryId)
-      }
-      ListDivider()
-      KomaMenuListRow({
-        title: s('library_category_read_state_title'),
-        trailingText: this.readStateLabel(this.categoryStrategy(categoryId).readState),
-        trailingDropdown: true,
-        showChevron: false,
-        isMenuOpen: this.categoryMenuKey === this.strategyMenuKey(categoryId, 'read'),
-        action: () => {
-          this.categoryMenuKey = this.strategyMenuKey(categoryId, 'read')
-        },
-      }) {
-        this.CategoryReadStateMenu(categoryId)
-      }
-    }
+    ConciseListRow({ title, subtitle: this.categoryStrategySummary(categoryId),
+      trailingDropdown: true, showChevron: false, dropdownMenuEnabled: true,
+      dropdownMenuBuilder: (select: (action: () => void) => void): void => {
+        this.DisplayStrategyMenu(categoryId, select)
+      } })
+  }
+
+  @Builder
+  private DisplayStrategyMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
+    Menu() {
+      MenuItem({ content: s('settings_row_library_default_sort_title'),
+        labelInfo: this.sortLabel(this.categoryStrategy(categoryId).sortBy),
+        builder: (): void => { this.CategorySortMenu(categoryId, select) } })
+      MenuItem({ content: s('library_category_read_state_title'),
+        labelInfo: this.readStateLabel(this.categoryStrategy(categoryId).readState),
+        builder: (): void => { this.CategoryReadStateMenu(categoryId, select) } })
+    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
   @Builder
@@ -524,6 +501,9 @@ export struct LibraryCategoryManagementPage {
         title: category.name,
         subtitle: s('library_count_books').replace('%s', `${this.categoryUsageCount(category.id)}`),
         isMenuOpen: this.categoryMenuKey === this.categoryActionMenuKey(category.id),
+        onDismiss: (): void => {
+          if (this.categoryMenuKey === this.categoryActionMenuKey(category.id)) this.categoryMenuKey = ''
+        },
         action: () => {
           this.categoryMenuKey = this.categoryActionMenuKey(category.id)
         },
