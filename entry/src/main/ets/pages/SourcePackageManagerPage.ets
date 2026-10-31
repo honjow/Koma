@@ -1,4 +1,3 @@
-import { SourceSubscriptionsContent } from '../components/SourceSubscriptionsContent'
 import { SourceCatalogFiltersContent } from '../components/SourceCatalogFiltersContent'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -28,6 +27,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { RouterHelper } from '../common/RouterHelper'
+import { RouteName } from '../common/Constants'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import {
@@ -129,7 +129,6 @@ export struct SourcePackageManagerPage {
   private onCatalogAction(): void {
     if (!this.settingsRouteActive || this.initialSettingsSourceId.length > 0) return
     if (this.chrome.action === 'filters') this.catalogFiltersShown = true
-    else if (this.chrome.action === 'subscriptions') this.openIndexSheet()
     else void this.importPackage()
   }
 
@@ -188,7 +187,6 @@ export struct SourcePackageManagerPage {
   private indexLoadRevision: number = 0
   private indexDisplayRevision: number = 0
   private displayedIndexUrl: string = ''
-  @Local private sourceIndexSheetShown: boolean = false
   @Local private pendingSourceSheetAction: SourceManagerPendingAction = 'none'
   @Local private pendingSourceSheetSourceId: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
@@ -549,7 +547,7 @@ export struct SourcePackageManagerPage {
   }
 
   private openIndexSheet(): void {
-    this.sourceIndexSheetShown = true
+    RouterHelper.openLaunchRoute(RouteName.SOURCE_SUBSCRIPTIONS)
   }
 
   private requestSourceSheetDismiss(action: SourceManagerPendingAction = 'none', source?: InstalledSourcePackage): void {
@@ -666,7 +664,6 @@ export struct SourcePackageManagerPage {
   }
 
   private finishSourceIndexSheetDismissal(): void {
-    this.sourceIndexSheetShown = false
   }
 
   private sourceDetailsSheetOptions(): SheetOptions {
@@ -2074,11 +2071,6 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private SourceIndexSheetContent() {
-    SourceSubscriptionsContent({ onClose: (): void => { this.sourceIndexSheetShown = false } })
-  }
-
-  @Builder
   private InstalledHeaderCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row({ space: ThemeConstants.SPACE_MD }) {
@@ -2541,7 +2533,6 @@ export struct SourcePackageManagerPage {
         .width('100%')
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
-        .bindSheet($$this.sourceIndexSheetShown, this.SourceIndexSheetContent, komaSheetOptions(this.sourceIndexSheetOptions()))
         Column() {}.width('100%').height('100%').hitTestBehavior(HitTestMode.None)
         .bindSheet($$this.catalogFiltersShown, this.CatalogFiltersContent, komaSheetOptions(this.sourceIndexSheetOptions()))
         Column() {

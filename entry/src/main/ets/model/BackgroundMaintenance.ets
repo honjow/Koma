@@ -15,6 +15,7 @@ import { LibraryUpdateComicResult, summarizeResults,
 import { LibraryUpdateResultStore, setLatestLibraryUpdateSummary } from './LibraryUpdateResultStore'
 import { LibraryUpdateStateBridge } from '../state/LibraryUpdateState'
 import { enqueueAutomaticallyAddedChapters } from './LibraryAutomaticDownload'
+import { collectLibraryChapterUpdates } from './LibraryChapterUpdates'
 import { mutateLibraryUpdatePreferences } from './LibraryUpdateCoordinator'
 import { BackupService } from './BackupService'
 import { writeAppTextFile } from './AppFileTextPersistence'
@@ -141,7 +142,8 @@ async function mergeBackgroundResults(context: common.UIAbilityContext, library:
     }
     const summary = summarizeResults(Date.now(), results)
     await enqueueAutomaticallyAddedChapters(context, library, appReaderSessionStore(context.filesDir), summary, chapterIds)
-    await new LibraryUpdateResultStore(context).save(summary)
+    await new LibraryUpdateResultStore(context).save(summary, undefined,
+      collectLibraryChapterUpdates(library.listComics(), summary, chapterIds))
     const cursorPath = `${context.filesDir}/${UPDATE_CURSOR}`
     const cursor: BackgroundUpdateCursor | undefined = await fs.access(cursorPath)
       ? JSON.parse(await fs.readText(cursorPath)) as BackgroundUpdateCursor : undefined

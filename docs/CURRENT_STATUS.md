@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：正在完善浏览源的语言分组、筛选和多订阅入口；菜单材质与首次定位的已验修复保留。
+当前结果：书架铃铛更新页、订阅独立页及菜单调整已完成本轮真机验证，正在提交核对。
 
-设备：197已恢复原包、本轮原数据和电源并释租；237本轮未操作。200禁止操作，四私库搁置。
+设备：197保持原状态；237已恢复本轮原包、数据、电源与睡眠并释租。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T06:05:21+08:00",
+  "updatedAt": "2026-11-01T07:20:59+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
-  "activity": "本轮浏览分组、筛选与订阅管理已交付；237已恢复原包和数据。",
-  "nextAction": "其余未完成事项保持原记录和条件，不重开已验收路径。",
+  "activity": "书架铃铛更新页、原生订阅入口和最新两处展示修正已完成真机验证；设备已恢复，正在审查提交。",
+  "nextAction": "提交已验改动并核对对应CI；保留原事项中的源与账号未解决范围。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3315,7 +3315,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "Noy正式版本已交付，账号相关内容未验",
+      "status": "Noy账号未验，DB新章失败待定位",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3325,8 +3325,8 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。",
-      "remaining": "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。",
+      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。 本轮新增实测：DB Multiverse章117目录可取得、正文请求失败，源与Host根因尚未归因，未关闭该失败。",
+      "remaining": "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。 本轮真实书库更新发现DB Multiverse章117取正文失败，需核源/Host原因，未判纯源问题。",
       "remainingActions": [
         "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。"
       ],
@@ -3338,7 +3338,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "继续具名设置差异；Noy账号相关范围未验",
+      "stage": "待继续核对",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3415,7 +3415,8 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/source-session-sleep-265/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-old-log-439/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-host-sleep-487/",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-sleep-509/"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-sleep-509/",
+        "2026-11-01 237/043更新入口验收：DB Multiverse真实目录117章、更新ID dbmch:zh:/cn/chapters.html?comic=page&chapter=117；get_pages失败kind=runtime，http=0，根因未知。source-catalog/updates-row-opens-chapter-052、updates-meme-reader-055/diagnostics。Meme Girls指定新章408正文成功，不能据此掩盖DB失败。"
       ],
       "evidencePoints": [
         "/private/tmp/koma-filter-scope-header-build.log",
@@ -4854,13 +4855,15 @@
       "priority": "P1（当前用户要求）",
       "owner": "Root",
       "status": "已验收",
-      "stage": "已交付",
+      "stage": "已验收",
       "reportedAt": null,
       "reportedAtSource": "2026-11-01本会话当前用户要求；精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T05:12:29+08:00",
-      "result": "浏览已按语言分组；浏览和源包管理共用可记忆的语言、内容评级筛选。订阅地址已移至右上入口并支持添加、移除和合并目录；本地安装为独立图标，管理页下拉检查更新，可更新组保持置顶。237普通路径已通过，发现的保留分组旧内容已修正。",
-      "remaining": "本轮范围已交付。",
-      "remainingActions": [],
+      "result": "浏览文字入口、管理原生溢出、订阅独立页及系统文件选择器已实机核对；订阅冷启动保留。重复地址失败后保留对话框和输入，取消/移除及再次添加成功均已验证。",
+      "remaining": "产品路径已验，本轮提交与CI核对中。",
+      "remainingActions": [
+        "改为原生菜单及清晰文字入口；订阅改独立列表页，由标题栏添加并弹输入对话框。"
+      ],
       "boundaries": [
         "保留源更新角标缓存、后台差量更新与失败保留。",
         "只改变列表展示筛选，不禁用源、不改变全局搜索或书库。",
@@ -4869,7 +4872,8 @@
       "modificationBasis": {
         "object": "BrowsePage/SourcePackageManagerPage及公共缓存",
         "decision": "用户当前明确要求语言分组、下拉检查代替独立行、地址移到右上并称订阅地址、本地安装独立图标、多地址及评级/语言筛选。",
-        "allowedDifference": "按上述要求复用现有列表、系统材质公共菜单与模态，不改变源请求身份、书库及阅读数据。"
+        "allowedDifference": "按上述要求复用现有列表、系统材质公共菜单与模态，不改变源请求身份、书库及阅读数据。",
+        "entryCorrection": "用户当前反馈明确要求减少两层重复入口、菜单用系统样式、安装/订阅操作有文字，并采用订阅独立列表页加新增地址对话框。"
       },
       "evidence": [
         ".hvigor/outputs/source-catalog-progressive-test.log：实际缓存合并、部分失败、归属及筛选存储执行通过。",
@@ -4880,9 +4884,52 @@
         ".hvigor/outputs/source-catalog-acceptance/restoration-comparison.json：030原包安装明确成功，新鲜002七JSON及18首选项共25文件逐字相同，无extra；032 SLEEP/normal120000且无Override匹配001，租约20261031-212808-0946cac6 released。031先睡眠时系统又设10000，032睡眠后reset清除，不冒031已完全恢复。",
         "Koma/master 2d3523398f9cdb41a5798cf9768575700d3d9034已推；Build OHOS精确CI41245497807 in_progress；本轮未发布新App或上传AGC。",
         ".hvigor/outputs/source-catalog-acceptance/ci-final.json及ci-jobs-final.json：2d352339完整SHA精确CI41245497807 completed/success；Build Release、Inspect和Upload均成功，Publish tagged Release skipped。",
-        "本轮验收与恢复汇总 .hvigor/outputs/source-catalog-acceptance/delivery-binding.json、report.md；原117项逐条不变、原时间线前缀完整保留，见progress-preservation.json。"
+        "本轮验收与恢复汇总 .hvigor/outputs/source-catalog-acceptance/delivery-binding.json、report.md；原117项逐条不变、原时间线前缀完整保留，见progress-preservation.json。",
+        ".hvigor/outputs/source-catalog-build041.log：候选编译成功；source-catalog/candidate041-installed-034：237实际安装，书架第二项铃铛可见，系统软件更新弹窗遮挡后续操作。",
+        ".hvigor/outputs/updates-outcome-tests.log、updates-coordinator-tests.log：实际结果存储、精确ID增量、冷读、重复及失败回滚已执行。",
+        "自动审批拒绝点击系统“软件更新”的“稍后”，理由是Koma验收范围未明确涵盖该系统UI动作；仅此动作已询问，未绕过。237当前租约20261031-223527-67f1feff，033新鲜七JSON/18prefs已备，041已装，结束需按本轮基线恢复。",
+        "用户本轮明确允许仅关闭软件更新提示；已点稍后，随后取消开启自动更新的追加询问，保持原设置。043签名候选安装成功；书架铃铛外观已见，正在接续路径。回执 source-catalog/approved-dismiss-037、decline-auto-update-038、candidate043-installed-039。",
+        "237/043：043浏览、044系统材质溢出、045独立页与系统对话框、048有效地址启用、049添加成功、061本地导入。064发现AdvancedDialogV2Button无条件关闭，使重复地址错误不可见；官方OpenHarmony dialogv2.ets的commonButtonStyle回调后closeDialog可证。候选改为同一公共系统对话框中的标准按钮，仅成功/取消关闭，045构建中，尚未回验。",
+        "237/045：068冷启动订阅列表及空输入禁用；070重复地址错误在原框显示且保留输入；071取消并只移除受控订阅；073重新添加成功并关闭。修正后的公共组件继续用CustomContentDialogV2材质及标题、原生文本按钮，因系统AdvancedDialogV2Button强制close，表单自行管理成功/取消关闭。",
+        "033新鲜基线已恢复：091原同签HAP实际安装成功，七JSON与18偏好文件逐字一致且无新增偏好；092最终SLEEP、Timeout120000ms、无Override。租约20261031-223527-67f1feff已释放，受控18796服务已停止，8766进度页保持。恢复比较 .hvigor/outputs/source-catalog-acceptance/entry-updates-restoration.json。"
       ],
-      "closedAt": "2026-11-01T06:05:21+08:00"
+      "closedAt": "2026-11-01T07:20:59+08:00"
+    },
+    {
+      "id": "LIBRARY_UPDATES_BELL_ENTRY",
+      "title": "书架铃铛入口与新章节更新列表",
+      "kind": "accepted",
+      "priority": "P1（当前用户要求）",
+      "owner": "Root",
+      "status": "已验收",
+      "stage": "已验收",
+      "reportedAt": null,
+      "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
+      "firstHandledAt": "2026-11-01T06:28:00+08:00",
+      "result": "书架第二按钮已改为铃铛，进入按日期分组的新章节列表；列表样式保留独立二级菜单。真实新章可阅读，更新记录重启及再次检查后保留；封面留白和圆角已按最新反馈修正。",
+      "remaining": "产品路径已验；本轮提交与CI核对中。DB Multiverse章117正文失败单独保留在源核对原项。",
+      "boundaries": [
+        "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
+        "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
+        "不新增Tab；原列表样式功能保留。",
+        "用户最新明确：仅把原“列表样式”入口移入更多菜单；网格/列表仍归该入口下的选择菜单，不能平铺为功能项。更新列表封面与外层圆角须留协调内缩。"
+      ],
+      "modificationBasis": {
+        "object": "LibraryPage标题栏及书库更新结果路径",
+        "decision": "用户明确采用首页书架第二图标改铃铛、列表样式收入菜单，并授权评估完善更新界面。",
+        "allowedDifference": "以现有列表控件呈现新章节和更新状态；铃铛打开更新页，原检查统计保留次级入口。"
+      },
+      "evidence": [
+        ".hvigor/outputs/source-catalog-build041.log：候选编译成功；source-catalog/candidate041-installed-034：237实际安装，书架第二项铃铛可见，系统软件更新弹窗遮挡后续操作。",
+        ".hvigor/outputs/updates-outcome-tests.log、updates-coordinator-tests.log：实际结果存储、精确ID增量、冷读、重复及失败回滚已执行。",
+        "自动审批拒绝点击系统“软件更新”的“稍后”，理由是Koma验收范围未明确涵盖该系统UI动作；仅此动作已询问，未绕过。237当前租约20261031-223527-67f1feff，033新鲜七JSON/18prefs已备，041已装，结束需按本轮基线恢复。",
+        "用户本轮明确允许仅关闭软件更新提示；已点稍后，随后取消开启自动更新的追加询问，保持原设置。043签名候选安装成功；书架铃铛外观已见，正在接续路径。回执 source-catalog/approved-dismiss-037、decline-auto-update-038、candidate043-installed-039。",
+        "237/043：040空态、041原生菜单、042显式检查、050真实12条新章、051封面详情、056新章正文及057对应reader chapter:408，059–060菜单列表切换；062/065再次检查原12条保留并增加另2条。DB Multiverse章117取正文失败，原因未归因，另记原源核对项。",
+        "用户提供067/059截图指出封面贴边及把网格/列表平铺为功能的问题。封面候选保44×60，复用RADIUS_COVER=12并补上下8vp；原外框24vp/4vp内缩保留。菜单候选复用KomaMenuController原生MenuItem子菜单与系统材质，保持搜索/铃铛/更多三个固定动作。047构建及回验中。",
+        "047候选点击视图子菜单退出：076屏幕及084受控日志，TypeError Cannot read property observeComponentCreation2 of undefined，定位KomaMenuSubmenu全局builder未绑定父视图。已改为.call(this,item)，048待编译及设备回验；故障候选不交付。",
+        "最终049签名候选6a0df445f1cfe82f4ac79538da667c49047aed9ec41a3e38ea7d478d6b1cfb0e实际安装085；086原生二级选择菜单、087列表选择生效、088封面四向12vp内缩与12vp封面圆角、089原检查详情入口。049将延迟子菜单构建放回组件实例，避免全局builder丢失上下文；048的.call尝试未编译、未装。067实际cold记录保留，主数据逻辑未再改。"
+      ],
+      "closedAt": "2026-11-01T07:20:59+08:00"
     }
   ],
   "source": {
@@ -12484,6 +12531,74 @@
       "evidence": [
         ".hvigor/outputs/source-catalog-acceptance/ci-final.json及ci-jobs-final.json：2d352339完整SHA精确CI41245497807 completed/success；Build Release、Inspect和Upload均成功，Publish tagged Release skipped。",
         "本轮验收与恢复汇总 .hvigor/outputs/source-catalog-acceptance/delivery-binding.json、report.md；原117项逐条不变、原时间线前缀完整保留，见progress-preservation.json。"
+      ]
+    },
+    {
+      "id": "browse-entry-and-updates-bell-start-20261101",
+      "at": "2026-11-01T06:28:00+08:00",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "title": "按用户反馈调整入口，并接书架更新铃铛",
+      "detail": "浏览/源包管理去重复、订阅独立页和新增对话框；书架铃铛连接新章节列表，保留原检查结果。"
+    },
+    {
+      "id": "entry-updates-built-device-overlay-20261101",
+      "at": "2026-11-01T06:39:44+08:00",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "title": "入口调整及更新记录候选已编译",
+      "detail": "原生文字入口、管理页菜单、独立订阅页和添加对话框已接线；新章记录共用已有前后ID快照并持久化。237安装后遇系统更新提示，关闭动作被自动审批拒绝，已单独询问，实机未验。"
+    },
+    {
+      "id": "catalog-updates-resume-20261101-0648",
+      "at": "2026-11-01T06:47:52+08:00",
+      "title": "关闭系统提示后接续真机验证",
+      "detail": "按用户许可关闭提示且未开启自动更新；043候选已安装，订阅和更新页继续实测。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/candidate043-installed-039/run-metadata.json"
+      ]
+    },
+    {
+      "id": "updates-real-chapters-dialog-failure-20261101",
+      "at": "2026-11-01T06:59:58+08:00",
+      "title": "新章节阅读通过，订阅错误恢复发现问题",
+      "detail": "真实新增章节可进入阅读，重复检查未清旧记录；订阅重复错误被系统按钮自动关闭，已定位并修正候选，继续回验。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-meme-reader-settled-056/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-duplicate-error-064/screen.png"
+      ]
+    },
+    {
+      "id": "updates-ui-feedback-20261101",
+      "at": "2026-11-01T07:07:24+08:00",
+      "title": "修正封面留白和列表样式层级",
+      "detail": "按用户实际截图反馈，保留原列表样式选择层级；订阅重复地址失败恢复已回验通过，更新展示修正继续。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-duplicate-stays-open-070/screen.png"
+      ]
+    },
+    {
+      "id": "updates-submenu-context-fault-20261101",
+      "at": "2026-11-01T07:13:36+08:00",
+      "title": "定位候选子菜单异常退出",
+      "detail": "真实点击发现回调上下文丢失；故障候选保留失败证据，修正后继续回验。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/submenu-bounded-fault-replay-084/submenu-runtime.log"
+      ]
+    },
+    {
+      "id": "updates-native-menu-cover-accepted-20261101",
+      "at": "2026-11-01T07:20:59+08:00",
+      "title": "更新页与订阅流程完成本轮实机验证",
+      "detail": "恢复原列表样式的子菜单，修正封面留白；订阅错误保留和添加/取消已核。237原包、原数据与睡眠状态全部恢复，租约释放；提交核对继续。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/native-layout-choices-086/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-cover-spacing-088/screen.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-091/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-power-restored-092/run-metadata.json"
       ]
     }
   ],

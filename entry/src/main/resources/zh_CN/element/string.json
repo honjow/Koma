@@ -2094,6 +2094,13 @@
     {"name": "source_catalog_subscription_save_failed", "value": "订阅地址未保存"},
     {"name": "source_catalog_subscriptions_hint", "value": "可添加多个订阅地址"},
     {"name": "source_catalog_subscription_exists", "value": "此订阅地址已添加"},
-    {"name": "source_pkg_add_subscription", "value": "添加"}
+    {"name": "source_pkg_add_subscription", "value": "添加"},
+    {"name": "library_updates_title", "value": "更新"},
+    {"name": "library_updates_empty", "value": "暂无新章节"},
+    {"name": "library_updates_empty_hint", "value": "下拉检查更新，新发现的章节会保留在这里。"},
+    {"name": "library_updates_load_failed", "value": "更新记录读取失败"},
+    {"name": "library_updates_checking", "value": "正在检查书库更新"},
+    {"name": "library_updates_check_failed", "value": "书库检查失败"},
+    {"name": "library_updates_save_failed", "value": "检查完成，部分记录未保存"}
   ]
 }

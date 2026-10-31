@@ -31,6 +31,7 @@ import { connectAppForegroundState } from '../state/AppForegroundState'
 import { LibraryAutomationPreferencesStore } from './LibraryAutomationPreferencesStore'
 import { shouldAutomaticallyUpdateComic } from './LibraryAutomationPolicy'
 import { libraryChapterIdSnapshot, enqueueAutomaticallyAddedChapters } from './LibraryAutomaticDownload'
+import { collectLibraryChapterUpdates } from './LibraryChapterUpdates'
 import { LibraryAutomationPreferences } from './LibraryAutomationPolicy'
 import { automaticUpdateConditionsSatisfied } from './AutomaticUpdateConditions'
 
@@ -222,7 +223,8 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
   const snapshot = completedLibraryUpdateJobSnapshot(summary, startedAt, nextDueAt)
   setLatestLibraryUpdateJobSnapshot(snapshot)
   try {
-    await resultStore.save(summary, snapshot)
+    await resultStore.save(summary, snapshot,
+      collectLibraryChapterUpdates(request.libraryStore.listComics(), summary, previousChapterIds))
   } catch (_error) {
     result.persistenceFailed = true
     DiagnosticLogger.warn('library_update_coordinator', 'summary_result_save_failed', '[LibraryUpdateCoordinator] step=summary_result_save_failed')

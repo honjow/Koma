@@ -5,6 +5,7 @@ export interface KomaMenuAction {
   label: string
   selected?: boolean
   isEnabled?: boolean
+  children?: KomaMenuAction[]
   action: () => void
 }
 
@@ -21,26 +22,75 @@ class KomaMenuAfterLayout extends FrameCallback {
   onIdle(_timeLeftInNano: number): void { this.open() }
 }
 
+// Delayed submenu callbacks need a component-owned builder context. Flat
+// existing menus retain their original builder and lifecycle below.
+@ComponentV2
+struct KomaNestedMenu {
+  @Param groups: KomaMenuGroup[] = []
+
+  @Builder
+  private Choices(item: KomaMenuAction) {
+    Menu() {
+      ForEach(item.children ?? [], (child: KomaMenuAction) => {
+        MenuItem({ content: child.label }).selected(child.selected ?? false)
+          .selectIcon(child.selected !== undefined).enabled(child.isEnabled ?? true).onClick(child.action)
+      }, (child: KomaMenuAction, index: number) => `${index}:${child.label}`)
+    }
+  }
+
+  @Builder
+  private Action(item: KomaMenuAction) {
+    if (item.children !== undefined) {
+      MenuItem({ content: item.label, builder: () => { this.Choices(item) } })
+        .enabled(item.isEnabled ?? true)
+    } else {
+      MenuItem({ content: item.label }).selected(item.selected ?? false)
+        .selectIcon(item.selected !== undefined).enabled(item.isEnabled ?? true).onClick(item.action)
+    }
+  }
+
+  build() {
+    Menu() {
+      if (this.groups.length === 1) {
+        ForEach(this.groups[0].items, (item: KomaMenuAction) => { this.Action(item) },
+          (item: KomaMenuAction, index: number) => `${index}:${item.label}`)
+      } else {
+        ForEach(this.groups, (group: KomaMenuGroup) => {
+          MenuItemGroup() {
+            ForEach(group.items, (item: KomaMenuAction) => { this.Action(item) },
+              (item: KomaMenuAction, index: number) => `${index}:${item.label}`)
+          }
+        }, (group: KomaMenuGroup) => group.id)
+      }
+    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
+  }
+}
+
 @Builder
 function KomaMenuContent(params: KomaMenuParams) {
-  Menu() {
-    if (params.groups.length === 1) {
-      ForEach(params.groups[0].items, (item: KomaMenuAction) => {
-        MenuItem({ content: item.label }).selected(item.selected ?? false)
-          .selectIcon(item.selected !== undefined).enabled(item.isEnabled ?? true).onClick(item.action)
-      }, (item: KomaMenuAction, index: number) => `${index}:${item.label}`)
-    } else {
-      ForEach(params.groups, (group: KomaMenuGroup) => {
-        MenuItemGroup() {
-          // Keep arrays on the ComponentContent parameter object, as in the
-          // original library menu. An array passed through a nested @Builder
-          // is not a usable ForEach data source on the device runtime.
-          ForEach(group.items, (item: KomaMenuAction) => {
-            MenuItem({ content: item.label }).selected(item.selected ?? false)
-              .selectIcon(item.selected !== undefined).enabled(item.isEnabled ?? true).onClick(item.action)
-          }, (item: KomaMenuAction, index: number) => `${index}:${item.label}`)
-        }
-      }, (group: KomaMenuGroup) => group.id)
+  if (params.groups.some((group: KomaMenuGroup): boolean =>
+    group.items.some((item: KomaMenuAction): boolean => item.children !== undefined))) {
+    KomaNestedMenu({ groups: params.groups })
+  } else {
+    Menu() {
+      if (params.groups.length === 1) {
+        ForEach(params.groups[0].items, (item: KomaMenuAction) => {
+          MenuItem({ content: item.label }).selected(item.selected ?? false)
+            .selectIcon(item.selected !== undefined).enabled(item.isEnabled ?? true).onClick(item.action)
+        }, (item: KomaMenuAction, index: number) => `${index}:${item.label}`)
+      } else {
+        ForEach(params.groups, (group: KomaMenuGroup) => {
+          MenuItemGroup() {
+            // Keep arrays on the ComponentContent parameter object, as in the
+            // original library menu. An array passed through a nested @Builder
+            // is not a usable ForEach data source on the device runtime.
+            ForEach(group.items, (item: KomaMenuAction) => {
+              MenuItem({ content: item.label }).selected(item.selected ?? false)
+                .selectIcon(item.selected !== undefined).enabled(item.isEnabled ?? true).onClick(item.action)
+            }, (item: KomaMenuAction, index: number) => `${index}:${item.label}`)
+          }
+        }, (group: KomaMenuGroup) => group.id)
+      }
     }
   }
 }

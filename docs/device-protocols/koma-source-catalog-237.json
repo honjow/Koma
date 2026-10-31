@@ -5,31 +5,40 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "power-original-policy-032",
+  "runId": "original-power-restored-092",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "source-catalog-build039-abd4ebfc1a9344916989eb3b76cc2b304f0d28736c2ebc68d1cc4892d40f154e",
-    "page": "Restore original power policy and sleep before lease release",
+    "codeIdentity": "entry-updates-build049-6a0df445f1cfe82f4ac79538da667c49047aed9ec41a3e38ea7d478d6b1cfb0e",
+    "page": "Restore original timeout policy and sleep before releasing lease",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
     "orientation": "portrait",
     "resolution": "1320x2120",
-    "notes": "先核实际窗口和原包；设备已获持续授权，未读取凭据。结束恢复本轮新鲜数据、原包及原电源并释租。"
+    "notes": "049候选具名验收完毕；恢复033新鲜七JSON与18偏好文件及原同签名HAP。偏好内容仅不透明复制与逐字比较，不读取凭据。"
   },
   "preflight": [
     {
-      "name": "clear-sleep-timeout-override",
+      "name": "restore-timeout-policy",
       "hdcArgs": [
         "shell",
         "power-shell",
         "timeout",
         "-r"
       ]
+    },
+    {
+      "name": "restore-original-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ],
+      "pauseAfterMs": 200
     }
   ],
   "measurement": {
@@ -37,7 +46,16 @@
   },
   "postflight": [
     {
-      "name": "power",
+      "name": "clear-sleep-inserted-override",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-r"
+      ]
+    },
+    {
+      "name": "final-power",
       "hdcArgs": [
         "shell",
         "hidumper",

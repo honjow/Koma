@@ -70,8 +70,14 @@ async function environment(autoCheckEnabled = true) {
   const preferences = compile(source('model/LibraryUpdatePreferencesStore'), {
     '@kit.ArkData': arkData, '../i18n/AppStrings': strings,
   })
+  const automationPolicy = compile(source('model/LibraryAutomationPolicy'), {
+    './ReaderChapterSequence': compile(source('model/ReaderChapterSequence'), {}),
+    './ComicReleaseSchedule': compile(source('model/ComicReleaseSchedule'), {}),
+  })
+  const chapterUpdates = compile(source('model/LibraryChapterUpdates'), { './LibraryAutomationPolicy': automationPolicy })
   const results = compile(source('model/LibraryUpdateResultStore'), {
     '@kit.AbilityKit': {}, '@kit.ArkData': arkData, '@kit.NotificationKit': {},
+    './LibraryChapterUpdates': chapterUpdates,
     './LibraryUpdateService': helpers, './LibraryUpdatePreferencesStore': preferences,
     '../common/Constants': {}, '../i18n/AppStrings': strings,
   })
@@ -129,10 +135,6 @@ async function environment(autoCheckEnabled = true) {
   const readerStore = {}
   const protectedIds = new Set(['protected-chapter'])
   const guardComic = { id: 'guard-comic', sourceRuntimeId: 'com.mh1234.koma' }
-  const automationPolicy = compile(source('model/LibraryAutomationPolicy'), {
-    './ReaderChapterSequence': compile(source('model/ReaderChapterSequence'), {}),
-    './ComicReleaseSchedule': compile(source('model/ComicReleaseSchedule'), {}),
-  })
   const automationStore = compile(source('model/LibraryAutomationPreferencesStore'), {
     '@kit.ArkData': arkData, './BackupRestoreActivity': { BackupRestoreActivity: activity },
     './LibraryAutomationPolicy': automationPolicy,
@@ -144,6 +146,7 @@ async function environment(autoCheckEnabled = true) {
     './AppFileTextPersistence': { writeAppTextFile: () => {} },
   })
   const coordinator = compile(source('model/LibraryUpdateCoordinator'), {
+    './LibraryChapterUpdates': chapterUpdates,
     './LibraryAutomationPolicy': automationPolicy,
     './LibraryAutomationPreferencesStore': automationStore,
     './LibraryAutomaticDownload': automaticDownload,

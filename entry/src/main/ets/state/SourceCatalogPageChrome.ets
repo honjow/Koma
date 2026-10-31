@@ -1,4 +1,4 @@
-export type SourceCatalogPageAction = 'filters' | 'subscriptions' | 'import'
+export type SourceCatalogPageAction = 'filters' | 'addSubscription' | 'import'
 
 @ObservedV2
 export class SourceCatalogPageChrome {

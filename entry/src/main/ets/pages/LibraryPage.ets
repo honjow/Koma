@@ -293,6 +293,7 @@ export struct LibraryPage {
   @Event onSearchRequested: () => void = () => {}
   @Event onMigrationRequested: (comicIds: string[]) => void = () => {}
   @Event onOpenDownloadsRequested: () => void = () => {}
+  @Event onOpenUpdatesRequested: () => void = () => {}
   @Event onTitleBarChange: (presentation: LibraryTitleBarPresentation) => void =
     (_presentation: LibraryTitleBarPresentation) => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
@@ -328,12 +329,10 @@ export struct LibraryPage {
     ] : [
       this.titleMenuItem(s('tab_search'), $r('sys.symbol.magnifyingglass'),
         () => { this.onSearchRequested() }),
-      this.titleMenuItem(s('settings_row_library_view_mode_title'), $r('sys.symbol.square_grid_2x2'),
-        () => { this.openTitleMenu('layout') }, true, 'library-title-layout'),
-      this.titleMenuItem(s('route_import_title'), $r('sys.symbol.plus'),
-        () => { this.onImportRequested() }),
-      this.titleMenuItem(s('common_select'), $r('sys.symbol.checkmark_square'),
-        () => { this.beginSelectionMode() }, this.hasVisibleLibraryContent()),
+      this.titleMenuItem(s('library_updates_title'), $r('sys.symbol.bell'),
+        () => { this.onOpenUpdatesRequested() }),
+      this.titleMenuItem(s('common_more_actions'), $r('sys.symbol.ellipsis_circle'),
+        () => { this.openTitleMenu('more') }, true, 'library-title-more'),
     ]
     this.onTitleBarChange({
       selectionMode: this.selectionMode,
@@ -1782,6 +1781,17 @@ export struct LibraryPage {
   }
 
   private titleMenuItems(key: string): LibraryTitleMenuItem[] {
+    if (key === 'more') {
+      // Moving the original layout entry must preserve its own choice menu.
+      // HDS's automatic overflow is flat, so use the shared native MenuItem
+      // submenu rather than promoting layout values to application actions.
+      return [
+        { label: s('settings_row_library_view_mode_title'), children: this.titleMenuItems('layout'), action: () => {} },
+        { label: s('route_import_title'), action: () => { this.onImportRequested() } },
+        { label: s('common_select'), isEnabled: this.hasVisibleLibraryContent(),
+          action: () => { this.beginSelectionMode() } },
+      ]
+    }
     if (key === 'layout') {
       return [
         { label: s('library_view_mode_grid'), selected: this.viewMode === 'grid',

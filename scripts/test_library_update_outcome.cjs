@@ -12,6 +12,8 @@ for (const candidate of [process.env.KOMA_TYPESCRIPT_PATH, 'typescript',
 assert.ok(ts, 'Provide TypeScript via KOMA_TYPESCRIPT_PATH or the installed DevEco SDK')
 const root = resolve(__dirname, '..')
 const source = (name) => readFileSync(resolve(root, `entry/src/main/ets/model/${name}.ets`), 'utf8')
+let failNextFlush = false
+let historyReadGate
 const stores = new Map()
 const arkData = { preferences: { getPreferences: async (_context, name) => {
   if (!stores.has(name)) stores.set(name, new Map())
@@ -19,9 +21,15 @@ const arkData = { preferences: { getPreferences: async (_context, name) => {
   return {
     has: async (key) => data.has(key),
     delete: async (key) => data.delete(key),
-    get: async (key, fallback) => data.has(key) ? data.get(key) : fallback,
+    get: async (key, fallback) => {
+      const value = data.has(key) ? data.get(key) : fallback
+      if (key === 'libraryUpdate.chapterUpdatesJson' && historyReadGate) {
+        const gate=historyReadGate;historyReadGate=undefined;gate.started();await gate.promise
+      }
+      return value
+    },
     put: async (key, value) => { data.set(key, value) },
-    flush: async () => {},
+    flush: async () => { if (failNextFlush) { failNextFlush=false; throw new Error('disk flush failed') } },
   }
 } } }
 
@@ -52,8 +60,11 @@ const strings = { AppStrings: { get: (key) => key } }
 const prefs = compile(source('LibraryUpdatePreferencesStore'), {
   '@kit.ArkData': arkData, '../i18n/AppStrings': strings,
 })
+const automationPolicy = compile(source('LibraryAutomationPolicy'), { './ReaderChapterSequence': compile(source('ReaderChapterSequence'), {}), './ComicReleaseSchedule': compile(source('ComicReleaseSchedule'), {}) })
+const chapterUpdates = compile(source('LibraryChapterUpdates'), { './LibraryAutomationPolicy': automationPolicy })
 const result = compile(source('LibraryUpdateResultStore'), {
   '@kit.AbilityKit': {}, '@kit.ArkData': arkData, '@kit.NotificationKit': {},
+  './LibraryChapterUpdates': chapterUpdates,
   './LibraryUpdateService': service, './LibraryUpdatePreferencesStore': prefs,
   '../common/Constants': {}, '../i18n/AppStrings': strings,
 })
@@ -246,6 +257,37 @@ async function main() {
   assert.equal(recovered.lastSummaryFailedCount, 1)
   await preferenceStore.saveLastSummary(checkedAt + 2, 1, 0, 0, 0, 0)
   assert.equal((await preferenceStore.load()).failureCount, 0)
+  // Updates use exact ID additions, including same-size replacement and
+  // reverse display order, rather than the difference between chapter counts.
+  const before = new Map([['book',new Set(['old','kept'])]])
+  const comics = [{id:'book',chapters:[{id:'new'},{id:'kept'}]}]
+  const updateSummary = {...summary(['updated']),results:[{...summary(['updated']).results[0],comicId:'book'}]}
+  const received = chapterUpdates.collectLibraryChapterUpdates(comics,updateSummary,before)
+  assert.deepEqual(received,[{comicId:'book',chapterId:'new',discoveredAt:checkedAt}])
+  assert.deepEqual(chapterUpdates.collectLibraryChapterUpdates(comics,updateSummary,new Map()),[])
+  assert.deepEqual(chapterUpdates.collectLibraryChapterUpdates(comics,{...updateSummary,
+    results:[{...updateSummary.results[0],status:'unchanged'}]},before),[])
+  await store.save(updateSummary,undefined,received)
+  await store.save(summary(['unchanged'],checkedAt+1))
+  chapterUpdates.setCachedLibraryChapterUpdates(undefined)
+  assert.deepEqual(await new result.LibraryUpdateResultStore({}).loadChapterUpdates(),received)
+  await store.save(updateSummary,undefined,[{...received[0],discoveredAt:checkedAt+10}])
+  assert.deepEqual(await store.loadChapterUpdates(),received,'Repeated updates retain first discovery time')
+  failNextFlush=true
+  await assert.rejects(store.save(updateSummary,undefined,[{comicId:'book',chapterId:'later',discoveredAt:checkedAt+20}]),/disk flush/)
+  chapterUpdates.setCachedLibraryChapterUpdates(undefined)
+  assert.deepEqual(await new result.LibraryUpdateResultStore({}).loadChapterUpdates(),received,'Failed save restores previous history')
+  // A pending old read must not repopulate history after backup restore.
+  chapterUpdates.setCachedLibraryChapterUpdates(undefined)
+  let unblock, started
+  const readStarted=new Promise(resolve=>{started=resolve})
+  historyReadGate={started,promise:new Promise(resolve=>{unblock=resolve})}
+  const staleRead=store.loadChapterUpdates();await readStarted
+  const restored=[{comicId:'restored',chapterId:'restored-chapter',discoveredAt:checkedAt+100}]
+  const resultPreferences=stores.get(result.LIBRARY_UPDATE_RESULT_STORE_NAME)
+  resultPreferences.set('libraryUpdate.chapterUpdatesJson',JSON.stringify(restored))
+  chapterUpdates.setCachedLibraryChapterUpdates(undefined);unblock()
+  assert.deepEqual(await staleRead,restored)
   console.log('PASS library update outcome: chapter identity/reference protection, classification, snapshot roundtrip, result persistence, failure backoff and recovery')
 }
 

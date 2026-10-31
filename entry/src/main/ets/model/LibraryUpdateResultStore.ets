@@ -1,4 +1,6 @@
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { LibraryChapterUpdate, cachedLibraryChapterUpdates, setCachedLibraryChapterUpdates, libraryChapterUpdatesEpoch,
+  parseLibraryChapterUpdates, mergeLibraryChapterUpdates } from './LibraryChapterUpdates'
 import { common, wantAgent } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -27,6 +29,7 @@ import { AppStrings } from '../i18n/AppStrings'
 export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_results_v1'
 export const LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY: string = 'libraryUpdate.latestResultJson'
 export const LIBRARY_UPDATE_LATEST_JOB_JSON_KEY: string = 'libraryUpdate.latestJobJson'
+const LIBRARY_CHAPTER_UPDATES_KEY: string = 'libraryUpdate.chapterUpdatesJson'
 export const LIBRARY_UPDATE_RESULT_MAX_RESULTS: number = 200
 export const LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES: number = 80
 export const LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH: number = 256
@@ -824,12 +827,38 @@ export class LibraryUpdateResultStore {
     }
   }
 
-  async save(summary: LibraryUpdateSummary, snapshot?: LibraryUpdateJobSnapshot): Promise<void> {
+  async loadChapterUpdates(): Promise<LibraryChapterUpdate[]> {
+    const cached = cachedLibraryChapterUpdates()
+    if (cached !== undefined) return cached
+    const epoch = libraryChapterUpdatesEpoch()
     const store = await this.preferences()
-    await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(summary))
-    await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
-      serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary)))
-    await store.flush()
+    const received = parseLibraryChapterUpdates(await store.get(LIBRARY_CHAPTER_UPDATES_KEY, '') as string)
+    if (epoch !== libraryChapterUpdatesEpoch()) return this.loadChapterUpdates()
+    if (cachedLibraryChapterUpdates() === undefined) setCachedLibraryChapterUpdates(received)
+    return cachedLibraryChapterUpdates()!
+  }
+
+  async save(summary: LibraryUpdateSummary, snapshot?: LibraryUpdateJobSnapshot,
+    chapterUpdates: LibraryChapterUpdate[] = []): Promise<void> {
+    const store = await this.preferences()
+    const previousUpdates = await store.get(LIBRARY_CHAPTER_UPDATES_KEY, '') as string
+    const previousSummary = await store.get(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '') as string
+    const previousJob = await store.get(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '') as string
+    const updates = mergeLibraryChapterUpdates(parseLibraryChapterUpdates(previousUpdates), chapterUpdates)
+    try {
+      await store.put(LIBRARY_CHAPTER_UPDATES_KEY, JSON.stringify(updates))
+      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, serializeLibraryUpdateSummary(summary))
+      await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY,
+        serializeLibraryUpdateJobSnapshot(snapshot ?? completedLibraryUpdateJobSnapshot(summary)))
+      await store.flush()
+    } catch (error) {
+      await store.put(LIBRARY_CHAPTER_UPDATES_KEY, previousUpdates)
+      await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, previousSummary)
+      await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, previousJob)
+      await store.flush()
+      throw error as Error
+    }
+    setCachedLibraryChapterUpdates(updates)
   }
 
   async loadJobSnapshot(): Promise<LibraryUpdateJobSnapshot | undefined> {
@@ -858,9 +887,11 @@ export class LibraryUpdateResultStore {
 
   async clear(): Promise<void> {
     const store = await this.preferences()
+    await store.put(LIBRARY_CHAPTER_UPDATES_KEY, '')
     await store.put(LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY, '')
     await store.put(LIBRARY_UPDATE_LATEST_JOB_JSON_KEY, '')
     await store.flush()
+    setCachedLibraryChapterUpdates(undefined)
   }
 
   private async preferences(): Promise<preferences.Preferences> {

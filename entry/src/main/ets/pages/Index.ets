@@ -1,4 +1,8 @@
-import { SourceSubscriptionsContent } from '../components/SourceSubscriptionsContent'
+import { LibraryUpdatesPage } from './LibraryUpdatesPage'
+import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
+import { setCachedLibraryChapterUpdates } from '../model/LibraryChapterUpdates'
+import { SourceSubscriptionsPage } from './SourceSubscriptionsPage'
+import { TextStyleMode } from '@kit.UIDesignKit'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
@@ -8,7 +12,7 @@ import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeStat
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -280,11 +284,9 @@ struct Index {
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
   private detailMenu: KomaMenuController = new KomaMenuController()
-  private browseMenu: KomaMenuController = new KomaMenuController()
   @Local private browseCatalogChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private localSourceImport: SourcePackageLocalImport = appSourcePackageLocalImport
-  @Local private sourceSubscriptionsShown: boolean = false
   private defaultSourceManagerChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
 
   private sourceManagerChrome(param?: SourcePackageManagerRouteParam): SourceCatalogPageChrome {
@@ -293,24 +295,8 @@ struct Index {
     return param.chrome
   }
 
-  @Builder
-  private SourceSubscriptions() {
-    SourceSubscriptionsContent({ onClose: (): void => { this.sourceSubscriptionsShown = false } })
-  }
-
-  private async importLocalSourcePackage(): Promise<void> {
-    try {
-      const result = await this.localSourceImport.run(getContext(this) as common.UIAbilityContext)
-      if (result === undefined) return
-      this.getUIContext().getPromptAction().showToast({
-        message: AppStrings.get(result.ok ? 'source_pkg_toast_imported' : 'source_pkg_toast_import_failed'),
-      })
-    } catch (_error) {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_pkg_toast_import_failed') })
-    }
-  }
-
   private sourceManagerTitleBarOptions(param?: SourcePackageManagerRouteParam): Record<string, Object> {
+    // Flat actions use HDS's native overflow; only Filter remains exposed.
     const options = this.navDestTitleBarOpts(AppStrings.get('route_source_package_manager_title'))
     if ((param?.settingsSourceId.length ?? 0) > 0) return options
     const chrome = this.sourceManagerChrome(param)
@@ -320,12 +306,22 @@ struct Index {
     const local: Record<string, Object> = { 'label': AppStrings.get('source_pkg_local_import'), 'icon': $r('sys.symbol.folder'),
       'isEnabled': !this.localSourceImport.busy, 'action': (): void => { chrome.request('import') } }
     const subscriptions: Record<string, Object> = { 'label': AppStrings.get('source_pkg_index_url_heading'), 'icon': $r('sys.symbol.link'),
-      'action': (): void => { chrome.request('subscriptions') } }
+      'action': (): void => { this.appPathStack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() }) } }
     const filterItem: Record<string, Object> = { 'content': filter }
     const localItem: Record<string, Object> = { 'content': local }
     const subscriptionsItem: Record<string, Object> = { 'content': subscriptions }
     const items: Record<string, Object>[] = [filterItem, localItem, subscriptionsItem]
-    content['menu'] = { 'value': items, 'maxCount': 3 } as Record<string, Object>
+    content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
+    return options
+  }
+
+  private sourceSubscriptionsTitleBarOptions(chrome: SourceCatalogPageChrome): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('source_pkg_index_url_heading'))
+    const content = options['content'] as Record<string, Object>
+    const add: Record<string, Object> = { 'label': AppStrings.get('source_pkg_add_subscription'),
+      'type': TextStyleMode.NORMAL, 'action': (): void => { chrome.request('addSubscription') } }
+    const items: Record<string, Object>[] = [{ 'content': add }]
+    content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
     return options
   }
 
@@ -459,6 +455,38 @@ struct Index {
     }).catch((_error: Error) => {
       DiagnosticLogger.warn('index', 'foreground_check_failed', '[LibraryUpdate] step=foreground_check_failed')
     })
+  }
+
+  private async checkLibraryUpdatesNow(): Promise<void> {
+    if (this.libraryUpdateState.busy) return
+    try {
+      const context = getContext(this) as common.UIAbilityContext
+      await applyBackgroundLibraryResults(context, this.libraryStore, this.libraryPersistenceService)
+      const result = await requestLibraryUpdateCheck({ context, libraryStore: this.libraryStore,
+        sourceRegistry: this.sourceRegistry, libraryPersistenceService: this.libraryPersistenceService,
+        reason: 'manual', requireForeground: true })
+      this.refreshLibrarySnapshot()
+      const message = result.status === 'failed' ? 'library_updates_check_failed' :
+        result.persistenceFailed ? 'library_updates_save_failed' : ''
+      if (message) this.getUIContext().getPromptAction().showToast({ message: AppStrings.get(message) })
+    } catch (error) {
+      DiagnosticLogger.exception('library_updates', 'check_failed', error as Error)
+      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('library_updates_check_failed') })
+    }
+  }
+
+  private libraryUpdatesTitleBarOptions(): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('library_updates_title'))
+    const check: Record<string, Object> = { 'label': AppStrings.get('source_pkg_check_updates'),
+      'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !this.libraryUpdateState.busy,
+      'action': (): void => { void this.checkLibraryUpdatesNow() } }
+    const results: Record<string, Object> = { 'label': AppStrings.get('route_library_update_results_title'),
+      'icon': $r('sys.symbol.list_bullet'),
+      'action': (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATE_RESULTS }) } }
+    const items: Record<string, Object>[] = [{ 'content': check }, { 'content': results }]
+    const content = options['content'] as Record<string, Object>
+    content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
+    return options
   }
 
   private onMangaDetailLibraryChanged(): void {
@@ -1359,6 +1387,7 @@ struct Index {
 
   private onBackupRestored(): void {
     this.readingStatisticsRecorder.reset()
+    setCachedLibraryChapterUpdates(undefined)
     appSourcePackageManagerCache.invalidate()
     this.catalogFilters.invalidate()
     void this.catalogFilters.prepare(getContext(this) as common.UIAbilityContext)
@@ -1667,7 +1696,6 @@ struct Index {
   }
 
   private selectRootTab(index: number): void {
-    this.browseMenu.close()
     this.leaveLibrarySelection(index)
     this.selectedTab = index
     this.titleScroller = this.rootTabScrollers[index]
@@ -2109,7 +2137,6 @@ struct Index {
   }
 
   aboutToDisappear(): void {
-    this.browseMenu.close()
     this.readingStatisticsRecorder.close()
     if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
     this.automaticDownloads?.dispose()
@@ -2127,6 +2154,9 @@ struct Index {
     if (!this.readerSessionPersistenceReady) {
       this.reloadReaderSessionStore('app_appear')
     }
+    void new LibraryUpdateResultStore(context).loadChapterUpdates().catch((): void => {
+      DiagnosticLogger.warn('library_updates', 'history_load_failed', 'phase=preferences')
+    })
     configureSourceSettingsStore(context)
     configureSourceFilterPreferencesStore(context)
     void this.catalogFilters.prepare(context).catch((): void => {
@@ -2604,6 +2634,11 @@ struct Index {
         })
       }
       .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))
+    } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
+      HdsNavDestination() {
+        SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome })
+      }
+      .titleBar(this.sourceSubscriptionsTitleBarOptions(param as SourceCatalogPageChrome))
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({
@@ -2660,6 +2695,15 @@ struct Index {
         })
       }
       .titleBar(this.settingsPaneTitleBarOpts(param as SettingsPaneRouteParam))
+    } else if (name === RouteName.LIBRARY_UPDATES) {
+      HdsNavDestination() {
+        LibraryUpdatesPage({ libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
+          readerSessionStore: this.readerSessionStore, readerProgressRevision: this.readerProgressRevision,
+          onOpenReader: (comicId: string, chapterId: string): void => { void this.openReader(comicId, chapterId) },
+          onOpenComic: (comicId: string): void => { this.openLibraryMangaDetail(comicId) },
+          onRefresh: async (): Promise<void> => { await this.checkLibraryUpdatesNow() } })
+      }
+      .titleBar(this.libraryUpdatesTitleBarOptions())
     } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
       HdsNavDestination() {
         LibraryUpdateResultPage({
@@ -2792,6 +2836,7 @@ struct Index {
                 onMigrationRequested: (comicIds: string[]): void => {
                   void this.openMangaMigration(comicIds, false)
                 },
+                onOpenUpdatesRequested: (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATES }) },
                 onOpenDownloadsRequested: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)
                 },
@@ -2940,19 +2985,12 @@ struct Index {
             this.tabIconBounceTriggers = triggers
           })
           .onChange((index: number) => {
-            this.browseMenu.close()
             this.leaveLibrarySelection(index)
             this.selectedTab = index
             this.titleScroller = this.rootTabScrollers[index]
           })
         }
         .titleBar(this.titleBarOptions())
-        .bindSheet($$this.sourceSubscriptionsShown, this.SourceSubscriptions, komaSheetOptions({
-          detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,
-          scrollSizeMode: ScrollSizeMode.CONTINUOUS,
-          keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_SCROLL,
-          onDisappear: (): void => { this.sourceSubscriptionsShown = false },
-        }))
         .bindToScrollable([this.titleScroller])
         .titleMode(HdsNavigationTitleMode.MINI)
         .hideBackButton(this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
@@ -2969,7 +3007,6 @@ struct Index {
         .mode(NavigationMode.Stack)
         .onNavBarStateChange((visible: boolean) => {
           this.rootNavigationVisible = visible
-          if (!visible) this.browseMenu.close()
         })
         .width('100%')
         .height('100%')
@@ -3026,23 +3063,12 @@ struct Index {
     } else if (this.selectedTab === TabIndex.BROWSE) {
       const filter: Record<string, Object> = { 'label': AppStrings.get('common_filter'), 'icon': $r('sys.symbol.funnel'),
         'action': (): void => { this.browseCatalogChrome.request('filters') } }
-      const local: Record<string, Object> = { 'label': AppStrings.get('source_pkg_local_import'), 'icon': $r('sys.symbol.folder'),
-        'isEnabled': !this.localSourceImport.busy, 'action': (): void => { void this.importLocalSourcePackage() } }
-      const more: Record<string, Object> = { 'label': AppStrings.get('common_more_actions'),
-        'icon': $r('sys.symbol.ellipsis_circle'), 'componentId': 'browse-catalog-more',
-        'action': (): void => {
-          this.browseMenu.open(this.getUIContext(), 'browse-catalog-more', () => [{ id: 'source-management', items: [
-            { label: AppStrings.get('route_source_package_manager_title'),
-              action: (): void => { this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER) } },
-            { label: AppStrings.get('source_pkg_index_url_heading'), action: (): void => { this.sourceSubscriptionsShown = true } },
-          ] }], (): void => { DiagnosticLogger.warn('source_catalog', 'menu_open_failed', 'phase=menu') })
-        } }
-      const filterItem: Record<string, Object> = { 'content': filter }
-      const localItem: Record<string, Object> = { 'content': local }
-      const moreItem: Record<string, Object> = { 'content': more }
-      const items: Record<string, Object>[] = [filterItem, localItem, moreItem]
+      const manage: Record<string, Object> = { 'label': AppStrings.get('route_source_package_manager_title'),
+        'type': TextStyleMode.NORMAL,
+        'action': (): void => { this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER) } }
+      const items: Record<string, Object>[] = [{ 'content': filter }, { 'content': manage }]
       menu['value'] = items
-      menu['maxCount'] = 3
+      menu['maxCount'] = 2
     } else {
       // HDS retains the preceding title menu unless the next tab explicitly
       // supplies an empty menu. Global search belongs only to the Library root.

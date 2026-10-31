@@ -3,15 +3,48 @@ import { AppStrings } from '../i18n/AppStrings'
 import { SourceIndexRepository, SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { isValidHttpUrl, resolveIndexDocumentUrl } from '../sourceRuntime/SourceIndexMetadata'
 import { appSourcePackageManagerCache, SourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
-import { KomaModalScaffold } from './KomaModalScaffold'
-import { KomaFormTextField } from './ui/KomaFormTextField'
-import { ConciseListRow } from './ui/ConciseListRow'
-import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
+import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { KomaTextInputDialog } from '../components/ui/KomaTextInputDialog'
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
+import { connectLanguageState } from '../state/LanguageState'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 @ComponentV2
-export struct SourceSubscriptionsContent {
-  @Event onClose: () => void = () => {}
+export struct SourceSubscriptionsPage {
+  @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+  private dialogId: number = -1
+
+  aboutToAppear(): void {
+    void this.cache.prepare(this.context(), connectLanguageState().effectiveLocale)
+      .catch((): void => { this.error = AppStrings.get('source_catalog_subscription_read_failed') })
+  }
+
+  aboutToDisappear(): void { this.closeDialog() }
+
+  @Monitor('chrome.requestId')
+  private onCommand(): void {
+    if (this.chrome.action === 'addSubscription') this.openAddDialog()
+  }
+
+  private openAddDialog(): void {
+    if (this.busy || this.dialogId >= 0) return
+    this.url = ''
+    this.error = ''
+    void this.getUIContext().getPromptAction().openCustomDialog({
+      builder: () => { this.AddDialog() }, alignment: DialogAlignment.Center, autoCancel: true,
+      onWillDismiss: (action: DismissDialogAction): void => { if (!this.busy) action.dismiss() },
+      onDidDisappear: (): void => { this.dialogId = -1 },
+    }).then((id: number): void => { this.dialogId = id })
+  }
+
+  private closeDialog(): void {
+    if (this.dialogId < 0) return
+    const id = this.dialogId
+    this.dialogId = -1
+    this.getUIContext().getPromptAction().closeCustomDialog(id)
+  }
   @Local private cache: SourcePackageManagerCache = appSourcePackageManagerCache
   @Local private url: string = ''
   @Local private busy: boolean = false
@@ -43,6 +76,7 @@ export struct SourceSubscriptionsContent {
       this.cache.rememberSavedIndex(url, await service.loadSavedRepositories())
       await this.cache.reloadSavedCatalog(this.context(), true)
       this.url = ''
+      this.closeDialog()
     } catch (_error) { this.error = AppStrings.get('source_catalog_subscription_save_failed') }
     finally { this.busy = false }
   }
@@ -78,24 +112,22 @@ export struct SourceSubscriptionsContent {
     .onClick(() => { void this.remove(repository) })
   }
 
+  @Builder
+  private AddDialog() {
+    KomaTextInputDialog({ title: AppStrings.get('source_pkg_add_subscription'),
+      label: AppStrings.get('source_pkg_index_url_label'),
+      placeholder: AppStrings.get('source_pkg_index_url_placeholder'), value: this.url,
+      error: this.error, busy: this.busy, confirmLabel: AppStrings.get('source_pkg_add_subscription'),
+      confirmEnabled: isValidHttpUrl(this.url.trim()),
+      change: (value: string): void => { this.url = value; this.error = '' },
+      confirm: (): void => { void this.add() }, cancel: (): void => { this.closeDialog() } })
+  }
+
   build() {
-    KomaModalScaffold({ title: AppStrings.get('source_pkg_index_url_heading'), onClose: this.onClose,
-      confirmLabel: AppStrings.get('source_pkg_add_subscription'), confirmEnabled: !this.busy && isValidHttpUrl(this.url.trim()),
-      onConfirm: (): void => { void this.add() }, contentHorizontalPadding: ThemeConstants.SPACE_MD }) {
-      Column({ space: ThemeConstants.SPACE_MD }) {
-        KomaFormTextField({ label: AppStrings.get('source_pkg_index_url_label'),
-          placeholder: AppStrings.get('source_pkg_index_url_placeholder'), value: this.url,
-          isEnabled: !this.busy, change: (value: string): void => { this.url = value; this.error = '' },
-          submit: (): void => { void this.add() } })
-        Row({ space: ThemeConstants.SPACE_SM }) {
-          Text(this.error || AppStrings.get('source_catalog_subscriptions_hint'))
-            .layoutWeight(1).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-          LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
-            .visibility(this.busy ? Visibility.Visible : Visibility.Hidden)
-        }
-        .width('100%').constraintSize({ minHeight: 24 })
-        if (this.repositories.length > 0) {
-          GroupedListSection({ title: AppStrings.get('source_pkg_saved_indexes_heading') }) {
+    SecondaryListScaffold({ bottomPadding: ThemeConstants.SPACE_XL }) {
+      if (this.repositories.length > 0) {
+        ListItem() {
+          GroupedListSection() {
             ForEach(this.repositories, (repository: SourceIndexRepository, index: number) => {
               ConciseListRow({ title: repository.url, wrapTitle: true, showChevron: false,
                 subtitle: this.cache.sourceIndexFailures[repository.url] === undefined ? '' :
@@ -105,8 +137,16 @@ export struct SourceSubscriptionsContent {
             }, (repository: SourceIndexRepository) => repository.url)
           }
         }
+      } else {
+        ListItem() {
+          Text(AppStrings.get('source_catalog_subscriptions_hint'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)
+            .width('100%').padding(ThemeConstants.SPACE_LG)
+        }
       }
-      .width('100%')
+      if (this.error.length > 0 && this.dialogId < 0) {
+        ListItem() { Text(this.error).fontColor(ThemeConstants.TEXT_SECONDARY).padding(ThemeConstants.SPACE_MD) }
+      }
     }
   }
 }

@@ -2094,6 +2094,13 @@
     {"name": "source_catalog_subscription_save_failed", "value": "Subscription was not saved"},
     {"name": "source_catalog_subscriptions_hint", "value": "You can add multiple subscriptions"},
     {"name": "source_catalog_subscription_exists", "value": "This subscription is already added"},
-    {"name": "source_pkg_add_subscription", "value": "Add"}
+    {"name": "source_pkg_add_subscription", "value": "Add"},
+    {"name": "library_updates_title", "value": "Updates"},
+    {"name": "library_updates_empty", "value": "No new chapters"},
+    {"name": "library_updates_empty_hint", "value": "Pull down to check for updates. Newly found chapters stay here."},
+    {"name": "library_updates_load_failed", "value": "Could not read update history"},
+    {"name": "library_updates_checking", "value": "Checking the library for updates"},
+    {"name": "library_updates_check_failed", "value": "Library update check failed"},
+    {"name": "library_updates_save_failed", "value": "Check completed; some records were not saved"}
   ]
 }

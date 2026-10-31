@@ -97,8 +97,13 @@ export class RouterHelper {
       RouterHelper.pendingLaunchRoute = routeName
       return
     }
-    stack.pushPath({ name: routeName, param: routeName === RouteName.SOURCE_PACKAGE_MANAGER
-      ? { settingsSourceId: '', chrome: new SourceCatalogPageChrome() } as SourcePackageManagerRouteParam : undefined })
+    let param: Object | undefined = undefined
+    if (routeName === RouteName.SOURCE_PACKAGE_MANAGER) {
+      param = { settingsSourceId: '', chrome: new SourceCatalogPageChrome() } as SourcePackageManagerRouteParam
+    } else if (routeName === RouteName.SOURCE_SUBSCRIPTIONS) {
+      param = new SourceCatalogPageChrome()
+    }
+    stack.pushPath({ name: routeName, param })
   }
 
   static consumePendingLaunchRoute(): void {
