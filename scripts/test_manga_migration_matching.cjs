@@ -57,6 +57,9 @@ test('page matching consumes similarity, source priority and the latest-chapter 
   requested.length = 0; prepared.length = 0; subject.prioritizeChapters = true
   await subject.match(subject.row, 1)
   assert.deepEqual(requested, ['a', 'b']); assert.equal(subject.row.target.sourceId, 'b')
+  requested.length = 0; subject.stage = 'search'
+  await subject.match(subject.row, 1)
+  assert.deepEqual(requested, ['a', 'b']); assert.equal(subject.row.state, 'ready')
 })
 
 test('retry-failed title action preserves ready, skipped and completed matches', async () => {

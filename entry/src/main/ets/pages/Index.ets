@@ -2282,14 +2282,13 @@ struct Index {
         source: param.source,
         chrome: param.chrome,
         selectionMode: param.onMangaSelected !== undefined,
-        selectionOriginal: param.selectionOriginal,
         onMangaTap: (manga: SourceManga) => {
           RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
         },
         onMangaSelected: (manga: SourceManga) => {
           if (param.onMangaSelected !== undefined) {
             const onSelected = param.onMangaSelected
-            this.appPathStack.pop()
+            this.appPathStack.pop(false)
             onSelected(manga)
           } else {
             RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
@@ -2312,13 +2311,6 @@ struct Index {
     HdsNavDestination() {
       SearchPage({
         chrome: RouterHelper.ensureSearchRouteChrome(param),
-        migrationSources: param.migration?.sourceIds,
-        selectionOriginal: param.migration?.original,
-        onMangaSelected: (manga: SourceManga): void => {
-          if (param.migration === undefined) return
-          this.appPathStack.pop(false)
-          param.migration.onMangaSelected(manga)
-        },
         onOpenLibraryResult: (comicId: string) => { this.openLibraryMangaDetail(comicId) },
         libraryStore: this.libraryStore,
         libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -2449,12 +2441,18 @@ struct Index {
       .titleBar(this.migrationTitleBarOpts(param as MangaMigrationRouteParam))
       .onShown((): void => {
         const chrome = RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam)
-        if (chrome.previewReturnsToConfirmation) {
-          chrome.previewReturnsToConfirmation = false
-          chrome.request('resumeConfirmation')
-        }
+        chrome.visible = true
       })
-      .onBackPressed((): boolean => RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).busy)
+      .onHidden((): void => { RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).visible = false })
+      .onDisAppear((): void => {
+        this.disposeSearchFieldContent(RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).search)
+      })
+      .onBackPressed((): boolean => {
+        const chrome = RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam)
+        if (chrome.busy) return true
+        if (chrome.stage === 'search' && !chrome.single) { chrome.request('matches'); return true }
+        return false
+      })
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
@@ -3058,10 +3056,10 @@ struct Index {
     }
   }
 
-  private searchTitleBarOpts(param: SearchRouteParam): Record<string, Object> {
+  private searchTitleBarOpts(param: SearchRouteParam, migration: boolean = false): Record<string, Object> {
     const chrome = RouterHelper.ensureSearchRouteChrome(param)
     const title: Record<string, Object> = {}
-    title['mainTitle'] = AppStrings.get(param.migration === undefined ? 'tab_search' : 'migration_title')
+    title['mainTitle'] = AppStrings.get(migration ? 'migration_title' : 'tab_search')
     const bottomBuilder: Record<string, Object> = {}
     bottomBuilder['builderComponent'] = this.searchFieldContent(chrome)
     bottomBuilder['height'] = SEARCH_TITLE_BOTTOM_HEIGHT
@@ -3082,7 +3080,7 @@ struct Index {
     const content: Record<string, Object> = {}
     content['title'] = title
     content['bottomBuilder'] = bottomBuilder
-    if (param.migration === undefined) content['menu'] = menu
+    if (!migration) content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
 
@@ -3275,7 +3273,13 @@ struct Index {
       const item: Record<string, Object> = { 'content': content }
       items.push(item)
     }
-    if (chrome.stage === 'sources') {
+    if (chrome.stage === 'search') {
+      add('migration_choose_sources', $r('sys.symbol.funnel'), 'sources', true)
+      const options = this.searchTitleBarOpts({ chrome: chrome.search }, true)
+      const content = options['content'] as Record<string, Object>
+      content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
+      return options
+    } else if (chrome.stage === 'sources') {
       add('migration_continue', $r('sys.symbol.arrow_right'), 'continue', chrome.canContinue)
     } else {
       add('migration_copy', $r('sys.symbol.doc_plaintext'), 'copy', chrome.readyCount > 0)

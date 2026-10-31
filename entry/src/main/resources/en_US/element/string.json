@@ -2,7 +2,6 @@
   "string": [
     {"name": "migration_selected_sources", "value": "Selected sources"},
     {"name": "migration_available_sources", "value": "Available sources"},
-    {"name": "migration_select_target", "value": "Select target"},
     {"name": "migration_preferences_load_failed", "value": "Could not load migration sources"},
     {"name": "migration_save_failed", "value": "Could not save migration sources"},
 
@@ -2074,13 +2073,11 @@
     {"name": "migration_retry_failed", "value": "Retry failed items"},
     {"name": "migration_chapter_count", "value": "%s chapters"},
     {"name": "migration_latest_chapter", "value": "Latest chapter %s"},
-    {"name": "migration_remove_source", "value": "Remove source"},
-    {"name": "migration_action", "value": "Action"},
     {"name": "migration_matching_options", "value": "Automatic matching"},
     {"name": "migration_deep_search", "value": "Deep search"},
     {"name": "migration_prioritize_chapters", "value": "Prefer latest chapter"},
     {"name": "migration_matching_progress", "value": "Matching %s / %s"},
     {"name": "migration_ready_progress", "value": "Ready %s · Failed %s"},
-    {"name": "migration_source_order", "value": "Priority %s"}
+    {"name": "migration_show_manga", "value": "Show manga"}
   ]
 }

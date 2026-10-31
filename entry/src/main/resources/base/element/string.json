@@ -2,7 +2,6 @@
   "string": [
     {"name": "migration_selected_sources", "value": "Selected sources"},
     {"name": "migration_available_sources", "value": "Available sources"},
-    {"name": "migration_select_target", "value": "Select target"},
     {"name": "migration_preferences_load_failed", "value": "Could not load migration sources"},
     {"name": "migration_save_failed", "value": "Could not save migration sources"},
 
@@ -2077,13 +2076,11 @@
     {"name": "migration_retry_failed", "value": "只重试失败项"},
     {"name": "migration_chapter_count", "value": "%s 章"},
     {"name": "migration_latest_chapter", "value": "最新 %s 话"},
-    {"name": "migration_remove_source", "value": "移除来源"},
-    {"name": "migration_action", "value": "操作"},
     {"name": "migration_matching_options", "value": "自动匹配"},
     {"name": "migration_deep_search", "value": "深度搜索"},
     {"name": "migration_prioritize_chapters", "value": "优先最新章节"},
     {"name": "migration_matching_progress", "value": "匹配进度 %s / %s"},
     {"name": "migration_ready_progress", "value": "可迁移 %s · 失败 %s"},
-    {"name": "migration_source_order", "value": "优先级 %s"}
+    {"name": "migration_show_manga", "value": "Show manga"}
   ]
 }

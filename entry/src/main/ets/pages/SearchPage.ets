@@ -43,7 +43,6 @@ import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegis
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
 import { MangaGridItem } from '../components/MangaGridItem'
-import { KomaActionButton } from '../components/ui/KomaActionButton'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 
@@ -60,7 +59,6 @@ function s(name: string): string {
 @ComponentV2
 export struct SearchPage {
   @Param migrationSources: string[] | undefined = undefined
-  @Param selectionOriginal: SourceManga | undefined = undefined
   @Event onMangaSelected: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
@@ -1075,8 +1073,7 @@ export struct SearchPage {
     const source = this.continuationSource(section)
     if (source !== undefined && this.resultsQuery.length > 0) {
       RouterHelper.pushSourceSearch({ source: source }, this.resultsQuery,
-        this.migrationSources === undefined ? undefined : (manga: SourceManga): void => { this.onMangaSelected(manga) },
-        this.selectionOriginal)
+        this.migrationSources === undefined ? undefined : (manga: SourceManga): void => { this.onMangaSelected(manga) })
     }
   }
 
@@ -1085,15 +1082,12 @@ export struct SearchPage {
     Scroll() {
       Row({ space: ThemeConstants.SPACE_MD }) {
         ForEach(section.items, (item: CrossSearchResultItem) => {
-          Column({ space: ThemeConstants.SPACE_SM }) {
+          Column() {
             MangaGridItem({ manga: this.selectionManga(item), reserveTitleSpace: true,
-              onMangaTap: (): void => { void this.openResult(item) } })
-            KomaActionButton({ label: s('migration_select_target'), compact: true, fullWidth: true,
-              isEnabled: item.sourceId !== this.selectionOriginal?.sourceId ||
-                item.sourceMangaId !== this.selectionOriginal?.id,
-              action: (): void => { this.onMangaSelected(this.selectionManga(item)) } })
+              onMangaTap: (): void => { this.onMangaSelected(this.selectionManga(item)) } })
           }
           .width(ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH)
+          .priorityGesture(LongPressGesture({ repeat: false }).onAction((): void => { void this.openResult(item) }))
         }, (item: CrossSearchResultItem) => item.id)
       }
       .alignItems(VerticalAlign.Top)
@@ -1139,7 +1133,7 @@ export struct SearchPage {
         listSpace: ThemeConstants.SPACE_MD,
         pinnedOverlayHeight: SEARCH_TITLE_BOTTOM_HEIGHT,
         bottomPadding: ThemeConstants.SPACE_XL,
-        floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
+        floatingTabTailPadding: this.migrationSources === undefined ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
         reserveTitleBar: true,
       }) {
           if (this.migrationSources === undefined && this.sourceFilter !== 'all') {
