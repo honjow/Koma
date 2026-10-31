@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T10:22:56+08:00",
+  "updatedAt": "2026-10-31T11:12:02+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "智能分类具名验收及设备恢复完成，正在准备交付。",
-  "nextAction": "完成智能分类审查交付，继续归档、追踪和滤镜功能。",
+  "activity": "多归档已具名验证并恢复设备，正在准备源码交付。",
+  "nextAction": "完成最后构建与交付，继续亮度滤镜等功能。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已恢复原38d245、基线数据与电源并释租。"
+      "hap": "197已恢复原38d245、基线数据和电源并释租。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "智能分类具名验收及恢复完成，待交付",
-      "stage": "第六批审查提交及CI待核",
+      "status": "多归档具名验收及恢复完成，待交付",
+      "stage": "最后原生错误分支构建及交付准备",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "智能分类动态匹配和管理操作已验证，设备已恢复，正在准备交付。",
-      "remaining": "完成智能分类正式交付，继续归档、tracker及滤镜等已授权差异。",
+      "result": "多归档普通路径已验，测试数据与设备已恢复，正在准备交付。",
+      "remaining": "完成归档源码审查、推送及CI，继续亮度滤镜、tracker等差异。",
       "remainingActions": [
-        "完成智能分类正式交付，继续归档、tracker及滤镜等已授权差异。"
+        "完成归档源码审查、推送及CI，继续亮度滤镜、tracker等差异。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4722,7 +4722,12 @@
         "第五批0de6ef6精确CI41157810983 in_progress。第六批候选已接LibrarySmartCategory独立规则（同类OR、跨类AND、排除优先）、LibraryStore独立smartCategories及持久化/失败回退、书架原分类菜单动态投影；手动赋类和自动更新分类选择仍只使用原manual列表。内容分级从SourceManga经Detail/cache到Comic metadata持久化；现有分类管理卡片/半模态编辑八类三态及保存/排序/删除，来源、分级、分类默认折叠。下载原runtime和追踪owner已提交公开快照/通知及备份恢复失效已接，不读凭据。build037通过、映射快照收尾build038正在核；生产规则、动态状态、持久备份及失败恢复、映射成功才发布四项执行通过。未设备验收或提交。",
         "第五批精确CI41157810983 success。第六批build038/039因Index缺TrackerPreferencesStore导入失败，修正后build040成功，SHA effa2359889a394c5bb486fd3b6b62e27dd0fc63634fc31a93a9244380c61b06。197 lease20261031-020842-29751355：smart-baseline111已备七JSON、prefs、原包及电源；112 AWAKE/86400000实读；113普通Settings→书架→分类，114新建，115编辑器八类规则与折叠组，116输入测试名称并展开来源，117三态菜单，118正配置来源包含及手动分类排除。尚未保存、验收或恢复；下一步核成员动态变化与冷入保存。",
         "197智能分类120保存来源Fuda包含及收藏排除两规则；124书架原分类菜单选中后仅匹配真实Holly Plus59。128原手动赋类菜单仅收藏/稍后/清除，无smart；129加入收藏后即时无匹配，library实际category改favorite、规则原样；130重新进入管理规则仍在。131操作菜单打不开，定位新caller传subtitle但Concise下拉锚点要求trailingText；仅改新section为规则数尾部下拉，build041进行中。编辑、排序、删除、冷启及恢复未验。",
-        "build041成功，HAP SHA5996c39ab2dcd6197ecc7e5e55059e4e73079a4b52c3dbaad5844d708d87eba3。197 132保存重入菜单有效；133/135编辑名称及downloaded包含保存，inputText追加，实际名称Koma_QA_BlueKoma_QA_Edited；136第二组保存，137普通菜单上移后library sortOrder 0/1与UI一致；138 force-stop普通启动后两组名称、规则和顺序同137；139/140系统确认删除目标组，只余Second，comics/manualCategories与138相同。141恢复原38d245及fresh smart-baseline111七JSON与30prefs全部37份字节同、无额外prefs，证据 .hvigor/outputs/feature-parity-implementation-20261031/smart-restored-data.json；142 SLEEP/120000/Override10000，lease20261031-020842-29751355 released且无active。124/129动态筛选及128手动隔离保留；未逐一真机验证八规则、真实tracker登录或自然失败，生产逻辑四项通过。第六批待审提交推送及精确CI。"
+        "build041成功，HAP SHA5996c39ab2dcd6197ecc7e5e55059e4e73079a4b52c3dbaad5844d708d87eba3。197 132保存重入菜单有效；133/135编辑名称及downloaded包含保存，inputText追加，实际名称Koma_QA_BlueKoma_QA_Edited；136第二组保存，137普通菜单上移后library sortOrder 0/1与UI一致；138 force-stop普通启动后两组名称、规则和顺序同137；139/140系统确认删除目标组，只余Second，comics/manualCategories与138相同。141恢复原38d245及fresh smart-baseline111七JSON与30prefs全部37份字节同、无额外prefs，证据 .hvigor/outputs/feature-parity-implementation-20261031/smart-restored-data.json；142 SLEEP/120000/Override10000，lease20261031-020842-29751355 released且无active。124/129动态筛选及128手动隔离保留；未逐一真机验证八规则、真实tracker登录或自然失败，生产逻辑四项通过。第六批待审提交推送及精确CI。",
+        "第六批6b449b2a02c90da7033ef9f73b2e690a2d425f40已推Koma/master，精确Build OHOS 41159800145 in_progress；前一统计CI成功。亮度滤镜具体入口/全局与即时设置默认关闭，以及多归档沿现有入口扩展已分别询问用户，尚待答复；独立数据/codec准备继续。",
+        "Root先实现多归档，已核固定Mihon Archive.kt、LocalSource.kt、core/archive/EpubReader.kt；native libarchive3.8.11+xz5.8.4+bzip2及后台解码、EPUB taskpool顺序候选在本地，尚未编译或真机。智能分类CI41159800145仍待实际回执。",
+        "智能分类head6b449b2a02c90da7033ef9f73b2e690a2d425f40精确CI41159800145 completed/success，具名范围交付；总18项未关闭。归档候选044已编译a884cfcb，197 lease20261031-023408-1058d3b7：143 fresh baseline备份、144 AWAKE/86400000、145普通书架菜单、146漫画归档submenu、147 picker扩展入口已显示。公共Docs/Download的HDC mkdir与四file send实际Permission denied/NoSuch，虽cmd exit0也属失败；148下载索引及149/150浏览Download不构成导入。正通过既有debug Want diagnostics准备固定app私有QA归档，再验普通书架Reader及cold，不操作用户其他文件。native核心主机系统libarchive的RAR4stored/RAR5compressed/7z/TAR字节及穿越/符号链接拒绝实测通过，不冒OHOS codec；build045 localFolder helper导入顺序失败已修，build046进行中。设备仍awake/held未恢复。",
+        "197 HAP049 SHA f28ae54572d754731e9eb6a806f0c4757d38c35aab72486fc9d3a67295ac00a7：普通系统SavePicker创建四份自有QA文件，普通书架菜单→漫画归档→Download选择导入；158 TAR、159 RAR4 stored、160压缩7z各三页1.png/2.png/10.png持久成功。161批动作EPUB选择未生效保失败，162稳态选1/1、163完成EPUB，实际spine顺序2.png/1.png/2.png，保重复且不附未引用10.png。165 force-stop后四书对象与163同，166最近加入显示四卡、167 EPUB详情3页、168 Reader 1/3绿色Koma archive page 2图由Root亲看。当前构建临时自有资产清理诊断050，准备清四公共QA文件、四本缓存及空测试根，再恢复baseline143七JSON/30prefs、原包/电源并释租；尚未恢复。RAR5仅host压缩样本，未具名OHOS codec。证据 library-automation/archive-*。",
+        "归档收尾：183系统文件管理器确认本轮四份QA文件并永久删除，同查询0项；184回Browse且原最近删除1项保留。185应用私有清理ok=true，删除四书缓存及151失败空根共五根，186临时report确认NoSuch。169–172删除接口尝试均未成功，保失败证据；最终GUI及应用私有清理完成。187原HAP38d245与archive-baseline143七JSON/30prefs共37文件逐字相等、无额外pref，证据 .hvigor/outputs/feature-parity-implementation-20261031/archive-restored-data.json；188 SLEEP/120000/Override10000，lease20261031-023408-1058d3b7 released且无active。临时QA诊断/Want分支/fixture资源已撤，SourceRuntimeDeviceSmoke diff为0。纯产品build055成功，最后原生close错误分支重复close修正build056中；普通四格式验收为HAP049及165/168范围，RAR5仅host压缩fixture，目录扫描新格式未扩展，保ZIP/CBZ章节描述合同。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -4732,7 +4737,8 @@
         "thirdBatchAllowedDifference": "用户call63d597批准：章节菜单书签、小标识及独立书签筛选；已收藏详情菜单更换/恢复封面，使用系统picker并在源刷新时保留；详情个人笔记使用现有半模态及有内容详情展示，数据随备份。",
         "fourthBatchAllowedDifference": "用户call_db09cabf23b94b828cb018cef58ef7a7采用：Settings阅读预载旁增加仅Wi-Fi开关、更新跳过菜单增加未到预计日期；均默认关闭，沿用原行/菜单，Reader半模态不新增全局网络开关。",
         "fifthBatchAllowedDifference": "用户call_c7bd96ed59a7462aa1885289b0183258采用：历史右上chart_bar进入统计；全部/月/年，展示时长、页数、作品数、连续天数及每日图，另分组书库章节已读下载；沿用原控件，仅记录真实前台会话，不为旧历史补时长，数据随备份。",
-        "sixthBatchAllowedDifference": "用户call_ee93c3eb255247029310b7ff47c37fda采用：原分类管理增加独立智能分类组及创建、编辑、排序、删除；八类包含/排除/不限规则，书架分类栏动态更新并随备份；不改手动分类，不混入加入分类选择器。"
+        "sixthBatchAllowedDifference": "用户call_ee93c3eb255247029310b7ff47c37fda采用：原分类管理增加独立智能分类组及创建、编辑、排序、删除；八类包含/排除/不限规则，书架分类栏动态更新并随备份；不改手动分类，不混入加入分类选择器。",
+        "archiveAndFilterDecision": "用户通过call_c892与call_e872明确采用亮度滤镜及归档格式两组方案；具体亮度入口与默认按该决定执行。多归档支持RAR/CBR、7z/CB7、TAR/CBT、图片型EPUB，原导入页标题漫画归档并扩展选择器，普通自然顺序，EPUB按spine取图，文字EPUB不渲染。"
       }
     }
   ],
@@ -11310,6 +11316,60 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/feature-parity-implementation-20261031/smart-restored-data.json"
+      ]
+    },
+    {
+      "id": "feature-parity-smart-category-pushed-20261031",
+      "at": "2026-10-31T10:27:08+08:00",
+      "title": "智能分类代码推送",
+      "detail": "第六批代码已推送，精确CI运行中；后续入口选择待答复。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41159800145"
+      ]
+    },
+    {
+      "id": "feature-parity-archive-filter-adopted-20261031",
+      "at": "2026-10-31T10:30:19+08:00",
+      "title": "多归档与亮度滤镜方案采用",
+      "detail": "用户采用两组方案；多归档候选准备中，尚未构建或设备验证。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-archive-native-entry-20261031",
+      "at": "2026-10-31T10:41:29+08:00",
+      "title": "多归档入口设备验证",
+      "detail": "智能分类CI成功；多归档入口已显示，文件传输失败后改用受控私有样本，导入阅读未验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41159800145",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-archive-reader-native-20261031",
+      "at": "2026-10-31T10:57:07+08:00",
+      "title": "多归档导入与阅读实测",
+      "detail": "TAR、RAR、7z及图片型EPUB普通导入已核，EPUB正文已观察；本场清理恢复中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-archive-restored-20261031",
+      "at": "2026-10-31T11:12:02+08:00",
+      "title": "多归档测试清理与恢复",
+      "detail": "自有样本已清理，原数据、应用及电源恢复；最后构建及源码交付待完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/archive-restored-data.json"
       ]
     }
   ],

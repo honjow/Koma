@@ -23,6 +23,7 @@ export interface ArchiveEntryCandidate {
 }
 
 export interface ArchiveImportRequest {
+  orderedImagePaths?: string[]
   archivePath: string
   entries: ArchiveEntryCandidate[]
   comicId?: string
@@ -114,11 +115,14 @@ export class ArchiveImportService {
       throw new Error(`Unsupported archive path: ${request.archivePath}`)
     }
 
-    const sortedImagePaths = sortImageEntryPaths(request.entries.map((entry: ArchiveEntryCandidate) => entry.path))
+    const sortedImagePaths = request.orderedImagePaths ?? sortImageEntryPaths(request.entries.map((entry: ArchiveEntryCandidate) => entry.path))
     const entryByPath = new Map<string, ArchiveEntryCandidate>()
     request.entries.forEach((entry: ArchiveEntryCandidate) => {
       entryByPath.set(entry.path, entry)
     })
+    if (sortedImagePaths.some((path: string): boolean => !isSafeArchiveEntryPath(path) || !entryByPath.has(path))) {
+      throw new Error('Archive reading order references a missing image')
+    }
 
     const now = request.importedAt === undefined ? Date.now() : request.importedAt
     const comicId = request.comicId === undefined ? createArchiveId(request.archivePath) : request.comicId
@@ -160,7 +164,7 @@ export class ArchiveImportService {
 
     return {
       comic,
-      rejectedEntryCount: request.entries.length - pages.length,
+      rejectedEntryCount: request.entries.length - new Set(sortedImagePaths).size,
       sourceEntryCount: request.entries.length,
     }
   }

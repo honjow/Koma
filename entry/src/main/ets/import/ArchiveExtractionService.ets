@@ -1,6 +1,8 @@
 import { zlib } from '@kit.BasicServicesKit'
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import { ReadingDirection } from '../model/ComicModels'
+import { extractNativeComicArchive } from './NativeArchiveExtraction'
+import { readOrderedEpubImages } from './EpubArchiveReader'
 import {
   ArchiveEntryCandidate,
   ArchiveImportResult,
@@ -153,7 +155,12 @@ export class ArchiveExtractionService {
     await fs.mkdir(request.extractionDir, true)
 
     assertNotCancelled(request.cancelToken)
-    await zlib.decompressFile(request.sandboxZipPath, request.extractionDir)
+    // Preserve the accepted ZIP/CBZ route. New formats decode on native async workers.
+    if (/\.(?:zip|cbz)$/i.test(request.archivePath)) {
+      await zlib.decompressFile(request.sandboxZipPath, request.extractionDir)
+    } else {
+      await extractNativeComicArchive(request.sandboxZipPath, request.extractionDir)
+    }
     assertNotCancelled(request.cancelToken)
 
     const entries = await this.listImageEntries(request.extractionDir)
@@ -161,6 +168,7 @@ export class ArchiveExtractionService {
       throw new Error(`Archive contains no supported image pages: ${request.archivePath}`)
     }
     const importResult = buildComicFromArchive({
+      orderedImagePaths: /\.epub$/i.test(request.archivePath) ? await readOrderedEpubImages(request.extractionDir) : undefined,
       archivePath: request.archivePath,
       entries,
       extractionDir: request.extractionDir,

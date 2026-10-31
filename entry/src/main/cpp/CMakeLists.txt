@@ -23,6 +23,22 @@ target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z
 # dependencies avoid a second curl/SSL namespace and a versioned SO in the HAP.
 set(KOMA_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh")
+execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh"
+    "${OHOS_SDK_NATIVE}" "${KOMA_PROJECT_ROOT}/.hvigor/archive-deps" "${OHOS_ARCH}"
+    RESULT_VARIABLE KOMA_ARCHIVE_RESULT OUTPUT_VARIABLE KOMA_ARCHIVE_ROOT ERROR_VARIABLE KOMA_ARCHIVE_ERROR)
+if(NOT KOMA_ARCHIVE_RESULT EQUAL 0)
+    message(FATAL_ERROR "Comic archive preparation failed: ${KOMA_ARCHIVE_ERROR}")
+endif()
+string(STRIP "${KOMA_ARCHIVE_ROOT}" KOMA_ARCHIVE_ROOT)
+add_library(koma_archive SHARED comic_archive_module.cpp comic_archive_extract.cpp)
+target_compile_features(koma_archive PRIVATE cxx_std_17)
+target_include_directories(koma_archive PRIVATE "${KOMA_ARCHIVE_ROOT}/include")
+target_link_options(koma_archive PRIVATE "-Wl,--exclude-libs,ALL")
+target_link_libraries(koma_archive PRIVATE libace_napi.z.so
+    "${KOMA_ARCHIVE_ROOT}/lib/libarchive.a" "${KOMA_ARCHIVE_ROOT}/lib/liblzma.a"
+    "${KOMA_ARCHIVE_ROOT}/lib/libbz2.a" libz.so)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${KOMA_PROJECT_ROOT}/scripts/prepare-source-browser-http.sh")
 execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-source-browser-http.sh"
     "${OHOS_SDK_NATIVE}" "${KOMA_PROJECT_ROOT}/.hvigor/source-browser-http" "${OHOS_ARCH}"

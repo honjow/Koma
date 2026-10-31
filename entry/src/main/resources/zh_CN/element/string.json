@@ -739,7 +739,7 @@
     { "name": "library_source_subtitle_chapters", "value": "%s 话" },
     { "name": "library_source_subtitle_folder", "value": "图片文件夹 - %s 章" },
     { "name": "library_source_subtitle_private", "value": "私有库 - %s 章" },
-    { "name": "library_source_subtitle_archive", "value": "本地 ZIP - %s 章" },
+    { "name": "library_source_subtitle_archive", "value": "本地归档 - %s 章" },
     { "name": "library_progress_unread", "value": "未读" },
 
     { "name": "common_retry", "value": "重试" },
@@ -1162,7 +1162,7 @@
     { "name": "reader_volume_keys_down_next", "value": "音量下：下一页" },
     { "name": "reader_volume_keys_up_next", "value": "音量上：下一页" },
 
-    { "name": "import_archive_title", "value": "CBZ / ZIP" },
+    { "name": "import_archive_title", "value": "漫画归档" },
     { "name": "import_archive_action", "value": "选择文件" },
     { "name": "import_image_title", "value": "图片" },
     { "name": "import_image_action", "value": "选择多张图片" },

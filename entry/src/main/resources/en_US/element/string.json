@@ -736,7 +736,7 @@
     { "name": "library_source_subtitle_chapters", "value": "%s chapters" },
     { "name": "library_source_subtitle_folder", "value": "Image folder - %s chapters" },
     { "name": "library_source_subtitle_private", "value": "Private library - %s chapters" },
-    { "name": "library_source_subtitle_archive", "value": "Local ZIP - %s chapters" },
+    { "name": "library_source_subtitle_archive", "value": "Local archive - %s chapters" },
     { "name": "library_progress_unread", "value": "Unread" },
 
     { "name": "common_retry", "value": "Retry" },
@@ -1159,7 +1159,7 @@
     { "name": "reader_volume_keys_down_next", "value": "Down: next page" },
     { "name": "reader_volume_keys_up_next", "value": "Up: next page" },
 
-    { "name": "import_archive_title", "value": "CBZ / ZIP" },
+    { "name": "import_archive_title", "value": "Comic archives" },
     { "name": "import_archive_action", "value": "Select file" },
     { "name": "import_image_title", "value": "Images" },
     { "name": "import_image_action", "value": "Select images" },

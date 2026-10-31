@@ -126,7 +126,7 @@ export interface LocalFolderRuntimeRescanResult {
   error?: string
 }
 
-export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives(.zip, .cbz)|.zip,.cbz'
+export const ARCHIVE_FILE_SUFFIX_FILTER = 'Comic archives|.zip,.cbz,.rar,.cbr,.7z,.cb7,.tar,.cbt,.epub'
 export const IMAGE_FILE_SUFFIX_FILTER = 'Images(.jpg, .jpeg, .png, .webp, .gif, .bmp, .avif)|.jpg,.jpeg,.png,.webp,.gif,.bmp,.avif'
 
 const LOCAL_IMPORT_ERROR_COPY_FAILED = 'copy_failed'

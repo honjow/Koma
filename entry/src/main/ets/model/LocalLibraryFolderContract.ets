@@ -2,11 +2,11 @@ import { util } from '@kit.ArkTS'
 import {
   compareNaturalPath,
   getBaseName,
-  isSupportedArchivePath,
   isSupportedImagePath,
   normalizeSortKey,
   stripExtension,
 } from '../import/ImageSortUtils'
+
 import {
   Chapter,
   Comic,
@@ -22,6 +22,11 @@ import {
   resolveLocalLibraryMetadata,
   resolveLocalLibrarySeriesCoverReference,
 } from './LocalLibraryMetadataService'
+
+// Folder scans retain their accepted chapter-descriptor contract. New archive
+// codecs are consumed by the explicit file importer, not advertised as empty
+// folder chapters before that separate materialization path exists.
+function isSupportedArchivePath(path: string): boolean { return /\.(?:cbz|zip)$/i.test(path) }
 
 export const LOCAL_LIBRARY_FOLDER_CONTRACT_VERSION = 1
 export const LOCAL_LIBRARY_FOLDER_RUNTIME_PICKER_STATUS = 'BEST_EFFORT_DOCUMENT_PICKER'

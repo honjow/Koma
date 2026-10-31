@@ -1,4 +1,4 @@
-export const SUPPORTED_ARCHIVE_EXTENSIONS: string[] = ['.cbz', '.zip']
+export const SUPPORTED_ARCHIVE_EXTENSIONS: string[] = ['.cbz', '.zip', '.rar', '.cbr', '.7z', '.cb7', '.tar', '.cbt', '.epub']
 export const SUPPORTED_IMAGE_EXTENSIONS: string[] = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif']
 
 export interface NaturalSortToken {
