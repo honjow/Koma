@@ -5,7 +5,7 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
-  "runId": "stats-power-restored-110",
+  "runId": "smart-power-restored-142",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
@@ -13,13 +13,13 @@
   "context": {
     "project": "Koma",
     "codeIdentity": "original197-38d2456b",
-    "page": "Restore statistics session original timeout and sleep and read back",
+    "page": "Restore original timeout and sleep after smart category session",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "Reading statistics approved; lease20261031-014655-15bad8b8. No network/account changes; restore original HAP, seven JSON, all preferences and power before release."
+    "notes": "Smart categories approved. No network/account changes. Save fresh seven JSON and preferences; restore original signed HAP, data, power and lease. Lease20261031-020842-29751355."
   },
   "preflight": [],
   "measurement": {

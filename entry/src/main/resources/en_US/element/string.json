@@ -2026,6 +2026,24 @@
     {"name": "reading_statistics_duration_value", "value": "%s hr %s min"},
     {"name": "reading_statistics_seconds_value", "value": "%s sec"},
     {"name": "reading_statistics_pages_value", "value": "%s pages"},
-    {"name": "reading_statistics_days_value", "value": "%s days"}
+    {"name": "reading_statistics_days_value", "value": "%s days"},
+    {"name": "library_smart_title", "value": "Smart categories"},
+    {"name": "library_smart_create", "value": "New smart category"},
+    {"name": "library_smart_edit", "value": "Edit smart category"},
+    {"name": "library_smart_delete", "value": "Delete smart category"},
+    {"name": "library_smart_rules", "value": "Filter rules"},
+    {"name": "library_smart_include", "value": "Include"},
+    {"name": "library_smart_exclude", "value": "Exclude"},
+    {"name": "library_smart_any", "value": "Any"},
+    {"name": "library_smart_unknown_rating", "value": "Unknown rating"},
+    {"name": "library_smart_rules_count", "value": "%s rules"},
+    {"name": "library_smart_rule_downloaded", "value": "Downloaded"},
+    {"name": "library_smart_rule_tracking", "value": "Tracking linked"},
+    {"name": "library_smart_rule_hasUnread", "value": "Has unread chapters"},
+    {"name": "library_smart_rule_started", "value": "Started reading"},
+    {"name": "library_smart_rule_completed", "value": "Publication completed"},
+    {"name": "library_smart_rule_source", "value": "Sources"},
+    {"name": "library_smart_rule_contentRating", "value": "Content rating"},
+    {"name": "library_smart_rule_category", "value": "Manual categories"}
   ]
 }

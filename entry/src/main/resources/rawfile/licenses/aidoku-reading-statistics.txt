@@ -1,7 +1,10 @@
-Reading statistics behavior reference: Aidoku/Aidoku @ ceee58b29d4f48106cf63042ca0cb075a8ac22b4
+Reading statistics and smart category behavior reference: Aidoku/Aidoku @ ceee58b29d4f48106cf63042ca0cb075a8ac22b4
 Aidoku/Core/Database/CoreDataManager+ReadingSession.swift
 Aidoku/Core/Library/Services/HistoryManager.swift
 Aidoku/Features/Reader/ReaderViewController.swift
+Aidoku/Features/Library/LibraryViewModel.swift
+Aidoku/Features/Settings/Categories/FilterGroupCreateView.swift
+Aidoku/Core/Library/Models/LibraryFilter.swift
 Copyright Aidoku contributors. GPL-3.0.
 Koma adapts foreground/chapter session boundaries and date aggregation to its existing reader owner.
 

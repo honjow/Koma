@@ -4,6 +4,7 @@ import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTex
 import { ReaderChapterDescriptor } from './ReaderChapterSequence'
 
 export interface MangaDetail {
+  contentRating?: string
   id: string
   title: string
   author?: string
@@ -195,6 +196,7 @@ export function parseMangaDetailFromSourceItem(sourceId: string, item: SourceRun
     title,
     author: firstSourceDisplayString([item['author'], item['authors']]),
     artist: firstSourceDisplayString([item['artist'], item['artists']]),
+    contentRating: optionalSourceString(item['contentRating'] ?? item['content_rating']),
     description: firstSourceDisplayString([item['description'], item['summary'], item['synopsis']]),
     coverUrl: normalizeSourceImageUrl(firstSourceString([
       optionalSourceString(item['cover_url']),

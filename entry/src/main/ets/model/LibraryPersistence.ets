@@ -3,6 +3,7 @@ import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRe
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ComicUpdateSchedule } from './ComicReleaseSchedule'
+import { LibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import {
   Chapter,
@@ -57,6 +58,7 @@ export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
 
 export interface PersistedLibraryStoreDocument {
+  smartCategories?: LibrarySmartCategory[]
   schemaVersion: number
   customCategories?: PersistedLibraryCategory[]
   categoryDisplayStrategies?: PersistedCategoryDisplayStrategy[]
@@ -372,6 +374,8 @@ export function createLibraryStorePersistenceDocument(libraryStore: LibraryStore
   if (customCategories.length > 0) {
     document.customCategories = customCategories
   }
+  const smartCategories = libraryStore.listSmartCategories()
+  if (smartCategories.length > 0) document.smartCategories = smartCategories
   const categoryDisplayStrategies = libraryStore.listCategoryDisplayStrategies().map((strategy: LibraryCategoryDisplayStrategy): PersistedCategoryDisplayStrategy => {
     return persistCategoryDisplayStrategy(strategy)
   })
@@ -383,6 +387,17 @@ export function createLibraryStorePersistenceDocument(libraryStore: LibraryStore
 
 export function serializeLibraryStore(libraryStore: LibraryStore): string {
   return JSON.stringify(createLibraryStorePersistenceDocument(libraryStore))
+}
+
+/** The original library transaction also owns smart rules and restores the previous document on failure. */
+export function replaceSmartCategoriesAndPersistLibraryStore(libraryStore: LibraryStore,
+  persistence: LibraryStorePersistenceService, categories: LibrarySmartCategory[]): void {
+  const previous = serializeLibraryStore(libraryStore)
+  libraryStore.replaceSmartCategories(categories)
+  try { persistence.persist() } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previous)
+    throw error as Error
+  }
 }
 
 function assertSupportedLibraryStoreDocument(document: PersistedLibraryStoreDocument): void {
@@ -533,6 +548,7 @@ function assertValidPersistedComic(row: PersistedComic): void {
   }
   if (row.sourceMetadata !== undefined) {
     const metadata = row.sourceMetadata
+    assertOptionalStringField(metadata.contentRating, 'comic.sourceMetadata.contentRating')
     assertPersistedObject(metadata as Object, 'comic.sourceMetadata')
     assertOptionalStringField(metadata.artist, 'comic.sourceMetadata.artist')
     assertOptionalStringField(metadata.status, 'comic.sourceMetadata.status')
@@ -672,6 +688,11 @@ function parseValidatedLibraryStoreDocument(payload: string): PersistedLibrarySt
   if (!Array.isArray(document.comics)) {
     throw new Error('Invalid library store persistence comics: expected array')
   }
+  if (document.smartCategories !== undefined) {
+    if (!Array.isArray(document.smartCategories)) throw new Error('Invalid library smart categories')
+    validateLibrarySmartCategories(document.smartCategories,
+      (document.customCategories ?? []).map((category: PersistedLibraryCategory): string => category.name))
+  }
   if (document.customCategories !== undefined) {
     document.customCategories.forEach((row: PersistedLibraryCategory) => {
       assertValidPersistedLibraryCategory(row)
@@ -705,6 +726,7 @@ export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload:
   const comics = document.comics.map((row: PersistedComic) => hydrateComic(row))
   libraryStore.clear()
   libraryStore.replaceCustomCategories(customCategories)
+  libraryStore.replaceSmartCategories(document.smartCategories ?? [])
   libraryStore.replaceCategoryDisplayStrategies(categoryDisplayStrategies)
   comics.forEach((comic: Comic) => {
     libraryStore.upsertComic(comic)
@@ -848,6 +870,7 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
   next.author = detail.author
   if (/^https?:\/\//i.test(detail.coverUrl?.trim() ?? '')) assignComicSourceCover(next, detail.coverUrl!)
   next.sourceMetadata = {
+    contentRating: detail.contentRating ?? previous.sourceMetadata?.contentRating,
     artist: detail.artist,
     status: detail.status,
     tags: detail.tags?.slice(),

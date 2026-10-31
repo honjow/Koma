@@ -85,6 +85,7 @@ export function copyLocalImportOrigin(origin: LocalImportOrigin): LocalImportOri
  * No page URLs, source settings or session credentials belong in this snapshot.
  */
 export interface SourceMangaMetadata {
+  contentRating?: string
   artist?: string
   status?: string
   tags?: string[]
@@ -95,6 +96,7 @@ export interface SourceMangaMetadata {
 
 export function copySourceMangaMetadata(value: SourceMangaMetadata): SourceMangaMetadata {
   return {
+    contentRating: value.contentRating,
     artist: value.artist,
     status: value.status,
     tags: value.tags?.slice(),

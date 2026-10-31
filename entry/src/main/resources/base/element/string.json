@@ -2029,6 +2029,24 @@
     {"name": "reading_statistics_duration_value", "value": "%s 小时 %s 分钟"},
     {"name": "reading_statistics_seconds_value", "value": "%s 秒"},
     {"name": "reading_statistics_pages_value", "value": "%s 页"},
-    {"name": "reading_statistics_days_value", "value": "%s 天"}
+    {"name": "reading_statistics_days_value", "value": "%s 天"},
+    {"name": "library_smart_title", "value": "智能分类"},
+    {"name": "library_smart_create", "value": "新建智能分类"},
+    {"name": "library_smart_edit", "value": "编辑智能分类"},
+    {"name": "library_smart_delete", "value": "删除智能分类"},
+    {"name": "library_smart_rules", "value": "筛选条件"},
+    {"name": "library_smart_include", "value": "包含"},
+    {"name": "library_smart_exclude", "value": "排除"},
+    {"name": "library_smart_any", "value": "不限"},
+    {"name": "library_smart_unknown_rating", "value": "未知分级"},
+    {"name": "library_smart_rules_count", "value": "%s 条条件"},
+    {"name": "library_smart_rule_downloaded", "value": "已下载"},
+    {"name": "library_smart_rule_tracking", "value": "已绑定追踪"},
+    {"name": "library_smart_rule_hasUnread", "value": "有未读章节"},
+    {"name": "library_smart_rule_started", "value": "已开始阅读"},
+    {"name": "library_smart_rule_completed", "value": "作品已完结"},
+    {"name": "library_smart_rule_source", "value": "来源"},
+    {"name": "library_smart_rule_contentRating", "value": "内容分级"},
+    {"name": "library_smart_rule_category", "value": "手动分类"}
   ]
 }

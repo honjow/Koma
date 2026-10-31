@@ -62,6 +62,9 @@ import {
 } from '../model/LibraryFilterStore'
 import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
 import { OfflineDownloadStatus } from '../model/OfflineDownloadStore'
+import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
+import { TrackerPreferencesStore, ComicTrackerMapping } from '../model/TrackerModels'
+import { LibrarySmartCategory, comicMatchesSmartCategory } from '../model/LibrarySmartCategory'
 import { LibraryBatchDownloadPlan, LibraryBatchDownloadQueue } from '../model/LibraryBatchDownloadQueue'
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import {
@@ -260,6 +263,7 @@ export struct LibraryPage {
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
+  private smartSubscriptions: (() => void)[] = []
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
   @Local private filterMetadataStatus: LibraryMetadataStatusFilter = 'all'
   @Local private containerWidth: number = gridFallbackContainerWidth()
@@ -459,15 +463,35 @@ export struct LibraryPage {
         nextComics.push(comic)
       }
     })
-    this.displayedComics = this.filterMetadataStatusComics(
+    this.displayedComics = this.filterSmartCategoryComics(this.filterMetadataStatusComics(
       this.filterAvailabilityComics(this.filterPreciseSourceComics(nextComics))
-    )
+    ))
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
   }
 
   private isProjectionPending(): boolean {
     return this.projectionState === LibraryProjectionState.PENDING
+  }
+
+  private selectedSmartCategory(): LibrarySmartCategory | undefined {
+    return this.libraryStore.listSmartCategories().find((category: LibrarySmartCategory): boolean => category.id === this.filterCategory)
+  }
+
+  private filterSmartCategoryComics(comics: Comic[]): Comic[] {
+    const group = this.selectedSmartCategory()
+    if (group === undefined) return comics
+    const tracked = new Set<string>()
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    if (group.filters.some((filter): boolean => filter.method === 'tracking')) {
+      new TrackerPreferencesStore(context).mappingSnapshot().forEach((mapping: ComicTrackerMapping): void => {
+        if (mapping.mappingState === 'confirmed' && mapping.userConfirmed) tracked.add(mapping.comicId)
+      })
+    }
+    const downloaded = group.filters.some((filter): boolean => filter.method === 'downloaded')
+      ? new Set<string>(this.downloadedComicAvailability(comics).keys()) : new Set<string>()
+    return comics.filter((comic: Comic): boolean => comicMatchesSmartCategory(comic, group,
+      { reader: this.readerSessionStore, downloaded, tracked }))
   }
 
   private markFilterPreferencesMutation(): void {
@@ -611,6 +635,7 @@ export struct LibraryPage {
   }
 
   private validCategoryFilter(): LibraryCategoryFilter {
+    if (this.selectedSmartCategory() !== undefined) return 'all'
     if (
       this.filterCategory === 'all' ||
       this.filterCategory === 'uncategorized' ||
@@ -930,6 +955,8 @@ export struct LibraryPage {
   }
 
   private categoryLabel(): string {
+    const smart = this.selectedSmartCategory()
+    if (smart !== undefined) return smart.name
     if (this.filterCategory === 'uncategorized') {
       return s('library_category_uncategorized')
     }
@@ -1800,6 +1827,11 @@ export struct LibraryPage {
             select(() => { this.setCategoryFilter(category.id) })
           })
       }, (category: CustomLibraryCategory) => category.id)
+      ForEach(this.libraryStore.listSmartCategories(), (category: LibrarySmartCategory) => {
+        MenuItem({ content: category.name })
+          .selected(this.filterCategory === category.id)
+          .onClick(() => { select(() => { this.setCategoryFilter(category.id) }) })
+      }, (category: LibrarySmartCategory) => category.id)
     }
   }
 
@@ -2343,12 +2375,18 @@ export struct LibraryPage {
   }
 
   aboutToAppear(): void {
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    const refreshSmart = (): void => { if (this.selectedSmartCategory() !== undefined) this.refreshDisplayedSnapshotFromStore() }
+    this.smartSubscriptions = [OfflineDownloadRuntime.subscribe(context.filesDir, refreshSmart),
+      new TrackerPreferencesStore(context).subscribeMappings(refreshSmart)]
     this.restoreInitialFilterPreferences()
     this.syncDisplayedSnapshotFromProps()
     this.publishTitleBar()
   }
 
   aboutToDisappear(): void {
+    this.smartSubscriptions.forEach((unsubscribe: () => void): void => { unsubscribe() })
+    this.smartSubscriptions = []
     this.closeTitleMenu()
   }
 

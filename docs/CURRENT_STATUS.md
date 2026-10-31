@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T09:57:55+08:00",
+  "updatedAt": "2026-10-31T10:22:56+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "阅读统计准备交付，智能分类方案已确定。",
-  "nextAction": "完成统计交付并实现已采用的智能分类。",
+  "activity": "智能分类具名验收及设备恢复完成，正在准备交付。",
+  "nextAction": "完成智能分类审查交付，继续归档、追踪和滤镜功能。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已恢复原38d245、原数据及电源并释租。"
+      "hap": "197已恢复原38d245、基线数据与电源并释租。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "统计收尾已构建，智能分类方案已采用",
-      "stage": "第五批提交准备及第六批合同核对",
+      "status": "智能分类具名验收及恢复完成，待交付",
+      "stage": "第六批审查提交及CI待核",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "阅读统计具名验收及最后逻辑构建已核；智能分类方案已确定。",
-      "remaining": "完成统计交付，实现并验证已采用智能分类及其余差异。",
+      "result": "智能分类动态匹配和管理操作已验证，设备已恢复，正在准备交付。",
+      "remaining": "完成智能分类正式交付，继续归档、tracker及滤镜等已授权差异。",
       "remainingActions": [
-        "完成统计交付，实现并验证已采用智能分类及其余差异。"
+        "完成智能分类正式交付，继续归档、tracker及滤镜等已授权差异。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4717,7 +4717,12 @@
         "197 policy4-original-restored-093恢复原signed HAP SHA38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5，077基线七JSON与30prefs共37项逐字同、无多余pref，本次automation/reader临时文件已清；比较 .hvigor/outputs/feature-parity-implementation-20261031/policy4-restored-data.json。094 SLEEP/120000/Override10000，lease20261031-012758-d0770ea4 released并status确认。收尾发现自动检查在途时manual会吞自动过滤范围，已按手动全库决定改为auto后单飞完整manual；生产Coordinator测试通过、build029成功，最后小修未安装，不重跑已验设备。第四批待审提交。",
         "第四批666e70049069c250d9bae173456c8dd0b30f5464已推Koma/master，精确CI41156512169 in_progress，未发版。第五批阅读统计已接ReadingStatistics生产session recorder、ReaderSessionStore同文档可选readingSessions及root普通进度/lifecycle消费者，正在实现UI；尚未编译或设备验收。",
         "197 build031普通历史柱状图入口：旧历史时长/页/作品均0，月份2026-10有效；真实Blue正文后Home保存session28419ms，后台Reader字节不变，前台继续；104实际切到第二部第三话，方向非本轮验收。105统计3页/1作品/1天，三条session合计85375ms，后台gap32356ms未计。build033 SHA792e57a21b590a82b2fdecca4561217191af01efab6f41fe747fdde06ca43ad9冷启动三session一致，统计和每日图、年份2026及书库76/开始75/全读17/章14902/已读59/下载87已亲看；数值行伪箭头已修，全部每日图近365天滚到最近日。109原signed38d245及七JSON+30prefs共37项逐字恢复、无多余pref，110 SLEEP/120000/Override10000，lease20261031-014655-15bad8b8 released；比较 .hvigor/outputs/feature-parity-implementation-20261031/reading-statistics-restored-data.json。计时/日历/持久备份normalizer和失败恢复、旧迁移/未读生产逻辑通过；最后清历史同步移除孤立会话build034及逻辑通过，但034未安装。备份统计仅原文档normalizer实际测试，未重跑整份备份UI，不称实际新备份导入验收。第五批未提交。",
-        "第四批精确CI41156512169 success。第五批交付前补双页/条漫实际可见原页计数：Shared使用ReaderObservedPosition.displayedSourceIndexes，先host提交真实章再上报，重复fractional原anchor不重写progress但可更新可见集合；Legacy在已加载可见页及imageLoaded上报，根生命周期统一计时。生产onObservedPosition测试覆盖切章提交顺序和fractional不重写，recorder多页/恢复测试通过，build036成功；最后收尾和清历史孤立会话仅编译及生产逻辑，未再安装，保033设备范围。第五批准备提交。第六批用户已采用智能分类，Root正核固定Aidoku消费者合同，尚未实现。"
+        "第四批精确CI41156512169 success。第五批交付前补双页/条漫实际可见原页计数：Shared使用ReaderObservedPosition.displayedSourceIndexes，先host提交真实章再上报，重复fractional原anchor不重写progress但可更新可见集合；Legacy在已加载可见页及imageLoaded上报，根生命周期统一计时。生产onObservedPosition测试覆盖切章提交顺序和fractional不重写，recorder多页/恢复测试通过，build036成功；最后收尾和清历史孤立会话仅编译及生产逻辑，未再安装，保033设备范围。第五批准备提交。第六批用户已采用智能分类，Root正核固定Aidoku消费者合同，尚未实现。",
+        "第五批Koma/master 0de6ef6ce839bb1def563dc5ba03e729d59f9286已提交推送，未发版，精确CI待取。第六批已核固定Aidoku LibraryViewModel同类来源/分级/分类包含OR、不同类型AND、排除优先；正准备独立动态规则与原书库持久域，尚无第六批代码。",
+        "第五批0de6ef6精确CI41157810983 in_progress。第六批候选已接LibrarySmartCategory独立规则（同类OR、跨类AND、排除优先）、LibraryStore独立smartCategories及持久化/失败回退、书架原分类菜单动态投影；手动赋类和自动更新分类选择仍只使用原manual列表。内容分级从SourceManga经Detail/cache到Comic metadata持久化；现有分类管理卡片/半模态编辑八类三态及保存/排序/删除，来源、分级、分类默认折叠。下载原runtime和追踪owner已提交公开快照/通知及备份恢复失效已接，不读凭据。build037通过、映射快照收尾build038正在核；生产规则、动态状态、持久备份及失败恢复、映射成功才发布四项执行通过。未设备验收或提交。",
+        "第五批精确CI41157810983 success。第六批build038/039因Index缺TrackerPreferencesStore导入失败，修正后build040成功，SHA effa2359889a394c5bb486fd3b6b62e27dd0fc63634fc31a93a9244380c61b06。197 lease20261031-020842-29751355：smart-baseline111已备七JSON、prefs、原包及电源；112 AWAKE/86400000实读；113普通Settings→书架→分类，114新建，115编辑器八类规则与折叠组，116输入测试名称并展开来源，117三态菜单，118正配置来源包含及手动分类排除。尚未保存、验收或恢复；下一步核成员动态变化与冷入保存。",
+        "197智能分类120保存来源Fuda包含及收藏排除两规则；124书架原分类菜单选中后仅匹配真实Holly Plus59。128原手动赋类菜单仅收藏/稍后/清除，无smart；129加入收藏后即时无匹配，library实际category改favorite、规则原样；130重新进入管理规则仍在。131操作菜单打不开，定位新caller传subtitle但Concise下拉锚点要求trailingText；仅改新section为规则数尾部下拉，build041进行中。编辑、排序、删除、冷启及恢复未验。",
+        "build041成功，HAP SHA5996c39ab2dcd6197ecc7e5e55059e4e73079a4b52c3dbaad5844d708d87eba3。197 132保存重入菜单有效；133/135编辑名称及downloaded包含保存，inputText追加，实际名称Koma_QA_BlueKoma_QA_Edited；136第二组保存，137普通菜单上移后library sortOrder 0/1与UI一致；138 force-stop普通启动后两组名称、规则和顺序同137；139/140系统确认删除目标组，只余Second，comics/manualCategories与138相同。141恢复原38d245及fresh smart-baseline111七JSON与30prefs全部37份字节同、无额外prefs，证据 .hvigor/outputs/feature-parity-implementation-20261031/smart-restored-data.json；142 SLEEP/120000/Override10000，lease20261031-020842-29751355 released且无active。124/129动态筛选及128手动隔离保留；未逐一真机验证八规则、真实tracker登录或自然失败，生产逻辑四项通过。第六批待审提交推送及精确CI。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -11251,6 +11256,60 @@
       "kind": "checkpoint",
       "evidence": [
         "https://github.com/honjow/Koma/actions/runs/41156512169"
+      ]
+    },
+    {
+      "id": "feature-parity-statistics-pushed-20261031",
+      "at": "2026-10-31T10:00:21+08:00",
+      "title": "阅读统计代码推送",
+      "detail": "阅读统计代码已推送，精确CI待核；智能分类合同准备中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-smart-category-built-20261031",
+      "at": "2026-10-31T10:08:01+08:00",
+      "title": "智能分类候选构建",
+      "detail": "规则、书架投影及分类管理候选已构建，本地逻辑通过，设备尚未验收。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41157810983"
+      ]
+    },
+    {
+      "id": "feature-parity-smart-category-native-start-20261031",
+      "at": "2026-10-31T10:12:45+08:00",
+      "title": "智能分类进入设备验证",
+      "detail": "编辑入口及规则已显示，保存和动态成员尚待验证；统计CI已成功。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41157810983",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-smart-category-match-20261031",
+      "at": "2026-10-31T10:19:23+08:00",
+      "title": "智能分类动态匹配实测",
+      "detail": "规则保存、动态匹配及手动分类隔离已核；管理菜单修正中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-smart-category-restored-20261031",
+      "at": "2026-10-31T10:22:56+08:00",
+      "title": "智能分类管理验证及恢复",
+      "detail": "规则管理、冷启动和删除已具名验证，设备及数据已恢复；源码待交付。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/smart-restored-data.json"
       ]
     }
   ],

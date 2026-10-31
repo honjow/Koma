@@ -18,6 +18,7 @@ function cloneMangaDetail(detail: MangaDetail): MangaDetail {
     title: detail.title,
     author: detail.author,
     artist: detail.artist,
+    contentRating: detail.contentRating,
     description: detail.description,
     coverUrl: detail.coverUrl,
     status: detail.status,

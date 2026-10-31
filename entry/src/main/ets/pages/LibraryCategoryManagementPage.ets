@@ -30,6 +30,7 @@ import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { KomaMenuListRow } from '../components/ui/KomaMenuListRow'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
+import { LibrarySmartCategorySection } from '../components/LibrarySmartCategorySection'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 
 function s(name: string): string {
@@ -550,6 +551,10 @@ export struct LibraryCategoryManagementPage {
         }
         ListItem() {
           this.CreateSection()
+        }
+        ListItem() {
+          LibrarySmartCategorySection({ libraryStore: this.libraryStore, persistence: this.libraryPersistenceService,
+            onChanged: (): void => { this.onLibraryChanged() } })
         }
       }
     }

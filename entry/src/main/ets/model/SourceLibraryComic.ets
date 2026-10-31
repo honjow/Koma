@@ -45,6 +45,7 @@ export function comicFromSourceManga(manga: MangaDetail, chapters: MangaChapterI
     remoteResourceId: manga.id,
     coverUri: manga.coverUrl,
     sourceMetadata: {
+      contentRating: manga.contentRating,
       artist: manga.artist,
       status: manga.status,
       tags: manga.tags?.slice(),

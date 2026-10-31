@@ -17,6 +17,7 @@ import {
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSessionStore } from './ReaderSessionStore'
+import { LibrarySmartCategory, copyLibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
 export type LibraryReadStateFilter = 'all' | 'unread' | 'reading' | 'completed'
@@ -39,6 +40,8 @@ export interface LibraryListOptions {
 }
 
 export interface LibraryStore {
+  listSmartCategories(): LibrarySmartCategory[]
+  replaceSmartCategories(categories: LibrarySmartCategory[]): void
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
   listComics(): Comic[]
@@ -62,6 +65,16 @@ export interface LibraryStore {
 }
 
 export class InMemoryLibraryStore implements LibraryStore {
+  private smartCategories: LibrarySmartCategory[] = []
+
+  listSmartCategories(): LibrarySmartCategory[] {
+    return this.smartCategories.map(copyLibrarySmartCategory).sort((a: LibrarySmartCategory, b: LibrarySmartCategory): number =>
+      a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
+  }
+
+  replaceSmartCategories(categories: LibrarySmartCategory[]): void {
+    this.smartCategories = validateLibrarySmartCategories(categories, this.listCustomCategories().map((category: CustomLibraryCategory): string => category.name))
+  }
   private comics: Map<ComicId, Comic> = new Map<ComicId, Comic>()
   private customCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
   private categoryDisplayStrategies: Map<string, LibraryCategoryDisplayStrategy> = new Map<string, LibraryCategoryDisplayStrategy>()
@@ -207,7 +220,7 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   replaceCustomCategories(categories: CustomLibraryCategory[]): void {
     const nextCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
-    const nameKeys: string[] = []
+    const nameKeys: string[] = this.smartCategories.map((category: LibrarySmartCategory): string => libraryCategoryNameKey(category.name))
     categories.forEach((category: CustomLibraryCategory) => {
       const restoredCategory = this.validateRestoredCustomCategory(category, nextCategories, nameKeys)
       nextCategories.set(restoredCategory.id, restoredCategory)
@@ -330,6 +343,7 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   clear(): void {
+    this.smartCategories = []
     this.comics.clear()
     this.customCategories.clear()
     this.categoryDisplayStrategies.clear()
@@ -337,6 +351,7 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   dumpJson(): string {
     return JSON.stringify({
+      smartCategories: this.listSmartCategories(),
       comics: this.listComics(),
       customCategories: this.listCustomCategories(),
       categoryDisplayStrategies: this.listCategoryDisplayStrategies(),
@@ -344,6 +359,7 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   restoreJson(payload: string): void {
+    this.smartCategories = []
     this.comics.clear()
     this.customCategories.clear()
     this.categoryDisplayStrategies.clear()
@@ -354,6 +370,9 @@ export class InMemoryLibraryStore implements LibraryStore {
     })
     if (!Array.isArray(parsed) && Array.isArray(parsed['customCategories'])) {
       this.replaceCustomCategories(parsed['customCategories'] as CustomLibraryCategory[])
+    }
+    if (!Array.isArray(parsed) && Array.isArray(parsed['smartCategories'])) {
+      this.replaceSmartCategories(parsed['smartCategories'] as LibrarySmartCategory[])
     }
     if (!Array.isArray(parsed) && Array.isArray(parsed['categoryDisplayStrategies'])) {
       this.replaceCategoryDisplayStrategies(parsed['categoryDisplayStrategies'] as LibraryCategoryDisplayStrategy[])
@@ -478,7 +497,7 @@ export class InMemoryLibraryStore implements LibraryStore {
     const key = libraryCategoryNameKey(normalizedName)
     const duplicate = Array.from(this.customCategories.values()).some((category: CustomLibraryCategory): boolean => {
       return category.id !== currentCategoryId && libraryCategoryNameKey(category.name) === key
-    })
+    }) || this.smartCategories.some((category: LibrarySmartCategory): boolean => libraryCategoryNameKey(category.name) === key)
     if (duplicate) {
       throw new Error(AppStrings.get('library_category_error_name_duplicate'))
     }

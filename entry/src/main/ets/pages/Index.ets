@@ -36,6 +36,7 @@ import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
 import { ReadingStatisticsPage } from './ReadingStatisticsPage'
 import { ReadingSessionRecorder, ReadingSessionRecord } from '../model/ReadingStatistics'
+import { TrackerPreferencesStore } from '../model/TrackerModels'
 import { RemoteReadHistoryEntry, copyRemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
@@ -1287,6 +1288,7 @@ struct Index {
     this.readDownloadCleanup?.invalidateAfterRestore()
     this.readerTrackerProgress?.resetAfterRestore()
     this.ensureLibraryPersistenceService()?.restore()
+    new TrackerPreferencesStore(getContext(this) as common.UIAbilityContext).invalidateMappingSnapshot()
     this.libraryPreferencesRevision += 1
     void synchronizeBackgroundMaintenance(getContext(this) as common.UIAbilityContext)
       .catch((error: Error): void => { DiagnosticLogger.exception('maintenance', 'restore_schedule_failed', error) })
