@@ -14,6 +14,7 @@ function evaluate(source, globals = {}) {
   return exports
 }
 const globals = {
+  DiagnosticLogger: { warn() {} },
   AppStrings: { get: key => key }, connectLanguageState: () => ({}),
   console: { info() {}, warn() {} },
   AssetStoreTrackerCredentialSecretStore: class { isAvailable() { return true } },
@@ -65,7 +66,8 @@ async function run() {
   assert.equal(page.providerOAuthConfigs.length, 0)
   await page.reloadSettings()
   assert.equal(page.authPreparationMessageKey, '')
-  assert.deepEqual(ids(page), ['anilist', 'myanimelist'])
+  // User adopted Bangumi token / MangaUpdates login and Kitsu email login on 2026-10-31.
+  assert.deepEqual(ids(page), ['anilist', 'myanimelist', 'kitsu', 'mangaupdates', 'bangumi'])
   page.credentialSecretStore.isAvailable = () => false
   await page.reloadSettings()
   assert.equal(page.authPreparationMessageKey, 'tracker_message_connect_unavailable')
@@ -127,23 +129,24 @@ async function run() {
   assert.ok(index.includes('providerId: (param as TrackerProviderRouteParam).providerId'))
   assert.ok(source.includes('this.providerId.length === 0 && this.pendingSummary.totalCount > 0'))
   assert.ok(source.includes('this.providerId.length === 0 && this.mappings.length > 0'))
-  const providerRow = source.slice(source.indexOf('private ProviderRow('), source.indexOf('private ProviderOAuthConfigForm('))
-  assert.ok(!providerRow.includes('suffixPaddingRight: 0'), 'account actions inherit the existing 12vp suffix inset')
-  assert.ok(read('components/ui/ConciseListRow.ets').includes('suffixPaddingRight: Length = ThemeConstants.SPACE_MD'))
-  assert.ok(source.includes("if (this.findAccount(provider).status === 'auth_pending')"))
-  const configForm = source.slice(source.indexOf('private ProviderOAuthConfigForm('),
-    source.indexOf('private ProviderOAuthConfigActions('))
-  const configActions = source.slice(source.indexOf('private ProviderOAuthConfigActions('),
-    source.indexOf('private ProviderOAuthCallbackForm('))
-  assert.ok(!configForm.includes('KomaActionButton(') &&
-    configActions.includes("label: s('common_save')") && configActions.includes("kind: 'primary'") &&
-    configActions.includes('fullWidth: true') && configActions.includes('isEnabled: !this.loading') &&
-    configActions.includes('void this.saveProviderOAuthConfig(provider)') &&
-    configActions.includes('.padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })') &&
-    !/compact:|controlHeight:/.test(configActions), 'save uses the existing card-external full-width primary action and default height')
-  assert.match(source.slice(source.indexOf('  build() {')),
-    /this\.ProvidersCard\(\)[\s\S]*?if \(this\.providerId\.length > 0\)[\s\S]*?if \(provider\.supportStatus === 'available'\) \{\s*ListItem\(\) \{\s*this\.ProviderOAuthConfigActions\(provider\)[\s\S]*?this\.StatusCard\(\)/,
-    'save is a separate item after the form card and before result, only on available single-provider pages')
-  console.log('PASS: Tracker production page state, provider routing, revision/ready reload, saved-data retention; builder contracts checked (not device visual acceptance).')
+  // Execute login prerequisites and secret lifetime, rather than checking builder syntax.
+  const bangumi = model.TRACKER_PROVIDER_CONFIGS.find(p => p.providerId === 'bangumi')
+  const mu = model.TRACKER_PROVIDER_CONFIGS.find(p => p.providerId === 'mangaupdates')
+  page.loading = false; page.secureStorageAvailable = true
+  assert.equal(page.canPrepareConnect(bangumi), false)
+  page.directSecret = 'token'
+  assert.equal(page.canPrepareConnect(bangumi), true, 'token needs no OAuth config')
+  assert.equal(page.canPrepareConnect(mu), false, 'password login also needs a username')
+  page.directUsername = 'user'
+  assert.equal(page.canPrepareConnect(mu), true)
+  page.busyProviderId = 'mangaupdates'
+  assert.equal(page.canPrepareConnect(bangumi), false, 'no competing account submission')
+  page.busyProviderId = ''
+  page.accounts = [{ providerId: 'bangumi', status: 'connected', credentialAccountKey: 'saved' }]
+  assert.equal(page.canRefreshProvider(bangumi), true)
+  page.aboutToDisappear()
+  assert.equal(page.directSecret, '')
+  assert.equal(page.directUsername, '')
+  console.log('PASS: Tracker production page state, provider routing, revision/ready reload, saved-data retention; direct-login prerequisites and secret lifetime (not device visual acceptance).')
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

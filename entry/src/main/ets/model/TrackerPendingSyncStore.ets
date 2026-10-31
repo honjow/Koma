@@ -1,3 +1,4 @@
+import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
 import { common } from '@kit.AbilityKit'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { preferences } from '@kit.ArkData'
@@ -87,7 +88,7 @@ function normalizeReason(reason: TrackerPendingProgressReason): TrackerPendingPr
 function normalizeEntry(entry: TrackerPendingProgressSyncEntry): TrackerPendingProgressSyncEntry | undefined {
   const comicId = normalizeTextId(entry.comicId)
   const chapterId = normalizeTextId(entry.chapterId)
-  if ((entry.providerId !== 'anilist' && entry.providerId !== 'myanimelist') || comicId.length === 0 || chapterId.length === 0) {
+  if (!TRACKER_REMOTE_PROVIDER_IDS.includes(entry.providerId) || comicId.length === 0 || chapterId.length === 0) {
     return undefined
   }
   const totalPages = normalizeCount(entry.totalPages)

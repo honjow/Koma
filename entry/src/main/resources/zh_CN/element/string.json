@@ -964,6 +964,8 @@
     { "name": "tracker_detail_account_status_unavailable", "value": "账号状态暂不可用" },
     { "name": "tracker_detail_connect_unavailable", "value": "账号连接暂不可用" },
     { "name": "tracker_detail_connect_failed", "value": "连接失败" },
+    { "name": "tracker_account_email", "value": "邮箱" },
+    { "name": "tracker_personal_access_token", "value": "个人访问令牌" },
     { "name": "tracker_oauth_config_title", "value": "授权配置" },
     { "name": "tracker_oauth_config_help", "value": "填写已注册应用的 Client ID 与 Redirect URI。当前需复制授权链接到浏览器，完成后手动粘贴回调地址。" },
     { "name": "tracker_message_loading", "value": "正在读取追踪账号…" },

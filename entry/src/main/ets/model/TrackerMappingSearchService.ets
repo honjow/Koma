@@ -1,3 +1,6 @@
+import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
+import { KitsuTrackerClient } from './KitsuTrackerClient'
+import { BangumiTrackerClient, MangaUpdatesTrackerClient } from './AdditionalTrackerClients'
 import { common } from '@kit.AbilityKit'
 import { Comic } from './ComicModels'
 import {
@@ -50,6 +53,9 @@ export interface TrackerMappingSearchServiceOptions {
   secretStore?: TrackerCredentialSecretStore
   aniListClient?: AniListTrackerClient
   myAnimeListClient?: MyAnimeListTrackerClient
+  bangumiClient?: BangumiTrackerClient
+  mangaUpdatesClient?: MangaUpdatesTrackerClient
+  kitsuClient?: KitsuTrackerClient
 }
 
 interface TrackerTitleSearchCandidate {
@@ -74,12 +80,18 @@ export class TrackerMappingSearchService {
   private secretStore: TrackerCredentialSecretStore
   private aniListClient?: AniListTrackerClient
   private myAnimeListClient?: MyAnimeListTrackerClient
+  private bangumiClient?: BangumiTrackerClient
+  private mangaUpdatesClient?: MangaUpdatesTrackerClient
+  private kitsuClient?: KitsuTrackerClient
 
   constructor(context: common.UIAbilityContext, options: TrackerMappingSearchServiceOptions = {}) {
     this.context = context
     this.secretStore = options.secretStore ?? new AssetStoreTrackerCredentialSecretStore()
     this.aniListClient = options.aniListClient ?? new AniListTrackerClient(new HarmonyAniListTrackerHttpAdapter())
     this.myAnimeListClient = options.myAnimeListClient ?? new MyAnimeListTrackerClient(new HarmonyMyAnimeListTrackerHttpAdapter())
+    this.bangumiClient = options.bangumiClient ?? new BangumiTrackerClient()
+    this.mangaUpdatesClient = options.mangaUpdatesClient ?? new MangaUpdatesTrackerClient()
+    this.kitsuClient = options.kitsuClient ?? new KitsuTrackerClient()
   }
 
   async refreshComicMappingCandidates(
@@ -197,7 +209,7 @@ export class TrackerMappingSearchService {
   }
 
   private isSupportedSearchProvider(providerId: TrackerProviderId): boolean {
-    return providerId === 'anilist' || providerId === 'myanimelist'
+    return TRACKER_REMOTE_PROVIDER_IDS.includes(providerId)
   }
 
   private findExistingMapping(preferences: TrackerPreferences, comicId: string, providerId: TrackerProviderId): ComicTrackerMapping | undefined {
@@ -213,6 +225,9 @@ export class TrackerMappingSearchService {
   }
 
   private hasSearchClient(providerId: TrackerProviderId): boolean {
+    if (providerId === 'kitsu') return this.kitsuClient !== undefined
+    if (providerId === 'bangumi') return this.bangumiClient !== undefined
+    if (providerId === 'mangaupdates') return this.mangaUpdatesClient !== undefined
     if (providerId === 'anilist') {
       return this.aniListClient !== undefined
     }
@@ -243,6 +258,13 @@ export class TrackerMappingSearchService {
     accessToken: string | undefined,
     query: string,
   ): Promise<TrackerProviderSearchResult> {
+    if (providerId === 'kitsu') return this.kitsuClient === undefined || accessToken === undefined ?
+      { ok: false } : this.kitsuClient.searchManga(accessToken, query)
+    if (providerId === 'bangumi' || providerId === 'mangaupdates') {
+      const client = providerId === 'bangumi' ? this.bangumiClient : this.mangaUpdatesClient
+      if (client === undefined || accessToken === undefined) return { ok: false }
+      return client.searchManga(accessToken, query)
+    }
     if (providerId === 'myanimelist') {
       if (this.myAnimeListClient === undefined || accessToken === undefined) {
         return { ok: false }

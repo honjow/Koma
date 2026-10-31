@@ -13,6 +13,8 @@ function s(name: string): string {
 }
 
 export type TrackerProviderId = 'anilist' | 'myanimelist' | 'kitsu' | 'mangaupdates' | 'bangumi'
+/** Executable remote data clients; pending writes and consumers share this capability boundary. */
+export const TRACKER_REMOTE_PROVIDER_IDS: TrackerProviderId[] = ['anilist', 'myanimelist', 'bangumi', 'mangaupdates', 'kitsu']
 export type TrackerAccountStatus = 'disconnected' | 'auth_pending' | 'connected' | 'expired' | 'error'
 export type TrackerProviderSupportStatus = 'available' | 'planned' | 'unsupported'
 export type TrackerMappingState = 'unmapped' | 'candidate' | 'confirmed' | 'rejected' | 'stale'
@@ -41,6 +43,7 @@ export interface TrackerProviderConfig {
   providerId: TrackerProviderId
   displayName: string
   supportStatus: TrackerProviderSupportStatus
+  authentication?: 'oauth' | 'token' | 'password'
   authorizationEndpoint?: string
   clientId?: string
   redirectUri?: string
@@ -192,23 +195,26 @@ export const TRACKER_PROVIDER_CONFIGS: TrackerProviderConfig[] = [
   {
     providerId: 'kitsu',
     displayName: 'Kitsu',
-    supportStatus: 'unsupported',
+    supportStatus: 'available',
+    authentication: 'password',
     scopes: [],
     supportsPkce: false,
   },
   {
     providerId: 'mangaupdates',
     displayName: 'MangaUpdates',
-    supportStatus: 'planned',
+    supportStatus: 'available',
+    authentication: 'password',
     scopes: [],
     supportsPkce: false,
   },
   {
     providerId: 'bangumi',
     displayName: 'Bangumi',
-    supportStatus: 'planned',
+    supportStatus: 'available',
+    authentication: 'token',
     scopes: [],
-    supportsPkce: true,
+    supportsPkce: false,
   },
 ]
 
@@ -331,6 +337,7 @@ export function mergeTrackerProviderOAuthConfig(
     providerId: provider.providerId,
     displayName: provider.displayName,
     supportStatus: provider.supportStatus,
+    authentication: provider.authentication,
     authorizationEndpoint: provider.authorizationEndpoint,
     clientId: override.clientId ?? provider.clientId,
     redirectUri: override.redirectUri ?? provider.redirectUri,

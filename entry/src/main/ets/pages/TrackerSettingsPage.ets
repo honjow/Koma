@@ -1,3 +1,4 @@
+import { TrackerDirectConnectionService, DirectTrackerProviderId } from '../model/TrackerDirectConnectionService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { pasteboard } from '@kit.BasicServicesKit'
@@ -12,6 +13,7 @@ import {
   DEFAULT_TRACKER_ACCOUNTS,
   TrackerComicMappingSummary,
   TRACKER_PROVIDER_CONFIGS,
+  TRACKER_REMOTE_PROVIDER_IDS,
   TrackerAccount,
   TrackerCredentialSecretStore,
   TrackerOAuthStartPreparation,
@@ -87,6 +89,10 @@ export struct TrackerSettingsPage {
   @Local private preparedAuthorizationUrl: string = ''
   @Local private oauthCallbackUris: Record<string, string> = {}
   @Local private completingProviderId: string = ''
+  // Direct-login secrets live only in this form. The connection service puts the
+  // verified token in AssetStore; neither password nor token enters preferences.
+  @Local private directUsername: string = ''
+  @Local private directSecret: string = ''
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
 
   private context(): common.UIAbilityContext {
@@ -103,6 +109,19 @@ export struct TrackerSettingsPage {
 
   aboutToAppear(): void {
     void this.reloadSettings()
+  }
+
+  aboutToDisappear(): void {
+    this.clearDirectCredentials()
+  }
+
+  private clearDirectCredentials(): void {
+    this.directUsername = ''
+    this.directSecret = ''
+  }
+
+  private isDirectProvider(provider: TrackerProviderConfig): boolean {
+    return provider.authentication === 'token' || provider.authentication === 'password'
   }
 
   @Monitor('refreshRevision')
@@ -247,7 +266,8 @@ export struct TrackerSettingsPage {
     if (!this.secureStorageAvailable) {
       return s('tracker_action_secure_storage_unavailable')
     }
-    if (configuredProvider.clientId === undefined || configuredProvider.redirectUri === undefined) {
+    if (!this.isDirectProvider(provider) &&
+      (configuredProvider.clientId === undefined || configuredProvider.redirectUri === undefined)) {
       return s('tracker_action_needs_config')
     }
     return s('tracker_action_connect')
@@ -255,10 +275,13 @@ export struct TrackerSettingsPage {
 
   private canPrepareConnect(provider: TrackerProviderConfig): boolean {
     const configuredProvider = this.configuredProvider(provider)
-    return !this.loading && provider.supportStatus === 'available' &&
-      this.secureStorageAvailable &&
-      configuredProvider.clientId !== undefined &&
-      configuredProvider.redirectUri !== undefined
+    if (this.loading || this.busyProviderId.length > 0 || this.refreshingProviderId.length > 0 ||
+      provider.supportStatus !== 'available' || !this.secureStorageAvailable) return false
+    if (this.isDirectProvider(provider)) {
+      return (provider.authentication === 'token' ? this.directSecret.trim().length : this.directSecret.length) > 0 &&
+        (provider.authentication !== 'password' || this.directUsername.trim().length > 0)
+    }
+    return configuredProvider.clientId !== undefined && configuredProvider.redirectUri !== undefined
   }
 
   private canDisconnectProvider(provider: TrackerProviderConfig): boolean {
@@ -270,9 +293,10 @@ export struct TrackerSettingsPage {
   private canRefreshProvider(provider: TrackerProviderConfig): boolean {
     const account = this.findAccount(provider)
     return this.secureStorageAvailable &&
+      !this.loading && this.busyProviderId.length === 0 &&
       this.refreshingProviderId.length === 0 &&
       provider.supportStatus === 'available' &&
-      (provider.providerId === 'anilist' || provider.providerId === 'myanimelist') &&
+      TRACKER_REMOTE_PROVIDER_IDS.includes(provider.providerId) &&
       account.credentialAccountKey !== undefined
   }
 
@@ -307,7 +331,26 @@ export struct TrackerSettingsPage {
     })
   }
 
+  private async connectDirectProvider(providerId: DirectTrackerProviderId, username: string, secret: string): Promise<void> {
+    if (this.loading || this.busyProviderId.length > 0 || !this.secureStorageAvailable) return
+    this.busyProviderId = providerId
+    try {
+      const result = await new TrackerDirectConnectionService(this.context()).connect(providerId, username, secret)
+      if (result.preferences !== undefined) this.applyPreferences(result.preferences)
+      if (result.ok) this.clearDirectCredentials()
+      this.showToast(s(result.ok ? 'tracker_callback_connected' : 'tracker_detail_connect_failed'))
+    } catch (_) {
+      this.showToast(s('tracker_detail_connect_failed'))
+    } finally { this.busyProviderId = '' }
+  }
+
   private prepareConnect(provider: TrackerProviderConfig): void {
+    if (this.isDirectProvider(provider)) {
+      if (this.canPrepareConnect(provider)) {
+        void this.connectDirectProvider(provider.providerId as DirectTrackerProviderId, this.directUsername, this.directSecret)
+      }
+      return
+    }
     if (!this.canPrepareConnect(provider)) {
       this.preparedAuthorizationUrl = ''
       this.authPreparationMessageKey = !this.secureStorageAvailable
@@ -759,7 +802,7 @@ export struct TrackerSettingsPage {
           kind: 'danger',
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.busyProviderId.length === 0,
+          isEnabled: !this.loading && this.busyProviderId.length === 0 && this.refreshingProviderId.length === 0,
           action: () => {
             this.confirmDisconnectAccount(provider)
           },
@@ -779,6 +822,30 @@ export struct TrackerSettingsPage {
       }
     }
     .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private ProviderDirectConnectionForm(provider: TrackerProviderConfig) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      if (provider.authentication === 'password') {
+        KomaFormTextField({
+          label: s(provider.providerId === 'kitsu' ? 'tracker_account_email' : 'common_username'),
+          value: this.directUsername,
+          isEnabled: !this.loading && this.busyProviderId.length === 0,
+          change: (value: string) => { this.directUsername = value },
+        })
+      }
+      KomaFormTextField({
+        label: s(provider.authentication === 'token' ? 'tracker_personal_access_token' : 'common_password'),
+        value: this.directSecret,
+        isPassword: true,
+        isEnabled: !this.loading && this.busyProviderId.length === 0,
+        change: (value: string) => { this.directSecret = value },
+        submit: () => { this.prepareConnect(provider) },
+      })
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_MD })
   }
 
   @Builder
@@ -872,7 +939,9 @@ export struct TrackerSettingsPage {
           this.ProviderNavigationRow(provider)
         } else {
           this.ProviderRow(provider)
-          if (provider.supportStatus === 'available') {
+          if (this.isDirectProvider(provider) && !this.canDisconnectProvider(provider)) {
+            this.ProviderDirectConnectionForm(provider)
+          } else if (provider.supportStatus === 'available' && !this.isDirectProvider(provider)) {
             this.ProviderOAuthConfigForm(provider)
           }
           if (this.findAccount(provider).status === 'auth_pending') {
@@ -1038,7 +1107,7 @@ export struct TrackerSettingsPage {
         }
         if (this.providerId.length > 0) {
           ForEach(this.visibleProviders(), (provider: TrackerProviderConfig) => {
-            if (provider.supportStatus === 'available') {
+            if (provider.supportStatus === 'available' && !this.isDirectProvider(provider)) {
               ListItem() {
                 this.ProviderOAuthConfigActions(provider)
               }

@@ -1,3 +1,6 @@
+import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
+import { KitsuTrackerClient } from './KitsuTrackerClient'
+import { BangumiTrackerClient, MangaUpdatesTrackerClient, RemoteTrackerProfile } from './AdditionalTrackerClients'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import {
@@ -47,12 +50,15 @@ export interface TrackerAccountRefreshServiceOptions {
   secretStore?: TrackerCredentialSecretStore
   aniListClient?: AniListTrackerClient
   myAnimeListClient?: MyAnimeListTrackerClient
+  bangumiClient?: BangumiTrackerClient
+  mangaUpdatesClient?: MangaUpdatesTrackerClient
+  kitsuClient?: KitsuTrackerClient
 }
 
 interface TrackerProfileFetchResult {
   ok: boolean
   expired: boolean
-  profile?: AniListTrackerProfile | MyAnimeListTrackerProfile
+  profile?: AniListTrackerProfile | MyAnimeListTrackerProfile | RemoteTrackerProfile
 }
 
 interface TrackerAccountRefreshProviderOutcome {
@@ -65,12 +71,18 @@ export class TrackerAccountRefreshService {
   private secretStore: TrackerCredentialSecretStore
   private aniListClient?: AniListTrackerClient
   private myAnimeListClient?: MyAnimeListTrackerClient
+  private bangumiClient?: BangumiTrackerClient
+  private mangaUpdatesClient?: MangaUpdatesTrackerClient
+  private kitsuClient?: KitsuTrackerClient
 
   constructor(context: common.UIAbilityContext, options: TrackerAccountRefreshServiceOptions = {}) {
     this.context = context
     this.secretStore = options.secretStore ?? new AssetStoreTrackerCredentialSecretStore()
     this.aniListClient = options.aniListClient ?? new AniListTrackerClient(new HarmonyAniListTrackerHttpAdapter())
     this.myAnimeListClient = options.myAnimeListClient ?? new MyAnimeListTrackerClient(new HarmonyMyAnimeListTrackerHttpAdapter())
+    this.bangumiClient = options.bangumiClient ?? new BangumiTrackerClient()
+    this.mangaUpdatesClient = options.mangaUpdatesClient ?? new MangaUpdatesTrackerClient()
+    this.kitsuClient = options.kitsuClient ?? new KitsuTrackerClient()
   }
 
   async refreshAccounts(preferredProviderId?: TrackerProviderId, now: number = Date.now()): Promise<TrackerAccountRefreshSummary> {
@@ -166,7 +178,8 @@ export class TrackerAccountRefreshService {
         profile: {
           username: profileResult.profile.username,
           displayName: profileResult.profile.displayName,
-          providerUserId: profileResult.profile.providerUserId,
+          providerUserId: providerId === 'mangaupdates'
+            ? account.profile?.providerUserId ?? profileResult.profile.providerUserId : profileResult.profile.providerUserId,
         },
         connectedAt: account.connectedAt ?? now,
         lastSyncAt: now,
@@ -213,10 +226,13 @@ export class TrackerAccountRefreshService {
   }
 
   private isSupportedProvider(providerId: TrackerProviderId): boolean {
-    return providerId === 'anilist' || providerId === 'myanimelist'
+    return TRACKER_REMOTE_PROVIDER_IDS.includes(providerId)
   }
 
   private hasClient(providerId: TrackerProviderId): boolean {
+    if (providerId === 'kitsu') return this.kitsuClient !== undefined
+    if (providerId === 'bangumi') return this.bangumiClient !== undefined
+    if (providerId === 'mangaupdates') return this.mangaUpdatesClient !== undefined
     if (providerId === 'anilist') {
       return this.aniListClient !== undefined
     }
@@ -243,6 +259,19 @@ export class TrackerAccountRefreshService {
   }
 
   private async fetchProfile(providerId: TrackerProviderId, accessToken: string): Promise<TrackerProfileFetchResult> {
+    if (providerId === 'kitsu') {
+      if (this.kitsuClient === undefined) return { ok: false, expired: false }
+      const result = await this.kitsuClient.fetchProfile(accessToken)
+      return { ok: result.ok && result.value !== undefined, profile: result.value,
+        expired: result.errorCode === 'unauthorized' || result.errorCode === 'auth_required' }
+    }
+    if (providerId === 'bangumi' || providerId === 'mangaupdates') {
+      const client = providerId === 'bangumi' ? this.bangumiClient : this.mangaUpdatesClient
+      if (client === undefined) return { ok: false, expired: false }
+      const result = await client.fetchProfile(accessToken)
+      return { ok: result.ok && result.value !== undefined, profile: result.value,
+        expired: result.errorCode === 'unauthorized' || result.errorCode === 'auth_required' }
+    }
     if (providerId === 'anilist' && this.aniListClient !== undefined) {
       const result = await this.aniListClient.fetchProfile(accessToken)
       return {

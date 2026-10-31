@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：正式0.1.4已发布，正在继续修复剩余源问题。
+当前工作：继续补齐参考应用功能差异；追踪服务本地实现和表单验证已完成，真实账号路径待条件。
 
-设备：197网络对照后已恢复并释租；237已恢复并留给用户登录。200禁止操作，四私库搁置。
+设备：197本轮追踪表单验证后已恢复并释租；237本轮未操作。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T11:37:35+08:00",
+  "updatedAt": "2026-10-31T21:14:38+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "亮度滤镜已推送，正在核CI和追踪服务合同。",
-  "nextAction": "核第八批CI，并明确追踪服务接入方案。",
+  "activity": "追踪连接表单已验证，设备已恢复，正在准备交付。",
+  "nextAction": "完成第九批统一提交和精确CI核对。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197亮度滤镜验证后原数据、电源恢复并释租。"
+      "hap": "197两轮追踪表单验证后已恢复原HAP、数据与电源并释租。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "亮度滤镜已推，CI进行中",
-      "stage": "核第八批CI及追踪服务合同",
+      "status": "追踪表单已验并恢复，待提交CI",
+      "stage": "第九批统一提交及CI待核",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "亮度滤镜已具名验证并推送，CI正在运行；追踪服务接口调查中。",
-      "remaining": "核第八批精确CI，继续调查并实现已授权追踪服务差异。",
+      "result": "三项追踪连接表单已具名验证，设备已恢复；真实账号路径尚未验证。",
+      "remaining": "完成第九批统一提交和精确CI；用户目前无三项服务账号，登录成功、Native profile、绑定及远端同步保留未验，不继续轮询账号。",
       "remainingActions": [
-        "核第八批精确CI，继续调查并实现已授权追踪服务差异。"
+        "完成第九批统一提交和精确CI；用户目前无三项服务账号，登录成功、Native profile、绑定及远端同步保留未验，不继续轮询账号。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4733,7 +4733,18 @@
         "第七批精确CI41163450398 completed/success，release job skipped，无发版；归档按原设备具名范围收口。亮度build058 HAP6f321d已装197，全局显示→亮度滤镜默认四开关关闭，196截图Root亲看；正在普通保存灰度。build059亮度采样及readback日志成功10s702ms，将同场安装续验。NextE 34s10ms与NextN 26s695ms仅编译成功，未设备验收。",
         "197全局197保存grayscale=true；198安装build059后冷入Blue正文灰度，Root亲看。202正亮度49、Window readback 0.4900000095及反色画面；发现slider文本停0，修独立@Param控件后build061成功。203安装061、负亮度-52，标签与slider一致，Window读回0.01、图片暗层可见；204关闭独立亮度后restored=-1且扩展sheet显示RGBA；205保存R240/G52/B0/A76，菜单六模式齐，206正在选滤色看全图。最初display189误复用143接收目的名，实际143七JSON+30prefs与独立187回执逐字同，未改旧产品数据；fresh190正确基线。lease20261031-032302-84dbe78e仍持有、86400000，设备尚未恢复。",
         "197 build061：206 screen模式RGBA240/52/0/76正文实际浅红、HUD/页码白；208 multiply实际全图深红；211连续滚动相邻两章图片均保滤镜，Root亲看。212开启-52后正常关闭Reader回书架，Window requested=.01读回、退出restored=-1。213 fresh190七JSON+30prefs共37逐字同、无extra，比较 library-automation/display-restored-data.json；214 SLEEP/120000/Override10000，lease20261031-032302-84dbe78e released且无active。持久冷读、窗口late取消/准确恢复及3locale测试通过，build061 11s116。仅screen/multiply实图，其他四模式仅菜单与映射编译；Legacy仅接线编译、NextE/N仅编译，不外推全组合或原图导出。两仓提交pin及CI待审。",
-        "第八批reader-kit/main b3aac7c092c4a3bb8d303160674880c5b67f29f7及Koma/master a15c468cce9ac4ac6dd6a8dd62070299e0301d87已推，workflow已pin该kit；精确CI41165157510 in_progress。061 HAP实际SHA9b9b8c9afb19c18eba0e496065d407bb957af4772e9e18877ac3cf4f41e3d645，冻结candidate-display061-9b9b8c9a.hap；203起实际安装061，manifest context沿用旧display-build058字样，display-acceptance-binding.json如实说明，未改历史回执。最后差异更多追踪服务原接口调查中，UI接入待决定，尚未实现。"
+        "第八批reader-kit/main b3aac7c092c4a3bb8d303160674880c5b67f29f7及Koma/master a15c468cce9ac4ac6dd6a8dd62070299e0301d87已推，workflow已pin该kit；精确CI41165157510 in_progress。061 HAP实际SHA9b9b8c9afb19c18eba0e496065d407bb957af4772e9e18877ac3cf4f41e3d645，冻结candidate-display061-9b9b8c9a.hap；203起实际安装061，manifest context沿用旧display-build058字样，display-acceptance-binding.json如实说明，未改历史回执。最后差异更多追踪服务原接口调查中，UI接入待决定，尚未实现。",
+        "进度docs提交63bfac4ac67bb7087885383cdd598a8b88d6979c已推，workflow并发取消旧41165157510；同产品树精确CI41165212291（head63bfac4a）in_progress，旧CI不重跑、不当失败。已核固定Mihon Bangumi OAuth、MangaUpdates账号登录及Kitsu GraphQL；Bangumi个人token与MU账号表单具体UI已异步询问，等待仅限制UI，接口准备继续。",
+        "第八批CI41165212291 head63bfac4ac67bb7087885383cdd598a8b88d6979c completed/success，具名范围收口。第九批Bangumi/MU后端候选已写客户端、账户刷新、匹配、同步、pending重试及安全连接事务；build063/065类型错误修后064/066成功，066耗时11s402ms。生产客户端创建回读、远端state保留、自动不回退、失败重试、凭据字节/提交回滚/旧凭据清理失败等执行通过，原AniList/MAL仍通过。官方公开搜索两站HTTP200：Bangumi手工limit3三条均小说，经参考同样漫画过滤排除，不称漫画正结果；MU 25条、生产解析One Piece series55099564912。新UI尚待用户答复，provider available和表单未改；未账号/设备验收、未提交。Kitsu官方GraphQL和登录条件核对中，不称已接通。",
+        "第九批AdditionalTrackerClients、DirectConnectionService、三个消费者/共享provider边界及pending已接；build066成功。TrackerSettingsPage仅加未调用的私有连接处理器，无新可见表单，planned/unsupported状态未改。原设置状态测试仅补DiagnosticLogger host绑定后通过；原进度服务覆盖新增两客户端及安全事务通过。Kitsu公开GraphQL HTTP200无errors，官方server skip_client_authentication_for_password_grant=true，仅调查、尚未实现。新UI本轮已询问尚无答复，依赖答复的界面和安装验收待办保留；无真实账号或Native HTTP验收。066后仅将helper不存在的toast键替换为既有tracker_callback_connected/tracker_detail_connect_failed，未安装、不称设备通过。进度页8766实际HTTP200；第八批CI成功不重跑。",
+        "用户已明确采用Bangumi个人令牌及MangaUpdates用户名密码的现有详情表单和完整匹配/确认/同步，不再重复询问；Root正在接UI和真机验证，尚未验收。",
+        "第九批已接采用的Bangumi个人token/MU用户名密码UI，新增服务available，共享能力表贯通账户刷新、搜索、pending及进度；审出hasSearchClient遗漏后已修，真实mapping service生产测试通过，非静态字符串检查。build068通过；197 lease20261031-125603-f0682c47，freshbaseline215与实际原HAP已保存，awake216读回AWAKE/86400000，install217进行中。账户问题已异步询问，真实账号和Native HTTP尚未验。",
+        "197 build068：219/220账号列表四服务；221 Bangumi空token按钮禁用，222虚构无效token掩码且可连接，223点击后连接失败Toast、仍未连接；224 MU空表单，225填写虚构文本但不提交登录，226离开重进凭据清空。用户最新明确暂时没有Bangumi/MU账号，真实认证、远端绑定及同步未验，不再轮询；227首选项30文件未新增且不含三个测试文本。228恢复中。纠正此前新HAP已保存说法：216 recv stdout实际permission denied虽exit0，无新备份；215原bundle完整回执与213 original-bundle逐字同含updateTime，按已保存original197-38d245恢复，不冒新保存；baseline215七JSON/30prefs真实存在。Kitsu UI方案已询问未答，unsupported代码不改。",
+        "228原HAP恢复安装成功，七JSON及30prefs与baseline215逐字相等、无额外prefs；229 SLEEP/normal120000/Override10000，lease20261031-125603-f0682c47 released。候选 .hvigor/outputs/feature-parity-implementation-20261031/candidate-tracker068-df532ff8.hap SHA df532ff8acc0c27b061323c0b9addeb7e2794dfc7fec11477c1714f55ea52dc4；tracker-acceptance-binding.json详列215–229、账号未验和216失败纠正。两服务代码和表单具名已验，待提交/CI；用户无账号，认证后绑定/同步未验；Kitsu UI待答。",
+        "用户最新已明确采用Kitsu完整接入，Root实施中；Bangumi/MU的215–229具名验收冻结，不扩大重复验证，Kitsu新表单另作具名验证。",
+        "Kitsu生产client已接官方password grant（不复制参考client_secret）、GraphQL currentAccount/search/myLibraryEntry/create/update并回读；update只id/progress，官方在线schema证其余字段可选，见 .hvigor/outputs/feature-parity-implementation-20261031/kitsu-inputs.json。同一能力表贯通refresh/search/pending/sync；build071通过。scripts/test_tracker_progress_sync.cjs实际覆盖安全登录→匹配候选→confirmComicMapping→进度写入/保留ON_HOLD隐私评分→失败队列重试，属host绑定，非Native账号验收。197 230新baseline及连续awake，231安装071、232列表5 provider、233 Kitsu空邮箱密码禁用、234虚构文本掩码及可连接但未提交、235重进两项清空、236 prefs无新文件且不含输入；237恢复中。真实账号均未提供，Kitsu账号问题异步待答，不称无账号或已验；Bangumi/MU 215–229冻结不重测。",
+        "Kitsu本场237恢复回执completed无Fail，37文件逐字等fresh230；238 SLEEP/Override10000/normal120000，lease20261031-130858-49494df6 released。071候选冻结 candidate-tracker071-d4a8e88a.hap，SHA d4a8e88aeecfb2ae620547d70603fb39e2dcb3e3919f6b9ac2a070eeb6c7dcfb。证据 .hvigor/outputs/feature-parity-implementation-20261031/kitsu-acceptance-binding.json。两轮具名表单待统一提交/CI，真实账号路径未验；Kitsu账号问题待答，不推定无账号。",
+        "用户call_9b477acd314a4525992533ebc11011d7明确Kitsu也暂时没有账号；Bangumi、MangaUpdates及Kitsu真实账号均缺，成功登录、Native profile、绑定和远端同步未验，不继续轮询。其余本地实现和具名表单范围已完成，待本次提交CI。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -4744,7 +4755,9 @@
         "fourthBatchAllowedDifference": "用户call_db09cabf23b94b828cb018cef58ef7a7采用：Settings阅读预载旁增加仅Wi-Fi开关、更新跳过菜单增加未到预计日期；均默认关闭，沿用原行/菜单，Reader半模态不新增全局网络开关。",
         "fifthBatchAllowedDifference": "用户call_c7bd96ed59a7462aa1885289b0183258采用：历史右上chart_bar进入统计；全部/月/年，展示时长、页数、作品数、连续天数及每日图，另分组书库章节已读下载；沿用原控件，仅记录真实前台会话，不为旧历史补时长，数据随备份。",
         "sixthBatchAllowedDifference": "用户call_ee93c3eb255247029310b7ff47c37fda采用：原分类管理增加独立智能分类组及创建、编辑、排序、删除；八类包含/排除/不限规则，书架分类栏动态更新并随备份；不改手动分类，不混入加入分类选择器。",
-        "archiveAndFilterDecision": "用户通过call_c892与call_e872明确采用亮度滤镜及归档格式两组方案；具体亮度入口与默认按该决定执行。多归档支持RAR/CBR、7z/CB7、TAR/CBT、图片型EPUB，原导入页标题漫画归档并扩展选择器，普通自然顺序，EPUB按spine取图，文字EPUB不渲染。"
+        "archiveAndFilterDecision": "用户通过call_c892与call_e872明确采用亮度滤镜及归档格式两组方案；具体亮度入口与默认按该决定执行。多归档支持RAR/CBR、7z/CB7、TAR/CBT、图片型EPUB，原导入页标题漫画归档并扩展选择器，普通自然顺序，EPUB按spine取图，文字EPUB不渲染。",
+        "trackerAllowedDifference": "用户call_0d45192172ec4b98b9b1dc5bbf1e8c91明确采用：Bangumi个人令牌、MangaUpdates用户名密码，使用现有详情表单并提供完整匹配、确认和同步流程。",
+        "kitsuAllowedDifference": "用户call_45d3ff5aed77479f99474ae956d8be80采用Kitsu完整接入：现有追踪详情邮箱/密码登录、匹配确认及同步；密码仅用于登录，token安全存储且不备份。"
       }
     }
   ],
@@ -11444,6 +11457,117 @@
         "https://github.com/honjow/Koma/actions/runs/41165157510",
         ".hvigor/outputs/feature-parity-implementation-20261031/display-acceptance-binding.json"
       ]
+    },
+    {
+      "id": "feature-parity-tracker-api-investigation-20261031",
+      "at": "2026-10-31T11:39:08+08:00",
+      "title": "追踪服务接口准备",
+      "detail": "当前产品树CI运行中，更多追踪服务接口调查开始，具体UI待用户决定。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41165212291"
+      ]
+    },
+    {
+      "id": "feature-parity-tracker-backend-built-20261031",
+      "at": "2026-10-31T11:51:03+08:00",
+      "title": "追踪服务后端候选构建",
+      "detail": "亮度滤镜精确CI成功；Bangumi及MangaUpdates后端候选已构建，界面和账号验证待完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41165212291"
+      ]
+    },
+    {
+      "id": "feature-parity-tracker-ui-pending-20261031",
+      "at": "2026-10-31T11:53:36+08:00",
+      "title": "追踪服务候选范围核对",
+      "detail": "Bangumi及MangaUpdates后端候选已构建，界面方案待决定，真实账号与Native HTTP未验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-tracker-ui-adopted-20261031",
+      "at": "2026-10-31T20:50:49+08:00",
+      "title": "追踪服务连接方式已采用",
+      "detail": "用户采用Bangumi个人令牌及MangaUpdates用户名密码，并要求完整匹配、确认和同步；实施中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-tracker-native-start-20261031",
+      "at": "2026-10-31T20:58:09+08:00",
+      "title": "追踪服务进入设备验证",
+      "detail": "连接界面与共享能力表已接，本地构建通过；设备安装及账号相关验证尚未完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-tracker-forms-native-20261031",
+      "at": "2026-10-31T21:03:15+08:00",
+      "title": "追踪连接表单实测",
+      "detail": "空值、掩码、失败反馈及离开清空已核；用户无账号，真实同步未验，设备恢复中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-tracker-restored-20261031",
+      "at": "2026-10-31T21:05:10+08:00",
+      "title": "追踪表单验收及恢复",
+      "detail": "两服务连接表单已具名验证，原数据和电源恢复；真实账号同步未验，源码待交付。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/tracker-acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "feature-parity-kitsu-adopted-20261031",
+      "at": "2026-10-31T21:05:39+08:00",
+      "title": "Kitsu完整接入已采用",
+      "detail": "用户采用现有追踪详情邮箱密码登录、匹配确认和同步，正在实现。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "feature-parity-kitsu-native-form-20261031",
+      "at": "2026-10-31T21:13:17+08:00",
+      "title": "Kitsu表单与生产逻辑验证",
+      "detail": "生产逻辑及设备表单已核；真实账号未验，设备恢复进行中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/kitsu-inputs.json"
+      ]
+    },
+    {
+      "id": "feature-parity-kitsu-restored-20261031",
+      "at": "2026-10-31T21:14:04+08:00",
+      "title": "Kitsu表单验证后恢复",
+      "detail": "本场原数据及电源已恢复，三项追踪表单具名范围待统一交付；真实账号路径未验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/kitsu-acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "feature-parity-tracker-accounts-unavailable-20261031",
+      "at": "2026-10-31T21:14:38+08:00",
+      "title": "追踪账号验证边界",
+      "detail": "用户目前没有三项服务账号，真实登录及远端同步保留未验，本地实现待交付。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": []
     }
   ],
   "reportAgeAudit": {

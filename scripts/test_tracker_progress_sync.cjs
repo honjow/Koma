@@ -7,6 +7,7 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.resolve(__dirname, '../entry/src/main/ets')
 const stores = new Map(), modules = new Map(), networkCalls = []
+let nextDirectKey = 0
 let failNextPreferenceFlush = false
 let nextNetworkResponse = { responseCode: 200, result: '{}' }, destroyed = 0
 const bindings = {
@@ -19,7 +20,7 @@ const bindings = {
       hasSync(key) { return data.has(key) }, deleteSync(key) { data.delete(key) },
       async put(key, value) { data.set(key, value) }, putSync(key, value) { data.set(key, value) }, async flush() { if (failNextPreferenceFlush) { failNextPreferenceFlush = false; throw Error('owned_flush_failure') } } }
   } } },
-  '@kit.ArkTS': { buffer: Buffer },
+  '@kit.ArkTS': { buffer: Buffer, util: { generateRandomUUID: () => 'owned-direct-' + (++nextDirectKey), TextEncoder: class { encodeInto(s) { return new Uint8Array(Buffer.from(s)) } } } },
   '@kit.NetworkKit': { http: { RequestMethod: { GET: 'GET', POST: 'POST' },
     HttpDataType: { STRING: 0 }, createHttp() {
       return { async request(url, options) { networkCalls.push({ url, options }); return nextNetworkResponse },
@@ -112,6 +113,118 @@ async function runProvider(providerId) {
   assert.equal(calls.length, beforeInvalid)
   console.log(providerId + ': production first push, incomplete chapter, failure queue/retry and explicit status intent checked')
 }
+async function runAdditionalProvider(providerId) {
+  stores.clear();let count, remoteStatus=providerId==='bangumi'?4:4, fail=false;const calls=[];
+  const preferences=new Map([
+    [model.TRACKER_ACCOUNTS_KEY,JSON.stringify([{providerId,status:'connected',credentialAccountKey:'owned-test'}])],
+    [model.TRACKER_COMIC_MAPPINGS_KEY,JSON.stringify([{providerId,comicId:'owned-book',providerTitleId:'123',mappingState:'confirmed',userConfirmed:true,createdAt:1}])],
+    [model.TRACKER_AUTO_SYNC_ENABLED_KEY,true],[model.TRACKER_UPDATE_STRATEGY_KEY,'on_chapter_complete']]);
+  stores.set(model.TRACKER_PREFERENCES_STORE_NAME,preferences);
+  const adapter={async request(request){
+    calls.push(clone(request));if(fail)return {status:503,body:'{}'};
+    if(request.url.includes('/search/subjects')||request.url.endsWith('/series/search')) return {status:200,body:JSON.stringify(providerId==='bangumi'?{data:[{id:123,name:'Owned manga',platform:'漫画'}]}:{results:[{record:{series_id:123,title:'Owned manga'}}]})};
+    if(request.method==='GET')return count===undefined?{status:404,body:'{}'}:{status:200,body:JSON.stringify(providerId==='bangumi'?{type:remoteStatus,ep_status:count}:{list_id:remoteStatus,status:{chapter:count}})};
+    const body=JSON.parse(request.body);
+    if(providerId==='bangumi'){count=body.ep_status;if(body.type!==undefined)remoteStatus=body.type;}
+    else {if(body[0].status)count=body[0].status.chapter;else count=0;remoteStatus=body[0].list_id;}
+    return {status:204,body:''};
+  }};
+  const extra=load('model/AdditionalTrackerClients');
+  const client=providerId==='bangumi'?new extra.BangumiTrackerClient(adapter):new extra.MangaUpdatesTrackerClient(adapter);
+  const pending=new TrackerPendingSyncStore({});
+  const service=new TrackerProgressSyncService({},{pendingStore:pending,
+    secretStore:{isAvailable:()=>true,readToken:async()=>Buffer.from('owned-token')},
+    ...(providerId==='bangumi'?{bangumiClient:client}:{mangaUpdatesClient:client})});
+  const progress={comicId:'owned-book',chapterId:'c2',pageIndex:0,totalPages:1,progressRatio:1,completed:true,updatedAt:1};
+  assert.equal((await service.pushReadingProgress(progress,['c1','c2'],'on_chapter_complete',10)).status,'synced');
+  assert.equal(count,2);remoteStatus=4;const before=calls.length;
+  await service.pushReadingProgress(progress,['c1','c2'],'on_chapter_complete',11);assert.equal(calls.length,before+1,'remote count must prevent a needless write');
+  await service.pushReadingProgress({...progress,chapterId:'c1'},['c1','c2'],'manual',12);assert.equal(count,1);assert.equal(remoteStatus,4,'progress-only updates preserve on-hold state');
+  fail=true;assert.equal((await service.pushReadingProgress(progress,['c1','c2'],'manual',13)).queued,true);
+  fail=false;assert.equal((await service.retryPendingProgress(20,14)).syncedCount,1);assert.equal(count,2);
+  assert.ok(calls.every(c=>c.token==='owned-token'&&!c.url.includes('owned-token')&&!String(c.body).includes('owned-token')));
+  const {TrackerMappingSearchService}=load('model/TrackerMappingSearchService');
+  const search=new TrackerMappingSearchService({},{secretStore:{isAvailable:()=>true,readToken:async()=>Buffer.from('owned-token')},
+    ...(providerId==='bangumi'?{bangumiClient:client}:{mangaUpdatesClient:client})});
+  const matched=await search.refreshComicMappingCandidates({id:'unmapped-book',title:'Owned manga'},providerId,15);
+  assert.equal(matched.mappedCount,1,'connected provider must traverse actual mapping service and client');
+  assert.equal(matched.results[0].mapping.providerTitleId,'123');
+  assert.equal(matched.results[0].mapping.userConfirmed,false,'search never silently binds');
+  console.log(providerId+': actual client create/readback, state preservation, monotonic auto-sync and failed retry checked');
+}
+
+async function runKitsuProvider() {
+  stores.clear();let entry,fail=false;const calls=[],assets=new Map();
+  const secretStore={isAvailable:()=>true,async writeToken(r){assets.set(r.accountKey,Buffer.from(r.secretBytes));return {ok:true}},
+    async readToken(r){return assets.get(r.accountKey)},async deleteAccount(r){assets.delete(r.accountKey);return {ok:true}}};
+  const client=new (load('model/KitsuTrackerClient').KitsuTrackerClient)({async request(request){
+    calls.push(clone(request));if(fail)return {status:503,body:'{}'};
+    if(request.url.endsWith('/oauth/token'))return {status:200,body:JSON.stringify({access_token:'owned-kitsu-token'})};
+    const body=JSON.parse(request.body),q=body.query;let data;
+    if(q.includes('currentAccount'))data={currentAccount:{id:'42',profile:{name:'Owned reader'}}};
+    else if(q.includes('searchMangaByTitle'))data={searchMangaByTitle:{nodes:[{id:'38',titles:{preferred:'One Piece'}}]}};
+    else if(q.includes('findMangaById'))data={findMangaById:{myLibraryEntry:entry}};
+    else {
+      const input=body.variables.input,isNew=q.includes('KomaAdd');
+      if(isNew)entry={id:'entry-1',progress:input.progress,status:input.status,private:true,rating:80};
+      else {assert.deepEqual(Object.keys(input).sort(),['id','progress']);entry.progress=input.progress;}
+      data={libraryEntry:{[isNew?'create':'update']:{errors:[],libraryEntry:{id:entry.id}}}};
+    }
+    return {status:200,body:JSON.stringify({data})};
+  }});
+  const direct=new (load('model/TrackerDirectConnectionService').TrackerDirectConnectionService)({},{secretStore,kitsuClient:client});
+  const login=await direct.connect('kitsu','owned@example.invalid','owned-test-password',1);assert.equal(login.ok,true);
+  const form=new URLSearchParams(calls[0].body);assert.equal(form.get('grant_type'),'password');
+  assert.equal(form.get('username'),'owned@example.invalid');assert.equal(form.has('client_secret'),false);
+  assert.ok(!JSON.stringify(login.preferences).includes('owned-test-password'));
+  const prefs=new model.TrackerPreferencesStore({},secretStore);
+  await prefs.saveSyncPreferenceChanges({autoSyncEnabled:true,updateStrategy:'on_chapter_complete'});
+  const search=new (load('model/TrackerMappingSearchService').TrackerMappingSearchService)({},{secretStore,kitsuClient:client});
+  const found=await search.refreshComicMappingCandidates({id:'owned-kitsu-book',title:'One Piece'},'kitsu',2);
+  assert.equal(found.mappedCount,1);assert.equal(found.results[0].mapping.userConfirmed,false);
+  await prefs.confirmComicMapping('owned-kitsu-book','kitsu',3);
+  const progress={comicId:'owned-kitsu-book',chapterId:'c2',pageIndex:0,totalPages:1,progressRatio:1,completed:true,updatedAt:3};
+  const sync=new TrackerProgressSyncService({},{secretStore,kitsuClient:client});
+  assert.equal((await sync.pushReadingProgress(progress,['c1','c2'],'manual',3,'kitsu')).status,'synced');
+  assert.equal(entry.progress,2);entry.status='ON_HOLD';
+  assert.equal((await sync.pushReadingProgress({...progress,chapterId:'c1'},['c1','c2'],'manual',4,'kitsu')).status,'synced');
+  assert.equal(entry.status,'ON_HOLD');assert.equal(entry.private,true);assert.equal(entry.rating,80);
+  fail=true;assert.equal((await sync.pushReadingProgress(progress,['c1','c2'],'manual',5,'kitsu')).queued,true);
+  fail=false;assert.equal((await sync.retryPendingProgress(20,6)).syncedCount,1);assert.equal(entry.progress,2);
+  console.log('kitsu: production password grant, secure login, mapping/confirmation, progress-only write and pending retry checked');
+}
+
+async function runDirectConnection() {
+  stores.clear();const assets=new Map();let failDeleteOld=false;
+  const secretStore={isAvailable:()=>true,async writeToken(r){assets.set(r.accountKey,Buffer.from(r.secretBytes).toString());return {ok:true}},
+    async deleteAccount(r){if(failDeleteOld&&r.accountKey==='owned-direct-1')throw Error('owned cleanup failure');assets.delete(r.accountKey);return {ok:true}}};
+  const {TrackerDirectConnectionService}=load('model/TrackerDirectConnectionService');
+  const client={async fetchProfile(){return {ok:true,value:{providerId:'bangumi',providerUserId:'42',username:'owned-user'}}}};
+  const service=new TrackerDirectConnectionService({},{secretStore,bangumiClient:client});
+  let result=await service.connect('bangumi','','owned-token',1);assert.equal(result.ok,true);
+  assert.equal(assets.get('owned-direct-1'),'owned-token','stored bytes must contain exactly the token');
+  assert.ok(!JSON.stringify(result.preferences).includes('owned-token'));
+  failNextPreferenceFlush=true;result=await service.connect('bangumi','','new-owned-token',2);
+  assert.equal(result.ok,false);assert.equal(assets.get('owned-direct-1'),'owned-token');assert.equal(assets.has('owned-direct-2'),false);
+  failDeleteOld=true;result=await service.connect('bangumi','','third-owned-token',3);
+  assert.equal(result.ok,true);assert.equal(assets.get('owned-direct-3'),'third-owned-token');
+  const extra=load('model/AdditionalTrackerClients'),requests=[];
+  const mu=new extra.MangaUpdatesTrackerClient({async request(request){requests.push(clone(request));
+    return {status:200,body:JSON.stringify(request.url.endsWith('/account/login')?
+      {context:{uid:24,session_token:'owned-mu-session'}}:{username:'owned-mu-user'})};}});
+  const muService=new TrackerDirectConnectionService({},{secretStore,mangaUpdatesClient:mu});
+  const connected=await muService.connect('mangaupdates','owned-mu-user','owned-test-password',4);
+  assert.equal(connected.ok,true);
+  const account=connected.preferences.accounts.find(a=>a.providerId==='mangaupdates');
+  assert.equal(account.profile.providerUserId,'24');
+  assert.equal(assets.get(account.credentialAccountKey),'owned-mu-session');
+  assert.ok(!JSON.stringify(connected.preferences).includes('owned-test-password'));
+  assert.ok(!JSON.stringify(connected.preferences).includes('owned-mu-session'));
+  assert.equal(requests[0].method,'PUT');
+  assert.equal(requests[1].token,'owned-mu-session');
+  console.log('Direct connection: verified session, exact secret bytes, rejected commit rollback and post-commit cleanup failure checked');
+}
+
 async function runPreferenceOwner() {
   stores.clear()
   const secretStore = { isAvailable: () => true, readToken: async () => new Uint8Array(Buffer.from('owned-token')),
@@ -160,6 +273,9 @@ async function runPreferenceOwner() {
   console.log('Tracker preference fields, rollback, mapping/config concurrent intents, nested methods and stale profile guard checked')
 }
 async function run() {
+  await runDirectConnection()
+  await runKitsuProvider()
+  await runAdditionalProvider('bangumi'); await runAdditionalProvider('mangaupdates')
   await runProvider('anilist'); await runProvider('myanimelist')
   await runPreferenceOwner()
   // API binding observes options passed by the actual adapter, not real native HTTP delivery.

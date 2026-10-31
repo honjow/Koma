@@ -1,3 +1,6 @@
+import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
+import { KitsuTrackerClient } from './KitsuTrackerClient'
+import { BangumiTrackerClient, MangaUpdatesTrackerClient } from './AdditionalTrackerClients'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
 import { ReadingProgress } from './ComicModels'
@@ -54,6 +57,9 @@ export interface TrackerProgressSyncServiceOptions {
   secretStore?: TrackerCredentialSecretStore
   aniListClient?: AniListTrackerClient
   myAnimeListClient?: MyAnimeListTrackerClient
+  bangumiClient?: BangumiTrackerClient
+  mangaUpdatesClient?: MangaUpdatesTrackerClient
+  kitsuClient?: KitsuTrackerClient
   pendingStore?: TrackerPendingSyncStore
 }
 
@@ -101,6 +107,9 @@ export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
   private secretStore: TrackerCredentialSecretStore
   private aniListClient?: AniListTrackerClient
   private myAnimeListClient?: MyAnimeListTrackerClient
+  private bangumiClient?: BangumiTrackerClient
+  private mangaUpdatesClient?: MangaUpdatesTrackerClient
+  private kitsuClient?: KitsuTrackerClient
   private pendingStore: TrackerPendingSyncStore
 
   constructor(context: common.UIAbilityContext, options: TrackerProgressSyncServiceOptions = {}) {
@@ -108,6 +117,9 @@ export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
     this.secretStore = options.secretStore ?? new AssetStoreTrackerCredentialSecretStore()
     this.aniListClient = options.aniListClient ?? new AniListTrackerClient(new HarmonyAniListTrackerHttpAdapter())
     this.myAnimeListClient = options.myAnimeListClient ?? new MyAnimeListTrackerClient(new HarmonyMyAnimeListTrackerHttpAdapter())
+    this.bangumiClient = options.bangumiClient ?? new BangumiTrackerClient()
+    this.mangaUpdatesClient = options.mangaUpdatesClient ?? new MangaUpdatesTrackerClient()
+    this.kitsuClient = options.kitsuClient ?? new KitsuTrackerClient()
     this.pendingStore = options.pendingStore ?? new TrackerPendingSyncStore(context)
   }
 
@@ -270,7 +282,7 @@ export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
   }
 
   private isSupportedProgressProvider(providerId: TrackerProviderId): boolean {
-    return providerId === 'anilist' || providerId === 'myanimelist'
+    return TRACKER_REMOTE_PROVIDER_IDS.includes(providerId)
   }
 
   private findConfirmedMapping(preferences: TrackerPreferences, comicId: string, providerId?: TrackerProviderId): ComicTrackerMapping | undefined {
@@ -306,6 +318,9 @@ export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
   }
 
   private hasClientForProvider(providerId: TrackerProviderId): boolean {
+    if (providerId === 'kitsu') return this.kitsuClient !== undefined
+    if (providerId === 'bangumi') return this.bangumiClient !== undefined
+    if (providerId === 'mangaupdates') return this.mangaUpdatesClient !== undefined
     if (providerId === 'anilist') {
       return this.aniListClient !== undefined
     }
@@ -321,6 +336,9 @@ export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
     providerTitleId: string,
     providerProgress: number,
   ): Promise<TrackerProviderProgressResult> {
+    if (providerId === 'kitsu') return this.kitsuClient === undefined ? { ok: false } : this.kitsuClient.pushProgress(accessToken, providerTitleId, providerProgress)
+    if (providerId === 'bangumi') return this.bangumiClient === undefined ? { ok: false } : this.bangumiClient.pushProgress(accessToken, providerTitleId, providerProgress)
+    if (providerId === 'mangaupdates') return this.mangaUpdatesClient === undefined ? { ok: false } : this.mangaUpdatesClient.pushProgress(accessToken, providerTitleId, providerProgress)
     if (providerId === 'myanimelist') {
       return this.myAnimeListClient === undefined
         ? { ok: false }
@@ -336,6 +354,9 @@ export class TrackerProgressSyncService implements ReaderTrackerProgressPort {
     accessToken: string,
     providerTitleId: string,
   ): Promise<TrackerProviderProgressResult> {
+    if (providerId === 'kitsu') return this.kitsuClient === undefined ? { ok: false } : this.kitsuClient.fetchProgress(accessToken, providerTitleId)
+    if (providerId === 'bangumi') return this.bangumiClient === undefined ? { ok: false } : this.bangumiClient.fetchProgress(accessToken, providerTitleId)
+    if (providerId === 'mangaupdates') return this.mangaUpdatesClient === undefined ? { ok: false } : this.mangaUpdatesClient.fetchProgress(accessToken, providerTitleId)
     if (providerId === 'myanimelist') {
       return this.myAnimeListClient === undefined
         ? { ok: false }

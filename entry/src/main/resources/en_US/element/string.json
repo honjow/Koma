@@ -961,6 +961,8 @@
     { "name": "tracker_detail_account_status_unavailable", "value": "Account status is unavailable" },
     { "name": "tracker_detail_connect_unavailable", "value": "Account connection is unavailable" },
     { "name": "tracker_detail_connect_failed", "value": "Connection failed" },
+    { "name": "tracker_account_email", "value": "Email" },
+    { "name": "tracker_personal_access_token", "value": "Personal access token" },
     { "name": "tracker_oauth_config_title", "value": "Authorization settings" },
     { "name": "tracker_oauth_config_help", "value": "Enter the Client ID and Redirect URI of your registered app. Copy the authorization link to a browser, then paste the callback URL here to finish." },
     { "name": "tracker_message_loading", "value": "Loading tracking accounts…" },
