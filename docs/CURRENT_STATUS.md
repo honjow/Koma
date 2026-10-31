@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T22:50:36+08:00",
+  "updatedAt": "2026-11-01T00:19:42+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": null,
-  "activity": "后台源更新角标与多源迁移改进已交付。",
-  "nextAction": "本轮两项已收口；其余事项的具体未验范围见各原项。",
+  "activity": "角标同步与迁移优化已交付，其他原事项状态保留。",
+  "nextAction": "按原工作单继续处理尚未完成的具名事项。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master a7678c7132536de69f94be9029c8f9b301725452，精确CI41211137223成功。",
-      "hap": "197已恢复原HAP、37文件及电源并释租。"
+      "appHead": "Koma/master e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7，精确CI41218147233成功。",
+      "hap": "197已恢复原signed HAP、基线数据与电源并释租。"
     },
     {
       "name": "NextE",
@@ -3007,8 +3007,8 @@
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
       "kind": "accepted",
-      "status": "后台源更新角标已验证并交付",
-      "result": "后台检查及浏览角标首显已验证，源码与CI已完成。",
+      "status": "角标同步修复已交付",
+      "result": "书源更新后浏览角标会刷新，管理摘要同步修正已交付。",
       "evidencePoints": [
         "直接产物索引：269/partial-check-existing-method-review.json",
         "本次重开前原已验结果及剩余说明保留：App78f008d246d307695a12ca101c3e3dfdadee65ab已commit/push且精确CI40456280638 completed/success，公共row meta重复incomplete附文/Computed删除；正常行本来无latest/unknown，不写成新删除。197983安装18910591，manager-clean-result与manager-normal-range-result errors=[]，clean-manager-top/next/normal-range Root亲审：正常已安装区仅原版本语言、可更新区原按钮保持，内部partial/地址失败保持。985对979六非Registry字节同、85 IDs/order/enabled及其它84DTO同，仅Bz .8预期升级；986系统120000无Override/44636496释租。 原剩余：78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。",
@@ -3018,7 +3018,15 @@
         "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮koma_manga_migration_v1及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076于22:37:39 released。失败保已知更新为35项owner执行范围，非设备故障注入，不设额外设备门槛。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。",
         "本轮验收证据入口 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。",
         "产品a7678c7132536de69f94be9029c8f9b301725452已推Koma/master，精确CI41211137223同head in_progress；设备已按本轮回执恢复。证据 .hvigor/outputs/source-update-migration-ci-start.json。",
-        "Koma a7678c7132536de69f94be9029c8f9b301725452精确CI41211137223 completed/success，Build unsigned Release HAP、Inspect及Upload成功，Publish tagged Release skipped；最终回执 .hvigor/outputs/source-update-migration-ci-final.json，设备验收绑定 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。"
+        "Koma a7678c7132536de69f94be9029c8f9b301725452精确CI41211137223 completed/success，Build unsigned Release HAP、Inspect及Upload成功，Publish tagged Release skipped；最终回执 .hvigor/outputs/source-update-migration-ci-final.json，设备验收绑定 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。",
+        "本轮反馈前已验结果保留：后台检查及浏览角标首显已验证，源码与CI已完成。",
+        "源管理页关闭后refreshInstalledPackage仅settingsRouteActive=true才capture，后台安装新registry DTO未回公共cache；候选recordInstalledPackage按单源实际结果合并并扣计数，36项owner执行覆盖A/B反序完成及C失败，尚未设备确认。build005成功，冻结 .hvigor/outputs/source-badge-migration-candidate005-3d554f20.hap SHA3d554f20b3acb8377280c9e5ca63f01d807e2d3560878719dcd7b0cbbb44cb3c。197 lease20261031-150817-657b238b，badge-baseline077备份及awake进行中，未恢复。",
+        "197候选005：080 manager62，082 FGO .2→.3后立即离页仍62；083不重进/不手动检查自动61，registry仅FGO升级；084重入FGO已离开可更新区，但管理摘要仍旧62。source_terra正在修正同一摘要数字同步，不改文案。085/087普通目录创建/发送实际被系统拒绝，虽exit0仍失败；官方bundle限定file send089成功重建旧FGO四文件，090原包/37保存文件及FGO四文件逐字同；091 SLEEP/原Override10000/normal120000，恢复lease20261031-151523-e7d4c905 released，status exit1但回执实际released。证据 .hvigor/outputs/source-badge-005-recovery-lease-final.json。",
+        "006已补管理摘要数值同步，007已编译；Native仍仅005既有范围，尚未验证新摘要。197上一恢复会话已释租，正在准备新UI必要验证。",
+        "后台角标/摘要同步独立本地commit dd240fd0，未push，计划与迁移合一轮CI。",
+        "摘要同步修正生产逻辑36项通过、build009/010通过；005设备仅证明角标62→61，管理摘要旧数反例保留，不新增摘要设备验收门槛。",
+        "产品dd240fd0角标修复及e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7迁移优化已统一推送；精确Build OHOS CI41218147233同head in_progress，回执 .hvigor/outputs/migration-full-ci-start.json。最终build010冻结 .hvigor/outputs/migration-full-candidate010-2ee334a3.hap SHA2ee334a34003df319368115a5d266589b5996d414d560e4da62a31a2322149e9；相对实机009仅预计算sourcecache排序名称，迁移UI/model相同，不新增设备复测门槛。完整设备及摘要边界 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。",
+        "精确CI41218147233 head e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7 completed/success；Build unsigned Release HAP含Inspect/Upload成功，Publish tagged Release skipped，无新发布。最终回执 .hvigor/outputs/migration-full-ci-final.json，完整绑定 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。管理摘要单独修正仅生产逻辑/编译，不冒Native；迁移自动匹配实机样本仍失败，Page.match逻辑五项执行通过，不扩大为实机自动匹配成功。"
       ],
       "remainingActions": [],
       "remaining": "",
@@ -3034,7 +3042,7 @@
       "firstEvidenceAtSource": "本次登记，非用户首报精确时刻。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-31T22:50:36+08:00",
+      "closedAt": "2026-11-01T00:19:42+08:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T21:00:16.188000+00:00",
@@ -3054,8 +3062,8 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 165748,
-      "stage": "本轮具名范围已交付",
-      "reopenedAt": "2026-10-31T21:47:21+08:00",
+      "stage": "具名范围已交付",
+      "reopenedAt": "2026-10-31T23:03:58+08:00",
       "modificationBasis": {
         "object": "源包更新后台检查及浏览角标",
         "allowedDifference": "用户本轮明确采用后台异步自动检查源包更新；浏览tab可更新角标持久缓存，首帧展示不等重新检查。旧缓存先显和既有已验范围保留。"
@@ -4621,12 +4629,12 @@
       "title": "书库漫画跨源迁移",
       "priority": "P1",
       "kind": "accepted",
-      "status": "多源迁移改进已验证并交付",
-      "stage": "本轮具名范围已交付",
+      "status": "迁移优化已验证并交付",
+      "stage": "具名范围已交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "多源选择记忆、搜索及详情预览返回已验证，源码与CI已完成。",
+      "result": "迁移来源排序、预览核对和单本复制及失败重试已验证，源码与CI完成。",
       "remaining": "",
       "remainingActions": [],
       "boundaries": [
@@ -4636,7 +4644,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
-      "closedAt": "2026-10-31T22:50:36+08:00",
+      "closedAt": "2026-11-01T00:19:42+08:00",
       "evidencePoints": [
         "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
         "用户通过本轮async call_06bd595e97bf48dd9fcff06914f4be01明确采用完整流程；尚未实现或验收。",
@@ -4653,15 +4661,27 @@
         "067顶部迁移确认框、068取消返回未提交；069安装004冷启动，070详情→迁移恢复已选MangaDex/Komiic前组，071预填搜索未自动弹键盘；073 Blue Archive为MangaDex20/Komiic1，单卡左对齐和按钮平齐已由Root看图。002预览、更多结果与明确选择具名范围按057–068，不重复验证；074停止候选并收偏好，恢复未完成。",
         "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮迁移偏好及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076 released。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。",
         "产品a7678c7132536de69f94be9029c8f9b301725452已推Koma/master，精确CI41211137223同head in_progress；设备已按本轮回执恢复。证据 .hvigor/outputs/source-update-migration-ci-start.json。",
-        "Koma a7678c7132536de69f94be9029c8f9b301725452精确CI41211137223 completed/success，Build unsigned Release HAP、Inspect及Upload成功，Publish tagged Release skipped；最终回执 .hvigor/outputs/source-update-migration-ci-final.json，设备验收绑定 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。"
+        "Koma a7678c7132536de69f94be9029c8f9b301725452精确CI41211137223 completed/success，Build unsigned Release HAP、Inspect及Upload成功，Publish tagged Release skipped；最终回执 .hvigor/outputs/source-update-migration-ci-final.json，设备验收绑定 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。",
+        "本轮反馈前已验结果保留：多源选择记忆、搜索及详情预览返回已验证，源码与CI已完成。",
+        "Root候选prepareMangaMigration复用现有完整详情/目录cache，保entry/settings/url/current和提交检查，十项执行通过；不称UI优化完成。图标/语言/排序、相似度/深搜/最新章/进度/仅重试失败、单本直接核对半模态、缓存复用四组方案已异步询问，尚未答复，不记采用。build005成功，197基线及awake进行中，尚未恢复。",
+        "用户已明确采用四组完整优化，Root继续实施；迁移新UI尚未构建或安装。197候选005场原包及数据、电源已恢复释租。",
+        "候选已接来源图标/语言/选中菜单上移下移及顺序保存；批量相似度选择（固定Mihon 0.4与单候选规则）、深搜/最新章节持久化、章节数/最新章/整体进度/仅重试失败；单本明确选择后直接开现有Native半模态，展示原书→目标/迁移内容/复制或迁移，操作在标题栏；缓存复用已接。真实日文/中文反例纠正参考清理空查询，旁注原因；无LLM。build006 ArkTS spread及bindSheet根语法错误已修，build007成功13s996；原迁移/缓存10项、新匹配及Page.match真实消费相似度/来源优先/最新章节执行通过。新UI未安装或提交。",
+        "Mihon匹配模块及Page.match实际消费相似度、默认源顺序、最新章节优先matching4通过，原迁移执行10项保留。007冻结 .hvigor/outputs/migration-full-candidate007-49705094.hap SHA4970509457d865a1aa4048a22194fde693a2161911727f63f70d1b6d728fcf7a；197 fresh full-baseline092/awake、093安装，094来源图标语言已看图、095选MangaDex；096已选行点击同时移除使菜单消失，保失败。已改为点开排序菜单并显示优先级，008构建成功冻结 migration-full-candidate008-cead5c7e.hap SHAcead5c7e91bdf494dd9673306f8a49c7d4cd7aca9e6bf0ad1ecc9a48f53c5e38，尚未安装。007 099 BlueArchive 20+1，100正走Komiic预览后直接半模态；lease20261031-152936-6b298d9a有效，新会话未恢复。",
+        "007 full-target-ready101 Komiic完整42/42章；102明确选目标后直接开核对半模态，原书15章/最新15、目标42章/最新38、顶部X与确认及操作下拉，Root看图。103半模态盖住新push详情（layout为detail但画面仍modal），104关闭恢复，保失败。009补dismiss-before-preview及原迁移NavDestination.onShown恢复核对状态，build成功13s972，冻结 .hvigor/outputs/migration-full-candidate009-cae20370.hap SHAcae203702dc86a46a62436ccfc98d1cfdeb689535d65bf02b9b37c6f58fd613c。105装009，106已选来源菜单真实出现上移/下移/移除且未误删，107验证Komiic上移顺序中；197仍同lease092会话，原数据未恢复，未推送。",
+        "009：106上移菜单正常，107搜索组顺序Komiic→MangaDex；112半模态收起后详情可见，113 Back恢复核对且复制选择/42章保留；114顶部确认复制真实落库新增Komiic 42章目标、原书保留并自动到目标详情，115回书架。117批量入口保Komiic优先级1/MangaDex2，两个自动匹配开关默认关且位于可用源前；118开启后批量运行，119两项未匹配、进度2/2失败2，不冒自动匹配成功。120–121正准备一Ready一Failed验证仅失败重试，尚未结束。Page.match消费顺序/最新章及真实handleTitleCommand仅处理failed、不碰ready/skipped/done执行覆盖matching5通过，旧事务10保留。仅SourceCache排序map改名称预计算性能，build010进行中，009 UI证据不重跑；设备仍同lease未恢复。",
+        "009实机122 ready1/failed1；点仅重试失败后123 progress1/2、ready1保留、searching1；124终态2/2 ready1/failed1，原Komiic目标42章/latest38与122/123相同，Root亲审截图。124偏好读回selectedSources=[com.komiic.koma,org.mangadex.koma]，deepSearch=true/prioritizeChapters=true；该样本真实自动匹配仍失败，不冒成功。Root正恢复fresh full-baseline-092，尚未完成。",
+        "full-data-restored-125原signed HAP安装成功；fresh full-baseline-092七JSON及30prefs共37项逐字同、无extra，仅本轮migration pref及lock移除，未动源包目录；比较 full-restoration-comparison.json。126 SLEEP/normal120000/Override10000，lease20261031-152936-6b298d9a于00:06:14 released；回执 .hvigor/outputs/migration-full-lease-final.json。源码待统一提交及CI。",
+        "产品dd240fd0角标修复及e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7迁移优化已统一推送；精确Build OHOS CI41218147233同head in_progress，回执 .hvigor/outputs/migration-full-ci-start.json。最终build010冻结 .hvigor/outputs/migration-full-candidate010-2ee334a3.hap SHA2ee334a34003df319368115a5d266589b5996d414d560e4da62a31a2322149e9；相对实机009仅预计算sourcecache排序名称，迁移UI/model相同，不新增设备复测门槛。完整设备及摘要边界 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。",
+        "精确CI41218147233 head e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7 completed/success；Build unsigned Release HAP含Inspect/Upload成功，Publish tagged Release skipped，无新发布。最终回执 .hvigor/outputs/migration-full-ci-final.json，完整绑定 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。管理摘要单独修正仅生产逻辑/编译，不冒Native；迁移自动匹配实机样本仍失败，Page.match逻辑五项执行通过，不扩大为实机自动匹配成功。"
       ],
       "modificationBasis": {
         "object": "书库漫画跨源迁移及其入口",
         "allowedDifference": "详情右上角和书库多选提供迁移；选目标源后逐书匹配，可修改搜索、换结果或跳过；确认选择已读进度和分类，追踪随书转移；可复制保留旧书，或迁移并移出旧书库。旧下载保留，不冒充新源下载；使用当前Koma控件。",
         "reference": "Mihon e588e04359fe1058206a2cbac1b01018ad787359；Aidoku ceee58b29d4f48106cf63042ca0cb075a8ac22b4，仅作行为参考。",
-        "newFeedbackAllowedDifference": "用户本轮明确采用：多源并列搜索结果；先预览漫画详情，返回后再选择迁移；来源选择持久记忆，选中源置前分组，不使用全部switch；入口继续位于标题栏右侧。"
+        "newFeedbackAllowedDifference": "用户本轮明确采用：多源并列搜索结果；先预览漫画详情，返回后再选择迁移；来源选择持久记忆，选中源置前分组，不使用全部switch；入口继续位于标题栏右侧。",
+        "optimizationAllowedDifference": "用户call_adda7a263fea4d899891b944fe5d8895明确采用此前提出的完整四组优化：图标/语言/排序，相似度/深搜/最新章/进度/仅重试失败，单本直接核对半模态，以及复用缓存。"
       },
-      "reopenedAt": "2026-10-31T21:47:21+08:00"
+      "reopenedAt": "2026-10-31T23:03:58+08:00"
     },
     {
       "id": "FEATURE_PARITY_COMPARISON",
@@ -11764,6 +11784,196 @@
       "evidence": [
         ".hvigor/outputs/source-update-migration-ci-final.json",
         ".hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "source-index-badge-remains-feedback-20261031",
+      "at": "2026-10-31T23:03:58+08:00",
+      "title": "更新后角标未消失反馈",
+      "detail": "用户反馈后台更新后角标未消失，原因尚待定位。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "migration-optimization-feedback-20261031",
+      "at": "2026-10-31T23:03:58+08:00",
+      "title": "迁移体验优化反馈",
+      "detail": "用户询问迁移能否进一步优化，正在对照参考，尚无新交互采用决定。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-index-badge-cache-candidate-20261031",
+      "at": "2026-10-31T23:08:53+08:00",
+      "title": "更新角标缓存定位",
+      "detail": "后台安装结果未回公共缓存已定位，单源合并候选待设备验证。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-badge-migration-candidate005-3d554f20.hap"
+      ]
+    },
+    {
+      "id": "migration-cache-optimization-candidate-20261031",
+      "at": "2026-10-31T23:08:53+08:00",
+      "title": "迁移缓存复用候选",
+      "detail": "准备阶段复用完整详情及目录缓存，交互优化方案尚待决定。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-badge-migration-candidate005-3d554f20.hap"
+      ]
+    },
+    {
+      "id": "source-badge-summary-stale-20261031",
+      "at": "2026-10-31T23:19:36+08:00",
+      "title": "更新角标与管理摘要实测",
+      "detail": "浏览角标自动减少，管理摘要仍旧数，正在修正；设备已恢复。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-badge-005-recovery-lease-final.json"
+      ]
+    },
+    {
+      "id": "migration-optimization-adopted-20261031",
+      "at": "2026-10-31T23:19:36+08:00",
+      "title": "完整迁移优化已采用",
+      "detail": "用户采用四组完整优化，正在实施。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "migration-full-optimization-built-20261031",
+      "at": "2026-10-31T23:29:37+08:00",
+      "title": "完整迁移优化候选构建",
+      "detail": "已采用的四组优化候选已构建，真实界面尚未安装验收。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-badge-summary-built-20261031",
+      "at": "2026-10-31T23:29:37+08:00",
+      "title": "更新摘要同步候选构建",
+      "detail": "管理摘要数字同步候选已构建，设备尚未验证。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-badge-summary-local-commit-20261031",
+      "at": "2026-10-31T23:38:37+08:00",
+      "title": "角标摘要修正本地提交",
+      "detail": "同步修正已本地提交，待设备验证和统一交付。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "migration-source-order-candidate-20261031",
+      "at": "2026-10-31T23:38:37+08:00",
+      "title": "迁移来源排序候选",
+      "detail": "真实路径发现已选来源点击会移除，修正候选已构建、尚未安装。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-candidate008-cead5c7e.hap"
+      ]
+    },
+    {
+      "id": "migration-single-review-modal-20261031",
+      "at": "2026-10-31T23:47:53+08:00",
+      "title": "单本迁移核对与预览修正",
+      "detail": "目标章节及核对半模态已显示，预览遮挡反例已修并在设备验证。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-candidate009-cae20370.hap"
+      ]
+    },
+    {
+      "id": "migration-single-copy-batch-retry-20261101",
+      "at": "2026-11-01T00:00:16+08:00",
+      "title": "单本复制及批量重试验证",
+      "detail": "预览返回与单本复制已走通，批量两项未匹配，失败重试仍在验证。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-candidate009-cae20370.hap"
+      ]
+    },
+    {
+      "id": "migration-retry-failed-native-20261101",
+      "at": "2026-11-01T00:05:36+08:00",
+      "title": "迁移仅重试失败实测",
+      "detail": "重试期间已选目标保持，失败项重新处理；样本自动匹配仍失败，设备恢复中。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-candidate009-cae20370.hap"
+      ]
+    },
+    {
+      "id": "migration-full-native-restored-20261101",
+      "at": "2026-11-01T00:06:38+08:00",
+      "title": "迁移优化验证后恢复",
+      "detail": "原应用、数据及电源已恢复，源码和CI待交付。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-lease-final.json"
+      ]
+    },
+    {
+      "id": "source-badge-fix-pushed-20261101",
+      "at": "2026-11-01T00:08:13+08:00",
+      "title": "角标同步修复推送",
+      "detail": "具名验证后源码已推，精确CI运行中。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-ci-start.json",
+        ".hvigor/outputs/migration-full-acceptance/acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "migration-full-pushed-20261101",
+      "at": "2026-11-01T00:08:13+08:00",
+      "title": "迁移完整优化推送",
+      "detail": "具名验证后源码已推，精确CI运行中。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-ci-start.json",
+        ".hvigor/outputs/migration-full-acceptance/acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "source-badge-fix-delivered-20261101",
+      "at": "2026-11-01T00:19:42+08:00",
+      "title": "角标同步修复交付",
+      "detail": "具名验证、设备恢复及精确CI完成，本轮范围收口。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-ci-final.json",
+        ".hvigor/outputs/migration-full-acceptance/acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "migration-full-delivered-20261101",
+      "at": "2026-11-01T00:19:42+08:00",
+      "title": "迁移完整优化交付",
+      "detail": "具名验证、设备恢复及精确CI完成，本轮范围收口。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-full-ci-final.json",
+        ".hvigor/outputs/migration-full-acceptance/acceptance-binding.json"
       ]
     }
   ],
