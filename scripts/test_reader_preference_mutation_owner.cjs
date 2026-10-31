@@ -12,7 +12,9 @@ let backendSelection;
 const backendModule = evaluate('entry/src/main/ets/state/KomaReaderBackendSelectionState.ets',{
  '@kit.ArkUI':{AppStorageV2:{connect:(type,key,factory)=>backendSelection ??= factory()}}
 });
+const display = evaluate('entry/src/main/ets/model/ReaderDisplaySettings.ets',{});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
+ './ReaderDisplaySettings':display,
  '../state/KomaReaderBackendSelectionState':backendModule,
  './BackupRestoreActivity':{BackupRestoreActivity:activity}, '@kit.AbilityKit':{ConfigurationConstant:{ColorMode:{COLOR_MODE_DARK:0,COLOR_MODE_LIGHT:1,COLOR_MODE_NOT_SET:-1}}},
  '@kit.ArkData':{preferences:{async getPreferences(context){
@@ -31,6 +33,17 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  ctx.failTheme=true;await assert.rejects(()=>store.saveThemeMode('dark'),/platform_fail/);assert.equal((await store.load()).themeMode,'system');ctx.failTheme=false;
  mod.unbindReaderThemeWindow();await store.saveThemeMode('dark');assert.equal(applied.at(-1),-1);mod.bindReaderThemeWindow(ctx);await store.load();assert.equal(applied.at(-1),0);
  await store.save(mod.DEFAULT_READER_PREFERENCES);published.length=0;
+ const displayBase=await store.load();
+ const gray={...displayBase,displaySettings:{...displayBase.displaySettings,grayscale:true}};
+ const tint={...displayBase,displaySettings:{...displayBase.displaySettings,filterEnabled:true,red:160,alpha:64}};
+ await Promise.all([store.saveChanges(displayBase,gray),other.saveChanges(displayBase,tint)]);
+ let visual=await new mod.ReaderPreferencesStore(ctx).load();
+ assert.equal(visual.displaySettings.grayscale,true);assert.equal(visual.displaySettings.red,160);
+ assert.equal(visual.displaySettings.alpha,64);assert.equal(visual.displaySettings.filterEnabled,true);
+ failFlush=true;await assert.rejects(()=>store.saveChanges(visual,{...visual,displaySettings:{...visual.displaySettings,inverted:true}}));
+ assert.equal((await store.load()).displaySettings.inverted,false);
+ await store.save(mod.DEFAULT_READER_PREFERENCES);
+
  await store.savePreloadWifiOnly(true);
  assert.equal((await new mod.ReaderPreferencesStore(ctx).load()).preloadWifiOnly,true);
  await Promise.all([store.saveDoubleTapZoomEnabled(false),other.saveDoubleTapIntervalMs(200)]);

@@ -1,3 +1,6 @@
+import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
+import { ReaderBrightnessController } from '../model/ReaderBrightnessController'
+import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -313,6 +316,17 @@ struct Index {
   }
 
   private readerTrackerProgress?: ReaderTrackerProgressCoordinator
+  private readerBrightness: ReaderBrightnessController = new ReaderBrightnessController()
+  @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
+  @Local private displayReaderMode: ReaderModeState = connectReaderModeState()
+
+  @Monitor('readerOpen', 'readerRouteVisible', 'appForegroundState.active', 'displayReaderMode.revision', 'displayPreview.settings')
+  private syncReaderBrightness(): void {
+    this.readerBrightness.update(this.getUIContext().getHostContext() as common.UIAbilityContext,
+      this.readerOpen && this.readerRouteVisible && this.appForegroundState.active,
+      this.displayPreview.settings ?? this.displayReaderMode.displaySettings)
+  }
+
   private readingStatisticsRecorder: ReadingSessionRecorder = new ReadingSessionRecorder((record: ReadingSessionRecord): void => {
     if (this.readerSessionPersistenceReady) this.readerSessionStore.addReadingSession(record)
   })

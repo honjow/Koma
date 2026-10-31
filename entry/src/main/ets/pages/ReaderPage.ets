@@ -1,3 +1,7 @@
+import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
+import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
+import { ReaderImageEffectsLayer } from '@reader-kit/ui'
+import { komaReaderImageEffects } from '../readerLab/KomaReaderDisplayEffects'
 import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
@@ -178,6 +182,8 @@ struct ReaderImageSurface {
   @Param parentViewportHeight: number = 0
   @Param fit: ImageFit = ImageFit.Contain
   @Param fitMode: ReaderImageFitMode = 'contain'
+  @Param displaySettings: ReaderDisplaySettings = new ReaderDisplaySettings()
+  @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Param scalingQuality: string = 'medium'
   @Param sourceFailureReason: string = ''
   @Param splitSide: 'none' | 'left' | 'right' = 'none'
@@ -798,7 +804,9 @@ struct ReaderImageSurface {
   build() {
     Stack({ alignContent: Alignment.Center }) {
       if (this.displayUri.length > 0) {
-        this.ResolvedImage()
+        ReaderImageEffectsLayer({ effects: komaReaderImageEffects(this.displayPreview.settings ?? this.displaySettings) }) {
+          this.ResolvedImage()
+        }
       }
       if (this.displayUri.length === 0 || this.loading) {
         this.LoadingContent()
@@ -876,6 +884,8 @@ struct ReaderSpreadSurface {
   @Param rowReversed: boolean = false
   @Param joined: boolean = true
   @Param gap: number = 0
+  @Param displaySettings: ReaderDisplaySettings = new ReaderDisplaySettings()
+  @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Param scalingQuality: string = 'medium'
   @Param sourceFailureReason: string = ''
   @Param parentViewportWidth: number = 0
@@ -1274,7 +1284,7 @@ struct ReaderSpreadSurface {
       parentViewportHeight: this.paneHeightForPage(index),
       fit: ImageFit.Contain,
       fitMode: 'contain',
-      scalingQuality: this.scalingQuality,
+      scalingQuality: this.scalingQuality, displaySettings: this.displaySettings,
       sourceFailureReason: this.sourceFailureReason,
       rotateClockwise: rotateClockwise,
       zoomEnabled: false,
@@ -2749,6 +2759,7 @@ export struct ReaderPage {
       autoPageSeconds: p.autoPageSeconds,
       preloadPages: p.preloadPages,
       preloadWifiOnly: p.preloadWifiOnly,
+      displaySettings: p.displaySettings,
       spreadLayoutMode: p.spreadLayoutMode,
       columnMode: p.columnMode,
       tapZonePreset: p.tapZonePreset,
@@ -3481,7 +3492,7 @@ export struct ReaderPage {
         // to a paged surface makes a tall page extend beyond the viewport and
         // silently crops it before any zoom gesture is involved.
         fitMode: continuous ? this.preferences.imageFitMode : 'contain',
-        scalingQuality: this.preferences.imageScalingQuality,
+        scalingQuality: this.preferences.imageScalingQuality, displaySettings: this.preferences.displaySettings,
         sourceFailureReason: this.sessionConfig.sourceFailureReason ?? '',
         splitSide: splitSide,
         rotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(this.pageWidth(index), this.pageHeight(index)),
@@ -3611,7 +3622,7 @@ export struct ReaderPage {
           rowReversed: this.preferences.readingDirection === ReadingDirection.RIGHT_TO_LEFT,
           joined: this.preferences.spreadLayoutMode !== 'split',
           gap: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0,
-          scalingQuality: this.preferences.imageScalingQuality,
+          scalingQuality: this.preferences.imageScalingQuality, displaySettings: this.preferences.displaySettings,
           sourceFailureReason: this.sessionConfig.sourceFailureReason ?? '',
           parentViewportWidth: this.viewportWidth,
           parentViewportHeight: this.viewportHeight,

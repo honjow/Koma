@@ -1,3 +1,4 @@
+import { ReaderDisplaySettings, normalizeReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { AppStorageV2 } from '@kit.ArkUI'
 
 /** Same executable model identities as NextE; model installation stays host-owned. */
@@ -31,6 +32,7 @@ export const READER_SUPER_RESOLUTION_MAX_SOURCE_HEIGHT: number = 2000
  * chapter-progress concern and is supplied by the active Reader session.
  */
 export class ReaderModeSnapshot {
+  displaySettings: ReaderDisplaySettings
   pageMode: string
   readingDirection: string
   themeMode: string
@@ -93,6 +95,7 @@ export class ReaderModeSnapshot {
     doubleTapZoomEnabled: boolean = true,
     doubleTapIntervalMs: number = 300,
     preloadWifiOnly: boolean = false,
+    displaySettings: ReaderDisplaySettings = new ReaderDisplaySettings(),
   ) {
     this.pageMode = pageMode
     this.readingDirection = readingDirection
@@ -110,6 +113,7 @@ export class ReaderModeSnapshot {
     this.autoPageSeconds = autoPageSeconds
     this.preloadPages = preloadPages
     this.preloadWifiOnly = preloadWifiOnly
+    this.displaySettings = normalizeReaderDisplaySettings(displaySettings)
     this.spreadLayoutMode = spreadLayoutMode
     this.tapZonePreset = tapZonePreset
     this.tapZoneInvert = tapZoneInvert
@@ -129,6 +133,7 @@ export class ReaderModeSnapshot {
 
 @ObservedV2
 export class ReaderModeState {
+  @Trace displaySettings: ReaderDisplaySettings = new ReaderDisplaySettings()
   @Trace pageMode: string = 'single_page'
   @Trace readingDirection: string = 'ltr'
   @Trace themeMode: string = 'system'
@@ -193,6 +198,7 @@ export class ReaderModeStateBridge {
       state.autoPageSeconds !== next.autoPageSeconds ||
       state.preloadPages !== next.preloadPages ||
       state.preloadWifiOnly !== next.preloadWifiOnly ||
+      JSON.stringify(state.displaySettings) !== JSON.stringify(next.displaySettings) ||
       state.spreadLayoutMode !== next.spreadLayoutMode ||
       state.tapZonePreset !== next.tapZonePreset ||
       state.tapZoneInvert !== next.tapZoneInvert ||
@@ -223,6 +229,7 @@ export class ReaderModeStateBridge {
     state.autoPageSeconds = next.autoPageSeconds
     state.preloadPages = next.preloadPages
     state.preloadWifiOnly = next.preloadWifiOnly
+    state.displaySettings = normalizeReaderDisplaySettings(next.displaySettings)
     state.spreadLayoutMode = next.spreadLayoutMode
     state.tapZonePreset = next.tapZonePreset
     state.tapZoneInvert = next.tapZoneInvert
@@ -275,6 +282,7 @@ export class ReaderModeStateBridge {
       state.doubleTapZoomEnabled,
       state.doubleTapIntervalMs,
       state.preloadWifiOnly,
+      state.displaySettings,
     )
   }
 }

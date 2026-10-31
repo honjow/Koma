@@ -1,3 +1,5 @@
+import { ReaderDisplaySettingsContent } from './ReaderDisplaySettingsContent'
+import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { ReaderImageSettingsContent } from './ReaderImageSettingsContent'
 import { ReaderDirectionMenuItems } from './ReaderDirectionMenu'
 import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
@@ -53,6 +55,7 @@ export struct ReaderSettingsContent {
   @Param enhancementControlsAvailable: boolean = false
   // Reader owns immediate reading controls. Provider/account configuration belongs
   // to the global translation settings route, not a form reachable only in this sheet.
+  @Local private displaySettingsShown: boolean = false
   @Local private modelManagementShown: boolean = false
 
   @Event onResetSeriesOverride: () => void = () => {}
@@ -81,6 +84,7 @@ export struct ReaderSettingsContent {
       autoPageSeconds: p.autoPageSeconds,
       preloadPages: p.preloadPages,
       preloadWifiOnly: p.preloadWifiOnly,
+      displaySettings: p.displaySettings,
       spreadLayoutMode: p.spreadLayoutMode,
       columnMode: p.columnMode,
       tapZonePreset: p.tapZonePreset,
@@ -352,7 +356,12 @@ export struct ReaderSettingsContent {
   }
 
   build() {
-    if (this.modelManagementShown) {
+    if (this.displaySettingsShown) {
+      ReaderDisplaySettingsContent({ settings: this.preferences.displaySettings,
+        onChange: (settings: ReaderDisplaySettings): void => {
+          const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
+        }, onClose: (): void => { this.displaySettingsShown = false } })
+    } else if (this.modelManagementShown) {
       KomaModalScaffold({ title: s('settings_reader_super_resolution_models'), onClose: () => { this.modelManagementShown = false } }) {
         ReaderSuperResolutionModelsContent({ preferences: this.preferences, onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
           .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
@@ -387,6 +396,8 @@ export struct ReaderSettingsContent {
           ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
         }
         GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
+          ConciseListRow({ title: s('reader_display_title'), action: (): void => { this.displaySettingsShown = true } })
+          ListDivider()
           ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
           ListDivider()
           ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })

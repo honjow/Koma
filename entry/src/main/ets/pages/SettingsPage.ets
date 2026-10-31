@@ -1,3 +1,6 @@
+import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
+import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
@@ -237,6 +240,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'page-mode', titleKey: 'settings_row_page_mode_title', detailKey: 'settings_row_page_mode_detail' },
         { key: 'reading-direction', titleKey: 'settings_row_reading_direction_title', detailKey: 'settings_row_reading_direction_detail' },
         { key: 'reader-spread-layout', titleKey: 'reader_spread_layout_title', detailKey: 'reader_spread_layout_detail' },
+        { key: 'reader-display-effects', titleKey: 'reader_display_title', detailKey: 'reader_display_detail' },
         { key: 'reader-background', titleKey: 'settings_row_reader_background_title', detailKey: 'settings_row_reader_background_detail' },
         { key: 'reader-image-scaling', titleKey: 'reader_image_scaling_quality_title', detailKey: 'reader_image_scaling_quality_detail' },
         { key: 'reader-show-page-number', titleKey: 'reader_show_page_number_title', detailKey: 'reader_show_page_number_detail' },
@@ -494,6 +498,7 @@ export struct SettingsPage {
   @Local private appearanceAccentColor: AppearanceAccentColor = DEFAULT_APPEARANCE_PREFERENCES.accentColor
   @Local private readerBackgroundMode: ReaderBackgroundMode = 'black'
   @Local private readerImageScalingQuality: ReaderImageScalingQuality = 'medium'
+  @Local private readerDisplaySheetShown: boolean = false
   @Local private readerShowPageNumber: boolean = true
   @Local private readerFullscreen: boolean = true
   @Local private readerPageTurnAnimation: boolean = true
@@ -844,7 +849,7 @@ export struct SettingsPage {
         { key: 'reader-layout', titleKey: 'settings_reader_group_layout', rows: this.rowsByKeys([
           'page-mode', 'reading-direction', 'reader-spread-layout', 'reader-page-animation', 'reader-wide-image-mode', 'reader-page-gap']) },
         { key: 'reader-display', titleKey: 'settings_reader_group_display', rows: this.rowsByKeys([
-          'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
+          'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
           'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
@@ -2461,6 +2466,8 @@ export struct SettingsPage {
       this.onOpenLibraryCategories()
     } else if (row.key === 'local-library-refresh') {
       void this.checkLocalLibraryRefresh()
+    } else if (row.key === 'reader-display-effects') {
+      this.readerDisplaySheetShown = true
     } else if (row.key === 'reader-reset-defaults') {
       this.resetReaderPreferences()
     } else if (row.key === 'version' || row.key === 'app-release') {
@@ -2674,6 +2681,16 @@ export struct SettingsPage {
   }
 
   @Builder
+  private ReaderDisplaySheet() {
+    ReaderDisplaySettingsContent({ settings: this.readerPreferences.displaySettings,
+      onChange: (settings: ReaderDisplaySettings): void => {
+        const next = normalizeReaderPreferences(this.readerPreferences)
+        next.displaySettings = settings
+        this.saveImagePreferences(next)
+      }, onClose: (): void => { this.readerDisplaySheetShown = false } })
+  }
+
+  @Builder
   private PaneSettings() {
     Column({ space: ThemeConstants.SPACE_LG }) {
       ForEach(this.paneSections(), (section: SettingsSection) => {
@@ -2864,5 +2881,9 @@ export struct SettingsPage {
     .width('100%')
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
+    .bindSheet($$this.readerDisplaySheetShown, this.ReaderDisplaySheet, komaSheetOptions({
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableOutsideInteractive: false,
+      scrollSizeMode: ScrollSizeMode.CONTINUOUS, enableFloatingDragBar: true,
+    }))
   }
 }

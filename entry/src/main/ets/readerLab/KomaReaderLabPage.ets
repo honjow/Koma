@@ -1,3 +1,5 @@
+import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
+import { komaReaderImageEffects } from './KomaReaderDisplayEffects'
 import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { KomaReaderTranslationConfiguration, KomaReaderTranslationProvider } from './KomaReaderTranslationProvider'
@@ -61,6 +63,7 @@ class KomaReaderAfterLayout extends FrameCallback {
 
 @ComponentV2
 export struct KomaReaderLabPage {
+  @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Require @Param request: ReaderLabRequest
   @Param productionEntry: boolean = false
   @Param routeTransition: ReaderRouteTransition = new ReaderRouteTransition()
@@ -1096,6 +1099,7 @@ export struct KomaReaderLabPage {
                   ? ImageInterpolation.Low :
                   (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
                     ? ImageInterpolation.High : ImageInterpolation.Medium,
+                imageEffects: komaReaderImageEffects(this.displayPreview.settings ?? this.hostPreferences?.displaySettings ?? this.readerMode.displaySettings),
                 canvasBackground: this.readerCanvasBackground(), canvasForeground: this.readerCanvasForeground(),
                 loadingInk: this.readerLoadingInk(),
                 input: this.input, mediaActions: new ReaderMediaActions(this.imageShare, this.imageSave),

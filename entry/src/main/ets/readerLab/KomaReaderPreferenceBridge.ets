@@ -22,6 +22,7 @@ export class KomaReaderPreferenceBridge {
       autoPageSeconds: current.autoPageSeconds,
       preloadPages: current.preloadPages,
       preloadWifiOnly: current.preloadWifiOnly,
+      displaySettings: current.displaySettings,
       spreadLayoutMode: current.spreadLayoutMode,
       columnMode: current.columnMode,
       tapZonePreset: current.tapZonePreset,
@@ -41,7 +42,8 @@ export class KomaReaderPreferenceBridge {
   }
 
   static same(left: ReaderPreferences, right: ReaderPreferences): boolean {
-    return left.pageMode === right.pageMode &&
+    return JSON.stringify(left.displaySettings) === JSON.stringify(right.displaySettings) &&
+      left.pageMode === right.pageMode &&
       left.readingDirection === right.readingDirection &&
       left.themeMode === right.themeMode &&
       left.backgroundMode === right.backgroundMode &&
