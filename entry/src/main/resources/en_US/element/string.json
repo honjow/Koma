@@ -1979,6 +1979,15 @@
     {"name": "backup_auto_directory_local", "value": "In-app backups"},
     {"name": "backup_auto_background", "value": "Background backups"},
     {"name": "backup_auto_directory_select_failed", "value": "Cannot use this backup directory"},
-    {"name": "backup_auto_directory_choose", "value": "Choose directory"}
+    {"name": "backup_auto_directory_choose", "value": "Choose directory"},
+    {"name": "downloads_move_top", "value": "Move to top"},
+    {"name": "downloads_move_bottom", "value": "Move to bottom"},
+    {"name": "downloads_move_book_top", "value": "Move series to top"},
+    {"name": "downloads_move_book_bottom", "value": "Move series to bottom"},
+    {"name": "downloads_reorder_failed", "value": "Could not reorder downloads"},
+    {"name": "chapter_export_cbz", "value": "Export CBZ"},
+    {"name": "chapter_share_cbz", "value": "Share CBZ"},
+    {"name": "chapter_archive_type", "value": "Comic book archive"},
+    {"name": "chapter_archive_failed", "value": "Could not export chapter. Check that the download is complete."}
   ]
 }

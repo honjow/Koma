@@ -546,16 +546,37 @@ export class OfflineDownloadQueueStore {
       updatedAt: Date.now(),
       failureReasonCode: entry.failureReasonCode,
     })
-    const entries = document.entries.filter((item: OfflineDownloadQueueEntry): boolean => {
-      return item.comicId !== normalized.comicId || item.chapterId !== normalized.chapterId
-    })
-    entries.unshift(normalized)
+    // The persisted array is the queue order. Progress writes replace the row in
+    // place, otherwise each page completion would undo a user's reordering.
+    const entries = document.entries.slice()
+    const index = entries.findIndex((item: OfflineDownloadQueueEntry): boolean =>
+      item.comicId === normalized.comicId && item.chapterId === normalized.chapterId)
+    if (index < 0) entries.unshift(normalized)
+    else entries[index] = normalized
     this.saveDocument({
       schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION,
       preferences: document.preferences,
       entries,
     })
     return normalized
+  }
+
+  move(comicId: ComicId, chapterId: string, toTop: boolean, wholeComic: boolean = false): void {
+    if (BackupRestoreActivity.isRestoring()) throw new Error('backup_restore_busy')
+    const document = this.loadDocument()
+    const selected: OfflineDownloadQueueEntry[] = []
+    const others: OfflineDownloadQueueEntry[] = []
+    for (const entry of document.entries) {
+      // Keep the visible series group together, including its completed rows.
+      // Completed chapters are still excluded from execution by the batch owner.
+      const matches = entry.comicId === comicId && (wholeComic ||
+        (entry.chapterId === chapterId && entry.status !== OfflineDownloadStatus.DOWNLOADED))
+      if (matches) selected.push(entry)
+      else others.push(entry)
+    }
+    if (selected.length === 0) return
+    this.saveDocument({ schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: document.preferences,
+      entries: toTop ? selected.concat(others) : others.concat(selected) })
   }
 
   addNewEntries(entries: OfflineDownloadQueueEntry[]): number {

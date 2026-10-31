@@ -1982,6 +1982,15 @@
     {"name": "backup_auto_directory_local", "value": "应用内备份"},
     {"name": "backup_auto_background", "value": "后台备份"},
     {"name": "backup_auto_directory_select_failed", "value": "无法使用该备份目录"},
-    {"name": "backup_auto_directory_choose", "value": "选择目录"}
+    {"name": "backup_auto_directory_choose", "value": "选择目录"},
+    {"name": "downloads_move_top", "value": "移到顶部"},
+    {"name": "downloads_move_bottom", "value": "移到底部"},
+    {"name": "downloads_move_book_top", "value": "整本移到顶部"},
+    {"name": "downloads_move_book_bottom", "value": "整本移到底部"},
+    {"name": "downloads_reorder_failed", "value": "调整下载顺序失败"},
+    {"name": "chapter_export_cbz", "value": "导出 CBZ"},
+    {"name": "chapter_share_cbz", "value": "分享 CBZ"},
+    {"name": "chapter_archive_type", "value": "漫画归档"},
+    {"name": "chapter_archive_failed", "value": "章节导出失败，请检查下载是否完整"}
   ]
 }

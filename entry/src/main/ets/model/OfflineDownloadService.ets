@@ -1,5 +1,6 @@
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
+import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool, url } from '@kit.ArkTS'
@@ -31,6 +32,7 @@ import {
   createOfflineDownloadStableByteHash,
 } from './OfflineDownloadStore'
 import {
+  OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueStore,
 } from './OfflineDownloadQueueStore'
@@ -265,8 +267,18 @@ export class OfflineDownloadService {
     } catch (error) { trace.fail(error as Error); throw error as Error }
   }
 
-  async runChapterBatch(chapterIds: string[], execute: (chapterId: string) => Promise<void>): Promise<void> {
-    await OfflineDownloadRuntime.runBatch(chapterIds, this.queueStore.loadPreferences().foregroundConcurrencyLimit, execute)
+  async runChapterBatch(comic: Comic, chapterIds: string[], execute: (chapterId: string) => Promise<void>): Promise<void> {
+    await OfflineDownloadService.ensureQueueInitialized(this.store.filesRootDir())
+    const targets: OfflineDownloadQueueEntry[] = chapterIds.map((chapterId: string): OfflineDownloadQueueEntry => ({
+      comicId: comic.id, chapterId, comicTitle: comic.title,
+      chapterTitle: comic.chapters.find((chapter: Chapter): boolean => chapter.id === chapterId)?.title,
+      status: OfflineDownloadStatus.QUEUED, pageCount: 0, downloadedPageCount: 0, updatedAt: Date.now(),
+    }))
+    // Enqueue the whole requested batch first so remaining chapters can be moved.
+    // Reverse the insertion input to retain this caller's existing initial order.
+    this.queueStore.addNewEntries(targets.slice().reverse())
+    await runOrderedDownloadQueueBatch(this.queueStore, targets,
+      (entry: OfflineDownloadQueueEntry): Promise<void> => execute(entry.chapterId), () => true)
   }
 
   private async runChapterDownload(

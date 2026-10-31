@@ -19,6 +19,7 @@ import { trackerChapterProgress, trackerChapterForProgress } from '../model/Trac
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
+import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
 import { ColorMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
@@ -447,6 +448,24 @@ export struct MangaDetailPage {
     this.seedSourceDetailFromInitialRouteManga()
     this.syncTitleActions()
     this.loadInitialDetailWhenVisible()
+  }
+
+  private chapterArchives: ChapterArchiveActions = new ChapterArchiveActions()
+  @Local private chapterArchiveBusy: boolean = false
+
+  private async exportChapter(chapterId: string, share: boolean): Promise<void> {
+    if (this.chapterArchiveBusy) return
+    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)
+    if (chapter === undefined) return
+    const comicId = this.currentComicId()
+    this.chapterArchiveBusy = true
+    try {
+      await this.chapterArchives.perform(getContext(this) as common.UIAbilityContext, comicId, chapterId,
+        this.manga?.title ?? '', chapter.title, share, () => this.chrome.visible && this.currentComicId() === comicId)
+    } catch (error) {
+      DiagnosticLogger.exception('chapters', 'archive_export_failed', error as Error)
+      if (this.chrome.visible) this.showToast(s('chapter_archive_failed'))
+    } finally { this.chapterArchiveBusy = false }
   }
 
   @Monitor('chrome.visible')
@@ -1867,7 +1886,7 @@ export struct MangaDetailPage {
         this.showToast(s('manga_detail_add_to_library_first'))
         return
       }
-      await service.runChapterBatch(targetChapterIds, async (chapterId: string): Promise<void> => {
+      await service.runChapterBatch(initialComic, targetChapterIds, async (chapterId: string): Promise<void> => {
         if (manga.sourceId !== undefined) {
           let hydration: SourceChapterPageHydrationResult
           try {
@@ -2676,7 +2695,10 @@ export struct MangaDetailPage {
 
         if (this.shouldRenderChapterList()) {
           ChapterListSection({
+            comicId: this.currentComicId(),
+            archiveBusy: this.chapterArchiveBusy,
             chapters: this.chapters,
+            onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
             onOpenChapter: (chapterId: string) => {
               void this.handleOpenChapter(chapterId)
                 .catch((error: Error) => {

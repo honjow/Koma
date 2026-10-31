@@ -8,16 +8,13 @@ import { KomaMenuChip } from './ui/KomaMenuChip'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { ChapterSortBasis, ChapterSortDirection, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { common } from '@kit.AbilityKit'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/ChapterListPreferencesStore'
+export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 
 function s(name: string): string {
   return AppStrings.get(name)
-}
-
-export enum ChapterReadFilter {
-  ALL = 'all',
-  UNREAD = 'unread',
-  READ = 'read',
-  DOWNLOADED = 'downloaded',
 }
 
 export enum ChapterBatchDownloadMode {
@@ -32,6 +29,8 @@ export enum ChapterBatchScope {
 
 @ComponentV2
 export struct ChapterListSection {
+  @Param comicId: string = ''
+  @Param archiveBusy: boolean = false
   @Param chapters: MangaChapterItem[] = []
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private sortBasis: ChapterSortBasis = ChapterSortBasis.SOURCE_ORDER
@@ -45,6 +44,7 @@ export struct ChapterListSection {
   @Local private selectedChapterIds: Set<string> = new Set<string>()
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  @Event onExportChapter: (chapterId: string, share: boolean) => void = (_chapterId: string, _share: boolean) => {}
   @Event onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => void =
     (_chapterIds: string[], _mode: ChapterBatchDownloadMode, _scope: ChapterBatchScope) => {}
   @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
@@ -186,26 +186,31 @@ export struct ChapterListSection {
   private setSortBasis(basis: ChapterSortBasis): void {
     if (this.sortBasis === basis) return
     this.sortBasis = basis
+    this.savePreferences()
   }
 
   private setSortDirection(direction: ChapterSortDirection): void {
     if (this.sortDirection === direction) return
     this.sortDirection = direction
+    this.savePreferences()
   }
 
   private setReadFilter(readFilter: ChapterReadFilter): void {
     this.readFilter = readFilter
     this.rebuildDataSource()
+    this.savePreferences()
   }
 
   private setLanguageFilter(language: string): void {
     this.languageFilter = language
     this.rebuildDataSource()
+    this.savePreferences()
   }
 
   private setGroupFilter(group: string): void {
     this.groupFilter = group
     this.rebuildDataSource()
+    this.savePreferences()
   }
 
   private hasActiveFilters(): boolean {
@@ -234,6 +239,7 @@ export struct ChapterListSection {
     this.languageFilter = ''
     this.groupFilter = ''
     this.rebuildDataSource()
+    this.savePreferences()
   }
 
   private ensureMetadataFiltersAvailable(): void {
@@ -328,7 +334,28 @@ export struct ChapterListSection {
   }
 
   aboutToAppear(): void {
+    this.restorePreferences()
     this.rebuildDataSource()
+  }
+
+  @Monitor('comicId')
+  private restorePreferences(): void {
+    try {
+      const value = new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext).load(this.comicId)
+      this.sortBasis = value.sortBasis
+      this.sortDirection = value.sortDirection
+      this.readFilter = value.readFilter
+      this.languageFilter = value.languageFilter
+      this.groupFilter = value.groupFilter
+    } catch (error) { DiagnosticLogger.exception('chapters', 'preferences_load_failed', error as Error) }
+    this.setSelectionMode(false)
+  }
+
+  private savePreferences(): void {
+    void new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext).save(this.comicId, {
+      sortBasis: this.sortBasis, sortDirection: this.sortDirection, readFilter: this.readFilter,
+      languageFilter: this.languageFilter, groupFilter: this.groupFilter,
+    }).catch((error: Error): void => { DiagnosticLogger.exception('chapters', 'preferences_save_failed', error) })
   }
 
   @Builder
@@ -434,6 +461,12 @@ export struct ChapterListSection {
         .onClick(() => {
           this.onMarkChapterReadState(ri.item.id, false)
         })
+      if (ri.item.isDownloaded && (ri.item.downloadStatus === undefined || ri.item.downloadStatus === 'downloaded')) {
+        MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.archiveBusy)
+          .onClick(() => { this.onExportChapter(ri.item.id, false) })
+        MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.archiveBusy)
+          .onClick(() => { this.onExportChapter(ri.item.id, true) })
+      }
     }
   }
 

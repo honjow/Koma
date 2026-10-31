@@ -8,6 +8,7 @@ import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from './OfflineD
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from './OfflineDownloadService'
 import { OfflineDownloadStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
+import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
 
 export interface OfflineDownloadBatchRequest {
   context: common.UIAbilityContext
@@ -36,41 +37,38 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
   const queue = new OfflineDownloadQueueStore(request.context.filesDir)
   await OfflineDownloadService.ensureQueueInitialized(request.context.filesDir)
   const service = new OfflineDownloadService(new OfflineDownloadStore(request.context.filesDir), queue, request.context)
-  let next = 0
   let completed = 0
-  const worker = async (): Promise<void> => {
-    while (next < targets.length && canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
-      const entry = targets[next++]
-      if (!recoverableDownloadEntry(entry)) continue
+  await runOrderedDownloadQueueBatch(queue, targets, async (entry: OfflineDownloadQueueEntry): Promise<void> => {
+      if (!recoverableDownloadEntry(entry)) return
       const comic = request.library.getComic(entry.comicId)
       if (comic === undefined) {
         queue.upsert({ comicId: entry.comicId, chapterId: entry.chapterId, comicTitle: entry.comicTitle,
           chapterTitle: entry.chapterTitle, status: OfflineDownloadStatus.BLOCKED,
           pageCount: entry.pageCount, downloadedPageCount: entry.downloadedPageCount,
           failureReasonCode: 'comic_missing', updatedAt: Date.now() })
-        continue
+        return
       }
       const hydration: SourceChapterPageHydrationResult = comic.sourceRuntimeId === undefined || comic.sourceRuntimeId.trim().length === 0
         ? { hydrated: true, pageCount: 0 } :
         await new SourceChapterPageHydrator(request.library, request.registry, request.persistence,
           request.onLibraryChanged).ensureChapterPages(comic.id, comic.sourceRuntimeId, entry.chapterId)
       const current = request.library.getComic(entry.comicId)
-      if (current === undefined || !sameComicIdentity(comic, current)) continue
+      if (current === undefined) {
+        entry.status = OfflineDownloadStatus.BLOCKED
+        entry.failureReasonCode = 'comic_missing'
+        queue.upsert(entry)
+        return
+      }
+      if (!sameComicIdentity(comic, current)) return
       if (!hydration.hydrated) {
         await service.blockChapterDownload(current, entry.chapterId, hydration.reasonCode ?? 'pages_missing',
           { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle })
-        continue
+        return
       }
       await service.downloadChapter(current, entry.chapterId,
         { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle })
       completed += 1
-    }
-  }
-  const limit = queue.loadPreferences().foregroundConcurrencyLimit
-  const workers: Promise<void>[] = []
-  for (let index = 0; index < limit && index < targets.length; index += 1) workers.push(worker())
-  const results = await Promise.allSettled(workers)
-  for (const result of results) if (result.status === 'rejected') throw result.reason as Error
+  }, () => canRunOfflineDownloadQueueNow(queue.loadPreferences()))
   return completed
 }
 

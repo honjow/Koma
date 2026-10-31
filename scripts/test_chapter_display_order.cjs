@@ -30,6 +30,7 @@ function make(chapters) {
   const o=exported.make();o.chapters=chapters;o.readFilter='all';o.languageFilter='';o.groupFilter=''
   o.selectedChapterIds=new Set();o.rebuilds=0
   o.rebuildDataSource=()=>{o.rebuilds++}
+  o.savePreferences=()=>{} // Persistence is exercised by its store contract, not this projection test.
   return o
 }
 const chapter=(id,chapterNumber,extra={})=>Object.freeze({id,title:id,chapterNumber,isRead:false,isDownloaded:false,...extra})

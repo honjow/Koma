@@ -1,4 +1,5 @@
 import { runOfflineDownloadBatch } from '../model/OfflineDownloadBatch'
+import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
@@ -119,8 +120,37 @@ export struct DownloadsPage {
     return `${entry.comicId}::${entry.chapterId}`
   }
 
+  private chapterArchives: ChapterArchiveActions = new ChapterArchiveActions()
+  @Local private chapterArchiveBusy: boolean = false
+
+  private async exportChapter(key: string, share: boolean): Promise<void> {
+    const entry = this.entryForKey(key)
+    if (entry === undefined || this.chapterArchiveBusy) return
+    this.chapterArchiveBusy = true
+    try {
+      await this.chapterArchives.perform(this.context(), entry.comicId, entry.chapterId,
+        entry.comicTitle ?? this.libraryStore?.getComic(entry.comicId)?.title ?? '', entry.chapterTitle ?? entry.chapterId,
+        share, () => this.queueVisible)
+    } catch (error) {
+      DiagnosticLogger.exception('downloads', 'archive_export_failed', error as Error)
+      if (this.queueVisible) this.showToast(s('chapter_archive_failed'))
+    } finally { this.chapterArchiveBusy = false }
+  }
+
   private entryForKey(key: string): OfflineDownloadQueueEntry | undefined {
     return this.entries.find((entry: OfflineDownloadQueueEntry) => this.rowKey(entry) === key)
+  }
+
+  private moveDownload(key: string, toTop: boolean, wholeComic: boolean): void {
+    const entry = this.entryForKey(key)
+    if (entry === undefined) return
+    try {
+      this.queueStore().move(entry.comicId, entry.chapterId, toTop, wholeComic)
+      this.loadQueue()
+    } catch (error) {
+      DiagnosticLogger.exception('downloads', 'queue_reorder_failed', error as Error)
+      this.showToast(s('downloads_reorder_failed'))
+    }
   }
 
   private groupForId(comicId: string): DownloadComicGroup | undefined {
@@ -1165,6 +1195,17 @@ export struct DownloadsPage {
               this.openDownloadEntry(entry)
             }
           })
+        if (this.entryForKey(key)!.status !== OfflineDownloadStatus.DOWNLOADED) {
+          MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveDownload(key, true, false) })
+          MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveDownload(key, false, false) })
+          MenuItem({ content: s('downloads_move_book_top') }).onClick(() => { this.moveDownload(key, true, true) })
+          MenuItem({ content: s('downloads_move_book_bottom') }).onClick(() => { this.moveDownload(key, false, true) })
+        } else {
+          MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.chapterArchiveBusy)
+            .onClick(() => { void this.exportChapter(key, false) })
+          MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.chapterArchiveBusy)
+            .onClick(() => { void this.exportChapter(key, true) })
+        }
         if (this.canRetry(this.entryForKey(key)!)) {
           MenuItem({ content: this.busyKey === this.rowKey(this.entryForKey(key)!) ? s('common_retrying') : s('common_retry') })
             .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)

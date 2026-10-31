@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T08:20:34+08:00",
+  "updatedAt": "2026-10-31T08:44:28+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "首批功能已验证并准备提交，下一批数据工作进行中。",
-  "nextAction": "完成首批交付，并依用户决定接入下一批入口。",
+  "activity": "首批CI已通过，第二批准备交付，第三批正在准备。",
+  "nextAction": "完成第二批交付并实施已采用的第三批，结束同场后恢复设备。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已恢复原38d245、原数据及电源并释租。"
+      "hap": "197第二批普通路径验收中，本场导出、导入及队列等数据待恢复。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "首批已验范围完成，待提交",
-      "stage": "首批交付准备，第二批数据工作进行中",
+      "status": "首批CI成功，第二批实测及第三批准备中",
+      "stage": "第二批交付准备与第三批数据合同",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "首批设置、后台下载、范围更新和备份预览已核，正在准备交付及下一批。",
-      "remaining": "完成首批提交；智能预计更新周期尚未接入，继续其余功能差异。第二批入口与样式待用户决定。",
+      "result": "首批已通过CI；第二批导出和队列功能已具名实测，第三批正在准备。",
+      "remaining": "完成第二批交付及本场设备恢复，按已采用范围实现第三批和其余差异。",
       "remainingActions": [
-        "完成首批提交；智能预计更新周期尚未接入，继续其余功能差异。第二批入口与样式待用户决定。"
+        "完成第二批交付及本场设备恢复，按已采用范围实现第三批和其余差异。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4703,12 +4703,17 @@
         "197普通章下载后410ms退后台，8.6秒后download_done 1/1；新章15完整显示，关闭Reader后cleanup[]，队列与本轮基线逐字同，旧下载保留。证据 library-automation/{download-background-034,background-download-result-035,read-downloaded-test-chapter-037,read-cleanup-result-038}。callback-journals-027实际处理76条范围筛选，因尚未加稍后分类而均skip；fixed-background-callback-031/backup-result.json有后台备份成功回执at1793403232723、lastRun同值、failureCode空，产物由前一轮回调稍后执行，不称031新触发立即成功。外部文件内容/恢复未核；stopWork参数401、下载结束实况publish 1600007及删后详情仍显示已下载已改候选，尚未复验。",
         "scoped-update-evidence-045共76条journal，仅BlueArchive15章及猎行者458章真实GET目录，2项unchanged、74项范围skip；07:44:21 work_stopped7101成功无401，两书无实际新章，不称真实新增触发下载。transfer-fixed-result-048后台3283ms完成，无新1600007；cleanup-status-fixed-049完整Reader图→Back→详情首章已下载标识消失，原已下载第二章保留、queue原字节保持。系统picker在find-generated-backup-055找到外部备份23.72MB，预览正在解析、设备尚未恢复。build014通过；后续大library/sourcePackages编码从UI onBackground移到Extension，UI仅供偏好模板，同一生产Worker文件组装测试通过，build015进行中并补启动resume/目录失败回收。014/015未装机，当前fdf340b6候选。证据 library-automation/{scoped-update-evidence-045,transfer-fixed-result-048,cleanup-status-fixed-049,find-generated-backup-055}。",
         "系统文件picker普通打开23.72MB自动备份并预览解析v3：76书、92阅读进度、59设置、88下载队列、85源包元数据、1源设置；仅预览未导入。062日志确认仅本轮owned_modes=3授权已撤，064 obtainAllWorks为空；072/073通过正常UI永久删除仅本轮新建空目录及其文件，原回收站1项保留。074原signed HAP38d2456b恢复，六JSON、原queue及30个pref逐字一致，比较 .hvigor/outputs/feature-parity-implementation-20261031/restore-data-comparison.json；075实读SLEEP/120000/Override10000，lease20261030-231310-6d2be85c released并status确认。真实两作品均无新章，不冒真实新增触发下载；正差集由测试验证。Root正修多轮后台journal取最新及partial cursor不推进全库时钟，首批尚未提交。证据 library-automation/{background-backup-parsed-057,backup-preview-readback-058,backup-detail-counts-059,backup-grant-release-062,cancel-background-works-064,owned-folder-cleaned-072,filemanager-return-073,restore-original-074,power-restored-075}。",
-        "最终build-016成功；生产策略、偏好、失败恢复、备份Worker组装及原Coordinator测试通过，三语言检查通过。BackgroundMaintenanceContract.latestBackgroundObservations按每comic取最新，真实执行覆盖倒序；有效cursor仍有remaining或无有效结果时不推进全库lastCheck。该小修仅编译和逻辑验证，未安装，设备保持原包。智能预计更新周期尚未接入。第二批准备CBZ导出、下载队列重排及每书章节偏好；新UI具体采用问题已询问，入口待答，独立数据工作继续。"
+        "最终build-016成功；生产策略、偏好、失败恢复、备份Worker组装及原Coordinator测试通过，三语言检查通过。BackgroundMaintenanceContract.latestBackgroundObservations按每comic取最新，真实执行覆盖倒序；有效cursor仍有remaining或无有效结果时不推进全库lastCheck。该小修仅编译和逻辑验证，未安装，设备保持原包。智能预计更新周期尚未接入。第二批准备CBZ导出、下载队列重排及每书章节偏好；新UI具体采用问题已询问，入口待答，独立数据工作继续。",
+        "首批Koma/master 67a54bdf5d8ae2dc45ef13458d07cfe270e20f6b已推，精确CI41149684809进行中，不冒通过。第二批已接ChapterListPreferencesStore、ChapterArchiveExport和队列数组排序持久化；CBZ按页码原图与ComicInfo，progress写不重排，每下载slot重读队列。生产队列重排/持久回读、偏好隔离与回滚、完整有序CBZ计划及缺页拒绝和原章节显示排序逻辑通过；首编spread及taskpool局部函数约束已改，build019进行中。第二批未设备验收。",
+        "197 build019签名候选：Blue已下载筛选及反序保存重入仍2/15；长按出现导出/分享，系统分享显示2.02MB CBZ未外发，系统picker保存Download后普通导入识别1章1页，Reader显示原漫画1/1，Root亲看。原cache mkdtemp目录HDC ls被DAC拒绝，不冒shell读取。build020 34bcd4ee3860d2349b1a93dc2c7a4c9e6d9222d8cd6534baafb183ec0da04c3a已安装；共用queue逻辑保持活动chapter不中断且下一slot读最新顺序。普通书架多选Blue加入4个真实未读章节、不启动传输；队列四种move可见，单章移top/bottom界面和queue读回均符顺序。新导出文件及临时导入、queue/pref/原包/power/lease仍待恢复，整体18项未完成。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/。",
+        "首批head67a54bdf5d8ae2dc45ef13458d07cfe270e20f6b精确CI41149684809 success，Release job skipped，未发版。第二批build021成功；197 build020的035下载管理入口系统share显示1.89MB、未外发；036 force-stop/install后Blue详情仍已下载+反序，冷进程持久性已核。build021 SHA72107157d53a61504cf50537b895279fdc7179b0dbc9cedcaf18e17a1442c95f安装，038预设连点未达预期route，039从真实详情Back恢复library、040进入queue；041整本移底后6条Blue行含已完成按原序置末，其他86条逐字未变，未启动下载。Root准备第二批commit/push；同一设备会话接第三批，临时导出/导入、原数据/包/电源/租约最终仍待恢复。用户call63d597已批准第三批，数据合同及消费者准备中，尚未实现或验收。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
         "allowedDifference": "书库更新增加后台检查、分类范围、跳过条件以及WiFi和充电约束；下载支持新章自动下载及分类，读后清理提供关闭、读完、保留2/3/5和排除分类；备份管理增加目录及后台开关。沿用现有控件，新自动功能默认关闭，手动检查仍全库。",
-        "decision": "用户本轮通过call_4bfc明确采用。"
+        "decision": "用户本轮通过call_4bfc明确采用。",
+        "secondBatchAllowedDifference": "用户call3537采用：已下载章节长按及下载页菜单导出/分享CBZ；队列单章或整本移顶部/底部，活动下载不中断；现有排序、已读下载、语言和汉化组按书记忆。",
+        "thirdBatchAllowedDifference": "用户call63d597批准：章节菜单书签、小标识及独立书签筛选；已收藏详情菜单更换/恢复封面，使用系统picker并在源刷新时保留；详情个人笔记使用现有半模态及有内容详情展示，数据随备份。"
       }
     }
   ],
@@ -11078,6 +11083,40 @@
       "evidence": [
         ".hvigor/outputs/feature-parity-implementation-20261031/build-016.log",
         ".hvigor/outputs/feature-parity-implementation-20261031/restore-data-comparison.json"
+      ]
+    },
+    {
+      "id": "feature-parity-second-batch-adopted-20261031",
+      "at": "2026-10-31T08:27:28+08:00",
+      "title": "第二批功能已采用并实施",
+      "detail": "首批已推待CI；用户采用CBZ导出、队列置顶置底和每书偏好，第二批构建中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41149684809"
+      ]
+    },
+    {
+      "id": "feature-parity-chapter-management-native-20261031",
+      "at": "2026-10-31T08:38:40+08:00",
+      "title": "第二批章节管理实测",
+      "detail": "CBZ导出后普通导入阅读、按书偏好及单章队列排序已观察；本场恢复尚未完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/"
+      ]
+    },
+    {
+      "id": "feature-parity-second-third-progress-20261031",
+      "at": "2026-10-31T08:44:28+08:00",
+      "title": "第二批实测及第三批采用",
+      "detail": "首批CI成功，第二批整本队列排序及冷进程偏好已核；第三批已获用户采用，尚未实现。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41149684809",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/"
       ]
     }
   ],

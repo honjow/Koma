@@ -1,4 +1,5 @@
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
+import { ChapterListPreferencesStore } from '../model/ChapterListPreferencesStore'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
@@ -77,6 +78,9 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.warn('app', 'startup_apply_failed', '[Language] startup_apply_failed retained_previous_runtime=true')
     })
     await restoreReaderRemoteImageCache(this.context)
+    await new ChapterListPreferencesStore(this.context).prepare().catch((error: Error): void => {
+      DiagnosticLogger.exception('chapters', 'preferences_prepare_failed', error)
+    })
     await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
     })
