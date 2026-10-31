@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：迁移原位重试和来源独立移除已修复交付；详情菜单原型已实测，可看效果后再决定是否调整。其它未验范围保留。
+当前结果：公共菜单默认系统材质及首次打开位置均已修复，197普通路径和本次CI通过，设备已恢复。其它原项范围继续保留。
 
-设备：197本轮已恢复原包、数据和休眠并释租；237本轮未操作。200禁止操作，四私库搁置。
+设备：197已恢复原包、本轮原数据和电源并释租；237本轮未操作。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T03:59:08+08:00",
+  "updatedAt": "2026-11-01T04:44:58+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_CROSS_SOURCE_MIGRATION",
-  "activity": "本轮迁移修复与详情菜单原型已交付，CI成功，设备已恢复释租。",
-  "nextAction": "保留菜单试看反馈及原未验范围，不重复已接受路径。",
+  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
+  "activity": "公共菜单系统材质和首次定位已修复交付，197已恢复释租。",
+  "nextAction": "按原项保留短笔记展开、相邻LLM入口与账号范围，不重跑已接受菜单路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master 66ece78fc698f499aa9704e0405602b1df9192a8，精确CI41224591032成功。",
-      "hap": "197本轮迁移交互实测后已恢复原包、基线数据和电源并释租。"
+      "appHead": "Koma/master fc0f4e7fda8a34c665a03be3c8a5bbe37f618af6，精确CI41239344597成功。",
+      "hap": "197本轮菜单材质及首次定位实测后，已恢复原包、fresh332数据和电源并释租。"
     },
     {
       "name": "NextE",
@@ -4737,7 +4737,7 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "详情菜单试做已交付，待效果反馈",
+      "status": "菜单材质与首次定位修复已交付，其他展示问题保留",
       "stage": "部分已交付",
       "owner": "Root",
       "dependencies": [
@@ -4746,10 +4746,9 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "WebView、分享链接、更多三个按钮已显示；更多有三段原生分隔，关闭后可重开、笔记入口可用，分享面板取消后可重新打开，WebView进入对应作品页。",
-      "remaining": "当前菜单供用户看效果后决定保留或改进；短笔记展开、LLM入口同名及三追踪真实账号范围仍保留。",
+      "result": "菜单已默认使用系统材质；修复首次错位后，同一普通路径及刚进详情就点击更多均贴合右上按钮。书架单组与勾选、详情分组及笔记入口保留。",
+      "remaining": "短笔记多余展开、LLM来源相邻入口同名仍待修正；三追踪服务真实账号范围未验。",
       "remainingActions": [
-        "详情菜单试做效果待用户反馈后决定是否继续调整。",
         "短笔记多余展开、LLM来源相邻入口同名仍待修正。",
         "三追踪服务用户暂无账号，真实认证、绑定和远端同步未验。"
       ],
@@ -4836,8 +4835,17 @@
         "kitsuAllowedDifference": "用户call_45d3ff5aed77479f99474ae956d8be80采用Kitsu完整接入：现有追踪详情邮箱/密码登录、匹配确认及同步；密码仅用于登录，token安全存储且不备份。",
         "smartCategoryEditorCorrection": "用户本轮指出智能分类保存按钮在末尾、关闭与材质不规范，并明确要求复用扩展现有组件。替换该页手写Column/标题关闭/末尾保存为既有KomaModalScaffold；仅为公共标题栏增加可选确认操作，未传确认参数的现有消费者保持原单一关闭菜单。规则、表单和数据事务不改。",
         "wholeAppAudit": "用户本轮明确要求改后全应用检查，包括菜单展开层级、动画、位置稳定、操作可达及复用现有公共组件。只按实际普通入口记录，不以静态扫描冒设备验收；不把双选项迁移到半模态。",
-        "detailMenuPrototype": "用户本轮提出最多外露三项（超过三项则两个操作+更多），否决刷新常驻因为已有下拉刷新，随后明确允许先试做WebView/分享链接/更多并尝试分组，看效果再决定；优先先完成迁移问题。其它已采用操作不删。"
-      }
+        "detailMenuPrototype": "用户本轮提出最多外露三项（超过三项则两个操作+更多），否决刷新常驻因为已有下拉刷新，随后明确允许先试做WebView/分享链接/更多并尝试分组，看效果再决定；优先先完成迁移问题。其它已采用操作不删。",
+        "menuMaterialCorrection": "用户当前明确要求所有菜单默认封装并采用新系统材质。KomaMenuController新增时漏用既有KomaPopupOptions；补同一入口，保现有三按钮、分组、操作与API23回退。",
+        "firstOpenAnchorCorrection": "用户指出334首次菜单漂在中间；此真实反例否定仅重开正确的验收。公共入口改为原生布局完成后取最新菜单项及按钮UniqueID，不用固定延时或重新点开补偿；关闭/离页使待开请求失效。"
+      },
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/material-detail-menu-334/screen.png：系统材质可见但首次错位，失败；336重开位置正常不抵消此失败。",
+        ".hvigor/outputs/menu-material-candidate033-b6e40787.hap；SHA b6e40787bc031dfb139116e24bdb030ab1e8ee8a51d4b750ce6bbae160b2556c，build033成功。",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/material-first-anchor033-339：与失败334相同首次路径/时序，更多右边与菜单右边均1208px，八动作三组；341刚进500ms点更多首次亦正确；340书架单组含当前勾选，342笔记原表单打开未保存。",
+        ".hvigor/outputs/menu-material-acceptance/delivery-binding.json：343明确安装原包，fresh332七JSON+30首选项逐字相同、无extra；344 SLEEP/normal120000/Override10000，lease20261031-202407-89edae6e released。fc0f4e7f已推，精确CI41239344597运行中。",
+        ".hvigor/outputs/menu-material-acceptance/ci-final.json：fc0f4e7f完整SHA精确CI41239344597 completed/success，Release构建、Inspect、Upload成功，Publish tagged Release skipped；本轮公共材质及原生锚点已交付。首次334失败及339/341首次通过、设备恢复均见delivery-binding.json和report.md。"
+      ]
     }
   ],
   "source": {
@@ -12344,6 +12352,49 @@
       "evidence": [
         ".hvigor/outputs/migration-followup-acceptance/delivery-binding.json",
         "https://github.com/honjow/Koma/actions/runs/41235778354"
+      ]
+    },
+    {
+      "id": "menu-material-default-wiring-20261101",
+      "at": "2026-11-01T04:24:07+08:00",
+      "title": "公共菜单漏接材质已修，待设备验证",
+      "detail": "仅新公共openMenu入口漏用既有材质；绑定及长按已沿统一配置。保分组和操作，编译中。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION"
+    },
+    {
+      "id": "menu-first-anchor-failed-20261101",
+      "at": "2026-11-01T04:29:38+08:00",
+      "title": "首次菜单偏移，验收失败",
+      "detail": "材质可见；首次菜单比更多按钮偏左312px，重开正常不能抵消首次失败。改为布局完成后解析当前原生锚点，待验证。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "menu-first-anchor-fixed-20261101",
+      "at": "2026-11-01T04:32:00+08:00",
+      "title": "首次菜单定位和系统材质已验",
+      "detail": "同一首次路径及进入后快速点击均贴合更多按钮；保原分组/动作，书架单组正常。设备恢复和CI仍在收尾。",
+      "kind": "checkpoint",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION"
+    },
+    {
+      "id": "menu-material-device-restored-20261101",
+      "at": "2026-11-01T04:35:32+08:00",
+      "title": "菜单验收设备已恢复",
+      "detail": "恢复原包及本轮原数据，电源恢复并释租；修复已推，等待本次CI。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "menu-material-ci-delivered-20261101",
+      "at": "2026-11-01T04:44:58+08:00",
+      "title": "菜单材质与首次定位修复交付",
+      "detail": "公共入口默认系统材质，首次与快速首次均贴合按钮；关联书架单组及笔记入口正常。设备已恢复，CI成功；其余原项展示与账号范围保留。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/menu-material-acceptance/delivery-binding.json",
+        "https://github.com/honjow/Koma/actions/runs/41239344597"
       ]
     }
   ],

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "koma-migration-dialog-inline-retry-197",
+  "name": "koma-native-menu-material-197",
   "target": "192.168.50.197:12345",
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
@@ -10,29 +10,38 @@
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "migration-inline-retry-build027-a4453952",
-    "page": "Actual same-work failure, tap retry in former loading slot",
+    "codeIdentity": "menu-material-build032-b651876e",
+    "page": "Detail grouped menu dismiss and reopen at normal speed",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "选择真实原作品触发现有migration_same_manga失败，复用同一failed分支；只验证失败呈现和原位重试，不冒称真实远端目录错误已重现。不提交迁移。"
+    "notes": "初始详情菜单已显示，点外关闭后一次重开，观察系统材质与分组；不改设置不执行作品操作。"
   },
-  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/inline-retry-recording-308",
-  "recordingFileName": "koma_migration_retry027_20261101_308.mp4",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/material-menu-recording-335",
+  "recordingFileName": "koma_material032_20261101_335.mp4",
   "timeoutMs": 86400000,
   "warmupMs": 500,
   "idleRecordMs": 0,
   "actions": [
     {
-      "name": "tap-inline-retry",
+      "name": "dismiss-menu",
       "uiInput": [
         "click",
-        "1091",
-        "1098"
+        "250",
+        "1850"
       ],
-      "pauseAfterMs": 1200
+      "pauseAfterMs": 650
+    },
+    {
+      "name": "reopen-menu",
+      "uiInput": [
+        "click",
+        "1145",
+        "215"
+      ],
+      "pauseAfterMs": 900
     }
   ]
 }

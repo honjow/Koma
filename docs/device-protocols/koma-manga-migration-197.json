@@ -5,21 +5,21 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration",
-  "runId": "followup-power-restored-331",
+  "runId": "material-power-restored-344",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "46e2dbe8 / restored original197-38d245",
+    "codeIdentity": "fc0f4e7f / restored original197-38d245",
     "page": "Restore original timeout and sleep after verified data restoration",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "fresh301七JSON及30首选项逐字相同、无extra，原签名包安装成功；恢复10000ms、Sleep并读回后释放租约。"
+    "notes": "fresh332七JSON及30首选项共37文件逐字同、无额外文件；恢复原超时及睡眠后释租。"
   },
   "preflight": [],
   "measurement": {
