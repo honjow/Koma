@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：书架铃铛更新页、订阅独立页及菜单调整已完成本轮真机验证，正在提交核对。
+当前结果：书架铃铛更新页、订阅独立页及菜单调整已完成本轮真机验证，已推送并通过 CI。
 
 设备：197保持原状态；237已恢复本轮原包、数据、电源与睡眠并释租。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T07:20:59+08:00",
+  "updatedAt": "2026-11-01T07:34:34+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
-  "activity": "书架铃铛更新页、原生订阅入口和最新两处展示修正已完成真机验证；设备已恢复，正在审查提交。",
-  "nextAction": "提交已验改动并核对对应CI；保留原事项中的源与账号未解决范围。",
+  "activeId": "LIBRARY_UPDATES_BELL_ENTRY",
+  "activity": "书架铃铛更新页、订阅独立页和菜单修正已交付并通过CI；237已恢复释租。",
+  "nextAction": "本轮入口与展示问题已关闭；其余源、账号及原未关闭项继续按原事项保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3315,7 +3315,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "Noy账号未验，DB新章失败待定位",
+      "status": "Noy账号未验，DB正文失败待取得错误对象",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3325,8 +3325,8 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。 本轮新增实测：DB Multiverse章117目录可取得、正文请求失败，源与Host根因尚未归因，未关闭该失败。",
-      "remaining": "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。 本轮真实书库更新发现DB Multiverse章117取正文失败，需核源/Host原因，未判纯源问题。",
+      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。 本轮新增实测：DB Multiverse章117目录可取得、正文请求失败，源与Host根因尚未归因，未关闭该失败。 source_terra本轮核固定参考：DB参考会绘制HTML气泡文字；当前011源保留遇气泡拒绝整章的既定保护。章117两次HTTP实际200，受控分支响应长度相同只作线索，实际错误码仍未直接读到。",
+      "remaining": "Noy仍缺用户账号。DB章117需取得实际源错误对象或合法自然路径的页面结构分类，确认是否触发既有气泡合成保护；不靠222字节推定错误码，不放开保护显示无字原图。",
       "remainingActions": [
         "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。"
       ],
@@ -3416,7 +3416,9 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-old-log-439/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-host-sleep-487/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-web-session-concurrent/simply-ua-sleep-509/",
-        "2026-11-01 237/043更新入口验收：DB Multiverse真实目录117章、更新ID dbmch:zh:/cn/chapters.html?comic=page&chapter=117；get_pages失败kind=runtime，http=0，根因未知。source-catalog/updates-row-opens-chapter-052、updates-meme-reader-055/diagnostics。Meme Girls指定新章408正文成功，不能据此掩盖DB失败。"
+        "2026-11-01 237/043更新入口验收：DB Multiverse真实目录117章、更新ID dbmch:zh:/cn/chapters.html?comic=page&chapter=117；get_pages失败kind=runtime，http=0，根因未知。source-catalog/updates-row-opens-chapter-052、updates-meme-reader-055/diagnostics。Meme Girls指定新章408正文成功，不能据此掩盖DB失败。",
+        "已复用原source_terra接续DB具名反例本地归因，Root保持原工作单owner，不另建任务或新代理。",
+        "本轮source_terra只读结论：koma-sources/sources/dbmultiverse-zh/src/lib.rs:413–422、449–473、493–500及README:3–5；fe2190b已含guard。固定参考full-949的DbMultiverse.kt:132、139–175、183起含取图与气泡合成。无代码/设备/站点请求修改。"
       ],
       "evidencePoints": [
         "/private/tmp/koma-filter-scope-header-build.log",
@@ -4860,7 +4862,7 @@
       "reportedAtSource": "2026-11-01本会话当前用户要求；精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T05:12:29+08:00",
       "result": "浏览文字入口、管理原生溢出、订阅独立页及系统文件选择器已实机核对；订阅冷启动保留。重复地址失败后保留对话框和输入，取消/移除及再次添加成功均已验证。",
-      "remaining": "产品路径已验，本轮提交与CI核对中。",
+      "remaining": "本轮已关闭；已安装源、书库与旧订阅的原范围保持。",
       "remainingActions": [
         "改为原生菜单及清晰文字入口；订阅改独立列表页，由标题栏添加并弹输入对话框。"
       ],
@@ -4891,7 +4893,9 @@
         "用户本轮明确允许仅关闭软件更新提示；已点稍后，随后取消开启自动更新的追加询问，保持原设置。043签名候选安装成功；书架铃铛外观已见，正在接续路径。回执 source-catalog/approved-dismiss-037、decline-auto-update-038、candidate043-installed-039。",
         "237/043：043浏览、044系统材质溢出、045独立页与系统对话框、048有效地址启用、049添加成功、061本地导入。064发现AdvancedDialogV2Button无条件关闭，使重复地址错误不可见；官方OpenHarmony dialogv2.ets的commonButtonStyle回调后closeDialog可证。候选改为同一公共系统对话框中的标准按钮，仅成功/取消关闭，045构建中，尚未回验。",
         "237/045：068冷启动订阅列表及空输入禁用；070重复地址错误在原框显示且保留输入；071取消并只移除受控订阅；073重新添加成功并关闭。修正后的公共组件继续用CustomContentDialogV2材质及标题、原生文本按钮，因系统AdvancedDialogV2Button强制close，表单自行管理成功/取消关闭。",
-        "033新鲜基线已恢复：091原同签HAP实际安装成功，七JSON与18偏好文件逐字一致且无新增偏好；092最终SLEEP、Timeout120000ms、无Override。租约20261031-223527-67f1feff已释放，受控18796服务已停止，8766进度页保持。恢复比较 .hvigor/outputs/source-catalog-acceptance/entry-updates-restoration.json。"
+        "033新鲜基线已恢复：091原同签HAP实际安装成功，七JSON与18偏好文件逐字一致且无新增偏好；092最终SLEEP、Timeout120000ms、无Override。租约20261031-223527-67f1feff已释放，受控18796服务已停止，8766进度页保持。恢复比较 .hvigor/outputs/source-catalog-acceptance/entry-updates-restoration.json。",
+        "已审提交 cb2b0b2cfc98e27648379b7696f44b1c55b7caad 已推 Koma/master；精确CI 41252261302 进行中。验证HAP/路径绑定 .hvigor/outputs/source-catalog-acceptance/entry-updates-delivery.json；8766 API的所有snapshot字段逐字段一致，119项无旧ID删除。",
+        "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。"
       ],
       "closedAt": "2026-11-01T07:20:59+08:00"
     },
@@ -4907,7 +4911,7 @@
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
       "result": "书架第二按钮已改为铃铛，进入按日期分组的新章节列表；列表样式保留独立二级菜单。真实新章可阅读，更新记录重启及再次检查后保留；封面留白和圆角已按最新反馈修正。",
-      "remaining": "产品路径已验；本轮提交与CI核对中。DB Multiverse章117正文失败单独保留在源核对原项。",
+      "remaining": "本轮已关闭。DB Multiverse章117正文失败保留在原源核对项，不计作已修复。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -4927,7 +4931,9 @@
         "237/043：040空态、041原生菜单、042显式检查、050真实12条新章、051封面详情、056新章正文及057对应reader chapter:408，059–060菜单列表切换；062/065再次检查原12条保留并增加另2条。DB Multiverse章117取正文失败，原因未归因，另记原源核对项。",
         "用户提供067/059截图指出封面贴边及把网格/列表平铺为功能的问题。封面候选保44×60，复用RADIUS_COVER=12并补上下8vp；原外框24vp/4vp内缩保留。菜单候选复用KomaMenuController原生MenuItem子菜单与系统材质，保持搜索/铃铛/更多三个固定动作。047构建及回验中。",
         "047候选点击视图子菜单退出：076屏幕及084受控日志，TypeError Cannot read property observeComponentCreation2 of undefined，定位KomaMenuSubmenu全局builder未绑定父视图。已改为.call(this,item)，048待编译及设备回验；故障候选不交付。",
-        "最终049签名候选6a0df445f1cfe82f4ac79538da667c49047aed9ec41a3e38ea7d478d6b1cfb0e实际安装085；086原生二级选择菜单、087列表选择生效、088封面四向12vp内缩与12vp封面圆角、089原检查详情入口。049将延迟子菜单构建放回组件实例，避免全局builder丢失上下文；048的.call尝试未编译、未装。067实际cold记录保留，主数据逻辑未再改。"
+        "最终049签名候选6a0df445f1cfe82f4ac79538da667c49047aed9ec41a3e38ea7d478d6b1cfb0e实际安装085；086原生二级选择菜单、087列表选择生效、088封面四向12vp内缩与12vp封面圆角、089原检查详情入口。049将延迟子菜单构建放回组件实例，避免全局builder丢失上下文；048的.call尝试未编译、未装。067实际cold记录保留，主数据逻辑未再改。",
+        "已审提交 cb2b0b2cfc98e27648379b7696f44b1c55b7caad 已推 Koma/master；精确CI 41252261302 进行中。验证HAP/路径绑定 .hvigor/outputs/source-catalog-acceptance/entry-updates-delivery.json；8766 API的所有snapshot字段逐字段一致，119项无旧ID删除。",
+        "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。"
       ],
       "closedAt": "2026-11-01T07:20:59+08:00"
     }
@@ -12599,6 +12605,39 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-cover-spacing-088/screen.png",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-091/run-metadata.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-power-restored-092/run-metadata.json"
+      ]
+    },
+    {
+      "id": "entry-updates-pushed-ci-source-followup-20261101",
+      "at": "2026-11-01T07:25:25+08:00",
+      "title": "本轮界面改动已推送，CI核对中",
+      "detail": "订阅与铃铛更新页改动已提交推送；设备已恢复。原源执行者接续DB新章正文失败的具体归因。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41252261302",
+        ".hvigor/outputs/source-catalog-acceptance/entry-updates-delivery.json"
+      ]
+    },
+    {
+      "id": "dbm-current-overlay-contract-readonly-20261101",
+      "at": "2026-11-01T07:28:11+08:00",
+      "title": "DB正文失败核对到既有气泡处理边界",
+      "detail": "HTTP请求200，参考会把气泡文字合成进图；当前源遇此结构拒绝。章117实际错误对象未留，保持待定位，不放开保护或冒已修。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "evidence": [
+        "../koma-sources/sources/dbmultiverse-zh/src/lib.rs",
+        ".hvigor/outputs/user-flow-audit/upstream-settings-reference/full-949/src/all/dragonballmultiverse/src/eu/kanade/tachiyomi/extension/all/dragonballmultiverse/DbMultiverse.kt"
+      ]
+    },
+    {
+      "id": "entry-updates-ci-accepted-20261101",
+      "at": "2026-11-01T07:34:34+08:00",
+      "title": "铃铛更新页与订阅入口交付完成",
+      "detail": "两项普通路径和最新视觉纠正已验收，提交推送后CI通过；237恢复原包、数据与睡眠并释租。DB正文失败另留原项，不冒全部问题已解决。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41252261302",
+        ".hvigor/outputs/source-catalog-acceptance/entry-updates-restoration.json"
       ]
     }
   ],
