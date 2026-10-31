@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T11:12:02+08:00",
+  "updatedAt": "2026-10-31T11:37:35+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "多归档已具名验证并恢复设备，正在准备源码交付。",
-  "nextAction": "完成最后构建与交付，继续亮度滤镜等功能。",
+  "activity": "亮度滤镜已推送，正在核CI和追踪服务合同。",
+  "nextAction": "核第八批CI，并明确追踪服务接入方案。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
-      "hap": "197已恢复原38d245、基线数据和电源并释租。"
+      "hap": "197亮度滤镜验证后原数据、电源恢复并释租。"
     },
     {
       "name": "NextE",
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "多归档具名验收及恢复完成，待交付",
-      "stage": "最后原生错误分支构建及交付准备",
+      "status": "亮度滤镜已推，CI进行中",
+      "stage": "核第八批CI及追踪服务合同",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "多归档普通路径已验，测试数据与设备已恢复，正在准备交付。",
-      "remaining": "完成归档源码审查、推送及CI，继续亮度滤镜、tracker等差异。",
+      "result": "亮度滤镜已具名验证并推送，CI正在运行；追踪服务接口调查中。",
+      "remaining": "核第八批精确CI，继续调查并实现已授权追踪服务差异。",
       "remainingActions": [
-        "完成归档源码审查、推送及CI，继续亮度滤镜、tracker等差异。"
+        "核第八批精确CI，继续调查并实现已授权追踪服务差异。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4727,7 +4727,13 @@
         "Root先实现多归档，已核固定Mihon Archive.kt、LocalSource.kt、core/archive/EpubReader.kt；native libarchive3.8.11+xz5.8.4+bzip2及后台解码、EPUB taskpool顺序候选在本地，尚未编译或真机。智能分类CI41159800145仍待实际回执。",
         "智能分类head6b449b2a02c90da7033ef9f73b2e690a2d425f40精确CI41159800145 completed/success，具名范围交付；总18项未关闭。归档候选044已编译a884cfcb，197 lease20261031-023408-1058d3b7：143 fresh baseline备份、144 AWAKE/86400000、145普通书架菜单、146漫画归档submenu、147 picker扩展入口已显示。公共Docs/Download的HDC mkdir与四file send实际Permission denied/NoSuch，虽cmd exit0也属失败；148下载索引及149/150浏览Download不构成导入。正通过既有debug Want diagnostics准备固定app私有QA归档，再验普通书架Reader及cold，不操作用户其他文件。native核心主机系统libarchive的RAR4stored/RAR5compressed/7z/TAR字节及穿越/符号链接拒绝实测通过，不冒OHOS codec；build045 localFolder helper导入顺序失败已修，build046进行中。设备仍awake/held未恢复。",
         "197 HAP049 SHA f28ae54572d754731e9eb6a806f0c4757d38c35aab72486fc9d3a67295ac00a7：普通系统SavePicker创建四份自有QA文件，普通书架菜单→漫画归档→Download选择导入；158 TAR、159 RAR4 stored、160压缩7z各三页1.png/2.png/10.png持久成功。161批动作EPUB选择未生效保失败，162稳态选1/1、163完成EPUB，实际spine顺序2.png/1.png/2.png，保重复且不附未引用10.png。165 force-stop后四书对象与163同，166最近加入显示四卡、167 EPUB详情3页、168 Reader 1/3绿色Koma archive page 2图由Root亲看。当前构建临时自有资产清理诊断050，准备清四公共QA文件、四本缓存及空测试根，再恢复baseline143七JSON/30prefs、原包/电源并释租；尚未恢复。RAR5仅host压缩样本，未具名OHOS codec。证据 library-automation/archive-*。",
-        "归档收尾：183系统文件管理器确认本轮四份QA文件并永久删除，同查询0项；184回Browse且原最近删除1项保留。185应用私有清理ok=true，删除四书缓存及151失败空根共五根，186临时report确认NoSuch。169–172删除接口尝试均未成功，保失败证据；最终GUI及应用私有清理完成。187原HAP38d245与archive-baseline143七JSON/30prefs共37文件逐字相等、无额外pref，证据 .hvigor/outputs/feature-parity-implementation-20261031/archive-restored-data.json；188 SLEEP/120000/Override10000，lease20261031-023408-1058d3b7 released且无active。临时QA诊断/Want分支/fixture资源已撤，SourceRuntimeDeviceSmoke diff为0。纯产品build055成功，最后原生close错误分支重复close修正build056中；普通四格式验收为HAP049及165/168范围，RAR5仅host压缩fixture，目录扫描新格式未扩展，保ZIP/CBZ章节描述合同。"
+        "归档收尾：183系统文件管理器确认本轮四份QA文件并永久删除，同查询0项；184回Browse且原最近删除1项保留。185应用私有清理ok=true，删除四书缓存及151失败空根共五根，186临时report确认NoSuch。169–172删除接口尝试均未成功，保失败证据；最终GUI及应用私有清理完成。187原HAP38d245与archive-baseline143七JSON/30prefs共37文件逐字相等、无额外pref，证据 .hvigor/outputs/feature-parity-implementation-20261031/archive-restored-data.json；188 SLEEP/120000/Override10000，lease20261031-023408-1058d3b7 released且无active。临时QA诊断/Want分支/fixture资源已撤，SourceRuntimeDeviceSmoke diff为0。纯产品build055成功，最后原生close错误分支重复close修正build056中；普通四格式验收为HAP049及165/168范围，RAR5仅host压缩fixture，目录扫描新格式未扩展，保ZIP/CBZ章节描述合同。",
+        "第七批产品提交97288fef54e26f5a8539fd9d17db2b6a52436e00已推Koma/master；纯产品build056成功，无诊断，精确CI41163450398 in_progress，未冒通过。Root开始实现用户已批准亮度与滤镜，尚无代码，设备无租约。",
+        "亮度滤镜候选已接全局/Reader同内容组件、ReaderPreferencesStore有序持久/备份/差量重基、独立滑动预览、root窗口亮度owner及shared/legacy图片展示层，加载与HUD保原。build057 ArkTS通过但打包JAVA_HOME错误，已修本地环境；build058成功13s505ms。Root正在197真实验证，尚未验收或提交。第七批CI41163450398最后仍in_progress。",
+        "第七批精确CI41163450398 completed/success，release job skipped，无发版；归档按原设备具名范围收口。亮度build058 HAP6f321d已装197，全局显示→亮度滤镜默认四开关关闭，196截图Root亲看；正在普通保存灰度。build059亮度采样及readback日志成功10s702ms，将同场安装续验。NextE 34s10ms与NextN 26s695ms仅编译成功，未设备验收。",
+        "197全局197保存grayscale=true；198安装build059后冷入Blue正文灰度，Root亲看。202正亮度49、Window readback 0.4900000095及反色画面；发现slider文本停0，修独立@Param控件后build061成功。203安装061、负亮度-52，标签与slider一致，Window读回0.01、图片暗层可见；204关闭独立亮度后restored=-1且扩展sheet显示RGBA；205保存R240/G52/B0/A76，菜单六模式齐，206正在选滤色看全图。最初display189误复用143接收目的名，实际143七JSON+30prefs与独立187回执逐字同，未改旧产品数据；fresh190正确基线。lease20261031-032302-84dbe78e仍持有、86400000，设备尚未恢复。",
+        "197 build061：206 screen模式RGBA240/52/0/76正文实际浅红、HUD/页码白；208 multiply实际全图深红；211连续滚动相邻两章图片均保滤镜，Root亲看。212开启-52后正常关闭Reader回书架，Window requested=.01读回、退出restored=-1。213 fresh190七JSON+30prefs共37逐字同、无extra，比较 library-automation/display-restored-data.json；214 SLEEP/120000/Override10000，lease20261031-032302-84dbe78e released且无active。持久冷读、窗口late取消/准确恢复及3locale测试通过，build061 11s116。仅screen/multiply实图，其他四模式仅菜单与映射编译；Legacy仅接线编译、NextE/N仅编译，不外推全组合或原图导出。两仓提交pin及CI待审。",
+        "第八批reader-kit/main b3aac7c092c4a3bb8d303160674880c5b67f29f7及Koma/master a15c468cce9ac4ac6dd6a8dd62070299e0301d87已推，workflow已pin该kit；精确CI41165157510 in_progress。061 HAP实际SHA9b9b8c9afb19c18eba0e496065d407bb957af4772e9e18877ac3cf4f41e3d645，冻结candidate-display061-9b9b8c9a.hap；203起实际安装061，manifest context沿用旧display-build058字样，display-acceptance-binding.json如实说明，未改历史回执。最后差异更多追踪服务原接口调查中，UI接入待决定，尚未实现。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -11370,6 +11376,73 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/feature-parity-implementation-20261031/archive-restored-data.json"
+      ]
+    },
+    {
+      "id": "feature-parity-archive-pushed-20261031",
+      "at": "2026-10-31T11:17:16+08:00",
+      "title": "多归档代码推送",
+      "detail": "多归档产品代码已推送，精确CI运行中；亮度滤镜开始实施。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41163450398"
+      ]
+    },
+    {
+      "id": "feature-parity-reader-filter-built-20261031",
+      "at": "2026-10-31T11:22:58+08:00",
+      "title": "亮度滤镜候选构建",
+      "detail": "全局及阅读器候选已构建，设备验证进行中。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41163450398"
+      ]
+    },
+    {
+      "id": "feature-parity-archive-ci-filter-native-20261031",
+      "at": "2026-10-31T11:27:06+08:00",
+      "title": "归档交付与滤镜默认状态",
+      "detail": "归档精确CI成功；亮度滤镜默认关闭已观察，保存及实际效果仍在验证。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41163450398"
+      ]
+    },
+    {
+      "id": "feature-parity-reader-filter-native-20261031",
+      "at": "2026-10-31T11:31:41+08:00",
+      "title": "亮度滤镜实机验证",
+      "detail": "灰度、亮度及反色已观察，滑块显示已修；滤色模式及设备恢复仍在进行。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/"
+      ]
+    },
+    {
+      "id": "feature-parity-reader-filter-restored-20261031",
+      "at": "2026-10-31T11:36:27+08:00",
+      "title": "亮度滤镜具名验收及恢复",
+      "detail": "screen、multiply及连续滚动实图已核，设备数据和电源恢复；两仓交付待完成。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/display-restored-data.json"
+      ]
+    },
+    {
+      "id": "feature-parity-reader-filter-pushed-20261031",
+      "at": "2026-10-31T11:37:35+08:00",
+      "title": "亮度滤镜两仓推送",
+      "detail": "亮度滤镜两仓已推，精确CI运行中；追踪服务接口调查开始。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41165157510",
+        ".hvigor/outputs/feature-parity-implementation-20261031/display-acceptance-binding.json"
       ]
     }
   ],
