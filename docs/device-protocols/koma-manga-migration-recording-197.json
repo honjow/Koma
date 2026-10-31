@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-migration-dialog-preparation-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "migration-detail-build018",
+    "page": "Normal result tap through loading and ready: single title, stable summary and buttons",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "User approved selected-source persistence/grouping, top actions, grouped search and detail preview. Restore actual original HAP matched by installed receipt, seven JSON and all preferences, power10000/SLEEP; release197. No emulator, no accounts."
+  },
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/detail-dialog-recording-168",
+  "recordingFileName": "koma_migration_detail018_20261101_168.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "choose-k...omiic-result",
+      "uiInput": [
+        "click",
+        "200",
+        "850"
+      ],
+      "pauseAfterMs": 8000
+    }
+  ]
+}

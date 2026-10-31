@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-category-menu-recording-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "shared-modal-build024",
+    "page": "Fixed category rows: native main menu, sort submenu, choice, reopen and dismiss; no new sheet",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "User approved selected-source persistence/grouping, top actions, grouped search and detail preview. Restore actual original HAP matched by installed receipt, seven JSON and all preferences, power10000/SLEEP; release197. No emulator, no accounts."
+  },
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/ui-audit-category-recording-246",
+  "recordingFileName": "koma_category_menu024_20261101_246.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "action-0",
+      "uiInput": [
+        "click",
+        "1000",
+        "545"
+      ],
+      "pauseAfterMs": 700
+    },
+    {
+      "name": "action-1",
+      "uiInput": [
+        "click",
+        "700",
+        "705"
+      ],
+      "pauseAfterMs": 700
+    },
+    {
+      "name": "action-2",
+      "uiInput": [
+        "click",
+        "850",
+        "1185"
+      ],
+      "pauseAfterMs": 700
+    },
+    {
+      "name": "action-3",
+      "uiInput": [
+        "click",
+        "1000",
+        "545"
+      ],
+      "pauseAfterMs": 700
+    },
+    {
+      "name": "action-4",
+      "uiInput": [
+        "click",
+        "100",
+        "1400"
+      ],
+      "pauseAfterMs": 700
+    }
+  ]
+}
