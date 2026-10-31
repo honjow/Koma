@@ -487,15 +487,24 @@ export struct MangaMigrationPage {
       sourceIdentityIconUri: source.icon ?? '', sourceIdentitySourceId: source.sourceId, sourceIdentityVersion: source.version,
       isEnabled: !this.starting,
       surfaceRadius: ThemeConstants.GROUPED_LIST_INNER_RADIUS,
-      suffixBuilderParam: selected ? (): void => { this.SourceDragHandle() } : undefined,
-      action: (): void => { this.toggleSource(source.sourceId) } })
+      suffixBuilderParam: selected ? (): void => { this.SelectedSourceActions(source.sourceId) } : undefined,
+      action: selected ? undefined : (): void => { this.toggleSource(source.sourceId) } })
   }
 
   @Builder
-  private SourceDragHandle() {
-    SymbolGlyph($r('sys.symbol.line_3_horizontal'))
-      .fontSize(20)
-      .fontColor([ThemeConstants.TEXT_SECONDARY])
+  private SelectedSourceActions(sourceId: string) {
+    // Match the model list's independent suffix action. Row taps do not remove
+    // selected sources, and the native drag handle keeps its separate purpose.
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.trash')).fontSize(20).fontColor([ThemeConstants.DANGER])
+      }.width(40).height(40).backgroundColor(Color.Transparent).enabled(!this.starting)
+        .accessibilityText(s('common_remove'))
+        .onClick((): void => { this.toggleSource(sourceId) })
+      SymbolGlyph($r('sys.symbol.line_3_horizontal'))
+        .fontSize(20)
+        .fontColor([ThemeConstants.TEXT_SECONDARY])
+    }
   }
 
   @Builder
@@ -542,15 +551,31 @@ export struct MangaMigrationPage {
   private SingleConfirmationContent() {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (this.rows.length === 1) {
-            // Preparation updates this one-line summary in place. Keep the
-            // spinner's slot so ready/committing never add a trailing row.
+            // Loading, failure and retry share this fixed summary row. Never
+            // append error/retry rows that move the options or dialog buttons.
             Row({ space: ThemeConstants.SPACE_SM }) {
-              Text(this.chapterSummary(this.rows[0].comic.chapters.length, latestMigrationChapter(this.rows[0].comic.chapters))
-                + (this.rows[0].state === 'ready' ? ' → ' + this.targetChapterSummary(this.rows[0]) : ''))
-                .fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY)
+              Text(this.rows[0].state === 'failed' ? (this.rows[0].error ?? s('migration_failed')) :
+                this.chapterSummary(this.rows[0].comic.chapters.length, latestMigrationChapter(this.rows[0].comic.chapters))
+                  + (this.rows[0].state === 'ready' ? ' → ' + this.targetChapterSummary(this.rows[0]) : ''))
+                .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+                .fontColor(this.rows[0].state === 'failed' ? ThemeConstants.DANGER : ThemeConstants.TEXT_SECONDARY)
                 .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
-              LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
-                .visibility(this.rows[0].state === 'searching' || this.committing ? Visibility.Visible : Visibility.Hidden)
+              if (this.rows[0].state === 'failed' && !this.committing) {
+                if ((this.registry.lookup(this.rows[0].errorSourceId ?? '').entry?.webSessionOrigins?.length ?? 0) > 0) {
+                  Button(s('source_web_open'), { buttonStyle: ButtonStyleMode.TEXTUAL })
+                    .fontSize(ThemeConstants.FONT_SIZE_CAPTION).height(24)
+                    .onClick((): void => { this.closeSingleConfirmation(); this.verify(this.rows[0]) })
+                }
+                Button({ type: ButtonType.Circle, buttonStyle: ButtonStyleMode.TEXTUAL }) {
+                  SymbolGlyph($r('sys.symbol.arrow_clockwise')).fontSize(18).fontColor([ThemeConstants.BRAND_PRIMARY])
+                }.width(24).height(24)
+                  .accessibilityText(s('common_retry'))
+                  .accessibilityDescription(this.rows[0].error ?? s('migration_failed'))
+                  .onClick((): void => { if (this.rows[0].target !== undefined) void this.selectTarget(this.rows[0].comic, this.rows[0].target!) })
+              } else {
+                LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
+                  .visibility(this.rows[0].state === 'searching' || this.committing ? Visibility.Visible : Visibility.Hidden)
+              }
             }.width('100%').constraintSize({ minHeight: 24 })
             Row({ space: ThemeConstants.SPACE_SM }) {
               Checkbox({ name: 'migrationReadProgress' }).select(this.readProgress).enabled(!this.committing)
@@ -564,15 +589,6 @@ export struct MangaMigrationPage {
               Text(s('migration_categories')).layoutWeight(1).fontColor(ThemeConstants.TEXT_PRIMARY)
                 .onClick((): void => { if (!this.committing) this.categories = !this.categories })
             }.width('100%')
-            if (this.rows[0].state === 'failed') {
-              Text(this.rows[0].error ?? s('migration_failed')).fontColor(ThemeConstants.DANGER).width('100%')
-              Button(s('common_retry'), { buttonStyle: ButtonStyleMode.TEXTUAL })
-                .onClick((): void => { if (this.rows[0].target !== undefined) void this.selectTarget(this.rows[0].comic, this.rows[0].target!) })
-              if ((this.registry.lookup(this.rows[0].errorSourceId ?? '').entry?.webSessionOrigins?.length ?? 0) > 0) {
-                Button(s('source_web_open'), { buttonStyle: ButtonStyleMode.TEXTUAL })
-                  .onClick((): void => { this.closeSingleConfirmation(); this.verify(this.rows[0]) })
-              }
-            }
           }
         }.width('100%').alignItems(HorizontalAlign.Start)
   }
