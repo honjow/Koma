@@ -2078,6 +2078,8 @@
     {"name": "migration_prioritize_chapters", "value": "Prefer latest chapter"},
     {"name": "migration_matching_progress", "value": "Matching %s / %s"},
     {"name": "migration_ready_progress", "value": "Ready %s · Failed %s"},
-    {"name": "migration_show_manga", "value": "Show manga"}
+    {"name": "migration_show_manga", "value": "Show manga"},
+    {"name": "manga_detail_menu_share_link", "value": "Share link"},
+    {"name": "manga_detail_share_failed", "value": "Could not open the share sheet"}
   ]
 }

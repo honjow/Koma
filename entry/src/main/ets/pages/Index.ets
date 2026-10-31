@@ -45,6 +45,7 @@ import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { FormTitleActionState } from '../state/FormTitleActionState'
+import { KomaMenuController, KomaMenuAction, KomaMenuGroup } from '../components/ui/KomaMenuController'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
@@ -82,7 +83,7 @@ import { BackupManagementPage } from './BackupManagementPage'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
 import { RouteName, TabIndex, tabLabel } from '../common/Constants'
-import { MangaDetailTitleAction } from '../state/MangaDetailRouteChromeState'
+import { MangaDetailTitleAction, MangaDetailRouteChromeState } from '../state/MangaDetailRouteChromeState'
 import {
   MangaDetailRouteParam,
   MangaWebRouteParam,
@@ -274,6 +275,7 @@ struct Index {
   @Local private libraryRevision: number = 0
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
+  private detailMenu: KomaMenuController = new KomaMenuController()
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
   private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
@@ -2412,6 +2414,7 @@ struct Index {
       })
       .onHidden(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = false
+        this.detailMenu.close()
       })
     } else if (name === RouteName.MANGA_MIGRATION) {
       HdsNavDestination() {
@@ -3332,123 +3335,62 @@ struct Index {
     return ''
   }
 
+  private mangaDetailMenuGroups(chrome: MangaDetailRouteChromeState): KomaMenuGroup[] {
+    const work: KomaMenuAction[] = []
+    const tracking: KomaMenuAction[] = []
+    const opening: KomaMenuAction[] = []
+    const add = (items: KomaMenuAction[], key: string, command: MangaDetailTitleAction, enabled: boolean = true): void => {
+      items.push({ label: AppStrings.get(key), isEnabled: enabled,
+        action: (): void => { if (chrome.visible) chrome.requestAction(command) } })
+    }
+    if (chrome.sourceReloadAvailable) add(opening, 'manga_detail_menu_reload_source', MangaDetailTitleAction.RELOAD_SOURCE)
+    if (chrome.pageActionsAvailable) {
+      if (chrome.personalDataAvailable) add(work, 'manga_notes', MangaDetailTitleAction.EDIT_NOTES, !chrome.personalizationBusy)
+      if (chrome.coverActionsAvailable) {
+        add(work, 'manga_cover_change', MangaDetailTitleAction.CHANGE_COVER, !chrome.personalizationBusy)
+        if (chrome.customCoverAvailable) add(work, 'manga_cover_restore', MangaDetailTitleAction.RESTORE_COVER, !chrome.personalizationBusy)
+      }
+      if (chrome.migrationAvailable) add(work, 'migration_title', MangaDetailTitleAction.MIGRATE)
+      if (chrome.localMetadataAvailable) add(work, 'manga_detail_menu_edit_local_metadata', MangaDetailTitleAction.EDIT_LOCAL_METADATA)
+      add(tracking, 'manga_detail_menu_find_tracker_mapping', MangaDetailTitleAction.FIND_TRACKER_MAPPING, !chrome.trackerMappingBusy)
+      add(tracking, 'manga_detail_menu_sync_tracker', MangaDetailTitleAction.SYNC_TRACKER, !chrome.trackerSyncBusy)
+      add(tracking, 'manga_detail_menu_pull_tracker', MangaDetailTitleAction.PULL_TRACKER, !chrome.trackerSyncBusy)
+      if (chrome.webActionsAvailable) add(opening, 'manga_detail_menu_open_browser', MangaDetailTitleAction.OPEN_BROWSER)
+      if (chrome.localRefreshAvailable) add(opening, chrome.localRefreshBusy ? 'manga_detail_local_refresh_checking' :
+        'manga_detail_menu_check_local_refresh', MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH, !chrome.localRefreshBusy)
+    }
+    return [{ id: 'work', items: work }, { id: 'tracking', items: tracking }, { id: 'opening', items: opening }]
+  }
+
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
     const title: Record<string, Object> = { 'mainTitle': chrome.showTitle ? this.mangaDetailTitle(param) : '' }
     const content: Record<string, Object> = { 'title': title }
-    if (!chrome.pageActionsAvailable && !chrome.sourceReloadAvailable) {
-      return this.sourceRouteTitleBarOpts(content)
-    }
-
-    const menuItems: Record<string, Object>[] = []
-    if (chrome.sourceReloadAvailable) {
-      menuItems.push({ 'content': {
-        'label': AppStrings.get('manga_detail_menu_reload_source'),
-        'icon': $r('sys.symbol.arrow_clockwise'),
-        'isEnabled': true,
-        'action': () => { chrome.requestAction(MangaDetailTitleAction.RELOAD_SOURCE) },
-      } as Record<string, Object> })
-    }
-    if (!chrome.pageActionsAvailable) {
-      content['menu'] = { 'value': menuItems, 'maxCount': 1 } as Record<string, Object>
-      return this.sourceRouteTitleBarOpts(content)
-    }
+    const items: Record<string, Object>[] = []
+    // Keep two useful direct actions, with the native anchored overflow third.
+    // Refresh remains available through pull-to-refresh and the grouped menu.
+    // A local work without a page URL must not advertise a non-working action.
     if (chrome.webActionsAvailable) {
-      menuItems.push({ 'content': {
-        'label': AppStrings.get('manga_detail_menu_open_webview'),
-        'icon': $r('sys.symbol.website'),
-        'isEnabled': true,
-        'action': () => { chrome.requestAction(MangaDetailTitleAction.OPEN_WEBVIEW) },
+      items.push({ 'content': { 'label': AppStrings.get('manga_detail_menu_open_webview'),
+        'icon': $r('sys.symbol.worldclock'), 'isEnabled': true,
+        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.OPEN_WEBVIEW) },
       } as Record<string, Object> })
-      menuItems.push({ 'content': {
-        'label': AppStrings.get('manga_detail_menu_open_browser'),
-        'icon': $r('sys.symbol.arrow_right'),
-        'isEnabled': true,
-        'action': () => { chrome.requestAction(MangaDetailTitleAction.OPEN_BROWSER) },
+      items.push({ 'content': { 'label': AppStrings.get('manga_detail_menu_share_link'),
+        'icon': $r('sys.symbol.share'), 'isEnabled': !chrome.linkShareBusy,
+        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SHARE_LINK) },
       } as Record<string, Object> })
     }
-    if (chrome.migrationAvailable) {
-      menuItems.push({ 'content': {
-        'label': AppStrings.get('migration_title'), 'icon': $r('sys.symbol.arrow_right'), 'isEnabled': true,
-        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.MIGRATE) },
-      } as Record<string, Object> })
-    }
-    if (chrome.personalDataAvailable) {
-      menuItems.push({ 'content': { 'label': AppStrings.get('manga_notes'),
-        'icon': $r('sys.symbol.square_and_pencil'), 'isEnabled': !chrome.personalizationBusy,
-        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.EDIT_NOTES) },
-      } as Record<string, Object> })
-    }
-    if (chrome.coverActionsAvailable) {
-      menuItems.push({ 'content': { 'label': AppStrings.get('manga_cover_change'),
-        'icon': $r('sys.symbol.ohos_photo'), 'isEnabled': !chrome.personalizationBusy,
-        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.CHANGE_COVER) },
-      } as Record<string, Object> })
-      if (chrome.customCoverAvailable) {
-        menuItems.push({ 'content': { 'label': AppStrings.get('manga_cover_restore'),
-          'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !chrome.personalizationBusy,
-          'action': (): void => { chrome.requestAction(MangaDetailTitleAction.RESTORE_COVER) },
-        } as Record<string, Object> })
-      }
-    }
-    const trackerMappingContent: Record<string, Object> = {
-      'label': AppStrings.get('manga_detail_menu_find_tracker_mapping'),
-      'icon': $r('sys.symbol.magnifyingglass'),
-      'isEnabled': !chrome.trackerMappingBusy,
-      'action': () => {
-        chrome.requestAction(MangaDetailTitleAction.FIND_TRACKER_MAPPING)
-      },
-    }
-    menuItems.push({ 'content': trackerMappingContent })
-
-    const trackerSyncContent: Record<string, Object> = {
-      'label': AppStrings.get('manga_detail_menu_sync_tracker'),
-      'icon': $r('sys.symbol.arrow_clockwise'),
-      'isEnabled': !chrome.trackerSyncBusy,
-      'action': () => {
-        chrome.requestAction(MangaDetailTitleAction.SYNC_TRACKER)
-      },
-    }
-    menuItems.push({ 'content': trackerSyncContent })
-
-    const trackerPullContent: Record<string, Object> = {
-      'label': AppStrings.get('manga_detail_menu_pull_tracker'),
-      'icon': $r('sys.symbol.arrow_down_to_line'),
-      'isEnabled': !chrome.trackerSyncBusy,
-      'action': () => {
-        chrome.requestAction(MangaDetailTitleAction.PULL_TRACKER)
-      },
-    }
-    menuItems.push({ 'content': trackerPullContent })
-
-    if (chrome.localRefreshAvailable) {
-      const localRefreshContent: Record<string, Object> = {
-        'label': chrome.localRefreshBusy
-          ? AppStrings.get('manga_detail_local_refresh_checking')
-          : AppStrings.get('manga_detail_menu_check_local_refresh'),
-        'icon': $r('sys.symbol.arrow_clockwise'),
-        'isEnabled': !chrome.localRefreshBusy,
-        'action': () => {
-          chrome.requestAction(MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH)
+    if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable) {
+      items.push({ 'content': { 'label': AppStrings.get('common_more_actions'),
+        'icon': $r('sys.symbol.ellipsis_circle'), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
+        'action': (): void => {
+          this.detailMenu.open(this.getUIContext(), chrome.menuAnchorId, this.mangaDetailMenuGroups(chrome), (): void => {
+            DiagnosticLogger.warn('manga_detail', 'menu_open_failed', 'result=failed')
+          })
         },
-      }
-      menuItems.push({ 'content': localRefreshContent })
+      } as Record<string, Object> })
     }
-
-    if (chrome.localMetadataAvailable) {
-      const localMetadataContent: Record<string, Object> = {
-        'label': AppStrings.get('manga_detail_menu_edit_local_metadata'),
-        'icon': $r('sys.symbol.square_and_pencil'),
-        'isEnabled': true,
-        'action': () => {
-          chrome.requestAction(MangaDetailTitleAction.EDIT_LOCAL_METADATA)
-        },
-      }
-      menuItems.push({ 'content': localMetadataContent })
-    }
-
-    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
-    content['menu'] = menu
+    if (items.length > 0) content['menu'] = { 'value': items, 'maxCount': 3 } as Record<string, Object>
     return this.sourceRouteTitleBarOpts(content)
   }
 

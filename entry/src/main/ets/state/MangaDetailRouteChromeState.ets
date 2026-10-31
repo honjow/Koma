@@ -8,6 +8,7 @@
 export enum MangaDetailTitleAction {
   RELOAD_SOURCE = 'reload_source',
   OPEN_WEBVIEW = 'open_webview',
+  SHARE_LINK = 'share_link',
   OPEN_BROWSER = 'open_browser',
   FIND_TRACKER_MAPPING = 'find_tracker_mapping',
   SYNC_TRACKER = 'sync_tracker',
@@ -22,12 +23,15 @@ export enum MangaDetailTitleAction {
 
 @ObservedV2
 export class MangaDetailRouteChromeState {
+  private static nextMenuId: number = 0
+  readonly menuAnchorId: string = `manga-detail-more-${MangaDetailRouteChromeState.nextMenuId++}`
   @Trace visible: boolean = false
   @Trace resolvedTitle: string = ''
   @Trace showTitle: boolean = false
   @Trace pageActionsAvailable: boolean = false
   @Trace sourceReloadAvailable: boolean = false
   @Trace webActionsAvailable: boolean = false
+  @Trace linkShareBusy: boolean = false
   @Trace localRefreshAvailable: boolean = false
   @Trace localMetadataAvailable: boolean = false
   @Trace migrationAvailable: boolean = false

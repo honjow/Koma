@@ -24,6 +24,8 @@ import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
 import { ColorMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
+import { uniformTypeDescriptor as utd } from '@kit.ArkData'
+import { systemShare } from '@kit.ShareKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -284,6 +286,8 @@ export struct MangaDetailPage {
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
   @Local private activeLibraryComicId: string = ''
+  @Local private linkShareBusy: boolean = false
+  private linkShareController?: systemShare.ShareController = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
@@ -503,7 +507,7 @@ export struct MangaDetailPage {
     this.runTitleAction(this.chrome.requestedAction)
   }
 
-  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy', 'personalizationBusy')
+  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy', 'personalizationBusy', 'linkShareBusy')
   private syncTitleActionsFromDetailState(): void {
     this.syncTitleActions()
   }
@@ -518,6 +522,7 @@ export struct MangaDetailPage {
     this.chrome.pageActionsAvailable = actionsAvailable
     this.chrome.sourceReloadAvailable = this.canReloadSourceDetail()
     this.chrome.webActionsAvailable = actionsAvailable && this.mangaWebUrl() !== undefined
+    this.chrome.linkShareBusy = this.linkShareBusy
     this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
     this.chrome.localMetadataAvailable = actionsAvailable && this.canEditLocalMetadata()
     this.chrome.migrationAvailable = actionsAvailable && canMigrateLibraryComic(this.libraryStore?.getComic(this.currentComicId()))
@@ -538,6 +543,34 @@ export struct MangaDetailPage {
     // Private-library sourcePath may be a feed/download URL rather than a work page.
     if ((this.manga?.sourceId?.trim() ?? '').length === 0) return undefined
     return mangaHttpUrl(this.manga?.url)
+  }
+
+  private async shareMangaLink(): Promise<void> {
+    const url = this.mangaWebUrl()
+    if (url === undefined || this.linkShareBusy) return
+    this.linkShareBusy = true
+    let controller: systemShare.ShareController | undefined = undefined
+    const dismissed = (): void => {
+      controller?.off('dismiss', dismissed)
+      if (this.linkShareController === controller) {
+        this.linkShareController = undefined
+        this.linkShareBusy = false
+      }
+    }
+    try {
+      controller = new systemShare.ShareController(new systemShare.SharedData({
+        utd: utd.UniformDataType.HYPERLINK, content: url, title: this.manga?.title ?? '',
+      }))
+      this.linkShareController = controller
+      controller.on('dismiss', dismissed)
+      await controller.show(this.getUIContext().getHostContext() as common.UIAbilityContext, {
+        selectionMode: systemShare.SelectionMode.SINGLE,
+        previewMode: systemShare.SharePreviewMode.DEFAULT,
+      })
+    } catch (_error) {
+      dismissed()
+      if (this.chrome.visible) this.getUIContext().getPromptAction().showToast({ message: s('manga_detail_share_failed') })
+    }
   }
 
   private canReloadSourceDetail(): boolean {
@@ -567,6 +600,10 @@ export struct MangaDetailPage {
   }
 
   private runTitleAction(action: MangaDetailTitleAction): void {
+    if (action === MangaDetailTitleAction.SHARE_LINK && this.chrome.webActionsAvailable) {
+      void this.shareMangaLink()
+      return
+    }
     if (action === MangaDetailTitleAction.EDIT_NOTES && this.chrome.personalDataAvailable) {
       this.notesDraft = this.personalNotes
       this.notesEditorShown = true

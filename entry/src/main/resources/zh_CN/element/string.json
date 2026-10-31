@@ -2081,6 +2081,8 @@
     {"name": "migration_prioritize_chapters", "value": "优先最新章节"},
     {"name": "migration_matching_progress", "value": "匹配进度 %s / %s"},
     {"name": "migration_ready_progress", "value": "可迁移 %s · 失败 %s"},
-    {"name": "migration_show_manga", "value": "查看作品"}
+    {"name": "migration_show_manga", "value": "查看作品"},
+    {"name": "manga_detail_menu_share_link", "value": "分享链接"},
+    {"name": "manga_detail_share_failed", "value": "未能打开分享面板"}
   ]
 }

@@ -5,7 +5,7 @@ import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
-import { ComponentContent } from '@kit.ArkUI'
+import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem } from '../components/ui/KomaMenuController'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -217,28 +217,6 @@ export interface LibraryTitleBarPresentation {
   cancelSelection: () => void
 }
 
-interface LibraryTitleMenuItem {
-  label: string
-  selected?: boolean
-  action: () => void
-}
-
-interface LibraryTitleMenuParams {
-  items: LibraryTitleMenuItem[]
-}
-
-@Builder
-function LibraryTitleMenuContent(params: LibraryTitleMenuParams) {
-  Menu() {
-    ForEach(params.items, (item: LibraryTitleMenuItem) => {
-      MenuItem({ content: item.label })
-        .selected(item.selected ?? false)
-        .selectIcon(item.selected !== undefined)
-        .onClick(item.action)
-    }, (item: LibraryTitleMenuItem, index: number) => `${index}:${item.label}`)
-  }
-}
-
 @ComponentV2
 export struct LibraryPage {
   @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
@@ -299,7 +277,7 @@ export struct LibraryPage {
   }
 
   @Local private filtersShown: boolean = false
-  private titleMenuContent?: ComponentContent<LibraryTitleMenuParams> = undefined
+  private titleMenu: KomaMenuController = new KomaMenuController()
   @Local private comicActionMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
@@ -376,43 +354,11 @@ export struct LibraryPage {
     return item
   }
 
-  private releaseTitleMenu(content: ComponentContent<LibraryTitleMenuParams>): void {
-    if (this.titleMenuContent === content) {
-      this.titleMenuContent = undefined
-      content.dispose()
-    }
-  }
-
-  private closeTitleMenu(): void {
-    const content = this.titleMenuContent
-    if (content !== undefined) {
-      void this.getUIContext().getPromptAction().closeMenu(content)
-        .catch(() => { this.releaseTitleMenu(content) })
-    }
-  }
+  private closeTitleMenu(): void { this.titleMenu.close() }
 
   private openTitleMenu(key: string): void {
-    if (this.titleMenuContent !== undefined) {
-      return
-    }
-    const context = this.getUIContext()
-    const params: LibraryTitleMenuParams = { items: this.titleMenuItems(key) }
-    const content = new ComponentContent<LibraryTitleMenuParams>(context,
-      wrapBuilder<[LibraryTitleMenuParams]>(LibraryTitleMenuContent), params)
-    this.titleMenuContent = content
-    try {
-      void context.getPromptAction().openMenu(content, { id: `library-title-${key}` }, {
-        placement: Placement.BottomRight,
-        onDisappear: () => { this.releaseTitleMenu(content) },
-      }).catch(() => {
-        this.releaseTitleMenu(content)
-        this.showToast(s('common_unavailable'))
-      })
-    } catch (error) {
-      void error
-      this.releaseTitleMenu(content)
-      this.showToast(s('common_unavailable'))
-    }
+    this.titleMenu.open(this.getUIContext(), `library-title-${key}`,
+      [{ id: key, items: this.titleMenuItems(key) }], () => { this.showToast(s('common_unavailable')) })
   }
 
   @Monitor('libraryComics', 'libraryRevision')
