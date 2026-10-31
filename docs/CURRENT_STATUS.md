@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：后台源更新角标与跨源迁移改进已交付；其余未完成事项保留原状态。
+当前结果：本轮迁移列表、搜索和确认流程修正已交付；其余未完成事项保留原状态。
 
 设备：197本轮验证后已恢复并释租；237本轮未操作。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T00:19:42+08:00",
+  "updatedAt": "2026-11-01T01:36:29+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": null,
-  "activity": "角标同步与迁移优化已交付，其他原事项状态保留。",
-  "nextAction": "按原工作单继续处理尚未完成的具名事项。",
+  "activity": "本轮迁移交互修正已交付，其余原事项保留。",
+  "nextAction": "剩余事项按各自具名范围与依赖接续。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7，精确CI41218147233成功。",
-      "hap": "197已恢复原signed HAP、基线数据与电源并释租。"
+      "appHead": "Koma/master 66ece78fc698f499aa9704e0405602b1df9192a8，精确CI41224591032成功。",
+      "hap": "197本轮迁移交互实测后已恢复原包、基线数据和电源并释租。"
     },
     {
       "name": "NextE",
@@ -4629,12 +4629,12 @@
       "title": "书库漫画跨源迁移",
       "priority": "P1",
       "kind": "accepted",
-      "status": "迁移优化已验证并交付",
-      "stage": "具名范围已交付",
+      "status": "迁移交互已修正并交付",
+      "stage": "具名范围已验收",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "迁移来源排序、预览核对和单本复制及失败重试已验证，源码与CI完成。",
+      "result": "来源拖动排序、同页搜索和点按迁移Dialog已实测交付；可在Dialog查看作品，长按直接预览。",
       "remaining": "",
       "remainingActions": [],
       "boundaries": [
@@ -4644,7 +4644,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
-      "closedAt": "2026-11-01T00:19:42+08:00",
+      "closedAt": "2026-11-01T01:36:29+08:00",
       "evidencePoints": [
         "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
         "用户通过本轮async call_06bd595e97bf48dd9fcff06914f4be01明确采用完整流程；尚未实现或验收。",
@@ -4672,16 +4672,25 @@
         "009实机122 ready1/failed1；点仅重试失败后123 progress1/2、ready1保留、searching1；124终态2/2 ready1/failed1，原Komiic目标42章/latest38与122/123相同，Root亲审截图。124偏好读回selectedSources=[com.komiic.koma,org.mangadex.koma]，deepSearch=true/prioritizeChapters=true；该样本真实自动匹配仍失败，不冒成功。Root正恢复fresh full-baseline-092，尚未完成。",
         "full-data-restored-125原signed HAP安装成功；fresh full-baseline-092七JSON及30prefs共37项逐字同、无extra，仅本轮migration pref及lock移除，未动源包目录；比较 full-restoration-comparison.json。126 SLEEP/normal120000/Override10000，lease20261031-152936-6b298d9a于00:06:14 released；回执 .hvigor/outputs/migration-full-lease-final.json。源码待统一提交及CI。",
         "产品dd240fd0角标修复及e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7迁移优化已统一推送；精确Build OHOS CI41218147233同head in_progress，回执 .hvigor/outputs/migration-full-ci-start.json。最终build010冻结 .hvigor/outputs/migration-full-candidate010-2ee334a3.hap SHA2ee334a34003df319368115a5d266589b5996d414d560e4da62a31a2322149e9；相对实机009仅预计算sourcecache排序名称，迁移UI/model相同，不新增设备复测门槛。完整设备及摘要边界 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。",
-        "精确CI41218147233 head e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7 completed/success；Build unsigned Release HAP含Inspect/Upload成功，Publish tagged Release skipped，无新发布。最终回执 .hvigor/outputs/migration-full-ci-final.json，完整绑定 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。管理摘要单独修正仅生产逻辑/编译，不冒Native；迁移自动匹配实机样本仍失败，Page.match逻辑五项执行通过，不扩大为实机自动匹配成功。"
+        "精确CI41218147233 head e911a831f1dc0cfb4dabcbe10b74e6e8428a1db7 completed/success；Build unsigned Release HAP含Inspect/Upload成功，Publish tagged Release skipped，无新发布。最终回执 .hvigor/outputs/migration-full-ci-final.json，完整绑定 .hvigor/outputs/migration-full-acceptance/acceptance-binding.json。管理摘要单独修正仅生产逻辑/编译，不冒Native；迁移自动匹配实机样本仍失败，Page.match逻辑五项执行通过，不扩大为实机自动匹配成功。",
+        "本轮来源数字菜单及加号已移除，已选来源接原生ForEach.onMove；单本搜索嵌入迁移同一destination，不再自动push通用Search。build011成功15s444ms、既有15项迁移执行回归通过。尚未实机；结果替代选择手势等待本轮用户决定。",
+        "197候选011：133 native drag将Komiic移到MangaDex之前，migration-preference.xml顺序一致；135/136 Blue Archive实际KO1/MDX20且KO在前；138预览返回query及结果保留；139再返回即原四格漫画详情，无中间核对页。设备仍持租/常亮，未恢复。",
+        "013在142/143点击卡片打开CustomContentDialogV2，展示15→42章、两项勾选和查看作品/复制/迁移；144查看作品到Komiic42章，145返回Blue Archive原分组无Dialog。146长按无响应，保失败。候选015将迁移卡片外层LongPress改为priorityGesture，并保留同批其它行在人工搜索时继续匹配；生产匹配5项通过、build015通过，尚未装机。",
+        "015148长按直接查看目标，无Dialog，149短按仍打开原生Dialog；016152更换来源返回保留Blue Archive与KO/MDX顺序，153–156单源完整结果选中返回主分组Dialog；157从Dialog实际Copy新增一目标42章，原comics逐个完整相同，自动到目标详情。159–161批量人工搜索Back返回原2/2核对。162原HAP安装成功且fresh127七JSON+30prefs共37逐字同、无extra；163 SLEEP/normal120000/Override10000，lease于01:24:18 released。最终017仅去掉目标未就绪时多余查找附文，编译通过；具名成功路径未改变，不扩大设备门槛。完整binding .hvigor/outputs/migration-simplification-acceptance/acceptance-binding.json。",
+        "产品66ece78fc698f499aa9704e0405602b1df9192a8已推Koma/master；精确CI41224591032同head in_progress，回执 .hvigor/outputs/migration-simplification-ci-start.json。设备已恢复且释租，待CI终态，不重复设备或构建。",
+        "产品66ece78fc698f499aa9704e0405602b1df9192a8精确CI41224591032 completed/success；Release构建、Inspect、Upload均成功，Publish tagged Release skipped，无新发版。最终回执 .hvigor/outputs/migration-simplification-ci-final.json；具名11/13/15/16实机及17编译边界与恢复详见 .hvigor/outputs/migration-simplification-acceptance/acceptance-binding.json。"
       ],
       "modificationBasis": {
         "object": "书库漫画跨源迁移及其入口",
         "allowedDifference": "详情右上角和书库多选提供迁移；选目标源后逐书匹配，可修改搜索、换结果或跳过；确认选择已读进度和分类，追踪随书转移；可复制保留旧书，或迁移并移出旧书库。旧下载保留，不冒充新源下载；使用当前Koma控件。",
         "reference": "Mihon e588e04359fe1058206a2cbac1b01018ad787359；Aidoku ceee58b29d4f48106cf63042ca0cb075a8ac22b4，仅作行为参考。",
         "newFeedbackAllowedDifference": "用户本轮明确采用：多源并列搜索结果；先预览漫画详情，返回后再选择迁移；来源选择持久记忆，选中源置前分组，不使用全部switch；入口继续位于标题栏右侧。",
-        "optimizationAllowedDifference": "用户call_adda7a263fea4d899891b944fe5d8895明确采用此前提出的完整四组优化：图标/语言/排序，相似度/深搜/最新章/进度/仅重试失败，单本直接核对半模态，以及复用缓存。"
+        "optimizationAllowedDifference": "用户call_adda7a263fea4d899891b944fe5d8895明确采用此前提出的完整四组优化：图标/语言/排序，相似度/深搜/最新章/进度/仅重试失败，单本直接核对半模态，以及复用缓存。",
+        "simplificationFeedback": "用户本轮明确要求去除冗余加号、优先级数字菜单及每卡目标按钮，改拖动排序并按同一顺序展示结果；移除单本强制中间搜索路由。手势与Dialog按本轮Mihon方式决定执行。",
+        "simplificationGestureDecision": "用户call_784c34ba4c3a471aab11a46f7aad8f61明确采用Mihon方式：点卡片打开迁移选项Dialog，Dialog可选择复制/迁移及查看作品，长按直接查看。此决定取代之前点按预览及单本半模态，不再放每卡目标按钮。",
+        "simplificationReference": "Mihon固定feadad5e1e2bf638be6e2ca317d11657b09d4596：MigrationConfigScreen使用replace进入单本搜索；MigrateSearchScreen点按打开MigrateMangaDialog，长按MangaScreen；Dialog含迁移选项及查看作品、复制、迁移。Koma沿宿主原生Dialog和现有数据提交事务适配。"
       },
-      "reopenedAt": "2026-10-31T23:03:58+08:00"
+      "reopenedAt": "2026-11-01T00:50:28+08:00"
     },
     {
       "id": "FEATURE_PARITY_COMPARISON",
@@ -11974,6 +11983,87 @@
       "evidence": [
         ".hvigor/outputs/migration-full-ci-final.json",
         ".hvigor/outputs/migration-full-acceptance/acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "migration-simplification-feedback-20261101",
+      "at": "2026-11-01T00:50:28+08:00",
+      "title": "迁移列表与单本流程重新处理",
+      "detail": "已定位来源数字菜单、单本额外搜索路由及每卡目标按钮造成的冗余流程，正在按最新反馈收简。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "migration-simplification-built-20261101",
+      "at": "2026-11-01T00:52:19+08:00",
+      "title": "来源拖动与同页迁移候选已编译",
+      "detail": "来源列表接系统拖动，单本搜索与确认留在同一迁移页面。尚未实机验证，结果选择手势待决定。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-simplification-build-011.log",
+        ".hvigor/outputs/migration-simplification-logic.log"
+      ]
+    },
+    {
+      "id": "migration-native-drag-inline-return-20261101",
+      "at": "2026-11-01T01:01:28+08:00",
+      "title": "迁移拖动与单本返回实测完成",
+      "detail": "197已实测来源拖动及顺序持久、搜索分组同序，单本搜索返回一次即回原详情；正在接采用的点按Dialog及长按预览。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/simple-drag-reordered-133",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/simple-single-back-139"
+      ]
+    },
+    {
+      "id": "migration-dialog-preview-and-longpress-failure-20261101",
+      "at": "2026-11-01T01:11:11+08:00",
+      "title": "迁移Dialog及查看作品通过，长按反例修正中",
+      "detail": "197已验证点击打开原生迁移Dialog及从Dialog查看后返回原结果；长按未响应的反例已修候选，正继续验证。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/simple-target-dialog-142",
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/simple-long-press-preview-146",
+        ".hvigor/outputs/migration-simplification-build-015.log"
+      ]
+    },
+    {
+      "id": "migration-simplification-native-restored-20261101",
+      "at": "2026-11-01T01:26:22+08:00",
+      "title": "迁移交互实测及设备恢复完成",
+      "detail": "来源拖动、同页搜索和Mihon式迁移Dialog已通过实机验证，设备已恢复。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-simplification-acceptance/acceptance-binding.json",
+        ".hvigor/outputs/migration-simplification-lease-final.json"
+      ]
+    },
+    {
+      "id": "migration-simplification-pushed-20261101",
+      "at": "2026-11-01T01:28:04+08:00",
+      "title": "迁移交互修正已推送",
+      "detail": "来源拖动和Mihon式迁移交互已实测并推送，正在核对CI。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-simplification-ci-start.json"
+      ]
+    },
+    {
+      "id": "migration-simplification-delivered-20261101",
+      "at": "2026-11-01T01:36:29+08:00",
+      "title": "迁移交互修正交付",
+      "detail": "来源拖动、同页流程和Mihon式Dialog已实测，恢复及精确CI完成。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/migration-simplification-ci-final.json",
+        ".hvigor/outputs/migration-simplification-acceptance/acceptance-binding.json"
       ]
     }
   ],
