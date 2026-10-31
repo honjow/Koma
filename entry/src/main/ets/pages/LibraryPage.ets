@@ -358,7 +358,7 @@ export struct LibraryPage {
 
   private openTitleMenu(key: string): void {
     this.titleMenu.open(this.getUIContext(), `library-title-${key}`,
-      [{ id: key, items: this.titleMenuItems(key) }], () => { this.showToast(s('common_unavailable')) })
+      () => [{ id: key, items: this.titleMenuItems(key) }], () => { this.showToast(s('common_unavailable')) })
   }
 
   @Monitor('libraryComics', 'libraryRevision')

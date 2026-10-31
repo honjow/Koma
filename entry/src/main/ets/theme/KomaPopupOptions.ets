@@ -3,6 +3,8 @@ import { deviceInfo } from '@kit.BasicServicesKit'
 
 // Match NextE's native popup materials. Callers continue owning geometry,
 // dismissal, keyboard avoidance and every action; this layer only supplies material.
+// Both declarative bindings and KomaMenuController consume these defaults;
+// imperative openMenu is not a separate visual contract.
 function popupMaterial(isSheet: boolean = false): SystemUiMaterial | undefined {
   if (!deviceInfo.apiAvailable('26.0.0')) return undefined
   // Enum arguments are evaluated before a helper's guard. Keep every access

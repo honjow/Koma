@@ -3384,7 +3384,7 @@ struct Index {
       items.push({ 'content': { 'label': AppStrings.get('common_more_actions'),
         'icon': $r('sys.symbol.ellipsis_circle'), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
         'action': (): void => {
-          this.detailMenu.open(this.getUIContext(), chrome.menuAnchorId, this.mangaDetailMenuGroups(chrome), (): void => {
+          this.detailMenu.open(this.getUIContext(), chrome.menuAnchorId, () => this.mangaDetailMenuGroups(chrome), (): void => {
             DiagnosticLogger.warn('manga_detail', 'menu_open_failed', 'result=failed')
           })
         },
