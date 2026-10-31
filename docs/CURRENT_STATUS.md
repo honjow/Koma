@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：后台源更新角标与跨源迁移新增路径已验证，正在准备提交和CI。
+当前结果：后台源更新角标与跨源迁移改进已交付；其余未完成事项保留原状态。
 
 设备：197本轮验证后已恢复并释租；237本轮未操作。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T22:38:15+08:00",
+  "updatedAt": "2026-10-31T22:50:36+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_CROSS_SOURCE_MIGRATION",
-  "activity": "后台源更新角标与迁移新增路径已验证，正在准备交付。",
-  "nextAction": "完成两项源码提交及精确CI核对。",
+  "activeId": null,
+  "activity": "后台源更新角标与多源迁移改进已交付。",
+  "nextAction": "本轮两项已收口；其余事项的具体未验范围见各原项。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,7 +61,7 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master 529aa8b66329072f73529d4df2b715ae74b994f8，精确CI41204801578成功。",
+      "appHead": "Koma/master a7678c7132536de69f94be9029c8f9b301725452，精确CI41211137223成功。",
       "hap": "197已恢复原HAP、37文件及电源并释租。"
     },
     {
@@ -3006,9 +3006,9 @@
         "SOURCE_INDEX_PROGRESSIVE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
-      "kind": "open",
-      "status": "设备路径已验，待提交及CI",
-      "result": "浏览角标首显和后台更新已观察，设备已恢复；源码待交付。",
+      "kind": "accepted",
+      "status": "后台源更新角标已验证并交付",
+      "result": "后台检查及浏览角标首显已验证，源码与CI已完成。",
       "evidencePoints": [
         "直接产物索引：269/partial-check-existing-method-review.json",
         "本次重开前原已验结果及剩余说明保留：App78f008d246d307695a12ca101c3e3dfdadee65ab已commit/push且精确CI40456280638 completed/success，公共row meta重复incomplete附文/Computed删除；正常行本来无latest/unknown，不写成新删除。197983安装18910591，manager-clean-result与manager-normal-range-result errors=[]，clean-manager-top/next/normal-range Root亲审：正常已安装区仅原版本语言、可更新区原按钮保持，内部partial/地址失败保持。985对979六非Registry字节同、85 IDs/order/enabled及其它84DTO同，仅Bz .8预期升级；986系统120000无Override/44636496释租。 原剩余：78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。",
@@ -3016,12 +3016,12 @@
         "源缓存删除仓库后旧更新失效修复及完整35项owner执行通过；冷启动、最终菜单及设备恢复仍待。",
         "004冻结 .hvigor/outputs/source-update-migration-candidate004-c342a273.hap SHA c342a273bef0c93d7b09657319b62683bd406adaf67da37198133518574378b6；069安装冷启动普通书架浏览角标61，先前002为62，后台正常更新，不将数值固定。074已停止候选并收偏好，设备恢复进行中。",
         "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮koma_manga_migration_v1及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076于22:37:39 released。失败保已知更新为35项owner执行范围，非设备故障注入，不设额外设备门槛。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。",
-        "本轮验收证据入口 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。"
+        "本轮验收证据入口 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。",
+        "产品a7678c7132536de69f94be9029c8f9b301725452已推Koma/master，精确CI41211137223同head in_progress；设备已按本轮回执恢复。证据 .hvigor/outputs/source-update-migration-ci-start.json。",
+        "Koma a7678c7132536de69f94be9029c8f9b301725452精确CI41211137223 completed/success，Build unsigned Release HAP、Inspect及Upload成功，Publish tagged Release skipped；最终回执 .hvigor/outputs/source-update-migration-ci-final.json，设备验收绑定 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。"
       ],
-      "remainingActions": [
-        "完成源码提交及精确CI核对。"
-      ],
-      "remaining": "完成源码提交及精确CI核对。",
+      "remainingActions": [],
+      "remaining": "",
       "boundaries": [
         "197具名首次安装与冷启动角标已观察；失败保持、移除仓库及安装版本对齐为owner执行验证，不冒设备故障注入，未覆盖其他设备或网络组合。",
         "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。",
@@ -3034,7 +3034,7 @@
       "firstEvidenceAtSource": "本次登记，非用户首报精确时刻。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-10-31T22:50:36+08:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T21:00:16.188000+00:00",
@@ -3054,7 +3054,7 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 165748,
-      "stage": "源码提交及精确CI待核",
+      "stage": "本轮具名范围已交付",
       "reopenedAt": "2026-10-31T21:47:21+08:00",
       "modificationBasis": {
         "object": "源包更新后台检查及浏览角标",
@@ -4620,17 +4620,15 @@
       "id": "LIBRARY_CROSS_SOURCE_MIGRATION",
       "title": "书库漫画跨源迁移",
       "priority": "P1",
-      "kind": "open",
-      "status": "设备路径已验，待提交及CI",
-      "stage": "源码提交及精确CI待核",
+      "kind": "accepted",
+      "status": "多源迁移改进已验证并交付",
+      "stage": "本轮具名范围已交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "多源选择、预览返回及确认已观察，设备已恢复；源码待交付。",
-      "remaining": "完成源码提交及精确CI核对。",
-      "remainingActions": [
-        "完成源码提交及精确CI核对。"
-      ],
+      "result": "多源选择记忆、搜索及详情预览返回已验证，源码与CI已完成。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "使用当前Koma控件；仅按用户明确采用的入口和流程实施，不擅自扩展样式。",
         "旧下载保留，不能冒充新源下载；Aidoku仅作行为参考，不复制代码或资源。",
@@ -4638,7 +4636,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
-      "closedAt": null,
+      "closedAt": "2026-10-31T22:50:36+08:00",
       "evidencePoints": [
         "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
         "用户通过本轮async call_06bd595e97bf48dd9fcff06914f4be01明确采用完整流程；尚未实现或验收。",
@@ -4653,7 +4651,9 @@
         "已接所选源持久保存/前置分组、顶部Continue及copy/move/finish；共用CrossSearchService仅所选源scope，结果点击预览与独立选目标、分源更多结果继续选择，旧提交事务不改。固定Mihon feadad5与Aidoku ceee58b参考已核。197 lease20261031-140006-cd3b4076，ui-baseline046新备份及连续awakegate；048/049详情菜单进入迁移，050无开关源列表，051 MangaDex选中即前置，052追加Komiic后顶部继续搜索执行中。冷启动、预览返回及设备恢复未验。",
         "197 ui-results-settled057以Blue Archive显示MangaDex20/Komiic1分组横向结果；058/059封面进入详情，该MangaDex样本0章节、未选迁移；060返回保关键词、20+1结果及选择按钮。061/062 Komiic分源更多仍有封面预览及独立选目标，063进入详情、064返回验证中。发现预填词自动弹键盘、单结果居中及按钮高低不齐，已限迁移上下文修正；build004通过冻结SHA c342a273bef0c93d7b09657319b62683bd406adaf67da37198133518574378b6，尚未安装，不冒视觉验收。",
         "067顶部迁移确认框、068取消返回未提交；069安装004冷启动，070详情→迁移恢复已选MangaDex/Komiic前组，071预填搜索未自动弹键盘；073 Blue Archive为MangaDex20/Komiic1，单卡左对齐和按钮平齐已由Root看图。002预览、更多结果与明确选择具名范围按057–068，不重复验证；074停止候选并收偏好，恢复未完成。",
-        "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮迁移偏好及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076 released。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。"
+        "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮迁移偏好及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076 released。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。",
+        "产品a7678c7132536de69f94be9029c8f9b301725452已推Koma/master，精确CI41211137223同head in_progress；设备已按本轮回执恢复。证据 .hvigor/outputs/source-update-migration-ci-start.json。",
+        "Koma a7678c7132536de69f94be9029c8f9b301725452精确CI41211137223 completed/success，Build unsigned Release HAP、Inspect及Upload成功，Publish tagged Release skipped；最终回执 .hvigor/outputs/source-update-migration-ci-final.json，设备验收绑定 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。"
       ],
       "modificationBasis": {
         "object": "书库漫画跨源迁移及其入口",
@@ -11716,6 +11716,54 @@
       "kind": "checkpoint",
       "evidence": [
         ".hvigor/outputs/source-update-migration-lease-final.json"
+      ]
+    },
+    {
+      "id": "source-index-pushed-20261031",
+      "at": "2026-10-31T22:40:19+08:00",
+      "title": "后台源更新代码推送",
+      "detail": "具名设备验证后源码已推，精确CI进行中。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-ci-start.json",
+        "https://github.com/honjow/Koma/actions/runs/41211137223"
+      ]
+    },
+    {
+      "id": "migration-multisource-pushed-20261031",
+      "at": "2026-10-31T22:40:19+08:00",
+      "title": "迁移改进代码推送",
+      "detail": "具名设备验证后源码已推，精确CI进行中。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-ci-start.json",
+        "https://github.com/honjow/Koma/actions/runs/41211137223"
+      ]
+    },
+    {
+      "id": "source-index-delivered-20261031",
+      "at": "2026-10-31T22:50:36+08:00",
+      "title": "后台源更新角标交付",
+      "detail": "具名设备验证、恢复及精确CI完成，本轮范围收口。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-ci-final.json",
+        ".hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json"
+      ]
+    },
+    {
+      "id": "migration-multisource-delivered-20261031",
+      "at": "2026-10-31T22:50:36+08:00",
+      "title": "多源迁移改进交付",
+      "detail": "具名设备验证、恢复及精确CI完成，本轮范围收口。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-ci-final.json",
+        ".hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json"
       ]
     }
   ],
