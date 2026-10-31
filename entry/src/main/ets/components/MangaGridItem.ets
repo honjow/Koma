@@ -4,6 +4,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 
 @ComponentV2
 export struct MangaGridItem {
+  @Param reserveTitleSpace: boolean = false
   @Param manga: SourceManga = {
     id: '',
     sourceId: '',
@@ -68,6 +69,7 @@ export struct MangaGridItem {
         .fontColor(ThemeConstants.TEXT_PRIMARY)
         .maxLines(2)
         .lineHeight(18)
+        .constraintSize({ minHeight: this.reserveTitleSpace ? 36 : 0 })
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')

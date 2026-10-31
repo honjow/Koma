@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "migration_selected_sources", "value": "已选来源"},
+    {"name": "migration_available_sources", "value": "可用来源"},
+    {"name": "migration_select_target", "value": "选为目标"},
+    {"name": "migration_preferences_load_failed", "value": "读取迁移来源失败"},
+    {"name": "migration_save_failed", "value": "保存迁移来源失败"},
+
     {"name": "migration_title", "value": "迁移"},
     {"name": "migration_target_sources", "value": "目标源"},
     {"name": "migration_continue", "value": "继续"},

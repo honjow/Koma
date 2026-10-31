@@ -41,6 +41,9 @@ import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
+import { SourceManga } from '../model/SourceModels'
+import { MangaGridItem } from '../components/MangaGridItem'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 
 const SEARCH_DEBOUNCE_MS: number = 400
 
@@ -56,6 +59,9 @@ function s(name: string): string {
 
 @ComponentV2
 export struct SearchPage {
+  @Param migrationSources: string[] | undefined = undefined
+  @Param selectionOriginal: SourceManga | undefined = undefined
+  @Event onMangaSelected: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
@@ -106,8 +112,14 @@ export struct SearchPage {
     const context = getContext(this) as common.UIAbilityContext
     this.service = new CrossSearchService(context, this.libraryStore)
     this.historyStore = new SearchHistoryStore(context)
-    this.loadHistory()
-    this.loadSourceFilter()
+    if (this.migrationSources !== undefined) {
+      this.sourceFilter = 'source'
+      this.sourceFilterLoaded = true
+      this.historyLoadState = SearchHistoryLoadState.READY
+    } else {
+      this.loadHistory()
+      this.loadSourceFilter()
+    }
     this.consumeChromeQuery()
     console.info('[Search] step=page_appear')
   }
@@ -274,7 +286,7 @@ export struct SearchPage {
       return
     }
     const sameSearch = this.resultsQuery === query && this.resultsSourceFilter === this.sourceFilter
-    const pending = service.pendingSections(this.sourceFilter)
+    const pending = service.pendingSections(this.sourceFilter, this.migrationSources)
     // A refresh keeps results owned by this same query/filter until replacement
     // data arrives. A changed query/filter starts with its existing pending UI.
     this.sections = sameSearch ? pending.map((section: CrossSearchSection): CrossSearchSection => {
@@ -305,7 +317,7 @@ export struct SearchPage {
       return
     }
     const sourceFilter = this.sourceFilter
-    this.recordHistory(query)
+    if (this.migrationSources === undefined) this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
       const result = await service.search(query, sourceFilter, (section: CrossSearchSection) => {
@@ -322,7 +334,7 @@ export struct SearchPage {
         this.handleWebChallenges()
         console.info(`[Search] step=ui_section_resolved serial=${serial} source=${section.id} state=${section.state}`)
       }, (): boolean => this.ownsRoute(routeEpoch) && serial === this.searchSerial &&
-        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible)
+        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible, this.migrationSources)
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
@@ -1062,8 +1074,40 @@ export struct SearchPage {
   private openSectionResults(section: CrossSearchSection): void {
     const source = this.continuationSource(section)
     if (source !== undefined && this.resultsQuery.length > 0) {
-      RouterHelper.pushSourceSearch({ source: source }, this.resultsQuery)
+      RouterHelper.pushSourceSearch({ source: source }, this.resultsQuery,
+        this.migrationSources === undefined ? undefined : (manga: SourceManga): void => { this.onMangaSelected(manga) },
+        this.selectionOriginal)
     }
+  }
+
+  @Builder
+  private MigrationResults(section: CrossSearchSection) {
+    Scroll() {
+      Row({ space: ThemeConstants.SPACE_MD }) {
+        ForEach(section.items, (item: CrossSearchResultItem) => {
+          Column({ space: ThemeConstants.SPACE_SM }) {
+            MangaGridItem({ manga: this.selectionManga(item), reserveTitleSpace: true,
+              onMangaTap: (): void => { void this.openResult(item) } })
+            KomaActionButton({ label: s('migration_select_target'), compact: true, fullWidth: true,
+              isEnabled: item.sourceId !== this.selectionOriginal?.sourceId ||
+                item.sourceMangaId !== this.selectionOriginal?.id,
+              action: (): void => { this.onMangaSelected(this.selectionManga(item)) } })
+          }
+          .width(ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH)
+        }, (item: CrossSearchResultItem) => item.id)
+      }
+      .alignItems(VerticalAlign.Top)
+      .justifyContent(FlexAlign.Start)
+      .constraintSize({ minWidth: '100%' })
+    }
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .width('100%')
+  }
+
+  private selectionManga(item: CrossSearchResultItem): SourceManga {
+    return { id: item.sourceMangaId ?? '', sourceId: item.sourceId ?? '', title: item.title,
+      coverUrl: item.coverUri, url: item.sourceMangaUrl }
   }
 
   @Builder
@@ -1098,7 +1142,7 @@ export struct SearchPage {
         floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
         reserveTitleBar: true,
       }) {
-          if (this.sourceFilter !== 'all') {
+          if (this.migrationSources === undefined && this.sourceFilter !== 'all') {
             ListItem() {
               this.ActiveFilterBadge()
             }
@@ -1166,11 +1210,13 @@ export struct SearchPage {
               ListItem() {
                 this.ResultsSectionHeader(section)
               }
-              ForEach(section.items, (item: CrossSearchResultItem) => {
-                ListItem() {
-                  this.ResultRow(item)
-                }
-              }, (item: CrossSearchResultItem) => item.id)
+              if (this.migrationSources !== undefined) {
+                ListItem() { this.MigrationResults(section) }
+              } else {
+                ForEach(section.items, (item: CrossSearchResultItem) => {
+                  ListItem() { this.ResultRow(item) }
+                }, (item: CrossSearchResultItem) => item.id)
+              }
             }
           }, (section: CrossSearchSection) => this.sectionRenderKey(section))
       }

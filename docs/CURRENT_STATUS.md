@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：参考应用功能差异的本地实现及追踪表单已交付；真实账号路径待条件验收。
+当前工作：后台源更新角标与跨源迁移新增路径已验证，正在准备提交和CI。
 
-设备：197本轮追踪表单验证后已恢复并释租；237本轮未操作。200禁止操作，四私库搁置。
+设备：197本轮验证后已恢复并释租；237本轮未操作。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T21:30:12+08:00",
+  "updatedAt": "2026-10-31T22:38:15+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "追踪服务独立实现已交付，真实账号验收待条件。",
-  "nextAction": "保留真实账号未验边界，继续处理其他具名问题。",
+  "activeId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+  "activity": "后台源更新角标与迁移新增路径已验证，正在准备交付。",
+  "nextAction": "完成两项源码提交及精确CI核对。",
   "proof": [
     {
       "label": "正式主仓",
@@ -62,7 +62,7 @@
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
       "appHead": "Koma/master 529aa8b66329072f73529d4df2b715ae74b994f8，精确CI41204801578成功。",
-      "hap": "197两轮追踪表单验证后已恢复原HAP、数据与电源并释租。"
+      "hap": "197已恢复原HAP、37文件及电源并释租。"
     },
     {
       "name": "NextE",
@@ -2999,25 +2999,31 @@
       "id": "SOURCE_INDEX_CACHE_REVALIDATE",
       "title": "源管理先显示持久索引缓存并后台更新",
       "priority": "P1（明确授权的初载/刷新体验）",
-      "owner": "Root：列表78f精确CI40456280638成功/普通manager交付完成，原同类发现未改边界保持",
+      "owner": "source_terra：源更新缓存与后台逻辑；Root：Index集成与交付",
       "dependencies": [],
       "relatedItems": [
         "REFRESH_RETAIN_EXISTING_CONTENT",
         "SOURCE_INDEX_PROGRESSIVE",
         "SOURCE_PACKAGE_ICON_INVALIDATION"
       ],
-      "kind": "accepted",
-      "status": "列表重复文案纠正已push/精确CI成功与197普通验证闭环，无该批等待",
-      "result": "App78f008d246d307695a12ca101c3e3dfdadee65ab已commit/push且精确CI40456280638 completed/success，公共row meta重复incomplete附文/Computed删除；正常行本来无latest/unknown，不写成新删除。197983安装18910591，manager-clean-result与manager-normal-range-result errors=[]，clean-manager-top/next/normal-range Root亲审：正常已安装区仅原版本语言、可更新区原按钮保持，内部partial/地址失败保持。985对979六非Registry字节同、85 IDs/order/enabled及其它84DTO同，仅Bz .8预期升级；986系统120000无Override/44636496释租。",
+      "kind": "open",
+      "status": "设备路径已验，待提交及CI",
+      "result": "浏览角标首显和后台更新已观察，设备已恢复；源码待交付。",
       "evidencePoints": [
-        "直接产物索引：269/partial-check-existing-method-review.json"
+        "直接产物索引：269/partial-check-existing-method-review.json",
+        "本次重开前原已验结果及剩余说明保留：App78f008d246d307695a12ca101c3e3dfdadee65ab已commit/push且精确CI40456280638 completed/success，公共row meta重复incomplete附文/Computed删除；正常行本来无latest/unknown，不写成新删除。197983安装18910591，manager-clean-result与manager-normal-range-result errors=[]，clean-manager-top/next/normal-range Root亲审：正常已安装区仅原版本语言、可更新区原按钮保持，内部partial/地址失败保持。985对979六非Registry字节同、85 IDs/order/enabled及其它84DTO同，仅Bz .8预期升级；986系统120000无Override/44636496释租。 原剩余：78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。",
+        "source_terra数据缓存/请求合并/失败保已知更新及34/34完整owner测试已核；Root接Index启动后台检查与原生浏览Badge，build002通过。197 ui-installed047未进入源管理已显示浏览角标62；冷启动、完整闭环和设备恢复未验。",
+        "源缓存删除仓库后旧更新失效修复及完整35项owner执行通过；冷启动、最终菜单及设备恢复仍待。",
+        "004冻结 .hvigor/outputs/source-update-migration-candidate004-c342a273.hap SHA c342a273bef0c93d7b09657319b62683bd406adaf67da37198133518574378b6；069安装冷启动普通书架浏览角标61，先前002为62，后台正常更新，不将数值固定。074已停止候选并收偏好，设备恢复进行中。",
+        "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮koma_manga_migration_v1及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076于22:37:39 released。失败保已知更新为35项owner执行范围，非设备故障注入，不设额外设备门槛。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。",
+        "本轮验收证据入口 .hvigor/outputs/source-update-migration-acceptance/acceptance-binding.json。"
       ],
       "remainingActions": [
-        "78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。"
+        "完成源码提交及精确CI核对。"
       ],
-      "remaining": "78f列表本批push/精确CI40456280638成功及197普通manager/恢复完成，无工程交付等待，不重跑partial或造故障。另三处重复信息仅实际审查发现未改，不编总数/擅改其他界面；当前逐行重复文案决定已取代旧决定，版本语言/update按钮/内部partial地址失败保持。",
+      "remaining": "完成源码提交及精确CI核对。",
       "boundaries": [
-        "当前profile普通重入缓存先显已实现且具名运动成立；新缓存项不覆盖其余缺陷，后台失败/换库/cold仍未验。",
+        "197具名首次安装与冷启动角标已观察；失败保持、移除仓库及安装版本对齐为owner执行验证，不冒设备故障注入，未覆盖其他设备或网络组合。",
         "缓存身份与后台过期回调须守当前索引，未安装/可更新状态仍按真实安装版本计算。",
         "当前人类纠正取代旧逐行未能确认文案决定：移除公共row meta重复状态，保版本/语言、真实update按钮及内部partial/原地址失败。正常行原本无latest/unknown，不虚构新移除；未授权额外界面变化，不改URL/网络/UA或清缓存造失败。"
       ],
@@ -3028,7 +3034,7 @@
       "firstEvidenceAtSource": "本次登记，非用户首报精确时刻。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-25T21:29:51+00:00",
+      "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "continuationGate": {
         "checkedAt": "2026-10-25T21:00:16.188000+00:00",
@@ -3047,7 +3053,13 @@
       "reportedAgeAtAudit": "至少1天22小时2分28秒",
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
-      "knownFeedbackAgeSecondsAtAudit": 165748
+      "knownFeedbackAgeSecondsAtAudit": 165748,
+      "stage": "源码提交及精确CI待核",
+      "reopenedAt": "2026-10-31T21:47:21+08:00",
+      "modificationBasis": {
+        "object": "源包更新后台检查及浏览角标",
+        "allowedDifference": "用户本轮明确采用后台异步自动检查源包更新；浏览tab可更新角标持久缓存，首帧展示不等重新检查。旧缓存先显和既有已验范围保留。"
+      }
     },
     {
       "id": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
@@ -4608,15 +4620,17 @@
       "id": "LIBRARY_CROSS_SOURCE_MIGRATION",
       "title": "书库漫画跨源迁移",
       "priority": "P1",
-      "kind": "done",
-      "status": "跨源迁移已验证并交付",
-      "stage": "具名范围已交付",
+      "kind": "open",
+      "status": "设备路径已验，待提交及CI",
+      "stage": "源码提交及精确CI待核",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [],
-      "result": "单本及批量复制、迁移已接入并验收，已读进度、分类和追踪随选择处理，旧历史与下载保留。",
-      "remaining": "",
-      "remainingActions": [],
+      "result": "多源选择、预览返回及确认已观察，设备已恢复；源码待交付。",
+      "remaining": "完成源码提交及精确CI核对。",
+      "remainingActions": [
+        "完成源码提交及精确CI核对。"
+      ],
       "boundaries": [
         "使用当前Koma控件；仅按用户明确采用的入口和流程实施，不擅自扩展样式。",
         "旧下载保留，不能冒充新源下载；Aidoku仅作行为参考，不复制代码或资源。",
@@ -4624,7 +4638,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未取得；登记时间不冒充首报。",
-      "closedAt": "2026-10-31T06:12:46+08:00",
+      "closedAt": null,
       "evidencePoints": [
         "用户本轮明确要求实现迁移功能，并指出Mihon和Aidoku均有。",
         "用户通过本轮async call_06bd595e97bf48dd9fcff06914f4be01明确采用完整流程；尚未实现或验收。",
@@ -4633,13 +4647,21 @@
         "197 copy-result-022普通复制猎行者到包子獵行者219章，旧书及已读空洞保留；single-complete-032经NavPathStack NEW_INSTANCE修正后实际进入目标详情。batch-entry-033选2本，batch-move-result-038一项成功、一项无匹配跳过；持久化读回旧书移出、目标仅1本，旧Reader页14/16与sourceHistory保留；retained-history-040普通历史显示原猎行者第15/16页。未知新版本页数曾显示“第1/0页”，正在修为仅章节名；匹配阶段曾继承长源列表页尾位置，正修滚动归顶，两项重建待验。设备仍持租、未恢复或提交。证据 library-migration/{copy-result-022,single-complete-032,batch-entry-033,batch-move-result-038,retained-history-040}。",
         "最终候选12cfa9ea已完成本地构建、同签/profile核对与六项关键执行。197 stage-position-fixed-042第一项归顶、unknown-page-history-fixed-043目标未知页数仅显示章节名及旧历史15/16页均已亲看。restore-original-044原38d245安装成功，library/reader/registry/source-settings/filters/web-sessions/tracker prefs七文件与baseline逐字相等，source-setting-observations仍不存在；045实读SLEEP/120000/Override10000，lease20261030-212132-0600bc72 released。代码43246fd0已推master，精确CI待核；证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json。",
         "主功能43246fd0的197普通路径验收保持有效；最后复核补齐提交期间禁用重试/验证/预览，复用ConciseListRow.isEnabled，不改数据路径。ebae91bd12329878f0074800b26e3148f8c9cc9f本地编译通过并经HTTPS推master；SSH临时连接关闭，永久远端未改。精确CI41135459269运行中；旧41134748704被并发规则自动替换为cancelled，不作为构建失败或新提交的成功证明。不重复197验收。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json。",
-        "精确CI41135459269 head ebae91bd12329878f0074800b26e3148f8c9cc9f completed/success，Build unsigned Release HAP job124336817401全步骤成功；Publish tagged Release skipped，未发新版本。Github artifact13016107812 ohos-hap-unsigned未过期，digest sha256:f332d59b9c2b51458a7294f23cccafcca693d1555862b6f4940013cbaeba6466，workflow_run head严格匹配。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json 与 https://github.com/honjow/Koma/actions/runs/41135459269。最后忙碌控件修正仅编译、未重复安装的边界保留。"
+        "精确CI41135459269 head ebae91bd12329878f0074800b26e3148f8c9cc9f completed/success，Build unsigned Release HAP job124336817401全步骤成功；Publish tagged Release skipped，未发新版本。Github artifact13016107812 ohos-hap-unsigned未过期，digest sha256:f332d59b9c2b51458a7294f23cccafcca693d1555862b6f4940013cbaeba6466，workflow_run head严格匹配。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/library-cross-source-migration-20261031/evidence.json 与 https://github.com/honjow/Koma/actions/runs/41135459269。最后忙碌控件修正仅编译、未重复安装的边界保留。",
+        "本次新增反馈前已交付结果保留：单本及批量复制、迁移已接入并验收，已读进度、分类和追踪随选择处理，旧历史与下载保留。",
+        "本次反馈由Root实施迁移，home_terra只读核固定参考；旧迁移持久数据、复制/迁移与下载保留边界不变，尚未实现或验收。",
+        "已接所选源持久保存/前置分组、顶部Continue及copy/move/finish；共用CrossSearchService仅所选源scope，结果点击预览与独立选目标、分源更多结果继续选择，旧提交事务不改。固定Mihon feadad5与Aidoku ceee58b参考已核。197 lease20261031-140006-cd3b4076，ui-baseline046新备份及连续awakegate；048/049详情菜单进入迁移，050无开关源列表，051 MangaDex选中即前置，052追加Komiic后顶部继续搜索执行中。冷启动、预览返回及设备恢复未验。",
+        "197 ui-results-settled057以Blue Archive显示MangaDex20/Komiic1分组横向结果；058/059封面进入详情，该MangaDex样本0章节、未选迁移；060返回保关键词、20+1结果及选择按钮。061/062 Komiic分源更多仍有封面预览及独立选目标，063进入详情、064返回验证中。发现预填词自动弹键盘、单结果居中及按钮高低不齐，已限迁移上下文修正；build004通过冻结SHA c342a273bef0c93d7b09657319b62683bd406adaf67da37198133518574378b6，尚未安装，不冒视觉验收。",
+        "067顶部迁移确认框、068取消返回未提交；069安装004冷启动，070详情→迁移恢复已选MangaDex/Komiic前组，071预填搜索未自动弹键盘；073 Blue Archive为MangaDex20/Komiic1，单卡左对齐和按钮平齐已由Root看图。002预览、更多结果与明确选择具名范围按057–068，不重复验证；074停止候选并收偏好，恢复未完成。",
+        "ui-restored-075原HAP安装成功，restoration-comparison.json 37文件逐字同、无额外preferences，仅本轮迁移偏好及lock已移除；076 SLEEP/normal120000/Override10000，lease20261031-140006-cd3b4076 released。产品尚未commit。证据 .hvigor/outputs/source-update-migration-lease-final.json。"
       ],
       "modificationBasis": {
         "object": "书库漫画跨源迁移及其入口",
         "allowedDifference": "详情右上角和书库多选提供迁移；选目标源后逐书匹配，可修改搜索、换结果或跳过；确认选择已读进度和分类，追踪随书转移；可复制保留旧书，或迁移并移出旧书库。旧下载保留，不冒充新源下载；使用当前Koma控件。",
-        "reference": "Mihon e588e04359fe1058206a2cbac1b01018ad787359；Aidoku ceee58b29d4f48106cf63042ca0cb075a8ac22b4，仅作行为参考。"
-      }
+        "reference": "Mihon e588e04359fe1058206a2cbac1b01018ad787359；Aidoku ceee58b29d4f48106cf63042ca0cb075a8ac22b4，仅作行为参考。",
+        "newFeedbackAllowedDifference": "用户本轮明确采用：多源并列搜索结果；先预览漫画详情，返回后再选择迁移；来源选择持久记忆，选中源置前分组，不使用全部switch；入口继续位于标题栏右侧。"
+      },
+      "reopenedAt": "2026-10-31T21:47:21+08:00"
     },
     {
       "id": "FEATURE_PARITY_COMPARISON",
@@ -11592,6 +11614,108 @@
       "evidence": [
         ".hvigor/outputs/feature-parity-implementation-20261031/tracker-ci-final.json",
         "https://github.com/honjow/Koma/actions/runs/41204801578"
+      ]
+    },
+    {
+      "id": "source-index-background-badge-request-20261031",
+      "at": "2026-10-31T21:47:21+08:00",
+      "title": "后台源更新与角标需求",
+      "detail": "用户采用后台异步检查和首帧持久角标，原项重开实施。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "library-migration-multisource-preview-request-20261031",
+      "at": "2026-10-31T21:47:21+08:00",
+      "title": "跨源迁移搜索体验补充",
+      "detail": "用户采用多源并列搜索、详情预览及来源记忆，原项重开实施。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "source-index-badge-native-start-20261031",
+      "at": "2026-10-31T22:08:04+08:00",
+      "title": "后台源更新角标设备验证",
+      "detail": "后台检查与缓存候选已构建，未进入源管理时已显示角标；冷启动和恢复待验。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "migration-multisource-native-start-20261031",
+      "at": "2026-10-31T22:08:04+08:00",
+      "title": "迁移多源选择设备验证",
+      "detail": "来源前置选择和多源搜索已进入普通路径，预览返回及冷启动待验。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/"
+      ]
+    },
+    {
+      "id": "source-index-removal-cache-20261031",
+      "at": "2026-10-31T22:26:36+08:00",
+      "title": "源缓存仓库删除处理",
+      "detail": "删除仓库后旧更新失效逻辑及执行检查通过，设备完整收尾待验。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "migration-preview-return-20261031",
+      "at": "2026-10-31T22:26:36+08:00",
+      "title": "迁移多源预览返回实测",
+      "detail": "多源分组结果及详情返回保留搜索状态，视觉修正候选尚未安装。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/"
+      ]
+    },
+    {
+      "id": "source-index-badge-cold-20261031",
+      "at": "2026-10-31T22:37:04+08:00",
+      "title": "源更新角标冷启动",
+      "detail": "冷启动浏览角标可见且可后台更新，设备恢复中。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-candidate004-c342a273.hap"
+      ]
+    },
+    {
+      "id": "migration-multisource-cold-20261031",
+      "at": "2026-10-31T22:37:04+08:00",
+      "title": "迁移选择冷启动与确认",
+      "detail": "来源选择冷启动保留，预览和确认取消已观察；设备恢复中。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-candidate004-c342a273.hap"
+      ]
+    },
+    {
+      "id": "source-index-badge-restored-20261031",
+      "at": "2026-10-31T22:38:15+08:00",
+      "title": "源更新角标验证后恢复",
+      "detail": "设备路径已验，原数据与电源恢复；源码和CI待交付。此时间为登记时间。",
+      "itemId": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-lease-final.json"
+      ]
+    },
+    {
+      "id": "migration-multisource-restored-20261031",
+      "at": "2026-10-31T22:38:15+08:00",
+      "title": "多源迁移验证后恢复",
+      "detail": "新增路径已验，原数据与电源恢复；源码和CI待交付。此时间为登记时间。",
+      "itemId": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/source-update-migration-lease-final.json"
       ]
     }
   ],

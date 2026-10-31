@@ -2,7 +2,7 @@ import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state
 import { ReaderBrightnessController } from '../model/ReaderBrightnessController'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
-import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
+import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
@@ -60,6 +60,8 @@ import {
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
 import { MangaMigrationPage } from './MangaMigrationPage'
+import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
+import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
 import { MangaMigrationRouteParam } from '../common/RouterHelper'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT, SourceSearchTitleFieldContentBuilder } from '../components/SourceSearchTitleField'
 import { SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT, SourceBrowseTitleFieldContentBuilder } from '../components/SourceBrowseTitleField'
@@ -268,6 +270,8 @@ struct Index {
   // the same in-memory snapshot rather than reopening a second store.
   @Local private readerProgressRevision: number = 0
   @Local private libraryRevision: number = 0
+  @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
+  private migrationOpening: boolean = false
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
   private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
@@ -1559,6 +1563,19 @@ struct Index {
     }).finally((): void => { this.sourceManagerOpening = false })
   }
 
+  private async openMangaMigration(comicIds: string[], fromDetail: boolean): Promise<void> {
+    if (this.migrationOpening) return
+    this.migrationOpening = true
+    try {
+      const selectedSources = await new MangaMigrationPreferencesStore(getContext(this) as common.UIAbilityContext).load()
+      const param: MangaMigrationRouteParam = { comicIds, fromDetail, selectedSources }
+      RouterHelper.ensureMigrationRouteChrome(param)
+      this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION, param })
+    } catch (_) {
+      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('migration_preferences_load_failed') })
+    } finally { this.migrationOpening = false }
+  }
+
   private openTrackerProvider(providerId: TrackerProviderId): void {
     const params: TrackerProviderRouteParam = { providerId }
     this.appPathStack.pushPath({ name: RouteName.TRACKER_PROVIDER_SETTINGS, param: params })
@@ -2050,9 +2067,10 @@ struct Index {
     if (this.sourceRegistry.count() === 0) {
       bootstrapSourceRuntimeAppRegistry(context)
     }
-    // Only local cache warming at startup. Network revalidation belongs to an
-    // actual manager-open intent; a direct settings route is not index browsing.
+    // Publish persisted positive updates first. Automatic checking is detached
+    // from route creation and shares the existing manager request owner.
     void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
+      .then((): void => { appSourcePackageManagerCache.revalidateInBackground(context) })
     appSourceWebSessionStore.configure(context, this.sourceRegistry)
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true
@@ -2090,6 +2108,11 @@ struct Index {
     }
   }
 
+  private sourceUpdateCount(): number {
+    void this.sourcePackageManagerCache.revision
+    return this.sourcePackageManagerCache.updateCount
+  }
+
   @Builder
   TabIcon(title: string, idx: number) {
     KomaTabIcon({
@@ -2097,6 +2120,7 @@ struct Index {
       idx: idx,
       currentIndex: this.selectedTab,
       bounceTrigger: this.tabIconBounceTriggers[idx] ?? -1,
+      badgeCount: idx === TabIndex.BROWSE ? this.sourceUpdateCount() : 0,
     })
   }
 
@@ -2255,7 +2279,12 @@ struct Index {
       SourceSearchPage({
         source: param.source,
         chrome: param.chrome,
+        selectionMode: param.onMangaSelected !== undefined,
+        selectionOriginal: param.selectionOriginal,
         onMangaTap: (manga: SourceManga) => {
+          RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+        },
+        onMangaSelected: (manga: SourceManga) => {
           if (param.onMangaSelected !== undefined) {
             const onSelected = param.onMangaSelected
             this.appPathStack.pop()
@@ -2281,6 +2310,13 @@ struct Index {
     HdsNavDestination() {
       SearchPage({
         chrome: RouterHelper.ensureSearchRouteChrome(param),
+        migrationSources: param.migration?.sourceIds,
+        selectionOriginal: param.migration?.original,
+        onMangaSelected: (manga: SourceManga): void => {
+          if (param.migration === undefined) return
+          this.appPathStack.pop(false)
+          param.migration.onMangaSelected(manga)
+        },
         onOpenLibraryResult: (comicId: string) => { this.openLibraryMangaDetail(comicId) },
         libraryStore: this.libraryStore,
         libraryPersistenceService: this.ensureLibraryPersistenceService(),
@@ -2369,8 +2405,7 @@ struct Index {
           onRefreshLocalFolder: (comicId: string) => this.rescanLocalLibraryFolders(comicId),
           onLibraryChanged: () => { this.onMangaDetailLibraryChanged() },
           onMigrationRequested: (comicId: string) => {
-            this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION,
-              param: { comicIds: [comicId], fromDetail: true } as MangaMigrationRouteParam })
+            void this.openMangaMigration([comicId], true)
           }
         })
       }
@@ -2386,6 +2421,8 @@ struct Index {
       HdsNavDestination() {
         MangaMigrationPage({
           comicIds: (param as MangaMigrationRouteParam).comicIds,
+          initialSources: (param as MangaMigrationRouteParam).selectedSources ?? [],
+          chrome: RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam),
           registry: this.sourceRegistry, libraryStore: this.libraryStore,
           persistence: this.ensureLibraryPersistenceService(), readerStore: this.readerSessionStore,
           onBusyChanged: (busy: boolean): void => { (param as MangaMigrationRouteParam).committing = busy },
@@ -2406,8 +2443,8 @@ struct Index {
           },
         })
       }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('migration_title')))
-      .onBackPressed((): boolean => (param as MangaMigrationRouteParam).committing === true)
+      .titleBar(this.migrationTitleBarOpts(param as MangaMigrationRouteParam))
+      .onBackPressed((): boolean => RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).busy)
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
@@ -2676,8 +2713,7 @@ struct Index {
                   RouterHelper.openSearch({})
                 },
                 onMigrationRequested: (comicIds: string[]): void => {
-                  this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION,
-                    param: { comicIds, fromDetail: false } as MangaMigrationRouteParam })
+                  void this.openMangaMigration(comicIds, false)
                 },
                 onOpenDownloadsRequested: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)
@@ -3015,7 +3051,7 @@ struct Index {
   private searchTitleBarOpts(param: SearchRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureSearchRouteChrome(param)
     const title: Record<string, Object> = {}
-    title['mainTitle'] = AppStrings.get('tab_search')
+    title['mainTitle'] = AppStrings.get(param.migration === undefined ? 'tab_search' : 'migration_title')
     const bottomBuilder: Record<string, Object> = {}
     bottomBuilder['builderComponent'] = this.searchFieldContent(chrome)
     bottomBuilder['height'] = SEARCH_TITLE_BOTTOM_HEIGHT
@@ -3036,7 +3072,7 @@ struct Index {
     const content: Record<string, Object> = {}
     content['title'] = title
     content['bottomBuilder'] = bottomBuilder
-    content['menu'] = menu
+    if (param.migration === undefined) content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
 
@@ -3218,6 +3254,29 @@ struct Index {
       'content': content,
       'style': style,
     }
+  }
+
+  private migrationTitleBarOpts(param: MangaMigrationRouteParam): Record<string, Object> {
+    const chrome = RouterHelper.ensureMigrationRouteChrome(param)
+    const items: Record<string, Object>[] = []
+    const add = (label: string, icon: Resource, command: MigrationCommand, enabled: boolean): void => {
+      const content: Record<string, Object> = { 'label': AppStrings.get(label), 'icon': icon,
+        'isEnabled': enabled && !chrome.busy, 'action': (): void => { chrome.request(command) } }
+      const item: Record<string, Object> = { 'content': content }
+      items.push(item)
+    }
+    if (chrome.stage === 'sources') {
+      add('migration_continue', $r('sys.symbol.arrow_right'), 'continue', chrome.canContinue)
+    } else {
+      add('migration_copy', $r('sys.symbol.doc_plaintext'), 'copy', chrome.readyCount > 0)
+      add('migration_move', $r('sys.symbol.arrow_right'), 'move', chrome.readyCount > 0)
+      add('migration_choose_sources', $r('sys.symbol.funnel'), 'sources', true)
+      add('migration_finish', $r('sys.symbol.checkmark'), 'finish', true)
+    }
+    const title: Record<string, Object> = { 'mainTitle': AppStrings.get('migration_title') }
+    const menu: Record<string, Object> = { 'value': items, 'maxCount': 2 }
+    const content: Record<string, Object> = { 'title': title, 'menu': menu }
+    return this.sourceRouteTitleBarOpts(content)
   }
 
   private mangaDetailTitle(param: MangaDetailRouteParam): string {

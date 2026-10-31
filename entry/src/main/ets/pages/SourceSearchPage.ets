@@ -5,6 +5,7 @@ import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
 import { SourceMangaGrid } from '../components/SourceMangaGrid'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT } from '../components/SourceSearchTitleField'
 import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -42,6 +43,9 @@ interface SourceSearchGridProjection {
 
 @ComponentV2
 export struct SourceSearchPage {
+  @Param selectionMode: boolean = false
+  @Param selectionOriginal: SourceManga | undefined = undefined
+  @Event onMangaSelected: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Param source: SourceRuntimeRegistryInstalledSourceSummary = {
     sourceId: '',
     displayName: '',
@@ -389,7 +393,17 @@ export struct SourceSearchPage {
 
   @Builder
   private GridRowContent(row: SourceSearchGridRow) {
-    if (row.kind === 'manga') {
+    if (row.kind === 'manga' && this.selectionMode) {
+      Column({ space: ThemeConstants.SPACE_SM }) {
+        MangaGridItem({ manga: row.manga!, reserveTitleSpace: true,
+          onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+        if (this.selectionMode) {
+          KomaActionButton({ label: s('migration_select_target'), compact: true, fullWidth: true,
+            isEnabled: row.manga!.sourceId !== this.selectionOriginal?.sourceId || row.manga!.id !== this.selectionOriginal?.id,
+            action: (): void => { this.onMangaSelected(row.manga!) } })
+        }
+      }.width('100%')
+    } else if (row.kind === 'manga') {
       MangaGridItem({ manga: row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (row.kind === 'loading') {
       this.LoadingSearchState()

@@ -6,11 +6,14 @@
  */
 @ObservedV2
 export class SearchRouteChromeState {
+  readonly autoFocus: boolean
   @Trace visible: boolean = false
   @Trace query: string = ''
   @Trace queryChangeSeq: number = 0
   @Trace querySubmitSeq: number = 0
   @Trace filterRequestSeq: number = 0
+
+  constructor(autoFocus: boolean = true) { this.autoFocus = autoFocus }
 
   updateQuery(value: string): void {
     this.query = value

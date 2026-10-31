@@ -51,7 +51,35 @@ export class SourcePackageManagerCache {
   private ready: Promise<void> | undefined = undefined
   private automaticStarted: boolean = false
   private checkTail: Promise<void> = Promise.resolve()
+  private pendingCheck: Promise<void> | undefined = undefined
+  private pendingCheckKey: string = ''
   private checkedSavedUrl: string | undefined = undefined
+  private removedSavedIndexes: Set<string> = new Set()
+
+  // Counts are projections of persisted repository metadata and the current
+  // registry, not a second source of truth that can outlive an installed ID.
+  get updateCount(): number {
+    return this.checkedUpdateStatuses().filter((status: SourcePackageUpdateStatus): boolean => {
+      const source = this.installedPackage(status.sourceId)
+      return source !== undefined && status.remoteEntry !== undefined && this.updateAvailableFor(source, status.remoteEntry)
+    }).length
+  }
+
+  private reconcileUpdates(statuses: SourcePackageUpdateStatus[]): SourcePackageUpdateStatus[] {
+    return statuses.filter((status: SourcePackageUpdateStatus): boolean => {
+      const source = this.installedPackage(status.sourceId)
+      return source !== undefined && (status.status !== 'update' || (status.remoteEntry !== undefined &&
+        this.updateAvailableFor(source, status.remoteEntry)))
+    })
+  }
+
+  private retainUpdatesOnFailure(reasonCode: string): SourcePackageUpdateStatus[] {
+    const retained = this.reconcileUpdates(this.packageUpdateStatuses)
+      .filter((status: SourcePackageUpdateStatus): boolean => status.status === 'update')
+    return this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus =>
+      retained.find((status: SourcePackageUpdateStatus): boolean => status.sourceId === source.id) ??
+      { sourceId: source.id, status: 'failed', localVersion: source.version, reasonCode })
+  }
 
   // Explicit repository edits retire running and queued work, while retaining
   // the last committed display. A text-field draft is never persistence.
@@ -64,7 +92,21 @@ export class SourcePackageManagerCache {
     // A later repositories read must not restore an older active URL after a
     // newer save has completed. Only the save completion owns the active URL.
     if (repositories !== undefined) {
-      if (url === this.sourceIndexUrl) this.sourceIndexRepositories = repositories
+      if (url === this.sourceIndexUrl) {
+        const oldUrls = this.sourceIndexUrlsForUpdate(url)
+        this.sourceIndexRepositories = repositories
+        const savedUrls = this.sourceIndexUrlsForUpdate(url)
+        oldUrls.forEach((old: string): void => {
+          if (savedUrls.indexOf(old) < 0) this.removedSavedIndexes.add(old)
+        })
+        savedUrls.forEach((saved: string): void => { this.removedSavedIndexes.delete(saved) })
+        const statuses = this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean =>
+          status.remoteIndexUrl === undefined || !this.removedSavedIndexes.has(status.remoteIndexUrl.trim()))
+        if (statuses.length !== this.packageUpdateStatuses.length) {
+          this.packageUpdateStatuses = statuses
+          this.revision += 1
+        }
+      }
       return
     }
     if (url !== this.sourceIndexUrl) {
@@ -92,6 +134,7 @@ export class SourcePackageManagerCache {
       this.indexIconStates = {}
       this.sourceIndexFailures = {}
       this.packageUpdateStatuses = []
+      this.removedSavedIndexes.clear()
       this.statusText = ''
     }
     const current = listInstalled()
@@ -108,6 +151,8 @@ export class SourcePackageManagerCache {
       compareSourceNames(names.get(left.id) ?? left.name, left.id, names.get(right.id) ?? right.name, right.id))
     if (packages.length !== this.packages.length || packages.some((source: InstalledSourcePackage, index: number): boolean => source !== this.packages[index])) {
       this.packages = packages
+      this.packageUpdateStatuses = this.reconcileUpdates(this.packageUpdateStatuses)
+      this.revision += 1
     }
     const localeChanged = this.locale !== locale
     this.locale = locale
@@ -127,6 +172,24 @@ export class SourcePackageManagerCache {
       if (revision !== this.indexLoadRevision || scope !== this.scope) return
       this.sourceIndexUrl = url
       this.sourceIndexRepositories = repositories
+      const cachedUpdates: Record<string, SourcePackageUpdateStatus> = {}
+      const urls = this.sourceIndexUrlsForUpdate(url)
+      for (let index = 0; index < urls.length; index += 1) {
+        const indexUrl = urls[index]
+        const entries = indexUrl === url ? cached : await service.loadCachedIndex(indexUrl)
+        if (revision !== this.indexLoadRevision || scope !== this.scope) return
+        entries?.forEach((entry: SourceIndexEntry): void => {
+          const source = this.installedPackage(entry.id)
+          const previous = cachedUpdates[entry.id]
+          if (source !== undefined && this.updateAvailableFor(source, entry) &&
+            (previous === undefined || this.compareVersion(entry.version, previous.remoteVersion ?? '') > 0)) {
+            cachedUpdates[entry.id] = { sourceId: entry.id, status: 'update', remoteEntry: entry,
+              remoteIndexUrl: indexUrl, remoteVersion: entry.version, localVersion: source.version }
+          }
+        })
+      }
+      this.packageUpdateStatuses = Object.keys(cachedUpdates).map((id: string): SourcePackageUpdateStatus => cachedUpdates[id])
+      this.revision += 1
       if (cached !== undefined) {
         this.showIndexEntries(this.sourceIndexUrl, cached, this.indexLoadRevision)
         // Only local files before first paint; an absent icon never makes a
@@ -154,6 +217,7 @@ export class SourcePackageManagerCache {
     // newer explicit action. Saving view state does not start another request.
     if (!retireCheck && expectedRevision !== this.revision) return
     if (retireCheck) this.retireCheck()
+    const previousCount = this.updateCount
     this.packages = packages
     // Page disappearance may retain installed rows/status, but an unsubmitted
     // URL must not replace the saved repository or its usable index/icon cache.
@@ -165,8 +229,10 @@ export class SourcePackageManagerCache {
       this.indexStatusText = indexStatus
     }
     this.sourceIndexFailures = failures
-    this.packageUpdateStatuses = statuses
+    this.packageUpdateStatuses = this.reconcileUpdates(statuses).filter((item: SourcePackageUpdateStatus): boolean =>
+      item.remoteIndexUrl === undefined || !this.removedSavedIndexes.has(item.remoteIndexUrl.trim()))
     this.statusText = status
+    if (previousCount !== this.updateCount) this.revision += 1
   }
 
   private showIndexEntries(url: string, entries: SourceIndexEntry[], revision: number): void {
@@ -380,9 +446,19 @@ export class SourcePackageManagerCache {
 
   check(context: common.UIAbilityContext, requestedUrl?: string): Promise<void> {
     const generation = this.generation
+    const key = `${generation}\n${requestedUrl ?? this.sourceIndexUrl}`
+    if (this.pendingCheck !== undefined && this.pendingCheckKey === key) return this.pendingCheck
     const result = this.checkTail.then((): Promise<void> => generation === this.generation
       ? this.refresh(context, requestedUrl) : Promise.resolve())
     this.checkTail = result.catch((): void => {})
+    this.pendingCheck = result
+    this.pendingCheckKey = key
+    void result.finally((): void => {
+      if (this.pendingCheck === result) {
+        this.pendingCheck = undefined
+        this.pendingCheckKey = ''
+      }
+    }).catch((): void => {})
     return result
   }
 
@@ -407,6 +483,7 @@ export class SourcePackageManagerCache {
       this.sourceIndexUrl = draft.checkedSavedUrl
       changed = true
     }
+    if (draft.checkedSavedUrl !== undefined) this.removedSavedIndexes.delete(draft.checkedSavedUrl.trim())
     if (draft.indexEntries !== this.indexEntries) {
       this.indexEntries = draft.indexEntries
       this.indexIconStates = draft.indexIconStates
@@ -493,17 +570,12 @@ export class SourcePackageManagerCache {
         })
       }
       if (loadedIndexCount === 0) {
-        this.sourceIndexFailures = {}
-        this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
-          return {
-            sourceId: source.id,
-            status: 'failed',
-            localVersion: source.version,
-            reasonCode: firstFailureReason,
-          }
-        })
+        this.sourceIndexFailures = indexFailures
+        // No repository answered, so previously known updates remain usable.
+        this.packageUpdateStatuses = this.retainUpdatesOnFailure(firstFailureReason)
         this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(firstFailureReason))
-        console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
+        console.info('[SourcePackageUpdate] step=check_done retained_updates=' + this.updateCount +
+          ' failed=' + this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => status.status === 'failed').length)
         return
       }
 
@@ -572,17 +644,10 @@ export class SourcePackageManagerCache {
         ' failed_indexes=' + failedIndexCount)
     } catch (_error) {
       if (revision !== this.indexLoadRevision || !isCurrent()) return
-      this.sourceIndexFailures = {}
-      this.packageUpdateStatuses = this.packages.map((source: InstalledSourcePackage): SourcePackageUpdateStatus => {
-        return {
-          sourceId: source.id,
-          status: 'failed',
-          localVersion: source.version,
-          reasonCode: this.sourceIndexFailureReason(_error),
-        }
-      })
+      this.packageUpdateStatuses = this.retainUpdatesOnFailure(this.sourceIndexFailureReason(_error))
       this.statusText = tf('source_pkg_check_failed', this.sourceRedactedReasonText(this.sourceIndexFailureReason(_error)))
-      console.info('[SourcePackageUpdate] step=check_done update=0 latest=0 missing=0 failed=' + count)
+      console.info('[SourcePackageUpdate] step=check_done retained_updates=' + this.updateCount +
+        ' failed=' + this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => status.status === 'failed').length)
     } finally {
       this.updateCheckBusy = false
       if (revision === this.indexLoadRevision) this.revision += 1

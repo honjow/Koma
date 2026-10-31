@@ -161,6 +161,7 @@ export class CrossSearchService {
     sourceFilter: CrossSearchSourceFilter = 'all',
     onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
     webChallengeCurrent: (() => boolean) | undefined = undefined,
+    sourceIds: string[] | undefined = undefined,
   ): Promise<CrossSearchSection[]> {
     this.cancelPendingSearch()
     const normalizedQuery = query.trim()
@@ -209,7 +210,7 @@ export class CrossSearchService {
     const sourceRun: PagedSearchRun = { cancelled: false, webChallengeCurrent }
     this.pagedSearchRuns.push(sourceRun)
     const sourceTasks: Promise<SourceSearchOutcome>[] = this.sourceMatchesFilter('wasm', sourceFilter) ?
-      appSourceRuntimeRegistry.listInstalledSourceSummaries().map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+      this.selectedSourceSummaries(sourceIds).map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
         // Use the same execution and HTTP deadlines as source-internal search.
         return this.searchWasmSource(source, normalizedQuery, sourceRun, onSectionResolved)
       }) :
@@ -290,7 +291,15 @@ export class CrossSearchService {
     if (run.cancelled) throw new Error('search_cancelled')
   }
 
-  pendingSections(sourceFilter: CrossSearchSourceFilter = 'all'): CrossSearchSection[] {
+  private selectedSourceSummaries(sourceIds?: string[]): SourceRuntimeRegistryInstalledSourceSummary[] {
+    const installed = appSourceRuntimeRegistry.listInstalledSourceSummaries()
+    if (sourceIds === undefined) return installed
+    return sourceIds.map((id: string): SourceRuntimeRegistryInstalledSourceSummary | undefined =>
+      installed.find((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.sourceId === id))
+      .filter((source: SourceRuntimeRegistryInstalledSourceSummary | undefined): boolean => source !== undefined) as SourceRuntimeRegistryInstalledSourceSummary[]
+  }
+
+  pendingSections(sourceFilter: CrossSearchSourceFilter = 'all', sourceIds?: string[]): CrossSearchSection[] {
     const sections: CrossSearchSection[] = []
     if (this.sourceMatchesFilter('local', sourceFilter)) {
       sections.push(this.stateSection('local', AppStrings.get('tab_library'), 'local', 'running'))
@@ -308,7 +317,7 @@ export class CrossSearchService {
       sections.push(this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running'))
     }
     if (this.sourceMatchesFilter('wasm', sourceFilter)) {
-      appSourceRuntimeRegistry.listInstalledSourceSummaries().forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+      this.selectedSourceSummaries(sourceIds).forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
         sections.push(this.sourceSupportsSearch(source) ?
           this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running') :
           this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'unsupported', 'search_not_supported'))

@@ -4,6 +4,7 @@ import { SourceManga } from '../model/SourceModels'
 import { MangaDetailRouteChromeState } from '../state/MangaDetailRouteChromeState'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
+import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -34,6 +35,13 @@ export interface SourcePackageManagerRouteParam {
 export interface SearchRouteParam {
   query?: string
   chrome?: SearchRouteChromeState
+  migration?: MangaMigrationSearchSelection
+}
+
+export interface MangaMigrationSearchSelection {
+  sourceIds: string[]
+  original: SourceManga
+  onMangaSelected: (manga: SourceManga) => void
 }
 
 export interface SourceRouteParam {
@@ -49,12 +57,15 @@ export interface SourceSearchRouteParam {
   source: SourceRuntimeRegistryInstalledSourceSummary
   chrome: SourceSearchRouteChromeState
   onMangaSelected?: (manga: SourceManga) => void
+  selectionOriginal?: SourceManga
 }
 
 export interface MangaMigrationRouteParam {
   comicIds: string[]
   fromDetail: boolean
   committing?: boolean
+  selectedSources?: string[]
+  chrome?: MangaMigrationRouteChromeState
 }
 
 export class RouterHelper {
@@ -184,7 +195,8 @@ export class RouterHelper {
     stack.pushPath({ name: RouteName.SOURCE_BROWSE, param: routeParam })
   }
 
-  static pushSourceSearch(param: SourceRouteParam, initialQuery: string = '', onMangaSelected?: (manga: SourceManga) => void): void {
+  static pushSourceSearch(param: SourceRouteParam, initialQuery: string = '', onMangaSelected?: (manga: SourceManga) => void,
+    selectionOriginal?: SourceManga): void {
     const stack = RouterHelper.appPathStack
     if (stack === undefined) {
       return
@@ -193,6 +205,7 @@ export class RouterHelper {
       source: param.source,
       chrome: new SourceSearchRouteChromeState(param.source.displayName, initialQuery, param.source.sourceId),
       onMangaSelected,
+      selectionOriginal,
     }
     stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
   }
@@ -202,7 +215,7 @@ export class RouterHelper {
     if (existing !== undefined) {
       return existing
     }
-    const chrome = new SearchRouteChromeState()
+    const chrome = new SearchRouteChromeState(param.migration === undefined)
     const query = param.query?.trim() ?? ''
     if (query.length > 0) {
       chrome.updateQuery(query)
@@ -210,6 +223,11 @@ export class RouterHelper {
     }
     param.chrome = chrome
     return chrome
+  }
+
+  static ensureMigrationRouteChrome(param: MangaMigrationRouteParam): MangaMigrationRouteChromeState {
+    if (param.chrome === undefined) param.chrome = new MangaMigrationRouteChromeState()
+    return param.chrome
   }
 
   static openSearch(param: SearchRouteParam): void {

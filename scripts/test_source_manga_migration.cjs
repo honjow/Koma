@@ -178,3 +178,42 @@ test('destination tracker choices survive migration and copying does not perform
   assert.equal((await store.listComicMappings('new'))[0].providerTitleId, '456')
   assert.equal((await store.listComicMappings('old'))[0].providerTitleId, '123')
 })
+
+test('migration source choice survives a new store, keeps order and explicit empty selection', async () => {
+  preferenceData.clear()
+  const { MangaMigrationPreferencesStore } = load('model/MangaMigrationPreferencesStore')
+  const first = new MangaMigrationPreferencesStore({ filesDir: 'owned' })
+  await first.save(['source-b', 'source-a', 'source-b'])
+  assert.deepEqual(clone(await new MangaMigrationPreferencesStore({ filesDir: 'owned' }).load()), ['source-b', 'source-a'])
+  await first.save([])
+  assert.deepEqual(clone(await new MangaMigrationPreferencesStore({ filesDir: 'owned' }).load()), [])
+})
+
+test('migration search uses only selected sources in saved order and publishes each result independently', async () => {
+  const source = fs.readFileSync(path.join(root, 'model/CrossSearchService.ets'), 'utf8')
+  const ast = ts.createSourceFile('cross.ts', source, ts.ScriptTarget.Latest, true)
+  const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name.text === 'CrossSearchService')
+  const names = ['search', 'selectedSourceSummaries', 'sourceMatchesFilter', 'pendingSections']
+  const methods = owner.members.filter(n => names.includes(n.name?.getText(ast))).map(n => n.getText(ast)).join('\n')
+  const exports = {}, registry = ['a', 'b', 'unselected'].map(sourceId => ({ sourceId, displayName: sourceId }))
+  const js = ts.transpileModule('export class Subject { ' + methods + ' }', { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
+  vm.runInNewContext(js, { exports, console,
+    DiagnosticLogger: { begin: () => ({ finish() {}, fail() {} }) },
+    AppStrings: { get: k => k }, appSourceRuntimeRegistry: { listInstalledSourceSummaries: () => registry },
+    isCrossSearchQueryMeaningful: q => q.trim().length > 0 })
+  const service = new exports.Subject(), started = [], published = [], complete = new Map()
+  service.cancelPendingSearch = () => { service.pagedSearchRuns = [] }
+  service.sourceSupportsSearch = () => true
+  service.stateSection = id => ({ id })
+  service.searchWasmSource = source => {
+    started.push(source.sourceId)
+    return new Promise(resolve => complete.set(source.sourceId, () => resolve({ section: { id: source.sourceId } })))
+  }
+  assert.deepEqual(clone(service.pendingSections('source', ['b', 'a'])).map(s => s.id), ['wasm:b', 'wasm:a'])
+  const running = service.search('query', 'source', section => published.push(section.id), undefined, ['b', 'a'])
+  assert.deepEqual(started, ['b', 'a'])
+  complete.get('b')(); await Promise.resolve(); await Promise.resolve()
+  assert.deepEqual(published, ['b'])
+  complete.get('a')(); assert.deepEqual(clone(await running).map(s => s.id), ['b', 'a'])
+})

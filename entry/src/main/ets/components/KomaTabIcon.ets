@@ -10,6 +10,7 @@ export struct KomaTabIcon {
   @Param idx: number = 0
   @Param currentIndex: number = 0
   @Param bounceTrigger: number = -1
+  @Param badgeCount: number = 0
 
   private iconForIndex(index: number): Resource {
     if (index === TabIndex.LIBRARY) {
@@ -36,9 +37,9 @@ export struct KomaTabIcon {
       ])
   }
 
-  build() {
-    Column() {
-      Row() {
+  @Builder
+  private SymbolContainer() {
+    Row() {
         Blank().width(TAB_SYMBOL_LAYOUT_OFFSET_VP)
         if (this.currentIndex === this.idx) {
           this.TabSymbol(this.bounceTrigger)
@@ -50,6 +51,18 @@ export struct KomaTabIcon {
       .height(TAB_SYMBOL_SIZE - 2)
       .justifyContent(FlexAlign.Start)
       .alignItems(VerticalAlign.Center)
+
+  }
+
+  build() {
+    Column() {
+      if (this.badgeCount > 0) {
+        Badge({ count: this.badgeCount, position: BadgePosition.RightTop, style: {} }) {
+          this.SymbolContainer()
+        }.width(TAB_SYMBOL_SIZE).height(TAB_SYMBOL_SIZE - 2)
+      } else {
+        this.SymbolContainer()
+      }
 
       Text(this.title)
         .fontSize(ThemeConstants.FONT_SIZE_TINY)

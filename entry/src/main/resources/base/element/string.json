@@ -1,5 +1,11 @@
 {
   "string": [
+    {"name": "migration_selected_sources", "value": "Selected sources"},
+    {"name": "migration_available_sources", "value": "Available sources"},
+    {"name": "migration_select_target", "value": "Select target"},
+    {"name": "migration_preferences_load_failed", "value": "Could not load migration sources"},
+    {"name": "migration_save_failed", "value": "Could not save migration sources"},
+
     {"name": "migration_title", "value": "Migration"},
     {"name": "migration_target_sources", "value": "Destination sources"},
     {"name": "migration_continue", "value": "Continue"},

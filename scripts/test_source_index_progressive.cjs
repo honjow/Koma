@@ -211,9 +211,11 @@ function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
     'needsPackageIdentityIconRepair', 'updateAvailableFor', 'hasUpdate', 'missingIndexEntries',
     'updatableIndexEntries', 'availablePackageUpdates', 'packageListGroups', 'indexVersionText',
   ], { ...globals, compareSourceNames: (left, _id, right) => left.localeCompare(right),
+    resolveSourceLocalizedName: name => name,
     tf: (_key, local, remote) => `local ${local} / remote ${remote}` })
   Object.assign(manager, { packages, indexEntries, packageUpdateStatuses,
-    sourceIndexUrl: 'https://active.test/index.json', indexDisplayName: item => item.name })
+    sourceIndexUrl: 'https://active.test/index.json', indexDisplayName: item => item.name,
+    languageState: { effectiveLocale: 'zh' } })
   return manager
 }
 const installed = (id, version, enabled = true) => ({ id, name: id, version, enabled, icon: 'file://installed.png' })
@@ -520,6 +522,56 @@ function retainedCache(service, packages = []) {
   })
   return new exports.SourcePackageManagerCache()
 }
+test('cached repository updates survive failed checks and reconcile installed versions', async () => {
+  const packages = [installed('A', '1'), installed('B', '1')]
+  const active = 'https://a.test/index.json', other = 'https://b.test/index.json'
+  const service = { loadSavedUrl: async () => active, loadSavedRepositories: async () => [{ url: other }],
+    loadCachedIndex: async url => url === active ? [{ ...entry('A'), version: '2' }] : [{ ...entry('B'), version: '3' }],
+    loadIndexIcons: async () => {}, saveUrl: async () => {}, fetchIndex: async () => ({ ok: false, reasonCode: 'network_error' }) }
+  const cache = retainedCache(service, packages), context = { filesDir: 'data' }
+  await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 2)
+  await cache.check(context); assert.equal(cache.updateCount, 2)
+  packages[0] = installed('A', '2'); packages.splice(1, 1)
+  await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 0)
+})
+test('same repository update check shares the in-flight request', async () => {
+  let finish, calls = 0
+  const active = 'https://a.test/index.json'
+  const service = { loadSavedUrl: async () => active, loadSavedRepositories: async () => [],
+    loadCachedIndex: async () => undefined, loadIndexIcons: async () => {}, saveUrl: async () => {},
+    fetchIndex: async () => { calls++; return new Promise(resolve => { finish = resolve }) } }
+  const cache = retainedCache(service, [installed('A', '1')]), context = { filesDir: 'data' }
+  await cache.prepare(context, 'zh'); const first = cache.check(context); const second = cache.check(context)
+  await new Promise(setImmediate); assert.equal(calls, 1); finish({ ok: true, entries: [{ ...entry('A'), version: '2' }] })
+  await Promise.all([first, second]); assert.equal(cache.updateCount, 1)
+})
+test('a failed repository retains its known update when another repository succeeds', async () => {
+  const active = 'https://a.test/index.json', other = 'https://b.test/index.json'
+  const service = { loadSavedUrl: async () => active, loadSavedRepositories: async () => [{ url: other }],
+    loadCachedIndex: async url => url === other ? [{ ...entry('B'), version: '3' }] : undefined,
+    loadIndexIcons: async () => {}, saveUrl: async () => {},
+    fetchIndex: async url => url === other ? { ok: false, reasonCode: 'network_error' } :
+      { ok: true, entries: [{ ...entry('A'), version: '2' }] } }
+  const cache = retainedCache(service, [installed('A', '1'), installed('B', '1')]), context = { filesDir: 'data' }
+  await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 1)
+  await cache.check(context); assert.equal(cache.updateCount, 2)
+})
+test('removing a saved repository retires its update even if a stale page is captured or checks fail', async () => {
+  const active = 'https://a.test/index.json', removed = 'https://b.test/index.json'
+  const service = { loadSavedUrl: async () => active, loadSavedRepositories: async () => [{ url: active }, { url: removed }],
+    loadCachedIndex: async url => url === removed ? [{ ...entry('B'), version: '3' }] : undefined,
+    loadIndexIcons: async () => {}, saveUrl: async () => {}, fetchIndex: async () => ({ ok: false, reasonCode: 'network_error' }) }
+  const cache = retainedCache(service, [installed('B', '1')]), context = { filesDir: 'data' }
+  await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 1)
+  const stale = cache.packageUpdateStatuses.slice(), before = cache.revision
+  cache.rememberSavedIndex(active, [{ url: active }])
+  assert.equal(cache.updateCount, 0); assert.ok(cache.revision > before)
+  cache.capture(cache.revision, true, cache.packages, active, cache.sourceIndexRepositories,
+    cache.indexEntries, cache.indexIconStates, cache.displayedIndexUrl, {}, stale, '', '')
+  assert.equal(cache.updateCount, 0)
+  service.loadSavedRepositories = async () => [{ url: active }]
+  await cache.check(context); assert.equal(cache.updateCount, 0)
+})
 test('cache is ready before navigation, revisits retain row/icon inputs and do not recheck online',async()=>{
   let reads=0,fetches=0;const metadata=[entry('A')]
   const service={loadSavedUrl:async()=> 'https://saved.test/index.json',loadSavedRepositories:async()=>[],
@@ -627,7 +679,7 @@ test('partial repository check cannot conclude latest/missing and retains fresh 
   assert.equal(manager.updateCheckBusy, false)
 })
 
-test('successful address retry clears its failure; complete and all-failed checks retain their original conclusions', async () => {
+test('successful address retry clears its failure; all-failed checks retain known updates', async () => {
   const active = 'https://active.test/index.json', other = 'https://other.test/index.json'
   const replies = new Map([[active, { ok: true, entries: [indexed('A','1.0')] }],
     [other, { ok: false, reasonCode: 'network_error', entries: [] }]])
@@ -645,9 +697,11 @@ test('successful address retry clears its failure; complete and all-failed check
   assert.equal(manager.packageListMetaText(manager.packages[0]), 'v1.0')
   for (const url of replies.keys()) replies.set(url, { ok: false, entries: [], reasonCode: 'network_error' })
   await manager.checkInstalledUpdates()
-  assert.deepEqual(Array.from(manager.packageUpdateStatuses, value => value.status), ['failed','failed','failed'])
+  // The adopted persistent badge contract retains B's previously confirmed
+  // update when every repository fails; unknown sources still report failure.
+  assert.deepEqual(Array.from(manager.packageUpdateStatuses, value => value.status), ['failed','update','failed'])
   assert.equal(manager.statusText, JSON.stringify(['source_pkg_check_failed','network_error']))
-  assert.equal(Object.keys(manager.sourceIndexFailures).length, 0)
+  assert.equal(Object.keys(manager.sourceIndexFailures).length, 2)
 })
 
 test('invalidating a queued or in-flight cache check stops later repositories and cannot publish old results',async()=>{
