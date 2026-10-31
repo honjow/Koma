@@ -120,6 +120,9 @@ export struct CachedCoverImage {
     remoteServerId: string,
     sourceMangaUrl: string,
   ): Promise<string> {
+    // A selected/restored cover is owned by the app, even when its comic still
+    // belongs to a source. Never hand that local file to the source's HTTP resolver.
+    if (uri.startsWith('file://')) return uri
     const context = getContext(this) as common.UIAbilityContext
     if (sourceRuntimeId.trim().length > 0) {
       configureReaderRemoteImageCache(context.cacheDir)

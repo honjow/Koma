@@ -8,6 +8,8 @@ import {
   Page,
   normalizeSortKey,
   copySourceMangaMetadata,
+  copyComicPersonalFields,
+  assignComicSourceCover,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -232,6 +234,7 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
   if (comic.sourceMetadata !== undefined) {
     nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
   }
+  copyComicPersonalFields(comic, nextComic)
   return nextComic
 }
 
@@ -290,6 +293,8 @@ function updatedComicWithOnlyCoverUri(comic: Comic, coverUri: string, now: numbe
   if (comic.sourceMetadata !== undefined) {
     nextComic.sourceMetadata = copySourceMangaMetadata(comic.sourceMetadata)
   }
+  copyComicPersonalFields(comic, nextComic)
+  assignComicSourceCover(nextComic, coverUri)
   return nextComic
 }
 

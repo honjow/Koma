@@ -3224,6 +3224,24 @@ struct Index {
         'action': (): void => { chrome.requestAction(MangaDetailTitleAction.MIGRATE) },
       } as Record<string, Object> })
     }
+    if (chrome.personalDataAvailable) {
+      menuItems.push({ 'content': { 'label': AppStrings.get('manga_notes'),
+        'icon': $r('sys.symbol.square_and_pencil'), 'isEnabled': !chrome.personalizationBusy,
+        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.EDIT_NOTES) },
+      } as Record<string, Object> })
+    }
+    if (chrome.coverActionsAvailable) {
+      menuItems.push({ 'content': { 'label': AppStrings.get('manga_cover_change'),
+        'icon': $r('sys.symbol.ohos_photo'), 'isEnabled': !chrome.personalizationBusy,
+        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.CHANGE_COVER) },
+      } as Record<string, Object> })
+      if (chrome.customCoverAvailable) {
+        menuItems.push({ 'content': { 'label': AppStrings.get('manga_cover_restore'),
+          'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !chrome.personalizationBusy,
+          'action': (): void => { chrome.requestAction(MangaDetailTitleAction.RESTORE_COVER) },
+        } as Record<string, Object> })
+      }
+    }
     const trackerMappingContent: Record<string, Object> = {
       'label': AppStrings.get('manga_detail_menu_find_tracker_mapping'),
       'icon': $r('sys.symbol.magnifyingglass'),

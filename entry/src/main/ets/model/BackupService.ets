@@ -1,4 +1,6 @@
 import { BACKUP_BACKGROUND_RESULT, BackgroundBackupResult } from './BackgroundMaintenanceContract'
+import { ComicCoverBackup, PreparedComicCovers, exportComicCovers,
+  prepareRestoredComicCovers, discardPreparedComicCovers } from './ComicPersonalization'
 import { localLibraryFolderRootUrisFromComics } from './LocalLibraryFolderContract'
 import { InMemoryLibraryStore } from './LibraryStore'
 import { hydrateLibraryStoreFromJson } from './LibraryPersistence'
@@ -161,6 +163,7 @@ interface KomaBackupDocument {
   exportedAt: number
   encryption: BackupEncryptionMetadata
   libraryStore: string
+  customCovers?: ComicCoverBackup[]
   localLibraryMetadata?: LocalLibraryMetadataBackupEntry[]
   readingProgress: string
   remoteServers: RemoteServerBackupDocument
@@ -1170,6 +1173,7 @@ export class BackupService {
           algorithm: 'none',
         },
         libraryStore,
+        customCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore),
         readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: backgroundTemplate ? undefined : exportInstalledSourcePackages(),
@@ -1212,6 +1216,8 @@ export class BackupService {
     appSourceSettingObservationStore.invalidateCachedDocument()
     let sourcePlan: PreparedSourcePackageRestore | undefined
     let checkpoint: BackupRestoreCheckpoint | undefined
+    let coverPlan: PreparedComicCovers | undefined
+    let coversCommitted: boolean = false
     try {
       beginAutomationRestore(this.context)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
@@ -1224,6 +1230,8 @@ export class BackupService {
       const sessionStore = appReaderSessionStore(this.context.filesDir)
       // Include the user's already pending progress in the original state.
       if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
+      coverPlan = await prepareRestoredComicCovers(this.context, document.libraryStore, document.customCovers)
+      document.libraryStore = coverPlan.libraryStore
       checkpoint = await BackupRestoreCheckpoint.prepare(this.context)
       writeAppTextFile(this.libraryPath(), document.libraryStore)
       writeAppTextFile(this.readerProgressPath(), document.readingProgress)
@@ -1250,6 +1258,7 @@ export class BackupService {
       }
       resetGeneratedAutomationWork(this.context)
       checkpoint.commit()
+      coversCommitted = true
       DiagnosticLogger.info('backup', 'import_json', '[Backup] step=import_json')
     } catch (error) {
       if (checkpoint !== undefined) {
@@ -1275,6 +1284,7 @@ export class BackupService {
       try {
         await sourcePlan?.discard()
       } finally {
+        if (!coversCommitted && coverPlan !== undefined) await discardPreparedComicCovers(coverPlan.files)
         try { finishAutomationRestore(this.context) } finally { BackupRestoreActivity.finishRestore() }
       }
     }

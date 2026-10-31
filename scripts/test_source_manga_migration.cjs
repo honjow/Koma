@@ -59,6 +59,26 @@ function book(id, numbers = [1, 2, 3]) {
       index, chapterNumber: number, sortKey: '' + index, sourcePath: '' + number, pages: [], pageCount: 0, createdAt: 1, updatedAt: 1 })) }
 }
 function read(comic, number) { return { comicId: comic.id, chapterId: comic.id + '-' + number, isRead: true, updatedAt: 10 } }
+test('bookmarks persist independently of read state, survive reading changes and transfer without marking unread chapters read', () => {
+  let disk = { progress: [], sourceHistory: [], chapters: [] }, fail = false
+  const adapter = { loadSnapshot: () => clone(disk), saveSnapshot: value => { if (fail) throw Error('disk failure'); disk = clone(value) } }
+  const store = new PersistentReaderSessionStore(adapter)
+  assert.equal(store.commitChapterBookmark('old', 'old-1', true), true)
+  assert.equal(store.isChapterRead('old', 'old-1'), false)
+  assert.equal(store.getProgress('old'), undefined)
+  store.commitChapterReadStates([{ comicId: 'old', chapterId: 'old-1', isRead: true }])
+  store.commitChapterReadStates([{ comicId: 'old', chapterId: 'old-1', isRead: false }])
+  assert.equal(store.isChapterBookmarked('old', 'old-1'), true)
+  const reloaded = new PersistentReaderSessionStore(adapter)
+  assert.equal(reloaded.isChapterBookmarked('old', 'old-1'), true)
+  const plan = core.planMangaMigrationReadState(book('old'), book('new'), reloaded.listChapterStates())
+  assert.equal(reloaded.commitMigrationReadPlan(plan), true)
+  assert.equal(reloaded.isChapterBookmarked('new', 'new-1'), true)
+  assert.equal(reloaded.isChapterRead('new', 'new-1'), false)
+  fail = true
+  assert.equal(store.commitChapterBookmark('old', 'old-1', false), false)
+  assert.equal(store.isChapterBookmarked('old', 'old-1'), true)
+})
 test('cross-source read transfer ignores display order, keeps unread gaps and never carries source page identity', () => {
   const source = book('old', [3, 2, 1]), target = book('new', [1, 2, 3])
   const plan = core.planMangaMigrationReadState(source, target, [read(source, 1), read(source, 3)], {

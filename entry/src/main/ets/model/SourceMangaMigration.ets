@@ -10,6 +10,7 @@ export interface MangaMigrationReadState {
   comicId: string
   chapterId: string
   isRead: boolean
+  bookmarked?: boolean
   updatedAt: number
 }
 
@@ -68,7 +69,8 @@ export function planMangaMigrationReadState(
   sourceProgress?: ReadingProgress, targetProgress?: ReadingProgress,
 ): MangaMigrationReadPlan {
   const plan: MangaMigrationReadPlan = { states: [], unmatchedReadCount: 0 }
-  const readStates = states.filter((state: MangaMigrationReadState): boolean => state.comicId === source.id && state.isRead)
+  const readStates = states.filter((state: MangaMigrationReadState): boolean =>
+    state.comicId === source.id && (state.isRead || state.bookmarked === true))
   if (sourceProgress?.comicId === source.id && sourceProgress.completed &&
     !readStates.some((state: MangaMigrationReadState): boolean => state.chapterId === sourceProgress.chapterId)) {
     readStates.push({ comicId: source.id, chapterId: sourceProgress.chapterId, isRead: true, updatedAt: sourceProgress.updatedAt })
@@ -77,10 +79,11 @@ export function planMangaMigrationReadState(
   readStates.forEach((state: MangaMigrationReadState): void => {
     const old = source.chapters.find((row: Chapter): boolean => row.id === state.chapterId)
     const match = old === undefined ? undefined : migrationChapterMatch(old, source.chapters, target.chapters)
-    if (match === undefined) { plan.unmatchedReadCount += 1; return }
-    if (!assigned.has(match.id)) {
-      assigned.add(match.id)
-      plan.states.push({ comicId: target.id, chapterId: match.id, isRead: true, updatedAt: state.updatedAt })
+    if (match === undefined) { if (state.isRead) plan.unmatchedReadCount += 1; return }
+    if (!plan.states.some((row: MangaMigrationReadState): boolean => row.chapterId === match.id)) {
+      if (state.isRead) assigned.add(match.id)
+      plan.states.push({ comicId: target.id, chapterId: match.id, isRead: state.isRead,
+        bookmarked: state.bookmarked, updatedAt: state.updatedAt })
     }
   })
   if (targetProgress === undefined && sourceProgress?.comicId === source.id) {

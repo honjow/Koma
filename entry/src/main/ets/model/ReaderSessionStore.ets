@@ -27,6 +27,7 @@ export interface ChapterReadingState {
   chapterId: ChapterId
   position?: ReadingProgress
   isRead: boolean
+  bookmarked?: boolean
   updatedAt: number
 }
 
@@ -451,6 +452,20 @@ export abstract class ReaderSessionStore {
     return { committed, changedCount: committed ? changedCount : 0 }
   }
 
+  isChapterBookmarked(comicId: ComicId, chapterId: ChapterId): boolean {
+    return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.bookmarked === true
+  }
+
+  commitChapterBookmark(comicId: ComicId, chapterId: ChapterId, bookmarked: boolean): boolean {
+    return this.commitUserMutation((): void => {
+      const key = chapterStateKey(comicId, chapterId)
+      const old = this.chapterStates.get(key)
+      this.chapterStates.set(key, { comicId, chapterId, position: old?.position,
+        isRead: old?.isRead === true, bookmarked, updatedAt: old?.updatedAt ?? Date.now() })
+      this.chapterStatesChanged()
+    })
+  }
+
   /** Transfer only resolved chapter identities. Existing destination progress wins;
    * the original history remains available after a shelf-only migration. */
   commitMigrationReadPlan(plan: MangaMigrationReadPlan): boolean {
@@ -459,9 +474,10 @@ export abstract class ReaderSessionStore {
       plan.states.forEach((state: MangaMigrationReadState): void => {
         const key = chapterStateKey(state.comicId, state.chapterId)
         const previous = this.chapterStates.get(key)
-        if (previous?.isRead === true) return
+        if (previous?.isRead === true && (state.bookmarked !== true || previous.bookmarked === true)) return
         const next: ChapterReadingState = { comicId: state.comicId, chapterId: state.chapterId,
-          isRead: true, position: previous?.position, updatedAt: state.updatedAt }
+          isRead: previous?.isRead === true || state.isRead, position: previous?.position,
+          bookmarked: previous?.bookmarked === true || state.bookmarked === true, updatedAt: state.updatedAt }
         projectChapterCompletion(next, next.position)
         projectChapterCompletion(next, this.getProgress(state.comicId))
         this.chapterStates.set(key, next)
@@ -569,7 +585,7 @@ export abstract class ReaderSessionStore {
       const key = chapterStateKey(mutation.comicId, mutation.chapterId)
       const old = this.chapterStates.get(key)
       const state: ChapterReadingState = { comicId: mutation.comicId, chapterId: mutation.chapterId,
-        position: old?.position, isRead: mutation.isRead, updatedAt: Date.now() }
+        position: old?.position, isRead: mutation.isRead, bookmarked: old?.bookmarked, updatedAt: Date.now() }
       if (!mutation.isRead && state.position !== undefined) {
         const previous = state.position
         state.position = { comicId: previous.comicId, chapterId: previous.chapterId,
@@ -596,6 +612,7 @@ export abstract class ReaderSessionStore {
     const key = chapterStateKey(progress.comicId, progress.chapterId)
     this.chapterStates.set(key, { comicId: progress.comicId, chapterId: progress.chapterId,
       position: progress, isRead: this.chapterStates.get(key)?.isRead === true || progress.completed === true,
+      bookmarked: this.chapterStates.get(key)?.bookmarked,
       updatedAt: progress.updatedAt })
   }
 

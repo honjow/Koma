@@ -20,6 +20,7 @@ import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
+import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
 import { ColorMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
@@ -274,6 +275,10 @@ export struct MangaDetailPage {
   @Local private localMetadataAuthors: string = ''
   @Local private localMetadataStatus: LocalLibraryMetadataStatus | 'unknown' = 'unknown'
   @Local private localMetadataCoverPath: string = ''
+  @Local private personalNotes: string = ''
+  @Local private notesDraft: string = ''
+  @Local private notesEditorShown: boolean = false
+  @Local private personalizationBusy: boolean = false
   @Local private downloadStatusText: string = ''
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
@@ -478,6 +483,7 @@ export struct MangaDetailPage {
   }
 
   aboutToDisappear(): void {
+    this.notesEditorShown = false
     // A hidden detail route must not let an old source response repaint a later route instance.
     this.closeDetailWebChallenge()
     this.clearDetailWebChallenge()
@@ -496,7 +502,7 @@ export struct MangaDetailPage {
     this.runTitleAction(this.chrome.requestedAction)
   }
 
-  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy')
+  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy', 'personalizationBusy')
   private syncTitleActionsFromDetailState(): void {
     this.syncTitleActions()
   }
@@ -514,6 +520,12 @@ export struct MangaDetailPage {
     this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
     this.chrome.localMetadataAvailable = actionsAvailable && this.canEditLocalMetadata()
     this.chrome.migrationAvailable = actionsAvailable && canMigrateLibraryComic(this.libraryStore?.getComic(this.currentComicId()))
+    const comic = this.libraryStore?.getComic(this.currentComicId())
+    this.personalNotes = comic?.personalNotes ?? ''
+    this.chrome.personalDataAvailable = actionsAvailable && comic !== undefined
+    this.chrome.coverActionsAvailable = actionsAvailable && comic !== undefined && !chapterPagesAreLocalOffline(comic.sourceKind)
+    this.chrome.customCoverAvailable = comic?.customCoverUri !== undefined
+    this.chrome.personalizationBusy = this.personalizationBusy
     this.chrome.localRefreshBusy = this.localRefreshBusy
     this.chrome.trackerMappingBusy = this.trackerMappingBusy
     this.chrome.trackerSyncBusy = this.trackerSyncBusy
@@ -554,6 +566,19 @@ export struct MangaDetailPage {
   }
 
   private runTitleAction(action: MangaDetailTitleAction): void {
+    if (action === MangaDetailTitleAction.EDIT_NOTES && this.chrome.personalDataAvailable) {
+      this.notesDraft = this.personalNotes
+      this.notesEditorShown = true
+      return
+    }
+    if (action === MangaDetailTitleAction.CHANGE_COVER && this.chrome.coverActionsAvailable) {
+      void this.changeCover()
+      return
+    }
+    if (action === MangaDetailTitleAction.RESTORE_COVER && this.chrome.customCoverAvailable) {
+      this.commitPersonalization(undefined, undefined, true)
+      return
+    }
     if (action === MangaDetailTitleAction.MIGRATE) {
       const comic = this.libraryStore?.getComic(this.currentComicId())
       if (canMigrateLibraryComic(comic) && comic !== undefined) this.onMigrationRequested(comic.id)
@@ -642,6 +667,7 @@ export struct MangaDetailPage {
         dateUpload: chapter.dateUpload,
         pageCount: chapter.pageCount,
         isRead: this.readerSessionStore.isChapterRead(comicId, chapter.id),
+        isBookmarked: this.readerSessionStore.isChapterBookmarked(comicId, chapter.id),
         // Re-read host downloads after cleanup; the prior decorated row is not persistent truth.
         // Local archives/folders remain available independently of the download queue.
         isDownloaded: localOffline && (chapter.pageCount ?? 0) > 0,
@@ -1032,6 +1058,7 @@ export struct MangaDetailPage {
       lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
     if (cached !== undefined && cached.chaptersResolved) {
       this.manga = cached.detail
+      if (libraryComic?.customCoverUri) this.manga.coverUrl = libraryComic.customCoverUri
       this.manga.isInLibrary = libraryComic !== undefined
       const stored = libraryComic?.chapters.map((ch: Chapter): MangaChapterItem =>
         mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)) ?? []
@@ -1151,6 +1178,7 @@ export struct MangaDetailPage {
     nextDetail.chapterCount = displayedChapters.length
     nextDetail.isInLibrary = libraryComic !== undefined
     nextDetail.sourceName = entry.manifestName
+    if (libraryComic?.customCoverUri) nextDetail.coverUrl = libraryComic.customCoverUri
     this.manga = nextDetail
     this.chapters = this.decorateChapterStates(displayedChapters)
     this.isInLibrary = nextDetail.isInLibrary
@@ -2451,6 +2479,69 @@ export struct MangaDetailPage {
   }
 
   @Builder
+  private NotesEditor() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
+      Row() {
+        Text(s('manga_notes')).fontSize(ThemeConstants.FONT_SIZE_H3).fontWeight(FontWeight.Bold)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+        Blank()
+        KomaIconButton({ icon: $r('sys.symbol.xmark'), controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+          iconSize: ThemeConstants.FONT_SIZE_BODY, action: () => { this.notesEditorShown = false } })
+      }.width('100%')
+      TextArea({ text: this.notesDraft, placeholder: s('manga_notes_placeholder') })
+        .height(240).fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY).backgroundColor($r('sys.color.ohos_id_color_button_normal'))
+        .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+        .onChange((value: string): void => { this.notesDraft = value })
+      KomaActionButton({ label: s('common_save'), action: () => {
+        if (this.commitPersonalization(this.notesDraft.trim(), undefined)) this.notesEditorShown = false
+      } })
+    }.width('100%').padding(ThemeConstants.SPACE_LG)
+  }
+
+  private commitPersonalization(notes: string | undefined, cover: string | undefined,
+    reset: boolean = false, baseline?: Comic): boolean {
+    const comic = baseline ?? this.libraryStore?.getComic(this.currentComicId())
+    if (comic === undefined || this.libraryStore === undefined || this.libraryPersistenceService === undefined) return false
+    try {
+      saveComicPersonalization(this.libraryStore, this.libraryPersistenceService, comic, notes, cover, reset)
+      const updated = this.libraryStore.getComic(comic.id)!
+      this.personalNotes = updated.personalNotes ?? ''
+      if (this.manga !== undefined) {
+        const detail = JSON.parse(JSON.stringify(this.manga)) as MangaDetail
+        detail.coverUrl = updated.coverUri
+        this.manga = detail
+      }
+      this.syncTitleActions()
+      this.onLibraryChanged()
+      return true
+    } catch (error) {
+      DiagnosticLogger.exception('manga', 'personalization_save_failed', error as Error)
+      this.showToast(s('manga_personalization_failed'))
+      return false
+    }
+  }
+
+  private async changeCover(): Promise<void> {
+    const baseline = this.libraryStore?.getComic(this.currentComicId())
+    if (baseline === undefined || this.personalizationBusy) return
+    const context = getContext(this) as common.UIAbilityContext
+    this.personalizationBusy = true
+    let selected: string | undefined
+    let committed = false
+    try {
+      selected = await selectComicCover(context)
+      if (selected !== undefined && this.chrome.visible) committed = this.commitPersonalization(undefined, selected, false, baseline)
+    } catch (error) {
+      DiagnosticLogger.exception('manga', 'cover_selection_failed', error as Error)
+      if (this.chrome.visible) this.showToast(s('manga_personalization_failed'))
+    } finally {
+      if (selected !== undefined && !committed) await discardUncommittedComicCover(context, selected)
+      this.personalizationBusy = false
+    }
+  }
+
+  @Builder
   private LocalMetadataEditor() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       Row() {
@@ -2676,6 +2767,11 @@ export struct MangaDetailPage {
 
         if (this.manga !== undefined) {
           if (this.shouldRenderDetailMetadata()) {
+            if (this.personalNotes.trim().length > 0) {
+              ListItem() {
+                MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes' })
+              }
+            }
             ListItem() {
               MangaDescriptionSection({
                 description: this.manga.description,
@@ -2699,6 +2795,12 @@ export struct MangaDetailPage {
             archiveBusy: this.chapterArchiveBusy,
             chapters: this.chapters,
             onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
+            onBookmarkChapter: (chapterId: string, bookmarked: boolean) => {
+              if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked)) {
+                this.applyChapterStatesToCurrent()
+                this.onReadingStateChanged()
+              } else this.showToast(s('chapter_bookmark_save_failed'))
+            },
             onOpenChapter: (chapterId: string) => {
               void this.handleOpenChapter(chapterId)
                 .catch((error: Error) => {
@@ -2730,6 +2832,11 @@ export struct MangaDetailPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack({ alignContent: Alignment.TopEnd }) {
+        Column() {}.width(0).height(0)
+          .bindSheet($$this.notesEditorShown, this.NotesEditor, komaSheetOptions({
+            detents: [SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,
+            onWillDismiss: (action: DismissSheetAction) => { this.notesEditorShown = false; action.dismiss() },
+          }))
         Column() {}
           .width(0)
           .height(0)

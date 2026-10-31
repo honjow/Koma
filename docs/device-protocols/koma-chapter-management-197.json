@@ -5,81 +5,65 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management",
-  "runId": "whole-series-moved-bottom-041",
+  "runId": "power-restored-082",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "build021-72107157d53a61504cf50537b895279fdc7179b0dbc9cedcaf18e17a1442c95f",
-    "page": "Move the whole actual series to bottom, including visible completed rows, without starting downloads",
+    "codeIdentity": "original197-38d2456b09842e9f8b689dc3cc6f7968416a088be4ca1ea829a0ec4e0389dea5",
+    "page": "Restore original 10000ms timeout and sleep after package and exact baseline data restoration",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "197 continuing user authorization; scoped chapter preference, queue ordering and CBZ export/share acceptance. Save original package/data and restore exact touched domains, original power and lease independently. No emulator, 200, account or network change."
+    "notes": "User authorized 197 chapter management and third-batch bookmarks, selected covers and notes, including backup roundtrip. Independent restore of original package, seven JSON domains, 30 preference files and original power. Only this session CBZ, import, custom-cover files, local backup and staged source directories removed. No emulator, 200, account/network changes."
   },
   "preflight": [],
   "measurement": {
-    "actions": [
-      {
-        "name": "move-series-bottom",
-        "uiInput": [
-          "click",
-          "920",
-          "1995"
-        ],
-        "pauseAfterMs": 180
-      }
-    ]
+    "actions": []
   },
   "postflight": [
     {
-      "name": "layout",
+      "name": "restore-timeout",
       "hdcArgs": [
         "shell",
-        "uitest",
-        "dumpLayout",
-        "-p",
-        "/data/local/tmp/koma-chapter.json"
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
       ]
     },
     {
-      "name": "receive-layout",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/local/tmp/koma-chapter.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/whole-series-moved-bottom-041/layout.json"
-      ]
-    },
-    {
-      "name": "screenshot",
+      "name": "restore-sleep",
       "hdcArgs": [
         "shell",
-        "snapshot_display",
-        "-f",
-        "/data/local/tmp/koma-chapter.jpeg"
+        "power-shell",
+        "suspend"
       ]
     },
     {
-      "name": "receive-screen",
+      "name": "final-power",
       "hdcArgs": [
-        "file",
-        "recv",
-        "/data/local/tmp/koma-chapter.jpeg",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/whole-series-moved-bottom-041/screen.jpeg"
+        "shell",
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
       ]
     },
     {
-      "name": "queue-readback",
+      "name": "final-window",
       "hdcArgs": [
-        "file",
-        "recv",
-        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/downloads/queue.v1.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/chapter-management/whole-series-moved-bottom-041/queue.json"
+        "shell",
+        "hidumper",
+        "-s",
+        "WindowManagerService",
+        "-a",
+        "-a"
       ]
     }
   ]

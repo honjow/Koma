@@ -13,6 +13,7 @@ export interface ChapterListPreferences {
   readFilter: ChapterReadFilter
   languageFilter: string
   groupFilter: string
+  bookmarkFilter: 'all' | 'bookmarked' | 'unbookmarked'
 }
 
 const STORE: string = 'koma_chapter_list_preferences_v1'
@@ -27,6 +28,8 @@ export function normalizeChapterListPreferences(value?: ChapterListPreferences):
       ChapterReadFilter.DOWNLOADED].includes(value.readFilter) ? value.readFilter : ChapterReadFilter.ALL,
     languageFilter: typeof value?.languageFilter === 'string' ? value.languageFilter : '',
     groupFilter: typeof value?.groupFilter === 'string' ? value.groupFilter : '',
+    bookmarkFilter: value?.bookmarkFilter === 'bookmarked' || value?.bookmarkFilter === 'unbookmarked'
+      ? value.bookmarkFilter : 'all',
   }
 }
 

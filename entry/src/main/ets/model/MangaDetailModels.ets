@@ -42,6 +42,7 @@ export interface MangaChapterItem extends ReaderChapterDescriptor {
   dateUpload?: number
   pageCount?: number
   isRead: boolean
+  isBookmarked?: boolean
   isDownloaded: boolean
   downloadStatus?: MangaChapterDownloadStatus
 }

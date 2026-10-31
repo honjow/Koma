@@ -9,6 +9,8 @@ import {
   ComicId,
   LocalImportOrigin,
   copyLocalImportOrigin,
+  copyComicPersonalFields,
+  assignComicSourceCover,
   SourceMangaMetadata,
   copySourceMangaMetadata,
   CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
@@ -86,6 +88,9 @@ export interface PersistedComic {
   remoteServerId?: string
   remoteResourceId?: string
   coverUri?: string
+  personalNotes?: string
+  customCoverUri?: string
+  sourceCoverUri?: string
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
   sourceMetadata?: SourceMangaMetadata
@@ -251,6 +256,7 @@ function hydrateChapter(row: PersistedChapter): Chapter {
 
 export function persistComic(comic: Comic): PersistedComic {
   const row: PersistedComic = {
+    personalNotes: comic.personalNotes, customCoverUri: comic.customCoverUri, sourceCoverUri: comic.sourceCoverUri,
     id: comic.id,
     title: comic.title,
     sourceKind: comic.sourceKind,
@@ -302,6 +308,7 @@ export function hydrateComic(row: PersistedComic): Comic {
   assertValidPersistedComic(row)
   const chapters = row.chapters.map((chapter: PersistedChapter) => hydrateChapter(chapter))
   const comic: Comic = {
+    personalNotes: row.personalNotes, customCoverUri: row.customCoverUri, sourceCoverUri: row.sourceCoverUri,
     id: row.id,
     title: row.title,
     sourceKind: row.sourceKind,
@@ -511,6 +518,9 @@ function assertValidPersistedComic(row: PersistedComic): void {
   assertOptionalStringField(row.remoteServerId, 'comic.remoteServerId')
   assertOptionalStringField(row.remoteResourceId, 'comic.remoteResourceId')
   assertOptionalStringField(row.coverUri, 'comic.coverUri')
+  assertOptionalStringField(row.personalNotes, 'comic.personalNotes')
+  assertOptionalStringField(row.customCoverUri, 'comic.customCoverUri')
+  assertOptionalStringField(row.sourceCoverUri, 'comic.sourceCoverUri')
   if (row.sourceMetadata !== undefined) {
     const metadata = row.sourceMetadata
     assertPersistedObject(metadata as Object, 'comic.sourceMetadata')
@@ -790,12 +800,12 @@ export function refreshSourceComicCoverAndPersistLibraryStore(
   const previous = libraryStore.getComic(comicId)
   if (previous === undefined || previous.sourceKind !== ComicSourceKind.PRIVATE_LIBRARY ||
     previous.sourceRuntimeId !== sourceId || previous.remoteResourceId !== mangaId ||
-    !/^https?:\/\//i.test(cover) || previous.coverUri === cover) {
+    !/^https?:\/\//i.test(cover) || (previous.customCoverUri ? previous.sourceCoverUri : previous.coverUri) === cover) {
     return false
   }
   // Clone the latest owner value, not the detail snapshot: chapter/progress/category fields stay intact.
   const next = JSON.parse(JSON.stringify(previous)) as Comic
-  next.coverUri = cover
+  assignComicSourceCover(next, cover)
   upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
   return true
 }
@@ -826,7 +836,7 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
   }
   next.subtitle = detail.description
   next.author = detail.author
-  if (/^https?:\/\//i.test(detail.coverUrl?.trim() ?? '')) next.coverUri = detail.coverUrl
+  if (/^https?:\/\//i.test(detail.coverUrl?.trim() ?? '')) assignComicSourceCover(next, detail.coverUrl!)
   next.sourceMetadata = {
     artist: detail.artist,
     status: detail.status,
@@ -954,6 +964,7 @@ export function updateLocalLibraryMetadataAndPersistLibraryStore(
   if (previous.sourceMetadata !== undefined) {
     next.sourceMetadata = copySourceMangaMetadata(previous.sourceMetadata)
   }
+  copyComicPersonalFields(previous, next)
   next.localMetadata = normalized
   if (normalized.titleOverride !== undefined) {
     next.title = normalized.titleOverride
@@ -1071,6 +1082,7 @@ function mergeLocalLibraryRescanComic(previous: Comic | undefined, fresh: Comic)
   if (sourceMetadata !== undefined) {
     merged.sourceMetadata = copySourceMangaMetadata(sourceMetadata)
   }
+  copyComicPersonalFields(previous, merged)
   return merged
 }
 

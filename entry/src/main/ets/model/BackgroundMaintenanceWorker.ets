@@ -1,4 +1,5 @@
 import { common, appManager } from '@kit.AbilityKit'
+import { exportComicCovers } from './ComicPersonalization'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Comic } from './ComicModels'
@@ -74,6 +75,7 @@ export async function executeBackgroundMaintenance(context: common.Context, work
     if (await fs.access(progressPath)) document['readingProgress'] = await fs.readText(progressPath)
     if (document['downloadQueue'] !== undefined && await fs.access(queuePath)) document['downloadQueue'] = await fs.readText(queuePath)
     document['sourcePackages'] = exportInstalledSourcePackages()
+    document['customCovers'] = await exportComicCovers(context, document['libraryStore'] as string)
     document['localLibraryMetadata'] = exportLocalLibraryMetadataBackupEntries(document['libraryStore'] as string)
     document['exportedAt'] = Date.now()
     const payload = JSON.stringify(document)

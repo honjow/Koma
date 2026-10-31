@@ -1988,6 +1988,17 @@
     {"name": "chapter_export_cbz", "value": "Export CBZ"},
     {"name": "chapter_share_cbz", "value": "Share CBZ"},
     {"name": "chapter_archive_type", "value": "Comic book archive"},
-    {"name": "chapter_archive_failed", "value": "Could not export chapter. Check that the download is complete."}
+    {"name": "chapter_archive_failed", "value": "Could not export chapter. Check that the download is complete."},
+    {"name": "chapter_bookmark_add", "value": "Add bookmark"},
+    {"name": "chapter_bookmark_remove", "value": "Remove bookmark"},
+    {"name": "chapter_bookmarks", "value": "Bookmarks"},
+    {"name": "chapter_filter_bookmarked", "value": "Bookmarked"},
+    {"name": "chapter_filter_unbookmarked", "value": "Not bookmarked"},
+    {"name": "chapter_bookmark_save_failed", "value": "Could not save bookmark"},
+    {"name": "manga_notes", "value": "Personal notes"},
+    {"name": "manga_notes_placeholder", "value": "Your notes about this manga"},
+    {"name": "manga_cover_change", "value": "Change cover"},
+    {"name": "manga_cover_restore", "value": "Restore source cover"},
+    {"name": "manga_personalization_failed", "value": "Could not save manga personalization"}
   ]
 }

@@ -27,7 +27,7 @@ const readFilter = {ALL:'all',UNREAD:'unread',READ:'read',DOWNLOADED:'downloaded
 new Function('exports','ChapterReadFilter',js)(exported,readFilter)
 const SOURCE='source_order', NUMBER='chapter_number', FORWARD='forward', REVERSE='reverse'
 function make(chapters) {
-  const o=exported.make();o.chapters=chapters;o.readFilter='all';o.languageFilter='';o.groupFilter=''
+  const o=exported.make();o.chapters=chapters;o.readFilter='all';o.languageFilter='';o.groupFilter='';o.bookmarkFilter='all'
   o.selectedChapterIds=new Set();o.rebuilds=0
   o.rebuildDataSource=()=>{o.rebuilds++}
   o.savePreferences=()=>{} // Persistence is exercised by its store contract, not this projection test.

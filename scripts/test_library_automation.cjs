@@ -147,6 +147,7 @@ async function main() {
   let produced
   const packages = [{ sourceId: 'source', version: '1' }]
   const worker = load('BackgroundMaintenanceWorker', {
+    './ComicPersonalization': { exportComicCovers: async () => [] },
     '@kit.AbilityKit': { appManager: { getRunningProcessInformation: async () => [] } },
     '@kit.CoreFileKit': { fileIo: { accessSync: fs.existsSync, readTextSync: p => fs.readFileSync(p, 'utf8'),
       access: async p => fs.existsSync(p), readText: p => fs.promises.readFile(p, 'utf8') } },

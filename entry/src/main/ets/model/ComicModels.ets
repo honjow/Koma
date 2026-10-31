@@ -115,6 +115,9 @@ export interface Comic {
   remoteServerId?: string
   remoteResourceId?: string
   coverUri?: string
+  personalNotes?: string
+  customCoverUri?: string
+  sourceCoverUri?: string
   localMetadata?: LocalLibraryStoredMetadata
   localImportOrigin?: LocalImportOrigin
   sourceMetadata?: SourceMangaMetadata
@@ -126,6 +129,19 @@ export interface Comic {
   createdAt: number
   updatedAt: number
   lastImportedAt: number
+}
+
+/** User choices survive source refreshes and category/metadata projections. */
+export function copyComicPersonalFields(source: Comic, target: Comic): void {
+  target.personalNotes = source.personalNotes
+  target.customCoverUri = source.customCoverUri
+  target.sourceCoverUri = source.sourceCoverUri
+  if (source.customCoverUri) target.coverUri = source.customCoverUri
+}
+
+export function assignComicSourceCover(comic: Comic, coverUri: string): void {
+  if (comic.customCoverUri) { comic.sourceCoverUri = coverUri; comic.coverUri = comic.customCoverUri }
+  else comic.coverUri = coverUri
 }
 
 export function sameComicIdentity(baseline: Comic, current: Comic): boolean {
@@ -288,6 +304,7 @@ export function withComicCategoryIds(comic: Comic, categoryIds?: string[]): Comi
   } else {
     nextComic.categoryIds = undefined
   }
+  copyComicPersonalFields(comic, nextComic)
   return nextComic
 }
 

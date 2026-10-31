@@ -1991,6 +1991,17 @@
     {"name": "chapter_export_cbz", "value": "导出 CBZ"},
     {"name": "chapter_share_cbz", "value": "分享 CBZ"},
     {"name": "chapter_archive_type", "value": "漫画归档"},
-    {"name": "chapter_archive_failed", "value": "章节导出失败，请检查下载是否完整"}
+    {"name": "chapter_archive_failed", "value": "章节导出失败，请检查下载是否完整"},
+    {"name": "chapter_bookmark_add", "value": "添加书签"},
+    {"name": "chapter_bookmark_remove", "value": "取消书签"},
+    {"name": "chapter_bookmarks", "value": "书签"},
+    {"name": "chapter_filter_bookmarked", "value": "已加书签"},
+    {"name": "chapter_filter_unbookmarked", "value": "未加书签"},
+    {"name": "chapter_bookmark_save_failed", "value": "书签保存失败"},
+    {"name": "manga_notes", "value": "个人笔记"},
+    {"name": "manga_notes_placeholder", "value": "记录这本漫画的个人笔记"},
+    {"name": "manga_cover_change", "value": "更换封面"},
+    {"name": "manga_cover_restore", "value": "恢复源封面"},
+    {"name": "manga_personalization_failed", "value": "漫画个人设置保存失败"}
   ]
 }

@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { Comic, Chapter, sameComicIdentity } from './ComicModels'
+import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore,
   removeComicRecordAndPersistLibraryStore } from './LibraryPersistence'
@@ -140,6 +140,16 @@ export async function commitMangaMigration(
     }
     if (source.id === target.id) throw new Error('migration_same_manga')
     target.categoryIds = migrationCategoryIds(source, target, options.categories)
+    // Preserve destination user choices; fill only missing personal data from the original.
+    const targetSourceCover = target.coverUri
+    copyComicPersonalFields(existing ?? source, target)
+    if (existing === undefined && source.customCoverUri) target.sourceCoverUri = targetSourceCover
+    if (!target.personalNotes) target.personalNotes = source.personalNotes
+    if (!target.customCoverUri && source.customCoverUri) {
+      target.sourceCoverUri = target.coverUri
+      target.customCoverUri = source.customCoverUri
+      target.coverUri = source.customCoverUri
+    }
     target.chapterCount = target.chapters.length
     target.pageCount = target.chapters.reduce((sum: number, chapter: Chapter): number => sum + chapter.pageCount, 0)
     const plan = planMangaMigrationReadState(source, target, reader.listChapterStates(),

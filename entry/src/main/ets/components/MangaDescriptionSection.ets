@@ -9,6 +9,7 @@ function s(name: string): string {
 
 @ComponentV2
 export struct MangaDescriptionSection {
+  @Param titleKey: string = 'common_description'
   @Param description: string | undefined = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private expanded: boolean = false
@@ -27,7 +28,7 @@ export struct MangaDescriptionSection {
 
   build() {
     Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(s('common_description'))
+      Text(s(this.titleKey))
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_H3)
         .fontWeight(FontWeight.Bold)

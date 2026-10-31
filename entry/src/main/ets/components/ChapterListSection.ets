@@ -38,6 +38,7 @@ export struct ChapterListSection {
   @Local private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
   @Local private languageFilter: string = ''
   @Local private groupFilter: string = ''
+  @Local private bookmarkFilter: 'all' | 'bookmarked' | 'unbookmarked' = 'all'
   @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
   @Local private selectionMode: boolean = false
@@ -45,6 +46,7 @@ export struct ChapterListSection {
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onExportChapter: (chapterId: string, share: boolean) => void = (_chapterId: string, _share: boolean) => {}
+  @Event onBookmarkChapter: (chapterId: string, bookmarked: boolean) => void = (_chapterId: string, _bookmarked: boolean) => {}
   @Event onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => void =
     (_chapterIds: string[], _mode: ChapterBatchDownloadMode, _scope: ChapterBatchScope) => {}
   @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
@@ -121,6 +123,10 @@ export struct ChapterListSection {
 
   private filteredChapterList(): MangaChapterItem[] {
     let filtered = this.chapters.slice()
+    if (this.bookmarkFilter !== 'all') {
+      filtered = filtered.filter((chapter: MangaChapterItem): boolean =>
+        (chapter.isBookmarked === true) === (this.bookmarkFilter === 'bookmarked'))
+    }
     if (this.readFilter === ChapterReadFilter.UNREAD) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => !chapter.isRead)
     }
@@ -218,7 +224,7 @@ export struct ChapterListSection {
       this.sortDirection !== ChapterSortDirection.FORWARD ||
       this.readFilter !== ChapterReadFilter.ALL ||
       this.languageFilter.length > 0 ||
-      this.groupFilter.length > 0
+      this.groupFilter.length > 0 || this.bookmarkFilter !== 'all'
   }
 
   private shouldShowLanguageFilter(): boolean {
@@ -238,6 +244,7 @@ export struct ChapterListSection {
     this.readFilter = ChapterReadFilter.ALL
     this.languageFilter = ''
     this.groupFilter = ''
+    this.bookmarkFilter = 'all'
     this.rebuildDataSource()
     this.savePreferences()
   }
@@ -347,6 +354,7 @@ export struct ChapterListSection {
       this.readFilter = value.readFilter
       this.languageFilter = value.languageFilter
       this.groupFilter = value.groupFilter
+      this.bookmarkFilter = value.bookmarkFilter
     } catch (error) { DiagnosticLogger.exception('chapters', 'preferences_load_failed', error as Error) }
     this.setSelectionMode(false)
   }
@@ -355,6 +363,7 @@ export struct ChapterListSection {
     void new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext).save(this.comicId, {
       sortBasis: this.sortBasis, sortDirection: this.sortDirection, readFilter: this.readFilter,
       languageFilter: this.languageFilter, groupFilter: this.groupFilter,
+      bookmarkFilter: this.bookmarkFilter,
     }).catch((error: Error): void => { DiagnosticLogger.exception('chapters', 'preferences_save_failed', error) })
   }
 
@@ -419,6 +428,21 @@ export struct ChapterListSection {
   }
 
   @Builder
+  private BookmarkFilterMenu() {
+    Menu() {
+      MenuItem({ content: s('common_all') }).onClick(() => { this.setBookmarkFilter('all') })
+      MenuItem({ content: s('chapter_filter_bookmarked') }).onClick(() => { this.setBookmarkFilter('bookmarked') })
+      MenuItem({ content: s('chapter_filter_unbookmarked') }).onClick(() => { this.setBookmarkFilter('unbookmarked') })
+    }
+  }
+
+  private setBookmarkFilter(value: 'all' | 'bookmarked' | 'unbookmarked'): void {
+    this.bookmarkFilter = value
+    this.rebuildDataSource()
+    this.savePreferences()
+  }
+
+  @Builder
   private LanguageFilterMenu() {
     Menu() {
       MenuItem({ content: s('chapter_list_filter_language_all') })
@@ -453,6 +477,8 @@ export struct ChapterListSection {
   @Builder
   private ReadStateMenu(ri: RepeatItem<MangaChapterItem>) {
     Menu() {
+      MenuItem({ content: s(ri.item.isBookmarked ? 'chapter_bookmark_remove' : 'chapter_bookmark_add') })
+        .onClick(() => { this.onBookmarkChapter(ri.item.id, ri.item.isBookmarked !== true) })
       MenuItem({ content: s('chapter_list_menu_mark_read') })
         .onClick(() => {
           this.onMarkChapterReadState(ri.item.id, true)
@@ -611,12 +637,21 @@ export struct ChapterListSection {
   @Builder
   private ChapterText(ri: RepeatItem<MangaChapterItem>) {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      Text(this.chapterTitle(ri.item))
+      Row({ space: ThemeConstants.SPACE_XS }) {
+        if (ri.item.isBookmarked) {
+          SymbolGlyph($r('sys.symbol.bookmark_fill'))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor([ThemeConstants.TEXT_SECONDARY])
+        }
+        Text(this.chapterTitle(ri.item))
         .fontSize(ThemeConstants.FONT_SIZE_LIST_ITEM)
         .fontColor(ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'))
         .fontWeight(ri.item.isRead ? FontWeight.Regular : FontWeight.Medium)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1)
+      }
+      .width('100%')
       if (this.chapterSubtitle(ri.item).length > 0) {
         Text(this.chapterSubtitle(ri.item))
           .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
@@ -746,6 +781,13 @@ export struct ChapterListSection {
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .bindMenu(this.FilterMenu(), komaMenuOptions())
+        Row() {
+          KomaMenuChip({ label: s(this.bookmarkFilter === 'all' ? 'chapter_bookmarks' :
+            this.bookmarkFilter === 'bookmarked' ? 'chapter_filter_bookmarked' : 'chapter_filter_unbookmarked'),
+            active: this.bookmarkFilter !== 'all' })
+        }
+        .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+        .bindMenu(this.BookmarkFilterMenu(), komaMenuOptions())
         if (this.shouldShowLanguageFilter()) {
           Row() {
             KomaMenuChip({ label: this.languageFilterLabel(), active: this.languageFilter.length > 0 })
