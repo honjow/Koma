@@ -1,3 +1,5 @@
+import { mergeSourceIndexCatalog } from '../sourceRuntime/SourceIndexCatalog'
+import { SourceIndexMetadataCacheRecord } from '../sourceRuntime/SourceIndexMetadata'
 import { common } from '@kit.AbilityKit'
 import { InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceIndexEntry, SourceIndexRepository, SourceIndexService, SourceIndexFetchResult } from '../sourceRuntime/SourceIndexService'
@@ -122,10 +124,7 @@ export class SourcePackageManagerCache {
     }
     if (url !== this.sourceIndexUrl) {
       this.sourceIndexUrl = url
-      this.indexEntries = []
-      this.indexIconStates = {}
-      this.displayedIndexUrl = ''
-      this.indexStatusText = ''
+
     }
   }
 
@@ -186,11 +185,18 @@ export class SourcePackageManagerCache {
       this.sourceIndexUrl = url
       this.sourceIndexRepositories = repositories
       const cachedUpdates: Record<string, SourcePackageUpdateStatus> = {}
+      const records: SourceIndexMetadataCacheRecord[] = []
       const urls = this.sourceIndexUrlsForUpdate(url)
+      this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
+        if (status.status === 'update' && status.remoteIndexUrl !== undefined && urls.includes(status.remoteIndexUrl)) {
+          cachedUpdates[status.sourceId] = status
+        }
+      })
       for (let index = 0; index < urls.length; index += 1) {
         const indexUrl = urls[index]
         const entries = indexUrl === url ? cached : await service.loadCachedIndex(indexUrl)
         if (revision !== this.indexLoadRevision || scope !== this.scope) return
+        if (entries !== undefined) records.push({ url: indexUrl, entries })
         entries?.forEach((entry: SourceIndexEntry): void => {
           const source = this.installedPackage(entry.id)
           const previous = cachedUpdates[entry.id]
@@ -203,17 +209,33 @@ export class SourcePackageManagerCache {
       }
       this.packageUpdateStatuses = Object.keys(cachedUpdates).map((id: string): SourcePackageUpdateStatus => cachedUpdates[id])
       this.revision += 1
-      if (cached !== undefined) {
-        this.showIndexEntries(this.sourceIndexUrl, cached, this.indexLoadRevision)
-        // Only local files before first paint; an absent icon never makes a
-        // navigation wait for the network. Online warming remains background.
-        await service.loadIndexIcons(this.sourceIndexUrl,
-          this.indexEntries.filter((entry: SourceIndexEntry): boolean => !this.packages.some((source: InstalledSourcePackage): boolean => source.id === entry.id)),
-          (entry: SourceIndexEntry): void => { this.indexIconStates[entry.id].uri = entry.iconUri ?? '' },
-          (): boolean => revision === this.indexLoadRevision && scope === this.scope, false)
-      }
+      this.showIndexEntries(url, mergeSourceIndexCatalog(records,
+        (left: string, right: string): number => this.compareVersion(left, right)), revision)
+      await this.warmCatalogIcons(context, revision, false)
     } catch (_error) {
       this.indexStatusText = tf('source_pkg_index_load_failed', t('source_pkg_reason_unknown'))
+    }
+  }
+
+  async reloadSavedCatalog(context: common.UIAbilityContext, warmOnline: boolean = false): Promise<void> {
+    this.retireCheck()
+    await this.hydrate(context)
+    if (warmOnline) void this.warmCatalogIcons(context, this.indexLoadRevision, true).catch((): void => {})
+  }
+
+  private async warmCatalogIcons(context: common.UIAbilityContext, revision: number, online: boolean): Promise<void> {
+    const service = new SourceIndexService(context)
+    const entries = this.indexEntries
+    const urls = Array.from(new Set(entries.map((entry: SourceIndexEntry): string => entry.repositoryUrl ?? this.sourceIndexUrl)))
+    for (const url of urls) {
+      if (revision !== this.indexLoadRevision) return
+      await service.loadIndexIcons(url, entries.filter((entry: SourceIndexEntry): boolean =>
+        (entry.repositoryUrl ?? this.sourceIndexUrl) === url && this.installedPackage(entry.id) === undefined),
+        (entry: SourceIndexEntry): void => {
+          if (revision !== this.indexLoadRevision || entries !== this.indexEntries) return
+          const icon = this.indexIconStates[entry.id]
+          if (icon !== undefined) icon.uri = entry.iconUri ?? ''
+        }, (): boolean => revision === this.indexLoadRevision && entries === this.indexEntries, online)
     }
   }
 
@@ -549,16 +571,7 @@ export class SourcePackageManagerCache {
     this.checkSummaryText = draft.checkSummaryText
     this.indexStatusText = draft.indexStatusText
     if (changed) this.revision += 1
-    const entries = this.indexEntries
-    const url = this.displayedIndexUrl
-    void new SourceIndexService(context).loadIndexIcons(url,
-      entries.filter((entry: SourceIndexEntry): boolean => !packages.some((source: InstalledSourcePackage): boolean => source.id === entry.id)),
-      (entry: SourceIndexEntry): void => {
-        if (revision !== this.indexLoadRevision || url !== this.displayedIndexUrl ||
-          !this.indexEntries.some((current: SourceIndexEntry): boolean => current.id === entry.id && current.version === entry.version && current.icon === entry.icon)) return
-        const icon = this.indexIconStates[entry.id]
-        if (icon !== undefined) icon.uri = entry.iconUri ?? ''
-      }, (): boolean => revision === this.indexLoadRevision && url === this.displayedIndexUrl).catch((): void => {})
+    void this.warmCatalogIcons(context, revision, true).catch((): void => {})
   }
 
   private async collectCheck(context: common.UIAbilityContext, isCurrent: () => boolean): Promise<void> {
@@ -585,6 +598,7 @@ export class SourcePackageManagerCache {
       this.sourceIndexRepositories = repositories
       const updateIndexUrls = this.sourceIndexUrlsForUpdate(url)
       const candidates: Record<string, SourcePackageUpdateCandidate> = {}
+      const records: SourceIndexMetadataCacheRecord[] = []
       const indexFailures: Record<string, string> = {}
       let loadedIndexCount = 0
       let failedIndexCount = 0
@@ -597,12 +611,14 @@ export class SourcePackageManagerCache {
           failedIndexCount += 1
           firstFailureReason = result.reasonCode ?? firstFailureReason
           indexFailures[indexUrl] = result.reasonCode ?? 'network_error'
+          const cached = await service.loadCachedIndex(indexUrl)
+          if (revision !== this.indexLoadRevision || !isCurrent()) return
+          records.push({ url: indexUrl, entries: cached ?? this.indexEntries.filter((entry: SourceIndexEntry): boolean =>
+            (entry.repositoryUrl ?? this.displayedIndexUrl) === indexUrl) })
           continue
         }
         loadedIndexCount += 1
-        if (indexUrl === url || this.indexEntries.length === 0) {
-          this.showIndexEntries(indexUrl, result.entries, revision)
-        }
+        records.push({ url: indexUrl, entries: result.entries })
         result.entries.forEach((entry: SourceIndexEntry) => {
           const existing = candidates[entry.id]
         if (existing === undefined || this.compareVersion(entry.version, existing.entry.version) > 0 ||
@@ -615,6 +631,8 @@ export class SourcePackageManagerCache {
           }
         })
       }
+      this.showIndexEntries(url, mergeSourceIndexCatalog(records,
+        (left: string, right: string): number => this.compareVersion(left, right)), revision)
       if (loadedIndexCount === 0) {
         this.sourceIndexFailures = indexFailures
         // No repository answered, so previously known updates remain usable.

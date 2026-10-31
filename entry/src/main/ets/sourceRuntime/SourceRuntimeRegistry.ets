@@ -152,6 +152,7 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   enabled: boolean
   language: string
   nsfw: boolean
+  contentRating?: string
   status: string
   capabilities: string[]
   homepage?: string
@@ -649,6 +650,7 @@ export class SourceRuntimeRegistry {
         enabled: entry.enabled,
         language: entry.language,
         nsfw: entry.nsfw,
+        contentRating: entry.packageContentRating,
         status: entry.importStatus,
         capabilities: entry.capabilities,
         homepage: normalizeSourceHomepage(entry.packageHomepage),

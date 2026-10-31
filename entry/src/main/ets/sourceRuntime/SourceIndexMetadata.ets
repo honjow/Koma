@@ -26,6 +26,8 @@ interface SourceIndexHttpUrl {
 }
 
 export interface SourceIndexEntry {
+  // Host-owned provenance of a merged catalog entry, never read from an index document.
+  repositoryUrl?: string
   id: string
   name: string
   localizedNames?: Record<string, string>
@@ -268,6 +270,7 @@ export function parseIndexEntry(raw: Object): SourceIndexEntry | undefined {
 export function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): SourceIndexEntry {
   return {
     id: entry.id,
+    repositoryUrl: entry.repositoryUrl,
     name: entry.name,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     version: entry.version,

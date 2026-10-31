@@ -1,10 +1,14 @@
+import { SourceSubscriptionsContent } from '../components/SourceSubscriptionsContent'
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
+import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
+import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { ReaderBrightnessController } from '../model/ReaderBrightnessController'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -276,6 +280,55 @@ struct Index {
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
   private detailMenu: KomaMenuController = new KomaMenuController()
+  private browseMenu: KomaMenuController = new KomaMenuController()
+  @Local private browseCatalogChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+  @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
+  @Local private localSourceImport: SourcePackageLocalImport = appSourcePackageLocalImport
+  @Local private sourceSubscriptionsShown: boolean = false
+  private defaultSourceManagerChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+
+  private sourceManagerChrome(param?: SourcePackageManagerRouteParam): SourceCatalogPageChrome {
+    if (param === undefined) return this.defaultSourceManagerChrome
+    if (param.chrome === undefined) param.chrome = new SourceCatalogPageChrome()
+    return param.chrome
+  }
+
+  @Builder
+  private SourceSubscriptions() {
+    SourceSubscriptionsContent({ onClose: (): void => { this.sourceSubscriptionsShown = false } })
+  }
+
+  private async importLocalSourcePackage(): Promise<void> {
+    try {
+      const result = await this.localSourceImport.run(getContext(this) as common.UIAbilityContext)
+      if (result === undefined) return
+      this.getUIContext().getPromptAction().showToast({
+        message: AppStrings.get(result.ok ? 'source_pkg_toast_imported' : 'source_pkg_toast_import_failed'),
+      })
+    } catch (_error) {
+      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_pkg_toast_import_failed') })
+    }
+  }
+
+  private sourceManagerTitleBarOptions(param?: SourcePackageManagerRouteParam): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('route_source_package_manager_title'))
+    if ((param?.settingsSourceId.length ?? 0) > 0) return options
+    const chrome = this.sourceManagerChrome(param)
+    const content = options['content'] as Record<string, Object>
+    const filter: Record<string, Object> = { 'label': AppStrings.get('common_filter'), 'icon': $r('sys.symbol.funnel'),
+      'action': (): void => { chrome.request('filters') } }
+    const local: Record<string, Object> = { 'label': AppStrings.get('source_pkg_local_import'), 'icon': $r('sys.symbol.folder'),
+      'isEnabled': !this.localSourceImport.busy, 'action': (): void => { chrome.request('import') } }
+    const subscriptions: Record<string, Object> = { 'label': AppStrings.get('source_pkg_index_url_heading'), 'icon': $r('sys.symbol.link'),
+      'action': (): void => { chrome.request('subscriptions') } }
+    const filterItem: Record<string, Object> = { 'content': filter }
+    const localItem: Record<string, Object> = { 'content': local }
+    const subscriptionsItem: Record<string, Object> = { 'content': subscriptions }
+    const items: Record<string, Object>[] = [filterItem, localItem, subscriptionsItem]
+    content['menu'] = { 'value': items, 'maxCount': 3 } as Record<string, Object>
+    return options
+  }
+
   @Local private libraryComics: Comic[] = seededLibraryStore.listComics()
   private tabController: HdsTabsController = new HdsTabsController()
   private rootTabScrollers: Scroller[] = [new Scroller(), new Scroller(), new Scroller(), new Scroller()]
@@ -1307,6 +1360,9 @@ struct Index {
   private onBackupRestored(): void {
     this.readingStatisticsRecorder.reset()
     appSourcePackageManagerCache.invalidate()
+    this.catalogFilters.invalidate()
+    void this.catalogFilters.prepare(getContext(this) as common.UIAbilityContext)
+      .catch((): void => { DiagnosticLogger.warn('source_catalog', 'filters_load_failed', 'phase=restore') })
     this.readDownloadCleanup?.invalidateAfterRestore()
     this.readerTrackerProgress?.resetAfterRestore()
     this.ensureLibraryPersistenceService()?.restore()
@@ -1563,7 +1619,8 @@ struct Index {
     // consumes the same ready snapshot, without another network check.
     void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale).then((): void => {
       appSourcePackageManagerCache.revalidateInBackground(context)
-      this.appPathStack.pushPath({ name: routeName })
+      this.appPathStack.pushPath({ name: routeName,
+        param: { settingsSourceId: '', chrome: new SourceCatalogPageChrome() } as SourcePackageManagerRouteParam })
     }).finally((): void => { this.sourceManagerOpening = false })
   }
 
@@ -1610,6 +1667,7 @@ struct Index {
   }
 
   private selectRootTab(index: number): void {
+    this.browseMenu.close()
     this.leaveLibrarySelection(index)
     this.selectedTab = index
     this.titleScroller = this.rootTabScrollers[index]
@@ -2051,6 +2109,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.browseMenu.close()
     this.readingStatisticsRecorder.close()
     if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
     this.automaticDownloads?.dispose()
@@ -2070,6 +2129,9 @@ struct Index {
     }
     configureSourceSettingsStore(context)
     configureSourceFilterPreferencesStore(context)
+    void this.catalogFilters.prepare(context).catch((): void => {
+      DiagnosticLogger.warn('source_catalog', 'filters_load_failed', 'phase=preferences')
+    })
     if (this.sourceRegistry.count() === 0) {
       bootstrapSourceRuntimeAppRegistry(context)
     }
@@ -2536,11 +2598,12 @@ struct Index {
     } else if (name === RouteName.SOURCE_PACKAGE_MANAGER) {
       HdsNavDestination() {
         SourcePackageManagerPage({
+          chrome: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined),
           initialSettingsSourceId: (param as SourcePackageManagerRouteParam | undefined)?.settingsSourceId ?? '',
           onSettingsSaved: () => { (param as SourcePackageManagerRouteParam | undefined)?.onSettingsSaved?.() },
         })
       }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_source_package_manager_title')))
+      .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({
@@ -2752,6 +2815,7 @@ struct Index {
 
             TabContent() {
               BrowsePage({
+                chrome: this.browseCatalogChrome,
                 browseScroller: this.rootTabScrollers[TabIndex.BROWSE],
                 active: this.selectedTab === TabIndex.BROWSE,
                 navigationVisible: this.rootNavigationVisible,
@@ -2876,12 +2940,19 @@ struct Index {
             this.tabIconBounceTriggers = triggers
           })
           .onChange((index: number) => {
+            this.browseMenu.close()
             this.leaveLibrarySelection(index)
             this.selectedTab = index
             this.titleScroller = this.rootTabScrollers[index]
           })
         }
         .titleBar(this.titleBarOptions())
+        .bindSheet($$this.sourceSubscriptionsShown, this.SourceSubscriptions, komaSheetOptions({
+          detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,
+          scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+          keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_SCROLL,
+          onDisappear: (): void => { this.sourceSubscriptionsShown = false },
+        }))
         .bindToScrollable([this.titleScroller])
         .titleMode(HdsNavigationTitleMode.MINI)
         .hideBackButton(this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
@@ -2896,7 +2967,10 @@ struct Index {
           operation: NavigationOperation): NavigationAnimatedTransition | undefined =>
           this.readerOrdinaryNavTransition(from, to, operation))
         .mode(NavigationMode.Stack)
-        .onNavBarStateChange((visible: boolean) => { this.rootNavigationVisible = visible })
+        .onNavBarStateChange((visible: boolean) => {
+          this.rootNavigationVisible = visible
+          if (!visible) this.browseMenu.close()
+        })
         .width('100%')
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
@@ -2950,18 +3024,25 @@ struct Index {
       menu['value'] = [statisticsItem]
       menu['maxCount'] = 1
     } else if (this.selectedTab === TabIndex.BROWSE) {
-      const manageContent: Record<string, Object> = {
-        'label': AppStrings.get('route_source_package_manager_title'),
-        'icon': $r('sys.symbol.gearshape'),
-        'isEnabled': true,
-        'action': () => {
-          this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
-        },
-      }
-      const manageItem: Record<string, Object> = {}
-      manageItem['content'] = manageContent
-      menu['value'] = [manageItem]
-      menu['maxCount'] = 1
+      const filter: Record<string, Object> = { 'label': AppStrings.get('common_filter'), 'icon': $r('sys.symbol.funnel'),
+        'action': (): void => { this.browseCatalogChrome.request('filters') } }
+      const local: Record<string, Object> = { 'label': AppStrings.get('source_pkg_local_import'), 'icon': $r('sys.symbol.folder'),
+        'isEnabled': !this.localSourceImport.busy, 'action': (): void => { void this.importLocalSourcePackage() } }
+      const more: Record<string, Object> = { 'label': AppStrings.get('common_more_actions'),
+        'icon': $r('sys.symbol.ellipsis_circle'), 'componentId': 'browse-catalog-more',
+        'action': (): void => {
+          this.browseMenu.open(this.getUIContext(), 'browse-catalog-more', () => [{ id: 'source-management', items: [
+            { label: AppStrings.get('route_source_package_manager_title'),
+              action: (): void => { this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER) } },
+            { label: AppStrings.get('source_pkg_index_url_heading'), action: (): void => { this.sourceSubscriptionsShown = true } },
+          ] }], (): void => { DiagnosticLogger.warn('source_catalog', 'menu_open_failed', 'phase=menu') })
+        } }
+      const filterItem: Record<string, Object> = { 'content': filter }
+      const localItem: Record<string, Object> = { 'content': local }
+      const moreItem: Record<string, Object> = { 'content': more }
+      const items: Record<string, Object>[] = [filterItem, localItem, moreItem]
+      menu['value'] = items
+      menu['maxCount'] = 3
     } else {
       // HDS retains the preceding title menu unless the next tab explicitly
       // supplies an empty menu. Global search belongs only to the Library root.

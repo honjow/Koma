@@ -1,3 +1,11 @@
+import { SourceSubscriptionsContent } from '../components/SourceSubscriptionsContent'
+import { SourceCatalogFiltersContent } from '../components/SourceCatalogFiltersContent'
+import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
+import { KomaEmptyState } from '../components/ui/KomaEmptyState'
+import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
+import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
+import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
@@ -10,7 +18,6 @@ import { common } from '@kit.AbilityKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { systemShare } from '@kit.ShareKit'
 import { canShareInstalledSourcePackage, prepareInstalledSourcePackageShare } from '../sourceRuntime/SourcePackageShare'
-import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
@@ -113,6 +120,32 @@ interface SourceDiagnosticsSettingCounts {
 
 @ComponentV2
 export struct SourcePackageManagerPage {
+  @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+  @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
+  @Local private localImport: SourcePackageLocalImport = appSourcePackageLocalImport
+  @Local private catalogFiltersShown: boolean = false
+
+  @Monitor('chrome.requestId')
+  private onCatalogAction(): void {
+    if (!this.settingsRouteActive || this.initialSettingsSourceId.length > 0) return
+    if (this.chrome.action === 'filters') this.catalogFiltersShown = true
+    else if (this.chrome.action === 'subscriptions') this.openIndexSheet()
+    else void this.importPackage()
+  }
+
+  @Computed
+  private get catalogLanguages(): string[] {
+    const languages = this.packages.map((source: InstalledSourcePackage): string => sourceCatalogLanguage(source.lang))
+      .concat(this.indexEntries.map((entry: SourceIndexEntry): string => sourceCatalogLanguage(entry.lang)))
+    return Array.from(new Set(languages)).sort()
+  }
+
+  @Builder
+  private CatalogFiltersContent() {
+    SourceCatalogFiltersContent({ filters: this.catalogFilters, languages: this.catalogLanguages,
+      onClose: (): void => { this.catalogFiltersShown = false } })
+  }
+
   @Param initialSettingsSourceId: string = ''
   @Event onSettingsSaved: () => void = () => {}
   private settingsRouteActive: boolean = false
@@ -742,7 +775,7 @@ export struct SourcePackageManagerPage {
   private availablePackageUpdates(): SourcePackageUpdateCandidate[] {
     const candidates: SourcePackageUpdateCandidate[] = []
     this.updatableIndexEntries().forEach((entry: SourceIndexEntry): void => {
-      candidates.push({ entry, indexUrl: this.sourceIndexUrl.trim() })
+      candidates.push({ entry, indexUrl: entry.repositoryUrl ?? this.sourceIndexUrl.trim() })
     })
     this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
       const entry = status.remoteEntry
@@ -772,10 +805,13 @@ export struct SourcePackageManagerPage {
   }
 
   private packageListGroups(): SourcePackageListGroups {
-    const updates = this.availablePackageUpdates()
+    const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
+    const matches = (entry: SourceIndexEntry): boolean => sourceMatchesCatalogFilters(entry.lang, entry.nsfw, entry.contentRating, filters)
+    const updates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
     const updating = updates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
-    return { updates, missing: this.missingIndexEntries(),
-      installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.includes(source.id)) }
+    return { updates, missing: this.missingIndexEntries().filter(matches),
+      installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.includes(source.id) &&
+        sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters)) }
   }
 
   @Computed
@@ -1103,7 +1139,7 @@ export struct SourcePackageManagerPage {
     const wasEnabled = source.enabled
     console.info('[SourcePackageUpdate] step=install_requested id=' + source.id)
     try {
-      const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
+      const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry)
       if (result.ok) {
         if (!wasEnabled) {
           setEnabled(this.context(), source.id, false)
@@ -1298,19 +1334,15 @@ export struct SourcePackageManagerPage {
   }
 
   private async importPackage(): Promise<void> {
-    if (this.busy) {
+    if (this.busy || this.localImport.busy) {
       return
     }
     this.importingLocalArchive = true
     this.busy = true
     this.statusText = t('source_pkg_import_running')
     try {
-      const uri = await pickSourcePackageArchive(this.context())
-      if (uri === undefined) {
-        this.statusText = ''
-        return
-      }
-      const result = await this.sourceIndexService.installLocalArchive(uri)
+      const result = await this.localImport.run(this.context())
+      if (result === undefined) { this.statusText = ''; return }
       if (result.ok) {
         this.statusText = t('source_pkg_import_done')
         this.showToast(t('source_pkg_toast_imported'))
@@ -1422,7 +1454,7 @@ export struct SourcePackageManagerPage {
     this.indexStatusText = replaceExisting ? tf('source_pkg_update_running', this.indexDisplayName(entry)) : tf('source_pkg_install_running', this.indexDisplayName(entry))
     try {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
-        this.sourceIndexUrl.trim(),
+        entry.repositoryUrl ?? this.sourceIndexUrl.trim(),
         entry,
       )
       if (result.ok) {
@@ -1487,7 +1519,7 @@ export struct SourcePackageManagerPage {
         this.indexStatusText = replaceExisting
           ? tf('source_pkg_batch_update_progress', index + 1, entries.length)
           : tf('source_pkg_batch_install_progress', index + 1, entries.length)
-        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
+        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry)
         if (result.ok) {
           successCount += 1
           if (existing !== undefined && !existing.enabled) {
@@ -1498,7 +1530,7 @@ export struct SourcePackageManagerPage {
               sourceId: entry.id,
               status: 'latest',
               remoteEntry: entry,
-              remoteIndexUrl: url,
+              remoteIndexUrl: entry.repositoryUrl ?? url,
               remoteVersion: entry.version,
               localVersion: entry.version,
             })
@@ -1573,7 +1605,7 @@ export struct SourcePackageManagerPage {
         }
         this.statusText = tf('source_pkg_batch_update_progress', index + 1, statuses.length)
         const wasEnabled = source.enabled
-        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(url, entry)
+        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry)
         if (result.ok) {
           successCount += 1
           if (!wasEnabled) {
@@ -1634,7 +1666,7 @@ export struct SourcePackageManagerPage {
   }
 
   private async removePackage(source: InstalledSourcePackage): Promise<void> {
-    if (this.busy) {
+    if (this.busy || this.localImport.busy) {
       return
     }
     this.busy = true
@@ -1654,7 +1686,7 @@ export struct SourcePackageManagerPage {
   }
 
   private confirmRemovePackage(source: InstalledSourcePackage): void {
-    if (this.busy) {
+    if (this.busy || this.localImport.busy) {
       return
     }
     this.getUIContext().showAlertDialog({
@@ -2042,132 +2074,8 @@ export struct SourcePackageManagerPage {
   }
 
   @Builder
-  private SavedIndexRemoveButton(repository: SourceIndexRepository) {
-    Button({ type: ButtonType.Circle, stateEffect: true }) {
-      SymbolGlyph($r('sys.symbol.trash'))
-        .fontSize(18)
-        .fontColor([ThemeConstants.TEXT_SECONDARY])
-    }
-    .width(44)
-    .height(44)
-    .backgroundColor(Color.Transparent)
-    .enabled(!this.sourceIndexBatchBusy())
-    .accessibilityText(t('source_pkg_saved_index_remove'))
-    .onClick(() => {
-      this.removeSavedIndex(repository)
-    })
-  }
-
-  @Builder
   private SourceIndexSheetContent() {
-    KomaModalScaffold({
-      title: t('source_pkg_index_url_heading'),
-      onClose: () => {
-        this.sourceIndexSheetShown = false
-      },
-    }) {
-      Column({ space: ThemeConstants.SPACE_MD }) {
-          KomaFormTextField({
-            label: t('source_pkg_index_url_label'),
-            placeholder: t('source_pkg_index_url_placeholder'),
-            value: this.sourceIndexUrl,
-            submit: () => {
-              void this.fetchIndex()
-            },
-            change: (value: string) => {
-              this.setSourceIndexUrl(value)
-            },
-          })
-
-          GroupedListSection() {
-            ConciseListRow({
-              title: this.indexFetchBusy ? t('source_pkg_loading') : t('source_pkg_load_sources'),
-              leadingIcon: $r('sys.symbol.arrow_down_to_line'),
-              isEnabled: !this.indexFetchBusy,
-              action: () => {
-                void this.fetchIndex()
-              },
-            })
-            ListDivider()
-            ConciseListRow({
-              title: this.busy ? t('source_pkg_importing') : t('source_pkg_local_import'),
-              leadingIcon: $r('sys.symbol.folder'),
-              isEnabled: !this.busy,
-              action: () => {
-                void this.importPackage()
-              },
-            })
-          }
-
-          if (this.indexStatusText.length > 0) {
-            Text(this.indexStatusText)
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-
-          if (this.sourceIndexRepositories.length > 0) {
-            GroupedListSection({ title: t('source_pkg_saved_indexes_heading') }) {
-              ForEach(this.sourceIndexRepositories, (repository: SourceIndexRepository, index: number) => {
-                ConciseListRow({
-                  title: repository.url,
-                  wrapTitle: true,
-                  subtitle: this.savedIndexSubtitle(repository),
-                  subtitleMaxLines: 1,
-                  suffixBuilderParam: () => {
-                    this.SavedIndexRemoveButton(repository)
-                  },
-                  action: () => {
-                    this.selectSavedIndex(repository)
-                  },
-                })
-                if (index < this.sourceIndexRepositories.length - 1) {
-                  ListDivider()
-                }
-              }, (repository: SourceIndexRepository) => repository.url)
-            }
-          }
-
-          if (this.indexEntries.length > 0) {
-            GroupedListSection({ title: t('source_pkg_batch_actions_heading') }) {
-              ConciseListRow({
-                title: tf('source_pkg_batch_install_missing', this.missingIndexEntries().length),
-                leadingIcon: $r('sys.symbol.arrow_down_to_line'),
-                isEnabled: !this.sourceIndexBatchBusy() && this.missingIndexEntries().length > 0,
-                action: () => {
-                  this.installMissingIndexEntries()
-                },
-              })
-              ListDivider()
-              ConciseListRow({
-                title: tf('source_pkg_batch_update_available', this.updatableIndexEntries().length),
-                leadingIcon: $r('sys.symbol.arrow_clockwise'),
-                isEnabled: !this.sourceIndexBatchBusy() && this.updatableIndexEntries().length > 0,
-                action: () => {
-                  this.updateUpdatableIndexEntries()
-                },
-              })
-            }
-          }
-
-          Text(sourcePackageTrustBoundaryNotice())
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .lineHeight(18)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-
-          Text(t('source_pkg_manual_update_notice'))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .lineHeight(18)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-
-        Blank().height(ThemeConstants.SPACE_XL)
-      }
-      .width('100%')
-      .padding(ThemeConstants.SPACE_LG)
-    }
+    SourceSubscriptionsContent({ onClose: (): void => { this.sourceIndexSheetShown = false } })
   }
 
   @Builder
@@ -2608,35 +2516,22 @@ export struct SourcePackageManagerPage {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
         Column() {
-          SecondaryListScaffold({
+          PullRefreshListScaffold({
             listSpace: ThemeConstants.SPACE_MD,
             bottomPadding: ThemeConstants.SPACE_XL,
+            onRefresh: async (): Promise<void> => { await this.checkInstalledUpdates() },
           }) {
-            ListItem() {
-              GroupedListSection() {
-                this.IndexUrlCard()
-              }
-            }
-            ListItem() {
-              GroupedListSection() {
-                ConciseListRow({
-                  title: t('source_pkg_check_updates'),
-                  subtitle: this.packageActivityText(),
-                  leadingIcon: $r('sys.symbol.arrow_clockwise'),
-                  leadingIconBackgroundColor: ThemeConstants.BRAND_PRIMARY,
-                  isEnabled: !this.updateCheckBusy && !this.indexFetchBusy,
-                  action: () => { this.checkInstalledUpdates() },
-                })
-              }
-            }
             this.PackageListGroups({
               updates: this.listGroups.updates,
               missing: this.listGroups.missing,
               installed: this.listGroups.installed,
             })
-            if (this.packages.length === 0) {
+            if (this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {
               ListItem() {
-                this.EmptyCard()
+                if (this.catalogFilters.active) {
+                  KomaEmptyState({ icon: $r('sys.symbol.funnel'), title: t('source_catalog_no_matches'),
+                    message: t('source_catalog_no_matches_hint'), showAction: false })
+                } else if (this.packages.length === 0) { this.EmptyCard() }
               }
             }
           }
@@ -2647,6 +2542,8 @@ export struct SourcePackageManagerPage {
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
         .bindSheet($$this.sourceIndexSheetShown, this.SourceIndexSheetContent, komaSheetOptions(this.sourceIndexSheetOptions()))
+        Column() {}.width('100%').height('100%').hitTestBehavior(HitTestMode.None)
+        .bindSheet($$this.catalogFiltersShown, this.CatalogFiltersContent, komaSheetOptions(this.sourceIndexSheetOptions()))
         Column() {
         }
         .width('100%')

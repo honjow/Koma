@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-source-catalog-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "source-catalog-build039-abd4ebfc1a9344916989eb3b76cc2b304f0d28736c2ebc68d1cc4892d40f154e",
+    "page": "Fresh data backup and continuous awake gate",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "先核实际窗口和原包；设备已获持续授权，未读取凭据。结束恢复本轮新鲜数据、原包及原电源并释租。"
+  },
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/pull-refresh-recording-024",
+  "recordingFileName": "koma_source_catalog_pull_20261101_0546.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "pull-to-refresh",
+      "uiInput": [
+        "swipe",
+        "650",
+        "500",
+        "650",
+        "1100",
+        "800"
+      ],
+      "pauseAfterMs": 6000
+    }
+  ]
+}

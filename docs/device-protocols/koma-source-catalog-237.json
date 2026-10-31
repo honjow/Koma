@@ -1,0 +1,362 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-source-catalog-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
+  "runId": "original-data-restored-030",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "source-catalog-build039-abd4ebfc1a9344916989eb3b76cc2b304f0d28736c2ebc68d1cc4892d40f154e",
+    "page": "Restore original signed package and fresh data, compare opaque preferences",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "先核实际窗口和原包；设备已获持续授权，未读取凭据。结束恢复本轮新鲜数据、原包及原电源并释租。"
+  },
+  "preflight": [
+    {
+      "name": "restore-original-signed",
+      "hdcArgs": [
+        "install",
+        "-r",
+        "/Users/honjow/git/Koma/.hvigor/outputs/source-catalog-acceptance/original237.hap"
+      ]
+    },
+    {
+      "name": "restore-library.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/library.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json"
+      ]
+    },
+    {
+      "name": "restore-reader.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/reader.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json"
+      ]
+    },
+    {
+      "name": "restore-registry.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/registry.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-runtime-registry.json"
+      ]
+    },
+    {
+      "name": "restore-source-settings.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/source-settings.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-settings.json"
+      ]
+    },
+    {
+      "name": "restore-filters.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/filters.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-filter-preferences.json"
+      ]
+    },
+    {
+      "name": "restore-web-sessions.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/web-sessions.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/web-sessions.json"
+      ]
+    },
+    {
+      "name": "restore-queue.json",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/queue.json",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/downloads/queue.v1.json"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_app_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_app_preferences_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_app_preferences_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_app_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_app_preferences_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_app_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_appearance_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_appearance_preferences_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_appearance_preferences_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_appearance_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_appearance_preferences_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_appearance_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_library_filter_preferences",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_library_filter_preferences",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_filter_preferences"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_library_filter_preferences.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_library_filter_preferences.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_filter_preferences.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_library_update_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_library_update_preferences_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_preferences_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_library_update_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_library_update_preferences_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_library_update_results_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_library_update_results_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_results_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_library_update_results_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_library_update_results_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_results_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_reader_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_reader_preferences_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_reader_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_reader_preferences_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_search_history_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_search_history_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_search_history_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_search_history_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_search_history_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_search_history_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_source_package_manager_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_source_package_manager_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_package_manager_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_source_package_manager_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_source_package_manager_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_package_manager_v1.lock"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_torii_credits_v1",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_torii_credits_v1",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_torii_credits_v1"
+      ]
+    },
+    {
+      "name": "restore-pref-koma_torii_credits_v1.lock",
+      "hdcArgs": [
+        "file",
+        "send",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/awake-baseline-002/preferences/koma_torii_credits_v1.lock",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_torii_credits_v1.lock"
+      ]
+    },
+    {
+      "name": "remove-test-pref-koma_source_catalog_filters_v1",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_catalog_filters_v1"
+      ]
+    },
+    {
+      "name": "remove-test-pref-koma_source_catalog_filters_v1.lock",
+      "hdcArgs": [
+        "shell",
+        "rm",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_catalog_filters_v1.lock"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "readback-library.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/library-store.v1.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/library.json"
+      ]
+    },
+    {
+      "name": "readback-reader.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/reader-sessions.v1.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/reader.json"
+      ]
+    },
+    {
+      "name": "readback-registry.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-runtime-registry.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/registry.json"
+      ]
+    },
+    {
+      "name": "readback-source-settings.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-settings.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/source-settings.json"
+      ]
+    },
+    {
+      "name": "readback-filters.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/source-filter-preferences.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/filters.json"
+      ]
+    },
+    {
+      "name": "readback-web-sessions.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime/web-sessions.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/web-sessions.json"
+      ]
+    },
+    {
+      "name": "readback-queue.json",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/files/downloads/queue.v1.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/queue.json"
+      ]
+    },
+    {
+      "name": "readback-preferences",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/original-data-restored-030/preferences"
+      ]
+    },
+    {
+      "name": "original-bundle",
+      "hdcArgs": [
+        "shell",
+        "bm",
+        "dump",
+        "-n",
+        "com.honjow.koma"
+      ]
+    }
+  ]
+}

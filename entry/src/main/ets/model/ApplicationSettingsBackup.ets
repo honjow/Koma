@@ -24,6 +24,7 @@ export interface ApplicationSettingsBackup {
 // Portable user choices only. Runtime history, credentials, permissions, cache
 // contents and download pause/work state are not application preferences.
 const PORTABLE_FIELDS: Record<string, string[]> = {
+  'koma_source_catalog_filters_v1': ['catalog.filters'],
   'koma_chapter_list_preferences_v1': ['chapterList.overrides.v1'],
   'koma_library_automation_v1': ['automation.policy'],
   'koma_app_preferences_v1': ['app.language'],

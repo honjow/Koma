@@ -1,3 +1,4 @@
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { RouteName } from './Constants'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceManga } from '../model/SourceModels'
@@ -31,6 +32,7 @@ export interface MangaWebRouteParam {
 export interface SourcePackageManagerRouteParam {
   settingsSourceId: string
   onSettingsSaved?: () => void
+  chrome?: SourceCatalogPageChrome
 }
 
 export interface SearchRouteParam {
@@ -95,7 +97,8 @@ export class RouterHelper {
       RouterHelper.pendingLaunchRoute = routeName
       return
     }
-    stack.pushPath({ name: routeName })
+    stack.pushPath({ name: routeName, param: routeName === RouteName.SOURCE_PACKAGE_MANAGER
+      ? { settingsSourceId: '', chrome: new SourceCatalogPageChrome() } as SourcePackageManagerRouteParam : undefined })
   }
 
   static consumePendingLaunchRoute(): void {

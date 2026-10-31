@@ -1,3 +1,9 @@
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { SourceCatalogFiltersContent } from '../components/SourceCatalogFiltersContent'
+import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
+import { groupSourcesByLanguage, SourceCatalogFilters, SourceLanguageGroup, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
+import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
@@ -37,6 +43,47 @@ interface PrivateBrowseSourceEntry {
 
 @ComponentV2
 export struct BrowsePage {
+  @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+  @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
+  @Local private filtersShown: boolean = false
+
+  @Monitor('chrome.requestId')
+  private onCatalogAction(): void {
+    if (this.active && this.navigationVisible && this.chrome.action === 'filters') this.filtersShown = true
+  }
+
+  @Computed
+  private get catalogLanguages(): string[] {
+    return Array.from(new Set(this.viewModel.sources.map((source: SourceRuntimeRegistryInstalledSourceSummary): string =>
+      sourceCatalogLanguage(source.language)))).sort()
+  }
+
+  @Computed
+  private get sourcesByLanguage(): Record<string, SourceRuntimeRegistryInstalledSourceSummary[]> {
+    const result: Record<string, SourceRuntimeRegistryInstalledSourceSummary[]> = {}
+    groupSourcesByLanguage(this.enabledRuntimeSources,
+      (source: SourceRuntimeRegistryInstalledSourceSummary): string => source.language)
+      .forEach((group: SourceLanguageGroup<SourceRuntimeRegistryInstalledSourceSummary>): void => {
+        result[group.language] = group.items
+      })
+    return result
+  }
+
+  @Computed
+  private get sourceGroupLanguages(): string[] {
+    return Object.keys(this.sourcesByLanguage)
+  }
+
+  private sourcesInLanguage(language: string): SourceRuntimeRegistryInstalledSourceSummary[] {
+    return this.sourcesByLanguage[language] ?? []
+  }
+
+  @Builder
+  private CatalogFilters() {
+    SourceCatalogFiltersContent({ filters: this.catalogFilters, languages: this.catalogLanguages,
+      onClose: (): void => { this.filtersShown = false } })
+  }
+
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   @Local private viewModel: BrowseViewModel = new BrowseViewModel()
@@ -146,7 +193,9 @@ export struct BrowsePage {
   @Computed
   private get enabledRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
     const locale = this.languageState.effectiveLocale
-    const sources = this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled)
+    const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
+    const sources = this.viewModel.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.enabled &&
+      sourceMatchesCatalogFilters(source.language, source.nsfw, source.contentRating, filters))
     // A package update also invalidates this retained Browse projection. Resolve
     // names once per source, as in the manager's single-row refresh, rather than
     // revalidating localized metadata in every sort comparison. Keep this map
@@ -160,23 +209,12 @@ export struct BrowsePage {
         displayNames.get(right.sourceId) ?? right.displayName, right.sourceId))
   }
 
-  @Computed
-  private get lastEnabledRuntimeSourceId(): string {
-    const sources = this.enabledRuntimeSources
-    return sources.length > 0 ? sources[sources.length - 1].sourceId : ''
-  }
-
-  private runtimeSourceSummary(source: SourceRuntimeRegistryInstalledSourceSummary): string {
-    const language = this.viewModel.sourceLanguageBadge(source)
-    return `v${source.version}` + (language.length > 0 ? ` · ${language}` : '')
-  }
-
   @Builder
   private EmptySources() {
     KomaEmptyState({
       icon: $r('sys.symbol.compass'),
-      title: s('browse_empty_title'),
-      message: s('browse_empty_message'),
+      title: s(this.catalogFilters.active ? 'source_catalog_no_matches' : 'browse_empty_title'),
+      message: s(this.catalogFilters.active ? 'source_catalog_no_matches_hint' : 'browse_empty_message'),
       showAction: false,
     })
   }
@@ -206,32 +244,23 @@ export struct BrowsePage {
 
   @Builder
   private RuntimeSourceListItems() {
-    ListItem() {
-      GroupedListSection({
-        title: s('browse_installed_sources_heading'),
-        subtitle: s('browse_installed_sources_count').replace('%s', `${this.enabledRuntimeSources.length}`),
-      }) {
-        ForEach(this.enabledRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-          SourceListItem({
-            source: source,
-            subtitle: this.runtimeSourceSummary(source),
-            languageBadge: this.viewModel.sourceLanguageBadge(source),
-            accentColor: ThemeConstants.SOURCE_WASM_COLOR,
-            showSearchButton: false,
-            onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
-              this.openSource(selected)
-            },
-            onSourceSearch: (selected: SourceRuntimeRegistryInstalledSourceSummary) => {
-              this.openSourceSearch(selected)
-            },
-          })
-          if (source.sourceId !== this.lastEnabledRuntimeSourceId) {
-            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-          }
-        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
-          sourceDisplayName(source.sourceId, source.displayName)]))
+    ForEach(this.sourceGroupLanguages, (language: string) => {
+      ListItem() {
+        // Keep group identity by language, but read its members from the live
+        // projection. A retained ForEach closure must not keep an old group DTO.
+        GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
+          subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
+          ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+            SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
+              accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false,
+              onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
+              onSourceSearch: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSourceSearch(selected) } })
+            if (index + 1 < this.sourcesInLanguage(language).length) { ListDivider({ leftMargin: ThemeConstants.SPACE_XL }) }
+          }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
+            sourceDisplayName(source.sourceId, source.displayName)]))
+        }
       }
-    }
+    }, (language: string) => language)
   }
 
   aboutToAppear(): void {
@@ -312,6 +341,7 @@ export struct BrowsePage {
   }
 
   build() {
+    Stack() {
     PullRefreshListScaffold({
       scroller: this.browseScroller,
       listSpace: ThemeConstants.SPACE_SM,
@@ -345,6 +375,13 @@ export struct BrowsePage {
         }
       }
     }
+    }
+    .width('100%').height('100%')
+    .bindSheet($$this.filtersShown, this.CatalogFilters, komaSheetOptions({
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,
+      scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+      onDisappear: (): void => { this.filtersShown = false },
+    }))
   }
 }
 

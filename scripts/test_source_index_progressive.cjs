@@ -18,10 +18,28 @@ function subject(file, owner, methods, globals) {
   vm.runInNewContext(ts.transpileModule(`export class Subject {${body}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, console, ...globals })
-  return Object.assign(new exports.Subject(), {packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){},recordInstalledPackage(){}}})
+  return Object.assign(new exports.Subject(), {catalogFilters:{rating:'all'},localImport:{busy:false},packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){},recordInstalledPackage(){}}})
 }
+function productionModule(file, bindings = {}, names) {
+  let source = fs.readFileSync(path.join(root, file), 'utf8')
+  if (names) {
+    const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
+    source = tree.statements.filter(n => names.includes(n.name?.getText(tree))).map(n => n.getText(tree)).join('\n')
+  }
+  source = source.replace(/^import[\s\S]*?from '[^']+'\n/gm, '').replace(/@ObservedV2/g, '').replace(/@Trace /g, '')
+  const exports = {}
+  vm.runInNewContext(ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,
+    {exports, console, JSON, Map, Set, Promise, ...bindings})
+  return exports
+}
+const presentation = productionModule('model/SourceCatalogPresentation.ets')
+const metadataBindings = productionModule('sourceRuntime/SourceLocalizedNames.ets')
+Object.assign(metadataBindings, productionModule('sourceRuntime/SourcePackageMetadata.ets', {}, ['normalizeSourceHomepage']))
+const {entryWithCachedIcon} = productionModule('sourceRuntime/SourceIndexMetadata.ets', metadataBindings, ['entryWithCachedIcon'])
+const {mergeSourceIndexCatalog} = productionModule('sourceRuntime/SourceIndexCatalog.ets', {entryWithCachedIcon})
 const entry = id => ({ id, name: id, version: '1', icon: `${id}.png` })
 const globals = {
+  ...presentation,
   resolveIndexDocumentUrl: value => value,
   entryWithCachedIcon: (entry, iconUri) => ({ ...entry, iconUri }),
   SOURCE_INDEX_ICON_FETCH_CONCURRENCY: 4,
@@ -515,7 +533,7 @@ function retainedCache(service, packages = []) {
     .replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
   const exports={}
   vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{
-    exports,console,JSON,Map,Promise,Date,
+    exports,console,JSON,Map,Promise,Date,mergeSourceIndexCatalog,
     AppStrings:{get:key=>key.startsWith('source_pkg_reason_')?key.slice('source_pkg_reason_'.length):key,format:(key,...values)=>JSON.stringify([key,...values])},
     listInstalled:()=>packages,resolveSourceLocalizedName:name=>name,compareSourceNames:(a,_id,b)=>a.localeCompare(b),
     SourceIdentityIconState:globals.SourceIdentityIconState,SourceIndexService:class{constructor(){return service}},
@@ -579,7 +597,10 @@ test('cache is ready before navigation, revisits retain row/icon inputs and do n
     saveUrl:async()=>{},fetchIndex:async()=>{fetches++;return {ok:true,entries:metadata}}}
   const cache=retainedCache(service,[installed('B','1')]),context={filesDir:'data'}
   await cache.prepare(context,'zh');const rows=cache.indexEntries,icons=cache.indexIconStates,packages=cache.packages
-  assert.equal(rows[0],metadata[0]);assert.equal(fetches,0)
+  // Multi-subscription catalogs clone cached DTOs to attach host-owned provenance;
+  // the published row and icon identities must still survive all revisits.
+  assert.notEqual(rows[0],metadata[0]);assert.equal(metadata[0].repositoryUrl,undefined)
+  assert.equal(rows[0].repositoryUrl,'https://saved.test/index.json');assert.equal(fetches,0)
   await cache.prepare(context,'zh');assert.equal(reads,1);assert.equal(fetches,0)
   assert.equal(cache.indexEntries,rows);assert.equal(cache.indexIconStates,icons);assert.equal(cache.packages,packages)
   cache.revalidateInBackground(context);await new Promise(setImmediate);assert.equal(fetches,1)
@@ -712,7 +733,7 @@ function updateCheckManager(packages, replies, statuses = []) {
     indexFetchBusy: false, updateCheckBusy: false,
     currentIndexUrlOrPrompt: async () => manager.sourceIndexUrl,
     sourceReasonText: reason => reason, sourceRedactedReasonText: reason => reason,
-    sourceIndexService: { saveUrl: async () => {}, loadIndexIcons:async()=>{},
+    sourceIndexService: { saveUrl: async () => {}, loadIndexIcons:async()=>{}, loadCachedIndex:async()=>undefined,
       loadSavedRepositories: async () => [...replies.keys()].map(url => ({ url })),
       fetchIndex: async url => replies.get(url) },
     showIndexEntries: (_url, entries) => { manager.indexEntries = entries },
@@ -831,4 +852,56 @@ test('a real saved-settings read failure retains its known settings action and r
     getUIContext:()=>({getPromptAction:()=>({showToast:x=>toast.push(x.message)})})})
   await host.openSettings()
   assert.deepEqual(visible,[true]);assert.deepEqual(toast,['source_pkg_reason_settings_read_failed'])
+})
+
+
+test('combined catalogs keep the winning version with its repository and retain cached rows on partial failure', async () => {
+  const a='https://a.test/index.json', b='https://b.test/index.json'
+  const original={...entry('shared'),version:'1',lang:'en',nsfw:false}
+  const updated={...original,version:'2',pkg:'packages/shared.zip'}
+  const newer=[updated,{...entry('only-b'),lang:'zh',nsfw:false}]
+  const merged=mergeSourceIndexCatalog([{url:a,entries:[original]},{url:b,entries:newer}],(x,y)=>Number(x)-Number(y))
+  assert.equal(merged.find(e=>e.id==='shared').repositoryUrl,b)
+  assert.equal(original.repositoryUrl,undefined);assert.equal(updated.repositoryUrl,undefined)
+  const compare=(x,y)=>Number(x)-Number(y)
+  const withIcon=mergeSourceIndexCatalog([{url:a,entries:[{...original,icon:''}]},{url:b,entries:[original]}],compare)
+  assert.equal(withIcon[0].repositoryUrl,b)
+  const service={loadSavedUrl:async()=>a,loadSavedRepositories:async()=>[{url:a},{url:b}],
+    loadCachedIndex:async url=>url===a?[original]:newer,loadIndexIcons:async()=>{},saveUrl:async()=>{},
+    fetchIndex:async url=>url===a?{ok:true,entries:[original]}:{ok:false,reasonCode:'network_error'}}
+  const cache=retainedCache(service);await cache.prepare({filesDir:'data'},'zh');await cache.check({filesDir:'data'})
+  assert.equal(cache.indexEntries.find(e=>e.id==='only-b').repositoryUrl,b)
+  service.loadSavedRepositories=async()=>[{url:a}]
+  await cache.reloadSavedCatalog({filesDir:'data'})
+  assert.deepEqual(Array.from(cache.indexEntries,e=>e.id),['shared'])
+})
+
+test('language aliases group together, explicit empty selections show none, and unknown ratings remain unknown', () => {
+  const values=[{lang:'zh_CN',id:1},{lang:'en',id:2},{lang:'zh-Hans',id:3},{lang:'zh_TW',id:4}]
+  const grouped=presentation.groupSourcesByLanguage(values,e=>e.lang)
+  assert.deepEqual(Array.from(grouped,g=>[g.language,Array.from(g.items,e=>e.id)]),[['en',[2]],['zh-Hans',[1,3]],['zh-Hant',[4]]])
+  assert.equal(presentation.sourceMatchesCatalogFilters('zh_CN',false,'safe',{languages:['zh-Hans'],rating:'safe'}),true)
+  assert.equal(presentation.sourceMatchesCatalogFilters('en',false,'safe',{languages:[],rating:'all'}),false)
+  assert.equal(presentation.sourceMatchesCatalogFilters('en',false,undefined,{rating:'safe'}),false)
+  assert.equal(presentation.sourceMatchesCatalogFilters('en',true,undefined,{rating:'adult'}),true)
+})
+
+test('filter selections compose during slow writes, persist across cold reads and roll back failed storage', async () => {
+  let saved='{}', finish, fail=false
+  const store={get:async()=>saved,put:async(_key,value)=>{saved=value},flush:async()=>{
+    if(fail){fail=false;throw Error('disk')}
+    if(finish===undefined)await new Promise(resolve=>{finish=resolve})
+  }}
+  const bindings={preferences:{getPreferences:async()=>store},...presentation,
+    ...productionModule('model/BackupRestoreActivity.ets')}
+  const {SourceCatalogFilterState}=productionModule('state/SourceCatalogFilterState.ets',bindings)
+  const state=new SourceCatalogFilterState();await state.prepare({})
+  const first=state.save({languages:['en'],rating:'all'})
+  const second=state.save({languages:[...state.languages,'zh-Hant'],rating:'safe'})
+  await new Promise(setImmediate);finish();await Promise.all([first,second])
+  const cold=new SourceCatalogFilterState();await cold.prepare({})
+  assert.deepEqual(Array.from(cold.languages),['en','zh-Hant']);assert.equal(cold.rating,'safe')
+  fail=true;await assert.rejects(cold.save({languages:[],rating:'adult'}),/disk/)
+  assert.deepEqual(Array.from(cold.languages),['en','zh-Hant']);assert.equal(cold.rating,'safe')
+  assert.equal(JSON.parse(saved).rating,'safe')
 })

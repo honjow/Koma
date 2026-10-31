@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：公共菜单默认系统材质及首次打开位置均已修复，197普通路径和本次CI通过，设备已恢复。其它原项范围继续保留。
+当前结果：正在完善浏览源的语言分组、筛选和多订阅入口；菜单材质与首次定位的已验修复保留。
 
 设备：197已恢复原包、本轮原数据和电源并释租；237本轮未操作。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T04:44:58+08:00",
+  "updatedAt": "2026-11-01T05:50:32+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "公共菜单系统材质和首次定位已修复交付，197已恢复释租。",
-  "nextAction": "按原项保留短笔记展开、相邻LLM入口与账号范围，不重跑已接受菜单路径。",
+  "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+  "activity": "实现浏览语言分组、源筛选及多订阅管理简化。",
+  "nextAction": "接通多订阅共同目录和入口后验证普通路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -4845,6 +4845,41 @@
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/material-first-anchor033-339：与失败334相同首次路径/时序，更多右边与菜单右边均1208px，八动作三组；341刚进500ms点更多首次亦正确；340书架单组含当前勾选，342笔记原表单打开未保存。",
         ".hvigor/outputs/menu-material-acceptance/delivery-binding.json：343明确安装原包，fresh332七JSON+30首选项逐字相同、无extra；344 SLEEP/normal120000/Override10000，lease20261031-202407-89edae6e released。fc0f4e7f已推，精确CI41239344597运行中。",
         ".hvigor/outputs/menu-material-acceptance/ci-final.json：fc0f4e7f完整SHA精确CI41239344597 completed/success，Release构建、Inspect、Upload成功，Publish tagged Release skipped；本轮公共材质及原生锚点已交付。首次334失败及339/341首次通过、设备恢复均见delivery-binding.json和report.md。"
+      ]
+    },
+    {
+      "id": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "title": "浏览源按语言分组、评级筛选与订阅管理简化",
+      "kind": "open",
+      "priority": "P1（当前用户要求）",
+      "owner": "Root",
+      "status": "验证通过，交付中",
+      "stage": "提交与设备恢复中",
+      "reportedAt": null,
+      "reportedAtSource": "2026-11-01本会话当前用户要求；精确提出时刻未核实。",
+      "firstHandledAt": "2026-11-01T05:12:29+08:00",
+      "result": "浏览已按语言分组；浏览和源包管理共用可记忆的语言、内容评级筛选。订阅地址已移至右上入口并支持添加、移除和合并目录；本地安装为独立图标，管理页下拉检查更新，可更新组保持置顶。237普通路径已通过，发现的保留分组旧内容已修正。",
+      "remaining": "恢复237原包、新鲜数据与电源，完成提交及对应CI。",
+      "remainingActions": [
+        "恢复237原包、新鲜数据、电源并释租。",
+        "审查提交并核对对应CI。"
+      ],
+      "boundaries": [
+        "保留源更新角标缓存、后台差量更新与失败保留。",
+        "只改变列表展示筛选，不禁用源、不改变全局搜索或书库。",
+        "保留在线两路安装、本地归档排他屏障和既有源会话。"
+      ],
+      "modificationBasis": {
+        "object": "BrowsePage/SourcePackageManagerPage及公共缓存",
+        "decision": "用户当前明确要求语言分组、下拉检查代替独立行、地址移到右上并称订阅地址、本地安装独立图标、多地址及评级/语言筛选。",
+        "allowedDifference": "按上述要求复用现有列表、系统材质公共菜单与模态，不改变源请求身份、书库及阅读数据。"
+      },
+      "evidence": [
+        ".hvigor/outputs/source-catalog-progressive-test.log：实际缓存合并、部分失败、归属及筛选存储执行通过。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog：004语言分组；005筛选；006/007筛选回流发现保留组旧内容；009管理页已正确过滤，010持久选择可见。",
+        ".hvigor/outputs/source-catalog-acceptance/candidate039-abd4ebfc.hap；SHA abd4ebfc1a9344916989eb3b76cc2b304f0d28736c2ebc68d1cc4892d40f154e，build039成功；036的007为真实失败，019修正后仅剩全年龄英语源，022结束进程后同选择恢复。",
+        "237 015经普通输入添加受控第二目录（另有原公开GitHub订阅和失效旧测试地址）；026日本語筛选显示其独有候选，027独立移除，028候选消失并显示筛选空态。不冒第二独立第三方仓库或源包安装验证。",
+        "237 020系统本地选择器打开，021取消返回；024下拉检查连续录屏125帧完整亲审，列表随下拉回弹，图标始终可见。原全量安装路径不重跑。"
       ]
     }
   ],
@@ -12395,6 +12430,36 @@
       "evidence": [
         ".hvigor/outputs/menu-material-acceptance/delivery-binding.json",
         "https://github.com/honjow/Koma/actions/runs/41239344597"
+      ]
+    },
+    {
+      "id": "browse-catalog-start-20261101",
+      "at": "2026-11-01T05:12:29+08:00",
+      "title": "开始浏览与订阅管理改进",
+      "detail": "现有底层已有多地址，补合并目录与明确入口；语言/评级筛选归公共展示偏好。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-catalog-device-in-progress-20261101",
+      "at": "2026-11-01T05:41:34+08:00",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "title": "浏览与订阅改动进入237普通路径验证",
+      "detail": "语言分组、右上入口及管理页筛选已见；浏览保留组未更新已发现并修正候选，尚未收口。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog：004语言分组；005筛选；006/007筛选回流发现保留组旧内容；009管理页已正确过滤，010持久选择可见。"
+      ]
+    },
+    {
+      "id": "source-catalog-device-verified-20261101",
+      "at": "2026-11-01T05:50:32+08:00",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "title": "浏览分组、筛选及多订阅普通路径通过",
+      "detail": "237已验证实时筛选及冷恢复、受控多订阅添加合并和移除、本地选择器取消及下拉刷新；正在恢复设备并提交。",
+      "evidence": [
+        ".hvigor/outputs/source-catalog-acceptance/candidate039-abd4ebfc.hap；SHA abd4ebfc1a9344916989eb3b76cc2b304f0d28736c2ebc68d1cc4892d40f154e，build039成功；036的007为真实失败，019修正后仅剩全年龄英语源，022结束进程后同选择恢复。",
+        "237 015经普通输入添加受控第二目录（另有原公开GitHub订阅和失效旧测试地址）；026日本語筛选显示其独有候选，027独立移除，028候选消失并显示筛选空态。不冒第二独立第三方仓库或源包安装验证。",
+        "237 020系统本地选择器打开，021取消返回；024下拉检查连续录屏125帧完整亲审，列表随下拉回弹，图标始终可见。原全量安装路径不重跑。"
       ]
     }
   ],
