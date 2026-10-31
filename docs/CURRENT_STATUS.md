@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：继续补齐参考应用功能差异；追踪服务本地实现和表单验证已完成，真实账号路径待条件。
+当前工作：参考应用功能差异的本地实现及追踪表单已交付；真实账号路径待条件验收。
 
 设备：197本轮追踪表单验证后已恢复并释租；237本轮未操作。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-10-31T21:14:38+08:00",
+  "updatedAt": "2026-10-31T21:30:12+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "追踪连接表单已验证，设备已恢复，正在准备交付。",
-  "nextAction": "完成第九批统一提交和精确CI核对。",
+  "activity": "追踪服务独立实现已交付，真实账号验收待条件。",
+  "nextAction": "保留真实账号未验边界，继续处理其他具名问题。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,7 +61,7 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master 0eadd9a3c4e2deb5df7804054f05561d39d97d95，精确CI41121496728成功。",
+      "appHead": "Koma/master 529aa8b66329072f73529d4df2b715ae74b994f8，精确CI41204801578成功。",
       "hap": "197两轮追踪表单验证后已恢复原HAP、数据与电源并释租。"
     },
     {
@@ -4673,8 +4673,8 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "追踪表单已验并恢复，待提交CI",
-      "stage": "第九批统一提交及CI待核",
+      "status": "追踪服务已交付，真实账号路径未验",
+      "stage": "账号相关验收待条件",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4682,10 +4682,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "三项追踪连接表单已具名验证，设备已恢复；真实账号路径尚未验证。",
-      "remaining": "完成第九批统一提交和精确CI；用户目前无三项服务账号，登录成功、Native profile、绑定及远端同步保留未验，不继续轮询账号。",
+      "result": "三项追踪服务本地实现、表单验证及源码CI已完成；真实账号路径未验。",
+      "remaining": "用户目前无三项服务账号；认证、Native profile、真实绑定及远端同步保留未验，不继续轮询账号。",
       "remainingActions": [
-        "完成第九批统一提交和精确CI；用户目前无三项服务账号，登录成功、Native profile、绑定及远端同步保留未验，不继续轮询账号。"
+        "用户目前无三项服务账号；认证、Native profile、真实绑定及远端同步保留未验，不继续轮询账号。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4744,7 +4744,9 @@
         "用户最新已明确采用Kitsu完整接入，Root实施中；Bangumi/MU的215–229具名验收冻结，不扩大重复验证，Kitsu新表单另作具名验证。",
         "Kitsu生产client已接官方password grant（不复制参考client_secret）、GraphQL currentAccount/search/myLibraryEntry/create/update并回读；update只id/progress，官方在线schema证其余字段可选，见 .hvigor/outputs/feature-parity-implementation-20261031/kitsu-inputs.json。同一能力表贯通refresh/search/pending/sync；build071通过。scripts/test_tracker_progress_sync.cjs实际覆盖安全登录→匹配候选→confirmComicMapping→进度写入/保留ON_HOLD隐私评分→失败队列重试，属host绑定，非Native账号验收。197 230新baseline及连续awake，231安装071、232列表5 provider、233 Kitsu空邮箱密码禁用、234虚构文本掩码及可连接但未提交、235重进两项清空、236 prefs无新文件且不含输入；237恢复中。真实账号均未提供，Kitsu账号问题异步待答，不称无账号或已验；Bangumi/MU 215–229冻结不重测。",
         "Kitsu本场237恢复回执completed无Fail，37文件逐字等fresh230；238 SLEEP/Override10000/normal120000，lease20261031-130858-49494df6 released。071候选冻结 candidate-tracker071-d4a8e88a.hap，SHA d4a8e88aeecfb2ae620547d70603fb39e2dcb3e3919f6b9ac2a070eeb6c7dcfb。证据 .hvigor/outputs/feature-parity-implementation-20261031/kitsu-acceptance-binding.json。两轮具名表单待统一提交/CI，真实账号路径未验；Kitsu账号问题待答，不推定无账号。",
-        "用户call_9b477acd314a4525992533ebc11011d7明确Kitsu也暂时没有账号；Bangumi、MangaUpdates及Kitsu真实账号均缺，成功登录、Native profile、绑定和远端同步未验，不继续轮询。其余本地实现和具名表单范围已完成，待本次提交CI。"
+        "用户call_9b477acd314a4525992533ebc11011d7明确Kitsu也暂时没有账号；Bangumi、MangaUpdates及Kitsu真实账号均缺，成功登录、Native profile、绑定和远端同步未验，不继续轮询。其余本地实现和具名表单范围已完成，待本次提交CI。",
+        "三服务产品及已验文档提交529aa8b66329072f73529d4df2b715ae74b994f8已推Koma/master；精确Build OHOS CI41204801578 head同提交、in_progress。用户明确三项服务目前均无账号，真实账户相关路径未验。",
+        "精确CI41204801578 head529aa8b66329072f73529d4df2b715ae74b994f8 completed/success，Build Release、Inspect、Upload均成功，tag发布job skipped，无新发布。证据 .hvigor/outputs/feature-parity-implementation-20261031/tracker-ci-final.json。三服务本地实现和表单具名范围已交付；用户明确均暂时无账号，真实认证、Native profile、绑定及远端同步未验，不轮询账号；整体项保持open。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -11568,6 +11570,29 @@
       "itemId": "FEATURE_PARITY_IMPLEMENTATION",
       "kind": "checkpoint",
       "evidence": []
+    },
+    {
+      "id": "feature-parity-trackers-pushed-20261031",
+      "at": "2026-10-31T21:17:25+08:00",
+      "title": "追踪服务代码推送",
+      "detail": "三服务产品代码已推送，精确CI运行中；真实账号路径未验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41204801578"
+      ]
+    },
+    {
+      "id": "feature-parity-trackers-ci-delivered-20261031",
+      "at": "2026-10-31T21:30:12+08:00",
+      "title": "追踪服务代码交付",
+      "detail": "三服务本地实现、表单验证及精确CI完成；真实账号路径未验。此时间为登记时间。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/feature-parity-implementation-20261031/tracker-ci-final.json",
+        "https://github.com/honjow/Koma/actions/runs/41204801578"
+      ]
     }
   ],
   "reportAgeAudit": {
