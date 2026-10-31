@@ -1567,8 +1567,10 @@ struct Index {
     if (this.migrationOpening) return
     this.migrationOpening = true
     try {
-      const selectedSources = await new MangaMigrationPreferencesStore(getContext(this) as common.UIAbilityContext).load()
-      const param: MangaMigrationRouteParam = { comicIds, fromDetail, selectedSources }
+      const store = new MangaMigrationPreferencesStore(getContext(this) as common.UIAbilityContext)
+      const selectedSources = await store.load()
+      const matchOptions = await store.loadOptions()
+      const param: MangaMigrationRouteParam = { comicIds, fromDetail, selectedSources, matchOptions }
       RouterHelper.ensureMigrationRouteChrome(param)
       this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION, param })
     } catch (_) {
@@ -2422,6 +2424,7 @@ struct Index {
         MangaMigrationPage({
           comicIds: (param as MangaMigrationRouteParam).comicIds,
           initialSources: (param as MangaMigrationRouteParam).selectedSources ?? [],
+          initialMatchOptions: (param as MangaMigrationRouteParam).matchOptions ?? { deepSearch: false, prioritizeChapters: false },
           chrome: RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam),
           registry: this.sourceRegistry, libraryStore: this.libraryStore,
           persistence: this.ensureLibraryPersistenceService(), readerStore: this.readerSessionStore,
@@ -2444,6 +2447,13 @@ struct Index {
         })
       }
       .titleBar(this.migrationTitleBarOpts(param as MangaMigrationRouteParam))
+      .onShown((): void => {
+        const chrome = RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam)
+        if (chrome.previewReturnsToConfirmation) {
+          chrome.previewReturnsToConfirmation = false
+          chrome.request('resumeConfirmation')
+        }
+      })
       .onBackPressed((): boolean => RouterHelper.ensureMigrationRouteChrome(param as MangaMigrationRouteParam).busy)
     } else if (name === RouteName.SOURCE_BROWSE) {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
@@ -3271,6 +3281,7 @@ struct Index {
       add('migration_copy', $r('sys.symbol.doc_plaintext'), 'copy', chrome.readyCount > 0)
       add('migration_move', $r('sys.symbol.arrow_right'), 'move', chrome.readyCount > 0)
       add('migration_choose_sources', $r('sys.symbol.funnel'), 'sources', true)
+      add('migration_retry_failed', $r('sys.symbol.arrow_clockwise'), 'retryFailed', chrome.failedCount > 0 && chrome.searchingCount === 0)
       add('migration_finish', $r('sys.symbol.checkmark'), 'finish', true)
     }
     const title: Record<string, Object> = { 'mainTitle': AppStrings.get('migration_title') }

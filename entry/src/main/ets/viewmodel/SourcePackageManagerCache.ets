@@ -231,9 +231,12 @@ export class SourcePackageManagerCache {
     const packages = this.packages.filter((item: InstalledSourcePackage): boolean => item.id !== source.id)
     packages.push(source)
     const locale = this.locale
+    const names = new Map<string, string>()
+    packages.forEach((item: InstalledSourcePackage): void => {
+      names.set(item.id, resolveSourceLocalizedName(item.name, item.localizedNames, locale))
+    })
     packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
-      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale), left.id,
-        resolveSourceLocalizedName(right.name, right.localizedNames, locale), right.id))
+      compareSourceNames(names.get(left.id) ?? left.name, left.id, names.get(right.id) ?? right.name, right.id))
     this.packages = packages
     this.packageUpdateStatuses = this.reconcileUpdates(this.packageUpdateStatuses)
     if (this.checkSummaryKind.length > 0 && this.statusText === this.checkSummaryText) {

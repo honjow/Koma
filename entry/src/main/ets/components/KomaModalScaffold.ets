@@ -11,6 +11,10 @@ export struct KomaModalScaffold {
   @Param modalSurfaceColor: ResourceColor = ThemeConstants.BG_SUB
   @Param contentHorizontalPadding: number = 0
   @Param contentOwnsScrolling: boolean = false
+  @Param confirmLabel: ResourceStr = ''
+  @Param confirmEnabled: boolean = true
+  @Param closeEnabled: boolean = true
+  @Event onConfirm: () => void = () => {}
   @Event onClose: () => void = () => {}
   @BuilderParam content: () => void
   private scroller: Scroller = new Scroller()
@@ -67,7 +71,7 @@ export struct KomaModalScaffold {
             subTitle: this.subtitle,
           },
           menu: {
-            value: [{
+            value: this.confirmLabel === '' ? [{
               content: {
                 label: AppStrings.get('common_close'),
                 icon: $r('sys.symbol.xmark'),
@@ -76,8 +80,14 @@ export struct KomaModalScaffold {
                   this.onClose()
                 },
               },
+            }] : [{
+              content: { label: AppStrings.get('common_close'), icon: $r('sys.symbol.xmark'),
+                isEnabled: this.closeEnabled, action: () => { this.onClose() } },
+            }, {
+              content: { label: this.confirmLabel, icon: $r('sys.symbol.checkmark'),
+                isEnabled: this.confirmEnabled, action: () => { this.onConfirm() } },
             }],
-            maxCount: 1,
+            maxCount: this.confirmLabel === '' ? 1 : 2,
           },
         },
       })

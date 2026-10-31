@@ -24,7 +24,7 @@ import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatur
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { sourceMangaDetailSnapshotCache } from './SourceMangaDetailSnapshotCache'
+import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from './SourceMangaDetailSnapshotCache'
 
 interface MigrationDetailData {
   manga?: Record<string, Object>
@@ -55,6 +55,20 @@ export interface PreparedMangaMigration {
   settingsRevision: string
 }
 
+function preparedMigrationFromSnapshot(
+  manga: SourceManga, entry: SourceRuntimeRegistryEntry, settingsRevision: string,
+  settings: SourceSettingsRecord, snapshot: SourceMangaDetailSnapshot,
+): PreparedMangaMigration {
+  const detail = snapshot.detail
+  detail.chapterCount = snapshot.chapters.length
+  const comic = comicFromSourceManga(detail, snapshot.chapters, sourceLibraryComicId(manga.sourceId, manga.id))
+  if (comic.sourceMetadata !== undefined) {
+    comic.sourceMetadata.excludedChapterIds = snapshot.excludedChapterIds
+    comic.sourceMetadata.settingsFingerprint = sourceSettingsFingerprint(settings)
+  }
+  return { manga, detail, chapters: snapshot.chapters, comic, entry, settingsRevision }
+}
+
 export async function prepareMangaMigration(
   registry: SourceRuntimeRegistry, manga: SourceManga, isCurrent: () => boolean,
 ): Promise<PreparedMangaMigration> {
@@ -64,6 +78,14 @@ export async function prepareMangaMigration(
   const current = (): boolean => isCurrent() && registry.lookup(manga.sourceId).entry === entry &&
     settingsRevision === appSourceSettingsStore.revisionForSource(manga.sourceId)
   const settings = appSourceSettingsStore.loadForSource(manga.sourceId)
+  if (!current()) throw new Error('migration_source_changed')
+  // Detail previews and migration share this process cache. Its reader already
+  // enforces entry, settings and route identity; only complete catalogs qualify.
+  // The existing commit guard still checks the entry and settings again.
+  const cached = sourceMangaDetailSnapshotCache.read(entry, manga.sourceId, manga.id, manga.url)
+  if (cached?.chaptersResolved && cached.chapters.length > 0) {
+    return preparedMigrationFromSnapshot(manga, entry, settingsRevision, settings, cached)
+  }
   const payload: MigrationDetailRequest = { type: 'request', version: 1,
     requestId: `migration-detail-${Date.now()}`, sourceId: manga.sourceId, operation: 'get_manga',
     args: { mangaId: manga.id, mangaUrl: manga.url }, settings, hostHints: { network: true } }
@@ -88,15 +110,11 @@ export async function prepareMangaMigration(
   const catalog = await resolveSourceChapterList(entry, manga.id, detail.url, current, data?.chapterContext)
   if (!current()) throw new Error('migration_source_changed')
   if (!catalog.resolved || catalog.chapters.length === 0) throw new Error('migration_catalog_unavailable')
-  detail.chapterCount = catalog.chapters.length
-  const comic = comicFromSourceManga(detail, catalog.chapters, sourceLibraryComicId(manga.sourceId, manga.id))
-  if (comic.sourceMetadata !== undefined) {
-    comic.sourceMetadata.excludedChapterIds = catalog.excludedChapterIds
-    comic.sourceMetadata.settingsFingerprint = sourceSettingsFingerprint(settings)
-  }
-  sourceMangaDetailSnapshotCache.write(entry, manga.sourceId, manga.id,
-    { detail, chapters: catalog.chapters, chaptersResolved: true, excludedChapterIds: catalog.excludedChapterIds }, settingsRevision)
-  return { manga, detail, chapters: catalog.chapters, comic, entry, settingsRevision }
+  const snapshot: SourceMangaDetailSnapshot = { detail, chapters: catalog.chapters,
+    chaptersResolved: true, excludedChapterIds: catalog.excludedChapterIds }
+  const prepared = preparedMigrationFromSnapshot(manga, entry, settingsRevision, settings, snapshot)
+  sourceMangaDetailSnapshotCache.write(entry, manga.sourceId, manga.id, snapshot, settingsRevision)
+  return prepared
 }
 
 export interface MangaMigrationCommitResult {

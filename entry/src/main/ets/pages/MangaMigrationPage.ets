@@ -20,8 +20,12 @@ import { MangaGridItem } from '../components/MangaGridItem'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
+import { MangaMigrationPreferencesStore, MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
+import { chooseMigrationCandidate, migrationSearchQueries, latestMigrationChapter } from '../model/MangaMigrationMatching'
+import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
+import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { komaSheetOptions } from '../theme/KomaPopupOptions'
 
 function s(key: string): string { return AppStrings.get(key) }
 
@@ -54,6 +58,7 @@ class MigrationRow {
 export struct MangaMigrationPage {
   @Param comicIds: string[] = []
   @Param initialSources: string[] = []
+  @Param initialMatchOptions: MigrationMatchOptions = { deepSearch: false, prioritizeChapters: false }
   @Param chrome: MangaMigrationRouteChromeState = new MangaMigrationRouteChromeState()
   @Param libraryStore: LibraryStore = new InMemoryLibraryStore()
   @Param persistence?: LibraryStorePersistenceService = undefined
@@ -71,10 +76,15 @@ export struct MangaMigrationPage {
   @Local private categories: boolean = true
   @Local private committing: boolean = false
   @Local private starting: boolean = false
+  @Local private deepSearch: boolean = false
+  @Local private prioritizeChapters: boolean = false
+  @Local private singleConfirmationShown: boolean = false
+  @Local private singleCopy: boolean = false
   private initialized: boolean = false
   private handledCommandSeq: number = 0
   private prepared: Map<string, PreparedMangaMigration> = new Map()
   private generations: Map<string, number> = new Map()
+  private matchingRun: number = 0
   private active: boolean = false
   private searcher: BrowseViewModel = new BrowseViewModel()
   private scroller: Scroller = new Scroller()
@@ -90,6 +100,8 @@ export struct MangaMigrationPage {
       .map((comic: Comic | undefined): MigrationRow => new MigrationRow(comic as Comic))
     this.selectedSources = this.initialSources.filter((id: string): boolean =>
       this.sources.some((source: SourceRuntimeRegistryInstalledSourceSummary): boolean => source.sourceId === id))
+    this.deepSearch = this.initialMatchOptions.deepSearch
+    this.prioritizeChapters = this.initialMatchOptions.prioritizeChapters
     this.syncChrome()
   }
 
@@ -100,6 +112,8 @@ export struct MangaMigrationPage {
     this.chrome.busy = this.committing || this.starting
     this.chrome.canContinue = !this.chrome.busy && this.selectedSources.length > 0 && this.rows.length > 0
     this.chrome.readyCount = this.readyCount()
+    this.chrome.failedCount = this.rows.filter((row: MigrationRow): boolean => row.state === 'failed').length
+    this.chrome.searchingCount = this.rows.filter((row: MigrationRow): boolean => row.state === 'searching').length
   }
 
   @Monitor('chrome.commandSeq')
@@ -110,7 +124,14 @@ export struct MangaMigrationPage {
     else if (this.chrome.command === 'copy' && this.readyCount() > 0) this.confirm(true)
     else if (this.chrome.command === 'move' && this.readyCount() > 0) this.confirm(false)
     else if (this.chrome.command === 'finish') this.finish()
+    else if (this.chrome.command === 'resumeConfirmation') this.singleConfirmationShown = true
+    else if (this.chrome.command === 'retryFailed') void this.runMatches(this.rows.filter((row: MigrationRow): boolean => row.state === 'failed'))
     else if (this.chrome.command === 'sources') {
+      this.matchingRun += 1
+      this.rows.filter((row: MigrationRow): boolean => row.state === 'searching').forEach((row: MigrationRow): void => {
+        this.generations.set(row.comic.id, (this.generations.get(row.comic.id) ?? 0) + 1)
+        this.updateRow(row.comic.id, { comic: row.comic, state: 'idle' })
+      })
       this.stage = 'sources'
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
       this.syncChrome()
@@ -125,6 +146,21 @@ export struct MangaMigrationPage {
     this.getUIContext().getPromptAction().showToast({ message: s('migration_save_failed') })
   }
 
+  private saveMatchOptions(): void {
+    void new MangaMigrationPreferencesStore(getContext(this) as common.UIAbilityContext)
+      .saveOptions({ deepSearch: this.deepSearch, prioritizeChapters: this.prioritizeChapters })
+      .catch((): void => { this.showSaveFailure() })
+  }
+
+  private moveSource(id: string, direction: number): void {
+    const index = this.selectedSources.indexOf(id), destination = index + direction
+    if (index < 0 || destination < 0 || destination >= this.selectedSources.length) return
+    const sources = this.selectedSources.slice()
+    sources.splice(index, 1)
+    sources.splice(destination, 0, id)
+    this.selectedSources = sources
+    void this.saveSelectedSources().catch((): void => { this.showSaveFailure() })
+  }
 
   private updateRow(id: string, next: MigrationRowUpdate): void {
     const row = this.rows.find((value: MigrationRow): boolean => value.comic.id === id)
@@ -170,36 +206,50 @@ export struct MangaMigrationPage {
     return s('migration_failed')
   }
 
-  private async match(row: MigrationRow): Promise<void> {
+  private async match(row: MigrationRow, run?: number): Promise<void> {
     const id = row.comic.id
     const generation = (this.generations.get(id) ?? 0) + 1
     this.generations.set(id, generation)
-    const current = (): boolean => this.active && this.generations.get(id) === generation
+    const current = (): boolean => this.active && this.stage === 'matches' && this.generations.get(id) === generation &&
+      (run === undefined || run === this.matchingRun)
     this.prepared.delete(id)
     this.updateRow(id, { comic: row.comic, state: 'searching' })
     let errorText = ''
     let errorSource = ''
+    let best: PreparedMangaMigration | undefined = undefined
+    let bestManga: SourceManga | undefined = undefined
     for (const source of this.selected()) {
       if (!current()) return
       try {
-        const result = await this.searcher.searchSource(source, row.comic.title, 1, '', current)
-        if (!current()) return
-        const candidates = result.manga.filter((manga: SourceManga): boolean =>
-          manga.sourceId !== row.comic.sourceRuntimeId || manga.id !== row.comic.remoteResourceId)
-        const selected = candidates.find((manga: SourceManga): boolean =>
-          manga.title.trim().toLocaleLowerCase() === row.comic.title.trim().toLocaleLowerCase()) ?? candidates[0]
+        const candidates: SourceManga[] = []
+        for (const query of migrationSearchQueries(row.comic.title, this.deepSearch)) {
+          if (!current()) return
+          const result = await this.searcher.searchSource(source, query, 1, '', current)
+          if (!current()) return
+          result.manga.forEach((manga: SourceManga): void => {
+            if ((manga.sourceId !== row.comic.sourceRuntimeId || manga.id !== row.comic.remoteResourceId) &&
+              !candidates.some((value: SourceManga): boolean => value.id === manga.id)) candidates.push(manga)
+          })
+        }
+        const selected = chooseMigrationCandidate(row.comic.title, candidates, this.deepSearch)
         if (selected === undefined) continue
         const target = await prepareMangaMigration(this.registry, selected, current)
         if (!current()) return
-        this.prepared.set(id, target)
-        this.updateRow(id, { comic: row.comic, state: 'ready', target: selected })
-        return
+        if (best === undefined || (latestMigrationChapter(target.chapters) ?? 0) > (latestMigrationChapter(best.chapters) ?? 0)) {
+          best = target
+          bestManga = selected
+        }
+        if (!this.prioritizeChapters) break
       } catch (error) {
         errorText = this.failureText(error as Object)
         errorSource = source.sourceId
       }
     }
-    if (current()) this.updateRow(id, { comic: row.comic, state: 'failed', error: errorText || s('migration_no_match'), errorSourceId: errorSource })
+    if (!current()) return
+    if (best !== undefined && bestManga !== undefined) {
+      this.prepared.set(id, best)
+      this.updateRow(id, { comic: row.comic, state: 'ready', target: bestManga })
+    } else this.updateRow(id, { comic: row.comic, state: 'failed', error: errorText || s('migration_no_match'), errorSourceId: errorSource })
   }
 
   private async startMatching(): Promise<void> {
@@ -215,11 +265,17 @@ export struct MangaMigrationPage {
     this.syncChrome()
     if (this.rows.length === 1) { this.searchManually(this.rows[0]); return }
     const pending = this.rows.filter((row: MigrationRow): boolean => row.state !== 'done' && row.state !== 'skipped')
+    await this.runMatches(pending)
+  }
+
+  private async runMatches(pending: MigrationRow[]): Promise<void> {
+    if (this.committing) return
+    const run = ++this.matchingRun
     let next = 0
     const worker = async (): Promise<void> => {
-      while (this.active && next < pending.length) {
+      while (this.active && run === this.matchingRun && next < pending.length) {
         const row = pending[next++]
-        await this.match(row)
+        await this.match(row, run)
       }
     }
     // Source calls still pass through the shared per-source admission owner.
@@ -243,6 +299,10 @@ export struct MangaMigrationPage {
     const current = (): boolean => this.active && this.generations.get(id) === generation
     this.prepared.delete(id)
     this.updateRow(id, { comic, target: manga, state: 'searching' })
+    if (this.rows.length === 1) {
+      this.singleCopy = false
+      this.singleConfirmationShown = true
+    }
     try {
       if (comic.sourceRuntimeId === manga.sourceId && comic.remoteResourceId === manga.id) throw new Error('migration_same_manga')
       const prepared = await prepareMangaMigration(this.registry, manga, current)
@@ -294,7 +354,15 @@ export struct MangaMigrationPage {
           this.onLibraryChanged()
         }
       }
-    } finally { this.committing = false; this.syncChrome(); this.onBusyChanged(false) }
+    } finally {
+      this.committing = false
+      this.syncChrome()
+      this.onBusyChanged(false)
+      if (this.rows.length === 1 && this.rows[0].state === 'done') {
+        this.singleConfirmationShown = false
+        this.finish()
+      }
+    }
   }
 
   private finish(): void {
@@ -314,33 +382,62 @@ export struct MangaMigrationPage {
     })
   }
 
+  private previewManga(manga: SourceManga): void {
+    if (this.committing) return
+    // A pushed detail lives below an attached sheet. Dismiss the sheet before
+    // navigation; the route's onShown event restores it on the actual return.
+    if (this.singleConfirmationShown) {
+      this.singleConfirmationShown = false
+      this.chrome.previewReturnsToConfirmation = true
+    }
+    RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+  }
+
   @Builder
-  private MatchRow(row: MigrationRow) {
-    GroupedListSection() {
+  private MatchComparison(row: MigrationRow) {
       Row({ space: ThemeConstants.SPACE_MD }) {
         Column({ space: ThemeConstants.SPACE_SM }) {
-          MangaGridItem({ manga: this.originalManga(row.comic), onMangaTap: (): void => {
-            if (this.committing) return
-            RouterHelper.pushMangaDetail({ mangaId: row.comic.remoteResourceId ?? row.comic.id, sourceId: row.comic.sourceRuntimeId })
-          } })
+          MangaGridItem({ manga: this.originalManga(row.comic),
+            onMangaTap: (): void => { this.previewManga(this.originalManga(row.comic)) } })
           Text(this.sourceName(row.comic.sourceRuntimeId ?? '')).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontColor(ThemeConstants.TEXT_SECONDARY).maxLines(2)
+          Text(this.chapterSummary(row.comic.chapters.length, latestMigrationChapter(row.comic.chapters)))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY)
         }.layoutWeight(1)
         SymbolGlyph($r('sys.symbol.arrow_right')).fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor([ThemeConstants.TEXT_SECONDARY])
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (row.target !== undefined) {
             MangaGridItem({ manga: row.target, onMangaTap: (manga: SourceManga): void => {
-              if (this.committing) return
-              RouterHelper.pushMangaDetail({ mangaId: manga.id, sourceId: manga.sourceId, initialManga: manga })
+              this.previewManga(manga)
             } })
             Text(this.sourceName(row.target.sourceId)).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontColor(ThemeConstants.TEXT_SECONDARY).maxLines(2)
+            if (row.state === 'ready' || row.state === 'done') {
+              Text(this.targetChapterSummary(row))
+                .fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY)
+            }
           } else {
             Text(s(row.state === 'searching' ? 'migration_searching' : 'migration_no_match'))
               .fontColor(ThemeConstants.TEXT_SECONDARY).fontSize(ThemeConstants.FONT_SIZE_BODY)
           }
         }.layoutWeight(1)
       }.alignItems(VerticalAlign.Center).padding(ThemeConstants.SPACE_MD)
+  }
+
+  private chapterSummary(count: number, latest?: number): string {
+    const text = s('migration_chapter_count').replace('%s', `${count}`)
+    return latest === undefined ? text : text + ' · ' + s('migration_latest_chapter').replace('%s', `${latest}`)
+  }
+
+  private targetChapterSummary(row: MigrationRow): string {
+    const prepared = this.prepared.get(row.comic.id)
+    return prepared === undefined ? '' : this.chapterSummary(prepared.chapters.length, latestMigrationChapter(prepared.chapters))
+  }
+
+  @Builder
+  private MatchRow(row: MigrationRow) {
+    GroupedListSection() {
+      this.MatchComparison(row)
       if (row.state === 'failed') {
         ConciseListRow({ title: row.error ?? s('migration_failed'), wrapTitle: true, showChevron: false,
           isEnabled: !this.committing,
@@ -371,15 +468,96 @@ export struct MangaMigrationPage {
   }
 
   @Builder
+  private SelectedSourceMenu(source: SourceRuntimeRegistryInstalledSourceSummary, select: (action: () => void) => void) {
+    Menu() {
+      MenuItem({ content: s('library_category_action_move_up') })
+        .enabled(!this.starting && this.selectedSources.indexOf(source.sourceId) > 0)
+        .onClick(() => { select(() => { this.moveSource(source.sourceId, -1) }) })
+      MenuItem({ content: s('library_category_action_move_down') })
+        .enabled(!this.starting && this.selectedSources.indexOf(source.sourceId) < this.selectedSources.length - 1)
+        .onClick(() => { select(() => { this.moveSource(source.sourceId, 1) }) })
+      MenuItem({ content: s('migration_remove_source') }).enabled(!this.starting)
+        .onClick(() => { select(() => { this.toggleSource(source.sourceId) }) })
+    }
+  }
+
+  @Builder
   private SourceSelectionRow(source: SourceRuntimeRegistryInstalledSourceSummary, selected: boolean) {
     ConciseListRow({ title: this.sourceName(source.sourceId), showChevron: false, wrapTitle: true,
+      subtitle: sourceLanguageName(source.language), hasSourceIdentityPrefix: true,
+      sourceIdentityIconUri: source.icon ?? '', sourceIdentitySourceId: source.sourceId, sourceIdentityVersion: source.version,
       isEnabled: !this.starting,
-      trailingIcon: selected ? $r('sys.symbol.minus') : $r('sys.symbol.plus'),
+      trailingIcon: selected ? undefined : $r('sys.symbol.plus'),
+      trailingText: selected ? s('migration_source_order').replace('%s', `${this.selectedSources.indexOf(source.sourceId) + 1}`) : '',
+      trailingDropdown: selected, dropdownMenuEnabled: selected,
+      dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SelectedSourceMenu(source, select) },
       trailingIconAction: (): void => { this.toggleSource(source.sourceId) },
-      action: (): void => { this.toggleSource(source.sourceId) } })
+      action: (): void => { if (!selected) this.toggleSource(source.sourceId) } })
+  }
+
+  @Builder
+  private TransferOptions() {
+    GroupedListSection({ title: s('migration_include') }) {
+      ConciseListRow({ title: s('migration_read_progress'), hasSwitch: true, checked: this.readProgress,
+        isEnabled: !this.committing, switchAction: (value: boolean): void => { this.readProgress = value } })
+      ListDivider()
+      ConciseListRow({ title: s('migration_categories'), hasSwitch: true, checked: this.categories,
+        isEnabled: !this.committing, switchAction: (value: boolean): void => { this.categories = value } })
+    }
+  }
+
+  @Builder
+  private SingleActionMenu(select: (action: () => void) => void) {
+    Menu() {
+      MenuItem({ content: s('migration_copy') }).onClick(() => { select(() => { this.singleCopy = true }) })
+      MenuItem({ content: s('migration_move') }).onClick(() => { select(() => { this.singleCopy = false }) })
+    }
+  }
+
+  @Builder
+  private SingleConfirmation() {
+    KomaModalScaffold({ title: s('migration_title'), contentHorizontalPadding: ThemeConstants.SPACE_MD,
+      confirmLabel: s(this.singleCopy ? 'migration_copy' : 'migration_move'),
+      confirmEnabled: !this.committing && this.readyCount() > 0,
+      closeEnabled: !this.committing,
+      onClose: (): void => { this.singleConfirmationShown = false },
+      onConfirm: (): void => { void this.commit(this.singleCopy) } }) {
+      if (this.rows.length === 1) {
+        ListItem() {
+          GroupedListSection() {
+            this.MatchComparison(this.rows[0])
+            if (this.rows[0].state === 'searching') {
+              ConciseListRow({ title: s('migration_searching'), showChevron: false })
+            } else if (this.rows[0].state === 'failed') {
+              ConciseListRow({ title: this.rows[0].error ?? s('migration_failed'), wrapTitle: true, showChevron: false,
+                actionButtonText: s('common_retry'), actionButtonAction: (): void => {
+                  if (this.rows[0].target !== undefined) void this.selectTarget(this.rows[0].comic, this.rows[0].target!)
+                } })
+              if ((this.registry.lookup(this.rows[0].errorSourceId ?? '').entry?.webSessionOrigins?.length ?? 0) > 0) {
+                ConciseListRow({ title: s('source_web_open'), isEnabled: !this.committing, action: (): void => {
+                  this.singleConfirmationShown = false
+                  this.verify(this.rows[0])
+                } })
+              }
+            }
+          }
+        }
+        ListItem() { this.TransferOptions() }
+        ListItem() {
+          GroupedListSection() {
+            ConciseListRow({ title: s('migration_action'), trailingText: s(this.singleCopy ? 'migration_copy' : 'migration_move'),
+              subtitle: s(this.singleCopy ? 'migration_copy_confirm' : 'migration_move_confirm').replace('%s', '1'),
+              subtitleMaxLines: 4,
+              trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.committing,
+              dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SingleActionMenu(select) } })
+          }
+        }
+      }
+    }
   }
 
   build() {
+    Stack() {
     SecondaryListScaffold({ scroller: this.scroller }) {
       if (this.stage === 'sources') {
         if (this.selectedSources.length > 0) {
@@ -392,6 +570,17 @@ export struct MangaMigrationPage {
             }
           }
         }
+        if (this.rows.length > 1) {
+          ListItem() {
+            GroupedListSection({ title: s('migration_matching_options') }) {
+              ConciseListRow({ title: s('migration_deep_search'), hasSwitch: true, checked: this.deepSearch,
+                isEnabled: !this.starting, switchAction: (value: boolean): void => { this.deepSearch = value; this.saveMatchOptions() } })
+              ListDivider()
+              ConciseListRow({ title: s('migration_prioritize_chapters'), hasSwitch: true, checked: this.prioritizeChapters,
+                isEnabled: !this.starting, switchAction: (value: boolean): void => { this.prioritizeChapters = value; this.saveMatchOptions() } })
+            }
+          }
+        }
         ListItem() {
           GroupedListSection({ title: s('migration_available_sources') }) {
             ForEach(this.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
@@ -401,20 +590,32 @@ export struct MangaMigrationPage {
             if (this.sources.length === 0) ConciseListRow({ title: s('migration_no_sources'), showChevron: false })
           }
         }
+
       } else {
+        ListItem() {
+          ConciseListRow({ title: s('migration_matching_progress')
+            .replace('%s', `${this.rows.filter((row: MigrationRow): boolean => row.state !== 'searching' && row.state !== 'idle').length}`)
+            .replace('%s', `${this.rows.length}`),
+            subtitle: s('migration_ready_progress').replace('%s', `${this.readyCount()}`)
+              .replace('%s', `${this.chrome.failedCount}`), showChevron: false })
+        }
         ForEach(this.rows, (row: MigrationRow) => {
           ListItem() { this.MatchRow(row) }
         }, (row: MigrationRow) => row.comic.id)
         ListItem() {
-          GroupedListSection({ title: s('migration_include') }) {
-            ConciseListRow({ title: s('migration_read_progress'), hasSwitch: true, checked: this.readProgress,
-              isEnabled: !this.committing, switchAction: (value: boolean): void => { this.readProgress = value } })
-            ListDivider()
-            ConciseListRow({ title: s('migration_categories'), hasSwitch: true, checked: this.categories,
-              isEnabled: !this.committing, switchAction: (value: boolean): void => { this.categories = value } })
-          }
+          this.TransferOptions()
         }
       }
     }
+    Column() {}.width(0).height(0)
+    .bindSheet($$this.singleConfirmationShown, this.SingleConfirmation, komaSheetOptions({
+      detents: [SheetSize.LARGE], showClose: false, enableOutsideInteractive: false, enableFloatingDragBar: true,
+      onWillDismiss: (action: DismissSheetAction) => {
+        if (this.committing) return
+        this.singleConfirmationShown = false
+        action.dismiss()
+      },
+    }))
+    }.width('100%').height('100%')
   }
 }

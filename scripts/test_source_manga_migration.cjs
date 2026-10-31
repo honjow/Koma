@@ -24,9 +24,8 @@ const ports = {
   '../sourceRuntime/SourceWebSessionStore': { sourceHttpIdentityJson: () => '{}' },
   '../sourceRuntime/SourceRuntimeRunner': { diagnoseSourceOperation: (_request, execute) => execute() },
   '../sourceRuntime/SourceHostFeatures': { sourceRequestWithHostFeatures: request => request },
-  '../sourceRuntime/SourceSettingsStore': { appSourceSettingsStore: { revisionForSource: () => '0' } },
+  '../sourceRuntime/SourceSettingsStore': { appSourceSettingsStore: { revisionForSource: () => '0', loadForSource: () => ({}) } },
   './SourceChapterListResolver': {}, './SourceChapterIdentityGuard': { protectedSourceChapterIds: () => undefined },
-  './SourceMangaDetailSnapshotCache': {},
   // Existing catalog merging is unchanged by this feature; these tests exercise new-target commits.
   './LibraryUpdateService': { mergeSourceChapters: () => { throw Error('unexpected existing catalog merge') } },
 }
@@ -51,6 +50,28 @@ const persistenceModule = load('model/LibraryPersistence')
 const { commitMangaMigration } = load('model/SourceMangaMigrationService')
 const tracking = load('model/TrackerModels')
 const kind = load('model/ComicModels').ComicSourceKind.PRIVATE_LIBRARY
+
+test('target preparation reuses a complete preview but rejects a changed source, route or incomplete catalog', async () => {
+  const { prepareMangaMigration } = load('model/SourceMangaMigrationService')
+  const { sourceMangaDetailSnapshotCache: cache } = load('model/SourceMangaDetailSnapshotCache')
+  const entry = { sourceId: 'preview', manifestVersion: '1', wasmByteCount: 1, wasmBytes: new Uint8Array([0]) }
+  let currentEntry = entry
+  const registry = { lookup: () => ({ entry: currentEntry }) }
+  const manga = { id: 'work', sourceId: 'preview', title: 'Series', url: 'https://owned.invalid/work' }
+  const snapshot = { detail: { ...manga, chapterCount: 1 }, chaptersResolved: true,
+    chapters: [{ id: 'chapter-1', title: 'Chapter 1', chapterNumber: 1 }], excludedChapterIds: ['ad'] }
+  cache.write(entry, manga.sourceId, manga.id, snapshot, '0')
+  const prepared = await prepareMangaMigration(registry, manga, () => true)
+  assert.equal(prepared.comic.chapters.length, 1)
+  assert.equal(prepared.comic.sourceRuntimeId, 'preview')
+  assert.deepEqual(clone(prepared.comic.sourceMetadata.excludedChapterIds), ['ad'])
+  await assert.rejects(prepareMangaMigration(registry, manga, () => false), /migration_source_changed/)
+  await assert.rejects(prepareMangaMigration(registry, { ...manga, url: 'https://owned.invalid/other' }, () => true), /unexpected network/)
+  currentEntry = { ...entry }
+  await assert.rejects(prepareMangaMigration(registry, manga, () => true), /unexpected network/)
+  cache.write(currentEntry, manga.sourceId, manga.id, { ...snapshot, chaptersResolved: false }, '0')
+  await assert.rejects(prepareMangaMigration(registry, manga, () => true), /unexpected network/)
+})
 function book(id, numbers = [1, 2, 3]) {
   return { id, title: 'Same series', sourceKind: kind, sourceRuntimeId: id + '-source', remoteResourceId: id + '-work',
     sourcePath: 'https://owned.invalid/' + id, sortTitle: 'same series', preferredDirection: 'right_to_left',
@@ -183,10 +204,14 @@ test('migration source choice survives a new store, keeps order and explicit emp
   preferenceData.clear()
   const { MangaMigrationPreferencesStore } = load('model/MangaMigrationPreferencesStore')
   const first = new MangaMigrationPreferencesStore({ filesDir: 'owned' })
+  assert.deepEqual(clone(await first.loadOptions()), { deepSearch: false, prioritizeChapters: false })
   await first.save(['source-b', 'source-a', 'source-b'])
   assert.deepEqual(clone(await new MangaMigrationPreferencesStore({ filesDir: 'owned' }).load()), ['source-b', 'source-a'])
   await first.save([])
   assert.deepEqual(clone(await new MangaMigrationPreferencesStore({ filesDir: 'owned' }).load()), [])
+  await first.saveOptions({ deepSearch: true, prioritizeChapters: true })
+  assert.deepEqual(clone(await new MangaMigrationPreferencesStore({ filesDir: 'owned' }).loadOptions()),
+    { deepSearch: true, prioritizeChapters: true })
 })
 
 test('migration search uses only selected sources in saved order and publishes each result independently', async () => {

@@ -5,7 +5,7 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration",
-  "runId": "ui-power-restored-076",
+  "runId": "full-power-restored-126",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
@@ -13,7 +13,7 @@
   "context": {
     "project": "Koma",
     "codeIdentity": "original197-38d2456b",
-    "page": "Restore original timeout and sleep after migration acceptance",
+    "page": "Final original timeout and sleep after full migration data recovery",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",

@@ -5,6 +5,7 @@ import { MangaDetailRouteChromeState } from '../state/MangaDetailRouteChromeStat
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
+import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -65,6 +66,7 @@ export interface MangaMigrationRouteParam {
   fromDetail: boolean
   committing?: boolean
   selectedSources?: string[]
+  matchOptions?: MigrationMatchOptions
   chrome?: MangaMigrationRouteChromeState
 }
 
