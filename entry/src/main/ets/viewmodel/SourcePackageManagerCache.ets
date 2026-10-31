@@ -55,6 +55,8 @@ export class SourcePackageManagerCache {
   private pendingCheckKey: string = ''
   private checkedSavedUrl: string | undefined = undefined
   private removedSavedIndexes: Set<string> = new Set()
+  private checkSummaryKind: 'complete' | 'incomplete' | '' = ''
+  private checkSummaryText: string = ''
 
   // Counts are projections of persisted repository metadata and the current
   // registry, not a second source of truth that can outlive an installed ID.
@@ -66,11 +68,20 @@ export class SourcePackageManagerCache {
   }
 
   private reconcileUpdates(statuses: SourcePackageUpdateStatus[]): SourcePackageUpdateStatus[] {
-    return statuses.filter((status: SourcePackageUpdateStatus): boolean => {
+    const result: SourcePackageUpdateStatus[] = []
+    statuses.forEach((status: SourcePackageUpdateStatus): void => {
       const source = this.installedPackage(status.sourceId)
-      return source !== undefined && (status.status !== 'update' || (status.remoteEntry !== undefined &&
-        this.updateAvailableFor(source, status.remoteEntry)))
+      if (source === undefined) return
+      if (status.status === 'update' && status.remoteEntry !== undefined &&
+        !this.updateAvailableFor(source, status.remoteEntry)) {
+        result.push({ sourceId: status.sourceId, status: 'latest', localVersion: source.version,
+          remoteEntry: status.remoteEntry, remoteIndexUrl: status.remoteIndexUrl,
+          remoteVersion: status.remoteVersion, reasonCode: status.reasonCode })
+      } else if (status.status !== 'update' || status.remoteEntry !== undefined) {
+        result.push(status)
+      }
     })
+    return result
   }
 
   private retainUpdatesOnFailure(reasonCode: string): SourcePackageUpdateStatus[] {
@@ -135,6 +146,8 @@ export class SourcePackageManagerCache {
       this.sourceIndexFailures = {}
       this.packageUpdateStatuses = []
       this.removedSavedIndexes.clear()
+      this.checkSummaryKind = ''
+      this.checkSummaryText = ''
       this.statusText = ''
     }
     const current = listInstalled()
@@ -210,6 +223,30 @@ export class SourcePackageManagerCache {
     void this.check(context)
   }
 
+  // An installation may finish after the manager route has disappeared. Merge
+  // only its actual registry result so a stale page cannot undo other installs.
+  recordInstalledPackage(source: InstalledSourcePackage): void {
+    const previous = this.installedPackage(source.id)
+    if (previous !== undefined && JSON.stringify(previous) === JSON.stringify(source)) return
+    const packages = this.packages.filter((item: InstalledSourcePackage): boolean => item.id !== source.id)
+    packages.push(source)
+    const locale = this.locale
+    packages.sort((left: InstalledSourcePackage, right: InstalledSourcePackage): number =>
+      compareSourceNames(resolveSourceLocalizedName(left.name, left.localizedNames, locale), left.id,
+        resolveSourceLocalizedName(right.name, right.localizedNames, locale), right.id))
+    this.packages = packages
+    this.packageUpdateStatuses = this.reconcileUpdates(this.packageUpdateStatuses)
+    if (this.checkSummaryKind.length > 0 && this.statusText === this.checkSummaryText) {
+      const latest = this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => status.status === 'latest').length
+      const missing = this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean => status.status === 'missing').length
+      this.checkSummaryText = this.checkSummaryKind === 'incomplete'
+        ? tf('source_pkg_check_incomplete', this.updateCount)
+        : tf('source_pkg_check_complete', this.updateCount, latest, missing)
+      this.statusText = this.checkSummaryText
+    }
+    this.revision += 1
+  }
+
   capture(expectedRevision: number, retireCheck: boolean, packages: InstalledSourcePackage[], url: string, repositories: SourceIndexRepository[], entries: SourceIndexEntry[],
     icons: Record<string, SourceIdentityIconState>, displayedUrl: string, failures: Record<string, string>,
     statuses: SourcePackageUpdateStatus[], status: string, indexStatus: string): void {
@@ -231,6 +268,10 @@ export class SourcePackageManagerCache {
     this.sourceIndexFailures = failures
     this.packageUpdateStatuses = this.reconcileUpdates(statuses).filter((item: SourcePackageUpdateStatus): boolean =>
       item.remoteIndexUrl === undefined || !this.removedSavedIndexes.has(item.remoteIndexUrl.trim()))
+    if (status !== this.checkSummaryText) {
+      this.checkSummaryKind = ''
+      this.checkSummaryText = ''
+    }
     this.statusText = status
     if (previousCount !== this.updateCount) this.revision += 1
   }
@@ -501,6 +542,8 @@ export class SourcePackageManagerCache {
     this.sourceIndexRepositories = draft.sourceIndexRepositories
     if (this.statusText !== draft.statusText || this.indexStatusText !== draft.indexStatusText) changed = true
     this.statusText = draft.statusText
+    this.checkSummaryKind = draft.checkSummaryKind
+    this.checkSummaryText = draft.checkSummaryText
     this.indexStatusText = draft.indexStatusText
     if (changed) this.revision += 1
     const entries = this.indexEntries
@@ -640,6 +683,8 @@ export class SourcePackageManagerCache {
       this.statusText = failedIndexCount > 0
         ? tf('source_pkg_check_incomplete', updateCount)
         : tf('source_pkg_check_complete', updateCount, latestCount, missingCount)
+      this.checkSummaryKind = failedIndexCount > 0 ? 'incomplete' : 'complete'
+      this.checkSummaryText = this.statusText
       console.info('[SourcePackageUpdate] step=check_done update=' + updateCount + ' latest=' + latestCount + ' missing=' + missingCount +
         ' failed_indexes=' + failedIndexCount)
     } catch (_error) {

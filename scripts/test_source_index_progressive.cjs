@@ -18,7 +18,7 @@ function subject(file, owner, methods, globals) {
   vm.runInNewContext(ts.transpileModule(`export class Subject {${body}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, console, ...globals })
-  return Object.assign(new exports.Subject(), {packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){}}})
+  return Object.assign(new exports.Subject(), {packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){},recordInstalledPackage(){}}})
 }
 const entry = id => ({ id, name: id, version: '1', icon: `${id}.png` })
 const globals = {
@@ -631,6 +631,72 @@ test('fresh install results and settings survive the previous frame package cach
     fields: manager.settingsDescriptorSnapshot.A, availability: manager.settingsAvailability.A },
   { version: '2.0', fields: descriptors, availability: 'fields:1' })
   assert.equal(manager.packages.find(item => item.id === 'B'), neighbor)
+})
+
+test('background update completions publish each actual registry change without reverting other updates', async () => {
+  const active = 'https://index.test/index.json'
+  const failedIndex = 'https://other.test/index.json'
+  const old = ['A', 'B', 'C'].map(id => installed(id, '1'))
+  const service = { loadSavedUrl: async () => active, loadSavedRepositories: async () => [{ url: failedIndex }],
+    loadCachedIndex: async url => url === active ? old.map(source => indexed(source.id, '2')) : undefined,
+    loadIndexIcons: async () => {}, saveUrl: async () => {},
+    fetchIndex: async url => url === active ? { ok: true, entries: old.map(source => indexed(source.id, '2')) } :
+      { ok: false, reasonCode: 'network_error' } }
+  const cache = retainedCache(service, old), context = { filesDir: 'data' }
+  await cache.prepare(context, 'zh'); assert.equal(cache.updateCount, 3)
+  const current = new Map(old.map(source => [source.id, source]))
+  let finishA
+  const manager = subject('pages/SourcePackageManagerPage.ets', 'SourcePackageManagerPage', [
+    'updateInstalledPackage', 'refreshInstalledPackage', 'reloadInstalledPackageSettings', 'publishSourceSettings', 'setUpdateStatus',
+    'checkInstalledUpdates', 'retainDisplayCache', 'restoreDisplayCache', 'aboutToDisappear',
+  ], { ...globals, getInstalledSourcePackage: id => current.get(id),
+    resolveSourceLocalizedName: name => name, compareSourceNames: (left, _id, right) => left.localeCompare(right),
+    appSourceSettingsStore: { loadForSource: () => ({}) }, appSourceRuntimeRegistry: {},
+    loadSourceSettingsDescriptorsAsync: async () => ({ ready: true, descriptors: [] }),
+    sourceDisplayName: (_id, name) => name, t: key => key, tf: key => key })
+  Object.assign(manager, { managerCache: cache, packages: old.slice(), packageUpdateStatuses: cache.packageUpdateStatuses.slice(),
+    settingsRouteActive: true, initialSettingsSourceId: '', busy: false, languageState: { effectiveLocale: 'zh' },
+    context: () => context, currentIndexUrlOrPrompt: async () => active,
+    sourceIndexUrl: active, sourceIndexUrlEdited: false, sourceIndexRepositories: cache.sourceIndexRepositories,
+    indexEntries: cache.indexEntries, indexIconStates: cache.indexIconStates, displayedIndexUrl: cache.displayedIndexUrl,
+    sourceIndexFailures: {}, displayCacheRevision: cache.revision, statusText: cache.statusText,
+    indexStatusText: cache.indexStatusText, indexLoadRevision: 0, indexDisplayRevision: 0, savedIndexLoadRevision: 0,
+    sourceSheetSourceId: '', savedSettingCounts: {}, settingsValidationStatuses: [], settingsSourceReloads: {},
+    settingsReloadRevision: 0, settingsDescriptorSnapshot: {}, settingsAvailability: {},
+    settingsAvailabilityText: () => '', packageInstallPending: () => false, showToast() {},
+    sourceIndexService: { installPackage: async (_url, item) => {
+      if (item.id === 'C') return { ok: false, reasonCode: 'network_error' }
+      if (item.id === 'A') await new Promise(resolve => { finishA = resolve })
+      current.set(item.id, installed(item.id, '2')); return { ok: true, id: item.id }
+    } }, sourceRedactedReasonText: reason => reason })
+  await manager.checkInstalledUpdates()
+  assert.equal(cache.statusText, JSON.stringify(['source_pkg_check_incomplete', 3]))
+  manager.aboutToDisappear()
+  const before = cache.revision
+  const first = manager.updateInstalledPackage(old[0], { entry: indexed('A', '2'), indexUrl: active })
+  const second = manager.updateInstalledPackage(old[1], { entry: indexed('B', '2'), indexUrl: active })
+  await second
+  assert.equal(cache.updateCount, 2); assert.ok(cache.revision > before)
+  assert.equal(cache.statusText, JSON.stringify(['source_pkg_check_incomplete', 2]))
+  finishA(); await first
+  assert.equal(cache.updateCount, 1)
+  assert.equal(cache.statusText, JSON.stringify(['source_pkg_check_incomplete', 1]))
+  await manager.updateInstalledPackage(old[2], { entry: indexed('C', '2'), indexUrl: active })
+  assert.equal(cache.updateCount, 1)
+  assert.equal(cache.packages.find(source => source.id === 'A').version, '2')
+  assert.equal(cache.packages.find(source => source.id === 'B').version, '2')
+  manager.sourceIndexService.installPackage = async (_url, item) => {
+    current.set(item.id, installed(item.id, '2')); return { ok: true, id: item.id }
+  }
+  await manager.updateInstalledPackage(old[2], { entry: indexed('C', '2'), indexUrl: active })
+  assert.equal(cache.updateCount, 0)
+  assert.equal(cache.statusText, JSON.stringify(['source_pkg_check_incomplete', 0]))
+  assert.equal(cache.packages.find(source => source.id === 'C').version, '2')
+  cache.capture(cache.revision, true, cache.packages, active, cache.sourceIndexRepositories,
+    cache.indexEntries, cache.indexIconStates, cache.displayedIndexUrl, cache.sourceIndexFailures,
+    cache.packageUpdateStatuses, 'install-in-progress', '')
+  cache.recordInstalledPackage(installed('A', '3'))
+  assert.equal(cache.statusText, 'install-in-progress')
 })
 
 function updateCheckManager(packages, replies, statuses = []) {

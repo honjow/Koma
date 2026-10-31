@@ -409,6 +409,7 @@ export struct SourcePackageManagerPage {
     // The Computed index still describes the previous frame in this task.
     // Business completion needs this operation's DTO, not that render cache.
     if (this.settingsRouteActive && this.initialSettingsSourceId.length === 0) this.retainDisplayCache(true)
+    else this.managerCache.recordInstalledPackage(source)
     return source
   }
 
