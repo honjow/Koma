@@ -28,12 +28,15 @@ import { KomgaSeriesRouteParam } from './KomgaSeriesPage'
 import { KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowseRouteParam } from './OpdsBrowsePage'
 import { LibraryStore } from '../model/LibraryStore'
+import { LibrarySearchSource, copyLibrarySearchSource, parseLibrarySearchQuery } from '../model/LibrarySearchQuery'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { createSeededLibraryStore } from '../model/MockLibraryData'
 import {
   addSearchHistoryEntry,
   removeSearchHistoryEntry,
   SearchHistoryEntry,
+  SearchHistoryScope,
+  searchHistoryEntryKey,
   SearchHistoryStore,
 } from '../model/SearchHistoryStore'
 import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateMapper'
@@ -62,6 +65,8 @@ export struct SearchPage {
   @Param migrationSources: string[] | undefined = undefined
   @Event onMangaSelected: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
+  @Param initialLibrarySource: LibrarySearchSource | undefined = undefined
+  @Local private librarySource: LibrarySearchSource | undefined = undefined
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
   @Local private sections: CrossSearchSection[] = []
@@ -95,6 +100,7 @@ export struct SearchPage {
   private sourceFilterLoaded: boolean = false
   private resultsQuery: string = ''
   private resultsSourceFilter: CrossSearchSourceFilter = 'all'
+  private resultsLibrarySourceKey: string = ''
   private resultRows: SearchResultRowSource = new SearchResultRowSource()
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
@@ -117,6 +123,7 @@ export struct SearchPage {
     this.routeActive = true
     this.searchSerial += 1
     this.sourceFilterLoaded = false
+    this.librarySource = copyLibrarySearchSource(this.initialLibrarySource)
     const context = getContext(this) as common.UIAbilityContext
     this.service = new CrossSearchService(context, this.libraryStore)
     this.historyStore = new SearchHistoryStore(context)
@@ -267,7 +274,7 @@ export struct SearchPage {
     const serial = this.searchSerial
     const query = value.trim()
     this.prepareSearchResults(query)
-    if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
+    if (!this.hasMeaningfulSearchQuery(query)) {
       return
     }
     const timer = setTimeout(() => {
@@ -284,7 +291,7 @@ export struct SearchPage {
 
   private prepareSearchResults(query: string): void {
     this.feedbackText = ''
-    if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
+    if (!this.hasMeaningfulSearchQuery(query)) {
       this.resultsQuery = ''
       this.sections = []
       this.loading = false
@@ -295,15 +302,19 @@ export struct SearchPage {
       this.loading = false
       return
     }
-    const sameSearch = this.resultsQuery === query && this.resultsSourceFilter === this.sourceFilter
-    const pending = service.pendingSections(this.sourceFilter, this.migrationSources)
+    const sourceFilter = this.effectiveSourceFilter(query)
+    const sourceKey = this.librarySource?.key ?? ''
+    const sameSearch = this.resultsQuery === query && this.resultsSourceFilter === sourceFilter &&
+      this.resultsLibrarySourceKey === sourceKey
+    const pending = service.pendingSections(sourceFilter, this.migrationSources)
     // A refresh keeps results owned by this same query/filter until replacement
     // data arrives. A changed query/filter starts with its existing pending UI.
     this.sections = sameSearch ? pending.map((section: CrossSearchSection): CrossSearchSection => {
       return this.sections.find((current: CrossSearchSection) => current.id === section.id) ?? section
     }) : pending
     this.resultsQuery = query
-    this.resultsSourceFilter = this.sourceFilter
+    this.resultsSourceFilter = sourceFilter
+    this.resultsLibrarySourceKey = sourceKey
     this.loading = true
   }
 
@@ -318,7 +329,7 @@ export struct SearchPage {
     this.searchSerial += 1
     const serial = this.searchSerial
     this.prepareSearchResults(query)
-    if (query.length === 0 || !isCrossSearchQueryMeaningful(query)) {
+    if (!this.hasMeaningfulSearchQuery(query)) {
       console.info(query.length === 0 ? '[Search] step=query_cleared' : '[Search] step=query_ignored reason=not_meaningful')
       return
     }
@@ -326,7 +337,7 @@ export struct SearchPage {
     if (service === undefined) {
       return
     }
-    const sourceFilter = this.sourceFilter
+    const sourceFilter = this.effectiveSourceFilter(query)
     if (this.migrationSources === undefined) this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
@@ -344,7 +355,7 @@ export struct SearchPage {
         this.handleWebChallenges()
         console.info(`[Search] step=ui_section_resolved serial=${serial} source=${section.id} state=${section.state}`)
       }, (): boolean => this.ownsRoute(routeEpoch) && serial === this.searchSerial &&
-        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible, this.migrationSources)
+        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible, this.migrationSources, this.librarySource)
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
@@ -406,13 +417,15 @@ export struct SearchPage {
     const store = this.historyStore
     const mutationEpoch = this.historyMutationEpoch + 1
     this.historyMutationEpoch = mutationEpoch
-    this.history = addSearchHistoryEntry(this.history, query)
+    const scope: SearchHistoryScope = { sourceFilter: this.effectiveSourceFilter(query),
+      librarySource: copyLibrarySearchSource(this.librarySource) }
+    this.history = addSearchHistoryEntry(this.history, query, Date.now(), scope)
     this.historyLoadState = SearchHistoryLoadState.READY
     if (store === undefined) {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_record', () => {
-      return store.record(query)
+      return store.record(query, scope)
     })
   }
 
@@ -518,26 +531,32 @@ export struct SearchPage {
     })
   }
 
-  private removeHistoryEntry(query: string): void {
+  private removeHistoryEntry(entry: SearchHistoryEntry): void {
     if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
     const store = this.historyStore
     const mutationEpoch = this.historyMutationEpoch + 1
     this.historyMutationEpoch = mutationEpoch
-    this.history = removeSearchHistoryEntry(this.history, query)
+    this.history = removeSearchHistoryEntry(this.history, entry.query, entry)
     this.historyLoadState = SearchHistoryLoadState.READY
     if (store === undefined) {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_remove', () => {
-      return store.remove(query)
+      return store.remove(entry.query, entry)
     })
   }
 
-  private runHistoryQuery(query: string): void {
+  private runHistoryQuery(entry: SearchHistoryEntry): void {
     DiagnosticLogger.info('search', 'history_submit', 'recent_query')
-    this.chrome.submitQuery(query)
+    // Replaying a query restores its own range, without overwriting the user's
+    // global preference. Invalidate a still-pending preference read as well.
+    this.sourceFilterMutationEpoch += 1
+    this.sourceFilterLoaded = true
+    if (entry.sourceFilter !== undefined && entry.librarySource === undefined) this.sourceFilter = entry.sourceFilter
+    this.librarySource = copyLibrarySearchSource(entry.librarySource)
+    this.chrome.submitQuery(entry.query)
   }
 
   private runImmediateQuery(query: string): void {
@@ -568,8 +587,9 @@ export struct SearchPage {
       const kinds: CrossSearchSourceFilter[] = ['all', 'local', 'private', 'source']
       const labels = ['search_filter_all', 'search_filter_local', 'search_filter_private', 'search_filter_source']
       const items: KomaMenuAction[] = kinds.map((kind: CrossSearchSourceFilter, index: number): KomaMenuAction => ({
-        label: s(labels[index]), selected: this.sourceFilter === kind,
-        action: (): void => { this.setSourceFilter(kind) },
+        label: s(labels[index]), selected: this.effectiveSourceFilter() === kind,
+        isEnabled: !this.libraryQueryActive() || kind === 'local',
+        action: (): void => { if (!this.libraryQueryActive()) this.setSourceFilter(kind) },
       }))
       return [{ id: 'scope', items }]
     }, (): void => { DiagnosticLogger.warn('search_page', 'filter_menu_open_failed', 'native_anchor') })
@@ -634,7 +654,7 @@ export struct SearchPage {
     const changed = this.sourceFilter !== sourceFilter
     this.sourceFilter = sourceFilter
     this.saveSourceFilter(sourceFilter, mutationEpoch)
-    if (changed && this.queryText.trim().length > 0) {
+    if (changed && this.hasMeaningfulSearchQuery()) {
       if (this.searchTimer > 0) {
         clearTimeout(this.searchTimer)
         this.searchTimer = 0
@@ -666,7 +686,7 @@ export struct SearchPage {
         }
         const changed = this.sourceFilter !== committed
         this.sourceFilter = committed
-        if (changed && this.queryText.trim().length > 0) {
+        if (changed && this.hasMeaningfulSearchQuery()) {
           this.runImmediateQuery(this.queryText)
         }
       } catch (readError) {
@@ -771,27 +791,43 @@ export struct SearchPage {
       return sourceDisplayName(item.sourceId, item.sourceLabel)
     }
     const subtitle = item.subtitle.length === 0 ? item.sourceLabel : item.subtitle
-    const sourceId = item.sourceKind === 'local' && item.localComicId !== undefined
-      ? this.libraryStore.getComic(item.localComicId)?.sourceRuntimeId : undefined
-    const sourceName = sourceId === undefined ? '' : sourceDisplayName(sourceId)
+    const comic = item.sourceKind === 'local' && item.localComicId !== undefined
+      ? this.libraryStore.getComic(item.localComicId) : undefined
+    const sourceId = comic?.sourceRuntimeId
+    const sourceName = sourceId === undefined ? '' : sourceDisplayName(sourceId, comic?.sourceMetadata?.sourceName)
     return sourceName.length === 0 ? subtitle : `${sourceName} · ${subtitle}`
   }
 
   private sourceFilterLabel(): string {
-    if (this.sourceFilter === 'local') {
-      return s('search_filter_local')
+    const sourceFilter = this.effectiveSourceFilter()
+    if (sourceFilter === 'local') {
+      return s('search_filter_local') + (this.librarySource === undefined ? '' : ' · ' + this.librarySource.name)
     }
-    if (this.sourceFilter === 'private') {
+    if (sourceFilter === 'private') {
       return s('search_filter_private')
     }
-    if (this.sourceFilter === 'source') {
+    if (sourceFilter === 'source') {
       return s('search_filter_source')
     }
     return s('search_filter_all')
   }
 
-  private hasMeaningfulSearchQuery(): boolean {
-    return isCrossSearchQueryMeaningful(this.queryText)
+  private libraryQueryActive(value: string = this.queryText): boolean {
+    return this.migrationSources === undefined &&
+      (this.librarySource !== undefined || parseLibrarySearchQuery(value).libraryOnly)
+  }
+
+  private effectiveSourceFilter(value: string = this.queryText): CrossSearchSourceFilter {
+    return this.libraryQueryActive(value) ? 'local' : this.sourceFilter
+  }
+
+  private hasMeaningfulSearchQuery(value: string = this.queryText): boolean {
+    return this.librarySource !== undefined || isCrossSearchQueryMeaningful(value)
+  }
+
+  private historyLabel(entry: SearchHistoryEntry): string {
+    return entry.librarySource === undefined ? entry.query :
+      entry.librarySource.name + (entry.query.length > 0 ? ' · ' + entry.query : '')
   }
 
   @Builder
@@ -877,7 +913,7 @@ export struct SearchPage {
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(this.history, (entry: SearchHistoryEntry) => {
               Row({ space: ThemeConstants.SPACE_XS }) {
-                Text(entry.query)
+                Text(this.historyLabel(entry))
                   .fontSize(ThemeConstants.FONT_SIZE_BODY)
                   .fontColor(ThemeConstants.TEXT_PRIMARY)
                   .maxLines(1)
@@ -893,15 +929,15 @@ export struct SearchPage {
               })
               .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
               .onClick(() => {
-                this.runHistoryQuery(entry.query)
+                this.runHistoryQuery(entry)
               })
               .gesture(
                 LongPressGesture({ repeat: false, duration: 500 })
                   .onAction(() => {
-                    this.removeHistoryEntry(entry.query)
+                    this.removeHistoryEntry(entry)
                   })
               )
-            }, (entry: SearchHistoryEntry) => `${entry.query}:${entry.updatedAt}`)
+            }, (entry: SearchHistoryEntry) => `${searchHistoryEntryKey(entry.query, entry)}:${entry.updatedAt}`)
           }
         }
         .width('100%')
@@ -928,7 +964,12 @@ export struct SearchPage {
     .borderRadius(ThemeConstants.RADIUS_ROUND)
     .backgroundColor(ThemeConstants.CARD)
     .onClick(() => {
-      this.setSourceFilter('all')
+      if (this.librarySource !== undefined) {
+        this.librarySource = undefined
+        this.runImmediateQuery(this.queryText)
+      } else {
+        this.setSourceFilter('all')
+      }
     })
   }
 
@@ -1040,12 +1081,14 @@ export struct SearchPage {
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
-        Text(this.matchQualityLabel(item.matchQuality))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
+        if (item.matchQuality !== undefined) {
+          Text(this.matchQualityLabel(item.matchQuality))
+            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%')
+        }
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
@@ -1204,7 +1247,7 @@ export struct SearchPage {
         floatingTabTailPadding: this.migrationSources === undefined ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
         reserveTitleBar: true,
       }) {
-          if (this.migrationSources === undefined && this.sourceFilter !== 'all') {
+          if (this.migrationSources === undefined && (this.librarySource !== undefined || this.sourceFilter !== 'all')) {
             ListItem() {
               this.ActiveFilterBadge()
             }
@@ -1220,12 +1263,12 @@ export struct SearchPage {
                 .backgroundColor(ThemeConstants.CARD)
             }
           }
-          if (!this.loading && this.queryText.trim().length > 0 && this.resultRowCount === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
+          if (!this.loading && this.hasMeaningfulSearchQuery() && this.resultRowCount === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
             ListItem() {
               this.EmptyResults()
             }
           }
-          if (!this.loading && this.queryText.trim().length === 0 && this.feedbackText.length === 0) {
+          if (!this.loading && !this.hasMeaningfulSearchQuery() && this.feedbackText.length === 0) {
             ListItem() {
               this.HistoryPanel()
             }

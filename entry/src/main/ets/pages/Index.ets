@@ -2422,6 +2422,7 @@ struct Index {
     HdsNavDestination() {
       SearchPage({
         chrome: RouterHelper.ensureSearchRouteChrome(param),
+        initialLibrarySource: param.librarySource,
         onOpenLibraryResult: (comicId: string) => { this.openLibraryMangaDetail(comicId) },
         libraryStore: this.libraryStore,
         libraryPersistenceService: this.ensureLibraryPersistenceService(),

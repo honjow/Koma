@@ -1,6 +1,8 @@
 import { taskpool } from '@kit.ArkTS'
 import { normalizeSearchText } from './CrossSearchText'
 import { LocalLibrarySearchDocument, LocalLibrarySearchMatch, searchLocalLibraryTask } from './LocalLibrarySearchTask'
+import { LibrarySearchSource, parseLibrarySearchQuery, libraryQueryNeedsReadState } from './LibrarySearchQuery'
+import { comicSmartSourceKey } from './LibrarySmartCategory'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
 import { newSourceRuntimeOperationGuardId } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -41,7 +43,7 @@ import {
 } from '../remote/OpdsModels'
 import { DavComicCandidateKind, DavResource } from '../remote/WebDavModels'
 import { WebDavClient, readWebDavUrlPath } from '../remote/WebDavClient'
-import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import {
   CrossSearchSectionState,
@@ -145,16 +147,27 @@ export class CrossSearchService {
     onSectionResolved: ((section: CrossSearchSection) => void) | undefined = undefined,
     webChallengeCurrent: (() => boolean) | undefined = undefined,
     sourceIds: string[] | undefined = undefined,
+    librarySource: LibrarySearchSource | undefined = undefined,
   ): Promise<CrossSearchSection[]> {
     this.cancelPendingSearch()
     const normalizedQuery = query.trim()
-    if (normalizedQuery.length === 0) {
+    if (normalizedQuery.length === 0 && librarySource === undefined) {
       return []
     }
-    if (!isCrossSearchQueryMeaningful(normalizedQuery)) {
+    if (librarySource === undefined && !isCrossSearchQueryMeaningful(normalizedQuery)) {
       return []
     }
     const trace = DiagnosticLogger.begin('search', 'query', 'length=' + normalizedQuery.length + ' filter=' + sourceFilter)
+    // Library predicates never become literal queries sent to online providers.
+    // Migration's provider-only search keeps its existing query contract.
+    if (sourceIds === undefined && (librarySource !== undefined || parseLibrarySearchQuery(normalizedQuery).libraryOnly)) {
+      try {
+        const outcome = await this.searchLocal(normalizedQuery, librarySource)
+        onSectionResolved?.(outcome.section)
+        trace.finish('completed', 'scope=library')
+        return [outcome.section]
+      } catch (error) { trace.fail(error as Error); throw error as Error }
+    }
     const tasks: Promise<SourceSearchOutcome>[] = []
     if (this.sourceMatchesFilter('local', sourceFilter)) {
       tasks.push(this.withTimeout(this.searchLocal(normalizedQuery), this.emptySection('local', AppStrings.get('tab_library'), 'local')))
@@ -358,21 +371,28 @@ export class CrossSearchService {
     return true
   }
 
-  private async searchLocal(query: string): Promise<SourceSearchOutcome> {
+  private async searchLocal(query: string, source: LibrarySearchSource | undefined = undefined): Promise<SourceSearchOutcome> {
     const libraryStore = this.libraryStore
     const startedAt = Date.now()
     const comics = libraryStore.listComics(false)
+    const plan = parseLibrarySearchQuery(query)
+    const needsReadState = libraryQueryNeedsReadState(plan.root)
     const documents: LocalLibrarySearchDocument[] = comics.map((comic: Comic): LocalLibrarySearchDocument => ({
       id: comic.id, title: comic.title, sortTitle: comic.sortTitle, createdAt: comic.createdAt,
       subtitle: comic.subtitle, author: comic.author, chapterCount: comic.chapterCount,
       pageCount: comic.pageCount, chapterTitles: comic.chapters.map((chapter: Chapter): string => chapter.title),
+      sourceKey: comicSmartSourceKey(comic),
+      sourceNames: [comic.sourceMetadata?.sourceName ?? '', comic.sourceRuntimeId === undefined ? '' :
+        sourceDisplayName(comic.sourceRuntimeId, comic.sourceMetadata?.sourceName ?? '')],
+      artist: comic.sourceMetadata?.artist, tags: comic.sourceMetadata?.tags, notes: comic.personalNotes,
+      unreadCount: needsReadState ? appReaderSessionStore(this.context.filesDir).unreadChapterCount(comic) : undefined,
     }))
     DiagnosticLogger.info('search', 'local_prepared', `durationMs=${Date.now() - startedAt} comics=${documents.length}`)
     const matches = await taskpool.execute(searchLocalLibraryTask, documents, query,
-      AppStrings.get('search_local_subtitle')) as LocalLibrarySearchMatch[]
+      AppStrings.get('search_local_subtitle'), source) as LocalLibrarySearchMatch[]
     const byId = new Map<string, Comic>()
     comics.forEach((comic: Comic): void => { byId.set(comic.id, comic) })
-    const items = this.sortSearchResultItems(query, matches.map((match: LocalLibrarySearchMatch): CrossSearchResultItem => {
+    const items = this.sortSearchResultItems(plan.rankingText, matches.map((match: LocalLibrarySearchMatch): CrossSearchResultItem => {
       const comic = byId.get(match.comicId)!
       return { id: `local:${comic.id}`, title: comic.title, subtitle: match.subtitle,
         sourceKind: 'local', sourceLabel: AppStrings.get('tab_library'),
@@ -890,6 +910,9 @@ export class CrossSearchService {
 
   private sortSearchResultItems(query: string, items: CrossSearchResultItem[]): CrossSearchResultItem[] {
     const normalizedQuery = this.normalizeSearchText(query)
+    // Source/metadata-only queries have no title phrase to rank against. Keep
+    // the worker's stable order and do not invent a title-match label for them.
+    if (normalizedQuery.length === 0) return items
     const compactQuery = this.compactSearchText(query)
     return items.map((item: CrossSearchResultItem): CrossSearchResultItem => {
       return this.searchResultWithMatchQuality(item, normalizedQuery, compactQuery)

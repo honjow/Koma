@@ -1,8 +1,14 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { CrossSearchSourceFilter } from './CrossSearchService'
+import { LibrarySearchSource, copyLibrarySearchSource } from './LibrarySearchQuery'
 
-export interface SearchHistoryEntry {
+export interface SearchHistoryScope {
+  sourceFilter?: CrossSearchSourceFilter
+  librarySource?: LibrarySearchSource
+}
+
+export interface SearchHistoryEntry extends SearchHistoryScope {
   query: string
   updatedAt: number
 }
@@ -16,6 +22,17 @@ export const MAX_SEARCH_HISTORY_COUNT: number = 20
 export interface SearchHistoryRecord {
   query?: string
   updatedAt?: number
+  sourceFilter?: string
+  librarySource?: LibrarySearchSource
+}
+
+export function searchHistoryEntryKey(query: string, scope?: SearchHistoryScope): string {
+  return JSON.stringify([normalizeSearchQuery(query).toLocaleLowerCase(), scope?.sourceFilter ?? 'all', scope?.librarySource?.key ?? ''])
+}
+
+function copyHistoryScope(target: SearchHistoryEntry, scope: SearchHistoryScope): void {
+  if (scope.sourceFilter !== undefined) target.sourceFilter = normalizeSearchSourceFilter(scope.sourceFilter)
+  if (scope.librarySource !== undefined) target.librarySource = copyLibrarySearchSource(scope.librarySource)
 }
 
 function normalizeSearchQuery(value: string): string {
@@ -43,20 +60,28 @@ export function normalizeSearchHistoryEntries(input: SearchHistoryRecord[], now:
   const entries: SearchHistoryEntry[] = []
   input.forEach((record: SearchHistoryRecord) => {
     const query = normalizeSearchQuery(record.query ?? '')
-    if (query.length === 0) {
+    if (query.length === 0 && record.librarySource === undefined) {
       return
     }
     const updatedAt = normalizeSearchHistoryTimestamp(record.updatedAt, now)
     const existing = entries.find((entry: SearchHistoryEntry): boolean => {
-      return entry.query.toLocaleLowerCase() === query.toLocaleLowerCase()
+      return searchHistoryEntryKey(entry.query, entry) === searchHistoryEntryKey(query, {
+        sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
+        librarySource: record.librarySource,
+      })
     })
     if (existing === undefined) {
-      entries.push({ query, updatedAt })
+      const entry: SearchHistoryEntry = { query, updatedAt }
+      copyHistoryScope(entry, { sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
+        librarySource: record.librarySource })
+      entries.push(entry)
       return
     }
     if (updatedAt > existing.updatedAt) {
       existing.query = query
       existing.updatedAt = updatedAt
+      copyHistoryScope(existing, { sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
+        librarySource: record.librarySource })
     }
   })
   return entries.sort((left: SearchHistoryEntry, right: SearchHistoryEntry): number => {
@@ -64,25 +89,28 @@ export function normalizeSearchHistoryEntries(input: SearchHistoryRecord[], now:
   }).slice(0, MAX_SEARCH_HISTORY_COUNT)
 }
 
-export function addSearchHistoryEntry(entries: SearchHistoryEntry[], query: string, updatedAt: number = Date.now()): SearchHistoryEntry[] {
+export function addSearchHistoryEntry(entries: SearchHistoryEntry[], query: string, updatedAt: number = Date.now(), scope?: SearchHistoryScope): SearchHistoryEntry[] {
   const normalizedQuery = normalizeSearchQuery(query)
-  if (normalizedQuery.length === 0) {
+  if (normalizedQuery.length === 0 && scope?.librarySource === undefined) {
     return normalizeSearchHistoryEntries(entries)
   }
   const next = entries.filter((entry: SearchHistoryEntry): boolean => {
-    return entry.query.toLocaleLowerCase() !== normalizedQuery.toLocaleLowerCase()
+    return searchHistoryEntryKey(entry.query, entry) !== searchHistoryEntryKey(normalizedQuery, scope)
   })
-  next.unshift({ query: normalizedQuery, updatedAt: normalizeSearchHistoryTimestamp(updatedAt, Date.now()) })
+  const entry: SearchHistoryEntry = { query: normalizedQuery, updatedAt: normalizeSearchHistoryTimestamp(updatedAt, Date.now()) }
+  if (scope !== undefined) copyHistoryScope(entry, scope)
+  next.unshift(entry)
   return normalizeSearchHistoryEntries(next)
 }
 
-export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: string): SearchHistoryEntry[] {
+export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: string, scope?: SearchHistoryScope): SearchHistoryEntry[] {
   const normalizedQuery = normalizeSearchQuery(query)
-  if (normalizedQuery.length === 0) {
+  if (normalizedQuery.length === 0 && scope?.librarySource === undefined) {
     return normalizeSearchHistoryEntries(entries)
   }
   return normalizeSearchHistoryEntries(entries).filter((entry: SearchHistoryEntry): boolean => {
-    return entry.query.toLocaleLowerCase() !== normalizedQuery.toLocaleLowerCase()
+    return scope === undefined ? entry.query.toLocaleLowerCase() !== normalizedQuery.toLocaleLowerCase() :
+      searchHistoryEntryKey(entry.query, entry) !== searchHistoryEntryKey(normalizedQuery, scope)
   })
 }
 
@@ -118,17 +146,21 @@ export class SearchHistoryStore {
     parsed.forEach((record: SearchHistoryRecord): void => {
       if (record === null || typeof record !== 'object' || Array.isArray(record) ||
         (record.query !== undefined && typeof record.query !== 'string') ||
-        (record.updatedAt !== undefined && typeof record.updatedAt !== 'number')) {
+        (record.updatedAt !== undefined && typeof record.updatedAt !== 'number') ||
+        (record.sourceFilter !== undefined && typeof record.sourceFilter !== 'string') ||
+        (record.librarySource !== undefined && (record.librarySource === null || typeof record.librarySource !== 'object' ||
+          typeof record.librarySource.key !== 'string' || record.librarySource.key.trim().length === 0 ||
+          typeof record.librarySource.name !== 'string' || record.librarySource.name.trim().length === 0))) {
         throw new Error('search_history_invalid')
       }
     })
     return normalizeSearchHistoryEntries(parsed)
   }
 
-  async record(query: string): Promise<SearchHistoryEntry[]> {
+  async record(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
     return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.preferences()
-      const entries = addSearchHistoryEntry(await this.readEntries(store), query)
+      const entries = addSearchHistoryEntry(await this.readEntries(store), query, Date.now(), scope)
       await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
       return entries
     })
@@ -140,10 +172,10 @@ export class SearchHistoryStore {
     })
   }
 
-  async remove(query: string): Promise<SearchHistoryEntry[]> {
+  async remove(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
     return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.preferences()
-      const entries = removeSearchHistoryEntry(await this.readEntries(store), query)
+      const entries = removeSearchHistoryEntry(await this.readEntries(store), query, scope)
       await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
       return entries
     })

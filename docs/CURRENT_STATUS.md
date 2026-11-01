@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "1.0.0正式版已发布，保留未关事项",
+  "state": "搜索扩展已验，交付中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T22:19:24+08:00",
+  "updatedAt": "2026-11-02T00:31:52+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
-  "activity": "1.0.0正式Release及实际附件已核验并交付；其余未关项继续保留。",
-  "nextAction": "书架按源搜索保留讨论；其余未关项按原证据与实际条件接续。",
+  "activity": "237已完成验收并恢复原包、数据及睡眠。",
+  "nextAction": "提交搜索扩展并核对CI。",
   "proof": [
     {
       "label": "正式主仓",
@@ -1832,10 +1832,10 @@
       "priority": "待分配（本次未指定）",
       "owner": "/root/koma_sources_readme（已完成）",
       "dependencies": [],
-      "status": "已完成，9243deb CI通过",
+      "status": "README防御性话术已删并推送",
       "kind": "accepted",
-      "result": "已完成，9243deb CI通过",
-      "remaining": "本轮README整理范围已完成并冻结；后续仅随真实源发布/用户反馈按需更新，不重开已完成整理。",
+      "result": "使用说明保留订阅、安装、编辑复制和本地导入；删除图标处理履历、重复验收免责及未经证实的站点归因。内容权利说明压为一句。",
+      "remaining": "无本轮剩余动作。",
       "reportedAt": null,
       "reportedDate": "2026-10-23",
       "reportedAtSource": "本次人类消息；提出日期为2026-10-23，未提供精确时分秒，不猜填。",
@@ -1843,7 +1843,9 @@
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
       "closedAt": null,
-      "evidencePoints": [],
+      "evidencePoints": [
+        "用户2026-11-02指出公开README防御免责话术；Root通过GitHub connector读取当前公开文件确认。home_terra仅改README，Root审查diff后提交f173a38并推master，其他源WIP保持；文档变更不重跑源构建。"
+      ],
       "remainingActions": [
         "本轮README整理范围已完成并冻结；后续仅随真实源发布/用户反馈按需更新，不重开已完成整理。"
       ],
@@ -5354,23 +5356,31 @@
       "title": "书架按指定书源搜索与搜索语法扩展",
       "kind": "open",
       "priority": "P3",
-      "owner": "Root：参考核对与方案讨论",
-      "status": "已核参考，推荐并入本地搜索",
+      "owner": "Root：实现、237验收与交付",
+      "status": "237普通路径已通过，待提交与CI",
       "reportedAt": null,
       "reportedAtSource": "本轮用户提出搜索语法和详情书源标志跳转，明确具体实现还需讨论。",
       "registeredAt": "2026-11-01T20:37:51+08:00",
-      "result": "Mihon详情书源名称生成src:\"源名\" lang:语言的书库查询，缺名时用srcid；其当前解析器将源、语言与书名等条件统一处理。Koma目前本地搜索不带sourceId且空词直接返回，需扩展公共查询而不是另写一页。",
-      "remaining": "与用户讨论本地书架查询的具体语法与可见范围；当前不实施。",
+      "result": "详情点书源可直接查看该源已收藏漫画，再用关键词缩小；书架字段与组合查询、带来源的历史均已接通。237已验证空结果终态、组合条件、冷启动历史恢复和原筛选切换。",
+      "remaining": "提交并核对本次CI。",
       "remainingActions": [
-        "对照参考源码，向用户说明推荐接入与现有差异；讨论期间不实现UI。"
+        "提交已验代码与文档，核对精确提交CI。"
       ],
       "boundaries": [
-        "现存故障优先；本项当前只有讨论授权。",
-        "保留已有漏斗来源筛选与独立的仅有结果开关；不以新增功能移除现有入口。"
+        "用户已采用：复用现有搜索页，详情书源标志进入该源书架查询；空词列出该源入库作品，按稳定来源身份过滤，卸载后仍可查；历史保留范围。",
+        "保留已有漏斗来源筛选与独立的仅有结果开关；不以新增功能移除现有入口。",
+        "字段source/src、title、author、artist、tag/genre、notes/note及未读数比较只用于书架，支持引号、排除、AND、OR与括号；普通关键词、既有漏斗和仅有结果开关保持。"
       ],
       "evidencePoints": [
         "Mihon e588e04359fe1058206a2cbac1b01018ad787359 MangaInfoHeader.kt Source.query 与 domain/library/model/search/LibrarySearchAst.kt；Aidoku41ae2a604213d4eeb5bf19287eec675ea90e15aa LibraryFilter.swift按源过滤。",
-        "Koma MangaDetailHeader.ets书源标签当前无点击；CrossSearchService.searchLocal/LocalLibrarySearchTask不传源身份，SearchPage空query会退出。"
+        "Koma MangaDetailHeader.ets书源标签当前无点击；CrossSearchService.searchLocal/LocalLibrarySearchTask不传源身份，SearchPage空query会退出。",
+        "2026-11-01重新读取Mihon main，HEAD仍为e588e04359fe1058206a2cbac1b01018ad787359；MangaInfoHeader Source.query生成src名称+lang或srcid，LibrarySearchLexer/Parser支持字段、引号、相邻AND、&&、||、前缀-和括号。Aidoku固定41ae2a6 LibraryFilter将source作为书架过滤属性。",
+        "Koma实际缺口：LocalLibrarySearchDocument缺来源/标签/笔记，SearchPage和CrossSearchService都拒空词，CrossSearchText会先清掉冒号/运算符；SearchHistoryEntry仅query/updatedAt，范围单独持久化，必须同步接通查询和历史。",
+        "既有Comic.sourceRuntimeId及sourceMetadata.sourceName已持久；LibrarySmartCategory.comicSmartSourceKey可复用，避免建立第二套来源身份。当前公共匹配仍在taskpool，原章节名匹配、原排序、漏斗来源筛选与仅有结果开关须保留。",
+        "推荐候选（尚未采用）：沿用搜索范围标签显示书架及具体书源，自动入口按稳定ID查询；本地字段识别后只查书架，普通词维持既有范围。source/src、title、author、artist、tag/genre、notes/note及未读数比较，支持引号、排除、或、括号；不把库内条件原样发送给在线书源。",
+        "library-source-query-20261102：085编译发现读状态store工厂调用错误后修正；086/087编译通过但087发布签名安装374明确失败，未继续UI。089沿既有debug Profile构建，375安装明确成功；fresh372七JSON/18prefs，373原HAP取回permission denied，恢复使用370已成功回装的同一original237.hap。",
+        "候选090实机380空词按源列1书且没有错误匹配标签；381/382作者无匹配仍显示搜索中。384有界标签日志证后台local_done count0、ui_section_resolved stateempty与ui_search_done均已完成，定位SearchResultRowSource同键onDataChange未让plain row刷新。官方LazyForEach文档要求换键或可观测子属性；改为@ObservedV2行/@Trace内容原位更新，保留行键，091编译/回验中。",
+        ".hvigor/outputs/library-source-query-20261102/delivery-binding.json：091具名237的385–392普通路径已验；397官方-d恢复原0.1.4/code5，398七JSON/18prefs逐字相同无extra，400 SLEEP120000无Override，两租约已释放。未卸载用户源，卸载后稳定身份仅worker fixture执行；未发布新App。"
       ]
     },
     {
@@ -13925,6 +13935,42 @@
       "itemId": "RELEASE_1_0_0",
       "title": "1.0.0正式发布完成",
       "detail": "已设为最新正式版；Release正文与版本日志一致，实际HAP及构建清单核验通过，其他未关项未改变。"
+    },
+    {
+      "at": "2026-11-01T23:41:44+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "搜索扩展接入方案已核",
+      "detail": "来源查询复用现有书架搜索；确认空词、稳定来源身份、历史范围及解析顺序缺口。本轮只调研，未改App实现。"
+    },
+    {
+      "at": "2026-11-02T00:00:42+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "搜索方案已采用并开始接入",
+      "detail": "复用搜索页及书库来源身份，接通字段解析和历史范围；既有漏斗与结果显示切换保留，尚未编译和设备验收。"
+    },
+    {
+      "at": "2026-11-02T00:12:24+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "搜索候选已安装237",
+      "detail": "查询、来源身份、历史回滚与在线分流已执行验证；首次发布签名候选安装失败，改用已验证调试签名后安装成功。普通路径验收进行中。"
+    },
+    {
+      "at": "2026-11-02T00:13:43+08:00",
+      "itemId": "SOURCE_README_USER_GUIDE",
+      "title": "书源README删去验收免责与内部记录",
+      "detail": "公开README已单独推送，保留使用和贡献说明；未归因加载失败不再写成站点责任。"
+    },
+    {
+      "at": "2026-11-02T00:19:45+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "发现并定位搜索空结果转圈",
+      "detail": "后台已完成但同键列表行仍显示旧状态；修正为可观测行内容，避免整表刷新。具名回验尚未完成。"
+    },
+    {
+      "at": "2026-11-02T00:31:52+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "搜索扩展237路径通过并恢复设备",
+      "detail": "空关键词按源列书、组合条件、无结果终态、冷启动历史范围与原筛选切换已验。原包通过官方保数据降级恢复，25文件逐字相同，原电源恢复并释租。"
     }
   ],
   "reportAgeAudit": {

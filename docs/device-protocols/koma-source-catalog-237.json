@@ -5,55 +5,37 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "mh160-wangpai-power-371",
+  "runId": "library-query-final-policy-400",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "original237.hap restored after candidate084 (726f2d1e) MH160 chapter/body and candidate083 settings-color verification",
-    "page": "Completed independent restoration of original no-override power policy and sleep",
+    "codeIdentity": "original0.1.4 restored after accepted candidate091",
+    "page": "Sleep transition reintroduced10s override: clear after sleep as established original policy protocol",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
     "orientation": "portrait",
     "resolution": "1320x2120",
-    "notes": "197 user-owned and untouched. Fresh328 seven JSON/18 preferences and fresh340 original MH160 four members byte-identically restored in370; original HAP installer success;371 SLEEP120000/noOverride; lease released. Immutable run receipts retain their original context; actual084 HAP/install identity is indexed in .hvigor/outputs/mh160-redirect-20261101/evidence.json."
+    "notes": "385–392 accepted search paths;397 originalHAP success,398 fresh372 25files byte-identical,400 SLEEP120000/noOverride;both leases released;197 untouched. See library-source-query-20261102/delivery-binding.json."
   },
   "preflight": [
     {
-      "name": "restore-no-override",
+      "name": "clear-sleep-override",
       "hdcArgs": [
         "shell",
         "power-shell",
         "timeout",
         "-r"
       ]
-    },
-    {
-      "name": "sleep",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "suspend"
-      ],
-      "pauseAfterMs": 200
     }
   ],
   "measurement": {
     "actions": []
   },
   "postflight": [
-    {
-      "name": "confirm-no-override",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "timeout",
-        "-r"
-      ]
-    },
     {
       "name": "final-power",
       "hdcArgs": [

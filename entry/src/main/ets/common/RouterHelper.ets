@@ -7,6 +7,7 @@ import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../s
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
 import { MigrationMatchOptions } from '../model/MangaMigrationPreferencesStore'
+import { LibrarySearchSource } from '../model/LibrarySearchQuery'
 
 export interface MangaDetailRouteParam {
   mangaId: string
@@ -37,6 +38,7 @@ export interface SourcePackageManagerRouteParam {
 
 export interface SearchRouteParam {
   query?: string
+  librarySource?: LibrarySearchSource
   chrome?: SearchRouteChromeState
 }
 
@@ -217,7 +219,7 @@ export class RouterHelper {
     }
     const chrome = new SearchRouteChromeState()
     const query = param.query?.trim() ?? ''
-    if (query.length > 0) {
+    if (query.length > 0 || param.librarySource !== undefined) {
       chrome.updateQuery(query)
       chrome.submitQuery(query)
     }

@@ -1,10 +1,22 @@
 import { CrossSearchResultItem, CrossSearchSection } from './CrossSearchService'
 
-export interface SearchResultRow {
+// LazyForEach keeps a component when its key is unchanged. Keep each row
+// observable so running -> empty/failed and changing counts repaint in place,
+// without rebuilding all covers or treating every query as a new list.
+@ObservedV2
+export class SearchResultRow {
   key: string
   kind: 'status' | 'header' | 'result' | 'migration'
-  section: CrossSearchSection
-  item?: CrossSearchResultItem
+  @Trace section: CrossSearchSection
+  @Trace item?: CrossSearchResultItem
+
+  constructor(key: string, kind: 'status' | 'header' | 'result' | 'migration',
+    section: CrossSearchSection, item?: CrossSearchResultItem) {
+    this.key = key
+    this.kind = kind
+    this.section = section
+    this.item = item
+  }
 }
 
 /** A flat List source keeps native creation/cover work limited to visible rows. */
@@ -28,13 +40,13 @@ export class SearchResultRowSource implements IDataSource {
       if (section.state === 'unsupported' && section.diagnosticCode === 'not_configured') continue
       if (resultsOnly && (section.state !== 'ready' || section.items.length === 0)) continue
       if (section.state === 'ready' && section.items.length > 0) {
-        next.push({ key: `${section.id}:header`, kind: 'header', section })
-        if (migration) next.push({ key: `${section.id}:migration`, kind: 'migration', section })
+        next.push(new SearchResultRow(`${section.id}:header`, 'header', section))
+        if (migration) next.push(new SearchResultRow(`${section.id}:migration`, 'migration', section))
         else section.items.forEach((item: CrossSearchResultItem): void => {
-          next.push({ key: `${section.id}:${item.id}`, kind: 'result', section, item })
+          next.push(new SearchResultRow(`${section.id}:${item.id}`, 'result', section, item))
         })
       } else {
-        next.push({ key: `${section.id}:status`, kind: 'status', section })
+        next.push(new SearchResultRow(`${section.id}:status`, 'status', section))
       }
     }
     const wanted = new Set<string>(next.map((row: SearchResultRow): string => row.key))
@@ -54,7 +66,8 @@ export class SearchResultRowSource implements IDataSource {
         this.rows.splice(index, 0, row)
         this.listeners.forEach((listener: DataChangeListener): void => listener.onDataAdd(index))
       } else if (previous.section !== row.section || previous.item !== row.item) {
-        this.rows[index] = row
+        previous.section = row.section
+        previous.item = row.item
         this.listeners.forEach((listener: DataChangeListener): void => listener.onDataChange(index))
       }
     })

@@ -21,6 +21,7 @@ export struct MangaDetailHeader {
   @Param showChapterCount: boolean = true
   @Param sourceKind: ComicSourceKind | undefined = undefined
   @Param remoteServerId: string = ''
+  @Event onSourceClick: () => void = () => {}
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private failedCoverUrl: string = ''
 
@@ -187,6 +188,7 @@ export struct MangaDetailHeader {
               .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS })
               .borderRadius(ThemeConstants.RADIUS_ROUND)
               .backgroundColor(ThemeConstants.SOFT_TINT)
+              .onClick((): void => { if (this.manga.sourceId) this.onSourceClick() })
           }
         }
         .width('100%')

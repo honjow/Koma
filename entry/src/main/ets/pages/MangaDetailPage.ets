@@ -2759,6 +2759,11 @@ export struct MangaDetailPage {
               showChapterCount: this.shouldShowChapterCount(),
               sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
               remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+              onSourceClick: (): void => {
+                const sourceId = this.manga?.sourceId
+                const name = this.manga?.sourceName
+                if (sourceId && name) RouterHelper.openSearch({ librarySource: { key: `source:${sourceId}`, name } })
+              },
             })
           }
         }
