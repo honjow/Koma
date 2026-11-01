@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：按用户决定正式发布1.0.0，版本与分类日志已准备，正在执行构建和发布流程。
+当前工作：1.0.0正式版已发布，更新日志及实际附件已核验；其他未关项保留原状态。
 
 设备：197由用户当前使用，不注入操作或覆盖新数据；237本轮原包、数据和电源已恢复并释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "正在发布1.0.0正式版",
+  "state": "1.0.0正式版已发布，保留未关事项",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T21:49:50+08:00",
+  "updatedAt": "2026-11-01T22:19:24+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "RELEASE_1_0_0",
-  "activity": "版本与分类日志已准备，正在提交和构建。",
-  "nextAction": "构建成功后打正式标签并核验Release实际产物。",
+  "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+  "activity": "1.0.0正式Release及实际附件已核验并交付；其余未关项继续保留。",
+  "nextAction": "书架按源搜索保留讨论；其余未关项按原证据与实际条件接续。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master：App代码726f2d1e精确CI41310338171成功；后续8bf7c37f仅文档/截图/协议元数据。",
-      "hap": "237具名084通过，原包/七JSON/18偏好/四源成员及电源已恢复并释租；197本轮未操作。"
+      "appHead": "正式v1.0.0指向eaee3c1f；准备与标签CI均成功，实际Release附件已核。",
+      "hap": "公开附件为1.0.0未签名release HAP；本次仅发布未操作设备，既有具名设备验收与恢复记录保持。"
     },
     {
       "name": "NextE",
@@ -5434,19 +5434,16 @@
     {
       "id": "RELEASE_1_0_0",
       "title": "正式发布1.0.0",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P0",
       "owner": "Root：版本、日志、构建及正式Release交付",
-      "status": "版本与日志已准备，构建前检查通过",
+      "status": "正式版已发布并核验",
       "reportedAt": null,
       "reportedAtSource": "本轮用户明确要求按版本发布流程正式发布1.0.0；原消息精确时间未提供。",
       "registeredAt": "2026-11-01T21:49:50+08:00",
-      "result": "App与两处包版本已同步1.0.0，内部版本号递增；按新增/修复/优化/已知问题整理相对0.1.4的变化，版本、日志和资源检查通过。",
-      "remaining": "完成提交及构建，通过后打正式标签，核对公开Release和实际附件。",
-      "remainingActions": [
-        "提交并通过本次构建。",
-        "打v1.0.0正式标签，核标签CI、Release正文、最新正式状态及实际HAP/manifest附件。"
-      ],
+      "result": "1.0.0已公开发布并设为最新正式版。分类更新日志与Release正文一致，实际下载的HAP及构建清单版本、完整性和发布提交已核。",
+      "remaining": "本次正式发布已完成；其他未关项保留原状态。",
+      "remainingActions": [],
       "boundaries": [
         "用户本轮明确授权正式发布1.0.0；沿现有GitHub发布流程，不上传AGC。",
         "保留所有已接受功能与剩余未关项；不重跑无变化的设备路径，不操作197，不移动既有标签。",
@@ -5454,8 +5451,16 @@
       ],
       "evidencePoints": [
         "changelog/v1.0.0.md为本次Release唯一正文；check_release_notes.py --tag v1.0.0通过，versionCode6；三语言资源及公开profile检查通过。",
-        "远端仅有v0.1.2-pre、v0.1.3-pre、v0.1.4，未存在v1.0.0；当前master，既有App代码与依赖验收保持。"
-      ]
+        "远端仅有v0.1.2-pre、v0.1.3-pre、v0.1.4，未存在v1.0.0；当前master，既有App代码与依赖验收保持。",
+        "准备提交eaee3c1f1da56c278b7287d8ba151a9e3e500f57已推master；精确CI41313162353进行中，尚未创建1.0.0标签或Release。",
+        "准备CI41313162353 completed/success，head=eaee3c1f；v1.0.0为新建annotated tag，peeled commit同eaee3c1f，已推送；旧标签不动。",
+        "准备CI41313162353及标签CI41314254318均completed/success；标签v1.0.0 peel=eaee3c1f1da56c278b7287d8ba151a9e3e500f57，reader-kit固定10484507保持。",
+        "https://github.com/honjow/Koma/releases/tag/v1.0.0；releaseId430630457，draft=false、prerelease=false，latest ID相同；Release body逐字匹配changelog/v1.0.0.md。",
+        "实际下载Koma_1.0.0_ohos-release-unsigned.hap与build-manifest.json：versionName1.0.0、versionCode6、release/debug=false、signed=false；archive CRC及必需arm64库通过，附件大小与API/manifest一致。",
+        ".hvigor/outputs/release-1.0.0/verification.json及release.json、latest.json、prepare-ci-result.json、tag-ci-result.json为本次原件索引；未上传AGC，未操作设备。"
+      ],
+      "stage": "1.0.0正式发布完成",
+      "closedAt": "2026-11-01T22:19:24+08:00"
     }
   ],
   "source": {
@@ -13902,6 +13907,24 @@
       "itemId": "RELEASE_1_0_0",
       "title": "开始1.0.0正式发布",
       "detail": "按用户决定同步版本、准备分类日志；保留已知问题，完成构建前检查。"
+    },
+    {
+      "at": "2026-11-01T21:52:13+08:00",
+      "itemId": "RELEASE_1_0_0",
+      "title": "1.0.0版本准备已提交",
+      "detail": "分类日志与版本配置已同步，正在等待发布前构建。"
+    },
+    {
+      "at": "2026-11-01T22:03:45+08:00",
+      "itemId": "RELEASE_1_0_0",
+      "title": "1.0.0正式标签已推送",
+      "detail": "发布前构建通过，标签指向同一准备提交；继续等待正式附件。"
+    },
+    {
+      "at": "2026-11-01T22:19:24+08:00",
+      "itemId": "RELEASE_1_0_0",
+      "title": "1.0.0正式发布完成",
+      "detail": "已设为最新正式版；Release正文与版本日志一致，实际HAP及构建清单核验通过，其他未关项未改变。"
     }
   ],
   "reportAgeAudit": {
