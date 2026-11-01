@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-trigger-paging-237",
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate073 Koma/reader-kit continuous viewport paging",
+    "page": "Continuous Download p6: animation disabled, next tap then previous volume, warmup covers source",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Same native1320x2120 continuous List; existing volume setting on, reverse off; no changes to animation duration scale."
+  },
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/reader-trigger-off-complete-212",
+  "recordingFileName": "koma_reader_trigger_off_20261101_1302.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 1500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "tap-next-window-immediate",
+      "uiInput": [
+        "click",
+        "1100",
+        "1000"
+      ],
+      "pauseAfterMs": 1000
+    },
+    {
+      "name": "volume-previous-window-immediate",
+      "uiInput": [
+        "keyEvent",
+        "16"
+      ],
+      "pauseAfterMs": 1000
+    }
+  ]
+}

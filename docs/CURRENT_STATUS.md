@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：搜索及弹窗修复已完成具名核验；正在处理条漫触发翻页。漫画人图标已交付，动漫屋高清图由原书源执行者继续处理。
+当前工作：书源称呼、封面宽度和系统四点入口已实机核验；继续修复DB Multiverse带气泡章节的正文。
 
-设备：197由用户当前使用，不注入操作或覆盖新数据；本轮搜索验证用已授权的237。200禁止操作，四私库搁置。
+设备：197由用户当前使用，不注入操作或覆盖新数据；237正在验证DB正文，前两轮已恢复并释租。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T12:51:10+08:00",
+  "updatedAt": "2026-11-01T14:25:23+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_TRIGGER_PAGING",
-  "activity": "弹窗修复已具名验收并提交，等待精确CI；Root接条漫点按/音量翻页与动画，原source_terra继续动漫屋高清图。",
-  "nextAction": "核条漫触发步长与动画配置的真实消费链。",
+  "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+  "activity": "书源用词和系统四点入口已核，237已恢复；继续DB Multiverse气泡正文接线。",
+  "nextAction": "核书源用词最终CI，审DB正文气泡的阅读及离线处理链。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3332,7 +3332,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "Noy账号未验，DB正文失败待取得错误对象",
+      "status": "DB气泡候选编译完成，正在237普通入口验证",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3342,10 +3342,11 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。 本轮新增实测：DB Multiverse章117目录可取得、正文请求失败，源与Host根因尚未归因，未关闭该失败。 source_terra本轮核固定参考：DB参考会绘制HTML气泡文字；当前011源保留遇气泡拒绝整章的既定保护。章117两次HTTP实际200，受控分支响应长度相同只作线索，实际错误码仍未直接读到。",
-      "remaining": "Noy仍缺用户账号。DB章117需取得实际源错误对象或合法自然路径的页面结构分类，确认是否触发既有气泡合成保护；不靠222字节推定错误码，不放开保护显示无字原图。",
+      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。 本轮新增实测：DB Multiverse章117目录可取得、正文请求失败，源与Host根因尚未归因，未关闭该失败。 source_terra本轮核固定参考：DB参考会绘制HTML气泡文字；当前011源保留遇气泡拒绝整章的既定保护。章117两次HTTP实际200，受控分支响应长度相同只作线索，实际错误码仍未直接读到。 原source_terra本机以已发布DB0.1.1真实WASM执行一次117章get_pages，两GET均200，精确错误unsupported_chapter_overlay，首个页面含#balloonsimg/.balloon。此为本机本次，不冒237旧次错误对象。参考叠绘气泡，当前宿主无叠绘/离线描述合同，保护未放开。 DB候选已接严格坐标、后台原图叠绘、页表/下载描述和阅读预载消费；079编译成功，实际画面尚未验证。",
+      "remaining": "完成DB117普通正文、保存及离线具名核验；Noy用户无账号的登录后范围保留未验。",
       "remainingActions": [
-        "Noy登录后内容及依赖账号的镜像验证未执行；用户目前没有账号。"
+        "完成DB117普通正文、保存及离线具名核验并交付。",
+        "Noy用户无账号，不代注册或轮询。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3641,7 +3642,9 @@
         "Noy019稳定公开实体及精确CI证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/evidence.json。",
         "237只读状态显示Koma 0.1.4/code5、Noy 0.1.5，未发现Noy书库或阅读状态项；设备端按sourceId的会话计数为0，不能据此断言用户登录失败。设备保持睡眠无输入，lease a4c6364f released；回执 source-web-session-concurrent/noy-state237-{read-001,data-002,session-003}。公开0.1.9 ZIP d966ef52…的minApp 0.1.0与当前Host兼容，现按普通路径升级并保留正式版本，不更换Host、不清写Cookie或其他源数据；升级及入口尚待回执。",
         "237正式0.1.9：005普通导入成功，registry版本及唯一 https://noymanga.com origin正确；006 ZIP/WASM与公开实体逐字相等；010菜单“网页验证 / 登录”，011布局显示NoyAcg/登入，未输入账号。002→012 library、reader、settings、filters、web-sessions五域逐字相等，registry sourceIds相同且仅Noy从0.1.5升0.1.9，Host未换。013最终SLEEP/120000无override，两租约22383f87/758516da released，下载已清；保留正式0.1.9，不回装旧015或覆盖未来Cookie。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/device237-delivery.json。",
-        "用户最新明确目前没有Noy账号；不代建账号，237保留正式0.1.9及登录入口，不将未执行的账号内容验收写成通过。"
+        "用户最新明确目前没有Noy账号；不代建账号，237保留正式0.1.9及登录入口，不将未执行的账号内容验收写成通过。",
+        "source-settings-repair/dbmultiverse-ch117-20261101/evidence.json：本机单次真实WASM结构化unsupported_chapter_overlay，两GET200；参考949 DbMultiverse.kt132–225与现有SourceTextPageRenderer/SourceBaoziBannerService边界已对照。",
+        "Root审SourceTextOverlayService、页表/清单/Reader consumer；host-root-check.txt实际存取及失败传播执行通过；build078为并发期间中间包不作最终身份，冻结后build079成功。生产源WASM8d206cddf4124992e6f6968eb03ccc8fdf8381b4f22f9157dba1f948239ddd19，包candidate/dbmultiverse-overlay-011.koma；237 fresh273已存原DB四成员/七JSON及18prefs并解锁常亮；274已安装079普通管理入口，尚未章117正文验收。"
       ]
     },
     {
@@ -3709,18 +3712,16 @@
       "id": "SETTINGS_GROUPING_ADVANCED",
       "title": "设置页未分组且高级入口与图标不合理",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
-      "status": "备份结构已核，最终短标签已构建",
+      "kind": "accepted",
+      "status": "备份结构与最终短标签具名交付",
       "owner": "Root：设置分组和备份普通路径",
       "dependencies": [],
       "relatedItems": [
         "APPEARANCE_CONSUMERS"
       ],
-      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。",
-      "remaining": "最后简短标签页面读回及设备恢复、提交CI。",
-      "remainingActions": [
-        "最后简短标签页面读回及设备恢复、提交CI。"
-      ],
+      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。 237当前075普通设置→备份与恢复及创建页，应用设置/下载队列/追踪绑定三行已亲审；固定包含范围在卡片外，创建在原生标题栏。未创建新备份或重跑恢复。 本场237原包、数据及电源恢复并释租。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
         "本轮用户纠正备份两个同页入口与隐蔽配置；只去重复中转，备份内容/自动备份仍分组，创建/恢复/文件保独立任务，固定包含范围为说明，创建动作沿公共原生标题栏，不改变备份格式或数据范围。"
@@ -3728,8 +3729,8 @@
       "reportedAt": "2026-10-26T12:30:00Z",
       "reportedAtSource": "用户要求设置项分组、增加高级入口并检查图标；精确时刻未记录。",
       "reopenedAt": null,
-      "closedAt": null,
-      "stage": "结构和标题动作已核，最终短标签待看",
+      "closedAt": "2026-11-01T13:36:20+08:00",
+      "stage": "具名范围已交付",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-top-22/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-bottom-23/",
@@ -3741,7 +3742,9 @@
         "197 backup-stable-313/backup-create-314实际展示；314固定说明误作首行已纠正，旧图保留不冒最终验收。",
         "backup-final-home-334、backup-final-create-335、backup-restore-page-336：直达配置与独立任务，固定说明在卡片外。",
         "backup-create-title-action-337：标题栏确认触发原口令校验；未创建或恢复备份。",
-        "build061已安装346：短标签包含在候选中，当前优先接缝未进入备份页，不冒最终画面已看。"
+        "build061已安装346：短标签包含在候选中，当前优先接缝未进入备份页，不冒最终画面已看。",
+        "source-catalog/backup-short-labels-settings-242、config-243、create-244：最终三项短标题与卡片外固定说明亲审。",
+        "reader-missing-original-restored-245/restoration-comparison.json：fresh190七JSON、18偏好及漫画社四原成员均逐字相同；246本场新增迁移偏好两文件已移除、全pref文件集与字节相同，最终SLEEP/120000/无Override，lease20261101-044532-9879d793已释放。"
       ]
     },
     {
@@ -4765,7 +4768,7 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "验证阅读设置，修正备份重复层级",
+      "status": "本轮阅读/备份/四点入口已核",
       "stage": "部分已交付",
       "owner": "Root",
       "dependencies": [
@@ -4774,11 +4777,11 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。",
-      "remaining": "本轮阅读设置具名验收完成；原短笔记、LLM同名和无账号追踪范围仍保留。",
+      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。 237077已核书架及详情系统四点图标，原菜单分组和锚点保持。",
+      "remaining": "等待短笔记展开按钮、相邻LLM入口标题两处可见更正决定；三项追踪服务用户无账号，登录后范围保留未验。",
       "remainingActions": [
-        "本轮阅读设置具名验收完成；原短笔记、LLM同名和无账号追踪范围仍保留。",
-        "用户本轮新反馈：自定义标题栏更多入口恢复系统原始四点图标；按用户紧接纠正先登记，接缝修复期间不切换处理。"
+        "用户决定后落实短笔记展开按钮及LLM入口标题两处更正。",
+        "三项追踪服务用户无账号，不代注册、不轮询。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4850,7 +4853,9 @@
         "030原型317发生BusinessError103806；已取精确Koma jscrash，堆栈定位新嵌套Builder数组参数导致ForEach非数组。031改为ComponentContent内直接遍历，与书架原行为一致。322真实三MenuItemGroup与8动作，323关闭一次重开，324笔记TextArea，325/326系统链接分享及取消后重开，327对应MangaDex作品WebView。只打开分享面板未选接收者、未发送。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration。",
         "031关联回归328：原书架布局菜单显示网格/列表及当前勾选，未改选项。迁移提交a5e2bbb8与详情原型46e2dbe8已推，精确CI41235778354运行中。330原包安装明确成功、fresh301七JSON+30首选项共37文件逐字同，无extra；331 SLEEP/normal120000/Override10000，租约已释放。证据 .hvigor/outputs/migration-followup-acceptance/delivery-binding.json。",
         "详情原型46e2dbe8完整SHA精确CI41235778354 completed/success，Release构建、Inspect与Upload成功、tag发布skipped；031实机原生分组、关闭重开、笔记、系统链接分享取消再开、对应作品WebView及书架单组回归均已核。没有选择分享接收者或发送；用户观感仍为试做反馈范围。证据 .hvigor/outputs/migration-followup-acceptance/report.md。",
-        "197 reader-display-sliders-321、invert-global-nemo-323、reader-volume-up-inverted-325、reader-inverted-return-settings-326、reader-settings-volume-328、reader-volume-normal-329。"
+        "197 reader-display-sliders-321、invert-global-nemo-323、reader-volume-up-inverted-325、reader-inverted-return-settings-326、reader-settings-volume-328、reader-volume-normal-329。",
+        "本轮四点图标修复同33081076及237266–268普通入口，数据恢复271/272，CI待最终回执。",
+        "四点图标所在33081076精确CI41279803358成功，266/267/268普通入口及271/272恢复已核；短笔记/LLM入口两处可见更正已向用户提交具体差异，未收到决定前保持。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -5067,24 +5072,35 @@
     {
       "id": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
       "title": "浏览页封面宽度未统一使用书架设置",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P2",
-      "owner": "Root：当前搜索修复之后",
-      "status": "已登记，待核配置消费者",
-      "stage": "待处理",
+      "owner": "Root：书库/浏览共同封面布局",
+      "status": "已验收",
+      "stage": "已交付",
       "reportedAt": null,
       "reportedAtSource": "本轮当前用户反馈；原消息精确时刻未核。",
       "firstHandledAt": "2026-11-01T11:18:06+08:00",
-      "result": "用户要求浏览封面宽度统一跟随书架已有配置；当前继续搜索修复，不立即切换。",
-      "remaining": "核书架/浏览的封面宽度配置来源，让两处消费已有同一设置，保其它布局。",
-      "remainingActions": [
-        "搜索修复后接续封面宽度配置接线。"
-      ],
+      "result": "237076标准密度：书架与MANGA Plus Creators真实浏览均3列/392px，源内真实搜索封面也392px；宽松密度：书架与同源浏览均2列/552px。原密度设置、目录/搜索及返回路径保持。",
+      "remaining": "本项已核验交付，无新增待办。",
+      "remainingActions": [],
       "boundaries": [
         "用户明确要求统一为已有书架宽度设置，不另造宽度选项或任意改尺寸。"
       ],
-      "evidencePoints": [],
-      "closedAt": null
+      "evidencePoints": [
+        "source-catalog-build076.log：编译成功；cover-fresh-baseline-247已保存本场七JSON/18prefs，原SLEEP/120000/noOverride；解锁后AWAKE/86400000。",
+        "cover-candidate076-library-248与cover-source-standard-ready-254/width-comparison.json：可见完整封面实际bounds宽均392，1320x2120；254实图亲审，253初始加载保留。",
+        "cover-source-search-input-256实际Sense Life输入、ready-257真实结果392px；255旧inputText形状被当前设备拒绝，未产生查询，失败保留。",
+        "cover-library-comfortable-260与cover-source-comfortable-ready-262/width-comparison.json：实际552px、两列；262真实封面亲审，261初始加载未计通过。",
+        "Koma/master 1051e573e479638728a65f4d848488d539a0baca已推，精确CI41279263888运行中；cover-original-restored-263/restoration-comparison.json：七JSON及18偏好文件字节同fresh247、无新增偏好；cover-power-restored-264：SLEEP/120000/noOverride；原租约已释放。",
+        "独立CI41279263888被后续33081076的并发规则取消；33081076保含1051e573，最终以CI41279803358为构建交付回执，不重新运行旧构建。",
+        "最终包含两项修复的Koma/master33081076b616fe3f0efddaff479e84ed91815ca0，精确CI41279803358 completed/success；Build Release/Inspect/Upload成功，Publish tagged Release skipped，未再发布App。"
+      ],
+      "closedAt": "2026-11-01T14:25:23+08:00",
+      "modificationBasis": {
+        "object": "LibraryPage网格尺寸规则、SourceMangaGrid及浏览/源内搜索消费者",
+        "history": "8c8e92fc建立书架密度；396b71b4建立单一原生源Grid，均保原滚动和分页归属。",
+        "allowedDifference": "按用户当前明确要求，共用书架既有列宽/间距/边距与密度偏好；不增选项、不改滚动/筛选/分页及图像处理。"
+      }
     },
     {
       "id": "SOURCE_DM5_ICON_IDENTITY",
@@ -5143,22 +5159,24 @@
     {
       "id": "SOURCE_USER_FACING_TERMINOLOGY",
       "title": "界面“源包”统一称为“书源”",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P2",
-      "owner": "Root：Toast及封面宽度之后",
-      "status": "已登记，待统一界面用词",
+      "owner": "Root：当前主线",
+      "status": "已验收",
       "reportedAt": null,
       "reportedAtSource": "本轮用户直接要求；原消息精确时间未提供，不用登记时刻冒充。",
-      "result": "用户明确要求用户界面用书源替代源包，涵盖管理、安装、更新、分享及同类入口。",
-      "remaining": "按现有界面与文案资源统一术语，保功能与原布局。",
-      "remainingActions": [
-        "核所有用户可见同类用词并统一为书源。"
-      ],
+      "result": "管理、安装、更新、分享、备份和错误提示的简体界面改用书源；默认与英语资源统一为Source/Sources，技术资源键和持久字段未改。",
+      "remaining": "本项已核验交付，无新增待办。",
+      "remainingActions": [],
       "boundaries": [
         "只改用户可见用词，技术协议、持久字段及内部身份保持。"
       ],
-      "evidencePoints": [],
-      "closedAt": null
+      "evidencePoints": [
+        "Koma/master 33081076b616fe3f0efddaff479e84ed91815ca0已推；build077编译成功。237 source-catalog terminology-candidate077-library-266、library-menu-267、detail-menu-268、browse-menu-269及manager-menu-270：系统四点、书源管理标题及原菜单均亲审。271原包安装成功，七JSON/18prefs字节同fresh265且无extra；272 SLEEP/120000/noOverride；lease20261101-060802-20c0d32d released。精确CI41279803358运行中。",
+        "最终包含两项修复的Koma/master33081076b616fe3f0efddaff479e84ed91815ca0，精确CI41279803358 completed/success；Build Release/Inspect/Upload成功，Publish tagged Release skipped，未再发布App。"
+      ],
+      "closedAt": "2026-11-01T14:25:23+08:00",
+      "stage": "已交付"
     },
     {
       "id": "SUBSCRIPTION_ROW_MENU_ANCHOR",
@@ -5193,57 +5211,73 @@
     {
       "id": "CONTINUOUS_TRIGGER_PAGING",
       "title": "条漫点按/音量翻页步长不定，动画开关禁用",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1",
       "owner": "Root：当前弹窗收尾之后的Reader缺陷",
-      "status": "073候选已编译，237普通路径验收中",
+      "status": "条漫窗口翻页与动画开关具名交付",
       "reportedAt": null,
       "reportedAtSource": "本轮用户直接反馈；原消息精确时间未提供，不以登记时刻冒充。",
-      "result": "共享手动点按/音量已交同一native List窗口步长；条漫动画开关已接，保原25%重叠、自动阅读逐图停留与页列几何。Legacy手动输入也同步接同一窗口方法。073编译通过，尚未冒实机翻页通过。",
-      "remaining": "核共享阅读器实际触发链、可见窗口步长及动画开关接线；按可见阅读窗口滚动/直接跳转，允许保留小幅阅读重叠，输入共用同一规则。",
-      "remainingActions": [
-        "定位条漫点按/音量/其它触发翻页所用窗口与步长，消除不一致。",
-        "接通条漫动画开关：启用平滑滚动，关闭直接跳转；保原手势惯性与分页模式。"
-      ],
+      "result": "237普通搜索进入现有10页韩漫，条漫点按与音量键共用可见窗口75%步长；关闭动画直接跳转，开启动画平滑滚动。两组完整原片均已审，动作始终在第6张长图内前进/后退，无按图跳转或加载重置。 共享及Koma提交已推、精确CI成功；本轮237原包、数据与电源恢复并释租。Legacy只编译、其它宿主未实测的边界保留。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "不以新反馈抛下当前弹窗验证；不误归因于源图或为排查要求用户重复证明。",
         "保已有连续列表尺寸、惯性接缝修复、跨章连续性及预载边界，不按原始图片张数决定条漫翻页距离。"
       ],
       "evidencePoints": [
         "ReaderContinuousSurface.imageTap与ReaderSurface.requestMove/ReaderPagedSession.move实际链；官方Scroller.scrollTo支持animation布尔值及vp坐标；NextE performTapZoneAction窗口比例参考。",
-        "source-catalog-build073.log；reader-fresh-baseline-190保存七JSON/18prefs及AWAKE86400000；当前237新租约20261101-044532-9879d793。"
+        "source-catalog-build073.log；reader-fresh-baseline-190保存七JSON/18prefs及AWAKE86400000；当前237新租约20261101-044532-9879d793。",
+        "reader-continuous-animation-off-198：连续状态Toggle enabled=true checked=false；199→200实际像素位移1590、匹配误差0，movement.json。",
+        "reader-volume-enabled-204与200正文像素一致；205实际音量下键后仍6/10，原图中下一段可见，未出现系统音量面板。",
+        "reader-trigger-on-motion-209完整122PTS帧/4表均亲审：点按前进、音量上键后退在同一第6张长图内连续平滑滚动，未见切图或重新加载；210终态。206仅5帧且开始前画面未覆盖，不冒关闭动画的完整过程通过，补212对照。",
+        "reader-trigger-off-complete-212完整39PTS帧/4表均亲审：frame7点按直接到下一窗口，frame20音量上键直接返回，其余稳定，始终6/10；213终态。209开动画122帧过程保留。206首录未覆盖前置画面的失败边界保留。",
+        "reader-kit/main 10484507b4d41d1b5e2028fa71665fe6af0404ac与Koma/master b2428a195056494e55519a29fa889f254b0ca7c1均已推；精确CI41275798035 completed/success。22端口连接关闭保留，官方SSH443同仓同提交成功。",
+        "reader-missing-original-restored-245/restoration-comparison.json：fresh190七JSON、18偏好及漫画社四原成员均逐字相同；246本场新增迁移偏好两文件已移除、全pref文件集与字节相同，最终SLEEP/120000/无Override，lease20261101-044532-9879d793已释放。"
       ],
-      "closedAt": null,
+      "closedAt": "2026-11-01T13:36:20+08:00",
       "modificationBasis": {
         "object": "ReaderContinuousSurface手动翻页、ReaderSurface外部输入及宿主动画开关",
         "history": "7744665保连续列表/边界；56a8d5a保跨章点击；Koma 2a0c7aeb保方向/单双页划分。NextE Legacy也以窗口75%点按滚动。",
         "allowedDifference": "点按与音量键改由同一可见List窗口步长消费；动画开关控制原生平滑/立即滚动，不按图片跳。分页、自动阅读的既有逐图停留合同、惯性接缝和跨章预载保持。"
-      }
+      },
+      "stage": "具名范围已交付"
     },
     {
       "id": "MISSING_SOURCE_LIBRARY_RECOVERY",
       "title": "删源或备份恢复后缺源的展示、阅读与迁移",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1",
       "owner": "Root：接当前弹窗和Reader队列核查",
-      "status": "实现已核两点，完整普通路径未验",
+      "status": "缺源详情、离线阅读与迁移具名交付",
       "reportedAt": null,
       "reportedAtSource": "本轮用户提出确认；原消息精确时间未提供。",
-      "result": "源码已核删除书源不连带删除书库；迁移资格依赖已存作品身份而非旧源已安装，提交检目标源身份，已读映射使用本地章节。详情有本地快照回退；未冒完整缺源路径通过。",
-      "remaining": "核删源及恢复缺源后的书架/详情名称与状态提示、本地下载阅读、恢复安装及单本/批量迁移入口和提交。",
-      "remainingActions": [
-        "核原书源缺失与禁用的显示及操作分支；有缺口按原项修。",
-        "沿真实合法现有数据核离线阅读与缺源迁移，保旧下载、书库及进度。"
-      ],
+      "result": "237普通删除漫画社后冷启动，原49本书及800章/页表保留，仅补公开名称；真实封面、名称、简介及已下载第2/17页正常。详情入口复制到腾讯837章成功；书库多选入口再迁移后旧书移出、目标保留，原下载队列完整。 原包、数据与电源均恢复；修复已推送且精确CI成功。旧备份未保存的名称不猜补，具名实机未外推多本批量事务或完整备份导入。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "不因缺源删除或修改已有漫画和阅读数据。",
         "用户当前提问不使Root丢下弹窗收尾，不以源码检查代完整设备验收。"
       ],
       "evidencePoints": [
         "SourceMangaMigration.ets canMigrateLibraryComic不查registry；SourceMangaMigrationService提交仅核目标entry/settings。",
-        "MangaDetailPage.loadSourceMangaDetail捕获失败后保retainedDetail或loadLocalOrMissingManga；SourcePackageManagerPage.removePackage仅移源及本页展示状态。"
+        "MangaDetailPage.loadSourceMangaDetail捕获失败后保retainedDetail或loadLocalOrMissingManga；SourcePackageManagerPage.removePackage仅移源及本页展示状态。",
+        "SourceLibraryComic/LibraryPersistence/MangaDetailPage当前缺sourceName字段；候选使用原书库事务及原metadata复制合同；源删除在原BackupRestoreActivity写入范围内回调宿主。",
+        "source-catalog-build074.log与missing-source-candidate074-215（原源四成员备份/同签安装/BM）；223 registry/library/comparison.json：源缺失、49书ID相同、目标800章相同，仅sourceMetadata改变。",
+        "missing-source-detail-224：冷启动后普通书架入原《一人之下》，真实封面、漫画社、简介与800/800章已亲审。",
+        "missing-source-offline-read-225：真实已下载正文第2/17页亲审；missing-source-migration-menu-226及sources-227：原源缺失仍有迁移且进入来源选择。",
+        "missing-source-migration-search-231、dialog-232、copy-result-233；copy-persistence-234 library/reader/queue读回：原漫画与腾讯目标存在，queue与fresh190相等。",
+        "missing-source-library-selection-235、library-menu-236、library-migration-237与move-committed-241/comparison.json：缺源旧书已移出、腾讯837章保留、queue相同。238过早点击时按钮仍禁用，239旧书未动；240实际837章ready后241才提交，失败/未提交边界保留。",
+        "source-catalog-build075.log；公开名称的卸载事务/回滚及序列化、现有迁移事务执行回归通过；Koma/master 20097ceb已推，精确CI待。",
+        "reader-missing-original-restored-245/restoration-comparison.json：fresh190七JSON、18偏好及漫画社四原成员均逐字相同；246本场新增迁移偏好两文件已移除、全pref文件集与字节相同，最终SLEEP/120000/无Override，lease20261101-044532-9879d793已释放。",
+        "Koma/master 20097ceb393e26e04a8c1eaf4d60dd21cf7d6193；精确CI41277381057 completed/success。"
       ],
-      "closedAt": null
+      "closedAt": "2026-11-01T13:48:23+08:00",
+      "modificationBasis": {
+        "object": "SourceMangaMetadata与既有书库持久化、源删除及缺源详情回退",
+        "history": "df8ef8be建立详情持久域；现有删除仅撤书源、不删书库；迁移资格不依旧源安装。",
+        "allowedDifference": "保留最后已知公开名称；旧备份缺失名称不猜补，不增加新标识或重组界面。"
+      },
+      "stage": "具名范围已交付"
     },
     {
       "id": "DIALOG_CONFIRM_BUTTON_ORDER",
@@ -13412,6 +13446,162 @@
       "title": "弹窗材质与确认顺序修复CI成功，原项收口",
       "detail": "具名237使用、取消保数据、设备恢复和精确提交CI均已核；不冒全应用每个弹窗均逐项实测。",
       "itemId": "TOAST_SYSTEM_MATERIAL"
+    },
+    {
+      "at": "2026-11-01T12:56:09+08:00",
+      "title": "条漫窗口步长及音量输入已具名核",
+      "detail": "关闭动画点按实际1590px，音量也在当前长图内滚动；正在核正常速度的开关动画过程，未提前关单。",
+      "itemId": "CONTINUOUS_TRIGGER_PAGING"
+    },
+    {
+      "at": "2026-11-01T13:01:13+08:00",
+      "title": "条漫开启动画实际连续过程已核",
+      "detail": "点按及音量均在同一长图内平滑滚动；关闭动画首录像未覆盖前置状态，保原件并补对照。",
+      "itemId": "CONTINUOUS_TRIGGER_PAGING"
+    },
+    {
+      "at": "2026-11-01T13:07:49+08:00",
+      "itemId": "CONTINUOUS_TRIGGER_PAGING",
+      "title": "条漫触发翻页完成开关两态实机对照",
+      "detail": "237点按与音量键共用窗口步长；动画开启平滑、关闭立即跳转。完整原片已审；提交CI及本轮设备恢复仍待。"
+    },
+    {
+      "at": "2026-11-01T13:13:01+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "缺源详情名称丢失已定位",
+      "detail": "补齐原书库公开名称快照及卸载前保留；离线阅读/迁移仍待普通路径。条漫提交已推，精确CI进行中。"
+    },
+    {
+      "at": "2026-11-01T13:18:40+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "删源冷启动后原详情保留已核",
+      "detail": "漫画社已卸载，49本书与目标800章保留；名称快照、封面及目录实际可见。离线阅读和迁移继续。"
+    },
+    {
+      "at": "2026-11-01T13:22:23+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "缺源离线正文和迁移入口已核",
+      "detail": "原下载第2/17页实际可读；缺源漫画的原迁移入口可进入目标源选择，提交仍待。"
+    },
+    {
+      "at": "2026-11-01T13:26:23+08:00",
+      "itemId": "CONTINUOUS_TRIGGER_PAGING",
+      "title": "条漫翻页修复已推送并通过CI",
+      "detail": "共享实现与Koma接入已交付，具名动画开关两态结果保留；237仍在接续缺源验收，设备恢复待会话结束。"
+    },
+    {
+      "at": "2026-11-01T13:27:30+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "缺源漫画复制提交成功",
+      "detail": "真实腾讯搜索与目录准备后完成复制，原书/目标均保留且下载队列未变；继续书库多选入口的迁移与最终恢复。"
+    },
+    {
+      "at": "2026-11-01T13:34:29+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "缺源迁移与复制真实事务通过",
+      "detail": "详情复制及书库选择入口迁移成功，旧下载保留；正在恢复本场数据并核精确CI。"
+    },
+    {
+      "at": "2026-11-01T13:34:29+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "备份最终短标签已核",
+      "detail": "设置与创建页均为应用设置、下载队列、追踪绑定；固定说明在卡片外，不再冒设置行。"
+    },
+    {
+      "at": "2026-11-01T13:36:20+08:00",
+      "itemId": "CONTINUOUS_TRIGGER_PAGING",
+      "title": "条漫修复交付，设备恢复完成",
+      "detail": "开关两态、点按/音量窗口步长已核且CI成功；237原包、数据与电源恢复并释租。"
+    },
+    {
+      "at": "2026-11-01T13:36:20+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "缺源验证数据和书源恢复完成",
+      "detail": "原七JSON、18偏好与源四成员读回相同，测试新增偏好已清理；缺源修复等待精确CI。"
+    },
+    {
+      "at": "2026-11-01T13:36:20+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "备份结构及短标签收口",
+      "detail": "最后页面读回及本场恢复完成；原创建/恢复验收保留，不重复执行。"
+    },
+    {
+      "at": "2026-11-01T13:40:49+08:00",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "浏览封面未消费书架密度已定位",
+      "detail": "书架为窗口自适应铺满列，浏览为固定104vp；准备复用现有书架规则，保原Grid与加载归属。"
+    },
+    {
+      "at": "2026-11-01T13:45:52+08:00",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "封面网格共用书架密度候选已编译",
+      "detail": "浏览及源内搜索改为同一列宽规则和已提交偏好；开始237具名宽度及密度验证。"
+    },
+    {
+      "at": "2026-11-01T13:48:23+08:00",
+      "itemId": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "title": "缺源阅读与迁移修复收口",
+      "detail": "具名普通路径、数据恢复和精确CI均完成；旧备份无名称信息的边界保留。"
+    },
+    {
+      "at": "2026-11-01T13:50:06+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB第117章失败原因取得直接证据",
+      "detail": "本机真实源返回气泡叠绘不支持；普通文字页和包子裁切均不能直接替代合成，旧保护保留，尚未修复。"
+    },
+    {
+      "at": "2026-11-01T13:51:45+08:00",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "书架与浏览封面实测同宽",
+      "detail": "237标准密度下两处均为3列、每封面392px；继续核源内搜索和密度变更。"
+    },
+    {
+      "at": "2026-11-01T13:59:44+08:00",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "封面密度的普通路径验证完成",
+      "detail": "标准书架/浏览/源内搜索392px；宽松书架/浏览552px，均真实显示；开始本场恢复与提交交付。"
+    },
+    {
+      "at": "2026-11-01T14:04:58+08:00",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "封面宽度修复推送，237已恢复",
+      "detail": "标准、宽松及源内搜索已核；原包和本场数据已恢复，电源恢复睡眠并释租。CI仍在运行。"
+    },
+    {
+      "at": "2026-11-01T14:06:11+08:00",
+      "itemId": "SOURCE_USER_FACING_TERMINOLOGY",
+      "title": "界面统一书源称呼",
+      "detail": "原用词已在界面资源中替换，功能与布局保持；尚待本次构建和普通入口核对。"
+    },
+    {
+      "at": "2026-11-01T14:13:08+08:00",
+      "itemId": "SOURCE_USER_FACING_TERMINOLOGY",
+      "title": "书源用词及系统四点已验证",
+      "detail": "管理普通入口、书架与详情更多菜单均已核；237原包、数据和电源已恢复并释租，最终CI运行中。"
+    },
+    {
+      "at": "2026-11-01T14:13:08+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB气泡正文开始接通宿主",
+      "detail": "已定位为气泡叠绘缺口；原子代理补描述、后台合成及离线保存链，未验证前不声明支持。"
+    },
+    {
+      "at": "2026-11-01T14:22:20+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB气泡合成候选进入实机验证",
+      "detail": "已补坐标、后台叠绘及离线描述；最终候选编译通过，正在237通过正常导入与章节入口验证。"
+    },
+    {
+      "at": "2026-11-01T14:25:23+08:00",
+      "itemId": "SOURCE_USER_FACING_TERMINOLOGY",
+      "title": "书源称呼修复已交付",
+      "detail": "普通路径与设备恢复已核，最终CI成功；此项关闭，不重跑已接受路径。"
+    },
+    {
+      "at": "2026-11-01T14:25:23+08:00",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "封面宽度统一已交付",
+      "detail": "普通路径与设备恢复已核，最终CI成功；此项关闭，不重跑已接受路径。"
     }
   ],
   "reportAgeAudit": {
@@ -13427,10 +13617,4 @@
     "currentOpenAfterVerifiedScopeClosure": 23
   }
 }
-
-
-
-
-
-
 -->

@@ -5,44 +5,25 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "reader-continuous-animation-off-198",
+  "runId": "db-overlay-source-ready-283",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "candidate073 Koma host/Legacy + reader-kit current local viewport navigation diff",
-    "page": "Choose continuous mode and switch off enabled page animation in existing settings",
+    "codeIdentity": "candidate079 DB overlay host plus source WASM8d206cdd",
+    "page": "Observe completion of the single ordinary DB browse request without retrying",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
     "orientation": "portrait",
     "resolution": "1320x2120",
-    "notes": "Restore fresh190 seven JSON/18 prefs, original237.hap, no override/120000 and sleep;197 remains user-owned."
+    "notes": "197 user-owned. Restore fresh273 original HAP,DB four members,seven JSON/18prefs,120000/noOverride/SLEEP; remove only this candidate download."
   },
   "preflight": [],
   "measurement": {
-    "actions": [
-      {
-        "name": "choose-continuous",
-        "uiInput": [
-          "click",
-          "984",
-          "1256"
-        ],
-        "pauseAfterMs": 300
-      },
-      {
-        "name": "animation-off",
-        "uiInput": [
-          "click",
-          "1182",
-          "1824"
-        ],
-        "pauseAfterMs": 250
-      }
-    ]
+    "actions": []
   },
   "postflight": [
     {
@@ -52,7 +33,7 @@
         "uitest",
         "dumpLayout",
         "-p",
-        "/data/local/tmp/reader-continuous-animation-off-198.json"
+        "/data/local/tmp/db-overlay-source-ready-283.json"
       ]
     },
     {
@@ -60,8 +41,8 @@
       "hdcArgs": [
         "file",
         "recv",
-        "/data/local/tmp/reader-continuous-animation-off-198.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/reader-continuous-animation-off-198/layout.json"
+        "/data/local/tmp/db-overlay-source-ready-283.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/db-overlay-source-ready-283/layout.json"
       ]
     },
     {
@@ -71,7 +52,7 @@
         "uitest",
         "screenCap",
         "-p",
-        "/data/local/tmp/reader-continuous-animation-off-198.png"
+        "/data/local/tmp/db-overlay-source-ready-283.png"
       ]
     },
     {
@@ -79,8 +60,8 @@
       "hdcArgs": [
         "file",
         "recv",
-        "/data/local/tmp/reader-continuous-animation-off-198.png",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/reader-continuous-animation-off-198/screen.png"
+        "/data/local/tmp/db-overlay-source-ready-283.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/db-overlay-source-ready-283/screen.png"
       ]
     }
   ]
