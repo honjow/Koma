@@ -1,3 +1,4 @@
+import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -1588,6 +1589,7 @@ export struct MangaDetailPage {
           this.showToast(s('common_remove_from_library_failed'))
           return false
         }
+        await new ReaderPreferencesStore(this.getUIContext().getHostContext() as common.UIAbilityContext).copyBannerOverride(comicId, '', true)
         this.activeLibraryComicId = ''
         this.isInLibrary = false
         manga.isInLibrary = false

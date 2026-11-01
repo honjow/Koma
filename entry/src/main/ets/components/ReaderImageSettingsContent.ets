@@ -1,3 +1,4 @@
+import { normalizeBannerFilter } from '../model/ImageBannerRules'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderPreferences, DEFAULT_READER_PREFERENCES, normalizeReaderPreferences, getReaderCropStrengthLabel } from '../model/ReaderPreferencesStore'
@@ -18,6 +19,7 @@ function t(key: string): string { return AppStrings.get(key) }
 @ComponentV2
 export struct ReaderImageSettingsContent {
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
+  @Param bookBannerOptions: boolean = false
   @Param cropControlsAvailable: boolean = true
   @Param enhancementControlsAvailable: boolean = true
   @Param modelsRevision: number = 0
@@ -71,6 +73,26 @@ export struct ReaderImageSettingsContent {
     this.onPreferencesChange(next)
   }
 
+  private bannerChoice(): string {
+    return this.bookBannerOptions ? this.preferences.bannerFilterOverride ?? 'global' :
+      normalizeBannerFilter(this.preferences.bannerFilter)
+  }
+  @Builder
+  private BannerMenu(select: (action: () => void) => void) {
+    Menu() {
+      ForEach(this.bookBannerOptions ? ['global', 'source', 'auto', 'off'] : ['source', 'auto', 'off'], (choice: string) => {
+        MenuItem({ content: t('reader_banner_' + choice), symbolEndIcon:
+          this.bannerChoice() === choice ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+          .onClick(() => { select(() => {
+            const next = normalizeReaderPreferences(this.preferences)
+            if (this.bookBannerOptions) next.bannerFilterOverride = choice
+            else next.bannerFilter = normalizeBannerFilter(choice)
+            this.onPreferencesChange(next)
+          }) })
+      })
+    }
+  }
+
   @Builder
   private CropStrengthMenu(select: (action: () => void) => void) {
     Menu() {
@@ -116,6 +138,10 @@ export struct ReaderImageSettingsContent {
     Column({ space: ThemeConstants.SPACE_LG }) {
       if (this.cropControlsAvailable) {
         GroupedListSection({ title: t('settings_reader_group_crop') }) {
+          ConciseListRow({ title: t('reader_banner_filter'), trailingText: t('reader_banner_' + this.bannerChoice()),
+            trailingDropdown: true, dropdownMenuEnabled: true,
+            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BannerMenu(select) } }).id('reader-banner-filter')
+          ListDivider()
           ConciseListRow({ title: t('settings_row_reader_trim_page_margins_title'), hasSwitch: true,
             checked: this.preferences.trimPageMarginsEnabled, showChevron: false,
             switchAction: (enabled: boolean) => {

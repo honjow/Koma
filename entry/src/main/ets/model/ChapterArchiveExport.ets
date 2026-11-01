@@ -71,7 +71,7 @@ export async function prepareChapterArchive(context: common.UIAbilityContext,
       // presentation as Reader, while retaining original download bytes/hash.
       const sourcePath = page.overlay === undefined ? page.path : await fetchAndCacheReaderRemoteSource({
         kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE, uri: `file://${page.path}`, imageUri: page.path,
-        pageId: page.pageId, sourceRuntimeId: page.sourceId, sourceTextOverlay: page.overlay,
+        pageId: page.pageId, sourceRuntimeId: page.sourceId, sourceTextOverlay: page.overlay, skipBannerFilter: true,
       }, context)
       copied.push(`${staging}/${page.name}`)
       await fs.copyFile(sourcePath, copied[copied.length - 1])

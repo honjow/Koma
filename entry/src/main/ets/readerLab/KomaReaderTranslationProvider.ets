@@ -17,20 +17,22 @@ export class KomaReaderTranslationConfiguration {
   targetLanguage: string
   sourceLanguage: string
   settingsRevision: number
+  inputIdentity: string
 
   constructor(enabled: boolean, projectId: string, targetLanguage: string, sourceLanguage: string,
-    settingsRevision: number) {
+    settingsRevision: number, inputIdentity: string = '') {
     this.enabled = enabled
     this.projectId = projectId
     this.targetLanguage = targetLanguage
     this.sourceLanguage = sourceLanguage
+    this.inputIdentity = inputIdentity
     this.settingsRevision = settingsRevision
   }
 
   identity(): string {
     if (!this.enabled || this.projectId.length === 0 || this.targetLanguage.length === 0 ||
       this.sourceLanguage.length === 0 || !Number.isSafeInteger(this.settingsRevision) || this.settingsRevision < 0) return ''
-    return JSON.stringify([this.targetLanguage, this.sourceLanguage, this.settingsRevision])
+    return JSON.stringify([this.targetLanguage, this.sourceLanguage, this.settingsRevision, this.inputIdentity])
   }
 
   resultMatches(page: ReaderPage, result: ComicVisualTranslationRunResult): boolean {

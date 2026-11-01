@@ -1,3 +1,4 @@
+import { ImageRuleDescriptor } from '../model/ImageBannerRules'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
 import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
 
@@ -21,17 +22,24 @@ export interface SourceIndexRepository {
   customName?: string
   name?: string
   website?: string
+  imageRules?: ImageRuleDescriptor
 }
 
-export interface SourceRepositoryMetadata { name?: string; website?: string }
+export interface SourceRepositoryMetadata { name?: string; website?: string; imageRules?: ImageRuleDescriptor }
+
+export function parseImageRuleDescriptor(value: Object | undefined): ImageRuleDescriptor | undefined {
+  const descriptor = value as ImageRuleDescriptor | undefined
+  if (descriptor?.schemaVersion !== 1 || typeof descriptor.indexUrl !== 'string' || !isValidHttpUrl(descriptor.indexUrl)) return undefined
+  return { schemaVersion: 1, indexUrl: descriptor.indexUrl }
+}
 
 export function parseSourceRepositoryMetadata(raw: Object): SourceRepositoryMetadata | undefined {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined
-  const meta = (raw as Record<string, Object>)['meta'] as Record<string, Object>
+  const meta = ((raw as Record<string, Object>)['meta'] ?? {}) as Record<string, Object>
   if (meta === null || meta === undefined || typeof meta !== 'object' || Array.isArray(meta)) return undefined
   const name = safeString(meta['name']).trim().slice(0, 120)
   const website = normalizeSourceHomepage(meta['website'])
-  return { name: name || undefined, website }
+  return { name: name || undefined, website, imageRules: parseImageRuleDescriptor((raw as Record<string, Object>)['imageRules']) }
 }
 
 export function sourceRepositoryDisplayName(repository: SourceIndexRepository): string {
@@ -159,6 +167,7 @@ export function normalizeSourceIndexRepository(value: Object): SourceIndexReposi
     customName: safeString(record['customName']).trim().slice(0, 120) || undefined,
     name: safeString(record['name']).trim().slice(0, 120) || undefined,
     website: normalizeSourceHomepage(record['website']),
+    imageRules: parseImageRuleDescriptor(record['imageRules']),
   }
 }
 

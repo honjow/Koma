@@ -1,6 +1,6 @@
 # 订阅图片规则实施设计
 
-状态：用户已采用“通用处理器＋订阅级可复用规则”的方向。本文件是接入规划，尚未实现；下面的入口、默认值和协议字段为具体候选。
+状态：用户已采用本方案并要求开始实现。现有图像分组接入“横幅过滤”，全局默认跟随书源；单本可使用全局或独立选择。实现及验收进展归原工作单。
 
 ## 职责与首批范围
 
@@ -11,21 +11,27 @@
 
 ## 订阅协议与规则存储
 
-保留现有数组式 `index.json` 和 `.koma` 包结构。在同目录的可选 `repo.json` 增加规则描述，现有 `meta.name` / `meta.website` 保持：
+### 仓库与订阅组织
+
+- 第一批复用 `koma-sources`，规则源码放在独立的 `image-rules/` 目录，独立维护格式、内容版本和验证流程，不塞入某个源的 Rust 代码或 `.koma` 归档。
+- 用户继续管理现有订阅地址，不增加第二套规则订阅列表。订阅可选声明提供图片规则，添加订阅即可后台取得规则；是否应用由阅读设置和单本策略决定。
+- 规则更新使用单独工作流，`image-rules` 分支保留静态数据版本；实际下载使用固定 `image-rules-v1` Release 的内容寻址资源。先上传新的摘要文件，再替换清单，旧资源保留。清单资产替换可能短暂不可用，客户端失败时继续使用旧快照。规则 Release 明确不设为 `latest`；仅修改规则不运行全部 WASM 构建，也不覆盖 `gh-pages` 文档。
+- 订阅只引用规则清单地址，不把规则资源位置写死在 App。以后确需独立仓库时，更新原订阅元数据的规则地址即可，用户仍使用原订阅入口。
+
+保留现有数组式 `index.json` 和 `.koma` 包结构。在同目录的可选 `repo.json` 增加规则清单描述，现有 `meta.name` / `meta.website` 保持。已发布的描述如下：
 
 ```json
 {
   "meta": { "name": "订阅名称", "website": "https://example.org/project" },
   "imageRules": {
     "schemaVersion": 1,
-    "path": "image-rules.json",
-    "sha256": "<规则文件摘要>"
+    "indexUrl": "https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json"
   }
 }
 ```
 
-- 路径沿用订阅目录下相对资源的解析方式；复用现有路径、大小、摘要和格式校验，不通过书源正文的 HTTP 会话获取规则。
-- `image-rules.json` 使用版本化纯数据。首批检测类型拟为 `edge_signature_v1`：稳定规则 ID、规则版本、顶部／底部变体顺序、参考宽高、逐行 RGB 采样特征、宽度适配和容差。普通／叠加处理语义也由该规则描述。
+- `indexUrl` 使用既有订阅 HTTP(S) 地址解析合同。规则清单描述修订版、相对资源地址及资源摘要；资源沿清单目录解析。复用现有路径、大小、摘要和格式校验，不通过书源正文的 HTTP 会话获取规则。这里是描述文件发现的数据地址，不是新增用户必须填写的订阅。
+- 规则资源使用版本化纯数据。首批检测类型为 `edge_signature_v1`：稳定规则 ID、规则版本、顶部／底部变体顺序、参考宽高、逐行 RGB 采样特征、宽度适配和容差。普通／叠加处理语义也由该规则描述。
 - 发布端从原始模板生成采样特征；App 接收特征数据，无需内置模板品牌图像，也不执行规则脚本。算法类型版本归 App，具体特征版本归订阅。
 - 新增规则 store 管理“订阅来源＋规则 ID＋内容版本”的完整快照。同一份内容按摘要复用；不同订阅即使使用相同文字 ID，也不能互相覆盖。
 - 规则独立于源安装状态：添加订阅后可取得规则，不要求安装原站书源。规则标记的跨源适用性仅影响图片匹配，不改变原始图片请求、Cookie、来源权限或网络缓存归属。
@@ -39,7 +45,7 @@
 - 添加、修改订阅地址时，旧来源记录和新规则来源一起按成功事务处理；只改自定义名称不下载规则。
 - 阅读中固定本次规则快照，后台更新不重置可见图片。下次阅读使用新规则；用户主动改变当前漫画过滤选择时，才刷新对应派生结果。
 
-## 控制形式候选
+## 已采用的控制形式
 
 全局入口放在“设置 → 阅读”的现有图像分组，阅读器图像设置显示同名“横幅过滤”，复用现有选择行和菜单。
 
@@ -56,9 +62,10 @@
 ## 兼容现有源与发布顺序
 
 - 现有 `imageProcessing.kind`、模式值及源设置通过规则中的兼容映射转换到通用计划；既有关闭、普通和强力选择继续有效。映射属于规则数据，不在 App 增加新的源 ID 分支。
+- 兼容映射中的可选 `sourceIds` 仅声明哪些旧缓存需要补查处理信息。其它书源的已有缓存直接使用；自动识别及关闭不补查。新图片返回的处理声明按 `kind` 匹配，不受该来源名单限制。声明缓存同时按源设置、安装版本和安装路径隔离，替换或重装书源后不沿用旧声明。
 - 默认“跟随书源”不能因为新规则尚未取得就让现有处理失效。先完成首版规则资源发布、旧模板到本地规则快照的兼容迁移和映射，再替换调用并移除旧身份／域名门控；兼容缓存不能在迁移完成前清除。
 - 旧 App 忽略新增订阅字段，继续消费旧源输出。新 App 在同一页只执行一份有效过滤计划，不能旧服务和新规则各裁剪一次。
-- 本项包含规则资源和 App 接入，不由此另发 App 版本或移动既有发布标签。规则发布沿现有书源库发布流程。
+- 本项包含规则资源和 App 接入，不由此另发 App 版本或移动既有发布标签。规则源码与书源同仓，但分发工作流及版本独立，不能让规则清单更新依赖完整书源发布。
 
 ## 图片准备、预载与缓存
 
@@ -85,9 +92,9 @@
 
 ## 当前接线依据
 
-- `SourceIndexMetadata.ets` / `SourceIndexService.ets`：现有订阅元数据只读名称和项目页，可加可选描述；`SourcePackageManagerCache.ets` 拥有后台索引检查。
-- `SourceBaoziBannerService.ets` / `SourceBaoziBannerDetector.ets`：现有后台裁剪和签名匹配；`ReaderPageSourceAdapter.ets` 当前有源身份／域名门控。
+- `SourceIndexMetadata.ets` / `SourceIndexService.ets`：解析可选 `imageRules` 并交给 `ImageRuleStore` 同步；`SourcePackageManagerCache.ets` 拥有后台索引检查。
+- `ImageRuleStore.ets` / `ImageBannerRules.ets`：管理本地快照、规则校验和兼容映射；`ImageBannerService.ets` / `ImageBannerDetector.ets` 执行后台识别和派生缓存。`ReaderPageSourceAdapter.ets` 统一正文准备，不按源身份或图片域名限制识别。
 - `KomaReaderLabAdapter.sourceFile/preload` 共用准备入口；`OfflineDownloadService` 保留原始字节；`ChapterArchiveExport` 普通图片保持原始文件。
-- `ReaderPreferencesStore` 当前单本模式覆盖只有分页和方向；新策略必须保持该边界。
+- `ReaderPreferencesStore` 的单本模式覆盖仍只有分页和方向；横幅策略使用独立的窄字段覆盖，复用同一持久化事务。
 
 任务进展只维护 CURRENT_STATUS.md 的 GENERIC_BAOZI_BANNER_PROCESSING 原项，本文件不保存执行流水。

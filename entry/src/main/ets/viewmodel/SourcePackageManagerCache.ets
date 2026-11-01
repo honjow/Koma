@@ -188,6 +188,11 @@ export class SourcePackageManagerCache {
       if (revision !== this.indexLoadRevision || scope !== this.scope) return
       this.sourceIndexUrl = url
       this.sourceIndexRepositories = repositories
+      repositories.forEach((repository: SourceIndexRepository): void => {
+        void service.syncImageRules(repository.url).catch((error: Error): void => {
+          console.warn('[ImageRules] sync_failed ' + error.message)
+        })
+      })
       const cachedUpdates: Record<string, SourcePackageUpdateStatus> = {}
       const records: SourceIndexMetadataCacheRecord[] = []
       const urls = this.sourceIndexUrlsForUpdate(url)

@@ -2115,6 +2115,11 @@
     {"name": "source_subscription_actions", "value": "订阅操作"},
     {"name": "source_subscription_remove", "value": "移除订阅"},
     {"name": "search_results_all", "value": "显示全部"},
-    {"name": "search_results_only", "value": "仅有结果"}
+    {"name": "search_results_only", "value": "仅有结果"},
+    {"name": "reader_banner_filter", "value": "横幅过滤"},
+    {"name": "reader_banner_global", "value": "使用全局"},
+    {"name": "reader_banner_source", "value": "跟随书源"},
+    {"name": "reader_banner_auto", "value": "自动识别"},
+    {"name": "reader_banner_off", "value": "关闭"}
   ]
 }

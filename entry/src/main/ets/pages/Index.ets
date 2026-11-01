@@ -1,3 +1,4 @@
+import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
 import { PullRefreshController } from '../components/PullRefresh'
 import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
@@ -2007,6 +2008,9 @@ struct Index {
   private cleanupRemovedComicDownloads(comicId: ComicId): void {
     try {
       const context = getContext(this) as common.UIAbilityContext
+      void new ReaderPreferencesStore(context).copyBannerOverride(comicId, '', true).catch((): void => {
+        DiagnosticLogger.warn('index', 'banner_choice_cleanup_failed', '[library-remove] banner_choice_cleanup_failed')
+      })
       void OfflineDownloadService.ensureQueueInitialized(context.filesDir)
         .then((): Promise<number> => new OfflineDownloadQueueStore(context.filesDir).deleteComicDownloads(comicId))
         .then((removedCount: number) => {

@@ -1,3 +1,4 @@
+import { ReaderPreferencesStore } from './ReaderPreferencesStore'
 import { common } from '@kit.AbilityKit'
 import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields, copyComicUpdateSchedule } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
@@ -177,6 +178,9 @@ export async function commitMangaMigration(
     upsertComicAndPersistLibraryStore(library, persistence, target)
     if (options.readProgress && !reader.commitMigrationReadPlan(plan)) throw new Error('migration_save_failed')
     await new TrackerPreferencesStore(context).copyComicMappings(source.id, target.id)
+    // Keep the old book's choice until its shelf record is actually removed;
+    // a failed later write must leave the original book readable as before.
+    await new ReaderPreferencesStore(context).copyBannerOverride(source.id, target.id, false)
     const current = library.getComic(source.id)
     if (current === undefined || !sameComicIdentity(source, current)) throw new Error('migration_source_changed')
     if (!options.copy) {
@@ -189,6 +193,7 @@ export async function commitMangaMigration(
         if (!reader.flush()) throw new Error('migration_save_failed')
       }
       removeComicRecordAndPersistLibraryStore(library, persistence, source.id)
+      await new ReaderPreferencesStore(context).copyBannerOverride(source.id, '', true)
     }
     return { targetComicId: target.id, unmatchedReadCount: options.readProgress ? plan.unmatchedReadCount : 0 }
   })

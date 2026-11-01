@@ -1101,7 +1101,7 @@ export struct SettingsPage {
     }
     // Settings has no global column pairing control; its source of truth is
     // the shared reader state and chapter pairing remains in Reader progress.
-    this.applyReaderPreferences(readerPreferencesFromRuntimeState('odd_left'))
+    this.applyReaderPreferences(readerPreferencesFromRuntimeState('odd_left', this.readerPreferences))
   }
 
   private saveImagePreferences(next: ReaderPreferences): void {

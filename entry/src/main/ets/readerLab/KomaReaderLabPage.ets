@@ -1,3 +1,4 @@
+import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { komaReaderImageEffects } from './KomaReaderDisplayEffects'
 import { util } from '@kit.ArkTS'
@@ -272,7 +273,8 @@ export struct KomaReaderLabPage {
     try {
       const adapter = new KomaReaderLabAdapter(context.filesDir, context.cacheDir, this.catalogHost, context, this.productionEntry,
         (): string => this.hostPreferences?.cropStrength ?? 'standard',
-        (): boolean => readerRemotePreloadAllowed(this.hostPreferences?.preloadWifiOnly === true))
+        (): boolean => readerRemotePreloadAllowed(this.hostPreferences?.preloadWifiOnly === true),
+        () => effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
       this.adapter = adapter
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
@@ -762,7 +764,8 @@ export struct KomaReaderLabPage {
       settings.revision === this.translationState.revision &&
       (sameUnit || futureAutomatic), sameUnit ? this.translationProjectId :
         futureAutomatic ? this.translationProjectForUnit(page.unit) : '',
-      settings.targetLanguage, settings.sourceLanguage, settings.revision)
+      settings.targetLanguage, settings.sourceLanguage, settings.revision,
+      effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
   }
 
   private translationFrame(sourceIndex: number): ReaderPagedFrame | undefined {
@@ -907,7 +910,8 @@ export struct KomaReaderLabPage {
   private superResolutionConfiguration(): KomaReaderSuperResolutionConfiguration {
     return new KomaReaderSuperResolutionConfiguration(this.readerMode.superResolutionEnabled,
       this.readerMode.superResolutionModel, this.readerMode.superResolutionBackend,
-      this.readerMode.superResolutionMaxHeight)
+      this.readerMode.superResolutionMaxHeight,
+      effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
   }
 
   private setEnhancementInteractionBusy(busy: boolean): void {
@@ -952,7 +956,13 @@ export struct KomaReaderLabPage {
     if (previous !== null && (previous.tapZonePreset !== next.tapZonePreset ||
       previous.tapZoneInvert !== next.tapZoneInvert)) this.tapZonePreviewRevision += 1
     session.setPolicy(KomaReaderInitialPolicy.resolveHost(next, next.columnMode))
+    const bannerChanged = effectiveBannerFilter(previous?.bannerFilter, previous?.bannerFilterOverride) !== effectiveBannerFilter(next.bannerFilter, next.bannerFilterOverride)
     this.enqueuePreferenceWrite(next)
+    if (bannerChanged) {
+      const anchor = session.snapshot().anchor
+      this.adapter?.invalidatePresentation()
+      if (anchor !== undefined && anchor !== null) void session.open(anchor.unit, anchor.sourceIndexHint)
+    }
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
   }

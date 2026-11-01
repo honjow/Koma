@@ -1,3 +1,4 @@
+import { ImageProcessingHint } from './ImageBannerRules'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
@@ -52,6 +53,10 @@ export interface OfflineDownloadedPage {
   localPath: string
   size: number
   contentHash?: string
+  /** Public processing hint plus source settings/install identity; never request headers or credentials. */
+  imageProcessingFingerprint?: string
+  imageProcessingResolved?: boolean
+  imageProcessing?: ImageProcessingHint
   /** Optional public source URL for source-owned presentation; never an access token. */
   sourceOriginalUri?: string
   sourceTextOverlay?: SourceTextOverlay
@@ -276,6 +281,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       typeof page.localPath !== 'string' ||
       typeof page.size !== 'number' ||
       (page.contentHash !== undefined && typeof page.contentHash !== 'string') ||
+      (page.imageProcessing !== undefined && (typeof page.imageProcessing.kind !== 'string' || typeof page.imageProcessing.mode !== 'string')) ||
       (page.sourceOriginalUri !== undefined && typeof page.sourceOriginalUri !== 'string') ||
       typeof page.updatedAt !== 'number') {
       throw new Error('Unsupported offline download page manifest')
@@ -804,6 +810,9 @@ export class OfflineDownloadStore {
         localPath: page.localPath,
         size: Math.max(0, Math.floor(page.size)),
         contentHash: page.contentHash?.trim(),
+        imageProcessing: page.imageProcessing,
+        imageProcessingResolved: page.imageProcessingResolved,
+        imageProcessingFingerprint: page.imageProcessingFingerprint,
         sourceOriginalUri: page.sourceOriginalUri,
         sourceTextOverlay: page.sourceTextOverlay === undefined ? undefined : sourceTextOverlay(page.sourceTextOverlay),
         updatedAt: page.updatedAt,

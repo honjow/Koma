@@ -1920,7 +1920,7 @@ export struct ReaderPage {
     // The spread-column pairing is session progress, never global runtime
     // state.  Keep it while applying a Settings-page change to this live
     // Reader.
-    this.applyPreferences(readerPreferencesFromRuntimeState(this.preferences.columnMode), false)
+    this.applyPreferences(readerPreferencesFromRuntimeState(this.preferences.columnMode, this.preferences), false)
   }
 
   private async loadPreferences(): Promise<void> {
@@ -2768,6 +2768,7 @@ export struct ReaderPage {
       tapZonePreset: p.tapZonePreset,
       tapZoneInvert: p.tapZoneInvert,
       pageGapMode: p.pageGapMode,
+      bannerFilter: p.bannerFilter, bannerFilterOverride: p.bannerFilterOverride,
       trimPageMarginsEnabled: p.trimPageMarginsEnabled,
       cropStrength: p.cropStrength,
       superResolutionEnabled: p.superResolutionEnabled,

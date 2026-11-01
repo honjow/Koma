@@ -33,16 +33,18 @@ export class KomaReaderSuperResolutionConfiguration {
   model: string
   backend: string
   maxSourceHeight: number
+  inputIdentity: string
 
-  constructor(enabled: boolean, model: string, backend: string, maxSourceHeight: number) {
+  constructor(enabled: boolean, model: string, backend: string, maxSourceHeight: number, inputIdentity: string = '') {
     this.enabled = enabled
     this.model = model
     this.backend = backend
+    this.inputIdentity = inputIdentity
     this.maxSourceHeight = maxSourceHeight
   }
 
   identity(): string {
-    return `koma-super-resolution:${this.model}:${this.backend}:${this.maxSourceHeight}`
+    return `koma-super-resolution:${this.model}:${this.backend}:${this.maxSourceHeight}:${this.inputIdentity}`
   }
 }
 

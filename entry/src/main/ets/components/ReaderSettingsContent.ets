@@ -89,6 +89,7 @@ export struct ReaderSettingsContent {
       tapZonePreset: p.tapZonePreset,
       tapZoneInvert: p.tapZoneInvert,
       pageGapMode: p.pageGapMode,
+      bannerFilter: p.bannerFilter, bannerFilterOverride: p.bannerFilterOverride,
       trimPageMarginsEnabled: p.trimPageMarginsEnabled,
       cropStrength: p.cropStrength,
       superResolutionEnabled: p.superResolutionEnabled,
@@ -399,7 +400,7 @@ export struct ReaderSettingsContent {
           ListDivider()
           ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
         }
-        ReaderImageSettingsContent({ preferences: this.preferences,
+        ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
           cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: this.enhancementControlsAvailable,
           onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
           onOpenModels: () => { this.modelManagementShown = true } })

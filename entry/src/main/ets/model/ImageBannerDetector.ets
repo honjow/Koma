@@ -1,6 +1,6 @@
-// Port of Keiyoushi baozimanhua BannerChecker.kt, fixed reference 949dea25.
-// Preserve its row signatures, threshold and normal/extra precedence; this is
-// source-owned banner detection, independent of the user's white-edge crop.
+import { ImageBannerRule, ImageRuleEdge, ImageRuleSignature } from './ImageBannerRules'
+
+// v1 preserves reference 949dea25 sampling, tolerance and edge precedence.
 export interface SourceBannerPixelReader {
   width: number
   height: number
@@ -18,14 +18,8 @@ export class SourceBannerSignature {
     this.width = width
     this.height = height
     this.averages = averages
-    this.columns = SourceBaoziBannerDetector.sampleColumns(width)
+    this.columns = ImageBannerDetector.sampleColumns(width)
   }
-}
-
-export interface SourceBannerSignatures {
-  current: SourceBannerSignature
-  old: SourceBannerSignature
-  narrow: SourceBannerSignature
 }
 
 export interface SourceBannerCrop {
@@ -33,7 +27,7 @@ export interface SourceBannerCrop {
   bottom: number
 }
 
-export class SourceBaoziBannerDetector {
+export class ImageBannerDetector {
   static sampleColumns(width: number): number[] {
     const start = Math.floor(width * 0.2)
     const end = Math.floor(width * 0.8)
@@ -59,17 +53,17 @@ export class SourceBaoziBannerDetector {
   }
 
   static signature(pixels: Uint8Array, width: number, height: number): SourceBannerSignature {
-    const columns = SourceBaoziBannerDetector.sampleColumns(width)
+    const columns = ImageBannerDetector.sampleColumns(width)
     const averages: number[] = []
     for (let row = 0; row < height; row += 1) {
-      const average = SourceBaoziBannerDetector.rowAverage(pixels, width, row, columns)
+      const average = ImageBannerDetector.rowAverage(pixels, width, row, columns)
       averages.push(average[0], average[1], average[2])
     }
     return new SourceBannerSignature(width, height, averages)
   }
 
-  private static scaled(source: SourceBannerSignature, width: number): SourceBannerSignature {
-    const height = Math.max(1, Math.round(Math.fround(source.height * Math.fround(width / 640))))
+  private static scaled(source: SourceBannerSignature, width: number, referenceWidth: number): SourceBannerSignature {
+    const height = Math.max(1, Math.round(Math.fround(source.height * Math.fround(width / referenceWidth))))
     const averages: number[] = []
     for (let row = 0; row < height; row += 1) {
       const sourceY = Math.max(0, Math.min(source.height - 1, (row + 0.5) * source.height / height - 0.5))
@@ -95,7 +89,7 @@ export class SourceBaoziBannerDetector {
     let difference = 0
     // Match the reference's early rejection, then check all remaining rows.
     for (let row = 0; row < signature.height; row += 4) {
-      const average = SourceBaoziBannerDetector.rowAverage(pixels, signature.width, row, signature.columns)
+      const average = ImageBannerDetector.rowAverage(pixels, signature.width, row, signature.columns)
       for (let component = 0; component < 3; component += 1) {
         difference += Math.abs(average[component] - signature.averages[row * 3 + component])
       }
@@ -103,7 +97,7 @@ export class SourceBaoziBannerDetector {
     }
     for (let row = 0; row < signature.height; row += 1) {
       if (row % 4 === 0) continue
-      const average = SourceBaoziBannerDetector.rowAverage(pixels, signature.width, row, signature.columns)
+      const average = ImageBannerDetector.rowAverage(pixels, signature.width, row, signature.columns)
       for (let component = 0; component < 3; component += 1) {
         difference += Math.abs(average[component] - signature.averages[row * 3 + component])
       }
@@ -113,22 +107,30 @@ export class SourceBaoziBannerDetector {
   }
 
   static async detect(
-    image: SourceBannerPixelReader, signatures: SourceBannerSignatures, mode: string,
+    image: SourceBannerPixelReader, rule: ImageBannerRule, mode: string,
   ): Promise<SourceBannerCrop> {
     if (mode !== '1' && mode !== '2') return { top: 0, bottom: 0 }
-    const narrowWidth = image.width > 640 && image.width < 800 ? image.width : 640
-    const narrow = narrowWidth === 640
-      ? signatures.narrow : SourceBaoziBannerDetector.scaled(signatures.narrow, narrowWidth)
-    const bottomHeight = Math.min(narrow.height, Math.max(1, Math.round(Math.fround(160 * Math.fround(narrowWidth / 640)))))
-    const narrowBottom = new SourceBannerSignature(narrow.width, bottomHeight, narrow.averages.slice(0, bottomHeight * 3))
-    const topSignatures: SourceBannerSignature[] = [signatures.current, signatures.old, narrow]
-    const bottomSignatures: SourceBannerSignature[] = [signatures.old, signatures.current, narrowBottom]
+    const variants = (edges: ImageRuleEdge[]): SourceBannerSignature[] => edges.map((edge: ImageRuleEdge): SourceBannerSignature => {
+      const data = rule.signatures.find((value: ImageRuleSignature): boolean => value.id === edge.signature)!
+      let signature = new SourceBannerSignature(data.width, data.height, data.averages)
+      const scale = data.scale
+      const width = scale !== undefined && image.width > scale.minWidthExclusive && image.width < scale.maxWidthExclusive
+        ? image.width : data.width
+      if (width !== data.width) signature = ImageBannerDetector.scaled(signature, width, scale!.referenceWidth)
+      if (edge.height !== undefined) {
+        const height = Math.min(signature.height, Math.max(1, Math.round(Math.fround(edge.height * Math.fround(width / data.width)))))
+        signature = new SourceBannerSignature(width, height, signature.averages.slice(0, height * 3))
+      }
+      return signature
+    })
+    const topSignatures = variants(rule.top)
+    const bottomSignatures = variants(rule.bottom)
     let top = 0
     while (top < image.height) {
       let consumed = 0
       for (const signature of topSignatures) {
         const x = Math.floor((image.width - signature.width) / 2)
-        if (await SourceBaoziBannerDetector.matches(image, x, top, signature)) {
+        if (await ImageBannerDetector.matches(image, x, top, signature)) {
           consumed = signature.height
           break
         }
@@ -144,7 +146,7 @@ export class SourceBaoziBannerDetector {
         const y = image.height - signature.height - bottom
         if (y < top) continue
         const x = Math.floor((image.width - signature.width) / 2)
-        if (await SourceBaoziBannerDetector.matches(image, x, y, signature)) {
+        if (await ImageBannerDetector.matches(image, x, y, signature)) {
           consumed = signature.height
           break
         }

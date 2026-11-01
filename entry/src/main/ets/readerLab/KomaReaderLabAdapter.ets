@@ -1,3 +1,5 @@
+import { ImageRuleStore } from '../model/ImageRuleStore'
+import { BannerFilterMode, ImageRuleSnapshot } from '../model/ImageBannerRules'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { common } from '@kit.AbilityKit'
@@ -102,6 +104,9 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private refreshingSources: Map<string, Promise<void>> = new Map()
   private automaticallyRefreshedUnits: Set<string> = new Set()
   private automaticPageRetries: Set<string> = new Set()
+  private bannerPolicy: () => BannerFilterMode
+  private ruleSnapshot: Promise<ImageRuleSnapshot>
+  private presentationRevision: number = 0
   private chapterPreloadEnabled: boolean
   private cropStrength: () => string
   private remotePreloadAllowed: () => boolean
@@ -119,7 +124,11 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   constructor(filesDir: string, cacheDir: string, catalogHost: KomaReaderCatalogHost | null = null,
     requestContext?: common.UIAbilityContext, chapterPreloadEnabled: boolean = false,
     cropStrength: () => string = (): string => 'standard',
-    remotePreloadAllowed: () => boolean = (): boolean => true) {
+    remotePreloadAllowed: () => boolean = (): boolean => true,
+    bannerPolicy: () => BannerFilterMode = (): BannerFilterMode => 'source') {
+    this.bannerPolicy = bannerPolicy
+    this.ruleSnapshot = requestContext === undefined ? Promise.resolve<ImageRuleSnapshot>({ schemaVersion: 1, records: [] }) :
+      ImageRuleStore.forContext(requestContext).pinned()
     this.chapterPreloadEnabled = chapterPreloadEnabled
     this.cropStrength = cropStrength
     this.remotePreloadAllowed = remotePreloadAllowed
@@ -421,6 +430,13 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (this.closed) throw new Error('closed_koma_reader')
   }
 
+  invalidatePresentation(): void {
+    this.presentationRevision += 1
+    this.sourceRequests.clear()
+    this.preloadedSizes.clear()
+    this.preloadedSizeVersions.clear()
+  }
+
   /** Share descriptor resolution and image transport before the file-cache layer. */
   private sourceFile(key: ReaderUnitKey, index: number, forceReload: boolean = false): Promise<string> {
     if (this.closed) return Promise.reject(new Error('closed_koma_reader'))
@@ -433,7 +449,13 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     }
     const pending = this.sourceRequests.get(id)
     if (pending !== undefined && !forceReload) return pending
-    const request = fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload)
+    const revision = this.presentationRevision
+    const policy = this.bannerPolicy()
+    const request = this.ruleSnapshot.then(async (snapshot: ImageRuleSnapshot): Promise<string> => {
+      const path = await fetchAndCacheReaderRemoteSource(source, this.requestContext, forceReload, { snapshot, policy })
+      if (revision !== this.presentationRevision || policy !== this.bannerPolicy()) throw new Error('reader_source_page_processing_stale')
+      return path
+    })
     this.sourceRequests.set(id, request)
     const retire = (): void => {
       if (this.sourceRequests.get(id) === request) this.sourceRequests.delete(id)
@@ -452,6 +474,7 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST)) return
     const sizeKey = JSON.stringify([this.unitId(page.unit), page.sourceIndex])
     const sizeVersion = this.preloadedSizeVersions.get(sizeKey) ?? 0
+    const presentationRevision = this.presentationRevision
     const filePath = await this.sourceFile(page.unit, page.sourceIndex)
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
@@ -462,7 +485,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
         const size = await taskpool.execute<[string], string>(readPreloadedImageSize, filePath)
         cancellation.check()
         const values = size.split(',').map((value: string): number => Number(value))
-        if (!this.closed && (this.preloadedSizeVersions.get(sizeKey) ?? 0) === sizeVersion &&
+        if (!this.closed && presentationRevision === this.presentationRevision &&
+          (this.preloadedSizeVersions.get(sizeKey) ?? 0) === sizeVersion &&
           this.sources.get(this.unitId(page.unit))?.[page.sourceIndex] === source &&
           values.length === 2 && Number.isFinite(values[0]) && Number.isFinite(values[1]) &&
           values[0] > 0 && values[1] > 0) {

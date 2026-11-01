@@ -1,3 +1,6 @@
+import { ImageRuleStore } from './ImageRuleStore'
+import { ImageRuleSnapshot, BannerFilterMode, validateImageRuleSnapshot } from './ImageBannerRules'
+import { normalizeBannerOverrides } from './ReaderPreferencesStore'
 import { BACKUP_BACKGROUND_RESULT, BackgroundBackupResult } from './BackgroundMaintenanceContract'
 import { ComicCoverBackup, PreparedComicCovers, exportComicCovers,
   prepareRestoredComicCovers, discardPreparedComicCovers } from './ComicPersonalization'
@@ -171,6 +174,8 @@ interface KomaBackupDocument {
   sourceSettings?: Record<string, SourceSettingsRecord>
   sourceSettingObservations?: SourceSettingObservationSources
   sourceFilterPreferences?: Record<string, SourceFilterPreferenceSourceRecord>
+  imageRules?: ImageRuleSnapshot
+  bannerFilters?: Record<string, BannerFilterMode>
   settings?: ReaderPreferences
   applicationSettings?: ApplicationSettingsBackup
   sourceIndexUrl?: string
@@ -1181,6 +1186,9 @@ export class BackupService {
         sourceSettingObservations,
         sourceFilterPreferences: appSourceFilterPreferencesStore.exportAll(),
       }
+      document.imageRules = await ImageRuleStore.forContext(this.context).exportSnapshot()
+      document.bannerFilters = await new ReaderPreferencesStore(this.context).exportBannerOverrides()
+
       if (contentPreferences.includeSettings) {
         document.settings = await new ReaderPreferencesStore(this.context).load()
         document.applicationSettings = await exportApplicationSettings(this.context)
@@ -1254,6 +1262,8 @@ export class BackupService {
           if (!restored.ok) throw new Error('Backup source registry commit failed')
         }
         await this.importSettings(document.settings)
+        if (document.imageRules !== undefined) await ImageRuleStore.forContext(this.context).restore(document.imageRules)
+        if (document.bannerFilters !== undefined) await new ReaderPreferencesStore(this.context).restoreBannerOverrides(document.bannerFilters)
         await importApplicationSettings(this.context, document.applicationSettings)
       }
       resetGeneratedAutomationWork(this.context)
@@ -1264,6 +1274,7 @@ export class BackupService {
       if (checkpoint !== undefined) {
         try {
           await checkpoint.rollback()
+          await ImageRuleStore.forContext(this.context).reload()
           appReaderSessionStore(this.context.filesDir).reload()
           if (!restoreInstalledSourcePackagesAfterBackup(this.context)) {
             throw new Error('backup_registry_recovery_failed')
@@ -1304,6 +1315,8 @@ export class BackupService {
 
   private previewDocument(json: string, allowEncryptedContentSchema: boolean): BackupImportPreview {
     const document = JSON.parse(json) as KomaBackupDocument
+    if (document.imageRules !== undefined) validateImageRuleSnapshot(document.imageRules)
+    if (document.bannerFilters !== undefined) normalizeBannerOverrides(JSON.stringify(document.bannerFilters))
     const accepted = allowEncryptedContentSchema ?
       isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
       isAcceptedPlaintextSchemaVersion(document.schemaVersion)
@@ -1596,6 +1609,7 @@ export class BackupService {
       tapZonePreset: settings.tapZonePreset ?? DEFAULT_READER_PREFERENCES.tapZonePreset,
       tapZoneInvert: settings.tapZoneInvert ?? DEFAULT_READER_PREFERENCES.tapZoneInvert,
       pageGapMode: settings.pageGapMode ?? DEFAULT_READER_PREFERENCES.pageGapMode,
+      bannerFilter: settings.bannerFilter,
       trimPageMarginsEnabled: settings.trimPageMarginsEnabled ?? DEFAULT_READER_PREFERENCES.trimPageMarginsEnabled,
       cropStrength: settings.cropStrength ?? DEFAULT_READER_PREFERENCES.cropStrength,
       superResolutionEnabled: settings.superResolutionEnabled ?? DEFAULT_READER_PREFERENCES.superResolutionEnabled,

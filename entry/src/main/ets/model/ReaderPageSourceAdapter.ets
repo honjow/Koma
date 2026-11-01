@@ -5,8 +5,12 @@ import { renderSourceTextPage } from './SourceTextPageRenderer'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
-import { SourceBaoziBannerService } from './SourceBaoziBannerService'
-import { url } from '@kit.ArkTS'
+import { ImageBannerService } from './ImageBannerService'
+import { ImageRuleStore } from './ImageRuleStore'
+import { ReaderPreferencesStore } from './ReaderPreferencesStore'
+import { ImageProcessingHint, ImageRuleSnapshot, BannerFilterMode, imageBannerPlans, effectiveBannerFilter, canDiscoverSourceImageProcessing } from './ImageBannerRules'
+
+import { url, util } from '@kit.ArkTS'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { SourceRuntimeError } from './SourceRuntimeError'
@@ -252,6 +256,8 @@ function httpHeadersForReaderRequest(headers?: RemoteImageCacheHeaders): Object 
 class EmptyHttpHeader {
 }
 
+export interface ReaderBannerPresentation { snapshot: ImageRuleSnapshot; policy: BannerFilterMode }
+
 interface ReaderRemoteIdentity {
   sourceKind?: ComicSourceKind
   remoteServerId?: string
@@ -488,14 +494,18 @@ interface ReaderImageRuntimeRequest {
   hostHints: ReaderImageRuntimeHostHints
 }
 
+interface SourceImageProcessingCache { hint: ImageProcessingHint | null }
+
 class SourceImageRequestDescriptor {
   url: string
   headers: RemoteImageCacheHeaders | undefined
-  imageProcessingMode?: string
+  imageProcessing?: ImageProcessingHint
 
-  constructor(url: string, headers?: RemoteImageCacheHeaders) {
+  constructor(url: string, headers?: RemoteImageCacheHeaders, processing?: Object) {
     this.url = url
     this.headers = headers
+    const hint = processing as ImageProcessingHint | undefined
+    if (typeof hint?.kind === 'string' && typeof hint?.mode === 'string') this.imageProcessing = { kind: hint.kind, mode: hint.mode }
   }
 }
 
@@ -527,15 +537,15 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
       const imageRecord = imageRequest as Record<string, Object>
       const url = imageRecord['url']
       if (typeof url === 'string' && url.length > 0) {
-        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']))
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']), record['imageProcessing'])
       }
     }
     const directUrl = record['url']
     if (typeof directUrl === 'string' && directUrl.length > 0) {
       const descriptor = new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']))
       const processing = record['imageProcessing'] as Record<string, Object> | undefined
-      if (processing?.['kind'] === 'baozi_banner' && (processing['mode'] === '1' || processing['mode'] === '2')) {
-        descriptor.imageProcessingMode = processing['mode'] as string
+      if (typeof processing?.['kind'] === 'string' && typeof processing?.['mode'] === 'string') {
+        descriptor.imageProcessing = { kind: processing['kind'] as string, mode: processing['mode'] as string }
       }
       return descriptor
     }
@@ -546,7 +556,7 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
       const requestRecord = request as Record<string, Object>
       const url = requestRecord['url']
       if (requestRecord['method'] === 'GET' && typeof url === 'string' && url.length > 0) {
-        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']))
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']), record['imageProcessing'])
       }
     }
     return undefined
@@ -704,6 +714,12 @@ async function fetchAndCacheSourceRuntimeTextPage(source: ReaderPageRenderSource
   return path
 }
 
+function sourceImageProcessingFingerprint(sourceId: string): string {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  return JSON.stringify([sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId)),
+    entry?.manifestVersion ?? '', entry?.wasmPath ?? ''])
+}
+
 export async function fetchAndCacheSourceRuntimeRemoteImage(
   sourceRuntimeId: string,
   uri: string,
@@ -711,6 +727,8 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   mangaUrl?: string,
   forceReload: boolean = false,
   priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND,
+  onProcessing?: (hint: ImageProcessingHint | undefined) => void,
+  discoverCachedProcessing: boolean = false,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
@@ -725,10 +743,26 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     ? [sourceId, sourceImageId, uri] : [sourceId, sourceImageId, uri, route]
   const cacheKeySeed = `source-page-v2:${JSON.stringify(cacheIdentity)}`
   const cachedFast = forceReload ? undefined : await readerImageCacheStore.get('', undefined, cacheKeySeed)
+  const hintKey = cacheKeySeed + ':processing:' + sourceImageProcessingFingerprint(sourceId)
   if (cachedFast !== undefined && cachedFast.length > 0) {
-    return cachedFast
+    if (onProcessing === undefined) return cachedFast
+    const hintPath = await readerImageCacheStore.get('source-image-processing.json', undefined, hintKey)
+    if (hintPath !== undefined) {
+      const value = JSON.parse(await fs.readText(hintPath)) as Record<string, ImageProcessingHint | null>
+      onProcessing(value['hint'] ?? undefined)
+      return cachedFast
+    }
+    if (!discoverCachedProcessing) return cachedFast
   }
   const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route, priority)
+  if (onProcessing !== undefined) {
+    onProcessing(imageRequest?.imageProcessing)
+    const cachedProcessing: SourceImageProcessingCache = { hint: imageRequest?.imageProcessing ?? null }
+    const text = JSON.stringify(cachedProcessing)
+    const bytes = new util.TextEncoder().encodeInto(text)
+    await readerImageCacheStore.put('source-image-processing.json', undefined, bytes.buffer as ArrayBuffer, hintKey)
+  }
+  if (cachedFast !== undefined && cachedFast.length > 0) return cachedFast
   if (imageRequest === undefined) {
     return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload)
   }
@@ -762,6 +796,12 @@ export enum ReaderPageRenderKind {
 }
 
 export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
+  comicId?: string
+  imageProcessing?: ImageProcessingHint
+  imageProcessingResolved?: boolean
+  imageProcessingFingerprint?: string
+  imageRuleSnapshot?: ImageRuleSnapshot
+  skipBannerFilter?: boolean
   kind: ReaderPageRenderKind
   uri: string
   imageUri: string
@@ -815,11 +855,13 @@ function resolveOfflineReaderPage(
  * manifest and walk every downloaded image.  Keep that integrity boundary,
  * but execute it once here and hand the Reader an immutable source list.
  */
-function resolveOfflineReaderPages(config: ReaderSessionConfig): string[] {
+interface OfflineReaderPage { path: string; hint?: ImageProcessingHint; processingResolved?: boolean; processingFingerprint?: string }
+
+function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPage[] {
   const count = Math.max(0, Math.floor(config.totalPages))
-  const paths: string[] = []
+  const paths: OfflineReaderPage[] = []
   for (let index = 0; index < count; index += 1) {
-    paths.push('')
+    paths.push({ path: '' })
   }
   if (count === 0 || readerOfflineDownloadsDir.trim().length === 0) {
     return paths
@@ -840,7 +882,7 @@ function resolveOfflineReaderPages(config: ReaderSessionConfig): string[] {
     for (let index = 0; index < validation.manifest.pages.length; index += 1) {
       const page = validation.manifest.pages[index]
       if (page.pageIndex >= 0 && page.pageIndex < count && fs.accessSync(page.localPath)) {
-        paths[page.pageIndex] = page.localPath
+        paths[page.pageIndex] = { path: page.localPath, hint: page.imageProcessing, processingResolved: page.imageProcessingResolved, processingFingerprint: page.imageProcessingFingerprint }
       }
     }
   } catch (_err) {
@@ -941,7 +983,13 @@ export function createReaderPageRenderSource(
   if (preferOffline || offlineOnly) {
     offlinePath = resolveOfflineReaderPage(config, index)
   }
-  return createReaderPageRenderSourceWithOfflinePath(config, index, offlinePath, offlineOnly)
+  const source = createReaderPageRenderSourceWithOfflinePath(config, index, offlinePath, offlineOnly)
+  source.comicId = config.comicId
+  if (offlinePath) {
+    const offline = resolveOfflineReaderPages(config)[index]
+    source.imageProcessing = offline?.hint; source.imageProcessingResolved = offline?.processingResolved; source.imageProcessingFingerprint = offline?.processingFingerprint
+  }
+  return source
 }
 
 /**
@@ -962,78 +1010,88 @@ export function createReaderPageRenderSources(
     sources.push(createReaderPageRenderSourceWithOfflinePath(
       config,
       index,
-      offlinePaths[index] ?? '',
+      offlinePaths[index]?.path ?? '',
       offlineOnly,
     ))
   }
+  sources.forEach((source: ReaderPageRenderSource, index: number): void => {
+    source.comicId = config.comicId; source.imageProcessing = offlinePaths[index]?.hint
+    source.imageProcessingResolved = offlinePaths[index]?.processingResolved
+    source.imageProcessingFingerprint = offlinePaths[index]?.processingFingerprint
+  })
   return sources
 }
 
+async function readerBannerPresentation(source: ReaderPageRenderSource, context: common.UIAbilityContext): Promise<ReaderBannerPresentation> {
+  const preferences = source.comicId ? await new ReaderPreferencesStore(context).loadForComic(source.comicId) :
+    await new ReaderPreferencesStore(context).load()
+  if (source.imageRuleSnapshot === undefined) source.imageRuleSnapshot = await ImageRuleStore.forContext(context).pinned()
+  return { snapshot: source.imageRuleSnapshot, policy: effectiveBannerFilter(preferences.bannerFilter, preferences.bannerFilterOverride) }
+}
+
 async function prepareSourcePagePresentation(source: ReaderPageRenderSource, originalPath: string,
-  context?: common.UIAbilityContext): Promise<string> {
+  context?: common.UIAbilityContext, presentation?: ReaderBannerPresentation): Promise<string> {
   const sourceId = source.sourceRuntimeId?.trim() ?? ''
-  const pageId = source.pageId ?? ''
-  const originalUri = source.sourceOriginalImageUri ?? source.imageUri
+  let path = originalPath
   if (source.sourceTextOverlay !== undefined) {
     if (readerImageCacheStore === null) throw new Error('source_overlay_cache_unavailable')
-    // Downloaded originals carry their overlay in the manifest and must remain
-    // readable even if the source was disabled or removed after download.
     const offline = source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
     const entry = offline || sourceId.length === 0 ? undefined : appSourceRuntimeRegistry.lookup(sourceId).entry
     const fingerprint = entry === undefined ? '' : sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
-    const identity = JSON.stringify([sourceId, entry?.manifestVersion ?? '', entry?.wasmPath ?? '', fingerprint, pageId])
-    const path = await SourceTextOverlayService.prepare(originalPath, source.sourceTextOverlay, readerImageCacheStore, identity)
+    const identity = JSON.stringify([sourceId, entry?.manifestVersion ?? '', entry?.wasmPath ?? '', fingerprint, source.pageId])
+    path = await SourceTextOverlayService.prepare(path, source.sourceTextOverlay, readerImageCacheStore, identity)
     await maintainReaderImageCacheAfterWrite(path)
     if (entry !== undefined && !sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
-    return path
   }
-  if (sourceId !== 'online.baozimh.koma' || pageId.length === 0 || context === undefined ||
-    readerImageCacheStore === null) return originalPath
-  try {
-    const host = new url.URL(originalUri).hostname.toLowerCase()
-    if (!['baozimh.com', 'baozicdn.com', 'bzcdn.net'].some((domain: string): boolean =>
-      host === domain || host.endsWith('.' + domain))) return originalPath
-  } catch (_error) { return originalPath }
-  const lookup = appSourceRuntimeRegistry.lookup(sourceId)
-  if (!lookup.ok || lookup.entry === undefined || !lookup.entry.enabled) return originalPath
-  const entry = lookup.entry
-  const settings = appSourceSettingsStore.loadForSource(sourceId)
-  // The source decides its own default; an older source returns no descriptor.
-  // An explicit disabled or unknown value never starts processing.
-  const mode = settings['BAOZI_BANNER']
-  if (mode !== undefined && mode !== '1' && mode !== '2') return originalPath
-  const fingerprint = sourceSettingsFingerprint(settings)
-  let descriptor: SourceImageRequestDescriptor | undefined
-  try {
-    descriptor = await resolveSourceRuntimeImageRequest(sourceId, originalUri, pageId, source.sourceMangaUrl)
-  } catch (_error) {
+  if (source.skipBannerFilter || context === undefined || readerImageCacheStore === null) return path
+  if (presentation === undefined) presentation = await readerBannerPresentation(source, context)
+  if (presentation.policy === 'off') return path
+  let hint = source.imageProcessing
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  const fingerprint = entry === undefined ? '' : sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
+  // Old downloaded manifests can still ask their installed source for the legacy hint;
+  // new manifests carry it and remain processable after uninstall, entirely offline.
+  const processingFingerprint = sourceImageProcessingFingerprint(sourceId)
+  if (presentation.policy === 'source' && entry?.enabled && source.pageId &&
+    (hint !== undefined || canDiscoverSourceImageProcessing(presentation.snapshot, sourceId)) &&
+    (!source.imageProcessingResolved || source.imageProcessingFingerprint !== processingFingerprint)) {
+    try {
+      hint = (await resolveSourceRuntimeImageRequest(sourceId, source.sourceOriginalImageUri ?? source.imageUri,
+        source.pageId, source.sourceMangaUrl))?.imageProcessing
+    } catch (_error) { return path }
     if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
-    return originalPath
+    source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
   }
-  if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
-  if (descriptor?.imageProcessingMode === undefined) return originalPath
-  const profileIdentity = JSON.stringify([sourceId, entry.manifestVersion, entry.wasmPath ?? '', fingerprint])
-  const path = await SourceBaoziBannerService.prepare(originalPath, descriptor.imageProcessingMode,
-    readerImageCacheStore, profileIdentity)
-  if (path !== originalPath) await maintainReaderImageCacheAfterWrite(path)
-  if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
-  return path
+  const plans = imageBannerPlans(presentation.snapshot, presentation.policy, hint)
+  const prepared = await ImageBannerService.prepare(path, plans, readerImageCacheStore)
+  if (plans.length > 0) await maintainReaderImageCacheAfterWrite(prepared)
+  if (presentation.policy === 'source' && entry?.enabled && !sourceTextRequestCurrent(entry, fingerprint))
+    throw new Error('reader_source_page_processing_stale')
+  return prepared
 }
 
-export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false): Promise<string> {
+export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSource, context?: common.UIAbilityContext, forceReload: boolean = false, presentation?: ReaderBannerPresentation): Promise<string> {
   if (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
     return fetchAndCacheSourceRuntimeTextPage(source, forceReload)
   }
   if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
     if (source.sourceText !== undefined) return cacheSourceTextPageImage(source.sourceText, forceReload)
-    return prepareSourcePagePresentation(source, source.imageUri, context)
+    return prepareSourcePagePresentation(source, source.imageUri, context, presentation)
   }
   if (source.kind === ReaderPageRenderKind.REMOTE_URL_IMAGE) {
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
-      const original = await fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload)
-      return prepareSourcePagePresentation(source, original, context)
+      if (presentation === undefined && context !== undefined && !source.skipBannerFilter)
+        presentation = await readerBannerPresentation(source, context)
+      const discoverCachedProcessing = presentation?.policy === 'source' &&
+        canDiscoverSourceImageProcessing(presentation.snapshot, source.sourceRuntimeId)
+      const processingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
+      const original = await fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload,
+        SourceWorkerPriority.FOREGROUND, (hint: ImageProcessingHint | undefined): void => {
+          source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
+        }, discoverCachedProcessing)
+      return prepareSourcePagePresentation(source, original, context, presentation)
     }
-    return fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload)
+    return prepareSourcePagePresentation(source, await fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload), context, presentation)
   }
   return source.uri
 }
@@ -1059,6 +1117,9 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
       const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
       if (imageRequest !== undefined) {
+        source.imageProcessing = imageRequest.imageProcessing
+        source.imageProcessingResolved = true
+        source.imageProcessingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
         return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId)
       }
     }

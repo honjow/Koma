@@ -2115,6 +2115,11 @@
     {"name": "source_subscription_actions", "value": "Subscription actions"},
     {"name": "source_subscription_remove", "value": "Remove subscription"},
     {"name": "search_results_all", "value": "All outcomes"},
-    {"name": "search_results_only", "value": "Matches only"}
+    {"name": "search_results_only", "value": "Matches only"},
+    {"name": "reader_banner_filter", "value": "Banner filtering"},
+    {"name": "reader_banner_global", "value": "Use global"},
+    {"name": "reader_banner_source", "value": "Follow source"},
+    {"name": "reader_banner_auto", "value": "Automatic"},
+    {"name": "reader_banner_off", "value": "Off"}
   ]
 }
