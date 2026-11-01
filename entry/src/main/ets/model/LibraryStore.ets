@@ -44,7 +44,7 @@ export interface LibraryStore {
   replaceSmartCategories(categories: LibrarySmartCategory[]): void
   getComic(comicId: ComicId): Comic | undefined
   findByRemote(serverId: string, resourceId: string): Comic | undefined
-  listComics(): Comic[]
+  listComics(sortByTitle?: boolean): Comic[]
   listLibraryItems(progressByComicId?: Map<ComicId, ReadingProgress>, options?: LibraryListOptions): LibraryItem[]
   addComic(comic: Comic): void
   upsertComic(comic: Comic): void
@@ -89,8 +89,12 @@ export class InMemoryLibraryStore implements LibraryStore {
     })
   }
 
-  listComics(): Comic[] {
-    return Array.from(this.comics.values()).sort((a: Comic, b: Comic) => {
+  listComics(sortByTitle: boolean = true): Comic[] {
+    const comics = Array.from(this.comics.values())
+    // Search takes a shallow snapshot and performs the same ordering in its
+    // worker. Ordinary consumers retain the established sorted list.
+    if (!sortByTitle) return comics
+    return comics.sort((a: Comic, b: Comic) => {
       const titleCompare = a.sortTitle.localeCompare(b.sortTitle)
       if (titleCompare !== 0) {
         return titleCompare

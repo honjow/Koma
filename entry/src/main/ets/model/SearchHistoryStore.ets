@@ -10,6 +10,7 @@ export interface SearchHistoryEntry {
 export const SEARCH_HISTORY_STORE_NAME: string = 'koma_search_history_v1'
 export const SEARCH_HISTORY_QUERIES_KEY: string = 'search.history.queries'
 export const SEARCH_SOURCE_FILTER_KEY: string = 'search.source.filter'
+const SEARCH_RESULTS_ONLY_KEY: string = 'search.results.only'
 export const MAX_SEARCH_HISTORY_COUNT: number = 20
 
 export interface SearchHistoryRecord {
@@ -161,6 +162,18 @@ export class SearchHistoryStore {
       const normalized = normalizeSearchSourceFilter(sourceFilter)
       await this.commit(await this.preferences(), SEARCH_SOURCE_FILTER_KEY, normalized)
       return normalized
+    })
+  }
+
+  async loadResultsOnly(): Promise<boolean> {
+    return this.ordered(async (): Promise<boolean> => {
+      return await (await this.preferences()).get(SEARCH_RESULTS_ONLY_KEY, 'false') === 'true'
+    })
+  }
+
+  async saveResultsOnly(value: boolean): Promise<void> {
+    return this.ordered(async (): Promise<void> => {
+      await this.commit(await this.preferences(), SEARCH_RESULTS_ONLY_KEY, value ? 'true' : 'false')
     })
   }
 

@@ -26,9 +26,15 @@ const members = names.map(name => {
   return member.getText(tree)
 })
 const normalizer = tree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'normalizeCrossSearchText')
+function loadSearchText() {
+  const exports = {}
+  vm.runInNewContext(compile(fs.readFileSync(path.join(root, 'model/CrossSearchText.ets'), 'utf8')), { exports })
+  return exports
+}
 const sectionExports = {}
 vm.runInNewContext(compile(normalizer.getText(tree) + '\nexport class Subject {' + members.join('\n') + '}'), {
   exports: sectionExports, SOURCE_PAGE_SIZE: 20,
+  normalizeSearchText: loadSearchText().normalizeSearchText,
   AppStrings: { get: key => key === 'kavita_series_pages_progress' ? '%s/%s' : key },
   safeSearchDiagnostic: error => ({ code: error.message, userText: error.message }),
   searchStateUserText: (_state, code) => code,

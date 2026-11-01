@@ -1,3 +1,6 @@
+import { taskpool } from '@kit.ArkTS'
+import { normalizeSearchText } from './CrossSearchText'
+import { LocalLibrarySearchDocument, LocalLibrarySearchMatch, searchLocalLibraryTask } from './LocalLibrarySearchTask'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
 import { newSourceRuntimeOperationGuardId } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
@@ -113,27 +116,7 @@ const SEARCH_TIMEOUT_MS: number = 5000
 const KOMGA_PAGE_SIZE: number = 20
 const SOURCE_PAGE_SIZE: number = 20
 
-export function normalizeCrossSearchText(value: string): string {
-  const trimmed = value.trim()
-  const lower = trimmed.toLowerCase() === trimmed ? trimmed : trimmed.toLocaleLowerCase()
-  let normalized = ''
-  let previousWasSpace = true
-  for (let index = 0; index < lower.length; index += 1) {
-    const ch = lower.charAt(index)
-    const code = lower.charCodeAt(index)
-    const isAsciiLetter = ch >= 'a' && ch <= 'z'
-    const isDigit = ch >= '0' && ch <= '9'
-    const isNonAsciiText = code > 127
-    if (isAsciiLetter || isDigit || isNonAsciiText) {
-      normalized += ch
-      previousWasSpace = false
-    } else if (!previousWasSpace) {
-      normalized += ' '
-      previousWasSpace = true
-    }
-  }
-  return previousWasSpace && normalized.length > 0 ? normalized.substring(0, normalized.length - 1) : normalized
-}
+export function normalizeCrossSearchText(value: string): string { return normalizeSearchText(value) }
 
 export function isCrossSearchQueryMeaningful(value: string): boolean {
   return normalizeCrossSearchText(value).length > 0
@@ -179,18 +162,18 @@ export class CrossSearchService {
     if (this.sourceMatchesFilter('komga', sourceFilter)) {
       const run: PagedSearchRun = { cancelled: false }
       this.pagedSearchRuns.push(run)
-      tasks.push(this.withTimeout(this.searchKomga(normalizedQuery, run), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga'), () => {
+      tasks.push(this.withTimeout(this.searchKomga(normalizedQuery, run, onSectionResolved), this.emptySection('komga', AppStrings.get('route_komga_title'), 'komga'), () => {
         run.cancelled = true
         return this.timeoutSection('komga', AppStrings.get('route_komga_title'), 'komga')
       }))
     }
     if (this.sourceMatchesFilter('kavita', sourceFilter)) {
-      tasks.push(this.withTimeout(this.searchKavita(normalizedQuery), this.emptySection('kavita', AppStrings.get('route_kavita_title'), 'kavita')))
+      tasks.push(this.withTimeout(this.searchKavita(normalizedQuery, onSectionResolved), this.emptySection('kavita', AppStrings.get('route_kavita_title'), 'kavita')))
     }
     if (this.sourceMatchesFilter('opds', sourceFilter)) {
       const run: PagedSearchRun = { cancelled: false }
       this.pagedSearchRuns.push(run)
-      tasks.push(this.withTimeout(this.searchOpds(normalizedQuery, run), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds'), () => {
+      tasks.push(this.withTimeout(this.searchOpds(normalizedQuery, run, onSectionResolved), this.emptySection('opds', AppStrings.get('route_opds_title'), 'opds'), () => {
         run.cancelled = true
         return this.timeoutSection('opds', AppStrings.get('route_opds_title'), 'opds')
       }))
@@ -198,7 +181,7 @@ export class CrossSearchService {
     if (this.sourceMatchesFilter('webdav', sourceFilter)) {
       const run: WebDavSearchRun = { cancelled: false, resources: [] }
       this.webDavSearchRun = run
-      const search = this.searchWebDav(normalizedQuery, run).finally(() => {
+      const search = this.searchWebDav(normalizedQuery, run, onSectionResolved).finally(() => {
         if (this.webDavSearchRun === run) this.webDavSearchRun = undefined
       })
       tasks.push(this.withTimeout(search, this.emptySection('webdav', AppStrings.get('route_webdav_title'), 'webdav'), () => {
@@ -305,16 +288,16 @@ export class CrossSearchService {
       sections.push(this.stateSection('local', AppStrings.get('tab_library'), 'local', 'running'))
     }
     if (this.sourceMatchesFilter('komga', sourceFilter)) {
-      sections.push(this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running'))
+      sections.push(this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running', 'configuration_loading'))
     }
     if (this.sourceMatchesFilter('kavita', sourceFilter)) {
-      sections.push(this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'running'))
+      sections.push(this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'running', 'configuration_loading'))
     }
     if (this.sourceMatchesFilter('opds', sourceFilter)) {
-      sections.push(this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running'))
+      sections.push(this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running', 'configuration_loading'))
     }
     if (this.sourceMatchesFilter('webdav', sourceFilter)) {
-      sections.push(this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running'))
+      sections.push(this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running', 'configuration_loading'))
     }
     if (this.sourceMatchesFilter('wasm', sourceFilter)) {
       this.selectedSourceSummaries(sourceIds).forEach((source: SourceRuntimeRegistryInstalledSourceSummary) => {
@@ -377,31 +360,35 @@ export class CrossSearchService {
 
   private async searchLocal(query: string): Promise<SourceSearchOutcome> {
     const libraryStore = this.libraryStore
-    const normalizedQuery = this.normalizeSearchText(query)
-    const compactQuery = this.compactSearchText(query)
-    const items = this.sortSearchResultItems(query, libraryStore.listComics()
-      .filter((comic: Comic): boolean => this.localComicMatches(comic, normalizedQuery, compactQuery))
-      .map((comic: Comic): CrossSearchResultItem => {
-        return {
-          id: `local:${comic.id}`,
-          title: comic.title,
-          subtitle: this.localSearchSubtitle(comic, normalizedQuery, compactQuery),
-          sourceKind: 'local',
-          sourceLabel: AppStrings.get('tab_library'),
-          coverUri: comic.coverUri,
-          localComicId: comic.id,
-        }
-      }))
+    const startedAt = Date.now()
+    const comics = libraryStore.listComics(false)
+    const documents: LocalLibrarySearchDocument[] = comics.map((comic: Comic): LocalLibrarySearchDocument => ({
+      id: comic.id, title: comic.title, sortTitle: comic.sortTitle, createdAt: comic.createdAt,
+      subtitle: comic.subtitle, author: comic.author, chapterCount: comic.chapterCount,
+      pageCount: comic.pageCount, chapterTitles: comic.chapters.map((chapter: Chapter): string => chapter.title),
+    }))
+    DiagnosticLogger.info('search', 'local_prepared', `durationMs=${Date.now() - startedAt} comics=${documents.length}`)
+    const matches = await taskpool.execute(searchLocalLibraryTask, documents, query,
+      AppStrings.get('search_local_subtitle')) as LocalLibrarySearchMatch[]
+    const byId = new Map<string, Comic>()
+    comics.forEach((comic: Comic): void => { byId.set(comic.id, comic) })
+    const items = this.sortSearchResultItems(query, matches.map((match: LocalLibrarySearchMatch): CrossSearchResultItem => {
+      const comic = byId.get(match.comicId)!
+      return { id: `local:${comic.id}`, title: comic.title, subtitle: match.subtitle,
+        sourceKind: 'local', sourceLabel: AppStrings.get('tab_library'),
+        coverUri: comic.coverUri, localComicId: comic.id }
+    }))
     DiagnosticLogger.info('search', 'local_done', `[Search] step=local_done count=${items.length}`)
     return { section: this.section('local', AppStrings.get('tab_library'), 'local', items) }
   }
 
-  private async searchKomga(query: string, run: PagedSearchRun): Promise<SourceSearchOutcome> {
+  private async searchKomga(query: string, run: PagedSearchRun, onConfigured?: (section: CrossSearchSection) => void): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadKomga()
       if (record === undefined) {
         return { section: this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'unsupported', 'not_configured') }
       }
+      onConfigured?.(this.stateSection('komga', AppStrings.get('route_komga_title'), 'komga', 'running'))
       const client = this.remoteStore.createKomgaClient(record)
       const seriesRows: KomgaSeriesDto[] = []
       const seen = new Set<string>()
@@ -446,12 +433,13 @@ export class CrossSearchService {
     }
   }
 
-  private async searchKavita(query: string): Promise<SourceSearchOutcome> {
+  private async searchKavita(query: string, onConfigured?: (section: CrossSearchSection) => void): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadKavita()
       if (record === undefined) {
         return { section: this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'unsupported', 'not_configured') }
       }
+      onConfigured?.(this.stateSection('kavita', AppStrings.get('route_kavita_title'), 'kavita', 'running'))
       const client = this.remoteStore.createKavitaClient(record)
       const matches = await client.searchSeries(query)
       const rows = await client.getSeriesByIds(matches.map((match: KavitaSearchResultDto): number => match.seriesId))
@@ -485,12 +473,13 @@ export class CrossSearchService {
     }
   }
 
-  private async searchOpds(query: string, run: PagedSearchRun): Promise<SourceSearchOutcome> {
+  private async searchOpds(query: string, run: PagedSearchRun, onConfigured?: (section: CrossSearchSection) => void): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadOpds()
       if (record === undefined) {
         return { section: this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'unsupported', 'not_configured') }
       }
+      onConfigured?.(this.stateSection('opds', AppStrings.get('route_opds_title'), 'opds', 'running'))
       const client = this.remoteStore.createOpdsClient(record)
       if (run.cancelled) throw new Error('search_cancelled')
       const root = await client.fetchCatalog()
@@ -523,13 +512,14 @@ export class CrossSearchService {
     }
   }
 
-  private async searchWebDav(query: string, run: WebDavSearchRun): Promise<SourceSearchOutcome> {
+  private async searchWebDav(query: string, run: WebDavSearchRun, onConfigured?: (section: CrossSearchSection) => void): Promise<SourceSearchOutcome> {
     try {
       const record = await this.remoteStore.loadWebDav()
       this.ensureWebDavSearchActive(run)
       if (record === undefined) {
         return { section: this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'unsupported', 'not_configured') }
       }
+      onConfigured?.(this.stateSection('webdav', AppStrings.get('route_webdav_title'), 'webdav', 'running'))
       const client = this.remoteStore.createWebDavClient(record)
       run.client = client
       run.serverId = record.server.id
@@ -730,45 +720,6 @@ export class CrossSearchService {
         })
       })
     })
-  }
-
-  private localComicMatches(comic: Comic, normalizedQuery: string, compactQuery: string): boolean {
-    if (this.textMatchesQuery(comic.title, normalizedQuery, compactQuery)) {
-      return true
-    }
-    if (comic.subtitle !== undefined && this.textMatchesQuery(comic.subtitle, normalizedQuery, compactQuery)) {
-      return true
-    }
-    if (comic.author !== undefined && this.textMatchesQuery(comic.author, normalizedQuery, compactQuery)) {
-      return true
-    }
-    return this.localMatchedChapterTitle(comic, normalizedQuery, compactQuery) !== undefined
-  }
-
-  private localSearchSubtitle(comic: Comic, normalizedQuery: string, compactQuery: string): string {
-    const titleMatches = this.textMatchesQuery(comic.title, normalizedQuery, compactQuery)
-    const subtitleMatches = comic.subtitle !== undefined && this.textMatchesQuery(comic.subtitle, normalizedQuery, compactQuery)
-    const authorMatches = comic.author !== undefined && this.textMatchesQuery(comic.author, normalizedQuery, compactQuery)
-    const matchedChapterTitle = this.localMatchedChapterTitle(comic, normalizedQuery, compactQuery)
-    if (!titleMatches && subtitleMatches && comic.subtitle !== undefined) {
-      return comic.subtitle
-    }
-    if (!titleMatches && authorMatches && comic.author !== undefined) {
-      return comic.author
-    }
-    if (!titleMatches && !subtitleMatches && !authorMatches && matchedChapterTitle !== undefined) {
-      return matchedChapterTitle
-    }
-    return comic.author ?? AppStrings.get('search_local_subtitle')
-      .replace('%s', `${comic.chapterCount}`)
-      .replace('%s', `${comic.pageCount}`)
-  }
-
-  private localMatchedChapterTitle(comic: Comic, normalizedQuery: string, compactQuery: string): string | undefined {
-    const chapter = comic.chapters.find((item: Chapter): boolean => {
-      return this.textMatchesQuery(item.title, normalizedQuery, compactQuery)
-    })
-    return chapter?.title
   }
 
   private findOpdsSearchUrl(catalog: OpdsParseResult, query: string): string {

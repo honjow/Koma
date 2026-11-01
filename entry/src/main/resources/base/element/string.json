@@ -2111,6 +2111,8 @@
     {"name": "source_subscription_copy_failed", "value": "Could not copy subscription address"},
     {"name": "source_subscription_website", "value": "Project page"},
     {"name": "source_subscription_actions", "value": "Subscription actions"},
-    {"name": "source_subscription_remove", "value": "Remove subscription"}
+    {"name": "source_subscription_remove", "value": "Remove subscription"},
+    {"name": "search_results_all", "value": "All outcomes"},
+    {"name": "search_results_only", "value": "Matches only"}
   ]
 }

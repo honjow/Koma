@@ -1,3 +1,4 @@
+import { SearchResultRow, SearchResultRowSource } from '../model/SearchResultRowSource'
 import { komaSheetOptions } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -5,7 +6,7 @@ import { SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGa
 import { prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { cancelSourceWebProbe } from '../sourceRuntime/SourceRuntimeHttpTransport'
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { KomaMenuController, KomaMenuGroup, KomaMenuAction } from '../components/ui/KomaMenuController'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
@@ -69,7 +70,9 @@ export struct SearchPage {
   @Local private loading: boolean = false
   @Local private feedbackText: string = ''
   @Local private sourceFilter: CrossSearchSourceFilter = 'all'
-  @Local private sourceFilterMenuOpen: boolean = false
+  @Local private resultRowCount: number = 0
+  private resultModeMutationEpoch: number = 0
+  private filterMenu: KomaMenuController = new KomaMenuController()
   @Local private failedCoverUris: string[] = []
   @Local private webChallengeShown: boolean = false
   @Local private webChallengeParams: MangaWebRouteParam = { url: '', title: '' }
@@ -92,6 +95,7 @@ export struct SearchPage {
   private sourceFilterLoaded: boolean = false
   private resultsQuery: string = ''
   private resultsSourceFilter: CrossSearchSourceFilter = 'all'
+  private resultRows: SearchResultRowSource = new SearchResultRowSource()
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
@@ -101,6 +105,12 @@ export struct SearchPage {
   @Event onOpenKomgaResult: (param: KomgaSeriesRouteParam) => void = (_param: KomgaSeriesRouteParam) => {}
   @Event onOpenKavitaResult: (param: KavitaBrowseRouteParam) => void = (_param: KavitaBrowseRouteParam) => {}
   @Event onOpenOpdsResult: (param: OpdsBrowseRouteParam) => void = (_param: OpdsBrowseRouteParam) => {}
+
+  @Monitor('sections', 'migrationSources', 'chrome.resultsOnly')
+  private updateResultRows(): void {
+    this.resultRows.update(this.sections, this.migrationSources !== undefined, this.chrome.resultsOnly)
+    this.resultRowCount = this.resultRows.totalCount()
+  }
 
   aboutToAppear(): void {
     this.routeEpoch += 1
@@ -116,6 +126,7 @@ export struct SearchPage {
       this.historyLoadState = SearchHistoryLoadState.READY
     } else {
       this.loadHistory()
+      this.loadResultMode()
       this.loadSourceFilter()
     }
     this.consumeChromeQuery()
@@ -127,6 +138,7 @@ export struct SearchPage {
   }
 
   aboutToDisappear(): void {
+    this.filterMenu.close()
     this.invalidateWebChallenges()
     this.service?.cancelPendingSearch()
     this.routeActive = false
@@ -524,6 +536,7 @@ export struct SearchPage {
   }
 
   private runHistoryQuery(query: string): void {
+    DiagnosticLogger.info('search', 'history_submit', 'recent_query')
     this.chrome.submitQuery(query)
   }
 
@@ -551,7 +564,43 @@ export struct SearchPage {
 
   @Monitor('chrome.filterRequestSeq')
   private onChromeFilterRequest(): void {
-    this.sourceFilterMenuOpen = true
+    this.filterMenu.open(this.getUIContext(), this.chrome.filterAnchorId, (): KomaMenuGroup[] => {
+      const kinds: CrossSearchSourceFilter[] = ['all', 'local', 'private', 'source']
+      const labels = ['search_filter_all', 'search_filter_local', 'search_filter_private', 'search_filter_source']
+      const items: KomaMenuAction[] = kinds.map((kind: CrossSearchSourceFilter, index: number): KomaMenuAction => ({
+        label: s(labels[index]), selected: this.sourceFilter === kind,
+        action: (): void => { this.setSourceFilter(kind) },
+      }))
+      return [{ id: 'scope', items }]
+    }, (): void => { DiagnosticLogger.warn('search_page', 'filter_menu_open_failed', 'native_anchor') })
+  }
+
+  @Monitor('chrome.resultModeRequestSeq')
+  private onChromeResultModeRequest(): void {
+    this.filterMenu.open(this.getUIContext(), this.chrome.resultModeAnchorId, (): KomaMenuGroup[] => {
+      return [{ id: 'results', items: [
+        { label: s('search_results_all'), selected: !this.chrome.resultsOnly,
+          action: (): void => { this.setResultMode(false) } },
+        { label: s('search_results_only'), selected: this.chrome.resultsOnly,
+          action: (): void => { this.setResultMode(true) } },
+      ] }]
+    }, (): void => { DiagnosticLogger.warn('search_page', 'result_mode_menu_open_failed', 'native_anchor') })
+  }
+
+  private loadResultMode(): void {
+    const epoch = this.resultModeMutationEpoch
+    const route = this.routeEpoch
+    void this.historyStore?.loadResultsOnly().then((value: boolean): void => {
+      if (this.ownsRoute(route) && epoch === this.resultModeMutationEpoch) this.chrome.resultsOnly = value
+    }).catch((error: Error): void => { DiagnosticLogger.exception('search_page', 'result_filter_load_failed', error) })
+  }
+
+  private setResultMode(value: boolean): void {
+    this.resultModeMutationEpoch++
+    this.chrome.resultsOnly = value
+    void this.historyStore?.saveResultsOnly(value).catch((error: Error): void => {
+      DiagnosticLogger.exception('search_page', 'result_filter_save_failed', error)
+    })
   }
 
   private consumeChromeQuery(): void {
@@ -584,7 +633,6 @@ export struct SearchPage {
     this.sourceFilterMutationEpoch = mutationEpoch
     const changed = this.sourceFilter !== sourceFilter
     this.sourceFilter = sourceFilter
-    this.sourceFilterMenuOpen = false
     this.saveSourceFilter(sourceFilter, mutationEpoch)
     if (changed && this.queryText.trim().length > 0) {
       if (this.searchTimer > 0) {
@@ -729,11 +777,6 @@ export struct SearchPage {
     return sourceName.length === 0 ? subtitle : `${sourceName} · ${subtitle}`
   }
 
-  private sectionRenderKey(section: CrossSearchSection): string {
-    // Include all display and action data; identical refreshes retain their rows.
-    return JSON.stringify(section)
-  }
-
   private sourceFilterLabel(): string {
     if (this.sourceFilter === 'local') {
       return s('search_filter_local')
@@ -749,28 +792,6 @@ export struct SearchPage {
 
   private hasMeaningfulSearchQuery(): boolean {
     return isCrossSearchQueryMeaningful(this.queryText)
-  }
-
-  @Builder
-  private SourceFilterMenu() {
-    Menu() {
-      MenuItem({ content: s('search_filter_all') })
-        .onClick(() => {
-          this.setSourceFilter('all')
-        })
-      MenuItem({ content: s('search_filter_local') })
-        .onClick(() => {
-          this.setSourceFilter('local')
-        })
-      MenuItem({ content: s('search_filter_private') })
-        .onClick(() => {
-          this.setSourceFilter('private')
-        })
-        MenuItem({ content: s('search_filter_source') })
-          .onClick(() => {
-            this.setSourceFilter('source')
-          })
-      }
   }
 
   @Builder
@@ -1059,6 +1080,12 @@ export struct SearchPage {
       .width('100%')
   }
 
+  private canContinueSection(section: CrossSearchSection): boolean {
+    if (section.state !== 'ready' || section.sourceKind !== 'wasm' || !section.id.startsWith('wasm:')) return false
+    const entry = appSourceRuntimeRegistry.lookup(section.id.substring('wasm:'.length)).entry
+    return entry !== undefined && entry.enabled && entry.capabilities.includes('search')
+  }
+
   private continuationSource(section: CrossSearchSection): SourceRuntimeRegistryInstalledSourceSummary | undefined {
     if (section.state !== 'ready' || section.sourceKind !== 'wasm' || !section.id.startsWith('wasm:')) {
       return undefined
@@ -1106,7 +1133,7 @@ export struct SearchPage {
 
   @Builder
   private ResultsSectionHeader(section: CrossSearchSection) {
-    if (this.continuationSource(section) !== undefined) {
+    if (this.canContinueSection(section)) {
       Row() {
         Text(this.sectionTitle(section))
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
@@ -1124,6 +1151,47 @@ export struct SearchPage {
       })
     } else {
       this.SectionHeader(this.sectionTitle(section))
+    }
+  }
+
+  @Builder
+  private SearchResultContent(row: SearchResultRow) {
+    if (row.kind === 'header') {
+      this.ResultsSectionHeader(row.section)
+    } else if (row.kind === 'result') {
+      this.ResultRow(row.item!)
+    } else if (row.kind === 'migration') {
+      this.MigrationResults(row.section)
+    } else {
+      Column({ space: ThemeConstants.SPACE_SM }) {
+        this.SectionHeader(this.sourceSectionTitle(row.section))
+        if (row.section.state === 'running' || row.section.state === 'pending') {
+          Row({ space: ThemeConstants.SPACE_MD }) {
+            LoadingProgress()
+              .width(ThemeConstants.SPACE_XL)
+              .height(ThemeConstants.SPACE_XL)
+              .color(ThemeConstants.BRAND_PRIMARY)
+            Text(this.sectionStatusText(row.section))
+              .fontSize(ThemeConstants.FONT_SIZE_META)
+              .fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
+          .width('100%')
+          .padding(ThemeConstants.SPACE_LG)
+          .borderRadius(ThemeConstants.RADIUS_CARD)
+          .backgroundColor(ThemeConstants.CARD)
+          .justifyContent(FlexAlign.Center)
+        } else {
+          Text(this.sectionStatusText(row.section))
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .padding(ThemeConstants.SPACE_LG)
+            .borderRadius(ThemeConstants.RADIUS_CARD)
+            .backgroundColor(ThemeConstants.CARD)
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
     }
   }
 
@@ -1152,7 +1220,7 @@ export struct SearchPage {
                 .backgroundColor(ThemeConstants.CARD)
             }
           }
-          if (!this.loading && this.queryText.trim().length > 0 && this.sections.length === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
+          if (!this.loading && this.queryText.trim().length > 0 && this.resultRowCount === 0 && this.totalResultCount() === 0 && this.feedbackText.length === 0) {
             ListItem() {
               this.EmptyResults()
             }
@@ -1162,70 +1230,23 @@ export struct SearchPage {
               this.HistoryPanel()
             }
           }
-          ForEach(this.sections, (section: CrossSearchSection) => {
-            if (section.state === 'running' || section.state === 'pending') {
-              ListItem() {
-                Column({ space: ThemeConstants.SPACE_SM }) {
-                  this.SectionHeader(this.sourceSectionTitle(section))
-                  Row({ space: ThemeConstants.SPACE_MD }) {
-                    LoadingProgress()
-                      .width(ThemeConstants.SPACE_XL)
-                      .height(ThemeConstants.SPACE_XL)
-                      .color(ThemeConstants.BRAND_PRIMARY)
-                    Text(this.sectionStatusText(section))
-                      .fontSize(ThemeConstants.FONT_SIZE_META)
-                      .fontColor(ThemeConstants.TEXT_SECONDARY)
-                  }
-                  .width('100%')
-                  .padding(ThemeConstants.SPACE_LG)
-                  .borderRadius(ThemeConstants.RADIUS_CARD)
-                  .backgroundColor(ThemeConstants.CARD)
-                  .justifyContent(FlexAlign.Center)
-                }
-                .width('100%')
-                .alignItems(HorizontalAlign.Start)
-              }
-            } else if (section.state === 'empty' || section.state === 'timeout' || section.state === 'failed' || section.state === 'unsupported') {
-              ListItem() {
-                Column({ space: ThemeConstants.SPACE_SM }) {
-                  this.SectionHeader(this.sourceSectionTitle(section))
-                  Text(this.sectionStatusText(section))
-                    .width('100%')
-                    .fontSize(ThemeConstants.FONT_SIZE_META)
-                    .fontColor(ThemeConstants.TEXT_SECONDARY)
-                    .padding(ThemeConstants.SPACE_LG)
-                    .borderRadius(ThemeConstants.RADIUS_CARD)
-                    .backgroundColor(ThemeConstants.CARD)
-                }
-                .width('100%')
-                .alignItems(HorizontalAlign.Start)
-              }
-            } else if (section.state === 'ready' && section.items.length > 0) {
-              ListItem() {
-                this.ResultsSectionHeader(section)
-              }
-              if (this.migrationSources !== undefined) {
-                ListItem() { this.MigrationResults(section) }
-              } else {
-                ForEach(section.items, (item: CrossSearchResultItem) => {
-                  ListItem() { this.ResultRow(item) }
-                }, (item: CrossSearchResultItem) => item.id)
-              }
+          if (this.chrome.resultsOnly && this.loading && this.resultRowCount === 0) {
+            ListItem() {
+              Row({ space: ThemeConstants.SPACE_MD }) {
+                LoadingProgress().width(ThemeConstants.SPACE_XL).height(ThemeConstants.SPACE_XL)
+                  .color(ThemeConstants.BRAND_PRIMARY)
+                Text(s('search_state_running')).fontSize(ThemeConstants.FONT_SIZE_META)
+                  .fontColor(ThemeConstants.TEXT_SECONDARY)
+              }.width('100%').padding(ThemeConstants.SPACE_LG)
+                .borderRadius(ThemeConstants.RADIUS_CARD).backgroundColor(ThemeConstants.CARD)
             }
-          }, (section: CrossSearchSection) => this.sectionRenderKey(section))
+          }
+          LazyForEach(this.resultRows, (row: SearchResultRow) => {
+            ListItem() { this.SearchResultContent(row) }
+          }, (row: SearchResultRow): string => row.key)
       }
 
-      Row()
-        .width(1)
-        .height(1)
-        .margin({ top: ThemeConstants.TITLE_BAR_HEIGHT, right: ThemeConstants.SPACE_MD })
-        .hitTestBehavior(HitTestMode.None)
-        .bindMenu(this.sourceFilterMenuOpen, this.SourceFilterMenu(), komaMenuOptions({
-          placement: Placement.BottomRight,
-          onDisappear: () => {
-            this.sourceFilterMenuOpen = false
-          },
-        }))
+
     }
     .width('100%')
     .height('100%')

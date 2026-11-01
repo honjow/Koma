@@ -3191,6 +3191,7 @@ struct Index {
     const filterContent: Record<string, Object> = {
       'label': AppStrings.get('search_filter_label'),
       'icon': $r('sys.symbol.funnel'),
+      'componentId': chrome.filterAnchorId,
       'isEnabled': true,
       'action': () => {
         chrome.requestFilters()
@@ -3198,9 +3199,16 @@ struct Index {
     }
     const filterItem: Record<string, Object> = {}
     filterItem['content'] = filterContent
+    const modeContent: Record<string, Object> = {
+      'label': AppStrings.get(chrome.resultsOnly ? 'search_results_only' : 'search_results_all'),
+      'type': TextStyleMode.NORMAL,
+      'componentId': chrome.resultModeAnchorId,
+      'action': (): void => { chrome.requestResultMode() },
+    }
+    const modeItem: Record<string, Object> = { 'content': modeContent }
     const menu: Record<string, Object> = {}
-    menu['value'] = [filterItem]
-    menu['maxCount'] = 1
+    menu['value'] = [filterItem, modeItem]
+    menu['maxCount'] = 2
     const content: Record<string, Object> = {}
     content['title'] = title
     content['bottomBuilder'] = bottomBuilder
