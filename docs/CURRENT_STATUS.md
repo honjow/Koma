@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：已复现并修正源筛选全关；重复刷新、通知错误码及订阅名称和编辑候选正在验证。
+当前结果：本轮筛选、订阅编辑及刷新修正已交付，四字菜单已实机核对，最终构建通过。
 
-设备：197保持原状态；237正用于本轮验收，已备份新鲜原包与数据，结束后恢复。200禁止操作，四私库搁置。
+设备：197保持原状态；237已恢复原包、本轮原数据、原超时和睡眠并释租。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T09:05:52+08:00",
+  "updatedAt": "2026-11-01T09:20:31+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
-  "activity": "菜单文案和筛选、订阅、刷新修复已验证；恢复237并完成最终提交。",
-  "nextAction": "本轮入口与展示问题已关闭；其余源、账号及原未关闭项继续按原事项保留。",
+  "activity": "本轮筛选、订阅编辑、四字菜单及刷新修正已交付，237已恢复。",
+  "nextAction": "其余源、账号及原未关闭项保留在各自原事项。",
   "proof": [
     {
       "label": "正式主仓",
@@ -4853,19 +4853,17 @@
     {
       "id": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
       "title": "浏览源按语言分组、评级筛选与订阅管理简化",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "实机通过，提交与恢复收尾",
-      "stage": "筛选与订阅界面已验证",
+      "status": "已修复并交付",
+      "stage": "本轮修复已交付",
       "reportedAt": null,
       "reportedAtSource": "2026-11-01本会话当前用户要求；精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T05:12:29+08:00",
       "result": "237已验证筛选独立开关、连续切换、两个入口共享及重启保存；订阅名称、地址编辑、自动命名、复制粘贴和项目页浏览器交接通过。菜单已按最新反馈统一为四字。",
-      "remaining": "恢复237本轮原包与数据，提交菜单文案并核对最终CI。",
-      "remainingActions": [
-        "恢复237本轮原包与数据，提交菜单文案并核对最终CI。"
-      ],
+      "remaining": "本轮修复已关闭，既有未验边界保留。",
+      "remainingActions": [],
       "boundaries": [
         "保留源更新角标缓存、后台差量更新与失败保留。",
         "只改变列表展示筛选，不禁用源、不改变全局搜索或书库。",
@@ -4903,24 +4901,27 @@
         "订阅109/110实测发现：公开meta已入偏好，但URL键固定使旧行未重建；053候选改为展示字段变更时只更新该行，尚在验证。",
         "054候选：117冷启动显示自定义名；118编辑后当前行立即更新；119清空自定义名称恢复Koma书源库并保存目录形式URL；120原生锚定菜单含编辑/复制/项目主页/移除。此前110/116的偏好已更新而界面未刷新的原因是共享缓存无revision发布，已在公共owner修正，修正前不算验收。",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-copy-consumed-121/：实际粘贴得到复制的订阅地址。122调起github.com系统浏览器，未以浏览器页面完整加载作为站点验收。124冷启动筛选状态保持。",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-uniform-labels-131/：055候选菜单实际为编辑订阅／复制地址／项目主页／移除订阅。"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-uniform-labels-131/：055候选菜单实际为编辑订阅／复制地址／项目主页／移除订阅。",
+        "Koma/master 6f6aa254及d93f81c6已推；当前精确CI 41259617566 / d93f81c6ae702a0a774779b20e498401bd2ce860；旧6f CI被新提交并发规则取消，不重跑。",
+        ".hvigor/outputs/source-catalog-acceptance/filter-subscription-delivery.json；filter-subscription-restoration.json全部七JSON与18偏好逐字一致。原包安装文件读取被系统拒绝；091/093安装时间与updateTime完全相同，恢复同一既存c6原包，132失败和133恢复回执均保留。134读回SLEEP、120000ms、无OverrideTimeout，租约已释放。",
+        "最终产品提交d93f81c6精确CI 41259617566 completed/success；Release HAP构建、检查与上传产物成功，Publish tagged Release skipped。回执 .hvigor/outputs/source-catalog-acceptance/filter-subscription-ci.json；未发布App、移动标签或上传AGC。"
       ],
-      "closedAt": null,
+      "closedAt": "2026-11-01T09:20:31+08:00",
       "reopenedAt": "2026-11-01T08:36:37+08:00"
     },
     {
       "id": "LIBRARY_UPDATES_BELL_ENTRY",
       "title": "书架铃铛入口与新章节更新列表",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "刷新已验证，通知文案已修复",
-      "stage": "重复转圈已消除",
+      "status": "已修复并交付",
+      "stage": "本轮修复已交付",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
       "result": "237实际下拉检查时只显示一个刷新指示器。通知发送前的最终文本已由生产发布函数验证，不再附加unknown等内部码；内部码继续保留在诊断结果中。",
-      "remaining": "提交与设备恢复收尾；237当次未观察到Koma新系统通知，不声称系统投递已验收。",
+      "remaining": "本轮修复已关闭，既有未验边界保留。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -4945,13 +4946,15 @@
         "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-single-refresh-126/：LoadingProgress仅1个，画面无第二行转圈。",
         "scripts/test_library_update_outcome.cjs：实际生产publisher调用受控NotificationKit边界，summary和整次失败通知均不暴露unknown；不是设备投递证明。",
-        "128限定日志记录本次普通手动检查已结束；不作为四私库账号/内容验收，也不重跑。129通知面板当次未观察Koma新通知，未修改系统通知权限。"
+        "128限定日志记录本次普通手动检查已结束；不作为四私库账号/内容验收，也不重跑。129通知面板当次未观察Koma新通知，未修改系统通知权限。",
+        "Koma/master 6f6aa254及d93f81c6已推；当前精确CI 41259617566 / d93f81c6ae702a0a774779b20e498401bd2ce860；旧6f CI被新提交并发规则取消，不重跑。",
+        ".hvigor/outputs/source-catalog-acceptance/filter-subscription-delivery.json；filter-subscription-restoration.json全部七JSON与18偏好逐字一致。原包安装文件读取被系统拒绝；091/093安装时间与updateTime完全相同，恢复同一既存c6原包，132失败和133恢复回执均保留。134读回SLEEP、120000ms、无OverrideTimeout，租约已释放。",
+        "最终产品提交d93f81c6精确CI 41259617566 completed/success；Release HAP构建、检查与上传产物成功，Publish tagged Release skipped。回执 .hvigor/outputs/source-catalog-acceptance/filter-subscription-ci.json；未发布App、移动标签或上传AGC。"
       ],
-      "closedAt": null,
+      "closedAt": "2026-11-01T09:20:31+08:00",
       "reopenedAt": "2026-11-01T08:36:37+08:00",
-      "remainingActions": [
-        "提交与设备恢复收尾；保留237系统投递未观察的范围。"
-      ]
+      "remainingActions": [],
+      "verificationBoundary": "237当次未观察Koma新系统通知；通知最终API文本经生产函数验证，未声称系统投递已通过。"
     }
   ],
   "source": {
@@ -12700,6 +12703,28 @@
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-uniform-labels-131/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-single-refresh-126/"
+      ]
+    },
+    {
+      "id": "filters-subscriptions-device-restored-20261101",
+      "at": "2026-11-01T09:08:53+08:00",
+      "title": "本轮237验收及恢复完成",
+      "detail": "原包和本轮数据逐字恢复，超时与睡眠已读回并释租；最终修复已推，等待对应构建结果。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "evidence": [
+        ".hvigor/outputs/source-catalog-acceptance/filter-subscription-restoration.json",
+        "https://github.com/honjow/Koma/actions/runs/41259617566"
+      ]
+    },
+    {
+      "id": "filters-subscriptions-ci-accepted-20261101",
+      "at": "2026-11-01T09:20:31+08:00",
+      "title": "筛选与订阅修复交付完成",
+      "detail": "四字菜单及本轮界面修复已验证并推送，最终构建通过；237原包、数据与电源已恢复。通知文案已验证到发送API边界，不扩大为系统投递验收。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "evidence": [
+        "https://github.com/honjow/Koma/actions/runs/41259617566",
+        ".hvigor/outputs/source-catalog-acceptance/filter-subscription-delivery.json"
       ]
     }
   ],

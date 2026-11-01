@@ -5,21 +5,21 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "original-power-restored-092",
+  "runId": "filter-subscription-power-restored-134",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "restoration-original237-c6e494c9547877a8850cb5035dcca0e3a86fe5a306614e25f1b05e20cb8bf028",
-    "page": "Restore original timeout policy and sleep before releasing lease",
+    "codeIdentity": "restored-original-c6e494c9",
+    "page": "Restore original 120000ms policy and SLEEP, then release237",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
     "orientation": "portrait",
     "resolution": "1320x2120",
-    "notes": "049候选具名验收完毕；恢复033新鲜七JSON与18偏好文件及原同签名HAP。偏好内容仅不透明复制与逐字比较，不读取凭据。"
+    "notes": "094安装包file recv被设备权限拒绝，未取得新HAP；091恢复包c6与093原包的updateTime=1793488676135、installTime、version完全相同，证明期间未换包，采用同一已保存原包。恢复数据只用本轮093，不用旧033。132安装失败未执行数据恢复，保留失败回执。"
   },
   "preflight": [
     {
