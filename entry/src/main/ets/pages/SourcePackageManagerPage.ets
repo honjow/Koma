@@ -6,7 +6,7 @@ import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -1325,7 +1325,7 @@ export struct SourcePackageManagerPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message }))
     } catch (_err) {
     }
   }
@@ -1686,20 +1686,20 @@ export struct SourcePackageManagerPage {
     if (this.busy || this.localImport.busy) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('source_pkg_remove_title'),
       message: tf('source_pkg_remove_message', sourceDisplayName(source.id, source.name)),
       autoCancel: true,
       primaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: t('source_pkg_delete'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           void this.removePackage(source)
         },
-      },
-      secondaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
       },
     })
   }

@@ -3,7 +3,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { FormTitleActionState } from '../state/FormTitleActionState'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { KomaModalScaffold } from './KomaModalScaffold'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
@@ -124,7 +124,7 @@ export struct KomaTranslationSettingsContent {
   }
 
   private toast(key: string): void {
-    this.getUIContext().getPromptAction().showToast({ message: t(key) })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t(key) }))
   }
 
   private draftTextConfigured(): boolean {
@@ -160,7 +160,7 @@ export struct KomaTranslationSettingsContent {
 
   private manageModels(): void {
     if (!this.ready || this.modelDownloading) return
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t(this.modelInstalled ? 'comic_local_detector_remove_title' : 'comic_local_detector_install_title'),
       message: t(this.modelInstalled ? 'comic_local_detector_remove_message' : 'comic_local_detector_install_message'),
       primaryButton: { value: t('common_cancel'), action: () => {} },
@@ -202,7 +202,7 @@ export struct KomaTranslationSettingsContent {
       this.evaluationShown = true
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('comic_translation_live_evaluation_title'), message: t('comic_translation_live_evaluation_confirm'),
       primaryButton: { value: t('common_cancel'), action: () => {} },
       secondaryButton: { value: t('comic_translation_live_evaluation_start'), action: () => { void this.runEvaluation() } },
@@ -220,7 +220,7 @@ export struct KomaTranslationSettingsContent {
         if (!this.active || lifetime !== this.lifetime) return
         this.toriiEvaluationReport = report
         if (report.passed()) this.evaluationShown = true
-        else this.getUIContext().showAlertDialog({ title: t('comic_torii_live_evaluation_failed_short'),
+        else this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: t('comic_torii_live_evaluation_failed_short'),
           message: report.errorDetail || report.errorCode,
           primaryButton: { value: t('common_ok'), action: () => {} } })
         void this.refreshCredits()

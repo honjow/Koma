@@ -12,7 +12,7 @@ import { ExperimentalCodexOAuthService } from '../readerTranslation/services/Exp
 import { ComicTranslationCodexUsageService, CodexUsageSnapshot,
   CodexUsageWindow } from '../readerTranslation/services/ComicTranslationCodexUsageService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaFormTextField } from './ui/KomaFormTextField'
@@ -56,7 +56,7 @@ export struct KomaTranslationSourcesContent {
   }
 
   private toast(key: string): void {
-    this.getUIContext().getPromptAction().showToast({ message: t(key) })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t(key) }))
   }
 
   private open(source: KomaTranslationLlmSource | null, sourceType: string = LLM_SOURCE_TYPE_OPENAI_COMPATIBLE): void {
@@ -160,9 +160,9 @@ export struct KomaTranslationSourcesContent {
       await this.loadCodexAccount(lifetime)
     } catch (error) {
       DiagnosticLogger.warn('llm-source', 'codex_login_failed', (error as Error).message)
-      if (this.editorCurrent(id, lifetime)) this.getUIContext().getPromptAction().showToast({
+      if (this.editorCurrent(id, lifetime)) this.getUIContext().getPromptAction().showToast(komaToastOptions({
         message: AppStrings.format('comic_translation_codex_login_failed', DiagnosticLogger.errorSummary(error as Error)),
-      })
+      }))
     } finally {
       if (this.editorCurrent(id, lifetime)) {
         this.codexLoginBusy = false
@@ -175,7 +175,7 @@ export struct KomaTranslationSourcesContent {
   private codexAccountAction(): void {
     if (this.codexLoginBusy) { this.copyCodexUserCode(); return }
     if (!this.codexConnected) { void this.startCodexLogin(); return }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('comic_translation_codex_logout'), message: t('llm_source_codex_logout_confirm'),
       primaryButton: { value: t('common_cancel'), action: () => {} },
       secondaryButton: { value: t('comic_translation_codex_logout'), action: () => { void this.logoutCodex() } },
@@ -267,7 +267,7 @@ export struct KomaTranslationSourcesContent {
   }
 
   private confirmDelete(): void {
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('llm_source_delete'), message: this.settings.sourceProfileId === this.editing.profile.sourceProfileId ?
         AppStrings.format('llm_source_delete_referenced', t('comic_translation_settings_title')) : t('llm_source_delete_confirm'),
       primaryButton: { value: t('common_cancel'), action: () => {} },

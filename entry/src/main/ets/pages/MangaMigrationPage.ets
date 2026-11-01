@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
 import { AdvancedDialogV2Button, CustomContentDialogV2 } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
@@ -151,7 +152,7 @@ export struct MangaMigrationPage {
   }
 
   private showSaveFailure(): void {
-    this.getUIContext().getPromptAction().showToast({ message: s('migration_save_failed') })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('migration_save_failed') }))
   }
 
   private saveMatchOptions(): void {
@@ -342,11 +343,11 @@ export struct MangaMigrationPage {
   private readyCount(): number { return this.rows.filter((row: MigrationRow): boolean => row.state === 'ready').length }
 
   private confirm(copy: boolean): void {
-    this.getUIContext().showAlertDialog({ title: s(copy ? 'migration_copy' : 'migration_move'),
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: s(copy ? 'migration_copy' : 'migration_move'),
       message: s(copy ? 'migration_copy_confirm' : 'migration_move_confirm').replace('%s', `${this.readyCount()}`),
       autoCancel: true,
-      primaryButton: { value: s(copy ? 'migration_copy' : 'migration_move'), action: () => { void this.commit(copy) } },
-      secondaryButton: { value: s('common_cancel'), action: () => {} },
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s(copy ? 'migration_copy' : 'migration_move'), action: () => { void this.commit(copy) } },
     })
   }
 
@@ -523,7 +524,7 @@ export struct MangaMigrationPage {
   private showSingleConfirmation(): void {
     if (this.singleConfirmationShown) return
     this.singleConfirmationShown = true
-    this.getUIContext().getPromptAction().openCustomDialog({
+    this.getUIContext().getPromptAction().openCustomDialog({ systemMaterial: komaDialogMaterial(),
       builder: () => { this.SingleConfirmation() },
       alignment: DialogAlignment.Center,
       autoCancel: true,

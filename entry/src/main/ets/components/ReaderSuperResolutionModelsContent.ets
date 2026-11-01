@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 // Ported from NextE ReaderSuperResolutionModelsPage: file management is separate from selection.
 import { common } from '@kit.AbilityKit'
 import { ReaderSuperResolutionModel } from '../state/ReaderModeState'
@@ -57,7 +58,7 @@ export struct ReaderSuperResolutionModelsContent {
   }
 
   private toast(message: ResourceStr): void {
-    this.getUIContext().getPromptAction().showToast({ message: message })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
   }
 
   private async refreshInstallState(): Promise<void> {
@@ -180,7 +181,7 @@ export struct ReaderSuperResolutionModelsContent {
     }
     const message: string = AppStrings.get('settings_reader_super_resolution_model_delete_confirm')
       .replace('%s', this.modelTitleText(state.definition.id))
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       message: message,
       primaryButton: {
         value: $r('app.string.common_cancel'),

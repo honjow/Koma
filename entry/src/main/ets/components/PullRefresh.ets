@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { vibrator } from '@kit.SensorServiceKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -205,7 +206,7 @@ export struct PullRefresh {
 
   private notifyRefreshFailed(): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('common_load_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('common_load_failed') }))
     } catch (_error) {}
   }
 

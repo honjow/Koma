@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { ComicTranslationRuntimeService } from '../readerTranslation/services/ComicTranslationRuntimeService'
@@ -28,7 +29,7 @@ export struct KomaTranslationCacheRow {
       const value = await ComicTranslationRuntimeService.statGeneratedCache(this.context())
       if (this.active) this.stat = value
     } catch (_error) {
-      if (this.active) this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('cache_stat_failed') })
+      if (this.active) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('cache_stat_failed') }))
     }
   }
 
@@ -39,7 +40,7 @@ export struct KomaTranslationCacheRow {
   }
 
   private confirmClear(): void {
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: AppStrings.get('cache_comic_translation'), message: AppStrings.format('cache_clear_confirm', AppStrings.get('cache_comic_translation')),
       primaryButton: { value: AppStrings.get('common_cancel'), action: () => {} },
       secondaryButton: { value: AppStrings.get('common_clear'), action: () => { void this.clear() } },
@@ -52,7 +53,7 @@ export struct KomaTranslationCacheRow {
       await ComicTranslationRuntimeService.clearGeneratedCache(this.context())
       await this.refresh()
     } catch (_error) {
-      if (this.active) this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('cache_clear_failed') })
+      if (this.active) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('cache_clear_failed') }))
     } finally {
       if (this.active) this.clearing = false
     }

@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -66,18 +67,18 @@ export struct SourceSettingsSheetContent {
     }
     if (this.regexCheckFailed) {
       DiagnosticLogger.warn('source_settings', 'java_regex', 'reason=execution_failed')
-      this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_reason_runtime_response_not_ok') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('source_pkg_reason_runtime_response_not_ok') }))
       return
     }
     if (this.regexCheckDescriptor !== undefined &&
       (this.regexValidatedSourceId !== this.settingsSourceId ||
         this.regexValidatedStoreRevision !== appSourceSettingsStore.revisionForSource(this.settingsSourceId))) {
       DiagnosticLogger.warn('source_settings', 'java_regex', 'reason=stale_draft')
-      this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_reason_runtime_response_not_ok') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('source_pkg_reason_runtime_response_not_ok') }))
       return
     }
     appSourceSettingsStore.saveForSource(this.settingsSourceId, this.settingDraft, this.settingDescriptors)
-    this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_settings_saved') })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('source_pkg_settings_saved') }))
     this.onSaved(false)
     this.onClose()
   }
@@ -90,7 +91,7 @@ export struct SourceSettingsSheetContent {
     this.regexCheckValue = ''
     this.regexCheckPending = false
     appSourceSettingsStore.removeSource(this.settingsSourceId)
-    this.getUIContext().getPromptAction().showToast({ message: t('source_pkg_settings_cleared') })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: t('source_pkg_settings_cleared') }))
     this.onSaved(true)
     this.onClose()
   }
@@ -99,20 +100,20 @@ export struct SourceSettingsSheetContent {
     if (this.settingsSourceId.length === 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('source_pkg_clear_settings_title'),
       message: tf('source_pkg_clear_settings_message', sourceDisplayName(this.settingsSourceId, this.settingsSourceName)),
       autoCancel: true,
       primaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: t('source_pkg_clear_settings'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.clearSavedSettings()
         },
-      },
-      secondaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
       },
     })
   }

@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceCatalogRating } from '../model/SourceCatalogPresentation'
@@ -23,13 +24,13 @@ export struct SourceCatalogFiltersContent {
 
   private save(languages: string[] | undefined, rating: SourceCatalogRating): void {
     void this.filters.save({ languages, rating }).catch((): void => {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_catalog_filter_save_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_catalog_filter_save_failed') }))
     })
   }
 
   private setLanguage(language: string, enabled: boolean): void {
     void this.filters.setLanguage(language, enabled, this.languages).catch((): void => {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_catalog_filter_save_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_catalog_filter_save_failed') }))
     })
   }
 
@@ -58,7 +59,7 @@ export struct SourceCatalogFiltersContent {
             checked: this.filters.languages === undefined,
             switchAction: (enabled: boolean): void => {
               void this.filters.setAllLanguages(enabled).catch((): void => {
-                this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_catalog_filter_save_failed') })
+                this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_catalog_filter_save_failed') }))
               })
             } })
           ForEach(this.languages, (language: string) => {

@@ -13,7 +13,7 @@ import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeStat
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -471,10 +471,10 @@ struct Index {
       this.refreshLibrarySnapshot()
       const message = result.status === 'failed' ? 'library_updates_check_failed' :
         result.persistenceFailed ? 'library_updates_save_failed' : ''
-      if (message) this.getUIContext().getPromptAction().showToast({ message: AppStrings.get(message) })
+      if (message) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get(message) }))
     } catch (error) {
       DiagnosticLogger.exception('library_updates', 'check_failed', error as Error)
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('library_updates_check_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('library_updates_check_failed') }))
     }
   }
 
@@ -1096,7 +1096,7 @@ struct Index {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message }))
     } catch (_error) {
     }
   }
@@ -1667,7 +1667,7 @@ struct Index {
       RouterHelper.ensureMigrationRouteChrome(param)
       this.appPathStack.pushPath({ name: RouteName.MANGA_MIGRATION, param })
     } catch (_) {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('migration_preferences_load_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('migration_preferences_load_failed') }))
     } finally { this.migrationOpening = false }
   }
 
@@ -3279,7 +3279,7 @@ struct Index {
         'action': () => {
           if (!openSourceWebSession(source.sourceId, sourceDisplayName(source.sourceId, source.displayName),
             () => { chrome.markRefreshNeeded() })) {
-            this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_not_allowed') })
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_not_allowed') }))
           }
         },
       }
@@ -3359,7 +3359,7 @@ struct Index {
         'action': () => {
           if (!openSourceWebSession(source.sourceId, sourceDisplayName(source.sourceId, source.displayName),
             () => { chrome.markRefreshNeeded() })) {
-            this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_not_allowed') })
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_not_allowed') }))
           }
         },
       }

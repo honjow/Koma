@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { webview } from '@kit.ArkWeb'
 import { BlurStrategy, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
@@ -180,7 +181,7 @@ export struct MangaWebPage {
       this.params.onSessionCompleted?.()
       RouterHelper.pop()
     } catch (_error) {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_session_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
     }
   }
 

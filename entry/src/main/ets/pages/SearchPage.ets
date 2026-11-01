@@ -1,5 +1,5 @@
 import { SearchResultRow, SearchResultRowSource } from '../model/SearchResultRowSource'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceWebChallengeReceipt } from '../sourceRuntime/SourceWebChallengeGate'
@@ -500,20 +500,20 @@ export struct SearchPage {
     if (this.history.length === 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('search_history_clear_title'),
       message: s('search_history_clear_message').replace('%s', `${this.history.length}`),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_clear'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.clearHistory()
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }

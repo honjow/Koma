@@ -1,6 +1,6 @@
 import { runOfflineDownloadBatch } from '../model/OfflineDownloadBatch'
 import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
@@ -655,20 +655,20 @@ export struct DownloadsPage {
     if (!this.canRemove(entry) || this.busyKey.length > 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('downloads_remove_title'),
       message: s('downloads_remove_message').replace('%s', this.rowTitle(entry)),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.removeDownload(entry)
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -869,20 +869,20 @@ export struct DownloadsPage {
       this.showToast(s('downloads_toast_no_cleanup'))
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('downloads_cleanup_title'),
       message: s('downloads_cleanup_message').replace('%s', `${targets.length}`),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_clear'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.removeCompletedFailedDownloads()
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -912,7 +912,7 @@ export struct DownloadsPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_error) {
     }
   }

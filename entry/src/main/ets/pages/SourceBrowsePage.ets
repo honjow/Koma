@@ -1,4 +1,4 @@
-import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
@@ -166,7 +166,7 @@ export struct SourceBrowsePage {
   private verifySource(): void {
     const source = this.currentSource()
     if (!openSourceWebSession(source.sourceId, source.displayName, () => { this.chrome.markRefreshNeeded() })) {
-      this.getUIContext().getPromptAction().showToast({ message: s('source_web_not_allowed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('source_web_not_allowed') }))
     }
   }
 
@@ -357,7 +357,7 @@ export struct SourceBrowsePage {
 
   private async loadFilterData(): Promise<void> {
     const error = await this.viewModel.fetchSourceFilterData()
-    if (this.filtersShown && error.length > 0) this.getUIContext().getPromptAction().showToast({ message: error })
+    if (this.filtersShown && error.length > 0) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: error }))
   }
 
   private closeFilters(): void {

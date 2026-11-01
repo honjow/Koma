@@ -1,7 +1,7 @@
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -569,7 +569,7 @@ export struct MangaDetailPage {
       })
     } catch (_error) {
       dismissed()
-      if (this.chrome.visible) this.getUIContext().getPromptAction().showToast({ message: s('manga_detail_share_failed') })
+      if (this.chrome.visible) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('manga_detail_share_failed') }))
     }
   }
 
@@ -640,7 +640,7 @@ export struct MangaDetailPage {
       } else {
         const context = getContext(this) as common.UIAbilityContext
         void context.startAbility({ action: 'ohos.want.action.viewData', uri: url }).catch(() => {
-          this.getUIContext().getPromptAction().openToast({ message: s('manga_detail_open_browser_failed') })
+          this.getUIContext().getPromptAction().openToast(komaToastOptions({ message: s('manga_detail_open_browser_failed') }))
         })
       }
       return
@@ -1886,7 +1886,7 @@ export struct MangaDetailPage {
         filteredChapterIds.length, filteredChapterIds.length - targetChapterIds.length, targetChapterIds.length,
       ])
     if (targetChapterIds.length === 0) {
-      this.getUIContext().showAlertDialog({
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
         title,
         message,
         autoCancel: true,
@@ -1894,19 +1894,19 @@ export struct MangaDetailPage {
       })
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title,
       message,
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_confirm'),
         action: () => {
           void this.handleDownloadChapters(targetChapterIds, mode)
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -2067,7 +2067,7 @@ export struct MangaDetailPage {
       ? (isRead ? 'manga_detail_mark_selected_read_confirm' : 'manga_detail_mark_selected_unread_confirm')
       : (isRead ? 'manga_detail_mark_filtered_read_confirm' : 'manga_detail_mark_filtered_unread_confirm'), [targetIds.length])
     if (targetIds.length === 0) {
-      this.getUIContext().showAlertDialog({
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
         title,
         message,
         autoCancel: true,
@@ -2075,17 +2075,17 @@ export struct MangaDetailPage {
       })
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title,
       message,
       autoCancel: true,
-      primaryButton: {
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: {
         value: s('common_confirm'),
         action: () => {
           this.markChaptersReadState(targetIds, isRead)
         },
       },
-      secondaryButton: { value: s('common_cancel'), action: () => {} },
     })
   }
 
@@ -2271,7 +2271,7 @@ export struct MangaDetailPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_err) {
     }
   }

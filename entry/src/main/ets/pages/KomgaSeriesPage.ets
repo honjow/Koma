@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
@@ -344,7 +345,7 @@ export struct KomgaSeriesPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_err) {
     }
   }

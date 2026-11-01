@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
 import { pasteboard } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -40,7 +41,7 @@ export struct SourceSubscriptionsPage {
     this.url = repository?.url ?? ''
     this.name = repository?.customName ?? ''
     this.error = ''
-    void this.getUIContext().getPromptAction().openCustomDialog({
+    void this.getUIContext().getPromptAction().openCustomDialog({ systemMaterial: komaDialogMaterial(),
       builder: () => { this.AddDialog() }, alignment: DialogAlignment.Center, autoCancel: true,
       onWillDismiss: (action: DismissDialogAction): void => { if (!this.busy) action.dismiss() },
       onDidDisappear: (): void => { this.dialogId = -1; this.error = '' },
@@ -128,14 +129,14 @@ export struct SourceSubscriptionsPage {
 
   private copy(repository: SourceIndexRepository): void {
     void pasteboard.getSystemPasteboard().setData(pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, repository.url))
-      .then((): void => { this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_subscription_copied') }) })
-      .catch((): void => { this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_subscription_copy_failed') }) })
+      .then((): void => { this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_subscription_copied') })) })
+      .catch((): void => { this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_subscription_copy_failed') })) })
   }
 
   private openWebsite(repository: SourceIndexRepository): void {
     if (!repository.website) return
     void this.context().startAbility({ action: 'ohos.want.action.viewData', uri: repository.website })
-      .catch((): void => { this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('manga_detail_open_browser_failed') }) })
+      .catch((): void => { this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('manga_detail_open_browser_failed') })) })
   }
 
   private actions(repository: SourceIndexRepository): KomaMenuGroup[] {

@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { webview } from '@kit.ArkWeb'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { hasNewSourceClearance, sourceClearanceCookieState } from '../sourceRuntime/SourceWebChallengeGate'
@@ -117,7 +118,7 @@ export struct SourceWebSessionSheet {
           this.controllerReady = false
           this.loading = false
           DiagnosticLogger.warn('source_web_session', 'identity_setup_failed', 'stage=set_user_agent')
-          this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_session_failed') })
+          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
           return
         }
       }
@@ -297,7 +298,7 @@ export struct SourceWebSessionSheet {
       this.onCompleted(status)
     } catch (_error) {
       if (this.isCurrent(epoch, sourceId, sessionId)) {
-        this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_web_session_failed') })
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
       }
     } finally {
       if (this.active && this.epoch === epoch) this.completing = false

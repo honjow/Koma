@@ -1,7 +1,7 @@
 import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { Binding, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
@@ -212,13 +212,13 @@ export struct BackupManagementPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_error) {
     }
   }
 
   private showInfoDialog(title: string, message: string): void {
-    void this.getUIContext().getPromptAction().showDialog({
+    void this.getUIContext().getPromptAction().showDialog({ systemMaterial: komaDialogMaterial(),
       title,
       message,
       buttons: [
@@ -235,20 +235,20 @@ export struct BackupManagementPage {
     if (this.busy) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('backup_unencrypted_confirm_title'),
       message: `${t('backup_unencrypted_confirm_message')}\n\n${backupUnencryptedExportWarning()}`,
       autoCancel: true,
       primaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: t('backup_unencrypted_confirm_action'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
           this.exportBackup()
         },
-      },
-      secondaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -257,20 +257,20 @@ export struct BackupManagementPage {
     if (this.busy) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('backup_unencrypted_confirm_title'),
       message: `${t('backup_unencrypted_local_confirm_message')}\n\n${backupUnencryptedExportWarning()}`,
       autoCancel: true,
       primaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: t('backup_unencrypted_confirm_action'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
           this.exportLocalBackup()
         },
-      },
-      secondaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -585,20 +585,20 @@ export struct BackupManagementPage {
   }
 
   private confirmDeleteLocalBackup(record: BackupLocalFileRecord): void {
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('backup_local_delete_title'),
       message: t('backup_local_delete_message').replace('%s', record.displayName),
       autoCancel: true,
       primaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: t('backup_local_delete_action'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
           this.deleteLocalBackup(record.fileName)
         },
-      },
-      secondaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -656,20 +656,20 @@ export struct BackupManagementPage {
     if (this.busy || this.selectedBackupPayload.length === 0 || preview === undefined) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('backup_restore_confirm_title'),
       message: this.restoreConfirmationMessage(preview),
       autoCancel: true,
       primaryButton: {
+        value: t('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: t('backup_restore_confirm_action'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
           this.runRestoreSelectedBackup()
         },
-      },
-      secondaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
       },
     })
   }

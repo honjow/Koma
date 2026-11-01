@@ -1,5 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceSettingDescriptor, SourceSettingsRecord, appSourceSettingsStore,
   loadSourceSettingsDescriptorsAsync } from '../sourceRuntime/SourceSettingsStore'
@@ -78,7 +78,7 @@ export struct SourceSettingsSheetHost {
     } catch (_error) {
       if (!this.mounted || !this.active || epoch !== this.epoch) return
       if (schemaReady) {
-        this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_pkg_reason_settings_read_failed') })
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_pkg_reason_settings_read_failed') }))
       } else {
         this.onAvailabilityChanged(false)
       }

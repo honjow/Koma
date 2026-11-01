@@ -1,6 +1,6 @@
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
-import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -1423,7 +1423,7 @@ export struct LibraryPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (error) {
       void error
     }
@@ -1472,20 +1472,20 @@ export struct LibraryPage {
     if (count === 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('library_batch_remove_title'),
       message: s('library_batch_remove_message').replace('%s', `${count}`),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.removeSelectedComics()
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -1517,19 +1517,19 @@ export struct LibraryPage {
       const title = s(unreadOnly ? 'library_download_unread' : 'library_download_all')
       const message = this.batchDownloadMessage(plan)
       if (plan.targets.length === 0) {
-        this.getUIContext().showAlertDialog({
+        this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
           title, message, autoCancel: true,
           confirm: { value: s('common_confirm'), action: () => {} },
         })
         return
       }
-      this.getUIContext().showAlertDialog({
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
         title, message, autoCancel: true,
-        primaryButton: {
+        primaryButton: { value: s('common_cancel'), action: () => {} },
+        secondaryButton: {
           value: s('library_download_enqueue'),
           action: () => { void this.enqueueSelectedComicsDownload(queue, plan, unreadOnly) },
         },
-        secondaryButton: { value: s('common_cancel'), action: () => {} },
       })
     } catch (_error) {
       this.showToast(s('library_download_enqueue_failed'))
@@ -1558,11 +1558,15 @@ export struct LibraryPage {
     if (!this.canRemoveComic(comic.id)) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('library_remove_title'),
       message: s('library_remove_message').replace('%s', comic.title),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
@@ -1570,10 +1574,6 @@ export struct LibraryPage {
             this.refreshDisplayedSnapshotFromStore()
           }
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }

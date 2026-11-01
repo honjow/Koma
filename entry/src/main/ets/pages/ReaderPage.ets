@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { ReaderImageEffectsLayer } from '@reader-kit/ui'
@@ -2436,7 +2437,7 @@ export struct ReaderPage {
 
   private showReaderToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_error) {
     }
   }

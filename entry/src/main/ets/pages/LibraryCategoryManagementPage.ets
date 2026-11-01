@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   Comic,
@@ -57,7 +58,7 @@ export struct LibraryCategoryManagementPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_error) {
     }
   }
@@ -211,20 +212,20 @@ export struct LibraryCategoryManagementPage {
   }
 
   private confirmDelete(category: CustomLibraryCategory): void {
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('library_category_delete_title'),
       message: s('library_category_delete_message').replace('%s', category.name),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('library_category_action_delete'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
           this.persistDelete(category.id)
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }

@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
@@ -305,20 +306,20 @@ export struct HistoryPage {
   }
 
   private confirmRemoveHistoryItem(item: HistoryItem): void {
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('history_remove_title'),
       message: s('history_remove_message').replace('%s', item.title),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_remove'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.removeHistoryItem(item)
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -342,7 +343,7 @@ export struct HistoryPage {
 
   private showHistorySaveFailed(): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: s('reader_progress_save_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('reader_progress_save_failed') }))
     } catch (_error) {
     }
     DiagnosticLogger.warn('history_page', 'remove_failed', '[History] step=remove_failed reason=persistence')
@@ -352,20 +353,20 @@ export struct HistoryPage {
     if (this.historyItems.length === 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('history_clear_title'),
       message: s('history_clear_message').replace('%s', `${this.historyItems.length}`),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_clear'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.clearHistory()
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }

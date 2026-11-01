@@ -1,6 +1,6 @@
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
@@ -2095,7 +2095,7 @@ export struct SettingsPage {
   }
 
   private showInfoDialog(title: string, message: string): void {
-    void this.getUIContext().getPromptAction().showDialog({
+    void this.getUIContext().getPromptAction().showDialog({ systemMaterial: komaDialogMaterial(),
       title,
       message,
       buttons: [
@@ -2108,19 +2108,19 @@ export struct SettingsPage {
     const title = s('settings_row_local_library_refresh_title')
     const message = formatLocalLibraryRefreshDetail(summary)
     if (summary.reselectRequiredCount > 0) {
-      this.getUIContext().showAlertDialog({
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
         title,
         message,
         autoCancel: true,
         primaryButton: {
+          value: s('common_cancel'),
+          action: () => {},
+        },
+        secondaryButton: {
           value: s('route_import_title'),
           action: () => {
             this.onOpenImportRequested()
           },
-        },
-        secondaryButton: {
-          value: s('common_cancel'),
-          action: () => {},
         },
       })
       return
@@ -2132,19 +2132,19 @@ export struct SettingsPage {
     const title = s('settings_row_local_library_refresh_title')
     const message = formatLocalLibraryFolderRescanActionResult(result)
     if (result.reselectRequiredCount > 0) {
-      this.getUIContext().showAlertDialog({
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
         title,
         message,
         autoCancel: true,
         primaryButton: {
+          value: s('common_cancel'),
+          action: () => {},
+        },
+        secondaryButton: {
           value: s('route_import_title'),
           action: () => {
             this.onOpenImportRequested()
           },
-        },
-        secondaryButton: {
-          value: s('common_cancel'),
-          action: () => {},
         },
       })
       return
@@ -2154,7 +2154,7 @@ export struct SettingsPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_error) {
     }
   }
@@ -2414,7 +2414,7 @@ export struct SettingsPage {
   }
 
   private showImageCacheConfirm(): void {
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       message: `${s('settings_image_cache_confirm')}\n${this.imageCacheDetailText()}`,
       primaryButton: {
         value: s('common_cancel'),

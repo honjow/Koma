@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { pasteboard } from '@kit.BasicServicesKit'
@@ -35,7 +36,7 @@ export struct DiagnosticsSettingsContent {
   }
 
   private toast(key: string): void {
-    this.getUIContext().getPromptAction().showToast({ message: AppStrings.get(key) })
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get(key) }))
   }
 
   private saveSettings(enabled: boolean, minLevel: string): void {

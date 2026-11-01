@@ -8,7 +8,7 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { AppStrings } from '../i18n/AppStrings'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { KomaModalScaffold } from './KomaModalScaffold'
@@ -49,7 +49,7 @@ export struct LibrarySmartCategorySection {
       const validation = [s('library_category_error_name_empty'), s('library_category_error_name_duplicate'),
         s('library_category_error_name_builtin'), AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH)]
       DiagnosticLogger.exception('library', 'smart_category_save_failed', error)
-      this.getUIContext().getPromptAction().showToast({ message: validation.includes(message) ? message : s('library_category_save_failed') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: validation.includes(message) ? message : s('library_category_save_failed') }))
       return false
     }
   }
@@ -77,11 +77,11 @@ export struct LibrarySmartCategorySection {
   }
 
   private confirmDelete(group: LibrarySmartCategory): void {
-    this.getUIContext().showAlertDialog({ title: s('library_smart_delete'), message: group.name,
-      primaryButton: { value: s('common_delete'), fontColor: ThemeConstants.DANGER,
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: s('library_smart_delete'), message: group.name,
+      primaryButton: { value: s('common_cancel'), action: (): void => {} },
+      secondaryButton: { value: s('common_delete'), fontColor: ThemeConstants.DANGER,
         action: (): void => { this.commit((this.libraryStore?.listSmartCategories() ?? [])
-          .filter((item: LibrarySmartCategory): boolean => item.id !== group.id)) } },
-      secondaryButton: { value: s('common_cancel'), action: (): void => {} } })
+          .filter((item: LibrarySmartCategory): boolean => item.id !== group.id)) } } })
   }
 
   private state(method: LibrarySmartFilterMethod, value?: string): string {

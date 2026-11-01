@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 // About layout and update/history behavior ported from NextE. Koma supplies its own identity and routes.
 // NextE-only account/debug hooks and license claims are omitted; Koma's packaged third-party notices remain intact.
 import { bundleManager, common, Want } from '@kit.AbilityKit'
@@ -62,7 +63,7 @@ export struct KomaAboutContent {
 
   private toast(message: ResourceStr): void {
     this.getUIContext().getPromptAction()
-      .openToast({ message: message })
+      .openToast(komaToastOptions({ message: message }))
       .catch((_error: Error) => {})
   }
 
@@ -167,7 +168,7 @@ export struct KomaAboutContent {
     }
     this.selectedReleaseIndex = AppReleaseService.indexForVersion(this.releaseHistory, this.versionText())
     this.updateDialogId = -1
-    this.getUIContext().getPromptAction().openCustomDialog({
+    this.getUIContext().getPromptAction().openCustomDialog({ systemMaterial: komaDialogMaterial(),
       builder: () => {
         this.UpdateDialog()
       },

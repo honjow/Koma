@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -142,7 +143,7 @@ export struct KavitaServerPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message }))
     } catch (_err) {
     }
   }

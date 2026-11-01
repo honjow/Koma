@@ -1,4 +1,4 @@
-import { uiMaterial } from '@kit.ArkUI'
+import { promptAction, uiMaterial } from '@kit.ArkUI'
 import { deviceInfo } from '@kit.BasicServicesKit'
 
 // Match NextE's native popup materials. Callers continue owning geometry,
@@ -26,6 +26,21 @@ export function komaContextMenuOptions(options: ContextMenuOptions = {}): Contex
 export function komaSheetOptions(options: SheetOptions): SheetOptions {
   options.systemMaterial = popupMaterial(true)
   return options
+}
+
+// Native Toasts share the same material owner as the other system popups.
+// Keep each caller's text, timing, placement and async API unchanged.
+export function komaToastOptions(options: promptAction.ShowToastOptions): promptAction.ShowToastOptions {
+  if (deviceInfo.apiAvailable('26.0.0')) options.systemMaterial = popupMaterial()
+  return options
+}
+
+// Alert, selection and custom-content dialogs keep their native API/shape.
+// Their caller supplies this shared surface instead of a separate local style.
+// Two-button confirmations use primaryButton for cancel (left), secondaryButton
+// for the confirmed action (right), matching the existing input-dialog order.
+export function komaDialogMaterial(): SystemUiMaterial | undefined {
+  return popupMaterial()
 }
 
 // bindSheet owns the material. A solid content root would paint over it.

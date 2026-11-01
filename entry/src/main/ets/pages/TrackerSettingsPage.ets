@@ -1,3 +1,4 @@
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { TrackerDirectConnectionService, DirectTrackerProviderId } from '../model/TrackerDirectConnectionService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
@@ -313,20 +314,20 @@ export struct TrackerSettingsPage {
     if (!this.canDisconnectProvider(provider) || this.busyProviderId.length > 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('tracker_disconnect_confirm_title'),
       message: AppStrings.format('tracker_disconnect_confirm_message', provider.displayName),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('tracker_action_disconnect'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.disconnectAccount(provider)
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }
@@ -535,7 +536,7 @@ export struct TrackerSettingsPage {
 
   private showToast(message: string): void {
     try {
-      this.getUIContext().getPromptAction().showToast({ message: message })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: message }))
     } catch (_err) {
     }
   }
@@ -602,20 +603,20 @@ export struct TrackerSettingsPage {
     if (this.pendingClearBusy || this.pendingRetryBusy || this.pendingSummary.totalCount === 0) {
       return
     }
-    this.getUIContext().showAlertDialog({
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('tracker_pending_clear_confirm_title'),
       message: s('tracker_pending_clear_confirm_message'),
       autoCancel: true,
       primaryButton: {
+        value: s('common_cancel'),
+        action: () => {},
+      },
+      secondaryButton: {
         value: s('common_clear'),
         fontColor: ThemeConstants.DANGER,
         action: () => {
           this.clearPendingProgressNow()
         },
-      },
-      secondaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
       },
     })
   }

@@ -50,6 +50,7 @@ export struct ConciseListRow {
   @Param sourceIdentityFallbackIcon: Resource = $r('sys.symbol.compass')
   @Param sourceIdentityFallbackColor: ResourceColor = ThemeConstants.SOURCE_WASM_COLOR
   private sourceIdentityPrefixItem: PrefixCustomBuilder | undefined = undefined
+  private customSuffixItem: SuffixCustomBuilder | undefined = undefined
   @Local private decodedSourceIdentityUri: string = ''
   @Param count: number = -1
   @Param destructive: boolean = false
@@ -219,9 +220,12 @@ export struct ConciseListRow {
 
   private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | SuffixIcon | undefined {
     if (this.suffixBuilderParam) {
-      return new SuffixCustomBuilder(() => {
-        this.WrappedSuffixBuilder()
-      })
+      // A suffix may own a native menu anchor. Replacing its HDS descriptor
+      // on a row update destroys that anchor while the menu is opening.
+      if (this.customSuffixItem === undefined) {
+        this.customSuffixItem = new SuffixCustomBuilder(() => { this.WrappedSuffixBuilder() })
+      }
+      return this.customSuffixItem
     }
 
     if (this.trailingIcon !== undefined) {

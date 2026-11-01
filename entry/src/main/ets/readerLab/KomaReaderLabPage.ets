@@ -4,7 +4,7 @@ import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { KomaReaderTranslationConfiguration, KomaReaderTranslationProvider } from './KomaReaderTranslationProvider'
 import { KomaTranslationSettings, KomaTranslationSettingsSnapshot, KomaTranslationSettingsState, connectKomaTranslationSettings } from '../readerTranslation/KomaTranslationSettings'
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { Binding, FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -461,7 +461,7 @@ export struct KomaReaderLabPage {
     this.chapterRequest = cancellation
     this.chapterBusy = true
     if (!adapter.chapterPrepared(target)) {
-      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.manga_detail_loading_source') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: $r('app.string.manga_detail_loading_source') }))
     }
     const isCurrent = (): boolean => this.chapterRequest === cancellation && !cancellation.isCancelled() &&
       !this.readerClosed && this.routeActive && this.labVisibility.foreground && this.session === session &&
@@ -480,14 +480,14 @@ export struct KomaReaderLabPage {
         this.syncChapterChoices(target)
         const title = adapter.chapterTitle(target).trim()
         if (reason !== 'picker' && title.length > 0) {
-          this.getUIContext().getPromptAction().showToast({ message: title })
+          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: title }))
         }
         DiagnosticLogger.info('reader', 'chapter_opened', `[KomaReaderLab] chapter_opened direction=${reason}`)
       }
     } catch (_error) {
       if (isCurrent()) {
         DiagnosticLogger.warn('reader', 'chapter_failed', `[KomaReaderLab] chapter_failed direction=${reason}`)
-        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.manga_detail_chapter_pages_load_failed') })
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: $r('app.string.manga_detail_chapter_pages_load_failed') }))
       } else if (cancellation.isCancelled()) {
         DiagnosticLogger.info('reader', 'chapter_cancelled', `[KomaReaderLab] chapter_cancelled direction=${reason}`)
       }
@@ -604,7 +604,7 @@ export struct KomaReaderLabPage {
       this.observedCatalogUnit = position.anchor.unit.copy()
       if (chapterChanged && !this.chapterBusy) {
         const title = this.adapter?.chapterTitle(position.anchor.unit).trim() ?? ''
-        if (title.length > 0) this.getUIContext().getPromptAction().showToast({ message: title })
+        if (title.length > 0) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: title }))
       }
     }
     this.observeTranslationPosition(position)
@@ -862,12 +862,12 @@ export struct KomaReaderLabPage {
       this.translationAutoEnabled = false; this.translationRevision += 1; return
     }
     if (!this.translationSettings.configured()) {
-      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('reader_comic_translation_provider_unavailable') })
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('reader_comic_translation_provider_unavailable') }))
       return
     }
     if (id === 'translate-auto') {
       const revision = this.translationSettings.revision
-      this.getUIContext().showAlertDialog({ title: AppStrings.get('reader_comic_translation_auto'),
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: AppStrings.get('reader_comic_translation_auto'),
         message: AppStrings.get('reader_comic_translation_auto_confirm'),
         primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
         secondaryButton: { value: AppStrings.get('common_on'), action: (): void => {

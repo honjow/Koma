@@ -1,3 +1,4 @@
+import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
@@ -104,8 +105,8 @@ export struct ReadingStatisticsPage {
   }
   private showDay(column: number, row: number): void {
     const day = this.calendarDay(column, row)
-    if (day !== undefined) this.getUIContext().getPromptAction().showToast({ message:
-      `${day.day} · ${this.duration(day.durationMs)} · ${AppStrings.format('reading_statistics_pages_value', day.pagesRead)}` })
+    if (day !== undefined) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message:
+      `${day.day} · ${this.duration(day.durationMs)} · ${AppStrings.format('reading_statistics_pages_value', day.pagesRead)}` }))
   }
 
   @Builder
