@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "搜索扩展已验，交付中",
+  "state": "搜索扩展已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T00:31:52+08:00",
+  "updatedAt": "2026-11-02T00:43:11+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
-  "activity": "237已完成验收并恢复原包、数据及睡眠。",
-  "nextAction": "提交搜索扩展并核对CI。",
+  "activity": "搜索扩展和书源README修正均已推送；237已恢复，CI通过。",
+  "nextAction": "本轮搜索功能已完成，其余原未解决项继续保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5354,18 +5354,16 @@
     {
       "id": "LIBRARY_SOURCE_SCOPED_SEARCH",
       "title": "书架按指定书源搜索与搜索语法扩展",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P3",
       "owner": "Root：实现、237验收与交付",
-      "status": "237普通路径已通过，待提交与CI",
+      "status": "搜索扩展已交付",
       "reportedAt": null,
       "reportedAtSource": "本轮用户提出搜索语法和详情书源标志跳转，明确具体实现还需讨论。",
       "registeredAt": "2026-11-01T20:37:51+08:00",
-      "result": "详情点书源可直接查看该源已收藏漫画，再用关键词缩小；书架字段与组合查询、带来源的历史均已接通。237已验证空结果终态、组合条件、冷启动历史恢复和原筛选切换。",
-      "remaining": "提交并核对本次CI。",
-      "remainingActions": [
-        "提交已验代码与文档，核对精确提交CI。"
-      ],
+      "result": "详情点书源可直接查看该源已收藏漫画，再输入关键词缩小。书架字段、组合查询及带来源的历史均已接通；237空结果终态、组合条件、冷启动历史恢复及原筛选切换通过，CI成功。",
+      "remaining": "本轮无剩余动作；随下一App版本提供。",
+      "remainingActions": [],
       "boundaries": [
         "用户已采用：复用现有搜索页，详情书源标志进入该源书架查询；空词列出该源入库作品，按稳定来源身份过滤，卸载后仍可查；历史保留范围。",
         "保留已有漏斗来源筛选与独立的仅有结果开关；不以新增功能移除现有入口。",
@@ -5380,7 +5378,9 @@
         "推荐候选（尚未采用）：沿用搜索范围标签显示书架及具体书源，自动入口按稳定ID查询；本地字段识别后只查书架，普通词维持既有范围。source/src、title、author、artist、tag/genre、notes/note及未读数比较，支持引号、排除、或、括号；不把库内条件原样发送给在线书源。",
         "library-source-query-20261102：085编译发现读状态store工厂调用错误后修正；086/087编译通过但087发布签名安装374明确失败，未继续UI。089沿既有debug Profile构建，375安装明确成功；fresh372七JSON/18prefs，373原HAP取回permission denied，恢复使用370已成功回装的同一original237.hap。",
         "候选090实机380空词按源列1书且没有错误匹配标签；381/382作者无匹配仍显示搜索中。384有界标签日志证后台local_done count0、ui_section_resolved stateempty与ui_search_done均已完成，定位SearchResultRowSource同键onDataChange未让plain row刷新。官方LazyForEach文档要求换键或可观测子属性；改为@ObservedV2行/@Trace内容原位更新，保留行键，091编译/回验中。",
-        ".hvigor/outputs/library-source-query-20261102/delivery-binding.json：091具名237的385–392普通路径已验；397官方-d恢复原0.1.4/code5，398七JSON/18prefs逐字相同无extra，400 SLEEP120000无Override，两租约已释放。未卸载用户源，卸载后稳定身份仅worker fixture执行；未发布新App。"
+        ".hvigor/outputs/library-source-query-20261102/delivery-binding.json：091具名237的385–392普通路径已验；397官方-d恢复原0.1.4/code5，398七JSON/18prefs逐字相同无extra，400 SLEEP120000无Override，两租约已释放。未卸载用户源，卸载后稳定身份仅worker fixture执行；未发布新App。",
+        "Koma/master 9e5e2ba9e8017b31fef603a0f788954c4136cfc0已推送；精确CI41326880506 in_progress。source README f173a38公开页已通过connector读回，旧免责段落/图标履历/站点归因已无。进度页8766 HTTP200；设备恢复结果不重跑。",
+        "精确CI41326880506 head9e5e2ba9e8017b31fef603a0f788954c4136cfc0 completed/success，Release构建/Inspect/Upload成功，tag发布skipped；回执 .hvigor/outputs/library-source-query-20261102/ci-final.json。原项验收范围按delivery-binding保留：未卸载用户源；稳定来源身份在worker fixture执行；未改已发布1.0.0标签或另发App。"
       ]
     },
     {
@@ -13971,6 +13971,18 @@
       "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
       "title": "搜索扩展237路径通过并恢复设备",
       "detail": "空关键词按源列书、组合条件、无结果终态、冷启动历史范围与原筛选切换已验。原包通过官方保数据降级恢复，25文件逐字相同，原电源恢复并释租。"
+    },
+    {
+      "at": "2026-11-02T00:34:05+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "搜索扩展已推送",
+      "detail": "实现及使用说明已提交，精确CI进行中；237普通路径和恢复证据保留，不重复验收。"
+    },
+    {
+      "at": "2026-11-02T00:43:11+08:00",
+      "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "搜索扩展交付收口",
+      "detail": "具名237验收与完整设备恢复已完成；本次提交CI成功。已写明使用方法，随下一App版本提供。"
     }
   ],
   "reportAgeAudit": {
