@@ -17,7 +17,8 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { gridFallbackContainerWidth, gridColumnCount } from '../utils/GridColumns'
+import { gridFallbackContainerWidth } from '../utils/GridColumns'
+import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
 import {
   ContinueReadingCardViewModel,
   LibraryComicPresentation,
@@ -1028,41 +1029,15 @@ export struct LibraryPage {
     return this.layoutSafeArea.windowWidthVp > 0 ? this.layoutSafeArea.windowWidthVp : this.containerWidth
   }
 
-  private targetGridColumnWidth(): number {
-    if (this.listDensity === 'compact') {
-      return 96
-    }
-   if (this.listDensity === 'comfortable') {
-     return 140
-   }
-    // Narrow windows (phones portrait, split view) only reach three columns
-    // at the compact target; 112vp collapses them into two oversized cards.
-    if (this.libraryViewportWidth() > 0 && this.libraryViewportWidth() < 480) {
-      return 96
-    }
-   return 112
- }
-
   private libraryGridColumnCount(): number {
     const measured = this.libraryViewportWidth() > 0
       ? this.libraryViewportWidth()
       : gridFallbackContainerWidth()
-    return gridColumnCount(
-      measured,
-      this.targetGridColumnWidth(),
-      this.libraryGridColumnGap(),
-      this.libraryHorizontalInset(),
-    )
+    return libraryCoverGridColumnCount(measured, this.listDensity)
   }
 
  private libraryGridColumnGap(): number {
-    if (this.listDensity === 'compact') {
-      return ThemeConstants.SPACE_SM
-    }
-    if (this.listDensity === 'comfortable') {
-      return ThemeConstants.SPACE_XL
-    }
-    return ThemeConstants.SPACE_MD
+    return libraryCoverGridGap(this.listDensity)
   }
 
   private libraryHorizontalInset(): number {

@@ -1,8 +1,9 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { PullRefresh } from './PullRefresh'
-
-export const SOURCE_MANGA_GRID_GAP: number = ThemeConstants.SPACE_MD
+import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
+import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
+import { gridFallbackContainerWidth } from '../utils/GridColumns'
 
 class SourceGridClipModifier implements AttributeModifier<GridAttribute> {
   private unclipped: boolean
@@ -26,6 +27,7 @@ export struct SourceMangaGrid {
   @Param resumeAtVisibleTail: boolean = false
   @Local private lastVisibleIndex: number = -1
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   @Local private pullScrollEnabled: boolean = true
   @Event onRefresh?: () => Promise<void>
   @Event onReachEnd?: () => void
@@ -45,6 +47,11 @@ export struct SourceMangaGrid {
     this.fullRowIndexes.forEach((index: number) => indexes.push(index + 1))
     indexes.push(this.contentItemCount + 1)
     return { regularSize: [1, 1], irregularIndexes: indexes }
+  }
+
+  private columnsTemplate(): string {
+    const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
+    return `repeat(${libraryCoverGridColumnCount(width, this.coverLayout.density)}, 1fr)`
   }
 
   @Builder
@@ -72,15 +79,15 @@ export struct SourceMangaGrid {
         if (this.withPullRefresh && this.onReachEnd) this.onReachEnd()
       })
     }
-    .columnsTemplate(`repeat(auto-fit, ${ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH}vp)`)
-    .columnsGap(SOURCE_MANGA_GRID_GAP)
+    .columnsTemplate(this.columnsTemplate())
+    .columnsGap(libraryCoverGridGap(this.coverLayout.density))
     .rowsGap(0)
     .enableScrollInteraction(this.pullScrollEnabled)
     .backToTop(true)
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
-    .padding({ left: SOURCE_MANGA_GRID_GAP, right: SOURCE_MANGA_GRID_GAP })
+    .padding({ left: libraryCoverGridGap(this.coverLayout.density), right: libraryCoverGridGap(this.coverLayout.density) })
     .attributeModifier(new SourceGridClipModifier(this.withPullRefresh))
     .edgeEffect(this.withPullRefresh ? EdgeEffect.None : EdgeEffect.Spring, {
       alwaysEnabled: !this.withPullRefresh,

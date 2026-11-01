@@ -10,7 +10,9 @@ import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { MangaGridItem } from '../components/MangaGridItem'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
-import { gridColumnCount, gridFallbackContainerWidth } from '../utils/GridColumns'
+import { gridFallbackContainerWidth } from '../utils/GridColumns'
+import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
+import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
@@ -63,6 +65,7 @@ export struct SourceSearchPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private query: string = ''
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   private gridScroller: Scroller = new Scroller()
   @Local private filtersShown: boolean = false
   private searchTimer: number = 0
@@ -367,8 +370,7 @@ export struct SourceSearchPage {
       rows.push({ key: kind, kind, bottomPadding: ThemeConstants.SPACE_MD })
     } else {
       const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-      const columns = gridColumnCount(width, ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH,
-        ThemeConstants.SPACE_MD, ThemeConstants.SPACE_XL)
+      const columns = libraryCoverGridColumnCount(width, this.coverLayout.density)
       const lastRowStart = Math.floor((this.viewModel.searchResults.length - 1) / columns) * columns
       this.viewModel.searchResults.forEach((item: SourceManga, index: number) => {
         rows.push({ key: `manga:${item.sourceId}:${item.id}`, kind: 'manga', manga: item,

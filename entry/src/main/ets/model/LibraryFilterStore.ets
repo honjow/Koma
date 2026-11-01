@@ -1,4 +1,5 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { connectLibraryCoverLayout } from '../state/LibraryCoverLayoutState'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import {
@@ -227,10 +228,12 @@ export class LibraryFilterStore {
     const category = store.getSync(LIBRARY_FILTER_CATEGORY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.category) as string
     const availability = store.getSync(LIBRARY_FILTER_AVAILABILITY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.availability) as string
     const metadataStatus = store.getSync(LIBRARY_FILTER_METADATA_STATUS_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.metadataStatus) as string
+    const density = normalizeListDensity(listDensity)
+    connectLibraryCoverLayout().density = density
     return {
       sortBy: normalizeSortBy(sortBy),
       viewMode: normalizeViewMode(viewMode),
-      listDensity: normalizeListDensity(listDensity),
+      listDensity: density,
       showBadges: normalizeShowBadges(showBadges),
       source: normalizeSource(source),
       readState: normalizeReadState(readState),

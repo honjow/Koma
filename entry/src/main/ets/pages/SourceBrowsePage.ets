@@ -10,7 +10,9 @@ import { SourcePaginationFooter } from '../components/SourcePaginationFooter'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { MangaGridItem } from '../components/MangaGridItem'
-import { gridColumnCount, gridFallbackContainerWidth } from '../utils/GridColumns'
+import { gridFallbackContainerWidth } from '../utils/GridColumns'
+import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
+import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
 import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
@@ -77,6 +79,7 @@ export struct SourceBrowsePage {
   @Param chrome: SourceBrowseRouteChromeState = new SourceBrowseRouteChromeState()
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private coverLayout: LibraryCoverLayoutState = connectLibraryCoverLayout()
   @Local private sourceRuntimeState: SourceRuntimeState = connectSourceRuntimeState()
   private pendingSourceRuntimeRevision: number = 0
   @Local private filtersShown: boolean = false
@@ -520,8 +523,7 @@ export struct SourceBrowsePage {
 
   private sourceGridColumnCount(): number {
     const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
-    return gridColumnCount(width, ThemeConstants.SOURCE_GRID_MIN_COLUMN_WIDTH, ThemeConstants.SPACE_MD,
-      ThemeConstants.SPACE_XL)
+    return libraryCoverGridColumnCount(width, this.coverLayout.density)
   }
 
   private appendMangaRows(rows: SourceBrowseGridRow[], prefix: string, manga: SourceManga[]): void {

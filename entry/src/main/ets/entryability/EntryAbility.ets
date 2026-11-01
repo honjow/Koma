@@ -4,6 +4,7 @@ import { deviceInfo } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
 import { AppearancePreferencesStore } from '../model/AppearancePreferencesStore'
+import { LibraryFilterStore } from '../model/LibraryFilterStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
 import { UIAbility, Want, AbilityConstant, Configuration, bundleManager } from '@kit.AbilityKit'
 import { captureReaderLabWant, updateReaderLabForeground } from '@reader-kit/ui'
@@ -83,6 +84,9 @@ export default class EntryAbility extends UIAbility {
     })
     await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
+    })
+    await new LibraryFilterStore(this.context).load().catch((_error: Error): void => {
+      DiagnosticLogger.warn('app', 'startup_load_failed', '[LibraryCover] startup_load_failed retained_previous_runtime=true')
     })
     configureSourceSettingsStore(this.context)
     configureSourceRuntimeHttpTransport()
