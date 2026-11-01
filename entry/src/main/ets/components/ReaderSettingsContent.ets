@@ -373,7 +373,7 @@ export struct ReaderSettingsContent {
           ListDivider()
           ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
           ListDivider()
-          ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE && !this.isWebtoonLayout(), switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
+          ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
           ListDivider()
           ConciseListRow({ title: s('reader_series_override_reset'), subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'), showChevron: false, isEnabled: this.seriesOverrideActive, action: () => { this.onResetSeriesOverride() } })
         }

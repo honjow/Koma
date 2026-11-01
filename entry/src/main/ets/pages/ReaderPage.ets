@@ -3067,11 +3067,9 @@ export struct ReaderPage {
     const action = resolveReaderTapZoneAction(this.preferences.tapZonePreset, this.preferences.tapZoneInvert, x, y, this.viewportWidth, this.viewportHeight)
     if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
       if (action === 'previous' || action === 'left') {
-        if (this.crossToPreviousChapter()) return
-        this.listScroller.scrollBy(0, -this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO)
+        this.userPreviousPage()
       } else if (action === 'next' || action === 'right') {
-        if (this.crossToNextChapter()) return
-        this.listScroller.scrollBy(0, this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO)
+        this.userNextPage()
       } else {
         this.toggleChrome()
       }
@@ -3435,12 +3433,27 @@ export struct ReaderPage {
    */
   private userNextPage(): void {
     if (this.crossToNextChapter()) return
-    this.nextPage()
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) this.scrollContinuousViewport(1)
+    else this.nextPage()
   }
 
   private userPreviousPage(): void {
     if (this.crossToPreviousChapter()) return
-    this.previousPage()
+    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) this.scrollContinuousViewport(-1)
+    else this.previousPage()
+  }
+
+  // Explicit taps and volume keys share the visible-window step; automatic
+  // reading retains its existing per-image dwell and chapter-bound behavior.
+  private scrollContinuousViewport(direction: number): void {
+    if (this.viewportHeight <= 0) return
+    const distance = direction * this.viewportHeight * READER_TAP_ZONE_SCROLL_RATIO
+    if (this.preferences.pageTurnAnimation) {
+      this.listScroller.scrollTo({ xOffset: 0,
+        yOffset: Math.max(0, this.listScroller.currentOffset().yOffset + distance), animation: true })
+    } else {
+      this.listScroller.scrollBy(0, distance)
+    }
   }
 
   private chapterTitles(): string[] {
