@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "本轮交付完成，保留未关事项",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T21:29:55+08:00",
+  "updatedAt": "2026-11-01T21:38:11+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
   "activity": "漫画160具名加载、设置配色、订阅说明和237截图已交付；书架按源搜索保留讨论。",
@@ -5412,7 +5412,7 @@
       "reportedAt": null,
       "reportedAtSource": "本轮用户要求界面调整后同步订阅README，并以237截取代表界面、参考NextE表格排版；原消息精确时刻未提供。",
       "registeredAt": "2026-11-01T21:19:06+08:00",
-      "result": "主库已补当前订阅、更新和诊断日志路径；书源README同步多订阅操作及失效说明；237已实拍书架、详情、阅读器、浏览和设置。",
+      "result": "两仓订阅说明已同步；主库以同一张三列表格展示六个界面，已删除测试设备编号及型号说明。",
       "remaining": "无本项剩余动作。",
       "remainingActions": [],
       "boundaries": [
@@ -5423,7 +5423,9 @@
         "NextE/README.md截图部分使用Markdown表格；Koma/docs/screenshots五张原始PNG，来源readme-library-360、readme-detail-361、mh160-wangpai-084-controls-368、readme-browse-358、settings-colors-top-350。",
         "koma-sources/master dfc560eda9a320559ddfe2d79703722512d8c695已推，GitHub精确提交仅README；更新当前多订阅、重试、本地导入及嗨皮84可安装目录说明。",
         "Koma 8bf7c37f本地提交五张237原图与README；相对图片/本地链接全部存在，PNG1320x2120有效；未重新启动设备。",
-        "主库8bf7c37f已推Koma/master；README五图表格与正式docs/screenshots实体已核。源库dfc560e已推；两仓均为纯文档，未重发App或书源。"
+        "主库8bf7c37f已推Koma/master；README五图表格与正式docs/screenshots实体已核。源库dfc560e已推；两仓均为纯文档，未重发App或书源。",
+        "用户指出公开README混入内部设备信息后，删除截图标题下的设备编号/型号句；截图及表格原样保留，设备信息只在验收证据内维护。",
+        "用户指出截图表格列宽不齐后，取消独立的三列/两列表格，改为同一三列表格、两排六图；第六张沿用同场readme-source-manager-359原图。"
       ],
       "stage": "两仓文档已同步",
       "closedAt": "2026-11-01T21:29:55+08:00"
@@ -13849,6 +13851,18 @@
       "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
       "title": "两仓说明和实机截图已交付",
       "detail": "当前多订阅操作、更新入口、五页237实拍及表格已推送，设备恢复完成。"
+    },
+    {
+      "at": "2026-11-01T21:36:53+08:00",
+      "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "title": "删除README中的内部设备说明",
+      "detail": "公开截图区域只保留界面名称和图片，测试设备身份留在验收记录。"
+    },
+    {
+      "at": "2026-11-01T21:38:11+08:00",
+      "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "title": "统一README截图列宽",
+      "detail": "六个界面共用一张三列表格，两排一一对齐；删除内部设备说明。"
     }
   ],
   "reportAgeAudit": {
