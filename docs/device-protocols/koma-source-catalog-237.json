@@ -5,21 +5,21 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "notes-dm5-power-restored-327",
+  "runId": "mh160-wangpai-power-371",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "original237.hap restored after notes081/LLM081/DM5-0.1.25 verification",
-    "page": "Independent restore original no-override power policy and sleep after all paths",
+    "codeIdentity": "original237.hap restored after candidate084 (726f2d1e) MH160 chapter/body and candidate083 settings-color verification",
+    "page": "Completed independent restoration of original no-override power policy and sleep",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
     "orientation": "portrait",
     "resolution": "1320x2120",
-    "notes": "197 user-owned and untouched. Fresh307 seven JSON/18prefs and fresh308 original DM5 four members restored byte-identically; SLEEP120000/noOverride verified327; lease released."
+    "notes": "197 user-owned and untouched. Fresh328 seven JSON/18 preferences and fresh340 original MH160 four members byte-identically restored in370; original HAP installer success;371 SLEEP120000/noOverride; lease released. Immutable run receipts retain their original context; actual084 HAP/install identity is indexed in .hvigor/outputs/mh160-redirect-20261101/evidence.json."
   },
   "preflight": [
     {
