@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-reader-seam-recording-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate061 reader-kit f3be308, reverted ineffective image-only patch",
+    "page": "Downloaded Solo Leveling chapter46 image2/3 white-space seam at y819; short slow release-inertia-settle",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "用户明确短距低速后松手并留在本屏；359页1底820/页2顶819，白色空白接缝在y819，非画格黑边。旧324/332往返未覆盖本场景，不作验收。"
+  },
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/solo-short-inertia-before061-360",
+  "recordingFileName": "koma_solo_inertia_baseline061_20261101_360.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "short-slow-release-up",
+      "uiInput": [
+        "fling",
+        "630",
+        "1600",
+        "630",
+        "1440",
+        "400"
+      ],
+      "pauseAfterMs": 1200
+    },
+    {
+      "name": "short-slow-release-down",
+      "uiInput": [
+        "fling",
+        "630",
+        "1440",
+        "630",
+        "1600",
+        "350"
+      ],
+      "pauseAfterMs": 1500
+    }
+  ]
+}

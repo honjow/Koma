@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "target": "192.168.50.237:12345",
+  "authorizedTarget": "192.168.50.237:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1320,
+    "heightPx": 2120
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate067 TaskPool/lazy search; funnel scope and native text result-mode menus; reader-kit5aeb629",
+    "page": "Scroll real results then restore all display without searching again",
+    "deviceAlias": "device237",
+    "deviceModel": "VDE-AL00",
+    "foldState": "unfolded",
+    "orientation": "portrait",
+    "resolution": "1320x2120",
+    "notes": "Fresh135 matches last actual133 installTime/updateTime/version; original237.hap is exact prior successful installer input. Backup current136 rather than old093. Restore136, original no override/120000 and sleep."
+  },
+  "name": "koma-search-recent-237",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/search-mode-scroll-148",
+  "recordingFileName": "koma_search_scroll067_20261101_148.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "scroll-real-results",
+      "uiInput": [
+        "swipe",
+        "650",
+        "1500",
+        "650",
+        "850",
+        "700"
+      ],
+      "pauseAfterMs": 350
+    },
+    {
+      "name": "scroll-back-to-top",
+      "uiInput": [
+        "swipe",
+        "650",
+        "850",
+        "650",
+        "1500",
+        "700"
+      ],
+      "pauseAfterMs": 350
+    },
+    {
+      "name": "open-result-mode",
+      "uiInput": [
+        "click",
+        "1128",
+        "201"
+      ],
+      "pauseAfterMs": 180
+    },
+    {
+      "name": "show-all",
+      "uiInput": [
+        "click",
+        "1010",
+        "369"
+      ],
+      "pauseAfterMs": 700
+    }
+  ]
+}

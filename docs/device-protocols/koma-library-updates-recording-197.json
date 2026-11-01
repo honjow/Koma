@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "name": "koma-library-updates-recording-197",
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "candidate059",
+    "page": "Real18 update records remain during ordinary pull-to-refresh",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "339真实来源返回18个新章ID后普通列表；只验证刷新时保留内容，不冒第二次完整检查完成。"
+  },
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/updates-content-refresh-motion-340",
+  "recordingFileName": "koma_updates_content059_20261101_340.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "pull-refresh-content",
+      "uiInput": [
+        "swipe",
+        "630",
+        "650",
+        "630",
+        "1200",
+        "600"
+      ],
+      "pauseAfterMs": 2500
+    }
+  ]
+}

@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：修正更新页刷新空态、封面角标透明度和阅读设置；核查条漫接缝及设置层级。
+当前工作：搜索修复已推送并等待当前构建结果；继续核对Toast系统材质。两源图标由原书源执行者处理。
 
-设备：本轮 App 验证使用已授权的197，原数据已备份；237保留源工作分工。200禁止操作，四私库搁置。
+设备：197由用户当前使用，不注入操作或覆盖新数据；本轮搜索验证用已授权的237。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T10:55:02+08:00",
+  "updatedAt": "2026-11-01T11:52:52+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "CONTINUOUS_PAGE_GAPS",
-  "activity": "接缝仍未解决，撤回无效候选后按短距离低速惯性路径定位。",
-  "nextAction": "按用户新给方法，在韩漫空白接缝处短距离慢滑并松手，让惯性减速和停稳保持在当前屏幕；定位并处理真实渲染路径。",
+  "activeId": "TOAST_SYSTEM_MATERIAL",
+  "activity": "搜索已具名核验并推送等待精确CI；Root继续原队列Toast材质，source_terra处理两源图标。",
+  "nextAction": "核Toast普通入口实际材质，完成后接书架与浏览封面宽度。",
   "proof": [
     {
       "label": "正式主仓",
@@ -893,13 +893,13 @@
     {
       "id": "CONTINUOUS_PAGE_GAPS",
       "title": "连续滚动页间黑条",
-      "status": "修正连续行与图片的独立尺寸分配",
+      "status": "用户实测通过，已固定共享版本，等待当前CI",
       "kind": "open",
       "priority": "P1",
       "owner": "Root：共享阅读器连续列表与197",
       "dependencies": [],
-      "result": "197真实韩漫空白接缝的160px低速短滑已录制并亲审，接缝留在屏内；本样本未清楚观察到闪线，不能判定缺陷消失。共享实现仍有列表aspectRatio与内部图片独立尺寸分配，开始统一物理像素行高。",
-      "remaining": "完成统一连续行尺寸候选并核对同一接缝低速松手过程；未确认原惯性缺陷消失前保持未解决。",
+      "result": "062将条漫行、内部Image及位置计算统一为同一物理像素高度。用户当前在197自行试用后明确反馈“衔接问题消失了”；记录为本次实际用户结果，不把197先前未出现冒为旧候选通过。",
+      "remaining": "当前Koma精确CI回执；原用户实测接受范围保留。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -914,10 +914,13 @@
         "reader-kit/main f3be308ac9807682d091633bb43909ec785955ab精确撤回df352cb。用户明确：惯性减速时闪烁，停稳可能残留1px，手指持续拖动不闪；快速甩动不能用于该场景。应用层兼容处理仍可实施，不能把可能涉及引擎当作不修理由。",
         "seam-reverted061-installed-346明确安装；seam-solo-white-join-359：真实第46话页2/3边界y819，原生截图及布局保留。",
         "solo-short-inertia-before061-360：123原PTS帧/4表顺序亲审，实际低速fling160px且接缝留在白区；录像890×1920限制保留，不称原生1px已排除。",
-        "seam-solo-inertia-final-361：1260×2720停稳原图及边界y812；当前样本白区无暗线，不作为已修复依据。"
+        "seam-solo-inertia-final-361：1260×2720停稳原图及边界y812；当前样本白区无暗线，不作为已修复依据。",
+        "seam-unified062-reader-363：行和Image原生bounds均13443px；seam-unified062-join-364：实际归还者搜索终态，不能作接缝验证。",
+        "用户本轮实际反馈：我发现衔接问题消失了，是不是你刚刚改了什么地方？当前197候选062，362安装/363原图正常，尺寸分配补丁为reader-row062.patch。",
+        "reader-kit/main 5aeb629c已推；Koma82c9dc09固定该版本，随b66950d9精确CI41270365975。197用户继续使用062，本轮只恢复原超时和释租，不覆盖其后新阅读数据。"
       ],
       "remainingActions": [
-        "完成统一连续行尺寸候选并核对同一接缝低速松手过程；未确认原惯性缺陷消失前保持未解决。"
+        "当前Koma精确CI回执；原用户实测接受范围保留。"
       ],
       "boundaries": [],
       "modificationBasis": {
@@ -2657,19 +2660,18 @@
         "FIRST_CHAPTER_SELECTION",
         "SHARED_ROUTE"
       ],
-      "kind": "open",
-      "status": "角标50%透明已在197查看，待本轮收尾",
+      "kind": "accepted",
+      "status": "本轮修正已验收并交付",
       "result": "未读角标仍用系统Badge，背景改50%透明、数字保持不透明；197书架多本有封面状态已查看。原未读计数及继续阅读进度规则保持。",
       "evidencePoints": [
         "直接产物索引：197394/library-after.json；442/library-after.json；manhuagui-network-phase-review/current-queue-library-sample.json",
         "本轮生产store+投影7项真实逻辑回归通过；旧脚本仅补SourceRuntimeAppRegistry默认undefined及SourceTextPageDescriptor依赖，未改期望。624/600/4→596为合成回归，不冒200真机。",
         "原device200/chapter-failure/original-state-001/library.json与reader.json的真实624行/600ID/4已读，实际执行当前PersistentReaderSessionStore与createLibraryViewModelFromComics均596；旧完整性判断会undefined，输入内存及文件逐字保持。回执 .hvigor/outputs/user-flow-audit/library-progress-real-snapshot-replay.json。197 71 library-after/reader-after同生产投影与88屏幕对照，Blue 4/xkcd 669/Nemo 0一致；100%为继续阅读当前章、封面4仍未读。此真实快照不同于此前合成回归；未触200。",
-        "seam-reverted061-installed-346/screen.png：197实际书架带封面和50%背景角标；源图与数字均可见。"
+        "seam-reverted061-installed-346/screen.png：197实际书架带封面和50%背景角标；源图与数字均可见。",
+        "01f94983精确CI41264689571成功；197用户接管后保其当前新数据和候选，不回滚旧快照。user-handoff-timeout-restored-369恢复原10000ms覆盖并读回AWAKE后释租，不强制熄屏。"
       ],
-      "remainingActions": [
-        "随当前197会话统一恢复；不重跑原计数验收。"
-      ],
-      "remaining": "随当前197会话统一恢复；不重跑原计数验收。",
+      "remainingActions": [],
+      "remaining": "无；既有未覆盖边界保留，不重复已验路径。",
       "boundaries": [
         "源图标本行瞬空等独立未闭项保留；已验安装性能具名范围不重跑，也不因本项丢弃其他反馈。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。",
@@ -2683,7 +2685,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-11-01T11:50:18+08:00",
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。",
       "continuationGate": {
@@ -4939,16 +4941,16 @@
     {
       "id": "LIBRARY_UPDATES_BELL_ENTRY",
       "title": "书架铃铛入口与新章节更新列表",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "空态与真实更新列表刷新已验证，待本轮收尾",
+      "status": "本轮修正已验收并交付",
       "stage": "197具名路径已核",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
       "result": "197空态刷新保留提示、单一指示器；真实检查产生18条新章记录。有内容刷新保留标题和封面，点击1196話进入17页原图并返回，实际进度绑定该章。",
-      "remaining": "随当前197会话统一恢复原包与数据；当前有效结果保留，不重跑。",
+      "remaining": "无；既有未覆盖边界保留，不重复已验路径。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -4978,18 +4980,158 @@
         ".hvigor/outputs/source-catalog-acceptance/filter-subscription-delivery.json；filter-subscription-restoration.json全部七JSON与18偏好逐字一致。原包安装文件读取被系统拒绝；091/093安装时间与updateTime完全相同，恢复同一既存c6原包，132失败和133恢复回执均保留。134读回SLEEP、120000ms、无OverrideTimeout，租约已释放。",
         "最终产品提交d93f81c6精确CI 41259617566 completed/success；Release HAP构建、检查与上传产物成功，Publish tagged Release skipped。回执 .hvigor/outputs/source-catalog-acceptance/filter-subscription-ci.json；未发布App、移动标签或上传AGC。"
       ],
-      "closedAt": null,
+      "closedAt": "2026-11-01T11:50:18+08:00",
       "reopenedAt": "2026-11-01T09:36:06+08:00",
-      "remainingActions": [
-        "随当前197会话统一恢复原包与数据；当前有效结果保留，不重跑。"
-      ],
+      "remainingActions": [],
       "verificationBoundary": "237当次未观察Koma新系统通知；通知最终API文本经生产函数验证，未声称系统投递已通过。",
       "evidencePoints": [
         "updates-empty-refresh-motion-308完整249帧/7表已审。",
         "update-job-readback-338实际结果：9 updated、4 failed、18真实新增记录；不能用start/finished字段16ms差冒实际耗时，首次336读回仍running、338完成。",
         "updates-content-refresh-motion-340完整193帧/6表已审；updates-content-retained-341内容保留。",
-        "updates-chapter-ready-343：ONE PIECE航海王1196話（17P）原图可见；updates-reader-return-344及reader.json绑定kic-ch:260398、page0/17、isRead=false。"
+        "updates-chapter-ready-343：ONE PIECE航海王1196話（17P）原图可见；updates-reader-return-344及reader.json绑定kic-ch:260398、page0/17、isRead=false。",
+        "01f94983精确CI41264689571成功；197用户接管后保其当前新数据和候选，不回滚旧快照。user-handoff-timeout-restored-369恢复原10000ms覆盖并读回AWAKE后释租，不强制熄屏。"
       ]
+    },
+    {
+      "id": "SEARCH_RECENT_TAP_UI_STALL",
+      "title": "点击最近搜索后界面卡顿数秒",
+      "kind": "open",
+      "priority": "P1",
+      "owner": "Root：当前主线",
+      "status": "已推送，等待当前CI",
+      "stage": "未定位",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户当前反馈；原消息精确时间未核，登记时刻不冒充提出时刻。",
+      "firstHandledAt": "2026-11-01T11:01:32+08:00",
+      "result": "最终068最近词单次提交94毫秒启动搜索，本地准备1毫秒，原生后台匹配返回2本；同词回声不再重启。原漏斗来源筛选保留，新增独立显示模式；真实多源结果滚动、仅有结果切换和切回保留原结果已看。未配置私库不显示无效分组。",
+      "remaining": "只待本次精确CI回执；237已完成恢复和释租。",
+      "remainingActions": [
+        "只待本次精确CI回执；237已完成恢复和释租。"
+      ],
+      "boundaries": [
+        "用户操作197期间不注入点击、不安装、不覆盖数据或会话。",
+        "用户本轮明确采用：隐藏未配置的远程库分组，右上角可切换显示全部/仅有结果，并明确显示当前模式；使用现有公共系统菜单。"
+      ],
+      "relatedItems": [
+        "CONTINUOUS_PAGE_GAPS"
+      ],
+      "evidencePoints": [
+        "live-search-filelogs-readonly-368/diagnostics_logs/koma-log-20261101-105622.log：query.start 10:57:51.914、local_done10:57:53.772、首源operation.start10:57:53.783。",
+        "source-catalog-build065.log：签名候选构建成功；scripts/test_search_runtime.cjs执行真实匹配与行增删/筛选，旧Kavita搜索合同回归未改期望。",
+        "search-original-state-135原包与133实际恢复的installTime/updateTime/version一致；search-fresh-baseline-136备份当前七JSON与18偏好，AWAKE/86400000成立。",
+        "search-normal-entry-138/screen.png与layout.json：首开右上入口仅圆形无文字；候选066补原生TextStyleMode.NORMAL，不把065视为入口通过。",
+        "search-title-controls-140/screen.png、search-scope-menu-141/screen.png：两个独立入口及原筛选首开。",
+        "search-recent-response-143原录像与PTS；search-results-144诊断：11:34:17.377 history_submit，17.474 query.start，17.475 local_prepared durationMs=1，18.068 local_done count=2；18.182重复query.start揭示输入框回声。不同设备样本不作旧197性能百分比对比。",
+        "search-final-recent-151：11:40:59.405提交→59.499单次启动；59.500准备1ms，59.969实际local_done count2；59.974完成475ms，后台耗时不等于UI阻塞。",
+        "search-mode-scroll-148：284PTS帧8表亲审，真实结果上下滚动、模式切回原结果保留；search-results-only-147原图仅保有结果。",
+        "search-unconfigured-private-152：068未配置私库不列四服务分组，原漏斗与私有库范围仍可用。",
+        "Koma/master b66950d9f6965cb69aa9772d1c728d3cea0b90db已推；精确CI41270365975进行中。",
+        "search-mode-persisted-153：普通离页重进恢复仅有结果及私有库范围；漏斗按钮仍独立存在。",
+        "search-original-restored-155/restore-comparison.json：fresh136七JSON及18偏好逐字一致，文件集合相同；原包安装成功。search-power-restored-156读回SLEEP、120000ms且无override，租约已释放。"
+      ],
+      "closedAt": null,
+      "modificationBasis": {
+        "object": "CrossSearchService本地匹配、SearchPage普通及迁移结果列表",
+        "history": "原本地章节/作者/标题匹配合同及66ece78f/a7678c71多源/迁移入口保持；本次基于用户实测和实际日志重开性能。",
+        "allowedDifference": "只改执行线程与按需创建；保来源范围、匹配字段、排序、文字样式、预览/验证及取消栅栏。"
+      }
+    },
+    {
+      "id": "TOAST_SYSTEM_MATERIAL",
+      "title": "Toast未采用新系统材质",
+      "kind": "open",
+      "priority": "P2",
+      "owner": "Root：当前Toast材质",
+      "status": "公共材质接线已补，候选构建中",
+      "stage": "待处理",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户当前反馈；原消息精确时刻未核，不以登记时刻代替。",
+      "firstHandledAt": "2026-11-01T11:12:23+08:00",
+      "result": "查现有39处文件中62个原生Toast调用，原生show/open API及文案、时间、位置保留，选项统一经现有KomaPopupOptions显式提供系统材质；API26访问沿已有guard，API23不访问新枚举。官方默认也宣称有材质，因此尚不把加参数当作用户实际效果已修。",
+      "remaining": "构建后由已授权普通Toast入口查看实际效果，保原调用语义及旧API启动边界。",
+      "remainingActions": [
+        "构建后由已授权普通Toast入口查看实际效果，保原调用语义及旧API启动边界。"
+      ],
+      "boundaries": [
+        "沿现有提示及交互，不以新反馈丢弃当前进行中的任务。"
+      ],
+      "evidencePoints": [
+        "官方js-apis-promptaction及UIContext.PromptAction systemMaterial合同；实际效果仍待普通入口查看。"
+      ],
+      "closedAt": null,
+      "modificationBasis": {
+        "object": "KomaPopupOptions及原生Toast真实消费者",
+        "history": "既有f6f1c1aa、61c79b6b、fc0f4e7f管理菜单/sheet材质；本次查NextE也用原生Toast；用户直接反馈Toast未用新材质。",
+        "allowedDifference": "仅原生Toast系统材质；不改文字、时长、位置、原API和触发条件，不自绘提示组件。"
+      }
+    },
+    {
+      "id": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "title": "浏览页封面宽度未统一使用书架设置",
+      "kind": "open",
+      "priority": "P2",
+      "owner": "Root：当前搜索修复之后",
+      "status": "已登记，待核配置消费者",
+      "stage": "待处理",
+      "reportedAt": null,
+      "reportedAtSource": "本轮当前用户反馈；原消息精确时刻未核。",
+      "firstHandledAt": "2026-11-01T11:18:06+08:00",
+      "result": "用户要求浏览封面宽度统一跟随书架已有配置；当前继续搜索修复，不立即切换。",
+      "remaining": "核书架/浏览的封面宽度配置来源，让两处消费已有同一设置，保其它布局。",
+      "remainingActions": [
+        "搜索修复后接续封面宽度配置接线。"
+      ],
+      "boundaries": [
+        "用户明确要求统一为已有书架宽度设置，不另造宽度选项或任意改尺寸。"
+      ],
+      "evidencePoints": [],
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_DM5_ICON_IDENTITY",
+      "title": "动漫屋错用漫画人极速版图标",
+      "kind": "open",
+      "priority": "P2",
+      "owner": "source_terra：原书源分工",
+      "status": "已登记，核官网品牌图",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接反馈；原消息精确时间未提供，不以登记时刻冒充。",
+      "result": "用户明确指出图标身份错误，原source_terra已接续官网及参考资产核对。",
+      "remaining": "核现用资产与官网品牌图，修正具名错配并交付源包。",
+      "remainingActions": [
+        "核两源各自官网原图及参考来源，保源功能和既有身份。"
+      ],
+      "boundaries": [
+        "197由用户使用，禁止操作；不自绘或凭第三方图替换。"
+      ],
+      "relatedItems": [
+        "ICONS"
+      ],
+      "evidencePoints": [],
+      "closedAt": null
+    },
+    {
+      "id": "SOURCE_MANHUAREN_ICON_IDENTITY",
+      "title": "漫画人错用极速版App图标",
+      "kind": "open",
+      "priority": "P2",
+      "owner": "source_terra：原书源分工",
+      "status": "已登记，核官网品牌图",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接反馈；原消息精确时间未提供，不以登记时刻冒充。",
+      "result": "用户明确指出图标身份错误，原source_terra已接续官网及参考资产核对。",
+      "remaining": "核现用资产与官网品牌图，修正具名错配并交付源包。",
+      "remainingActions": [
+        "核两源各自官网原图及参考来源，保源功能和既有身份。"
+      ],
+      "boundaries": [
+        "197由用户使用，禁止操作；不自绘或凭第三方图替换。"
+      ],
+      "relatedItems": [
+        "ICONS"
+      ],
+      "evidencePoints": [],
+      "closedAt": null
     }
   ],
   "source": {
@@ -12901,6 +13043,139 @@
         "solo-short-inertia-before061-360",
         "seam-solo-inertia-final-361"
       ]
+    },
+    {
+      "id": "continuous-unified-row-candidate062-installed",
+      "at": "2026-11-01T10:57:21+08:00",
+      "title": "统一条漫行与图像尺寸候选已装",
+      "detail": "已把连续行高归一到物理像素，并让既有Image消费同一行高；不再由行aspectRatio与图像各算一套尺寸。062候选已安装197，原惯性闪缝尚未证明消失。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "source-catalog-build062.log",
+        "seam-unified062-installed-362",
+        ".hvigor/outputs/source-catalog-acceptance/reader-row062.patch"
+      ]
+    },
+    {
+      "id": "continuous-device-state-diverged-364",
+      "at": "2026-11-01T10:59:25+08:00",
+      "title": "197状态与接缝协议不符，停止后续输入",
+      "detail": "062真实打开同一韩漫正常显示，连续行和Image已共用13443px高度。随后364原定跳页序列终态却为“归还者”搜索页，本协议无该搜索词或退阅读器动作；结果无效，未验收惯性缺陷，停止继续注入。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "seam-unified062-reader-363",
+        "seam-unified062-join-364"
+      ]
+    },
+    {
+      "id": "search-recent-user-feedback-20261101",
+      "at": "2026-11-01T11:01:32+08:00",
+      "title": "登记实际搜索卡顿并让出197输入",
+      "detail": "用户正在197操作，反馈点击最近搜索后卡数秒才响应；本轮停止自动输入、安装和恢复，保留用户现场。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": []
+    },
+    {
+      "id": "search-stall-prioritized-2026-11-01T110333",
+      "at": "2026-11-01T11:03:33+08:00",
+      "title": "按用户要求切换搜索卡顿为当前主线",
+      "detail": "用户在197实测任意最近搜索词点击后都卡数秒，进入结果后仍持续卡；本次原有进程日志没有点击起点的有效时间，不能据此归因网络。 接缝原项和候选保留，不关闭。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": [
+        "live-search-logs-readonly-367"
+      ]
+    },
+    {
+      "id": "continuous-user-observed-gone-062",
+      "at": "2026-11-01T11:04:25+08:00",
+      "title": "用户实测当前接缝已消失",
+      "detail": "062将条漫行、内部Image及位置计算统一为同一物理像素高度。用户当前在197自行试用后明确反馈“衔接问题消失了”；记录为本次实际用户结果，不把197先前未出现冒为旧候选通过。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "seam-unified062-installed-362",
+        ".hvigor/outputs/source-catalog-acceptance/reader-row062.patch"
+      ]
+    },
+    {
+      "id": "search-main-thread-cause-20261101",
+      "at": "2026-11-01T11:10:15+08:00",
+      "title": "定位点击搜索后的主线程阻塞",
+      "detail": "真实诊断记录10:57:51.914 query.start→10:57:53.772 local_done，首段本地搜索同步占用约1.86秒，源请求在其后才排入。实现遍历全书库章节标题并在UI线程匹配；结果又用普通ForEach全建，标题绘制反复全源扫描/图标accessSync。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": [
+        "live-search-filelogs-readonly-368/diagnostics_logs/koma-log-20261101-105622.log：query.start 10:57:51.914、local_done10:57:53.772、首源operation.start10:57:53.783。"
+      ]
+    },
+    {
+      "id": "toast-material-user-feedback-20261101",
+      "at": "2026-11-01T11:12:23+08:00",
+      "title": "登记Toast材质反馈",
+      "detail": "已登记为独立未完成项，搜索卡顿仍为当前主线。",
+      "itemId": "TOAST_SYSTEM_MATERIAL",
+      "evidence": []
+    },
+    {
+      "id": "search-presentation-and-cover-feedback-20261101",
+      "at": "2026-11-01T11:18:06+08:00",
+      "title": "登记搜索展示及封面宽度反馈",
+      "detail": "搜索修复同时接隐藏未配置与结果切换；封面宽度独立登记后置，未切换当前任务。",
+      "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "evidence": []
+    },
+    {
+      "id": "search-candidate065-ready-237",
+      "at": "2026-11-01T11:24:37+08:00",
+      "title": "搜索性能与展示候选进入237验证",
+      "detail": "本地章节文本匹配已移TaskPool，保原匹配与排序；结果按可见行创建、标题绘制去全源扫描。原生锚点菜单提供显示全部/仅有结果、状态可见且记住选择；未配置分组不显示。065构建成功，关键逻辑回归通过，设备效果未验收。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": [
+        "source-catalog-build065.log",
+        "search-fresh-baseline-136"
+      ]
+    },
+    {
+      "at": "2026-11-01T11:31:12+08:00",
+      "title": "搜索入口空白已定位并修正",
+      "detail": "237首开发现空白圆按钮；补原生文字按钮类型，当前继续搜索普通路径，不中断或扩大任务。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL"
+    },
+    {
+      "at": "2026-11-01T11:37:27+08:00",
+      "title": "搜索实测找到重复提交",
+      "detail": "漏斗已保留且文字模式首开正常；后台匹配原生返回2本。修正最近词被输入框回声重复提交及未配置库占位，继续原搜索验收。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL"
+    },
+    {
+      "at": "2026-11-01T11:42:05+08:00",
+      "title": "搜索阻塞和重复触发已具名验证",
+      "detail": "237最终候选单次最近词启动94ms、后台原生返回2本；筛选与新增结果模式分开，未配置库分组隐藏。恢复和交付继续。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL"
+    },
+    {
+      "at": "2026-11-01T11:46:59+08:00",
+      "title": "动漫屋和漫画人图标错配已登记",
+      "detail": "两项独立反馈归原source_terra，核对应官网品牌图；Root继续搜索交付。",
+      "itemIds": [
+        "SOURCE_DM5_ICON_IDENTITY",
+        "SOURCE_MANHUAREN_ICON_IDENTITY"
+      ]
+    },
+    {
+      "at": "2026-11-01T11:50:18+08:00",
+      "title": "搜索已推送，设备恢复完成",
+      "detail": "237原包和本轮新鲜数据逐字恢复并释租；197保留用户当前状态，仅恢复原超时并释租。更新页与角标修正原具名验收及CI交付已收口，搜索和共享尺寸修复待当前CI。",
+      "itemIds": [
+        "SEARCH_RECENT_TAP_UI_STALL",
+        "LIBRARY_READING_PROGRESS_SEMANTICS",
+        "LIBRARY_UPDATES_BELL_ENTRY",
+        "CONTINUOUS_PAGE_GAPS"
+      ]
+    },
+    {
+      "at": "2026-11-01T11:52:52+08:00",
+      "title": "Toast接入已有公共材质封装",
+      "detail": "保全部原生调用语义，候选仍待实际效果核对；搜索当前CI持续保留，不重跑设备。",
+      "itemId": "TOAST_SYSTEM_MATERIAL"
     }
   ],
   "reportAgeAudit": {

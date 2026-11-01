@@ -1,51 +1,29 @@
 {
   "schemaVersion": 1,
-  "name": "koma-manga-migration-197",
+  "name": "koma-library-automation-197",
   "target": "192.168.50.197:12345",
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
-  "runId": "ui-audit-power-restored-300",
+  "runId": "user-handoff-timeout-restored-369",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "c74ea856 / restored original197-38d245",
-    "page": "ui-audit-power-restored-300",
+    "codeIdentity": "candidate062 reader-kit f3be308 plus uncommitted unified continuous row allocation",
+    "page": "End prior lab session while preserving current user page/data/package; restore only original timeout override",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "原签名包安装成功，七JSON及30首选项共37文件与fresh164逐字同且无额外文件；恢复原10000ms超时和休眠后释租。"
+    "notes": "fresh301 holds original data; restore38d245 only after installed identity match"
   },
-  "preflight": [],
-  "measurement": {
-    "actions": []
-  },
-  "postflight": [
+  "preflight": [
     {
-      "name": "restore-timeout",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "timeout",
-        "-o",
-        "10000"
-      ]
-    },
-    {
-      "name": "restore-sleep",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "suspend"
-      ]
-    },
-    {
-      "name": "final-power",
+      "name": "current-power",
       "hdcArgs": [
         "shell",
         "hidumper",
@@ -56,14 +34,29 @@
       ]
     },
     {
-      "name": "final-window",
+      "name": "restore-original-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    }
+  ],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
+    {
+      "name": "final-power",
       "hdcArgs": [
         "shell",
         "hidumper",
         "-s",
-        "WindowManagerService",
+        "PowerManagerService",
         "-a",
-        "-a"
+        "-s"
       ]
     }
   ]
