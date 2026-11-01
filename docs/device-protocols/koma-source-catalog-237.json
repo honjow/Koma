@@ -5,64 +5,82 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "search-power-restored-156",
+  "runId": "reader-continuous-animation-off-198",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "candidate068 same native menus/lazy rows plus ignore native query echo and hide unknown private placeholders",
-    "page": "Restore original237 sleep/no override/120000ms after exact data restoration",
+    "codeIdentity": "candidate073 Koma host/Legacy + reader-kit current local viewport navigation diff",
+    "page": "Choose continuous mode and switch off enabled page animation in existing settings",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
     "orientation": "portrait",
     "resolution": "1320x2120",
-    "notes": "Fresh135 matches last actual133 installTime/updateTime/version; original237.hap is exact prior successful installer input. Backup current136 rather than old093. Restore136, original no override/120000 and sleep."
+    "notes": "Restore fresh190 seven JSON/18 prefs, original237.hap, no override/120000 and sleep;197 remains user-owned."
   },
-  "preflight": [
-    {
-      "name": "restore-timeout-policy",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "timeout",
-        "-r"
-      ]
-    },
-    {
-      "name": "restore-original-sleep",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "suspend"
-      ],
-      "pauseAfterMs": 200
-    }
-  ],
+  "preflight": [],
   "measurement": {
-    "actions": []
+    "actions": [
+      {
+        "name": "choose-continuous",
+        "uiInput": [
+          "click",
+          "984",
+          "1256"
+        ],
+        "pauseAfterMs": 300
+      },
+      {
+        "name": "animation-off",
+        "uiInput": [
+          "click",
+          "1182",
+          "1824"
+        ],
+        "pauseAfterMs": 250
+      }
+    ]
   },
   "postflight": [
     {
-      "name": "clear-sleep-inserted-override",
+      "name": "layout",
       "hdcArgs": [
         "shell",
-        "power-shell",
-        "timeout",
-        "-r"
+        "uitest",
+        "dumpLayout",
+        "-p",
+        "/data/local/tmp/reader-continuous-animation-off-198.json"
       ]
     },
     {
-      "name": "final-power",
+      "name": "receive-layout",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/reader-continuous-animation-off-198.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/reader-continuous-animation-off-198/layout.json"
+      ]
+    },
+    {
+      "name": "screen",
       "hdcArgs": [
         "shell",
-        "hidumper",
-        "-s",
-        "PowerManagerService",
-        "-a",
-        "-s"
+        "uitest",
+        "screenCap",
+        "-p",
+        "/data/local/tmp/reader-continuous-animation-off-198.png"
+      ]
+    },
+    {
+      "name": "receive-screen",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/local/tmp/reader-continuous-animation-off-198.png",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/reader-continuous-animation-off-198/screen.png"
       ]
     }
   ]
