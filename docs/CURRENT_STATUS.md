@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：DB正文、离线与CBZ修复已交付；两处界面更正和动漫屋图标候选待用户决定。
+当前工作：短笔记展开条件与LLM入口标题已交付；动漫屋高清图标已随书源更新发布。账号与指定站点的未解决范围继续保留。
 
 设备：197由用户当前使用，不注入操作或覆盖新数据；237本轮原包、数据和电源已恢复并释租。200禁止操作，四私库搁置。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T15:02:03+08:00",
+  "updatedAt": "2026-11-01T20:25:25+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "DB修复已交付；短笔记/LLM入口和动漫屋图标候选待用户决定。",
-  "nextAction": "按用户对已准备界面候选的决定接续；账号及指定站点未知范围保留。",
+  "activity": "短笔记展开、LLM入口标题已交付，动漫屋高清图标已随书源更新发布。",
+  "nextAction": "保留无账号与指定站点未解决范围；只按真实条件变化接续，不重跑本轮已通过路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -4772,7 +4772,7 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "本轮阅读/备份/四点入口已核",
+      "status": "本轮修正已交付；追踪账号范围未验",
       "stage": "部分已交付",
       "owner": "Root",
       "dependencies": [
@@ -4781,11 +4781,10 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。 237077已核书架及详情系统四点图标，原菜单分组和锚点保持。",
-      "remaining": "等待短笔记展开按钮、相邻LLM入口标题两处可见更正决定；三项追踪服务用户无账号，登录后范围保留未验。",
+      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。 237077已核书架及详情系统四点图标，原菜单分组和锚点保持。 237已核三行笔记完整显示且无展开，长笔记可展开全文；简介原展开保留。 翻译页已显示选择LLM源和管理LLM源，管理行仍打开原管理页。",
+      "remaining": "三项追踪服务用户无账号，成功登录、绑定及远端同步未验。",
       "remainingActions": [
-        "用户决定后落实短笔记展开按钮及LLM入口标题两处更正。",
-        "三项追踪服务用户无账号，不代注册、不轮询。"
+        "用户有真实账号条件后接续对应服务的登录、绑定及远端同步；不代注册、不轮询。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
@@ -4859,7 +4858,11 @@
         "详情原型46e2dbe8完整SHA精确CI41235778354 completed/success，Release构建、Inspect与Upload成功、tag发布skipped；031实机原生分组、关闭重开、笔记、系统链接分享取消再开、对应作品WebView及书架单组回归均已核。没有选择分享接收者或发送；用户观感仍为试做反馈范围。证据 .hvigor/outputs/migration-followup-acceptance/report.md。",
         "197 reader-display-sliders-321、invert-global-nemo-323、reader-volume-up-inverted-325、reader-inverted-return-settings-326、reader-settings-volume-328、reader-volume-normal-329。",
         "本轮四点图标修复同33081076及237266–268普通入口，数据恢复271/272，CI待最终回执。",
-        "四点图标所在33081076精确CI41279803358成功，266/267/268普通入口及271/272恢复已核；短笔记/LLM入口两处可见更正已向用户提交具体差异，未收到决定前保持。"
+        "四点图标所在33081076精确CI41279803358成功，266/267/268普通入口及271/272恢复已核；短笔记/LLM入口两处可见更正已向用户提交具体差异，未收到决定前保持。",
+        "source-catalog/notes-three-lines081-311、notes-long-collapsed081-312、notes-expanded081-313：普通编辑保存、三行无按钮、长笔记折叠/展开及末尾显示。",
+        "source-catalog/llm-distinct-rows081-318、llm-manage-route081-319：两个标题与原管理跳转；未创建LLM源、未执行翻译。App857a173af624bde4d36024259a14dec492b7c8e7已推，CI41305287943进行中。082仅增加简介不响应笔记专用参数的隔离条件，编译成功，笔记分支和标题与081一致。",
+        "source-catalog/notes-dm5-restored-326、notes-dm5-power-restored-327：原HAP安装成功，fresh307七JSON/18prefs及fresh308原DM5四成员共29文件逐字等，无extra；原120000ms、无Override、SLEEP，lease20261101-120419-0ce0bc07已释放。",
+        "857a173af624bde4d36024259a14dec492b7c8e7精确CI41305287943 completed/success，Release构建/Inspect/Upload通过，tag发布skipped；本轮两处更正已交付。完整绑定及082仅隔离简介monitor的编译边界见notes-llm-dm5-20261101/delivery-binding.json。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -4877,7 +4880,8 @@
         "wholeAppAudit": "用户本轮明确要求改后全应用检查，包括菜单展开层级、动画、位置稳定、操作可达及复用现有公共组件。只按实际普通入口记录，不以静态扫描冒设备验收；不把双选项迁移到半模态。",
         "detailMenuPrototype": "用户本轮提出最多外露三项（超过三项则两个操作+更多），否决刷新常驻因为已有下拉刷新，随后明确允许先试做WebView/分享链接/更多并尝试分组，看效果再决定；优先先完成迁移问题。其它已采用操作不删。",
         "menuMaterialCorrection": "用户当前明确要求所有菜单默认封装并采用新系统材质。KomaMenuController新增时漏用既有KomaPopupOptions；补同一入口，保现有三按钮、分组、操作与API23回退。",
-        "firstOpenAnchorCorrection": "用户指出334首次菜单漂在中间；此真实反例否定仅重开正确的验收。公共入口改为原生布局完成后取最新菜单项及按钮UniqueID，不用固定延时或重新点开补偿；关闭/离页使待开请求失效。"
+        "firstOpenAnchorCorrection": "用户指出334首次菜单漂在中间；此真实反例否定仅重开正确的验收。公共入口改为原生布局完成后取最新菜单项及按钮UniqueID，不用固定延时或重新点开补偿；关闭/离页使待开请求失效。",
+        "notesAndLlmCorrection": "用户call_2c7e6b4869bb4a83974fc8af8184e895采用：短笔记只有实际超过三行才显示展开，简介不变；相邻两个LLM入口分别为选择LLM源和管理LLM源。"
       },
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/material-detail-menu-334/screen.png：系统材质可见但首次错位，失败；336重开位置正常不抵消此失败。",
@@ -5109,19 +5113,17 @@
     {
       "id": "SOURCE_DM5_ICON_IDENTITY",
       "title": "动漫屋错用漫画人极速版图标",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P2",
       "owner": "source_terra：原书源分工",
-      "status": "清晰参考候选待用户决定",
+      "status": "高清图标已交付",
       "reportedAt": null,
       "reportedAtSource": "本轮用户直接反馈；原消息精确时间未提供，不以登记时刻冒充。",
-      "result": "当前官网32px图模糊。固定参考192px方图使用与官网一致的完整DM5字标，但有白色圆角底，制作原出处未核，未擅自替换。",
-      "remaining": "等待用户对现成参考候选的决定；不把参考图冒作官网高清原件。",
-      "remainingActions": [
-        "用户同意后替换参考原图并核实际显示；否则保留当前图继续取得官方原件。"
-      ],
+      "result": "按用户允许完成DM5高清重绘，237普通源列表主字清晰；动漫屋书源更新已公开，公开图标与实测图标一致。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
-        "197由用户使用，禁止操作；不自绘或凭第三方图替换。"
+        "197由用户使用，禁止操作；用户当前明确允许依参考高清重绘，保留DM5字标与白色圆角底，不称官网原件。"
       ],
       "relatedItems": [
         "ICONS"
@@ -5131,9 +5133,11 @@
         "koma-sources a24440c74b7b66b590bcb436268115217ed73dbe；精确CI41271023010成功；公开0.1.24 index/manifest与图标实体已核。",
         "category-membership/source-brand237-dm5-light-20261101-008、source-brand237-dm5-dark-20261101-015；sourceowner原包数据/主题/电源恢复及释租已核。",
         "用户本轮直接反馈：动漫屋新图标太糊；原32×32 favicon放大候选不作为合格交付。",
-        "dm5-hd-research/evidence.json已核官网32favicon、官网204x50完整字标、固定949192白底图三者实际差异；参考主体134x32，原件SHA82c9211665ba0f8141f7cbb97fafe3c2c2915f71d1918534c4f0f0a22a0a96a3，原始制作出处未核。dm5-reference-candidate.png逐字复制原图供决定，未改源或设备。"
+        "dm5-hd-research/evidence.json已核官网32favicon、官网204x50完整字标、固定949192白底图三者实际差异；参考主体134x32，原件SHA82c9211665ba0f8141f7cbb97fafe3c2c2915f71d1918534c4f0f0a22a0a96a3，原始制作出处未核。dm5-reference-candidate.png逐字复制原图供决定，未改源或设备。",
+        "source-catalog/dm5-imported025-323、dm5-browse025-324、dm5-redrawn-visible025-325：真实0.1.25及普通源行清晰主字；细字原尺寸小，不称清楚可读。koma-sources e0495f55887248f5d321a9581fd60929447e9b8a已推，CI41305891155运行中；资产来源见sources/dm5/ASSET_SOURCES.md。",
+        "源e0495f55887248f5d321a9581fd60929447e9b8a精确CI41305891155成功；公开0.1.25 index/manifest/包/独立icon已核，icon SHA b717d62038cb4902cd2f4cffb738de221013f420fb27887e2051b4b2092db32f逐字同237候选；公开WASM不同，不外推为同字节正文验收。证据dm5-redrawn-025/evidence.json。"
       ],
-      "closedAt": null,
+      "closedAt": "2026-11-01T20:22:12+08:00",
       "reopenedAt": "2026-11-01T12:02:15+08:00"
     },
     {
@@ -13637,6 +13641,42 @@
       "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
       "title": "DB正文修复交付完成",
       "detail": "App精确CI和正式书源公开资产均成功；正文、离线和实际CBZ已有具名证据。Noy无账号范围仍未验。"
+    },
+    {
+      "at": "2026-11-01T20:03:56+08:00",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "title": "两处界面更正已采用，开始落实",
+      "detail": "短笔记按实际排版决定展开入口；LLM选择和管理入口区分，简介及原跳转不变。动漫屋同步按用户允许准备高清重绘图标，实际显示待核。"
+    },
+    {
+      "at": "2026-11-01T20:09:29+08:00",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "title": "笔记展开条件已实测",
+      "detail": "三行笔记无需展开；长笔记展开后全文可见，简介原行为保留。LLM标题和图标继续核对。"
+    },
+    {
+      "at": "2026-11-01T20:12:45+08:00",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "title": "翻译入口标题已核对",
+      "detail": "选择与管理两个入口可区分，管理仍进入原页面；未保存翻译草稿。候选实测后已提交，继续图标和恢复。"
+    },
+    {
+      "at": "2026-11-01T20:20:11+08:00",
+      "itemId": "SOURCE_DM5_ICON_IDENTITY",
+      "title": "动漫屋高清图标实测后已推送",
+      "detail": "普通源列表主字清晰，原白底保留；公开更新文件仍待核。237已恢复本场原包、全部保存数据和电源并释租。"
+    },
+    {
+      "at": "2026-11-01T20:22:12+08:00",
+      "itemId": "SOURCE_DM5_ICON_IDENTITY",
+      "title": "动漫屋高清图标已交付",
+      "detail": "237源行清晰度已核，书源更新已公开；公开图标与实测图标相同。重绘稿来源如实注明。"
+    },
+    {
+      "at": "2026-11-01T20:25:25+08:00",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "title": "短笔记与LLM入口修正已交付",
+      "detail": "两处修正实机显示已核，App CI通过；动漫屋高清图标更新也已公开。设备原包、数据及电源均恢复。无账号的追踪服务范围仍未验。"
     }
   ],
   "reportAgeAudit": {
