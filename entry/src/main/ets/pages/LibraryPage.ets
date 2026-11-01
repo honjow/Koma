@@ -5,7 +5,7 @@ import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
-import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem } from '../components/ui/KomaMenuController'
+import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -332,7 +332,7 @@ export struct LibraryPage {
         () => { this.onSearchRequested() }),
       this.titleMenuItem(s('library_updates_title'), $r('sys.symbol.bell'),
         () => { this.onOpenUpdatesRequested() }),
-      this.titleMenuItem(s('common_more_actions'), $r('sys.symbol.ellipsis_circle'),
+      this.titleMenuItem(s('common_more_actions'), komaTitleMoreIcon(),
         () => { this.openTitleMenu('more') }, true, 'library-title-more'),
     ]
     this.onTitleBarChange({

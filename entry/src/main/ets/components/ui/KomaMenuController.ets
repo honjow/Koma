@@ -1,6 +1,12 @@
 import { ComponentContent, FrameCallback, UIContext } from '@kit.ArkUI'
 import { komaMenuOptions } from '../../theme/KomaPopupOptions'
 
+// Custom title-bar overflow keeps the system's four-dot affordance. Row-level
+// actions retain their existing icons; menu content and anchoring are unchanged.
+export function komaTitleMoreIcon(): Resource {
+  return $r('sys.symbol.dot_grid_2x2')
+}
+
 export interface KomaMenuAction {
   label: string
   selected?: boolean

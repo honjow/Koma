@@ -54,7 +54,7 @@ import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { FormTitleActionState } from '../state/FormTitleActionState'
-import { KomaMenuController, KomaMenuAction, KomaMenuGroup } from '../components/ui/KomaMenuController'
+import { KomaMenuController, KomaMenuAction, KomaMenuGroup, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
 import { LocalImportCommitService } from '../import/LocalImportCommitService'
@@ -3532,7 +3532,7 @@ struct Index {
     }
     if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable) {
       items.push({ 'content': { 'label': AppStrings.get('common_more_actions'),
-        'icon': $r('sys.symbol.ellipsis_circle'), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
+        'icon': komaTitleMoreIcon(), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
         'action': (): void => {
           this.detailMenu.open(this.getUIContext(), chrome.menuAnchorId, () => this.mangaDetailMenuGroups(chrome), (): void => {
             DiagnosticLogger.warn('manga_detail', 'menu_open_failed', 'result=failed')
