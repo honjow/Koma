@@ -111,6 +111,12 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  await store.restore(backup);await store.reload();assert.deepEqual(await store.exportSnapshot(),backup);
  waitForIndex=true;const late=store.refresh(indexUrl);while(!gate)await new Promise(r=>setImmediate(r));await store.remove(indexUrl);gate();await late;waitForIndex=false;
  assert.deepEqual(await store.list(),[],'removed subscription cannot be resurrected by a late update');
+ const oldSubscription=structuredClone(backup);oldSubscription.subscriptions[0].updatedAt=Date.now()-2*24*60*60*1000;
+ await store.restore(oldSubscription);requests.delete(indexUrl);const beforeAutomatic=networkCalls,automaticRevision=state.userRevision;
+ await Promise.all([store.refreshAutomaticSubscriptions(),store.refreshAutomaticSubscriptions()]);await store.reload();await store.refreshAutomaticSubscriptions();
+ assert.equal(networkCalls,beforeAutomatic+1,'failed automatic check survives reload and respects daily interval');
+ assert.equal(state.userRevision,automaticRevision,'automatic scheduling cannot reset current reading');
+ assert.equal((await store.list())[0].packs[0].version,pack.version,'failed automatic check retains installed rules');
  await store.restore(snapshot);assert.deepEqual(await store.list(),[],'old implicit downloads are not user-added subscriptions');
  await store.refreshAutomaticSubscriptions();assert.equal(state.enabledRuleCount,0);
  // Cache coordinator is production code; transform/decode is a controlled worker here (device proof is separate).

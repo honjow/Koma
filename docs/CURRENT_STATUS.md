@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "重做独立图片规则系统",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T04:53:33+08:00",
+  "updatedAt": "2026-11-02T04:57:10+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "添加自动识别、规则查看、独立启停、下拉更新、冷启动保留与移除已通过普通路径；用户与开发指南已补齐。",
+  "activity": "独立规则已发布；完整管理路径已通过237，设备已恢复。收尾补齐失败检查的每日间隔持久化，本地关键逻辑与编译已通过。",
   "nextAction": "提交App后核精确CI；通过即收口。",
   "proof": [
     {
@@ -5482,7 +5482,7 @@
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "添加自动识别、规则查看、独立启停、下拉更新、冷启动保留与移除已通过普通路径；用户与开发指南已补齐。",
+      "result": "独立规则已发布；完整管理路径已通过237，设备已恢复。收尾补齐失败检查的每日间隔持久化，本地关键逻辑与编译已通过。",
       "remaining": "提交App后核精确CI；通过即收口。",
       "remainingActions": [
         "核最终App提交的精确CI并收口。"
@@ -5503,7 +5503,7 @@
         "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。",
         "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。"
       ],
-      "updatedAt": "2026-11-02T04:53:33+08:00",
+      "updatedAt": "2026-11-02T04:57:10+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5515,7 +5515,9 @@
         "具名237 rules-added-458、rules-detail-459、rules-rule-off-460；候选SHA fa7d9ce4e27de407fb49677ed827acd4d561807f16417a0a313745aab171c528。",
         "237 rules-reenter-update-461、rules-subscription-off-462、rules-cold-persisted-464、rules-removed-466；最终本地release构建exit0，logic-rework-final.log PASS。",
         "最后兼容收尾只补书源sources对象识别、重命名不重置阅读及按App语言格式化时间；未重跑既有算法路径。",
-        ".hvigor/outputs/generic-banner-20261102/restoration-rework-verified.json：237恢复原0.1.4/code5，本轮7 JSON与18偏好逐字一致；新增规则文件已移除，120000ms、无override、SLEEP，租约已释放。"
+        ".hvigor/outputs/generic-banner-20261102/restoration-rework-verified.json：237恢复原0.1.4/code5，本轮7 JSON与18偏好逐字一致；新增规则文件已移除，120000ms、无override、SLEEP，租约已释放。",
+        "App主实现a8bf57ef0b9fbc242e0a91316f090db67be00bef已推；其CI41349165704将由本次间隔修正的精确CI取代。",
+        "自动更新失败／并发检查／重读后仍只请求一次：logic-rework-final.log；最终build-rework-daily-final.log exit0；源文档423e624 [skip ci]已推，规则CI仍为41346373710。"
       ],
       "stage": "实现与验证",
       "closedAt": null,
@@ -14140,6 +14142,12 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "规则验收完成并恢复237",
       "detail": "原包、25份数据和原电源状态均已恢复读回，租约已释放；进入最终提交与CI，不另发App版本。"
+    },
+    {
+      "at": "2026-11-02T04:57:10+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "自动检查失败仍遵守每日间隔",
+      "detail": "保存自动检查时间，并在串行写入中认领检查，避免失败或并发前台回调反复请求；手动刷新不受限。关键逻辑及编译通过，等待最终CI。"
     }
   ],
   "reportAgeAudit": {

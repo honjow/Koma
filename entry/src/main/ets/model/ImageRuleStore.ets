@@ -221,8 +221,21 @@ export class ImageRuleStore {
   async refreshAutomaticSubscriptions(): Promise<void> {
     const subscriptions = await this.list()
     for (const subscription of subscriptions) if (subscription.enabled && subscription.automaticUpdates &&
-      Date.now() - subscription.updatedAt >= 24 * 60 * 60 * 1000) {
-      try { await this.refresh(subscription.url) } catch (_error) { console.warn('[ImageRules] automatic_update_failed') }
+      Date.now() - Math.max(subscription.updatedAt, subscription.lastAutomaticCheckAt ?? 0) >= 24 * 60 * 60 * 1000) {
+      try {
+        // Record the attempt before networking: an unavailable subscription must not retry on every foreground.
+        // This is scheduling state, not a change to the user's active rules or current reader snapshot.
+        let shouldRefresh = false
+        await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
+          const saved = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === subscription.url)
+          if (saved && saved.enabled && saved.automaticUpdates &&
+            Date.now() - Math.max(saved.updatedAt, saved.lastAutomaticCheckAt ?? 0) >= 24 * 60 * 60 * 1000) {
+            saved.lastAutomaticCheckAt = Date.now()
+            shouldRefresh = true
+          }
+        }, false))
+        if (shouldRefresh) await this.refresh(subscription.url)
+      } catch (_error) { console.warn('[ImageRules] automatic_update_failed') }
     }
   }
 }

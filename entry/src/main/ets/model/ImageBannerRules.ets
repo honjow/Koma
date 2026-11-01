@@ -16,7 +16,7 @@ export interface ImageRuleRecord { origin: string; revision: string; packs: Imag
 export interface ImageRuleSnapshot { schemaVersion: number; records: ImageRuleRecord[] }
 export interface ImageRuleSubscription {
   url: string; name: string; customName?: string; description?: string; website?: string
-  enabled: boolean; automaticUpdates: boolean; updatedAt: number; revision: string
+  enabled: boolean; automaticUpdates: boolean; updatedAt: number; lastAutomaticCheckAt?: number; revision: string
   packs: ImageRulePack[]; disabledRules: string[]
 }
 export interface ImageRuleConfiguration { schemaVersion: number; subscriptions: ImageRuleSubscription[] }
@@ -37,7 +37,7 @@ export function validateImageRuleConfiguration(raw: Object): ImageRuleConfigurat
     if (!subscription || typeof subscription.url !== 'string' || !/^https?:\/\//.test(subscription.url) || urls.has(subscription.url) ||
       typeof subscription.name !== 'string' || !subscription.name.trim() || typeof subscription.revision !== 'string' ||
       typeof subscription.enabled !== 'boolean' || typeof subscription.automaticUpdates !== 'boolean' ||
-      !Number.isFinite(subscription.updatedAt) || !Array.isArray(subscription.packs) || subscription.packs.length > 32 ||
+      !Number.isFinite(subscription.updatedAt) || (subscription.lastAutomaticCheckAt !== undefined && !Number.isFinite(subscription.lastAutomaticCheckAt)) || !Array.isArray(subscription.packs) || subscription.packs.length > 32 ||
       !Array.isArray(subscription.disabledRules) || subscription.disabledRules.some((key: string): boolean => typeof key !== 'string'))
       throw new Error('invalid_image_rule_subscription')
     urls.add(subscription.url)
