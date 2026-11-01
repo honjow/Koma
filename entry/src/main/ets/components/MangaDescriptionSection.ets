@@ -11,8 +11,32 @@ function s(name: string): string {
 export struct MangaDescriptionSection {
   @Param titleKey: string = 'common_description'
   @Param description: string | undefined = undefined
+  @Param expandOnlyWhenOverflow: boolean = false
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private expanded: boolean = false
+  @Local private overflowsPreview: boolean = false
+  private contentWidth: number = 0
+
+  @Monitor('description', 'expandOnlyWhenOverflow')
+  private descriptionChanged(): void {
+    if (!this.expandOnlyWhenOverflow) return
+    this.expanded = false
+    this.measurePreviewOverflow()
+  }
+
+  private measurePreviewOverflow(): void {
+    if (!this.expandOnlyWhenOverflow || this.contentWidth <= 0) return
+    // Notes use the native text layout at the actual width, not a character-count
+    // estimate. Source synopses retain their independently accepted expand action.
+    const measure = this.getUIContext().getMeasureUtils()
+    const full = measure.measureTextSize({ textContent: this.normalizedDescription(),
+      constraintWidth: this.contentWidth, fontSize: ThemeConstants.FONT_SIZE_BODY,
+      lineHeight: ThemeConstants.LINE_HEIGHT_TITLE })
+    const preview = measure.measureTextSize({ textContent: this.normalizedDescription(),
+      constraintWidth: this.contentWidth, fontSize: ThemeConstants.FONT_SIZE_BODY,
+      lineHeight: ThemeConstants.LINE_HEIGHT_TITLE, maxLines: 3 })
+    this.overflowsPreview = Number(full.height) > Number(preview.height)
+  }
 
   private normalizedDescription(): string {
     return this.description?.trim() ?? ''
@@ -44,8 +68,12 @@ export struct MangaDescriptionSection {
         .maxLines(this.expanded ? undefined : (this.hasDescription() ? 3 : 20))
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .animation({ duration: 180, curve: Curve.EaseInOut })
+        .onAreaChange((_oldArea: Area, area: Area) => {
+          this.contentWidth = Number(area.width)
+          this.measurePreviewOverflow()
+        })
 
-      if (this.hasDescription()) {
+      if (this.hasDescription() && (!this.expandOnlyWhenOverflow || this.overflowsPreview)) {
         KomaActionButton({
           label: this.toggleLabel(),
           kind: 'ghost',

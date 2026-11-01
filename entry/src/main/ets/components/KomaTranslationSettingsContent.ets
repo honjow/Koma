@@ -479,14 +479,14 @@ export struct KomaTranslationSettingsContent {
         }
         if (this.draft.route !== 'torii_whole_page') {
           GroupedListSection() {
-            ConciseListRow({ title: t('llm_binding_source'),
+            ConciseListRow({ title: t('llm_binding_select_source'),
               trailingText: this.draft.textSource()?.profile.displayName ?? t('llm_binding_not_configured'),
               trailingDropdown: this.compatibleSources().length > 0, dropdownMenuEnabled: this.compatibleSources().length > 0,
               isEnabled: this.ready && !this.saving,
               dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SourceMenu(select) },
               action: () => { if (this.compatibleSources().length === 0) void this.openSources() } })
             ListDivider()
-            ConciseListRow({ title: t('llm_sources_title'), subtitle: t('llm_sources_hint'),
+            ConciseListRow({ title: t('llm_binding_manage_sources'), subtitle: t('llm_sources_hint'),
               isEnabled: this.ready && !this.saving,
               action: () => { void this.openSources() } })
             ListDivider()

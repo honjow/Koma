@@ -2803,7 +2803,8 @@ export struct MangaDetailPage {
           if (this.shouldRenderDetailMetadata()) {
             if (this.personalNotes.trim().length > 0) {
               ListItem() {
-                MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes' })
+                MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes',
+                  expandOnlyWhenOverflow: true })
               }
             }
             ListItem() {

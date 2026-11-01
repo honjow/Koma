@@ -1896,6 +1896,8 @@
     {"name": "comment_translation_models_empty", "value": "没有可用模型"},
     {"name": "llm_binding_not_configured", "value": "未配置"},
     {"name": "llm_binding_source", "value": "LLM 源"},
+    {"name": "llm_binding_select_source", "value": "选择 LLM 源"},
+    {"name": "llm_binding_manage_sources", "value": "管理 LLM 源"},
     {"name": "llm_source_add", "value": "添加 LLM 源"},
     {"name": "llm_source_delete", "value": "删除 LLM 源"},
     {"name": "llm_source_delete_confirm", "value": "确定删除该 LLM 源？"},
