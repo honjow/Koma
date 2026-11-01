@@ -2101,6 +2101,14 @@
     {"name": "library_updates_load_failed", "value": "Could not read update history"},
     {"name": "library_updates_checking", "value": "Checking the library for updates"},
     {"name": "library_updates_check_failed", "value": "Library update check failed"},
-    {"name": "library_updates_save_failed", "value": "Check completed; some records were not saved"}
+    {"name": "library_updates_save_failed", "value": "Check completed; some records were not saved"},
+    {"name": "source_subscription_edit", "value": "Edit subscription"},
+    {"name": "source_subscription_name", "value": "Name (optional)"},
+    {"name": "source_subscription_name_hint", "value": "Use the subscription name automatically"},
+    {"name": "source_subscription_copy", "value": "Copy subscription address"},
+    {"name": "source_subscription_copied", "value": "Subscription address copied"},
+    {"name": "source_subscription_copy_failed", "value": "Could not copy subscription address"},
+    {"name": "source_subscription_website", "value": "Project page"},
+    {"name": "source_subscription_actions", "value": "Subscription actions"}
   ]
 }

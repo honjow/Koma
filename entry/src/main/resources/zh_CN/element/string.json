@@ -2101,6 +2101,14 @@
     {"name": "library_updates_load_failed", "value": "更新记录读取失败"},
     {"name": "library_updates_checking", "value": "正在检查书库更新"},
     {"name": "library_updates_check_failed", "value": "书库检查失败"},
-    {"name": "library_updates_save_failed", "value": "检查完成，部分记录未保存"}
+    {"name": "library_updates_save_failed", "value": "检查完成，部分记录未保存"},
+    {"name": "source_subscription_edit", "value": "编辑订阅"},
+    {"name": "source_subscription_name", "value": "名称（可选）"},
+    {"name": "source_subscription_name_hint", "value": "留空则自动使用订阅名称"},
+    {"name": "source_subscription_copy", "value": "复制订阅地址"},
+    {"name": "source_subscription_copied", "value": "订阅地址已复制"},
+    {"name": "source_subscription_copy_failed", "value": "无法复制订阅地址"},
+    {"name": "source_subscription_website", "value": "项目主页"},
+    {"name": "source_subscription_actions", "value": "订阅操作"}
   ]
 }

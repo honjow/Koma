@@ -12,11 +12,15 @@ export struct KomaTextInputDialog {
   @Param label: string = ''
   @Param placeholder: string = ''
   @Param value: string = ''
+  @Param secondaryLabel: string = ''
+  @Param secondaryPlaceholder: string = ''
+  @Param secondaryValue: string = ''
   @Param error: string = ''
   @Param busy: boolean = false
   @Param confirmEnabled: boolean = true
   @Param confirmLabel: string = ''
   @Event change: (value: string) => void = () => {}
+  @Event secondaryChange: (value: string) => void = () => {}
   @Event confirm: () => void = () => {}
   @Event cancel: () => void = () => {}
 
@@ -26,6 +30,11 @@ export struct KomaTextInputDialog {
       KomaFormTextField({ label: this.label, placeholder: this.placeholder, value: this.value,
         isEnabled: !this.busy, change: this.change,
         submit: (): void => { if (this.confirmEnabled && !this.busy) this.confirm() } })
+      if (this.secondaryLabel.length > 0) {
+        KomaFormTextField({ label: this.secondaryLabel, placeholder: this.secondaryPlaceholder,
+          value: this.secondaryValue, isEnabled: !this.busy, change: this.secondaryChange,
+          submit: (): void => { if (this.confirmEnabled && !this.busy) this.confirm() } })
+      }
       Row({ space: ThemeConstants.SPACE_SM }) {
         Text(this.error).layoutWeight(1).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
         LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)

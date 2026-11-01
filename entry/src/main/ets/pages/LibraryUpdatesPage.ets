@@ -8,6 +8,7 @@ import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
 import { connectLibraryUpdateState, LibraryUpdateState } from '../state/LibraryUpdateState'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
+import { PullRefreshController } from '../components/PullRefresh'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
@@ -25,6 +26,8 @@ export struct LibraryUpdatesPage {
   @Event onOpenReader: (comicId: string, chapterId: string) => void = () => {}
   @Event onOpenComic: (comicId: string) => void = () => {}
   @Event onRefresh: () => Promise<void> = async () => {}
+  @Param refreshController: PullRefreshController = new PullRefreshController()
+  @Local private refreshing: boolean = false
   @Local private updateState: LibraryUpdateState = connectLibraryUpdateState()
   @Local private language: LanguageState = connectLanguageState()
   @Local private records: LibraryChapterUpdate[] = cachedLibraryChapterUpdates() ?? []
@@ -117,13 +120,15 @@ export struct LibraryUpdatesPage {
 
   build() {
     if (this.language.effectiveLocale.length > 0 && this.readerProgressRevision >= 0) {
-      PullRefreshListScaffold({ onRefresh: async (): Promise<void> => { await this.onRefresh(); this.reload() },
+      PullRefreshListScaffold({ controller: this.refreshController, onRefresh: async (): Promise<void> => {
+        this.refreshing = true
+        try { await this.onRefresh(); this.reload() } finally { this.refreshing = false }
+      },
         onReachEnd: (): void => { this.visibleLimit = Math.min(this.visibleLimit + 80, this.rows.length) },
         bottomPadding: ThemeConstants.SPACE_XL }) {
-        if (this.updateState.busy) {
+        if (this.updateState.busy && !this.refreshing) {
           ListItem() {
             Row({ space: ThemeConstants.SPACE_SM }) {
-              LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
               Text(AppStrings.get('library_updates_checking')).fontColor(ThemeConstants.TEXT_SECONDARY)
             }.padding(ThemeConstants.SPACE_MD)
           }

@@ -1,4 +1,5 @@
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
+import { PullRefreshController } from '../components/PullRefresh'
 import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
 import { setCachedLibraryChapterUpdates } from '../model/LibraryChapterUpdates'
 import { SourceSubscriptionsPage } from './SourceSubscriptionsPage'
@@ -217,6 +218,7 @@ interface BackupTaskRouteParam {
 @Entry
 @ComponentV2
 struct Index {
+  private libraryUpdatesRefreshController: PullRefreshController = new PullRefreshController()
   @Local private enhancementModelsRevision: number = 0
 
   @Local private tabIconBounceTriggers: number[] = [-1, -1, -1, -1]
@@ -479,7 +481,7 @@ struct Index {
     const options = this.navDestTitleBarOpts(AppStrings.get('library_updates_title'))
     const check: Record<string, Object> = { 'label': AppStrings.get('source_pkg_check_updates'),
       'icon': $r('sys.symbol.arrow_clockwise'), 'isEnabled': !this.libraryUpdateState.busy,
-      'action': (): void => { void this.checkLibraryUpdatesNow() } }
+      'action': (): void => { this.libraryUpdatesRefreshController.triggerTopRefresh() } }
     const results: Record<string, Object> = { 'label': AppStrings.get('route_library_update_results_title'),
       'icon': $r('sys.symbol.list_bullet'),
       'action': (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATE_RESULTS }) } }
@@ -2698,6 +2700,7 @@ struct Index {
     } else if (name === RouteName.LIBRARY_UPDATES) {
       HdsNavDestination() {
         LibraryUpdatesPage({ libraryStore: this.libraryStore, libraryRevision: this.libraryRevision,
+          refreshController: this.libraryUpdatesRefreshController,
           readerSessionStore: this.readerSessionStore, readerProgressRevision: this.readerProgressRevision,
           onOpenReader: (comicId: string, chapterId: string): void => { void this.openReader(comicId, chapterId) },
           onOpenComic: (comicId: string): void => { this.openLibraryMangaDetail(comicId) },

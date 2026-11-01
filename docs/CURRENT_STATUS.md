@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：书架铃铛更新页、订阅独立页及菜单调整已完成本轮真机验证，已推送并通过 CI。
+当前结果：已复现并修正源筛选全关；重复刷新、通知错误码及订阅名称和编辑候选正在验证。
 
-设备：197保持原状态；237已恢复本轮原包、数据、电源与睡眠并释租。200禁止操作，四私库搁置。
+设备：197保持原状态；237正用于本轮验收，已备份新鲜原包与数据，结束后恢复。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T07:34:34+08:00",
+  "updatedAt": "2026-11-01T08:55:45+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_UPDATES_BELL_ENTRY",
-  "activity": "书架铃铛更新页、订阅独立页和菜单修正已交付并通过CI；237已恢复释租。",
+  "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+  "activity": "修复筛选关闭联动，同时处理重复刷新、通知和订阅信息。",
   "nextAction": "本轮入口与展示问题已关闭；其余源、账号及原未关闭项继续按原事项保留。",
   "proof": [
     {
@@ -4853,23 +4853,24 @@
     {
       "id": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
       "title": "浏览源按语言分组、评级筛选与订阅管理简化",
-      "kind": "accepted",
+      "kind": "open",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "已验收",
+      "status": "订阅编辑已验证，复制与更新页继续核对",
       "stage": "已验收",
       "reportedAt": null,
       "reportedAtSource": "2026-11-01本会话当前用户要求；精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T05:12:29+08:00",
-      "result": "浏览文字入口、管理原生溢出、订阅独立页及系统文件选择器已实机核对；订阅冷启动保留。重复地址失败后保留对话框和输入，取消/移除及再次添加成功均已验证。",
-      "remaining": "本轮已关闭；已安装源、书库与旧订阅的原范围保持。",
+      "result": "237筛选单项及连续切换、跨入口共享已通过。订阅已实测自动名称、编辑后立即更新、自定义名称冷启动保留；清空自定义名后恢复发布者名，地址编辑已保存。复制及项目页正继续核对。",
+      "remaining": "定位筛选开关反馈链并实机验证；补订阅可选名称、元数据、编辑、复制和项目页。",
       "remainingActions": [
         "改为原生菜单及清晰文字入口；订阅改独立列表页，由标题栏添加并弹输入对话框。"
       ],
       "boundaries": [
         "保留源更新角标缓存、后台差量更新与失败保留。",
         "只改变列表展示筛选，不禁用源、不改变全局搜索或书库。",
-        "保留在线两路安装、本地归档排他屏障和既有源会话。"
+        "保留在线两路安装、本地归档排他屏障和既有源会话。",
+        "本轮依据用户新反馈重开；保语言与评级筛选原入口和样式，订阅可选自定义名称优先于元数据，未提供项目页不猜链接。"
       ],
       "modificationBasis": {
         "object": "BrowsePage/SourcePackageManagerPage及公共缓存",
@@ -4895,23 +4896,29 @@
         "237/045：068冷启动订阅列表及空输入禁用；070重复地址错误在原框显示且保留输入；071取消并只移除受控订阅；073重新添加成功并关闭。修正后的公共组件继续用CustomContentDialogV2材质及标题、原生文本按钮，因系统AdvancedDialogV2Button强制close，表单自行管理成功/取消关闭。",
         "033新鲜基线已恢复：091原同签HAP实际安装成功，七JSON与18偏好文件逐字一致且无新增偏好；092最终SLEEP、Timeout120000ms、无Override。租约20261031-223527-67f1feff已释放，受控18796服务已停止，8766进度页保持。恢复比较 .hvigor/outputs/source-catalog-acceptance/entry-updates-restoration.json。",
         "已审提交 cb2b0b2cfc98e27648379b7696f44b1c55b7caad 已推 Koma/master；精确CI 41252261302 进行中。验证HAP/路径绑定 .hvigor/outputs/source-catalog-acceptance/entry-updates-delivery.json；8766 API的所有snapshot字段逐字段一致，119项无旧ID删除。",
-        "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。"
+        "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/filter-delivered-disable-en-099/：五个Toggle实际全部false；此前098全部true。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/filter-candidate-one-off-102/：All=false、English=false，其余三项true；103连续修改、105管理页共享结果一致。",
+        ".hvigor/outputs/user-flow-audit/source-settings-repair/source-repository-metadata-published-22b8c3c/evidence.json：源库元数据已公开，索引与前版逐字相同。",
+        "订阅109/110实测发现：公开meta已入偏好，但URL键固定使旧行未重建；053候选改为展示字段变更时只更新该行，尚在验证。",
+        "054候选：117冷启动显示自定义名；118编辑后当前行立即更新；119清空自定义名称恢复Koma书源库并保存目录形式URL；120原生锚定菜单含编辑/复制/项目主页/移除。此前110/116的偏好已更新而界面未刷新的原因是共享缓存无revision发布，已在公共owner修正，修正前不算验收。"
       ],
-      "closedAt": "2026-11-01T07:20:59+08:00"
+      "closedAt": null,
+      "reopenedAt": "2026-11-01T08:36:37+08:00"
     },
     {
       "id": "LIBRARY_UPDATES_BELL_ENTRY",
       "title": "书架铃铛入口与新章节更新列表",
-      "kind": "accepted",
+      "kind": "open",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "已验收",
+      "status": "修复重复刷新及通知错误码",
       "stage": "已验收",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
-      "result": "书架第二按钮已改为铃铛，进入按日期分组的新章节列表；列表样式保留独立二级菜单。真实新章可阅读，更新记录重启及再次检查后保留；封面留白和圆角已按最新反馈修正。",
-      "remaining": "本轮已关闭。DB Multiverse章117正文失败保留在原源核对项，不计作已修复。",
+      "result": "用户新图显示下拉刷新与列表状态行同时转圈；更新失败通知末尾出现内部错误码unknown。",
+      "remaining": "统一刷新反馈，通知只显示面向用户的更新摘要；验证原列表保留及通知。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -4935,7 +4942,8 @@
         "已审提交 cb2b0b2cfc98e27648379b7696f44b1c55b7caad 已推 Koma/master；精确CI 41252261302 进行中。验证HAP/路径绑定 .hvigor/outputs/source-catalog-acceptance/entry-updates-delivery.json；8766 API的所有snapshot字段逐字段一致，119项无旧ID删除。",
         "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。"
       ],
-      "closedAt": "2026-11-01T07:20:59+08:00"
+      "closedAt": null,
+      "reopenedAt": "2026-11-01T08:36:37+08:00"
     }
   ],
   "source": {
@@ -12639,6 +12647,41 @@
         "https://github.com/honjow/Koma/actions/runs/41252261302",
         ".hvigor/outputs/source-catalog-acceptance/entry-updates-restoration.json"
       ]
+    },
+    {
+      "at": "2026-11-01T08:36:37+08:00",
+      "title": "新反馈重开筛选、订阅及更新页",
+      "detail": "已定位重复转圈和通知rawcode接线；筛选联动正在复现，未验收。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "id": "filters-subscriptions-feedback-20261101-748"
+    },
+    {
+      "at": "2026-11-01T08:42:48+08:00",
+      "title": "237复现筛选全关并修正回调",
+      "detail": "English单项关闭触发全部语言同步回调，导致清空；已修正，候选尚未实机验证。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "id": "filters-subscriptions-feedback-20261101-749"
+    },
+    {
+      "at": "2026-11-01T08:47:24+08:00",
+      "title": "筛选独立切换实机通过，订阅信息已发布",
+      "detail": "237独立开关和跨页面共享通过；订阅编辑及通知正在继续验证，未整体关闭。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "id": "filters-subscriptions-feedback-20261101-750"
+    },
+    {
+      "at": "2026-11-01T08:50:06+08:00",
+      "title": "订阅元数据首帧后显示修正",
+      "detail": "真实路径发现名称已保存但行未更新，修正展示字段变化后的行更新；不以存储成功冒界面验收。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "id": "filters-subscriptions-feedback-20261101-751"
+    },
+    {
+      "at": "2026-11-01T08:55:45+08:00",
+      "title": "订阅名称及地址编辑实机通过",
+      "detail": "修正公共缓存发布后，当前行即时显示编辑结果；清空名称恢复自动名，自定义名称冷启保留。复制和通知仍在验证。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "id": "filters-subscriptions-feedback-20261101-752"
     }
   ],
   "reportAgeAudit": {

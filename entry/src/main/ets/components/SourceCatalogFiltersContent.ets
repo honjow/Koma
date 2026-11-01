@@ -28,9 +28,9 @@ export struct SourceCatalogFiltersContent {
   }
 
   private setLanguage(language: string, enabled: boolean): void {
-    const selected = (this.filters.languages ?? this.languages).filter((code: string): boolean => code !== language)
-    if (enabled) selected.push(language)
-    this.save(selected.length === this.languages.length ? undefined : selected, this.filters.rating)
+    void this.filters.setLanguage(language, enabled, this.languages).catch((): void => {
+      this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_catalog_filter_save_failed') })
+    })
   }
 
   @Builder
@@ -56,7 +56,11 @@ export struct SourceCatalogFiltersContent {
         GroupedListSection({ title: AppStrings.get('source_catalog_languages') }) {
           ConciseListRow({ title: AppStrings.get('source_catalog_all_languages'), hasSwitch: true,
             checked: this.filters.languages === undefined,
-            switchAction: (enabled: boolean): void => { this.save(enabled ? undefined : [], this.filters.rating) } })
+            switchAction: (enabled: boolean): void => {
+              void this.filters.setAllLanguages(enabled).catch((): void => {
+                this.getUIContext().getPromptAction().showToast({ message: AppStrings.get('source_catalog_filter_save_failed') })
+              })
+            } })
           ForEach(this.languages, (language: string) => {
             ListDivider()
             ConciseListRow({ title: sourceLanguageName(language) || AppStrings.get('source_catalog_language_unknown'),

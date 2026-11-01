@@ -2,7 +2,7 @@ import { parseSourceIndexCacheTask, parseSourceIndexDocumentTask, SourceIndexMet
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
 import {
-  SourceIndexEntry, SourceIndexRepository, SourceIndexMetadataCacheRecord, SourceIndexMetadataCacheDocument,
+  SourceIndexEntry, SourceIndexRepository, SourceRepositoryMetadata, parseSourceRepositoryMetadata, SourceIndexMetadataCacheRecord, SourceIndexMetadataCacheDocument,
   SOURCE_INDEX_METADATA_RECORD_LIMIT, SOURCE_INDEX_METADATA_CACHE_LIMIT,
   normalizeIndexUrl, resolveIndexDocumentUrl, isValidHttpUrl, normalizeSourceIndexRepository,
   normalizeSourceIndexRepositories, serializeSourceIndexRepositories, safeResolvePkgUrl,
@@ -47,6 +47,7 @@ export interface SourceIndexFetchResult {
   ok: boolean
   reasonCode?: string
   entries: SourceIndexEntry[]
+  metadata?: SourceRepositoryMetadata
 }
 
 export interface SourceIndexInstallResult {
@@ -362,7 +363,9 @@ export class SourceIndexService {
           const repositories = await this.savedRepositories(store)
           let next: SourceIndexRepository[] | undefined = undefined
           if (isValidHttpUrl(normalized)) {
-            const updated: SourceIndexRepository[] = [{ url: normalized, lastUsedAt: Date.now() }]
+            const saved = repositories.find((item: SourceIndexRepository): boolean => item.url === normalized)
+            const updated: SourceIndexRepository[] = [{ url: normalized, lastUsedAt: Date.now(),
+              customName: saved?.customName, name: saved?.name, website: saved?.website }]
             repositories.forEach((repository: SourceIndexRepository) => {
               if (repository.url !== normalized) updated.push(repository)
             })
@@ -375,6 +378,63 @@ export class SourceIndexService {
         }
       })
     })
+  }
+
+  // Same-directory, optional repository metadata (Mihon-style field names).
+  // It cannot change catalog/package provenance and never blocks installation.
+  async fetchRepositoryMetadata(indexUrl: string): Promise<SourceRepositoryMetadata | undefined> {
+    const documentUrl = resolveIndexDocumentUrl(indexUrl)
+    if (!isValidHttpUrl(documentUrl)) return undefined
+    const request = http.createHttp()
+    try {
+      const response = await request.request(documentUrl.substring(0, documentUrl.lastIndexOf('/') + 1) + 'repo.json', {
+        method: http.RequestMethod.GET, expectDataType: http.HttpDataType.STRING,
+        usingCache: false, readTimeout: 5000, connectTimeout: 5000,
+      })
+      if (response.responseCode !== 200) return undefined
+      const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+      if (body.length > 16384) return undefined
+      return parseSourceRepositoryMetadata(JSON.parse(body) as Object)
+    } catch (_error) { return undefined } finally { request.destroy() }
+  }
+
+  async saveRepository(url: string, customName: string, metadata?: SourceRepositoryMetadata,
+    previousUrl?: string): Promise<SourceIndexRepository[]> {
+    return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexRepository[]> => this.ordered(async (): Promise<SourceIndexRepository[]> => {
+      const normalized = normalizeIndexUrl(url)
+      const previous = previousUrl === undefined ? undefined : normalizeIndexUrl(previousUrl)
+      if (!isValidHttpUrl(normalized)) throw new Error('invalid_url')
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const repositories = await this.savedRepositories(store)
+      const original = previous === undefined ? undefined : repositories.find((item: SourceIndexRepository): boolean => item.url === previous)
+      if (previous !== undefined && original === undefined) throw new Error('repository_removed')
+      if (repositories.some((item: SourceIndexRepository): boolean => item.url !== previous &&
+        resolveIndexDocumentUrl(item.url) === resolveIndexDocumentUrl(normalized))) throw new Error('repository_exists')
+      const sameDocument = original !== undefined && resolveIndexDocumentUrl(original.url) === resolveIndexDocumentUrl(normalized)
+      const repository: SourceIndexRepository = { url: normalized, lastUsedAt: original?.lastUsedAt ?? Date.now(),
+        customName: customName.trim().slice(0, 120) || undefined,
+        name: metadata !== undefined ? metadata.name : (sameDocument ? original?.name : undefined),
+        website: metadata !== undefined ? metadata.website : (sameDocument ? original?.website : undefined) }
+      const next = original === undefined ? repositories.concat(repository) : repositories.map((item: SourceIndexRepository): SourceIndexRepository =>
+        item.url === previous ? repository : item)
+      const active = normalizeIndexUrl(await this.savedUrl(store))
+      await this.commitSavedPreferences(store, next, previous === undefined || active === previous ? normalized : undefined)
+      return next
+    }))
+  }
+
+  async refreshRepositoryMetadata(repository: SourceIndexRepository): Promise<void> {
+    const metadata = await this.fetchRepositoryMetadata(repository.url)
+    if (metadata === undefined) return
+    await BackupRestoreActivity.runWrite(async (): Promise<void> => this.ordered(async (): Promise<void> => {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const saved = await this.savedRepositories(store)
+      const next = saved.map((item: SourceIndexRepository): SourceIndexRepository => item.url !== repository.url ? item : {
+        url: item.url, lastUsedAt: item.lastUsedAt, customName: item.customName,
+        name: metadata.name, website: metadata.website,
+      })
+      if (JSON.stringify(next) !== JSON.stringify(saved)) await this.commitSavedPreferences(store, next)
+    }))
   }
 
   async clearUrl(): Promise<void> {
@@ -440,7 +500,7 @@ export class SourceIndexService {
       DiagnosticLogger.info('source_index', 'fetch_ok', '[SourceIndex] step=fetch_ok count=' + entries.length)
       // Start persistence without awaiting disk IO before publishing metadata.
       this.persistIndexMetadata(normalizedUrl, cacheRevision, entries).catch((): void => {})
-      return { ok: true, entries }
+      return { ok: true, entries, metadata: parsed.metadata }
     } catch (error) {
       const e = error as BusinessError
       DiagnosticLogger.error('source_index_service', 'fetch_error', '[SourceIndex] step=fetch_error code=' + e.code)

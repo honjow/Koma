@@ -331,11 +331,8 @@ export function createLibraryUpdateNotificationSummary(summary: LibraryUpdateSum
 }
 
 export function formatLibraryUpdateNotificationSummary(summary: LibraryUpdateSummary): string {
-  const notificationSummary = createLibraryUpdateNotificationSummary(summary)
-  if (notificationSummary.failureCodes.length === 0) {
-    return notificationSummary.summaryText
-  }
-  return `${notificationSummary.summaryText} · ${notificationSummary.failureCodes.join(',')}`
+  // Failure codes belong to the saved diagnostic result, not notification copy.
+  return createLibraryUpdateNotificationSummary(summary).summaryText
 }
 
 export async function publishLibraryUpdateNotification(summary: LibraryUpdateSummary): Promise<LibraryUpdateNotificationDispatchResult> {
@@ -353,10 +350,9 @@ export async function publishLibraryUpdateFailureNotification(
   checkedAt: number,
   failureCode: string,
 ): Promise<LibraryUpdateNotificationDispatchResult> {
-  const safeFailureCode = redactLibraryUpdateFailureCode(failureCode)
   return publishLibraryUpdateNotificationText(
     AppStrings.get('library_update_notification_failed_title'),
-    safeFailureCode,
+    AppStrings.get('library_updates_check_failed'),
     checkedAt,
   )
 }

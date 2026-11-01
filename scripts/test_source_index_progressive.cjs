@@ -905,3 +905,37 @@ test('filter selections compose during slow writes, persist across cold reads an
   assert.deepEqual(Array.from(cold.languages),['en','zh-Hant']);assert.equal(cold.rating,'safe')
   assert.equal(JSON.parse(saved).rating,'safe')
 })
+
+// Regression from the device: model-driven All=false must not clear the selection.
+test('language toggle echoes do not clear unrelated selections', async () => {
+ let saved='{}';const store={get:async()=>saved,put:async(_k,v)=>{saved=v},flush:async()=>{}}
+ const bindings={preferences:{getPreferences:async()=>store},...presentation,...productionModule('model/BackupRestoreActivity.ets')}
+ const {SourceCatalogFilterState}=productionModule('state/SourceCatalogFilterState.ets',bindings)
+ const state=new SourceCatalogFilterState();await state.prepare({})
+ const available=['en','zh','zh-Hans','zh-Hant']
+ await state.setLanguage('en',false,available);await state.setAllLanguages(false)
+ assert.deepEqual(Array.from(state.languages),available.slice(1))
+ await state.setLanguage('zh-Hans',false,available);await state.setAllLanguages(false)
+ assert.deepEqual(Array.from(state.languages),['zh','zh-Hant'])
+ await state.setLanguage('en',true,available);await state.setAllLanguages(false)
+ assert.deepEqual(Array.from(state.languages),['zh','zh-Hant','en'])
+ await state.setLanguage('zh-Hans',true,available);await state.setAllLanguages(true)
+ assert.equal(state.languages,undefined)
+ await state.setAllLanguages(false);for(const code of available)await state.setLanguage(code,false,available)
+ assert.deepEqual(Array.from(state.languages),[])
+ const cold=new SourceCatalogFilterState();await cold.prepare({});assert.deepEqual(Array.from(cold.languages),[])
+})
+
+test('repository name changes publish through the cache revision without replacing catalog rows', async () => {
+ const service={loadSavedUrl:async()=>'',loadSavedRepositories:async()=>[],loadCachedIndex:async()=>undefined}
+ const cache=retainedCache(service);cache.sourceIndexUrl='https://repo.test/index.json'
+ const rows=cache.indexEntries,revision=cache.revision
+ cache.rememberSavedIndex(cache.sourceIndexUrl,[{url:cache.sourceIndexUrl,lastUsedAt:1,name:'Publisher'}])
+ assert.ok(cache.revision>revision);assert.equal(cache.indexEntries,rows)
+ const next=cache.revision
+ cache.rememberSavedIndex(cache.sourceIndexUrl,[{url:cache.sourceIndexUrl,lastUsedAt:1,name:'Publisher',customName:'Mine'}])
+ assert.ok(cache.revision>next);assert.equal(cache.indexEntries,rows)
+ const unchanged=cache.revision
+ cache.rememberSavedIndex(cache.sourceIndexUrl,cache.sourceIndexRepositories.slice())
+ assert.equal(cache.revision,unchanged)
+})

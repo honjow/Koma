@@ -16,7 +16,7 @@ function homepageGuard(){
 }
 function harness(store=new Map()){
  let requests=[],flushes=0,failFlush=false,gate
- const pref={async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
+ const pref={async has(k){return store.has(k)},async delete(k){store.delete(k)},async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
  const exports={}
  const serviceSource=fs.readFileSync(sourcePath,'utf8')
  const workerSource=(fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadata.ets'),'utf8')+'\n'+fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadataWorker.ets'),'utf8')).replace('const SOURCE_INDEX_REPOSITORY_LIMIT','const WORKER_REPOSITORY_LIMIT').replaceAll('SOURCE_INDEX_REPOSITORY_LIMIT','WORKER_REPOSITORY_LIMIT')
@@ -105,4 +105,30 @@ test('homepage persists with cached metadata and icon adoption without changing 
  assert.equal(entry.homepage,homepage);assert.equal(entry.webSessionOrigins,undefined)
  const rejected=await fetched(h,s,'https://index.test/',[item('B',{homepage:'javascript:alert(1)'})])
  assert.equal(rejected.ok,true);assert.equal(rejected.entries[0].homepage,undefined)
+})
+
+// Subscription metadata is optional and never rewrites catalog/package origins.
+test('repository names survive automatic checks and editing is atomic',async()=>{
+ const h=harness(),s=h.make(),a='https://example.test/repo',b='https://other.test/repo'
+ let repos=await s.saveRepository(a,'',{name:'Official name',website:'https://project.test/'})
+ assert.equal(repos[0].name,'Official name');assert.equal(repos[0].customName,undefined)
+ await s.saveUrl(a);repos=await s.loadSavedRepositories();assert.equal(repos[0].name,'Official name')
+ await s.saveRepository(a,'My name',undefined,a)
+ assert.equal((await s.loadSavedRepositories())[0].customName,'My name')
+ await s.saveRepository(a,'',undefined,a);assert.equal((await s.loadSavedRepositories())[0].name,'Official name')
+ const before=JSON.stringify([...h.store]);let failures=1;h.pref.flush=async()=>{if(failures-->0)throw Error('disk')}
+ await assert.rejects(s.saveRepository(b,'Renamed',{name:'Other'},a));assert.equal(JSON.stringify([...h.store]),before)
+ h.pref.flush=async()=>{};await s.saveRepository(b,'Renamed',{name:'Other'},a)
+ const cold=harness(h.store).make();repos=await cold.loadSavedRepositories()
+ assert.equal(repos.length,1);assert.equal(repos[0].url,b);assert.equal(repos[0].name,'Other');assert.equal(repos[0].website,undefined)
+ assert.equal(await cold.loadSavedUrl(),b)
+})
+test('wrapped metadata and optional sidecar parse safely without requiring either',async()=>{
+ const h=harness(),s=h.make(),url='https://example.test/repo/'
+ let r=await fetched(h,s,url,{meta:{name:'Publisher',website:'https://project.test/'},sources:[item()]})
+ assert.equal(r.metadata.name,'Publisher');assert.equal(r.entries[0].id,'A')
+ assert.equal((await fetched(h,s,url,[item()])).metadata,undefined)
+ const sidecar=s.fetchRepositoryMetadata(url);h.requests.shift()({responseCode:200,result:JSON.stringify({meta:{name:'From repo',website:'javascript:alert(1)'}})})
+ assert.deepEqual(JSON.parse(JSON.stringify(await sidecar)),{name:'From repo'})
+ const missing=s.fetchRepositoryMetadata(url);h.requests.shift()({responseCode:404,result:''});assert.equal(await missing,undefined)
 })

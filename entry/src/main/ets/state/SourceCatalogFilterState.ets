@@ -56,6 +56,22 @@ export class SourceCatalogFilterState {
 
   get active(): boolean { return this.languages !== undefined || this.rating !== 'all' }
 
+  // HDS switches also report model-driven changes. A partial selection turns
+  // the All switch off; that echo must not become a request to clear the list.
+  setAllLanguages(enabled: boolean): Promise<void> {
+    if (enabled === (this.languages === undefined)) return Promise.resolve()
+    return this.save({ languages: enabled ? undefined : [], rating: this.rating })
+  }
+
+  setLanguage(language: string, enabled: boolean, available: string[]): Promise<void> {
+    const code = sourceCatalogLanguage(language)
+    if (enabled === (this.languages === undefined || this.languages.includes(code))) return Promise.resolve()
+    const selected = (this.languages ?? available).filter((value: string): boolean => value !== code)
+    if (enabled) selected.push(code)
+    return this.save({ languages: available.every((value: string): boolean => selected.includes(value))
+      ? undefined : selected, rating: this.rating })
+  }
+
   save(value: SourceCatalogFilters): Promise<void> {
     const next = normalizedFilters(value)
     const context = this.context

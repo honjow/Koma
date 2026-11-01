@@ -107,6 +107,7 @@ export class SourcePackageManagerCache {
     if (repositories !== undefined) {
       if (url === this.sourceIndexUrl) {
         const oldUrls = this.sourceIndexUrlsForUpdate(url)
+        const repositoriesChanged = JSON.stringify(this.sourceIndexRepositories) !== JSON.stringify(repositories)
         this.sourceIndexRepositories = repositories
         const savedUrls = this.sourceIndexUrlsForUpdate(url)
         oldUrls.forEach((old: string): void => {
@@ -115,10 +116,13 @@ export class SourcePackageManagerCache {
         savedUrls.forEach((saved: string): void => { this.removedSavedIndexes.delete(saved) })
         const statuses = this.packageUpdateStatuses.filter((status: SourcePackageUpdateStatus): boolean =>
           status.remoteIndexUrl === undefined || !this.removedSavedIndexes.has(status.remoteIndexUrl.trim()))
-        if (statuses.length !== this.packageUpdateStatuses.length) {
+        const statusesChanged = statuses.length !== this.packageUpdateStatuses.length
+        if (statusesChanged) {
           this.packageUpdateStatuses = statuses
-          this.revision += 1
         }
+        // Repository DTOs intentionally are not @Trace. Publish through the
+        // shared revision, including name-only edits and background metadata.
+        if (repositoriesChanged || statusesChanged) this.revision += 1
       }
       return
     }

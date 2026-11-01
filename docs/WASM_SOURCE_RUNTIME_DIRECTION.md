@@ -8,7 +8,7 @@
 
 | 所有者 | 当前职责 |
 | --- | --- |
-| SourceIndexService / SourceIndexMetadata | 索引获取、合并、缓存及更新候选 |
+| SourceIndexService / SourceIndexMetadata | 索引获取、合并、缓存、订阅身份及更新候选 |
 | SourcePackageImporter / SourcePackageMetadata | 包结构、元数据、图标与 WASM 校验；复用无 UI 的元数据规则 |
 | SourceRuntimeRegistry / SourceRuntimeAppRegistry | 已安装身份、启用状态及持久化 |
 | SourceRuntimeService | 当前源身份/能力/请求/设置/网页会话的准入及结果校验 |
@@ -20,6 +20,12 @@
 | SourceSettingObservationStore / SourceSettingObservationFile | 本源公开设置候选的进程快照、串行后台提交及卸载/备份生命周期；不改用户选择或内容缓存身份 |
 | SourceChapterListResolver / SourceChapterVisibility / SourceMangaDetailSnapshotCache | 当前完整目录及源明确排除的显示投影；保留库章节/下载/进度，按安装及设置身份缓存 |
 | SourceMangaMigration / SourceMangaMigrationService | 跨源作品匹配、已读对应与目标先提交；复用原书库、阅读记录和追踪持久化所有者 |
+
+## 订阅身份
+
+- 安装索引保留数组及既有包/图标相对地址；同目录可选 `repo.json` 的 `meta.name`、`meta.website` 提供订阅名称及 HTTP(S) 项目页，对象式索引也可内含同结构 `meta`。这不改变源包归属、网络权限或会话范围。
+- 订阅名称可选，显示顺序为用户自定义名、发布者名称、订阅地址；项目页不存在时不展示无效动作。元数据与自定义名随既有订阅偏好持久保存，后台检查不覆盖用户名称。
+- 名称编辑不请求索引；地址修改先验证新索引，再原子替换订阅及活动地址，失败保留原订阅。名称补全在订阅页后台进行，可下拉同步，失败保留已有信息，不阻止旧版索引使用。
 
 ## 内容与准备
 

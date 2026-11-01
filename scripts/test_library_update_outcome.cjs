@@ -56,7 +56,7 @@ const helperNodes = serviceFile.statements.filter((node) => helperNames.includes
 assert.equal(helperNodes.length, helperNames.length)
 const service = compile(helperNodes.map((node) => node.getText(serviceFile)).join('\n') +
   '\nexport { safeLibraryUpdateFailureCode }', {})
-const strings = { AppStrings: { get: (key) => key } }
+const strings = { AppStrings: { get: (key) => key, format: (key,...args) => key+':'+args.join(',') } }
 const prefs = compile(source('LibraryUpdatePreferencesStore'), {
   '@kit.ArkData': arkData, '../i18n/AppStrings': strings,
 })
@@ -68,6 +68,11 @@ const result = compile(source('LibraryUpdateResultStore'), {
   './LibraryUpdateService': service, './LibraryUpdatePreferencesStore': prefs,
   '../common/Constants': {}, '../i18n/AppStrings': strings,
 })
+
+const failureNotice={checkedAt:1,totalCount:4,updatedCount:0,unchangedCount:0,skippedCount:0,failedCount:4,
+  results:[{status:'failed',message:'unknown'}]}
+assert.equal(result.formatLibraryUpdateNotificationSummary(failureNotice), 'library_update_summary_counts:0,0,4')
+assert.deepEqual(result.createLibraryUpdateNotificationSummary(failureNotice).failureCodes,['unknown'])
 
 const checkedAt = 1800000000000
 function summary(statuses, time = checkedAt) {

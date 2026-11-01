@@ -18,6 +18,24 @@ export interface SourceIndexMetadataCacheDocument {
 export interface SourceIndexRepository {
   url: string
   lastUsedAt: number
+  customName?: string
+  name?: string
+  website?: string
+}
+
+export interface SourceRepositoryMetadata { name?: string; website?: string }
+
+export function parseSourceRepositoryMetadata(raw: Object): SourceRepositoryMetadata | undefined {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const meta = (raw as Record<string, Object>)['meta'] as Record<string, Object>
+  if (meta === null || meta === undefined || typeof meta !== 'object' || Array.isArray(meta)) return undefined
+  const name = safeString(meta['name']).trim().slice(0, 120)
+  const website = normalizeSourceHomepage(meta['website'])
+  return { name: name || undefined, website }
+}
+
+export function sourceRepositoryDisplayName(repository: SourceIndexRepository): string {
+  return repository.customName || repository.name || repository.url
 }
 
 interface SourceIndexHttpUrl {
@@ -138,6 +156,9 @@ export function normalizeSourceIndexRepository(value: Object): SourceIndexReposi
   return {
     url,
     lastUsedAt: normalizeRepositoryLastUsedAt(record['lastUsedAt']),
+    customName: safeString(record['customName']).trim().slice(0, 120) || undefined,
+    name: safeString(record['name']).trim().slice(0, 120) || undefined,
+    website: normalizeSourceHomepage(record['website']),
   }
 }
 
