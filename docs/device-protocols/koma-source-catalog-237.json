@@ -5,15 +5,15 @@
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "db-overlay-source-ready-283",
+  "runId": "db-overlay-power-restored-306",
   "display": {
     "widthPx": 1320,
     "heightPx": 2120
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "candidate079 DB overlay host plus source WASM8d206cdd",
-    "page": "Observe completion of the single ordinary DB browse request without retrying",
+    "codeIdentity": "original237.hap after DB079/080",
+    "page": "Restore fresh273 original no-override screen policy and sleep; independently read final power state",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
@@ -21,47 +21,48 @@
     "resolution": "1320x2120",
     "notes": "197 user-owned. Restore fresh273 original HAP,DB four members,seven JSON/18prefs,120000/noOverride/SLEEP; remove only this candidate download."
   },
-  "preflight": [],
+  "preflight": [
+    {
+      "name": "restore-no-override",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-r"
+      ]
+    },
+    {
+      "name": "sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ],
+      "pauseAfterMs": 200
+    }
+  ],
   "measurement": {
     "actions": []
   },
   "postflight": [
     {
-      "name": "layout",
+      "name": "confirm-no-override",
       "hdcArgs": [
         "shell",
-        "uitest",
-        "dumpLayout",
-        "-p",
-        "/data/local/tmp/db-overlay-source-ready-283.json"
+        "power-shell",
+        "timeout",
+        "-r"
       ]
     },
     {
-      "name": "receive-layout",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/local/tmp/db-overlay-source-ready-283.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/db-overlay-source-ready-283/layout.json"
-      ]
-    },
-    {
-      "name": "screen",
+      "name": "final-power",
       "hdcArgs": [
         "shell",
-        "uitest",
-        "screenCap",
-        "-p",
-        "/data/local/tmp/db-overlay-source-ready-283.png"
-      ]
-    },
-    {
-      "name": "receive-screen",
-      "hdcArgs": [
-        "file",
-        "recv",
-        "/data/local/tmp/db-overlay-source-ready-283.png",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/db-overlay-source-ready-283/screen.png"
+        "hidumper",
+        "-s",
+        "PowerManagerService",
+        "-a",
+        "-s"
       ]
     }
   ]

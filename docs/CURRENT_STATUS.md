@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：书源称呼、封面宽度和系统四点入口已实机核验；继续修复DB Multiverse带气泡章节的正文。
+当前工作：DB正文、离线与CBZ修复已交付；两处界面更正和动漫屋图标候选待用户决定。
 
-设备：197由用户当前使用，不注入操作或覆盖新数据；237正在验证DB正文，前两轮已恢复并释租。200禁止操作，四私库搁置。
+设备：197由用户当前使用，不注入操作或覆盖新数据；237本轮原包、数据和电源已恢复并释租。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T14:25:23+08:00",
+  "updatedAt": "2026-11-01T15:02:03+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
-  "activity": "书源用词和系统四点入口已核，237已恢复；继续DB Multiverse气泡正文接线。",
-  "nextAction": "核书源用词最终CI，审DB正文气泡的阅读及离线处理链。",
+  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
+  "activity": "DB修复已交付；短笔记/LLM入口和动漫屋图标候选待用户决定。",
+  "nextAction": "按用户对已准备界面候选的决定接续；账号及指定站点未知范围保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -3332,7 +3332,7 @@
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "open",
-      "status": "DB气泡候选编译完成，正在237普通入口验证",
+      "status": "DB117已交付；Noy账号范围未验",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3342,11 +3342,10 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "237已安装Noy公开版本并显示登录入口；用户目前没有账号，登录后内容及镜像未验。 本轮新增实测：DB Multiverse章117目录可取得、正文请求失败，源与Host根因尚未归因，未关闭该失败。 source_terra本轮核固定参考：DB参考会绘制HTML气泡文字；当前011源保留遇气泡拒绝整章的既定保护。章117两次HTTP实际200，受控分支响应长度相同只作线索，实际错误码仍未直接读到。 原source_terra本机以已发布DB0.1.1真实WASM执行一次117章get_pages，两GET均200，精确错误unsupported_chapter_overlay，首个页面含#balloonsimg/.balloon。此为本机本次，不冒237旧次错误对象。参考叠绘气泡，当前宿主无叠绘/离线描述合同，保护未放开。 DB候选已接严格坐标、后台原图叠绘、页表/下载描述和阅读预载消费；079编译成功，实际画面尚未验证。",
-      "remaining": "完成DB117普通正文、保存及离线具名核验；Noy用户无账号的登录后范围保留未验。",
+      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。",
+      "remaining": "Noy登录后内容与镜像未验；用户目前没有账号。",
       "remainingActions": [
-        "完成DB117普通正文、保存及离线具名核验并交付。",
-        "Noy用户无账号，不代注册或轮询。"
+        "取得用户后续真实认证条件后，接续Noy登录后内容与镜像；不代注册或轮询。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
@@ -3356,7 +3355,7 @@
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "待继续核对",
+      "stage": "DB已交付，保留账号依赖",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3644,7 +3643,12 @@
         "237正式0.1.9：005普通导入成功，registry版本及唯一 https://noymanga.com origin正确；006 ZIP/WASM与公开实体逐字相等；010菜单“网页验证 / 登录”，011布局显示NoyAcg/登入，未输入账号。002→012 library、reader、settings、filters、web-sessions五域逐字相等，registry sourceIds相同且仅Noy从0.1.5升0.1.9，Host未换。013最终SLEEP/120000无override，两租约22383f87/758516da released，下载已清；保留正式0.1.9，不回装旧015或覆盖未来Cookie。稳定证据 .hvigor/outputs/user-flow-audit/source-settings-repair/noyacg-reference-mirror-20261030/search-019/device237-delivery.json。",
         "用户最新明确目前没有Noy账号；不代建账号，237保留正式0.1.9及登录入口，不将未执行的账号内容验收写成通过。",
         "source-settings-repair/dbmultiverse-ch117-20261101/evidence.json：本机单次真实WASM结构化unsupported_chapter_overlay，两GET200；参考949 DbMultiverse.kt132–225与现有SourceTextPageRenderer/SourceBaoziBannerService边界已对照。",
-        "Root审SourceTextOverlayService、页表/清单/Reader consumer；host-root-check.txt实际存取及失败传播执行通过；build078为并发期间中间包不作最终身份，冻结后build079成功。生产源WASM8d206cddf4124992e6f6968eb03ccc8fdf8381b4f22f9157dba1f948239ddd19，包candidate/dbmultiverse-overlay-011.koma；237 fresh273已存原DB四成员/七JSON及18prefs并解锁常亮；274已安装079普通管理入口，尚未章117正文验收。"
+        "Root审SourceTextOverlayService、页表/清单/Reader consumer；host-root-check.txt实际存取及失败传播执行通过；build078为并发期间中间包不作最终身份，冻结后build079成功。生产源WASM8d206cddf4124992e6f6968eb03ccc8fdf8381b4f22f9157dba1f948239ddd19，包candidate/dbmultiverse-overlay-011.koma；237 fresh273已存原DB四成员/七JSON及18prefs并解锁常亮；274已安装079普通管理入口，尚未章117正文验收。",
+        "237 source-catalog：288/289线上第1/4及2/4页实图亲审，289/library.json四页overlay持久读回；297下载4/4、原始四图和manifest.v1.json保1/5/11/1气泡；080只新增CBZ消费，302真实系统CBZ面板未发送，304 app-sandbox接收实际CBZ(4JPEG+ComicInfo)，00002.jpg亲审与原图同800x1131、对白完整，captionInteriorComparison原图0/导出711黑像素；304离线重进第2/4页亲审。295直接cache file recv系统permission denied且无文件，保失败，不计字节通过；本轮实际CBZ已用-b取得。",
+        "305/restoration-comparison.json：原包明确安装成功，fresh273七JSON+18prefs+DB原四成员均逐字相同，无extra；本场新增DB下载目录/导入目录/候选文件/CBZ副本精确清理；306 SLEEP/120000/noOverride，lease20261101-061934-230f452f released。Host5cfcb808已提交正推送；源正式0.1.2由原source_terra交付中。",
+        "源b8111622805bf7f6c7cd440e208825dd013c6a9f正式0.1.2、精确CI41282098661 success；公开index/manifest及包791e02a6ccbfc038cfc231fd8344e12067c4864d7553ab0699f807d25a4907f1已核，公开WASM独立实际执行能力协商/描述/无气泡兼容/非法坐标保护。见delivery-012/evidence.json；公开产物字节不同，237属于079/080发布前候选范围，不冒同字节验证。Host5cfcb808e132cc812d556e033ffafbbd8168a948已推，精确CI41282246019运行。",
+        "本轮完整交付绑定见 source-settings-repair/dbmultiverse-ch117-20261101/host-delivery-binding.json；Host CI运行中，原源码和设备范围不外推。",
+        "Host5cfcb808e132cc812d556e033ffafbbd8168a948精确CI41282246019 completed/success，Release构建/Inspect/Upload成功，标签发布skipped；host-ci-final.json及host-delivery-binding.json保存。DB已交付，Noy无账号边界不冒通过。"
       ]
     },
     {
@@ -5108,13 +5112,13 @@
       "kind": "open",
       "priority": "P2",
       "owner": "source_terra：原书源分工",
-      "status": "官网小图发糊，继续找高清原件",
+      "status": "清晰参考候选待用户决定",
       "reportedAt": null,
       "reportedAtSource": "本轮用户直接反馈；原消息精确时间未提供，不以登记时刻冒充。",
-      "result": "正式0.1.24已改成官网32×32 favicon，但用户实测明显模糊；原浅深色可见不构成图标质量通过。原source_terra继续找官方高清品牌或普通App原件。",
-      "remaining": "取得可追溯高清官方图源，替换模糊小图并核实际显示。",
+      "result": "当前官网32px图模糊。固定参考192px方图使用与官网一致的完整DM5字标，但有白色圆角底，制作原出处未核，未擅自替换。",
+      "remaining": "等待用户对现成参考候选的决定；不把参考图冒作官网高清原件。",
       "remainingActions": [
-        "取得可追溯高清官方图源，替换模糊小图并核实际显示。"
+        "用户同意后替换参考原图并核实际显示；否则保留当前图继续取得官方原件。"
       ],
       "boundaries": [
         "197由用户使用，禁止操作；不自绘或凭第三方图替换。"
@@ -5126,7 +5130,8 @@
         "source-settings-repair/source-brand-icons-20261101/dm5-public/evidence.json",
         "koma-sources a24440c74b7b66b590bcb436268115217ed73dbe；精确CI41271023010成功；公开0.1.24 index/manifest与图标实体已核。",
         "category-membership/source-brand237-dm5-light-20261101-008、source-brand237-dm5-dark-20261101-015；sourceowner原包数据/主题/电源恢复及释租已核。",
-        "用户本轮直接反馈：动漫屋新图标太糊；原32×32 favicon放大候选不作为合格交付。"
+        "用户本轮直接反馈：动漫屋新图标太糊；原32×32 favicon放大候选不作为合格交付。",
+        "dm5-hd-research/evidence.json已核官网32favicon、官网204x50完整字标、固定949192白底图三者实际差异；参考主体134x32，原件SHA82c9211665ba0f8141f7cbb97fafe3c2c2915f71d1918534c4f0f0a22a0a96a3，原始制作出处未核。dm5-reference-candidate.png逐字复制原图供决定，未改源或设备。"
       ],
       "closedAt": null,
       "reopenedAt": "2026-11-01T12:02:15+08:00"
@@ -13602,6 +13607,36 @@
       "itemId": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
       "title": "封面宽度统一已交付",
       "detail": "普通路径与设备恢复已核，最终CI成功；此项关闭，不重跑已接受路径。"
+    },
+    {
+      "at": "2026-11-01T14:36:33+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB117正文已实际恢复",
+      "detail": "第1页标题及第2页五处对白已显示，四页描述已保存；分享面板已核但取证文件接收受拒，正在核下载与离线输出。"
+    },
+    {
+      "at": "2026-11-01T14:48:32+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB正文和离线导出已实际验证",
+      "detail": "在线对白、4页下载、离线重开及实际CBZ均已核；237原包、数据和电源已恢复并释租，正在交付。"
+    },
+    {
+      "at": "2026-11-01T14:53:12+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB书源正式交付成功",
+      "detail": "正式书源已公开且合同执行通过；已核验的App候选保留，App精确CI仍运行，不再发布App版本。"
+    },
+    {
+      "at": "2026-11-01T14:53:12+08:00",
+      "itemId": "SOURCE_DM5_ICON_IDENTITY",
+      "title": "动漫屋取得现成参考候选",
+      "detail": "已与官网字标对照，白底方形图来自固定参考且原出处未核；具体替换等待用户决定。"
+    },
+    {
+      "at": "2026-11-01T15:02:03+08:00",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "title": "DB正文修复交付完成",
+      "detail": "App精确CI和正式书源公开资产均成功；正文、离线和实际CBZ已有具名证据。Noy无账号范围仍未验。"
     }
   ],
   "reportAgeAudit": {
