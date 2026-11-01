@@ -15,7 +15,7 @@
 ## 截图
 
 | 书架 | 漫画详情 | 阅读器 |
-| --- | --- | --- |
+| :---: | :---: | :---: |
 | ![书架](docs/screenshots/library.png) | ![漫画详情](docs/screenshots/manga-detail.png) | ![阅读器](docs/screenshots/reader.png) |
 | **浏览** | **书源管理** | **设置** |
 | ![浏览](docs/screenshots/browse.png) | ![书源管理](docs/screenshots/source-manager.png) | ![设置](docs/screenshots/settings.png) |
