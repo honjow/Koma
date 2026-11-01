@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：短笔记展开条件与LLM入口标题已交付；动漫屋高清图标已随书源更新发布。账号与指定站点的未解决范围继续保留。
+当前工作：漫画160具名加载修复、设置配色、订阅说明与237截图已交付；书架按源搜索保留讨论，其余未关项继续保留。
 
 设备：197由用户当前使用，不注入操作或覆盖新数据；237本轮原包、数据和电源已恢复并释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "持续核验与修复中",
+  "state": "本轮交付完成，保留未关事项",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T20:25:25+08:00",
+  "updatedAt": "2026-11-01T21:29:55+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "FEATURE_PARITY_IMPLEMENTATION",
-  "activity": "短笔记展开、LLM入口标题已交付，动漫屋高清图标已随书源更新发布。",
-  "nextAction": "保留无账号与指定站点未解决范围；只按真实条件变化接续，不重跑本轮已通过路径。",
+  "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
+  "activity": "漫画160具名加载、设置配色、订阅说明和237截图已交付；书架按源搜索保留讨论。",
+  "nextAction": "讨论书架按源搜索的语法与范围；其余未关项仍按原证据和实际条件接续。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,8 +61,8 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "Koma/master fc0f4e7fda8a34c665a03be3c8a5bbe37f618af6，精确CI41239344597成功。",
-      "hap": "197本轮菜单材质及首次定位实测后，已恢复原包、fresh332数据和电源并释租。"
+      "appHead": "Koma/master：App代码726f2d1e精确CI41310338171成功；后续8bf7c37f仅文档/截图/协议元数据。",
+      "hap": "237具名084通过，原包/七JSON/18偏好/四源成员及电源已恢复并释租；197本轮未操作。"
     },
     {
       "name": "NextE",
@@ -5315,6 +5315,118 @@
         "Koma/master 1f6099faf67369018d9b12433ac1b2af0a57b917，精确CI41273849063 completed/success；没有发布新App、移动标签或上传AGC。"
       ],
       "closedAt": "2026-11-01T12:51:10+08:00"
+    },
+    {
+      "id": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "title": "漫画160《王牌御史》等作品加载异常",
+      "kind": "accepted",
+      "priority": "P1",
+      "owner": "source_terra：书源定位及237具名路径；Root：Host归因和交付",
+      "status": "已验收",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接反馈多部作品加载异常，并指定《王牌御史》；原消息精确时间未提供，不以登记时间冒充。",
+      "registeredAt": "2026-11-01T20:37:51+08:00",
+      "result": "故障在App宿主：官网将www详情重定向到移动站，目标没有独立会话时被错误拒绝。候选允许源已声明站点的匿名GET并隔离凭据；237已显示《王牌御史》详情、771章和第01话正文。",
+      "remaining": "本项具名加载路径已关闭；不外推所有作品或章节邻接验收。",
+      "remainingActions": [],
+      "boundaries": [
+        "保留MH160_COVER_IMAGES_REJECTED已有具名验收，不把新反馈直接归为同一原因或纯源问题。",
+        "197由用户使用不操作；237按既有完整协议验证及恢复。"
+      ],
+      "relatedItems": [
+        "MH160_COVER_IMAGES_REJECTED"
+      ],
+      "evidencePoints": [
+        "source-catalog/mh160-wangpai-query-337、mh160-wangpai-challenge-338、mh160-wangpai-detail-339：原装0.1.5搜索后详情失败。",
+        "source-catalog/mh160-wangpai-host083-346：Root凭本会话持续验收授权通过正常审批安装083，current bundle/registry/常亮读回及普通书架均已核。",
+        "source-catalog/mh160-wangpai-017-search-348、mh160-wangpai-017-detail-349：083+公开0.1.7同作仍详情失败；日志缺失事实见352。",
+        "原装0.1.5与公开0.1.7详情同样失败；mh160-wangpai-diagnostics-352日志op14/15显示www301→m被web_session_redirect_rejected，非书源版本判断。",
+        "candidate084 dcc140ff987aa9f373ac0aef8afe24f99e0e98a34c1512d4a982c44ae80c1818；mh160-wangpai-084-detail-366显示771/771，367正文、368第01话1/13；369日志301后m匿名200。Root亲审366/368，原目录位置771/771不作为已核章序证据。",
+        "Root逐字核370与fresh328七JSON及18偏好、340四源成员；原HAP安装明确success，371睡眠/120000/无override，租约已释放。",
+        "726f2d1e9464894a864ce820f2aad9003fb1946a已推Koma/master；精确CI41310338171运行中。关键会话执行测试通过，build084通过。",
+        "726f2d1e精确CI41310338171 completed/success；后续8bf7c37f只改README/截图/执行文档和协议元数据，App代码及依赖未变，不重复构建。"
+      ],
+      "stage": "具名加载故障已修复交付",
+      "closedAt": "2026-11-01T21:29:55+08:00"
+    },
+    {
+      "id": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "title": "书架按指定书源搜索与搜索语法扩展",
+      "kind": "open",
+      "priority": "P3",
+      "owner": "Root：参考核对与方案讨论",
+      "status": "已核参考，推荐并入本地搜索",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户提出搜索语法和详情书源标志跳转，明确具体实现还需讨论。",
+      "registeredAt": "2026-11-01T20:37:51+08:00",
+      "result": "Mihon详情书源名称生成src:\"源名\" lang:语言的书库查询，缺名时用srcid；其当前解析器将源、语言与书名等条件统一处理。Koma目前本地搜索不带sourceId且空词直接返回，需扩展公共查询而不是另写一页。",
+      "remaining": "与用户讨论本地书架查询的具体语法与可见范围；当前不实施。",
+      "remainingActions": [
+        "对照参考源码，向用户说明推荐接入与现有差异；讨论期间不实现UI。"
+      ],
+      "boundaries": [
+        "现存故障优先；本项当前只有讨论授权。",
+        "保留已有漏斗来源筛选与独立的仅有结果开关；不以新增功能移除现有入口。"
+      ],
+      "evidencePoints": [
+        "Mihon e588e04359fe1058206a2cbac1b01018ad787359 MangaInfoHeader.kt Source.query 与 domain/library/model/search/LibrarySearchAst.kt；Aidoku41ae2a604213d4eeb5bf19287eec675ea90e15aa LibraryFilter.swift按源过滤。",
+        "Koma MangaDetailHeader.ets书源标签当前无点击；CrossSearchService.searchLocal/LocalLibrarySearchTask不传源身份，SearchPage空query会退出。"
+      ]
+    },
+    {
+      "id": "SETTINGS_ROOT_ICON_COLORS",
+      "title": "设置首页相邻分类图标颜色重复",
+      "kind": "accepted",
+      "priority": "P2",
+      "owner": "Root：配色调整；source_terra：237同场显示核对",
+      "status": "已验收",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户直接要求优化设置根连续同色的分类图标；原消息精确时间未提供。",
+      "registeredAt": "2026-11-01T20:42:33+08:00",
+      "result": "设置首页上下两屏已核，书架紫/阅读绿、服务棕/下载蓝，存储绿/高级灰/关于蓝，相邻同色已分开；只调整四个分类颜色引用。",
+      "remaining": "无本项剩余动作。",
+      "remainingActions": [],
+      "boundaries": [
+        "用户本轮明确允许优化根页图标配色；只改书架、服务、存储、关于的色值引用，不改共享颜色、图标形状、分组、顺序、路由。"
+      ],
+      "modificationBasis": {
+        "object": "SettingsPage.createSettingsRootSections分类图标颜色",
+        "history": "原分类颜色映射在SettingsPage保留，图标与层级决定保持；本轮仅针对用户反馈的连续同色。",
+        "allowedDifference": "复用现有调色板重新分配上述四项配色，避免连续重复。"
+      },
+      "evidencePoints": [
+        "SettingsPage仅4色引用调整；build083成功，HAP90f612bd62892a69a9d78bf1887475b0168a4201087d710e8f4419d09a7c0e45已装237，fd63b813已推。",
+        "source-catalog/settings-colors-top-350、settings-colors-bottom-351：083实际设置根上下屏，Root亲看；原图标、分组、顺序和设置操作保留。CI41307996356运行中。",
+        "fd63b813精确CI41307996356完成success；237本场原包/七域数据/偏好/源包及电源恢复见source-catalog/mh160-wangpai-restore-370、mh160-wangpai-power-371；租约已释放。"
+      ],
+      "stage": "已交付",
+      "closedAt": "2026-11-01T21:19:06+08:00"
+    },
+    {
+      "id": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "title": "订阅操作说明与主库界面截图未同步",
+      "kind": "accepted",
+      "priority": "P2",
+      "owner": "Root：主库文档与交付；home_terra：书源README；source_terra：237实拍",
+      "status": "已交付",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户要求界面调整后同步订阅README，并以237截取代表界面、参考NextE表格排版；原消息精确时刻未提供。",
+      "registeredAt": "2026-11-01T21:19:06+08:00",
+      "result": "主库已补当前订阅、更新和诊断日志路径；书源README同步多订阅操作及失效说明；237已实拍书架、详情、阅读器、浏览和设置。",
+      "remaining": "无本项剩余动作。",
+      "remainingActions": [],
+      "boundaries": [
+        "只更新当前有效说明与真实截图，不改变App界面、不伪造截图或另做产品设计。",
+        "截图取237同场实拍，原包、数据、电源已恢复并释租。"
+      ],
+      "evidencePoints": [
+        "NextE/README.md截图部分使用Markdown表格；Koma/docs/screenshots五张原始PNG，来源readme-library-360、readme-detail-361、mh160-wangpai-084-controls-368、readme-browse-358、settings-colors-top-350。",
+        "koma-sources/master dfc560eda9a320559ddfe2d79703722512d8c695已推，GitHub精确提交仅README；更新当前多订阅、重试、本地导入及嗨皮84可安装目录说明。",
+        "Koma 8bf7c37f本地提交五张237原图与README；相对图片/本地链接全部存在，PNG1320x2120有效；未重新启动设备。",
+        "主库8bf7c37f已推Koma/master；README五图表格与正式docs/screenshots实体已核。源库dfc560e已推；两仓均为纯文档，未重发App或书源。"
+      ],
+      "stage": "两仓文档已同步",
+      "closedAt": "2026-11-01T21:29:55+08:00"
     }
   ],
   "source": {
@@ -13677,6 +13789,66 @@
       "itemId": "FEATURE_PARITY_IMPLEMENTATION",
       "title": "短笔记与LLM入口修正已交付",
       "detail": "两处修正实机显示已核，App CI通过；动漫屋高清图标更新也已公开。设备原包、数据及电源均恢复。无账号的追踪服务范围仍未验。"
+    },
+    {
+      "at": "2026-11-01T20:37:51+08:00",
+      "itemId": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "title": "登记漫画160具名加载问题",
+      "detail": "以《王牌御史》核失败阶段；同时登记书架按源搜索讨论，不改入口和交互。现有未关问题继续核对。"
+    },
+    {
+      "at": "2026-11-01T20:42:33+08:00",
+      "itemId": "SETTINGS_ROOT_ICON_COLORS",
+      "title": "登记并调整设置分类图标配色",
+      "detail": "复用现有颜色调整相邻重复项，候选待显示核对；漫画160故障线继续，搜索扩展仅讨论。"
+    },
+    {
+      "at": "2026-11-01T20:48:26+08:00",
+      "itemId": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "title": "漫画160核到详情失败阶段",
+      "detail": "原装书源搜索验证后可找到指定作品，但详情失败；已接当前Host与公开书源进行同作对照，尚未判定修复。设置根配色继续同场核对。"
+    },
+    {
+      "at": "2026-11-01T20:52:00+08:00",
+      "itemId": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "title": "现行漫画160仍存在详情故障",
+      "detail": "同作品在当前Host与公开书源仍失败，继续取底层原因；设置首页配色上下屏已核，等待CI和设备收尾。"
+    },
+    {
+      "at": "2026-11-01T21:19:06+08:00",
+      "itemId": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "title": "漫画160具名阅读恢复",
+      "detail": "已定位宿主重定向拒绝；237通过771章目录及首章真实正文，设备已恢复释租，修复已推送等待CI。"
+    },
+    {
+      "at": "2026-11-01T21:19:06+08:00",
+      "itemId": "SETTINGS_ROOT_ICON_COLORS",
+      "title": "设置首页配色已验收",
+      "detail": "相邻重复色已分开，保留原图标和分组；实机、CI与设备恢复完成。"
+    },
+    {
+      "at": "2026-11-01T21:19:06+08:00",
+      "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "title": "同步订阅说明与实机截图",
+      "detail": "按当前菜单更新两仓README，主库采用237五张代表界面和表格，正在审查交付。"
+    },
+    {
+      "at": "2026-11-01T21:26:11+08:00",
+      "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "title": "订阅说明与截图已提交",
+      "detail": "书源README已推送；主库五页实拍与表格已提交，等宿主CI结束后推送，避免中断当前构建。"
+    },
+    {
+      "at": "2026-11-01T21:29:55+08:00",
+      "itemId": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "title": "漫画160加载修复已交付",
+      "detail": "具名详情、771章目录和首章正文实机通过，精确CI成功；保留独立站点会话，不外推全源。"
+    },
+    {
+      "at": "2026-11-01T21:29:55+08:00",
+      "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "title": "两仓说明和实机截图已交付",
+      "detail": "当前多订阅操作、更新入口、五页237实拍及表格已推送，设备恢复完成。"
     }
   ],
   "reportAgeAudit": {
