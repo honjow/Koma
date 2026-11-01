@@ -2930,7 +2930,8 @@ function mangaDetailFromComic(comic: Comic, registry: SourceRuntimeRegistry): Ma
     sourceId: comic.sourceRuntimeId,
     sourceImageId: comic.remoteResourceId,
     sourceName: comic.sourceRuntimeId === undefined ? '' :
-      (registry.list().find((entry) => entry.sourceId === comic.sourceRuntimeId)?.manifestName?.trim() || s('library_source_package')),
+      (registry.list().find((entry) => entry.sourceId === comic.sourceRuntimeId)?.manifestName?.trim() ||
+        comic.sourceMetadata?.sourceName?.trim() || s('library_source_package')),
     url: comic.sourcePath,
     webUrl: comic.sourceMetadata?.webUrl,
   }

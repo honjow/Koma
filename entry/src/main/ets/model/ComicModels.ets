@@ -85,6 +85,8 @@ export function copyLocalImportOrigin(origin: LocalImportOrigin): LocalImportOri
  * No page URLs, source settings or session credentials belong in this snapshot.
  */
 export interface SourceMangaMetadata {
+  /** Public fallback identity survives uninstall and portable backup restore. */
+  sourceName?: string
   contentRating?: string
   artist?: string
   status?: string
@@ -96,6 +98,7 @@ export interface SourceMangaMetadata {
 
 export function copySourceMangaMetadata(value: SourceMangaMetadata): SourceMangaMetadata {
   return {
+    sourceName: value.sourceName,
     contentRating: value.contentRating,
     artist: value.artist,
     status: value.status,

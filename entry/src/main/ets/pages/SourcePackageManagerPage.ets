@@ -147,6 +147,7 @@ export struct SourcePackageManagerPage {
 
   @Param initialSettingsSourceId: string = ''
   @Event onSettingsSaved: () => void = () => {}
+  @Event onBeforeRemove: (sourceId: string, sourceName: string) => void = () => {}
   private settingsRouteActive: boolean = false
   private displayCacheRevision: number = 0
   @Local private managerCache: SourcePackageManagerCache = appSourcePackageManagerCache
@@ -1668,7 +1669,8 @@ export struct SourcePackageManagerPage {
     }
     this.busy = true
     try {
-      const removed = await remove(this.context(), source.id)
+      const removed = await remove(this.context(), source.id,
+        () => { this.onBeforeRemove(source.id, sourceDisplayName(source.id, source.name)) })
       this.statusText = removed ? t('source_pkg_removed') : t('source_pkg_unavailable')
       if (removed) {
         this.clearUpdateStatus(source.id)

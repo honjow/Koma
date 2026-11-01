@@ -6,13 +6,16 @@ const path = require('node:path')
 const ts = require(process.env.KOMA_TYPESCRIPT || '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/LibraryPersistence.ets'), 'utf8')
 const tree = ts.createSourceFile('persistence.ts', source, ts.ScriptTarget.Latest, true)
-const names = ['upsertComicAndPersistLibraryStore', 'refreshSourceComicCoverAndPersistLibraryStore', 'refreshSourceChapterMetadataAndPersistLibraryStore', 'refreshSourceMangaDetailAndPersistLibraryStore']
+const names = ['upsertComicAndPersistLibraryStore', 'retainLibrarySourceNameAndPersist', 'refreshSourceComicCoverAndPersistLibraryStore', 'refreshSourceChapterMetadataAndPersistLibraryStore', 'refreshSourceMangaDetailAndPersistLibraryStore']
 function productionFunctions(name) {
   const text = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/', name + '.ets'), 'utf8')
   const file = ts.createSourceFile(name + '.ts', text, ts.ScriptTarget.Latest, true)
   return file.statements.filter(ts.isFunctionDeclaration).map(node => node.getText(file)).join('\n')
 }
-const code = productionFunctions('SourceChapterMetadata') + '\n' + productionFunctions('SourceChapterVisibility') + '\n' + names.map(name => tree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name).getText(tree)).join('\n')
+const comicTree = ts.createSourceFile('ComicModels.ts', fs.readFileSync(path.join(__dirname,
+  '../entry/src/main/ets/model/ComicModels.ets'), 'utf8'), ts.ScriptTarget.Latest, true)
+const coverAssignment = comicTree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'assignComicSourceCover').getText(comicTree)
+const code = coverAssignment + '\n' + productionFunctions('SourceChapterMetadata') + '\n' + productionFunctions('SourceChapterVisibility') + '\n' + names.map(name => tree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name).getText(tree)).join('\n')
 const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
 const exportsForTest = {}
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -25,7 +28,7 @@ function fixture() {
     coverUri: 'https://owned.invalid/old', title: 'Owned title', createdAt: 1, updatedAt: 2, lastImportedAt: 3,
     chapters: [{ id: 'owned-chapter', pages: [{ id: 'owned-page', uri: 'file://owned-cache' }], index: 0 }],
     chapterCount: 458, pageCount: 18, categoryIds: ['owned-category'], localMetadata: { custom: 'keep' } }
-  const store = { values: { [original.id]: clone(original) }, getComic(id) { return this.values[id] }, addComic(row) { this.values[row.id] = row } }
+  const store = { values: { [original.id]: clone(original) }, getComic(id) { return this.values[id] }, addComic(row) { this.values[row.id] = row }, listComics() { return Object.values(this.values) } }
   let saves = 0
   return { original, store, service: { persist() { saves++ } }, saves: () => saves }
 }
@@ -59,6 +62,18 @@ test('persistence failure rolls back the live owner and rethrows the original er
   const f = fixture(), failure = new Error('owned failure')
   assert.throws(() => refresh(f.store, { persist() { throw failure } }, 'owned-work', 'owned-source', 'owned-remote', 'https://owned.invalid/new'), e => e === failure)
   assert.deepEqual(f.store.getComic('owned-work'), f.original)
+})
+
+test('uninstall retains public source identity without touching library content, and failed persistence rolls back', () => {
+  const retain = exportsForTest.retainLibrarySourceNameAndPersist, f = fixture()
+  assert.equal(retain(f.store, f.service, 'owned-source', 'Original source'), true)
+  assert.deepEqual(f.store.getComic('owned-work'), { ...f.original, sourceMetadata: { sourceName: 'Original source' } })
+  assert.equal(retain(f.store, f.service, 'owned-source', 'Original source'), false)
+  assert.equal(retain(f.store, f.service, 'different-source', 'Other'), false)
+  assert.equal(f.saves(), 1)
+  const before = clone(f.store.values), failure = new Error('disk unavailable')
+  assert.throws(() => retain(f.store, { persist() { throw failure } }, 'owned-source', 'New name'), e => e === failure)
+  assert.deepEqual(f.store.values, before)
 })
 
 const refreshChapters = exportsForTest.refreshSourceChapterMetadataAndPersistLibraryStore
@@ -196,7 +211,7 @@ test('collected rich detail survives library serialization and equal refreshes d
   const f = fixture(), previous = f.store.getComic('owned-work')
   Object.assign(previous, { sourcePath: 'https://source.invalid/work', sortTitle: 'owned title', preferredDirection: 'right_to_left',
     chapters: [], chapterCount: 0, pageCount: 0 })
-  const detail = { title: 'Fresh title', description: 'Full description', author: 'Author', artist: 'Artist',
+  const detail = { title: 'Fresh title', description: 'Full description', author: 'Author', artist: 'Artist', sourceName: 'Original source',
     status: 'ongoing', tags: ['A', 'B'], webUrl: 'https://source.invalid/work', coverUrl: 'https://owned.invalid/new' }
   const refreshDetail = exportsForTest.refreshSourceMangaDetailAndPersistLibraryStore
   assert.equal(refreshDetail(f.store, f.service, 'owned-work', 'owned-source', 'owned-remote', detail, [], true, ['hidden'], 'digest'), true)
@@ -205,6 +220,7 @@ test('collected rich detail survives library serialization and equal refreshes d
   const restored = exports.hydrateComic(JSON.parse(JSON.stringify(stored)))
   assert.equal(restored.subtitle, 'Full description')
   assert.equal(restored.sourceMetadata.artist, 'Artist')
+  assert.equal(restored.sourceMetadata.sourceName, 'Original source')
   assert.deepEqual(restored.sourceMetadata.tags, ['A', 'B'])
   assert.deepEqual(restored.sourceMetadata.excludedChapterIds, ['hidden'])
   assert.deepEqual(restored.categoryIds, ['owned-category'])

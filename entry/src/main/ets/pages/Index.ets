@@ -143,6 +143,7 @@ import {
   isRemovableLocalComic,
   removeComicAndPersistLibraryStore,
   removeComicsAndPersistLibraryStore,
+  retainLibrarySourceNameAndPersist,
   updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
   upsertLocalLibraryFolderScanAndPersistLibraryStore,
@@ -2640,6 +2641,13 @@ struct Index {
           chrome: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined),
           initialSettingsSourceId: (param as SourcePackageManagerRouteParam | undefined)?.settingsSourceId ?? '',
           onSettingsSaved: () => { (param as SourcePackageManagerRouteParam | undefined)?.onSettingsSaved?.() },
+          onBeforeRemove: (sourceId: string, sourceName: string): void => {
+            const persistence = this.ensureLibraryPersistenceService()
+            if (persistence === undefined) throw new Error('library_persistence_unavailable')
+            if (retainLibrarySourceNameAndPersist(this.libraryStore, persistence, sourceId, sourceName)) {
+              this.refreshLibrarySnapshot()
+            }
+          },
         })
       }
       .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))

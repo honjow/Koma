@@ -195,9 +195,9 @@ export struct MangaMigrationPage {
       .filter((source: SourceRuntimeRegistryInstalledSourceSummary | undefined): boolean => source !== undefined) as SourceRuntimeRegistryInstalledSourceSummary[]
   }
 
-  private sourceName(id: string): string {
+  private sourceName(id: string, fallback: string = ''): string {
     const source = this.registry.listInstalledSourceSummaries().find((row: SourceRuntimeRegistryInstalledSourceSummary): boolean => row.sourceId === id)
-    return sourceDisplayName(id, source?.displayName ?? id)
+    return sourceDisplayName(id, source?.displayName ?? (fallback.trim() || id))
   }
 
   private originalManga(comic: Comic): SourceManga {
@@ -413,7 +413,7 @@ export struct MangaMigrationPage {
         Column({ space: ThemeConstants.SPACE_SM }) {
           MangaGridItem({ manga: this.originalManga(row.comic),
             onMangaTap: (): void => { this.previewManga(this.originalManga(row.comic)) } })
-          Text(this.sourceName(row.comic.sourceRuntimeId ?? '')).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          Text(this.sourceName(row.comic.sourceRuntimeId ?? '', row.comic.sourceMetadata?.sourceName ?? '')).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontColor(ThemeConstants.TEXT_SECONDARY).maxLines(2)
           Text(this.chapterSummary(row.comic.chapters.length, latestMigrationChapter(row.comic.chapters)))
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY)

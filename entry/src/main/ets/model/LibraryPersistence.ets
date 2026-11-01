@@ -548,6 +548,7 @@ function assertValidPersistedComic(row: PersistedComic): void {
   }
   if (row.sourceMetadata !== undefined) {
     const metadata = row.sourceMetadata
+    assertOptionalStringField(metadata.sourceName, 'comic.sourceMetadata.sourceName')
     assertOptionalStringField(metadata.contentRating, 'comic.sourceMetadata.contentRating')
     assertPersistedObject(metadata as Object, 'comic.sourceMetadata')
     assertOptionalStringField(metadata.artist, 'comic.sourceMetadata.artist')
@@ -819,6 +820,33 @@ export function upsertComicAndPersistLibraryStore(
   }
 }
 
+/** Save the last known public name before uninstalling a source. The library
+ * remains the owner; one transaction preserves chapters, downloads and progress.
+ * Old backups without this field still load without inventing a source name. */
+export function retainLibrarySourceNameAndPersist(
+  libraryStore: LibraryStore, persistence: LibraryStorePersistenceService,
+  sourceId: string, sourceName: string,
+): boolean {
+  const name = sourceName.trim()
+  if (name.length === 0) return false
+  const changed = libraryStore.listComics().filter((comic: Comic): boolean =>
+    comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY && comic.sourceRuntimeId === sourceId &&
+    comic.sourceMetadata?.sourceName !== name)
+  if (changed.length === 0) return false
+  const previous = serializeLibraryStore(libraryStore)
+  changed.forEach((comic: Comic): void => {
+    const next = JSON.parse(JSON.stringify(comic)) as Comic
+    next.sourceMetadata = next.sourceMetadata ?? {}
+    next.sourceMetadata.sourceName = name
+    libraryStore.addComic(next)
+  })
+  try { persistence.persist() } catch (error) {
+    hydrateLibraryStoreFromJson(libraryStore, previous)
+    throw error as Error
+  }
+  return true
+}
+
 /** Refresh only the cover of an already-collected source work, keeping user state and ordering. */
 export function refreshSourceComicCoverAndPersistLibraryStore(
   libraryStore: LibraryStore,
@@ -870,6 +898,7 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
   next.author = detail.author
   if (/^https?:\/\//i.test(detail.coverUrl?.trim() ?? '')) assignComicSourceCover(next, detail.coverUrl!)
   next.sourceMetadata = {
+    sourceName: detail.sourceName?.trim() || previous.sourceMetadata?.sourceName,
     contentRating: detail.contentRating ?? previous.sourceMetadata?.contentRating,
     artist: detail.artist,
     status: detail.status,

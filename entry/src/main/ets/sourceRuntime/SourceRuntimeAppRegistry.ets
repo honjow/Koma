@@ -1347,10 +1347,13 @@ function restoreSourceRemovePreferences(images: SourceRemovePreferenceImage[]): 
   } finally { appSourceSettingsStore.invalidateCachedDocument() }
 }
 
-export async function remove(context: common.UIAbilityContext, id: string): Promise<boolean> {
+export async function remove(context: common.UIAbilityContext, id: string, beforeRemove?: () => void): Promise<boolean> {
   return BackupRestoreActivity.runWrite(() => appSourceSettingObservationStore.withSourceRemoved(id, async (): Promise<boolean> => {
     const entry = appSourceRuntimeRegistry.lookup(id).entry
     if (entry === undefined) return false
+    // The host's library may retain public identity before it becomes unavailable.
+    // Failure stops removal; this hook never transfers source settings or sessions.
+    beforeRemove?.()
     appSourceSettingsStore.exportAll()
     appSourceFilterPreferencesStore.exportAll()
     const images = sourceRemovePreferenceImages(context)
