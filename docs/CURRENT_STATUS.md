@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：完善独立图片规则订阅；已通过添加和单条启停，正在完成更新、移除与交付。
+当前工作：独立图片规则订阅已完成重做并交付；其他未关闭项保留原状态。
 
 设备：197由用户使用，不注入操作；237本轮原包、数据、电源均已恢复并释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "重做独立图片规则系统",
+  "state": "独立图片规则系统已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T04:57:10+08:00",
+  "updatedAt": "2026-11-02T05:12:01+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "独立规则已发布；完整管理路径已通过237，设备已恢复。收尾补齐失败检查的每日间隔持久化，本地关键逻辑与编译已通过。",
-  "nextAction": "提交App后核精确CI；通过即收口。",
+  "activeId": "",
+  "activity": "App不内置规则、不随书源订阅自动取得规则；共用入口按内容识别类型，可查看名称、用途和版本，独立启停、更新及移除。237普通路径与恢复已完成，最终CI及真实产物已核对。",
+  "nextAction": "其余未关闭项保留各原事项的条件和未验范围。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5475,18 +5475,16 @@
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "订阅级通用横幅过滤",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P3",
       "owner": "Root：App接入与237验收；home_terra：订阅规则发布",
-      "status": "实机验收通过，等待最终CI",
+      "status": "独立规则订阅与管理已验收",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "独立规则已发布；完整管理路径已通过237，设备已恢复。收尾补齐失败检查的每日间隔持久化，本地关键逻辑与编译已通过。",
-      "remaining": "提交App后核精确CI；通过即收口。",
-      "remainingActions": [
-        "核最终App提交的精确CI并收口。"
-      ],
+      "result": "App不内置规则、不随书源订阅自动取得规则；共用入口按内容识别类型，可查看名称、用途和版本，独立启停、更新及移除。237普通路径与恢复已完成，最终CI及真实产物已核对。",
+      "remaining": "无。",
+      "remainingActions": [],
       "boundaries": [
         "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
         "订阅管理入口共用，粘贴地址后由App识别书源／图片规则类型，不要求用户手选；两类内容分组可见并独立消费。",
@@ -5503,7 +5501,7 @@
         "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。",
         "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。"
       ],
-      "updatedAt": "2026-11-02T04:57:10+08:00",
+      "updatedAt": "2026-11-02T05:12:01+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5517,10 +5515,13 @@
         "最后兼容收尾只补书源sources对象识别、重命名不重置阅读及按App语言格式化时间；未重跑既有算法路径。",
         ".hvigor/outputs/generic-banner-20261102/restoration-rework-verified.json：237恢复原0.1.4/code5，本轮7 JSON与18偏好逐字一致；新增规则文件已移除，120000ms、无override、SLEEP，租约已释放。",
         "App主实现a8bf57ef0b9fbc242e0a91316f090db67be00bef已推；其CI41349165704将由本次间隔修正的精确CI取代。",
-        "自动更新失败／并发检查／重读后仍只请求一次：logic-rework-final.log；最终build-rework-daily-final.log exit0；源文档423e624 [skip ci]已推，规则CI仍为41346373710。"
+        "自动更新失败／并发检查／重读后仍只请求一次：logic-rework-final.log；最终build-rework-daily-final.log exit0；源文档423e624 [skip ci]已推，规则CI仍为41346373710。",
+        "最终App提交04f79824799accba37fc95f6c884ee89b1b8ddc8已推；精确CI41349458397进行中，先前主实现CI41349165704因并发规则取消。",
+        "App 04f79824799accba37fc95f6c884ee89b1b8ddc8精确CI41349458397 completed/success；真实ohos-hap-unsigned产物的build-manifest与完整提交、reader-kit 10484507及HAP字节数一致；构建、检查、上传均成功，App发布skipped。",
+        ".hvigor/outputs/generic-banner-20261102/delivery-rework-binding.json：最终代码／本地构建／原生管理路径／CI产物及独立规则发布绑定。"
       ],
-      "stage": "实现与验证",
-      "closedAt": null,
+      "stage": "已交付",
+      "closedAt": "2026-11-02T05:12:01+08:00",
       "reopenedAt": "2026-11-02T03:38:38+08:00"
     }
   ],
@@ -14148,6 +14149,18 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "自动检查失败仍遵守每日间隔",
       "detail": "保存自动检查时间，并在串行写入中认领检查，避免失败或并发前台回调反复请求；手动刷新不受限。关键逻辑及编译通过，等待最终CI。"
+    },
+    {
+      "at": "2026-11-02T04:58:03+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "App修正已推，进入最终CI",
+      "detail": "功能、文档和本地验收均已交付；对应提交的远端构建正在执行，暂不关闭。"
+    },
+    {
+      "at": "2026-11-02T05:12:01+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "独立图片规则重做已交付",
+      "detail": "同一入口自动识别、可见规则管理、独立更新发布及用户／开发指南齐全；237验收与设备恢复完成，最终CI和真实产物通过。未另发App版本。"
     }
   ],
   "reportAgeAudit": {
