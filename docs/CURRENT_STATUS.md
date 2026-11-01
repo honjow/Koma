@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：漫画160具名加载修复、设置配色、订阅说明与237截图已交付；书架按源搜索保留讨论，其余未关项继续保留。
+当前工作：按用户决定正式发布1.0.0，版本与分类日志已准备，正在执行构建和发布流程。
 
 设备：197由用户当前使用，不注入操作或覆盖新数据；237本轮原包、数据和电源已恢复并释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "本轮交付完成，保留未关事项",
+  "state": "正在发布1.0.0正式版",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T21:42:31+08:00",
+  "updatedAt": "2026-11-01T21:49:50+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
-  "activity": "漫画160具名加载、设置配色、订阅说明和237截图已交付；书架按源搜索保留讨论。",
-  "nextAction": "讨论书架按源搜索的语法与范围；其余未关项仍按原证据和实际条件接续。",
+  "activeId": "RELEASE_1_0_0",
+  "activity": "版本与分类日志已准备，正在提交和构建。",
+  "nextAction": "构建成功后打正式标签并核验Release实际产物。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5430,6 +5430,32 @@
       ],
       "stage": "两仓文档已同步",
       "closedAt": "2026-11-01T21:29:55+08:00"
+    },
+    {
+      "id": "RELEASE_1_0_0",
+      "title": "正式发布1.0.0",
+      "kind": "open",
+      "priority": "P0",
+      "owner": "Root：版本、日志、构建及正式Release交付",
+      "status": "版本与日志已准备，构建前检查通过",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户明确要求按版本发布流程正式发布1.0.0；原消息精确时间未提供。",
+      "registeredAt": "2026-11-01T21:49:50+08:00",
+      "result": "App与两处包版本已同步1.0.0，内部版本号递增；按新增/修复/优化/已知问题整理相对0.1.4的变化，版本、日志和资源检查通过。",
+      "remaining": "完成提交及构建，通过后打正式标签，核对公开Release和实际附件。",
+      "remainingActions": [
+        "提交并通过本次构建。",
+        "打v1.0.0正式标签，核标签CI、Release正文、最新正式状态及实际HAP/manifest附件。"
+      ],
+      "boundaries": [
+        "用户本轮明确授权正式发布1.0.0；沿现有GitHub发布流程，不上传AGC。",
+        "保留所有已接受功能与剩余未关项；不重跑无变化的设备路径，不操作197，不移动既有标签。",
+        "不包含IDE缓存、未提交品牌素材或其他无关WIP；正式附件按现有CI为未签名release HAP。"
+      ],
+      "evidencePoints": [
+        "changelog/v1.0.0.md为本次Release唯一正文；check_release_notes.py --tag v1.0.0通过，versionCode6；三语言资源及公开profile检查通过。",
+        "远端仅有v0.1.2-pre、v0.1.3-pre、v0.1.4，未存在v1.0.0；当前master，既有App代码与依赖验收保持。"
+      ]
     }
   ],
   "source": {
@@ -13870,6 +13896,12 @@
       "itemId": "README_SUBSCRIPTION_AND_SCREENSHOTS",
       "title": "截图排版实际显示已核",
       "detail": "GitHub页面已确认两排六图共用列宽，标题居中，公开设备说明已删除。"
+    },
+    {
+      "at": "2026-11-01T21:49:50+08:00",
+      "itemId": "RELEASE_1_0_0",
+      "title": "开始1.0.0正式发布",
+      "detail": "按用户决定同步版本、准备分类日志；保留已知问题，完成构建前检查。"
     }
   ],
   "reportAgeAudit": {

@@ -10,7 +10,7 @@
 - **阅读与离线保存**：提供单页、双页、纵向分页和连续滚动阅读，章节下载、历史和继续阅读。
 - **书架维护**：分类、排序、检查章节更新，以及本机备份与恢复。
 
-当前为早期使用版本，仍有未完成项。源的实际可用范围与已知限制在[源库说明](https://github.com/honjow/koma-sources)中维护。
+书源的实际可用范围与已知限制在[书源库说明](https://github.com/honjow/koma-sources)中维护。
 
 ## 截图
 
@@ -23,6 +23,8 @@
 ## 安装
 
 最低兼容配置为 **HarmonyOS 6.1（API 23）**，当前构建面向 **arm64** 设备。
+
+[正式版本与更新日志](https://github.com/honjow/Koma/releases/latest)
 
 [GitHub Actions](https://github.com/honjow/Koma/actions/workflows/build.yml) 提供最新代码的构建产物。当前公开 CI 产物为未签名 HAP，需要签名后安装；已获得可安装签名包的用户可直接按设备提示安装。tag 构建成功后会自动发布到 Releases：以 `pre` 结尾的 tag（如 `v0.1.2-pre`）标为预发布，其他 tag 标为正式发布。发布产物仍为未签名 HAP。本仓的构建入口与签名配置见 [scripts](scripts)。
 
