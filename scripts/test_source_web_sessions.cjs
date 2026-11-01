@@ -57,7 +57,7 @@ function fixture(sdkApiVersion = 23) {
     const transport = moduleFrom('SourceRuntimeHttpTransport', name => {
       if (name === '@kit.ArkTS') return { url: { URL } }
       if (name === './SourceRequestPolicy') return network.policy ?? moduleFrom('SourceRequestPolicy', () => ({ url: { URL } }))
-      if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin }
+      if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: store, sourceWebOrigin: api.sourceWebOrigin, sourceWebPackageIdentity: api.sourceWebPackageIdentity }
       if (name === './SourceWebChallengeGate') return moduleFrom('SourceWebChallengeGate', () => ({}))
       if (name === './SourceRuntimeOperationGuard') return guards
       if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
@@ -246,6 +246,7 @@ test('verification navigation uses the installed source name for the current lan
   let locale = 'zh-CN'
   const navigation = moduleFrom('SourceWebSessionNavigation', name => {
     if (name === '../common/RouterHelper') return { RouterHelper: {} }
+    if (name === './MangaBzMirrorNavigation') return { selectedMangaBzMirror: () => undefined }
     if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: f.store }
     if (name === './SourceRuntimeHttpTransport') return { sourceRejectedRequestUrl: () => '' }
     if (name === './SourceRuntimeAppRegistry') return {
@@ -761,6 +762,7 @@ function homepageFixture({entry={sourceId:'one'},cached=[],fresh={ok:true,entrie
  let cacheReads=0,fetches=0,savedReads=0;const pushed=[]
  const api=moduleFrom('SourceHomepageNavigation',name=>{
   if(name==='./SourcePackageImporter')return exports
+  if(name==='./MangaBzMirrorNavigation')return {selectedMangaBzMirror:()=>undefined}
   if(name==='./SourceRuntimeAppRegistry')return {appSourceRuntimeRegistry:{lookup:id=>({entry:id==='one'?entry:undefined})}}
   if(name==='../common/RouterHelper')return {RouterHelper:{pushMangaWeb:params=>pushed.push(params)}}
   if(name==='./SourceIndexService')return {SourceIndexService:class{
@@ -1191,4 +1193,57 @@ test('mirror grants retain independent origin identities across restart and revo
   f.changeEntry(entry => ({ ...entry, manifestVersion: '2' }))
   assert.equal(restarted.requestSession(f.identity(), 'https://site.invalid/page'), undefined)
   assert.equal(restarted.requestSession(f.identity(), 'https://mirror.invalid/page'), undefined)
+})
+
+test('declared public GET redirect drops prior-origin credentials without creating a grant', async () => {
+  const f = fixture()
+  f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
+  f.grant()
+  const headers = { Cookie: 'source-private', Authorization: 'Bearer private', 'X-Api-Key': 'private',
+    Referer: 'https://site.invalid/private', 'User-Agent': 'SourceUA', Accept: 'text/html' }
+  const r = await f.http([response(301, { Location: 'https://mobile.invalid/chapter' }), response()],
+    JSON.stringify(f.identity()), { headers })
+  assert.equal(r.result.status, 200)
+  assert.equal(r.calls.length, 2)
+  assert.equal(r.calls[0].options.header.Cookie, 'private-cookie-value')
+  assert.deepEqual(JSON.parse(JSON.stringify(r.calls[1].options.header)), { 'User-Agent': 'SourceUA', Accept: 'text/html' })
+  assert.equal(f.fetched.includes('https://mobile.invalid/chapter'), false)
+  assert.equal(f.store.status('source.one', 'https://mobile.invalid').state, 'none')
+  assert.equal(f.configured.length, 0)
+  assert(r.instances.every(request => request.destroyed))
+})
+
+test('redirected target challenge is probed at that origin and handed back only to the original GET', async () => {
+  const f = fixture(), initial = 'https://site.invalid/a', target = 'https://mobile.invalid/a'
+  f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
+  f.grant()
+  const headers = { Cookie: 'source-private', Authorization: 'Bearer private', Accept: 'text/html' }
+  const context = JSON.stringify(f.identity())
+  const r = await f.http([response(301, { location: target }), response(403), response()], context, { headers }, {
+    afterInitial: async ({ transport, execute }) => {
+      const pending = f.store.begin(f.registry, 'source.one', target)
+      f.setCookie('mobile-session')
+      assert.equal(await transport.probeSourceWebSession('source.one', pending.sessionId, target, 'MobileUA', () => true), true)
+      f.store.complete('source.one', pending.sessionId, target, 'MobileUA')
+      return JSON.parse(await execute(JSON.stringify({ url: initial, method: 'GET', headers }), context))
+    },
+  })
+  assert.equal(r.result.status, 403)
+  assert.equal(r.after.status, 200)
+  assert.deepEqual(r.calls.map(call => call.fullUrl), [initial, target, target])
+  assert.equal(r.calls[1].options.header.Cookie, undefined)
+  assert.equal(r.calls[2].options.header.Cookie, 'mobile-session')
+  assert.equal(r.calls[2].options.header.Authorization, undefined)
+  assert.equal(r.calls[2].options.header['User-Agent'], 'MobileUA')
+  assert.equal(f.diagnostics.includes('state=used_once'), true)
+})
+
+test('declared target does not authorize anonymous cross-origin POST redirect', async () => {
+  const f = fixture()
+  f.changeEntry(e => ({ ...e, webSessionOrigins: ['https://site.invalid', 'https://mobile.invalid'] }))
+  f.grant()
+  const r = await f.http([response(302, { location: 'https://mobile.invalid/login' })], JSON.stringify(f.identity()),
+    { method: 'POST', body: 'private-content' })
+  assert.equal(r.calls.length, 1)
+  assert.equal(r.result.error.code, 'web_session_redirect_rejected')
 })

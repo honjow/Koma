@@ -9,6 +9,7 @@
 - 仓库包 manifest 由 SourceRepoPackageManifest 解析为宿主 LocalSourcePackageManifest；后者分 package、runtime、permissions、contentPolicy 及 operationCapabilities。宿主保留 sourceId、版本、安装身份、启用状态、合法主页和已核目录方向。
 - 源生产校验要求合法 homepage；App 兼容没有该字段的既有包。地址只接受无账号信息的完整 HTTP(S) URL，不从 API、CDN、失败请求或 ID 猜站点。普通网页仅显示已安装或缓存中已有合法地址的入口，不在点击后补取地址或摆空选项。
 - homepage 与 webSessionOrigins 分工独立：前者用于普通导航，后者限定验证会话。主页不扩大 Cookie、UA 或网络权限。
+- 普通空正文GET若携原站会话后重定向到当前同源包已明确声明的另一HTTPS origin，可在不携原站Cookie、Authorization及其它站点专用头的情况下继续匿名读取；逐跳重核当前包身份、启用及声明范围，目标已有独立会话时仅取目标会话。未声明目标、POST及验证probe仍按原边界拒绝；验证probe只读取Host实际观察到的拒绝GET，结果仍仅供原请求消费一次，不授予跨站会话。
 
 ## 调用路径和操作
 

@@ -218,6 +218,26 @@ function sourceHeaders(value: Object | string | number | boolean | null | undefi
   return headers
 }
 
+// A public redirect is not a grant to forward the previous origin's credentials.
+// Web cookies remain independently authorized per hop (MH160 www -> m is a GET).
+function sourcePublicRedirectHeaders(headers: Record<string, string>): Record<string, string> {
+  const publicHeaders: Record<string, string> = {}
+  Object.keys(headers).forEach((name: string) => {
+    if (['accept', 'accept-language', 'user-agent'].includes(name.toLowerCase())) publicHeaders[name] = headers[name]
+  })
+  return publicHeaders
+}
+
+function sourceAllowsAnonymousRedirect(identity: SourceHttpIdentity | undefined, initialUrl: string,
+  nextUrl: string, method: string, body: string, probe: SourceWebProbeContext | undefined): boolean {
+  if (probe !== undefined || identity === undefined || method !== 'GET' || body.length > 0) return false
+  const origin = sourceWebOrigin(nextUrl)
+  if (origin.length === 0 || origin === sourceWebOrigin(initialUrl) || !identity.webSessionOrigins.includes(origin)) return false
+  const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
+  return entry !== undefined && sourceRuntimeEntryEnabled(entry) && entry.manifestVersion === identity.sourceVersion &&
+    sourceWebPackageIdentity(entry) === identity.packageIdentity && (entry.webSessionOrigins ?? []).includes(origin)
+}
+
 /** The adopted MangaBz language preference is a public request option, not a
  * source-supplied login session. Only this source/domain/key/value may replace
  * its counterpart; WebView owns every other cookie and the user agent.
@@ -459,8 +479,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       // Other global-search sources can finish while this original read waits
       // in WAMR's queue. Only its exact request may consume the single handoff.
       verifiedSourceGet = undefined
-      if (appSourceWebSessionStore.status(identity.sourceId, sourceWebOrigin(url)).sessionId === ready.sessionId &&
-        appSourceWebSessionStore.requestSession(identity, url) !== undefined) {
+      if (appSourceWebSessionStore.status(identity.sourceId, sourceWebOrigin(ready.request.rejectedUrl)).sessionId === ready.sessionId &&
+        appSourceWebSessionStore.requestSession(identity, ready.request.rejectedUrl) !== undefined) {
         DiagnosticLogger.info('source_http', 'verification_response_reused', 'state=used_once')
         trace.finish('completed', 'state=verification_response_reused')
         return ready.responseJson
@@ -491,28 +511,32 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // A rate-limit queue is not network time. Keep the original request/redirect
     // timeout budget intact once its slot becomes available.
     policyWaitMs += Math.max(0, Date.now() - policyStartedAt)
-    const originalHeaders = sourceHeaders(envelope.headers)
+    const crossOrigin = sourceWebOrigin(currentUrl) !== sourceWebOrigin(url)
+    const originalHeaders = crossOrigin && session !== undefined
+      ? sourcePublicRedirectHeaders(sourceHeaders(envelope.headers)) : sourceHeaders(envelope.headers)
+    const active = session === undefined || identity === undefined ? undefined : probe === undefined
+      ? appSourceWebSessionStore.requestSession(identity, currentUrl)
+      : appSourceWebSessionStore.pendingRequestSession(identity, currentUrl, probe.proof)
+    if (session !== undefined && active === undefined &&
+      !sourceAllowsAnonymousRedirect(identity, url, currentUrl, currentMethod, currentBody, probe)) {
+      trace.finish('failed', 'reason=web_session_unavailable')
+      return transportError('web_session_unavailable', false)
+    }
     const headers: Record<string, string> = {}
     Object.keys(originalHeaders).forEach((name: string) => {
-      if (session === undefined || (name.toLowerCase() !== 'cookie' && name.toLowerCase() !== 'user-agent')) headers[name] = originalHeaders[name]
+      if (active === undefined || (name.toLowerCase() !== 'cookie' && name.toLowerCase() !== 'user-agent')) headers[name] = originalHeaders[name]
     })
-    if (session !== undefined && identity !== undefined) {
-      const active = probe === undefined ? appSourceWebSessionStore.requestSession(identity, currentUrl) :
-        appSourceWebSessionStore.pendingRequestSession(identity, currentUrl, probe.proof)
-      if (active === undefined || (probe !== undefined && !probe.current())) {
-        trace.finish('failed', 'reason=web_session_unavailable')
-        return transportError('web_session_unavailable', false)
-      }
+    if (active !== undefined && identity !== undefined) {
       headers['User-Agent'] = active.userAgent
       const cookie = sourceSessionCookies(identity.sourceId, currentUrl, originalHeaders, active.cookie)
       if (cookie.length > 0) headers['Cookie'] = cookie
     }
     trace.info('session', 'identity=' + (identity === undefined ? 'none' : 'native') +
-      ' session=' + (session === undefined ? 'none' : 'attached') +
+      ' session=' + (active === undefined ? 'none' : 'attached') +
       ' cookieState=' + (typeof headers['Cookie'] === 'string' && headers['Cookie'].length > 0 ? 'present' : 'empty') +
-      ' uaSource=' + (session === undefined ? 'source' : 'webview'))
+      ' uaSource=' + (active === undefined ? 'source' : 'webview'))
     trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
-    if (session !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
+    if (active !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
     const remaining = session === undefined ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     let response: SourceHopResponse | undefined = undefined
@@ -586,7 +610,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       trace.finish('failed', 'reason=web_session_probe_cancelled')
       return transportError('web_session_unavailable', false)
     }
-    if (session !== undefined && identity !== undefined) {
+    if (active !== undefined && identity !== undefined) {
       // NetworkKit exposes each Set-Cookie as an array entry; preserve Expires commas.
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
       const key = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'set-cookie')
@@ -651,7 +675,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       const nextSession = identity === undefined ? undefined : probe === undefined
         ? appSourceWebSessionStore.requestSession(identity, nextUrl)
         : appSourceWebSessionStore.pendingRequestSession(identity, nextUrl, probe.proof)
-      if (nextSession === undefined) {
+      if (nextSession === undefined && !sourceAllowsAnonymousRedirect(identity, url, nextUrl, currentMethod, currentBody, probe)) {
         trace.finish('failed', 'reason=web_session_redirect_rejected')
         return transportError('web_session_redirect_rejected', false)
       }
@@ -694,7 +718,16 @@ export async function probeSourceWebSession(sourceId: string, sessionId: string,
     current: (): boolean => activeSourceWebProbe === active && current(),
   }
   try {
-    const responseJson = await executeSourceHttpRequest(request.requestJson, request.httpContextJson, probe)
+    // Probe the Host-observed target GET; never replay the first origin's
+    // sensitive headers using the target origin's pending grant.
+    let probeRequestJson = request.requestJson
+    const original = JSON.parse(request.requestJson) as SourceHttpRequestEnvelope
+    if (sourceWebOrigin(sourceString(original.url) ?? '') !== sourceWebOrigin(request.rejectedUrl)) {
+      original.url = request.rejectedUrl
+      original.headers = sourcePublicRedirectHeaders(sourceHeaders(original.headers))
+      probeRequestJson = JSON.stringify(original)
+    }
+    const responseJson = await executeSourceHttpRequest(probeRequestJson, request.httpContextJson, probe)
     if (!probe.current() || rejectedSourceGets.get(key) !== request || responseJson.length > 4 * 1024 * 1024) return false
     const response = JSON.parse(responseJson) as SourceHttpSuccessEnvelope
     if (response.ok !== true || !Number.isInteger(response.status) || response.status < 200 || response.status >= 300 ||
