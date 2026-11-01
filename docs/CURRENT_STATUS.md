@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：本轮筛选、订阅编辑及刷新修正已交付，四字菜单已实机核对，最终构建通过。
+当前工作：修正更新页刷新空态、封面角标透明度和阅读设置；核查条漫接缝及设置层级。
 
-设备：197保持原状态；237已恢复原包、本轮原数据、原超时和睡眠并释租。200禁止操作，四私库搁置。
+设备：本轮 App 验证使用已授权的197，原数据已备份；237保留源工作分工。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,11 +14,11 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T09:20:31+08:00",
+  "updatedAt": "2026-11-01T10:55:02+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
-  "activity": "本轮筛选、订阅编辑、四字菜单及刷新修正已交付，237已恢复。",
-  "nextAction": "其余源、账号及原未关闭项保留在各自原事项。",
+  "activeId": "CONTINUOUS_PAGE_GAPS",
+  "activity": "接缝仍未解决，撤回无效候选后按短距离低速惯性路径定位。",
+  "nextAction": "按用户新给方法，在韩漫空白接缝处短距离慢滑并松手，让惯性减速和停稳保持在当前屏幕；定位并处理真实渲染路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -893,13 +893,13 @@
     {
       "id": "CONTINUOUS_PAGE_GAPS",
       "title": "连续滚动页间黑条",
-      "status": "Chibi具名接缝通过，已提交推送并冻结",
-      "kind": "accepted",
+      "status": "修正连续行与图片的独立尺寸分配",
+      "kind": "open",
       "priority": "P1",
-      "owner": "冻结：Root按新反例或相关依赖变化重开",
+      "owner": "Root：共享阅读器连续列表与197",
       "dependencies": [],
-      "result": "Chibi具名接缝通过，已提交推送并冻结",
-      "remaining": "Chibi原范围保持；K147第6/7张固定黑边来自源图，不作为本轮间距回归。连续性能按独立项推进。",
+      "result": "197真实韩漫空白接缝的160px低速短滑已录制并亲审，接缝留在屏内；本样本未清楚观察到闪线，不能判定缺陷消失。共享实现仍有列表aspectRatio与内部图片独立尺寸分配，开始统一物理像素行高。",
+      "remaining": "完成统一连续行尺寸候选并核对同一接缝低速松手过程；未确认原惯性缺陷消失前保持未解决。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -908,12 +908,24 @@
       "closedAt": null,
       "firstHandlingAtSource": "Root实际开始消息后首次可核分段登记；更早处理起点未知。",
       "evidencePoints": [
-        "直接产物索引：reader-controls197-interaction-002/continuous-before.png；6.jpg/7.jpg"
+        "直接产物索引：reader-controls197-interaction-002/continuous-before.png；6.jpg/7.jpg",
+        "用户本轮反馈滚动时两张图接缝偶现1px；原图/具体作品尚未确定。共享连续List已明确space=0，图像与容器存在独立浮点尺寸及Contain计算；尚未确认根因。",
+        "197 invert-global-nemo-323静止两项边界y1721相接；324修前往返原片171帧，编码890×1920不能排除原生1px。官方组件级像素取整文档明确父容器与100%子组件独立取整可露1px；候选原图Fill+四边outward round，Kit分页默认仍Contain。",
+        "reader-kit/main f3be308ac9807682d091633bb43909ec785955ab精确撤回df352cb。用户明确：惯性减速时闪烁，停稳可能残留1px，手指持续拖动不闪；快速甩动不能用于该场景。应用层兼容处理仍可实施，不能把可能涉及引擎当作不修理由。",
+        "seam-reverted061-installed-346明确安装；seam-solo-white-join-359：真实第46话页2/3边界y819，原生截图及布局保留。",
+        "solo-short-inertia-before061-360：123原PTS帧/4表顺序亲审，实际低速fling160px且接缝留在白区；录像890×1920限制保留，不称原生1px已排除。",
+        "seam-solo-inertia-final-361：1260×2720停稳原图及边界y812；当前样本白区无暗线，不作为已修复依据。"
       ],
       "remainingActions": [
-        "Chibi原范围保持；K147第6/7张固定黑边来自源图，不作为本轮间距回归。连续性能按独立项推进。"
+        "完成统一连续行尺寸候选并核对同一接缝低速松手过程；未确认原惯性缺陷消失前保持未解决。"
       ],
-      "boundaries": []
+      "boundaries": [],
+      "modificationBasis": {
+        "object": "ReaderContinuousSurface真实连续行及ReaderContinuousZoomImage分配给既有Image的布局尺寸",
+        "history": "现有7744665连续列表及b3aac7c显示层；df352cb图内Fill和强制外取整无效已由f3be308撤回。",
+        "reason": "用户明确惯性滚动白色接缝闪烁；现有行aspectRatio和图像布局独立，原尺寸来源不统一。官方组件级取整合同说明父子100%不必逐像素同界。",
+        "allowedDifference": "只将现有连续行、图像与位置计算归同一已对齐行高；不叠像素、不扩大绘制边界、不改滚动/章节/裁边或图片文件。"
+      }
     },
     {
       "id": "READER_DIRECTION_MENU",
@@ -2645,16 +2657,19 @@
         "FIRST_CHAPTER_SELECTION",
         "SHARED_ROUTE"
       ],
-      "kind": "done",
-      "status": "真实原始快照与197画面具名核对完成",
-      "result": "原真实重复章节快照经当前生产读取和书架投影均得到596未读；197书架角标与生产投影一致，故障按具名范围关闭。",
+      "kind": "open",
+      "status": "角标50%透明已在197查看，待本轮收尾",
+      "result": "未读角标仍用系统Badge，背景改50%透明、数字保持不透明；197书架多本有封面状态已查看。原未读计数及继续阅读进度规则保持。",
       "evidencePoints": [
         "直接产物索引：197394/library-after.json；442/library-after.json；manhuagui-network-phase-review/current-queue-library-sample.json",
         "本轮生产store+投影7项真实逻辑回归通过；旧脚本仅补SourceRuntimeAppRegistry默认undefined及SourceTextPageDescriptor依赖，未改期望。624/600/4→596为合成回归，不冒200真机。",
-        "原device200/chapter-failure/original-state-001/library.json与reader.json的真实624行/600ID/4已读，实际执行当前PersistentReaderSessionStore与createLibraryViewModelFromComics均596；旧完整性判断会undefined，输入内存及文件逐字保持。回执 .hvigor/outputs/user-flow-audit/library-progress-real-snapshot-replay.json。197 71 library-after/reader-after同生产投影与88屏幕对照，Blue 4/xkcd 669/Nemo 0一致；100%为继续阅读当前章、封面4仍未读。此真实快照不同于此前合成回归；未触200。"
+        "原device200/chapter-failure/original-state-001/library.json与reader.json的真实624行/600ID/4已读，实际执行当前PersistentReaderSessionStore与createLibraryViewModelFromComics均596；旧完整性判断会undefined，输入内存及文件逐字保持。回执 .hvigor/outputs/user-flow-audit/library-progress-real-snapshot-replay.json。197 71 library-after/reader-after同生产投影与88屏幕对照，Blue 4/xkcd 669/Nemo 0一致；100%为继续阅读当前章、封面4仍未读。此真实快照不同于此前合成回归；未触200。",
+        "seam-reverted061-installed-346/screen.png：197实际书架带封面和50%背景角标；源图与数字均可见。"
       ],
-      "remainingActions": [],
-      "remaining": "",
+      "remainingActions": [
+        "随当前197会话统一恢复；不重跑原计数验收。"
+      ],
+      "remaining": "随当前197会话统一恢复；不重跑原计数验收。",
       "boundaries": [
         "源图标本行瞬空等独立未闭项保留；已验安装性能具名范围不重跑，也不因本项丢弃其他反馈。",
         "不得把单处源码线索或用户观察写为全App已查/已复现，保原内容与用户阅读数据。",
@@ -2668,7 +2683,7 @@
       "firstEvidenceAtSource": "本次登记时刻，非用户精确首报。",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-29T20:54:22+08:00",
+      "closedAt": null,
       "reportedDateSource": "按上述当前定位窗口内原始反馈UTC时间换算Asia/Shanghai日期；不是已排除更早历史的绝对首次日期，不使用登记日。",
       "firstHandlingAtSource": "本轮已开始只读调查，但精确起点未单独记录；不从登记时刻反推实际开始。",
       "continuationGate": {
@@ -2680,7 +2695,8 @@
       "reportedAgeSecondsAtAudit": null,
       "reportedAtScope": "earliest_located_in_current_window_not_proven_global_first",
       "knownFeedbackAgeSecondsAtAudit": 166701,
-      "stage": "具名范围已交付"
+      "stage": "本轮外观具名已核",
+      "reopenedAt": "2026-11-01T09:36:06+08:00"
     },
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
@@ -3692,31 +3708,39 @@
       "id": "SETTINGS_GROUPING_ADVANCED",
       "title": "设置页未分组且高级入口与图标不合理",
       "priority": "P1（用户直接反馈）",
-      "kind": "accepted",
-      "status": "197设置分组、高级与关于普通路径已核",
-      "owner": "Root",
+      "kind": "open",
+      "status": "备份结构已核，最终短标签已构建",
+      "owner": "Root：设置分组和备份普通路径",
       "dependencies": [],
       "relatedItems": [
         "APPEARANCE_CONSUMERS"
       ],
-      "result": "197同签6b53普通设置页上下分组及原卡片、各入口图标已亲审；高级页面只有诊断日志，关于页面显示版本、隐私与开源且无日志。原Reader、Appearance、library及sessions未改；设备会话继续。",
-      "remaining": "本项具名设置分组与高级/关于范围已完成。",
+      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。",
+      "remaining": "最后简短标签页面读回及设备恢复、提交CI。",
       "remainingActions": [
-        "本项具名范围已完成。"
+        "最后简短标签页面读回及设备恢复、提交CI。"
       ],
       "boundaries": [
-        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
+        "本轮用户纠正备份两个同页入口与隐蔽配置；只去重复中转，备份内容/自动备份仍分组，创建/恢复/文件保独立任务，固定包含范围为说明，创建动作沿公共原生标题栏，不改变备份格式或数据范围。"
       ],
       "reportedAt": "2026-10-26T12:30:00Z",
       "reportedAtSource": "用户要求设置项分组、增加高级入口并检查图标；精确时刻未记录。",
       "reopenedAt": null,
-      "closedAt": "2026-10-29T01:46:02+08:00",
-      "stage": "具名范围已验收",
+      "closedAt": null,
+      "stage": "结构和标题动作已核，最终短标签待看",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-top-22/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-bottom-23/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-advanced-content-24/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-about-content-25/"
+      ],
+      "evidencePoints": [
+        "197 candidate-appearance-311文字右缘均1108，箭头与主题/语言一致。",
+        "197 backup-stable-313/backup-create-314实际展示；314固定说明误作首行已纠正，旧图保留不冒最终验收。",
+        "backup-final-home-334、backup-final-create-335、backup-restore-page-336：直达配置与独立任务，固定说明在卡片外。",
+        "backup-create-title-action-337：标题栏确认触发原口令校验；未创建或恢复备份。",
+        "build061已安装346：短标签包含在候选中，当前优先接缝未进入备份页，不冒最终画面已看。"
       ]
     },
     {
@@ -4740,7 +4764,7 @@
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "open",
-      "status": "菜单材质与首次定位修复已交付，其他展示问题保留",
+      "status": "验证阅读设置，修正备份重复层级",
       "stage": "部分已交付",
       "owner": "Root",
       "dependencies": [
@@ -4749,16 +4773,18 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "菜单已默认使用系统材质；修复首次错位后，同一普通路径及刚进详情就点击更多均贴合右上按钮。书架单组与勾选、详情分组及笔记入口保留。",
-      "remaining": "短笔记多余展开、LLM来源相邻入口同名仍待修正；三追踪服务真实账号范围未验。",
+      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。",
+      "remaining": "本轮阅读设置具名验收完成；原短笔记、LLM同名和无账号追踪范围仍保留。",
       "remainingActions": [
-        "短笔记多余展开、LLM来源相邻入口同名仍待修正。",
-        "三追踪服务用户暂无账号，真实认证、绑定和远端同步未验。"
+        "本轮阅读设置具名验收完成；原短笔记、LLM同名和无账号追踪范围仍保留。",
+        "用户本轮新反馈：自定义标题栏更多入口恢复系统原始四点图标；按用户紧接纠正先登记，接缝修复期间不切换处理。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
         "首批入口与默认值已获用户采用；197候选fdf340b6具名路径、完整备份预览及设备恢复已核。最后后台合并修正仅编译和逻辑验证，未安装。",
-        "保留既有已确认行为与样式。"
+        "保留既有已确认行为与样式。",
+        "用户本轮采用取消列表扁图，保留阅读中全屏点击区域预览；音量键方向改反转开关，沿用旧枚举与原按键行为。强调色仅修右侧对齐，色块/颜色/菜单保留。",
+        "本轮备份纠正仅取消两个入口指向同页及多余目录层；集中原备份内容/自动配置，保留创建、恢复、文件的独立任务。其他设置分类不摊平。"
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未知；登记时间不冒充首报。",
@@ -4822,7 +4848,8 @@
         "本轮c74ea856完整SHA精确CI41230745273 completed/success；本地026签名包与197具名路径、连续录像及完整恢复见 .hvigor/outputs/shared-modal-acceptance/delivery-binding.json；全应用普通入口报告 .hvigor/outputs/shared-modal-acceptance/audit-report.md。不声称全主题、读屏、所有失败状态、账号远端同步通过。",
         "030原型317发生BusinessError103806；已取精确Koma jscrash，堆栈定位新嵌套Builder数组参数导致ForEach非数组。031改为ComponentContent内直接遍历，与书架原行为一致。322真实三MenuItemGroup与8动作，323关闭一次重开，324笔记TextArea，325/326系统链接分享及取消后重开，327对应MangaDex作品WebView。只打开分享面板未选接收者、未发送。证据 .hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration。",
         "031关联回归328：原书架布局菜单显示网格/列表及当前勾选，未改选项。迁移提交a5e2bbb8与详情原型46e2dbe8已推，精确CI41235778354运行中。330原包安装明确成功、fresh301七JSON+30首选项共37文件逐字同，无extra；331 SLEEP/normal120000/Override10000，租约已释放。证据 .hvigor/outputs/migration-followup-acceptance/delivery-binding.json。",
-        "详情原型46e2dbe8完整SHA精确CI41235778354 completed/success，Release构建、Inspect与Upload成功、tag发布skipped；031实机原生分组、关闭重开、笔记、系统链接分享取消再开、对应作品WebView及书架单组回归均已核。没有选择分享接收者或发送；用户观感仍为试做反馈范围。证据 .hvigor/outputs/migration-followup-acceptance/report.md。"
+        "详情原型46e2dbe8完整SHA精确CI41235778354 completed/success，Release构建、Inspect与Upload成功、tag发布skipped；031实机原生分组、关闭重开、笔记、系统链接分享取消再开、对应作品WebView及书架单组回归均已核。没有选择分享接收者或发送；用户观感仍为试做反馈范围。证据 .hvigor/outputs/migration-followup-acceptance/report.md。",
+        "197 reader-display-sliders-321、invert-global-nemo-323、reader-volume-up-inverted-325、reader-inverted-return-settings-326、reader-settings-volume-328、reader-volume-normal-329。"
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
@@ -4912,16 +4939,16 @@
     {
       "id": "LIBRARY_UPDATES_BELL_ENTRY",
       "title": "书架铃铛入口与新章节更新列表",
-      "kind": "accepted",
+      "kind": "open",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "已修复并交付",
-      "stage": "本轮修复已交付",
+      "status": "空态与真实更新列表刷新已验证，待本轮收尾",
+      "stage": "197具名路径已核",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
-      "result": "237实际下拉检查时只显示一个刷新指示器。通知发送前的最终文本已由生产发布函数验证，不再附加unknown等内部码；内部码继续保留在诊断结果中。",
-      "remaining": "本轮修复已关闭，既有未验边界保留。",
+      "result": "197空态刷新保留提示、单一指示器；真实检查产生18条新章记录。有内容刷新保留标题和封面，点击1196話进入17页原图并返回，实际进度绑定该章。",
+      "remaining": "随当前197会话统一恢复原包与数据；当前有效结果保留，不重跑。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -4951,10 +4978,18 @@
         ".hvigor/outputs/source-catalog-acceptance/filter-subscription-delivery.json；filter-subscription-restoration.json全部七JSON与18偏好逐字一致。原包安装文件读取被系统拒绝；091/093安装时间与updateTime完全相同，恢复同一既存c6原包，132失败和133恢复回执均保留。134读回SLEEP、120000ms、无OverrideTimeout，租约已释放。",
         "最终产品提交d93f81c6精确CI 41259617566 completed/success；Release HAP构建、检查与上传产物成功，Publish tagged Release skipped。回执 .hvigor/outputs/source-catalog-acceptance/filter-subscription-ci.json；未发布App、移动标签或上传AGC。"
       ],
-      "closedAt": "2026-11-01T09:20:31+08:00",
-      "reopenedAt": "2026-11-01T08:36:37+08:00",
-      "remainingActions": [],
-      "verificationBoundary": "237当次未观察Koma新系统通知；通知最终API文本经生产函数验证，未声称系统投递已通过。"
+      "closedAt": null,
+      "reopenedAt": "2026-11-01T09:36:06+08:00",
+      "remainingActions": [
+        "随当前197会话统一恢复原包与数据；当前有效结果保留，不重跑。"
+      ],
+      "verificationBoundary": "237当次未观察Koma新系统通知；通知最终API文本经生产函数验证，未声称系统投递已通过。",
+      "evidencePoints": [
+        "updates-empty-refresh-motion-308完整249帧/7表已审。",
+        "update-job-readback-338实际结果：9 updated、4 failed、18真实新增记录；不能用start/finished字段16ms差冒实际耗时，首次336读回仍running、338完成。",
+        "updates-content-refresh-motion-340完整193帧/6表已审；updates-content-retained-341内容保留。",
+        "updates-chapter-ready-343：ONE PIECE航海王1196話（17P）原图可见；updates-reader-return-344及reader.json绑定kic-ch:260398、page0/17、isRead=false。"
+      ]
     }
   ],
   "source": {
@@ -12725,6 +12760,146 @@
       "evidence": [
         "https://github.com/honjow/Koma/actions/runs/41259617566",
         ".hvigor/outputs/source-catalog-acceptance/filter-subscription-delivery.json"
+      ]
+    },
+    {
+      "id": "updates-reader-new-feedback-20261101",
+      "at": "2026-11-01T09:36:06+08:00",
+      "title": "接续更新页与阅读设置新反馈",
+      "detail": "修正刷新时隐藏空态；新增角标50%透明度，核亮度滑杆、点击预览及音量键反转开关。App验证回197，不重复申请授权。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": []
+    },
+    {
+      "id": "reader-settings-seams-2026-11-01T09:43:36+08:00",
+      "at": "2026-11-01T09:43:36+08:00",
+      "title": "修正阅读设置并接续图片接缝反馈",
+      "detail": "音量键方向已改反转开关；扁图预览按决定移除；滑杆和强调色尾部已修。连续条漫1px接缝开始核因，尚未验收。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "evidence": [
+        "entry/src/main/ets/components/ReaderSettingsContent.ets",
+        "entry/src/main/ets/components/ui/ConciseListRow.ets",
+        "CONTINUOUS_PAGE_GAPS"
+      ]
+    },
+    {
+      "id": "backup-hierarchy-2026-11-01T09:49:11+08:00",
+      "at": "2026-11-01T09:49:11+08:00",
+      "title": "备份去除重复中转",
+      "detail": "已查证两个设置项同指管理首页；改为备份分类直达原管理页，并在原页显示内容与自动备份配置；创建/恢复/文件仍分开，数据服务未改，待实机。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "evidence": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/pages/BackupManagementPage.ets"
+      ]
+    },
+    {
+      "id": "settings-layout-review-2026-11-01T09:58:52+08:00",
+      "at": "2026-11-01T09:58:52+08:00",
+      "title": "备份结构实机复核",
+      "detail": "197已确认备份直达和独立创建页；指出说明冒充设置行并已移出，创建动作改用原生标题栏，待最终候选。强调色已确认对齐。",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "evidence": [
+        "candidate-appearance-311",
+        "backup-stable-313",
+        "backup-create-314"
+      ]
+    },
+    {
+      "id": "continuous-drawable-coverage-2026-11-01T10:06:34+08:00",
+      "at": "2026-11-01T10:06:34+08:00",
+      "title": "条漫共享绘制兼容候选",
+      "detail": "已按用户纠正直接处理共享绘制边界，不要求作品样本；只改连续图像的填充/取整，已编译，197回验中。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "../reader-kit/reader-ui/src/main/ets/ReaderPagedViewport.ets",
+        "source-catalog-build059.log",
+        "nemo-seam-before-motion-324"
+      ]
+    },
+    {
+      "id": "real-updates-and-reader-2026-11-01T10:17:00+08:00",
+      "at": "2026-11-01T10:17:00+08:00",
+      "title": "阅读设置实测与真实新章记录",
+      "detail": "197反转音量开关两态与滑杆实测通过；备份标题栏调用原校验。真实库产生18条新章，继续核列表保留，4本源检查失败仍按实际结果保留。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        "reader-display-sliders-321",
+        "reader-volume-normal-329",
+        "backup-create-title-action-337",
+        "update-job-readback-338"
+      ]
+    },
+    {
+      "id": "continuous-ineffective-candidate-reverted-2026-11-01T103730",
+      "at": "2026-11-01T10:37:30+08:00",
+      "title": "撤回无效接缝补丁",
+      "detail": "原填满与像素取整补丁未解决用户反馈，已精确撤回共享提交并推送；其它设置与更新页修正保留。先前往返拖动没有覆盖松手后的惯性闪缝，不作为修复验收。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "reader-kit/main f3be308ac9807682d091633bb43909ec785955ab"
+      ]
+    },
+    {
+      "id": "title-more-glyph-feedback-20261101",
+      "at": "2026-11-01T10:42:02+08:00",
+      "title": "登记标题栏图标反馈",
+      "detail": "用户本轮新反馈：自定义标题栏更多入口恢复系统原始四点图标；按用户紧接纠正先登记，接缝修复期间不切换处理。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "evidence": []
+    },
+    {
+      "id": "library_updates_bell_entry-sync-2026-11-01T104358",
+      "at": "2026-11-01T10:43:58+08:00",
+      "title": "补齐真实更新列表验收进展",
+      "detail": "197空态刷新保留提示、单一指示器；真实检查产生18条新章记录。有内容刷新保留标题和封面，点击1196話进入17页原图并返回，实际进度绑定该章。",
+      "itemId": "LIBRARY_UPDATES_BELL_ENTRY",
+      "evidence": [
+        "updates-content-refresh-motion-340完整193帧/6表已审；updates-content-retained-341内容保留。",
+        "updates-chapter-ready-343：ONE PIECE航海王1196話（17P）原图可见；updates-reader-return-344及reader.json绑定kic-ch:260398、page0/17、isRead=false。"
+      ]
+    },
+    {
+      "id": "library_reading_progress_semantics-sync-2026-11-01T104358",
+      "at": "2026-11-01T10:43:58+08:00",
+      "title": "补齐未读角标50%透明进展",
+      "detail": "未读角标仍用系统Badge，背景改50%透明、数字保持不透明；197书架多本有封面状态已查看。原未读计数及继续阅读进度规则保持。",
+      "itemId": "LIBRARY_READING_PROGRESS_SEMANTICS",
+      "evidence": [
+        "原device200/chapter-failure/original-state-001/library.json与reader.json的真实624行/600ID/4已读，实际执行当前PersistentReaderSessionStore与createLibraryViewModelFromComics均596；旧完整性判断会undefined，输入内存及文件逐字保持。回执 .hvigor/outputs/user-flow-audit/library-progress-real-snapshot-replay.json。197 71 library-after/reader-after同生产投影与88屏幕对照，Blue 4/xkcd 669/Nemo 0一致；100%为继续阅读当前章、封面4仍未读。此真实快照不同于此前合成回归；未触200。",
+        "seam-reverted061-installed-346/screen.png：197实际书架带封面和50%背景角标；源图与数字均可见。"
+      ]
+    },
+    {
+      "id": "settings_grouping_advanced-sync-2026-11-01T104358",
+      "at": "2026-11-01T10:43:58+08:00",
+      "title": "校准备份阶段与剩余动作",
+      "detail": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "evidence": [
+        "backup-create-title-action-337：标题栏确认触发原口令校验；未创建或恢复备份。",
+        "build061已安装346：短标签包含在候选中，当前优先接缝未进入备份页，不冒最终画面已看。"
+      ]
+    },
+    {
+      "id": "continuous-real-webtoon-positioned-20261101-359",
+      "at": "2026-11-01T10:49:08+08:00",
+      "title": "接缝改用真实韩漫空白处定位",
+      "detail": "已撤回无效候选并装入197；普通书架打开已下载Solo Leveling第46话，现有跳页定位第2/3张白色空白接缝在屏内。尚未完成有效修复。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "seam-solo-white-join-359"
+      ]
+    },
+    {
+      "id": "continuous-inertia-baseline-360",
+      "at": "2026-11-01T10:55:02+08:00",
+      "title": "低速短距离惯性样本已核",
+      "detail": "197真实韩漫空白接缝的160px低速短滑已录制并亲审，接缝留在屏内；本样本未清楚观察到闪线，不能判定缺陷消失。共享实现仍有列表aspectRatio与内部图片独立尺寸分配，开始统一物理像素行高。",
+      "itemId": "CONTINUOUS_PAGE_GAPS",
+      "evidence": [
+        "solo-short-inertia-before061-360",
+        "seam-solo-inertia-final-361"
       ]
     }
   ],

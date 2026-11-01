@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  KOMA_READER_KIT_REVISION: df352cb6062891d42d5a2c396c43ca5fbf2bb093
+  KOMA_READER_KIT_REVISION: f3be308ac9807682d091633bb43909ec785955ab
 
 permissions:
   contents: read
