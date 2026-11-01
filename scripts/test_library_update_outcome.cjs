@@ -62,8 +62,10 @@ const prefs = compile(source('LibraryUpdatePreferencesStore'), {
 })
 const automationPolicy = compile(source('LibraryAutomationPolicy'), { './ReaderChapterSequence': compile(source('ReaderChapterSequence'), {}), './ComicReleaseSchedule': compile(source('ComicReleaseSchedule'), {}) })
 const chapterUpdates = compile(source('LibraryChapterUpdates'), { './LibraryAutomationPolicy': automationPolicy })
+const publishedNotifications=[]
 const result = compile(source('LibraryUpdateResultStore'), {
-  '@kit.AbilityKit': {}, '@kit.ArkData': arkData, '@kit.NotificationKit': {},
+  '@kit.AbilityKit': { wantAgent: { getWantAgent:async()=>({}),OperationType:{START_ABILITY:0},WantAgentFlags:{UPDATE_PRESENT_FLAG:0} } }, '@kit.ArkData': arkData,
+  '@kit.NotificationKit': {notificationManager:{isNotificationEnabled:async()=>true,SlotType:{CONTENT_INFORMATION:0},ContentType:{NOTIFICATION_CONTENT_BASIC_TEXT:0},publish:async request=>{publishedNotifications.push(request)}}},
   './LibraryChapterUpdates': chapterUpdates,
   './LibraryUpdateService': service, './LibraryUpdatePreferencesStore': prefs,
   '../common/Constants': {}, '../i18n/AppStrings': strings,
@@ -197,6 +199,10 @@ async function checkBaoziUpdateFailure() {
 }
 
 async function main() {
+  assert.equal((await result.publishLibraryUpdateNotification(failureNotice)).delivered,true)
+  assert.equal(publishedNotifications.at(-1).content.normal.text,'library_update_summary_counts:0,0,4')
+  await result.publishLibraryUpdateFailureNotification(1,'unknown')
+  assert.equal(publishedNotifications.at(-1).content.normal.text,'library_updates_check_failed')
   checkChapterIdentityProtection()
   checkBaoziChapterIdentityProtection()
   await checkBaoziUpdateFailure()

@@ -2105,10 +2105,11 @@
     {"name": "source_subscription_edit", "value": "编辑订阅"},
     {"name": "source_subscription_name", "value": "名称（可选）"},
     {"name": "source_subscription_name_hint", "value": "留空则自动使用订阅名称"},
-    {"name": "source_subscription_copy", "value": "复制订阅地址"},
+    {"name": "source_subscription_copy", "value": "复制地址"},
     {"name": "source_subscription_copied", "value": "订阅地址已复制"},
     {"name": "source_subscription_copy_failed", "value": "无法复制订阅地址"},
     {"name": "source_subscription_website", "value": "项目主页"},
-    {"name": "source_subscription_actions", "value": "订阅操作"}
+    {"name": "source_subscription_actions", "value": "订阅操作"},
+    {"name": "source_subscription_remove", "value": "移除订阅"}
   ]
 }

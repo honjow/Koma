@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "持续核验与修复中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-01T08:55:45+08:00",
+  "updatedAt": "2026-11-01T09:05:52+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
-  "activity": "修复筛选关闭联动，同时处理重复刷新、通知和订阅信息。",
+  "activity": "菜单文案和筛选、订阅、刷新修复已验证；恢复237并完成最终提交。",
   "nextAction": "本轮入口与展示问题已关闭；其余源、账号及原未关闭项继续按原事项保留。",
   "proof": [
     {
@@ -4856,15 +4856,15 @@
       "kind": "open",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "订阅编辑已验证，复制与更新页继续核对",
-      "stage": "已验收",
+      "status": "实机通过，提交与恢复收尾",
+      "stage": "筛选与订阅界面已验证",
       "reportedAt": null,
       "reportedAtSource": "2026-11-01本会话当前用户要求；精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T05:12:29+08:00",
-      "result": "237筛选单项及连续切换、跨入口共享已通过。订阅已实测自动名称、编辑后立即更新、自定义名称冷启动保留；清空自定义名后恢复发布者名，地址编辑已保存。复制及项目页正继续核对。",
-      "remaining": "定位筛选开关反馈链并实机验证；补订阅可选名称、元数据、编辑、复制和项目页。",
+      "result": "237已验证筛选独立开关、连续切换、两个入口共享及重启保存；订阅名称、地址编辑、自动命名、复制粘贴和项目页浏览器交接通过。菜单已按最新反馈统一为四字。",
+      "remaining": "恢复237本轮原包与数据，提交菜单文案并核对最终CI。",
       "remainingActions": [
-        "改为原生菜单及清晰文字入口；订阅改独立列表页，由标题栏添加并弹输入对话框。"
+        "恢复237本轮原包与数据，提交菜单文案并核对最终CI。"
       ],
       "boundaries": [
         "保留源更新角标缓存、后台差量更新与失败保留。",
@@ -4901,7 +4901,9 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/filter-candidate-one-off-102/：All=false、English=false，其余三项true；103连续修改、105管理页共享结果一致。",
         ".hvigor/outputs/user-flow-audit/source-settings-repair/source-repository-metadata-published-22b8c3c/evidence.json：源库元数据已公开，索引与前版逐字相同。",
         "订阅109/110实测发现：公开meta已入偏好，但URL键固定使旧行未重建；053候选改为展示字段变更时只更新该行，尚在验证。",
-        "054候选：117冷启动显示自定义名；118编辑后当前行立即更新；119清空自定义名称恢复Koma书源库并保存目录形式URL；120原生锚定菜单含编辑/复制/项目主页/移除。此前110/116的偏好已更新而界面未刷新的原因是共享缓存无revision发布，已在公共owner修正，修正前不算验收。"
+        "054候选：117冷启动显示自定义名；118编辑后当前行立即更新；119清空自定义名称恢复Koma书源库并保存目录形式URL；120原生锚定菜单含编辑/复制/项目主页/移除。此前110/116的偏好已更新而界面未刷新的原因是共享缓存无revision发布，已在公共owner修正，修正前不算验收。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-copy-consumed-121/：实际粘贴得到复制的订阅地址。122调起github.com系统浏览器，未以浏览器页面完整加载作为站点验收。124冷启动筛选状态保持。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-uniform-labels-131/：055候选菜单实际为编辑订阅／复制地址／项目主页／移除订阅。"
       ],
       "closedAt": null,
       "reopenedAt": "2026-11-01T08:36:37+08:00"
@@ -4912,13 +4914,13 @@
       "kind": "open",
       "priority": "P1（当前用户要求）",
       "owner": "Root",
-      "status": "修复重复刷新及通知错误码",
-      "stage": "已验收",
+      "status": "刷新已验证，通知文案已修复",
+      "stage": "重复转圈已消除",
       "reportedAt": null,
       "reportedAtSource": "本会话最新用户要求，精确提出时刻未核实。",
       "firstHandledAt": "2026-11-01T06:28:00+08:00",
-      "result": "用户新图显示下拉刷新与列表状态行同时转圈；更新失败通知末尾出现内部错误码unknown。",
-      "remaining": "统一刷新反馈，通知只显示面向用户的更新摘要；验证原列表保留及通知。",
+      "result": "237实际下拉检查时只显示一个刷新指示器。通知发送前的最终文本已由生产发布函数验证，不再附加unknown等内部码；内部码继续保留在诊断结果中。",
+      "remaining": "提交与设备恢复收尾；237当次未观察到Koma新系统通知，不声称系统投递已验收。",
       "boundaries": [
         "保留后台检查频率、来源范围、Wi-Fi与充电条件，不因打开页面自动全库检查。",
         "沿既有书库更新及结果持久域，不用章节列表显示顺序或数量差猜新增章节。",
@@ -4940,10 +4942,16 @@
         "047候选点击视图子菜单退出：076屏幕及084受控日志，TypeError Cannot read property observeComponentCreation2 of undefined，定位KomaMenuSubmenu全局builder未绑定父视图。已改为.call(this,item)，048待编译及设备回验；故障候选不交付。",
         "最终049签名候选6a0df445f1cfe82f4ac79538da667c49047aed9ec41a3e38ea7d478d6b1cfb0e实际安装085；086原生二级选择菜单、087列表选择生效、088封面四向12vp内缩与12vp封面圆角、089原检查详情入口。049将延迟子菜单构建放回组件实例，避免全局builder丢失上下文；048的.call尝试未编译、未装。067实际cold记录保留，主数据逻辑未再改。",
         "已审提交 cb2b0b2cfc98e27648379b7696f44b1c55b7caad 已推 Koma/master；精确CI 41252261302 进行中。验证HAP/路径绑定 .hvigor/outputs/source-catalog-acceptance/entry-updates-delivery.json；8766 API的所有snapshot字段逐字段一致，119项无旧ID删除。",
-        "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。"
+        "精确CI 41252261302 已completed/success，head cb2b0b2cfc98e27648379b7696f44b1c55b7caad；Build unsigned Release HAP构建/Inspect/Upload成功，Publish tagged Release skipped，未发布新版本或上传AGC。回执 .hvigor/outputs/source-catalog-acceptance/entry-updates-ci-final.json。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-single-refresh-126/：LoadingProgress仅1个，画面无第二行转圈。",
+        "scripts/test_library_update_outcome.cjs：实际生产publisher调用受控NotificationKit边界，summary和整次失败通知均不暴露unknown；不是设备投递证明。",
+        "128限定日志记录本次普通手动检查已结束；不作为四私库账号/内容验收，也不重跑。129通知面板当次未观察Koma新通知，未修改系统通知权限。"
       ],
       "closedAt": null,
-      "reopenedAt": "2026-11-01T08:36:37+08:00"
+      "reopenedAt": "2026-11-01T08:36:37+08:00",
+      "remainingActions": [
+        "提交与设备恢复收尾；保留237系统投递未观察的范围。"
+      ]
     }
   ],
   "source": {
@@ -12682,6 +12690,17 @@
       "detail": "修正公共缓存发布后，当前行即时显示编辑结果；清空名称恢复自动名，自定义名称冷启保留。复制和通知仍在验证。",
       "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
       "id": "filters-subscriptions-feedback-20261101-752"
+    },
+    {
+      "id": "subscription-four-character-actions-20261101",
+      "at": "2026-11-01T09:05:52+08:00",
+      "title": "订阅四字菜单与刷新指示器实机通过",
+      "detail": "最新菜单采用编辑订阅、复制地址、项目主页、移除订阅；237下拉只有一个转圈。通知最终发送文本通过生产函数验证，设备投递未观察。",
+      "itemId": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/subscription-uniform-labels-131/",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/updates-single-refresh-126/"
+      ]
     }
   ],
   "reportAgeAudit": {

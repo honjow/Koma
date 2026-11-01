@@ -146,7 +146,7 @@ export struct SourceSubscriptionsPage {
     if (repository.website) items.push({ label: AppStrings.get('source_subscription_website'),
       action: (): void => { this.openWebsite(repository) } })
     return [{ id: 'subscription', items }, { id: 'remove', items: [
-      { label: AppStrings.get('source_pkg_saved_index_remove'), action: (): void => { void this.remove(repository) } },
+      { label: AppStrings.get('source_subscription_remove'), action: (): void => { void this.remove(repository) } },
     ] }]
   }
 

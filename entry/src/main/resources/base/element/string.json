@@ -2105,10 +2105,11 @@
     {"name": "source_subscription_edit", "value": "Edit subscription"},
     {"name": "source_subscription_name", "value": "Name (optional)"},
     {"name": "source_subscription_name_hint", "value": "Use the subscription name automatically"},
-    {"name": "source_subscription_copy", "value": "Copy subscription address"},
+    {"name": "source_subscription_copy", "value": "Copy address"},
     {"name": "source_subscription_copied", "value": "Subscription address copied"},
     {"name": "source_subscription_copy_failed", "value": "Could not copy subscription address"},
     {"name": "source_subscription_website", "value": "Project page"},
-    {"name": "source_subscription_actions", "value": "Subscription actions"}
+    {"name": "source_subscription_actions", "value": "Subscription actions"},
+    {"name": "source_subscription_remove", "value": "Remove subscription"}
   ]
 }
