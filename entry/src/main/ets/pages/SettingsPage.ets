@@ -148,7 +148,6 @@ import {
   getReaderVolumeKeyNavigationLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
-import { ReaderTapZoneAction, ReaderTapZoneRegion, readerTapZoneRegions } from '../model/ReaderTapZoneGeometry'
 import { listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
 import { AppStrings } from '../i18n/AppStrings'
@@ -2176,7 +2175,6 @@ export struct SettingsPage {
       row.key === 'reader-tap-zone-invert' ||
       row.key === 'reader-page-gap' ||
       row.key === 'reader-wide-image-mode' ||
-      row.key === 'reader-volume-key-behavior' ||
       row.key === 'download-concurrency' ||
       row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
@@ -2201,7 +2199,8 @@ export struct SettingsPage {
       row.key === 'reader-double-tap-zoom' ||
       row.key === 'reader-preload-wifi-only' ||
       row.key === 'reader-keep-screen-awake' ||
-      row.key === 'reader-volume-key-navigation'
+      row.key === 'reader-volume-key-navigation' ||
+      row.key === 'reader-volume-key-behavior'
   }
 
   private switchRowValue(row: SettingsRow): boolean {
@@ -2233,6 +2232,7 @@ export struct SettingsPage {
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
     }
+    if (row.key === 'reader-volume-key-behavior') return this.readerVolumeKeyBehavior === 'up_next_down_previous'
     if (row.key === 'download-wifi-only') {
       return this.downloadWifiOnly
     }
@@ -2254,6 +2254,8 @@ export struct SettingsPage {
   }
 
   private setSwitchRowValue(row: SettingsRow, value: boolean): void {
+    // Keep the persisted enum shared with the reader; this is only its boolean projection.
+    if (row.key === 'reader-volume-key-behavior') { this.saveReaderVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next'); return }
     if (row.key === 'reader-preload-wifi-only') { this.saveReaderPreloadWifiOnly(value); return }
     if (row.key === 'library-background-update') { this.saveLibraryBackgroundUpdates(value); return }
     if (row.key === 'library-auto-update') {
@@ -2375,9 +2377,6 @@ export struct SettingsPage {
         this.SelectionMenuItem(select, s('reader_wide_mode_keep_single'), this.readerWideImageMode === 'keep_single', () => { this.saveReaderWideImageMode('keep_single') })
         this.SelectionMenuItem(select, s('reader_wide_mode_split'), this.readerWideImageMode === 'split_wide_pages', () => { this.saveReaderWideImageMode('split_wide_pages') })
         this.SelectionMenuItem(select, s('reader_wide_mode_rotate'), this.readerWideImageMode === 'rotate_wide_pages', () => { this.saveReaderWideImageMode('rotate_wide_pages') })
-      } else if (row.key === 'reader-volume-key-behavior') {
-        this.SelectionMenuItem(select, s('reader_volume_keys_down_next'), this.readerVolumeKeyBehavior === 'up_previous_down_next', () => { this.saveReaderVolumeKeyBehavior('up_previous_down_next') })
-        this.SelectionMenuItem(select, s('reader_volume_keys_up_next'), this.readerVolumeKeyBehavior === 'up_next_down_previous', () => { this.saveReaderVolumeKeyBehavior('up_next_down_previous') })
       } else if (row.key === 'download-concurrency') {
         ForEach(OFFLINE_DOWNLOAD_FOREGROUND_CONCURRENCY_LIMIT_OPTIONS, (limit: number) => {
           this.SelectionMenuItem(select, `${limit}`, this.downloadForegroundConcurrencyLimit === limit, () => {
@@ -2486,27 +2485,6 @@ export struct SettingsPage {
   }
 
   @Builder
-  private AccentColorSuffix() {
-    Row({ space: ThemeConstants.SPACE_SM }) {
-      Row() {}
-        .width(16)
-        .height(16)
-        .borderRadius(ThemeConstants.RADIUS_ROUND)
-        .backgroundColor(getAppearanceAccentColorValue(this.appearanceAccentColor))
-      Text(this.rowDetail({ key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' }))
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-      SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
-        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
-        .fontColor([$r('sys.color.font_tertiary')])
-        .padding({ left: 4, right: 12 })
-    }
-    .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
   private SectionRow(row: SettingsRow) {
     if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
       LibraryAutomationSettingRow({ rowKey: row.key, title: this.rowTitle(row), policy: this.automationPolicy,
@@ -2522,29 +2500,17 @@ export struct SettingsPage {
         showChevron: false,
         hasSwitch: true,
         checked: this.switchRowValue(row),
+        isEnabled: row.key !== 'reader-volume-key-behavior' || this.readerVolumeKeyNavigationEnabled,
         switchAction: (isOn: boolean) => {
           this.setSwitchRowValue(row, isOn)
         },
       })
     } else if (this.isSelectionRow(row) && this.canOpenSelectionMenu(row)) {
-      if (row.key === 'theme-color') {
-        ConciseListRow({
-          title: this.rowTitle(row),
-          trailingDropdown: true,
-          showChevron: true,
-          suffixBuilderParam: () => {
-            this.AccentColorSuffix()
-          },
-          dropdownMenuEnabled: true,
-          dropdownMenuBuilder: (select: (action: () => void) => void) => {
-            this.SettingsSelectionMenu(row, select)
-          },
-        })
-      } else {
         ConciseListRow({
           title: this.rowTitle(row),
           subtitle: row.key === 'library-update-interval' ? getLibraryUpdateNextDueLabel(this.libraryUpdatePreferences) : '',
           trailingText: this.rowDetail(row),
+          trailingSwatchColor: row.key === 'theme-color' ? getAppearanceAccentColorValue(this.appearanceAccentColor) : undefined,
           trailingMaxLines: this.rowDetailMaxLines(row),
           trailingDropdown: true,
           showChevron: true,
@@ -2554,7 +2520,6 @@ export struct SettingsPage {
             this.SettingsSelectionMenu(row, select)
           },
         })
-      }
     } else if (this.isSelectionRow(row)) {
       ConciseListRow({
         title: this.rowTitle(row),
@@ -2576,58 +2541,6 @@ export struct SettingsPage {
         },
       })
     }
-  }
-
-  private tapZonePreviewLabel(action: ReaderTapZoneAction): string {
-    if (action === 'previous') return s('reader_tap_zone_action_previous')
-    if (action === 'next') return s('reader_tap_zone_action_next')
-    if (action === 'left') return s('reader_tap_zone_action_left')
-    if (action === 'right') return s('reader_tap_zone_action_right')
-    return s('reader_tap_zone_action_menu')
-  }
-
-  private tapZonePreviewColor(action: ReaderTapZoneAction): ResourceColor {
-    if (action === 'previous') return '#264E78B8'
-    if (action === 'next') return '#26588752'
-    if (action === 'left') return '#26705A9F'
-    if (action === 'right') return '#26876D45'
-    return '#262D6D66'
-  }
-
-  @Builder
-  private ReaderTapZonePreview() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(s('settings_row_reader_tap_zone_preset_title'))
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor(ThemeConstants.TEXT_TERTIARY)
-        .fontWeight(FontWeight.Medium)
-      Stack() {
-        ForEach(readerTapZoneRegions(this.readerTapZonePreset, this.readerTapZoneInvert), (region: ReaderTapZoneRegion) => {
-          Stack({ alignContent: Alignment.Center }) {
-            Text(this.tapZonePreviewLabel(region.action))
-              .fontSize(ThemeConstants.FONT_SIZE_TINY)
-              .fontColor(ThemeConstants.TEXT_PRIMARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .textAlign(TextAlign.Center)
-              .padding({ left: ThemeConstants.SPACE_XS, right: ThemeConstants.SPACE_XS })
-          }
-            .position({ x: `${region.left * 100}%`, y: `${region.top * 100}%` })
-            .width(`${(region.right - region.left) * 100}%`)
-            .height(`${(region.bottom - region.top) * 100}%`)
-            .backgroundColor(this.tapZonePreviewColor(region.action))
-            .border({ width: 1, color: ThemeConstants.DIVIDER })
-        }, (region: ReaderTapZoneRegion) => `settings-tap-zone-${region.action}-${region.left}-${region.top}`)
-      }
-      .width('100%')
-      .height(96)
-      .clip(true)
-      .borderRadius(ThemeConstants.RADIUS_MD)
-      .backgroundColor(ThemeConstants.CARD)
-      .border({ width: 1, color: ThemeConstants.DIVIDER })
-    }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
   }
 
   @Builder
@@ -2745,9 +2658,6 @@ export struct SettingsPage {
             ListDivider()
           }
         }, (row: SettingsRow) => row.key)
-      }
-      if (section.key === 'reader-operation' && !this.isReaderWebtoonLayout()) {
-        this.ReaderTapZonePreview()
       }
     }
     .width('100%')

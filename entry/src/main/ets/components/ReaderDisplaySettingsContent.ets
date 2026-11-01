@@ -106,7 +106,7 @@ struct ReaderDisplayValueSlider {
         Blank()
         Text(`${this.value}`).fontColor(ThemeConstants.TEXT_SECONDARY)
       }.width('100%')
-      Slider({ value: this.value, min: this.min, max: this.max, step: 1 }).width('100%')
+      Slider({ value: this.value, min: this.min, max: this.max, step: 1, style: SliderStyle.InSet }).width('100%')
         .selectedColor(ThemeConstants.BRAND_PRIMARY)
         .onChange((value: number, mode: SliderChangeMode): void => { this.onChange(value, mode) })
     }.padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM })

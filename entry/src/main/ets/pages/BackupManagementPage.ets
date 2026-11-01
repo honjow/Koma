@@ -1,3 +1,4 @@
+import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions } from '../theme/KomaPopupOptions'
@@ -62,6 +63,8 @@ interface SelectedBackupPreviewParams {
 
 @ComponentV2
 export struct BackupManagementPage {
+  @Param titleAction: FormTitleActionState = new FormTitleActionState()
+  private handledCreateRequest: number = 0
   @Param pane: string = 'home'
   @Param localFileName: string = ''
   @Param refreshRevision: number = 0
@@ -102,11 +105,25 @@ export struct BackupManagementPage {
     if (this.pane === 'home' || this.pane === 'files') {
       this.loadLocalBackups()
       this.loadAutomaticPreferences()
+      if (this.pane === 'home') this.loadContentPreferences()
     } else if (this.pane === 'create') {
       this.loadContentPreferences()
     } else if (this.pane === 'settings') {
       this.loadAutomaticPreferences()
+      this.loadContentPreferences()
     }
+  }
+
+  @Monitor('busy')
+  private publishCreateAvailability(): void {
+    this.titleAction.enabled = this.pane === 'create' && !this.busy
+  }
+
+  @Monitor('titleAction.requestSeq')
+  private onCreateRequest(): void {
+    if (this.titleAction.requestSeq <= this.handledCreateRequest) return
+    this.handledCreateRequest = this.titleAction.requestSeq
+    if (this.pane === 'create') this.createBackup()
   }
 
   private createBackup(): void {
@@ -708,35 +725,6 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private SettingsNavigationCard() {
-    GroupedListSection() {
-      ConciseListRow({ title: t('backup_task_settings'),
-        subtitle: t(this.autoPreferences.enabled ? 'backup_auto_enabled_summary' : 'backup_auto_disabled_summary'),
-        action: () => { this.onOpenTask('settings', '') } })
-    }
-  }
-
-  @Builder
-  private CreateActions() {
-    Column() {
-      KomaActionButton({ label: this.createActionLabel(), kind: 'primary', fullWidth: true,
-        isEnabled: !this.busy, action: () => { this.createBackup() } })
-    }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
-  }
-
-  @Builder
-  private ContentSummaryCard() {
-    GroupedListSection() {
-      ConciseListRow({ title: t('backup_included_data'),
-        subtitle: backupIncludedDomainLabels(this.contentPreferences).join('、'),
-        subtitleMaxLines: 2147483647,
-        action: () => { this.onOpenTask('settings', '') } })
-    }
-  }
-
-  @Builder
   private TechnicalDetailsCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       ConciseListRow({ title: t('backup_technical_details'), showChevron: false,
@@ -856,12 +844,6 @@ export struct BackupManagementPage {
   private DomainsCard() {
     Column({ space: ThemeConstants.SPACE_XS }) {
       GroupedListSection({ title: t('backup_included_data') }) {
-        ForEach(backupIncludedDomainLabels({
-          includeSettings: false, includeDownloadQueue: false, includeTrackerMappings: false,
-        }), (domain: string) => {
-          ConciseListRow({ title: domain, wrapTitle: true, showChevron: false })
-          ListDivider()
-        }, (domain: string) => domain)
         this.ContentPreferenceSwitchRow(t('backup_domain_reader_preferences'),
           UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeSettings),
           (value: boolean) => { this.setBackupIncludeSettings(value) })
@@ -874,6 +856,12 @@ export struct BackupManagementPage {
           UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeTrackerMappings),
           (value: boolean) => { this.setBackupIncludeTrackerMappings(value) })
       }
+      // Fixed backup domains are explanatory content, not editable setting rows.
+      Text(t('backup_fixed_content_description'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor(ThemeConstants.TEXT_SECONDARY)
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
     }
     .width('100%')
   }
@@ -1251,11 +1239,12 @@ export struct BackupManagementPage {
       }) {
           if (this.pane === 'home') {
             ListItem() { this.TaskNavigationCard() }
-            ListItem() { this.SettingsNavigationCard() }
+            ListItem() { this.DomainsCard() }
+            ListItem() { this.AutomaticBackupCard() }
+            ListItem() { this.TechnicalDetailsCard() }
           } else if (this.pane === 'create') {
             ListItem() { this.CreateFormCard() }
-            ListItem() { this.CreateActions() }
-            ListItem() { this.ContentSummaryCard() }
+            ListItem() { this.DomainsCard() }
           } else if (this.pane === 'restore') {
             if (this.selectedBackupPreview !== undefined) {
               ListItem() { this.SelectedPreviewCard({ preview: this.selectedBackupPreview }) }
@@ -1283,13 +1272,16 @@ export struct BackupManagementPage {
   }
 
   aboutToDisappear(): void {
+    this.titleAction.enabled = false
     this.localBackupsEpoch += 1
   }
 
   aboutToAppear(): void {
+    this.publishCreateAvailability()
     if (this.pane === 'home' || this.pane === 'files') {
       this.loadLocalBackups()
       this.loadAutomaticPreferences()
+      if (this.pane === 'home') this.loadContentPreferences()
     } else if (this.pane === 'create') {
       this.loadContentPreferences()
     } else if (this.pane === 'settings') {

@@ -1,7 +1,9 @@
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ColorMetrics } from '@kit.ArkUI'
 
 // Shared native Badge configuration for both bookshelf cover presentations.
 export function libraryUnreadBadgeOptions(count: number | undefined, color: ResourceColor): BadgeParamWithNumber {
+  const background = ColorMetrics.resourceColor(color)
   return {
     count: count ?? 0,
     maxCount: 2147483647,
@@ -11,7 +13,8 @@ export function libraryUnreadBadgeOptions(count: number | undefined, color: Reso
       fontSize: ThemeConstants.FONT_SIZE_TAG,
       fontWeight: FontWeight.Medium,
       badgeSize: 20,
-      badgeColor: color,
+      // The user's 50% transparency applies to the surface, not the digits.
+      badgeColor: ColorMetrics.rgba(background.red, background.green, background.blue, 0.5).color,
       borderColor: color,
       borderWidth: 0,
     },

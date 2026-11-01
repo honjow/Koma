@@ -26,7 +26,6 @@ import {
   getReaderPageGapModeLabel,
   getReaderTapZoneInvertLabel,
   getReaderTapZonePresetLabel,
-  getReaderVolumeKeyBehaviorLabel,
   getReaderWideImageModeLabel,
   getReadingDirectionLabel,
 } from '../model/ReaderPreferencesStore'
@@ -312,14 +311,6 @@ export struct ReaderSettingsContent {
   }
 
   @Builder
-  private VolumeKeyBehaviorMenu(select: (action: () => void) => void) {
-    Menu() {
-      MenuItem({ content: getReaderVolumeKeyBehaviorLabel('up_previous_down_next'), symbolEndIcon: this.preferences.volumeKeyBehavior === 'up_previous_down_next' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setVolumeKeyBehavior('up_previous_down_next') }) })
-      MenuItem({ content: getReaderVolumeKeyBehaviorLabel('up_next_down_previous'), symbolEndIcon: this.preferences.volumeKeyBehavior === 'up_next_down_previous' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setVolumeKeyBehavior('up_next_down_previous') }) })
-    }
-  }
-
-  @Builder
   private GapMenu(select: (action: () => void) => void) {
     Menu() {
       MenuItem({ content: getReaderPageGapModeLabel('compact'), symbolEndIcon: this.preferences.pageGapMode === 'compact' ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined }).onClick(() => { select(() => { this.setGap('compact') }) })
@@ -419,7 +410,7 @@ export struct ReaderSettingsContent {
           ListDivider()
           ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
           ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), trailingText: getReaderVolumeKeyBehaviorLabel(this.preferences.volumeKeyBehavior), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.volumeKeyNavigationEnabled, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.VolumeKeyBehaviorMenu(select) } })
+          ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
         }
         GroupedListSection({ title: s('settings_row_reader_page_gap_title'), headerSpacing: ThemeConstants.SPACE_SM }) {
           ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })

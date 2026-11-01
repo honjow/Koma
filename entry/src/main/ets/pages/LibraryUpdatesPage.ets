@@ -133,9 +133,14 @@ export struct LibraryUpdatesPage {
             }.padding(ThemeConstants.SPACE_MD)
           }
         }
-        if (this.rows.length === 0 && !this.updateState.busy) {
+        // Refresh updates the saved snapshot in the background. Its activity
+        // must not replace either existing rows or the confirmed empty state.
+        if (this.rows.length === 0) {
           ListItem() {
-            if (this.loading) { LoadingProgress().width(32).height(32).color(ThemeConstants.BRAND_PRIMARY) }
+            if (this.loading) {
+              LoadingProgress().width(32).height(32).color(ThemeConstants.BRAND_PRIMARY)
+                .visibility(this.refreshing ? Visibility.Hidden : Visibility.Visible)
+            }
             else {
               KomaEmptyState({ icon: $r('sys.symbol.bell'),
                 title: AppStrings.get(this.error ? 'library_updates_load_failed' : 'library_updates_empty'),

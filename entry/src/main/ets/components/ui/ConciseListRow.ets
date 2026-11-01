@@ -54,6 +54,7 @@ export struct ConciseListRow {
   @Param count: number = -1
   @Param destructive: boolean = false
   @Param showChevron: boolean = true
+  @Param trailingSwatchColor: ResourceColor | undefined = undefined
   @Param trailingDropdown: boolean = false
   @Param dropdownMenuEnabled: boolean = false
   @Local private dropdownMenuShown: boolean = false
@@ -353,6 +354,10 @@ export struct ConciseListRow {
 
   @Builder
   private DropdownSuffixContent() {
+    if (this.trailingSwatchColor !== undefined) {
+      Row() {}.width(16).height(16).borderRadius(ThemeConstants.RADIUS_ROUND)
+        .backgroundColor(this.trailingSwatchColor)
+    }
     if (this.trailingText) {
       Text(this.trailingText)
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
