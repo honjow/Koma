@@ -1,3 +1,4 @@
+import { SourceTextOverlay } from '../model/SourceTextOverlay'
 import { ReaderSessionConfig } from '../model/ReaderSessionStore'
 import {
   OfflineDownloadedChapterStatus, OfflineDownloadedPage, OfflineDownloadManifestValidation,
@@ -21,12 +22,14 @@ export function createKomaReaderLabOfflineConfig(
 
   const pageUris: string[] = []
   const sourceOriginalImageUris: Array<string | undefined> = []
+  const pageTextOverlays: Array<SourceTextOverlay | undefined> = []
   const pageIds: string[] = []
   const pageWidths: Array<number | undefined> = []
   const pageHeights: Array<number | undefined> = []
   for (let index = 0; index < validation.pageCount; index += 1) {
     const page = manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
     sourceOriginalImageUris.push(page?.sourceOriginalUri)
+    pageTextOverlays.push(page?.sourceTextOverlay)
     pageIds.push(page?.pageId ?? `page-${index + 1}`)
     // Structural validation owns identity, safe paths and file checks. A corrupt
     // manifest keeps its page count but must never supply a readable local path.
@@ -54,6 +57,7 @@ export function createKomaReaderLabOfflineConfig(
     totalPages: validation.pageCount,
     pageUris,
     sourceOriginalImageUris,
+    pageTextOverlays,
     pageIds,
     pageWidths,
     pageHeights,

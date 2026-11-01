@@ -61,13 +61,19 @@ HTTP 诊断关联宿主提供的操作名，并记录原生传输的 DNS、TCP�
 
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。同组排序位置重复时不能按数组位置决定先后，该组须补齐可区分的序号后才自动续读；有唯一阅读序号的重复话号、无号番外仍可正常续读。不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`mangabz_mirror_session_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1`、`source_baozi_chapter_identity_v1` 和 `source_java_regex_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`mangabz_mirror_session_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1`、`source_baozi_chapter_identity_v1`、`source_java_regex_v1` 和 `source_page_text_overlay_v1`；源必须按特性声明再展示、消费依赖项，旧 App 没有声明时保持原输出。特性不是网络权限或任意 HTML 执行许可。
 
 `source_page_image_processing_v1` 是正文页派生图片的可选能力。包子源可在 `get_image_request` 响应提供 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }`；未存偏好时源默认普通模式，显式禁用或源未声明处理时保留原图。宿主只在正文页消费并核对源身份、图片域、当前安装包和设置，保留原始下载及其摘要；派生图用于阅读、预载和普通保存/分享，不处理封面。
 
 横幅派生缓存按源安装身份和设置指纹区分，设置变更后请求使用新缓存身份；因此不沿用参考源中要求清除已加载图片缓存的提示。
 
 `source_baozi_chapter_identity_v1` 允许包子的 `CHAPTER_ORDER` 在显式启用时以完整标题扩展章节身份；默认关闭，正文仍按原 slot 请求，不改变目录顺序。宿主在详情和书架更新前共用 `SourceChapterIdentity`，仅同作品、slot及完整标题唯一匹配时沿用已有ID，双向切换都保留原进度、页表和下载归属；无法唯一匹配或会合并不同章节时整次更新失败，保留旧目录，不提交部分结果。历史中的标题身份可按同一精确规则恢复；缺少标题的孤立旧ID不猜测映射。旧宿主未声明能力时，源不得展示或消费该设置。
+
+### 正文图片气泡
+
+`source_page_text_overlay_v1` 是正文气泡的加法能力：仅在请求顶层 `hostFeatures` 明确声明时，源可在正文页的 `image` 对象中附加 `textOverlay: { version: 1, balloons: [{ text, x, y, width }] }`。`image.kind` 仍为 `url`，原页 ID 和 HTTPS 图片 URL 保持不变；无气泡时不输出该字段。文本为源提取的 Unicode 纯文本，不解析 HTML 或其他资源。每页最多 128 个气泡，单条 UTF-8 文本小于 4096 字节、总文本最多 65536 字节；坐标均为图像像素、有限非负且不超过 65535，width 为 1 至 65535 的整数。任何气泡不能完整解析时，源必须使整次页表失败；旧宿主未声明能力时仍返回 `unsupported_chapter_overlay`，不得退回缺字原图。
+
+DB Multiverse 固定参考将容器 scale 乘到 left、top 和 width，width 向下取整且至少为 1；文字固定黑色 Sans、14 像素、居中，参考 Android StaticLayout 的高质量换行；鸿蒙使用原生 Paragraph HIGH_QUALITY，字体回退及字度量由鸿蒙负责，字体大小不随 scale 缩放。宿主应将描述参与派生图身份、阅读及预载/普通保存分享，并为新离线下载持久保存描述；处理失败不得静默使用无对白的原图。旧下载缺描述的兼容行为需独立处理，不能声称已支持离线气泡。该能力在本地候选中接入，正式交付和具名设备验收仍需单独确认。
 
 ### 源正则执行
 

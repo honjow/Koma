@@ -6,9 +6,11 @@ import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { OfflineDownloadedChapterStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { AppStrings } from '../i18n/AppStrings'
+import { SourceTextOverlay } from './SourceTextOverlay'
+import { fetchAndCacheReaderRemoteSource, ReaderPageRenderKind } from './ReaderPageSourceAdapter'
 
 export interface ChapterArchiveFile { path: string; uri: string; fileName: string }
-interface ArchivePage { path: string; name: string }
+interface ArchivePage { path: string; name: string; pageId?: string; sourceId?: string; overlay?: SourceTextOverlay }
 
 
 @Concurrent
@@ -39,8 +41,12 @@ export function chapterArchivePagesWorker(filesDir: string, comicId: string, cha
   }
   const pages: ArchivePage[] = validation.manifest.pages.slice()
     .sort((left, right): number => left.pageIndex - right.pageIndex)
-    .map((page, index: number): ArchivePage => ({ path: page.localPath,
-      name: `${String(index + 1).padStart(5, '0')}.${imageSuffix(page.localPath)}` }))
+    .map((page, index: number): ArchivePage => {
+      const name = `${String(index + 1).padStart(5, '0')}.${page.sourceTextOverlay === undefined ? imageSuffix(page.localPath) : 'jpg'}`
+      if (page.sourceTextOverlay === undefined) return { path: page.localPath, name }
+      return { path: page.localPath, name, pageId: page.pageId, sourceId: validation.manifest?.sourceId,
+        overlay: page.sourceTextOverlay }
+    })
   return JSON.stringify(pages)
 }
 
@@ -61,8 +67,14 @@ export async function prepareChapterArchive(context: common.UIAbilityContext,
   const copied: string[] = []
   try {
     for (const page of pages) {
+      // A CBZ cannot carry the local overlay descriptor: export the same
+      // presentation as Reader, while retaining original download bytes/hash.
+      const sourcePath = page.overlay === undefined ? page.path : await fetchAndCacheReaderRemoteSource({
+        kind: ReaderPageRenderKind.LOCAL_FILE_IMAGE, uri: `file://${page.path}`, imageUri: page.path,
+        pageId: page.pageId, sourceRuntimeId: page.sourceId, sourceTextOverlay: page.overlay,
+      }, context)
       copied.push(`${staging}/${page.name}`)
-      await fs.copyFile(page.path, copied[copied.length - 1])
+      await fs.copyFile(sourcePath, copied[copied.length - 1])
     }
     const metadataPath = `${staging}/ComicInfo.xml`
     copied.push(metadataPath)

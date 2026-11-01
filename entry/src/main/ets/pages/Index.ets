@@ -25,6 +25,7 @@ import { KomaReaderLabPage } from '../readerLab/KomaReaderLabPage'
 import { KomaReaderCatalogHost } from '../readerLab/KomaReaderCatalogHost'
 import { KomaReaderFailure } from '../readerLab/KomaReaderFailure'
 import { SourceFailureDetails } from '../model/SourceRuntimeError'
+import { SourceTextOverlay } from '../model/SourceTextOverlay'
 import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
 import { ReaderLabLaunchState, ReaderLabRequest, connectReaderLabLaunch, ReaderRouteTransition } from '@reader-kit/ui'
 import { ReaderCancellation, ReaderObservedPosition, ReaderUnitKey } from '@reader-kit/core'
@@ -669,6 +670,7 @@ struct Index {
       pageHeights: pages.map((page: Page): number | undefined => page.height),
       pageTextPages: pages.map((page: Page) => page.sourceText),
       pageTextRequests: pages.map((page: Page) => page.sourceTextRequest),
+      pageTextOverlays: pages.map((page: Page) => page.sourceTextOverlay),
       sourceRuntimeId: request.sourceId,
       sourceMangaUrl: request.mangaUrl,
     }
@@ -1174,6 +1176,7 @@ struct Index {
       const pageIds: string[] = []
       const pageWidths: Array<number | undefined> = []
       const pageHeights: Array<number | undefined> = []
+      const pageTextOverlays: Array<SourceTextOverlay | undefined> = []
       for (let index = 0; index < validation.pageCount; index += 1) {
         const page = validation.manifest.pages.find((item: OfflineDownloadedPage): boolean => item.pageIndex === index)
         const pageId = page?.pageId ?? `page-${index + 1}`
@@ -1191,6 +1194,7 @@ struct Index {
           : createReaderOfflineMissingUri(comic.id, chapterId, index))
         pageWidths.push(page?.width)
         pageHeights.push(page?.height)
+        pageTextOverlays.push(page?.sourceTextOverlay)
       }
       const chapterIds = baseConfig.chapterIds.includes(chapterId) ? baseConfig.chapterIds : baseConfig.chapterIds.concat([chapterId])
       const chapterTitles = chapterIds.map((item: string, index: number): string => {
@@ -1214,6 +1218,7 @@ struct Index {
         pageIds,
         pageWidths,
         pageHeights,
+        pageTextOverlays,
         sourceRuntimeId: comic.sourceRuntimeId,
       }
     } catch (_error) {

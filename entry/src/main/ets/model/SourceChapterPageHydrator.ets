@@ -1,3 +1,4 @@
+import { sourceTextOverlay } from './SourceTextOverlay'
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
@@ -226,6 +227,10 @@ async function pagesFromSourceRows(comicId: string, chapterId: string, rows: Rec
       page.height = height
     }
     const image = sourcePageImageRecord(item)
+    if (image?.['textOverlay'] !== undefined) {
+      if (image['kind'] !== 'url') throw new Error('source_text_overlay_invalid')
+      page.sourceTextOverlay = sourceTextOverlay(image['textOverlay'])
+    }
     if (image?.['kind'] === 'text') {
       const spec = sourceTextPage(image['text'])
       page.uri = await cacheSourceTextPageImage(spec)

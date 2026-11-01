@@ -1,3 +1,4 @@
+import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import {
@@ -53,6 +54,7 @@ export interface OfflineDownloadedPage {
   contentHash?: string
   /** Optional public source URL for source-owned presentation; never an access token. */
   sourceOriginalUri?: string
+  sourceTextOverlay?: SourceTextOverlay
   updatedAt: number
 }
 
@@ -278,6 +280,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       typeof page.updatedAt !== 'number') {
       throw new Error('Unsupported offline download page manifest')
     }
+    if (page.sourceTextOverlay !== undefined) sourceTextOverlay(page.sourceTextOverlay)
   }
   return parsed
 }
@@ -802,6 +805,7 @@ export class OfflineDownloadStore {
         size: Math.max(0, Math.floor(page.size)),
         contentHash: page.contentHash?.trim(),
         sourceOriginalUri: page.sourceOriginalUri,
+        sourceTextOverlay: page.sourceTextOverlay === undefined ? undefined : sourceTextOverlay(page.sourceTextOverlay),
         updatedAt: page.updatedAt,
       }
     })

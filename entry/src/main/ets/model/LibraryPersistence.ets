@@ -1,3 +1,4 @@
+import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
@@ -144,6 +145,7 @@ export interface PersistedPage {
   byteSize?: number
   sourceText?: SourceTextPage
   sourceTextRequest?: SourceTextPageRequest
+  sourceTextOverlay?: SourceTextOverlay
 }
 
 function persistPage(page: Page): PersistedPage {
@@ -167,6 +169,7 @@ function persistPage(page: Page): PersistedPage {
   }
   if (page.sourceText !== undefined) row.sourceText = sourceTextPage(page.sourceText)
   if (page.sourceTextRequest !== undefined) row.sourceTextRequest = sourceTextPageRequest(page.sourceTextRequest)
+  if (page.sourceTextOverlay !== undefined) row.sourceTextOverlay = sourceTextOverlay(page.sourceTextOverlay)
   return row
 }
 
@@ -192,6 +195,7 @@ function hydratePage(row: PersistedPage): Page {
   }
   if (row.sourceText !== undefined) page.sourceText = sourceTextPage(row.sourceText)
   if (row.sourceTextRequest !== undefined) page.sourceTextRequest = sourceTextPageRequest(row.sourceTextRequest)
+  if (row.sourceTextOverlay !== undefined) page.sourceTextOverlay = sourceTextOverlay(row.sourceTextOverlay)
   return page
 }
 

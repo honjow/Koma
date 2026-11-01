@@ -326,7 +326,7 @@ struct ReaderImageSurface {
   onTapPreferenceChanged(): void { this.clearSingleTap() }
 
   private sourceKey(): string {
-    return `${this.source.kind}:${this.source.uri}:${this.source.imageUri}:${this.source.pageId ?? ''}:${this.splitSide}:${this.rotateClockwise}:${this.retryToken}`
+    return `${this.source.kind}:${this.source.uri}:${this.source.imageUri}:${this.source.pageId ?? ''}:${JSON.stringify(this.source.sourceTextOverlay ?? null)}:${this.splitSide}:${this.rotateClockwise}:${this.retryToken}`
   }
 
   private sourceRegionWidth(width: number | undefined): number {
@@ -1505,7 +1505,7 @@ struct ReaderThumbnailTile {
   }
 
   private thumbnailCacheKey(): string {
-    return `${this.source.kind}:${this.source.sourceRuntimeId ?? ''}:${this.source.pageId ?? ''}:${this.source.imageUri}::reader_thumbnail_v1::${READER_THUMB_DECODE_MAX_EDGE}`
+    return `${this.source.kind}:${this.source.sourceRuntimeId ?? ''}:${this.source.pageId ?? ''}:${this.source.imageUri}:${JSON.stringify(this.source.sourceTextOverlay ?? null)}::reader_thumbnail_v1::${READER_THUMB_DECODE_MAX_EDGE}`
   }
 
   private async releaseThumbnailLease(): Promise<void> {
@@ -2396,7 +2396,9 @@ export struct ReaderPage {
     if (sandboxRoot.length === 0) {
       throw new Error('reader_files_dir_unavailable')
     }
-    let extension = this.imageExtension(source.imageUri.length > 0 ? source.imageUri : sourcePath)
+    // Text overlays always produce JPEG, independently of the original URL suffix.
+    let extension = source.sourceTextOverlay !== undefined ? 'jpg' :
+      this.imageExtension(source.imageUri.length > 0 ? source.imageUri : sourcePath)
     const bannerMode = source.sourceRuntimeId === 'online.baozimh.koma'
       ? appSourceSettingsStore.loadForSource(source.sourceRuntimeId)['BAOZI_BANNER'] : undefined
     if (source.sourceRuntimeId === 'online.baozimh.koma' &&

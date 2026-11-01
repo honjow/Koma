@@ -1,3 +1,4 @@
+import { SourceTextOverlay } from './SourceTextOverlay'
 import { SourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
 import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
 import { AppStrings } from '../i18n/AppStrings'
@@ -41,6 +42,7 @@ export interface Page {
   /** Rebuildable public source text; the cached PNG is never the sole copy. */
   sourceText?: SourceTextPage
   sourceTextRequest?: SourceTextPageRequest
+  sourceTextOverlay?: SourceTextOverlay
 }
 
 export interface Chapter {

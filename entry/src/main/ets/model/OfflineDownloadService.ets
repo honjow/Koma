@@ -380,6 +380,7 @@ export class OfflineDownloadService {
             size: reusablePage.size,
             contentHash: reusablePage.contentHash,
             sourceOriginalUri: reusablePage.sourceOriginalUri,
+            sourceTextOverlay: page === undefined ? reusablePage.sourceTextOverlay : page.sourceTextOverlay,
             updatedAt: reusablePage.updatedAt,
           })
           this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
@@ -407,6 +408,7 @@ export class OfflineDownloadService {
           size: writtenPage.size,
           contentHash: writtenPage.contentHash,
           sourceOriginalUri: publicBaoziUri(comic.sourceRuntimeId, page?.uri),
+          sourceTextOverlay: page?.sourceTextOverlay,
           updatedAt: Date.now(),
         }
         manifest = this.store.recordPage(manifest, row)

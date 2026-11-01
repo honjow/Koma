@@ -1,3 +1,5 @@
+import { SourceTextOverlay } from './SourceTextOverlay'
+import { SourceTextOverlayService } from './SourceTextOverlayService'
 import { configureSourceRequestPolicy, waitForSourceRequestSlot } from '../sourceRuntime/SourceRequestPolicy'
 import { renderSourceTextPage } from './SourceTextPageRenderer'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
@@ -771,6 +773,7 @@ export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   sourceOriginalImageUri?: string
   sourceText?: SourceTextPage
   sourceTextRequest?: SourceTextPageRequest
+  sourceTextOverlay?: SourceTextOverlay
 }
 
 export interface ReaderPageRenderSourceOptions {
@@ -872,6 +875,7 @@ function createReaderPageRenderSourceWithOfflinePath(
       sourceRuntimeId: config.sourceRuntimeId,
       sourceMangaUrl: config.sourceMangaUrl,
       sourceOriginalImageUri: config.sourceOriginalImageUris?.[index] ?? pageUri,
+      sourceTextOverlay: config.pageTextOverlays?.[index] ?? undefined,
     }
   }
   const textRequest = config.pageTextRequests?.[index]
@@ -907,6 +911,7 @@ function createReaderPageRenderSourceWithOfflinePath(
       imageUri: localPath,
       pageId,
       sourceText: config.pageTextPages?.[index] ?? undefined,
+      sourceTextOverlay: config.pageTextOverlays?.[index] ?? undefined,
       sourceRuntimeId: config.sourceRuntimeId,
       sourceMangaUrl: config.sourceMangaUrl,
       sourceOriginalImageUri: config.sourceOriginalImageUris?.[index],
@@ -918,6 +923,7 @@ function createReaderPageRenderSourceWithOfflinePath(
     imageUri: pageUri,
     sourceRuntimeId: config.sourceRuntimeId,
     sourceMangaUrl: config.sourceMangaUrl,
+    sourceTextOverlay: config.pageTextOverlays?.[index] ?? undefined,
     sourceKind: config.sourceKind,
     remoteServerId: config.remoteServerId,
     pageId,
@@ -968,6 +974,19 @@ async function prepareSourcePagePresentation(source: ReaderPageRenderSource, ori
   const sourceId = source.sourceRuntimeId?.trim() ?? ''
   const pageId = source.pageId ?? ''
   const originalUri = source.sourceOriginalImageUri ?? source.imageUri
+  if (source.sourceTextOverlay !== undefined) {
+    if (readerImageCacheStore === null) throw new Error('source_overlay_cache_unavailable')
+    // Downloaded originals carry their overlay in the manifest and must remain
+    // readable even if the source was disabled or removed after download.
+    const offline = source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
+    const entry = offline || sourceId.length === 0 ? undefined : appSourceRuntimeRegistry.lookup(sourceId).entry
+    const fingerprint = entry === undefined ? '' : sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
+    const identity = JSON.stringify([sourceId, entry?.manifestVersion ?? '', entry?.wasmPath ?? '', fingerprint, pageId])
+    const path = await SourceTextOverlayService.prepare(originalPath, source.sourceTextOverlay, readerImageCacheStore, identity)
+    await maintainReaderImageCacheAfterWrite(path)
+    if (entry !== undefined && !sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
+    return path
+  }
   if (sourceId !== 'online.baozimh.koma' || pageId.length === 0 || context === undefined ||
     readerImageCacheStore === null) return originalPath
   try {

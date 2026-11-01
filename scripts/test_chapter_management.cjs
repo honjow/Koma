@@ -23,7 +23,8 @@ const io = {
 const logger = { exception() {} }
 const persistence = load('AppFileTextPersistence', { '@kit.CoreFileKit': { fileIo: io }, '../diagnostics/DiagnosticLogger': { DiagnosticLogger: logger } })
 const activity = load('BackupRestoreActivity')
-const downloads = load('OfflineDownloadStore', { './AppFileTextPersistence': persistence,
+const overlays = load('SourceTextOverlay')
+const downloads = load('OfflineDownloadStore', { './SourceTextOverlay': overlays, './AppFileTextPersistence': persistence,
   '@kit.CoreFileKit': { fileIo: io }, './ComicModels': load('ComicModels', {
     '../i18n/AppStrings': { AppStrings: { get: key => key } },
   }) })
@@ -95,12 +96,42 @@ async function main() {
       manifest = disk.recordPage(manifest, { pageId: 'p' + index, pageIndex: index, localPath: imagePath,
         size: bytes.length, contentHash: downloads.createOfflineDownloadFileContentHash(imagePath), updatedAt: 1 })
     }
+    const overlay = { version: 1, balloons: [{ text: '对白', x: 1, y: 2, width: 30 }] }
+    manifest = disk.recordPage(manifest, { ...manifest.pages[1], sourceTextOverlay: overlay })
+    const derived = path.join(dir, 'derived.jpg')
+    fs.writeFileSync(derived, Buffer.from('ffd8ffe000112233', 'hex'))
+    let failOverlay = false
+    const render = { ReaderPageRenderKind: { LOCAL_FILE_IMAGE: 'local' },
+      fetchAndCacheReaderRemoteSource: async source => {
+        assert.deepEqual(source.sourceTextOverlay, overlay)
+        if (failOverlay) throw new Error('overlay render failure')
+        return derived
+      } }
+    const asyncIo = { ...io, mkdtemp: p => fs.promises.mkdtemp(p), mkdir: p => fs.promises.mkdir(p),
+      copyFile: (a,b) => fs.promises.copyFile(a,b), open: async (p,m) => ({ fd: fs.openSync(p,m ? 'w' : 'r') }),
+      write: async (fd,value) => fs.writeSync(fd,value), close: async f => fs.closeSync(f.fd),
+      rename: (a,b) => fs.promises.rename(a,b), unlink: p => fs.promises.unlink(p), rmdir: p => fs.promises.rmdir(p) }
+    const zlib = { CompressLevel: { COMPRESS_LEVEL_NO_COMPRESSION: 0 }, compressFile: async (staging,target) => {
+      require('node:child_process').execFileSync('zip',['-q','-0','-r',target,'.'],{cwd:staging})
+    } }
     const archive = load('ChapterArchiveExport', {
-      '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': {}, '@kit.BasicServicesKit': {},
+      './ReaderPageSourceAdapter': render, '@kit.CoreFileKit': { fileIo: asyncIo, fileUri: { getUriFromPath:p=>'file://'+p } },
+      '@kit.ArkTS': { taskpool: { execute: async (fn,...args) => fn(...args) } }, '@kit.BasicServicesKit': { zlib },
       '@kit.ShareKit': {}, '@kit.ArkData': {}, './OfflineDownloadStore': downloads, '../i18n/AppStrings': {},
     })
     const plan = JSON.parse(archive.chapterArchivePagesWorker(dir, 'a', '1'))
-    assert.deepEqual(plan.map(p => p.name), ['00001.png', '00002.png'])
+    assert.deepEqual(plan.map(p => p.name), ['00001.png', '00002.jpg'])
+    const result = await archive.prepareChapterArchive({filesDir:dir,cacheDir:dir},'a','1','Series','Chapter')
+    const unzip = (name) => require('node:child_process').execFileSync('unzip',['-p',result.path,name])
+    assert.deepEqual(unzip('00001.png'), fs.readFileSync(manifest.pages[0].localPath))
+    assert.deepEqual(unzip('00002.jpg'), fs.readFileSync(derived))
+    assert.deepEqual(fs.readFileSync(manifest.pages[1].localPath), Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),Buffer.alloc(32,1)]))
+    failOverlay = true
+    const beforeDirs = new Set(fs.readdirSync(dir))
+    await assert.rejects(archive.prepareChapterArchive({filesDir:dir,cacheDir:dir},'a','1','Series','Failed'), /overlay render failure/)
+    const created = fs.readdirSync(dir).filter(name => !beforeDirs.has(name))
+    for (const name of created) assert.equal(fs.readdirSync(path.join(dir,name)).some(x => /\.(cbz|zip)$/.test(x)), false)
+    console.log('CBZ actual archive preserves original pages, includes rendered overlay JPEG and rejects failed rendering')
     assert.ok(plan[0].path.includes('00001-'))
     fs.unlinkSync(plan[1].path)
     assert.throws(() => archive.chapterArchivePagesWorker(dir, 'a', '1'), /download_incomplete/)

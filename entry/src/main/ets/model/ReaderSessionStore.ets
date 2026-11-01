@@ -1,3 +1,4 @@
+import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -155,6 +156,7 @@ export interface ReaderSessionConfig {
   pageIds?: string[]
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
+  pageTextOverlays?: (SourceTextOverlay | null | undefined)[]
   pageTextPages?: (SourceTextPage | null | undefined)[]
   pageTextRequests?: (SourceTextPageRequest | null | undefined)[]
   sourceRuntimeId?: string
@@ -193,6 +195,8 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageIds: config.pageIds?.slice(),
     pageWidths: config.pageWidths?.slice(),
     pageHeights: config.pageHeights?.slice(),
+    pageTextOverlays: config.pageTextOverlays?.map((page: SourceTextOverlay | null | undefined): SourceTextOverlay | undefined =>
+      page === undefined || page === null ? undefined : sourceTextOverlay(page)),
     pageTextPages: config.pageTextPages?.map((page: SourceTextPage | null | undefined): SourceTextPage | undefined =>
       page === undefined || page === null ? undefined : sourceTextPage(page)),
     pageTextRequests: config.pageTextRequests?.map((page: SourceTextPageRequest | null | undefined): SourceTextPageRequest | undefined =>
@@ -1035,6 +1039,7 @@ export function createReaderSessionConfigFromComic(
     pageIds: chapter === undefined ? [] : chapter.pages.map((page) => page.id),
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
+    pageTextOverlays: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextOverlay),
     pageTextPages: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceText),
     pageTextRequests: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextRequest),
     sourceRuntimeId: comic.sourceRuntimeId,
