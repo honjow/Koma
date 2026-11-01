@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "横幅过滤缓存回退收尾",
+  "state": "订阅级通用横幅过滤已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T03:13:38+08:00",
+  "updatedAt": "2026-11-02T03:29:09+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "旧缓存补查声明失败时保留原图，不保存为检测未命中；实际失败恢复逻辑已验证。",
-  "nextAction": "推送此兼容收尾并核对最终CI。",
+  "activity": "全局与单本过滤、订阅规则更新和缓存接入已完成；237验收、设备恢复及最终CI通过。",
+  "nextAction": "当前功能已交付；其它未关项仍保留各自条件与原状态。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5475,18 +5475,16 @@
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "订阅级通用横幅过滤",
-      "kind": "open",
+      "kind": "done",
       "priority": "P3",
       "owner": "Root：App接入与237验收；home_terra：订阅规则发布",
-      "status": "缓存失败回退已补齐，提交收尾",
+      "status": "已交付",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "通用横幅过滤已接通正文和预载，237已验自动识别、关闭恢复、重启及全局继承；原包、书库、偏好和设备状态均已恢复。",
-      "remaining": "提交缓存声明失败时保留原图的兼容修正，并核对最终CI。",
-      "remainingActions": [
-        "提交缓存回退修正并核对最终CI。"
-      ],
+      "result": "通用横幅过滤已接通全局与单本设置、正文、预载和离线准备；237已验自动识别、关闭恢复、重启记忆及全局继承。规则随现有订阅后台更新，原始下载保留；代码已推送，最终CI通过，设备已完整恢复。",
+      "remaining": "本项无待办。",
+      "remainingActions": [],
       "boundaries": [
         "已采用全局跟随书源（默认）／自动识别／关闭，单本额外提供使用全局；仅覆盖横幅策略，不改变分页和方向。",
         "App提供通用处理，规则复用原书源订阅并独立发布；自动识别按内容匹配，不按源名称或域名设门槛。",
@@ -5503,14 +5501,17 @@
         "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。",
         "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。"
       ],
-      "updatedAt": "2026-11-02T03:13:38+08:00",
+      "updatedAt": "2026-11-02T03:29:09+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
         ".hvigor/outputs/generic-banner-20261102/restoration-verified.json",
-        "Koma/master 27db7c8ceabc796b298d41771913bcb3c9b4c6be；koma-sources/master bfc9d67723c5d6d7fdf4d3687a1bc02183f19945；本地最终release构建exit0，规则独立CI41339069489成功。"
+        "Koma/master 27db7c8ceabc796b298d41771913bcb3c9b4c6be；koma-sources/master bfc9d67723c5d6d7fdf4d3687a1bc02183f19945；本地最终release构建exit0，规则独立CI41339069489成功。",
+        "缓存回退收尾ad389bd52b5982e00c4f908dd963bce3bee9fd6a已推送；生产失败恢复测试及build-cache-fallback-fixed.log exit0，最终CI41340737991进行中。",
+        "最终App提交ad389bd52b5982e00c4f908dd963bce3bee9fd6a，CI41340737991 completed/success；Release构建、Inspect、Upload均成功，正式发布skipped。具名原生与最终兼容修正范围见 .hvigor/outputs/generic-banner-20261102/delivery-binding.json。"
       ],
-      "stage": "CI收尾"
+      "stage": "已验收",
+      "closedAt": "2026-11-02T03:29:09+08:00"
     }
   ],
   "source": {
@@ -14089,6 +14090,18 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "保留旧缓存的失败回退",
       "detail": "补查旧处理声明失败时继续显示原图且不持久化失败结果；无缓存时的真实请求错误仍正常返回。生产逻辑失败恢复测试通过，237既有图像验收不重跑。"
+    },
+    {
+      "at": "2026-11-02T03:15:23+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "缓存回退修正已推送",
+      "detail": "旧缓存声明失败回退已通过生产执行测试和最终本地构建并推送，核对最终提交CI中。此前主实现CI被并发规则取消，不作为最终回执。"
+    },
+    {
+      "at": "2026-11-02T03:29:09+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "订阅级横幅过滤已交付",
+      "detail": "全局／单本设置、正文及预载过滤、规则后台同步和缓存失败回退已交付；237受控正文验收与完整恢复保留，最终提交CI成功，实际HAP产物已核。没有另发App版本。"
     }
   ],
   "reportAgeAudit": {
