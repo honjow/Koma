@@ -4,17 +4,47 @@ export interface ImageRuleSignature { id: string; width: number; height: number;
 export interface ImageRuleEdge { signature: string; height?: number }
 export interface ImageRuleLegacy { sourceIds?: string[]; kind: string; singleModes: string[]; stackedModes: string[] }
 export interface ImageBannerRule {
-  id: string; kind: string; crossSource: boolean; signatures: ImageRuleSignature[]
+  id: string; name?: string; description?: string; kind: string; crossSource: boolean; signatures: ImageRuleSignature[]
   top: ImageRuleEdge[]; bottom: ImageRuleEdge[]; legacy: ImageRuleLegacy[]
 }
-export interface ImageRulePack { schemaVersion: number; id: string; version: number; rules: ImageBannerRule[] }
+export interface ImageRuleMetadata { name: string; description?: string; website?: string }
+export interface ImageRulePack { schemaVersion: number; id: string; version: number; rules: ImageBannerRule[]; meta?: ImageRuleMetadata }
 export interface ImageRulePackReference { id: string; version: number; path: string; sha256: string }
-export interface ImageRuleIndex { schemaVersion: number; revision: string; packs: ImageRulePackReference[] }
+export interface ImageRuleIndex { schemaVersion: number; kind?: string; meta?: ImageRuleMetadata; revision: string; packs: ImageRulePackReference[] }
 export interface ImageRuleDescriptor { schemaVersion: number; indexUrl: string }
 export interface ImageRuleRecord { origin: string; revision: string; packs: ImageRulePack[] }
 export interface ImageRuleSnapshot { schemaVersion: number; records: ImageRuleRecord[] }
+export interface ImageRuleSubscription {
+  url: string; name: string; customName?: string; description?: string; website?: string
+  enabled: boolean; automaticUpdates: boolean; updatedAt: number; revision: string
+  packs: ImageRulePack[]; disabledRules: string[]
+}
+export interface ImageRuleConfiguration { schemaVersion: number; subscriptions: ImageRuleSubscription[] }
 export interface ImageProcessingHint { kind: string; mode: string }
 export interface ImageBannerPlan { rule: ImageBannerRule; mode: string; revision: string }
+export function imageRuleKey(packId: string, ruleId: string): string { return JSON.stringify([packId, ruleId]) }
+export function imageRuleSubscriptionName(value: ImageRuleSubscription): string { return value.customName || value.name }
+export function validateImageRuleConfiguration(raw: Object): ImageRuleConfiguration {
+  const value = raw as ImageRuleConfiguration
+  // The previous implicit-download snapshot does not represent user consent to a subscription.
+  // It may be restored as old backup data, but must never become enabled subscriptions.
+  if (value?.schemaVersion === 1 && Array.isArray((raw as ImageRuleSnapshot).records))
+    return { schemaVersion: 2, subscriptions: [] }
+  if (!value || value.schemaVersion !== 2 || !Array.isArray(value.subscriptions) || value.subscriptions.length > 64)
+    throw new Error('invalid_image_rule_subscriptions')
+  const urls: Set<string> = new Set()
+  for (const subscription of value.subscriptions) {
+    if (!subscription || typeof subscription.url !== 'string' || !/^https?:\/\//.test(subscription.url) || urls.has(subscription.url) ||
+      typeof subscription.name !== 'string' || !subscription.name.trim() || typeof subscription.revision !== 'string' ||
+      typeof subscription.enabled !== 'boolean' || typeof subscription.automaticUpdates !== 'boolean' ||
+      !Number.isFinite(subscription.updatedAt) || !Array.isArray(subscription.packs) || subscription.packs.length > 32 ||
+      !Array.isArray(subscription.disabledRules) || subscription.disabledRules.some((key: string): boolean => typeof key !== 'string'))
+      throw new Error('invalid_image_rule_subscription')
+    urls.add(subscription.url)
+    for (const pack of subscription.packs) validateImageRulePack(pack)
+  }
+  return value
+}
 export type BannerFilterMode = 'source' | 'auto' | 'off'
 export function normalizeBannerFilter(value: Object | undefined): BannerFilterMode {
   return value === 'auto' ? 'auto' : value === 'off' ? 'off' : 'source'

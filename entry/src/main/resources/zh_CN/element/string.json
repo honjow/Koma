@@ -2120,6 +2120,18 @@
     {"name": "reader_banner_global", "value": "使用全局"},
     {"name": "reader_banner_source", "value": "跟随书源"},
     {"name": "reader_banner_auto", "value": "自动识别"},
-    {"name": "reader_banner_off", "value": "关闭"}
+    {"name": "reader_banner_off", "value": "关闭"},
+    {"name": "subscription_sources", "value": "书源订阅"},
+    {"name": "subscription_image_rules", "value": "图片规则订阅"},
+    {"name": "subscription_type_changed", "value": "此地址的订阅类型不同，请将它添加为新订阅。"},
+    {"name": "subscription_format_invalid", "value": "地址返回的内容不是支持的订阅格式。"},
+    {"name": "image_rules_change_failed", "value": "未能保存规则设置，请重试。"},
+    {"name": "image_rules_update_failed", "value": "规则更新失败，已保留原规则。点击重试。"},
+    {"name": "image_rules_enable_subscription", "value": "启用规则"},
+    {"name": "image_rules_automatic_updates", "value": "自动更新"},
+    {"name": "image_rules_automatic_updates_detail", "value": "打开 App 时检查，每天至多一次。"},
+    {"name": "image_rules_updated_at", "value": "规则取得时间：%s"},
+    {"name": "image_rules_none", "value": "请在订阅地址中添加或启用图片规则。"},
+    {"name": "image_rules_manage_in_subscriptions", "value": "在订阅地址中查看和管理规则。"}
   ]
 }

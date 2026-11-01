@@ -1,4 +1,3 @@
-import { ImageRuleStore } from '../model/ImageRuleStore'
 import { parseSourceIndexCacheTask, parseSourceIndexDocumentTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
@@ -138,7 +137,6 @@ let localArchiveTaskSequence: number = 0
 
 // Shared across service instances belonging to the same application data store.
 const sourceIndexMetadataRequests: Map<string, number> = new Map()
-const sourceImageRuleRefreshes: Map<string, Promise<void>> = new Map()
 const sourceIndexPreferenceOperations: Map<string, Promise<void>> = new Map()
 
 export class SourceIndexService {
@@ -416,14 +414,11 @@ export class SourceIndexService {
       const repository: SourceIndexRepository = { url: normalized, lastUsedAt: original?.lastUsedAt ?? Date.now(),
         customName: customName.trim().slice(0, 120) || undefined,
         name: metadata !== undefined ? metadata.name : (sameDocument ? original?.name : undefined),
-        website: metadata !== undefined ? metadata.website : (sameDocument ? original?.website : undefined),
-        imageRules: metadata !== undefined ? metadata.imageRules : (sameDocument ? original?.imageRules : undefined) }
+        website: metadata !== undefined ? metadata.website : (sameDocument ? original?.website : undefined) }
       const next = original === undefined ? repositories.concat(repository) : repositories.map((item: SourceIndexRepository): SourceIndexRepository =>
         item.url === previous ? repository : item)
       const active = normalizeIndexUrl(await this.savedUrl(store))
       await this.commitSavedPreferences(store, next, previous === undefined || active === previous ? normalized : undefined)
-      if (!sameDocument || JSON.stringify(repository.imageRules) !== JSON.stringify(original?.imageRules))
-        void this.syncImageRules(normalized).catch((): void => {})
       return next
     }))
   }
@@ -436,39 +431,10 @@ export class SourceIndexService {
       const saved = await this.savedRepositories(store)
       const next = saved.map((item: SourceIndexRepository): SourceIndexRepository => item.url !== repository.url ? item : {
         url: item.url, lastUsedAt: item.lastUsedAt, customName: item.customName,
-        name: metadata.name, website: metadata.website, imageRules: metadata.imageRules,
+        name: metadata.name, website: metadata.website,
       })
       if (JSON.stringify(next) !== JSON.stringify(saved)) await this.commitSavedPreferences(store, next)
     }))
-    void this.syncImageRules(repository.url).catch((): void => {})
-  }
-
-  syncImageRules(repositoryUrl: string): Promise<void> {
-    const key = this.context.filesDir + ':' + resolveIndexDocumentUrl(repositoryUrl)
-    const pending = sourceImageRuleRefreshes.get(key)
-    if (pending !== undefined) return pending
-    const request = this.synchronizeImageRules(repositoryUrl)
-    sourceImageRuleRefreshes.set(key, request)
-    const retire = (): void => { if (sourceImageRuleRefreshes.get(key) === request) sourceImageRuleRefreshes.delete(key) }
-    void request.then(retire, retire)
-    return request
-  }
-
-  private async synchronizeImageRules(repositoryUrl: string): Promise<void> {
-    const repositories = await this.loadSavedRepositories()
-    const repository = repositories.find((r: SourceIndexRepository): boolean => resolveIndexDocumentUrl(r.url) === resolveIndexDocumentUrl(repositoryUrl))
-    if (repository === undefined) return
-    const metadata = await this.fetchRepositoryMetadata(repositoryUrl)
-    const descriptor = metadata !== undefined ? metadata.imageRules : repository.imageRules
-    if (descriptor === undefined) {
-      console.info('[ImageRules] discovery=' + (metadata === undefined ? 'metadata_unavailable' : 'not_declared'))
-      return
-    }
-    console.info('[ImageRules] discovery=declared')
-    // A removed or edited address cannot publish a late resource response.
-    await ImageRuleStore.forContext(this.context).sync(repository.url, descriptor, async (): Promise<boolean> =>
-      !BackupRestoreActivity.isRestoring() && (await this.loadSavedRepositories()).some(
-        (r: SourceIndexRepository): boolean => r.url === repository.url))
   }
 
   async clearUrl(): Promise<void> {
@@ -505,32 +471,29 @@ export class SourceIndexService {
     })
   }
 
-  async fetchIndex(indexUrl: string): Promise<SourceIndexFetchResult> {
+  async fetchIndex(indexUrl: string, prefetchedBody?: string): Promise<SourceIndexFetchResult> {
     const normalizedUrl = resolveIndexDocumentUrl(indexUrl)
     if (!isValidHttpUrl(normalizedUrl)) {
       return { ok: false, reasonCode: 'invalid_url', entries: [] }
     }
 
-    void this.syncImageRules(indexUrl).catch((error: Error): void => {
-      console.warn('[ImageRules] sync_failed ' + error.message)
-    })
     const cacheRevision = this.beginMetadataRequest(normalizedUrl)
     const httpRequest = http.createHttp()
     try {
-      const response = await httpRequest.request(normalizedUrl, {
+      const response = prefetchedBody === undefined ? await httpRequest.request(normalizedUrl, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING,
         usingCache: false,
         readTimeout: 30000,
         connectTimeout: 15000,
-      })
+      }) : undefined
 
-      if (response.responseCode !== 200) {
+      if (response !== undefined && response.responseCode !== 200) {
         DiagnosticLogger.error('source_index_service', 'fetch_fail', '[SourceIndex] step=fetch_fail status=' + response.responseCode)
         return { ok: false, reasonCode: 'http_error', entries: [] }
       }
 
-      const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
+      const body = prefetchedBody ?? (typeof response!.result === 'string' ? response!.result : JSON.stringify(response!.result))
       const parsed = await taskpool.execute(parseSourceIndexDocumentTask, body, normalizedUrl) as SourceIndexMetadataParseResult
       if (!parsed.ok) return parsed
       const entries = parsed.entries

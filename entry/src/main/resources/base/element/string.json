@@ -2120,6 +2120,18 @@
     {"name": "reader_banner_global", "value": "Use global"},
     {"name": "reader_banner_source", "value": "Follow source"},
     {"name": "reader_banner_auto", "value": "Automatic"},
-    {"name": "reader_banner_off", "value": "Off"}
+    {"name": "reader_banner_off", "value": "Off"},
+    {"name": "subscription_sources", "value": "Source subscriptions"},
+    {"name": "subscription_image_rules", "value": "Image rule subscriptions"},
+    {"name": "subscription_type_changed", "value": "This address has a different subscription type. Add it as a new subscription."},
+    {"name": "subscription_format_invalid", "value": "This address did not return a supported subscription format."},
+    {"name": "image_rules_change_failed", "value": "Could not save rule settings. Try again."},
+    {"name": "image_rules_update_failed", "value": "Could not update rules. Existing rules are retained. Tap to retry."},
+    {"name": "image_rules_enable_subscription", "value": "Enable rules"},
+    {"name": "image_rules_automatic_updates", "value": "Automatic updates"},
+    {"name": "image_rules_automatic_updates_detail", "value": "Check when opening the app, at most once a day."},
+    {"name": "image_rules_updated_at", "value": "Rules downloaded: %s"},
+    {"name": "image_rules_none", "value": "Add or enable image rules in Subscriptions."},
+    {"name": "image_rules_manage_in_subscriptions", "value": "View and manage rules in Subscriptions."}
   ]
 }

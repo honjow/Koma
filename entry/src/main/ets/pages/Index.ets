@@ -1,3 +1,4 @@
+import { ImageRuleSubscriptionPage, ImageRuleSubscriptionRouteParam } from './ImageRuleSubscriptionPage'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
 import { PullRefreshController } from '../components/PullRefresh'
@@ -2663,9 +2664,16 @@ struct Index {
       .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))
     } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
       HdsNavDestination() {
-        SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome })
+        SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome,
+          onOpenRules: (url: string, title: string): void => {
+            this.appPathStack.pushPath({ name: RouteName.IMAGE_RULE_SUBSCRIPTION, param: new ImageRuleSubscriptionRouteParam(url, title) })
+          } })
       }
       .titleBar(this.sourceSubscriptionsTitleBarOptions(param as SourceCatalogPageChrome))
+    } else if (name === RouteName.IMAGE_RULE_SUBSCRIPTION) {
+      HdsNavDestination() {
+        ImageRuleSubscriptionPage({ url: (param as ImageRuleSubscriptionRouteParam).url })
+      }.titleBar(this.navDestTitleBarOpts((param as ImageRuleSubscriptionRouteParam).title))
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({

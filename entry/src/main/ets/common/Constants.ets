@@ -27,6 +27,7 @@ export class RouteName {
   static readonly WEBDAV_SERVER: string = 'WebDavServerPage'
   static readonly SOURCE_PACKAGE_MANAGER: string = 'SourcePackageManagerPage'
   static readonly SOURCE_SUBSCRIPTIONS: string = 'SourceSubscriptionsPage'
+  static readonly IMAGE_RULE_SUBSCRIPTION: string = 'ImageRuleSubscriptionPage'
   static readonly LIBRARY_UPDATES: string = 'LibraryUpdatesPage'
   static readonly SETTINGS_PANE: string = 'SettingsPanePage'
   static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'

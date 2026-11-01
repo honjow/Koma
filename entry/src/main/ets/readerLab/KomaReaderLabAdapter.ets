@@ -430,6 +430,13 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     if (this.closed) throw new Error('closed_koma_reader')
   }
 
+  async refreshImageRules(): Promise<void> {
+    this.ruleSnapshot = this.requestContext === undefined ? Promise.resolve<ImageRuleSnapshot>({ schemaVersion: 1, records: [] }) :
+      ImageRuleStore.forContext(this.requestContext).pinned()
+    await this.ruleSnapshot
+    this.invalidatePresentation()
+  }
+
   invalidatePresentation(): void {
     this.presentationRevision += 1
     this.sourceRequests.clear()

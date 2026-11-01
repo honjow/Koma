@@ -2,8 +2,14 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const ts=require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript');
 const root=path.resolve(__dirname,'..');
 function load(name,deps={}) {const module={exports:{}};const source=fs.readFileSync(path.join(root,'entry/src/main/ets/model/'+name+'.ets'),'utf8').replace(/@Concurrent\s*/g,'');new Function('require','module','exports',ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(n=>{assert.ok(n in deps,'missing '+n);return deps[n]},module,module.exports);return module.exports}
+const metadataText=fs.readFileSync(path.join(root,'entry/src/main/ets/sourceRuntime/SourceIndexMetadata.ets'),'utf8');
+const metadataAst=ts.createSourceFile('metadata.ts',metadataText,ts.ScriptTarget.Latest,true);
+const parseDocumentSource=metadataAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseIndexEntriesDocument').getText(metadataAst);
+const metadataModule={exports:{}};
+new Function('module','exports',ts.transpileModule(parseDocumentSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(metadataModule,metadataModule.exports);
+const {parseIndexEntriesDocument}=metadataModule.exports;
 const rules=load('ImageBannerRules');const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
-const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root,'entry/src/main/resources/rawfile/image-rules-bootstrap.json'),'utf8')));
+const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root,'scripts/fixtures/image-rules-edge.json'),'utf8')));
 const snapshot={schemaVersion:1,records:[{origin:'subscription-a',revision:'1',packs:[pack]}]};
 assert.equal(rules.imageBannerPlans(snapshot,'source').length,0);
 assert.equal(rules.effectiveBannerFilter('auto','off'),'off');assert.equal(rules.effectiveBannerFilter('auto','global'),'auto');
@@ -66,34 +72,47 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.deepEqual(await detector.detect(synthetic(800,1500,[{y:0,signature:current},{y:1218,signature:old}]),rule,'1'),{top:200,bottom:0});
  assert.deepEqual(await detector.detect(synthetic(800,1500,[{y:0,signature:current},{y:200,signature:old},{y:1218,signature:old}]),rule,'2'),{top:482,bottom:282});
  assert.deepEqual(await detector.detect(synthetic(800,1500,[]),rule,'2'),{top:0,bottom:0});
- // Exercise publication rollback/merge through the actual store with in-memory platform adapters.
+ // Explicit subscriptions exercise production storage and update code with platform adapters.
  const files=new Map();let failWrite=false;const requests=new Map();const crypto=require('node:crypto');
  const indexUrl='https://rules.test/index.json',packUrl='https://rules.test/packs/rule.json';
- const resource=Buffer.from(JSON.stringify(pack)),digest=crypto.createHash('sha256').update(resource).digest('hex');
- const index={schemaVersion:1,revision:digest,packs:[{id:pack.id,version:pack.version,path:'packs/rule.json',sha256:digest}]};
+ const subscribedPack=structuredClone(pack);subscribedPack.rules.push({...structuredClone(pack.rules[0]),id:'second-rule',name:'Second edge pattern'});
+ const resource=Buffer.from(JSON.stringify(subscribedPack)),digest=crypto.createHash('sha256').update(resource).digest('hex');
+ const index={schemaVersion:1,kind:'image_rules',meta:{name:'Visible rules',description:'Two independently managed rules'},revision:digest,packs:[{id:pack.id,version:pack.version,path:'packs/rule.json',sha256:digest}]};
  requests.set(indexUrl,Buffer.from(JSON.stringify(index)));requests.set(packUrl,resource);
- const {ImageRuleStore}=load('ImageRuleStore',{
+ let networkCalls=0,gate,waitForIndex=false;const state={dataRevision:0,userRevision:0,enabledRuleCount:0};
+ const {ImageRuleStore,subscriptionDocumentKind}=load('ImageRuleStore',{
   '@kit.ArkTS':{taskpool:{execute:async(fn,...args)=>fn(...args)},util:{TextDecoder:{create:()=>({decodeToString:bytes=>Buffer.from(bytes).toString('utf8')})}}},
   '@kit.CoreFileKit':{fileIo:{accessSync:p=>files.has(p),statSync:p=>({size:files.get(p).length}),readTextSync:p=>files.get(p)}},
-  '@kit.NetworkKit':{http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},createHttp:()=>({request:async url=>{const b=requests.get(url);return {responseCode:b?200:500,result:b?Uint8Array.from(b).buffer:new ArrayBuffer(0)}},destroy(){}})}},
+  '@kit.NetworkKit':{http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},createHttp:()=>({request:async url=>{networkCalls++;if(waitForIndex&&url===indexUrl)await new Promise(resolve=>{gate=resolve});const b=requests.get(url);return {responseCode:b?200:500,result:b?Uint8Array.from(b).buffer:new ArrayBuffer(0)}},destroy(){}})}},
   '@kit.CryptoArchitectureKit':{cryptoFramework:{createMd:()=>{const h=crypto.createHash('sha256');return {updateSync:v=>h.update(v.data),digestSync:()=>({data:new Uint8Array(h.digest())})}}}},
   './AppFileTextPersistence':{writeAppTextFile:(p,s)=>{if(failWrite)throw Error('disk full');files.set(p,s)}},
   './BackupRestoreActivity':{BackupRestoreActivity:{runWrite:async f=>f()}},'./ImageBannerRules':rules,
-  '../sourceRuntime/SourceIndexMetadata':{isValidHttpUrl:v=>/^https:\/\//.test(v),safeResolveIndexRelativeUrl:(b,p)=>new URL(p,b).href},
+  '../state/ImageRuleState':{connectImageRuleState:()=>state},
+  '../sourceRuntime/SourceIndexMetadata':{parseIndexEntriesDocument,isValidHttpUrl:v=>/^https:\/\//.test(v),resolveIndexDocumentUrl:v=>v,safeResolveIndexRelativeUrl:(b,p)=>new URL(p,b).href},
  });
- const ctx={filesDir:'/fixture',resourceManager:{getRawFileContent:async()=>new Uint8Array(resource)}};
- const store=ImageRuleStore.forContext(ctx),initial=await store.pinned();assert.equal(initial.records[0].origin,'builtin:compatibility');
- await store.sync('subscription-a',{schemaVersion:1,indexUrl},async()=>true);
- const accepted=await store.pinned();assert.equal(accepted.records[0].origin,'subscription-a');
- assert.equal(initial.records[0].origin,'builtin:compatibility','reader snapshot must remain unchanged');
+ const ctx={filesDir:'/fixture',resourceManager:{getRawFileContent:async()=>{throw Error('must not read bundled rules')}}};
+ const store=ImageRuleStore.forContext(ctx);assert.deepEqual(await store.list(),[]);assert.deepEqual((await store.pinned()).records,[]);assert.equal(networkCalls,0);
+ assert.equal(subscriptionDocumentKind('[]'),'source');assert.equal(subscriptionDocumentKind('{"sources":[]}'),'source');assert.equal(subscriptionDocumentKind(JSON.stringify(index)),'image_rules');assert.equal(subscriptionDocumentKind('{}'),'unknown');
+ await store.add(indexUrl,'');assert.equal(networkCalls,2);assert.equal(state.enabledRuleCount,2);
+ const initial=await store.pinned();assert.equal(initial.records[0].origin,indexUrl);assert.equal((await store.list())[0].name,'Visible rules');
+ await store.setRuleEnabled(indexUrl,pack.id,pack.rules[0].id,false);
+ assert.deepEqual((await store.pinned()).records[0].packs[0].rules.map(r=>r.id),['second-rule'],'one switch cannot disable the other rule');
+ assert.equal(initial.records[0].packs[0].rules.length,2,'existing reader snapshot stays immutable');
+ const beforeRename=networkCalls,renameRevision=state.userRevision;await store.rename(indexUrl,'Custom name');assert.equal(networkCalls,beforeRename,'renaming is local');assert.equal(state.userRevision,renameRevision,'renaming does not reset the reader');
+ await store.setEnabled(indexUrl,false);assert.deepEqual((await store.pinned()).records,[]);await store.setEnabled(indexUrl,true);
+ const accepted=await store.exportSnapshot();
  requests.set(indexUrl,Buffer.from(JSON.stringify({...index,revision:'broken',packs:[{...index.packs[0],sha256:'0'.repeat(64)}]})));
- await assert.rejects(store.sync('subscription-a',{schemaVersion:1,indexUrl},async()=>true));assert.deepEqual(await store.pinned(),accepted);
- requests.set(indexUrl,Buffer.from(JSON.stringify({...index,revision:'two'})));failWrite=true;
- await assert.rejects(store.sync('subscription-a',{schemaVersion:1,indexUrl},async()=>true));assert.deepEqual(await store.pinned(),accepted);
- failWrite=false;await store.sync('subscription-b',{schemaVersion:1,indexUrl},async()=>false);assert.deepEqual(await store.pinned(),accepted);
- await store.sync('subscription-b',{schemaVersion:1,indexUrl},async()=>true);assert.equal((await store.pinned()).records.length,2);
- const backup=await store.exportSnapshot();await store.restore(initial);assert.deepEqual(await store.pinned(),initial);await store.restore(backup);assert.deepEqual(await store.pinned(),backup);
- await store.reload();assert.deepEqual(await store.pinned(),backup,'restored snapshot survives reload');
+ await assert.rejects(store.refresh(indexUrl));assert.deepEqual(await store.exportSnapshot(),accepted);
+ failWrite=true;await assert.rejects(store.setEnabled(indexUrl,false));assert.deepEqual(await store.exportSnapshot(),accepted);failWrite=false;
+ requests.set(indexUrl,Buffer.from(JSON.stringify({...index,revision:'two'})));const beforeUpdateRevision=state.userRevision;
+ await store.refresh(indexUrl);assert.equal(state.userRevision,beforeUpdateRevision,'background update cannot reset current reader');
+ assert.deepEqual((await store.pinned()).records[0].packs[0].rules.map(r=>r.id),['second-rule']);
+ const backup=await store.exportSnapshot();await store.remove(indexUrl);assert.deepEqual(await store.list(),[]);assert.deepEqual((await store.pinned()).records,[]);
+ await store.restore(backup);await store.reload();assert.deepEqual(await store.exportSnapshot(),backup);
+ waitForIndex=true;const late=store.refresh(indexUrl);while(!gate)await new Promise(r=>setImmediate(r));await store.remove(indexUrl);gate();await late;waitForIndex=false;
+ assert.deepEqual(await store.list(),[],'removed subscription cannot be resurrected by a late update');
+ await store.restore(snapshot);assert.deepEqual(await store.list(),[],'old implicit downloads are not user-added subscriptions');
+ await store.refreshAutomaticSubscriptions();assert.equal(state.enabledRuleCount,0);
  // Cache coordinator is production code; transform/decode is a controlled worker here (device proof is separate).
  let hash='raw-a',transforms=0,positive=false;const cache=new Map();
  const cacheStore={get:async(_url,_headers,key)=>cache.get(key),put:async(url,_headers,bytes,key)=>{const result='/cache/'+url+':'+key;cache.set(key,result);return result}};
@@ -109,5 +128,5 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.equal(await reopenedService.prepare('/raw',plans,cacheStore),'/raw');assert.equal(transforms,1,'no-hit survives service restart');
  hash='raw-b';positive=true;assert.match(await service.prepare('/raw',plans,cacheStore),/image-banner.jpg/);assert.equal(transforms,2);
  assert.equal(await service.prepare('/raw',[],cacheStore),'/raw');assert.equal(transforms,2,'disabled bypasses cache and transform');
- console.log('image banner rules: source/auto/off, edge precedence, no-hit, pinned snapshots and failed/removed-subscription rollback passed');
+ console.log('PASS: empty by default, typed subscriptions, independent rules, failed writes/updates, removal and backup; processing precedence and persistent cache');
 })().catch(e=>{console.error(e);process.exitCode=1});

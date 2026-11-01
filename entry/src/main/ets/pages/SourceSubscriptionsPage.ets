@@ -1,5 +1,9 @@
 import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
+import { ImageRuleStore, subscriptionDocumentKind } from '../model/ImageRuleStore'
+import { ImageRuleSubscription, imageRuleSubscriptionName } from '../model/ImageBannerRules'
+import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { pasteboard } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { SourceIndexRepository, SourceIndexService } from '../sourceRuntime/SourceIndexService'
@@ -17,12 +21,17 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 @ComponentV2
 export struct SourceSubscriptionsPage {
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+  @Event onOpenRules: (url: string, title: string) => void = () => {}
+  @Local private ruleState: ImageRuleState = connectImageRuleState()
+  @Local private ruleSubscriptions: ImageRuleSubscription[] = []
+  private editingRuleUrl: string = ''
   private dialogId: number = -1
   private menu: KomaMenuController = new KomaMenuController()
   @Local private editingUrl: string = ''
   @Local private name: string = ''
 
   aboutToAppear(): void {
+    void this.loadRules()
     void this.cache.prepare(this.context(), connectLanguageState().effectiveLocale)
       .then((): Promise<void> => this.refreshMetadata())
       .catch((): void => { this.error = AppStrings.get('source_catalog_subscription_read_failed') })
@@ -30,16 +39,21 @@ export struct SourceSubscriptionsPage {
 
   aboutToDisappear(): void { this.closeDialog(); this.menu.close() }
 
+  @Monitor('ruleState.dataRevision')
+  private rulesChanged(): void { void this.loadRules() }
+  private async loadRules(): Promise<void> { this.ruleSubscriptions = await ImageRuleStore.forContext(this.context()).list() }
+
   @Monitor('chrome.requestId')
   private onCommand(): void {
     if (this.chrome.action === 'addSubscription') this.openAddDialog()
   }
 
-  private openAddDialog(repository?: SourceIndexRepository): void {
+  private openAddDialog(repository?: SourceIndexRepository, rule?: ImageRuleSubscription): void {
     if (this.busy || this.dialogId >= 0) return
     this.editingUrl = repository?.url ?? ''
-    this.url = repository?.url ?? ''
-    this.name = repository?.customName ?? ''
+    this.editingRuleUrl = rule?.url ?? ''
+    this.url = rule?.url ?? repository?.url ?? ''
+    this.name = rule?.customName ?? repository?.customName ?? ''
     this.error = ''
     void this.getUIContext().getPromptAction().openCustomDialog({ systemMaterial: komaDialogMaterial(),
       builder: () => { this.AddDialog() }, alignment: DialogAlignment.Center, autoCancel: true,
@@ -78,11 +92,30 @@ export struct SourceSubscriptionsPage {
         repository.url !== this.editingUrl && resolveIndexDocumentUrl(repository.url) === resolveIndexDocumentUrl(url))) {
         this.error = AppStrings.get('source_catalog_subscription_exists'); return
       }
+      const ruleStore = ImageRuleStore.forContext(this.context())
+      if (this.ruleSubscriptions.some((rule: ImageRuleSubscription): boolean => rule.url !== this.editingRuleUrl &&
+        resolveIndexDocumentUrl(rule.url) === resolveIndexDocumentUrl(url))) {
+        this.error = AppStrings.get('source_catalog_subscription_exists'); return
+      }
+      if (this.editingRuleUrl && resolveIndexDocumentUrl(this.editingRuleUrl) === resolveIndexDocumentUrl(url)) {
+        await ruleStore.rename(this.editingRuleUrl, this.name)
+        this.closeDialog(); return
+      }
+      const sameSource = this.editingUrl.length > 0 && resolveIndexDocumentUrl(this.editingUrl) === resolveIndexDocumentUrl(url)
+      const document = sameSource ? undefined : await ruleStore.fetchDocument(url)
+      const kind = document === undefined ? 'source' : await taskpool.execute(subscriptionDocumentKind, document) as string
+      if (kind === 'image_rules') {
+        if (this.editingUrl) { this.error = AppStrings.get('subscription_type_changed'); return }
+        await ruleStore.add(url, this.name, document, this.editingRuleUrl || undefined)
+        this.closeDialog(); return
+      }
+      if (this.editingRuleUrl) { this.error = AppStrings.get('subscription_type_changed'); return }
+      if (kind !== 'source') { this.error = AppStrings.get('subscription_format_invalid'); return }
       const addressChanged = this.editingUrl.length === 0 ||
         resolveIndexDocumentUrl(this.editingUrl) !== resolveIndexDocumentUrl(url)
       let metadata: SourceRepositoryMetadata | undefined
       if (addressChanged) {
-        const result = await service.fetchIndex(url)
+        const result = await service.fetchIndex(url, document)
         if (!result.ok) { this.error = this.readFailure(result.reasonCode); return }
         metadata = result.metadata ?? await service.fetchRepositoryMetadata(url)
       }
@@ -93,7 +126,8 @@ export struct SourceSubscriptionsPage {
       if (addressChanged) await this.cache.reloadSavedCatalog(this.context(), true)
       this.url = ''
       this.closeDialog()
-    } catch (_error) { this.error = AppStrings.get('source_catalog_subscription_save_failed') }
+    } catch (error) { this.error = (error as Error).message === 'image_rule_subscription_exists'
+      ? AppStrings.get('source_catalog_subscription_exists') : AppStrings.get('source_catalog_subscription_save_failed') }
     finally { this.busy = false }
   }
 
@@ -164,25 +198,52 @@ export struct SourceSubscriptionsPage {
     })
   }
 
+  private ruleActions(rule: ImageRuleSubscription): KomaMenuGroup[] {
+    const items: KomaMenuAction[] = [
+      { label: AppStrings.get('source_subscription_edit'), action: (): void => { this.openAddDialog(undefined, rule) } },
+      { label: AppStrings.get('source_subscription_copy'), action: (): void => { this.copy({ url: rule.url, lastUsedAt: 0 }) } },
+    ]
+    if (rule.website) items.push({ label: AppStrings.get('source_subscription_website'),
+      action: (): void => { this.openWebsite({ url: rule.url, lastUsedAt: 0, website: rule.website }) } })
+    return [{ id: 'subscription', items }, { id: 'remove', items: [{ label: AppStrings.get('source_subscription_remove'),
+      action: (): void => {
+        void ImageRuleStore.forContext(this.context()).remove(rule.url).catch((): void => {
+          this.error = AppStrings.get('source_pkg_saved_index_remove_failed')
+        })
+      } }] }]
+  }
+
+  @Builder
+  private RuleActionsButton(rule: ImageRuleSubscription, index: number) {
+    Button({ type: ButtonType.Circle, stateEffect: true }) {
+      SymbolGlyph($r('sys.symbol.ellipsis_circle')).fontSize(18).fontColor([ThemeConstants.TEXT_SECONDARY])
+    }.id(`rule-subscription-actions-${index}`).width(44).height(44).backgroundColor(Color.Transparent)
+      .accessibilityText(AppStrings.get('source_subscription_actions'))
+      .onClick(() => { this.menu.open(this.getUIContext(), `rule-subscription-actions-${index}`, () => this.ruleActions(rule), (): void => {}) })
+  }
+
   @Builder
   private AddDialog() {
-    KomaTextInputDialog({ title: AppStrings.get(this.editingUrl ? 'source_subscription_edit' : 'source_pkg_add_subscription'),
+    KomaTextInputDialog({ title: AppStrings.get(this.editingUrl || this.editingRuleUrl ? 'source_subscription_edit' : 'source_pkg_add_subscription'),
       label: AppStrings.get('source_pkg_index_url_label'),
       placeholder: AppStrings.get('source_pkg_index_url_placeholder'), value: this.url,
       secondaryLabel: AppStrings.get('source_subscription_name'),
       secondaryPlaceholder: AppStrings.get('source_subscription_name_hint'), secondaryValue: this.name,
       secondaryChange: (value: string): void => { this.name = value },
-      error: this.error, busy: this.busy, confirmLabel: AppStrings.get(this.editingUrl ? 'common_save' : 'source_pkg_add_subscription'),
+      error: this.error, busy: this.busy, confirmLabel: AppStrings.get(this.editingUrl || this.editingRuleUrl ? 'common_save' : 'source_pkg_add_subscription'),
       confirmEnabled: isValidHttpUrl(this.url.trim()),
       change: (value: string): void => { this.url = value; this.error = '' },
       confirm: (): void => { void this.add() }, cancel: (): void => { this.closeDialog() } })
   }
 
   build() {
-    PullRefreshListScaffold({ onRefresh: (): Promise<void> => this.refreshMetadata(), bottomPadding: ThemeConstants.SPACE_XL }) {
+    PullRefreshListScaffold({ onRefresh: async (): Promise<void> => {
+      await this.refreshMetadata()
+      for (const rule of this.ruleSubscriptions) await ImageRuleStore.forContext(this.context()).refresh(rule.url)
+    }, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.repositories.length > 0) {
         ListItem() {
-          GroupedListSection() {
+          GroupedListSection({ title: AppStrings.get('subscription_sources') }) {
             ForEach(this.repositories, (repository: SourceIndexRepository, index: number) => {
               ConciseListRow({ title: sourceRepositoryDisplayName(repository), wrapTitle: true, showChevron: false,
                 subtitle: [sourceRepositoryDisplayName(repository) === repository.url ? '' : repository.url,
@@ -198,7 +259,20 @@ export struct SourceSubscriptionsPage {
               this.cache.sourceIndexFailures[repository.url]]))
           }
         }
-      } else {
+      }
+      if (this.ruleSubscriptions.length > 0) {
+        ListItem() {
+          GroupedListSection({ title: AppStrings.get('subscription_image_rules') }) {
+            ForEach(this.ruleSubscriptions, (rule: ImageRuleSubscription, index: number) => {
+              ConciseListRow({ title: imageRuleSubscriptionName(rule), wrapTitle: true, subtitle: rule.url,
+                showChevron: true, action: (): void => { this.onOpenRules(rule.url, imageRuleSubscriptionName(rule)) },
+                suffixBuilderParam: () => { this.RuleActionsButton(rule, index) } })
+              if (index + 1 < this.ruleSubscriptions.length) { ListDivider() }
+            }, (rule: ImageRuleSubscription) => JSON.stringify([rule.url, rule.name, rule.customName]))
+          }
+        }
+      }
+      if (this.repositories.length === 0 && this.ruleSubscriptions.length === 0) {
         ListItem() {
           Text(AppStrings.get('source_catalog_subscriptions_hint'))
             .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)

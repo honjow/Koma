@@ -1,3 +1,4 @@
+import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { komaReaderImageEffects } from './KomaReaderDisplayEffects'
@@ -64,6 +65,19 @@ class KomaReaderAfterLayout extends FrameCallback {
 
 @ComponentV2
 export struct KomaReaderLabPage {
+  @Local private imageRules: ImageRuleState = connectImageRuleState()
+
+  @Monitor('imageRules.userRevision')
+  private imageRuleSelectionChanged(): void {
+    const adapter = this.adapter
+    const session = this.session
+    if (adapter === null || session === null) return
+    const anchor = session.snapshot().anchor
+    void adapter.refreshImageRules().then((): void => {
+      if (anchor !== undefined && anchor !== null && this.session === session) void session.open(anchor.unit, anchor.sourceIndexHint)
+    })
+  }
+
   @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Require @Param request: ReaderLabRequest
   @Param productionEntry: boolean = false
@@ -765,7 +779,7 @@ export struct KomaReaderLabPage {
       (sameUnit || futureAutomatic), sameUnit ? this.translationProjectId :
         futureAutomatic ? this.translationProjectForUnit(page.unit) : '',
       settings.targetLanguage, settings.sourceLanguage, settings.revision,
-      effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
+      `${effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride)}:${this.imageRules.userRevision}`)
   }
 
   private translationFrame(sourceIndex: number): ReaderPagedFrame | undefined {
@@ -911,7 +925,7 @@ export struct KomaReaderLabPage {
     return new KomaReaderSuperResolutionConfiguration(this.readerMode.superResolutionEnabled,
       this.readerMode.superResolutionModel, this.readerMode.superResolutionBackend,
       this.readerMode.superResolutionMaxHeight,
-      effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
+      `${effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride)}:${this.imageRules.userRevision}`)
   }
 
   private setEnhancementInteractionBusy(busy: boolean): void {

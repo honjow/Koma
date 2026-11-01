@@ -1,3 +1,4 @@
+import { ImageRuleStore } from '../model/ImageRuleStore'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { ChapterListPreferencesStore } from '../model/ChapterListPreferencesStore'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -167,6 +168,7 @@ export default class EntryAbility extends UIAbility {
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      void ImageRuleStore.forContext(this.context).refreshAutomaticSubscriptions().catch((): void => {})
       setTimeout(() => {
         this.syncRemoteProgressInBackground()
       }, 250)

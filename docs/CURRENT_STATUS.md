@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：1.0.0正式版已发布，更新日志及实际附件已核验；其他未关项保留原状态。
+当前工作：完善独立图片规则订阅；已通过添加和单条启停，正在完成更新、移除与交付。
 
-设备：197由用户当前使用，不注入操作或覆盖新数据；237本轮原包、数据和电源已恢复并释租。200禁止操作，四私库搁置。
+设备：197由用户使用，不注入操作；237本轮原包、数据、电源均已恢复并释租。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "订阅级通用横幅过滤已交付",
+  "state": "重做独立图片规则系统",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T03:29:09+08:00",
+  "updatedAt": "2026-11-02T04:53:33+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "全局与单本过滤、订阅规则更新和缓存接入已完成；237验收、设备恢复及最终CI通过。",
-  "nextAction": "当前功能已交付；其它未关项仍保留各自条件与原状态。",
+  "activity": "添加自动识别、规则查看、独立启停、下拉更新、冷启动保留与移除已通过普通路径；用户与开发指南已补齐。",
+  "nextAction": "提交App后核精确CI；通过即收口。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5475,22 +5475,24 @@
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "订阅级通用横幅过滤",
-      "kind": "done",
+      "kind": "open",
       "priority": "P3",
       "owner": "Root：App接入与237验收；home_terra：订阅规则发布",
-      "status": "已交付",
+      "status": "实机验收通过，等待最终CI",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "通用横幅过滤已接通全局与单本设置、正文、预载和离线准备；237已验自动识别、关闭恢复、重启记忆及全局继承。规则随现有订阅后台更新，原始下载保留；代码已推送，最终CI通过，设备已完整恢复。",
-      "remaining": "本项无待办。",
-      "remainingActions": [],
+      "result": "添加自动识别、规则查看、独立启停、下拉更新、冷启动保留与移除已通过普通路径；用户与开发指南已补齐。",
+      "remaining": "提交App后核精确CI；通过即收口。",
+      "remainingActions": [
+        "核最终App提交的精确CI并收口。"
+      ],
       "boundaries": [
-        "已采用全局跟随书源（默认）／自动识别／关闭，单本额外提供使用全局；仅覆盖横幅策略，不改变分页和方向。",
-        "App提供通用处理，规则复用原书源订阅并独立发布；自动识别按内容匹配，不按源名称或域名设门槛。",
-        "正文、离线和预载共用准备链，在超分和翻译前处理；封面不参与，原始下载和普通CBZ保持原字节。",
-        "本次237原生证据为受控本地正文样本及真实订阅后台获取；不是全站或所有转载作品验收。规则和策略的备份／迁移失败恢复由实际生产逻辑测试覆盖，未另做整条真机备份／CBZ复验。",
-        "规则更新固定当前阅读快照，失败保留旧版；不新增第二套订阅管理，不另发App或移动已有标签。"
+        "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
+        "订阅管理入口共用，粘贴地址后由App识别书源／图片规则类型，不要求用户手选；两类内容分组可见并独立消费。",
+        "规则订阅必须可查看名称、用途、版本及启用状态；自动更新有可见开关，仅作用于用户添加且启用的规则订阅。",
+        "用户主动启停或移除改变当前处理结果；自动更新不重置当前阅读。原始下载和普通CBZ保留原图。",
+        "此前裁剪样本证明保留为算法范围；不作为重做后的订阅管理验收。不得用原CI或README宣告新流程完成。"
       ],
       "evidencePoints": [
         "ReaderPageSourceAdapter.ets prepareSourcePagePresentation 当前显式检查online.baozimh.koma、包子图片域、安装与BAOZI_BANNER；SourceBaoziBannerService/Detector 已做taskpool特征匹配与派生缓存。",
@@ -5501,17 +5503,23 @@
         "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。",
         "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。"
       ],
-      "updatedAt": "2026-11-02T03:29:09+08:00",
+      "updatedAt": "2026-11-02T04:53:33+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
         ".hvigor/outputs/generic-banner-20261102/restoration-verified.json",
         "Koma/master 27db7c8ceabc796b298d41771913bcb3c9b4c6be；koma-sources/master bfc9d67723c5d6d7fdf4d3687a1bc02183f19945；本地最终release构建exit0，规则独立CI41339069489成功。",
         "缓存回退收尾ad389bd52b5982e00c4f908dd963bce3bee9fd6a已推送；生产失败恢复测试及build-cache-fallback-fixed.log exit0，最终CI41340737991进行中。",
-        "最终App提交ad389bd52b5982e00c4f908dd963bce3bee9fd6a，CI41340737991 completed/success；Release构建、Inspect、Upload均成功，正式发布skipped。具名原生与最终兼容修正范围见 .hvigor/outputs/generic-banner-20261102/delivery-binding.json。"
+        "最终App提交ad389bd52b5982e00c4f908dd963bce3bee9fd6a，CI41340737991 completed/success；Release构建、Inspect、Upload均成功，正式发布skipped。具名原生与最终兼容修正范围见 .hvigor/outputs/generic-banner-20261102/delivery-binding.json。",
+        ".hvigor/outputs/generic-banner-20261102/rules-rework-delivery.json",
+        "具名237 rules-added-458、rules-detail-459、rules-rule-off-460；候选SHA fa7d9ce4e27de407fb49677ed827acd4d561807f16417a0a313745aab171c528。",
+        "237 rules-reenter-update-461、rules-subscription-off-462、rules-cold-persisted-464、rules-removed-466；最终本地release构建exit0，logic-rework-final.log PASS。",
+        "最后兼容收尾只补书源sources对象识别、重命名不重置阅读及按App语言格式化时间；未重跑既有算法路径。",
+        ".hvigor/outputs/generic-banner-20261102/restoration-rework-verified.json：237恢复原0.1.4/code5，本轮7 JSON与18偏好逐字一致；新增规则文件已移除，120000ms、无override、SLEEP，租约已释放。"
       ],
-      "stage": "已验收",
-      "closedAt": "2026-11-02T03:29:09+08:00"
+      "stage": "实现与验证",
+      "closedAt": null,
+      "reopenedAt": "2026-11-02T03:38:38+08:00"
     }
   ],
   "source": {
@@ -14102,6 +14110,36 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "订阅级横幅过滤已交付",
       "detail": "全局／单本设置、正文及预载过滤、规则后台同步和缓存失败回退已交付；237受控正文验收与完整恢复保留，最终提交CI成功，实际HAP产物已核。没有另发App版本。"
+    },
+    {
+      "at": "2026-11-02T03:38:38+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "补齐横幅过滤使用说明",
+      "detail": "用户指出功能已交付但没有用法。主README补实际入口、三种策略、单本覆盖、规则更新及原图保留；书源库同步说明和协议入口，保留已有代码／验收结果。"
+    },
+    {
+      "at": "2026-11-02T04:24:45+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "按明确边界重做规则订阅",
+      "detail": "撤回原完成结论；用户允许共用入口，要求内部区分类型并否定手选类型。已移除App内置规则及书源自动发现，规则生成器不再写死单一模板，管理与验收继续。"
+    },
+    {
+      "at": "2026-11-02T04:47:45+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "独立规则已发布并通过普通添加",
+      "detail": "237确认同一添加框自动识别规则类型，可查看名称、用途、v3并关闭单条规则，原书源订阅和其余开关保留；更新及移除验收继续。"
+    },
+    {
+      "at": "2026-11-02T04:51:32+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "规则订阅完整管理已验收",
+      "detail": "237普通路径确认独立开关、更新保留选择、冷启动持久化和移除后原书源仍在；本地构建通过，设备恢复与最终CI继续。"
+    },
+    {
+      "at": "2026-11-02T04:53:33+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "规则验收完成并恢复237",
+      "detail": "原包、25份数据和原电源状态均已恢复读回，租约已释放；进入最终提交与CI，不另发App版本。"
     }
   ],
   "reportAgeAudit": {

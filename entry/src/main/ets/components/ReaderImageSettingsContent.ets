@@ -1,3 +1,5 @@
+import { ImageRuleStore } from '../model/ImageRuleStore'
+import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { normalizeBannerFilter } from '../model/ImageBannerRules'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
@@ -25,12 +27,14 @@ export struct ReaderImageSettingsContent {
   @Param modelsRevision: number = 0
   @Event onPreferencesChange: (next: ReaderPreferences) => void = (_next: ReaderPreferences) => {}
   @Event onOpenModels: () => void = () => {}
+  @Local private imageRules: ImageRuleState = connectImageRuleState()
   @Local private installedModels: string[] = []
   private active: boolean = false
   private lifetime: number = 0
 
   aboutToAppear(): void {
     this.active = true
+    void ImageRuleStore.forContext(this.getUIContext().getHostContext() as common.UIAbilityContext).list()
     this.refreshModels()
   }
 
@@ -138,7 +142,7 @@ export struct ReaderImageSettingsContent {
     Column({ space: ThemeConstants.SPACE_LG }) {
       if (this.cropControlsAvailable) {
         GroupedListSection({ title: t('settings_reader_group_crop') }) {
-          ConciseListRow({ title: t('reader_banner_filter'), trailingText: t('reader_banner_' + this.bannerChoice()),
+          ConciseListRow({ title: t('reader_banner_filter'), subtitle: t(this.imageRules.enabledRuleCount === 0 ? 'image_rules_none' : 'image_rules_manage_in_subscriptions'), subtitleMaxLines: 3, trailingText: t('reader_banner_' + this.bannerChoice()),
             trailingDropdown: true, dropdownMenuEnabled: true,
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BannerMenu(select) } }).id('reader-banner-filter')
           ListDivider()

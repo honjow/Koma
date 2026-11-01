@@ -1,5 +1,5 @@
 import { ImageRuleStore } from './ImageRuleStore'
-import { ImageRuleSnapshot, BannerFilterMode, validateImageRuleSnapshot } from './ImageBannerRules'
+import { ImageRuleConfiguration, BannerFilterMode, validateImageRuleConfiguration } from './ImageBannerRules'
 import { normalizeBannerOverrides } from './ReaderPreferencesStore'
 import { BACKUP_BACKGROUND_RESULT, BackgroundBackupResult } from './BackgroundMaintenanceContract'
 import { ComicCoverBackup, PreparedComicCovers, exportComicCovers,
@@ -174,7 +174,7 @@ interface KomaBackupDocument {
   sourceSettings?: Record<string, SourceSettingsRecord>
   sourceSettingObservations?: SourceSettingObservationSources
   sourceFilterPreferences?: Record<string, SourceFilterPreferenceSourceRecord>
-  imageRules?: ImageRuleSnapshot
+  imageRules?: ImageRuleConfiguration
   bannerFilters?: Record<string, BannerFilterMode>
   settings?: ReaderPreferences
   applicationSettings?: ApplicationSettingsBackup
@@ -1315,7 +1315,7 @@ export class BackupService {
 
   private previewDocument(json: string, allowEncryptedContentSchema: boolean): BackupImportPreview {
     const document = JSON.parse(json) as KomaBackupDocument
-    if (document.imageRules !== undefined) validateImageRuleSnapshot(document.imageRules)
+    if (document.imageRules !== undefined) validateImageRuleConfiguration(document.imageRules)
     if (document.bannerFilters !== undefined) normalizeBannerOverrides(JSON.stringify(document.bannerFilters))
     const accepted = allowEncryptedContentSchema ?
       isAcceptedDecryptedSchemaVersion(document.schemaVersion) :
