@@ -6,36 +6,14 @@ import { runRegisteredSourceRequestById, runRegisteredSourceRequestByIdAsync } f
 import { SourceRuntimeRegistry } from './SourceRuntimeRegistry'
 import { appSourceSettingObservationStore } from './SourceSettingObservationStore'
 import { SourceSettingObservations } from './SourceSettingObservations'
+import { SettingsFieldValue, SettingsFieldValues, SettingsFieldOption, SettingsFieldValidation,
+  SettingsFieldDescriptor } from '../model/SettingsFormFields'
 
-export type SourceSettingValue = string | boolean | number | string[]
-export type SourceSettingsRecord = Record<string, SourceSettingValue>
-
-export interface SourceSettingOption {
-  id: string
-  label: string
-}
-
-export interface SourceSettingValidation {
-  kind: string
-  message: string
-}
-
-export interface SourceSettingDescriptor {
-  id: string
-  label: string
-  kind: string
-  description?: string
-  validation?: SourceSettingValidation
-  defaultValue?: SourceSettingValue
-  minValue?: number
-  maxValue?: number
-  step?: number
-  options?: SourceSettingOption[]
-  children?: string[]
-  loginRefKey?: string
-  supported: boolean
-  sensitive: boolean
-}
+export type SourceSettingValue = SettingsFieldValue
+export type SourceSettingsRecord = SettingsFieldValues
+export type SourceSettingOption = SettingsFieldOption
+export type SourceSettingValidation = SettingsFieldValidation
+export type SourceSettingDescriptor = SettingsFieldDescriptor
 
 export interface SourceSettingsDescriptorResult {
   ready: boolean

@@ -12,6 +12,8 @@ set(KOMA_SOURCE_RUNTIME_SOURCES
     java_regex_host.cpp
     source_browser_http.cpp
     wasm_runtime_adapter.cpp
+    image_processor_host.cpp
+    image_processor_module.cpp
     html_host.cpp
     http_host.cpp)
 
@@ -162,13 +164,20 @@ if(EXISTS "${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake")
     set(WAMR_BUILD_REF_TYPES 1)
     set(WAMR_BUILD_SIMD 0)
     set(WAMR_BUILD_SHARED_MEMORY 0)
-    set(WAMR_BUILD_THREAD_MGR 0)
+    # Cancellation of a downloaded processor must interrupt pure WASM loops,
+    # including algorithms that never call a host import. No pthread/WASI API is exposed.
+    # Host-side pure-WASM cancellation; guest pthreads remain disabled.
+    # Version pairing and auxiliary-stack contract: third_party/wasm-micro-runtime/KOMA_BUILD.md.
+    set(WAMR_BUILD_THREAD_MGR 1)
     set(WAMR_BUILD_LIB_PTHREAD 0)
     set(WAMR_BUILD_BULK_MEMORY 1)
     set(WAMR_DISABLE_HW_BOUND_CHECK 1)
 
     include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
     add_library(koma_wamr_runtime STATIC ${WAMR_RUNTIME_LIB_SOURCE})
+    # Keep the main module's original auxiliary stack intact. Thread-manager
+    # cancellation does not imply dividing source/plugin stacks for guest threads.
+    target_compile_definitions(koma_wamr_runtime PUBLIC WASM_ENABLE_HEAP_AUX_STACK_ALLOCATION=1)
     target_include_directories(koma_wamr_runtime PUBLIC ${WAMR_ROOT_DIR}/core/iwasm/include)
     target_compile_features(koma_wamr_runtime PRIVATE c_std_99)
     target_compile_definitions(koma_source_runtime PRIVATE KOMA_ENABLE_WAMR=1)

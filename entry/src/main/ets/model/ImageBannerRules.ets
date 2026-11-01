@@ -1,4 +1,7 @@
-/** Versioned data only. Publishers own signatures; v1 fixes the sampling/tolerance algorithm. */
+import { ImageProcessingPlugin, ImagePluginHint, validateImageProcessingPlugin } from './ImageProcessingPlugins'
+import { SettingsFieldValues } from './SettingsFormFields'
+
+/** Legacy rule compatibility. Downloaded algorithms use ImageProcessingPlugins. */
 export interface ImageRuleScale { minWidthExclusive: number; maxWidthExclusive: number; referenceWidth: number }
 export interface ImageRuleSignature { id: string; width: number; height: number; averages: number[]; scale?: ImageRuleScale }
 export interface ImageRuleEdge { signature: string; height?: number }
@@ -12,15 +15,22 @@ export interface ImageRulePack { schemaVersion: number; id: string; version: num
 export interface ImageRulePackReference { id: string; version: number; path: string; sha256: string }
 export interface ImageRuleIndex { schemaVersion: number; kind?: string; meta?: ImageRuleMetadata; revision: string; packs: ImageRulePackReference[] }
 export interface ImageRuleDescriptor { schemaVersion: number; indexUrl: string }
-export interface ImageRuleRecord { origin: string; revision: string; packs: ImageRulePack[] }
+export interface ImageRuleRecord {
+  origin: string; revision: string; packs: ImageRulePack[]
+  plugins?: ImageProcessingPlugin[]
+  pluginSettings?: Record<string, SettingsFieldValues>
+}
 export interface ImageRuleSnapshot { schemaVersion: number; records: ImageRuleRecord[] }
 export interface ImageRuleSubscription {
   url: string; name: string; customName?: string; description?: string; website?: string
   enabled: boolean; automaticUpdates: boolean; updatedAt: number; lastAutomaticCheckAt?: number; revision: string
   packs: ImageRulePack[]; disabledRules: string[]
+  catalog?: ImageProcessingPlugin[]
+  plugins?: ImageProcessingPlugin[]
+  pluginSettings?: Record<string, SettingsFieldValues>
 }
 export interface ImageRuleConfiguration { schemaVersion: number; subscriptions: ImageRuleSubscription[] }
-export interface ImageProcessingHint { kind: string; mode: string }
+export type ImageProcessingHint = ImagePluginHint
 export interface ImageBannerPlan { rule: ImageBannerRule; mode: string; revision: string }
 export function imageRuleKey(packId: string, ruleId: string): string { return JSON.stringify([packId, ruleId]) }
 export function imageRuleSubscriptionName(value: ImageRuleSubscription): string { return value.customName || value.name }
@@ -42,6 +52,12 @@ export function validateImageRuleConfiguration(raw: Object): ImageRuleConfigurat
       throw new Error('invalid_image_rule_subscription')
     urls.add(subscription.url)
     for (const pack of subscription.packs) validateImageRulePack(pack)
+    for (const plugin of subscription.catalog ?? []) validateImageProcessingPlugin(plugin)
+    for (const plugin of subscription.plugins ?? []) {
+      validateImageProcessingPlugin(plugin)
+      if (typeof plugin.processor.moduleBase64 !== 'string' || !plugin.processor.moduleBase64)
+        throw new Error('missing_installed_image_processor')
+    }
   }
   return value
 }
@@ -57,7 +73,8 @@ export function effectiveBannerFilter(global: Object | undefined, override: stri
 export function canDiscoverSourceImageProcessing(snapshot: ImageRuleSnapshot, sourceId: string): boolean {
   return snapshot.records.some((record: ImageRuleRecord): boolean => record.packs.some((pack: ImageRulePack): boolean =>
     pack.rules.some((rule: ImageBannerRule): boolean => rule.legacy.some((alias: ImageRuleLegacy): boolean =>
-      alias.sourceIds?.includes(sourceId) === true))))
+      alias.sourceIds?.includes(sourceId) === true))) || (record.plugins ?? []).some((plugin: ImageProcessingPlugin): boolean =>
+        plugin.application.sourceHints.some((hint): boolean => hint.sourceIds?.includes(sourceId) === true)))
 }
 export function imageBannerPlans(snapshot: ImageRuleSnapshot, policy: BannerFilterMode,
   hint?: ImageProcessingHint): ImageBannerPlan[] {

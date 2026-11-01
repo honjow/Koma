@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：独立图片规则订阅已完成重做并交付；其他未关闭项保留原状态。
+当前工作：接入可订阅的图片处理插件；原生内核与安装逻辑已跑通，完整管理界面尚未实施。
 
 设备：197由用户使用，不注入操作；237本轮原包、数据、电源均已恢复并释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "独立图片规则系统已交付",
+  "state": "图片处理插件核心已编译，界面待确认",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T05:12:01+08:00",
+  "updatedAt": "2026-11-02T06:41:58+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "",
-  "activity": "App不内置规则、不随书源订阅自动取得规则；共用入口按内容识别类型，可查看名称、用途和版本，独立启停、更新及移除。237普通路径与恢复已完成，最终CI及真实产物已核对。",
-  "nextAction": "其余未关闭项保留各原事项的条件和未验范围。",
+  "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
+  "activity": "插件核心已编译；外部算法、超时中止、安装更新及缓存调度的本地执行已通过。图片准备链已接通，完整管理页与普通真机路径尚未完成。",
+  "nextAction": "待确认图片处理插件管理页的具体布局和操作，再完成安装、配置、更新与普通阅读验收。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5474,23 +5474,30 @@
     },
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
-      "title": "订阅级通用横幅过滤",
-      "kind": "accepted",
+      "title": "可订阅的图片处理插件",
+      "kind": "open",
       "priority": "P3",
-      "owner": "Root：App接入与237验收；home_terra：订阅规则发布",
-      "status": "独立规则订阅与管理已验收",
+      "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
+      "status": "核心已编译，完整管理页待确认",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "App不内置规则、不随书源订阅自动取得规则；共用入口按内容识别类型，可查看名称、用途和版本，独立启停、更新及移除。237普通路径与恢复已完成，最终CI及真实产物已核对。",
-      "remaining": "无。",
-      "remainingActions": [],
+      "result": "插件核心已编译；外部算法、超时中止、安装更新及缓存调度的本地执行已通过。图片准备链已接通，完整管理页与普通真机路径尚未完成。",
+      "remaining": "待确认图片处理插件管理页的具体布局和操作，再完成安装、配置、更新与普通阅读验收。",
+      "remainingActions": [
+        "图片处理插件管理页具体方案待用户决定；不实施已撤回的横幅专用页。",
+        "Root按确定的页面接入可见的安装／更新／启停／配置，以及237普通阅读路径。",
+        "home_terra的独立插件包、生成器与作者文档已准备；Host完整接通后再提交发布，不切换旧规则地址。"
+      ],
       "boundaries": [
         "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
         "订阅管理入口共用，粘贴地址后由App识别书源／图片规则类型，不要求用户手选；两类内容分组可见并独立消费。",
         "规则订阅必须可查看名称、用途、版本及启用状态；自动更新有可见开关，仅作用于用户添加且启用的规则订阅。",
         "用户主动启停或移除改变当前处理结果；自动更新不重置当前阅读。原始下载和普通CBZ保留原图。",
-        "此前裁剪样本证明保留为算法范围；不作为重做后的订阅管理验收。不得用原CI或README宣告新流程完成。"
+        "此前裁剪样本证明保留为算法范围；不作为重做后的订阅管理验收。不得用原CI或README宣告新流程完成。",
+        "用户本轮澄清：外部规则可以明确写包子与横幅；禁止App硬编码站点特例，不等于规则元数据必须隐去处理对象。界面安排先讨论，不能自行做完再简单交代。",
+        "用户否定新增横幅过滤专用页并指出图片规则不能被限定为去横幅；该页方案撤回，通用处理接口及整体用户流程尚在讨论，未开始新界面改动。",
+        "用户本轮选择“新算法也要能通过订阅扩展”，并指出带运行时应称插件；本次目标为可下载图片处理插件，规则只是插件配置，不能把扩展限制为App预先内置的算法或横幅裁切。"
       ],
       "evidencePoints": [
         "ReaderPageSourceAdapter.ets prepareSourcePagePresentation 当前显式检查online.baozimh.koma、包子图片域、安装与BAOZI_BANNER；SourceBaoziBannerService/Detector 已做taskpool特征匹配与派生缓存。",
@@ -5501,7 +5508,7 @@
         "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。",
         "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。"
       ],
-      "updatedAt": "2026-11-02T05:12:01+08:00",
+      "updatedAt": "2026-11-02T06:41:58+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5518,11 +5525,18 @@
         "自动更新失败／并发检查／重读后仍只请求一次：logic-rework-final.log；最终build-rework-daily-final.log exit0；源文档423e624 [skip ci]已推，规则CI仍为41346373710。",
         "最终App提交04f79824799accba37fc95f6c884ee89b1b8ddc8已推；精确CI41349458397进行中，先前主实现CI41349165704因并发规则取消。",
         "App 04f79824799accba37fc95f6c884ee89b1b8ddc8精确CI41349458397 completed/success；真实ohos-hap-unsigned产物的build-manifest与完整提交、reader-kit 10484507及HAP字节数一致；构建、检查、上传均成功，App发布skipped。",
-        ".hvigor/outputs/generic-banner-20261102/delivery-rework-binding.json：最终代码／本地构建／原生管理路径／CI产物及独立规则发布绑定。"
+        ".hvigor/outputs/generic-banner-20261102/delivery-rework-binding.json：最终代码／本地构建／原生管理路径／CI产物及独立规则发布绑定。",
+        "规则元数据9ac01ba2b2eabaa65a54752d2bea0fb13b2e9d9e，独立CI41351975487 success；公开v4规则名“包子漫画横幅”，签名／匹配次序／兼容映射与v3相等。",
+        "当前限制亲核：ImageBannerRules.validateImageRulePack只允许edge_signature_v1；ImageBannerService.sourceBannerProcessedBytes只累计top/bottom并crop，缓存算法身份同样固定edge-signature-v1。",
+        ".hvigor/outputs/image-plugins-20261102/native-invert-result.json、native-timeout-result.json：macOS原生执行生产图片宿主，反色RGBA及alpha正确；纯WASM忙循环约5秒被终止，不是设备验收。",
+        ".hvigor/outputs/image-plugins-20261102/native-baozi-result.json：candidate2原生去除顶部200行，输出逐字等于原剩余800行；无横幅样本不变。",
+        ".hvigor/outputs/image-plugins-20261102/logic-plugin-storage.log：生产存储逻辑下目录不下载算法、新装默认关闭、坏更新保旧、卸载迟到保护、字节与设置备份、同内容共用处理及最多两路worker通过。",
+        "home_terra候选协议复核 /private/tmp/koma-image-plugin-contract-check/；candidate2索引SHA256 6be71af9fb578f49017bc9355b956bdd8858644151cae279121d5ffe0dd9e841，尚未发布。",
+        ".hvigor/outputs/image-plugins-20261102/core-binding.json：最终本地签名HAP已生成并绑定Native／ArkTS源码；native-install-inspection-result.json核正常模块接受、源Host导入及start section拒绝。未进行新插件管理页和普通真机验收。"
       ],
-      "stage": "已交付",
-      "closedAt": "2026-11-02T05:12:01+08:00",
-      "reopenedAt": "2026-11-02T03:38:38+08:00"
+      "stage": "图片处理插件界面接入待确认",
+      "closedAt": null,
+      "reopenedAt": "2026-11-02T05:26:39+08:00"
     }
   ],
   "source": {
@@ -14161,6 +14175,36 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "独立图片规则重做已交付",
       "detail": "同一入口自动识别、可见规则管理、独立更新发布及用户／开发指南齐全；237验收与设备恢复完成，最终CI和真实产物通过。未另发App版本。"
+    },
+    {
+      "at": "2026-11-02T05:26:39+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "用户指出规则说明与流程仍不可理解",
+      "detail": "重开原事项；外部规则明确说明包子横幅，App保持通用能力。先讨论用户能浏览、管理、更新和使用的界面，不直接开始新界面改动。"
+    },
+    {
+      "at": "2026-11-02T05:31:58+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "确认当前协议仍被裁切用途锁定",
+      "detail": "固定类型、top/bottom结果及裁切执行链均已核；横幅专用页方案撤回。包子规则名称用途的独立发布已完成，但不据此关闭整体问题。"
+    },
+    {
+      "at": "2026-11-02T05:54:02+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "明确新算法订阅扩展与插件定位",
+      "detail": "外部包子横幅和反色开发示例已准备；原生宿主新增通用RGBA区域读写接口，正在编译并验证真正的运行时执行。未修改新界面或发布候选插件。"
+    },
+    {
+      "at": "2026-11-02T06:32:46+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "图片处理插件的原生内核与安装逻辑跑通",
+      "detail": "外部横幅处理、独立反色算法及超时中止已在本地原生内核跑通；安装与更新逻辑已核，阅读和预载已接到同一处理入口。管理界面与普通真机路径未验。"
+    },
+    {
+      "at": "2026-11-02T06:41:58+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "图片处理插件核心编译与接口检查完成",
+      "detail": "本地候选已编译；原生检查拒绝源Host导入和start section，完整算法、存储及缓存结果已绑定。尚未进行新插件页面与普通真机路径，整体保持未完成。"
     }
   ],
   "reportAgeAudit": {

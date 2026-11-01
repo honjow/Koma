@@ -10,6 +10,8 @@
 #include "java_regex_host.h"
 napi_value KomaSourceBrowserHttp(napi_env, napi_callback_info);
 napi_value KomaCancelSourceBrowserHttp(napi_env, napi_callback_info);
+napi_value KomaRunImageProcessor(napi_env, napi_callback_info);
+napi_value KomaInspectImageProcessor(napi_env, napi_callback_info);
 #include "source_package_file_checks.h"
 #include "wasm_runtime_adapter.h"
 
@@ -209,6 +211,8 @@ static napi_value Init(napi_env env, napi_value exports)
         {"add", nullptr, Add, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCall", nullptr, RunJsonCall, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"runJsonCallFromBytes", nullptr, RunJsonCallFromBytes, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"runImageProcessor", nullptr, KomaRunImageProcessor, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"inspectImageProcessor", nullptr, KomaInspectImageProcessor, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"configureHttpTransport", nullptr, ConfigureHttpTransport, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"javaRegex", nullptr, KomaJavaRegex, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"sourceBrowserHttp", nullptr, KomaSourceBrowserHttp, nullptr, nullptr, nullptr, napi_default, nullptr},

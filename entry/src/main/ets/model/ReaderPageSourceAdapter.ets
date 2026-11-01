@@ -6,6 +6,7 @@ import { SourceTextPage, sourceTextPage, SourceTextPageRequest } from './SourceT
 import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
 import { ImageBannerService } from './ImageBannerService'
+import { ImagePluginService, imagePluginPlans } from './ImagePluginService'
 import { ImageRuleStore } from './ImageRuleStore'
 import { ReaderPreferencesStore } from './ReaderPreferencesStore'
 import { ImageProcessingHint, ImageRuleSnapshot, BannerFilterMode, imageBannerPlans, effectiveBannerFilter, canDiscoverSourceImageProcessing } from './ImageBannerRules'
@@ -1073,8 +1074,10 @@ async function prepareSourcePagePresentation(source: ReaderPageRenderSource, ori
     source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
   }
   const plans = imageBannerPlans(presentation.snapshot, presentation.policy, hint)
-  const prepared = await ImageBannerService.prepare(path, plans, readerImageCacheStore)
-  if (plans.length > 0) await maintainReaderImageCacheAfterWrite(prepared)
+  const compatible = await ImageBannerService.prepare(path, plans, readerImageCacheStore)
+  const plugins = imagePluginPlans(presentation.snapshot, presentation.policy, hint)
+  const prepared = await ImagePluginService.prepare(compatible, plugins, readerImageCacheStore)
+  if (plans.length > 0 || plugins.length > 0) await maintainReaderImageCacheAfterWrite(prepared)
   if (presentation.policy === 'source' && entry?.enabled && !sourceTextRequestCurrent(entry, fingerprint))
     throw new Error('reader_source_page_processing_stale')
   return prepared

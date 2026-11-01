@@ -64,7 +64,7 @@ HTTP 诊断关联宿主提供的操作名，并记录原生传输的 DNS、TCP�
 
 正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`mangabz_mirror_session_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1` 是正文图片准备的可选声明。现有 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }` 由订阅图片规则中的兼容映射消费；普通、强力及关闭语义保持。宿主在“跟随书源”下遵守该声明，在“自动识别”下使用已取得且允许跨源的规则；“关闭”保留原图。处理不再依赖某个源 ID 或图片域名，封面不参与。
 
-规则通过订阅同目录 `repo.json.imageRules` 发现，协议和控制范围见[订阅图片规则](subscription-image-rules.md)。当前页和预载共用后台图片准备；原始下载、摘要及普通 CBZ 导出不变。下载清单保存公开处理声明及设置／安装摘要，源已移除时仍可离线消费；源仍安装且设置、版本或安装路径已变化时重新解析声明。规则兼容映射的可选 `sourceIds` 只用于旧缓存缺失声明时补查，不限制新声明及自动识别；其它缓存正文不新增源请求。派生和未命中缓存按原始内容、规则及模式区分，不改原始 HTTP 会话或缓存身份。
+图片处理内容由用户单独添加订阅，App按清单区分书源与图片插件，不从 `repo.json` 自动发现或添加。协议和控制范围见[图片处理插件订阅](subscription-image-rules.md)，执行接口见[插件 ABI](image-processing-plugin-abi.md)。当前页和预载共用后台图片准备；原始下载、摘要及普通 CBZ 导出不变。下载清单保存公开处理声明及设置／安装摘要，源已移除时仍可离线消费；源仍安装且设置、版本或安装路径已变化时重新解析声明。兼容映射的可选 `sourceIds` 只用于旧缓存缺失声明时补查，不限制新声明及自动识别；其它缓存正文不新增源请求。派生和未命中缓存按原始内容、算法／规则及配置区分，不改原始 HTTP 会话或缓存身份。
 
 `source_baozi_chapter_identity_v1` 允许包子的 `CHAPTER_ORDER` 在显式启用时以完整标题扩展章节身份；默认关闭，正文仍按原 slot 请求，不改变目录顺序。宿主在详情和书架更新前共用 `SourceChapterIdentity`，仅同作品、slot及完整标题唯一匹配时沿用已有ID，双向切换都保留原进度、页表和下载归属；无法唯一匹配或会合并不同章节时整次更新失败，保留旧目录，不提交部分结果。历史中的标题身份可按同一精确规则恢复；缺少标题的孤立旧ID不猜测映射。旧宿主未声明能力时，源不得展示或消费该设置。
 

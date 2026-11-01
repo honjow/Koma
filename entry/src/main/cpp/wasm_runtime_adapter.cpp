@@ -16,6 +16,7 @@
 
 #include "html_host.h"
 #include "http_host.h"
+#include "image_processor_host.h"
 
 #if defined(KOMA_ENABLE_WAMR)
 #include "source_runtime_fixture_wasm.h"
@@ -34,7 +35,10 @@ constexpr uint32_t kKomaMagic = 0x4B4F4D41u;
 // Independent calls share one runtime and allocator. Size the shared pool at
 // the old 8 MiB single-call budget times the limit; it is not partitioned.
 constexpr uint32_t kMaxConcurrentSourceCalls = 4;
-constexpr uint32_t kRuntimeHeapBytes = kMaxConcurrentSourceCalls * 8u * 1024u * 1024u;
+// Preserve four source slots; two image workers have their own admission and
+// module budgets rather than waiting behind source HTTP requests.
+constexpr uint32_t kMaxConcurrentImageCalls = 2;
+constexpr uint32_t kRuntimeHeapBytes = (kMaxConcurrentSourceCalls + kMaxConcurrentImageCalls) * 8u * 1024u * 1024u;
 constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
@@ -485,6 +489,10 @@ public:
         if (!wasm_runtime_full_init(&initArgs)) {
             throw std::runtime_error("wasm_runtime_full_init failed");
         }
+        if (!RegisterImageProcessorImports()) {
+            wasm_runtime_destroy();
+            throw std::runtime_error("image processor imports registration failed");
+        }
         initialized_ = true;
     }
 
@@ -510,30 +518,34 @@ std::mutex g_runtimeLifetimeMu;
 std::condition_variable g_runtimeSlotAvailable;
 std::unique_ptr<Runtime> g_runtime;
 uint32_t g_runtimeUsers = 0;
+uint32_t g_imageRuntimeUsers = 0;
 std::unordered_set<std::string> g_activeSources;
 bool g_unidentifiedSourceActive = false;
 
 class RuntimeLease {
 public:
-    explicit RuntimeLease(const std::string &sourceId = "") : sourceId_(sourceId)
+    explicit RuntimeLease(const std::string &sourceId = "", bool image = false) : sourceId_(sourceId), image_(image)
     {
         std::unique_lock<std::mutex> lock(g_runtimeLifetimeMu);
         // Preserve per-source serialization, including HTTP wait time. An
         // unidentified call has no safe key, so it remains process-exclusive.
         g_runtimeSlotAvailable.wait(lock, [this] {
+            if (image_) return !g_unidentifiedSourceActive && g_imageRuntimeUsers < kMaxConcurrentImageCalls;
             if (sourceId_.empty()) return g_runtimeUsers == 0;
-            return !g_unidentifiedSourceActive && g_runtimeUsers < kMaxConcurrentSourceCalls &&
+            return !g_unidentifiedSourceActive && g_activeSources.size() < kMaxConcurrentSourceCalls &&
                 g_activeSources.find(sourceId_) == g_activeSources.end();
         });
         try {
-            if (sourceId_.empty()) g_unidentifiedSourceActive = true;
+            if (image_) ++g_imageRuntimeUsers;
+            else if (sourceId_.empty()) g_unidentifiedSourceActive = true;
             else g_activeSources.insert(sourceId_);
             if (g_runtimeUsers == 0) {
                 g_runtime = std::make_unique<Runtime>();
             }
             ++g_runtimeUsers;
         } catch (...) {
-            if (sourceId_.empty()) g_unidentifiedSourceActive = false;
+            if (image_) --g_imageRuntimeUsers;
+            else if (sourceId_.empty()) g_unidentifiedSourceActive = false;
             else g_activeSources.erase(sourceId_);
             lock.unlock();
             g_runtimeSlotAvailable.notify_all();
@@ -545,7 +557,8 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock(g_runtimeLifetimeMu);
-            if (sourceId_.empty()) g_unidentifiedSourceActive = false;
+            if (image_) --g_imageRuntimeUsers;
+            else if (sourceId_.empty()) g_unidentifiedSourceActive = false;
             else g_activeSources.erase(sourceId_);
             if (--g_runtimeUsers == 0) {
                 g_runtime.reset();
@@ -560,6 +573,7 @@ public:
 
 private:
     std::string sourceId_;
+    bool image_;
 };
 
 class ThreadEnv {
@@ -787,6 +801,37 @@ private:
 #endif
 
 } // namespace
+
+ImageProcessorResult RunImageProcessor(const std::vector<uint8_t> &wasm, const uint8_t *rgba,
+    size_t byteCount, uint32_t width, uint32_t height, const std::string &configuration)
+{
+#if defined(KOMA_ENABLE_WAMR)
+    try {
+        RuntimeLease runtime("", true);
+        ThreadEnv environment;
+        return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration);
+    } catch (const std::exception &error) {
+        ImageProcessorResult result;
+        result.error = error.what();
+        return result;
+    }
+#else
+    return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration);
+#endif
+}
+
+std::string RunImageProcessorInspection(const std::vector<uint8_t> &wasm)
+{
+#if defined(KOMA_ENABLE_WAMR)
+    try {
+        RuntimeLease runtime("", true);
+        ThreadEnv environment;
+        return InspectImageProcessor(wasm);
+    } catch (const std::exception &error) { return error.what(); }
+#else
+    return "wamr_not_built";
+#endif
+}
 
 std::string RunBundledWasmJsonCall(const std::string &requestJson)
 {
