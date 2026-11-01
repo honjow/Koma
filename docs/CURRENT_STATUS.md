@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "搜索扩展已交付",
+  "state": "通用横幅过滤详细设计已整理",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T00:43:11+08:00",
+  "updatedAt": "2026-11-02T01:13:35+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "LIBRARY_SOURCE_SCOPED_SEARCH",
-  "activity": "搜索扩展和书源README修正均已推送；237已恢复，CI通过。",
-  "nextAction": "本轮搜索功能已完成，其余原未解决项继续保留。",
+  "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
+  "activity": "已完成规则分发、兼容迁移、处理链及缓存规划；产品实现尚未开始。",
+  "nextAction": "按详细设计接入规则协议与存储，界面候选按具体采用决定实施。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5471,6 +5471,39 @@
       ],
       "stage": "1.0.0正式发布完成",
       "closedAt": "2026-11-01T22:19:24+08:00"
+    },
+    {
+      "id": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "订阅级通用横幅过滤",
+      "kind": "open",
+      "priority": "P3",
+      "owner": "Root：规则与App接入规划",
+      "status": "方向已采用，详细接入设计已整理",
+      "reportedAt": null,
+      "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
+      "registeredAt": "2026-11-02T00:59:55+08:00",
+      "result": "已明确订阅级规则资源、本地不可变快照、兼容映射和统一后台准备；规则不依赖安装原站书源。详细设计已写入docs/subscription-image-rules.md，入口与默认值仍为具体候选。",
+      "remaining": "按详细设计实施规则协议和存储，再接正文/预载及采用后的界面；当前尚未改动产品实现。",
+      "remainingActions": [
+        "实现订阅描述、规则快照及现有配置兼容映射。",
+        "接通正文、离线页、预载和派生缓存，保留原始下载/CBZ。",
+        "按采用后的全局/单本入口接入UI，完成少量真实样本验证和恢复。"
+      ],
+      "boundaries": [
+        "用户已采用通用处理器＋订阅级可复用规则方向；本轮完成详细规划，具体UI及默认值为候选，未修改现有产品行为。",
+        "按图片内容识别包子的上下边缘横幅，不依赖转载站域名；算法模式、版本及原图内容共同区分派生缓存，保留原始下载与归档。",
+        "预载和当前页共用后台准备链，在超分/翻译前完成；普通保存分享使用同一处理结果。",
+        "用户本轮不接受App内点名包子的站点专用入口；此前“移除包子横幅”四档建议撤回。App负责通用本地处理/缓存，具体识别特征由可复用规则提供；新入口和分发方式仍在讨论。",
+        "入口候选：全局横幅过滤选跟随书源/自动识别/关闭，默认跟随书源；单本增加使用全局。单本显式策略仅覆盖本字段，不复制整份阅读偏好。"
+      ],
+      "evidencePoints": [
+        "ReaderPageSourceAdapter.ets prepareSourcePagePresentation 当前显式检查online.baozimh.koma、包子图片域、安装与BAOZI_BANNER；SourceBaoziBannerService/Detector 已做taskpool特征匹配与派生缓存。",
+        "Keiyoushi 949dea25 BannerChecker.kt 原件已通过GitHub connector读取：按current/old/narrow横幅签名匹配上下边缘，普通只处理一处，强力循环处理多重叠加。",
+        "KomaReaderLabAdapter.sourceFile/preload 共用fetchAndCacheReaderRemoteSource；OfflineDownloadService取原始字节，ChapterArchiveExport普通页保留原始下载。",
+        "用户当前原话：App内特殊处理并点名包子感觉不合适。此反馈改变的是能力归属与呈现方案，不只替换菜单文字；没有修改App或源包实现。",
+        "用户本轮明确“这个方向不错。可以往这去做。细节再好好规划下”。",
+        "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。"
+      ]
     }
   ],
   "source": {
@@ -13983,6 +14016,24 @@
       "itemId": "LIBRARY_SOURCE_SCOPED_SEARCH",
       "title": "搜索扩展交付收口",
       "detail": "具名237验收与完整设备恢复已完成；本次提交CI成功。已写明使用方法，随下一App版本提供。"
+    },
+    {
+      "at": "2026-11-02T00:59:55+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "通用去包子横幅方案已核",
+      "detail": "算法已在App，跨站限制主要来自源身份和域名门控；已登记统一入口、原图/派生缓存及预载接线建议。仅讨论，尚未实施。"
+    },
+    {
+      "at": "2026-11-02T01:03:47+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "撤回站点专用横幅入口建议",
+      "detail": "按用户反馈改为讨论通用图片处理与可复用规则，避免只改名称仍保留App站点特例。尚未实施。"
+    },
+    {
+      "at": "2026-11-02T01:13:35+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "通用横幅过滤方向已采用并完成接入规划",
+      "detail": "明确规则随订阅独立更新、跨源匹配、离线快照、原配置兼容及统一预载缓存；新控制形式为跟随书源/自动识别/关闭候选，尚未改产品实现。"
     }
   ],
   "reportAgeAudit": {
