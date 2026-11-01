@@ -23,7 +23,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const adapterAst=ts.createSourceFile('adapter.ts',adapterText,ts.ScriptTarget.Latest,true);
  const selected=new Set(['sourceImageMangaRoute','sourceImageProcessingFingerprint','fetchAndCacheSourceRuntimeRemoteImage','prepareSourcePagePresentation','sourceTextRequestCurrent']);
  const adapterFunctions=adapterAst.statements.filter(n=>ts.isFunctionDeclaration(n)&&selected.has(n.name?.text)).map(n=>n.getText(adapterAst)).join('\n')+'\nexport { prepareSourcePagePresentation };';
- let runtimeRequests=0,hasOriginal=true,version='1',wasmPath='/installed/1',declaredHint={kind:'baozi_banner',mode:'1'};
+ let runtimeRequests=0,hasOriginal=true,failRuntime=false,version='1',wasmPath='/installed/1',declaredHint={kind:'baozi_banner',mode:'1'};
  const hints=new Map();const entry={sourceId:'legacy-source',manifestVersion:version,wasmPath,enabled:true};
  const cacheDependencies={
   readerImageCacheStore:{get:async(url,_headers,key)=>url==='source-image-processing.json'?(hints.has(key)?key:undefined):(hasOriginal?'/raw':undefined),
@@ -31,7 +31,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
   appSourceRuntimeRegistry:{lookup:()=>({ok:true,entry})},appSourceSettingsStore:{loadForSource:()=>({banner:'normal'})},
   sourceSettingsFingerprint:v=>JSON.stringify(v),SourceWorkerPriority:{FOREGROUND:0},
   fs:{readText:async key=>hints.get(key)},util:{TextEncoder:class{encodeInto(v){return Uint8Array.from(Buffer.from(v))}}},
-  resolveSourceRuntimeImageRequest:async()=>{runtimeRequests++;return {url:'https://images.test/page',imageProcessing:declaredHint}},
+  resolveSourceRuntimeImageRequest:async()=>{runtimeRequests++;if(failRuntime)throw Error('source unavailable');return {url:'https://images.test/page',imageProcessing:declaredHint}},
   maintainReaderImageCacheAfterWrite:async()=>{},downloadReaderRemoteBytes:async()=>new ArrayBuffer(0),
   canDiscoverSourceImageProcessing:rules.canDiscoverSourceImageProcessing,imageBannerPlans:rules.imageBannerPlans,
   ImageBannerService:{prepare:async(path,plans)=>plans.length?'/filtered':path},
@@ -58,6 +58,10 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.equal(await adapterModule.exports.prepareSourcePagePresentation({sourceRuntimeId:'legacy-source',imageProcessing:declaredHint},'/downloaded',{}, {snapshot,policy:'source'}),'/filtered','disabled source cannot invalidate a downloaded declaration');
  assert.equal(await adapterModule.exports.prepareSourcePagePresentation({sourceRuntimeId:'other-source'},'/downloaded',{}, {snapshot,policy:'auto'}),'/filtered');
  assert.equal(runtimeRequests,4,'offline filtering never needs a disabled source runtime');
+ hasOriginal=true;failRuntime=true;const hintsBeforeFailure=hints.size;
+ assert.equal(await fetchCached('legacy-source','https://images.test/cached-old','old','',false,0,receive,true),'/raw');
+ assert.equal(received,undefined);assert.equal(hints.size,hintsBeforeFailure,'failed discovery cannot persist absence');
+ hasOriginal=false;await assert.rejects(fetchCached('legacy-source','https://images.test/new-failed','failed','',false,0,receive,true),/source unavailable/);
  const rule=pack.rules[0],current=rule.signatures[0],old=rule.signatures[1];
  assert.deepEqual(await detector.detect(synthetic(800,1500,[{y:0,signature:current},{y:1218,signature:old}]),rule,'1'),{top:200,bottom:0});
  assert.deepEqual(await detector.detect(synthetic(800,1500,[{y:0,signature:current},{y:200,signature:old},{y:1218,signature:old}]),rule,'2'),{top:482,bottom:282});

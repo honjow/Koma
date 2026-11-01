@@ -754,7 +754,16 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
     }
     if (!discoverCachedProcessing) return cachedFast
   }
-  const imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route, priority)
+  let imageRequest: SourceImageRequestDescriptor | undefined
+  try {
+    imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route, priority)
+  } catch (error) {
+    if (cachedFast === undefined || cachedFast.length === 0) throw error as Error
+    // Legacy metadata discovery must not break a usable original. Resolve only
+    // this attempt in memory, without persisting a failed request as absence.
+    onProcessing?.(undefined)
+    return cachedFast
+  }
   if (onProcessing !== undefined) {
     onProcessing(imageRequest?.imageProcessing)
     const cachedProcessing: SourceImageProcessingCache = { hint: imageRequest?.imageProcessing ?? null }
@@ -766,9 +775,10 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   if (imageRequest === undefined) {
     return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload)
   }
-  const cacheHeaders = imageRequest.headers
-  const path = await readerImageCacheStore.getOrFetch(imageRequest.url, cacheHeaders,
-    () => downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, sourceId), cacheKeySeed, forceReload)
+  const resolvedRequest = imageRequest
+  const cacheHeaders = resolvedRequest.headers
+  const path = await readerImageCacheStore.getOrFetch(resolvedRequest.url, cacheHeaders,
+    () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId), cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
