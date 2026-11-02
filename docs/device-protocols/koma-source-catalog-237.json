@@ -4,109 +4,189 @@
   "target": "192.168.50.237:12345",
   "authorizedTarget": "192.168.50.237:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
-  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog",
-  "runId": "rules-restore-power-469",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog",
+  "runId": "plugins-restore-preferences-readback-523",
   "display": {
-    "widthPx": 1320,
-    "heightPx": 2120
+    "widthPx": 2120,
+    "heightPx": 1320
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "rules-rework build3 candidate fa7d9ce4e27de407fb49677ed827acd4d561807f16417a0a313745aab171c528 installed versionCode6",
-    "page": "Restore normal120000ms, no timeout override and SLEEP; cleanup only this session assets",
+    "codeIdentity": "plugin shared inset and single-close candidate 514d584419eb38546277d7963e447c9e0e4ea7d883523a6732f9d607795b9e80",
+    "page": "Read restored preference bytes while keeping device asleep; retry only local receive destination failure",
     "deviceAlias": "device237",
     "deviceModel": "VDE-AL00",
     "foldState": "unfolded",
-    "orientation": "portrait",
-    "resolution": "1320x2120",
-    "notes": "197不操作；结束恢复本轮实际原包与数据和电源"
+    "orientation": "landscape",
+    "resolution": "2120x1320",
+    "notes": "197/237沿既有验收授权分工；本轮237结束恢复原包、七项数据、偏好与电源。"
   },
-  "preflight": [
-    {
-      "name": "cleanup-owned-remote-artifacts",
-      "hdcArgs": [
-        "shell",
-        "rm",
-        "-f",
-        "/data/local/tmp/koma-rules-original-467.hap",
-        "/data/local/tmp/koma-rules-rework-451.hap",
-        "/data/local/tmp/rules-add-dialog-456.json",
-        "/data/local/tmp/rules-add-dialog-456.png",
-        "/data/local/tmp/rules-added-458.json",
-        "/data/local/tmp/rules-added-458.png",
-        "/data/local/tmp/rules-awake-449.json",
-        "/data/local/tmp/rules-awake-449.png",
-        "/data/local/tmp/rules-browse-452.json",
-        "/data/local/tmp/rules-browse-452.png",
-        "/data/local/tmp/rules-cold-463.json",
-        "/data/local/tmp/rules-cold-463.png",
-        "/data/local/tmp/rules-cold-persisted-464.json",
-        "/data/local/tmp/rules-cold-persisted-464.png",
-        "/data/local/tmp/rules-detail-459.json",
-        "/data/local/tmp/rules-detail-459.png",
-        "/data/local/tmp/rules-enter-url-457.json",
-        "/data/local/tmp/rules-enter-url-457.png",
-        "/data/local/tmp/rules-install-451.json",
-        "/data/local/tmp/rules-install-451.png",
-        "/data/local/tmp/rules-manager-453.json",
-        "/data/local/tmp/rules-manager-453.png",
-        "/data/local/tmp/rules-menu-454.json",
-        "/data/local/tmp/rules-menu-454.png",
-        "/data/local/tmp/rules-reenter-update-461.json",
-        "/data/local/tmp/rules-reenter-update-461.png",
-        "/data/local/tmp/rules-remove-menu-465.json",
-        "/data/local/tmp/rules-remove-menu-465.png",
-        "/data/local/tmp/rules-removed-466.json",
-        "/data/local/tmp/rules-removed-466.png",
-        "/data/local/tmp/rules-rule-off-460.json",
-        "/data/local/tmp/rules-rule-off-460.png",
-        "/data/local/tmp/rules-subscription-off-462.json",
-        "/data/local/tmp/rules-subscription-off-462.png",
-        "/data/local/tmp/rules-subscriptions-455.json",
-        "/data/local/tmp/rules-subscriptions-455.png"
-      ]
-    },
-    {
-      "name": "restore-normal-timeout",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "timeout",
-        "-r"
-      ]
-    },
-    {
-      "name": "restore-sleep",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "suspend"
-      ],
-      "pauseAfterMs": 300
-    },
-    {
-      "name": "clear-suspend-override",
-      "hdcArgs": [
-        "shell",
-        "power-shell",
-        "timeout",
-        "-r"
-      ]
-    },
-    {
-      "name": "final-power",
-      "hdcArgs": [
-        "shell",
-        "hidumper",
-        "-s",
-        "PowerManagerService",
-        "-a",
-        "-s"
-      ]
-    }
-  ],
+  "preflight": [],
   "measurement": {
     "actions": []
   },
-  "postflight": []
+  "postflight": [
+    {
+      "name": "verify-pref-koma_app_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_app_preferences_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_app_preferences_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_app_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_app_preferences_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_app_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_appearance_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_appearance_preferences_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_appearance_preferences_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_appearance_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_appearance_preferences_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_appearance_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_library_filter_preferences",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_filter_preferences",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_library_filter_preferences"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_library_filter_preferences.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_filter_preferences.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_library_filter_preferences.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_library_update_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_preferences_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_library_update_preferences_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_library_update_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_preferences_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_library_update_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_library_update_results_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_results_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_library_update_results_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_library_update_results_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_library_update_results_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_library_update_results_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_reader_preferences_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_reader_preferences_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_reader_preferences_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_reader_preferences_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_reader_preferences_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_search_history_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_search_history_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_search_history_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_search_history_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_search_history_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_search_history_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_source_package_manager_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_package_manager_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_source_package_manager_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_source_package_manager_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_source_package_manager_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_source_package_manager_v1.lock"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_torii_credits_v1",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_torii_credits_v1",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_torii_credits_v1"
+      ]
+    },
+    {
+      "name": "verify-pref-koma_torii_credits_v1.lock",
+      "hdcArgs": [
+        "file",
+        "recv",
+        "/data/app/el2/100/base/com.honjow.koma/haps/entry/preferences/koma_torii_credits_v1.lock",
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-restore-preferences-readback-523/koma_torii_credits_v1.lock"
+      ]
+    }
+  ]
 }

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "target": "192.168.50.197:12345",
+  "authorizedTarget": "192.168.50.197:12345",
+  "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
+  "display": {
+    "widthPx": 1260,
+    "heightPx": 2720
+  },
+  "context": {
+    "project": "Koma",
+    "codeIdentity": "search197 history identity fix 212b8b38deaa6fb1ab9ed75896d1eb5319b1f1eb847ae0cd0c151dd0e3c50e12",
+    "page": "Visible result list after390 closed source Web sheet; normal up/down scroll without changing query",
+    "deviceAlias": "device197",
+    "deviceModel": "ALN-AL80",
+    "foldState": "not-applicable",
+    "orientation": "portrait",
+    "resolution": "1260x2720",
+    "notes": "197既有授权持续有效；不把助手历史占用推断作为禁止操作。当前搜索卡顿由本机实证核查，不用237替代。"
+  },
+  "name": "koma-search-recent-197",
+  "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/search197-results-scroll-391",
+  "recordingFileName": "koma_search_scroll197_20261102_391.mp4",
+  "timeoutMs": 86400000,
+  "warmupMs": 500,
+  "idleRecordMs": 0,
+  "actions": [
+    {
+      "name": "scroll-result-list-down",
+      "uiInput": [
+        "swipe",
+        "650",
+        "1400",
+        "650",
+        "800",
+        "600"
+      ],
+      "pauseAfterMs": 400
+    },
+    {
+      "name": "scroll-result-list-back",
+      "uiInput": [
+        "swipe",
+        "650",
+        "800",
+        "650",
+        "1400",
+        "600"
+      ],
+      "pauseAfterMs": 400
+    }
+  ]
+}
