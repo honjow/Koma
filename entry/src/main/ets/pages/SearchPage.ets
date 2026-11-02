@@ -414,12 +414,14 @@ export struct SearchPage {
     if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
+    const startedAt = Date.now()
     const store = this.historyStore
     const mutationEpoch = this.historyMutationEpoch + 1
     this.historyMutationEpoch = mutationEpoch
     const scope: SearchHistoryScope = { sourceFilter: this.effectiveSourceFilter(query),
       librarySource: copyLibrarySearchSource(this.librarySource) }
     this.history = addSearchHistoryEntry(this.history, query, Date.now(), scope)
+    DiagnosticLogger.info('search', 'history_prepared', `durationMs=${Date.now() - startedAt} entries=${this.history.length}`)
     this.historyLoadState = SearchHistoryLoadState.READY
     if (store === undefined) {
       return

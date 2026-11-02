@@ -58,30 +58,32 @@ export function normalizeSearchSourceFilter(value: string | undefined): CrossSea
 
 export function normalizeSearchHistoryEntries(input: SearchHistoryRecord[], now: number = Date.now()): SearchHistoryEntry[] {
   const entries: SearchHistoryEntry[] = []
+  // Keep the same locale-sensitive query/scope identity without recomputing
+  // every existing key for every record on the UI and Preferences callbacks.
+  const byKey = new Map<string, SearchHistoryEntry>()
   input.forEach((record: SearchHistoryRecord) => {
     const query = normalizeSearchQuery(record.query ?? '')
     if (query.length === 0 && record.librarySource === undefined) {
       return
     }
     const updatedAt = normalizeSearchHistoryTimestamp(record.updatedAt, now)
-    const existing = entries.find((entry: SearchHistoryEntry): boolean => {
-      return searchHistoryEntryKey(entry.query, entry) === searchHistoryEntryKey(query, {
-        sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
-        librarySource: record.librarySource,
-      })
-    })
+    const scope: SearchHistoryScope = {
+      sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
+      librarySource: record.librarySource,
+    }
+    const key = searchHistoryEntryKey(query, scope)
+    const existing = byKey.get(key)
     if (existing === undefined) {
       const entry: SearchHistoryEntry = { query, updatedAt }
-      copyHistoryScope(entry, { sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
-        librarySource: record.librarySource })
+      copyHistoryScope(entry, scope)
       entries.push(entry)
+      byKey.set(key, entry)
       return
     }
     if (updatedAt > existing.updatedAt) {
       existing.query = query
       existing.updatedAt = updatedAt
-      copyHistoryScope(existing, { sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
-        librarySource: record.librarySource })
+      copyHistoryScope(existing, scope)
     }
   })
   return entries.sort((left: SearchHistoryEntry, right: SearchHistoryEntry): number => {
@@ -94,9 +96,8 @@ export function addSearchHistoryEntry(entries: SearchHistoryEntry[], query: stri
   if (normalizedQuery.length === 0 && scope?.librarySource === undefined) {
     return normalizeSearchHistoryEntries(entries)
   }
-  const next = entries.filter((entry: SearchHistoryEntry): boolean => {
-    return searchHistoryEntryKey(entry.query, entry) !== searchHistoryEntryKey(normalizedQuery, scope)
-  })
+  const key = searchHistoryEntryKey(normalizedQuery, scope)
+  const next = entries.filter((entry: SearchHistoryEntry): boolean => searchHistoryEntryKey(entry.query, entry) !== key)
   const entry: SearchHistoryEntry = { query: normalizedQuery, updatedAt: normalizeSearchHistoryTimestamp(updatedAt, Date.now()) }
   if (scope !== undefined) copyHistoryScope(entry, scope)
   next.unshift(entry)
@@ -108,9 +109,10 @@ export function removeSearchHistoryEntry(entries: SearchHistoryEntry[], query: s
   if (normalizedQuery.length === 0 && scope?.librarySource === undefined) {
     return normalizeSearchHistoryEntries(entries)
   }
+  const key = scope === undefined ? '' : searchHistoryEntryKey(normalizedQuery, scope)
   return normalizeSearchHistoryEntries(entries).filter((entry: SearchHistoryEntry): boolean => {
     return scope === undefined ? entry.query.toLocaleLowerCase() !== normalizedQuery.toLocaleLowerCase() :
-      searchHistoryEntryKey(entry.query, entry) !== searchHistoryEntryKey(normalizedQuery, scope)
+      searchHistoryEntryKey(entry.query, entry) !== key
   })
 }
 

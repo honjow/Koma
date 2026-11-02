@@ -30,7 +30,8 @@ export function searchStateUserText(state: CrossSearchSectionState, diagnosticCo
     return AppStrings.get('source_failure_runtime')
   }
   if (state === 'failed') {
-    return AppStrings.get('search_state_failed').replace('%s', safeDiagnosticCode(diagnosticCode))
+    // Diagnostic codes belong to logs; ordinary search failures use localized text.
+    return AppStrings.get('search_state_failed')
   }
   return ''
 }
