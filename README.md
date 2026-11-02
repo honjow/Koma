@@ -103,3 +103,7 @@ App 问题请提交到 [Koma Issues](https://github.com/honjow/Koma/issues)，�
 - [当前实现与已知缺口](docs/CURRENT_STATUS.md)
 
 本项目使用的第三方组件及许可见仓内相应许可文件。
+
+## 致谢
+
+感谢 [LINUX DO](https://linux.do/) 社区提供的交流与分享平台。
