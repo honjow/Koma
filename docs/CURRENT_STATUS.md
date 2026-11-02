@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：修复源码构建依赖仓库外目录的问题，正在验证仓内子模块构建。
+当前工作：源码构建依赖问题已修复，本地与干净CI构建均通过；其余未完成事项保留。
 
 设备：197本轮原包、数据及电源状态已恢复并释租；237已恢复释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "修复源码构建依赖",
+  "state": "源码构建依赖已修复",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T19:04:06+08:00",
+  "updatedAt": "2026-11-02T19:20:37+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "READER_KIT_SELF_CONTAINED_BUILD",
-  "activity": "仓内依赖的实际Release构建已通过；正在提交并核对干净CI构建。",
-  "nextAction": "核本次CI的递归检出和产物后关闭该问题。",
+  "activeId": "",
+  "activity": "共享阅读器已纳入仓内固定子模块，本地及干净CI构建均通过；源码构建步骤已补齐。",
+  "nextAction": "其余未完成事项保留原状态与边界，按原项条件接续。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5621,25 +5621,26 @@
     {
       "id": "READER_KIT_SELF_CONTAINED_BUILD",
       "title": "源码构建依赖仓库外的 reader-kit 目录",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P0（当前构建故障）",
       "owner": "Root：构建依赖修复及交付",
-      "status": "仓内依赖本地构建通过，待推送与CI",
-      "stage": "本地构建已通过",
+      "status": "仓内依赖本地及CI构建通过",
+      "stage": "已验收",
       "reportedAt": null,
       "reportedAtSource": "本会话用户报告 reader_core / reader_ui 使用 ../reader-kit 并要求修复；原始提出时间未核实。",
       "registeredAt": "2026-11-02T19:00:29+08:00",
-      "result": "共享阅读器已登记为仓内固定子模块，保持原提交；本地与CI引用、ohpm锁文件、相关脚本和构建说明已同步。本地Release HAP构建通过，两个模块实际解析到third_party/reader-kit；产物归档检查通过。关联既有测试中的19个失败在旧路径原脚本中也存在，已留对照，未修改测试期望。",
-      "remaining": "提交推送并核对本次干净CI的递归检出、构建及产物。",
-      "remainingActions": [
-        "提交推送",
-        "核本次精确CI及构建产物"
-      ],
+      "result": "共享阅读器已改为仓内固定子模块，本地与CI使用同一版本。递归克隆可取得完整依赖，README已补齐构建步骤；本地Release及干净CI构建、HAP检查与上传均通过。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "只调整依赖获取和构建布局，reader-kit 固定在现用的1866daf0cf7e29852e5a1aab7a5522cc03f0659c，保留已验阅读器行为。",
         "不修改个人签名材料、不触碰无关工作区差异、不新建隔离工作树；不发布新版本或操作设备。"
       ],
-      "evidencePoints": [],
+      "evidencePoints": [
+        "构建验证：本地Release构建成功；精确CI递归检出、ohpm安装、Release编译、HAP归档与原生库检查、产物上传均成功，manifest确认Kit版本保持原SHA。",
+        "既有测试对照：三个现有消费者脚本路径随迁移同步；合计46项中27项通过，章节脚本19项失败在改动前原脚本中同样存在，未修改测试期望。该构建修复不宣称已修复这些夹具。",
+        "进度服务：既有持久服务已加载仓内Kit读取路径；HTTP200，工作单与Kit提交读回正常。"
+      ],
       "evidence": [
         ".gitmodules",
         "third_party/reader-kit",
@@ -5650,9 +5651,14 @@
         ".hvigor/outputs/reader-kit-contained-20261102/local-build-receipt.json",
         ".hvigor/outputs/reader-kit-contained-20261102/build.log",
         ".hvigor/outputs/reader-kit-contained-20261102/ohpm-install.log",
-        ".hvigor/outputs/reader-kit-contained-20261102/existing-test-baseline.json"
+        ".hvigor/outputs/reader-kit-contained-20261102/existing-test-baseline.json",
+        "Koma/master 5f0c20f8a940db675aa25fea7042992fe649b7f3",
+        "https://github.com/honjow/Koma/actions/runs/41433845082",
+        ".hvigor/outputs/reader-kit-contained-20261102/ci-receipt.json",
+        "GitHub artifact 13135978017: ohos-hap-unsigned"
       ],
-      "updatedAt": "2026-11-02T19:04:06+08:00"
+      "updatedAt": "2026-11-02T19:20:37+08:00",
+      "closedAt": "2026-11-02T19:20:37+08:00"
     }
   ],
   "source": {
@@ -14606,6 +14612,22 @@
       "title": "仓内依赖实际构建通过",
       "detail": "ohpm已按新路径生成锁文件，两个模块解析到仓内子模块；Release HAP构建及产物归档检查通过，待本次干净CI。既有章节测试夹具失败与改动前一致，未改期望。",
       "kind": "open"
+    },
+    {
+      "id": "reader-kit-contained-pushed-2026-11-02T19:06:02+08:00",
+      "at": "2026-11-02T19:06:02+08:00",
+      "itemId": "READER_KIT_SELF_CONTAINED_BUILD",
+      "title": "构建依赖修复已推送",
+      "detail": "本地Release构建通过的更正已提交到master，本次干净CI正在运行；尚未将CI写成通过。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-kit-contained-accepted-2026-11-02T19:20:37+08:00",
+      "at": "2026-11-02T19:20:37+08:00",
+      "itemId": "READER_KIT_SELF_CONTAINED_BUILD",
+      "title": "源码构建依赖问题已关闭",
+      "detail": "同一版本共享阅读器已固定在仓内；本地Release和干净CI全流程通过，产物清单版本一致，构建说明及进度服务已同步。",
+      "kind": "accepted"
     }
   ],
   "reportAgeAudit": {

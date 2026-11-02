@@ -2,6 +2,8 @@
 
 本文件规定当前 Reader 的参考迁移方式。当前共享职责见 [reader-kit consumer contract](../../third_party/reader-kit/README.md#consumer-contract)，具体采用范围、差异和状态见 [CURRENT_STATUS.md](../CURRENT_STATUS.md) 原项，通用执行/验收规则见 [koma-rules.md](koma-rules.md)。
 
+Koma 通过 `third_party/reader-kit` 子模块固定共享阅读器版本，模块配置与 OHPM 依赖均引用仓内目录。CI 递归检出同一 gitlink，不另行维护一份版本号；升级依赖时更新该 gitlink。
+
 ## 参考如何使用
 
 - 修改一个已有能力时，先读 NextE 对应的完整实现及调用方，核菜单层级、状态 owner、默认值、无配置/失败、后台准备和返回后的同步，再适配 Koma。不能只取算法库并自行设计其余产品。
