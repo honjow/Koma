@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：三个 App 半模态的渐变模糊已恢复并完成具名检查，正在整理交付；其他新反馈已登记。
+当前结果：三个 App 半模态的渐变模糊已恢复，具名检查与设备恢复完成；其他新反馈已登记。
 
 设备：197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "三个App半模态渐变恢复已验证",
+  "state": "三个App半模态渐变恢复已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T04:16:30+08:00",
+  "updatedAt": "2026-11-03T04:27:48+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "APP_POPUP_SYSTEM_MATERIAL",
-  "activity": "三个App公共半模态渐变已恢复，整理交付",
-  "nextAction": "完成本次范围提交与既有授权内的远端构建核对；其余已登记问题保留。",
+  "activeId": "",
+  "activity": "三个App的公共半模态已恢复HDS渐变；具名检查、设备恢复和Koma远端构建已完成。",
+  "nextAction": "其余已登记问题保留各自状态与优先级；本次不重开已验收路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -61,7 +61,7 @@
     {
       "name": "Koma",
       "checkout": "/Users/honjow/git/Koma",
-      "appHead": "正式v1.0.0指向eaee3c1f；准备与标签CI均成功，实际Release附件已核。",
+      "appHead": "正式v1.0.0指向eaee3c1f；准备与标签CI均成功，实际Release附件已核。 本次公共半模态修复fb19d41d已推master，精确CI41517936725成功；未发布新版本。",
       "hap": "公开附件为1.0.0未签名release HAP；本次仅发布未操作设备，既有具名设备验收与恢复记录保持。"
     },
     {
@@ -73,7 +73,7 @@
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "本轮公共NextNModalScaffold渐变恢复已修改并构建，范围提交待整理；原Reader等WIP保留。",
+      "appHead": "公共NextNModalScaffold渐变恢复已本地提交2f42fd25；未推送。原Reader等WIP保留。",
       "hap": "本轮同签名Release候选已安装237；普通自定义主题色半模态浅深色及滚动具名检查通过，原外观与电源已恢复。"
     }
   ],
@@ -666,13 +666,15 @@
         "owner": "Root",
         "condition": "N/E这两处fallback当前普通生产不适用，仅保原构建/CI，不再列普通实机待办；现有正常宿主菜单不重跑，需真实消费合同改变才重开。"
       },
-      "stage": "实测完成，整理交付",
+      "stage": "本次范围已交付",
       "reopenedAt": "2026-11-03T04:05:27+08:00",
       "evidence": [
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/all-modal-koma-titled-dark-zero/",
         "/Users/honjow/git/NextE/.hvigor/outputs/modal-gradient-20261103/：color-modal-light-zero、color-modal-dark-zero、color-modal-dark-scrolled、restoration.json及restore-power；HAP SHA256 12409c01e38c60bc39adc460fe3fef5385936508ceb934eda23289eb023d4932。",
         "/Users/honjow/git/NextN/.hvigor/outputs/modal-gradient-20261103/：color-modal-light-zero、color-modal-dark-zero、color-modal-dark-scrolled、restoration.json及restore-power；HAP SHA256 92f4678780f9f77daf6505af3af3072fe42f0cee71bf929c4a95d450d8934230。",
-        ".hvigor/outputs/reader-settings-tabs-20261103/Koma-all-modal-gradient-signed.hap：SHA256 80447563d73b5f165e462e162662e4cddc3bbcc09e47c78651eea8b6e489d1ce；all-modal-koma-titled-light-zero、all-modal-koma-titled-dark-zero、all-modal-koma-child-return及hds-restoration237.json。"
+        ".hvigor/outputs/reader-settings-tabs-20261103/Koma-all-modal-gradient-signed.hap：SHA256 80447563d73b5f165e462e162662e4cddc3bbcc09e47c78651eea8b6e489d1ce；all-modal-koma-titled-light-zero、all-modal-koma-titled-dark-zero、all-modal-koma-child-return及hds-restoration237.json。",
+        "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。",
+        "NextN/main本地范围提交2f42fd25，仅公共Scaffold及两份既有验收记录，未推送；NextE公共Scaffold改动留在原主仓，未提交或推送。"
       ]
     },
     {
@@ -6005,7 +6007,7 @@
       "priority": "P1（用户已采用）",
       "kind": "done",
       "status": "分段与HDS渐变恢复已通过",
-      "stage": "实测完成，整理交付",
+      "stage": "本次范围已交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
@@ -6036,7 +6038,8 @@
         "https://github.com/honjow/Koma/actions/runs/41498791499：f30a3bdf72d144c2dbdada60ffb434c5103e6239 completed/success。",
         ".hvigor/outputs/reader-settings-tabs-20261103/ci-final.json",
         "197普通Shared路径实测；保留Legacy兼容接线和全局原入口编译通过，未扩称其它宿主或设备验收。",
-        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/hds-auto-dark-zero/：与zero-filter-initial/layout.json中三个按钮bounds相同；hds-restoration237.json记录六项原文件恢复，reader-progress原本不存在且继续保持不存在。"
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/hds-auto-dark-zero/：与zero-filter-initial/layout.json中三个按钮bounds相同；hds-restoration237.json记录六项原文件恢复，reader-progress原本不存在且继续保持不存在。",
+        "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。"
       ],
       "closedAt": "2026-11-03T04:16:30+08:00",
       "remainingActions": [
@@ -15456,6 +15459,14 @@
       "itemId": "READER_SETTINGS_TABBED_SHEET",
       "title": "阅读设置顶部恢复收口",
       "detail": "保留原自适应分段按钮与三页状态，使用HDS空间渐变，关闭滚动淡入。用户源码实测正常，237按钮bounds与原布局相同；玻璃和固定高度候选均未采用。",
+      "kind": "done"
+    },
+    {
+      "id": "modal-gradient-delivery-957",
+      "at": "2026-11-03T04:27:48+08:00",
+      "itemId": "APP_POPUP_SYSTEM_MATERIAL",
+      "title": "公共半模态恢复交付，远端构建成功",
+      "detail": "Koma修复fb19d41d已推且精确CI41517936725成功；NextN本地范围提交2f42fd25，NextE原主仓改动保留。三边具名检查及设备恢复完成，两边未自动推送，不发布新App。",
       "kind": "done"
     }
   ],
