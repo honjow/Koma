@@ -1,6 +1,6 @@
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
-import { normalizeBannerFilter } from '../model/ImageBannerRules'
+import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { common } from '@kit.AbilityKit'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderPreferences, DEFAULT_READER_PREFERENCES, normalizeReaderPreferences, getReaderCropStrengthLabel } from '../model/ReaderPreferencesStore'
@@ -78,9 +78,12 @@ export struct ReaderImageSettingsContent {
     this.onPreferencesChange(next)
   }
 
-  private bannerChoice(): string {
-    return this.bookBannerOptions ? this.preferences.bannerFilterOverride ?? 'global' :
-      normalizeBannerFilter(this.preferences.bannerFilter)
+  private pluginUsageLabel(): string {
+    if (this.bookBannerOptions && (this.preferences.bannerFilterOverride === undefined ||
+      this.preferences.bannerFilterOverride === 'global')) return 'image_plugins_use_global'
+    return effectiveBannerFilter(this.preferences.bannerFilter,
+      this.bookBannerOptions ? this.preferences.bannerFilterOverride : undefined) === 'off' ?
+      'image_plugins_disabled' : 'image_plugins_enabled'
   }
   @Builder
   private CropStrengthMenu(select: (action: () => void) => void) {
@@ -128,7 +131,7 @@ export struct ReaderImageSettingsContent {
       if (this.cropControlsAvailable) {
         GroupedListSection({ title: t('settings_reader_group_crop') }) {
           ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
-            trailingText: t('reader_banner_' + this.bannerChoice()),
+            trailingText: t(this.pluginUsageLabel()),
             action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
           ListDivider()
           ConciseListRow({ title: t('settings_row_reader_trim_page_margins_title'), hasSwitch: true,

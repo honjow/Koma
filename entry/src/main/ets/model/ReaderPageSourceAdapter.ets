@@ -1063,22 +1063,26 @@ async function prepareSourcePagePresentation(source: ReaderPageRenderSource, ori
   // Old downloaded manifests can still ask their installed source for the legacy hint;
   // new manifests carry it and remain processable after uninstall, entirely offline.
   const processingFingerprint = sourceImageProcessingFingerprint(sourceId)
-  if (presentation.policy === 'source' && entry?.enabled && source.pageId &&
-    (hint !== undefined || canDiscoverSourceImageProcessing(presentation.snapshot, sourceId)) &&
+  const needsSourceHint = entry?.enabled && canDiscoverSourceImageProcessing(presentation.snapshot, sourceId)
+  if (needsSourceHint && entry !== undefined && source.pageId &&
     (!source.imageProcessingResolved || source.imageProcessingFingerprint !== processingFingerprint)) {
     try {
       hint = (await resolveSourceRuntimeImageRequest(sourceId, source.sourceOriginalImageUri ?? source.imageUri,
         source.pageId, source.sourceMangaUrl))?.imageProcessing
-    } catch (_error) { return path }
+      source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
+    } catch (_error) {
+      // Do not apply an old declaration after a failed refresh. Independent
+      // plugins can still process this image without a source hint.
+      hint = undefined
+    }
     if (!sourceTextRequestCurrent(entry, fingerprint)) throw new Error('reader_source_page_processing_stale')
-    source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
   }
   const plans = imageBannerPlans(presentation.snapshot, presentation.policy, hint)
   const compatible = await ImageBannerService.prepare(path, plans, readerImageCacheStore)
   const plugins = imagePluginPlans(presentation.snapshot, presentation.policy, hint)
   const prepared = await ImagePluginService.prepare(compatible, plugins, readerImageCacheStore)
   if (plans.length > 0 || plugins.length > 0) await maintainReaderImageCacheAfterWrite(prepared)
-  if (presentation.policy === 'source' && entry?.enabled && !sourceTextRequestCurrent(entry, fingerprint))
+  if (needsSourceHint && entry !== undefined && !sourceTextRequestCurrent(entry, fingerprint))
     throw new Error('reader_source_page_processing_stale')
   return prepared
 }
@@ -1095,7 +1099,7 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
       if (presentation === undefined && context !== undefined && !source.skipBannerFilter)
         presentation = await readerBannerPresentation(source, context)
-      const discoverCachedProcessing = presentation?.policy === 'source' &&
+      const discoverCachedProcessing = presentation !== undefined && presentation.policy !== 'off' &&
         canDiscoverSourceImageProcessing(presentation.snapshot, source.sourceRuntimeId)
       const processingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
       const original = await fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload,

@@ -31,7 +31,7 @@
 
 `parameters` 是发布者维护的数据；`settings` 是用户可编辑字段。字段沿共享表单合同，支持 `string`、`boolean`、`select`、`multiselect`、`range`，使用 `id`、`label`、可选 `description`、可选 `defaultValue`。选择项提供 `options: [{id, label}]`；范围项提供有限的 `minValue`、`maxValue`、正 `step`，上限大于下限。字段不承载登录、凭据或脚本验证器。设置按订阅及插件 ID 保存，更新保留可兼容的值。
 
-`application.automatic` 决定插件是否参与自动处理。`sourceHints` 使用 `kind`、`modes` 对应书源公开声明；可选 `sourceIds` 仅用于旧缓存补查声明，不限定图片来源。识别算法仍由插件自己决定是否改变图片。
+`application.automatic` 为 true 时，已开启插件可独立处理阅读图片；为 false 时，仅在 `sourceHints` 的 `kind`、`modes` 匹配书源公开声明时运行。可选 `sourceIds` 仅用于依赖声明的旧缓存补查，不限定通用插件的图片来源。`context.application` 由宿主选择为 `auto` 或 `source`，不是用户模式；用户只控制总开关和插件开关。是否改变图片仍由插件算法决定。
 
 `output` 选填，支持 `image/png`、`image/jpeg`、`image/webp`，质量为 0–100 整数。省略时用 PNG 保留透明度；多个插件改变同图时，最终采用最后一个实际改变图片的插件所声明的编码。
 

@@ -3853,7 +3853,15 @@ export struct ReaderPage {
       seriesOverrideActive: this.seriesOverrideActive,
       onResetSeriesOverride: (): void => { void this.resetSeriesOverride() },
       onCloseReader: () => { this.closeReaderRoute() },
-      onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.onOpenImagePlugins(request) },
+      onOpenImagePlugins: (request: ImagePluginsRequest): void => {
+        const comicId = this.sessionConfig.comicId
+        this.onOpenImagePlugins(new ImagePluginsRequest(request.preferences, true, (next: ReaderPreferences): void => {
+          if (!this.readerOpen || this.sessionConfig.comicId !== comicId) return
+          const current = this.copyPreferences()
+          current.bannerFilterOverride = next.bannerFilterOverride
+          this.onPreferencesChanged({ preferences: current })
+        }))
+      },
       onOpenMangaDetail: () => { this.onOpenMangaDetail() },
       onResetZoom: () => { this.resetZoomState() },
       onReloadPage: () => { this.retryCurrentPage() },

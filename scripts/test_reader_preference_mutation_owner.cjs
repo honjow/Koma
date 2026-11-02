@@ -14,7 +14,9 @@ const backendModule = evaluate('entry/src/main/ets/state/KomaReaderBackendSelect
 });
 const display = evaluate('entry/src/main/ets/model/ReaderDisplaySettings.ets',{});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
- './ImageBannerRules':evaluate('entry/src/main/ets/model/ImageBannerRules.ets',{}),
+ './ImageBannerRules':evaluate('entry/src/main/ets/model/ImageBannerRules.ets',{
+  './ImageProcessingPlugins':evaluate('entry/src/main/ets/model/ImageProcessingPlugins.ets',{})
+ }),
  './ReaderDisplaySettings':display,
  '../state/KomaReaderBackendSelectionState':backendModule,
  './BackupRestoreActivity':{BackupRestoreActivity:activity}, '@kit.AbilityKit':{ConfigurationConstant:{ColorMode:{COLOR_MODE_DARK:0,COLOR_MODE_LIGHT:1,COLOR_MODE_NOT_SET:-1}}},
@@ -164,6 +166,18 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  await store.saveChangesForComic('banner-a',bookA,{...bookA,bannerFilterOverride:'global'});
  assert.equal((await store.loadForComic('banner-a')).bannerFilterOverride,'global');
  await store.copyBannerOverride('banner-copy','',true);assert.equal((await store.loadForComic('banner-copy')).bannerFilterOverride,'global');
+ // Approved switch migration reads old global/book values without changing off.
+ const oldDisk=data.get(ctx.filesDir);oldDisk.set('reader.bannerFilter','source');
+ oldDisk.set('reader.bannerFilterOverrides.v1',JSON.stringify({'old-source':'source','old-auto':'auto','old-off':'off'}));
+ const migrated=new mod.ReaderPreferencesStore(ctx);
+ assert.equal((await migrated.load()).bannerFilter,'auto');
+ assert.equal((await migrated.loadForComic('old-source')).bannerFilterOverride,'auto');
+ assert.equal((await migrated.loadForComic('old-auto')).bannerFilterOverride,'auto');
+ assert.equal((await migrated.loadForComic('old-off')).bannerFilterOverride,'off');
+ const globalBefore=await migrated.load();await migrated.saveChanges(globalBefore,{...globalBefore,bannerFilter:'off'});
+ assert.equal((await migrated.loadForComic('inherited')).bannerFilterOverride,'global');
+ assert.equal((await migrated.loadForComic('inherited')).bannerFilter,'off');
+ assert.equal((await migrated.loadForComic('old-source')).bannerFilterOverride,'auto','book-on override survives global-off');
  console.log('PASS: banner global inheritance, book isolation, failed write rollback, migration copy and removal');
  console.log('PASS: mode commands, dormant RTL, legacy WEBTOON, global restore and fresh store reopen');
  console.log('PASS: one book commit, rejected override/reset cache rollback, later unrelated commits and other-book isolation');

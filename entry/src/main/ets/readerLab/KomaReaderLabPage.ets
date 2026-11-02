@@ -8,7 +8,7 @@ import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { KomaReaderTranslationConfiguration, KomaReaderTranslationProvider } from './KomaReaderTranslationProvider'
 import { KomaTranslationSettings, KomaTranslationSettingsSnapshot, KomaTranslationSettingsState, connectKomaTranslationSettings } from '../readerTranslation/KomaTranslationSettings'
 import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
-import { Binding, FrameCallback, LengthMetrics } from '@kit.ArkUI'
+import { Binding, ColorMetrics, FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderDirectionControl, ReaderDirectionChoice } from '../components/ReaderDirectionControl'
@@ -26,7 +26,7 @@ import { KomaReaderLabImageShareHost } from './KomaReaderLabImageShareHost'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReaderColumnMode, ReaderPreferences, ReaderPreferencesStore,
-  normalizeReaderTapZonePreset, normalizeReaderTapZoneInvert } from '../model/ReaderPreferencesStore'
+  normalizeReaderPreferences, normalizeReaderTapZonePreset, normalizeReaderTapZoneInvert } from '../model/ReaderPreferencesStore'
 import { readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
 import { KomaReaderInitialPolicy } from './KomaReaderInitialPolicy'
 import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
@@ -398,6 +398,21 @@ export struct KomaReaderLabPage {
       // Re-admit that same lease; replay alone would remain blocked by it.
       this.trialWindow.open(this.getUIContext().getHostContext() as common.UIAbilityContext)
     }
+  }
+
+  @Monitor('routeActive')
+  private yieldCoveredReaderSystemBar(): void {
+    if (!this.request.readingChrome || this.readerClosed || this.routeActive) return
+    // Covering Reader does not end its window lease. Retire its queued colors
+    // through that same owner; returning Reader presents its chrome again.
+    const color = ColorMetrics.resourceColor(ThemeConstants.TEXT_PRIMARY)
+    // ColorMetrics.color is rgba(...); Window accepts hexadecimal colors.
+    const contentColor = '#' + [color.red, color.green, color.blue]
+      .map((channel: number): string => channel.toString(16).padStart(2, '0')).join('')
+    void this.trialWindow.presentation.request(true, { statusBarContentColor: contentColor,
+      isStatusBarLightIcon: color.red + color.green + color.blue >= 384 },
+      (): boolean => !this.readerClosed && !this.routeActive, true)
+      .catch((): void => { DiagnosticLogger.warn('reader', 'covered_status_bar_failed', '[KomaReader] covered_status_bar_failed') })
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake',
@@ -964,9 +979,9 @@ export struct KomaReaderLabPage {
     return ReaderMode.SINGLE_PAGE
   }
 
-  private onHostPreferencesChanged(next: ReaderPreferences): void {
+  private onHostPreferencesChanged(next: ReaderPreferences, fromCoveredEditor: boolean = false): void {
     const session = this.session
-    if (!this.request.preferencesReadWrite || session === null || this.readerClosed || !this.routeActive ||
+    if (!this.request.preferencesReadWrite || session === null || this.readerClosed || (!this.routeActive && !fromCoveredEditor) ||
       !this.labVisibility.foreground) return
     const previous = this.hostPreferences
     if (previous !== null && (previous.tapZonePreset !== next.tapZonePreset ||
@@ -1054,7 +1069,19 @@ export struct KomaReaderLabPage {
         seriesOverrideActive: this.seriesOverrideActive,
         cropControlsAvailable: true,
         enhancementControlsAvailable: true,
-        onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.closeHostSettings(); this.onOpenImagePlugins(request) },
+        onOpenImagePlugins: (request: ImagePluginsRequest): void => {
+          const session = this.session
+          const work = this.unitKey.work
+          this.closeHostSettings()
+          // The modal is destroyed after navigation. Its callback cannot own
+          // a full-page editor's writes; retain the live reader/book owner.
+          this.onOpenImagePlugins(new ImagePluginsRequest(request.preferences, true, (next: ReaderPreferences): void => {
+            if (this.readerClosed || this.session !== session || this.unitKey.work !== work || this.hostPreferences === null) return
+            const current: ReaderPreferences = normalizeReaderPreferences(this.hostPreferences)
+            current.bannerFilterOverride = next.bannerFilterOverride
+            this.onHostPreferencesChanged(current, true)
+          }))
+        },
         onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
         onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
         onClose: (): void => { this.closeHostSettings() },

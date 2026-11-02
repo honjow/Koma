@@ -63,18 +63,20 @@ export function validateImageRuleConfiguration(raw: Object): ImageRuleConfigurat
 }
 export type BannerFilterMode = 'source' | 'auto' | 'off'
 export function normalizeBannerFilter(value: Object | undefined): BannerFilterMode {
-  return value === 'auto' ? 'auto' : value === 'off' ? 'off' : 'source'
+  // One user-facing enable switch. The old source/auto values both mean on;
+  // retain the stored key and off value so backups and book overrides survive.
+  return value === 'off' ? 'off' : 'auto'
 }
 export function effectiveBannerFilter(global: Object | undefined, override: string | undefined): BannerFilterMode {
   return normalizeBannerFilter(override === undefined || override === 'global' ? global : override)
 }
-/** Compatibility discovery only, never an image eligibility gate. Fresh declarations work for any source;
- * Auto/Off and cached images from other producers must not acquire a new runtime/network dependency. */
+/** Only hint-dependent plugins need legacy discovery. General-purpose plugins
+ * must work on cached/imported images without calling a source first. */
 export function canDiscoverSourceImageProcessing(snapshot: ImageRuleSnapshot, sourceId: string): boolean {
   return snapshot.records.some((record: ImageRuleRecord): boolean => record.packs.some((pack: ImageRulePack): boolean =>
-    pack.rules.some((rule: ImageBannerRule): boolean => rule.legacy.some((alias: ImageRuleLegacy): boolean =>
+    pack.rules.some((rule: ImageBannerRule): boolean => !rule.crossSource && rule.legacy.some((alias: ImageRuleLegacy): boolean =>
       alias.sourceIds?.includes(sourceId) === true))) || (record.plugins ?? []).some((plugin: ImageProcessingPlugin): boolean =>
-        plugin.application.sourceHints.some((hint): boolean => hint.sourceIds?.includes(sourceId) === true)))
+        !plugin.application.automatic && plugin.application.sourceHints.some((hint): boolean => hint.sourceIds?.includes(sourceId) === true)))
 }
 export function imageBannerPlans(snapshot: ImageRuleSnapshot, policy: BannerFilterMode,
   hint?: ImageProcessingHint): ImageBannerPlan[] {
@@ -86,8 +88,8 @@ export function imageBannerPlans(snapshot: ImageRuleSnapshot, policy: BannerFilt
     if (seen.has(identity)) continue
     seen.add(identity)
     const revision = JSON.stringify([record.origin, pack.id, pack.version, record.revision])
-    if (policy === 'auto' && rule.crossSource) result.push({ rule, mode: '2', revision })
-    else if (policy === 'source' && hint !== undefined) {
+    if (rule.crossSource) result.push({ rule, mode: '2', revision })
+    else if (hint !== undefined) {
       const alias = rule.legacy.find((value: ImageRuleLegacy): boolean => value.kind === hint.kind)
       if (alias?.singleModes.includes(hint.mode)) result.push({ rule, mode: '1', revision })
       else if (alias?.stackedModes.includes(hint.mode)) result.push({ rule, mode: '2', revision })

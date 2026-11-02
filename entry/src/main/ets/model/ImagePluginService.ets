@@ -17,10 +17,12 @@ export function imagePluginPlans(snapshot: ImageRuleSnapshot, policy: BannerFilt
   const seen: Set<string> = new Set()
   const plans: ImagePluginPlan[] = []
   for (const record of snapshot.records) for (const plugin of record.plugins ?? []) {
-    const applies = policy === 'auto' ? plugin.application.automatic : hint !== undefined &&
+    const sourceApplies = hint !== undefined &&
       plugin.application.sourceHints.some((value): boolean => value.kind === hint.kind && value.modes.includes(hint.mode))
-    if (!applies) continue
-    const context: ImagePluginContext = { application: policy, sourceHint: hint }
+    if (!plugin.application.automatic && !sourceApplies) continue
+    // Applicability belongs to the plugin, not another user-selected mode.
+    // Keep the existing WASM context contract for hint-only processors.
+    const context: ImagePluginContext = { application: plugin.application.automatic ? 'auto' : 'source', sourceHint: hint }
     const configuration: ImagePluginConfiguration = { parameters: plugin.parameters,
       settings: imagePluginDefaults(plugin, record.pluginSettings?.[plugin.id]), context }
     const identity = JSON.stringify([plugin.processor.sha256, configuration, plugin.output])

@@ -17,13 +17,23 @@ const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root
 const snapshot={schemaVersion:1,records:[{origin:'subscription-a',revision:'1',packs:[pack]}]};
 const pluginPlanning=load('ImagePluginService',{'@kit.ArkTS':{},'@kit.ImageKit':{},'@kit.CoreFileKit':{},
  '@kit.CryptoArchitectureKit':{},'./ImageFileContent':{},'./ImagePluginNative':{},'./ImageProcessingPlugins':plugins});
-assert.equal(rules.imageBannerPlans(snapshot,'source').length,0);
+// User adopted one enable switch: legacy source/auto values both mean on.
+assert.equal(rules.normalizeBannerFilter('source'),'auto');
+assert.equal(rules.normalizeBannerFilter('auto'),'auto');
+assert.equal(rules.normalizeBannerFilter('off'),'off');
+assert.equal(rules.effectiveBannerFilter('off','source'),'auto');
+assert.equal(rules.effectiveBannerFilter('off','global'),'off');
+assert.equal(rules.imageBannerPlans(snapshot,'source').length,1);
 assert.equal(rules.effectiveBannerFilter('auto','off'),'off');assert.equal(rules.effectiveBannerFilter('auto','global'),'auto');
 assert.equal(rules.imageBannerPlans(snapshot,'off',{kind:'baozi_banner',mode:'2'}).length,0);
-assert.equal(rules.imageBannerPlans(snapshot,'source',{kind:'baozi_banner',mode:'0'}).length,0);
-assert.equal(rules.imageBannerPlans(snapshot,'source',{kind:'baozi_banner',mode:'1'})[0].mode,'1');
+assert.equal(rules.imageBannerPlans(snapshot,'source',{kind:'baozi_banner',mode:'0'}).length,1);
+assert.equal(rules.imageBannerPlans(snapshot,'source',{kind:'baozi_banner',mode:'1'})[0].mode,'2');
 assert.equal(rules.imageBannerPlans(snapshot,'auto').length,1);
-assert.equal(rules.canDiscoverSourceImageProcessing(snapshot,'online.baozimh.koma'),true);
+assert.equal(rules.canDiscoverSourceImageProcessing(snapshot,'online.baozimh.koma'),false);
+const hintOnlySnapshot=structuredClone(snapshot);hintOnlySnapshot.records[0].packs[0].rules[0].crossSource=false;
+assert.equal(rules.canDiscoverSourceImageProcessing(hintOnlySnapshot,'online.baozimh.koma'),true);
+assert.equal(rules.imageBannerPlans(hintOnlySnapshot,'auto').length,0);
+assert.equal(rules.imageBannerPlans(hintOnlySnapshot,'auto',{kind:'baozi_banner',mode:'1'})[0].mode,'1');
 assert.equal(rules.canDiscoverSourceImageProcessing(snapshot,'other-source'),false);
 assert.equal(rules.imageBannerPlans({...snapshot,records:snapshot.records.concat(snapshot.records)},'auto').length,1);
 const bad=structuredClone(pack);bad.rules[0].signatures[0].averages.pop();assert.throws(()=>rules.validateImageRulePack(bad));
@@ -56,7 +66,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  await fetchCached('other-source','https://images.test/page','page','',false,0,receive,false);
  assert.equal(runtimeRequests,0,'unrelated cached page must stay instant');assert.equal(hints.size,0,'unknown is not a resolved absence');
  await fetchCached('legacy-source','https://images.test/page','page','',false,0,receive,false);
- assert.equal(runtimeRequests,0,'Auto/Off never discover old source metadata');
+ assert.equal(runtimeRequests,0,'independent processing never discovers old source metadata');
  await fetchCached('legacy-source','https://images.test/page','page','',false,0,receive,true);
  assert.equal(runtimeRequests,1);assert.deepEqual(received,declaredHint);
  await fetchCached('legacy-source','https://images.test/page','page','',false,0,receive,true);
@@ -75,6 +85,18 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.equal(await fetchCached('legacy-source','https://images.test/cached-old','old','',false,0,receive,true),'/raw');
  assert.equal(received,undefined);assert.equal(hints.size,hintsBeforeFailure,'failed discovery cannot persist absence');
  hasOriginal=false;await assert.rejects(fetchCached('legacy-source','https://images.test/new-failed','failed','',false,0,receive,true),/source unavailable/);
+ entry.enabled=true;
+ const independentPage={sourceRuntimeId:'legacy-source',pageId:'cached'};const beforeIndependent=runtimeRequests;
+ assert.equal(await adapterModule.exports.prepareSourcePagePresentation(independentPage,'/downloaded',{}, {snapshot,policy:'auto'}),'/filtered');
+ assert.equal(runtimeRequests,beforeIndependent,'enabled general processing does not ask a source for cached metadata');
+ const mixedSnapshot=structuredClone(snapshot),hintOnlyPack=structuredClone(pack);hintOnlyPack.id='hint-only';hintOnlyPack.rules[0].crossSource=false;
+ hintOnlyPack.rules[0].legacy[0].sourceIds=['legacy-source'];mixedSnapshot.records[0].packs.push(hintOnlyPack);
+ const unresolvedPage={sourceRuntimeId:'legacy-source',pageId:'cached-hint-only'};
+ assert.equal(await adapterModule.exports.prepareSourcePagePresentation(unresolvedPage,'/downloaded',{}, {snapshot:mixedSnapshot,policy:'auto'}),'/filtered');
+ assert.notEqual(unresolvedPage.imageProcessingResolved,true,'failed hint discovery stays unresolved while independent plugins continue');
+ const stalePage={sourceRuntimeId:'legacy-source',pageId:'stale-hint',imageProcessing:declaredHint};
+ assert.equal(await adapterModule.exports.prepareSourcePagePresentation(stalePage,'/downloaded',{},
+  {snapshot:{schemaVersion:1,records:[{origin:'hint-only',revision:'1',packs:[hintOnlyPack]}]},policy:'auto'}),'/downloaded','failed refresh cannot execute a stale source declaration');
  const rule=pack.rules[0],current=rule.signatures[0],old=rule.signatures[1];
  assert.deepEqual(await detector.detect(synthetic(800,1500,[{y:0,signature:current},{y:1218,signature:old}]),rule,'1'),{top:200,bottom:0});
  assert.deepEqual(await detector.detect(synthetic(800,1500,[{y:0,signature:current},{y:200,signature:old},{y:1218,signature:old}]),rule,'2'),{top:482,bottom:282});
@@ -143,7 +165,13 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.list())[0].plugins[0].version,1);assert.equal(state.enabledRuleCount,0,'new installation starts disabled');
  await store.setRuleEnabled(pluginUrl,plugin.id,plugin.id,true);await store.setPluginSettings(pluginUrl,plugin.id,{strength:9,preserve:false,unknown:'ignored'});
  const pinnedPlugin=await store.pinned();assert.deepEqual(pinnedPlugin.records[0].pluginSettings[plugin.id],{strength:4,preserve:false});
- assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'auto').length,1);assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'source').length,0);
+ assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'auto').length,1);assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'source').length,1);
+ assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'off').length,0);
+ const hintOnlyPlugin=structuredClone(pinnedPlugin);hintOnlyPlugin.records[0].plugins[0].application={automatic:false,sourceHints:[{kind:'scoped',modes:['1'],sourceIds:['scoped-source']}]};
+ assert.equal(pluginPlanning.imagePluginPlans(hintOnlyPlugin,'auto').length,0);
+ assert.equal(rules.canDiscoverSourceImageProcessing(hintOnlyPlugin,'scoped-source'),true);
+ const scopedPlans=pluginPlanning.imagePluginPlans(hintOnlyPlugin,'auto',{kind:'scoped',mode:'1'});
+ assert.equal(scopedPlans.length,1);assert.equal(scopedPlans[0].configuration.context.application,'source');
  const pluginBackup=await store.exportSnapshot();await store.reload();assert.deepEqual(await store.exportSnapshot(),pluginBackup,'installed bytes and settings survive restart');
  publishPlugin(2);await store.refresh(pluginUrl);let installed=(await store.list())[0];
  assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['updates']);
