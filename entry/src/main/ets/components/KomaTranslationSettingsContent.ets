@@ -594,8 +594,7 @@ export struct KomaTranslationSettingsContent {
         onConfirm: (): void => { void this.save() },
         modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'), onClose: (): void => { this.onClose() } }) {
         Column() { this.SettingsForm() }
-          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG,
-            top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+          .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
       }
     } else {
       this.SettingsForm()

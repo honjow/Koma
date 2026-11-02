@@ -24,6 +24,9 @@ export function komaContextMenuOptions(options: ContextMenuOptions = {}): Contex
 }
 
 export function komaSheetOptions(options: SheetOptions): SheetOptions {
+  // App sheets have a close action in the shared modal title bar. A second
+  // native close button overlaps it on wide windows and uses a different surface.
+  options.showClose = false
   options.systemMaterial = popupMaterial(true)
   return options
 }

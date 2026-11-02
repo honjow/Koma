@@ -11,7 +11,8 @@ const {parseIndexEntriesDocument}=metadataModule.exports;
 const plugins=load('ImageProcessingPlugins');
 const alphaPixels=new Uint8Array([32,64,128,128,18,29,41,255,0,0,0,0]);plugins.imagePluginStraightAlpha(alphaPixels);
 assert.deepEqual([...alphaPixels],[64,128,255,128,18,29,41,255,0,0,0,0]);
-const rules=load('ImageBannerRules',{'./ImageProcessingPlugins':plugins});const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
+const rules=load('ImageBannerRules',{'./ImageProcessingPlugins':plugins});
+const {imagePluginRows}=load('ImagePluginManagement');const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
 const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root,'scripts/fixtures/image-rules-edge.json'),'utf8')));
 const snapshot={schemaVersion:1,records:[{origin:'subscription-a',revision:'1',packs:[pack]}]};
 const pluginPlanning=load('ImagePluginService',{'@kit.ArkTS':{},'@kit.ImageKit':{},'@kit.CoreFileKit':{},
@@ -137,6 +138,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
   requests.set(pluginUrl,Buffer.from(JSON.stringify(index)));requests.set('https://plugins.test/plugin.json',data);return index};
  const pluginIndex=publishPlugin(1);requests.set(moduleUrl,moduleBytes);const beforeCatalog=networkCalls;
  assert.equal(subscriptionDocumentKind(JSON.stringify(pluginIndex)),'image_rules');await store.add(pluginUrl,'');
+ assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['available']);
  assert.equal(networkCalls,beforeCatalog+2,'adding a catalog never downloads an executable');assert.equal(state.enabledRuleCount,0);
  await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.list())[0].plugins[0].version,1);assert.equal(state.enabledRuleCount,0,'new installation starts disabled');
  await store.setRuleEnabled(pluginUrl,plugin.id,plugin.id,true);await store.setPluginSettings(pluginUrl,plugin.id,{strength:9,preserve:false,unknown:'ignored'});
@@ -144,9 +146,13 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'auto').length,1);assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'source').length,0);
  const pluginBackup=await store.exportSnapshot();await store.reload();assert.deepEqual(await store.exportSnapshot(),pluginBackup,'installed bytes and settings survive restart');
  publishPlugin(2);await store.refresh(pluginUrl);let installed=(await store.list())[0];
+ assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['updates']);
  assert.equal(installed.catalog[0].version,2);assert.equal(installed.plugins[0].version,1,'refresh only updates offered metadata');
  requests.set(moduleUrl,Buffer.from('bad module'));await assert.rejects(store.installPlugin(pluginUrl,plugin.id));assert.equal((await store.list())[0].plugins[0].version,1,'bad updates retain the installed plugin');
  requests.set(moduleUrl,moduleBytes);await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.list())[0].plugins[0].version,2);assert.equal(state.enabledRuleCount,1,'update preserves activation');
+ assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['installed']);
+ await assert.rejects(store.setPluginSettings(pluginUrl,plugin.id,{strength:1},JSON.stringify([1,moduleDigest])),/image_plugin_settings_stale/);
+ assert.deepEqual((await store.list())[0].pluginSettings[plugin.id],{strength:4,preserve:false},'an old editor cannot overwrite settings after an algorithm update');
  assert.equal(pinnedPlugin.records[0].plugins[0].version,1,'current reading keeps its immutable algorithm');
  waitForModule=true;const lateInstall=store.installPlugin(pluginUrl,plugin.id);while(!moduleGate)await new Promise(r=>setImmediate(r));
  await store.uninstallPlugin(pluginUrl,plugin.id);moduleGate();await assert.rejects(lateInstall,/cancelled/);waitForModule=false;

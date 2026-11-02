@@ -1,5 +1,6 @@
 import { komaModalContentBackground } from '../theme/KomaPopupOptions'
-import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions } from '@kit.UIDesignKit'
+import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial } from '@kit.UIDesignKit'
+import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -9,7 +10,9 @@ export struct KomaModalScaffold {
   @Param title: ResourceStr = ''
   @Param subtitle: ResourceStr | undefined = undefined
   @Param modalSurfaceColor: ResourceColor = ThemeConstants.BG_SUB
-  @Param contentHorizontalPadding: number = 0
+  // The shared modal owns the standard content inset. Callers supply content,
+  // not another horizontal wrapper. A full-bleed WebView explicitly opts out.
+  @Param contentHorizontalPadding: number = ThemeConstants.SPACE_LG
   @Param contentOwnsScrolling: boolean = false
   @Param confirmLabel: ResourceStr | undefined = undefined
   @Param confirmEnabled: boolean = true
@@ -73,6 +76,12 @@ export struct KomaModalScaffold {
       .titleBar({
         enableComponentSafeArea: true,
         style: {
+          // The sheet's material does not configure HDS title actions. Keep the
+          // shared title bar on the same adaptive material contract as app pages.
+          systemMaterialEffect: deviceInfo.apiAvailable('6.1.0') ? {
+            materialType: hdsMaterial.MaterialType.ADAPTIVE,
+            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+          } : undefined,
           scrollEffectOpts: {
             enableScrollEffect: false,
           },

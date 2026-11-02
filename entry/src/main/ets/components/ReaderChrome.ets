@@ -1,3 +1,4 @@
+import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderTitleContent } from './ReaderTitleContent'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { ReaderModeControl } from './ReaderModeControl'
@@ -65,6 +66,7 @@ export struct ReaderChrome {
   @Param seriesOverrideActive: boolean = false
   @Event onResetSeriesOverride: () => void = () => {}
   @Event onCloseReader: () => void = () => {}
+  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onResetZoom: () => void = () => {}
   @Event onReloadPage: () => void = () => {}
@@ -182,6 +184,7 @@ export struct ReaderChrome {
       readerMode: this.readerMode,
       preferences: this.preferences,
       seriesOverrideActive: this.seriesOverrideActive,
+      onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.closeSettings(); this.onOpenImagePlugins(request) },
       onResetSeriesOverride: (): void => { this.onResetSeriesOverride() },
       onPreferencesChange: (preferences: ReaderPreferences): void => {
         this.onPreferencesChange({ preferences: preferences })
@@ -223,7 +226,7 @@ export struct ReaderChrome {
           ConciseListRow({ title: s('reader_image_info_source'), trailingText: this.pageImageSourceLabel, showChevron: false })
         }
       }
-      .width('100%').padding(ThemeConstants.SPACE_LG)
+      .width('100%').padding({ top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     }
   }
 
@@ -252,7 +255,7 @@ export struct ReaderChrome {
               },
             })
           }
-          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+
         }, (index: number) => `reader-chapter-picker-${index}`)
       }
       .width('100%')

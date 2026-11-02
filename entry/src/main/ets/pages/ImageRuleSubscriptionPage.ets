@@ -1,3 +1,4 @@
+import { ImagePluginsListContent } from '../components/ImagePluginsListContent'
 import { common } from '@kit.AbilityKit'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { ImageRuleSubscription, ImageRulePack, ImageBannerRule, imageRuleKey } from '../model/ImageBannerRules'
@@ -75,9 +76,7 @@ export struct ImageRuleSubscriptionPage {
               .width('100%').padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_SM })
           }
         }
-        ForEach(this.subscription.packs, (pack: ImageRulePack) => {
-          ListItem() { this.RuleSection(pack) }
-        }, (pack: ImageRulePack): string => pack.id)
+        ListItem() { ImagePluginsListContent({ subscriptions: [this.subscription] }) }
         ListItem() {
           Text(AppStrings.format('image_rules_updated_at', new Intl.DateTimeFormat(this.language.effectiveLocale, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(this.subscription.updatedAt))))
             .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)

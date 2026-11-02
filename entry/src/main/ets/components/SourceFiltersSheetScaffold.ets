@@ -38,7 +38,7 @@ export struct SourceFiltersSheetScaffold {
         Blank().height(ThemeConstants.SPACE_XL)
       }
       .width('100%')
-      .padding(ThemeConstants.SPACE_LG)
+      .padding({ top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     }
   }
 }

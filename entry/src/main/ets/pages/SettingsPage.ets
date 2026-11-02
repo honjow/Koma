@@ -1,3 +1,4 @@
+import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
@@ -258,6 +259,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
         { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
+        { key: 'image-plugins', titleKey: 'image_plugins_title', detailKey: 'image_plugins_manage_hint' },
         { key: 'reader-trim-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-crop-strength', titleKey: 'reader_crop_strength_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-super-resolution-model', titleKey: 'settings_reader_super_resolution_model', detailKey: 'settings_reader_super_resolution_models' },
@@ -469,6 +471,7 @@ export struct SettingsPage {
   @Event onOpenKavitaSettings: () => void = () => {}
   @Event onOpenOpdsSettings: () => void = () => {}
   @Event onOpenWebDavSettings: () => void = () => {}
+  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenSourcePackageManager: () => void = () => {}
   @Event onOpenLibraryUpdateResults: () => void = () => {}
   @Event onOpenLibraryCategories: () => void = () => {}
@@ -851,7 +854,7 @@ export struct SettingsPage {
           'page-mode', 'reading-direction', 'reader-spread-layout', 'reader-page-animation', 'reader-wide-image-mode', 'reader-page-gap']) },
         { key: 'reader-display', titleKey: 'settings_reader_group_display', rows: this.rowsByKeys([
           'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
-        { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
+        { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['image-plugins', 'reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
           'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
         { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages', 'reader-preload-wifi-only']) },
@@ -2477,6 +2480,9 @@ export struct SettingsPage {
       this.onOpenSettingsPane('translation')
     } else if (row.key === 'enhancement-models') {
       this.onOpenSettingsPane('enhancement-models')
+    } else if (row.key === 'image-plugins') {
+      this.onOpenImagePlugins(new ImagePluginsRequest(this.readerPreferences, false,
+        (next: ReaderPreferences): void => { this.saveImagePreferences(next) }))
     } else if (row.key === 'reader-images') {
       this.onOpenSettingsPane('reader')
     } else if (row.key === 'diagnostics') {
@@ -2613,6 +2619,8 @@ export struct SettingsPage {
           if (this.readerPreferencesReady) {
             ReaderImageSettingsContent({ preferences: this.readerPreferences, modelsRevision: this.enhancementModelsRevision,
               onPreferencesChange: (next: ReaderPreferences) => { this.saveImagePreferences(next) },
+              onOpenPlugins: (): void => { this.onOpenImagePlugins(new ImagePluginsRequest(this.readerPreferences, false,
+                (next: ReaderPreferences): void => { this.saveImagePreferences(next) })) },
               onOpenModels: () => { this.onOpenSettingsPane('enhancement-models') } })
           }
         } else {

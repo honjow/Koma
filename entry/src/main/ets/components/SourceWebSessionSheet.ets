@@ -308,6 +308,8 @@ export struct SourceWebSessionSheet {
   build() {
     KomaModalScaffold({
       title: this.params.title || AppStrings.get('source_web_open'),
+      // The website owns its viewport; only the bottom toolbar has an inset.
+      contentHorizontalPadding: 0,
       contentOwnsScrolling: true,
       onClose: () => { this.close() },
     }) {

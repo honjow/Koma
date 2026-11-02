@@ -1,3 +1,4 @@
+import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
@@ -1708,6 +1709,7 @@ export struct ReaderPage {
   @Event onObservedProgress: (progress: ReadingProgress) => void = () => {}
   @Event onObservedReadingPages: (comic: string, chapter: string, pages: number[]) => void = () => {}
   @Event onCloseReader: () => void = () => {}
+  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onOpenChapter: (chapterId: string, intent?: ReaderChapterOpenIntent) => void =
     (_chapterId: string, _intent?: ReaderChapterOpenIntent) => {}
@@ -3851,6 +3853,7 @@ export struct ReaderPage {
       seriesOverrideActive: this.seriesOverrideActive,
       onResetSeriesOverride: (): void => { void this.resetSeriesOverride() },
       onCloseReader: () => { this.closeReaderRoute() },
+      onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.onOpenImagePlugins(request) },
       onOpenMangaDetail: () => { this.onOpenMangaDetail() },
       onResetZoom: () => { this.resetZoomState() },
       onReloadPage: () => { this.retryCurrentPage() },

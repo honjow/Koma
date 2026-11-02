@@ -85,7 +85,7 @@ export struct ReaderDisplaySettingsContent {
             checked: this.draft.inverted, showChevron: false,
             switchAction: (value: boolean): void => { this.change((next): void => { next.inverted = value }) } })
         }
-      }.width('100%').padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+      }.width('100%')
     }
   }
 }

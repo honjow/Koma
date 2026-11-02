@@ -1,3 +1,5 @@
+import { ImagePluginsPage } from './ImagePluginsPage'
+import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ImageRuleSubscriptionPage, ImageRuleSubscriptionRouteParam } from './ImageRuleSubscriptionPage'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
@@ -319,6 +321,18 @@ struct Index {
     const subscriptionsItem: Record<string, Object> = { 'content': subscriptions }
     const items: Record<string, Object>[] = [filterItem, localItem, subscriptionsItem]
     content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
+    return options
+  }
+
+  private imagePluginsTitleBarOptions(): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('image_plugins_title'))
+    const content = options['content'] as Record<string, Object>
+    const subscriptions: Record<string, Object> = { 'label': AppStrings.get('source_pkg_index_url_heading'),
+      'type': TextStyleMode.NORMAL, 'action': (): void => {
+        this.appPathStack.pushPath({ name: RouteName.SOURCE_SUBSCRIPTIONS, param: new SourceCatalogPageChrome() })
+      } }
+    const items: Record<string, Object>[] = [{ 'content': subscriptions }]
+    content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
     return options
   }
 
@@ -2275,6 +2289,7 @@ struct Index {
         observeReadingPages: (work: string, chapter: string, pages: number[]): void => {
           this.observeReadingPages(work, chapter, pages)
         },
+        onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.appPathStack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
         onOpenMangaDetail: (_work: string): void => { this.openReaderMangaDetail() },
         onRouteVisibleChange: (visible: boolean): void => {
           this.readerRouteVisible = visible
@@ -2319,6 +2334,7 @@ struct Index {
         onCloseReader: () => {
           this.popReaderRouteAfterSystemBarRestore()
         },
+        onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.appPathStack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
         onOpenMangaDetail: () => {
           this.openReaderMangaDetail()
         },
@@ -2670,6 +2686,9 @@ struct Index {
           } })
       }
       .titleBar(this.sourceSubscriptionsTitleBarOptions(param as SourceCatalogPageChrome))
+    } else if (name === RouteName.IMAGE_PLUGINS) {
+      HdsNavDestination() { ImagePluginsPage({ request: param as ImagePluginsRequest }) }
+        .titleBar(this.imagePluginsTitleBarOptions())
     } else if (name === RouteName.IMAGE_RULE_SUBSCRIPTION) {
       HdsNavDestination() {
         ImageRuleSubscriptionPage({ url: (param as ImageRuleSubscriptionRouteParam).url })
@@ -2702,6 +2721,7 @@ struct Index {
           onOpenWebDavSettings: () => {
             this.openSettingsSecondary(RouteName.WEBDAV_SERVER)
           },
+          onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.appPathStack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
           onOpenSourcePackageManager: () => {
             this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER)
           },

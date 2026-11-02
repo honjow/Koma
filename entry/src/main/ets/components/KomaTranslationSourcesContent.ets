@@ -354,7 +354,7 @@ export struct KomaTranslationSourcesContent {
           KomaActionButton({ label: t('common_delete'), fullWidth: true, isEnabled: !this.busy && !this.codexLoginBusy,
             action: () => { this.confirmDelete() } })
         }
-      }.padding(ThemeConstants.SPACE_LG)
+      }.padding({ top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
     }
   }
 

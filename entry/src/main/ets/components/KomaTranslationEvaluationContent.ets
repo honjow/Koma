@@ -37,7 +37,7 @@ export struct KomaTranslationEvaluationContent {
           }.padding(ThemeConstants.SPACE_MD).width('100%')
             .backgroundColor($r('sys.color.ohos_id_color_background')).borderRadius(ThemeConstants.LIST_ROW_RADIUS)
         }, (page: ToriiWholePageLiveEvaluationPageReport): string => `${page.pageIndex}:${page.artifactHash}`)
-      }.padding(ThemeConstants.SPACE_LG).width('100%')
+      }.padding({ top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG }).width('100%')
     }
   }
 }

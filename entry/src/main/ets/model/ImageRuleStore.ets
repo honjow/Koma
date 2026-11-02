@@ -280,11 +280,13 @@ export class ImageRuleStore {
       saved.packs = saved.packs.filter((p: ImageRulePack): boolean => p.id !== id)
     }))
   }
-  async setPluginSettings(url: string, id: string, values: SettingsFieldValues): Promise<void> {
+  async setPluginSettings(url: string, id: string, values: SettingsFieldValues, expectedProcessor?: string): Promise<void> {
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
       const saved = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === url)
       const plugin = saved?.plugins?.find((p: ImageProcessingPlugin): boolean => p.id === id)
       if (!saved || !plugin) throw new Error('image_plugin_not_installed')
+      if (expectedProcessor !== undefined && expectedProcessor !== JSON.stringify([plugin.version, plugin.processor.sha256]))
+        throw new Error('image_plugin_settings_stale')
       saved.pluginSettings = saved.pluginSettings ?? {}
       saved.pluginSettings[id] = imagePluginDefaults(plugin, values)
     }))

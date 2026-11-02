@@ -1,3 +1,4 @@
+import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from './ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { ReaderImageSettingsContent } from './ReaderImageSettingsContent'
@@ -46,6 +47,7 @@ export struct ReaderSettingsContent {
   @Param readerMode: ReaderMode = ReaderMode.SINGLE_PAGE
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Event onPreferencesChange: (preferences: ReaderPreferences) => void = (_preferences: ReaderPreferences) => {}
+  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onClose: () => void = () => {}
   @Event onRevealTapZones: () => void = () => {}
   // Status never changes the menu contents or the settings row structure.
@@ -356,7 +358,7 @@ export struct ReaderSettingsContent {
     } else if (this.modelManagementShown) {
       KomaModalScaffold({ title: s('settings_reader_super_resolution_models'), onClose: () => { this.modelManagementShown = false } }) {
         ReaderSuperResolutionModelsContent({ preferences: this.preferences, onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
-          .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
+
       }
     } else {
     KomaModalScaffold({
@@ -403,6 +405,8 @@ export struct ReaderSettingsContent {
         ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
           cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: this.enhancementControlsAvailable,
           onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
+          onOpenPlugins: (): void => { this.onOpenImagePlugins(new ImagePluginsRequest(this.preferences, true,
+            (next: ReaderPreferences): void => { this.update(next) })) },
           onOpenModels: () => { this.modelManagementShown = true } })
         GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
           ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
@@ -421,7 +425,7 @@ export struct ReaderSettingsContent {
         Blank().height(ThemeConstants.SPACE_XL)
       }
       .width('100%')
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
     }
     }
   }

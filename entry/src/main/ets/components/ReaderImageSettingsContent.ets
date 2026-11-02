@@ -26,6 +26,7 @@ export struct ReaderImageSettingsContent {
   @Param enhancementControlsAvailable: boolean = true
   @Param modelsRevision: number = 0
   @Event onPreferencesChange: (next: ReaderPreferences) => void = (_next: ReaderPreferences) => {}
+  @Event onOpenPlugins: () => void = () => {}
   @Event onOpenModels: () => void = () => {}
   @Local private imageRules: ImageRuleState = connectImageRuleState()
   @Local private installedModels: string[] = []
@@ -82,22 +83,6 @@ export struct ReaderImageSettingsContent {
       normalizeBannerFilter(this.preferences.bannerFilter)
   }
   @Builder
-  private BannerMenu(select: (action: () => void) => void) {
-    Menu() {
-      ForEach(this.bookBannerOptions ? ['global', 'source', 'auto', 'off'] : ['source', 'auto', 'off'], (choice: string) => {
-        MenuItem({ content: t('reader_banner_' + choice), symbolEndIcon:
-          this.bannerChoice() === choice ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-          .onClick(() => { select(() => {
-            const next = normalizeReaderPreferences(this.preferences)
-            if (this.bookBannerOptions) next.bannerFilterOverride = choice
-            else next.bannerFilter = normalizeBannerFilter(choice)
-            this.onPreferencesChange(next)
-          }) })
-      })
-    }
-  }
-
-  @Builder
   private CropStrengthMenu(select: (action: () => void) => void) {
     Menu() {
       ForEach(['conservative', 'standard', 'strong'], (strength: string) => {
@@ -142,9 +127,9 @@ export struct ReaderImageSettingsContent {
     Column({ space: ThemeConstants.SPACE_LG }) {
       if (this.cropControlsAvailable) {
         GroupedListSection({ title: t('settings_reader_group_crop') }) {
-          ConciseListRow({ title: t('reader_banner_filter'), subtitle: t(this.imageRules.enabledRuleCount === 0 ? 'image_rules_none' : 'image_rules_manage_in_subscriptions'), subtitleMaxLines: 3, trailingText: t('reader_banner_' + this.bannerChoice()),
-            trailingDropdown: true, dropdownMenuEnabled: true,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BannerMenu(select) } }).id('reader-banner-filter')
+          ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
+            trailingText: t('reader_banner_' + this.bannerChoice()),
+            action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
           ListDivider()
           ConciseListRow({ title: t('settings_row_reader_trim_page_margins_title'), hasSwitch: true,
             checked: this.preferences.trimPageMarginsEnabled, showChevron: false,
