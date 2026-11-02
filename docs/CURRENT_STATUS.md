@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：接入可订阅的图片处理插件；原生内核与安装逻辑已跑通，完整管理界面尚未实施。
+当前工作：图片处理插件与197搜索卡顿修复已交付，当前订阅用法已公开；其余未关闭事项保留原状态。
 
-设备：197由用户使用，不注入操作；237本轮原包、数据、电源均已恢复并释租。200禁止操作，四私库搁置。
+设备：197、237均已恢复原包、数据与电源状态并释租；当前没有设备操作。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "图片处理插件核心已编译，界面待确认",
+  "state": "本轮插件与搜索修复已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T06:41:58+08:00",
+  "updatedAt": "2026-11-02T12:22:29+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "插件核心已编译；外部算法、超时中止、安装更新及缓存调度的本地执行已通过。图片准备链已接通，完整管理页与普通真机路径尚未完成。",
-  "nextAction": "待确认图片处理插件管理页的具体布局和操作，再完成安装、配置、更新与普通阅读验收。",
+  "activeId": "SEARCH_RECENT_TAP_UI_STALL",
+  "activity": "插件运行时、管理页、搜索修复和当前用法已推送，本次CI通过，设备均已恢复。",
+  "nextAction": "其余账号、官方名称及指定站点空响应事项保留原未验范围。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5011,17 +5011,20 @@
       "title": "点击最近搜索后界面卡顿数秒",
       "kind": "accepted",
       "priority": "P1",
-      "owner": "Root：当前主线",
-      "status": "已验收并推送",
-      "stage": "未定位",
-      "reportedAt": null,
-      "reportedAtSource": "本轮用户当前反馈；原消息精确时间未核，登记时刻不冒充提出时刻。",
+      "owner": "Root：197实际卡顿优先核查",
+      "status": "197卡顿修复已验收并交付",
+      "stage": "已交付",
+      "reportedAt": "2026-11-01T11:00:07+08:00",
+      "reportedAtSource": "原始会话 rollout-2026-10-29T02-01-17-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c_01a183ac-6c21-7c20-b914-df42c0cb41e5.jsonl 第83488行；用户本轮明确当时使用197。",
       "firstHandledAt": "2026-11-01T11:01:32+08:00",
-      "result": "最终068最近词单次提交94毫秒启动搜索，本地准备1毫秒，原生后台匹配返回2本；同词回声不再重启。原漏斗来源筛选保留，新增独立显示模式；真实多源结果滚动、仅有结果切换和切回保留原结果已看。未配置私库不显示无效分组。",
-      "remaining": "无；本次具名验收及原有范围保留。",
-      "remainingActions": [],
+      "result": "197已复现并处理本机卡顿：同词点击主线程由2.116秒降至95.865毫秒，偏好回调由667毫秒降至52毫秒；历史记录反复规范化改为逐条生成比较键，保留原范围、去重和排序。同词只启动一次，仍返回三本本地结果。实际失败提示已去掉内部诊断码。",
+      "remaining": "本轮已交付；保留原证据中的具名范围。",
+      "remainingActions": [
+        "核有效录像，保留无效录像及原因；恢复197本轮原包、当前数据和电源并释租。",
+        "提交搜索修复，和原插件收尾按原分工交付。"
+      ],
       "boundaries": [
-        "用户操作197期间不注入点击、不安装、不覆盖数据或会话。",
+        "197/237既有用户验收授权有效；操作前核实时占用和租约，不将助手对历史占用的推断视为长期禁令。",
         "用户本轮明确采用：隐藏未配置的远程库分组，右上角可切换显示全部/仅有结果，并明确显示当前模式；使用现有公共系统菜单。"
       ],
       "relatedItems": [
@@ -5040,14 +5043,34 @@
         "Koma/master b66950d9f6965cb69aa9772d1c728d3cea0b90db已推；精确CI41270365975进行中。",
         "search-mode-persisted-153：普通离页重进恢复仅有结果及私有库范围；漏斗按钮仍独立存在。",
         "search-original-restored-155/restore-comparison.json：fresh136七JSON及18偏好逐字一致，文件集合相同；原包安装成功。search-power-restored-156读回SLEEP、120000ms且无override，租约已释放。",
-        "Koma/master b66950d9f6965cb69aa9772d1c728d3cea0b90db精确CI41270365975成功；共享版本5aeb629c已推reader-kit/main。"
+        "Koma/master b66950d9f6965cb69aa9772d1c728d3cea0b90db精确CI41270365975成功；共享版本5aeb629c已推reader-kit/main。",
+        "197 search197-original-state-370：bundle updateTime=1793501781386，对应seam-unified062-installed-362的candidate062成功安装。",
+        "197 search197-original-recent-trace-374/analysis/trace.db：Koma主线程tid46544 ExecuteJS=2113.299ms，所属DispatchTouchEvent=2116.399ms；实际日志query.start10:29:37.540/local_done39.156，40.282再次启动。",
+        "197 search197-original-recent-trace-374/screen.png：实际显示“搜索失败。诊断：network_error”。SearchStateMapper当前源码仍将code格式化进普通失败提示，已作精确移除。",
+        "197 search197-fixed-recent-trace-378：初步候选仍有408.446ms ExecuteJS和667.147ms PreferencesGetValue回调，不作最终通过；同词仅一次query.start。",
+        "197 search197-history-fixed-trace-381：触摸处理95.865ms、ExecuteJS94.010ms、Preferences回调51.594ms；history_submit10:50:16.122，history_prepared35ms，query.start16.168/local_prepared2ms，local_done18.029 count3。",
+        "search197-fixed-recent-video-384/validation.json：前置仍是Web覆盖下的结果列表，录像作废。386启动后点击早于标题栏就绪，未进入搜索；388再次从已读回的书架进入，确认最近词及无Web覆盖后才录389。",
+        "search197-fixed-recent-video-389：226帧实际最近搜索响应已亲审；之后Web层遮挡的滚动范围不计通过。search197-results-scroll-391：390关闭Web后221帧上下滚动已亲审，保留原结果。",
+        "搜索修复提交d3104974；同包197候选212b8b38已核主线程与可见失败提示，设备恢复尚在进行。"
       ],
-      "closedAt": "2026-11-01T11:57:22+08:00",
+      "closedAt": "2026-11-02T12:22:29+08:00",
       "modificationBasis": {
         "object": "CrossSearchService本地匹配、SearchPage普通及迁移结果列表",
         "history": "原本地章节/作者/标题匹配合同及66ece78f/a7678c71多源/迁移入口保持；本次基于用户实测和实际日志重开性能。",
         "allowedDifference": "只改执行线程与按需创建；保来源范围、匹配字段、排序、文字样式、预览/验证及取消栅栏。"
-      }
+      },
+      "evidence": [
+        "已撤销的助手推断限制（非用户指令）：用户操作197期间不注入点击、不安装、不覆盖数据或会话。；原文取代依据 .hvigor/outputs/image-plugins-20261102/197-boundary-origin.json",
+        "来源纠正：用户2026-11-01 11:00仅说正在操作设备，11:03明确197好像没有卡顿；旧记录“用户在197实测卡顿”是助手错误归属，不改既有具名修复及验收。见 .hvigor/outputs/image-plugins-20261102/197-boundary-origin.json",
+        "用户本轮纠正：197是严重卡顿的报告设备；最新纠正作为当前要求，不改写先前对话原文。原237证据仍保留，仅撤回整体关闭结论。",
+        "用户本轮明确当时操作的就是197。问题在于助手把使用状态扩大为长期禁令及跨设备关闭，不是用户未写编号；撤回此前将设备编号归属本身作为争论重点的解释。",
+        "197 search197-fixed-recent-video-389为有效最近搜索连续操作；后段Web覆盖不充作滚动证据，真正结果滚动见search197-results-scroll-391，完整原片与帧页已审。",
+        "197 search197-original-package-restored-405原包安装成功；406七JSON及三十偏好逐字相同；407移除本轮新增规则文件；408读回SLEEP/120000ms/Override10000ms；原租约及补读租约均已释放。",
+        "本地搜索修复提交d3104974；最终候选与搜索主线程采样、原始失败范围保持。",
+        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b已推送并由ls-remote逐字核对；包含94e3d1cd运行时、d3104974搜索、0c5b8f3f管理页及b580e5e6当前用法。",
+        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b 精确CI41386807116 success：Release构建、产物检查和上传成功；正式发布skipped。.hvigor/outputs/image-plugins-20261102/delivery-binding.json关联本轮代码、设备实际路径与恢复。"
+      ],
+      "updatedAt": "2026-11-02T12:22:29+08:00"
     },
     {
       "id": "TOAST_SYSTEM_MATERIAL",
@@ -5125,7 +5148,7 @@
       "remaining": "",
       "remainingActions": [],
       "boundaries": [
-        "197由用户使用，禁止操作；用户当前明确允许依参考高清重绘，保留DM5字标与白色圆角底，不称官网原件。"
+        "197/237既有用户验收授权有效；操作前核实时占用和租约，不将助手对历史占用的推断视为长期禁令。"
       ],
       "relatedItems": [
         "ICONS"
@@ -5140,7 +5163,10 @@
         "源e0495f55887248f5d321a9581fd60929447e9b8a精确CI41305891155成功；公开0.1.25 index/manifest/包/独立icon已核，icon SHA b717d62038cb4902cd2f4cffb738de221013f420fb27887e2051b4b2092db32f逐字同237候选；公开WASM不同，不外推为同字节正文验收。证据dm5-redrawn-025/evidence.json。"
       ],
       "closedAt": "2026-11-01T20:22:12+08:00",
-      "reopenedAt": "2026-11-01T12:02:15+08:00"
+      "reopenedAt": "2026-11-01T12:02:15+08:00",
+      "evidence": [
+        "已撤销的助手推断限制（非用户指令）：197由用户使用，禁止操作；用户当前明确允许依参考高清重绘，保留DM5字标与白色圆角底，不称官网原件。；原文取代依据 .hvigor/outputs/image-plugins-20261102/197-boundary-origin.json"
+      ]
     },
     {
       "id": "SOURCE_MANHUAREN_ICON_IDENTITY",
@@ -5155,7 +5181,7 @@
       "remaining": "无；本轮未单独核深色，不扩原范围。",
       "remainingActions": [],
       "boundaries": [
-        "197由用户使用，禁止操作；不自绘或凭第三方图替换。",
+        "197/237既有用户验收授权有效；操作前核实时占用和租约，不将助手对历史占用的推断视为长期禁令。",
         "用户当前未批准白底字标，要求普通版App图标；不能把只查网页素材当作已穷尽官方图。"
       ],
       "relatedItems": [
@@ -5165,7 +5191,10 @@
         "source-catalog/mhr-standard-import-178、mhr-browse-visible-179、mhr-standard-icon-centered-181/screen.png；Root亲审。",
         "koma-sources 195c02d1b3301a7d76157f16aaed9cfb7c094012，精确CI41273522981成功；source-settings-repair/source-brand-icons-20261101/manhuaren-standard/evidence.json；正式WASM与本地候选字节不同，不冒同包逐字验。"
       ],
-      "closedAt": "2026-11-01T12:37:55+08:00"
+      "closedAt": "2026-11-01T12:37:55+08:00",
+      "evidence": [
+        "已撤销的助手推断限制（非用户指令）：197由用户使用，禁止操作；不自绘或凭第三方图替换。；原文取代依据 .hvigor/outputs/image-plugins-20261102/197-boundary-origin.json"
+      ]
     },
     {
       "id": "SOURCE_USER_FACING_TERMINOLOGY",
@@ -5333,7 +5362,7 @@
       "remainingActions": [],
       "boundaries": [
         "保留MH160_COVER_IMAGES_REJECTED已有具名验收，不把新反馈直接归为同一原因或纯源问题。",
-        "197由用户使用不操作；237按既有完整协议验证及恢复。"
+        "197/237既有用户验收授权有效；操作前核实时占用和租约，不将助手对历史占用的推断视为长期禁令。"
       ],
       "relatedItems": [
         "MH160_COVER_IMAGES_REJECTED"
@@ -5349,7 +5378,10 @@
         "726f2d1e精确CI41310338171 completed/success；后续8bf7c37f只改README/截图/执行文档和协议元数据，App代码及依赖未变，不重复构建。"
       ],
       "stage": "具名加载故障已修复交付",
-      "closedAt": "2026-11-01T21:29:55+08:00"
+      "closedAt": "2026-11-01T21:29:55+08:00",
+      "evidence": [
+        "已撤销的助手推断限制（非用户指令）：197由用户使用不操作；237按既有完整协议验证及恢复。；原文取代依据 .hvigor/outputs/image-plugins-20261102/197-boundary-origin.json"
+      ]
     },
     {
       "id": "LIBRARY_SOURCE_SCOPED_SEARCH",
@@ -5475,19 +5507,18 @@
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "可订阅的图片处理插件",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P3",
       "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
-      "status": "核心已编译，完整管理页待确认",
+      "status": "插件订阅、管理及阅读处理已交付",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "插件核心已编译；外部算法、超时中止、安装更新及缓存调度的本地执行已通过。图片准备链已接通，完整管理页与普通真机路径尚未完成。",
-      "remaining": "待确认图片处理插件管理页的具体布局和操作，再完成安装、配置、更新与普通阅读验收。",
+      "result": "共用管理页、订阅识别、手动安装及配置已接通。237真实正文已核下载算法、参数生效、关闭后同页恢复及预载；197已核公开插件安装、标准卡片留白与单一关闭按钮。",
+      "remaining": "本轮已交付；保留原证据中的具名范围。",
       "remainingActions": [
-        "图片处理插件管理页具体方案待用户决定；不实施已撤回的横幅专用页。",
-        "Root按确定的页面接入可见的安装／更新／启停／配置，以及237普通阅读路径。",
-        "home_terra的独立插件包、生成器与作者文档已准备；Host完整接通后再提交发布，不切换旧规则地址。"
+        "恢复197本轮原包、七份JSON、30份偏好及原电源状态并释租。",
+        "提交推送共用管理页及公共弹层修正，核精确CI；保留原阅读算法验收边界。"
       ],
       "boundaries": [
         "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
@@ -5497,7 +5528,9 @@
         "此前裁剪样本证明保留为算法范围；不作为重做后的订阅管理验收。不得用原CI或README宣告新流程完成。",
         "用户本轮澄清：外部规则可以明确写包子与横幅；禁止App硬编码站点特例，不等于规则元数据必须隐去处理对象。界面安排先讨论，不能自行做完再简单交代。",
         "用户否定新增横幅过滤专用页并指出图片规则不能被限定为去横幅；该页方案撤回，通用处理接口及整体用户流程尚在讨论，未开始新界面改动。",
-        "用户本轮选择“新算法也要能通过订阅扩展”，并指出带运行时应称插件；本次目标为可下载图片处理插件，规则只是插件配置，不能把扩展限制为App预先内置的算法或横幅裁切。"
+        "用户本轮选择“新算法也要能通过订阅扩展”，并指出带运行时应称插件；本次目标为可下载图片处理插件，规则只是插件配置，不能把扩展限制为App预先内置的算法或横幅裁切。",
+        "用户call_10944fb3123f4867a536d3ce817c07f6明确采用：全局阅读设置与阅读器共用管理页；可更新／已安装／可安装分组；名称、用途、版本和来源可见；订阅只更新目录，新插件手动安装开启；声明配置，更新保选择；页头进入同一订阅管理，下拉检查更新；原数据迁移保留。",
+        "用户本轮明确指出插件卡片贴住半模态边缘。只补现有标准内容内边距；不改弹层尺寸、居中类型、红色卸载提示，不以主观偏好增删功能。"
       ],
       "evidencePoints": [
         "ReaderPageSourceAdapter.ets prepareSourcePagePresentation 当前显式检查online.baozimh.koma、包子图片域、安装与BAOZI_BANNER；SourceBaoziBannerService/Detector 已做taskpool特征匹配与派生缓存。",
@@ -5506,9 +5539,12 @@
         "用户当前原话：App内特殊处理并点名包子感觉不合适。此反馈改变的是能力归属与呈现方案，不只替换菜单文字；没有修改App或源包实现。",
         "用户本轮明确“这个方向不错。可以往这去做。细节再好好规划下”。",
         "docs/subscription-image-rules.md：已按当前代码核对repo.json扩展、SourcePackageManagerCache后台同步接线缺口、单本模式覆盖仅分页/方向、下载和CBZ原图合同；描述规则发布/兼容切换、预载、缓存、备份与验证对象。",
-        "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。"
+        "用户本轮询问是否拆仓及独立订阅；已核koma-sources ci.yml会对master push完整构建并发布latest，docs.yml独占gh-pages。docs/subscription-image-rules.md补充独立规则分发分支/工作流及repo.json发现indexUrl候选；未改源库工作流、创建分发分支或发布规则资源。",
+        "237 plugins-restore-package-519原包成功；plugins-restore-data-520七JSON逐字相同；plugins-restore-preferences-readback-523十八偏好逐字相同，520本地接收目录失败保留并由523替代。plugins-restore-power-521为SLEEP/120000ms且无Override；租约20261102-004355-6e9fc4a9已释放。",
+        "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
+        "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T06:41:58+08:00",
+      "updatedAt": "2026-11-02T12:22:29+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5532,10 +5568,32 @@
         ".hvigor/outputs/image-plugins-20261102/native-baozi-result.json：candidate2原生去除顶部200行，输出逐字等于原剩余800行；无横幅样本不变。",
         ".hvigor/outputs/image-plugins-20261102/logic-plugin-storage.log：生产存储逻辑下目录不下载算法、新装默认关闭、坏更新保旧、卸载迟到保护、字节与设置备份、同内容共用处理及最多两路worker通过。",
         "home_terra候选协议复核 /private/tmp/koma-image-plugin-contract-check/；candidate2索引SHA256 6be71af9fb578f49017bc9355b956bdd8858644151cae279121d5ffe0dd9e841，尚未发布。",
-        ".hvigor/outputs/image-plugins-20261102/core-binding.json：最终本地签名HAP已生成并绑定Native／ArkTS源码；native-install-inspection-result.json核正常模块接受、源Host导入及start section拒绝。未进行新插件管理页和普通真机验收。"
+        ".hvigor/outputs/image-plugins-20261102/core-binding.json：最终本地签名HAP已生成并绑定Native／ArkTS源码；native-install-inspection-result.json核正常模块接受、源Host导入及start section拒绝。未进行新插件管理页和普通真机验收。",
+        "图片插件核心本地提交 94e3d1cd914c16851616c9c6b38eae9bdf857afd；构建及本地执行边界见 core-binding.json，尚未推送或发布；新界面待具体方案确认。",
+        "koma-sources a305bb5299539aef9f3791826ad607e3ed188484 独立插件发布CI41368677981 success；默认与示例索引分别发布，公开摘要见 /private/tmp/koma-plugin-delivery-a305bb5.json。",
+        ".hvigor/outputs/image-plugins-20261102/build-plugin-ui-fixed.log：界面候选编译通过；候选SHA4b5271c9706c414f1f1c2554a2d192391382ecec8f60208d819eae6e892f0c7b。",
+        "237 plugins-backup-472保存7JSON和18偏好；原包物理路径不可读，以既有同身份0.1.4/code5包恢复。plugins-install-476明确安装成功；实际设备横屏2120x1320，与原计划竖屏分区区分。",
+        "237 landscape source-catalog/plugins-empty-481：从全局阅读设置打开共用管理页，无默认插件及订阅；显示处理方式和同一订阅管理入口。",
+        "237 landscape source-catalog/plugins-available-486、plugins-install-settled-488：公开v5包已装；device-plugins-after-install.json记录默认禁用。",
+        "237 plugins-config-489/screen.png：卡片与弹层左右边缘重合，为失败界面；plugins-enable-490与device-plugins-enabled.json只证明开关保存，不代表界面或正文已验收。",
+        "首次输入命令plugins-catalog-added-483参数错误未输入；按设备回执修正后484/485添加成功。",
+        "scripts/test_image_banner_rules.cjs执行生产分组及旧配置草稿拒写逻辑；logic-plugin-management.log通过，仅为逻辑边界。",
+        "公共KomaModalScaffold默认SPACE_LG；既有消费者只去除重复水平padding、垂直间距保留，验证WebView显式保留全幅；规则见koma-rules导航与界面。",
+        "237 plugins-inset-details-493：同窗2120x1320，SheetPage左右340/1780，卡片左右388/1732，两侧48px；尺寸及位置与489一致；卸载危险色保留。候选SHA266e4fd3f7c46f03b823a83cf28e0cbf973ddb1d1217cfdf3e13a36b80ce084d。",
+        "材质配置调用仍不等于视觉验收；当前只确认贴边修正，未以此宣告全部插件页面通过。",
+        "plugins-example-config-500/layout.json显示公共HDS关闭与系统关闭Button同为[1612,114][1732,234]，为重叠根因；现komaSheetOptions统一showClose=false。",
+        "plugins-close-single-503：仅保留公共关闭Button，保存/关闭均由HDS自适应材质；配置amount0冷启动保持。公共标题栏systemMaterialEffect与弹层systemMaterial独立消费。",
+        "koma-sources195d182284c956dddb482881b950e4568d85e192，独立CI41372280748成功；v6名称“去除包子漫画横幅”及完整用途，算法WASM与v5相同。",
+        "plugins-refreshed-499证明目录v6与已装v5分开；plugins-config-saved-501证明显式更新到v6且原启用保持、反色示例仍默认关闭。",
+        "plugins-reader-entry-505：实际斗破苍穹01第1/36页可阅读，已安装反色amount0为当前基线；不冒称100强度处理已通过。",
+        "197限制来源亲核：.hvigor/outputs/image-plugins-20261102/197-boundary-origin.json；11-01 11:00助手无依据确认197、11:01误登记、11:31移入顶部、11:46扩为禁止操作；已纠正当前限制。",
+        "197 plugins197-editor-402实际公共卡片留白与单一关闭按钮；403原生取消/卸载顺序；404卸载本轮临时插件。最终恢复见405/406/407/408。",
+        "koma-sources/master b11ac04及27be07054e664d2dac9a9663f6f2b797d7b4b265：书源与插件独立索引、共享添加框自动识别；README改为当前图片处理插件入口与锚点，未重发算法。",
+        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b已推送并由ls-remote逐字核对；包含94e3d1cd运行时、d3104974搜索、0c5b8f3f管理页及b580e5e6当前用法。",
+        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b 精确CI41386807116 success：Release构建、产物检查和上传成功；正式发布skipped。.hvigor/outputs/image-plugins-20261102/delivery-binding.json关联本轮代码、设备实际路径与恢复。"
       ],
-      "stage": "图片处理插件界面接入待确认",
-      "closedAt": null,
+      "stage": "已交付",
+      "closedAt": "2026-11-02T12:22:29+08:00",
       "reopenedAt": "2026-11-02T05:26:39+08:00"
     }
   ],
@@ -14205,6 +14263,185 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "图片处理插件核心编译与接口检查完成",
       "detail": "本地候选已编译；原生检查拒绝源Host导入和start section，完整算法、存储及缓存结果已绑定。尚未进行新插件页面与普通真机路径，整体保持未完成。"
+    },
+    {
+      "at": "2026-11-02T06:44:32+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "保存图片处理插件核心检查点",
+      "detail": "运行时、安装更新、后台处理链与接口文档已本地提交；新管理页方案待确认，未推送或发布成品。"
+    },
+    {
+      "at": "2026-11-02T08:42:38+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "完整图片处理插件页面已采用并开始接入",
+      "detail": "按本轮明确决定实施共用管理页、分组安装和配置；字段控件从现有书源表单提取复用，保存及验证仍由各自owner持有，尚未进行本轮真机验收。"
+    },
+    {
+      "id": "image-plugin-ui-device-2026-11-02T08:54:36+08:00",
+      "at": "2026-11-02T08:54:36+08:00",
+      "title": "插件管理页已安装，开始237实际使用验证",
+      "detail": "独立插件目录已发布；全局入口及空状态已观察，算法在手机上的安装和阅读效果仍在验证。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        "koma-sources a305bb5299539aef9f3791826ad607e3ed188484 独立插件发布CI41368677981 success；默认与示例索引分别发布，公开摘要见 /private/tmp/koma-plugin-delivery-a305bb5.json。",
+        ".hvigor/outputs/image-plugins-20261102/build-plugin-ui-fixed.log：界面候选编译通过；候选SHA4b5271c9706c414f1f1c2554a2d192391382ecec8f60208d819eae6e892f0c7b。",
+        "237 plugins-backup-472保存7JSON和18偏好；原包物理路径不可读，以既有同身份0.1.4/code5包恢复。plugins-install-476明确安装成功；实际设备横屏2120x1320，与原计划竖屏分区区分。",
+        "237 landscape source-catalog/plugins-empty-481：从全局阅读设置打开共用管理页，无默认插件及订阅；显示处理方式和同一订阅管理入口。"
+      ]
+    },
+    {
+      "id": "image-plugin-inset-failure-2026-11-02T09:17:14+08:00",
+      "at": "2026-11-02T09:17:14+08:00",
+      "title": "插件已安装，弹层卡片贴边未通过",
+      "detail": "记录用户指出的卡片贴边；原尺寸和类型保留，只补已有标准内容内边距。配置与正文阅读仍未验收。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        "237 landscape source-catalog/plugins-available-486、plugins-install-settled-488：公开v5包已装；device-plugins-after-install.json记录默认禁用。",
+        "237 plugins-config-489/screen.png：卡片与弹层左右边缘重合，为失败界面；plugins-enable-490与device-plugins-enabled.json只证明开关保存，不代表界面或正文已验收。",
+        "首次输入命令plugins-catalog-added-483参数错误未输入；按设备回执修正后484/485添加成功。",
+        "scripts/test_image_banner_rules.cjs执行生产分组及旧配置草稿拒写逻辑；logic-plugin-management.log通过，仅为逻辑边界。"
+      ]
+    },
+    {
+      "id": "image-plugin-shared-inset-2026-11-02T09:22:22+08:00",
+      "at": "2026-11-02T09:22:22+08:00",
+      "title": "公共半模态留白已修正并读回",
+      "detail": "插件卡片两侧留白恢复；原尺寸、居中和卸载危险色保持。继续原插件使用验证。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        "公共KomaModalScaffold默认SPACE_LG；既有消费者只去除重复水平padding、垂直间距保留，验证WebView显式保留全幅；规则见koma-rules导航与界面。",
+        "237 plugins-inset-details-493：同窗2120x1320，SheetPage左右340/1780，卡片左右388/1732，两侧48px；尺寸及位置与489一致；卸载危险色保留。候选SHA266e4fd3f7c46f03b823a83cf28e0cbf973ddb1d1217cfdf3e13a36b80ce084d。",
+        "材质配置调用仍不等于视觉验收；当前只确认贴边修正，未以此宣告全部插件页面通过。"
+      ]
+    },
+    {
+      "id": "image-plugin-modal-close-2026-11-02T09:39:31+08:00",
+      "at": "2026-11-02T09:39:31+08:00",
+      "title": "公共关闭重叠已修，插件配置及更新已读回",
+      "detail": "关闭归公共标题栏；插件显式更新保留开关，冷启动保留参数。正文效果继续核实。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        "plugins-example-config-500/layout.json显示公共HDS关闭与系统关闭Button同为[1612,114][1732,234]，为重叠根因；现komaSheetOptions统一showClose=false。",
+        "plugins-close-single-503：仅保留公共关闭Button，保存/关闭均由HDS自适应材质；配置amount0冷启动保持。公共标题栏systemMaterialEffect与弹层systemMaterial独立消费。",
+        "koma-sources195d182284c956dddb482881b950e4568d85e192，独立CI41372280748成功；v6名称“去除包子漫画横幅”及完整用途，算法WASM与v5相同。",
+        "plugins-refreshed-499证明目录v6与已装v5分开；plugins-config-saved-501证明显式更新到v6且原启用保持、反色示例仍默认关闭。",
+        "plugins-reader-entry-505：实际斗破苍穹01第1/36页可阅读，已安装反色amount0为当前基线；不冒称100强度处理已通过。"
+      ]
+    },
+    {
+      "id": "correct-197-inferred-restriction-2026-11-02T09:49:05+08:00",
+      "at": "2026-11-02T09:49:05+08:00",
+      "title": "撤销助手误写的197长期限制",
+      "detail": "原始消息并未要求禁用197；旧设备归属推断被写成禁令并沿用。当前197/237既有授权恢复按实时分工执行，原错误与证据保留。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        ".hvigor/outputs/image-plugins-20261102/197-boundary-origin.json"
+      ],
+      "correctedItems": [
+        "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+        "SEARCH_RECENT_TAP_UI_STALL",
+        "SOURCE_DM5_ICON_IDENTITY",
+        "SOURCE_MANHUAREN_ICON_IDENTITY"
+      ]
+    },
+    {
+      "at": "2026-11-02T10:14:51+08:00",
+      "title": "撤回搜索卡顿整体关闭，回到197现场",
+      "detail": "用户本轮明确197存在严重搜索卡顿。原关闭只依据237修复包路径；没有197故障复现和修复后结果，原关闭结论撤回。237录像及日志保留为该设备的实际结果。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-catalog/search-final-recent-151/run-metadata.json"
+      ]
+    },
+    {
+      "at": "2026-11-02T10:14:51+08:00",
+      "title": "图片插件真实处理已有结果，保留后续收尾",
+      "detail": "237真实阅读已确认可下载反色算法及声明参数生效，关闭后同页恢复原色，预载图片在翻页前已生成。图顶剩余标记经原图和插件作者回放确认是正文上的局部水印，不是独立横幅；未裁去正文。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/landscape-2120x1320/source-catalog/plugins-disabled-reader-518/screen.png"
+      ]
+    },
+    {
+      "at": "2026-11-02T10:38:53+08:00",
+      "title": "197实际复现搜索卡顿及错误提示",
+      "detail": "197当前安装已实际复现最近搜索卡顿：触摸处理2.116秒，其中主线程JS2.113秒；同词出现第二次搜索启动。该机仍是11月1日10:56装入的062候选，之后没有修复包安装记录。搜索失败界面还直接显示诊断码，已定位并移除该输出，候选构建中。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/search197-original-recent-trace-374/analysis/summary.json"
+      ]
+    },
+    {
+      "at": "2026-11-02T10:38:53+08:00",
+      "title": "237插件会话恢复并释租",
+      "detail": "原包、七份数据、18份偏好及原电源状态已恢复核对；不作为插件整体交付完成。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": []
+    },
+    {
+      "at": "2026-11-02T11:04:03+08:00",
+      "title": "197搜索历史重复计算已修，取得本机结果",
+      "detail": "197已复现并处理本机卡顿：同词点击主线程由2.116秒降至95.865毫秒，偏好回调由667毫秒降至52毫秒；历史记录反复规范化改为逐条生成比较键，保留原范围、去重和排序。同词只启动一次，仍返回三本本地结果。实际失败提示已去掉内部诊断码。",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/search197-history-fixed-trace-381/analysis/summary.json"
+      ]
+    },
+    {
+      "at": "2026-11-02T11:38:34+08:00",
+      "title": "197实际插件弹层及公开安装已核",
+      "detail": "共用管理页、订阅识别、手动安装及配置已接通。237真实正文已核下载算法、参数生效、关闭后同页恢复及预载；197已核公开插件安装、标准卡片留白与单一关闭按钮。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/plugins197-editor-402/screen.png"
+      ]
+    },
+    {
+      "id": "image-plugins-search197-restored-2026-11-02T12:08:09+08:00",
+      "at": "2026-11-02T12:08:09+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "197原包、数据及电源已恢复",
+      "detail": "原包安装成功，七项数据与三十偏好逐字相同；本轮新增规则文件已移除，最终睡眠与原超时读回，租约已释放。插件和搜索实际路径不再重复测试，继续代码及文档交付。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation/search197-final-power-readback-408/restoration-verified.json"
+      ]
+    },
+    {
+      "id": "plugins-ui-readme-pushed-2026-11-02T12:09:28+08:00",
+      "at": "2026-11-02T12:09:28+08:00",
+      "title": "插件管理与当前用法已推送",
+      "detail": "App运行时、共用管理页、实际搜索修复与README已推送；书源库旧入口也已更正。设备恢复已核，尚待本次提交CI结论。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "kind": "checkpoint",
+      "evidence": [
+        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b",
+        "koma-sources/master 27be07054e664d2dac9a9663f6f2b797d7b4b265"
+      ]
+    },
+    {
+      "id": "search_recent_tap_ui_stall-delivered-2026-11-02T12:22:29+08:00",
+      "at": "2026-11-02T12:22:29+08:00",
+      "itemId": "SEARCH_RECENT_TAP_UI_STALL",
+      "title": "197最近搜索卡顿修复已交付",
+      "detail": "同词点击主线程由约2.116秒降至约96毫秒，有效最近搜索与结果滚动连续原片已核；原设备恢复，修复已推送且CI通过。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/image-plugins-20261102/delivery-binding.json",
+        "https://github.com/honjow/Koma/actions/runs/41386807116"
+      ]
+    },
+    {
+      "id": "generic_baozi_banner_processing-delivered-2026-11-02T12:22:29+08:00",
+      "at": "2026-11-02T12:22:29+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "图片处理插件完整交付",
+      "detail": "独立插件目录与书源共用订阅管理，手动安装、配置、启停及更新已接入；真实正文与预载已核，公共弹层问题已更正，两设备恢复及精确CI完成，当前用法已公开。",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/image-plugins-20261102/delivery-binding.json",
+        "https://github.com/honjow/Koma/actions/runs/41386807116"
+      ]
     }
   ],
   "reportAgeAudit": {
