@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：图片插件启停交互已交付；其余未完成事项按下方原项保留。
+当前工作：书源管理的书源／图片插件分段切换已交付；其余未完成事项保留。
 
 设备：197本轮原包、数据及电源状态已恢复并释租；237已恢复释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "图片插件交互已交付",
+  "state": "书源管理分段已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T13:53:41+08:00",
+  "updatedAt": "2026-11-02T17:55:36+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "",
-  "activity": "图片插件总开关、单本跟随及独立启停已交付，设备恢复和CI均完成。其余未完成事项保留。",
-  "nextAction": "其余事项按各原项现有条件接续；已验路径保持。",
+  "activity": "书源管理已能直接切换图片插件，真机验证、设备恢复、推送与CI均完成。其余未完成事项保留。",
+  "nextAction": "其余事项按原项现有条件接续，已验范围保持。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5510,11 +5510,11 @@
       "kind": "accepted",
       "priority": "P3",
       "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
-      "status": "开关与单本跟随已验并交付",
+      "status": "书源／图片插件分段已验并交付",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "三选项已改为“使用图片插件”总开关；单本默认“使用全局设置”，可取消跟随独立启停。197已核全局关闭保存、单本开启重启保持、恢复跟随及返回原阅读页；浅色页状态栏已修正。原插件安装、配置及处理算法验收范围保留。",
+      "result": "书源管理顶部已增加书源／图片插件分段；两类列表与原功能共用。197已核菜单随分段更新、订阅返回保留分段、切回书源保留列表位置，以及新入口的全局开关保存。原阅读设置与单本入口保留。",
       "remaining": "",
       "remainingActions": [],
       "boundaries": [
@@ -5528,7 +5528,8 @@
         "用户本轮选择“新算法也要能通过订阅扩展”，并指出带运行时应称插件；本次目标为可下载图片处理插件，规则只是插件配置，不能把扩展限制为App预先内置的算法或横幅裁切。",
         "用户call_10944fb3123f4867a536d3ce817c07f6明确采用：全局阅读设置与阅读器共用管理页；可更新／已安装／可安装分组；名称、用途、版本和来源可见；订阅只更新目录，新插件手动安装开启；声明配置，更新保选择；页头进入同一订阅管理，下拉检查更新；原数据迁移保留。",
         "用户本轮明确指出插件卡片贴住半模态边缘。只补现有标准内容内边距；不改弹层尺寸、居中类型、红色卸载提示，不以主观偏好增删功能。",
-        "用户call_b8094eb4e6c84c7a9e43d90381f137f5采用：删除处理方式三选项；全局使用图片插件总开关；单本默认使用全局设置，取消跟随后独立启停；旧source/auto合并开启、off保留，插件按自身适用条件处理。"
+        "用户call_b8094eb4e6c84c7a9e43d90381f137f5采用：删除处理方式三选项；全局使用图片插件总开关；单本默认使用全局设置，取消跟随后独立启停；旧source/auto合并开启、off保留，插件按自身适用条件处理。",
+        "用户本轮直接要求在书源管理顶部添加分段按钮切换书源和图片插件；原阅读设置及单本入口、独立订阅、手动安装与启停合同保留。"
       ],
       "evidencePoints": [
         "ReaderPageSourceAdapter.ets prepareSourcePagePresentation 当前显式检查online.baozimh.koma、包子图片域、安装与BAOZI_BANNER；SourceBaoziBannerService/Detector 已做taskpool特征匹配与派生缓存。",
@@ -5542,7 +5543,7 @@
         "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
         "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T13:53:41+08:00",
+      "updatedAt": "2026-11-02T17:55:36+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5604,11 +5605,18 @@
         "Koma/master bb01371c266e64c3afcf20b7e8a8fd54611347ee已推（SSH22关闭后同库HTTPS成功）；精确CI41395319136进行中；reader-kit/main1866daf0cf7e29852e5a1aab7a5522cc03f0659c已推并固定为本Host依赖。",
         "koma-sources/master6de64e86e489ad2a27d33330a81346d89da493b4已推，当前用法与automatic适用合同同步；主README作者指南已修正为image-rules/plugins/README.md。",
         "Koma/master bb01371c266e64c3afcf20b7e8a8fd54611347ee精确CI41395319136 completed/success，Release构建、检查及上传成功；实际ohos-hap-unsigned产物已核，正式发布skipped。",
-        ".hvigor/outputs/image-plugin-switches-20261102/delivery-binding.json"
+        ".hvigor/outputs/image-plugin-switches-20261102/delivery-binding.json",
+        "本地首次构建在reader-kit生成BuildProfile时被沙盒拒写；沙盒外主机Node26又触发Hvigor recursive选项不兼容。切到已核DevEco自带Node24后build-sdk-node.log成功，未改共享源码或证书。",
+        "候选9d7957cce1877cf8e675b00b0b740ed53dc3906516590ee91b966d6c417f6a20；447安装明确成功，实际1.0.0/code6 release/debugfalse。449书源分段与451图片插件页均已亲审整图。",
+        "452由插件分段进入共用订阅页；453返回图片插件分段且总开关false，真实koma_reader_preferences_v1的reader.bannerFilter=off；450与454书源文本及bounds逐项相等。",
+        "444原包updateTime与上轮441原回装相同，446本轮新鲜备份；455回装原0.1.4/code5，456七JSON及30偏好逐字一致，457恢复SLEEP/120000ms/override10000ms，原租约已释放。",
+        "Koma/master90114b59c644a7537277436a701dc2265d6490ac已推，精确CI41422591453进行中。",
+        ".hvigor/outputs/source-manager-sections-20261102/delivery-binding.json",
+        "Koma/master90114b59c644a7537277436a701dc2265d6490ac精确CI41422591453 completed/success；构建、检查和上传均成功，实际ohos-hap-unsigned产物13130084548已核；正式发布skipped。分段复用KomaSegmentedControl的TabSegmentButtonV2，enableStateAnimation=true。"
       ],
       "stage": "已交付",
-      "closedAt": "2026-11-02T13:53:41+08:00",
-      "reopenedAt": "2026-11-02T12:44:19+08:00"
+      "closedAt": "2026-11-02T17:55:36+08:00",
+      "reopenedAt": "2026-11-02T17:32:08+08:00"
     }
   ],
   "source": {
@@ -14521,6 +14529,30 @@
       "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "图片插件开关交互完成",
       "detail": "总开关与单本继承、保存、返回路径已在197核实；用法已更新，设备已恢复，精确CI构建及产物检查通过。",
+      "kind": "accepted"
+    },
+    {
+      "id": "plugin-manager-sections-2026-11-02T17:32:08+08:00",
+      "at": "2026-11-02T17:32:08+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "书源管理增加图片插件分段",
+      "detail": "用户要求缩短插件入口路径；保留原设置入口与功能，在同页切换两类管理列表。",
+      "kind": "decision"
+    },
+    {
+      "id": "plugin-sections197-verified-2026-11-02T17:43:24+08:00",
+      "at": "2026-11-02T17:43:24+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "书源管理分段切换已验并推送",
+      "detail": "197核对书源与插件切换、原菜单、订阅返回、列表位置及全局开关保存；原包数据和电源已恢复并释租，等待本次CI。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "plugin-sections-ci-accepted-2026-11-02T17:55:36+08:00",
+      "at": "2026-11-02T17:55:36+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "书源／图片插件分段入口完成",
+      "detail": "同页分段及原功能已交付，选中态动画参数已启用；197普通路径与恢复已核，精确CI构建和产物检查通过。",
       "kind": "accepted"
     }
   ],

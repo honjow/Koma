@@ -5,21 +5,21 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
-  "runId": "plugin-switches-restore-power-443",
+  "runId": "plugin-sections-restore-power-457",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "final image plugin switches 3b32e908115665302b1cd170ec64f694803152092c2ee3662c6e1c44d9677c48; reader-kit1866daf",
-    "page": "Restore original timeout override and sleep; read final power state",
+    "codeIdentity": "source manager sections 9d7957cce1877cf8e675b00b0b740ed53dc3906516590ee91b966d6c417f6a20; reader-kit1866daf",
+    "page": "Restore original10000ms override and SLEEP after original package and all data restored",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "本轮图片插件总开关、单本继承与返回路径已验；197原包、七JSON、30偏好和原睡眠超时已恢复，租约已释放。该源清单保留最终恢复入口，后续操作须重新核实时target与租约。"
+    "notes": "197本轮分段入口验收已完成；原包、七JSON、30偏好及SLEEP/120000ms/override10000ms已读回恢复，租约已释放。下次设备操作须重新核实时target并取租约。"
   },
   "preflight": [],
   "measurement": {
