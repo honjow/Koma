@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：订阅与图片插件修正已交付；其余未关闭问题按原事项继续跟踪。
+当前结果：图像增强交接与旧翻页回调的两处竞态已修复交付。其余未关闭事项仍保留在原项。
 
-设备：197已结束操作并释租，保留开发包；237本轮未操作。200禁止操作，四私库搁置。
+设备：197与237本轮均已恢复原数据和电源状态并释租，保留开发包。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "本轮订阅与插件修正已交付",
+  "state": "本轮两处阅读器竞态已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T22:50:19+08:00",
+  "updatedAt": "2026-11-03T00:36:32+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "197普通路径、数据恢复与精确CI均已核对。",
-  "nextAction": "本轮交付无剩余动作；其他未关闭问题保留在原事项。",
+  "activeId": "",
+  "activity": "图像增强交接与旧选页回调修正已推送，237具名路径和远端构建通过。",
+  "nextAction": "其余未关闭问题按各原项保留，不重开已验收路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5926,6 +5926,68 @@
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
       ],
       "closedAt": "2026-11-02T22:50:19+08:00"
+    },
+    {
+      "id": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "title": "图像增强开启后图片出现又退回加载",
+      "kind": "accepted",
+      "priority": "P1（当前用户反馈）",
+      "owner": "Root",
+      "status": "已修复已证实竞态并验证",
+      "stage": "已交付",
+      "reportedAt": null,
+      "reportedAtSource": "本轮用户原话：打开图片插件之后，进入阅读的时候很容易出现闪烁问题。消息原始时间未提供。",
+      "registeredAt": "2026-11-02T23:09:46+08:00",
+      "updatedAt": "2026-11-03T00:36:32+08:00",
+      "result": "共享阅读器已保留原生解码完成的原图，直到增强结果真正接替。237用包子漫画《大奉打更人》带横幅页面走过水平入场、超分往返翻页及超分叠加裁边；画面出现后未退回加载。旧包录像未捕获用户原反例，未将其冒称复现。",
+      "remaining": "本轮已证实漏洞与具名路径已交付；原始偶发现场未捕获，未外推所有同类现象。",
+      "remainingActions": [],
+      "boundaries": [
+        "保留插件处理结果、启停语义和阅读位置；不改变既有界面样式。",
+        "原管理页及数据生命周期验收仍有效，本反馈重开的是阅读入场闪烁。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device197/record-before/summary.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device197/record-warm/summary.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device197/restore197-power/run-metadata.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/probe-decode-handoff-before.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device237/record-horizontal-sr-after/summary.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device237/record-horizontal-sr-crop/summary.json",
+        "reader-kit/main 2e46894；Koma/master ae1071e5；候选HAP SHA256 1ed4044bb8ea1be111cee13b1d327ebc34b91855dd4b73826181e9f5897bb320。",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device237/restore237-power/run-metadata.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/delivery-binding.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。"
+      ],
+      "closedAt": "2026-11-03T00:36:32+08:00"
+    },
+    {
+      "id": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "翻页时偶发退回前一页",
+      "kind": "accepted",
+      "priority": "P1（当前用户反馈）",
+      "owner": "Root",
+      "status": "已修复已证实竞态并验证",
+      "stage": "已交付",
+      "reportedAt": null,
+      "reportedAtSource": "用户本轮反馈：翻页过程中突然变成前一页，很难复现，怀疑加载竞争。确切消息时间未提供。",
+      "registeredAt": "2026-11-02T23:43:38+08:00",
+      "updatedAt": "2026-11-03T00:36:32+08:00",
+      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。",
+      "remaining": "本轮已证实漏洞与具名路径已交付；原始偶发现场未捕获，未外推所有同类现象。",
+      "remainingActions": [],
+      "boundaries": [
+        "保留用户最终选页与章节的绝对阅读顺序。",
+        "不以难复现否定反馈，不把推测当已确认原因。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/plugin-entry-flicker-20261102/page-rollback-before.log",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/page-rollback-after.log",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/device237/record-horizontal-sr-after/summary.json",
+        "reader-kit/main 2e46894；Koma/master ae1071e5。",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/delivery-binding.json",
+        ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。"
+      ],
+      "closedAt": "2026-11-03T00:36:32+08:00"
     }
   ],
   "source": {
@@ -15059,6 +15121,78 @@
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-artifacts.json",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
       ]
+    },
+    {
+      "id": "image_plugin_reader_entry_flicker-2026-11-02T23:09:46+08:00",
+      "at": "2026-11-02T23:09:46+08:00",
+      "title": "登记图片插件开启后的阅读闪烁",
+      "detail": "用户反馈开启插件后进入阅读容易闪烁，开始定位处理和显示切换，尚未确认原因。",
+      "itemId": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "kind": "open"
+    },
+    {
+      "id": "reader_async_page_rollback-2026-11-02T23:43:38+08:00",
+      "at": "2026-11-02T23:43:38+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "登记偶发翻页回退",
+      "detail": "用户报告翻页后偶发变成前一页，开始关联检查旧回调及布局恢复，尚未确认原因。",
+      "kind": "open"
+    },
+    {
+      "id": "enhancement-flicker-steering-2026-11-02T23:43:38+08:00",
+      "at": "2026-11-02T23:43:38+08:00",
+      "itemId": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "title": "用户缩小到增强开启场景，197已恢复",
+      "detail": "保留插件两个已录样本为未捕获反例；按最新反馈转查增强/裁边公共链。197测试数据与原插件缺省、电源已恢复并释租。",
+      "kind": "open"
+    },
+    {
+      "at": "2026-11-03T00:12:00+08:00",
+      "title": "增强闪烁与偶发退页已找到共享状态漏洞",
+      "id": "shared-reader-race-2026-11-03T00:12:00+08:00",
+      "itemId": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "detail": "原图解码至合成回执间的替换会重新进入加载；旧选页回调可重复写回前页。两处候选已接入真实执行验证，237普通路径继续，不据此宣称用户故障已关闭。",
+      "kind": "open"
+    },
+    {
+      "id": "image_plugin_reader_entry_flicker-2026-11-03T00:30:24+08:00-936",
+      "at": "2026-11-03T00:30:24+08:00",
+      "itemId": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "title": "超分与裁边真机路径已核",
+      "detail": "237带包子横幅作品，超分入场及往返、超分叠加裁边未见图片再退回加载；候选已推送，待精确CI。",
+      "kind": "open"
+    },
+    {
+      "id": "reader_async_page_rollback-2026-11-03T00:30:24+08:00-937",
+      "at": "2026-11-03T00:30:24+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "重复选页回调修正已推",
+      "detail": "修正旧回调重复提交，237往返页码和画面一致；原偶发现场未捕获，不扩称所有回退原因消失。",
+      "kind": "open"
+    },
+    {
+      "id": "image_plugin_reader_entry_flicker-2026-11-03T00:30:24+08:00-938",
+      "at": "2026-11-03T00:30:24+08:00",
+      "itemId": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "title": "237恢复并释租",
+      "detail": "原书库、阅读进度、首选项、搜索历史逐字恢复，原插件配置缺省保留，10000ms覆盖超时及睡眠读回；保留开发包。",
+      "kind": "open"
+    },
+    {
+      "id": "image_plugin_reader_entry_flicker-delivery-2026-11-03T00:36:32+08:00",
+      "at": "2026-11-03T00:36:32+08:00",
+      "itemId": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "title": "图像增强交接修正已交付",
+      "detail": "两仓修正已推，237超分、裁边与水平往返具名路径已核；精确CI成功，原始偶发现场未捕获的范围保留。设备数据及电源恢复并释租。",
+      "kind": "accepted"
+    },
+    {
+      "id": "reader_async_page_rollback-delivery-2026-11-03T00:36:32+08:00",
+      "at": "2026-11-03T00:36:32+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "旧翻页回调回写修正已交付",
+      "detail": "两仓修正已推，237超分、裁边与水平往返具名路径已核；精确CI成功，原始偶发现场未捕获的范围保留。设备数据及电源恢复并释租。",
+      "kind": "accepted"
     }
   ],
   "reportAgeAudit": {
