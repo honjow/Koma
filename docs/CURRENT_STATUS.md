@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：订阅与图片插件修正已通过197实际使用验证，正在提交交付。
+当前工作：订阅与图片插件修正已交付；其余未关闭问题按原事项继续跟踪。
 
 设备：197已结束操作并释租，保留开发包；237本轮未操作。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "修正订阅与图片插件职责",
+  "state": "本轮订阅与插件修正已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T22:32:29+08:00",
+  "updatedAt": "2026-11-02T22:50:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
-  "activity": "订阅、插件和阅读器子层已完成实际路径，正在审查提交。",
-  "nextAction": "提交推送并核对精确CI。",
+  "activity": "197普通路径、数据恢复与精确CI均已核对。",
+  "nextAction": "本轮交付无剩余动作；其他未关闭问题保留在原事项。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5507,19 +5507,16 @@
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "可订阅的图片插件",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P3",
       "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
-      "status": "订阅与插件职责已修正，197已验证",
+      "status": "订阅与插件职责修正已交付",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
       "result": "订阅只管理信息；插件独立安装、启停、配置和卸载。移除地址保留插件及设置，后台自动升级已移除。197实际路径及开关显示已核，数据与电源已恢复。",
-      "remaining": "提交并核对本次精确CI。",
-      "remainingActions": [
-        "审查提交并推送",
-        "核对本次精确CI及产物"
-      ],
+      "remaining": "本轮修正已交付。",
+      "remainingActions": [],
       "boundaries": [
         "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
         "订阅管理入口共用，粘贴地址后由App识别书源／图片规则类型，不要求用户手选；两类内容分组可见并独立消费。",
@@ -5546,7 +5543,7 @@
         "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
         "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T22:32:29+08:00",
+      "updatedAt": "2026-11-02T22:50:19+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5623,10 +5620,19 @@
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-config/screen.png",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-visible/screen.png",
-        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-power-restored/run-metadata.json"
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-power-restored/run-metadata.json",
+        {
+          "commit": "87b197b57210732a89f820535f690a29977f924e",
+          "runId": 41463140344,
+          "url": "https://github.com/honjow/Koma/actions/runs/41463140344",
+          "state": "completed/success",
+          "artifactId": 13149744331,
+          "artifact": "ohos-hap-unsigned"
+        },
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
       ],
-      "stage": "待提交交付",
-      "closedAt": null,
+      "stage": "已验收",
+      "closedAt": "2026-11-02T22:50:19+08:00",
       "reopenedAt": "2026-11-02T21:50:06+08:00",
       "subscriptionPluginAudit": {
         "at": "2026-11-02T21:50:06+08:00",
@@ -5783,14 +5789,15 @@
         "implementationResult": {
           "at": "2026-11-02T22:32:29+08:00",
           "executor": "Root",
-          "status": "14项检查结果已落实，待本次提交和精确CI",
+          "status": "14项修正已交付，197普通路径及精确CI通过",
           "logicEvidence": ".hvigor/outputs/plugin-lifecycle-repair-20261102/storage-test-final.log",
           "deviceEvidence": [
             ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-subscription-menu/screen.png",
             ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-config/screen.png",
             ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-visible/screen.png"
           ],
-          "scope": "存储迁移/编辑与移除保留/执行顺序/坏包与写盘/读取失败/迟到安装由生产逻辑执行验证；197验证普通订阅与安装启停、配置、移除保留。算法正文效果沿用已有具名验收，本轮未重复测试。"
+          "scope": "存储迁移/编辑与移除保留/执行顺序/坏包与写盘/读取失败/迟到安装由生产逻辑执行验证；197验证普通订阅与安装启停、配置、移除保留。算法正文效果沿用已有具名验收，本轮未重复测试。",
+          "closedAt": "2026-11-02T22:50:19+08:00"
         },
         "supersededBoundaries": [
           "用户本轮明确：订阅里面只管理订阅信息；插件管理独立。旧边界与本轮检查记录一并保留，检查不授权执行产品改动。",
@@ -5845,20 +5852,18 @@
     {
       "id": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
       "title": "图片插件切回书源时右上角闪蓝",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1（当前用户反馈）",
       "owner": "Root",
-      "status": "闪蓝修正已验，待交付",
-      "stage": "待提交交付",
+      "status": "闪蓝已修，分段动画保留",
+      "stage": "已验收",
       "reportedAt": null,
       "reportedAtSource": "本会话用户本轮直接反馈；原始提出时间未核实。",
       "registeredAt": "2026-11-02T19:29:45+08:00",
-      "updatedAt": "2026-11-02T22:32:29+08:00",
+      "updatedAt": "2026-11-02T22:50:19+08:00",
       "result": "197连续录像中切回书源不再出现蓝色圆底，分段胶囊滑动动画保留。业务挂载与分段动画事务已隔离。",
-      "remaining": "提交并核对本次精确CI。",
-      "remainingActions": [
-        "审查提交和精确CI"
-      ],
+      "remaining": "本轮修正已交付。",
+      "remainingActions": [],
       "boundaries": [
         "保留分段动画、现有两段内容、右上角筛选与订阅入口，以及系统材质。"
       ],
@@ -5869,26 +5874,34 @@
         ".hvigor/outputs/source-manager-flash-20261102/contract-blue-counts.json",
         ".hvigor/outputs/source-manager-flash-20261102/animation-blue-counts.json",
         ".hvigor/outputs/source-manager-flash-20261102/segment-animation-observation.json",
-        ".hvigor/outputs/source-manager-flash-20261102/segment-animation-contact.png"
-      ]
+        ".hvigor/outputs/source-manager-flash-20261102/segment-animation-contact.png",
+        {
+          "commit": "87b197b57210732a89f820535f690a29977f924e",
+          "runId": 41463140344,
+          "url": "https://github.com/honjow/Koma/actions/runs/41463140344",
+          "state": "completed/success",
+          "artifactId": 13149744331,
+          "artifact": "ohos-hap-unsigned"
+        },
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
+      ],
+      "closedAt": "2026-11-02T22:50:19+08:00"
     },
     {
       "id": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
       "title": "阅读器内图片插件入口被归在裁边且跳出阅读设置",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "P1（当前用户反馈）",
       "owner": "Root",
-      "status": "独立子半模态及返回已验，待交付",
-      "stage": "待提交交付",
+      "status": "独立子半模态及返回已修",
+      "stage": "已验收",
       "reportedAt": null,
       "reportedAtSource": "本会话用户本轮直接反馈；原始提出时间未核实。",
       "registeredAt": "2026-11-02T19:29:45+08:00",
-      "updatedAt": "2026-11-02T22:32:29+08:00",
+      "updatedAt": "2026-11-02T22:50:19+08:00",
       "result": "插件入口已独立于裁边。197确认插件、模型管理新开半高子层，关闭后返回原父层位置；子层使用公共标题栏、留白和系统材质，顶部不再重复占位。",
-      "remaining": "提交并核对本次精确CI。",
-      "remainingActions": [
-        "审查提交和精确CI"
-      ],
+      "remaining": "本轮修正已交付。",
+      "remainingActions": [],
       "boundaries": [
         "保留插件功能、配置和启停语义；阅读中管理保留当前漫画及阅读位置。",
         "用户明确要求新建第二层半模态实例，保留第一层阅读设置及滚动位置；不得在同一个半模态替换内容。模型管理有相同问题，关联修复。",
@@ -5901,8 +5914,18 @@
         ".hvigor/outputs/source-manager-flash-20261102/device197/reader-extended-models-return/screen.png",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-plugin-layer/screen.png",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-return/screen.png",
-        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png"
-      ]
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png",
+        {
+          "commit": "87b197b57210732a89f820535f690a29977f924e",
+          "runId": 41463140344,
+          "url": "https://github.com/honjow/Koma/actions/runs/41463140344",
+          "state": "completed/success",
+          "artifactId": 13149744331,
+          "artifact": "ohos-hap-unsigned"
+        },
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
+      ],
+      "closedAt": "2026-11-02T22:50:19+08:00"
     }
   ],
   "source": {
@@ -14984,6 +15007,57 @@
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-plugin-layer/screen.png",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-return/screen.png",
         ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png"
+      ]
+    },
+    {
+      "id": "plugin-lifecycle-pushed-2026-11-02T22:35:46+08:00",
+      "at": "2026-11-02T22:35:46+08:00",
+      "title": "订阅、插件与阅读器子层修复已推送",
+      "detail": "197实际路径和恢复已完成；本次精确CI待结果，未发布新App版本。",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "kind": "open",
+      "evidence": [
+        "87b197b57210732a89f820535f690a29977f924e",
+        "https://github.com/honjow/Koma/actions/runs/41463140344"
+      ]
+    },
+    {
+      "id": "generic_baozi_banner_processing-delivered-2026-11-02T22:50:19+08:00",
+      "at": "2026-11-02T22:50:19+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "订阅与插件职责修正已交付",
+      "detail": "订阅只管理信息；插件独立安装、启停、配置和卸载。移除地址保留插件及设置，后台自动升级已移除。197实际路径及开关显示已核，数据与电源已恢复。 本次精确CI构建、检查和上传均成功。",
+      "kind": "accepted",
+      "evidence": [
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-result.json",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-artifacts.json",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
+      ]
+    },
+    {
+      "id": "source_manager_section_action_flash-delivered-2026-11-02T22:50:19+08:00",
+      "at": "2026-11-02T22:50:19+08:00",
+      "itemId": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
+      "title": "闪蓝已修，分段动画保留",
+      "detail": "197连续录像中切回书源不再出现蓝色圆底，分段胶囊滑动动画保留。业务挂载与分段动画事务已隔离。 本次精确CI构建、检查和上传均成功。",
+      "kind": "accepted",
+      "evidence": [
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-result.json",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-artifacts.json",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
+      ]
+    },
+    {
+      "id": "reader_image_plugins_sheet_entry-delivered-2026-11-02T22:50:19+08:00",
+      "at": "2026-11-02T22:50:19+08:00",
+      "itemId": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "独立子半模态及返回已修",
+      "detail": "插件入口已独立于裁边。197确认插件、模型管理新开半高子层，关闭后返回原父层位置；子层使用公共标题栏、留白和系统材质，顶部不再重复占位。 本次精确CI构建、检查和上传均成功。",
+      "kind": "accepted",
+      "evidence": [
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-result.json",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/ci-artifacts.json",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/delivery-binding.json"
       ]
     }
   ],
