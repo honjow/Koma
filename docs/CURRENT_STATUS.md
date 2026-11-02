@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：源码构建依赖问题已修复，本地与干净CI构建均通过；其余未完成事项保留。
+当前工作：订阅与图片插件修正已通过197实际使用验证，正在提交交付。
 
-设备：197本轮原包、数据及电源状态已恢复并释租；237已恢复释租。200禁止操作，四私库搁置。
+设备：197已结束操作并释租，保留开发包；237本轮未操作。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "源码构建依赖已修复",
+  "state": "修正订阅与图片插件职责",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T19:20:37+08:00",
+  "updatedAt": "2026-11-02T22:32:29+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "",
-  "activity": "共享阅读器已纳入仓内固定子模块，本地及干净CI构建均通过；源码构建步骤已补齐。",
-  "nextAction": "其余未完成事项保留原状态与边界，按原项条件接续。",
+  "activeId": "GENERIC_BAOZI_BANNER_PROCESSING",
+  "activity": "订阅、插件和阅读器子层已完成实际路径，正在审查提交。",
+  "nextAction": "提交推送并核对精确CI。",
   "proof": [
     {
       "label": "正式主仓",
@@ -77,7 +77,7 @@
       "hap": "本轮未安装或验收该宿主，既有已接受范围见原任务。"
     }
   ],
-  "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。",
+  "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
       "id": "READER_ENHANCEMENT_THEME_CONTRAST",
@@ -5507,24 +5507,27 @@
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
       "title": "可订阅的图片插件",
-      "kind": "accepted",
+      "kind": "open",
       "priority": "P3",
       "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
-      "status": "书源／图片插件分段已验并交付",
+      "status": "订阅与插件职责已修正，197已验证",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "书源管理顶部已增加书源／图片插件分段；两类列表与原功能共用。197已核菜单随分段更新、订阅返回保留分段、切回书源保留列表位置，以及新入口的全局开关保存。原阅读设置与单本入口保留。",
-      "remaining": "",
-      "remainingActions": [],
+      "result": "订阅只管理信息；插件独立安装、启停、配置和卸载。移除地址保留插件及设置，后台自动升级已移除。197实际路径及开关显示已核，数据与电源已恢复。",
+      "remaining": "提交并核对本次精确CI。",
+      "remainingActions": [
+        "审查提交并推送",
+        "核对本次精确CI及产物"
+      ],
       "boundaries": [
         "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
         "订阅管理入口共用，粘贴地址后由App识别书源／图片规则类型，不要求用户手选；两类内容分组可见并独立消费。",
-        "规则订阅必须可查看名称、用途、版本及启用状态；自动更新有可见开关，仅作用于用户添加且启用的规则订阅。",
-        "用户主动启停或移除改变当前处理结果；自动更新不重置当前阅读。原始下载和普通CBZ保留原图。",
+        "订阅里面只管理订阅信息；插件安装、启停、配置、手动更新和卸载归统一插件管理。旧详情页及跳转移除。",
+        "移除或修改订阅地址保留已安装插件、配置、启停及原来源；旧停用状态迁移到插件，不保留隐藏订阅执行开关或自动升级。原始下载和普通CBZ保留原图。",
         "此前裁剪样本证明保留为算法范围；不作为重做后的订阅管理验收。不得用原CI或README宣告新流程完成。",
         "用户本轮澄清：外部规则可以明确写包子与横幅；禁止App硬编码站点特例，不等于规则元数据必须隐去处理对象。界面安排先讨论，不能自行做完再简单交代。",
-        "用户否定新增横幅过滤专用页并指出图片规则不能被限定为去横幅；该页方案撤回，通用处理接口及整体用户流程尚在讨论，未开始新界面改动。",
+        "功能范围为可订阅扩展的新图片算法，沿用已采用的统一图片插件管理，不新增横幅过滤专用页。",
         "用户本轮选择“新算法也要能通过订阅扩展”，并指出带运行时应称插件；本次目标为可下载图片处理插件，规则只是插件配置，不能把扩展限制为App预先内置的算法或横幅裁切。",
         "用户call_10944fb3123f4867a536d3ce817c07f6明确采用：全局阅读设置与阅读器共用管理页；可更新／已安装／可安装分组；名称、用途、版本和来源可见；订阅只更新目录，新插件手动安装开启；声明配置，更新保选择；页头进入同一订阅管理，下拉检查更新；原数据迁移保留。",
         "用户本轮明确指出插件卡片贴住半模态边缘。只补现有标准内容内边距；不改弹层尺寸、居中类型、红色卸载提示，不以主观偏好增删功能。",
@@ -5543,7 +5546,7 @@
         "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
         "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T17:55:36+08:00",
+      "updatedAt": "2026-11-02T22:32:29+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5612,11 +5615,190 @@
         "444原包updateTime与上轮441原回装相同，446本轮新鲜备份；455回装原0.1.4/code5，456七JSON及30偏好逐字一致，457恢复SLEEP/120000ms/override10000ms，原租约已释放。",
         "Koma/master90114b59c644a7537277436a701dc2265d6490ac已推，精确CI41422591453进行中。",
         ".hvigor/outputs/source-manager-sections-20261102/delivery-binding.json",
-        "Koma/master90114b59c644a7537277436a701dc2265d6490ac精确CI41422591453 completed/success；构建、检查和上传均成功，实际ohos-hap-unsigned产物13130084548已核；正式发布skipped。分段复用KomaSegmentedControl的TabSegmentButtonV2，enableStateAnimation=true。"
+        "Koma/master90114b59c644a7537277436a701dc2265d6490ac精确CI41422591453 completed/success；构建、检查和上传均成功，实际ohos-hap-unsigned产物13130084548已核；正式发布skipped。分段复用KomaSegmentedControl的TabSegmentButtonV2，enableStateAnimation=true。",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/storage-test-final.log",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/build-row-state.log",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-subscription-menu/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-plugin-layer/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-config/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-visible/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-power-restored/run-metadata.json"
       ],
-      "stage": "已交付",
-      "closedAt": "2026-11-02T17:55:36+08:00",
-      "reopenedAt": "2026-11-02T17:32:08+08:00"
+      "stage": "待提交交付",
+      "closedAt": null,
+      "reopenedAt": "2026-11-02T21:50:06+08:00",
+      "subscriptionPluginAudit": {
+        "at": "2026-11-02T21:50:06+08:00",
+        "mode": "源码、引入历史、文档及既有截图检查；未改应用代码、未构建、未操作设备",
+        "priorStatus": "书源／图片插件分段已验并交付",
+        "priorResult": "书源管理顶部已增加书源／图片插件分段；两类列表与原功能共用。197已核菜单随分段更新、订阅返回保留分段、切回书源保留列表位置，以及新入口的全局开关保存。原阅读设置与单本入口保留。",
+        "priorBoundary": "规则订阅必须可查看名称、用途、版本及启用状态；自动更新有可见开关，仅作用于用户添加且启用的规则订阅。",
+        "findings": [
+          {
+            "id": "subscription-execution-gate",
+            "problem": "插件订阅同时充当执行总开关，书源订阅仅管理目录；同名订阅职责不一致。",
+            "effect": "订阅停用会使已安装且开关开启的插件无法执行。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageRuleStore.ets:112",
+              "entry/src/main/ets/components/ImagePluginsListContent.ets:107"
+            ]
+          },
+          {
+            "id": "orphaned-controls-wip",
+            "problem": "本轮未提交改动删除旧详情页和两个设置入口，后台及持久开关仍保留。",
+            "effect": "已有订阅停用或自动更新状态失去界面控制；候选未安装。",
+            "evidence": [
+              "entry/src/main/ets/pages/ImageRuleSubscriptionPage.ets（工作树删除）",
+              "entry/src/main/ets/pages/SourceSubscriptionsPage.ets:201",
+              "entry/src/main/ets/entryability/EntryAbility.ets:171"
+            ]
+          },
+          {
+            "id": "automatic-installed-code-update",
+            "problem": "自动更新会下载并替换已安装WASM算法，旧规则订阅默认开启此调度。",
+            "effect": "目录检查和已装算法升级被一个订阅开关绑定；开启记录仍可在前台恢复时触发。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageRuleStore.ets:183",
+              "entry/src/main/ets/model/ImageRuleStore.ets:320"
+            ]
+          },
+          {
+            "id": "remove-subscription-removes-installed",
+            "problem": "移除插件订阅直接删除整条记录，已安装算法、启停和配置也包含在该记录中。",
+            "effect": "信息管理中的移除实质同时卸载；与书源订阅移除保留已装书源不同。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageBannerRules.ets:24",
+              "entry/src/main/ets/model/ImageRuleStore.ets:218",
+              "entry/src/main/ets/sourceRuntime/SourceIndexService.ets:453"
+            ]
+          },
+          {
+            "id": "legacy-add-refresh-bypasses-install",
+            "problem": "旧数据式规则在添加时直接进入已安装集合，刷新直接替换生效规则；新WASM插件需安装并开启。",
+            "effect": "同一个订阅操作具有两套激活语义。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageRuleStore.ets:181",
+              "entry/src/main/ets/model/ImageRuleStore.ets:312",
+              "entry/src/main/ets/model/ImagePluginManagement.ets:35"
+            ]
+          },
+          {
+            "id": "address-edit-reparents-installed",
+            "problem": "修改插件订阅地址时无条件把旧已装插件、开关和配置转挂新订阅。",
+            "effect": "新地址属于另一发布者时，旧插件的显示来源及后续更新来源也随之改变。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageRuleStore.ets:197",
+              "entry/src/main/ets/pages/SourceSubscriptionsPage.ets:109"
+            ]
+          },
+          {
+            "id": "update-reorders-processing",
+            "problem": "更新已装插件使用删除旧项再追加到末尾。",
+            "effect": "多个插件的执行顺序会随更新改变，组合输出可能改变。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageRuleStore.ets:264",
+              "entry/src/main/ets/model/ImagePluginService.ets:19"
+            ]
+          },
+          {
+            "id": "duplicate-id-across-subscriptions",
+            "problem": "不同订阅提供同ID插件时分别列出和安装，没有来源冲突选择。",
+            "effect": "两个版本都开启时会连续处理同一图片；仅完全相同算法、配置和输出编码被执行层去重。",
+            "evidence": [
+              "entry/src/main/ets/model/ImagePluginManagement.ets:23",
+              "entry/src/main/ets/model/ImagePluginService.ets:28"
+            ]
+          },
+          {
+            "id": "partial-refresh-errors",
+            "problem": "订阅页顺序刷新遇首个插件订阅失败就中断；插件页则继续其他订阅，两处行为不一致。",
+            "effect": "失败地址缺少行内状态，用户无法判断哪些已检查、哪些未检查。",
+            "evidence": [
+              "entry/src/main/ets/pages/SourceSubscriptionsPage.ets:241",
+              "entry/src/main/ets/pages/ImagePluginsPage.ets:84"
+            ]
+          },
+          {
+            "id": "silent-read-and-runtime-failures",
+            "problem": "本地配置读取失败被转换为空订阅；插件运行错误仅写日志并沿用原图。",
+            "effect": "空列表和读取失败难以区分；插件开启却无效果时缺少可查看的失败状态。",
+            "evidence": [
+              "entry/src/main/ets/model/ImageRuleStore.ets:92",
+              "entry/src/main/ets/model/ImagePluginService.ets:130"
+            ]
+          },
+          {
+            "id": "book-global-scope-mixed",
+            "problem": "阅读中管理页顶部设置当前漫画，下面插件启停、配置和卸载却写全局存储。",
+            "effect": "文案未明确这两种作用范围，容易误认为只修改当前漫画。",
+            "evidence": [
+              "entry/src/main/ets/pages/ImagePluginsPage.ets:75",
+              "entry/src/main/ets/components/ImagePluginsListContent.ets:90",
+              "entry/src/main/ets/components/ImagePluginsListContent.ets:108"
+            ]
+          },
+          {
+            "id": "embedded-surface-and-unverified-header",
+            "problem": "内嵌插件及订阅列表仍绘制整块BG_SUB实色背景；顶部浮动拖拽条修正尚未实机核实。",
+            "effect": "内容区域会盖住背板材质；当前候选的材质呈现与顶部留白保留未验。",
+            "evidence": [
+              "entry/src/main/ets/components/PullRefreshListScaffold.ets:168",
+              "entry/src/main/ets/pages/ImagePluginsPage.ets:94",
+              "entry/src/main/ets/components/KomaModalScaffold.ets:10"
+            ]
+          },
+          {
+            "id": "docs-and-work-order-drift",
+            "problem": "README工作树说明已隐藏旧控制入口，协议仍描述自动调度；原验收结论未覆盖上述生命周期问题。",
+            "effect": "文档与实际可控制能力不一致，局部入口验收被扩大为整套完成。",
+            "evidence": [
+              "README.md:108",
+              "docs/subscription-image-rules.md:54",
+              "docs/CURRENT_STATUS.md:GENERIC_BAOZI_BANNER_PROCESSING"
+            ]
+          },
+          {
+            "id": "installed-toggle-stale-display",
+            "problem": "197上插件已保存为开启，ForEach复用旧DTO闭包，列表开关仍显示关闭。",
+            "effect": "可见状态与保存状态不一致，旧脚本PASS未作为验收。",
+            "evidence": [
+              ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-detached-plugin-visible/screen.png"
+            ],
+            "resolution": "行渲染身份包含实际显示状态；197最新候选首次关闭、开启、移除订阅后及配置返回均与保存状态一致。",
+            "verification": [
+              ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-plugin-enabled/screen.png",
+              ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-visible/screen.png"
+            ]
+          }
+        ],
+        "preservedFacts": [
+          "当前App不携带具体插件和默认订阅，书源目录不隐式添加图片插件订阅。",
+          "新WASM插件添加仅下载目录和清单，安装才下载算法，新装默认关闭。",
+          "算法ABI支持独立可下载处理器，包含摘要校验、受限Host导入及执行时间限制。",
+          "源码保留原图下载/普通CBZ、处理后单图分享与完整插件备份路径；本轮未重新实机验收。"
+        ],
+        "authority": "用户本轮要求重新完整检查；保持应用修改、构建、设备与推送停止。",
+        "implementationAuthorization": "用户在完整检查后明确要求“那就改改改”；本轮按订阅只管理信息、插件独立管理的要求实施。",
+        "implementationResult": {
+          "at": "2026-11-02T22:32:29+08:00",
+          "executor": "Root",
+          "status": "14项检查结果已落实，待本次提交和精确CI",
+          "logicEvidence": ".hvigor/outputs/plugin-lifecycle-repair-20261102/storage-test-final.log",
+          "deviceEvidence": [
+            ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-subscription-menu/screen.png",
+            ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-config/screen.png",
+            ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-visible/screen.png"
+          ],
+          "scope": "存储迁移/编辑与移除保留/执行顺序/坏包与写盘/读取失败/迟到安装由生产逻辑执行验证；197验证普通订阅与安装启停、配置、移除保留。算法正文效果沿用已有具名验收，本轮未重复测试。"
+        },
+        "supersededBoundaries": [
+          "用户本轮明确：订阅里面只管理订阅信息；插件管理独立。旧边界与本轮检查记录一并保留，检查不授权执行产品改动。",
+          "用户主动启停或移除改变当前处理结果；自动更新不重置当前阅读。原始下载和普通CBZ保留原图。",
+          "用户否定新增横幅过滤专用页并指出图片规则不能被限定为去横幅；该页方案撤回，通用处理接口及整体用户流程尚在讨论，未开始新界面改动。"
+        ]
+      },
+      "currentExecutor": "Root：197普通路径及本轮交付"
     },
     {
       "id": "READER_KIT_SELF_CONTAINED_BUILD",
@@ -5659,6 +5841,68 @@
       ],
       "updatedAt": "2026-11-02T19:20:37+08:00",
       "closedAt": "2026-11-02T19:20:37+08:00"
+    },
+    {
+      "id": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
+      "title": "图片插件切回书源时右上角闪蓝",
+      "kind": "open",
+      "priority": "P1（当前用户反馈）",
+      "owner": "Root",
+      "status": "闪蓝修正已验，待交付",
+      "stage": "待提交交付",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户本轮直接反馈；原始提出时间未核实。",
+      "registeredAt": "2026-11-02T19:29:45+08:00",
+      "updatedAt": "2026-11-02T22:32:29+08:00",
+      "result": "197连续录像中切回书源不再出现蓝色圆底，分段胶囊滑动动画保留。业务挂载与分段动画事务已隔离。",
+      "remaining": "提交并核对本次精确CI。",
+      "remainingActions": [
+        "审查提交和精确CI"
+      ],
+      "boundaries": [
+        "保留分段动画、现有两段内容、右上角筛选与订阅入口，以及系统材质。"
+      ],
+      "evidencePoints": [],
+      "evidence": [
+        ".hvigor/outputs/source-manager-flash-20261102/build-fixed.log",
+        ".hvigor/outputs/source-manager-flash-20261102/before-toolbar-contact.png",
+        ".hvigor/outputs/source-manager-flash-20261102/contract-blue-counts.json",
+        ".hvigor/outputs/source-manager-flash-20261102/animation-blue-counts.json",
+        ".hvigor/outputs/source-manager-flash-20261102/segment-animation-observation.json",
+        ".hvigor/outputs/source-manager-flash-20261102/segment-animation-contact.png"
+      ]
+    },
+    {
+      "id": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "阅读器内图片插件入口被归在裁边且跳出阅读设置",
+      "kind": "open",
+      "priority": "P1（当前用户反馈）",
+      "owner": "Root",
+      "status": "独立子半模态及返回已验，待交付",
+      "stage": "待提交交付",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户本轮直接反馈；原始提出时间未核实。",
+      "registeredAt": "2026-11-02T19:29:45+08:00",
+      "updatedAt": "2026-11-02T22:32:29+08:00",
+      "result": "插件入口已独立于裁边。197确认插件、模型管理新开半高子层，关闭后返回原父层位置；子层使用公共标题栏、留白和系统材质，顶部不再重复占位。",
+      "remaining": "提交并核对本次精确CI。",
+      "remainingActions": [
+        "审查提交和精确CI"
+      ],
+      "boundaries": [
+        "保留插件功能、配置和启停语义；阅读中管理保留当前漫画及阅读位置。",
+        "用户明确要求新建第二层半模态实例，保留第一层阅读设置及滚动位置；不得在同一个半模态替换内容。模型管理有相同问题，关联修复。",
+        "用户最新要求本次子半模态默认半高，需要时上拉展开，不直接全高。"
+      ],
+      "evidencePoints": [],
+      "evidence": [
+        ".hvigor/outputs/source-manager-flash-20261102/build-fixed.log",
+        ".hvigor/outputs/source-manager-flash-20261102/device197/reader-layers-plugins-open/screen.png",
+        ".hvigor/outputs/source-manager-flash-20261102/device197/reader-extended-models-return/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-plugin-layer/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-return/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png"
+      ]
     }
   ],
   "source": {
@@ -14628,6 +14872,119 @@
       "title": "源码构建依赖问题已关闭",
       "detail": "同一版本共享阅读器已固定在仓内；本地Release和干净CI全流程通过，产物清单版本一致，构建说明及进度服务已同步。",
       "kind": "accepted"
+    },
+    {
+      "id": "source_manager_section_action_flash-2026-11-02T19:29:45+08:00",
+      "at": "2026-11-02T19:29:45+08:00",
+      "itemId": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
+      "title": "图片插件切回书源时右上角闪蓝",
+      "detail": "源码显示分段切换会在文字按钮和图标菜单间替换；正在核对连续画面，原因尚未确认。",
+      "kind": "open"
+    },
+    {
+      "id": "reader_image_plugins_sheet_entry-2026-11-02T19:29:45+08:00",
+      "at": "2026-11-02T19:29:45+08:00",
+      "itemId": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "阅读器内图片插件入口被归在裁边且跳出阅读设置",
+      "detail": "用户要求图片插件独立于裁边设置，并考虑复用二级半模态留在阅读器中管理。待当前闪色定位后接续。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-nested-sheet-decision-2026-11-02T19:52:07+08:00",
+      "at": "2026-11-02T19:52:07+08:00",
+      "itemId": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "阅读设置保留，子管理页使用独立半模态",
+      "detail": "用户明确不接受替换同一个半模态的内容；图片插件和模型管理都保留父层，关闭子层后能返回。197开发机不再例行降级。",
+      "kind": "open"
+    },
+    {
+      "id": "source_manager_section_action_flash-built-2026-11-02T19:59:37+08:00",
+      "at": "2026-11-02T19:59:37+08:00",
+      "itemId": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
+      "title": "修正已编译，进入设备验证",
+      "detail": "已为分段切换的文字与图标操作显式设置正常颜色，保留原布局及动画；本地构建通过。连续画面尚未核实。",
+      "kind": "open"
+    },
+    {
+      "id": "reader_image_plugins_sheet_entry-built-2026-11-02T19:59:37+08:00",
+      "at": "2026-11-02T19:59:37+08:00",
+      "itemId": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "修正已编译，进入设备验证",
+      "detail": "图片插件已独立于裁边分组；插件、模型管理和滤镜均改为新开子半模态，保留父层；订阅管理沿用现有组件。已编译，返回体验尚待实机核实。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-sheet-half-decision-2026-11-02T20:39:04+08:00",
+      "at": "2026-11-02T20:39:04+08:00",
+      "itemId": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "子半模态默认改为半高",
+      "detail": "保留父层返回已通过；用户要求默认半高，已编译新高度，支持上拉展开。",
+      "kind": "open"
+    },
+    {
+      "id": "subscription-plugin-full-audit-2026-11-02T21:50:06+08:00",
+      "at": "2026-11-02T21:50:06+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "订阅与插件完整检查发现生命周期缺陷",
+      "detail": "重新打开原项，保留既有分段与算法验收。检查确认订阅控制执行/自动升级、移除连带删除已装插件、更新改执行顺序等问题；本轮只检查及记录，未改应用代码、未构建或操作设备。",
+      "kind": "open",
+      "evidence": [
+        "entry/src/main/ets/model/ImageRuleStore.ets",
+        "entry/src/main/ets/model/ImagePluginManagement.ets",
+        "entry/src/main/ets/components/ImagePluginsListContent.ets",
+        "entry/src/main/ets/pages/SourceSubscriptionsPage.ets"
+      ]
+    },
+    {
+      "id": "plugin-lifecycle-built-2026-11-02T22:06:11+08:00",
+      "at": "2026-11-02T22:06:11+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "订阅与安装数据已拆分并通过本地验证",
+      "detail": "目录刷新不再激活或升级算法；已有停用状态迁移到插件，移除地址保留已装版本与配置，更新保持执行顺序。首轮ArkTS编译语法问题已更正，签名构建通过；设备结果尚未验证。",
+      "kind": "open",
+      "evidence": [
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/storage-test.log",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/build-fixed.log"
+      ]
+    },
+    {
+      "id": "generic_baozi_banner_processing-verified-2026-11-02T22:32:29+08:00",
+      "at": "2026-11-02T22:32:29+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "订阅与插件生命周期完成197验证",
+      "detail": "订阅只管理信息；插件独立安装、启停、配置和卸载。移除地址保留插件及设置，后台自动升级已移除。197实际路径及开关显示已核，数据与电源已恢复。",
+      "kind": "open",
+      "evidence": [
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-config/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-capture-detached-plugin-visible/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-5-power-restored/run-metadata.json"
+      ]
+    },
+    {
+      "id": "source_manager_section_action_flash-verified-2026-11-02T22:32:29+08:00",
+      "at": "2026-11-02T22:32:29+08:00",
+      "itemId": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
+      "title": "分段闪蓝修正并保留动画",
+      "detail": "197连续录像中切回书源不再出现蓝色圆底，分段胶囊滑动动画保留。业务挂载与分段动画事务已隔离。",
+      "kind": "open",
+      "evidence": [
+        ".hvigor/outputs/source-manager-flash-20261102/animation-blue-counts.json",
+        ".hvigor/outputs/source-manager-flash-20261102/segment-animation-observation.json",
+        ".hvigor/outputs/source-manager-flash-20261102/segment-animation-contact.png"
+      ]
+    },
+    {
+      "id": "reader_image_plugins_sheet_entry-verified-2026-11-02T22:32:29+08:00",
+      "at": "2026-11-02T22:32:29+08:00",
+      "itemId": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "title": "阅读器插件与模型子层完成返回核对",
+      "detail": "插件入口已独立于裁边。197确认插件、模型管理新开半高子层，关闭后返回原父层位置；子层使用公共标题栏、留白和系统材质，顶部不再重复占位。",
+      "kind": "open",
+      "evidence": [
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-plugin-layer/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-return/screen.png",
+        ".hvigor/outputs/plugin-lifecycle-repair-20261102/device197/lifecycle-4-capture-reader-model-layer/screen.png"
+      ]
     }
   ],
   "reportAgeAudit": {

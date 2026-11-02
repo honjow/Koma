@@ -8,6 +8,7 @@ import { imagePluginNative } from './ImagePluginNative'
 import { ImagePluginPlan, ImagePluginConfiguration, ImagePluginContext, imagePluginDefaults, ImagePluginOutput,
   imagePluginStraightAlpha } from './ImageProcessingPlugins'
 import { ImageRuleSnapshot, BannerFilterMode, ImageProcessingHint } from './ImageBannerRules'
+import { connectImageRuleState } from '../state/ImageRuleState'
 
 interface ProcessedPluginBytes { bytes: ArrayBuffer; extension: string }
 
@@ -28,7 +29,8 @@ export function imagePluginPlans(snapshot: ImageRuleSnapshot, policy: BannerFilt
     const identity = JSON.stringify([plugin.processor.sha256, configuration, plugin.output])
     if (seen.has(identity)) continue
     seen.add(identity)
-    plans.push({ plugin, configuration, revision: JSON.stringify([record.origin, plugin.id, plugin.version, record.revision]) })
+    plans.push({ plugin, configuration, key: JSON.stringify([record.origin, plugin.id, plugin.id]),
+      revision: JSON.stringify([record.origin, plugin.id, plugin.version, record.revision]) })
   }
   return plans
 }
@@ -96,6 +98,17 @@ export class ImagePluginService {
   private static transforms: Map<string, Promise<string | undefined>> = new Map()
   private static active: number = 0
   private static waiters: Array<() => void> = []
+  private static report(plans: ImagePluginPlan[], failed: boolean): void {
+    const state = connectImageRuleState()
+    const failures: Record<string, string> = {}
+    const keys = plans.map((plan: ImagePluginPlan): string => plan.key ?? JSON.stringify([plan.plugin.processor.sha256, plan.plugin.id, plan.plugin.id]))
+    for (const key of Object.keys(state.processingFailures)) if (!keys.includes(key)) failures[key] = state.processingFailures[key]
+    for (const plan of plans) {
+      const key = plan.key ?? JSON.stringify([plan.plugin.processor.sha256, plan.plugin.id, plan.plugin.id])
+      if (failed) failures[key] = 'processing_failed'
+    }
+    state.processingFailures = failures
+  }
   static prepare(path: string, plans: ImagePluginPlan[], cache: RemoteImageCacheStore): Promise<string> {
     if (plans.length === 0) return Promise.resolve(path)
     const plansJson = JSON.stringify(plans)
@@ -126,8 +139,10 @@ export class ImagePluginService {
         void pending.then(retire, retire)
       }
       const result = await pending
+      ImagePluginService.report(plans, false)
       return await taskpool.execute<[string], string>(imageFileContentHash, path) === content ? (result ?? path) : path
     } catch (_error) {
+      ImagePluginService.report(plans, true)
       console.warn('[ImagePlugin] processing_failed')
       return path
     }

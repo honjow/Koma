@@ -1,4 +1,3 @@
-import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderTitleContent } from './ReaderTitleContent'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { ReaderModeControl } from './ReaderModeControl'
@@ -66,7 +65,6 @@ export struct ReaderChrome {
   @Param seriesOverrideActive: boolean = false
   @Event onResetSeriesOverride: () => void = () => {}
   @Event onCloseReader: () => void = () => {}
-  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onResetZoom: () => void = () => {}
   @Event onReloadPage: () => void = () => {}
@@ -184,7 +182,6 @@ export struct ReaderChrome {
       readerMode: this.readerMode,
       preferences: this.preferences,
       seriesOverrideActive: this.seriesOverrideActive,
-      onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.closeSettings(); this.onOpenImagePlugins(request) },
       onResetSeriesOverride: (): void => { this.onResetSeriesOverride() },
       onPreferencesChange: (preferences: ReaderPreferences): void => {
         this.onPreferencesChange({ preferences: preferences })

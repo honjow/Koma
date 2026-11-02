@@ -1,4 +1,3 @@
-import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
@@ -1709,7 +1708,6 @@ export struct ReaderPage {
   @Event onObservedProgress: (progress: ReadingProgress) => void = () => {}
   @Event onObservedReadingPages: (comic: string, chapter: string, pages: number[]) => void = () => {}
   @Event onCloseReader: () => void = () => {}
-  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onOpenChapter: (chapterId: string, intent?: ReaderChapterOpenIntent) => void =
     (_chapterId: string, _intent?: ReaderChapterOpenIntent) => {}
@@ -3853,15 +3851,6 @@ export struct ReaderPage {
       seriesOverrideActive: this.seriesOverrideActive,
       onResetSeriesOverride: (): void => { void this.resetSeriesOverride() },
       onCloseReader: () => { this.closeReaderRoute() },
-      onOpenImagePlugins: (request: ImagePluginsRequest): void => {
-        const comicId = this.sessionConfig.comicId
-        this.onOpenImagePlugins(new ImagePluginsRequest(request.preferences, true, (next: ReaderPreferences): void => {
-          if (!this.readerOpen || this.sessionConfig.comicId !== comicId) return
-          const current = this.copyPreferences()
-          current.bannerFilterOverride = next.bannerFilterOverride
-          this.onPreferencesChanged({ preferences: current })
-        }))
-      },
       onOpenMangaDetail: () => { this.onOpenMangaDetail() },
       onResetZoom: () => { this.resetZoomState() },
       onReloadPage: () => { this.retryCurrentPage() },

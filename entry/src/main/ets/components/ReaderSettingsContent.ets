@@ -1,3 +1,7 @@
+import { HdsNavigationMenuItemOptions, TextStyleMode } from '@kit.UIDesignKit'
+import { ImagePluginsPage } from '../pages/ImagePluginsPage'
+import { SourceSubscriptionsPage } from '../pages/SourceSubscriptionsPage'
+import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from './ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
@@ -33,7 +37,7 @@ import {
 import { ReadingDirection } from '../model/ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { KomaModalScaffold } from './KomaModalScaffold'
+import { KomaModalScaffold, komaModalSheetOptions } from './KomaModalScaffold'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 
@@ -47,7 +51,6 @@ export struct ReaderSettingsContent {
   @Param readerMode: ReaderMode = ReaderMode.SINGLE_PAGE
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Event onPreferencesChange: (preferences: ReaderPreferences) => void = (_preferences: ReaderPreferences) => {}
-  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onClose: () => void = () => {}
   @Event onRevealTapZones: () => void = () => {}
   // Status never changes the menu contents or the settings row structure.
@@ -58,6 +61,10 @@ export struct ReaderSettingsContent {
   // to the global translation settings route, not a form reachable only in this sheet.
   @Local private displaySettingsShown: boolean = false
   @Local private modelManagementShown: boolean = false
+  @Local private imagePluginsShown: boolean = false
+  @Local private pluginSubscriptionsShown: boolean = false
+  @Local private modelsRevision: number = 0
+  private pluginSubscriptionsChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
 
   @Event onResetSeriesOverride: () => void = () => {}
 
@@ -349,18 +356,66 @@ export struct ReaderSettingsContent {
     }
   }
 
-  build() {
-    if (this.displaySettingsShown) {
-      ReaderDisplaySettingsContent({ settings: this.preferences.displaySettings,
-        onChange: (settings: ReaderDisplaySettings): void => {
-          const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
-        }, onClose: (): void => { this.displaySettingsShown = false } })
-    } else if (this.modelManagementShown) {
-      KomaModalScaffold({ title: s('settings_reader_super_resolution_models'), onClose: () => { this.modelManagementShown = false } }) {
-        ReaderSuperResolutionModelsContent({ preferences: this.preferences, onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
+  @Builder
+  private ModelManagementSheet() {
+    KomaModalScaffold({ title: s('settings_reader_super_resolution_models'),
+      onClose: (): void => { this.modelManagementShown = false } }) {
+      ReaderSuperResolutionModelsContent({ preferences: this.preferences,
+        onPreferencesChange: (next: ReaderPreferences): void => { this.update(next) } })
+    }
+  }
 
-      }
-    } else {
+  @Builder
+  private DisplaySettingsSheet() {
+    ReaderDisplaySettingsContent({ settings: this.preferences.displaySettings,
+      onChange: (settings: ReaderDisplaySettings): void => {
+        const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
+      }, onClose: (): void => { this.displaySettingsShown = false } })
+  }
+
+  private pluginRequest(): ImagePluginsRequest {
+    return new ImagePluginsRequest(this.preferences, true, (next: ReaderPreferences): void => {
+      // The reading sheet stays mounted; only this book's plugin override is
+      // owned by the child editor, not a captured snapshot of all preferences.
+      const current = this.copyPreferences()
+      current.bannerFilterOverride = next.bannerFilterOverride
+      this.update(current)
+    })
+  }
+
+  private pluginActions(): HdsNavigationMenuItemOptions[] {
+    return [{ content: { label: s('source_pkg_index_url_heading'), type: TextStyleMode.NORMAL,
+      action: (): void => { this.pluginSubscriptionsShown = true } } }]
+  }
+
+  @Builder
+  private ImagePluginsSheet() {
+    Stack() {
+    KomaModalScaffold({ title: s('image_plugins_title'), contentOwnsScrolling: true,
+      additionalActions: this.pluginActions(), onClose: (): void => { this.imagePluginsShown = false } }) {
+      ImagePluginsPage({ request: this.pluginRequest(), embedded: true })
+    }
+    Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
+      .bindSheet($$this.pluginSubscriptionsShown, this.PluginSubscriptionsSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE] }))
+    }.width('100%').height('100%')
+  }
+
+  private subscriptionActions(): HdsNavigationMenuItemOptions[] {
+    return [{ content: { label: s('source_pkg_add_subscription'), type: TextStyleMode.NORMAL,
+      action: (): void => { this.pluginSubscriptionsChrome.request('addSubscription') } } }]
+  }
+
+  @Builder
+  private PluginSubscriptionsSheet() {
+    KomaModalScaffold({ title: s('source_pkg_index_url_heading'), contentOwnsScrolling: true,
+      additionalActions: this.subscriptionActions(), onClose: (): void => { this.pluginSubscriptionsShown = false } }) {
+      SourceSubscriptionsPage({ chrome: this.pluginSubscriptionsChrome, embedded: true })
+    }
+  }
+
+  build() {
+    // Separate sheet instances preserve the parent list and its scroll position.
+    Stack() {
     KomaModalScaffold({
       title: s('settings_pane_reader_title'),
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
@@ -404,9 +459,9 @@ export struct ReaderSettingsContent {
         }
         ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
           cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: this.enhancementControlsAvailable,
+          modelsRevision: this.modelsRevision,
           onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
-          onOpenPlugins: (): void => { this.onOpenImagePlugins(new ImagePluginsRequest(this.preferences, true,
-            (next: ReaderPreferences): void => { this.update(next) })) },
+          onOpenPlugins: (): void => { this.imagePluginsShown = true },
           onOpenModels: () => { this.modelManagementShown = true } })
         GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
           ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
@@ -427,6 +482,13 @@ export struct ReaderSettingsContent {
       .width('100%')
       .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
     }
-    }
+    Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
+      .bindSheet($$this.modelManagementShown, this.ModelManagementSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+        onDisappear: (): void => { this.modelsRevision += 1 } }))
+    Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
+      .bindSheet($$this.imagePluginsShown, this.ImagePluginsSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE] }))
+    Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
+      .bindSheet($$this.displaySettingsShown, this.DisplaySettingsSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE] }))
+    }.width('100%').height('100%')
   }
 }

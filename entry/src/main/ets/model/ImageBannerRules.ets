@@ -23,13 +23,24 @@ export interface ImageRuleRecord {
 export interface ImageRuleSnapshot { schemaVersion: number; records: ImageRuleRecord[] }
 export interface ImageRuleSubscription {
   url: string; name: string; customName?: string; description?: string; website?: string
-  enabled: boolean; automaticUpdates: boolean; updatedAt: number; lastAutomaticCheckAt?: number; revision: string
-  packs: ImageRulePack[]; disabledRules: string[]
+  updatedAt: number; revision: string; lastError?: string
+  packs: ImageRulePack[]
   catalog?: ImageProcessingPlugin[]
-  plugins?: ImageProcessingPlugin[]
-  pluginSettings?: Record<string, SettingsFieldValues>
 }
-export interface ImageRuleConfiguration { schemaVersion: number; subscriptions: ImageRuleSubscription[] }
+// Installed content owns its original provenance, activation and configuration.
+// Editing/removing a catalog never removes or reparents executable content.
+export interface ImagePluginCollection {
+  origin: string; name: string; packs: ImageRulePack[]; plugins: ImageProcessingPlugin[]
+  disabledRules: string[]; pluginSettings: Record<string, SettingsFieldValues>
+  conflicts?: string[]
+}
+interface LegacyImageRuleSubscription extends ImageRuleSubscription {
+  enabled: boolean; automaticUpdates: boolean; disabledRules: string[]
+  plugins?: ImageProcessingPlugin[]; pluginSettings?: Record<string, SettingsFieldValues>
+}
+export interface ImageRuleConfiguration {
+  schemaVersion: number; subscriptions: ImageRuleSubscription[]; installations: ImagePluginCollection[]
+}
 export type ImageProcessingHint = ImagePluginHint
 export interface ImageBannerPlan { rule: ImageBannerRule; mode: string; revision: string }
 export function imageRuleKey(packId: string, ruleId: string): string { return JSON.stringify([packId, ruleId]) }
@@ -39,21 +50,55 @@ export function validateImageRuleConfiguration(raw: Object): ImageRuleConfigurat
   // The previous implicit-download snapshot does not represent user consent to a subscription.
   // It may be restored as old backup data, but must never become enabled subscriptions.
   if (value?.schemaVersion === 1 && Array.isArray((raw as ImageRuleSnapshot).records))
-    return { schemaVersion: 2, subscriptions: [] }
-  if (!value || value.schemaVersion !== 2 || !Array.isArray(value.subscriptions) || value.subscriptions.length > 64)
+    return { schemaVersion: 3, subscriptions: [], installations: [] }
+  if (!value || ![2, 3].includes(value.schemaVersion) || !Array.isArray(value.subscriptions) || value.subscriptions.length > 64)
     throw new Error('invalid_image_rule_subscriptions')
   const urls: Set<string> = new Set()
   for (const subscription of value.subscriptions) {
     if (!subscription || typeof subscription.url !== 'string' || !/^https?:\/\//.test(subscription.url) || urls.has(subscription.url) ||
       typeof subscription.name !== 'string' || !subscription.name.trim() || typeof subscription.revision !== 'string' ||
-      typeof subscription.enabled !== 'boolean' || typeof subscription.automaticUpdates !== 'boolean' ||
-      !Number.isFinite(subscription.updatedAt) || (subscription.lastAutomaticCheckAt !== undefined && !Number.isFinite(subscription.lastAutomaticCheckAt)) || !Array.isArray(subscription.packs) || subscription.packs.length > 32 ||
-      !Array.isArray(subscription.disabledRules) || subscription.disabledRules.some((key: string): boolean => typeof key !== 'string'))
+      !Number.isFinite(subscription.updatedAt) || !Array.isArray(subscription.packs) || subscription.packs.length > 32)
       throw new Error('invalid_image_rule_subscription')
     urls.add(subscription.url)
     for (const pack of subscription.packs) validateImageRulePack(pack)
     for (const plugin of subscription.catalog ?? []) validateImageProcessingPlugin(plugin)
-    for (const plugin of subscription.plugins ?? []) {
+  }
+  if (value.schemaVersion === 2) {
+    const subscriptions: ImageRuleSubscription[] = []
+    const installations: ImagePluginCollection[] = []
+    const activeIds: Set<string> = new Set()
+    for (const legacy of value.subscriptions as LegacyImageRuleSubscription[]) {
+      if (typeof legacy.enabled !== 'boolean' || !Array.isArray(legacy.disabledRules)) throw new Error('invalid_image_rule_subscription')
+      subscriptions.push({ url: legacy.url, name: legacy.name, customName: legacy.customName,
+        description: legacy.description, website: legacy.website, updatedAt: legacy.updatedAt,
+        revision: legacy.revision, packs: legacy.packs, catalog: legacy.catalog })
+      const installed: ImagePluginCollection = { origin: legacy.url, name: imageRuleSubscriptionName(legacy),
+        packs: legacy.packs, plugins: legacy.plugins ?? [], disabledRules: legacy.disabledRules.slice(),
+        pluginSettings: legacy.pluginSettings ?? {}, conflicts: [] }
+      const identities = installed.packs.flatMap((pack: ImageRulePack): string[] => pack.rules.map((rule: ImageBannerRule): string => imageRuleKey(pack.id, rule.id)))
+        .concat(installed.plugins.map((plugin: ImageProcessingPlugin): string => imageRuleKey(plugin.id, plugin.id)))
+      for (const key of identities) {
+        if ((!legacy.enabled || activeIds.has(key)) && !installed.disabledRules.includes(key)) {
+          installed.disabledRules.push(key)
+          if (legacy.enabled && activeIds.has(key)) installed.conflicts!.push(key)
+        }
+        if (!installed.disabledRules.includes(key)) activeIds.add(key)
+      }
+      if (installed.packs.length > 0 || installed.plugins.length > 0) installations.push(installed)
+    }
+    const migrated: ImageRuleConfiguration = { schemaVersion: 3, subscriptions, installations }
+    return validateImageRuleConfiguration(migrated)
+  }
+  if (!Array.isArray(value.installations) || value.installations.length > 128) throw new Error('invalid_image_plugin_installations')
+  const origins: Set<string> = new Set()
+  for (const installed of value.installations) {
+    if (!installed || typeof installed.origin !== 'string' || origins.has(installed.origin) || typeof installed.name !== 'string' ||
+      !Array.isArray(installed.packs) || !Array.isArray(installed.plugins) || !Array.isArray(installed.disabledRules) ||
+      installed.disabledRules.some((key: string): boolean => typeof key !== 'string') || !installed.pluginSettings)
+      throw new Error('invalid_image_plugin_installations')
+    origins.add(installed.origin)
+    for (const pack of installed.packs) validateImageRulePack(pack)
+    for (const plugin of installed.plugins) {
       validateImageProcessingPlugin(plugin)
       if (typeof plugin.processor.moduleBase64 !== 'string' || !plugin.processor.moduleBase64)
         throw new Error('missing_installed_image_processor')

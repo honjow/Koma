@@ -1,9 +1,16 @@
-import { komaModalContentBackground } from '../theme/KomaPopupOptions'
+import { komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial } from '@kit.UIDesignKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
+
+// This scaffold owns its HDS title bar. Reserve no second title/drag-bar row
+// above it; the native drag indicator floats over the standard modal header.
+export function komaModalSheetOptions(options: SheetOptions): SheetOptions {
+  options.enableFloatingDragBar = true
+  return komaSheetOptions(options)
+}
 
 @ComponentV2
 export struct KomaModalScaffold {
@@ -16,6 +23,7 @@ export struct KomaModalScaffold {
   @Param contentOwnsScrolling: boolean = false
   @Param confirmLabel: ResourceStr | undefined = undefined
   @Param confirmEnabled: boolean = true
+  @Param additionalActions: HdsNavigationMenuItemOptions[] = []
   @Event onClose: () => void = () => {}
   @Event onConfirm: () => void = () => {}
   @BuilderParam content: () => void
@@ -25,7 +33,7 @@ export struct KomaModalScaffold {
   // Editors share the native modal title bar. Optional confirmation stays
   // outside the scrolling form; existing read-only sheets retain only Close.
   private titleBarActions(): HdsNavigationMenuItemOptions[] {
-    const items: HdsNavigationMenuItemOptions[] = []
+    const items: HdsNavigationMenuItemOptions[] = this.additionalActions.slice()
     if (this.confirmLabel !== undefined) {
       items.push({ content: { label: this.confirmLabel, icon: $r('sys.symbol.checkmark'),
         isEnabled: this.confirmEnabled, action: (): void => { this.onConfirm() } } })
@@ -93,7 +101,7 @@ export struct KomaModalScaffold {
           },
           menu: {
             value: this.titleBarActions(),
-            maxCount: this.confirmLabel === undefined ? 1 : 2,
+            maxCount: Math.min(3, this.additionalActions.length + (this.confirmLabel === undefined ? 1 : 2)),
           },
         },
       })

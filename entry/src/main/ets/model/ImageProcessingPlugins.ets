@@ -30,7 +30,7 @@ export interface ImagePluginOutput { format: string; quality: number }
 export interface ImagePluginContext { application: string; sourceHint?: ImagePluginHint }
 export interface ImagePluginHint { kind: string; mode: string }
 export interface ImagePluginConfiguration { parameters: Object; settings: SettingsFieldValues; context: ImagePluginContext }
-export interface ImagePluginPlan { plugin: ImageProcessingPlugin; configuration: ImagePluginConfiguration; revision: string }
+export interface ImagePluginPlan { plugin: ImageProcessingPlugin; configuration: ImagePluginConfiguration; revision: string; key?: string }
 export interface NativeImageProcessorResult {
   ok: boolean
   changed: boolean

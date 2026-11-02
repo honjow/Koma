@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { ImageRuleStore } from '../model/ImageRuleStore'
-import { ImageRuleSubscription, effectiveBannerFilter } from '../model/ImageBannerRules'
+import { ImageRuleSubscription, ImagePluginCollection, effectiveBannerFilter } from '../model/ImageBannerRules'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderPreferences, ReaderPreferencesStore, DEFAULT_READER_PREFERENCES, normalizeReaderPreferences } from '../model/ReaderPreferencesStore'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
@@ -15,9 +15,11 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 export struct ImagePluginsPage {
   @Param request: ImagePluginsRequest | undefined = undefined
   @Param pinnedOverlayHeight: number = 0
+  @Param embedded: boolean = false
   @Local private preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Local private preferencesReady: boolean = false
   @Local private subscriptions: ImageRuleSubscription[] = []
+  @Local private installations: ImagePluginCollection[] = []
   @Local private state: ImageRuleState = connectImageRuleState()
   @Local private error: string = ''
   private preferenceMutation: number = 0
@@ -61,7 +63,12 @@ export struct ImagePluginsPage {
   }
   @Monitor('state.dataRevision')
   private changed(): void { void this.load() }
-  private async load(): Promise<void> { this.subscriptions = await this.store().list() }
+  private async load(): Promise<void> {
+    try {
+      this.subscriptions = await this.store().list()
+      this.installations = await this.store().installed()
+    } catch (_error) { this.error = AppStrings.get('image_plugins_storage_failed') }
+  }
   private usesGlobal(): boolean {
     return this.preferences.bannerFilterOverride === undefined || this.preferences.bannerFilterOverride === 'global'
   }
@@ -82,6 +89,7 @@ export struct ImagePluginsPage {
   }
   private async refresh(): Promise<void> {
     this.error = ''
+    if (this.state.readFailed) await this.store().reload()
     if (!this.preferencesReady && this.request === undefined) await this.loadGlobalPreferences()
     for (const subscription of this.subscriptions) {
       try { await this.store().refresh(subscription.url) }
@@ -91,6 +99,9 @@ export struct ImagePluginsPage {
   }
   build() {
     PullRefreshListScaffold({ onRefresh: (): Promise<void> => this.refresh(), bottomPadding: ThemeConstants.SPACE_XL,
+      reserveTitleBar: !this.embedded, reserveSystemSafeArea: !this.embedded,
+      surfaceColor: this.embedded ? Color.Transparent : ThemeConstants.BG_SUB,
+      horizontalPadding: this.embedded ? 0 : ThemeConstants.SPACE_MD,
       pinnedOverlayHeight: this.pinnedOverlayHeight }) {
       if (this.preferencesReady) {
       ListItem() {
@@ -108,8 +119,12 @@ export struct ImagePluginsPage {
         }
       }
       }
-      ListItem() { ImagePluginsListContent({ subscriptions: this.subscriptions }) }
-      if (this.subscriptions.length === 0) {
+      if (this.request?.bookOptions) {
+        ListItem() { Text(AppStrings.get('image_plugins_global_management')).fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY).width('100%').padding(ThemeConstants.SPACE_MD) }
+      }
+      ListItem() { ImagePluginsListContent({ subscriptions: this.subscriptions, installations: this.installations }) }
+      if (this.subscriptions.length === 0 && this.installations.length === 0 && !this.state.readFailed) {
         ListItem() { Text(AppStrings.get('image_plugins_empty')).fontSize(ThemeConstants.FONT_SIZE_BODY)
           .fontColor(ThemeConstants.TEXT_SECONDARY).padding(ThemeConstants.SPACE_LG).width('100%') }
       }

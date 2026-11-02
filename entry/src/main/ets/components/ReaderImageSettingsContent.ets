@@ -128,12 +128,13 @@ export struct ReaderImageSettingsContent {
 
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
+      GroupedListSection() {
+        ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
+          trailingText: t(this.pluginUsageLabel()),
+          action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
+      }
       if (this.cropControlsAvailable) {
         GroupedListSection({ title: t('settings_reader_group_crop') }) {
-          ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
-            trailingText: t(this.pluginUsageLabel()),
-            action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
-          ListDivider()
           ConciseListRow({ title: t('settings_row_reader_trim_page_margins_title'), hasSwitch: true,
             checked: this.preferences.trimPageMarginsEnabled, showChevron: false,
             switchAction: (enabled: boolean) => {

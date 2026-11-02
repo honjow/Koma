@@ -20,8 +20,8 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 
 @ComponentV2
 export struct SourceSubscriptionsPage {
+  @Param embedded: boolean = false
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
-  @Event onOpenRules: (url: string, title: string) => void = () => {}
   @Local private ruleState: ImageRuleState = connectImageRuleState()
   @Local private ruleSubscriptions: ImageRuleSubscription[] = []
   private editingRuleUrl: string = ''
@@ -41,7 +41,10 @@ export struct SourceSubscriptionsPage {
 
   @Monitor('ruleState.dataRevision')
   private rulesChanged(): void { void this.loadRules() }
-  private async loadRules(): Promise<void> { this.ruleSubscriptions = await ImageRuleStore.forContext(this.context()).list() }
+  private async loadRules(): Promise<void> {
+    try { this.ruleSubscriptions = await ImageRuleStore.forContext(this.context()).list() }
+    catch (_error) { this.error = AppStrings.get('image_plugins_storage_failed') }
+  }
 
   @Monitor('chrome.requestId')
   private onCommand(): void {
@@ -237,9 +240,16 @@ export struct SourceSubscriptionsPage {
   }
 
   build() {
-    PullRefreshListScaffold({ onRefresh: async (): Promise<void> => {
-      await this.refreshMetadata()
-      for (const rule of this.ruleSubscriptions) await ImageRuleStore.forContext(this.context()).refresh(rule.url)
+    PullRefreshListScaffold({ reserveTitleBar: !this.embedded, reserveSystemSafeArea: !this.embedded,
+      surfaceColor: this.embedded ? Color.Transparent : ThemeConstants.BG_SUB,
+      horizontalPadding: this.embedded ? 0 : ThemeConstants.SPACE_MD, onRefresh: async (): Promise<void> => {
+      this.error = ''
+      if (this.ruleState.readFailed) { await ImageRuleStore.forContext(this.context()).reload(); await this.loadRules() }
+      try { await this.refreshMetadata() } catch (_error) { this.error = AppStrings.get('source_catalog_subscription_read_failed') }
+      for (const rule of this.ruleSubscriptions) {
+        try { await ImageRuleStore.forContext(this.context()).refresh(rule.url) }
+        catch (_error) { /* The failing address retains its own error; continue the remaining addresses. */ }
+      }
     }, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.repositories.length > 0) {
         ListItem() {
@@ -264,11 +274,14 @@ export struct SourceSubscriptionsPage {
         ListItem() {
           GroupedListSection({ title: AppStrings.get('subscription_image_rules') }) {
             ForEach(this.ruleSubscriptions, (rule: ImageRuleSubscription, index: number) => {
-              ConciseListRow({ title: imageRuleSubscriptionName(rule), wrapTitle: true, subtitle: rule.url,
-                showChevron: true, action: (): void => { this.onOpenRules(rule.url, imageRuleSubscriptionName(rule)) },
+              ConciseListRow({ title: imageRuleSubscriptionName(rule), wrapTitle: true,
+                subtitle: rule.url + (rule.lastError ? '\n' + AppStrings.get('image_rules_update_failed') : ''), subtitleMaxLines: 3,
+                // Subscription rows edit their identity. Plugin management is owned
+                // by the shared plugin list, not a second subscription destination.
+                showChevron: false, action: (): void => { this.openAddDialog(undefined, rule) },
                 suffixBuilderParam: () => { this.RuleActionsButton(rule, index) } })
               if (index + 1 < this.ruleSubscriptions.length) { ListDivider() }
-            }, (rule: ImageRuleSubscription) => JSON.stringify([rule.url, rule.name, rule.customName]))
+            }, (rule: ImageRuleSubscription) => JSON.stringify([rule.url, rule.name, rule.customName, rule.lastError]))
           }
         }
       }

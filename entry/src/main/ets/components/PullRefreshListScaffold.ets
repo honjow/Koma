@@ -30,6 +30,9 @@ export struct PullRefreshListScaffold {
   @Param floatingTabTailPadding: number = 0
   @Param includeKeyboardPadding: boolean = true
   @Param reserveTitleBar: boolean = true
+  // Embedded modal content already receives its safe area from its scaffold.
+  @Param reserveSystemSafeArea: boolean = true
+  @Param surfaceColor: ResourceColor = ThemeConstants.BG_SUB
   @Param indicatorTop: number = -1
   // Keep the caller's scroll gate separate from PullRefresh's short-lived
   // gesture gate. Browse has no external owner and therefore uses the default.
@@ -52,7 +55,7 @@ export struct PullRefreshListScaffold {
       scroller: this.scroller,
       controller: this.controller,
       indicatorTop: this.resolvedIndicatorTop(),
-      bottomIndicatorBottom: this.safeArea.bottomAvoidHeight + this.bottomPadding + this.floatingTabTailPadding + this.keyboardPadding(),
+      bottomIndicatorBottom: (this.reserveSystemSafeArea ? this.safeArea.bottomAvoidHeight : 0) + this.bottomPadding + this.floatingTabTailPadding + this.keyboardPadding(),
       onRefresh: async () => {
         if (this.onRefresh) {
           await this.onRefresh()
@@ -81,7 +84,7 @@ export struct PullRefreshListScaffold {
           ListItem() {
             Column() {
               Blank().height(
-                this.safeArea.topAvoidHeight +
+                (this.reserveSystemSafeArea ? this.safeArea.topAvoidHeight : 0) +
                   this.titleBarPadding() +
                   this.topPadding +
                   this.pinnedOverlayReserve(),
@@ -96,7 +99,7 @@ export struct PullRefreshListScaffold {
           ListItem() {
             Column() {
               Blank().height(
-                this.safeArea.bottomAvoidHeight +
+                (this.reserveSystemSafeArea ? this.safeArea.bottomAvoidHeight : 0) +
                   this.bottomPadding +
                   this.floatingTabTailPadding +
                   this.keyboardPadding(),
@@ -163,7 +166,7 @@ export struct PullRefreshListScaffold {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(this.surfaceColor)
   }
 
   private keyboardPadding(): number {
@@ -188,7 +191,7 @@ export struct PullRefreshListScaffold {
     if (this.indicatorTop >= 0) {
       return this.indicatorTop
     }
-    return this.safeArea.topAvoidHeight +
+    return (this.reserveSystemSafeArea ? this.safeArea.topAvoidHeight : 0) +
       (this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT / 2 : 0) +
       this.topPadding +
       this.pinnedOverlayHeight

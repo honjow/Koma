@@ -1,4 +1,3 @@
-import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
@@ -123,7 +122,6 @@ export struct KomaReaderLabPage {
   @Event persistObserved: (position: ReaderObservedPosition, column: ReaderColumnMode) => void = () => {}
   @Event observeReadingPages: (work: string, chapter: string, pages: number[]) => void = () => {}
   @Event flushObserved: () => void = () => {}
-  @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenMangaDetail: (work: string) => void = () => {}
   @Event onClose: () => void = () => {}
   @Param catalogHost: KomaReaderCatalogHost | null = null
@@ -1069,19 +1067,6 @@ export struct KomaReaderLabPage {
         seriesOverrideActive: this.seriesOverrideActive,
         cropControlsAvailable: true,
         enhancementControlsAvailable: true,
-        onOpenImagePlugins: (request: ImagePluginsRequest): void => {
-          const session = this.session
-          const work = this.unitKey.work
-          this.closeHostSettings()
-          // The modal is destroyed after navigation. Its callback cannot own
-          // a full-page editor's writes; retain the live reader/book owner.
-          this.onOpenImagePlugins(new ImagePluginsRequest(request.preferences, true, (next: ReaderPreferences): void => {
-            if (this.readerClosed || this.session !== session || this.unitKey.work !== work || this.hostPreferences === null) return
-            const current: ReaderPreferences = normalizeReaderPreferences(this.hostPreferences)
-            current.bannerFilterOverride = next.bannerFilterOverride
-            this.onHostPreferencesChanged(current, true)
-          }))
-        },
         onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
         onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
         onClose: (): void => { this.closeHostSettings() },

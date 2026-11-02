@@ -14,7 +14,13 @@ struct SourceCatalogSections {
       KomaSegmentedControl({
         labels: [AppStrings.get('settings_row_sources_title'), AppStrings.get('image_plugins_title')],
         selectedIndex: this.chrome.section === 'sources' ? 0 : 1,
-        select: (index: number): void => { this.chrome.selectSection(index === 0 ? 'sources' : 'plugins') },
+        select: (index: number): void => {
+          // The segmented control owns its selection animation. Mount the
+          // dependent HDS actions in their own non-animated transaction.
+          this.getUIContext().animateToImmediately({ duration: 0 }, (): void => {
+            this.chrome.selectSection(index === 0 ? 'sources' : 'plugins')
+          })
+        },
       })
     }
     .width('100%')

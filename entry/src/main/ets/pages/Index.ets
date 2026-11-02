@@ -1,7 +1,6 @@
 import { ImagePluginsPage } from './ImagePluginsPage'
 import { SourceCatalogSectionsBuilder, SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
-import { ImageRuleSubscriptionPage, ImageRuleSubscriptionRouteParam } from './ImageRuleSubscriptionPage'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
 import { PullRefreshController } from '../components/PullRefresh'
@@ -2312,7 +2311,6 @@ struct Index {
         observeReadingPages: (work: string, chapter: string, pages: number[]): void => {
           this.observeReadingPages(work, chapter, pages)
         },
-        onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.appPathStack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
         onOpenMangaDetail: (_work: string): void => { this.openReaderMangaDetail() },
         onRouteVisibleChange: (visible: boolean): void => {
           this.readerRouteVisible = visible
@@ -2357,7 +2355,6 @@ struct Index {
         onCloseReader: () => {
           this.popReaderRouteAfterSystemBarRestore()
         },
-        onOpenImagePlugins: (request: ImagePluginsRequest): void => { this.appPathStack.pushPath({ name: RouteName.IMAGE_PLUGINS, param: request }) },
         onOpenMangaDetail: () => {
           this.openReaderMangaDetail()
         },
@@ -2704,19 +2701,12 @@ struct Index {
       .onDisAppear((): void => { this.disposeSourceManagerSection(this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)) })
     } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
       HdsNavDestination() {
-        SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome,
-          onOpenRules: (url: string, title: string): void => {
-            this.appPathStack.pushPath({ name: RouteName.IMAGE_RULE_SUBSCRIPTION, param: new ImageRuleSubscriptionRouteParam(url, title) })
-          } })
+        SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome })
       }
       .titleBar(this.sourceSubscriptionsTitleBarOptions(param as SourceCatalogPageChrome))
     } else if (name === RouteName.IMAGE_PLUGINS) {
       HdsNavDestination() { ImagePluginsPage({ request: param as ImagePluginsRequest }) }
         .titleBar(this.imagePluginsTitleBarOptions())
-    } else if (name === RouteName.IMAGE_RULE_SUBSCRIPTION) {
-      HdsNavDestination() {
-        ImageRuleSubscriptionPage({ url: (param as ImageRuleSubscriptionRouteParam).url })
-      }.titleBar(this.navDestTitleBarOpts((param as ImageRuleSubscriptionRouteParam).title))
     } else if (name === RouteName.SETTINGS_PANE) {
       HdsNavDestination() {
         SettingsPage({

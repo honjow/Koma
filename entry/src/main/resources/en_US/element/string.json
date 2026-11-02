@@ -2152,6 +2152,10 @@
     {"name": "image_plugins_uninstall", "value": "Uninstall plugin"},
     {"name": "image_plugins_uninstall_message", "value": "Uninstall %s?"},
     {"name": "image_plugins_settings", "value": "Plugin settings"},
-    {"name": "image_plugins_operation_failed", "value": "Operation failed. Try again."}
+    {"name": "image_plugins_operation_failed", "value": "Operation failed. Try again."},
+    {"name": "image_plugins_global_management", "value": "Plugin switches, settings and uninstall apply to all manga."},
+    {"name": "image_plugins_source_conflict", "value": "This plugin is installed from another subscription. Keep one source before enabling it."},
+    {"name": "image_plugins_processing_failed", "value": "Processing failed. The image remains readable; try again or disable this plugin."},
+    {"name": "image_plugins_storage_failed", "value": "Could not read plugin data. Your saved data has been retained. Pull down to retry."}
   ]
 }

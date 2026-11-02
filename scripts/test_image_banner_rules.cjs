@@ -12,11 +12,11 @@ const plugins=load('ImageProcessingPlugins');
 const alphaPixels=new Uint8Array([32,64,128,128,18,29,41,255,0,0,0,0]);plugins.imagePluginStraightAlpha(alphaPixels);
 assert.deepEqual([...alphaPixels],[64,128,255,128,18,29,41,255,0,0,0,0]);
 const rules=load('ImageBannerRules',{'./ImageProcessingPlugins':plugins});
-const {imagePluginRows}=load('ImagePluginManagement');const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
+const {imagePluginRows}=load('ImagePluginManagement',{'./ImageBannerRules':rules});const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
 const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root,'scripts/fixtures/image-rules-edge.json'),'utf8')));
 const snapshot={schemaVersion:1,records:[{origin:'subscription-a',revision:'1',packs:[pack]}]};
 const pluginPlanning=load('ImagePluginService',{'@kit.ArkTS':{},'@kit.ImageKit':{},'@kit.CoreFileKit':{},
- '@kit.CryptoArchitectureKit':{},'./ImageFileContent':{},'./ImagePluginNative':{},'./ImageProcessingPlugins':plugins});
+ '@kit.CryptoArchitectureKit':{},'./ImageFileContent':{},'./ImagePluginNative':{},'../state/ImageRuleState':{connectImageRuleState:()=>({processingFailures:{}})},'./ImageProcessingPlugins':plugins});
 // User adopted one enable switch: legacy source/auto values both mean on.
 assert.equal(rules.normalizeBannerFilter('source'),'auto');
 assert.equal(rules.normalizeBannerFilter('auto'),'auto');
@@ -108,7 +108,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const resource=Buffer.from(JSON.stringify(subscribedPack)),digest=crypto.createHash('sha256').update(resource).digest('hex');
  const index={schemaVersion:1,kind:'image_rules',meta:{name:'Visible rules',description:'Two independently managed rules'},revision:digest,packs:[{id:pack.id,version:pack.version,path:'packs/rule.json',sha256:digest}]};
  requests.set(indexUrl,Buffer.from(JSON.stringify(index)));requests.set(packUrl,resource);
- let networkCalls=0,gate,waitForIndex=false,waitForModule=false,moduleGate;const state={dataRevision:0,userRevision:0,enabledRuleCount:0};
+ let networkCalls=0,gate,waitForIndex=false,waitForModule=false,moduleGate;const state={dataRevision:0,userRevision:0,enabledRuleCount:0,processingFailures:{}};
  const {ImageRuleStore,subscriptionDocumentKind}=load('ImageRuleStore',{
   '@kit.ArkTS':{taskpool:{execute:async(fn,...args)=>fn(...args)},util:{TextDecoder:{create:()=>({decodeToString:bytes=>Buffer.from(bytes).toString('utf8')})},Base64Helper:class{encodeToStringSync(v){return Buffer.from(v).toString('base64')}}}},
   '@kit.CoreFileKit':{fileIo:{accessSync:p=>files.has(p),statSync:p=>({size:files.get(p).length}),readTextSync:p=>files.get(p)}},
@@ -123,32 +123,34 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const ctx={filesDir:'/fixture',resourceManager:{getRawFileContent:async()=>{throw Error('must not read bundled rules')}}};
  const store=ImageRuleStore.forContext(ctx);assert.deepEqual(await store.list(),[]);assert.deepEqual((await store.pinned()).records,[]);assert.equal(networkCalls,0);
  assert.equal(subscriptionDocumentKind('[]'),'source');assert.equal(subscriptionDocumentKind('{"sources":[]}'),'source');assert.equal(subscriptionDocumentKind(JSON.stringify(index)),'image_rules');assert.equal(subscriptionDocumentKind('{}'),'unknown');
- await store.add(indexUrl,'');assert.equal(networkCalls,2);assert.equal(state.enabledRuleCount,2);
+ await store.add(indexUrl,'');assert.equal(networkCalls,2);assert.equal(state.enabledRuleCount,0,'adding a subscription only adds catalog information');
+ await store.installRulePack(indexUrl,pack.id);assert.equal(state.enabledRuleCount,0,'legacy rules also require explicit installation and activation');
+ for(const rule of subscribedPack.rules)await store.setRuleEnabled(indexUrl,pack.id,rule.id,true);
  const initial=await store.pinned();assert.equal(initial.records[0].origin,indexUrl);assert.equal((await store.list())[0].name,'Visible rules');
  await store.setRuleEnabled(indexUrl,pack.id,pack.rules[0].id,false);
  assert.deepEqual((await store.pinned()).records[0].packs[0].rules.map(r=>r.id),['second-rule'],'one switch cannot disable the other rule');
  assert.equal(initial.records[0].packs[0].rules.length,2,'existing reader snapshot stays immutable');
  const beforeRename=networkCalls,renameRevision=state.userRevision;await store.rename(indexUrl,'Custom name');assert.equal(networkCalls,beforeRename,'renaming is local');assert.equal(state.userRevision,renameRevision,'renaming does not reset the reader');
- await store.setEnabled(indexUrl,false);assert.deepEqual((await store.pinned()).records,[]);await store.setEnabled(indexUrl,true);
  const accepted=await store.exportSnapshot();
  requests.set(indexUrl,Buffer.from(JSON.stringify({...index,revision:'broken',packs:[{...index.packs[0],sha256:'0'.repeat(64)}]})));
- await assert.rejects(store.refresh(indexUrl));assert.deepEqual(await store.exportSnapshot(),accepted);
- failWrite=true;await assert.rejects(store.setEnabled(indexUrl,false));assert.deepEqual(await store.exportSnapshot(),accepted);failWrite=false;
+ await assert.rejects(store.refresh(indexUrl));assert.deepEqual((await store.exportSnapshot()).installations,accepted.installations,'failed refresh retains installed algorithms');
+ assert.equal((await store.list())[0].lastError,'image_rules_update_failed');
+ failWrite=true;await assert.rejects(store.setRuleEnabled(indexUrl,pack.id,pack.rules[0].id,true));assert.deepEqual((await store.exportSnapshot()).installations,accepted.installations);failWrite=false;
  requests.set(indexUrl,Buffer.from(JSON.stringify({...index,revision:'two'})));const beforeUpdateRevision=state.userRevision;
- await store.refresh(indexUrl);assert.equal(state.userRevision,beforeUpdateRevision,'background update cannot reset current reader');
+ await store.refresh(indexUrl);assert.equal(state.userRevision,beforeUpdateRevision,'catalog refresh cannot reset current reader');
  assert.deepEqual((await store.pinned()).records[0].packs[0].rules.map(r=>r.id),['second-rule']);
- const backup=await store.exportSnapshot();await store.remove(indexUrl);assert.deepEqual(await store.list(),[]);assert.deepEqual((await store.pinned()).records,[]);
+ const backup=await store.exportSnapshot();await store.remove(indexUrl);assert.deepEqual(await store.list(),[]);assert.deepEqual((await store.exportSnapshot()).installations,backup.installations,'removing a subscription preserves installed rules');
  await store.restore(backup);await store.reload();assert.deepEqual(await store.exportSnapshot(),backup);
  waitForIndex=true;const late=store.refresh(indexUrl);while(!gate)await new Promise(r=>setImmediate(r));await store.remove(indexUrl);gate();await late;waitForIndex=false;
  assert.deepEqual(await store.list(),[],'removed subscription cannot be resurrected by a late update');
- const oldSubscription=structuredClone(backup);oldSubscription.subscriptions[0].updatedAt=Date.now()-2*24*60*60*1000;
- await store.restore(oldSubscription);requests.delete(indexUrl);const beforeAutomatic=networkCalls,automaticRevision=state.userRevision;
- await Promise.all([store.refreshAutomaticSubscriptions(),store.refreshAutomaticSubscriptions()]);await store.reload();await store.refreshAutomaticSubscriptions();
- assert.equal(networkCalls,beforeAutomatic+1,'failed automatic check survives reload and respects daily interval');
- assert.equal(state.userRevision,automaticRevision,'automatic scheduling cannot reset current reading');
- assert.equal((await store.list())[0].packs[0].version,pack.version,'failed automatic check retains installed rules');
+ // Adopted separation removes subscription execution/automatic-update gates.
+ const legacy={schemaVersion:2,subscriptions:[{...backup.subscriptions[0],enabled:false,automaticUpdates:true,
+  disabledRules:[],plugins:[],pluginSettings:{}}]};
+ await store.restore(legacy);assert.equal(state.enabledRuleCount,0,'disabled legacy subscriptions migrate to disabled installed content');
+ assert.equal((await store.exportSnapshot()).schemaVersion,3);
+ assert.ok((await store.installed())[0].disabledRules.includes(rules.imageRuleKey(pack.id,pack.rules[0].id)));
  await store.restore(snapshot);assert.deepEqual(await store.list(),[],'old implicit downloads are not user-added subscriptions');
- await store.refreshAutomaticSubscriptions();assert.equal(state.enabledRuleCount,0);
+ assert.equal(state.enabledRuleCount,0);
  // Executable packages are separate from catalog refresh, with independent activation and atomic replacement.
  const pluginUrl='https://plugins.test/index.json',moduleUrl='https://plugins.test/processor.wasm';
  const moduleBytes=Buffer.from([0,97,115,109,1,0,0,0]),moduleDigest=crypto.createHash('sha256').update(moduleBytes).digest('hex');
@@ -160,9 +162,9 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
   requests.set(pluginUrl,Buffer.from(JSON.stringify(index)));requests.set('https://plugins.test/plugin.json',data);return index};
  const pluginIndex=publishPlugin(1);requests.set(moduleUrl,moduleBytes);const beforeCatalog=networkCalls;
  assert.equal(subscriptionDocumentKind(JSON.stringify(pluginIndex)),'image_rules');await store.add(pluginUrl,'');
- assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['available']);
+ assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['available']);
  assert.equal(networkCalls,beforeCatalog+2,'adding a catalog never downloads an executable');assert.equal(state.enabledRuleCount,0);
- await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.list())[0].plugins[0].version,1);assert.equal(state.enabledRuleCount,0,'new installation starts disabled');
+ await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.installed())[0]?.plugins[0].version,1);assert.equal(state.enabledRuleCount,0,'new installation starts disabled');
  await store.setRuleEnabled(pluginUrl,plugin.id,plugin.id,true);await store.setPluginSettings(pluginUrl,plugin.id,{strength:9,preserve:false,unknown:'ignored'});
  const pinnedPlugin=await store.pinned();assert.deepEqual(pinnedPlugin.records[0].pluginSettings[plugin.id],{strength:4,preserve:false});
  assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'auto').length,1);assert.equal(pluginPlanning.imagePluginPlans(pinnedPlugin,'source').length,1);
@@ -173,19 +175,36 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const scopedPlans=pluginPlanning.imagePluginPlans(hintOnlyPlugin,'auto',{kind:'scoped',mode:'1'});
  assert.equal(scopedPlans.length,1);assert.equal(scopedPlans[0].configuration.context.application,'source');
  const pluginBackup=await store.exportSnapshot();await store.reload();assert.deepEqual(await store.exportSnapshot(),pluginBackup,'installed bytes and settings survive restart');
- publishPlugin(2);await store.refresh(pluginUrl);let installed=(await store.list())[0];
- assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['updates']);
- assert.equal(installed.catalog[0].version,2);assert.equal(installed.plugins[0].version,1,'refresh only updates offered metadata');
- requests.set(moduleUrl,Buffer.from('bad module'));await assert.rejects(store.installPlugin(pluginUrl,plugin.id));assert.equal((await store.list())[0].plugins[0].version,1,'bad updates retain the installed plugin');
- requests.set(moduleUrl,moduleBytes);await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.list())[0].plugins[0].version,2);assert.equal(state.enabledRuleCount,1,'update preserves activation');
- assert.deepEqual(imagePluginRows(await store.list()).map(row=>row.group),['installed']);
+ publishPlugin(2);await store.refresh(pluginUrl);let catalog=(await store.list())[0],installed=(await store.installed())[0];
+ assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['updates']);
+ assert.equal(catalog.catalog[0].version,2);assert.equal(installed.plugins[0].version,1,'refresh only updates offered metadata');
+ requests.set(moduleUrl,Buffer.from('bad module'));await assert.rejects(store.installPlugin(pluginUrl,plugin.id));assert.equal((await store.installed())[0]?.plugins[0].version,1,'bad updates retain the installed plugin');
+ requests.set(moduleUrl,moduleBytes);await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.installed())[0]?.plugins[0].version,2);assert.equal(state.enabledRuleCount,1,'update preserves activation');
+ assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['installed']);
  await assert.rejects(store.setPluginSettings(pluginUrl,plugin.id,{strength:1},JSON.stringify([1,moduleDigest])),/image_plugin_settings_stale/);
- assert.deepEqual((await store.list())[0].pluginSettings[plugin.id],{strength:4,preserve:false},'an old editor cannot overwrite settings after an algorithm update');
+ assert.deepEqual((await store.installed())[0].pluginSettings[plugin.id],{strength:4,preserve:false},'an old editor cannot overwrite settings after an algorithm update');
  assert.equal(pinnedPlugin.records[0].plugins[0].version,1,'current reading keeps its immutable algorithm');
  waitForModule=true;const lateInstall=store.installPlugin(pluginUrl,plugin.id);while(!moduleGate)await new Promise(r=>setImmediate(r));
  await store.uninstallPlugin(pluginUrl,plugin.id);moduleGate();await assert.rejects(lateInstall,/cancelled/);waitForModule=false;
- assert.deepEqual((await store.list())[0].plugins,[],'uninstall cannot be undone by a late download');
+ assert.deepEqual(await store.installed(),[],'uninstall cannot be undone by a late download');
  await store.restore(pluginBackup);await store.remove(pluginUrl);assert.deepEqual(await store.list(),[]);
+ assert.deepEqual(await store.installed(),pluginBackup.installations,'removing subscription keeps executable bytes and settings');
+ await store.reload();assert.deepEqual(await store.installed(),pluginBackup.installations,'detached installations survive restart');
+ const anotherUrl='https://other.test/index.json';requests.set(anotherUrl,requests.get(pluginUrl));requests.set('https://other.test/plugin.json',requests.get('https://plugins.test/plugin.json'));requests.set('https://other.test/processor.wasm',moduleBytes);
+ await store.add(anotherUrl,'Other publisher');await assert.rejects(store.installPlugin(anotherUrl,plugin.id),/source_conflict/);
+ assert.equal((await store.installed())[0].origin,pluginUrl,'editing or adding a publisher cannot reparent an installation');
+ await store.restore(pluginBackup);
+ await store.add(anotherUrl,'Edited publisher',undefined,pluginUrl);
+ assert.deepEqual((await store.list()).map(s=>s.url),[anotherUrl],'editing replaces only the subscription address');
+ assert.deepEqual(await store.installed(),pluginBackup.installations,'editing the address retains the original installation and configuration');
+ await store.restore(pluginBackup);
+ const second=structuredClone(pluginBackup.installations[0].plugins[0]);second.id='second-processor';
+ const ordered=structuredClone(pluginBackup);ordered.installations[0].plugins.push(second);await store.restore(ordered);
+ publishPlugin(2);await store.refresh(pluginUrl);await store.installPlugin(pluginUrl,plugin.id);
+ assert.deepEqual((await store.installed())[0].plugins.map(p=>p.id),[plugin.id,second.id],'algorithm update preserves execution order');
+ const readable=await store.exportSnapshot();files.set('/fixture/image-rules.v1.json','broken JSON');await store.reload();await assert.rejects(store.list(),/storage_unavailable/);
+ await assert.rejects(store.rename(pluginUrl,'Overwrite'),/storage_unavailable/);assert.equal(files.get('/fixture/image-rules.v1.json'),'broken JSON','read failure never overwrites saved data');
+ await store.restore(readable);assert.deepEqual(await store.exportSnapshot(),readable,'explicit backup restore can recover storage');
  // Cache coordinator is production code; transform/decode is a controlled worker here (device proof is separate).
  let hash='raw-a',transforms=0,positive=false;const cache=new Map();
  const cacheStore={get:async(_url,_headers,key)=>cache.get(key),put:async(url,_headers,bytes,key)=>{const result='/cache/'+url+':'+key;cache.set(key,result);return result}};
@@ -207,7 +226,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
   if(fn.name==='imageFileContentHash')return contents.get(args[0]);pluginTransforms++;processing++;peak=Math.max(peak,processing);
   await new Promise(r=>setImmediate(r));processing--;if(failPlugin)throw Error('processor failed');return {bytes:new Uint8Array([1]).buffer,extension:'png'};
  }}},'@kit.ImageKit':{},'@kit.CoreFileKit':{},'@kit.CryptoArchitectureKit':{},'./ImagePluginNative':{},
- './ImageFileContent':{imageFileContentHash:function imageFileContentHash(){}},'./ImageProcessingPlugins':plugins}).ImagePluginService;
+ './ImageFileContent':{imageFileContentHash:function imageFileContentHash(){}},'../state/ImageRuleState':{connectImageRuleState:()=>state},'./ImageProcessingPlugins':plugins}).ImagePluginService;
  const pluginPlans=pluginPlanning.imagePluginPlans(pinnedPlugin,'auto');
  const prepared=await Promise.all(['/a','/copy','/b','/c'].map(p=>pluginService.prepare(p,pluginPlans,pluginCacheStore)));
  assert.equal(prepared[0],prepared[1]);assert.equal(pluginTransforms,3,'identical content shares processing');assert.equal(peak,2,'decoding and execution use at most two common workers');
