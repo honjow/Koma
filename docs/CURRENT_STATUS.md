@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：图片插件与197搜索卡顿修复已交付，当前订阅用法已公开；其余未关闭事项保留原状态。
+当前工作：图片插件启停交互已交付；其余未完成事项按下方原项保留。
 
-设备：197、237均已恢复原包、数据与电源状态并释租；当前没有设备操作。200禁止操作，四私库搁置。
+设备：197本轮原包、数据及电源状态已恢复并释租；237已恢复释租。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "本轮插件与搜索修复已交付",
+  "state": "图片插件交互已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T12:34:05+08:00",
+  "updatedAt": "2026-11-02T13:53:41+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "SEARCH_RECENT_TAP_UI_STALL",
-  "activity": "图片插件名称已统一简化，入口、标题和两仓用法同步；功能与订阅地址保持。",
-  "nextAction": "其余账号、官方名称及指定站点空响应事项保留原未验范围。",
+  "activeId": "",
+  "activity": "图片插件总开关、单本跟随及独立启停已交付，设备恢复和CI均完成。其余未完成事项保留。",
+  "nextAction": "其余事项按各原项现有条件接续；已验路径保持。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5510,16 +5510,13 @@
       "kind": "accepted",
       "priority": "P3",
       "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
-      "status": "插件订阅、管理及阅读处理已交付",
+      "status": "开关与单本跟随已验并交付",
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "共用管理页、订阅识别、手动安装及配置已接通。237真实正文已核下载算法、参数生效、关闭后同页恢复及预载；197已核公开插件安装、标准卡片留白与单一关闭按钮。 用户已采用“图片插件”简称，入口、标题与当前用法同步简化。",
-      "remaining": "本轮已交付；保留原证据中的具名范围。",
-      "remainingActions": [
-        "恢复197本轮原包、七份JSON、30份偏好及原电源状态并释租。",
-        "提交推送共用管理页及公共弹层修正，核精确CI；保留原阅读算法验收边界。"
-      ],
+      "result": "三选项已改为“使用图片插件”总开关；单本默认“使用全局设置”，可取消跟随独立启停。197已核全局关闭保存、单本开启重启保持、恢复跟随及返回原阅读页；浅色页状态栏已修正。原插件安装、配置及处理算法验收范围保留。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "用户明确要求App不内置具体规则，不默认添加规则订阅，不随书源订阅偷偷取得规则。",
         "订阅管理入口共用，粘贴地址后由App识别书源／图片规则类型，不要求用户手选；两类内容分组可见并独立消费。",
@@ -5530,7 +5527,8 @@
         "用户否定新增横幅过滤专用页并指出图片规则不能被限定为去横幅；该页方案撤回，通用处理接口及整体用户流程尚在讨论，未开始新界面改动。",
         "用户本轮选择“新算法也要能通过订阅扩展”，并指出带运行时应称插件；本次目标为可下载图片处理插件，规则只是插件配置，不能把扩展限制为App预先内置的算法或横幅裁切。",
         "用户call_10944fb3123f4867a536d3ce817c07f6明确采用：全局阅读设置与阅读器共用管理页；可更新／已安装／可安装分组；名称、用途、版本和来源可见；订阅只更新目录，新插件手动安装开启；声明配置，更新保选择；页头进入同一订阅管理，下拉检查更新；原数据迁移保留。",
-        "用户本轮明确指出插件卡片贴住半模态边缘。只补现有标准内容内边距；不改弹层尺寸、居中类型、红色卸载提示，不以主观偏好增删功能。"
+        "用户本轮明确指出插件卡片贴住半模态边缘。只补现有标准内容内边距；不改弹层尺寸、居中类型、红色卸载提示，不以主观偏好增删功能。",
+        "用户call_b8094eb4e6c84c7a9e43d90381f137f5采用：删除处理方式三选项；全局使用图片插件总开关；单本默认使用全局设置，取消跟随后独立启停；旧source/auto合并开启、off保留，插件按自身适用条件处理。"
       ],
       "evidencePoints": [
         "ReaderPageSourceAdapter.ets prepareSourcePagePresentation 当前显式检查online.baozimh.koma、包子图片域、安装与BAOZI_BANNER；SourceBaoziBannerService/Detector 已做taskpool特征匹配与派生缓存。",
@@ -5544,7 +5542,7 @@
         "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
         "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T12:34:05+08:00",
+      "updatedAt": "2026-11-02T13:53:41+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5591,11 +5589,26 @@
         "koma-sources/master b11ac04及27be07054e664d2dac9a9663f6f2b797d7b4b265：书源与插件独立索引、共享添加框自动识别；README改为当前图片处理插件入口与锚点，未重发算法。",
         "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b已推送并由ls-remote逐字核对；包含94e3d1cd运行时、d3104974搜索、0c5b8f3f管理页及b580e5e6当前用法。",
         "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b 精确CI41386807116 success：Release构建、产物检查和上传成功；正式发布skipped。.hvigor/outputs/image-plugins-20261102/delivery-binding.json关联本轮代码、设备实际路径与恢复。",
-        "用户指出三种处理方式难理解；亲核ImagePluginService.imagePluginPlans：source需sourceHints匹配，auto仅取application.automatic的已开启插件，不是宿主选择算法。README与当前协议补充实际范围、去横幅及反色例子；界面选项未擅自改名或改默认值。"
+        "用户指出三种处理方式难理解；亲核ImagePluginService.imagePluginPlans：source需sourceHints匹配，auto仅取application.automatic的已开启插件，不是宿主选择算法。README与当前协议补充实际范围、去横幅及反色例子；界面选项未擅自改名或改默认值。",
+        "用户明确采用删除三选项、全局总开关、单本使用全局/独立启停；旧source/auto合并开启，off保留，插件按自身适用条件处理图片。",
+        "本地build.log首次因enabled方法名与ArkUI冲突失败；已改pluginsEnabled，build-fixed.log与build-final.log通过，原失败保留。",
+        "plugin-switches-global-415实际总开关开启；416关闭后重进保持；422当前漫画默认跟随全局关闭，独立开关禁用；423取消跟随并独立开启，全局仍关闭。",
+        "422/screen.png实际发现阅读器白色状态栏残留到浅色插件页；本轮尚未以该图通过页面外观，按官方HdsNavDestination.systemBarStyle修正原生导航交接。",
+        "425重启反例确认423单本仅UI变化未保存；已把编辑回调重绑到live reader偏好owner。428磁盘reader-preferences保global off且当前书auto，430和432重启重进仍独立开启。",
+        "431最终共享guard候选安装明确成功，432浅色插件页状态栏仍白字，为失败；共享1866daf已修归还请求admission，但当前尚不能单独证明整个窗口交接。434精确窗口错误日志为空；增加临时有界观察定位是否请求及实际属性。",
+        "436临时日志请求rgba(24,26,24,1)，窗口读回contentColor仍#FFFFFFFF；最终转为Window支持的hex，并移除临时观察。",
+        "437安装最终HAP3b32e908115665302b1cd170ec64f694803152092c2ee3662c6e1c44d9677c48；438浅色插件页状态栏深色可见、当前书独立开启；439恢复跟随后true/false-disabled，440返回Nemo仍2/3页、Reader白色状态栏正常。",
+        "439首次偏好接收路径写错，exit0含Fail未采用；441正确读取koma_reader_preferences_v1，实际global off、overrides空，证实恢复继承落盘。",
+        "441回装411原0.1.4/code5明确成功；442本轮7JSON及30偏好逐字相同、偏好名称集相等、image-rules文件仍无；443最终SLEEP/120000ms/Override10000ms，原租约已释放。",
+        ".hvigor/outputs/image-plugin-switches-20261102/restoration-verified.json",
+        "Koma/master bb01371c266e64c3afcf20b7e8a8fd54611347ee已推（SSH22关闭后同库HTTPS成功）；精确CI41395319136进行中；reader-kit/main1866daf0cf7e29852e5a1aab7a5522cc03f0659c已推并固定为本Host依赖。",
+        "koma-sources/master6de64e86e489ad2a27d33330a81346d89da493b4已推，当前用法与automatic适用合同同步；主README作者指南已修正为image-rules/plugins/README.md。",
+        "Koma/master bb01371c266e64c3afcf20b7e8a8fd54611347ee精确CI41395319136 completed/success，Release构建、检查及上传成功；实际ohos-hap-unsigned产物已核，正式发布skipped。",
+        ".hvigor/outputs/image-plugin-switches-20261102/delivery-binding.json"
       ],
       "stage": "已交付",
-      "closedAt": "2026-11-02T12:22:29+08:00",
-      "reopenedAt": "2026-11-02T05:26:39+08:00"
+      "closedAt": "2026-11-02T13:53:41+08:00",
+      "reopenedAt": "2026-11-02T12:44:19+08:00"
     }
   ],
   "source": {
@@ -14469,6 +14482,46 @@
         "docs/subscription-image-rules.md",
         "entry/src/main/ets/model/ImagePluginService.ets"
       ]
+    },
+    {
+      "id": "image-plugin-switch-approved-2026-11-02T12:44:19+08:00",
+      "at": "2026-11-02T12:44:19+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "已采用图片插件开关交互",
+      "detail": "删除三种内部模式；全局总开关，单本默认跟随并可独立启停。旧开启模式合并，关闭及插件配置保留。当前正在实现和验证。",
+      "kind": "decision"
+    },
+    {
+      "id": "plugin-switches197-controls-verified-2026-11-02T13:06:24+08:00",
+      "at": "2026-11-02T13:06:24+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "197已核开关保存与单本覆盖",
+      "detail": "全局关闭重进保持，单本默认跟随且可独立开启；同时发现阅读器状态栏颜色残留，关联修正正在核对。首次本地编译命名冲突已修正并保留失败日志。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "plugin-switches-save-fixed-2026-11-02T13:35:35+08:00",
+      "at": "2026-11-02T13:35:35+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "单本保存已修，状态栏仍未通过",
+      "detail": "重启后当前书独立开启、全局关闭均保留；浅色插件页白色状态栏仍不合格，继续定位。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "plugin-switches197-delivered-2026-11-02T13:42:10+08:00",
+      "at": "2026-11-02T13:42:10+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "图片插件开关已验并推送",
+      "detail": "全局与单本启停、重启保存、恢复跟随和返回阅读已核；关联状态栏修正通过，197原包数据与电源均恢复并释租。等待本次CI。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "plugin-switches-ci-accepted-2026-11-02T13:53:41+08:00",
+      "at": "2026-11-02T13:53:41+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "图片插件开关交互完成",
+      "detail": "总开关与单本继承、保存、返回路径已在197核实；用法已更新，设备已恢复，精确CI构建及产物检查通过。",
+      "kind": "accepted"
     }
   ],
   "reportAgeAudit": {

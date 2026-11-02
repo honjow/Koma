@@ -5,25 +5,57 @@
   "authorizedTarget": "192.168.50.197:12345",
   "hdc": "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc",
   "artifactDir": "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-automation",
-  "runId": "search197-final-power-readback-408",
+  "runId": "plugin-switches-restore-power-443",
   "display": {
     "widthPx": 1260,
     "heightPx": 2720
   },
   "context": {
     "project": "Koma",
-    "codeIdentity": "search197 history identity fix 212b8b38deaa6fb1ab9ed75896d1eb5319b1f1eb847ae0cd0c151dd0e3c50e12",
-    "page": "Read final restored power summary with baseline370 exact -s option; no App actions",
+    "codeIdentity": "final image plugin switches 3b32e908115665302b1cd170ec64f694803152092c2ee3662c6e1c44d9677c48; reader-kit1866daf",
+    "page": "Restore original timeout override and sleep; read final power state",
     "deviceAlias": "device197",
     "deviceModel": "ALN-AL80",
     "foldState": "not-applicable",
     "orientation": "portrait",
     "resolution": "1260x2720",
-    "notes": "197既有授权持续有效；不把助手历史占用推断作为禁止操作。当前搜索卡顿由本机实证核查，不用237替代。"
+    "notes": "本轮图片插件总开关、单本继承与返回路径已验；197原包、七JSON、30偏好和原睡眠超时已恢复，租约已释放。该源清单保留最终恢复入口，后续操作须重新核实时target与租约。"
   },
-  "preflight": [
+  "preflight": [],
+  "measurement": {
+    "actions": []
+  },
+  "postflight": [
     {
-      "name": "power-summary-readback",
+      "name": "restore-timeout",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "restore-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "suspend"
+      ]
+    },
+    {
+      "name": "restore-timeout-after-sleep",
+      "hdcArgs": [
+        "shell",
+        "power-shell",
+        "timeout",
+        "-o",
+        "10000"
+      ]
+    },
+    {
+      "name": "final-power",
       "hdcArgs": [
         "shell",
         "hidumper",
@@ -33,9 +65,5 @@
         "-s"
       ]
     }
-  ],
-  "measurement": {
-    "actions": []
-  },
-  "postflight": []
+  ]
 }
