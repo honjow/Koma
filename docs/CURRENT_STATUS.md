@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "本轮插件与搜索修复已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T12:25:41+08:00",
+  "updatedAt": "2026-11-02T12:34:05+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SEARCH_RECENT_TAP_UI_STALL",
   "activity": "图片插件名称已统一简化，入口、标题和两仓用法同步；功能与订阅地址保持。",
@@ -5544,7 +5544,7 @@
         "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
         "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T12:25:41+08:00",
+      "updatedAt": "2026-11-02T12:34:05+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -5590,7 +5590,8 @@
         "197 plugins197-editor-402实际公共卡片留白与单一关闭按钮；403原生取消/卸载顺序；404卸载本轮临时插件。最终恢复见405/406/407/408。",
         "koma-sources/master b11ac04及27be07054e664d2dac9a9663f6f2b797d7b4b265：书源与插件独立索引、共享添加框自动识别；README改为当前图片处理插件入口与锚点，未重发算法。",
         "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b已推送并由ls-remote逐字核对；包含94e3d1cd运行时、d3104974搜索、0c5b8f3f管理页及b580e5e6当前用法。",
-        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b 精确CI41386807116 success：Release构建、产物检查和上传成功；正式发布skipped。.hvigor/outputs/image-plugins-20261102/delivery-binding.json关联本轮代码、设备实际路径与恢复。"
+        "Koma/master a5da46fdc8761fd0b78f3eb77d6bd8e46ea1278b 精确CI41386807116 success：Release构建、产物检查和上传成功；正式发布skipped。.hvigor/outputs/image-plugins-20261102/delivery-binding.json关联本轮代码、设备实际路径与恢复。",
+        "用户指出三种处理方式难理解；亲核ImagePluginService.imagePluginPlans：source需sourceHints匹配，auto仅取application.automatic的已开启插件，不是宿主选择算法。README与当前协议补充实际范围、去横幅及反色例子；界面选项未擅自改名或改默认值。"
       ],
       "stage": "已交付",
       "closedAt": "2026-11-02T12:22:29+08:00",
@@ -14454,6 +14455,19 @@
         "entry/src/main/resources/zh_CN/element/string.json",
         "README.md",
         "koma-sources/master e8c8515b95fc48e4ee973b4cea1688a263dfb98b"
+      ]
+    },
+    {
+      "id": "image-plugin-scope-explained-2026-11-02T12:34:05+08:00",
+      "at": "2026-11-02T12:34:05+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "补清图片插件三种应用范围",
+      "detail": "按实际代码说明书源标记、自动模式及关闭的区别，并加入转载横幅和反色例子；原功能和界面选项保持。",
+      "kind": "checkpoint",
+      "evidence": [
+        "README.md",
+        "docs/subscription-image-rules.md",
+        "entry/src/main/ets/model/ImagePluginService.ets"
       ]
     }
   ],
