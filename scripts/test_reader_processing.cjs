@@ -4,10 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 const root = path.join(__dirname, '../entry/src/main/ets')
-const crop = {}
-new Function('exports', ts.transpileModule(fs.readFileSync(path.join(root, 'model/ReaderPageCropBounds.ets'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText)(crop)
+const crop = require('../third_party/reader-kit/tests/load-core.cjs')('ReaderPageCropBounds')
 
 function borderedPage(background) {
   const pixels = new Uint8Array(100 * 100 * 4)
@@ -73,9 +70,9 @@ test('native super resolution receives packed RGBA stride even when PixelMap all
 
 function cropFileTask(source,image) {
   const tree=ts.createSourceFile('crop-file',source,ts.ScriptTarget.Latest,true)
-  const fn=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='detectReaderPageCropFile')
+  const fn=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&['detectReaderPageCropFile','detectReaderFileCrop'].includes(n.name?.text))
   const js=ts.transpileModule(fn.getText(tree).replace('@Concurrent',''),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText
-  return new Function('image','ReaderPageCropDetector','ReaderPageCropBounds',js+';return detectReaderPageCropFile;')(image,crop.ReaderPageCropDetector,crop.ReaderPageCropBounds)
+  return new Function('image','ReaderPageCropDetector','ReaderPageCropBounds',js+';return '+fn.name.text+';')(image,crop.ReaderPageCropDetector,crop.ReaderPageCropBounds)
 }
 
 test('source fingerprint preparation retires cancelled or changed enhancement before cache/native work', async () => {
@@ -118,7 +115,7 @@ test('packed PixelMap export keeps real border detection and translation-region 
   const payload=borderedPage(210),released=[]
   const pixel={getImageInfo:async()=>({size:{width:100,height:100},stride:512}),getPixelBytesNumber:()=>payload.byteLength,
     readPixelsToBuffer:async buffer=>new Uint8Array(buffer).set(payload),release:async()=>released.push('pixel')}
-  const task=cropFileTask(get('model/ReaderPageCropService.ets'),{PixelMapFormat:{RGBA_8888:1},createImageSource:()=>({
+  const task=cropFileTask(process.env.KOMA_RGBA_CONSUMERS_BEFORE==='1' ? get('model/ReaderPageCropService.ets') : fs.readFileSync(path.join(__dirname,'../third_party/reader-kit/reader-ui/src/main/ets/ReaderFileCropService.ets'),'utf8'),{PixelMapFormat:{RGBA_8888:1},createImageSource:()=>({
     getImageInfo:async()=>({size:{width:100,height:100}}),createPixelMap:async()=>pixel,release:async()=>released.push('source')})})
   const bounds=crop.ReaderPageCropBounds.parse(await task('file','strong'));assert.equal(bounds.applied(),true)
   assert.deepEqual([bounds.left,bounds.top,bounds.right,bounds.bottom],[.12,.12,.12,.12]);assert.deepEqual(released,['pixel','source'])
