@@ -2130,7 +2130,7 @@
     {"name": "image_rules_updated_at", "value": "Catalog checked: %s"},
     {"name": "image_rules_none", "value": "Add or enable image rules in Subscriptions."},
     {"name": "image_rules_manage_in_subscriptions", "value": "View and manage rules in Subscriptions."},
-    {"name": "image_plugins_title", "value": "Image processing plugins"},
+    {"name": "image_plugins_title", "value": "Image plugins"},
     {"name": "image_plugins_application", "value": "Application mode"},
     {"name": "image_plugins_application_hint", "value": "Follow source uses its processing instructions. Automatic applies enabled plugins to matching images."},
     {"name": "image_plugins_manage_hint", "value": "Install, configure and update image processors"},

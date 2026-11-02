@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：图片处理插件与197搜索卡顿修复已交付，当前订阅用法已公开；其余未关闭事项保留原状态。
+当前工作：图片插件与197搜索卡顿修复已交付，当前订阅用法已公开；其余未关闭事项保留原状态。
 
 设备：197、237均已恢复原包、数据与电源状态并释租；当前没有设备操作。200禁止操作，四私库搁置。
 
@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "本轮插件与搜索修复已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T12:22:29+08:00",
+  "updatedAt": "2026-11-02T12:25:41+08:00",
   "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
   "activeId": "SEARCH_RECENT_TAP_UI_STALL",
-  "activity": "插件运行时、管理页、搜索修复和当前用法已推送，本次CI通过，设备均已恢复。",
+  "activity": "图片插件名称已统一简化，入口、标题和两仓用法同步；功能与订阅地址保持。",
   "nextAction": "其余账号、官方名称及指定站点空响应事项保留原未验范围。",
   "proof": [
     {
@@ -5506,7 +5506,7 @@
     },
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
-      "title": "可订阅的图片处理插件",
+      "title": "可订阅的图片插件",
       "kind": "accepted",
       "priority": "P3",
       "owner": "Root：App插件接入与237验收；home_terra：独立插件包和作者流程",
@@ -5514,7 +5514,7 @@
       "reportedAt": null,
       "reportedAtSource": "当前会话用户提出其他站点转载包子图片也带横幅，希望讨论通用处理形式；消息精确时间未提供。",
       "registeredAt": "2026-11-02T00:59:55+08:00",
-      "result": "共用管理页、订阅识别、手动安装及配置已接通。237真实正文已核下载算法、参数生效、关闭后同页恢复及预载；197已核公开插件安装、标准卡片留白与单一关闭按钮。",
+      "result": "共用管理页、订阅识别、手动安装及配置已接通。237真实正文已核下载算法、参数生效、关闭后同页恢复及预载；197已核公开插件安装、标准卡片留白与单一关闭按钮。 用户已采用“图片插件”简称，入口、标题与当前用法同步简化。",
       "remaining": "本轮已交付；保留原证据中的具名范围。",
       "remainingActions": [
         "恢复197本轮原包、七份JSON、30份偏好及原电源状态并释租。",
@@ -5544,7 +5544,7 @@
         "237 plugins-preload-cache-514在09:59:44前已存在b1be208bd5f493a0.png；515在10:00:00点击到第2页。该PNG对应0aecf3054e40c6fc.jpg反色（同800x1333，均差0.5197），在翻页前已生成。",
         "197 plugins197-empty-395无默认插件；399由公开索引识别插件订阅；401已安装edge-banners v6且未开启；402实际弹层卡片有水平留白、仅一个HDS关闭按钮，设备API26。"
       ],
-      "updatedAt": "2026-11-02T12:22:29+08:00",
+      "updatedAt": "2026-11-02T12:25:41+08:00",
       "evidence": [
         ".hvigor/outputs/generic-banner-20261102/rules-delivery.json",
         ".hvigor/outputs/generic-banner-20261102/delivery-binding.json",
@@ -14441,6 +14441,19 @@
       "evidence": [
         ".hvigor/outputs/image-plugins-20261102/delivery-binding.json",
         "https://github.com/honjow/Koma/actions/runs/41386807116"
+      ]
+    },
+    {
+      "id": "image-plugin-short-name-2026-11-02T12:25:41+08:00",
+      "at": "2026-11-02T12:25:41+08:00",
+      "itemId": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "title": "名称统一为图片插件",
+      "detail": "按用户采用的简称同步设置入口、页面标题、订阅用语及两仓当前用法，协议、订阅地址与功能保持；仅文案校验，不重复设备路径。",
+      "kind": "checkpoint",
+      "evidence": [
+        "entry/src/main/resources/zh_CN/element/string.json",
+        "README.md",
+        "koma-sources/master e8c8515b95fc48e4ee973b4cea1688a263dfb98b"
       ]
     }
   ],
