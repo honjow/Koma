@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：优化阅读设置的三类分段和滤镜预览；此前图像增强与翻页竞态修复保留有效交付。
+当前结果：阅读设置三类分段与滤镜实时预览已交付。此前阅读器修复和其余未关闭事项均保留原状态。
 
 设备：197与237本轮均已恢复原数据和电源状态并释租，保留开发包。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "阅读设置分段优化中",
+  "state": "阅读设置分段优化已交付",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T02:14:51+08:00",
+  "updatedAt": "2026-11-03T02:29:34+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "READER_SETTINGS_TABBED_SHEET",
-  "activity": "三类设置、滤镜预览和子层返回已在197验证，正在恢复与交付。",
-  "nextAction": "编译并在已授权设备验证三类切换、滚动位置、滤镜遮罩及工具栏恢复和子半模态返回。",
+  "activeId": "",
+  "activity": "三类阅读设置与滤镜实时预览已在197验收并交付，原数据和电源已恢复。",
+  "nextAction": "其余未关闭事项保留原状态和范围，不重开已验收路径。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5993,9 +5993,9 @@
       "id": "READER_SETTINGS_TABBED_SHEET",
       "title": "阅读设置分段与滤镜实时预览",
       "priority": "P1（用户已采用）",
-      "kind": "open",
-      "status": "197普通路径已通过，交付收尾中",
-      "stage": "实现与验证",
+      "kind": "accepted",
+      "status": "197验收与交付完成",
+      "stage": "具名范围已交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
@@ -6003,8 +6003,8 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户提出阅读模式／常规／滤镜分段，并明确“那就开始实现吧”；原消息精确时间未核实。",
-      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。",
-      "remaining": "恢复设备原数据及电源、提交推送并核对远端构建。",
+      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。",
+      "remaining": "本次三类设置与滤镜预览已交付。",
       "boundaries": [
         "采用本会话已确认三类分段替换阅读标题与关闭按钮，保留原生下拉和返回关闭、中／大两档和新材质。",
         "保留所有设置含义、值域与持久化；控制栏单双页及方向合同不变。图片插件和模型管理保留独立第二层半模态。",
@@ -6016,7 +6016,16 @@
         ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/record-filter-preview/",
         ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/plugin-return/",
         ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/model-return/",
-        "reader-kit/main 891fc83已推。初次发布签名安装被设备拒绝；已换既有开发签名release候选，未卸载或修改设备信任。"
+        "reader-kit/main 891fc83已推。初次发布签名安装被设备拒绝；已换既有开发签名release候选，未卸载或修改设备信任。",
+        "Koma/master f30a3bdf72d144c2dbdada60ffb434c5103e6239已推；精确CI41498791499运行中。",
+        ".hvigor/outputs/reader-settings-tabs-20261103/restoration.json：六项数据逐字恢复；restore-power读回原SLEEP、10000ms override，租约已释放。",
+        "https://github.com/honjow/Koma/actions/runs/41498791499：f30a3bdf72d144c2dbdada60ffb434c5103e6239 completed/success。",
+        ".hvigor/outputs/reader-settings-tabs-20261103/ci-final.json",
+        "197普通Shared路径实测；保留Legacy兼容接线和全局原入口编译通过，未扩称其它宿主或设备验收。"
+      ],
+      "closedAt": "2026-11-03T02:29:34+08:00",
+      "remainingActions": [
+        "本次具名范围已完成。"
       ]
     }
   ],
@@ -15239,6 +15248,22 @@
       "title": "197阅读设置分段与滤镜预览通过",
       "detail": "最终候选连续切换无内容缩放，灰度即时生效，下拉关闭与两子半模态返回正常；设备恢复和远端交付仍在收尾。",
       "kind": "open"
+    },
+    {
+      "id": "reader-tabs-restored-2026-11-03T02:16:30+08:00",
+      "at": "2026-11-03T02:16:30+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "阅读设置验收设备已恢复并释租",
+      "detail": "197六项原数据逐字恢复，原睡眠和超时读回，保留新开发包；代码已推，远端构建中。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-tabs-delivered-2026-11-03T02:29:34+08:00",
+      "at": "2026-11-03T02:29:34+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "阅读设置三类分段与滤镜预览已交付",
+      "detail": "197普通路径通过，初次切换变形已修正；两仓推送和远端构建成功。原数据与电源恢复后释租，保留新开发包。",
+      "kind": "accepted"
     }
   ],
   "reportAgeAudit": {
