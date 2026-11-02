@@ -21,6 +21,7 @@ function t(key: string): string { return AppStrings.get(key) }
 @ComponentV2
 export struct ReaderImageSettingsContent {
   @Param preferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
+  @Param showPlugins: boolean = true
   @Param bookBannerOptions: boolean = false
   @Param cropControlsAvailable: boolean = true
   @Param enhancementControlsAvailable: boolean = true
@@ -35,7 +36,7 @@ export struct ReaderImageSettingsContent {
 
   aboutToAppear(): void {
     this.active = true
-    void ImageRuleStore.forContext(this.getUIContext().getHostContext() as common.UIAbilityContext).list()
+    if (this.showPlugins) void ImageRuleStore.forContext(this.getUIContext().getHostContext() as common.UIAbilityContext).list()
     this.refreshModels()
   }
 
@@ -128,10 +129,12 @@ export struct ReaderImageSettingsContent {
 
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      GroupedListSection() {
-        ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
-          trailingText: t(this.pluginUsageLabel()),
-          action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
+      if (this.showPlugins) {
+        GroupedListSection() {
+          ConciseListRow({ title: t('image_plugins_title'), subtitle: t('image_plugins_manage_hint'), subtitleMaxLines: 3,
+            trailingText: t(this.pluginUsageLabel()),
+            action: (): void => { this.onOpenPlugins() } }).id('reader-image-plugins')
+        }
       }
       if (this.cropControlsAvailable) {
         GroupedListSection({ title: t('settings_reader_group_crop') }) {

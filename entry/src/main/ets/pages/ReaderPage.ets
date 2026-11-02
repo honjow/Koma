@@ -1725,6 +1725,7 @@ export struct ReaderPage {
   @Local private preferenceRevision: number = 0
   /** The reader owns immediate chrome rendering; the route receives a sync event. */
   @Local private chromeShown: boolean = false
+  @Local private readerFilterPreview: boolean = false
   @Local private viewportWidth: number = 0
   @Local private viewportHeight: number = 0
   @Local private zoomed: boolean = false
@@ -3806,6 +3807,8 @@ export struct ReaderPage {
   private ReaderChromeBar(placement: 'top' | 'bottom') {
     ReaderChrome({
       visible: true,
+      filterPreview: this.readerFilterPreview,
+      onFilterPreviewChange: (active: boolean): void => { this.readerFilterPreview = active },
       placement: placement,
       viewportHeight: this.viewportHeight,
       pageIndex: this.pageIndex,

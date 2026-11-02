@@ -28,6 +28,8 @@ export interface ReaderChromePreferencesChange {
 @ComponentV2
 export struct ReaderChrome {
   @Param visible: boolean = false
+  @Param filterPreview: boolean = false
+  @Event onFilterPreviewChange: (active: boolean) => void = () => {}
   /** One physical bar per component, matching NextE's sibling bar layers. */
   @Param placement: 'top' | 'bottom' = 'top'
   @Param viewportHeight: number = 0
@@ -173,6 +175,7 @@ export struct ReaderChrome {
   }
 
   private closeSettings(): void {
+    this.onFilterPreviewChange(false)
     this.settingsShown = false
   }
 
@@ -186,6 +189,7 @@ export struct ReaderChrome {
       onPreferencesChange: (preferences: ReaderPreferences): void => {
         this.onPreferencesChange({ preferences: preferences })
       },
+      onFilterPreviewChange: (active: boolean): void => { this.onFilterPreviewChange(active) },
       onClose: (): void => { this.closeSettings() },
       onRevealTapZones: (): void => { this.onVisibleChange(false) },
     })
@@ -297,6 +301,7 @@ export struct ReaderChrome {
           detents: [SheetSize.MEDIUM, SheetSize.LARGE],
           showClose: false,
           enableOutsideInteractive: false,
+          maskColor: this.filterPreview ? Color.Transparent : $r('sys.color.ohos_id_color_mask_thin'),
           scrollSizeMode: ScrollSizeMode.CONTINUOUS,
           enableFloatingDragBar: true,
           onDisappear: () => { this.closeSettings() },
@@ -402,10 +407,10 @@ export struct ReaderChrome {
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       if (this.visible && this.placement === 'top') {
-        this.TopBar()
+        Column() { this.TopBar() }.opacity(this.filterPreview ? 0 : 1)
       }
       if (this.visible && this.placement === 'bottom') {
-        this.BottomBar()
+        Column() { this.BottomBar() }.opacity(this.filterPreview ? 0 : 1)
       }
     }
     .width('100%')

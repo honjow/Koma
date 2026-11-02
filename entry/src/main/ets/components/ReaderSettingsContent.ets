@@ -3,6 +3,7 @@ import { ImagePluginsPage } from '../pages/ImagePluginsPage'
 import { SourceSubscriptionsPage } from '../pages/SourceSubscriptionsPage'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ReaderDisplaySettingsContent } from './ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { ReaderImageSettingsContent } from './ReaderImageSettingsContent'
@@ -59,7 +60,19 @@ export struct ReaderSettingsContent {
   @Param enhancementControlsAvailable: boolean = false
   // Reader owns immediate reading controls. Provider/account configuration belongs
   // to the global translation settings route, not a form reachable only in this sheet.
-  @Local private displaySettingsShown: boolean = false
+  @Local private selectedTab: number = 0
+  @Event onFilterPreviewChange: (active: boolean) => void = () => {}
+  private layout: LayoutSafeAreaState = connectLayoutSafeArea()
+  private modeScroller: Scroller = new Scroller()
+  private generalScroller: Scroller = new Scroller()
+  private filterScroller: Scroller = new Scroller()
+
+  aboutToDisappear(): void { this.onFilterPreviewChange(false) }
+
+  private selectTab(index: number): void {
+    this.selectedTab = index
+    this.onFilterPreviewChange(index === 2)
+  }
   @Local private modelManagementShown: boolean = false
   @Local private imagePluginsShown: boolean = false
   @Local private pluginSubscriptionsShown: boolean = false
@@ -365,14 +378,6 @@ export struct ReaderSettingsContent {
     }
   }
 
-  @Builder
-  private DisplaySettingsSheet() {
-    ReaderDisplaySettingsContent({ settings: this.preferences.displaySettings,
-      onChange: (settings: ReaderDisplaySettings): void => {
-        const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
-      }, onClose: (): void => { this.displaySettingsShown = false } })
-  }
-
   private pluginRequest(): ImagePluginsRequest {
     return new ImagePluginsRequest(this.preferences, true, (next: ReaderPreferences): void => {
       // The reading sheet stays mounted; only this book's plugin override is
@@ -413,82 +418,107 @@ export struct ReaderSettingsContent {
     }
   }
 
-  build() {
-    // Separate sheet instances preserve the parent list and its scroll position.
-    Stack() {
-    KomaModalScaffold({
-      title: s('settings_pane_reader_title'),
-      modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
-      onClose: (): void => { this.onClose() },
-    }) {
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        GroupedListSection({ title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.DUAL_PAGE : ReaderMode.SINGLE_PAGE), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_series_override_reset'), subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'), showChevron: false, isEnabled: this.seriesOverrideActive, action: () => { this.onResetSeriesOverride() } })
-        }
-        GroupedListSection({ title: s('settings_reader_group_tap_zones'), headerSpacing: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({ title: s('settings_row_reader_tap_zone_preset_title'), trailingText: getReaderTapZonePresetLabel(this.preferences.tapZonePreset), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapZoneMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_tap_zone_invert_title'), trailingText: getReaderTapZoneInvertLabel(this.preferences.tapZoneInvert), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapInvertMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_double_tap_zoom_title'), hasSwitch: true, checked: this.preferences.doubleTapZoomEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('double-tap-zoom', value) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
-        }
-        GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({ title: s('reader_display_title'), action: (): void => { this.displaySettingsShown = true } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_fullscreen_title'), hasSwitch: true, checked: this.preferences.fullscreen, showChevron: false, switchAction: (value: boolean) => { this.setToggle('fullscreen', value) } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
-        }
-        ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
-          cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: this.enhancementControlsAvailable,
-          modelsRevision: this.modelsRevision,
-          onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
-          onOpenPlugins: (): void => { this.imagePluginsShown = true },
-          onOpenModels: () => { this.modelManagementShown = true } })
-        GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
-        }
-        GroupedListSection({ title: s('settings_row_reader_page_gap_title'), headerSpacing: ThemeConstants.SPACE_SM }) {
-          ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
-        }
-        Blank().height(ThemeConstants.SPACE_XL)
+  @Builder
+  private TabContent(index: number, scroller: Scroller) {
+    List({ scroller: scroller }) {
+      ListItem() {
+        Column({ space: ThemeConstants.SPACE_SM }) {
+          if (index === 0) {
+            GroupedListSection({ title: s('settings_reader_group_layout'), headerSpacing: ThemeConstants.SPACE_SM }) {
+              ConciseListRow({ title: s('reader_control_mode'), trailingText: getReaderModeLabel(this.readerMode === ReaderMode.DUAL_PAGE ? ReaderMode.DUAL_PAGE : ReaderMode.SINGLE_PAGE), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PageModeMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reading_direction_title'), trailingText: this.effectiveDirectionLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DirectionMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_spread_layout_title'), trailingText: this.preferences.spreadLayoutMode === 'split' ? s('reader_spread_layout_split') : s('reader_spread_layout_joined'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SpreadLayoutMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_column_mode_title'), trailingText: this.preferences.columnMode === 'even_left' ? s('reader_column_mode_even_left') : s('reader_column_mode_odd_left'), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.readerMode === ReaderMode.DUAL_PAGE, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ColumnModeMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_page_turn_animation_title'), hasSwitch: true, checked: this.preferences.pageTurnAnimation, showChevron: false, isEnabled: this.readerMode !== ReaderMode.VERTICAL_PAGE, switchAction: (value: boolean) => { this.setToggle('page-animation', value) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_series_override_reset'), subtitle: s(this.seriesOverrideActive ? 'reader_series_override_different' : 'reader_series_override_inherited'), showChevron: false, isEnabled: this.seriesOverrideActive, action: () => { this.onResetSeriesOverride() } })
+            }
+            GroupedListSection({ title: s('settings_reader_group_tap_zones'), headerSpacing: ThemeConstants.SPACE_SM }) {
+              ConciseListRow({ title: s('settings_row_reader_tap_zone_preset_title'), trailingText: getReaderTapZonePresetLabel(this.preferences.tapZonePreset), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapZoneMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_tap_zone_invert_title'), trailingText: getReaderTapZoneInvertLabel(this.preferences.tapZoneInvert), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.TapInvertMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_double_tap_zoom_title'), hasSwitch: true, checked: this.preferences.doubleTapZoomEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('double-tap-zoom', value) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_double_tap_interval_title'), trailingText: `${this.preferences.doubleTapIntervalMs} ms`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.DoubleTapIntervalMenu(select) } })
+            }
+            GroupedListSection({ title: s('settings_row_reader_page_gap_title'), headerSpacing: ThemeConstants.SPACE_SM }) {
+              ConciseListRow({ title: s('settings_row_reader_page_gap_title'), trailingText: getReaderPageGapModeLabel(this.preferences.pageGapMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.GapMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_wide_image_mode_title'), trailingText: getReaderWideImageModeLabel(this.preferences.wideImageMode), trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.isWebtoonLayout(), dropdownMenuBuilder: (select: (action: () => void) => void) => { this.WideMenu(select) } })
+            }
+            ReaderImageSettingsContent({ preferences: this.preferences, showPlugins: false,
+              cropControlsAvailable: this.cropControlsAvailable, enhancementControlsAvailable: false,
+              onPreferencesChange: (next: ReaderPreferences) => { this.update(next) } })
+          } else if (index === 1) {
+            GroupedListSection({ title: s('settings_reader_group_display'), headerSpacing: ThemeConstants.SPACE_SM }) {
+              ConciseListRow({ title: s('settings_row_reader_background_title'), trailingText: getReaderBackgroundModeLabel(this.preferences.backgroundMode), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BackgroundMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_image_scaling_quality_title'), trailingText: this.scalingQualityLabel(), trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ScalingQualityMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_show_page_number_title'), hasSwitch: true, checked: this.preferences.showPageNumber, showChevron: false, switchAction: (value: boolean) => { this.setToggle('page-number', value) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_fullscreen_title'), hasSwitch: true, checked: this.preferences.fullscreen, showChevron: false, switchAction: (value: boolean) => { this.setToggle('fullscreen', value) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_keep_screen_awake_title'), hasSwitch: true, checked: this.preferences.keepScreenAwake, showChevron: false, switchAction: (value: boolean) => { this.setToggle('awake', value) } })
+            }
+            GroupedListSection({ title: s('settings_reader_group_navigation'), headerSpacing: ThemeConstants.SPACE_SM }) {
+              ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
+            }
+            ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
+              cropControlsAvailable: false, enhancementControlsAvailable: this.enhancementControlsAvailable,
+              modelsRevision: this.modelsRevision,
+              onPreferencesChange: (next: ReaderPreferences) => { this.update(next) },
+              onOpenPlugins: (): void => { this.imagePluginsShown = true },
+              onOpenModels: () => { this.modelManagementShown = true } })
+          } else {
+            ReaderDisplaySettingsContent({ embedded: true, settings: this.preferences.displaySettings,
+              onChange: (settings: ReaderDisplaySettings): void => {
+                const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
+              } })
+          }
+          Blank().height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
+        }.width('100%').padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
       }
-      .width('100%')
-      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+    }.width('100%').height('100%').scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+      .nestedScroll({ scrollForward: NestedScrollMode.SELF_FIRST, scrollBackward: NestedScrollMode.SELF_FIRST })
+      // Retain the hidden list's geometry, as in SourcePackageManagerPage.
+      // Collapsing to None lets the segmented control's native animation scale
+      // the next page from zero bounds, also disturbing retained scroll state.
+      .visibility(this.selectedTab === index ? Visibility.Visible : Visibility.Hidden)
+  }
+
+  build() {
+    // Tabs retain their own scroll position; child managers remain independent
+    // native sheets so dismissing one returns to this same selected tab.
+    Stack() {
+    KomaModalScaffold({ contentOwnsScrolling: true,
+      tabLabels: [s('reader_settings_tab_mode'), s('reader_settings_tab_general'), s('reader_settings_tab_filters')],
+      selectedTab: this.selectedTab, onTabSelect: (index: number): void => { this.selectTab(index) },
+      modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
+    }) {
+      Stack() {
+        this.TabContent(0, this.modeScroller)
+        this.TabContent(1, this.generalScroller)
+        this.TabContent(2, this.filterScroller)
+      }.width('100%').height('100%')
     }
     Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
       .bindSheet($$this.modelManagementShown, this.ModelManagementSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         onDisappear: (): void => { this.modelsRevision += 1 } }))
     Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
       .bindSheet($$this.imagePluginsShown, this.ImagePluginsSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE] }))
-    Row().width(1).height(1).position({ x: 0, y: 0 }).hitTestBehavior(HitTestMode.None)
-      .bindSheet($$this.displaySettingsShown, this.DisplaySettingsSheet, komaModalSheetOptions({ height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE] }))
     }.width('100%').height('100%')
   }
 }

@@ -2159,6 +2159,9 @@
     {"name": "image_plugins_global_management", "value": "下方插件的启停、配置和卸载对所有漫画生效。"},
     {"name": "image_plugins_source_conflict", "value": "存在其他订阅提供的同名插件，请保留一个来源后再启用。"},
     {"name": "image_plugins_processing_failed", "value": "图片处理失败，已保留可阅读的图片。可重试或关闭此插件。"},
-    {"name": "image_plugins_storage_failed", "value": "无法读取插件数据，原数据已保留。请下拉重试。"}
+    {"name": "image_plugins_storage_failed", "value": "无法读取插件数据，原数据已保留。请下拉重试。"},
+    {"name": "reader_settings_tab_mode", "value": "阅读模式"},
+    {"name": "reader_settings_tab_general", "value": "常规"},
+    {"name": "reader_settings_tab_filters", "value": "滤镜"}
   ]
 }

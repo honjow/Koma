@@ -9,6 +9,7 @@ import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 
 @ComponentV2
 export struct ReaderDisplaySettingsContent {
+  @Param embedded: boolean = false
   @Param settings: ReaderDisplaySettings = new ReaderDisplaySettings()
   @Event onChange: (settings: ReaderDisplaySettings) => void = () => {}
   @Event onClose: () => void = () => {}
@@ -47,45 +48,54 @@ export struct ReaderDisplaySettingsContent {
     }
   }
 
+  @Builder
+  private Controls() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      GroupedListSection() {
+        ConciseListRow({ title: AppStrings.get('reader_display_brightness_enabled'), hasSwitch: true,
+          checked: this.draft.brightnessEnabled, showChevron: false,
+          switchAction: (value: boolean): void => { this.change((next): void => { next.brightnessEnabled = value }) } })
+        if (this.draft.brightnessEnabled) ReaderDisplayValueSlider({ field: 'brightness', value: this.draft.brightness, min: -75, max: 100,
+            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('brightness', value, mode) } })
+      }
+      GroupedListSection() {
+        ConciseListRow({ title: AppStrings.get('reader_display_filter_enabled'), hasSwitch: true,
+          checked: this.draft.filterEnabled, showChevron: false,
+          switchAction: (value: boolean): void => { this.change((next): void => { next.filterEnabled = value }) } })
+        if (this.draft.filterEnabled) {
+          ReaderDisplayValueSlider({ field: 'red', value: this.draft.red, min: 0, max: 255,
+            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('red', value, mode) } })
+          ReaderDisplayValueSlider({ field: 'green', value: this.draft.green, min: 0, max: 255,
+            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('green', value, mode) } })
+          ReaderDisplayValueSlider({ field: 'blue', value: this.draft.blue, min: 0, max: 255,
+            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('blue', value, mode) } })
+          ReaderDisplayValueSlider({ field: 'alpha', value: this.draft.alpha, min: 0, max: 255,
+            onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('alpha', value, mode) } })
+          ConciseListRow({ title: AppStrings.get('reader_display_blend'),
+            trailingText: AppStrings.get('reader_display_blend_' + this.draft.blendMode),
+            trailingDropdown: true, dropdownMenuEnabled: true,
+            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BlendMenu(select) } })
+        }
+      }
+      GroupedListSection() {
+        ConciseListRow({ title: AppStrings.get('reader_display_grayscale'), hasSwitch: true,
+          checked: this.draft.grayscale, showChevron: false,
+          switchAction: (value: boolean): void => { this.change((next): void => { next.grayscale = value }) } })
+        ListDivider()
+        ConciseListRow({ title: AppStrings.get('reader_display_inverted'), hasSwitch: true,
+          checked: this.draft.inverted, showChevron: false,
+          switchAction: (value: boolean): void => { this.change((next): void => { next.inverted = value }) } })
+      }
+    }.width('100%')
+  }
+
   build() {
-    KomaModalScaffold({ title: AppStrings.get('reader_display_title'), onClose: (): void => { this.onClose() } }) {
-      Column({ space: ThemeConstants.SPACE_SM }) {
-        GroupedListSection() {
-          ConciseListRow({ title: AppStrings.get('reader_display_brightness_enabled'), hasSwitch: true,
-            checked: this.draft.brightnessEnabled, showChevron: false,
-            switchAction: (value: boolean): void => { this.change((next): void => { next.brightnessEnabled = value }) } })
-          if (this.draft.brightnessEnabled) ReaderDisplayValueSlider({ field: 'brightness', value: this.draft.brightness, min: -75, max: 100,
-              onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('brightness', value, mode) } })
-        }
-        GroupedListSection() {
-          ConciseListRow({ title: AppStrings.get('reader_display_filter_enabled'), hasSwitch: true,
-            checked: this.draft.filterEnabled, showChevron: false,
-            switchAction: (value: boolean): void => { this.change((next): void => { next.filterEnabled = value }) } })
-          if (this.draft.filterEnabled) {
-            ReaderDisplayValueSlider({ field: 'red', value: this.draft.red, min: 0, max: 255,
-              onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('red', value, mode) } })
-            ReaderDisplayValueSlider({ field: 'green', value: this.draft.green, min: 0, max: 255,
-              onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('green', value, mode) } })
-            ReaderDisplayValueSlider({ field: 'blue', value: this.draft.blue, min: 0, max: 255,
-              onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('blue', value, mode) } })
-            ReaderDisplayValueSlider({ field: 'alpha', value: this.draft.alpha, min: 0, max: 255,
-              onChange: (value: number, mode: SliderChangeMode): void => { this.setSlider('alpha', value, mode) } })
-            ConciseListRow({ title: AppStrings.get('reader_display_blend'),
-              trailingText: AppStrings.get('reader_display_blend_' + this.draft.blendMode),
-              trailingDropdown: true, dropdownMenuEnabled: true,
-              dropdownMenuBuilder: (select: (action: () => void) => void) => { this.BlendMenu(select) } })
-          }
-        }
-        GroupedListSection() {
-          ConciseListRow({ title: AppStrings.get('reader_display_grayscale'), hasSwitch: true,
-            checked: this.draft.grayscale, showChevron: false,
-            switchAction: (value: boolean): void => { this.change((next): void => { next.grayscale = value }) } })
-          ListDivider()
-          ConciseListRow({ title: AppStrings.get('reader_display_inverted'), hasSwitch: true,
-            checked: this.draft.inverted, showChevron: false,
-            switchAction: (value: boolean): void => { this.change((next): void => { next.inverted = value }) } })
-        }
-      }.width('100%')
+    if (this.embedded) {
+      this.Controls()
+    } else {
+      KomaModalScaffold({ title: AppStrings.get('reader_display_title'), onClose: (): void => { this.onClose() } }) {
+        this.Controls()
+      }
     }
   }
 }

@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：图像增强交接与旧翻页回调的两处竞态已修复交付。其余未关闭事项仍保留在原项。
+当前工作：优化阅读设置的三类分段和滤镜预览；此前图像增强与翻页竞态修复保留有效交付。
 
 设备：197与237本轮均已恢复原数据和电源状态并释租，保留开发包。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "本轮两处阅读器竞态已交付",
+  "state": "阅读设置分段优化中",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T00:36:32+08:00",
+  "updatedAt": "2026-11-03T02:14:51+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "",
-  "activity": "图像增强交接与旧选页回调修正已推送，237具名路径和远端构建通过。",
-  "nextAction": "其余未关闭问题按各原项保留，不重开已验收路径。",
+  "activeId": "READER_SETTINGS_TABBED_SHEET",
+  "activity": "三类设置、滤镜预览和子层返回已在197验证，正在恢复与交付。",
+  "nextAction": "编译并在已授权设备验证三类切换、滚动位置、滤镜遮罩及工具栏恢复和子半模态返回。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5988,6 +5988,36 @@
         ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。"
       ],
       "closedAt": "2026-11-03T00:36:32+08:00"
+    },
+    {
+      "id": "READER_SETTINGS_TABBED_SHEET",
+      "title": "阅读设置分段与滤镜实时预览",
+      "priority": "P1（用户已采用）",
+      "kind": "open",
+      "status": "197普通路径已通过，交付收尾中",
+      "stage": "实现与验证",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "READER_SETTINGS_PLACEMENT"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户提出阅读模式／常规／滤镜分段，并明确“那就开始实现吧”；原消息精确时间未核实。",
+      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。",
+      "remaining": "恢复设备原数据及电源、提交推送并核对远端构建。",
+      "boundaries": [
+        "采用本会话已确认三类分段替换阅读标题与关闭按钮，保留原生下拉和返回关闭、中／大两档和新材质。",
+        "保留所有设置含义、值域与持久化；控制栏单双页及方向合同不变。图片插件和模型管理保留独立第二层半模态。",
+        "滤镜标签直接展示调节，透明遮罩仍拦截下层输入；临时隐藏工具栏不更改窗口或重建会话，离开预览恢复。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-settings-tabs-20261103/delivery.json",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/record-tabs-final/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/record-filter-preview/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/plugin-return/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/model-return/",
+        "reader-kit/main 891fc83已推。初次发布签名安装被设备拒绝；已换既有开发签名release候选，未卸载或修改设备信任。"
+      ]
     }
   ],
   "source": {
@@ -15193,6 +15223,22 @@
       "title": "旧翻页回调回写修正已交付",
       "detail": "两仓修正已推，237超分、裁边与水平往返具名路径已核；精确CI成功，原始偶发现场未捕获的范围保留。设备数据及电源恢复并释租。",
       "kind": "accepted"
+    },
+    {
+      "id": "reader-settings-tabs-start-2026-11-03T01:51:34+08:00",
+      "at": "2026-11-03T01:51:34+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "开始阅读设置三类分段优化",
+      "detail": "按本会话确认方案实施，保留原设置和独立子半模态；尚未设备验证。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-tabs-device-2026-11-03T02:14:51+08:00",
+      "at": "2026-11-03T02:14:51+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "197阅读设置分段与滤镜预览通过",
+      "detail": "最终候选连续切换无内容缩放，灰度即时生效，下拉关闭与两子半模态返回正常；设备恢复和远端交付仍在收尾。",
+      "kind": "open"
     }
   ],
   "reportAgeAudit": {

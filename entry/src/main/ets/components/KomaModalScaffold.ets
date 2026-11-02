@@ -3,6 +3,7 @@ import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hd
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { KomaSegmentedControl } from './ui/KomaSegmentedControl'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
 // This scaffold owns its HDS title bar. Reserve no second title/drag-bar row
@@ -26,6 +27,9 @@ export struct KomaModalScaffold {
   @Param additionalActions: HdsNavigationMenuItemOptions[] = []
   @Event onClose: () => void = () => {}
   @Event onConfirm: () => void = () => {}
+  @Param tabLabels: string[] = []
+  @Param selectedTab: number = 0
+  @Event onTabSelect: (index: number) => void = () => {}
   @BuilderParam content: () => void
   private scroller: Scroller = new Scroller()
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -46,40 +50,50 @@ export struct KomaModalScaffold {
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       HdsNavigation() {
-        if (this.contentOwnsScrolling) {
-          Column() {
-            this.content()
+        Column() {
+          // An opted-in tab header replaces the title bar, while this common owner
+          // retains the material, insets and native sheet/drag behavior.
+          if (this.tabLabels.length > 0) {
+            KomaSegmentedControl({ labels: this.tabLabels, selectedIndex: this.selectedTab,
+              select: (index: number): void => { this.onTabSelect(index) } })
+              .padding({ left: this.contentHorizontalPadding, right: this.contentHorizontalPadding,
+                top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_SM })
           }
-          .height('100%')
-          .width('100%')
-          .padding({
-            left: this.contentHorizontalPadding,
-            right: this.contentHorizontalPadding,
-          })
-        } else {
-          List({ space: ThemeConstants.SPACE_SM, scroller: this.scroller }) {
-            this.content()
-            ListItem() {
-              Column() {
-                Blank()
-                  .height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
-              }
-              .width('100%')
+          if (this.contentOwnsScrolling) {
+            Column() {
+              this.content()
             }
+            .layoutWeight(1)
+            .width('100%')
+            .padding({
+              left: this.contentHorizontalPadding,
+              right: this.contentHorizontalPadding,
+            })
+          } else {
+            List({ space: ThemeConstants.SPACE_SM, scroller: this.scroller }) {
+              this.content()
+              ListItem() {
+                Column() {
+                  Blank()
+                    .height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
+                }
+                .width('100%')
+              }
+            }
+            .layoutWeight(1)
+            .width('100%')
+            .padding({
+              left: this.contentHorizontalPadding,
+              right: this.contentHorizontalPadding,
+            })
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+            .nestedScroll({
+              scrollForward: NestedScrollMode.SELF_FIRST,
+              scrollBackward: NestedScrollMode.SELF_FIRST,
+            })
           }
-          .height('100%')
-          .width('100%')
-          .padding({
-            left: this.contentHorizontalPadding,
-            right: this.contentHorizontalPadding,
-          })
-          .scrollBar(BarState.Off)
-          .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-          .nestedScroll({
-            scrollForward: NestedScrollMode.SELF_FIRST,
-            scrollBackward: NestedScrollMode.SELF_FIRST,
-          })
-        }
+        }.width('100%').height('100%')
       }
       .titleBar({
         enableComponentSafeArea: true,
@@ -106,6 +120,7 @@ export struct KomaModalScaffold {
         },
       })
       .titleMode(HdsNavigationTitleMode.MODAL)
+      .hideTitleBar(this.tabLabels.length > 0)
       .bindToScrollable([this.scroller])
       .width('100%')
       .height('100%')

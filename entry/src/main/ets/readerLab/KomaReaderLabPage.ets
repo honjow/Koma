@@ -137,6 +137,7 @@ export struct KomaReaderLabPage {
   @Local private chapterBusy: boolean = false
   @Local private readerMode: ReaderModeState = connectReaderModeState()
   @Local private readerSettingsSheetShown: boolean = false
+  @Local private readerFilterPreview: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
   @Local private tapZonePreviewRevision: number = 0
   @Local private chapterPickerShown: boolean = false
@@ -715,6 +716,7 @@ export struct KomaReaderLabPage {
   }
 
   private closeHostSettings(): void {
+    this.readerFilterPreview = false
     this.readerSettingsSheetShown = false
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
@@ -1069,6 +1071,7 @@ export struct KomaReaderLabPage {
         enhancementControlsAvailable: true,
         onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
         onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
+        onFilterPreviewChange: (active: boolean): void => { this.readerFilterPreview = active },
         onClose: (): void => { this.closeHostSettings() },
         onRevealTapZones: (): void => { this.closeHostSettings() },
       })
@@ -1131,6 +1134,7 @@ export struct KomaReaderLabPage {
                 doubleTapEnabled: this.hostPreferences?.doubleTapZoomEnabled ?? this.readerMode.doubleTapZoomEnabled,
                 doubleTapIntervalMs: this.hostPreferences?.doubleTapIntervalMs ?? this.readerMode.doubleTapIntervalMs,
                 chromeAppearance: this.chromeAppearance,
+                chromeSuppressed: this.readerFilterPreview,
                 modeControl: (params: ReaderModeControlParams): void => { this.HostModeControl(params) },
                 titleControl: (params: Binding<ReaderTitleParams>): void => { this.HostTitleControl(params) },
                 catalogFailureText: (): string => this.adapter?.catalogFailureMessage() ?? '',
@@ -1229,6 +1233,7 @@ export struct KomaReaderLabPage {
         detents: [SheetSize.MEDIUM, SheetSize.LARGE],
         showClose: false,
         enableOutsideInteractive: false,
+        maskColor: this.readerFilterPreview ? Color.Transparent : $r('sys.color.ohos_id_color_mask_thin'),
         scrollSizeMode: ScrollSizeMode.CONTINUOUS,
         enableFloatingDragBar: true,
         onDisappear: (): void => { this.closeHostSettings() },
