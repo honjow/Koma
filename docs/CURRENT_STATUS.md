@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：阅读设置三类分段与滤镜实时预览已交付。此前阅读器修复和其余未关闭事项均保留原状态。
+当前工作：三个 App 半模态的渐变模糊已恢复并完成具名检查，正在整理交付；其他新反馈已登记。
 
-设备：197与237本轮均已恢复原数据和电源状态并释租，保留开发包。200禁止操作，四私库搁置。
+设备：197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200禁止操作，四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "阅读设置分段优化已交付",
+  "state": "三个App半模态渐变恢复已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T02:29:34+08:00",
+  "updatedAt": "2026-11-03T04:16:30+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "",
-  "activity": "三类阅读设置与滤镜实时预览已在197验收并交付，原数据和电源已恢复。",
-  "nextAction": "其余未关闭事项保留原状态和范围，不重开已验收路径。",
+  "activeId": "APP_POPUP_SYSTEM_MATERIAL",
+  "activity": "三个App公共半模态渐变已恢复，整理交付",
+  "nextAction": "完成本次范围提交与既有授权内的远端构建核对；其余已登记问题保留。",
   "proof": [
     {
       "label": "正式主仓",
@@ -67,14 +67,14 @@
     {
       "name": "NextE",
       "checkout": "/Users/honjow/git/NextE",
-      "appHead": "已接受具名跨宿主范围冻结；本轮未修改该宿主。",
-      "hap": "本轮未安装或验收该宿主，既有已接受范围见原任务。"
+      "appHead": "本轮公共AppModalScaffold渐变恢复已修改并构建，尚未提交或推送。",
+      "hap": "本轮同签名Release候选已安装237；普通自定义主题色半模态浅深色及滚动具名检查通过，原设置与电源已恢复。"
     },
     {
       "name": "NextN",
       "checkout": "/Users/honjow/git/NextN",
-      "appHead": "已接受具名跨宿主范围冻结；本轮未修改该宿主。",
-      "hap": "本轮未安装或验收该宿主，既有已接受范围见原任务。"
+      "appHead": "本轮公共NextNModalScaffold渐变恢复已修改并构建，范围提交待整理；原Reader等WIP保留。",
+      "hap": "本轮同签名Release候选已安装237；普通自定义主题色半模态浅深色及滚动具名检查通过，原外观与电源已恢复。"
     }
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
@@ -635,16 +635,16 @@
       "title": "菜单与半模态漏接系统新材质",
       "kind": "done",
       "priority": "P1（当前人类连续反馈）",
-      "owner": "Root：Koma具名范围完成；N/E两处fallback已核普通生产不适用",
+      "owner": "Root：三App公共半模态渐变恢复",
       "dependencies": [],
       "reportedAt": "2026-10-24T18:01:49.053271+00:00",
       "reportedAtSource": "本轮登记时间；原始提出时间未作推算。",
       "firstHandlingAt": "2026-10-24T18:01:49.053271+00:00",
-      "closedAt": "2026-10-24T19:25:24.086002+00:00",
+      "closedAt": "2026-11-03T04:16:30+08:00",
       "evidencePoints": [],
-      "status": "Koma具名完成；N/E RuntimeMenu fallback普通生产不适用，仅保构建证据",
-      "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。",
-      "remaining": "Koma已打开菜单/筛选/源设置具名范围保留；N/E这两处RuntimeMenu fallback在普通生产调用不展示，不再列为待执行普通实机验收。旧系统/暗色/其他未观察菜单不外推。",
+      "status": "三个App公共半模态渐变已恢复",
+      "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。 本轮已恢复Koma、NextE、NextN公共半模态的HDS渐变模糊，保留自适应按钮与原动作。237分别通过Koma阅读设置／图片插件、NextE及NextN自定义主题色普通路径，检查浅深色零滚动与列表滚入；未见零滚动露底，内容经过标题下方呈渐变模糊。三个App均构建成功，临时偏好与系统浅色、电源均恢复并释租。",
+      "remaining": "本次公共半模态恢复已完成；既有未观察菜单与旧系统范围保持原记录，不扩成逐弹层重测。NextE本地改动、NextN范围提交均不自动推送。",
       "modificationBasis": {
         "object": "宿主原生菜单/半模态选项及KomaModalScaffold背景；ChapterListSection排序分组标题",
         "history": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
@@ -658,13 +658,22 @@
       ],
       "boundaries": [
         "宿主40处弹层仅增加材质；HDS导航溢出菜单103原生材质已存在，不替换其实现。",
-        "共享层沿用另外三个菜单已使用的THICK及API26检测，只补漏项；不变Reader偏好/控件选项/窗口生命周期。"
+        "共享层沿用另外三个菜单已使用的THICK及API26检测，只补漏项；不变Reader偏好/控件选项/窗口生命周期。",
+        "本轮用户明确允许三个App恢复原HDS渐变背景；仅恢复标题空间渐变，保留按钮自适应、间距、原菜单和关闭动作，避免零滚动透明及新增分界线。"
       ],
       "continuationGate": {
         "checkedAt": "2026-10-25T20:07:54.588831+00:00",
         "owner": "Root",
         "condition": "N/E这两处fallback当前普通生产不适用，仅保原构建/CI，不再列普通实机待办；现有正常宿主菜单不重跑，需真实消费合同改变才重开。"
-      }
+      },
+      "stage": "实测完成，整理交付",
+      "reopenedAt": "2026-11-03T04:05:27+08:00",
+      "evidence": [
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/all-modal-koma-titled-dark-zero/",
+        "/Users/honjow/git/NextE/.hvigor/outputs/modal-gradient-20261103/：color-modal-light-zero、color-modal-dark-zero、color-modal-dark-scrolled、restoration.json及restore-power；HAP SHA256 12409c01e38c60bc39adc460fe3fef5385936508ceb934eda23289eb023d4932。",
+        "/Users/honjow/git/NextN/.hvigor/outputs/modal-gradient-20261103/：color-modal-light-zero、color-modal-dark-zero、color-modal-dark-scrolled、restoration.json及restore-power；HAP SHA256 92f4678780f9f77daf6505af3af3072fe42f0cee71bf929c4a95d450d8934230。",
+        ".hvigor/outputs/reader-settings-tabs-20261103/Koma-all-modal-gradient-signed.hap：SHA256 80447563d73b5f165e462e162662e4cddc3bbcc09e47c78651eea8b6e489d1ce；all-modal-koma-titled-light-zero、all-modal-koma-titled-dark-zero、all-modal-koma-child-return及hds-restoration237.json。"
+      ]
     },
     {
       "id": "READER_SETTINGS_STABILITY",
@@ -5963,17 +5972,17 @@
     {
       "id": "READER_ASYNC_PAGE_ROLLBACK",
       "title": "翻页时偶发退回前一页",
-      "kind": "accepted",
+      "kind": "open",
       "priority": "P1（当前用户反馈）",
       "owner": "Root",
-      "status": "已修复已证实竞态并验证",
-      "stage": "已交付",
+      "status": "用户仍遇到偶发回退，重新排查",
+      "stage": "重开",
       "reportedAt": null,
       "reportedAtSource": "用户本轮反馈：翻页过程中突然变成前一页，很难复现，怀疑加载竞争。确切消息时间未提供。",
       "registeredAt": "2026-11-02T23:43:38+08:00",
       "updatedAt": "2026-11-03T00:36:32+08:00",
-      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。",
-      "remaining": "本轮已证实漏洞与具名路径已交付；原始偶发现场未捕获，未外推所有同类现象。",
+      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。 用户本轮再次实际遇到翻页后自行退回上一页，仍无稳定触发条件，原验收不覆盖此新反例。",
+      "remaining": "接续异步导航、渲染与进度回写的竞态定位；不要求用户找稳定复现，不改章节顺序来掩盖回退。",
       "remainingActions": [],
       "boundaries": [
         "保留用户最终选页与章节的绝对阅读顺序。",
@@ -5987,15 +5996,16 @@
         ".hvigor/outputs/plugin-entry-flicker-20261102/delivery-binding.json",
         ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。"
       ],
-      "closedAt": "2026-11-03T00:36:32+08:00"
+      "closedAt": "2026-11-03T00:36:32+08:00",
+      "reopenedAt": "2026-11-03T03:32:24+08:00"
     },
     {
       "id": "READER_SETTINGS_TABBED_SHEET",
       "title": "阅读设置分段与滤镜实时预览",
       "priority": "P1（用户已采用）",
-      "kind": "accepted",
-      "status": "197验收与交付完成",
-      "stage": "具名范围已交付",
+      "kind": "done",
+      "status": "分段与HDS渐变恢复已通过",
+      "stage": "实测完成，整理交付",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
@@ -6003,12 +6013,16 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户提出阅读模式／常规／滤镜分段，并明确“那就开始实现吧”；原消息精确时间未核实。",
-      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。",
-      "remaining": "本次三类设置与滤镜预览已交付。",
+      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。",
+      "remaining": "本项三分段、预览及顶部恢复完成；动态半模态高度按用户允许暂不实施，零值滑杆暂缓。",
       "boundaries": [
         "采用本会话已确认三类分段替换阅读标题与关闭按钮，保留原生下拉和返回关闭、中／大两档和新材质。",
         "保留所有设置含义、值域与持久化；控制栏单双页及方向合同不变。图片插件和模型管理保留独立第二层半模态。",
-        "滤镜标签直接展示调节，透明遮罩仍拦截下层输入；临时隐藏工具栏不更改窗口或重建会话，离开预览恢复。"
+        "滤镜标签直接展示调节，透明遮罩仍拦截下层输入；临时隐藏工具栏不更改窗口或重建会话，离开预览恢复。",
+        "后续用户反馈：顶部需要透背景；亮度及颜色滤镜零值轨道不可见。用户明确指出197未复现，改用237定位；保留已验收三标签和预览联动。",
+        "用户最新明确“可能刚才我手上的设备bug了。先不管这个问题了”：零值滑杆暂缓，未确认原因、未写为修复；顶部及菜单主题工作继续。",
+        "用户最新澄清顶部目标是列表滚动内容在分段栏下方模糊可见，不是透出漫画。不得按早先误解修改全半模态透明度或材质厚度。",
+        "用户明确：按钮原为内容自适应，不能为背景效果改固定高度；深色高透明主要在滚动量0时。玻璃效果只在HDS不可行时作为备选，且必须去掉分界线。"
       ],
       "evidence": [
         ".hvigor/outputs/reader-settings-tabs-20261103/delivery.json",
@@ -6021,12 +6035,95 @@
         ".hvigor/outputs/reader-settings-tabs-20261103/restoration.json：六项数据逐字恢复；restore-power读回原SLEEP、10000ms override，租约已释放。",
         "https://github.com/honjow/Koma/actions/runs/41498791499：f30a3bdf72d144c2dbdada60ffb434c5103e6239 completed/success。",
         ".hvigor/outputs/reader-settings-tabs-20261103/ci-final.json",
-        "197普通Shared路径实测；保留Legacy兼容接线和全局原入口编译通过，未扩称其它宿主或设备验收。"
+        "197普通Shared路径实测；保留Legacy兼容接线和全局原入口编译通过，未扩称其它宿主或设备验收。",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/hds-auto-dark-zero/：与zero-filter-initial/layout.json中三个按钮bounds相同；hds-restoration237.json记录六项原文件恢复，reader-progress原本不存在且继续保持不存在。"
       ],
-      "closedAt": "2026-11-03T02:29:34+08:00",
+      "closedAt": "2026-11-03T04:16:30+08:00",
       "remainingActions": [
-        "本次具名范围已完成。"
+        "自适应半模态高度按用户允许暂不实施。",
+        "零值滑杆用户暂缓，不继续排查。"
+      ],
+      "reopenedAt": "2026-11-03T02:37:42+08:00"
+    },
+    {
+      "id": "READER_MENU_THEME_REFRESH",
+      "title": "深色切回浅色后阅读器菜单文字仍为白色",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "偶发未定位，本轮未再出现",
+      "stage": "保留反馈",
+      "owner": "Root",
+      "dependencies": [],
+      "relatedItems": [
+        "READER_SETTINGS_TABBED_SHEET"
+      ],
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户直接反馈；精确消息时刻未核实。",
+      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。",
+      "remaining": "保留首次现象；有新的实际反例再接续针对性定位，当前不重复测试。",
+      "boundaries": [
+        "保留现有菜单入口、分组、动作和新材质，只修正主题色彩刷新。",
+        "接续237滑杆与顶部背景任务，不用新反馈中断前项。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-after-light/screen.png",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light/screen.png",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light-reenter/screen.png"
       ]
+    },
+    {
+      "id": "MANHUAREN_DETAIL_COVER_CHANGE",
+      "title": "漫画人详情加载后封面变大或换图",
+      "kind": "open",
+      "priority": "P1（用户反馈）",
+      "status": "已登记，待定位",
+      "stage": "待定位",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户反馈；原消息精确时间未核实。",
+      "dependencies": [],
+      "relatedItems": [],
+      "result": "用户观察漫画人详情加载完成后封面比例变大，部分作品列表与详情显示不同封面。暂未区分是详情更换图片、源图裁切还是布局尺寸问题。",
+      "remaining": "核对列表和详情封面URL、图片尺寸与详情加载前后的布局，按具体原因修复。",
+      "boundaries": [
+        "保留当前用户封面覆盖、详情背景及通用封面比例，不因单源故障改全局布局。"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
+      "title": "详情首次加载时简介与标签上下跳动",
+      "kind": "open",
+      "priority": "P1（用户反馈）",
+      "status": "已定位，半模态之后处理",
+      "stage": "修正中",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户直接反馈；精确时间未核实。",
+      "result": "首次详情显示后仍保留额外加载块；目录完成后加载块被操作按钮替换，造成下方简介和标签跳动。",
+      "remaining": "预留与最终操作区相同布局，目录未就绪时禁用动作，验证加载过渡与失败恢复。",
+      "boundaries": [
+        "按用户建议保留最终阅读／下载按钮的位置，未就绪不可用；不改变目录顺序或加载权限。"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "READER_MORE_MENU_GROUPS",
+      "title": "阅读器更多菜单按功能分组",
+      "kind": "open",
+      "priority": "P2（用户反馈）",
+      "status": "已登记，半模态之后处理",
+      "stage": "待处理",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户明确反馈菜单选项太多且未分组；精确时间未核实。",
+      "result": "阅读器更多菜单当前图片、翻译、详情与章节操作平铺。",
+      "remaining": "按图片操作、翻译和章节导航划分原生分组，漫画详情单独隔开，保留既有动作。",
+      "boundaries": [
+        "不擅自删项、移除入口或改变动作行为。",
+        "用户最新指定先处理半模态，其他反馈只登记。"
+      ],
+      "evidence": []
     }
   ],
   "source": {
@@ -15264,6 +15361,102 @@
       "title": "阅读设置三类分段与滤镜预览已交付",
       "detail": "197普通路径通过，初次切换变形已修正；两仓推送和远端构建成功。原数据与电源恢复后释租，保留新开发包。",
       "kind": "accepted"
+    },
+    {
+      "id": "reader-tabs-followup-2026-11-03T02:37:42+08:00",
+      "at": "2026-11-03T02:37:42+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "追加顶部背景和零值滑杆反馈",
+      "detail": "197未复现滑杆问题，用户指定237检查；原三标签、预览及恢复验收保留。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-menu-theme-report-2026-11-03T02:42:22+08:00",
+      "at": "2026-11-03T02:42:22+08:00",
+      "itemId": "READER_MENU_THEME_REFRESH",
+      "title": "登记阅读器菜单主题切回异常",
+      "detail": "切回浅色后菜单文字仍白且重进不恢复；当前237滑杆检查继续，随后定位菜单主题刷新。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-slider-parked-2026-11-03T02:53:45+08:00",
+      "at": "2026-11-03T02:53:45+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "零值滑杆排查按用户要求暂缓",
+      "detail": "用户判断可能是手上设备临时异常，要求先不处理；原因未定位，未称已修复。顶部与菜单主题工作继续。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-filter-fit-height-2026-11-03T03:00:25+08:00",
+      "at": "2026-11-03T03:00:25+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "追加滤镜页可选自适应高度需求",
+      "detail": "用户希望关闭滤镜时随短内容收小；仅在原生支持平滑且改动合理时接入，排在顶部和菜单修正后。",
+      "kind": "open"
+    },
+    {
+      "at": "2026-11-03T03:12:21+08:00",
+      "title": "补齐系统主题触发条件及漫画人封面反馈",
+      "id": "reader-feedback-949",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "detail": "菜单问题明确为系统深色开关；App内切换证据不作为该路径通过。新增漫画人详情加载后封面变大／换图原项，原因未定位。",
+      "kind": "progress"
+    },
+    {
+      "at": "2026-11-03T03:19:39+08:00",
+      "title": "修正顶部需求理解，保留偶发菜单反馈并登记详情跳动",
+      "id": "reader-feedback-950",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "detail": "顶部目标为列表滚入分段栏下方的模糊；未改菜单实现，系统切换和重进本轮正常，用户未再复现，原因仍未知。首次详情加载跳动进入修正。",
+      "kind": "progress"
+    },
+    {
+      "id": "reader-rollback-reported-951",
+      "at": "2026-11-03T03:32:24+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "用户再次遇到翻页自行回退，原项重开",
+      "detail": "仍未有稳定触发条件，保留既有修正及新反例，半模态当前工作继续；更多菜单分组已登记不抢占当前修正。",
+      "kind": "reopened"
+    },
+    {
+      "id": "reader-hds-correction-952",
+      "at": "2026-11-03T03:51:40+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "撤回固定插槽与按钮高度补救，定位深色零偏移条件",
+      "detail": "玻璃候选与HDS渐变不同且出现分界线；HDS stack插槽限制56vp压缩了按钮。保留原自适应控件布局，尝试HDS空间渐变而关闭随滚动偏移的透明起点。此阶段未验收。",
+      "kind": "progress"
+    },
+    {
+      "id": "modal-three-app-953",
+      "at": "2026-11-03T04:05:27+08:00",
+      "itemId": "APP_POPUP_SYSTEM_MATERIAL",
+      "title": "用户要求三App恢复渐变，公共实现已同步",
+      "detail": "Koma分段保留自适应，用户实测正常；三边公共标题的HDS空间渐变已构建。Koma带标题子半模态浅深色零偏移已观察，N/E实际路径继续。",
+      "kind": "progress"
+    },
+    {
+      "id": "modal-nexte-954",
+      "at": "2026-11-03T04:12:37+08:00",
+      "itemId": "APP_POPUP_SYSTEM_MATERIAL",
+      "title": "NextE原生标题渐变与深色零滚动已检查",
+      "detail": "普通自定义主题色弹层浅深色及滚动通过；取消后原设置逐字恢复，系统浅色、原睡眠与超时恢复并释租。NextN接续，未扩称其他路径通过。",
+      "kind": "progress"
+    },
+    {
+      "id": "modal-three-app-finished-955",
+      "at": "2026-11-03T04:16:30+08:00",
+      "itemId": "APP_POPUP_SYSTEM_MATERIAL",
+      "title": "三个App公共半模态渐变恢复完成",
+      "detail": "Koma、NextE、NextN分别构建和检查普通带标题弹层浅深色零滚动；N/E短距滚动后内容经过HDS标题下方呈渐变模糊。临时偏好、系统浅色和原电源恢复并释租；不扩大原验收范围。",
+      "kind": "done"
+    },
+    {
+      "id": "reader-tab-header-finished-956",
+      "at": "2026-11-03T04:16:30+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "阅读设置顶部恢复收口",
+      "detail": "保留原自适应分段按钮与三页状态，使用HDS空间渐变，关闭滚动淡入。用户源码实测正常，237按钮bounds与原布局相同；玻璃和固定高度候选均未采用。",
+      "kind": "done"
     }
   ],
   "reportAgeAudit": {

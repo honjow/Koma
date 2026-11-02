@@ -1,10 +1,13 @@
 import { komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
-import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial } from '@kit.UIDesignKit'
+import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType } from '@kit.UIDesignKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { KomaSegmentedControl } from './ui/KomaSegmentedControl'
 import { ThemeConstants } from '../theme/ThemeConstants'
+
+export const KOMA_MODAL_TABS_HEADER_HEIGHT: number = ThemeConstants.BUTTON_HEIGHT +
+  ThemeConstants.SPACE_XS * 2 + ThemeConstants.SPACE_MD + ThemeConstants.SPACE_SM
 
 // This scaffold owns its HDS title bar. Reserve no second title/drag-bar row
 // above it; the native drag indicator floats over the standard modal header.
@@ -30,6 +33,8 @@ export struct KomaModalScaffold {
   @Param tabLabels: string[] = []
   @Param selectedTab: number = 0
   @Event onTabSelect: (index: number) => void = () => {}
+  @Event onTabHeaderHeightChange: (height: number) => void = () => {}
+  @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
   @BuilderParam content: () => void
   private scroller: Scroller = new Scroller()
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -47,83 +52,128 @@ export struct KomaModalScaffold {
     return items
   }
 
+  @Builder
+  private TabHeader() {
+    Column() {
+      KomaSegmentedControl({ labels: this.tabLabels, selectedIndex: this.selectedTab,
+        select: (index: number): void => { this.onTabSelect(index) } })
+    }
+    .width('100%')
+    .padding({ left: this.contentHorizontalPadding, right: this.contentHorizontalPadding,
+      top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_SM })
+    .onSizeChange((_oldSize: SizeOptions, size: SizeOptions): void => {
+      const height = Number(size.height)
+      if (height > 0 && height !== this.tabHeaderHeight) {
+        this.tabHeaderHeight = height
+        this.onTabHeaderHeightChange(height)
+      }
+    })
+  }
+
+  @Builder
+  private TabbedModal() {
+    // HDS owns the spatial gradient, with no offset-based transparent start.
+    // The auto-sized tabs overlay that backdrop outside HDS's fixed stack slot.
+    // Titled modals below use the same gradient while retaining their layout.
+    HdsNavigation() {
+      Column() { this.content() }
+        .width('100%').height('100%')
+        .padding({ left: this.contentHorizontalPadding, right: this.contentHorizontalPadding })
+    }
+    .titleBar({
+      enableComponentSafeArea: false,
+      content: { title: { mainTitle: '' },
+        divider: { showType: DividerShowType.OFF } },
+      style: {
+        systemMaterialEffect: deviceInfo.apiAvailable('6.1.0') ? {
+          materialType: hdsMaterial.MaterialType.ADAPTIVE,
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+        } : undefined,
+        blurStrategy: BlurStrategy.ENABLE,
+        scrollEffectOpts: { enableScrollEffect: false, scrollEffectType: ScrollEffectType.GRADIENT_BLUR },
+      },
+    })
+    .titleMode(HdsNavigationTitleMode.MODAL)
+    .width('100%').height('100%')
+  }
+
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      HdsNavigation() {
-        Column() {
-          // An opted-in tab header replaces the title bar, while this common owner
-          // retains the material, insets and native sheet/drag behavior.
-          if (this.tabLabels.length > 0) {
-            KomaSegmentedControl({ labels: this.tabLabels, selectedIndex: this.selectedTab,
-              select: (index: number): void => { this.onTabSelect(index) } })
-              .padding({ left: this.contentHorizontalPadding, right: this.contentHorizontalPadding,
-                top: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_SM })
-          }
-          if (this.contentOwnsScrolling) {
-            Column() {
-              this.content()
-            }
-            .layoutWeight(1)
-            .width('100%')
-            .padding({
-              left: this.contentHorizontalPadding,
-              right: this.contentHorizontalPadding,
-            })
-          } else {
-            List({ space: ThemeConstants.SPACE_SM, scroller: this.scroller }) {
-              this.content()
-              ListItem() {
-                Column() {
-                  Blank()
-                    .height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
-                }
-                .width('100%')
-              }
-            }
-            .layoutWeight(1)
-            .width('100%')
-            .padding({
-              left: this.contentHorizontalPadding,
-              right: this.contentHorizontalPadding,
-            })
-            .scrollBar(BarState.Off)
-            .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-            .nestedScroll({
-              scrollForward: NestedScrollMode.SELF_FIRST,
-              scrollBackward: NestedScrollMode.SELF_FIRST,
-            })
-          }
+      if (this.tabLabels.length > 0) {
+        Stack({ alignContent: Alignment.TopStart }) {
+          this.TabbedModal()
+          this.TabHeader()
         }.width('100%').height('100%')
+      } else {
+        HdsNavigation() {
+          Column() {
+            if (this.contentOwnsScrolling) {
+              Column() {
+                this.content()
+              }
+              .layoutWeight(1)
+              .width('100%')
+              .padding({
+                left: this.contentHorizontalPadding,
+                right: this.contentHorizontalPadding,
+              })
+            } else {
+              List({ space: ThemeConstants.SPACE_SM, scroller: this.scroller }) {
+                this.content()
+                ListItem() {
+                  Column() {
+                    Blank()
+                      .height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
+                  }
+                  .width('100%')
+                }
+              }
+              .layoutWeight(1)
+              .width('100%')
+              .padding({
+                left: this.contentHorizontalPadding,
+                right: this.contentHorizontalPadding,
+              })
+              .scrollBar(BarState.Off)
+              .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+              .nestedScroll({
+                scrollForward: NestedScrollMode.SELF_FIRST,
+                scrollBackward: NestedScrollMode.SELF_FIRST,
+              })
+            }
+          }.width('100%').height('100%')
+        }
+        .titleBar({
+          enableComponentSafeArea: true,
+          style: {
+            // The sheet's material does not configure HDS title actions. Keep the
+            // shared title bar on the same adaptive material contract as app pages.
+            systemMaterialEffect: deviceInfo.apiAvailable('6.1.0') ? {
+              materialType: hdsMaterial.MaterialType.ADAPTIVE,
+              materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
+            } : undefined,
+            scrollEffectOpts: {
+              enableScrollEffect: false,
+              scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
+            },
+            blurStrategy: BlurStrategy.ENABLE,
+          },
+          content: {
+            title: {
+              mainTitle: this.title,
+              subTitle: this.subtitle,
+            },
+            menu: {
+              value: this.titleBarActions(),
+              maxCount: Math.min(3, this.additionalActions.length + (this.confirmLabel === undefined ? 1 : 2)),
+            },
+          },
+        })
+        .titleMode(HdsNavigationTitleMode.MODAL)
+        .bindToScrollable([this.scroller])
+        .width('100%')
+        .height('100%')
       }
-      .titleBar({
-        enableComponentSafeArea: true,
-        style: {
-          // The sheet's material does not configure HDS title actions. Keep the
-          // shared title bar on the same adaptive material contract as app pages.
-          systemMaterialEffect: deviceInfo.apiAvailable('6.1.0') ? {
-            materialType: hdsMaterial.MaterialType.ADAPTIVE,
-            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
-          } : undefined,
-          scrollEffectOpts: {
-            enableScrollEffect: false,
-          },
-        },
-        content: {
-          title: {
-            mainTitle: this.title,
-            subTitle: this.subtitle,
-          },
-          menu: {
-            value: this.titleBarActions(),
-            maxCount: Math.min(3, this.additionalActions.length + (this.confirmLabel === undefined ? 1 : 2)),
-          },
-        },
-      })
-      .titleMode(HdsNavigationTitleMode.MODAL)
-      .hideTitleBar(this.tabLabels.length > 0)
-      .bindToScrollable([this.scroller])
-      .width('100%')
-      .height('100%')
     }
     .width('100%')
     .height('100%')

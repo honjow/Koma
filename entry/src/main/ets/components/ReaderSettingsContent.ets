@@ -38,7 +38,7 @@ import {
 import { ReadingDirection } from '../model/ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { KomaModalScaffold, komaModalSheetOptions } from './KomaModalScaffold'
+import { KomaModalScaffold, komaModalSheetOptions, KOMA_MODAL_TABS_HEADER_HEIGHT } from './KomaModalScaffold'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 
@@ -61,6 +61,7 @@ export struct ReaderSettingsContent {
   // Reader owns immediate reading controls. Provider/account configuration belongs
   // to the global translation settings route, not a form reachable only in this sheet.
   @Local private selectedTab: number = 0
+  @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
   @Event onFilterPreviewChange: (active: boolean) => void = () => {}
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
   private modeScroller: Scroller = new Scroller()
@@ -421,6 +422,7 @@ export struct ReaderSettingsContent {
   @Builder
   private TabContent(index: number, scroller: Scroller) {
     List({ scroller: scroller }) {
+      ListItem() { Row().height(this.tabHeaderHeight).width('100%') }
       ListItem() {
         Column({ space: ThemeConstants.SPACE_SM }) {
           if (index === 0) {
@@ -506,6 +508,7 @@ export struct ReaderSettingsContent {
     KomaModalScaffold({ contentOwnsScrolling: true,
       tabLabels: [s('reader_settings_tab_mode'), s('reader_settings_tab_general'), s('reader_settings_tab_filters')],
       selectedTab: this.selectedTab, onTabSelect: (index: number): void => { this.selectTab(index) },
+      onTabHeaderHeightChange: (height: number): void => { this.tabHeaderHeight = height },
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
     }) {
       Stack() {
