@@ -35,7 +35,7 @@ function key(unit) {
 
 // Use the pinned kit's real capability bundle, so the callback is exercised through
 // the same public dispatcher as ReaderSurface instead of calling the host method directly.
-const kitDirectory = path.join(__dirname, '../../reader-kit/reader-ui/src/main/ets')
+const kitDirectory = path.join(__dirname, '../third_party/reader-kit/reader-ui/src/main/ets')
 const kitSource = ['ReaderHostAction.ets', 'ReaderHostActions.ets']
   .map(file => fs.readFileSync(path.join(kitDirectory, file), 'utf8').replace(/^import .*$/gm, ''))
   .join('\n')

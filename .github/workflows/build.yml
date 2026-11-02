@@ -12,9 +12,6 @@ concurrency:
   group: build-ohos-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  KOMA_READER_KIT_REVISION: 1866daf0cf7e29852e5a1aab7a5522cc03f0659c
-
 permissions:
   contents: read
   packages: read
@@ -41,19 +38,10 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
-      - name: Checkout pinned reader-kit sibling
-        uses: actions/checkout@v4
-        with:
-          repository: erosTeam/reader-kit
-          ref: ${{ env.KOMA_READER_KIT_REVISION }}
-          path: reader-kit
-          persist-credentials: false
-          token: ${{ secrets.READER_KIT_READ_TOKEN || github.token }}
-
       - name: Configure Git workspace ownership
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE/reader-kit"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma/third_party/reader-kit"
           git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma/third_party/lexbor"
 
       - name: Guard public build profile
@@ -111,7 +99,7 @@ jobs:
           manifest = {
               "commit": os.environ["GITHUB_SHA"],
               "readerKitCommit": subprocess.check_output(
-                  ["git", "-C", "../reader-kit", "rev-parse", "HEAD"], text=True
+                  ["git", "-C", "third_party/reader-kit", "rev-parse", "HEAD"], text=True
               ).strip(),
               "bundleName": app["bundleName"],
               "versionName": version,

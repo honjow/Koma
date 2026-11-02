@@ -267,8 +267,8 @@ test('a newer opening layout retires its earlier callback and closed/replaced ca
 })
 
 
-const sharedCore = require('../../reader-kit/tests/load-core.cjs')('ReaderSession')
-const sharedProcessing = require('../../reader-kit/tests/load-core.cjs')('ReaderProcessingCoordinator')
+const sharedCore = require('../third_party/reader-kit/tests/load-core.cjs')('ReaderSession')
+const sharedProcessing = require('../third_party/reader-kit/tests/load-core.cjs')('ReaderProcessingCoordinator')
 function preparationFixture(hostPrepare, fetchSource = async source => '/cache/' + source.imageUri,
   readSize = async () => '0,0') {
   const Adapter = subject('KomaReaderLabAdapter.ets', 'KomaReaderLabAdapter',

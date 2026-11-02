@@ -346,7 +346,7 @@ test('enhancement without configured translation admits future-page processing a
   const method=owner.members.find(n=>n.name?.text==='translationPolicy').getText(tree)
   class Preference { constructor(variant='default',identity=''){this.variant=variant;this.identity=identity} }
   const policyExports={}
-  new Function('exports','require',ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'../../reader-kit/reader-ui/src/main/ets/ReaderVariantPolicy.ets'),'utf8'),
+  new Function('exports','require',ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'../third_party/reader-kit/reader-ui/src/main/ets/ReaderVariantPolicy.ets'),'utf8'),
     {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(policyExports,()=>({ReaderVariantPreference:Preference}))
   const exports={}
   new Function('exports','ReaderVariantPolicy',ts.transpileModule(`export class Host {${method}}`,

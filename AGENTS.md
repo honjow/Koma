@@ -26,7 +26,7 @@
 | 工作 | 当前依据 |
 | --- | --- |
 | App 与中文源 | [唯一当前工作单](docs/CURRENT_STATUS.md)：用户查看的 bug 进度页，不是执行台账 |
-| 共享 Reader | [共同职责](../reader-kit/README.md#consumer-contract)、已指定跨宿主工作单、[迁移参考规则](docs/agent-guides/reader-rewrite-standards.md) |
+| 共享 Reader | [共同职责](third_party/reader-kit/README.md#consumer-contract)、已指定跨宿主工作单、[迁移参考规则](docs/agent-guides/reader-rewrite-standards.md) |
 | 产品与架构 | [执行规则](docs/agent-guides/koma-rules.md)、原工作单中的当前已采用决定 |
 | 书源 | [运行方向](docs/WASM_SOURCE_RUNTIME_DIRECTION.md)、[ABI](docs/source-runtime-abi.md) |
 | 本地证据 | [产物目录](docs/CONTROLLER_ARTIFACTS.md) |

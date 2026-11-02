@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ORDER = ROOT / 'docs/CURRENT_STATUS.md'
 PAGE = ROOT / 'docs/qa/koma-production-progress.html'
 ARTIFACTS = ROOT / '.hermes-artifacts/recovery-20261019'
-KIT = ROOT.parent / 'reader-kit'
+KIT = ROOT / 'third_party' / 'reader-kit'
 MARKER = re.compile(r'<!-- koma-progress-snapshot\s*\n(.*?)\n-->', re.S)
 # Exact reviewed receipt IDs only; never serve arbitrary work-order paths.
 EVIDENCE_ALLOWLIST = {'b744-preservation': {'path': 'kit-b744-parent-content-complete-r134-20261019.receipt.json', 'sha256': 'a4f2f4d5f0d6887da868d01fb8d5253fefdd962d5f3a1bd405e0feb16ef9487d'}, 'app05-retirement': {'path': 'app-production05-exact-admin-retirement-2958a016-result.json', 'sha256': '11b027e30cf74e23462ef19aa3b3db27b141464f7d8b7a40834caafb88be9602'}, 'comicabc-cleanup': {'path': 'comicabc-eleven-evidence-parents-cleanup-result.json', 'sha256': 'd619d9adca186e6efa368703c05dd040b4af9290d7b77c26493dedee78e874da'}}
@@ -32,7 +32,7 @@ def snapshot():
 
 
 def live_kit_heads(data):
-    # Koma's current build reads the sibling Kit, not an embedded gitlink.
+    # Read the dependency used by this checkout, pinned by Koma's gitlink.
     try:
         head = subprocess.check_output(
             ['git', '-C', str(KIT), 'rev-parse', 'HEAD'],

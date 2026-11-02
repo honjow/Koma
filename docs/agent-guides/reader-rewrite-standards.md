@@ -1,6 +1,6 @@
 # Reader 迁移参考与执行边界
 
-本文件规定当前 Reader 的参考迁移方式。当前共享职责见 [reader-kit consumer contract](../../../reader-kit/README.md#consumer-contract)，具体采用范围、差异和状态见 [CURRENT_STATUS.md](../CURRENT_STATUS.md) 原项，通用执行/验收规则见 [koma-rules.md](koma-rules.md)。
+本文件规定当前 Reader 的参考迁移方式。当前共享职责见 [reader-kit consumer contract](../../third_party/reader-kit/README.md#consumer-contract)，具体采用范围、差异和状态见 [CURRENT_STATUS.md](../CURRENT_STATUS.md) 原项，通用执行/验收规则见 [koma-rules.md](koma-rules.md)。
 
 ## 参考如何使用
 

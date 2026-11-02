@@ -27,7 +27,27 @@
 
 [正式版本与更新日志](https://github.com/honjow/Koma/releases/latest)
 
-[GitHub Actions](https://github.com/honjow/Koma/actions/workflows/build.yml) 提供最新源码的构建产物。公开 HAP 未签名，需自行签名后安装；本地构建和签名方法见 [构建脚本](scripts)。
+[GitHub Actions](https://github.com/honjow/Koma/actions/workflows/build.yml) 提供最新源码的构建产物。公开 HAP 未签名，需自行签名后安装；源码构建见下文。
+
+## 源码构建
+
+安装 DevEco Studio 及项目所需的 HarmonyOS SDK，然后递归克隆仓库：
+
+```sh
+git clone --recurse-submodules https://github.com/honjow/Koma.git
+cd Koma
+```
+
+已克隆仓库可在根目录执行 `git submodule update --init --recursive` 补齐依赖。共享阅读器与原生依赖均在 `third_party` 中，由仓库固定提交，不需要另行准备同级目录。
+
+用 DevEco Studio 打开仓库根目录，等待依赖同步后构建。也可在已配置 DevEco 工具环境的终端执行：
+
+```sh
+ohpm install --all
+hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-daemon
+```
+
+未签名产物位于 `entry/build/default/outputs/default/entry-default-unsigned.hap`。运行到设备需在 DevEco Studio 中配置自己的签名；本地签名配置与公开构建配置的分离方式见[本地构建脚本](scripts/setup-local-build-profile.sh)。
 
 ## 添加书源
 

@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前工作：书源管理的书源／图片插件分段切换已交付；其余未完成事项保留。
+当前工作：修复源码构建依赖仓库外目录的问题，正在验证仓内子模块构建。
 
 设备：197本轮原包、数据及电源状态已恢复并释租；237已恢复释租。200禁止操作，四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "书源管理分段已交付",
+  "state": "修复源码构建依赖",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-02T17:55:36+08:00",
-  "target": "/Users/honjow/git/Koma；同级reader-kit与koma-sources为原主仓",
-  "activeId": "",
-  "activity": "书源管理已能直接切换图片插件，真机验证、设备恢复、推送与CI均完成。其余未完成事项保留。",
-  "nextAction": "其余事项按原项现有条件接续，已验范围保持。",
+  "updatedAt": "2026-11-02T19:04:06+08:00",
+  "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
+  "activeId": "READER_KIT_SELF_CONTAINED_BUILD",
+  "activity": "仓内依赖的实际Release构建已通过；正在提交并核对干净CI构建。",
+  "nextAction": "核本次CI的递归检出和产物后关闭该问题。",
   "proof": [
     {
       "label": "正式主仓",
@@ -5617,6 +5617,42 @@
       "stage": "已交付",
       "closedAt": "2026-11-02T17:55:36+08:00",
       "reopenedAt": "2026-11-02T17:32:08+08:00"
+    },
+    {
+      "id": "READER_KIT_SELF_CONTAINED_BUILD",
+      "title": "源码构建依赖仓库外的 reader-kit 目录",
+      "kind": "open",
+      "priority": "P0（当前构建故障）",
+      "owner": "Root：构建依赖修复及交付",
+      "status": "仓内依赖本地构建通过，待推送与CI",
+      "stage": "本地构建已通过",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户报告 reader_core / reader_ui 使用 ../reader-kit 并要求修复；原始提出时间未核实。",
+      "registeredAt": "2026-11-02T19:00:29+08:00",
+      "result": "共享阅读器已登记为仓内固定子模块，保持原提交；本地与CI引用、ohpm锁文件、相关脚本和构建说明已同步。本地Release HAP构建通过，两个模块实际解析到third_party/reader-kit；产物归档检查通过。关联既有测试中的19个失败在旧路径原脚本中也存在，已留对照，未修改测试期望。",
+      "remaining": "提交推送并核对本次干净CI的递归检出、构建及产物。",
+      "remainingActions": [
+        "提交推送",
+        "核本次精确CI及构建产物"
+      ],
+      "boundaries": [
+        "只调整依赖获取和构建布局，reader-kit 固定在现用的1866daf0cf7e29852e5a1aab7a5522cc03f0659c，保留已验阅读器行为。",
+        "不修改个人签名材料、不触碰无关工作区差异、不新建隔离工作树；不发布新版本或操作设备。"
+      ],
+      "evidencePoints": [],
+      "evidence": [
+        ".gitmodules",
+        "third_party/reader-kit",
+        "build-profile.json5",
+        "entry/oh-package.json5",
+        ".github/workflows/build.yml",
+        "README.md",
+        ".hvigor/outputs/reader-kit-contained-20261102/local-build-receipt.json",
+        ".hvigor/outputs/reader-kit-contained-20261102/build.log",
+        ".hvigor/outputs/reader-kit-contained-20261102/ohpm-install.log",
+        ".hvigor/outputs/reader-kit-contained-20261102/existing-test-baseline.json"
+      ],
+      "updatedAt": "2026-11-02T19:04:06+08:00"
     }
   ],
   "source": {
@@ -14554,6 +14590,22 @@
       "title": "书源／图片插件分段入口完成",
       "detail": "同页分段及原功能已交付，选中态动画参数已启用；197普通路径与恢复已核，精确CI构建和产物检查通过。",
       "kind": "accepted"
+    },
+    {
+      "id": "reader-kit-contained-start-2026-11-02T19:00:29+08:00",
+      "at": "2026-11-02T19:00:29+08:00",
+      "itemId": "READER_KIT_SELF_CONTAINED_BUILD",
+      "title": "修复源码构建的仓外依赖",
+      "detail": "保持现用共享阅读器提交不变，将其登记为仓内子模块，统一本地、CI及构建说明；实际构建尚未验证。",
+      "kind": "open"
+    },
+    {
+      "id": "reader-kit-contained-local-2026-11-02T19:04:06+08:00",
+      "at": "2026-11-02T19:04:06+08:00",
+      "itemId": "READER_KIT_SELF_CONTAINED_BUILD",
+      "title": "仓内依赖实际构建通过",
+      "detail": "ohpm已按新路径生成锁文件，两个模块解析到仓内子模块；Release HAP构建及产物归档检查通过，待本次干净CI。既有章节测试夹具失败与改动前一致，未改期望。",
+      "kind": "open"
     }
   ],
   "reportAgeAudit": {
