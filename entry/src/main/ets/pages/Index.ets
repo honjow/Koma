@@ -1,4 +1,5 @@
 import { ImagePluginsPage } from './ImagePluginsPage'
+import { SourceCatalogSectionsBuilder, SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ImageRuleSubscriptionPage, ImageRuleSubscriptionRouteParam } from './ImageRuleSubscriptionPage'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
@@ -297,6 +298,22 @@ struct Index {
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private localSourceImport: SourcePackageLocalImport = appSourcePackageLocalImport
   private defaultSourceManagerChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
+  private sourceManagerSectionContents: Map<SourceCatalogPageChrome, ComponentContent<SourceCatalogPageChrome>> = new Map()
+
+  private sourceManagerSectionContent(chrome: SourceCatalogPageChrome): ComponentContent<SourceCatalogPageChrome> {
+    const existing = this.sourceManagerSectionContents.get(chrome)
+    if (existing !== undefined && !existing.isDisposed()) return existing
+    const content = new ComponentContent<SourceCatalogPageChrome>(this.getUIContext(),
+      wrapBuilder<[SourceCatalogPageChrome]>(SourceCatalogSectionsBuilder), chrome)
+    this.sourceManagerSectionContents.set(chrome, content)
+    return content
+  }
+
+  private disposeSourceManagerSection(chrome: SourceCatalogPageChrome): void {
+    const content = this.sourceManagerSectionContents.get(chrome)
+    this.sourceManagerSectionContents.delete(chrome)
+    if (content !== undefined && !content.isDisposed()) content.dispose()
+  }
 
   private sourceManagerChrome(param?: SourcePackageManagerRouteParam): SourceCatalogPageChrome {
     if (param === undefined) return this.defaultSourceManagerChrome
@@ -310,6 +327,12 @@ struct Index {
     if ((param?.settingsSourceId.length ?? 0) > 0) return options
     const chrome = this.sourceManagerChrome(param)
     const content = options['content'] as Record<string, Object>
+    content['bottomBuilder'] = { 'builderComponent': this.sourceManagerSectionContent(chrome),
+      'height': SOURCE_MANAGER_SECTIONS_HEIGHT, 'showType': BottomBuilderShowType.DIRECTLY_SHOW } as Record<string, Object>
+    if (chrome.section === 'plugins') {
+      content['menu'] = (this.imagePluginsTitleBarOptions()['content'] as Record<string, Object>)['menu']
+      return options
+    }
     const filter: Record<string, Object> = { 'label': AppStrings.get('common_filter'), 'icon': $r('sys.symbol.funnel'),
       'action': (): void => { chrome.request('filters') } }
     const local: Record<string, Object> = { 'label': AppStrings.get('source_pkg_local_import'), 'icon': $r('sys.symbol.folder'),
@@ -2678,6 +2701,7 @@ struct Index {
         })
       }
       .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))
+      .onDisAppear((): void => { this.disposeSourceManagerSection(this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)) })
     } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
       HdsNavDestination() {
         SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome,

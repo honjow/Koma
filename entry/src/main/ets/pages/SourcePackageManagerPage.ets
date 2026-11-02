@@ -3,6 +3,8 @@ import { PullRefreshListScaffold } from '../components/PullRefreshListScaffold'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
+import { SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
+import { ImagePluginsPage } from './ImagePluginsPage'
 import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
@@ -127,7 +129,7 @@ export struct SourcePackageManagerPage {
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
-    if (!this.settingsRouteActive || this.initialSettingsSourceId.length > 0) return
+    if (!this.settingsRouteActive || this.initialSettingsSourceId.length > 0 || this.chrome.section !== 'sources') return
     if (this.chrome.action === 'filters') this.catalogFiltersShown = true
     else void this.importPackage()
   }
@@ -2511,6 +2513,7 @@ export struct SourcePackageManagerPage {
       Stack() {
         Column() {
           PullRefreshListScaffold({
+            pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
             listSpace: ThemeConstants.SPACE_MD,
             bottomPadding: ThemeConstants.SPACE_XL,
             onRefresh: async (): Promise<void> => { await this.checkInstalledUpdates() },
@@ -2529,6 +2532,13 @@ export struct SourcePackageManagerPage {
               }
             }
           }
+        }
+        .visibility(this.chrome.section === 'sources' ? Visibility.Visible : Visibility.Hidden)
+        // Keep each mounted list and its scroll position when switching sections;
+        // only visiting Plugins initializes its existing global management view.
+        if (this.chrome.pluginsVisited && this.initialSettingsSourceId.length === 0) {
+          ImagePluginsPage({ pinnedOverlayHeight: SOURCE_MANAGER_SECTIONS_HEIGHT })
+            .visibility(this.chrome.section === 'plugins' ? Visibility.Visible : Visibility.Hidden)
         }
         Column() {
         }
