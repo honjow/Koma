@@ -4,6 +4,7 @@ import { AppStorageV2 } from '@kit.ArkUI'
 export class ImageRuleState {
   @Trace dataRevision: number = 0
   @Trace userRevision: number = 0
+  @Trace updateCount: number = 0
   @Trace enabledRuleCount: number = 0
   @Trace readFailed: boolean = false
   @Trace processingFailures: Record<string, string> = {}

@@ -91,9 +91,10 @@ export struct ImagePluginsPage {
     this.error = ''
     if (this.state.readFailed) await this.store().reload()
     if (!this.preferencesReady && this.request === undefined) await this.loadGlobalPreferences()
-    for (const subscription of this.subscriptions) {
-      try { await this.store().refresh(subscription.url) }
-      catch (_error) { this.error = AppStrings.get('image_rules_update_failed') }
+    try {
+      if (!await this.store().checkUpdates()) this.error = AppStrings.get('image_rules_update_failed')
+    } catch (_error) {
+      this.error = AppStrings.get('image_rules_update_failed')
     }
     await this.load()
   }

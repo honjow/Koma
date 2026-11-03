@@ -12,7 +12,7 @@ const plugins=load('ImageProcessingPlugins');
 const alphaPixels=new Uint8Array([32,64,128,128,18,29,41,255,0,0,0,0]);plugins.imagePluginStraightAlpha(alphaPixels);
 assert.deepEqual([...alphaPixels],[64,128,255,128,18,29,41,255,0,0,0,0]);
 const rules=load('ImageBannerRules',{'./ImageProcessingPlugins':plugins});
-const {imagePluginRows}=load('ImagePluginManagement',{'./ImageBannerRules':rules});const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
+const management=load('ImagePluginManagement',{'./ImageBannerRules':rules});const {imagePluginRows}=management;const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
 const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root,'scripts/fixtures/image-rules-edge.json'),'utf8')));
 const snapshot={schemaVersion:1,records:[{origin:'subscription-a',revision:'1',packs:[pack]}]};
 const pluginPlanning=load('ImagePluginService',{'@kit.ArkTS':{},'@kit.ImageKit':{},'@kit.CoreFileKit':{},
@@ -116,7 +116,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
   '@kit.CryptoArchitectureKit':{cryptoFramework:{createMd:()=>{const h=crypto.createHash('sha256');return {updateSync:v=>h.update(v.data),digestSync:()=>({data:new Uint8Array(h.digest())})}}}},
   './AppFileTextPersistence':{writeAppTextFile:(p,s)=>{if(failWrite)throw Error('disk full');files.set(p,s)}},
   './BackupRestoreActivity':{BackupRestoreActivity:{runWrite:async f=>f()}},'./ImageBannerRules':rules,'./ImageProcessingPlugins':plugins,
-  './ImagePluginNative':{imagePluginNative:{inspectImageProcessor:()=>''}}, // Storage contract only; real native execution has a separate runner.
+  './ImagePluginManagement':management,'./ImagePluginNative':{imagePluginNative:{inspectImageProcessor:()=>''}}, // Storage contract only; real native execution has a separate runner.
   '../state/ImageRuleState':{connectImageRuleState:()=>state},
   '../sourceRuntime/SourceIndexMetadata':{parseIndexEntriesDocument,isValidHttpUrl:v=>/^https:\/\//.test(v),resolveIndexDocumentUrl:v=>v,safeResolveIndexRelativeUrl:(b,p)=>new URL(p,b).href},
  });
@@ -163,6 +163,7 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const pluginIndex=publishPlugin(1);requests.set(moduleUrl,moduleBytes);const beforeCatalog=networkCalls;
  assert.equal(subscriptionDocumentKind(JSON.stringify(pluginIndex)),'image_rules');await store.add(pluginUrl,'');
  assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['available']);
+ assert.equal(state.updateCount,0,'uninstalled offers do not count as updates');
  assert.equal(networkCalls,beforeCatalog+2,'adding a catalog never downloads an executable');assert.equal(state.enabledRuleCount,0);
  await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.installed())[0]?.plugins[0].version,1);assert.equal(state.enabledRuleCount,0,'new installation starts disabled');
  await store.setRuleEnabled(pluginUrl,plugin.id,plugin.id,true);await store.setPluginSettings(pluginUrl,plugin.id,{strength:9,preserve:false,unknown:'ignored'});
@@ -175,12 +176,23 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const scopedPlans=pluginPlanning.imagePluginPlans(hintOnlyPlugin,'auto',{kind:'scoped',mode:'1'});
  assert.equal(scopedPlans.length,1);assert.equal(scopedPlans[0].configuration.context.application,'source');
  const pluginBackup=await store.exportSnapshot();await store.reload();assert.deepEqual(await store.exportSnapshot(),pluginBackup,'installed bytes and settings survive restart');
- publishPlugin(2);await store.refresh(pluginUrl);let catalog=(await store.list())[0],installed=(await store.installed())[0];
+ publishPlugin(2);
+ store.revalidateInBackground();
+ const check=store.checkUpdates();
+ assert.equal(store.checkUpdates(),check,'foreground refresh joins the startup check');
+ assert.equal(await check,true);
+ assert.equal(state.updateCount,1,'a refreshed offer counts once for its installation');
+ const validIndex=requests.get(pluginUrl);requests.delete(pluginUrl);
+ assert.equal(await store.checkUpdates(),false);
+ assert.equal(state.updateCount,1,'a failed check retains the last usable offer');
+ requests.set(pluginUrl,validIndex);
+ let catalog=(await store.list())[0],installed=(await store.installed())[0];
  assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['updates']);
  assert.equal(catalog.catalog[0].version,2);assert.equal(installed.plugins[0].version,1,'refresh only updates offered metadata');
  requests.set(moduleUrl,Buffer.from('bad module'));await assert.rejects(store.installPlugin(pluginUrl,plugin.id));assert.equal((await store.installed())[0]?.plugins[0].version,1,'bad updates retain the installed plugin');
  requests.set(moduleUrl,moduleBytes);await store.installPlugin(pluginUrl,plugin.id);assert.equal((await store.installed())[0]?.plugins[0].version,2);assert.equal(state.enabledRuleCount,1,'update preserves activation');
  assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['installed']);
+ assert.equal(state.updateCount,0,'successful installation clears the count without a new check');
  await assert.rejects(store.setPluginSettings(pluginUrl,plugin.id,{strength:1},JSON.stringify([1,moduleDigest])),/image_plugin_settings_stale/);
  assert.deepEqual((await store.installed())[0].pluginSettings[plugin.id],{strength:4,preserve:false},'an old editor cannot overwrite settings after an algorithm update');
  assert.equal(pinnedPlugin.records[0].plugins[0].version,1,'current reading keeps its immutable algorithm');

@@ -1,4 +1,6 @@
 import { ImagePluginsPage } from './ImagePluginsPage'
+import { ImageRuleStore } from '../model/ImageRuleStore'
+import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
 import { SourceCatalogSectionsBuilder, SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
@@ -290,6 +292,7 @@ struct Index {
   // the same in-memory snapshot rather than reopening a second store.
   @Local private readerProgressRevision: number = 0
   @Local private libraryRevision: number = 0
+  @Local private imageRuleState: ImageRuleState = connectImageRuleState()
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
   private detailMenu: KomaMenuController = new KomaMenuController()
@@ -2225,6 +2228,7 @@ struct Index {
     // from route creation and shares the existing manager request owner.
     void appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
       .then((): void => { appSourcePackageManagerCache.revalidateInBackground(context) })
+    ImageRuleStore.forContext(context).revalidateInBackground()
     appSourceWebSessionStore.configure(context, this.sourceRegistry)
     if (!this.libraryPersistenceRestored) {
       this.libraryPersistenceRestored = true
@@ -2262,9 +2266,9 @@ struct Index {
     }
   }
 
-  private sourceUpdateCount(): number {
+  private catalogUpdateCount(): number {
     void this.sourcePackageManagerCache.revision
-    return this.sourcePackageManagerCache.updateCount
+    return this.sourcePackageManagerCache.updateCount + this.imageRuleState.updateCount
   }
 
   @Builder
@@ -2274,7 +2278,7 @@ struct Index {
       idx: idx,
       currentIndex: this.selectedTab,
       bounceTrigger: this.tabIconBounceTriggers[idx] ?? -1,
-      badgeCount: idx === TabIndex.BROWSE ? this.sourceUpdateCount() : 0,
+      badgeCount: idx === TabIndex.BROWSE ? this.catalogUpdateCount() : 0,
     })
   }
 
@@ -3082,6 +3086,16 @@ struct Index {
         .width('100%')
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
+      }
+
+      // HDS renders its menu badge for icon actions only. Keep the native
+      // text action and align its decoration with the title bar's end inset.
+      if (this.rootNavigationVisible && this.selectedTab === TabIndex.BROWSE && this.catalogUpdateCount() > 0) {
+        Badge({ count: this.catalogUpdateCount(), position: BadgePosition.RightTop, style: {} }) {
+          Row().width(1).height(1)
+        }
+        .margin({ top: this.layoutSafeArea.topAvoidHeight + ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_LG })
+        .hitTestBehavior(HitTestMode.None)
       }
 
       Row()

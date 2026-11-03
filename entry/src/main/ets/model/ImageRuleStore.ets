@@ -8,6 +8,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connectImageRuleState } from '../state/ImageRuleState'
 import { ImageProcessingPlugin, validateImageProcessingPlugin, imagePluginDefaults } from './ImageProcessingPlugins'
 import { SettingsFieldValues } from './SettingsFormFields'
+import { ImagePluginRow, imagePluginRows } from './ImagePluginManagement'
 import { imagePluginNative } from './ImagePluginNative'
 import { ImageBannerRule, ImageRuleRecord, ImageRuleSnapshot, ImageRuleConfiguration, ImageRuleSubscription, ImageRuleIndex, ImageRulePack,
   ImageRulePackReference, ImagePluginCollection, validateImageRulePack, validateImageRuleConfiguration, imageRuleKey } from './ImageBannerRules'
@@ -81,6 +82,8 @@ export class ImageRuleStore {
   private ready: Promise<void>
   private configuration: ImageRuleConfiguration = { schemaVersion: 3, subscriptions: [], installations: [] }
   private writes: Promise<void> = Promise.resolve()
+  private automaticCheckStarted: boolean = false
+  private pendingCheck: Promise<boolean> | undefined = undefined
   private inFlight: Map<string, Promise<void>> = new Map()
   private epochs: Map<string, number> = new Map()
   private generation: number = 0
@@ -114,6 +117,12 @@ export class ImageRuleStore {
       sum + source.packs.reduce((count: number, pack: ImageRulePack): number => count + pack.rules.filter((rule: ImageBannerRule): boolean =>
         !source.disabledRules.includes(imageRuleKey(pack.id, rule.id))).length, 0) +
       source.plugins.filter((plugin: ImageProcessingPlugin): boolean => !source.disabledRules.includes(imageRuleKey(plugin.id, plugin.id))).length, 0)
+    // Use the same candidates as the management list. Legacy packs may expose
+    // several rows, but updating the pack is a single installation operation.
+    const updates = imagePluginRows(this.configuration.subscriptions, this.configuration.installations)
+      .filter((row: ImagePluginRow): boolean => row.group === 'updates')
+      .map((row: ImagePluginRow): string => JSON.stringify([row.source.origin, row.id()]))
+    state.updateCount = new Set<string>(updates).size
     state.dataRevision += 1
     if (userChange) state.userRevision += 1
   }
@@ -341,6 +350,34 @@ export class ImageRuleStore {
       source.pluginSettings[id] = imagePluginDefaults(plugin, values)
     }))
   }
+  revalidateInBackground(): void {
+    if (this.automaticCheckStarted) return
+    this.automaticCheckStarted = true
+    void this.checkUpdates().catch((): void => {})
+  }
+
+  // Startup and pull-to-refresh share one catalog check. Fetching metadata
+  // never upgrades an installation or changes the active reader configuration.
+  checkUpdates(): Promise<boolean> {
+    if (this.pendingCheck !== undefined) return this.pendingCheck
+    const request = this.checkSubscriptions()
+    this.pendingCheck = request
+    const retire = (): void => { if (this.pendingCheck === request) this.pendingCheck = undefined }
+    void request.then(retire, retire)
+    return request
+  }
+
+  private async checkSubscriptions(): Promise<boolean> {
+    await this.ready
+    this.assertReadable()
+    const urls = this.configuration.subscriptions.map((subscription: ImageRuleSubscription): string => subscription.url)
+    let complete = true
+    for (const url of urls) {
+      try { await this.refresh(url) } catch (_error) { complete = false }
+    }
+    return complete
+  }
+
   refresh(url: string): Promise<void> {
     const pending = this.inFlight.get(url)
     if (pending) return pending

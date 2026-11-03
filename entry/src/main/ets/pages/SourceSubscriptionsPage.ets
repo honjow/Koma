@@ -244,12 +244,12 @@ export struct SourceSubscriptionsPage {
       surfaceColor: this.embedded ? Color.Transparent : ThemeConstants.BG_SUB,
       horizontalPadding: this.embedded ? 0 : ThemeConstants.SPACE_MD, onRefresh: async (): Promise<void> => {
       this.error = ''
-      if (this.ruleState.readFailed) { await ImageRuleStore.forContext(this.context()).reload(); await this.loadRules() }
-      try { await this.refreshMetadata() } catch (_error) { this.error = AppStrings.get('source_catalog_subscription_read_failed') }
-      for (const rule of this.ruleSubscriptions) {
-        try { await ImageRuleStore.forContext(this.context()).refresh(rule.url) }
-        catch (_error) { /* The failing address retains its own error; continue the remaining addresses. */ }
-      }
+      const store = ImageRuleStore.forContext(this.context())
+      if (this.ruleState.readFailed) { await store.reload(); await this.loadRules() }
+      await Promise.all([
+        this.refreshMetadata().catch((): void => { this.error = AppStrings.get('source_catalog_subscription_read_failed') }),
+        store.checkUpdates().catch((): boolean => false),
+      ])
     }, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.repositories.length > 0) {
         ListItem() {
