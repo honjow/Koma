@@ -137,6 +137,7 @@ export struct KomaReaderLabPage {
   @Local private chapterBusy: boolean = false
   @Local private readerMode: ReaderModeState = connectReaderModeState()
   @Local private readerSettingsSheetShown: boolean = false
+  @Local private filterSheetHeight: number = 0
   @Local private readerFilterPreview: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
   @Local private tapZonePreviewRevision: number = 0
@@ -716,6 +717,7 @@ export struct KomaReaderLabPage {
   }
 
   private closeHostSettings(): void {
+    this.filterSheetHeight = 0
     this.readerFilterPreview = false
     this.readerSettingsSheetShown = false
     this.syncKeepScreenOn()
@@ -1071,6 +1073,7 @@ export struct KomaReaderLabPage {
         enhancementControlsAvailable: true,
         onResetSeriesOverride: (): void => { this.resetSeriesOverride() },
         onPreferencesChange: (next: ReaderPreferences): void => { this.onHostPreferencesChanged(next) },
+        onFilterSheetHeightChange: (height: number): void => { this.filterSheetHeight = height },
         onFilterPreviewChange: (active: boolean): void => { this.readerFilterPreview = active },
         onClose: (): void => { this.closeHostSettings() },
         onRevealTapZones: (): void => { this.closeHostSettings() },
@@ -1230,7 +1233,8 @@ export struct KomaReaderLabPage {
       .padding({ top: this.productionEntry || this.request.readingChrome && this.session !== null ? 0 : this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT,
         bottom: this.productionEntry || this.request.readingChrome && this.session !== null ? 0 : this.safeArea.bottomAvoidHeight })
       .bindSheet($$this.readerSettingsSheetShown, this.ReaderHostSettingsSheet, komaSheetOptions({
-        detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+        detents: [this.filterSheetHeight > 0 ? this.filterSheetHeight : SheetSize.MEDIUM, SheetSize.LARGE],
+        detentSelection: this.filterSheetHeight > 0 ? this.filterSheetHeight : SheetSize.MEDIUM,
         showClose: false,
         enableOutsideInteractive: false,
         maskColor: this.readerFilterPreview ? Color.Transparent : $r('sys.color.ohos_id_color_mask_thin'),

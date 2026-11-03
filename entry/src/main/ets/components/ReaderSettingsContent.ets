@@ -63,6 +63,8 @@ export struct ReaderSettingsContent {
   @Local private selectedTab: number = 0
   @Local private tabScrolled: boolean = false
   @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
+  @Event onFilterSheetHeightChange: (height: number) => void = () => {}
+  private filterContentHeight: number = 0
   @Event onFilterPreviewChange: (active: boolean) => void = () => {}
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
   private modeScroller: Scroller = new Scroller()
@@ -75,8 +77,15 @@ export struct ReaderSettingsContent {
     this.selectedTab = index
     const scroller = index === 0 ? this.modeScroller : index === 1 ? this.generalScroller : this.filterScroller
     this.tabScrolled = scroller.currentOffset().yOffset > 0
+    this.publishFilterSheetHeight()
     this.onFilterPreviewChange(index === 2)
   }
+  private publishFilterSheetHeight(): void {
+    const height = this.selectedTab === 2 && this.filterContentHeight > 0 ?
+      Math.ceil(this.tabHeaderHeight + this.filterContentHeight) : 0
+    this.onFilterSheetHeightChange(height)
+  }
+
   @Local private modelManagementShown: boolean = false
   @Local private imagePluginsShown: boolean = false
   @Local private pluginSubscriptionsShown: boolean = false
@@ -494,6 +503,13 @@ export struct ReaderSettingsContent {
           }
           Blank().height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
         }.width('100%').padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+          .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+            const height = Number(size.height)
+            if (index === 2 && height > 0 && height !== this.filterContentHeight) {
+              this.filterContentHeight = height
+              this.publishFilterSheetHeight()
+            }
+          })
       }
     }.width('100%').height('100%').scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
@@ -517,7 +533,10 @@ export struct ReaderSettingsContent {
       tabLabels: [s('reader_settings_tab_mode'), s('reader_settings_tab_general'), s('reader_settings_tab_filters')],
       tabScrolled: this.tabScrolled,
       selectedTab: this.selectedTab, onTabSelect: (index: number): void => { this.selectTab(index) },
-      onTabHeaderHeightChange: (height: number): void => { this.tabHeaderHeight = height },
+      onTabHeaderHeightChange: (height: number): void => {
+        this.tabHeaderHeight = height
+        this.publishFilterSheetHeight()
+      },
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
     }) {
       Stack() {

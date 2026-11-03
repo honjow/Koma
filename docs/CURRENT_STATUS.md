@@ -12,12 +12,12 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "三个App半模态零滚动修正已验证",
+  "state": "滤镜半模态动态高度已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T09:28:17+08:00",
+  "updatedAt": "2026-11-03T10:16:33+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "半模态首行保持清晰，内容滚入标题下方才出现渐变，回顶恢复清晰。",
+  "activity": "滤镜半模态随选项展开与收起调整高度。三个 App 的零滚动模糊修正已推送。",
   "nextAction": "其余已登记问题保留各自状态与优先级；本次不重开已验收路径。",
   "proof": [
     {
@@ -6007,7 +6007,7 @@
       "title": "阅读设置分段与滤镜实时预览",
       "priority": "P1（用户已采用）",
       "kind": "done",
-      "status": "零滚动清晰，滚入标题区才生效渐变",
+      "status": "滤镜半模态已随内容调整高度",
       "stage": "本次范围已交付",
       "owner": "Root",
       "dependencies": [],
@@ -6016,7 +6016,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户提出阅读模式／常规／滤镜分段，并明确“那就开始实现吧”；原消息精确时间未核实。",
-      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。 用户指出 NextN 浅色零滚动画面的卡片和色块上缘被模糊。普通标题已恢复 HDS 滚动联动，Koma 阅读设置以当前分段实际列表偏移控制渐变。三 App 构建通过。237 复核浅色打开、滚动、回顶，NextN 补核深色打开，Koma 补核切换分段及恢复原偏移。",
+      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。 用户指出 NextN 浅色零滚动画面的卡片和色块上缘被模糊。普通标题已恢复 HDS 滚动联动，Koma 阅读设置以当前分段实际列表偏移控制渐变。三 App 构建通过。237 复核浅色打开、滚动、回顶，NextN 补核深色打开，Koma 补核切换分段及恢复原偏移。 237 实测滤镜关闭时使用紧凑高度，开启颜色滤镜后随滑杆展开，关闭后缩回。保留原生大档。测试后原六项数据逐字恢复，原超时和睡眠状态读回并释租。",
       "remaining": "本次代表性路径已验收。其他弹层与旧系统保持原验证边界。",
       "boundaries": [
         "采用本会话已确认三类分段替换阅读标题与关闭按钮，保留原生下拉和返回关闭、中／大两档和新材质。",
@@ -6041,11 +6041,11 @@
         "197普通Shared路径实测；保留Legacy兼容接线和全局原入口编译通过，未扩称其它宿主或设备验收。",
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/hds-auto-dark-zero/：与zero-filter-initial/layout.json中三个按钮bounds相同；hds-restoration237.json记录六项原文件恢复，reader-progress原本不存在且继续保持不存在。",
         "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。",
-        "237 截图：NextN 原 modal-gradient-20261103 目录的 offset-v3-zero、offset-v3-scrolled、offset-v3-returned、offset-dark-zero；NextE 同目录 offset-light-zero、offset-light-scrolled、offset-light-returned；Koma reader-settings-tabs-20261103 的 offset-koma-v3-*。"
+        "237 截图：NextN 原 modal-gradient-20261103 目录的 offset-v3-zero、offset-v3-scrolled、offset-v3-returned、offset-dark-zero；NextE 同目录 offset-light-zero、offset-light-scrolled、offset-light-returned；Koma reader-settings-tabs-20261103 的 offset-koma-v3-*。",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/height-filter-initial、height-filter-toggled、height-filter-restored、height-restore-data、height-restore-power"
       ],
       "closedAt": "2026-11-03T04:16:30+08:00",
       "remainingActions": [
-        "自适应半模态高度按用户允许暂不实施。",
         "零值滑杆用户暂缓，不继续排查。"
       ],
       "reopenedAt": "2026-11-03T02:37:42+08:00"
@@ -15477,6 +15477,14 @@
       "itemId": "APP_POPUP_SYSTEM_MATERIAL",
       "title": "修正半模态零滚动时首行被模糊",
       "detail": "三 App 构建及 237 具名检查完成。Koma 切回滚动分段会立即恢复渐变，NextN 深色初始保持清晰。设备恢复原设置。",
+      "kind": "done"
+    },
+    {
+      "id": "reader-filter-sheet-content-height",
+      "at": "2026-11-03T10:16:33+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "滤镜半模态按实际内容高度收放",
+      "detail": "237 验证关闭、展开颜色滑杆、再关闭三个状态。恢复原数据和电源后释租。",
       "kind": "done"
     }
   ],

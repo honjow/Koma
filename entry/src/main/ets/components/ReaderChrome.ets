@@ -78,6 +78,7 @@ export struct ReaderChrome {
   @BuilderParam thumbnailStrip?: () => void
 
   @Local private settingsShown: boolean = false
+  @Local private filterSheetHeight: number = 0
   @Local private moreShown: boolean = false
   @Local private imageInfoShown: boolean = false
   @Local private chapterPickerShown: boolean = false
@@ -175,6 +176,7 @@ export struct ReaderChrome {
   }
 
   private closeSettings(): void {
+    this.filterSheetHeight = 0
     this.onFilterPreviewChange(false)
     this.settingsShown = false
   }
@@ -189,6 +191,7 @@ export struct ReaderChrome {
       onPreferencesChange: (preferences: ReaderPreferences): void => {
         this.onPreferencesChange({ preferences: preferences })
       },
+      onFilterSheetHeightChange: (height: number): void => { this.filterSheetHeight = height },
       onFilterPreviewChange: (active: boolean): void => { this.onFilterPreviewChange(active) },
       onClose: (): void => { this.closeSettings() },
       onRevealTapZones: (): void => { this.onVisibleChange(false) },
@@ -298,7 +301,8 @@ export struct ReaderChrome {
         .backgroundColor(Color.Transparent)
         .onClick(() => { this.settingsShown = true })
         .bindSheet($$this.settingsShown, this.ReaderSettingsSheet, komaSheetOptions({
-          detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+          detents: [this.filterSheetHeight > 0 ? this.filterSheetHeight : SheetSize.MEDIUM, SheetSize.LARGE],
+          detentSelection: this.filterSheetHeight > 0 ? this.filterSheetHeight : SheetSize.MEDIUM,
           showClose: false,
           enableOutsideInteractive: false,
           maskColor: this.filterPreview ? Color.Transparent : $r('sys.color.ohos_id_color_mask_thin'),
