@@ -32,6 +32,7 @@ export struct KomaModalScaffold {
   @Event onConfirm: () => void = () => {}
   @Param tabLabels: string[] = []
   @Param selectedTab: number = 0
+  @Param tabScrolled: boolean = false
   @Event onTabSelect: (index: number) => void = () => {}
   @Event onTabHeaderHeightChange: (height: number) => void = () => {}
   @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
@@ -72,9 +73,8 @@ export struct KomaModalScaffold {
 
   @Builder
   private TabbedModal() {
-    // HDS owns the spatial gradient, with no offset-based transparent start.
-    // The auto-sized tabs overlay that backdrop outside HDS's fixed stack slot.
-    // Titled modals below use the same gradient while retaining their layout.
+    // HDS does not read a retained offset when swapping list bindings.
+    // The reader supplies whether the visible list is already past its top.
     HdsNavigation() {
       Column() { this.content() }
         .width('100%').height('100%')
@@ -90,7 +90,7 @@ export struct KomaModalScaffold {
           materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
         } : undefined,
         blurStrategy: BlurStrategy.ENABLE,
-        scrollEffectOpts: { enableScrollEffect: false, scrollEffectType: ScrollEffectType.GRADIENT_BLUR },
+        scrollEffectOpts: { enableScrollEffect: !this.tabScrolled, scrollEffectType: ScrollEffectType.GRADIENT_BLUR },
       },
     })
     .titleMode(HdsNavigationTitleMode.MODAL)
@@ -153,7 +153,7 @@ export struct KomaModalScaffold {
               materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE,
             } : undefined,
             scrollEffectOpts: {
-              enableScrollEffect: false,
+              enableScrollEffect: true,
               scrollEffectType: ScrollEffectType.GRADIENT_BLUR,
             },
             blurStrategy: BlurStrategy.ENABLE,

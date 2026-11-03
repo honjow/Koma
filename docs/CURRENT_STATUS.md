@@ -12,12 +12,12 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "三个App半模态渐变恢复已交付",
+  "state": "三个App半模态零滚动修正已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T04:27:48+08:00",
+  "updatedAt": "2026-11-03T09:28:17+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "三个App的公共半模态已恢复HDS渐变；具名检查、设备恢复和Koma远端构建已完成。",
+  "activity": "半模态首行保持清晰，内容滚入标题下方才出现渐变，回顶恢复清晰。",
   "nextAction": "其余已登记问题保留各自状态与优先级；本次不重开已验收路径。",
   "proof": [
     {
@@ -642,9 +642,9 @@
       "firstHandlingAt": "2026-10-24T18:01:49.053271+00:00",
       "closedAt": "2026-11-03T04:16:30+08:00",
       "evidencePoints": [],
-      "status": "三个App公共半模态渐变已恢复",
-      "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。 本轮已恢复Koma、NextE、NextN公共半模态的HDS渐变模糊，保留自适应按钮与原动作。237分别通过Koma阅读设置／图片插件、NextE及NextN自定义主题色普通路径，检查浅深色零滚动与列表滚入；未见零滚动露底，内容经过标题下方呈渐变模糊。三个App均构建成功，临时偏好与系统浅色、电源均恢复并释租。",
-      "remaining": "本次公共半模态恢复已完成；既有未观察菜单与旧系统范围保持原记录，不扩成逐弹层重测。NextE本地改动、NextN范围提交均不自动推送。",
+      "status": "零滚动清晰，滚入标题区才生效渐变",
+      "result": "237 API26：093排序菜单透出模糊目录/小号常规分组标题；096书架筛选、099索引表单、104包子源设置均呈现原生半模态材质。097完整往返219帧顺序审阅，并看054/076/112/125/185原帧。 最终8547952B包/Kit9b94e98已装237；105→106书库/Reader/源注册表逐字相同。 本轮已恢复Koma、NextE、NextN公共半模态的HDS渐变模糊，保留自适应按钮与原动作。237分别通过Koma阅读设置／图片插件、NextE及NextN自定义主题色普通路径，检查浅深色零滚动与列表滚入；未见零滚动露底，内容经过标题下方呈渐变模糊。三个App均构建成功，临时偏好与系统浅色、电源均恢复并释租。 用户指出 NextN 浅色零滚动画面的卡片和色块上缘被模糊。普通标题已恢复 HDS 滚动联动，Koma 阅读设置以当前分段实际列表偏移控制渐变。三 App 构建通过。237 复核浅色打开、滚动、回顶，NextN 补核深色打开，Koma 补核切换分段及恢复原偏移。",
+      "remaining": "本次代表性路径已验收。其他弹层与旧系统保持原验证边界。",
       "modificationBasis": {
         "object": "宿主原生菜单/半模态选项及KomaModalScaffold背景；ChapterListSection排序分组标题",
         "history": "当前有效边界以本项allowedDifference、boundaries及remainingActions为准。",
@@ -674,7 +674,8 @@
         "/Users/honjow/git/NextN/.hvigor/outputs/modal-gradient-20261103/：color-modal-light-zero、color-modal-dark-zero、color-modal-dark-scrolled、restoration.json及restore-power；HAP SHA256 92f4678780f9f77daf6505af3af3072fe42f0cee71bf929c4a95d450d8934230。",
         ".hvigor/outputs/reader-settings-tabs-20261103/Koma-all-modal-gradient-signed.hap：SHA256 80447563d73b5f165e462e162662e4cddc3bbcc09e47c78651eea8b6e489d1ce；all-modal-koma-titled-light-zero、all-modal-koma-titled-dark-zero、all-modal-koma-child-return及hds-restoration237.json。",
         "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。",
-        "NextN/main本地范围提交2f42fd25，仅公共Scaffold及两份既有验收记录，未推送；NextE公共Scaffold改动留在原主仓，未提交或推送。"
+        "NextN/main本地范围提交2f42fd25，仅公共Scaffold及两份既有验收记录，未推送；NextE公共Scaffold改动留在原主仓，未提交或推送。",
+        "237 截图：NextN 原 modal-gradient-20261103 目录的 offset-v3-zero、offset-v3-scrolled、offset-v3-returned、offset-dark-zero；NextE 同目录 offset-light-zero、offset-light-scrolled、offset-light-returned；Koma reader-settings-tabs-20261103 的 offset-koma-v3-*。"
       ]
     },
     {
@@ -6006,7 +6007,7 @@
       "title": "阅读设置分段与滤镜实时预览",
       "priority": "P1（用户已采用）",
       "kind": "done",
-      "status": "分段与HDS渐变恢复已通过",
+      "status": "零滚动清晰，滚入标题区才生效渐变",
       "stage": "本次范围已交付",
       "owner": "Root",
       "dependencies": [],
@@ -6015,8 +6016,8 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户提出阅读模式／常规／滤镜分段，并明确“那就开始实现吧”；原消息精确时间未核实。",
-      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。",
-      "remaining": "本项三分段、预览及顶部恢复完成；动态半模态高度按用户允许暂不实施，零值滑杆暂缓。",
+      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。 用户指出 NextN 浅色零滚动画面的卡片和色块上缘被模糊。普通标题已恢复 HDS 滚动联动，Koma 阅读设置以当前分段实际列表偏移控制渐变。三 App 构建通过。237 复核浅色打开、滚动、回顶，NextN 补核深色打开，Koma 补核切换分段及恢复原偏移。",
+      "remaining": "本次代表性路径已验收。其他弹层与旧系统保持原验证边界。",
       "boundaries": [
         "采用本会话已确认三类分段替换阅读标题与关闭按钮，保留原生下拉和返回关闭、中／大两档和新材质。",
         "保留所有设置含义、值域与持久化；控制栏单双页及方向合同不变。图片插件和模型管理保留独立第二层半模态。",
@@ -6039,7 +6040,8 @@
         ".hvigor/outputs/reader-settings-tabs-20261103/ci-final.json",
         "197普通Shared路径实测；保留Legacy兼容接线和全局原入口编译通过，未扩称其它宿主或设备验收。",
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/hds-auto-dark-zero/：与zero-filter-initial/layout.json中三个按钮bounds相同；hds-restoration237.json记录六项原文件恢复，reader-progress原本不存在且继续保持不存在。",
-        "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。"
+        "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。",
+        "237 截图：NextN 原 modal-gradient-20261103 目录的 offset-v3-zero、offset-v3-scrolled、offset-v3-returned、offset-dark-zero；NextE 同目录 offset-light-zero、offset-light-scrolled、offset-light-returned；Koma reader-settings-tabs-20261103 的 offset-koma-v3-*。"
       ],
       "closedAt": "2026-11-03T04:16:30+08:00",
       "remainingActions": [
@@ -15467,6 +15469,14 @@
       "itemId": "APP_POPUP_SYSTEM_MATERIAL",
       "title": "公共半模态恢复交付，远端构建成功",
       "detail": "Koma修复fb19d41d已推且精确CI41517936725成功；NextN本地范围提交2f42fd25，NextE原主仓改动保留。三边具名检查及设备恢复完成，两边未自动推送，不发布新App。",
+      "kind": "done"
+    },
+    {
+      "id": "modal-gradient-zero-offset-correction",
+      "at": "2026-11-03T09:28:17+08:00",
+      "itemId": "APP_POPUP_SYSTEM_MATERIAL",
+      "title": "修正半模态零滚动时首行被模糊",
+      "detail": "三 App 构建及 237 具名检查完成。Koma 切回滚动分段会立即恢复渐变，NextN 深色初始保持清晰。设备恢复原设置。",
       "kind": "done"
     }
   ],

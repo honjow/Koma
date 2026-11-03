@@ -61,6 +61,7 @@ export struct ReaderSettingsContent {
   // Reader owns immediate reading controls. Provider/account configuration belongs
   // to the global translation settings route, not a form reachable only in this sheet.
   @Local private selectedTab: number = 0
+  @Local private tabScrolled: boolean = false
   @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
   @Event onFilterPreviewChange: (active: boolean) => void = () => {}
   private layout: LayoutSafeAreaState = connectLayoutSafeArea()
@@ -72,6 +73,8 @@ export struct ReaderSettingsContent {
 
   private selectTab(index: number): void {
     this.selectedTab = index
+    const scroller = index === 0 ? this.modeScroller : index === 1 ? this.generalScroller : this.filterScroller
+    this.tabScrolled = scroller.currentOffset().yOffset > 0
     this.onFilterPreviewChange(index === 2)
   }
   @Local private modelManagementShown: boolean = false
@@ -495,6 +498,11 @@ export struct ReaderSettingsContent {
     }.width('100%').height('100%').scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
       .nestedScroll({ scrollForward: NestedScrollMode.SELF_FIRST, scrollBackward: NestedScrollMode.SELF_FIRST })
+      .onDidScroll(() => {
+        if (this.selectedTab === index) {
+          this.tabScrolled = scroller.currentOffset().yOffset > 0
+        }
+      })
       // Retain the hidden list's geometry, as in SourcePackageManagerPage.
       // Collapsing to None lets the segmented control's native animation scale
       // the next page from zero bounds, also disturbing retained scroll state.
@@ -507,6 +515,7 @@ export struct ReaderSettingsContent {
     Stack() {
     KomaModalScaffold({ contentOwnsScrolling: true,
       tabLabels: [s('reader_settings_tab_mode'), s('reader_settings_tab_general'), s('reader_settings_tab_filters')],
+      tabScrolled: this.tabScrolled,
       selectedTab: this.selectedTab, onTabSelect: (index: number): void => { this.selectTab(index) },
       onTabHeaderHeightChange: (height: number): void => { this.tabHeaderHeight = height },
       modalSurfaceColor: $r('sys.color.ohos_id_color_sub_background'),
