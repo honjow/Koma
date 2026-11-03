@@ -3,6 +3,7 @@
     { "name": "start_window_background", "value": "#F7F3EF" },
     { "name": "koma_background", "value": "#F5F5F3" },
     { "name": "koma_card", "value": "#FFFFFFFF" },
+    { "name": "koma_reader_filter_slider_track", "value": "#E4E4E4" },
     { "name": "koma_text_primary", "value": "#181A18" },
     { "name": "koma_text_secondary", "value": "#6F756F" },
     { "name": "koma_text_on_brand", "value": "#FFFFFFFF" },

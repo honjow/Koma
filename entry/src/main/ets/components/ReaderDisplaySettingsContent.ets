@@ -117,6 +117,7 @@ struct ReaderDisplayValueSlider {
         Text(`${this.value}`).fontColor(ThemeConstants.TEXT_SECONDARY)
       }.width('100%')
       Slider({ value: this.value, min: this.min, max: this.max, step: 1, style: SliderStyle.InSet }).width('100%')
+        .trackColor($r('app.color.koma_reader_filter_slider_track'))
         .selectedColor(ThemeConstants.BRAND_PRIMARY)
         .onChange((value: number, mode: SliderChangeMode): void => { this.onChange(value, mode) })
     }.padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM })

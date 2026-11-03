@@ -1,4 +1,4 @@
-import { promptAction, uiMaterial } from '@kit.ArkUI'
+import { promptAction, uiAppearance, uiMaterial } from '@kit.ArkUI'
 import { deviceInfo } from '@kit.BasicServicesKit'
 
 // Match NextE's native popup materials. Callers continue owning geometry,
@@ -50,4 +50,10 @@ export function komaDialogMaterial(): SystemUiMaterial | undefined {
 // Keep the existing solid surface on systems predating the material API.
 export function komaModalContentBackground(fallback: ResourceColor): ResourceColor {
   return deviceInfo.apiAvailable('26.0.0') ? Color.Transparent : fallback
+}
+
+// Reader toolbar menus use system glass, which follows the system appearance
+// even when Koma's content uses a fixed theme. Resolve before opening the menu.
+export function komaReaderMenuTextColor(): ResourceColor {
+  return uiAppearance.getDarkMode() === uiAppearance.DarkMode.ALWAYS_DARK ? '#F1F3F1' : '#181A18'
 }

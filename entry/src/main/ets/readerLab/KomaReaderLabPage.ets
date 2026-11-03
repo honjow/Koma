@@ -6,7 +6,7 @@ import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { KomaReaderTranslationConfiguration, KomaReaderTranslationProvider } from './KomaReaderTranslationProvider'
 import { KomaTranslationSettings, KomaTranslationSettingsSnapshot, KomaTranslationSettingsState, connectKomaTranslationSettings } from '../readerTranslation/KomaTranslationSettings'
-import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial, komaReaderMenuTextColor } from '../theme/KomaPopupOptions'
 import { Binding, ColorMetrics, FrameCallback, LengthMetrics } from '@kit.ArkUI'
 import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -95,6 +95,7 @@ export struct KomaReaderLabPage {
     controlsPadding: ThemeConstants.SPACE_LG, columnSpacing: 0,
     topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: false, mediaActionsInMenu: true,
     groupMoreActions: true,
+    resolveMoreMenuTextColor: komaReaderMenuTextColor,
     spreadControlsLeading: true,
   }
   @Local private translationSettings: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()

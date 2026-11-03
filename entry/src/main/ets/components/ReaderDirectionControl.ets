@@ -1,4 +1,4 @@
-import { komaMenuOptions } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaReaderMenuTextColor } from '../theme/KomaPopupOptions'
 import { ReaderDirectionChoice } from '../model/ReaderControlChoices'
 import { ReaderDirectionMenuItems, readerDirectionIcon } from './ReaderDirectionMenu'
 export { ReaderDirectionChoice } from '../model/ReaderControlChoices'
@@ -11,6 +11,7 @@ export struct ReaderDirectionControl {
   @Event onDirectionChange: (direction: ReaderDirectionChoice) => void = () => {}
   @Event onMenuVisible: (visible: boolean) => void = () => {}
   @Local private menuShown: boolean = false
+  @Local private menuTextColor: ResourceColor = $r('sys.color.font_primary')
 
   private label(direction: ReaderDirectionChoice): Resource {
     if (direction === 'rtl') return $r('app.string.reader_direction_rtl')
@@ -32,7 +33,7 @@ export struct ReaderDirectionControl {
   private DirectionMenu() {
     Menu() {
       ReaderDirectionMenuItems(this.readingMode, (direction: ReaderDirectionChoice): void => { this.choose(direction) })
-    }
+    }.fontColor(this.menuTextColor)
   }
 
   build() {
@@ -41,7 +42,10 @@ export struct ReaderDirectionControl {
     }
     .width(44).height(44).backgroundColor(Color.Transparent)
     .enabled(this.controlEnabled).accessibilityText(this.label(this.readingMode))
-    .onClick((): void => { this.menuShown = true })
+    .onClick((): void => {
+      this.menuTextColor = komaReaderMenuTextColor()
+      this.menuShown = true
+    })
     .bindMenu(this.menuShown, this.DirectionMenu, komaMenuOptions({
       placement: Placement.TopRight,
       aboutToAppear: (): void => { this.onMenuVisible(true) },

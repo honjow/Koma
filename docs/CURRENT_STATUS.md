@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：三个 App 半模态的渐变模糊已恢复，具名检查与设备恢复完成；其他新反馈已登记。
+当前结果：200 已复测阅读器右上菜单和滤镜滑杆。底部方向菜单已补同一取色修复，已构建，待真机复测。
 
-设备：197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200禁止操作，四私库搁置。
+设备：197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,9 +12,9 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "菜单分组与漫画人封面已验证",
+  "state": "200 阅读菜单和滤镜滑杆已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T18:58:00+08:00",
+  "updatedAt": "2026-11-03T20:54:09+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "菜单分组、漫画人封面及一条翻页回退竞态已处理，详情冷加载过渡与原偶发回退继续保留。",
@@ -6068,7 +6068,7 @@
       ],
       "closedAt": "2026-11-03T04:16:30+08:00",
       "remainingActions": [
-        "零值滑杆用户暂缓，不继续排查。"
+        "零值滑杆已随 READER_MENU_THEME_REFRESH 在 200 复测通过。"
       ],
       "reopenedAt": "2026-11-03T02:37:42+08:00"
     },
@@ -6076,9 +6076,9 @@
       "id": "READER_MENU_THEME_REFRESH",
       "title": "深色切回浅色后阅读器菜单文字仍为白色",
       "priority": "P1（用户直接反馈）",
-      "kind": "parked",
-      "status": "PARKED_USER：菜单颜色暂缓",
-      "stage": "用户暂缓",
+      "kind": "open",
+      "status": "右上菜单和滑杆已验证，底部方向菜单待复测",
+      "stage": "底部补修已构建",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
@@ -6086,8 +6086,8 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户直接反馈；精确消息时刻未核实。",
-      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。 用户澄清仅菜单颜色先不查，翻页回退继续处理。",
-      "remaining": "按用户决定暂缓。",
+      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。 用户澄清仅菜单颜色先不查，翻页回退继续处理。 用户重新授权 200 诊断。200 浅色菜单背景实测白字；独立亮度数值 15 时只看见已填充的粉色，未填充轨道融入白卡片。已恢复原亮度开关，24 小时超时已读回。候选接入 Koma 主题文字色及滑杆轨道色，已构建。 200 第一版修复了滑杆，菜单仍白字；第二版核实固定应用配色与系统菜单材质不同步。最终候选使菜单文字在打开时按系统外观取色。200 同一阅读会话经系统浅→深→浅，菜单分别为深字、浅字、深字。亮度 15 的未填充轨道与颜色滤镜四根零值轨道可见。两开关恢复关闭，系统浅色及 120000ms 原超时已恢复，租约已释放。 用户指出底部菜单仍有问题。底部阅读方向菜单已接入相同的系统取色函数，签名候选构建成功，尚未进行底部真机复测。",
+      "remaining": "在 200 复测底部阅读方向菜单的系统浅→深→浅切换。",
       "boundaries": [
         "保留现有菜单入口、分组、动作和新材质，只修正主题色彩刷新。",
         "接续237滑杆与顶部背景任务，不用新反馈中断前项。"
@@ -6095,9 +6095,18 @@
       "evidence": [
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-after-light/screen.png",
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light/screen.png",
-        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light-reenter/screen.png"
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light-reenter/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/menu-light/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/brightness/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/bundle-and-power/run-metadata.json",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-menu-dark/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-menu-light-return/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-bright-on/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-tint-on/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-tint-off/screen.png",
+        ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-restoration/run-metadata.json"
       ],
-      "updatedAt": "2026-11-03T10:48:33+08:00"
+      "updatedAt": "2026-11-03T20:54:09+08:00"
     },
     {
       "id": "MANHUAREN_DETAIL_COVER_CHANGE",
@@ -15621,6 +15630,30 @@
       "title": "197 实测详情页两段加载",
       "detail": "简介可见时，阅读按钮原位显示章节加载，16章到齐后显示开始阅读。",
       "kind": "done"
+    },
+    {
+      "id": "reader-menu-slider-200-reproduced",
+      "at": "2026-11-03T19:48:58+08:00",
+      "itemId": "READER_MENU_THEME_REFRESH",
+      "title": "200 复现菜单白字和滑杆白轨",
+      "detail": "复现于浅色界面。候选构建完成，等待同设备覆盖安装确认。",
+      "kind": "work"
+    },
+    {
+      "id": "reader-menu-slider-200-verified",
+      "at": "2026-11-03T20:30:42+08:00",
+      "itemId": "READER_MENU_THEME_REFRESH",
+      "title": "200 复测阅读菜单及滤镜滑杆",
+      "detail": "系统浅→深→浅菜单配色正常；亮度与零值滤镜轨道可见，原超时及开关已恢复并释租。",
+      "kind": "done"
+    },
+    {
+      "id": "reader-direction-menu-theme-fix",
+      "at": "2026-11-03T20:54:09+08:00",
+      "itemId": "READER_MENU_THEME_REFRESH",
+      "title": "补修底部阅读方向菜单取色",
+      "detail": "底部阅读方向菜单与右上菜单共用系统取色，签名候选已构建，待真机复测。",
+      "kind": "work"
     }
   ],
   "reportAgeAudit": {
