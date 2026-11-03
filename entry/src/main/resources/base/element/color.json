@@ -6,6 +6,7 @@
     { "name": "koma_reader_filter_slider_track", "value": "#E4E4E4" },
     { "name": "koma_text_primary", "value": "#181A18" },
     { "name": "koma_text_secondary", "value": "#6F756F" },
+    { "name": "koma_tab_icon_unselected", "value": "$ohos:color:font_secondary" },
     { "name": "koma_text_on_brand", "value": "#FFFFFFFF" },
     { "name": "koma_action_on_accent", "value": "#FFFFFFFF" },
     { "name": "koma_accent", "value": "#256E5D" },

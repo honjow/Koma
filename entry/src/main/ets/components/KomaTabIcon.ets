@@ -24,6 +24,7 @@ export struct KomaTabIcon {
     }
   }
 
+  // Use a lighter unselected glyph over dark glass, independent of the tab label color.
   @Builder
   private TabSymbol(trigger: number) {
     SymbolGlyph(this.iconForIndex(this.idx))
@@ -33,7 +34,7 @@ export struct KomaTabIcon {
       .fontColor([
         this.currentIndex === this.idx
           ? ThemeConstants.BRAND_PRIMARY
-          : $r('sys.color.font_secondary'),
+          : $r('app.color.koma_tab_icon_unselected'),
       ])
   }
 
