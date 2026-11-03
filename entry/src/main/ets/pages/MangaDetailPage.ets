@@ -2400,7 +2400,17 @@ export struct MangaDetailPage {
   @Builder
   private ActionButtons() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      if (this.progressChapterId() === undefined) {
+      if (this.isDetailPending()) {
+        Row({ space: ThemeConstants.SPACE_SM }) {
+          LoadingProgress().width(20).height(20).color(ThemeConstants.BRAND_PRIMARY)
+          Text(s('manga_detail_loading_chapters'))
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
+        .width('100%')
+        .height(ThemeConstants.ACTION_CHIP_HEIGHT)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.progressChapterId() === undefined) {
         KomaActionButton({
           label: this.primaryReadLabel(),
           kind: 'primary',

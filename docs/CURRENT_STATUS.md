@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "菜单分组与漫画人封面已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T16:58:25+08:00",
+  "updatedAt": "2026-11-03T18:58:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "菜单分组、漫画人封面及一条翻页回退竞态已处理，详情冷加载过渡与原偶发回退继续保留。",
@@ -6127,23 +6127,24 @@
     {
       "id": "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
       "title": "详情首次加载时简介与标签上下跳动",
-      "kind": "open",
+      "kind": "done",
       "priority": "P1（用户反馈）",
-      "status": "已移除目录等待期间的高占位",
-      "stage": "已修复具体路径，保留验证边界",
+      "status": "197 已核对详情与章节两段加载提示",
+      "stage": "真实非空目录首次加载已验证",
       "owner": "Root",
       "reportedAt": null,
       "reportedAtSource": "本会话用户直接反馈；精确时间未核实。",
-      "result": "首次详情显示后仍保留额外加载块；目录完成后加载块被操作按钮替换，造成下方简介和标签跳动。 简介与标签开始显示时即预留最终操作区，目录未就绪时阅读和下载禁用。构建与详情路径通过；237 漫画人样本为 0 章。",
-      "remaining": "仍需观察非空目录首次加载从按钮禁用到可用的过渡。",
+      "result": "首次详情显示后仍保留额外加载块；目录完成后加载块被操作按钮替换，造成下方简介和标签跳动。 简介与标签开始显示时即预留最终操作区，目录未就绪时阅读和下载禁用。构建与详情路径通过；237 漫画人样本为 0 章。 197 在 MANGA Plus Creators 首次打开 Depressed hero，先看到源详情加载，简介和标签出现后在原阅读按钮位置显示“正在加载章节”，最终同一位置显示“开始阅读”，章节 16/16。",
+      "remaining": "本次验证覆盖 197 上 Depressed hero 的首次详情加载。",
       "boundaries": [
         "按用户建议保留最终阅读／下载按钮的位置，未就绪不可用；不改变目录顺序或加载权限。"
       ],
       "evidence": [
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-work-detail-first/",
-        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-work-detail-settled/"
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-work-detail-settled/",
+        ".hvigor/outputs/detail-chapter-loading-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail/cold-record-second/koma_detail_loading_197_second.mp4"
       ],
-      "updatedAt": "2026-11-03T10:48:33+08:00"
+      "updatedAt": "2026-11-03T18:58:00+08:00"
     },
     {
       "id": "READER_MORE_MENU_GROUPS",
@@ -15612,6 +15613,14 @@
       "title": "屏外加载动画优化已在197对照",
       "detail": "惯性段1115帧均在8.33ms应用预算内，最长相邻帧间隔仍有16.50ms。保留开发包，数据及电源已恢复。",
       "kind": "work"
+    },
+    {
+      "id": "detail-chapter-loading-197",
+      "at": "2026-11-03T18:58:00+08:00",
+      "itemId": "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
+      "title": "197 实测详情页两段加载",
+      "detail": "简介可见时，阅读按钮原位显示章节加载，16章到齐后显示开始阅读。",
+      "kind": "done"
     }
   ],
   "reportAgeAudit": {

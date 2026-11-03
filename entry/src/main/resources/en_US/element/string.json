@@ -832,6 +832,7 @@
     { "name": "manga_detail_resume_page", "value": "Page %s/%s" },
     { "name": "manga_detail_load_local_failed", "value": "Manga not found in the library." },
     { "name": "manga_detail_loading_source", "value": "Loading source details..." },
+    { "name": "manga_detail_loading_chapters", "value": "Loading chapters" },
     { "name": "manga_detail_load_source_failed", "value": "Failed to load source details." },
     { "name": "manga_detail_load_source_chapters_failed", "value": "Details loaded, but chapters could not be loaded." },
     { "name": "manga_detail_library_unavailable", "value": "Library unavailable." },
