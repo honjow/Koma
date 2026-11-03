@@ -501,8 +501,14 @@ export struct ReaderSettingsContent {
                 const next = this.copyPreferences(); next.displaySettings = settings; this.update(next)
               } })
           }
-          Blank().height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
-        }.width('100%').padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_LG })
+          if (index !== 2) {
+            Blank().height(this.layout.bottomAvoidHeight + ThemeConstants.SPACE_MD)
+          }
+        }.width('100%').padding({
+          top: ThemeConstants.SPACE_SM,
+          // The measured filter list needs only one bottom inset.
+          bottom: index === 2 ? this.layout.bottomAvoidHeight + ThemeConstants.SPACE_SM : ThemeConstants.SPACE_LG,
+        })
           .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
             const height = Number(size.height)
             if (index === 2 && height > 0 && height !== this.filterContentHeight) {

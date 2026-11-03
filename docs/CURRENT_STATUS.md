@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "滤镜半模态动态高度已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T10:16:33+08:00",
+  "updatedAt": "2026-11-03T10:30:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "滤镜半模态随选项展开与收起调整高度。三个 App 的零滚动模糊修正已推送。",
@@ -6016,7 +6016,7 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户提出阅读模式／常规／滤镜分段，并明确“那就开始实现吧”；原消息精确时间未核实。",
-      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。 用户指出 NextN 浅色零滚动画面的卡片和色块上缘被模糊。普通标题已恢复 HDS 滚动联动，Koma 阅读设置以当前分段实际列表偏移控制渐变。三 App 构建通过。237 复核浅色打开、滚动、回顶，NextN 补核深色打开，Koma 补核切换分段及恢复原偏移。 237 实测滤镜关闭时使用紧凑高度，开启颜色滤镜后随滑杆展开，关闭后缩回。保留原生大档。测试后原六项数据逐字恢复，原超时和睡眠状态读回并释租。",
+      "result": "阅读模式／常规／滤镜已接入公共半模态；滤镜直接调节、透明遮罩及工具栏隐藏恢复已在197观察。修正了初次切换时内容缩放，最终连续录像已亲审；灰度即时作用于正文，原生下拉关闭恢复工具栏，页码保持19/50。图片插件和模型管理分别返回原常规标签及相同滚动行位置。 两仓已推，精确远端构建成功；197六项数据和原电源状态恢复后释租，保留新开发包。 用户本轮源码编译实测顶部已正常。最终使用HDS渐变背板并关闭随滚动量淡入，分段仍按内容自适应；237三个按钮bounds与原布局逐项相同，无新增分界线。公共带标题半模态三App同步恢复并分别检查。 用户指出 NextN 浅色零滚动画面的卡片和色块上缘被模糊。普通标题已恢复 HDS 滚动联动，Koma 阅读设置以当前分段实际列表偏移控制渐变。三 App 构建通过。237 复核浅色打开、滚动、回顶，NextN 补核深色打开，Koma 补核切换分段及恢复原偏移。 237 实测滤镜关闭时使用紧凑高度，开启颜色滤镜后随滑杆展开，关闭后缩回。保留原生大档。测试后原六项数据逐字恢复，原超时和睡眠状态读回并释租。 滤镜列表底部合并为系统安全区加 8 vp。237 同屏收起态相较原高度减少 84 px，末行完整显示，原数据与电源已恢复。",
       "remaining": "本次代表性路径已验收。其他弹层与旧系统保持原验证边界。",
       "boundaries": [
         "采用本会话已确认三类分段替换阅读标题与关闭按钮，保留原生下拉和返回关闭、中／大两档和新材质。",
@@ -6042,7 +6042,8 @@
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/hds-auto-dark-zero/：与zero-filter-initial/layout.json中三个按钮bounds相同；hds-restoration237.json记录六项原文件恢复，reader-progress原本不存在且继续保持不存在。",
         "Koma/master fb19d41d83b2052e3020306087a885ad1d4c5dba已推；精确CI41517936725 completed/success，https://github.com/honjow/Koma/actions/runs/41517936725；原始回执.hvigor/outputs/reader-settings-tabs-20261103/ci-modal-final.json。",
         "237 截图：NextN 原 modal-gradient-20261103 目录的 offset-v3-zero、offset-v3-scrolled、offset-v3-returned、offset-dark-zero；NextE 同目录 offset-light-zero、offset-light-scrolled、offset-light-returned；Koma reader-settings-tabs-20261103 的 offset-koma-v3-*。",
-        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/height-filter-initial、height-filter-toggled、height-filter-restored、height-restore-data、height-restore-power"
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/height-filter-initial、height-filter-toggled、height-filter-restored、height-restore-data、height-restore-power",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/compact-filter/"
       ],
       "closedAt": "2026-11-03T04:16:30+08:00",
       "remainingActions": [
@@ -15485,6 +15486,14 @@
       "itemId": "READER_SETTINGS_TABBED_SHEET",
       "title": "滤镜半模态按实际内容高度收放",
       "detail": "237 验证关闭、展开颜色滑杆、再关闭三个状态。恢复原数据和电源后释租。",
+      "kind": "done"
+    },
+    {
+      "id": "reader-filter-sheet-compact-bottom",
+      "at": "2026-11-03T10:30:19+08:00",
+      "itemId": "READER_SETTINGS_TABBED_SHEET",
+      "title": "收紧滤镜半模态底部间距",
+      "detail": "滤镜列表底部保留系统安全区与 8 vp 留白。237 收起态实测减少 84 px。",
       "kind": "done"
     }
   ],
