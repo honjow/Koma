@@ -201,14 +201,20 @@ export struct ReaderChrome {
   @Builder
   private MoreMenu() {
     Menu() {
-      MenuItem({ content: s('reader_action_image_info') }).enabled(this.pageTotal > 0).onClick(() => { this.openImageInfo() })
-      MenuItem({ content: s('reader_action_save_image') }).enabled(this.pageTotal > 0).onClick(() => { this.onSaveImage(); this.moreShown = false })
-      MenuItem({ content: s('reader_action_share_image') }).enabled(this.pageTotal > 0).onClick(() => { this.onShareImage(); this.moreShown = false })
-      MenuItem({ content: s('reader_action_reset_zoom') }).enabled(this.zoomScale > 1.01).onClick(() => { this.onResetZoom(); this.moreShown = false })
-      MenuItem({ content: s('reader_action_previous_chapter') }).enabled(this.canGoPreviousChapter).onClick(() => { this.onPreviousChapter(); this.moreShown = false })
-      MenuItem({ content: s('reader_action_next_chapter') }).enabled(this.canGoNextChapter).onClick(() => { this.onNextChapter(); this.moreShown = false })
-      MenuItem({ content: s('reader_action_return_to_detail') }).onClick(() => { this.onOpenMangaDetail(); this.moreShown = false })
-      MenuItem({ content: s('common_retry') }).enabled(this.pageFailed).onClick(() => { this.onReloadPage(); this.moreShown = false })
+      MenuItemGroup() {
+        MenuItem({ content: s('reader_action_image_info') }).enabled(this.pageTotal > 0).onClick(() => { this.openImageInfo() })
+        MenuItem({ content: s('reader_action_save_image') }).enabled(this.pageTotal > 0).onClick(() => { this.onSaveImage(); this.moreShown = false })
+        MenuItem({ content: s('reader_action_share_image') }).enabled(this.pageTotal > 0).onClick(() => { this.onShareImage(); this.moreShown = false })
+        MenuItem({ content: s('reader_action_reset_zoom') }).enabled(this.zoomScale > 1.01).onClick(() => { this.onResetZoom(); this.moreShown = false })
+        MenuItem({ content: s('common_retry') }).enabled(this.pageFailed).onClick(() => { this.onReloadPage(); this.moreShown = false })
+      }
+      MenuItemGroup() {
+        MenuItem({ content: s('reader_action_previous_chapter') }).enabled(this.canGoPreviousChapter).onClick(() => { this.onPreviousChapter(); this.moreShown = false })
+        MenuItem({ content: s('reader_action_next_chapter') }).enabled(this.canGoNextChapter).onClick(() => { this.onNextChapter(); this.moreShown = false })
+      }
+      MenuItemGroup() {
+        MenuItem({ content: s('reader_action_return_to_detail') }).onClick(() => { this.onOpenMangaDetail(); this.moreShown = false })
+      }
     }
   }
 

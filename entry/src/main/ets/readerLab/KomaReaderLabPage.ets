@@ -94,6 +94,7 @@ export struct KomaReaderLabPage {
     bottomHeight: 104, sliderHeight: 32, controlsHeight: 52,
     controlsPadding: ThemeConstants.SPACE_LG, columnSpacing: 0,
     topActionSpacing: ThemeConstants.SPACE_XS, fixedCounterSides: false, mediaActionsInMenu: true,
+    groupMoreActions: true,
     spreadControlsLeading: true,
   }
   @Local private translationSettings: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()
@@ -166,7 +167,7 @@ export struct KomaReaderLabPage {
   private observedSourceSignature: string = ''
   private chapterPickerScroller: ListScroller = new ListScroller()
   private hostActionDispatch: ReaderHostActions = new ReaderHostActions(
-    [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'))],
+    [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'), true, false, false, 'detail')],
     (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
       this.openMangaDetail(id, source, navigation, sourceIndex)
     })

@@ -411,10 +411,6 @@ export struct MangaDetailPage {
     return text
   }
 
-  private isSourceDetailLoading(): boolean {
-    return this.sourceDetailContentState === SourceDetailContentState.LOADING
-  }
-
   private isDetailPending(): boolean {
     return this.sourceDetailContentState === SourceDetailContentState.UNRESOLVED ||
       this.sourceDetailContentState === SourceDetailContentState.LOADING
@@ -2278,6 +2274,18 @@ export struct MangaDetailPage {
     }
   }
 
+  private visibleCoverUrl(manga: MangaDetail): string {
+    const custom = this.libraryStore?.getComic(this.currentComicId())?.customCoverUri
+    if (custom) return custom
+    // Keep Manhuaren's route preview stable while the provider's higher-resolution
+    // detail cover remains available to the source snapshot and shelf.
+    if (manga.sourceId === 'com.manhuaren.koma') {
+      const preview = this.validInitialRouteManga(manga.sourceId, manga.id)?.coverUrl?.trim()
+      if (preview && !preview.includes('/nopic.jpg')) return preview
+    }
+    return manga.coverUrl ?? ''
+  }
+
   private displayedManga(manga: MangaDetail): MangaDetail {
     return {
       id: manga.id,
@@ -2286,7 +2294,7 @@ export struct MangaDetailPage {
       artist: manga.artist,
       contentRating: manga.contentRating,
       description: manga.description,
-      coverUrl: manga.coverUrl,
+      coverUrl: this.visibleCoverUrl(manga),
       status: manga.status,
       tags: manga.tags,
       sourceId: manga.sourceId,
@@ -2400,14 +2408,14 @@ export struct MangaDetailPage {
           fullWidth: true,
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.hasReadableChapters() && !this.isSourceDetailLoading(),
+          isEnabled: this.hasReadableChapters() && !this.isDetailPending(),
           action: () => {
             this.handleStartReading()
           },
         })
       } else {
         Button({ type: ButtonType.Normal, stateEffect: true }) {
-          if (this.hasReadableChapters() && !this.isSourceDetailLoading()) {
+          if (this.hasReadableChapters() && !this.isDetailPending()) {
             Row({ space: ThemeConstants.SPACE_SM }) {
               SymbolGlyph($r('sys.symbol.doc_plaintext'))
                 .fontSize(ThemeConstants.FONT_SIZE_HEADING)
@@ -2444,11 +2452,11 @@ export struct MangaDetailPage {
         }
           .width('100%')
           .height(ThemeConstants.ACTION_CHIP_HEIGHT)
-          .backgroundColor(this.hasReadableChapters() && !this.isSourceDetailLoading()
+          .backgroundColor(this.hasReadableChapters() && !this.isDetailPending()
             ? ThemeConstants.BRAND_PRIMARY : undefined)
           .borderRadius(ThemeConstants.ACTION_CHIP_HEIGHT / 2)
           .opacity(1)
-          .enabled(this.hasReadableChapters() && !this.isSourceDetailLoading())
+          .enabled(this.hasReadableChapters() && !this.isDetailPending())
           .contentModifier(this.disabledPrimaryReadContent())
           .onClick(() => {
             this.handleStartReading()
@@ -2463,7 +2471,7 @@ export struct MangaDetailPage {
           fill: true,
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.firstChapterId() !== undefined && !this.downloadBusy && !this.isSourceDetailLoading(),
+          isEnabled: this.firstChapterId() !== undefined && !this.downloadBusy && !this.isDetailPending(),
           action: () => {
             this.handleDownloadChapter()
           },
@@ -2487,7 +2495,7 @@ export struct MangaDetailPage {
   }
 
   private disabledPrimaryReadContent(): DetailDisabledReadContent | undefined {
-    if (this.hasReadableChapters() && !this.isSourceDetailLoading()) {
+    if (this.hasReadableChapters() && !this.isDetailPending()) {
       return undefined
     }
     return new DetailDisabledReadContent(this.primaryReadLabel(), this.primaryReadChapterLabel(), this.primaryReadPageLabel())
@@ -2696,11 +2704,11 @@ export struct MangaDetailPage {
     // Same cover/cache identity as the foreground. Mihon's 4dp blur and 20%
     // image opacity sit under a theme-colour fade. Keep this layer outside the
     // inset list so it reaches the page edges without changing content layout.
-    if (this.manga !== undefined && (this.manga.coverUrl?.length ?? 0) > 0) {
+    if (this.manga !== undefined && this.visibleCoverUrl(this.manga).length > 0) {
       Stack() {
         Column() {
           CachedCoverImage({
-            uri: this.manga.coverUrl ?? '',
+            uri: this.visibleCoverUrl(this.manga),
             objectFit: ImageFit.Cover,
             sourceRuntimeId: this.manga.sourceId ?? '',
             sourceImageId: this.manga.sourceImageId ?? this.manga.id,
@@ -2770,13 +2778,13 @@ export struct MangaDetailPage {
           }
         }
 
-        if (this.shouldRenderDetailActions()) {
+        // Once metadata is visible, keep the final action row in place
+        // while the chapter request completes.
+        if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata()) {
           ListItem() {
             this.ActionButtons()
           }
-        }
-
-        if (this.isDetailPending()) {
+        } else if (this.isDetailPending()) {
           ListItem() {
             this.DetailPendingState()
           }

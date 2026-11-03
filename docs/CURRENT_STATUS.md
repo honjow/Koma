@@ -12,12 +12,12 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "滤镜半模态动态高度已验证",
+  "state": "菜单分组与漫画人封面已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T10:30:19+08:00",
+  "updatedAt": "2026-11-03T10:48:33+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "滤镜半模态随选项展开与收起调整高度。三个 App 的零滚动模糊修正已推送。",
+  "activity": "菜单分组、漫画人封面及一条翻页回退竞态已处理，详情冷加载过渡与原偶发回退继续保留。",
   "nextAction": "其余已登记问题保留各自状态与优先级；本次不重开已验收路径。",
   "proof": [
     {
@@ -5978,14 +5978,14 @@
       "kind": "open",
       "priority": "P1（当前用户反馈）",
       "owner": "Root",
-      "status": "用户仍遇到偶发回退，重新排查",
-      "stage": "重开",
+      "status": "已修一条旧页回调撤销新选页的竞态",
+      "stage": "已修复具体路径，保留验证边界",
       "reportedAt": null,
       "reportedAtSource": "用户本轮反馈：翻页过程中突然变成前一页，很难复现，怀疑加载竞争。确切消息时间未提供。",
       "registeredAt": "2026-11-02T23:43:38+08:00",
-      "updatedAt": "2026-11-03T00:36:32+08:00",
-      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。 用户本轮再次实际遇到翻页后自行退回上一页，仍无稳定触发条件，原验收不覆盖此新反例。",
-      "remaining": "接续异步导航、渲染与进度回写的竞态定位；不要求用户找稳定复现，不改章节顺序来掩盖回退。",
+      "updatedAt": "2026-11-03T10:48:33+08:00",
+      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。 用户本轮再次实际遇到翻页后自行退回上一页，仍无稳定触发条件，原验收不覆盖此新反例。 用户明确继续排查翻页回退。复现待提交新页被当前索引回声取消，修复后分页 83 项通过。237 普通往返 1→2→1。",
+      "remaining": "原偶发现场未捕获，保持未关闭。",
       "remainingActions": [],
       "boundaries": [
         "保留用户最终选页与章节的绝对阅读顺序。",
@@ -5997,7 +5997,10 @@
         ".hvigor/outputs/plugin-entry-flicker-20261102/device237/record-horizontal-sr-after/summary.json",
         "reader-kit/main 2e46894；Koma/master ae1071e5。",
         ".hvigor/outputs/plugin-entry-flicker-20261102/delivery-binding.json",
-        ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。"
+        ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。",
+        "reader-kit/main 514de52",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-page-forward/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-page-return/"
       ],
       "closedAt": "2026-11-03T00:36:32+08:00",
       "reopenedAt": "2026-11-03T03:32:24+08:00"
@@ -6055,9 +6058,9 @@
       "id": "READER_MENU_THEME_REFRESH",
       "title": "深色切回浅色后阅读器菜单文字仍为白色",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
-      "status": "偶发未定位，本轮未再出现",
-      "stage": "保留反馈",
+      "kind": "parked",
+      "status": "PARKED_USER：菜单颜色暂缓",
+      "stage": "用户暂缓",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
@@ -6065,8 +6068,8 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户直接反馈；精确消息时刻未核实。",
-      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。",
-      "remaining": "保留首次现象；有新的实际反例再接续针对性定位，当前不重复测试。",
+      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。 用户澄清仅菜单颜色先不查，翻页回退继续处理。",
+      "remaining": "按用户决定暂缓。",
       "boundaries": [
         "保留现有菜单入口、分组、动作和新材质，只修正主题色彩刷新。",
         "接续237滑杆与顶部背景任务，不用新反馈中断前项。"
@@ -6075,61 +6078,77 @@
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-after-light/screen.png",
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light/screen.png",
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-system-light-reenter/screen.png"
-      ]
+      ],
+      "updatedAt": "2026-11-03T10:48:33+08:00"
     },
     {
       "id": "MANHUAREN_DETAIL_COVER_CHANGE",
       "title": "漫画人详情加载后封面变大或换图",
-      "kind": "open",
+      "kind": "done",
       "priority": "P1（用户反馈）",
-      "status": "已登记，待定位",
-      "stage": "待定位",
+      "status": "漫画人列表封面保持至详情",
+      "stage": "具名路径完成",
       "owner": "Root",
       "reportedAt": null,
       "reportedAtSource": "本会话用户反馈；原消息精确时间未核实。",
       "dependencies": [],
       "relatedItems": [],
-      "result": "用户观察漫画人详情加载完成后封面比例变大，部分作品列表与详情显示不同封面。暂未区分是详情更换图片、源图裁切还是布局尺寸问题。",
-      "remaining": "核对列表和详情封面URL、图片尺寸与详情加载前后的布局，按具体原因修复。",
+      "result": "用户观察漫画人详情加载完成后封面比例变大，部分作品列表与详情显示不同封面。暂未区分是详情更换图片、源图裁切还是布局尺寸问题。 留存的一拳超人列表和详情返回不同尺寸 URL。详情前景和背景沿用当前路由的同作品有效预览，书架保存仍用源详情资料，自选封面优先。237 搜索结果到详情确认同一封面。",
+      "remaining": "漫画人首页本次仍返回请求拒绝，独立搜索成功。",
       "boundaries": [
         "保留当前用户封面覆盖、详情背景及通用封面比例，不因单源故障改全局布局。"
       ],
-      "evidence": []
+      "evidence": [
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-source-home/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-query-result/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-work-detail-settled/"
+      ],
+      "updatedAt": "2026-11-03T10:48:33+08:00",
+      "closedAt": "2026-11-03T10:48:33+08:00"
     },
     {
       "id": "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
       "title": "详情首次加载时简介与标签上下跳动",
       "kind": "open",
       "priority": "P1（用户反馈）",
-      "status": "已定位，半模态之后处理",
-      "stage": "修正中",
+      "status": "已移除目录等待期间的高占位",
+      "stage": "已修复具体路径，保留验证边界",
       "owner": "Root",
       "reportedAt": null,
       "reportedAtSource": "本会话用户直接反馈；精确时间未核实。",
-      "result": "首次详情显示后仍保留额外加载块；目录完成后加载块被操作按钮替换，造成下方简介和标签跳动。",
-      "remaining": "预留与最终操作区相同布局，目录未就绪时禁用动作，验证加载过渡与失败恢复。",
+      "result": "首次详情显示后仍保留额外加载块；目录完成后加载块被操作按钮替换，造成下方简介和标签跳动。 简介与标签开始显示时即预留最终操作区，目录未就绪时阅读和下载禁用。构建与详情路径通过；237 漫画人样本为 0 章。",
+      "remaining": "仍需观察非空目录首次加载从按钮禁用到可用的过渡。",
       "boundaries": [
         "按用户建议保留最终阅读／下载按钮的位置，未就绪不可用；不改变目录顺序或加载权限。"
       ],
-      "evidence": []
+      "evidence": [
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-work-detail-first/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/mhr-work-detail-settled/"
+      ],
+      "updatedAt": "2026-11-03T10:48:33+08:00"
     },
     {
       "id": "READER_MORE_MENU_GROUPS",
       "title": "阅读器更多菜单按功能分组",
-      "kind": "open",
+      "kind": "done",
       "priority": "P2（用户反馈）",
-      "status": "已登记，半模态之后处理",
-      "stage": "待处理",
+      "status": "更多菜单四组已实机验证",
+      "stage": "具名路径完成",
       "owner": "Root",
       "reportedAt": null,
       "reportedAtSource": "本会话用户明确反馈菜单选项太多且未分组；精确时间未核实。",
-      "result": "阅读器更多菜单当前图片、翻译、详情与章节操作平铺。",
-      "remaining": "按图片操作、翻译和章节导航划分原生分组，漫画详情单独隔开，保留既有动作。",
+      "result": "阅读器更多菜单当前图片、翻译、详情与章节操作平铺。 Koma 共享阅读器以原生分组显示图片操作、漫画详情、翻译和章节；Legacy 菜单同样分组。237 确认四组和漫画详情入口。",
+      "remaining": "Legacy 仅编译核对。",
       "boundaries": [
         "不擅自删项、移除入口或改变动作行为。",
         "用户最新指定先处理半模态，其他反馈只登记。"
       ],
-      "evidence": []
+      "evidence": [
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-grouped/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-detail/"
+      ],
+      "updatedAt": "2026-11-03T10:48:33+08:00",
+      "closedAt": "2026-11-03T10:48:33+08:00"
     }
   ],
   "source": {
@@ -15494,6 +15513,46 @@
       "itemId": "READER_SETTINGS_TABBED_SHEET",
       "title": "收紧滤镜半模态底部间距",
       "detail": "滤镜列表底部保留系统安全区与 8 vp 留白。237 收起态实测减少 84 px。",
+      "kind": "done"
+    },
+    {
+      "id": "reader-detail-followup-reader_async_page_rollback",
+      "at": "2026-11-03T10:48:33+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "已修一条旧页回调撤销新选页的竞态",
+      "detail": "用户明确继续排查翻页回退。复现待提交新页被当前索引回声取消，修复后分页 83 项通过。237 普通往返 1→2→1。",
+      "kind": "progress"
+    },
+    {
+      "id": "reader-detail-followup-reader_menu_theme_refresh",
+      "at": "2026-11-03T10:48:33+08:00",
+      "itemId": "READER_MENU_THEME_REFRESH",
+      "title": "PARKED_USER：菜单颜色暂缓",
+      "detail": "用户澄清仅菜单颜色先不查，翻页回退继续处理。",
+      "kind": "parked"
+    },
+    {
+      "id": "reader-detail-followup-manhuaren_detail_cover_change",
+      "at": "2026-11-03T10:48:33+08:00",
+      "itemId": "MANHUAREN_DETAIL_COVER_CHANGE",
+      "title": "漫画人列表封面保持至详情",
+      "detail": "留存的一拳超人列表和详情返回不同尺寸 URL。详情前景和背景沿用当前路由的同作品有效预览，书架保存仍用源详情资料，自选封面优先。237 搜索结果到详情确认同一封面。",
+      "kind": "done"
+    },
+    {
+      "id": "reader-detail-followup-manga_detail_loading_layout_shift",
+      "at": "2026-11-03T10:48:33+08:00",
+      "itemId": "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
+      "title": "已移除目录等待期间的高占位",
+      "detail": "简介与标签开始显示时即预留最终操作区，目录未就绪时阅读和下载禁用。构建与详情路径通过；237 漫画人样本为 0 章。",
+      "kind": "progress"
+    },
+    {
+      "id": "reader-detail-followup-reader_more_menu_groups",
+      "at": "2026-11-03T10:48:33+08:00",
+      "itemId": "READER_MORE_MENU_GROUPS",
+      "title": "更多菜单四组已实机验证",
+      "detail": "Koma 共享阅读器以原生分组显示图片操作、漫画详情、翻译和章节；Legacy 菜单同样分组。237 确认四组和漫画详情入口。",
       "kind": "done"
     }
   ],
