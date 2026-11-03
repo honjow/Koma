@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "菜单分组与漫画人封面已验证",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T10:48:33+08:00",
+  "updatedAt": "2026-11-03T16:58:25+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "菜单分组、漫画人封面及一条翻页回退竞态已处理，详情冷加载过渡与原偶发回退继续保留。",
@@ -480,19 +480,19 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "用户采用范围已正式合入，三宿主具名验证及精确CI完成",
-      "kind": "accepted",
+      "status": "屏外加载动画已优化，197 同路径应用帧均在刷新预算内",
+      "kind": "open",
       "priority": "P0（最高）",
-      "owner": "冻结：Root只按新反例或相关依赖变化重开",
+      "owner": "Root",
       "dependencies": [],
-      "result": "共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。",
-      "remaining": "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。",
+      "result": "共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。 本轮用户反馈条漫仍偶发小卡顿，关掉图片处理和超分后改善不明显。Reader Kit 139669e 去掉每次可见位置采样的快照复制，复用同一次测量中的裁边数据。现有相关检查与 Koma Release 构建通过。 197 原包实测《歸還者的魔法要特別》001 01，图像增强关闭、无已安装图片插件。六次滑动追踪内识别 4 段惯性滚动，段内相邻 App 帧最大间隔 22.27ms。原包读取被设备拒绝，未覆盖安装。已回到第19页、恢复原超时与睡眠并释租。 复查 197 追踪，两个较长的惯性滚动帧间隔前均出现第 21 页的预建，仍未证实因果。02:05 原包已找到并核对留档哈希；197 安装时间随后变为 13:38:06，对应包尚未找到可恢复副本。139669e 候选重新构建并留档，本轮只读检查后释租。 197 保留最新开发包，完成同一作品第19页起点、相同手势的两版实测。原包、位置采样优化、再移除图片就绪回调投影复制三次采样的惯性段最长应用帧间隔为22.27、18.45、18.80ms，应用帧处理最长9.28、8.57、9.74ms；最后一轮仍有2帧超过8.33ms。剩余长间隔附近仍有原生相邻页预建，第二处优化未显示进一步改善。六项数据恢复并逐字读回，电源已恢复并释租。 70df155 让加载条进入视口后才启动不定进度动画。197 同作品第19页、同样六次滑动对比上一候选，惯性段应用帧 P99 5.18→4.48ms、最慢9.74→8.12ms，超8.33ms由2/900降至0/1115。全段同参数900ms动画事件25→6，最长相邻应用帧间隔18.80→16.50ms。197保留新开发包，六项数据逐字读回，恢复超时与睡眠并释租。",
+      "remaining": "单组同路径应用帧已达120Hz预算，仍存在16.50ms的相邻帧间隔，用户偶发卡顿保持开放。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-10-25T18:34:37.357834+00:00",
+      "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
         "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-perf197-before-001/parsed-cwd/summary.json",
@@ -501,15 +501,32 @@
         "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-motion-008",
         "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-ltr-009",
         "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/restore-verified-010",
-        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-fast197-trace-007/parsed-cwd/trace.db"
+        "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-fast197-trace-007/parsed-cwd/trace.db",
+        "/tmp/reader-continuous-scroll-sample.log",
+        "/tmp/koma-continuous-scroll-build.log",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/baseline-trace/koma-frame-stats.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/baseline-trace/trace.htrace",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/restore-power/run-metadata.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/candidate-build.log",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/compare-initial/run-metadata.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate-trace/koma-frame-stats.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate2-trace/koma-frame-stats.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/candidate2-restoration.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate2-restore-power/run-metadata.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate2-trace/comparison.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-trace/comparison.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/candidate3-restoration.json",
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-restore-power/run-metadata.json"
       ],
       "latestCounterexampleAt": "2026-10-23T04:57:37.180Z",
       "evidencePoints": [],
       "remainingActions": [
-        "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。"
+        "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。",
+        "单组同路径应用帧已达120Hz预算，仍存在16.50ms的相邻帧间隔，用户偶发卡顿保持开放。"
       ],
       "boundaries": [
-        "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。"
+        "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
+        "本轮只减少位置采样中的快照和裁边数据复制，保留原几何、页位、进度和图片处理行为。"
       ],
       "modificationBasis": {
         "object": "ReaderContinuousCell输入投影，ReaderContinuousList现有按key挂载",
@@ -544,7 +561,8 @@
         "source": "本轮当前可见用户异步答复原文",
         "answer": "采用 v3，完成正式合入与验证",
         "date": "2026-10-26"
-      }
+      },
+      "previousClosedAt": "2026-10-25T18:34:37.357834+00:00"
     },
     {
       "id": "FIRST_CHAPTER_SELECTION",
@@ -15554,6 +15572,46 @@
       "title": "更多菜单四组已实机验证",
       "detail": "Koma 共享阅读器以原生分组显示图片操作、漫画详情、翻译和章节；Legacy 菜单同样分组。237 确认四组和漫画详情入口。",
       "kind": "done"
+    },
+    {
+      "id": "continuous-scroll-sampling-139669e",
+      "at": "2026-11-03T12:58:52+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "条漫滚动减少重复复制",
+      "detail": "图片处理关闭时也会经过这条路径。代码已改并通过构建，偶发卡顿仍待实机帧耗时确认。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-scroll-197-baseline",
+      "at": "2026-11-03T13:48:37+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "197 条漫原包已取得滚动基线",
+      "detail": "无图片插件、图像增强关闭。原安装包读取受限，候选暂未覆盖安装。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-scroll-197-package-check",
+      "at": "2026-11-03T15:59:28+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "定位慢帧附近的预建并固定候选包",
+      "detail": "旧包留档已找到；设备已换包，当前安装包尚无确认的恢复副本。未覆盖安装。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-scroll-197-candidate-comparison",
+      "at": "2026-11-03T16:33:58+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "197 已比较两版条漫优化",
+      "detail": "已保留最新开发包并恢复测试数据。惯性段仍有超约8ms预算的应用帧，问题保持开放。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-scroll-197-visible-loading-animation",
+      "at": "2026-11-03T16:58:25+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "屏外加载动画优化已在197对照",
+      "detail": "惯性段1115帧均在8.33ms应用预算内，最长相邻帧间隔仍有16.50ms。保留开发包，数据及电源已恢复。",
+      "kind": "work"
     }
   ],
   "reportAgeAudit": {
