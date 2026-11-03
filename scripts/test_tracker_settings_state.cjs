@@ -14,6 +14,8 @@ function evaluate(source, globals = {}) {
   return exports
 }
 const globals = {
+  Scroller: class {},
+  FormTitleActionState: class {},
   DiagnosticLogger: { warn() {} },
   AppStrings: { get: key => key }, connectLanguageState: () => ({}),
   console: { info() {}, warn() {} },
@@ -117,7 +119,10 @@ async function run() {
   const route = new RouteFixture(), pushed = []
   route.appPathStack = { pushPath: params => pushed.push(params) }
   route.openTrackerProvider('myanimelist')
-  assert.deepEqual(pushed, [{ name: routeName, param: { providerId: 'myanimelist' } }])
+  assert.equal(pushed.length, 1)
+  assert.equal(pushed[0].name, routeName)
+  assert.equal(pushed[0].param.providerId, 'myanimelist')
+  assert.ok(pushed[0].param.formTitleAction instanceof globals.FormTitleActionState)
   assert.equal(route.trackerProviderTitle(pushed[0].param), 'MyAnimeList')
   const destination = index.slice(index.indexOf('} else if (name === RouteName.TRACKER_SETTINGS)'),
     index.indexOf('} else if (name === RouteName.TRACKER_PROVIDER_SETTINGS)'))

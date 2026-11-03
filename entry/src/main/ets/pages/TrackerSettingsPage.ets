@@ -1,3 +1,5 @@
+import { FormTitleActionState } from '../state/FormTitleActionState'
+import { SettingsPage } from './SettingsPage'
 import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { TrackerDirectConnectionService, DirectTrackerProviderId } from '../model/TrackerDirectConnectionService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -57,6 +59,11 @@ function s(name: string): string {
 @ComponentV2
 export struct TrackerSettingsPage {
   @Param providerId: string = ''
+  @Param formTitleAction: FormTitleActionState = new FormTitleActionState()
+  private handledTitleSave: number = 0
+  @Param searchTarget: string = ''
+  @Param preferencesRestoreRevision: number = 0
+  private settingsScroller: Scroller = new Scroller()
   @Param refreshRevision: number = 0
   @Event onOpenProvider: (providerId: TrackerProviderId) => void = (_providerId: TrackerProviderId) => {}
   @Local private languageState: LanguageState = connectLanguageState()
@@ -95,6 +102,22 @@ export struct TrackerSettingsPage {
   @Local private directUsername: string = ''
   @Local private directSecret: string = ''
   private credentialSecretStore: TrackerCredentialSecretStore = new AssetStoreTrackerCredentialSecretStore()
+
+  @Monitor('loading')
+  private updateTitleAction(): void {
+    this.formTitleAction.enabled = !this.loading
+  }
+
+  @Monitor('formTitleAction.requestSeq')
+  private handleTitleSave(): void {
+    const request = this.formTitleAction.requestSeq
+    if (request <= this.handledTitleSave || this.loading) return
+    this.handledTitleSave = request
+    const provider = this.visibleProviders()[0]
+    if (provider !== undefined && provider.supportStatus === 'available' && !this.isDirectProvider(provider)) {
+      void this.saveProviderOAuthConfig(provider)
+    }
+  }
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -176,14 +199,16 @@ export struct TrackerSettingsPage {
     })
   }
 
-  private providerNavigationDetail(provider: TrackerProviderConfig): string {
+  private providerAccountDetail(provider: TrackerProviderConfig): string {
     if (provider.supportStatus === 'unsupported') {
       return s('tracker_action_unsupported')
     }
     if (provider.supportStatus === 'planned') {
       return s('tracker_action_planned')
     }
-    return getTrackerAccountDetail(this.findAccount(provider), this.secureStorageAvailable)
+    const account = this.findAccount(provider)
+    return account.status === 'disconnected' && this.secureStorageAvailable ? '' :
+      getTrackerAccountDetail(account, this.secureStorageAvailable)
   }
 
   private findAccount(provider: TrackerProviderConfig): TrackerAccount {
@@ -753,7 +778,7 @@ export struct TrackerSettingsPage {
   private ProviderNavigationRow(provider: TrackerProviderConfig) {
     ConciseListRow({
       title: provider.displayName,
-      subtitle: this.providerNavigationDetail(provider),
+      subtitle: this.providerAccountDetail(provider),
       trailingText: getTrackerAccountStatusLabel(this.findAccount(provider).status),
       showChevron: true,
       isEnabled: !this.loading,
@@ -766,8 +791,8 @@ export struct TrackerSettingsPage {
   @Builder
   private ProviderRow(provider: TrackerProviderConfig) {
     ConciseListRow({
-      title: provider.displayName,
-      subtitle: getTrackerAccountDetail(this.findAccount(provider), this.secureStorageAvailable),
+      title: getTrackerAccountStatusLabel(this.findAccount(provider).status),
+      subtitle: this.providerAccountDetail(provider),
       showChevron: false,
       suffixBuilderParam: () => {
         this.ProviderSuffix(provider)
@@ -781,12 +806,6 @@ export struct TrackerSettingsPage {
   @Builder
   private ProviderSuffix(provider: TrackerProviderConfig) {
     Row({ space: ThemeConstants.SPACE_SM }) {
-      Text(getTrackerAccountStatusLabel(this.findAccount(provider).status))
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-
       if (this.canDisconnectProvider(provider)) {
         KomaActionButton({
           label: this.refreshingProviderId === provider.providerId ? s('common_checking') : s('tracker_action_refresh'),
@@ -883,23 +902,6 @@ export struct TrackerSettingsPage {
     }
     .width('100%')
     .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_MD })
-  }
-
-  @Builder
-  private ProviderOAuthConfigActions(provider: TrackerProviderConfig) {
-    Column() {
-      KomaActionButton({
-        label: s('common_save'),
-        kind: 'primary',
-        fullWidth: true,
-        isEnabled: !this.loading,
-        action: () => {
-          void this.saveProviderOAuthConfig(provider)
-        },
-      })
-    }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   @Builder
@@ -1100,20 +1102,18 @@ export struct TrackerSettingsPage {
   build() {
     Column() {
       SecondaryListScaffold({
+        scroller: this.settingsScroller,
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
         ListItem() {
           this.ProvidersCard()
         }
-        if (this.providerId.length > 0) {
-          ForEach(this.visibleProviders(), (provider: TrackerProviderConfig) => {
-            if (provider.supportStatus === 'available' && !this.isDirectProvider(provider)) {
-              ListItem() {
-                this.ProviderOAuthConfigActions(provider)
-              }
-            }
-          }, (provider: TrackerProviderConfig) => provider.providerId)
+        if (this.providerId.length === 0) {
+          ListItem() {
+            SettingsPage({ pane: 'tracking', embeddedTracking: true, scroller: this.settingsScroller,
+              searchTarget: this.searchTarget, preferencesRestoreRevision: this.preferencesRestoreRevision })
+          }
         }
         if (this.authPreparationMessageKey.length > 0 || this.preparedAuthorizationUrl.length > 0) {
           ListItem() {

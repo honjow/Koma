@@ -1,9 +1,11 @@
+import { SymbolGlyphModifier } from '@kit.ArkUI'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { FormTitleActionState } from '../state/FormTitleActionState'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { Binding, UIUtils } from '@kit.ArkUI'
+import { Binding, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -35,7 +37,6 @@ import {
   backupEncryptionPlanLabel,
   backupImportConflictPolicy,
   backupImportPreviewNote,
-  backupIncludedDomainLabels,
   backupLocalFileDetailText,
   backupManagementStorageNote,
   backupPassphraseHelpText,
@@ -66,6 +67,9 @@ export struct BackupManagementPage {
   @Param titleAction: FormTitleActionState = new FormTitleActionState()
   private handledCreateRequest: number = 0
   @Param pane: string = 'home'
+  @Param searchTarget: string = ''
+  private backupScroller: Scroller = new Scroller()
+  @Local private backupSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param localFileName: string = ''
   @Param refreshRevision: number = 0
   @Event onOpenTask: (pane: string, fileName: string) => void = (_pane: string, _fileName: string) => {}
@@ -73,6 +77,7 @@ export struct BackupManagementPage {
   @Local private createLocal: boolean = false
   @Local private createEncrypted: boolean = true
   @Local private showTechnicalDetails: boolean = false
+  @Local private showAutomaticOptions: boolean = false
   @Local private showPreviewDetails: boolean = false
   private localSelectionStarted: boolean = false
   @Local private busy: boolean = false
@@ -86,6 +91,7 @@ export struct BackupManagementPage {
   @Local private localFileActionMenuKey: string = ''
   @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
   private automaticPreferencesEpoch: number = 0
+  private hasCreateContentOverride: boolean = false
   @Local private contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
   @Local private autoIntervalMenuOpen: boolean = false
   @Local private autoRetentionMenuOpen: boolean = false
@@ -198,11 +204,11 @@ export struct BackupManagementPage {
   private loadContentPreferences(): void {
     void this.backupService().loadContentPreferences()
       .then((preferencesValue: BackupContentPreferences) => {
-        this.contentPreferences = preferencesValue
+        if (!this.hasCreateContentOverride) this.contentPreferences = preferencesValue
       })
       .catch((_error: Error) => {
         DiagnosticLogger.warn('backup_management_page', 'content_preferences_load_failed', '[BackupManagement] step=content_preferences_load_failed code=backup_content_preferences_failed')
-        this.contentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
+        if (!this.hasCreateContentOverride) this.contentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
       })
   }
 
@@ -296,6 +302,11 @@ export struct BackupManagementPage {
   }
 
   private saveContentPreferences(preferencesValue: BackupContentPreferences): void {
+    if (this.pane === 'create') {
+      this.hasCreateContentOverride = true
+      this.contentPreferences = preferencesValue
+      return
+    }
     void this.backupService().saveContentPreferences(preferencesValue)
       .then(() => {
         this.contentPreferences = preferencesValue
@@ -383,13 +394,17 @@ export struct BackupManagementPage {
       })
   }
 
+  private createContentOverride(): BackupContentPreferences | undefined {
+    return this.hasCreateContentOverride ? this.contentPreferences : undefined
+  }
+
   private exportBackup(): void {
     if (this.busy) {
       return
     }
     this.busy = true
     console.info('[BackupManagement] step=export_start')
-    void this.backupService().exportToPicker()
+    void this.backupService().exportToPicker(this.createContentOverride())
       .then((uri: string | undefined) => {
         if (uri !== undefined) {
           this.showInfoDialog(
@@ -424,7 +439,7 @@ export struct BackupManagementPage {
     const passphrase = this.exportPassphrase
     this.busy = true
     console.info('[BackupManagement] step=export_encrypted_start')
-    void this.backupService().exportEncryptedToPicker(passphrase)
+    void this.backupService().exportEncryptedToPicker(passphrase, this.createContentOverride())
       .then((uri: string | undefined) => {
         if (uri !== undefined) {
           this.showInfoDialog(t('backup_dialog_encrypted_exported_title'), backupEncryptedExportSuccess())
@@ -447,7 +462,7 @@ export struct BackupManagementPage {
     }
     this.busy = true
     console.info('[BackupManagement] step=local_export_start')
-    void this.backupService().exportLocal()
+    void this.backupService().exportLocal(this.createContentOverride())
       .then((_record: BackupLocalFileRecord) => {
         this.loadLocalBackups()
         this.showToast(t('backup_local_saved_toast'))
@@ -476,7 +491,7 @@ export struct BackupManagementPage {
     const passphrase = this.exportPassphrase
     this.busy = true
     console.info('[BackupManagement] step=local_export_encrypted_start')
-    void this.backupService().exportEncryptedLocal(passphrase)
+    void this.backupService().exportEncryptedLocal(passphrase, this.createContentOverride())
       .then((_record: BackupLocalFileRecord) => {
         this.loadLocalBackups()
         this.showToast(t('backup_local_saved_toast'))
@@ -776,14 +791,26 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private CreateDestinationMenu(select: (action: () => void) => void) {
+    Menu() {
+      MenuItem({ content: t('backup_auto_directory_local'),
+        symbolEndIcon: this.createLocal ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+        .onClick(() => { select(() => { this.createLocal = true }) })
+      MenuItem({ content: t('backup_create_destination_file'),
+        symbolEndIcon: !this.createLocal ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+        .onClick(() => { select(() => { this.createLocal = false }) })
+    }
+  }
+
+  @Builder
   private CreateFormCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       GroupedListSection() {
         ConciseListRow({
-          title: t('backup_create_local_choice'),
-          subtitle: t(this.createLocal ? 'backup_create_local_hint' : 'backup_create_file_hint'),
-          hasSwitch: true, checked: this.createLocal, showChevron: false,
-          switchAction: (value: boolean) => { this.createLocal = value },
+          title: t('backup_create_destination'),
+          trailingText: t(this.createLocal ? 'backup_auto_directory_local' : 'backup_create_destination_file'),
+          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.CreateDestinationMenu(select) },
         })
         ListDivider()
         ConciseListRow({
@@ -832,6 +859,15 @@ export struct BackupManagementPage {
     .width('100%')
   }
 
+  private positionBackupSection(): void {
+    if (this.pane !== 'home') return
+    // The scaffold's inset is the first List item, before the task menu.
+    const index = this.searchTarget === 'backup-content' ? 2 : this.searchTarget === 'backup-automatic' ? 3 : 0
+    if (index === 0) return
+    const inset = this.backupSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD
+    this.backupScroller.scrollToIndex(index, false, ScrollAlign.START, { extraOffset: LengthMetrics.vp(-inset) })
+  }
+
   @Builder
   private ContentPreferenceSwitchRow(label: string, checked: Binding<boolean>, onChange: (isOn: boolean) => void) {
     ConciseListRow({
@@ -843,7 +879,7 @@ export struct BackupManagementPage {
   @Builder
   private DomainsCard() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: t('backup_included_data') }) {
+      GroupedListSection({ title: t(this.pane === 'create' ? 'backup_create_included_data' : 'backup_default_included_data') }) {
         this.ContentPreferenceSwitchRow(t('backup_domain_reader_preferences'),
           UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeSettings),
           (value: boolean) => { this.setBackupIncludeSettings(value) })
@@ -967,9 +1003,6 @@ export struct BackupManagementPage {
     Column({ space: ThemeConstants.SPACE_MD }) {
       SectionHeader({ title: t('backup_auto_heading') })
       Column({ space: ThemeConstants.SPACE_SM }) {
-        Text(t('backup_auto_description'))
-          .width('100%').fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY).lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         Text(t('backup_auto_plaintext_note'))
           .width('100%').fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY).lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
@@ -982,43 +1015,56 @@ export struct BackupManagementPage {
           hasSwitch: true, checked: this.autoPreferences.enabled, showChevron: false,
           switchAction: (value: boolean) => { this.setAutomaticBackupEnabled(value) },
         })
-        ListDivider()
-        ConciseListRow({ title: t('backup_auto_directory'),
-          trailingText: this.autoPreferences.directoryUri ? decodeURIComponent(this.autoPreferences.directoryUri.split('/').pop() ?? '') : t('backup_auto_directory_local'),
-          isEnabled: !this.busy, trailingDropdown: true, dropdownMenuEnabled: true,
-          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticDirectoryMenu(select) } })
-        ListDivider()
-        ConciseListRow({ title: t('backup_auto_background'), hasSwitch: true,
-          checked: this.autoPreferences.backgroundEnabled === true, showChevron: false, isEnabled: !this.busy,
-          switchAction: (enabled: boolean) => { this.saveAutomaticPreferences({ backgroundEnabled: enabled }) } })
-        ListDivider()
-        ConciseListRow({
-          title: t('backup_auto_interval_label'),
-          trailingText: backupAutomaticIntervalLabel(this.autoPreferences.intervalHours),
-          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
-          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticIntervalMenu(select) },
-        })
-        ListDivider()
-        ConciseListRow({
-          title: t('backup_auto_retention_label'),
-          trailingText: backupAutomaticRetentionLabel(this.autoPreferences.retentionCount),
-          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
-          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticRetentionMenu(select) },
-        })
-        ListDivider()
-        ConciseListRow({
-          title: t('backup_auto_last_run_label'), trailingText: backupAutomaticLastRunText(this.autoPreferences),
-          trailingMaxLines: 2, showChevron: false,
-        })
-        ListDivider()
-        ConciseListRow({
-          title: t('backup_auto_last_failure_label'), trailingText: backupAutomaticLastFailureText(this.autoPreferences),
-          trailingMaxLines: 2, showChevron: false,
-        })
+        if (!this.autoPreferences.enabled) {
+          ListDivider()
+          ConciseListRow({
+            title: t('backup_auto_options'),
+            trailingText: t(this.showAutomaticOptions ? 'common_collapse' : 'common_expand'),
+            showChevron: false,
+            action: () => { this.showAutomaticOptions = !this.showAutomaticOptions },
+          })
+        }
+        if (this.showAutomaticOptions || this.autoPreferences.enabled) {
+          ListDivider()
+          ConciseListRow({ title: t('backup_auto_directory'),
+            trailingText: this.autoPreferences.directoryUri ? decodeURIComponent(this.autoPreferences.directoryUri.split('/').pop() ?? '') : t('backup_auto_directory_local'),
+            isEnabled: !this.busy, trailingDropdown: true, dropdownMenuEnabled: true,
+            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticDirectoryMenu(select) } })
+          ListDivider()
+          ConciseListRow({ title: t('backup_auto_background'), hasSwitch: true,
+            checked: this.autoPreferences.backgroundEnabled === true, showChevron: false, isEnabled: !this.busy,
+            switchAction: (enabled: boolean) => { this.saveAutomaticPreferences({ backgroundEnabled: enabled }) } })
+          ListDivider()
+          ConciseListRow({
+            title: t('backup_auto_interval_label'),
+            trailingText: backupAutomaticIntervalLabel(this.autoPreferences.intervalHours),
+            trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
+            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticIntervalMenu(select) },
+          })
+          ListDivider()
+          ConciseListRow({
+            title: t('backup_auto_retention_label'),
+            trailingText: backupAutomaticRetentionLabel(this.autoPreferences.retentionCount),
+            trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
+            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticRetentionMenu(select) },
+          })
+          ListDivider()
+          ConciseListRow({
+            title: t('backup_auto_last_run_label'), trailingText: backupAutomaticLastRunText(this.autoPreferences),
+            trailingMaxLines: 2, showChevron: false,
+          })
+          if (this.autoPreferences.lastFailureCode.length > 0) {
+            ListDivider()
+            ConciseListRow({
+              title: t('backup_auto_last_failure_label'), trailingText: backupAutomaticLastFailureText(this.autoPreferences),
+              trailingMaxLines: 2, showChevron: false,
+            })
+          }
+        }
       }
       KomaActionButton({
         label: this.busy ? t('backup_processing') : t('backup_auto_run_now_action'),
-        kind: 'primary', fullWidth: true, isEnabled: !this.busy,
+        kind: 'secondary', fullWidth: true, isEnabled: !this.busy,
         action: () => { this.runAutomaticBackupNow() },
       })
         .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
@@ -1097,7 +1143,6 @@ export struct BackupManagementPage {
   @Builder
   private LocalBackupsCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      SectionHeader({ title: t('backup_local_heading') })
       Text(t('backup_local_description'))
         .width('100%').fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY).lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
@@ -1166,46 +1211,53 @@ export struct BackupManagementPage {
   private SelectedPreviewCard(params: SelectedBackupPreviewParams) {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
-      Text(t('backup_selected_heading'))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      this.PreviewRow({ label: t('backup_preview_version'), value: `v${params.preview.schemaVersion}` })
-      this.PreviewRow({ label: t('backup_preview_exported_at'), value: params.preview.exportedAtText })
-      this.PreviewRow({ label: t('backup_preview_encryption_status'), value: params.preview.encryptionText })
-      if (params.preview.encrypted && this.showPreviewDetails) {
-        this.PreviewRow({ label: t('backup_preview_algorithm'), value: params.preview.algorithm })
-        this.PreviewRow({ label: t('backup_preview_kdf'), value: params.preview.kdfId })
-      }
-      if (!params.preview.encrypted || params.preview.decrypted) {
-        this.PreviewRow({ label: t('backup_preview_library_items'), value: `${params.preview.libraryItemCount}` })
-        this.PreviewRow({ label: t('backup_preview_library_additions'), value: `${params.preview.libraryAddCount}` })
-        this.PreviewRow({ label: t('backup_preview_library_conflicts'), value: `${params.preview.libraryConflictCount}` })
-        this.PreviewRow({ label: t('backup_preview_progress'), value: `${params.preview.progressCount}` })
-        this.PreviewRow({ label: t('backup_preview_progress_additions'), value: `${params.preview.progressAddCount}` })
-        this.PreviewRow({ label: t('backup_preview_progress_conflicts'), value: `${params.preview.progressConflictCount}` })
+        Text(t('backup_selected_heading'))
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeConstants.TEXT_PRIMARY)
+        this.PreviewRow({ label: t('backup_preview_exported_at'), value: params.preview.exportedAtText })
+        this.PreviewRow({ label: t('backup_preview_encryption_status'), value: params.preview.encryptionText })
+        if (!params.preview.encrypted || params.preview.decrypted) {
+          this.PreviewRow({ label: t('backup_preview_library_items'), value: `${params.preview.libraryItemCount}` })
+          this.PreviewRow({ label: t('backup_preview_progress'), value: `${params.preview.progressCount}` })
+          Text(backupImportConflictPolicy())
+            .width('100%')
+            .fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
+        }
+        ConciseListRow({ title: t('backup_preview_details'), showChevron: false,
+          trailingText: t(this.showPreviewDetails ? 'common_collapse' : 'common_expand'),
+          action: () => { this.showPreviewDetails = !this.showPreviewDetails } })
         if (this.showPreviewDetails) {
-          this.PreviewRow({ label: t('backup_preview_current_library_items'), value: `${params.preview.currentLibraryItemCount}` })
-          this.PreviewRow({ label: t('backup_preview_current_progress'), value: `${params.preview.currentProgressCount}` })
-          this.PreviewRow({ label: t('backup_preview_settings'), value: `${params.preview.settingsCount}` })
-          this.PreviewRow({ label: t('backup_preview_categories'), value: `${params.preview.categoryCount}` })
-          this.PreviewRow({
-            label: t('backup_preview_download_queue'),
-            value: params.preview.hasDownloadQueueCount ? `${params.preview.downloadQueueCount}` : t('backup_preview_not_provided'),
-          })
-          this.PreviewRow({
-            label: t('backup_preview_tracker_mappings'),
-            value: params.preview.hasTrackerMappingCount ? `${params.preview.trackerMappingCount}` : t('backup_preview_not_provided'),
-          })
-          this.PreviewRow({ label: t('backup_preview_source_package_metadata'), value: `${params.preview.sourcePackageCount}` })
-          this.PreviewRow({ label: t('backup_preview_source_settings'), value: `${params.preview.sourceSettingsCount}` })
+          this.PreviewRow({ label: t('backup_preview_version'), value: `v${params.preview.schemaVersion}` })
+          if (params.preview.encrypted) {
+            this.PreviewRow({ label: t('backup_preview_algorithm'), value: params.preview.algorithm })
+            this.PreviewRow({ label: t('backup_preview_kdf'), value: params.preview.kdfId })
+          }
+          if (!params.preview.encrypted || params.preview.decrypted) {
+            this.PreviewRow({ label: t('backup_preview_progress_conflicts'), value: `${params.preview.progressConflictCount}` })
+            this.PreviewRow({ label: t('backup_preview_progress_additions'), value: `${params.preview.progressAddCount}` })
+            this.PreviewRow({ label: t('backup_preview_library_conflicts'), value: `${params.preview.libraryConflictCount}` })
+            this.PreviewRow({ label: t('backup_preview_library_additions'), value: `${params.preview.libraryAddCount}` })
+            this.PreviewRow({ label: t('backup_preview_current_library_items'), value: `${params.preview.currentLibraryItemCount}` })
+            this.PreviewRow({ label: t('backup_preview_current_progress'), value: `${params.preview.currentProgressCount}` })
+            this.PreviewRow({ label: t('backup_preview_settings'), value: `${params.preview.settingsCount}` })
+            this.PreviewRow({ label: t('backup_preview_categories'), value: `${params.preview.categoryCount}` })
+            this.PreviewRow({
+              label: t('backup_preview_download_queue'),
+              value: params.preview.hasDownloadQueueCount ? `${params.preview.downloadQueueCount}` : t('backup_preview_not_provided'),
+            })
+            this.PreviewRow({
+              label: t('backup_preview_tracker_mappings'),
+              value: params.preview.hasTrackerMappingCount ? `${params.preview.trackerMappingCount}` : t('backup_preview_not_provided'),
+            })
+            this.PreviewRow({ label: t('backup_preview_source_package_metadata'), value: `${params.preview.sourcePackageCount}` })
+            this.PreviewRow({ label: t('backup_preview_source_settings'), value: `${params.preview.sourceSettingsCount}` })
+          }
         }
       }
-      ConciseListRow({ title: t('backup_preview_details'), showChevron: false,
-        trailingText: t(this.showPreviewDetails ? 'common_collapse' : 'common_expand'),
-        action: () => { this.showPreviewDetails = !this.showPreviewDetails } })
-    }
       .width('100%')
     }
   }
@@ -1234,6 +1286,8 @@ export struct BackupManagementPage {
     if (this.languageState.effectiveLocale.length >= 0) {
       Column() {
         SecondaryListScaffold({
+        scroller: this.backupScroller,
+        onListAttach: () => { this.positionBackupSection() },
         listSpace: ThemeConstants.SPACE_MD,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
@@ -1253,7 +1307,10 @@ export struct BackupManagementPage {
               ListItem() { this.RestorePassphraseCard() }
             }
             ListItem() { this.RestoreActions() }
-            ListItem() { this.ImportPreviewIntroCard() }
+            if (this.selectedBackupPreview === undefined ||
+              (this.selectedBackupPreview.encrypted && !this.selectedBackupPreview.decrypted)) {
+              ListItem() { this.ImportPreviewIntroCard() }
+            }
           } else if (this.pane === 'files') {
             ListItem() { this.LocalBackupsCard() }
           } else if (this.pane === 'settings') {
@@ -1278,6 +1335,7 @@ export struct BackupManagementPage {
 
   aboutToAppear(): void {
     this.publishCreateAvailability()
+    this.showAutomaticOptions = this.searchTarget === 'backup-automatic'
     if (this.pane === 'home' || this.pane === 'files') {
       this.loadLocalBackups()
       this.loadAutomaticPreferences()

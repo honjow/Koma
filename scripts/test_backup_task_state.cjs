@@ -19,7 +19,10 @@ const plain = (source.slice(0, source.indexOf('  @Builder')) + appear + '\n}')
   .replace(/import[\s\S]*?from '[^']+'\n/g, '').replace('@ComponentV2', '')
   .replace(/@(Local|Param|Event) /g, '').replace(/@Monitor\('[^']+'\)/g, '')
   .replace('export struct', 'export class')
+const { FormTitleActionState } = evaluate(read('state/FormTitleActionState.ets')
+  .replace(/^import .*$/gm, '').replace('@ObservedV2', '').replace(/@Trace /g, ''), {})
 const globals = {
+  FormTitleActionState, Scroller: class {}, connectLayoutSafeArea: () => ({}),
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: {}, DEFAULT_BACKUP_CONTENT_PREFERENCES: {},
   AppStrings: { get: key => key, format: key => key }, connectLanguageState: () => ({}),
   console: { info() {}, warn() {}, error() {} },
@@ -59,6 +62,23 @@ async function run() {
   assert.deepEqual(selected, ['confirmExportBackup', 'exportEncryptedBackup', 'confirmExportLocalBackup', 'exportEncryptedLocalBackup'])
   dispatch.busy = true; dispatch.createBackup(); assert.equal(selected.length, 4)
 
+  const draft = fixture()
+  draft.page.pane = 'create'
+  draft.service.saveContentPreferences = async () => { throw Error('creation must not change defaults') }
+  draft.page.setBackupIncludeDownloadQueue(true)
+  draft.page.onRefreshRevision()
+  await drain()
+  assert.equal(draft.page.createContentOverride().includeDownloadQueue, true)
+  draft.service.exportEncryptedToPicker = async (_passphrase, content) => {
+    draft.calls.push(content.includeDownloadQueue)
+    return undefined
+  }
+  draft.page.exportPassphrase = 'draft passphrase'
+  draft.page.exportPassphraseConfirm = 'draft passphrase'
+  draft.page.exportEncryptedBackup()
+  await drain()
+  assert.deepEqual(draft.calls, ['content', true])
+
   const f = fixture(), p = f.page
   p.pane = 'create'; p.exportPassphrase = 'draft'; p.exportPassphraseConfirm = 'draft'
   p.onRefreshRevision(); await drain()
@@ -67,7 +87,7 @@ async function run() {
   assert.deepEqual(f.calls, ['backup_dialog_export_blocked_title'], 'original passphrase validation prevents export')
   f.calls.length = 0
   for (const pane of ['home', 'files']) { p.pane = pane; p.onRefreshRevision(); await drain() }
-  assert.deepEqual(f.calls, ['files', 'automatic', 'files', 'automatic'])
+  assert.deepEqual(f.calls, ['files', 'automatic', 'content', 'files', 'automatic'])
   f.calls.length = 0; p.pane = 'restore'; p.localFileName = 'fixture.koma-backup'
   p.aboutToAppear(); await drain(); p.aboutToAppear(); p.onRefreshRevision(); await drain()
   assert.deepEqual(f.calls, ['fixture.koma-backup'], 'local file read only once, not on returning')
@@ -96,7 +116,11 @@ async function run() {
   const route = new RouteFixture(), routes = []
   route.appPathStack = { pushPath: value => routes.push(value) }
   route.openBackupTask('restore', 'renamed.koma-backup')
-  assert.deepEqual(routes, [{ name: routeName, param: { pane: 'restore', fileName: 'renamed.koma-backup' } }])
+  assert.equal(routes.length, 1)
+  assert.equal(routes[0].name, routeName)
+  assert.equal(routes[0].param.pane, 'restore')
+  assert.equal(routes[0].param.fileName, 'renamed.koma-backup')
+  assert.ok(routes[0].param.formTitleAction instanceof FormTitleActionState)
   assert.equal(route.backupTaskTitle(routes[0].param), 'backup_task_restore')
   const destinations = index.slice(index.indexOf('} else if (name === RouteName.BACKUP_MANAGEMENT)'),
     index.indexOf('} else if (name === RouteName.TRACKER_SETTINGS)'))
@@ -106,16 +130,28 @@ async function run() {
   shown.forEach(match => new Function(match[1]).call(state))
   assert.equal(state.backupSettingsRevision, 2)
   assert.ok(source.includes("this.onOpenTask('restore', record.fileName)"))
-  const create = source.slice(source.indexOf('private CreateActions('), source.indexOf('private ContentSummaryCard('))
-  assert.ok(create.includes("kind: 'primary', fullWidth: true") && create.includes('this.createBackup()'))
+  // The shared title-bar action replaced the old bottom CreateActions builder.
+  const title = fixture().page
+  title.pane = 'create'
+  title.publishCreateAvailability()
+  assert.equal(title.titleAction.enabled, true)
+  let createRequests = 0
+  title.createBackup = () => { createRequests++ }
+  title.titleAction.requestSave()
+  title.onCreateRequest()
+  title.onCreateRequest()
+  assert.equal(createRequests, 1)
+  title.busy = true
+  title.publishCreateAvailability()
+  assert.equal(title.titleAction.enabled, false)
   assert.ok(source.includes("Text(t('backup_passphrase_recovery_warning'))"))
   assert.ok(source.includes("Text(t('backup_auto_plaintext_note'))"))
   const restoreActions = source.slice(source.indexOf('private RestoreActions('), source.indexOf('private AutomaticIntervalMenu('))
   assert.ok(!restoreActions.includes('KomaFormTextField('), 'restore input is not drawn in the card-external action area')
   assert.ok(restoreActions.indexOf('this.decryptSelectedBackup()') < restoreActions.indexOf('this.importBackup()'))
   assert.ok(restoreActions.indexOf('this.restoreSelectedBackup()') < restoreActions.indexOf('this.importBackup()'))
-  const restorePane = source.slice(source.indexOf("} else if (this.pane === 'restore') {"),
-    source.indexOf("} else if (this.pane === 'files') {"))
+  const restorePane = source.slice(source.indexOf("} else if (this.pane === 'restore') {", source.indexOf("  build() {")),
+    source.indexOf("} else if (this.pane === 'files') {", source.indexOf("  build() {")))
   assert.ok(restorePane.indexOf('this.RestorePassphraseCard()') < restorePane.indexOf('this.RestoreActions()'))
   assert.ok(source.includes("trailingText: t(this.showTechnicalDetails ? 'common_collapse' : 'common_expand')"))
   assert.ok(source.includes("trailingText: t(this.showPreviewDetails ? 'common_collapse' : 'common_expand')"))

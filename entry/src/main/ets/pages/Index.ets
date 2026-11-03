@@ -211,11 +211,17 @@ const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLib
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
 interface SettingsPaneRouteParam {
   pane: string
+  searchTarget?: string
   formTitleAction: FormTitleActionState
+}
+
+interface SettingsSearchRouteParam {
+  searchTarget: string
 }
 
 interface TrackerProviderRouteParam {
   providerId: TrackerProviderId
+  formTitleAction: FormTitleActionState
 }
 
 interface BackupTaskRouteParam {
@@ -1719,7 +1725,7 @@ struct Index {
   }
 
   private openTrackerProvider(providerId: TrackerProviderId): void {
-    const params: TrackerProviderRouteParam = { providerId }
+    const params: TrackerProviderRouteParam = { providerId, formTitleAction: new FormTitleActionState() }
     this.appPathStack.pushPath({ name: RouteName.TRACKER_PROVIDER_SETTINGS, param: params })
   }
 
@@ -1740,14 +1746,18 @@ struct Index {
     return provider?.displayName ?? AppStrings.get('route_tracker_settings_title')
   }
 
-  private openSettingsPane(pane: SettingsPaneKey): void {
+  private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
     if (pane === 'backup') {
-      this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
+      this.appPathStack.pushPath({ name: RouteName.BACKUP_MANAGEMENT, param: { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam })
       return
     }
-    const routeParam: SettingsPaneRouteParam = { pane: pane, formTitleAction: new FormTitleActionState() }
+    if (pane === 'tracking') {
+      this.appPathStack.pushPath({ name: RouteName.TRACKER_SETTINGS, param: { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam })
+      return
+    }
+    const routeParam: SettingsPaneRouteParam = { pane: pane, searchTarget: rowKey, formTitleAction: new FormTitleActionState() }
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
   }
 
@@ -2718,14 +2728,15 @@ struct Index {
           onEnhancementModelsChanged: () => { this.enhancementModelsRevision += 1 },
           preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
           pane: this.settingsPaneFromParam(param),
+          searchTarget: (param as SettingsPaneRouteParam).searchTarget ?? '',
           formTitleAction: (param as SettingsPaneRouteParam).formTitleAction,
           onClosePane: () => { this.appPathStack.pop() },
           onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
           sourceRegistry: this.sourceRegistry,
-          onOpenSettingsPane: (nextPane: SettingsPaneKey) => {
-            this.openSettingsPane(nextPane)
+          onOpenSettingsPane: (nextPane: SettingsPaneKey, rowKey?: string) => {
+            this.openSettingsPane(nextPane, rowKey)
           },
           onOpenKomgaSettings: () => {
             this.openSettingsSecondary(RouteName.KOMGA_SERVER)
@@ -2752,12 +2763,7 @@ struct Index {
           onOpenDownloads: () => {
             this.openSettingsSecondary(RouteName.DOWNLOADS)
           },
-          onOpenBackupManagement: () => {
-            this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
-          },
-          onOpenTrackerSettings: () => {
-            this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
-          },
+          onOpenBackupTask: (task: string) => { this.openBackupTask(task, '') },
           onOpenImportRequested: () => {
             this.openImport()
           },
@@ -2818,6 +2824,7 @@ struct Index {
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
+          searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
           onRestoreCompleted: () => { this.onBackupRestored() },
           onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
       }
@@ -2845,20 +2852,23 @@ struct Index {
       HdsNavDestination() {
         TrackerSettingsPage({
           refreshRevision: this.trackerSettingsRevision,
+          searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
+          preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
           onOpenProvider: (providerId: TrackerProviderId) => {
             this.openTrackerProvider(providerId)
           },
         })
       }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_tracker_settings_title')))
+      .titleBar(this.navDestTitleBarOpts(settingsPaneTitle('tracking')))
       .onShown(() => {
         this.trackerSettingsRevision += 1
       })
     } else if (name === RouteName.TRACKER_PROVIDER_SETTINGS) {
       HdsNavDestination() {
-        TrackerSettingsPage({ providerId: (param as TrackerProviderRouteParam).providerId })
+        TrackerSettingsPage({ providerId: (param as TrackerProviderRouteParam).providerId,
+          formTitleAction: (param as TrackerProviderRouteParam).formTitleAction ?? new FormTitleActionState() })
       }
-      .titleBar(this.navDestTitleBarOpts(this.trackerProviderTitle(param as TrackerProviderRouteParam)))
+      .titleBar(this.trackerProviderTitleBarOpts(param as TrackerProviderRouteParam))
     }
   }
 
@@ -2997,8 +3007,8 @@ struct Index {
                 libraryStore: this.libraryStore,
                 libraryPersistenceService: this.ensureLibraryPersistenceService(),
                 sourceRegistry: this.sourceRegistry,
-                onOpenSettingsPane: (pane: SettingsPaneKey) => {
-                  this.openSettingsPane(pane)
+                onOpenSettingsPane: (pane: SettingsPaneKey, rowKey?: string) => {
+                  this.openSettingsPane(pane, rowKey)
                 },
                 onOpenKomgaSettings: () => {
                   this.openSettingsSecondary(RouteName.KOMGA_SERVER)
@@ -3024,12 +3034,7 @@ struct Index {
                 onOpenDownloads: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)
                 },
-                onOpenBackupManagement: () => {
-                  this.openSettingsSecondary(RouteName.BACKUP_MANAGEMENT)
-                },
-                onOpenTrackerSettings: () => {
-                  this.openSettingsSecondary(RouteName.TRACKER_SETTINGS)
-                },
+                onOpenBackupTask: (task: string) => { this.openBackupTask(task, '') },
                 onOpenImportRequested: () => {
                   this.openImport()
                 },
@@ -3462,6 +3467,22 @@ struct Index {
 
   private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
     const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
+  private trackerProviderTitleBarOpts(param: TrackerProviderRouteParam): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(this.trackerProviderTitle(param))
+    const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === param.providerId)
+    if (provider?.supportStatus !== 'available' || provider.authentication === 'password' || provider.authentication === 'token') return options
+    const content = options['content'] as Record<string, Object>
+    const action: Record<string, Object> = {
+      'label': AppStrings.get('common_save'), 'icon': $r('sys.symbol.checkmark'),
+      'isEnabled': param.formTitleAction.enabled,
+      'action': (): void => { param.formTitleAction.requestSave() },
+    }
+    const item: Record<string, Object> = { 'content': action }
+    const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
+    content['menu'] = menu
+    return options
+  }
+
     if (param.pane !== 'translation') return options
     const content = options['content'] as Record<string, Object>
     const action: Record<string, Object> = {

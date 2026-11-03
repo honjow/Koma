@@ -4,7 +4,6 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ComicTranslationRuntimeService } from '../readerTranslation/services/ComicTranslationRuntimeService'
 import { CacheStat } from '../readerTranslation/services/CacheStat'
 import { ConciseListRow } from './ui/ConciseListRow'
-import { GroupedListSection } from './ui/GroupedListSection'
 
 /** Generated translation files belong to Storage, separate from service credentials and model assets. */
 @ComponentV2
@@ -60,10 +59,7 @@ export struct KomaTranslationCacheRow {
   }
 
   build() {
-    GroupedListSection() {
-      ConciseListRow({ title: AppStrings.get('cache_comic_translation'), trailingText: this.detail(),
-        leadingIcon: $r('sys.symbol.text_bubble_left_2'), showChevron: false, isEnabled: !this.clearing,
-        action: () => { this.confirmClear() } })
-    }
+    ConciseListRow({ title: AppStrings.get('cache_comic_translation'), trailingText: this.detail(),
+      showChevron: false, isEnabled: !this.clearing, action: () => { this.confirmClear() } })
   }
 }

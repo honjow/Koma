@@ -1,3 +1,4 @@
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
@@ -65,11 +66,6 @@ import {
   setLatestLibraryUpdateJobSnapshot,
   setLatestLibraryUpdateSummary,
 } from '../model/LibraryUpdateResultStore'
-import {
-  BackupContentPreferences,
-  BackupService,
-  DEFAULT_BACKUP_CONTENT_PREFERENCES,
-} from '../model/BackupService'
 import {
   DEFAULT_LIBRARY_UPDATE_PREFERENCES,
   LibraryUpdateNotificationStatus,
@@ -227,7 +223,7 @@ function createSettingsSections(): SettingsSection[] {
   return [
     {
       key: 'appearance',
-      titleKey: 'settings_section_appearance',
+      titleKey: '',
       rows: [
         { key: 'theme', titleKey: 'settings_row_theme_title', detailKey: 'settings_row_theme_detail' },
         { key: 'theme-color', titleKey: 'settings_row_theme_color_title', detailKey: 'settings_row_theme_color_detail' },
@@ -262,6 +258,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'image-plugins', titleKey: 'image_plugins_title', detailKey: 'image_plugins_manage_hint' },
         { key: 'reader-trim-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-crop-strength', titleKey: 'reader_crop_strength_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
+        { key: 'reader-super-resolution', titleKey: 'settings_reader_super_resolution', detailKey: 'settings_reader_super_resolution_models' },
         { key: 'reader-super-resolution-model', titleKey: 'settings_reader_super_resolution_model', detailKey: 'settings_reader_super_resolution_models' },
         { key: 'reader-super-resolution-max-height', titleKey: 'settings_reader_super_resolution_max_height', detailKey: 'settings_reader_super_resolution_max_height_hint' },
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', detailKey: 'settings_row_reader_trim_page_margins_title' },
@@ -277,7 +274,10 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'kavita', titleKey: 'settings_row_kavita_title', detailKey: 'settings_row_kavita_detail' },
         { key: 'opds', titleKey: 'settings_row_opds_title', detailKey: 'settings_row_opds_detail' },
         { key: 'webdav', titleKey: 'settings_row_webdav_title', detailKey: 'settings_row_webdav_detail' },
+        { key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' },
+        { key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' },
         { key: 'library-background-update', titleKey: 'automation_background_update', detailKey: 'automation_background_update' },
+        { key: 'library-update-notifications', titleKey: 'settings_row_library_update_notifications_title', detailKey: 'settings_row_library_update_notifications_detail' },
         { key: 'library-update-range', titleKey: 'automation_update_range', detailKey: 'automation_update_range' },
         { key: 'library-update-skip', titleKey: 'automation_update_skip', detailKey: 'automation_update_skip' },
         { key: 'library-update-wifi-only', titleKey: 'automation_update_wifi', detailKey: 'automation_update_wifi' },
@@ -287,9 +287,6 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'download-auto-range', titleKey: 'automation_download_range', detailKey: 'automation_download_range' },
         { key: 'download-read-cleanup', titleKey: 'automation_read_cleanup', detailKey: 'automation_read_cleanup' },
         { key: 'download-cleanup-exclude', titleKey: 'automation_cleanup_exclude', detailKey: 'automation_cleanup_exclude' },
-        { key: 'library-auto-update', titleKey: 'settings_row_library_auto_update_title', detailKey: 'settings_row_library_auto_update_detail' },
-        { key: 'library-update-interval', titleKey: 'settings_row_library_update_interval_title', detailKey: 'settings_row_library_update_interval_detail' },
-        { key: 'library-update-notifications', titleKey: 'settings_row_library_update_notifications_title', detailKey: 'settings_row_library_update_notifications_detail' },
         { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
         { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
         { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
@@ -302,17 +299,16 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'downloads', titleKey: 'settings_row_downloads_title', detailKey: 'settings_row_downloads_detail' },
         { key: 'download-notifications', titleKey: 'settings_row_download_notifications_title', detailKey: 'settings_row_download_notifications_detail' },
         { key: 'download-concurrency', titleKey: 'settings_row_download_concurrency_title', detailKey: 'settings_row_download_concurrency_detail' },
-        { key: 'download-retry-failed', titleKey: 'settings_row_download_retry_failed_title', detailKey: 'settings_row_download_retry_failed_detail' },
         { key: 'download-wifi-only', titleKey: 'settings_row_download_wifi_only_title', detailKey: 'settings_row_download_wifi_only_detail' },
-        { key: 'trackers', titleKey: 'settings_row_trackers_title', detailKey: 'settings_row_trackers_detail' },
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail' },
         { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail' },
-        { key: 'backup', titleKey: 'settings_row_backup_title', detailKey: 'settings_row_backup_detail' },
-        { key: 'backup-auto-export', titleKey: 'settings_row_backup_auto_export_title', detailKey: 'settings_row_backup_auto_export_detail' },
-        { key: 'backup-include-settings', titleKey: 'settings_row_backup_include_settings_title', detailKey: 'settings_row_backup_include_settings_detail' },
-        { key: 'backup-include-download-queue', titleKey: 'settings_row_backup_include_download_queue_title', detailKey: 'settings_row_backup_include_download_queue_detail' },
-        { key: 'backup-include-tracker-mappings', titleKey: 'settings_row_backup_include_tracker_mappings_title', detailKey: 'settings_row_backup_include_tracker_mappings_detail' },
+        { key: 'backup-create', titleKey: 'backup_task_create', detailKey: 'backup_task_create_hint' },
+        { key: 'backup-restore', titleKey: 'backup_task_restore', detailKey: 'backup_task_restore_hint' },
+        { key: 'backup-files', titleKey: 'backup_task_files', detailKey: '' },
+        { key: 'backup-automatic', titleKey: 'backup_auto_heading', detailKey: 'backup_auto_description' },
+        { key: 'backup-content', titleKey: 'backup_included_data', detailKey: 'backup_fixed_content_description' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
+        { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
       ],
@@ -466,7 +462,11 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
 export struct SettingsPage {
   @Param scroller: Scroller = new Scroller()
   @Event onLibraryPreferencesChanged: () => void = () => {}
-  @Event onOpenSettingsPane: (pane: SettingsPaneKey) => void = (_pane: SettingsPaneKey) => {}
+  @Event onOpenSettingsPane: (pane: SettingsPaneKey, rowKey?: string) => void = (_pane: SettingsPaneKey, _rowKey?: string) => {}
+  @Param searchTarget: string = ''
+  @Param embeddedTracking: boolean = false
+  @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
   @Event onOpenKavitaSettings: () => void = () => {}
   @Event onOpenOpdsSettings: () => void = () => {}
@@ -476,8 +476,7 @@ export struct SettingsPage {
   @Event onOpenLibraryUpdateResults: () => void = () => {}
   @Event onOpenLibraryCategories: () => void = () => {}
   @Event onOpenDownloads: () => void = () => {}
-  @Event onOpenBackupManagement: () => void = () => {}
-  @Event onOpenTrackerSettings: () => void = () => {}
+  @Event onOpenBackupTask: (task: string) => void = (_task: string) => {}
   @Event onOpenImportRequested: () => void = () => {}
   @Event onRefreshLocalFolders: () => Promise<LocalLibraryFolderRescanActionResult | undefined> =
     async () => undefined
@@ -493,6 +492,7 @@ export struct SettingsPage {
   @Event onClosePane: () => void = () => {}
   @Local private readerPreferences: ReaderPreferences = DEFAULT_READER_PREFERENCES
   @Local private readerPreferencesReady: boolean = false
+  @Local private readerPreferencesLoadFailed: boolean = false
   @Param pane: SettingsPaneKey = 'root'
   @Param formTitleAction: FormTitleActionState = new FormTitleActionState()
   @Local private pageMode: ReaderPageMode = 'single_page'
@@ -549,9 +549,6 @@ export struct SettingsPage {
   @Local private showLibraryBadges: boolean = true
   @Local private trackerAutoSyncEnabled: boolean = DEFAULT_TRACKER_PREFERENCES.autoSyncEnabled
   @Local private trackerUpdateStrategy: TrackerUpdateStrategy = DEFAULT_TRACKER_PREFERENCES.updateStrategy
-  @Local private includeBackupSettings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings
-  @Local private includeBackupDownloadQueue: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeDownloadQueue
-  @Local private includeBackupTrackerMappings: boolean = DEFAULT_BACKUP_CONTENT_PREFERENCES.includeTrackerMappings
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -579,10 +576,6 @@ export struct SettingsPage {
 
   private libraryFilterStore(): LibraryFilterStore {
     return new LibraryFilterStore(this.context())
-  }
-
-  private backupService(): BackupService {
-    return new BackupService(this.context())
   }
 
   private trackerPreferencesStore(): TrackerPreferencesStore {
@@ -836,15 +829,17 @@ export struct SettingsPage {
             'library-auto-update',
             'library-update-interval',
             'library-background-update',
+            'library-update-notifications',
             'library-update-range',
             'library-update-skip',
             'library-update-wifi-only',
             'library-update-charging-only',
-            'library-update-notifications',
-            'library-update',
-            'library-update-results',
-            'local-library-refresh',
           ]),
+        },
+        {
+          key: 'library-maintenance',
+          titleKey: 'settings_section_library_maintenance',
+          rows: this.rowsByKeys(['library-update', 'library-update-results', 'local-library-refresh']),
         },
       ]
     }
@@ -854,7 +849,7 @@ export struct SettingsPage {
           'page-mode', 'reading-direction', 'reader-spread-layout', 'reader-page-animation', 'reader-wide-image-mode', 'reader-page-gap']) },
         { key: 'reader-display', titleKey: 'settings_reader_group_display', rows: this.rowsByKeys([
           'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
-        { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['image-plugins', 'reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
+        { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['image-plugins', 'reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
           'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
         { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages', 'reader-preload-wifi-only']) },
@@ -873,14 +868,9 @@ export struct SettingsPage {
           rows: this.rowsByKeys(['komga', 'kavita', 'opds', 'webdav']),
         },
         {
-          key: 'source-runtime',
-          titleKey: 'settings_section_source_runtime',
-          rows: this.rowsByKeys(['sources']),
-        },
-        {
-          key: 'translation',
-          titleKey: 'settings_section_translation',
-          rows: this.rowsByKeys(['translation']),
+          key: 'content-services',
+          titleKey: '',
+          rows: this.rowsByKeys(['sources', 'translation']),
         },
       ]
     }
@@ -893,7 +883,6 @@ export struct SettingsPage {
             'downloads',
             'download-notifications',
             'download-concurrency',
-            'download-retry-failed',
             'download-wifi-only',
           ]),
         },
@@ -909,7 +898,6 @@ export struct SettingsPage {
           key: 'tracking',
           titleKey: 'settings_section_tracking',
           rows: this.rowsByKeys([
-            'trackers',
             'tracker-auto-sync',
             'tracker-update-strategy',
           ]),
@@ -922,11 +910,7 @@ export struct SettingsPage {
           key: 'backup',
           titleKey: 'settings_section_backup',
           rows: this.rowsByKeys([
-            'backup',
-            'backup-auto-export',
-            'backup-include-settings',
-            'backup-include-download-queue',
-            'backup-include-tracker-mappings',
+            'backup-create', 'backup-restore', 'backup-files', 'backup-automatic', 'backup-content',
           ]),
         },
       ]
@@ -940,6 +924,7 @@ export struct SettingsPage {
             'image-cache',
             'cache-limit',
             'cache-auto-clean',
+            'translation-cache',
           ]),
         },
       ]
@@ -975,13 +960,19 @@ export struct SettingsPage {
       return []
     }
     const results: SettingsSearchResult[] = []
+    createSettingsRootSections().forEach((section: SettingsPaneSection) => {
+      section.items.forEach((item: SettingsPaneItem) => {
+        if (!this.paneItemTitle(item).toLowerCase().includes(query)) return
+        results.push({ key: `category:${item.key}`, pane: item.key, sectionTitle: '',
+          row: { key: 'settings-category', titleKey: item.titleKey, detailKey: item.detailKey } })
+      })
+    })
     this.searchablePanes().forEach((pane: SettingsPaneKey) => {
-      const paneTitle = this.paneTitle(pane)
       this.paneSectionsFor(pane).forEach((section: SettingsSection) => {
         section.rows.forEach((row: SettingsRow) => {
           const currentDetail = this.rowDetail(row)
           const haystack =
-            `${paneTitle} ${this.sectionTitle(section)} ${this.rowTitle(row)} ${this.rowBaseDetail(row)} ${currentDetail}`.toLowerCase()
+            `${this.rowTitle(row)} ${this.rowBaseDetail(row)} ${currentDetail}`.toLowerCase()
           if (haystack.includes(query)) {
             results.push({
               key: `${pane}:${section.key}:${row.key}`,
@@ -1093,6 +1084,7 @@ export struct SettingsPage {
         console.info('[Settings] step=load_preferences')
       })
       .catch((error: Error) => {
+        this.readerPreferencesLoadFailed = true
         DiagnosticLogger.warn('settings_page', 'load_preferences_failed', '[Settings] step=load_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
@@ -1223,19 +1215,6 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'load_library_filter_preferences_failed', '[Settings] step=load_library_filter_preferences_failed code=' + safeSettingsErrorCode(error))
-      })
-  }
-
-  private loadBackupContentPreferences(): void {
-    void this.backupService().loadContentPreferences()
-      .then((preferences: BackupContentPreferences) => {
-        this.includeBackupSettings = preferences.includeSettings
-        this.includeBackupDownloadQueue = preferences.includeDownloadQueue
-        this.includeBackupTrackerMappings = preferences.includeTrackerMappings
-        console.info('[Settings] step=load_backup_content_preferences includeSettings=' + preferences.includeSettings + ' includeDownloadQueue=' + preferences.includeDownloadQueue + ' includeTrackerMappings=' + preferences.includeTrackerMappings)
-      })
-      .catch((error: Error) => {
-        DiagnosticLogger.warn('settings_page', 'load_backup_content_preferences_failed', '[Settings] step=load_backup_content_preferences_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -1904,54 +1883,6 @@ export struct SettingsPage {
     this.saveTrackerChanges({ updateStrategy: strategy })
   }
 
-  private saveBackupIncludeSettings(enabled: boolean): void {
-    this.includeBackupSettings = enabled
-    void this.backupService().saveContentPreferences({
-      includeSettings: enabled,
-      includeDownloadQueue: this.includeBackupDownloadQueue,
-      includeTrackerMappings: this.includeBackupTrackerMappings,
-    })
-      .then(() => {
-        console.info('[Settings] step=save_backup_include_settings enabled=' + enabled)
-      })
-      .catch((error: Error) => {
-        DiagnosticLogger.warn('settings_page', 'save_backup_include_settings_failed', '[Settings] step=save_backup_include_settings_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_backup_include_settings_save_failed'))
-      })
-  }
-
-  private saveBackupIncludeDownloadQueue(enabled: boolean): void {
-    this.includeBackupDownloadQueue = enabled
-    void this.backupService().saveContentPreferences({
-      includeSettings: this.includeBackupSettings,
-      includeDownloadQueue: enabled,
-      includeTrackerMappings: this.includeBackupTrackerMappings,
-    })
-      .then(() => {
-        console.info('[Settings] step=save_backup_include_download_queue enabled=' + enabled)
-      })
-      .catch((error: Error) => {
-        DiagnosticLogger.warn('settings_page', 'save_backup_include_download_queue_failed', '[Settings] step=save_backup_include_download_queue_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_backup_include_download_queue_save_failed'))
-      })
-  }
-
-  private saveBackupIncludeTrackerMappings(enabled: boolean): void {
-    this.includeBackupTrackerMappings = enabled
-    void this.backupService().saveContentPreferences({
-      includeSettings: this.includeBackupSettings,
-      includeDownloadQueue: this.includeBackupDownloadQueue,
-      includeTrackerMappings: enabled,
-    })
-      .then(() => {
-        console.info('[Settings] step=save_backup_include_tracker_mappings enabled=' + enabled)
-      })
-      .catch((error: Error) => {
-        DiagnosticLogger.warn('settings_page', 'save_backup_include_tracker_mappings_failed', '[Settings] step=save_backup_include_tracker_mappings_failed code=' + safeSettingsErrorCode(error))
-        this.showToast(s('settings_backup_include_tracker_mappings_save_failed'))
-      })
-  }
-
   private handleLibraryUpdateNotificationDispatch(result: LibraryUpdateNotificationDispatchResult, reason: string): void {
     if (result.delivered) {
       this.libraryUpdateNotificationStatus = 'enabled'
@@ -2190,9 +2121,6 @@ export struct SettingsPage {
   private isSwitchRow(row: SettingsRow): boolean {
     return row.key === 'library-background-update' || row.key === 'library-auto-update' ||
       row.key === 'library-badges' ||
-      row.key === 'backup-include-settings' ||
-      row.key === 'backup-include-download-queue' ||
-      row.key === 'backup-include-tracker-mappings' ||
       row.key === 'cache-auto-clean' ||
       row.key === 'download-wifi-only' ||
       row.key === 'tracker-auto-sync' ||
@@ -2213,15 +2141,6 @@ export struct SettingsPage {
     }
     if (row.key === 'library-badges') {
       return this.showLibraryBadges
-    }
-    if (row.key === 'backup-include-settings') {
-      return this.includeBackupSettings
-    }
-    if (row.key === 'backup-include-download-queue') {
-      return this.includeBackupDownloadQueue
-    }
-    if (row.key === 'backup-include-tracker-mappings') {
-      return this.includeBackupTrackerMappings
     }
     if (row.key === 'cache-auto-clean') {
       return this.imageCacheAutoCleanEnabled
@@ -2265,12 +2184,6 @@ export struct SettingsPage {
       this.setLibraryAutoUpdateEnabled(value)
     } else if (row.key === 'library-badges') {
       this.saveLibraryBadgesEnabled(value)
-    } else if (row.key === 'backup-include-settings') {
-      this.saveBackupIncludeSettings(value)
-    } else if (row.key === 'backup-include-download-queue') {
-      this.saveBackupIncludeDownloadQueue(value)
-    } else if (row.key === 'backup-include-tracker-mappings') {
-      this.saveBackupIncludeTrackerMappings(value)
     } else if (row.key === 'cache-auto-clean') {
       this.saveImageCacheAutoCleanEnabled(value)
     } else if (row.key === 'reader-progress') {
@@ -2446,15 +2359,11 @@ export struct SettingsPage {
       if (!this.canOpenSelectionMenu(row)) {
         this.showToast(s('settings_library_update_enable_first'))
       }
-    } else if (row.key === 'backup' || row.key === 'backup-auto-export') {
-      this.onOpenBackupManagement()
-    } else if (row.key === 'trackers') {
-      this.onOpenTrackerSettings()
     } else if (row.key === 'image-cache') {
       this.showImageCacheConfirm()
     } else if (row.key === 'sources') {
       this.showSourcesDialog()
-    } else if (row.key === 'downloads' || row.key === 'download-retry-failed') {
+    } else if (row.key === 'downloads') {
       this.onOpenDownloads()
     } else if (row.key === 'download-notifications') {
       this.requestDownloadNotifications()
@@ -2492,7 +2401,9 @@ export struct SettingsPage {
 
   @Builder
   private SectionRow(row: SettingsRow) {
-    if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
+    if (row.key === 'translation-cache') {
+      KomaTranslationCacheRow()
+    } else if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
       LibraryAutomationSettingRow({ rowKey: row.key, title: this.rowTitle(row), policy: this.automationPolicy,
         categories: this.automationCategories(), onChange: (change: (policy: LibraryAutomationPreferences) => void) => {
           this.saveAutomationPolicy(change)
@@ -2541,7 +2452,7 @@ export struct SettingsPage {
         title: this.rowTitle(row),
         trailingText: this.rowDetail(row),
           trailingMaxLines: this.rowDetailMaxLines(row),
-        showChevron: true,
+        showChevron: row.key !== 'image-cache',
         action: () => {
           this.handleRowClick(row)
         },
@@ -2549,19 +2460,48 @@ export struct SettingsPage {
     }
   }
 
+  private openSearchResult(result: SettingsSearchResult): void {
+    this.getUIContext().getFocusController().clearFocus()
+    this.settingsSearchText = ''
+    // Search may navigate directly, but must never run a command or change a preference.
+    if (result.row.key === 'settings-category') {
+      this.onOpenSettingsPane(result.pane)
+      return
+    }
+    if (result.pane === 'backup') {
+      if (['backup-create', 'backup-restore', 'backup-files'].includes(result.row.key)) {
+        this.onOpenBackupTask(result.row.key.slice('backup-'.length))
+      } else {
+        this.onOpenSettingsPane('backup', result.row.key)
+      }
+      return
+    }
+    const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',
+      'downloads', 'library-update-results', 'library-categories', 'translation', 'enhancement-models', 'diagnostics',
+      'image-plugins']
+    if (navigationRows.includes(result.row.key)) {
+      this.handleRowClick(result.row)
+    } else {
+      this.onOpenSettingsPane(result.pane, result.row.key)
+    }
+  }
+
+  private positionSearchResult(area: Area): void {
+    const y = Number(area.globalPosition.y)
+    if (this.positionedSearchTarget || Number(area.height) <= 0 || !Number.isFinite(y)) return
+    this.positionedSearchTarget = true
+    const top = this.settingsSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_SM
+    this.scroller.scrollBy(0, y - top)
+  }
+
   @Builder
   private SearchResultRow(result: SettingsSearchResult) {
     ConciseListRow({
       title: this.rowTitle(result.row),
-      subtitle: this.searchResultSubtitle(result),
+      subtitle: result.row.key === 'settings-category' ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
       subtitleMaxLines: 2,
       showChevron: true,
-      action: () => {
-        this.settingsSearchText = ''
-        // Show the Services location without adding an extra tap to the
-        // existing direct translation-config search result.
-        this.onOpenSettingsPane(result.row.key === 'translation' ? 'translation' : result.pane)
-      },
+      action: () => { this.openSearchResult(result) },
     })
   }
 
@@ -2574,6 +2514,7 @@ export struct SettingsPage {
       leadingIconBackgroundColor: item.color,
       showChevron: true,
       action: () => {
+        this.getUIContext().getFocusController().clearFocus()
         this.onOpenSettingsPane(item.key)
       },
     })
@@ -2618,6 +2559,8 @@ export struct SettingsPage {
         if (section.key === 'reader-images') {
           if (this.readerPreferencesReady) {
             ReaderImageSettingsContent({ preferences: this.readerPreferences, modelsRevision: this.enhancementModelsRevision,
+              searchTarget: this.searchTarget,
+              onSearchTargetArea: (area: Area) => { this.positionSearchResult(area) },
               onPreferencesChange: (next: ReaderPreferences) => { this.saveImagePreferences(next) },
               onOpenPlugins: (): void => { this.onOpenImagePlugins(new ImagePluginsRequest(this.readerPreferences, false,
                 (next: ReaderPreferences): void => { this.saveImagePreferences(next) })) },
@@ -2661,7 +2604,13 @@ export struct SettingsPage {
     Column({ space: ThemeConstants.SPACE_XS }) {
       GroupedListSection({ title: section.titleKey.length > 0 ? this.sectionTitle(section) : undefined }) {
         ForEach(section.rows, (row: SettingsRow, index: number) => {
-          this.SectionRow(row)
+          if (row.key === this.searchTarget) {
+            Column() { this.SectionRow(row) }
+              .width('100%')
+              .onAreaChange((_old: Area, area: Area) => { this.positionSearchResult(area) })
+          } else {
+            this.SectionRow(row)
+          }
           if (index < section.rows.length - 1) {
             ListDivider()
           }
@@ -2692,7 +2641,9 @@ export struct SettingsPage {
       KomaAboutContent()
     } else if (this.pane === 'root') {
       this.RootSettings()
-    } else {
+    } else if (this.pane !== 'reader' || this.searchTarget.length === 0 ||
+      this.readerPreferencesReady || this.readerPreferencesLoadFailed) {
+      // A search destination must measure the row after the image and mode groups are ready.
       this.PaneSettings()
     }
   }
@@ -2730,7 +2681,6 @@ export struct SettingsPage {
     this.loadDownloadQueuePreferences()
     this.loadLibraryFilterPreferences()
     this.loadTrackerPreferences()
-    this.loadBackupContentPreferences()
     this.loadImageCachePreferences()
     this.loadVersion()
   }
@@ -2750,7 +2700,6 @@ export struct SettingsPage {
       this.loadDownloadNotificationStatus()
     }
     if (this.pane === 'tracking') this.loadTrackerPreferences()
-    if (this.pane === 'backup') this.loadBackupContentPreferences()
     if (this.pane === 'storage') this.loadImageCachePreferences()
     if (this.pane === 'about') this.loadVersion()
   }
@@ -2779,32 +2728,33 @@ export struct SettingsPage {
   aboutToAppear(): void { this.loadPanePreferences() }
 
   build() {
-    Column() {
-      SecondaryListScaffold({
-        scroller: this.scroller,
-        listSpace: ThemeConstants.SPACE_LG,
-        bottomPadding: ThemeConstants.SPACE_XL,
-        floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
-      }) {
-        if (this.pane === 'root') {
+    if (this.embeddedTracking) {
+      this.PaneSettings()
+    } else {
+      Column() {
+        SecondaryListScaffold({
+          scroller: this.scroller,
+          listSpace: ThemeConstants.SPACE_LG,
+          bottomPadding: ThemeConstants.SPACE_XL,
+          floatingTabTailPadding: this.pane === 'root' ? ThemeConstants.FLOATING_TAB_BAR_CLEARANCE : 0,
+        }) {
+          if (this.pane === 'root') {
+            ListItem() {
+              this.SettingsSearchField()
+            }
+          }
           ListItem() {
-            this.SettingsSearchField()
+            this.SettingsContent()
           }
         }
-        ListItem() {
-          this.SettingsContent()
-        }
-        if (this.pane === 'storage') {
-          ListItem() { KomaTranslationCacheRow() }
-        }
       }
+      .width('100%')
+      .height('100%')
+      .backgroundColor(ThemeConstants.BG_SUB)
+      .bindSheet($$this.readerDisplaySheetShown, this.ReaderDisplaySheet, komaSheetOptions({
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableOutsideInteractive: false,
+        scrollSizeMode: ScrollSizeMode.CONTINUOUS, enableFloatingDragBar: true,
+      }))
     }
-    .width('100%')
-    .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
-    .bindSheet($$this.readerDisplaySheetShown, this.ReaderDisplaySheet, komaSheetOptions({
-      detents: [SheetSize.MEDIUM, SheetSize.LARGE], showClose: false, enableOutsideInteractive: false,
-      scrollSizeMode: ScrollSizeMode.CONTINUOUS, enableFloatingDragBar: true,
-    }))
   }
 }

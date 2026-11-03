@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：200 已复测阅读器右上菜单和滤镜滑杆。底部方向菜单已补同一取色修复，已构建，待真机复测。
+当前结果：103 已走查设置十个一级分类，复验书架、存储、追踪授权、备份和设置搜索。200 已复测阅读器右上菜单和滤镜滑杆。底部方向菜单已补同一取色修复，已构建，待真机复测。
 
-设备：197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 保留验证包，原超时与休眠已恢复并释租。197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,9 +12,9 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "200 阅读菜单和滤镜滑杆已验证",
+  "state": "103 设置全面走查与重点复验",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T20:54:09+08:00",
+  "updatedAt": "2026-11-03T23:18:54+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "菜单分组、漫画人封面及一条翻页回退竞态已处理，详情冷加载过渡与原偶发回退继续保留。",
@@ -1600,17 +1600,27 @@
     {
       "id": "SETTINGS_SEARCH",
       "title": "设置搜索的实际消费者",
-      "status": "具名路径通过",
-      "kind": "accepted",
-      "result": "具名路径通过",
-      "remaining": "仅中文该查询/目的页，不冒全部语言或设置生效。",
-      "closedAt": "2026-10-19T23:45:59Z",
+      "status": "103 已复验阅读跨屏定位与返回",
+      "kind": "open",
+      "result": "具名路径通过 搜索导航项直达实际页面，普通设置项传递定位键；备份搜索以实际任务与配置区为落点。 103 搜 Wi-Fi 后选下载结果，进入下载页且目标开关可见，未见重复重试入口。 搜索用行标题与真实描述匹配，分类名可以命中独立的分类结果。103 搜 Wi-Fi 选仅 Wi-Fi 预载，阅读页跨屏定位至目标开关。返回设置首页时键盘收起，可继续打开高级和关于。读取阅读偏好失败时仍可显示基础阅读设置。",
+      "remaining": "图像设置专属行、备份配置区搜索落点和偏好读取失败未在 103 注入或遍历。",
+      "closedAt": null,
       "owner": "冻结路径：无当前执行者",
       "evidencePoints": [],
       "remainingActions": [
-        "仅中文该查询/目的页，不冒全部语言或设置生效。"
+        "图像设置专属行、备份配置区搜索落点和偏好读取失败未在 103 注入或遍历。"
       ],
-      "boundaries": []
+      "boundaries": [],
+      "reopenedAt": "2026-11-03T22:42:42+08:00",
+      "stage": "103 已复验阅读跨屏定位与返回",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/build.log",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/complete-search",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/complete-reader",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-return",
+        ".hvigor/outputs/settings-menu-cleanup/build-sweep-complete.log"
+      ]
     },
     {
       "id": "OPEN_SOURCE_NOTICE",
@@ -3748,30 +3758,48 @@
       "id": "SETTINGS_GROUPING_ADVANCED",
       "title": "设置页未分组且高级入口与图标不合理",
       "priority": "P1（用户直接反馈）",
-      "kind": "accepted",
-      "status": "备份结构与最终短标签具名交付",
+      "kind": "open",
+      "status": "103 十个分类走查及改动路径复验",
       "owner": "Root：设置分组和备份普通路径",
       "dependencies": [],
       "relatedItems": [
         "APPEARANCE_CONSUMERS"
       ],
-      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。 237当前075普通设置→备份与恢复及创建页，应用设置/下载队列/追踪绑定三行已亲审；固定包含范围在卡片外，创建在原生标题栏。未创建新备份或重跑恢复。 本场237原包、数据及电源恢复并释租。",
-      "remaining": "",
-      "remainingActions": [],
+      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。 237当前075普通设置→备份与恢复及创建页，应用设置/下载队列/追踪绑定三行已亲审；固定包含范围在卡片外，创建在原生标题栏。未创建新备份或重跑恢复。 本场237原包、数据及电源恢复并释租。 用户要求重整设置及备份子页。追踪直达服务列表与同步设置，保留服务授权页、高级和诊断层级；设置内下载重试重复跳转移除。备份主页维护默认选项，创建页可为本次单独调整，恢复预览突出替换范围、技术数据折叠。签名构建及本地追踪、备份流程验证通过。 103 普通路径核对设置首页、追踪五服务与同页同步设置、AniList 子页及返回、备份首页与创建/恢复/本地备份三子页，系统选择器可取消，原电源恢复并释租，保留新包。 103 竖屏逐项打开设置十个一级分类并核对截图。外观清理重复标题，书架将自动更新放在组首并分出检查与维护，服务归拢书源和翻译，存储统一缓存行与清理说明。保留高级入口。追踪主页与 AniList 授权页清理重复状态，授权页复用标题栏保存动作。备份主页默认关闭时收起计划详情，实测展开可见目录、后台、间隔和保留设置。创建页确认原生保存位置菜单与本次备份数据选项，恢复页通过文件选择器读入合成空备份，核对覆盖提示、明细展开和收起，退出未覆盖数据。本地备份空状态已点验。 103 保留已启动并点验的最后签名包，测试文件已删除，原休眠与超时恢复后释租。",
+      "remaining": "实机未连接追踪账号、实际导出备份、解密加密备份或执行覆盖恢复。",
+      "remainingActions": [
+        "实机未连接追踪账号、实际导出备份、解密加密备份或执行覆盖恢复。"
+      ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
         "本轮用户纠正备份两个同页入口与隐蔽配置；只去重复中转，备份内容/自动备份仍分组，创建/恢复/文件保独立任务，固定包含范围为说明，创建动作沿公共原生标题栏，不改变备份格式或数据范围。"
       ],
       "reportedAt": "2026-10-26T12:30:00Z",
       "reportedAtSource": "用户要求设置项分组、增加高级入口并检查图标；精确时刻未记录。",
-      "reopenedAt": null,
-      "closedAt": "2026-11-01T13:36:20+08:00",
-      "stage": "具名范围已交付",
+      "reopenedAt": "2026-11-03T22:42:42+08:00",
+      "closedAt": null,
+      "stage": "103 十个分类走查及改动路径复验",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-top-22/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-bottom-23/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-advanced-content-24/",
-        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-about-content-25/"
+        ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-about-content-25/",
+        ".hvigor/outputs/settings-menu-cleanup/build.log",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/sweep-root",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/sweep-advanced-clean",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/complete-library",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-services",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-storage",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-auth",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/final-backup-expand",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/final-destination",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/backup-files",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-preview-expanded",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-preview-collapsed",
+        ".hvigor/outputs/settings-menu-cleanup/build-sweep-complete.log",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/restore-power-sweep",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/install-settings-complete"
       ],
       "evidencePoints": [
         "197 candidate-appearance-311文字右缘均1108，箭头与主题/语言一致。",
@@ -15654,6 +15682,54 @@
       "title": "补修底部阅读方向菜单取色",
       "detail": "底部阅读方向菜单与右上菜单共用系统取色，签名候选已构建，待真机复测。",
       "kind": "work"
+    },
+    {
+      "id": "settings-menu-cleanup-build",
+      "at": "2026-11-03T22:42:42+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "设置和备份结构重整",
+      "detail": "追踪去中转，下载去重复入口，备份区分默认与本次内容，恢复预览重新分组。签名构建和本地流程检查通过，尚未装机。",
+      "kind": "work"
+    },
+    {
+      "id": "settings-search-destinations",
+      "at": "2026-11-03T22:42:42+08:00",
+      "itemId": "SETTINGS_SEARCH",
+      "title": "设置搜索接到实际页面和设置行",
+      "detail": "导航入口直达，普通设置按行定位，备份按任务或配置区跳转。尚未真机点验。",
+      "kind": "work"
+    },
+    {
+      "id": "settings_grouping_advanced-103-device",
+      "at": "2026-11-03T22:55:46+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 点验追踪与备份入口",
+      "detail": "103 普通路径核对设置首页、追踪五服务与同页同步设置、AniList 子页及返回、备份首页与创建/恢复/本地备份三子页，系统选择器可取消，原电源恢复并释租，保留新包。103 本地备份列表为空，未选文件验证有数据的预览，也未导出或执行覆盖恢复。",
+      "kind": "verified"
+    },
+    {
+      "id": "settings_search-103-device",
+      "at": "2026-11-03T22:55:46+08:00",
+      "itemId": "SETTINGS_SEARCH",
+      "title": "103 点验下载设置搜索",
+      "detail": "103 搜 Wi-Fi 后选下载结果，进入下载页且目标开关可见，未见重复重试入口。103 的下载开关首屏本来可见；尚未验证跨屏滚动定位、图像设置和备份配置区定位。",
+      "kind": "verified"
+    },
+    {
+      "id": "settings_grouping_advanced-103-comprehensive-sweep",
+      "at": "2026-11-03T23:18:54+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 十个分类走查及改动路径复验",
+      "detail": "103 竖屏逐项打开设置十个一级分类并核对截图。外观清理重复标题，书架将自动更新放在组首并分出检查与维护，服务归拢书源和翻译，存储统一缓存行与清理说明。保留高级入口。追踪主页与 AniList 授权页清理重复状态，授权页复用标题栏保存动作。备份主页默认关闭时收起计划详情，实测展开可见目录、后台、间隔和保留设置。创建页确认原生保存位置菜单与本次备份数据选项，恢复页通过文件选择器读入合成空备份，核对覆盖提示、明细展开和收起，退出未覆盖数据。本地备份空状态已点验。 103 保留已启动并点验的最后签名包，测试文件已删除，原休眠与超时恢复后释租。 实机未连接追踪账号、实际导出备份、解密加密备份或执行覆盖恢复。",
+      "kind": "verified"
+    },
+    {
+      "id": "settings_search-103-comprehensive-sweep",
+      "at": "2026-11-03T23:18:54+08:00",
+      "itemId": "SETTINGS_SEARCH",
+      "title": "103 已复验阅读跨屏定位与返回",
+      "detail": "搜索用行标题与真实描述匹配，分类名可以命中独立的分类结果。103 搜 Wi-Fi 选仅 Wi-Fi 预载，阅读页跨屏定位至目标开关。返回设置首页时键盘收起，可继续打开高级和关于。读取阅读偏好失败时仍可显示基础阅读设置。 图像设置专属行、备份配置区搜索落点和偏好读取失败未在 103 注入或遍历。",
+      "kind": "verified"
     }
   ],
   "reportAgeAudit": {

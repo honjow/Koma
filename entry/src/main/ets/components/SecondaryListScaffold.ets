@@ -23,6 +23,8 @@ export struct SecondaryListScaffold {
   @Param alwaysEnableEdgeSpring: boolean = true
   @Param scrollEnabled: boolean = true
   @Param surfaceColor: ResourceColor = ThemeConstants.BG_SUB
+  @Event onVisibleContentChange?: (start: VisibleListContentInfo) => void
+  @Event onListAttach?: () => void
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
 
@@ -47,6 +49,7 @@ export struct SecondaryListScaffold {
             .width('100%')
           }
         }
+        .onAttach(() => { this.onListAttach?.() })
         .scrollBar(BarState.Off)
         .width('100%')
         .height('100%')
@@ -68,6 +71,9 @@ export struct SecondaryListScaffold {
           if (this.onDidScroll) {
             this.onDidScroll(this.scroller.currentOffset().yOffset, ScrollState.Scroll)
           }
+        })
+        .onScrollVisibleContentChange((start: VisibleListContentInfo) => {
+          this.onVisibleContentChange?.(start)
         })
         .onReachEnd(() => {
           if (this.onReachEnd) {

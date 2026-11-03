@@ -26,6 +26,8 @@ export struct ReaderImageSettingsContent {
   @Param cropControlsAvailable: boolean = true
   @Param enhancementControlsAvailable: boolean = true
   @Param modelsRevision: number = 0
+  @Param searchTarget: string = ''
+  @Event onSearchTargetArea: (area: Area) => void = (_area: Area) => {}
   @Event onPreferencesChange: (next: ReaderPreferences) => void = (_next: ReaderPreferences) => {}
   @Event onOpenPlugins: () => void = () => {}
   @Event onOpenModels: () => void = () => {}
@@ -127,6 +129,10 @@ export struct ReaderImageSettingsContent {
     }
   }
 
+  private reportSearchArea(key: string, area: Area): void {
+    if (this.searchTarget === key) this.onSearchTargetArea(area)
+  }
+
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
       if (this.showPlugins) {
@@ -145,10 +151,12 @@ export struct ReaderImageSettingsContent {
               next.trimPageMarginsEnabled = enabled
               this.onPreferencesChange(next)
             } }).id('reader-image-trim-margins')
+            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-trim-margins', area) })
           ListDivider()
           ConciseListRow({ title: t('reader_crop_strength_title'), trailingText: getReaderCropStrengthLabel(this.preferences.cropStrength),
             trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.preferences.trimPageMarginsEnabled,
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.CropStrengthMenu(select) } })
+            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-crop-strength', area) })
         }
       }
       if (this.enhancementControlsAvailable) {
@@ -158,12 +166,14 @@ export struct ReaderImageSettingsContent {
             isEnabled: this.installedModels.length > 0,
             action: () => { this.enableEnhancement(!this.preferences.superResolutionEnabled) },
             switchAction: (enabled: boolean) => { this.enableEnhancement(enabled) } }).id('reader-image-enhancement')
+            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution', area) })
           ListDivider()
           ConciseListRow({ title: t('settings_reader_super_resolution_model'),
             trailingText: this.installedModels.length === 0 ? t('settings_reader_super_resolution_models_none_installed') :
               readerSuperResolutionModelLabel(this.preferences.superResolutionModel),
             trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: this.installedModels.length > 0,
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.ModelMenu(select) } }).id('reader-image-model')
+            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution-model', area) })
           ListDivider()
           ConciseListRow({ title: t('settings_reader_super_resolution_models'), action: () => { this.onOpenModels() } }).id('reader-image-models')
           ListDivider()
@@ -172,6 +182,7 @@ export struct ReaderImageSettingsContent {
             trailingText: `${this.preferences.superResolutionMaxHeight}px`, trailingDropdown: true, dropdownMenuEnabled: true,
             isEnabled: this.preferences.superResolutionEnabled && this.preferences.superResolutionModel !== 'none',
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.MaxHeightMenu(select) } }).id('reader-image-max-height')
+            .onAreaChange((_old: Area, area: Area) => { this.reportSearchArea('reader-super-resolution-max-height', area) })
         }
       }
     }.width('100%')

@@ -881,8 +881,8 @@ export class BackupService {
     configureSourceFilterPreferencesStore(context)
   }
 
-  async export(): Promise<string> {
-    return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION))
+  async export(content?: BackupContentPreferences): Promise<string> {
+    return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION, false, content))
   }
 
   async exportBackgroundTemplate(): Promise<string> {
@@ -891,23 +891,23 @@ export class BackupService {
     return JSON.stringify(await this.buildBackupDocument(BACKUP_SCHEMA_VERSION, true))
   }
 
-  async exportEncrypted(passphrase: string): Promise<string> {
-    const document = await this.buildBackupDocument(BACKUP_ENCRYPTED_SCHEMA_VERSION)
+  async exportEncrypted(passphrase: string, content?: BackupContentPreferences): Promise<string> {
+    const document = await this.buildBackupDocument(BACKUP_ENCRYPTED_SCHEMA_VERSION, false, content)
     const payload = await new BackupEncryptionService().encrypt(JSON.stringify(document), passphrase)
     DiagnosticLogger.info('backup', 'export_encrypted', '[Backup] step=export_encrypted')
     return payload
   }
 
-  async exportLocal(): Promise<BackupLocalFileRecord> {
-    const payload = await this.export()
+  async exportLocal(content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
+    const payload = await this.export(content)
     const fileName = `koma-backup-${Date.now()}.json`
     const record = this.writeLocalBackup(fileName, payload)
     DiagnosticLogger.info('backup', 'local_export', '[Backup] step=local_export')
     return record
   }
 
-  async exportEncryptedLocal(passphrase: string): Promise<BackupLocalFileRecord> {
-    const payload = await this.exportEncrypted(passphrase)
+  async exportEncryptedLocal(passphrase: string, content?: BackupContentPreferences): Promise<BackupLocalFileRecord> {
+    const payload = await this.exportEncrypted(passphrase, content)
     const fileName = `koma-backup-${Date.now()}.koma-backup`
     const record = this.writeLocalBackup(fileName, payload)
     DiagnosticLogger.info('backup', 'local_export_encrypted', '[Backup] step=local_export_encrypted')
@@ -1161,9 +1161,11 @@ export class BackupService {
     }
   }
 
-  private async buildBackupDocument(schemaVersion: number, backgroundTemplate: boolean = false): Promise<KomaBackupDocument> {
+  private async buildBackupDocument(schemaVersion: number, backgroundTemplate: boolean = false,
+    content?: BackupContentPreferences): Promise<KomaBackupDocument> {
     return BackupRestoreActivity.runWrite(async (): Promise<KomaBackupDocument> => {
-      const contentPreferences = await this.loadContentPreferences()
+      const contentPreferences = content === undefined ? await this.loadContentPreferences() :
+        normalizeBackupContentPreferences(content)
       if (appReaderSessionStore(this.context.filesDir).flush() === false) {
         throw new Error('reader_progress_save_failed')
       }
@@ -1402,8 +1404,8 @@ export class BackupService {
     }
   }
 
-  async exportToPicker(): Promise<string | undefined> {
-    const payload = await this.export()
+  async exportToPicker(content?: BackupContentPreferences): Promise<string | undefined> {
+    const payload = await this.export(content)
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [`koma-backup-${Date.now()}.json`]
     options.fileSuffixChoices = [AppStrings.get('backup_file_choice_json')]
@@ -1472,8 +1474,8 @@ export class BackupService {
     return candidate
   }
 
-  async exportEncryptedToPicker(passphrase: string): Promise<string | undefined> {
-    const payload = await this.exportEncrypted(passphrase)
+  async exportEncryptedToPicker(passphrase: string, content?: BackupContentPreferences): Promise<string | undefined> {
+    const payload = await this.exportEncrypted(passphrase, content)
     const options = new picker.DocumentSaveOptions()
     options.newFileNames = [`koma-backup-${Date.now()}.koma-backup`]
     options.fileSuffixChoices = [AppStrings.get('backup_file_choice_encrypted')]
