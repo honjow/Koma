@@ -9,7 +9,7 @@ This document specifies the real encrypted backup path. Current code keeps the l
 - Current import preview parses unencrypted JSON before restore and shows schema, export time, encryption state, and safe counts. Encrypted preview shows only public envelope metadata until passphrase authentication succeeds.
 - Credential-like source settings are filtered before persistence and backup. This remains required for encrypted backups because encryption is not a substitute for safe export policy.
 
-## Future Envelope
+## Encrypted Envelope
 
 Encrypted backups use a new outer envelope instead of overloading the current unencrypted document. The first encrypted format is a schema v4 payload wrapped by envelope version 1:
 
@@ -40,7 +40,7 @@ Encrypted backups use a new outer envelope instead of overloading the current un
 
 Rules:
 
-- `payload` is the encrypted canonical JSON bytes for the future schema v4 backup document.
+- `payload` is the encrypted canonical JSON bytes for the schema v4 backup document.
 - AES-GCM associated data is the canonical UTF-8 JSON encoding of `aad`. Import must rebuild the canonical AAD from parsed metadata and compare it with the serialized field before decrypting.
 - `createdAt`, `salt`, `nonce`, `tag`, and `payload` are public envelope metadata. Library rows, reading progress, server URLs, source index URL, source package manifests/bytes, source settings, and reader settings stay inside the encrypted payload.
 - `salt` must be unique per export and generated with a CSPRNG. `nonce` must be unique per derived key and generated with a CSPRNG; never reuse a nonce for the same passphrase-derived key.
@@ -50,12 +50,10 @@ Rules:
 
 ## Passphrase UX
 
-No passphrase UI should be added until the crypto implementation and tests exist. When added:
-
 - Export requires entering a passphrase twice in the same flow before writing a file.
 - The confirmation field must match exactly. Mismatch blocks export before any backup document is serialized to a picker target.
 - The app must explain that Koma cannot recover a lost passphrase. There is no escrow, reset, or cloud recovery.
-- Empty passphrases are disallowed. A minimum length floor should be enforced, but the UI should allow long passphrases and password-manager paste.
+- Passphrases must contain at least 8 characters.
 - Passphrases are never saved in preferences, RDB, backup files, artifacts, logs, crash reports, or analytics.
 - The passphrase value should remain only in memory long enough to derive the key and run encryption/decryption. Clear mutable buffers where the platform API allows it.
 - Import asks for the passphrase only after detecting an encrypted envelope. Wrong passphrase, wrong file, and tampering should share a neutral user-facing failure category so the app does not reveal which part failed.
@@ -99,23 +97,23 @@ If future secure credential export is supported, it must be a distinct opt-in de
 
 - Keep importing v1/v2/v3 unencrypted JSON for compatibility.
 - Keep exporting v3 unencrypted JSON for compatibility. Encrypted export writes schema v4 only inside the authenticated ciphertext.
-- Encrypted export writes `kind = "koma.backup.encrypted"`, `envelopeVersion = 1`, and encrypted `contentSchemaVersion = 4`.
+- Encrypted export writes `kind = "koma.backup.encrypted"`, `envelopeVersion = 1`, and encrypted `contentSchemaVersion = 4`. Import detection also recognizes the legacy kind `koma.backup.encrypted.v1`.
 - Import detection order:
   1. Parse JSON.
-  2. If `kind = "koma.backup.encrypted"`, use encrypted flow and require passphrase before payload preview or restore.
+  2. If the envelope has either recognized encrypted kind, use encrypted flow and require passphrase before payload preview or restore.
   3. Otherwise, treat as legacy unencrypted backup and apply existing v1/v2/v3 validation.
 - A future migration affordance may offer "export encrypted copy" after a successful legacy import, but it must not rewrite or delete the user's original file.
 - Schema v4 should preserve v3 domain semantics first, then add any encrypted-only metadata inside the payload only when needed.
 
 ## Verification Gates
 
-Implementation cannot ship until these gates exist and pass:
+When changing the backup format or flow, verify the affected boundaries:
 
 - Known-answer tests for KDF, AES-GCM encryption, AES-GCM decryption, AAD binding, and envelope canonicalization.
 - Round-trip tests proving encrypted export followed by import restores the same schema payload.
 - Wrong-passphrase tests proving authentication fails, no partial plaintext preview is returned, no restore writes occur, and the error is neutral.
 - Tamper tests for changed `payload`, `tag`, `nonce`, `salt`, `algorithm`, `kdf`, `contentSchemaVersion`, and `aad`.
-- Legacy tests proving v1/v2/v3 unencrypted imports still work and current v3 exports still honestly label themselves unencrypted until encrypted export is actually enabled.
+- Legacy tests proving v1/v2/v3 unencrypted imports still work and plaintext v3 exports are marked unencrypted.
 - Static or integration checks proving backup files, logs, artifacts, dialog strings, and exceptions do not contain passphrases, OAuth tokens, cookies, authorization headers, raw credentials, or decrypted payload snippets.
 - Picker/export tests proving plaintext schema v4 is never written to the destination before encryption succeeds.
 - Device performance tests for KDF latency, cancellation behavior, memory pressure, and repeated wrong-passphrase attempts.

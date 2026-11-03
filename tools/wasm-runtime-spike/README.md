@@ -1,5 +1,7 @@
 # Koma WASM Runtime Spike
 
+> This directory documents and runs standalone fixtures. For the shipping App, use the [production source ABI](../../docs/source-runtime-abi.md). The HTTP, HTML, and install limits below describe this fixture runner.
+
 This is a repo-local, non-shipping runtime spike for the future source ABI. It
 does not add product UI, source import, source lists, network integrations, or
 HarmonyOS app behavior.

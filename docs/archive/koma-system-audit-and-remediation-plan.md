@@ -1,6 +1,6 @@
 # Koma 全局架构、UI 规范与功能缺口系统审计及整改方案
 
-> **SUPERSEDED / HISTORICAL。** 本文是 2026-09-04、设备 103 上的审计与整改设想；其中多项已有后续提交，剩余项也必须在当前 HEAD 和 197 上重新核实。不要按本文件继续派工或据此判断完成度；当前事实与唯一执行队列见 [`../../CURRENT_STATUS.md`](../../CURRENT_STATUS.md)。文件保留在原路径仅为历史链接和根因证据连续性。
+> **SUPERSEDED / HISTORICAL。** 本文是 2026-09-04、设备 103 上的审计与整改设想；其中多项已有后续提交，剩余项也必须在当前 HEAD 和 197 上重新核实。不要按本文件继续派工或据此判断完成度；当前事实与唯一执行队列见 [`../CURRENT_STATUS.md`](../CURRENT_STATUS.md)。文件保留用于查证根因。
 
 - **日期**：2026-09-04
 - **当前状态**：SUPERSEDED / HISTORICAL（不是 active backlog）

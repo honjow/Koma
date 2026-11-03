@@ -1,6 +1,6 @@
 # Current-kit ordinary Koma reader boundary
 
-> **历史恢复材料。** 以下正文保留原记录的时间、源码和证据范围，不代表当前实现、验收、设备授权或执行队列；原“当前/下一步”均仅指记录当时。当前事实与执行队列以 [`CURRENT_STATUS.md`](CURRENT_STATUS.md) 为准。
+> **历史恢复材料。** 以下正文保留原记录的时间、源码和证据范围，不代表当前实现、验收、设备授权或执行队列；原“当前/下一步”均仅指记录当时。当前事实与执行队列以 [`CURRENT_STATUS.md`](../CURRENT_STATUS.md) 为准。
 
 Replacement remains **OPEN**. This is a scoped integration checkpoint, not a
 second execution queue or a full Legacy replacement conclusion. The live queue

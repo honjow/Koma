@@ -1,5 +1,7 @@
 # Koma Local WASM Source Package Boundary
 
+> The documents here describe fixture packages and historical design experiments. Use the [production source ABI](../../../docs/source-runtime-abi.md) when authoring or installing a Koma source.
+
 This directory is a tooling-only fixture for the future Koma WASM source
 package shape. It is not product UI, a source repository, a marketplace, a
 remote installer, or a built-in source list.

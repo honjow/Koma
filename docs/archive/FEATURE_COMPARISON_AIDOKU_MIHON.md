@@ -2,7 +2,7 @@
 
 核对日期：2026-10-31。Koma 基线 b7e6a556；Mihon 稳定版 v0.21.3（feadad5e）；Aidoku 稳定版 v0.9-4（ceee58b2）。
 
-本页维护功能差异，不维护执行队列。进度、owner 和已采用决定统一见 [CURRENT_STATUS.md](CURRENT_STATUS.md)。用户已要求开始补齐差异，并采用首批更新、下载及备份的入口和默认值；实现与验收进度见原工作单的 FEATURE_PARITY_IMPLEMENTATION。
+> 2026-10-31 实施前的对照基线。下表的缺口与建议顺序仅用于追溯。实施结果见 [当前工作单](../CURRENT_STATUS.md) 中的 `FEATURE_PARITY_IMPLEMENTATION`。
 
 ## 核对结论
 

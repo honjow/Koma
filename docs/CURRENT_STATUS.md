@@ -4796,7 +4796,7 @@
       "closedAt": "2026-10-31T06:33:32+08:00",
       "evidencePoints": [
         "参考固定Mihon稳定v0.21.3/feadad5e、Aidoku v0.9-4/ceee58b及Koma HEAD b7e6a556；自动本地备份、通知、Wi-Fi下载及tracker已有实现，不列为缺失。",
-        "固定Koma b7e6a556、Mihon v0.21.3/feadad5e及Aidoku v0.9-4/ceee58b2源码与入口、持久化接线对照；报告 docs/FEATURE_COMPARISON_AIDOKU_MIHON.md，机器证据 .hvigor/outputs/feature-parity-audit-20261031/comparison.json。本轮无设备、构建或新测试；对照完成不代表18项功能已实现或获得开发批准。"
+        "固定Koma b7e6a556、Mihon v0.21.3/feadad5e及Aidoku v0.9-4/ceee58b2源码与入口、持久化接线对照；报告 docs/archive/FEATURE_COMPARISON_AIDOKU_MIHON.md，机器证据 .hvigor/outputs/feature-parity-audit-20261031/comparison.json。本轮无设备、构建或新测试；对照完成不代表18项功能已实现或获得开发批准。"
       ]
     },
     {
@@ -12452,7 +12452,7 @@
       "itemId": "FEATURE_PARITY_COMPARISON",
       "kind": "checkpoint",
       "evidence": [
-        "docs/FEATURE_COMPARISON_AIDOKU_MIHON.md",
+        "docs/archive/FEATURE_COMPARISON_AIDOKU_MIHON.md",
         ".hvigor/outputs/feature-parity-audit-20261031/comparison.json"
       ]
     },
@@ -12464,7 +12464,7 @@
       "itemId": "FEATURE_PARITY_IMPLEMENTATION",
       "kind": "checkpoint",
       "evidence": [
-        "docs/FEATURE_COMPARISON_AIDOKU_MIHON.md"
+        "docs/archive/FEATURE_COMPARISON_AIDOKU_MIHON.md"
       ]
     },
     {
