@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已正式发布，已核验下载附件。92漫画章节目录已纳入书源调查。
+当前结果：图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
 
 设备：103 保留验证包，已回到原漫画详情，接手时的亮屏及超时覆盖仍有效，已释租。197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "1.1.0 正式版已发布",
+  "state": "完整 1.1.0 已更新至原发布页",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-04T13:17:13+08:00",
+  "updatedAt": "2026-11-04T13:54:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "1.1.0 已正式发布。Bangumi 两条实机路径已验收，92漫画章节目录继续由书源执行者处理。",
-  "nextAction": "修复并验证 92漫画章节分组遗漏，继续核对站点拒绝、追踪及阅读器剩余问题。",
+  "activity": "1.1.0 的完整安装包和重写日志已更新。Bangumi 两条实机路径与 92漫画章节修复已验证。",
+  "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
   "proof": [
     {
       "label": "正式主仓",
@@ -85,11 +85,11 @@
       "kind": "accepted",
       "priority": "用户指定",
       "owner": "发布：release_110，Root 核对交付",
-      "status": "GitHub 最新正式版已发布并核验",
+      "status": "原 1.1.0 正式发布已按完整代码更新",
       "reportedAt": "2026-11-04T12:25:24+08:00",
       "reportedAtSource": "本会话用户直接要求正式发布。",
-      "result": "1.1.0 已通过上一版的 GitHub 标签流水线正式发布。已下载并核对未签名 HAP 与构建清单，公开版本、摘要、包完整性和发布正文均一致。",
-      "remaining": "已完成 GitHub 正式发布。追踪和详情的工作区改动由原事项继续独立验证。",
+      "result": "1.1.0 已通过上一版的 GitHub 标签流水线正式发布。已下载并核对未签名 HAP 与构建清单，公开版本、摘要、包完整性和发布正文均一致。 用户指出原正式包缺少已在工作区的追踪、详情和界面改动。已将产品实现、资源和专项验证提交 7e841b02，相关品牌和项目材料独立提交。误创建的 1.1.1 准备提交未推送，已撤销，版本名与版本号恢复并保持 1.1.0、7。 以完整产品提交 7e841b02 为基线重写 1.1.0 更新日志。精确提交 8af4dce4 的主分支和标签构建均通过。原发布页和 Release ID 保留，同名附件与正文已更新。匿名重下新 HAP 与清单，版本仍是 1.1.0、7，确认完整产品代码进入该次构建。",
+      "remaining": "同版本发布整改已完成，实机范围保留在各原事项。",
       "remainingActions": [],
       "boundaries": [
         "沿用 v1.0.0 的 GitHub Releases 渠道和未签名 HAP。",
@@ -100,26 +100,30 @@
         "修复后准备 CI 41774761825 与标签 CI 41776083614 同一提交且均 success；Release ID 433534326，latest stable。",
         "下载附件 Koma_1.1.0_ohos-release-unsigned.hap 与 build-manifest.json 已核，版本 1.1.0、code 7、arm64、非调试、未签名。",
         ".hvigor/outputs/release-1.1.0/verification.json",
-        "https://github.com/honjow/Koma/releases/tag/v1.1.0"
+        "https://github.com/honjow/Koma/releases/tag/v1.1.0",
+        "用户明确要求重新发布现有 1.1.0，未授权版本递增。业务提交 7e841b02b1448fa0c0ef30d6c6b5110c8e7fe248 已完成。",
+        "重做准备 CI 41779274208、标签 CI 41780772547 均 success，精确提交 8af4dce40f1b05ee350c9ddbef0667f679808e7d。",
+        "原 Release ID 433534326 保留，v1.1.0 指向整改提交，正文与 changelog/v1.1.0.md 一致。",
+        "匿名下载的未签名 Release HAP SHA256 86b373389989278f9d7732ecc61f6c2ebddbb6791cf6982bb0c1e911479ef39c；与初发附件不同，版本名/号相同。",
+        ".hvigor/outputs/release-1.1.0/correction/verification.json"
       ],
-      "stage": "正式发布及匿名下载核验完成",
-      "closedAt": "2026-11-04T13:07:22+08:00",
+      "stage": "同版本替换及公开下载核验完成",
+      "closedAt": "2026-11-04T13:54:47+08:00",
       "registeredAt": "2026-11-04T13:07:22+08:00"
     },
     {
       "id": "SOURCE_92_CHAPTER_LIST_MISSING",
       "title": "92漫画网页有章节，App 获取不到",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
-      "status": "92漫画 0.1.7 已公开，237 正在复验",
+      "kind": "external",
+      "status": "0.1.7 章节修复已实机验收，双端拒绝样本待站点响应",
       "owner": "书源：source_92，Root 维护工作单",
       "reportedAt": "2026-11-04T13:02:03+08:00",
       "reportedAtSource": "本会话用户直接反馈。",
-      "result": "用户报告多部作品网页能显示章节列表，App 获取不到。本项归书源，先用可重现的实际作品核对页面、已发布 WASM 及宿主普通入口，原因待证。 书源执行者用公开 0.1.6 WASM 对照 12 本。具名 HTTP 200 样本中，《他的女友》网页 67 连载加 1 番外，WASM 仅 67；《脑洞学生会》网页 197 连载加 22 番外和 1 单行本，WASM 仅 197；单组《掠食者之侣》8/8。另有 9 本在该次请求收到 HTTP 403 与同址自跳脚本，单独调查，现有证据不将两类归为同一原因。 0.1.7 候选在实站把《他的女友》67→68、《脑洞学生会》197→220，旧条目和详情字段一致；单组样本 8/8。7695 桌面收到 403 自跳响应、官方移动详情返回 17 章，沿原桌面章节路径取到 11 页；73 新补单行本章取到 24 页。199 双端 403 仍报错，226 后续桌面 200 返回 230 章。 新提交固定回放证据下，112、73 的原主组 ID、字段与顺序逐条一致，7638 全组一致。官方移动详情另补通 2174（91 章）、7692（48 章）。370、95、91、7667 仍双端拒绝，等待可用响应继续核对。 精确源发布 CI 通过。下载实际公开 0.1.7 源包后，核对索引、摘要并重复 Koma 原生 HTML 桥回放，具名分组与正文对照通过。237 当前 App 1.0.0 code6、旧源 0.1.5，实机验证沿普通源更新路径。",
-      "remaining": "237 普通入口更新、章节及正文回验进行中。双端拒绝样本单独保留。",
+      "result": "用户报告多部作品网页能显示章节列表，App 获取不到。本项归书源，先用可重现的实际作品核对页面、已发布 WASM 及宿主普通入口，原因待证。 书源执行者用公开 0.1.6 WASM 对照 12 本。具名 HTTP 200 样本中，《他的女友》网页 67 连载加 1 番外，WASM 仅 67；《脑洞学生会》网页 197 连载加 22 番外和 1 单行本，WASM 仅 197；单组《掠食者之侣》8/8。另有 9 本在该次请求收到 HTTP 403 与同址自跳脚本，单独调查，现有证据不将两类归为同一原因。 0.1.7 候选在实站把《他的女友》67→68、《脑洞学生会》197→220，旧条目和详情字段一致；单组样本 8/8。7695 桌面收到 403 自跳响应、官方移动详情返回 17 章，沿原桌面章节路径取到 11 页；73 新补单行本章取到 24 页。199 双端 403 仍报错，226 后续桌面 200 返回 230 章。 新提交固定回放证据下，112、73 的原主组 ID、字段与顺序逐条一致，7638 全组一致。官方移动详情另补通 2174（91 章）、7692（48 章）。370、95、91、7667 仍双端拒绝，等待可用响应继续核对。 精确源发布 CI 通过。下载实际公开 0.1.7 源包后，核对索引、摘要并重复 Koma 原生 HTML 桥回放，具名分组与正文对照通过。237 当前 App 1.0.0 code6、旧源 0.1.5，实机验证沿普通源更新路径。 237 从 Koma 原生书源管理本地导入公开 0.1.7，设备导出的 WASM、图标与公开包逐字节一致。沿源内搜索打开《脑洞学生会》，详情实际显示 220 章。 237 同一实际公开包再从源内搜索打开《作为连环杀人魔的妻子活下来》，详情与章节列表均显示 17/17，第一本确认 220/220、源目录正序。已逐字节回装原 0.1.5 源 WASM 和图标，删除临时文件并读回原休眠及超时，已释租。真机范围为 App 1.0.0 code6 的章节目录，正文为公开 WASM 实站回放范围。",
+      "remaining": "《间谍过家家》等具名样本在生产源实站回放中两端均拒绝。恢复条件是其中一个官方详情入口有可用响应，或取得用户遇到的新可复现作品。",
       "remainingActions": [
-        "保留现有章节顺序、身份与已验分类。对多组及只含后续分组的作品实测。",
-        "在 237 走普通书源路径，对齐 HTTP 403 样本的站点响应和网页表现。"
+        "等待双端拒绝样本至少一个官方详情入口返回可用目录，或收到新的具名反例再核对。"
       ],
       "closedAt": null,
       "registeredAt": "2026-11-04T13:03:07+08:00",
@@ -128,7 +132,11 @@
         "源仓 0e114ede5d0b46edc3620f5cf1ea604625bedfad，发布 CI 41777869726。",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/native-html-replay.json",
         "https://github.com/honjow/koma-sources/releases/tag/sources-0e114ede5d0b46edc3620f5cf1ea604625bedfad",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/public-0.1.7-native-html-replay.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/public-0.1.7-native-html-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/chapter92-app-window-1104-16-read-detail",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/chapter92-app-window-1104-22-read-detail",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/chapter92-app-window-1104-result.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/public-0.1.7-live-network.jsonl"
       ]
     },
     {
@@ -16436,6 +16444,38 @@
       "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
       "title": "92漫画 0.1.7 已公开并核对实际源包",
       "detail": "精确源发布成功，下载公开源包核对摘要、索引和实站回放。237 正接续原生路径验证。",
+      "kind": "verified"
+    },
+    {
+      "id": "release-110-correction-source-parity-20261104",
+      "at": "2026-11-04T13:25:58+08:00",
+      "itemId": "RELEASE_1_1_0",
+      "title": "重做 1.1.0 发布范围",
+      "detail": "原包漏掉工作区产品改动。完整产品代码已分组提交，撤销本地版本递增准备，继续以原版本字段重写日志、构建和替换发布。",
+      "kind": "work"
+    },
+    {
+      "id": "source-92-native-220-chapters-20261104",
+      "at": "2026-11-04T13:29:42+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "237 实机显示《脑洞学生会》220 章",
+      "detail": "实际设备源包与公开包一致。普通源内搜索进入详情，章节显示 220。其它样本及设备恢复仍在验证。",
+      "kind": "verified"
+    },
+    {
+      "id": "source-92-native-both-verified-20261104",
+      "at": "2026-11-04T13:31:24+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "237 验收 92漫画分组修复与移动详情样本",
+      "detail": "两本实机分别显示 220/220 和 17/17，源包与正式包一致。旧源及电源恢复并释租。剩余具名双端拒绝样本待有效站点响应。",
+      "kind": "verified"
+    },
+    {
+      "id": "release-110-correction-published-20261104",
+      "at": "2026-11-04T13:54:47+08:00",
+      "itemId": "RELEASE_1_1_0",
+      "title": "原 1.1.0 发布已换成完整版本",
+      "detail": "完整代码和重写日志进入同一标签流水线，原 Release 保持，公开下载的新附件及正文已独立核对。版本仍为 1.1.0、7。",
       "kind": "verified"
     }
   ],
