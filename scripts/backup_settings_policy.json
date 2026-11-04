@@ -1,0 +1,208 @@
+{
+  "applicationSettings": {
+    "i18n/LanguageSettings.ets": [
+      "koma_app_preferences_v1"
+    ],
+    "model/AppearancePreferencesStore.ets": [
+      "koma_appearance_preferences_v1"
+    ],
+    "model/BackupService.ets": [
+      "koma_backup_automatic_v1",
+      "koma_backup_content_v1"
+    ],
+    "model/ChapterListPreferencesStore.ets": [
+      "koma_chapter_list_preferences_v1"
+    ],
+    "model/LibraryAutomationPreferencesStore.ets": [
+      "koma_library_automation_v1"
+    ],
+    "model/LibraryFilterStore.ets": [
+      "koma_library_filter_preferences"
+    ],
+    "model/LibraryUpdatePreferencesStore.ets": [
+      "koma_library_update_preferences_v1"
+    ],
+    "model/ReaderPageSourceAdapter.ets": [
+      "koma_reader_remote_image_cache_v1"
+    ],
+    "model/ReaderPreferencesStore.ets": [
+      "koma_reader_preferences_v1"
+    ],
+    "state/SourceCatalogFilterState.ets": [
+      "koma_source_catalog_filters_v1"
+    ]
+  },
+  "separateBackupFields": {
+    "model/ReaderPreferencesStore.ets": [
+      "reader.pageMode",
+      "reader.readingDirection",
+      "reader.themeMode",
+      "reader.backgroundMode",
+      "reader.showProgressControls",
+      "reader.keepScreenAwake",
+      "reader.fullscreen",
+      "reader.imageFitMode",
+      "reader.imageScalingQuality",
+      "reader.showPageNumber",
+      "reader.pageTurnAnimation",
+      "reader.doubleTapZoomEnabled",
+      "reader.doubleTapIntervalMs",
+      "reader.autoPageSeconds",
+      "reader.preloadPages",
+      "reader.preloadWifiOnly",
+      "reader.displaySettings",
+      "reader.spreadLayoutMode",
+      "reader.columnMode",
+      "reader.tapZonePreset",
+      "reader.tapZoneInvert",
+      "reader.pageGapMode",
+      "reader.bannerFilter",
+      "reader.trimPageMarginsEnabled",
+      "reader.cropStrength",
+      "reader.superResolutionEnabled",
+      "reader.superResolutionModel",
+      "reader.superResolutionBackend",
+      "reader.superResolutionMaxHeight",
+      "reader.readerImplementation",
+      "reader.wideImageMode",
+      "reader.volumeKeyNavigationEnabled",
+      "reader.volumeKeyBehavior",
+      "reader.bannerFilterOverrides.v1"
+    ],
+    "model/RemoteServerStore.ets": [
+      "server.endpoint-identities",
+      "komga.server",
+      "kavita.server",
+      "webdav.server",
+      "opds.server"
+    ],
+    "sourceRuntime/SourceIndexService.ets": [
+      "source_index.url"
+    ],
+    "model/TrackerModels.ets": [
+      "tracker.comicMappings",
+      "tracker.autoSyncEnabled",
+      "tracker.updateStrategy"
+    ],
+    "model/BackupService.ets": [
+      "server.endpoint-identities",
+      "komga.server",
+      "kavita.server",
+      "webdav.server",
+      "opds.server",
+      "source_index.url",
+      "tracker.comicMappings",
+      "tracker.autoSyncEnabled",
+      "tracker.updateStrategy"
+    ]
+  },
+  "deviceOnly": {
+    "diagnostics/DiagnosticsSettings.ets": [
+      "enabled",
+      "minLevel"
+    ],
+    "model/AppReleaseService.ets": [
+      "releases"
+    ],
+    "model/LibraryUpdatePreferencesStore.ets": [
+      "libraryUpdate.lastCheckedAt",
+      "libraryUpdate.lastSummaryText",
+      "libraryUpdate.lastSummaryTotalCount",
+      "libraryUpdate.lastSummaryNewChapterCount",
+      "libraryUpdate.lastSummaryUpdatedCount",
+      "libraryUpdate.lastSummarySkippedCount",
+      "libraryUpdate.lastSummaryFailedCount",
+      "libraryUpdate.failureCount",
+      "libraryUpdate.lastFailureCode"
+    ],
+    "model/LibraryUpdateResultStore.ets": [
+      "libraryUpdate.latestResultJson",
+      "libraryUpdate.chapterUpdatesJson",
+      "libraryUpdate.latestJobJson"
+    ],
+    "model/SearchHistoryStore.ets": [
+      "search.history.queries"
+    ],
+    "model/TrackerPendingSyncStore.ets": [
+      "tracker.pendingProgressQueue"
+    ],
+    "readerTranslation/services/ToriiCreditsService.ets": [
+      "credits"
+    ],
+    "model/BackupService.ets": [
+      "backup.automatic.lastRunAt",
+      "backup.automatic.lastFailureCode",
+      "backup.automatic.directoryOwnedModes",
+      "backup.automatic.directoryUri"
+    ],
+    "sourceRuntime/SourceIndexService.ets": [
+      "source_index.metadata_cache.v1"
+    ]
+  },
+  "credentials": {
+    "model/TrackerModels.ets": [
+      "tracker.accounts",
+      "tracker.providerOAuthConfigs",
+      "tracker.retiredCredentials"
+    ],
+    "model/BackupService.ets": [
+      "komga.credential",
+      "kavita.credential",
+      "webdav.credential",
+      "opds.credential"
+    ],
+    "model/RemoteServerStore.ets": [
+      "komga.credential",
+      "kavita.credential",
+      "webdav.credential",
+      "opds.credential"
+    ]
+  },
+  "pending": {
+    "model/MangaMigrationPreferencesStore.ets": [
+      "migration.selectedSources",
+      "migration.matchOptions"
+    ],
+    "sourceRuntime/SourceIndexService.ets": [
+      "source_index.repositories.v1"
+    ],
+    "model/SearchHistoryStore.ets": [
+      "search.source.filter",
+      "search.results.only"
+    ]
+  },
+  "dynamic": {
+    "model/ReaderPreferencesStore.ets": [
+      "persistPreferences: key"
+    ],
+    "model/RemoteServerStore.ets": [
+      "commitStoredState: key",
+      "commitStoredState: change.key",
+      "commitStoredState: value.key"
+    ],
+    "readerTranslation/services/ComicTranslationCodexUsageService.ets": [
+      "cachedSource: sourceProfileId",
+      "saveCachedSource: sourceProfileId",
+      "clearCachedSource: sourceProfileId"
+    ],
+    "model/LibraryUpdatePreferencesStore.ets": [
+      "save: key"
+    ],
+    "model/ApplicationSettingsBackup.ets": [
+      "importApplicationSettings: key"
+    ],
+    "model/BackupRestoreCheckpoint.ets": [
+      "rollback: keys[keyIndex]"
+    ],
+    "model/TrackerModels.ets": [
+      "commit: key"
+    ],
+    "model/BackupService.ets": [
+      "writeBackupPreferenceValues: key"
+    ],
+    "model/LibraryFilterStore.ets": [
+      "update: write.key",
+      "update: saved.key"
+    ]
+  }
+}

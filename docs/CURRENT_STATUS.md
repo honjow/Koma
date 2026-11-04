@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T03:16:17+08:00",
+  "updatedAt": "2026-11-05T03:31:33+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "197 已录屏核对备份页重进直接显示现有记录与开关状态，并验证创建、重命名和删除后的列表更新。197 已对照验证迁移选源。92 漫画正文仍有站点拒绝样本。",
+  "activity": "备份设置门禁已接入构建流程，现有设置覆盖缺口单独保留。历史同步首版采用 WebDAV 清单和分片，当前为设计阶段。197 已验证备份重进及记录更新。",
   "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
   "proof": [
     {
@@ -79,6 +79,48 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "BACKUP_SETTINGS_COVERAGE_GATE",
+      "title": "备份设置分类与往返门禁",
+      "kind": "accepted",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "status": "门禁已接入 CI，正向和反向样本已本地核对",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户明确要求先完成门禁。",
+      "result": "检查 ArkData Preferences 所有者和键分类，运行生产备份导出和恢复入口的宿主测试，验证通用偏好、独立备份字段、凭据排除与旧文件整组缺失。实际注入未归类键和移除通用设置恢复调用均被拦截。已知缺口单独列入关联项。",
+      "remaining": "",
+      "relatedItems": ["BACKUP_SETTINGS_COVERAGE_GAPS"],
+      "evidence": ["scripts/check_backup_settings.cjs", "scripts/backup_settings_policy.json", ".github/workflows/build.yml"]
+    },
+    {
+      "id": "BACKUP_SETTINGS_COVERAGE_GAPS",
+      "title": "补齐已知备份设置遗漏与旧文件兼容",
+      "kind": "open",
+      "priority": "用户核对备份设置",
+      "owner": "Root",
+      "status": "已查明，门禁先落地",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户询问备份覆盖，源码审计确认。",
+      "result": "迁移选源顺序和匹配选项、完整书源订阅、搜索来源范围和仅显示有结果偏好当前未导出。旧文件若包含某组但缺少组内字段，导入会删除本机该字段。",
+      "remaining": "分别补齐可迁移设置并补版本兼容往返测试，区分旧文件缺字段与明确重置。",
+      "relatedItems": ["BACKUP_SETTINGS_COVERAGE_GATE"]
+    },
+    {
+      "id": "READING_HISTORY_SYNC",
+      "title": "阅读历史多端同步",
+      "kind": "open",
+      "priority": "用户提出方案",
+      "owner": "Root",
+      "status": "设计阶段，首版采用 WebDAV 清单和分片",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
+      "result": "首版从 manifest 与分片开始。使用稳定作品身份分桶，分片先写入并校验，清单使用条件写入作为提交点；删除标记和逐字段合并沿同一同步数据合同。传输与本机合并分开，预留后续华为云或自建服务。",
+      "remaining": "细化分片键、清单格式、冲突与删除测试后再实施。"
+    },
     {
       "id": "BACKUP_MANAGEMENT_REENTRY_LOADING",
       "title": "重进备份与恢复时先显示加载中",
@@ -16962,6 +17004,14 @@
       "title": "197 录屏核对重进首屏与记录更新",
       "detail": "两次滑入时已显示现有记录和正确的自动备份状态。临时记录创建、改名和删除后列表正确更新，清理后原有记录及设置读回。",
       "kind": "verified"
+    },
+    {
+      "id": "backup-settings-gate-local",
+      "at": "2026-11-05T03:31:33+08:00",
+      "itemId": "BACKUP_SETTINGS_COVERAGE_GATE",
+      "title": "备份设置门禁接入构建",
+      "detail": "本地正向往返通过，实际注入未归类键和跳过恢复均失败。历史同步分片决定记录在对应设计项。",
+      "kind": "checkpoint"
     }
   ],
   "reportAgeAudit": {
