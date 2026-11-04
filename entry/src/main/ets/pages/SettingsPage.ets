@@ -303,7 +303,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'tracker-auto-sync', titleKey: 'settings_row_tracker_auto_sync_title', detailKey: 'settings_row_tracker_auto_sync_detail' },
         { key: 'tracker-update-strategy', titleKey: 'settings_row_tracker_update_strategy_title', detailKey: 'settings_row_tracker_update_strategy_detail' },
         { key: 'backup-create', titleKey: 'backup_task_create', detailKey: 'backup_task_create_hint' },
-        { key: 'backup-restore', titleKey: 'backup_task_restore', detailKey: 'backup_task_restore_hint' },
+        { key: 'backup-restore', titleKey: 'backup_restore_from_file', detailKey: 'backup_task_restore_hint' },
         { key: 'backup-files', titleKey: 'backup_task_files', detailKey: '' },
         { key: 'backup-automatic', titleKey: 'backup_auto_heading', detailKey: 'backup_auto_description' },
         { key: 'backup-content', titleKey: 'backup_included_data', detailKey: 'backup_fixed_content_description' },
@@ -476,7 +476,6 @@ export struct SettingsPage {
   @Event onOpenLibraryUpdateResults: () => void = () => {}
   @Event onOpenLibraryCategories: () => void = () => {}
   @Event onOpenDownloads: () => void = () => {}
-  @Event onOpenBackupTask: (task: string) => void = (_task: string) => {}
   @Event onOpenImportRequested: () => void = () => {}
   @Event onRefreshLocalFolders: () => Promise<LocalLibraryFolderRescanActionResult | undefined> =
     async () => undefined
@@ -2469,11 +2468,7 @@ export struct SettingsPage {
       return
     }
     if (result.pane === 'backup') {
-      if (['backup-create', 'backup-restore', 'backup-files'].includes(result.row.key)) {
-        this.onOpenBackupTask(result.row.key.slice('backup-'.length))
-      } else {
-        this.onOpenSettingsPane('backup', result.row.key)
-      }
+      this.onOpenSettingsPane('backup', result.row.key)
       return
     }
     const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',

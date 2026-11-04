@@ -410,12 +410,9 @@ function backupFileSizeText(sizeBytes: number): string {
   return `${size} B`
 }
 
-export function backupLocalFileDetailText(record: BackupLocalFileRecord): string {
-  return AppStrings.format(
-    'backup_local_file_detail',
-    record.preview.exportedAtText,
-    backupFileSizeText(record.sizeBytes),
-  )
+export function backupLocalFileDetailText(record: BackupLocalFileRecord, dateText: string = record.preview.exportedAtText): string {
+  const size = backupFileSizeText(record.sizeBytes)
+  return dateText.length > 0 ? AppStrings.format('backup_local_file_detail', dateText, size) : size
 }
 
 export function backupAutomaticIntervalLabel(intervalHours: number): string {
@@ -1406,17 +1403,37 @@ export class BackupService {
 
   async exportToPicker(content?: BackupContentPreferences): Promise<string | undefined> {
     const payload = await this.export(content)
+    return this.saveBackupToPicker(payload, `koma-backup-${Date.now()}.json`, false)
+  }
+
+  async exportLocalCopyToPicker(fileName: string, passphrase?: string): Promise<string | undefined> {
+    const safeName = this.requireLocalBackupFileName(fileName)
+    const selection = await this.selectLocalBackup(safeName)
+    const baseName = safeName.slice(0, -backupFileExtension(safeName).length)
+    if (passphrase === undefined) {
+      const encrypted = selection.preview.encrypted
+      return this.saveBackupToPicker(selection.payload, baseName + (encrypted ? '.koma-backup' : '.json'), encrypted)
+    }
+    if (selection.preview.encrypted) throw new Error('backup_already_encrypted')
+    // Protect the selected snapshot itself, preserving its original schema and data.
+    // Decryption accepts the existing plaintext schemas as well as the encrypted schema.
+    const payload = await new BackupEncryptionService().encrypt(selection.payload, passphrase)
+    return this.saveBackupToPicker(payload, baseName + '.koma-backup', true)
+  }
+
+  private async saveBackupToPicker(payload: string, fileName: string, encrypted: boolean): Promise<string | undefined> {
     const options = new picker.DocumentSaveOptions()
-    options.newFileNames = [`koma-backup-${Date.now()}.json`]
-    options.fileSuffixChoices = [AppStrings.get('backup_file_choice_json')]
+    options.newFileNames = [fileName]
+    options.fileSuffixChoices = [AppStrings.get(encrypted ? 'backup_file_choice_encrypted' : 'backup_file_choice_json')]
     const documentPicker = new picker.DocumentViewPicker(this.context)
     const result = await documentPicker.save(options)
+    const step = encrypted ? 'export_encrypted' : 'export'
     if (result.length === 0) {
-      DiagnosticLogger.info('backup', 'export_cancel', '[Backup] step=export_cancel')
+      DiagnosticLogger.info('backup', step + '_cancel', '[Backup] step=' + step + '_cancel')
       return undefined
     }
     writePickedBackupText(result[0], payload)
-    DiagnosticLogger.info('backup', 'export_save', '[Backup] step=export_save')
+    DiagnosticLogger.info('backup', step + '_save', '[Backup] step=' + step + '_save')
     return result[0]
   }
 
@@ -1476,18 +1493,7 @@ export class BackupService {
 
   async exportEncryptedToPicker(passphrase: string, content?: BackupContentPreferences): Promise<string | undefined> {
     const payload = await this.exportEncrypted(passphrase, content)
-    const options = new picker.DocumentSaveOptions()
-    options.newFileNames = [`koma-backup-${Date.now()}.koma-backup`]
-    options.fileSuffixChoices = [AppStrings.get('backup_file_choice_encrypted')]
-    const documentPicker = new picker.DocumentViewPicker(this.context)
-    const result = await documentPicker.save(options)
-    if (result.length === 0) {
-      DiagnosticLogger.info('backup', 'export_encrypted_cancel', '[Backup] step=export_encrypted_cancel')
-      return undefined
-    }
-    writePickedBackupText(result[0], payload)
-    DiagnosticLogger.info('backup', 'export_encrypted_save', '[Backup] step=export_encrypted_save')
-    return result[0]
+    return this.saveBackupToPicker(payload, `koma-backup-${Date.now()}.koma-backup`, true)
   }
 
   async importFromPicker(): Promise<boolean> {

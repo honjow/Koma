@@ -3,8 +3,8 @@ const { readFileSync } = require('node:fs')
 const { resolve } = require('node:path')
 const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
-const root = resolve(__dirname, '../entry/src/main/ets')
-const read = path => readFileSync(resolve(root, path), 'utf8')
+const read = path => readFileSync(resolve(__dirname, '../entry/src/main/ets', path), 'utf8')
+
 function evaluate(source, globals) {
   const js = ts.transpileModule(source, { compilerOptions: {
     target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
@@ -13,152 +13,124 @@ function evaluate(source, globals) {
   new Function('exports', ...Object.keys(globals), js)(exports, ...Object.values(globals))
   return exports
 }
+
 const source = read('pages/BackupManagementPage.ets')
-const appear = source.slice(source.lastIndexOf('  aboutToAppear(): void {'), source.lastIndexOf('\n}'))
-const plain = (source.slice(0, source.indexOf('  @Builder')) + appear + '\n}')
-  .replace(/import[\s\S]*?from '[^']+'\n/g, '').replace('@ComponentV2', '')
+const pageLogic = (source.slice(0, source.indexOf('  @Builder')) + '\n}')
+  .replace(/^import[\s\S]*?from '[^']+'\n/gm, '').replace('@ComponentV2', '')
   .replace(/@(Local|Param|Event) /g, '').replace(/@Monitor\('[^']+'\)/g, '')
   .replace('export struct', 'export class')
-const { FormTitleActionState } = evaluate(read('state/FormTitleActionState.ets')
-  .replace(/^import .*$/gm, '').replace('@ObservedV2', '').replace(/@Trace /g, ''), {})
-const globals = {
-  FormTitleActionState, Scroller: class {}, connectLayoutSafeArea: () => ({}),
-  DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: {}, DEFAULT_BACKUP_CONTENT_PREFERENCES: {},
-  AppStrings: { get: key => key, format: key => key }, connectLanguageState: () => ({}),
-  console: { info() {}, warn() {}, error() {} },
-  backupEncryptedExportSuccess: () => 'encrypted success', backupUnencryptedExportWarning: () => 'plaintext warning',
-}
-const { BackupManagementPage } = evaluate(plain, globals)
+const { BackupManagementPage } = evaluate(pageLogic, {
+  Scroller: class {}, connectLayoutSafeArea: () => ({}),
+  DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: { enabled: false },
+  DEFAULT_BACKUP_CONTENT_PREFERENCES: {}, AppStrings: { get: key => key, format: key => key },
+  connectLanguageState: () => ({}),
+  DiagnosticLogger: { error() {}, warn() {} },
+  synchronizeBackgroundMaintenance: async () => {},
+  console: { info() {} },
+})
 const drain = async () => { for (let i = 0; i < 30; i++) await Promise.resolve() }
+
 function fixture() {
   const calls = [], page = new BackupManagementPage()
   const service = {
-    listLocalBackups: async () => { calls.push('files'); return [] },
-    loadAutomaticPreferences: async () => { calls.push('automatic'); return {} },
-    loadContentPreferences: async () => { calls.push('content'); return {} },
+    listLocalBackups: async () => [],
+    loadAutomaticPreferences: async () => ({ enabled: true }),
+    saveAutomaticPreferences: async patch => { calls.push(patch); return patch },
+    loadContentPreferences: async () => ({}),
+    exportLocal: async () => { calls.push('local') },
+    exportEncryptedLocal: async passphrase => { calls.push(['encrypted local', passphrase]) },
+    exportLocalCopyToPicker: async (fileName, passphrase) => { calls.push([fileName, passphrase]); return undefined },
     selectImportPreviewFromPicker: async () => undefined,
-    selectLocalBackup: async fileName => { calls.push(fileName); return {
-      payload: 'encrypted fixture', preview: { encrypted: true, decrypted: false },
-    } },
+    selectLocalBackup: async fileName => {
+      calls.push(fileName)
+      return { payload: 'encrypted fixture', preview: { encrypted: true, decrypted: false } }
+    },
     decryptPreview: async () => ({ payload: 'decrypted fixture', preview: { encrypted: true, decrypted: true } }),
-    import: async payload => { calls.push(['plain', payload]) },
-    importDecrypted: async payload => { calls.push(['decrypted', payload]) },
-    exportEncryptedToPicker: async () => { calls.push('encrypted picker'); return undefined },
+    importDecrypted: async payload => { calls.push(['restore decrypted', payload]) },
   }
+  page.context = () => ({})
   page.backupService = () => service
-  page.showToast = () => {}
+  page.showToast = message => calls.push(message)
   page.showInfoDialog = title => calls.push(title)
   return { page, service, calls }
 }
+
 async function run() {
-  const dispatch = fixture().page, selected = []
-  assert.equal(dispatch.createLocal, false); assert.equal(dispatch.createEncrypted, true)
-  for (const method of ['confirmExportBackup', 'exportEncryptedBackup', 'confirmExportLocalBackup', 'exportEncryptedLocalBackup']) {
-    dispatch[method] = () => selected.push(method)
-  }
-  for (const [local, encrypted] of [[false, false], [false, true], [true, false], [true, true]]) {
-    dispatch.createLocal = local; dispatch.createEncrypted = encrypted; dispatch.createBackup()
-  }
-  assert.deepEqual(selected, ['confirmExportBackup', 'exportEncryptedBackup', 'confirmExportLocalBackup', 'exportEncryptedLocalBackup'])
-  dispatch.busy = true; dispatch.createBackup(); assert.equal(selected.length, 4)
-
-  const draft = fixture()
-  draft.page.pane = 'create'
-  draft.service.saveContentPreferences = async () => { throw Error('creation must not change defaults') }
-  draft.page.setBackupIncludeDownloadQueue(true)
-  draft.page.onRefreshRevision()
+  const { page, service, calls } = fixture()
+  // The reported regression was the native switch sending the hydrated value
+  // on mount. A real edit should persist once, even before the first write settles.
+  assert.equal(page.automaticPreferencesState, 'loading')
+  page.setAutomaticBackupEnabled(true)
+  page.onRefreshRevision(); await drain()
+  assert.equal(page.autoPreferences.enabled, true)
+  page.setAutomaticBackupEnabled(true)
+  assert.deepEqual(calls, [])
+  page.setAutomaticBackupEnabled(false)
+  page.setAutomaticBackupEnabled(false)
   await drain()
-  assert.equal(draft.page.createContentOverride().includeDownloadQueue, true)
-  draft.service.exportEncryptedToPicker = async (_passphrase, content) => {
-    draft.calls.push(content.includeDownloadQueue)
-    return undefined
-  }
-  draft.page.exportPassphrase = 'draft passphrase'
-  draft.page.exportPassphraseConfirm = 'draft passphrase'
-  draft.page.exportEncryptedBackup()
+  assert.deepEqual(calls.splice(0), [{ enabled: false }, 'backup_auto_saved_toast'])
+
+  page.createLocalBackup()
+  page.createLocalBackup()
   await drain()
-  assert.deepEqual(draft.calls, ['content', true])
+  assert.deepEqual(calls.splice(0), ['local', 'backup_local_saved_toast'])
 
-  const f = fixture(), p = f.page
-  p.pane = 'create'; p.exportPassphrase = 'draft'; p.exportPassphraseConfirm = 'draft'
-  p.onRefreshRevision(); await drain()
-  assert.deepEqual(f.calls, ['content']); assert.equal(p.exportPassphrase, 'draft')
-  f.calls.length = 0; p.exportEncryptedBackup(); await drain()
-  assert.deepEqual(f.calls, ['backup_dialog_export_blocked_title'], 'original passphrase validation prevents export')
-  f.calls.length = 0
-  for (const pane of ['home', 'files']) { p.pane = pane; p.onRefreshRevision(); await drain() }
-  assert.deepEqual(f.calls, ['files', 'automatic', 'content', 'files', 'automatic'])
-  f.calls.length = 0; p.pane = 'restore'; p.localFileName = 'fixture.koma-backup'
-  p.aboutToAppear(); await drain(); p.aboutToAppear(); p.onRefreshRevision(); await drain()
-  assert.deepEqual(f.calls, ['fixture.koma-backup'], 'local file read only once, not on returning')
-  assert.equal(p.selectedEncryptedBackupPayload, 'encrypted fixture')
-  p.importPassphrase = 'passphrase'; p.decryptSelectedBackup(); await drain()
-  assert.equal(p.selectedBackupPreview.encrypted, true); assert.equal(p.selectedBackupPreview.decrypted, true)
-  p.onRefreshRevision(); await drain()
-  assert.equal(p.selectedBackupPayload, 'decrypted fixture')
-  p.runRestoreSelectedBackup(); await drain()
-  assert.deepEqual(f.calls[1], ['decrypted', 'decrypted fixture'])
-  assert.equal(p.selectedBackupPayload, ''); assert.equal(p.selectedBackupPreview, undefined)
-  p.selectedBackupPayload = 'plain fixture'; p.selectedBackupPreview = { encrypted: false, decrypted: false }
-  p.runRestoreSelectedBackup(); await drain()
-  assert.ok(f.calls.some(call => Array.isArray(call) && call[0] === 'plain'))
-  p.selectedBackupPayload = 'old'; p.selectedEncryptedBackupPayload = 'old encrypted'; p.importPassphrase = 'old'
-  p.importBackup(); await drain()
-  assert.equal(p.selectedBackupPayload, ''); assert.equal(p.selectedEncryptedBackupPayload, '')
-  assert.equal(p.selectedBackupPreview, undefined); assert.equal(p.importPassphrase, '')
+  page.openEncryptionPrompt()
+  page.exportPassphrase = 'secure test value'
+  page.exportPassphraseConfirm = 'different value'
+  page.submitEncryptedBackup()
+  assert.deepEqual(calls.splice(0), ['backup_dialog_export_blocked_title'])
+  page.exportPassphraseConfirm = page.exportPassphrase
+  page.submitEncryptedBackup(); await drain()
+  assert.deepEqual(calls.splice(0), [['encrypted local', 'secure test value'], 'backup_local_saved_toast'])
+  assert.equal(page.backupModalShown, false)
 
-  const index = read('pages/Index.ets'), constants = read('common/Constants.ets')
-  const methods = index.slice(index.indexOf('  private openBackupTask('), index.indexOf('  private trackerProviderTitle('))
-  const routeName = constants.match(/BACKUP_TASK: string = '([^']+)'/)[1]
-  const { RouteFixture } = evaluate(`export class RouteFixture { ${methods} }`, {
-    ...globals, RouteName: { BACKUP_TASK: routeName },
+  page.openEncryptionPrompt('chosen.json')
+  page.exportPassphrase = 'secure test value'
+  page.exportPassphraseConfirm = page.exportPassphrase
+  page.submitEncryptedBackup(); await drain()
+  assert.deepEqual(calls.splice(0), [['chosen.json', 'secure test value']])
+  assert.equal(page.backupModalShown, true, 'canceling the save picker leaves the prompt available')
+  page.clearEncryptionPrompt()
+  assert.equal(page.exportPassphrase, '')
+
+  page.backupModalShown = false
+  page.importBackup(); await drain()
+  assert.equal(page.backupModalShown, false, 'canceling the picker never opens a blank restore view')
+  page.selectLocalBackup({ fileName: 'local.koma-backup', displayName: 'Local', preview: { exportedAt: 1 } }); await drain()
+  assert.equal(page.backupModal, 'restore')
+  assert.equal(page.selectedBackupName, 'Local')
+  assert.equal(page.selectedBackupPayload, '', 'encrypted data cannot be restored before decryption')
+  page.importPassphrase = 'secure test value'
+  page.decryptSelectedBackup(); await drain()
+  assert.equal(page.selectedBackupPreview.decrypted, true)
+  assert.deepEqual(calls.splice(0), ['local.koma-backup'])
+  page.runRestoreSelectedBackup(); await drain()
+  assert.deepEqual(calls.splice(0), [['restore decrypted', 'decrypted fixture'], 'backup_dialog_imported_title'])
+  assert.equal(page.backupModalShown, false)
+  assert.equal(page.selectedBackupPayload, '')
+
+  const saved = []
+  const backupSource = read('model/BackupService.ets')
+  const copy = backupSource.slice(backupSource.indexOf('  async exportLocalCopyToPicker('),
+    backupSource.indexOf('  private async saveBackupToPicker('))
+  const { CopyService } = evaluate('export class CopyService { ' + copy + ' }', {
+    backupFileExtension: name => name.endsWith('.json') ? '.json' : '.koma-backup',
+    BackupEncryptionService: class { async encrypt(payload, password) { return [payload, password] } },
   })
-  const route = new RouteFixture(), routes = []
-  route.appPathStack = { pushPath: value => routes.push(value) }
-  route.openBackupTask('restore', 'renamed.koma-backup')
-  assert.equal(routes.length, 1)
-  assert.equal(routes[0].name, routeName)
-  assert.equal(routes[0].param.pane, 'restore')
-  assert.equal(routes[0].param.fileName, 'renamed.koma-backup')
-  assert.ok(routes[0].param.formTitleAction instanceof FormTitleActionState)
-  assert.equal(route.backupTaskTitle(routes[0].param), 'backup_task_restore')
-  const destinations = index.slice(index.indexOf('} else if (name === RouteName.BACKUP_MANAGEMENT)'),
-    index.indexOf('} else if (name === RouteName.TRACKER_SETTINGS)'))
-  const shown = [...destinations.matchAll(/\.onShown\(\(\) => \{([^}]+)\}\)/g)]
-  assert.equal(shown.length, 2)
-  const state = { backupSettingsRevision: 0 }
-  shown.forEach(match => new Function(match[1]).call(state))
-  assert.equal(state.backupSettingsRevision, 2)
-  assert.ok(source.includes("this.onOpenTask('restore', record.fileName)"))
-  // The shared title-bar action replaced the old bottom CreateActions builder.
-  const title = fixture().page
-  title.pane = 'create'
-  title.publishCreateAvailability()
-  assert.equal(title.titleAction.enabled, true)
-  let createRequests = 0
-  title.createBackup = () => { createRequests++ }
-  title.titleAction.requestSave()
-  title.onCreateRequest()
-  title.onCreateRequest()
-  assert.equal(createRequests, 1)
-  title.busy = true
-  title.publishCreateAvailability()
-  assert.equal(title.titleAction.enabled, false)
-  assert.ok(source.includes("Text(t('backup_passphrase_recovery_warning'))"))
-  assert.ok(source.includes("Text(t('backup_auto_plaintext_note'))"))
-  const restoreActions = source.slice(source.indexOf('private RestoreActions('), source.indexOf('private AutomaticIntervalMenu('))
-  assert.ok(!restoreActions.includes('KomaFormTextField('), 'restore input is not drawn in the card-external action area')
-  assert.ok(restoreActions.indexOf('this.decryptSelectedBackup()') < restoreActions.indexOf('this.importBackup()'))
-  assert.ok(restoreActions.indexOf('this.restoreSelectedBackup()') < restoreActions.indexOf('this.importBackup()'))
-  const restorePane = source.slice(source.indexOf("} else if (this.pane === 'restore') {", source.indexOf("  build() {")),
-    source.indexOf("} else if (this.pane === 'files') {", source.indexOf("  build() {")))
-  assert.ok(restorePane.indexOf('this.RestorePassphraseCard()') < restorePane.indexOf('this.RestoreActions()'))
-  assert.ok(source.includes("trailingText: t(this.showTechnicalDetails ? 'common_collapse' : 'common_expand')"))
-  assert.ok(source.includes("trailingText: t(this.showPreviewDetails ? 'common_collapse' : 'common_expand')"))
-  const technical = source.slice(source.indexOf('private TechnicalDetailsCard('), source.indexOf('private StatusCard('))
-  const status = source.slice(source.indexOf('private StatusCard('), source.indexOf('private CreateFormCard('))
-  assert.ok(!technical.includes('Text(backupEncryptionPlanLabel())') && status.includes('Text(backupEncryptionPlanLabel())'),
-    'encryption mechanism belongs inside the existing version/compatibility information card')
-  console.log('PASS: Backup production task dispatch, routing, refresh/draft retention, local selection, picker cancellation and decrypted/plain restore. Source layout checks are not device visual acceptance.')
+  const copyService = new CopyService()
+  copyService.requireLocalBackupFileName = name => name
+  copyService.selectLocalBackup = async fileName => {
+    saved.push(fileName)
+    return { payload: 'earlier snapshot', preview: { encrypted: false } }
+  }
+  copyService.saveBackupToPicker = async (...args) => { saved.push(args); return 'saved' }
+  assert.equal(await copyService.exportLocalCopyToPicker('earlier.json', 'test secret'), 'saved')
+  assert.deepEqual(saved, ['earlier.json', [['earlier snapshot', 'test secret'], 'earlier.koma-backup', true]])
+  copyService.selectLocalBackup = async () => ({ payload: 'existing envelope', preview: { encrypted: true } })
+  await copyService.exportLocalCopyToPicker('renamed.json')
+  assert.deepEqual(saved.at(-1), ['existing envelope', 'renamed.koma-backup', true])
+  await assert.rejects(copyService.exportLocalCopyToPicker('renamed.json', 'test secret'), /backup_already_encrypted/)
 }
-run().catch(error => { console.error(error); process.exitCode = 1 })
+
+run().then(() => console.log('Backup workflow state OK')).catch(error => { console.error(error); process.exitCode = 1 })

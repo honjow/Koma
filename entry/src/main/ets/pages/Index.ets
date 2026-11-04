@@ -218,12 +218,6 @@ interface SettingsSearchRouteParam {
   searchTarget: string
 }
 
-interface BackupTaskRouteParam {
-  formTitleAction: FormTitleActionState
-  pane: string
-  fileName: string
-}
-
 @Entry
 @ComponentV2
 struct Index {
@@ -1718,18 +1712,6 @@ struct Index {
     } finally { this.migrationOpening = false }
   }
 
-  private openBackupTask(pane: string, fileName: string): void {
-    const params: BackupTaskRouteParam = { pane, fileName, formTitleAction: new FormTitleActionState() }
-    this.appPathStack.pushPath({ name: RouteName.BACKUP_TASK, param: params })
-  }
-
-  private backupTaskTitle(params: BackupTaskRouteParam): string {
-    if (params.pane === 'create') { return AppStrings.get('backup_task_create') }
-    if (params.pane === 'restore') { return AppStrings.get('backup_task_restore') }
-    if (params.pane === 'files') { return AppStrings.get('backup_task_files') }
-    return AppStrings.get('backup_task_settings')
-  }
-
   private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
@@ -2754,7 +2736,6 @@ struct Index {
           onOpenDownloads: () => {
             this.openSettingsSecondary(RouteName.DOWNLOADS)
           },
-          onOpenBackupTask: (task: string) => { this.openBackupTask(task, '') },
           onOpenImportRequested: () => {
             this.openImport()
           },
@@ -2816,24 +2797,10 @@ struct Index {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
           searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
-          onRestoreCompleted: () => { this.onBackupRestored() },
-          onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
+          onRestoreCompleted: () => { this.onBackupRestored() } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
       .onBackPressed(() => BackupRestoreActivity.isRestoring())
-      .onShown(() => { this.backupSettingsRevision += 1 })
-    } else if (name === RouteName.BACKUP_TASK) {
-      HdsNavDestination() {
-        BackupManagementPage({ titleAction: (param as BackupTaskRouteParam).formTitleAction,
-          pane: (param as BackupTaskRouteParam).pane,
-          localFileName: (param as BackupTaskRouteParam).fileName,
-          refreshRevision: this.backupSettingsRevision,
-          onRestoreCompleted: () => { this.onBackupRestored() },
-          onOpenTask: (pane: string, fileName: string) => { this.openBackupTask(pane, fileName) } })
-      }
-      .titleBar(this.backupTaskTitleBarOpts(param as BackupTaskRouteParam))
-      .onBackPressed(() => BackupRestoreActivity.isRestoring())
-      .onShown(() => { this.backupSettingsRevision += 1 })
     } else if (name === RouteName.READING_STATISTICS) {
       HdsNavDestination() {
         ReadingStatisticsPage({ libraryStore: this.libraryStore, sessionStore: this.readerSessionStore })
@@ -3016,7 +2983,6 @@ struct Index {
                 onOpenDownloads: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)
                 },
-                onOpenBackupTask: (task: string) => { this.openBackupTask(task, '') },
                 onOpenImportRequested: () => {
                   this.openImport()
                 },
@@ -3431,22 +3397,6 @@ struct Index {
     const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
     content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
-  }
-
-  private backupTaskTitleBarOpts(param: BackupTaskRouteParam): Record<string, Object> {
-    const options = this.navDestTitleBarOpts(this.backupTaskTitle(param))
-    if (param.pane !== 'create') return options
-    const content = options['content'] as Record<string, Object>
-    const action: Record<string, Object> = {
-      'label': AppStrings.get('backup_task_create'), 'icon': $r('sys.symbol.checkmark'),
-      'isEnabled': param.formTitleAction.enabled,
-      'action': (): void => { param.formTitleAction.requestSave() },
-    }
-    const item: Record<string, Object> = { 'content': action }
-    const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
-    content['menu'] = menu
-
-    return options
   }
 
   private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {

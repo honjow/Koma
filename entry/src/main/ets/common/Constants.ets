@@ -34,7 +34,6 @@ export class RouteName {
   static readonly LIBRARY_CATEGORIES: string = 'LibraryCategoryManagementPage'
   static readonly DOWNLOADS: string = 'DownloadsPage'
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
-  static readonly BACKUP_TASK: string = 'BackupTaskPage'
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
 }
 

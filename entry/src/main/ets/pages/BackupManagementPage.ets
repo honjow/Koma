@@ -1,6 +1,6 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
-import { FormTitleActionState } from '../state/FormTitleActionState'
+import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
@@ -33,13 +33,10 @@ import {
   backupAutomaticLastFailureText,
   backupAutomaticLastRunText,
   backupAutomaticRetentionLabel,
-  backupEncryptedExportSuccess,
   backupEncryptionPlanLabel,
   backupImportConflictPolicy,
-  backupImportPreviewNote,
   backupLocalFileDetailText,
   backupManagementStorageNote,
-  backupPassphraseHelpText,
   backupUnencryptedExportWarning,
 } from '../model/BackupService'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -62,24 +59,22 @@ interface SelectedBackupPreviewParams {
   preview: BackupImportPreview
 }
 
+type BackupPreferenceLoadState = 'loading' | 'ready' | 'failed'
+
 @ComponentV2
 export struct BackupManagementPage {
-  @Param titleAction: FormTitleActionState = new FormTitleActionState()
-  private handledCreateRequest: number = 0
-  @Param pane: string = 'home'
   @Param searchTarget: string = ''
   private backupScroller: Scroller = new Scroller()
   @Local private backupSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
-  @Param localFileName: string = ''
   @Param refreshRevision: number = 0
-  @Event onOpenTask: (pane: string, fileName: string) => void = (_pane: string, _fileName: string) => {}
   @Event onRestoreCompleted: () => void = () => {}
-  @Local private createLocal: boolean = false
-  @Local private createEncrypted: boolean = true
+  @Local private backupModalShown: boolean = false
+  @Local private backupModal: 'encrypt' | 'restore' = 'encrypt'
+  @Local private encryptionFileName: string = ''
+  @Local private selectedBackupName: string = ''
   @Local private showTechnicalDetails: boolean = false
   @Local private showAutomaticOptions: boolean = false
   @Local private showPreviewDetails: boolean = false
-  private localSelectionStarted: boolean = false
   @Local private busy: boolean = false
   @Local private selectedBackupPayload: string = ''
   @Local private selectedEncryptedBackupPayload: string = ''
@@ -90,11 +85,13 @@ export struct BackupManagementPage {
   private localBackupsEpoch: number = 0
   @Local private localFileActionMenuKey: string = ''
   @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+  @Local private automaticPreferencesState: BackupPreferenceLoadState = 'loading'
   private automaticPreferencesEpoch: number = 0
-  private hasCreateContentOverride: boolean = false
+  @Local private automaticPreferencesSaving: boolean = false
   @Local private contentPreferences: BackupContentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
-  @Local private autoIntervalMenuOpen: boolean = false
-  @Local private autoRetentionMenuOpen: boolean = false
+  @Local private contentPreferencesState: BackupPreferenceLoadState = 'loading'
+  @Local private contentPreferencesSaving: boolean = false
+  private contentPreferencesEpoch: number = 0
   @Local private editingLocalBackupFileName: string = ''
   @Local private editingLocalBackupName: string = ''
   @Local private exportPassphrase: string = ''
@@ -108,64 +105,13 @@ export struct BackupManagementPage {
 
   @Monitor('refreshRevision')
   private onRefreshRevision(): void {
-    if (this.pane === 'home' || this.pane === 'files') {
-      this.loadLocalBackups()
-      this.loadAutomaticPreferences()
-      if (this.pane === 'home') this.loadContentPreferences()
-    } else if (this.pane === 'create') {
-      this.loadContentPreferences()
-    } else if (this.pane === 'settings') {
-      this.loadAutomaticPreferences()
-      this.loadContentPreferences()
-    }
-  }
-
-  @Monitor('busy')
-  private publishCreateAvailability(): void {
-    this.titleAction.enabled = this.pane === 'create' && !this.busy
-  }
-
-  @Monitor('titleAction.requestSeq')
-  private onCreateRequest(): void {
-    if (this.titleAction.requestSeq <= this.handledCreateRequest) return
-    this.handledCreateRequest = this.titleAction.requestSeq
-    if (this.pane === 'create') this.createBackup()
-  }
-
-  private createBackup(): void {
-    if (this.busy) {
-      return
-    }
-    if (this.createLocal) {
-      if (this.createEncrypted) {
-        this.exportEncryptedLocalBackup()
-      } else {
-        this.confirmExportLocalBackup()
-      }
-    } else if (this.createEncrypted) {
-      this.exportEncryptedBackup()
-    } else {
-      this.confirmExportBackup()
-    }
-  }
-
-  private createActionLabel(): string {
-    if (this.busy) {
-      return t('backup_processing')
-    }
-    if (this.createLocal) {
-      return t(this.createEncrypted ? 'backup_local_create_encrypted_action' : 'backup_local_create_action')
-    }
-    return t(this.createEncrypted ? 'backup_export_encrypted_action' : 'backup_export_action')
+    this.loadLocalBackups()
+    if (!this.automaticPreferencesSaving) this.loadAutomaticPreferences()
+    this.loadContentPreferences()
   }
 
   private backupService(): BackupService {
     return new BackupService(this.context())
-  }
-
-  private localBackupCountText(): string {
-    if (this.localBackupsLoading) return t('common_loading')
-    return this.localBackupsFailed ? t('backup_local_unavailable') : `${this.localBackups.length}`
   }
 
   private loadLocalBackups(): void {
@@ -188,27 +134,34 @@ export struct BackupManagementPage {
   }
 
   private loadAutomaticPreferences(): void {
-    const epoch = this.automaticPreferencesEpoch
+    if (this.automaticPreferencesState === 'failed') this.automaticPreferencesState = 'loading'
+    const epoch = ++this.automaticPreferencesEpoch
     void this.backupService().loadAutomaticPreferences()
       .then((preferencesValue: BackupAutomaticPreferences) => {
         if (epoch !== this.automaticPreferencesEpoch) return
         this.autoPreferences = preferencesValue
+        this.automaticPreferencesState = 'ready'
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'auto_preferences_load_failed', '[BackupManagement] step=auto_preferences_load_failed code=backup_auto_preferences_failed')
         if (epoch !== this.automaticPreferencesEpoch) return
-        this.autoPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
+        this.automaticPreferencesState = 'failed'
       })
   }
 
   private loadContentPreferences(): void {
+    if (this.contentPreferencesSaving) return
+    if (this.contentPreferencesState === 'failed') this.contentPreferencesState = 'loading'
+    const epoch = ++this.contentPreferencesEpoch
     void this.backupService().loadContentPreferences()
       .then((preferencesValue: BackupContentPreferences) => {
-        if (!this.hasCreateContentOverride) this.contentPreferences = preferencesValue
+        if (epoch !== this.contentPreferencesEpoch) return
+        this.contentPreferences = preferencesValue
+        this.contentPreferencesState = 'ready'
       })
       .catch((_error: Error) => {
         DiagnosticLogger.warn('backup_management_page', 'content_preferences_load_failed', '[BackupManagement] step=content_preferences_load_failed code=backup_content_preferences_failed')
-        if (!this.hasCreateContentOverride) this.contentPreferences = DEFAULT_BACKUP_CONTENT_PREFERENCES
+        if (epoch === this.contentPreferencesEpoch) this.contentPreferencesState = 'failed'
       })
   }
 
@@ -237,7 +190,7 @@ export struct BackupManagementPage {
     return tf('backup_failure_message', code)
   }
 
-  private confirmExportBackup(): void {
+  private confirmExportBackup(fileName: string): void {
     if (this.busy) {
       return
     }
@@ -253,35 +206,15 @@ export struct BackupManagementPage {
         value: t('backup_unencrypted_confirm_action'),
         fontColor: $r('app.color.koma_danger'),
         action: () => {
-          this.exportBackup()
-        },
-      },
-    })
-  }
-
-  private confirmExportLocalBackup(): void {
-    if (this.busy) {
-      return
-    }
-    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-      title: t('backup_unencrypted_confirm_title'),
-      message: `${t('backup_unencrypted_local_confirm_message')}\n\n${backupUnencryptedExportWarning()}`,
-      autoCancel: true,
-      primaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
-      },
-      secondaryButton: {
-        value: t('backup_unencrypted_confirm_action'),
-        fontColor: $r('app.color.koma_danger'),
-        action: () => {
-          this.exportLocalBackup()
+          this.exportBackupCopy(fileName)
         },
       },
     })
   }
 
   private saveAutomaticPreferences(patch: BackupAutomaticPreferencesPatch): void {
+    if (this.automaticPreferencesState !== 'ready' || this.automaticPreferencesSaving) return
+    this.automaticPreferencesSaving = true
     const epoch = ++this.automaticPreferencesEpoch
     void this.backupService().saveAutomaticPreferences(patch)
       .then((preferencesValue: BackupAutomaticPreferences) => {
@@ -295,27 +228,29 @@ export struct BackupManagementPage {
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'auto_preferences_save_failed', '[BackupManagement] step=auto_preferences_save_failed code=backup_auto_preferences_failed')
         if (epoch === this.automaticPreferencesEpoch) {
+          this.automaticPreferencesState = 'loading'
           this.loadAutomaticPreferences()
         }
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_auto_preferences_failed'))
+        this.showInfoDialog(t('backup_settings_save_failed'), t('backup_try_again'))
       })
+      .finally(() => { this.automaticPreferencesSaving = false })
   }
 
   private saveContentPreferences(preferencesValue: BackupContentPreferences): void {
-    if (this.pane === 'create') {
-      this.hasCreateContentOverride = true
-      this.contentPreferences = preferencesValue
-      return
-    }
+    if (this.contentPreferencesState !== 'ready' || this.contentPreferencesSaving) return
+    this.contentPreferencesEpoch += 1
+    this.contentPreferencesSaving = true
     void this.backupService().saveContentPreferences(preferencesValue)
       .then(() => {
         this.contentPreferences = preferencesValue
-        this.showToast(t('backup_auto_saved_toast'))
+        this.showToast(t('backup_content_saved_toast'))
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'content_preferences_save_failed', '[BackupManagement] step=content_preferences_save_failed code=backup_content_preferences_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_content_preferences_failed'))
+        this.contentPreferencesState = 'failed'
+        this.showInfoDialog(t('backup_settings_save_failed'), t('backup_try_again'))
       })
+      .finally(() => { this.contentPreferencesSaving = false })
   }
 
   private setBackupIncludeSettings(includeSettings: boolean): void {
@@ -343,7 +278,8 @@ export struct BackupManagementPage {
   }
 
   private selectAutomaticDirectory(): void {
-    if (this.busy) return
+    if (this.busy || this.automaticPreferencesSaving) return
+    this.busy = true
     void selectAutomaticBackupDirectory(this.context())
       .then((selection: AutomaticBackupDirectorySelection | undefined): void => {
         if (selection !== undefined) this.saveAutomaticPreferences({ directoryUri: selection.uri, directoryOwnedModes: selection.ownedModes })
@@ -351,19 +287,21 @@ export struct BackupManagementPage {
         DiagnosticLogger.exception('backup', 'automatic_directory_failed', error)
         this.showToast(t('backup_auto_directory_select_failed'))
       })
+      .finally(() => { this.busy = false })
   }
 
   private setAutomaticBackupEnabled(enabled: boolean): void {
+    if (this.automaticPreferencesState !== 'ready' || enabled === this.autoPreferences.enabled) return
     this.saveAutomaticPreferences({ enabled })
   }
 
   private setAutomaticBackupInterval(intervalHours: number): void {
-    this.autoIntervalMenuOpen = false
+    if (intervalHours === this.autoPreferences.intervalHours) return
     this.saveAutomaticPreferences({ intervalHours })
   }
 
   private setAutomaticBackupRetention(retentionCount: number): void {
-    this.autoRetentionMenuOpen = false
+    if (retentionCount === this.autoPreferences.retentionCount) return
     this.saveAutomaticPreferences({ retentionCount })
   }
 
@@ -394,40 +332,22 @@ export struct BackupManagementPage {
       })
   }
 
-  private createContentOverride(): BackupContentPreferences | undefined {
-    return this.hasCreateContentOverride ? this.contentPreferences : undefined
+  private openEncryptionPrompt(fileName: string = ''): void {
+    if (this.busy || (fileName.length === 0 && this.contentPreferencesSaving)) return
+    this.clearEncryptionPrompt()
+    this.encryptionFileName = fileName
+    this.backupModal = 'encrypt'
+    this.backupModalShown = true
   }
 
-  private exportBackup(): void {
-    if (this.busy) {
-      return
-    }
-    this.busy = true
-    console.info('[BackupManagement] step=export_start')
-    void this.backupService().exportToPicker(this.createContentOverride())
-      .then((uri: string | undefined) => {
-        if (uri !== undefined) {
-          this.showInfoDialog(
-            t('backup_dialog_exported_title'),
-            `${t('backup_dialog_exported_message')}\n${backupUnencryptedExportWarning()}`,
-          )
-        }
-      })
-      .catch((_error: Error) => {
-        DiagnosticLogger.error('backup_management_page', 'export_failed', '[BackupManagement] step=export_failed code=backup_export_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
-      })
-      .finally(() => {
-        this.exportPassphrase = ''
-        this.exportPassphraseConfirm = ''
-        this.busy = false
-      })
+  private clearEncryptionPrompt(): void {
+    this.exportPassphrase = ''
+    this.exportPassphraseConfirm = ''
+    this.encryptionFileName = ''
   }
 
-  private exportEncryptedBackup(): void {
-    if (this.busy) {
-      return
-    }
+  private submitEncryptedBackup(): void {
+    if (this.busy) return
     if (this.exportPassphrase.length < 8) {
       this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_too_short'))
       return
@@ -437,33 +357,38 @@ export struct BackupManagementPage {
       return
     }
     const passphrase = this.exportPassphrase
-    this.busy = true
-    console.info('[BackupManagement] step=export_encrypted_start')
-    void this.backupService().exportEncryptedToPicker(passphrase, this.createContentOverride())
-      .then((uri: string | undefined) => {
-        if (uri !== undefined) {
-          this.showInfoDialog(t('backup_dialog_encrypted_exported_title'), backupEncryptedExportSuccess())
-        }
-      })
-      .catch((_error: Error) => {
-        DiagnosticLogger.error('backup_management_page', 'export_encrypted_failed', '[BackupManagement] step=export_encrypted_failed code=backup_export_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
-      })
-      .finally(() => {
-        this.exportPassphrase = ''
-        this.exportPassphraseConfirm = ''
-        this.busy = false
-      })
+    if (this.encryptionFileName.length > 0) {
+      this.exportBackupCopy(this.encryptionFileName, passphrase)
+    } else {
+      this.createLocalBackup(passphrase)
+    }
   }
 
-  private exportLocalBackup(): void {
-    if (this.busy) {
-      return
-    }
+  private exportBackupCopy(fileName: string, passphrase?: string): void {
+    if (this.busy) return
     this.busy = true
-    console.info('[BackupManagement] step=local_export_start')
-    void this.backupService().exportLocal(this.createContentOverride())
+    void this.backupService().exportLocalCopyToPicker(fileName, passphrase)
+      .then((uri: string | undefined) => {
+        if (uri === undefined) return
+        this.backupModalShown = false
+        this.showToast(t('backup_dialog_exported_title'))
+      })
+      .catch((_error: Error) => {
+        DiagnosticLogger.error('backup_management_page', 'copy_failed', '[BackupManagement] step=copy_failed code=backup_export_failed')
+        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
+      })
+      .finally(() => { this.busy = false })
+  }
+
+  private createLocalBackup(passphrase?: string): void {
+    if (this.busy || this.contentPreferencesSaving) return
+    this.busy = true
+    const service = this.backupService()
+    // Both manual creation and the scheduler read the same saved content preferences.
+    const operation = passphrase === undefined ? service.exportLocal() : service.exportEncryptedLocal(passphrase)
+    void operation
       .then((_record: BackupLocalFileRecord) => {
+        this.backupModalShown = false
         this.loadLocalBackups()
         this.showToast(t('backup_local_saved_toast'))
       })
@@ -471,104 +396,75 @@ export struct BackupManagementPage {
         DiagnosticLogger.error('backup_management_page', 'local_export_failed', '[BackupManagement] step=local_export_failed code=backup_local_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
       })
-      .finally(() => {
-        this.busy = false
-      })
+      .finally(() => { this.busy = false })
   }
 
-  private exportEncryptedLocalBackup(): void {
-    if (this.busy) {
-      return
+  private openRestorePreview(selection: BackupImportSelectionPreview, name: string): void {
+    this.clearRestorePreview()
+    if (selection.preview.encrypted && !selection.preview.decrypted) {
+      this.selectedEncryptedBackupPayload = selection.payload
+    } else {
+      this.selectedBackupPayload = selection.payload
     }
-    if (this.exportPassphrase.length < 8) {
-      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_too_short'))
-      return
-    }
-    if (this.exportPassphrase !== this.exportPassphraseConfirm) {
-      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_mismatch'))
-      return
-    }
-    const passphrase = this.exportPassphrase
-    this.busy = true
-    console.info('[BackupManagement] step=local_export_encrypted_start')
-    void this.backupService().exportEncryptedLocal(passphrase, this.createContentOverride())
-      .then((_record: BackupLocalFileRecord) => {
-        this.loadLocalBackups()
-        this.showToast(t('backup_local_saved_toast'))
-      })
-      .catch((_error: Error) => {
-        DiagnosticLogger.error('backup_management_page', 'local_export_encrypted_failed', '[BackupManagement] step=local_export_encrypted_failed code=backup_local_export_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_export_failed'))
-      })
-      .finally(() => {
-        this.exportPassphrase = ''
-        this.exportPassphraseConfirm = ''
-        this.busy = false
-      })
+    this.selectedBackupPreview = selection.preview
+    this.selectedBackupName = name
+    this.backupModal = 'restore'
+    this.backupModalShown = true
   }
 
-  private importBackup(): void {
-    if (this.busy) {
-      return
-    }
-    this.busy = true
+  private clearRestorePreview(): void {
     this.selectedBackupPayload = ''
     this.selectedEncryptedBackupPayload = ''
     this.selectedBackupPreview = undefined
+    this.selectedBackupName = ''
+    this.showPreviewDetails = false
     this.importPassphrase = ''
-    console.info('[BackupManagement] step=preview_start')
+  }
+
+  private importBackup(): void {
+    if (this.busy) return
+    this.busy = true
     void this.backupService().selectImportPreviewFromPicker()
       .then((selection: BackupImportSelectionPreview | undefined) => {
-        if (selection !== undefined) {
-          if (selection.preview.encrypted && !selection.preview.decrypted) {
-            this.selectedEncryptedBackupPayload = selection.payload
-          } else {
-            this.selectedBackupPayload = selection.payload
-          }
-          this.selectedBackupPreview = selection.preview
-          this.showToast(t('backup_preview_loaded_toast'))
-        }
+        if (selection !== undefined) this.openRestorePreview(selection, '')
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'preview_failed', '[BackupManagement] step=preview_failed code=backup_preview_failed')
         this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
       })
-      .finally(() => {
-        this.busy = false
-      })
+      .finally(() => { this.busy = false })
   }
 
-  private selectLocalBackup(fileName: string): void {
-    if (this.busy) {
-      return
-    }
+  private isGeneratedBackupName(record: BackupLocalFileRecord): boolean {
+    return record.preview.exportedAt > 0 && /^koma-backup-\d{13}(?:-\d+)?$/.test(record.displayName)
+  }
+
+  private backupDate(preview: BackupImportPreview): string {
+    if (preview.exportedAt <= 0) return preview.exportedAtText
+    return new Intl.DateTimeFormat(this.languageState.effectiveLocale, {
+      year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).format(new Date(preview.exportedAt))
+  }
+
+  private backupRecordTitle(record: BackupLocalFileRecord): string {
+    return this.isGeneratedBackupName(record) ? this.backupDate(record.preview) : record.displayName
+  }
+
+  private selectLocalBackup(record: BackupLocalFileRecord): void {
+    if (this.busy) return
     this.busy = true
-    console.info('[BackupManagement] step=local_preview_start')
-    void this.backupService().selectLocalBackup(fileName)
-      .then((selection: BackupImportSelectionPreview) => {
-        if (selection.preview.encrypted && !selection.preview.decrypted) {
-          this.selectedEncryptedBackupPayload = selection.payload
-          this.selectedBackupPayload = ''
-        } else {
-          this.selectedBackupPayload = selection.payload
-          this.selectedEncryptedBackupPayload = ''
-        }
-        this.selectedBackupPreview = selection.preview
-        this.importPassphrase = ''
-        this.showToast(t('backup_preview_loaded_toast'))
-      })
+    void this.backupService().selectLocalBackup(record.fileName)
+      .then((selection: BackupImportSelectionPreview) => { this.openRestorePreview(selection, this.isGeneratedBackupName(record) ? '' : record.displayName) })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'local_preview_failed', '[BackupManagement] step=local_preview_failed code=backup_preview_failed')
         this.showInfoDialog(t('backup_dialog_preview_failed_title'), this.backupFailureMessage('backup_preview_failed'))
       })
-      .finally(() => {
-        this.busy = false
-      })
+      .finally(() => { this.busy = false })
   }
 
   private startRenameLocalBackup(record: BackupLocalFileRecord): void {
     this.editingLocalBackupFileName = record.fileName
-    this.editingLocalBackupName = record.displayName
+    this.editingLocalBackupName = this.isGeneratedBackupName(record) ? '' : record.displayName
   }
 
   private cancelRenameLocalBackup(): void {
@@ -577,7 +473,7 @@ export struct BackupManagementPage {
   }
 
   private persistRenameLocalBackup(): void {
-    if (this.busy || this.editingLocalBackupFileName.length === 0) {
+    if (this.busy || this.editingLocalBackupFileName.length === 0 || this.editingLocalBackupName.trim().length === 0) {
       return
     }
     this.busy = true
@@ -592,7 +488,7 @@ export struct BackupManagementPage {
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'local_rename_failed', '[BackupManagement] step=local_rename_failed code=backup_local_rename_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_rename_failed'))
+        this.showInfoDialog(t('backup_local_rename_failed_title'), t('backup_try_again'))
       })
       .finally(() => {
         this.busy = false
@@ -602,7 +498,7 @@ export struct BackupManagementPage {
   private confirmDeleteLocalBackup(record: BackupLocalFileRecord): void {
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: t('backup_local_delete_title'),
-      message: t('backup_local_delete_message').replace('%s', record.displayName),
+      message: tf('backup_local_delete_message', this.backupRecordTitle(record)),
       autoCancel: true,
       primaryButton: {
         value: t('common_cancel'),
@@ -631,7 +527,7 @@ export struct BackupManagementPage {
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'local_delete_failed', '[BackupManagement] step=local_delete_failed code=backup_local_delete_failed')
-        this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_local_delete_failed'))
+        this.showInfoDialog(t('backup_local_delete_failed_title'), t('backup_try_again'))
       })
       .finally(() => {
         this.busy = false
@@ -655,7 +551,6 @@ export struct BackupManagementPage {
         this.selectedBackupPreview = selection.preview
         this.selectedEncryptedBackupPayload = ''
         this.importPassphrase = ''
-        this.showToast(t('backup_decrypted_toast'))
       })
       .catch((_error: Error) => {
         DiagnosticLogger.error('backup_management_page', 'decrypt_preview_failed', '[BackupManagement] step=decrypt_preview_failed code=backup_decrypt_failed')
@@ -711,9 +606,8 @@ export struct BackupManagementPage {
     void importPromise
       .then(() => {
         this.onRestoreCompleted()
-        this.selectedBackupPayload = ''
-        this.selectedEncryptedBackupPayload = ''
-        this.selectedBackupPreview = undefined
+        this.backupModalShown = false
+        this.clearRestorePreview()
         this.showInfoDialog(t('backup_dialog_imported_title'), t('backup_imported_message'))
       })
       .catch((_error: Error) => {
@@ -726,16 +620,54 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private TaskNavigationCard() {
+  private BackupActions() {
     GroupedListSection() {
-      ConciseListRow({ title: t('backup_task_create'), subtitle: t('backup_task_create_hint'),
-        action: () => { this.onOpenTask('create', '') } })
+      ConciseListRow({ title: t(this.busy ? 'backup_processing' : 'backup_task_create'),
+        subtitle: t('backup_local_create_detail'), leadingIcon: $r('sys.symbol.plus'), showChevron: false,
+        isEnabled: !this.busy && !this.contentPreferencesSaving, action: () => { this.createLocalBackup() } })
       ListDivider()
-      ConciseListRow({ title: t('backup_task_restore'), subtitle: t('backup_task_restore_hint'),
-        action: () => { this.onOpenTask('restore', '') } })
+      ConciseListRow({ title: t('backup_create_protected'), leadingIcon: $r('sys.symbol.lock'),
+        isEnabled: !this.busy && !this.contentPreferencesSaving, action: () => { this.openEncryptionPrompt() } })
       ListDivider()
-      ConciseListRow({ title: t('backup_task_files'), trailingText: this.localBackupCountText(),
-        action: () => { this.onOpenTask('files', '') } })
+      ConciseListRow({ title: t('backup_restore_from_file'), leadingIcon: $r('sys.symbol.doc_plaintext'),
+        isEnabled: !this.busy, action: () => { this.importBackup() } })
+    }
+  }
+
+  @Builder
+  private BackupModalContent() {
+    if (this.backupModal === 'restore') {
+      this.RestorePreview()
+    } else {
+      this.EncryptionPrompt()
+    }
+  }
+
+  @Builder
+  private EncryptionPrompt() {
+    KomaModalScaffold({
+      title: t(this.encryptionFileName ? 'backup_export_protected_copy' : 'backup_create_protected'),
+      onClose: () => { if (!this.busy) this.backupModalShown = false },
+    }) {
+      ListItem() {
+        Column({ space: ThemeConstants.SPACE_MD }) {
+          Text(t('backup_passphrase_too_short') + '\n' + t('backup_passphrase_recovery_warning'))
+            .width('100%').fontSize(ThemeConstants.FONT_SIZE_META)
+            .fontColor(ThemeConstants.TEXT_SECONDARY)
+          KomaFormTextField({ label: t('backup_passphrase_label'), value: this.exportPassphrase,
+            isPassword: true, isEnabled: !this.busy, change: (value: string) => { this.exportPassphrase = value } })
+          KomaFormTextField({ label: t('backup_passphrase_confirm_label'), value: this.exportPassphraseConfirm,
+            isPassword: true, isEnabled: !this.busy, change: (value: string) => { this.exportPassphraseConfirm = value } })
+          KomaActionButton({
+            label: t(this.busy ? 'backup_processing' : this.encryptionFileName ?
+              'backup_export_encrypted_action' : 'backup_task_create'),
+            kind: 'primary', fullWidth: true, isEnabled: !this.busy && this.exportPassphrase.length > 0 &&
+              this.exportPassphraseConfirm.length > 0,
+            action: () => { this.submitEncryptedBackup() },
+          })
+        }
+        .width('100%')
+      }
     }
   }
 
@@ -790,79 +722,10 @@ export struct BackupManagementPage {
     .backgroundColor(ThemeConstants.CARD)
   }
 
-  @Builder
-  private CreateDestinationMenu(select: (action: () => void) => void) {
-    Menu() {
-      MenuItem({ content: t('backup_auto_directory_local'),
-        symbolEndIcon: this.createLocal ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-        .onClick(() => { select(() => { this.createLocal = true }) })
-      MenuItem({ content: t('backup_create_destination_file'),
-        symbolEndIcon: !this.createLocal ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
-        .onClick(() => { select(() => { this.createLocal = false }) })
-    }
-  }
-
-  @Builder
-  private CreateFormCard() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      GroupedListSection() {
-        ConciseListRow({
-          title: t('backup_create_destination'),
-          trailingText: t(this.createLocal ? 'backup_auto_directory_local' : 'backup_create_destination_file'),
-          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
-          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.CreateDestinationMenu(select) },
-        })
-        ListDivider()
-        ConciseListRow({
-          title: t('backup_create_encrypted_choice'),
-          hasSwitch: true, checked: this.createEncrypted, showChevron: false,
-          switchAction: (value: boolean) => { this.createEncrypted = value },
-        })
-      }
-      if (this.createEncrypted) {
-        Column({ space: ThemeConstants.SPACE_SM }) {
-          Text(t('backup_passphrase_recovery_warning'))
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-          Text(backupPassphraseHelpText())
-            .width('100%')
-            .fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-        }
-        .width('100%')
-        .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-        GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
-          Column({ space: ThemeConstants.SPACE_LG }) {
-            KomaFormTextField({
-              label: t('backup_passphrase_label'), value: this.exportPassphrase,
-              isPassword: true, change: (value: string) => { this.exportPassphrase = value },
-            })
-            KomaFormTextField({
-              label: t('backup_passphrase_confirm_label'), value: this.exportPassphraseConfirm,
-              isPassword: true, change: (value: string) => { this.exportPassphraseConfirm = value },
-            })
-          }
-          .width('100%')
-        }
-      } else {
-        Text(backupUnencryptedExportWarning())
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-          .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-      }
-    }
-    .width('100%')
-  }
-
   private positionBackupSection(): void {
-    if (this.pane !== 'home') return
-    // The scaffold's inset is the first List item, before the task menu.
-    const index = this.searchTarget === 'backup-content' ? 2 : this.searchTarget === 'backup-automatic' ? 3 : 0
+    // Search positions the same page without creating, importing or changing a preference.
+    const index = this.searchTarget === 'backup-files' ? 2 :
+      this.searchTarget === 'backup-automatic' ? 3 : this.searchTarget === 'backup-content' ? 4 : 0
     if (index === 0) return
     const inset = this.backupSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD
     this.backupScroller.scrollToIndex(index, false, ScrollAlign.START, { extraOffset: LengthMetrics.vp(-inset) })
@@ -872,6 +735,7 @@ export struct BackupManagementPage {
   private ContentPreferenceSwitchRow(label: string, checked: Binding<boolean>, onChange: (isOn: boolean) => void) {
     ConciseListRow({
       title: label, hasSwitch: true, checked: checked.value, showChevron: false,
+      isEnabled: !this.contentPreferencesSaving,
       switchAction: (value: boolean) => { if (value !== checked.value) onChange(value) },
     })
   }
@@ -879,21 +743,24 @@ export struct BackupManagementPage {
   @Builder
   private DomainsCard() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: t(this.pane === 'create' ? 'backup_create_included_data' : 'backup_default_included_data') }) {
-        this.ContentPreferenceSwitchRow(t('backup_domain_reader_preferences'),
-          UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeSettings),
-          (value: boolean) => { this.setBackupIncludeSettings(value) })
-        ListDivider()
-        this.ContentPreferenceSwitchRow(t('backup_domain_download_queue'),
-          UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeDownloadQueue),
-          (value: boolean) => { this.setBackupIncludeDownloadQueue(value) })
-        ListDivider()
-        this.ContentPreferenceSwitchRow(t('backup_domain_tracker_mappings'),
-          UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeTrackerMappings),
-          (value: boolean) => { this.setBackupIncludeTrackerMappings(value) })
+      GroupedListSection({ title: t('backup_content_heading') }) {
+        if (this.contentPreferencesState === 'ready') {
+          this.ContentPreferenceSwitchRow(t('backup_domain_reader_preferences'),
+            UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeSettings),
+            (value: boolean) => { this.setBackupIncludeSettings(value) })
+          ListDivider()
+          this.ContentPreferenceSwitchRow(t('backup_domain_download_queue'),
+            UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeDownloadQueue),
+            (value: boolean) => { this.setBackupIncludeDownloadQueue(value) })
+          ListDivider()
+          this.ContentPreferenceSwitchRow(t('backup_domain_tracker_mappings'),
+            UIUtils.makeBinding<boolean>(() => this.contentPreferences.includeTrackerMappings),
+            (value: boolean) => { this.setBackupIncludeTrackerMappings(value) })
+        } else {
+          this.PreferenceLoadRow(this.contentPreferencesState, () => { this.loadContentPreferences() })
+        }
       }
-      // Fixed backup domains are explanatory content, not editable setting rows.
-      Text(t('backup_fixed_content_description'))
+      Text(t('backup_shared_content_description') + '\n' + t('backup_fixed_content_description'))
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .width('100%')
@@ -905,63 +772,37 @@ export struct BackupManagementPage {
   @Builder
   private RestorePassphraseCard() {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
-      Column({ space: ThemeConstants.SPACE_MD }) {
-        Text(backupPassphraseHelpText())
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
-          .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-        KomaFormTextField({
-          label: t('backup_decrypt_passphrase_label'), value: this.importPassphrase,
-          isPassword: true, change: (value: string) => { this.importPassphrase = value },
-        })
-      }
-      .width('100%')
+      KomaFormTextField({
+        label: t('backup_decrypt_passphrase_label'), value: this.importPassphrase,
+        isPassword: true, isEnabled: !this.busy, change: (value: string) => { this.importPassphrase = value },
+      })
     }
   }
 
   @Builder
-  private RestoreActions() {
-    Column({ space: ThemeConstants.SPACE_MD }) {
-      if (this.selectedBackupPayload.length > 0) {
-        KomaActionButton({
-          label: this.busy ? t('backup_processing') : t('backup_restore_selected_action'),
-          kind: this.selectedBackupPayload.length > 0 ? 'primary' : 'secondary',
-          fullWidth: true,
-          icon: $r('sys.symbol.arrow_clockwise'),
-          isEnabled: !this.busy && this.selectedBackupPayload.length > 0,
-          action: () => {
-            this.restoreSelectedBackup()
-          },
-        })
-          .width('100%')
+  private RestorePreview() {
+    KomaModalScaffold({ title: t('backup_restore_preview'), subtitle: this.selectedBackupName.length > 0 ? this.selectedBackupName : undefined,
+      onClose: () => { if (!this.busy) this.backupModalShown = false },
+    }) {
+      if (this.selectedBackupPreview !== undefined) {
+        ListItem() { this.SelectedPreviewCard({ preview: this.selectedBackupPreview }) }
       }
-
       if (this.selectedEncryptedBackupPayload.length > 0) {
+        ListItem() { this.RestorePassphraseCard() }
+      }
+      ListItem() {
         KomaActionButton({
-          label: this.busy ? t('backup_processing') : t('backup_decrypt_preview_action'),
-          kind: 'primary',
-          fullWidth: true,
-          icon: $r('sys.symbol.doc_plaintext'),
-          isEnabled: !this.busy,
+          label: t(this.busy ? 'backup_processing' : this.selectedEncryptedBackupPayload.length > 0 ? 'backup_decrypt_preview_action' :
+            'backup_restore_selected_action'),
+          kind: 'primary', fullWidth: true, isEnabled: !this.busy &&
+            (this.selectedBackupPayload.length > 0 || this.importPassphrase.length > 0),
           action: () => {
-            this.decryptSelectedBackup()
+            if (this.selectedEncryptedBackupPayload.length > 0) this.decryptSelectedBackup()
+            else this.restoreSelectedBackup()
           },
         })
-          .width('100%')
       }
-      KomaActionButton({
-        label: this.busy ? t('backup_processing') : t('backup_select_preview_action'),
-        kind: this.selectedBackupPreview === undefined ? 'primary' : 'secondary',
-        fullWidth: true,
-        icon: $r('sys.symbol.doc_plaintext'),
-        isEnabled: !this.busy,
-        action: () => { this.importBackup() },
-      })
-        .width('100%')
     }
-    .width('100%')
-    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
   }
 
   @Builder
@@ -999,6 +840,82 @@ export struct BackupManagementPage {
   }
 
   @Builder
+  private PreferenceLoadRow(state: BackupPreferenceLoadState, retry: () => void) {
+    if (state === 'failed') {
+      ConciseListRow({ title: t('common_load_failed'), trailingText: t('common_retry'),
+        showChevron: false, action: retry })
+    } else {
+      ConciseListRow({ title: t('common_loading'), showChevron: false })
+    }
+  }
+
+  @Builder
+  private AutomaticBackupControls() {
+    GroupedListSection() {
+      ConciseListRow({
+        title: t('backup_auto_enabled_title'), subtitle: t('backup_auto_enabled_detail'),
+        hasSwitch: true, checked: this.autoPreferences.enabled, showChevron: false,
+        isEnabled: !this.busy && !this.automaticPreferencesSaving,
+        switchAction: (value: boolean) => { this.setAutomaticBackupEnabled(value) },
+      })
+      if (!this.autoPreferences.enabled) {
+        ListDivider()
+        ConciseListRow({
+          title: t('backup_auto_options'),
+          trailingText: t(this.showAutomaticOptions ? 'common_collapse' : 'common_expand'),
+          showChevron: false,
+          action: () => { this.showAutomaticOptions = !this.showAutomaticOptions },
+        })
+      }
+      if (this.showAutomaticOptions || this.autoPreferences.enabled) {
+        ListDivider()
+        ConciseListRow({ title: t('backup_auto_directory'),
+          trailingText: this.autoPreferences.directoryUri ? decodeURIComponent(this.autoPreferences.directoryUri.split('/').pop() ?? '') : t('backup_auto_directory_local'),
+          isEnabled: !this.busy && !this.automaticPreferencesSaving, trailingDropdown: true, dropdownMenuEnabled: true,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticDirectoryMenu(select) } })
+        ListDivider()
+        ConciseListRow({ title: t('backup_auto_background'), hasSwitch: true,
+          checked: this.autoPreferences.backgroundEnabled === true, showChevron: false, isEnabled: !this.busy && !this.automaticPreferencesSaving,
+          switchAction: (enabled: boolean) => {
+            if (enabled !== (this.autoPreferences.backgroundEnabled === true)) {
+              this.saveAutomaticPreferences({ backgroundEnabled: enabled })
+            }
+          } })
+        ListDivider()
+        ConciseListRow({
+          title: t('backup_auto_interval_label'),
+          trailingText: backupAutomaticIntervalLabel(this.autoPreferences.intervalHours),
+          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy && !this.automaticPreferencesSaving,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticIntervalMenu(select) },
+        })
+        ListDivider()
+        ConciseListRow({
+          title: t('backup_auto_retention_label'), subtitle: t('backup_auto_retention_detail'),
+          trailingText: backupAutomaticRetentionLabel(this.autoPreferences.retentionCount),
+          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy && !this.automaticPreferencesSaving,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticRetentionMenu(select) },
+        })
+        ListDivider()
+        ConciseListRow({
+          title: t('backup_auto_last_run_label'), trailingText: backupAutomaticLastRunText(this.autoPreferences),
+          trailingMaxLines: 2, showChevron: false,
+        })
+        if (this.autoPreferences.lastFailureCode.length > 0) {
+          ListDivider()
+          ConciseListRow({
+            title: t('backup_auto_last_failure_label'), trailingText: backupAutomaticLastFailureText(this.autoPreferences),
+            trailingMaxLines: 2, showChevron: false,
+          })
+        }
+      }
+      ListDivider()
+      ConciseListRow({ title: t('backup_auto_run_now_action'), showChevron: false,
+        isEnabled: !this.busy && !this.automaticPreferencesSaving && !this.contentPreferencesSaving,
+        action: () => { this.runAutomaticBackupNow() } })
+    }
+  }
+
+  @Builder
   private AutomaticBackupCard() {
     Column({ space: ThemeConstants.SPACE_MD }) {
       SectionHeader({ title: t('backup_auto_heading') })
@@ -1009,65 +926,15 @@ export struct BackupManagementPage {
       }
       .width('100%')
       .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-      GroupedListSection() {
-        ConciseListRow({
-          title: t('backup_auto_enabled_title'), subtitle: t('backup_auto_enabled_detail'),
-          hasSwitch: true, checked: this.autoPreferences.enabled, showChevron: false,
-          switchAction: (value: boolean) => { this.setAutomaticBackupEnabled(value) },
-        })
-        if (!this.autoPreferences.enabled) {
-          ListDivider()
-          ConciseListRow({
-            title: t('backup_auto_options'),
-            trailingText: t(this.showAutomaticOptions ? 'common_collapse' : 'common_expand'),
-            showChevron: false,
-            action: () => { this.showAutomaticOptions = !this.showAutomaticOptions },
-          })
-        }
-        if (this.showAutomaticOptions || this.autoPreferences.enabled) {
-          ListDivider()
-          ConciseListRow({ title: t('backup_auto_directory'),
-            trailingText: this.autoPreferences.directoryUri ? decodeURIComponent(this.autoPreferences.directoryUri.split('/').pop() ?? '') : t('backup_auto_directory_local'),
-            isEnabled: !this.busy, trailingDropdown: true, dropdownMenuEnabled: true,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticDirectoryMenu(select) } })
-          ListDivider()
-          ConciseListRow({ title: t('backup_auto_background'), hasSwitch: true,
-            checked: this.autoPreferences.backgroundEnabled === true, showChevron: false, isEnabled: !this.busy,
-            switchAction: (enabled: boolean) => { this.saveAutomaticPreferences({ backgroundEnabled: enabled }) } })
-          ListDivider()
-          ConciseListRow({
-            title: t('backup_auto_interval_label'),
-            trailingText: backupAutomaticIntervalLabel(this.autoPreferences.intervalHours),
-            trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticIntervalMenu(select) },
-          })
-          ListDivider()
-          ConciseListRow({
-            title: t('backup_auto_retention_label'),
-            trailingText: backupAutomaticRetentionLabel(this.autoPreferences.retentionCount),
-            trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
-            dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutomaticRetentionMenu(select) },
-          })
-          ListDivider()
-          ConciseListRow({
-            title: t('backup_auto_last_run_label'), trailingText: backupAutomaticLastRunText(this.autoPreferences),
-            trailingMaxLines: 2, showChevron: false,
-          })
-          if (this.autoPreferences.lastFailureCode.length > 0) {
-            ListDivider()
-            ConciseListRow({
-              title: t('backup_auto_last_failure_label'), trailingText: backupAutomaticLastFailureText(this.autoPreferences),
-              trailingMaxLines: 2, showChevron: false,
-            })
-          }
+      // The native switch may report its mounted value through onChange.
+      // Mount it with the saved value so neither a false frame nor a save can result from hydration.
+      if (this.automaticPreferencesState === 'ready') {
+        this.AutomaticBackupControls()
+      } else {
+        GroupedListSection() {
+          this.PreferenceLoadRow(this.automaticPreferencesState, () => { this.loadAutomaticPreferences() })
         }
       }
-      KomaActionButton({
-        label: this.busy ? t('backup_processing') : t('backup_auto_run_now_action'),
-        kind: 'secondary', fullWidth: true, isEnabled: !this.busy,
-        action: () => { this.runAutomaticBackupNow() },
-      })
-        .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
     }
     .width('100%')
   }
@@ -1075,6 +942,21 @@ export struct BackupManagementPage {
   @Builder
   private LocalBackupActionMenu(record: BackupLocalFileRecord) {
     Menu() {
+      MenuItem({ content: t('backup_export_copy') })
+        .enabled(!this.busy)
+        .onClick(() => {
+          this.localFileActionMenuKey = ''
+          if (record.preview.encrypted) this.exportBackupCopy(record.fileName)
+          else this.confirmExportBackup(record.fileName)
+        })
+      if (!record.preview.encrypted) {
+        MenuItem({ content: t('backup_export_protected_copy') })
+          .enabled(!this.busy)
+          .onClick(() => {
+            this.localFileActionMenuKey = ''
+            this.openEncryptionPrompt(record.fileName)
+          })
+      }
       MenuItem({ content: t('backup_local_rename_action') })
         .enabled(!this.busy)
         .onClick(() => {
@@ -1120,7 +1002,8 @@ export struct BackupManagementPage {
         })
         Row({ space: ThemeConstants.SPACE_MD }) {
           KomaActionButton({ label: t('common_confirm'), kind: 'primary', fill: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT, isEnabled: !this.busy,
+            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
+            isEnabled: !this.busy && this.editingLocalBackupName.trim().length > 0,
             action: () => { this.persistRenameLocalBackup() } })
           KomaActionButton({ label: t('common_cancel'), kind: 'secondary', fill: true,
             controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT, isEnabled: !this.busy,
@@ -1131,10 +1014,11 @@ export struct BackupManagementPage {
       .width('100%').padding(ThemeConstants.SPACE_LG)
     } else {
       ConciseListRow({
-        title: record.displayName, wrapTitle: true,
-        subtitle: backupLocalFileDetailText(record) + '\n' + record.preview.encryptionText,
+        title: this.backupRecordTitle(record), wrapTitle: true,
+        subtitle: backupLocalFileDetailText(record, this.isGeneratedBackupName(record) ? '' :
+          this.backupDate(record.preview)) + ' · ' + t(record.preview.encrypted ? 'backup_record_encrypted' : 'backup_record_plain'),
         subtitleMaxLines: 2147483647, showChevron: false, isEnabled: !this.busy,
-        action: () => { this.onOpenTask('restore', record.fileName) },
+        action: () => { this.selectLocalBackup(record) },
         suffixBuilderParam: () => { this.LocalBackupMoreButton(record) },
       })
     }
@@ -1143,7 +1027,8 @@ export struct BackupManagementPage {
   @Builder
   private LocalBackupsCard() {
     Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(t('backup_local_description'))
+      SectionHeader({ title: t('backup_local_heading') })
+      Text(t('backup_local_records_note'))
         .width('100%').fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY).lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
@@ -1172,28 +1057,6 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private ImportPreviewIntroCard() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Text(t('backup_import_preview_heading'))
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeConstants.TEXT_PRIMARY)
-      Text(backupImportPreviewNote())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-      Text(backupImportConflictPolicy())
-        .width('100%')
-        .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(ThemeConstants.TEXT_SECONDARY)
-        .lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
-    }
-    .width('100%')
-  }
-
-  @Builder
   private PreviewRow(params: BackupPreviewRowParams) {
     Row() {
       Text(params.label)
@@ -1211,12 +1074,7 @@ export struct BackupManagementPage {
   private SelectedPreviewCard(params: SelectedBackupPreviewParams) {
     GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
-        Text(t('backup_selected_heading'))
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_BODY)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeConstants.TEXT_PRIMARY)
-        this.PreviewRow({ label: t('backup_preview_exported_at'), value: params.preview.exportedAtText })
+        this.PreviewRow({ label: t('backup_preview_exported_at'), value: this.backupDate(params.preview) })
         this.PreviewRow({ label: t('backup_preview_encryption_status'), value: params.preview.encryptionText })
         if (!params.preview.encrypted || params.preview.decrypted) {
           this.PreviewRow({ label: t('backup_preview_library_items'), value: `${params.preview.libraryItemCount}` })
@@ -1286,68 +1144,40 @@ export struct BackupManagementPage {
     if (this.languageState.effectiveLocale.length >= 0) {
       Column() {
         SecondaryListScaffold({
-        scroller: this.backupScroller,
-        onListAttach: () => { this.positionBackupSection() },
-        listSpace: ThemeConstants.SPACE_MD,
-        bottomPadding: ThemeConstants.SPACE_XL,
-      }) {
-          if (this.pane === 'home') {
-            ListItem() { this.TaskNavigationCard() }
-            ListItem() { this.DomainsCard() }
-            ListItem() { this.AutomaticBackupCard() }
-            ListItem() { this.TechnicalDetailsCard() }
-          } else if (this.pane === 'create') {
-            ListItem() { this.CreateFormCard() }
-            ListItem() { this.DomainsCard() }
-          } else if (this.pane === 'restore') {
-            if (this.selectedBackupPreview !== undefined) {
-              ListItem() { this.SelectedPreviewCard({ preview: this.selectedBackupPreview }) }
-            }
-            if (this.selectedEncryptedBackupPayload.length > 0) {
-              ListItem() { this.RestorePassphraseCard() }
-            }
-            ListItem() { this.RestoreActions() }
-            if (this.selectedBackupPreview === undefined ||
-              (this.selectedBackupPreview.encrypted && !this.selectedBackupPreview.decrypted)) {
-              ListItem() { this.ImportPreviewIntroCard() }
-            }
-          } else if (this.pane === 'files') {
-            ListItem() { this.LocalBackupsCard() }
-          } else if (this.pane === 'settings') {
-            ListItem() { this.AutomaticBackupCard() }
-            ListItem() { this.DomainsCard() }
-            ListItem() {
-              this.TechnicalDetailsCard()
-            }
-          }
+          scroller: this.backupScroller,
+          onListAttach: () => { this.positionBackupSection() },
+          listSpace: ThemeConstants.SPACE_LG,
+          bottomPadding: ThemeConstants.SPACE_XL,
+        }) {
+          ListItem() { this.BackupActions() }
+          ListItem() { this.LocalBackupsCard() }
+          ListItem() { this.AutomaticBackupCard() }
+          ListItem() { this.DomainsCard() }
+          ListItem() { this.TechnicalDetailsCard() }
         }
       }
       .width('100%')
       .height('100%')
       .backgroundColor(ThemeConstants.BG_SUB)
+      .bindSheet($$this.backupModalShown, this.BackupModalContent, komaModalSheetOptions({
+        height: SheetSize.LARGE,
+        onWillDismiss: (action: DismissSheetAction) => {
+          if (!this.busy) { this.backupModalShown = false; action.dismiss() }
+        },
+        onDisappear: () => {
+          this.clearEncryptionPrompt()
+          this.clearRestorePreview()
+        },
+      }))
     }
   }
 
   aboutToDisappear(): void {
-    this.titleAction.enabled = false
     this.localBackupsEpoch += 1
   }
 
   aboutToAppear(): void {
-    this.publishCreateAvailability()
     this.showAutomaticOptions = this.searchTarget === 'backup-automatic'
-    if (this.pane === 'home' || this.pane === 'files') {
-      this.loadLocalBackups()
-      this.loadAutomaticPreferences()
-      if (this.pane === 'home') this.loadContentPreferences()
-    } else if (this.pane === 'create') {
-      this.loadContentPreferences()
-    } else if (this.pane === 'settings') {
-      this.loadAutomaticPreferences()
-      this.loadContentPreferences()
-    } else if (this.pane === 'restore' && this.localFileName.length > 0 && !this.localSelectionStarted) {
-      this.localSelectionStarted = true
-      this.selectLocalBackup(this.localFileName)
-    }
+    this.onRefreshRevision()
   }
 }

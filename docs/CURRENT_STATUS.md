@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已修正并在 103 复验，197 保留了接手时的多选现场。图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
+当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已修正并在 103 复验，197 保留了接手时的多选现场。图像设置搜索已验收。备份与恢复改为直接操作和同页备份记录，103 已核对创建、导出、恢复预览和自动备份重进。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
 
-设备：103 已安装章节操作修正版，继续用于备份流程复验。197 保留当前 4 章选区和原调试包，原超时和休眠已恢复并释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留当前 4 章选区和原调试包，原超时和休眠已恢复并释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "完整 1.1.0 已更新至原发布页",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-04T20:05:32+08:00",
+  "updatedAt": "2026-11-04T22:48:20+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "1.1.0 的完整安装包和重写日志已更新。Bangumi 两条实机路径与 92漫画章节修复已验证。",
@@ -1880,6 +1880,50 @@
         "自然失败回滚、其他备份与跨设备仍未验；不外推全库所有字段相同。"
       ],
       "boundaries": []
+    },
+    {
+      "id": "BACKUP_WORKFLOW_REDESIGN",
+      "title": "备份与恢复按记录和动作重新组织",
+      "priority": "用户直接需求",
+      "kind": "done",
+      "status": "103 具名流程与自动备份重进已核对",
+      "stage": "代码、签名调试包与实机验证完成",
+      "owner": "Root：Koma 备份与恢复",
+      "result": "普通创建直接保存到应用内。需要保护时直接选择创建加密备份，打开公共口令输入；也可在已有记录上导出普通或加密副本，导出读取点中的原快照。点本地记录可预览，外部文件先经过系统选择器，选中文件后才显示预览。恢复确认继续展示书架和阅读进度的替换规则。手动与自动共用一套备份内容偏好，自动备份继续使用原调度、保留和目录授权。首帧等待真实偏好，回读等值不会触发持久写入。 103 实机创建普通和加密本地备份，验证口令解密和替换确认取消。将加密记录导出到系统下载目录，随后从系统选择器重新选中文件，实读加密预览。普通记录的导出加密副本入口显示口令输入。默认记录显示本地化日期，自定义名称单独保留。开启自动备份后连进两次，录屏中开关直接显示已开，未出现保存提示。主动关闭显示一次保存提示，读回原状态。自动备份与备份内容搜索均定位同页分组。删除两份本轮本地备份和外部测试副本，确认空列表，103 回书架、恢复电源并释租。",
+      "remaining": "恢复实机验证到覆盖确认，未改写书架或进度。新版备份页实机覆盖 103。普通备份转加密副本的真机验证停在口令入口，所选快照加密与保存参数另由逻辑验证。",
+      "reportedAt": null,
+      "reportedDate": "2026-11-04",
+      "reportedAtSource": "用户先报告自动备份每次重进都会闪回并重复提示，随后要求整套菜单重新设计。精确时刻未核实。",
+      "closedAt": "2026-11-04T22:48:20+08:00",
+      "evidence": [
+        ".hvigor/outputs/backup-workflow/build-final.log",
+        ".hvigor/outputs/backup-workflow/Koma-backup-workflow-final-debug.hap",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/create-local-222831146342",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/restore-confirm-222910481457",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/encrypt-result-223415071397",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/final-main-223503415862",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/decrypt-result-223620916724",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/copy-saved-223826038687",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/external-preview-ready-224024555307",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backup-copy-cleanup-224046063161",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/protected-copy-prompt-224102983713",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/delete-encrypted-224344203789",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/auto-baseline-224401917152",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/auto-enable-224418409950",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape/auto-reopen-two-times/224437572432",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/auto-restore-off-224506508740",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/search-auto-destination-224616717319",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/search-content-destination-224647659101",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/restore-224807470306",
+        ".hvigor/outputs/backup-workflow/auto-reopen-contact-01.png",
+        ".hvigor/outputs/backup-workflow/auto-reopen-contact-02.png"
+      ],
+      "remainingActions": [],
+      "boundaries": [
+        "仅调整备份菜单、界面和所选快照导出。恢复的数据事务及计划的调度、目录授权和保留策略沿用原实现。",
+        "设置搜索定位到同一个备份页面，不替用户执行操作。103 测试不确认真实数据覆盖。"
+      ],
+      "updatedAt": "2026-11-04T22:48:20+08:00"
     },
     {
       "id": "LOCAL_READER_TAPS",
@@ -5232,7 +5276,7 @@
         "首批入口与默认值已获用户采用；197候选fdf340b6具名路径、完整备份预览及设备恢复已核。最后后台合并修正仅编译和逻辑验证，未安装。",
         "保留既有已确认行为与样式。",
         "用户本轮采用取消列表扁图，保留阅读中全屏点击区域预览；音量键方向改反转开关，沿用旧枚举与原按键行为。强调色仅修右侧对齐，色块/颜色/菜单保留。",
-        "本轮备份纠正仅取消两个入口指向同页及多余目录层；集中原备份内容/自动配置，保留创建、恢复、文件的独立任务。其他设置分类不摊平。",
+        "本轮当时集中备份内容及自动配置，独立任务结构后来由 BACKUP_WORKFLOW_REDESIGN 取代。其他设置分类不摊平。",
         "三项追踪服务用户无账号，成功登录、绑定及远端同步未验。"
       ],
       "reportedAt": null,
