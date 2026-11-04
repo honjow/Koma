@@ -86,6 +86,7 @@ export function isSourcePackageMinAppVersionSatisfied(minAppVersion: string | un
 
 export interface InstalledSourcePackage {
   id: string
+  catalogOrigin?: string
   name: string
   localizedNames?: Record<string, string>
   version: string
@@ -126,6 +127,7 @@ export interface SourcePackageIconBackup {
 
 export interface SourcePackageBackupEntry {
   sourceId: string
+  catalogOrigin?: string
   version: string
   enabled: boolean
   manifest: LocalSourcePackageManifest
@@ -462,6 +464,7 @@ function sourcePackageFromEntry(entry: SourceRuntimeRegistryEntry): InstalledSou
   const diagnostic = getSourceRuntimeDiagnostic(entry.sourceId)
   return {
     id: entry.sourceId,
+    catalogOrigin: entry.catalogOrigin,
     name: entry.manifestName,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     version: entry.manifestVersion,
@@ -526,6 +529,7 @@ function validateSourcePackageBackupPayload(
     typeof sourcePackage.sourceId !== 'string' ||
     typeof sourcePackage.version !== 'string' ||
     typeof sourcePackage.enabled !== 'boolean' ||
+    (sourcePackage.catalogOrigin !== undefined && typeof sourcePackage.catalogOrigin !== 'string') ||
     typeof sourcePackage.wasmBase64 !== 'string' ||
     typeof sourcePackage.wasmByteCount !== 'number' ||
     !Number.isInteger(sourcePackage.wasmByteCount) || sourcePackage.wasmByteCount <= 0) {
@@ -672,6 +676,7 @@ function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefin
     wasmPath: entry.wasmPath,
     archivePath: entry.archivePath,
     packageIconPath: entry.packageIconPath,
+    catalogOrigin: entry.catalogOrigin,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }, insertionIndex)
@@ -716,6 +721,7 @@ export function exportInstalledSourcePackages(): SourcePackageBackupEntry[] {
     const iconBytes = sourcePackageIconBytes(entry)
     const sourcePackage: SourcePackageBackupEntry = {
       sourceId: entry.sourceId,
+      catalogOrigin: entry.catalogOrigin,
       version: entry.manifestVersion,
       enabled: entry.enabled,
       manifest: manifestFromRegistryEntry(entry),
@@ -899,6 +905,7 @@ async function commitStagedSourcePackages(
       capabilities: staged.manifest.operationCapabilities,
       presentationDescription: staged.sourcePackage.presentationDescription,
       presentationIcon: staged.sourcePackage.presentationIcon,
+      catalogOrigin: staged.sourcePackage.catalogOrigin,
       manifestPath: staged.manifestPath,
       wasmPath: staged.wasmPath,
       archivePath: staged.archivePath,
@@ -1049,6 +1056,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
       wasmPath: entry.wasmPath,
       archivePath: entry.archivePath,
       packageIconPath: entry.packageIconPath,
+      catalogOrigin: entry.catalogOrigin,
       presentationDescription: entry.presentationDescription,
       presentationIcon: entry.presentationIcon,
     })
@@ -1143,6 +1151,8 @@ async function registerSourcePackageFromBytes(
   archiveFileName: string,
   expectedSourceId?: string,
   stagedPackageDir?: string,
+  catalogOrigin?: string,
+  isCurrent?: () => boolean,
 ): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
@@ -1177,6 +1187,10 @@ async function registerSourcePackageFromBytes(
     // Keep the installed entry available while the worker probes the new bytes.
     // Read its latest position/enabled state only after the asynchronous boundary.
     const detectedCapabilities = await detectSourceRuntimeCapabilities(sourceId, imported.wasmBytes)
+    if (isCurrent !== undefined && !isCurrent()) {
+      await removeAppSourcePackageDir(context, packageDir)
+      return { ok: false, reasonCode: 'subscription_unavailable' }
+    }
     removedExistingPosition = appSourceRuntimeRegistry.list().findIndex((entry: SourceRuntimeRegistryEntry): boolean => entry.sourceId === sourceId)
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
@@ -1196,6 +1210,7 @@ async function registerSourcePackageFromBytes(
       packageIconPath: imported.iconPath,
       presentationDescription: removedExisting?.presentationDescription,
       presentationIcon: removedExisting?.presentationIcon,
+      catalogOrigin: catalogOrigin === undefined ? undefined : removedExisting?.catalogOrigin ?? catalogOrigin,
     }, removedExistingPosition)
     if (!registered.ok) {
       restoreRuntimeRegistryEntry(removedExisting, removedExistingPosition)
@@ -1267,13 +1282,15 @@ export async function installFromBytes(
   archiveBytes: Uint8Array,
   pkgFileName: string,
   expectedSourceId?: string,
+  catalogOrigin?: string,
+  isCurrent?: () => boolean,
 ): Promise<SourcePackageInstallResult> {
   return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
     DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
     const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
     const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
       sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
-    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId)
+    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId, undefined, catalogOrigin, isCurrent)
   })
 }
 

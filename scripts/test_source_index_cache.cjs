@@ -15,13 +15,13 @@ function homepageGuard(){
  return exports.normalizeSourceHomepage
 }
 function harness(store=new Map()){
- let requests=[],flushes=0,failFlush=false,gate
+ let requests=[],requestedUrls=[],installs=[],flushes=0,failFlush=false,gate
  const pref={async has(k){return store.has(k)},async delete(k){store.delete(k)},async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
  const exports={}
  const serviceSource=fs.readFileSync(sourcePath,'utf8')
  const workerSource=(fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadata.ets'),'utf8')+'\n'+fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadataWorker.ets'),'utf8')).replace('const SOURCE_INDEX_REPOSITORY_LIMIT','const WORKER_REPOSITORY_LIMIT').replaceAll('SOURCE_INDEX_REPOSITORY_LIMIT','WORKER_REPOSITORY_LIMIT')
  const source=(workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
- const globals={exports,Map,Date,JSON,Array,Number,Promise,console,
+ const globals={exports,Map,Date,JSON,Array,Number,Promise,console,ArrayBuffer,Uint8Array,
   preferences:{getPreferences:async()=>pref}, taskpool:{execute:async(fn,...args)=>fn(...args)},
   BackupRestoreActivity:{async runWrite(fn){return fn()}},
   RemoteImageCacheStore:class{}, DiagnosticLogger:{info(){},error(){}},
@@ -29,13 +29,44 @@ function harness(store=new Map()){
   normalizeSourceHomepage:homepageGuard(),
   normalizeSourceLocalizedNames:v=>v, isValidSourcePackageMinAppVersion:v=>v==='' || /^\d+\.\d+\.\d+$/.test(v),
   SOURCE_REPO_PACKAGE_ICON_FILES:['icon.png','icon.jpg','icon.webp'],
-  http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING'},createHttp(){return {request(){return new Promise(resolve=>requests.push(resolve))},destroy(){}}}},
+  getInstalledSourcePackage:()=>undefined,isSourcePackageMinAppVersionSatisfied:()=>true,
+  computeSourcePackageSha256:bytes=>require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
+  installFromBytes:async(_context,bytes,_name,id,origin,isCurrent)=>{
+   assert.equal(isCurrent(),true);installs.push({bytes,id,origin});return {ok:true,id}
+  },
+  http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING',ARRAY_BUFFER:'ARRAY_BUFFER'},createHttp(){
+   return {request(url){requestedUrls.push(url);return new Promise(resolve=>requests.push(resolve))},destroy(){}}
+  }},
  }
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,globals)
  const make=(dir='data')=>new exports.SourceIndexService({filesDir:dir,cacheDir:'cache'})
- return {make,store,requests,pref,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
+ return {make,store,requests,requestedUrls,installs,pref,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
 }
 async function fetched(h,s,url,items){const r=s.fetchIndex(url);h.requests.shift()({responseCode:200,result:JSON.stringify(items)});const result=await r;await tick();return result}
+
+test('an unavailable book source package retries its verified enabled mirror',async()=>{
+ const h=harness(),service=h.make()
+ const path='github.com/example/sources/releases/latest/download/'
+ const original='https://'+path+'index.json',mirror='https://gh-proxy.org/'+path+'index.json'
+ const bytes=Uint8Array.of(1,2,3)
+ const offer=item('A',{sha256:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})
+ for(const url of [original,mirror]){
+  await service.saveRepository(url,'')
+  await fetched(h,service,url,[offer])
+ }
+ const pending=service.installPackage(original,offer,true)
+ await tick()
+ h.requests.shift()({responseCode:503,result:new ArrayBuffer(0)})
+ await tick()
+ h.requests.shift()({responseCode:200,result:bytes.buffer})
+ assert.equal((await pending).ok,true)
+ assert.deepEqual(h.requestedUrls.slice(-2),[original.replace('index.json','A.koma'),mirror.replace('index.json','A.koma')])
+ assert.equal(h.installs[0].origin,mirror)
+ for(const url of [original,mirror])await service.setSubscriptionDisabled(url,true)
+ const requestCount=h.requestedUrls.length
+ assert.equal((await service.installPackage(original,offer,true)).reasonCode,'subscription_unavailable')
+ assert.equal(h.requestedUrls.length,requestCount)
+})
 test('successful metadata persists across service/runtime recreation, normalized URL isolated, iconUri discarded',async()=>{
  const h=harness(),s=h.make()
  const r=await fetched(h,s,' HTTPS://Example.COM/repo/ ',[item('A',{iconUri:'file://expired'})]);assert.equal(r.ok,true)

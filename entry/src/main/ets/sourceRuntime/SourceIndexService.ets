@@ -6,7 +6,7 @@ import {
   SOURCE_INDEX_METADATA_RECORD_LIMIT, SOURCE_INDEX_METADATA_CACHE_LIMIT,
   normalizeIndexUrl, resolveIndexDocumentUrl, isValidHttpUrl, normalizeSourceIndexRepository,
   normalizeSourceIndexRepositories, serializeSourceIndexRepositories, safeResolvePkgUrl,
-  safeResolveIndexAssetUrl, entryWithCachedIcon, parseCachedIndexEntries,
+  safeResolveIndexAssetUrl, entryWithCachedIcon, parseCachedIndexEntries, subscriptionIdentity,
 } from './SourceIndexMetadata'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
@@ -19,6 +19,7 @@ import { http } from '@kit.NetworkKit'
 import {
   installFromArchive,
   installFromBytes,
+  getInstalledSourcePackage,
   isSourcePackageMinAppVersionSatisfied,
   SourcePackageInstallResult,
 } from './SourceRuntimeAppRegistry'
@@ -137,6 +138,9 @@ let localArchiveTaskSequence: number = 0
 
 // Shared across service instances belonging to the same application data store.
 const sourceIndexMetadataRequests: Map<string, number> = new Map()
+const sourceSubscriptionEpochs: Map<string, number> = new Map()
+const disabledSourceSubscriptions: Set<string> = new Set()
+const lastSourceDownload: Map<string, string> = new Map()
 const sourceIndexPreferenceOperations: Map<string, Promise<void>> = new Map()
 
 export class SourceIndexService {
@@ -215,6 +219,19 @@ export class SourceIndexService {
 
   private metadataRequestKey(url: string): string {
     return `${this.context.filesDir}\n${url}`
+  }
+
+  private retireSubscription(url: string): void {
+    const document = resolveIndexDocumentUrl(url)
+    this.beginMetadataRequest(document)
+    const key = this.metadataRequestKey(document)
+    sourceSubscriptionEpochs.set(key, (sourceSubscriptionEpochs.get(key) ?? 0) + 1)
+  }
+
+  private rememberSubscriptionState(repository: SourceIndexRepository): void {
+    const key = this.metadataRequestKey(resolveIndexDocumentUrl(repository.url))
+    if (repository.disabled) disabledSourceSubscriptions.add(key)
+    else disabledSourceSubscriptions.delete(key)
   }
 
   private beginMetadataRequest(url: string): number {
@@ -302,7 +319,9 @@ export class SourceIndexService {
     if (isValidHttpUrl(legacyUrl) && !repositories.some((item: SourceIndexRepository): boolean => item.url === legacyUrl)) {
       repositories.push({ url: legacyUrl, lastUsedAt: 0 })
     }
-    return normalizeSourceIndexRepositories(repositories as Object[])
+    const normalized = normalizeSourceIndexRepositories(repositories as Object[])
+    normalized.forEach((item: SourceIndexRepository): void => this.rememberSubscriptionState(item))
+    return normalized
   }
 
   async loadSavedUrl(): Promise<string> {
@@ -365,7 +384,7 @@ export class SourceIndexService {
           if (isValidHttpUrl(normalized)) {
             const saved = repositories.find((item: SourceIndexRepository): boolean => item.url === normalized)
             const updated: SourceIndexRepository[] = [{ url: normalized, lastUsedAt: Date.now(),
-              customName: saved?.customName, name: saved?.name, website: saved?.website }]
+              disabled: saved?.disabled, customName: saved?.customName, name: saved?.name, website: saved?.website }]
             repositories.forEach((repository: SourceIndexRepository) => {
               if (repository.url !== normalized) updated.push(repository)
             })
@@ -384,7 +403,7 @@ export class SourceIndexService {
   // It cannot change catalog/package provenance and never blocks installation.
   async fetchRepositoryMetadata(indexUrl: string): Promise<SourceRepositoryMetadata | undefined> {
     const documentUrl = resolveIndexDocumentUrl(indexUrl)
-    if (!isValidHttpUrl(documentUrl)) return undefined
+    if (!isValidHttpUrl(documentUrl) || disabledSourceSubscriptions.has(this.metadataRequestKey(documentUrl))) return undefined
     const request = http.createHttp()
     try {
       const response = await request.request(documentUrl.substring(0, documentUrl.lastIndexOf('/') + 1) + 'repo.json', {
@@ -412,6 +431,7 @@ export class SourceIndexService {
         resolveIndexDocumentUrl(item.url) === resolveIndexDocumentUrl(normalized))) throw new Error('repository_exists')
       const sameDocument = original !== undefined && resolveIndexDocumentUrl(original.url) === resolveIndexDocumentUrl(normalized)
       const repository: SourceIndexRepository = { url: normalized, lastUsedAt: original?.lastUsedAt ?? Date.now(),
+        disabled: original?.disabled,
         customName: customName.trim().slice(0, 120) || undefined,
         name: metadata !== undefined ? metadata.name : (sameDocument ? original?.name : undefined),
         website: metadata !== undefined ? metadata.website : (sameDocument ? original?.website : undefined) }
@@ -419,21 +439,38 @@ export class SourceIndexService {
         item.url === previous ? repository : item)
       const active = normalizeIndexUrl(await this.savedUrl(store))
       await this.commitSavedPreferences(store, next, previous === undefined || active === previous ? normalized : undefined)
+      this.rememberSubscriptionState(repository)
+      if (previous !== undefined && !sameDocument) this.retireSubscription(previous)
       return next
     }))
   }
 
   async refreshRepositoryMetadata(repository: SourceIndexRepository): Promise<void> {
+    if (repository.disabled) return
     const metadata = await this.fetchRepositoryMetadata(repository.url)
     if (metadata === undefined) return
     await BackupRestoreActivity.runWrite(async (): Promise<void> => this.ordered(async (): Promise<void> => {
       const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
       const saved = await this.savedRepositories(store)
-      const next = saved.map((item: SourceIndexRepository): SourceIndexRepository => item.url !== repository.url ? item : {
+      const next = saved.map((item: SourceIndexRepository): SourceIndexRepository => item.url !== repository.url || item.disabled ? item : {
         url: item.url, lastUsedAt: item.lastUsedAt, customName: item.customName,
         name: metadata.name, website: metadata.website,
       })
       if (JSON.stringify(next) !== JSON.stringify(saved)) await this.commitSavedPreferences(store, next)
+    }))
+  }
+
+  async setSubscriptionDisabled(url: string, disabled: boolean): Promise<SourceIndexRepository[]> {
+    return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexRepository[]> => this.ordered(async (): Promise<SourceIndexRepository[]> => {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const saved = await this.savedRepositories(store)
+      const item = saved.find((repository: SourceIndexRepository): boolean => repository.url === url)
+      if (item === undefined) throw new Error('repository_removed')
+      item.disabled = disabled || undefined
+      await this.commitSavedPreferences(store, saved)
+      this.rememberSubscriptionState(item)
+      this.retireSubscription(url)
+      return saved
     }))
   }
 
@@ -463,6 +500,7 @@ export class SourceIndexService {
           await this.commitSavedPreferences(store, repositories,
             removingActive && repositories.length > 0 ? repositories[0].url : undefined,
             removingActive && repositories.length === 0)
+          this.retireSubscription(normalized)
           return repositories
         } catch (_error) {
           throw new Error('source_index_preferences_remove_failed')
@@ -477,6 +515,10 @@ export class SourceIndexService {
       return { ok: false, reasonCode: 'invalid_url', entries: [] }
     }
 
+    const key = this.metadataRequestKey(normalizedUrl)
+    const epoch = sourceSubscriptionEpochs.get(key) ?? 0
+    if (prefetchedBody === undefined && disabledSourceSubscriptions.has(key))
+      return { ok: false, reasonCode: 'subscription_unavailable', entries: [] }
     const cacheRevision = this.beginMetadataRequest(normalizedUrl)
     const httpRequest = http.createHttp()
     try {
@@ -495,6 +537,8 @@ export class SourceIndexService {
 
       const body = prefetchedBody ?? (typeof response!.result === 'string' ? response!.result : JSON.stringify(response!.result))
       const parsed = await taskpool.execute(parseSourceIndexDocumentTask, body, normalizedUrl) as SourceIndexMetadataParseResult
+      if (epoch !== (sourceSubscriptionEpochs.get(key) ?? 0))
+        return { ok: false, reasonCode: 'subscription_unavailable', entries: [] }
       if (!parsed.ok) return parsed
       const entries = parsed.entries
       DiagnosticLogger.info('source_index', 'fetch_ok', '[SourceIndex] step=fetch_ok count=' + entries.length)
@@ -518,12 +562,15 @@ export class SourceIndexService {
     allowNetwork: boolean = true,
   ): Promise<void> {
     const normalizedUrl = resolveIndexDocumentUrl(indexUrl)
+    const key = this.metadataRequestKey(normalizedUrl)
+    if (disabledSourceSubscriptions.has(key)) return
+    const epoch = sourceSubscriptionEpochs.get(key) ?? 0
     let nextIndex = 0
     const worker = async (): Promise<void> => {
-      while (isCurrent() && nextIndex < entries.length) {
+      while (isCurrent() && epoch === (sourceSubscriptionEpochs.get(key) ?? 0) && nextIndex < entries.length) {
         const entry = entries[nextIndex++]
         const iconUri = await this.cachedIconUriFor(normalizedUrl, entry, allowNetwork)
-        if (!isCurrent()) return
+        if (!isCurrent() || epoch !== (sourceSubscriptionEpochs.get(key) ?? 0)) return
         if (iconUri.length > 0) onIconReady(entryWithCachedIcon(entry, iconUri))
       }
     }
@@ -534,8 +581,8 @@ export class SourceIndexService {
     await Promise.all(workers)
   }
 
-  async installPackage(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
-    return appSourcePackageInstallTasks.run(entry.id, () => this.installPackageNow(indexUrl, entry))
+  async installPackage(indexUrl: string, entry: SourceIndexEntry, requireSaved: boolean = false): Promise<SourceIndexInstallResult> {
+    return appSourcePackageInstallTasks.run(entry.id, () => this.installPackageNow(indexUrl, entry, requireSaved))
   }
 
   async installLocalArchive(uri: string): Promise<SourcePackageInstallResult> {
@@ -550,72 +597,121 @@ export class SourceIndexService {
     return result.install ?? { ok: false, reasonCode: result.reasonCode ?? 'import_failed' }
   }
 
-  private async installPackageNow(indexUrl: string, entry: SourceIndexEntry): Promise<SourceIndexInstallResult> {
+  private async installPackageNow(indexUrl: string, entry: SourceIndexEntry, requireSaved: boolean): Promise<SourceIndexInstallResult> {
     return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexInstallResult> => {
       if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
         DiagnosticLogger.error('source_index_service', 'install_blocked', '[SourceIndex] step=install_blocked reason=app_version_unsupported')
         return { ok: false, reasonCode: 'app_version_unsupported' }
       }
 
-      const pkgUrl = safeResolvePkgUrl(resolveIndexDocumentUrl(indexUrl), entry.pkg)
-      if (!isValidHttpUrl(pkgUrl)) {
-        return { ok: false, reasonCode: 'invalid_pkg_url' }
+      const document = resolveIndexDocumentUrl(indexUrl)
+      const identity = subscriptionIdentity(document)
+      const installedOrigin = requireSaved ? getInstalledSourcePackage(entry.id)?.catalogOrigin : undefined
+      if (entry.conflictingRepositories?.length || (installedOrigin !== undefined && subscriptionIdentity(installedOrigin) !== identity))
+        return { ok: false, reasonCode: 'subscription_conflict' }
+      const routeKey = this.metadataRequestKey(identity)
+      const saved = await this.loadSavedRepositories()
+      const primary = saved.find((item: SourceIndexRepository): boolean => resolveIndexDocumentUrl(item.url) === document)
+      const routes: SourceIndexMetadataCacheRecord[] = []
+      if (primary?.disabled !== true && (!requireSaved || primary !== undefined)) routes.push({ url: document, entries: [entry] })
+      // The pinned complete archive digest makes another saved endpoint safe
+      // to try. A same-ID release without a digest cannot substitute bytes.
+      if (entry.sha256.length > 0) {
+        for (const item of saved) {
+          const url = resolveIndexDocumentUrl(item.url)
+          if (item.disabled || url === document || subscriptionIdentity(url) !== identity) continue
+          const cached = await this.loadCachedIndex(url)
+          if (cached?.some((offer: SourceIndexEntry): boolean =>
+            offer.id === entry.id && offer.version === entry.version && offer.sha256.length > 0 && offer.sha256 !== entry.sha256))
+            return { ok: false, reasonCode: 'subscription_conflict' }
+          const equivalent = cached?.find((offer: SourceIndexEntry): boolean =>
+            offer.id === entry.id && offer.version === entry.version && offer.sha256 === entry.sha256)
+          if (equivalent !== undefined) routes.push({ url, entries: [equivalent] })
+        }
       }
-
-      DiagnosticLogger.info('source_index', 'download_pkg', '[SourceIndex] step=download_pkg')
-
-      const httpRequest = http.createHttp()
-      try {
-        const response = await httpRequest.request(pkgUrl, {
-          method: http.RequestMethod.GET,
-          expectDataType: http.HttpDataType.ARRAY_BUFFER,
-          usingCache: false,
-          readTimeout: 60000,
-          connectTimeout: 30000,
-        })
-
-        if (response.responseCode !== 200) {
-          DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail status=' + response.responseCode)
-          return { ok: false, reasonCode: 'http_error' }
+      const recent = lastSourceDownload.get(routeKey)
+      if (recent !== undefined) routes.sort((a: SourceIndexMetadataCacheRecord, b: SourceIndexMetadataCacheRecord): number =>
+        Number(b.url === recent) - Number(a.url === recent))
+      let result: SourceIndexInstallResult = { ok: false, reasonCode: 'subscription_unavailable' }
+      for (const route of routes) {
+        const key = this.metadataRequestKey(route.url)
+        const epoch = sourceSubscriptionEpochs.get(key) ?? 0
+        const current = (): boolean => epoch === (sourceSubscriptionEpochs.get(key) ?? 0)
+        if (requireSaved) {
+          const live = (await this.loadSavedRepositories()).find((item: SourceIndexRepository): boolean =>
+            resolveIndexDocumentUrl(item.url) === route.url)
+          if (live === undefined || live.disabled || !current()) continue
         }
-
-        let archiveBytes: Uint8Array
-        if (response.result instanceof ArrayBuffer) {
-          archiveBytes = new Uint8Array(response.result)
-        } else {
-          return { ok: false, reasonCode: 'invalid_response' }
-        }
-
-        if (archiveBytes.byteLength === 0) {
-          return { ok: false, reasonCode: 'empty_package' }
-        }
-        if (entry.sha256.length > 0) {
-          // Keep the downloaded bytes owned by the installer while TaskPool hashes
-          // its copy; a failed or incomplete digest must never publish the package.
-          const hashBytes = new Uint8Array(archiveBytes.byteLength)
-          hashBytes.set(archiveBytes)
-          const digest = await taskpool.execute(computeSourcePackageSha256, hashBytes) as string
-          if (digest !== entry.sha256) {
-            DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail reason=checksum_mismatch')
-            return { ok: false, reasonCode: 'checksum_mismatch' }
-          }
-        }
-
-        const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id)
-        if (!install.ok) {
-          DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
-          return { ok: false, reasonCode: install.reasonCode, install }
-        }
-
-        DiagnosticLogger.info('source_index', 'install_ok', '[SourceIndex] step=install_ok id=' + install.id)
-        return { ok: true, install }
-      } catch (error) {
-        const e = error as BusinessError
-        DiagnosticLogger.error('source_index_service', 'download_error', '[SourceIndex] step=download_error code=' + e.code)
-        return { ok: false, reasonCode: 'network_error' }
-      } finally {
-        httpRequest.destroy()
+        result = await this.downloadAndInstall(route.url, route.entries[0], current)
+        if (result.ok) lastSourceDownload.set(routeKey, route.url)
+        if (result.reasonCode !== 'http_error' && result.reasonCode !== 'network_error' &&
+          result.reasonCode !== 'subscription_unavailable') break
       }
+      return result
     })
+  }
+
+  private async downloadAndInstall(indexUrl: string, entry: SourceIndexEntry,
+    isCurrent: () => boolean): Promise<SourceIndexInstallResult> {
+    const pkgUrl = safeResolvePkgUrl(indexUrl, entry.pkg)
+    if (!isValidHttpUrl(pkgUrl)) {
+      return { ok: false, reasonCode: 'invalid_pkg_url' }
+    }
+
+    DiagnosticLogger.info('source_index', 'download_pkg', '[SourceIndex] step=download_pkg')
+
+    const httpRequest = http.createHttp()
+    try {
+      const response = await httpRequest.request(pkgUrl, {
+        method: http.RequestMethod.GET,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER,
+        usingCache: false,
+        readTimeout: 60000,
+        connectTimeout: 30000,
+      })
+
+      if (response.responseCode !== 200) {
+        DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail status=' + response.responseCode)
+        return { ok: false, reasonCode: 'http_error' }
+      }
+
+      let archiveBytes: Uint8Array
+      if (response.result instanceof ArrayBuffer) {
+        archiveBytes = new Uint8Array(response.result)
+      } else {
+        return { ok: false, reasonCode: 'invalid_response' }
+      }
+
+      if (archiveBytes.byteLength === 0) {
+        return { ok: false, reasonCode: 'empty_package' }
+      }
+      if (entry.sha256.length > 0) {
+        // Keep the downloaded bytes owned by the installer while TaskPool hashes
+        // its copy; a failed or incomplete digest must never publish the package.
+        const hashBytes = new Uint8Array(archiveBytes.byteLength)
+        hashBytes.set(archiveBytes)
+        const digest = await taskpool.execute(computeSourcePackageSha256, hashBytes) as string
+        if (digest !== entry.sha256) {
+          DiagnosticLogger.error('source_index_service', 'download_fail', '[SourceIndex] step=download_fail reason=checksum_mismatch')
+          return { ok: false, reasonCode: 'checksum_mismatch' }
+        }
+      }
+
+      if (!isCurrent()) return { ok: false, reasonCode: 'subscription_unavailable' }
+      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent)
+      if (!install.ok) {
+        DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
+        return { ok: false, reasonCode: install.reasonCode, install }
+      }
+
+      DiagnosticLogger.info('source_index', 'install_ok', '[SourceIndex] step=install_ok id=' + install.id)
+      return { ok: true, install }
+    } catch (error) {
+      const e = error as BusinessError
+      DiagnosticLogger.error('source_index_service', 'download_error', '[SourceIndex] step=download_error code=' + e.code)
+      return { ok: false, reasonCode: 'network_error' }
+    } finally {
+      httpRequest.destroy()
+    }
   }
 }

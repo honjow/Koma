@@ -35,14 +35,17 @@ function productionModule(file, bindings = {}, names) {
 const presentation = productionModule('model/SourceCatalogPresentation.ets')
 const metadataBindings = productionModule('sourceRuntime/SourceLocalizedNames.ets')
 Object.assign(metadataBindings, productionModule('sourceRuntime/SourcePackageMetadata.ets', {}, ['normalizeSourceHomepage']))
-const {entryWithCachedIcon} = productionModule('sourceRuntime/SourceIndexMetadata.ets', metadataBindings, ['entryWithCachedIcon'])
+const {entryWithCachedIcon,subscriptionIdentity} = productionModule('sourceRuntime/SourceIndexMetadata.ets', metadataBindings,
+  ['entryWithCachedIcon','subscriptionIdentity','resolveIndexDocumentUrl','parseSourceIndexHttpUrl','normalizeSourceIndexPath'])
 const {mergeSourceIndexCatalog} = productionModule('sourceRuntime/SourceIndexCatalog.ets', {entryWithCachedIcon})
-const entry = id => ({ id, name: id, version: '1', icon: `${id}.png` })
+const entry = id => ({ id, name: id, version: '1', sha256: '', icon: `${id}.png` })
 const globals = {
   ...presentation,
   resolveIndexDocumentUrl: value => value,
   entryWithCachedIcon: (entry, iconUri) => ({ ...entry, iconUri }),
   SOURCE_INDEX_ICON_FETCH_CONCURRENCY: 4,
+  sourceSubscriptionEpochs: new Map(),
+  disabledSourceSubscriptions: new Set(),
   taskpool: { execute: async (fn,...args) => fn(...args) },
   parseSourceIndexDocumentTask: body => ({ok:true,entries:JSON.parse(body)}),
   SourceIdentityIconState: class { uri = '' },
@@ -93,6 +96,7 @@ test('usable index metadata returns without waiting for any icon download', asyn
     }) },
   })
   service.beginMetadataRequest = () => 1
+  service.metadataRequestKey = url => url
   service.persistIndexMetadata = async () => {}
   service.cachedIconUriFor = () => { iconFetches++; return new Promise(() => {}) }
   const result = await service.fetchIndex('https://index.test/index.json')
@@ -104,6 +108,7 @@ test('usable index metadata returns without waiting for any icon download', asyn
 
 test('one slow icon does not hold the next batch; every ready icon publishes independently within four workers', async () => {
   const service = subject('sourceRuntime/SourceIndexService.ets', 'SourceIndexService', ['loadIndexIcons'], globals)
+  service.metadataRequestKey = url => url
   const pending = new Map(), published = []
   let active = 0, maxActive = 0
   service.cachedIconUriFor = (_url, item) => new Promise(resolve => {
@@ -533,7 +538,8 @@ function retainedCache(service, packages = []) {
     .replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
   const exports={}
   vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{
-    exports,console,JSON,Map,Promise,Date,mergeSourceIndexCatalog,
+    exports,console,JSON,Map,Promise,Date,mergeSourceIndexCatalog,subscriptionIdentity,
+    isSourcePackageMinAppVersionSatisfied:()=>true,
     AppStrings:{get:key=>key.startsWith('source_pkg_reason_')?key.slice('source_pkg_reason_'.length):key,format:(key,...values)=>JSON.stringify([key,...values])},
     listInstalled:()=>packages,resolveSourceLocalizedName:name=>name,compareSourceNames:(a,_id,b)=>a.localeCompare(b),
     SourceIdentityIconState:globals.SourceIdentityIconState,SourceIndexService:class{constructor(){return service}},
@@ -847,7 +853,8 @@ test('a real saved-settings read failure retains its known settings action and r
   const visible=[],toast=[]
   const host=subject('components/SourceSettingsSheetHost.ets','SourceSettingsSheetHost',
     ['openSettings'],{appSourceRuntimeRegistry:{},loadSourceSettingsDescriptorsAsync:async()=>({ready:true,descriptors:[{id:'region'}]}),
-      sourceSettingsDraft:()=>{},appSourceSettingsStore:{loadForSource(){throw Error('read failed')}},AppStrings:{get:x=>x}})
+      sourceSettingsDraft:()=>{},appSourceSettingsStore:{loadForSource(){throw Error('read failed')}},AppStrings:{get:x=>x},
+      komaToastOptions:options=>options})
   Object.assign(host,{mounted:true,active:true,epoch:0,sourceId:'A',onAvailabilityChanged:x=>visible.push(x),
     getUIContext:()=>({getPromptAction:()=>({showToast:x=>toast.push(x.message)})})})
   await host.openSettings()

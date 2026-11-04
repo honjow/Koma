@@ -8,7 +8,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { connectImageRuleState } from '../state/ImageRuleState'
 import { ImageProcessingPlugin, validateImageProcessingPlugin, imagePluginDefaults } from './ImageProcessingPlugins'
 import { SettingsFieldValues } from './SettingsFormFields'
-import { ImagePluginRow, imagePluginRows } from './ImagePluginManagement'
+import { ImagePluginOffer, ImagePluginRow, imagePluginOffers, imagePluginOffersConflict, imagePluginRows } from './ImagePluginManagement'
 import { imagePluginNative } from './ImagePluginNative'
 import { ImageBannerRule, ImageRuleRecord, ImageRuleSnapshot, ImageRuleConfiguration, ImageRuleSubscription, ImageRuleIndex, ImageRulePack,
   ImageRulePackReference, ImagePluginCollection, validateImageRulePack, validateImageRuleConfiguration, imageRuleKey } from './ImageBannerRules'
@@ -186,7 +186,7 @@ export class ImageRuleStore {
       return response.result
     } finally { request.destroy() }
   }
-  private async download(url: string, document?: string): Promise<ImageRuleSubscription> {
+  private async download(url: string, document?: string, isCurrent: () => boolean = (): boolean => true): Promise<ImageRuleSubscription> {
     const index = JSON.parse(document ?? await this.fetchDocument(url)) as ImageRuleIndex
     const pluginIndex = index.schemaVersion === 2 && index.kind === 'image_plugins'
     if ((!pluginIndex && (index.schemaVersion !== 1 || index.kind !== 'image_rules')) || !index.meta?.name?.trim() ||
@@ -194,8 +194,10 @@ export class ImageRuleStore {
       index.packs.length === 0 || index.packs.length > 32) throw new Error('invalid_image_rule_index')
     const packs: ImageRulePack[] = []
     const catalog: ImageProcessingPlugin[] = []
+    const manifestHashes: Record<string, string> = {}
     const ids: Set<string> = new Set()
     for (const reference of index.packs) {
+      if (!isCurrent()) throw new Error('image_plugin_request_cancelled')
       if (typeof reference.id !== 'string' || ids.has(reference.id) || !/^[a-f0-9]{64}$/.test(reference.sha256))
         throw new Error('invalid_image_rule_reference')
       ids.add(reference.id)
@@ -205,6 +207,7 @@ export class ImageRuleStore {
         bytes, JSON.stringify(reference))) as Object
       if (pluginIndex) {
         const plugin = validateImageProcessingPlugin(parsed)
+        manifestHashes[plugin.id] = reference.sha256
         plugin.processor.path = safeResolveIndexRelativeUrl(manifestUrl, plugin.processor.path, '.wasm')
         catalog.push(plugin)
       } else {
@@ -213,7 +216,7 @@ export class ImageRuleStore {
     }
     return { url, name: index.meta.name.trim(), description: index.meta.description,
       website: isValidHttpUrl(index.meta.website ?? '') ? index.meta.website : undefined,
-      updatedAt: Date.now(), revision: index.revision, packs, catalog }
+      updatedAt: Date.now(), revision: index.revision, packs, catalog, manifestHashes }
   }
   async add(url: string, customName: string, document?: string, previousUrl?: string): Promise<void> {
     const normalized = resolveIndexDocumentUrl(url)
@@ -229,6 +232,7 @@ export class ImageRuleStore {
       const previous = previousUrl === undefined ? undefined : draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === previousUrl)
       if (previousUrl !== undefined && previous === undefined) throw new Error('image_rule_subscription_removed')
       downloaded.customName = customName.trim() || undefined
+      downloaded.disabled = previous?.disabled
       draft.subscriptions = draft.subscriptions.filter((s: ImageRuleSubscription): boolean => s.url !== previousUrl)
       draft.subscriptions.push(downloaded)
     }, false))
@@ -245,6 +249,18 @@ export class ImageRuleStore {
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
       draft.subscriptions = draft.subscriptions.filter((s: ImageRuleSubscription): boolean => s.url !== url)
     }, false))
+  }
+  async setSubscriptionDisabled(url: string, disabled: boolean): Promise<void> {
+    await this.ready
+    this.epochs.set(url, (this.epochs.get(url) ?? 0) + 1)
+    this.inFlight.delete(url)
+    await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
+      const saved = draft.subscriptions.find((item: ImageRuleSubscription): boolean => item.url === url)
+      if (saved === undefined) throw new Error('image_rule_subscription_removed')
+      saved.disabled = disabled || undefined
+      if (disabled) saved.lastError = undefined
+    }, false))
+    if (!disabled) void this.refresh(url).catch((): void => {})
   }
   private collection(draft: ImageRuleConfiguration, origin: string, name: string): ImagePluginCollection {
     let installed = draft.installations.find((source: ImagePluginCollection): boolean => source.origin === origin)
@@ -275,22 +291,49 @@ export class ImageRuleStore {
   }
   /** Catalog changes never install or activate content. Only explicit actions
    * change installed versions, retaining their position and user configuration. */
-  async installPlugin(url: string, id: string): Promise<void> {
+  async installPlugin(url: string, id: string, version?: number): Promise<void> {
     await this.ready; this.assertReadable()
-    const subscription = this.configuration.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === url)
-    const offered = subscription?.catalog?.find((p: ImageProcessingPlugin): boolean => p.id === id)
-    if (!offered) throw new Error('image_plugin_not_in_catalog')
-    const plugin = JSON.parse(JSON.stringify(offered)) as ImageProcessingPlugin
+    const offers = imagePluginOffers(this.configuration.subscriptions, id, url)
+    const selected = offers[0]
+    if (selected === undefined || (version !== undefined && selected.plugin.version !== version))
+      throw new Error('image_plugin_not_in_catalog')
+    if (imagePluginOffersConflict(offers)) throw new Error('image_plugin_source_conflict')
+    this.ensureOrigin(this.configuration, url, id)
     const requestKey = JSON.stringify([url, id])
-    const epoch = this.epochs.get(requestKey) ?? 0, subscriptionEpoch = this.epochs.get(url) ?? 0, generation = this.generation
-    const bytes = await this.resource(plugin.processor.path)
+    const epoch = this.epochs.get(requestKey) ?? 0, generation = this.generation
+    const routes = offers.filter((offer: ImagePluginOffer): boolean => offer === selected ||
+      (offer.plugin.version === selected.plugin.version && offer.plugin.processor.sha256 === selected.plugin.processor.sha256 &&
+        selected.manifestHash !== undefined && selected.manifestHash === offer.manifestHash))
+    let used = selected
+    let usedEpoch = 0
+    let bytes: ArrayBuffer | undefined
+    let failure: Error | undefined
+    for (const offer of routes) {
+      const address = offer.subscription.url
+      const live = this.configuration.subscriptions.find((item: ImageRuleSubscription): boolean => item.url === address)
+      if (live === undefined || live.disabled || live.revision !== offer.subscription.revision ||
+        generation !== this.generation || epoch !== (this.epochs.get(requestKey) ?? 0)) continue
+      usedEpoch = this.epochs.get(address) ?? 0
+      try {
+        bytes = await this.resource(offer.plugin.processor.path)
+        used = offer
+        break
+      } catch (error) {
+        failure = error as Error
+        if (failure.message === 'invalid_image_rule_url' || failure.message === 'invalid_image_rule_index') throw failure
+      }
+    }
+    if (bytes === undefined) throw failure ?? new Error('image_plugin_request_cancelled')
+    const plugin = JSON.parse(JSON.stringify(used.plugin)) as ImageProcessingPlugin
     plugin.processor.moduleBase64 = await taskpool.execute<[ArrayBuffer, string], string>(validateImageProcessorModule, bytes, plugin.processor.sha256)
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
-      const catalog = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === url)
+      const catalog = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === used.subscription.url)
       const current = catalog?.catalog?.find((p: ImageProcessingPlugin): boolean => p.id === id)
-      if (!catalog || !current || current.processor.sha256 !== plugin.processor.sha256 || current.version !== plugin.version ||
+      if (!catalog || catalog.disabled || !current || current.processor.sha256 !== plugin.processor.sha256 || current.version !== plugin.version ||
+        catalog.manifestHashes?.[id] !== used.manifestHash ||
         generation !== this.generation || epoch !== (this.epochs.get(requestKey) ?? 0) ||
-        subscriptionEpoch !== (this.epochs.get(url) ?? 0)) throw new Error('image_plugin_request_cancelled')
+        usedEpoch !== (this.epochs.get(catalog.url) ?? 0)) throw new Error('image_plugin_request_cancelled')
+      catalog.lastDownloadAt = Date.now()
       this.ensureOrigin(draft, url, id)
       const source = this.collection(draft, url, catalog.customName || catalog.name)
       const index = source.plugins.findIndex((p: ImageProcessingPlugin): boolean => p.id === id)
@@ -309,7 +352,7 @@ export class ImageRuleStore {
   async installRulePack(url: string, id: string): Promise<void> {
     await this.ready; this.assertReadable()
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
-      const catalog = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === url)
+      const catalog = draft.subscriptions.find((s: ImageRuleSubscription): boolean => !s.disabled && s.url === url)
       const offered = catalog?.packs.find((pack: ImageRulePack): boolean => pack.id === id)
       if (!catalog || !offered) throw new Error('image_plugin_not_in_catalog')
       this.ensureOrigin(draft, url, id)
@@ -370,7 +413,8 @@ export class ImageRuleStore {
   private async checkSubscriptions(): Promise<boolean> {
     await this.ready
     this.assertReadable()
-    const urls = this.configuration.subscriptions.map((subscription: ImageRuleSubscription): string => subscription.url)
+    const urls = this.configuration.subscriptions.filter((subscription: ImageRuleSubscription): boolean => !subscription.disabled)
+      .map((subscription: ImageRuleSubscription): string => subscription.url)
     let complete = true
     for (const url of urls) {
       try { await this.refresh(url) } catch (_error) { complete = false }
@@ -381,10 +425,14 @@ export class ImageRuleStore {
   refresh(url: string): Promise<void> {
     const pending = this.inFlight.get(url)
     if (pending) return pending
+    const epoch = this.epochs.get(url) ?? 0
+    const generation = this.generation
     const request = this.update(url).catch(async (error: Error): Promise<void> => {
+      if (generation !== this.generation || epoch !== (this.epochs.get(url) ?? 0)) return
       await this.change((draft: ImageRuleConfiguration): void => {
         const saved = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === url)
-        if (saved) saved.lastError = 'image_rules_update_failed'
+        if (saved && !saved.disabled && generation === this.generation && epoch === (this.epochs.get(url) ?? 0))
+          saved.lastError = 'image_rules_update_failed'
       }, false)
       throw error
     })
@@ -395,15 +443,16 @@ export class ImageRuleStore {
   }
   private async update(url: string): Promise<void> {
     await this.ready
-    if (!this.configuration.subscriptions.some((s: ImageRuleSubscription): boolean => s.url === url)) return
+    if (!this.configuration.subscriptions.some((s: ImageRuleSubscription): boolean => s.url === url && !s.disabled)) return
     const generation = this.generation, epoch = this.epochs.get(url) ?? 0
-    const downloaded = await this.download(url)
+    const downloaded = await this.download(url, undefined, (): boolean =>
+      generation === this.generation && epoch === (this.epochs.get(url) ?? 0))
     await BackupRestoreActivity.runWrite(() => this.change((draft: ImageRuleConfiguration): void => {
       const saved = draft.subscriptions.find((s: ImageRuleSubscription): boolean => s.url === url)
-      if (!saved || generation !== this.generation || epoch !== (this.epochs.get(url) ?? 0)) return
+      if (!saved || saved.disabled || generation !== this.generation || epoch !== (this.epochs.get(url) ?? 0)) return
       saved.name = downloaded.name; saved.description = downloaded.description; saved.website = downloaded.website
       saved.revision = downloaded.revision; saved.packs = downloaded.packs; saved.updatedAt = downloaded.updatedAt
-      saved.catalog = downloaded.catalog; saved.lastError = undefined
+      saved.catalog = downloaded.catalog; saved.manifestHashes = downloaded.manifestHashes; saved.lastError = undefined
     }, false))
   }
 }

@@ -43,6 +43,7 @@ import {
   setEnabled,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { runRegisteredSourceRequestByIdAsync } from '../sourceRuntime/SourceRuntimeService'
+import { subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 import {
   SourceSettingDescriptor,
   SourceSettingsRecord,
@@ -749,7 +750,10 @@ export struct SourcePackageManagerPage {
     if (installed === undefined || entry.version.length === 0 || installed.version.length === 0) {
       return false
     }
-    return this.updateAvailableFor(installed, entry)
+    return !entry.conflictingRepositories?.length &&
+      (installed.catalogOrigin === undefined || subscriptionIdentity(installed.catalogOrigin) ===
+        subscriptionIdentity(entry.repositoryUrl ?? this.sourceIndexUrl)) &&
+      this.updateAvailableFor(installed, entry)
   }
 
   // Keep the shared filters outside each row's parameter evaluation. Otherwise
@@ -765,7 +769,7 @@ export struct SourcePackageManagerPage {
   }
 
   private missingIndexEntries(): SourceIndexEntry[] {
-    return this.missingIndexPackages
+    return this.missingIndexPackages.filter((entry: SourceIndexEntry): boolean => !entry.conflictingRepositories?.length)
   }
 
   private updatableIndexEntries(): SourceIndexEntry[] {
@@ -780,7 +784,7 @@ export struct SourcePackageManagerPage {
     this.packageUpdateStatuses.forEach((status: SourcePackageUpdateStatus): void => {
       const entry = status.remoteEntry
       const installed = this.installedPackage(status.sourceId)
-      if (status.status !== 'update' || entry === undefined || installed === undefined ||
+      if (status.status !== 'update' || entry === undefined || entry.conflictingRepositories?.length || installed === undefined ||
         status.remoteIndexUrl === undefined || !this.updateAvailableFor(installed, entry)) return
       const index = candidates.findIndex((candidate: SourcePackageUpdateCandidate): boolean => candidate.entry.id === entry.id)
       const candidate: SourcePackageUpdateCandidate = { entry, indexUrl: status.remoteIndexUrl }
@@ -1139,7 +1143,7 @@ export struct SourcePackageManagerPage {
     const wasEnabled = source.enabled
     console.info('[SourcePackageUpdate] step=install_requested id=' + source.id)
     try {
-      const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry)
+      const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
       if (result.ok) {
         if (!wasEnabled) {
           setEnabled(this.context(), source.id, false)
@@ -1197,6 +1201,10 @@ export struct SourcePackageManagerPage {
   private sourceReasonText(reasonCode: string | undefined): string {
     const code = reasonCode ?? 'unknown'
     switch (code) {
+      case 'subscription_conflict':
+        return t('source_subscription_conflict')
+      case 'subscription_unavailable':
+        return t('source_subscription_unavailable')
       case 'invalid_url':
         return t('source_pkg_reason_invalid_url')
       case 'network_error':
@@ -1456,6 +1464,7 @@ export struct SourcePackageManagerPage {
       const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(
         entry.repositoryUrl ?? this.sourceIndexUrl.trim(),
         entry,
+        true,
       )
       if (result.ok) {
         if (existing !== undefined && !existing.enabled) {
@@ -1519,7 +1528,7 @@ export struct SourcePackageManagerPage {
         this.indexStatusText = replaceExisting
           ? tf('source_pkg_batch_update_progress', index + 1, entries.length)
           : tf('source_pkg_batch_install_progress', index + 1, entries.length)
-        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry)
+        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
         if (result.ok) {
           successCount += 1
           if (existing !== undefined && !existing.enabled) {
@@ -1605,7 +1614,7 @@ export struct SourcePackageManagerPage {
         }
         this.statusText = tf('source_pkg_batch_update_progress', index + 1, statuses.length)
         const wasEnabled = source.enabled
-        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry)
+        const result: SourceIndexInstallResult = await this.sourceIndexService.installPackage(entry.repositoryUrl ?? url, entry, true)
         if (result.ok) {
           successCount += 1
           if (!wasEnabled) {
@@ -2066,10 +2075,18 @@ export struct SourcePackageManagerPage {
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       showChevron: false,
-      actionButtonText: this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
+      actionButtonText: entry.conflictingRepositories?.length ? t('source_subscription_view_sources') : this.hasUpdate(entry) || !this.isSourceInstalled(entry.id)
         ? this.packageActionLabel(entry.id, this.hasUpdate(entry)) : '',
       actionButtonEnabled: !this.packageInstallAdmissionBlocked() && !this.packageInstallPending(entry.id),
-      actionButtonAction: () => { void this.installIndexEntry(entry, this.hasUpdate(entry)) },
+      actionButtonAction: () => {
+        if (entry.conflictingRepositories?.length) {
+          this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: t('source_subscription_conflict'),
+            message: entry.conflictingRepositories.join('\n'),
+            confirm: { value: t('common_confirm'), action: (): void => {} } })
+          return
+        }
+        void this.installIndexEntry(entry, this.hasUpdate(entry))
+      },
       trailingText: this.isSourceInstalled(entry.id) && !this.hasUpdate(entry) ? t('source_pkg_installed') : '',
     })
   }

@@ -24,6 +24,8 @@ export interface ImageRuleSnapshot { schemaVersion: number; records: ImageRuleRe
 export interface ImageRuleSubscription {
   url: string; name: string; customName?: string; description?: string; website?: string
   updatedAt: number; revision: string; lastError?: string
+  disabled?: boolean; lastDownloadAt?: number
+  manifestHashes?: Record<string, string>
   packs: ImageRulePack[]
   catalog?: ImageProcessingPlugin[]
 }
@@ -57,6 +59,7 @@ export function validateImageRuleConfiguration(raw: Object): ImageRuleConfigurat
   for (const subscription of value.subscriptions) {
     if (!subscription || typeof subscription.url !== 'string' || !/^https?:\/\//.test(subscription.url) || urls.has(subscription.url) ||
       typeof subscription.name !== 'string' || !subscription.name.trim() || typeof subscription.revision !== 'string' ||
+      (subscription.disabled !== undefined && typeof subscription.disabled !== 'boolean') ||
       !Number.isFinite(subscription.updatedAt) || !Array.isArray(subscription.packs) || subscription.packs.length > 32)
       throw new Error('invalid_image_rule_subscription')
     urls.add(subscription.url)

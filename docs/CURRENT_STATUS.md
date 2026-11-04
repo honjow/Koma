@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "完整 1.1.0 已更新至原发布页",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-04T22:48:20+08:00",
+  "updatedAt": "2026-11-04T23:47:33+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "1.1.0 的完整安装包和重写日志已更新。Bangumi 两条实机路径与 92漫画章节修复已验证。",
@@ -79,6 +79,33 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SUBSCRIPTION_MIRROR_FALLBACK",
+      "title": "书源与图片插件订阅镜像",
+      "kind": "external",
+      "priority": "用户直接需求",
+      "owner": "Root：目录、安装和 237 普通路径验证",
+      "status": "237 已验证合并、停用和镜像安装，书源包切换等待新版目录发布",
+      "reportedAt": null,
+      "reportedDate": "2026-11-04",
+      "reportedAtSource": "本会话用户报告两个订阅提供同一插件时安装前显示两条，随后要求在 237 验证。首次消息的精确时刻未核实。",
+      "result": "237 通过普通入口同时添加 GitHub 与 GH-Proxy 的同一示例插件订阅，安装前只出现一条反色示例。停用 GitHub 后，订阅行显示「已停用」，反色示例从仍启用的镜像安装成功。停用书源原站时，启用的镜像仍显示更新候选。原有横幅插件 v8 和两级开关保留，临时示例及订阅已移除，设备恢复休眠与原超时并释租。",
+      "remaining": "书源打包已验证生成的摘要与发行包一致，现有线上目录仍需发布带摘要的新索引才能验证书源包跨地址下载。首选下载返回 HTTP 503/500 后自动改用镜像由本地逻辑测试覆盖，237 验证的是停用原地址后从镜像继续安装。",
+      "boundaries": [
+        "下载只用已添加且启用的地址；只允许同版本同摘要包失败回退。",
+        "保留已安装内容、来源、启停和配置；目录刷新只更新候选。",
+        "仅使用授权设备 237，恢复临时订阅及电源并释租。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/subscription-mirrors",
+        "本地真实逻辑回归覆盖源包 HTTP 503 和插件模块 HTTP 500 后换路；书源静态及发行打包验证索引摘要。",
+        "237 最终签名候选摘要 1bbb04f781edd5e8cb39ca7c97ac51b85712576ba25a54f08dd9c7125acada2f。证据目录中的 final-example-before、final-direct-disabled、final-mirror-install、final-original-plugins-restored、final-restore-power。"
+      ],
+      "relatedItems": [
+        "SOURCE_INDEX_CACHE_REVALIDATE",
+        "GENERIC_BAOZI_BANNER_PROCESSING"
+      ]
+    },
     {
       "id": "DETAIL_CHAPTER_LIST_ACTIONS",
       "title": "详情页章节多选与批量操作",
@@ -16668,6 +16695,22 @@
       "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
       "title": "封面断层和模糊触发在两台真机回验",
       "detail": "吸顶的起始留白改变了原生列表的坐标零点，原值直接驱动封面与标题时导致首屏背景断层。封面、标题与下拉刷新已恢复到从列表顶部算起，HDS 直接绑定两栏的原生滚动事件。197 和 103 窄窗同作品同尺寸确认背景铺到导航栏后方，短滑触发渐变、回顶退出；197 滚到章节中段仍可打开菜单。103 横屏右栏滚动时左栏原位，宽窄往返仍保留第 61 话。197 回到接手时的同一作品详情并恢复休眠，103 回原全屏书架；两台保留验证包并释租。",
+      "kind": "verified"
+    },
+    {
+      "id": "subscription-mirrors-candidate-237",
+      "at": "2026-11-04T23:35:50+08:00",
+      "itemId": "SUBSCRIPTION_MIRROR_FALLBACK",
+      "title": "订阅镜像候选安装到 237",
+      "detail": "书源和图片插件按同一发行目录归并，停用状态只影响目录与下载。候选已签名并安装 237，已核对两个原始及镜像地址仍各自存在，已有横幅插件显示一条。",
+      "kind": "work"
+    },
+    {
+      "id": "subscription-mirrors-verified-237",
+      "at": "2026-11-04T23:47:33+08:00",
+      "itemId": "SUBSCRIPTION_MIRROR_FALLBACK",
+      "title": "237 验证订阅去重、停用和从镜像安装",
+      "detail": "237 通过普通入口同时添加 GitHub 与 GH-Proxy 的同一示例插件订阅，安装前只出现一条反色示例。停用 GitHub 后，订阅行显示「已停用」，反色示例从仍启用的镜像安装成功。停用书源原站时，启用的镜像仍显示更新候选。原有横幅插件 v8 和两级开关保留，临时示例及订阅已移除，设备恢复休眠与原超时并释租。 书源打包已验证生成的摘要与发行包一致，现有线上目录仍需发布带摘要的新索引才能验证书源包跨地址下载。首选下载返回 HTTP 503/500 后自动改用镜像由本地逻辑测试覆盖，237 验证的是停用原地址后从镜像继续安装。",
       "kind": "verified"
     }
   ],

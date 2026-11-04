@@ -18,6 +18,7 @@ export interface SourceIndexMetadataCacheDocument {
 export interface SourceIndexRepository {
   url: string
   lastUsedAt: number
+  disabled?: boolean
   customName?: string
   name?: string
   website?: string
@@ -46,6 +47,7 @@ interface SourceIndexHttpUrl {
 export interface SourceIndexEntry {
   // Host-owned provenance of a merged catalog entry, never read from an index document.
   repositoryUrl?: string
+  conflictingRepositories?: string[]
   id: string
   name: string
   localizedNames?: Record<string, string>
@@ -140,6 +142,14 @@ export function resolveIndexDocumentUrl(value: string): string {
   return `${parsed.origin}${directory}index.json`
 }
 
+// Only the documented, exact GitHub proxy forms share a catalog identity.
+// The result is a grouping key. Requests always use the saved address.
+export function subscriptionIdentity(value: string): string {
+  const document = resolveIndexDocumentUrl(value)
+  const proxy = /^https:\/\/(?:gh-proxy\.org|ghfast\.top)\/(github\.com\/[^/]+\/[^/]+\/releases\/(?:latest\/download|download\/[^/]+)\/[^/]+\.json)$/.exec(document)
+  return proxy === null ? document || value : `https://${proxy[1]}`
+}
+
 export function normalizeRepositoryLastUsedAt(value: Object | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0
 }
@@ -156,6 +166,7 @@ export function normalizeSourceIndexRepository(value: Object): SourceIndexReposi
   return {
     url,
     lastUsedAt: normalizeRepositoryLastUsedAt(record['lastUsedAt']),
+    disabled: record['disabled'] === true ? true : undefined,
     customName: safeString(record['customName']).trim().slice(0, 120) || undefined,
     name: safeString(record['name']).trim().slice(0, 120) || undefined,
     website: normalizeSourceHomepage(record['website']),
@@ -292,6 +303,7 @@ export function entryWithCachedIcon(entry: SourceIndexEntry, iconUri: string): S
   return {
     id: entry.id,
     repositoryUrl: entry.repositoryUrl,
+    conflictingRepositories: entry.conflictingRepositories,
     name: entry.name,
     localizedNames: normalizeSourceLocalizedNames(entry.localizedNames),
     version: entry.version,

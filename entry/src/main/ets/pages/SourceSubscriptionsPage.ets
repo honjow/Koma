@@ -164,6 +164,31 @@ export struct SourceSubscriptionsPage {
     this.cache.rememberSavedIndex(this.cache.sourceIndexUrl, repositories)
   }
 
+  private async toggleSubscription(url: string, disabled: boolean, imagePlugin: boolean): Promise<void> {
+    if (this.busy) return
+    this.busy = true
+    this.error = ''
+    try {
+      if (imagePlugin) {
+        await ImageRuleStore.forContext(this.context()).setSubscriptionDisabled(url, disabled)
+        await this.loadRules()
+      } else {
+        const service = new SourceIndexService(this.context())
+        const repositories = await service.setSubscriptionDisabled(url, disabled)
+        this.cache.rememberSavedIndex(this.cache.sourceIndexUrl, repositories)
+        await this.cache.reloadSavedCatalog(this.context())
+        if (!disabled) void this.cache.check(this.context())
+      }
+    } catch (_error) {
+      this.error = AppStrings.get('source_catalog_subscription_save_failed')
+    } finally { this.busy = false }
+  }
+
+  private toggleAction(url: string, disabled: boolean, imagePlugin: boolean): KomaMenuAction {
+    return { label: AppStrings.get(disabled ? 'source_subscription_enable' : 'source_subscription_disable'),
+      action: (): void => { void this.toggleSubscription(url, !disabled, imagePlugin) } }
+  }
+
   private copy(repository: SourceIndexRepository): void {
     void pasteboard.getSystemPasteboard().setData(pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, repository.url))
       .then((): void => { this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_subscription_copied') })) })
@@ -178,6 +203,7 @@ export struct SourceSubscriptionsPage {
 
   private actions(repository: SourceIndexRepository): KomaMenuGroup[] {
     const items: KomaMenuAction[] = [
+      this.toggleAction(repository.url, repository.disabled === true, false),
       { label: AppStrings.get('source_subscription_edit'), action: (): void => { this.openAddDialog(repository) } },
       { label: AppStrings.get('source_subscription_copy'), action: (): void => { this.copy(repository) } },
     ]
@@ -190,6 +216,11 @@ export struct SourceSubscriptionsPage {
 
   @Builder
   private ActionsButton(repository: SourceIndexRepository, index: number) {
+    Row() {
+    if (repository.disabled) {
+      Text(AppStrings.get('source_subscription_disabled'))
+        .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
     Button({ type: ButtonType.Circle, stateEffect: true }) {
       SymbolGlyph($r('sys.symbol.ellipsis_circle')).fontSize(18).fontColor([ThemeConstants.TEXT_SECONDARY])
     }
@@ -199,10 +230,12 @@ export struct SourceSubscriptionsPage {
     .onClick(() => {
       this.menu.open(this.getUIContext(), `subscription-actions-${index}`, () => this.actions(repository), (): void => {})
     })
+    }
   }
 
   private ruleActions(rule: ImageRuleSubscription): KomaMenuGroup[] {
     const items: KomaMenuAction[] = [
+      this.toggleAction(rule.url, rule.disabled === true, true),
       { label: AppStrings.get('source_subscription_edit'), action: (): void => { this.openAddDialog(undefined, rule) } },
       { label: AppStrings.get('source_subscription_copy'), action: (): void => { this.copy({ url: rule.url, lastUsedAt: 0 }) } },
     ]
@@ -218,11 +251,18 @@ export struct SourceSubscriptionsPage {
 
   @Builder
   private RuleActionsButton(rule: ImageRuleSubscription, index: number) {
+    Row() {
+    if (rule.disabled) {
+      Text(AppStrings.get('source_subscription_disabled'))
+        .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
     Button({ type: ButtonType.Circle, stateEffect: true }) {
       SymbolGlyph($r('sys.symbol.ellipsis_circle')).fontSize(18).fontColor([ThemeConstants.TEXT_SECONDARY])
     }.id(`rule-subscription-actions-${index}`).width(44).height(44).backgroundColor(Color.Transparent)
+      .enabled(!this.busy)
       .accessibilityText(AppStrings.get('source_subscription_actions'))
       .onClick(() => { this.menu.open(this.getUIContext(), `rule-subscription-actions-${index}`, () => this.ruleActions(rule), (): void => {}) })
+    }
   }
 
   @Builder
@@ -246,8 +286,15 @@ export struct SourceSubscriptionsPage {
       this.error = ''
       const store = ImageRuleStore.forContext(this.context())
       if (this.ruleState.readFailed) { await store.reload(); await this.loadRules() }
+      if (this.repositories.length + this.ruleSubscriptions.length > 0 &&
+        !this.repositories.some((item: SourceIndexRepository): boolean => !item.disabled) &&
+        !this.ruleSubscriptions.some((item: ImageRuleSubscription): boolean => !item.disabled)) {
+        this.error = AppStrings.get('source_subscription_none_enabled')
+        return
+      }
       await Promise.all([
-        this.refreshMetadata().catch((): void => { this.error = AppStrings.get('source_catalog_subscription_read_failed') }),
+        this.cache.check(this.context()).then((): Promise<void> => this.refreshMetadata())
+          .catch((): void => { this.error = AppStrings.get('source_catalog_subscription_read_failed') }),
         store.checkUpdates().catch((): boolean => false),
       ])
     }, bottomPadding: ThemeConstants.SPACE_XL }) {
@@ -257,7 +304,7 @@ export struct SourceSubscriptionsPage {
             ForEach(this.repositories, (repository: SourceIndexRepository, index: number) => {
               ConciseListRow({ title: sourceRepositoryDisplayName(repository), wrapTitle: true, showChevron: false,
                 subtitle: [sourceRepositoryDisplayName(repository) === repository.url ? '' : repository.url,
-                  this.cache.sourceIndexFailures[repository.url] === undefined ? '' :
+                  repository.disabled || this.cache.sourceIndexFailures[repository.url] === undefined ? '' :
                     this.readFailure(this.cache.sourceIndexFailures[repository.url])].filter((value: string): boolean => value.length > 0).join('\n'),
                 subtitleMaxLines: 3, action: (): void => { this.openAddDialog(repository) },
                 suffixBuilderParam: () => { this.ActionsButton(repository, index) } })
@@ -265,7 +312,7 @@ export struct SourceSubscriptionsPage {
             // These are persisted DTOs, not observed row models. A name arriving
             // after first paint must update both the text and action callbacks.
             }, (repository: SourceIndexRepository, index: number) => JSON.stringify([repository.url,
-              repository.customName, repository.name, repository.website, index,
+              repository.customName, repository.name, repository.website, repository.disabled, index,
               this.cache.sourceIndexFailures[repository.url]]))
           }
         }
@@ -275,13 +322,13 @@ export struct SourceSubscriptionsPage {
           GroupedListSection({ title: AppStrings.get('subscription_image_rules') }) {
             ForEach(this.ruleSubscriptions, (rule: ImageRuleSubscription, index: number) => {
               ConciseListRow({ title: imageRuleSubscriptionName(rule), wrapTitle: true,
-                subtitle: rule.url + (rule.lastError ? '\n' + AppStrings.get('image_rules_update_failed') : ''), subtitleMaxLines: 3,
+                subtitle: rule.url + (!rule.disabled && rule.lastError ? '\n' + AppStrings.get('image_rules_update_failed') : ''), subtitleMaxLines: 3,
                 // Subscription rows edit their identity. Plugin management is owned
                 // by the shared plugin list, not a second subscription destination.
                 showChevron: false, action: (): void => { this.openAddDialog(undefined, rule) },
                 suffixBuilderParam: () => { this.RuleActionsButton(rule, index) } })
               if (index + 1 < this.ruleSubscriptions.length) { ListDivider() }
-            }, (rule: ImageRuleSubscription) => JSON.stringify([rule.url, rule.name, rule.customName, rule.lastError]))
+            }, (rule: ImageRuleSubscription) => JSON.stringify([rule.url, rule.name, rule.customName, rule.disabled, rule.lastError, rule.website]))
           }
         }
       }

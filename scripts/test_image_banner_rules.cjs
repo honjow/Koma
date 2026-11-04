@@ -4,7 +4,8 @@ const root=path.resolve(__dirname,'..');
 function load(name,deps={}) {const module={exports:{}};const source=fs.readFileSync(path.join(root,'entry/src/main/ets/model/'+name+'.ets'),'utf8').replace(/@Concurrent\s*/g,'');new Function('require','module','exports',ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(n=>{assert.ok(n in deps,'missing '+n);return deps[n]},module,module.exports);return module.exports}
 const metadataText=fs.readFileSync(path.join(root,'entry/src/main/ets/sourceRuntime/SourceIndexMetadata.ets'),'utf8');
 const metadataAst=ts.createSourceFile('metadata.ts',metadataText,ts.ScriptTarget.Latest,true);
-const parseDocumentSource=metadataAst.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='parseIndexEntriesDocument').getText(metadataAst);
+const metadataFunctions=new Set(['parseIndexEntriesDocument','subscriptionIdentity','resolveIndexDocumentUrl','parseSourceIndexHttpUrl','normalizeSourceIndexPath']);
+const parseDocumentSource=metadataAst.statements.filter(n=>ts.isFunctionDeclaration(n)&&metadataFunctions.has(n.name?.text)).map(n=>n.getText(metadataAst)).join('\n');
 const metadataModule={exports:{}};
 new Function('module','exports',ts.transpileModule(parseDocumentSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(metadataModule,metadataModule.exports);
 const {parseIndexEntriesDocument}=metadataModule.exports;
@@ -12,7 +13,7 @@ const plugins=load('ImageProcessingPlugins');
 const alphaPixels=new Uint8Array([32,64,128,128,18,29,41,255,0,0,0,0]);plugins.imagePluginStraightAlpha(alphaPixels);
 assert.deepEqual([...alphaPixels],[64,128,255,128,18,29,41,255,0,0,0,0]);
 const rules=load('ImageBannerRules',{'./ImageProcessingPlugins':plugins});
-const management=load('ImagePluginManagement',{'./ImageBannerRules':rules});const {imagePluginRows}=management;const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
+const management=load('ImagePluginManagement',{'./ImageBannerRules':rules,'../sourceRuntime/SourceIndexMetadata':metadataModule.exports});const {imagePluginRows}=management;const {ImageBannerDetector:detector}=load('ImageBannerDetector',{'./ImageBannerRules':rules});
 const pack=rules.validateImageRulePack(JSON.parse(fs.readFileSync(path.join(root,'scripts/fixtures/image-rules-edge.json'),'utf8')));
 const snapshot={schemaVersion:1,records:[{origin:'subscription-a',revision:'1',packs:[pack]}]};
 const pluginPlanning=load('ImagePluginService',{'@kit.ArkTS':{},'@kit.ImageKit':{},'@kit.CoreFileKit':{},
@@ -109,10 +110,11 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const index={schemaVersion:1,kind:'image_rules',meta:{name:'Visible rules',description:'Two independently managed rules'},revision:digest,packs:[{id:pack.id,version:pack.version,path:'packs/rule.json',sha256:digest}]};
  requests.set(indexUrl,Buffer.from(JSON.stringify(index)));requests.set(packUrl,resource);
  let networkCalls=0,gate,waitForIndex=false,waitForModule=false,moduleGate;const state={dataRevision:0,userRevision:0,enabledRuleCount:0,processingFailures:{}};
+ const requestedUrls=[];
  const {ImageRuleStore,subscriptionDocumentKind}=load('ImageRuleStore',{
   '@kit.ArkTS':{taskpool:{execute:async(fn,...args)=>fn(...args)},util:{TextDecoder:{create:()=>({decodeToString:bytes=>Buffer.from(bytes).toString('utf8')})},Base64Helper:class{encodeToStringSync(v){return Buffer.from(v).toString('base64')}}}},
   '@kit.CoreFileKit':{fileIo:{accessSync:p=>files.has(p),statSync:p=>({size:files.get(p).length}),readTextSync:p=>files.get(p)}},
-  '@kit.NetworkKit':{http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},createHttp:()=>({request:async url=>{networkCalls++;if(waitForIndex&&url===indexUrl)await new Promise(resolve=>{gate=resolve});if(waitForModule&&url.endsWith('.wasm'))await new Promise(resolve=>{moduleGate=resolve});const b=requests.get(url);return {responseCode:b?200:500,result:b?Uint8Array.from(b).buffer:new ArrayBuffer(0)}},destroy(){}})}},
+  '@kit.NetworkKit':{http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},createHttp:()=>({request:async url=>{requestedUrls.push(url);networkCalls++;if(waitForIndex&&url===indexUrl)await new Promise(resolve=>{gate=resolve});if(waitForModule&&url.endsWith('.wasm'))await new Promise(resolve=>{moduleGate=resolve});const b=requests.get(url);return {responseCode:b?200:500,result:b?Uint8Array.from(b).buffer:new ArrayBuffer(0)}},destroy(){}})}},
   '@kit.CryptoArchitectureKit':{cryptoFramework:{createMd:()=>{const h=crypto.createHash('sha256');return {updateSync:v=>h.update(v.data),digestSync:()=>({data:new Uint8Array(h.digest())})}}}},
   './AppFileTextPersistence':{writeAppTextFile:(p,s)=>{if(failWrite)throw Error('disk full');files.set(p,s)}},
   './BackupRestoreActivity':{BackupRestoreActivity:{runWrite:async f=>f()}},'./ImageBannerRules':rules,'./ImageProcessingPlugins':plugins,
@@ -214,6 +216,31 @@ function synthetic(width,height,strips) {return {width,height,async readRegion(x
  const ordered=structuredClone(pluginBackup);ordered.installations[0].plugins.push(second);await store.restore(ordered);
  publishPlugin(2);await store.refresh(pluginUrl);await store.installPlugin(pluginUrl,plugin.id);
  assert.deepEqual((await store.installed())[0].plugins.map(p=>p.id),[plugin.id,second.id],'algorithm update preserves execution order');
+ await store.restore({schemaVersion:3,subscriptions:[],installations:[]});
+ const distribution='github.com/example/source/releases/download/plugins-v1/';
+ const originalBase='https://'+distribution,proxyBase='https://gh-proxy.org/'+distribution;
+ publishPlugin(1);
+ for(const base of [originalBase,proxyBase]){
+  requests.set(base+'index.json',requests.get(pluginUrl));
+  requests.set(base+'plugin.json',requests.get('https://plugins.test/plugin.json'));
+  await store.add(base+'index.json','');
+ }
+ requests.set(proxyBase+'processor.wasm',moduleBytes);
+ const available=imagePluginRows(await store.list(),[]);
+ assert.equal(available.length,1);
+ await store.installPlugin(available[0].source.origin,plugin.id,1);
+ assert.deepEqual(requestedUrls.slice(-2),[originalBase+'processor.wasm',proxyBase+'processor.wasm']);
+ assert.equal((await store.installed())[0].origin,originalBase+'index.json');
+ await store.setSubscriptionDisabled(originalBase+'index.json',true);
+ publishPlugin(2);
+ requests.set(proxyBase+'index.json',requests.get(pluginUrl));
+ requests.set(proxyBase+'plugin.json',requests.get('https://plugins.test/plugin.json'));
+ await store.checkUpdates();
+ assert.deepEqual(requestedUrls.slice(-2),[proxyBase+'index.json',proxyBase+'plugin.json']);
+ assert.deepEqual(imagePluginRows(await store.list(),await store.installed()).map(row=>row.group),['updates']);
+ await store.installPlugin(originalBase+'index.json',plugin.id,2);
+ assert.equal((await store.installed())[0].plugins[0].version,2);
+ assert.equal((await store.installed())[0].origin,originalBase+'index.json');
  const readable=await store.exportSnapshot();files.set('/fixture/image-rules.v1.json','broken JSON');await store.reload();await assert.rejects(store.list(),/storage_unavailable/);
  await assert.rejects(store.rename(pluginUrl,'Overwrite'),/storage_unavailable/);assert.equal(files.get('/fixture/image-rules.v1.json'),'broken JSON','read failure never overwrites saved data');
  await store.restore(readable);assert.deepEqual(await store.exportSnapshot(),readable,'explicit backup restore can recover storage');

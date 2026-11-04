@@ -92,7 +92,10 @@ export struct ImagePluginsPage {
     if (this.state.readFailed) await this.store().reload()
     if (!this.preferencesReady && this.request === undefined) await this.loadGlobalPreferences()
     try {
-      if (!await this.store().checkUpdates()) this.error = AppStrings.get('image_rules_update_failed')
+      const subscriptions = await this.store().list()
+      if (subscriptions.length > 0 && !subscriptions.some((item: ImageRuleSubscription): boolean => !item.disabled))
+        this.error = AppStrings.get('source_subscription_none_enabled')
+      else if (!await this.store().checkUpdates()) this.error = AppStrings.get('image_rules_update_failed')
     } catch (_error) {
       this.error = AppStrings.get('image_rules_update_failed')
     }
