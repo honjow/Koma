@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。103 已验证，197 已验证封面、滚动模糊和多选入口，最终包的按钮复测待处理系统隐私声明。图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
+当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
 
 设备：103 已回原横屏书架，197 已恢复原超时和休眠。两台均保留最终调试包并已释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
@@ -83,17 +83,24 @@
       "id": "DETAIL_CHAPTER_LIST_ACTIONS",
       "title": "详情页章节多选与批量操作",
       "priority": "用户直接需求",
-      "kind": "active",
-      "status": "103 双栏验证完成，197 最终包复测遇到系统隐私声明",
-      "stage": "最终调试包已装两台设备",
+      "kind": "done",
+      "status": "197 单栏和 103 双栏已完成多选验收",
+      "stage": "最终调试包的真机交互已复验",
       "owner": "Root：Koma 漫画详情",
-      "result": "撤下章节头吸顶和专用起始偏移，恢复封面、下拉刷新和章节头随列表滚动。普通态由右上角更多进入选择章节，下载未完成及重试失败归下载章节子菜单并沿用当前筛选范围。多选时标题栏显示已选数量、全选当前筛选结果和取消，底部 HdsActionBar 只处理所选章节的下载、已读及未读。平板操作栏只覆盖右侧章节视口。单章长按的标记之前章节为已读继续按所属阅读序列处理，排除当前章。197 首轮包录屏核对封面完整、短滑即模糊且回顶退出，验证章节中段进入多选、点选和标题计数。103 最终包全选 634 章后底栏按钮启用，批量已读确认显示 634 章，取消后保留选区。第 1169 话可取消勾选，系统返回仅退出多选，右栏保持在末尾且左栏原位。下载子菜单两个原操作均可见。",
-      "remaining": "197 最终调试包重启后仍出现系统关于 Koma 与隐私的声明，待用户确认后复测修正后的底栏按钮。真机批量确认测试停在确认框，未写现有作品的阅读状态或启动下载。",
+      "result": "撤下章节头吸顶和专用起始偏移，恢复封面、下拉刷新和章节头随列表滚动。普通态由右上角更多进入选择章节，下载未完成及重试失败归下载章节子菜单并沿用当前筛选范围。多选时标题栏显示已选数量、全选当前筛选结果和取消，底部 HdsActionBar 只处理所选章节的下载、已读及未读。平板操作栏只覆盖右侧章节视口。单章长按的标记之前章节为已读继续按所属阅读序列处理，排除当前章。197 首轮包录屏核对封面完整、短滑即模糊且回顶退出，验证章节中段进入多选、点选和标题计数。103 最终包全选 634 章后底栏按钮启用，批量已读确认显示 634 章，取消后保留选区。第 1169 话可取消勾选，系统返回仅退出多选，右栏保持在末尾且左栏原位。下载子菜单两个原操作均可见。用户已处理 197 的系统隐私声明；恢复租约后读回 Koma 书架，未再出现该弹窗。197 最终包从章节中段点选两章，已读、未读和下载确认框分别显示所选两章，取消保留选区。叉号退出后，原来可见章节的纵向位置相同。197 回到接手时的书架，恢复原屏幕超时和休眠并释租。",
+      "remaining": "真机批量确认测试停在确认框，未写现有作品的阅读状态或启动下载。",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "本会话用户原文提出，随后明确要求在 197 和 103 验证。首次消息的精确时刻未核实。",
-      "closedAt": null,
+      "closedAt": "2026-11-04T21:31:24+08:00",
       "evidence": [
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/gate-212842723017",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/selection-phone-resumed-read-confirm-212937626346",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/selection-phone-resumed-unread-confirm-212956793480",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/selection-phone-resumed-download-confirm-213016146983",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/selection-phone-resumed-exit-213030724004",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/selection-phone-resumed-shelf-213100016958",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-213104246921",
         ".hvigor/outputs/detail-chapter-selection/build-button-state.log",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-211659939053",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/selection-phone-scroll-and-blur-end-210821617517",
@@ -125,7 +132,7 @@
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backdrop-hds-anchor-wide-window-200443889188"
       ],
       "remainingActions": [],
-      "updatedAt": "2026-11-04T21:16:45+08:00"
+      "updatedAt": "2026-11-04T21:31:24+08:00"
     },
     {
       "id": "RELEASE_1_1_0",
