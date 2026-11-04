@@ -26,6 +26,7 @@ import { MangaMigrationPreferencesStore, MigrationMatchOptions } from '../model/
 import { MangaMigrationRouteChromeState } from '../state/MangaMigrationRouteChromeState'
 import { chooseMigrationCandidate, migrationSearchQueries, latestMigrationChapter } from '../model/MangaMigrationMatching'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
+import { resolveSourceLocalizedName } from '../sourceRuntime/SourceLocalizedNames'
 import { SearchPage } from './SearchPage'
 
 function s(key: string): string { return AppStrings.get(key) }
@@ -483,7 +484,10 @@ export struct MangaMigrationPage {
 
   @Builder
   private SourceSelectionRow(source: SourceRuntimeRegistryInstalledSourceSummary, selected: boolean) {
-    ConciseListRow({ title: this.sourceName(source.sourceId), showChevron: false, wrapTitle: true,
+    // This snapshot already holds the row metadata. Rebuilding all summaries
+    // here would synchronously recheck every installed source's icon file.
+    ConciseListRow({ title: resolveSourceLocalizedName(source.displayName, source.localizedNames,
+      this.languageState.effectiveLocale), showChevron: false, wrapTitle: true,
       subtitle: sourceLanguageName(source.language), hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: source.icon ?? '', sourceIdentitySourceId: source.sourceId, sourceIdentityVersion: source.version,
       isEnabled: !this.starting,
