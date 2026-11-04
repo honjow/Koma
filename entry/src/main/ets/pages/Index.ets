@@ -2555,9 +2555,13 @@ struct Index {
         })
       }
       .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
-      // Use the native scroll and edge events. The sticky inset shifts the
-      // raw list origin, while HDS should respond as soon as content moves.
       .bindToScrollable(this.mangaDetailScrollers(param as MangaDetailRouteParam))
+      .onBackPressed((): boolean => {
+        const selection = RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).chapterPresentation
+        if (!selection.selectionMode) return false
+        selection.setSelectionMode(false)
+        return true
+      })
       .onShown(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = true
         this.readerProgressRevision += 1
@@ -3556,7 +3560,18 @@ struct Index {
       if (chrome.localRefreshAvailable) add(opening, chrome.localRefreshBusy ? 'manga_detail_local_refresh_checking' :
         'manga_detail_menu_check_local_refresh', MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH, !chrome.localRefreshBusy)
     }
-    return [{ id: 'work', items: work }, { id: 'opening', items: opening }]
+    const chapters: KomaMenuAction[] = []
+    if (chrome.filteredChapterIds.length > 0) {
+      add(chapters, 'chapter_list_menu_enter_selection', MangaDetailTitleAction.SELECT_CHAPTERS)
+      if (chrome.chapterDownloadAvailable) {
+        const downloads: KomaMenuAction[] = []
+        add(downloads, 'chapter_list_menu_download_incomplete', MangaDetailTitleAction.DOWNLOAD_INCOMPLETE)
+        add(downloads, 'chapter_list_menu_retry_failed', MangaDetailTitleAction.RETRY_FAILED_DOWNLOADS)
+        chapters.push({ label: AppStrings.get('manga_detail_action_download_chapter'),
+          children: downloads, action: (): void => {} })
+      }
+    }
+    return [{ id: 'chapters', items: chapters }, { id: 'work', items: work }, { id: 'opening', items: opening }]
   }
 
   private mangaDetailScrollers(param: MangaDetailRouteParam): ListScroller[] {
@@ -3566,6 +3581,26 @@ struct Index {
 
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
+    const selection = chrome.chapterPresentation
+    if (selection.selectionMode) {
+      const selectAllContent: Record<string, Object> = {
+        'label': AppStrings.get('chapter_list_menu_select_all_filtered'),
+        'icon': $r('sys.symbol.checkmark_square'),
+        'isEnabled': chrome.filteredChapterIds.length > 0,
+        'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SELECT_ALL_CHAPTERS) },
+      }
+      const selectionMenu: Record<string, Object>[] = [{ 'content': selectAllContent }]
+      return this.sourceRouteTitleBarOpts({
+        'title': { 'mainTitle': AppStrings.get('chapter_list_selected_count')
+          .replace('%s', `${selection.selectedChapterIds.size}`) } as Record<string, Object>,
+        'backIcon': {
+          'label': AppStrings.get('common_cancel'),
+          'icon': $r('sys.symbol.xmark'),
+          'action': (): void => { selection.setSelectionMode(false) },
+        } as Record<string, Object>,
+        'menu': { 'value': selectionMenu, 'maxCount': 3 } as Record<string, Object>,
+      })
+    }
     const title: Record<string, Object> = { 'mainTitle': chrome.showTitle ? this.mangaDetailTitle(param) : '' }
     const content: Record<string, Object> = { 'title': title }
     const items: Record<string, Object>[] = []
@@ -3582,7 +3617,7 @@ struct Index {
         'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SHARE_LINK) },
       } as Record<string, Object> })
     }
-    if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable) {
+    if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable || chrome.filteredChapterIds.length > 0) {
       items.push({ 'content': { 'label': AppStrings.get('common_more_actions'),
         'icon': komaTitleMoreIcon(), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
         'action': (): void => {

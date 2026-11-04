@@ -3,7 +3,6 @@ import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { KomaActionButton } from './ui/KomaActionButton'
 import { KomaEmptyState } from './ui/KomaEmptyState'
-import { KomaIconButton } from './ui/KomaIconButton'
 import { KomaMenuChip } from './ui/KomaMenuChip'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { ChapterSortBasis, ChapterSortDirection, MangaChapterDownloadStatus, MangaChapterItem } from '../model/MangaDetailModels'
@@ -41,6 +40,12 @@ export class ChapterListPresentation {
   @Trace bookmarkFilter: 'all' | 'bookmarked' | 'unbookmarked' = 'all'
   @Trace selectionMode: boolean = false
   @Trace selectedChapterIds: Set<string> = new Set<string>()
+
+  // The route, title bar, and both chapter layouts share the same selection.
+  setSelectionMode(enabled: boolean): void {
+    this.selectedChapterIds = new Set<string>()
+    this.selectionMode = enabled
+  }
 }
 
 @ComponentV2
@@ -50,16 +55,12 @@ export struct ChapterListSection {
   @Param chapters: MangaChapterItem[] = []
   @Local private languageState: LanguageState = connectLanguageState()
   @Param presentation: ChapterListPresentation = new ChapterListPresentation()
-  @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
-  @Event onDisplayOrderChange: (chapters: MangaChapterItem[]) => void = (_chapters: MangaChapterItem[]) => {}
-  @Event onHeaderHeightChange: (height: number) => void = (_height: number) => {}
+  @Event onDisplayOrderChange: (chapterIds: string[]) => void = (_chapterIds: string[]) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onExportChapter: (chapterId: string, share: boolean) => void = (_chapterId: string, _share: boolean) => {}
   @Event onBookmarkChapter: (chapterId: string, bookmarked: boolean) => void = (_chapterId: string, _bookmarked: boolean) => {}
-  @Event onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => void =
-    (_chapterIds: string[], _mode: ChapterBatchDownloadMode, _scope: ChapterBatchScope) => {}
   @Event onMarkChapterReadState: (chapterId: string, isRead: boolean) => void =
     (_chapterId: string, _isRead: boolean) => {}
   @Event onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean, scope: ChapterBatchScope) => void =
@@ -72,7 +73,7 @@ export struct ChapterListSection {
 
   @Monitor('sortedChapters')
   private reportDisplayOrder(): void {
-    this.onDisplayOrderChange(this.sortedChapters)
+    this.onDisplayOrderChange(this.filteredChapterIds())
   }
 
   @Monitor('chapters')
@@ -97,31 +98,6 @@ export struct ChapterListSection {
       next.delete(chapterId)
     }
     this.presentation.selectedChapterIds = next
-  }
-
-  private setSelectionMode(enabled: boolean): void {
-    this.presentation.selectionMode = enabled
-    this.presentation.selectedChapterIds = new Set<string>()
-  }
-
-  private selectAllFilteredChapters(): void {
-    if (this.presentation.selectionMode) {
-      this.presentation.selectedChapterIds = new Set<string>(this.filteredChapterIds())
-    }
-  }
-
-  private downloadSelectedChapters(): void {
-    const ids = this.selectedIdsInFilter()
-    if (this.presentation.selectionMode && ids.length > 0) {
-      this.onDownloadFilteredChapters(ids, ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.SELECTED)
-    }
-  }
-
-  private markSelectedChaptersReadState(isRead: boolean): void {
-    const ids = this.selectedIdsInFilter()
-    if (this.presentation.selectionMode && ids.length > 0) {
-      this.onMarkFilteredChaptersReadState(ids, isRead, ChapterBatchScope.SELECTED)
-    }
   }
 
   private sortedChapterList(): MangaChapterItem[] {
@@ -375,7 +351,7 @@ export struct ChapterListSection {
       this.presentation.groupFilter = value.groupFilter
       this.presentation.bookmarkFilter = value.bookmarkFilter
     } catch (error) { DiagnosticLogger.exception('chapters', 'preferences_load_failed', error as Error) }
-    this.setSelectionMode(false)
+    this.presentation.setSelectionMode(false)
   }
 
   private savePreferences(): void {
@@ -517,52 +493,6 @@ export struct ChapterListSection {
           .onClick(() => { this.onExportChapter(ri.item.id, false) })
         MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.archiveBusy)
           .onClick(() => { this.onExportChapter(ri.item.id, true) })
-      }
-    }
-  }
-
-  @Builder
-  private SectionActionsMenu() {
-    Menu() {
-      if (this.presentation.selectionMode) {
-        MenuItem({ content: this.formatString('chapter_list_menu_download_selected', [this.presentation.selectedChapterIds.size]) })
-          .enabled(this.presentation.selectedChapterIds.size > 0)
-          .onClick(() => { this.downloadSelectedChapters() })
-        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_read', [this.presentation.selectedChapterIds.size]) })
-          .enabled(this.presentation.selectedChapterIds.size > 0)
-          .onClick(() => { this.markSelectedChaptersReadState(true) })
-        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_unread', [this.presentation.selectedChapterIds.size]) })
-          .enabled(this.presentation.selectedChapterIds.size > 0)
-          .onClick(() => { this.markSelectedChaptersReadState(false) })
-        MenuItem({ content: s('chapter_list_menu_select_all_filtered') })
-          .enabled(this.sortedChapters.length > 0)
-          .onClick(() => { this.selectAllFilteredChapters() })
-        MenuItem({ content: s('chapter_list_menu_exit_selection') })
-          .onClick(() => { this.setSelectionMode(false) })
-      } else {
-        MenuItem({ content: s('chapter_list_menu_mark_filtered_read') })
-          .onClick(() => {
-            this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), true, ChapterBatchScope.FILTERED)
-          })
-        MenuItem({ content: s('chapter_list_menu_mark_filtered_unread') })
-          .onClick(() => {
-            this.onMarkFilteredChaptersReadState(this.filteredChapterIds(), false, ChapterBatchScope.FILTERED)
-          })
-        MenuItem({ content: s('chapter_list_menu_download_filtered') })
-          .onClick(() => {
-            this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.FILTERED)
-          })
-        MenuItem({ content: s('chapter_list_menu_retry_failed') })
-          .onClick(() => {
-            this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.FAILED_ONLY, ChapterBatchScope.FILTERED)
-          })
-        MenuItem({ content: s('chapter_list_menu_download_incomplete') })
-          .onClick(() => {
-            this.onDownloadFilteredChapters(this.filteredChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.FILTERED)
-          })
-        MenuItem({ content: s('chapter_list_menu_enter_selection') })
-          .enabled(this.sortedChapters.length > 0)
-          .onClick(() => { this.setSelectionMode(true) })
       }
     }
   }
@@ -747,7 +677,6 @@ export struct ChapterListSection {
       .onClick(() => {
         this.setChapterSelected(ri.item.id, !this.presentation.selectedChapterIds.has(ri.item.id))
       })
-      .bindContextMenu(this.SectionActionsMenu, ResponseType.LongPress, komaContextMenuOptions())
 
       if (this.shouldShowDownloadStatus(ri.item)) {
         this.DownloadStatusBadge(ri)
@@ -772,30 +701,11 @@ export struct ChapterListSection {
   private SectionHeader() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Row({ space: ThemeConstants.SPACE_SM }) {
-        Text(this.presentation.selectionMode ? this.formatString('library_selected_count', [this.presentation.selectedChapterIds.size])
-          : this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
+        Text(this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .layoutWeight(1)
-
-        Column() {
-          KomaIconButton({
-            icon: $r('sys.symbol.ellipsis_circle'),
-            kind: 'secondary',
-            controlSize: ThemeConstants.TOUCH_TARGET_SM,
-            iconSize: ThemeConstants.FONT_SIZE_H3,
-            action: () => {
-              this.sectionActionsMenuShown = true
-            },
-          })
-        }
-        .bindMenu(this.sectionActionsMenuShown, this.SectionActionsMenu, komaMenuOptions({
-          placement: Placement.BottomRight,
-          onDisappear: () => {
-            this.sectionActionsMenuShown = false
-          },
-        }))
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -851,9 +761,6 @@ export struct ChapterListSection {
     .width('100%')
     .alignItems(HorizontalAlign.Start)
     .padding({ bottom: ThemeConstants.SPACE_MD })
-    // The native sticky header paints over the chapter rows as they scroll.
-    .backgroundColor(ThemeConstants.BG_SUB)
-    .onSizeChange((_old: SizeOptions, size: SizeOptions) => { this.onHeaderHeightChange(Number(size.height)) })
   }
 
   build() {

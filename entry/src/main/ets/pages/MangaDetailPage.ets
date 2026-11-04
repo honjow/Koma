@@ -1,5 +1,5 @@
 import { gridColumnCount } from '../utils/GridColumns'
-import { BottomBuilderShowType } from '@kit.UIDesignKit'
+import { ActionBarButton, BottomBuilderShowType, HdsActionBar } from '@kit.UIDesignKit'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
@@ -334,13 +334,40 @@ export struct MangaDetailPage {
   private get chapterScroller(): ListScroller {
     return this.chrome.chapterScroller
   }
-  private chapterPresentation: ChapterListPresentation = new ChapterListPresentation()
+  private get chapterPresentation(): ChapterListPresentation {
+    return this.chrome.chapterPresentation
+  }
   @Local private detailContentWidth: number = 0
-  private displayedChapters: MangaChapterItem[] = []
   private visibleChapterId: string = ''
-  private settledChapterAnchorId: string = ''
   private chapterToRestore: string = ''
-  private chapterHeaderHeight: number = 0
+  @Local private chapterActionBarHeight: number = 0
+  // HDS keeps references to its button models. Update their tracked fields
+  // in place so an existing bar reacts without rebuilding the chapter list.
+  private readonly chapterDownloadAction = new ActionBarButton({
+    id: 'detail-selected-download',
+    baseIcon: $r('sys.symbol.arrow_down_to_line'),
+    enabled: false,
+    onClick: () => {
+      this.confirmDownloadFilteredChapters(this.selectedChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED,
+        ChapterBatchScope.SELECTED)
+    },
+  })
+  private readonly chapterMarkReadAction = new ActionBarButton({
+    id: 'detail-selected-mark-read',
+    baseIcon: $r('sys.symbol.checkmark_circle'),
+    enabled: false,
+    onClick: () => { this.markSelectedChaptersRead(true) },
+  })
+  private readonly chapterMarkUnreadAction = new ActionBarButton({
+    id: 'detail-selected-mark-unread',
+    baseIcon: $r('sys.symbol.circle'),
+    enabled: false,
+    onClick: () => { this.markSelectedChaptersRead(false) },
+  })
+  private readonly chapterSelectionActions: ActionBarButton[] = [
+    this.chapterDownloadAction, this.chapterMarkReadAction, this.chapterMarkUnreadAction,
+  ]
+
 
   // Reserve both panes' usable widths before splitting. Window or device
   // orientation alone does not describe the space inside a destination.
@@ -504,6 +531,7 @@ export struct MangaDetailPage {
   }
 
   aboutToAppear(): void {
+    this.syncChapterSelectionActions()
     configureSourceSettingsStore(getContext(this) as common.UIAbilityContext)
     this.chrome.showTitle = false
     this.seedSourceDetailFromInitialRouteManga()
@@ -590,6 +618,8 @@ export struct MangaDetailPage {
     this.chrome.personalDataAvailable = actionsAvailable && comic !== undefined
     this.chrome.coverActionsAvailable = actionsAvailable && comic !== undefined && !chapterPagesAreLocalOffline(comic.sourceKind)
     this.chrome.customCoverAvailable = comic?.customCoverUri !== undefined
+    this.chrome.chapterDownloadAvailable = actionsAvailable && this.offlineDownloadService() !== undefined &&
+      (comic === undefined || !chapterPagesAreLocalOffline(comic.sourceKind))
     this.chrome.personalizationBusy = this.personalizationBusy
     this.chrome.localRefreshBusy = this.localRefreshBusy
   }
@@ -657,6 +687,20 @@ export struct MangaDetailPage {
   }
 
   private runTitleAction(action: MangaDetailTitleAction): void {
+    if (action === MangaDetailTitleAction.SELECT_CHAPTERS && this.chrome.filteredChapterIds.length > 0) {
+      this.chapterPresentation.setSelectionMode(true)
+      return
+    }
+    if (action === MangaDetailTitleAction.SELECT_ALL_CHAPTERS && this.chapterPresentation.selectionMode) {
+      this.chapterPresentation.selectedChapterIds = new Set<string>(this.chrome.filteredChapterIds)
+      return
+    }
+    if (action === MangaDetailTitleAction.DOWNLOAD_INCOMPLETE || action === MangaDetailTitleAction.RETRY_FAILED_DOWNLOADS) {
+      const mode = action === MangaDetailTitleAction.DOWNLOAD_INCOMPLETE
+        ? ChapterBatchDownloadMode.NOT_DOWNLOADED : ChapterBatchDownloadMode.FAILED_ONLY
+      this.confirmDownloadFilteredChapters(this.chrome.filteredChapterIds, mode)
+      return
+    }
     if (action === MangaDetailTitleAction.SHARE_LINK && this.chrome.webActionsAvailable) {
       void this.shareMangaLink()
       return
@@ -3545,11 +3589,7 @@ export struct MangaDetailPage {
       ChapterListSection({
         comicId: this.currentComicId(),
         presentation: this.chapterPresentation,
-        onDisplayOrderChange: (chapters: MangaChapterItem[]) => {
-          this.displayedChapters = chapters
-          this.settledChapterAnchorId = ''
-        },
-        onHeaderHeightChange: (height: number) => { this.chapterHeaderHeight = height },
+        onDisplayOrderChange: (chapterIds: string[]) => { this.chrome.filteredChapterIds = chapterIds },
         archiveBusy: this.chapterArchiveBusy,
         chapters: this.chapters,
         onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
@@ -3569,9 +3609,6 @@ export struct MangaDetailPage {
         },
         onDownloadChapter: (chapterId: string) => {
           this.handleDownloadChapter(chapterId)
-        },
-        onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => {
-          this.confirmDownloadFilteredChapters(chapterIds, mode, scope)
         },
         onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
           this.markChapterReadState(chapterId, isRead)
@@ -3595,9 +3632,8 @@ export struct MangaDetailPage {
   }
 
   private chapterGroupIndex(inChapterPane: boolean): number {
-    // The sticky lists use a native content offset in place of the inset row.
-    if (inChapterPane) return 0
-    let index = 0
+    if (inChapterPane) return 1 // SecondaryListScaffold owns the first inset row.
+    let index = 1
     if (this.manga !== undefined) index++
     if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata() || this.isDetailPending()) index++
     if (!this.isDetailPending() && this.feedbackText.length > 0) index++
@@ -3610,8 +3646,8 @@ export struct MangaDetailPage {
   private onChapterViewport(start: VisibleListContentInfo, inChapterPane: boolean): void {
     if (inChapterPane !== this.usesDetailPanes || !this.shouldRenderChapterList()) return
     const groupIndex = this.chapterGroupIndex(inChapterPane)
-    if (this.chapterToRestore.length > 0 && this.displayedChapters.length > 0) {
-      const target = this.displayedChapters.findIndex((item: MangaChapterItem) => item.id === this.chapterToRestore)
+    if (this.chapterToRestore.length > 0 && this.chrome.filteredChapterIds.length > 0) {
+      const target = this.chrome.filteredChapterIds.indexOf(this.chapterToRestore)
       this.chapterToRestore = ''
       if (target >= 0) {
         const scroller = inChapterPane ? this.chapterScroller : this.detailScroller
@@ -3621,32 +3657,7 @@ export struct MangaDetailPage {
     }
     const row = start.itemIndexInGroup
     this.visibleChapterId = start.index === groupIndex && row !== undefined
-      ? this.displayedChapters[row]?.id ?? '' : ''
-    if (this.visibleChapterId.length === 0) this.settledChapterAnchorId = ''
-  }
-
-  private chapterAnchorForResize(): string {
-    const first = this.displayedChapters.findIndex((item: MangaChapterItem) => item.id === this.visibleChapterId)
-    if (first < 0 || this.chapterHeaderHeight <= 0) return this.visibleChapterId
-    const group = this.chapterGroupIndex(this.usesDetailPanes)
-    const scroller = this.usesDetailPanes ? this.chapterScroller : this.detailScroller
-    // List reports rows under the sticky header as visible. Pick the first
-    // row whose text area is exposed before replacing the current viewport.
-    const coveredHeight = this.chapterStickyHeaderOffset() + this.chapterHeaderHeight
-    for (let row = first; row < this.displayedChapters.length; row++) {
-      const rect = scroller.getItemRectInGroup(group, row)
-      if (rect.height <= 0) break
-      if (rect.y + rect.height / 2 >= coveredHeight) return this.displayedChapters[row].id
-    }
-    return this.visibleChapterId
-  }
-
-  private rememberSettledChapterAnchor(inChapterPane: boolean): void {
-    if (inChapterPane === this.usesDetailPanes) {
-      // Window resizing can already update the old scroller's geometry by
-      // the time the page receives onSizeChange. Sample the settled pane.
-      this.settledChapterAnchorId = this.chapterAnchorForResize()
-    }
+      ? this.chrome.filteredChapterIds[row] ?? '' : ''
   }
 
   private onInformationScroll(offset: number): void {
@@ -3655,8 +3666,57 @@ export struct MangaDetailPage {
     if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
   }
 
-  private chapterStickyHeaderOffset(): number {
-    return this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_LG
+  private selectedChapterIds(): string[] {
+    return this.chrome.filteredChapterIds.filter((id: string): boolean => this.chapterPresentation.selectedChapterIds.has(id))
+  }
+
+  private markSelectedChaptersRead(isRead: boolean): void {
+    this.confirmMarkFilteredChaptersReadState(this.selectedChapterIds(), isRead, ChapterBatchScope.SELECTED)
+  }
+
+  private chapterListBottomPadding(): number {
+    return ThemeConstants.SPACE_XL + (this.chapterPresentation.selectionMode ? this.chapterActionBarHeight : 0)
+  }
+
+  @Monitor('chrome.chapterPresentation.selectedChapterIds', 'chrome.chapterDownloadAvailable',
+    'downloadBusy', 'languageState.effectiveLocale')
+  private syncChapterSelectionActions(): void {
+    const hasSelection = this.chapterPresentation.selectedChapterIds.size > 0
+    this.chapterDownloadAction.enabled = hasSelection && this.chrome.chapterDownloadAvailable && !this.downloadBusy
+    this.chapterMarkReadAction.enabled = hasSelection
+    this.chapterMarkUnreadAction.enabled = hasSelection
+    this.chapterDownloadAction.accessibilityText = s('manga_detail_action_download_chapter')
+    this.chapterMarkReadAction.accessibilityText = s('chapter_list_menu_mark_read')
+    this.chapterMarkUnreadAction.accessibilityText = s('chapter_list_menu_mark_unread')
+    this.chapterDownloadAction.hoverTips = this.chapterDownloadAction.accessibilityText
+    this.chapterMarkReadAction.hoverTips = this.chapterMarkReadAction.accessibilityText
+    this.chapterMarkUnreadAction.hoverTips = this.chapterMarkUnreadAction.accessibilityText
+  }
+
+  @Builder
+  private ChapterSelectionActions() {
+    HdsActionBar({ startButtons: this.chapterSelectionActions })
+    .width('100%')
+    .padding({ left: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD,
+      right: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD })
+    .margin({ bottom: this.detailSafeArea.bottomAvoidHeight })
+    .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+      this.chapterActionBarHeight = Number(size.height)
+    })
+  }
+
+  @Builder
+  private ChapterViewport(inChapterPane: boolean) {
+    // Keep the list mounted when toggling selection. The action bar overlays
+    // only the chapter viewport, and the list tail clears its measured height.
+    Stack({ alignContent: Alignment.Bottom }) {
+      this.RefreshableDetail(inChapterPane)
+      if (this.chapterPresentation.selectionMode) {
+        this.ChapterSelectionActions()
+      }
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -3669,13 +3729,12 @@ export struct MangaDetailPage {
         scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
         alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
         horizontalPadding: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD,
-        stickyHeaderOffset: this.usesDetailPanes ? 0 : this.chapterStickyHeaderOffset(),
+        bottomPadding: this.usesDetailPanes ? ThemeConstants.SPACE_XL : this.chapterListBottomPadding(),
         listSpace: ThemeConstants.SPACE_LG,
         onDidScroll: (offset: number) => { this.onInformationScroll(offset) },
         onVisibleContentChange: (start: VisibleListContentInfo) => {
           if (!this.usesDetailPanes) this.onChapterViewport(start, false)
         },
-        onScrollStop: () => { this.rememberSettledChapterAnchor(false) },
       }) {
         this.DetailInformationItems()
         if (!this.usesDetailPanes) {
@@ -3695,10 +3754,9 @@ export struct MangaDetailPage {
       scrollEnabled: this.detailScrollEnabled,
       alwaysEnableEdgeSpring: nativeSpring,
       horizontalPadding: 0,
-      stickyHeaderOffset: this.chapterStickyHeaderOffset(),
+      bottomPadding: this.chapterListBottomPadding(),
       listSpace: ThemeConstants.SPACE_LG,
       onVisibleContentChange: (start: VisibleListContentInfo) => { this.onChapterViewport(start, true) },
-      onScrollStop: () => { this.rememberSettledChapterAnchor(true) },
     }) {
       this.DetailChapterItems()
     }
@@ -3709,7 +3767,6 @@ export struct MangaDetailPage {
     if (this.canPullRefreshDetail()) {
       PullRefresh({
         scroller: chapterPane ? this.chapterScroller : this.detailScroller,
-        listStartInset: this.chapterStickyHeaderOffset(),
         controller: this.detailRefreshController,
         indicatorTop: this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
         onRefresh: async (): Promise<void> => { await this.refreshMangaDetail() },
@@ -3740,7 +3797,7 @@ export struct MangaDetailPage {
         .height('100%')
 
         Column() {
-          this.RefreshableDetail(true)
+          this.ChapterViewport(true)
         }
         .layoutWeight(1)
         .height('100%')
@@ -3749,7 +3806,7 @@ export struct MangaDetailPage {
       .width('100%')
       .height('100%')
     } else {
-      this.RefreshableDetail(false)
+      this.ChapterViewport(false)
     }
   }
 
@@ -3797,7 +3854,7 @@ export struct MangaDetailPage {
         if (Number.isFinite(width) && width > 0) {
           const availableWidth = Math.max(0, width - 2 * ThemeConstants.SPACE_MD)
           if ((availableWidth >= DETAIL_PANES_MIN_CONTENT_WIDTH) !== this.usesDetailPanes) {
-            this.chapterToRestore = this.settledChapterAnchorId || this.chapterAnchorForResize()
+            this.chapterToRestore = this.visibleChapterId
           }
           this.detailContentWidth = availableWidth
         }

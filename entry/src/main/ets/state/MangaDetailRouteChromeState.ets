@@ -1,3 +1,5 @@
+import { ChapterListPresentation } from '../components/ChapterListSection'
+
 /**
  * Route-local page-management commands for one manga detail destination.
  *
@@ -6,6 +8,10 @@
  * never drives the title bar of another route still retained in the stack.
  */
 export enum MangaDetailTitleAction {
+  SELECT_CHAPTERS = 'select_chapters',
+  SELECT_ALL_CHAPTERS = 'select_all_chapters',
+  DOWNLOAD_INCOMPLETE = 'download_incomplete',
+  RETRY_FAILED_DOWNLOADS = 'retry_failed_downloads',
   RELOAD_SOURCE = 'reload_source',
   OPEN_WEBVIEW = 'open_webview',
   SHARE_LINK = 'share_link',
@@ -24,6 +30,9 @@ export class MangaDetailRouteChromeState {
   readonly menuAnchorId: string = `manga-detail-more-${MangaDetailRouteChromeState.nextMenuId++}`
   readonly detailScroller: ListScroller = new ListScroller()
   readonly chapterScroller: ListScroller = new ListScroller()
+  readonly chapterPresentation: ChapterListPresentation = new ChapterListPresentation()
+  @Trace filteredChapterIds: string[] = []
+  @Trace chapterDownloadAvailable: boolean = false
   @Trace visible: boolean = false
   @Trace resolvedTitle: string = ''
   @Trace showTitle: boolean = false

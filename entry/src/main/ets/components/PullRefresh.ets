@@ -37,7 +37,6 @@ export class PullRefreshController {
 export struct PullRefresh {
   @BuilderParam content: () => void
   @Param scroller: Scroller = new Scroller()
-  @Param listStartInset: number = 0
   @Param controller: PullRefreshController = new PullRefreshController()
   @Event onRefresh: () => Promise<void> = async () => {}
   @Event onBottomRefresh: () => Promise<void> = async () => {}
@@ -75,7 +74,7 @@ export struct PullRefresh {
 
   private isListAtTop(): boolean {
     try {
-      return this.scroller.currentOffset().yOffset + this.listStartInset <= 0
+      return this.scroller.currentOffset().yOffset <= 0
     } catch (_error) {
       return false
     }
@@ -149,7 +148,7 @@ export struct PullRefresh {
     }
     try {
       if (!this.isListAtTop()) {
-        this.scroller.scrollTo({ xOffset: 0, yOffset: -this.listStartInset })
+        this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
       }
     } catch (_error) {}
     this.onScrollEnableChange(false)

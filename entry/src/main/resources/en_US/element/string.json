@@ -929,6 +929,7 @@
     { "name": "chapter_list_page_count", "value": "%s pages" },
     { "name": "chapter_list_show_more", "value": "Show %s more" },
     { "name": "chapter_list_menu_download_visible", "value": "Download visible chapters" },
+    { "name": "chapter_list_selected_count", "value": "%s selected" },
     { "name": "chapter_list_menu_enter_selection", "value": "Select chapters" },
     { "name": "chapter_list_menu_exit_selection", "value": "Exit selection" },
     { "name": "chapter_list_menu_select_all_filtered", "value": "Select all filtered chapters" },

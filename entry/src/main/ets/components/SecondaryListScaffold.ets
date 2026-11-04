@@ -20,7 +20,6 @@ export struct SecondaryListScaffold {
   @Param floatingTabTailPadding: number = 0
   @Param includeKeyboardPadding: boolean = true
   @Param reserveTitleBar: boolean = true
-  @Param stickyHeaderOffset: number = 0
   @Param alwaysEnableEdgeSpring: boolean = true
   @Param scrollEnabled: boolean = true
   @Param surfaceColor: ResourceColor = ThemeConstants.BG_SUB
@@ -28,21 +27,18 @@ export struct SecondaryListScaffold {
   @Event onListAttach?: () => void
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
-  @Event onScrollStop?: () => void
 
   build() {
     Stack() {
       if (this.languageState.effectiveLocale.length >= 0) {
         List({ space: this.listSpace, scroller: this.scroller }) {
-          if (this.stickyHeaderOffset <= 0) {
-            ListItem() {
-              Column() {
-                Blank().height(this.topContentInset())
-              }
-              .width('100%')
+          ListItem() {
+            Column() {
+              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding() + this.pinnedOverlayReserve())
             }
-            .clip(false)
+            .width('100%')
           }
+          .clip(false)
 
           this.content()
 
@@ -62,28 +58,23 @@ export struct SecondaryListScaffold {
           right: this.horizontalPadding,
         })
         .clipContent(ContentClipMode.CONTENT_ONLY)
-        .sticky(this.stickyHeaderOffset > 0 ? StickyStyle.Header : StickyStyle.None)
-        // Include the removed inset row's trailing space. This preserves the
-        // first item's position and keeps pinned controls out of HDS blur.
-        .contentStartOffset(this.stickyHeaderOffset)
         .enableScrollInteraction(this.scrollEnabled)
         .edgeEffect(this.alwaysEnableEdgeSpring ? EdgeEffect.Spring : EdgeEffect.None, {
           alwaysEnabled: this.alwaysEnableEdgeSpring,
         })
         .onDidScroll((_scrollOffset: number, scrollState: ScrollState) => {
           if (this.onDidScroll) {
-            this.onDidScroll(this.scrolledDistance(), scrollState)
+            this.onDidScroll(this.scroller.currentOffset().yOffset, scrollState)
           }
         })
         .onScrollIndex((_start: number, _end: number, _center: number) => {
           if (this.onDidScroll) {
-            this.onDidScroll(this.scrolledDistance(), ScrollState.Scroll)
+            this.onDidScroll(this.scroller.currentOffset().yOffset, ScrollState.Scroll)
           }
         })
         .onScrollVisibleContentChange((start: VisibleListContentInfo) => {
           this.onVisibleContentChange?.(start)
         })
-        .onScrollStop(() => { this.onScrollStop?.() })
         .onReachEnd(() => {
           if (this.onReachEnd) {
             this.onReachEnd()
@@ -105,16 +96,6 @@ export struct SecondaryListScaffold {
 
   private titleBarPadding(): number {
     return this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT : 0
-  }
-
-  private topContentInset(): number {
-    return this.safeArea.topAvoidHeight + this.titleBarPadding() + this.pinnedOverlayReserve()
-  }
-
-  private scrolledDistance(): number {
-    // Native List reports -contentStartOffset at rest. Page effects use the
-    // distance from the top, including when the first item sits below chrome.
-    return this.scroller.currentOffset().yOffset + this.stickyHeaderOffset
   }
 
   private pinnedOverlayReserve(): number {

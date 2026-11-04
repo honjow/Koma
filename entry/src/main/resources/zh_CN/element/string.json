@@ -931,6 +931,7 @@
     { "name": "chapter_list_page_count", "value": "%s 页" },
     { "name": "chapter_list_show_more", "value": "再显示 %s 章" },
     { "name": "chapter_list_menu_download_visible", "value": "下载可见章节" },
+    { "name": "chapter_list_selected_count", "value": "已选 %s 章" },
     { "name": "chapter_list_menu_enter_selection", "value": "选择章节" },
     { "name": "chapter_list_menu_exit_selection", "value": "退出选择" },
     { "name": "chapter_list_menu_select_all_filtered", "value": "全选当前筛选" },
