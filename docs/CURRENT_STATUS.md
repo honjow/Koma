@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画、空心收藏图标与迁移选源响应。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
+当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
 设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留本次调试包，原插件开关、迁移选源偏好和电源设置已恢复并释租。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T02:35:47+08:00",
+  "updatedAt": "2026-11-05T02:54:41+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "197 已核图片插件动画、收藏字重与迁移选源。书源失败提示已调整，92 漫画正文仍有站点拒绝样本。",
+  "activity": "197 已对照验证迁移点选、移除与拖动排序，选源不再重建后续行。书源失败提示已调整，92 漫画正文仍有站点拒绝样本。",
   "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
   "proof": [
     {
@@ -85,14 +85,15 @@
       "kind": "accepted",
       "priority": "用户直接反馈",
       "owner": "Root（197）",
-      "status": "197 原路径对照与顺序持久化通过",
+      "status": "197 同路径对照验证，原排序偏好已恢复",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户直接反馈，原消息精确时间未核实。",
       "registeredAt": "2026-11-05T02:35:47+08:00",
-      "result": "选源行取名重复生成所有书源摘要，并同步检查图标。现按页面已有摘要显示。197 同一部作品、初始无已选来源、同坐标录制 MangaDex 选入，首个与已选布局一致的帧相对录像首帧从 0.773 秒提前到 0.471 秒。候选继续添加 Komiic，重进保持 MangaDex → Komiic，独立移除后恢复原偏好。",
+      "result": "先前只移除了重扫书源摘要的开销，用户复报点按仍卡后撤回原验收。197 复现 ArkUI 将下标拼进渲染键，点选后重建可用区 74 或 75 行。修复后按书源 ID 复用行，同作品同位置两次点选只移除可用区的目标行。应用收到抬手到提交更新从 275/278 毫秒降到 27/29 毫秒。录屏确认按压、选入与独立移除，截图比对保留分组、圆角和分隔线。拖动顺序重进可读回，移除测试选项后重进确认恢复 Komiic、包子漫画及原顺序。",
+      "remaining": "",
       "boundaries": [
-        "计时只代表同录制协议的一组对照，包含录制起点，不作为精确点击延迟。仅修改选源行取名。"
+        "本次 HiTrace 指标从 Koma 主线程收到抬手事件到向渲染服务提交更新，覆盖 197 两次具名点选。画面用另一次连续录屏核对。先前 0.773/0.471 秒只相对录像首帧，不作为点击延迟。"
       ],
       "relatedItems": [
         "LIBRARY_CROSS_SOURCE_MIGRATION"
@@ -101,7 +102,16 @@
         ".hvigor/outputs/migration-source-selection-20261105/recording-comparison.txt",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/migration-source-before/023139116093",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/migration-source-after/023322752151",
-        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-023629788010"
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-023629788010",
+        ".hvigor/outputs/migration-source-selection-20261105/input-trace-comparison.txt",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/migration-tap-baseline-mangadex",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/migration-tap-baseline-manhuawu",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/migration-tap-candidate-mangadex",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/migration-tap-candidate-manhuawu",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/migration-tap-candidate-visible/025351531462",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/migration-tap-candidate-reopen-order-025328332734",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/migration-tap-original-selection-readback-025426870334",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-025449098750"
       ]
     },
     {
@@ -16892,6 +16902,22 @@
       "itemId": "RELEASE_1_1_1",
       "title": "1.1.1 正式发布并核对附件",
       "detail": "公开下载包与同提交的构建清单一致。",
+      "kind": "verified"
+    },
+    {
+      "id": "migration-picker-tap-reopened",
+      "at": "2026-11-05T02:45:32+08:00",
+      "itemId": "MIGRATION_SOURCE_PICKER_RENDER_DELAY",
+      "title": "迁移选源点按卡顿重开",
+      "detail": "用户复报点下时仍卡。原录像只对比相对于录制起点的布局帧，无法证明点击反馈达标，撤回验收。",
+      "kind": "work"
+    },
+    {
+      "id": "migration-picker-stable-source-rows-verified",
+      "at": "2026-11-05T02:54:41+08:00",
+      "itemId": "MIGRATION_SOURCE_PICKER_RENDER_DELAY",
+      "title": "197 对照验证迁移点选与排序",
+      "detail": "同一路径点选 MangaDex 和漫画屋，应用收到抬手到提交渲染从 275/278 毫秒降到 27/29 毫秒，可用区其余行均复用。核对独立移除、原生拖动排序、重进读回及原选源偏好恢复。",
       "kind": "verified"
     }
   ],

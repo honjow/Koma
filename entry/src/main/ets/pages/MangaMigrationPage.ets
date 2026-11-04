@@ -196,6 +196,12 @@ export struct MangaMigrationPage {
       .filter((source: SourceRuntimeRegistryInstalledSourceSummary | undefined): boolean => source !== undefined) as SourceRuntimeRegistryInstalledSourceSummary[]
   }
 
+  @Computed
+  get availableSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    return this.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
+      !this.selectedSources.includes(source.sourceId))
+  }
+
   private sourceName(id: string, fallback: string = ''): string {
     const source = this.registry.listInstalledSourceSummaries().find((row: SourceRuntimeRegistryInstalledSourceSummary): boolean => row.sourceId === id)
     return sourceDisplayName(id, source?.displayName ?? (fallback.trim() || id))
@@ -627,22 +633,22 @@ export struct MangaMigrationPage {
           ListItem() {
             SectionHeader({ title: s('migration_selected_sources') })
           }.margin({ bottom: ThemeConstants.SPACE_XS })
-          // Native onMove requires direct ListItem children. Keep the existing
-          // grouped surface while allowing the system to animate the rows.
-          ForEach(this.selected(), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+          // Native onMove needs direct ListItem children. Derive the group edges
+          // from the live order so moving one source keeps the other row identities.
+          ForEach(this.selected(), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
             ListItem() {
               Column() {
                 this.SourceSelectionRow(source, true)
-                if (index < this.selectedSources.length - 1) ListDivider()
+                if (source.sourceId !== this.selectedSources[this.selectedSources.length - 1]) ListDivider()
               }.padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
-                top: index === 0 ? ThemeConstants.LIST_SECTION_INSET : 0,
-                bottom: index === this.selectedSources.length - 1 ? ThemeConstants.LIST_SECTION_INSET : 0 })
+                top: source.sourceId === this.selectedSources[0] ? ThemeConstants.LIST_SECTION_INSET : 0,
+                bottom: source.sourceId === this.selectedSources[this.selectedSources.length - 1] ? ThemeConstants.LIST_SECTION_INSET : 0 })
             }
             .backgroundColor(ThemeConstants.CARD)
-            .borderRadius({ topLeft: index === 0 ? ThemeConstants.RADIUS_CARD : 0,
-              topRight: index === 0 ? ThemeConstants.RADIUS_CARD : 0,
-              bottomLeft: index === this.selectedSources.length - 1 ? ThemeConstants.RADIUS_CARD : 0,
-              bottomRight: index === this.selectedSources.length - 1 ? ThemeConstants.RADIUS_CARD : 0 })
+            .borderRadius({ topLeft: source.sourceId === this.selectedSources[0] ? ThemeConstants.RADIUS_CARD : 0,
+              topRight: source.sourceId === this.selectedSources[0] ? ThemeConstants.RADIUS_CARD : 0,
+              bottomLeft: source.sourceId === this.selectedSources[this.selectedSources.length - 1] ? ThemeConstants.RADIUS_CARD : 0,
+              bottomRight: source.sourceId === this.selectedSources[this.selectedSources.length - 1] ? ThemeConstants.RADIUS_CARD : 0 })
           }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
           .onMove((from: number, to: number): void => { this.moveSource(from, to) })
         }
@@ -659,10 +665,11 @@ export struct MangaMigrationPage {
         }
         ListItem() {
           GroupedListSection({ title: s('migration_available_sources') }) {
-            ForEach(this.sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
-              !this.selectedSources.includes(source.sourceId)), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+            // ArkUI otherwise prefixes the row key with the builder's index,
+            // rebuilding every following HDS row and icon when a source moves.
+            ForEach(this.availableSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
               this.SourceSelectionRow(source, false)
-              if (index < this.sources.length - this.selectedSources.length - 1) ListDivider()
+              if (source.sourceId !== this.availableSources[this.availableSources.length - 1]?.sourceId) ListDivider()
             }, (source: SourceRuntimeRegistryInstalledSourceSummary) => source.sourceId)
             if (this.sources.length === 0) ConciseListRow({ title: s('migration_no_sources'), showChevron: false })
           }
