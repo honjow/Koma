@@ -2555,6 +2555,9 @@ struct Index {
         })
       }
       .titleBar(this.mangaDetailTitleBarOpts(param as MangaDetailRouteParam))
+      // Use the native scroll and edge events. The sticky inset shifts the
+      // raw list origin, while HDS should respond as soon as content moves.
+      .bindToScrollable(this.mangaDetailScrollers(param as MangaDetailRouteParam))
       .onShown(() => {
         RouterHelper.ensureMangaDetailRouteChrome(param as MangaDetailRouteParam).visible = true
         this.readerProgressRevision += 1
@@ -3554,6 +3557,11 @@ struct Index {
         'manga_detail_menu_check_local_refresh', MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH, !chrome.localRefreshBusy)
     }
     return [{ id: 'work', items: work }, { id: 'opening', items: opening }]
+  }
+
+  private mangaDetailScrollers(param: MangaDetailRouteParam): ListScroller[] {
+    const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
+    return [chrome.detailScroller, chrome.chapterScroller]
   }
 
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {

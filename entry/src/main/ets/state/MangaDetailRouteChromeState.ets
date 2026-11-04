@@ -22,6 +22,8 @@ export enum MangaDetailTitleAction {
 export class MangaDetailRouteChromeState {
   private static nextMenuId: number = 0
   readonly menuAnchorId: string = `manga-detail-more-${MangaDetailRouteChromeState.nextMenuId++}`
+  readonly detailScroller: ListScroller = new ListScroller()
+  readonly chapterScroller: ListScroller = new ListScroller()
   @Trace visible: boolean = false
   @Trace resolvedTitle: string = ''
   @Trace showTitle: boolean = false

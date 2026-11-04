@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节批量已读和吸顶已在 197 单栏、103 横屏双栏验证。图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
+当前结果：详情章节批量已读与吸顶已在 197、103 验证，吸顶引起的封面背景断层和滚动模糊回归也已修复并复测。图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
 
-设备：103 回到原横屏全屏书架，197 回到桌面并恢复原休眠及超时，两台保留本轮验证包并已释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 回到原横屏全屏书架，197 回到原作品详情并恢复休眠及超时，两台保留本轮验证包并已释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "完整 1.1.0 已更新至原发布页",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-04T19:48:49+08:00",
+  "updatedAt": "2026-11-04T20:05:32+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "1.1.0 的完整安装包和重写日志已更新。Bangumi 两条实机路径与 92漫画章节修复已验证。",
@@ -84,15 +84,15 @@
       "title": "详情页章节批量已读与吸顶",
       "priority": "用户直接需求",
       "kind": "done",
-      "status": "197 单栏、103 双栏已实机验证",
-      "stage": "197 单栏、103 双栏已实机验证",
+      "status": "封面背景和滚动模糊回归已修复并复验",
+      "stage": "封面背景和滚动模糊回归已修复并复验",
       "owner": "Root：Koma 漫画详情",
-      "result": "197 单栏首屏、连续滚动吸顶及滚动后菜单通过。临时作品第 004 章菜单确认 3 章，取消不写入，确认后重启的已读筛选仅 001–003。103 横屏仅右栏吸顶，左栏保持原位，横屏到悬浮单栏再回横屏均保留第 61 话。最终包的吸顶标题避开导航模糊。197 已恢复临时读态并移除样本、回桌面并恢复休眠，103 回到原全屏书架，两台保留验证包且已释租。",
+      "result": "吸顶的起始留白改变了原生列表的坐标零点，原值直接驱动封面与标题时导致首屏背景断层。封面、标题与下拉刷新已恢复到从列表顶部算起，HDS 直接绑定两栏的原生滚动事件。197 和 103 窄窗同作品同尺寸确认背景铺到导航栏后方，短滑触发渐变、回顶退出；197 滚到章节中段仍可打开菜单。103 横屏右栏滚动时左栏原位，宽窄往返仍保留第 61 话。197 回到接手时的同一作品详情并恢复休眠，103 回原全屏书架；两台保留验证包并释租。",
       "remaining": "",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "本会话用户原文提出，随后明确要求在 197 和 103 验证。首次消息的精确时刻未核实。",
-      "closedAt": "2026-11-04T19:48:49+08:00",
+      "closedAt": "2026-11-04T20:05:32+08:00",
       "evidence": [
         ".hvigor/outputs/detail-chapter-controls/build.log",
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-sticky-scroll-end-192900769372",
@@ -106,10 +106,15 @@
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-clearance-narrow-window-194700640158",
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-clearance-full-window-194732600118",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-194826165139",
-        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/restore-194817146383"
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/restore-194817146383",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backdrop-before-narrow-window-195548624919",
+        ".hvigor/outputs/detail-chapter-controls/phone-backdrop-before-after.png",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/backdrop-hds-phone/200229677313",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape/backdrop-hds-narrow/200232437059",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backdrop-hds-anchor-wide-window-200443889188"
       ],
       "remainingActions": [],
-      "updatedAt": "2026-11-04T19:48:49+08:00"
+      "updatedAt": "2026-11-04T20:05:32+08:00"
     },
     {
       "id": "RELEASE_1_1_0",
@@ -16548,6 +16553,22 @@
       "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
       "title": "两台真机验证完成，已恢复并释租",
       "detail": "197 单栏首屏、连续滚动吸顶及滚动后菜单通过。临时作品第 004 章菜单确认 3 章，取消不写入，确认后重启的已读筛选仅 001–003。103 横屏仅右栏吸顶，左栏保持原位，横屏到悬浮单栏再回横屏均保留第 61 话。最终包的吸顶标题避开导航模糊。197 已恢复临时读态并移除样本、回桌面并恢复休眠，103 回到原全屏书架，两台保留验证包且已释租。",
+      "kind": "verified"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T19:56:35+08:00",
+      "at": "2026-11-04T19:56:35+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "用户报告封面断层及滚动模糊回归",
+      "detail": "此前两台的章节菜单、吸顶与宽窄锚点已验证。用户随后发现封面背景被截断、滚动模糊触发异常，103 窄窗已复现首屏顶部断层。吸顶改用列表起始偏移后，详情把原生坐标直接用于背景与标题，已换算回从列表顶部的实际滚动距离。 对比同一作品、同一窗口修复前后的背景及 HDS 短滑和回顶，并保留章节吸顶。",
+      "kind": "work"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T20:05:32+08:00",
+      "at": "2026-11-04T20:05:32+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "封面断层和模糊触发在两台真机回验",
+      "detail": "吸顶的起始留白改变了原生列表的坐标零点，原值直接驱动封面与标题时导致首屏背景断层。封面、标题与下拉刷新已恢复到从列表顶部算起，HDS 直接绑定两栏的原生滚动事件。197 和 103 窄窗同作品同尺寸确认背景铺到导航栏后方，短滑触发渐变、回顶退出；197 滚到章节中段仍可打开菜单。103 横屏右栏滚动时左栏原位，宽窄往返仍保留第 61 话。197 回到接手时的同一作品详情并恢复休眠，103 回原全屏书架；两台保留验证包并释租。",
       "kind": "verified"
     }
   ],

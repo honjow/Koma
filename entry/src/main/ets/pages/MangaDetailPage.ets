@@ -327,8 +327,13 @@ export struct MangaDetailPage {
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
   @Local private detailScrollOffset: number = 0
-  private detailScroller: ListScroller = new ListScroller()
-  private chapterScroller: ListScroller = new ListScroller()
+  private get detailScroller(): ListScroller {
+    return this.chrome.detailScroller
+  }
+
+  private get chapterScroller(): ListScroller {
+    return this.chrome.chapterScroller
+  }
   private chapterPresentation: ChapterListPresentation = new ChapterListPresentation()
   @Local private detailContentWidth: number = 0
   private displayedChapters: MangaChapterItem[] = []
@@ -3627,8 +3632,7 @@ export struct MangaDetailPage {
     const scroller = this.usesDetailPanes ? this.chapterScroller : this.detailScroller
     // List reports rows under the sticky header as visible. Pick the first
     // row whose text area is exposed before replacing the current viewport.
-    const coveredHeight = this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT +
-      ThemeConstants.SPACE_LG + this.chapterHeaderHeight
+    const coveredHeight = this.chapterStickyHeaderOffset() + this.chapterHeaderHeight
     for (let row = first; row < this.displayedChapters.length; row++) {
       const rect = scroller.getItemRectInGroup(group, row)
       if (rect.height <= 0) break
@@ -3651,6 +3655,10 @@ export struct MangaDetailPage {
     if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
   }
 
+  private chapterStickyHeaderOffset(): number {
+    return this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_LG
+  }
+
   @Builder
   private InformationList(nativeSpring: boolean) {
     Stack({ alignContent: Alignment.TopStart }) {
@@ -3661,7 +3669,7 @@ export struct MangaDetailPage {
         scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
         alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
         horizontalPadding: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD,
-        stickyGroupHeader: !this.usesDetailPanes,
+        stickyHeaderOffset: this.usesDetailPanes ? 0 : this.chapterStickyHeaderOffset(),
         listSpace: ThemeConstants.SPACE_LG,
         onDidScroll: (offset: number) => { this.onInformationScroll(offset) },
         onVisibleContentChange: (start: VisibleListContentInfo) => {
@@ -3687,7 +3695,7 @@ export struct MangaDetailPage {
       scrollEnabled: this.detailScrollEnabled,
       alwaysEnableEdgeSpring: nativeSpring,
       horizontalPadding: 0,
-      stickyGroupHeader: true,
+      stickyHeaderOffset: this.chapterStickyHeaderOffset(),
       listSpace: ThemeConstants.SPACE_LG,
       onVisibleContentChange: (start: VisibleListContentInfo) => { this.onChapterViewport(start, true) },
       onScrollStop: () => { this.rememberSettledChapterAnchor(true) },
@@ -3701,6 +3709,7 @@ export struct MangaDetailPage {
     if (this.canPullRefreshDetail()) {
       PullRefresh({
         scroller: chapterPane ? this.chapterScroller : this.detailScroller,
+        listStartInset: this.chapterStickyHeaderOffset(),
         controller: this.detailRefreshController,
         indicatorTop: this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
         onRefresh: async (): Promise<void> => { await this.refreshMangaDetail() },
