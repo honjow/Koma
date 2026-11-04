@@ -10,6 +10,9 @@ import { ChapterListPresentation } from '../components/ChapterListSection'
 export enum MangaDetailTitleAction {
   SELECT_CHAPTERS = 'select_chapters',
   SELECT_ALL_CHAPTERS = 'select_all_chapters',
+  DOWNLOAD_SELECTED_CHAPTERS = 'download_selected_chapters',
+  MARK_SELECTED_CHAPTERS_READ = 'mark_selected_chapters_read',
+  MARK_SELECTED_CHAPTERS_UNREAD = 'mark_selected_chapters_unread',
   DOWNLOAD_INCOMPLETE = 'download_incomplete',
   RETRY_FAILED_DOWNLOADS = 'retry_failed_downloads',
   RELOAD_SOURCE = 'reload_source',
@@ -33,6 +36,7 @@ export class MangaDetailRouteChromeState {
   readonly chapterPresentation: ChapterListPresentation = new ChapterListPresentation()
   @Trace filteredChapterIds: string[] = []
   @Trace chapterDownloadAvailable: boolean = false
+  @Trace selectedChapterDownloadEnabled: boolean = false
   @Trace visible: boolean = false
   @Trace resolvedTitle: string = ''
   @Trace showTitle: boolean = false

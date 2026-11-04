@@ -3543,9 +3543,21 @@ struct Index {
   private mangaDetailMenuGroups(chrome: MangaDetailRouteChromeState): KomaMenuGroup[] {
     const work: KomaMenuAction[] = []
     const opening: KomaMenuAction[] = []
-    const add = (items: KomaMenuAction[], key: string, command: MangaDetailTitleAction, enabled: boolean = true): void => {
-      items.push({ label: AppStrings.get(key), isEnabled: enabled,
+    const add = (items: KomaMenuAction[], key: string, command: MangaDetailTitleAction, enabled: boolean = true,
+      count?: number): void => {
+      const label = AppStrings.get(key)
+      items.push({ label: count === undefined ? label : label.replace('%s', `${count}`), isEnabled: enabled,
         action: (): void => { if (chrome.visible) chrome.requestAction(command) } })
+    }
+    if (chrome.chapterPresentation.selectionMode) {
+      const items: KomaMenuAction[] = []
+      const count = chrome.chapterPresentation.selectedChapterIds.size
+      const hasSelection = count > 0
+      add(items, 'chapter_list_menu_download_selected', MangaDetailTitleAction.DOWNLOAD_SELECTED_CHAPTERS,
+        hasSelection && chrome.selectedChapterDownloadEnabled, count)
+      add(items, 'chapter_list_menu_mark_read', MangaDetailTitleAction.MARK_SELECTED_CHAPTERS_READ, hasSelection)
+      add(items, 'chapter_list_menu_mark_unread', MangaDetailTitleAction.MARK_SELECTED_CHAPTERS_UNREAD, hasSelection)
+      return [{ id: 'selected-chapters', items }]
     }
     if (chrome.sourceReloadAvailable) add(opening, 'manga_detail_menu_reload_source', MangaDetailTitleAction.RELOAD_SOURCE)
     if (chrome.pageActionsAvailable) {
@@ -3579,6 +3591,19 @@ struct Index {
     return [chrome.detailScroller, chrome.chapterScroller]
   }
 
+  private mangaDetailOverflow(chrome: MangaDetailRouteChromeState): Record<string, Object> {
+    const content: Record<string, Object> = {
+      'label': AppStrings.get('common_more_actions'),
+      'icon': komaTitleMoreIcon(), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
+      'action': (): void => {
+        this.detailMenu.open(this.getUIContext(), chrome.menuAnchorId, () => this.mangaDetailMenuGroups(chrome), (): void => {
+          DiagnosticLogger.warn('manga_detail', 'menu_open_failed', 'result=failed')
+        })
+      },
+    }
+    return { 'content': content }
+  }
+
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {
     const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
     const selection = chrome.chapterPresentation
@@ -3589,7 +3614,7 @@ struct Index {
         'isEnabled': chrome.filteredChapterIds.length > 0,
         'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SELECT_ALL_CHAPTERS) },
       }
-      const selectionMenu: Record<string, Object>[] = [{ 'content': selectAllContent }]
+      const selectionMenu: Record<string, Object>[] = [{ 'content': selectAllContent }, this.mangaDetailOverflow(chrome)]
       return this.sourceRouteTitleBarOpts({
         'title': { 'mainTitle': AppStrings.get('chapter_list_selected_count')
           .replace('%s', `${selection.selectedChapterIds.size}`) } as Record<string, Object>,
@@ -3618,14 +3643,7 @@ struct Index {
       } as Record<string, Object> })
     }
     if (chrome.pageActionsAvailable || chrome.sourceReloadAvailable || chrome.filteredChapterIds.length > 0) {
-      items.push({ 'content': { 'label': AppStrings.get('common_more_actions'),
-        'icon': komaTitleMoreIcon(), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
-        'action': (): void => {
-          this.detailMenu.open(this.getUIContext(), chrome.menuAnchorId, () => this.mangaDetailMenuGroups(chrome), (): void => {
-            DiagnosticLogger.warn('manga_detail', 'menu_open_failed', 'result=failed')
-          })
-        },
-      } as Record<string, Object> })
+      items.push(this.mangaDetailOverflow(chrome))
     }
     if (items.length > 0) content['menu'] = { 'value': items, 'maxCount': 3 } as Record<string, Object>
     return this.sourceRouteTitleBarOpts(content)

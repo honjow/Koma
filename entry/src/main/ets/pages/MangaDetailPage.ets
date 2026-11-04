@@ -1,5 +1,5 @@
 import { gridColumnCount } from '../utils/GridColumns'
-import { ActionBarButton, BottomBuilderShowType, HdsActionBar } from '@kit.UIDesignKit'
+import { ActionBarButton, ActionBarStyle, BottomBuilderShowType, HdsActionBar } from '@kit.UIDesignKit'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
@@ -347,10 +347,7 @@ export struct MangaDetailPage {
     id: 'detail-selected-download',
     baseIcon: $r('sys.symbol.arrow_down_to_line'),
     enabled: false,
-    onClick: () => {
-      this.confirmDownloadFilteredChapters(this.selectedChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED,
-        ChapterBatchScope.SELECTED)
-    },
+    onClick: () => { this.downloadSelectedChapters() },
   })
   private readonly chapterMarkReadAction = new ActionBarButton({
     id: 'detail-selected-mark-read',
@@ -364,8 +361,9 @@ export struct MangaDetailPage {
     enabled: false,
     onClick: () => { this.markSelectedChaptersRead(false) },
   })
-  private readonly chapterSelectionActions: ActionBarButton[] = [
-    this.chapterDownloadAction, this.chapterMarkReadAction, this.chapterMarkUnreadAction,
+  private readonly chapterDownloadActions: ActionBarButton[] = [this.chapterDownloadAction]
+  private readonly chapterReadStateActions: ActionBarButton[] = [
+    this.chapterMarkReadAction, this.chapterMarkUnreadAction,
   ]
 
 
@@ -693,6 +691,15 @@ export struct MangaDetailPage {
     }
     if (action === MangaDetailTitleAction.SELECT_ALL_CHAPTERS && this.chapterPresentation.selectionMode) {
       this.chapterPresentation.selectedChapterIds = new Set<string>(this.chrome.filteredChapterIds)
+      return
+    }
+    if (action === MangaDetailTitleAction.DOWNLOAD_SELECTED_CHAPTERS) {
+      this.downloadSelectedChapters()
+      return
+    }
+    if (action === MangaDetailTitleAction.MARK_SELECTED_CHAPTERS_READ ||
+      action === MangaDetailTitleAction.MARK_SELECTED_CHAPTERS_UNREAD) {
+      this.markSelectedChaptersRead(action === MangaDetailTitleAction.MARK_SELECTED_CHAPTERS_READ)
       return
     }
     if (action === MangaDetailTitleAction.DOWNLOAD_INCOMPLETE || action === MangaDetailTitleAction.RETRY_FAILED_DOWNLOADS) {
@@ -3670,7 +3677,14 @@ export struct MangaDetailPage {
     return this.chrome.filteredChapterIds.filter((id: string): boolean => this.chapterPresentation.selectedChapterIds.has(id))
   }
 
+  private downloadSelectedChapters(): void {
+    if (!this.chapterPresentation.selectionMode || !this.chrome.chapterDownloadAvailable) return
+    this.confirmDownloadFilteredChapters(this.selectedChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED,
+      ChapterBatchScope.SELECTED)
+  }
+
   private markSelectedChaptersRead(isRead: boolean): void {
+    if (!this.chapterPresentation.selectionMode) return
     this.confirmMarkFilteredChaptersReadState(this.selectedChapterIds(), isRead, ChapterBatchScope.SELECTED)
   }
 
@@ -3682,7 +3696,8 @@ export struct MangaDetailPage {
     'downloadBusy', 'languageState.effectiveLocale')
   private syncChapterSelectionActions(): void {
     const hasSelection = this.chapterPresentation.selectedChapterIds.size > 0
-    this.chapterDownloadAction.enabled = hasSelection && this.chrome.chapterDownloadAvailable && !this.downloadBusy
+    this.chrome.selectedChapterDownloadEnabled = hasSelection && this.chrome.chapterDownloadAvailable && !this.downloadBusy
+    this.chapterDownloadAction.enabled = this.chrome.selectedChapterDownloadEnabled
     this.chapterMarkReadAction.enabled = hasSelection
     this.chapterMarkUnreadAction.enabled = hasSelection
     this.chapterDownloadAction.accessibilityText = s('manga_detail_action_download_chapter')
@@ -3695,10 +3710,25 @@ export struct MangaDetailPage {
 
   @Builder
   private ChapterSelectionActions() {
-    HdsActionBar({ startButtons: this.chapterSelectionActions })
+    // Keep the native bar at its measured width, as in Huawei's horizontal
+    // sample. The coextensive shadow separates its own backplate from cards.
+    Row() {
+      Stack() {
+        HdsActionBar({
+          startButtons: this.chapterDownloadActions,
+          endButtons: this.chapterReadStateActions,
+          actionBarStyle: new ActionBarStyle({ margin: LengthMetrics.vp(0) }),
+        })
+      }
+      .borderRadius(ThemeConstants.RADIUS_ROUND)
+      .backgroundColor(ThemeConstants.CARD)
+      .shadow({ radius: 12, color: ThemeConstants.SHADOW_PROMINENT, offsetY: 4 })
+    }
     .width('100%')
-    .padding({ left: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD,
-      right: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD })
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+    .hitTestBehavior(HitTestMode.Transparent)
+    .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
     .margin({ bottom: this.detailSafeArea.bottomAvoidHeight })
     .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
       this.chapterActionBarHeight = Number(size.height)

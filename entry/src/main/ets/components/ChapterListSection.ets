@@ -13,6 +13,8 @@ import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/Chapter
 import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
 export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 
+const CHAPTER_MENU_HOLD_MS: number = 380
+
 function s(name: string): string {
   return AppStrings.get(name)
 }
@@ -510,7 +512,7 @@ export struct ChapterListSection {
     })
   }
 
-  private downloadStatusLabel(status: MangaChapterDownloadStatus): ResourceStr {
+  private downloadStatusLabel(status: MangaChapterDownloadStatus): string {
     if (status === 'queued') {
       return s('downloads_status_queued')
     }
@@ -533,13 +535,27 @@ export struct ChapterListSection {
     if (status === 'downloaded') {
       return ThemeConstants.STATUS_SUCCESS
     }
-    if (status === 'partial' || status === 'queued' || status === 'downloading') {
+    if (status === 'queued') {
+      return ThemeConstants.STATUS_MUTED
+    }
+    if (status === 'partial' || status === 'downloading') {
       return ThemeConstants.STATUS_INFO
     }
     if (status === 'blocked') {
       return ThemeConstants.STATUS_WARNING
     }
-    return ThemeConstants.STATUS_DANGER
+    return ThemeConstants.DANGER
+  }
+
+  private downloadStatusIcon(status: MangaChapterDownloadStatus): Resource {
+    switch (status) {
+      case 'downloaded': return $r('sys.symbol.checkmark_circle')
+      case 'queued': return $r('sys.symbol.clock')
+      case 'downloading': return $r('sys.symbol.arrow_down_to_line')
+      case 'partial': return $r('sys.symbol.circle_dashed')
+      case 'blocked': return $r('sys.symbol.lock')
+      case 'failed': return $r('sys.symbol.exclamationmark_triangle')
+    }
   }
 
   private shouldShowDownloadStatus(chapter: MangaChapterItem): boolean {
@@ -549,22 +565,41 @@ export struct ChapterListSection {
   @Builder
   private DownloadStatusBadge(ri: RepeatItem<MangaChapterItem>) {
     if (ri.item.downloadStatus !== undefined) {
-      Row({ space: ThemeConstants.SPACE_XS }) {
-        SymbolGlyph(ri.item.downloadStatus === 'downloaded' ? $r('sys.symbol.checkmark') : $r('sys.symbol.arrow_down_to_line'))
-          .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+      Row() {
+        SymbolGlyph(this.downloadStatusIcon(ri.item.downloadStatus!))
+          .fontSize(18)
           .fontColor([this.downloadStatusColor(ri.item.downloadStatus!)])
-        Text(this.downloadStatusLabel(ri.item.downloadStatus!))
-          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.downloadStatusColor(ri.item.downloadStatus!))
-          .maxLines(1)
       }
-      .height(ThemeConstants.FILTER_CHIP_HEIGHT)
-      .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-      .borderRadius(ThemeConstants.RADIUS_ROUND)
-      .backgroundColor(ri.item.downloadStatus === 'downloaded' ? ThemeConstants.SOFT_TINT : Color.Transparent)
-      .border({ width: ri.item.downloadStatus === 'downloaded' ? 0 : 1,
-        color: this.downloadStatusColor(ri.item.downloadStatus!) })
+      .width(ThemeConstants.TOUCH_TARGET_SM)
+      .height(ThemeConstants.TOUCH_TARGET_SM)
+      .justifyContent(FlexAlign.Center)
+      .accessibilityText(this.downloadStatusLabel(ri.item.downloadStatus!))
+      .accessibilityLevel('yes')
+    }
+  }
+
+  @Builder
+  private ChapterRowActions(ri: RepeatItem<MangaChapterItem>) {
+    Row({ space: ThemeConstants.SPACE_XS }) {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.ellipsis_circle'))
+          .fontSize(18)
+          .fontColor([ThemeConstants.TEXT_SECONDARY])
+      }
+      .width(ThemeConstants.TOUCH_TARGET_SM)
+      .height(ThemeConstants.TOUCH_TARGET_SM)
+      .backgroundColor(Color.Transparent)
+      .accessibilityText(s('common_more_actions'))
+      .id(`chapter-row-more-${ri.item.id}`)
+      .onClick(() => { this.readStateMenuChapterId = ri.item.id })
+      .bindContextMenu(this.readStateMenuChapterId === ri.item.id, this.ReadStateMenu(ri), komaContextMenuOptions({
+        placement: Placement.BottomRight,
+        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+        onDisappear: () => {
+          if (this.readStateMenuChapterId === ri.item.id) this.readStateMenuChapterId = ''
+        },
+      }))
+      this.ChapterDownloadAction(ri)
     }
   }
 
@@ -581,6 +616,7 @@ export struct ChapterListSection {
       .width(36)
       .height(36)
       .backgroundColor(Color.Transparent)
+      .accessibilityText(s(ri.item.isDownloaded ? 'downloads_status_downloaded' : 'manga_detail_action_download_chapter'))
       .onClick(() => {
         if (!ri.item.isDownloaded) {
           this.onDownloadChapter(ri.item.id)
@@ -635,10 +671,15 @@ export struct ChapterListSection {
       primaryColor: ri.item.isRead ? $r('sys.color.font_tertiary') : $r('sys.color.font_primary'),
       textBuilderParam: () => { this.ChapterText(ri) },
       suffixPaddingRight: ThemeConstants.SPACE_SM,
-      suffixBuilderParam: () => { this.ChapterDownloadAction(ri) },
-      action: () => { this.onOpenChapter(ri.item.id) },
+      suffixBuilderParam: () => { this.ChapterRowActions(ri) },
+      action: () => {
+        if (this.readStateMenuChapterId !== ri.item.id) this.onOpenChapter(ri.item.id)
+      },
     })
-    .bindContextMenu(this.ReadStateMenu(ri), ResponseType.LongPress, komaContextMenuOptions())
+    // Claim a held touch before the card can interpret its release as a tap.
+    // Keep the context menu and its haptic under the system's menu policy.
+    .priorityGesture(LongPressGesture({ duration: CHAPTER_MENU_HOLD_MS })
+      .onAction(() => { this.readStateMenuChapterId = ri.item.id }))
   }
 
   @Builder
