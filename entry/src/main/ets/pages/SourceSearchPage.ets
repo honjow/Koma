@@ -352,7 +352,7 @@ export struct SourceSearchPage {
   private SearchErrorState() {
     KomaEmptyState({
       title: s('source_search_error_title'),
-      message: this.viewModel.searchErrorMessage,
+      message: this.viewModel.searchErrorMessage === s('search_state_failed') ? '' : this.viewModel.searchErrorMessage,
       actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: !this.searchFiltersReady || this.query.trim().length > 0,
       action: () => {

@@ -402,13 +402,11 @@ function parseSourceHomeSectionsFromResponse(sourceId: string, response: SourceR
 }
 
 function safeSourceBrowseErrorText(error: Error, fallbackKey: string): string {
-  if (error instanceof SourceRuntimeError) return error.userText
+  const fallback = AppStrings.get(fallbackKey)
+  if (error instanceof SourceRuntimeError) return error.userTextFor(fallback)
   const diagnostic = safeSearchDiagnostic(error)
-  if (diagnostic.code === 'search_failed') {
-    return AppStrings.get(fallbackKey)
-  }
   return diagnostic.code === 'timeout' ? AppStrings.get('source_failure_timeout') :
-    diagnostic.code === 'network_error' ? AppStrings.get('source_failure_network') : AppStrings.get('source_failure_runtime')
+    diagnostic.code === 'network_error' ? AppStrings.get('source_failure_network') : fallback
 }
 
 

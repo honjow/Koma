@@ -150,6 +150,7 @@ test('unknown provider text is still redacted rather than reclassified by messag
   const error = new SourceRuntimeError({ok:false,error:{code:'PRIVATE_TOKEN',message:'not_supported rate_limit'}})
   assert.equal(error.diagnostic.code,'unknown');assert.equal(error.diagnostic.kind,'runtime')
   assert.equal(error.userText,'source_failure_runtime')
+  assert.equal(error.userTextFor('search_state_failed'),'search_state_failed')
 })
 test('get_manga keeps structured access status and never exposes the provider message', async () => {
   const f = fixture()

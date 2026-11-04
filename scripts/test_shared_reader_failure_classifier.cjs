@@ -73,7 +73,9 @@ async function sourcePageFailureChain() {
   new Function('exports', 'require', compile(fs.readFileSync(
     path.join(root, 'model/SourceChapterPageHydrator.ets'), 'utf8')))(hydratedExports, name => {
     if (name === './SourceRuntimeError') return errorExports
-    if (name === '@kit.ArkTS') return { taskpool: { execute: async () => { requested++; if (requestGate) await requestGate; return JSON.stringify(response) } } }
+    if (name === '../sourceRuntime/SourceRuntimeWorkerClient') return {
+      executeSourceRequestInWorker: async () => { requested++; if (requestGate) await requestGate; return JSON.stringify(response) },
+    }
     if (name === '../sourceRuntime/SourceRuntimeRunner') return { diagnoseSourceOperation: (_request, execute) => execute() }
     if (name === '../sourceRuntime/SourceWebSessionStore') return { sourceHttpIdentityJson: () => '{}' }
     if (name === '../sourceRuntime/SourceSettingsStore') return { appSourceSettingsStore: { loadForSource: () => JSON.parse(JSON.stringify(settings)) } }
@@ -91,7 +93,8 @@ async function sourcePageFailureChain() {
   for (const [code, status, expected] of [
     ['network_error', 0, 'source_failure_network'], ['timeout', 0, 'source_failure_timeout'],
     ['permission_denied', 403, 'source_failure_access'], ['challenge_required', 403, 'source_failure_challenge'],
-    ['server_error', 503, 'source_failure_server'], ['PRIVATE_TOKEN', 0, 'source_failure_runtime'],
+    ['server_error', 503, 'source_failure_server'], ['client_error', 0, 'Koma page failed'],
+    ['PRIVATE_TOKEN', 0, 'Koma page failed'],
   ]) {
     response = { ok: false, reasonCode: code, error: { code, status,
       message: 'https://private.example/PRIVATE_TOKEN?cookie=PRIVATE_TOKEN' } }

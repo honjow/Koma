@@ -49,7 +49,7 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   else if (status >= 500 || candidates.includes('server_error')) kind = 'server'
   else if ((status === 0 || status === 400) && candidates.includes('region_restricted')) kind = 'region'
   else if (candidates.includes('timeout')) kind = 'timeout'
-  else if (candidates.some((item: string): boolean => ['network_error', 'http_error', 'client_error'].includes(item))) kind = 'network'
+  else if (candidates.includes('network_error')) kind = 'network'
   else if (candidates.some((item: string): boolean =>
     ['parse_error', 'invalid_response', 'invalid_json', 'malformed_result'].includes(item))) kind = 'parse'
   else if (candidates.some((item: string): boolean => ['request_too_large', 'result_too_large'].includes(item))) kind = 'capacity'
@@ -63,7 +63,9 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   return { reason, code, status, kind }
 }
 
-export function sourceFailureText(details: SourceFailureDetails): string {
+export function sourceFailureText(details: SourceFailureDetails, fallback: string = AppStrings.get('source_failure_runtime')): string {
+  // Keep internal failures in diagnostics. The caller knows which action failed.
+  if (['runtime', 'load', 'init', 'execute', 'parse', 'capacity'].includes(details.kind)) return fallback
   const text = AppStrings.get('source_failure_' + details.kind)
   return details.status > 0 ? AppStrings.format('source_failure_http', text, details.status) : text
 }
@@ -82,5 +84,9 @@ export class SourceRuntimeError extends Error {
     this.userText = userText
     const challengeRequestId = response.error?.['challengeRequestId']
     this.challengeRequestId = typeof challengeRequestId === 'string' && challengeRequestId.length <= 64 ? challengeRequestId : undefined
+  }
+
+  userTextFor(fallback: string): string {
+    return sourceFailureText(this.diagnostic, fallback)
   }
 }

@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
+当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画与空心收藏图标。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
-设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留通过备份文件写出、解密和预览验证的调试包，原电源状态已恢复并释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留本次调试包，原插件开关、电源设置已恢复并释租。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T01:43:10+08:00",
+  "updatedAt": "2026-11-05T02:20:05+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "正式版下载包已核对。",
+  "activity": "197 已核图片插件动画和收藏字重。书源失败提示已调整，92 漫画正文仍有站点拒绝样本。",
   "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
   "proof": [
     {
@@ -79,6 +79,86 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "IMAGE_PLUGIN_SWITCH_ANIMATION",
+      "title": "已安装图片插件开关缺少动画",
+      "kind": "accepted",
+      "priority": "用户直接反馈",
+      "owner": "Root（197）",
+      "status": "197 原生开关动画和重入持久化已核对",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户直接反馈，原消息精确时间未核实。",
+      "registeredAt": "2026-11-05T02:22:59+08:00",
+      "result": "旧包在启停后重建整行，录屏见开关消失一帧后跳到目标。最终候选保留列表身份并读取当前启停快照。197 已录制原生开关双向滑动及总开关对照，配置半模态启用后列表同步，退出重入仍为开启。测试后恢复已装插件关闭、总开关开启。",
+      "boundaries": [
+        "沿用 HDS 原生控件与原启停语义；写入失败恢复已保存状态。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/image-plugin-toggle-20261105/switch-frames-197.png",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/plugin-switch-baseline/020451488497",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/plugin-switch-final/022033457119",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/plugin-switch-editor/022124934551",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-022335841212"
+      ]
+    },
+    {
+      "id": "SOURCE_92_CHAPTER_PAGES_UNAVAILABLE",
+      "title": "92 漫画有章节列表但正文打不开",
+      "kind": "external",
+      "priority": "用户直接反馈",
+      "owner": "书源子代理（237），Root 维护工作单",
+      "status": "237 已复现正文请求被站点拒绝",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户直接反馈，原消息精确时间未核实。",
+      "registeredAt": "2026-11-05T02:20:05+08:00",
+      "result": "237 上公开 0.1.7 的《枯萎之花上的眼泪》显示 91 章，第 01 话请求正文返回 403。候选走同一路径并尝试官方 HTTPS，正文仍返回 403。同一设备《脑洞学生会》第 01 话可显示第 1/17 页。实网对照 12 章，6 章原包与候选同样可读，另外 6 章均未恢复。237 已恢复原源包和测试数据并释租。",
+      "remaining": "保留开放。试验已撤回，待正文入口出现可重复、可完整读取的响应再验证修复。",
+      "relatedItems": [
+        "SOURCE_92_CHAPTER_LIST_MISSING"
+      ],
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-reading/read92-1105-f-result.json",
+        ".hvigor/outputs/source-92-reading/wasm-parity-summary.json"
+      ]
+    },
+    {
+      "id": "DETAIL_BOOKMARK_OUTLINE_WEIGHT",
+      "title": "详情未收藏图标线条偏细",
+      "kind": "accepted",
+      "priority": "用户直接反馈",
+      "owner": "Root（197）",
+      "status": "197 同屏前后对照通过",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户直接反馈，原消息精确时间未核实。",
+      "registeredAt": "2026-11-05T02:20:05+08:00",
+      "result": "未收藏图标与相邻追踪图标使用相同字重。197 在 MangaDex 的同一部未收藏作品详情截图对照，按钮背景、大小及图标位置一致。",
+      "boundaries": [
+        "已收藏仍使用原实心图标样式。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/image-plugin-toggle-20261105/favorite-icon-197.png"
+      ]
+    },
+    {
+      "id": "SOURCE_FAILURE_USER_COPY",
+      "title": "书源失败提示给出无依据的更新和导出日志指引",
+      "kind": "active",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "status": "已改文案与失败分类，执行回归通过",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户直接反馈，原消息精确时间未核实。",
+      "registeredAt": "2026-11-05T02:20:05+08:00",
+      "result": "通用内部错误只提示对应操作失败，已有失败标题时不重复显示。明确的连接超时、限流、验证、地区限制等仍显示具体原因。仅返回 client_error/http_error 且没有明确原因时，不再要求检查网络。技术分类继续保留在诊断日志。",
+      "remaining": "现有实际失败分类和阅读器回归已执行，候选包尚未完成普通路径失败页面复测。",
+      "evidence": [
+        "scripts/test_shared_reader_failure_classifier.cjs"
+      ]
+    },
     {
       "id": "SUBSCRIPTION_MIRROR_FALLBACK",
       "title": "书源与图片插件订阅镜像",

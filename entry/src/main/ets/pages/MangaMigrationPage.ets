@@ -206,7 +206,7 @@ export struct MangaMigrationPage {
   }
 
   private failureText(error: Object): string {
-    if (error instanceof SourceRuntimeError) return error.userText
+    if (error instanceof SourceRuntimeError) return error.userTextFor(s('migration_failed'))
     const code = (error as Error).message
     if (code === 'migration_catalog_unavailable') return s('migration_catalog_unavailable')
     if (code === 'migration_same_manga') return s('migration_same_manga')

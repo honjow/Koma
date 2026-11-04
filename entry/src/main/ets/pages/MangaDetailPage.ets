@@ -1330,7 +1330,8 @@ export struct MangaDetailPage {
       DiagnosticLogger.warn('manga_detail_page', 'source_operation_failed',
         'operation=' + operation + ' reason=' + details.reason + ' error=' + details.code +
         ' http=' + details.status + ' kind=' + details.kind)
-      return s(fallbackKey) + ' ' + error.userText
+      const cause = error.userTextFor('')
+      return cause ? s(fallbackKey) + ' ' + cause : s(fallbackKey)
     }
     // Unexpected exceptions may contain URLs or credentials. Keep the phase, never their raw message.
     DiagnosticLogger.warn('manga_detail_page', 'source_operation_failed', 'operation=' + operation + ' reason=unexpected_failure')
@@ -2867,6 +2868,8 @@ export struct MangaDetailPage {
             kind: this.isInLibrary ? 'primary' : 'secondary',
             controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
             iconSize: ThemeConstants.FONT_SIZE_TITLE,
+            // Match the adjacent tracking glyph's weight while the bookmark is outlined.
+            iconWeight: this.isInLibrary ? FontWeight.Normal : FontWeight.Bold,
             action: () => {
               this.handleAddToLibrary()
             },

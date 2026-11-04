@@ -642,13 +642,18 @@ export struct SourceBrowsePage {
     })
   }
 
+  private browseErrorTitle(): string {
+    if (this.isSearchActive()) return s('source_search_error_title')
+    return this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
+      ? s('browse_error_load_more') : s('browse_error_load_home')
+  }
+
   @Builder
   private BrowseErrorState() {
     KomaEmptyState({
-      title: this.isSearchActive() ? s('source_search_error_title') :
-        this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
-          ? s('browse_error_load_more') : s('browse_error_load_home'),
-      message: this.viewModel.errorMessage,
+      title: this.browseErrorTitle(),
+      message: this.viewModel.errorMessage === this.browseErrorTitle() ||
+        (this.isSearchActive() && this.viewModel.errorMessage === s('search_state_failed')) ? '' : this.viewModel.errorMessage,
       actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: true,
       action: () => {

@@ -26,9 +26,6 @@ export function searchStateUserText(state: CrossSearchSectionState, diagnosticCo
       ? AppStrings.get('search_state_not_configured')
       : AppStrings.get('search_state_unsupported')
   }
-  if (state === 'failed' && diagnosticCode === 'source_runtime') {
-    return AppStrings.get('source_failure_runtime')
-  }
   if (state === 'failed') {
     // Diagnostic codes belong to logs; ordinary search failures use localized text.
     return AppStrings.get('search_state_failed')
@@ -54,7 +51,8 @@ export function safeDiagnosticCode(value: string): string {
 export function safeSearchDiagnostic(error: Error): SearchDiagnostic {
   if (error instanceof SourceRuntimeError) {
     const details = error.diagnostic
-    return { code: details.code !== 'unknown' ? details.code : details.reason, userText: error.userText }
+    return { code: details.code !== 'unknown' ? details.code : details.reason,
+      userText: error.userTextFor(searchStateUserText('failed')) }
   }
   const message = error.message.toLocaleLowerCase()
   let code = 'search_failed'

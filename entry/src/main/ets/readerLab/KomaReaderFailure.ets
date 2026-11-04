@@ -1,7 +1,7 @@
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderAssetFailure } from '@reader-kit/core'
 import { AppStrings } from '../i18n/AppStrings'
-import { SourceFailureDetails, SourceRuntimeError, sourceFailureText } from '../model/SourceRuntimeError'
+import { SourceFailureDetails, SourceRuntimeError } from '../model/SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 
 /** Koma owns its reader failure copy; reader-kit only carries this presentation value. */
@@ -19,7 +19,7 @@ export class KomaReaderFailure {
   }
 
   static catalogMessage(error: Error): string {
-    if (error instanceof SourceRuntimeError) return sourceFailureText(error.diagnostic)
+    if (error instanceof SourceRuntimeError) return error.userTextFor(AppStrings.get('reader_page_load_failed'))
     return error.message === 'koma_reader_source_chapter_unsupported'
       ? AppStrings.get('reader_source_chapter_unsupported') : ''
   }
