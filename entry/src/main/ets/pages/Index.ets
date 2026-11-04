@@ -197,7 +197,6 @@ import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeA
 import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
 import { ReaderTrackerProgressCoordinator } from '../model/TrackerReadingProgress'
-import { TRACKER_PROVIDER_CONFIGS, TrackerProviderConfig, TrackerProviderId } from '../model/TrackerModels'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
@@ -217,11 +216,6 @@ interface SettingsPaneRouteParam {
 
 interface SettingsSearchRouteParam {
   searchTarget: string
-}
-
-interface TrackerProviderRouteParam {
-  providerId: TrackerProviderId
-  formTitleAction: FormTitleActionState
 }
 
 interface BackupTaskRouteParam {
@@ -1724,11 +1718,6 @@ struct Index {
     } finally { this.migrationOpening = false }
   }
 
-  private openTrackerProvider(providerId: TrackerProviderId): void {
-    const params: TrackerProviderRouteParam = { providerId, formTitleAction: new FormTitleActionState() }
-    this.appPathStack.pushPath({ name: RouteName.TRACKER_PROVIDER_SETTINGS, param: params })
-  }
-
   private openBackupTask(pane: string, fileName: string): void {
     const params: BackupTaskRouteParam = { pane, fileName, formTitleAction: new FormTitleActionState() }
     this.appPathStack.pushPath({ name: RouteName.BACKUP_TASK, param: params })
@@ -1739,11 +1728,6 @@ struct Index {
     if (params.pane === 'restore') { return AppStrings.get('backup_task_restore') }
     if (params.pane === 'files') { return AppStrings.get('backup_task_files') }
     return AppStrings.get('backup_task_settings')
-  }
-
-  private trackerProviderTitle(params: TrackerProviderRouteParam): string {
-    const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === params.providerId)
-    return provider?.displayName ?? AppStrings.get('route_tracker_settings_title')
   }
 
   private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
@@ -2854,21 +2838,12 @@ struct Index {
           refreshRevision: this.trackerSettingsRevision,
           searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
           preferencesRestoreRevision: this.applicationSettingsRestoreRevision,
-          onOpenProvider: (providerId: TrackerProviderId) => {
-            this.openTrackerProvider(providerId)
-          },
         })
       }
       .titleBar(this.navDestTitleBarOpts(settingsPaneTitle('tracking')))
       .onShown(() => {
         this.trackerSettingsRevision += 1
       })
-    } else if (name === RouteName.TRACKER_PROVIDER_SETTINGS) {
-      HdsNavDestination() {
-        TrackerSettingsPage({ providerId: (param as TrackerProviderRouteParam).providerId,
-          formTitleAction: (param as TrackerProviderRouteParam).formTitleAction ?? new FormTitleActionState() })
-      }
-      .titleBar(this.trackerProviderTitleBarOpts(param as TrackerProviderRouteParam))
     }
   }
 
@@ -3096,11 +3071,13 @@ struct Index {
       // HDS renders its menu badge for icon actions only. Keep the native
       // text action and align its decoration with the title bar's end inset.
       if (this.rootNavigationVisible && this.selectedTab === TabIndex.BROWSE && this.catalogUpdateCount() > 0) {
-        Badge({ count: this.catalogUpdateCount(), position: BadgePosition.RightTop, style: {} }) {
-          Row().width(1).height(1)
-        }
-        .margin({ top: this.layoutSafeArea.topAvoidHeight + ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_LG })
-        .hitTestBehavior(HitTestMode.None)
+        ForEach([this.catalogUpdateCount()], (count: number) => {
+          Badge({ count, position: BadgePosition.RightTop, style: {} }) {
+            Row().width(1).height(1)
+          }
+          .margin({ top: this.layoutSafeArea.topAvoidHeight + ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_LG })
+          .hitTestBehavior(HitTestMode.None)
+        }, (count: number): string => count.toString())
       }
 
       Row()
@@ -3465,22 +3442,6 @@ struct Index {
     return options
   }
 
-  private trackerProviderTitleBarOpts(param: TrackerProviderRouteParam): Record<string, Object> {
-    const options = this.navDestTitleBarOpts(this.trackerProviderTitle(param))
-    const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === param.providerId)
-    if (provider?.supportStatus !== 'available' || provider.authentication === 'password' || provider.authentication === 'token') return options
-    const content = options['content'] as Record<string, Object>
-    const action: Record<string, Object> = {
-      'label': AppStrings.get('common_save'), 'icon': $r('sys.symbol.checkmark'),
-      'isEnabled': param.formTitleAction.enabled,
-      'action': (): void => { param.formTitleAction.requestSave() },
-    }
-    const item: Record<string, Object> = { 'content': action }
-    const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
-    content['menu'] = menu
-    return options
-  }
-
   private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
     const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
     if (param.pane !== 'translation') return options
@@ -3574,7 +3535,6 @@ struct Index {
 
   private mangaDetailMenuGroups(chrome: MangaDetailRouteChromeState): KomaMenuGroup[] {
     const work: KomaMenuAction[] = []
-    const tracking: KomaMenuAction[] = []
     const opening: KomaMenuAction[] = []
     const add = (items: KomaMenuAction[], key: string, command: MangaDetailTitleAction, enabled: boolean = true): void => {
       items.push({ label: AppStrings.get(key), isEnabled: enabled,
@@ -3589,14 +3549,11 @@ struct Index {
       }
       if (chrome.migrationAvailable) add(work, 'migration_title', MangaDetailTitleAction.MIGRATE)
       if (chrome.localMetadataAvailable) add(work, 'manga_detail_menu_edit_local_metadata', MangaDetailTitleAction.EDIT_LOCAL_METADATA)
-      add(tracking, 'manga_detail_menu_find_tracker_mapping', MangaDetailTitleAction.FIND_TRACKER_MAPPING, !chrome.trackerMappingBusy)
-      add(tracking, 'manga_detail_menu_sync_tracker', MangaDetailTitleAction.SYNC_TRACKER, !chrome.trackerSyncBusy)
-      add(tracking, 'manga_detail_menu_pull_tracker', MangaDetailTitleAction.PULL_TRACKER, !chrome.trackerSyncBusy)
       if (chrome.webActionsAvailable) add(opening, 'manga_detail_menu_open_browser', MangaDetailTitleAction.OPEN_BROWSER)
       if (chrome.localRefreshAvailable) add(opening, chrome.localRefreshBusy ? 'manga_detail_local_refresh_checking' :
         'manga_detail_menu_check_local_refresh', MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH, !chrome.localRefreshBusy)
     }
-    return [{ id: 'work', items: work }, { id: 'tracking', items: tracking }, { id: 'opening', items: opening }]
+    return [{ id: 'work', items: work }, { id: 'opening', items: opening }]
   }
 
   private mangaDetailTitleBarOpts(param: MangaDetailRouteParam): Record<string, Object> {

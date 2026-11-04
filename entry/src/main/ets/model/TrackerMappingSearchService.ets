@@ -1,3 +1,4 @@
+import { readBangumiAccessToken } from './BangumiTrackerOAuth'
 import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
 import { KitsuTrackerClient } from './KitsuTrackerClient'
 import { BangumiTrackerClient, MangaUpdatesTrackerClient } from './AdditionalTrackerClients'
@@ -58,11 +59,17 @@ export interface TrackerMappingSearchServiceOptions {
   kitsuClient?: KitsuTrackerClient
 }
 
-interface TrackerTitleSearchCandidate {
+export interface TrackerTitleSearchCandidate {
   providerId: TrackerProviderId
   providerTitleId: string
   title: string
   nativeTitle?: string
+  coverImageUrl?: string
+  summary?: string
+  format?: string
+  status?: string
+  startYear?: string
+  chapterCount?: number
 }
 
 interface RankedTrackerTitleSearchCandidate {
@@ -92,6 +99,16 @@ export class TrackerMappingSearchService {
     this.bangumiClient = options.bangumiClient ?? new BangumiTrackerClient()
     this.mangaUpdatesClient = options.mangaUpdatesClient ?? new MangaUpdatesTrackerClient()
     this.kitsuClient = options.kitsuClient ?? new KitsuTrackerClient()
+  }
+
+  async searchComicTitles(providerId: TrackerProviderId, query: string): Promise<TrackerTitleSearchCandidate[] | undefined> {
+    const preferences = await this.preferencesStore().load()
+    const account = this.findConnectedAccount(preferences, providerId)
+    if (account?.credentialAccountKey === undefined) return undefined
+    const token = await this.readAccessToken(account, providerId)
+    if (token === undefined) return undefined
+    const result = await this.searchProvider(providerId, token, query.trim())
+    return result.ok ? result.value ?? [] : undefined
   }
 
   async refreshComicMappingCandidates(
@@ -238,6 +255,7 @@ export class TrackerMappingSearchService {
   }
 
   private async readAccessToken(account: TrackerAccount, providerId: TrackerProviderId): Promise<string | undefined> {
+    if (providerId === 'bangumi') return readBangumiAccessToken(this.context, this.secretStore, account)
     if (account.credentialAccountKey === undefined) {
       return undefined
     }
@@ -278,6 +296,8 @@ export class TrackerMappingSearchService {
             providerTitleId: item.providerTitleId,
             title: item.title,
             nativeTitle: item.nativeTitle,
+            coverImageUrl: item.coverImageUrl, summary: item.summary, format: item.format, status: item.status,
+            startYear: item.startYear, chapterCount: item.chapterCount,
           }
         }),
       }
@@ -296,6 +316,8 @@ export class TrackerMappingSearchService {
           providerTitleId: item.providerTitleId,
           title: item.title,
           nativeTitle: item.nativeTitle,
+          coverImageUrl: item.coverImageUrl, summary: item.summary, format: item.format, status: item.status,
+          startYear: item.startYear, chapterCount: item.chapterCount,
         }
       }),
     }

@@ -1,3 +1,4 @@
+import { readBangumiAccessToken } from './BangumiTrackerOAuth'
 import { TRACKER_REMOTE_PROVIDER_IDS } from './TrackerModels'
 import { KitsuTrackerClient } from './KitsuTrackerClient'
 import { BangumiTrackerClient, MangaUpdatesTrackerClient, RemoteTrackerProfile } from './AdditionalTrackerClients'
@@ -217,7 +218,7 @@ export class TrackerAccountRefreshService {
       if (preferredProviderId !== undefined && account.providerId !== preferredProviderId) {
         return
       }
-      if (account.credentialAccountKey === undefined) {
+      if (account.credentialAccountKey === undefined || account.status === 'auth_pending' || account.status === 'disconnected') {
         return
       }
       ids.push(account.providerId)
@@ -243,6 +244,7 @@ export class TrackerAccountRefreshService {
   }
 
   private async readAccessToken(account: TrackerAccount, providerId: TrackerProviderId): Promise<string | undefined> {
+    if (providerId === 'bangumi') return readBangumiAccessToken(this.context, this.secretStore, account)
     if (account.credentialAccountKey === undefined) {
       return undefined
     }

@@ -40,7 +40,8 @@ export class TrackerDirectConnectionService {
     if (!this.secretStore.isAvailable()) return { ok: false, reason: 'secure_storage_unavailable' }
     return BackupRestoreActivity.runWrite(async (): Promise<TrackerDirectConnectionResult> => {
       const store = new TrackerPreferencesStore(this.context, this.secretStore)
-      const before = (await store.load()).accounts.find((account: TrackerAccount): boolean => account.providerId === providerId)
+      const before = (await store.prepareReconnect(providerId)).accounts.find(
+        (account: TrackerAccount): boolean => account.providerId === providerId)
       if (before === undefined) return { ok: false, reason: 'account_changed' }
       const result = await this.authenticate(providerId, username, secret)
       if (!result.ok || result.value === undefined) return { ok: false, reason: 'login_failed' }

@@ -35,6 +35,7 @@ export struct ConciseListRow {
   @Param trailingMaxLines: number = 1
   @Param trailingTextFontSize: Resource | number = ThemeConstants.FONT_SIZE_CAPTION
   @Param leadingImageUrl: string = ''
+  @Param leadingImage: Resource | undefined = undefined
   @Param leadingImageSize: number = 0
   @Param leadingImageRadius: number = 0
   @Param leadingIcon: Resource | undefined = undefined
@@ -92,7 +93,7 @@ export struct ConciseListRow {
   @Event counterIncreaseAction?: () => void
 
   private hasLeading(): boolean {
-    return this.leadingImageUrl.length > 0 || this.leadingIcon !== undefined || this.hasSourceIdentityPrefix ||
+    return this.leadingImageUrl.length > 0 || this.leadingImage !== undefined || this.leadingIcon !== undefined || this.hasSourceIdentityPrefix ||
       this.prefixActsAsLeading
   }
 
@@ -530,10 +531,10 @@ export struct ConciseListRow {
       })
     }
 
-    const imageUrl: string = this.normalizeImageUrl(this.leadingImageUrl)
-    if (imageUrl.length > 0) {
+    const imageUrl = this.normalizeImageUrl(this.leadingImageUrl)
+    if (this.leadingImage !== undefined || imageUrl.length > 0) {
       return new PrefixImage({
-        image: imageUrl,
+        image: this.leadingImage ?? imageUrl,
         modifier: this.leadingImageModifier(),
       })
     }

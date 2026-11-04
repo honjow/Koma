@@ -18,6 +18,7 @@ function s(name: string): string {
 @ComponentV2
 export struct SearchTitleField {
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
+  @Param placeholder: string = s('search_placeholder')
   @Local private fieldText: string = ''
 
   aboutToAppear(): void {
@@ -35,7 +36,7 @@ export struct SearchTitleField {
     Row() {
       KomaSearchField({
         value: this.fieldText,
-        placeholder: s('search_placeholder'),
+        placeholder: this.placeholder,
         autoFocus: this.chrome.autoFocus,
         showSearchButton: true,
         searchButtonText: s('tab_search'),
@@ -65,4 +66,9 @@ export struct SearchTitleField {
 @Builder
 export function SearchTitleFieldContentBuilder(chrome: SearchRouteChromeState) {
   SearchTitleField({ chrome: chrome })
+}
+
+@Builder
+export function TrackerSearchTitleFieldContentBuilder(chrome: SearchRouteChromeState) {
+  SearchTitleField({ chrome: chrome, placeholder: s('manga_detail_tracker_search') })
 }

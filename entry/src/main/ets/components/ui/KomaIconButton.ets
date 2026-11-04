@@ -9,6 +9,7 @@ export struct KomaIconButton {
   @Param isEnabled: boolean = true
   @Param controlSize: number = ThemeConstants.ACTION_CHIP_HEIGHT
   @Param iconSize: number = ThemeConstants.FONT_SIZE_H2
+  @Param iconWeight: FontWeight = FontWeight.Normal
   @Param accentColor: ResourceColor | undefined = undefined
   @Event action: () => void = () => {}
 
@@ -39,6 +40,7 @@ export struct KomaIconButton {
     Button({ type: ButtonType.Circle, stateEffect: true }) {
       SymbolGlyph(this.icon)
         .fontSize(this.iconSize)
+        .fontWeight(this.iconWeight)
         .fontColor([this.buttonForegroundColor()])
     }
     .width(this.controlSize)

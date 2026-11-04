@@ -10,7 +10,12 @@ interface KitsuProfile { name?: string }
 interface KitsuAccount { id?: string; profile?: KitsuProfile }
 interface KitsuAccountData { currentAccount?: KitsuAccount }
 interface KitsuTitles { preferred?: string }
-interface KitsuManga { id?: string; titles?: KitsuTitles }
+interface KitsuPosterView { url?: string }
+interface KitsuPosterImage { original?: KitsuPosterView }
+interface KitsuManga {
+  id?: string; titles?: KitsuTitles; posterImage?: KitsuPosterImage; subtype?: string
+  status?: string; startDate?: string; chapterCount?: number; description?: Record<string, string>
+}
 interface KitsuSearch { nodes?: KitsuManga[] }
 interface KitsuSearchData { searchMangaByTitle?: KitsuSearch }
 interface KitsuEntry { id?: string; progress?: number; status?: string }
@@ -66,7 +71,7 @@ export class KitsuTrackerClient extends TrackerJsonClient {
     if (query.trim().length === 0) return { ok: true, value: [] }
     const variables: KitsuSearchVariables = { query: query.trim().slice(0, 120) }
     const result = await this.graph<KitsuSearchData>(
-      'query KomaSearch($query: String!) { searchMangaByTitle(title: $query, first: 20) { nodes { id titles { preferred } } } }',
+      'query KomaSearch($query: String!) { searchMangaByTitle(title: $query, first: 20) { nodes { id titles { preferred } posterImage { original { url } } subtype status startDate chapterCount description(locales: ["zh-Hans", "zh-CN", "en"]) } } }',
       variables, token)
     if (!result.ok) return { ok: false, errorCode: result.errorCode }
     const nodes = result.value?.searchMangaByTitle?.nodes
@@ -74,7 +79,10 @@ export class KitsuTrackerClient extends TrackerJsonClient {
     return { ok: true, value: nodes!.filter((manga: KitsuManga): boolean =>
       /^\d+$/.test(manga.id ?? '') && (manga.titles?.preferred?.length ?? 0) > 0)
       .map((manga: KitsuManga): RemoteTrackerTitle => ({ providerId: 'kitsu', providerTitleId: manga.id!,
-        title: manga.titles!.preferred! })) }
+        title: manga.titles!.preferred!, coverImageUrl: manga.posterImage?.original?.url,
+        format: manga.subtype, status: manga.status, startYear: manga.startDate?.slice(0, 4),
+        chapterCount: manga.chapterCount,
+        summary: manga.description?.['zh-Hans'] ?? manga.description?.['zh-CN'] ?? manga.description?.['en'] })) }
   }
 
   private async readEntry(token: string, id: string): Promise<RemoteTrackerResult<KitsuEntry>> {

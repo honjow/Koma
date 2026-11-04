@@ -1,8 +1,12 @@
+import { gridColumnCount } from '../utils/GridColumns'
+import { BottomBuilderShowType } from '@kit.UIDesignKit'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { SEARCH_TITLE_BOTTOM_HEIGHT, TrackerSearchTitleFieldContentBuilder } from '../components/SearchTitleField'
+import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -17,20 +21,24 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
 import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { trackerChapterProgress, trackerChapterForProgress } from '../model/TrackerReadingProgress'
+import { trackerChapterProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
 import { CachedCoverImage } from '../components/CachedCoverImage'
 import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
 import { selectComicCover, saveComicPersonalization, discardUncommittedComicCover } from '../model/ComicPersonalization'
-import { ColorMetrics } from '@kit.ArkUI'
+import { ColorMetrics, ComponentContent, LengthMetrics } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
 import { systemShare } from '@kit.ShareKit'
 import { MangaDescriptionSection } from '../components/MangaDescriptionSection'
 import { MangaTagsSection } from '../components/MangaTagsSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
+import { ConciseListRow } from '../components/ui/ConciseListRow'
+import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { TRACKER_BRAND_IMAGES } from '../components/TrackerBrandIcons'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { KomaMenuAction, KomaMenuController } from '../components/ui/KomaMenuController'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { PullRefresh, PullRefreshController } from '../components/PullRefresh'
@@ -38,6 +46,7 @@ import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeA
 import {
   ChapterBatchDownloadMode,
   ChapterBatchScope,
+  ChapterListPresentation,
   ChapterListSection,
 } from '../components/ChapterListSection'
 import { AppStrings } from '../i18n/AppStrings'
@@ -123,10 +132,13 @@ import {
 import { RouterHelper } from '../common/RouterHelper'
 import { MangaDetailRouteChromeState, MangaDetailTitleAction } from '../state/MangaDetailRouteChromeState'
 import {
-  TrackerMappingSearchReason,
   TrackerMappingSearchService,
-  TrackerMappingSearchSummary,
+  TrackerTitleSearchCandidate,
 } from '../model/TrackerMappingSearchService'
+import { AssetStoreTrackerCredentialSecretStore, ComicTrackerMapping, TRACKER_PROVIDER_CONFIGS, TrackerEntryFields, TrackerProviderConfig, TrackerProviderId,
+  TrackerPreferences, TrackerPreferencesStore } from '../model/TrackerModels'
+
+type TrackingNumberField = 'chapters' | 'volumes' | 'score'
 
 export const MANGA_DETAIL_ROUTE_NAME: string = 'MangaDetailPage'
 
@@ -210,6 +222,9 @@ class DetailDisabledReadContent implements ContentModifier<ButtonConfiguration> 
   }
 }
 
+// Keep mid-size portrait windows such as device 103 in one column.
+const DETAIL_PANES_MIN_CONTENT_WIDTH: number = 700
+
 @Builder
 function detailDisabledReadContent(configuration: ButtonConfiguration) {
   Row({ space: ThemeConstants.SPACE_SM }) {
@@ -273,6 +288,25 @@ export struct MangaDetailPage {
   @Local private downloadBusy: boolean = false
   @Local private trackerSyncBusy: boolean = false
   @Local private trackerMappingBusy: boolean = false
+  @Local private trackingSheetShown: boolean = false
+  @Local private trackingFieldGridWidth: number = 0
+  @Local private trackingBodyHeight: number = 0
+  @Local private trackingViewportHeight: number = 0
+  @Local private trackingSheetType?: SheetType
+  @Local private trackingProviders: TrackerProviderConfig[] = []
+  @Local private trackingMappings: ComicTrackerMapping[] = []
+  private unsubscribeTrackingMappings?: () => void
+  @Local private trackingRemoteStates: Map<TrackerProviderId, TrackerProgressSyncResult> = new Map()
+  private trackingCacheKeys: Map<TrackerProviderId, string> = new Map()
+  private trackingRefreshes: Map<TrackerProviderId, string> = new Map()
+  private trackingStatusMenu: KomaMenuController = new KomaMenuController()
+  @Local private trackingMenuProvider?: TrackerProviderId
+  @Local private trackingSearchProvider?: TrackerProviderConfig
+  private trackingSearchChrome: SearchRouteChromeState = new SearchRouteChromeState(false)
+  private trackingSearchContent?: ComponentContent<SearchRouteChromeState>
+  @Local private trackingResults: TrackerTitleSearchCandidate[] = []
+  @Local private trackingSelection?: TrackerTitleSearchCandidate
+  @Local private trackingSearchMessage: string = ''
   @Local private localRefreshBusy: boolean = false
   @Local private localMetadataEditorVisible: boolean = false
   @Local private localMetadataTitle: string = ''
@@ -293,7 +327,20 @@ export struct MangaDetailPage {
   @Local private detailSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private detailScrollEnabled: boolean = true
   @Local private detailScrollOffset: number = 0
-  private detailScroller: Scroller = new Scroller()
+  private detailScroller: ListScroller = new ListScroller()
+  private chapterScroller: ListScroller = new ListScroller()
+  private chapterPresentation: ChapterListPresentation = new ChapterListPresentation()
+  @Local private detailContentWidth: number = 0
+  private displayedChapters: MangaChapterItem[] = []
+  private visibleChapterId: string = ''
+  private chapterToRestore: string = ''
+
+  // Reserve both panes' usable widths before splitting. Window or device
+  // orientation alone does not describe the space inside a destination.
+  @Computed
+  private get usesDetailPanes(): boolean {
+    return this.detailContentWidth >= DETAIL_PANES_MIN_CONTENT_WIDTH
+  }
   private detailRefreshController: PullRefreshController = new PullRefreshController()
   private detailRefreshTask: Promise<void> | undefined = undefined
   @Param libraryStore?: LibraryStore = undefined
@@ -455,6 +502,10 @@ export struct MangaDetailPage {
     this.seedSourceDetailFromInitialRouteManga()
     this.syncTitleActions()
     this.loadInitialDetailWhenVisible()
+    this.unsubscribeTrackingMappings = this.trackingStore().subscribeMappings(() => {
+      void this.refreshTrackingAvailability()
+    })
+    this.refreshTrackingWhenVisible()
   }
 
   private chapterArchives: ChapterArchiveActions = new ChapterArchiveActions()
@@ -485,6 +536,10 @@ export struct MangaDetailPage {
   }
 
   aboutToDisappear(): void {
+    this.trackingSearchContent?.dispose()
+    this.trackingSearchContent = undefined
+    this.unsubscribeTrackingMappings?.()
+    this.unsubscribeTrackingMappings = undefined
     this.notesEditorShown = false
     // A hidden detail route must not let an old source response repaint a later route instance.
     this.closeDetailWebChallenge()
@@ -504,7 +559,7 @@ export struct MangaDetailPage {
     this.runTitleAction(this.chrome.requestedAction)
   }
 
-  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'trackerMappingBusy', 'trackerSyncBusy', 'personalizationBusy', 'linkShareBusy')
+  @Monitor('manga', 'isInLibrary', 'sourceDetailContentState', 'localRefreshBusy', 'personalizationBusy', 'linkShareBusy')
   private syncTitleActionsFromDetailState(): void {
     this.syncTitleActions()
   }
@@ -530,8 +585,6 @@ export struct MangaDetailPage {
     this.chrome.customCoverAvailable = comic?.customCoverUri !== undefined
     this.chrome.personalizationBusy = this.personalizationBusy
     this.chrome.localRefreshBusy = this.localRefreshBusy
-    this.chrome.trackerMappingBusy = this.trackerMappingBusy
-    this.chrome.trackerSyncBusy = this.trackerSyncBusy
   }
 
   private mangaWebUrl(): string | undefined {
@@ -640,18 +693,6 @@ export struct MangaDetailPage {
           this.getUIContext().getPromptAction().openToast(komaToastOptions({ message: s('manga_detail_open_browser_failed') }))
         })
       }
-      return
-    }
-    if (action === MangaDetailTitleAction.FIND_TRACKER_MAPPING) {
-      void this.refreshTrackerMappingCandidates()
-      return
-    }
-    if (action === MangaDetailTitleAction.SYNC_TRACKER) {
-      void this.syncTrackerProgressNow()
-      return
-    }
-    if (action === MangaDetailTitleAction.PULL_TRACKER) {
-      void this.pullTrackerProgressNow()
       return
     }
     if (action === MangaDetailTitleAction.CHECK_LOCAL_LIBRARY_REFRESH && this.canCheckLocalLibraryRefresh()) {
@@ -2126,79 +2167,316 @@ export struct MangaDetailPage {
     return s('manga_detail_tracker_sync_failed')
   }
 
-  private trackerMappingSkippedText(reason: TrackerMappingSearchReason | undefined): string {
-    if (reason === 'account_missing' || reason === 'credential_missing') {
-      return s('manga_detail_tracker_mapping_account_missing')
-    }
-    if (reason === 'confirmed_mapping_exists') {
-      return s('manga_detail_tracker_mapping_confirmed_exists')
-    }
-    if (reason === 'results_empty' || reason === 'query_missing') {
-      return s('manga_detail_tracker_mapping_not_found')
-    }
-    return s('manga_detail_tracker_mapping_failed')
+  @Monitor('chrome.visible', 'manga')
+  private refreshTrackingWhenVisible(): void {
+    if (this.chrome.visible && this.manga !== undefined) void this.refreshTrackingAvailability()
   }
 
-  private localProgressFromTrackerResult(result: TrackerProgressSyncResult): ReadingProgress | undefined {
-    if (result.status !== 'synced' || result.providerProgress === undefined || result.providerProgress <= 0) {
-      return undefined
-    }
-    const chapterId = trackerChapterForProgress(this.chapters, result.providerProgress,
-      this.currentReadingProgress()?.chapterId)
-    return chapterId === undefined ? undefined : this.completedProgressForChapter(chapterId)
-  }
-
-  private async refreshTrackerMappingCandidates(): Promise<void> {
-    if (this.trackerMappingBusy) {
-      return
-    }
-    const manga = this.manga
-    if (manga === undefined) {
-      return
-    }
-    this.trackerMappingBusy = true
-    this.showToast(s('manga_detail_tracker_mapping_searching'))
+  private async refreshTrackingAvailability(): Promise<void> {
+    const comicId = this.currentComicId()
     try {
-      const context = getContext(this) as common.UIAbilityContext
-      const comic = this.libraryStore?.getComic(this.currentComicId()) ??
-        comicFromSourceManga(manga, this.chapters, this.currentComicId())
-      const summary: TrackerMappingSearchSummary =
-        await new TrackerMappingSearchService(context).refreshComicMappingCandidates(comic)
-      console.info(`[TrackerMapping] step=manual_candidate_refresh scanned=${summary.scannedCount} mapped=${summary.mappedCount} failed=${summary.failedCount} skipped=${summary.skippedCount}`)
-      if (summary.mappedCount > 0) {
-        this.showToast(this.formatString('manga_detail_tracker_mapping_found', [summary.mappedCount]))
-        return
-      }
-      const reason = summary.results.length === 0 ? undefined : summary.results[0].reason
-      this.showToast(this.trackerMappingSkippedText(summary.failedCount > 0 ? 'provider_failed' : reason))
-    } catch (_error) {
-      DiagnosticLogger.warn('manga_detail_page', 'manual_candidate_refresh', '[TrackerMapping] step=manual_candidate_refresh failed=true')
-      this.showToast(s('manga_detail_tracker_mapping_failed'))
+      const preferences = await this.trackingStore().load()
+      if (!this.chrome.visible || comicId !== this.currentComicId()) return
+      this.applyTrackingPreferences(preferences, comicId)
+    } catch (_) {
+      // A failed background read leaves the last known button state intact.
+    }
+  }
+
+  private trackingButtonHighlighted(): boolean {
+    // Account availability opens the sheet; only this manga's binding lights the button.
+    const comicId = this.currentComicId()
+    return this.trackingMappings.some((mapping: ComicTrackerMapping): boolean =>
+      mapping.comicId === comicId && mapping.mappingState === 'confirmed' && mapping.userConfirmed)
+  }
+
+  private async openTrackingSheet(): Promise<void> {
+    if (this.trackerMappingBusy || this.trackingSheetShown) return
+    const comicId = this.currentComicId()
+    this.trackerMappingBusy = true
+    try {
+      const preferences = await this.trackingStore().load()
+      if (!this.chrome.visible || comicId !== this.currentComicId()) return
+      this.applyTrackingPreferences(preferences, comicId)
+      this.trackingSearchProvider = undefined
+      this.trackingBodyHeight = 0
+      this.trackingSheetShown = true
+      void this.loadBoundTrackingStates()
+    } catch (_) {
+      this.showToast(s('tracker_message_load_failed'))
     } finally {
       this.trackerMappingBusy = false
     }
   }
 
-  private async syncTrackerProgressNow(): Promise<void> {
+  private trackingStore(): TrackerPreferencesStore {
+    return new TrackerPreferencesStore(getContext(this) as common.UIAbilityContext, new AssetStoreTrackerCredentialSecretStore())
+  }
+
+  private trackingMapping(providerId: TrackerProviderId): ComicTrackerMapping | undefined {
+    return this.trackingMappings.find((mapping: ComicTrackerMapping): boolean => mapping.providerId === providerId)
+  }
+
+  private trackingVisibleProviders(): TrackerProviderConfig[] {
+    return TRACKER_PROVIDER_CONFIGS.filter((provider: TrackerProviderConfig): boolean =>
+      this.trackingProviderConnected(provider.providerId) || this.trackingMapping(provider.providerId)?.mappingState === 'confirmed')
+      .sort((left: TrackerProviderConfig, right: TrackerProviderConfig): number =>
+        Number(this.trackingMapping(right.providerId)?.mappingState === 'confirmed') -
+        Number(this.trackingMapping(left.providerId)?.mappingState === 'confirmed'))
+  }
+
+  private trackingProviderConnected(providerId: TrackerProviderId): boolean {
+    return this.trackingProviders.some((provider: TrackerProviderConfig): boolean => provider.providerId === providerId)
+  }
+
+  private trackingSyncService(): TrackerProgressSyncService {
+    return new TrackerProgressSyncService(getContext(this) as common.UIAbilityContext)
+  }
+
+  private applyTrackingPreferences(preferences: TrackerPreferences, comicId: string): void {
+    this.trackingProviders = TRACKER_PROVIDER_CONFIGS.filter((provider: TrackerProviderConfig): boolean =>
+      preferences.accounts.some(account => account.providerId === provider.providerId && account.status === 'connected'))
+    this.trackingMappings = preferences.comicMappings.filter((mapping: ComicTrackerMapping): boolean =>
+      mapping.comicId === comicId)
+    const keys = new Map<TrackerProviderId, string>()
+    const cached = new Map<TrackerProviderId, TrackerProgressSyncResult>()
+    this.trackingProviders.forEach((provider: TrackerProviderConfig): void => {
+      const id = provider.providerId
+      const mapping = this.trackingMapping(id)
+      const account = preferences.accounts.find(item => item.providerId === id && item.status === 'connected')
+      if (mapping?.mappingState !== 'confirmed' || account?.credentialAccountKey === undefined) return
+      const key = JSON.stringify([comicId, account.credentialAccountKey, mapping.providerTitleId, mapping.createdAt])
+      keys.set(id, key)
+      const state = this.trackingRemoteStates.get(id)
+      if (this.trackingCacheKeys.get(id) === key && state !== undefined) cached.set(id, state)
+    })
+    this.trackingCacheKeys = keys
+    this.trackingRemoteStates = cached
+  }
+
+  private async loadBoundTrackingStates(): Promise<void> {
+    const comicId = this.currentComicId()
+    const service = this.trackingSyncService()
+    await Promise.all(this.trackingProviders.map(async (provider: TrackerProviderConfig): Promise<void> => {
+      const id = provider.providerId
+      const key = this.trackingCacheKeys.get(id)
+      if (key === undefined || this.trackingRefreshes.get(id) === key) return
+      const cached = this.trackingRemoteStates.get(id)
+      this.trackingRefreshes.set(id, key)
+      try {
+        const result = await service.pullReadingProgress(comicId, Date.now(), id)
+        // A refresh can finish after the sheet closes. Keep it for reopening,
+        // but do not replace a newer edit or a different binding's state.
+        if (result.status !== 'failed' && comicId === this.currentComicId() &&
+          this.trackingCacheKeys.get(id) === key && this.trackingRemoteStates.get(id) === cached) {
+          this.setTrackingRemoteState(id, result)
+        }
+      } catch (_) {
+        // Retain the last known values when the website is unavailable.
+      } finally {
+        if (this.trackingRefreshes.get(id) === key) this.trackingRefreshes.delete(id)
+      }
+    }))
+  }
+
+  private setTrackingRemoteState(providerId: TrackerProviderId, state: TrackerProgressSyncResult): void {
+    const next = new Map<TrackerProviderId, TrackerProgressSyncResult>(this.trackingRemoteStates)
+    next.set(providerId, state)
+    this.trackingRemoteStates = next
+  }
+
+  private trackingStatusLabel(providerId: TrackerProviderId): string {
+    if (!this.trackingProviderConnected(providerId)) return s('tracker_status_disconnected')
+    const state = this.trackingRemoteStates.get(providerId)
+    if (state?.status !== 'synced') return ''
+    if (state.completed) return s('manga_detail_tracker_finished')
+    const status = state.providerStatus?.toLowerCase() ?? ''
+    if (status === 'repeating' || status === 'rereading') return s('manga_detail_tracker_rereading')
+    if (['current', 'reading'].includes(status) ||
+      (providerId === 'bangumi' && status === '3') || (providerId === 'mangaupdates' && status === '0')) {
+      return s('manga_detail_tracker_reading')
+    }
+    if (['planning', 'planned', 'plan_to_read'].includes(status) ||
+      (providerId === 'bangumi' && status === '1') || (providerId === 'mangaupdates' && status === '1')) {
+      return s('manga_detail_tracker_planned')
+    }
+    if (['paused', 'on_hold'].includes(status) || (providerId === 'bangumi' && status === '4')) {
+      return s('manga_detail_tracker_paused')
+    }
+    if (status === 'dropped' || (providerId === 'bangumi' && status === '5')) return s('manga_detail_tracker_dropped')
+    return s('manga_status_unknown')
+  }
+
+  private async saveTrackingProgress(provider: TrackerProviderConfig, progress: number | undefined,
+    status?: string, fields?: TrackerEntryFields): Promise<void> {
+    const providerId = provider.providerId
+    const previous = this.trackingRemoteStates.get(providerId)
+    if (this.trackerSyncBusy || previous?.status !== 'synced') return
+    const comicId = this.currentComicId()
+    const optimistic: TrackerProgressSyncResult = {
+      status: 'synced',
+      providerId,
+      providerTitleId: previous.providerTitleId,
+      providerProgress: progress ?? previous.providerProgress,
+      providerStatus: status ?? previous.providerStatus,
+      completed: status === undefined ? previous.completed : status === '2' || status.toLowerCase() === 'completed',
+      volumes: fields?.volumes ?? previous.volumes,
+      score: fields?.score ?? previous.score,
+      startedAt: fields?.startedAt ?? previous.startedAt,
+      completedAt: fields?.completedAt ?? previous.completedAt,
+    }
+    this.trackerSyncBusy = true
+    // Apply the selected value before awaiting the website. Restore only this edit's snapshot.
+    this.setTrackingRemoteState(providerId, optimistic)
+    try {
+      const result = await this.trackingSyncService().editComicProgress(comicId, providerId, progress, status, fields)
+      if (result.status !== 'synced' ||
+        (progress !== undefined && result.providerProgress !== progress) ||
+        (status !== undefined && result.providerStatus?.toLowerCase() !== status.toLowerCase()) ||
+        (fields?.volumes !== undefined && (result.volumes ?? 0) !== fields.volumes) ||
+        (fields?.score !== undefined && (result.score ?? 0) !== fields.score) ||
+        (fields?.startedAt !== undefined && result.startedAt !== fields.startedAt) ||
+        (fields?.completedAt !== undefined && result.completedAt !== fields.completedAt)) {
+        throw new Error('tracker_edit_failed')
+      }
+      if (comicId === this.currentComicId() && this.trackingRemoteStates.get(providerId) === optimistic) {
+        this.setTrackingRemoteState(providerId, result)
+      }
+    } catch (_) {
+      if (comicId === this.currentComicId() && this.trackingRemoteStates.get(providerId) === optimistic) {
+        this.setTrackingRemoteState(providerId, previous)
+        this.showToast(s('manga_detail_tracker_edit_failed'))
+      }
+    } finally {
+      this.trackerSyncBusy = false
+    }
+  }
+
+  private confirmTrackingUnbind(provider: TrackerProviderConfig): void {
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
+      title: s('manga_detail_tracker_unbind'), message: s('manga_detail_tracker_unbind_message'),
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s('manga_detail_tracker_unbind'), fontColor: ThemeConstants.DANGER,
+        action: () => { void this.unbindTrackingTitle(provider.providerId) } },
+    })
+  }
+
+  private async unbindTrackingTitle(providerId: TrackerProviderId): Promise<void> {
+    if (this.trackerSyncBusy) return
+    const comicId = this.currentComicId()
+    this.trackerSyncBusy = true
+    try {
+      const preferences = await this.trackingSyncService().unbindComic(comicId, providerId)
+      if (comicId === this.currentComicId()) this.applyTrackingPreferences(preferences, comicId)
+    } catch (_) {
+      this.showToast(s('manga_detail_tracker_stop_failed'))
+    } finally {
+      this.trackerSyncBusy = false
+    }
+  }
+
+  private startTrackingSearch(provider: TrackerProviderConfig): void {
+    if (this.trackingSearchContent === undefined || this.trackingSearchContent.isDisposed()) {
+      this.trackingSearchContent = new ComponentContent<SearchRouteChromeState>(this.getUIContext(),
+        wrapBuilder<[SearchRouteChromeState]>(TrackerSearchTitleFieldContentBuilder), this.trackingSearchChrome)
+    }
+    this.trackingSearchChrome.query = this.trackingMapping(provider.providerId)?.providerTitle ?? this.manga?.title ?? ''
+    this.trackingSearchProvider = provider
+    void this.searchTrackingTitles()
+  }
+
+  @Monitor('trackingSearchChrome.queryChangeSeq')
+  private onTrackingSearchQueryChange(): void {
+    this.trackingSelection = undefined
+  }
+
+  @Monitor('trackingSearchChrome.querySubmitSeq')
+  private onTrackingSearchQuerySubmit(): void {
+    void this.searchTrackingTitles()
+  }
+
+  private async searchTrackingTitles(): Promise<void> {
+    const provider = this.trackingSearchProvider
+    const query = this.trackingSearchChrome.query.trim()
+    if (provider === undefined || query.length === 0 || this.trackerMappingBusy) return
+    this.trackingSelection = undefined
+    this.trackingResults = []
+    this.trackingSearchMessage = ''
+    this.trackerMappingBusy = true
+    try {
+      const result = await new TrackerMappingSearchService(getContext(this) as common.UIAbilityContext)
+        .searchComicTitles(provider.providerId, query)
+      this.trackingResults = result ?? []
+      this.trackingSearchMessage = result === undefined ? s('manga_detail_tracker_mapping_failed') :
+        result.length === 0 ? s('manga_detail_tracker_mapping_not_found') : ''
+    } catch (_) {
+      this.trackingSearchMessage = s('manga_detail_tracker_mapping_failed')
+    } finally {
+      this.trackerMappingBusy = false
+    }
+  }
+
+  private async bindTrackingTitle(): Promise<void> {
+    const selected = this.trackingSelection
+    if (selected === undefined || this.trackerMappingBusy) return
+    const comicId = this.currentComicId()
+    const now = Date.now()
+    this.trackerMappingBusy = true
+    try {
+      const local = this.localTrackerReadingProgress()
+      const localProgress = local === undefined ? 0 : this.trackerProgressCount(local) ?? 0
+      const result = await this.trackingSyncService().bindComic({
+        comicId, providerId: selected.providerId, providerTitleId: selected.providerTitleId,
+        providerTitle: selected.title, mappingState: 'confirmed', userConfirmed: true,
+        createdAt: this.trackingMapping(selected.providerId)?.createdAt ?? now, updatedAt: now,
+      }, localProgress)
+      if (result.status !== 'synced') {
+        this.showToast(s('manga_detail_tracker_start_failed'))
+        return
+      }
+      await this.refreshTrackingAvailability()
+      if (comicId !== this.currentComicId()) return
+      this.setTrackingRemoteState(selected.providerId, result)
+      this.trackingSearchProvider = undefined
+      this.trackingSelection = undefined
+    } catch (_) {
+      this.showToast(s('manga_detail_tracker_start_failed'))
+    } finally {
+      this.trackerMappingBusy = false
+    }
+  }
+
+  private localTrackerReadingProgress(): ReadingProgress | undefined {
+    const comicId = this.currentComicId()
+    const markedIds = this.chapters.filter((chapter: MangaChapterItem): boolean =>
+      this.readerSessionStore.isChapterRead(comicId, chapter.id)).map((chapter: MangaChapterItem): string => chapter.id)
+    // Resume location and completed chapters are stored independently.
+    return this.latestTrackableMarkedReadProgress(markedIds) ?? this.currentReadingProgress()
+  }
+
+  private async syncTrackerProgressNow(providerId: TrackerProviderId): Promise<void> {
     if (this.trackerSyncBusy) {
       return
     }
-    const progress = this.currentReadingProgress()
+    DiagnosticLogger.info('manga_detail_page', 'manual_tracker_upload', 'start provider=' + providerId)
+    const progress = this.localTrackerReadingProgress()
     if (progress === undefined) {
-      this.showToast(s('manga_detail_tracker_sync_no_progress'))
+      this.showToast(s('manga_detail_tracker_sync_no_local_reading'))
       return
     }
     this.trackerSyncBusy = true
-    this.showToast(s('manga_detail_tracker_sync_in_progress'))
+
     try {
       const context = getContext(this) as common.UIAbilityContext
       const result = await new TrackerProgressSyncService(context).pushReadingProgress(
         progress,
         this.allChapterIds(),
-        'manual', Date.now(), undefined, this.trackerProgressCount(progress) ?? null,
+        'manual', Date.now(), providerId, this.trackerProgressCount(progress) ?? null,
       )
-      console.info(`[TrackerSync] step=manual_progress status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
+      DiagnosticLogger.info('manga_detail_page', 'manual_tracker_upload',
+        `provider=${providerId} status=${result.status} reason=${result.reason ?? 'none'} queued=${result.queued === true}`)
       if (result.status === 'synced') {
+        this.setTrackingRemoteState(providerId, result)
         this.showToast(s('manga_detail_tracker_sync_done'))
         return
       }
@@ -2219,25 +2497,50 @@ export struct MangaDetailPage {
     }
   }
 
-  private async pullTrackerProgressNow(): Promise<void> {
+  private async pullTrackerProgressNow(providerId: TrackerProviderId): Promise<void> {
     if (this.trackerSyncBusy) {
       return
     }
     this.trackerSyncBusy = true
-    this.showToast(s('manga_detail_tracker_pull_in_progress'))
     try {
       const context = getContext(this) as common.UIAbilityContext
-      const result = await new TrackerProgressSyncService(context).pullReadingProgress(this.currentComicId())
+      const result = await new TrackerProgressSyncService(context).pullReadingProgress(this.currentComicId(), Date.now(), providerId)
       console.info(`[TrackerSync] step=manual_pull_progress status=${result.status} reason=${result.reason ?? 'none'}`)
-      const progress = this.localProgressFromTrackerResult(result)
-      if (progress !== undefined) {
-        this.readerSessionStore.saveProgress(progress)
-        this.applyChapterStatesToCurrent()
-        this.onReadingStateChanged()
-        this.showToast(s('manga_detail_tracker_pull_done'))
+      if (result.status !== 'failed') this.setTrackingRemoteState(providerId, result)
+      if (result.status === 'synced') {
+        const count = result.providerProgress ?? 0
+        const comicId = this.currentComicId()
+        const matchingIds = this.chapters.filter((chapter: MangaChapterItem): boolean => {
+          const number = chapter.chapterNumber
+          return count > 0 && number !== undefined && Number.isFinite(number) && number > 0 && number <= count
+        }).map((chapter: MangaChapterItem): string => chapter.id)
+        const targetIds = matchingIds.filter((id: string): boolean => !this.readerSessionStore.isChapterRead(comicId, id))
+        if (targetIds.length === 0) {
+          this.showToast(s(count <= 0 ? 'manga_detail_tracker_pull_empty' :
+            matchingIds.length === 0 ? 'manga_detail_tracker_pull_no_match' : 'manga_detail_tracker_pull_up_to_date'))
+          return
+        }
+        this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
+          title: s('manga_detail_menu_pull_tracker'),
+          message: this.formatString('manga_detail_tracker_pull_confirm', [targetIds.length]),
+          primaryButton: { value: s('common_cancel'), action: () => {} },
+          secondaryButton: { value: s('common_confirm'), action: () => {
+            if (comicId !== this.currentComicId()) return
+            // Import only read facts. Keep the resume location and do not echo them back to trackers.
+            const saved = this.readerSessionStore.commitChapterReadStates(
+              targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead: true })))
+            if (!saved.committed) {
+              this.showToast(s('reader_progress_save_failed'))
+              return
+            }
+            this.applyChapterStatesToCurrent()
+            this.onReadingStateChanged()
+            this.showToast(s('manga_detail_tracker_pull_done'))
+          } },
+        })
         return
       }
-      if (result.reason === 'remote_progress_missing' || result.providerProgress === 0) {
+      if (result.reason === 'remote_progress_missing') {
         this.showToast(s('manga_detail_tracker_pull_empty'))
         return
       }
@@ -2489,6 +2792,16 @@ export struct MangaDetailPage {
 
         if (this.canAddCurrentMangaToLibrary()) {
           KomaIconButton({
+            icon: $r('sys.symbol.arrow_2_circlepath'),
+            kind: this.trackingButtonHighlighted() ? 'primary' : 'secondary',
+            controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
+            iconSize: ThemeConstants.FONT_SIZE_TITLE,
+            iconWeight: FontWeight.Bold,
+            isEnabled: !this.trackerMappingBusy,
+            action: () => { void this.openTrackingSheet() },
+          })
+            .accessibilityText(s('settings_pane_tracking_title'))
+          KomaIconButton({
             icon: this.isInLibrary ? $r('sys.symbol.bookmark_fill') : $r('sys.symbol.bookmark'),
             kind: this.isInLibrary ? 'primary' : 'secondary',
             controlSize: ThemeConstants.ACTION_CHIP_HEIGHT,
@@ -2535,6 +2848,388 @@ export struct MangaDetailPage {
           this.localMetadataStatus = 'cancelled'
         })
     }
+  }
+
+  private trackingSheetHeight(): number {
+    const estimatedBody = Math.max(1, this.trackingProviders.length) * ThemeConstants.TITLE_BAR_HEIGHT
+    const content = this.trackingBodyHeight > 0 ? this.trackingBodyHeight : estimatedBody
+    const searchHeight = this.trackingSearchProvider === undefined ? 0 : SEARCH_TITLE_BOTTOM_HEIGHT
+    const chrome = ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD + this.detailSafeArea.bottomAvoidHeight + searchHeight
+    const limit = this.trackingViewportHeight > 0 ? this.trackingViewportHeight * 0.8 : 520
+    // The system clamps centered sheets to 90% of the window's short side.
+    // Give the inner list the same bounds so the outer sheet cannot scroll its title away.
+    const centeredLimit = this.trackingSheetType === SheetType.CENTER && this.detailContentWidth > 0
+      ? Math.floor(Math.min(this.detailContentWidth, this.trackingViewportHeight) * 0.9) : limit
+    return Math.min(Math.ceil(content + chrome), limit, centeredLimit)
+  }
+
+  @Builder
+  private TrackingSheet() {
+    Column() {
+      KomaModalScaffold({
+        title: this.trackingSearchProvider?.displayName ??
+          s('settings_pane_tracking_title'),
+        contentScrollsUnderTitle: this.trackingSearchProvider !== undefined,
+        titleBottom: this.trackingSearchProvider === undefined ? undefined : {
+          builder: () => {},
+          builderComponent: this.trackingSearchContent,
+          height: SEARCH_TITLE_BOTTOM_HEIGHT,
+          showType: BottomBuilderShowType.DIRECTLY_SHOW,
+        },
+        confirmLabel: this.trackingSearchProvider === undefined ? undefined : s('manga_detail_tracker_bind'),
+        confirmEnabled: this.trackingSelection !== undefined && !this.trackerMappingBusy,
+        onClose: () => {
+          if (this.trackerMappingBusy || this.trackerSyncBusy) return
+          if (this.trackingSearchProvider !== undefined) this.trackingSearchProvider = undefined
+          else this.trackingSheetShown = false
+        },
+        onConfirm: () => { void this.bindTrackingTitle() },
+      }) {
+        if (this.trackingSearchProvider !== undefined) {
+          this.TrackingSearchContent()
+        } else {
+          ListItem() {
+            Column({ space: ThemeConstants.SPACE_SM }) {
+              if (this.trackingVisibleProviders().length === 0) {
+                ConciseListRow({
+                  title: s('manga_detail_tracker_mapping_account_missing'),
+                  showChevron: true,
+                  action: () => { this.trackingSheetShown = false; RouterHelper.pushTrackerSettings() },
+                })
+              } else {
+                GroupedListSection() {
+                  ForEach(this.trackingVisibleProviders(), (provider: TrackerProviderConfig, index: number) => {
+                    this.TrackingProviderRow(provider)
+                    if (index < this.trackingVisibleProviders().length - 1) ListDivider()
+                  }, (provider: TrackerProviderConfig): string => provider.providerId)
+                }
+              }
+            }
+            .width('100%')
+            .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+              const height = Math.ceil(Number(size.height))
+              if (height > 0 && height !== this.trackingBodyHeight) this.trackingBodyHeight = height
+            })
+          }
+        }
+      }
+    }
+    // The sheet fits this measured root on tablets. The bottom detent uses the same height.
+    .width('100%')
+    .height(this.trackingSheetHeight())
+  }
+
+  @Builder
+  private TrackingSearchContent() {
+    ListItemGroup({ space: ThemeConstants.SPACE_SM }) {
+      if (this.trackerMappingBusy && this.trackingResults.length === 0) {
+        ListItem() {
+          Column() {
+            LoadingProgress()
+              .width(ThemeConstants.LOADING_SIZE_LARGE)
+              .height(ThemeConstants.LOADING_SIZE_LARGE)
+              .color(ThemeConstants.BRAND_PRIMARY)
+          }
+          .width('100%')
+          .height(ThemeConstants.TITLE_BAR_HEIGHT)
+          .alignItems(HorizontalAlign.Center)
+          .justifyContent(FlexAlign.Center)
+        }
+      } else if (this.trackingSearchMessage.length > 0) {
+        ListItem() {
+          Text(this.trackingSearchMessage).fontColor(ThemeConstants.TEXT_SECONDARY)
+        }
+      }
+      ForEach(this.trackingResults, (result: TrackerTitleSearchCandidate) => {
+        ListItem() {
+          this.TrackingResultCard(result)
+        }
+      }, (result: TrackerTitleSearchCandidate): string => result.providerTitleId)
+    }
+    .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+      const height = Math.ceil(Number(size.height))
+      if (height > 0 && height !== this.trackingBodyHeight) this.trackingBodyHeight = height
+    })
+  }
+
+  private trackingResultMetadata(result: TrackerTitleSearchCandidate): string {
+    const details: string[] = []
+    const format = result.format?.toLowerCase()
+    if (format === 'manga') details.push(s('manga_detail_tracker_format_manga'))
+    else if (format === 'one_shot' || format === 'oneshot') details.push(s('manga_detail_tracker_format_one_shot'))
+    else if (result.format && !/^[a-z_]+$/i.test(result.format)) details.push(result.format)
+    const status = result.status?.toLowerCase()
+    if (status === 'finished' || status === 'finished_publishing') details.push(s('manga_status_completed'))
+    else if (status === 'releasing' || status === 'currently_publishing' || status === 'current') {
+      details.push(s('manga_status_ongoing'))
+    } else if (status === 'hiatus') details.push(s('manga_status_hiatus'))
+    else if (status === 'cancelled') details.push(s('manga_status_cancelled'))
+    if (result.startYear && /^\d{4}$/.test(result.startYear)) details.push(result.startYear)
+    if (result.chapterCount && result.chapterCount > 0) {
+      details.push(this.formatString('manga_detail_tracker_chapter_count', [result.chapterCount]))
+    }
+    return details.join(' · ')
+  }
+
+  @Builder
+  private TrackingResultCard(result: TrackerTitleSearchCandidate) {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        Stack({ alignContent: Alignment.Center }) {
+          SymbolGlyph($r('sys.symbol.bookmark'))
+            .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontColor([ThemeConstants.TEXT_TERTIARY])
+          if (result.coverImageUrl?.startsWith('https://')) {
+            CachedCoverImage({ uri: result.coverImageUrl })
+              .width('100%').height('100%')
+          }
+        }
+        .width(60).height(88)
+        .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+        .borderRadius(ThemeConstants.RADIUS_COVER)
+        .clip(true)
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          Text(result.title).fontSize(ThemeConstants.FONT_SIZE_TITLE).fontWeight(FontWeight.Medium)
+            .fontColor(ThemeConstants.TEXT_PRIMARY).maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (result.nativeTitle && result.nativeTitle !== result.title) {
+            Text(result.nativeTitle).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          if (this.trackingResultMetadata(result).length > 0) {
+            Text(this.trackingResultMetadata(result)).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+              .fontColor(ThemeConstants.TEXT_SECONDARY).maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        if (this.trackingSelection?.providerTitleId === result.providerTitleId) {
+          SymbolGlyph($r('sys.symbol.checkmark_circle')).fontSize(ThemeConstants.FONT_SIZE_TITLE)
+            .fontColor([ThemeConstants.BRAND_PRIMARY])
+        }
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Top)
+      if (result.summary?.trim()) {
+        Text(result.summary.replace(/<[^>]*>/g, '').trim()).fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY).maxLines(3).textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+      }
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACE_MD)
+    .borderRadius(ThemeConstants.RADIUS_CARD)
+    .border({
+      width: 1,
+      color: this.trackingSelection?.providerTitleId === result.providerTitleId ?
+        ThemeConstants.BRAND_PRIMARY : Color.Transparent
+    })
+    .backgroundColor(ThemeConstants.CARD)
+    .onClick(() => { this.trackingSelection = result })
+  }
+
+  private trackingWebsiteUrl(providerId: TrackerProviderId): string | undefined {
+    const id = this.trackingMapping(providerId)?.providerTitleId
+    if (id === undefined || !/^\d+$/.test(id)) return undefined
+    if (providerId === 'anilist') return `https://anilist.co/manga/${id}`
+    if (providerId === 'myanimelist') return `https://myanimelist.net/manga/${id}`
+    if (providerId === 'bangumi') return `https://bgm.tv/subject/${id}`
+    return undefined
+  }
+
+  private openTrackingWebsite(providerId: TrackerProviderId): void {
+    const uri = this.trackingWebsiteUrl(providerId)
+    if (uri === undefined) return
+    const context = getContext(this) as common.UIAbilityContext
+    void context.startAbility({ action: 'ohos.want.action.viewData', uri }).catch(() => {
+      this.showToast(s('manga_detail_open_browser_failed'))
+    })
+  }
+
+  @Builder
+  private TrackingProviderMenu(provider: TrackerProviderConfig) {
+    Menu() {
+      if (this.trackingWebsiteUrl(provider.providerId) !== undefined) {
+        MenuItem({ content: s('manga_detail_tracker_view_website') })
+          .onClick(() => { this.openTrackingWebsite(provider.providerId) })
+      }
+      if (this.trackingProviderConnected(provider.providerId)) {
+        MenuItem({ content: s('manga_detail_tracker_change_title') }).onClick(() => { this.startTrackingSearch(provider) })
+        MenuItem({ content: s('manga_detail_menu_sync_tracker') }).onClick(() => { void this.syncTrackerProgressNow(provider.providerId) })
+        MenuItem({ content: s('manga_detail_menu_pull_tracker') }).onClick(() => { void this.pullTrackerProgressNow(provider.providerId) })
+      }
+      MenuItem({ content: s('manga_detail_tracker_unbind') }).onClick(() => { this.confirmTrackingUnbind(provider) })
+    }
+  }
+
+  @Builder
+  private TrackingProviderRow(provider: TrackerProviderConfig) {
+    if (this.trackingMapping(provider.providerId)?.mappingState === 'confirmed') {
+      Column() {
+        ConciseListRow({
+          title: this.trackingMapping(provider.providerId)?.providerTitle ?? provider.displayName,
+          leadingImage: TRACKER_BRAND_IMAGES[provider.providerId],
+          leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
+          leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
+          subtitle: provider.displayName,
+          showChevron: false,
+          trailingIcon: $r('sys.symbol.dot_grid_2x2'),
+          trailingIconAction: () => { this.trackingMenuProvider = provider.providerId },
+        })
+        .bindMenu(this.trackingMenuProvider === provider.providerId, this.TrackingProviderMenu(provider),
+          komaMenuOptions({
+            placement: Placement.BottomRight,
+            onDisappear: () => { this.trackingMenuProvider = undefined },
+          }))
+        if (this.trackingStatusLabel(provider.providerId).length > 0) this.TrackingProgressControls(provider)
+      }
+    } else {
+      ConciseListRow({
+        title: provider.displayName,
+        leadingImage: TRACKER_BRAND_IMAGES[provider.providerId],
+        leadingImageSize: ThemeConstants.SOURCE_LIST_ICON_SIZE,
+        leadingImageRadius: ThemeConstants.SOURCE_LIST_ICON_RADIUS,
+        trailingText: s('manga_detail_tracker_start'),
+        action: () => { this.startTrackingSearch(provider) },
+      })
+    }
+  }
+
+  private trackingStatusValues(providerId: TrackerProviderId): string[] {
+    if (providerId === 'bangumi') return ['1', '3', '2', '4', '5']
+    if (providerId === 'anilist') return ['PLANNING', 'CURRENT', 'COMPLETED', 'PAUSED', 'DROPPED', 'REPEATING']
+    if (providerId === 'myanimelist') return ['plan_to_read', 'reading', 'completed', 'on_hold', 'dropped']
+    return []
+  }
+
+  private openTrackingStatusMenu(provider: TrackerProviderConfig): void {
+    if (this.trackerSyncBusy) return
+    const providerId = provider.providerId
+    const state = this.trackingRemoteStates.get(providerId)
+    const progress = state?.providerProgress
+    if (progress === undefined) return
+    const labels = [s('manga_detail_tracker_planned'), s('manga_detail_tracker_reading'),
+      s('manga_detail_tracker_finished'), s('manga_detail_tracker_paused'),
+      s('manga_detail_tracker_dropped'), s('manga_detail_tracker_rereading')]
+    const items = this.trackingStatusValues(providerId).map((status: string, index: number): KomaMenuAction => ({
+      label: labels[index],
+      selected: status.toLowerCase() === state?.providerStatus?.toLowerCase(),
+      action: () => { void this.saveTrackingProgress(provider, undefined, status) },
+    }))
+    this.trackingStatusMenu.open(this.getUIContext(), 'tracking-status-' + providerId,
+      () => [{ id: 'tracking-status', items }], () => { this.showToast(s('manga_detail_tracker_sync_failed')) })
+  }
+
+  private openTrackingNumberPicker(provider: TrackerProviderConfig, field: TrackingNumberField): void {
+    const state = this.trackingRemoteStates.get(provider.providerId)
+    const progress = state?.providerProgress
+    if (progress === undefined || this.trackerSyncBusy || !this.trackingProviderConnected(provider.providerId)) return
+    const selected = field === 'chapters' ? progress : field === 'volumes' ? state?.volumes ?? 0 : state?.score ?? 0
+    const max = field === 'score' ? (provider.providerId === 'anilist' ? 100 : 10)
+      : Math.max(field === 'volumes' ? 200 : 1000, selected + 100, this.chapters.length)
+    const range = Array.from({ length: max + 1 }, (_: string, index: number): string => String(index))
+    this.getUIContext().showTextPickerDialog({
+      systemMaterial: komaDialogMaterial(),
+      selectedTextStyle: { color: ThemeConstants.BRAND_PRIMARY },
+      acceptButtonStyle: { fontColor: ThemeConstants.BRAND_PRIMARY },
+      cancelButtonStyle: { fontColor: ThemeConstants.TEXT_SECONDARY },
+      range,
+      selected: Math.min(max, Math.floor(selected)),
+      canLoop: false,
+      onAccept: (result: TextPickerResult): void => {
+        const value = Number(result.value)
+        if (!Number.isSafeInteger(value) || value === selected) return
+        if (field === 'chapters') void this.saveTrackingProgress(provider, value)
+        else {
+          const fields: TrackerEntryFields = field === 'volumes' ? { volumes: value } : { score: value }
+          void this.saveTrackingProgress(provider, undefined, undefined, fields)
+        }
+      },
+    })
+  }
+
+  private openTrackingDatePicker(provider: TrackerProviderConfig, start: boolean): void {
+    const state = this.trackingRemoteStates.get(provider.providerId)
+    const progress = state?.providerProgress
+    if (progress === undefined || this.trackerSyncBusy || !this.trackingProviderConnected(provider.providerId)) return
+    const value = start ? state?.startedAt : state?.completedAt
+    const date = value ? new Date(value + 'T12:00:00') : new Date()
+    this.getUIContext().showDatePickerDialog({
+      systemMaterial: komaDialogMaterial(),
+      selectedTextStyle: { color: ThemeConstants.BRAND_PRIMARY },
+      acceptButtonStyle: { fontColor: ThemeConstants.BRAND_PRIMARY },
+      cancelButtonStyle: { fontColor: ThemeConstants.TEXT_SECONDARY },
+      selected: Number.isNaN(date.getTime()) ? new Date() : date,
+      onDateAccept: (selected: Date): void => {
+        const dateValue = `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, '0')}-${String(selected.getDate()).padStart(2, '0')}`
+        const fields: TrackerEntryFields = start ? { startedAt: dateValue } : { completedAt: dateValue }
+        void this.saveTrackingProgress(provider, undefined, undefined, fields)
+      },
+    })
+  }
+
+  private trackingFieldWidth(providerId: TrackerProviderId): number {
+    const minimum = 108
+    const gap = ThemeConstants.SPACE_SM
+    const padding = ThemeConstants.SPACE_LG
+    const width = this.trackingFieldGridWidth
+    if (width <= 0) return minimum
+    const fieldCount = providerId === 'bangumi' ? 4 :
+      providerId === 'anilist' || providerId === 'myanimelist' ? 6 : 2
+    const columns = Math.min(fieldCount, gridColumnCount(width, minimum, gap, padding))
+    return Math.floor((width - padding * 2 - (columns - 1) * gap) / columns)
+  }
+
+  @Builder
+  private TrackingField(providerId: TrackerProviderId, label: string, readValue: () => string, action: () => void, anchorId: string = '',
+    hasMenu: boolean = false) {
+    Column({ space: ThemeConstants.SPACE_XS }) {
+      Text(label).fontSize(ThemeConstants.FONT_SIZE_CAPTION).fontColor(ThemeConstants.TEXT_SECONDARY)
+      // Evaluate the value in this node's update scope. A precomputed
+      // string passed by value to @Builder stays frozen after an edit.
+      KomaActionButton({ label: readValue(), kind: 'secondary', fullWidth: true,
+        icon: hasMenu ? $r('sys.symbol.arrowtriangle_down_fill') : undefined, action })
+        .id(anchorId)
+    }.width(this.trackingFieldWidth(providerId)).alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private TrackingProgressControls(provider: TrackerProviderConfig) {
+    // Like the reference tracker card, equal fields flow according to the card width.
+    Flex({ wrap: FlexWrap.Wrap, space: {
+      main: LengthMetrics.vp(ThemeConstants.SPACE_SM),
+      cross: LengthMetrics.vp(ThemeConstants.SPACE_SM),
+    } }) {
+      this.TrackingField(provider.providerId, s('manga_detail_local_metadata_field_status'), () => this.trackingStatusLabel(provider.providerId),
+        () => { this.openTrackingStatusMenu(provider) }, 'tracking-status-' + provider.providerId,
+        this.trackingStatusValues(provider.providerId).length > 0 && this.trackingProviderConnected(provider.providerId))
+      this.TrackingField(provider.providerId, s('manga_detail_tracker_read_chapters'),
+        () => this.formatString('manga_detail_tracker_chapter_count',
+          [this.trackingRemoteStates.get(provider.providerId)?.providerProgress ?? 0]),
+        () => { this.openTrackingNumberPicker(provider, 'chapters') })
+      if (provider.providerId === 'bangumi' || provider.providerId === 'anilist' || provider.providerId === 'myanimelist') {
+        this.TrackingField(provider.providerId, s('manga_detail_tracker_read_volumes'),
+          () => String(this.trackingRemoteStates.get(provider.providerId)?.volumes ?? 0),
+          () => { this.openTrackingNumberPicker(provider, 'volumes') })
+        this.TrackingField(provider.providerId, s('manga_detail_tracker_score'),
+          () => this.trackingRemoteStates.get(provider.providerId)?.score
+            ? String(this.trackingRemoteStates.get(provider.providerId)?.score) : s('manga_detail_tracker_unset'),
+          () => { this.openTrackingNumberPicker(provider, 'score') })
+      }
+      if (provider.providerId === 'anilist' || provider.providerId === 'myanimelist') {
+        this.TrackingField(provider.providerId, s('manga_detail_tracker_started'),
+          () => this.trackingRemoteStates.get(provider.providerId)?.startedAt || s('manga_detail_tracker_unset'),
+          () => { this.openTrackingDatePicker(provider, true) })
+        this.TrackingField(provider.providerId, s('manga_detail_tracker_completed_date'),
+          () => this.trackingRemoteStates.get(provider.providerId)?.completedAt || s('manga_detail_tracker_unset'),
+          () => { this.openTrackingDatePicker(provider, false) })
+      }
+    }
+    .width('100%')
+    .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_MD })
+    .onSizeChange((_old: SizeOptions, size: SizeOptions) => {
+      const width = Number(size.width)
+      if (width > 0 && width !== this.trackingFieldGridWidth) this.trackingFieldGridWidth = width
+    })
   }
 
   @Builder
@@ -2755,138 +3450,258 @@ export struct MangaDetailPage {
   }
 
   @Builder
-  private DetailList(nativeSpring: boolean) {
-    Stack({ alignContent: Alignment.TopStart }) {
-    this.CoverBackdrop()
-    SecondaryListScaffold({
-          surfaceColor: Color.Transparent,
-          scroller: this.detailScroller,
-          scrollEnabled: this.detailScrollEnabled,
-          alwaysEnableEdgeSpring: nativeSpring,
-          listSpace: ThemeConstants.SPACE_LG,
-          bottomPadding: ThemeConstants.SPACE_XL,
-          reserveTitleBar: true,
-          onDidScroll: (offset: number) => {
-            this.detailScrollOffset = offset
-            const showTitle = offset > 160
-            if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
+  private DetailInformationItems() {
+    if (this.manga !== undefined) {
+      ListItem() {
+        MangaDetailHeader({
+          manga: this.displayedManga(this.manga),
+          showChapterCount: this.shouldShowChapterCount(),
+          sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
+          remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
+          onSourceClick: (): void => {
+            const sourceId = this.manga?.sourceId
+            const name = this.manga?.sourceName
+            if (sourceId && name) RouterHelper.openSearch({ librarySource: { key: `source:${sourceId}`, name } })
           },
-        }) {
-        if (this.manga !== undefined) {
+        })
+      }
+    }
+
+    // Once metadata is visible, keep the final action row in place
+    // while the chapter request completes.
+    if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata()) {
+      ListItem() {
+        this.ActionButtons()
+      }
+    } else if (this.isDetailPending()) {
+      ListItem() {
+        this.DetailPendingState()
+      }
+    }
+
+    if ((!this.usesDetailPanes || this.shouldRenderChapterList()) && !this.isDetailPending() && this.feedbackText.length > 0) {
+      ListItem() {
+        Text(this.feedbackText)
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+    }
+
+    if (this.localRefreshText.length > 0) {
+      ListItem() {
+        Text(this.localRefreshText)
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+    }
+
+    if (this.hasResolvedManga() && this.localMetadataEditorVisible) {
+      ListItem() {
+        this.LocalMetadataEditor()
+      }
+    }
+
+    if (this.manga !== undefined) {
+      if (this.shouldRenderDetailMetadata()) {
+        if (this.personalNotes.trim().length > 0) {
           ListItem() {
-            MangaDetailHeader({
-              manga: this.displayedManga(this.manga),
-              showChapterCount: this.shouldShowChapterCount(),
-              sourceKind: this.libraryStore?.getComic(this.currentComicId())?.sourceKind,
-              remoteServerId: this.libraryStore?.getComic(this.currentComicId())?.remoteServerId ?? '',
-              onSourceClick: (): void => {
-                const sourceId = this.manga?.sourceId
-                const name = this.manga?.sourceName
-                if (sourceId && name) RouterHelper.openSearch({ librarySource: { key: `source:${sourceId}`, name } })
-              },
-            })
+            MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes',
+              expandOnlyWhenOverflow: true })
           }
         }
-
-        // Once metadata is visible, keep the final action row in place
-        // while the chapter request completes.
-        if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata()) {
-          ListItem() {
-            this.ActionButtons()
-          }
-        } else if (this.isDetailPending()) {
-          ListItem() {
-            this.DetailPendingState()
-          }
+        ListItem() {
+          MangaDescriptionSection({
+            description: this.manga.description,
+          })
         }
 
-        if (!this.isDetailPending() && this.feedbackText.length > 0) {
-          ListItem() {
-            Text(this.feedbackText)
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-        }
-
-        if (this.localRefreshText.length > 0) {
-          ListItem() {
-            Text(this.localRefreshText)
-              .width('100%')
-              .fontSize(ThemeConstants.FONT_SIZE_META)
-              .fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-        }
-
-        if (this.hasResolvedManga() && this.localMetadataEditorVisible) {
-          ListItem() {
-            this.LocalMetadataEditor()
-          }
-        }
-
-        if (this.manga !== undefined) {
-          if (this.shouldRenderDetailMetadata()) {
-            if (this.personalNotes.trim().length > 0) {
-              ListItem() {
-                MangaDescriptionSection({ description: this.personalNotes, titleKey: 'manga_notes',
-                  expandOnlyWhenOverflow: true })
-              }
-            }
-            ListItem() {
-              MangaDescriptionSection({
-                description: this.manga.description,
-              })
-            }
-
-            ListItem() {
-              MangaTagsSection({
-                tags: this.manga.tags === undefined ? [] : this.manga.tags,
-                onTagClick: (tag: string) => {
-                  RouterHelper.openSearch({ query: tag })
-                },
-              })
-            }
-          }
-        }
-
-        if (this.shouldRenderChapterList()) {
-          ChapterListSection({
-            comicId: this.currentComicId(),
-            archiveBusy: this.chapterArchiveBusy,
-            chapters: this.chapters,
-            onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
-            onBookmarkChapter: (chapterId: string, bookmarked: boolean) => {
-              if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked)) {
-                this.applyChapterStatesToCurrent()
-                this.onReadingStateChanged()
-              } else this.showToast(s('chapter_bookmark_save_failed'))
-            },
-            onOpenChapter: (chapterId: string) => {
-              void this.handleOpenChapter(chapterId)
-                .catch((error: Error) => {
-                  void error
-                  DiagnosticLogger.error('manga_detail_page', 'source_pages_load_failed', '[manga-detail] step=source_pages_load_failed reason=source_pages')
-                  this.showToast(s('manga_detail_chapter_pages_load_failed'))
-                })
-            },
-            onDownloadChapter: (chapterId: string) => {
-              this.handleDownloadChapter(chapterId)
-            },
-            onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => {
-              this.confirmDownloadFilteredChapters(chapterIds, mode, scope)
-            },
-            onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
-              this.markChapterReadState(chapterId, isRead)
-            },
-            onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean, scope: ChapterBatchScope) => {
-              this.confirmMarkFilteredChaptersReadState(chapterIds, isRead, scope)
+        ListItem() {
+          MangaTagsSection({
+            tags: this.manga.tags === undefined ? [] : this.manga.tags,
+            onTagClick: (tag: string) => {
+              RouterHelper.openSearch({ query: tag })
             },
           })
         }
+      }
+    }
+  }
+
+  @Builder
+  private DetailChapterItems() {
+    if (this.shouldRenderChapterList()) {
+      ChapterListSection({
+        comicId: this.currentComicId(),
+        presentation: this.chapterPresentation,
+        onDisplayOrderChange: (chapters: MangaChapterItem[]) => { this.displayedChapters = chapters },
+        archiveBusy: this.chapterArchiveBusy,
+        chapters: this.chapters,
+        onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
+        onBookmarkChapter: (chapterId: string, bookmarked: boolean) => {
+          if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked)) {
+            this.applyChapterStatesToCurrent()
+            this.onReadingStateChanged()
+          } else this.showToast(s('chapter_bookmark_save_failed'))
+        },
+        onOpenChapter: (chapterId: string) => {
+          void this.handleOpenChapter(chapterId)
+            .catch((error: Error) => {
+              void error
+              DiagnosticLogger.error('manga_detail_page', 'source_pages_load_failed', '[manga-detail] step=source_pages_load_failed reason=source_pages')
+              this.showToast(s('manga_detail_chapter_pages_load_failed'))
+            })
+        },
+        onDownloadChapter: (chapterId: string) => {
+          this.handleDownloadChapter(chapterId)
+        },
+        onDownloadFilteredChapters: (chapterIds: string[], mode: ChapterBatchDownloadMode, scope: ChapterBatchScope) => {
+          this.confirmDownloadFilteredChapters(chapterIds, mode, scope)
+        },
+        onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
+          this.markChapterReadState(chapterId, isRead)
+        },
+        onMarkFilteredChaptersReadState: (chapterIds: string[], isRead: boolean, scope: ChapterBatchScope) => {
+          this.confirmMarkFilteredChaptersReadState(chapterIds, isRead, scope)
+        },
+      })
+    } else if (this.usesDetailPanes && this.isDetailPending()) {
+      ListItem() {
+        this.DetailPendingState()
+      }
+    } else if (this.usesDetailPanes && this.feedbackText.length > 0) {
+      ListItem() {
+        Text(this.feedbackText)
+          .width('100%')
+          .fontSize(ThemeConstants.FONT_SIZE_META)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+      }
+    }
+  }
+
+  private chapterGroupIndex(inChapterPane: boolean): number {
+    if (inChapterPane) return 1 // SecondaryListScaffold owns the first inset row.
+    let index = 1
+    if (this.manga !== undefined) index++
+    if (this.shouldRenderDetailActions() || this.shouldRenderDetailMetadata() || this.isDetailPending()) index++
+    if (!this.isDetailPending() && this.feedbackText.length > 0) index++
+    if (this.localRefreshText.length > 0) index++
+    if (this.hasResolvedManga() && this.localMetadataEditorVisible) index++
+    if (this.shouldRenderDetailMetadata()) index += this.personalNotes.trim().length > 0 ? 3 : 2
+    return index
+  }
+
+  private onChapterViewport(start: VisibleListContentInfo, inChapterPane: boolean): void {
+    if (inChapterPane !== this.usesDetailPanes || !this.shouldRenderChapterList()) return
+    const groupIndex = this.chapterGroupIndex(inChapterPane)
+    if (this.chapterToRestore.length > 0 && this.displayedChapters.length > 0) {
+      const target = this.displayedChapters.findIndex((item: MangaChapterItem) => item.id === this.chapterToRestore)
+      this.chapterToRestore = ''
+      if (target >= 0) {
+        const scroller = inChapterPane ? this.chapterScroller : this.detailScroller
+        scroller.scrollToItemInGroup(groupIndex, target, false, ScrollAlign.START)
+        return
+      }
+    }
+    const row = start.itemIndexInGroup
+    this.visibleChapterId = start.index === groupIndex && row !== undefined
+      ? this.displayedChapters[row]?.id ?? '' : ''
+  }
+
+  private onInformationScroll(offset: number): void {
+    this.detailScrollOffset = offset
+    const showTitle = offset > 160
+    if (this.chrome.showTitle !== showTitle) this.chrome.showTitle = showTitle
+  }
+
+  @Builder
+  private InformationList(nativeSpring: boolean) {
+    Stack({ alignContent: Alignment.TopStart }) {
+      this.CoverBackdrop()
+      SecondaryListScaffold({
+        surfaceColor: Color.Transparent,
+        scroller: this.detailScroller,
+        scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
+        alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
+        horizontalPadding: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD,
+        listSpace: ThemeConstants.SPACE_LG,
+        onDidScroll: (offset: number) => { this.onInformationScroll(offset) },
+        onVisibleContentChange: (start: VisibleListContentInfo) => {
+          if (!this.usesDetailPanes) this.onChapterViewport(start, false)
+        },
+      }) {
+        this.DetailInformationItems()
+        if (!this.usesDetailPanes) {
+          this.DetailChapterItems()
         }
+      }
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private ChapterPane(nativeSpring: boolean) {
+    SecondaryListScaffold({
+      surfaceColor: Color.Transparent,
+      scroller: this.chapterScroller,
+      scrollEnabled: this.detailScrollEnabled,
+      alwaysEnableEdgeSpring: nativeSpring,
+      horizontalPadding: 0,
+      listSpace: ThemeConstants.SPACE_LG,
+      onVisibleContentChange: (start: VisibleListContentInfo) => { this.onChapterViewport(start, true) },
+    }) {
+      this.DetailChapterItems()
+    }
+  }
+
+  @Builder
+  private RefreshableDetail(chapterPane: boolean) {
+    if (this.canPullRefreshDetail()) {
+      PullRefresh({
+        scroller: chapterPane ? this.chapterScroller : this.detailScroller,
+        controller: this.detailRefreshController,
+        indicatorTop: this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
+        onRefresh: async (): Promise<void> => { await this.refreshMangaDetail() },
+        onScrollEnableChange: (enabled: boolean): void => { this.detailScrollEnabled = enabled },
+      }) {
+        if (chapterPane) {
+          this.ChapterPane(false)
+        } else {
+          this.InformationList(false)
+        }
+      }
+    } else if (chapterPane) {
+      this.ChapterPane(true)
+    } else {
+      this.InformationList(true)
+    }
+  }
+
+  @Builder
+  private DetailLayout() {
+    if (this.usesDetailPanes) {
+      Row({ space: 24 }) {
+        Column() {
+          this.InformationList(true)
+        }
+        .width(Math.max(264, Math.min(360, (this.detailContentWidth - 24) * 0.38,
+          this.detailContentWidth - 24 - 332)))
+        .height('100%')
+
+        Column() {
+          this.RefreshableDetail(true)
+        }
+        .layoutWeight(1)
+        .height('100%')
+      }
+      .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+      .width('100%')
+      .height('100%')
+    } else {
+      this.RefreshableDetail(false)
+    }
   }
 
   build() {
@@ -2909,23 +3724,35 @@ export struct MangaDetailPage {
             },
             onDisappear: () => { this.finishDetailWebChallengeDismiss() },
           }))
-        if (this.canPullRefreshDetail()) {
-          PullRefresh({
-            scroller: this.detailScroller,
-            controller: this.detailRefreshController,
-            indicatorTop: this.detailSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
-            onRefresh: async (): Promise<void> => { await this.refreshMangaDetail() },
-            onScrollEnableChange: (enabled: boolean): void => { this.detailScrollEnabled = enabled },
-          }) {
-            this.DetailList(false)
-          }
-        } else {
-          this.DetailList(true)
-        }
+        Column() {}.width(0).height(0)
+          .bindSheet($$this.trackingSheetShown, this.TrackingSheet, komaSheetOptions({
+            height: SheetSize.FIT_CONTENT,
+            detents: [this.trackingSheetHeight(), SheetSize.LARGE],
+            detentSelection: this.trackingSheetHeight(),
+            onTypeDidChange: (type: SheetType) => { this.trackingSheetType = type },
+            scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+            showClose: false, enableFloatingDragBar: true,
+            onWillDismiss: (action: DismissSheetAction) => {
+              if (!this.trackerMappingBusy && !this.trackerSyncBusy) { this.trackingSheetShown = false; action.dismiss() }
+            },
+          }))
+        this.DetailLayout()
       }
       .width('100%')
       .height('100%')
       .backgroundColor(ThemeConstants.BG_SUB)
+      .onSizeChange((_old: SizeOptions, size: SizeOptions): void => {
+        const width = Number(size.width)
+        const height = Number(size.height)
+        if (height > 0 && height !== this.trackingViewportHeight) this.trackingViewportHeight = height
+        if (Number.isFinite(width) && width > 0) {
+          const availableWidth = Math.max(0, width - 2 * ThemeConstants.SPACE_MD)
+          if ((availableWidth >= DETAIL_PANES_MIN_CONTENT_WIDTH) !== this.usesDetailPanes) {
+            this.chapterToRestore = this.visibleChapterId
+          }
+          this.detailContentWidth = availableWidth
+        }
+      })
     }
   }
 }

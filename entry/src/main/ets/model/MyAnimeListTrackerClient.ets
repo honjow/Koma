@@ -1,5 +1,5 @@
 import { http } from '@kit.NetworkKit'
-import { TrackerProviderId } from './TrackerModels'
+import { TrackerEntryFields, TrackerProviderId } from './TrackerModels'
 
 export type MyAnimeListTrackerErrorCode =
   'auth_required' |
@@ -62,9 +62,12 @@ export interface MyAnimeListTrackerTitleSearchResult {
   format?: string
   status?: string
   coverImageUrl?: string
+  summary?: string
+  startYear?: string
+  chapterCount?: number
 }
 
-export interface MyAnimeListTrackerProgress {
+export interface MyAnimeListTrackerProgress extends TrackerEntryFields {
   providerId: TrackerProviderId
   providerTitleId: string
   progress: number
@@ -98,6 +101,9 @@ interface MyAnimeListAlternativeTitlesDto {
 interface MyAnimeListMangaNodeDto {
   id?: number
   title?: string
+  synopsis?: string
+  start_date?: string
+  num_chapters?: number
   main_picture?: MyAnimeListPictureDto
   media_type?: string
   status?: string
@@ -113,6 +119,10 @@ interface MyAnimeListMangaSearchResponseDto {
 }
 
 interface MyAnimeListListStatusDto {
+  num_volumes_read?: number
+  score?: number
+  start_date?: string
+  finish_date?: string
   status?: string
   num_chapters_read?: number
   updated_at?: string
@@ -124,6 +134,10 @@ interface MyAnimeListMangaDetailDto extends MyAnimeListMangaNodeDto {
 }
 
 interface MyAnimeListUpdateListStatusResponseDto {
+  num_volumes_read?: number
+  score?: number
+  start_date?: string
+  finish_date?: string
   status?: string
   num_chapters_read?: number
   updated_at?: string
@@ -289,7 +303,7 @@ export class MyAnimeListTrackerClient {
       q: normalizedQuery,
       limit: `${Math.max(1, Math.min(20, Math.floor(limit)))}`,
       offset: `${(pageNumber - 1) * boundedLimit}`,
-      fields: 'id,title,main_picture,media_type,status,alternative_titles',
+      fields: 'id,title,main_picture,media_type,status,alternative_titles,synopsis,start_date,num_chapters',
     })
     return this.sendAndParseSearch(request)
   }
@@ -308,7 +322,7 @@ export class MyAnimeListTrackerClient {
     return this.sendAndParseProgress(request, mangaId)
   }
 
-  async pushProgress(accessToken: string, providerTitleId: string, progress: number, completed?: boolean): Promise<MyAnimeListTrackerResult<MyAnimeListTrackerProgress>> {
+  async pushProgress(accessToken: string, providerTitleId: string, progress: number | undefined, completed?: boolean | string, fields?: TrackerEntryFields): Promise<MyAnimeListTrackerResult<MyAnimeListTrackerProgress>> {
     const mangaId = normalizeMyAnimeListMangaId(providerTitleId)
     if (mangaId <= 0) {
       return {
@@ -316,16 +330,19 @@ export class MyAnimeListTrackerClient {
         errorCode: 'not_found',
       }
     }
-    const normalizedProgress = normalizeMyAnimeListTrackerProgress(progress)
-    const body = completed === undefined
-      ? `num_chapters_read=${normalizedProgress}`
-      : `status=${completed ? 'completed' : 'reading'}&num_chapters_read=${normalizedProgress}`
+    const fieldsToWrite: string[] = []
+    if (completed !== undefined) fieldsToWrite.push(`status=${typeof completed === 'string' ? completed : completed ? 'completed' : 'reading'}`)
+    if (progress !== undefined) fieldsToWrite.push(`num_chapters_read=${normalizeMyAnimeListTrackerProgress(progress)}`)
+    if (fields?.volumes !== undefined) fieldsToWrite.push(`num_volumes_read=${fields.volumes}`)
+    if (fields?.score !== undefined) fieldsToWrite.push(`score=${fields.score}`)
+    if (fields?.startedAt !== undefined) fieldsToWrite.push(`start_date=${encodeURIComponent(fields.startedAt)}`)
+    if (fields?.completedAt !== undefined) fieldsToWrite.push(`finish_date=${encodeURIComponent(fields.completedAt)}`)
     const request = this.buildApiRequest(
       accessToken,
       'PATCH',
       `/manga/${mangaId}/my_list_status`,
       undefined,
-      body,
+      fieldsToWrite.join('&'),
     )
     return this.sendAndParseSavedProgress(request, mangaId)
   }
@@ -488,7 +505,10 @@ function normalizeMyAnimeListManga(manga: MyAnimeListMangaNodeDto | undefined): 
   if (status !== undefined) {
     result.status = status
   }
-  const cover = manga.main_picture?.large ?? manga.main_picture?.medium
+  result.summary = normalizeMyAnimeListText(manga.synopsis, 1500)
+  result.startYear = manga.start_date?.slice(0, 4)
+  result.chapterCount = manga.num_chapters
+  const cover = manga.main_picture?.medium ?? manga.main_picture?.large
   if (cover !== undefined && cover.startsWith('https://')) {
     result.coverImageUrl = cover.slice(0, 512)
   }
@@ -512,7 +532,8 @@ function normalizeMyAnimeListProgress(progress: MyAnimeListListStatusDto | MyAni
     providerId: MYANIMELIST_PROVIDER_ID,
     providerTitleId: `${fallbackMangaId}`,
     progress: normalizeMyAnimeListTrackerProgress(progress.num_chapters_read ?? 0),
-    completed: status === 'completed',
+    completed: status === 'completed', volumes: progress.num_volumes_read, score: progress.score,
+    startedAt: progress.start_date, completedAt: progress.finish_date,
   }
   if (status !== undefined) {
     value.status = status

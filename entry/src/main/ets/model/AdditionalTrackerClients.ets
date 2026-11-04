@@ -1,5 +1,6 @@
 import { http } from '@kit.NetworkKit'
-import { TrackerProviderId } from './TrackerModels'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { TrackerEntryFields, TrackerProviderId } from './TrackerModels'
 
 export type TrackerJsonMethod = 'GET' | 'POST' | 'PUT' | 'PATCH'
 export interface TrackerJsonRequest {
@@ -27,8 +28,14 @@ export interface RemoteTrackerTitle {
   providerTitleId: string
   title: string
   nativeTitle?: string
+  coverImageUrl?: string
+  summary?: string
+  format?: string
+  status?: string
+  startYear?: string
+  chapterCount?: number
 }
-export interface RemoteTrackerProgress {
+export interface RemoteTrackerProgress extends TrackerEntryFields {
   providerId: TrackerProviderId
   providerTitleId: string
   progress: number
@@ -96,11 +103,15 @@ export class TrackerJsonClient {
 
 interface BangumiSearchFilter { type: number[] }
 interface BangumiSearchRequest { keyword: string; sort: string; filter: BangumiSearchFilter }
-interface BangumiCollectionWrite { type?: number; ep_status: number }
+interface BangumiCollectionWrite { type?: number; ep_status?: number; vol_status?: number; rate?: number }
 interface BangumiUser { id?: number; username?: string; nickname?: string }
-interface BangumiSubject { id?: number; name?: string; name_cn?: string; platform?: string }
+interface BangumiSubjectImages { common?: string; medium?: string }
+interface BangumiSubject {
+  id?: number; name?: string; name_cn?: string; platform?: string
+  images?: BangumiSubjectImages; summary?: string; date?: string; eps?: number
+}
 interface BangumiSearch { data?: BangumiSubject[] }
-interface BangumiCollection { type?: number; ep_status?: number }
+interface BangumiCollection { type?: number; ep_status?: number; vol_status?: number; rate?: number }
 
 /** Official v0 API. Personal tokens avoid embedding another application's OAuth secret. */
 export class BangumiTrackerClient extends TrackerJsonClient {
@@ -124,34 +135,58 @@ export class BangumiTrackerClient extends TrackerJsonClient {
     return { ok: true, value: result.value!.data!.filter((item: BangumiSubject): boolean =>
       Number.isSafeInteger(item.id) && (item.id ?? 0) > 0 && (item.name?.length ?? 0) > 0 &&
       (!item.platform || item.platform === '漫画')).map((item: BangumiSubject): RemoteTrackerTitle => ({
-        providerId: 'bangumi', providerTitleId: `${item.id}`, title: item.name!, nativeTitle: item.name_cn,
+        providerId: 'bangumi', providerTitleId: `${item.id}`, title: item.name_cn?.trim() || item.name!,
+        nativeTitle: item.name, coverImageUrl: item.images?.common ?? item.images?.medium,
+        summary: item.summary, format: item.platform, startYear: item.date?.slice(0, 4), chapterCount: item.eps,
       })) }
   }
 
-  async fetchProgress(token: string, id: string): Promise<RemoteTrackerResult<RemoteTrackerProgress | undefined>> {
+  async fetchProgress(token: string, id: string, username?: string): Promise<RemoteTrackerResult<RemoteTrackerProgress | undefined>> {
     if (!/^\d+$/.test(id)) return { ok: false, errorCode: 'not_found' }
-    const result = await this.send<BangumiCollection>('GET', `/v0/users/-/collections/${id}`, token)
+    const owner = username?.trim()
+    if (!owner) {
+      const profile = await this.fetchProfile(token)
+      if (!profile.ok || profile.value === undefined) return { ok: false, errorCode: profile.errorCode }
+      return this.fetchProgress(token, id, profile.value.username)
+    }
+    // Bangumi reserves the dash path for writes; reads take the owner's username.
+    const result = await this.send<BangumiCollection>('GET', `/v0/users/${encodeURIComponent(owner)}/collections/${id}`, token)
     if (!result.ok) return result.errorCode === 'not_found' ? { ok: true } : { ok: false, errorCode: result.errorCode }
     if (!Number.isSafeInteger(result.value?.type) || !Number.isFinite(result.value?.ep_status)) {
       return { ok: false, errorCode: 'malformed_response' }
     }
     return { ok: true, value: { providerId: 'bangumi', providerTitleId: id,
       progress: Math.max(0, result.value!.ep_status!), completed: result.value!.type === 2,
-      status: `${result.value!.type}` } }
+      status: `${result.value!.type}`, volumes: result.value!.vol_status, score: result.value!.rate } }
   }
 
-  async pushProgress(token: string, id: string, progress: number): Promise<RemoteTrackerResult<RemoteTrackerProgress>> {
-    const before = await this.fetchProgress(token, id)
+  async pushProgress(token: string, id: string, progress: number | undefined, username?: string, status?: number, fields?: TrackerEntryFields): Promise<RemoteTrackerResult<RemoteTrackerProgress>> {
+    const before = await this.fetchProgress(token, id, username)
     if (!before.ok) return { ok: false, errorCode: before.errorCode }
-    const count = Math.max(0, Math.floor(progress))
+    const count = progress === undefined ? undefined : Math.max(0, Math.floor(progress))
     // Existing collection privacy, score, tags and state are not rewritten by reading progress.
-    const body: BangumiCollectionWrite = { ep_status: count }
-    if (before.value === undefined) body.type = 3
+    const body: BangumiCollectionWrite = { ep_status: count, vol_status: fields?.volumes, rate: fields?.score }
+    if (status !== undefined) body.type = status
+    else if (before.value === undefined) {
+      if (count === undefined) return { ok: false, errorCode: 'not_found' }
+      body.type = 3
+    }
     const result = await this.send<Object>(before.value === undefined ? 'POST' : 'PATCH',
       `/v0/users/-/collections/${id}`, token, body)
-    if (!result.ok) return { ok: false, errorCode: result.errorCode }
-    const saved = await this.fetchProgress(token, id)
-    if (!saved.ok || saved.value === undefined) return { ok: false, errorCode: saved.errorCode ?? 'malformed_response' }
+    if (!result.ok) {
+      DiagnosticLogger.warn('bangumi_tracker', 'write_failed', 'reason=' + (result.errorCode ?? 'unknown'))
+      return { ok: false, errorCode: result.errorCode }
+    }
+    const saved = await this.fetchProgress(token, id, username)
+    if (!saved.ok || saved.value === undefined) {
+      DiagnosticLogger.warn('bangumi_tracker', 'readback_failed', 'reason=' + (saved.errorCode ?? 'missing_collection'))
+      return { ok: false, errorCode: saved.errorCode ?? 'malformed_response' }
+    }
+    // A successful HTTP status alone does not prove that the requested count was stored.
+    if (count !== undefined && saved.value.progress !== count) {
+      DiagnosticLogger.warn('bangumi_tracker', 'readback_mismatch', 'field=chapter_count')
+      return { ok: false, errorCode: 'provider_error' }
+    }
     return { ok: true, value: saved.value }
   }
 }
@@ -161,7 +196,11 @@ interface MangaUpdatesSearchRequest { search: string; filter_types: string[] }
 interface MangaUpdatesUser { username?: string }
 interface MangaUpdatesLoginContext { session_token?: string; uid?: number }
 interface MangaUpdatesLoginResponse { context?: MangaUpdatesLoginContext }
-interface MangaUpdatesRecord { series_id?: number; title?: string }
+interface MangaUpdatesImageUrl { original?: string }
+interface MangaUpdatesImage { url?: MangaUpdatesImageUrl }
+interface MangaUpdatesRecord {
+  series_id?: number; title?: string; image?: MangaUpdatesImage; description?: string; type?: string; year?: string
+}
 interface MangaUpdatesSearchItem { record?: MangaUpdatesRecord }
 interface MangaUpdatesSearch { results?: MangaUpdatesSearchItem[] }
 interface MangaUpdatesStatus { chapter?: number }
@@ -204,6 +243,8 @@ export class MangaUpdatesTrackerClient extends TrackerJsonClient {
       Number.isSafeInteger(item.record?.series_id) && (item.record?.series_id ?? 0) > 0 &&
       (item.record?.title?.length ?? 0) > 0).map((item: MangaUpdatesSearchItem): RemoteTrackerTitle => ({
         providerId: 'mangaupdates', providerTitleId: `${item.record!.series_id}`, title: item.record!.title!,
+        coverImageUrl: item.record!.image?.url?.original, summary: item.record!.description,
+        format: item.record!.type, startYear: item.record!.year,
       })) }
   }
 

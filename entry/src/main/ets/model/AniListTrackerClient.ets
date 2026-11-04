@@ -1,5 +1,5 @@
 import { http } from '@kit.NetworkKit'
-import { TrackerProviderId } from './TrackerModels'
+import { TrackerEntryFields, TrackerProviderId } from './TrackerModels'
 
 export type AniListTrackerErrorCode =
   'auth_required' |
@@ -60,9 +60,12 @@ export interface AniListTrackerTitleSearchResult {
   format?: string
   status?: string
   coverImageUrl?: string
+  summary?: string
+  startYear?: string
+  chapterCount?: number
 }
 
-export interface AniListTrackerProgress {
+export interface AniListTrackerProgress extends TrackerEntryFields {
   providerId: TrackerProviderId
   providerTitleId: string
   progress: number
@@ -92,15 +95,24 @@ interface AniListCoverDto {
   large?: string
 }
 
+interface AniListDateDto { year?: number; month?: number; day?: number }
+
 interface AniListMediaDto {
   id?: number
   title?: AniListTitleDto
   format?: string
   status?: string
   coverImage?: AniListCoverDto
+  description?: string
+  startDate?: AniListDateDto
+  chapters?: number
 }
 
 interface AniListMediaListDto {
+  progressVolumes?: number
+  score?: number
+  startedAt?: AniListDateDto
+  completedAt?: AniListDateDto
   mediaId?: number
   progress?: number
   status?: string
@@ -111,10 +123,14 @@ interface AniListPageDto {
   media?: AniListMediaDto[]
 }
 
+interface AniListProgressMediaDto {
+  mediaListEntry?: AniListMediaListDto | null
+}
+
 interface AniListGraphqlDataDto {
   Viewer?: AniListViewerDto
   Page?: AniListPageDto
-  MediaList?: AniListMediaListDto
+  Media?: AniListProgressMediaDto
   SaveMediaListEntry?: AniListMediaListDto
 }
 
@@ -124,6 +140,10 @@ interface AniListGraphqlResponseDto {
 }
 
 interface AniListGraphqlVariables {
+  volumes?: number
+  score?: number
+  startedAt?: AniListDateDto
+  completedAt?: AniListDateDto
   search?: string
   page?: number
   perPage?: number
@@ -144,13 +164,13 @@ const ANILIST_VIEWER_QUERY: string =
   'query KomaViewer { Viewer { id name } }'
 
 const ANILIST_SEARCH_QUERY: string =
-  'query KomaMangaSearch($search: String!, $page: Int, $perPage: Int) { Page(page: $page, perPage: $perPage) { media(type: MANGA, search: $search) { id title { romaji english native } format status coverImage { medium large } } } }'
+  'query KomaMangaSearch($search: String!, $page: Int, $perPage: Int) { Page(page: $page, perPage: $perPage) { media(type: MANGA, search: $search) { id title { romaji english native } format status description(asHtml: false) startDate { year } chapters coverImage { medium large } } } }'
 
 const ANILIST_PROGRESS_QUERY: string =
-  'query KomaMangaProgress($mediaId: Int!) { MediaList(mediaId: $mediaId, type: MANGA) { mediaId progress status updatedAt } }'
+  'query KomaMangaProgress($mediaId: Int!) { Media(id: $mediaId, type: MANGA) { mediaListEntry { mediaId progress progressVolumes score(format: POINT_100) startedAt { year month day } completedAt { year month day } status updatedAt } } }'
 
 const ANILIST_SAVE_PROGRESS_MUTATION: string =
-  'mutation KomaSaveMangaProgress($mediaId: Int!, $progress: Int!, $status: MediaListStatus) { SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status) { mediaId progress status updatedAt } }'
+  'mutation KomaSaveMangaProgress($mediaId: Int!, $progress: Int, $status: MediaListStatus, $volumes: Int, $score: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) { SaveMediaListEntry(mediaId: $mediaId, progress: $progress, status: $status, progressVolumes: $volumes, scoreRaw: $score, startedAt: $startedAt, completedAt: $completedAt) { mediaId progress progressVolumes score(format: POINT_100) startedAt { year month day } completedAt { year month day } status updatedAt } }'
 
 export function redactAniListTrackerRequest(request: AniListTrackerHttpRequest): RedactedAniListTrackerHttpRequest {
   const headers: AniListTrackerHeaders = {
@@ -333,7 +353,7 @@ export class AniListTrackerClient {
     return this.sendAndParseProgress(request, mediaId)
   }
 
-  async pushProgress(accessToken: string, providerTitleId: string, progress: number, completed?: boolean): Promise<AniListTrackerResult<AniListTrackerProgress>> {
+  async pushProgress(accessToken: string, providerTitleId: string, progress: number | undefined, completed?: boolean | string, fields?: TrackerEntryFields): Promise<AniListTrackerResult<AniListTrackerProgress>> {
     const mediaId = normalizeAniListMediaId(providerTitleId)
     if (mediaId <= 0) {
       return {
@@ -343,11 +363,15 @@ export class AniListTrackerClient {
     }
     const variables: AniListGraphqlVariables = {
       mediaId,
-      progress: normalizeAniListTrackerProgress(progress),
+      progress: progress === undefined ? undefined : normalizeAniListTrackerProgress(progress),
     }
     if (completed !== undefined) {
-      variables.status = completed ? 'COMPLETED' : 'CURRENT'
+      variables.status = typeof completed === 'string' ? completed : completed ? 'COMPLETED' : 'CURRENT'
     }
+    variables.volumes = fields?.volumes
+    variables.score = fields?.score
+    if (fields?.startedAt !== undefined) variables.startedAt = aniListInputDate(fields.startedAt)
+    if (fields?.completedAt !== undefined) variables.completedAt = aniListInputDate(fields.completedAt)
     const request = this.buildGraphqlRequest(accessToken, ANILIST_SAVE_PROGRESS_MUTATION, variables)
     return this.sendAndParseSavedProgress(request, mediaId)
   }
@@ -451,8 +475,9 @@ export class AniListTrackerClient {
         errorCode: result.errorCode ?? 'provider_error',
       }
     }
-    const progress = result.value.data?.MediaList
-    if (progress === undefined) {
+    // Media.mediaListEntry is scoped to the authenticated viewer.
+    const progress = result.value.data?.Media?.mediaListEntry
+    if (progress === undefined || progress === null) {
       return {
         ok: true,
         value: undefined,
@@ -538,11 +563,25 @@ function normalizeAniListMedia(media: AniListMediaDto): AniListTrackerTitleSearc
   if (media.status !== undefined && media.status.trim().length > 0) {
     result.status = media.status.trim().slice(0, 40)
   }
-  const cover = media.coverImage?.large ?? media.coverImage?.medium
+  result.summary = media.description?.trim().slice(0, 1500)
+  result.startYear = media.startDate?.year ? String(media.startDate.year) : undefined
+  result.chapterCount = media.chapters ?? undefined
+  const cover = media.coverImage?.medium ?? media.coverImage?.large
   if (cover !== undefined && cover.startsWith('https://')) {
     result.coverImageUrl = cover.slice(0, 512)
   }
   return result
+}
+
+function aniListInputDate(value: string): AniListDateDto {
+  if (value.length === 0) return {}
+  const parts = value.split('-')
+  return { year: Number(parts[0]), month: Number(parts[1]), day: Number(parts[2]) }
+}
+
+function aniListEntryDate(value?: AniListDateDto): string | undefined {
+  if (!value?.year || !value.month || !value.day) return undefined
+  return `${value.year}-${String(value.month).padStart(2, '0')}-${String(value.day).padStart(2, '0')}`
 }
 
 function normalizeAniListProgress(progress: AniListMediaListDto, fallbackMediaId: number): AniListTrackerProgress {
@@ -552,6 +591,8 @@ function normalizeAniListProgress(progress: AniListMediaListDto, fallbackMediaId
     providerTitleId: `${mediaId}`,
     progress: normalizeAniListTrackerProgress(progress.progress ?? 0),
     completed: progress.status === 'COMPLETED',
+    volumes: progress.progressVolumes, score: progress.score,
+    startedAt: aniListEntryDate(progress.startedAt), completedAt: aniListEntryDate(progress.completedAt),
   }
   if (progress.status !== undefined && progress.status.trim().length > 0) {
     value.status = progress.status.trim().slice(0, 40)

@@ -10,9 +10,6 @@ export enum MangaDetailTitleAction {
   OPEN_WEBVIEW = 'open_webview',
   SHARE_LINK = 'share_link',
   OPEN_BROWSER = 'open_browser',
-  FIND_TRACKER_MAPPING = 'find_tracker_mapping',
-  SYNC_TRACKER = 'sync_tracker',
-  PULL_TRACKER = 'pull_tracker',
   CHECK_LOCAL_LIBRARY_REFRESH = 'check_local_library_refresh',
   EDIT_LOCAL_METADATA = 'edit_local_metadata',
   MIGRATE = 'migrate',
@@ -40,9 +37,7 @@ export class MangaDetailRouteChromeState {
   @Trace customCoverAvailable: boolean = false
   @Trace personalizationBusy: boolean = false
   @Trace localRefreshBusy: boolean = false
-  @Trace trackerMappingBusy: boolean = false
-  @Trace trackerSyncBusy: boolean = false
-  @Trace requestedAction: MangaDetailTitleAction = MangaDetailTitleAction.FIND_TRACKER_MAPPING
+  @Trace requestedAction: MangaDetailTitleAction = MangaDetailTitleAction.RELOAD_SOURCE
   @Trace actionRequestSeq: number = 0
 
   requestAction(action: MangaDetailTitleAction): void {

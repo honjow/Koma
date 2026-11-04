@@ -1,5 +1,5 @@
 import { komaModalContentBackground, komaSheetOptions } from '../theme/KomaPopupOptions'
-import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType } from '@kit.UIDesignKit'
+import { HdsNavigation, HdsNavigationTitleMode, HdsNavigationMenuItemOptions, hdsMaterial, ScrollEffectType, BlurStrategy, DividerShowType, BottomBuilderParams } from '@kit.UIDesignKit'
 import { deviceInfo } from '@kit.BasicServicesKit'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -25,6 +25,8 @@ export struct KomaModalScaffold {
   // not another horizontal wrapper. A full-bleed WebView explicitly opts out.
   @Param contentHorizontalPadding: number = ThemeConstants.SPACE_LG
   @Param contentOwnsScrolling: boolean = false
+  @Param contentScrollsUnderTitle: boolean = false
+  @Param titleBottom: BottomBuilderParams | undefined = undefined
   @Param confirmLabel: ResourceStr | undefined = undefined
   @Param confirmEnabled: boolean = true
   @Param additionalActions: HdsNavigationMenuItemOptions[] = []
@@ -135,10 +137,13 @@ export struct KomaModalScaffold {
                 right: this.contentHorizontalPadding,
               })
               .scrollBar(BarState.Off)
+              // Keep outgoing rows rendered while they pass beneath the HDS title bar.
+              .clip(!this.contentScrollsUnderTitle)
+              .cachedCount(3, this.contentScrollsUnderTitle)
               .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
               .nestedScroll({
-                scrollForward: NestedScrollMode.SELF_FIRST,
-                scrollBackward: NestedScrollMode.SELF_FIRST,
+                scrollForward: this.contentScrollsUnderTitle ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
+                scrollBackward: this.contentScrollsUnderTitle ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
               })
             }
           }.width('100%').height('100%')
@@ -159,6 +164,7 @@ export struct KomaModalScaffold {
             blurStrategy: BlurStrategy.ENABLE,
           },
           content: {
+            bottomBuilder: this.titleBottom,
             title: {
               mainTitle: this.title,
               subTitle: this.subtitle,

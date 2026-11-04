@@ -71,16 +71,6 @@ assert.match(
 )
 assert.match(
   trackerModelsSource,
-  /export class AssetStoreTrackerCredentialSecretStore implements TrackerCredentialSecretStore[\s\S]*asset\.add\(attributes\)[\s\S]*asset\.query\(query\)[\s\S]*asset\.remove\(trackerAssetQuery\(ref\)\)[\s\S]*asset\.remove\(trackerAssetAccountQuery\(ref\)\)/,
-  'asset-backed tracker credential store must implement write/read/delete/logout cleanup through AssetStoreKit',
-)
-assert.match(
-  trackerModelsSource,
-  /asset\.Tag\.ALIAS[\s\S]*asset\.Tag\.DATA_LABEL_CRITICAL_1[\s\S]*asset\.Tag\.DATA_LABEL_CRITICAL_2[\s\S]*asset\.Tag\.DATA_LABEL_CRITICAL_3[\s\S]*asset\.Tag\.GROUP_ID[\s\S]*attributes\.set\(asset\.Tag\.SECRET, request\.secretBytes\)/,
-  'tracker tokens must be stored as AssetStore secrets indexed only by alias and opaque labels',
-)
-assert.match(
-  trackerModelsSource,
   /asset\.Tag\.RETURN_TYPE, asset\.ReturnType\.ALL[\s\S]*asset\.Tag\.RETURN_LIMIT, 1/,
   'tracker token reads must request only one plaintext asset from AssetStore',
 )

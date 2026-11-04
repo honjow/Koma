@@ -26,7 +26,7 @@ export type TrackerAuthPrepareStatus =
   'provider_unsupported' |
   'pkce_unavailable'
 
-export type TrackerCredentialSecretKind = 'access_token' | 'refresh_token' | 'oauth_code_verifier'
+export type TrackerCredentialSecretKind = 'access_token' | 'refresh_token' | 'oauth_code_verifier' | 'bangumi_oauth'
 export type TrackerCredentialErrorCode =
   'not_found' |
   'locked' |
@@ -46,6 +46,7 @@ export interface TrackerProviderConfig {
   authentication?: 'oauth' | 'token' | 'password'
   authorizationEndpoint?: string
   clientId?: string
+  clientSecret?: string
   redirectUri?: string
   scopes: string[]
   supportsPkce: boolean
@@ -55,6 +56,13 @@ export interface TrackerProviderOAuthConfig {
   providerId: TrackerProviderId
   clientId?: string
   redirectUri?: string
+}
+
+export interface TrackerEntryFields {
+  volumes?: number
+  score?: number
+  startedAt?: string
+  completedAt?: string
 }
 
 export interface TrackerPublicProfile {
@@ -166,6 +174,7 @@ export interface TrackerPreferences {
 
 export const TRACKER_PREFERENCES_STORE_NAME: string = 'koma_tracker_preferences_v1'
 export const TRACKER_ACCOUNTS_KEY: string = 'tracker.accounts'
+const TRACKER_RETIRED_CREDENTIALS_KEY: string = 'tracker.retiredCredentials'
 export const TRACKER_COMIC_MAPPINGS_KEY: string = 'tracker.comicMappings'
 export const TRACKER_PROVIDER_OAUTH_CONFIGS_KEY: string = 'tracker.providerOAuthConfigs'
 export const TRACKER_AUTO_SYNC_ENABLED_KEY: string = 'tracker.autoSyncEnabled'
@@ -175,12 +184,17 @@ export const TRACKER_ASSET_GROUP_ID: string = 'koma_tracker_credentials'
 export const TRACKER_OAUTH_STATE_BYTES: number = 32
 export const TRACKER_PKCE_VERIFIER_BYTES: number = 32
 
+// This URI is also registered on EntryAbility for browser callbacks.
+export const TRACKER_APP_CALLBACK_URI: string = 'koma://tracker/callback'
+
 export const TRACKER_PROVIDER_CONFIGS: TrackerProviderConfig[] = [
   {
     providerId: 'anilist',
     displayName: 'AniList',
     supportStatus: 'available',
     authorizationEndpoint: 'https://anilist.co/api/v2/oauth/authorize',
+    clientId: '55881',
+    redirectUri: TRACKER_APP_CALLBACK_URI,
     scopes: [],
     supportsPkce: false,
   },
@@ -189,6 +203,8 @@ export const TRACKER_PROVIDER_CONFIGS: TrackerProviderConfig[] = [
     displayName: 'MyAnimeList',
     supportStatus: 'available',
     authorizationEndpoint: 'https://myanimelist.net/v1/oauth2/authorize',
+    clientId: 'c5738b8faba18459c20216543af2cb35',
+    redirectUri: TRACKER_APP_CALLBACK_URI,
     scopes: ['list_write'],
     supportsPkce: true,
   },
@@ -212,7 +228,11 @@ export const TRACKER_PROVIDER_CONFIGS: TrackerProviderConfig[] = [
     providerId: 'bangumi',
     displayName: 'Bangumi',
     supportStatus: 'available',
-    authentication: 'token',
+    authentication: 'oauth',
+    authorizationEndpoint: 'https://bgm.tv/oauth/authorize',
+    clientId: 'bgm74706aea0ee19a0c6',
+    clientSecret: '18d9a96ad7c40770ea90f1eec4d50eab',
+    redirectUri: TRACKER_APP_CALLBACK_URI,
     scopes: [],
     supportsPkce: false,
   },
@@ -340,6 +360,7 @@ export function mergeTrackerProviderOAuthConfig(
     authentication: provider.authentication,
     authorizationEndpoint: provider.authorizationEndpoint,
     clientId: override.clientId ?? provider.clientId,
+    clientSecret: provider.clientSecret,
     redirectUri: override.redirectUri ?? provider.redirectUri,
     scopes: provider.scopes,
     supportsPkce: provider.supportsPkce,
@@ -356,9 +377,6 @@ export function getConfiguredTrackerProviderConfig(
 }
 
 export function getTrackerAccountStatusLabel(status: TrackerAccountStatus): string {
-  if (status === 'auth_pending') {
-    return s('tracker_status_auth_pending')
-  }
   if (status === 'connected') {
     return s('tracker_status_connected')
   }
@@ -395,9 +413,6 @@ export function getTrackerAccountDetail(account: TrackerAccount, secureStorageAv
   if (!secureStorageAvailable) {
     return s('tracker_detail_secure_storage_unavailable')
   }
-  if (account.status === 'auth_pending') {
-    return s('tracker_detail_waiting_callback')
-  }
   if (account.status === 'expired') {
     return s('tracker_detail_reauth_required')
   }
@@ -431,6 +446,13 @@ export function normalizeTrackerAccount(value: TrackerAccount, secureStorageAvai
   }
   const status = normalizeTrackerAccountStatus(value.status)
   const credentialAccountKey = sanitizeOpaqueId(value.credentialAccountKey)
+  // Older disconnects discarded the credential reference before a cleanup error.
+  // That record represents a signed-out account, not a failed sign-in.
+  if (status === 'error' && credentialAccountKey === undefined && value.connectedAt === undefined &&
+    ['access_denied', 'invalid_request', 'locked', 'quota_exceeded', 'corrupted', 'unsupported',
+      'storage_unavailable', 'unknown'].includes(value.statusReason ?? '')) {
+    return { providerId: provider.providerId, status: 'disconnected' }
+  }
   const next: TrackerAccount = {
     providerId: provider.providerId,
     status,
@@ -576,14 +598,15 @@ export function prepareTrackerOAuthStart(
       message: 'secure_storage_unavailable',
     }
   }
-  if (provider.providerId !== 'anilist' && (!provider.supportsPkce || request.codeChallenge.trim().length === 0)) {
+  if (provider.providerId === 'myanimelist' && (!provider.supportsPkce || request.codeChallenge.trim().length === 0)) {
     return {
       status: 'pkce_unavailable',
       providerId: request.providerId,
       message: 'pkce_unavailable',
     }
   }
-  if (provider.authorizationEndpoint === undefined || provider.clientId === undefined || provider.redirectUri === undefined) {
+  if (provider.authorizationEndpoint === undefined || provider.clientId === undefined || provider.redirectUri === undefined ||
+    (provider.providerId === 'bangumi' && provider.clientSecret === undefined)) {
     return {
       status: 'provider_config_missing',
       providerId: request.providerId,
@@ -600,19 +623,30 @@ export function prepareTrackerOAuthStart(
   }
 }
 
+// Bangumi's login redirect rebuilds the query, dropping redirect_uri and copying state verbatim.
+// Carry the fixed app callback through that redirect. The random state itself remains unchanged.
+export function bangumiAuthorizationState(state: string): string {
+  return state + '&redirect_uri=' + TRACKER_APP_CALLBACK_URI
+}
+
 export function buildTrackerAuthorizationUrl(
   provider: TrackerProviderConfig,
   state: string,
   codeChallenge: string,
 ): string {
   const implicitGrant = provider.providerId === 'anilist'
+  const authorizationState = provider.providerId === 'bangumi' && provider.redirectUri === TRACKER_APP_CALLBACK_URI
+    ? bangumiAuthorizationState(state) : state
   const params: string[] = [
     'response_type=' + (implicitGrant ? 'token' : 'code'),
     'client_id=' + encodeURIComponent(provider.clientId ?? ''),
-    'redirect_uri=' + encodeURIComponent(provider.redirectUri ?? ''),
-    'state=' + encodeURIComponent(state),
+    'state=' + encodeURIComponent(authorizationState),
   ]
+  // AniList implicit authorization uses the redirect registered for this client.
   if (!implicitGrant) {
+    params.push('redirect_uri=' + encodeURIComponent(provider.redirectUri ?? ''))
+  }
+  if (provider.supportsPkce) {
     params.push('code_challenge=' + encodeURIComponent(codeChallenge))
     params.push('code_challenge_method=' + (provider.providerId === 'myanimelist' ? 'plain' : 'S256'))
   }
@@ -622,7 +656,8 @@ export function buildTrackerAuthorizationUrl(
   return `${provider.authorizationEndpoint}?${params.join('&')}`
 }
 
-export function parseTrackerOAuthCallback(callbackUri: string, expectedState: string, implicitGrant: boolean = false): TrackerOAuthCallbackResult {
+export function parseTrackerOAuthCallback(callbackUri: string, expectedState: string, implicitGrant: boolean = false,
+  alternateState?: string): TrackerOAuthCallbackResult {
   let query: Record<string, string>
   try {
     query = parseQuery(callbackUri, implicitGrant)
@@ -633,7 +668,9 @@ export function parseTrackerOAuthCallback(callbackUri: string, expectedState: st
       reason: 'invalid_callback',
     }
   }
-  const state = query['state']
+  // Compare the full wire value, never a prefix of the random state.
+  const receivedState = query['state']
+  const state = receivedState !== undefined && receivedState === alternateState ? expectedState : receivedState
   const code = query['code']
   const providerError = query['error']
   if (state === undefined || state !== expectedState) {
@@ -754,9 +791,9 @@ function trackerCredentialAlias(ref: TrackerCredentialSecretRef): string {
   return `${TRACKER_ASSET_ALIAS_PREFIX}.${ref.providerId}.${ref.accountKey}.${ref.secretKind}`
 }
 
-function trackerAssetQuery(ref: TrackerCredentialSecretRef): asset.AssetMap {
+function trackerAssetQuery(ref: TrackerCredentialSecretRef, suffix: string = ''): asset.AssetMap {
   const query: asset.AssetMap = new Map<asset.Tag, asset.Value>()
-  query.set(asset.Tag.ALIAS, trackerUtf8Encode(trackerCredentialAlias(ref)))
+  query.set(asset.Tag.ALIAS, trackerUtf8Encode(trackerCredentialAlias(ref) + suffix))
   query.set(asset.Tag.DATA_LABEL_CRITICAL_1, trackerUtf8Encode(ref.providerId))
   query.set(asset.Tag.DATA_LABEL_CRITICAL_2, trackerUtf8Encode(ref.accountKey))
   query.set(asset.Tag.DATA_LABEL_CRITICAL_3, trackerUtf8Encode(ref.secretKind))
@@ -832,6 +869,8 @@ function trackerCredentialFailureResult(
   }
 }
 
+const TRACKER_ASSET_SECRET_LIMIT: number = 1024
+
 export class AssetStoreTrackerCredentialSecretStore implements TrackerCredentialSecretStore {
   isAvailable(): boolean {
     return true
@@ -841,36 +880,82 @@ export class AssetStoreTrackerCredentialSecretStore implements TrackerCredential
     if (request.secretBytes.byteLength === 0 || request.accountKey.trim().length === 0) {
       return trackerCredentialFailureResult('invalid_request', 'write', request.providerId)
     }
-    const attributes = trackerAssetQuery(request)
-    attributes.set(asset.Tag.SECRET, request.secretBytes)
-    attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED)
-    attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE)
+    const partCount = Math.ceil(request.secretBytes.byteLength / TRACKER_ASSET_SECRET_LIMIT)
+    if (partCount > 64) return trackerCredentialFailureResult('invalid_request', 'write', request.providerId)
+    const generation = partCount > 1 ? util.generateRandomUUID() : ''
+    let written = 0
     try {
-      await asset.add(attributes)
+      // Publish the root last so readers never see a partially written long secret.
+      for (let part = 1; part < partCount; part++) {
+        const offset = part * TRACKER_ASSET_SECRET_LIMIT
+        const attributes = trackerAssetQuery(request, `.${generation}.${part}`)
+        await this.writeAsset(attributes, request.secretBytes.slice(offset, offset + TRACKER_ASSET_SECRET_LIMIT))
+        written++
+      }
+      const root = trackerAssetQuery(request)
+      if (partCount > 1) {
+        root.set(asset.Tag.DATA_LABEL_CRITICAL_4, trackerUtf8Encode(`${generation}:${partCount}`))
+      }
+      await this.writeAsset(root, request.secretBytes.slice(0, TRACKER_ASSET_SECRET_LIMIT))
       return trackerCredentialResult(true, 'write', request.providerId)
     } catch (error) {
+      for (let part = 1; part <= written; part++) {
+        try {
+          await asset.remove(trackerAssetQuery(request, `.${generation}.${part}`))
+        } catch (_) {}
+      }
       return trackerCredentialResult(false, 'write', request.providerId, error as BusinessError)
     }
   }
 
+  private async writeAsset(attributes: asset.AssetMap, secret: Uint8Array): Promise<void> {
+    attributes.set(asset.Tag.SECRET, secret)
+    attributes.set(asset.Tag.ACCESSIBILITY, asset.Accessibility.DEVICE_FIRST_UNLOCKED)
+    attributes.set(asset.Tag.CONFLICT_RESOLUTION, asset.ConflictResolution.OVERWRITE)
+    await asset.add(attributes)
+  }
+
   async readToken(ref: TrackerCredentialSecretRef): Promise<Uint8Array | undefined> {
-    const query = trackerAssetQuery(ref)
-    query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL)
-    query.set(asset.Tag.RETURN_LIMIT, 1)
     try {
-      const rows = await asset.query(query)
-      if (rows.length === 0) {
-        return undefined
+      const root = await this.readAsset(trackerAssetQuery(ref))
+      const first = root?.get(asset.Tag.SECRET) as Uint8Array | undefined
+      const metadata = root?.get(asset.Tag.DATA_LABEL_CRITICAL_4) as Uint8Array | undefined
+      if (first === undefined || metadata === undefined) return first
+
+      const fields = decodeTrackerSecretBytes(metadata).split(':')
+      const partCount = Number(fields[1])
+      if (first.length !== TRACKER_ASSET_SECRET_LIMIT || !Number.isInteger(partCount) || partCount < 2 ||
+        partCount > 64 || !/^[0-9a-f-]{36}$/i.test(fields[0])) return undefined
+      const result = new Uint8Array(partCount * TRACKER_ASSET_SECRET_LIMIT)
+      result.set(first)
+      let offset = first.length
+      for (let part = 1; part < partCount; part++) {
+        const row = await this.readAsset(trackerAssetQuery(ref, `.${fields[0]}.${part}`))
+        const bytes = row?.get(asset.Tag.SECRET) as Uint8Array | undefined
+        if (bytes === undefined || (part < partCount - 1 && bytes.length !== TRACKER_ASSET_SECRET_LIMIT)) {
+          return undefined
+        }
+        result.set(bytes, offset)
+        offset += bytes.length
       }
-      return rows[0].get(asset.Tag.SECRET) as Uint8Array | undefined
-    } catch (_error) {
+      return result.slice(0, offset)
+    } catch (_) {
       return undefined
     }
   }
 
+  private async readAsset(query: asset.AssetMap): Promise<asset.AssetMap | undefined> {
+    query.set(asset.Tag.RETURN_TYPE, asset.ReturnType.ALL)
+    query.set(asset.Tag.RETURN_LIMIT, 1)
+    const rows = await asset.query(query)
+    return rows[0]
+  }
+
   async deleteToken(ref: TrackerCredentialSecretRef): Promise<TrackerCredentialStoreResult> {
+    const query = trackerAssetQuery(ref)
+    query.delete(asset.Tag.ALIAS)
     try {
-      await asset.remove(trackerAssetQuery(ref))
+      await asset.remove(query)
       return trackerCredentialResult(true, 'delete', ref.providerId)
     } catch (error) {
       const code = trackerCredentialErrorCode(error as BusinessError)
@@ -1021,22 +1106,46 @@ export class TrackerPreferencesStore {
     })
   }
 
+  async replaceLinkedCredential(providerId: TrackerProviderId, accountKey: string,
+    replace: () => Promise<void>): Promise<boolean> {
+    return this.write(async (): Promise<boolean> => {
+      const current = await this.loadCurrent()
+      const account = current.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+      // Refresh may race a profile or progress update. Only unlinking or changing the credential invalidates it.
+      if (account?.credentialAccountKey !== accountKey || account.connectedAt === undefined) return false
+      await replace()
+      return true
+    })
+  }
+
   async disconnectAccount(providerId: TrackerProviderId): Promise<TrackerPreferences> {
     return this.write(async (): Promise<TrackerPreferences> => {
       const current = await this.loadCurrent()
       const account = current.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
-      if (account === undefined || account.status === 'disconnected') return current
-      let saved = await this.saveAccountsCurrent(current.accounts.map((item: TrackerAccount): TrackerAccount =>
-        item.providerId === providerId ? { providerId, status: 'disconnected' } : item))
-      if (account.credentialAccountKey !== undefined) {
-        const deleted = await this.secretStore.deleteAccount({ providerId, accountKey: account.credentialAccountKey })
-        if (!deleted.ok) {
-          saved = await this.saveAccountsCurrent(saved.accounts.map((item: TrackerAccount): TrackerAccount =>
-            item.providerId === providerId ? { providerId, status: 'error', statusReason: deleted.error?.code ?? 'storage_unavailable' } : item))
-        }
-      }
-      return saved
+      if (account === undefined) return current
+      const disconnected: TrackerAccount = { providerId, status: 'disconnected',
+        credentialAccountKey: account.credentialAccountKey }
+      const saved = account.status === 'disconnected' ? current :
+        await this.saveAccountsCurrent(current.accounts.map((item: TrackerAccount): TrackerAccount =>
+          item.providerId === providerId ? disconnected : item))
+      return this.finishDisconnectCleanup(saved, disconnected)
     })
+  }
+
+  private async finishDisconnectCleanup(preferences: TrackerPreferences, account: TrackerAccount): Promise<TrackerPreferences> {
+    if (account.credentialAccountKey === undefined) return preferences
+    try {
+      const deleted = await this.secretStore.deleteAccount({ providerId: account.providerId, accountKey: account.credentialAccountKey })
+      if (!deleted.ok) {
+        console.warn('[Tracker] disconnect_cleanup_failed provider=' + account.providerId + ' code=' + (deleted.error?.code ?? 'unknown'))
+        return preferences
+      }
+    } catch (_) {
+      console.warn('[Tracker] disconnect_cleanup_failed provider=' + account.providerId)
+      return preferences
+    }
+    return this.saveAccountsCurrent(preferences.accounts.map((item: TrackerAccount): TrackerAccount =>
+      item.providerId === account.providerId ? { providerId: account.providerId, status: 'disconnected' } : item))
   }
 
   async saveComicMappings(mappings: ComicTrackerMapping[]): Promise<TrackerPreferences> {
@@ -1189,16 +1298,56 @@ export class TrackerPreferencesStore {
     return this.saveComicMappingsCurrent(nextMappings)
   }
 
+  async prepareReconnect(providerId: TrackerProviderId): Promise<TrackerPreferences> {
+    return this.write(() => this.prepareReconnectCurrent(providerId))
+  }
+
+  private async prepareReconnectCurrent(providerId: TrackerProviderId): Promise<TrackerPreferences> {
+    const current = await this.loadCurrent()
+    const store = await this.preferences()
+    const retired = JSON.parse(await store.get(TRACKER_RETIRED_CREDENTIALS_KEY, '[]') as string) as TrackerCredentialAccountRef[]
+    const pending = retired.filter((ref: TrackerCredentialAccountRef): boolean => ref.providerId !== providerId)
+    const account = current.accounts.find((item: TrackerAccount): boolean => item.providerId === providerId)
+    const candidates = retired.filter((ref: TrackerCredentialAccountRef): boolean =>
+      ref.providerId === providerId && ref.accountKey !== account?.credentialAccountKey)
+    const disconnectedKey = account?.status === 'disconnected' ? account.credentialAccountKey : undefined
+    if (disconnectedKey !== undefined) candidates.push({ providerId, accountKey: disconnectedKey })
+    if (candidates.length === 0) return current
+
+    // New sessions use new keys. Keep failed deletions in the local journal
+    // before forgetting the disconnected key, so a later retry can remove them.
+    for (const ref of candidates) {
+      try {
+        const deleted = await this.secretStore.deleteAccount(ref)
+        if (deleted.ok) continue
+        console.warn('[Tracker] reconnect_cleanup_deferred provider=' + providerId + ' code=' + (deleted.error?.code ?? 'unknown'))
+      } catch (_) {
+        console.warn('[Tracker] reconnect_cleanup_deferred provider=' + providerId)
+      }
+      pending.push(ref)
+    }
+    const accounts = disconnectedKey === undefined ? current.accounts :
+      current.accounts.map((item: TrackerAccount): TrackerAccount =>
+        item.providerId === providerId ? { providerId, status: 'disconnected' } : item)
+    await this.commit(new Map<string, preferences.ValueType>([
+      [TRACKER_ACCOUNTS_KEY, JSON.stringify(accounts)],
+      [TRACKER_RETIRED_CREDENTIALS_KEY, JSON.stringify(pending)],
+    ]))
+    return { accounts, comicMappings: current.comicMappings, providerOAuthConfigs: current.providerOAuthConfigs,
+      autoSyncEnabled: current.autoSyncEnabled, updateStrategy: current.updateStrategy }
+  }
+
   async prepareConnect(providerId: TrackerProviderId): Promise<TrackerOAuthStartPreparation> {
     return this.write(async (): Promise<TrackerOAuthStartPreparation> => {
-      const current = await this.loadCurrent()
+      const current = await this.prepareReconnectCurrent(providerId)
       const state = createTrackerOAuthState()
-      const pkce = providerId === 'anilist' ? undefined : createTrackerPkcePair(providerId)
+      const provider = getConfiguredTrackerProviderConfig(providerId, current.providerOAuthConfigs)
+      const pkce = provider?.supportsPkce ? createTrackerPkcePair(providerId) : undefined
       const preparation = prepareTrackerOAuthStart({
         providerId,
         state,
         codeChallenge: pkce?.codeChallenge ?? '',
-        providerConfig: getConfiguredTrackerProviderConfig(providerId, current.providerOAuthConfigs),
+        providerConfig: provider,
       }, this.secretStore.isAvailable())
       if (preparation.status !== 'ready') {
         return preparation

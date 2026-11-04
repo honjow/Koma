@@ -1,0 +1,6 @@
+<!-- Adapted from Mihon c3bf7a78c074079a605ed7de86d8b7f58bea183b, app/src/main/res/drawable/brand_anilist.xml. Android vectors converted to SVG. Apache-2.0. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <path fill-rule="evenodd" d="M0,0h192v192H0z" fill="#1f2631" />
+  <path fill-rule="evenodd" d="m63.6,43.6 l-36.8,105h28.6l6.2,-18.2h31.2l6.1,18.1h28.5L90.7,43.6zM68.2,107.1 L77.1,78.1 86.9,107.1z" fill="#fefefe" />
+  <path fill-rule="evenodd" d="M127,148.5h32.5q6.3,0 6.4,-6.3v-14q-0.1,-6.4 -6.4,-6.5h-37.6V50q-0.1,-6.3 -6.4,-6.4h-14q-6.3,0.1 -6.4,6.4v7.8c-3.2,-9.8 31.8,90.7 32,90.7" fill="#02a9ff" />
+</svg>

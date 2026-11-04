@@ -27,22 +27,30 @@ export enum ChapterBatchScope {
   SELECTED = 'selected',
 }
 
+// One presentation state per detail route, shared by both width layouts.
+@ObservedV2
+export class ChapterListPresentation {
+  comicId: string | undefined = undefined
+  @Trace sortBasis: ChapterSortBasis = ChapterSortBasis.SOURCE_ORDER
+  @Trace sortDirection: ChapterSortDirection = ChapterSortDirection.FORWARD
+  @Trace readFilter: ChapterReadFilter = ChapterReadFilter.ALL
+  @Trace languageFilter: string = ''
+  @Trace groupFilter: string = ''
+  @Trace bookmarkFilter: 'all' | 'bookmarked' | 'unbookmarked' = 'all'
+  @Trace selectionMode: boolean = false
+  @Trace selectedChapterIds: Set<string> = new Set<string>()
+}
+
 @ComponentV2
 export struct ChapterListSection {
   @Param comicId: string = ''
   @Param archiveBusy: boolean = false
   @Param chapters: MangaChapterItem[] = []
   @Local private languageState: LanguageState = connectLanguageState()
-  @Local private sortBasis: ChapterSortBasis = ChapterSortBasis.SOURCE_ORDER
-  @Local private sortDirection: ChapterSortDirection = ChapterSortDirection.FORWARD
-  @Local private readFilter: ChapterReadFilter = ChapterReadFilter.ALL
-  @Local private languageFilter: string = ''
-  @Local private groupFilter: string = ''
-  @Local private bookmarkFilter: 'all' | 'bookmarked' | 'unbookmarked' = 'all'
+  @Param presentation: ChapterListPresentation = new ChapterListPresentation()
   @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
-  @Local private selectionMode: boolean = false
-  @Local private selectedChapterIds: Set<string> = new Set<string>()
+  @Event onDisplayOrderChange: (chapters: MangaChapterItem[]) => void = (_chapters: MangaChapterItem[]) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onExportChapter: (chapterId: string, share: boolean) => void = (_chapterId: string, _share: boolean) => {}
@@ -59,58 +67,63 @@ export struct ChapterListSection {
     return this.sortedChapterList()
   }
 
+  @Monitor('sortedChapters')
+  private reportDisplayOrder(): void {
+    this.onDisplayOrderChange(this.sortedChapters)
+  }
+
   @Monitor('chapters')
   private rebuildDataSource(): void {
     this.ensureMetadataFiltersAvailable()
-    this.selectedChapterIds = new Set<string>(this.selectedIdsInFilter())
+    this.presentation.selectedChapterIds = new Set<string>(this.selectedIdsInFilter())
   }
 
   private selectedIdsInFilter(): string[] {
     return Array.from(new Set<string>(this.filteredChapterIds().filter((id: string): boolean =>
-      this.selectedChapterIds.has(id))))
+      this.presentation.selectedChapterIds.has(id))))
   }
 
   private setChapterSelected(chapterId: string, selected: boolean): void {
-    if (!this.selectionMode || !this.filteredChapterIds().includes(chapterId)) {
+    if (!this.presentation.selectionMode || !this.filteredChapterIds().includes(chapterId)) {
       return
     }
-    const next = new Set<string>(this.selectedChapterIds)
+    const next = new Set<string>(this.presentation.selectedChapterIds)
     if (selected) {
       next.add(chapterId)
     } else {
       next.delete(chapterId)
     }
-    this.selectedChapterIds = next
+    this.presentation.selectedChapterIds = next
   }
 
   private setSelectionMode(enabled: boolean): void {
-    this.selectionMode = enabled
-    this.selectedChapterIds = new Set<string>()
+    this.presentation.selectionMode = enabled
+    this.presentation.selectedChapterIds = new Set<string>()
   }
 
   private selectAllFilteredChapters(): void {
-    if (this.selectionMode) {
-      this.selectedChapterIds = new Set<string>(this.filteredChapterIds())
+    if (this.presentation.selectionMode) {
+      this.presentation.selectedChapterIds = new Set<string>(this.filteredChapterIds())
     }
   }
 
   private downloadSelectedChapters(): void {
     const ids = this.selectedIdsInFilter()
-    if (this.selectionMode && ids.length > 0) {
+    if (this.presentation.selectionMode && ids.length > 0) {
       this.onDownloadFilteredChapters(ids, ChapterBatchDownloadMode.NOT_DOWNLOADED, ChapterBatchScope.SELECTED)
     }
   }
 
   private markSelectedChaptersReadState(isRead: boolean): void {
     const ids = this.selectedIdsInFilter()
-    if (this.selectionMode && ids.length > 0) {
+    if (this.presentation.selectionMode && ids.length > 0) {
       this.onMarkFilteredChaptersReadState(ids, isRead, ChapterBatchScope.SELECTED)
     }
   }
 
   private sortedChapterList(): MangaChapterItem[] {
     const sorted = this.filteredChapterList()
-    if (this.sortBasis === ChapterSortBasis.CHAPTER_NUMBER) {
+    if (this.presentation.sortBasis === ChapterSortBasis.CHAPTER_NUMBER) {
       // Source position and optional chapter numbers are distinct inputs.
       // Equal/missing numbers retain source order in this fixed baseline.
       sorted.sort((left: MangaChapterItem, right: MangaChapterItem): number =>
@@ -118,32 +131,32 @@ export struct ChapterListSection {
     }
     // Direction reverses the entire result, including all equal/missing values.
     // Neither the source catalog nor chapter IDs/reading state are mutated.
-    return this.sortDirection === ChapterSortDirection.REVERSE ? sorted.reverse() : sorted
+    return this.presentation.sortDirection === ChapterSortDirection.REVERSE ? sorted.reverse() : sorted
   }
 
   private filteredChapterList(): MangaChapterItem[] {
     let filtered = this.chapters.slice()
-    if (this.bookmarkFilter !== 'all') {
+    if (this.presentation.bookmarkFilter !== 'all') {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean =>
-        (chapter.isBookmarked === true) === (this.bookmarkFilter === 'bookmarked'))
+        (chapter.isBookmarked === true) === (this.presentation.bookmarkFilter === 'bookmarked'))
     }
-    if (this.readFilter === ChapterReadFilter.UNREAD) {
+    if (this.presentation.readFilter === ChapterReadFilter.UNREAD) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => !chapter.isRead)
     }
-    if (this.readFilter === ChapterReadFilter.READ) {
+    if (this.presentation.readFilter === ChapterReadFilter.READ) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => chapter.isRead)
     }
-    if (this.readFilter === ChapterReadFilter.DOWNLOADED) {
+    if (this.presentation.readFilter === ChapterReadFilter.DOWNLOADED) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => chapter.isDownloaded)
     }
-    if (this.languageFilter.length > 0) {
+    if (this.presentation.languageFilter.length > 0) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => {
-        return this.normalizeMetadataValue(chapter.language) === this.languageFilter
+        return this.normalizeMetadataValue(chapter.language) === this.presentation.languageFilter
       })
     }
-    if (this.groupFilter.length > 0) {
+    if (this.presentation.groupFilter.length > 0) {
       filtered = filtered.filter((chapter: MangaChapterItem): boolean => {
-        return this.normalizeMetadataValue(chapter.scanlator) === this.groupFilter
+        return this.normalizeMetadataValue(chapter.scanlator) === this.presentation.groupFilter
       })
     }
     return filtered
@@ -155,106 +168,106 @@ export struct ChapterListSection {
   }
 
   private sortLabel(): string {
-    const basis = s(this.sortBasis === ChapterSortBasis.SOURCE_ORDER
+    const basis = s(this.presentation.sortBasis === ChapterSortBasis.SOURCE_ORDER
       ? 'chapter_list_sort_source_order' : 'chapter_list_sort_number')
-    const direction = s(this.sortDirection === ChapterSortDirection.FORWARD
+    const direction = s(this.presentation.sortDirection === ChapterSortDirection.FORWARD
       ? 'chapter_list_sort_forward' : 'chapter_list_sort_reverse')
     return basis + ' · ' + direction
   }
 
   private filterLabel(): string {
-    if (this.readFilter === ChapterReadFilter.UNREAD) {
+    if (this.presentation.readFilter === ChapterReadFilter.UNREAD) {
       return s('chapter_list_filter_unread')
     }
-    if (this.readFilter === ChapterReadFilter.READ) {
+    if (this.presentation.readFilter === ChapterReadFilter.READ) {
       return s('chapter_list_filter_read')
     }
-    if (this.readFilter === ChapterReadFilter.DOWNLOADED) {
+    if (this.presentation.readFilter === ChapterReadFilter.DOWNLOADED) {
       return s('chapter_list_filter_downloaded')
     }
     return s('chapter_list_filter_all')
   }
 
   private languageFilterLabel(): string {
-    if (this.languageFilter.length === 0) {
+    if (this.presentation.languageFilter.length === 0) {
       return s('chapter_list_filter_language')
     }
-    return `${s('chapter_list_filter_language')}: ${this.formatLanguage(this.languageFilter)}`
+    return `${s('chapter_list_filter_language')}: ${this.formatLanguage(this.presentation.languageFilter)}`
   }
 
   private groupFilterLabel(): string {
-    if (this.groupFilter.length === 0) {
+    if (this.presentation.groupFilter.length === 0) {
       return s('chapter_list_filter_group')
     }
-    return `${s('chapter_list_filter_group')}: ${this.groupFilter}`
+    return `${s('chapter_list_filter_group')}: ${this.presentation.groupFilter}`
   }
 
   private setSortBasis(basis: ChapterSortBasis): void {
-    if (this.sortBasis === basis) return
-    this.sortBasis = basis
+    if (this.presentation.sortBasis === basis) return
+    this.presentation.sortBasis = basis
     this.savePreferences()
   }
 
   private setSortDirection(direction: ChapterSortDirection): void {
-    if (this.sortDirection === direction) return
-    this.sortDirection = direction
+    if (this.presentation.sortDirection === direction) return
+    this.presentation.sortDirection = direction
     this.savePreferences()
   }
 
   private setReadFilter(readFilter: ChapterReadFilter): void {
-    this.readFilter = readFilter
+    this.presentation.readFilter = readFilter
     this.rebuildDataSource()
     this.savePreferences()
   }
 
   private setLanguageFilter(language: string): void {
-    this.languageFilter = language
+    this.presentation.languageFilter = language
     this.rebuildDataSource()
     this.savePreferences()
   }
 
   private setGroupFilter(group: string): void {
-    this.groupFilter = group
+    this.presentation.groupFilter = group
     this.rebuildDataSource()
     this.savePreferences()
   }
 
   private hasActiveFilters(): boolean {
-    return this.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
-      this.sortDirection !== ChapterSortDirection.FORWARD ||
-      this.readFilter !== ChapterReadFilter.ALL ||
-      this.languageFilter.length > 0 ||
-      this.groupFilter.length > 0 || this.bookmarkFilter !== 'all'
+    return this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
+      this.presentation.sortDirection !== ChapterSortDirection.FORWARD ||
+      this.presentation.readFilter !== ChapterReadFilter.ALL ||
+      this.presentation.languageFilter.length > 0 ||
+      this.presentation.groupFilter.length > 0 || this.presentation.bookmarkFilter !== 'all'
   }
 
   private shouldShowLanguageFilter(): boolean {
-    return this.languageFilter.length > 0 || this.languageOptions().length > 1
+    return this.presentation.languageFilter.length > 0 || this.languageOptions().length > 1
   }
 
   private shouldShowGroupFilter(): boolean {
-    return this.groupFilter.length > 0 || this.groupOptions().length > 1
+    return this.presentation.groupFilter.length > 0 || this.groupOptions().length > 1
   }
 
   private resetFilters(): void {
     if (!this.hasActiveFilters()) {
       return
     }
-    this.sortBasis = ChapterSortBasis.SOURCE_ORDER
-    this.sortDirection = ChapterSortDirection.FORWARD
-    this.readFilter = ChapterReadFilter.ALL
-    this.languageFilter = ''
-    this.groupFilter = ''
-    this.bookmarkFilter = 'all'
+    this.presentation.sortBasis = ChapterSortBasis.SOURCE_ORDER
+    this.presentation.sortDirection = ChapterSortDirection.FORWARD
+    this.presentation.readFilter = ChapterReadFilter.ALL
+    this.presentation.languageFilter = ''
+    this.presentation.groupFilter = ''
+    this.presentation.bookmarkFilter = 'all'
     this.rebuildDataSource()
     this.savePreferences()
   }
 
   private ensureMetadataFiltersAvailable(): void {
-    if (this.languageFilter.length > 0 && !this.languageOptions().includes(this.languageFilter)) {
-      this.languageFilter = ''
+    if (this.presentation.languageFilter.length > 0 && !this.languageOptions().includes(this.presentation.languageFilter)) {
+      this.presentation.languageFilter = ''
     }
-    if (this.groupFilter.length > 0 && !this.groupOptions().includes(this.groupFilter)) {
-      this.groupFilter = ''
+    if (this.presentation.groupFilter.length > 0 && !this.groupOptions().includes(this.presentation.groupFilter)) {
+      this.presentation.groupFilter = ''
     }
   }
 
@@ -343,27 +356,30 @@ export struct ChapterListSection {
   aboutToAppear(): void {
     this.restorePreferences()
     this.rebuildDataSource()
+    this.reportDisplayOrder()
   }
 
   @Monitor('comicId')
   private restorePreferences(): void {
+    if (this.presentation.comicId === this.comicId) return
+    this.presentation.comicId = this.comicId
     try {
       const value = new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext).load(this.comicId)
-      this.sortBasis = value.sortBasis
-      this.sortDirection = value.sortDirection
-      this.readFilter = value.readFilter
-      this.languageFilter = value.languageFilter
-      this.groupFilter = value.groupFilter
-      this.bookmarkFilter = value.bookmarkFilter
+      this.presentation.sortBasis = value.sortBasis
+      this.presentation.sortDirection = value.sortDirection
+      this.presentation.readFilter = value.readFilter
+      this.presentation.languageFilter = value.languageFilter
+      this.presentation.groupFilter = value.groupFilter
+      this.presentation.bookmarkFilter = value.bookmarkFilter
     } catch (error) { DiagnosticLogger.exception('chapters', 'preferences_load_failed', error as Error) }
     this.setSelectionMode(false)
   }
 
   private savePreferences(): void {
     void new ChapterListPreferencesStore(getContext(this) as common.UIAbilityContext).save(this.comicId, {
-      sortBasis: this.sortBasis, sortDirection: this.sortDirection, readFilter: this.readFilter,
-      languageFilter: this.languageFilter, groupFilter: this.groupFilter,
-      bookmarkFilter: this.bookmarkFilter,
+      sortBasis: this.presentation.sortBasis, sortDirection: this.presentation.sortDirection, readFilter: this.presentation.readFilter,
+      languageFilter: this.presentation.languageFilter, groupFilter: this.presentation.groupFilter,
+      bookmarkFilter: this.presentation.bookmarkFilter,
     }).catch((error: Error): void => { DiagnosticLogger.exception('chapters', 'preferences_save_failed', error) })
   }
 
@@ -380,26 +396,26 @@ export struct ChapterListSection {
     Menu() {
       MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_by')) } }) {
         MenuItem({ content: s('chapter_list_sort_source_order') })
-          .selected(this.sortBasis === ChapterSortBasis.SOURCE_ORDER)
+          .selected(this.presentation.sortBasis === ChapterSortBasis.SOURCE_ORDER)
           .selectIcon(true)
-          .enabled(this.sortBasis !== ChapterSortBasis.SOURCE_ORDER)
+          .enabled(this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER)
           .onClick(() => { this.setSortBasis(ChapterSortBasis.SOURCE_ORDER) })
         MenuItem({ content: s('chapter_list_sort_number') })
-          .selected(this.sortBasis === ChapterSortBasis.CHAPTER_NUMBER)
+          .selected(this.presentation.sortBasis === ChapterSortBasis.CHAPTER_NUMBER)
           .selectIcon(true)
-          .enabled(this.sortBasis !== ChapterSortBasis.CHAPTER_NUMBER)
+          .enabled(this.presentation.sortBasis !== ChapterSortBasis.CHAPTER_NUMBER)
           .onClick(() => { this.setSortBasis(ChapterSortBasis.CHAPTER_NUMBER) })
       }
       MenuItemGroup({ header: () => { this.SortGroupHeader(s('chapter_list_sort_direction')) } }) {
         MenuItem({ content: s('chapter_list_sort_forward') })
-          .selected(this.sortDirection === ChapterSortDirection.FORWARD)
+          .selected(this.presentation.sortDirection === ChapterSortDirection.FORWARD)
           .selectIcon(true)
-          .enabled(this.sortDirection !== ChapterSortDirection.FORWARD)
+          .enabled(this.presentation.sortDirection !== ChapterSortDirection.FORWARD)
           .onClick(() => { this.setSortDirection(ChapterSortDirection.FORWARD) })
         MenuItem({ content: s('chapter_list_sort_reverse') })
-          .selected(this.sortDirection === ChapterSortDirection.REVERSE)
+          .selected(this.presentation.sortDirection === ChapterSortDirection.REVERSE)
           .selectIcon(true)
-          .enabled(this.sortDirection !== ChapterSortDirection.REVERSE)
+          .enabled(this.presentation.sortDirection !== ChapterSortDirection.REVERSE)
           .onClick(() => { this.setSortDirection(ChapterSortDirection.REVERSE) })
       }
     }
@@ -437,7 +453,7 @@ export struct ChapterListSection {
   }
 
   private setBookmarkFilter(value: 'all' | 'bookmarked' | 'unbookmarked'): void {
-    this.bookmarkFilter = value
+    this.presentation.bookmarkFilter = value
     this.rebuildDataSource()
     this.savePreferences()
   }
@@ -499,15 +515,15 @@ export struct ChapterListSection {
   @Builder
   private SectionActionsMenu() {
     Menu() {
-      if (this.selectionMode) {
-        MenuItem({ content: this.formatString('chapter_list_menu_download_selected', [this.selectedChapterIds.size]) })
-          .enabled(this.selectedChapterIds.size > 0)
+      if (this.presentation.selectionMode) {
+        MenuItem({ content: this.formatString('chapter_list_menu_download_selected', [this.presentation.selectedChapterIds.size]) })
+          .enabled(this.presentation.selectedChapterIds.size > 0)
           .onClick(() => { this.downloadSelectedChapters() })
-        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_read', [this.selectedChapterIds.size]) })
-          .enabled(this.selectedChapterIds.size > 0)
+        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_read', [this.presentation.selectedChapterIds.size]) })
+          .enabled(this.presentation.selectedChapterIds.size > 0)
           .onClick(() => { this.markSelectedChaptersReadState(true) })
-        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_unread', [this.selectedChapterIds.size]) })
-          .enabled(this.selectedChapterIds.size > 0)
+        MenuItem({ content: this.formatString('chapter_list_menu_mark_selected_unread', [this.presentation.selectedChapterIds.size]) })
+          .enabled(this.presentation.selectedChapterIds.size > 0)
           .onClick(() => { this.markSelectedChaptersReadState(false) })
         MenuItem({ content: s('chapter_list_menu_select_all_filtered') })
           .enabled(this.sortedChapters.length > 0)
@@ -690,7 +706,7 @@ export struct ChapterListSection {
   private SelectedChapterRow(ri: RepeatItem<MangaChapterItem>) {
     Row({ space: ThemeConstants.SPACE_SM }) {
       Checkbox({ name: ri.item.id })
-        .select(this.selectedChapterIds.has(ri.item.id))
+        .select(this.presentation.selectedChapterIds.has(ri.item.id))
         .selectedColor(ThemeConstants.BRAND_PRIMARY)
         .unselectedColor(ThemeConstants.TEXT_SECONDARY)
         .width(24)
@@ -720,7 +736,7 @@ export struct ChapterListSection {
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
       .onClick(() => {
-        this.setChapterSelected(ri.item.id, !this.selectedChapterIds.has(ri.item.id))
+        this.setChapterSelected(ri.item.id, !this.presentation.selectedChapterIds.has(ri.item.id))
       })
       .bindContextMenu(this.SectionActionsMenu, ResponseType.LongPress, komaContextMenuOptions())
 
@@ -747,7 +763,7 @@ export struct ChapterListSection {
   private SectionHeader() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       Row({ space: ThemeConstants.SPACE_SM }) {
-        Text(this.selectionMode ? this.formatString('library_selected_count', [this.selectedChapterIds.size])
+        Text(this.presentation.selectionMode ? this.formatString('library_selected_count', [this.presentation.selectedChapterIds.size])
           : this.formatString('chapter_list_title', [this.sortedChapters.length, this.chapters.length]))
           .fontSize(ThemeConstants.FONT_SIZE_H3)
           .fontWeight(FontWeight.Bold)
@@ -777,34 +793,34 @@ export struct ChapterListSection {
 
       Flex({ wrap: FlexWrap.Wrap }) {
         Row() {
-          KomaMenuChip({ label: this.filterLabel(), active: this.readFilter !== ChapterReadFilter.ALL })
+          KomaMenuChip({ label: this.filterLabel(), active: this.presentation.readFilter !== ChapterReadFilter.ALL })
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .bindMenu(this.FilterMenu(), komaMenuOptions())
         Row() {
-          KomaMenuChip({ label: s(this.bookmarkFilter === 'all' ? 'chapter_bookmarks' :
-            this.bookmarkFilter === 'bookmarked' ? 'chapter_filter_bookmarked' : 'chapter_filter_unbookmarked'),
-            active: this.bookmarkFilter !== 'all' })
+          KomaMenuChip({ label: s(this.presentation.bookmarkFilter === 'all' ? 'chapter_bookmarks' :
+            this.presentation.bookmarkFilter === 'bookmarked' ? 'chapter_filter_bookmarked' : 'chapter_filter_unbookmarked'),
+            active: this.presentation.bookmarkFilter !== 'all' })
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .bindMenu(this.BookmarkFilterMenu(), komaMenuOptions())
         if (this.shouldShowLanguageFilter()) {
           Row() {
-            KomaMenuChip({ label: this.languageFilterLabel(), active: this.languageFilter.length > 0 })
+            KomaMenuChip({ label: this.languageFilterLabel(), active: this.presentation.languageFilter.length > 0 })
           }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.LanguageFilterMenu(), komaMenuOptions())
         }
         if (this.shouldShowGroupFilter()) {
           Row() {
-            KomaMenuChip({ label: this.groupFilterLabel(), active: this.groupFilter.length > 0 })
+            KomaMenuChip({ label: this.groupFilterLabel(), active: this.presentation.groupFilter.length > 0 })
           }
           .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
           .bindMenu(this.GroupFilterMenu(), komaMenuOptions())
         }
         Row() {
-          KomaMenuChip({ label: this.sortLabel(), active: this.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
-            this.sortDirection !== ChapterSortDirection.FORWARD })
+          KomaMenuChip({ label: this.sortLabel(), active: this.presentation.sortBasis !== ChapterSortBasis.SOURCE_ORDER ||
+            this.presentation.sortDirection !== ChapterSortDirection.FORWARD })
         }
         .margin({ right: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
         .bindMenu(this.SortMenu(), komaMenuOptions())
@@ -839,7 +855,7 @@ export struct ChapterListSection {
           .each((ri: RepeatItem<MangaChapterItem>) => {
             ListItem() {
               Column() {
-                if (this.selectionMode) {
+                if (this.presentation.selectionMode) {
                   this.SelectedChapterRow(ri)
                 } else {
                   this.ChapterRow(ri)

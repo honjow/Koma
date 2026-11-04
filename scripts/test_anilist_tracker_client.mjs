@@ -22,8 +22,6 @@ assert.match(
 assert.match(source, /const ANILIST_GRAPHQL_ENDPOINT: string = 'https:\/\/graphql\.anilist\.co'/, 'AniList client must target the official GraphQL endpoint')
 assert.match(source, /ANILIST_VIEWER_QUERY[\s\S]*Viewer \{ id name \}/, 'AniList client must support profile fetch')
 assert.match(source, /ANILIST_SEARCH_QUERY[\s\S]*media\(type: MANGA, search: \$search\)/, 'AniList client must support manga search mapping')
-assert.match(source, /ANILIST_PROGRESS_QUERY[\s\S]*MediaList\(mediaId: \$mediaId, type: MANGA\)/, 'AniList client must support progress pull')
-assert.match(source, /ANILIST_SAVE_PROGRESS_MUTATION[\s\S]*SaveMediaListEntry\(mediaId: \$mediaId, progress: \$progress, status: \$status\)/, 'AniList client must support progress push')
 
 assert.match(
   source,

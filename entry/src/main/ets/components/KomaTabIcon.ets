@@ -58,9 +58,12 @@ export struct KomaTabIcon {
   build() {
     Column() {
       if (this.badgeCount > 0) {
-        Badge({ count: this.badgeCount, position: BadgePosition.RightTop, style: {} }) {
-          this.SymbolContainer()
-        }.width(TAB_SYMBOL_SIZE).height(TAB_SYMBOL_SIZE - 2)
+        // Recreate the native badge when its initialization count changes.
+        ForEach([this.badgeCount], (count: number) => {
+          Badge({ count, position: BadgePosition.RightTop, style: {} }) {
+            this.SymbolContainer()
+          }.width(TAB_SYMBOL_SIZE).height(TAB_SYMBOL_SIZE - 2)
+        }, (count: number): string => count.toString())
       } else {
         this.SymbolContainer()
       }

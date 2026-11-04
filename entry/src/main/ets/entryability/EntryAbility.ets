@@ -34,6 +34,9 @@ import { AppStrings } from '../i18n/AppStrings'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { BackupRestoreCheckpoint } from '../model/BackupRestoreCheckpoint'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
+import { TRACKER_APP_CALLBACK_URI } from '../model/TrackerModels'
+import { TrackerOAuthCompletionService } from '../model/TrackerOAuthCompletionService'
+import { connectTrackerBrowserAuthorization } from '../state/TrackerBrowserAuthorizationState'
 import { automationEpoch, finishAutomationRestore, resetGeneratedAutomationWork } from '../model/AutomationStateEpoch'
 
 const TRANSPARENT_COLOR: string = '#00FFFFFF'
@@ -58,6 +61,7 @@ export default class EntryAbility extends UIAbility {
       BackupRestoreActivity.blockUntilRestart()
       DiagnosticLogger.error('app', 'startup_failed', '[BackupRecovery] step=startup_failed code=backup_recovery_pending')
     })
+    this.handleTrackerBrowserCallback(want, true)
   }
 
   private async prepareStartup(want: Want): Promise<void> {
@@ -100,10 +104,33 @@ export default class EntryAbility extends UIAbility {
     captureReaderLabWant(want, this.context.applicationInfo.debug)
     captureKomaDeviceVerificationIsolation(want, this.context.applicationInfo.debug)
     void launchParam
+    this.handleTrackerBrowserCallback(want, false)
     void this.startupPromise.then((): void => {
       if (!this.startupReady) return
       this.openLaunchRouteFromWant(want)
       maybeRunSourceRuntimeDeviceSmoke(want, this.context.resourceManager, this.context)
+    })
+  }
+
+  private handleTrackerBrowserCallback(want: Want, coldStart: boolean): void {
+    const uri = want.uri
+    if (uri === undefined || (!uri.startsWith(TRACKER_APP_CALLBACK_URI + '?') &&
+      !uri.startsWith(TRACKER_APP_CALLBACK_URI + '#'))) return
+    void this.startupPromise.then(async (): Promise<void> => {
+      if (!this.startupReady) return
+      const result = await new TrackerOAuthCompletionService(this.context).completeBrowserCallback(uri)
+      if (result === undefined) return
+      if (result.status === 'failed') {
+        DiagnosticLogger.warn('tracker', 'browser_callback_failed',
+          '[Tracker] provider=' + result.providerId + ' reason=' + (result.reason ?? 'unknown'))
+      }
+      const state = connectTrackerBrowserAuthorization()
+      state.providerId = result.providerId
+      state.connected = result.status === 'connected'
+      state.revision += 1
+      if (coldStart) RouterHelper.pushTrackerSettings()
+    }).catch(() => {
+      DiagnosticLogger.warn('tracker', 'browser_callback_failed', '[Tracker] step=browser_callback_failed')
     })
   }
 

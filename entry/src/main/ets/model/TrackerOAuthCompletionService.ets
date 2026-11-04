@@ -4,6 +4,7 @@ import { buffer } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import {
   AssetStoreTrackerCredentialSecretStore,
+  TRACKER_APP_CALLBACK_URI,
   TrackerAccount,
   TrackerCredentialSecretStore,
   TrackerPreferences,
@@ -12,9 +13,11 @@ import {
   TrackerProviderId,
   decodeTrackerSecretBytes,
   getConfiguredTrackerProviderConfig,
+  bangumiAuthorizationState,
   parseTrackerOAuthCallback,
 } from './TrackerModels'
 import { TrackerAccountRefreshService } from './TrackerAccountRefreshService'
+import { saveBangumiOAuthTokens } from './BangumiTrackerOAuth'
 
 export type TrackerOAuthCompletionStatus = 'connected' | 'failed'
 export type TrackerOAuthCompletionReason =
@@ -41,6 +44,7 @@ export interface TrackerOAuthTokenExchangeResult {
   ok: boolean
   accessToken?: string
   refreshToken?: string
+  expiresIn?: number
 }
 
 export interface TrackerOAuthTokenExchanger {
@@ -65,6 +69,7 @@ interface TrackerOAuthCallbackFields {
 interface TrackerTokenResponsePayload {
   access_token?: string
   refresh_token?: string
+  expires_in?: number
 }
 
 function utf8Bytes(value: string): Uint8Array {
@@ -81,7 +86,11 @@ function formEncodeTokenRequest(provider: TrackerProviderConfig, code: string, c
   appendFormField(pairs, 'client_id', provider.clientId ?? '')
   appendFormField(pairs, 'redirect_uri', provider.redirectUri ?? '')
   appendFormField(pairs, 'code', code)
-  appendFormField(pairs, 'code_verifier', codeVerifier)
+  if (provider.providerId === 'bangumi') {
+    appendFormField(pairs, 'client_secret', provider.clientSecret ?? '')
+  } else {
+    appendFormField(pairs, 'code_verifier', codeVerifier)
+  }
   return pairs.join('&')
 }
 
@@ -116,6 +125,7 @@ function tokenEndpoint(providerId: TrackerProviderId): string | undefined {
   if (providerId === 'myanimelist') {
     return 'https://myanimelist.net/v1/oauth2/token'
   }
+  if (providerId === 'bangumi') return 'https://bgm.tv/oauth/access_token'
   return undefined
 }
 
@@ -126,7 +136,8 @@ export class HarmonyTrackerOAuthTokenExchanger implements TrackerOAuthTokenExcha
     codeVerifier: string,
   ): Promise<TrackerOAuthTokenExchangeResult> {
     const endpoint = tokenEndpoint(provider.providerId)
-    if (endpoint === undefined || provider.clientId === undefined || provider.redirectUri === undefined) {
+    if (endpoint === undefined || provider.clientId === undefined || provider.redirectUri === undefined ||
+      (provider.providerId === 'bangumi' && provider.clientSecret === undefined)) {
       return { ok: false }
     }
     const request = http.createHttp()
@@ -159,6 +170,7 @@ export class HarmonyTrackerOAuthTokenExchanger implements TrackerOAuthTokenExcha
       if (refreshToken !== undefined && refreshToken.length > 0) {
         result.refreshToken = refreshToken
       }
+      result.expiresIn = payload.expires_in
       return result
     } catch (_error) {
       return { ok: false }
@@ -169,6 +181,7 @@ export class HarmonyTrackerOAuthTokenExchanger implements TrackerOAuthTokenExcha
 }
 
 export class TrackerOAuthCompletionService {
+  private static browserCompletion: boolean = false
   private context: common.UIAbilityContext
   private secretStore: TrackerCredentialSecretStore
   private tokenExchanger: TrackerOAuthTokenExchanger
@@ -179,10 +192,27 @@ export class TrackerOAuthCompletionService {
     this.tokenExchanger = options.tokenExchanger ?? new HarmonyTrackerOAuthTokenExchanger()
   }
 
+  async completeBrowserCallback(callbackUri: string): Promise<TrackerOAuthCompletionResult | undefined> {
+    if (TrackerOAuthCompletionService.browserCompletion) return undefined
+    TrackerOAuthCompletionService.browserCompletion = true
+    try {
+      return await this.complete(undefined, callbackUri, Date.now())
+    } finally {
+      TrackerOAuthCompletionService.browserCompletion = false
+    }
+  }
+
   async completeCallback(providerId: TrackerProviderId, callbackUri: string, now: number = Date.now()): Promise<TrackerOAuthCompletionResult> {
-    return BackupRestoreActivity.runWrite(async (): Promise<TrackerOAuthCompletionResult> => {
+    return (await this.complete(providerId, callbackUri, now))!
+  }
+
+  private async complete(manualProvider: TrackerProviderId | undefined, callbackUri: string,
+    now: number): Promise<TrackerOAuthCompletionResult | undefined> {
+    return BackupRestoreActivity.runWrite(async (): Promise<TrackerOAuthCompletionResult | undefined> => {
       const store = new TrackerPreferencesStore(this.context, this.secretStore)
       const preferences = await store.load()
+      const providerId = manualProvider ?? this.browserProvider(callbackUri, preferences)
+      if (providerId === undefined) return undefined
       const account = preferences.accounts.find((item: TrackerAccount): boolean => {
         return item.providerId === providerId && item.status === 'auth_pending' && item.credentialAccountKey !== undefined
       })
@@ -191,7 +221,8 @@ export class TrackerOAuthCompletionService {
       }
 
       const implicitGrant = providerId === 'anilist'
-      const callback = parseTrackerOAuthCallback(callbackUri, account.credentialAccountKey, implicitGrant)
+      const callback = parseTrackerOAuthCallback(callbackUri, account.credentialAccountKey, implicitGrant,
+        providerId === 'bangumi' ? bangumiAuthorizationState(account.credentialAccountKey) : undefined)
       if (!callback.ok) {
         return this.failed(providerId, callback.reason ?? 'invalid_callback', await this.saveError(store, providerId, account, callback.reason ?? 'invalid_callback'))
       }
@@ -217,7 +248,7 @@ export class TrackerOAuthCompletionService {
           return this.failed(providerId, 'invalid_callback', await this.saveError(store, providerId, account, 'invalid_callback'))
         }
         tokenResult = { ok: true, accessToken: fields.accessToken }
-      } else {
+      } else if (configuredProvider.supportsPkce) {
         const verifierBytes = await this.secretStore.readToken({
           providerId,
           accountKey: account.credentialAccountKey,
@@ -229,8 +260,14 @@ export class TrackerOAuthCompletionService {
         }
 
         tokenResult = await this.tokenExchanger.exchange(configuredProvider, fields.code ?? '', verifier)
+      } else {
+        tokenResult = await this.tokenExchanger.exchange(configuredProvider, fields.code ?? '', '')
       }
       if (!tokenResult.ok || tokenResult.accessToken === undefined) {
+        return this.failed(providerId, 'token_exchange_failed', await this.saveError(store, providerId, account, 'token_exchange_failed'))
+      }
+      if (providerId === 'bangumi' && (tokenResult.refreshToken === undefined ||
+        !Number.isFinite(tokenResult.expiresIn) || tokenResult.expiresIn! <= 0)) {
         return this.failed(providerId, 'token_exchange_failed', await this.saveError(store, providerId, account, 'token_exchange_failed'))
       }
 
@@ -241,6 +278,11 @@ export class TrackerOAuthCompletionService {
           credentialAccountKey: account.credentialAccountKey,
           connectedAt: now,
         }, async (): Promise<void> => {
+          if (providerId === 'bangumi') {
+            await saveBangumiOAuthTokens(this.secretStore, account.credentialAccountKey!, tokenResult.accessToken!,
+              tokenResult.refreshToken!, now + tokenResult.expiresIn! * 1000)
+            return
+          }
           const accessTokenSaved = await this.secretStore.writeToken({
             providerId,
             accountKey: account.credentialAccountKey!,
@@ -257,7 +299,7 @@ export class TrackerOAuthCompletionService {
             })
             if (!refreshTokenSaved.ok) throw new Error('credential_store_failed')
           }
-          if (!implicitGrant) {
+          if (configuredProvider.supportsPkce) {
             await this.secretStore.deleteToken({
               providerId,
               accountKey: account.credentialAccountKey!,
@@ -280,6 +322,24 @@ export class TrackerOAuthCompletionService {
         preferences: refresh.preferences,
       }
     })
+  }
+
+  private browserProvider(callbackUri: string, preferences: TrackerPreferences): TrackerProviderId | undefined {
+    // An external Want must not be able to invalidate somebody else's pending login.
+    const matchingAccount = preferences.accounts.find((account: TrackerAccount): boolean => {
+      const id = account.providerId
+      if ((id !== 'anilist' && id !== 'myanimelist' && id !== 'bangumi') || account.status !== 'auth_pending' ||
+        account.credentialAccountKey === undefined) return false
+      const configured = getConfiguredTrackerProviderConfig(id, preferences.providerOAuthConfigs)
+      if (configured?.clientId === undefined || configured.redirectUri !== TRACKER_APP_CALLBACK_URI) return false
+      if (!callbackUri.startsWith(TRACKER_APP_CALLBACK_URI + (id === 'anilist' ? '#' : '?'))) return false
+      if (id !== 'anilist' && callbackUri.includes('#')) return false
+      const callback = parseTrackerOAuthCallback(callbackUri, account.credentialAccountKey, id === 'anilist',
+        id === 'bangumi' ? bangumiAuthorizationState(account.credentialAccountKey) : undefined)
+      // Report a malformed response for this session instead of leaving the account pending.
+      return callback.state === account.credentialAccountKey
+    })
+    return matchingAccount?.providerId
   }
 
   private async saveError(

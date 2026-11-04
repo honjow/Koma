@@ -19,33 +19,6 @@ struct SourceCatalogSections {
     return this.sourceCache.updateCount
   }
 
-  @Builder
-  private SegmentBadge(label: string, count: number, selected: boolean) {
-    Row() {
-      if (count > 0) {
-        Badge({ count, position: BadgePosition.Right, style: {} }) {
-          // Match the native label's width, including localization and font weight.
-          Text(label)
-            .fontSize(ThemeConstants.FONT_SIZE_BODY)
-            .fontWeight(selected ? FontWeight.Bold : FontWeight.Medium)
-            .maxLines(1)
-            .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
-            .opacity(0)
-            .accessibilityLevel('no')
-            .hitTestBehavior(HitTestMode.None)
-        }
-        // BadgePosition.Right overlaps its anchor. Offset by a badge inset so
-        // the number clears the visible label instead of covering its last glyph.
-        .translate({ x: ThemeConstants.SPACE_LG })
-        .hitTestBehavior(HitTestMode.None)
-      }
-    }
-    .hitTestBehavior(HitTestMode.None)
-    .layoutWeight(1)
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .alignItems(VerticalAlign.Center)
-  }
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
@@ -61,10 +34,10 @@ struct SourceCatalogSections {
       })
       // The native segments still handle selection and animation.
       Row() {
-        this.SegmentBadge(AppStrings.get('settings_row_sources_title'), this.sourceUpdateCount(),
-          this.chrome.section === 'sources')
-        this.SegmentBadge(AppStrings.get('image_plugins_title'), this.imageRuleState.updateCount,
-          this.chrome.section === 'plugins')
+        SourceCatalogSegmentBadge({ label: AppStrings.get('settings_row_sources_title'),
+          count: this.sourceUpdateCount(), selected: this.chrome.section === 'sources' })
+        SourceCatalogSegmentBadge({ label: AppStrings.get('image_plugins_title'),
+          count: this.imageRuleState.updateCount, selected: this.chrome.section === 'plugins' })
       }
       .width('100%')
       .height('100%')
@@ -74,6 +47,40 @@ struct SourceCatalogSections {
     .width('100%')
     .height(SOURCE_MANAGER_SECTIONS_HEIGHT)
     .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_SM })
+  }
+}
+
+@ComponentV2
+struct SourceCatalogSegmentBadge {
+  @Require @Param label: string
+  @Param count: number = 0
+  @Param selected: boolean = false
+
+  build() {
+    Row() {
+      ForEach(this.count > 0 ? [this.count] : [], (count: number) => {
+        Badge({ count, position: BadgePosition.Right, style: {} }) {
+          // Match the native label's width, including localization and font weight.
+          Text(this.label)
+            .fontSize(ThemeConstants.FONT_SIZE_BODY)
+            .fontWeight(this.selected ? FontWeight.Bold : FontWeight.Medium)
+            .maxLines(1)
+            .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
+            .opacity(0)
+            .accessibilityLevel('no')
+            .hitTestBehavior(HitTestMode.None)
+        }
+        // BadgePosition.Right overlaps its anchor. Offset by a badge inset so
+        // the number clears the visible label instead of covering its last glyph.
+        .translate({ x: ThemeConstants.SPACE_LG })
+        .hitTestBehavior(HitTestMode.None)
+      }, (count: number): string => count.toString())
+    }
+    .hitTestBehavior(HitTestMode.None)
+    .layoutWeight(1)
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
   }
 }
 

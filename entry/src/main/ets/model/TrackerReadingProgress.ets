@@ -69,10 +69,13 @@ export class ReaderTrackerProgressCoordinator {
       chapterIds: chapterIds.slice(), chapterNumber,
     }
     this.latest = snapshot
-    if (!progress.completed) return
-    const key = JSON.stringify([progress.comicId, progress.chapterId])
-    if (this.completed.has(key)) return
-    this.pending.set(key, snapshot)
+    if (progress.completed) {
+      const key = JSON.stringify([progress.comicId, progress.chapterId])
+      if (!this.completed.has(key)) this.pending.set(key, snapshot)
+    }
+    // If the completion's first disk flush failed, retry at the next
+    // observation, including the first page of the next chapter.
+    if (this.pending.size === 0) return
     if (this.store.flush()) this.drainCompletions()
     else DiagnosticLogger.warn('tracker_reading_progress', 'deferred', '[ReaderTracker] step=deferred reason=local_progress_commit')
   }
@@ -114,7 +117,8 @@ export class ReaderTrackerProgressCoordinator {
     const count = trackerChapterProgress(snapshot.progress, snapshot.chapterNumber)
     void this.port.pushReadingProgress(snapshot.progress, snapshot.chapterIds, trigger, Date.now(), undefined, count ?? null)
       .then((result: TrackerProgressSyncResult): void => {
-        console.info('[ReaderTracker] step=event trigger=' + trigger + ' status=' + result.status +
+        DiagnosticLogger.info('tracker_reading_progress', 'sync_result',
+          '[ReaderTracker] trigger=' + trigger + ' status=' + result.status +
           ' reason=' + (result.reason ?? 'none') + ' queued=' + (result.queued === true))
       })
       .catch((_error: Error): void => {

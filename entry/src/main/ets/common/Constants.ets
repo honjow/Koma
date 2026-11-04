@@ -36,7 +36,6 @@ export class RouteName {
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
   static readonly BACKUP_TASK: string = 'BackupTaskPage'
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
-  static readonly TRACKER_PROVIDER_SETTINGS: string = 'TrackerProviderSettingsPage'
 }
 
 export const KOMA_BUNDLE_NAME: string = 'com.honjow.koma'
