@@ -1,11 +1,10 @@
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
-import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { Binding, LengthMetrics, UIUtils } from '@kit.ArkUI'
+import { AdvancedDialogV2Button, Binding, CustomContentDialogV2, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
@@ -24,6 +23,7 @@ import {
   BackupContentPreferences,
   BackupImportPreview,
   BackupImportSelectionPreview,
+  BackupLocalFilePreview,
   BackupLocalFileRecord,
   BackupService,
   BackupAutomaticPreferencesPatch,
@@ -39,6 +39,7 @@ import {
   backupManagementStorageNote,
   backupUnencryptedExportWarning,
 } from '../model/BackupService'
+import { BACKUP_PASSPHRASE_MIN_LENGTH } from '../model/BackupEncryptionService'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
@@ -59,7 +60,15 @@ interface SelectedBackupPreviewParams {
   preview: BackupImportPreview
 }
 
+interface BackupSaveDraft {
+  saveToFile: boolean
+  encrypted: boolean
+  passphrase: string
+  confirmation: string
+}
+
 type BackupPreferenceLoadState = 'loading' | 'ready' | 'failed'
+const BACKUP_DISCLOSURE_DURATION_MS: number = 200
 
 @ComponentV2
 export struct BackupManagementPage {
@@ -68,9 +77,16 @@ export struct BackupManagementPage {
   @Local private backupSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param refreshRevision: number = 0
   @Event onRestoreCompleted: () => void = () => {}
-  @Local private backupModalShown: boolean = false
-  @Local private backupModal: 'encrypt' | 'restore' = 'encrypt'
-  @Local private encryptionFileName: string = ''
+  @Local private backupDialogShown: boolean = false
+  private backupDialogId: number = -1
+  private active: boolean = false
+  private backupDialogRequest: number = 0
+  private finishBackupDialogClose?: () => void = undefined
+  @Local private backupDialog: 'save' | 'restore' = 'save'
+  @Local private exportFileName: string = ''
+  @Local private saveToFile: boolean = false
+  @Local private encryptBackup: boolean = false
+  @Local private passphraseError: string = ''
   @Local private selectedBackupName: string = ''
   @Local private showTechnicalDetails: boolean = false
   @Local private showAutomaticOptions: boolean = false
@@ -118,7 +134,8 @@ export struct BackupManagementPage {
     const epoch = ++this.localBackupsEpoch
     this.localBackupsLoading = true
     this.localBackupsFailed = false
-    void this.backupService().listLocalBackups()
+    // List records need file metadata only. Opening a record computes the restore diff.
+    void this.backupService().listLocalBackups(false)
       .then((records: BackupLocalFileRecord[]) => {
         if (epoch !== this.localBackupsEpoch) return
         this.localBackups = records
@@ -188,28 +205,6 @@ export struct BackupManagementPage {
 
   private backupFailureMessage(code: string): string {
     return tf('backup_failure_message', code)
-  }
-
-  private confirmExportBackup(fileName: string): void {
-    if (this.busy) {
-      return
-    }
-    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-      title: t('backup_unencrypted_confirm_title'),
-      message: `${t('backup_unencrypted_confirm_message')}\n\n${backupUnencryptedExportWarning()}`,
-      autoCancel: true,
-      primaryButton: {
-        value: t('common_cancel'),
-        action: () => {},
-      },
-      secondaryButton: {
-        value: t('backup_unencrypted_confirm_action'),
-        fontColor: $r('app.color.koma_danger'),
-        action: () => {
-          this.exportBackupCopy(fileName)
-        },
-      },
-    })
   }
 
   private saveAutomaticPreferences(patch: BackupAutomaticPreferencesPatch): void {
@@ -332,49 +327,134 @@ export struct BackupManagementPage {
       })
   }
 
-  private openEncryptionPrompt(fileName: string = ''): void {
-    if (this.busy || (fileName.length === 0 && this.contentPreferencesSaving)) return
-    this.clearEncryptionPrompt()
-    this.encryptionFileName = fileName
-    this.backupModal = 'encrypt'
-    this.backupModalShown = true
+  private openSaveDialog(fileName: string = '', draft?: BackupSaveDraft): void {
+    if (this.busy || this.backupDialogShown || (fileName.length === 0 && this.contentPreferencesSaving)) return
+    this.clearSaveDialog()
+    this.exportFileName = fileName
+    if (draft !== undefined) {
+      this.saveToFile = draft.saveToFile
+      this.encryptBackup = draft.encrypted
+      this.exportPassphrase = draft.passphrase
+      this.exportPassphraseConfirm = draft.confirmation
+    }
+    this.openBackupDialog('save')
   }
 
-  private clearEncryptionPrompt(): void {
+  private openBackupDialog(kind: 'save' | 'restore'): void {
+    const request = ++this.backupDialogRequest
+    this.backupDialog = kind
+    this.backupDialogShown = true
+    const prompt = this.getUIContext().getPromptAction()
+    void prompt.openCustomDialog({
+      systemMaterial: komaDialogMaterial(),
+      alignment: DialogAlignment.Center,
+      autoCancel: true,
+      builder: () => { this.BackupDialogContent() },
+      onWillDismiss: (action: DismissDialogAction): void => {
+        if (!this.busy) action.dismiss()
+      },
+      onDidDisappear: (): void => {
+        if (request === this.backupDialogRequest) this.resetBackupDialog()
+      },
+    }).then((id: number): void => {
+      if (request === this.backupDialogRequest && this.backupDialogShown) {
+        this.backupDialogId = id
+        if (this.finishBackupDialogClose !== undefined) prompt.closeCustomDialog(id)
+      } else {
+        prompt.closeCustomDialog(id)
+      }
+    }).catch((): void => {
+      if (request === this.backupDialogRequest) this.resetBackupDialog()
+    })
+  }
+
+  private resetBackupDialog(): void {
+    this.backupDialogId = -1
+    this.backupDialogShown = false
+    this.clearSaveDialog()
+    this.clearRestorePreview()
+    const finishClose = this.finishBackupDialogClose
+    this.finishBackupDialogClose = undefined
+    finishClose?.()
+  }
+
+  private closeBackupDialog(): Promise<void> {
+    if (!this.backupDialogShown || this.finishBackupDialogClose !== undefined) return Promise.resolve()
+    // Leave the mounted dialog's content intact until the native dismissal has completed.
+    return new Promise<void>((resolve: () => void) => {
+      this.finishBackupDialogClose = resolve
+      if (this.backupDialogId >= 0) {
+        this.getUIContext().getPromptAction().closeCustomDialog(this.backupDialogId)
+      }
+    })
+  }
+
+  private animateBackupDisclosure(update: () => void): void {
+    const request = this.backupDialogRequest
+    // Let the HDS row release its native click callback before relayout can replace it.
+    setTimeout((): void => {
+      if (request !== this.backupDialogRequest || !this.backupDialogShown ||
+        this.finishBackupDialogClose !== undefined) return
+      this.getUIContext().animateTo({ duration: BACKUP_DISCLOSURE_DURATION_MS, curve: Curve.FastOutSlowIn }, update)
+    }, 0)
+  }
+
+  private clearSaveDialog(): void {
     this.exportPassphrase = ''
     this.exportPassphraseConfirm = ''
-    this.encryptionFileName = ''
+    this.passphraseError = ''
+    this.exportFileName = ''
+    this.encryptBackup = false
+    this.saveToFile = false
   }
 
-  private submitEncryptedBackup(): void {
-    if (this.busy) return
-    if (this.exportPassphrase.length < 8) {
-      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_too_short'))
-      return
+  private submitBackupSave(): void {
+    if (this.busy || (this.exportFileName.length === 0 && this.contentPreferencesSaving)) return
+    let passphrase: string | undefined = undefined
+    if (this.encryptBackup) {
+      if (this.exportPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH) {
+        this.passphraseError = t('backup_passphrase_too_short')
+        return
+      }
+      if (this.exportPassphrase !== this.exportPassphraseConfirm) {
+        this.passphraseError = t('backup_passphrase_mismatch')
+        return
+      }
+      passphrase = this.exportPassphrase
     }
-    if (this.exportPassphrase !== this.exportPassphraseConfirm) {
-      this.showInfoDialog(t('backup_dialog_export_blocked_title'), t('backup_passphrase_mismatch'))
-      return
-    }
-    const passphrase = this.exportPassphrase
-    if (this.encryptionFileName.length > 0) {
-      this.exportBackupCopy(this.encryptionFileName, passphrase)
+    const fileName = this.exportFileName
+    if (this.saveToFile || fileName.length > 0) {
+      this.exportBackupFile(fileName, passphrase)
     } else {
       this.createLocalBackup(passphrase)
     }
   }
 
-  private exportBackupCopy(fileName: string, passphrase?: string): void {
+  private exportBackupFile(fileName: string, passphrase?: string): void {
     if (this.busy) return
+    const draft: BackupSaveDraft | undefined = this.backupDialogShown ? {
+      saveToFile: this.saveToFile, encrypted: this.encryptBackup,
+      passphrase: this.exportPassphrase, confirmation: this.exportPassphraseConfirm,
+    } : undefined
+    // The system picker owns its dialog. Reopen the same draft when the user cancels it.
     this.busy = true
-    void this.backupService().exportLocalCopyToPicker(fileName, passphrase)
+    const dismissed = draft === undefined ? Promise.resolve() : this.closeBackupDialog()
+    const service = this.backupService()
+    // A named record exports its saved snapshot. Creating straight to a file does not write a local record.
+    void dismissed.then((): Promise<string | undefined> => {
+      if (fileName.length > 0) return service.exportLocalCopyToPicker(fileName, passphrase)
+      return passphrase === undefined ? service.exportToPicker() : service.exportEncryptedToPicker(passphrase)
+    })
       .then((uri: string | undefined) => {
-        if (uri === undefined) return
-        this.backupModalShown = false
-        this.showToast(t('backup_dialog_exported_title'))
+        if (uri !== undefined) {
+          this.showToast(t('backup_dialog_exported_title'))
+        } else if (draft !== undefined && this.active) {
+          this.busy = false
+          this.openSaveDialog(fileName, draft)
+        }
       })
       .catch((_error: Error) => {
-        DiagnosticLogger.error('backup_management_page', 'copy_failed', '[BackupManagement] step=copy_failed code=backup_export_failed')
+        DiagnosticLogger.error('backup_management_page', 'file_export_failed', '[BackupManagement] step=file_export_failed')
         this.showInfoDialog(t('backup_dialog_export_failed_title'), this.backupFailureMessage('backup_export_failed'))
       })
       .finally(() => { this.busy = false })
@@ -388,7 +468,7 @@ export struct BackupManagementPage {
     const operation = passphrase === undefined ? service.exportLocal() : service.exportEncryptedLocal(passphrase)
     void operation
       .then((_record: BackupLocalFileRecord) => {
-        this.backupModalShown = false
+        if (this.backupDialogShown) void this.closeBackupDialog()
         this.loadLocalBackups()
         this.showToast(t('backup_local_saved_toast'))
       })
@@ -408,8 +488,7 @@ export struct BackupManagementPage {
     }
     this.selectedBackupPreview = selection.preview
     this.selectedBackupName = name
-    this.backupModal = 'restore'
-    this.backupModalShown = true
+    this.openBackupDialog('restore')
   }
 
   private clearRestorePreview(): void {
@@ -439,7 +518,7 @@ export struct BackupManagementPage {
     return record.preview.exportedAt > 0 && /^koma-backup-\d{13}(?:-\d+)?$/.test(record.displayName)
   }
 
-  private backupDate(preview: BackupImportPreview): string {
+  private backupDate(preview: BackupLocalFilePreview): string {
     if (preview.exportedAt <= 0) return preview.exportedAtText
     return new Intl.DateTimeFormat(this.languageState.effectiveLocale, {
       year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -604,10 +683,9 @@ export struct BackupManagementPage {
       this.backupService().importDecrypted(this.selectedBackupPayload) :
       this.backupService().import(this.selectedBackupPayload)
     void importPromise
-      .then(() => {
+      .then(async (): Promise<void> => {
         this.onRestoreCompleted()
-        this.backupModalShown = false
-        this.clearRestorePreview()
+        await this.closeBackupDialog()
         this.showInfoDialog(t('backup_dialog_imported_title'), t('backup_imported_message'))
       })
       .catch((_error: Error) => {
@@ -622,12 +700,8 @@ export struct BackupManagementPage {
   @Builder
   private BackupActions() {
     GroupedListSection() {
-      ConciseListRow({ title: t(this.busy ? 'backup_processing' : 'backup_task_create'),
-        subtitle: t('backup_local_create_detail'), leadingIcon: $r('sys.symbol.plus'), showChevron: false,
-        isEnabled: !this.busy && !this.contentPreferencesSaving, action: () => { this.createLocalBackup() } })
-      ListDivider()
-      ConciseListRow({ title: t('backup_create_protected'), leadingIcon: $r('sys.symbol.lock'),
-        isEnabled: !this.busy && !this.contentPreferencesSaving, action: () => { this.openEncryptionPrompt() } })
+      ConciseListRow({ title: t('backup_task_create'), leadingIcon: $r('sys.symbol.plus'),
+        isEnabled: !this.busy && !this.contentPreferencesSaving, action: () => { this.openSaveDialog() } })
       ListDivider()
       ConciseListRow({ title: t('backup_restore_from_file'), leadingIcon: $r('sys.symbol.doc_plaintext'),
         isEnabled: !this.busy, action: () => { this.importBackup() } })
@@ -635,40 +709,79 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private BackupModalContent() {
-    if (this.backupModal === 'restore') {
-      this.RestorePreview()
+  private BackupDialogContent() {
+    if (this.backupDialog === 'restore') {
+      this.RestorePreviewDialog()
     } else {
-      this.EncryptionPrompt()
+      this.BackupSaveDialog()
     }
   }
 
   @Builder
-  private EncryptionPrompt() {
-    KomaModalScaffold({
-      title: t(this.encryptionFileName ? 'backup_export_protected_copy' : 'backup_create_protected'),
-      onClose: () => { if (!this.busy) this.backupModalShown = false },
-    }) {
-      ListItem() {
-        Column({ space: ThemeConstants.SPACE_MD }) {
-          Text(t('backup_passphrase_too_short') + '\n' + t('backup_passphrase_recovery_warning'))
-            .width('100%').fontSize(ThemeConstants.FONT_SIZE_META)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-          KomaFormTextField({ label: t('backup_passphrase_label'), value: this.exportPassphrase,
-            isPassword: true, isEnabled: !this.busy, change: (value: string) => { this.exportPassphrase = value } })
-          KomaFormTextField({ label: t('backup_passphrase_confirm_label'), value: this.exportPassphraseConfirm,
-            isPassword: true, isEnabled: !this.busy, change: (value: string) => { this.exportPassphraseConfirm = value } })
-          KomaActionButton({
-            label: t(this.busy ? 'backup_processing' : this.encryptionFileName ?
-              'backup_export_encrypted_action' : 'backup_task_create'),
-            kind: 'primary', fullWidth: true, isEnabled: !this.busy && this.exportPassphrase.length > 0 &&
-              this.exportPassphraseConfirm.length > 0,
-            action: () => { this.submitEncryptedBackup() },
-          })
-        }
-        .width('100%')
-      }
+  private SaveDestinationMenu(select: (action: () => void) => void) {
+    Menu() {
+      MenuItem({ content: t('backup_destination_koma'),
+        symbolEndIcon: !this.saveToFile ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+        .onClick(() => { select(() => { this.saveToFile = false }) })
+      MenuItem({ content: t('backup_destination_file'),
+        symbolEndIcon: this.saveToFile ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+        .onClick(() => { select(() => { this.saveToFile = true }) })
     }
+  }
+
+  @Builder
+  private BackupSaveOptions() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      if (!this.exportFileName) {
+        ConciseListRow({ title: t('backup_create_destination'),
+          trailingText: t(this.saveToFile ? 'backup_destination_file' : 'backup_destination_koma'),
+          trailingDropdown: true, dropdownMenuEnabled: true, isEnabled: !this.busy,
+          dropdownMenuBuilder: (select: (action: () => void) => void) => { this.SaveDestinationMenu(select) } })
+      }
+      ConciseListRow({ title: t('backup_create_encrypted_choice'), showChevron: false,
+        hasSwitch: true, checked: this.encryptBackup, isEnabled: !this.busy,
+        switchAction: (enabled: boolean) => {
+          if (enabled === this.encryptBackup) return
+          this.animateBackupDisclosure(() => {
+            this.encryptBackup = enabled
+            this.exportPassphrase = ''
+            this.exportPassphraseConfirm = ''
+            this.passphraseError = ''
+          })
+        } })
+      if (this.encryptBackup) {
+        Column({ space: ThemeConstants.SPACE_SM }) {
+          KomaFormTextField({ label: t('backup_passphrase_label'), value: this.exportPassphrase, isPassword: true,
+            isEnabled: !this.busy, change: (value: string) => { this.exportPassphrase = value; this.passphraseError = '' } })
+          KomaFormTextField({ label: t('backup_passphrase_confirm_label'), value: this.exportPassphraseConfirm, isPassword: true,
+            isEnabled: !this.busy, validationError: this.passphraseError || undefined,
+            change: (value: string) => { this.exportPassphraseConfirm = value; this.passphraseError = '' } })
+          Text(t('backup_passphrase_too_short') + '\n' + t('backup_passphrase_recovery_warning'))
+            .width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+        }.width('100%').transition(TransitionEffect.OPACITY)
+      } else if (this.saveToFile || this.exportFileName.length > 0) {
+        Text(backupUnencryptedExportWarning())
+          .width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+          .transition(TransitionEffect.OPACITY)
+      }
+    }.width('100%').clip(true)
+  }
+
+  @Builder
+  private BackupSaveDialog() {
+    CustomContentDialogV2({
+      primaryTitle: t(this.exportFileName ? 'backup_export_copy' : 'backup_task_create'),
+      contentBuilder: () => { this.BackupSaveOptions() },
+      buttons: [
+        new AdvancedDialogV2Button({ content: t('common_cancel'), buttonStyle: ButtonStyleMode.TEXTUAL,
+          enabled: !this.busy, action: () => { void this.closeBackupDialog() } }),
+        new AdvancedDialogV2Button({
+          content: t(this.busy ? 'backup_processing' : this.saveToFile || this.exportFileName.length > 0 ?
+            (this.encryptBackup ? 'backup_create_destination_file' : 'backup_unencrypted_confirm_action') : 'common_save'),
+          buttonStyle: ButtonStyleMode.TEXTUAL, enabled: !this.busy, action: () => { this.submitBackupSave() },
+        }),
+      ],
+    })
   }
 
   @Builder
@@ -780,29 +893,38 @@ export struct BackupManagementPage {
   }
 
   @Builder
-  private RestorePreview() {
-    KomaModalScaffold({ title: t('backup_restore_preview'), subtitle: this.selectedBackupName.length > 0 ? this.selectedBackupName : undefined,
-      onClose: () => { if (!this.busy) this.backupModalShown = false },
-    }) {
+  private RestorePreviewContent() {
+    Column({ space: ThemeConstants.SPACE_MD }) {
       if (this.selectedBackupPreview !== undefined) {
-        ListItem() { this.SelectedPreviewCard({ preview: this.selectedBackupPreview }) }
+        this.SelectedPreviewCard({ preview: this.selectedBackupPreview })
       }
       if (this.selectedEncryptedBackupPayload.length > 0) {
-        ListItem() { this.RestorePassphraseCard() }
+        this.RestorePassphraseCard()
       }
-      ListItem() {
-        KomaActionButton({
-          label: t(this.busy ? 'backup_processing' : this.selectedEncryptedBackupPayload.length > 0 ? 'backup_decrypt_preview_action' :
-            'backup_restore_selected_action'),
-          kind: 'primary', fullWidth: true, isEnabled: !this.busy &&
+    }.width('100%').clip(true)
+  }
+
+  @Builder
+  private RestorePreviewDialog() {
+    CustomContentDialogV2({
+      primaryTitle: t('backup_restore_preview'),
+      secondaryTitle: this.selectedBackupName,
+      contentBuilder: () => { this.RestorePreviewContent() },
+      buttons: [
+        new AdvancedDialogV2Button({ content: t('common_cancel'), buttonStyle: ButtonStyleMode.TEXTUAL,
+          enabled: !this.busy, action: () => { void this.closeBackupDialog() } }),
+        new AdvancedDialogV2Button({
+          content: t(this.busy ? 'backup_processing' : this.selectedEncryptedBackupPayload.length > 0 ?
+            'backup_decrypt_preview_action' : 'backup_restore_selected_action'),
+          buttonStyle: ButtonStyleMode.TEXTUAL, enabled: !this.busy &&
             (this.selectedBackupPayload.length > 0 || this.importPassphrase.length > 0),
           action: () => {
             if (this.selectedEncryptedBackupPayload.length > 0) this.decryptSelectedBackup()
             else this.restoreSelectedBackup()
           },
-        })
-      }
-    }
+        }),
+      ],
+    })
   }
 
   @Builder
@@ -909,7 +1031,7 @@ export struct BackupManagementPage {
         }
       }
       ListDivider()
-      ConciseListRow({ title: t('backup_auto_run_now_action'), showChevron: false,
+      ConciseListRow({ title: t('backup_auto_run_now_action'), subtitle: t('backup_auto_run_now_detail'), showChevron: false,
         isEnabled: !this.busy && !this.automaticPreferencesSaving && !this.contentPreferencesSaving,
         action: () => { this.runAutomaticBackupNow() } })
     }
@@ -946,17 +1068,9 @@ export struct BackupManagementPage {
         .enabled(!this.busy)
         .onClick(() => {
           this.localFileActionMenuKey = ''
-          if (record.preview.encrypted) this.exportBackupCopy(record.fileName)
-          else this.confirmExportBackup(record.fileName)
+          if (record.preview.encrypted) this.exportBackupFile(record.fileName)
+          else this.openSaveDialog(record.fileName)
         })
-      if (!record.preview.encrypted) {
-        MenuItem({ content: t('backup_export_protected_copy') })
-          .enabled(!this.busy)
-          .onClick(() => {
-            this.localFileActionMenuKey = ''
-            this.openEncryptionPrompt(record.fileName)
-          })
-      }
       MenuItem({ content: t('backup_local_rename_action') })
         .enabled(!this.busy)
         .onClick(() => {
@@ -1033,27 +1147,32 @@ export struct BackupManagementPage {
         .fontColor(ThemeConstants.TEXT_SECONDARY).lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
       GroupedListSection() {
-        if (this.localBackupsLoading) {
-          ConciseListRow({ title: t('common_loading'), showChevron: false })
-        } else if (this.localBackupsFailed) {
-          ConciseListRow({ title: t('backup_local_load_failed'),
-            trailingText: t('common_retry'), showChevron: false,
-            action: () => { this.loadLocalBackups() } })
-        }
         if (this.localBackups.length === 0) {
-          if (!this.localBackupsLoading && !this.localBackupsFailed) {
+          if (this.localBackupsLoading) {
+            ConciseListRow({ title: t('common_loading'), showChevron: false })
+          } else if (this.localBackupsFailed) {
+            this.LocalBackupsRetryRow()
+          } else {
             ConciseListRow({ title: t('backup_local_empty'), showChevron: false })
           }
         } else {
-          if (this.localBackupsLoading || this.localBackupsFailed) { ListDivider() }
           ForEach(this.localBackups, (record: BackupLocalFileRecord, index: number) => {
             this.LocalBackupRow(record)
             if (index < this.localBackups.length - 1) { ListDivider() }
           }, (record: BackupLocalFileRecord) => record.fileName)
         }
       }
+      if (this.localBackupsFailed && this.localBackups.length > 0) {
+        this.LocalBackupsRetryRow()
+      }
     }
     .width('100%')
+  }
+
+  @Builder
+  private LocalBackupsRetryRow() {
+    ConciseListRow({ title: t('backup_local_load_failed'), trailingText: t('common_retry'), showChevron: false,
+      action: () => { this.loadLocalBackups() } })
   }
 
   @Builder
@@ -1087,33 +1206,39 @@ export struct BackupManagementPage {
         }
         ConciseListRow({ title: t('backup_preview_details'), showChevron: false,
           trailingText: t(this.showPreviewDetails ? 'common_collapse' : 'common_expand'),
-          action: () => { this.showPreviewDetails = !this.showPreviewDetails } })
+          action: () => {
+            this.animateBackupDisclosure(() => {
+              this.showPreviewDetails = !this.showPreviewDetails
+            })
+          } })
         if (this.showPreviewDetails) {
-          this.PreviewRow({ label: t('backup_preview_version'), value: `v${params.preview.schemaVersion}` })
-          if (params.preview.encrypted) {
-            this.PreviewRow({ label: t('backup_preview_algorithm'), value: params.preview.algorithm })
-            this.PreviewRow({ label: t('backup_preview_kdf'), value: params.preview.kdfId })
-          }
-          if (!params.preview.encrypted || params.preview.decrypted) {
-            this.PreviewRow({ label: t('backup_preview_progress_conflicts'), value: `${params.preview.progressConflictCount}` })
-            this.PreviewRow({ label: t('backup_preview_progress_additions'), value: `${params.preview.progressAddCount}` })
-            this.PreviewRow({ label: t('backup_preview_library_conflicts'), value: `${params.preview.libraryConflictCount}` })
-            this.PreviewRow({ label: t('backup_preview_library_additions'), value: `${params.preview.libraryAddCount}` })
-            this.PreviewRow({ label: t('backup_preview_current_library_items'), value: `${params.preview.currentLibraryItemCount}` })
-            this.PreviewRow({ label: t('backup_preview_current_progress'), value: `${params.preview.currentProgressCount}` })
-            this.PreviewRow({ label: t('backup_preview_settings'), value: `${params.preview.settingsCount}` })
-            this.PreviewRow({ label: t('backup_preview_categories'), value: `${params.preview.categoryCount}` })
-            this.PreviewRow({
-              label: t('backup_preview_download_queue'),
-              value: params.preview.hasDownloadQueueCount ? `${params.preview.downloadQueueCount}` : t('backup_preview_not_provided'),
-            })
-            this.PreviewRow({
-              label: t('backup_preview_tracker_mappings'),
-              value: params.preview.hasTrackerMappingCount ? `${params.preview.trackerMappingCount}` : t('backup_preview_not_provided'),
-            })
-            this.PreviewRow({ label: t('backup_preview_source_package_metadata'), value: `${params.preview.sourcePackageCount}` })
-            this.PreviewRow({ label: t('backup_preview_source_settings'), value: `${params.preview.sourceSettingsCount}` })
-          }
+          Column({ space: ThemeConstants.SPACE_MD }) {
+            this.PreviewRow({ label: t('backup_preview_version'), value: `v${params.preview.schemaVersion}` })
+            if (params.preview.encrypted) {
+              this.PreviewRow({ label: t('backup_preview_algorithm'), value: params.preview.algorithm })
+              this.PreviewRow({ label: t('backup_preview_kdf'), value: params.preview.kdfId })
+            }
+            if (!params.preview.encrypted || params.preview.decrypted) {
+              this.PreviewRow({ label: t('backup_preview_progress_conflicts'), value: `${params.preview.progressConflictCount}` })
+              this.PreviewRow({ label: t('backup_preview_progress_additions'), value: `${params.preview.progressAddCount}` })
+              this.PreviewRow({ label: t('backup_preview_library_conflicts'), value: `${params.preview.libraryConflictCount}` })
+              this.PreviewRow({ label: t('backup_preview_library_additions'), value: `${params.preview.libraryAddCount}` })
+              this.PreviewRow({ label: t('backup_preview_current_library_items'), value: `${params.preview.currentLibraryItemCount}` })
+              this.PreviewRow({ label: t('backup_preview_current_progress'), value: `${params.preview.currentProgressCount}` })
+              this.PreviewRow({ label: t('backup_preview_settings'), value: `${params.preview.settingsCount}` })
+              this.PreviewRow({ label: t('backup_preview_categories'), value: `${params.preview.categoryCount}` })
+              this.PreviewRow({
+                label: t('backup_preview_download_queue'),
+                value: params.preview.hasDownloadQueueCount ? `${params.preview.downloadQueueCount}` : t('backup_preview_not_provided'),
+              })
+              this.PreviewRow({
+                label: t('backup_preview_tracker_mappings'),
+                value: params.preview.hasTrackerMappingCount ? `${params.preview.trackerMappingCount}` : t('backup_preview_not_provided'),
+              })
+              this.PreviewRow({ label: t('backup_preview_source_package_metadata'), value: `${params.preview.sourcePackageCount}` })
+              this.PreviewRow({ label: t('backup_preview_source_settings'), value: `${params.preview.sourceSettingsCount}` })
+            }
+          }.width('100%').transition(TransitionEffect.OPACITY)
         }
       }
       .width('100%')
@@ -1159,24 +1284,17 @@ export struct BackupManagementPage {
       .width('100%')
       .height('100%')
       .backgroundColor(ThemeConstants.BG_SUB)
-      .bindSheet($$this.backupModalShown, this.BackupModalContent, komaModalSheetOptions({
-        height: SheetSize.LARGE,
-        onWillDismiss: (action: DismissSheetAction) => {
-          if (!this.busy) { this.backupModalShown = false; action.dismiss() }
-        },
-        onDisappear: () => {
-          this.clearEncryptionPrompt()
-          this.clearRestorePreview()
-        },
-      }))
     }
   }
 
   aboutToDisappear(): void {
+    this.active = false
+    if (this.backupDialogShown) void this.closeBackupDialog()
     this.localBackupsEpoch += 1
   }
 
   aboutToAppear(): void {
+    this.active = true
     this.showAutomaticOptions = this.searchTarget === 'backup-automatic'
     this.onRefreshRevision()
   }

@@ -60,6 +60,8 @@ import {
 } from '../sourceRuntime/SourceFilterPreferencesStore'
 import {
   BACKUP_ENCRYPTED_CONTENT_SCHEMA_VERSION,
+  BACKUP_ENCRYPTED_KIND,
+  BACKUP_ENCRYPTED_KIND_V1,
   BACKUP_PASSPHRASE_MIN_LENGTH,
   BackupEncryptedPublicPreview,
   BackupEncryptionService,
@@ -189,12 +191,23 @@ interface BackupTrackerSyncPreferences {
   updateStrategy: TrackerUpdateStrategy
 }
 
-export interface BackupImportPreview {
-  schemaVersion: number
+export interface BackupLocalFilePreview {
   exportedAt: number
   exportedAtText: string
-  encryptionText: string
   encrypted: boolean
+}
+
+interface BackupFileHeader {
+  kind?: string
+  schemaVersion?: number
+  exportedAt?: number
+  libraryStore?: string
+  readingProgress?: string
+}
+
+export interface BackupImportPreview extends BackupLocalFilePreview {
+  schemaVersion: number
+  encryptionText: string
   decrypted: boolean
   algorithm: string
   kdfId: string
@@ -225,7 +238,7 @@ export interface BackupLocalFileRecord {
   fileName: string
   displayName: string
   sizeBytes: number
-  preview: BackupImportPreview
+  preview: BackupLocalFilePreview
 }
 
 export interface BackupAutomaticPreferences {
@@ -1099,7 +1112,7 @@ export class BackupService {
     return staleRecords.length
   }
 
-  async listLocalBackups(): Promise<BackupLocalFileRecord[]> {
+  async listLocalBackups(inspectContents: boolean = true): Promise<BackupLocalFileRecord[]> {
     ensureDir(this.localBackupsDir())
     const options: ListFileOptions = {
       recursion: false,
@@ -1110,7 +1123,7 @@ export class BackupService {
       .filter((name: string): boolean => isLocalBackupFileName(name))
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
-      const record = this.readLocalBackupRecord(fileNames[index], true)
+      const record = this.readLocalBackupRecord(fileNames[index], true, inspectContents)
       if (record !== undefined) {
         records.push(record)
       }
@@ -1448,7 +1461,22 @@ export class BackupService {
     return record
   }
 
-  private readLocalBackupRecord(fileName: string, strictRead: boolean = false): BackupLocalFileRecord | undefined {
+  private localBackupFilePreview(payload: string): BackupLocalFilePreview {
+    const header = JSON.parse(payload) as BackupFileHeader
+    if (header.kind === BACKUP_ENCRYPTED_KIND || header.kind === BACKUP_ENCRYPTED_KIND_V1) {
+      const encrypted = previewEncryptedBackupEnvelope(payload)
+      return { exportedAt: encrypted.exportedAt, exportedAtText: encrypted.exportedAtText, encrypted: true }
+    }
+    if (!isAcceptedPlaintextSchemaVersion(header.schemaVersion ?? 0) ||
+      typeof header.libraryStore !== 'string' || typeof header.readingProgress !== 'string') {
+      throw new Error('Invalid backup payload')
+    }
+    return { exportedAt: normalizeBackupExportedAt(header.exportedAt),
+      exportedAtText: formatBackupExportedAt(header.exportedAt), encrypted: false }
+  }
+
+  private readLocalBackupRecord(fileName: string, strictRead: boolean = false,
+    inspectContents: boolean = true): BackupLocalFileRecord | undefined {
     const safeName = this.requireLocalBackupFileName(fileName)
     const path = this.localBackupPath(safeName)
     if (!fs.accessSync(path)) {
@@ -1460,7 +1488,7 @@ export class BackupService {
         fileName: safeName,
         displayName: safeName.replace(/\.koma-backup$/, '').replace(/\.json$/, ''),
         sizeBytes: fs.statSync(path).size,
-        preview: this.preview(payload),
+        preview: inspectContents ? this.preview(payload) : this.localBackupFilePreview(payload),
       }
     } catch (_error) {
       if (strictRead) {

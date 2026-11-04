@@ -6,8 +6,8 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ||
 const root = resolve(__dirname, '..')
 
 // Execute the production methods, not a duplicate of either route/title algorithm.
-function method(page, name) {
-  const source = readFileSync(resolve(root, `entry/src/main/ets/pages/${page}.ets`), 'utf8')
+function method(page, name, folder = 'pages') {
+  const source = readFileSync(resolve(root, `entry/src/main/ets/${folder}/${page}.ets`), 'utf8')
   const file = ts.createSourceFile(`${page}.ts`, source.replace(/\bstruct (\w+)/g, 'class $1'),
     ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const owner = file.statements.find((node) => ts.isClassDeclaration(node) && node.name?.text === page)
@@ -26,6 +26,20 @@ const code = ts.transpileModule(`
   export class Index {
     libraryStore;
     ${method('Index', 'mangaDetailTitle')}
+    ${method('Index', 'mangaDetailTitleBarOpts')}
+    sourceRouteTitleBarOpts(content) { return content }
+    mangaDetailOverflow() { return { content: { label: 'more' } } }
+  }
+  export class Selection {
+    filteredChapterIds = ['a', 'b']
+    visible = true
+    chapterPresentation = {
+      selectionMode: true, selectedChapterIds: new Set(),
+      setSelectionMode(mode) { this.selectionMode = mode; this.selectedChapterIds = new Set() },
+    }
+    requestAction() { this.toggleFilteredChapterSelection() }
+    ${method('MangaDetailRouteChromeState', 'allFilteredChaptersSelected', 'state')}
+    ${method('MangaDetailRouteChromeState', 'toggleFilteredChapterSelection', 'state')}
   }
 `, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS } }).outputText
 const strings = new Map(JSON.parse(readFileSync(resolve(root,
@@ -33,8 +47,10 @@ const strings = new Map(JSON.parse(readFileSync(resolve(root,
 const s = (key) => { assert.ok(strings.has(key), `Missing localized key ${key}`); return strings.get(key) }
 const routes = []
 const compiled = { exports: {} }
-new Function('module', 'exports', 'RouterHelper', 'AppStrings', 's', code)(
-  compiled, compiled.exports, { pushMangaDetail: (param) => routes.push(param) }, { get: s }, s)
+new Function('module', 'exports', 'RouterHelper', 'AppStrings', 's', '$r', 'MangaDetailTitleAction', code)(
+  compiled, compiled.exports, { pushMangaDetail: (param) => routes.push(param),
+    ensureMangaDetailRouteChrome: (param) => param.chrome },
+  { get: s }, s, (resource) => resource, { SELECT_ALL_CHAPTERS: 'select_all_chapters' })
 const index = new compiled.exports.Index()
 const downloads = new compiled.exports.Downloads()
 const comics = [
@@ -95,4 +111,24 @@ assert.deepEqual(downloads.blocked, [{ comicId: 'missing' }])
 assert.deepEqual(downloads.toasts, [s('downloads_toast_entry_unavailable')])
 assert.equal(index.mangaDetailTitle({ mangaId: 'remote-1', sourceId: 'source-a' }), 'Source A title',
   'Resolving another route must not retain its title')
+const selection = new compiled.exports.Selection()
+const selectionRoute = { mangaId: 'library-a', chrome: selection }
+let popped = 0
+index.appPathStack = { pop: () => { popped++ } }
+let title = index.mangaDetailTitleBarOpts(selectionRoute)
+assert.equal(title.backIcon.icon, 'sys.symbol.xmark')
+title.menu.value[0].content.action()
+assert.deepEqual([...selection.chapterPresentation.selectedChapterIds], ['a', 'b'])
+title = index.mangaDetailTitleBarOpts(selectionRoute)
+assert.equal(title.menu.value[0].content.label, s('chapter_list_menu_deselect_all_filtered'))
+title.menu.value[0].content.action()
+assert.equal(selection.chapterPresentation.selectedChapterIds.size, 0)
+assert.equal(selection.chapterPresentation.selectionMode, true)
+title.backIcon.action()
+assert.equal(selection.chapterPresentation.selectionMode, false)
+assert.equal(popped, 0)
+title = index.mangaDetailTitleBarOpts(selectionRoute)
+assert.deepEqual(title.backIcon, {}, 'Exit clears the override and leaves the default HDS back behavior')
+assert.equal(title.menu.value[0].content.label, 'more')
+assert.equal(popped, 0)
 console.log('PASS manga detail title: production download routes and title resolution; source/local ID collisions, preview and missing states')

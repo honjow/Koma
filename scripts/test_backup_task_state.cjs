@@ -26,12 +26,15 @@ const { BackupManagementPage } = evaluate(pageLogic, {
   connectLanguageState: () => ({}),
   DiagnosticLogger: { error() {}, warn() {} },
   synchronizeBackgroundMaintenance: async () => {},
+  BACKUP_PASSPHRASE_MIN_LENGTH: 8, komaDialogMaterial: () => undefined, DialogAlignment: { Center: 0 },
+  backupUnencryptedExportWarning: () => "Unencrypted export",
+  $r: () => ({}),
   console: { info() {} },
 })
 const drain = async () => { for (let i = 0; i < 30; i++) await Promise.resolve() }
 
 function fixture() {
-  const calls = [], page = new BackupManagementPage()
+  const calls = [], page = new BackupManagementPage(), ui = {}
   const service = {
     listLocalBackups: async () => [],
     loadAutomaticPreferences: async () => ({ enabled: true }),
@@ -39,6 +42,8 @@ function fixture() {
     loadContentPreferences: async () => ({}),
     exportLocal: async () => { calls.push('local') },
     exportEncryptedLocal: async passphrase => { calls.push(['encrypted local', passphrase]) },
+    exportToPicker: async () => { calls.push('new file'); return undefined },
+    exportEncryptedToPicker: async passphrase => { calls.push(['encrypted new file', passphrase]); return undefined },
     exportLocalCopyToPicker: async (fileName, passphrase) => { calls.push([fileName, passphrase]); return undefined },
     selectImportPreviewFromPicker: async () => undefined,
     selectLocalBackup: async fileName => {
@@ -48,15 +53,23 @@ function fixture() {
     decryptPreview: async () => ({ payload: 'decrypted fixture', preview: { encrypted: true, decrypted: true } }),
     importDecrypted: async payload => { calls.push(['restore decrypted', payload]) },
   }
+  page.active = true
   page.context = () => ({})
+  page.getUIContext = () => ({
+    getPromptAction: () => ({
+      openCustomDialog: async options => { ui.dialog = options; return 1 },
+      closeCustomDialog: () => ui.dialog.onDidDisappear(),
+    }),
+    showAlertDialog: options => { ui.alert = options },
+  })
   page.backupService = () => service
   page.showToast = message => calls.push(message)
   page.showInfoDialog = title => calls.push(title)
-  return { page, service, calls }
+  return { page, service, calls, ui }
 }
 
 async function run() {
-  const { page, service, calls } = fixture()
+  const { page, service, calls, ui } = fixture()
   // The reported regression was the native switch sending the hydrated value
   // on mount. A real edit should persist once, even before the first write settles.
   assert.equal(page.automaticPreferencesState, 'loading')
@@ -70,35 +83,49 @@ async function run() {
   await drain()
   assert.deepEqual(calls.splice(0), [{ enabled: false }, 'backup_auto_saved_toast'])
 
-  page.createLocalBackup()
-  page.createLocalBackup()
+  page.openSaveDialog()
+  page.submitBackupSave()
+  page.submitBackupSave()
   await drain()
   assert.deepEqual(calls.splice(0), ['local', 'backup_local_saved_toast'])
 
-  page.openEncryptionPrompt()
+  page.openSaveDialog()
+  page.encryptBackup = true
   page.exportPassphrase = 'secure test value'
   page.exportPassphraseConfirm = 'different value'
-  page.submitEncryptedBackup()
-  assert.deepEqual(calls.splice(0), ['backup_dialog_export_blocked_title'])
+  page.submitBackupSave()
+  assert.equal(page.passphraseError, 'backup_passphrase_mismatch')
+  assert.deepEqual(calls, [])
   page.exportPassphraseConfirm = page.exportPassphrase
-  page.submitEncryptedBackup(); await drain()
+  page.submitBackupSave(); await drain()
   assert.deepEqual(calls.splice(0), [['encrypted local', 'secure test value'], 'backup_local_saved_toast'])
-  assert.equal(page.backupModalShown, false)
+  assert.equal(page.backupDialogShown, false)
 
-  page.openEncryptionPrompt('chosen.json')
-  page.exportPassphrase = 'secure test value'
-  page.exportPassphraseConfirm = page.exportPassphrase
-  page.submitEncryptedBackup(); await drain()
+  page.openSaveDialog()
+  page.saveToFile = true
+  page.submitBackupSave()
+  await drain()
+  assert.deepEqual(calls.splice(0), ['new file'], 'direct export does not generate a local record')
+  assert.equal(page.backupDialogShown, true)
+  page.encryptBackup = true
+  page.exportPassphrase = page.exportPassphraseConfirm = 'secure test value'
+  page.submitBackupSave(); await drain()
+  assert.deepEqual(calls.splice(0), [['encrypted new file', 'secure test value']])
+  page.closeBackupDialog()
+
+  page.openSaveDialog('chosen.json')
+  page.encryptBackup = true
+  page.exportPassphrase = page.exportPassphraseConfirm = 'secure test value'
+  page.submitBackupSave(); await drain()
   assert.deepEqual(calls.splice(0), [['chosen.json', 'secure test value']])
-  assert.equal(page.backupModalShown, true, 'canceling the save picker leaves the prompt available')
-  page.clearEncryptionPrompt()
+  assert.equal(page.backupDialogShown, true, 'canceling the save picker leaves the dialog available')
+  page.closeBackupDialog()
   assert.equal(page.exportPassphrase, '')
 
-  page.backupModalShown = false
   page.importBackup(); await drain()
-  assert.equal(page.backupModalShown, false, 'canceling the picker never opens a blank restore view')
+  assert.equal(page.backupDialogShown, false, 'canceling the picker never opens a blank restore view')
   page.selectLocalBackup({ fileName: 'local.koma-backup', displayName: 'Local', preview: { exportedAt: 1 } }); await drain()
-  assert.equal(page.backupModal, 'restore')
+  assert.equal(page.backupDialog, 'restore')
   assert.equal(page.selectedBackupName, 'Local')
   assert.equal(page.selectedBackupPayload, '', 'encrypted data cannot be restored before decryption')
   page.importPassphrase = 'secure test value'
@@ -107,7 +134,7 @@ async function run() {
   assert.deepEqual(calls.splice(0), ['local.koma-backup'])
   page.runRestoreSelectedBackup(); await drain()
   assert.deepEqual(calls.splice(0), [['restore decrypted', 'decrypted fixture'], 'backup_dialog_imported_title'])
-  assert.equal(page.backupModalShown, false)
+  assert.equal(page.backupDialogShown, false)
   assert.equal(page.selectedBackupPayload, '')
 
   const saved = []

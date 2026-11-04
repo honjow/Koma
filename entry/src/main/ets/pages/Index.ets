@@ -3558,9 +3558,10 @@ struct Index {
     const chrome = RouterHelper.ensureMangaDetailRouteChrome(param)
     const selection = chrome.chapterPresentation
     if (selection.selectionMode) {
+      const allSelected = chrome.allFilteredChaptersSelected()
       const selectAllContent: Record<string, Object> = {
-        'label': AppStrings.get('chapter_list_menu_select_all_filtered'),
-        'icon': $r('sys.symbol.checkmark_square'),
+        'label': AppStrings.get(allSelected ? 'chapter_list_menu_deselect_all_filtered' : 'chapter_list_menu_select_all_filtered'),
+        'icon': allSelected ? $r('sys.symbol.square') : $r('sys.symbol.checkmark_square'),
         'isEnabled': chrome.filteredChapterIds.length > 0,
         'action': (): void => { chrome.requestAction(MangaDetailTitleAction.SELECT_ALL_CHAPTERS) },
       }
@@ -3577,7 +3578,9 @@ struct Index {
       })
     }
     const title: Record<string, Object> = { 'mainTitle': chrome.showTitle ? this.mangaDetailTitle(param) : '' }
-    const content: Record<string, Object> = { 'title': title }
+    // Send empty back-button options on exit. Omitting the option leaves HDS
+    // with the previous selection icon. Normal navigation uses the default icon and action.
+    const content: Record<string, Object> = { 'title': title, 'backIcon': {} as Record<string, Object> }
     const items: Record<string, Object>[] = []
     // Keep two useful direct actions, with the native anchored overflow third.
     // Refresh remains available through pull-to-refresh and the grouped menu.

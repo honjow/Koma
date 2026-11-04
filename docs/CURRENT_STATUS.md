@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已修正并在 103 复验，197 保留了接手时的多选现场。图像设置搜索已验收。备份与恢复改为直接操作和同页备份记录，103 已核对创建、导出、恢复预览和自动备份重进。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
+当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对保存位置、文件选择器取消和预览进退，103 已核对口令字段展开和收起。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
 
-设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留当前 4 章选区和原调试包，原超时和休眠已恢复并释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留通过退出、展开和收起验证的调试包，原电源状态已恢复并释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -84,16 +84,25 @@
       "title": "详情页章节多选与批量操作",
       "priority": "用户直接需求",
       "kind": "active",
-      "status": "103 已复验操作栏背板，197 保留原选区",
-      "stage": "悬浮操作栏的背板与布局已修正",
+      "status": "197 实机复验全选、取消全选和原生返回键",
+      "stage": "章节多选与默认 HDS 返回键已核对",
       "owner": "Root：Koma 漫画详情",
-      "result": "撤下章节头吸顶和专用起始偏移，恢复封面、下拉刷新和章节头随列表滚动。普通态由右上角更多进入选择章节，下载未完成及重试失败归下载章节子菜单并沿用当前筛选范围。多选时标题栏显示已选数量、全选当前筛选结果和取消，底部 HdsActionBar 只处理所选章节的下载、已读及未读。平板操作栏只覆盖右侧章节视口。单章长按的标记之前章节为已读继续按所属阅读序列处理，排除当前章。197 首轮包录屏核对封面完整、短滑即模糊且回顶退出，验证章节中段进入多选、点选和标题计数。103 最终包全选 634 章后底栏按钮启用，批量已读确认显示 634 章，取消后保留选区。第 1169 话可取消勾选，系统返回仅退出多选，右栏保持在末尾且左栏原位。下载子菜单两个原操作均可见。用户已处理 197 的系统隐私声明；恢复租约后读回 Koma 书架，未再出现该弹窗。197 最终包从章节中段点选两章，已读、未读和下载确认框分别显示所选两章，取消保留选区。叉号退出后，原来可见章节的纵向位置相同。197 回到接手时的书架，恢复原屏幕超时和休眠并释租。随后用户指出悬浮栏与章节卡看不出边界。对照华为无主按钮横向示例，原生栏按内容宽度在章节区域居中，下载和阅读状态分组，原生背板下的轻阴影分隔列表。多选右上角保留全选和带文字的更多菜单。普通章节的更多位于下载图标左侧，380 ms 长按打开同一菜单并请求系统触感反馈。下载状态用图标和颜色区分，保留读屏标签。103 浅色双栏实机核对了悬浮栏边界、更多菜单的两章确认、单章更多、长按及短按进入阅读。",
-      "remaining": "197 接手时仍有 4 章选中，保留现场及原包。深色、实际震动强度和各下载状态的完整实机组合未验，批量确认未写入阅读状态。",
+      "result": "撤下章节头吸顶和专用起始偏移，恢复封面、下拉刷新和章节头随列表滚动。普通态由右上角更多进入选择章节，下载未完成及重试失败归下载章节子菜单并沿用当前筛选范围。多选时标题栏显示已选数量、全选当前筛选结果和取消，底部 HdsActionBar 只处理所选章节的下载、已读及未读。平板操作栏只覆盖右侧章节视口。单章长按的标记之前章节为已读继续按所属阅读序列处理，排除当前章。197 首轮包录屏核对封面完整、短滑即模糊且回顶退出，验证章节中段进入多选、点选和标题计数。103 最终包全选 634 章后底栏按钮启用，批量已读确认显示 634 章，取消后保留选区。第 1169 话可取消勾选，系统返回仅退出多选，右栏保持在末尾且左栏原位。下载子菜单两个原操作均可见。用户已处理 197 的系统隐私声明；恢复租约后读回 Koma 书架，未再出现该弹窗。197 最终包从章节中段点选两章，已读、未读和下载确认框分别显示所选两章，取消保留选区。叉号退出后，原来可见章节的纵向位置相同。197 回到接手时的书架，恢复原屏幕超时和休眠并释租。随后用户指出悬浮栏与章节卡看不出边界。对照华为无主按钮横向示例，原生栏按内容宽度在章节区域居中，下载和阅读状态分组，原生背板下的轻阴影分隔列表。多选右上角保留全选和带文字的更多菜单。普通章节的更多位于下载图标左侧，380 ms 长按打开同一菜单并请求系统触感反馈。下载状态用图标和颜色区分，保留读屏标签。103 浅色双栏实机核对了悬浮栏边界、更多菜单的两章确认、单章更多、长按及短按进入阅读。 后续实机对歸還者的魔法要特別全选 269 章，再点归零且保留选择模式。叉号或系统返回退出多选，普通更多菜单可再打开。HDS 返回配置显式复位为空，恢复系统默认箭头和默认返回动作。同一 197 与备份普通页裁图对比箭头尺寸一致，点默认返回回书架。轻点更多与长按都能打开单章菜单，仅长按请求软触感。",
+      "remaining": "真机核对单章菜单的点击和长按，未测实际触感强度。深色与完整下载状态组合仍未验，批量确认未写入阅读状态。",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "本会话用户原文提出，随后明确要求在 197 和 103 验证。首次消息的精确时刻未核实。",
       "closedAt": null,
       "evidence": [
+        ".hvigor/outputs/backup-dialog/back-button-compare-before.png",
+        ".hvigor/outputs/backup-dialog/back-button-compare-native.png",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/all-selected-231443282777",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/deselect-all-231528192988",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/system-back-menu-231700033000",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/native-reset-exit-232535332227",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/native-back-pop-232806729860",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/chapter-menu-tap-231728656769",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/chapter-menu-long-press-232659282696",
         ".hvigor/outputs/detail-chapter-selection/tablet-actionbar-final-preview.png",
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/chapter-actions-shadow-tablet-selected-221302922990",
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/chapter-actions-tablet-selection-menu-confirm-220517064810",
@@ -140,7 +149,7 @@
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backdrop-hds-anchor-wide-window-200443889188"
       ],
       "remainingActions": [],
-      "updatedAt": "2026-11-04T21:51:48+08:00"
+      "updatedAt": "2026-11-04T23:52:04+08:00"
     },
     {
       "id": "RELEASE_1_1_0",
@@ -1886,16 +1895,36 @@
       "title": "备份与恢复按记录和动作重新组织",
       "priority": "用户直接需求",
       "kind": "done",
-      "status": "103 具名流程与自动备份重进已核对",
-      "stage": "代码、签名调试包与实机验证完成",
+      "status": "备份改用 Dialog，已验证直接打开文件选择器和取消回到草稿",
+      "stage": "统一入口、列表刷新和展开过渡已调整",
       "owner": "Root：Koma 备份与恢复",
-      "result": "普通创建直接保存到应用内。需要保护时直接选择创建加密备份，打开公共口令输入；也可在已有记录上导出普通或加密副本，导出读取点中的原快照。点本地记录可预览，外部文件先经过系统选择器，选中文件后才显示预览。恢复确认继续展示书架和阅读进度的替换规则。手动与自动共用一套备份内容偏好，自动备份继续使用原调度、保留和目录授权。首帧等待真实偏好，回读等值不会触发持久写入。 103 实机创建普通和加密本地备份，验证口令解密和替换确认取消。将加密记录导出到系统下载目录，随后从系统选择器重新选中文件，实读加密预览。普通记录的导出加密副本入口显示口令输入。默认记录显示本地化日期，自定义名称单独保留。开启自动备份后连进两次，录屏中开关直接显示已开，未出现保存提示。主动关闭显示一次保存提示，读回原状态。自动备份与备份内容搜索均定位同页分组。删除两份本轮本地备份和外部测试副本，确认空列表，103 回书架、恢复电源并释租。",
-      "remaining": "恢复实机验证到覆盖确认，未改写书架或进度。新版备份页实机覆盖 103。普通备份转加密副本的真机验证停在口令入口，所选快照加密与保存参数另由逻辑验证。",
+      "result": "首页只留一个创建入口。居中系统 Dialog 用原生菜单选保存位置，只有开启加密才显示口令。已有记录仅有一个导出入口，支持复制所选历史备份。未加密文件警告内联，取消系统保存选择器回到原文件选项。刷新时不在已有记录上方插入加载行和分割线，列表仅计算文件信息，恢复冲突点开记录后计算。加密口令和恢复明细采用同一 200ms 过渡。197 实机核对保存位置的原生菜单、从创建直达系统文件选择器及取消恢复草稿。103 实机录到加密口令展开和收起时 Dialog 尺寸渐变。 首次改版中，103 实机创建普通和加密本地备份，验证口令解密和替换确认取消。将加密记录导出到系统下载目录，随后从系统选择器重新选中文件，实读加密预览。普通记录的导出加密副本入口显示口令输入。默认记录显示本地化日期，自定义名称单独保留。开启自动备份后连进两次，录屏中开关直接显示已开，未出现保存提示。主动关闭显示一次保存提示，读回原状态。自动备份与备份内容搜索均定位同页分组。删除两份本轮本地备份和外部测试副本，确认空列表，103 回书架、恢复电源并释租。 197 确认 HDS 行点击回调同步重排会触发原生 SIGSEGV，将展开动画移出该回调后，在最终包连续验证展开、收起和取消，同一进程留在备份列表。取消 Dialog 后再清理内容、打开文件选择器。两台设备的临时记录均已清理。",
+      "remaining": "直接创建到系统文件在 197 实机验证到选择器及取消回到草稿，未写入系统文件。覆盖恢复未执行。",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "用户先报告自动备份每次重进都会闪回并重复提示，随后要求整套菜单重新设计。精确时刻未核实。",
-      "closedAt": "2026-11-04T22:48:20+08:00",
+      "closedAt": "2026-11-04T23:52:04+08:00",
       "evidence": [
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/phone-preview-expand/233557137983",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/phone-preview-collapse/233622525580",
+        ".hvigor/outputs/backup-dialog/Koma-backup-and-chapters-final-debug.hap",
+        ".hvigor/outputs/backup-dialog/build-final.log",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/latest-picker-open-234754579422",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/latest-destination-menu-234822067942",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/latest-file-picker-window-234847919711",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/latest-picker-return-window-234851746744",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/deferred-expand-window-234629281919",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/deferred-collapse-window-234645049942",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/deferred-cancel-window-234648931631",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/fixture-delete-234750856273",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/preview-reproduce-window-232241604194",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/cleanup-delete-233236339984",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/install-235058327559",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backup-clipped-encryption-expand-end-235120705815",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/backup-clipped-encryption-collapse-end-235129214570",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/restore-235154348787",
+        ".hvigor/outputs/backup-dialog/final-encryption-expand.png",
+        ".hvigor/outputs/backup-dialog/final-encryption-collapse.png",
         ".hvigor/outputs/backup-workflow/build-final.log",
         ".hvigor/outputs/backup-workflow/Koma-backup-workflow-final-debug.hap",
         ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/create-local-222831146342",
@@ -1923,7 +1952,7 @@
         "仅调整备份菜单、界面和所选快照导出。恢复的数据事务及计划的调度、目录授权和保留策略沿用原实现。",
         "设置搜索定位到同一个备份页面，不替用户执行操作。103 测试不确认真实数据覆盖。"
       ],
-      "updatedAt": "2026-11-04T22:48:20+08:00"
+      "updatedAt": "2026-11-04T23:52:04+08:00"
     },
     {
       "id": "LOCAL_READER_TAPS",

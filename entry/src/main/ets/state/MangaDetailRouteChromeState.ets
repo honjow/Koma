@@ -55,6 +55,17 @@ export class MangaDetailRouteChromeState {
   @Trace requestedAction: MangaDetailTitleAction = MangaDetailTitleAction.RELOAD_SOURCE
   @Trace actionRequestSeq: number = 0
 
+  allFilteredChaptersSelected(): boolean {
+    return this.filteredChapterIds.length > 0 && this.filteredChapterIds.every((id: string): boolean =>
+      this.chapterPresentation.selectedChapterIds.has(id))
+  }
+
+  toggleFilteredChapterSelection(): void {
+    if (!this.chapterPresentation.selectionMode || this.filteredChapterIds.length === 0) return
+    this.chapterPresentation.selectedChapterIds = this.allFilteredChaptersSelected() ?
+      new Set<string>() : new Set<string>(this.filteredChapterIds)
+  }
+
   requestAction(action: MangaDetailTitleAction): void {
     this.requestedAction = action
     this.actionRequestSeq = this.actionRequestSeq + 1

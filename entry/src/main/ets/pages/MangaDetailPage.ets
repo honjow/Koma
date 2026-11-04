@@ -689,8 +689,8 @@ export struct MangaDetailPage {
       this.chapterPresentation.setSelectionMode(true)
       return
     }
-    if (action === MangaDetailTitleAction.SELECT_ALL_CHAPTERS && this.chapterPresentation.selectionMode) {
-      this.chapterPresentation.selectedChapterIds = new Set<string>(this.chrome.filteredChapterIds)
+    if (action === MangaDetailTitleAction.SELECT_ALL_CHAPTERS) {
+      this.chrome.toggleFilteredChapterSelection()
       return
     }
     if (action === MangaDetailTitleAction.DOWNLOAD_SELECTED_CHAPTERS) {

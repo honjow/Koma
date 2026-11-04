@@ -1,3 +1,4 @@
+import { vibrator } from '@kit.SensorServiceKit'
 import { komaContextMenuOptions, komaMenuOptions } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -14,6 +15,8 @@ import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
 export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 
 const CHAPTER_MENU_HOLD_MS: number = 380
+const CHAPTER_MENU_HAPTIC_INTENSITY: number = 25
+const CHAPTER_MENU_HAPTIC_FALLBACK_MS: number = 8
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -594,7 +597,7 @@ export struct ChapterListSection {
       .onClick(() => { this.readStateMenuChapterId = ri.item.id })
       .bindContextMenu(this.readStateMenuChapterId === ri.item.id, this.ReadStateMenu(ri), komaContextMenuOptions({
         placement: Placement.BottomRight,
-        hapticFeedbackMode: HapticFeedbackMode.ENABLED,
+        hapticFeedbackMode: HapticFeedbackMode.DISABLED,
         onDisappear: () => {
           if (this.readStateMenuChapterId === ri.item.id) this.readStateMenuChapterId = ''
         },
@@ -659,6 +662,20 @@ export struct ChapterListSection {
     .justifyContent(FlexAlign.Center)
   }
 
+  private openChapterMenuFromLongPress(chapterId: string): void {
+    if (this.readStateMenuChapterId.length > 0) return
+    this.readStateMenuChapterId = chapterId
+    try {
+      if (vibrator.isHdHapticSupported()) {
+        void vibrator.startVibration({ type: 'preset', effectId: vibrator.HapticFeedback.EFFECT_SOFT,
+          count: 1, intensity: CHAPTER_MENU_HAPTIC_INTENSITY }, { usage: 'physicalFeedback' }).catch(() => {})
+      } else {
+        void vibrator.startVibration({ type: 'time', duration: CHAPTER_MENU_HAPTIC_FALLBACK_MS },
+          { usage: 'physicalFeedback' }).catch(() => {})
+      }
+    } catch (_error) {}
+  }
+
   @Builder
   private ChapterRow(ri: RepeatItem<MangaChapterItem>) {
     // Use the same inset HDS press surface as other grouped rows. The outer
@@ -677,9 +694,9 @@ export struct ChapterListSection {
       },
     })
     // Claim a held touch before the card can interpret its release as a tap.
-    // Keep the context menu and its haptic under the system's menu policy.
+    // Only the recognized long press requests a light pulse. Opening the same menu by tapping is quiet.
     .priorityGesture(LongPressGesture({ duration: CHAPTER_MENU_HOLD_MS })
-      .onAction(() => { this.readStateMenuChapterId = ri.item.id }))
+      .onAction(() => { this.openChapterMenuFromLongPress(ri.item.id) }))
   }
 
   @Builder
