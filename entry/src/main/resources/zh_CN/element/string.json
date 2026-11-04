@@ -2182,6 +2182,118 @@
     {"name": "image_plugins_storage_failed", "value": "无法读取插件数据，原数据已保留。请下拉重试。"},
     {"name": "reader_settings_tab_mode", "value": "阅读模式"},
     {"name": "reader_settings_tab_general", "value": "常规"},
-    {"name": "reader_settings_tab_filters", "value": "滤镜"}
+    {"name": "reader_settings_tab_filters", "value": "滤镜"},
+    {
+      "name": "history_sync_title",
+      "value": "阅读历史同步"
+    },
+    {
+      "name": "history_sync_detail",
+      "value": "通过 WebDAV 在设备之间同步阅读历史"
+    },
+    {
+      "name": "history_sync_webdav",
+      "value": "WebDAV 同步"
+    },
+    {
+      "name": "history_sync_scope",
+      "value": "同步书源漫画的历史、阅读进度和已读状态"
+    },
+    {
+      "name": "history_sync_now",
+      "value": "立即同步"
+    },
+    {
+      "name": "history_sync_test",
+      "value": "测试连接"
+    },
+    {
+      "name": "history_sync_test_hint",
+      "value": "检查 WebDAV 目录的访问权限和兼容性"
+    },
+    {
+      "name": "history_sync_testing",
+      "value": "正在测试连接…"
+    },
+    {
+      "name": "history_sync_test_success",
+      "value": "连接成功"
+    },
+    {
+      "name": "history_sync_address",
+      "value": "WebDAV 目录地址"
+    },
+    {
+      "name": "history_sync_optional",
+      "value": "选填"
+    },
+    {
+      "name": "history_sync_loading",
+      "value": "正在读取同步设置…"
+    },
+    {
+      "name": "history_sync_disabled",
+      "value": "WebDAV 同步已关闭"
+    },
+    {
+      "name": "history_sync_address_required",
+      "value": "请填写 WebDAV 目录地址"
+    },
+    {
+      "name": "history_sync_never",
+      "value": "尚未同步"
+    },
+    {
+      "name": "history_sync_running",
+      "value": "正在同步阅读历史…"
+    },
+    {
+      "name": "history_sync_last",
+      "value": "上次同步 %s"
+    },
+    {
+      "name": "history_sync_success",
+      "value": "阅读历史已同步"
+    },
+    {
+      "name": "history_sync_invalid_url",
+      "value": "请输入有效的 HTTP 或 HTTPS 目录地址"
+    },
+    {
+      "name": "history_sync_conditions",
+      "value": "这个目录不支持同步所需的安全写入"
+    },
+    {
+      "name": "history_sync_invalid_data",
+      "value": "同步数据损坏或格式不受支持"
+    },
+    {
+      "name": "history_sync_network",
+      "value": "无法连接 WebDAV，请检查地址和网络。"
+    },
+    {
+      "name": "history_sync_auth",
+      "value": "访问被拒绝，请检查账号、密码和目录权限。"
+    },
+    {
+      "name": "history_sync_http",
+      "value": "WebDAV 返回 HTTP %s"
+    },
+    {
+      "name": "history_sync_conflict",
+      "value": "另一台设备正在同步，请稍后重试。"
+    },
+    {
+      "name": "history_sync_storage",
+      "value": "无法读取或保存本地同步数据"
+    },
+    {
+      "name": "history_sync_retry",
+      "value": "点击重试"
+    },
+    {
+      "name": "history_sync_config_size",
+      "value": "地址或账号密码过长"
+    }
   ]
 }

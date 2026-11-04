@@ -2180,6 +2180,118 @@
     {"name": "image_plugins_storage_failed", "value": "Could not read plugin data. Your saved data has been retained. Pull down to retry."},
     {"name": "reader_settings_tab_mode", "value": "Reading mode"},
     {"name": "reader_settings_tab_general", "value": "General"},
-    {"name": "reader_settings_tab_filters", "value": "Filters"}
+    {"name": "reader_settings_tab_filters", "value": "Filters"},
+    {
+      "name": "history_sync_title",
+      "value": "Reading history sync"
+    },
+    {
+      "name": "history_sync_detail",
+      "value": "Sync reading history across devices with WebDAV"
+    },
+    {
+      "name": "history_sync_webdav",
+      "value": "WebDAV sync"
+    },
+    {
+      "name": "history_sync_scope",
+      "value": "Sync history, reading position and read status for book sources"
+    },
+    {
+      "name": "history_sync_now",
+      "value": "Sync now"
+    },
+    {
+      "name": "history_sync_test",
+      "value": "Test connection"
+    },
+    {
+      "name": "history_sync_test_hint",
+      "value": "Check access and compatibility with this WebDAV directory"
+    },
+    {
+      "name": "history_sync_testing",
+      "value": "Testing connection…"
+    },
+    {
+      "name": "history_sync_test_success",
+      "value": "Connection successful"
+    },
+    {
+      "name": "history_sync_address",
+      "value": "WebDAV directory URL"
+    },
+    {
+      "name": "history_sync_optional",
+      "value": "Optional"
+    },
+    {
+      "name": "history_sync_loading",
+      "value": "Loading sync settings…"
+    },
+    {
+      "name": "history_sync_disabled",
+      "value": "WebDAV sync is off"
+    },
+    {
+      "name": "history_sync_address_required",
+      "value": "Enter a WebDAV directory URL"
+    },
+    {
+      "name": "history_sync_never",
+      "value": "No sync yet"
+    },
+    {
+      "name": "history_sync_running",
+      "value": "Syncing reading history…"
+    },
+    {
+      "name": "history_sync_last",
+      "value": "Last synced %s"
+    },
+    {
+      "name": "history_sync_success",
+      "value": "Reading history synced"
+    },
+    {
+      "name": "history_sync_invalid_url",
+      "value": "Enter a valid HTTP or HTTPS directory URL"
+    },
+    {
+      "name": "history_sync_conditions",
+      "value": "This directory does not support the writes required for sync"
+    },
+    {
+      "name": "history_sync_invalid_data",
+      "value": "Sync data is damaged or unsupported"
+    },
+    {
+      "name": "history_sync_network",
+      "value": "Cannot reach the WebDAV server. Check the address and network."
+    },
+    {
+      "name": "history_sync_auth",
+      "value": "Access denied. Check the account, password and directory permissions."
+    },
+    {
+      "name": "history_sync_http",
+      "value": "WebDAV returned HTTP %s"
+    },
+    {
+      "name": "history_sync_conflict",
+      "value": "Another device is syncing. Try again shortly."
+    },
+    {
+      "name": "history_sync_storage",
+      "value": "Unable to read or save local sync data"
+    },
+    {
+      "name": "history_sync_retry",
+      "value": "Tap to try again"
+    },
+    {
+      "name": "history_sync_config_size",
+      "value": "The address and credentials are too long"
+    }
   ]
 }

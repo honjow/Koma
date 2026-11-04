@@ -24,6 +24,7 @@ export class AxiosHttpClient {
     connectTimeoutMs: number,
     readTimeoutMs: number,
     maxResponseBytes: number = -1,
+    maxRedirects?: number,
   ): Promise<AxiosTextResponse> {
     const config: AxiosRequestConfig<string> = {
       url: url,
@@ -36,6 +37,7 @@ export class AxiosHttpClient {
       maxContentLength: maxResponseBytes,
       validateStatus: AxiosHttpClient.acceptStatus,
     }
+    if (maxRedirects !== undefined) config.maxRedirects = maxRedirects
     if (body.length > 0) {
       config.data = body
     }

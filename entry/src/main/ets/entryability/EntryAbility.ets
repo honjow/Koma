@@ -1,3 +1,4 @@
+import { historySyncController } from '../historySync/HistorySyncController'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { ChapterListPreferencesStore } from '../model/ChapterListPreferencesStore'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -193,6 +194,7 @@ export default class EntryAbility extends UIAbility {
     DiagnosticLogger.info('app', 'foreground', '')
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
+    void historySyncController.setForeground(this.context, true)
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       setTimeout(() => {
         this.syncRemoteProgressInBackground()
@@ -204,6 +206,7 @@ export default class EntryAbility extends UIAbility {
     DiagnosticLogger.info('app', 'background', '')
     updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()
+    void historySyncController.setForeground(this.context, false)
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       void this.startupPromise.then(() => synchronizeBackgroundMaintenance(this.context, true))
         .catch((error: Error): void => { DiagnosticLogger.exception('maintenance', 'snapshot_failed', error) })

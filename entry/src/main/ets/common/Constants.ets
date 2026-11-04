@@ -33,6 +33,7 @@ export class RouteName {
   static readonly LIBRARY_UPDATE_RESULTS: string = 'LibraryUpdateResultPage'
   static readonly LIBRARY_CATEGORIES: string = 'LibraryCategoryManagementPage'
   static readonly DOWNLOADS: string = 'DownloadsPage'
+  static readonly HISTORY_SYNC: string = 'HistorySyncSettingsPage'
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
 }

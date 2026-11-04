@@ -175,6 +175,7 @@ export type SettingsPaneKey =
   'downloads' |
   'tracking' |
   'backup' |
+  'history-sync' |
   'storage' |
   'about' |
   'advanced' |
@@ -389,6 +390,13 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           color: ThemeConstants.STATUS_WARNING,
         },
         {
+          key: 'history-sync',
+          titleKey: 'history_sync_title',
+          detailKey: 'history_sync_detail',
+          icon: $r('sys.symbol.link'),
+          color: ThemeConstants.SOURCE_KAVITA_COLOR,
+        },
+        {
           key: 'backup',
           titleKey: 'settings_pane_backup_title',
           detailKey: 'settings_pane_backup_detail',
@@ -446,6 +454,7 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
   if (pane === 'tracking') {
     return s('settings_pane_tracking_title')
   }
+  if (pane === 'history-sync') return s('history_sync_title')
   if (pane === 'backup') {
     return s('settings_pane_backup_title')
   }

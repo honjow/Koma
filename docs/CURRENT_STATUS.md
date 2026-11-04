@@ -4,7 +4,7 @@
 
 当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
-设备：103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留本次调试包，备份临时记录已清理，原备份设置和电源已读回并释租。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：历史同步验证后，197 和 103 已清除临时配置、恢复电源状态并释租，保留同步验证调试包。103 保留最终调试包，备份临时文件已清理，原自动备份与电源状态已读回，回到书架并释租。197 保留本次调试包，备份临时记录已清理，原备份设置和电源已读回并释租。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T03:31:33+08:00",
+  "updatedAt": "2026-11-05T04:08:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "备份设置门禁已接入构建流程，现有设置覆盖缺口单独保留。历史同步首版采用 WebDAV 清单和分片，当前为设计阶段。197 已验证备份重进及记录更新。",
+  "activity": "备份设置门禁已接入构建流程，现有设置覆盖缺口单独保留。WebDAV 阅读历史同步已在手机和平板验证设置、双向续读、清单冲突重试与跨端删除。197 已验证备份重进及记录更新。",
   "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
   "proof": [
     {
@@ -111,15 +111,16 @@
     {
       "id": "READING_HISTORY_SYNC",
       "title": "阅读历史多端同步",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "用户提出方案",
       "owner": "Root",
-      "status": "设计阶段，首版采用 WebDAV 清单和分片",
+      "status": "首版设置、双向续读和自动同步已在 197、103 验证",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
-      "result": "首版从 manifest 与分片开始。使用稳定作品身份分桶，分片先写入并校验，清单使用条件写入作为提交点；删除标记和逐字段合并沿同一同步数据合同。传输与本机合并分开，预留后续华为云或自建服务。",
-      "remaining": "细化分片键、清单格式、冲突与删除测试后再实施。"
+      "result": "首版以原生源、作品和章节 ID 同步书架及临时阅读的历史、页码和已读，使用 WebDAV 清单与不可变分片。197、103 在临时局域网 WebDAV 双向打开实际正文并落在同章同页，清单 412 后自动重读提交。103 从正常入口删除一条样本并自动提交，197 冷启动自动拉取并在历史页核对，其他书源的同名作品仍保留。设备安全存储持久化开关、地址和凭据。103 核对设置搜索和断连错误，197 冷启动自动使用已保存配置。删除样本重新打开后恢复原章节第 19 页，自动重新写入。独立合并和落盘回滚由本地回归覆盖。",
+      "remaining": "首版范围为书源漫画。自建或华为云提供方、私库和本地文件身份另行扩展；验证使用局域网临时 WebDAV，其他 WebDAV 产品未逐个认证。",
+      "evidence": [".hvigor/outputs/history-sync/197-final-phone-open-synced-ready.log", ".hvigor/outputs/history-sync/103-final-tablet-open-synced-ready.log", ".hvigor/outputs/history-sync/197-phone-history-after-automatic-delete.log", ".hvigor/outputs/history-sync/103-tablet-settings-search-destination.log", ".hvigor/outputs/history-sync/103-tablet-manual-connection-failure.log", ".hvigor/outputs/history-sync/197-phone-restore-history.log", ".hvigor/outputs/history-sync/197-restore.log", ".hvigor/outputs/history-sync/103-restore.log", ".hvigor/outputs/history-sync/dav-requests.jsonl"]
     },
     {
       "id": "BACKUP_MANAGEMENT_REENTRY_LOADING",
@@ -17012,6 +17013,30 @@
       "title": "备份设置门禁接入构建",
       "detail": "本地正向往返通过，实际注入未归类键和跳过恢复均失败。历史同步分片决定记录在对应设计项。",
       "kind": "checkpoint"
+    },
+    {
+      "id": "history-sync-webdav-two-device",
+      "at": "2026-11-05T04:03:32+08:00",
+      "title": "手机与平板验证 WebDAV 双向续读及自动删除",
+      "detail": "手机打开平板卷 2 第 5 页，平板打开手机 002 02 第 1 页。清单 412 自动重读提交。平板自动提交单条删除，手机冷启动自动拉取，历史页验证同一源作品消失且不同源同名作品保留。",
+      "itemId": "READING_HISTORY_SYNC",
+      "kind": "verified"
+    },
+    {
+      "id": "history-sync-webdav-settings-failure-verified",
+      "at": "2026-11-05T04:08:06+08:00",
+      "title": "阅读历史同步设置、错误反馈和恢复验证完成",
+      "detail": "103 经设置搜索进入同步页，临时端口断开时手动同步显示错误，原阅读记录可用。197 冷启动读回设置，重新打开删除样本后恢复原 001 01 第 19 页并自动写回。",
+      "itemId": "READING_HISTORY_SYNC",
+      "kind": "verified"
+    },
+    {
+      "id": "history-sync-webdav-device-restore",
+      "at": "2026-11-05T04:08:47+08:00",
+      "title": "撤除阅读历史同步测试环境",
+      "detail": "两台测试机同步已关闭，地址、账号和密码清空，197 恢复原休眠与超时，103 恢复原亮屏与超时，均已释租。临时服务停止，保留最终签名调试包。",
+      "itemId": "READING_HISTORY_SYNC",
+      "kind": "verified"
     }
   ],
   "reportAgeAudit": {

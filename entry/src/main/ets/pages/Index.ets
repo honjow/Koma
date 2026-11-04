@@ -95,6 +95,8 @@ import { OpdsServerPage } from './OpdsServerPage'
 import { SourcePackageManagerPage } from './SourcePackageManagerPage'
 import { WebDavServerPage } from './WebDavServerPage'
 import { DownloadsPage } from './DownloadsPage'
+import { HistorySyncController, historySyncController } from '../historySync/HistorySyncController'
+import { HistorySyncSettingsPage } from './HistorySyncSettingsPage'
 import { BackupManagementPage } from './BackupManagementPage'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import { TrackerSettingsPage } from './TrackerSettingsPage'
@@ -258,6 +260,7 @@ struct Index {
   @Local private importMenuShown: boolean = false
   @Local private trackerSettingsRevision: number = 0
   @Local private applicationSettingsRestoreRevision: number = 0
+  @Local private historySyncState: HistorySyncController = historySyncController
   @Local private backupSettingsRevision: number = 0
   @Local private libraryPreferencesRevision: number = 0
   @Local private categoryDisplayStrategyChange?: LibraryCategoryDisplayStrategy = undefined
@@ -450,9 +453,15 @@ struct Index {
     this.tabController.applyShowAnimation(HdsAnimationMode.SCROLL_ANIMATION)
   }
 
+  @Monitor('historySyncState.revision')
+  private refreshSyncedReadingState(): void {
+    this.readerProgressRevision += 1
+  }
+
   @Monitor('libraryUpdateState.revision')
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
+    this.readerSessionStore.setSourceSyncShelf(this.libraryComics)
     this.libraryRevision += 1
     this.resumeAutomaticDownloadQueue()
   }
@@ -1345,6 +1354,7 @@ struct Index {
         return
       }
       this.readerSessionStore = appReaderSessionStore(context.filesDir)
+      this.readerSessionStore.setSourceSyncShelf(this.libraryComics)
       this.readerSessionPersistenceReady = true
       this.readerProgressRevision += 1
       console.info(`[Reader] step=progress_store_reloaded reason=${reason}`)
@@ -1715,6 +1725,10 @@ struct Index {
   private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
+    if (pane === 'history-sync') {
+      this.appPathStack.pushPath({ name: RouteName.HISTORY_SYNC })
+      return
+    }
     if (pane === 'backup') {
       this.appPathStack.pushPath({ name: RouteName.BACKUP_MANAGEMENT, param: { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam })
       return
@@ -2793,6 +2807,11 @@ struct Index {
         })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_downloads_title')))
+    } else if (name === RouteName.HISTORY_SYNC) {
+      HdsNavDestination() {
+        HistorySyncSettingsPage()
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('history_sync_title')))
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,

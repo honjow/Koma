@@ -819,6 +819,14 @@ export struct MangaDetailPage {
     })
   }
 
+  private rememberCurrentSourceSyncIdentity(): void {
+    const manga = this.manga
+    const sourceId = manga?.sourceId ?? this.params.sourceId
+    if (manga !== undefined && sourceId !== undefined && this.sourceRegistry.lookup(sourceId).entry !== undefined) {
+      this.readerSessionStore.rememberSourceSyncIdentity(this.currentComicId(), sourceId, manga.id)
+    }
+  }
+
   private applyChapterStatesToCurrent(): void {
     this.chapters = this.decorateChapterStates(this.chapters)
   }
@@ -2136,6 +2144,7 @@ export struct MangaDetailPage {
     if (chapterId.trim().length === 0) {
       return
     }
+    this.rememberCurrentSourceSyncIdentity()
     const result = this.readerSessionStore.commitChapterReadStates([{ comicId: this.currentComicId(), chapterId, isRead }])
     if (!result.committed) {
       this.showToast(s('reader_progress_save_failed'))
@@ -2197,6 +2206,7 @@ export struct MangaDetailPage {
       return
     }
     const comicId = this.currentComicId()
+    this.rememberCurrentSourceSyncIdentity()
     const result = this.readerSessionStore.commitChapterReadStates(
       targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead })),
     )
@@ -2589,6 +2599,7 @@ export struct MangaDetailPage {
           secondaryButton: { value: s('common_confirm'), action: () => {
             if (comicId !== this.currentComicId()) return
             // Import only read facts. Keep the resume location and do not echo them back to trackers.
+            this.rememberCurrentSourceSyncIdentity()
             const saved = this.readerSessionStore.commitChapterReadStates(
               targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead: true })))
             if (!saved.committed) {

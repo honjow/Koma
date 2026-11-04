@@ -18,10 +18,15 @@ const stats = compile('model/ReadingStatistics')
 const models = compile('model/ComicModels', { '../i18n/AppStrings': { AppStrings: {} } })
 const owner = compile('model/ReaderSessionStore', {
   '../sourceRuntime/SourceRuntimeAppRegistry': {}, './SourceTextPageDescriptor': {},
+  './SourceTextOverlay': {},
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn() {} } }, './AppFileTextPersistence': {},
   '@kit.CoreFileKit': { fileIo: {} }, './ComicModels': models,
   './ReaderChapterSequence': compile('model/ReaderChapterSequence'), '../i18n/AppStrings': { AppStrings: {} },
   './RemoteReaderSession': {}, './ChapterReadStateStore': {},
+  '../historySync/HistorySyncModel': compile('historySync/HistorySyncModel'),
+  './SourceLibraryComic': compile('model/SourceLibraryComic', {
+    './ComicModels': models, '../i18n/AppStrings': { AppStrings: {} },
+  }),
 })
 test('foreground sessions exclude background, deduplicate pages and change chapter without double counting', () => {
   let now = 1000; const records = []
