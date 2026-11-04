@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：103 已走查设置十个一级分类，复验书架、存储、追踪授权、备份和设置搜索。200 已复测阅读器右上菜单和滤镜滑杆。底部方向菜单已补同一取色修复，已构建，待真机复测。
+当前结果：图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已正式发布，已核验下载附件。92漫画章节目录已纳入书源调查。
 
-设备：103 保留验证包，原超时与休眠已恢复并释租。197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 保留验证包，已回到原漫画详情，接手时的亮屏及超时覆盖仍有效，已释租。197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -12,13 +12,13 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "103 设置全面走查与重点复验",
+  "state": "1.1.0 正式版已发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-03T23:18:54+08:00",
+  "updatedAt": "2026-11-04T13:17:13+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "菜单分组、漫画人封面及一条翻页回退竞态已处理，详情冷加载过渡与原偶发回退继续保留。",
-  "nextAction": "其余已登记问题保留各自状态与优先级；本次不重开已验收路径。",
+  "activity": "1.1.0 已正式发布。Bangumi 两条实机路径已验收，92漫画章节目录继续由书源执行者处理。",
+  "nextAction": "修复并验证 92漫画章节分组遗漏，继续核对站点拒绝、追踪及阅读器剩余问题。",
   "proof": [
     {
       "label": "正式主仓",
@@ -79,6 +79,281 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "RELEASE_1_1_0",
+      "title": "正式发布 1.1.0",
+      "kind": "accepted",
+      "priority": "用户指定",
+      "owner": "发布：release_110，Root 核对交付",
+      "status": "GitHub 最新正式版已发布并核验",
+      "reportedAt": "2026-11-04T12:25:24+08:00",
+      "reportedAtSource": "本会话用户直接要求正式发布。",
+      "result": "1.1.0 已通过上一版的 GitHub 标签流水线正式发布。已下载并核对未签名 HAP 与构建清单，公开版本、摘要、包完整性和发布正文均一致。",
+      "remaining": "已完成 GitHub 正式发布。追踪和详情的工作区改动由原事项继续独立验证。",
+      "remainingActions": [],
+      "boundaries": [
+        "沿用 v1.0.0 的 GitHub Releases 渠道和未签名 HAP。",
+        "产品基线为已提交主线，额外纳入发版时发现的标题栏方法嵌套语法修复。"
+      ],
+      "evidencePoints": [
+        "准备 CI 41773524925 因原已提交方法错误嵌套失败，2aa0be2941610b478f2cc562f3f923e7e61d1a9f 做最小语法修复，工作区 Index.ets 字节保持。",
+        "修复后准备 CI 41774761825 与标签 CI 41776083614 同一提交且均 success；Release ID 433534326，latest stable。",
+        "下载附件 Koma_1.1.0_ohos-release-unsigned.hap 与 build-manifest.json 已核，版本 1.1.0、code 7、arm64、非调试、未签名。",
+        ".hvigor/outputs/release-1.1.0/verification.json",
+        "https://github.com/honjow/Koma/releases/tag/v1.1.0"
+      ],
+      "stage": "正式发布及匿名下载核验完成",
+      "closedAt": "2026-11-04T13:07:22+08:00",
+      "registeredAt": "2026-11-04T13:07:22+08:00"
+    },
+    {
+      "id": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "92漫画网页有章节，App 获取不到",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "92漫画 0.1.7 已公开，237 正在复验",
+      "owner": "书源：source_92，Root 维护工作单",
+      "reportedAt": "2026-11-04T13:02:03+08:00",
+      "reportedAtSource": "本会话用户直接反馈。",
+      "result": "用户报告多部作品网页能显示章节列表，App 获取不到。本项归书源，先用可重现的实际作品核对页面、已发布 WASM 及宿主普通入口，原因待证。 书源执行者用公开 0.1.6 WASM 对照 12 本。具名 HTTP 200 样本中，《他的女友》网页 67 连载加 1 番外，WASM 仅 67；《脑洞学生会》网页 197 连载加 22 番外和 1 单行本，WASM 仅 197；单组《掠食者之侣》8/8。另有 9 本在该次请求收到 HTTP 403 与同址自跳脚本，单独调查，现有证据不将两类归为同一原因。 0.1.7 候选在实站把《他的女友》67→68、《脑洞学生会》197→220，旧条目和详情字段一致；单组样本 8/8。7695 桌面收到 403 自跳响应、官方移动详情返回 17 章，沿原桌面章节路径取到 11 页；73 新补单行本章取到 24 页。199 双端 403 仍报错，226 后续桌面 200 返回 230 章。 新提交固定回放证据下，112、73 的原主组 ID、字段与顺序逐条一致，7638 全组一致。官方移动详情另补通 2174（91 章）、7692（48 章）。370、95、91、7667 仍双端拒绝，等待可用响应继续核对。 精确源发布 CI 通过。下载实际公开 0.1.7 源包后，核对索引、摘要并重复 Koma 原生 HTML 桥回放，具名分组与正文对照通过。237 当前 App 1.0.0 code6、旧源 0.1.5，实机验证沿普通源更新路径。",
+      "remaining": "237 普通入口更新、章节及正文回验进行中。双端拒绝样本单独保留。",
+      "remainingActions": [
+        "保留现有章节顺序、身份与已验分类。对多组及只含后续分组的作品实测。",
+        "在 237 走普通书源路径，对齐 HTTP 403 样本的站点响应和网页表现。"
+      ],
+      "closedAt": null,
+      "registeredAt": "2026-11-04T13:03:07+08:00",
+      "evidence": [
+        "/tmp/koma-92.6X2MpF/native-html-replay.json",
+        "源仓 0e114ede5d0b46edc3620f5cf1ea604625bedfad，发布 CI 41777869726。",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/native-html-replay.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-0e114ede5d0b46edc3620f5cf1ea604625bedfad",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/jiuermanhua-chapters/public-0.1.7-native-html-replay.json"
+      ]
+    },
+    {
+      "id": "TRACKER_LOGIN_DIALOG_ACTIONS",
+      "title": "追踪登录框应使用标准对话框按钮",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "103 已验收登录框按钮",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "SETTINGS_GROUPING_ADVANCED"
+      ],
+      "result": "Kitsu 未连接入口打开登录框，使用标准取消和连接按钮，连接按钮配置项目主题色。设置页未再渲染常驻授权状态卡。 103 实机留档可见取消在左、连接在右。表单为空时连接按钮禁用。真实 Kitsu 登录仍由追踪服务验收项跟踪。",
+      "remaining": "",
+      "remainingActions": [],
+      "reportedAt": "2026-11-04T03:51:14+08:00",
+      "reportedAtSource": "本轮登记时间。",
+      "closedAt": "2026-11-04T11:04:47+08:00",
+      "boundaries": [
+        "真实 Kitsu 账号登录未测，另见补齐参考应用功能差异。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-three-login-dialog/screen.png"
+      ]
+    },
+    {
+      "id": "TRACKER_RECONNECT_UNAVAILABLE",
+      "title": "断开后显示未连接，重新连接提示暂不可用",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "重连阻塞分支已修复，待真机复现原故障",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "SETTINGS_GROUPING_ADVANCED"
+      ],
+      "result": "旧凭据删除失败时，按服务和旧凭据键记录待清理项。新连接用新键继续，后续重连重试清理。模拟安全存储锁定时首次重连成功生成授权地址，旧键与新授权键保持隔离。",
+      "remaining": "在报告问题的环境核对断开后重新打开授权页及完成连接，确认原清理错误的来源。",
+      "remainingActions": [
+        "在报告问题的环境核对断开后重新打开授权页及完成连接，确认原清理错误的来源。"
+      ],
+      "reportedAt": "2026-11-04T03:51:14+08:00",
+      "reportedAtSource": "本轮登记时间。",
+      "closedAt": null
+    },
+    {
+      "id": "TRACKER_BROWSER_FIRST_ATTEMPT",
+      "title": "追踪首次授权失败、第二次才成功",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "Bangumi 授权入口已补回登录跳转参数",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "SETTINGS_GROUPING_ADVANCED"
+      ],
+      "result": "无 Cookie 请求 Bangumi 官方授权端点时，原请求包含 redirect_uri，服务端 302 到登录页后，chii_referer 内只剩 client_id、response_type、state。此前 103 的错误为 invalid_uri，地址也缺 redirect_uri。失败发生在授权确认前。直接从登录页进入会把已有会话送到首页，103 实测后淘汰。最终保留原授权端点，只为固定 Koma 回调兼容 Bangumi 的参数重建。匿名实测 302 与登录表单的 referer、dreferer 均逐值保留回调和原随机状态。103 已登录浏览器打开同格式链接后进入真实 Koma 授权确认页。回调校验仅允许精确匹配两种返回形态。",
+      "remaining": "未提交真实 Bangumi 登录表单，首次登录后的授权和回调仍待端到端验证。AniList 和 MyAnimeList 的未登录首次授权仍未验。",
+      "remainingActions": [
+        "未提交真实 Bangumi 登录表单，首次登录后的授权和回调仍待端到端验证。AniList 和 MyAnimeList 的未登录首次授权仍未验。"
+      ],
+      "reportedAt": "2026-11-04T03:40:12+08:00",
+      "reportedAtSource": "本轮登记时间，首次反馈具体时间未核实。",
+      "closedAt": null
+    },
+    {
+      "id": "TRACKER_EDIT_IMMEDIATE_FEEDBACK",
+      "title": "编辑追踪状态和话数后应立即显示新值",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "103 已实机验证追踪状态和话数保存",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "TRACKER_SYNC_PROGRESS_MISSING"
+      ],
+      "result": "旧版103选中搁置后，Bangumi 卡片留在在读，重开面板向网站读回搁置。字段按钮现在在渲染时读取可观察值。状态、话数、卷数、评分和日期先更新当前服务卡片，后台提交，失败恢复原值并提示。主机直接执行页面保存方法，验证待请求时状态与话数立即更新，远端仍返回旧值则恢复原值并触发提示，确认成功则保留新值。 103《名侦探柯南》的 Bangumi 卡片起始为 0 话，话数滚轮可选 1。自动审批拒绝具体远端写入与恢复，确认按钮没有执行，已取消编辑并返回原漫画详情。 获明确授权后，103《名侦探柯南》Bangumi 0→1，确认后卡片立即显示 1 话；切换作品后重新进入，独立读回 1 话。用同一入口恢复 0，切换作品后重新进入再次读回 0。两次确认后未出现回滚提示。",
+      "remaining": "失败后恢复原值已有本地执行证据，未在真机注入远端失败。",
+      "remainingActions": [],
+      "reportedAt": "2026-11-04T04:34:37+08:00",
+      "reportedAtSource": "本轮登记时间。",
+      "closedAt": "2026-11-04T12:29:37+08:00",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-conan-tracking-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-conan-count-selected-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-return-original-detail-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-conan-count-save-one-approved-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-conan-count-readback-one-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-conan-count-save-zero-approved-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-conan-count-readback-zero-1104"
+      ]
+    },
+    {
+      "id": "TRACKER_SHEET_CACHED_DISPLAY",
+      "title": "重开追踪面板先显示缓存，后台刷新",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "103 已验收重开先显示缓存",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "TRACKER_EDIT_IMMEDIATE_FEEDBACK"
+      ],
+      "result": "当前详情页保留已读取的追踪结果。每次打开先显示缓存，同时刷新并应用新结果。后台失败保留缓存；换账号、换作品或解除追踪时清理对应缓存；同一绑定的在途刷新合并，旧响应不得覆盖新编辑。 103 在同一详情页关闭并重开后，AniList 和 Bangumi 卡片均显示原有状态和话数。后台延迟响应、账号切换和旧响应保护已有本地执行验证。",
+      "remaining": "",
+      "remainingActions": [],
+      "reportedAt": "2026-11-04T04:50:21+08:00",
+      "reportedAtSource": "本轮登记时间。",
+      "closedAt": "2026-11-04T11:04:47+08:00",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-status-cache-ready/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-status-cache-reopen/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-status-cache-reopen/run-metadata.json"
+      ]
+    },
+    {
+      "id": "TRACKER_CHAPTER_COMPLETE_SYNC",
+      "title": "阅读完章节时进度未更新",
+      "priority": "P1（用户直接反馈）",
+      "kind": "accepted",
+      "status": "103 已验证第 33 话在阅读器内即时同步",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "TRACKER_SYNC_PROGRESS_MISSING"
+      ],
+      "result": "章节末页已显示时发出完成事件。原先本地写入失败后，下一章普通页直接返回，完成事件只在另一完成事件或退出时重试。已修复为下次观测成功提交本地后立即发送，并记录不含账号和作品的触发结果。主机执行回归已确认无需关闭阅读器。 本次 103 确认自动同步开启且策略为章节读完时。Bangumi 原值 33，临时设为 32。第 33 话 29/29 实际呈现后，阅读器保持打开时记录 on_chapter_complete synced、queued=false。恢复原第 10 页并切换作品后重进详情，读回 Bangumi 33。",
+      "remaining": "此前首次请求返回 provider_failed 的具体原因未确定。已核本次 Bangumi 具名章末路径。",
+      "remainingActions": [],
+      "reportedAt": "2026-11-04T04:55:47+08:00",
+      "reportedAtSource": "本轮登记时间。",
+      "closedAt": "2026-11-04T12:32:27+08:00",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-witch-sync-settings-before-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-witch-count-save-32-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-witch-reader-terminal-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-witch-reader-log-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-witch-sync-readback33-1104"
+      ]
+    },
+    {
+      "id": "SOURCE_CHAPTER_ORDINAL_AUDIT",
+      "title": "排查书源章节编号缺失",
+      "priority": "P1（用户直接反馈）",
+      "kind": "external",
+      "status": "七个书源修复已发布，实站目录受限",
+      "owner": "Root：中文书源",
+      "dependencies": [],
+      "relatedItems": [
+        "TRACKER_CHAPTER_COMPLETE_SYNC"
+      ],
+      "result": "静态检查 86 个书源目录，并按目录的实际用途核对空话数。已修六漫画、漫画160、CManhua、92漫画网、我的漫畫、漢漫18、東立。漫画160 0.1.8 和 CManhua 0.1.6 实时目录分别从 0/1028 到 1020/1028、从 0/110 到 110/110。92漫画网 0.1.6 以保存的真实目录回放从 0/220 到 220/220，当前公开请求仍返回 client_error。漢漫18 0.1.4 以三份实时下载的站点目录回放从 0/810 到 803/810；休刊公告、無数字的最終話和後記保持空。東立 0.1.7 实时《膽大黨》目录正确输出 1、249、250、251 話；新旧 WASM 回放覆盖卷号、锁定章节、JSON 转义和原地区限制。我的漫畫 0.1.6 以官网标签格式回放简繁目录，四条明确话数正确，卷号、番外和裸数字保持空；公开详情 HTTP 403。具名对照中章节 ID、标题、顺序及其余字段一致。 爱看漫与我的漫畫的具名目录请求曾返回 HTTP 403。爱看漫缺原始目录可核对话数；我的漫畫已用留存目录验证新版。",
+      "remaining": "取得爱看漫可读的真实目录后核对原站编号；取得我的漫畫可读的真实目录后回验新版。",
+      "remainingActions": [
+        "爱看漫与我的漫畫的具名目录请求曾返回 HTTP 403。爱看漫缺原始目录可核对话数；我的漫畫已用留存目录验证新版。",
+        "取得爱看漫可读的真实目录后核对原站编号；取得我的漫畫可读的真实目录后回验新版。"
+      ],
+      "reportedAt": "2026-11-04T05:33:10+08:00",
+      "reportedAtSource": "本轮登记时间。",
+      "closedAt": null,
+      "boundaries": [
+        "源码仍有 28 处书源实现命中固定空值模式，含单篇图集、按发布日期组织的内容和 Pixiv 独立系列顺序。Zerobyw 裸数字实测混有卷号和 6006 类条目，保留未知。优酷漫画旧包实测漏话数，当前源码不开放目录能力。王者荣耀沿用已核的官网导航序号，Webtoons 繁中仍只在显式开启连续编号后用序位。爱看漫已知作品的目录 API 实际返回 HTTP 403，无法取得章节标题核对。七源修复提交 100c42b5ff917f1a71fe5689aa6ae5627797082c 和我的漫畫上报版本修正 f2440ee90bf0d7d3f8c6d3b5e1700baa7a2e6e60 已推送独立书源仓库 honjow/koma-sources 的 master。精确 Actions 41759343435 成功。已下载最终公开索引及七个安装包，索引、清单和 WASM 版本逐项一致。公开包另跑六漫画、漫画160、CManhua 真实目录及 92漫画网、漢漫18、我的漫畫和東立目录回放，结果与发布前一致。设备验证范围为既有六漫画路径。"
+      ],
+      "stage": "等待外部条件",
+      "updatedAt": "2026-11-04T11:18:17+08:00"
+    },
+    {
+      "id": "TRACKER_SYNC_PROGRESS_MISSING",
+      "title": "已读几十话仍提示无可同步进度",
+      "priority": "P1（用户直接反馈）",
+      "kind": "open",
+      "status": "33 话原样本已核 Bangumi 章末上传，MyAnimeList 手动上传待验",
+      "owner": "Root：漫画追踪",
+      "dependencies": [],
+      "relatedItems": [
+        "SETTINGS_GROUPING_ADVANCED"
+      ],
+      "result": "用户补充 Bangumi 同步时本地已到 33 话。手动上传与首次绑定复用已读章节和续读记录取值，自动同步分发给本书的每个已确认服务。主机执行验证三家同时收到 33，失败方单独重试，手动仅同步选中的服务。下载方向分别反馈网站无已读进度、章节无法对应及本机已包含网站进度。 103 同一第 33 话样本由 32 话在阅读器内自动同步为 33，详情重新进入后读回 33。 103 已检查《名侦探柯南》《世界最强的魔女》《归还者的魔法要特别》三份现有验证样本，MyAnimeList 行均为开始追踪。未借此创建额外远端收藏。",
+      "remaining": "MyAnimeList 连接可见，已核三份样本都未绑定。需一份可写入且能恢复原值的绑定记录完成手动上传回验。Bangumi 旧手动上传卡片证据保留。",
+      "remainingActions": [
+        "使用已有可恢复的 MyAnimeList 绑定记录验证实机手动上传与读回。"
+      ],
+      "reportedAt": "2026-11-04T03:40:12+08:00",
+      "reportedAtSource": "本轮登记时间，首次反馈具体时间未核实。",
+      "closedAt": null,
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-returner-tracking-state-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-return-original-detail-write-1104"
+      ]
+    },
+    {
+      "id": "MANGA_DETAIL_ADAPTIVE_PANES",
+      "title": "宽窗口漫画详情左右布局",
+      "priority": "用户直接需求",
+      "kind": "accepted",
+      "status": "用户实测通过，已关闭",
+      "stage": "用户实测确认关闭",
+      "owner": "Root：Koma 漫画详情布局",
+      "result": "103 从书架打开长标题作品，横屏左信息右章节；右栏滚动左栏原位，悬浮窗回到单列，恢复全屏仍保章节位置。已读筛选 39/83 跨断点保持，随后恢复全部 83/83。继续阅读回到第10/29页，返回仍为同一详情和章节区间。保留验证包，恢复全屏及原超时、休眠，已释租。用户认为竖屏分栏没必要，内容区断点从 620 提高到 700 vp，签名构建通过。 用户本轮确认已实测漫画详情双栏并要求关闭。",
+      "remaining": "",
+      "reportedAt": null,
+      "reportedDate": "2026-11-03",
+      "reportedAtSource": "本会话用户原文：为了提高界面显示利用率，宽度足够时漫画详情页改左右布局；随后明确要求实现并在103验证。消息精确时刻未核实。",
+      "evidence": [
+        ".hvigor/outputs/detail-width-implementation/build-breakpoint-700.log",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/detail-wide/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/chapters-scrolled/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/detail-narrow/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/detail-maximized/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/reader-open/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/reader-return/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/chapter-filter-after-resize/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/chapter-filter-restored/",
+        ".hvigor/outputs/detail-width-implementation/device103__MLR-AL00/landscape-2560x1600/restore/",
+        ".hvigor/outputs/detail-width-implementation/Koma-detail-adaptive-103.hap",
+        ".hvigor/outputs/detail-width-implementation/build-final.log"
+      ],
+      "closedAt": "2026-11-04T11:10:04+08:00",
+      "updatedAt": "2026-11-04T11:10:04+08:00",
+      "remainingActions": [],
+      "boundaries": [
+        "本轮用户反馈未注明设备、窗口条件或构建版本。既有 103 横屏、悬浮窗及恢复全屏的证据保留。"
+      ]
+    },
     {
       "id": "READER_ENHANCEMENT_THEME_CONTRAST",
       "title": "超分指示器在暗绿色等主题中辨识度不足",
@@ -480,13 +755,13 @@
     {
       "id": "CONTINUOUS_PERFORMANCE",
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "屏外加载动画已优化，197 同路径应用帧均在刷新预算内",
+      "status": "原包与两版优化均出现 VSync 接收延迟",
       "kind": "open",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。 本轮用户反馈条漫仍偶发小卡顿，关掉图片处理和超分后改善不明显。Reader Kit 139669e 去掉每次可见位置采样的快照复制，复用同一次测量中的裁边数据。现有相关检查与 Koma Release 构建通过。 197 原包实测《歸還者的魔法要特別》001 01，图像增强关闭、无已安装图片插件。六次滑动追踪内识别 4 段惯性滚动，段内相邻 App 帧最大间隔 22.27ms。原包读取被设备拒绝，未覆盖安装。已回到第19页、恢复原超时与睡眠并释租。 复查 197 追踪，两个较长的惯性滚动帧间隔前均出现第 21 页的预建，仍未证实因果。02:05 原包已找到并核对留档哈希；197 安装时间随后变为 13:38:06，对应包尚未找到可恢复副本。139669e 候选重新构建并留档，本轮只读检查后释租。 197 保留最新开发包，完成同一作品第19页起点、相同手势的两版实测。原包、位置采样优化、再移除图片就绪回调投影复制三次采样的惯性段最长应用帧间隔为22.27、18.45、18.80ms，应用帧处理最长9.28、8.57、9.74ms；最后一轮仍有2帧超过8.33ms。剩余长间隔附近仍有原生相邻页预建，第二处优化未显示进一步改善。六项数据恢复并逐字读回，电源已恢复并释租。 70df155 让加载条进入视口后才启动不定进度动画。197 同作品第19页、同样六次滑动对比上一候选，惯性段应用帧 P99 5.18→4.48ms、最慢9.74→8.12ms，超8.33ms由2/900降至0/1115。全段同参数900ms动画事件25→6，最长相邻应用帧间隔18.80→16.50ms。197保留新开发包，六项数据逐字读回，恢复超时与睡眠并释租。",
-      "remaining": "单组同路径应用帧已达120Hz预算，仍存在16.50ms的相邻帧间隔，用户偶发卡顿保持开放。",
+      "result": "共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。 本轮用户反馈条漫仍偶发小卡顿，关掉图片处理和超分后改善不明显。Reader Kit 139669e 去掉每次可见位置采样的快照复制，复用同一次测量中的裁边数据。现有相关检查与 Koma Release 构建通过。 197 原包实测《歸還者的魔法要特別》001 01，图像增强关闭、无已安装图片插件。六次滑动追踪内识别 4 段惯性滚动，段内相邻 App 帧最大间隔 22.27ms。原包读取被设备拒绝，未覆盖安装。已回到第19页、恢复原超时与睡眠并释租。 复查 197 追踪，两个较长的惯性滚动帧间隔前均出现第 21 页的预建，仍未证实因果。02:05 原包已找到并核对留档哈希；197 安装时间随后变为 13:38:06，对应包尚未找到可恢复副本。139669e 候选重新构建并留档，本轮只读检查后释租。 197 保留最新开发包，完成同一作品第19页起点、相同手势的两版实测。原包、位置采样优化、再移除图片就绪回调投影复制三次采样的惯性段最长应用帧间隔为22.27、18.45、18.80ms，应用帧处理最长9.28、8.57、9.74ms；最后一轮仍有2帧超过8.33ms。剩余长间隔附近仍有原生相邻页预建，第二处优化未显示进一步改善。六项数据恢复并逐字读回，电源已恢复并释租。 70df155 让加载条进入视口后才启动不定进度动画。197 同作品第19页、同样六次滑动对比上一候选，惯性段应用帧 P99 5.18→4.48ms、最慢9.74→8.12ms，超8.33ms由2/900降至0/1115。全段同参数900ms动画事件25→6，最长相邻应用帧间隔18.80→16.50ms。197保留新开发包，六项数据逐字读回，恢复超时与睡眠并释租。 重析 197 已有 70df155 trace，将 APP_LIST_FLING 截到下一次按下前。最长应用 VSync 接收间隔 16.501 ms，两侧应用帧处理 3.489 和 4.993 ms。对应 VSync 从渲染服务发出到应用收到用 8.318 ms；第 21 页预建在发出前已结束 1.859 ms。该区间有渲染服务帧，不能由此得出实际显示帧率，也不能归因给该次预建。原设备 HDC 离线后已通过同目标重连恢复并释租。 用相同的事件配对方式重析原包和第二版候选。原包最长应用接收间隔 22.268 ms，VSync 发送到接收 14.116 ms；第二版分别为 18.805 和 10.724 ms；第三版分别为 16.501 和 8.318 ms。三个样本最大间隔两侧应用帧均在预算内。不同运行不能作为受控性能对照，确认的是跨样本均存在发送后的接收延迟。 按设备分工只读复核了 197。设备更新时刻与 detail-install 安装回执完全一致，回执指向的 HAP 为非调试 Release。设备自带 HiPerf 帮助也明确 --app 需要可调试应用。基线休眠和超时未改，读取后释租。",
+      "remaining": "197 当前包是非调试 Release，无法直接用 HiPerf 的应用级模式采集。偶发卡顿仍需要新的主线程采样、VSync 与显示证据。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -516,13 +791,17 @@
         "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate2-trace/comparison.json",
         "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-trace/comparison.json",
         "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/candidate3-restoration.json",
-        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-restore-power/run-metadata.json"
+        "/Users/honjow/git/Koma/.hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-restore-power/run-metadata.json",
+        ".hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-trace/closeout-vsync-gap-1104.json",
+        ".hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/candidate3-trace/closeout-vsync-baseline-comparison-1104.json",
+        ".hvigor/outputs/continuous-scroll-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/scroll/closeout-profiler-capability-1104",
+        ".hvigor/outputs/detail-chapter-loading-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail/detail-install"
       ],
       "latestCounterexampleAt": "2026-10-23T04:57:37.180Z",
       "evidencePoints": [],
       "remainingActions": [
         "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。",
-        "单组同路径应用帧已达120Hz预算，仍存在16.50ms的相邻帧间隔，用户偶发卡顿保持开放。"
+        "获取可对齐的主线程采样和显示证据，定位接收 VSync 后的间隔；旧非调试归档包不能直接用于应用级 HiPerf。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
@@ -1600,26 +1879,33 @@
     {
       "id": "SETTINGS_SEARCH",
       "title": "设置搜索的实际消费者",
-      "status": "103 已复验阅读跨屏定位与返回",
-      "kind": "open",
-      "result": "具名路径通过 搜索导航项直达实际页面，普通设置项传递定位键；备份搜索以实际任务与配置区为落点。 103 搜 Wi-Fi 后选下载结果，进入下载页且目标开关可见，未见重复重试入口。 搜索用行标题与真实描述匹配，分类名可以命中独立的分类结果。103 搜 Wi-Fi 选仅 Wi-Fi 预载，阅读页跨屏定位至目标开关。返回设置首页时键盘收起，可继续打开高级和关于。读取阅读偏好失败时仍可显示基础阅读设置。",
-      "remaining": "图像设置专属行、备份配置区搜索落点和偏好读取失败未在 103 注入或遍历。",
-      "closedAt": null,
+      "status": "图像和备份搜索的普通落点已实机核对",
+      "kind": "accepted",
+      "result": "具名路径通过 搜索导航项直达实际页面，普通设置项传递定位键；备份搜索以实际任务与配置区为落点。 103 搜 Wi-Fi 后选下载结果，进入下载页且目标开关可见，未见重复重试入口。 搜索用行标题与真实描述匹配，分类名可以命中独立的分类结果。103 搜 Wi-Fi 选仅 Wi-Fi 预载，阅读页跨屏定位至目标开关。返回设置首页时键盘收起，可继续打开高级和关于。读取阅读偏好失败时仍可显示基础阅读设置。 103 通过普通设置搜索选择「裁边强度」后，阅读设置跨屏定位到该行。搜索「自动备份」进入备份页并展开目录、后台、间隔与保留选项，启用开关仍关闭；搜索「包含的数据」显示默认备份的应用设置、下载队列和追踪绑定。返回搜索页可以继续搜索。当前安装包读回 1.0.0（versionCode 6），设备拒绝读取安装包字节。",
+      "remaining": "原生偏好读取失败未做故障注入。",
+      "closedAt": "2026-11-04T12:13:26+08:00",
       "owner": "冻结路径：无当前执行者",
       "evidencePoints": [],
-      "remainingActions": [
-        "图像设置专属行、备份配置区搜索落点和偏好读取失败未在 103 注入或遍历。"
+      "remainingActions": [],
+      "boundaries": [
+        "本项收口覆盖普通搜索导航和设置落点。原生偏好读取失败仅核过代码降级分支。"
       ],
-      "boundaries": [],
       "reopenedAt": "2026-11-03T22:42:42+08:00",
-      "stage": "103 已复验阅读跨屏定位与返回",
+      "stage": "103 普通设置搜索路径已验收",
       "evidence": [
         ".hvigor/outputs/settings-menu-cleanup/build.log",
         ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560",
         ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/complete-search",
         ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/complete-reader",
         ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-return",
-        ".hvigor/outputs/settings-menu-cleanup/build-sweep-complete.log"
+        ".hvigor/outputs/settings-menu-cleanup/build-sweep-complete.log",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-search-image-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-image-destination-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-search-backup-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-backup-destination-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-search-backup-content-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-backup-content-destination-1104",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/closeout-return-original-detail-1104"
       ]
     },
     {
@@ -3328,26 +3614,28 @@
       "id": "SOURCE_OFFICIAL_CHINESE_NAMES",
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续处理）",
-      "kind": "open",
-      "status": "2项官方对应关系仍缺",
+      "kind": "external",
+      "status": "等待两处书源的官方名称原件",
       "owner": "source_terra：源故障与官方名称核对",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_EMPTY_SETTINGS_ENTRY"
       ],
-      "result": "85源名称已逐项盘点：76项有品牌或栏目依据，7项仅英文参考，2项官方对应关系仍未知。",
-      "remaining": "继续核实爱看漫及漫画柜的官方对应关系；图标保原边界。",
+      "result": "85源名称已逐项盘点：76项有品牌或栏目依据，7项仅英文参考，2项官方对应关系仍未知。 爱看漫官网未能读取；漫画柜直接访问受限，“看漫画”只找到转述。两处官方名称仍未知。",
+      "remaining": "取得可访问的官网、官方品牌素材或可追溯的官方存档后核对名称。",
       "remainingActions": [
-        "继续核实爱看漫及漫画柜的官方对应关系；图标保原边界。"
+        "爱看漫官网未能读取；漫画柜直接访问受限，“看漫画”只找到转述。两处官方名称仍未知。",
+        "取得可访问的官网、官方品牌素材或可追溯的官方存档后核对名称。"
       ],
       "boundaries": [
-        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。"
+        "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
+        "继续核实爱看漫及漫画柜的官方对应关系；图标保原边界。"
       ],
       "reportedAt": "2026-10-25T12:00:00Z",
       "reportedAtSource": "用户于10-25要求核对各书源官方中文名；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "爱看漫及漫画柜官方对应尚未核实",
+      "stage": "等待外部条件",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/",
         "漫画1234名称修正 eb347401 已于0.1.4发布；现源码、metadata及README均对应漫画1234网，既有已接受图标保持。",
@@ -3367,14 +3655,15 @@
         "197原件确认阴阳师 comic.163.com 页面标题“阴阳师漫画屋”及官方漫画、阴阳师工作室；杂志迷 zazhimi.net 截图显示“杂志迷”logo。矩阵现为75有依据、7仅英文参考、3未知。爱看漫与漫画柜系统浏览器风险拦截未绕过；LoL原页内容与源合同吻合，但Riot与具体内容关系未证。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/all85-source-settings-comparison.json 相应行。",
         "腾讯官方根页标题及元数据支持英雄联盟品牌，197 yz.lol.qq.com实际宇宙/织星/欣赏漫画栏目与源合同对应；据同站命名空间及栏目支持“英雄联盟官方漫画”描述性名称，为推论而非官网逐字标题，Riot独立对应未知的原证据保留。未改名称或图标。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/name-identity-four/lol-root-official-20261030.json 及原85矩阵。导航main.shtml旧失败路径本轮误重试一次Timeout，已停止，不视为新突破。",
         "漫画柜“同域缓存看漫画”目前仅见all85-source-settings-comparison.json转述note，未定位原始URL、HTML或搜索片段，不能作为官网自称证据；缺少的是可追溯原件，不另设必须证明两别名关系的门槛。名称及图标未改，仍计未知。"
-      ]
+      ],
+      "updatedAt": "2026-11-04T11:18:17+08:00"
     },
     {
       "id": "SOURCE_SETTINGS_MIGRATION_AUDIT",
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
-      "kind": "open",
-      "status": "DB117已交付；Noy账号范围未验",
+      "kind": "external",
+      "status": "DB117 已交付，Noy 等待账号",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
       "dependencies": [],
       "relatedItems": [
@@ -3384,20 +3673,22 @@
         "ZEROBYW_CHAPTERS_TRUNCATED",
         "MH160_COVER_IMAGES_REJECTED"
       ],
-      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。",
-      "remaining": "Noy登录后内容与镜像未验；用户目前没有账号。",
+      "result": "DB第117章的正文对白已恢复，实际阅读、四页下载、离线重开及CBZ已核；正式书源0.1.2已公开。Noy已安装登录入口，但用户没有账号，登录后内容和镜像未验。 Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。",
+      "remaining": "取得真实且获授权的 Noy 登录会话后核对目录、正文和镜像兼容。",
       "remainingActions": [
-        "取得用户后续真实认证条件后，接续Noy登录后内容与镜像；不代注册或轮询。"
+        "Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。",
+        "取得真实且获授权的 Noy 登录会话后核对目录、正文和镜像兼容。"
       ],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
-        "Zero旧作品身份在现站的具体映射未知，不称已通过；仅有具名失败或参考硬性差异才重开，不重验已接受路径。"
+        "Zero旧作品身份在现站的具体映射未知，不称已通过；仅有具名失败或参考硬性差异才重开，不重验已接受路径。",
+        "Noy登录后内容与镜像未验；用户目前没有账号。"
       ],
       "reportedAt": "2026-10-25T12:30:00Z",
       "reportedAtSource": "用户要求全部对比核验书源设置项；精确时刻未记录。",
       "reopenedAt": null,
       "closedAt": null,
-      "stage": "DB已交付，保留账号依赖",
+      "stage": "等待外部条件",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/source-settings-repair/3hentai237-current/",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/source-3hentai237-final-20261028/run-metadata.json",
@@ -3691,7 +3982,8 @@
         "源b8111622805bf7f6c7cd440e208825dd013c6a9f正式0.1.2、精确CI41282098661 success；公开index/manifest及包791e02a6ccbfc038cfc231fd8344e12067c4864d7553ab0699f807d25a4907f1已核，公开WASM独立实际执行能力协商/描述/无气泡兼容/非法坐标保护。见delivery-012/evidence.json；公开产物字节不同，237属于079/080发布前候选范围，不冒同字节验证。Host5cfcb808e132cc812d556e033ffafbbd8168a948已推，精确CI41282246019运行。",
         "本轮完整交付绑定见 source-settings-repair/dbmultiverse-ch117-20261101/host-delivery-binding.json；Host CI运行中，原源码和设备范围不外推。",
         "Host5cfcb808e132cc812d556e033ffafbbd8168a948精确CI41282246019 completed/success，Release构建/Inspect/Upload成功，标签发布skipped；host-ci-final.json及host-delivery-binding.json保存。DB已交付，Noy无账号边界不冒通过。"
-      ]
+      ],
+      "updatedAt": "2026-11-04T11:18:17+08:00"
     },
     {
       "id": "MANAGER_REFRESH_BACKGROUND",
@@ -3758,27 +4050,26 @@
       "id": "SETTINGS_GROUPING_ADVANCED",
       "title": "设置页未分组且高级入口与图标不合理",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
-      "status": "103 十个分类走查及改动路径复验",
+      "kind": "accepted",
+      "status": "103 已验收设置分组与备份入口",
       "owner": "Root：设置分组和备份普通路径",
       "dependencies": [],
       "relatedItems": [
         "APPEARANCE_CONSUMERS"
       ],
-      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。 237当前075普通设置→备份与恢复及创建页，应用设置/下载队列/追踪绑定三行已亲审；固定包含范围在卡片外，创建在原生标题栏。未创建新备份或重跑恢复。 本场237原包、数据及电源恢复并释租。 用户要求重整设置及备份子页。追踪直达服务列表与同步设置，保留服务授权页、高级和诊断层级；设置内下载重试重复跳转移除。备份主页维护默认选项，创建页可为本次单独调整，恢复预览突出替换范围、技术数据折叠。签名构建及本地追踪、备份流程验证通过。 103 普通路径核对设置首页、追踪五服务与同页同步设置、AniList 子页及返回、备份首页与创建/恢复/本地备份三子页，系统选择器可取消，原电源恢复并释租，保留新包。 103 竖屏逐项打开设置十个一级分类并核对截图。外观清理重复标题，书架将自动更新放在组首并分出检查与维护，服务归拢书源和翻译，存储统一缓存行与清理说明。保留高级入口。追踪主页与 AniList 授权页清理重复状态，授权页复用标题栏保存动作。备份主页默认关闭时收起计划详情，实测展开可见目录、后台、间隔和保留设置。创建页确认原生保存位置菜单与本次备份数据选项，恢复页通过文件选择器读入合成空备份，核对覆盖提示、明细展开和收起，退出未覆盖数据。本地备份空状态已点验。 103 保留已启动并点验的最后签名包，测试文件已删除，原休眠与超时恢复后释租。",
-      "remaining": "实机未连接追踪账号、实际导出备份、解密加密备份或执行覆盖恢复。",
-      "remainingActions": [
-        "实机未连接追踪账号、实际导出备份、解密加密备份或执行覆盖恢复。"
-      ],
+      "result": "197确认设置备份直达同一配置页；固定说明已移出卡片；创建独立页原生标题栏操作可触发原口令校验，恢复独立页保留。标签已简化为应用设置/下载队列/追踪绑定，构建通过。 237当前075普通设置→备份与恢复及创建页，应用设置/下载队列/追踪绑定三行已亲审；固定包含范围在卡片外，创建在原生标题栏。未创建新备份或重跑恢复。 本场237原包、数据及电源恢复并释租。 用户要求重整设置及备份子页。追踪直达服务列表与同步设置，保留服务授权页、高级和诊断层级；设置内下载重试重复跳转移除。备份主页维护默认选项，创建页可为本次单独调整，恢复预览突出替换范围、技术数据折叠。签名构建及本地追踪、备份流程验证通过。 103 普通路径核对设置首页、追踪五服务与同页同步设置、AniList 子页及返回、备份首页与创建/恢复/本地备份三子页，系统选择器可取消，原电源恢复并释租，保留新包。 103 竖屏逐项打开设置十个一级分类并核对截图。外观清理重复标题，书架将自动更新放在组首并分出检查与维护，服务归拢书源和翻译，存储统一缓存行与清理说明。保留高级入口。追踪主页与 AniList 授权页清理重复状态，授权页复用标题栏保存动作。备份主页默认关闭时收起计划详情，实测展开可见目录、后台、间隔和保留设置。创建页确认原生保存位置菜单与本次备份数据选项，恢复页通过文件选择器读入合成空备份，核对覆盖提示、明细展开和收起，退出未覆盖数据。本地备份空状态已点验。 103 保留已启动并点验的最后签名包，测试文件已删除，原休眠与超时恢复后释租。 提交上一轮设置整理 234cc062。五个服务补品牌图标，103 追踪列表均可见。AniList、MyAnimeList 配置后直接打开浏览器，原复制链接及手动回调保留。合成配置验证准备授权、浏览器失败后重开同一会话。Bangumi 可打开官方令牌页面，103 实测官方页面提示先登录；Kitsu 和 MangaUpdates 继续使用账号密码。 AniList 与 MyAnimeList 接入 Koma 系统回调，复用既有授权校验和安全存储；已配置自定义回调仍可手动完成。合成回调执行两家成功处理并覆盖错误地址、错误状态及重复回调。103 在桌面用系统隐式链接启动 Koma，窗口焦点确认回到 Koma，已恢复电源并释租。 AniList 默认填入用户提供的正式 Client ID，103 的追踪子页显示默认值和打开网页登录。两家授权端点以注册回调地址发起请求均跳至各自登录页。MyAnimeList 注册页显示 Other、PUBLISHED 及 Koma 回调，编号按页面提示仅用于本地配置或验证。 103 双 ID 验证包确认两家入口均无需填写，AniList 进入网页登录后报 unsupported_grant_type；第二次跳转画面仍为 AniList，未验证 MyAnimeList 登录。用户接管 103。对照 Mihon 将 AniList 的返回地址交由服务端注册项决定；按 provider 隔离待授权链接，等待授权时仅保留网页登录，刷新和断开由已连接状态决定。 追踪列表未连接时直接发起网页授权或打开账号密码 Dialog。AniList 与 MyAnimeList 的客户端 ID 已内置。Bangumi 已接入网页授权回调、安全凭据和续期，保留旧个人令牌账号。本地流程检查通过。 用户提供的 Bangumi App ID 和 App Secret 已配置在客户端；使用正式 App ID 和 Koma 回调地址请求官方授权入口，已到达登录页。本地回调和续期流程检查通过。 用户报告 MyAnimeList 已登录成功、Bangumi 报错、AniList 等待后重开白屏。AniList 再点会建立新授权会话；匹配会话的无效回调会退出等待。Koma 的回调失败日志记录服务和失败阶段。 103 初始 Bangumi 错误为 invalid_uri，错误页地址无 redirect_uri。随后从追踪列表新开，显示 Koma 授权页；点授权和浏览器打开提示后，追踪列表显示 Bangumi 已连接，同时读回 MyAnimeList 已连接。AniList 由授权地址跳至空白新标签页，Koma 未打开。AniList 注册回调已核为 koma://tracker/callback。103 原亮屏和超时已读回。 103 复现系统无法按精确路径匹配含片段的 AniList 回调。改为系统路径前缀后，真实授权回到 Koma；长令牌改为在安全存储中分段后，103 验证 AniList 显示账号并点验刷新入口与整行断开确认。漫画详情曾用圆形按钮打开追踪面板，核对三家服务和 AniList 真实搜索。后续紧凑面板、搜索结果和同步图标候选已装机，用户要求停实现，改为先对照项目文档指定的 Aidoku、Mihon；未走查最后候选。103 恢复原亮屏和超时并释租。 撤销追踪列表连接勾的颜色和尺寸改动。103 覆盖安装后从设置进入追踪，以 MyAnimeList 同一行截图对比，两个按钮区域与原实机截图逐像素一致。原亮屏设置已读回并释租。 用户确认只将追踪列表绿色连接勾从 22 调至 24。103 覆盖安装后从设置进入追踪，同一 MyAnimeList 行实拍中左侧刷新区域逐像素一致，右侧绿色一致，字形外框由 48×48 增至 52×52 像素。 103 已覆盖安装并确认设置无漫画映射，三家已连接账号保持。书架→名偵探柯南→追踪→AniList 搜索已读回。作品绑定、换绑、进度操作及解绑由本书服务行处理。断开后凭据清理失败不再覆盖未连接。103电源和超时读回与基线一致，已释租。 103 已走查十个一级分类。备份首页可直接配置，创建、恢复和本地备份各有独立入口。追踪设置管理账号和同步，作品绑定从漫画详情进入。远端登录及同步按各追踪项继续记录。",
+      "remaining": "",
+      "remainingActions": [],
       "boundaries": [
         "保留既有已验收行为与样式；不以构建、静态检查或模拟器替代真机验收。",
-        "本轮用户纠正备份两个同页入口与隐蔽配置；只去重复中转，备份内容/自动备份仍分组，创建/恢复/文件保独立任务，固定包含范围为说明，创建动作沿公共原生标题栏，不改变备份格式或数据范围。"
+        "本轮用户纠正备份两个同页入口与隐蔽配置；只去重复中转，备份内容/自动备份仍分组，创建/恢复/文件保独立任务，固定包含范围为说明，创建动作沿公共原生标题栏，不改变备份格式或数据范围。",
+        "103搜索结果有作品详情但此张封面显示占位；小屏动态高度、真实远端登记及写入未在此次103只读路径验证。103操作前已无旧断开错误记录，断开清理失败及旧状态归一化由本地回归覆盖。"
       ],
       "reportedAt": "2026-10-26T12:30:00Z",
       "reportedAtSource": "用户要求设置项分组、增加高级入口并检查图标；精确时刻未记录。",
       "reopenedAt": "2026-11-03T22:42:42+08:00",
-      "closedAt": null,
-      "stage": "103 十个分类走查及改动路径复验",
+      "closedAt": "2026-11-04T11:04:47+08:00",
+      "stage": "103 已验收设置分组与备份入口",
       "evidence": [
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-top-22/",
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-settings-menu/settings-grouping-bottom-23/",
@@ -3799,7 +4090,22 @@
         ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-preview-collapsed",
         ".hvigor/outputs/settings-menu-cleanup/build-sweep-complete.log",
         ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/restore-power-sweep",
-        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/install-settings-complete"
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/install-settings-complete",
+        ".hvigor/outputs/tracker-browser/build.log",
+        ".hvigor/outputs/tracker-browser/tracker-list-103.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-browser-bangumi-web",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-browser-restore",
+        ".hvigor/outputs/tracker-browser/build-callback.log",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-callback-implicit",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-callback-restore",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-registration-anilist",
+        ".hvigor/outputs/tracker-browser/build-anilist-registration.log",
+        ".hvigor/outputs/tracker-browser/build-dual-tracker-reference-flow.log",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/sweep-root-keyboard-dismiss/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/final-backup-expand/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-preview-collapsed/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-settings/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-sheet/screen.png"
       ],
       "evidencePoints": [
         "197 candidate-appearance-311文字右缘均1108，箭头与主题/语言一致。",
@@ -4572,21 +4878,23 @@
       "id": "WUXIAN_GUJIAN_LOAD_FAILURE",
       "title": "无限动漫《古见同学》加载失败",
       "priority": "P2（后续处理）",
-      "kind": "open",
-      "status": "指定详情返回空正文",
-      "stage": "官网指定作品空响应原因未明",
+      "kind": "external",
+      "status": "等待《古见同学》官方目录可用",
+      "stage": "等待外部条件",
       "owner": "source_terra：237书源故障",
       "dependencies": [],
       "relatedItems": [
         "SOURCE_WEB_SESSION"
       ],
-      "result": "指定作品详情仍返回空正文；197系统浏览器打开该作品时也显示空白，原因未知。",
-      "remaining": "指定作品官方详情仍为空，官方别名也跳回同址；未找到可用正文或有效替代入口，原因未知。",
+      "result": "指定作品详情仍返回空正文；197系统浏览器打开该作品时也显示空白，原因未知。 指定官方详情曾返回 HTTP 200 空正文，官方别名跳回同址，系统浏览器也为空白。固定参考没有独立目录，具体原因未知。",
+      "remaining": "官方详情恢复有效内容，或出现可核实且指向同一作品的官方目录后复查。",
       "remainingActions": [
-        "核实该作品实际可用的官方详情入口及返回内容；保留原作品和阅读进度，不用其他书替换。"
+        "指定官方详情曾返回 HTTP 200 空正文，官方别名跳回同址，系统浏览器也为空白。固定参考没有独立目录，具体原因未知。",
+        "官方详情恢复有效内容，或出现可核实且指向同一作品的官方目录后复查。"
       ],
       "boundaries": [
-        "提示本身不证明HTTP403、CF或不支持。"
+        "提示本身不证明HTTP403、CF或不支持。",
+        "指定作品官方详情仍为空，官方别名也跳回同址；未找到可用正文或有效替代入口，原因未知。"
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮用户直接反馈；精确发送时间未取得，登记时间不冒报告时间。",
@@ -4608,7 +4916,8 @@
         "本轮官方搜索原始HTML的正篇仍为 /html/14884.html，标示501集但未提供章节ID或其他入口；14883为独立短篇。global.js处理已有目录排序、历史、书签及评论，未发现独立目录或移动详情路由；未重发古见详情或请求章节，不能由数量构造目录。原件 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/search-body.html 与 global.js。",
         "官网页面真实引用的PWA manifest一次HTTP200，仅含图标、颜色和standalone，无目录或API；两页未发现APP下载或独立移动客户端入口。三份既存搜索/30513/14884响应headers无Set-Cookie，不证明服务器永不依赖Cookie。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/evidence.json；不称详情修复。",
         "精确上游1386f490对应两个blob与固定949相同，没有新目录入口；不称已修复。证据 .hvigor/outputs/user-flow-audit/source-settings-repair/comicabc-script-20261031/upstream-reference-1386f490.json。"
-      ]
+      ],
+      "updatedAt": "2026-11-04T11:18:17+08:00"
     },
     {
       "id": "HAPPYMH_SOURCE_UNAVAILABLE",
@@ -4831,9 +5140,9 @@
       "id": "FEATURE_PARITY_IMPLEMENTATION",
       "title": "补齐参考应用功能差异",
       "priority": "P1",
-      "kind": "open",
-      "status": "本轮修正已交付；追踪账号范围未验",
-      "stage": "部分已交付",
+      "kind": "external",
+      "status": "本轮功能已交付，剩余追踪服务等待账号",
+      "stage": "等待外部条件",
       "owner": "Root",
       "dependencies": [
         "FEATURE_PARITY_COMPARISON"
@@ -4841,17 +5150,19 @@
       "relatedItems": [
         "FEATURE_PARITY_COMPARISON"
       ],
-      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。 237077已核书架及详情系统四点图标，原菜单分组和锚点保持。 237已核三行笔记完整显示且无展开，长笔记可展开全文；简介原展开保留。 翻译页已显示选择LLM源和管理LLM源，管理行仍打开原管理页。",
-      "remaining": "三项追踪服务用户无账号，成功登录、绑定及远端同步未验。",
+      "result": "197已核InSet滑杆外观及亮度实际拖动；全局反转开启后音量加前进、音量减后退，阅读中关闭后音量减前进，旧枚举持久读回正确。扁图按决定取消，阅读中全屏预览实现保持。 237077已核书架及详情系统四点图标，原菜单分组和锚点保持。 237已核三行笔记完整显示且无展开，长笔记可展开全文；简介原展开保留。 翻译页已显示选择LLM源和管理LLM源，管理行仍打开原管理页。 目前缺 Kitsu 和 MangaUpdates 真实账号，登录、绑定和远端同步未验。后续 103 已确认 Bangumi 连通，Bangumi 首次授权和同步问题由独立事项跟踪。",
+      "remaining": "取得获授权的 Kitsu 或 MangaUpdates 账号后，核对该服务的登录、绑定和远端同步。",
       "remainingActions": [
-        "用户有真实账号条件后接续对应服务的登录、绑定及远端同步；不代注册、不轮询。"
+        "目前缺 Kitsu 和 MangaUpdates 真实账号，登录、绑定和远端同步未验。后续 103 已确认 Bangumi 连通，Bangumi 首次授权和同步问题由独立事项跟踪。",
+        "取得获授权的 Kitsu 或 MangaUpdates 账号后，核对该服务的登录、绑定和远端同步。"
       ],
       "boundaries": [
         "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
         "首批入口与默认值已获用户采用；197候选fdf340b6具名路径、完整备份预览及设备恢复已核。最后后台合并修正仅编译和逻辑验证，未安装。",
         "保留既有已确认行为与样式。",
         "用户本轮采用取消列表扁图，保留阅读中全屏点击区域预览；音量键方向改反转开关，沿用旧枚举与原按键行为。强调色仅修右侧对齐，色块/颜色/菜单保留。",
-        "本轮备份纠正仅取消两个入口指向同页及多余目录层；集中原备份内容/自动配置，保留创建、恢复、文件的独立任务。其他设置分类不摊平。"
+        "本轮备份纠正仅取消两个入口指向同页及多余目录层；集中原备份内容/自动配置，保留创建、恢复、文件的独立任务。其他设置分类不摊平。",
+        "三项追踪服务用户无账号，成功登录、绑定及远端同步未验。"
       ],
       "reportedAt": null,
       "reportedAtSource": "本轮直接用户反馈，精确发送时间未知；登记时间不冒充首报。",
@@ -4949,7 +5260,8 @@
         ".hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-migration/material-first-anchor033-339：与失败334相同首次路径/时序，更多右边与菜单右边均1208px，八动作三组；341刚进500ms点更多首次亦正确；340书架单组含当前勾选，342笔记原表单打开未保存。",
         ".hvigor/outputs/menu-material-acceptance/delivery-binding.json：343明确安装原包，fresh332七JSON+30首选项逐字相同、无extra；344 SLEEP/normal120000/Override10000，lease20261031-202407-89edae6e released。fc0f4e7f已推，精确CI41239344597运行中。",
         ".hvigor/outputs/menu-material-acceptance/ci-final.json：fc0f4e7f完整SHA精确CI41239344597 completed/success，Release构建、Inspect、Upload成功，Publish tagged Release skipped；本轮公共材质及原生锚点已交付。首次334失败及339/341首次通过、设备恢复均见delivery-binding.json和report.md。"
-      ]
+      ],
+      "updatedAt": "2026-11-04T11:18:17+08:00"
     },
     {
       "id": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
@@ -6024,15 +6336,17 @@
       "kind": "open",
       "priority": "P1（当前用户反馈）",
       "owner": "Root",
-      "status": "已修一条旧页回调撤销新选页的竞态",
+      "status": "本地复现新手势接收上一页迟到回调的条件窗口",
       "stage": "已修复具体路径，保留验证边界",
       "reportedAt": null,
       "reportedAtSource": "用户本轮反馈：翻页过程中突然变成前一页，很难复现，怀疑加载竞争。确切消息时间未提供。",
       "registeredAt": "2026-11-02T23:43:38+08:00",
-      "updatedAt": "2026-11-03T10:48:33+08:00",
-      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。 用户本轮再次实际遇到翻页后自行退回上一页，仍无稳定触发条件，原验收不覆盖此新反例。 用户明确继续排查翻页回退。复现待提交新页被当前索引回声取消，修复后分页 83 项通过。237 普通往返 1→2→1。",
-      "remaining": "原偶发现场未捕获，保持未关闭。",
-      "remainingActions": [],
+      "updatedAt": "2026-11-04T12:43:58+08:00",
+      "result": "真实选页方法已重现旧回调把第3页改回第2页，修正为一次手势只提交一次，并保留已到达的下一手势。237超分开启时水平前进三页、返回两页，页码8→9→10→11→10→9与画面对应。用户原偶发现场未捕获，不宣称全部回退原因已排除。 用户本轮再次实际遇到翻页后自行退回上一页，仍无稳定触发条件，原验收不覆盖此新反例。 用户明确继续排查翻页回退。复现待提交新页被当前索引回声取消，修复后分页 83 项通过。237 普通往返 1→2→1。 当前 Koma 固定 Reader Kit ea1160e；514de52 的新选页回声保护仍在。分页身份和阅读模式现有执行用例通过；补跑 surface-input 时，已提交夹具在 ReaderImageEffects 导入处终止，未执行其用例。 执行当前 ReaderNativePager 的触摸和选页方法，以页索引 1 为起点。第一手势 onChange(2) 正常提交；第二次 Down 后，在本次预期 onChange(3) 前注入迟到的 onChange(1) 并先执行待处理任务，实际提交为 2→1，后续 3 被拒。这证明方法存在可触发窗口，尚无真机证据证明原生实际以该顺序交付。237 只读基线为休眠并有 10000 ms 临时覆盖。自动审批拒绝单段唤醒及超时写入，相关动作未执行。",
+      "remaining": "需要真机确认新 Down 后旧索引回调的顺序及屏幕实际回退。受控回放的输入条件尚未由原生事件证实。",
+      "remainingActions": [
+        "在现有分页场景中对齐 Down、Swiper 动画目标、onChange、实际提交和画面，区分迟到回调与用户有意反向翻页。"
+      ],
       "boundaries": [
         "保留用户最终选页与章节的绝对阅读顺序。",
         "不以难复现否定反馈，不把推测当已确认原因。"
@@ -6046,7 +6360,8 @@
         ".hvigor/outputs/plugin-entry-flicker-20261102/ci-final.json：ae1071e5完整SHA的41480963921 completed/success，Release构建、Inspect、Upload通过；发布步骤skipped。",
         "reader-kit/main 514de52",
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-page-forward/",
-        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-page-return/"
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-final-page-return/",
+        ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/closeout-pager-baseline-1104"
       ],
       "closedAt": "2026-11-03T00:36:32+08:00",
       "reopenedAt": "2026-11-03T03:32:24+08:00"
@@ -6104,9 +6419,9 @@
       "id": "READER_MENU_THEME_REFRESH",
       "title": "深色切回浅色后阅读器菜单文字仍为白色",
       "priority": "P1（用户直接反馈）",
-      "kind": "open",
-      "status": "右上菜单和滑杆已验证，底部方向菜单待复测",
-      "stage": "底部补修已构建",
+      "kind": "accepted",
+      "status": "底部方向菜单经用户实测，已关闭",
+      "stage": "用户实测确认关闭",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
@@ -6114,11 +6429,12 @@
       ],
       "reportedAt": null,
       "reportedAtSource": "本会话用户直接反馈；精确消息时刻未核实。",
-      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。 用户澄清仅菜单颜色先不查，翻页回退继续处理。 用户重新授权 200 诊断。200 浅色菜单背景实测白字；独立亮度数值 15 时只看见已填充的粉色，未填充轨道融入白卡片。已恢复原亮度开关，24 小时超时已读回。候选接入 Koma 主题文字色及滑杆轨道色，已构建。 200 第一版修复了滑杆，菜单仍白字；第二版核实固定应用配色与系统菜单材质不同步。最终候选使菜单文字在打开时按系统外观取色。200 同一阅读会话经系统浅→深→浅，菜单分别为深字、浅字、深字。亮度 15 的未填充轨道与颜色滤镜四根零值轨道可见。两开关恢复关闭，系统浅色及 120000ms 原超时已恢复，租约已释放。 用户指出底部菜单仍有问题。底部阅读方向菜单已接入相同的系统取色函数，签名候选构建成功，尚未进行底部真机复测。",
-      "remaining": "在 200 复测底部阅读方向菜单的系统浅→深→浅切换。",
+      "result": "未改动菜单实现。237通过系统开关深色→浅色及退出重进，菜单文字均恢复黑色；用户随后也反馈未再复现。首次异常原因未明，不记已修复。 用户澄清仅菜单颜色先不查，翻页回退继续处理。 用户重新授权 200 诊断。200 浅色菜单背景实测白字；独立亮度数值 15 时只看见已填充的粉色，未填充轨道融入白卡片。已恢复原亮度开关，24 小时超时已读回。候选接入 Koma 主题文字色及滑杆轨道色，已构建。 200 第一版修复了滑杆，菜单仍白字；第二版核实固定应用配色与系统菜单材质不同步。最终候选使菜单文字在打开时按系统外观取色。200 同一阅读会话经系统浅→深→浅，菜单分别为深字、浅字、深字。亮度 15 的未填充轨道与颜色滤镜四根零值轨道可见。两开关恢复关闭，系统浅色及 120000ms 原超时已恢复，租约已释放。 用户指出底部菜单仍有问题。底部阅读方向菜单已接入相同的系统取色函数，签名候选构建成功，尚未进行底部真机复测。 用户本轮确认已实测底部阅读方向菜单并要求关闭。右上菜单及滤镜滑杆已有 200 实机证据。",
+      "remaining": "",
       "boundaries": [
         "保留现有菜单入口、分组、动作和新材质，只修正主题色彩刷新。",
-        "接续237滑杆与顶部背景任务，不用新反馈中断前项。"
+        "接续237滑杆与顶部背景任务，不用新反馈中断前项。",
+        "本轮用户反馈未注明底部菜单所用设备或构建版本。"
       ],
       "evidence": [
         ".hvigor/outputs/reader-settings-tabs-20261103/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-menu-after-light/screen.png",
@@ -6134,7 +6450,9 @@
         ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-tint-off/screen.png",
         ".hvigor/outputs/theme-200-20261103/device200__HOP-AL10/unknown/portrait-1264x1848/theme/candidate-3-restoration/run-metadata.json"
       ],
-      "updatedAt": "2026-11-03T20:54:09+08:00"
+      "updatedAt": "2026-11-04T11:10:04+08:00",
+      "closedAt": "2026-11-04T11:10:04+08:00",
+      "remainingActions": []
     },
     {
       "id": "MANHUAREN_DETAIL_COVER_CHANGE",
@@ -15684,6 +16002,22 @@
       "kind": "work"
     },
     {
+      "id": "manga-detail-adaptive-panes-103",
+      "at": "2026-11-03T21:54:27+08:00",
+      "itemId": "MANGA_DETAIL_ADAPTIVE_PANES",
+      "title": "103 验证漫画详情宽窄切换",
+      "detail": "横屏双栏、右栏独立滚动、悬浮窗单列及回全屏、筛选保持、继续阅读与返回均有具名证据。筛选和设备状态恢复，验证包保留。",
+      "kind": "verified"
+    },
+    {
+      "id": "manga-detail-panes-threshold-700",
+      "at": "2026-11-03T22:05:49+08:00",
+      "itemId": "MANGA_DETAIL_ADAPTIVE_PANES",
+      "title": "提高漫画详情双栏门槛",
+      "detail": "用户反馈竖屏分栏没必要。内容区门槛提高到 700 vp，签名包构建通过，未装机。",
+      "kind": "work"
+    },
+    {
       "id": "settings-menu-cleanup-build",
       "at": "2026-11-03T22:42:42+08:00",
       "itemId": "SETTINGS_GROUPING_ADVANCED",
@@ -15729,6 +16063,379 @@
       "itemId": "SETTINGS_SEARCH",
       "title": "103 已复验阅读跨屏定位与返回",
       "detail": "搜索用行标题与真实描述匹配，分类名可以命中独立的分类结果。103 搜 Wi-Fi 选仅 Wi-Fi 预载，阅读页跨屏定位至目标开关。返回设置首页时键盘收起，可继续打开高级和关于。读取阅读偏好失败时仍可显示基础阅读设置。 图像设置专属行、备份配置区搜索落点和偏好读取失败未在 103 注入或遍历。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-brand-browser-103",
+      "at": "2026-11-03T23:27:00+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 已验证追踪图标与 Bangumi 浏览器跳转",
+      "detail": "提交上一轮设置整理 234cc062。五个服务补品牌图标，103 追踪列表均可见。AniList、MyAnimeList 配置后直接打开浏览器，原复制链接及手动回调保留。合成配置验证准备授权、浏览器失败后重开同一会话。Bangumi 可打开官方令牌页面，103 实测官方页面提示先登录；Kitsu 和 MangaUpdates 继续使用账号密码。 AniList、MyAnimeList 尚未配置 Koma 默认客户端，真实账号授权及回调未验。未在本轮实机执行备份导出、解密或覆盖恢复。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-native-oauth-callback-103",
+      "at": "2026-11-03T23:37:41+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 已验证追踪回调的系统路由",
+      "detail": "AniList 与 MyAnimeList 接入 Koma 系统回调，复用既有授权校验和安全存储；已配置自定义回调仍可手动完成。合成回调执行两家成功处理并覆盖错误地址、错误状态及重复回调。103 在桌面用系统隐式链接启动 Koma，窗口焦点确认回到 Koma，已恢复电源并释租。 两家均待配置注册给 Koma 的正式客户端 ID，真实授权网页发回及账号连接未验。备份导出、解密或覆盖恢复未在本轮实机执行。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-registration-default-103",
+      "at": "2026-11-04T00:08:32+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 已验证 AniList 默认配置",
+      "detail": "AniList 默认填入用户提供的正式 Client ID，103 的追踪子页显示默认值和打开网页登录。两家授权端点以注册回调地址发起请求均跳至各自登录页。MyAnimeList 注册页显示 Other、PUBLISHED 及 Koma 回调，编号按页面提示仅用于本地配置或验证。 真实账号授权与回调完成连接未验。备份导出、解密或覆盖恢复未在本轮实机执行。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-oauth-reference-flow-and-pending-ui",
+      "at": "2026-11-04T00:30:23+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "追踪登录页去除配置表单，修正等待授权的按钮",
+      "detail": "103 双 ID 验证包确认两家入口均无需填写，AniList 进入网页登录后报 unsupported_grant_type；第二次跳转画面仍为 AniList，未验证 MyAnimeList 登录。用户接管 103。对照 Mihon 将 AniList 的返回地址交由服务端注册项决定；按 provider 隔离待授权链接，等待授权时仅保留网页登录，刷新和断开由已连接状态决定。 修改后的版本尚未装机。两家真实账号网页同意、回调和已连接状态待验。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-list-login-and-bangumi-oauth",
+      "at": "2026-11-04T00:37:43+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "追踪列表直接发起登录，Bangumi 待正式应用凭据",
+      "detail": "追踪列表未连接时直接发起网页授权或打开账号密码 Dialog。AniList 与 MyAnimeList 的客户端 ID 已内置。Bangumi 已接入网页授权回调、安全凭据和续期，保留旧个人令牌账号。本地流程检查通过。 Bangumi 待配置 Koma 的 App ID 和 App Secret。新版尚未装机，真实账号网页授权和 Dialog 交互待 103 实机验证。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-bangumi-registered-app",
+      "at": "2026-11-04T00:44:11+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "Bangumi 已内置正式应用凭据，待实机授权",
+      "detail": "用户提供的 Bangumi App ID 和 App Secret 已配置在客户端；使用正式 App ID 和 Koma 回调地址请求官方授权入口，已到达登录页。本地回调和续期流程检查通过。 新版尚未装机。Bangumi 真实账号同意授权、回到 Koma 后换取令牌和显示已连接待验；AniList、MyAnimeList 真实账号授权及 Dialog 交互也待 103 实机验证。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-real-login-retry-diagnostics",
+      "at": "2026-11-04T00:51:02+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "MyAnimeList 登录成功，Bangumi 和 AniList 待复核",
+      "detail": "用户报告 MyAnimeList 已登录成功、Bangumi 报错、AniList 等待后重开白屏。AniList 再点会建立新授权会话；匹配会话的无效回调会退出等待。Koma 的回调失败日志记录服务和失败阶段。 Bangumi 尚缺原始错误内容。AniList 白屏和两家真实回调需用新版复核，登录交互仍由用户操作。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-103-bangumi-real-auth-anilist-blank",
+      "at": "2026-11-04T00:57:40+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 已连接 Bangumi 和 MyAnimeList，AniList 浏览器回跳仍失败",
+      "detail": "103 初始 Bangumi 错误为 invalid_uri，错误页地址无 redirect_uri。随后从追踪列表新开，显示 Koma 授权页；点授权和浏览器打开提示后，追踪列表显示 Bangumi 已连接，同时读回 MyAnimeList 已连接。AniList 由授权地址跳至空白新标签页，Koma 未打开。AniList 注册回调已核为 koma://tracker/callback。103 原亮屏和超时已读回。 AniList 需定位浏览器为何在 OAuth 跳转后未打开 Koma。Bangumi 首次授权错误与新开成功之间的原因尚未核实。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-103-auth-done-competitor-research",
+      "at": "2026-11-04T01:22:54+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 三家追踪已连通，漫画追踪先做竞品对照",
+      "detail": "103 复现系统无法按精确路径匹配含片段的 AniList 回调。改为系统路径前缀后，真实授权回到 Koma；长令牌改为在安全存储中分段后，103 验证 AniList 显示账号并点验刷新入口与整行断开确认。漫画详情曾用圆形按钮打开追踪面板，核对三家服务和 AniList 真实搜索。后续紧凑面板、搜索结果和同步图标候选已装机，用户要求停实现，改为先对照项目文档指定的 Aidoku、Mihon；未走查最后候选。103 恢复原亮屏和超时并释租。 先对照两套作品追踪的入口、绑定、编辑、同步、解绑，再确定 Koma 改法。用户指定追踪按钮在已配置服务或本书已绑定时，采用收藏的高亮样式。最后候选的动态高度和结果卡未实机验收。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-103-icon-rollback-verified",
+      "at": "2026-11-04T01:35:44+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 实机复验连接勾恢复",
+      "detail": "撤销追踪列表连接勾的颜色和尺寸改动。103 覆盖安装后从设置进入追踪，以 MyAnimeList 同一行截图对比，两个按钮区域与原实机截图逐像素一致。原亮屏设置已读回并释租。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-103-icon24-verified",
+      "at": "2026-11-04T01:39:00+08:00",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "title": "103 实机对照连接勾 24",
+      "detail": "用户确认只将追踪列表绿色连接勾从 22 调至 24。103 覆盖安装后从设置进入追踪，同一 MyAnimeList 行实拍中左侧刷新区域逐像素一致，右侧绿色一致，字形外框由 48×48 增至 52×52 像素。",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "tracker-book-owned-103-20261104",
+      "at": "2026-11-04T01:46:04+08:00",
+      "title": "103 追踪设置已移除漫画映射，作品追踪从详情页进入",
+      "detail": "103 已覆盖安装并确认设置无漫画映射，三家已连接账号保持。书架→名偵探柯南→追踪→AniList 搜索已读回。作品绑定、换绑、进度操作及解绑由本书服务行处理。断开后凭据清理失败不再覆盖未连接。103电源和超时读回与基线一致，已释租。",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-settings/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-sheet/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-search/screen.png"
+      ]
+    },
+    {
+      "id": "tracker-three-columns-103-20261104",
+      "at": "2026-11-04T03:40:12+08:00",
+      "title": "103 实机验收追踪三列及完整日期",
+      "detail": "覆盖安装后打开名侦探柯南的追踪卡，AniList 六项排为两行三列，开始日期 2026-11-03 完整显示。",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-three-bind/screen.png"
+      ]
+    },
+    {
+      "id": "tracker-read-progress-103-20261104",
+      "at": "2026-11-04T04:06:55+08:00",
+      "title": "103 首次绑定 AniList 并读回 19 话",
+      "detail": "用户补充 Bangumi 同步时本地已到 33 话。手动上传与首次绑定复用已读章节和续读记录取值，自动同步分发给本书的每个已确认服务。主机执行验证三家同时收到 33，失败方单独重试，手动仅同步选中的服务。下载方向分别反馈网站无已读进度、章节无法对应及本机已包含网站进度。",
+      "itemId": "TRACKER_SYNC_PROGRESS_MISSING",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-three-progress-readback/screen.png"
+      ]
+    },
+    {
+      "id": "tracker-standard-login-103-20261104",
+      "at": "2026-11-04T04:06:55+08:00",
+      "title": "103 点验标准追踪登录对话框",
+      "detail": "Kitsu 未连接入口打开登录框，使用标准取消和连接按钮，连接按钮配置项目主题色。设置页未再渲染常驻授权状态卡。",
+      "itemId": "TRACKER_LOGIN_DIALOG_ACTIONS",
+      "kind": "checkpoint",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-three-login-dialog/screen.png"
+      ]
+    },
+    {
+      "id": "queue-closure-20261104-tracker-login-dialog-actions",
+      "at": "2026-11-04T11:04:47+08:00",
+      "title": "103 已验收登录框按钮",
+      "detail": "103 实机留档可见取消在左、连接在右。表单为空时连接按钮禁用。真实 Kitsu 登录仍由追踪服务验收项跟踪。",
+      "itemId": "TRACKER_LOGIN_DIALOG_ACTIONS",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-three-login-dialog/screen.png"
+      ]
+    },
+    {
+      "id": "queue-closure-20261104-tracker-sheet-cached-display",
+      "at": "2026-11-04T11:04:47+08:00",
+      "title": "103 已验收重开先显示缓存",
+      "detail": "103 在同一详情页关闭并重开后，AniList 和 Bangumi 卡片均显示原有状态和话数。后台延迟响应、账号切换和旧响应保护已有本地执行验证。",
+      "itemId": "TRACKER_SHEET_CACHED_DISPLAY",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-status-cache-ready/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-status-cache-reopen/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-status-cache-reopen/run-metadata.json"
+      ]
+    },
+    {
+      "id": "queue-closure-20261104-settings-grouping-advanced",
+      "at": "2026-11-04T11:04:47+08:00",
+      "title": "103 已验收设置分组与备份入口",
+      "detail": "103 已走查十个一级分类。备份首页可直接配置，创建、恢复和本地备份各有独立入口。追踪设置管理账号和同步，作品绑定从漫画详情进入。远端登录及同步按各追踪项继续记录。",
+      "itemId": "SETTINGS_GROUPING_ADVANCED",
+      "kind": "verified",
+      "evidence": [
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/sweep-root-keyboard-dismiss/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/final-backup-expand/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/verified-preview-collapsed/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-settings/screen.png",
+        ".hvigor/outputs/settings-menu-cleanup/device103__MLR-AL00/portrait-1600x2560/tracker-real-web-book-owned-sheet/screen.png"
+      ]
+    },
+    {
+      "id": "user-closure-20261104-manga-detail-adaptive-panes",
+      "at": "2026-11-04T11:10:04+08:00",
+      "title": "宽窗口漫画详情左右布局经用户实测关闭",
+      "detail": "用户本轮确认已实测漫画详情双栏并要求关闭。本轮用户反馈未注明设备、窗口条件或构建版本。既有 103 横屏、悬浮窗及恢复全屏的证据保留。",
+      "itemId": "MANGA_DETAIL_ADAPTIVE_PANES",
+      "kind": "accepted"
+    },
+    {
+      "id": "user-closure-20261104-reader-menu-theme-refresh",
+      "at": "2026-11-04T11:10:04+08:00",
+      "title": "深色切回浅色后阅读器菜单文字仍为白色经用户实测关闭",
+      "detail": "用户本轮确认已实测底部阅读方向菜单并要求关闭。右上菜单及滤镜滑杆已有 200 实机证据。本轮用户反馈未注明底部菜单所用设备或构建版本。",
+      "itemId": "READER_MENU_THEME_REFRESH",
+      "kind": "accepted"
+    },
+    {
+      "id": "external-wait-20261104-source-chapter-ordinal-audit",
+      "at": "2026-11-04T11:18:17+08:00",
+      "title": "排查书源章节编号缺失移至等待外部条件",
+      "detail": "爱看漫与我的漫畫的具名目录请求曾返回 HTTP 403。爱看漫缺原始目录可核对话数；我的漫畫已用留存目录验证新版。 取得爱看漫可读的真实目录后核对原站编号；取得我的漫畫可读的真实目录后回验新版。",
+      "itemId": "SOURCE_CHAPTER_ORDINAL_AUDIT",
+      "kind": "decision"
+    },
+    {
+      "id": "external-wait-20261104-source-official-chinese-names",
+      "at": "2026-11-04T11:18:17+08:00",
+      "title": "书源官方中文名未整体核验移至等待外部条件",
+      "detail": "爱看漫官网未能读取；漫画柜直接访问受限，“看漫画”只找到转述。两处官方名称仍未知。 取得可访问的官网、官方品牌素材或可追溯的官方存档后核对名称。",
+      "itemId": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "kind": "decision"
+    },
+    {
+      "id": "external-wait-20261104-source-settings-migration-audit",
+      "at": "2026-11-04T11:18:17+08:00",
+      "title": "书源设置项未与Mihon/参考扩展整体对照移至等待外部条件",
+      "detail": "Noy 登录入口已交付。登录后正文和镜像兼容需要有效账号，目前没有。 取得真实且获授权的 Noy 登录会话后核对目录、正文和镜像兼容。",
+      "itemId": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "kind": "decision"
+    },
+    {
+      "id": "external-wait-20261104-wuxian-gujian-load-failure",
+      "at": "2026-11-04T11:18:17+08:00",
+      "title": "无限动漫《古见同学》加载失败移至等待外部条件",
+      "detail": "指定官方详情曾返回 HTTP 200 空正文，官方别名跳回同址，系统浏览器也为空白。固定参考没有独立目录，具体原因未知。 官方详情恢复有效内容，或出现可核实且指向同一作品的官方目录后复查。",
+      "itemId": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "kind": "decision"
+    },
+    {
+      "id": "external-wait-20261104-feature-parity-implementation",
+      "at": "2026-11-04T11:18:17+08:00",
+      "title": "补齐参考应用功能差异移至等待外部条件",
+      "detail": "目前缺 Kitsu 和 MangaUpdates 真实账号，登录、绑定和远端同步未验。后续 103 已确认 Bangumi 连通，Bangumi 首次授权和同步问题由独立事项跟踪。 取得获授权的 Kitsu 或 MangaUpdates 账号后，核对该服务的登录、绑定和远端同步。",
+      "itemId": "FEATURE_PARITY_IMPLEMENTATION",
+      "kind": "decision"
+    },
+    {
+      "id": "settings-search-image-backup-103-20261104",
+      "at": "2026-11-04T12:13:26+08:00",
+      "itemId": "SETTINGS_SEARCH",
+      "title": "103 核对图像与备份搜索落点",
+      "detail": "裁边强度滚动到目标行，自动备份展开配置且开关保持关闭，默认备份内容落点可见。普通路径验收，偏好读取失败未故障注入。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-edit-count-picker-103-20261104",
+      "at": "2026-11-04T12:13:26+08:00",
+      "itemId": "TRACKER_EDIT_IMMEDIATE_FEEDBACK",
+      "title": "103 核对 Bangumi 话数编辑入口",
+      "detail": "《名侦探柯南》由 0 话打开滚轮选到 1。自动审批拒绝实际远端写入与恢复，确认未执行。已取消并返回原作品详情，原超时覆盖与亮屏状态读回一致，已释租。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-scroll-vsync-gap-197-20261104",
+      "at": "2026-11-04T12:17:11+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "197 既有追踪分离应用帧耗时和 VSync 接收延迟",
+      "detail": "最大 16.50 ms 间隔内，发送到接收用 8.32 ms，前后应用帧处理都低于 120 Hz 预算；第 21 页预建在下一次发送前结束。追踪缺 CPU 调用栈，实际显示节奏和卡顿根因保持未知。",
+      "kind": "work"
+    },
+    {
+      "id": "reader-rollback-current-guard-20261104",
+      "at": "2026-11-04T12:17:11+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "当前分页回声保护仍有效",
+      "detail": "已执行分页身份和阅读模式回归；额外 surface-input 夹具因缺导入适配提前终止。没有新的原偶发现场证据。",
+      "kind": "work"
+    },
+    {
+      "id": "tracker-edit-count-roundtrip-103-20261104",
+      "at": "2026-11-04T12:29:37+08:00",
+      "itemId": "TRACKER_EDIT_IMMEDIATE_FEEDBACK",
+      "title": "103 话数保存和原值恢复已读回",
+      "detail": "103 通过 Bangumi 普通编辑入口 0→1→0。两次跨作品重进后分别读回 1 和 0。状态编辑此前已实机通过，保存失败仍以本地执行覆盖为准。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-chapter-complete-live-103-20261104",
+      "at": "2026-11-04T12:32:27+08:00",
+      "itemId": "TRACKER_CHAPTER_COMPLETE_SYNC",
+      "title": "第 33 话末页显示后立即同步到 Bangumi",
+      "detail": "103 第 33 话末页实际可见，阅读器仍打开时记录同步成功且未排队。独立读回 33，原第 10 页和远端原话数均恢复。",
+      "kind": "verified"
+    },
+    {
+      "id": "tracker-sync-original-33-live-103-20261104",
+      "at": "2026-11-04T12:32:27+08:00",
+      "itemId": "TRACKER_SYNC_PROGRESS_MISSING",
+      "title": "原 33 话样本已核 Bangumi 上传",
+      "detail": "实际验证的是章末自动上传和读回。MyAnimeList 手动上传单独保留。",
+      "kind": "work"
+    },
+    {
+      "id": "tracker-sync-existing-mappings-103-20261104",
+      "at": "2026-11-04T12:34:10+08:00",
+      "itemId": "TRACKER_SYNC_PROGRESS_MISSING",
+      "title": "103 已核三份既有样本的 MyAnimeList 绑定状态",
+      "detail": "三份样本均未绑定。103 已返回原作品第 33 话续读入口，原第 10 页、电源状态和超时覆盖读回一致，租约已释放。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-vsync-prior-builds-197-20261104",
+      "at": "2026-11-04T12:36:20+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "在原包与第二版候选也核到 VSync 接收延迟",
+      "detail": "三个已有追踪的最长应用帧间隔均能配对到发送后的接收延迟，最大间隔两侧应用帧均未超预算。根因仍缺对应线程的调用栈及实际显示证据。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-vsync-profiler-scope-197-20261104",
+      "at": "2026-11-04T12:38:30+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "核对应用调用栈采样前提",
+      "detail": "第三版留档包的 module.json 为 release 且 debug=false。OpenHarmony HiPerf 应用级 record 要求可调试应用；现有帧时间线继续作为现象证据。",
+      "kind": "work"
+    },
+    {
+      "id": "reader-rollback-next-touch-late-echo-20261104",
+      "at": "2026-11-04T12:43:58+08:00",
+      "itemId": "READER_ASYNC_PAGE_ROLLBACK",
+      "title": "受控回放命中新手势后的迟到旧索引",
+      "detail": "真实选页方法依次提交索引 2、1。输入序列由本地回放提供，尚未从真机观察到同顺序。237 单段唤醒被自动审批拒绝，设备写入未执行。",
+      "kind": "work"
+    },
+    {
+      "id": "source-92-chapter-list-report-20261104",
+      "at": "2026-11-04T13:03:07+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "登记 92漫画章节列表缺失",
+      "detail": "用户报告多部作品网页有章节而 App 获取不到，已交给专门书源执行者，具体作品和原因待核。",
+      "kind": "work"
+    },
+    {
+      "id": "source-92-parse-vs-403-20261104",
+      "at": "2026-11-04T13:05:08+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "92漫画已分开核对两类章节缺失",
+      "detail": "公开 WASM 在正常返回 200 的两部漫画中漏掉后续章节组。另有样本返回 403，证据指向不同阶段。书源后续真机使用 237。",
+      "kind": "work"
+    },
+    {
+      "id": "continuous-live-profiler-eligibility-197-20261104",
+      "at": "2026-11-04T13:06:22+08:00",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "title": "确认 197 当前包的调用栈采样前提",
+      "detail": "安装回执与现时更新时间吻合，实际留档包 debug=false。设备 HiPerf 的应用级采样要求可调试目标。只读核对后释租。",
+      "kind": "work"
+    },
+    {
+      "id": "release-110-stable-20261104",
+      "at": "2026-11-04T13:07:22+08:00",
+      "itemId": "RELEASE_1_1_0",
+      "title": "1.1.0 正式发布并核验下载物",
+      "detail": "首轮构建的标题栏语法错误已在发布基线修复，精确准备 CI 和标签 CI 成功，最新正式 Release 及匿名下载附件均已核对。",
+      "kind": "verified"
+    },
+    {
+      "id": "source-92-candidate-real-wasm-20261104",
+      "at": "2026-11-04T13:12:28+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "92漫画候选补齐网页章节分组",
+      "detail": "具名实站候选保留旧条目与顺序，新增后续分组可读。特定桌面自跳响应可用官方移动详情恢复，双端拒绝仍报错。公开包及 237 待核。",
+      "kind": "work"
+    },
+    {
+      "id": "source-92-candidate-pushed-20261104",
+      "at": "2026-11-04T13:15:41+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "92漫画修复已推源仓",
+      "detail": "旧主组逐条保持，新增分组与官方移动详情在候选实站回放已核。等待精确发布及 237。",
+      "kind": "work"
+    },
+    {
+      "id": "source-92-public-017-20261104",
+      "at": "2026-11-04T13:17:13+08:00",
+      "itemId": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "title": "92漫画 0.1.7 已公开并核对实际源包",
+      "detail": "精确源发布成功，下载公开源包核对摘要、索引和实站回放。237 正接续原生路径验证。",
       "kind": "verified"
     }
   ],
