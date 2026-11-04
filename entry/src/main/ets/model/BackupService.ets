@@ -15,6 +15,7 @@ import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportAppl
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { common } from '@kit.AbilityKit'
 import { buffer } from '@kit.ArkTS'
+import { BusinessError } from '@kit.BasicServicesKit'
 import { preferences } from '@kit.ArkData'
 import { fileIo as fs, ListFileOptions, picker } from '@kit.CoreFileKit'
 import { AppStrings } from '../i18n/AppStrings'
@@ -241,6 +242,25 @@ export interface BackupLocalFileRecord {
   preview: BackupLocalFilePreview
 }
 
+interface CachedLocalBackupFile {
+  fingerprint: string
+  record: BackupLocalFileRecord
+}
+
+@ObservedV2
+export class BackupManagementState {
+  // Undefined is an unread directory. A successful empty list is also a snapshot.
+  @Trace records?: BackupLocalFileRecord[] = undefined
+  @Trace failed: boolean = false
+  automaticPreferences?: BackupAutomaticPreferences = undefined
+  contentPreferences?: BackupContentPreferences = undefined
+  files: Map<string, CachedLocalBackupFile> = new Map()
+  refreshSequence: number = 0
+}
+
+const backupManagementStates: Map<string, BackupManagementState> = new Map()
+const BACKUP_FILE_NOT_FOUND: number = 13900002
+
 export interface BackupAutomaticPreferences {
   directoryOwnedModes?: number
   directoryUri?: string
@@ -293,11 +313,11 @@ export const DEFAULT_BACKUP_CONTENT_PREFERENCES: BackupContentPreferences = {
 
 let automaticBackupInFlight: Promise<BackupAutomaticRunResult> | undefined = undefined
 let automaticBackupInFlightReason: 'due' | 'manual' | undefined = undefined
-let automaticPreferenceOperation: Promise<void> = Promise.resolve()
+let backupPreferenceOperation: Promise<void> = Promise.resolve()
 
-function queueAutomaticPreferences<T>(operation: () => Promise<T>): Promise<T> {
-  const result = automaticPreferenceOperation.then(operation)
-  automaticPreferenceOperation = result.then(() => {}, () => {})
+function queueBackupPreferences<T>(operation: () => Promise<T>): Promise<T> {
+  const result = backupPreferenceOperation.then(operation)
+  backupPreferenceOperation = result.then(() => {}, () => {})
   return result
 }
 
@@ -925,7 +945,11 @@ export class BackupService {
   }
 
   async loadAutomaticPreferences(): Promise<BackupAutomaticPreferences> {
-    return queueAutomaticPreferences(() => this.readAutomaticPreferences())
+    return queueBackupPreferences(async (): Promise<BackupAutomaticPreferences> => {
+      const value = await this.readAutomaticPreferences()
+      if (!BackupRestoreActivity.isRestoring()) this.managementState().automaticPreferences = value
+      return value
+    })
   }
 
   private async readAutomaticPreferences(): Promise<BackupAutomaticPreferences> {
@@ -955,7 +979,7 @@ export class BackupService {
   }
 
   async saveAutomaticPreferences(patch: BackupAutomaticPreferencesPatch): Promise<BackupAutomaticPreferences> {
-    return queueAutomaticPreferences(() => BackupRestoreActivity.runWrite(async (): Promise<BackupAutomaticPreferences> => {
+    return queueBackupPreferences(() => BackupRestoreActivity.runWrite(async (): Promise<BackupAutomaticPreferences> => {
       const current = await this.readAutomaticPreferences()
       const next = normalizeBackupAutomaticPreferences({
         directoryUri: patch.directoryUri ?? current.directoryUri,
@@ -998,6 +1022,19 @@ export class BackupService {
       BACKUP_AUTOMATIC_RETENTION_COUNT_KEY, BACKUP_AUTOMATIC_LAST_RUN_AT_KEY, BACKUP_AUTOMATIC_LAST_FAILURE_CODE_KEY]
     const values: preferences.ValueType[] = [normalized.directoryOwnedModes ?? 0, normalized.directoryUri ?? '', normalized.backgroundEnabled === true, normalized.enabled, normalized.intervalHours,
       normalized.retentionCount, normalized.lastRunAt, normalized.lastFailureCode]
+    try {
+      await this.writeBackupPreferenceValues(store, keys, values, 'backup_automatic_preferences_rollback_failed')
+    } catch (error) {
+      if ((error as Error).message === 'backup_automatic_preferences_rollback_failed') {
+        this.managementState().automaticPreferences = undefined
+      }
+      throw error as Error
+    }
+    this.managementState().automaticPreferences = normalized
+  }
+
+  private async writeBackupPreferenceValues(store: preferences.Preferences, keys: string[],
+    values: preferences.ValueType[], rollbackFailure: string): Promise<void> {
     const existed: boolean[] = keys.map((key: string): boolean => store.hasSync(key))
     const previous: preferences.ValueType[] = keys.map((key: string): preferences.ValueType => store.getSync(key, ''))
     try {
@@ -1011,13 +1048,21 @@ export class BackupService {
         }
         await store.flush()
       } catch (_rollbackError) {
-        throw new Error('backup_automatic_preferences_rollback_failed')
+        throw new Error(rollbackFailure)
       }
       throw error as Error
     }
   }
 
   async loadContentPreferences(): Promise<BackupContentPreferences> {
+    return queueBackupPreferences(async (): Promise<BackupContentPreferences> => {
+      const value = await this.readContentPreferences()
+      if (!BackupRestoreActivity.isRestoring()) this.managementState().contentPreferences = value
+      return value
+    })
+  }
+
+  private async readContentPreferences(): Promise<BackupContentPreferences> {
     const store = await this.contentPreferences()
     const includeSettings =
       await store.get(BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, DEFAULT_BACKUP_CONTENT_PREFERENCES.includeSettings) as boolean
@@ -1033,12 +1078,23 @@ export class BackupService {
   }
 
   async saveContentPreferences(preferencesValue: BackupContentPreferences): Promise<void> {
-    const normalized = normalizeBackupContentPreferences(preferencesValue)
-    const store = await this.contentPreferences()
-    await store.put(BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, normalized.includeSettings)
-    await store.put(BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY, normalized.includeDownloadQueue)
-    await store.put(BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY, normalized.includeTrackerMappings)
-    await store.flush()
+    return queueBackupPreferences(() => BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      const normalized = normalizeBackupContentPreferences(preferencesValue)
+      const store = await this.contentPreferences()
+      const keys: string[] = [BACKUP_CONTENT_INCLUDE_SETTINGS_KEY, BACKUP_CONTENT_INCLUDE_DOWNLOAD_QUEUE_KEY,
+        BACKUP_CONTENT_INCLUDE_TRACKER_MAPPINGS_KEY]
+      const values: preferences.ValueType[] = [normalized.includeSettings, normalized.includeDownloadQueue,
+        normalized.includeTrackerMappings]
+      try {
+        await this.writeBackupPreferenceValues(store, keys, values, 'backup_content_preferences_rollback_failed')
+      } catch (error) {
+        if ((error as Error).message === 'backup_content_preferences_rollback_failed') {
+          this.managementState().contentPreferences = undefined
+        }
+        throw error as Error
+      }
+      this.managementState().contentPreferences = normalized
+    }))
   }
 
   async runAutomaticLocalBackupIfDue(now: number = Date.now(), requireForeground: boolean = false): Promise<BackupAutomaticRunResult> {
@@ -1112,22 +1168,80 @@ export class BackupService {
     return staleRecords.length
   }
 
-  async listLocalBackups(inspectContents: boolean = true): Promise<BackupLocalFileRecord[]> {
-    ensureDir(this.localBackupsDir())
-    const options: ListFileOptions = {
-      recursion: false,
-      listNum: 0,
+  managementState(): BackupManagementState {
+    const directory = this.localBackupsDir()
+    let state = backupManagementStates.get(directory)
+    if (state === undefined) {
+      state = new BackupManagementState()
+      backupManagementStates.set(directory, state)
     }
-    const fileNames = (await fs.listFile(this.localBackupsDir(), options))
+    return state
+  }
+
+  async refreshLocalBackupList(): Promise<void> {
+    const state = this.managementState()
+    const sequence = ++state.refreshSequence
+    try {
+      const files = new Map<string, CachedLocalBackupFile>()
+      for (const fileName of await this.localBackupFileNames()) {
+        if (sequence !== state.refreshSequence) return
+        const file = await this.scanLocalBackupFile(fileName, state.files.get(fileName))
+        if (file !== undefined) files.set(fileName, file)
+      }
+      if (sequence !== state.refreshSequence) return
+      const records = this.sortLocalBackupRecords(Array.from(files.values()).map(
+        (file: CachedLocalBackupFile): BackupLocalFileRecord => file.record))
+      const previous = state.records
+      state.files = files
+      if (previous === undefined || records.length !== previous.length ||
+        records.some((record: BackupLocalFileRecord, index: number): boolean => record !== previous[index])) {
+        state.records = records
+      }
+      state.failed = false
+    } catch (_error) {
+      if (sequence !== state.refreshSequence) return
+      // A failed scan must leave the last readable rows available for retry.
+      state.failed = true
+      DiagnosticLogger.error('backup_management_page', 'local_list_failed', '[BackupManagement] step=local_list_failed code=backup_local_list_failed')
+    }
+  }
+
+  private async scanLocalBackupFile(fileName: string, cached?: CachedLocalBackupFile): Promise<CachedLocalBackupFile | undefined> {
+    const path = this.localBackupPath(fileName)
+    try {
+      const stat = await fs.stat(path)
+      const fingerprint = `${stat.ino}:${stat.size}:${stat.mtimeNs ?? stat.mtime}:${stat.ctimeNs ?? stat.ctime}`
+      if (cached?.fingerprint === fingerprint) return cached
+      const payload = await fs.readText(path, { encoding: 'utf-8' })
+      return { fingerprint, record: this.localBackupRecord(fileName, stat.size, this.localBackupFilePreview(payload)) }
+    } catch (error) {
+      if ((error as BusinessError).code === BACKUP_FILE_NOT_FOUND) return undefined
+      throw error as Error
+    }
+  }
+
+  private async localBackupFileNames(): Promise<string[]> {
+    const directory = this.localBackupsDir()
+    ensureDir(directory)
+    const options: ListFileOptions = { recursion: false, listNum: 0 }
+    return (await fs.listFile(directory, options))
       .map((name: string): string => name.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, ''))
       .filter((name: string): boolean => isLocalBackupFileName(name))
+  }
+
+  async listLocalBackups(): Promise<BackupLocalFileRecord[]> {
+    const fileNames = await this.localBackupFileNames()
     const records: BackupLocalFileRecord[] = []
     for (let index = 0; index < fileNames.length; index += 1) {
-      const record = this.readLocalBackupRecord(fileNames[index], true, inspectContents)
+      const record = this.readLocalBackupRecord(fileNames[index], true)
       if (record !== undefined) {
         records.push(record)
       }
     }
+    return this.sortLocalBackupRecords(records)
+  }
+
+  private sortLocalBackupRecords(records: BackupLocalFileRecord[]): BackupLocalFileRecord[] {
     return records.sort((left: BackupLocalFileRecord, right: BackupLocalFileRecord): number => {
       const exportedDiff = right.preview.exportedAt - left.preview.exportedAt
       return exportedDiff !== 0 ? exportedDiff : right.fileName.localeCompare(left.fileName)
@@ -1280,6 +1394,9 @@ export class BackupService {
       }
       resetGeneratedAutomationWork(this.context)
       checkpoint.commit()
+      const state = this.managementState()
+      state.automaticPreferences = undefined
+      state.contentPreferences = undefined
       coversCommitted = true
       DiagnosticLogger.info('backup', 'import_json', '[Backup] step=import_json')
     } catch (error) {
@@ -1475,8 +1592,16 @@ export class BackupService {
       exportedAtText: formatBackupExportedAt(header.exportedAt), encrypted: false }
   }
 
-  private readLocalBackupRecord(fileName: string, strictRead: boolean = false,
-    inspectContents: boolean = true): BackupLocalFileRecord | undefined {
+  private localBackupRecord(fileName: string, sizeBytes: number, preview: BackupLocalFilePreview): BackupLocalFileRecord {
+    return {
+      fileName,
+      displayName: fileName.replace(/\.koma-backup$/, '').replace(/\.json$/, ''),
+      sizeBytes,
+      preview,
+    }
+  }
+
+  private readLocalBackupRecord(fileName: string, strictRead: boolean = false): BackupLocalFileRecord | undefined {
     const safeName = this.requireLocalBackupFileName(fileName)
     const path = this.localBackupPath(safeName)
     if (!fs.accessSync(path)) {
@@ -1484,12 +1609,7 @@ export class BackupService {
     }
     try {
       const payload = fs.readTextSync(path, { encoding: 'utf-8' })
-      return {
-        fileName: safeName,
-        displayName: safeName.replace(/\.koma-backup$/, '').replace(/\.json$/, ''),
-        sizeBytes: fs.statSync(path).size,
-        preview: inspectContents ? this.preview(payload) : this.localBackupFilePreview(payload),
-      }
+      return this.localBackupRecord(safeName, fs.statSync(path).size, this.preview(payload))
     } catch (_error) {
       if (strictRead) {
         throw new Error('backup_local_read_failed')
@@ -1703,7 +1823,7 @@ export class BackupService {
       created = await this.exportLocal()
       // A settings edit during export must survive. Only the completion fields belong to this job.
       let deletedCount = 0
-      const nextPreferences = await queueAutomaticPreferences(async (): Promise<BackupAutomaticPreferences> => {
+      const nextPreferences = await queueBackupPreferences(async (): Promise<BackupAutomaticPreferences> => {
         const current = await this.readAutomaticPreferences()
         if (current.directoryUri !== undefined && current.directoryUri.length > 0) {
           await writeAutomaticBackupToDirectory(current.directoryUri,
@@ -1723,7 +1843,7 @@ export class BackupService {
         preferences: nextPreferences,
       }
     } catch (_error) {
-      const nextPreferences = await queueAutomaticPreferences(async (): Promise<BackupAutomaticPreferences> => {
+      const nextPreferences = await queueBackupPreferences(async (): Promise<BackupAutomaticPreferences> => {
         const current = await this.readAutomaticPreferences()
         // The export already exists even when retention cleanup fails; do not recreate it on every foreground.
         if (created !== undefined) {

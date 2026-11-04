@@ -26,6 +26,7 @@ import {
   BackupImportSelectionPreview,
   BackupLocalFilePreview,
   BackupLocalFileRecord,
+  BackupManagementState,
   BackupService,
   BackupAutomaticPreferencesPatch,
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES,
@@ -96,10 +97,7 @@ export struct BackupManagementPage {
   @Local private selectedBackupPayload: string = ''
   @Local private selectedEncryptedBackupPayload: string = ''
   @Local private selectedBackupPreview: BackupImportPreview | undefined = undefined
-  @Local private localBackups: BackupLocalFileRecord[] = []
-  @Local private localBackupsLoading: boolean = true
-  @Local private localBackupsFailed: boolean = false
-  private localBackupsEpoch: number = 0
+  @Local private backupState: BackupManagementState = new BackupManagementState()
   @Local private localFileActionMenuKey: string = ''
   @Local private autoPreferences: BackupAutomaticPreferences = DEFAULT_BACKUP_AUTOMATIC_PREFERENCES
   @Local private automaticPreferencesState: BackupPreferenceLoadState = 'loading'
@@ -132,23 +130,12 @@ export struct BackupManagementPage {
   }
 
   private loadLocalBackups(): void {
-    const epoch = ++this.localBackupsEpoch
-    this.localBackupsLoading = true
-    this.localBackupsFailed = false
-    // List records need file metadata only. Opening a record computes the restore diff.
-    void this.backupService().listLocalBackups(false)
-      .then((records: BackupLocalFileRecord[]) => {
-        if (epoch !== this.localBackupsEpoch) return
-        this.localBackups = records
-      })
-      .catch((_error: Error) => {
-        if (epoch !== this.localBackupsEpoch) return
-        DiagnosticLogger.error('backup_management_page', 'local_list_failed', '[BackupManagement] step=local_list_failed code=backup_local_list_failed')
-        this.localBackupsFailed = true
-      })
-      .finally(() => {
-        if (epoch === this.localBackupsEpoch) this.localBackupsLoading = false
-      })
+    void this.backupService().refreshLocalBackupList()
+  }
+
+  private lastLocalBackupFileName(): string | undefined {
+    const records = this.backupState.records
+    return records?.[records.length - 1]?.fileName
   }
 
   private loadAutomaticPreferences(): void {
@@ -685,6 +672,7 @@ export struct BackupManagementPage {
       this.backupService().import(this.selectedBackupPayload)
     void importPromise
       .then(async (): Promise<void> => {
+        this.onRefreshRevision()
         this.onRestoreCompleted()
         await this.closeBackupDialog()
         this.showInfoDialog(t('backup_dialog_imported_title'), t('backup_imported_message'))
@@ -1163,22 +1151,23 @@ export struct BackupManagementPage {
         .fontColor(ThemeConstants.TEXT_SECONDARY).lineHeight(ThemeConstants.LINE_HEIGHT_BODY)
         .padding({ left: ThemeConstants.SPACE_SM, right: ThemeConstants.SPACE_SM })
       GroupedListSection() {
-        if (this.localBackups.length === 0) {
-          if (this.localBackupsLoading) {
-            ConciseListRow({ title: t('common_loading'), showChevron: false })
-          } else if (this.localBackupsFailed) {
+        if (!this.backupState.records?.length) {
+          if (this.backupState.failed) {
             this.LocalBackupsRetryRow()
+          } else if (this.backupState.records === undefined) {
+            ConciseListRow({ title: t('common_loading'), showChevron: false })
           } else {
             ConciseListRow({ title: t('backup_local_empty'), showChevron: false })
           }
         } else {
-          ForEach(this.localBackups, (record: BackupLocalFileRecord, index: number) => {
+          ForEach(this.backupState.records ?? [], (record: BackupLocalFileRecord) => {
             this.LocalBackupRow(record)
-            if (index < this.localBackups.length - 1) { ListDivider() }
-          }, (record: BackupLocalFileRecord) => record.fileName)
+            if (record.fileName !== this.lastLocalBackupFileName()) { ListDivider() }
+          }, (record: BackupLocalFileRecord) =>
+            JSON.stringify([record.fileName, record.sizeBytes, record.preview.exportedAt, record.preview.encrypted]))
         }
       }
-      if (this.localBackupsFailed && this.localBackups.length > 0) {
+      if (this.backupState.failed && (this.backupState.records?.length ?? 0) > 0) {
         this.LocalBackupsRetryRow()
       }
     }
@@ -1307,11 +1296,20 @@ export struct BackupManagementPage {
   aboutToDisappear(): void {
     this.active = false
     if (this.backupDialogShown) void this.closeBackupDialog()
-    this.localBackupsEpoch += 1
   }
 
   aboutToAppear(): void {
     this.active = true
+    this.backupState = this.backupService().managementState()
+    // Mount preference controls with the last saved/read values, never the defaults while a read is pending.
+    if (this.backupState.automaticPreferences !== undefined) {
+      this.autoPreferences = this.backupState.automaticPreferences
+      this.automaticPreferencesState = 'ready'
+    }
+    if (this.backupState.contentPreferences !== undefined) {
+      this.contentPreferences = this.backupState.contentPreferences
+      this.contentPreferencesState = 'ready'
+    }
     this.showAutomaticOptions = this.searchTarget === 'backup-automatic'
     this.onRefreshRevision()
   }

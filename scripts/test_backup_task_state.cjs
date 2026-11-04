@@ -21,6 +21,7 @@ const pageLogic = (source.slice(0, source.indexOf('  @Builder')) + '\n}')
   .replace('export struct', 'export class')
 const { BackupManagementPage } = evaluate(pageLogic, {
   Scroller: class {}, connectLayoutSafeArea: () => ({}),
+  BackupManagementState: class {},
   DEFAULT_BACKUP_AUTOMATIC_PREFERENCES: { enabled: false },
   DEFAULT_BACKUP_CONTENT_PREFERENCES: {}, AppStrings: { get: key => key, format: key => key },
   connectLanguageState: () => ({}),
@@ -36,7 +37,7 @@ const drain = async () => { for (let i = 0; i < 30; i++) await Promise.resolve()
 function fixture() {
   const calls = [], page = new BackupManagementPage(), ui = {}
   const service = {
-    listLocalBackups: async () => [],
+    refreshLocalBackupList: async () => {},
     loadAutomaticPreferences: async () => ({ enabled: true }),
     saveAutomaticPreferences: async patch => { calls.push(patch); return patch },
     loadContentPreferences: async () => ({}),
@@ -160,4 +161,76 @@ async function run() {
   await assert.rejects(copyService.exportLocalCopyToPicker('renamed.json', 'test secret'), /backup_already_encrypted/)
 }
 
-run().then(() => console.log('Backup workflow state OK')).catch(error => { console.error(error); process.exitCode = 1 })
+async function testLocalListSnapshot() {
+  const backupSource = read('model/BackupService.ets')
+  const state = backupSource.slice(backupSource.indexOf('interface CachedLocalBackupFile'),
+    backupSource.indexOf('export interface BackupAutomaticPreferences'))
+    .replace('@ObservedV2', '').replaceAll('@Trace ', '')
+  const list = backupSource.slice(backupSource.indexOf('  managementState()'),
+    backupSource.indexOf('  async renameLocalBackup('))
+  const files = new Map()
+  const reads = []
+  let listing
+  const { ListService } = evaluate(state + 'export class ListService { ' + list + ' }', {
+    ensureDir() {},
+    isLocalBackupFileName: name => name.endsWith('.json'),
+    DiagnosticLogger: { error() {} },
+    fs: {
+      listFile: async () => listing ? listing() : [...files.keys()],
+      stat: async path => files.get(path).stat,
+      readText: async path => { reads.push(path); return files.get(path).payload },
+    },
+  })
+  const open = (directory = 'backups') => {
+    const service = new ListService()
+    service.localBackupsDir = () => directory
+    service.localBackupPath = fileName => fileName
+    service.localBackupFilePreview = JSON.parse
+    service.localBackupRecord = (fileName, sizeBytes, preview) => ({ fileName, sizeBytes, preview })
+    return service
+  }
+  const fixtureFile = (ino, exportedAt) => ({
+    stat: { ino, size: 100, mtimeNs: BigInt(exportedAt), ctimeNs: BigInt(exportedAt) },
+    payload: JSON.stringify({ exportedAt, encrypted: false }),
+  })
+
+  const first = open()
+  const snapshot = first.managementState()
+  assert.equal(snapshot.records, undefined)
+  await first.refreshLocalBackupList()
+  assert.deepEqual(snapshot.records, [])
+  files.set('older.json', fixtureFile(1n, 1))
+  files.set('newer.json', fixtureFile(2n, 2))
+  await first.refreshLocalBackupList()
+  assert.deepEqual(snapshot.records.map(record => record.fileName), ['newer.json', 'older.json'])
+
+  const reopened = open()
+  const retained = snapshot.records
+  assert.equal(reopened.managementState().records, retained)
+  assert.equal(open('other').managementState().records, undefined)
+  await reopened.refreshLocalBackupList()
+  assert.equal(snapshot.records, retained)
+  assert.deepEqual(reads, ['older.json', 'newer.json'])
+
+  listing = async () => { throw new Error('cannot list') }
+  await reopened.refreshLocalBackupList()
+  assert.equal(snapshot.failed, true)
+  assert.equal(snapshot.records, retained)
+
+  let finishOldScan
+  listing = () => new Promise(resolve => { finishOldScan = resolve })
+  const olderScan = first.refreshLocalBackupList()
+  listing = undefined
+  files.delete('newer.json')
+  files.set('older.json', fixtureFile(3n, 3))
+  await reopened.refreshLocalBackupList()
+  finishOldScan(['newer.json'])
+  await olderScan
+  assert.deepEqual(snapshot.records.map(record => record.preview.exportedAt), [3])
+  assert.deepEqual(reads, ['older.json', 'newer.json', 'older.json'])
+  assert.equal(snapshot.failed, false)
+}
+
+run().then(testLocalListSnapshot).then(() => console.log('Backup workflow state OK')).catch(error => {
+  console.error(error); process.exitCode = 1
+})
