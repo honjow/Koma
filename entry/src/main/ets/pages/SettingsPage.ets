@@ -175,7 +175,6 @@ export type SettingsPaneKey =
   'downloads' |
   'tracking' |
   'backup' |
-  'history-sync' |
   'storage' |
   'about' |
   'advanced' |
@@ -447,7 +446,6 @@ export function settingsPaneTitle(pane: SettingsPaneKey): string {
   if (pane === 'tracking') {
     return s('settings_pane_tracking_title')
   }
-  if (pane === 'history-sync') return s('history_sync_title')
   if (pane === 'backup') {
     return s('settings_pane_backup_title')
   }
