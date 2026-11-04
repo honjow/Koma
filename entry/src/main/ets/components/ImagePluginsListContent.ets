@@ -13,6 +13,12 @@ import { SettingsFieldRow } from './ui/SettingsFieldRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaModalScaffold, komaModalSheetOptions } from './KomaModalScaffold'
 
+class ImagePluginActivation {
+  readonly enabled: boolean
+  saved: boolean = false
+  constructor(enabled: boolean) { this.enabled = enabled }
+}
+
 @ComponentV2
 export struct ImagePluginsListContent {
   @Param subscriptions: ImageRuleSubscription[] = []
@@ -20,6 +26,7 @@ export struct ImagePluginsListContent {
   @Local private processingState: ImageRuleState = connectImageRuleState()
   @Local private rows: ImagePluginRow[] = []
   @Local private busyKeys: string[] = []
+  @Local private activations: Map<string, ImagePluginActivation> = new Map()
   @Local private error: string = ''
   @Local private editing: ImagePluginRow | null = null
   @Local private editorShown: boolean = false
@@ -29,6 +36,7 @@ export struct ImagePluginsListContent {
   @Monitor('subscriptions', 'installations')
   private changed(): void {
     this.rows = imagePluginRows(this.subscriptions, this.installations)
+    this.reconcileActivations()
     if (this.editing === null) return
     const current = this.rows.find((row: ImagePluginRow): boolean => row.key() === this.editing!.key())
     if (current === undefined) { this.editorShown = false; return }
@@ -53,7 +61,50 @@ export struct ImagePluginsListContent {
     const conflict = row.conflictSources.length > 0 ? ` · ${AppStrings.get('source_subscription_conflict')}` : ''
     return `${this.description(row)}\n${versions} · ${row.source.name}${conflict}`
   }
-  private isPluginEnabled(row: ImagePluginRow): boolean { return row.enabled() }
+  private currentRow(row: ImagePluginRow): ImagePluginRow {
+    return this.rows.find((item: ImagePluginRow): boolean => item.key() === row.key()) ?? row
+  }
+  private isPluginEnabled(row: ImagePluginRow): boolean {
+    return this.activations.get(row.key())?.enabled ?? this.currentRow(row).enabled()
+  }
+  private isEditingBusy(key: string): boolean {
+    return this.busyKeys.includes(key) || this.activations.get(key)?.saved === false
+  }
+  private reconcileActivations(): void {
+    if (this.activations.size === 0) return
+    const current = new Map(this.activations)
+    this.activations.forEach((activation: ImagePluginActivation, key: string): void => {
+      const row = this.rows.find((item: ImagePluginRow): boolean => item.key() === key)
+      if (!row || (activation.saved && row.enabled() === activation.enabled)) current.delete(key)
+    })
+    if (current.size !== this.activations.size) this.activations = current
+  }
+  private async togglePlugin(row: ImagePluginRow, enabled: boolean): Promise<void> {
+    const key = row.key()
+    if (this.busyKeys.includes(key) || this.isPluginEnabled(row) === enabled) return
+    const activation = new ImagePluginActivation(enabled)
+    this.activations = new Map(this.activations).set(key, activation)
+    this.error = ''
+    try {
+      // Native control gets the user's value immediately. The store serializes
+      // writes, while an earlier result must not override a newer click.
+      await this.store().setRuleEnabled(row.source.origin, row.id(), row.rule?.id ?? row.id(), enabled)
+      if (this.activations.get(key) !== activation) return
+      activation.saved = true
+      this.activations = new Map(this.activations)
+      this.reconcileActivations()
+    } catch (error) {
+      if (this.activations.get(key) !== activation) return
+      const current = new Map(this.activations)
+      current.delete(key)
+      this.activations = current
+      this.showOperationError(error as Error)
+    }
+  }
+  private showOperationError(error: Error): void {
+    this.error = AppStrings.get(error.message === 'image_plugin_source_conflict' ?
+      'image_plugins_source_conflict' : 'image_plugins_operation_failed')
+  }
   private failure(row: ImagePluginRow): string {
     if (row.conflictSources.length > 0) return AppStrings.get('source_subscription_conflict')
     const key = JSON.stringify([row.source.origin, row.id(), row.rule?.id ?? row.id()])
@@ -62,15 +113,15 @@ export struct ImagePluginsListContent {
   }
   private async edit(row: ImagePluginRow, operation: () => Promise<void>): Promise<void> {
     const key = row.key()
-    if (this.busyKeys.includes(key)) return
+    if (this.isEditingBusy(key)) return
     this.busyKeys = this.busyKeys.concat(key); this.error = ''
     try { await operation() }
-    catch (error) { this.error = AppStrings.get((error as Error).message === 'image_plugin_source_conflict' ?
-      'image_plugins_source_conflict' : 'image_plugins_operation_failed') }
+    catch (error) { this.showOperationError(error as Error) }
     finally { this.busyKeys = this.busyKeys.filter((item: string): boolean => item !== key) }
   }
-  private open(row: ImagePluginRow): void {
-    if (this.busyKeys.includes(row.key())) return
+  private open(selected: ImagePluginRow): void {
+    if (this.isEditingBusy(selected.key())) return
+    const row = this.currentRow(selected)
     this.editing = row
     this.draft = row.plugin === undefined ? {} : imagePluginDefaults(row.plugin, row.source.pluginSettings?.[row.plugin.id])
     this.editorShown = true
@@ -91,7 +142,7 @@ export struct ImagePluginsListContent {
     })
   }
   private remove(row: ImagePluginRow): void {
-    if ((!row.plugin && !row.pack) || this.busyKeys.includes(row.key())) return
+    if ((!row.plugin && !row.pack) || this.isEditingBusy(row.key())) return
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: AppStrings.get('image_plugins_uninstall'),
       message: AppStrings.format('image_plugins_uninstall_message', this.title(row)),
       primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
@@ -107,27 +158,27 @@ export struct ImagePluginsListContent {
         action: (): void => { this.open(row) }, showChevron: false,
         actionButtonText: AppStrings.get(row.conflictSources.length > 0 ? 'source_subscription_view_sources' :
           row.group === 'updates' ? 'image_plugins_update' : 'image_plugins_install'),
-        actionButtonEnabled: !this.busyKeys.includes(row.key()),
+        actionButtonEnabled: !this.isEditingBusy(row.key()),
         actionButtonAction: (): void => {
           if (row.conflictSources.length > 0) { this.open(row); return }
           void this.edit(row, async (): Promise<void> => {
-          if (row.offered !== undefined) await this.store().installPlugin(row.source.origin, row.offered.id, row.offered.version)
-          else await this.store().installRulePack(row.source.origin, row.offeredPack!.id)
-          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get(row.group === 'updates' ? 'image_plugins_updated' : 'image_plugins_installed_notice') }))
-        }) } })
+            if (row.offered !== undefined) await this.store().installPlugin(row.source.origin, row.offered.id, row.offered.version)
+            else await this.store().installRulePack(row.source.origin, row.offeredPack!.id)
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get(row.group === 'updates' ? 'image_plugins_updated' : 'image_plugins_installed_notice') }))
+          })
+        } })
     } else {
       ConciseListRow({ title: this.title(row), wrapTitle: true, subtitle: this.subtitle(row), subtitleMaxLines: 6,
         action: (): void => { this.open(row) }, showChevron: false, hasSwitch: true,
         checked: this.isPluginEnabled(row), isEnabled: !this.busyKeys.includes(row.key()),
-        switchAction: (value: boolean): void => { void this.edit(row, () => this.store().setRuleEnabled(row.source.origin,
-          row.plugin?.id ?? row.pack!.id, row.rule?.id ?? row.plugin!.id, value)) } })
+        switchAction: (value: boolean): void => { void this.togglePlugin(row, value) } })
     }
   }
   @Builder
   private Editor() {
     KomaModalScaffold({ title: this.editing === null ? '' : this.title(this.editing),
       confirmLabel: (this.editing?.plugin?.settings?.length ?? 0) > 0 ? AppStrings.get('common_save') : undefined,
-      confirmEnabled: this.editing !== null && !this.busyKeys.includes(this.editing.key()),
+      confirmEnabled: this.editing !== null && !this.isEditingBusy(this.editing.key()),
       onConfirm: (): void => { void this.save() }, onClose: (): void => { this.editorShown = false } }) {
       if (this.editing !== null) {
         ListItem() {
@@ -141,11 +192,10 @@ export struct ImagePluginsListContent {
             GroupedListSection() {
               ConciseListRow({ title: AppStrings.get('image_plugins_enable'), hasSwitch: true, showChevron: false,
                 checked: this.isPluginEnabled(this.editing), isEnabled: !this.busyKeys.includes(this.editing.key()),
-                switchAction: (enabled: boolean): void => { const row = this.editing!; void this.edit(row,
-                  () => this.store().setRuleEnabled(row.source.origin, row.id(), row.rule?.id ?? row.id(), enabled)) } })
+                switchAction: (enabled: boolean): void => { void this.togglePlugin(this.editing!, enabled) } })
               ListDivider()
               ConciseListRow({ title: AppStrings.get('image_plugins_uninstall'), destructive: true, showChevron: false,
-                isEnabled: !this.busyKeys.includes(this.editing.key()), action: (): void => { this.remove(this.editing!) } })
+                isEnabled: !this.isEditingBusy(this.editing.key()), action: (): void => { this.remove(this.editing!) } })
             }
           }
           if ((this.editing.plugin?.settings?.length ?? 0) > 0) {
@@ -178,9 +228,9 @@ export struct ImagePluginsListContent {
             ForEach(this.rows.filter((row: ImagePluginRow): boolean => row.group === group), (row: ImagePluginRow, index: number) => {
               this.PluginRow(row)
               if (index + 1 < this.rows.filter((item: ImagePluginRow): boolean => item.group === group).length) { ListDivider() }
-            // Immutable store DTOs replace row objects. Include displayed state
-            // so ForEach does not retain a closure over the previous selection.
-            }, (row: ImagePluginRow): string => JSON.stringify([row.key(), row.group, row.enabled(),
+            // The row closure holds structural data. Switch state reads the
+            // current store projection by key without remounting the native control.
+            }, (row: ImagePluginRow): string => JSON.stringify([row.key(), row.group,
               row.plugin?.version, row.pack?.version, row.offered?.version, row.offeredPack?.version,
               row.source.conflicts, row.conflictSources, row.source.pluginSettings]))
           }
