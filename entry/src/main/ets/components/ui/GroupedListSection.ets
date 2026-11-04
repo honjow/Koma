@@ -57,6 +57,7 @@ export struct GroupedListSection {
   @Event action: () => void = () => {}
   @Param inset: number = ThemeConstants.LIST_SECTION_INSET
   @Param radius: number = ThemeConstants.RADIUS_CARD
+  @Param surfaceColor: ResourceColor = ThemeConstants.CARD
   @Provider('koma.groupedList.surfaceRadius') private surfaceRadius: number =
     ThemeConstants.GROUPED_LIST_INNER_RADIUS
 
@@ -92,7 +93,7 @@ export struct GroupedListSection {
     .borderRadius(this.radius)
     .clip(true)
     .padding(this.inset)
-    .backgroundColor(ThemeConstants.CARD)
+    .backgroundColor(this.surfaceColor)
   }
 
   build() {

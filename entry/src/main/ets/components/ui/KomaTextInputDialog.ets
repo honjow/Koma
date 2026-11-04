@@ -3,9 +3,28 @@ import { AppStrings } from '../../i18n/AppStrings'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 import { KomaFormTextField } from './KomaFormTextField'
 
-// The system dialog owns the surface and title. Its AdvancedDialogV2Button
-// always closes after the callback, so asynchronous forms use native Buttons
-// here and let the caller close only on success or cancellation.
+// AdvancedDialogV2Button always closes after the callback. Forms that validate
+// or await an operation let the caller control dismissal with native Buttons.
+@ComponentV2
+export struct KomaDialogActionRow {
+  @Param busy: boolean = false
+  @Param confirmEnabled: boolean = true
+  @Param confirmLabel: string = ''
+  @Event confirm: () => void = () => {}
+  @Event cancel: () => void = () => {}
+
+  build() {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Button(AppStrings.get('common_cancel')).buttonStyle(ButtonStyleMode.TEXTUAL)
+        .layoutWeight(1).enabled(!this.busy).onClick(() => { this.cancel() })
+      Divider().vertical(true).height(24)
+      Button(this.confirmLabel).buttonStyle(ButtonStyleMode.TEXTUAL)
+        .layoutWeight(1).enabled(this.confirmEnabled && !this.busy)
+        .onClick(() => { this.confirm() })
+    }.width('100%').padding({ top: ThemeConstants.SPACE_SM })
+  }
+}
+
 @ComponentV2
 export struct KomaTextInputDialog {
   @Param title: string = ''
@@ -40,14 +59,8 @@ export struct KomaTextInputDialog {
         LoadingProgress().width(24).height(24).color(ThemeConstants.BRAND_PRIMARY)
           .visibility(this.busy ? Visibility.Visible : Visibility.Hidden)
       }.width('100%').constraintSize({ minHeight: 24 })
-      Row({ space: ThemeConstants.SPACE_SM }) {
-        Button(AppStrings.get('common_cancel')).buttonStyle(ButtonStyleMode.TEXTUAL)
-          .layoutWeight(1).enabled(!this.busy).onClick(() => { this.cancel() })
-        Divider().vertical(true).height(24)
-        Button(this.confirmLabel).buttonStyle(ButtonStyleMode.TEXTUAL)
-          .layoutWeight(1).enabled(this.confirmEnabled && !this.busy)
-          .onClick(() => { this.confirm() })
-      }.width('100%').padding({ top: ThemeConstants.SPACE_SM })
+      KomaDialogActionRow({ busy: this.busy, confirmEnabled: this.confirmEnabled, confirmLabel: this.confirmLabel,
+        cancel: this.cancel, confirm: this.confirm })
     }.width('100%')
   }
 

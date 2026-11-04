@@ -4,12 +4,13 @@ import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance
 import { selectAutomaticBackupDirectory, AutomaticBackupDirectorySelection } from '../model/BackupAutomaticDirectory'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { AdvancedDialogV2Button, Binding, CustomContentDialogV2, LengthMetrics, UIUtils } from '@kit.ArkUI'
+import { Binding, CustomContentDialogV2, LengthMetrics, UIUtils } from '@kit.ArkUI'
 import { common } from '@kit.AbilityKit'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
+import { KomaDialogActionRow } from '../components/ui/KomaTextInputDialog'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { AppStrings } from '../i18n/AppStrings'
@@ -771,17 +772,22 @@ export struct BackupManagementPage {
   private BackupSaveDialog() {
     CustomContentDialogV2({
       primaryTitle: t(this.exportFileName ? 'backup_export_copy' : 'backup_task_create'),
-      contentBuilder: () => { this.BackupSaveOptions() },
-      buttons: [
-        new AdvancedDialogV2Button({ content: t('common_cancel'), buttonStyle: ButtonStyleMode.TEXTUAL,
-          enabled: !this.busy, action: () => { void this.closeBackupDialog() } }),
-        new AdvancedDialogV2Button({
-          content: t(this.busy ? 'backup_processing' : this.saveToFile || this.exportFileName.length > 0 ?
-            (this.encryptBackup ? 'backup_create_destination_file' : 'backup_unencrypted_confirm_action') : 'common_save'),
-          buttonStyle: ButtonStyleMode.TEXTUAL, enabled: !this.busy, action: () => { this.submitBackupSave() },
-        }),
-      ],
+      contentBuilder: () => { this.BackupSaveDialogContent() },
     })
+  }
+
+  @Builder
+  private BackupSaveDialogContent() {
+    Column() {
+      this.BackupSaveOptions()
+      KomaDialogActionRow({
+        busy: this.busy,
+        confirmLabel: t(this.busy ? 'backup_processing' : this.saveToFile || this.exportFileName.length > 0 ?
+          (this.encryptBackup ? 'backup_create_destination_file' : 'backup_unencrypted_confirm_action') : 'common_save'),
+        cancel: () => { void this.closeBackupDialog() },
+        confirm: () => { this.submitBackupSave() },
+      })
+    }.width('100%')
   }
 
   @Builder
@@ -909,22 +915,32 @@ export struct BackupManagementPage {
     CustomContentDialogV2({
       primaryTitle: t('backup_restore_preview'),
       secondaryTitle: this.selectedBackupName,
-      contentBuilder: () => { this.RestorePreviewContent() },
-      buttons: [
-        new AdvancedDialogV2Button({ content: t('common_cancel'), buttonStyle: ButtonStyleMode.TEXTUAL,
-          enabled: !this.busy, action: () => { void this.closeBackupDialog() } }),
-        new AdvancedDialogV2Button({
-          content: t(this.busy ? 'backup_processing' : this.selectedEncryptedBackupPayload.length > 0 ?
-            'backup_decrypt_preview_action' : 'backup_restore_selected_action'),
-          buttonStyle: ButtonStyleMode.TEXTUAL, enabled: !this.busy &&
-            (this.selectedBackupPayload.length > 0 || this.importPassphrase.length > 0),
-          action: () => {
-            if (this.selectedEncryptedBackupPayload.length > 0) this.decryptSelectedBackup()
-            else this.restoreSelectedBackup()
-          },
-        }),
-      ],
+      contentBuilder: () => { this.RestorePreviewDialogContent() },
     })
+  }
+
+  @Builder
+  private RestorePreviewDialogContent() {
+    Flex({ direction: FlexDirection.Column }) {
+      Scroll() {
+        this.RestorePreviewContent()
+      }
+      .width('100%')
+      .height('auto')
+      .flexShrink(1)
+      .edgeEffect(EdgeEffect.None)
+      KomaDialogActionRow({
+        busy: this.busy,
+        confirmEnabled: this.selectedBackupPayload.length > 0 || this.importPassphrase.length > 0,
+        confirmLabel: t(this.busy ? 'backup_processing' : this.selectedEncryptedBackupPayload.length > 0 ?
+          'backup_decrypt_preview_action' : 'backup_restore_selected_action'),
+        cancel: () => { void this.closeBackupDialog() },
+        confirm: () => {
+          if (this.selectedEncryptedBackupPayload.length > 0) this.decryptSelectedBackup()
+          else this.restoreSelectedBackup()
+        },
+      }).flexShrink(0)
+    }.width('100%').height('auto')
   }
 
   @Builder
@@ -1191,7 +1207,8 @@ export struct BackupManagementPage {
 
   @Builder
   private SelectedPreviewCard(params: SelectedBackupPreviewParams) {
-    GroupedListSection({ inset: ThemeConstants.SPACE_LG }) {
+    // The restore dialog supplies the surface for this summary.
+    GroupedListSection({ inset: ThemeConstants.SPACE_LG, surfaceColor: Color.Transparent }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
         this.PreviewRow({ label: t('backup_preview_exported_at'), value: this.backupDate(params.preview) })
         this.PreviewRow({ label: t('backup_preview_encryption_status'), value: params.preview.encryptionText })
