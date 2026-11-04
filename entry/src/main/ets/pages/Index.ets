@@ -3465,8 +3465,6 @@ struct Index {
     return options
   }
 
-  private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
-    const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
   private trackerProviderTitleBarOpts(param: TrackerProviderRouteParam): Record<string, Object> {
     const options = this.navDestTitleBarOpts(this.trackerProviderTitle(param))
     const provider = TRACKER_PROVIDER_CONFIGS.find((item: TrackerProviderConfig): boolean => item.providerId === param.providerId)
@@ -3483,6 +3481,8 @@ struct Index {
     return options
   }
 
+  private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
     if (param.pane !== 'translation') return options
     const content = options['content'] as Record<string, Object>
     const action: Record<string, Object> = {
