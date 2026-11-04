@@ -21,6 +21,18 @@ const read = new Set(['chapter-0', 'chapter-2', 'chapter-3'])
 const reader = { isChapterRead: (_comic, id) => read.has(id), getProgress: () => undefined, getChapterProgress: () => undefined }
 const comic = { id: 'book', categoryIds: ['included', 'excluded'], sourceMetadata: { status: 'completed' },
   chapters: [4,3,2,1,0].map(n => ({ id: 'chapter-' + n, readingOrder: n, readingGroup: 'main', continuationEligible: true })) }
+const batchChapters = [
+  { id: 'other-edition', readingOrder: 0, readingGroup: 'other', continuationEligible: true, isRead: false },
+  ...comic.chapters.map(chapter => ({ ...chapter, isRead: read.has(chapter.id) })),
+  { id: 'unordered', isRead: false },
+]
+assert.deepEqual(sequence.previousUnreadChapterIds(batchChapters, 'chapter-3'), ['chapter-1'])
+assert.deepEqual(sequence.previousUnreadChapterIds(batchChapters, 'chapter-0'), [])
+assert.deepEqual(sequence.previousUnreadChapterIds(batchChapters, 'unordered'), [])
+assert.deepEqual(sequence.previousUnreadChapterIds([
+  { id: 'local-last', localReadingIndex: 1, chapterNumber: 1, isRead: false },
+  { id: 'local-first', localReadingIndex: 0, chapterNumber: 2, isRead: false },
+], 'local-last'), ['local-first'])
 assert.equal(policy.comicMatchesAutomationCategories(comic, ['included'], ['excluded']), false)
 assert.equal(policy.comicMatchesAutomationCategories({ categoryIds: [] }, ['uncategorized'], []), true)
 assert.equal(policy.shouldAutomaticallyUpdateComic(comic, reader, policy.defaultLibraryAutomationPreferences()), true)

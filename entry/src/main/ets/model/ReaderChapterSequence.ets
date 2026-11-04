@@ -12,6 +12,35 @@ export interface ReaderChapterDescriptor {
   continuationEligible?: boolean
 }
 
+export interface ChapterReadSequenceEntry extends ReaderChapterDescriptor {
+  isRead: boolean
+  localReadingIndex?: number
+}
+
+/** A bulk edit follows the same edition and chronology as reading. Local
+ * imports have their own persisted index, independent of displayed numbers. */
+export function previousUnreadChapterIds(chapters: ChapterReadSequenceEntry[], currentId: string): string[] {
+  const current = chapters.find((chapter: ChapterReadSequenceEntry): boolean => chapter.id === currentId)
+  if (current === undefined) return []
+  const sequence = current.localReadingIndex === undefined ? chapters :
+    chapters.map((chapter: ChapterReadSequenceEntry): ChapterReadSequenceEntry => ({
+      id: chapter.id,
+      title: chapter.title,
+      isRead: chapter.isRead,
+      readingOrder: chapter.localReadingIndex,
+      readingGroup: 'local-import',
+      continuationEligible: chapter.localReadingIndex !== undefined,
+    }))
+  const ids = continuationChapterIds(sequence, currentId) ?? []
+  const end = ids.indexOf(currentId)
+  if (end <= 0) return []
+  const readIds = new Set<string>()
+  chapters.forEach((chapter: ChapterReadSequenceEntry): void => {
+    if (chapter.isRead) readIds.add(chapter.id)
+  })
+  return ids.slice(0, end).filter((id: string): boolean => !readIds.has(id))
+}
+
 export function cloneReaderChapterDescriptor(chapter: ReaderChapterDescriptor): ReaderChapterDescriptor {
   return {
     id: chapter.id,

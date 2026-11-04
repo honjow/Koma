@@ -2,9 +2,9 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
+当前结果：详情章节批量已读和吸顶已在 197 单栏、103 横屏双栏验证。图像和备份设置搜索已验收。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。1.1.0 已在原发布页更新为完整产品代码，下载包及更新日志均已核验。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。
 
-设备：103 保留验证包，已回到原漫画详情，接手时的亮屏及超时覆盖仍有效，已释租。197、237均已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：103 回到原横屏全屏书架，197 回到桌面并恢复原休眠及超时，两台保留本轮验证包并已释租。237 已恢复并释租；237原系统浅色、超时和睡眠已恢复。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "完整 1.1.0 已更新至原发布页",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-04T13:54:47+08:00",
+  "updatedAt": "2026-11-04T19:48:49+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "1.1.0 的完整安装包和重写日志已更新。Bangumi 两条实机路径与 92漫画章节修复已验证。",
@@ -79,6 +79,38 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "详情页章节批量已读与吸顶",
+      "priority": "用户直接需求",
+      "kind": "done",
+      "status": "197 单栏、103 双栏已实机验证",
+      "stage": "197 单栏、103 双栏已实机验证",
+      "owner": "Root：Koma 漫画详情",
+      "result": "197 单栏首屏、连续滚动吸顶及滚动后菜单通过。临时作品第 004 章菜单确认 3 章，取消不写入，确认后重启的已读筛选仅 001–003。103 横屏仅右栏吸顶，左栏保持原位，横屏到悬浮单栏再回横屏均保留第 61 话。最终包的吸顶标题避开导航模糊。197 已恢复临时读态并移除样本、回桌面并恢复休眠，103 回到原全屏书架，两台保留验证包且已释租。",
+      "remaining": "",
+      "reportedAt": null,
+      "reportedDate": "2026-11-04",
+      "reportedAtSource": "本会话用户原文提出，随后明确要求在 197 和 103 验证。首次消息的精确时刻未核实。",
+      "closedAt": "2026-11-04T19:48:49+08:00",
+      "evidence": [
+        ".hvigor/outputs/detail-chapter-controls/build.log",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-sticky-scroll-end-192900769372",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-window-narrow-193105730809",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/previous-read-committed-193731264804",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/phone-read-persisted-194014786884",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-settled-full-window-194028212150",
+        ".hvigor/outputs/detail-chapter-controls/build-final.log",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/phone-clearance/194645992604",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape/tablet-clearance/194627299666",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-clearance-narrow-window-194700640158",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/tablet-clearance-full-window-194732600118",
+        ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait-1260x2720/restore-194826165139",
+        ".hvigor/outputs/detail-chapter-controls/device103__MLR-AL00/landscape-2560x1600/restore-194817146383"
+      ],
+      "remainingActions": [],
+      "updatedAt": "2026-11-04T19:48:49+08:00"
+    },
     {
       "id": "RELEASE_1_1_0",
       "title": "正式发布 1.1.0",
@@ -16476,6 +16508,46 @@
       "itemId": "RELEASE_1_1_0",
       "title": "原 1.1.0 发布已换成完整版本",
       "detail": "完整代码和重写日志进入同一标签流水线，原 Release 保持，公开下载的新附件及正文已独立核对。版本仍为 1.1.0、7。",
+      "kind": "verified"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T19:26:00+08:00",
+      "at": "2026-11-04T19:26:00+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "详情页两项改动进入真机验证",
+      "detail": "章节长按菜单已接入按阅读顺序批量标记，章节头已接入原生吸顶。顺序、已读和分组边界在逻辑验证中通过。 197 核对单栏滚动、确认与读态，103 核对横屏右栏和窗口切换。",
+      "kind": "work"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T19:32:46+08:00",
+      "at": "2026-11-04T19:32:46+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "103 滚动验证与宽窄位置修正",
+      "detail": "103 横屏右栏滚动时章节头吸顶，原更多菜单可操作，左栏独立。首轮悬浮窗切换发现锚点取到了吸顶层后面的章节，已按实际露出的行计算恢复位置。 复验 103 宽窄往返，并验证 197 批量标记和单栏吸顶。",
+      "kind": "work"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T19:38:04+08:00",
+      "at": "2026-11-04T19:38:04+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "197 确认与取消路径已验证",
+      "detail": "197 从本地测试漫画第 004 章触发操作，确认框显示 3 章；取消后仍是 3 章，确认提示已标记 3 章。103 修正后已缩小跳动范围，最终包采集滚动停稳时的章节位置。 在最终包读回 197 章节状态与首屏，验证两台吸顶和 103 宽窄往返，再清理样本。",
+      "kind": "work"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T19:45:11+08:00",
+      "at": "2026-11-04T19:45:11+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "批量读态与章节锚点已实机核对",
+      "detail": "197 重启后已读筛选只显示 001–003，004 未读；测试漫画读态已恢复并移出书架，临时目录已清理。103 横屏、悬浮单栏及返回横屏均保持第 61 话。回看画面发现吸顶标题上缘被标题栏的渐变模糊扫到，已调整到原列表留白处。 在 197 和 103 最终包复验吸顶位置、菜单和宽窄锚点。",
+      "kind": "work"
+    },
+    {
+      "id": "detail-chapter-list-actions-2026-11-04T19:48:49+08:00",
+      "at": "2026-11-04T19:48:49+08:00",
+      "itemId": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "title": "两台真机验证完成，已恢复并释租",
+      "detail": "197 单栏首屏、连续滚动吸顶及滚动后菜单通过。临时作品第 004 章菜单确认 3 章，取消不写入，确认后重启的已读筛选仅 001–003。103 横屏仅右栏吸顶，左栏保持原位，横屏到悬浮单栏再回横屏均保留第 61 话。最终包的吸顶标题避开导航模糊。197 已恢复临时读态并移除样本、回桌面并恢复休眠，103 回到原全屏书架，两台保留验证包且已释租。",
       "kind": "verified"
     }
   ],

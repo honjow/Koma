@@ -1,7 +1,7 @@
 import { SourceMangaWebLink, sourceMangaWebUrl } from './MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
-import { ReaderChapterDescriptor } from './ReaderChapterSequence'
+import { ChapterReadSequenceEntry } from './ReaderChapterSequence'
 
 export interface MangaDetail {
   contentRating?: string
@@ -30,7 +30,7 @@ export enum MangaStatus {
   UNKNOWN = 'unknown',
 }
 
-export interface MangaChapterItem extends ReaderChapterDescriptor {
+export interface MangaChapterItem extends ChapterReadSequenceEntry {
   id: string
   title: string
   chapterNumber?: number

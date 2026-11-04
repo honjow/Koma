@@ -20,6 +20,7 @@ export struct SecondaryListScaffold {
   @Param floatingTabTailPadding: number = 0
   @Param includeKeyboardPadding: boolean = true
   @Param reserveTitleBar: boolean = true
+  @Param stickyGroupHeader: boolean = false
   @Param alwaysEnableEdgeSpring: boolean = true
   @Param scrollEnabled: boolean = true
   @Param surfaceColor: ResourceColor = ThemeConstants.BG_SUB
@@ -27,18 +28,21 @@ export struct SecondaryListScaffold {
   @Event onListAttach?: () => void
   @Event onReachEnd?: () => void
   @Event onDidScroll?: (offset: number, state: ScrollState) => void
+  @Event onScrollStop?: () => void
 
   build() {
     Stack() {
       if (this.languageState.effectiveLocale.length >= 0) {
         List({ space: this.listSpace, scroller: this.scroller }) {
-          ListItem() {
-            Column() {
-              Blank().height(this.safeArea.topAvoidHeight + this.titleBarPadding() + this.pinnedOverlayReserve())
+          if (!this.stickyGroupHeader) {
+            ListItem() {
+              Column() {
+                Blank().height(this.topContentInset())
+              }
+              .width('100%')
             }
-            .width('100%')
+            .clip(false)
           }
-          .clip(false)
 
           this.content()
 
@@ -58,6 +62,10 @@ export struct SecondaryListScaffold {
           right: this.horizontalPadding,
         })
         .clipContent(ContentClipMode.CONTENT_ONLY)
+        .sticky(this.stickyGroupHeader ? StickyStyle.Header : StickyStyle.None)
+        // Include the removed inset row's trailing space. This preserves the
+        // first item's position and keeps pinned controls out of HDS blur.
+        .contentStartOffset(this.stickyGroupHeader ? this.topContentInset() + this.listSpace : 0)
         .enableScrollInteraction(this.scrollEnabled)
         .edgeEffect(this.alwaysEnableEdgeSpring ? EdgeEffect.Spring : EdgeEffect.None, {
           alwaysEnabled: this.alwaysEnableEdgeSpring,
@@ -75,6 +83,7 @@ export struct SecondaryListScaffold {
         .onScrollVisibleContentChange((start: VisibleListContentInfo) => {
           this.onVisibleContentChange?.(start)
         })
+        .onScrollStop(() => { this.onScrollStop?.() })
         .onReachEnd(() => {
           if (this.onReachEnd) {
             this.onReachEnd()
@@ -96,6 +105,10 @@ export struct SecondaryListScaffold {
 
   private titleBarPadding(): number {
     return this.reserveTitleBar ? ThemeConstants.TITLE_BAR_HEIGHT : 0
+  }
+
+  private topContentInset(): number {
+    return this.safeArea.topAvoidHeight + this.titleBarPadding() + this.pinnedOverlayReserve()
   }
 
   private pinnedOverlayReserve(): number {

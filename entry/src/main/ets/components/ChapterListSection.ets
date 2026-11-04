@@ -11,6 +11,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { common } from '@kit.AbilityKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ChapterListPreferencesStore, ChapterReadFilter } from '../model/ChapterListPreferencesStore'
+import { previousUnreadChapterIds } from '../model/ReaderChapterSequence'
 export { ChapterReadFilter } from '../model/ChapterListPreferencesStore'
 
 function s(name: string): string {
@@ -25,6 +26,7 @@ export enum ChapterBatchDownloadMode {
 export enum ChapterBatchScope {
   FILTERED = 'filtered',
   SELECTED = 'selected',
+  PREVIOUS = 'previous',
 }
 
 // One presentation state per detail route, shared by both width layouts.
@@ -51,6 +53,7 @@ export struct ChapterListSection {
   @Local private sectionActionsMenuShown: boolean = false
   @Local private readStateMenuChapterId: string = ''
   @Event onDisplayOrderChange: (chapters: MangaChapterItem[]) => void = (_chapters: MangaChapterItem[]) => {}
+  @Event onHeaderHeightChange: (height: number) => void = (_height: number) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onExportChapter: (chapterId: string, share: boolean) => void = (_chapterId: string, _share: boolean) => {}
@@ -503,6 +506,12 @@ export struct ChapterListSection {
         .onClick(() => {
           this.onMarkChapterReadState(ri.item.id, false)
         })
+      MenuItem({ content: s('chapter_list_menu_mark_previous_read') })
+        .enabled(previousUnreadChapterIds(this.chapters, ri.item.id).length > 0)
+        .onClick(() => {
+          const ids = previousUnreadChapterIds(this.chapters, ri.item.id)
+          this.onMarkFilteredChaptersReadState(ids, true, ChapterBatchScope.PREVIOUS)
+        })
       if (ri.item.isDownloaded && (ri.item.downloadStatus === undefined || ri.item.downloadStatus === 'downloaded')) {
         MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.archiveBusy)
           .onClick(() => { this.onExportChapter(ri.item.id, false) })
@@ -842,6 +851,9 @@ export struct ChapterListSection {
     .width('100%')
     .alignItems(HorizontalAlign.Start)
     .padding({ bottom: ThemeConstants.SPACE_MD })
+    // The native sticky header paints over the chapter rows as they scroll.
+    .backgroundColor(ThemeConstants.BG_SUB)
+    .onSizeChange((_old: SizeOptions, size: SizeOptions) => { this.onHeaderHeightChange(Number(size.height)) })
   }
 
   build() {
