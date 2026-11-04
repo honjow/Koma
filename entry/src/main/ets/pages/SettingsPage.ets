@@ -390,13 +390,6 @@ function createSettingsRootSections(): SettingsPaneSection[] {
           color: ThemeConstants.STATUS_WARNING,
         },
         {
-          key: 'history-sync',
-          titleKey: 'history_sync_title',
-          detailKey: 'history_sync_detail',
-          icon: $r('sys.symbol.link'),
-          color: ThemeConstants.SOURCE_KAVITA_COLOR,
-        },
-        {
           key: 'backup',
           titleKey: 'settings_pane_backup_title',
           detailKey: 'settings_pane_backup_detail',
