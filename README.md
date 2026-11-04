@@ -53,18 +53,24 @@ hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-d
 
 Koma 不内置书源，也不包含漫画内容。书源独立维护在 **[koma-sources 书源库](https://github.com/honjow/koma-sources)**。
 
-持续更新的订阅地址：
+**GitHub 订阅**
 
 ```text
 https://github.com/honjow/koma-sources/releases/latest/download/index.json
 ```
 
+**GH-Proxy 备用订阅**（GitHub 访问不稳定时可选）
+
+```text
+https://gh-proxy.org/github.com/honjow/koma-sources/releases/latest/download/index.json
+```
+
 1. 进入 **浏览 → 书源管理**，打开右上角四点菜单中的 **订阅地址**。
-2. 点击右上角 **添加**，粘贴上面的地址并保存。可添加多个订阅；名称选填，留空时自动读取订阅提供的名称。
+2. 点击右上角 **添加**，任选上面一个地址，粘贴并保存。也可添加其他书源订阅；名称选填，留空时自动读取订阅提供的名称。
 3. 返回“书源管理”，选择需要的书源安装，再回到“浏览”打开对应书源。浏览页按语言分组，漏斗按钮可按语言和内容分级筛选。
 4. 在“书源管理”下拉检查更新；可更新书源集中显示在顶部，可分别更新或全部更新。“浏览”角标显示缓存的书源和图片插件可更新总数；“书源管理”顶部分段分别显示两类数量。
 
-这个地址会随书源库发行更新，无需每次更换。在订阅行的菜单中可以编辑订阅、复制地址或移除订阅；订阅提供项目主页时，菜单也会显示“项目主页”。
+这两个地址都会随书源库发行更新，无需每次更换。在订阅行的菜单中可以编辑订阅、复制地址或移除订阅；订阅提供项目主页时，菜单也会显示“项目主页”。
 
 也可以从[书源库发行页](https://github.com/honjow/koma-sources/releases/latest)下载单个 `.koma` 文件，再从“书源管理”右上角四点菜单选择 **本地导入**。
 
@@ -91,13 +97,23 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 打开 **浏览 → 书源管理**，在顶部分段切换到 **图片插件**；也可从 **设置 → 阅读 → 图片插件** 或阅读器的 **阅读设置 → 图片插件** 进入。页面按“可更新”“已安装”“可安装”分组，列出插件的名称、用途、版本和来源。
 
-1. 点击右上角 **订阅地址 → 添加**，粘贴下面的地址。此处与 **浏览 → 书源管理 → 订阅地址** 共用，添加时自动识别订阅类型。
+1. 点击右上角 **订阅地址 → 添加**，任选下面一个地址粘贴。此处与 **浏览 → 书源管理 → 订阅地址** 共用，添加时自动识别订阅类型。
 2. 返回插件页，在“可安装”中点击 **安装**，打开需要使用的插件开关，并确认顶部 **使用图片插件** 已开启。
 3. 点击已安装插件查看说明；有配置项的插件可在此调整，修改后点标题栏 **保存**。
+
+**GitHub 订阅**
 
 ```text
 https://github.com/honjow/koma-sources/releases/download/image-plugins-v1/index.json
 ```
+
+**GH-Proxy 备用订阅**（GitHub 访问不稳定时可选）
+
+```text
+https://gh-proxy.org/github.com/honjow/koma-sources/releases/download/image-plugins-v1/index.json
+```
+
+已安装插件会继续使用原版本和配置。后续更新按安装时的订阅地址匹配，修改地址后需保留或重新添加原地址，才能继续从原订阅更新。
 
 **使用图片插件** 是总开关，可以一次暂停所有插件；关闭时，各插件自己的开关和配置会保留。
 
