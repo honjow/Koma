@@ -4,7 +4,7 @@
 
 当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
-设备：197 和 103 已清除历史同步配置和测试残留，覆盖安装无同步的 1.1.1 调试包，读回原书架和阅读进度，确认设置首页无同步入口。197 回到书架并恢复休眠，103 回到设置并恢复亮屏，两台原超时已读回并释租。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：197 和 103 已完成本次同步核心路径的独立验证，保留 0333de60 正常签名包。测试连接和新增历史已清理，原电源与超时读回后释租。临时 WebDAV 已停止，临时 TLS 私钥已移除。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -14,10 +14,10 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T11:13:07+08:00",
+  "updatedAt": "2026-11-05T13:35:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
-  "activity": "备份设置门禁已接入构建流程，现有设置覆盖缺口单独保留。按用户要求已撤除 WebDAV 阅读历史同步实现和草稿，197 和 103 已覆盖安装无同步包并核对清理结果。197 已验证备份重进及记录更新。",
+  "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
   "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
   "proof": [
     {
@@ -111,16 +111,31 @@
     {
       "id": "READING_HISTORY_SYNC",
       "title": "跨设备数据同步",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "用户要求重做及独立评审",
       "owner": "Root",
-      "status": "用户已确认，五组实现与独立评审在推进",
+      "status": "核心使用路径已通过独立代码、UI与设备验收",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
-      "result": "已撤除的旧版以原生源、作品和章节 ID 同步书架及临时阅读的历史、页码和已读，使用 WebDAV 清单与不可变分片。197、103 在临时局域网 WebDAV 双向打开实际正文并落在同章同页，清单 412 后自动重读提交。103 从正常入口删除一条样本并自动提交，197 冷启动自动拉取并在历史页核对，其他书源的同名作品仍保留。设备安全存储持久化开关、地址和凭据。103 核对设置搜索和断连错误，197 冷启动自动使用已保存配置。删除样本重新打开后恢复原章节第 19 页，自动重新写入。独立合并和落盘回滚由本地回归覆盖。后续用户指出未经确认新增了设置首页入口，且分类与备份门禁没有转化成同步范围设计，明确要求撤除。197 和 103 已完成设备清理。用户随后要求从数据范围开始重新设计，设计与最终交付分别做独立评审。已按当前所有者重新梳理 19 类、核对两套参考设置及传输路径，形成五组 WebDAV 候选。设置入口、数据范围和失败恢复已分别独立审查，技术及设置阻塞已复核。用户已明确批准实施。已接入 WebDAV 连接及分片、五组数据和备份页入口；主机测试已覆盖并发重置、条件预览、暂缓冲突、固定 Unicode 键和损坏分片，备份门禁已复跑。独立代码审查发现的问题仍在修正。",
-      "remaining": "197 已开发自测正常设置入口、HTTPS 条件探针、取消无清单、仅阅读偏好首合并及断开。103 已独立核对横屏路径、范围、取消、权限与弱 ETag 及重试。继续验证跨设备实际内容及恢复断点，并复核后续修订对应的最终包。",
-      "evidence": ["docs/plans/active/device-sync-design.md", ".hvigor/outputs/history-sync/197-final-phone-open-synced-ready.log", ".hvigor/outputs/history-sync/103-final-tablet-open-synced-ready.log", ".hvigor/outputs/history-sync/197-phone-history-after-automatic-delete.log", ".hvigor/outputs/history-sync/103-tablet-settings-search-destination.log", ".hvigor/outputs/history-sync/103-tablet-manual-connection-failure.log", ".hvigor/outputs/history-sync/197-phone-restore-history.log", ".hvigor/outputs/history-sync/197-restore.log", ".hvigor/outputs/history-sync/103-restore.log", ".hvigor/outputs/history-sync/dav-requests.jsonl", ".hvigor/outputs/history-sync-removal/197-cleanup-readback.log", ".hvigor/outputs/history-sync-removal/197-final-history-view.log", ".hvigor/outputs/history-sync-removal/197-final-settings-view.log", ".hvigor/outputs/history-sync-removal/197-restore.log", ".hvigor/outputs/history-sync-removal/103-cleanup-readback.log", ".hvigor/outputs/history-sync-removal/103-final-history-view.log", ".hvigor/outputs/history-sync-removal/103-final-settings-view.log", ".hvigor/outputs/history-sync-removal/103-restore.log"]
+      "result": "新版从设置的备份子页进入，书架与分类、阅读记录、阅读偏好、书源订阅、搜索历史独立选取，使用条件清单与不可变分片。合并预览每项一行显示两端值及当前选择，使用原生菜单，暂缓只影响对应项。独立代码复验、197竖屏和103横屏走查通过。197已验证已连接后编辑失败、取消保留原连接及本机偏好。197真实上传第399话第3/45页，103冷启动自动接收并实际打开同章第3原图。修正多语言公开标题、正常备份恢复的书源清单及xkcd嵌套容器页序校验。两台均清理测试连接和新增历史，保留0333de60正常包，恢复原电源并释租。临时WebDAV已停止。",
+      "remaining": "",
+      "evidence": [
+        "docs/plans/active/device-sync-design.md",
+        ".hvigor/outputs/device-sync-independent/0333de60-independent-code-review.md",
+        ".hvigor/outputs/device-sync-independent/0333de60-independent-ui-review.md",
+        ".hvigor/outputs/device-sync-independent/0333de60-independent-real-auto-summary.json",
+        ".hvigor/outputs/device-sync-independent/197-5b6a662a-cas-receipt.json",
+        ".hvigor/outputs/device-sync-independent/0333de60-ca-package-contrast.json",
+        ".hvigor/outputs/device-sync-independent/fixture-cleanup-20261105.json",
+        ".hvigor/outputs/device-sync-implementation/workspace-input-0333de60.diff"
+      ],
+      "boundaries": [
+        "首次合并确认后由用户开启自动。启动、回前台、网络恢复和本机落盘变更触发同步。按已观察到的事实版本合并，设备时间用于显示，离线并发保留双方候选。",
+        "书源作品与阅读记录当前支持MangaDex 0.1.25和xkcd中文0.1.7。条漫恢复到逻辑原图页，长图内部的滚动偏移未同步。真实跨端样本为MangaDex第399话，xkcd正文证明为主机匿名实际响应验证。",
+        "owner回滚等分支使用主机平台替身。第一owner写后硬杀冷启动、完整旧备份缺键设备往返、大库多级分片和全对象多轮隐私扫描尚未完整覆盖。超长差异列表的设备滚动也未覆盖。",
+        "自动收发使用180e82f6，最终正文使用0333de60，独立UI主路径使用aec7493e且界面与0333一致。0333测试包另含构建当时的SourceRuntimeError与MangaDetailPage两处外部WIP，具体差异及摘要保存在workspace-input-0333de60.diff和独立收据，外部WIP未随本次提交。"
+      ]
     },
     {
       "id": "BACKUP_MANAGEMENT_REENTRY_LOADING",
@@ -17069,6 +17084,14 @@
       "detail": "按已审方案接入五组、备份子页、不可变分片及冲突预览。执行合并及备份门禁回归，独立 HTTPS 夹具通过主机检验。独立代码评审仍在验证修订，未登记真机验收。",
       "itemId": "READING_HISTORY_SYNC",
       "kind": "checkpoint"
+    },
+    {
+      "id": "device-sync-independent-device-acceptance",
+      "at": "2026-11-05T13:35:19+08:00",
+      "title": "跨设备同步核心路径经独立评审与实机核对",
+      "detail": "197竖屏和103横屏合并、菜单、两种取消及已连接草稿错误恢复通过。197发送第399话3/45，103冷启动自动接收并实际呈现第3原图。两台清理测试连接和新增历史、换0333正常包并恢复释租，临时服务停止。条漫图内偏移、完整进程级故障及超长列表等未验边界保留在原项。",
+      "itemId": "READING_HISTORY_SYNC",
+      "kind": "verified"
     }
   ],
   "reportAgeAudit": {
