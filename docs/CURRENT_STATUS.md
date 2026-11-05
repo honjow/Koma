@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T17:01:19+08:00",
+  "updatedAt": "2026-11-05T17:46:54+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -82,6 +82,28 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_HUANTA_DETAIL_OWNER",
+      "title": "幻塔官方中文漫画多部加载失败并显示书源运行异常",
+      "kind": "open",
+      "priority": "用户直接反馈，当前优先",
+      "owner": "Root",
+      "status": "候选16部四操作及16实图已核，等待连续237验收",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户最新反馈：幻塔官方中文漫画很多加载失败，提示书源运行异常；原始报告具体时刻未核实。",
+      "result": "官网16个详情均HTTP200。原源有三种错误假设：8篇省略于列表的系列标题前缀被拒、滑板少女/足球的官方PNG被JPEG限定拒绝、自我介绍的发布日期07-11与URL07-14不同被拒。限定修复只支持真实精确前缀、官方同格式文件夹/后缀和独立日期格式；列表短标题、稳定ID和正文同作品校验保留。候选16部详情/目录/页表/图片请求全部成功，原6正常作品四类完整响应及两页列表完全相同；13个错作、错域、错图、未知格式和非法请求仍拒绝。此前该批失败留在统计未立项，现已纠正并作为当前优先处理。 16幅官方原图均HTTP200、完整解码并已目视联系表；滑板少女/足球是PNG URL路径，服务端实际返回JPEG字节，源保持原URI且不转码。",
+      "remaining": "237先复现旧0.1.1普通详情运行异常，再核0.1.2的PNG路径、系列前缀和独立日期三类普通阅读，独立恢复释租后直接提交分发。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/coverage/com.huanta.zh.koma/summary.jsonl",
+        ".hvigor/outputs/source-coverage-20261105/huanta-web",
+        ".hvigor/outputs/source-coverage-20261105/huanta-web/detail-fetch.json",
+        ".hvigor/outputs/source-coverage-20261105/huanta-web/regression.json",
+        ".hvigor/outputs/source-coverage-20261105/huanta-web/negative.json",
+        ".hvigor/outputs/source-coverage-20261105/huanta-web/images.json",
+        ".hvigor/outputs/source-coverage-20261105/huanta-web/contactsheet.jpg"
+      ]
+    },
+    {
       "id": "SOURCE_MANHUASHE_LONG_CATALOGUE_AND_AUTHOR",
       "title": "漫画社长目录获取失败及空作者误报解析失败",
       "kind": "accepted",
@@ -107,60 +129,69 @@
     {
       "id": "SOURCE_SDK_UTF16_SURROGATE",
       "title": "WEBTOON章节表情的UTF16代理对导致非法UTF8",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全量覆盖中发现",
       "owner": "Root；Terra实施及本地验证",
-      "status": "修复已推送，发布CI通过，公开实体核验中",
+      "status": "公开包及运行时身份已核，237具名路径验收完成",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话足量覆盖检查发现。",
-      "result": "Lost Love真实10章含合法代理对；旧SDK写出非法UTF8导致章节失败，候选正确组成Unicode码点，其余响应字节不变。孤立或错误代理对继续失败，3份正常作品完整输出不变。共享helper有23个可安装源消费者，需同步各自补丁版本才能给已安装用户提供更新。 237普通入口完整显示10/10章并实际显示Stay safe口罩表情。原语言筛选隐藏英语，先备份后临时开启，结束已逐字节恢复；原源及数据电源恢复释租。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。",
-      "remaining": "核公开包资产摘要、manifest/runtime版本、原始固定体回放及推荐备用镜像。",
+      "result": "Lost Love真实10章含合法代理对；旧SDK写出非法UTF8导致章节失败，候选正确组成Unicode码点，其余响应字节不变。孤立或错误代理对继续失败，3份正常作品完整输出不变。共享helper有23个可安装源消费者，需同步各自补丁版本才能给已安装用户提供更新。 237普通入口完整显示10/10章并实际显示Stay safe口罩表情。原语言筛选隐藏英语，先备份后临时开启，结束已逐字节恢复；原源及数据电源恢复释租。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。 公开25包均核资产digest/实际SHA、manifest/runtime/Cargo/lock版本及原图标；Root另实际离线执行25个source_info。WEBTOON、Pixiv及NHentai.to固定真实体与候选完整结果等价。推荐备用镜像index25版正确；NHentai.to镜像latest本次504保留，正式tag镜像包200且与正式资产同字节，不把两者混写。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/webtoons-web/candidate-replay.json",
         ".hvigor/outputs/source-coverage-20261105/webtoons-web/dependent-version-plan.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions",
         "https://github.com/honjow/koma-sources/commit/a4e96c6e1c710a31469cd0d348ac4273738e9c3d",
-        "https://github.com/honjow/koma-sources/actions/runs/41998223509"
-      ]
+        "https://github.com/honjow/koma-sources/actions/runs/41998223509",
+        ".hvigor/outputs/source-coverage-20261105/unicode-public/verified-receipt.json",
+        ".hvigor/outputs/source-coverage-20261105/unicode-public/root-offline-identity.json"
+      ],
+      "closedAt": "2026-11-05T17:19:26+08:00"
     },
     {
       "id": "SOURCE_PIXIV_PUBLIC_SERIES_COUNT",
       "title": "Pixiv公开可见目录数与总作品数不同被误拒",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全量覆盖中发现",
       "owner": "Root；Terra实施及本地验证",
-      "status": "修复已推送，发布CI通过，公开实体核验中",
+      "status": "公开包及运行时身份已核，237具名路径验收完成",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话足量覆盖检查发现。",
-      "result": "候选0.1.14按API明确公开可见数验证，保留原readingOrder空隙，必须取到真实空尾页。两个系列实际24/26、1/2公开作品已与API全项一致；28本正常作品的56份详情目录完整响应不变。 237普通搜索/详情已目视24/24及1/1目录，两系列第1/4页、第1/11页正文均实际渲染，源与测试数据恢复释租。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。",
-      "remaining": "核公开包资产摘要、manifest/runtime版本、原始固定体回放及推荐备用镜像。",
+      "result": "候选0.1.14按API明确公开可见数验证，保留原readingOrder空隙，必须取到真实空尾页。两个系列实际24/26、1/2公开作品已与API全项一致；28本正常作品的56份详情目录完整响应不变。 237普通搜索/详情已目视24/24及1/1目录，两系列第1/4页、第1/11页正文均实际渲染，源与测试数据恢复释租。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。 公开25包均核资产digest/实际SHA、manifest/runtime/Cargo/lock版本及原图标；Root另实际离线执行25个source_info。WEBTOON、Pixiv及NHentai.to固定真实体与候选完整结果等价。推荐备用镜像index25版正确；NHentai.to镜像latest本次504保留，正式tag镜像包200且与正式资产同字节，不把两者混写。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/pixiv-web/candidate-review.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions",
         "https://github.com/honjow/koma-sources/commit/a4e96c6e1c710a31469cd0d348ac4273738e9c3d",
-        "https://github.com/honjow/koma-sources/actions/runs/41998223509"
-      ]
+        "https://github.com/honjow/koma-sources/actions/runs/41998223509",
+        ".hvigor/outputs/source-coverage-20261105/unicode-public/verified-receipt.json",
+        ".hvigor/outputs/source-coverage-20261105/unicode-public/root-offline-identity.json"
+      ],
+      "closedAt": "2026-11-05T17:19:26+08:00"
     },
     {
       "id": "SOURCE_NHENTAITO_FORMAT_AND_TAGS",
       "title": "NHentai.to合法WebP、PNG及大量标签误报失败",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全量覆盖中发现",
       "owner": "Root；Terra实施及本地验证",
-      "status": "修复已推送，发布CI通过，公开实体核验中",
+      "status": "公开包及运行时身份已核，237具名路径验收完成",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话足量覆盖检查发现。",
-      "result": "候选0.1.6在原48本正常详情目录96份响应不变的基础上，修复638591标签误读及原10本正文中的7个格式/资源域问题；旧3本正常正文不变。按真实封面、缩略图、阅读数据的册号、页序、格式及一致域核定，不任意放开CDN。 638602传输缺口原参补一次后真实网页复现旧详情/目录容量失败，候选恢复。237已目视568858的122页首图、638591的157页CDN首图。409104第57页是JPEG，跳至该页后图片传输code2300999且无HTTP响应；第55页才是PNG，网页两图均200解码，设备PNG尚未验证。 237准确第55/57页PNG已目视渲染，122页和157页两WebP路径已验。所有原四源、登记、阅读搜索及临时语言筛选逐字节恢复，电源读回后释租；先前第57页JPEG传输错误仍保留，未虚称该页后续复验。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。",
-      "remaining": "核公开包资产摘要、manifest/runtime版本、原始固定体回放及推荐备用镜像。",
+      "result": "候选0.1.6在原48本正常详情目录96份响应不变的基础上，修复638591标签误读及原10本正文中的7个格式/资源域问题；旧3本正常正文不变。按真实封面、缩略图、阅读数据的册号、页序、格式及一致域核定，不任意放开CDN。 638602传输缺口原参补一次后真实网页复现旧详情/目录容量失败，候选恢复。237已目视568858的122页首图、638591的157页CDN首图。409104第57页是JPEG，跳至该页后图片传输code2300999且无HTTP响应；第55页才是PNG，网页两图均200解码，设备PNG尚未验证。 237准确第55/57页PNG已目视渲染，122页和157页两WebP路径已验。所有原四源、登记、阅读搜索及临时语言筛选逐字节恢复，电源读回后释租；先前第57页JPEG传输错误仍保留，未虚称该页后续复验。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。 公开25包均核资产digest/实际SHA、manifest/runtime/Cargo/lock版本及原图标；Root另实际离线执行25个source_info。WEBTOON、Pixiv及NHentai.to固定真实体与候选完整结果等价。推荐备用镜像index25版正确；NHentai.to镜像latest本次504保留，正式tag镜像包200且与正式资产同字节，不把两者混写。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/nhentaito-web",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions",
         "https://github.com/honjow/koma-sources/commit/a4e96c6e1c710a31469cd0d348ac4273738e9c3d",
-        "https://github.com/honjow/koma-sources/actions/runs/41998223509"
-      ]
+        "https://github.com/honjow/koma-sources/actions/runs/41998223509",
+        ".hvigor/outputs/source-coverage-20261105/unicode-public/verified-receipt.json",
+        ".hvigor/outputs/source-coverage-20261105/unicode-public/root-offline-identity.json"
+      ],
+      "closedAt": "2026-11-05T17:19:26+08:00"
     },
     {
       "id": "SOURCE_MANHUAGUI_PACKER_RADIX",
@@ -210,17 +241,19 @@
       "kind": "open",
       "priority": "用户直接要求",
       "owner": "Terra 子代理；Root 审核与推进",
-      "status": "全轮次74源1963部曾执行详情，44源达到取样目标；其余补核中",
+      "status": "已向75源2013部作品请求详情，45源达取样数量目标，仍在补核",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求开 Terra 子代理，逐源使用足量漫画样本，不能以一两个成功代表源正常。",
-      "result": "公开目录85个生产源：84个可安装、嗨皮漫画暂不可用；demo排除。全轮次共74源1963部唯一作品曾实际发起详情，44源达到各自30/50本目标，不能将该计数当作验证通过。完整App合同已执行1095部，其中1078次有效详情、1008成功；1067次有效目录、1008成功。网页/接口目录逐条核对与实际图片另列，解析失败、明确停供、站点错链、拒绝及传输失败分别记录。官方独立分母已核崩坏3栏目23部、战双5部、王者24部；章数不充作品数。",
-      "remaining": "继续不足目标源、独立网页/接口目录及每源10本实际图片。漫画人临时宿主已补游客会话，但首个真实初始化POST为411，正在核HTTP合同，未计作品样本；XComic默认目录不需java_regex，原传输失败不归宿主能力缺失。漫画柜237访问尚未通过。已验NHentai.to、Pixiv、SDK23已推送且CI成功，公开实体核验中。BNS/LOL/FGO范围依据和官网错链仍分别保留。",
+      "result": "85个生产源中84可安装，嗨皮漫画暂不可用，demo排除。截至本次统计，全轮次75源2013部唯一作品实际发起过详情（含失败），45源达到各自30/50本取样数量目标，不等于通过。完整App合同处理1145部，详情1128次有效/1058成功，目录1117次有效/1058成功；网页/API目录和真实图像另列。漫画人临时宿主已按App原实现补游客会话，CLI漏body的411有loopback反例并已修，同源真实POST/GET200，原矩阵50部详情/目录和10部页表完成；5个0目录需独立核状态，不猜下架。官方和小站当前栏目真实分母分别保留，章数不充作品数。",
+      "remaining": "继续未达数量目标但可执行的源与每源实际图片；ComicFury中文latest12、幻塔当前栏目16有独立分母，不扩称全站总数。漫画人50本需独立网页/API目录与实图核，5个0目录保留未知。官方小站目录和实图由独立分工补核；BNS/LOL/FGO未覆盖入口及范围依据仍待核。漫画柜237访问未通过且原因未知，候选未发布。已验三项公开包已核；CLI合同修复已推，CI状态另核。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/progress.json",
         ".hvigor/outputs/source-coverage-20261105",
         ".hvigor/outputs/source-coverage-20261105/official-denominators.json",
-        ".hvigor/outputs/source-coverage-20261105/guard-enabled.json"
+        ".hvigor/outputs/source-coverage-20261105/guard-enabled.json",
+        ".hvigor/outputs/source-coverage-20261105/manhuaren-local-host/body-alias-wire-after.json",
+        "https://github.com/honjow/koma-sources/commit/49a4b2859280354c6ddd0e70e2fa2d5a5912250c"
       ]
     },
     {
@@ -17547,6 +17580,42 @@
       "at": "2026-11-05T17:01:19+08:00",
       "title": "已验修复及25个源更新已推送，精确发布CI通过",
       "result": "SDK23补丁版本、NHentai.to0.1.6和Pixiv0.1.14精确公开，公开实体与镜像核验继续；漫画柜未发布。漫画人本地游客会话能力已补，首个真实POST411未计作品，继续核HTTP封套。"
+    },
+    {
+      "id": "source-manhuaren-host-body-repaired-2026-11-05T17:13:21+08:00",
+      "at": "2026-11-05T17:13:21+08:00",
+      "title": "漫画人本地宿主body合同已修，首热门真实请求成功",
+      "result": "真实公开WASM游客POST用body1118字节，旧CLI漏发且loopback复现411；修后静态正文与长度正确、相关6项执行通过，同源原参数POST/GET均200取得20作品。原411不计源失败，足量目录正文继续。"
+    },
+    {
+      "id": "source-25-packages-public-verified-2026-11-05T17:19:26+08:00",
+      "at": "2026-11-05T17:19:26+08:00",
+      "title": "25个公开源包核验完成，三项具名修复关闭",
+      "result": "25个发布包身份、版本、原图标和实际运行时一致，关键真实体完整回放与候选相同；镜像latest NHentai.to504与正式tag200分别保留。237已验三项关闭，全源足量覆盖继续；CLI合同修复独立推送。"
+    },
+    {
+      "id": "source-private-50-and-small-catalogues-2026-11-05T17:21:57+08:00",
+      "at": "2026-11-05T17:21:57+08:00",
+      "title": "漫画人补足50部，当前栏目实际分母继续核定",
+      "result": "当前全轮次75源2013唯一作品曾详情、45源达数量目标，不等于通过。漫画人50详情/目录及10页表完成，5个0目录仍待网页核；ComicFury与幻塔当前栏目12/16有独立证据，官方与不足样本继续。"
+    },
+    {
+      "id": "source-huanta-user-failure-prioritized-2026-11-05T17:31:01+08:00",
+      "at": "2026-11-05T17:31:01+08:00",
+      "title": "用户反馈幻塔加载异常，已有10部失败提升为优先修复",
+      "result": "原16部详情/目录有10个wrong_owner，未及时从统计转成缺陷处理；现由Root接手官方原体逐项定位，Terra继续全源覆盖。列表16入口一致不代表详情或正文通过。"
+    },
+    {
+      "id": "source-huanta-three-guards-fixed-2026-11-05T17:43:24+08:00",
+      "at": "2026-11-05T17:43:24+08:00",
+      "title": "幻塔三种误拒已修，16部本地完整操作全过",
+      "result": "限定系列标题、PNG及独立发布日期；16部四操作成功，原6部完整输出和两页列表不变，13必要反例拒绝。实图和237仍待完成，不冒已验收。"
+    },
+    {
+      "id": "source-huanta-images-all16-2026-11-05T17:46:54+08:00",
+      "at": "2026-11-05T17:46:54+08:00",
+      "title": "幻塔16幅原图下载解码完成，进入237验收",
+      "result": "16幅原图HTTP200完整解码，联系表目视均为对应漫画，PNG路径实际JPEG字节不误写格式。候选本地全16部已核，原生普通路径仍待执行。"
     }
   ],
   "reportAgeAudit": {
