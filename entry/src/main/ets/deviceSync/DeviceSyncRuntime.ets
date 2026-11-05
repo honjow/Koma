@@ -277,6 +277,7 @@ class DeviceSyncRuntime {
       }
       const guard = engine.requestGuard()
       const work = await owners.publicSources.work(item.source, item.work, true, guard)
+      guard()
       if (work === undefined) throw new Error('sync_public_work_unavailable')
       if (scope !== engine.groupScope('shelf')) throw new Error('sync_connection_changed')
       const label: SyncWorkLabel = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion }
@@ -462,6 +463,7 @@ class DeviceSyncRuntime {
       const positionKey = syncKey(['position', capture.source, capture.work, capture.chapterId])
       const recentKey = syncKey(['recent', capture.source, capture.work])
       await engine.assertReadingUnprotected([positionKey, recentKey])
+      guard()
       if (scope !== engine.readingScope()) throw new Error('sync_connection_changed')
       const receiptKey = deviceSyncCaptureKey(capture)
       const version = engine.recordEdits('reading', [
