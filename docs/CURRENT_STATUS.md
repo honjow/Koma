@@ -4,7 +4,7 @@
 
 当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
-设备：197 和 103 已完成本次同步核心路径的独立验证，保留 0333de60 正常签名包。测试连接和新增历史已清理，原电源与超时读回后释租。临时 WebDAV 已停止，临时 TLS 私钥已移除。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：197和103已保留最终正常包、恢复原设置及电源并释租；本轮WebDAV临时服务、容器和私钥凭据均已清理。同步界面按用户要求整体重做，旧UI不作为通过。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 书源检查：已核修复完成具名本地与237验证并陆续分发，全量足量采样、网页和实际图片核对仍在继续。漫画柜在237的访问尚未通过，候选未发布。
 
@@ -16,11 +16,11 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T19:24:23+08:00",
+  "updatedAt": "2026-11-05T20:04:59+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "",
-  "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
-  "nextAction": "继续追踪重连、首次授权、MyAnimeList 手动上传及阅读器偶发问题。",
+  "activeId": "READING_HISTORY_SYNC",
+  "activity": "同步旧界面整体不通过，新四页原生流程已完成独立设计复审；设备与临时服务已收口。",
+  "nextAction": "核定配置保存的生效差异，完成真实导航和状态事务重做及独立完整路径验收。",
   "proof": [
     {
       "label": "正式主仓",
@@ -534,15 +534,15 @@
     {
       "id": "READING_HISTORY_SYNC",
       "title": "跨设备数据同步",
-      "kind": "accepted",
+      "kind": "active",
       "priority": "用户要求重做及独立评审",
       "owner": "Root",
-      "status": "核心使用路径已通过独立代码、UI与设备验收",
+      "status": "旧界面整体不通过；新流程已独立复审，配置提交点待确认",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
-      "result": "新版从设置的备份子页进入，书架与分类、阅读记录、阅读偏好、书源订阅、搜索历史独立选取，使用条件清单与不可变分片。合并预览每项一行显示两端值及当前选择，使用原生菜单，暂缓只影响对应项。独立代码复验、197竖屏和103横屏走查通过。197已验证已连接后编辑失败、取消保留原连接及本机偏好。197真实上传第399话第3/45页，103冷启动自动接收并实际打开同章第3原图。修正多语言公开标题、正常备份恢复的书源清单及xkcd嵌套容器页序校验。两台均清理测试连接和新增历史，保留0333de60正常包，恢复原电源并释租。临时WebDAV已停止。",
-      "remaining": "",
+      "result": "用户否定同页切换的编辑/核对与整套流程，旧UI整体通过结论已撤回。AList/OpenList兼容、目录错误分因、具名跨端自动收发、旧格式迁移及独立启停的数据验证事实保留，不代表界面合格。197、103最终正常包、原设置与电源已恢复并释租；测试服务、容器、私钥及随机凭据已清理。新方案完成独立设计和反方复审：服务列表、WebDAV管理、连接编辑、合并核对使用真实原生路由；测试仅探针，保留五组和全部待处理能力。尚未实现新界面或通过新路径真机验收。 引擎连接测试已移除恢复真实提交的副作用，主机故障夹具证实测试保留原未决意图与两端数据，只有显式同步才恢复原精确提交；旧页面仍待重做，不能称当前测试按钮完整流程已符合新方案。",
+      "remaining": "确认独立保存配置及换空间保存成功即停旧连接的具体差异；完成真实路由与状态事务重做，独立代码/UI复审，并在197和103按普通完整路径观察连续转场、保存/取消、启停和数据结果后提交推送。",
       "evidence": [
         "docs/plans/active/device-sync-design.md",
         ".hvigor/outputs/device-sync-independent/0333de60-independent-code-review.md",
@@ -552,13 +552,36 @@
         ".hvigor/outputs/device-sync-independent/0333de60-ca-package-contrast.json",
         ".hvigor/outputs/device-sync-independent/fixture-cleanup-20261105.json",
         ".hvigor/outputs/device-sync-independent/final-source-composition.json",
-        ".hvigor/outputs/device-sync-implementation/workspace-input-0333de60.diff"
+        ".hvigor/outputs/device-sync-implementation/workspace-input-0333de60.diff",
+        ".hvigor/outputs/webdav-compat-20261105/host-service/production-v2-probe-receipt.json",
+        ".hvigor/outputs/webdav-compat-20261105/host-service/production-directory-errors-receipt.json",
+        ".hvigor/outputs/webdav-compat-20261105/host-service/alist-357/lock-ordinary-nonroot.json",
+        ".hvigor/outputs/webdav-compat-20261105/independent-code-review.md",
+        "https://github.com/honjow/Koma/commit/ce90e7ce6cb8840e75c93c45bd33e7feffa0ba92",
+        "https://github.com/honjow/Koma/actions/runs/42001797836",
+        ".hvigor/outputs/webdav-compat-20261105/host-service/index.json",
+        ".hvigor/outputs/webdav-compat-20261105/device197-auto-page-false-remote-after-delay.json",
+        ".hvigor/outputs/webdav-compat-20261105/independent-ui-review.md",
+        ".hvigor/outputs/webdav-compat-20261105/real-auto-cross-device-bridge.json",
+        ".hvigor/outputs/webdav-compat-20261105/migration-v1-after-cancel-remote.json",
+        ".hvigor/outputs/webdav-compat-20261105/migration-v1-after-confirm-remote.json",
+        ".hvigor/outputs/webdav-compat-20261105/enabled-independent-code-review.md",
+        "https://github.com/honjow/Koma/commit/01543fe70d5688290271dd2afb3e013ff941cd94",
+        "https://github.com/honjow/Koma/commit/cfb5d3e6b05015144edc43cf3f614a1c7a11c87f",
+        ".hvigor/outputs/webdav-compat-20261105/enabled/device197-paused-cold-network.json",
+        ".hvigor/outputs/webdav-compat-20261105/host-service/cleanup-receipt.json",
+        ".hvigor/outputs/webdav-compat-20261105/enabled/independent-incremental-progress.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/designer-proposal.md",
+        ".hvigor/outputs/sync-ui-redesign-20261105/independent-design-review.md"
       ],
       "boundaries": [
         "首次合并确认后由用户开启自动。启动、回前台、网络恢复和本机落盘变更触发同步。按已观察到的事实版本合并，设备时间用于显示，离线并发保留双方候选。",
         "书源作品与阅读记录当前支持MangaDex 0.1.25和xkcd中文0.1.7。条漫恢复到逻辑原图页，长图内部的滚动偏移未同步。真实跨端样本为MangaDex第399话，xkcd正文证明为主机匿名实际响应验证。",
         "owner回滚等分支使用主机平台替身。第一owner写后硬杀冷启动、完整旧备份缺键设备往返、大库多级分片和全对象多轮隐私扫描尚未完整覆盖。超长差异列表的设备滚动也未覆盖。",
-        "自动收发使用180e82f6，最终正文使用0333de60，独立UI主路径使用aec7493e且界面与0333一致。0333构建时纳入的SourceRuntimeError与MangaDetailPage两处外部改动已由书源任务提交261ec84b。最终核对其已提交差异与测试包记录完全一致，见final-source-composition.json。"
+        "自动收发使用180e82f6，最终正文使用0333de60，独立UI主路径使用aec7493e且界面与0333一致。0333构建时纳入的SourceRuntimeError与MangaDetailPage两处外部改动已由书源任务提交261ec84b。最终核对其已提交差异与测试包记录完全一致，见final-source-composition.json。",
+        "用户本会话新增：每种同步服务须独立开关。当前启用状态只属于WebDAV，其他服务接入时须各自持有配置、凭据、队列与调度，不得改成全局总开关或替换现有服务。",
+        "本次兼容UI具名为197竖屏和103横屏单列目的页，不能将平板硬件等同左右分栏已验。",
+        "用户本会话明确要求重头设计整套同步界面；旧同页编辑/核对与旧UI整体通过结论已否定。独立设计复审仅证明方案审查，不替代用户对配置提交点的明确决定、实现或真机验收。"
       ]
     },
     {
@@ -17775,6 +17798,68 @@
       "at": "2026-11-05T18:23:14+08:00",
       "title": "科技大观园两部解析失败定位为真实双作者行",
       "result": "同UA/Referer两份官网200原体明确两组作者/学校，旧实现唯一元素断言误拒；已交候选owner，未完成修复或实机验收。全源其余已知失败继续逐项落实。"
+    },
+    {
+      "at": "2026-11-05T16:59:19+08:00",
+      "title": "WebDAV 保存兼容问题重开",
+      "result": "真实 AList/OpenList 复现条件门槛误拒及旧锁失效，兼容写入已改为不可变分支；真实服务探针通过，最终真机路径未验。",
+      "id": "webdav-compat-2026-11-05T16:59:19+08:00-1073"
+    },
+    {
+      "at": "2026-11-05T17:16:18+08:00",
+      "title": "WebDAV兼容代码独立复验通过",
+      "result": "无条件写入能力门槛已移除；独立执行并发、精确恢复、未选范围及容量污染反例修复。197和103普通入口验证进行中，未计真机通过。",
+      "id": "webdav-compat-2026-11-05T17:16:18+08:00-1076"
+    },
+    {
+      "at": "2026-11-05T17:28:51+08:00",
+      "title": "WebDAV修复已推送，手机保存路径通过",
+      "result": "已推送不可变提交修复；197普通入口三类错误及保存重进具名通过，103和迁移路径仍进行中。",
+      "id": "webdav-compat-2026-11-05T17:28:51+08:00-1079"
+    },
+    {
+      "id": "webdav-auto-send-2026-11-05T17:56:35+08:00",
+      "at": "2026-11-05T17:56:35+08:00",
+      "title": "WebDAV两端保存与实际自动上传通过",
+      "result": "103横屏OpenList保存重进可用；197已在未点击立即同步的情况下将页码变更上传旧AList。103冷启动接收和旧格式迁移仍待核。"
+    },
+    {
+      "id": "webdav-service-enabled-2026-11-05T18:37:46+08:00",
+      "at": "2026-11-05T18:37:46+08:00",
+      "title": "同步兼容已验收，新增服务独立启停进入增量验收",
+      "result": "用户新增各服务独立开关要求，启停与探针凭据清理已实现并通过独立行为评审；不重复兼容、迁移和跨端收发已接受路径。"
+    },
+    {
+      "id": "webdav-enabled-cold-2026-11-05T18:57:23+08:00",
+      "at": "2026-11-05T18:57:23+08:00",
+      "title": "独立同步开关已推送，手机暂停路径通过",
+      "result": "197冷启动保留暂停且无同步请求；主动连接测试仅探针，不读写真实数据。恢复及断开清理、103新开关仍在进行。"
+    },
+    {
+      "id": "webdav-enabled-ui-failure-2026-11-05T19:04:01+08:00",
+      "at": "2026-11-05T19:04:01+08:00",
+      "title": "新开关取消路径发现UI阻塞并修正取值方式",
+      "result": "197实见预览关闭后取消编辑，自动/立即同步两行不恢复；独立UI确认不是滚动。Run按值参数改为直接观察编辑/预览状态，正在生成修复包，仅复验该失败分支，不将代码修改冒充验收。"
+    },
+    {
+      "id": "webdav-enabled-phone-complete-2026-11-05T19:23:03+08:00",
+      "at": "2026-11-05T19:23:03+08:00",
+      "title": "手机独立启停与清债通过，平板进入最终冷启核对",
+      "result": "197原UI红例已同路径复验解除，重新启用确实自动上传，正常断开清债到0并恢复最终正常包和原状态；103新包横屏行与灰态已亲审，最后恢复未完成。"
+    },
+    {
+      "id": "sync-ui-redesign-independent-2026-11-05T19:57:13+08:00",
+      "at": "2026-11-05T19:57:13+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "撤回旧同步UI通过结论，完成新流程独立设计复审与设备收口",
+      "result": "用户反例与源码证实编辑/核对仅同页换装，测试兼预览/恢复、配置无独立保存。两位独立设计者推荐四类真实目的页，测试/保存/开始分开；配置独立保存和换空间保存即停旧端点仍待明确决定。197/103恢复正常包、原设置与电源并释租，临时服务/容器/私钥凭据已清理。既有具名技术结果保留，不能抵消整体UI不合格；新方案尚未实现或真机验证。"
+    },
+    {
+      "id": "sync-probe-only-2026-11-05T20:04:59+08:00",
+      "at": "2026-11-05T20:04:59+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "连接探针不再恢复真实提交；新界面仍待整体实现",
+      "result": "Engine.testConnection只保留专属探针写读清理，原runActive和前台恢复逻辑保留。既有用例以新纯测试合同替代测试触发恢复的旧预期，实际核对active/intent/本机值/远端head与发布数，显式syncNow才恢复原精确提交。两套现有主机脚本39项通过，独立代码静态复核未见阻塞；未用此结果声称新UI或真机通过。"
     }
   ],
   "reportAgeAudit": {

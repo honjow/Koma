@@ -608,7 +608,10 @@ test('receipt recovery keeps an independently received preference as remote data
   assert.equal(received.values[0].version.replica, B)
 })
 
-test('the first connection form retries the exact committed preview before proposing another merge', async () => {
+// The redesigned connection form separates testing from real data actions.
+// This replaces the former test-triggered recovery expectation: a lost reply
+// must survive every probe until the user explicitly retries synchronization.
+test('connection tests leave a sent commit untouched until an explicit sync retry', async () => {
   const { replica, draft, servers } = engineFixture()
   const mode = data.syncKey(['global', 'image-fit'])
   const left = replica(A, [['reader-settings', new Map([[mode, '"contain"']])]])
@@ -629,7 +632,14 @@ test('the first connection form retries the exact committed preview before propo
   assert.equal(await right.engine.testConnection({ ...draft, password: 'different' }, ['reader-settings']), false)
   assert.equal(right.engine.active(), undefined)
   assert.equal(right.values.get('reader-settings').get(mode), '"fit_width"')
-  assert.equal(await right.engine.testConnection(draft, ['reader-settings']), true)
+  const intent = structuredClone(right.store.load().intent)
+  assert.equal(await right.engine.testConnection(draft, ['reader-settings']), false)
+  assert.equal(right.engine.active(), undefined)
+  assert.equal(right.values.get('reader-settings').get(mode), '"fit_width"')
+  assert.deepEqual(right.store.load().intent, intent)
+  assert.equal(server.published.length, writes)
+  assert.deepEqual(server.head, accepted)
+  await right.engine.syncNow()
   assert.equal(right.values.get('reader-settings').get(mode), '"contain"')
   assert.equal(right.engine.active().revision, accepted.revision)
   assert.equal(server.published.length, writes)

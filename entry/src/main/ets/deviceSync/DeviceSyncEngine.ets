@@ -282,7 +282,7 @@ export class DeviceSyncEngine {
     this.prepared = undefined
   }
 
-  async testConnection(raw: SyncConnectionDraft, input: SyncGroup[] = []): Promise<boolean> {
+  async testConnection(raw: SyncConnectionDraft, _input: SyncGroup[] = []): Promise<boolean> {
     const draft = checkedSyncDraft(raw)
     const guard = this.guard(this.generation)
     const credential = util.generateRandomUUID()
@@ -299,23 +299,11 @@ export class DeviceSyncEngine {
       // The old endpoint and exact probe path remain in private storage until cleanup succeeds.
       throw error as Error
     }
-    if (!this.isEnabled()) return false
-    const state = this.storage.load()
-    const intent = state.intent
-    const selected = selectedGroups(input)
-    if (intent === undefined || !intent.sent || intent.detached ||
-      intent.connection.endpointIdentity !== endpointIdentity(draft) || selected.length === 0 ||
-      selected.length !== intent.connection.selected.length ||
-      selected.some((group: SyncGroup): boolean => !intent.connection.selected.includes(group))) return false
-    const previousDraft = await readSyncCredential(intent.connection.credential)
-    guard()
-    if (!sameConnection(previousDraft, draft) || previousDraft.password !== draft.password) return false
-    // A retry from the connection form can also be the first connection.
-    // Resolve the original intent before building any replacement preview.
-    await this.recoverIntent()
-    const recovered = this.storage.load()
-    return recovered.localReceipt !== state.localReceipt && recovered.active?.space === intent.connection.space &&
-      !syncRequiresExplicitReview(recovered.active)
+    // A connection test authorizes only the synthetic probe, even when these
+    // credentials match an unacknowledged data commit. Recover that exact
+    // commit only through an explicit sync/review action or enabled scheduling.
+    // Keep the old return shape while the rejected same-page UI is replaced.
+    return false
   }
 
   async cleanProbes(): Promise<void> {
