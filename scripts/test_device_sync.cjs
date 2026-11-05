@@ -103,6 +103,39 @@ test('wire search identity is independent of host language and folds Unicode exp
   assert.equal(data.safeSyncSearch('https://example.test/path-with-key'), false)
 })
 
+test('MangaDex public work proof accepts a romanized primary title and safe alternative titles', async () => {
+  const source = data.MANGADEX_SYNC_SOURCE
+  const manga = '65208a20-4253-42c8-b0e7-56524bbe795b'
+  let attributes = { title: { 'zh-ro': 'Xīngjiǎ Húnjiàng Zhuàn' }, altTitles: [{ en: 'Legend of Star General' }] }
+  const { DeviceSyncPublicSources } = compile('DeviceSyncPublicSource', {
+    '@kit.NetworkKit': { http: { RequestMethod: { GET: 'GET' }, HttpDataType: { ARRAY_BUFFER: 1 }, createHttp: () => ({
+      async request(address) {
+        assert.equal(address, `https://api.mangadex.org/manga/${manga}`)
+        const response = { result: 'ok', data: { id: manga, attributes } }
+        return { responseCode: 200, result: new TextEncoder().encode(JSON.stringify(response)).buffer }
+      },
+      destroy() {},
+    }) } },
+    '@kit.ArkTS': { util: { TextDecoder: { create: () => ({ decodeToString: bytes => new TextDecoder().decode(bytes) }) } } },
+    '@kit.CoreFileKit': {},
+    '../sourceRuntime/SourceRuntimeAppRegistry': {
+      getInstalledSourcePackage: () => ({ enabled: true, version: '0.1.25', catalogOrigin: data.SYNC_OFFICIAL_CATALOG }),
+      appSourceRuntimeRegistry: { lookup: () => ({ entry: { manifestId: source, manifestVersion: '0.1.25' } }) },
+    },
+    '../sourceRuntime/SourceIndexMetadata': { resolveIndexDocumentUrl: address => address, subscriptionIdentity: address => address },
+    './DeviceSyncData': data,
+    './DeviceSyncWire': { ...wire, syncDigestBytes: () => 'ff51c584cbb49819f073d0718d7b76fe855588717982effe033159096d4caed3' },
+  })
+  const read = () => new DeviceSyncPublicSources().work(source, `mdx:${manga}`, true)
+  assert.equal((await read()).title, 'Legend of Star General')
+  attributes.altTitles[0].en = 'token: rejected'
+  assert.equal((await read()).title, 'Xīngjiǎ Húnjiàng Zhuàn')
+  attributes.title['zh-ro'] = 'https://example.invalid/private'
+  assert.equal(await read(), undefined)
+  attributes.title = 'invalid primary title shape'
+  assert.equal(await read(), undefined)
+})
+
 function engineFixture() {
   const assets = new Map()
   const servers = new Map()

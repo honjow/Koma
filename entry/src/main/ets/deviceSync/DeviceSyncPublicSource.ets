@@ -25,6 +25,7 @@ export interface SyncPublicChapterProof {
 
 interface MangaDexAttributes {
   title?: Record<string, string>
+  altTitles?: Record<string, string>[]
   chapter?: string
 }
 
@@ -101,6 +102,27 @@ function syncSourceVersion(source: string): string {
   if (source === MANGADEX_SYNC_SOURCE) return '0.1.25'
   if (source === XKCD_SYNC_SOURCE) return '0.1.7'
   throw new Error('sync_source_not_supported')
+}
+
+function findMangaDexTitle(titles: Record<string, string>[], languages: string[]): string {
+  for (const language of languages) {
+    for (const table of titles) {
+      const value = table?.[language]
+      const title = typeof value === 'string' ? syncPublicLabel(value, 240) : ''
+      if (title !== '') return title
+    }
+  }
+  return ''
+}
+
+function mangaDexTitle(attributes: MangaDexAttributes): string {
+  const raw = attributes.title
+  const primary: Record<string, string> = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : {}
+  const alternatives = Array.isArray(attributes.altTitles) ? attributes.altTitles : []
+  const preferred = ['zh', 'zh-hk', 'en', 'ja-ro', 'ja']
+  // MangaDex may supply only a romanized or otherwise unlisted primary title.
+  return findMangaDexTitle([primary], preferred) || findMangaDexTitle(alternatives, preferred) ||
+    findMangaDexTitle([primary], Object.keys(primary))
 }
 
 /**
@@ -189,8 +211,7 @@ export class DeviceSyncPublicSources {
         const uuid = id.substring(4)
         const response = await readPublicJson('https://api.mangadex.org/manga/' + uuid, 512 * 1024) as MangaDexEntityResponse
         if (response.result !== 'ok' || response.data.id !== uuid) return undefined
-        const fields = response.data.attributes.title
-        title = syncPublicLabel(fields?.['zh'] ?? fields?.['zh-hk'] ?? fields?.['en'] ?? fields?.['ja-ro'] ?? fields?.['ja'] ?? '', 240)
+        title = mangaDexTitle(response.data.attributes)
         sourceName = 'MangaDex'
         if (!title) return undefined
       } else {
