@@ -272,12 +272,20 @@ test('category dependencies wait for their choice and disabled legacy conflicts 
   assert.deepEqual(shelf.dependent, [{ action: 'download', choices: [category] }])
   await right.engine.confirm(preview.token, [])
   assert.equal(right.values.get('shelf').has(order), false)
+  const legacy = structuredClone(right.store.load().active)
+  legacy.requiresExplicitReview = undefined
+  legacy.groups.find(group => group.id === 'shelf').deferredRoots = undefined
   right.store.update(state => {
-    state.active.requiresExplicitReview = undefined
+    state.active = structuredClone(legacy)
     state.active.selected = ['reader-settings']
   })
   await right.engine.syncNow()
   assert.equal(right.engine.active().reviewRequired, false)
+  right.store.update(state => { state.active = legacy })
+  const resolve = await right.engine.prepare(draft, ['shelf', 'reader-settings'])
+  assert.deepEqual(resolve.conflicts.map(item => item.key), [category])
+  await right.engine.confirm(resolve.token, [{ group: 'shelf', key: category, useLocal: false }])
+  assert.equal(right.values.get('shelf').get(order), JSON.stringify([id]))
 })
 
 test('an unverified durable Reader edit protects local position without changing the remote head', async () => {

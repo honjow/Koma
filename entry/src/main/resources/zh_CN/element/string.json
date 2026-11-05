@@ -2246,6 +2246,8 @@
     { "name": "device_sync_this_device", "value": "本机" },
     { "name": "device_sync_other_device", "value": "另一端" },
     { "name": "device_sync_book_reader_mode", "value": "作品阅读模式" },
+    { "name": "device_sync_restore_bookmark", "value": "恢复书签" },
+    { "name": "device_sync_restore_local_position", "value": "采用本机位置" },
     { "name": "device_sync_keep_local", "value": "采用本机值" },
     { "name": "device_sync_keep_remote", "value": "采用另一端的值" },
     { "name": "device_sync_deleted", "value": "另一端已删除" },

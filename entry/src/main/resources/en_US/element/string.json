@@ -2244,6 +2244,8 @@
     { "name": "device_sync_this_device", "value": "This device" },
     { "name": "device_sync_other_device", "value": "Other device" },
     { "name": "device_sync_book_reader_mode", "value": "Reading mode for this title" },
+    { "name": "device_sync_restore_bookmark", "value": "Restore bookmark" },
+    { "name": "device_sync_restore_local_position", "value": "Use this device’s position" },
     { "name": "device_sync_keep_local", "value": "Use this device’s value" },
     { "name": "device_sync_keep_remote", "value": "Use the other device’s value" },
     { "name": "device_sync_deleted", "value": "Removed on another device" },

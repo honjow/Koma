@@ -1,4 +1,3 @@
-import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { AppStrings } from '../i18n/AppStrings'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
@@ -106,7 +105,18 @@ function conflictTitle(conflict: SyncMergeConflict): string {
   if (parts[0] === 'book-mode') return conflict.label === undefined ? t('device_sync_book_reader_mode') :
     conflict.label + ' · ' + t('reader_settings_tab_mode')
   if (parts[0] === 'book' || parts[0] === 'recent') return conflictValue(conflict.key, conflict.local)
+  if (parts[0] === 'bookmark') return t('chapter_bookmarks')
+  if (parts[0] === 'category') return t('library_category_name_label')
   return t(groupKey(conflict.group))
+}
+
+function localChoiceTitle(conflict: SyncMergeConflict): string {
+  if (!conflict.deleted) return t('device_sync_keep_local')
+  const kind = syncKeyParts(conflict.key)[0]
+  if (kind === 'book') return t('device_sync_keep_on_shelf')
+  if (kind === 'bookmark') return t('device_sync_restore_bookmark')
+  if (kind === 'recent' || kind === 'position') return t('device_sync_restore_local_position')
+  return t('device_sync_keep_local')
 }
 
 @ObservedV2
@@ -367,7 +377,7 @@ export struct DeviceSyncWebDavPage {
   private choiceLabel(conflict: SyncMergeConflict): string {
     const current = this.choice(conflict)
     if (current?.useBeforeRestore) return t('device_sync_before_restore_short')
-    if (current?.useLocal === true) return t('device_sync_this_device')
+    if (current?.useLocal === true) return conflict.deleted ? localChoiceTitle(conflict) : t('device_sync_this_device')
     if (conflict.deleted) return t('device_sync_apply_removal')
     return t(current === undefined ? 'device_sync_defer' : 'device_sync_other_device')
   }
@@ -468,8 +478,9 @@ export struct DeviceSyncWebDavPage {
 
   @Builder
   private ChoiceItem(title: string, checked: boolean, select: (action: () => void) => void, action: () => void) {
-    MenuItem({ content: title,
-      symbolEndIcon: checked ? new SymbolGlyphModifier($r('sys.symbol.checkmark')) : undefined })
+    MenuItem({ content: title })
+      .selected(checked)
+      .selectIcon(true)
       .onClick((): void => { select(action) })
   }
 
@@ -479,7 +490,7 @@ export struct DeviceSyncWebDavPage {
       if (!item.deleted) {
         this.ChoiceItem(t('device_sync_defer'), this.choice(item) === undefined, select, (): void => { this.choose(item) })
       }
-      this.ChoiceItem(t('device_sync_keep_local'), this.choice(item)?.useLocal === true &&
+      this.ChoiceItem(localChoiceTitle(item), this.choice(item)?.useLocal === true &&
         this.choice(item)?.useBeforeRestore !== true, select, (): void => { this.choose(item, true) })
       this.ChoiceItem(t(item.deleted ? 'device_sync_apply_removal' : 'device_sync_keep_remote'),
         item.deleted ? this.choice(item)?.useLocal !== true : this.choice(item)?.useLocal === false,

@@ -163,7 +163,21 @@ function restorableEdits(local: SyncLocalSnapshot): SyncRestoreEdit[] {
 }
 
 function priorConflictRoots(group: PreparedGroup): string[] {
-  return group.previous?.deferredRoots ?? group.previous?.deferred ?? []
+  const previous = group.previous
+  if (previous === undefined) return []
+  if (previous.deferredRoots !== undefined) return previous.deferredRoots
+  const legacy = previous.deferred ?? []
+  const baseline = byLocalValue(previous.baseline)
+  const facts = bySyncFact(previous.facts)
+  // Older profiles persisted both differences and their expanded dependencies.
+  // A dependent key without a different value on both sides was never a choice.
+  return legacy.filter((key: string): boolean => {
+    if (!legacy.some((root: string): boolean => root !== key && dependsOnConflict(key, root))) return true
+    const local = baseline.get(key)
+    const fact = facts.get(key)
+    const remote = fact === undefined ? undefined : syncVisibleValue(fact)
+    return local !== undefined && remote !== undefined && local !== remote
+  })
 }
 
 function dependsOnConflict(key: string, root: string): boolean {

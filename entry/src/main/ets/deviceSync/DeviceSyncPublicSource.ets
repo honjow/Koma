@@ -60,14 +60,12 @@ interface XkcdPublicEntry {
   image: string
 }
 
-const trustedBytes = new Map<string, Uint8Array>()
-
-function isPinnedOfficialArchive(source: string, path: string | undefined): boolean {
+function isPinnedOfficialManifest(source: string, path: string | undefined): boolean {
   if (path === undefined) return false
-  const size = source === MANGADEX_SYNC_SOURCE ? 52058 : 37918
+  const size = source === MANGADEX_SYNC_SOURCE ? 314 : 513
   const expected = source === MANGADEX_SYNC_SOURCE ?
-    '7e81d93932bdd611eafd177a55fc8883538511fb1da3fff80f6dd3657459b0f0' :
-    '2db68bb8857652aa4b6e39766512a544aea4928e2fe6fb1b512c4dfcac1124c2'
+    'bf834cd800ec054651d7c5e327f82f01a5c344f4a1221ef2406da51ec85cf7fa' :
+    'c6d04fc5e7376c8a0d792569699f48a9a5a9a2563e89b24c6575e26c6ec3d71f'
   try {
     if (fs.statSync(path).size !== size) return false
     const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
@@ -86,20 +84,17 @@ export function syncHasTrustedPackage(source: string): boolean {
   const installed = getInstalledSourcePackage(source)
   if (installed === undefined || !installed.enabled || !syncSupportedSource(source, installed.version)) return false
   const registered = appSourceRuntimeRegistry.lookup(source).entry
-  if (registered === undefined) return false
+  if (registered === undefined || registered.manifestId !== source || registered.manifestVersion !== installed.version ||
+    (registered.webSessionOrigins?.length ?? 0) > 0) return false
   const expected = source === MANGADEX_SYNC_SOURCE ?
     'ff51c584cbb49819f073d0718d7b76fe855588717982effe033159096d4caed3' :
     '29e9d902619370397815798f6c8b79fad6b0918012f6b794bfd226bd300a5863'
-  const verified = trustedBytes.get(source)
-  if (verified === registered.wasmBytes) return true
   if (syncDigestBytes(registered.wasmBytes) !== expected) return false
   const officialCatalog = installed.catalogOrigin !== undefined &&
     subscriptionIdentity(resolveIndexDocumentUrl(installed.catalogOrigin)) === subscriptionIdentity(SYNC_OFFICIAL_CATALOG)
-  // A locally imported official archive can prove its distribution even if
-  // the installer did not record the catalog. Match both original artifacts.
-  if (!officialCatalog && !isPinnedOfficialArchive(source, registered.archivePath)) return false
-  trustedBytes.set(source, registered.wasmBytes)
-  return true
+  // ZIP compression and metadata can change without altering either release
+  // payload. Require the original manifest and runtime bytes on local imports.
+  return officialCatalog || isPinnedOfficialManifest(source, registered.manifestPath)
 }
 
 function syncSourceVersion(source: string): string {
