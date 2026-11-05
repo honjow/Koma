@@ -6,6 +6,8 @@
 
 设备：197 和 103 已完成本次同步核心路径的独立验证，保留 0333de60 正常签名包。测试连接和新增历史已清理，原电源与超时读回后释租。临时 WebDAV 已停止，临时 TLS 私钥已移除。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
+书源检查：已核修复完成具名本地与237验证并陆续分发，全量足量采样、网页和实际图片核对仍在继续。漫画柜在237的访问尚未通过，候选未发布。
+
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
 <!-- koma-progress-snapshot
@@ -14,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T14:00:18+08:00",
+  "updatedAt": "2026-11-05T17:01:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -80,20 +82,145 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_MANHUASHE_LONG_CATALOGUE_AND_AUTHOR",
+      "title": "漫画社长目录获取失败及空作者误报解析失败",
+      "kind": "accepted",
+      "priority": "全量覆盖中发现",
+      "owner": "Terra实施，Root审核与237验收",
+      "status": "0.1.11公开包与备用镜像已核，237具名目录验收完成",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话Terra完整App参数分层50本检查。",
+      "result": "武炼巅峰官网3874章超过旧选择器及单次结果容量；四个作品有当前作者节点但值为空，旧源误拒。候选仅扩大章节专用节点缓冲，保8192上限；短目录原返回不变，超长目录按512KiB预算每页最多1000项并可缩小。3874条四次实际请求已完整取全并逐条对官网，四个空作者有真实体确认，10份正常作品的详情及目录20份响应全字段不变。原100项方案需要39次下载且第37次TLS中断，已被四页方案取代。 237普通入口已完整显示3874/3874章；公主的卧室玩偶64章和Love Nico催眠術1章正常打开，作者空值显示未知。原源包四文件、源登记、阅读搜索文件逐字节恢复，电源读回并释租。已精确推送0.1.11，发布CI成功，未夹带其他WIP。 公开WASM的3874章四页、4个空作者及16作品35份完整响应与冻结候选一致；正式资产digest/实体/manifest/runtime版本一致，README推荐备用镜像索引与实际包同正式资产。当前index未带sha256，未把该缺失冒充索引摘要通过；镜像核验不代表237当前配置已确认。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/manhuashe-web/timed1000-live.json",
+        ".hvigor/outputs/source-coverage-20261105/manhuashe-web/timed1000-web-compare.json",
+        ".hvigor/outputs/source-coverage-20261105/manhuashe-web/regression-equality.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-manhuashe",
+        "https://github.com/honjow/koma-sources/commit/a446b0968ee37222e228db5d3dcde387f1fa7052",
+        "https://github.com/honjow/koma-sources/actions/runs/41989157925",
+        ".hvigor/outputs/source-coverage-20261105/manhuashe-public/verified-receipt.json"
+      ],
+      "closedAt": "2026-11-05T16:34:35+08:00"
+    },
+    {
+      "id": "SOURCE_SDK_UTF16_SURROGATE",
+      "title": "WEBTOON章节表情的UTF16代理对导致非法UTF8",
+      "kind": "open",
+      "priority": "全量覆盖中发现",
+      "owner": "Root；Terra实施及本地验证",
+      "status": "修复已推送，发布CI通过，公开实体核验中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话足量覆盖检查发现。",
+      "result": "Lost Love真实10章含合法代理对；旧SDK写出非法UTF8导致章节失败，候选正确组成Unicode码点，其余响应字节不变。孤立或错误代理对继续失败，3份正常作品完整输出不变。共享helper有23个可安装源消费者，需同步各自补丁版本才能给已安装用户提供更新。 237普通入口完整显示10/10章并实际显示Stay safe口罩表情。原语言筛选隐藏英语，先备份后临时开启，结束已逐字节恢复；原源及数据电源恢复释租。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。",
+      "remaining": "核公开包资产摘要、manifest/runtime版本、原始固定体回放及推荐备用镜像。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/webtoons-web/candidate-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/webtoons-web/dependent-version-plan.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions",
+        "https://github.com/honjow/koma-sources/commit/a4e96c6e1c710a31469cd0d348ac4273738e9c3d",
+        "https://github.com/honjow/koma-sources/actions/runs/41998223509"
+      ]
+    },
+    {
+      "id": "SOURCE_PIXIV_PUBLIC_SERIES_COUNT",
+      "title": "Pixiv公开可见目录数与总作品数不同被误拒",
+      "kind": "open",
+      "priority": "全量覆盖中发现",
+      "owner": "Root；Terra实施及本地验证",
+      "status": "修复已推送，发布CI通过，公开实体核验中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话足量覆盖检查发现。",
+      "result": "候选0.1.14按API明确公开可见数验证，保留原readingOrder空隙，必须取到真实空尾页。两个系列实际24/26、1/2公开作品已与API全项一致；28本正常作品的56份详情目录完整响应不变。 237普通搜索/详情已目视24/24及1/1目录，两系列第1/4页、第1/11页正文均实际渲染，源与测试数据恢复释租。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。",
+      "remaining": "核公开包资产摘要、manifest/runtime版本、原始固定体回放及推荐备用镜像。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/pixiv-web/candidate-review.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions",
+        "https://github.com/honjow/koma-sources/commit/a4e96c6e1c710a31469cd0d348ac4273738e9c3d",
+        "https://github.com/honjow/koma-sources/actions/runs/41998223509"
+      ]
+    },
+    {
+      "id": "SOURCE_NHENTAITO_FORMAT_AND_TAGS",
+      "title": "NHentai.to合法WebP、PNG及大量标签误报失败",
+      "kind": "open",
+      "priority": "全量覆盖中发现",
+      "owner": "Root；Terra实施及本地验证",
+      "status": "修复已推送，发布CI通过，公开实体核验中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话足量覆盖检查发现。",
+      "result": "候选0.1.6在原48本正常详情目录96份响应不变的基础上，修复638591标签误读及原10本正文中的7个格式/资源域问题；旧3本正常正文不变。按真实封面、缩略图、阅读数据的册号、页序、格式及一致域核定，不任意放开CDN。 638602传输缺口原参补一次后真实网页复现旧详情/目录容量失败，候选恢复。237已目视568858的122页首图、638591的157页CDN首图。409104第57页是JPEG，跳至该页后图片传输code2300999且无HTTP响应；第55页才是PNG，网页两图均200解码，设备PNG尚未验证。 237准确第55/57页PNG已目视渲染，122页和157页两WebP路径已验。所有原四源、登记、阅读搜索及临时语言筛选逐字节恢复，电源读回后释租；先前第57页JPEG传输错误仍保留，未虚称该页后续复验。 已精确推送公开修复，发布CI成功；SDK共享使用源各升补丁版本，非版本WIP未夹带。",
+      "remaining": "核公开包资产摘要、manifest/runtime版本、原始固定体回放及推荐备用镜像。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/nhentaito-web",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions",
+        "https://github.com/honjow/koma-sources/commit/a4e96c6e1c710a31469cd0d348ac4273738e9c3d",
+        "https://github.com/honjow/koma-sources/actions/runs/41998223509"
+      ]
+    },
+    {
+      "id": "SOURCE_MANHUAGUI_PACKER_RADIX",
+      "title": "漫画柜部分正常正文的字典进制被固定62误拒",
+      "kind": "open",
+      "priority": "全量覆盖中发现",
+      "owner": "Root",
+      "status": "本地候选已验；237搜索与热门入口超时，WebView未显示内容",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话Terra分层50本及10本正文检查。",
+      "result": "10份真实正文中5份旧版失败，实际字典进制42/51/52/61；候选静态解包支持合法2..62，不执行网站JS。五个失败全部恢复，五个正常完整响应和图片请求不变；页数与原HTML一致、页序唯一，非法进制及字典数量继续拒绝。10本首图均HTTP200且实际解码成功。 237两次原参数搜索和独立热门入口均连接超时code2300028；应用内WebView最终白页没有可用内容，未到目标章，不推断站点下架或解包修复失败。原源及测试数据电源已恢复释租。",
+      "remaining": "候选暂不发布；237访问原因仍未知，待可进入正常详情和原失败章后实机验收。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/manhuagui-web/public-native-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/manhuagui-web",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-format-regressions"
+      ]
+    },
+    {
+      "id": "SOURCE_CMANHUA_EMPTY_CHAPTERS",
+      "title": "CManhua官网明确0章仍提示解析失败",
+      "kind": "accepted",
+      "priority": "全量覆盖中发现",
+      "owner": "Root",
+      "status": "0.1.8已公开，237明确0章提示及公开包回放通过",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话Root对既有50本CManhua样本逐本网页核对发现。",
+      "result": "Ready Shoot, For Love网页有唯一章节数节点且值为0，唯一章节列表容器完全为空，且无目录区间，公开0.1.7却报missing public catalogue。0.1.8仅在以上条件同时成立时返回no_chapters；缺节点、非0、重复节点及未知子元素继续源错误，正常目录不变。真实网页正例与6个必要反例通过。 237普通搜索打开真实作品后，暂无章节提示完整可见；原源与登记、阅读搜索文件及电源已恢复并释租。0.1.8已单独推送且发布CI成功；公开包与237镜像索引及实际包一致，公开WASM同体50本验证仅此1个状态改变，99份正常响应完全相同。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/cmanhua-web/empty-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/cmanhua-web/coverage50-v2/summary.jsonl",
+        ".hvigor/outputs/source-coverage-20261105/cmanhua-web/empty-public-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/cmanhua-web/empty-public-regression.json",
+        ".hvigor/outputs/source-coverage-20261105/root-cmanhua-verification.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-cmanhua-empty",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-08b915b0b35c4bcf83658569c415b88368cf77a0",
+        "https://github.com/honjow/koma-sources/actions/runs/41980764971"
+      ],
+      "closedAt": "2026-11-05T14:52:44+08:00"
+    },
+    {
       "id": "SOURCE_ALL_PROVIDER_COVERAGE",
       "title": "所有现有书源的分层覆盖检查",
       "kind": "open",
       "priority": "用户直接要求",
       "owner": "Terra 子代理；Root 审核与推进",
-      "status": "正在补齐本地宿主合同并重算有效覆盖",
+      "status": "全轮次74源1963部曾执行详情，44源达到取样目标；其余补核中",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求开 Terra 子代理，逐源使用足量漫画样本，不能以一两个成功代表源正常。",
-      "result": "公开 catalogue 有 85 个生产源，其中 84 个 available、嗨皮漫画 unavailable；index 对应 84 个，教学 demo 不在范围。以实际公开源包为基线，每源至少 30 本、大站及问题源至少 50 本分层取样，并对每源至少 10 本抽查正文；实际公开数量不足时保留可得分母。84 个可安装源的入口初筛已完成，但不代表通过。六漫画、CManhua、3Hentai 各完成 50 本基础抽样，另有蔚蓝档案官方漫画 1 本；逐本网页对照和正文图片确认仍在推进。已经发现实体解码误拒、资源册绑定误拒及空目录提示问题，分别跟进。",
-      "remaining": "已保存39源、945次去重作品详情执行证据；它们来自旧hostFeatures轮次，尚不能作为当前App有效分母。正在补齐批量HTTP、mangaUrl及同作品chapterContext，并按已保存设置为空的真实默认值重跑必要部分。漏mangaUrl的无效请求单列，不算源故障；持续完成85源的足量分层取样、目录游标、逐本网页/接口完整性和正文图像核对。不能由抽样声称全站无问题。",
+      "result": "公开目录85个生产源：84个可安装、嗨皮漫画暂不可用；demo排除。全轮次共74源1963部唯一作品曾实际发起详情，44源达到各自30/50本目标，不能将该计数当作验证通过。完整App合同已执行1095部，其中1078次有效详情、1008成功；1067次有效目录、1008成功。网页/接口目录逐条核对与实际图片另列，解析失败、明确停供、站点错链、拒绝及传输失败分别记录。官方独立分母已核崩坏3栏目23部、战双5部、王者24部；章数不充作品数。",
+      "remaining": "继续不足目标源、独立网页/接口目录及每源10本实际图片。漫画人临时宿主已补游客会话，但首个真实初始化POST为411，正在核HTTP合同，未计作品样本；XComic默认目录不需java_regex，原传输失败不归宿主能力缺失。漫画柜237访问尚未通过。已验NHentai.to、Pixiv、SDK23已推送且CI成功，公开实体核验中。BNS/LOL/FGO范围依据和官网错链仍分别保留。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/progress.json",
-        ".hvigor/outputs/source-coverage-20261105"
+        ".hvigor/outputs/source-coverage-20261105",
+        ".hvigor/outputs/source-coverage-20261105/official-denominators.json",
+        ".hvigor/outputs/source-coverage-20261105/guard-enabled.json"
       ]
     },
     {
@@ -140,21 +267,24 @@
     {
       "id": "SOURCE_3HENTAI_ASSET_OWNER",
       "title": "3Hentai 正文资源册号与作品号不同时被误拒",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全量覆盖中发现",
       "owner": "Terra 实施，Root 审核",
-      "status": "237正文实图通过，正在核对补正后的公开版本",
+      "status": "0.1.6已公开，237正文与公开包回放通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话 Terra 足量抽样发现。",
-      "result": "作品718860与资源册2432606的别名关系已沿封面、全册缩略图、作品阅读链接和页序共同核定。候选保留域名、作品、册身份及页序边界，原同号输出不变。237普通入口已目视读取第1/8页真实漫画并正常返回；原源包和登记、阅读搜索数据及电源已恢复并释租。首批公开构建遗漏导出source_info版本，导致索引仍0.1.5；仅补正该版本为0.1.6后已单独推送。",
-      "remaining": "等待版本信息补正的发布流水线，核公开0.1.6包和订阅索引并重放原始样本。无状态image_request仅校验输入一致性，不提供密码学绑定。",
+      "result": "作品718860与资源册2432606的别名关系沿封面、全册缩略图、作品阅读链接和页序共同核定；保留域名、作品、册身份及页序边界，原同号输出不变。237普通入口已目视第1/8页真实漫画并正常返回；原源、订阅登记、阅读搜索文件及电源已恢复并释租。导出版本遗漏已单独补正，公开0.1.6的运行时信息、manifest和索引一致，公开WASM正反例回放通过；237所用镜像索引及包摘要匹配该发布附件。无状态image_request仅核输入一致性，不提供密码学绑定。",
+      "remaining": "",
       "evidence": [
-        ".hvigor/outputs/source-coverage-20261105/3hentai-web/version-fixed-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/3hentai-web/public-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/3hentai-version-public/verified-receipt.json",
+        ".hvigor/outputs/source-coverage-20261105/mirror-package-receipt.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-regressions",
-        "https://github.com/honjow/koma-sources/commit/9afbe4af70ca94091084045edb714460bcbd3d18",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-9afbe4af70ca94091084045edb714460bcbd3d18",
         "https://github.com/honjow/koma-sources/actions/runs/41977339712"
-      ]
+      ],
+      "closedAt": "2026-11-05T14:10:31+08:00"
     },
     {
       "id": "SOURCE_DM5_CATALOGUE_AND_UNAVAILABLE",
@@ -179,18 +309,25 @@
     {
       "id": "SOURCE_ASMHENTAI_SEARCH_PAGINATION",
       "title": "AsmHentai合法搜索下一页被URL逐字比较误拒",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全量覆盖中发现",
       "owner": "Terra实施，Root审核",
-      "status": "候选已通过真实网页两页回放，待审核与237验收",
+      "status": "0.1.5已公开，237搜索分页和公开包回放通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话Terra足量抽样发现。",
-      "result": "公开0.1.4对普通搜索漫画返回next URL mismatch。网页下一页省略popular排序并使用协议相对地址，源旧逐字URL比较误拒。候选复用既有过滤搜索的同域、解码关键词、页序与排序校验，实际下一请求仍由原参数构造并保留popular；外域、换词、错页、latest和额外参数负例继续拒绝。",
-      "remaining": "审核限定差异和普通路径，完成237搜索及翻页、恢复与释租，再提交分发。",
+      "result": "普通搜索下一页的协议相对地址、原文关键词和省略默认popular曾触发逐字URL比较误拒。候选复用既有同域、解码关键词、页序和排序检查，实际请求仍保留popular；外域、换词、错页、latest及额外参数负例通过。237普通搜索漫画已显示与网页前两页完全一致的2+3个作品，滚动继续加载后续作品且无错误，正常返回。原源及登记、阅读搜索文件逐字节恢复，原电源读回并释租；修复单独推送。 公开0.1.5运行时、manifest及索引一致，公开WASM两页原始网页和负例回放通过；237所用镜像索引与官方相同，实际包逐字节一致。",
+      "remaining": "",
       "evidence": [
-        ".hvigor/outputs/source-coverage-20261105/asmhentai-web/candidate-replay.json"
-      ]
+        ".hvigor/outputs/source-coverage-20261105/asmhentai-web/candidate-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-asm-pagination",
+        "https://github.com/honjow/koma-sources/commit/04a4cdb585790ed8c33b8c0e3617d9c29f0f0874",
+        "https://github.com/honjow/koma-sources/actions/runs/41978223343",
+        ".hvigor/outputs/source-coverage-20261105/asmhentai-web/public-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/asm-public/verified-receipt.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-04a4cdb585790ed8c33b8c0e3617d9c29f0f0874"
+      ],
+      "closedAt": "2026-11-05T14:17:33+08:00"
     },
     {
       "id": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
@@ -206,7 +343,14 @@
       "remaining": "",
       "registeredAt": "2026-11-05T12:08:58+08:00",
       "closedAt": "2026-11-05T12:29:46+08:00",
-      "evidence": [".hvigor/outputs/sixmh-full-time-magister/installed-baseline-replay.json", ".hvigor/outputs/sixmh-full-time-magister/public-native-replay.json", ".hvigor/outputs/sixmh-full-time-magister/public-receipt.json", ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/sixmh-magister", "https://github.com/honjow/koma-sources/actions/runs/41967816867", "https://github.com/honjow/koma-sources/releases/tag/sources-d9d0a25de1298ec7f56e176db0db5bea29318c93"]
+      "evidence": [
+        ".hvigor/outputs/sixmh-full-time-magister/installed-baseline-replay.json",
+        ".hvigor/outputs/sixmh-full-time-magister/public-native-replay.json",
+        ".hvigor/outputs/sixmh-full-time-magister/public-receipt.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/sixmh-magister",
+        "https://github.com/honjow/koma-sources/actions/runs/41967816867",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-d9d0a25de1298ec7f56e176db0db5bea29318c93"
+      ]
     },
     {
       "id": "BACKUP_SETTINGS_COVERAGE_GATE",
@@ -220,8 +364,14 @@
       "reportedAtSource": "本会话用户明确要求先完成门禁。",
       "result": "检查 ArkData Preferences 所有者和键分类，运行生产备份导出和恢复入口的宿主测试，验证通用偏好、独立备份字段、凭据排除与旧文件整组缺失。实际注入未归类键和移除通用设置恢复调用均被拦截。已知缺口单独列入关联项。",
       "remaining": "",
-      "relatedItems": ["BACKUP_SETTINGS_COVERAGE_GAPS"],
-      "evidence": ["scripts/check_backup_settings.cjs", "scripts/backup_settings_policy.json", ".github/workflows/build.yml"]
+      "relatedItems": [
+        "BACKUP_SETTINGS_COVERAGE_GAPS"
+      ],
+      "evidence": [
+        "scripts/check_backup_settings.cjs",
+        "scripts/backup_settings_policy.json",
+        ".github/workflows/build.yml"
+      ]
     },
     {
       "id": "BACKUP_SETTINGS_COVERAGE_GAPS",
@@ -235,7 +385,9 @@
       "reportedAtSource": "本会话用户询问备份覆盖，源码审计确认。",
       "result": "迁移选源顺序和匹配选项、完整书源订阅、搜索来源范围和仅显示有结果偏好当前未导出。旧文件若包含某组但缺少组内字段，导入会删除本机该字段。",
       "remaining": "分别补齐可迁移设置并补版本兼容往返测试，区分旧文件缺字段与明确重置。",
-      "relatedItems": ["BACKUP_SETTINGS_COVERAGE_GATE"]
+      "relatedItems": [
+        "BACKUP_SETTINGS_COVERAGE_GATE"
+      ]
     },
     {
       "id": "READING_HISTORY_SYNC",
@@ -282,7 +434,9 @@
       "boundaries": [
         "仅在当前进程没有成功快照时使用首次加载占位。197 录屏覆盖同进程两次正常重进；覆盖恢复沿既有保护路径，本次未实际替换书架和阅读进度。"
       ],
-      "relatedItems": ["BACKUP_WORKFLOW_REDESIGN"],
+      "relatedItems": [
+        "BACKUP_WORKFLOW_REDESIGN"
+      ],
       "evidence": [
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/backup-reentry-baseline/030729374053",
         ".hvigor/outputs/detail-chapter-controls/device197__ALN-AL80/portrait/backup-reentry-final-warm/031234517500",
@@ -17325,6 +17479,74 @@
       "detail": "197竖屏和103横屏合并、菜单、两种取消及已连接草稿错误恢复通过。197发送第399话3/45，103冷启动自动接收并实际呈现第3原图。两台清理测试连接和新增历史、换0333正常包并恢复释租，临时服务停止。条漫图内偏移、完整进程级故障及超长列表等未验边界保留在原项。",
       "itemId": "READING_HISTORY_SYNC",
       "kind": "verified"
+    },
+    {
+      "id": "source-cmanhua018-public-manhuashe-native",
+      "at": "2026-11-05T14:52:44+08:00",
+      "title": "明确0章提示完成公开分发，漫画社大目录进入237",
+      "detail": "CManhua0.1.8完成公开及镜像实际包核验，50本同体回放保99份正常响应；237及恢复已验收。漫画社3874章改为四页实际取全，避免39次重复下载；Root正在验证完整用户路径。漫画柜51/61进制错误另项定位，覆盖主队列继续。",
+      "itemIds": [
+        "SOURCE_CMANHUA_EMPTY_CHAPTERS",
+        "SOURCE_MANHUASHE_LONG_CATALOGUE_AND_AUTHOR",
+        "SOURCE_MANHUAGUI_PACKER_RADIX",
+        "SOURCE_ALL_PROVIDER_COVERAGE"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-cmanhua-full-web-catalogues",
+      "at": "2026-11-05T14:23:28+08:00",
+      "title": "CManhua50本网页目录逐项核对完成",
+      "detail": "同一批50本中，49本完整目录的每条ID、标题和顺序与原生DOM提取的官网一致，另1本官网明确0章；3次本地TLS/HTTP2中断保留原失败，原请求各补一次后成功。明确0章提示的限定候选正在237验证，10本正文实际图片继续核对。",
+      "itemIds": [
+        "SOURCE_ALL_PROVIDER_COVERAGE",
+        "SOURCE_CMANHUA_EMPTY_CHAPTERS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-asm-public-verified",
+      "at": "2026-11-05T14:17:33+08:00",
+      "title": "AsmHentai公开分页修复核验完成",
+      "detail": "公开0.1.5与237所用订阅镜像的索引、实际包一致；公开WASM两页网页及拒绝未知下一页的边界回放通过。该项按具名路径关闭，所有源的足量覆盖继续。",
+      "itemId": "SOURCE_ASMHENTAI_SEARCH_PAGINATION",
+      "kind": "verified"
+    },
+    {
+      "id": "source-asm-device-and-3hentai-public",
+      "at": "2026-11-05T14:10:31+08:00",
+      "title": "237搜索分页通过，3Hentai公开更新已核",
+      "detail": "AsmHentai普通搜索前两页逐项对照并继续滚动成功，原源与登记、测试数据和电源已读回恢复后释租；修复已推送等待公开包。3Hentai导出版本补正后，公开0.1.6和镜像实际源包核对完成，原网页正反例回放通过。覆盖合同仍在核默认筛选，按操作保留有效分母，不由入口或少量成功给整源背书。",
+      "itemIds": [
+        "SOURCE_ASMHENTAI_SEARCH_PAGINATION",
+        "SOURCE_3HENTAI_ASSET_OWNER",
+        "SOURCE_ALL_PROVIDER_COVERAGE"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-mhs-device-push-and-candidates-2026-11-05T1616490800",
+      "at": "2026-11-05T16:16:49+08:00",
+      "title": "漫画社实机验证与发布；补齐候选及全源检查进度",
+      "result": "237完成漫画社3874章及两个空作者，数据源电源恢复释租；0.1.11已推送且CI成功，公开包待核。漫画柜10本实图解码完成；NHentai.to、Pixiv和SDK表情候选分别登记，未把本地验证冒实机通过。全轮次74源1963唯一作品曾详情，完整App有效请求和逐本网页/图片独立计数。"
+    },
+    {
+      "id": "source-public-mhs-and-device-formats-2026-11-05T16:34:35+08:00",
+      "at": "2026-11-05T16:34:35+08:00",
+      "title": "漫画社公开实体核验完成，237格式候选验证继续",
+      "result": "漫画社已公开并冻结具名验收。漫画柜普通搜索两次超时不冒通过；NHentai.to两种WebP已实际渲染，PNG目标页与JPEG传输失败分开。英语源被原语言筛选隐藏，已备份偏好临时开启，设备会话尚在进行。"
+    },
+    {
+      "id": "source-format-device-restored-2026-11-05T16:52:32+08:00",
+      "at": "2026-11-05T16:52:32+08:00",
+      "title": "237三项候选实机通过并恢复；漫画柜访问未通",
+      "result": "NHentai.to两种WebP与准确55页PNG、Pixiv24/1公开目录与4/11页首图、WEBTOON10章与表情已亲审；漫画柜搜索/热门超时及WebView白页保留。四源、登记、阅读搜索、语言筛选逐字节恢复，电源SLEEP及原超时读回后释租。已验三项进入精确分发，漫画柜未发布。"
+    },
+    {
+      "id": "source-unicode-pixiv-nht-pushed-2026-11-05T17:01:19+08:00",
+      "at": "2026-11-05T17:01:19+08:00",
+      "title": "已验修复及25个源更新已推送，精确发布CI通过",
+      "result": "SDK23补丁版本、NHentai.to0.1.6和Pixiv0.1.14精确公开，公开实体与镜像核验继续；漫画柜未发布。漫画人本地游客会话能力已补，首个真实POST411未计作品，继续核HTTP封套。"
     }
   ],
   "reportAgeAudit": {
