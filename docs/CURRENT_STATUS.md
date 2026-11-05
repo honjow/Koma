@@ -4,7 +4,7 @@
 
 当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。。1.1.1 已发布。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
-设备：197和103前一轮已恢复原设置并释租；新版同步候选正在准备两机完整普通路径验收，新临时WebDAV只用于本轮测试。新版界面尚无真机通过结论。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
+设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
 书源检查：已核修复完成具名本地与237验证并陆续分发，全量足量采样、网页和实际图片核对仍在继续。漫画柜在237的访问尚未通过，候选未发布。
 
@@ -16,11 +16,11 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T22:56:26+08:00",
+  "updatedAt": "2026-11-05T23:56:06+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
-  "activity": "同步重设计正在修正103实机独立评审拦出的两处问题；197保存和换连接路径已实际走通。",
-  "nextAction": "两机安装最终修正候选，复验实际开关、合并清单和取消，再恢复清理并提交推送。",
+  "activity": "本次同步重设计、两机关键路径及独立终审完成，设备与临时服务均已恢复清理。",
+  "nextAction": "同步改动与验证结果已交付；其余既有问题保留原工作单状态，书源由另一会话处理。",
   "proof": [
     {
       "label": "正式主仓",
@@ -732,15 +732,15 @@
     {
       "id": "READING_HISTORY_SYNC",
       "title": "跨设备数据同步",
-      "kind": "active",
+      "kind": "done",
       "priority": "用户要求重做及独立评审",
       "owner": "Root",
-      "status": "197已核保存与换连接；103实机发现两项显示/计划问题，正在最终修正",
+      "status": "本次同步重设计、两机关键验收及独立终审完成，设备和临时服务已恢复清理",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
-      "result": "同步已改为服务列表、WebDAV管理、连接编辑、合并核对四个原生HDS目的地。197实际验证纯测试不保存、首次核对取消、首次确认真实上传、保存失败保原连接、有效草稿取消保原连接、换目录成功停旧连接并待核对，以及同空间只改口令保留暂停与自动策略。103横屏已核普通四页、零范围保存、退出重进、失败与取消，独立实机评审发现取消首次核对后开关假绿，以及固定全局阅读设置的共享删除被误报为本机删除。两项已在原状态与真实合并计划修正，关键引擎回归通过；最终包尚待两机增量复验，不能称新界面整体验收通过。",
-      "remaining": "构建最终修正包并独立审查；103复验原开关与固定设置删除反例、完成尚未确认的真实合并及清理；197补验最终候选独立启停与未决恢复边界。亲审实际画面及必要连续转场；两机恢复原设置、电源及正常包，释租并清理临时服务/密钥，精确提交推送。",
+      "result": "同步使用服务列表、WebDAV管理、连接编辑和合并核对四个原生目的页，配置保存与开始同步分开，服务独立启停。197实际核对保存失败/取消保旧、换目录保存即停旧、首次确认和同址改口令保策略；103核对真实上传、明确选择后的真实接收、暂停冷启、重开和关闭自动后的手动同步。取消核对后的假绿、固定阅读设置的假删除和旧记录自动复活已修正，独立源码与真实UI/连续返回评审通过。197实际请求在途时可撤组，断开后旧读错误不复活；103接收后下一同步无回声。两机原设置、正常包、电源及租约已恢复，临时服务、私钥和随机凭据已清理。同步源码已提交推送且对应CI通过，版本保持不变。",
+      "remaining": "本次改动无剩余收尾；本项既有未覆盖验证边界保留，不扩大为全部数据规模或异常分支验收。",
       "evidence": [
         "docs/plans/active/device-sync-design.md",
         ".hvigor/outputs/device-sync-independent/0333de60-independent-code-review.md",
@@ -782,7 +782,24 @@
         ".hvigor/outputs/sync-ui-redesign-20261105/independent-busy-scope-receipt.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/designer-visual-review.md",
         ".hvigor/outputs/sync-ui-redesign-20261105/r5-regression.log",
-        ".hvigor/outputs/sync-ui-redesign-20261105/designer-p2-corrections-review.md"
+        ".hvigor/outputs/sync-ui-redesign-20261105/designer-p2-corrections-review.md",
+        "https://github.com/honjow/Koma/commit/21aadc6106e5944f1d615507a31fa1d9c874b1e2",
+        ".hvigor/outputs/sync-ui-redesign-20261105/designer-source-r5-review.md",
+        ".hvigor/outputs/sync-ui-redesign-20261105/independent-r5-old-intent-after-compat.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/independent-r5-old-completed-after-compat.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-full-inputs.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/qa-fixture/r5-paired/build-identity.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device197-r4-password-paused-cold.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/designer-r5-final-review.md",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device103-confirm-approval-resolved.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device103-post-confirm-approval-resolved.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device103-r5-final-restoration.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device103-r5-A-C-remote-receipt.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-busy-scope-receipt.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-late-disconnect-receipt.json",
+        "https://github.com/honjow/Koma/actions/runs/42049963838",
+        ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
+        ".hvigor/outputs/sync-ui-redesign-20261105/qa-fixture/fixture-cleanup.json"
       ],
       "boundaries": [
         "首次合并确认后由用户开启自动。启动、回前台、网络恢复和本机落盘变更触发同步。按已观察到的事实版本合并，设备时间用于显示，离线并发保留双方候选。",
@@ -18212,6 +18229,34 @@
       "at": "2026-11-05T22:56:26+08:00",
       "title": "喵趣最终名称候选已重建并核完整内容回放",
       "result": "运行时及包简繁名为喵趣，原图标及sourceId保持；28作品56完整正常响应相等，下架语义与失败恢复边界通过，尚未237普通更新。"
+    },
+    {
+      "id": "sync-redesign-r5-built-pushed-2026-11-05T22:52:54+08:00",
+      "at": "2026-11-05T22:52:54+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "最终修正已推送，两种旧记录真实兼容反例独立复验通过",
+      "result": "旧未决empty apply与已完成缺基线均不再复活共享墓碑，真实本机改值和远端新值仍正常。正常包/测试包完整输入已核，版本未动；197暂停冷启动无DAV。设备两项原反例、恢复清理及最终画面终审仍未完成。"
+    },
+    {
+      "id": "sync-redesign-r5-103-review-confirmed-2026-11-05T23:09:19+08:00",
+      "at": "2026-11-05T23:09:19+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "103真实首次确认与启停通过，两项界面反例已独立终审",
+      "result": "实际上传4项全局偏好后启用且自动关闭；暂停冷启、重开及手动同步正常。独立亲审两选菜单/投影和原PTS片中的系统及标题返回，无假绿/假删除/空白闪屏。尚待C实际下行落值、197在途停止及最终恢复清理。"
+    },
+    {
+      "id": "sync-redesign-final-functional-verified-2026-11-05T23:47:24+08:00",
+      "at": "2026-11-05T23:47:24+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "两机关键验证及独立终审通过，进入最终恢复",
+      "result": "103实际接收与后续无回声已核，原35键/3书级偏好及正常包/原组/电源/租约已恢复。197真实在途撤组成功，断开后延迟读响应最终丢弃，后续未配置且无旧错误。此迟到错误是PROPFIND读响应，不冒已接受写提交丢响应。197恢复及服务清理仍在进行。"
+    },
+    {
+      "id": "sync-redesign-final-restored-2026-11-05T23:56:06+08:00",
+      "at": "2026-11-05T23:56:06+08:00",
+      "itemId": "READING_HISTORY_SYNC",
+      "title": "同步本次重设计完成，双机恢复释租及临时服务清理终态已读回",
+      "result": "主执行者读回两机实际正常包安装成功及原电源，活租约文件均不存在。197原五组/未配置/关闭策略恢复，103原35键/3书级覆盖全等；测试连接与凭据债务清零。精确临时服务进程退出、端口无监听、私钥/随机凭据已清，脱敏事实证据保留。源码CI通过，未改版本或发布，书源WIP未纳入本会话提交。"
     }
   ],
   "reportAgeAudit": {
