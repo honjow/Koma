@@ -401,18 +401,14 @@ export class RdbComicTranslationRepository implements ComicTranslationRepository
   async load(identity: ComicTranslationRequestIdentity): Promise<ComicPageDocument | null> {
     identity.assertValid()
     const store: relationalStore.RdbStore = await LocalDataStore.open(this.context)
-    const resultSet: relationalStore.ResultSet = await store.querySql(
-      SQL_SELECT_EXACT,
-      [identity.cacheKey()],
+    const payload: string | null = await LocalDataStore.readQuery<string | null>(
+      store, SQL_SELECT_EXACT, [identity.cacheKey()],
+      (resultSet: relationalStore.ResultSet): string | null => {
+        return resultSet.goToFirstRow() ? resultSet.getString(resultSet.getColumnIndex('payload')) : null
+      },
     )
-    let payload: string = ''
-    try {
-      if (!resultSet.goToFirstRow()) {
-        return null
-      }
-      payload = resultSet.getString(resultSet.getColumnIndex('payload'))
-    } finally {
-      resultSet.close()
+    if (payload === null) {
+      return null
     }
     let document: ComicPageDocument
     try {
@@ -477,13 +473,10 @@ export class RdbComicTranslationRepository implements ComicTranslationRepository
       return []
     }
     const store: relationalStore.RdbStore = await LocalDataStore.open(this.context)
-    const resultSet: relationalStore.ResultSet = await store.querySql(
-      SQL_SELECT_PREVIOUS,
-      [identity.scopeKey(), identity.pageIndex, MAX_PREVIOUS_SCAN_ROWS],
-    )
     const latestByPage: Map<number, ComicPageDocument> = new Map<number, ComicPageDocument>()
     const corruptKeys: string[] = []
-    try {
+    await LocalDataStore.readQuery<void>(store, SQL_SELECT_PREVIOUS,
+      [identity.scopeKey(), identity.pageIndex, MAX_PREVIOUS_SCAN_ROWS], (resultSet: relationalStore.ResultSet): void => {
       while (resultSet.goToNextRow()) {
         const cacheKey: string = resultSet.getString(resultSet.getColumnIndex('cache_key'))
         const payload: string = resultSet.getString(resultSet.getColumnIndex('payload'))
@@ -502,9 +495,7 @@ export class RdbComicTranslationRepository implements ComicTranslationRepository
           corruptKeys.push(cacheKey)
         }
       }
-    } finally {
-      resultSet.close()
-    }
+    })
     for (let index: number = 0; index < corruptKeys.length; index++) {
       try {
         await store.executeSql(SQL_DELETE_EXACT, [corruptKeys[index]])
@@ -542,15 +533,12 @@ export class RdbComicTranslationRepository implements ComicTranslationRepository
   async stat(): Promise<CacheStat> {
     const result: CacheStat = new CacheStat()
     const store: relationalStore.RdbStore = await LocalDataStore.open(this.context)
-    const resultSet: relationalStore.ResultSet = await store.querySql(SQL_STAT_ALL, [])
-    try {
+    await LocalDataStore.readQuery<void>(store, SQL_STAT_ALL, [], (resultSet: relationalStore.ResultSet): void => {
       if (resultSet.goToFirstRow()) {
         result.count = resultSet.getDouble(resultSet.getColumnIndex('c'))
         result.bytes = resultSet.getDouble(resultSet.getColumnIndex('b'))
       }
-    } finally {
-      resultSet.close()
-    }
+    })
     return result
   }
 

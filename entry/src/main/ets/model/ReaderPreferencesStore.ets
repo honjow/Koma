@@ -791,7 +791,10 @@ export class ReaderPreferencesStore {
   private ordered<T>(operation: () => Promise<T>): Promise<T> {
     const key = this.context.filesDir
     const preceding = readerPreferenceOperations.get(key) ?? Promise.resolve()
-    const result = preceding.then(operation)
+    const result = preceding.then(operation).catch((error: Error): T => {
+      console.warn('[ReaderPreferences] ordered operation failed')
+      throw error
+    })
     readerPreferenceOperations.set(key, result.then(() => {}, () => {}))
     return result
   }
@@ -848,6 +851,7 @@ export class ReaderPreferencesStore {
     })
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async readPreferences(): Promise<ReaderPreferences> {
     const store = await this.preferences()
     const pageMode = await store.get('reader.pageMode', DEFAULT_READER_PREFERENCES.pageMode) as string
@@ -957,6 +961,7 @@ export class ReaderPreferencesStore {
     return this.ordered(() => this.persistPreferences(requested))
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async persistPreferences(preferences: ReaderPreferences, publish: boolean = true,
     seriesModeOverrides: string | undefined = undefined, bannerOverrides?: string): Promise<ReaderPreferences> {
     const normalized = normalizeReaderPreferences(preferences)
@@ -1143,6 +1148,7 @@ export class ReaderPreferencesStore {
     })
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async clearSeriesModeOverride(comicId: string): Promise<void> {
     const key = comicId.trim()
     if (key.length === 0) {
@@ -1161,12 +1167,14 @@ export class ReaderPreferencesStore {
     await this.writeSeriesModeOverrides(remaining)
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async readSeriesModeOverrides(): Promise<Record<string, ReaderSeriesModeOverride>> {
     const store = await this.preferences()
     const raw = await store.get(SERIES_MODE_OVERRIDES_KEY, '') as string
     return normalizeReaderSeriesModeOverrides(raw)
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async writeSeriesModeOverrides(overrides: Record<string, ReaderSeriesModeOverride>): Promise<void> {
     const store = await this.preferences()
     const hadPrevious = await store.has(SERIES_MODE_OVERRIDES_KEY)
@@ -1186,6 +1194,7 @@ export class ReaderPreferencesStore {
     }
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async readBannerOverrides(): Promise<Record<string, BannerFilterMode>> {
     return normalizeBannerOverrides(await (await this.preferences()).get(BANNER_OVERRIDES_KEY, '') as string)
   }
@@ -1405,6 +1414,7 @@ export class ReaderPreferencesStore {
     })
   }
 
+  /** @throws Preference I/O failures reject the ordered operation. */
   private async preferences(): Promise<preferences.Preferences> {
     return preferences.getPreferences(this.context, READER_PREFERENCES_STORE_NAME)
   }

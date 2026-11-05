@@ -1,6 +1,7 @@
 // Adapted from NextE59a7a679. Koma owns configuration, credentials and files.
 import { common } from '@kit.AbilityKit'
 import { relationalStore } from '@kit.ArkData'
+import { DiagnosticLogger } from '../../diagnostics/DiagnosticLogger'
 
 const SQL_CREATE_COMIC_TRANSLATION_DOCUMENT_CACHE_TABLE: string =
   'CREATE TABLE IF NOT EXISTS comic_translation_document_cache (' +
@@ -23,15 +24,49 @@ export class LocalDataStore {
   private static initialization: Promise<void> | null = null
   private static initialized: boolean = false
   static async open(context: common.UIAbilityContext): Promise<relationalStore.RdbStore> {
-    const store = await relationalStore.getRdbStore(context,
-      { name: 'koma-reader-translation-cache.db', securityLevel: relationalStore.SecurityLevel.S1 })
+    let store: relationalStore.RdbStore
+    try {
+      store = await relationalStore.getRdbStore(context,
+        { name: 'koma-reader-translation-cache.db', securityLevel: relationalStore.SecurityLevel.S1 })
+    } catch (error) {
+      DiagnosticLogger.warn('comic-translation-cache', 'open_failed', 'cache store unavailable')
+      throw error as Error
+    }
     if (!LocalDataStore.initialized) {
-      if (LocalDataStore.initialization === null) LocalDataStore.initialization = LocalDataStore.initialize(store)
-      try { await LocalDataStore.initialization; LocalDataStore.initialized = true }
-      finally { LocalDataStore.initialization = null }
+      try {
+        if (LocalDataStore.initialization === null) LocalDataStore.initialization = LocalDataStore.initialize(store)
+        await LocalDataStore.initialization
+        LocalDataStore.initialized = true
+      } catch (error) {
+        DiagnosticLogger.warn('comic-translation-cache', 'schema_initialization_failed', 'cache initialization will retry')
+        throw error as Error
+      } finally {
+        LocalDataStore.initialization = null
+      }
     }
     return store
   }
+  /** Keep the cursor inside the read and propagate failures to the caller's recovery path. */
+  static async readQuery<T>(
+    store: relationalStore.RdbStore,
+    sql: string,
+    args: relationalStore.ValueType[],
+    read: (result: relationalStore.ResultSet) => T,
+  ): Promise<T> {
+    try {
+      const result: relationalStore.ResultSet = await store.querySql(sql, args)
+      try {
+        return read(result)
+      } finally {
+        result.close()
+      }
+    } catch (error) {
+      DiagnosticLogger.warn('comic-translation-cache', 'query_failed', 'cache query failed')
+      throw error as Error
+    }
+  }
+
+  /** @throws Initialization failure is handled by open and leaves the cache retryable. */
   private static async initialize(store: relationalStore.RdbStore): Promise<void> {
     await store.executeSql(SQL_CREATE_COMIC_TRANSLATION_DOCUMENT_CACHE_TABLE)
     await store.executeSql(SQL_CREATE_COMIC_TRANSLATION_DOCUMENT_CACHE_SCOPE_INDEX)
