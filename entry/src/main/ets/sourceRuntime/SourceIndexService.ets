@@ -1,3 +1,4 @@
+import { signalDeviceSyncChange, signalDeviceSyncSubscriptionRemoved } from '../deviceSync/DeviceSyncSignals'
 import { parseSourceIndexCacheTask, parseSourceIndexDocumentTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
@@ -363,6 +364,7 @@ export class SourceIndexService {
         await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
       }
       await store.flush()
+      if (repositories !== undefined) signalDeviceSyncChange('source-subscriptions')
     } catch (_error) {
       if (urlExisted) await store.put(SOURCE_INDEX_URL_KEY, previousUrl)
       else await store.delete(SOURCE_INDEX_URL_KEY)
@@ -445,6 +447,23 @@ export class SourceIndexService {
     }))
   }
 
+  async acceptDeviceSyncSubscription(url: string, label: string): Promise<void> {
+    // User action from sync results, never an automatic remote side effect.
+    const result = await this.fetchIndex(url)
+    if (!result.ok) throw new Error('sync_catalog_unavailable')
+    await BackupRestoreActivity.runWrite(async (): Promise<void> => this.ordered(async (): Promise<void> => {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const current = await this.savedRepositories(store)
+      if (current.some((repository: SourceIndexRepository): boolean =>
+        subscriptionIdentity(repository.url) === subscriptionIdentity(url))) return
+      if (current.length >= SOURCE_INDEX_REPOSITORY_LIMIT) throw new Error('sync_catalog_limit')
+      const added: SourceIndexRepository = { url: normalizeIndexUrl(url), lastUsedAt: 0,
+        customName: label.trim().slice(0, 120) || undefined, name: result.metadata?.name, website: result.metadata?.website }
+      await this.commitSavedPreferences(store, current.concat(added))
+      this.rememberSubscriptionState(added)
+    }))
+  }
+
   async refreshRepositoryMetadata(repository: SourceIndexRepository): Promise<void> {
     if (repository.disabled) return
     const metadata = await this.fetchRepositoryMetadata(repository.url)
@@ -501,6 +520,7 @@ export class SourceIndexService {
             removingActive && repositories.length > 0 ? repositories[0].url : undefined,
             removingActive && repositories.length === 0)
           this.retireSubscription(normalized)
+          signalDeviceSyncSubscriptionRemoved(normalized)
           return repositories
         } catch (_error) {
           throw new Error('source_index_preferences_remove_failed')

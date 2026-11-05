@@ -75,6 +75,7 @@ const BACKUP_DISCLOSURE_DURATION_MS: number = 200
 @ComponentV2
 export struct BackupManagementPage {
   @Param searchTarget: string = ''
+  @Event onOpenDeviceSync: () => void = () => {}
   private backupScroller: Scroller = new Scroller()
   @Local private backupSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param refreshRevision: number = 0
@@ -831,8 +832,8 @@ export struct BackupManagementPage {
 
   private positionBackupSection(): void {
     // Search positions the same page without creating, importing or changing a preference.
-    const index = this.searchTarget === 'backup-files' ? 2 :
-      this.searchTarget === 'backup-automatic' ? 3 : this.searchTarget === 'backup-content' ? 4 : 0
+    const index = this.searchTarget === 'backup-files' ? 3 :
+      this.searchTarget === 'backup-automatic' ? 4 : this.searchTarget === 'backup-content' ? 5 : 0
     if (index === 0) return
     const inset = this.backupSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD
     this.backupScroller.scrollToIndex(index, false, ScrollAlign.START, { extraOffset: LengthMetrics.vp(-inset) })
@@ -1281,6 +1282,12 @@ export struct BackupManagementPage {
           bottomPadding: ThemeConstants.SPACE_XL,
         }) {
           ListItem() { this.BackupActions() }
+          ListItem() {
+            GroupedListSection() {
+              ConciseListRow({ title: t('device_sync_title'), subtitle: t('device_sync_entry_detail'),
+                action: (): void => { this.onOpenDeviceSync() } })
+            }
+          }
           ListItem() { this.LocalBackupsCard() }
           ListItem() { this.AutomaticBackupCard() }
           ListItem() { this.DomainsCard() }

@@ -148,6 +148,7 @@ export class CrossSearchService {
     webChallengeCurrent: (() => boolean) | undefined = undefined,
     sourceIds: string[] | undefined = undefined,
     librarySource: LibrarySearchSource | undefined = undefined,
+    onSourcePlan?: (sourceIds: string[]) => void,
   ): Promise<CrossSearchSection[]> {
     this.cancelPendingSearch()
     const normalizedQuery = query.trim()
@@ -205,12 +206,13 @@ export class CrossSearchService {
 
     const sourceRun: PagedSearchRun = { cancelled: false, webChallengeCurrent }
     this.pagedSearchRuns.push(sourceRun)
-    const sourceTasks: Promise<SourceSearchOutcome>[] = this.sourceMatchesFilter('wasm', sourceFilter) ?
-      this.selectedSourceSummaries(sourceIds).map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
+    const sourcePlan = this.sourceMatchesFilter('wasm', sourceFilter) ? this.selectedSourceSummaries(sourceIds) : []
+    onSourcePlan?.(sourcePlan.map((source: SourceRuntimeRegistryInstalledSourceSummary): string => source.sourceId))
+    const sourceTasks: Promise<SourceSearchOutcome>[] =
+      sourcePlan.map((source: SourceRuntimeRegistryInstalledSourceSummary) => {
         // Use the same execution and HTTP deadlines as source-internal search.
         return this.searchWasmSource(source, normalizedQuery, sourceRun, onSectionResolved)
-      }) :
-      []
+      })
     const reportedTasks = tasks.concat(sourceTasks).map((task: Promise<SourceSearchOutcome>) => {
       return task.then((outcome: SourceSearchOutcome): SourceSearchOutcome => {
         if (onSectionResolved !== undefined) {

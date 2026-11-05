@@ -1,3 +1,6 @@
+import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
+import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
+import { DeviceSyncOverviewPage, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
@@ -19,7 +22,7 @@ import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeStat
 import { applyBackgroundLibraryResults, synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { SourcePackageManagerCache, appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { komaMenuOptions, komaToastOptions } from "../theme/KomaPopupOptions"
+import { komaDialogMaterial, komaMenuOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
@@ -212,6 +215,11 @@ interface SettingsPaneRouteParam {
   pane: string
   searchTarget?: string
   formTitleAction: FormTitleActionState
+}
+
+interface DeviceSyncWebDavRouteParam {
+  groups: SyncGroup[]
+  titleAction: FormTitleActionState
 }
 
 interface SettingsSearchRouteParam {
@@ -779,6 +787,19 @@ struct Index {
       return
     }
     const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
+    if (!(await appDeviceSync.validateReadingPages(preparedRequest, nextSessionConfig.pageUris))) {
+      if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
+      this.readerSessionLoading = false
+      this.getUIContext().showAlertDialog({ title: AppStrings.get('device_sync_changed_chapter'),
+        message: AppStrings.get('device_sync_saved_location'), systemMaterial: komaDialogMaterial(),
+        primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => { this.closeReader() } },
+        secondaryButton: { value: AppStrings.get('device_sync_open_chapters'), action: (): void => {
+          this.openReaderMangaDetail()
+        } },
+      })
+      return
+    }
+    if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
     this.readerSessionConfig = nextSessionConfig
     this.readerPageIndex = this.readerSessionStore.openPageIndex(nextSessionConfig, this.readerOpenIntent)
     // Terminal publication for the transient source session.
@@ -945,6 +966,7 @@ struct Index {
     if (sourceRequest.chapterId === committedRequest.chapterId &&
       this.readerSessionStore.getSourceHistory(target.work)?.chapterId === target.unit) return
     this.activeSourceReaderRequest = committedRequest
+    appDeviceSync.beginReadingChapter(committedRequest)
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(committedRequest))
     this.readerSessionStore.flush()
   }
@@ -1062,6 +1084,31 @@ struct Index {
       nextRequest.comicId.trim().length === 0 ||
       nextRequest.chapterId.trim().length === 0 ||
       !nextRequest.chapterIds.includes(nextRequest.chapterId)) {
+      return
+    }
+    const synchronized = await appDeviceSync.openReading(nextRequest)
+    if (synchronized !== 'ready') {
+      const name = nextRequest.sourceName || nextRequest.sourceId
+      const key = synchronized === 'missing' ? 'device_sync_missing_source' :
+        synchronized === 'changed' ? 'device_sync_changed_chapter' : 'device_sync_source_unavailable'
+      this.getUIContext().showAlertDialog({
+        title: AppStrings.get(key).replace('%s', name),
+        message: AppStrings.get('device_sync_saved_location'),
+        systemMaterial: komaDialogMaterial(),
+        primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
+        secondaryButton: { value: AppStrings.get(synchronized === 'missing' ? 'device_sync_find_source' :
+          synchronized === 'changed' ? 'device_sync_open_chapters' : 'device_sync_retry'), action: (): void => {
+          if (synchronized === 'missing') {
+            const recovery: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: nextRequest.sourceId,
+              recoverySourceName: name, chrome: new SourceCatalogPageChrome() }
+            this.appPathStack.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
+          }
+          else if (synchronized === 'changed') RouterHelper.pushMangaDetail({ mangaId: nextRequest.mangaId,
+            sourceId: nextRequest.sourceId, initialManga: { id: nextRequest.mangaId, sourceId: nextRequest.sourceId,
+              title: nextRequest.title, coverUrl: nextRequest.coverUri, url: nextRequest.mangaUrl } }, true)
+          else void this.openSourceReader(nextRequest, intent)
+        } },
+      })
       return
     }
     const readerDetailVisible = this.isReaderDetailRouteVisible()
@@ -1422,6 +1469,7 @@ struct Index {
       columnMode: column,
     }
     this.readerSessionStore.saveProgress(progress)
+    appDeviceSync.observeReading(progress, config.pageUris)
     if (this.readerOpen) this.observeReaderTrackerProgress(progress)
     // Keep page persistence live, but do not rebuild the covered shelf/history
     // and full chapter catalog on every page crossing. Reader close publishes
@@ -1713,6 +1761,14 @@ struct Index {
   }
 
   private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
+    if (pane === 'backup' && rowKey === 'device-sync') {
+      this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC })
+      return
+    }
+    if (pane === 'backup' && rowKey === 'device-sync-webdav') {
+      this.openDeviceSyncWebDav([])
+      return
+    }
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
     if (pane === 'backup') {
@@ -1725,6 +1781,11 @@ struct Index {
     }
     const routeParam: SettingsPaneRouteParam = { pane: pane, searchTarget: rowKey, formTitleAction: new FormTitleActionState() }
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
+  }
+
+  private openDeviceSyncWebDav(groups: SyncGroup[]): void {
+    const param: DeviceSyncWebDavRouteParam = { groups, titleAction: new FormTitleActionState() }
+    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_WEBDAV, param })
   }
 
   private selectRootTab(index: number): void {
@@ -2189,6 +2250,13 @@ struct Index {
     if (!this.readerSessionPersistenceReady) {
       this.reloadReaderSessionStore('app_appear')
     }
+    appDeviceSync.attachPublisher((groups: SyncGroup[]): void => {
+      if (groups.includes('shelf')) {
+        this.ensureLibraryPersistenceService()?.restore()
+        this.refreshLibrarySnapshot()
+      }
+      if (groups.includes('reading')) this.readerProgressRevision++
+    })
     void new LibraryUpdateResultStore(context).loadChapterUpdates().catch((): void => {
       DiagnosticLogger.warn('library_updates', 'history_load_failed', 'phase=preferences')
     })
@@ -2327,6 +2395,7 @@ struct Index {
           this.readerWebtoonMode = value
         },
         onObservedProgress: (progress: ReadingProgress): void => {
+          appDeviceSync.observeReading(progress, this.readerSessionConfig.pageUris)
           this.observeReaderTrackerProgress(progress)
         },
         onObservedReadingPages: (comic: string, chapter: string, pages: number[]): void => {
@@ -2674,6 +2743,8 @@ struct Index {
         SourcePackageManagerPage({
           chrome: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined),
           initialSettingsSourceId: (param as SourcePackageManagerRouteParam | undefined)?.settingsSourceId ?? '',
+          recoverySourceId: (param as SourcePackageManagerRouteParam | undefined)?.recoverySourceId ?? '',
+          recoverySourceName: (param as SourcePackageManagerRouteParam | undefined)?.recoverySourceName ?? '',
           onSettingsSaved: () => { (param as SourcePackageManagerRouteParam | undefined)?.onSettingsSaved?.() },
           onBeforeRemove: (sourceId: string, sourceName: string): void => {
             const persistence = this.ensureLibraryPersistenceService()
@@ -2797,10 +2868,22 @@ struct Index {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
           searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
+          onOpenDeviceSync: (): void => { this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC }) },
           onRestoreCompleted: () => { this.onBackupRestored() } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
       .onBackPressed(() => BackupRestoreActivity.isRestoring())
+    } else if (name === RouteName.DEVICE_SYNC) {
+      HdsNavDestination() {
+        DeviceSyncOverviewPage({ onOpenWebDav: (groups: SyncGroup[]): void => { this.openDeviceSyncWebDav(groups) } })
+      }
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('device_sync_title')))
+    } else if (name === RouteName.DEVICE_SYNC_WEBDAV) {
+      HdsNavDestination() {
+        DeviceSyncWebDavPage({ proposedSelection: (param as DeviceSyncWebDavRouteParam).groups,
+          titleAction: (param as DeviceSyncWebDavRouteParam).titleAction })
+      }
+      .titleBar(this.deviceSyncTitleBarOpts((param as DeviceSyncWebDavRouteParam).titleAction))
     } else if (name === RouteName.READING_STATISTICS) {
       HdsNavDestination() {
         ReadingStatisticsPage({ libraryStore: this.libraryStore, sessionStore: this.readerSessionStore })
@@ -3411,6 +3494,20 @@ struct Index {
     const item: Record<string, Object> = { 'content': action }
     const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
     content['menu'] = menu
+    return options
+  }
+
+  private deviceSyncTitleBarOpts(titleAction: FormTitleActionState): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('device_sync_webdav'))
+    if (titleAction.enabled) {
+      const content = options['content'] as Record<string, Object>
+      const action: Record<string, Object> = { 'label': AppStrings.get('device_sync_confirm_merge'),
+        'icon': $r('sys.symbol.checkmark'), 'isEnabled': !appDeviceSync.view.busy,
+        'action': (): void => { titleAction.requestSave() } }
+      const item: Record<string, Object> = { 'content': action }
+      const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
+      content['menu'] = menu
+    }
     return options
   }
 

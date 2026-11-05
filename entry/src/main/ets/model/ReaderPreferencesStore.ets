@@ -1,3 +1,4 @@
+import { signalDeviceSyncBookMode, signalDeviceSyncChange } from '../deviceSync/DeviceSyncSignals'
 import { BannerFilterMode, normalizeBannerFilter } from './ImageBannerRules'
 import { ReaderDisplaySettings, normalizeReaderDisplaySettings, parseReaderDisplaySettings, rebaseReaderDisplaySettings } from './ReaderDisplaySettings'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
@@ -107,6 +108,15 @@ export function readerDirectionSelection(current: ReaderSeriesModeOverride, read
     pageMode: readingDirection === ReadingDirection.WEBTOON ? 'continuous_scroll' : current.pageMode,
     readingDirection,
   }
+}
+
+/** Only the approved portable reader fields are exposed to device sync. */
+export interface ReaderDeviceSyncPreferences {
+  mode: ReaderSeriesModeOverride
+  pageTurnAnimation: boolean
+  showPageNumber: boolean
+  imageFitMode: ReaderImageFitMode
+  books: Record<string, ReaderSeriesModeOverride>
 }
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -788,7 +798,10 @@ export class ReaderPreferencesStore {
 
   private mutate(operation: () => Promise<ReaderPreferences>): Promise<ReaderPreferences> {
     // Count queued writers too: restore must not enter ahead of an admitted edit.
-    return BackupRestoreActivity.runWrite(() => this.ordered(operation))
+    return BackupRestoreActivity.runWrite(() => this.ordered(operation)).then((value: ReaderPreferences): ReaderPreferences => {
+      signalDeviceSyncChange('reader-settings')
+      return value
+    })
   }
 
   private mutatePreferences(change: (next: ReaderPreferences) => void): Promise<ReaderPreferences> {
@@ -804,6 +817,34 @@ export class ReaderPreferencesStore {
       const current = await this.readPreferences()
       publishReaderModeState(current)
       return current
+    })
+  }
+
+  captureDeviceSyncPreferences(): Promise<ReaderDeviceSyncPreferences> {
+    return this.ordered(async (): Promise<ReaderDeviceSyncPreferences> => {
+      const current = await this.readPreferences()
+      return {
+        mode: { pageMode: current.pageMode, readingDirection: current.readingDirection },
+        pageTurnAnimation: current.pageTurnAnimation,
+        showPageNumber: current.showPageNumber,
+        imageFitMode: current.imageFitMode,
+        books: await this.readSeriesModeOverrides(),
+      }
+    })
+  }
+
+  applyDeviceSyncPreferences(state: ReaderDeviceSyncPreferences): Promise<ReaderPreferences> {
+    // Called only inside the device sync commit fence. In contrast with the
+    // local UI command an explicit book override is kept even if it equals
+    // the current global preference on this device.
+    return this.ordered(async (): Promise<ReaderPreferences> => {
+      const current = await this.readPreferences()
+      current.pageMode = state.mode.pageMode
+      current.readingDirection = state.mode.readingDirection
+      current.pageTurnAnimation = state.pageTurnAnimation
+      current.showPageNumber = state.showPageNumber
+      current.imageFitMode = state.imageFitMode
+      return this.persistPreferences(current, false, JSON.stringify(state.books))
     })
   }
 
@@ -1067,6 +1108,10 @@ export class ReaderPreferencesStore {
     if (key && requested.bannerFilterOverride !== undefined && requested.bannerFilterOverride !== 'global')
       banners[key] = normalizeBannerFilter(requested.bannerFilterOverride)
     const normalized = await this.persistPreferences(narrowed, false, seriesModeOverrides, JSON.stringify(banners))
+    if (seriesModeOverrides !== undefined) {
+      const saved = (JSON.parse(seriesModeOverrides) as Record<string, ReaderSeriesModeOverride>)[key]
+      signalDeviceSyncBookMode({ comicId: key, mode: saved?.pageMode, direction: saved?.readingDirection })
+    }
     const effective = this.cloneBase(normalized)
     effective.pageMode = requested.pageMode
     effective.readingDirection = requested.readingDirection
@@ -1090,6 +1135,7 @@ export class ReaderPreferencesStore {
   async clearSeriesOverride(comicId: string): Promise<ReaderPreferences> {
     return this.mutate(async (): Promise<ReaderPreferences> => {
       await this.clearSeriesModeOverride(comicId)
+      signalDeviceSyncBookMode({ comicId })
       const current = await this.readPreferences()
       current.bannerFilterOverride = (await this.readBannerOverrides())[comicId.trim()] ?? 'global'
       publishReaderModeState(current)

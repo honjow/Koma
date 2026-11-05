@@ -1,3 +1,7 @@
+import { allowDeviceSyncReaderProgress, deviceSyncReadingAcknowledged, deviceSyncReadingActionAcknowledged,
+  signalDeviceSyncChange, stageDeviceSyncReading, stageDeviceSyncReadingActions, SyncReadingCapture,
+  SyncReadingActionCapture, SyncReadingSignal } from '../deviceSync/DeviceSyncSignals'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
@@ -244,6 +248,8 @@ interface ReaderSessionDocument {
   remoteHistory?: RemoteReadHistoryEntry[]
   chapters?: ChapterReadingState[]
   readingSessions?: ReadingSessionRecord[]
+  syncPositions?: SyncReadingCapture[]
+  syncActions?: SyncReadingActionCapture[]
 }
 
 interface LegacyChapterReadDocument {
@@ -257,6 +263,8 @@ export interface ReaderSessionDocumentSnapshot {
   remoteHistory?: RemoteReadHistoryEntry[]
   chapters: ChapterReadingState[]
   readingSessions?: ReadingSessionRecord[]
+  syncPositions?: SyncReadingCapture[]
+  syncActions?: SyncReadingActionCapture[]
 }
 
 function projectChapterCompletion(state: ChapterReadingState, progress: ReadingProgress | undefined): void {
@@ -319,6 +327,18 @@ export function normalizeReaderSessionBackupPayload(payload: string): string {
     readingSessions: snapshot.readingSessions,
   }
   return JSON.stringify(normalized)
+}
+
+/** Local outbox belongs to the same atomic file as the corresponding page turn.
+ * Backup export and replacement use the normalizer above, which omits it. */
+export function serializeReaderSessionForDevice(snapshot: ReaderSessionDocumentSnapshot): string {
+  const document: ReaderSessionDocument = {
+    schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
+    progress: snapshot.progress, sourceHistory: snapshot.sourceHistory, remoteHistory: snapshot.remoteHistory,
+    chapters: snapshot.chapters, readingSessions: snapshot.readingSessions, syncPositions: snapshot.syncPositions,
+    syncActions: snapshot.syncActions,
+  }
+  return JSON.stringify(document)
 }
 
 function normalizeReaderSessionFilePath(filesDir: string): string {
@@ -400,6 +420,8 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
       throw new Error(`Unsupported reader progress schema version: ${document.schemaVersion}`)
     }
     const snapshot = readerSessionSnapshot(document)
+    snapshot.syncPositions = document.syncPositions
+    snapshot.syncActions = document.syncActions
     if (document.schemaVersion !== READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION) {
       const legacyPayload = document.schemaVersion <= 2
         ? new AppFilesChapterReadStatePersistenceAdapter(this.filesDir).load() : undefined
@@ -427,15 +449,10 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
   }
 
   private saveDocument(snapshot: ReaderSessionDocumentSnapshot): void {
-    const document: ReaderSessionDocument = {
-      schemaVersion: READER_PROGRESS_PERSISTENCE_SCHEMA_VERSION,
-      progress: snapshot.progress,
-      sourceHistory: snapshot.sourceHistory,
-      remoteHistory: snapshot.remoteHistory,
-      chapters: snapshot.chapters,
-      readingSessions: snapshot.readingSessions,
+    if (BackupRestoreActivity.deviceSyncIsCommitting() || BackupRestoreActivity.hasPendingRecovery()) {
+      throw new Error('sync_local_busy')
     }
-    writeAppTextFile(this.filePath, JSON.stringify(document))
+    writeAppTextFile(this.filePath, serializeReaderSessionForDevice(snapshot))
     this.migrationPending = false
   }
 }
@@ -473,7 +490,9 @@ export abstract class ReaderSessionStore {
     let changedCount = 0
     const committed = this.commitUserMutation((): void => {
       changedCount = this.markChapterReadStates(mutations)
-    })
+    }, mutations.map((mutation: ChapterReadMutation): SyncReadingSignal => ({
+      comicId: mutation.comicId, chapterId: mutation.chapterId, kind: mutation.isRead ? 'read' : 'unread',
+    })))
     return { committed, changedCount: committed ? changedCount : 0 }
   }
 
@@ -482,13 +501,14 @@ export abstract class ReaderSessionStore {
   }
 
   commitChapterBookmark(comicId: ComicId, chapterId: ChapterId, bookmarked: boolean): boolean {
-    return this.commitUserMutation((): void => {
+    const committed = this.commitUserMutation((): void => {
       const key = chapterStateKey(comicId, chapterId)
       const old = this.chapterStates.get(key)
       this.chapterStates.set(key, { comicId, chapterId, position: old?.position,
         isRead: old?.isRead === true, bookmarked, updatedAt: old?.updatedAt ?? Date.now() })
       this.chapterStatesChanged()
-    })
+    }, [{ comicId, chapterId, kind: bookmarked ? 'bookmark' : 'unbookmark' }])
+    return committed
   }
 
   /** Transfer only resolved chapter identities. Existing destination progress wins;
@@ -519,12 +539,12 @@ export abstract class ReaderSessionStore {
     this.saveProgress(progress)
   }
 
-  protected commitUserMutation(mutation: () => void): boolean {
+  protected commitUserMutation(mutation: () => void, _actions: SyncReadingSignal[] = []): boolean {
     mutation()
     return this.flush()
   }
 
-  removeHistoryEntries(comicIds: ComicId[]): boolean {
+  removeHistoryEntries(comicIds: ComicId[], clear: boolean = false): boolean {
     return this.commitUserMutation((): void => {
       comicIds.forEach((comicId: ComicId): void => {
         this.removeProgress(comicId)
@@ -753,12 +773,27 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   private readonly sourceHistoryByComicId: Map<ComicId, SourceReadHistoryEntry> = new Map<ComicId, SourceReadHistoryEntry>()
   private persistTimerId: number = -1
   private persistPending: boolean = false
+  private deviceSyncRevision: number = 0
+  private syncPositions: SyncReadingCapture[] = []
+  private syncActions: SyncReadingActionCapture[] = []
 
   constructor(adapter: ReaderSessionPersistenceAdapter) {
     super()
     this.adapter = adapter
     this.restoreSnapshot()
     this.flushPendingMigration()
+  }
+
+  currentDeviceSyncRevision(): number {
+    return this.deviceSyncRevision
+  }
+
+  pendingDeviceSyncPositions(): SyncReadingCapture[] {
+    return this.syncPositions.slice()
+  }
+
+  pendingDeviceSyncActions(): SyncReadingActionCapture[] {
+    return this.syncActions.slice()
   }
 
   /** Reload a replaced backup without flushing the pre-restore pending snapshot. */
@@ -797,6 +832,8 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       if (snapshot === undefined) this.recordChapterProgress(progress)
     })
     if (snapshot !== undefined) {
+      this.syncPositions = snapshot.syncPositions ?? []
+      this.syncActions = snapshot.syncActions ?? []
       this.readingSessions = snapshot.readingSessions ?? []
       snapshot.chapters.forEach((state: ChapterReadingState): void => {
         this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), state)
@@ -826,6 +863,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   saveProgress(progress: ReadingProgress): void {
+    if (!allowDeviceSyncReaderProgress(progress)) return
     const copied = copyReadingProgressWithTimestamp(progress)
     copied.completed = this.isChapterRead(progress.comicId, progress.chapterId) || progress.completed
     this.progressByComicId.set(progress.comicId, copied)
@@ -850,14 +888,14 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     this.flush()
   }
 
-  removeHistoryEntries(comicIds: ComicId[]): boolean {
+  removeHistoryEntries(comicIds: ComicId[], clear: boolean = false): boolean {
     const ids = new Set<ComicId>(comicIds)
     const hasHistory = this.listProgress().some((row: ReadingProgress): boolean => ids.has(row.comicId)) ||
       this.listSourceHistory().some((row: SourceReadHistoryEntry): boolean => ids.has(row.comicId)) ||
       this.listRemoteHistory().some((row: RemoteReadHistoryEntry): boolean => ids.has(row.comicId)) ||
       this.readingSessions.some((row: ReadingSessionRecord): boolean => ids.has(row.comicId))
     if (!hasHistory) return true
-    return this.commitUserMutation((): void => {
+    const committed = this.commitUserMutation((): void => {
       ids.forEach((comicId: ComicId): void => {
         this.progressByComicId.delete(comicId)
         this.sourceHistoryByComicId.delete(comicId)
@@ -865,18 +903,23 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       })
       this.readingSessions = this.readingSessions.filter((record: ReadingSessionRecord): boolean => !ids.has(record.comicId))
       this.persistPending = true
-    })
+    }, Array.from(ids).map((comicId: string): SyncReadingSignal => ({
+      comicId, chapterId: '', kind: clear ? 'clear-history' : 'remove-history',
+    })))
+    return committed
   }
 
-  protected commitUserMutation(mutation: () => void): boolean {
+  protected commitUserMutation(mutation: () => void, actions: SyncReadingSignal[] = []): boolean {
     const current: ReaderSessionDocumentSnapshot = { progress: this.listProgress(),
       sourceHistory: this.listSourceHistory(), remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(),
       readingSessions: this.listReadingSessions() }
     // Read-state changes also mutate recent/position objects, so retain a detached snapshot.
     const previous = JSON.parse(JSON.stringify(current)) as ReaderSessionDocumentSnapshot
     const pendingBefore = this.persistPending
+    const actionsBefore = this.syncActions
     try {
       mutation()
+      if (actions.length > 0 && this.persistPending) this.syncActions = this.syncActions.concat(stageDeviceSyncReadingActions(actions))
       if (this.flush()) return true
     } catch (_error) {
       DiagnosticLogger.warn('reader_session_store', 'user_mutation_failed', '[ReaderProgress] user_mutation_failed')
@@ -896,6 +939,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
     })
     // Preserve an earlier page-turn write, but never retry a rejected user operation silently.
     this.persistPending = pendingBefore
+    this.syncActions = actionsBefore
     if (pendingBefore) this.schedulePersist()
     return false
   }
@@ -978,6 +1022,7 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   }
 
   private schedulePersist(): void {
+    this.deviceSyncRevision++
     this.persistPending = true
     if (this.persistTimerId >= 0) {
       return
@@ -994,8 +1039,20 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       rows.push(progress)
     })
     if (this.adapter.saveSnapshot !== undefined) {
+      const staged = stageDeviceSyncReading(rows)
+      const syncPositions = this.syncPositions.filter((item: SyncReadingCapture): boolean =>
+        !deviceSyncReadingAcknowledged(item) && (staged === undefined ||
+          item.comicId !== staged.comicId || item.chapterId !== staged.chapterId || item.space !== staged.space))
+      if (staged !== undefined) syncPositions.push(staged)
+      const syncActions = this.syncActions.filter((item: SyncReadingActionCapture): boolean =>
+        !deviceSyncReadingActionAcknowledged(item) || syncPositions.length > 0)
       this.adapter.saveSnapshot({ progress: rows, sourceHistory: this.listSourceHistory(),
-        remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(), readingSessions: this.listReadingSessions() })
+        remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(), readingSessions: this.listReadingSessions(),
+        syncPositions: syncPositions.length > 0 ? syncPositions : undefined,
+        syncActions: syncActions.length > 0 ? syncActions : undefined })
+      this.syncPositions = syncPositions
+      this.syncActions = syncActions
+      signalDeviceSyncChange('reading')
       return
     }
     this.adapter.save(rows)

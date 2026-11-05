@@ -17,6 +17,8 @@ function compile(file, dependencies = {}) {
 const stats = compile('model/ReadingStatistics')
 const models = compile('model/ComicModels', { '../i18n/AppStrings': { AppStrings: {} } })
 const owner = compile('model/ReaderSessionStore', {
+  './BackupRestoreActivity': compile('model/BackupRestoreActivity'),
+  '../deviceSync/DeviceSyncSignals': compile('deviceSync/DeviceSyncSignals'),
   '../sourceRuntime/SourceRuntimeAppRegistry': {}, './SourceTextPageDescriptor': {},
   './SourceTextOverlay': {},
   '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { warn() {} } }, './AppFileTextPersistence': {},

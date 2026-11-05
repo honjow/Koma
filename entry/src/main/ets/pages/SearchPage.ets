@@ -1,3 +1,4 @@
+import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SearchResultRow, SearchResultRowSource } from '../model/SearchResultRowSource'
 import { komaSheetOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
@@ -101,6 +102,9 @@ export struct SearchPage {
   private resultsQuery: string = ''
   private resultsSourceFilter: CrossSearchSourceFilter = 'all'
   private resultsLibrarySourceKey: string = ''
+  private resultsReplayKey: string = ''
+  private replayQuery: string = ''
+  private replaySources?: string[]
   private resultRows: SearchResultRowSource = new SearchResultRowSource()
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
@@ -304,9 +308,10 @@ export struct SearchPage {
     }
     const sourceFilter = this.effectiveSourceFilter(query)
     const sourceKey = this.librarySource?.key ?? ''
+    const replayKey = this.replaySources?.join(',') ?? ''
     const sameSearch = this.resultsQuery === query && this.resultsSourceFilter === sourceFilter &&
-      this.resultsLibrarySourceKey === sourceKey
-    const pending = service.pendingSections(sourceFilter, this.migrationSources)
+      this.resultsLibrarySourceKey === sourceKey && this.resultsReplayKey === replayKey
+    const pending = service.pendingSections(sourceFilter, this.migrationSources ?? this.replaySources)
     // A refresh keeps results owned by this same query/filter until replacement
     // data arrives. A changed query/filter starts with its existing pending UI.
     this.sections = sameSearch ? pending.map((section: CrossSearchSection): CrossSearchSection => {
@@ -315,6 +320,7 @@ export struct SearchPage {
     this.resultsQuery = query
     this.resultsSourceFilter = sourceFilter
     this.resultsLibrarySourceKey = sourceKey
+    this.resultsReplayKey = replayKey
     this.loading = true
   }
 
@@ -338,7 +344,9 @@ export struct SearchPage {
       return
     }
     const sourceFilter = this.effectiveSourceFilter(query)
-    if (this.migrationSources === undefined) this.recordHistory(query)
+    const publicHistory = this.migrationSources === undefined && sourceFilter === 'source' &&
+      this.librarySource === undefined && appDeviceSync.view.connected && appDeviceSync.view.selected.includes('search-history')
+    if (this.migrationSources === undefined && !publicHistory) this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
       const result = await service.search(query, sourceFilter, (section: CrossSearchSection) => {
@@ -355,7 +363,13 @@ export struct SearchPage {
         this.handleWebChallenges()
         console.info(`[Search] step=ui_section_resolved serial=${serial} source=${section.id} state=${section.state}`)
       }, (): boolean => this.ownsRoute(routeEpoch) && serial === this.searchSerial &&
-        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible, this.migrationSources, this.librarySource)
+        webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible,
+        this.migrationSources ?? this.replaySources, this.librarySource,
+        (sources: string[]): void => {
+          if (publicHistory && this.ownsRoute(routeEpoch) && serial === this.searchSerial) {
+            this.recordHistory(query, appDeviceSync.verifyPublicSearchPlan(sources))
+          }
+        })
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
@@ -399,7 +413,7 @@ export struct SearchPage {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
         return
       }
-      this.history = entries
+      this.history = appDeviceSync.mergeSearchHistory(entries)
       this.historyLoadState = SearchHistoryLoadState.READY
     }).catch((error: Error) => {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
@@ -410,7 +424,7 @@ export struct SearchPage {
     })
   }
 
-  private recordHistory(query: string): void {
+  private recordHistory(query: string, verifiedSources: string = ''): void {
     if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
@@ -419,7 +433,8 @@ export struct SearchPage {
     const mutationEpoch = this.historyMutationEpoch + 1
     this.historyMutationEpoch = mutationEpoch
     const scope: SearchHistoryScope = { sourceFilter: this.effectiveSourceFilter(query),
-      librarySource: copyLibrarySearchSource(this.librarySource) }
+      librarySource: copyLibrarySearchSource(this.librarySource),
+      syncSourceSet: verifiedSources.length === 0 ? undefined : verifiedSources }
     this.history = addSearchHistoryEntry(this.history, query, Date.now(), scope)
     DiagnosticLogger.info('search', 'history_prepared', `durationMs=${Date.now() - startedAt} entries=${this.history.length}`)
     this.historyLoadState = SearchHistoryLoadState.READY
@@ -427,7 +442,10 @@ export struct SearchPage {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_record', () => {
-      return store.record(query, scope)
+      return store.record(query, scope).then((entries: SearchHistoryEntry[]): SearchHistoryEntry[] => {
+        if (verifiedSources.length > 0) appDeviceSync.recordPublicSearch(query, verifiedSources)
+        return entries
+      })
     })
   }
 
@@ -445,7 +463,10 @@ export struct SearchPage {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_clear', () => {
-      return store.clear().then((): SearchHistoryEntry[] | undefined => undefined)
+      return store.clear().then((): SearchHistoryEntry[] | undefined => {
+        appDeviceSync.removePublicSearch(undefined)
+        return undefined
+      })
     })
   }
 
@@ -465,7 +486,7 @@ export struct SearchPage {
         return
       }
       if (entries !== undefined) {
-        this.history = entries
+        this.history = appDeviceSync.mergeSearchHistory(entries)
       }
       this.historyLoadState = SearchHistoryLoadState.READY
     }).catch((error: Error) => {
@@ -517,7 +538,8 @@ export struct SearchPage {
     }
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
       title: s('search_history_clear_title'),
-      message: s('search_history_clear_message').replace('%s', `${this.history.length}`),
+      message: appDeviceSync.view.connected && appDeviceSync.view.selected.includes('search-history') ?
+        s('device_sync_search_clear_hint') : s('search_history_clear_message').replace('%s', `${this.history.length}`),
       autoCancel: true,
       primaryButton: {
         value: s('common_cancel'),
@@ -546,11 +568,23 @@ export struct SearchPage {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_remove', () => {
-      return store.remove(entry.query, entry)
+      return store.remove(entry.query, entry).then((entries: SearchHistoryEntry[]): SearchHistoryEntry[] => {
+        if (entry.sourceFilter === 'source' && entry.librarySource === undefined) {
+          appDeviceSync.removePublicSearch(entry.query, entry.syncSourceSet ?? '')
+        }
+        return entries
+      })
     })
   }
 
   private runHistoryQuery(entry: SearchHistoryEntry): void {
+    const sources = entry.syncSourceSet === undefined ? undefined : appDeviceSync.availablePublicSearchSources(entry.syncSourceSet)
+    if (sources?.length === 0) {
+      this.feedbackText = s('device_sync_search_sources_missing')
+      return
+    }
+    this.replayQuery = entry.query.trim()
+    this.replaySources = sources
     DiagnosticLogger.info('search', 'history_submit', 'recent_query')
     // Replaying a query restores its own range, without overwriting the user's
     // global preference. Invalidate a still-pending preference read as well.
@@ -640,6 +674,7 @@ export struct SearchPage {
   }
 
   private handleSearchTextChange(value: string): void {
+    if (value.trim() !== this.replayQuery) this.replaySources = undefined
     this.scheduleSearch(value)
   }
 
@@ -654,6 +689,7 @@ export struct SearchPage {
     const mutationEpoch = this.sourceFilterMutationEpoch + 1
     this.sourceFilterMutationEpoch = mutationEpoch
     const changed = this.sourceFilter !== sourceFilter
+    this.replaySources = undefined
     this.sourceFilter = sourceFilter
     this.saveSourceFilter(sourceFilter, mutationEpoch)
     if (changed && this.hasMeaningfulSearchQuery()) {

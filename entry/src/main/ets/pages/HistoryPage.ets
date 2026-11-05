@@ -333,7 +333,7 @@ export struct HistoryPage {
       .concat(sessionStore.listSourceHistory().map((entry: SourceReadHistoryEntry): ComicId => entry.comicId),
         sessionStore.listRemoteHistory().map((entry: RemoteReadHistoryEntry): ComicId => entry.comicId),
         sessionStore.listReadingSessions().map((entry): ComicId => entry.comicId))
-    if (!sessionStore.removeHistoryEntries(comicIds)) {
+    if (!sessionStore.removeHistoryEntries(comicIds, true)) {
       this.showHistorySaveFailed()
       return
     }

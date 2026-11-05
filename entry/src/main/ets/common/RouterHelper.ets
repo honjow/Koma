@@ -32,6 +32,8 @@ export interface MangaWebRouteParam {
 
 export interface SourcePackageManagerRouteParam {
   settingsSourceId: string
+  recoverySourceId?: string
+  recoverySourceName?: string
   onSettingsSaved?: () => void
   chrome?: SourceCatalogPageChrome
 }

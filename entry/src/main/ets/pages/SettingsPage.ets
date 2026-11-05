@@ -307,6 +307,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'backup-files', titleKey: 'backup_task_files', detailKey: '' },
         { key: 'backup-automatic', titleKey: 'backup_auto_heading', detailKey: 'backup_auto_description' },
         { key: 'backup-content', titleKey: 'backup_included_data', detailKey: 'backup_fixed_content_description' },
+        { key: 'device-sync', titleKey: 'device_sync_title', detailKey: 'device_sync_entry_detail' },
+        { key: 'device-sync-webdav', titleKey: 'device_sync_webdav', detailKey: 'device_sync_entry_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
@@ -909,7 +911,7 @@ export struct SettingsPage {
           key: 'backup',
           titleKey: 'settings_section_backup',
           rows: this.rowsByKeys([
-            'backup-create', 'backup-restore', 'backup-files', 'backup-automatic', 'backup-content',
+            'backup-create', 'backup-restore', 'backup-files', 'backup-automatic', 'backup-content', 'device-sync', 'device-sync-webdav',
           ]),
         },
       ]
@@ -998,6 +1000,7 @@ export struct SettingsPage {
     // in search results creates noisy, contradictory-looking settings rows.
     // Keep the result's location so the row can be found, but never turn a
     // current value into an explanatory subtitle here.
+    if (result.row.key === 'device-sync-webdav') return this.paneTitle('backup') + ' · ' + this.t('device_sync_title')
     const pane = this.paneTitle(result.pane)
     const section = result.sectionTitle
     return section.length === 0 || pane === section ? pane : `${pane} / ${section}`
@@ -2461,7 +2464,7 @@ export struct SettingsPage {
 
   private openSearchResult(result: SettingsSearchResult): void {
     this.getUIContext().getFocusController().clearFocus()
-    this.settingsSearchText = ''
+    if (result.row.key !== 'device-sync' && result.row.key !== 'device-sync-webdav') this.settingsSearchText = ''
     // Search may navigate directly, but must never run a command or change a preference.
     if (result.row.key === 'settings-category') {
       this.onOpenSettingsPane(result.pane)

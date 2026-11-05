@@ -149,6 +149,8 @@ export struct SourcePackageManagerPage {
   }
 
   @Param initialSettingsSourceId: string = ''
+  @Param recoverySourceId: string = ''
+  @Param recoverySourceName: string = ''
   @Event onSettingsSaved: () => void = () => {}
   @Event onBeforeRemove: (sourceId: string, sourceName: string) => void = () => {}
   private settingsRouteActive: boolean = false
@@ -2525,6 +2527,43 @@ export struct SourcePackageManagerPage {
     }
   }
 
+  @Computed
+  private get recoveryEntries(): SourceIndexEntry[] {
+    return this.indexEntries.filter((entry: SourceIndexEntry): boolean => entry.id === this.recoverySourceId)
+  }
+
+  @Builder
+  private RecoverySourceGroup() {
+    ListItem() {
+      GroupedListSection({ title: this.recoverySourceName || this.recoverySourceId }) {
+        ConciseListRow({ title: this.recoverySourceId,
+          subtitle: t('device_sync_source_identity_hint'), showChevron: false })
+        if (this.installedPackage(this.recoverySourceId)?.enabled === false) {
+          ListDivider()
+          ConciseListRow({ title: t('device_sync_enable_source'), action: (): void => {
+            if (setEnabled(this.context(), this.recoverySourceId, true)) this.refreshInstalledPackage(this.recoverySourceId)
+          } })
+        } else if (this.recoveryEntries.length > 0) {
+          ForEach(this.recoveryEntries, (entry: SourceIndexEntry) => {
+            ListDivider()
+            this.RemoteIndexCard(entry)
+          }, (entry: SourceIndexEntry): string => entry.id + '|' + (entry.repositoryUrl ?? ''))
+        } else {
+          ListDivider()
+          ConciseListRow({
+            title: t(Object.keys(this.sourceIndexFailures).length > 0 ?
+              'device_sync_error_catalog_unavailable' : 'device_sync_no_catalog_match'),
+            subtitle: t('device_sync_try_catalog'), isEnabled: !this.indexFetchBusy,
+            action: (): void => { void this.checkInstalledUpdates() },
+          })
+        }
+        ListDivider()
+        ConciseListRow({ title: t('device_sync_import_source'),
+          isEnabled: !this.importingLocalArchive, action: (): void => { void this.importPackage() } })
+      }
+    }
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
@@ -2535,12 +2574,17 @@ export struct SourcePackageManagerPage {
             bottomPadding: ThemeConstants.SPACE_XL,
             onRefresh: async (): Promise<void> => { await this.checkInstalledUpdates() },
           }) {
-            this.PackageListGroups({
-              updates: this.listGroups.updates,
-              missing: this.listGroups.missing,
-              installed: this.listGroups.installed,
-            })
-            if (this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {
+            if (this.recoverySourceId.length > 0) {
+              this.RecoverySourceGroup()
+            } else {
+              this.PackageListGroups({
+                updates: this.listGroups.updates,
+                missing: this.listGroups.missing,
+                installed: this.listGroups.installed,
+              })
+            }
+            if (this.recoverySourceId.length === 0 &&
+              this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {
               ListItem() {
                 if (this.catalogFilters.active) {
                   KomaEmptyState({ icon: $r('sys.symbol.funnel'), title: t('source_catalog_no_matches'),

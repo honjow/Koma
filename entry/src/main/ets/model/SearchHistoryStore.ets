@@ -1,9 +1,12 @@
+import { BackupRestoreActivity } from './BackupRestoreActivity'
+import { syncSearchIdentity } from '../deviceSync/DeviceSyncData'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { CrossSearchSourceFilter } from './CrossSearchService'
 import { LibrarySearchSource, copyLibrarySearchSource } from './LibrarySearchQuery'
 
 export interface SearchHistoryScope {
+  syncSourceSet?: string
   sourceFilter?: CrossSearchSourceFilter
   librarySource?: LibrarySearchSource
 }
@@ -20,6 +23,7 @@ const SEARCH_RESULTS_ONLY_KEY: string = 'search.results.only'
 export const MAX_SEARCH_HISTORY_COUNT: number = 20
 
 export interface SearchHistoryRecord {
+  syncSourceSet?: string
   query?: string
   updatedAt?: number
   sourceFilter?: string
@@ -27,10 +31,14 @@ export interface SearchHistoryRecord {
 }
 
 export function searchHistoryEntryKey(query: string, scope?: SearchHistoryScope): string {
+  if (scope?.syncSourceSet !== undefined) {
+    return JSON.stringify([syncSearchIdentity(query), 'source', '', scope.syncSourceSet])
+  }
   return JSON.stringify([normalizeSearchQuery(query).toLocaleLowerCase(), scope?.sourceFilter ?? 'all', scope?.librarySource?.key ?? ''])
 }
 
 function copyHistoryScope(target: SearchHistoryEntry, scope: SearchHistoryScope): void {
+  target.syncSourceSet = scope.syncSourceSet
   if (scope.sourceFilter !== undefined) target.sourceFilter = normalizeSearchSourceFilter(scope.sourceFilter)
   if (scope.librarySource !== undefined) target.librarySource = copyLibrarySearchSource(scope.librarySource)
 }
@@ -70,6 +78,7 @@ export function normalizeSearchHistoryEntries(input: SearchHistoryRecord[], now:
     const scope: SearchHistoryScope = {
       sourceFilter: record.sourceFilter === undefined ? undefined : normalizeSearchSourceFilter(record.sourceFilter),
       librarySource: record.librarySource,
+      syncSourceSet: record.sourceFilter === 'source' && record.librarySource === undefined ? record.syncSourceSet : undefined,
     }
     const key = searchHistoryEntryKey(query, scope)
     const existing = byKey.get(key)
@@ -150,6 +159,7 @@ export class SearchHistoryStore {
         (record.query !== undefined && typeof record.query !== 'string') ||
         (record.updatedAt !== undefined && typeof record.updatedAt !== 'number') ||
         (record.sourceFilter !== undefined && typeof record.sourceFilter !== 'string') ||
+        (record.syncSourceSet !== undefined && typeof record.syncSourceSet !== 'string') ||
         (record.librarySource !== undefined && (record.librarySource === null || typeof record.librarySource !== 'object' ||
           typeof record.librarySource.key !== 'string' || record.librarySource.key.trim().length === 0 ||
           typeof record.librarySource.name !== 'string' || record.librarySource.name.trim().length === 0))) {
@@ -160,26 +170,32 @@ export class SearchHistoryStore {
   }
 
   async record(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
-    return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.preferences()
       const entries = addSearchHistoryEntry(await this.readEntries(store), query, Date.now(), scope)
       await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
       return entries
-    })
+    }))
   }
 
   async clear(): Promise<void> {
-    return this.ordered(async (): Promise<void> => {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
       await this.commit(await this.preferences(), SEARCH_HISTORY_QUERIES_KEY, '[]')
-    })
+    }))
   }
 
   async remove(query: string, scope?: SearchHistoryScope): Promise<SearchHistoryEntry[]> {
-    return this.ordered(async (): Promise<SearchHistoryEntry[]> => {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<SearchHistoryEntry[]> => {
       const store = await this.preferences()
       const entries = removeSearchHistoryEntry(await this.readEntries(store), query, scope)
       await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
       return entries
+    }))
+  }
+
+  async applyDeviceSyncEntries(entries: SearchHistoryEntry[]): Promise<void> {
+    return this.ordered(async (): Promise<void> => {
+      await this.commit(await this.preferences(), SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
     })
   }
 

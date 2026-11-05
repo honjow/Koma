@@ -1,3 +1,5 @@
+import { signalDeviceSyncChange, signalDeviceSyncLibrary, SyncLibrarySignal } from '../deviceSync/DeviceSyncSignals'
+import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
@@ -767,7 +769,11 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
   }
 
   save(payload: string): void {
+    if (BackupRestoreActivity.deviceSyncIsCommitting() || BackupRestoreActivity.hasPendingRecovery()) {
+      throw new Error('sync_local_busy')
+    }
     writeAppTextFile(this.filePath, payload)
+    signalDeviceSyncChange('shelf')
   }
 }
 
@@ -814,10 +820,14 @@ export function upsertComicAndPersistLibraryStore(
   persistenceService: LibraryStorePersistenceService,
   comic: Comic
 ): void {
+  const newMembership = libraryStore.getComic(comic.id) === undefined
   const previousPayload = serializeLibraryStore(libraryStore)
   libraryStore.addComic(comic)
   try {
     persistenceService.persist()
+    if (newMembership && comic.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined) {
+      signalDeviceSyncLibrary([{ kind: 'add-book', source: comic.sourceRuntimeId, work: comic.remoteResourceId }])
+    }
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error
@@ -1189,6 +1199,21 @@ export function upsertLocalLibraryFolderRescanAndPersistLibraryStore(
   }
 }
 
+function syncLibraryMembershipChanges(comic: Comic, next: string[]): SyncLibrarySignal[] {
+  if (comic.sourceRuntimeId === undefined || comic.remoteResourceId === undefined) return []
+  const before = comic.categoryIds ?? []
+  const removed = before.filter((key: string): boolean => !next.includes(key))
+  const added = next.filter((key: string): boolean => !before.includes(key))
+  const actions: SyncLibrarySignal[] = []
+  removed.forEach((category: string): void => {
+    actions.push({ kind: 'remove-member', source: comic.sourceRuntimeId, work: comic.remoteResourceId, category })
+  })
+  added.forEach((category: string): void => {
+    actions.push({ kind: 'add-member', source: comic.sourceRuntimeId, work: comic.remoteResourceId, category })
+  })
+  return actions
+}
+
 export function assignComicCategoriesAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
@@ -1198,9 +1223,11 @@ export function assignComicCategoriesAndPersistLibraryStore(
   const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
   const previousPayload = serializeLibraryStore(libraryStore)
   let changedCount = 0
+  const syncEdits: SyncLibrarySignal[] = []
   comicIds.forEach((comicId: ComicId) => {
     const comic = libraryStore.getComic(comicId)
     if (comic !== undefined) {
+      syncEdits.push(...syncLibraryMembershipChanges(comic, normalizedCategoryIds))
       libraryStore.upsertComic(withComicCategoryIds(comic, normalizedCategoryIds))
       changedCount += 1
     }
@@ -1210,6 +1237,7 @@ export function assignComicCategoriesAndPersistLibraryStore(
   }
   try {
     persistenceService.persist()
+    signalDeviceSyncLibrary(syncEdits)
     return changedCount
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
@@ -1230,12 +1258,14 @@ export function updateComicCategoryMembershipAndPersistLibraryStore(
   }
   const previousPayload = serializeLibraryStore(libraryStore)
   let changedCount = 0
+  const syncEdits: SyncLibrarySignal[] = []
   comicIds.forEach((comicId: ComicId) => {
     const comic = libraryStore.getComic(comicId)
     if (comic !== undefined) {
       const nextComic = selected ?
         withComicAddedCategoryId(comic, normalizedCategoryId) :
         withComicRemovedCategoryId(comic, normalizedCategoryId)
+      syncEdits.push(...syncLibraryMembershipChanges(comic, nextComic.categoryIds ?? []))
       libraryStore.upsertComic(nextComic)
       changedCount += 1
     }
@@ -1245,6 +1275,7 @@ export function updateComicCategoryMembershipAndPersistLibraryStore(
   }
   try {
     persistenceService.persist()
+    signalDeviceSyncLibrary(syncEdits)
     return changedCount
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
@@ -1317,6 +1348,7 @@ export function deleteCustomCategoryAndPersistLibraryStore(
   }
   try {
     persistenceService.persist()
+    signalDeviceSyncLibrary([{ kind: 'remove-category', category: categoryId }])
     return true
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
@@ -1370,13 +1402,17 @@ export function removeComicRecordAndPersistLibraryStore(
   persistenceService: LibraryStorePersistenceService,
   comicId: ComicId
 ): boolean {
-  if (libraryStore.getComic(comicId) === undefined) {
+  const removedComic = libraryStore.getComic(comicId)
+  if (removedComic === undefined) {
     return false
   }
   const previousPayload = serializeLibraryStore(libraryStore)
   libraryStore.removeComic(comicId)
   try {
     persistenceService.persist()
+    if (removedComic.sourceRuntimeId !== undefined && removedComic.remoteResourceId !== undefined) {
+      signalDeviceSyncLibrary([{ kind: 'remove-book', source: removedComic.sourceRuntimeId, work: removedComic.remoteResourceId }])
+    }
     return true
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)

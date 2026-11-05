@@ -268,6 +268,7 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
     './BackupRestoreActivity': { BackupRestoreActivity: {
       runWrite: action => action(), beginRestore: () => setRestoring(true), finishRestore: () => setRestoring(false),
     } },
+    '../deviceSync/DeviceSyncSignals': evaluate(read('deviceSync/DeviceSyncSignals.ets'), {}),
     './BackupRestoreCheckpoint': { BackupRestoreCheckpoint: {
       prepare: async () => ({ commit: () => { committed = true } }),
     } },

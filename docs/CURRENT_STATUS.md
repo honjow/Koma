@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T05:21:52+08:00",
+  "updatedAt": "2026-11-05T11:13:07+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "备份设置门禁已接入构建流程，现有设置覆盖缺口单独保留。按用户要求已撤除 WebDAV 阅读历史同步实现和草稿，197 和 103 已覆盖安装无同步包并核对清理结果。197 已验证备份重进及记录更新。",
@@ -111,15 +111,15 @@
     {
       "id": "READING_HISTORY_SYNC",
       "title": "跨设备数据同步",
-      "kind": "parked",
+      "kind": "open",
       "priority": "用户要求重做及独立评审",
       "owner": "Root",
-      "status": "新方案已通过独立复审，待用户确认",
+      "status": "用户已确认，五组实现与独立评审在推进",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求参考 NextE/NextN 规划，并明确首版直接采用分片。",
-      "result": "已撤除的旧版以原生源、作品和章节 ID 同步书架及临时阅读的历史、页码和已读，使用 WebDAV 清单与不可变分片。197、103 在临时局域网 WebDAV 双向打开实际正文并落在同章同页，清单 412 后自动重读提交。103 从正常入口删除一条样本并自动提交，197 冷启动自动拉取并在历史页核对，其他书源的同名作品仍保留。设备安全存储持久化开关、地址和凭据。103 核对设置搜索和断连错误，197 冷启动自动使用已保存配置。删除样本重新打开后恢复原章节第 19 页，自动重新写入。独立合并和落盘回滚由本地回归覆盖。后续用户指出未经确认新增了设置首页入口，且分类与备份门禁没有转化成同步范围设计，明确要求撤除。197 和 103 已完成设备清理。用户随后要求从数据范围开始重新设计，设计与最终交付分别做独立评审。已按当前所有者重新梳理 19 类、核对两套参考设置及传输路径，形成五组 WebDAV 候选。设置入口、数据范围和失败恢复已分别独立审查，技术及设置阻塞已复核。保留待确认边界。",
-      "remaining": "待用户确认设置路径、文案及有可见影响的同步语义。实现、自测、独立代码与真机验收尚未开始。",
+      "result": "已撤除的旧版以原生源、作品和章节 ID 同步书架及临时阅读的历史、页码和已读，使用 WebDAV 清单与不可变分片。197、103 在临时局域网 WebDAV 双向打开实际正文并落在同章同页，清单 412 后自动重读提交。103 从正常入口删除一条样本并自动提交，197 冷启动自动拉取并在历史页核对，其他书源的同名作品仍保留。设备安全存储持久化开关、地址和凭据。103 核对设置搜索和断连错误，197 冷启动自动使用已保存配置。删除样本重新打开后恢复原章节第 19 页，自动重新写入。独立合并和落盘回滚由本地回归覆盖。后续用户指出未经确认新增了设置首页入口，且分类与备份门禁没有转化成同步范围设计，明确要求撤除。197 和 103 已完成设备清理。用户随后要求从数据范围开始重新设计，设计与最终交付分别做独立评审。已按当前所有者重新梳理 19 类、核对两套参考设置及传输路径，形成五组 WebDAV 候选。设置入口、数据范围和失败恢复已分别独立审查，技术及设置阻塞已复核。用户已明确批准实施。已接入 WebDAV 连接及分片、五组数据和备份页入口；主机测试已覆盖并发重置、条件预览、暂缓冲突、固定 Unicode 键和损坏分片，备份门禁已复跑。独立代码审查发现的问题仍在修正。",
+      "remaining": "继续复核持久恢复、各 owner 真正落盘及普通入口，冻结候选后分别进行开发自测和 197、103 独立真机验收。",
       "evidence": ["docs/plans/active/device-sync-design.md", ".hvigor/outputs/history-sync/197-final-phone-open-synced-ready.log", ".hvigor/outputs/history-sync/103-final-tablet-open-synced-ready.log", ".hvigor/outputs/history-sync/197-phone-history-after-automatic-delete.log", ".hvigor/outputs/history-sync/103-tablet-settings-search-destination.log", ".hvigor/outputs/history-sync/103-tablet-manual-connection-failure.log", ".hvigor/outputs/history-sync/197-phone-restore-history.log", ".hvigor/outputs/history-sync/197-restore.log", ".hvigor/outputs/history-sync/103-restore.log", ".hvigor/outputs/history-sync/dav-requests.jsonl", ".hvigor/outputs/history-sync-removal/197-cleanup-readback.log", ".hvigor/outputs/history-sync-removal/197-final-history-view.log", ".hvigor/outputs/history-sync-removal/197-final-settings-view.log", ".hvigor/outputs/history-sync-removal/197-restore.log", ".hvigor/outputs/history-sync-removal/103-cleanup-readback.log", ".hvigor/outputs/history-sync-removal/103-final-history-view.log", ".hvigor/outputs/history-sync-removal/103-final-settings-view.log", ".hvigor/outputs/history-sync-removal/103-restore.log"]
     },
     {
@@ -17059,6 +17059,14 @@
       "at": "2026-11-05T05:21:52+08:00",
       "title": "跨设备同步设计通过独立复审",
       "detail": "核对 19 类数据和两套参考，形成书架与分类、阅读记录、阅读偏好、书源订阅和搜索历史五组。已按独立评审补全首次合并确认、离线删除、并发重读、缺源、持久恢复及既有设置搜索。设置结构待用户确认，当前没有新的应用入口。",
+      "itemId": "READING_HISTORY_SYNC",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "device-sync-implementation-checkpoint",
+      "at": "2026-11-05T11:13:07+08:00",
+      "title": "用户批准跨设备同步并开始实施",
+      "detail": "按已审方案接入五组、备份子页、不可变分片及冲突预览。执行合并及备份门禁回归，独立 HTTPS 夹具通过主机检验。独立代码评审仍在验证修订，未登记真机验收。",
       "itemId": "READING_HISTORY_SYNC",
       "kind": "checkpoint"
     }

@@ -1,3 +1,4 @@
+import { signalDeviceSyncRestoreFinish, signalDeviceSyncRestoreStart } from '../deviceSync/DeviceSyncSignals'
 import { ImageRuleStore } from './ImageRuleStore'
 import { ImageRuleConfiguration, BannerFilterMode, validateImageRuleConfiguration } from './ImageBannerRules'
 import { normalizeBannerOverrides } from './ReaderPreferencesStore'
@@ -1305,7 +1306,7 @@ export class BackupService {
         },
         libraryStore,
         customCovers: backgroundTemplate ? undefined : await exportComicCovers(this.context, libraryStore),
-        readingProgress: readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload()),
+        readingProgress: normalizeReaderSessionBackupPayload(readTextIfExists(this.readerProgressPath(), emptyReaderProgressPayload())),
         remoteServers: await this.exportRemoteServers(),
         sourcePackages: backgroundTemplate ? undefined : exportInstalledSourcePackages(),
         sourceSettings: appSourceSettingsStore.exportAll(),
@@ -1353,6 +1354,7 @@ export class BackupService {
     let coverPlan: PreparedComicCovers | undefined
     let coversCommitted: boolean = false
     try {
+      signalDeviceSyncRestoreStart()
       beginAutomationRestore(this.context)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
         const prepared = await prepareSourcePackagesFromBackup(this.context, document.sourcePackages)
@@ -1425,7 +1427,10 @@ export class BackupService {
         await sourcePlan?.discard()
       } finally {
         if (!coversCommitted && coverPlan !== undefined) await discardPreparedComicCovers(coverPlan.files)
-        try { finishAutomationRestore(this.context) } finally { BackupRestoreActivity.finishRestore() }
+        try { finishAutomationRestore(this.context) } finally {
+          BackupRestoreActivity.finishRestore()
+          signalDeviceSyncRestoreFinish(coversCommitted)
+        }
       }
     }
     await reloadApplicationSettingsRuntime(this.context)

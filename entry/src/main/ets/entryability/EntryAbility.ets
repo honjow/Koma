@@ -1,3 +1,4 @@
+import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance'
 import { ChapterListPreferencesStore } from '../model/ChapterListPreferencesStore'
 import { deviceInfo } from '@kit.BasicServicesKit'
@@ -75,6 +76,7 @@ export default class EntryAbility extends UIAbility {
       DiagnosticLogger.info('app', 'platform', 'os=' + deviceInfo.osFullName)
     } catch (error) { DiagnosticLogger.exception('app', 'metadata_failed', error as Error) }
     await BackupRestoreCheckpoint.recoverBeforeStartup(this.context)
+    await appDeviceSync.startup(this.context)
     if (automationEpoch(this.context).restoring) {
       resetGeneratedAutomationWork(this.context)
       finishAutomationRestore(this.context)
@@ -194,6 +196,9 @@ export default class EntryAbility extends UIAbility {
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
+      void this.startupPromise.then((): void => { appDeviceSync.onForeground(true) })
+    }
+    if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       setTimeout(() => {
         this.syncRemoteProgressInBackground()
       }, 250)
@@ -204,6 +209,7 @@ export default class EntryAbility extends UIAbility {
     DiagnosticLogger.info('app', 'background', '')
     updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()
+    appDeviceSync.onForeground(false)
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       void this.startupPromise.then(() => synchronizeBackgroundMaintenance(this.context, true))
         .catch((error: Error): void => { DiagnosticLogger.exception('maintenance', 'snapshot_failed', error) })
