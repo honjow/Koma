@@ -82,19 +82,64 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "title": "检查并移植更多书源（用户指定五源优先）",
+      "kind": "active",
+      "priority": "用户指定独立子代理",
+      "owner": "new_source_ports独立执行；Root237验收与发布",
+      "status": "五源优先组推进中；CosplayTele已冻结本地候选，待Root审及237",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。",
+      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。",
+      "remaining": "按五源优先组逐个完成完整参考及宿主适配、足量本地WASM与原网页/API对照，再由Root串行237验收分发；单源依赖不阻塞其余源。",
+      "evidence": [
+        "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/build.gradle.kts",
+        "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/src/eu/kanade/tachiyomi/extension/zh/bilimanga/BiliManga.kt",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/cosplaytele-candidate/candidate-files.json"
+      ]
+    },
+    {
+      "id": "SOURCE_KUAIKAN_CHAPTER_ACCESS_FEEDBACK",
+      "title": "快看三部漫画正文被拒绝及提示不清楚",
+      "kind": "active",
+      "priority": "用户新报",
+      "owner": "Terra具名对照；Root提示与237验收",
+      "status": "237三部免费具名路径及付费提示已核；长章节解析性能继续修复",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户反馈：死灵法师！我即使天灾、登录未来一万年、全民末日：我，病毒君王提示书源请求被拒绝，认为提示不友好；精确消息时刻未核实。",
+      "result": "此前App合同采样47不同作品，43详情及目录成功，10个正文页表9成功；另1次付费/锁定语义permission_denied没有跟进明确提示，且三部用户新报均未在原样本。现在已原公开源普通搜索定位kkt:18819死灵法师！我即是天灾、kkt:17161登陆未来一万年、kkt:21991全民末日：我，病毒君王，三搜索正常。现实现把缺失访问字段、明确锁定/非免费和无公开图均归permission_denied，App又与HTTP401/403共用模糊被拒绝提示；各新报章实际原因仍待逐例原网页核实，不断言付费、下架或全站拒绝。 用户后续明确要求免费章节应正常读取，付费或需要登录时明确提示。三部已分别核到320/385/142章目录及免费首话257/301/228页；另两部中段实际原图HTTP200完整解码，死灵法师首次现场详情失败但同UA固定真实体Native详情与320章成功，现场原体未知，不能断言源已修。三部六个中后段章节原网页均明确locked:true/locked_code10103。后续固定该页实际引用的官方JS，确认comic_info.locked_code赋页面status且10103精确进入购买弹窗，故这六章可明确付费；通用付费埋点不能作证，其他只有locked的章仍不猜付费或登录。App候选新增明确付费/会员、登录、锁定及无正文图片分流；原HTTP403仍拒绝分类，通用文案加网页查看指引，阅读器真实错误传递已核，同签1.1.1/code8构建通过，尚未安装237验收。 最终0.1.7付费分类候选已完成固定体及边界回放；同签App候选已覆盖安装237并读回1.1.1/code8。原0.1.6死灵法师基线也实际成功320章及免费257页首/中段，不能将旧CLI失败反推Native失败；候选保留原129/257续读且第161话准确显示付费/会员购买或解锁指引。《登陆未来一万年》385章及普通开始阅读1/301成功，中点151/301首次有界等待仍加载；后续加载完成，其原图确为纯白1200×332，不能充当中段叙事画面或抹去原长等待。当前定位每页image_request重新拉取并解析同一大章节网页，过期预取任务仍排队；具体最小修复调查中。237会话仍持租，未恢复释租。 本轮237三部普通入口均实际取得完整目录；死灵法师候选按既有进度续读129/257，登陆未来一万年普通开始阅读首图1/301成功、151/301首次等待超时后加载原站纯白页，全民末日普通开始阅读1/228及115/228实际漫画画面均亲审。三部第161/173/71话受限章节均实际显示准确付费/会员购买或解锁文案，日志对应paid_chapter。源、registry及reader/search/settings/observations九项原字节全部匹配恢复，原SLEEP/normal120000/override10000已读回，租约已释放，新App保留。长等待未因后续成功关闭；已定位Nuxt大量变量线性查找的平方复杂度，最小索引候选同体结果相等，设备收益尚未证明。",
+      "remaining": "精确提交推送App提示及搜索修复；继续验证快看Nuxt解析性能候选，在237重现的长章节路径取得实际改善后发布源。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/coverage-app-v2/com.kuaikan.koma/summary.jsonl",
+        ".hvigor/outputs/source-coverage-20261105/kuaikan-user-report/search-summary.json",
+        ".hvigor/outputs/source-coverage-20261105/kuaikan-user-report/chapter-fields.json",
+        ".hvigor/outputs/source-coverage-20261105/kuaikan-user-report/18819-pages-summary.json",
+        ".hvigor/outputs/source-coverage-20261105/kuaikan-user-report/app-candidate.json",
+        ".hvigor/outputs/source-coverage-20261105/kuaikan-user-report/official-js-fetch.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/kuaikan-user-regression/session.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/kuaikan-user-regression/kuaikan-1105-138-future-free-middle",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/kuaikan-user-regression/kuaikan-1105-139-future-middle-after-observed-queue",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/kuaikan-user-regression/root-review.json"
+      ]
+    },
+    {
       "id": "SOURCE_BROWSE_INITIAL_LIST_CANCELS_SEARCH",
       "title": "源初始列表完成时取消刚发出的搜索",
       "kind": "active",
       "priority": "237源验收发现",
       "owner": "device_preparation定位；Root修复验收",
-      "status": "237时序与本地同体已核，App异步回写定位中",
+      "status": "真实VM反例及237重叠搜索已核，待精确提交推送",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话237漫画源普通入口验收发现；不是用户原报告时间。",
-      "result": "MangaBall初入源立即搜索One Piece和Kage出现源搜索失败。Kage日志明确旧列表完成后新搜索HTTP立即source_request_cancelled，源随后给parse_error；普通Retry能读取88章与32页。One Piece同一真实API固定体在公开0.1.4和候选0.1.5均成功24卡片且data等价；等初始真实列表卡片后普通搜索也成功，故不能归于新目录容量修复。初步链为旧loadBrowseHome完成后写searchFilterValues使新搜索fingerprint失效，尚待真实VM延迟时序证明和最小修复。",
-      "remaining": "核异步状态owner及旧列表回写边界，实际VM复现、最小修复及237快速普通搜索无取消后提交。",
+      "result": "MangaBall初入源立即搜索One Piece和Kage出现源搜索失败。Kage日志明确旧列表完成后新搜索HTTP立即source_request_cancelled，源随后给parse_error；普通Retry能读取88章与32页。One Piece同一真实API固定体在公开0.1.4和候选0.1.5均成功24卡片且data等价；等初始真实列表卡片后普通搜索也成功，故不能归于新目录容量修复。初步链为旧loadBrowseHome完成后写searchFilterValues使新搜索fingerprint失效，尚待真实VM延迟时序证明和最小修复。 原VM在相同真实harness的两反例分别表现为旧列表取消新guard、迟到ensure覆盖新查询，候选67项实际执行和5项关联筛选通过。中央runSearch先按原模式初始化筛选再捕获请求guard，旧Browse不再回写search，迟到初始化按已有request/身份/设置/值对象/模式失效；false不读写持久筛选且保留已有临时值。没有放松HTTP guard或新增revision计数。 237实际初入快看后连续输入两次：UiTest第二次是追加，真实最终查询为死灵死灵法师，不能记作替换成死灵法师；该实际较新search235在20:56:25.512开始，旧get_manga_list232于26.454完成，退役search233正常取消，较新235于27.731成功，最终真实两卡及正确标题、无错误已亲审。此处证明具名重叠路径，未泛化所有源或将错误测试输入冒成原计划。临时搜索历史与设置已逐字恢复并释租。",
+      "remaining": "按已验收代码精确提交推送，保留跨源全量覆盖独立状态。",
       "evidence": [
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/mangaball-regression/mangaball-1105-87-normal-search-error/run-metadata.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/mangaball-regression/mangaball-1105-87-normal-search-error/run-metadata.json",
+        ".hvigor/outputs/source-coverage-20261105/mangaball-web/search-regression/REVIEW.md",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/kuaikan-user-regression/quick-race-observation.json"
       ]
     },
     {
@@ -209,19 +254,20 @@
     {
       "id": "SOURCE_MANGABALL_CATALOGUE_LIMIT_AND_EMPTY",
       "title": "MangaBall大目录读取失败及无中文章节提示不准确",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全源覆盖发现",
       "owner": "device_preparation定位与候选；Root验收",
-      "status": "237大目录、正常阅读与两类无章提示通过，正在公开分发",
+      "status": "目录与无章提示修复已发布，237及公开包通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖对30个原API逐例核对发现；不是用户单独反馈时间。",
-      "result": "30个同参目录API原体均HTTP200，其中真实原体最大约6.3MiB/9847条；原Host返回-3是JSON响应超过源缓冲区，不能冒网络故障。另有完整API确无中文或全空章节的条目，将按用户要求准确提示暂无可用章节，不能当下架或运行异常。原记录中另1次真实TLS失败单独保留。 冻结候选30原体：7部中文目录正常、23部确无中文或全空返回no_chapters；原3正常目录payload、7部页表完整输出不变，真实章节ID/标题/顺序逐项同API，20关键边界保持。全语言末尾合法Chapter -1保有符号章节号原义，卷号仍非负。7作品实际正文图已目视（留白/介绍页另补，不充作品数）；Node最大线性内存20,381,696字节，原生内存与并发未验。 237已普通导入实核WASM/icon；Log into the Future实际329章及真实第333话160页首图和末页原附页可显示，正常Kage实际88章及第85话32页首尾繁中剧情正文通过，两章实际MID/CID已读回。Touken全语言空数组和One Piece无中文均显示准确暂无可阅读章节且禁读。Native未逐条提取全部329/88章ID，未做峰值内存/并发测量。正常首次需普通Retry，One Piece首次快速搜索被取消，初始列表卡片ready后成功，竞态另立项。原包/注册/阅读搜索/settings/observations均逐字恢复，原电源读回并释租；封面仍存在原HTTP403，不冒已修。",
-      "remaining": "核精确公开包、索引/镜像及冻结回放，随后关闭本目录项。",
+      "result": "30个同参目录API原体均HTTP200，其中真实原体最大约6.3MiB/9847条；原Host返回-3是JSON响应超过源缓冲区，不能冒网络故障。另有完整API确无中文或全空章节的条目，将按用户要求准确提示暂无可用章节，不能当下架或运行异常。原记录中另1次真实TLS失败单独保留。 冻结候选30原体：7部中文目录正常、23部确无中文或全空返回no_chapters；原3正常目录payload、7部页表完整输出不变，真实章节ID/标题/顺序逐项同API，20关键边界保持。全语言末尾合法Chapter -1保有符号章节号原义，卷号仍非负。7作品实际正文图已目视（留白/介绍页另补，不充作品数）；Node最大线性内存20,381,696字节，原生内存与并发未验。 237已普通导入实核WASM/icon；Log into the Future实际329章及真实第333话160页首图和末页原附页可显示，正常Kage实际88章及第85话32页首尾繁中剧情正文通过，两章实际MID/CID已读回。Touken全语言空数组和One Piece无中文均显示准确暂无可阅读章节且禁读。Native未逐条提取全部329/88章ID，未做峰值内存/并发测量。正常首次需普通Retry，One Piece首次快速搜索被取消，初始列表卡片ready后成功，竞态另立项。原包/注册/阅读搜索/settings/observations均逐字恢复，原电源读回并释租；封面仍存在原HTTP403，不冒已修。 公开版本0.1.5的索引/包/清单/runtime/原图标/推荐镜像已核；公开WASM虽与设备候选字节不同，全部69项固定原体和反例的完整响应及Host调用逐项相等。本项按目录与准确无章提示验收，搜索竞态另项继续，原封面限制仍不宣已修。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/mangaball-web",
         ".hvigor/outputs/source-coverage-20261105/mangaball-web/summary.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/mangaball-regression/root-review.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/mangaball-regression/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/mangaball-public/verify.json"
       ]
     },
     {
@@ -18009,6 +18055,48 @@
       "itemId": "READING_HISTORY_SYNC",
       "title": "同步重设计r2构建与源码流程复审收口，真机路径待验",
       "result": "四类真实HDS目的地、独立保存配置、单次核对取消守卫与旧提交恢复已接入。独立评审拦出的暂停空页、动作假箭头、单项吞错、缺具体删除/章节身份、迟到许可与新口令覆盖等已修；实际计划投影统一摘要和删除目标。43项现有主机执行回归通过，正常签名debug包版本1.1.1/8；最终设备与视觉尚未通过，不以构建/源码审查代替。"
+    },
+    {
+      "id": "source-kuaikan-user-three-2026-11-05T19:53:43+08:00",
+      "at": "2026-11-05T19:53:43+08:00",
+      "title": "快看新反馈三部已登记，明确此前未覆盖",
+      "result": "原47样本不能代表用户新报三作；已原源普通搜索定位，按章核真实访问字段和网页，提示混淆问题同步检查，不从permission_denied猜付费或下架。"
+    },
+    {
+      "id": "source-kuaikan-free-and-copy-app-build-2026-11-05T20:09:16+08:00",
+      "at": "2026-11-05T20:09:16+08:00",
+      "title": "快看免费与锁定分开核实，准确提示和搜索竞态App候选已构建",
+      "result": "三作免费首话页表真实通过，锁定原因未明不冒付费；原死灵法师现场解析差异待实机。App准确分流与VM竞态已执行必要本地反例，1.1.1同签候选待237。原菜单单测fixture缺chapterPresentation在旧SourceRuntimeError下同样失败，保原证据，未改期望替代码放行。"
+    },
+    {
+      "id": "source-kuaikan-official-paid-mapping-2026-11-05T20:12:45+08:00",
+      "at": "2026-11-05T20:12:45+08:00",
+      "title": "快看六个具名锁章由官网代码确认为需购买",
+      "result": "实际锁章页引用的官方脚本将该章locked_code10103精确映至购买弹窗，三部六章可据此返回paid_chapter；未知锁码仍独立锁定提示，免费读取门槛保持。旧仅锁定候选保留，最终v2包须重新回放及237，不提前宣称实机通过。"
+    },
+    {
+      "id": "source-bilimanga-agent-and-mangaball-public-2026-11-05T20:16:37+08:00",
+      "at": "2026-11-05T20:16:37+08:00",
+      "title": "BiliManga补移植建立独立执行项，MangaBall公开分发核毕",
+      "result": "用户指定补源与子代理，当前确认缺少BiliManga，完整参考/足量本地到237门槛保留。MangaBall已核公开包与镜像及全部固定回放，关闭原目录项；快看免费与准确付费提示优先继续。"
+    },
+    {
+      "id": "source-new-ports-agent-started-2026-11-05T20:18:51+08:00",
+      "at": "2026-11-05T20:18:51+08:00",
+      "title": "新源发现与移植独立代理已实际接管",
+      "result": "用户扩大范围到更多可移植源；new_source_ports已启动并确认接管BiliManga及中文/multi缺口。原NNHanman发现与证据保留，Root/Terra接续现有修复，快看验收准备继续，未新增工作树或设备并发。"
+    },
+    {
+      "id": "source-priority-five-and-kuaikan-native-2026-11-05T20:49:09+08:00",
+      "at": "2026-11-05T20:49:09+08:00",
+      "title": "用户指定五源优先移植；快看237保留长等待反例",
+      "result": "新源代理已接管BiliManga、哔咔、拷贝、Buon Dua、CosplayTele。快看首部免费续读及准确付费文案已亲审；第二部首图成功，中段原等待失败后显示官网纯白页，重复解析/排队性能问题保持开放，第三部及恢复尚待执行。"
+    },
+    {
+      "id": "source-kuaikan-native-and-restore-2026-11-05T21:01:33+08:00",
+      "at": "2026-11-05T21:01:33+08:00",
+      "title": "237快看三作付费文案及重叠搜索亲审；原状态恢复释租",
+      "result": "三作完整目录、具名免费首/中段或续读和三条准确付费提示已核；未来长章首次中段等待失败仍开放，最小Nuxt优化继续验证。初始列表结束未再取消较新搜索；UiTest追加的实际查询与原计划分别保留。九项原字节、电源和存在性已读回恢复并释租。CosplayTele55相册本地候选待审，五源优先组持续推进。"
     },
     {
       "id": "sync-redesign-r4-device-first-2026-11-05T21:18:51+08:00",

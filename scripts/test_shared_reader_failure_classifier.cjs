@@ -93,6 +93,9 @@ async function sourcePageFailureChain() {
   for (const [code, status, expected] of [
     ['network_error', 0, 'source_failure_network'], ['timeout', 0, 'source_failure_timeout'],
     ['permission_denied', 403, 'source_failure_access'], ['challenge_required', 403, 'source_failure_challenge'],
+    ['auth_required', 0, 'source_failure_auth'], ['permission_denied', 401, 'source_failure_auth'],
+    ['paid_chapter', 0, 'source_failure_paid_chapter'], ['chapter_locked', 0, 'source_failure_chapter_locked'],
+    ['chapter_unavailable', 0, 'source_failure_chapter_unavailable'], ['paid_chapter', 403, 'source_failure_access'],
     ['server_error', 503, 'source_failure_server'], ['client_error', 0, 'Koma page failed'],
     ['PRIVATE_TOKEN', 0, 'Koma page failed'],
   ]) {

@@ -14,6 +14,7 @@ const { SourceWebChallengeGate } = moduleFrom('sourceRuntime/SourceWebChallengeG
 const { SourceRuntimeError } = moduleFrom('model/SourceRuntimeError', () => ({
   AppStrings: { get: key => key, format: (_key, text, status) => `${text}:${status}` },
 }))
+const { sourceFiltersForQuery } = moduleFrom('model/SourceModels', () => ({ AppStrings: { get: key => key } }))
 const ast = ts.createSourceFile('vm.ts', read('viewmodel/BrowseViewModel'), ts.ScriptTarget.Latest, true)
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
 const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
@@ -21,24 +22,37 @@ const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'can
   'searchResultFingerprint', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'selectBrowseHome', 'loadBrowseHome', 'setSelectedSource',
   'sourceSupportsOperation', 'clearBrowseContent', 'clearBrowseListing', 'hasBrowseContent', 'resolveBrowseLoad',
-  'currentListing', 'defaultListingForBrowse', 'applyBrowseListing']
+  'currentListing', 'defaultListingForBrowse', 'applyBrowseListing', 'isCurrentBrowseSource',
+  'ensureSearchFilters', 'prepareSearchSource', 'publishFilterSchema', 'cancelFilterDataLoad',
+  'initialSearchFilterValues', 'restoreSavedSearchFilterValues', 'defaultSourceFilterValues',
+  'mergeSavedSourceFilterValues', 'filterRequestKey', 'normalizeFilterRequestValue',
+  'normalizeFilterStringRequestValue', 'filterValuesForQuery', 'setSearchFilterValue',
+  'updateFilterValue', 'saveSourceFilterValues']
 const source = `export class Model { ${methods.map(name => owner.members.find(node => node.name?.text === name).getText(ast)).join('\n')} }`
 const intents = { NONE: 'none', INITIAL: 'initial', REFRESH: 'refresh', PAGINATION: 'page', LISTING_REPLACEMENT: 'listing' }
 const challenge = () => new SourceRuntimeError({ ok: false, error: { code: 'challenge_required', status: 403 } })
 function fixture() {
   let entry = {}, revision = 0
+  const preferenceReads = [], preferenceWrites = []
+  let savedSearchFilters = {}
   const exports = {}
   new Function('exports', 'SourceRuntimeError', 'appSourceSettingsStore', 'safeSearchDiagnostic',
-    'safeSourceBrowseErrorText', 'BrowseLoadIntent', 'BrowseContentState', 'appendUniqueSourceManga', compile(source))(
+    'safeSourceBrowseErrorText', 'BrowseLoadIntent', 'BrowseContentState', 'appendUniqueSourceManga',
+    'sourceFiltersForQuery', 'appSourceFilterPreferencesStore', compile(source))(
     exports, SourceRuntimeError, { revisionForSource: () => revision }, error => ({ userText: error.userText }),
-    error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error', EMPTY: 'empty', UNRESOLVED: 'unresolved' }, (a,b) => a.concat(b))
+    error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error', EMPTY: 'empty', UNRESOLVED: 'unresolved' }, (a,b) => a.concat(b),
+    sourceFiltersForQuery, {
+      loadForSource: (id, kind) => { preferenceReads.push([id, kind]); return kind === 'search' ? savedSearchFilters : {} },
+      saveForSource: (...args) => preferenceWrites.push(args),
+    })
   const model = new exports.Model(), calls = [], replies = []
   const sourceSummary = { sourceId: 'test', version: '1', wasmByteCount: 12, webSessionOrigins: ['https://test.invalid'], capabilities: ['home'] }
   Object.assign(model, { selectedSource: sourceSummary, registry: { lookup: () => ({ ok: true, entry }) },
     browseWebChallenge: null, searchWebChallenge: null,
     browseWebChallengeGate: new SourceWebChallengeGate(), searchWebChallengeGate: new SourceWebChallengeGate(),
     browseRequestId: 1, searchRequestId: 1, selectedListingId: 'popular', searchQuery: '',
-    browseFilterValues: {}, searchFilterValues: {}, browsePage: 1, searchPage: 1,
+    browseFilterValues: {}, searchFilterValues: {}, filters: [], persistSearchFilters: true,
+    filterDataRevision: 0, browsePage: 1, searchPage: 1,
     browseNextCursor: '', searchNextCursor: '', searchResults: [], hasMoreSearch: false,
     searchSource: async (_source, query, page, cursor) => {
       calls.push({ query, page, cursor }); const reply = replies.shift(); if (reply instanceof Error) throw reply; return reply
@@ -47,12 +61,102 @@ function fixture() {
     browseSections: [{ listing: { id: 'popular' }, manga: [{ id: 'old' }] }], popularManga: [{ id: 'old' }],
     defaultSourceFilterValues: () => ({}), mergeSavedSourceFilterValues: (_source, _kind, values) => values,
     isCurrentBrowseSource: () => true, isSameBrowseSource: () => true,
-    loadSourceListings: async () => [], loadSourceFilters: async () => [],
+    loadSourceListings: async () => [], loadSourceFilters: async () => ({ filters: [], supportsFilterFetching: false }),
     loadSourceHomeSections: async () => { calls.push('home'); throw challenge() },
     loadMangaListing: async (_source, listing, page, cursor) => { calls.push({ listing, page, cursor }); throw challenge() },
   })
-  return { model, source: sourceSummary, calls, replies, replaceEntry: () => { entry = {} }, changeSettings: () => revision++ }
+  return { model, source: sourceSummary, calls, replies, replaceEntry: () => { entry = {} }, changeSettings: () => revision++,
+    preferenceReads, preferenceWrites, saveSearchFilters: values => { savedSearchFilters = values } }
 }
+
+function searchInitializationFixture() {
+  const f = fixture()
+  // Use the production normalization/preference methods for the race. Only
+  // external persistence and async source responses remain controlled inputs.
+  delete f.model.defaultSourceFilterValues
+  delete f.model.mergeSavedSourceFilterValues
+  delete f.model.isCurrentBrowseSource
+  f.source.capabilities = ['sourceInfo', 'filters', 'mangaList', 'listings']
+  f.model.loadSourceFilters = async () => ({ filters: [
+    { id: 'sort', type: 'select', scope: 'search', value: 'relevance' },
+  ], supportsFilterFetching: false })
+  return f
+}
+
+test('in-place Browse search restores saved filters before dispatch and late listing cannot retire its guard', async () => {
+  const f = searchInitializationFixture()
+  f.saveSearchFilters({ sort: 'views:desc' })
+  f.model.loadSourceListings = async () => [{ id: 'popular', kind: 'popular' }]
+  let finishListing, finishSearch, current
+  f.model.loadMangaListing = () => new Promise(resolve => { finishListing = resolve })
+  const browsing = f.model.loadBrowseHome(f.source)
+  await new Promise(setImmediate)
+  assert.equal(typeof finishListing, 'function')
+  // SourceBrowseTitleField -> submitBrowseSearch calls runSearch directly.
+  // There is deliberately no ensureSearchFilters call in this user path.
+  f.model.searchSource = async (_source, query, _page, _cursor, active) => {
+    current = active
+    assert.equal(query, 'One Piece')
+    assert.deepEqual(f.model.filterValuesForQuery(f.model.searchFilterValues, query), { sort: 'views:desc' })
+    return new Promise(resolve => { finishSearch = resolve })
+  }
+  const searching = f.model.runSearch(f.source, 'One Piece')
+  await new Promise(setImmediate)
+  assert.equal(current(), true)
+  finishListing({ manga: [{ id: 'old-list' }], hasNextPage: false })
+  await browsing
+  assert.equal(current(), true)
+  assert.deepEqual(f.model.searchFilterValues, { sort: 'views:desc' })
+  finishSearch({ manga: [{ id: 'found' }], hasNextPage: false })
+  await searching
+  assert.deepEqual(f.model.searchResults, [{ id: 'found' }])
+})
+
+test('nonpersistent search skips saved choices and preserves its temporary filter on runSearch', async () => {
+  const f = searchInitializationFixture()
+  f.saveSearchFilters({ sort: 'views:desc' })
+  await f.model.ensureSearchFilters(f.source, false)
+  assert.deepEqual(f.model.searchFilterValues, {})
+  assert.equal(f.model.setSearchFilterValue('sort', 'name:asc'), true)
+  f.model.searchSource = async () => {
+    assert.deepEqual(f.model.searchFilterValues, { sort: 'name:asc' })
+    return { manga: [{ id: 'temporary-choice' }], hasNextPage: false }
+  }
+  await f.model.runSearch(f.source, 'One Piece')
+  assert.deepEqual(f.model.searchResults, [{ id: 'temporary-choice' }])
+  assert.deepEqual(f.preferenceReads, [])
+  assert.deepEqual(f.preferenceWrites, [])
+})
+
+test('late search-filter initialization cannot overwrite a newer query or changed source identity/settings', async () => {
+  for (const replaced of ['query', 'source', 'entry', 'settings']) {
+    const f = searchInitializationFixture()
+    let finishOld, schemaCalls = 0
+    f.model.loadSourceFilters = async () => {
+      if (++schemaCalls === 1) return new Promise(resolve => { finishOld = resolve })
+      return { filters: [{ id: 'sort', type: 'select', value: 'name:asc' }], supportsFilterFetching: false }
+    }
+    const dispatched = []
+    f.model.searchSource = async (_source, query) => {
+      dispatched.push(query)
+      return { manga: [{ id: query }], hasNextPage: false }
+    }
+    // SourceSearchPage may already be preparing its schema when an in-place
+    // search (or a source/settings change) supersedes that initialization.
+    const old = f.model.ensureSearchFilters(f.source)
+    await new Promise(setImmediate)
+    if (replaced === 'query') await f.model.runSearch(f.source, 'new')
+    else if (replaced === 'source') f.model.setSelectedSource({ ...f.source, sourceId: 'other' })
+    else if (replaced === 'entry') f.replaceEntry()
+    else f.changeSettings()
+    finishOld({ filters: [{ id: 'sort', type: 'select', value: 'stale' }], supportsFilterFetching: false })
+    await old
+    assert.deepEqual(dispatched, replaced === 'query' ? ['new'] : [], replaced)
+    assert.deepEqual(f.model.searchFilterValues, replaced === 'query' ? { sort: 'name:asc' } : {}, replaced)
+    assert.deepEqual(f.model.filters.map(filter => filter.value), replaced === 'query' ? ['name:asc'] : [], replaced)
+  }
+})
+
 test('a challenge is claimed once, cancelled without retry, and a new user attempt may ask again', async () => {
   const f = fixture(); f.replies.push(challenge(), challenge())
   await f.model.runSearch(f.source, 'one')
@@ -116,7 +220,9 @@ test('an empty first page with a next cursor does not become the empty-result sc
   f.replies.push({ manga: [], hasNextPage: true, nextCursor: '4' },
     { manga: [{ id: 'found' }], hasNextPage: true, nextCursor: '5' })
   await f.model.runSearch(f.source, 'one')
-  assert.deepEqual(f.calls.map(call => [call.page, call.cursor]), [[1, undefined], [2, '4']])
+  // The real VM passes its empty first-page cursor; the request builder turns
+  // it into args.page.cursor=null. Continuation still uses the exact provider cursor.
+  assert.deepEqual(f.calls.map(call => [call.page, call.cursor]), [[1, ''], [2, '4']])
   assert.deepEqual(f.model.searchResults, [{ id: 'found' }])
   assert.equal(f.model.searchNextCursor, '5')
   assert.equal(f.model.hasMoreSearch, true)
@@ -131,7 +237,7 @@ test('verification after empty pages retries the failed cursor even before any v
   assert.ok(receipt)
   assert.equal(f.model.claimWebChallenge('search', receipt.id, true), true)
   assert.equal(await f.model.completeWebChallenge('search', receipt.id, true), true)
-  assert.deepEqual(f.calls.map(call => [call.page, call.cursor]), [[1, undefined], [2, '3'], [3, '6'], [3, '6']])
+  assert.deepEqual(f.calls.map(call => [call.page, call.cursor]), [[1, ''], [2, '3'], [3, '6'], [3, '6']])
   assert.deepEqual(f.model.searchResults, [{ id: 'found' }])
 })
 test('settings changing during an empty continuation prevents both publishing and further requests', async () => {
@@ -191,7 +297,7 @@ test('completion rejected on hidden route consumes the old claim, even after rou
 test('browse metadata results do not invalidate its later listing challenge', async () => {
   const f = fixture()
   f.model.loadSourceListings = async () => [{ id: 'latest' }]
-  f.model.loadSourceFilters = async () => [{ id: 'genre' }]
+  f.model.loadSourceFilters = async () => ({ filters: [{ id: 'genre' }], supportsFilterFetching: false })
   f.model.loadSourceHomeSections = async () => []
   f.model.mergeSavedSourceFilterValues = (_source, _kind, values) => values
   f.model.defaultSourceFilterValues = () => ({ genre: 'all' })
@@ -558,10 +664,11 @@ const crossAst = ts.createSourceFile('cross.ts', read('model/CrossSearchService'
 const crossOwner = crossAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'CrossSearchService')
 const crossMethods = ['search','cancelPendingSearch','cancelWebChallenges','claimWebChallenge','canRetryWebChallenge',
   'cancelWebChallenge','completeWebChallenge','sourceWebChallengeGuard','pendingSections','sourceMatchesFilter',
-  'searchWasmSource','section','stateSection','errorSection','sourceSupportsSearch']
+  'searchWasmSource','section','stateSection','errorSection','sourceSupportsSearch','selectedSourceSummaries']
 const pageAst = ts.createSourceFile('page.ts', read('pages/SearchPage').replace('struct SearchPage', 'class SearchPage'), ts.ScriptTarget.Latest, true)
 const pageOwner = pageAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SearchPage')
-const pageMethods = ['ownsRoute','runSearch','prepareSearchResults','invalidateWebChallenges','cancelCurrentWebSession',
+const pageMethods = ['ownsRoute','runSearch','prepareSearchResults','hasMeaningfulSearchQuery','effectiveSourceFilter',
+  'libraryQueryActive','invalidateWebChallenges','cancelCurrentWebSession',
   'handleWebChallenges','closeWebChallenge','completeWebChallenge','finishWebChallengeDismiss']
 const classText = (owner, ast, names) => `export class Owner { ${names.map(name => owner.members.find(n => n.name?.text === name).getText(ast)).join('\n')} }`
 function deferredSearchReply() {
@@ -583,11 +690,12 @@ function crossWebFixture(ids) {
   new Function('exports','SourceWebChallengeGate','SourceRuntimeError','appSourceRuntimeRegistry','appSourceSettingsStore',
     'DiagnosticLogger','AppStrings','safeSearchDiagnostic','searchStateUserText','SOURCE_PAGE_SIZE','isCrossSearchQueryMeaningful',
     'newSourceRuntimeOperationGuardId','clearSourceRejectedRequest','selectSourceRejectedRequest',
+    'parseLibrarySearchQuery',
     compile(classText(crossOwner,crossAst,crossMethods)))(exports,SourceWebChallengeGate,SourceRuntimeError,registry,
     {revisionForSource:id=>revisions.get(id)},
     {begin:()=>({finish(){},fail(){}}),info(){},error(){}},{get:key=>key},
     error=>({code:error.diagnostic?.code??'unknown',userText:error.userText??'failed'}),()=>'',20,q=>q.length>0,
-    ()=>`search-${++guardSequence}`,()=>{},()=>{})
+    ()=>`search-${++guardSequence}`,()=>{},()=>{},moduleFrom('model/LibrarySearchQuery').parseLibrarySearchQuery)
   const service=new exports.Owner(), replies=new Map(), calls=[]
   Object.assign(service,{pagedSearchRuns:[],webChallengeGates:new Map(),webChallengeHandles:new Map(),sortSearchResultItems:(_q,items)=>items,
     sourceViewModel:{searchSource:async(source,query,page,cursor,active,handle)=>{
@@ -602,9 +710,11 @@ function crossWebFixture(ids) {
   const pageExports={}; let session=0
   new Function('exports','isCrossSearchQueryMeaningful','safeSearchDiagnostic','DiagnosticLogger',
     'appSourceWebSessionStore','cancelSourceWebProbe','prepareSourceWebSession',
+    'parseLibrarySearchQuery','appDeviceSync',
     compile(classText(pageOwner,pageAst,pageMethods)))(pageExports,q=>q.length>0,()=>({userText:'failed',code:'failed'}),
     {error(){}},{cancel(){}},()=>{},(sourceId,title,requestHandle)=>({url:'https://source.invalid/',title,
-      sourceSession:{sourceId,sessionId:String(++session),requestHandle}}))
+      sourceSession:{sourceId,sessionId:String(++session),requestHandle}}),moduleFrom('model/LibrarySearchQuery').parseLibrarySearchQuery,
+      {view:{connected:false,selected:[]}})
   const page=new pageExports.Owner()
   Object.assign(page,{service,routeEpoch:1,routeActive:true,chrome:{visible:true},searchSerial:0,sections:[],
     sourceFilter:'source',resultsQuery:'',resultsSourceFilter:'source',webChallengeEpoch:0,webChallengeRetrySerial:0,
