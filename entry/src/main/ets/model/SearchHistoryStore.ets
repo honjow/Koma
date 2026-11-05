@@ -208,11 +208,11 @@ export class SearchHistoryStore {
   }
 
   async saveSourceFilter(sourceFilter: CrossSearchSourceFilter): Promise<CrossSearchSourceFilter> {
-    return this.ordered(async (): Promise<CrossSearchSourceFilter> => {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<CrossSearchSourceFilter> => {
       const normalized = normalizeSearchSourceFilter(sourceFilter)
       await this.commit(await this.preferences(), SEARCH_SOURCE_FILTER_KEY, normalized)
       return normalized
-    })
+    }))
   }
 
   async loadResultsOnly(): Promise<boolean> {
@@ -222,9 +222,9 @@ export class SearchHistoryStore {
   }
 
   async saveResultsOnly(value: boolean): Promise<void> {
-    return this.ordered(async (): Promise<void> => {
+    return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
       await this.commit(await this.preferences(), SEARCH_RESULTS_ONLY_KEY, value ? 'true' : 'false')
-    })
+    }))
   }
 
   private async commit(store: preferences.Preferences, key: string, value: string): Promise<void> {

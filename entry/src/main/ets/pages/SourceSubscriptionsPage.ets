@@ -90,6 +90,7 @@ export struct SourceSubscriptionsPage {
     this.error = ''
     try {
       const service = new SourceIndexService(this.context())
+      const current = service.restoreGuard()
       const url = this.url.trim()
       if (this.repositories.some((repository: SourceIndexRepository): boolean =>
         repository.url !== this.editingUrl && resolveIndexDocumentUrl(repository.url) === resolveIndexDocumentUrl(url))) {
@@ -122,6 +123,7 @@ export struct SourceSubscriptionsPage {
         if (!result.ok) { this.error = this.readFailure(result.reasonCode); return }
         metadata = result.metadata ?? await service.fetchRepositoryMetadata(url)
       }
+      current()
       const repositories = await service.saveRepository(url, this.name, metadata, this.editingUrl || undefined)
       const active = await service.loadSavedUrl()
       this.cache.rememberSavedIndex(active)

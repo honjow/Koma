@@ -20,10 +20,11 @@ function harness(store=new Map()){
  const exports={}
  const serviceSource=fs.readFileSync(sourcePath,'utf8')
  const workerSource=(fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadata.ets'),'utf8')+'\n'+fs.readFileSync(sourcePath.replace('SourceIndexService.ets','SourceIndexMetadataWorker.ets'),'utf8')).replace('const SOURCE_INDEX_REPOSITORY_LIMIT','const WORKER_REPOSITORY_LIMIT').replaceAll('SOURCE_INDEX_REPOSITORY_LIMIT','WORKER_REPOSITORY_LIMIT')
- const source=(workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
+ const activitySource=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','model/BackupRestoreActivity.ets'),'utf8')
+ const signalsSource=fs.readFileSync(sourcePath.replace('sourceRuntime/SourceIndexService.ets','deviceSync/DeviceSyncSignals.ets'),'utf8')
+ const source=(activitySource+'\n'+signalsSource+'\n'+workerSource+'\n'+serviceSource).replace(/^import[\s\S]*?from '[^']+'\n/gm,'').replace(/^export \{[^\n]+\} from '[^']+'\n/gm,'').replace(/@Concurrent/g,'').replace(/@ObservedV2/g,'').replace(/@Trace /g,'')
  const globals={exports,Map,Date,JSON,Array,Number,Promise,console,ArrayBuffer,Uint8Array,
   preferences:{getPreferences:async()=>pref}, taskpool:{execute:async(fn,...args)=>fn(...args)},
-  BackupRestoreActivity:{async runWrite(fn){return fn()}},
   RemoteImageCacheStore:class{}, DiagnosticLogger:{info(){},error(){}},
   isInvalidSourceLocalizedNames:v=>v!==undefined && (v===null || typeof v!=='object' || Array.isArray(v)),
   normalizeSourceHomepage:homepageGuard(),
@@ -40,9 +41,40 @@ function harness(store=new Map()){
  }
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,globals)
  const make=(dir='data')=>new exports.SourceIndexService({filesDir:dir,cacheDir:'cache'})
- return {make,store,requests,requestedUrls,installs,pref,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
+ return {make,store,requests,requestedUrls,installs,pref,activity:exports.BackupRestoreActivity,setFail:v=>failFlush=v,setGate:v=>gate=v,get flushes(){return flushes}}
 }
 async function fetched(h,s,url,items){const r=s.fetchIndex(url);h.requests.shift()({responseCode:200,result:JSON.stringify(items)});const result=await r;await tick();return result}
+
+test('backup restore retires late subscription results even when the same URL remains enabled',async()=>{
+ const h=harness(),service=h.make(),url='https://example.test/'
+ await service.saveRepository(url,'before',{name:'Before'})
+ const guard=service.restoreGuard()
+ const index=service.fetchIndex(url),finishIndex=h.requests.shift()
+ const metadata=service.refreshRepositoryMetadata({url,lastUsedAt:0}),finishMetadata=h.requests.shift()
+ const metadataRejected=assert.rejects(metadata,/backup_restore_busy/)
+ h.activity.beginRestore()
+ service.invalidateForBackupRestore()
+ h.store.set('source_index.repositories.v1',JSON.stringify([{url,lastUsedAt:0,customName:'Restored',name:'Restored metadata'}]))
+ await service.reloadAfterBackupRestore()
+ h.activity.finishRestore()
+ assert.throws(guard,/backup_restore_busy/)
+ finishIndex({responseCode:200,result:JSON.stringify([item('stale')])})
+ finishMetadata({responseCode:200,result:JSON.stringify({meta:{name:'Stale metadata'}})})
+ assert.equal((await index).ok,false)
+ await metadataRejected
+ await tick()
+ assert.equal((await service.loadSavedRepositories())[0].name,'Restored metadata')
+ assert.equal(await service.loadCachedIndex(url),undefined)
+ assert.equal((await fetched(h,service,url,[item('fresh')])).ok,true)
+ h.activity.beginRestore()
+ service.invalidateForBackupRestore()
+ h.store.set('source_index.repositories.v1',JSON.stringify([{url,lastUsedAt:0,disabled:true}]))
+ await service.reloadAfterBackupRestore()
+ h.activity.finishRestore()
+ const before=h.requestedUrls.length
+ assert.equal((await service.fetchIndex(url)).ok,false)
+ assert.equal(h.requestedUrls.length,before,'Restored disabled state must block network use')
+})
 
 test('an unavailable book source package retries its verified enabled mirror',async()=>{
  const h=harness(),service=h.make()

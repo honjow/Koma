@@ -5,11 +5,14 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
 import { LanguageSettings } from '../i18n/LanguageSettings'
 import { restoreReaderRemoteImageCache } from './ReaderPageSourceAdapter'
+import { isValidHttpUrl, normalizeIndexUrl, parseSavedSourceIndexRepositories, SourceIndexRepository,
+  serializeSourceIndexRepositories } from '../sourceRuntime/SourceIndexMetadata'
 
 export type ApplicationSettingValue = string | number | boolean
 export interface ApplicationPreferenceBackup {
   name: string
   values: Record<string, ApplicationSettingValue>
+  clearedKeys?: string[]
 }
 export interface BackupDownloadPreferences {
   foregroundConcurrencyLimit: number
@@ -48,26 +51,64 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   ],
   // Global ReaderPreferences stay in the existing settings field.
   'koma_reader_preferences_v1': ['reader.seriesModeOverrides.v1'],
+  'koma_manga_migration_v1': ['migration.selectedSources', 'migration.matchOptions'],
+  'koma_source_package_manager_v1': ['source_index.repositories.v1', 'source_index.url'],
+  'koma_search_history_v1': ['search.source.filter', 'search.results.only'],
 }
 export const APPLICATION_SETTINGS_BACKUP_STORES: string[] = Object.keys(PORTABLE_FIELDS)
+
+function checkPortableValue(name: string, key: string, value: ApplicationSettingValue): void {
+  if (name === 'koma_manga_migration_v1') {
+    if (typeof value !== 'string') throw new Error('backup_application_settings_invalid')
+    const parsed = JSON.parse(value) as Object
+    if (key === 'migration.selectedSources') {
+      if (!Array.isArray(parsed) || (parsed as Object[]).some((item: Object): boolean =>
+        typeof item !== 'string' || item.trim().length === 0)) throw new Error('backup_application_settings_invalid')
+    } else {
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('backup_application_settings_invalid')
+      const options = parsed as Record<string, Object>
+      if (Object.keys(options).some((option: string): boolean =>
+        !['deepSearch', 'prioritizeChapters'].includes(option) || typeof options[option] !== 'boolean')) {
+        throw new Error('backup_application_settings_invalid')
+      }
+    }
+  } else if (name === 'koma_search_history_v1') {
+    if (typeof value !== 'string' || !(key === 'search.results.only' ? ['true', 'false'] :
+      ['all', 'local', 'private', 'source', 'wasm']).includes(value)) throw new Error('backup_application_settings_invalid')
+  } else if (name === 'koma_source_package_manager_v1') {
+    if (typeof value !== 'string') throw new Error('backup_application_settings_invalid')
+    if (key === 'source_index.repositories.v1') {
+      if (!Array.isArray(JSON.parse(value))) throw new Error('backup_application_settings_invalid')
+      parseSavedSourceIndexRepositories(value, '')
+    } else if (value !== '' && !isValidHttpUrl(value)) throw new Error('backup_application_settings_invalid')
+  }
+}
 
 export function checkedApplicationSettingsBackup(
   value: ApplicationSettingsBackup | undefined,
 ): ApplicationSettingsBackup | undefined {
   if (value === undefined) return undefined
-  if (value === null || value.schemaVersion !== 1 || !Array.isArray(value.preferences)) {
+  if (value === null || (value.schemaVersion !== 1 && value.schemaVersion !== 2) || !Array.isArray(value.preferences)) {
     throw new Error('backup_application_settings_invalid')
   }
   const seen = new Set<string>()
   for (let index = 0; index < value.preferences.length; index += 1) {
     const snapshot = value.preferences[index]
     const fields = snapshot === null ? undefined : PORTABLE_FIELDS[snapshot.name]
-    if (fields === undefined || seen.has(snapshot.name) || snapshot.values === null ||
+    if (!Array.isArray(fields) || seen.has(snapshot.name) || snapshot.values === null ||
       typeof snapshot.values !== 'object' || Array.isArray(snapshot.values)) {
       throw new Error('backup_application_settings_invalid')
     }
     seen.add(snapshot.name)
     const keys = Object.keys(snapshot.values)
+    if (value.schemaVersion === 2) {
+      if (!Array.isArray(snapshot.clearedKeys) || snapshot.clearedKeys.some((key: string, index: number): boolean =>
+        !fields.includes(key) || keys.includes(key) || snapshot.clearedKeys?.indexOf(key) !== index)) {
+        throw new Error('backup_application_settings_invalid')
+      }
+    } else if (snapshot.clearedKeys !== undefined) {
+      throw new Error('backup_application_settings_invalid')
+    }
     for (let fieldIndex = 0; fieldIndex < keys.length; fieldIndex += 1) {
       const key = keys[fieldIndex]
       const item = snapshot.values[key]
@@ -75,6 +116,18 @@ export function checkedApplicationSettingsBackup(
         !(typeof item === 'number' && Number.isFinite(item)))) {
         throw new Error('backup_application_settings_invalid')
       }
+      try { checkPortableValue(snapshot.name, key, item) }
+      catch (_error) { throw new Error('backup_application_settings_invalid') }
+    }
+    if (value.schemaVersion === 2 && snapshot.name === 'koma_source_package_manager_v1') {
+      if (!(keys.includes('source_index.repositories.v1') || snapshot.clearedKeys?.includes('source_index.repositories.v1')) ||
+        !(keys.includes('source_index.url') || snapshot.clearedKeys?.includes('source_index.url'))) {
+        throw new Error('backup_application_settings_invalid')
+      }
+      const list = parseSavedSourceIndexRepositories(snapshot.values['source_index.repositories.v1'] ?? '[]', '')
+      const primary = snapshot.values['source_index.url']
+      if (typeof primary === 'string' && primary !== '' &&
+        !list.some((item: SourceIndexRepository): boolean => item.url === normalizeIndexUrl(primary))) throw new Error('backup_application_settings_invalid')
     }
   }
   const download = value.downloadPreferences
@@ -99,12 +152,19 @@ export async function exportApplicationSettings(context: common.UIAbilityContext
       const item = all[key]
       if (item !== undefined) values[key] = item as ApplicationSettingValue
     }
+    if (name === 'koma_source_package_manager_v1') {
+      const repositories = parseSavedSourceIndexRepositories(all['source_index.repositories.v1'] ?? '', all['source_index.url'] ?? '')
+      if (all['source_index.repositories.v1'] !== undefined || repositories.length > 0) {
+        values['source_index.repositories.v1'] = serializeSourceIndexRepositories(repositories)
+      }
+    }
     // Copy before later Preferences.put calls can mutate a cached object.
-    snapshots.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, ApplicationSettingValue> })
+    snapshots.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, ApplicationSettingValue>,
+      clearedKeys: fields.filter((key: string): boolean => values[key] === undefined) })
   }
   const download = new OfflineDownloadQueueStore(context.filesDir).loadPreferences()
   const result: ApplicationSettingsBackup = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     preferences: snapshots,
     downloadPreferences: { foregroundConcurrencyLimit: download.foregroundConcurrencyLimit, wifiOnly: download.wifiOnly },
   }
@@ -121,12 +181,13 @@ export async function importApplicationSettings(
   for (let index = 0; index < document.preferences.length; index += 1) {
     const snapshot = document.preferences[index]
     const store = await preferences.getPreferences(context, snapshot.name)
-    const fields = PORTABLE_FIELDS[snapshot.name]
-    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex += 1) {
-      const key = fields[fieldIndex]
-      if (snapshot.values[key] === undefined) await store.delete(key)
-      else await store.put(key, snapshot.values[key])
+    // A missing v1 field cannot distinguish an old writer from an intentional
+    // reset. Preserve it; only v2's explicit clearedKeys authorize deletion.
+    const keys = Object.keys(snapshot.values)
+    for (const key of keys) {
+      await store.put(key, snapshot.values[key])
     }
+    for (const key of snapshot.clearedKeys ?? []) await store.delete(key)
     await store.flush()
   }
   if (document.downloadPreferences !== undefined) {
@@ -141,7 +202,8 @@ export async function importApplicationSettings(
 export function countApplicationSettings(value: ApplicationSettingsBackup | undefined): number {
   if (value === undefined) return 0
   return value.preferences.reduce((count: number, snapshot: ApplicationPreferenceBackup): number =>
-    count + (PORTABLE_FIELDS[snapshot.name]?.length ?? 0), value.downloadPreferences === undefined ? 0 : 2)
+    count + Object.keys(snapshot.values).length + (snapshot.clearedKeys?.length ?? 0),
+    value.downloadPreferences === undefined ? 0 : 2)
 }
 
 // Publish only after the durable restore has committed (or rollback has finished).

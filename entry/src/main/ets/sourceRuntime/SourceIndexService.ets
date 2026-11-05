@@ -5,8 +5,8 @@ import { taskpool } from '@kit.ArkTS'
 import {
   SourceIndexEntry, SourceIndexRepository, SourceRepositoryMetadata, parseSourceRepositoryMetadata, SourceIndexMetadataCacheRecord, SourceIndexMetadataCacheDocument,
   SOURCE_INDEX_METADATA_RECORD_LIMIT, SOURCE_INDEX_METADATA_CACHE_LIMIT,
-  normalizeIndexUrl, resolveIndexDocumentUrl, isValidHttpUrl, normalizeSourceIndexRepository,
-  normalizeSourceIndexRepositories, serializeSourceIndexRepositories, safeResolvePkgUrl,
+  normalizeIndexUrl, resolveIndexDocumentUrl, isValidHttpUrl,
+  normalizeSourceIndexRepositories, serializeSourceIndexRepositories, parseSavedSourceIndexRepositories, safeResolvePkgUrl,
   safeResolveIndexAssetUrl, entryWithCachedIcon, parseCachedIndexEntries, subscriptionIdentity,
 } from './SourceIndexMetadata'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -222,6 +222,40 @@ export class SourceIndexService {
     return `${this.context.filesDir}\n${url}`
   }
 
+  private subscriptionEpoch(key: string): number {
+    return (sourceSubscriptionEpochs.get(this.metadataRequestKey('')) ?? 0) + (sourceSubscriptionEpochs.get(key) ?? 0)
+  }
+
+  restoreGuard(): () => void {
+    const key = this.metadataRequestKey('')
+    const epoch = sourceSubscriptionEpochs.get(key) ?? 0
+    return (): void => {
+      if (BackupRestoreActivity.isRestoring() || epoch !== (sourceSubscriptionEpochs.get(key) ?? 0)) {
+        throw new Error('backup_restore_busy')
+      }
+    }
+  }
+
+  invalidateForBackupRestore(): void {
+    const prefix = this.metadataRequestKey('')
+    sourceSubscriptionEpochs.set(prefix, (sourceSubscriptionEpochs.get(prefix) ?? 0) + 1)
+    sourceIndexMetadataRequests.forEach((revision: number, key: string): void => {
+      if (key.startsWith(prefix)) sourceIndexMetadataRequests.set(key, revision + 1)
+    })
+    lastSourceDownload.forEach((_url: string, key: string): void => {
+      if (key.startsWith(prefix)) lastSourceDownload.delete(key)
+    })
+  }
+
+  async reloadAfterBackupRestore(): Promise<void> {
+    this.invalidateForBackupRestore()
+    const prefix = this.metadataRequestKey('')
+    disabledSourceSubscriptions.forEach((key: string): void => {
+      if (key.startsWith(prefix)) disabledSourceSubscriptions.delete(key)
+    })
+    await this.loadSavedRepositories()
+  }
+
   private retireSubscription(url: string): void {
     const document = resolveIndexDocumentUrl(url)
     this.beginMetadataRequest(document)
@@ -306,21 +340,7 @@ export class SourceIndexService {
 
   private async savedRepositories(store: preferences.Preferences): Promise<SourceIndexRepository[]> {
     const payload = await store.get(SOURCE_INDEX_REPOSITORIES_KEY, '')
-    if (typeof payload !== 'string') throw new Error('source_index_preferences_invalid')
-    let repositories: SourceIndexRepository[] = []
-    if (payload.trim().length > 0) {
-      const parsed = JSON.parse(payload) as Object
-      if (!Array.isArray(parsed)) throw new Error('source_index_preferences_invalid')
-      for (const value of parsed as Object[]) {
-        if (normalizeSourceIndexRepository(value) === undefined) throw new Error('source_index_preferences_invalid')
-      }
-      repositories = normalizeSourceIndexRepositories(parsed as Object[])
-    }
-    const legacyUrl = normalizeIndexUrl(await this.savedUrl(store))
-    if (isValidHttpUrl(legacyUrl) && !repositories.some((item: SourceIndexRepository): boolean => item.url === legacyUrl)) {
-      repositories.push({ url: legacyUrl, lastUsedAt: 0 })
-    }
-    const normalized = normalizeSourceIndexRepositories(repositories as Object[])
+    const normalized = parseSavedSourceIndexRepositories(payload, await this.savedUrl(store))
     normalized.forEach((item: SourceIndexRepository): void => this.rememberSubscriptionState(item))
     return normalized
   }
@@ -404,6 +424,8 @@ export class SourceIndexService {
   // Same-directory, optional repository metadata (Mihon-style field names).
   // It cannot change catalog/package provenance and never blocks installation.
   async fetchRepositoryMetadata(indexUrl: string): Promise<SourceRepositoryMetadata | undefined> {
+    const current = this.restoreGuard()
+    current()
     const documentUrl = resolveIndexDocumentUrl(indexUrl)
     if (!isValidHttpUrl(documentUrl) || disabledSourceSubscriptions.has(this.metadataRequestKey(documentUrl))) return undefined
     const request = http.createHttp()
@@ -412,11 +434,12 @@ export class SourceIndexService {
         method: http.RequestMethod.GET, expectDataType: http.HttpDataType.STRING,
         usingCache: false, readTimeout: 5000, connectTimeout: 5000,
       })
+      current()
       if (response.responseCode !== 200) return undefined
       const body = typeof response.result === 'string' ? response.result : JSON.stringify(response.result)
       if (body.length > 16384) return undefined
       return parseSourceRepositoryMetadata(JSON.parse(body) as Object)
-    } catch (_error) { return undefined } finally { request.destroy() }
+    } catch (_error) { current(); return undefined } finally { request.destroy() }
   }
 
   async saveRepository(url: string, customName: string, metadata?: SourceRepositoryMetadata,
@@ -466,9 +489,12 @@ export class SourceIndexService {
 
   async refreshRepositoryMetadata(repository: SourceIndexRepository): Promise<void> {
     if (repository.disabled) return
+    const current = this.restoreGuard()
     const metadata = await this.fetchRepositoryMetadata(repository.url)
+    current()
     if (metadata === undefined) return
     await BackupRestoreActivity.runWrite(async (): Promise<void> => this.ordered(async (): Promise<void> => {
+      current()
       const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
       const saved = await this.savedRepositories(store)
       const next = saved.map((item: SourceIndexRepository): SourceIndexRepository => item.url !== repository.url || item.disabled ? item : {
@@ -530,13 +556,14 @@ export class SourceIndexService {
   }
 
   async fetchIndex(indexUrl: string, prefetchedBody?: string): Promise<SourceIndexFetchResult> {
+    if (BackupRestoreActivity.isRestoring()) return { ok: false, reasonCode: 'subscription_unavailable', entries: [] }
     const normalizedUrl = resolveIndexDocumentUrl(indexUrl)
     if (!isValidHttpUrl(normalizedUrl)) {
       return { ok: false, reasonCode: 'invalid_url', entries: [] }
     }
 
     const key = this.metadataRequestKey(normalizedUrl)
-    const epoch = sourceSubscriptionEpochs.get(key) ?? 0
+    const epoch = this.subscriptionEpoch(key)
     if (prefetchedBody === undefined && disabledSourceSubscriptions.has(key))
       return { ok: false, reasonCode: 'subscription_unavailable', entries: [] }
     const cacheRevision = this.beginMetadataRequest(normalizedUrl)
@@ -557,7 +584,7 @@ export class SourceIndexService {
 
       const body = prefetchedBody ?? (typeof response!.result === 'string' ? response!.result : JSON.stringify(response!.result))
       const parsed = await taskpool.execute(parseSourceIndexDocumentTask, body, normalizedUrl) as SourceIndexMetadataParseResult
-      if (epoch !== (sourceSubscriptionEpochs.get(key) ?? 0))
+      if (epoch !== this.subscriptionEpoch(key) || BackupRestoreActivity.isRestoring())
         return { ok: false, reasonCode: 'subscription_unavailable', entries: [] }
       if (!parsed.ok) return parsed
       const entries = parsed.entries
@@ -584,13 +611,13 @@ export class SourceIndexService {
     const normalizedUrl = resolveIndexDocumentUrl(indexUrl)
     const key = this.metadataRequestKey(normalizedUrl)
     if (disabledSourceSubscriptions.has(key)) return
-    const epoch = sourceSubscriptionEpochs.get(key) ?? 0
+    const epoch = this.subscriptionEpoch(key)
     let nextIndex = 0
     const worker = async (): Promise<void> => {
-      while (isCurrent() && epoch === (sourceSubscriptionEpochs.get(key) ?? 0) && nextIndex < entries.length) {
+      while (isCurrent() && epoch === this.subscriptionEpoch(key) && !BackupRestoreActivity.isRestoring() && nextIndex < entries.length) {
         const entry = entries[nextIndex++]
         const iconUri = await this.cachedIconUriFor(normalizedUrl, entry, allowNetwork)
-        if (!isCurrent() || epoch !== (sourceSubscriptionEpochs.get(key) ?? 0)) return
+        if (!isCurrent() || epoch !== this.subscriptionEpoch(key) || BackupRestoreActivity.isRestoring()) return
         if (iconUri.length > 0) onIconReady(entryWithCachedIcon(entry, iconUri))
       }
     }
@@ -655,8 +682,8 @@ export class SourceIndexService {
       let result: SourceIndexInstallResult = { ok: false, reasonCode: 'subscription_unavailable' }
       for (const route of routes) {
         const key = this.metadataRequestKey(route.url)
-        const epoch = sourceSubscriptionEpochs.get(key) ?? 0
-        const current = (): boolean => epoch === (sourceSubscriptionEpochs.get(key) ?? 0)
+        const epoch = this.subscriptionEpoch(key)
+        const current = (): boolean => epoch === this.subscriptionEpoch(key) && !BackupRestoreActivity.isRestoring()
         if (requireSaved) {
           const live = (await this.loadSavedRepositories()).find((item: SourceIndexRepository): boolean =>
             resolveIndexDocumentUrl(item.url) === route.url)

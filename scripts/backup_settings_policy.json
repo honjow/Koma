@@ -28,6 +28,15 @@
     "model/ReaderPreferencesStore.ets": [
       "koma_reader_preferences_v1"
     ],
+    "model/MangaMigrationPreferencesStore.ets": [
+      "koma_manga_migration_v1"
+    ],
+    "model/SearchHistoryStore.ets": [
+      "koma_search_history_v1"
+    ],
+    "sourceRuntime/SourceIndexService.ets": [
+      "koma_source_package_manager_v1"
+    ],
     "state/SourceCatalogFilterState.ets": [
       "koma_source_catalog_filters_v1"
     ]
@@ -75,9 +84,6 @@
       "kavita.server",
       "webdav.server",
       "opds.server"
-    ],
-    "sourceRuntime/SourceIndexService.ets": [
-      "source_index.url"
     ],
     "model/TrackerModels.ets": [
       "tracker.comicMappings",
@@ -158,19 +164,7 @@
       "opds.credential"
     ]
   },
-  "pending": {
-    "model/MangaMigrationPreferencesStore.ets": [
-      "migration.selectedSources",
-      "migration.matchOptions"
-    ],
-    "sourceRuntime/SourceIndexService.ets": [
-      "source_index.repositories.v1"
-    ],
-    "model/SearchHistoryStore.ets": [
-      "search.source.filter",
-      "search.results.only"
-    ]
-  },
+  "pending": {},
   "dynamic": {
     "model/ReaderPreferencesStore.ets": [
       "persistPreferences: key"

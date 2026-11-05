@@ -198,6 +198,26 @@ export function serializeSourceIndexRepositories(repositories: SourceIndexReposi
   return JSON.stringify(normalizeSourceIndexRepositories(repositories as Object[]))
 }
 
+// Preferences and portable backups must agree on the effective legacy list.
+// Parsing is read-only; a legacy-only URL is still a real subscription.
+export function parseSavedSourceIndexRepositories(payload: Object, legacy: Object): SourceIndexRepository[] {
+  if (typeof payload !== 'string' || typeof legacy !== 'string') throw new Error('source_index_preferences_invalid')
+  let repositories: SourceIndexRepository[] = []
+  if (payload.trim().length > 0) {
+    const parsed = JSON.parse(payload) as Object
+    if (!Array.isArray(parsed)) throw new Error('source_index_preferences_invalid')
+    for (const value of parsed as Object[]) {
+      if (normalizeSourceIndexRepository(value) === undefined) throw new Error('source_index_preferences_invalid')
+    }
+    repositories = normalizeSourceIndexRepositories(parsed as Object[])
+  }
+  const url = normalizeIndexUrl(legacy)
+  if (isValidHttpUrl(url) && !repositories.some((item: SourceIndexRepository): boolean => item.url === url)) {
+    repositories.push({ url, lastUsedAt: 0 })
+  }
+  return normalizeSourceIndexRepositories(repositories as Object[])
+}
+
 export function safeRelativeIndexPath(value: string, requiredSuffix: string): string {
   const normalized = value.trim()
   if (normalized.length === 0 || normalized.length > 256 || normalized.startsWith('/') ||

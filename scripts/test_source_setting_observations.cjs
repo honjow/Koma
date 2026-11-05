@@ -160,7 +160,7 @@ test('checkpoint recovery reads existing v1/v2 files and rolls back the added ob
     const { BackupRestoreCheckpoint: Checkpoint } = load('model/BackupRestoreCheckpoint.ets', {
       '@kit.CoreFileKit': { fileIo: { ...f.io, readSync: (fd, buffer) => fs.readSync(fd, new Uint8Array(buffer)) } },
       '@kit.ArkTS': { buffer: Buffer }, '@kit.ArkData': { preferences },
-      './ApplicationSettingsBackup': { APPLICATION_SETTINGS_BACKUP_STORES: [] },
+      './ApplicationSettingsBackup': { APPLICATION_SETTINGS_BACKUP_STORES: ['koma_manga_migration_v1', 'koma_search_history_v1'] },
       './LibraryPersistence': { AppFilesLibraryStorePersistenceAdapter: Adapter },
       './BackupRestoreActivity': { BackupRestoreActivity: f.activity },
     })
@@ -170,8 +170,15 @@ test('checkpoint recovery reads existing v1/v2 files and rolls back the added ob
       fs.writeFileSync(f.file, 'original public metadata')
       await Checkpoint.prepare({ filesDir: f.directory })
       const image = JSON.parse(fs.readFileSync(checkpointFile, 'utf8'))
-      assert.equal(image.schemaVersion, 3)
-      if (version < 3) { image.schemaVersion = version; image.files.pop(); fs.writeFileSync(checkpointFile, JSON.stringify(image)) }
+      assert.equal(image.schemaVersion, 5)
+      image.schemaVersion = version
+      image.files = image.files.filter(file => file.path !== 'image-rules.v1.json' &&
+        (version === 3 || file.path !== 'source-runtime/source-setting-observations.json'))
+      const stores = ['koma_remote_servers_v1', 'koma_source_package_manager_v1', 'koma_tracker_preferences_v1', 'koma_reader_preferences_v1']
+      if (version > 1) stores.push('koma_app_preferences_v1', 'koma_appearance_preferences_v1', 'koma_library_filter_preferences',
+        'koma_library_update_preferences_v1', 'koma_reader_remote_image_cache_v1', 'koma_backup_automatic_v1', 'koma_backup_content_v1')
+      image.preferences = stores.map(name => image.preferences.find(group => group.name === name))
+      fs.writeFileSync(checkpointFile, JSON.stringify(image))
       fs.writeFileSync(f.file, 'new public metadata')
       await Checkpoint.recoverBeforeStartup({ filesDir: f.directory })
       assert.equal(fs.readFileSync(f.file, 'utf8'), version === 3 ? 'original public metadata' : 'new public metadata')

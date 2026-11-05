@@ -729,20 +729,22 @@
       "kind": "open",
       "priority": "用户核对备份设置",
       "owner": "Root",
-      "status": "门禁已落地；已知设置遗漏与旧组缺字段兼容仍未补齐",
+      "status": "已补齐备份与恢复逻辑，正在构建并准备真机验证",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户询问备份覆盖，源码审计确认。",
-      "result": "迁移选源顺序和匹配选项、完整书源订阅、搜索来源范围和仅显示有结果偏好仍未纳入导出。门禁将这些既有遗漏列为pending，并未将它们补进备份。当前导入器仍会在旧文件包含某组但缺少组内字段时删除本机对应字段。",
-      "remaining": "补齐可迁移设置，区分旧文件缺字段与用户明确重置，并验证导出导入往返及旧文件兼容。",
+      "result": "已纳入迁移选源顺序和匹配选项、完整书源订阅及禁用状态、搜索来源范围和仅显示有结果偏好。旧格式缺字段保留本机值，新格式以显式删除列表区分重置；恢复撤销过期订阅请求，并在解除恢复限制前重建禁用状态。已实际执行非默认值往返、旧格式兼容、新字段部分写入失败后的检查点回滚，以及历史检查点恢复。",
+      "remaining": "完成当前修复包构建、197普通备份创建/预览/恢复及设置读回，核对真机结果后关闭。",
       "relatedItems": [
         "BACKUP_SETTINGS_COVERAGE_GATE"
       ],
-      "updatedAt": "2026-11-06T00:10:59+08:00",
+      "updatedAt": "2026-11-06T01:17:40+08:00",
       "evidence": [
         "entry/src/main/ets/model/ApplicationSettingsBackup.ets",
         "scripts/backup_settings_policy.json",
-        "scripts/check_backup_settings.cjs"
+        "scripts/check_backup_settings.cjs",
+        "entry/src/main/ets/model/BackupRestoreCheckpoint.ets",
+        "scripts/test_source_index_cache.cjs"
       ]
     },
     {

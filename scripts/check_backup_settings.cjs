@@ -199,11 +199,28 @@ async function verifyRoundTrip() {
       savePreferencesForBackupRestore(value) { mutations += 1; download = value }
     } },
   }
+  const packageMetadata = evaluate(read('sourceRuntime/SourcePackageMetadata.ets'), {
+    '@kit.ArkTS': { url: { URL: { parseURL: value => new URL(value) } } },
+  })
+  ports['../sourceRuntime/SourceIndexMetadata'] = evaluate(read('sourceRuntime/SourceIndexMetadata.ets'), {
+    './SourcePackageMetadata': packageMetadata,
+    './SourceLocalizedNames': evaluate(read('sourceRuntime/SourceLocalizedNames.ets'), {}),
+  })
   const backup = evaluate(read(applicationSettingsModule) + '\nexport { PORTABLE_FIELDS }', ports)
   const count = checkInventory(backup.PORTABLE_FIELDS)
   const valuesForStore = {}
+  const structuredValues = {
+    'migration.selectedSources': JSON.stringify(['source-b', 'source-a']),
+    'migration.matchOptions': JSON.stringify({ deepSearch: true, prioritizeChapters: false }),
+    'source_index.repositories.v1': JSON.stringify([
+      { url: 'https://disabled.example.test', lastUsedAt: 17, disabled: true, customName: 'Disabled' },
+      { url: 'https://sources.example.test/index.json', lastUsedAt: 0 },
+    ]),
+    'source_index.url': 'https://sources.example.test/index.json',
+    'search.source.filter': 'wasm', 'search.results.only': 'true',
+  }
   for (const [store, keys] of Object.entries(backup.PORTABLE_FIELDS)) {
-    const values = Object.fromEntries(keys.map((key, index) => [key, [false, 7, 'fixture'][index % 3]]))
+    const values = Object.fromEntries(keys.map((key, index) => [key, structuredValues[key] ?? [false, 7, 'fixture'][index % 3]]))
     valuesForStore[store] = values
     stores.set(store, { ...values, 'test.credential': 'secret', 'test.deviceOnly': 'device' })
   }
@@ -239,10 +256,143 @@ async function verifyRoundTrip() {
   await backup.importApplicationSettings({}, undefined)
   await backup.importApplicationSettings({}, { schemaVersion: 1, preferences: [] })
   assert.equal(mutations, before, 'Legacy backups without the settings group preserve destination settings')
+  const languageStore = stores.get('koma_app_preferences_v1')
+  const languageBefore = languageStore['app.language']
+  await backup.importApplicationSettings({}, { schemaVersion: 1,
+    preferences: [{ name: 'koma_app_preferences_v1', values: {} }] })
+  assert.equal(languageStore['app.language'], languageBefore,
+    'A legacy group with an omitted field must not delete the destination setting')
+  delete languageStore['app.language']
+  const unset = await backup.exportApplicationSettings({})
+  assert.deepEqual(unset.preferences.find(group => group.name === 'koma_app_preferences_v1').clearedKeys, ['app.language'])
+  languageStore['app.language'] = 'zh-CN'
+  await backup.importApplicationSettings({}, unset)
+  assert.equal(Object.hasOwn(languageStore, 'app.language'), false,
+    'An explicit v2 cleared key restores an intentionally unset preference')
+  for (const clearedKeys of [['app.language', 'app.language'], ['test.credential']]) {
+    const countBefore = mutations
+    await assert.rejects(backup.importApplicationSettings({}, { schemaVersion: 2,
+      preferences: [{ name: 'koma_app_preferences_v1', values: {}, clearedKeys }] }), /backup_application_settings_invalid/)
+    assert.equal(mutations, countBefore, 'Invalid clear lists must fail before writes')
+  }
+  languageStore['app.language'] = languageBefore
+  const sourceStore = stores.get('koma_source_package_manager_v1')
+  const sourceValues = { ...sourceStore }
+  delete sourceStore['source_index.repositories.v1']
+  const legacyExport = await backup.exportApplicationSettings({})
+  const legacySources = legacyExport.preferences.find(group => group.name === 'koma_source_package_manager_v1')
+  assert.deepEqual(JSON.parse(legacySources.values['source_index.repositories.v1']),
+    [{ url: structuredValues['source_index.url'], lastUsedAt: 0 }])
+  assert(!Object.hasOwn(sourceStore, 'source_index.repositories.v1'), 'Exporting a legacy-only subscription is read-only')
+  sourceStore['source_index.url'] = 'https://destination-only.example.test/'
+  await backup.importApplicationSettings({}, exported)
+  assert.deepEqual(sourceStore, sourceValues, 'The destination legacy pointer must not revive an extra subscription')
+  const sourceGroup = exported.preferences.find(group => group.name === 'koma_source_package_manager_v1')
+  for (const invalid of [
+    { name: sourceGroup.name, values: { 'source_index.repositories.v1': '[]' }, clearedKeys: [] },
+    { name: sourceGroup.name, values: { 'source_index.repositories.v1': '[]', 'source_index.url': 'https://extra.example.test/' }, clearedKeys: [] },
+    { name: 'koma_manga_migration_v1', values: { 'migration.selectedSources': '[1]' }, clearedKeys: [] },
+    { name: 'koma_search_history_v1', values: { 'search.results.only': true }, clearedKeys: [] },
+  ]) {
+    const countBefore = mutations
+    await assert.rejects(backup.importApplicationSettings({}, { schemaVersion: 2, preferences: [invalid] }), /backup_application_settings_invalid/)
+    assert.equal(mutations, countBefore, 'Malformed portable choices fail before the first live write')
+  }
+  await backup.importApplicationSettings({}, { schemaVersion: 2, preferences: [{ name: sourceGroup.name,
+    values: {}, clearedKeys: ['source_index.repositories.v1', 'source_index.url'] }] })
+  assert.deepEqual(sourceStore, { 'test.deviceOnly': 'destination' })
+  Object.assign(sourceStore, sourceValues)
+  await verifyCheckpoint(ports, backup, stores)
   await verifyBackupDocument(ports, backup, stores, value => { restoring = value })
   console.log(`Backup settings gate passed (${count} Preferences owner/key pairs; application settings export/restore verified).`)
   for (const [owner, keys] of Object.entries(policy.pending)) {
     console.log(`Existing backup gap: ${owner} → ${keys.join(', ')}`)
+  }
+}
+
+async function verifyCheckpoint(ports, applicationSettings, stores) {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-backup-checkpoint-'))
+  const checkpointPath = path.join(directory, 'backup-restore-checkpoint.v1.json')
+  const context = { filesDir: directory }
+  class FilesAdapter {
+    constructor(root, relative) { this.path = path.join(root, relative) }
+    load() { return fs.existsSync(this.path) ? fs.readFileSync(this.path, 'utf8') : undefined }
+    save(value) { fs.mkdirSync(path.dirname(this.path), { recursive: true }); fs.writeFileSync(this.path, value) }
+  }
+  const activity = evaluate(read('model/BackupRestoreActivity.ets'), {})
+  const checkpoint = evaluate(read('model/BackupRestoreCheckpoint.ets'), {
+    ...ports,
+    '@kit.ArkTS': { buffer: Buffer },
+    '@kit.CoreFileKit': { fileIo: {
+      accessSync: fs.existsSync, OpenMode: { READ_ONLY: 'r' },
+      openSync: file => ({ fd: fs.openSync(file, 'r') }), statSync: fd => fs.fstatSync(fd),
+      readSync: (fd, target) => fs.readSync(fd, new Uint8Array(target)), closeSync: file => fs.closeSync(file.fd),
+      mkdirSync: folder => fs.mkdirSync(folder, { recursive: true }), unlinkSync: fs.unlinkSync,
+    } },
+    './BackupRestoreActivity': activity,
+    './ApplicationSettingsBackup': applicationSettings,
+    './LibraryPersistence': { AppFilesLibraryStorePersistenceAdapter: FilesAdapter },
+  }).BackupRestoreCheckpoint
+  // Add the platform clear operation used by the real checkpoint rollback.
+  const getPreferences = ports['@kit.ArkData'].preferences.getPreferences
+  const original = new Map([...stores].map(([name, values]) => [name, { ...values }]))
+  ports['@kit.ArkData'].preferences.getPreferences = async (ctx, name) => {
+    const store = await getPreferences(ctx, name)
+    if (name === 'koma_search_history_v1') {
+      const put = store.put
+      store.put = async (key, value) => {
+        if (failOnce && key === 'search.source.filter') { failOnce = false; throw new Error('fixture_disk_write_failed') }
+        return put(key, value)
+      }
+    }
+    store.clear = async () => { for (const key of Object.keys(stores.get(name))) delete stores.get(name)[key] }
+    return store
+  }
+  let failOnce = false
+  try {
+    activity.BackupRestoreActivity.beginRestore()
+    const pending = await checkpoint.prepare(context)
+    assert.equal(JSON.parse(fs.readFileSync(checkpointPath, 'utf8')).schemaVersion, 5)
+    failOnce = true
+    await assert.rejects(applicationSettings.importApplicationSettings(context, { schemaVersion: 2, preferences: [
+      { name: 'koma_manga_migration_v1', values: { 'migration.selectedSources': '["changed"]' }, clearedKeys: ['migration.matchOptions'] },
+      { name: 'koma_search_history_v1', values: { 'search.source.filter': 'local' }, clearedKeys: ['search.results.only'] },
+    ] }), /fixture_disk_write_failed/)
+    // Migration was already changed when the search write failed. Execute the
+    // production checkpoint rollback and compare original values and presence.
+    await pending.rollback()
+    pending.completeRollback()
+    activity.BackupRestoreActivity.finishRestore()
+    for (const [name, values] of original) assert.deepEqual(stores.get(name), values)
+    assert(!fs.existsSync(checkpointPath))
+
+    // Exact domains written by released checkpoint versions, independent of
+    // today's portable list. Recovery must leave the two new stores untouched.
+    const first = ['koma_remote_servers_v1', 'koma_source_package_manager_v1', 'koma_tracker_preferences_v1', 'koma_reader_preferences_v1']
+    const base = ['koma_app_preferences_v1', 'koma_appearance_preferences_v1', 'koma_library_filter_preferences',
+      'koma_library_update_preferences_v1', 'koma_reader_remote_image_cache_v1', 'koma_backup_automatic_v1', 'koma_backup_content_v1']
+    const files = ['library-store.v1.json', 'reader-sessions.v1.json', 'source-runtime/source-settings.json',
+      'source-runtime/source-filter-preferences.json', 'downloads/queue.v1.json', 'source-runtime/source-runtime-registry.json']
+    const domains = [[], ['koma_library_automation_v1'], ['koma_chapter_list_preferences_v1', 'koma_library_automation_v1'],
+      ['koma_source_catalog_filters_v1', 'koma_chapter_list_preferences_v1', 'koma_library_automation_v1']]
+    const versions = [[1, first], [2, first.concat(base)], ...domains.map(extra => [3, first.concat(extra, base)]),
+      [4, first.concat(domains[3], base)]]
+    for (const [version, names] of versions) {
+      const recoveryFiles = files.concat(version >= 3 ? ['source-runtime/source-setting-observations.json'] : [],
+        version >= 4 ? ['image-rules.v1.json'] : [])
+      fs.writeFileSync(checkpointPath, JSON.stringify({ schemaVersion: version, phase: 'prepared',
+        files: recoveryFiles.map(relative => ({ path: relative, exists: false, content: '' })),
+        preferences: names.map(name => ({ name, values: { 'historical.fixture': version } })),
+      }))
+      await checkpoint.recoverBeforeStartup(context)
+      for (const name of names) assert.deepEqual(stores.get(name), { 'historical.fixture': version })
+      for (const name of ['koma_manga_migration_v1', 'koma_search_history_v1']) assert.deepEqual(stores.get(name), original.get(name))
+    }
+  } finally {
+    ports['@kit.ArkData'].preferences.getPreferences = getPreferences
+    stores.clear()
+    for (const [name, values] of original) stores.set(name, values)
+    fs.rmSync(directory, { recursive: true, force: true })
   }
 }
 
@@ -253,6 +403,8 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
   let restoredReader
   let restoredBanners
   let committed = false
+  let sourceConstructionFailure = false
+  let restoreActive = false
   const content = { includeSettings: true, includeDownloadQueue: false, includeTrackerMappings: true }
   const tracker = { autoSyncEnabled: false, updateStrategy: 'manual', comicMappings: [{ comicId: 'comic' }],
     accounts: [{ accessToken: 'fixture-token' }] }
@@ -266,7 +418,8 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
     ...ports,
     './ApplicationSettingsBackup': { ...applicationSettings, reloadApplicationSettingsRuntime: async () => {} },
     './BackupRestoreActivity': { BackupRestoreActivity: {
-      runWrite: action => action(), beginRestore: () => setRestoring(true), finishRestore: () => setRestoring(false),
+      runWrite: action => action(), beginRestore: () => { restoreActive = true; setRestoring(true) },
+      finishRestore: () => { restoreActive = false; setRestoring(false) },
     } },
     '../deviceSync/DeviceSyncSignals': evaluate(read('deviceSync/DeviceSyncSignals.ets'), {}),
     './BackupRestoreCheckpoint': { BackupRestoreCheckpoint: {
@@ -301,7 +454,13 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
       TrackerPreferencesStore: class { async load() { return tracker } },
       normalizeTrackerUpdateStrategy: value => value, normalizeComicTrackerMappings: value => value,
     },
-    '../sourceRuntime/SourceIndexService': { SourceIndexService: class { async loadSavedUrl() { return sourceIndexUrl } } },
+    '../sourceRuntime/SourceIndexService': { SourceIndexService: class {
+      constructor() { if (sourceConstructionFailure) { sourceConstructionFailure = false; throw new Error('fixture_cache_directory_failed') } }
+      async loadSavedUrl() { return sourceIndexUrl }
+      invalidateForBackupRestore() {}
+      async reloadAfterBackupRestore() { assert(restoreActive, 'Rebuild subscription guards before releasing restore admission') }
+    } },
+    '../viewmodel/SourcePackageManagerCache': { appSourcePackageManagerCache: { invalidate() {} } },
     '../sourceRuntime/SourceRuntimeAppRegistry': { exportInstalledSourcePackages: () => [],
       prepareSourcePackagesFromBackup: async () => ({ ok: true, plan: { commit: async () => ({ ok: true }), discard() {} } }) },
     '../sourceRuntime/SourceSettingsStore': { configureSourceSettingsStore() {},
@@ -348,6 +507,9 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
     'server.endpoint-identities': 'endpoint-ids', 'komga.server': 'komga', 'kavita.server': 'kavita',
     'webdav.server': 'webdav', 'opds.server': 'opds',
   })
+  sourceConstructionFailure = true
+  await assert.rejects(service.import(raw), /fixture_cache_directory_failed/)
+  assert.equal(restoreActive, false, 'Owner initialization failures must release the restore gate')
   const withoutSettings = JSON.parse(await service.export({ ...content, includeSettings: false, includeTrackerMappings: false }))
   for (const field of ['settings', 'applicationSettings', 'sourceIndexUrl', 'trackerSyncPreferences', 'trackerMappings']) {
     assert(!Object.hasOwn(withoutSettings, field), `Unexpected backup field when disabled: ${field}`)

@@ -11,6 +11,7 @@ import { hydrateLibraryStoreFromJson } from './LibraryPersistence'
 import { writeAutomaticBackupToDirectory, releaseAutomaticBackupDirectory } from './BackupAutomaticDirectory'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
+import { appSourcePackageManagerCache } from '../viewmodel/SourcePackageManagerCache'
 import { ApplicationSettingsBackup, checkedApplicationSettingsBackup, exportApplicationSettings,
   importApplicationSettings, countApplicationSettings, reloadApplicationSettingsRuntime } from './ApplicationSettingsBackup'
 import { writeAppTextFile } from './AppFileTextPersistence'
@@ -1354,6 +1355,10 @@ export class BackupService {
     let coverPlan: PreparedComicCovers | undefined
     let coversCommitted: boolean = false
     try {
+      // Retire in-flight results before restoring durable subscription choices.
+      // Keep construction inside cleanup: its cache directory may fail to open.
+      new SourceIndexService(this.context).invalidateForBackupRestore()
+      appSourcePackageManagerCache.invalidate()
       signalDeviceSyncRestoreStart()
       beginAutomationRestore(this.context)
       if (document.schemaVersion >= BACKUP_SCHEMA_VERSION_V2 && document.sourcePackages !== undefined) {
@@ -1395,6 +1400,9 @@ export class BackupService {
         await importApplicationSettings(this.context, document.applicationSettings)
       }
       resetGeneratedAutomationWork(this.context)
+      // Rebuild disabled-address guards before opening the restore gate. A
+      // successful restore must never expose a transient enabled subscription.
+      await this.reloadSubscriptionRuntimeAfterRestore()
       checkpoint.commit()
       const state = this.managementState()
       state.automaticPreferences = undefined
@@ -1411,6 +1419,7 @@ export class BackupService {
             throw new Error('backup_registry_recovery_failed')
           }
           await new ReaderPreferencesStore(this.context).load()
+          await this.reloadSubscriptionRuntimeAfterRestore()
           await reloadApplicationSettingsRuntime(this.context)
           checkpoint.completeRollback()
         } catch (_recoveryError) {
@@ -1434,6 +1443,11 @@ export class BackupService {
       }
     }
     await reloadApplicationSettingsRuntime(this.context)
+  }
+
+  private async reloadSubscriptionRuntimeAfterRestore(): Promise<void> {
+    await new SourceIndexService(this.context).reloadAfterBackupRestore()
+    appSourcePackageManagerCache.invalidate()
   }
 
   preview(json: string): BackupImportPreview {

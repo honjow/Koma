@@ -23,8 +23,25 @@ const RESTORE_PREFERENCES_V1: string[] = [
   'koma_tracker_preferences_v1',
   'koma_reader_preferences_v1',
 ]
-const RESTORE_PREFERENCES: string[] = RESTORE_PREFERENCES_V1.concat(
-  APPLICATION_SETTINGS_BACKUP_STORES.filter((name: string): boolean => !RESTORE_PREFERENCES_V1.includes(name)))
+// Historical writers added these groups without always changing the checkpoint
+// version. Accept only their exact deployed ordered domains, never a subset
+// chosen by an incoming checkpoint. New coverage must not invalidate recovery.
+const RESTORE_APPLICATION_PREFERENCES_V2: string[] = [
+  'koma_app_preferences_v1', 'koma_appearance_preferences_v1', 'koma_library_filter_preferences',
+  'koma_library_update_preferences_v1', 'koma_reader_remote_image_cache_v1',
+  'koma_backup_automatic_v1', 'koma_backup_content_v1',
+]
+const RESTORE_PREFERENCES_V2: string[] = RESTORE_PREFERENCES_V1.concat(RESTORE_APPLICATION_PREFERENCES_V2)
+const RESTORE_PREFERENCES_V3: string[][] = [
+  RESTORE_PREFERENCES_V2,
+  RESTORE_PREFERENCES_V1.concat(['koma_library_automation_v1'], RESTORE_APPLICATION_PREFERENCES_V2),
+  RESTORE_PREFERENCES_V1.concat(['koma_chapter_list_preferences_v1', 'koma_library_automation_v1'], RESTORE_APPLICATION_PREFERENCES_V2),
+  RESTORE_PREFERENCES_V1.concat(['koma_source_catalog_filters_v1', 'koma_chapter_list_preferences_v1',
+    'koma_library_automation_v1'], RESTORE_APPLICATION_PREFERENCES_V2),
+]
+const RESTORE_PREFERENCES_V4: string[] = RESTORE_PREFERENCES_V3[3]
+const RESTORE_PREFERENCES: string[] = RESTORE_PREFERENCES_V4.concat(
+  APPLICATION_SETTINGS_BACKUP_STORES.filter((name: string): boolean => !RESTORE_PREFERENCES_V4.includes(name)))
 type RestorePreferenceValue = string | number | boolean
 
 interface RestoreFileImage {
@@ -88,13 +105,13 @@ function readExactUtf8(path: string): string {
 
 function checkedDocument(payload: string): RestoreCheckpointDocument {
   const document = JSON.parse(payload) as RestoreCheckpointDocument
-  if (document === null || (document.schemaVersion !== 1 && document.schemaVersion !== 2 && document.schemaVersion !== 3 && document.schemaVersion !== 4) ||
+  if (document === null || ![1, 2, 3, 4, 5].includes(document.schemaVersion) ||
     (document.phase !== 'prepared' && document.phase !== 'committed') ||
-    !Array.isArray(document.files) || document.files.length !== (document.schemaVersion === 4 ? RESTORE_FILES.length : document.schemaVersion === 3 ? RESTORE_FILES_V3.length : RESTORE_FILES_V2.length) ||
-    !Array.isArray(document.preferences) || document.preferences.length !== (document.schemaVersion === 1 ? RESTORE_PREFERENCES_V1.length : RESTORE_PREFERENCES.length)) {
+    !Array.isArray(document.files) || document.files.length !== (document.schemaVersion >= 4 ? RESTORE_FILES.length : document.schemaVersion === 3 ? RESTORE_FILES_V3.length : RESTORE_FILES_V2.length) ||
+    !Array.isArray(document.preferences)) {
     throw new Error('backup_checkpoint_invalid_document')
   }
-  const expectedFiles = document.schemaVersion === 4 ? RESTORE_FILES : document.schemaVersion === 3 ? RESTORE_FILES_V3 : RESTORE_FILES_V2
+  const expectedFiles = document.schemaVersion >= 4 ? RESTORE_FILES : document.schemaVersion === 3 ? RESTORE_FILES_V3 : RESTORE_FILES_V2
   for (let index = 0; index < expectedFiles.length; index += 1) {
     const image = document.files[index]
     if (image === null || image.path !== expectedFiles[index] ||
@@ -103,7 +120,13 @@ function checkedDocument(payload: string): RestoreCheckpointDocument {
       throw new Error('backup_checkpoint_invalid_file')
     }
   }
-  const expectedStores = document.schemaVersion === 1 ? RESTORE_PREFERENCES_V1 : RESTORE_PREFERENCES
+  const expectedStores = document.schemaVersion === 1 ? RESTORE_PREFERENCES_V1 :
+    document.schemaVersion === 2 ? RESTORE_PREFERENCES_V2 : document.schemaVersion === 3 ?
+      RESTORE_PREFERENCES_V3.find((stores: string[]): boolean => stores.length === document.preferences.length) :
+      document.schemaVersion === 4 ? RESTORE_PREFERENCES_V4 : RESTORE_PREFERENCES
+  if (expectedStores === undefined || document.preferences.length !== expectedStores.length) {
+    throw new Error('backup_checkpoint_invalid_store')
+  }
   for (let index = 0; index < expectedStores.length; index += 1) {
     const image = document.preferences[index]
     if (image === null || image.name !== expectedStores[index]) {
@@ -141,7 +164,7 @@ export class BackupRestoreCheckpoint {
       // Freeze a copy before later put/delete operations mutate the cache.
       images.push({ name, values: JSON.parse(JSON.stringify(values)) as Record<string, RestorePreferenceValue> })
     }
-    const document: RestoreCheckpointDocument = { schemaVersion: 4, phase: 'prepared', files, preferences: images }
+    const document: RestoreCheckpointDocument = { schemaVersion: 5, phase: 'prepared', files, preferences: images }
     adapter.save(JSON.stringify(document))
     console.info('[BackupRecovery] step=prepared')
     return new BackupRestoreCheckpoint(context, document)
