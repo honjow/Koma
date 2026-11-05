@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T03:31:42+08:00",
+  "updatedAt": "2026-11-06T05:24:46+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READER_ASYNC_PAGE_ROLLBACK",
   "activity": "备份设置遗漏已修复推送；条漫入场已通过手机和平板复验，共享修复待仓库写权限；继续处理偶发翻页回退。",
@@ -81,6 +81,32 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "BROWSE_SOURCE_PIN",
+      "title": "浏览页书源置顶与分组动画",
+      "kind": "accepted",
+      "priority": "用户明确要求",
+      "owner": "Root",
+      "status": "197 已验证双向高度过渡，用户接受当前效果",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户要求新增已置顶分组、右侧主题色图钉及分组平滑增减；精确消息时刻未核实。",
+      "result": "浏览页已启用书源可用主题色系统图钉置顶和取消，沿用既有筛选与备份。197 录像确认首个置顶展开和最后取消收起都有连续中间位置，测试书源返回原中文组，应用留在浏览页。稳定行键减少相邻多行重建；过渡中仍有少量标题或移动行与邻行短暂交叠，用户已明确接受当前效果。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/browse-source-pin-20261106/final-pin-197-frames",
+        ".hvigor/outputs/browse-source-pin-20261106/layout-pin-197-frames",
+        ".hvigor/outputs/browse-source-pin-20261106/extent-pin-197-frames",
+        ".hvigor/outputs/browse-source-pin-20261106/stable-key-pin-197-frames",
+        ".hvigor/outputs/browse-source-pin-20261106/native-stable-pin-197-frames",
+        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restore-20261106T052223386115/run-metadata.json"
+      ],
+      "boundaries": [
+        "保留原生分组高度过渡和稳定行身份，不要求单行飞入顶部，也不为此强制滚动。",
+        "本次实机证据为 197 普通入口的首个置顶和最后取消；未将其写成任意设备或手势都没有短暂交叠。"
+      ],
+      "commit": "d9e81658a7a573245cabf3e2bb6d0bb9195a6448"
+    },
     {
       "id": "SOURCE_COSPLAYTELE_URL_COVER",
       "title": "CosplayTele通过网址打开作品详情没有封面",
@@ -7795,6 +7821,36 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "browse-source-pin-native-layout-accepted-20261106",
+      "at": "2026-11-06T05:24:46+08:00",
+      "title": "浏览置顶原生高度动画获用户接受",
+      "detail": "197 复核展开和收起连续、置顶数据恢复及前台保持。独立复核记录短暂交叠，用户明确接受当前效果。197 原超时和休眠状态已读回，租约释放。",
+      "itemIds": [
+        "BROWSE_SOURCE_PIN"
+      ],
+      "kind": "accepted"
+    },
+    {
+      "id": "browse-source-pin-stable-row-identity-20261106",
+      "at": "2026-11-06T05:20:40+08:00",
+      "title": "置顶保留行身份，显式展开仍跳",
+      "detail": "197 原片确认相邻行不再重建或重影，取消有高度中间帧，首次展开仍是一步到位。恢复已证连续的原生分组动画，仅修正行身份并重测。",
+      "itemIds": [
+        "BROWSE_SOURCE_PIN"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "browse-source-pin-replace-group-animation-20261106",
+      "at": "2026-11-06T05:13:14+08:00",
+      "title": "置顶已核对，撤除有重影的分组动画",
+      "detail": "197 的置顶持久、取消和原主题色已核对。第一种高度动画在中文组出现重影，随后退到桌面，未通过。新实现拆分数据换组与高度过渡，具名包正验证。",
+      "itemIds": [
+        "BROWSE_SOURCE_PIN"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "about-community-group-label-20261105",
       "at": "2026-11-05T19:24:23+08:00",
