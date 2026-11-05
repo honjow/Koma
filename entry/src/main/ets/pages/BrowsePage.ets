@@ -18,7 +18,6 @@ import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } fr
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
-import { AnimatorResult, FrameCallback } from '@kit.ArkUI'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
@@ -42,91 +41,11 @@ interface PrivateBrowseSourceEntry {
   color: ResourceColor
 }
 
-interface BrowsePinMotion {
-  languageHeights: Map<string, number>
-  pinnedHeight: number | undefined
-}
-
-class BrowsePinLayoutReady extends FrameCallback {
-  private readonly run: () => void
-
-  constructor(run: () => void) {
-    super()
-    this.run = run
-  }
-
-  onIdle(_timeLeftInNano: number): void {
-    this.run()
-  }
-}
-
-@ComponentV2
-struct BrowseSourceSectionContent {
-  @BuilderParam content: () => void
-  @Event onHeight: (height: number) => void = (_height: number): void => {}
-
-  onMeasureSize(_geometry: GeometryInfo, children: Measurable[], constraint: ConstraintSizeOptions): SizeResult {
-    return children[0].measure({
-      minWidth: constraint.minWidth,
-      maxWidth: constraint.maxWidth,
-      minHeight: 0,
-      maxHeight: Number.POSITIVE_INFINITY,
-    })
-  }
-
-  onPlaceChildren(_geometry: GeometryInfo, children: Layoutable[]): void {
-    children[0].layout({ x: 0, y: 0 })
-  }
-
-  build() {
-    Column() {
-      this.content()
-    }
-    .width('100%')
-    .onSizeChange((_before: SizeOptions, after: SizeOptions): void => {
-      this.onHeight(after.height as number)
-    })
-  }
-}
-
-// The viewport clips a fully measured section. Animate its native height
-// property; never put the HDS row additions/removals in an animateTo transaction.
-@ComponentV2
-struct BrowseSourceSectionExtent {
-  @BuilderParam content: () => void
-  @Param fromHeight: number | undefined = undefined
-  @Param progress: number = 1
-  @Local private naturalHeight: number = 0
-
-  private get displayHeight(): number | undefined {
-    if (this.fromHeight === undefined) return undefined
-    return Math.max(0, this.fromHeight + (this.naturalHeight - this.fromHeight) * this.progress)
-  }
-
-  build() {
-    Stack({ alignContent: Alignment.TopStart }) {
-      BrowseSourceSectionContent({
-        onHeight: (height: number): void => {
-          if (height !== this.naturalHeight) this.naturalHeight = height
-        },
-      }) {
-        this.content()
-      }
-    }
-    .width('100%')
-    .height(this.displayHeight)
-    .clip(true)
-  }
-}
-
 @ComponentV2
 export struct BrowsePage {
   @Param chrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private filtersShown: boolean = false
-  @Local private pinMotion: BrowsePinMotion | undefined = undefined
-  @Local private pinProgress: number = 1
-  private pinAnimator: AnimatorResult | undefined = undefined
 
   @Monitor('chrome.requestId')
   private onCatalogAction(): void {
@@ -166,92 +85,22 @@ export struct BrowsePage {
     return sources
   }
 
-  private sectionId(language?: string): string {
-    return language === undefined ? 'browse-pinned-extent' : `browse-language-extent:${language}`
-  }
-
-  private sectionHeight(language?: string): number | undefined {
-    const context = this.getUIContext()
-    if (context.getFrameNodeById(this.sectionId(language)) === null) return undefined
-    const size = context.getComponentUtils().getRectangleById(this.sectionId(language)).size
-    return size.width > 0 ? context.px2vp(size.height) : undefined
-  }
-
-  private finishPinMotion(): void {
-    const animator = this.pinAnimator
-    this.pinAnimator = undefined
-    this.pinMotion = undefined
-    this.pinProgress = 1
-    animator?.cancel()
-  }
-
-  private toggleSourcePin(source: SourceRuntimeRegistryInstalledSourceSummary): void {
-    const id = source.sourceId
+  private toggleSourcePin(id: string): void {
     const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
-    const language = sourceCatalogLanguage(source.language)
-    const languageHeights = new Map<string, number>()
-    // Rapid taps can retarget several sections. Sample their current viewport
-    // heights before replacing the previous animation, including empty slots.
-    const languages = new Set(this.pinMotion?.languageHeights.keys())
-    languages.add(language)
-    languages.forEach((key: string): void => {
-      const height = this.sectionHeight(key) ?? (this.sourcesInLanguage(key).length === 0 ? 0 : undefined)
-      if (height !== undefined) languageHeights.set(key, height)
+    // Keep the native List layout transition. Stable keys below let rows
+    // which stay in their group move without recreating their HDS content.
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, (): void => {
+      void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
+        if (this.active && this.navigationVisible) {
+          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
+        }
+      })
     })
-    const pinnedHeight = this.sectionHeight() ?? (this.pinnedRuntimeSources.length === 0 ? 0 : undefined)
-    this.finishPinMotion()
-    const motion: BrowsePinMotion = { languageHeights, pinnedHeight }
-    this.pinMotion = motion
-    this.pinProgress = 0
-    // Repartition synchronously with the old section extents still reserved.
-    // Only the new row exists. The animator drives geometry, not list keys.
-    void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
-      if (this.pinMotion === motion) this.finishPinMotion()
-      if (this.active && this.navigationVisible) {
-        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
-      }
-    })
-    // Start after ArkUI lays out the new rows at the old heights, so the
-    // destination row's first layout does not consume the animation.
-    this.getUIContext().postFrameCallback(new BrowsePinLayoutReady((): void => {
-      if (this.pinMotion === motion) this.playPinMotion()
-    }))
-  }
-
-  private playPinMotion(): void {
-    const animator = this.getUIContext().createAnimator({
-      duration: 220, easing: 'ease-in-out', delay: 0, fill: 'none', direction: 'normal',
-      iterations: 1, begin: 0, end: 1,
-    })
-    this.pinAnimator = animator
-    animator.onFrame = (progress: number): void => {
-      if (this.pinAnimator === animator) this.pinProgress = progress
-    }
-    animator.onFinish = (): void => {
-      if (this.pinAnimator === animator) {
-        this.pinAnimator = undefined
-        this.finishPinMotion()
-      }
-    }
-    animator.play()
   }
 
   @Computed
   private get sourceGroupLanguages(): string[] {
-    const languages = Object.keys(this.sourcesByLanguage)
-    const motion = this.pinMotion
-    if (motion) {
-      motion.languageHeights.forEach((_height: number, language: string): void => {
-        if (!languages.includes(language)) languages.push(language)
-      })
-      languages.sort((left: string, right: string): number => {
-        if (left === right) return 0
-        if (right.length === 0) return -1
-        if (left.length === 0) return 1
-        return left < right ? -1 : 1
-      })
-    }
-    return languages
+    return Object.keys(this.sourcesByLanguage)
   }
 
   private sourcesInLanguage(language: string): SourceRuntimeRegistryInstalledSourceSummary[] {
@@ -423,7 +272,7 @@ export struct BrowsePage {
           }
         }, (entry: PrivateBrowseSourceEntry) => JSON.stringify([entry.key, entry.title, entry.detail, entry.badge]))
       }
-    }.padding({ bottom: ThemeConstants.SPACE_SM })
+    }
   }
 
   @Builder
@@ -431,29 +280,24 @@ export struct BrowsePage {
     SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
       accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: this.catalogFilters.loaded, pinned,
       onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
-      onPinToggle: (): void => { this.toggleSourcePin(source) } })
+      onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
+      .transition(TransitionEffect.IDENTITY)
   }
 
   @Builder
   private PinnedSourceListItems() {
     ListItem() {
-      BrowseSourceSectionExtent({ fromHeight: this.pinMotion?.pinnedHeight, progress: this.pinProgress }) {
-        if (this.pinnedRuntimeSources.length > 0) {
-          GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
-            // ArkUI appends index to the effective key if the builder uses it.
-            // Derive the divider from live group membership instead.
-            ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-              this.RuntimeSourceRow(source, true)
-              if (this.sourceNeedsDivider(this.pinnedRuntimeSources, source.sourceId)) {
-                ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-              }
-            }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
-              sourceDisplayName(source.sourceId, source.displayName)]))
+      GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
+        // Do not bind the row key to its position just to draw a divider.
+        ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+          this.RuntimeSourceRow(source, true)
+          if (this.sourceNeedsDivider(this.pinnedRuntimeSources, source.sourceId)) {
+            ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
           }
-          Blank().height(ThemeConstants.SPACE_SM)
-        }
+        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
+          sourceDisplayName(source.sourceId, source.displayName)]))
       }
-    }.id(this.sectionId())
+    }.transition(TransitionEffect.IDENTITY)
   }
 
   @Builder
@@ -462,25 +306,17 @@ export struct BrowsePage {
       ListItem() {
         // Keep group identity by language, but read its members from the live
         // projection. A retained ForEach closure must not keep an old group DTO.
-        BrowseSourceSectionExtent({
-          fromHeight: this.pinMotion?.languageHeights.get(language),
-          progress: this.pinMotion?.languageHeights.has(language) ? this.pinProgress : 1,
-        }) {
-          if (this.sourcesInLanguage(language).length > 0) {
-            GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
-              subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
-              ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
-                this.RuntimeSourceRow(source, false)
-                if (this.sourceNeedsDivider(this.sourcesInLanguage(language), source.sourceId)) {
-                  ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
-                }
-              }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
-                sourceDisplayName(source.sourceId, source.displayName)]))
+        GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
+          subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
+          ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
+            this.RuntimeSourceRow(source, false)
+            if (this.sourceNeedsDivider(this.sourcesInLanguage(language), source.sourceId)) {
+              ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
             }
-            Blank().height(ThemeConstants.SPACE_SM)
-          }
+          }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
+            sourceDisplayName(source.sourceId, source.displayName)]))
         }
-      }.id(this.sectionId(language))
+      }.transition(TransitionEffect.IDENTITY)
     }, (language: string) => language)
   }
 
@@ -493,7 +329,6 @@ export struct BrowsePage {
   }
 
   aboutToDisappear(): void {
-    this.finishPinMotion()
     this.availabilityEpoch += 1
   }
 
@@ -566,9 +401,7 @@ export struct BrowsePage {
     Stack() {
     PullRefreshListScaffold({
       scroller: this.browseScroller,
-      // Own the section gaps so a zero-height slot has no residual List.space.
-      listSpace: 0,
-      topPadding: ThemeConstants.SPACE_SM,
+      listSpace: ThemeConstants.SPACE_SM,
       bottomPadding: ThemeConstants.SPACE_XL,
       floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
       onRefresh: async () => {
@@ -585,13 +418,15 @@ export struct BrowsePage {
           }
           .width('100%')
           .justifyContent(FlexAlign.Center)
-        }.padding({ bottom: ThemeConstants.SPACE_SM })
+        }
       } else if (this.enabledRuntimeSources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
         ListItem() {
           this.EmptySources()
-        }.padding({ bottom: ThemeConstants.SPACE_SM })
+        }
       } else {
-        this.PinnedSourceListItems()
+        if (this.pinnedRuntimeSources.length > 0) {
+          this.PinnedSourceListItems()
+        }
         if (this.configuredPrivateSourceEntries().length > 0) {
           this.PrivateSourceListItems()
         }
