@@ -120,6 +120,13 @@ function selectedGroups(groups: SyncGroup[]): SyncGroup[] {
   return SYNC_GROUPS.filter((group: SyncGroup): boolean => groups.includes(group))
 }
 
+export function syncRequiresExplicitReview(value: SyncSavedConnection | undefined): boolean {
+  if (value === undefined || !value.reviewRequired) return false
+  if (value.requiresExplicitReview !== undefined) return value.requiresExplicitReview
+  return value.restoreReview === true || value.lastError === 'sync_remote_committed_locally_changed' ||
+    !value.groups.some((row: SyncGroupState): boolean => value.selected.includes(row.id) && (row.deferred?.length ?? 0) > 0)
+}
+
 function byLocalValue(values: SyncLocalValue[]): Map<string, string> {
   const map = new Map<string, string>()
   values.forEach((row: SyncLocalValue): void => { map.set(row.key, row.value) })
@@ -249,7 +256,7 @@ export class DeviceSyncEngine {
     await this.recoverIntent()
     const recovered = this.storage.load()
     return recovered.localReceipt !== state.localReceipt && recovered.active?.space === intent.connection.space &&
-      !recovered.active.reviewRequired
+      !syncRequiresExplicitReview(recovered.active)
   }
 
   async cleanProbes(): Promise<void> {
@@ -362,7 +369,7 @@ export class DeviceSyncEngine {
     await this.recoverIntent()
     const connection = this.active()
     if (connection === undefined || connection.selected.length === 0) throw new Error('sync_select_contents')
-    if (connection.reviewRequired) throw new Error('sync_review_required')
+    if (syncRequiresExplicitReview(connection)) throw new Error('sync_review_required')
     const guard = this.guard(this.generation)
     const draft = await readSyncCredential(connection.credential)
     const provider = new DeviceSyncWebDav(draft)
@@ -449,7 +456,7 @@ export class DeviceSyncEngine {
       const local = await this.owner.snapshot(id, verifyPublic)
       const previous = connection?.groups.find((row: SyncGroupState): boolean => row.id === id)
       const requiresPreview = previous === undefined || connection?.credential === '' ||
-        connection?.reviewRequired === true || !connection?.selected.includes(id)
+        syncRequiresExplicitReview(connection) || !connection?.selected.includes(id)
       const removed = requiresPreview || previous === undefined ? [] :
         this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
       groups.push({ id, local, remote, previous, requiresPreview, resetBaseline: connection?.restoreReview === true, removed })
@@ -485,8 +492,11 @@ export class DeviceSyncEngine {
         }
         const theirs = syncVisibleValue(fact)
         if (theirs === value) return
-        if (entry.requiresPreview || entry.previous?.deferred?.includes(key) === true) conflicts.push({ group: entry.id, key, local: value,
-          remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key] })
+        if (entry.requiresPreview || entry.previous?.deferred?.includes(key) === true) {
+          conflicts.push({ group: entry.id, key, local: value,
+            remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key] })
+          return
+        }
         if (theirs === undefined) remove++
         else download++
       })
@@ -677,7 +687,7 @@ export class DeviceSyncEngine {
       manifestHash: proposal.publish ? syncDigest(JSON.stringify(proposal.manifest)) : remote.hash,
       selected, automatic: prior?.automatic ?? false, reviewRequired: groups.some((group: SyncGroupState): boolean =>
         selected.includes(group.id) && (group.deferred?.length ?? 0) > 0),
-      lastSuccess: prior?.lastSuccess ?? 0, lastError: '', groups,
+      requiresExplicitReview: false, lastSuccess: prior?.lastSuccess ?? 0, lastError: '', groups,
     }
     guard()
     this.storage.update((state: SyncLocalDocument): void => {
@@ -889,7 +899,12 @@ export class DeviceSyncEngine {
         !selected.includes(id) && intent.connection.selected.includes(id))) {
         state.intent = detachedIntent(intent)
       }
+      const explicit = syncRequiresExplicitReview(active)
       active.selected = selected
+      if (!explicit) {
+        active.reviewRequired = active.groups.some((group: SyncGroupState): boolean =>
+          selected.includes(group.id) && (group.deferred?.length ?? 0) > 0)
+      }
     })
   }
 
@@ -977,7 +992,7 @@ export class DeviceSyncEngine {
   recordEdits(group: SyncGroup, actions: DeviceSyncLocalEdit[], receipt?: SyncReadingReceipt): SyncVersion | undefined {
     const current = this.storage.load()
     const active = current.active
-    if (active === undefined || !active.selected.includes(group) || active.reviewRequired || this.restoreInProgress) return
+    if (active === undefined || !active.selected.includes(group) || syncRequiresExplicitReview(active) || this.restoreInProgress) return
     const previous = active.groups.find((item: SyncGroupState): boolean => item.id === group)
     if (previous === undefined || (actions.length === 0 && receipt === undefined) ||
       current.readingReceipts?.some((item: SyncReadingReceipt): boolean => item.key === receipt?.key && item.id === receipt?.id)) return
@@ -1068,6 +1083,7 @@ export class DeviceSyncEngine {
           const recovered = copySyncConnection(connection)
           recovered.groups = pending
           recovered.reviewRequired = true
+          recovered.requiresExplicitReview = true
           recovered.lastError = 'sync_remote_committed_locally_changed'
           value.active = recovered
         } else {
@@ -1090,6 +1106,7 @@ export class DeviceSyncEngine {
         if (state.active?.space !== connection.space) state.active = copySyncConnection(connection)
         if (state.active !== undefined) {
           state.active.reviewRequired = true
+          state.active.requiresExplicitReview = true
           state.active.lastError = 'sync_remote_committed_locally_changed'
         }
       })
@@ -1142,6 +1159,7 @@ export class DeviceSyncEngine {
       this.storage.update((state: SyncLocalDocument): void => {
         if (state.active !== undefined) {
           state.active.reviewRequired = true
+          state.active.requiresExplicitReview = true
           state.active.restoreReview = true
         }
         if (state.intent !== undefined) state.intent = detachedIntent(state.intent)
@@ -1159,6 +1177,7 @@ export class DeviceSyncEngine {
       this.storage.update((state: SyncLocalDocument): void => {
         if (prior !== undefined && state.active?.space === prior.space) {
           state.active.reviewRequired = prior.reviewRequired
+          state.active.requiresExplicitReview = prior.requiresExplicitReview
           state.active.restoreReview = prior.restoreReview
         }
         if (priorIntent !== undefined && state.intent?.connection.manifestHash === priorIntent.connection.manifestHash) {

@@ -8,7 +8,8 @@ import { MAX_SEARCH_HISTORY_COUNT, SearchHistoryEntry } from '../model/SearchHis
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { appSourceRuntimeRegistry, InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision } from './DeviceSyncEngine'
+import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision,
+  syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
 import {
@@ -33,6 +34,7 @@ export class DeviceSyncViewState {
   @Trace automatic: boolean = false
   @Trace busy: boolean = false
   @Trace needsReview: boolean = false
+  @Trace requiresExplicitReview: boolean = false
   @Trace lastSuccess: number = 0
   @Trace error: string = ''
   @Trace revision: number = 0
@@ -153,6 +155,7 @@ class DeviceSyncRuntime {
     if (state !== undefined) this.view.selected = state.selected.slice()
     this.view.automatic = state?.automatic ?? false
     this.view.needsReview = state?.reviewRequired ?? false
+    this.view.requiresExplicitReview = syncRequiresExplicitReview(state)
     this.view.lastSuccess = state?.lastSuccess ?? 0
     this.view.subscriptions = this.owners?.receivedSubscriptions() ?? []
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
@@ -294,11 +297,11 @@ class DeviceSyncRuntime {
   }
 
   private schedule(delay: number): void {
-    if (!this.foreground || !this.view.connected || !this.view.automatic || this.view.needsReview ||
+    if (!this.foreground || !this.view.connected || !this.view.automatic || this.view.requiresExplicitReview ||
       this.view.selected.length === 0 || this.timer >= 0) return
     this.timer = setTimeout((): void => {
       this.timer = -1
-      if (!this.foreground || !this.view.automatic || this.view.needsReview) return
+      if (!this.foreground || !this.view.automatic || this.view.requiresExplicitReview) return
       if (this.view.busy) {
         this.schedule(15000)
         return
@@ -471,7 +474,8 @@ class DeviceSyncRuntime {
     const owners = this.owners
     const engine = this.engine
     const scope = engine?.readingScope() ?? ''
-    if (context === undefined || owners === undefined || engine === undefined || scope === '' || engine.active()?.reviewRequired) return
+    if (context === undefined || owners === undefined || engine === undefined || scope === '' ||
+      syncRequiresExplicitReview(engine.active())) return
     const reader = appReaderSessionStore(context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const actions = reader.pendingDeviceSyncActions()

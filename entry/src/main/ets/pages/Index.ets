@@ -1,6 +1,6 @@
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
-import { DeviceSyncOverviewPage, DeviceSyncWebDavPage } from './DeviceSyncPages'
+import { DeviceSyncOverviewPage, DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
@@ -220,7 +220,7 @@ interface SettingsPaneRouteParam {
 
 interface DeviceSyncWebDavRouteParam {
   groups: SyncGroup[]
-  titleAction: FormTitleActionState
+  chrome: DeviceSyncWebDavChrome
 }
 
 interface SettingsSearchRouteParam {
@@ -1803,7 +1803,7 @@ struct Index {
   }
 
   private openDeviceSyncWebDav(groups: SyncGroup[]): void {
-    const param: DeviceSyncWebDavRouteParam = { groups, titleAction: new FormTitleActionState() }
+    const param: DeviceSyncWebDavRouteParam = { groups, chrome: new DeviceSyncWebDavChrome() }
     this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_WEBDAV, param })
   }
 
@@ -2902,9 +2902,11 @@ struct Index {
     } else if (name === RouteName.DEVICE_SYNC_WEBDAV) {
       HdsNavDestination() {
         DeviceSyncWebDavPage({ proposedSelection: (param as DeviceSyncWebDavRouteParam).groups,
-          titleAction: (param as DeviceSyncWebDavRouteParam).titleAction })
+          chrome: (param as DeviceSyncWebDavRouteParam).chrome })
       }
-      .titleBar(this.deviceSyncTitleBarOpts((param as DeviceSyncWebDavRouteParam).titleAction))
+      .titleBar(this.deviceSyncTitleBarOpts((param as DeviceSyncWebDavRouteParam).chrome))
+      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
+      .onBackPressed(() => (param as DeviceSyncWebDavRouteParam).chrome.back(appDeviceSync.view.busy))
     } else if (name === RouteName.READING_STATISTICS) {
       HdsNavDestination() {
         ReadingStatisticsPage({ libraryStore: this.libraryStore, sessionStore: this.readerSessionStore })
@@ -3518,8 +3520,9 @@ struct Index {
     return options
   }
 
-  private deviceSyncTitleBarOpts(titleAction: FormTitleActionState): Record<string, Object> {
-    const options = this.navDestTitleBarOpts(AppStrings.get('device_sync_webdav'))
+  private deviceSyncTitleBarOpts(chrome: DeviceSyncWebDavChrome): Record<string, Object> {
+    const titleAction = chrome.confirm
+    const options = this.navDestTitleBarOpts(AppStrings.get(chrome.reviewing ? 'device_sync_merge_review_title' : 'device_sync_webdav'))
     if (titleAction.enabled) {
       const content = options['content'] as Record<string, Object>
       const action: Record<string, Object> = { 'label': AppStrings.get('device_sync_confirm_merge'),

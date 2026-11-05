@@ -70,6 +70,7 @@ export interface SyncSavedConnection {
   selected: SyncGroup[]
   automatic: boolean
   reviewRequired: boolean
+  requiresExplicitReview?: boolean
   restoreReview?: boolean
   lastSuccess: number
   lastError: string
@@ -119,7 +120,8 @@ export interface SyncLocalDocument {
 export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnection {
   return { credential: value.credential, endpointIdentity: value.endpointIdentity, space: value.space, revision: value.revision,
     manifestHash: value.manifestHash, selected: value.selected.slice(), automatic: value.automatic,
-    reviewRequired: value.reviewRequired, restoreReview: value.restoreReview, lastSuccess: value.lastSuccess, lastError: value.lastError,
+    reviewRequired: value.reviewRequired, requiresExplicitReview: value.requiresExplicitReview,
+    restoreReview: value.restoreReview, lastSuccess: value.lastSuccess, lastError: value.lastError,
     groups: value.groups.slice() }
 }
 
