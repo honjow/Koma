@@ -2252,7 +2252,7 @@
     { "name": "device_sync_error_upgrade", "value": "此同步数据需要更新版本的 Koma。" },
     { "name": "device_sync_error_review", "value": "预览后有数据变动。请重新核对再同步。" },
     { "name": "device_sync_error_space", "value": "同步目录已更换、缺少清单或回到了旧版本。请检查服务器目录。" },
-    { "name": "device_sync_error_unknown_result", "value": "上次提交结果未知。重新连接原目录后可以核对。" },
+    { "name": "device_sync_error_unknown_result", "value": "上次同步可能已写入服务器。重试时会先核对提交结果。" },
     { "name": "device_sync_error_catalog_limit", "value": "本机订阅数量已达上限。清理本机订阅后可重新加入。" },
     { "name": "device_sync_error_catalog_unavailable", "value": "暂时无法读取该书源目录，请稍后重试。" },
     { "name": "device_sync_error_maintenance", "value": "另一台设备正在整理同步目录，请稍后重试。" },

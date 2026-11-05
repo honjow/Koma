@@ -701,11 +701,22 @@ export class DeviceSyncEngine {
       state.intent = { connection: intent.connection, expected: intent.expected, sent: true,
         detached: intent.detached, groupRevisions: intent.groupRevisions, applies: intent.applies }
     })
-    if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard))) {
-      this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
-      throw new Error(manualPreview ? 'sync_preview_changed' : 'sync_remote_changed')
+    let receipt: SyncRemoteManifest
+    try {
+      if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard))) {
+        this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
+        throw new Error(manualPreview ? 'sync_preview_changed' : 'sync_remote_changed')
+      }
+      receipt = await provider.readManifest(guard, proposal.publish ? '' : remote.etag)
+    } catch (error) {
+      const code = (error as Error).message
+      // The durable intent has crossed the PUT boundary. An interrupted
+      // transport cannot distinguish rejection from a committed manifest.
+      if (proposal.publish && (code === 'sync_network_failed' || code === 'sync_server_unavailable')) {
+        throw new Error('sync_remote_result_unknown')
+      }
+      throw error as Error
     }
-    const receipt = await provider.readManifest(guard, proposal.publish ? '' : remote.etag)
     if (!proposal.publish && receipt.etag !== remote.etag) throw new Error('sync_preview_changed')
     if (receipt.manifest === undefined || receipt.manifest.space !== connection.space ||
       receipt.manifest.revision < connection.revision) throw new Error('sync_remote_result_unknown')

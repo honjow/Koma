@@ -337,7 +337,7 @@ test('a real preference change keeps its dot through a rejected conditional writ
   const server = servers.get(draft.directory)
   server.failures.push('412', 'lost-response')
   first.values.get('reader-settings').set(pageNumber, 'false')
-  await assert.rejects(first.engine.syncNow(), /sync_network_failed/)
+  await assert.rejects(first.engine.syncNow(), /sync_remote_result_unknown/)
   const attempts = server.published.slice(1)
   assert.equal(attempts.length, 2)
   assert.deepEqual(attempts[0].datasets, attempts[1].datasets)
@@ -365,7 +365,7 @@ test('receipt recovery keeps an independently received preference as remote data
   const server = servers.get(draft.directory)
   server.failures.push('412', 'lost-response')
   left.values.get('reader-settings').set(pageNumber, 'false')
-  await assert.rejects(left.engine.syncNow(), /sync_network_failed/)
+  await assert.rejects(left.engine.syncNow(), /sync_remote_result_unknown/)
   const before = structuredClone(server.head)
   const writes = server.published.length
   await left.engine.syncNow()

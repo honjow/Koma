@@ -2250,7 +2250,7 @@
     { "name": "device_sync_error_upgrade", "value": "Update Koma to read this sync data." },
     { "name": "device_sync_error_review", "value": "Data changed after the preview. Review the new changes before syncing." },
     { "name": "device_sync_error_space", "value": "The sync directory changed, is missing its manifest, or was rolled back. Check the server directory." },
-    { "name": "device_sync_error_unknown_result", "value": "The last submission is unconfirmed. Reconnect to the same directory to check." },
+    { "name": "device_sync_error_unknown_result", "value": "The previous sync may have reached the server. Retrying will check whether it was applied." },
     { "name": "device_sync_error_catalog_limit", "value": "This device is at its catalogue limit. Free a slot to add the received subscription." },
     { "name": "device_sync_error_catalog_unavailable", "value": "The source catalogue is unavailable. Try again later." },
     { "name": "device_sync_error_maintenance", "value": "Another device is maintaining the sync directory. Try again later." },
