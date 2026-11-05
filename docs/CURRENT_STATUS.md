@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T22:56:26+08:00",
+  "updatedAt": "2026-11-05T23:26:35+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "同步重设计正在修正103实机独立评审拦出的两处问题；197保存和换连接路径已实际走通。",
@@ -84,20 +84,27 @@
     {
       "id": "SOURCE_EXISTING_NAME_AUDIT",
       "title": "现有书源名称与真实站点身份核对",
-      "kind": "active",
+      "kind": "accepted",
       "priority": "用户直接要求",
       "owner": "Terra名称审计；Root复核与发布",
-      "status": "HANMAN18错配已确认；喵趣按用户明确决定更正，两个候选待普通更新验收",
+      "status": "本轮85项名称对照完成；HANMAN18与喵趣已实机核对并公开",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出原禁漫天堂实际为manhua18并要求全面检查其他错名，随后再次询问是否还有更多可能错名；精确消息时刻未核实。",
-      "result": "85生产条目已逐项核包、运行时与索引，84有公开包、1 unavailable。已确认原“禁漫天堂”实际为hanman18.com/HANMAN18，候选仅更正显示名并保源及内容身份。用户最新明确“那就喵趣，和图标一致”，已将运行时、简繁metadata和README当前依据统一喵趣漫画／喵趣漫畫；重打候选已通过28作品完整内容响应与下架边界回放，原图标保持。漫小肆由原官网标题证实中文字形；作者名后的分类／范围说明与品牌分开，未判成错站。简称、翻译、语言后缀及主页／后端域差异单列，不把它们全报成错名。",
-      "remaining": "237普通更新核HANMAN18与喵趣显示及原历史身份；通过后精确提交分发。",
+      "result": "85生产条目已逐项核包、运行时与索引，84有公开包、1 unavailable。已确认原“禁漫天堂”实际为hanman18.com/HANMAN18，候选仅更正显示名并保源及内容身份。用户最新明确“那就喵趣，和图标一致”，已将运行时、简繁metadata和README当前依据统一喵趣漫画／喵趣漫畫；重打候选已通过28作品完整内容响应与下架边界回放，原图标保持。漫小肆由原官网标题证实中文字形；作者名后的分类／范围说明与品牌分开，未判成错站。简称、翻译、语言后缀及主页／后端域差异单列，不把它们全报成错名。 237两场普通FilePicker更新后源页实际显示HANMAN18、喵趣漫画，搜索框同步正确，真实目录分别20和35卡；Root已亲审。两场安装WASM/图标与冻结一致，原源/registry/用户数据各九项字节匹配恢复，原电源读回并释租。仅名称与普通列表范围，不把未显示的封面或全部正文算通过。 237进一步从真实热门列表打开《某天成为公主》，实际显示明确站点未提供内容、可能下架或链接失效的网页确认指引，没有原书源运行异常；未将原站歧义强写为作品已下架。该事务九项原字节与电源再次恢复并释租。 两源精确提交已推送且发布CI成功，正式索引／清单／运行时名称版本一致，两个图标保持原字节。HANMAN18公开WASM对30部61完整响应及Host轨迹与设备候选一致；喵趣公开WASM对28正常作品、真实移除体、边界与恢复完整回放一致。镜像索引、包和图标均核一致，喵趣包首次TLS失败保留、同身份一次普通恢复成功。公开WASM构建字节不同，未冒另作公开包Native。",
+      "remaining": "本轮已确认错名和用户指定名称均已交付。嗨皮当前无可安装包，独立作者／官方源按既有实际收录范围标注，不据此宣称每站当前品牌或历史授权关系均已独立证明。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/name-audit/final-review.json",
         ".hvigor/outputs/source-coverage-20261105/hanman18-web/name-regression.json",
         ".hvigor/outputs/source-coverage-20261105/miaoqu-web/name-decision.json",
-        ".hvigor/outputs/source-coverage-20261105/miaoqu-web/name-v2-package.json"
+        ".hvigor/outputs/source-coverage-20261105/miaoqu-web/name-v2-package.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-name-regression/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/name-release/release.json",
+        "https://github.com/honjow/koma-sources/commit/8b95742e364ec065203711fc27621b4522601b18",
+        "https://github.com/honjow/koma-sources/actions/runs/42052490641",
+        ".hvigor/outputs/source-coverage-20261105/name-release/public/oracle.json",
+        ".hvigor/outputs/source-coverage-20261105/name-release/public/mirror-check.json",
+        ".hvigor/outputs/source-coverage-20261105/name-release/public/mirror-miaoqu-recovery.json"
       ]
     },
     {
@@ -123,17 +130,20 @@
       "kind": "active",
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports独立执行；Root237验收与发布",
-      "status": "JM匿名WASM已通并完成分层采样；必需图片解扰宿主正在接入",
+      "status": "CosplayTele开始237普通入口验收；JM匿名V2已冻结，必需解扰与登录宿主接线中",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
-      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。",
+      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。",
       "remaining": "先完成JM必需解扰与限流、哔咔等显式安全登录入口，足量WASM对照后237普通路径验收；CosplayTele、Buon已冻候选待对应新HAP和设备验证，BiliCookie、拷贝正文API限制继续具体定位。绅士会所与紳士漫畫按各自独立参考实际移植。",
       "evidence": [
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/build.gradle.kts",
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/src/eu/kanade/tachiyomi/extension/zh/bilimanga/BiliManga.kt",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/cosplaytele-candidate/candidate-files.json",
-        ".hvigor/outputs/source-coverage-20261105/upstream-index-20261105/decoded-extensions.json"
+        ".hvigor/outputs/source-coverage-20261105/upstream-index-20261105/decoded-extensions.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v2/candidate-files.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-contract.md",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-cosplay-v1.json"
       ]
     },
     {
@@ -18212,6 +18222,30 @@
       "at": "2026-11-05T22:56:26+08:00",
       "title": "喵趣最终名称候选已重建并核完整内容回放",
       "result": "运行时及包简繁名为喵趣，原图标及sourceId保持；28作品56完整正常响应相等，下架语义与失败恢复边界通过，尚未237普通更新。"
+    },
+    {
+      "id": "source-two-names-native-2026-11-05T23:08:39+08:00",
+      "at": "2026-11-05T23:08:39+08:00",
+      "title": "237已核两个源普通更新后的名称显示",
+      "result": "HANMAN18与喵趣标题及搜索框正确，两个事务源数据和电源已恢复释租。原探针引号和汇总Path类型错误回执均保留，不归因产品；现在仅补验实际列表存在的已移除作品提示。"
+    },
+    {
+      "id": "source-two-names-prompt-commit-2026-11-05T23:12:22+08:00",
+      "at": "2026-11-05T23:12:22+08:00",
+      "title": "两个名称及喵趣不可用提示237已核，精确源提交准备分发",
+      "result": "保原sourceId、图标与历史身份；真实已移除卡显示明确不可用指引。所有设备事务已恢复释租；仅提交两源及各自锁版本，不混SDK认证或新源WIP，CI与公开分发待核。"
+    },
+    {
+      "id": "source-name-public-verified-2026-11-05T23:23:35+08:00",
+      "at": "2026-11-05T23:23:35+08:00",
+      "title": "HANMAN18与喵趣名称更新正式和镜像分发核毕",
+      "result": "两个源已公开，保原ID与图标；公开完整WASM回放与具名实机候选一致。镜像首次TLS失败保留并仅同请求正常恢复一次成功，不将构建字节不同冒公开包Native。名称审计本轮确认项关闭，新源与覆盖继续。"
+    },
+    {
+      "id": "source-jm-v2-and-cosplay-native-start-2026-11-05T23:26:35+08:00",
+      "at": "2026-11-05T23:26:35+08:00",
+      "title": "JM匿名V2完成本地冻结，CosplayTele进入237普通验证",
+      "result": "JM补图片PID与URI归属并门控真实限流能力，8图解扰像素已本地对照；尚待Harmony全链。Cosplay237原包缺失已确认，新的原数据备份与常亮门禁完成，Buon不借旧版本号冒能力。"
     }
   ],
   "reportAgeAudit": {
