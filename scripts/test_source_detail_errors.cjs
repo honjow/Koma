@@ -152,6 +152,17 @@ test('unknown provider text is still redacted rather than reclassified by messag
   assert.equal(error.userText,'source_failure_runtime')
   assert.equal(error.userTextFor('search_state_failed'),'search_state_failed')
 })
+test('only a structured no-chapters outcome gets the empty-catalogue explanation', () => {
+  const empty = new SourceRuntimeError({ok:false,error:{code:'no_chapters',message:'PRIVATE_TOKEN HTTP 200'}})
+  assert.equal(empty.diagnostic.kind,'no_chapters')
+  assert.equal(empty.userText,'source_failure_no_chapters')
+  const refused = new SourceRuntimeError({ok:false,error:{code:'no_chapters',status:403}})
+  assert.equal(refused.diagnostic.kind,'access')
+  const unknown = new SourceRuntimeError({ok:false,error:{code:'source_error',message:'no_chapters PRIVATE_TOKEN'}})
+  assert.equal(unknown.diagnostic.kind,'runtime')
+  assert.equal(unknown.userTextFor('manga_detail_load_source_chapters_failed'),'manga_detail_load_source_chapters_failed')
+  assert.ok(!empty.userText.includes('PRIVATE_TOKEN'))
+})
 test('get_manga keeps structured access status and never exposes the provider message', async () => {
   const f = fixture()
   f.state.response = { ok: false, error: { code: 'permission_denied', status: 403, message: 'PRIVATE_TOKEN' } }
@@ -190,6 +201,20 @@ test('chapter failure keeps real detail and saved rows without caching the fallb
   assert.equal(final[7], 'ready')
   assert.equal(f.writes.length, 1)
   assert.equal(f.writes[0][3].chaptersResolved, false)
+})
+test('unavailable-content explanations keep stored chapters and do not claim a resolved catalogue', async () => {
+  for (const code of ['not_found','no_chapters']) {
+    const f = fixture()
+    const saved = [{title:'Saved chapter'}]
+    f.state.library = {chapters:saved}
+    f.state.chapterError = new SourceRuntimeError({ok:false,error:{code}})
+    await f.page.loadSourceMangaDetail('source.test','work')
+    const final = f.applied.at(-1)
+    assert.deepEqual(final[5],saved)
+    assert.equal(final[6],'source_failure_'+code)
+    assert.equal(final[7],'ready')
+    assert.equal(f.writes[0][3].chaptersResolved,false)
+  }
 })
 test('directory resolver preserves legacy reason message alongside HTTP diagnostics', async () => {
   const exports = {}
