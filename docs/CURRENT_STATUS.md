@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T00:10:59+08:00",
+  "updatedAt": "2026-11-06T00:59:18+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -82,6 +82,67 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_COSPLAYTELE_URL_COVER",
+      "title": "CosplayTele通过网址打开作品详情没有封面",
+      "kind": "accepted",
+      "priority": "用户截图新报",
+      "owner": "new_source_ports源侧修复；Root网页对照与237验收",
+      "status": "两作真实封面237通过，已正式分发并核镜像",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户附237 Robin详情占位封面截图并问“这个没有封面吗”；精确消息时刻未核实。",
+      "result": "截图显示默认绿色书本占位。原站Robin文章明确声明WordPress单文章JSON endpoint，该endpoint的文章id／link与featured_media／embedded media归属已核，原UA实际图片响应200；原站有封面。现参考的URL搜索／详情未填thumbnail，不能据此把缺失视为正常。源侧已给URL卡片及详情补真实特色封面解析；辅助元数据失败须保已可用详情与目录，不能取正文首图或相关推荐冒该作封面。 V3已给网址搜索卡片和详情共用原站特色封面解析；4真实文章元数据与图片核对、错归属／无封面／辅助请求失败恢复已执行，55作原章节与3204图片位置完整响应保持。Root在237普通导入V3后，通过原网址搜索实际亲审Robin与Evanescia详情封面，均由占位恢复真实原站图；一章目录与空心收藏保持。随后本事务原六份数据／筛选偏好逐字等、原源presence与电源恢复，租约已独立释放。 已将CosplayTele及其必需的opt-in strict协议模块精确注册并正常推送，未混入Auth／CLI或其他源WIP；既有流水线已产生公开版本，索引与包的下载／一致性已核。 精确CI已成功。正式索引／目录／源包／图标／许可交付ZIP均已按GitHub资产大小及digest核对；包与源声明的名称、语言、版本和主页一致，原图标保持。公开WASM与237候选构建字节不同，已对55作3204原位置、四作双封面入口、归属／传输／恢复边界逐个比较完整响应和Host请求，全等；不冒另一次公开包实机。现有订阅镜像的索引、包和图标均实际200且逐字等公开资产。",
+      "remaining": "本项已交付；冻结具名范围。出现新的封面、站点结构或实际加载反例时再定位。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-cosplay-v1-053-cosplay-robin-detail-ready/screen.jpeg",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/cosplaytele-candidate-v3/candidate-files.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/host-ui-v1-root-review.json",
+        "https://github.com/honjow/koma-sources/commit/8d0d95214584b3b187785188235384377828b6d7",
+        "https://github.com/honjow/koma-sources/actions/runs/42067850746",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/ci.json",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/public-downloads.json",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/public-package-check.json",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/public-oracle.json",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/mirror-check.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-8d0d95214584b3b187785188235384377828b6d7"
+      ]
+    },
+    {
+      "id": "SOURCE_CATALOG_NAME_SEARCH",
+      "title": "在源列表按名称搜索书源",
+      "kind": "active",
+      "priority": "用户最新明确要求",
+      "owner": "Terra实现列表投影与搜索框；Root真实路径验收",
+      "status": "标准搜索底栏及完整避让已实现，新HAP构建收尾；待237动效",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户明确要求源的搜索，并纠正为“在源列表里面搜索需要源”；精确消息时刻未核实。",
+      "result": "名称匹配投影已完成，237曾实际核对两页命中、无匹配和清空恢复；这只证明功能，不代表界面通过。用户否决常驻列表首行搜索，继而指出标题内替换方案切换生硬、文字取消别扭及管理角标孤立。当前明确采用：平时搜索收起，原标题／菜单／管理入口和角标保持不动；点标题栏搜索后，复用标准搜索容器在标题栏下方动画展开，再次点击或返回收起。管理页原分段保留，收起后不占额外高度。旧两版均未提交，不以构建或终点图宣称动效通过。角标不另作样式或定位修改。",
+      "remaining": "冻结最终安装候选后237亲审完整展开／收起原片、焦点／清空／返回／分段；通过再精确提交推送。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-host-ui-v1.json"
+      ]
+    },
+    {
+      "id": "SOURCE_MULTILINGUAL_CATEGORY",
+      "title": "将all明确为多语言分类并移除语言总开关",
+      "kind": "active",
+      "priority": "用户最新明确决定",
+      "owner": "Root实现；device合入统一HAP",
+      "status": "237已核多语言分组及独立开关、无总开关；待代码交付",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户要求加多语言分类，并明确all不是总开关、“并不需要总开关”；精确消息时刻未核实。",
+      "result": "all是来源声明的多语言类别；Root已在公共SourceLanguagePresentation将其显示为多语言／Multilingual，浏览分组、书源管理与筛选共用。SourceCatalogFiltersContent已移除“全部语言”总开关，仅保留每种语言独立选择及原持久化语义。没有把该声明当作全选命令，也未改变用户原语言选择。 237新HAP普通导入声明all的CosplayTele后，实际筛选面板显示多语言，只有各语言独立开关，没有语言总开关。仅打开多语言一项后真实浏览布局出现多语言组；其余语言选择保持。原偏好逐字等恢复并释租。首次在尚无all源时过早断言多语言行的场景失败已原样保留，没有改成产品通过。",
+      "remaining": "保留该已验范围，随源列表标题栏修正完成后的精确App改动提交推送。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/host-ui-v1-root-review.json"
+      ]
+    },
+    {
       "id": "SOURCE_EXISTING_NAME_AUDIT",
       "title": "现有书源名称与真实站点身份核对",
       "kind": "accepted",
@@ -113,15 +174,18 @@
       "kind": "active",
       "priority": "用户直接要求",
       "owner": "device_preparation宿主实现；new_source_ports源侧接入；Root审查和237验收",
-      "status": "已核Mihon真实登录合同，安全输入与各页面入口正在实现",
+      "status": "认证与取消恢复链已实现并构建，两其他宿主同补丁编译通过；待237",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求必须登录的源在未登录页面明确说明并提供快捷入口，参考Mihon；精确消息时刻未核实。",
-      "result": "已核Mihon共享SourcePreferences与各源自有登录设置，未发现统一LoginSource接口。哔咔使用账号密码API令牌，网页登录Cookie不能冒令牌；JM匿名浏览阅读不需账号，不把登录作为前置。宿主沿既有PrivateSession安全存储及精确源/安装/域授权增量接入账号表单，旧无认证描述包及旧网页验证行为保留。阅读页原错误曾被图片请求catch丢失，已有最小诊断保留修复；完整认证入口与取消/过期回调保护仍未完成，尚无账号或真机登录通过结论。",
-      "remaining": "完成源声明、显式内存输入授权、认证操作、浏览/搜索/详情/阅读的快捷入口与成功重试/取消返回；具名本地失败恢复后237普通路径验证，真实账号条件单列。",
+      "result": "已按Mihon各源自有认证合同接通源声明、私密内存输入授权与浏览／搜索／详情／阅读快捷入口，成功仅重试原操作一次，取消与过期请求不重试。账号密码不进入普通设置、请求JSON或日志。统一同签新HAP构建成功；共享Reader仅增加可选目录失败动作，NextE／NextN实际临时应用同补丁编译成功并各自恢复原字节。真实账号未提供，尚无提供方实登或237认证UI验收；Legacy请求自身一次性取消边界仍在核对，未按构建结果宣布完成。",
+      "remaining": "核完Legacy取消迟到回调边界，冻结最终HAP后237普通路径验入口、取消与返回；真实提供方登录取决于可用测试账号，独立记录。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/host-login-review.md",
-        ".hvigor/outputs/source-coverage-20261105/new-source-ports/login-reader-diagnostic.patch"
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/login-reader-diagnostic.patch",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/nexte-shared-auth-build-v2.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/nextn-shared-auth-build.json"
       ]
     },
     {
@@ -130,12 +194,12 @@
       "kind": "active",
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports独立执行；Root237验收与发布",
-      "status": "CosplayTele开始237普通入口验收；JM匿名V2已冻结，必需解扰与登录宿主接线中",
+      "status": "CosplayTele已验并正式分发；JM与Buon待新宿主实机，紳士漫畫本地完整移植推进",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
-      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。",
-      "remaining": "先完成JM必需解扰与限流、哔咔等显式安全登录入口，足量WASM对照后237普通路径验收；CosplayTele、Buon已冻候选待对应新HAP和设备验证，BiliCookie、拷贝正文API限制继续具体定位。绅士会所与紳士漫畫按各自独立参考实际移植。",
+      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。",
+      "remaining": "当前先完成用户纠正的搜索展开动效并237；随后新宿主验JM必需解扰／精确卸载恢复与消费者、Buon双模式。WN保存校验、HC网络失败及其它优先源各自具体缺口继续推进。",
       "evidence": [
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/build.gradle.kts",
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/src/eu/kanade/tachiyomi/extension/zh/bilimanga/BiliManga.kt",
@@ -143,7 +207,12 @@
         ".hvigor/outputs/source-coverage-20261105/upstream-index-20261105/decoded-extensions.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v2/candidate-files.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-contract.md",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-cosplay-v1.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-cosplay-v1.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/cosplay-v1-root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v3/candidate-files.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/host-ui-v1-root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/public-oracle.json"
       ]
     },
     {
@@ -18315,6 +18384,42 @@
       "itemId": "READER_WEBTOON_ENTRY_TOP_FLICKER",
       "title": "复核未关闭功能项，确认条漫顶部闪烁未开始处理",
       "result": "条漫顶部闪烁没有对应修复与验收，保持原后排优先级；与图片插件闪烁分开。备份pending设置及旧组缺键删除仍在。性能项旧非调试包限制已被最近一次debug安装记录取代，下次设备会话仍实时核包。其余追踪、章节操作、分页回退、外部账号和暂缓事项保留原状态；没有改代码、操作设备或重开已接受路径。"
+    },
+    {
+      "id": "source-catalog-user-search-and-multilingual-2026-11-05T23:48:22+08:00",
+      "at": "2026-11-05T23:48:22+08:00",
+      "title": "按用户明确范围增加源列表搜索，多语言与总开关区分已落实",
+      "result": "all公共显示已改多语言，语言总开关已移除；两个源列表的名称搜索由Terra实际接入，原漫画搜索不混入。新App尚未构建实机，当前Cosplay旧HAP路径被既有中文筛选隐藏的证据保留。"
+    },
+    {
+      "id": "source-cover-host-progress-2026-11-06T002641-0800",
+      "at": "2026-11-06T00:26:41+08:00",
+      "title": "Cosplay正文具名实机与恢复完成；源列表搜索新HAP已成，封面缺失单列修复",
+      "result": "237两相册首末真实照片及稳定身份已核、原数据偏好电源已恢复释租。新HAP仅构建；两页源列表搜索、多语言独立筛选和JM平台解扰尚待真机。原站有特色封面，V3补取中，未发布。"
+    },
+    {
+      "id": "source-catalog-search-user-correction-2026-11-06T003907-0800",
+      "at": "2026-11-06T00:39:07+08:00",
+      "title": "源列表搜索首版布局未通过，按用户要求改为标题栏收起入口",
+      "result": "237筛选功能结果已观察，但用户否决常驻列表搜索位置与非标准实现；已撤回UI通过结论、旧候选不提交。采用原标题区按需搜索，不增加管理页常驻高度，原多语言及封面工作继续。"
+    },
+    {
+      "id": "source-cosplay-v3-cover-native-2026-11-06T004030-0800",
+      "at": "2026-11-06T00:40:30+08:00",
+      "title": "CosplayTele两作真实封面237通过，原数据设置已恢复释租",
+      "result": "Robin/Evanescia网址进入详情已显示原站featured cover，原目录与收藏状态保持；六份原数据／偏好字节相等恢复、本次源目录和上传精确清理、原电源读回后释租。多语言组及独立开关已核；常驻源列表搜索UI仍未通过，按用户要求修正，不提交旧布局。"
+    },
+    {
+      "id": "source-search-bottom-animation-decision-2026-11-06T005357-0800",
+      "at": "2026-11-06T00:53:57+08:00",
+      "title": "按最新要求采用标题下方动画搜索，Cosplay精确推送",
+      "result": "搜索默认收起、原标题和管理入口角标不改，去掉旧inline替换及文字取消；动效尚待新包连续原片验证。Cosplay具名封面已验，源码与必要协议模块精确推送，正式分发实体正在核对。"
+    },
+    {
+      "id": "source-cosplay-public-accepted-2026-11-06T005918-0800",
+      "at": "2026-11-06T00:59:18+08:00",
+      "title": "CosplayTele封面与源正式分发已核，搜索新版仍待动效实机",
+      "result": "公开资产、许可、索引和镜像字节已核；公开WASM完整固定响应／Host轨迹与候选一致。封面项按具名范围关闭；源列表搜索仅新版实现推进，不冒动画已验。紳士漫畫本地完整分层已实做，Host输入校验与Native仍待。"
     }
   ],
   "reportAgeAudit": {
