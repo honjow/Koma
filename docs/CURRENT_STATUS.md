@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T00:59:18+08:00",
+  "updatedAt": "2026-11-06T01:50:14+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -114,15 +114,19 @@
       "kind": "active",
       "priority": "用户最新明确要求",
       "owner": "Terra实现列表投影与搜索框；Root真实路径验收",
-      "status": "标准搜索底栏及完整避让已实现，新HAP构建收尾；待237动效",
+      "status": "237管理搜索替换与名称过滤已核，浏览透明代理及角标归属继续修正",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
-      "reportedAtSource": "本会话用户明确要求源的搜索，并纠正为“在源列表里面搜索需要源”；精确消息时刻未核实。",
-      "result": "名称匹配投影已完成，237曾实际核对两页命中、无匹配和清空恢复；这只证明功能，不代表界面通过。用户否决常驻列表首行搜索，继而指出标题内替换方案切换生硬、文字取消别扭及管理角标孤立。当前明确采用：平时搜索收起，原标题／菜单／管理入口和角标保持不动；点标题栏搜索后，复用标准搜索容器在标题栏下方动画展开，再次点击或返回收起。管理页原分段保留，收起后不占额外高度。旧两版均未提交，不以构建或终点图宣称动效通过。角标不另作样式或定位修改。",
-      "remaining": "冻结最终安装候选后237亲审完整展开／收起原片、焦点／清空／返回／分段；通过再精确提交推送。",
+      "reportedAtSource": "本会话用户明确要求源的搜索，并纠正为“在源列表里面搜索需要源”；精确消息时刻未核实。 2026-11-06用户进一步指定管理页参考NextE下载管理，用搜索替换分段并将搜索图标切成关闭；随后要求仅搜索展开时允许标题随列表滚动收起、搜索框保留，精确消息时刻未核实。",
+      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；浏览页切换与恢复仍待实机，管理页具名结果如下，不以编译或局部截图宣布通过。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。",
+      "remaining": "浏览页搜索可见、动画展开/关闭与第二次重入、角标和真实管理按钮共同随标题滚动仍待v10完整实机；管理页既有具名路径已核，新包只补稳定组件ID须核实际落点。两页未搜索时标题保持、其它Tab不残留及原列表位置继续核对，通过后精确提交推送。当前237同一租约验证中，原数据备份保留，结束独立恢复测试数据/电源并释租。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-host-ui-v1.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-host-ui-v1.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-search-ui-v8.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-search-ui-v8-017-browse-open-invisible-search-bounds/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/koma-new-sources-search-ui-v8-19-manager-slot-roundtrip.mp4",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-search-ui-v8-031-movie-stop-browse-scroll-title/screen.jpeg"
       ]
     },
     {
@@ -18425,6 +18429,30 @@
       "at": "2026-11-06T00:59:18+08:00",
       "title": "CosplayTele封面与源正式分发已核，搜索新版仍待动效实机",
       "result": "公开资产、许可、索引和镜像字节已核；公开WASM完整固定响应／Host轨迹与候选一致。封面项按具名范围关闭；源列表搜索仅新版实现推进，不冒动画已验。紳士漫畫本地完整分层已实做，Host输入校验与Native仍待。"
+    },
+    {
+      "id": "source-catalog-nexte-reference-hide-title-2026-11-06T011245-0800",
+      "at": "2026-11-06T01:12:45+08:00",
+      "title": "源列表搜索采用NextE管理页参考并增加条件标题显隐",
+      "result": "实际读NextE DownloadTypeBar、原生菜单及引入历史：Manager同固定区域替换分段／搜索，关闭图标清query恢复；Browse仍按需下方动画展开。用户新增搜索时只让主标题随滚动收起；HDS合同与原生列表绑定正在落实，设备尚未验证。"
+    },
+    {
+      "id": "source-catalog-v8-native-failures-20261106",
+      "at": "2026-11-06T01:36:59+08:00",
+      "title": "237实际搜索与标题滚动反例已定位",
+      "result": "浏览搜索框不可见、管理分段未响应替换、标题收起后角标孤留，v8不通过；保留连续原片和布局，修正组件归属后再验。当前237事务仍在，未提前宣称恢复或通过。"
+    },
+    {
+      "id": "source-catalog-v9-manager-observed-20261106",
+      "at": "2026-11-06T01:45:44+08:00",
+      "title": "237管理搜索显示与功能路径已核，浏览反例保留",
+      "result": "管理系统输入在固定分段区响应替换，命中／无匹配／清除／关闭已核；浏览框依旧不可见，单去opacity不足。继续修初始零高容器和角标归属，整体未通过。"
+    },
+    {
+      "id": "source-catalog-v9-manager-title-scroll-20261106",
+      "at": "2026-11-06T01:50:14+08:00",
+      "title": "237管理页搜索状态滚动标题与关闭恢复已核",
+      "result": "完整连续原片观察主标题随上滑收起、搜索保留，返回关闭后标题和原分段恢复且列表没有回顶；浏览与角标仍未通过。"
     }
   ],
   "reportAgeAudit": {
