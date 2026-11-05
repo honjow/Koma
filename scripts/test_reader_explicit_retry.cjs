@@ -31,6 +31,81 @@ function cacheFixture() {
     } })
   return { cache, writes }
 }
+
+test('reader cache hits update live eviction and coalesce restart metadata without reviving cleared files', async () => {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-reader-access-'))
+  const writes = new Map()
+  let timer = 0, now = 1000, renames = 0, denyRename = false
+  const open = (file, mode) => ({ fd: fs.openSync(file, mode ? 'w' : 'r') })
+  const write = (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes))
+  const close = file => fs.closeSync(file.fd)
+  const io = {
+    accessSync: fs.existsSync, mkdirSync: (file, recursive) => fs.mkdirSync(file, { recursive }),
+    OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 }, openSync: open, writeSync: write, closeSync: close,
+    statSync: fs.statSync, renameSync: fs.renameSync, unlinkSync: fs.unlinkSync,
+    readTextSync: file => fs.readFileSync(file, 'utf8'), listFile: fs.promises.readdir, unlink: fs.promises.unlink,
+    open: async (...args) => open(...args), write: async (...args) => write(...args), close: async file => close(file),
+    rename: async (...args) => {
+      if (denyRename) throw new Error('storage unavailable')
+      renames++
+      return fs.promises.rename(...args)
+    },
+  }
+  const exports = {}
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/RemoteImageCacheStore.ets'), 'utf8')
+  vm.runInNewContext(ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, {
+    exports, require: name => ({ '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer } })[name],
+    Date: { now: () => now }, console: { info() {} },
+    setTimeout: callback => { writes.set(++timer, callback); return timer }, clearTimeout: id => writes.delete(id),
+  })
+  const cache = new exports.RemoteImageCacheStore(directory)
+  const manifest = path.join(directory, 'reader-remote-image-cache', 'manifest.v1.json')
+  const disk = () => JSON.parse(fs.readFileSync(manifest, 'utf8')).entries
+  const bytes = new Uint8Array([1, 2, 3]).buffer
+  const a = 'https://cache.invalid/a.jpg', b = 'https://cache.invalid/b.jpg', c = 'https://cache.invalid/c.jpg'
+  const flush = async () => {
+    const callbacks = [...writes.values()]
+    writes.clear()
+    callbacks.forEach(callback => callback())
+    await cache.stats()
+  }
+  try {
+    const first = await cache.put(a, undefined, bytes)
+    now++; const oldest = await cache.put(b, undefined, bytes)
+    now++; await cache.put(c, undefined, bytes)
+    now++; assert.equal(await cache.get(a), first)
+    now++; assert.equal(await cache.get(a), first)
+    assert.equal(disk().find(e => e.url === a).lastAccessAt, 1000)
+    assert.equal(writes.size, 1)
+    await cache.evictIfOver(6)
+    assert(fs.existsSync(first), 'a touched file is protected by the live LRU before any delayed write')
+    assert(!fs.existsSync(oldest))
+    assert.equal(disk().find(e => e.url === a).lastAccessAt, now)
+    assert.equal(writes.size, 0)
+
+    now++; denyRename = true
+    assert.equal(await cache.get(a), first)
+    await flush()
+    assert.equal(disk().find(e => e.url === a).lastAccessAt, now - 1)
+    denyRename = false
+    now++; assert.equal(await cache.get(a), first)
+    await flush()
+    assert.equal(renames, 1)
+    assert.equal(disk().find(e => e.url === a).lastAccessAt, now)
+
+    now++; await cache.get(a)
+    const late = [...writes.values()][0]
+    await cache.clear()
+    late()
+    await cache.stats()
+    assert(!fs.existsSync(manifest), 'a late access checkpoint cannot recreate a cleared manifest')
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('force retry bypasses an existing file and publishes only a complete replacement', async () => {
   const { cache, writes } = cacheFixture(); let fetched = 0
   const fetch = async () => { fetched++; return new Uint8Array([1, 2, 3]).buffer }

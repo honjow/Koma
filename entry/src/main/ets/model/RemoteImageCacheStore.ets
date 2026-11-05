@@ -1,4 +1,5 @@
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
+import { buffer } from '@kit.ArkTS'
 
 export type RemoteImageCacheHeaders = Record<string, string>
 
@@ -6,6 +7,7 @@ export const DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES: number = 500 * 1024 * 1024
 const REMOTE_IMAGE_CACHE_SCHEMA_VERSION: number = 1
 const REMOTE_IMAGE_CACHE_DIR_NAME: string = 'reader-remote-image-cache'
 const REMOTE_IMAGE_CACHE_MANIFEST_NAME: string = 'manifest.v1.json'
+const READER_CACHE_ACCESS_SETTLE_MS: number = 1500
 
 export interface RemoteImageCacheManifestEntry {
   key: string
@@ -168,7 +170,10 @@ export function formatRemoteImageCacheSize(totalBytes: number): string {
 export class RemoteImageCacheStore {
   private readonly rootDir: string
   private readonly manifestPath: string
+  private readonly deferReaderAccess: boolean
   private entries: Map<string, RemoteImageCacheManifestEntry> = new Map<string, RemoteImageCacheManifestEntry>()
+  private accessWriteTimer: number = -1
+  private accessDirty: boolean = false
 
   private operationTail: Promise<void> = Promise.resolve()
   private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
@@ -183,6 +188,7 @@ export class RemoteImageCacheStore {
   constructor(cacheDir: string, directoryName: string = REMOTE_IMAGE_CACHE_DIR_NAME) {
     this.rootDir = joinSandboxPath(cacheDir, directoryName)
     this.manifestPath = joinSandboxPath(this.rootDir, REMOTE_IMAGE_CACHE_MANIFEST_NAME)
+    this.deferReaderAccess = directoryName === REMOTE_IMAGE_CACHE_DIR_NAME
     this.ensureRoot()
     this.restore()
   }
@@ -206,7 +212,8 @@ export class RemoteImageCacheStore {
     }
     entry.lastAccessAt = Date.now()
     this.entries.set(key, entry)
-    this.persist()
+    if (this.deferReaderAccess) this.scheduleAccessWrite()
+    else this.persist()
     console.info(`[ReaderCache] step=hit key=${key} size=${entry.size}`)
     return Promise.resolve(entry.path)
   }
@@ -339,6 +346,8 @@ export class RemoteImageCacheStore {
   }
 
   private async clearNow(): Promise<void> {
+    this.cancelAccessWrite()
+    this.accessDirty = false
     const paths: string[] = []
     this.entries.forEach((entry: RemoteImageCacheManifestEntry) => {
       if (!paths.includes(entry.path)) {
@@ -421,11 +430,61 @@ export class RemoteImageCacheStore {
     }
   }
 
-  private persist(): void {
+  private cancelAccessWrite(): void {
+    if (this.accessWriteTimer < 0) return
+    clearTimeout(this.accessWriteTimer)
+    this.accessWriteTimer = -1
+  }
+
+  private scheduleAccessWrite(): void {
+    this.accessDirty = true
+    this.cancelAccessWrite()
+    this.accessWriteTimer = setTimeout((): void => {
+      this.accessWriteTimer = -1
+      // Cache hits update in-memory eviction order immediately. Only their
+      // restart hint can wait. Serialize it with structural edits so a late
+      // timestamp write cannot overwrite a replacement, eviction or clear.
+      void this.enqueue(async (): Promise<void> => {
+        if (!this.accessDirty || this.accessWriteTimer >= 0) return
+        if (await this.persistAccess()) this.accessDirty = false
+      }).catch((): void => {
+        // A metadata failure must not fail a hit. Retry on the next access or
+        // let the next structural write commit the live timestamps.
+      })
+    }, READER_CACHE_ACCESS_SETTLE_MS)
+  }
+
+  private manifestPayload(): string {
     const document: RemoteImageCacheManifestDocument = {
       schemaVersion: REMOTE_IMAGE_CACHE_SCHEMA_VERSION,
       entries: Array.from(this.entries.values()),
     }
-    writeTextSync(this.manifestPath, JSON.stringify(document))
+    return JSON.stringify(document)
+  }
+
+  private async persistAccess(): Promise<boolean> {
+    const temporary = `${this.manifestPath}.access.tmp`
+    const payload = this.manifestPayload()
+    try {
+      const file = await fs.open(temporary, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+      try {
+        if (await fs.write(file.fd, payload, { encoding: 'utf-8' }) !== buffer.byteLength(payload, 'utf-8')) {
+          throw new Error('Incomplete image cache access write')
+        }
+      } finally {
+        await fs.close(file)
+      }
+      await fs.rename(temporary, this.manifestPath)
+      return true
+    } catch (_error) {
+      try { await fs.unlink(temporary) } catch (_error) {}
+      return false
+    }
+  }
+
+  private persist(): void {
+    this.cancelAccessWrite()
+    writeTextSync(this.manifestPath, this.manifestPayload())
+    this.accessDirty = false
   }
 }
