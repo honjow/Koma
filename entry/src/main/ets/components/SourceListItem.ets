@@ -121,13 +121,6 @@ export struct SourceListItem {
   }
 
   build() {
-    if (this.showPinButton) {
-      Row() { this.SourceRow() }
-        .width('100%')
-        .geometryTransition(`browse-source-pin-${this.source.sourceId}`)
-        .transition(TransitionEffect.opacity(0.99))
-    } else {
-      this.SourceRow()
-    }
+    this.SourceRow()
   }
 }

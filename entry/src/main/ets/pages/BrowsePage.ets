@@ -87,14 +87,12 @@ export struct BrowsePage {
 
   private toggleSourcePin(id: string): void {
     const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
-    // The same source row supplies both ends of the native transition. Keep
-    // the scroller where it is when the destination falls outside the viewport.
-    this.getUIContext().animateTo({ duration: 260, curve: Curve.EaseInOut }, (): void => {
-      void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
-        if (this.active && this.navigationVisible) {
-          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
-        }
-      })
+    // In this nested list, shared-element transitions duplicate the row
+    // during layout. Apply the group change without moving the scroll offset.
+    void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
+      if (this.active && this.navigationVisible) {
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
+      }
     })
   }
 
