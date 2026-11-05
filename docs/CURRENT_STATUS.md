@@ -128,13 +128,14 @@
         ".hvigor/outputs/device-sync-independent/197-5b6a662a-cas-receipt.json",
         ".hvigor/outputs/device-sync-independent/0333de60-ca-package-contrast.json",
         ".hvigor/outputs/device-sync-independent/fixture-cleanup-20261105.json",
+        ".hvigor/outputs/device-sync-independent/final-source-composition.json",
         ".hvigor/outputs/device-sync-implementation/workspace-input-0333de60.diff"
       ],
       "boundaries": [
         "首次合并确认后由用户开启自动。启动、回前台、网络恢复和本机落盘变更触发同步。按已观察到的事实版本合并，设备时间用于显示，离线并发保留双方候选。",
         "书源作品与阅读记录当前支持MangaDex 0.1.25和xkcd中文0.1.7。条漫恢复到逻辑原图页，长图内部的滚动偏移未同步。真实跨端样本为MangaDex第399话，xkcd正文证明为主机匿名实际响应验证。",
         "owner回滚等分支使用主机平台替身。第一owner写后硬杀冷启动、完整旧备份缺键设备往返、大库多级分片和全对象多轮隐私扫描尚未完整覆盖。超长差异列表的设备滚动也未覆盖。",
-        "自动收发使用180e82f6，最终正文使用0333de60，独立UI主路径使用aec7493e且界面与0333一致。0333测试包另含构建当时的SourceRuntimeError与MangaDetailPage两处外部WIP，具体差异及摘要保存在workspace-input-0333de60.diff和独立收据，外部WIP未随本次提交。"
+        "自动收发使用180e82f6，最终正文使用0333de60，独立UI主路径使用aec7493e且界面与0333一致。0333构建时纳入的SourceRuntimeError与MangaDetailPage两处外部改动已由书源任务提交261ec84b。最终核对其已提交差异与测试包记录完全一致，见final-source-composition.json。"
       ]
     },
     {
