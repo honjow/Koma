@@ -212,18 +212,26 @@ test('disconnect during an accepted request prevents its late callback from appl
     [['reader-settings', new Map([[pageNumber, 'true']])]])
   await reader.engine.testConnection(f.draft)
   await reader.engine.confirm((await reader.engine.prepare(f.draft, ['reader-settings'])).token, [])
+  const runtime = runtimeFixture()
+  runtime.engine = reader.engine
+  runtime.storage = reader.store
+  runtime.refresh()
   reader.values.get('reader-settings').set(pageNumber, 'false')
   let enter, release
   const entered = new Promise(resolve => { enter = resolve })
   const resumed = new Promise(resolve => { release = resolve })
   f.onCommit(async () => { enter(); await resumed })
-  const pending = reader.engine.syncNow()
+  const pending = runtime.sync()
   const rejected = assert.rejects(pending, /sync_connection_changed/)
   await entered
   const name = reader.store.load().intent.commit
-  await reader.engine.disconnect()
+  await runtime.disconnect()
+  assert.equal(runtime.view.configured, false)
+  assert.equal(runtime.view.error, '')
   release()
   await rejected
+  assert.equal(runtime.view.error, '', 'the rejected old task must not publish an error into the disconnected service')
+  assert.equal(runtime.view.busy, false)
   assert.equal(f.files.has(f.root + name), true, 'the in-flight request may already commit')
   assert.equal(reader.engine.active(), undefined)
   assert.equal(reader.store.load().intent.detached, true)

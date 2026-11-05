@@ -190,6 +190,7 @@ test('draft tests and merge failures preserve the active connection error', asyn
     active: () => ({ selected: ['reader-settings'], groups: [], lastSuccess: 123 }),
     configuration: () => ({ selected: ['reader-settings'], enabled: true, automatic: false }),
     hasUnresolvedCommit: () => false,
+    stateGuard: () => () => {},
     readingDecisions: () => [], readingScope: () => '',
     testConnection: async () => { await execute(); return false },
     prepare: execute, confirm: execute, syncNow: execute,

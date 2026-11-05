@@ -277,7 +277,8 @@ export struct DeviceSyncWebDavPage {
             ConciseListRow({ title: t(groupKey(group)), subtitle: t(groupKey(group) + '_detail') +
                 (this.added.includes(group) ? '\n' + t('device_sync_scope_not_applied') : ''),
               hasSwitch: true, showChevron: false, checked: this.state.selected.includes(group) || this.added.includes(group),
-              isEnabled: this.state.ready && !this.state.busy && !this.state.unresolvedCommit,
+              isEnabled: this.state.ready && ((!this.state.busy && !this.state.unresolvedCommit) ||
+                this.state.connected && this.state.selected.includes(group)),
               switchAction: (value: boolean): void => { this.toggle(group, value) } })
           }, (group: SyncGroup): string => group)
           if (this.added.length > 0) {
@@ -398,7 +399,8 @@ export struct DeviceSyncConnectionPage {
   build() {
     SecondaryListScaffold({ scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       ListItem() {
-        GroupedListSection({ subtitle: t(this.state.configured ? 'device_sync_save_replace_detail' : 'device_sync_save_detail') }) {
+        GroupedListSection({ title: t('device_sync_connection'),
+          subtitle: t(this.state.configured ? 'device_sync_save_replace_detail' : 'device_sync_save_detail') }) {
           Column({ space: ThemeConstants.SPACE_MD }) {
             KomaFormTextField({ label: t('device_sync_address'), placeholder: 'https://', value: this.directory,
               isEnabled: !this.loading && !this.state.busy, change: (value: string): void => { this.directory = value; this.changed() } })

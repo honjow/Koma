@@ -307,6 +307,9 @@ export class DeviceSyncEngine {
 
   requestGuard(): SyncRequestGuard { return this.transferGuard(this.generation) }
 
+  // UI error ownership only: this guard grants no permission to send requests.
+  stateGuard(): SyncRequestGuard { return this.guard(this.generation) }
+
   setEnabled(value: boolean): void {
     const pending = this.storage.load().pendingConfiguration
     if (pending !== undefined) {

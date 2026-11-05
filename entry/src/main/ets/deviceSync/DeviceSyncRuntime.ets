@@ -192,6 +192,7 @@ class DeviceSyncRuntime {
 
   private async task<T>(action: () => Promise<T>, publishError: boolean = true, resumeRecovery: boolean = true): Promise<T> {
     if (this.view.busy) throw new Error('sync_already_running')
+    const stateGuard = this.engine?.stateGuard()
     this.view.busy = true
     // Draft requests share the task lock, while their errors belong to the form.
     if (publishError) this.view.error = ''
@@ -200,7 +201,9 @@ class DeviceSyncRuntime {
       this.refresh()
       return result
     } catch (error) {
-      if (publishError && this.engine?.active()?.enabled !== false) this.view.error = (error as Error).message
+      let current = true
+      try { stateGuard?.() } catch (_changed) { current = false }
+      if (publishError && current && this.engine?.active()?.enabled !== false) this.view.error = (error as Error).message
       this.refresh()
       throw error as Error
     } finally {
