@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T19:24:23+08:00",
+  "updatedAt": "2026-11-05T19:46:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -82,6 +82,89 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_BROWSE_INITIAL_LIST_CANCELS_SEARCH",
+      "title": "源初始列表完成时取消刚发出的搜索",
+      "kind": "active",
+      "priority": "237源验收发现",
+      "owner": "device_preparation定位；Root修复验收",
+      "status": "237时序与本地同体已核，App异步回写定位中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话237漫画源普通入口验收发现；不是用户原报告时间。",
+      "result": "MangaBall初入源立即搜索One Piece和Kage出现源搜索失败。Kage日志明确旧列表完成后新搜索HTTP立即source_request_cancelled，源随后给parse_error；普通Retry能读取88章与32页。One Piece同一真实API固定体在公开0.1.4和候选0.1.5均成功24卡片且data等价；等初始真实列表卡片后普通搜索也成功，故不能归于新目录容量修复。初步链为旧loadBrowseHome完成后写searchFilterValues使新搜索fingerprint失效，尚待真实VM延迟时序证明和最小修复。",
+      "remaining": "核异步状态owner及旧列表回写边界，实际VM复现、最小修复及237快速普通搜索无取消后提交。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/mangaball-regression/mangaball-1105-87-normal-search-error/run-metadata.json"
+      ]
+    },
+    {
+      "id": "SOURCE_MANHUAREN_EXPLICIT_BLOCKED",
+      "title": "漫画人明确屏蔽且无游客章节仍显示通用失败",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "device_preparation候选；Root验收",
+      "status": "网页/API根因已核，候选或验收进行中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖发现；不是用户单独报告时间。",
+      "result": "50部按App私有会话与body合同完成真实API目录，45非空、5空；ID/标题/章号/分组顺序已与独立API投影相同，50同作网页200。5空目录API明确三章节数组各空、owner匹配并给出抱歉,该漫画已经被屏蔽；不据此推断付费或下架。正在制作严格no_chapters及详情保留原简介后附站点原话的最小候选；10不同作品均已补核实际剧情正文，原海报另存不计。",
+      "remaining": "审最小候选与原正常等价，237准确提示与正常阅读后再公开。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/manhuaren-web"
+      ]
+    },
+    {
+      "id": "SOURCE_GODA_REMOVED_AND_LONG_CHAPTER",
+      "title": "GoDa明确章节下架与长章正文加载失败",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "pixiv_public_catalogue候选；Root验收",
+      "status": "网页/API根因已核，候选或验收进行中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖发现；不是用户单独报告时间。",
+      "result": "2部原作品目录页明确章節下架且无章节节点，0.1.6仅该状态返回not_found，未知缺节点仍parse_error。另一章独立Dto解码得到221唯一图片URL，旧局部缓冲不足；候选复用既有1MiB payload，页序及URI与独立解码相同，原36成功响应相同，24边界保留。10不同作品实际剧情正文已独立HTTP200、完整解码并目视；原后记/留白等保留但不充样本。",
+      "remaining": "237下架提示及221页章具名路径，恢复后提交公开。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/goda-web"
+      ]
+    },
+    {
+      "id": "SOURCE_COMICFURY_OPTIONAL_PROFILE",
+      "title": "ComicFury真实缺省简介或封面导致详情加载失败",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "Terra候选；Root验收",
+      "status": "网页/API根因已核，候选或验收进行中",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖发现；不是用户单独报告时间。",
+      "result": "当前中文latest12部中9部详情parse_error，原网页在源原UA合同下均200；6部缺简介、2部缺封面、1部两者均缺。0.1.8仅在唯一profile、精确作品标题与同作reader链接均成立时允许真实缺省。9部恢复、3部原正常响应相同，12部213章ID/标题/顺序逐网页相等，10不同作品正文实体已核。",
+      "remaining": "237普通详情与阅读及正常对照，恢复后提交分发。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/comicfury-web"
+      ]
+    },
+    {
+      "id": "SOURCE_GUAZI_EMPTY_CHAPTERS",
+      "title": "瓜子漫画明确零章节仍报目录解析失败",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "Terra候选；Root验收",
+      "status": "50部网页已核，7部明确零章候选已修，待237",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖50样本逐例网页对照发现；不是用户单独报告时间。",
+      "result": "50部不同作品中43部真实网页目录7527条ID/标题/顺序与公开源一致；7部官网明确暂无章节/0话且桌面目录容器唯一为空，旧源因无移动目录而parse_error。0.1.5仅在同作品config、精确零更新卡及无移动目录/完整空桌面容器相互一致时返回no_chapters，不猜下架；7真实零章候选通过，原正常目录保持同体等价，缺容器/矛盾/非空/错作及403等仍为原错误。10不同作品实际漫画正文实体已核，公告/题字保留并另补，不充作品计数。",
+      "remaining": "237普通零章节提示与正常341章对照，恢复后独立提交公开。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/guazi-web/website-catalogues.json",
+        ".hvigor/outputs/source-coverage-20261105/guazi-web/candidate-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/guazi-web/new20-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/guazi-web/images.json"
+      ]
+    },
+    {
       "id": "ABOUT_COMMUNITY_GROUP_LINK",
       "title": "关于页添加 Koma 交流群入口",
       "kind": "done",
@@ -110,15 +193,17 @@
       "kind": "open",
       "priority": "全源覆盖发现",
       "owner": "pixiv_public_catalogue修复；Root定位与验收",
-      "status": "两篇官网原体已定位双作者行，最小兼容待完成",
+      "status": "0.1.2最终v2已本地核28部与10部正文实图，待237",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖及Root逐例网页对照发现；不是用户单独报告时间。",
-      "result": "28部原采样有26正常，AHCOO与颱風騎士團两篇详情和目录parse_error。两份官网原体本次同源UA/Referer均HTTP200，列表只显示第一作者与学校，详情实际各有两组作者/学校；原实现要求.Author/.Division只命中1个元素，错误拒绝真实双作者页。修复需保主作者/学校元数据及同作品归属，不能猜选择器序号或丢正文图。",
-      "remaining": "完成限定双作者兼容及28部真实体对照、26正常输出等价与两失败正文，237后公开。",
+      "result": "28部原采样有26正常，AHCOO与颱風騎士團两篇详情和目录parse_error。两份官网原体本次同源UA/Referer均HTTP200，列表只显示第一作者与学校，详情实际各有两组作者/学校；原实现要求.Author/.Division只命中1个元素，错误拒绝真实双作者页。修复需保主作者/学校元数据及同作品归属，不能猜选择器序号或丢正文图。 最终v2要求1或2行与Article JSON作者数量/顺序/姓名/学校精确对应，保列表第一作者和学校输出；v1缺失第二DOM行但JSON仍双作者的漏拒反例保留且包禁用。6官网目录页28部、67图URL原序通过，26正常110完整响应等价，6空学校保留；两失败全7图和8正常中段原图均200完整解码，标题卡与同像素不同编码单列，10作品实际繁中正文已目视。AHCOO原JPEG57,721,012字节/4907×14174 CMYK，原件不转码，本地解码不冒Native通过。",
+      "remaining": "仅用最终v2包5deb2d…完成237双作者及正常作品具名读取，注意真实大图传输与显示后恢复提交。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/scitechvista-web/fetch.json",
-        ".hvigor/outputs/source-coverage-20261105/coverage-app-v2/com.scitechvista.zh-hant.koma/summary.jsonl"
+        ".hvigor/outputs/source-coverage-20261105/coverage-app-v2/com.scitechvista.zh-hant.koma/summary.jsonl",
+        ".hvigor/outputs/source-coverage-20261105/scitechvista-web/candidate-review.json",
+        ".hvigor/outputs/source-coverage-20261105/scitechvista-web/body-verified.json"
       ]
     },
     {
@@ -127,64 +212,80 @@
       "kind": "open",
       "priority": "全源覆盖发现",
       "owner": "device_preparation定位与候选；Root验收",
-      "status": "已区分真实容量与无中文目录，正在修复",
+      "status": "237大目录、正常阅读与两类无章提示通过，正在公开分发",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖对30个原API逐例核对发现；不是用户单独反馈时间。",
-      "result": "30个同参目录API原体均HTTP200，其中真实原体最大约6.3MiB/9847条；原Host返回-3是JSON响应超过源缓冲区，不能冒网络故障。另有完整API确无中文或全空章节的条目，将按用户要求准确提示暂无可用章节，不能当下架或运行异常。原记录中另1次真实TLS失败单独保留。",
-      "remaining": "完成有界全目录兼容与明确no_chapters分类，保语言过滤及归属/ID；核普通App目录与提示，再恢复提交。",
+      "result": "30个同参目录API原体均HTTP200，其中真实原体最大约6.3MiB/9847条；原Host返回-3是JSON响应超过源缓冲区，不能冒网络故障。另有完整API确无中文或全空章节的条目，将按用户要求准确提示暂无可用章节，不能当下架或运行异常。原记录中另1次真实TLS失败单独保留。 冻结候选30原体：7部中文目录正常、23部确无中文或全空返回no_chapters；原3正常目录payload、7部页表完整输出不变，真实章节ID/标题/顺序逐项同API，20关键边界保持。全语言末尾合法Chapter -1保有符号章节号原义，卷号仍非负。7作品实际正文图已目视（留白/介绍页另补，不充作品数）；Node最大线性内存20,381,696字节，原生内存与并发未验。 237已普通导入实核WASM/icon；Log into the Future实际329章及真实第333话160页首图和末页原附页可显示，正常Kage实际88章及第85话32页首尾繁中剧情正文通过，两章实际MID/CID已读回。Touken全语言空数组和One Piece无中文均显示准确暂无可阅读章节且禁读。Native未逐条提取全部329/88章ID，未做峰值内存/并发测量。正常首次需普通Retry，One Piece首次快速搜索被取消，初始列表卡片ready后成功，竞态另立项。原包/注册/阅读搜索/settings/observations均逐字恢复，原电源读回并释租；封面仍存在原HTTP403，不冒已修。",
+      "remaining": "核精确公开包、索引/镜像及冻结回放，随后关闭本目录项。",
       "evidence": [
-        ".hvigor/outputs/source-coverage-20261105/mangaball-web"
+        ".hvigor/outputs/source-coverage-20261105/mangaball-web",
+        ".hvigor/outputs/source-coverage-20261105/mangaball-web/summary.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/mangaball-regression/root-review.json"
       ]
     },
     {
       "id": "SOURCE_MIXFLAVOR_BODY_FORMATS",
       "title": "综合口味多种真实正文结构与图片地址解析失败",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全源覆盖发现",
       "owner": "pixiv_public_catalogue定位与候选；Root验收",
-      "status": "30份原网页已核，兼容候选正在验证",
+      "status": "修复已发布，237故障与正常对照均通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖逐例官网对照发现；不是用户单独反馈时间。",
-      "result": "30份原网页均HTTP200，旧版3成功27解析失败。已定位无srcset的旧正文、实际表格/直系图片树与作者上传图片namespace，候选仅支持实见结构并保留全部正文图数量、同作归属和顺序校验。尚未审完整候选回放，不称已修复通过。",
-      "remaining": "完成最小候选与原正常等价、关键反例和实图核对，237验收后提交分发。",
+      "result": "30份原网页HTTP200，旧版3成功27解析失败。0.1.3支持已见的无srcset正文、表格/直系图片及作者上传地址，保留同作归属、全部附图及顺序；30篇44图页表与32边界已核，原成功与out_of_scope分别保留等价。Root对全部44张原图HTTP200完整解码并亲审，包含原文附照，不把44张全称为漫画正文。237普通搜索打开原失败#75洗碗機，1/3漫画和3/3原猫照实际显示，返回后正确封面已亲审；原正常你的事，我都知道。首尾2页均通过。 三源同场景已逐字节恢复原源包四文件、原注册表、阅读会话和搜索历史，原电源状态已读回并释租。正式公开包与索引、清单版本、原图标及推荐镜像均已核；公开WASM对冻结网页和全部负例重放与237已验候选完整响应相同。验收限上述具名首尾路径，不称所有页均已Native逐页阅读。",
+      "remaining": "",
       "evidence": [
-        ".hvigor/outputs/source-coverage-20261105/mixflavor-web"
+        ".hvigor/outputs/source-coverage-20261105/mixflavor-web",
+        ".hvigor/outputs/source-coverage-20261105/mixflavor-web/candidate-review.json",
+        ".hvigor/outputs/source-coverage-20261105/mixflavor-web/root-images.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/blog-regressions/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/blog-public/public-verify.json",
+        "https://github.com/honjow/koma-sources/commit/da7ef2b73a0ec7b893da0c1a98018bec4521ad7d"
       ]
     },
     {
       "id": "SOURCE_FJUMONKEY_IMAGE_QUERY",
       "title": "輔大猴部分漫画正文图片版本参数被误拒",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全源覆盖发现",
       "owner": "Terra候选；Root验收",
-      "status": "0.1.3限定候选已本地核，真机待验",
+      "status": "修复已发布，237故障与正常对照均通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖逐例官网对照发现；不是用户单独反馈时间。",
-      "result": "真实正文图片含单个?v=后10位数字，旧版仅允许.jpg结尾，导致6篇原网页HTTP200仍解析失败。候选保原URI，仅兼容已见参数格式，正文仍按同篇重取与精确URL/ordinal绑定。30篇真实体中24正常作品72响应全等，6原失败18响应恢复，23张正文URL逐网页DOM顺序一致；6篇各1幅实际图200完整解码，跨作、错序、未知参数等36边界仍拒。",
-      "remaining": "Root审候选和实图，完成237失败类型及正常对照阅读，恢复后提交公开。",
+      "result": "真实正文图片含单个?v=后10位数字，旧版仅允许.jpg结尾，导致6篇原网页HTTP200仍解析失败。候选保原URI，仅兼容已见参数格式，正文仍按同篇重取与精确URL/ordinal绑定。30篇真实体中24正常作品72响应全等，6原失败18响应恢复，23张正文URL逐网页DOM顺序一致；6篇各1幅实际图200完整解码，跨作、错序、未知参数等36边界仍拒。 新增正常图中的三幅标题卡已保留并另补中部人物对话原图，不充作品数；6修复加4正常共10篇各有实际漫画正文实体，正文原URI保留。 237普通导入0.1.3实际WASM/icon已核；雪中送炭1章及1/2原题字、带版本参数的2/2漫画正文均实际显示，原正常夏日玩水須知1/5题字和5/5漫画末幅亦通过。源入口定位脚本在列表底部误向下，保留失败后按实际列表向上恢复；书源读取未重置或改参数。 三源同场景已逐字节恢复原源包四文件、原注册表、阅读会话和搜索历史，原电源状态已读回并释租。正式公开包与索引、清单版本、原图标及推荐镜像均已核；公开WASM对冻结网页和全部负例重放与237已验候选完整响应相同。验收限上述具名首尾路径，不称所有页均已Native逐页阅读。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/fjumonkey-web/regression30.json",
-        ".hvigor/outputs/source-coverage-20261105/fjumonkey-web/recovered-images.json"
+        ".hvigor/outputs/source-coverage-20261105/fjumonkey-web/recovered-images.json",
+        ".hvigor/outputs/source-coverage-20261105/fjumonkey-web/normal-body-images.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/blog-regressions/session.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/blog-regressions/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/blog-public/public-verify.json",
+        "https://github.com/honjow/koma-sources/commit/da7ef2b73a0ec7b893da0c1a98018bec4521ad7d"
       ]
     },
     {
       "id": "SOURCE_IMMARK_ALBUM_IMAGES",
       "title": "我是马克后续分页和相簿图片被误拒",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "全源覆盖发现",
       "owner": "Root；pixiv_public_catalogue候选",
-      "status": "0.1.2候选本地及10部实图通过，真机待验",
+      "status": "修复已发布，237故障与正常对照均通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖第3页及原文章发现；不是用户单独报告时间。",
-      "result": "分类第3页3篇原文章各9张相簿图片被仅post路径校验误拒，选择器本来已支持该DOM。候选只接受作者namespace下相簿地址，文章归属仍由重取后DOM精确URL及序号决定，不能由相簿号推作品。34篇真实原体共286图、前4页48条ID/顺序及29个关键反例已核，31篇原正常作品115完整响应相同；Root补下载3篇全部27图和7篇正常对照首图，共10篇34图均HTTP200完整解码。分类实际链接后续49页，前24篇不是穷尽。",
-      "remaining": "Root审实图并完成237普通候选导入、坏样本和原正常阅读；恢复后直接提交分发。",
+      "result": "分类第3页3篇原文章各9张相簿图片被仅post路径校验误拒，选择器本来已支持该DOM。候选只接受作者namespace下相簿地址，文章归属仍由重取后DOM精确URL及序号决定，不能由相簿号推作品。34篇真实原体共286图、前4页48条ID/顺序及29个关键反例已核，31篇原正常作品115完整响应相同；Root补下载3篇全部27图和7篇正常对照首图，共10篇34图均HTTP200完整解码。分类实际链接后续49页，前24篇不是穷尽。 237已普通FilePicker导入并核实际候选WASM/icon.webp；从真实分类翻至第3页打开成年人的笑，1章及1/9首图、9/9末页真实显示，原正常活人對AI作品同样首尾通过。首次入详情封面暂未显示，返回详情后正确封面和9/9进度已亲审，未误计失败或略过观察。 三源同场景已逐字节恢复原源包四文件、原注册表、阅读会话和搜索历史，原电源状态已读回并释租。正式公开包与索引、清单版本、原图标及推荐镜像均已核；公开WASM对冻结网页和全部负例重放与237已验候选完整响应相同。验收限上述具名首尾路径，不称所有页均已Native逐页阅读。",
+      "remaining": "",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/immark-web/candidate-review.json",
-        ".hvigor/outputs/source-coverage-20261105/immark-web/root-images.json"
+        ".hvigor/outputs/source-coverage-20261105/immark-web/root-images.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/blog-regressions/session.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/blog-regressions/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/blog-public/public-verify.json",
+        "https://github.com/honjow/koma-sources/commit/da7ef2b73a0ec7b893da0c1a98018bec4521ad7d"
       ]
     },
     {
@@ -17775,6 +17876,30 @@
       "at": "2026-11-05T18:23:14+08:00",
       "title": "科技大观园两部解析失败定位为真实双作者行",
       "result": "同UA/Referer两份官网200原体明确两组作者/学校，旧实现唯一元素断言误拒；已交候选owner，未完成修复或实机验收。全源其余已知失败继续逐项落实。"
+    },
+    {
+      "id": "source-blog237-immark-and-real-images-2026-11-05T18:37:34+08:00",
+      "at": "2026-11-05T18:37:34+08:00",
+      "title": "我是马克237原失败与正常首尾页通过，博客修复继续验收",
+      "result": "9页两作品目录与首尾实图已亲审，封面返回终态正常；三源原包/注册/阅读搜索已备份，同场景仍持租未恢复。综合口味30篇44原图已解码亲审，輔大猴10篇实际正文与标题卡区分保留。"
+    },
+    {
+      "id": "source-fjumonkey237-and-other-candidates-2026-11-05T18:54:54+08:00",
+      "at": "2026-11-05T18:54:54+08:00",
+      "title": "輔大猴237修复与正常通过，明确无章及双作者候选完成本地核查",
+      "result": "輔大猴2页原失败与5页原正常已亲审首尾实际画面，仍待同场景恢复；MangaBall30原API、科技大观园最终v2 28部和10作品正文、瓜子50部含7明确0章已分别核，三项Native仍未完成。"
+    },
+    {
+      "id": "source-blogs-public-accepted-2026-11-05T19:27:47+08:00",
+      "at": "2026-11-05T19:27:47+08:00",
+      "title": "三博客源具名真机与公开包核验完成；新故障登记",
+      "result": "我是马克、輔大猴、综合口味在237原失败和正常对照首尾页通过，原数据/源包/电源恢复并释租，公开包和镜像与冻结回归已核。ComicFury、GoDa、漫画人新故障保留未验范围，未提前关闭。"
+    },
+    {
+      "id": "source-mangaball237-and-search-race-2026-11-05T19:46:47+08:00",
+      "at": "2026-11-05T19:46:47+08:00",
+      "title": "MangaBall目录与准确无章提示实机通过，新搜索竞态独立登记",
+      "result": "329章/160页与正常88章/32页具名读取通过，两类真实空目录提示准确，源与所有临时数据及电源已恢复释租。首次快速搜索取消保留，新App问题继续定位；不把Retry后的成功冒称竞态已修。GoDa及漫画人补足10部真实正文。"
     }
   ],
   "reportAgeAudit": {
