@@ -6,7 +6,7 @@
 
 设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源设置并释租。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
-书源检查：已核修复完成具名本地与237验证并陆续分发，全量足量采样、网页和实际图片核对仍在继续。漫画柜在237的访问尚未通过，候选未发布。
+书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画0.1.1封面修复、Komiic新图标和东立修复均已公开。现有源细查按用户调整后排。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T03:49:38+08:00",
+  "updatedAt": "2026-11-06T07:20:46+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -81,6 +81,151 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_BUONDUA_TEXT_FILTER_CONFIRMATION",
+      "title": "Buon Dua 文本筛选提供确认入口",
+      "kind": "accepted",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "用户报告筛选缺确认键，无法提交",
+      "status": "237真实标签请求、重开和重置通过",
+      "result": "共用筛选半模态在当前有文本字段时提供确认。通过键盘输入cosplay-10688后点击标题栏确认，237返回对应标签的真实结果，重开可见已提交值，重置清空。",
+      "remaining": "随 App 1.2.0交付。现有源包可用同一筛选字段。 App提交a0936fd0位于本地codex/source-host-1.2.0。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-123-buon-filter-confirm/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-125-buon-filter-reset/run-metadata.json"
+      ]
+    },
+    {
+      "id": "SOURCE_BUONDUA_ANIMATED_COVER",
+      "title": "Buon Dua 动图封面播放",
+      "kind": "accepted",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "用户报告动图封面显示异常",
+      "status": "237热门真实GIF可换帧，同屏静态封面稳定",
+      "result": "原封面PixelMap只取首帧。宿主检测缓存原图真实格式与帧数，多帧GIF/WebP走原生Image，静态图沿缩略图缓存，原生播放失败可回退首帧。237对真实热门第7张GIF做四次截图，布局一致，GIF区域逐次变化，邻近静态封面区域逐像素一致。",
+      "remaining": "随 App 1.2.0交付。动图WebP路径已实现，具名真机样本仅GIF。 App提交a0936fd0位于本地codex/source-host-1.2.0。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-141-buon-animated-cover-sample-0/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-142-buon-animated-cover-sample-1/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-143-buon-animated-cover-sample-2/run-metadata.json"
+      ]
+    },
+    {
+      "id": "SOURCE_MIN_APP_VERSION_MESSAGE",
+      "title": "书源版本不支持时明确最低 Koma 版本",
+      "kind": "accepted",
+      "owner": "Root",
+      "priority": "用户指定调整",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户确认语义版本比较可保留，并要求更清楚的版本提示。",
+      "status": "237已验同签1.2.0导入更高门槛的拒绝文案",
+      "result": "保留 minAppVersion 语义版本比较和同门槛预发布保护。订阅预检和归档实际解析分别传递精确版本，单源失败和批量汇总显示版本需求。237普通本地导入要求1.3.0的归档时看到「此书源需要 Koma 1.3.0 或更高版本」，真实Registry无新增。",
+      "remaining": "随 App 1.2.0；237未单独点在线和批量拦截。",
+      "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-016-compat-version-prompt/screen.jpeg",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-host-120-ready/verify.log"
+      ]
+    },
+    {
+      "id": "SOURCE_KOMIIC_ICON_SCALE",
+      "title": "Komiic 图标移除外留白并放大标志",
+      "kind": "accepted",
+      "owner": "Terra 素材和源包，Root 237及发布",
+      "priority": "用户直接反馈",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户指出图标白底外留白显小，明确提议铺满正方形并放大主体。",
+      "status": "0.1.14已公开，237实机确认新版图标",
+      "result": "官网PWA图标的标志相对方形约69%宽，原180px约51%。用原底色填满外围透明区域，保留原图不透明像素及原配色。两背景列表尺寸对照已亲审，源正常行为在117次固定体回放保持。 237已对照源列表实际图标，新图使用正式源包相同素材；正式索引及包资产已读回。",
+      "remaining": "已完成本次图标调整。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/komiic-icon-review/list-size-comparison.png",
+        ".hvigor/outputs/source-coverage-20261105/komiic-icon-review/business-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-051-komiic-icon-new-list-row/screen.jpeg",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-3f3bfaf6e2754f234f942e41174b9e1528aac2d1"
+      ]
+    },
+    {
+      "id": "SOURCE_ROUTE_TITLE_MENU_CAPACITY",
+      "title": "单源页面标题栏外露常用操作",
+      "kind": "accepted",
+      "priority": "用户指定调整",
+      "owner": "Root",
+      "status": "237 已核单源浏览和搜索的两个直接操作及原生更多",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户明确要求把漫画源页面菜单上限从一个调到三个；原始时间未核实。",
+      "result": "单源浏览和单源搜索各把 HDS 菜单上限设为一个，多操作源需要从更多菜单进入。 单源浏览与搜索已统一使用三位，候选同证书构建及验证签名通过。 237普通哔咔浏览显示登录与设置，更多保留网页和验证；通过书源管理进入单源搜索，筛选与登录直达，设置和两个网页动作进入更多。最终候选实际显示去掉末尾句号的登录和源内搜索短提示。",
+      "remaining": "随 App 1.2.0 宿主发布。",
+      "modificationBasis": {
+        "object": "Index.ets 的单源浏览和单源搜索标题栏",
+        "history": "34ab280d 增加源操作时沿用了先前单项筛选的上限。",
+        "originalReason": "增加操作前菜单仅承载筛选；未查到增加操作后另有必须仅显示更多按钮的独立决定。",
+        "reopenEvidence": "本会话用户明确要求上限三个，有溢出时外露两个。",
+        "allowedDifference": "只调整两处 HDS 标题栏菜单容量，保留既有操作顺序、能力判断和入口动作。"
+      },
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/source-route-title-menu/verify.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-070-v120-pica-browse-title/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-076-v120-pica-browse-overflow/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-103-v120-localized-pica-search-overflow/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-116-v120-final-pica-browse-no-period/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-123-v120-final-pica-search-no-period/screen.jpeg"
+      ]
+    },
+    {
+      "id": "SOURCE_TONGLI_PAGINATION_SEARCH",
+      "title": "东立最近更新重复第一页及搜索截断",
+      "kind": "accepted",
+      "priority": "全源覆盖发现",
+      "owner": "Terra 源侧；Root 237 与发布",
+      "status": "0.1.9 已正式上线，237 与公开包回放已核",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话现有源功能审计发现。",
+      "result": "原实现把App嵌套游标读成数值page而重复首页，且一次性搜索固定截20。真实「漫畫」站点50项，候选全50顺序与网站一致；最近更新前2页各20与网站一致，周榜20原结果保持。 237热门后切最近更新，滑到第二页《給和平國度的島崎》。实际搜索「漫畫」显示旧第20条后《ONE-PUNCH MAN 一拳超人》等七个候选。正式索引0.1.9与正式WASM回放已核；正文及全站另按原覆盖范围。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/tongli-web/candidate-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-058-tongli-latest-scroll-a/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-062-tongli-search-past-old-limit-0/layout.json",
+        ".hvigor/outputs/source-coverage-20261105/tongli-web/public-019/replay.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-3c236a59e3500fc3a9da0142f3fd20d37c31be33"
+      ]
+    },
+    {
+      "id": "SOURCE_COLD_COVER_SERIAL_ADMISSION",
+      "title": "书源冷缓存下的封面和页面加载慢",
+      "kind": "open",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "status": "237已验公开封面并发、设置探测后移及WAMR连续调用优化",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户报告同网络同源慢于Mihon，冷封面逐张显示并明确要求修正。",
+      "result": "源码确认无缓存时Koma每张封面先经过ArkTS及WAMR同源串行，再发图片下载；Mihon从缓存/普通GET直接消费封面。磁盘清单的旧逐命中写入已由现有改动合并刷新，文件提交仍需保证身份。新增公共cover.headers解析及卡片直连，实际生产函数本地验证两张独立冷图可重叠开始，缓存键、限速、动态旧入口保留。Komiic真实180封面及两个镜像的请求头回放等价，App同签候选构建通过。 237 Koma候选的同一Komiic列表滚动阶段，3张独立冷封面在54ms内开始，早于最先一张完成，全部HTTP200；真实滚动已显示新的封面。首屏前get_listings/get_settings/get_filters在同源队列耗时约2.8秒，实际作品API约1.2秒，和已优化的封面阶段分开。 拷贝漫画同候选从get_listings到get_manga_list发起由3.061秒缩到2.038秒，设置探测后移到列表结果之后。第二次App候选在两秒空闲期复用WAMR运行池，237实测连续的同一WASM调用约43至56ms。每次仍独立模块与请求上下文。拷贝的列表封面候选未声明公开头，旧逐图解析出现失败，列入后续针对源的修正。 拷贝封面修复版保留正文身份验证，独立处理作品封面MID。237普通导入后实显6张列表封面。该次同源新版的元数据首请求到正式列表发起为0.675秒，设置探测仍在列表返回之后。此样本WASM版本也变了，不能当作仅宿主的对比。 拷贝0.1.1已公开，下载的正式WASM已对原36个操作、8个真实封面与32个错误身份边界重放；新版索引仍列六个本批优先源。",
+      "remaining": "App公共修复在本地1.2.0候选。旧源动态请求和详情/正文仍需逐项分析。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/komiic-live/cover-clean-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-delivery-cover-host-build.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-source-host-v2-046-komiic-popular-continued/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-106-copy-app-optimized-startup/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-release-host-120-132-copy-runtime-warm-initial/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-priority-two-120-110-copy-cover-observe-0/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-priority-two-120-111-copy-cover-startup-timings/run-metadata.json",
+        "https://github.com/honjow/koma-sources/actions/runs/42128414661",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-ad72a728ad099ea641b9766a32ebaedd4515cbee",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/copy-cover-hotfix/public/semantic-result.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/copy-cover-hotfix/public/cover-replay.json"
+      ]
+    },
     {
       "id": "SOURCE_COSPLAYTELE_URL_COVER",
       "title": "CosplayTele通过网址打开作品详情没有封面",
@@ -186,18 +331,27 @@
       "kind": "active",
       "priority": "用户直接要求",
       "owner": "device_preparation宿主实现；new_source_ports源侧接入；Root审查和237验收",
-      "status": "认证与取消恢复链已实现并构建，两其他宿主同补丁编译通过；待237",
+      "status": "哔咔0.1.0正式源包已发，237已核两入口与未登录状态",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求必须登录的源在未登录页面明确说明并提供快捷入口，参考Mihon；精确消息时刻未核实。",
-      "result": "已按Mihon各源自有认证合同接通源声明、私密内存输入授权与浏览／搜索／详情／阅读快捷入口，成功仅重试原操作一次，取消与过期请求不重试。账号密码不进入普通设置、请求JSON或日志。统一同签新HAP构建成功；共享Reader仅增加可选目录失败动作，NextE／NextN实际临时应用同补丁编译成功并各自恢复原字节。真实账号未提供，尚无提供方实登或237认证UI验收；Legacy请求自身一次性取消边界仍在核对，未按构建结果宣布完成。",
-      "remaining": "核完Legacy取消迟到回调边界，冻结最终HAP后237普通路径验入口、取消与返回；真实提供方登录取决于可用测试账号，独立记录。",
+      "result": "已按Mihon各源自有认证合同接通源声明、私密内存输入授权与浏览／搜索／详情／阅读快捷入口，成功仅重试原操作一次，取消与过期请求不重试。账号密码不进入普通设置、请求JSON或日志。统一同签新HAP构建成功；共享Reader仅增加可选目录失败动作，NextE／NextN实际临时应用同补丁编译成功并各自恢复原字节。真实账号未提供，尚无提供方实登或237认证UI验收；Legacy请求自身一次性取消边界仍在核对，未按构建结果宣布完成。 237普通点开哔咔显示明确登录提示，按钮打开实际官方账号域及用户名/密码输入；取消返回且没有提交账号。对照上游六项，四项普通设置在源上已声明并消费，账号入口由公共设置表单补齐；已登录换账号沿原子替换，不能把密码放入普通设置。 237从单源标题栏设置打开账号管理及四项普通设置，输入未保存屏蔽词，进账号表单后返回保留草稿，退出未提交账号。书源管理详情点设置仍停在原页，日志确认此入口 get_settings 返回 schema_unavailable；已将原失败交源登录执行者定位。 原管理入口失败是认证调用经 TaskPool 转移了 Registry 共用 WASM 缓冲。改为每次传私有副本后，真实认证服务回归通过。237 先开账号页再进管理，实际看到设置项 4/4 可编辑、账号页和退出后的原设置。测试源已正常卸载，未提交账号。",
+      "remaining": "正式App发布1.2.0后可安装该源。真实账号登录及登录后内容待可用账号实际核验。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/host-login-review.md",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/login-reader-diagnostic.patch",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/nexte-shared-auth-build-v2.json",
-        ".hvigor/outputs/source-coverage-20261105/new-source-ports/nextn-shared-auth-build.json"
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/nextn-shared-auth-build.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-source-host-v2.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/pica-account-settings/verify.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-028-pica-settings-account-close/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-037-pica-manager-settings-settled/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-084-v120-pica-manager-settings-after-account/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-087-v120-pica-manager-settings-close/layout.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-129-cleanup-source-removed-pica/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-ece818896330d1391c65aa47d74a3f668a4ef9e1",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/pica-settings-tongli-release.log"
       ]
     },
     {
@@ -205,13 +359,13 @@
       "title": "检查并移植更多书源（指定八源优先）",
       "kind": "active",
       "priority": "用户指定独立子代理",
-      "owner": "new_source_ports独立执行；Root237验收与发布",
-      "status": "JM图标与具名封面已在237核对；其它可用稿保留，未发布新源",
+      "owner": "new_source_ports负责绅士会所；terra_source_coverage负责紳士漫畫；Root负责237和发布核对",
+      "status": "六个本批优先源已公开",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
-      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。 JM内部V3归档包含额外许可文件，被当前完整Importer真实执行拒为unsafe_archive_entry；原失败保留。V4仅重新封装允许的3项，WASM/manifest/icon逐字不变，许可旁置交付；当前生产完整导入流程的平台适配执行已通过，不冒HarmonyNative。237新租约/新事务备份及唤醒门禁进行中。 用户反馈JM图标后，Root与两执行者已实际逐图审八个新源、13内部包及2公开/镜像包：JM圆角底板/外阴影/外留白未处理；哔咔字标有全白额外底板，且原取图网页为第三方PicaWeb，不能称官方身份已证；哔哩/拷贝/绅士会所尚缺图。Buon/Cosplay/WN本次未见外板/外罩/外阴影，不扩为全部源功能通过。已查原始工具记录，执行者在20:19读到了既有规范，缺陷发生于未执行和主审未拦截，不归咎文档不存在。两仓AGENTS已接入源仓唯一素材规范的双人强制读取与最终包/列表实图亲审流程；正在实际修正五项，不以写规则当完成。JM V4已在237普通导入并核实际WASM/图标，正常搜索和93章目录可见，但封面get_image_request实际失败，未进入Reader或验收。 237已走正常UI删除本次JM，原registry、七文件字节及两项原缺失状态、单独新增导入目录/上传缺失与原电源均读回；保留App，03:14:33释租。未运行Reader或Buon。后续素材图像编辑三稿分别留反例：用户指出JM重画了主体，哔哩稿外缘杂色、绅士会所稿变形，不把用户对JM的否定扩成其它稿的要求。Root已逐图审并写入五项原像素资产：JM与Pica来自同固定上游192原图，移除额外底板/影保原人物字形；哔哩/绅士会所由同固定上游原图提取原粉圆漫/青字；拷贝按实际页面CSS精确取原sprite区域，逐RGBA同。所有保留素材的原RGB像素未改，无生成稿入源或包；Buon/Cosplay/WN原图不动。现规范明确禁止重画主体替代抠背景。JM封面独立真实MID分支已本地修好，238真实封面及Reader原分支回放通过，尚未新包/Native。 用户明确：原图画面内部填色不当成外加底板，去外影/外遮罩并恢复旧圆角缺角，App自行做圆角；先裁边和阴影，低清才恢复或严格重绘。此前按颜色抠的四图方案作废，原审计不能仅因哔咔原白底就认定多余外板，PicaWeb素材身份仍待源完整核对。只否定JM重绘，哔哩/绅士会所原可用稿恢复，拷贝原CSS提取不重做。JM V6只切外影/留白并恢复172个旧遮罩边缘像素，其余22932原RGB逐字保持，原画内蓝底无透色；包内与现Importer核对通过。237实际新图标和同一作品真实封面及原93章已亲审，具名通过；未进入Reader。原数据和电源读回，正常卸载私有scope与本次目录缺失均核，已释租。",
-      "remaining": "JM图标和具名封面完成本轮纠正。JM正文解扰与离线消费者、Buon双模式和其它优先源分别继续；哔哩/绅士会所可用稿保持，拷贝图保站点原像素，哔咔不因原白底误抠；其余源最终包与列表按各自实际验收。",
+      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。 JM内部V3归档包含额外许可文件，被当前完整Importer真实执行拒为unsafe_archive_entry；原失败保留。V4仅重新封装允许的3项，WASM/manifest/icon逐字不变，许可旁置交付；当前生产完整导入流程的平台适配执行已通过，不冒HarmonyNative。237新租约/新事务备份及唤醒门禁进行中。 用户反馈JM图标后，Root与两执行者已实际逐图审八个新源、13内部包及2公开/镜像包：JM圆角底板/外阴影/外留白未处理；哔咔字标有全白额外底板，且原取图网页为第三方PicaWeb，不能称官方身份已证；哔哩/拷贝/绅士会所尚缺图。Buon/Cosplay/WN本次未见外板/外罩/外阴影，不扩为全部源功能通过。已查原始工具记录，执行者在20:19读到了既有规范，缺陷发生于未执行和主审未拦截，不归咎文档不存在。两仓AGENTS已接入源仓唯一素材规范的双人强制读取与最终包/列表实图亲审流程；正在实际修正五项，不以写规则当完成。JM V4已在237普通导入并核实际WASM/图标，正常搜索和93章目录可见，但封面get_image_request实际失败，未进入Reader或验收。 237已走正常UI删除本次JM，原registry、七文件字节及两项原缺失状态、单独新增导入目录/上传缺失与原电源均读回；保留App，03:14:33释租。未运行Reader或Buon。后续素材图像编辑三稿分别留反例：用户指出JM重画了主体，哔哩稿外缘杂色、绅士会所稿变形，不把用户对JM的否定扩成其它稿的要求。Root已逐图审并写入五项原像素资产：JM与Pica来自同固定上游192原图，移除额外底板/影保原人物字形；哔哩/绅士会所由同固定上游原图提取原粉圆漫/青字；拷贝按实际页面CSS精确取原sprite区域，逐RGBA同。所有保留素材的原RGB像素未改，无生成稿入源或包；Buon/Cosplay/WN原图不动。现规范明确禁止重画主体替代抠背景。JM封面独立真实MID分支已本地修好，238真实封面及Reader原分支回放通过，尚未新包/Native。 用户明确：原图画面内部填色不当成外加底板，去外影/外遮罩并恢复旧圆角缺角，App自行做圆角；先裁边和阴影，低清才恢复或严格重绘。此前按颜色抠的四图方案作废，原审计不能仅因哔咔原白底就认定多余外板，PicaWeb素材身份仍待源完整核对。只否定JM重绘，哔哩/绅士会所原可用稿恢复，拷贝原CSS提取不重做。JM V6只切外影/留白并恢复172个旧遮罩边缘像素，其余22932原RGB逐字保持，原画内蓝底无透色；包内与现Importer核对通过。237实际新图标和同一作品真实封面及原93章已亲审，具名通过；未进入Reader。原数据和电源读回，正常卸载私有scope与本次目录缺失均核，已释租。 本轮按当前正式订阅索引核，点名的四源只有CosplayTele已公开。哔咔默认线路2在受控WASM接入真实宿主协议形状，进程复用、封面及真人登录后路径未完成；拷贝真实正文仍未成功。 Buon Dua在237切换分页与整本，实际分别显示1/20及20/20、1/152及152/152。旧候选的详情/网址入口漏站点封面；修复候选本地55相册110调用均与原站og:image一致，其余响应与请求相同。用户明确改为后续统一按1.2.0发布App，目前继续开发，未改版本名和版本号。 Buon Dua新版真实封面237可见、原阅读位置152/152与目录保持；包候选已按minAppVersion 1.2.0打包，未进当前正式索引。哔咔237已实际点开未登录提示与账号表单并取消，未提交账号；App已修正误导的“打开网页或官方 App”文案。拷贝普通/榜单动态设置、默认空选项和拒绝空白UA在实际WASM+宿主逻辑验证通过；正文210仍是独立外部访问限制。 App 版本定义现为1.2.0/9，已构建同签候选，普通安装读回。Buon Dua 正式工作区构建在55个真实固定样本502次操作与具名真机候选等价，旧1.1.1拒绝其1.2.0门槛，正式源码已推。哔咔237两处账号入口与四项设置已验；正式Pica生产包回放继续。Copy以站点HTTP210与宿主必要协议差距分别跟踪。 Buon Dua 和哔咔 0.1.0 均已生成正式订阅条目与公开附件，最低 App 1.2.0，正式 App 仍是 1.1.1。公开 Buon 的正式 WASM 复跑 55 个真实固定体通过。拷贝宿主新增 API 26 专用 HTTP/1.1，无 Cookie／缓存、禁连接复用及动态主页，原 App 最低系统不变；API 23–25 的缺能力范围已单列。新宿主同签构建已进237。 本次优先四源已公开：CosplayTele 0.1.0最低0.1.4，Buon Dua、哔咔、拷贝漫画各0.1.0最低1.2.0。拷贝候选已在237进入真实列表、《啟示錄四騎士》280章与1/190阅读，公开包索引与36项固定响应回放已核。用户再次明确绅士会所与紳士漫畫均在优先交付范围，身份分别为com.hentaiclub.koma和com.wnacg.koma。 绅士会所和紳士漫畫已分别在237正常导入、打开列表、目录和实际首图。绅士会所33页，紳士漫畫99页。两源按App实际封面字段纠正独立请求，具名正式候选分别显示6张封面。会所一次主站连接失败，通过普通重试后返回。两源提交744a55e9及8f9b0dee已推，工作流42127940379。 绅士两源正式索引与0.1.0包已读回，最低均为1.2.0。公开WASM与237候选编译字节不同。会所公开275个真实固定体操作、22个边界及实际WAMR封面同响应，紳士漫畫公开241个操作、67个边界和163个实际封面请求均与候选一致。",
+      "remaining": "哔咔实际账号登录后内容仍待样本。哔哩、JM及更广发现保留原进度。",
       "evidence": [
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/build.gradle.kts",
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/src/eu/kanade/tachiyomi/extension/zh/bilimanga/BiliManga.kt",
@@ -235,7 +389,31 @@
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-cover-fix/cover-request-result.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-icon-audit/jm-outer-mask-only/receipt.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v6/validation/importer-result.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-jm-icon-v6.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-jm-icon-v6.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-e330a275e7ee79643322d357dffa95ea32e77415",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-komiic-parity-baseline.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/buon-cover-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/buondua-internal-237-v2/candidate-files.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/buondua-internal-237-v2/buondua-0.1.0.koma",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-parity-baseline-134-buon-merged-detail-ready/screen.jpeg",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/picacomic-channel-cover-replay/source-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/buon-production/release-review.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/buon-production/push-receipt.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-pica-settings-tongli-109-install-approved-feature-app/run-metadata.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-7fd1a840c0ae2bfd5cf7458398e0c1e4d2c2405f",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-ece818896330d1391c65aa47d74a3f668a4ef9e1",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/buon-production/public/replay.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/copymanga-protocol/host-transport-evidence.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-61164a13f01c4c23860e312b4f9a1957329f277b",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/copy-production/public/semantic-result.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-priority-two-120-034-hentaiclub-reader-wait-0/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-priority-two-120-052-wnacg-reader-wait-3/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-priority-two-120-076-hentaiclub-cover-observe-0/run-metadata.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-priority-two-120-093-wnacg-cover-observe-1/run-metadata.json",
+        "https://github.com/honjow/koma-sources/actions/runs/42127940379",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-8f9b0dee468554afb360f460c30a038b8f8fb930",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/priority-two-release/public/hentaiclub-oracle/public-equivalence.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/priority-two-release/public/wnacg-replay/equivalence.json"
       ]
     },
     {
@@ -7809,6 +7987,90 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-copymanga-cover-public-20261106",
+      "at": "2026-11-06T07:20:46+08:00",
+      "title": "拷贝漫画 0.1.1 封面更新已公开",
+      "detail": "最新索引包含六个本批优先源。正式App当前仍是1.1.1，五个新源要求1.2.0。",
+      "itemIds": [
+        "SOURCE_COLD_COVER_SERIAL_ADMISSION",
+        "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-priority-two-public-20261106",
+      "at": "2026-11-06T07:18:56+08:00",
+      "title": "绅士会所与紳士漫畫已公开",
+      "detail": "两源0.1.0最低1.2.0，公开索引、正式图标和实际WASM固定体回放均已核。",
+      "itemIds": [
+        "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-priority-two-device-release-20261106",
+      "at": "2026-11-06T07:16:11+08:00",
+      "title": "两绅士源实机验证并推送，拷贝封面复验通过",
+      "detail": "分别核真实列表封面和正文首图。会所一次连接失败后通过普通重试。237已恢复原书源、数据与电源并释租。拷贝封面补丁另作源更新。",
+      "itemIds": [
+        "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+        "SOURCE_COLD_COVER_SERIAL_ADMISSION"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-priority-four-public-and-buon-device-20261106",
+      "at": "2026-11-06T06:54:19+08:00",
+      "title": "四源已公开，绅士两源分别优先，Buon Dua 宿主修复已验",
+      "detail": "拷贝漫画公开包已核，Komiic图标0.1.14已公开。237实测Buon Dua文本筛选及真实GIF，原源包、测试数据及电源状态恢复并释租。绅士会所、紳士漫畫独立继续。",
+      "itemIds": [
+        "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+        "SOURCE_KOMIIC_ICON_SCALE",
+        "SOURCE_COLD_COVER_SERIAL_ADMISSION",
+        "SOURCE_BUONDUA_TEXT_FILTER_CONFIRMATION",
+        "SOURCE_BUONDUA_ANIMATED_COVER"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-app-version-prompt-and-public-buon-pica-20261106",
+      "at": "2026-11-06T06:06:47+08:00",
+      "title": "两新源公开，明确最低版本提示已验",
+      "detail": "Buon Dua 与哔咔正式包最低1.2.0。用户确认语义版本，237拒绝不兼容测试归档并显示具体最低版本。Komiic新版图标准备真机确认。",
+      "itemIds": [
+        "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+        "SOURCE_EXPLICIT_LOGIN_ENTRY",
+        "SOURCE_MIN_APP_VERSION_MESSAGE",
+        "SOURCE_KOMIIC_ICON_SCALE"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-v120-menu-copy-tongli-and-buon-20261106",
+      "at": "2026-11-06T05:49:37+08:00",
+      "title": "237核单源标题栏和短提示，东立上线、Buon Dua 已推",
+      "detail": "浏览和搜索外露两个操作且更多可用；去掉登录及搜索短文案末尾句号。哔咔管理设置真实恢复，东立精确公开包回放通过。Buon Dua 按 App 1.2.0 门槛推正式源库。",
+      "itemIds": [
+        "SOURCE_ROUTE_TITLE_MENU_CAPACITY",
+        "SOURCE_EXPLICIT_LOGIN_ENTRY",
+        "SOURCE_TONGLI_PAGINATION_SEARCH",
+        "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-title-menu-pica-settings-public-komiic-20261106",
+      "at": "2026-11-06T05:30:07+08:00",
+      "title": "单源标题栏容量调整，哔咔两入口分别检查",
+      "detail": "单源浏览和搜索采用三位；237已核哔咔单源入口、账号往返和草稿，管理入口发现 schema 错误。Komiic 0.1.13 正式索引和正式 WASM 回放已核。",
+      "itemIds": [
+        "SOURCE_ROUTE_TITLE_MENU_CAPACITY",
+        "SOURCE_EXPLICIT_LOGIN_ENTRY",
+        "SOURCE_KOMIIC_REFERENCE_PARITY"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "about-community-group-label-20261105",
       "at": "2026-11-05T19:24:23+08:00",
