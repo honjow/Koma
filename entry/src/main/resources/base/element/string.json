@@ -2266,7 +2266,7 @@
     { "name": "device_sync_restore_local_position", "value": "Use this device’s position" },
     { "name": "device_sync_keep_local", "value": "Use this device’s value" },
     { "name": "device_sync_keep_remote", "value": "Use the other device’s value" },
-    { "name": "device_sync_deleted", "value": "Removed on another device" },
+    { "name": "device_sync_deleted", "value": "Deleted" },
     { "name": "device_sync_changed_value", "value": "Different value" },
     { "name": "device_sync_value_on", "value": "On" },
     { "name": "device_sync_value_off", "value": "Off" },
@@ -2356,6 +2356,11 @@
     {"name": "device_sync_paused_review_detail", "value": "Syncing is off. Return to WebDAV Sync and enable it to review differences. Received items are retained."},
     {"name": "device_sync_no_pending_items", "value": "No items to review"},
     {"name": "device_sync_removals_title", "value": "Items to remove"},
-    {"name": "device_sync_destination", "value": "WebDAV directory"}
+    {"name": "device_sync_destination", "value": "WebDAV directory"},
+    {"name": "device_sync_review_before_enable", "value": "Review your data before enabling sync"},
+    {"name": "device_sync_keep_local_setting", "value": "Keep the local setting"},
+    {"name": "device_sync_upload_local_setting", "value": "Share the local value"},
+    {"name": "device_sync_summary_retained", "value": "Keep %s locally"},
+    {"name": "device_sync_retained_setting_detail", "value": "Global settings deleted from sync keep their local values. Choose “Share the local value” to share them again. Other unresolved differences are deferred."}
   ]
 }

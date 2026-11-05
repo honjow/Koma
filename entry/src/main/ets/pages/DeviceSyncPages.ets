@@ -134,6 +134,7 @@ function conflictTitle(conflict: SyncMergeConflict): string {
 }
 
 function localChoiceTitle(conflict: SyncMergeConflict): string {
+  if (conflict.retainLocalOnDelete) return t('device_sync_upload_local_setting')
   if (!conflict.deleted) return t('device_sync_keep_local')
   const kind = syncKeyParts(conflict.key)[0]
   if (kind === 'book') return t('device_sync_keep_on_shelf')
@@ -196,7 +197,6 @@ export struct DeviceSyncWebDavPage {
   private toggleEnabled(value: boolean): void {
     if (value === this.state.enabled) return
     if (value && !this.state.unresolvedCommit && (this.state.awaitingFirstMerge || this.state.requiresExplicitReview)) {
-      this.onReview(this.state.selected.slice(), this.state.awaitingFirstMerge ? 'first' : 'restore')
       return
     }
     appDeviceSync.setEnabled(value)
@@ -245,9 +245,11 @@ export struct DeviceSyncWebDavPage {
       ListItem() {
         GroupedListSection() {
           ConciseListRow({ title: t('device_sync_enabled'), hasSwitch: true, checked: this.state.configured && this.state.enabled,
-            showChevron: false, isEnabled: this.state.ready && this.state.configured,
+            showChevron: false, isEnabled: this.state.ready && this.state.configured &&
+              (this.state.enabled || this.state.unresolvedCommit || !this.state.awaitingFirstMerge && !this.state.requiresExplicitReview),
             subtitle: !this.state.configured ? t('device_sync_configure_first') :
-              this.state.awaitingFirstMerge && !this.state.unresolvedCommit ? t('device_sync_saved_pending') : undefined,
+              (this.state.awaitingFirstMerge || this.state.requiresExplicitReview) && !this.state.enabled && !this.state.unresolvedCommit ?
+                t('device_sync_review_before_enable') : undefined,
             switchAction: (value: boolean): void => { this.toggleEnabled(value) } })
           ListDivider()
           ConciseListRow({ title: t('device_sync_auto'), subtitle: t('device_sync_auto_detail'), hasSwitch: true,
@@ -518,6 +520,7 @@ export struct DeviceSyncReviewPage {
   private removalTitle(item: SyncPreviewRemoval): string {
     if (item.label !== undefined) return item.label
     const parts = syncKeyParts(item.key)
+    if (parts[0] === 'global') return conflictTitle({ group: item.group, key: item.key, local: item.value, remote: '', deleted: true })
     if (['member', 'position', 'read', 'bookmark'].includes(parts[0])) return parts.slice(1).join(' · ')
     return conflictValue(item.key, item.value)
   }
@@ -546,6 +549,7 @@ export struct DeviceSyncReviewPage {
     const current = this.choice(conflict)
     if (current?.useBeforeRestore) return t('device_sync_before_restore_short')
     if (current?.useLocal === true) return conflict.deleted ? localChoiceTitle(conflict) : t('device_sync_this_device')
+    if (conflict.retainLocalOnDelete) return t('device_sync_keep_local_setting')
     if (conflict.deleted) return t('device_sync_apply_removal')
     return t(current === undefined ? 'device_sync_defer' : 'device_sync_other_device')
   }
@@ -557,6 +561,7 @@ export struct DeviceSyncReviewPage {
     if (group.upload > 0) parts.push(t('device_sync_summary_upload').replace('%s', group.upload.toString()))
     if (group.download > 0) parts.push(t('device_sync_summary_download').replace('%s', group.download.toString()))
     if (group.remove > 0) parts.push(t('device_sync_summary_remove').replace('%s', group.remove.toString()))
+    if ((group.retained ?? 0) > 0) parts.push(t('device_sync_summary_retained').replace('%s', (group.retained ?? 0).toString()))
     if ((group.deferred ?? 0) > 0) parts.push(t('device_sync_summary_defer').replace('%s', (group.deferred ?? 0).toString()))
     if (group.skipped > 0) parts.push(t('device_sync_summary_skip').replace('%s', group.skipped.toString()))
     return parts.length === 0 ? t('device_sync_summary_empty') : parts.join(' · ')
@@ -573,14 +578,21 @@ export struct DeviceSyncReviewPage {
   @Builder
   private ConflictMenu(item: SyncMergeConflict, select: (action: () => void) => void) {
     Menu() {
-      if (!item.deleted) {
-        this.ChoiceItem(t('device_sync_defer'), this.choice(item) === undefined, select, (): void => { this.choose(item) })
+      if (item.retainLocalOnDelete) {
+        this.ChoiceItem(t('device_sync_keep_local_setting'), this.choice(item)?.useLocal !== true,
+          select, (): void => { this.choose(item, false) })
+        this.ChoiceItem(t('device_sync_upload_local_setting'), this.choice(item)?.useLocal === true,
+          select, (): void => { this.choose(item, true) })
+      } else {
+        if (!item.deleted) {
+          this.ChoiceItem(t('device_sync_defer'), this.choice(item) === undefined, select, (): void => { this.choose(item) })
+        }
+        this.ChoiceItem(localChoiceTitle(item), this.choice(item)?.useLocal === true &&
+          this.choice(item)?.useBeforeRestore !== true, select, (): void => { this.choose(item, true) })
+        this.ChoiceItem(t(item.deleted ? 'device_sync_apply_removal' : 'device_sync_keep_remote'),
+          item.deleted ? this.choice(item)?.useLocal !== true : this.choice(item)?.useLocal === false,
+          select, (): void => { this.choose(item, false) })
       }
-      this.ChoiceItem(localChoiceTitle(item), this.choice(item)?.useLocal === true &&
-        this.choice(item)?.useBeforeRestore !== true, select, (): void => { this.choose(item, true) })
-      this.ChoiceItem(t(item.deleted ? 'device_sync_apply_removal' : 'device_sync_keep_remote'),
-        item.deleted ? this.choice(item)?.useLocal !== true : this.choice(item)?.useLocal === false,
-        select, (): void => { this.choose(item, false) })
     }
   }
 
@@ -631,7 +643,9 @@ export struct DeviceSyncReviewPage {
     }
     if (preview.conflicts.length > 0) {
       ListItem() {
-        GroupedListSection({ title: t('device_sync_review_differences'), subtitle: t('device_sync_review_differences_detail') }) {
+        GroupedListSection({ title: t('device_sync_review_differences'),
+          subtitle: t(preview.conflicts.some((item: SyncMergeConflict): boolean => item.retainLocalOnDelete === true) ?
+            'device_sync_retained_setting_detail' : 'device_sync_review_differences_detail') }) {
           ForEach(preview.conflicts, (item: SyncMergeConflict, index: number) => {
             if (index > 0) ListDivider()
             ConciseListRow({ title: conflictTitle(item), wrapTitle: true, wrapTitleByWord: true, subtitleMaxLines: 6,

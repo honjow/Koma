@@ -341,7 +341,11 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         row(values, ['book-mode', identity.source, identity.work],
           { mode: book.pageMode, direction: book.readingDirection } as SyncReaderMode)
       }
-      return { values, revision: syncDigest(JSON.stringify(preferences) + rawLibrary + rawReading), skipped, labels }
+      // Global controls always have a real local value; a shared tombstone
+      // cannot remove that setting. Optional per-book overrides can be removed.
+      return { values, revision: syncDigest(JSON.stringify(preferences) + rawLibrary + rawReading), skipped, labels,
+        retainedDeletionKeys: values.filter((item: SyncLocalValue): boolean => syncKeyParts(item.key)[0] === 'global')
+          .map((item: SyncLocalValue): string => item.key) }
     }
     for (const progress of reading.progress) {
       const identity = identities.get(progress.comicId)

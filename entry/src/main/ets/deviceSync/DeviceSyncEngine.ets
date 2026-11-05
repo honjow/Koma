@@ -41,6 +41,7 @@ export interface SyncMergeConflict {
   remote: string
   deleted: boolean
   label?: string
+  retainLocalOnDelete?: boolean
 }
 
 export interface SyncMergeChoice {
@@ -57,6 +58,7 @@ export interface SyncPreviewGroup {
   remove: number
   skipped: number
   deferred?: number
+  retained?: number
   dependent: SyncPreviewEffect[]
 }
 
@@ -211,6 +213,13 @@ function dependsOnConflict(key: string, root: string): boolean {
 
 function replaceGroup(groups: SyncGroupState[], next: SyncGroupState): SyncGroupState[] {
   return groups.filter((group: SyncGroupState): boolean => group.id !== next.id).concat(next)
+}
+
+function hasLegacyRetainedDeletion(local: SyncLocalSnapshot, previous: SyncGroupState | undefined, key: string): boolean {
+  if (previous === undefined || !local.retainedDeletionKeys?.includes(key) ||
+    previous.baseline.some((item: SyncLocalValue): boolean => item.key === key)) return false
+  const fact = previous.facts.find((item: SyncFact): boolean => item.key === key)
+  return fact !== undefined && syncVisibleValue(fact) === undefined
 }
 
 function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup[]): SyncGroupState[] {
@@ -553,6 +562,7 @@ export class DeviceSyncEngine {
       let upload = 0
       let download = 0
       let remove = 0
+      let retained = 0
       const removed = (key: string, value: string, target: 'local' | 'remote'): void => {
         let label = input.local.labels?.[key]
         const parts = syncKeyParts(key)
@@ -569,6 +579,8 @@ export class DeviceSyncEngine {
       }
       output.facts.forEach((fact: SyncFact): void => {
         if (output.deferred?.includes(fact.key) || input.local.protectedKeys?.includes(fact.key)) return
+        if (syncVisibleValue(fact) === undefined && local.has(fact.key) &&
+          input.local.retainedDeletionKeys?.includes(fact.key)) retained++
         const prior = remote.get(fact.key)
         if (JSON.stringify(fact) === JSON.stringify(prior)) return
         const value = syncVisibleValue(fact)
@@ -582,7 +594,7 @@ export class DeviceSyncEngine {
         else download++
       })
       return { group: summary.group, upload, download, remove, skipped: summary.skipped,
-        deferred: output.deferredRoots?.length ?? 0, dependent: summary.dependent }
+        deferred: output.deferredRoots?.length ?? 0, retained, dependent: summary.dependent }
     })
     return { token: prepared.preview.token, destination: prepared.preview.destination, groups, removals, conflicts: prepared.preview.conflicts,
       freshConnection: prepared.preview.freshConnection, categories: prepared.preview.categories,
@@ -799,9 +811,13 @@ export class DeviceSyncEngine {
         }
         const theirs = syncVisibleValue(fact)
         if (theirs === value) return
-        if (entry.requiresPreview || previous.includes(key)) {
+        const retainedDeletion = theirs === undefined && entry.local.retainedDeletionKeys?.includes(key) === true
+        const unchangedRetainedValue = retainedDeletion && (entry.previous?.baseline.some((item: SyncLocalValue): boolean =>
+          item.key === key && item.value === value) === true || hasLegacyRetainedDeletion(entry.local, entry.previous, key))
+        if (entry.requiresPreview || previous.includes(key) || unchangedRetainedValue) {
           conflicts.push({ group: entry.id, key, local: value,
-            remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key] })
+            remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key],
+            retainLocalOnDelete: retainedDeletion })
           if (theirs !== undefined) unresolved.push(key)
           return
         }
@@ -932,6 +948,11 @@ export class DeviceSyncEngine {
         const needsDecision = (row.requiresPreview || previousRoots.includes(key)) &&
           remoteFact !== undefined && theirs !== value
         const choice = conflictChoice(choices, row.id, key)
+        // A completed older receipt could omit a fixed setting's baseline.
+        // Its already-observed tombstone is not evidence of a new local edit.
+        if (!row.resetBaseline && theirs === undefined && hasLegacyRetainedDeletion(row.local, row.previous, key) &&
+          choice?.useLocal !== true) return
+        if (needsDecision && theirs === undefined && row.local.retainedDeletionKeys?.includes(key) && choice?.useLocal !== true) return
         if (needsDecision && (choice?.useLocal === false || (theirs === undefined && choice === undefined))) {
           if (theirs !== undefined || remoteFact !== undefined) {
             editFact(key, theirs === undefined ? 'delete' : 'set', theirs ?? '', remoteFact)
@@ -958,6 +979,10 @@ export class DeviceSyncEngine {
       facts.forEach((fact: SyncFact): void => {
         const value = syncVisibleValue(fact)
         if (!isDeferred(fact.key) && !protectedKeys.has(fact.key) && value !== local.get(fact.key)) {
+          // Keep the real owner value and its baseline. Dropping only the UI
+          // count would still delete the receipt baseline and resurrect this
+          // old setting on the next ordinary sync.
+          if (value === undefined && row.local.retainedDeletionKeys?.includes(fact.key)) return
           changes.push({ key: fact.key, value: value ?? '' })
         }
       })
@@ -998,10 +1023,14 @@ export class DeviceSyncEngine {
     return { manifest, objects, groups, staged, remaining, applies, revisions, counter, initialCounter: current.counter, publish }
   }
 
-  private async assertRevisions(revisions: SyncOwnerRevision[]): Promise<void> {
+  private async assertRevisions(revisions: SyncOwnerRevision[]): Promise<SyncLocalSnapshot[]> {
+    const snapshots: SyncLocalSnapshot[] = []
     for (const item of revisions) {
-      if ((await this.owner.snapshot(item.group, false)).revision !== item.revision) throw new Error('sync_preview_changed')
+      const snapshot = await this.owner.snapshot(item.group, false)
+      if (snapshot.revision !== item.revision) throw new Error('sync_preview_changed')
+      snapshots.push(snapshot)
     }
+    return snapshots
   }
 
   private async execute(provider: DeviceSyncWebDav, prior: SyncSavedConnection | undefined, credential: string,
@@ -1480,8 +1509,9 @@ export class DeviceSyncEngine {
       })
       return
     }
+    let snapshots: SyncLocalSnapshot[] = []
     try {
-      await this.assertRevisions(intent.groupRevisions)
+      snapshots = await this.assertRevisions(intent.groupRevisions)
     } catch (_error) {
       this.storage.update((state: SyncLocalDocument): void => {
         state.intent = undefined
@@ -1497,8 +1527,17 @@ export class DeviceSyncEngine {
     await this.acknowledge(provider, connection, receipt, guard)
     connection.frontier = receipt.frontier?.slice()
     const accepted = this.storage.load().intent?.connection.groups ?? connection.groups
-    const committed = applyReceiptBaselines(accepted, intent.applies)
-    await this.owner.commit(intent.applies, intent.groupRevisions, (localReceipt: string): void => {
+    // Older persisted intents could contain an empty apply for a fixed host
+    // setting. Keep their exact remote commit, but use the same checked owner
+    // snapshot for both the local apply and its receipt baseline.
+    const applies = intent.applies.map((group: SyncApplyGroup): SyncApplyGroup => {
+      const index = intent.groupRevisions.findIndex((item: SyncOwnerRevision): boolean => item.group === group.group)
+      const retained = snapshots[index]?.retainedDeletionKeys ?? []
+      return { group: group.group, changes: group.changes.filter((change: SyncLocalValue): boolean =>
+        change.value !== '' || !retained.includes(change.key)) }
+    })
+    const committed = applyReceiptBaselines(accepted, applies)
+    await this.owner.commit(applies, intent.groupRevisions, (localReceipt: string): void => {
       guard()
       if (this.storage.load().counter !== starting.counter) throw new Error('sync_local_changed')
       this.storage.update((state: SyncLocalDocument): void => {

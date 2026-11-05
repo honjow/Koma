@@ -2266,7 +2266,7 @@
     { "name": "device_sync_restore_local_position", "value": "采用本机位置" },
     { "name": "device_sync_keep_local", "value": "采用本机值" },
     { "name": "device_sync_keep_remote", "value": "采用另一端的值" },
-    { "name": "device_sync_deleted", "value": "另一端已删除" },
+    { "name": "device_sync_deleted", "value": "已删除" },
     { "name": "device_sync_changed_value", "value": "已有不同值" },
     { "name": "device_sync_value_on", "value": "开启" },
     { "name": "device_sync_value_off", "value": "关闭" },
@@ -2356,6 +2356,11 @@
     {"name": "device_sync_paused_review_detail", "value": "同步已关闭。返回 WebDAV 同步页面启用后，可继续核对差异；已收到的项目仍保留。"},
     {"name": "device_sync_no_pending_items", "value": "没有待处理项目"},
     {"name": "device_sync_removals_title", "value": "将移除的内容"},
-    {"name": "device_sync_destination", "value": "WebDAV 目录"}
+    {"name": "device_sync_destination", "value": "WebDAV 目录"},
+    {"name": "device_sync_review_before_enable", "value": "先核对数据，再启用同步"},
+    {"name": "device_sync_keep_local_setting", "value": "保留本机设置"},
+    {"name": "device_sync_upload_local_setting", "value": "同步本机值"},
+    {"name": "device_sync_summary_retained", "value": "本机保留 %s 项"},
+    {"name": "device_sync_retained_setting_detail", "value": "同步端已删除的全局设置保留本机值；选择「同步本机值」可重新共享。其他未选择的差异暂缓。"}
   ]
 }

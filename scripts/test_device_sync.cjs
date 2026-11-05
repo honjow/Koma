@@ -513,6 +513,70 @@ test('review lists actual remote and local deletions before either side is chang
   assert.equal(left.values.get('shelf').has(category), false)
 })
 
+test('fixed local settings retain a shared deletion without implicit revival, but allow an explicit re-share', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const animation = data.syncKey(['global', 'animation'])
+  const remote = replica(B, [['reader-settings', new Map([[animation, 'true']])]])
+  await remote.engine.testConnection(draft)
+  await remote.engine.confirm((await remote.engine.prepare(draft, ['reader-settings'])).token, [])
+  remote.values.get('reader-settings').delete(animation)
+  remote.engine.recordEdits('reader-settings', [{ key: animation, kind: 'delete', value: '' }])
+  await remote.engine.syncNow()
+  const local = replica(A, [['reader-settings', new Map([[animation, 'true']])]])
+  local.snapshotExtras.set('reader-settings', { retainedDeletionKeys: [animation] })
+  await local.engine.saveConfiguration(draft, ['reader-settings'])
+  const preview = await local.engine.prepareSaved(['reader-settings'])
+  assert.equal(preview.conflicts[0].retainLocalOnDelete, true)
+  assert.equal(preview.groups[0].remove, 0)
+  assert.equal(preview.groups[0].retained, 1)
+  assert.deepEqual(preview.removals, [])
+  const server = servers.get(draft.directory)
+  const before = structuredClone(server.head)
+  const writes = server.published.length
+  await local.engine.confirm(preview.token, [])
+  assert.equal(local.values.get('reader-settings').get(animation), 'true')
+  assert.equal(local.engine.active().groups[0].baseline.find(item => item.key === animation).value, 'true')
+  await local.engine.syncNow()
+  assert.equal(server.published.length, writes)
+  assert.deepEqual(server.head, before)
+  // An older accepted intent stored the host's ignored empty apply. Recovery
+  // must preserve the exact remote receipt and the owner's real baseline.
+  local.store.update(state => {
+    state.intent = { connection: structuredClone(state.active), expected: server.tag, sent: true,
+      groupRevisions: [{ group: 'reader-settings', revision: JSON.stringify([{ key: animation, value: 'true' }]) }],
+      applies: [{ group: 'reader-settings', changes: [{ key: animation, value: '' }] }],
+      commit: server.frontier[0], commitBody: server.commits.get(server.frontier[0]) }
+  })
+  await local.restart().recoverOnForeground()
+  assert.equal(local.values.get('reader-settings').get(animation), 'true')
+  assert.equal(local.engine.active().groups[0].baseline.find(item => item.key === animation).value, 'true')
+  await local.engine.syncNow()
+  assert.equal(server.published.length, writes)
+  assert.deepEqual(server.head, before)
+  // The same old version could finish its receipt with this baseline absent.
+  // Treat the already-observed deletion conservatively, then repair baseline.
+  local.store.update(state => { state.active.groups[0].baseline = [] })
+  await local.engine.syncNow()
+  assert.equal(server.published.length, writes)
+  assert.deepEqual(server.head, before)
+  assert.equal(local.engine.active().groups[0].baseline.find(item => item.key === animation).value, 'true')
+  const again = await local.engine.prepareSaved(['reader-settings'])
+  const choices = [{ group: 'reader-settings', key: animation, useLocal: true }]
+  const shared = local.engine.previewChoices(again.token, choices)
+  assert.equal(shared.groups[0].retained, 0)
+  assert.equal(shared.groups[0].upload, 1)
+  server.failures.push('lost-response')
+  await assert.rejects(local.engine.confirm(again.token, choices), /sync_remote_result_unknown/)
+  await local.engine.recoverOnForeground()
+  assert.equal(server.published.length, writes + 1)
+  assert.equal(local.store.load().intent, undefined)
+  const fact = local.engine.active().groups[0].facts.find(item => item.key === animation)
+  assert.equal(facts.syncVisibleValue(fact), 'true')
+  local.values.get('reader-settings').set(animation, 'false')
+  await local.engine.syncNow()
+  assert.equal(facts.syncVisibleValue(local.engine.active().groups[0].facts.find(item => item.key === animation)), 'false')
+})
+
 test('first merge cancellation and stale preview leave the remote manifest unchanged', async () => {
   const fixture = engineFixture()
   const cat = data.syncKey(['category', '11111111-1111-1111-1111-111111111111'])

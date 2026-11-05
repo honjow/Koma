@@ -18,6 +18,9 @@ export interface SyncLocalSnapshot {
   revision: string
   skipped: number
   protectedKeys?: string[]
+  // Fixed host settings keep their actual local value when their shared record
+  // is deleted. This does not protect normal edits or an explicit re-upload.
+  retainedDeletionKeys?: string[]
   restoreEdits?: SyncRestoreEdit[]
   labels?: Record<string, string>
 }
