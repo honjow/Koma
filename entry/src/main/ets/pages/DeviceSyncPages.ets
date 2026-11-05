@@ -606,7 +606,7 @@ export struct DeviceSyncWebDavPage {
   }
 
   @Builder
-  private Run(showActions: boolean = true) {
+  private Run() {
     GroupedListSection({ title: t('device_sync_run') }) {
       ConciseListRow({ title: t('device_sync_enabled'), hasSwitch: true, checked: this.state.enabled,
         showChevron: false, subtitle: this.state.enabled ? undefined : t('device_sync_paused_detail'),
@@ -615,7 +615,9 @@ export struct DeviceSyncWebDavPage {
           if (!value) this.discard()
           appDeviceSync.setEnabled(value)
         } })
-      if (showActions) {
+      // Read the observed page state here. A computed scalar Builder argument
+      // retained the edit-time false value after cancelling the form.
+      if (!this.editing && this.preview === undefined) {
       ListDivider()
       ConciseListRow({ title: t('device_sync_auto'), hasSwitch: true, checked: this.state.automatic,
         showChevron: false, isEnabled: this.state.enabled && !this.state.busy && !this.state.requiresExplicitReview,
@@ -641,12 +643,12 @@ export struct DeviceSyncWebDavPage {
   build() {
     SecondaryListScaffold({ scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.preview !== undefined) {
-        if (this.state.connected) { ListItem() { this.Run(false) } }
+        if (this.state.connected) { ListItem() { this.Run() } }
         this.Review(this.preview)
       } else {
         ListItem() { this.Connection() }
         if (this.state.connected) {
-          ListItem() { this.Run(!this.editing) }
+          ListItem() { this.Run() }
         }
         ListItem() {
           GroupedListSection({ title: t('device_sync_status') }) {
