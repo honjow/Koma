@@ -10,7 +10,7 @@ import {
 } from './DeviceSyncWire'
 import {
   DeviceSyncStorage, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
-  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConnection, checkedSyncDraft, copySyncConnection,
+  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConfiguration, SyncSavedConnection, checkedSyncDraft, copySyncConnection,
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
@@ -29,7 +29,7 @@ export interface SyncApplyGroup {
 
 /** Real application owners participate in one local commit before UI publication. */
 export interface DeviceSyncOwner {
-  snapshot(group: SyncGroup, verifyPublic: boolean): Promise<SyncLocalSnapshot>
+  snapshot(group: SyncGroup, verifyPublic: boolean, guard?: SyncRequestGuard): Promise<SyncLocalSnapshot>
   removed(group: SyncGroup, keys: string[]): string[]
   commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (receipt: string) => void): Promise<void>
 }
@@ -56,12 +56,27 @@ export interface SyncPreviewGroup {
   download: number
   remove: number
   skipped: number
+  deferred?: number
   dependent: SyncPreviewEffect[]
 }
 
 export interface SyncPreviewEffect {
   action: 'upload' | 'download' | 'remove'
   choices: string[]
+}
+
+export interface SyncPreviewRemoval {
+  group: SyncGroup
+  key: string
+  value: string
+  label?: string
+  choices: string[]
+  target?: 'local' | 'remote'
+}
+
+export interface SyncReviewPermit {
+  generation: number
+  review: number
 }
 
 interface PreparedGroup {
@@ -76,8 +91,10 @@ interface PreparedGroup {
 
 export interface SyncPreview {
   token: string
+  destination?: string
   groups: SyncPreviewGroup[]
   conflicts: SyncMergeConflict[]
+  removals: SyncPreviewRemoval[]
   freshConnection: boolean
   categories: string[]
   beforeRestore: SyncMergeConflict[]
@@ -100,6 +117,9 @@ interface PreparedSync {
   remote: SyncRemoteManifest
   selected: SyncGroup[]
   groups: PreparedGroup[]
+  reviewGeneration: number
+  activate: boolean
+  credential?: string
 }
 
 interface ProposedSync {
@@ -224,6 +244,8 @@ export class DeviceSyncEngine {
   private readonly storage: DeviceSyncStorage
   private readonly owner: DeviceSyncOwner
   private generation: number = 0
+  private reviewGeneration: number = 0
+  private probeGeneration: number = 0
   private prepared?: PreparedSync
   private running?: Promise<void>
   private cache: DatasetCache[] = []
@@ -232,6 +254,7 @@ export class DeviceSyncEngine {
   private tested?: SyncConnectionDraft
   private restoreBefore?: SyncSavedConnection
   private restoreBeforeIntent?: SyncCommitIntent
+  private restoreBeforeConfiguration?: SyncSavedConfiguration
   private readonly groupEpochs: Map<SyncGroup, number> = new Map()
 
   constructor(storage: DeviceSyncStorage, owner: DeviceSyncOwner) {
@@ -243,13 +266,26 @@ export class DeviceSyncEngine {
     return this.storage.load().active
   }
 
+  configuration(): SyncSavedConfiguration | SyncSavedConnection | undefined {
+    const state = this.storage.load()
+    // A pre-redesign first merge may have a durable accepted intent but no
+    // active receipt yet. Keep its existing recovery permission, not a new form.
+    return state.pendingConfiguration ?? state.active ??
+      (state.intent !== undefined && !state.intent.detached ? state.intent.connection : undefined)
+  }
+
+  hasUnresolvedCommit(): boolean {
+    const intent = this.storage.load().intent
+    return intent !== undefined && !intent.detached
+  }
+
   selection(): SyncGroup[] {
-    return this.active()?.selected.slice() ?? DEFAULT_GROUPS.slice()
+    return this.configuration()?.selected.slice() ?? DEFAULT_GROUPS.slice()
   }
 
   async connectionDraft(): Promise<SyncConnectionDraft | undefined> {
-    const active = this.active()
-    return active === undefined ? undefined : readSyncCredential(active.credential)
+    const configuration = this.configuration()
+    return configuration === undefined ? undefined : readSyncCredential(configuration.credential)
   }
 
   private guard(expected: number): SyncRequestGuard {
@@ -258,7 +294,7 @@ export class DeviceSyncEngine {
     }
   }
 
-  isEnabled(): boolean { return this.active()?.enabled !== false }
+  isEnabled(): boolean { return this.configuration()?.enabled !== false }
 
   private requireEnabled(): void {
     if (!this.isEnabled()) throw new Error('sync_service_disabled')
@@ -272,7 +308,29 @@ export class DeviceSyncEngine {
   requestGuard(): SyncRequestGuard { return this.transferGuard(this.generation) }
 
   setEnabled(value: boolean): void {
-    if (this.active() === undefined || this.isEnabled() === value) return
+    const pending = this.storage.load().pendingConfiguration
+    if (pending !== undefined) {
+      if (pending.enabled === value) return
+      if (value && !this.hasUnresolvedCommit()) throw new Error('sync_review_required')
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (state.pendingConfiguration !== undefined) state.pendingConfiguration.enabled = value
+      })
+      this.generation++
+      this.prepared = undefined
+      return
+    }
+    if (this.active() === undefined) {
+      const configuration = this.configuration()
+      if (configuration === undefined || this.isEnabled() === value) return
+      this.storage.update((state: SyncLocalDocument): void => {
+        state.pendingConfiguration = { credential: configuration.credential, endpointIdentity: configuration.endpointIdentity,
+          selected: configuration.selected.slice(), automatic: configuration.automatic, enabled: value }
+      })
+      this.generation++
+      this.prepared = undefined
+      return
+    }
+    if (this.isEnabled() === value) return
     this.storage.update((state: SyncLocalDocument): void => {
       if (state.active !== undefined) state.active.enabled = value
     })
@@ -284,7 +342,13 @@ export class DeviceSyncEngine {
 
   async testConnection(raw: SyncConnectionDraft, _input: SyncGroup[] = []): Promise<boolean> {
     const draft = checkedSyncDraft(raw)
-    const guard = this.guard(this.generation)
+    this.tested = undefined
+    const generationGuard = this.guard(this.generation)
+    const probe = ++this.probeGeneration
+    const guard = (): void => {
+      generationGuard()
+      if (this.probeGeneration !== probe) throw new Error('sync_connection_changed')
+    }
     const credential = util.generateRandomUUID()
     const id = util.generateRandomUUID()
     this.storage.update((state: SyncLocalDocument): void => { state.probes.push({ credential, id, collection: 2 }) })
@@ -293,8 +357,8 @@ export class DeviceSyncEngine {
     const provider = new DeviceSyncWebDav(draft)
     try {
       await provider.probe(id, guard)
-      this.tested = draft
       await this.retireProbe(credential)
+      this.tested = draft
     } catch (error) {
       // The old endpoint and exact probe path remain in private storage until cleanup succeeds.
       throw error as Error
@@ -302,8 +366,88 @@ export class DeviceSyncEngine {
     // A connection test authorizes only the synthetic probe, even when these
     // credentials match an unacknowledged data commit. Recover that exact
     // commit only through an explicit sync/review action or enabled scheduling.
-    // Keep the old return shape while the rejected same-page UI is replaced.
     return false
+  }
+
+  cancelConnectionTest(): void { this.probeGeneration++; this.tested = undefined }
+
+  async saveConfiguration(raw: SyncConnectionDraft, input: SyncGroup[]): Promise<void> {
+    const draft = checkedSyncDraft(raw)
+    const guard = this.guard(this.generation)
+    if (this.tested === undefined || !sameConnection(this.tested, draft) || this.tested.password !== draft.password) {
+      await this.testConnection(draft)
+    }
+    guard()
+    const credential = util.generateRandomUUID()
+    this.rememberRetired(credential)
+    try {
+      await writeSyncCredential(credential, draft)
+      guard()
+      const endpoint = endpointIdentity(draft)
+      const previous = this.configuration()
+      const previousCredential = previous?.credential
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (previous?.endpointIdentity === endpoint) {
+          if (state.pendingConfiguration !== undefined) state.pendingConfiguration.credential = credential
+          else if (state.active !== undefined) state.active.credential = credential
+          else {
+            state.pendingConfiguration = { credential, endpointIdentity: endpoint, selected: previous.selected.slice(),
+              automatic: previous.automatic, enabled: previous.enabled !== false }
+          }
+        } else {
+          if (state.active !== undefined) {
+            const archive = copySyncConnection(state.active)
+            archive.credential = ''
+            archive.automatic = false
+            state.archives = (state.archives ?? []).filter((item: SyncSavedConnection): boolean =>
+              item.endpointIdentity !== archive.endpointIdentity).concat(archive)
+          }
+          state.active = undefined
+          if (state.intent !== undefined) state.intent = detachedIntent(state.intent)
+          state.pendingConfiguration = { credential, endpointIdentity: endpoint, selected: selectedGroups(input),
+            automatic: false, enabled: false }
+        }
+        state.retiredCredentials = state.retiredCredentials?.filter((ref: string): boolean => ref !== credential)
+        if (previousCredential !== undefined && previousCredential !== credential) {
+          state.retiredCredentials = (state.retiredCredentials ?? []).concat(previousCredential)
+        }
+      })
+      // Validation and AssetStore preparation precede this commit point. Only
+      // successful persistence replaces the endpoint and invalidates old work.
+      this.generation++
+      this.prepared = undefined
+      SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
+      if (previousCredential !== undefined) await this.removeUnusedCredential(previousCredential).catch((): void => {})
+    } catch (error) {
+      await this.removeUnusedCredential(credential).catch((): void => {})
+      throw error as Error
+    }
+  }
+
+  beginReview(): SyncReviewPermit { return { generation: this.generation, review: ++this.reviewGeneration } }
+
+  reviewRequestGuard(permit: SyncReviewPermit): SyncRequestGuard {
+    return this.reviewGuard(permit.generation, permit.review, true)
+  }
+
+  async prepareSaved(input: SyncGroup[], permit: SyncReviewPermit = this.beginReview()): Promise<SyncPreview> {
+    if (this.hasUnresolvedCommit()) throw new Error('sync_remote_result_unknown')
+    // Bind cancellation before AssetStore can yield. A Back during this read
+    // must not let the late continuation manufacture a new review permission.
+    const guard = this.reviewRequestGuard(permit)
+    guard()
+    const draft = await this.connectionDraft()
+    guard()
+    if (draft === undefined) throw new Error('sync_not_configured')
+    return this.prepare(draft, input, true, permit.review)
+  }
+
+  private reviewGuard(generation: number, review: number, activate: boolean): SyncRequestGuard {
+    const guard = activate ? this.guard(generation) : this.transferGuard(generation)
+    return (): void => {
+      guard()
+      if (this.reviewGeneration !== review) throw new Error('sync_preview_changed')
+    }
   }
 
   async cleanProbes(): Promise<void> {
@@ -333,21 +477,27 @@ export class DeviceSyncEngine {
     })
   }
 
-  async prepare(raw: SyncConnectionDraft, input: SyncGroup[]): Promise<SyncPreview> {
-    this.requireEnabled()
+  async prepare(raw: SyncConnectionDraft, input: SyncGroup[], savedReview: boolean = false, reviewPermit?: number): Promise<SyncPreview> {
+    if (reviewPermit !== undefined && reviewPermit !== this.reviewGeneration) throw new Error('sync_preview_changed')
     this.prepared = undefined
     const draft = checkedSyncDraft(raw)
+    const configuration = this.configuration()
+    const activate = savedReview && configuration?.endpointIdentity === endpointIdentity(draft) &&
+      (this.storage.load().pendingConfiguration !== undefined || syncRequiresExplicitReview(this.active()))
+    if (!activate) this.requireEnabled()
     const selected = selectedGroups(input)
     if (selected.length === 0) throw new Error('sync_select_contents')
     const generation = this.generation
     const counter = this.storage.load().counter
-    const guard = this.transferGuard(generation)
+    const review = reviewPermit ?? ++this.reviewGeneration
+    const guard = this.reviewGuard(generation, review, activate)
     const connection = this.active()
     const saved = connection === undefined ? undefined : await this.connectionDraft()
     const archived = this.storage.load().archives?.find((entry: SyncSavedConnection): boolean =>
       entry.endpointIdentity === endpointIdentity(draft))
     const existing = connection !== undefined && saved !== undefined && sameConnection(draft, saved) ? connection : archived
-    if ((existing === undefined || existing.credential === '') && (this.tested === undefined || !sameConnection(draft, this.tested) ||
+    if (!(savedReview && configuration?.endpointIdentity === endpointIdentity(draft)) &&
+      (existing === undefined || existing.credential === '') && (this.tested === undefined || !sameConnection(draft, this.tested) ||
       draft.password !== this.tested.password)) throw new Error('sync_test_required')
     this.cache = []
     this.cacheSize = 0
@@ -357,6 +507,7 @@ export class DeviceSyncEngine {
     if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
     const groups = await this.prepareGroups(provider, selected, existing, remote.manifest, guard, true)
     const preview = this.summarize(groups, existing === undefined)
+    preview.destination = draft.directory + (draft.username ? '\n' + draft.username : '')
     preview.migration = remote.legacyHash !== undefined || (existing !== undefined && existing.frontier === undefined)
     if (remote.manifest !== undefined) {
       preview.earlierUnconfirmed = this.unconfirmedFromEarlierConnection(
@@ -364,12 +515,83 @@ export class DeviceSyncEngine {
     }
     guard()
     if (this.storage.load().counter !== counter) throw new Error('sync_preview_changed')
-    this.prepared = { preview, generation, counter, draft, connection: existing, remote, selected, groups }
-    return preview
+    const prepared: PreparedSync = { preview, generation, counter, draft, connection: existing, remote, selected, groups,
+      reviewGeneration: review, activate,
+      credential: savedReview && configuration?.endpointIdentity === endpointIdentity(draft) ? configuration.credential : undefined }
+    prepared.preview = this.projectPreview(prepared, [])
+    this.prepared = prepared
+    return prepared.preview
   }
 
-  discardPreview(token: string): void {
-    if (this.prepared?.preview.token === token) this.prepared = undefined
+  previewChoices(token: string, choices: SyncMergeChoice[]): SyncPreview {
+    const prepared = this.prepared
+    if (prepared === undefined || prepared.preview.token !== token || this.storage.load().counter !== prepared.counter) {
+      throw new Error('sync_preview_changed')
+    }
+    this.reviewGuard(prepared.generation, prepared.reviewGeneration, prepared.activate)()
+    prepared.preview = this.projectPreview(prepared, choices)
+    return prepared.preview
+  }
+
+  private projectPreview(prepared: PreparedSync, choices: SyncMergeChoice[]): SyncPreview {
+    // Read the same in-memory merge plan used by confirm. This projection skips
+    // shard encoding/hashing and never allocates durable operation versions.
+    const space = prepared.remote.manifest?.space ?? prepared.connection?.space ??
+      new DeviceSyncWebDav(prepared.draft).spaceId()
+    const plan = this.propose(prepared.groups, prepared.remote.manifest, choices, space, true)
+    const removals: SyncPreviewRemoval[] = []
+    const groups = prepared.preview.groups.map((summary: SyncPreviewGroup): SyncPreviewGroup => {
+      const input = prepared.groups.find((item: PreparedGroup): boolean => item.id === summary.group)
+      const output = plan.groups.find((item: SyncGroupState): boolean => item.id === summary.group)
+      if (input === undefined || output === undefined) return summary
+      const remote = bySyncFact(input.remote)
+      const local = byLocalValue(input.local.values)
+      const before = byLocalValue(input.previous?.baseline ?? [])
+      let upload = 0
+      let download = 0
+      let remove = 0
+      const removed = (key: string, value: string, target: 'local' | 'remote'): void => {
+        let label = input.local.labels?.[key]
+        const parts = syncKeyParts(key)
+        if (label === undefined && ['position', 'read', 'bookmark'].includes(parts[0])) {
+          const recentKey = syncKey(['recent', parts[1], parts[2]])
+          const recent = local.get(recentKey) ?? before.get(recentKey)
+          if (recent !== undefined) {
+            const metadata = JSON.parse(recent) as SyncRecentValue
+            label = metadata.title + ' · ' + (metadata.chapter === parts[3] ? metadata.chapterTitle || parts[3] : parts[3])
+          }
+        }
+        removals.push({ group: input.id, key, value, label, choices: [], target })
+        remove++
+      }
+      output.facts.forEach((fact: SyncFact): void => {
+        if (output.deferred?.includes(fact.key) || input.local.protectedKeys?.includes(fact.key)) return
+        const prior = remote.get(fact.key)
+        if (JSON.stringify(fact) === JSON.stringify(prior)) return
+        const value = syncVisibleValue(fact)
+        const remoteValue = prior === undefined ? undefined : syncVisibleValue(prior)
+        if (value === undefined && remoteValue !== undefined) removed(fact.key, remoteValue, 'remote')
+        else if (value !== undefined) upload++
+      })
+      const apply = plan.applies.find((item: SyncApplyGroup): boolean => item.group === input.id)
+      apply?.changes.forEach((change: SyncLocalValue): void => {
+        if (change.value === '') removed(change.key, local.get(change.key) ?? before.get(change.key) ?? '', 'local')
+        else download++
+      })
+      return { group: summary.group, upload, download, remove, skipped: summary.skipped,
+        deferred: output.deferredRoots?.length ?? 0, dependent: summary.dependent }
+    })
+    return { token: prepared.preview.token, destination: prepared.preview.destination, groups, removals, conflicts: prepared.preview.conflicts,
+      freshConnection: prepared.preview.freshConnection, categories: prepared.preview.categories,
+      beforeRestore: prepared.preview.beforeRestore, earlierUnconfirmed: prepared.preview.earlierUnconfirmed,
+      migration: prepared.preview.migration }
+  }
+
+  discardPreview(token?: string): void {
+    if (token === undefined || this.prepared?.preview.token === token) {
+      this.prepared = undefined
+      this.reviewGeneration++
+    }
   }
 
   confirm(token: string, choices: SyncMergeChoice[]): Promise<void> {
@@ -381,8 +603,8 @@ export class DeviceSyncEngine {
   }
 
   private async confirmPrepared(prepared: PreparedSync, choices: SyncMergeChoice[]): Promise<void> {
-    this.requireEnabled()
-    const guard = this.transferGuard(prepared.generation)
+    if (!prepared.activate) this.requireEnabled()
+    const guard = this.reviewGuard(prepared.generation, prepared.reviewGeneration, prepared.activate)
     const provider = new DeviceSyncWebDav(prepared.draft, prepared.connection?.frontier, prepared.connection?.space)
     const current = await provider.readManifest(guard, prepared.remote.etag)
     if (current.etag !== prepared.remote.etag || current.hash !== prepared.remote.hash) {
@@ -390,9 +612,11 @@ export class DeviceSyncEngine {
     }
     await this.assertRevisions(prepared.groups.map((row: PreparedGroup): SyncOwnerRevision => ({ group: row.id, revision: row.local.revision })))
     guard()
-    const credential = util.generateRandomUUID()
-    this.rememberRetired(credential)
-    await writeSyncCredential(credential, prepared.draft)
+    const credential = prepared.credential ?? util.generateRandomUUID()
+    if (prepared.credential === undefined) {
+      this.rememberRetired(credential)
+      await writeSyncCredential(credential, prepared.draft)
+    }
     try {
       guard()
       if (this.storage.load().counter !== prepared.counter) throw new Error('sync_preview_changed')
@@ -402,7 +626,7 @@ export class DeviceSyncEngine {
         proposal.manifest.revision++
       }
       await this.execute(provider, prepared.connection, credential, prepared.selected, current, proposal, guard, true,
-        endpointIdentity(prepared.draft), prepared.groups)
+        endpointIdentity(prepared.draft), prepared.groups, prepared.activate)
     } catch (error) {
       await this.removeUnusedCredential(credential)
       throw error as Error
@@ -527,7 +751,7 @@ export class DeviceSyncEngine {
       if (budget < 0) throw new Error('sync_round_too_large')
       let remote: SyncFact[] = []
       for (const ref of refs) remote = mergeSyncFacts(remote, await this.loadDataset(provider, ref, guard, id))
-      const local = await this.owner.snapshot(id, verifyPublic)
+      const local = await this.owner.snapshot(id, verifyPublic, guard)
       const previous = connection?.groups.find((row: SyncGroupState): boolean => row.id === id)
       const requiresPreview = previous === undefined || connection?.credential === '' ||
         syncRequiresExplicitReview(connection) || !connection?.selected.includes(id)
@@ -543,6 +767,7 @@ export class DeviceSyncEngine {
     const conflicts: SyncMergeConflict[] = []
     const beforeRestore: SyncMergeConflict[] = []
     const categories: string[] = []
+    const removals: SyncPreviewRemoval[] = []
     const summaries = groups.map((entry: PreparedGroup): SyncPreviewGroup => {
       let upload = 0
       let download = 0
@@ -557,7 +782,8 @@ export class DeviceSyncEngine {
         if ((edit.bundle === undefined || syncKeyParts(edit.key)[0] === 'position') &&
           (edit.kind !== 'set' || edit.value !== local.get(edit.key))) {
           beforeRestore.push({ group: entry.id, key: edit.key, local: edit.followUp ?? edit.value,
-            remote: local.get(edit.key) ?? '', deleted: edit.kind === 'delete' || edit.kind === 'clear-observed' })
+            remote: local.get(edit.key) ?? '', deleted: edit.kind === 'delete' || edit.kind === 'clear-observed',
+            label: edit.label ?? entry.local.labels?.[edit.key] })
         }
       })
       local.forEach((value: string, key: string): void => {
@@ -586,6 +812,10 @@ export class DeviceSyncEngine {
       effects.forEach((effect: SyncLocalValue): void => {
         if (unresolved.includes(effect.key)) return
         const choices = unresolved.filter((root: string): boolean => dependsOnConflict(effect.key, root))
+        if (effect.value === 'remove') {
+          removals.push({ group: entry.id, key: effect.key, value: local.get(effect.key) ?? '',
+            label: entry.local.labels?.[effect.key], choices })
+        }
         if (choices.length > 0) {
           dependent.push({ action: effect.value as 'upload' | 'download' | 'remove', choices })
         } else if (effect.value === 'upload') upload++
@@ -594,7 +824,7 @@ export class DeviceSyncEngine {
       })
       return { group: entry.id, upload, download, remove, skipped: entry.local.skipped, dependent }
     })
-    return { token: util.generateRandomUUID(), groups: summaries, conflicts, freshConnection: fresh, categories, beforeRestore,
+    return { token: util.generateRandomUUID(), groups: summaries, conflicts, removals, freshConnection: fresh, categories, beforeRestore,
       earlierUnconfirmed: 0 }
   }
 
@@ -618,7 +848,8 @@ export class DeviceSyncEngine {
     return count
   }
 
-  private propose(prepared: PreparedGroup[], existing: SyncManifest | undefined, choices: SyncMergeChoice[], space: string = util.generateRandomUUID()): ProposedSync {
+  private propose(prepared: PreparedGroup[], existing: SyncManifest | undefined, choices: SyncMergeChoice[],
+    space: string = util.generateRandomUUID(), projectOnly: boolean = false): ProposedSync {
     const current = this.storage.load()
     const base = existing ?? newSyncManifest(space)
     let counter = current.counter
@@ -735,12 +966,14 @@ export class DeviceSyncEngine {
         const fact = published.get(item.key)
         return fact === undefined || !syncObserves(fact.seen, item.version)
       })
-      const built = buildSyncDataset(row.id, outgoing, base.epoch, ref, syncBucketKey)
-      alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== row.id)
-      if (built.ref.shards.length > 0 || ref !== undefined) {
-        datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== row.id).concat(built.ref)
+      if (!projectOnly) {
+        const built = buildSyncDataset(row.id, outgoing, base.epoch, ref, syncBucketKey)
+        alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== row.id)
+        if (built.ref.shards.length > 0 || ref !== undefined) {
+          datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== row.id).concat(built.ref)
+        }
+        objects.push(...built.objects)
       }
-      objects.push(...built.objects)
       const allDeferred = Array.from(new Set<string>(Array.from(deferred)
         .concat(facts.filter((fact: SyncFact): boolean => isDeferred(fact.key)).map((fact: SyncFact): string => fact.key))))
       const deferredRoots = Array.from(deferred)
@@ -770,7 +1003,7 @@ export class DeviceSyncEngine {
 
   private async execute(provider: DeviceSyncWebDav, prior: SyncSavedConnection | undefined, credential: string,
     selected: SyncGroup[], remote: SyncRemoteManifest, proposal: ProposedSync, guard: SyncRequestGuard,
-    manualPreview: boolean, endpoint: string, reviewedGroups: PreparedGroup[] = []): Promise<void> {
+    manualPreview: boolean, endpoint: string, reviewedGroups: PreparedGroup[] = [], activate: boolean = false): Promise<void> {
     let groups = prior?.groups.slice() ?? []
     proposal.groups.forEach((row: SyncGroupState): void => { groups = replaceGroup(groups, row) })
     const connection: SyncSavedConnection = {
@@ -780,7 +1013,7 @@ export class DeviceSyncEngine {
       selected, automatic: prior?.automatic ?? false, reviewRequired: groups.some((group: SyncGroupState): boolean =>
         selected.includes(group.id) && (group.deferred?.length ?? 0) > 0),
       requiresExplicitReview: false, lastSuccess: prior?.lastSuccess ?? 0, lastError: '', groups,
-      enabled: prior?.enabled ?? true,
+      enabled: activate ? true : prior?.enabled ?? true,
     }
     guard()
     this.storage.update((state: SyncLocalDocument): void => {
@@ -812,6 +1045,10 @@ export class DeviceSyncEngine {
       const commit = proposal.publish && remote.journal ? provider.commitName(proposal.manifest, remote.frontier ?? []) : undefined
       const commitBody = commit === undefined ? undefined : provider.commitBody(proposal.manifest, remote.frontier ?? [])
       state.intent = { connection, expected: remote.etag, sent: false, groupRevisions: proposal.revisions, applies: proposal.applies, commit, commitBody }
+      if (activate) {
+        if (state.pendingConfiguration?.endpointIdentity === endpoint) state.pendingConfiguration.enabled = true
+        if (state.active?.endpointIdentity === endpoint) state.active.enabled = true
+      }
       state.retiredCredentials = state.retiredCredentials?.filter((ref: string): boolean => ref !== credential)
     })
     for (const object of proposal.objects) await provider.storeObject(object, guard)
@@ -888,6 +1125,7 @@ export class DeviceSyncEngine {
   private finishLocalReceipt(state: SyncLocalDocument, connection: SyncSavedConnection,
     committed: SyncGroupState[], localReceipt: string): void {
     const replaced = state.active
+    const pending = state.pendingConfiguration
     state.intent = undefined
     state.localReceipt = localReceipt
     if (replaced !== undefined && replaced.endpointIdentity !== connection.endpointIdentity) {
@@ -898,14 +1136,23 @@ export class DeviceSyncEngine {
         entry.endpointIdentity !== archived.endpointIdentity).concat(archived)
     }
     const active = copySyncConnection(connection)
-    if (replaced?.endpointIdentity === connection.endpointIdentity) {
+    if (pending?.endpointIdentity === connection.endpointIdentity) {
+      active.enabled = pending.enabled
+      active.automatic = pending.automatic
+      active.credential = pending.credential
+    } else if (replaced?.endpointIdentity === connection.endpointIdentity) {
       active.enabled = replaced.enabled ?? true
       active.automatic = replaced.automatic
+      active.credential = replaced.credential
     }
     active.groups = replaced?.space === connection.space ? replaced.groups.slice() : []
     committed.forEach((group: SyncGroupState): void => { active.groups = replaceGroup(active.groups, group) })
     active.lastSuccess = Date.now()
     state.active = active
+    if (pending?.endpointIdentity === connection.endpointIdentity) state.pendingConfiguration = undefined
+    if (active.credential !== connection.credential) {
+      state.retiredCredentials = (state.retiredCredentials ?? []).concat(connection.credential)
+    }
     if (replaced !== undefined && replaced.credential !== connection.credential) {
       state.retiredCredentials = (state.retiredCredentials ?? []).concat(replaced.credential)
     }
@@ -971,7 +1218,9 @@ export class DeviceSyncEngine {
 
   private async removeUnusedCredential(ref: string): Promise<void> {
     const state = this.storage.load()
-    if (state.active?.credential === ref || (state.intent?.connection.credential === ref && !state.intent.detached)) return
+    if (state.pendingConfiguration?.credential === ref || state.active?.credential === ref ||
+      (state.intent?.connection.credential === ref && !state.intent.detached) ||
+      state.probes.some((row: SyncProbeRecord): boolean => row.credential === ref)) return
     await clearSyncCredential(ref)
     this.storage.update((value: SyncLocalDocument): void => {
       value.retiredCredentials = value.retiredCredentials?.filter((item: string): boolean => item !== ref)
@@ -986,6 +1235,15 @@ export class DeviceSyncEngine {
 
   setSelection(input: SyncGroup[]): void {
     const current = this.storage.load()
+    if (current.pendingConfiguration !== undefined) {
+      if (this.hasUnresolvedCommit()) throw new Error('sync_review_required')
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (state.pendingConfiguration !== undefined) state.pendingConfiguration.selected = selectedGroups(input)
+      })
+      this.reviewGeneration++
+      this.prepared = undefined
+      return
+    }
     if (current.active === undefined) return
     const selected = selectedGroups(input)
     if (selected.some((id: SyncGroup): boolean => !current.active?.selected.includes(id))) throw new Error('sync_review_required')
@@ -1171,7 +1429,9 @@ export class DeviceSyncEngine {
     // An explicit disable seals its intent when changing selection. An old
     // active selection alone can also mean that enabling a group was interrupted.
     const guard = this.transferGuard(this.generation)
-    const provider = new DeviceSyncWebDav(await readSyncCredential(connection.credential), connection.frontier, connection.space)
+    const configured = this.configuration()
+    const credential = configured?.endpointIdentity === connection.endpointIdentity ? configured.credential : connection.credential
+    const provider = new DeviceSyncWebDav(await readSyncCredential(credential), connection.frontier, connection.space)
     let receipt = intent.commit !== undefined ? await provider.readCommit(intent.commit, guard) :
       connection.frontier !== undefined ? await provider.readManifest(guard) : await provider.readLegacyManifest(guard)
     if (receipt === undefined && intent.commitBody !== undefined) {
@@ -1253,11 +1513,17 @@ export class DeviceSyncEngine {
     this.cache = []
     this.cacheSize = 0
     const active = current.active
+    const pendingCredential = current.pendingConfiguration?.credential
     const probeCredentials = current.probes.map((probe: SyncProbeRecord): string => probe.credential)
+    if (pendingCredential !== undefined) probeCredentials.push(pendingCredential)
+    if (current.intent?.connection.credential) probeCredentials.push(current.intent.connection.credential)
+    probeCredentials.push(...(current.retiredCredentials ?? []))
     // Explicitly forgetting this service also withdraws its probe credentials.
     // Remote files are retained; a different service owns its own state/store.
     this.storage.update((state: SyncLocalDocument): void => {
       state.probes = []
+      state.pendingConfiguration = undefined
+      if (state.intent !== undefined) state.intent = detachedIntent(state.intent)
       state.retiredCredentials = Array.from(new Set<string>((state.retiredCredentials ?? []).concat(probeCredentials)))
     })
     if (active === undefined) {
@@ -1286,8 +1552,10 @@ export class DeviceSyncEngine {
     const current = this.storage.load()
     this.restoreBefore = current.active
     this.restoreBeforeIntent = current.intent
-    if (this.restoreBefore !== undefined || this.restoreBeforeIntent !== undefined) {
+    this.restoreBeforeConfiguration = current.pendingConfiguration
+    if (this.restoreBefore !== undefined || this.restoreBeforeIntent !== undefined || this.restoreBeforeConfiguration !== undefined) {
       this.storage.update((state: SyncLocalDocument): void => {
+        if (state.pendingConfiguration !== undefined) state.pendingConfiguration.enabled = false
         if (state.active !== undefined) {
           state.active.reviewRequired = true
           state.active.requiresExplicitReview = true
@@ -1302,10 +1570,13 @@ export class DeviceSyncEngine {
     this.restoreInProgress = false
     const prior = this.restoreBefore
     const priorIntent = this.restoreBeforeIntent
+    const priorConfiguration = this.restoreBeforeConfiguration
     this.restoreBefore = undefined
     this.restoreBeforeIntent = undefined
-    if (!committed && (prior !== undefined || priorIntent !== undefined)) {
+    this.restoreBeforeConfiguration = undefined
+    if (!committed && (prior !== undefined || priorIntent !== undefined || priorConfiguration !== undefined)) {
       this.storage.update((state: SyncLocalDocument): void => {
+        if (priorConfiguration !== undefined) state.pendingConfiguration = priorConfiguration
         if (prior !== undefined && state.active?.space === prior.space) {
           state.active.reviewRequired = prior.reviewRequired
           state.active.requiresExplicitReview = prior.requiresExplicitReview

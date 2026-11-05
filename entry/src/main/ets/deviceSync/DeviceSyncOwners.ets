@@ -25,12 +25,12 @@ import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { SourceIndexRepository, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncEngine'
-import { SyncGroup } from './DeviceSyncFacts'
+import { SyncFact, SyncGroup } from './DeviceSyncFacts'
 import {
-  SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSubscription,
+  SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
   SyncWorkLabel, syncChapterBelongsToSource, syncKey, syncKeyParts, syncKnownSource, syncPublicLabel, syncSearchIdentity,
 } from './DeviceSyncData'
-import { DeviceSyncStorage, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt,
+import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt,
   SyncReadingRestoreCandidate, SyncRestoreEdit } from './DeviceSyncStorage'
 import { deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncCapturedReadingEdit, SyncReadingActionCapture,
   SyncReadingCapture } from './DeviceSyncSignals'
@@ -165,6 +165,26 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
 
   guardSyncRequests(factory: () => (() => void)): void { this.syncGuardFactory = factory }
 
+  readingLabels(keys: string[]): Record<string, string> {
+    const labels: Record<string, string> = {}
+    if (keys.length === 0) return labels
+    const library = this.library()
+    const history = this.reading().sourceHistory
+    for (const key of keys) {
+      const parts = syncKeyParts(key)
+      if (parts.length < 3) continue
+      const comic = library.comics.find((item: PersistedComic): boolean =>
+        item.sourceRuntimeId === parts[1] && item.remoteResourceId === parts[2])
+      const entry = history.find((item: SourceReadHistoryEntry): boolean => item.sourceId === parts[1] && item.mangaId === parts[2])
+      const title = comic?.title ?? entry?.title
+      if (title === undefined) continue
+      const chapter = parts.length > 3 ? comic?.chapters.find((item: PersistedChapter): boolean => item.id === parts[3])?.title ??
+        (entry?.chapterId === parts[3] ? entry.chapterTitle : undefined) ?? parts[3] : ''
+      labels[key] = title + (chapter ? ' · ' + chapter : '')
+    }
+    return labels
+  }
+
   private path(name: string): string {
     return this.context.filesDir + '/' + name
   }
@@ -228,15 +248,21 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return result
   }
 
-  async snapshot(group: SyncGroup, verify: boolean): Promise<SyncLocalSnapshot> {
-    const guard = this.syncGuardFactory()
+  async snapshot(group: SyncGroup, verify: boolean, reviewGuard?: () => void): Promise<SyncLocalSnapshot> {
+    // An explicit first-merge read has a per-review cancellation guard. It does
+    // not turn the service on or grant unrelated owner requests permission.
+    const guard = reviewGuard ?? this.syncGuardFactory()
     const side = readFile(this.path(SYNC_PROJECTION)) ?? ''
     const projection = this.projection()
     const values: SyncLocalValue[] = []
+    const labels: Record<string, string> = {}
     let skipped = 0
     if (group === 'search-history') {
       const entries = await new SearchHistoryStore(this.context).load()
-      return { values: projection.acceptedQueries, revision: syncDigest(side + JSON.stringify(entries)), skipped }
+      projection.acceptedQueries.forEach((item: SyncLocalValue): void => {
+        labels[item.key] = (JSON.parse(item.value) as SyncSearchValue).text
+      })
+      return { values: projection.acceptedQueries, labels, revision: syncDigest(side + JSON.stringify(entries)), skipped }
     }
     if (group === 'source-subscriptions') {
       const repositories = await new SourceIndexService(this.context).loadSavedRepositories()
@@ -245,8 +271,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (official !== undefined && projection.adoptedSharedCatalog !== true) {
         const value: SyncSubscription = { address: SYNC_OFFICIAL_CATALOG, label: syncPublicLabel(official.customName ?? '', 120) }
         row(values, ['catalog', SYNC_CATALOG_ID], value)
+        labels[syncKey(['catalog', SYNC_CATALOG_ID])] = value.label || value.address
       }
-      return { values, revision: syncDigest(JSON.stringify(repositories) + side), skipped: repositories.length - values.length }
+      return { values, labels, revision: syncDigest(JSON.stringify(repositories) + side), skipped: repositories.length - values.length }
     }
     const rawLibrary = readFile(this.path(LIBRARY_STORE_PERSISTENCE_FILE_NAME)) ?? ''
     const library = this.library()
@@ -261,6 +288,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
         const name = mapping?.displayedName === category.name ? mapping.originalName ?? category.name : category.name
         row(values, ['category', key], name)
+        labels[syncKey(['category', key])] = name
       })
       if (order.length > 0) row(values, ['order'],
         JSON.stringify(order) === JSON.stringify(projection.projectedOrder) ? projection.categoryOrder ?? order : order)
@@ -277,12 +305,17 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         }
         const label: SyncWorkLabel = { title: proof.title, sourceName: proof.sourceName, sourceVersion: proof.sourceVersion }
         row(values, ['book', proof.source, proof.work], label)
+        labels[syncKey(['book', proof.source, proof.work])] = proof.title
         comic.categoryIds?.forEach((category: string): void => {
           const key = this.toSharedCategory(category, projection)
-          if (key !== undefined) row(values, ['member', proof.source, proof.work, key], true)
+          if (key !== undefined) {
+            row(values, ['member', proof.source, proof.work, key], true)
+            labels[syncKey(['member', proof.source, proof.work, key])] = proof.title + ' · ' +
+              (categories.find((item: PersistedLibraryCategory): boolean => item.id === category)?.name ?? category)
+          }
         })
       }
-      return { values, revision: syncDigest(rawLibrary + side), skipped }
+      return { values, labels, revision: syncDigest(rawLibrary + side), skipped }
     }
     if (verify && !BackupRestoreActivity.deviceSyncIsCommitting() &&
       !appReaderSessionStore(this.context.filesDir).flush()) throw new Error('sync_local_busy')
@@ -291,7 +324,6 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const identities = this.sourceIdentities(library, reading)
     if (group === 'reader-settings') {
       const preferences = await new ReaderPreferencesStore(this.context).captureDeviceSyncPreferences()
-      const labels: Record<string, string> = {}
       const mode: SyncReaderMode = { mode: preferences.mode.pageMode, direction: preferences.mode.readingDirection }
       row(values, ['global', 'mode'], mode)
       row(values, ['global', 'animation'], preferences.pageTurnAnimation)
@@ -342,7 +374,11 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const work = await this.publicSources.work(identity.source, identity.work, verify, guard)
       const proof = work === undefined ? undefined :
         await this.publicSources.chapter(identity.source, identity.work, chapter.chapterId, verify, guard)
-      if (proof === undefined) continue
+      if (proof === undefined || work === undefined) continue
+      const label = work.title + ' · ' + proof.title
+      for (const kind of ['position', 'read', 'bookmark']) {
+        labels[syncKey([kind, identity.source, identity.work, chapter.chapterId])] = label
+      }
       const position = chapter.position
       const savedChapter = library.comics.find((item: PersistedComic): boolean => item.id === chapter.comicId)
         ?.chapters.find((item: PersistedChapter): boolean => item.id === chapter.chapterId)
@@ -372,7 +408,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     })
     const archive = this.storage.load().readingRestoreCandidates?.find((candidate: SyncReadingRestoreCandidate): boolean =>
       candidate.space === space)
-    return { values, revision: syncDigest(rawLibrary + rawReading + side + JSON.stringify(archive ?? null)),
+    const knownLabels = this.readingLabels(this.storage.load().active?.groups.find((item: SyncGroupState): boolean =>
+      item.id === 'reading')?.facts.map((item: SyncFact): string => item.key) ?? [])
+    for (const key of Object.keys(knownLabels)) if (labels[key] === undefined) labels[key] = knownLabels[key]
+    return { values, labels, revision: syncDigest(rawLibrary + rawReading + side + JSON.stringify(archive ?? null)),
       skipped: skipped + pending.length + actions.length, protectedKeys: Array.from(protectedKeys),
       restoreEdits: verify && archive !== undefined ? await this.verifiedRestoreEdits(archive, guard) : undefined }
   }
@@ -381,6 +420,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const result = new Map<string, SyncRestoreEdit>()
     const lastAction = new Map<string, string>()
     for (const action of archive.actions) {
+      const work = await this.publicSources.work(action.source, action.work, true, guard)
+      if (work === undefined) continue
       const chapter = action.chapterId === '' ? undefined :
         await this.publicSources.chapter(action.source, action.work, action.chapterId, true, guard)
       if (action.chapterId !== '' && chapter === undefined) continue
@@ -394,7 +435,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         const previous = result.get(edit.key)
         if (previous?.bundle !== undefined && edit.kind === 'set') previous.followUp = value
         else result.set(edit.key, { key: edit.key, value, kind: edit.kind, observed: edit.observed,
-          bundle: action.edits.length > 1 ? action.id : undefined })
+          bundle: action.edits.length > 1 ? action.id : undefined,
+          label: work.title + (chapter === undefined ? '' : ' · ' + chapter.title) })
         lastAction.set(edit.key, action.id)
       }
     }
@@ -411,7 +453,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         if (priorAction !== undefined && !capture.observedActions.includes(priorAction)) return
         const previous = result.get(key)
         if (previous?.bundle !== undefined) previous.followUp = value
-        else result.set(key, { key, value, kind: 'set' })
+        else result.set(key, { key, value, kind: 'set', label: work.title + ' · ' + chapter.title })
       }
       save(syncKey(['position', capture.source, capture.work, capture.chapterId]), JSON.stringify(position))
       save(syncKey(['recent', capture.source, capture.work]), JSON.stringify(recent))

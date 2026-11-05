@@ -29,6 +29,7 @@ export interface SyncRestoreEdit {
   observed?: SyncVersion[]
   bundle?: string
   followUp?: string
+  label?: string
 }
 
 export interface SyncReadingReceipt {
@@ -81,6 +82,16 @@ export interface SyncSavedConnection {
   groups: SyncGroupState[]
 }
 
+// Configuration is durable before any space or data merge is authorized. Do
+// not manufacture a SyncSavedConnection with a fake space/frontier for a form.
+export interface SyncSavedConfiguration {
+  credential: string
+  endpointIdentity: string
+  selected: SyncGroup[]
+  automatic: boolean
+  enabled: boolean
+}
+
 export interface SyncStoredApplyGroup {
   group: SyncGroup
   changes: SyncLocalValue[]
@@ -113,6 +124,7 @@ export interface SyncLocalDocument {
   replica: string
   counter: number
   active?: SyncSavedConnection
+  pendingConfiguration?: SyncSavedConfiguration
   intent?: SyncCommitIntent
   localReceipt?: string
   probes: SyncProbeRecord[]
@@ -161,6 +173,10 @@ export class DeviceSyncStorage {
     const current = this.load()
     const state: SyncLocalDocument = { schema: current.schema, replica: current.replica, counter: current.counter,
       active: current.active === undefined ? undefined : copySyncConnection(current.active),
+      pendingConfiguration: current.pendingConfiguration === undefined ? undefined : {
+        credential: current.pendingConfiguration.credential, endpointIdentity: current.pendingConfiguration.endpointIdentity,
+        selected: current.pendingConfiguration.selected.slice(), automatic: current.pendingConfiguration.automatic,
+        enabled: current.pendingConfiguration.enabled },
       intent: current.intent, probes: current.probes.slice(), localReceipt: current.localReceipt,
       archives: current.archives?.slice(), archivedIntents: current.archivedIntents?.slice(),
       retiredCredentials: current.retiredCredentials?.slice(), readingReceipts: current.readingReceipts?.slice(),

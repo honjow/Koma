@@ -188,6 +188,8 @@ test('draft tests and merge failures preserve the active connection error', asyn
   const execute = async () => { if (failure) throw new Error(failure) }
   runtime.engine = {
     active: () => ({ selected: ['reader-settings'], groups: [], lastSuccess: 123 }),
+    configuration: () => ({ selected: ['reader-settings'], enabled: true, automatic: false }),
+    hasUnresolvedCommit: () => false,
     readingDecisions: () => [], readingScope: () => '',
     testConnection: async () => { await execute(); return false },
     prepare: execute, confirm: execute, syncNow: execute,
@@ -246,10 +248,14 @@ function engineFixture(providerOverride) {
         identity.slice(16, 20), identity.slice(20, 32)].join('-')
     }
     spaceId() { return this.space }
-    async probe(_id, guard) { guard() }
+    async probe(_id, guard) {
+      guard()
+      if (this.server.probeError) throw new Error(this.server.probeError)
+    }
     async cleanProbe(_id, guard) { guard() }
     async readManifest(guard, expected = '') {
       guard()
+      this.server.reads = (this.server.reads ?? 0) + 1
       const { head, tag } = this.server
       if (expected && expected !== tag) throw new Error('sync_preview_changed')
       return { manifest: clone(head), etag: tag, hash: head ? wire.syncDigest(JSON.stringify(head)) : '',
@@ -358,10 +364,153 @@ function engineFixture(providerOverride) {
         save(randomUUID())
       },
     }
-    return { engine: new DeviceSyncEngine(store, owner), values, store, snapshotExtras }
+    return { engine: new DeviceSyncEngine(store, owner), values, store, snapshotExtras,
+      restart: () => new DeviceSyncEngine(store, owner) }
   }
   return { replica, draft, servers, assets }
 }
+
+test('saved zero-scope configuration survives a new engine and stays off until a confirmed first merge', async () => {
+  const { replica, draft, servers, assets } = engineFixture()
+  const page = data.syncKey(['global', 'page-number'])
+  const device = replica(A, [['reader-settings', new Map([[page, 'true']])]])
+  await device.engine.saveConfiguration(draft, [])
+  const reopened = device.restart()
+  assert.equal(reopened.active(), undefined)
+  assert.deepEqual(reopened.selection(), [])
+  assert.deepEqual(await reopened.connectionDraft(), draft)
+  assert.equal(reopened.isEnabled(), false)
+  assert.equal(assets.size, 1)
+  await assert.rejects(reopened.syncNow(), /sync_service_disabled/)
+  await reopened.recoverOnForeground()
+  assert.equal(servers.get(draft.directory).head, undefined)
+  reopened.setSelection(['reader-settings'])
+  const cancelled = await reopened.prepareSaved(['reader-settings'])
+  reopened.discardPreview(cancelled.token)
+  assert.equal(reopened.active(), undefined)
+  assert.equal(reopened.isEnabled(), false)
+  assert.equal(servers.get(draft.directory).published.length, 0)
+  await assert.rejects(reopened.confirm(cancelled.token, []), /sync_preview_changed/)
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  const connectionDraft = reopened.connectionDraft.bind(reopened)
+  reopened.connectionDraft = async () => { await gate; return connectionDraft() }
+  const reading = reopened.prepareSaved(['reader-settings'])
+  const rejected = assert.rejects(reading, /sync_preview_changed/)
+  const reads = servers.get(draft.directory).reads
+  reopened.discardPreview()
+  release()
+  await rejected
+  assert.equal(servers.get(draft.directory).reads, reads, 'cancel before credential return cannot start a new read permit')
+  reopened.connectionDraft = connectionDraft
+  await reopened.confirm((await reopened.prepareSaved(['reader-settings'])).token, [])
+  assert.equal(reopened.active().enabled, true)
+  assert.equal(reopened.active().automatic, false)
+  assert.equal(device.store.load().pendingConfiguration, undefined)
+  // The Runtime performs a local capture pass before asking the Engine for
+  // data. Its first await must share the same cancellation identity.
+  const runtime = runtimeFixture()
+  runtime.engine = reopened
+  runtime.refresh()
+  const captureGate = new Promise(resolve => { release = resolve })
+  runtime.recordPositions = async () => { await captureGate }
+  const capture = runtime.prepareSaved(['reading'])
+  const captureRejected = assert.rejects(capture, /sync_preview_changed/)
+  const before = servers.get(draft.directory).reads
+  runtime.discard()
+  release()
+  await captureRejected
+  assert.equal(servers.get(draft.directory).reads, before)
+})
+
+test('failed replacement keeps the original service; successful save stops it without syncing the new space', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const device = replica(A)
+  await device.engine.saveConfiguration(draft, ['reader-settings'])
+  await device.engine.confirm((await device.engine.prepareSaved(['reader-settings'])).token, [])
+  device.engine.setAutomatic(true)
+  const original = structuredClone(device.engine.active())
+  const replacement = { ...draft, directory: 'https://replacement.invalid', password: 'new' }
+  await device.engine.testConnection(replacement)
+  const server = servers.get(replacement.directory)
+  server.probeError = 'sync_authentication_failed'
+  await assert.rejects(device.engine.saveConfiguration({ ...replacement, password: 'wrong' }, []), /sync_authentication_failed/)
+  assert.deepEqual(device.engine.active(), original)
+  const update = device.store.update
+  device.store.update = change => update(state => {
+    change(state)
+    if (state.pendingConfiguration?.endpointIdentity !== undefined) throw new Error('sync_local_write_failed')
+  })
+  delete server.probeError
+  await assert.rejects(device.engine.saveConfiguration(replacement, []), /sync_local_write_failed/)
+  assert.deepEqual(device.engine.active(), original)
+  assert.deepEqual(await device.engine.connectionDraft(), draft)
+  device.store.update = update
+  await device.engine.saveConfiguration(replacement, [])
+  const reopened = device.restart()
+  assert.equal(reopened.active(), undefined)
+  assert.equal(reopened.isEnabled(), false)
+  assert.deepEqual(await reopened.connectionDraft(), replacement)
+  await reopened.recoverOnForeground()
+  assert.equal(server.published.length, 0)
+  assert.ok(device.store.load().archives.some(item => item.space === original.space && item.credential === ''))
+})
+
+test('password save preserves a confirmed intent, its recovery and the latest paused policy', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const page = data.syncKey(['global', 'page-number'])
+  const device = replica(A, [['reader-settings', new Map([[page, 'true']])]])
+  await device.engine.saveConfiguration(draft, ['reader-settings'])
+  const preview = await device.engine.prepareSaved(['reader-settings'])
+  servers.get(draft.directory).failures.push('lost-response')
+  await assert.rejects(device.engine.confirm(preview.token, []), /sync_remote_result_unknown/)
+  const intent = structuredClone(device.store.load().intent)
+  const changed = { ...draft, password: 'changed' }
+  await device.engine.saveConfiguration(changed, ['reader-settings'])
+  assert.equal(device.store.load().intent.commitBody, intent.commitBody)
+  assert.deepEqual(device.store.load().intent.applies, intent.applies)
+  assert.equal(device.engine.active(), undefined)
+  device.values.get('reader-settings').set(page, 'false')
+  await assert.rejects(device.engine.recoverOnForeground(), /sync_review_required/)
+  assert.equal(device.engine.active().requiresExplicitReview, true)
+  await device.engine.confirm((await device.engine.prepareSaved(['reader-settings'])).token, [])
+  assert.equal(device.store.load().intent, undefined)
+  assert.equal(device.store.load().pendingConfiguration, undefined)
+  assert.deepEqual(await device.engine.connectionDraft(), changed)
+  assert.equal(servers.get(draft.directory).published.length, 1,
+    'deferring the new local difference must retain the exact original remote commit')
+  device.engine.setAutomatic(true)
+  device.engine.setEnabled(false)
+  await device.engine.saveConfiguration({ ...changed, password: 'changed-again' }, [])
+  const reopened = device.restart()
+  assert.equal(reopened.isEnabled(), false)
+  assert.equal(reopened.active().automatic, true)
+  assert.deepEqual(reopened.selection(), ['reader-settings'])
+})
+
+test('review lists actual remote and local deletions before either side is changed', async () => {
+  const { replica, draft } = engineFixture()
+  const category = data.syncKey(['category', '11111111-1111-1111-1111-111111111111'])
+  const left = replica(A, [['shelf', new Map([[category, '"Reading"']])]])
+  const right = replica(B)
+  for (const device of [left, right]) {
+    await device.engine.saveConfiguration(draft, ['shelf'])
+    await device.engine.confirm((await device.engine.prepareSaved(['shelf'])).token, [])
+  }
+  right.values.get('shelf').delete(category)
+  right.engine.recordEdits('shelf', [{ key: category, kind: 'delete', value: '' }])
+  const outgoing = await right.engine.prepareSaved(['shelf'])
+  assert.deepEqual(outgoing.removals.map(item => [item.key, item.value, item.target]), [[category, '"Reading"', 'remote']])
+  assert.equal(outgoing.groups[0].remove, 1)
+  assert.equal(left.values.get('shelf').get(category), '"Reading"')
+  await right.engine.confirm(outgoing.token, [])
+  const incoming = await left.engine.prepareSaved(['shelf'])
+  assert.deepEqual(incoming.removals.map(item => [item.key, item.value, item.target]), [[category, '"Reading"', 'local']])
+  assert.equal(incoming.groups[0].remove, 1)
+  assert.equal(left.values.get('shelf').get(category), '"Reading"')
+  await left.engine.confirm(incoming.token, [])
+  assert.equal(left.values.get('shelf').has(category), false)
+})
 
 test('first merge cancellation and stale preview leave the remote manifest unchanged', async () => {
   const fixture = engineFixture()

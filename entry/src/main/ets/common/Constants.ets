@@ -36,6 +36,8 @@ export class RouteName {
   static readonly BACKUP_MANAGEMENT: string = 'BackupManagementPage'
   static readonly DEVICE_SYNC: string = 'DeviceSyncOverviewPage'
   static readonly DEVICE_SYNC_WEBDAV: string = 'DeviceSyncWebDavPage'
+  static readonly DEVICE_SYNC_CONNECTION: string = 'DeviceSyncConnectionPage'
+  static readonly DEVICE_SYNC_REVIEW: string = 'DeviceSyncReviewPage'
   static readonly TRACKER_SETTINGS: string = 'TrackerSettingsPage'
 }
 

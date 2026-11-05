@@ -30,6 +30,9 @@ import { subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 export class DeviceSyncViewState {
   @Trace ready: boolean = false
   @Trace connected: boolean = false
+  @Trace configured: boolean = false
+  @Trace awaitingFirstMerge: boolean = false
+  @Trace unresolvedCommit: boolean = false
   @Trace selected: SyncGroup[] = ['shelf', 'reading']
   @Trace automatic: boolean = false
   @Trace enabled: boolean = true
@@ -156,19 +159,30 @@ class DeviceSyncRuntime {
 
   private refresh(): void {
     const state = this.engine?.active()
+    const configuration = this.engine?.configuration()
     this.view.connected = state !== undefined
-    if (state !== undefined) this.view.selected = state.selected.slice()
-    this.view.automatic = state?.automatic ?? false
-    this.view.enabled = state?.enabled !== false
+    this.view.configured = configuration !== undefined
+    this.view.awaitingFirstMerge = configuration !== undefined && state === undefined
+    this.view.unresolvedCommit = this.engine?.hasUnresolvedCommit() ?? false
+    if (configuration !== undefined) this.view.selected = configuration.selected.slice()
+    this.view.automatic = configuration?.automatic ?? false
+    this.view.enabled = configuration !== undefined && configuration.enabled !== false
     this.view.requiresExplicitReview = syncRequiresExplicitReview(state)
     this.view.needsReview = this.view.requiresExplicitReview || (state?.groups.some((group: SyncGroupState): boolean =>
       state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false)
     this.view.lastSuccess = state?.lastSuccess ?? 0
     this.view.subscriptions = this.owners?.receivedSubscriptions() ?? []
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
-    this.view.readingDecisions = this.engine?.readingDecisions() ?? []
-    this.view.blockedReadings = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
+    const decisions = this.engine?.readingDecisions() ?? []
+    const retained = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
       .filter((item: SyncBlockedReading): boolean => item.capture.space === state.space) : []
+    const labelKeys = decisions.map((item: SyncReadingDecision): string => item.key).concat(retained.map((item: SyncBlockedReading): string =>
+      syncKey(['position', item.capture.source, item.capture.work, item.capture.chapterId])))
+    const labels: Record<string, string> = labelKeys.length === 0 ? {} : this.owners?.readingLabels(labelKeys) ?? {}
+    this.view.readingDecisions = decisions.map((item: SyncReadingDecision): SyncReadingDecision =>
+      ({ key: item.key, title: labels[item.key] ?? item.title, values: item.values }))
+    this.view.blockedReadings = retained.map((item: SyncBlockedReading): SyncBlockedReading =>
+      ({ title: labels[syncKey(['position', item.capture.source, item.capture.work, item.capture.chapterId])] ?? item.title, capture: item.capture }))
   }
 
   private needed(): DeviceSyncEngine {
@@ -176,7 +190,7 @@ class DeviceSyncRuntime {
     return this.engine
   }
 
-  private async task<T>(action: () => Promise<T>, publishError: boolean = true): Promise<T> {
+  private async task<T>(action: () => Promise<T>, publishError: boolean = true, resumeRecovery: boolean = true): Promise<T> {
     if (this.view.busy) throw new Error('sync_already_running')
     this.view.busy = true
     // Draft requests share the task lock, while their errors belong to the form.
@@ -191,7 +205,7 @@ class DeviceSyncRuntime {
       throw error as Error
     } finally {
       this.view.busy = false
-      this.recoverForeground()
+      if (resumeRecovery) this.recoverForeground()
     }
   }
 
@@ -200,7 +214,34 @@ class DeviceSyncRuntime {
       const recovered = await this.needed().testConnection(draft, selected)
       if (recovered) this.view.error = ''
       return recovered
-    }, false)
+    }, false, false)
+  }
+
+  cancelConnectionTest(): void { this.engine?.cancelConnectionTest() }
+
+  saveConfiguration(draft: SyncConnectionDraft, selected: SyncGroup[]): Promise<void> {
+    return this.task(async (): Promise<void> => {
+      await this.needed().saveConfiguration(draft, selected)
+      if (this.needed().active() === undefined) this.view.error = ''
+    }, false, false)
+  }
+
+  prepareSaved(selected: SyncGroup[]): Promise<SyncPreview> {
+    return this.task(async (): Promise<SyncPreview> => {
+      const engine = this.needed()
+      const permit = engine.beginReview()
+      const guard = engine.reviewRequestGuard(permit)
+      if (this.view.connected && selected.includes('reading')) await this.recordPositions(guard)
+      guard()
+      return engine.prepareSaved(selected, permit)
+    }, false, false)
+  }
+
+  recoverLastSync(): Promise<void> {
+    return this.task(async (): Promise<void> => {
+      await this.needed().recoverOnForeground()
+      this.view.error = ''
+    })
   }
 
   draft(): Promise<SyncConnectionDraft | undefined> {
@@ -221,9 +262,11 @@ class DeviceSyncRuntime {
     }, publishError)
   }
 
-  discard(token: string): void {
+  discard(token?: string): void {
     this.engine?.discardPreview(token)
   }
+
+  previewChoices(token: string, choices: SyncMergeChoice[]): SyncPreview { return this.needed().previewChoices(token, choices) }
 
   sync(): Promise<void> {
     return this.task(async (): Promise<void> => {
@@ -258,7 +301,7 @@ class DeviceSyncRuntime {
   }
 
   setSelection(selected: SyncGroup[]): void {
-    if (this.view.connected) {
+    if (this.view.configured) {
       this.needed().setSelection(selected)
       this.refresh()
     }
@@ -503,18 +546,20 @@ class DeviceSyncRuntime {
     return chapter !== undefined && chapter.pageTable === saved && matchesPublicSyncPages(request.sourceId, chapter, uris)
   }
 
-  private async recordPositions(): Promise<void> {
+  private async recordPositions(reviewGuard?: () => void): Promise<void> {
     const context = this.context
     const owners = this.owners
     const engine = this.engine
     const scope = engine?.readingScope() ?? ''
     if (context === undefined || owners === undefined || engine === undefined || engine.active()?.enabled === false || scope === '' ||
       syncRequiresExplicitReview(engine.active())) return
-    const guard = engine.requestGuard()
+    const serviceGuard = engine.requestGuard()
+    const guard = (): void => { serviceGuard(); reviewGuard?.() }
     const reader = appReaderSessionStore(context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const actions = reader.pendingDeviceSyncActions()
-    await this.recordReaderActions(actions, scope)
+    await this.recordReaderActions(actions, scope, reviewGuard)
+    guard()
     const pending = reader.pendingDeviceSyncPositions()
     const positionSeenAfterLocalActions = (capture: SyncReadingCapture, key: string, seen: SyncVersion[]): SyncVersion[] => {
       const versions: SyncVersion[] = []
@@ -602,11 +647,12 @@ class DeviceSyncRuntime {
     return captured
   }
 
-  private async recordReaderActions(actions: SyncReadingActionCapture[], scope: string): Promise<void> {
+  private async recordReaderActions(actions: SyncReadingActionCapture[], scope: string, reviewGuard?: () => void): Promise<void> {
     const engine = this.engine
     const owners = this.owners
     if (engine === undefined || owners === undefined) return
-    const guard = engine.requestGuard()
+    const serviceGuard = engine.requestGuard()
+    const guard = (): void => { serviceGuard(); reviewGuard?.() }
     const earlier = new Map<string, SyncVersion[]>()
     const blocked = new Set<string>()
     for (const capture of actions) {
@@ -619,6 +665,7 @@ class DeviceSyncRuntime {
           capture.edits.some((edit: SyncCapturedReadingEdit): boolean => edit.observed.length === 0) : known === undefined)
         const chapter = verify ? await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId,
           engine.active()?.enabled !== false, guard) : undefined
+        reviewGuard?.()
         if (engine.readingScope() !== scope) return
         if (verify && chapter === undefined) {
           capture.edits.forEach((edit: SyncCapturedReadingEdit): void => { blocked.add(edit.key) })

@@ -1,6 +1,7 @@
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup } from '../deviceSync/DeviceSyncFacts'
-import { DeviceSyncOverviewPage, DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
+import { DeviceSyncConnectionPage, DeviceSyncOverviewPage, DeviceSyncReviewPage, DeviceSyncReviewReason,
+  DeviceSyncWebDavChrome, DeviceSyncWebDavPage } from './DeviceSyncPages'
 import { ImagePluginsPage } from './ImagePluginsPage'
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
@@ -219,8 +220,16 @@ interface SettingsPaneRouteParam {
 }
 
 interface DeviceSyncWebDavRouteParam {
-  groups: SyncGroup[]
   chrome: DeviceSyncWebDavChrome
+}
+
+interface DeviceSyncConnectionRouteParam extends DeviceSyncWebDavRouteParam {
+  titleKey: string
+}
+
+interface DeviceSyncReviewRouteParam extends DeviceSyncWebDavRouteParam {
+  groups: SyncGroup[]
+  reason: DeviceSyncReviewReason
 }
 
 interface SettingsSearchRouteParam {
@@ -1782,11 +1791,11 @@ struct Index {
 
   private openSettingsPane(pane: SettingsPaneKey, rowKey?: string): void {
     if (pane === 'backup' && rowKey === 'device-sync') {
-      this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC })
+      this.openDeviceSyncOverview()
       return
     }
     if (pane === 'backup' && rowKey === 'device-sync-webdav') {
-      this.openDeviceSyncWebDav([])
+      this.openDeviceSyncWebDav()
       return
     }
     // Backup owns its configuration and task navigation; do not insert a
@@ -1804,9 +1813,25 @@ struct Index {
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
   }
 
-  private openDeviceSyncWebDav(groups: SyncGroup[]): void {
-    const param: DeviceSyncWebDavRouteParam = { groups, chrome: new DeviceSyncWebDavChrome() }
+  private openDeviceSyncOverview(): void {
+    const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
+    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC, param })
+  }
+
+  private openDeviceSyncWebDav(): void {
+    const param: DeviceSyncWebDavRouteParam = { chrome: new DeviceSyncWebDavChrome() }
     this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_WEBDAV, param })
+  }
+
+  private openDeviceSyncConnection(): void {
+    const param: DeviceSyncConnectionRouteParam = { chrome: new DeviceSyncWebDavChrome(),
+      titleKey: appDeviceSync.view.configured ? 'device_sync_edit' : 'device_sync_configure' }
+    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_CONNECTION, param })
+  }
+
+  private openDeviceSyncReview(groups: SyncGroup[], reason: DeviceSyncReviewReason): void {
+    const param: DeviceSyncReviewRouteParam = { chrome: new DeviceSyncWebDavChrome(), groups, reason }
+    this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC_REVIEW, param })
   }
 
   private selectRootTab(index: number): void {
@@ -2890,7 +2915,7 @@ struct Index {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
           searchTarget: (param as BackupManagementRouteParam).searchTarget,
           backupScroller: (param as BackupManagementRouteParam).scroller,
-          onOpenDeviceSync: (): void => { this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC }) },
+          onOpenDeviceSync: (): void => { this.openDeviceSyncOverview() },
           onRestoreCompleted: () => { this.onBackupRestored() } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
@@ -2898,17 +2923,41 @@ struct Index {
       .onBackPressed(() => BackupRestoreActivity.isRestoring())
     } else if (name === RouteName.DEVICE_SYNC) {
       HdsNavDestination() {
-        DeviceSyncOverviewPage({ onOpenWebDav: (groups: SyncGroup[]): void => { this.openDeviceSyncWebDav(groups) } })
+        DeviceSyncOverviewPage({ scroller: (param as DeviceSyncWebDavRouteParam).chrome.scroller,
+          onOpenWebDav: (): void => { this.openDeviceSyncWebDav() } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('device_sync_title')))
+      .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
     } else if (name === RouteName.DEVICE_SYNC_WEBDAV) {
       HdsNavDestination() {
-        DeviceSyncWebDavPage({ proposedSelection: (param as DeviceSyncWebDavRouteParam).groups,
-          chrome: (param as DeviceSyncWebDavRouteParam).chrome })
+        DeviceSyncWebDavPage({ chrome: (param as DeviceSyncWebDavRouteParam).chrome,
+          onEditConnection: (): void => { this.openDeviceSyncConnection() },
+          onReview: (groups: SyncGroup[], reason: DeviceSyncReviewReason): void => { this.openDeviceSyncReview(groups, reason) } })
       }
-      .titleBar(this.deviceSyncTitleBarOpts((param as DeviceSyncWebDavRouteParam).chrome))
+      .titleBar(this.navDestTitleBarOpts(AppStrings.get('device_sync_webdav')))
       .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
-      .onBackPressed(() => (param as DeviceSyncWebDavRouteParam).chrome.back(appDeviceSync.view.busy))
+      .onShown((): void => { (param as DeviceSyncWebDavRouteParam).chrome.shownSeq++ })
+    } else if (name === RouteName.DEVICE_SYNC_CONNECTION) {
+      HdsNavDestination() {
+        DeviceSyncConnectionPage({ chrome: (param as DeviceSyncConnectionRouteParam).chrome,
+          titleAction: (param as DeviceSyncConnectionRouteParam).chrome.confirm,
+          onSaved: (): void => { this.appPathStack.pop() } })
+      }
+      .titleBar(this.deviceSyncActionTitleBarOpts((param as DeviceSyncConnectionRouteParam).chrome,
+        (param as DeviceSyncConnectionRouteParam).titleKey, 'common_save'))
+      .bindToScrollable([(param as DeviceSyncConnectionRouteParam).chrome.scroller])
+      .onBackPressed((): boolean => (param as DeviceSyncConnectionRouteParam).chrome.busy)
+    } else if (name === RouteName.DEVICE_SYNC_REVIEW) {
+      HdsNavDestination() {
+        DeviceSyncReviewPage({ chrome: (param as DeviceSyncReviewRouteParam).chrome,
+          titleAction: (param as DeviceSyncReviewRouteParam).chrome.confirm,
+          selected: (param as DeviceSyncReviewRouteParam).groups, reason: (param as DeviceSyncReviewRouteParam).reason,
+          onCompleted: (): void => { this.appPathStack.pop() } })
+      }
+      .titleBar(this.deviceSyncActionTitleBarOpts((param as DeviceSyncReviewRouteParam).chrome,
+        this.deviceSyncReviewTitle((param as DeviceSyncReviewRouteParam).reason), 'device_sync_confirm_merge'))
+      .bindToScrollable([(param as DeviceSyncReviewRouteParam).chrome.scroller])
+      .onBackPressed((): boolean => (param as DeviceSyncReviewRouteParam).chrome.busy)
     } else if (name === RouteName.READING_STATISTICS) {
       HdsNavDestination() {
         ReadingStatisticsPage({ libraryStore: this.libraryStore, sessionStore: this.readerSessionStore })
@@ -3522,14 +3571,23 @@ struct Index {
     return options
   }
 
-  private deviceSyncTitleBarOpts(chrome: DeviceSyncWebDavChrome): Record<string, Object> {
+  private deviceSyncReviewTitle(reason: DeviceSyncReviewReason): string {
+    if (reason === 'first') return 'device_sync_review_first_title'
+    if (reason === 'scope') return 'device_sync_review_scope_title'
+    if (reason === 'restore') return 'device_sync_review_restore_title'
+    if (reason === 'pending') return 'device_sync_pending_items'
+    if (reason === 'recovery') return 'device_sync_review_last'
+    return 'device_sync_review_differences'
+  }
+
+  private deviceSyncActionTitleBarOpts(chrome: DeviceSyncWebDavChrome, titleKey: string, actionKey: string): Record<string, Object> {
     const titleAction = chrome.confirm
-    const options = this.navDestTitleBarOpts(AppStrings.get(chrome.reviewing ? 'device_sync_merge_review_title' : 'device_sync_webdav'))
+    const options = this.navDestTitleBarOpts(AppStrings.get(titleKey))
     const content = options['content'] as Record<string, Object>
     const items: Record<string, Object>[] = []
-    if (chrome.reviewing && titleAction.enabled) {
-      const action: Record<string, Object> = { 'label': AppStrings.get('device_sync_confirm_merge'),
-        'type': TextStyleMode.NORMAL, 'isEnabled': !appDeviceSync.view.busy,
+    if (chrome.actionVisible) {
+      const action: Record<string, Object> = { 'label': AppStrings.get(actionKey),
+        'type': TextStyleMode.NORMAL, 'isEnabled': titleAction.enabled && !appDeviceSync.view.busy,
         'action': (): void => { titleAction.requestSave() } }
       items.push({ 'content': action })
     }
