@@ -34,6 +34,7 @@ const wire = compile('DeviceSyncWire', {
 const data = compile('DeviceSyncData', {
   './DeviceSyncFacts': facts, './DeviceSyncWire': wire, './DeviceSyncCaseFold': compile('DeviceSyncCaseFold'),
 })
+const journal = compile('DeviceSyncJournal', { './DeviceSyncWire': wire })
 const A = '10000000-0000-0000-0000-000000000000'
 const B = 'f0000000-0000-0000-0000-000000000000'
 const C = '20000000-0000-0000-0000-000000000000'
@@ -229,23 +230,61 @@ test('received reading distinguishes an installed unverified source from a missi
   assert.equal(await runtime.openReading(request), 'ready')
 })
 
-function engineFixture() {
+function engineFixture(providerOverride) {
   const assets = new Map()
   const servers = new Map()
   const clone = value => value === undefined ? undefined : structuredClone(value)
   class Provider {
-    constructor(draft) {
+    constructor(draft, witnesses = [], space = '') {
       if (!servers.has(draft.directory)) servers.set(draft.directory, {
-        tag: '', head: undefined, objects: new Map(), published: [], failures: [],
+        tag: '', head: undefined, objects: new Map(), commits: new Map(), frontier: [], published: [], failures: [],
       })
       this.server = servers.get(draft.directory)
+      this.witnesses = witnesses.slice()
+      const identity = wire.syncDigest(JSON.stringify([draft.directory.replace(/\/+$/, ''), draft.username.trim()]))
+      this.space = space || [identity.slice(0, 8), identity.slice(8, 12), identity.slice(12, 16),
+        identity.slice(16, 20), identity.slice(20, 32)].join('-')
     }
+    spaceId() { return this.space }
     async probe(_id, guard) { guard() }
+    async cleanProbe(_id, guard) { guard() }
     async readManifest(guard, expected = '') {
       guard()
       const { head, tag } = this.server
       if (expected && expected !== tag) throw new Error('sync_preview_changed')
-      return { manifest: clone(head), etag: tag, hash: head ? wire.syncDigest(JSON.stringify(head)) : '' }
+      return { manifest: clone(head), etag: tag, hash: head ? wire.syncDigest(JSON.stringify(head)) : '',
+        frontier: this.server.frontier.slice(), journal: true }
+    }
+    async readLegacyManifest(guard) { guard(); return { etag: '', hash: '' } }
+    commitName(head, frontier) { return journal.syncCommitName(journal.syncCommitBody(head, frontier)) }
+    commitBody(head, frontier) { return journal.syncCommitBody(head, frontier) }
+    async retryCommit(body, guard, selected) {
+      guard()
+      const name = journal.syncCommitName(body)
+      const commit = journal.decodeSyncCommit(name, body)
+      for (const parent of commit.parents) assert.ok(this.server.commits.has(parent))
+      for (const dataset of commit.manifest.datasets.concat(commit.manifest.alternatives ?? [])) {
+        if (!selected.includes(dataset.id)) continue
+        for (const ref of dataset.shards) {
+          const content = this.server.objects.get(wire.syncShardPath(ref))
+          assert.equal(wire.syncDigest(content), ref.hash)
+          assert.equal(wire.syncUtf8(content).byteLength, ref.bytes)
+        }
+      }
+      this.server.commits.set(name, body)
+      this.server.frontier = [name]
+      this.server.head = clone(commit.manifest)
+      this.server.tag = '"journal-' + wire.syncDigest(name) + '"'
+      return this.readCommit(name, guard)
+    }
+    async readCommit(name, guard) {
+      guard()
+      const body = this.server.commits.get(name)
+      if (body === undefined) return undefined
+      const commit = journal.decodeSyncCommit(name, body)
+      const manifest = { ...commit.manifest, space: this.space }
+      return { manifest, etag: '"journal-' + wire.syncDigest(name) + '"',
+        hash: wire.syncDigest(JSON.stringify(manifest)), frontier: [name], journal: true }
     }
     async readObject(ref, guard) {
       guard()
@@ -255,14 +294,21 @@ function engineFixture() {
       guard()
       this.server.objects.set(wire.syncShardPath(object.ref), object.body)
     }
-    async publish(head, tag, guard) {
+    async publish(head, tag, guard, beforeSend = () => {}) {
       guard()
       this.server.published.push(clone(head))
       if (this.server.tag !== tag) return false
       const failure = this.server.failures.shift()
       if (failure === '412') return false
+      const body = journal.syncCommitBody(head, this.server.frontier)
+      const name = journal.syncCommitName(body)
+      beforeSend()
+      guard()
+      if (failure === 'before-accept') throw new Error('sync_network_failed')
+      this.server.commits.set(name, body)
+      this.server.frontier = [name]
       this.server.head = clone(head)
-      this.server.tag = '"' + head.revision + '"'
+      this.server.tag = '"journal-' + wire.syncDigest(name) + '"'
       if (failure === 'lost-response') throw new Error('sync_network_failed')
       return true
     }
@@ -280,7 +326,7 @@ function engineFixture() {
   }
   const { DeviceSyncEngine } = compile('DeviceSyncEngine', {
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
-    './DeviceSyncStorage': storagePort, './DeviceSyncWebDav': { DeviceSyncWebDav: Provider },
+    './DeviceSyncStorage': storagePort, './DeviceSyncWebDav': { DeviceSyncWebDav: providerOverride ?? Provider },
     '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
   })
   const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }

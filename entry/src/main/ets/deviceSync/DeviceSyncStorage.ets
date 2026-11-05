@@ -68,6 +68,7 @@ export interface SyncSavedConnection {
   space: string
   revision: number
   manifestHash: string
+  frontier?: string[]
   selected: SyncGroup[]
   automatic: boolean
   reviewRequired: boolean
@@ -90,6 +91,8 @@ export interface SyncCommitIntent {
   detached?: boolean
   groupRevisions: SyncOwnerRevision[]
   applies: SyncStoredApplyGroup[]
+  commit?: string
+  commitBody?: string
 }
 
 export interface SyncOwnerRevision {
@@ -100,6 +103,7 @@ export interface SyncOwnerRevision {
 export interface SyncProbeRecord {
   credential: string
   id: string
+  collection?: number
 }
 
 export interface SyncLocalDocument {
@@ -120,7 +124,7 @@ export interface SyncLocalDocument {
 
 export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnection {
   return { credential: value.credential, endpointIdentity: value.endpointIdentity, space: value.space, revision: value.revision,
-    manifestHash: value.manifestHash, selected: value.selected.slice(), automatic: value.automatic,
+    manifestHash: value.manifestHash, frontier: value.frontier?.slice(), selected: value.selected.slice(), automatic: value.automatic,
     reviewRequired: value.reviewRequired, requiresExplicitReview: value.requiresExplicitReview,
     restoreReview: value.restoreReview, lastSuccess: value.lastSuccess, lastError: value.lastError,
     groups: value.groups.slice() }

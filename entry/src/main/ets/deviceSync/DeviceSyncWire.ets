@@ -2,10 +2,10 @@ import { util } from '@kit.ArkTS'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { checkedSyncFact, isSyncReplica, SyncFact } from './DeviceSyncFacts'
 
-export const SYNC_WIRE_VERSION = 1
+export const SYNC_WIRE_VERSION = 2
 export const SYNC_MAX_OBJECT_BYTES = 1024 * 1024
 export const SYNC_MAX_ROUND_BYTES = 64 * SYNC_MAX_OBJECT_BYTES
-export const SYNC_COLLECTION = 'koma-device-sync-v1'
+export const SYNC_COLLECTION = 'koma-device-sync-v2'
 
 export interface SyncShardRef {
   bucket: string
@@ -30,11 +30,19 @@ export interface SyncManifest {
   maintenance: boolean
   datasets: SyncDatasetRef[]
   previous: SyncDatasetRef[]
+  // Unselected/unknown groups retain every concurrent branch without reading their data.
+  alternatives?: SyncDatasetRef[]
 }
 
 export interface SyncObject {
   ref: SyncShardRef
   body: string
+}
+
+export function copySyncManifest(value: SyncManifest, space: string = value.space): SyncManifest {
+  return { format: value.format, schema: value.schema, minWriter: value.minWriter, space,
+    revision: value.revision, epoch: value.epoch, maintenance: value.maintenance, datasets: value.datasets,
+    previous: value.previous, alternatives: value.alternatives }
 }
 
 export interface SyncDataset {
@@ -74,7 +82,7 @@ export function syncShardPath(ref: SyncShardRef): string {
 
 export function newSyncManifest(space: string): SyncManifest {
   if (!isSyncReplica(space)) throw new Error('sync_invalid_space')
-  return { format: 'KOMA_DEVICE_SYNC', schema: 1, minWriter: SYNC_WIRE_VERSION, space, revision: 0,
+  return { format: 'KOMA_DEVICE_SYNC', schema: 2, minWriter: SYNC_WIRE_VERSION, space, revision: 0,
     epoch: 1, maintenance: false, datasets: [], previous: [] }
 }
 
@@ -106,7 +114,7 @@ export function decodeSyncManifest(body: string): SyncManifest {
     throw new Error('sync_invalid_manifest')
   }
   if (!manifest || manifest.format !== 'KOMA_DEVICE_SYNC') throw new Error('sync_invalid_manifest')
-  if (manifest.schema !== 1 || manifest.minWriter > SYNC_WIRE_VERSION) throw new Error('sync_update_required')
+  if ((manifest.schema !== 1 && manifest.schema !== 2) || manifest.minWriter > SYNC_WIRE_VERSION) throw new Error('sync_update_required')
   if (!isSyncReplica(manifest.space) || !validNumber(manifest.revision, 1, Number.MAX_SAFE_INTEGER) ||
     !validNumber(manifest.epoch, 1, manifest.revision) || !validNumber(manifest.minWriter, 1, SYNC_WIRE_VERSION) ||
     typeof manifest.maintenance !== 'boolean') {
@@ -114,7 +122,18 @@ export function decodeSyncManifest(body: string): SyncManifest {
   }
   checkedSyncDatasets(manifest.datasets, manifest.epoch)
   checkedSyncDatasets(manifest.previous, manifest.epoch)
+  if (manifest.alternatives !== undefined) {
+    if (manifest.schema !== 2 || !Array.isArray(manifest.alternatives) || manifest.alternatives.length > 512) {
+      throw new Error('sync_invalid_datasets')
+    }
+    manifest.alternatives.forEach((ref: SyncDatasetRef): void => { checkedSyncDatasets([ref], manifest.epoch) })
+  }
   return manifest
+}
+
+export function syncDatasetBranches(manifest: SyncManifest | undefined, id: string): SyncDatasetRef[] {
+  return (manifest?.datasets ?? []).concat(manifest?.alternatives ?? [])
+    .filter((ref: SyncDatasetRef): boolean => ref.id === id)
 }
 
 export function syncDatasetBytes(ref: SyncDatasetRef): number {

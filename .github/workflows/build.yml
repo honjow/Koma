@@ -53,13 +53,14 @@ jobs:
       - name: Check i18n resources
         run: python3 scripts/check_i18n_duplicates.py
 
-      - name: Check backup settings coverage and round trip
+      - name: Check backup and device sync behavior
         run: |
           compiler_package="$(find "$COMMANDLINE_TOOLS_HOME" -path '*/node_modules/typescript/package.json' -print -quit)"
           test -n "$compiler_package"
           export KOMA_TYPESCRIPT_PATH="$(dirname "$compiler_package")"
           node scripts/check_backup_settings.cjs
           node scripts/test_backup_task_state.cjs
+          node --test scripts/test_device_sync.cjs scripts/test_device_sync_journal.cjs
 
       - name: Install native build dependencies
         run: |

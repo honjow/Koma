@@ -28,12 +28,29 @@ function groupKey(group: SyncGroup): string {
 
 function errorText(code: string): string {
   if (code === '') return ''
+  if (code === 'sync_probe_cleanup_pending') return t('device_sync_error_cleanup_pending')
+  if (code.startsWith('sync_probe_cleanup_')) {
+    return t('device_sync_error_cleanup').replace('%s', errorText(code.substring('sync_probe_cleanup_'.length)))
+  }
   if (code === 'sync_authentication_failed') return t('device_sync_error_auth')
-  if (code === 'sync_permission_denied' || code === 'sync_directory_missing') return t('device_sync_error_permission')
-  if (code === 'sync_https_directory_required' || code === 'sync_directory_redirected') return t('device_sync_error_https')
+  if (code === 'sync_permission_denied') return t('device_sync_error_permission')
+  if (code === 'sync_directory_missing') return t('device_sync_error_directory_missing')
+  if (code === 'sync_directory_parent_missing') return t('device_sync_error_parent_missing')
+  if (code === 'sync_path_not_directory') return t('device_sync_error_not_directory')
+  if (code === 'sync_not_webdav_directory' || code === 'sync_webdav_method_unsupported') return t('device_sync_error_not_webdav')
+  if (code === 'sync_https_directory_required') return t('device_sync_error_https')
+  if (code === 'sync_directory_redirected') return t('device_sync_error_redirect')
   if (code === 'sync_tls_failed') return t('device_sync_error_tls')
   if (code === 'sync_network_failed' || code === 'sync_server_unavailable') return t('device_sync_error_network')
-  if (code === 'sync_preconditions_unsupported') return t('device_sync_error_conditional')
+  if (code === 'sync_host_unresolved') return t('device_sync_error_dns')
+  if (code === 'sync_network_timeout') return t('device_sync_error_timeout')
+  if (code === 'sync_remote_locked') return t('device_sync_error_locked')
+  if (code === 'sync_server_busy') return t('device_sync_error_busy')
+  if (code === 'sync_request_too_large') return t('device_sync_error_request_size')
+  if (code === 'sync_manifest_too_large' || code === 'sync_round_too_large' || code === 'sync_record_too_large') return t('device_sync_error_capacity')
+  if (code === 'sync_response_invalid') return t('device_sync_error_response')
+  if (code.startsWith('sync_server_http_')) return t('device_sync_error_http').replace('%s', code.substring('sync_server_http_'.length))
+  if (code === 'sync_protocol_review_required') return t('device_sync_protocol_review')
   if (code === 'sync_server_storage_full') return t('device_sync_error_storage')
   if (code === 'sync_update_required') return t('device_sync_error_upgrade')
   if (code === 'sync_preview_changed' || code === 'sync_remote_changed' || code === 'sync_review_required' ||
@@ -532,6 +549,11 @@ export struct DeviceSyncWebDavPage {
     ListItem() {
       GroupedListSection({ title: t('device_sync_review_contents'),
         subtitle: preview.groups.some((row: SyncPreviewGroup): boolean => row.skipped > 0) ? t('device_sync_skipped_detail') : undefined }) {
+        if (preview.migration) {
+          ConciseListRow({ title: t('device_sync_migration_title'), subtitle: t('device_sync_migration_detail'),
+            subtitleMaxLines: 8, showChevron: false })
+          ListDivider()
+        }
         ForEach(preview.groups, (row: SyncPreviewGroup, index: number) => {
           if (index > 0) ListDivider()
           ConciseListRow({ title: t(groupKey(row.group)), showChevron: false, subtitle: this.summary(preview, row) })
@@ -616,7 +638,7 @@ export struct DeviceSyncWebDavPage {
         ListItem() {
           GroupedListSection({ title: t('device_sync_status') }) {
             ConciseListRow({ title: this.statusTitle(), subtitle: errorText(this.isDraft() ? this.draftError : this.state.error),
-              showChevron: false })
+              subtitleMaxLines: 5, showChevron: false })
             if (!this.isDraft() && this.state.lastSuccess > 0) {
               ListDivider()
               ConciseListRow({ title: t('device_sync_last_success'), subtitle: new Date(this.state.lastSuccess).toLocaleString(),
