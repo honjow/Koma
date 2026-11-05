@@ -6,12 +6,19 @@ import { SourceCatalogFilters, SourceCatalogRating, sourceCatalogLanguage } from
 const STORE: string = 'koma_source_catalog_filters_v1'
 const KEY: string = 'catalog.filters'
 
-function normalizedFilters(value: SourceCatalogFilters): SourceCatalogFilters {
+interface SourceCatalogPresentationPreferences extends SourceCatalogFilters {
+  pinnedSourceIds?: string[]
+}
+
+function normalizedFilters(value: SourceCatalogPresentationPreferences): SourceCatalogPresentationPreferences {
   const languages = value.languages === undefined ? undefined :
     Array.from(new Set(value.languages.filter((language: string): boolean => typeof language === 'string')
       .map(sourceCatalogLanguage)))
   const rating: SourceCatalogRating = ['safe', 'suggestive', 'adult', 'unknown'].includes(value.rating) ? value.rating : 'all'
-  return { languages, rating }
+  const pinnedSourceIds = Array.isArray(value.pinnedSourceIds)
+    ? Array.from(new Set(value.pinnedSourceIds.filter((id: string): boolean => typeof id === 'string' && id.length > 0)))
+    : []
+  return { languages, rating, pinnedSourceIds }
 }
 
 // One portable display preference owner for Browse and the package catalog.
@@ -20,12 +27,13 @@ function normalizedFilters(value: SourceCatalogFilters): SourceCatalogFilters {
 export class SourceCatalogFilterState {
   @Trace languages: string[] | undefined = undefined
   @Trace rating: SourceCatalogRating = 'all'
+  @Trace pinnedSourceIds: string[] = []
   private ready?: Promise<void>
   private context?: common.Context
   private writes: Promise<void> = Promise.resolve()
   private generation: number = 0
   private edit: number = 0
-  private persisted: SourceCatalogFilters = { rating: 'all' }
+  private persisted: SourceCatalogPresentationPreferences = { rating: 'all' }
 
   prepare(context: common.Context): Promise<void> {
     this.context = context
@@ -33,7 +41,7 @@ export class SourceCatalogFilterState {
       const generation = this.generation
       const edit = this.edit
       const loading = preferences.getPreferences(context, STORE).then(async (store: preferences.Preferences): Promise<void> => {
-        const value = normalizedFilters(JSON.parse(await store.get(KEY, '{}') as string) as SourceCatalogFilters)
+        const value = normalizedFilters(JSON.parse(await store.get(KEY, '{}') as string) as SourceCatalogPresentationPreferences)
         if (generation === this.generation) {
           this.persisted = value
           if (edit === this.edit) this.publish(value)
@@ -49,9 +57,10 @@ export class SourceCatalogFilterState {
 
   invalidate(): void { this.generation += 1; this.ready = undefined }
 
-  private publish(value: SourceCatalogFilters): void {
+  private publish(value: SourceCatalogPresentationPreferences): void {
     this.languages = value.languages
     this.rating = value.rating
+    this.pinnedSourceIds = value.pinnedSourceIds ?? []
   }
 
   get active(): boolean { return this.languages !== undefined || this.rating !== 'all' }
@@ -73,6 +82,17 @@ export class SourceCatalogFilterState {
   }
 
   save(value: SourceCatalogFilters): Promise<void> {
+    return this.savePresentation({ languages: value.languages, rating: value.rating, pinnedSourceIds: this.pinnedSourceIds })
+  }
+
+  setSourcePinned(id: string, pinned: boolean): Promise<void> {
+    if (id.length === 0 || this.pinnedSourceIds.includes(id) === pinned) return Promise.resolve()
+    const next = this.pinnedSourceIds.filter((key: string): boolean => key !== id)
+    if (pinned) next.unshift(id)
+    return this.savePresentation({ languages: this.languages, rating: this.rating, pinnedSourceIds: next })
+  }
+
+  private savePresentation(value: SourceCatalogPresentationPreferences): Promise<void> {
     const next = normalizedFilters(value)
     const context = this.context
     if (context === undefined) return Promise.reject(new Error('source_filter_not_ready'))

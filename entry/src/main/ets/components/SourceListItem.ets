@@ -2,6 +2,7 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
+import { AppStrings } from '../i18n/AppStrings'
 
 @ComponentV2
 export struct SourceListItem {
@@ -24,12 +25,15 @@ export struct SourceListItem {
   @Param badge: ResourceStr = ''
   @Param accentColor: ResourceColor = ThemeConstants.BRAND_PRIMARY
   @Param showSearchButton: boolean = true
+  @Param showPinButton: boolean = false
+  @Param pinned: boolean = false
   @Param languageBadge: string = 'SRC'
   @Event onActivate: () => void = () => {}
   @Event onSourceTap: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
   @Event onSourceSearch: (source: SourceRuntimeRegistryInstalledSourceSummary) => void =
     (_source: SourceRuntimeRegistryInstalledSourceSummary) => {}
+  @Event onPinToggle: (id: string) => void = (_id: string): void => {}
 
   private sourceBacked(): boolean {
     return this.source.sourceId.trim().length > 0
@@ -99,8 +103,15 @@ export struct SourceListItem {
       prefixPaddingRight: ThemeConstants.SPACE_SM,
       trailingText: this.sourceBacked() ? '' : this.displayBadge(),
       trailingTextFontSize: ThemeConstants.FONT_SIZE_TAG,
-      trailingIcon: this.showSearchButton && this.sourceBacked() ? $r('sys.symbol.magnifyingglass') : undefined,
-      trailingIconAction: () => { this.onSourceSearch(this.source) },
+      trailingIcon: this.showPinButton
+        ? (this.pinned ? $r('sys.symbol.pin_fill') : $r('sys.symbol.pin'))
+        : (this.showSearchButton && this.sourceBacked() ? $r('sys.symbol.magnifyingglass') : undefined),
+      trailingIconLabel: this.showPinButton ? AppStrings.get(this.pinned ? 'browse_source_unpin' : 'browse_source_pin') : '',
+      trailingIconWithChevron: this.showPinButton,
+      trailingIconAction: () => {
+        if (this.showPinButton) this.onPinToggle(this.source.sourceId)
+        else this.onSourceSearch(this.source)
+      },
       showChevron: true,
       action: () => {
         this.activate()
@@ -109,6 +120,13 @@ export struct SourceListItem {
   }
 
   build() {
-    this.SourceRow()
+    if (this.showPinButton) {
+      Row() { this.SourceRow() }
+        .width('100%')
+        .geometryTransition(`browse-source-pin-${this.source.sourceId}`)
+        .transition(TransitionEffect.opacity(0.99))
+    } else {
+      this.SourceRow()
+    }
   }
 }

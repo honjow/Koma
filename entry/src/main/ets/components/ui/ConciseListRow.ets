@@ -6,6 +6,8 @@ import {
   SuffixCustomBuilder,
   SuffixButton,
   SuffixIcon,
+  SuffixIconOptions,
+  SuffixSubIcon,
   SuffixSwitch,
   SuffixText,
   SuffixTextAndArrow,
@@ -29,6 +31,8 @@ export struct ConciseListRow {
   @Param subtitleContentRating: boolean = false
   @Param trailingText: ResourceStr = ''
   @Param trailingIcon: Resource | undefined = undefined
+  @Param trailingIconLabel: ResourceStr = ''
+  @Param trailingIconWithChevron: boolean = false
   @Event trailingIconAction?: () => void
   @Param actionButtonText: ResourceStr = ''
   @Param actionButtonEnabled: boolean = true
@@ -219,7 +223,7 @@ export struct ConciseListRow {
     .padding({ left: this.prefixPaddingLeft, right: this.prefixPaddingRight })
   }
 
-  private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | SuffixIcon | undefined {
+  private suffixItem(): SuffixTextAndArrow | SuffixText | SuffixCustomBuilder | SuffixSwitch | SuffixButton | SuffixIcon | SuffixSubIcon | undefined {
     if (this.suffixBuilderParam) {
       // A suffix may own a native menu anchor. Replacing its HDS descriptor
       // on a row update destroys that anchor while the menu is opening.
@@ -230,13 +234,23 @@ export struct ConciseListRow {
     }
 
     if (this.trailingIcon !== undefined) {
-      return new SuffixIcon({
+      const options: SuffixIconOptions = {
         iconValue: { symbol: this.trailingIcon },
         enable: this.isEnabled,
+        accessibilityOptions: this.trailingIconLabel === '' ? undefined : { accessibilityText: this.trailingIconLabel },
         onClick: () => {
           if (this.isEnabled && this.trailingIconAction) this.trailingIconAction()
         },
-      })
+      }
+      if (this.trailingIconWithChevron && this.showChevron) {
+        return new SuffixSubIcon(options, {
+          iconValue: { symbol: $r('sys.symbol.chevron_right') },
+          enable: this.isEnabled,
+          accessibilityOptions: { accessibilityLevel: 'no' },
+          onClick: () => { if (this.isEnabled && this.action) this.action() },
+        })
+      }
+      return new SuffixIcon(options)
     }
     if (this.actionButtonText !== '') {
       return new SuffixButton({

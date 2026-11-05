@@ -1,4 +1,4 @@
-import { komaSheetOptions } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions } from '../theme/KomaPopupOptions'
 import { SourceCatalogFiltersContent } from '../components/SourceCatalogFiltersContent'
 import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
@@ -61,12 +61,41 @@ export struct BrowsePage {
   @Computed
   private get sourcesByLanguage(): Record<string, SourceRuntimeRegistryInstalledSourceSummary[]> {
     const result: Record<string, SourceRuntimeRegistryInstalledSourceSummary[]> = {}
-    groupSourcesByLanguage(this.enabledRuntimeSources,
+    const pinned = new Set(this.catalogFilters.pinnedSourceIds)
+    groupSourcesByLanguage(this.enabledRuntimeSources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
+      !pinned.has(source.sourceId)),
       (source: SourceRuntimeRegistryInstalledSourceSummary): string => source.language)
       .forEach((group: SourceLanguageGroup<SourceRuntimeRegistryInstalledSourceSummary>): void => {
         result[group.language] = group.items
       })
     return result
+  }
+
+  @Computed
+  private get pinnedRuntimeSources(): SourceRuntimeRegistryInstalledSourceSummary[] {
+    const byId = new Map<string, SourceRuntimeRegistryInstalledSourceSummary>()
+    this.enabledRuntimeSources.forEach((source: SourceRuntimeRegistryInstalledSourceSummary): void => {
+      byId.set(source.sourceId, source)
+    })
+    const sources: SourceRuntimeRegistryInstalledSourceSummary[] = []
+    this.catalogFilters.pinnedSourceIds.forEach((id: string): void => {
+      const source = byId.get(id)
+      if (source !== undefined) sources.push(source)
+    })
+    return sources
+  }
+
+  private toggleSourcePin(id: string): void {
+    const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
+    // The same source row supplies both ends of the native transition. Keep
+    // the scroller where it is when the destination falls outside the viewport.
+    this.getUIContext().animateTo({ duration: 260, curve: Curve.EaseInOut }, (): void => {
+      void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
+        if (this.active && this.navigationVisible) {
+          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
+        }
+      })
+    })
   }
 
   @Computed
@@ -248,13 +277,31 @@ export struct BrowsePage {
       ListItem() {
         // Keep group identity by language, but read its members from the live
         // projection. A retained ForEach closure must not keep an old group DTO.
+  @Builder
+  private RuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, pinned: boolean) {
+    SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
+      accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: true, pinned,
+      onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
+      onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
+  }
+
+  @Builder
+  private PinnedSourceListItems() {
+    ListItem() {
+      GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
+        ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+          this.RuntimeSourceRow(source, true)
+          if (index + 1 < this.pinnedRuntimeSources.length) { ListDivider({ leftMargin: ThemeConstants.SPACE_XL }) }
+        }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
+          sourceDisplayName(source.sourceId, source.displayName)]))
+      }
+    }
+  }
+
         GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
           subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
           ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
-            SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
-              accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false,
-              onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
-              onSourceSearch: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSourceSearch(selected) } })
+            this.RuntimeSourceRow(source, false)
             if (index + 1 < this.sourcesInLanguage(language).length) { ListDivider({ leftMargin: ThemeConstants.SPACE_XL }) }
           }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
             sourceDisplayName(source.sourceId, source.displayName)]))
@@ -374,6 +421,9 @@ export struct BrowsePage {
           this.RuntimeSourceListItems()
         }
       }
+        if (this.pinnedRuntimeSources.length > 0) {
+          this.PinnedSourceListItems()
+        }
     }
     }
     .width('100%').height('100%')
