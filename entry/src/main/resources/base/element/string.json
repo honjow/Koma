@@ -2267,6 +2267,7 @@
     { "name": "device_sync_shelf_removal_detail", "value": "Another device removed this title from the shelf. This device keeps your notes and custom cover if you remove it here." },
     { "name": "device_sync_remove_from_shelf", "value": "Remove from shelf" },
     { "name": "device_sync_keep_on_shelf", "value": "Add back to shelf" },
+    { "name": "device_sync_error_reading_proof_pending", "value": "A reading position on this device is awaiting source verification. Retry sync before selecting a resume position." },
     { "name": "device_sync_error_public_work", "value": "The public source could not be verified. Check the source and try again." },
     { "name": "device_sync_catalog", "value": "Koma public source catalogue" },
     { "name": "device_sync_catalog_accept", "value": "Add to this device’s source subscriptions" },

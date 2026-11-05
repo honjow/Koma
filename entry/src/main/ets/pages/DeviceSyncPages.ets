@@ -39,6 +39,7 @@ function errorText(code: string): string {
   if (code === 'sync_catalog_limit') return t('device_sync_error_catalog_limit')
   if (code === 'sync_catalog_unavailable') return t('device_sync_error_catalog_unavailable')
   if (code === 'sync_public_work_unavailable') return t('device_sync_error_public_work')
+  if (code === 'sync_reading_proof_pending') return t('device_sync_error_reading_proof_pending')
   if (code === 'sync_maintenance_running') return t('device_sync_error_maintenance')
   if (code === 'sync_invalid_username' || code === 'sync_credentials_too_long') return t('device_sync_error_credentials')
   if (code === 'sync_select_contents') return t('device_sync_no_selection')

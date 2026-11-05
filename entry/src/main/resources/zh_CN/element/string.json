@@ -2267,6 +2267,7 @@
     { "name": "device_sync_shelf_removal_detail", "value": "另一台设备取消了收藏。移出后，笔记和自选封面仍保存在本机。" },
     { "name": "device_sync_remove_from_shelf", "value": "移出书架" },
     { "name": "device_sync_keep_on_shelf", "value": "重新收藏" },
+    { "name": "device_sync_error_reading_proof_pending", "value": "本机还有一处阅读进度等待书源核验。请先重试同步，再选择要采用的位置。" },
     { "name": "device_sync_error_public_work", "value": "暂时无法核对公开书源。请检查书源后重试。" },
     { "name": "device_sync_catalog", "value": "Koma 公开书源目录" },
     { "name": "device_sync_catalog_accept", "value": "加入本机书源订阅" },

@@ -93,6 +93,7 @@ class DeviceSyncRuntime {
     const storage = new DeviceSyncStorage(context.filesDir)
     const owners = new KomaDeviceSyncOwners(context, storage)
     await owners.recoverBeforeStartup()
+    await owners.restoreKeptShelfDetails().catch((): void => {})
     this.owners = owners
     this.storage = storage
     this.engine = new DeviceSyncEngine(storage, owners)
@@ -401,8 +402,10 @@ class DeviceSyncRuntime {
 
   chooseReadingDecision(key: string, value: string): Promise<void> {
     return this.task(async (): Promise<void> => {
-      this.needed().chooseReadingDecision(key, value)
-      await this.needed().syncNow()
+      const engine = this.needed()
+      const version = await engine.chooseReadingDecision(key, value)
+      await engine.syncNow()
+      if (engine.readingWritePending(version)) throw new Error('sync_reading_proof_pending')
     })
   }
 
@@ -421,11 +424,18 @@ class DeviceSyncRuntime {
       const position: SyncPositionValue = { page: capture.page, total: chapter.pages, pageTable: chapter.pageTable }
       const recent: SyncRecentValue = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
         chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
-      engine.recordEdits('reading', [
-        { key: syncKey(['position', capture.source, capture.work, capture.chapterId]), kind: 'set', value: JSON.stringify(position) },
-        { key: syncKey(['recent', capture.source, capture.work]), kind: 'set', value: JSON.stringify(recent) },
-      ], { key: deviceSyncCaptureKey(capture), id: capture.id })
+      const positionKey = syncKey(['position', capture.source, capture.work, capture.chapterId])
+      const recentKey = syncKey(['recent', capture.source, capture.work])
+      await engine.assertReadingUnprotected([positionKey, recentKey])
+      if (scope !== engine.readingScope()) throw new Error('sync_connection_changed')
+      const receiptKey = deviceSyncCaptureKey(capture)
+      const version = engine.recordEdits('reading', [
+        { key: positionKey, kind: 'set', value: JSON.stringify(position) },
+        { key: recentKey, kind: 'set', value: JSON.stringify(recent) },
+      ], { key: receiptKey, id: capture.id }) ?? this.storage?.load().readingReceipts?.find(item =>
+        item.key === receiptKey && item.id === capture.id)?.version
       await engine.syncNow()
+      if (engine.readingWritePending(version)) throw new Error('sync_reading_proof_pending')
       this.storage?.update((state: SyncLocalDocument): void => {
         state.blockedReadings = state.blockedReadings?.filter((row: SyncBlockedReading): boolean => row.capture.id !== capture.id)
       })
@@ -596,8 +606,13 @@ class DeviceSyncRuntime {
 
   private recordLibrary(actions: SyncLibrarySignal[]): void {
     const scope = this.engine?.groupScope('shelf') ?? ''
-    if (scope === '' || actions.length === 0) return
-    this.libraryEdits = this.libraryEdits.then((): Promise<void> => this.applyLibraryActions(actions, scope))
+    if (actions.length === 0) return
+    this.libraryEdits = this.libraryEdits.then(async (): Promise<void> => {
+      if (actions.some((action: SyncLibrarySignal): boolean => action.kind === 'add-book')) {
+        await this.owners?.restoreKeptShelfDetails()
+      }
+      if (scope !== '') await this.applyLibraryActions(actions, scope)
+    })
       .catch((error: Error): void => { this.view.error = error.message })
   }
 

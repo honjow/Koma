@@ -519,6 +519,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       if (key[0] !== 'book' || !syncKnownSource(key[1])) return
       const id = sourceLibraryComicId(key[1], key[2])
       const existing = library.comics.find((comic: PersistedComic): boolean => comic.id === id)
+      const kept = projection.keptShelfDetails?.find((entry: SyncKeptShelfDetails): boolean => entry.id === id)
       if (change.value === '') {
         if (existing === undefined) return
         if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri)) {
@@ -534,17 +535,25 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         library.comics = library.comics.filter((comic: PersistedComic): boolean => comic.id !== id)
       } else if (existing === undefined) {
         const label = JSON.parse(change.value) as SyncWorkLabel
-        const kept = projection.keptShelfDetails?.find((entry: SyncKeptShelfDetails): boolean => entry.id === id)
         library.comics.push({ id, title: label.title, sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
           sourcePath: 'source://' + key[1] + '/' + key[2], sourceRuntimeId: key[1], remoteResourceId: key[2],
           sourceMetadata: { sourceName: label.sourceName }, sortTitle: normalizeSortKey(label.title),
           preferredDirection: ReadingDirection.RIGHT_TO_LEFT, chapters: [], chapterCount: 0, pageCount: 0,
           personalNotes: kept?.notes, customCoverUri: kept?.cover, coverUri: kept?.cover,
           createdAt: now, updatedAt: now, lastImportedAt: now })
-        if (kept !== undefined) projection.keptShelfDetails = projection.keptShelfDetails?.filter((entry: SyncKeptShelfDetails): boolean =>
-          entry.id !== id)
       } else {
         projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
+        if (kept !== undefined) {
+          existing.personalNotes = existing.personalNotes ?? kept.notes
+          if (existing.customCoverUri === undefined && kept.cover !== undefined) {
+            existing.sourceCoverUri = existing.sourceCoverUri ?? existing.coverUri
+            existing.customCoverUri = kept.cover
+            existing.coverUri = kept.cover
+          }
+        }
+      }
+      if (kept !== undefined && change.value !== '') {
+        projection.keptShelfDetails = projection.keptShelfDetails?.filter((entry: SyncKeptShelfDetails): boolean => entry.id !== id)
       }
     })
     changes.forEach((change: SyncLocalValue): void => {
@@ -845,6 +854,24 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       [{ group: 'shelf', revision: snapshot.revision }], (id: string): void => {
         this.storage.update((state: SyncLocalDocument): void => { state.localReceipt = id })
       }, item.id)
+  }
+
+  async restoreKeptShelfDetails(): Promise<void> {
+    const kept = this.projection().keptShelfDetails ?? []
+    if (kept.length === 0) return
+    const changes: SyncLocalValue[] = []
+    this.library().comics.forEach((comic: PersistedComic): void => {
+      if (!kept.some((entry: SyncKeptShelfDetails): boolean => entry.id === comic.id)) return
+      const identity = knownWork(comic.sourceRuntimeId, comic.remoteResourceId)
+      // Only an existing ordinary shelf entry can recover local personalization.
+      // applyShelf's existing-record branch does not consume a remote label.
+      if (identity !== undefined) changes.push({ key: syncKey(['book', identity.source, identity.work]), value: 'true' })
+    })
+    if (changes.length === 0) return
+    const snapshot = await this.snapshot('shelf', false)
+    await this.commit([{ group: 'shelf', changes }], [{ group: 'shelf', revision: snapshot.revision }], (id: string): void => {
+      this.storage.update((state: SyncLocalDocument): void => { state.localReceipt = id })
+    })
   }
 
   sourceIdentity(comicId: string): SyncSourceIdentity | undefined {

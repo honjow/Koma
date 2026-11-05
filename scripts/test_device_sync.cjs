@@ -109,7 +109,9 @@ function engineFixture() {
   const clone = value => value === undefined ? undefined : structuredClone(value)
   class Provider {
     constructor(draft) {
-      if (!servers.has(draft.directory)) servers.set(draft.directory, { tag: '', head: undefined, objects: new Map() })
+      if (!servers.has(draft.directory)) servers.set(draft.directory, {
+        tag: '', head: undefined, objects: new Map(), published: [], failures: [],
+      })
       this.server = servers.get(draft.directory)
     }
     async probe(_id, guard) { guard() }
@@ -129,9 +131,13 @@ function engineFixture() {
     }
     async publish(head, tag, guard) {
       guard()
+      this.server.published.push(clone(head))
       if (this.server.tag !== tag) return false
+      const failure = this.server.failures.shift()
+      if (failure === '412') return false
       this.server.head = clone(head)
       this.server.tag = '"' + head.revision + '"'
+      if (failure === 'lost-response') throw new Error('sync_network_failed')
       return true
     }
     async sweepable() { return [] }
@@ -254,7 +260,7 @@ test('a pre-restore action stays local until explicitly selected in the merge pr
 })
 
 test('restoring a pending unread action resets the corresponding position in the same commit', async () => {
-  const { replica, draft } = engineFixture()
+  const { replica, draft, servers } = engineFixture()
   const read = data.syncKey(['read', ...data.syncKeyParts(key).slice(1)])
   const first = replica(A, [['reading', new Map([[key, position(7)], [read, 'true']])]])
   await first.engine.testConnection(draft)
@@ -268,6 +274,11 @@ test('restoring a pending unread action resets the corresponding position in the
   await first.engine.confirm(preview.token, [{ group: 'reading', key, useLocal: true, useBeforeRestore: true }])
   assert.equal(first.values.get('reading').get(read), 'false')
   assert.equal(first.values.get('reading').get(key), position(0))
+  const server = servers.get(draft.directory)
+  const persisted = server.head.datasets.flatMap(dataset => dataset.shards
+    .flatMap(ref => wire.decodeSyncShard(dataset.id, ref, server.objects.get(wire.syncShardPath(ref)), data.syncBucketKey)))
+  assert.deepEqual(persisted.find(fact => fact.key === read).barriers[0].version,
+    persisted.find(fact => fact.key === key).barriers[0].version)
 })
 
 test('a successful backup restore seals an already-sent intent before foreground recovery', async () => {
@@ -301,10 +312,40 @@ test('an explicit reading decision observes both concurrently saved page positio
   await left.engine.syncNow()
   await right.engine.syncNow()
   assert.deepEqual(new Set(right.engine.readingDecisions()[0].values), new Set([position(3), position(4)]))
-  right.engine.chooseReadingDecision(key, position(3))
+  right.snapshotExtras.set('reading', { protectedKeys: [key] })
+  await assert.rejects(right.engine.chooseReadingDecision(key, position(3)), /sync_reading_proof_pending/)
+  assert.equal(right.engine.readingDecisions().length, 1)
+  right.snapshotExtras.delete('reading')
+  const chosen = await right.engine.chooseReadingDecision(key, position(3))
+  right.snapshotExtras.set('reading', { protectedKeys: [key] })
+  await right.engine.syncNow()
+  assert.equal(right.engine.readingWritePending(chosen), true)
+  right.snapshotExtras.delete('reading')
   await right.engine.syncNow()
   await left.engine.syncNow()
   assert.equal(left.values.get('reading').get(key), position(3))
   assert.equal(right.values.get('reading').get(key), position(3))
   assert.equal(right.engine.readingDecisions().length, 0)
+})
+
+test('a real preference change keeps its dot through a rejected conditional write and a lost reply', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const pageNumber = data.syncKey(['global', 'page-number'])
+  const first = replica(A, [['reader-settings', new Map([[pageNumber, 'true']])]])
+  await first.engine.testConnection(draft)
+  await first.engine.confirm((await first.engine.prepare(draft, ['reader-settings'])).token, [])
+  const server = servers.get(draft.directory)
+  server.failures.push('412', 'lost-response')
+  first.values.get('reader-settings').set(pageNumber, 'false')
+  await assert.rejects(first.engine.syncNow(), /sync_network_failed/)
+  const attempts = server.published.slice(1)
+  assert.equal(attempts.length, 2)
+  assert.deepEqual(attempts[0].datasets, attempts[1].datasets)
+  const fact = attempts[0].datasets.flatMap(dataset => dataset.shards
+    .flatMap(ref => wire.decodeSyncShard(dataset.id, ref, server.objects.get(wire.syncShardPath(ref)), data.syncBucketKey)))
+    .find(item => item.key === pageNumber)
+  assert.equal(fact.values[0].value, 'false')
+  assert.equal(fact.values[0].version.sequence, 2)
+  await first.engine.syncNow()
+  assert.equal(server.published.length, 3, 'the accepted write is not issued again')
 })
