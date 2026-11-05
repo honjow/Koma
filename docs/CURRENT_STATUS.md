@@ -16,11 +16,11 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T00:59:18+08:00",
+  "updatedAt": "2026-11-06T03:31:42+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "READING_HISTORY_SYNC",
-  "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
-  "nextAction": "同步改动与验证结果已交付；其余既有问题保留原工作单状态，书源由另一会话处理。",
+  "activeId": "READER_ASYNC_PAGE_ROLLBACK",
+  "activity": "备份设置遗漏已修复推送；条漫入场已通过手机和平板复验，共享修复待仓库写权限；继续处理偶发翻页回退。",
+  "nextAction": "核分页原生手势、动画目标与旧选页回调的绑定边界，保留快速翻页和正常反向。",
   "proof": [
     {
       "label": "正式主仓",
@@ -7714,23 +7714,33 @@
     {
       "id": "READER_WEBTOON_ENTRY_TOP_FLICKER",
       "title": "条漫模式进入阅读时顶部闪一下",
-      "kind": "open",
+      "kind": "external",
       "priority": "后排（用户指定）",
-      "status": "开始定位：准备当前包普通入场连续录像",
-      "stage": "定位中",
+      "status": "197与103普通入口验收通过，等待共享仓库写权限",
+      "stage": "设备验证通过；本地提交，未推送",
       "owner": "Root：Koma 阅读器",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "本会话用户报告「条漫模式进入阅读的时候，顶部会闪烁一下」，明确要求排后处理。首次报告的精确时间未核实。",
-      "result": "备份遗漏项修复及真机验收完成后，开始按普通入口定位本项。197当前阅读模式为连续滚动，尚未以新录像确认闪烁区域，不先假定是状态栏或修改布局。",
-      "remaining": "按原后排优先级继续保留。定位时从普通入口连续观察详情到条漫阅读的完整过程，先确认顶部闪烁区域和触发条件，再修复和独立复验。",
+      "result": "197当前包普通详情进入连续滚动阅读，完整原片第106/107帧在顶部出现白灰色块，108帧恢复加载条、116帧显示正文；独立评审核过全部原帧。连续列表在真实宽度测量前按1vp占位宽度建立图片行，加载条聚叠。只延后子行的候选虽消除旧顶部块，但首次入场第110帧先露错误位置图像、111帧退加载，112帧才到原19页；该候选不通过，未宣称修复。现修正实际容器测量与完整列表首次建立顺序，保留原样式、转场和页间几何。 第二个候选仍出现一次下邻页早露。两段反例先显示估高行与下邻图，下一帧加载条下移量与目标行从占位高换成实际高吻合。197 同一轮六次诊断均正常；完整日志确认目标占位时下邻已经排入视口，真实目标高度生效后才退出。修复限定普通原图入口，相邻原图继续解码，仅在首次锚点按真实高度完成布局之前保留原加载反馈，未实际呈现的相邻页不写进度。 无探针同一候选：197 书架详情冷首次及重复共六次均先显示原第19页；103 横屏双栏详情三次均先显示原第8页。主执行与独立评审均核对原片，无顶部叠块、邻页提前或出图回落，原续读页、横向转场和返回保留。103阅读偏好前后逐字相同，两机录屏临时文件和电源均清理恢复并释租。",
+      "remaining": "共享 reader-kit 仓库 GitHub 返回 403。具备该仓库写权限后先推共享提交，确认远端可取，再推 Koma 引用并核 CI。App 版本不变。",
       "closedAt": null,
       "evidence": [
         "https://github.com/honjow/Koma/commit/e82820d5a09b7eec133ec00b70fa62bab966fc65",
         "entry/src/main/ets/pages/ReaderPage.ets",
-        "third_party/reader-kit/reader-ui/src/main/ets/ReaderSurface.ets"
+        "third_party/reader-kit/reader-ui/src/main/ets/ReaderSurface.ets",
+        ".hvigor/outputs/reader-entry-flicker-20261106/first-measure-candidate-review.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/entry-baseline-frames/frames/frame_000106.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/entry-fixed197-frames/frames/frame_000110.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/entry-measured197-frames/frames/frame_000179.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/entry-geometry-six197-frames/frame-timeline.tsv",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-entry-log-20261106T031043512604/entry-geometry.log",
+        ".hvigor/outputs/reader-entry-flicker-20261106/anchor-layout-normal-independent-review.json"
       ],
-      "updatedAt": "2026-11-06T01:36:19+08:00"
+      "updatedAt": "2026-11-06T03:31:42+08:00",
+      "remainingActions": [
+        "取得现有共享仓库写权限后发布 Git 提交，再更新 Koma 依赖引用。"
+      ]
     }
   ],
   "source": {
@@ -18425,6 +18435,18 @@
       "at": "2026-11-06T00:59:18+08:00",
       "title": "CosplayTele封面与源正式分发已核，搜索新版仍待动效实机",
       "result": "公开资产、许可、索引和镜像字节已核；公开WASM完整固定响应／Host轨迹与候选一致。封面项按具名范围关闭；源列表搜索仅新版实现推进，不冒动画已验。紳士漫畫本地完整分层已实做，Host输入校验与Native仍待。"
+    },
+    {
+      "id": "reader-entry-early-neighbor-geometry-20261106",
+      "at": "2026-11-06T03:18:47+08:00",
+      "title": "查清首次占位把邻页排进视口的边界",
+      "result": "保留第二候选失败原片和同轮六次正常诊断的边界；新候选仅等待普通入口真实锚点行布局，正常包尚未实机核对。"
+    },
+    {
+      "id": "reader-entry-measured-anchor-device-review-20261106",
+      "at": "2026-11-06T03:31:42+08:00",
+      "title": "条漫首次目标布局候选通过197和103实机复验",
+      "result": "两机共九次原页入场录像经独立评审通过，数据与电源状态已核；当前账号无共享仓库推送权限。"
     }
   ],
   "reportAgeAudit": {
