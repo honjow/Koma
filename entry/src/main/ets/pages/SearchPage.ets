@@ -580,6 +580,11 @@ export struct SearchPage {
   private runHistoryQuery(entry: SearchHistoryEntry): void {
     const sources = entry.syncSourceSet === undefined ? undefined : appDeviceSync.availablePublicSearchSources(entry.syncSourceSet)
     if (sources?.length === 0) {
+      if (this.searchTimer > 0) clearTimeout(this.searchTimer)
+      this.searchTimer = 0
+      this.chrome.updateQuery(entry.query)
+      this.handledQueryChangeSeq = this.chrome.queryChangeSeq
+      this.queryText = entry.query
       this.feedbackText = s('device_sync_search_sources_missing')
       return
     }

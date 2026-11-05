@@ -30,10 +30,12 @@ import {
   SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSubscription,
   SyncWorkLabel, syncChapterBelongsToSource, syncKey, syncKeyParts, syncKnownSource, syncPublicLabel, syncSearchIdentity,
 } from './DeviceSyncData'
-import { DeviceSyncStorage, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt } from './DeviceSyncStorage'
+import { DeviceSyncStorage, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt, SyncReadingRestoreCandidate,
+  SyncRestoreEdit } from './DeviceSyncStorage'
 import { deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncCapturedReadingEdit, SyncReadingActionCapture,
   SyncReadingCapture } from './DeviceSyncSignals'
-import { DeviceSyncPublicSources, SyncPublicWorkProof, syncHasTrustedPackage, matchesPublicSyncPages } from './DeviceSyncPublicSource'
+import { DeviceSyncPublicSources, SyncPublicWorkProof, syncHasTrustedPackage, matchesPublicSyncPageHash,
+  matchesPublicSyncPages } from './DeviceSyncPublicSource'
 import { syncDigest } from './DeviceSyncWire'
 
 const SYNC_PROJECTION = 'device-sync-projection.v1.json'
@@ -82,6 +84,7 @@ interface SyncFileImage {
 interface LocalJournal {
   id: string
   files: SyncFileImage[]
+  filesStarted?: boolean
   previousPreferences?: ReaderDeviceSyncPreferences
   nextPreferences?: ReaderDeviceSyncPreferences
   previousSearch?: SearchHistoryEntry[]
@@ -344,8 +347,48 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     actions.forEach((capture: SyncReadingActionCapture): void => {
       capture.edits.forEach((edit: SyncCapturedReadingEdit): void => { protectedKeys.add(edit.key) })
     })
-    return { values, revision: syncDigest(rawLibrary + rawReading + side), skipped: skipped + pending.length + actions.length,
-      protectedKeys: Array.from(protectedKeys) }
+    const archive = this.storage.load().readingRestoreCandidates?.find((candidate: SyncReadingRestoreCandidate): boolean =>
+      candidate.space === space)
+    return { values, revision: syncDigest(rawLibrary + rawReading + side + JSON.stringify(archive ?? null)),
+      skipped: skipped + pending.length + actions.length, protectedKeys: Array.from(protectedKeys),
+      restoreEdits: verify && archive !== undefined ? await this.verifiedRestoreEdits(archive) : undefined }
+  }
+
+  private async verifiedRestoreEdits(archive: SyncReadingRestoreCandidate): Promise<SyncRestoreEdit[]> {
+    const result = new Map<string, SyncRestoreEdit>()
+    const lastAction = new Map<string, string>()
+    for (const action of archive.actions) {
+      const chapter = action.chapterId === '' ? undefined :
+        await this.publicSources.chapter(action.source, action.work, action.chapterId, true)
+      if (action.chapterId !== '' && chapter === undefined) continue
+      for (const edit of action.edits) {
+        let value = edit.value
+        if (edit.kind === 'reset' && value === '') {
+          if (chapter === undefined) continue
+          const position: SyncPositionValue = { page: 0, total: chapter.pages, pageTable: chapter.pageTable }
+          value = JSON.stringify(position)
+        }
+        result.set(edit.key, { key: edit.key, value, kind: edit.kind, observed: edit.observed })
+        lastAction.set(edit.key, action.id)
+      }
+    }
+    for (const capture of archive.positions) {
+      const work = await this.publicSources.work(capture.source, capture.work, true)
+      const chapter = await this.publicSources.chapter(capture.source, capture.work, capture.chapterId, true)
+      if (work === undefined || chapter === undefined || capture.total !== chapter.pages ||
+        !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) continue
+      const position: SyncPositionValue = { page: capture.page, total: chapter.pages, pageTable: chapter.pageTable }
+      const recent: SyncRecentValue = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
+        chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
+      const save = (key: string, value: string): void => {
+        const priorAction = lastAction.get(key)
+        if (priorAction === undefined || capture.observedActions.includes(priorAction)) result.set(key, { key, value, kind: 'set' })
+      }
+      save(syncKey(['position', capture.source, capture.work, capture.chapterId]), JSON.stringify(position))
+      save(syncKey(['recent', capture.source, capture.work]), JSON.stringify(recent))
+      if (capture.complete) save(syncKey(['read', capture.source, capture.work, capture.chapterId]), 'true')
+    }
+    return Array.from(result.values())
   }
 
   readingAcknowledged(capture: SyncReadingCapture): boolean {
@@ -663,12 +706,17 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         saveCursor(id)
         return
       }
-      const journal: LocalJournal = { id, files, previousPreferences, nextPreferences, previousSearch, nextSearch }
+      const journal: LocalJournal = { id, files, filesStarted: false, previousPreferences, nextPreferences, previousSearch, nextSearch }
       writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
       try {
         if (nextPreferences !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(nextPreferences)
         if (nextSearch !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(nextSearch)
-        if (reader.currentDeviceSyncRevision() !== readerRevision) throw new Error('sync_local_changed')
+        if (reader.currentDeviceSyncRevision() !== readerRevision || files.some((image: SyncFileImage): boolean =>
+          readFile(this.path(image.name)) !== image.before)) throw new Error('sync_local_changed')
+        // File owners commit synchronously. They can accept ordinary edits
+        // while Preferences await, but never interleave with this file phase.
+        journal.filesStarted = true
+        writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
         for (const image of files) writeAppTextFile(this.path(image.name), image.after)
         saveCursor(id)
         fs.unlinkSync(this.path(SYNC_JOURNAL))
@@ -703,15 +751,19 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       throw new Error('sync_local_journal_invalid')
     }
     const committed = this.storage.load().localReceipt === journal.id
+    if (journal.filesStarted !== false) {
+      for (const image of journal.files) {
+        const body = committed ? image.after : image.before
+        if (body !== undefined) writeAppTextFile(this.path(image.name), body)
+        else if (fs.accessSync(this.path(image.name))) fs.unlinkSync(this.path(image.name))
+      }
+      journal.filesStarted = false
+      writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
+    }
     const prefs = committed ? journal.nextPreferences : journal.previousPreferences
     if (prefs !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(prefs)
     const search = committed ? journal.nextSearch : journal.previousSearch
     if (search !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(search)
-    for (const image of journal.files) {
-      const body = committed ? image.after : image.before
-      if (body !== undefined) writeAppTextFile(this.path(image.name), body)
-      else if (fs.accessSync(this.path(image.name))) fs.unlinkSync(this.path(image.name))
-    }
     fs.unlinkSync(this.path(SYNC_JOURNAL))
   }
 

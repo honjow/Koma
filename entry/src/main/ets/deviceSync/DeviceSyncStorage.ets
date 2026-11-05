@@ -3,7 +3,7 @@ import { asset } from '@kit.AssetStoreKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { util } from '@kit.ArkTS'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
-import { isSyncReplica, SyncFact, SyncGroup, SyncVersion } from './DeviceSyncFacts'
+import { isSyncReplica, SyncEditKind, SyncFact, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { canonicalSyncDirectory, SyncConnectionDraft } from './DeviceSyncWebDav'
 import { syncUtf8 } from './DeviceSyncWire'
 import { SyncReadingActionCapture, SyncReadingCapture } from './DeviceSyncSignals'
@@ -18,6 +18,14 @@ export interface SyncLocalSnapshot {
   revision: string
   skipped: number
   protectedKeys?: string[]
+  restoreEdits?: SyncRestoreEdit[]
+}
+
+export interface SyncRestoreEdit {
+  key: string
+  value: string
+  kind: SyncEditKind
+  observed?: SyncVersion[]
 }
 
 export interface SyncReadingReceipt {

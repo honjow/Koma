@@ -155,6 +155,7 @@ function engineFixture() {
   function replica(id, initial = []) {
     let document = { schema: 1, replica: id, counter: 0, probes: [] }
     const values = new Map(initial)
+    const snapshotExtras = new Map()
     const store = {
       load: () => document,
       update(change) { const next = clone(document); change(next); document = next },
@@ -162,7 +163,7 @@ function engineFixture() {
     const owner = {
       async snapshot(group) {
         const rows = [...(values.get(group) ?? new Map())].map(([key, value]) => ({ key, value }))
-        return { values: rows, revision: JSON.stringify(rows), skipped: 0 }
+        return { values: rows, revision: JSON.stringify(rows), skipped: 0, ...snapshotExtras.get(group) }
       },
       removed: () => [],
       async commit(groups, expected, save) {
@@ -179,7 +180,7 @@ function engineFixture() {
         save(randomUUID())
       },
     }
-    return { engine: new DeviceSyncEngine(store, owner), values, store }
+    return { engine: new DeviceSyncEngine(store, owner), values, store, snapshotExtras }
   }
   return { replica, draft, servers }
 }
@@ -221,4 +222,33 @@ test('first conflict is deferred across runs and a choice for the other device i
   await right.engine.confirm(next.token, [{ group: 'reader-settings', key: mode, useLocal: false }])
   assert.equal(right.values.get('reader-settings').get(mode), '"fit_width"')
   assert.equal(right.engine.active().reviewRequired, false)
+})
+
+test('an unverified durable Reader edit protects local position without changing the remote head', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const first = replica(A, [['reading', new Map([[key, position(1)]])]])
+  await first.engine.testConnection(draft)
+  await first.engine.confirm((await first.engine.prepare(draft, ['reading'])).token, [])
+  const before = structuredClone(servers.get(draft.directory).head)
+  first.values.get('reading').set(key, position(6))
+  first.snapshotExtras.set('reading', { protectedKeys: [key] })
+  await first.engine.syncNow()
+  assert.equal(first.values.get('reading').get(key), position(6))
+  assert.deepEqual(servers.get(draft.directory).head, before)
+})
+
+test('a pre-restore action stays local until explicitly selected in the merge preview', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const first = replica(A, [['reading', new Map([[key, position(1)]])]])
+  await first.engine.testConnection(draft)
+  await first.engine.confirm((await first.engine.prepare(draft, ['reading'])).token, [])
+  const before = structuredClone(servers.get(draft.directory).head)
+  first.snapshotExtras.set('reading', { restoreEdits: [{ key, kind: 'set', value: position(6) }] })
+  const preview = await first.engine.prepare(draft, ['reading'])
+  assert.equal(preview.beforeRestore[0].local, position(6))
+  await first.engine.confirm(preview.token, [])
+  assert.deepEqual(servers.get(draft.directory).head, before)
+  const explicit = await first.engine.prepare(draft, ['reading'])
+  await first.engine.confirm(explicit.token, [{ group: 'reading', key, useLocal: true, useBeforeRestore: true }])
+  assert.equal(first.values.get('reading').get(key), position(6))
 })

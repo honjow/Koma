@@ -10,7 +10,7 @@ import {
 } from './DeviceSyncWire'
 import {
   DeviceSyncStorage, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
-  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncSavedConnection, checkedSyncDraft, copySyncConnection,
+  SyncPendingEdit, SyncProbeRecord, SyncReadingReceipt, SyncRestoreEdit, SyncSavedConnection, checkedSyncDraft, copySyncConnection,
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
@@ -46,6 +46,7 @@ export interface SyncMergeChoice {
   group: SyncGroup
   key: string
   useLocal: boolean
+  useBeforeRestore?: boolean
 }
 
 export interface SyncPreviewGroup {
@@ -72,6 +73,8 @@ export interface SyncPreview {
   conflicts: SyncMergeConflict[]
   freshConnection: boolean
   categories: string[]
+  beforeRestore: SyncMergeConflict[]
+  earlierUnconfirmed: number
 }
 
 interface PreparedSync {
@@ -241,6 +244,10 @@ export class DeviceSyncEngine {
     if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
     const groups = await this.prepareGroups(provider, selected, existing, remote.manifest, guard, true)
     const preview = this.summarize(groups, existing === undefined)
+    if (remote.manifest !== undefined) {
+      preview.earlierUnconfirmed = this.unconfirmedFromEarlierConnection(
+        endpointIdentity(draft), remote.manifest.space, groups)
+    }
     guard()
     if (this.storage.load().counter !== counter) throw new Error('sync_preview_changed')
     this.prepared = { preview, generation, counter, draft, connection: existing, remote, selected, groups }
@@ -276,7 +283,7 @@ export class DeviceSyncEngine {
       if (this.storage.load().counter !== prepared.counter) throw new Error('sync_preview_changed')
       const proposal = this.propose(prepared.groups, current.manifest, choices)
       await this.execute(provider, prepared.connection, credential, prepared.selected, current, proposal, guard, true,
-        endpointIdentity(prepared.draft))
+        endpointIdentity(prepared.draft), prepared.groups)
     } catch (error) {
       await this.removeUnusedCredential(credential)
       throw error as Error
@@ -396,6 +403,7 @@ export class DeviceSyncEngine {
 
   private summarize(groups: PreparedGroup[], fresh: boolean): SyncPreview {
     const conflicts: SyncMergeConflict[] = []
+    const beforeRestore: SyncMergeConflict[] = []
     const categories: string[] = []
     const summaries = groups.map((entry: PreparedGroup): SyncPreviewGroup => {
       let upload = 0
@@ -403,6 +411,12 @@ export class DeviceSyncEngine {
       let remove = 0
       const local = byLocalValue(entry.local.values)
       const remote = bySyncFact(entry.remote)
+      entry.local.restoreEdits?.forEach((edit: SyncRestoreEdit): void => {
+        if (!entry.local.protectedKeys?.includes(edit.key) && (edit.kind !== 'set' || edit.value !== local.get(edit.key))) {
+          beforeRestore.push({ group: entry.id, key: edit.key, local: edit.value,
+            remote: local.get(edit.key) ?? '', deleted: edit.kind === 'delete' || edit.kind === 'clear-observed' })
+        }
+      })
       local.forEach((value: string, key: string): void => {
         if (entry.local.protectedKeys?.includes(key)) return
         const fact = remote.get(key)
@@ -423,7 +437,28 @@ export class DeviceSyncEngine {
       })
       return { group: entry.id, upload, download, remove, skipped: entry.local.skipped }
     })
-    return { token: util.generateRandomUUID(), groups: summaries, conflicts, freshConnection: fresh, categories }
+    return { token: util.generateRandomUUID(), groups: summaries, conflicts, freshConnection: fresh, categories, beforeRestore,
+      earlierUnconfirmed: 0 }
+  }
+
+  private unconfirmedFromEarlierConnection(endpoint: string, space: string, groups: PreparedGroup[]): number {
+    const state = this.storage.load()
+    const earlier = (state.archivedIntents ?? []).slice()
+    if (state.intent?.detached) earlier.push(state.intent)
+    const remoteByGroup = new Map<SyncGroup, Map<string, SyncFact>>()
+    groups.forEach((row: PreparedGroup): void => { remoteByGroup.set(row.id, bySyncFact(row.remote)) })
+    let count = 0
+    for (const intent of earlier) {
+      if (intent.connection.endpointIdentity !== endpoint || intent.connection.space !== space) continue
+      for (const group of intent.connection.groups) {
+        const remote = remoteByGroup.get(group.id)
+        for (const pending of group.pending) {
+          const found = remote?.get(pending.key)
+          if (found === undefined || !syncObserves(found.seen, pending.version)) count++
+        }
+      }
+    }
+    return count
   }
 
   private propose(prepared: PreparedGroup[], existing: SyncManifest | undefined, choices: SyncMergeChoice[]): ProposedSync {
@@ -443,8 +478,9 @@ export class DeviceSyncEngine {
       const pending = row.resetBaseline ? [] : row.previous?.pending.slice() ?? []
       const deferred = new Set<string>()
       const protectedKeys = new Set<string>(row.local.protectedKeys ?? [])
+      const adopted = new Set<string>()
       local.forEach((value: string, key: string): void => {
-        if (protectedKeys.has(key)) return
+        if (protectedKeys.has(key) || conflictChoice(choices, row.id, key)?.useBeforeRestore === true) return
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
         if (((row.requiresPreview && remoteFact !== undefined) || row.previous?.deferred?.includes(key) === true) &&
@@ -459,18 +495,25 @@ export class DeviceSyncEngine {
           (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]))) ||
           (conflict[0] === 'recent' && parts.length === 4 && parts[1] === conflict[1] && parts[2] === conflict[2]))
       }
-      const editFact = (key: string, kind: SyncEditKind, value: string, remoteFact?: SyncFact): void => {
+      const editFact = (key: string, kind: SyncEditKind, value: string, remoteFact?: SyncFact, observed?: SyncVersion[]): void => {
         let fact = edits.get(key) ?? emptySyncFact(key)
         if (remoteFact !== undefined) fact = mergeSyncFacts([fact], [remoteFact])[0]
         const version: SyncVersion = { replica: current.replica, sequence: ++counter }
-        const edit: SyncEdit = { version, observed: fact.seen, kind, value }
+        const edit: SyncEdit = { version, observed: observed ?? fact.seen, kind, value }
         const updated = applySyncEdit(fact, edit)
         checkSyncGroupFact(row.id, updated)
         edits.set(key, updated)
         pending.push({ key, version })
       }
+      row.local.restoreEdits?.forEach((edit: SyncRestoreEdit): void => {
+        if (protectedKeys.has(edit.key) || conflictChoice(choices, row.id, edit.key)?.useBeforeRestore !== true) return
+        deferred.delete(edit.key)
+        editFact(edit.key, edit.kind, edit.value, remote.get(edit.key),
+          edit.kind === 'clear-observed' ? edit.observed : undefined)
+        adopted.add(edit.key)
+      })
       local.forEach((value: string, key: string): void => {
-        if (isDeferred(key) || protectedKeys.has(key)) return
+        if (isDeferred(key) || protectedKeys.has(key) || adopted.has(key)) return
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
         const needsDecision = (row.requiresPreview || row.previous?.deferred?.includes(key) === true) &&
@@ -535,7 +578,7 @@ export class DeviceSyncEngine {
 
   private async execute(provider: DeviceSyncWebDav, prior: SyncSavedConnection | undefined, credential: string,
     selected: SyncGroup[], remote: SyncRemoteManifest, proposal: ProposedSync, guard: SyncRequestGuard,
-    manualPreview: boolean, endpoint: string): Promise<void> {
+    manualPreview: boolean, endpoint: string, reviewedGroups: PreparedGroup[] = []): Promise<void> {
     let groups = prior?.groups.slice() ?? []
     proposal.groups.forEach((row: SyncGroupState): void => { groups = replaceGroup(groups, row) })
     const connection: SyncSavedConnection = {
@@ -550,13 +593,15 @@ export class DeviceSyncEngine {
       if (state.counter !== proposal.initialCounter) throw new Error('sync_preview_changed')
       state.counter = proposal.counter
       const detached = state.intent
-      if (detached !== undefined && detached.connection.endpointIdentity !== endpoint) {
+      if (detached !== undefined && (detached.detached || detached.connection.endpointIdentity !== endpoint)) {
         const archived: SyncCommitIntent = { connection: copySyncConnection(detached.connection),
           expected: detached.expected, sent: detached.sent, detached: true,
           groupRevisions: detached.groupRevisions, applies: detached.applies }
         archived.connection.credential = ''
         state.archivedIntents = (state.archivedIntents ?? []).filter((item: SyncCommitIntent): boolean =>
-          item.connection.endpointIdentity !== detached.connection.endpointIdentity).concat(archived)
+          item.connection.endpointIdentity !== detached.connection.endpointIdentity ||
+          item.connection.space !== detached.connection.space ||
+          item.connection.manifestHash !== detached.connection.manifestHash).concat(archived)
       }
       if (detached !== undefined && detached.connection.credential !== credential) {
         const ref = detached.connection.credential
@@ -622,8 +667,18 @@ export class DeviceSyncEngine {
           state.retiredCredentials = (state.retiredCredentials ?? []).concat(previousCredential)
         }
         state.archives = state.archives?.filter((entry: SyncSavedConnection): boolean => entry.endpointIdentity !== endpoint)
-        state.archivedIntents = state.archivedIntents?.filter((entry: SyncCommitIntent): boolean =>
-          entry.connection.endpointIdentity !== endpoint)
+        // Only the exact remote dots of the old, same-space plan prove that
+        // it was accepted or superseded. A new merge does not stand in for it.
+        state.archivedIntents = state.archivedIntents?.filter((entry: SyncCommitIntent): boolean => {
+          if (entry.connection.endpointIdentity !== endpoint || entry.connection.space !== connection.space) return true
+          return entry.connection.groups.some((group: SyncGroupState): boolean => {
+            const current = reviewedGroups.find((row: PreparedGroup): boolean => row.id === group.id)
+            return group.pending.some((item: SyncPendingEdit): boolean => {
+              const fact = current?.remote.find((row: SyncFact): boolean => row.key === item.key)
+              return fact === undefined || !syncObserves(fact.seen, item.version)
+            })
+          })
+        })
       })
     })
     if (previousCredential !== undefined && previousCredential !== credential) {

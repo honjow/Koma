@@ -769,7 +769,7 @@ export class AppFilesLibraryStorePersistenceAdapter implements LibraryStorePersi
   }
 
   save(payload: string): void {
-    if (BackupRestoreActivity.deviceSyncIsCommitting() || BackupRestoreActivity.hasPendingRecovery()) {
+    if (BackupRestoreActivity.hasPendingRecovery()) {
       throw new Error('sync_local_busy')
     }
     writeAppTextFile(this.filePath, payload)

@@ -229,6 +229,7 @@ class DeviceSyncRuntime {
     const owners = this.owners
     if (active !== undefined && context !== undefined && owners !== undefined) {
       const reader = appReaderSessionStore(context.filesDir)
+      if (!reader.flush()) throw new Error('reader_progress_save_failed')
       const positions = reader.pendingDeviceSyncPositions().filter((capture: SyncReadingCapture): boolean =>
         capture.space === active.space && !owners.readingAcknowledged(capture))
       const actions = reader.pendingDeviceSyncActions().filter((capture: SyncReadingActionCapture): boolean =>
@@ -296,13 +297,14 @@ class DeviceSyncRuntime {
       lastComplete: previous?.chapterId === request.chapterId && previous.completed }
   }
 
-  async openReading(request: SourceReaderSessionRequest): Promise<'ready' | 'missing' | 'changed' | 'unavailable'> {
+  async openReading(request: SourceReaderSessionRequest, fromStart: boolean = false):
+    Promise<'ready' | 'missing' | 'changed' | 'unavailable'> {
     this.session = undefined
     const owners = this.owners
     if (owners === undefined || !syncChapterBelongsToSource(request.sourceId, request.mangaId, request.chapterId)) return 'ready'
     const proof = owners.resumeProof(request.comicId, request.chapterId)
     if (!syncHasTrustedPackage(request.sourceId)) return proof === '' ? 'ready' : 'missing'
-    if (proof !== '') {
+    if (proof !== '' && !fromStart) {
       const remote = await owners.publicSources.chapter(request.sourceId, request.mangaId, request.chapterId, true)
       if (remote === undefined) return 'unavailable'
       if (remote.pageTable !== proof) return 'changed'

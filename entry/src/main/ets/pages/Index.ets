@@ -404,6 +404,7 @@ struct Index {
    * 'start'/'end' are only ever produced by a chapter-edge crossing.
    */
   private readerOpenIntent: ReaderChapterOpenIntent = 'resume'
+  private sourceReaderOpenRequest: number = 0
   /**
    * Landing hint for the crossed-into chapter: 'end' asks a continuous session
    * to align the last image's bottom. It follows the same session publication
@@ -787,14 +788,14 @@ struct Index {
       return
     }
     const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
-    if (!(await appDeviceSync.validateReadingPages(preparedRequest, nextSessionConfig.pageUris))) {
+    if (this.readerOpenIntent !== 'start' && !(await appDeviceSync.validateReadingPages(preparedRequest, nextSessionConfig.pageUris))) {
       if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
       this.readerSessionLoading = false
       this.getUIContext().showAlertDialog({ title: AppStrings.get('device_sync_changed_chapter'),
         message: AppStrings.get('device_sync_saved_location'), systemMaterial: komaDialogMaterial(),
         primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => { this.closeReader() } },
-        secondaryButton: { value: AppStrings.get('device_sync_open_chapters'), action: (): void => {
-          this.openReaderMangaDetail()
+        secondaryButton: { value: AppStrings.get('device_sync_start_chapter'), action: (): void => {
+          void this.openSourceReader(preparedRequest, 'start')
         } },
       })
       return
@@ -1076,8 +1077,6 @@ struct Index {
     request: SourceReaderSessionRequest,
     intent: ReaderChapterOpenIntent = 'resume',
   ): Promise<void> {
-    this.readerOpenIntent = intent
-    this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     const nextRequest = cloneSourceReaderSessionRequest(request)
     if (nextRequest.sourceId.trim().length === 0 ||
       nextRequest.mangaId.trim().length === 0 ||
@@ -1086,7 +1085,9 @@ struct Index {
       !nextRequest.chapterIds.includes(nextRequest.chapterId)) {
       return
     }
-    const synchronized = await appDeviceSync.openReading(nextRequest)
+    const requestId = ++this.sourceReaderOpenRequest
+    const synchronized = await appDeviceSync.openReading(nextRequest, intent === 'start')
+    if (requestId !== this.sourceReaderOpenRequest) return
     if (synchronized !== 'ready') {
       const name = nextRequest.sourceName || nextRequest.sourceId
       const key = synchronized === 'missing' ? 'device_sync_missing_source' :
@@ -1097,20 +1098,20 @@ struct Index {
         systemMaterial: komaDialogMaterial(),
         primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
         secondaryButton: { value: AppStrings.get(synchronized === 'missing' ? 'device_sync_find_source' :
-          synchronized === 'changed' ? 'device_sync_open_chapters' : 'device_sync_retry'), action: (): void => {
+          synchronized === 'changed' ? 'device_sync_start_chapter' : 'device_sync_retry'), action: (): void => {
           if (synchronized === 'missing') {
             const recovery: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: nextRequest.sourceId,
               recoverySourceName: name, chrome: new SourceCatalogPageChrome() }
             this.appPathStack.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
           }
-          else if (synchronized === 'changed') RouterHelper.pushMangaDetail({ mangaId: nextRequest.mangaId,
-            sourceId: nextRequest.sourceId, initialManga: { id: nextRequest.mangaId, sourceId: nextRequest.sourceId,
-              title: nextRequest.title, coverUrl: nextRequest.coverUri, url: nextRequest.mangaUrl } }, true)
+          else if (synchronized === 'changed') void this.openSourceReader(nextRequest, 'start')
           else void this.openSourceReader(nextRequest, intent)
         } },
       })
       return
     }
+    this.readerOpenIntent = intent
+    this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     const readerDetailVisible = this.isReaderDetailRouteVisible()
     const shouldPresentReader = !this.readerOpen || this.readerClosing
     const openEpoch = this.readerOpenEpoch + 1

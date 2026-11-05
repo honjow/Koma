@@ -174,7 +174,7 @@ export function buildSyncDataset(id: string, facts: SyncFact[], epoch: number, p
   const roots = new Map<string, SyncFact[]>()
   const old = new Map<string, SyncShardRef>()
   previous?.shards.forEach((shard: SyncShardRef): void => { old.set(shard.bucket, shard) })
-  facts.slice().sort(compareKey).forEach((fact: SyncFact): void => {
+  facts.map(checkedSyncFact).sort(compareKey).forEach((fact: SyncFact): void => {
     const key = rootBucket(bucketKey(fact.key))
     const rows = roots.get(key)
     if (rows === undefined) roots.set(key, [fact])

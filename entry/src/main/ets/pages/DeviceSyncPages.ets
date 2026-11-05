@@ -309,7 +309,14 @@ export struct DeviceSyncWebDavPage {
   @Builder
   private Review(preview: SyncPreview) {
     GroupedListSection({ title: t('device_sync_preview') }) {
-      ConciseListRow({ title: t('device_sync_preview_detail'), subtitle: t('device_sync_visibility'), showChevron: false })
+      ConciseListRow({ title: t('device_sync_preview_detail'), wrapTitle: true, wrapTitleByWord: true,
+        subtitle: t('device_sync_visibility'), subtitleMaxLines: 8, showChevron: false })
+      if (preview.earlierUnconfirmed > 0) {
+        ListDivider()
+        ConciseListRow({ title: t('device_sync_earlier_unconfirmed'),
+          subtitle: t('device_sync_earlier_unconfirmed_detail').replace('%s', preview.earlierUnconfirmed.toString()),
+          showChevron: false })
+      }
       ForEach(preview.groups, (row: SyncPreviewGroup) => {
         ListDivider()
         ConciseListRow({ title: t(groupKey(row.group)), showChevron: false,
@@ -331,8 +338,26 @@ export struct DeviceSyncWebDavPage {
           isEnabled: !this.choices.some((choice: SyncMergeChoice): boolean => choice.key === conflict.key && !choice.useLocal),
           action: (): void => { this.choose(conflict, false) } })
       }, (conflict: SyncMergeConflict): string => conflict.group + conflict.key)
+      if (preview.beforeRestore.length > 0) {
+        ListDivider()
+        ConciseListRow({ title: t('device_sync_before_restore'), subtitle: t('device_sync_before_restore_detail'), showChevron: false })
+        ForEach(preview.beforeRestore, (item: SyncMergeConflict) => {
+          ListDivider()
+          ConciseListRow({ title: conflictValue(item.key, item.local), showChevron: false,
+            subtitle: t('device_sync_current_value') + ' · ' + conflictValue(item.key, item.remote) })
+          ConciseListRow({ title: t('device_sync_use_before_restore'), hasSwitch: true, showChevron: false,
+            checked: this.choices.some((choice: SyncMergeChoice): boolean =>
+              choice.key === item.key && choice.group === item.group && choice.useBeforeRestore === true),
+            switchAction: (checked: boolean): void => {
+              this.choices = this.choices.filter((choice: SyncMergeChoice): boolean =>
+                choice.key !== item.key || choice.group !== item.group)
+              if (checked) this.choices = this.choices.concat({ group: item.group, key: item.key, useLocal: true, useBeforeRestore: true })
+            } })
+        }, (item: SyncMergeConflict): string => item.group + item.key)
+      }
       ListDivider()
-      ConciseListRow({ title: t('common_cancel'), isEnabled: !this.state.busy, action: (): void => { this.discard() } })
+      ConciseListRow({ title: t('common_cancel'), showChevron: false,
+        isEnabled: !this.state.busy, action: (): void => { this.discard() } })
     }
   }
 

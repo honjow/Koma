@@ -449,7 +449,7 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
   }
 
   private saveDocument(snapshot: ReaderSessionDocumentSnapshot): void {
-    if (BackupRestoreActivity.deviceSyncIsCommitting() || BackupRestoreActivity.hasPendingRecovery()) {
+    if (BackupRestoreActivity.hasPendingRecovery()) {
       throw new Error('sync_local_busy')
     }
     writeAppTextFile(this.filePath, serializeReaderSessionForDevice(snapshot))
