@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T02:17:37+08:00",
+  "updatedAt": "2026-11-06T02:40:01+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -111,15 +111,15 @@
     {
       "id": "SOURCE_CATALOG_NAME_SEARCH",
       "title": "在源列表按名称搜索书源",
-      "kind": "active",
+      "kind": "accepted",
       "priority": "用户最新明确要求",
       "owner": "Terra实现列表投影与搜索框；Root真实路径验收",
-      "status": "237具名搜索/标题/按钮内角标及阴影已通过，精确代码交付中",
+      "status": "237具名搜索、标题/角标滚动及完整阴影已验收，代码已推送且CI成功",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户明确要求源的搜索，并纠正为“在源列表里面搜索需要源”；精确消息时刻未核实。 2026-11-06用户进一步指定管理页参考NextE下载管理，用搜索替换分段并将搜索图标切成关闭；随后要求仅搜索展开时允许标题随列表滚动收起、搜索框保留，精确消息时刻未核实。",
-      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；浏览页切换与恢复仍待实机，管理页具名结果如下，不以编译或局部截图宣布通过。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。 v10在237实际恢复浏览搜索可见；首次展开、重复开合与标题随滚动隐藏/恢复已按连续原片对应区域亲审，稳定整页图另核。角标现在位于HDS标题树内，并直接包住可点击管理Button；上滑与标题共同收起、下滑共同恢复，关闭搜索恢复常驻标题且列表没有回顶。三个标题按钮与跨History返回路径已核，管理官方组件ID也实际可点击开关搜索。用户随后以078原图指出搜索框阴影在正文边界横向截断，整体仍未通过；边线与新动画Column底边477重合，原标准搜索组件无该clip。现最小候选仅让开合期间裁剪，稳定展开解除裁剪，保持64高度、原边距与系统材质阴影；原因需v11同位置图对照，不把节点或本地状态测试当画面通过。 v11只调整动画裁剪状态；237同位置对照中Search与容器bounds完全相同，稳定展开Column变为clip=false，477底边的硬阶跃消失，系统阴影自然延伸渐淡。初次开与关闭/重入/再关闭连续原片对应区域均已完整亲审，稳定整页另核；保持原64高度、间距和材质，没有加宽加高。原四份数据及registry逐字等、原SLEEP/120000/Override10000已独立读回，租约释放，保留v11测试包。",
-      "remaining": "源列表UI具名验收完成，正在仅提交本项与多语言分类的精确代码/资源/规则/进度；CI与推送按实际结果登记，不混Auth、JM或并行Reader WIP。其他设备形态/大字号未外推。",
+      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；以下保留旧候选反例及修正过程，最终具名通过范围见末尾v11结果。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。 v10在237实际恢复浏览搜索可见；首次展开、重复开合与标题随滚动隐藏/恢复已按连续原片对应区域亲审，稳定整页图另核。角标现在位于HDS标题树内，并直接包住可点击管理Button；上滑与标题共同收起、下滑共同恢复，关闭搜索恢复常驻标题且列表没有回顶。三个标题按钮与跨History返回路径已核，管理官方组件ID也实际可点击开关搜索。用户随后以078原图指出搜索框阴影在正文边界横向截断，整体仍未通过；边线与新动画Column底边477重合，原标准搜索组件无该clip。现最小候选仅让开合期间裁剪，稳定展开解除裁剪，保持64高度、原边距与系统材质阴影；原因需v11同位置图对照，不把节点或本地状态测试当画面通过。 v11只调整动画裁剪状态；237同位置对照中Search与容器bounds完全相同，稳定展开Column变为clip=false，477底边的硬阶跃消失，系统阴影自然延伸渐淡。初次开与关闭/重入/再关闭连续原片对应区域均已完整亲审，稳定整页另核；保持原64高度、间距和材质，没有加宽加高。原四份数据及registry逐字等、原SLEEP/120000/Override10000已独立读回，租约释放，保留v11测试包。 源列表搜索、多语言分类、标题内实际按钮角标及稳定阴影的精确App改动已正常推送，未改版本；相同拟提交树的47项真实逻辑回归通过，该精确提交的Release HAP CI已成功；构建结果与具名237画面/连续原片分开记录。",
+      "remaining": "本次具名范围已完成；其他设备形态和大字号未外推。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-host-ui-v1.json",
@@ -129,24 +129,29 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-search-ui-v8-031-movie-stop-browse-scroll-title/screen.jpeg",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v9-root-review.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v10-root-review.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v11-root-review.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v11-root-review.json",
+        "https://github.com/honjow/Koma/commit/696d16594d822d0d1adc3a43e121e86418e01b24",
+        "https://github.com/honjow/Koma/actions/runs/42084307480",
+        ".hvigor/outputs/source-coverage-20261105/source-catalog-ui-tree-tests.log"
       ]
     },
     {
       "id": "SOURCE_MULTILINGUAL_CATEGORY",
       "title": "将all明确为多语言分类并移除语言总开关",
-      "kind": "active",
+      "kind": "accepted",
       "priority": "用户最新明确决定",
       "owner": "Root实现；device合入统一HAP",
-      "status": "237已核多语言分组及独立开关、无总开关；待代码交付",
+      "status": "多语言独立分类及无总开关已在237验收，代码已推送且CI成功",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求加多语言分类，并明确all不是总开关、“并不需要总开关”；精确消息时刻未核实。",
-      "result": "all是来源声明的多语言类别；Root已在公共SourceLanguagePresentation将其显示为多语言／Multilingual，浏览分组、书源管理与筛选共用。SourceCatalogFiltersContent已移除“全部语言”总开关，仅保留每种语言独立选择及原持久化语义。没有把该声明当作全选命令，也未改变用户原语言选择。 237新HAP普通导入声明all的CosplayTele后，实际筛选面板显示多语言，只有各语言独立开关，没有语言总开关。仅打开多语言一项后真实浏览布局出现多语言组；其余语言选择保持。原偏好逐字等恢复并释租。首次在尚无all源时过早断言多语言行的场景失败已原样保留，没有改成产品通过。",
-      "remaining": "保留该已验范围，随源列表标题栏修正完成后的精确App改动提交推送。",
+      "result": "all是来源声明的多语言类别；Root已在公共SourceLanguagePresentation将其显示为多语言／Multilingual，浏览分组、书源管理与筛选共用。SourceCatalogFiltersContent已移除“全部语言”总开关，仅保留每种语言独立选择及原持久化语义。没有把该声明当作全选命令，也未改变用户原语言选择。 237新HAP普通导入声明all的CosplayTele后，实际筛选面板显示多语言，只有各语言独立开关，没有语言总开关。仅打开多语言一项后真实浏览布局出现多语言组；其余语言选择保持。原偏好逐字等恢复并释租。首次在尚无all源时过早断言多语言行的场景失败已原样保留，没有改成产品通过。 随源列表UI精确改动正常推送，Release HAP CI成功，未混其他源宿主WIP。",
+      "remaining": "本次已采用分类范围已交付。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/host-ui-v1-root-review.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/host-ui-v1-root-review.json",
+        "https://github.com/honjow/Koma/commit/696d16594d822d0d1adc3a43e121e86418e01b24",
+        "https://github.com/honjow/Koma/actions/runs/42084307480"
       ]
     },
     {
@@ -201,12 +206,12 @@
       "kind": "active",
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports独立执行；Root237验收与发布",
-      "status": "CosplayTele已验并正式分发；JM与Buon待新宿主实机，紳士漫畫本地完整移植推进",
+      "status": "源列表UI已交付；JM内部V4已修归档兼容，237新事务验证中",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
-      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。",
-      "remaining": "当前先完成用户纠正的搜索展开动效并237；随后新宿主验JM必需解扰／精确卸载恢复与消费者、Buon双模式。WN保存校验、HC网络失败及其它优先源各自具体缺口继续推进。",
+      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。 JM内部V3归档包含额外许可文件，被当前完整Importer真实执行拒为unsafe_archive_entry；原失败保留。V4仅重新封装允许的3项，WASM/manifest/icon逐字不变，许可旁置交付；当前生产完整导入流程的平台适配执行已通过，不冒HarmonyNative。237新租约/新事务备份及唤醒门禁进行中。",
+      "remaining": "当前237普通入口验JM必需解扰及正常卸载私有scope恢复，再验Buon双模式；后续下载/离线/保存/CBZ消费者及其它优先源分别保留未验。WN正整数校验与Pica默认2 DNS Host适配并行推进。",
       "evidence": [
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/build.gradle.kts",
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/src/eu/kanade/tachiyomi/extension/zh/bilimanga/BiliManga.kt",
@@ -219,7 +224,9 @@
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v3/candidate-files.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/host-ui-v1-root-review.json",
-        ".hvigor/outputs/source-coverage-20261105/cosplay-release/public-oracle.json"
+        ".hvigor/outputs/source-coverage-20261105/cosplay-release/public-oracle.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v4/validation/current-importer-result.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-jm-buon-v1.json"
       ]
     },
     {
@@ -639,14 +646,15 @@
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求开 Terra 子代理，逐源使用足量漫画样本，不能以一两个成功代表源正常。",
       "result": "85个生产源中84可安装，嗨皮漫画暂不可用，demo排除。截至本次统计，全轮次75源2013部唯一作品实际发起过详情（含失败），45源达到各自30/50本取样数量目标，不等于通过。完整App合同处理1145部，详情1128次有效/1058成功，目录1117次有效/1058成功；网页/API目录和真实图像另列。漫画人临时宿主已按App原实现补游客会话，CLI漏body的411有loopback反例并已修，同源真实POST/GET200，原矩阵50部详情/目录和10部页表完成；5个0目录需独立核状态，不猜下架。官方和小站当前栏目真实分母分别保留，章数不充作品数。 幻塔原16部中10失败已落实修复并公开0.1.2：本地16部四操作/实图、237三类与正常对照具名通过。其余我是马克、輔大猴、综合口味、MangaBall及科技大观园分别登记原事项并分工修复，避免失败只留统计。官方10源已另核66作品目录、18完整页表和39不同作品实际图片；原神倒序及DOTA48页/6章偏移差异保留，不冒所有入口覆盖。CLI49a精确CI成功，正式/备用分发回查完成。",
-      "remaining": "继续不足样本、实际图片和独立分母核对；已确认的具名错误按各源原项完成候选、237与公开。漫画人50本仍需独立网页目录/实图及5个0目录核对；BNS/LOL/FGO等未覆盖入口及范围依据保留未知。漫画柜237访问未通过且原因未知，候选未发布。403/登录/区域及持续TLS限制分别保留，不把少数失败扩成全站关闭。 快看具名三作反馈已单独交付；退役预取任务取消及首次旧CLI失败具体原因仍未证明，不能据此宣整章流畅。",
+      "remaining": "继续不足样本、实际图片和独立分母核对；已确认的具名错误按各源原项完成候选、237与公开。漫画人50本网页目录及10作正文、5个明确屏蔽空目录已独立核，生产提示候选正在集成；BNS/LOL/FGO等未覆盖入口及范围依据保留未知。漫画柜237访问未通过且原因未知，候选未发布。403/登录/区域及持续TLS限制分别保留，不把少数失败扩成全站关闭。 快看具名三作反馈已单独交付；退役预取任务取消及首次旧CLI失败具体原因仍未证明，不能据此宣整章流畅。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/progress.json",
         ".hvigor/outputs/source-coverage-20261105",
         ".hvigor/outputs/source-coverage-20261105/official-denominators.json",
         ".hvigor/outputs/source-coverage-20261105/guard-enabled.json",
         ".hvigor/outputs/source-coverage-20261105/manhuaren-local-host/body-alias-wire-after.json",
-        "https://github.com/honjow/koma-sources/commit/49a4b2859280354c6ddd0e70e2fa2d5a5912250c"
+        "https://github.com/honjow/koma-sources/commit/49a4b2859280354c6ddd0e70e2fa2d5a5912250c",
+        ".hvigor/outputs/source-coverage-20261105/manhuaren-web/summary.json"
       ]
     },
     {
@@ -18468,6 +18476,24 @@
       "at": "2026-11-06T02:17:37+08:00",
       "title": "237阴影因果修正与开合通过，原状态恢复并释租",
       "result": "稳定展开解除多余裁剪后硬边消失，搜索尺寸/间距保持；开合和重入具名原片已审。原源/四数据与电源恢复，保留新包并独立释租；精确代码交付进行中。"
+    },
+    {
+      "id": "source-catalog-ui-pushed-20261106",
+      "at": "2026-11-06T02:27:47+08:00",
+      "title": "源列表搜索与多语言分类精确代码已推送",
+      "result": "237具名路径及阴影通过后正常推送，47项拟提交树真实逻辑回归通过；CI运行中，不扩大为Auth/JM或并行Reader验证。"
+    },
+    {
+      "id": "source-catalog-ui-ci-complete-20261106",
+      "at": "2026-11-06T02:40:01+08:00",
+      "title": "源列表搜索/多语言分类精确交付完成",
+      "result": "237具名UI、阴影与恢复完成后正常推送，精确提交的Release HAP CI成功；两原项按该范围验收，不覆盖其它源或Reader WIP。"
+    },
+    {
+      "id": "source-jm-v4-importer-and-native-preflight-20261106",
+      "at": "2026-11-06T02:40:01+08:00",
+      "title": "JM归档兼容问题已最小修正，237新事务开始",
+      "result": "原V3 unsafe失败保留；V4保持三产品文件原字节，仅改变封装，完整Importer平台适配链通过。237取得新租约并建立当前数据/电源基线，尚无JM Native通过。"
     }
   ],
   "reportAgeAudit": {
