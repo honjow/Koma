@@ -795,26 +795,31 @@
     {
       "id": "BACKUP_SETTINGS_COVERAGE_GAPS",
       "title": "补齐已知备份设置遗漏与旧文件兼容",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "用户核对备份设置",
       "owner": "Root",
-      "status": "已补齐备份与恢复逻辑，正在构建并准备真机验证",
+      "status": "遗漏已补齐，197普通创建/预览/恢复与独立复核通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户询问备份覆盖，源码审计确认。",
-      "result": "已纳入迁移选源顺序和匹配选项、完整书源订阅及禁用状态、搜索来源范围和仅显示有结果偏好。旧格式缺字段保留本机值，新格式以显式删除列表区分重置；恢复撤销过期订阅请求，并在解除恢复限制前重建禁用状态。已实际执行非默认值往返、旧格式兼容、新字段部分写入失败后的检查点回滚，以及历史检查点恢复。",
-      "remaining": "完成当前修复包构建、197普通备份创建/预览/恢复及设置读回，核对真机结果后关闭。",
+      "result": "已纳入迁移选源顺序和匹配选项、完整书源订阅及禁用状态、搜索来源范围和仅显示有结果偏好。旧格式缺字段保留本机值，新格式以显式删除列表区分重置；恢复撤销过期订阅请求，并在解除恢复限制前重建禁用状态。已实际执行非默认值往返、旧格式兼容、新字段部分写入失败后的检查点回滚，以及历史检查点恢复。 197当前1.1.1调试包已通过普通创建、预览、二次确认和实际恢复；迁移/订阅/搜索三个原偏好文件前后逐字节相同，备份内五个现存字段均与恢复结果一致。独立评审亲审完整画面并独立重算原始数据。新测试备份已删，原五份备份保持，临时电源已恢复读回并释租。",
+      "remaining": "本项已完成。实机为同态往返；异值、禁用订阅和已写迁移匹配选项由本地执行验证覆盖，不冒充实机分支。",
       "relatedItems": [
         "BACKUP_SETTINGS_COVERAGE_GATE"
       ],
-      "updatedAt": "2026-11-06T01:17:40+08:00",
+      "updatedAt": "2026-11-06T01:36:19+08:00",
       "evidence": [
         "entry/src/main/ets/model/ApplicationSettingsBackup.ets",
         "scripts/backup_settings_policy.json",
         "scripts/check_backup_settings.cjs",
         "entry/src/main/ets/model/BackupRestoreCheckpoint.ets",
-        "scripts/test_source_index_cache.cjs"
-      ]
+        "scripts/test_source_index_cache.cjs",
+        "94a7637f0f8fa70674b79dc71a1a624ffe136432",
+        ".hvigor/outputs/backup-coverage-20261106/device197-settings-readback.json",
+        ".hvigor/outputs/backup-coverage-20261106/device197-test-file-cleanup.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/backup-settings-coverage/restore-20261106T013454350812/run-metadata.json"
+      ],
+      "closedAt": "2026-11-06T01:36:19+08:00"
     },
     {
       "id": "READING_HISTORY_SYNC",
@@ -7711,13 +7716,13 @@
       "title": "条漫模式进入阅读时顶部闪一下",
       "kind": "open",
       "priority": "后排（用户指定）",
-      "status": "复核仍未处理：只有登记，尚无修复和入场验收",
-      "stage": "仅登记",
+      "status": "开始定位：准备当前包普通入场连续录像",
+      "stage": "定位中",
       "owner": "Root：Koma 阅读器",
       "reportedAt": null,
       "reportedDate": "2026-11-04",
       "reportedAtSource": "本会话用户报告「条漫模式进入阅读的时候，顶部会闪烁一下」，明确要求排后处理。首次报告的精确时间未核实。",
-      "result": "用户报告的条漫进入阅读时顶部闪一下仍未开始定位或修复。复核未找到对应修复提交或具名入场录像验收；已关闭的图片插件显示后退回加载是另一问题，不覆盖本项。原报告的具体设备、章节和闪烁区域尚未核实。",
+      "result": "备份遗漏项修复及真机验收完成后，开始按普通入口定位本项。197当前阅读模式为连续滚动，尚未以新录像确认闪烁区域，不先假定是状态栏或修改布局。",
       "remaining": "按原后排优先级继续保留。定位时从普通入口连续观察详情到条漫阅读的完整过程，先确认顶部闪烁区域和触发条件，再修复和独立复验。",
       "closedAt": null,
       "evidence": [
@@ -7725,7 +7730,7 @@
         "entry/src/main/ets/pages/ReaderPage.ets",
         "third_party/reader-kit/reader-ui/src/main/ets/ReaderSurface.ets"
       ],
-      "updatedAt": "2026-11-06T00:10:59+08:00"
+      "updatedAt": "2026-11-06T01:36:19+08:00"
     }
   ],
   "source": {
