@@ -12,7 +12,7 @@ import {
   SuffixText,
   SuffixTextAndArrow,
 } from '@kit.UIDesignKit'
-import { ImageModifier, TextModifier } from '@kit.ArkUI'
+import { ImageModifier, SymbolGlyphModifier, TextModifier } from '@kit.ArkUI'
 import { ThemeConstants } from '../../theme/ThemeConstants'
 
 @ObservedV2
@@ -31,6 +31,7 @@ export struct ConciseListRow {
   @Param subtitleContentRating: boolean = false
   @Param trailingText: ResourceStr = ''
   @Param trailingIcon: Resource | undefined = undefined
+  @Param trailingIconColor: ResourceColor | undefined = undefined
   @Param trailingIconLabel: ResourceStr = ''
   @Param trailingIconWithChevron: boolean = false
   @Event trailingIconAction?: () => void
@@ -235,7 +236,8 @@ export struct ConciseListRow {
 
     if (this.trailingIcon !== undefined) {
       const options: SuffixIconOptions = {
-        iconValue: { symbol: this.trailingIcon },
+        iconValue: { symbol: this.trailingIconColor === undefined ? this.trailingIcon :
+          new SymbolGlyphModifier(this.trailingIcon).fontColor([this.trailingIconColor]) },
         enable: this.isEnabled,
         accessibilityOptions: this.trailingIconLabel === '' ? undefined : { accessibilityText: this.trailingIconLabel },
         onClick: () => {

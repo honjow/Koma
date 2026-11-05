@@ -107,6 +107,7 @@ export struct SourceListItem {
         ? (this.pinned ? $r('sys.symbol.pin_fill') : $r('sys.symbol.pin'))
         : (this.showSearchButton && this.sourceBacked() ? $r('sys.symbol.magnifyingglass') : undefined),
       trailingIconLabel: this.showPinButton ? AppStrings.get(this.pinned ? 'browse_source_unpin' : 'browse_source_pin') : '',
+      trailingIconColor: this.showPinButton ? ThemeConstants.BRAND_PRIMARY : undefined,
       trailingIconWithChevron: this.showPinButton,
       trailingIconAction: () => {
         if (this.showPinButton) this.onPinToggle(this.source.sourceId)
