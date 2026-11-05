@@ -14,7 +14,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T13:35:19+08:00",
+  "updatedAt": "2026-11-05T14:00:18+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -79,6 +79,135 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_ALL_PROVIDER_COVERAGE",
+      "title": "所有现有书源的分层覆盖检查",
+      "kind": "open",
+      "priority": "用户直接要求",
+      "owner": "Terra 子代理；Root 审核与推进",
+      "status": "正在补齐本地宿主合同并重算有效覆盖",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户要求开 Terra 子代理，逐源使用足量漫画样本，不能以一两个成功代表源正常。",
+      "result": "公开 catalogue 有 85 个生产源，其中 84 个 available、嗨皮漫画 unavailable；index 对应 84 个，教学 demo 不在范围。以实际公开源包为基线，每源至少 30 本、大站及问题源至少 50 本分层取样，并对每源至少 10 本抽查正文；实际公开数量不足时保留可得分母。84 个可安装源的入口初筛已完成，但不代表通过。六漫画、CManhua、3Hentai 各完成 50 本基础抽样，另有蔚蓝档案官方漫画 1 本；逐本网页对照和正文图片确认仍在推进。已经发现实体解码误拒、资源册绑定误拒及空目录提示问题，分别跟进。",
+      "remaining": "已保存39源、945次去重作品详情执行证据；它们来自旧hostFeatures轮次，尚不能作为当前App有效分母。正在补齐批量HTTP、mangaUrl及同作品chapterContext，并按已保存设置为空的真实默认值重跑必要部分。漏mangaUrl的无效请求单列，不算源故障；持续完成85源的足量分层取样、目录游标、逐本网页/接口完整性和正文图像核对。不能由抽样声称全站无问题。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/progress.json",
+        ".hvigor/outputs/source-coverage-20261105"
+      ]
+    },
+    {
+      "id": "SOURCE_UNAVAILABLE_FEEDBACK",
+      "title": "优化站点不再提供或下架内容的提示",
+      "kind": "accepted",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "status": "App代码已推送，六漫画公开包及237两类提示验收完成",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户要求优化不再提供、下架等情况的提示。",
+      "result": "站点未提供内容、可能下架或链接失效的提示已补充网页确认路径；网络、拒绝及网页验证保持各自分类。no_chapters仅消费源明确核定的暂无章节状态，不由空数组或消息猜测。六漫画0.1.9仅在真实空目录容器、准确待浏览标记及空链接同时成立时使用该码。237普通入口真实下架与待浏览提示完整可见，源和订阅登记、测试数据及电源已恢复并释租。App代码推送及CI成功，未改变App版本号或发布新App版本；六漫画公开0.1.9及镜像索引正确，公开WASM原始网页回放与候选相同。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/sixmh-public-replay.json",
+        ".hvigor/outputs/source-unavailable-feedback",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-availability",
+        "https://github.com/honjow/Koma/commit/261ec84b7575528ca75cd215caae81439db9bad7",
+        "https://github.com/honjow/Koma/actions/runs/41974270417",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-67ec942192a5778ff66dbc06f85474404e0b98ec"
+      ],
+      "closedAt": "2026-11-05T14:00:18+08:00"
+    },
+    {
+      "id": "SOURCE_CMANHUA_ENTITY_DECODE",
+      "title": "CManhua 把合法网页文本误报为容量溢出",
+      "kind": "accepted",
+      "priority": "全量覆盖中发现",
+      "owner": "Root",
+      "status": "0.1.7已发布，237两本详情目录及公开包回放通过",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话 Terra 足量抽样发现。",
+      "result": "《放肆》秦&唐裸&和《新52超人动作漫画》缺分号数字实体曾被误报容量溢出。限定实体解码修复后，原网页输出与旧版等价转义网页完全一致；未知实体、无效码点和缓冲不足仍失败。237普通入口已目视核对两本详情和31/31、64/64目录；原源包与登记、阅读搜索数据及电源已恢复并释租。修复单独推送，公开0.1.7附件摘要与发布资产一致，公开WASM回放通过。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/cmanhua-web/public-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-regressions",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-67ec942192a5778ff66dbc06f85474404e0b98ec"
+      ],
+      "closedAt": "2026-11-05T14:00:18+08:00"
+    },
+    {
+      "id": "SOURCE_3HENTAI_ASSET_OWNER",
+      "title": "3Hentai 正文资源册号与作品号不同时被误拒",
+      "kind": "open",
+      "priority": "全量覆盖中发现",
+      "owner": "Terra 实施，Root 审核",
+      "status": "237正文实图通过，正在核对补正后的公开版本",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话 Terra 足量抽样发现。",
+      "result": "作品718860与资源册2432606的别名关系已沿封面、全册缩略图、作品阅读链接和页序共同核定。候选保留域名、作品、册身份及页序边界，原同号输出不变。237普通入口已目视读取第1/8页真实漫画并正常返回；原源包和登记、阅读搜索数据及电源已恢复并释租。首批公开构建遗漏导出source_info版本，导致索引仍0.1.5；仅补正该版本为0.1.6后已单独推送。",
+      "remaining": "等待版本信息补正的发布流水线，核公开0.1.6包和订阅索引并重放原始样本。无状态image_request仅校验输入一致性，不提供密码学绑定。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/3hentai-web/version-fixed-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-regressions",
+        "https://github.com/honjow/koma-sources/commit/9afbe4af70ca94091084045edb714460bcbd3d18",
+        "https://github.com/honjow/koma-sources/actions/runs/41977339712"
+      ]
+    },
+    {
+      "id": "SOURCE_DM5_CATALOGUE_AND_UNAVAILABLE",
+      "title": "DM5 新式目录被截断，站点停供却提示解析失败",
+      "kind": "accepted",
+      "priority": "全量覆盖中发现",
+      "owner": "Terra 实施，Root 审核",
+      "status": "0.1.26已发布，237目录阅读及停供提示验收通过",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话 Terra 足量抽样发现。",
+      "result": "限定匹配完整目录容器并从新卡片章名节点取文本，修复嵌套div使目录截断；7个明确停供样本只在缺目录时核当前作品主栏和准确作品名。真实网页回放取得613条完整ID、标题、页数和排序，42份旧正常目录完整响应不变；属性与注释中的假标签、错作品和推荐栏负例通过。237普通入口已目视核对613/613和第1回1/19实图，以及海贼王停供提示；原源、登记、测试数据及电源已恢复并释租。公开0.1.26附件摘要核对及原网页回放通过。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/dm5-web/public-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/dm5-web/regression-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/source-regressions",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-67ec942192a5778ff66dbc06f85474404e0b98ec"
+      ],
+      "closedAt": "2026-11-05T14:00:18+08:00"
+    },
+    {
+      "id": "SOURCE_ASMHENTAI_SEARCH_PAGINATION",
+      "title": "AsmHentai合法搜索下一页被URL逐字比较误拒",
+      "kind": "open",
+      "priority": "全量覆盖中发现",
+      "owner": "Terra实施，Root审核",
+      "status": "候选已通过真实网页两页回放，待审核与237验收",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话Terra足量抽样发现。",
+      "result": "公开0.1.4对普通搜索漫画返回next URL mismatch。网页下一页省略popular排序并使用协议相对地址，源旧逐字URL比较误拒。候选复用既有过滤搜索的同域、解码关键词、页序与排序校验，实际下一请求仍由原参数构造并保留popular；外域、换词、错页、latest和额外参数负例继续拒绝。",
+      "remaining": "审核限定差异和普通路径，完成237搜索及翻页、恢复与释租，再提交分发。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/asmhentai-web/candidate-replay.json"
+      ]
+    },
+    {
+      "id": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "title": "六漫画《全职法师》章节列表获取失败",
+      "kind": "accepted",
+      "priority": "P1（用户直接反馈）",
+      "owner": "书源：sixmh",
+      "status": "0.1.8 已发布，237 目录与首章阅读已验收",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户直接反馈；消息原始时分未核实。",
+      "result": "用户实测 WebView 能显示章节并阅读。六漫画源内搜索有四个同名结果，0.1.7 在 HTTP 200 后拒绝超过源内 2048 条容量的三份目录。0.1.8 仅提高章节容量；实站 WASM 和原生 HTML 解析回放取全 3277、1025、2206、2197 条，逐条对应网页原 ID、标题和顺序。小目录与下架结果未变，两个样本的首章各返回原有 29 页。Pura X 237 上，Koma 1.1.1 普通本地导入并读回 0.1.8，源内搜索四份详情实际显示 3277/3277、1025/1025、2206/2206、2197/2197；最大目录点开始阅读，首章《01 世界大变》前两页实图可见，返回详情后正常返回搜索和浏览。237 已逐字节恢复原 0.1.7 源包、原订阅登记及本次涉及的阅读和搜索文件，原休眠和超时已读回并释租。修复已推送并通过发布流水线，官方和 237 使用的公开镜像均返回 0.1.8 且下载包与发布附件逐字节一致；公开包的原生 HTML 回放与真机候选结果一致。",
+      "remaining": "",
+      "registeredAt": "2026-11-05T12:08:58+08:00",
+      "closedAt": "2026-11-05T12:29:46+08:00",
+      "evidence": [".hvigor/outputs/sixmh-full-time-magister/installed-baseline-replay.json", ".hvigor/outputs/sixmh-full-time-magister/public-native-replay.json", ".hvigor/outputs/sixmh-full-time-magister/public-receipt.json", ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/sixmh-magister", "https://github.com/honjow/koma-sources/actions/runs/41967816867", "https://github.com/honjow/koma-sources/releases/tag/sources-d9d0a25de1298ec7f56e176db0db5bea29318c93"]
+    },
     {
       "id": "BACKUP_SETTINGS_COVERAGE_GATE",
       "title": "备份设置分类与往返门禁",
@@ -7009,6 +7138,109 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-batch1-public-and-host-contract",
+      "at": "2026-11-05T14:00:18+08:00",
+      "title": "首批三源公开包通过，覆盖宿主合同正在补齐",
+      "detail": "App提示代码已推送且CI成功。237已验收CManhua两本、3Hentai实图及DM5目录阅读与停供提示，原数据、电源和租约恢复完成。六漫画、CManhua及DM5公开WASM回放通过；3Hentai修复漏改导出版本，已补正推送等待分发。39源945次旧合同详情执行不冒作当前App有效覆盖，漏URL和缺能力单独分类。",
+      "itemIds": [
+        "SOURCE_ALL_PROVIDER_COVERAGE",
+        "SOURCE_UNAVAILABLE_FEEDBACK",
+        "SOURCE_CMANHUA_ENTITY_DECODE",
+        "SOURCE_3HENTAI_ASSET_OWNER",
+        "SOURCE_DM5_CATALOGUE_AND_UNAVAILABLE",
+        "SOURCE_ASMHENTAI_SEARCH_PAGINATION"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-coverage-pagination-and-dm5",
+      "at": "2026-11-05T13:31:00+08:00",
+      "title": "覆盖推进至 12 源，补齐目录分页并定位 DM5",
+      "detail": "431 本是实际尝试数，不是通过数；MangaDex 目录追踪真实游标。DM5 的 613 条目录和 7 个明确停供样本已完成限定候选回放，CManhua 与 3Hentai 进入 237 验收。",
+      "itemId": "SOURCE_ALL_PROVIDER_COVERAGE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-availability-device-verified",
+      "at": "2026-11-05T13:21:14+08:00",
+      "title": "237 通过下架与暂无章节两种提示",
+      "detail": "从普通源入口打开真实下架和待浏览作品，提示均完整可见，原源及订阅登记、测试数据和电源已读回恢复并释租。",
+      "itemId": "SOURCE_UNAVAILABLE_FEEDBACK",
+      "kind": "verified"
+    },
+    {
+      "id": "source-coverage-first-sufficient-samples",
+      "at": "2026-11-05T13:16:14+08:00",
+      "title": "三源完成各 50 本基础抽样并发现具名缺陷",
+      "detail": "入口初筛不当作通过；实体解码和资源册误拒分别登记，网页完整性、正文与其余源继续检查。两种内容不可得提示已进入 237 验收。",
+      "itemId": "SOURCE_ALL_PROVIDER_COVERAGE",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-coverage-terra-started",
+      "at": "2026-11-05T13:01:05+08:00",
+      "title": "Terra 开始全量书源覆盖检查",
+      "detail": "公开清单核定 85 个生产源，分层抽样逐源执行；Root 并行处理下架和内容不可得提示，尚未宣称任一源全站正常。",
+      "itemId": "SOURCE_ALL_PROVIDER_COVERAGE",
+      "kind": "work"
+    },
+    {
+      "id": "source-sixmh-magister-released",
+      "at": "2026-11-05T12:29:46+08:00",
+      "title": "六漫画 0.1.8 公开订阅核验通过",
+      "detail": "官方和 237 使用的公开镜像均可下载同一份 0.1.8 源包；公开 WASM 重放四份实站目录和正文入口，通过与真机候选相同的断言。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "verified"
+    },
+    {
+      "id": "source-sixmh-magister-pushed",
+      "at": "2026-11-05T12:26:36+08:00",
+      "title": "237 已恢复，六漫画修复已推送",
+      "detail": "原订阅登记、源包、阅读和搜索数据逐字节读回；原休眠和超时已恢复并释租。六漫画修复单独推送书源主分支，公开索引待核。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-sixmh-magister-device-reading",
+      "at": "2026-11-05T12:24:15+08:00",
+      "title": "Pura X 通过四份目录与首章阅读验收",
+      "detail": "源内搜索四个同名结果均取全；最大目录第一话前两页实图显示且正常返回。用户明确要求验收通过后提交推送。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "verified"
+    },
+    {
+      "id": "source-sixmh-magister-device-catalogue",
+      "at": "2026-11-05T12:20:43+08:00",
+      "title": "Pura X 实测《全职法师》显示完整目录",
+      "detail": "普通导入并读回 0.1.8；Koma 1.1.1 源内搜索首项的原生详情显示 3277/3277，开始阅读可用。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "verified"
+    },
+    {
+      "id": "source-sixmh-magister-local-passed",
+      "at": "2026-11-05T12:14:30+08:00",
+      "title": "六漫画候选通过网页和本地 WASM 对照",
+      "detail": "四个同名结果取全 3277、1025、2206、2197 条并逐条匹配网页；已生成 0.1.8 本地源包，237 尚未验收。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "verified"
+    },
+    {
+      "id": "source-sixmh-magister-reproduced",
+      "at": "2026-11-05T12:12:22+08:00",
+      "title": "复现两个同名《全职法师》的目录容量故障",
+      "detail": "网页与源请求返回同序的 3277 和 2197 个链接；0.1.7 WASM 对两份 HTTP 200 目录均报 node_capacity。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-sixmh-magister-reported",
+      "at": "2026-11-05T12:08:58+08:00",
+      "title": "登记六漫画《全职法师》目录故障",
+      "detail": "用户确认 WebView 目录和阅读正常；开始对照站点和本地 WASM，尚未操作 237。",
+      "itemId": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "kind": "work"
+    },
     {
       "id": "terminal-row-113",
       "at": "2026-10-25T03:50:24.629575+08:00",

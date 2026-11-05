@@ -3,7 +3,19 @@
     "products": [
       {
         "name": "default",
-        "targetSdkVersion": "6.1.0(23)",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "6.1.0(23)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "useNormalizedOHMUrl": true
+          },
+          "nativeCompiler": "BiSheng"
+        }
+      },
+      {
+        "name": "release",
+        "targetSdkVersion": "26.0.0",
         "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -12,11 +24,43 @@
           }
         }
       }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "capabilities": [
+      {
+        "bundleName": "com.honjow.koma",
+        "config": []
+      }
     ]
   },
   "modules": [
-    { "name": "reader_core", "srcPath": "./third_party/reader-kit/reader-core" },
-    { "name": "reader_ui", "srcPath": "./third_party/reader-kit/reader-ui" },
-    { "name": "entry", "srcPath": "./entry" }
+    {
+      "name": "reader_core",
+      "srcPath": "./third_party/reader-kit/reader-core"
+    },
+    {
+      "name": "reader_ui",
+      "srcPath": "./third_party/reader-kit/reader-ui"
+    },
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default",
+            "release"
+          ]
+        }
+      ]
+    }
   ]
 }
