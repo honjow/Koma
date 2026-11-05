@@ -18,7 +18,7 @@ import { SourceRuntimeRegistry, SourceRuntimeRegistryInstalledSourceSummary } fr
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { RouterHelper } from '../common/RouterHelper'
 import { common } from '@kit.AbilityKit'
-import { AnimatorResult } from '@kit.ArkUI'
+import { AnimatorResult, FrameCallback } from '@kit.ArkUI'
 import { RemoteServerStore } from '../model/RemoteServerStore'
 import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
@@ -45,6 +45,19 @@ interface PrivateBrowseSourceEntry {
 interface BrowsePinMotion {
   languageHeights: Map<string, number>
   pinnedHeight: number | undefined
+}
+
+class BrowsePinLayoutReady extends FrameCallback {
+  private readonly run: () => void
+
+  constructor(run: () => void) {
+    super()
+    this.run = run
+  }
+
+  onIdle(_timeLeftInNano: number): void {
+    this.run()
+  }
 }
 
 @ComponentV2
@@ -198,6 +211,14 @@ export struct BrowsePage {
         this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
       }
     })
+    // Start after ArkUI lays out the new rows at the old heights, so the
+    // destination row's first layout does not consume the animation.
+    this.getUIContext().postFrameCallback(new BrowsePinLayoutReady((): void => {
+      if (this.pinMotion === motion) this.playPinMotion()
+    }))
+  }
+
+  private playPinMotion(): void {
     const animator = this.getUIContext().createAnimator({
       duration: 220, easing: 'ease-in-out', delay: 0, fill: 'none', direction: 'normal',
       iterations: 1, begin: 0, end: 1,
@@ -235,6 +256,10 @@ export struct BrowsePage {
 
   private sourcesInLanguage(language: string): SourceRuntimeRegistryInstalledSourceSummary[] {
     return this.sourcesByLanguage[language] ?? []
+  }
+
+  private sourceNeedsDivider(sources: SourceRuntimeRegistryInstalledSourceSummary[], sourceId: string): boolean {
+    return sources[sources.length - 1]?.sourceId !== sourceId
   }
 
   @Builder
@@ -415,9 +440,13 @@ export struct BrowsePage {
       BrowseSourceSectionExtent({ fromHeight: this.pinMotion?.pinnedHeight, progress: this.pinProgress }) {
         if (this.pinnedRuntimeSources.length > 0) {
           GroupedListSection({ title: s('browse_pinned_sources_heading') }) {
-            ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+            // ArkUI appends index to the effective key if the builder uses it.
+            // Derive the divider from live group membership instead.
+            ForEach(this.pinnedRuntimeSources, (source: SourceRuntimeRegistryInstalledSourceSummary) => {
               this.RuntimeSourceRow(source, true)
-              if (index + 1 < this.pinnedRuntimeSources.length) { ListDivider({ leftMargin: ThemeConstants.SPACE_XL }) }
+              if (this.sourceNeedsDivider(this.pinnedRuntimeSources, source.sourceId)) {
+                ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+              }
             }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
               sourceDisplayName(source.sourceId, source.displayName)]))
           }
@@ -440,9 +469,11 @@ export struct BrowsePage {
           if (this.sourcesInLanguage(language).length > 0) {
             GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
               subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
-              ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
+              ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary) => {
                 this.RuntimeSourceRow(source, false)
-                if (index + 1 < this.sourcesInLanguage(language).length) { ListDivider({ leftMargin: ThemeConstants.SPACE_XL }) }
+                if (this.sourceNeedsDivider(this.sourcesInLanguage(language), source.sourceId)) {
+                  ListDivider({ leftMargin: ThemeConstants.SPACE_XL })
+                }
               }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
                 sourceDisplayName(source.sourceId, source.displayName)]))
             }
