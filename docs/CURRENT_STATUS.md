@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T18:15:38+08:00",
+  "updatedAt": "2026-11-05T18:23:14+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -81,6 +81,89 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_SCITECHVISTA_MULTI_AUTHOR",
+      "title": "科技大观园双作者作品详情误判解析失败",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "pixiv_public_catalogue修复；Root定位与验收",
+      "status": "两篇官网原体已定位双作者行，最小兼容待完成",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖及Root逐例网页对照发现；不是用户单独报告时间。",
+      "result": "28部原采样有26正常，AHCOO与颱風騎士團两篇详情和目录parse_error。两份官网原体本次同源UA/Referer均HTTP200，列表只显示第一作者与学校，详情实际各有两组作者/学校；原实现要求.Author/.Division只命中1个元素，错误拒绝真实双作者页。修复需保主作者/学校元数据及同作品归属，不能猜选择器序号或丢正文图。",
+      "remaining": "完成限定双作者兼容及28部真实体对照、26正常输出等价与两失败正文，237后公开。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/scitechvista-web/fetch.json",
+        ".hvigor/outputs/source-coverage-20261105/coverage-app-v2/com.scitechvista.zh-hant.koma/summary.jsonl"
+      ]
+    },
+    {
+      "id": "SOURCE_MANGABALL_CATALOGUE_LIMIT_AND_EMPTY",
+      "title": "MangaBall大目录读取失败及无中文章节提示不准确",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "device_preparation定位与候选；Root验收",
+      "status": "已区分真实容量与无中文目录，正在修复",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖对30个原API逐例核对发现；不是用户单独反馈时间。",
+      "result": "30个同参目录API原体均HTTP200，其中真实原体最大约6.3MiB/9847条；原Host返回-3是JSON响应超过源缓冲区，不能冒网络故障。另有完整API确无中文或全空章节的条目，将按用户要求准确提示暂无可用章节，不能当下架或运行异常。原记录中另1次真实TLS失败单独保留。",
+      "remaining": "完成有界全目录兼容与明确no_chapters分类，保语言过滤及归属/ID；核普通App目录与提示，再恢复提交。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/mangaball-web"
+      ]
+    },
+    {
+      "id": "SOURCE_MIXFLAVOR_BODY_FORMATS",
+      "title": "综合口味多种真实正文结构与图片地址解析失败",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "pixiv_public_catalogue定位与候选；Root验收",
+      "status": "30份原网页已核，兼容候选正在验证",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖逐例官网对照发现；不是用户单独反馈时间。",
+      "result": "30份原网页均HTTP200，旧版3成功27解析失败。已定位无srcset的旧正文、实际表格/直系图片树与作者上传图片namespace，候选仅支持实见结构并保留全部正文图数量、同作归属和顺序校验。尚未审完整候选回放，不称已修复通过。",
+      "remaining": "完成最小候选与原正常等价、关键反例和实图核对，237验收后提交分发。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/mixflavor-web"
+      ]
+    },
+    {
+      "id": "SOURCE_FJUMONKEY_IMAGE_QUERY",
+      "title": "輔大猴部分漫画正文图片版本参数被误拒",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "Terra候选；Root验收",
+      "status": "0.1.3限定候选已本地核，真机待验",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖逐例官网对照发现；不是用户单独反馈时间。",
+      "result": "真实正文图片含单个?v=后10位数字，旧版仅允许.jpg结尾，导致6篇原网页HTTP200仍解析失败。候选保原URI，仅兼容已见参数格式，正文仍按同篇重取与精确URL/ordinal绑定。30篇真实体中24正常作品72响应全等，6原失败18响应恢复，23张正文URL逐网页DOM顺序一致；6篇各1幅实际图200完整解码，跨作、错序、未知参数等36边界仍拒。",
+      "remaining": "Root审候选和实图，完成237失败类型及正常对照阅读，恢复后提交公开。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/fjumonkey-web/regression30.json",
+        ".hvigor/outputs/source-coverage-20261105/fjumonkey-web/recovered-images.json"
+      ]
+    },
+    {
+      "id": "SOURCE_IMMARK_ALBUM_IMAGES",
+      "title": "我是马克后续分页和相簿图片被误拒",
+      "kind": "open",
+      "priority": "全源覆盖发现",
+      "owner": "Root；pixiv_public_catalogue候选",
+      "status": "0.1.2候选本地及10部实图通过，真机待验",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话全源覆盖第3页及原文章发现；不是用户单独报告时间。",
+      "result": "分类第3页3篇原文章各9张相簿图片被仅post路径校验误拒，选择器本来已支持该DOM。候选只接受作者namespace下相簿地址，文章归属仍由重取后DOM精确URL及序号决定，不能由相簿号推作品。34篇真实原体共286图、前4页48条ID/顺序及29个关键反例已核，31篇原正常作品115完整响应相同；Root补下载3篇全部27图和7篇正常对照首图，共10篇34图均HTTP200完整解码。分类实际链接后续49页，前24篇不是穷尽。",
+      "remaining": "Root审实图并完成237普通候选导入、坏样本和原正常阅读；恢复后直接提交分发。",
+      "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/immark-web/candidate-review.json",
+        ".hvigor/outputs/source-coverage-20261105/immark-web/root-images.json"
+      ]
+    },
     {
       "id": "SOURCE_HUANTA_DETAIL_OWNER",
       "title": "幻塔官方中文漫画多部加载失败并显示书源运行异常",
@@ -244,12 +327,12 @@
       "kind": "open",
       "priority": "用户直接要求",
       "owner": "Terra 子代理；Root 审核与推进",
-      "status": "已向75源2013部作品请求详情，45源达取样数量目标，仍在补核",
+      "status": "足量覆盖与网页核对继续；已发现失败逐项修复，幻塔已公开",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求开 Terra 子代理，逐源使用足量漫画样本，不能以一两个成功代表源正常。",
-      "result": "85个生产源中84可安装，嗨皮漫画暂不可用，demo排除。截至本次统计，全轮次75源2013部唯一作品实际发起过详情（含失败），45源达到各自30/50本取样数量目标，不等于通过。完整App合同处理1145部，详情1128次有效/1058成功，目录1117次有效/1058成功；网页/API目录和真实图像另列。漫画人临时宿主已按App原实现补游客会话，CLI漏body的411有loopback反例并已修，同源真实POST/GET200，原矩阵50部详情/目录和10部页表完成；5个0目录需独立核状态，不猜下架。官方和小站当前栏目真实分母分别保留，章数不充作品数。",
-      "remaining": "继续未达数量目标但可执行的源与每源实际图片；ComicFury中文latest12、幻塔当前栏目16有独立分母，不扩称全站总数。漫画人50本需独立网页/API目录与实图核，5个0目录保留未知。官方小站目录和实图由独立分工补核；BNS/LOL/FGO未覆盖入口及范围依据仍待核。漫画柜237访问未通过且原因未知，候选未发布。已验三项公开包已核；CLI合同修复已推，CI状态另核。",
+      "result": "85个生产源中84可安装，嗨皮漫画暂不可用，demo排除。截至本次统计，全轮次75源2013部唯一作品实际发起过详情（含失败），45源达到各自30/50本取样数量目标，不等于通过。完整App合同处理1145部，详情1128次有效/1058成功，目录1117次有效/1058成功；网页/API目录和真实图像另列。漫画人临时宿主已按App原实现补游客会话，CLI漏body的411有loopback反例并已修，同源真实POST/GET200，原矩阵50部详情/目录和10部页表完成；5个0目录需独立核状态，不猜下架。官方和小站当前栏目真实分母分别保留，章数不充作品数。 幻塔原16部中10失败已落实修复并公开0.1.2：本地16部四操作/实图、237三类与正常对照具名通过。其余我是马克、輔大猴、综合口味、MangaBall及科技大观园分别登记原事项并分工修复，避免失败只留统计。官方10源已另核66作品目录、18完整页表和39不同作品实际图片；原神倒序及DOTA48页/6章偏移差异保留，不冒所有入口覆盖。CLI49a精确CI成功，正式/备用分发回查完成。",
+      "remaining": "继续不足样本、实际图片和独立分母核对；已确认的具名错误按各源原项完成候选、237与公开。漫画人50本仍需独立网页目录/实图及5个0目录核对；BNS/LOL/FGO等未覆盖入口及范围依据保留未知。漫画柜237访问未通过且原因未知，候选未发布。403/登录/区域及持续TLS限制分别保留，不把少数失败扩成全站关闭。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/progress.json",
         ".hvigor/outputs/source-coverage-20261105",
@@ -17637,6 +17720,18 @@
       "at": "2026-11-05T18:15:38+08:00",
       "title": "幻塔0.1.2公开分发核验完成，加载失败反馈关闭",
       "result": "精确CI成功；正式/备用镜像index及包相同，公开WASM与实机候选16部四类完整响应等价。237三类失败+正常对照已亲审且已恢复释租；全85源检查继续。"
+    },
+    {
+      "id": "source-four-discovered-failures-tracked-2026-11-05T18:19:27+08:00",
+      "at": "2026-11-05T18:19:27+08:00",
+      "title": "其余具名运行失败分别登记并落实候选",
+      "result": "我是马克相簿、輔大猴版本参数、综合口味正文格式及MangaBall大目录/无中文目录分别建原事项；不再只留统计。各自本地、实图、237及分发范围明确，未验证不称通过。"
+    },
+    {
+      "id": "source-scitech-two-author-failure-located-2026-11-05T18:23:14+08:00",
+      "at": "2026-11-05T18:23:14+08:00",
+      "title": "科技大观园两部解析失败定位为真实双作者行",
+      "result": "同UA/Referer两份官网200原体明确两组作者/学校，旧实现唯一元素断言误拒；已交候选owner，未完成修复或实机验收。全源其余已知失败继续逐项落实。"
     }
   ],
   "reportAgeAudit": {
