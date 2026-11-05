@@ -272,15 +272,9 @@ export struct BrowsePage {
   }
 
   @Builder
-  private RuntimeSourceListItems() {
-    ForEach(this.sourceGroupLanguages, (language: string) => {
-      ListItem() {
-        // Keep group identity by language, but read its members from the live
-        // projection. A retained ForEach closure must not keep an old group DTO.
-  @Builder
   private RuntimeSourceRow(source: SourceRuntimeRegistryInstalledSourceSummary, pinned: boolean) {
     SourceListItem({ source, subtitle: `v${source.version}`, languageBadge: '',
-      accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: true, pinned,
+      accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: this.catalogFilters.loaded, pinned,
       onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
       onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
   }
@@ -298,6 +292,12 @@ export struct BrowsePage {
     }
   }
 
+  @Builder
+  private RuntimeSourceListItems() {
+    ForEach(this.sourceGroupLanguages, (language: string) => {
+      ListItem() {
+        // Keep group identity by language, but read its members from the live
+        // projection. A retained ForEach closure must not keep an old group DTO.
         GroupedListSection({ title: sourceLanguageName(language) || s('source_catalog_language_unknown'),
           subtitle: s('browse_installed_sources_count').replace('%s', `${this.sourcesInLanguage(language).length}`) }) {
           ForEach(this.sourcesInLanguage(language), (source: SourceRuntimeRegistryInstalledSourceSummary, index: number) => {
@@ -414,6 +414,9 @@ export struct BrowsePage {
           this.EmptySources()
         }
       } else {
+        if (this.pinnedRuntimeSources.length > 0) {
+          this.PinnedSourceListItems()
+        }
         if (this.configuredPrivateSourceEntries().length > 0) {
           this.PrivateSourceListItems()
         }
@@ -421,9 +424,6 @@ export struct BrowsePage {
           this.RuntimeSourceListItems()
         }
       }
-        if (this.pinnedRuntimeSources.length > 0) {
-          this.PinnedSourceListItems()
-        }
     }
     }
     .width('100%').height('100%')

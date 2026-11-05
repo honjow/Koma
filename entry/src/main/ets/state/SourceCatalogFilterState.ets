@@ -28,6 +28,7 @@ export class SourceCatalogFilterState {
   @Trace languages: string[] | undefined = undefined
   @Trace rating: SourceCatalogRating = 'all'
   @Trace pinnedSourceIds: string[] = []
+  @Trace loaded: boolean = false
   private ready?: Promise<void>
   private context?: common.Context
   private writes: Promise<void> = Promise.resolve()
@@ -45,6 +46,7 @@ export class SourceCatalogFilterState {
         if (generation === this.generation) {
           this.persisted = value
           if (edit === this.edit) this.publish(value)
+          this.loaded = true
         }
       }).catch((error: Error): void => {
         if (generation === this.generation) this.ready = undefined
@@ -55,7 +57,7 @@ export class SourceCatalogFilterState {
     return this.ready
   }
 
-  invalidate(): void { this.generation += 1; this.ready = undefined }
+  invalidate(): void { this.generation += 1; this.ready = undefined; this.loaded = false }
 
   private publish(value: SourceCatalogPresentationPreferences): void {
     this.languages = value.languages
@@ -82,10 +84,16 @@ export class SourceCatalogFilterState {
   }
 
   save(value: SourceCatalogFilters): Promise<void> {
+    if (!this.loaded && this.context !== undefined) {
+      return this.prepare(this.context).then(() => this.save(value))
+    }
     return this.savePresentation({ languages: value.languages, rating: value.rating, pinnedSourceIds: this.pinnedSourceIds })
   }
 
   setSourcePinned(id: string, pinned: boolean): Promise<void> {
+    if (!this.loaded && this.context !== undefined) {
+      return this.prepare(this.context).then(() => this.setSourcePinned(id, pinned))
+    }
     if (id.length === 0 || this.pinnedSourceIds.includes(id) === pinned) return Promise.resolve()
     const next = this.pinnedSourceIds.filter((key: string): boolean => key !== id)
     if (pinned) next.unshift(id)
