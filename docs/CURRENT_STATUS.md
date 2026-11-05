@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T17:46:54+08:00",
+  "updatedAt": "2026-11-05T18:15:38+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -84,15 +84,15 @@
     {
       "id": "SOURCE_HUANTA_DETAIL_OWNER",
       "title": "幻塔官方中文漫画多部加载失败并显示书源运行异常",
-      "kind": "open",
+      "kind": "accepted",
       "priority": "用户直接反馈，当前优先",
       "owner": "Root",
-      "status": "候选16部四操作及16实图已核，等待连续237验收",
+      "status": "0.1.2已公开；16部本地、三类237修复与分发均通过",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户最新反馈：幻塔官方中文漫画很多加载失败，提示书源运行异常；原始报告具体时刻未核实。",
-      "result": "官网16个详情均HTTP200。原源有三种错误假设：8篇省略于列表的系列标题前缀被拒、滑板少女/足球的官方PNG被JPEG限定拒绝、自我介绍的发布日期07-11与URL07-14不同被拒。限定修复只支持真实精确前缀、官方同格式文件夹/后缀和独立日期格式；列表短标题、稳定ID和正文同作品校验保留。候选16部详情/目录/页表/图片请求全部成功，原6正常作品四类完整响应及两页列表完全相同；13个错作、错域、错图、未知格式和非法请求仍拒绝。此前该批失败留在统计未立项，现已纠正并作为当前优先处理。 16幅官方原图均HTTP200、完整解码并已目视联系表；滑板少女/足球是PNG URL路径，服务端实际返回JPEG字节，源保持原URI且不转码。",
-      "remaining": "237先复现旧0.1.1普通详情运行异常，再核0.1.2的PNG路径、系列前缀和独立日期三类普通阅读，独立恢复释租后直接提交分发。",
+      "result": "官网16个详情均HTTP200。原源有三种错误假设：8篇省略于列表的系列标题前缀被拒、滑板少女/足球的官方PNG路径被JPG路径限定拒绝、自我介绍的发布日期07-11与URL07-14不同被拒。限定修复只支持真实精确前缀、官方同格式文件夹/后缀和独立日期格式；列表短标题、稳定ID和正文同作品校验保留。候选16部详情/目录/页表/图片请求全部成功，原6正常作品四类完整响应及两页列表完全相同；13个错作、错域、错图、未知格式和非法请求仍拒绝。此前该批失败留在统计未立项，现已纠正并作为当前优先处理。 16幅官方原图均HTTP200、完整解码并已目视联系表；滑板少女/足球是PNG URL路径，服务端实际返回JPEG字节，源保持原URI且不转码。 237原0.1.1普通打开滑板少女复现详情失败（当前测试包实际显示“源详情加载失败。”，不冒用户旧包原文）。导入0.1.2后，滑板少女、破坏狂、自我介绍及原正常试用体验均从普通目录进入，1章与完整1/1漫画正文已亲审；稳定漫画ID、短标题和章节ID读回一致，目录全部16部已枚举。原源四文件、注册信息、reader/search数据逐字节恢复；原SLEEP、normal120000/override10000读回一致，租约已释放。返回第二页时标题已滚出导致一次脚本断言失败，已保留原失败并按真实Grid卡片确认返回，未重读制造通过。 已公开c157573e2c0c2a576f400f7affb16f7ba7ac5442，精确CI42008501764成功；仅幻塔3文件和Cargo.lock单版本行，其他WIP及原暂存内容保留。 公开Release原包与索引摘要通过，身份/版本/原图标一致；公开WASM编译字节与本地候选不同，但16部详情/目录/页表/图片请求完整响应逐项相同，正式与备用镜像index及包逐字相同。",
+      "remaining": "本反馈已修复并公开；真实网站之后变化按新反例重开，不由本地16部外推全部官方漫画站或全部源正常。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/coverage/com.huanta.zh.koma/summary.jsonl",
         ".hvigor/outputs/source-coverage-20261105/huanta-web",
@@ -100,7 +100,10 @@
         ".hvigor/outputs/source-coverage-20261105/huanta-web/regression.json",
         ".hvigor/outputs/source-coverage-20261105/huanta-web/negative.json",
         ".hvigor/outputs/source-coverage-20261105/huanta-web/images.json",
-        ".hvigor/outputs/source-coverage-20261105/huanta-web/contactsheet.jpg"
+        ".hvigor/outputs/source-coverage-20261105/huanta-web/contactsheet.jpg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/huanta-regression/session.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/huanta-regression/root-review.json",
+        ".hvigor/outputs/source-coverage-20261105/huanta-public/receipt.json"
       ]
     },
     {
@@ -17616,6 +17619,24 @@
       "at": "2026-11-05T17:46:54+08:00",
       "title": "幻塔16幅原图下载解码完成，进入237验收",
       "result": "16幅原图HTTP200完整解码，联系表目视均为对应漫画，PNG路径实际JPEG字节不误写格式。候选本地全16部已核，原生普通路径仍待执行。"
+    },
+    {
+      "id": "source-huanta237-verified-restored-2026-11-05T18:09:03+08:00",
+      "at": "2026-11-05T18:09:03+08:00",
+      "title": "幻塔三类失败和原正常作品在237验证通过，原状态已恢复",
+      "result": "旧版普通详情失败已复现；候选三类具名修复与试用体验对照均1章/完整1页，16普通卡片及稳定ID已核。原源包、注册和阅读搜索数据逐字节恢复，电源恢复SLEEP/120000/10000且释租；公开分发仍待完成。"
+    },
+    {
+      "id": "source-huanta012-pushed-2026-11-05T18:14:00+08:00",
+      "at": "2026-11-05T18:14:00+08:00",
+      "title": "幻塔修复已独立推送，公开构建进行中",
+      "result": "仅已验收幻塔4文件已推送；本地原工作文件及其它暂存内容保留。237具名验收和独立恢复已完成，公开实体仍待核。"
+    },
+    {
+      "id": "source-huanta012-public-verified-2026-11-05T18:15:38+08:00",
+      "at": "2026-11-05T18:15:38+08:00",
+      "title": "幻塔0.1.2公开分发核验完成，加载失败反馈关闭",
+      "result": "精确CI成功；正式/备用镜像index及包相同，公开WASM与实机候选16部四类完整响应等价。237三类失败+正常对照已亲审且已恢复释租；全85源检查继续。"
     }
   ],
   "reportAgeAudit": {
