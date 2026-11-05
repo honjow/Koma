@@ -227,6 +227,11 @@ interface SettingsSearchRouteParam {
   searchTarget: string
 }
 
+interface BackupManagementRouteParam {
+  searchTarget: string
+  scroller: Scroller
+}
+
 @Entry
 @ComponentV2
 struct Index {
@@ -1785,7 +1790,8 @@ struct Index {
     // Backup owns its configuration and task navigation; do not insert a
     // second settings directory whose entries all open the same home page.
     if (pane === 'backup') {
-      this.appPathStack.pushPath({ name: RouteName.BACKUP_MANAGEMENT, param: { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam })
+      const param: BackupManagementRouteParam = { searchTarget: rowKey ?? '', scroller: new Scroller() }
+      this.appPathStack.pushPath({ name: RouteName.BACKUP_MANAGEMENT, param })
       return
     }
     if (pane === 'tracking') {
@@ -2880,11 +2886,13 @@ struct Index {
     } else if (name === RouteName.BACKUP_MANAGEMENT) {
       HdsNavDestination() {
         BackupManagementPage({ refreshRevision: this.backupSettingsRevision,
-          searchTarget: (param as SettingsSearchRouteParam)?.searchTarget ?? '',
+          searchTarget: (param as BackupManagementRouteParam).searchTarget,
+          backupScroller: (param as BackupManagementRouteParam).scroller,
           onOpenDeviceSync: (): void => { this.appPathStack.pushPath({ name: RouteName.DEVICE_SYNC }) },
           onRestoreCompleted: () => { this.onBackupRestored() } })
       }
       .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_backup_management_title')))
+      .bindToScrollable([(param as BackupManagementRouteParam).scroller])
       .onBackPressed(() => BackupRestoreActivity.isRestoring())
     } else if (name === RouteName.DEVICE_SYNC) {
       HdsNavDestination() {

@@ -217,7 +217,7 @@ export class DeviceSyncEngine {
     }
   }
 
-  async testConnection(raw: SyncConnectionDraft): Promise<void> {
+  async testConnection(raw: SyncConnectionDraft): Promise<boolean> {
     const draft = checkedSyncDraft(raw)
     const guard = this.guard(this.generation)
     const credential = util.generateRandomUUID()
@@ -234,6 +234,19 @@ export class DeviceSyncEngine {
       // The old endpoint and exact probe path remain in private storage until cleanup succeeds.
       throw error as Error
     }
+    const state = this.storage.load()
+    const intent = state.intent
+    if (intent === undefined || !intent.sent || intent.detached ||
+      intent.connection.endpointIdentity !== endpointIdentity(draft)) return false
+    const previousDraft = await readSyncCredential(intent.connection.credential)
+    guard()
+    if (!sameConnection(previousDraft, draft) || previousDraft.password !== draft.password) return false
+    // A retry from the connection form can also be the first connection.
+    // Resolve the original intent before building any replacement preview.
+    await this.recoverIntent()
+    const recovered = this.storage.load()
+    return recovered.localReceipt !== state.localReceipt && recovered.active?.space === intent.connection.space &&
+      !recovered.active.reviewRequired
   }
 
   async cleanProbes(): Promise<void> {

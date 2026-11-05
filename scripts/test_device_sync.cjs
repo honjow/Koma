@@ -377,3 +377,26 @@ test('receipt recovery keeps an independently received preference as remote data
     .find(fact => fact.key === animation)
   assert.equal(received.values[0].version.replica, B)
 })
+
+test('the first connection form retries the exact committed preview before proposing another merge', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const mode = data.syncKey(['global', 'image-fit'])
+  const left = replica(A, [['reader-settings', new Map([[mode, '"contain"']])]])
+  const right = replica(B, [['reader-settings', new Map([[mode, '"fit_width"']])]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['reader-settings'])).token, [])
+  assert.equal(await right.engine.testConnection(draft), false)
+  const preview = await right.engine.prepare(draft, ['reader-settings'])
+  const server = servers.get(draft.directory)
+  server.failures.push('lost-response')
+  await assert.rejects(right.engine.confirm(preview.token, [{ group: 'reader-settings', key: mode, useLocal: false }]),
+    /sync_remote_result_unknown/)
+  assert.equal(right.engine.active(), undefined)
+  const accepted = structuredClone(server.head)
+  const writes = server.published.length
+  assert.equal(await right.engine.testConnection(draft), true)
+  assert.equal(right.values.get('reader-settings').get(mode), '"contain"')
+  assert.equal(right.engine.active().revision, accepted.revision)
+  assert.equal(server.published.length, writes)
+  assert.deepEqual(server.head, accepted)
+})

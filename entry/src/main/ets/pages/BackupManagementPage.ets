@@ -77,7 +77,7 @@ const BACKUP_SECTIONS: string[] = ['backup-actions', 'device-sync', 'backup-file
 export struct BackupManagementPage {
   @Param searchTarget: string = ''
   @Event onOpenDeviceSync: () => void = () => {}
-  private backupScroller: Scroller = new Scroller()
+  @Param backupScroller: Scroller = new Scroller()
   @Local private backupSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Param refreshRevision: number = 0
   @Event onRestoreCompleted: () => void = () => {}
