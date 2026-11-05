@@ -4,10 +4,13 @@
 #include <cstdio>
 #include <cstring>
 #include <condition_variable>
+#include <chrono>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -521,9 +524,8 @@ private:
     bool initialized_ = false;
 };
 
-// WAMR initialization and its allocator are process-global. Keep both alive
-// until the last independent call has finished; never destroy them while a
-// different worker is waiting on HTTP or executing its own module.
+// WAMR initialization and its allocator are process-global. Keep them alive
+// across a burst of calls, with only one pool and a bounded idle lifetime.
 std::mutex g_runtimeLifetimeMu;
 std::condition_variable g_runtimeSlotAvailable;
 std::unique_ptr<Runtime> g_runtime;
@@ -531,6 +533,65 @@ uint32_t g_runtimeUsers = 0;
 uint32_t g_imageRuntimeUsers = 0;
 std::unordered_set<std::string> g_activeSources;
 bool g_unidentifiedSourceActive = false;
+
+class RuntimeIdleReaper {
+public:
+    static RuntimeIdleReaper &Get()
+    {
+        static RuntimeIdleReaper reaper;
+        return reaper;
+    }
+
+    void KeepWarmLocked()
+    {
+        deadline_ = Clock::now() + std::chrono::seconds(2);
+        changed_.notify_one();
+    }
+
+    void CancelLocked()
+    {
+        deadline_.reset();
+        changed_.notify_one();
+    }
+
+private:
+    using Clock = std::chrono::steady_clock;
+
+    RuntimeIdleReaper() : worker_([this] { Reap(); }) {}
+
+    ~RuntimeIdleReaper()
+    {
+        {
+            std::lock_guard<std::mutex> lock(g_runtimeLifetimeMu);
+            stopping_ = true;
+        }
+        changed_.notify_one();
+        worker_.join();
+    }
+
+    void Reap()
+    {
+        std::unique_lock<std::mutex> lock(g_runtimeLifetimeMu);
+        while (!stopping_) {
+            if (!deadline_) {
+                changed_.wait(lock, [this] { return stopping_ || deadline_.has_value(); });
+                continue;
+            }
+            const auto deadline = *deadline_;
+            if (!changed_.wait_until(lock, deadline, [this, deadline] {
+                    return stopping_ || deadline_ != deadline;
+                })) {
+                if (g_runtimeUsers == 0) g_runtime.reset();
+                deadline_.reset();
+            }
+        }
+    }
+
+    bool stopping_ = false;
+    std::optional<Clock::time_point> deadline_;
+    std::condition_variable changed_;
+    std::thread worker_;
+};
 
 class RuntimeLease {
 public:
@@ -549,8 +610,10 @@ public:
             if (image_) ++g_imageRuntimeUsers;
             else if (sourceId_.empty()) g_unidentifiedSourceActive = true;
             else g_activeSources.insert(sourceId_);
-            if (g_runtimeUsers == 0) {
+            if (!g_runtime) {
                 g_runtime = std::make_unique<Runtime>();
+            } else if (g_runtimeUsers == 0) {
+                RuntimeIdleReaper::Get().CancelLocked();
             }
             ++g_runtimeUsers;
         } catch (...) {
@@ -571,7 +634,11 @@ public:
             else if (sourceId_.empty()) g_unidentifiedSourceActive = false;
             else g_activeSources.erase(sourceId_);
             if (--g_runtimeUsers == 0) {
-                g_runtime.reset();
+                try {
+                    RuntimeIdleReaper::Get().KeepWarmLocked();
+                } catch (...) {
+                    g_runtime.reset();
+                }
             }
         }
         // A same-source waiter may be ineligible while another source is free.
@@ -873,14 +940,24 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
         if (HasTestOnlyGuard(requestJson, kTestTimeoutGuard)) {
             return ErrorJson("WAMR_RUNTIME_TIMEOUT", "source runtime call timed out", "timeout");
         }
-        RuntimeLease runtime(sourceId);
-        ThreadEnv threadEnv;
-        HtmlScope htmlScope;
-        Module module(LoadWasmBytesFromExternalBytes(wasmBytes), httpContextJson);
-        std::string response = module.RunOperation(requestJson);
 #if defined(KOMA_HAS_HILOG)
-        OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime", "[SourceRuntime] step=wasm_smoke_ok route=bytes wasmBytes=%{public}zu",
-            wasmBytes.size());
+        const auto start = std::chrono::steady_clock::now();
+#endif
+        auto moduleBytes = LoadWasmBytesFromExternalBytes(wasmBytes);
+        std::string response;
+        {
+            RuntimeLease runtime(sourceId);
+            ThreadEnv threadEnv;
+            HtmlScope htmlScope;
+            Module module(std::move(moduleBytes), httpContextJson);
+            response = module.RunOperation(requestJson);
+        }
+#if defined(KOMA_HAS_HILOG)
+        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - start).count();
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime",
+            "[SourceRuntime] step=wasm_smoke_ok route=bytes wasmBytes=%{public}zu durationUs=%{public}lld",
+            wasmBytes.size(), static_cast<long long>(elapsed));
 #endif
         return response;
     } catch (const std::exception &err) {

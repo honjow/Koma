@@ -13,6 +13,7 @@ export struct SourceSettingsSheetHost {
   @Param sourceName: string = ''
   @Param requestSeq: number = 0
   @Param active: boolean = false
+  @Param deferAvailability: boolean = false
   @Event onSettingsSaved: () => void = () => {}
   @Event onAvailabilityChanged: (available: boolean) => void = () => {}
   @Local private shown: boolean = false
@@ -20,6 +21,7 @@ export struct SourceSettingsSheetHost {
   @Local private draft: SourceSettingsRecord = {}
   @Local private authenticationAvailable: boolean = false
   private mounted: boolean = false
+  private availabilityStarted: boolean = false
   private epoch: number = 0
   private handledRequestSeq: number = 0
   private saved: boolean = false
@@ -27,6 +29,15 @@ export struct SourceSettingsSheetHost {
 
   aboutToAppear(): void {
     this.mounted = true
+    this.prepareAvailability()
+  }
+
+  @Monitor('deferAvailability', 'active')
+  private prepareAvailability(): void {
+    // The optional settings menu does not need to occupy the source's first
+    // foreground slot before its visible catalogue or search result.
+    if (!this.mounted || !this.active || this.deferAvailability || this.availabilityStarted) return
+    this.availabilityStarted = true
     void this.loadAvailability()
   }
 
@@ -43,6 +54,7 @@ export struct SourceSettingsSheetHost {
 
   aboutToDisappear(): void {
     this.mounted = false
+    this.availabilityStarted = false
     this.epoch += 1
     this.shown = false
   }

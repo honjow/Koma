@@ -941,6 +941,24 @@ export class BrowseViewModel {
     if (nextValues === undefined) {
       return
     }
+    await this.applyBrowseFilterValues(nextValues)
+  }
+
+  private textFilterValues(current: SourceMangaListFilters, changes: Record<string, string>): SourceMangaListFilters {
+    let next = current
+    for (const id of Object.keys(changes)) {
+      const value = changes[id].trim()
+      next = this.updateFilterValue(next, id, value.length > 0 ? value : undefined) ?? next
+    }
+    return next
+  }
+
+  async applyBrowseTextFilters(changes: Record<string, string>): Promise<void> {
+    const next = this.textFilterValues(this.browseFilterValues, changes)
+    if (next !== this.browseFilterValues) await this.applyBrowseFilterValues(next)
+  }
+
+  private async applyBrowseFilterValues(nextValues: SourceMangaListFilters): Promise<void> {
     this.saveSourceFilterValues('browse', nextValues)
     this.browseFilterValues = nextValues
     const listing = this.currentListing()
@@ -1036,6 +1054,14 @@ export class BrowseViewModel {
     }
     this.saveSourceFilterValues('search', nextValues)
     this.searchFilterValues = nextValues
+    return true
+  }
+
+  applySearchTextFilters(changes: Record<string, string>): boolean {
+    const next = this.textFilterValues(this.searchFilterValues, changes)
+    if (next === this.searchFilterValues) return false
+    this.saveSourceFilterValues('search', next)
+    this.searchFilterValues = next
     return true
   }
 

@@ -43,6 +43,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 列表和搜索结果中的普通公开封面可在 `cover: {kind:"url", url, headers}` 直接提供完整 GET 请求。`headers` 仅允许 `Accept`、`Referer`，无额外头用空对象。封面卡片可并行发起这些请求，沿用原源限速、缓存身份和同图合并。需要票据、认证或其他动态行为的封面仍通过 `get_image_request`，应省略 `cover.headers`。旧宿主忽略此加法字段，源应保留原解析路径。
 
+宿主可在一批调用间短时复用 WAMR 的进程级内存池，空闲后释放。每次调用独立创建模块实例和请求上下文，书源状态应通过 ABI 规定的存储能力传递，不能依赖上一次 WASM 实例。正常列表优先于菜单设置能力探测，后台图片操作在真正获得执行槽后才复制 WASM 输入。
+
 `get_filters` 的每个筛选项可选 `scope: "browse" | "search"`：按当前查询内容判定，空白查询属于 browse，非空查询属于 search；缺省在两者均有效，兼容旧源。`type: "header"` 只携带源原文的 `name`/`label` 与可选 `description`，不产生请求值、默认值、计数或持久化值。宿主只向源提交当前作用域的值，并保留另一作用域的已保存选择；切换查询不删除选择。仅当请求顶层 `hostFeatures` 包含 `source_filter_scope_header_v1` 时，源才能返回依赖作用域或 Header 的新版 schema；未声明时必须返回该源原有 schema，旧宿主不得误暴露或消费新项。
 
 声明 `source_filter_fetching_v1` 的宿主支持可选动态筛选数据：初次 `get_filters` 返回基础 schema 和 `supportsFilterFetching: true`，不为可选标签数据阻塞目录。实际打开筛选时，宿主以 `args.fetchFilterData: true` 再调用 `get_filters`；成功返回包含基础项的完整 schema，失败保留原目录、基础筛选及已存选择，并允许下次打开时重试。稳定动态字段须在基础 schema 声明其 ID，省略 `options` 表示选项尚未加载，不能用空数组冒充。迟到响应受源包、设置版本和页面生命周期约束，不能覆盖别的源。

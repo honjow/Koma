@@ -17,7 +17,7 @@ import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
-import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
+import { SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceFilter, SourceManga, sourceFiltersForQuery } from '../model/SourceModels'
@@ -441,23 +441,6 @@ export struct SourceBrowsePage {
     }
   }
 
-  @Builder
-  private RuntimeFilterControls() {
-    SourceFilterControls({
-      filters: this.runtimeFilters(),
-      values: this.hasSearchFilterQuery() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
-      busy: this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse,
-      optionsLoading: this.viewModel.loadingFilterData,
-      vertical: true,
-      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
-        this.setRuntimeFilterValue(filter, value)
-      },
-      onReset: () => {
-        this.resetRuntimeFilters()
-      },
-    })
-  }
-
   private openListingMenu(): void {
     if (this.listingChoiceCount() > 1 && !this.viewModel.loadingBrowse) {
       this.listingMenuOpen = true
@@ -714,15 +697,26 @@ export struct SourceBrowsePage {
       resetLabel: s('common_reset'),
       showReset: true,
       resetEnabled: !(this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse),
+      filters: this.runtimeFilters(),
+      values: this.hasSearchFilterQuery() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
+      optionsLoading: this.viewModel.loadingFilterData,
+      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
+        this.setRuntimeFilterValue(filter, value)
+      },
+      onApplyText: (changes: Record<string, string>) => {
+        if (this.hasSearchFilterQuery()) {
+          if (this.viewModel.applySearchTextFilters(changes)) this.submitBrowseSearch(this.chrome.query)
+        } else {
+          void this.viewModel.applyBrowseTextFilters(changes)
+        }
+      },
       onClose: () => {
         this.closeFilters()
       },
       onReset: () => {
         this.resetRuntimeFilters()
       },
-    }) {
-      this.RuntimeFilterControls()
-    }
+    })
   }
 
   @Builder
@@ -792,6 +786,7 @@ export struct SourceBrowsePage {
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
           active: this.chrome.visible,
+          deferAvailability: this.isSearchActive() ? this.viewModel.loadingSearch : this.isBlockingBrowseLoading(),
           onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {
             this.chrome.markRefreshNeeded()

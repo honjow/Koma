@@ -667,8 +667,7 @@ function unavailableSourceImageDescriptor(sourceId: string): undefined {
 
 async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, requestJson: string,
   priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND): Promise<string> {
-  const wasmBytes = new Uint8Array(entry.wasmBytes.byteLength)
-  wasmBytes.set(entry.wasmBytes)
+  const wasmBytes = priority === SourceWorkerPriority.BACKGROUND ? entry.wasmBytes : new Uint8Array(entry.wasmBytes)
   const httpContextJson = sourceHttpIdentityJson(entry, undefined, false, 'get_image_request')
   // Keep normal images and deferred text on the same worker/host HTTP bridge.
   const hostRequest = sourceRequestWithHostFeatures(requestJson)

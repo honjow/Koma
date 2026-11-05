@@ -926,14 +926,18 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   f.changeEntry(entry => ({ ...entry, wasmBytes: registeredBytes }))
   const features = moduleFrom('SourceHostFeatures', () => ({}))
   const executionIdentity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
+  const bridge = moduleFrom('NativeSourceRuntime', name => {
+    if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
+    assert.equal(name, 'libkoma_source_runtime.so')
+    return { default: { runJsonCallFromBytes: (request, bytes, context, sourceId) => {
+      nativeCalls.push({ request, bytes, context, sourceId }); return JSON.stringify({ ok: true })
+    } } }
+  })
   const worker = moduleFrom('SourceRuntimeWorker', name => {
     if (name === './SourceHostFeatures') return features
     if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
-    if (name === './NativeSourceRuntime') return {}
-    assert.equal(name, 'libkoma_source_runtime.so')
-    return { runJsonCallFromBytes: (request, bytes, context, sourceId) => {
-      nativeCalls.push({ request, bytes, context, sourceId }); return JSON.stringify({ ok: true })
-    } }
+    assert.equal(name, './NativeSourceRuntime')
+    return bridge
   })
   const shared = sourceWorkerFixture((fn, ...args) => fn(...args), worker)
   const queue = declarations('viewmodel/BrowseViewModel', ['enqueueSourceOperation'])
@@ -941,13 +945,7 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   const source = `${queue}\nexport class Host { ${method} }`
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   vm.runInNewContext(js, { exports, ...features, ...executionIdentity, runBrowseSourceOperationTask: shared.client.runBrowseSourceRequestInWorker, AppStrings: { get: key => key }, sourceHttpIdentityJson: f.api.sourceHttpIdentityJson,
-    diagnoseSourceOperation: (_request, run) => run(), taskpool: { execute: (fn, ...args) => fn(...args) },
-    require: name => {
-      assert.equal(name, 'libkoma_source_runtime.so')
-      return { runJsonCallFromBytes: (request, bytes, context, sourceId) => {
-        nativeCalls.push({ request, bytes, context, sourceId }); return JSON.stringify({ ok: true })
-      } }
-    } })
+    diagnoseSourceOperation: (_request, run) => run() })
   const host = new exports.Host()
   host.registry = { lookup: id => ({ ...f.registry.lookup(id), ok: id === 'source.one' }) }
   host.buildRequestJson = () => JSON.stringify({ operation: 'get_home', settings: { traditional: false }, sourceId: 'wasm-forged', packageIdentity: 'forged' })

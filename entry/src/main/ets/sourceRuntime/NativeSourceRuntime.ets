@@ -73,9 +73,13 @@ export class NativeSourceRuntime {
 
   static runJsonCallFromBytes(request: SourceRuntimeCallRequest | string, wasmBytes: Uint8Array, httpContextJson: string = ''): SourceRuntimeCallResponse {
     const requestJson = typeof request === 'string' ? request : JSON.stringify(request);
-    const responseJson = nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson,
-      sourceRuntimeExecutionSourceId(httpContextJson));
+    const responseJson = NativeSourceRuntime.runRawJsonCallFromBytes(requestJson, wasmBytes, httpContextJson);
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
+  }
+
+  static runRawJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+    return nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson,
+      sourceRuntimeExecutionSourceId(httpContextJson));
   }
 
   static sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean {

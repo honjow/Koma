@@ -56,7 +56,8 @@ function startWaitingSourceOperations(): void {
     else activeSources.add(sourceId)
     Promise.resolve().then((): Promise<string> => {
       if (next.isActive !== undefined && !next.isActive()) return Promise.reject(new Error('search_cancelled'))
-      return runSourceWorker(next.requestJson, next.wasmBytes, next.httpContextJson, next.browse)
+      return runSourceWorker(next.requestJson, next.wasmBytes, next.httpContextJson, next.browse,
+        next.browse || next.priority === SourceWorkerPriority.BACKGROUND)
     }).then(next.resolve, next.reject).finally((): void => {
       activeOperations -= 1
       if (sourceId.length === 0) unidentifiedActive = false
@@ -80,7 +81,7 @@ function enqueueSourceWorker(requestJson: string, wasmBytes: Uint8Array, httpCon
 // UI-side lifecycle only. The worker must retain its Native-only import graph.
 // A trapped/cancelled module cannot leave its private-session initializer owned.
 async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
-  httpContextJson: string, browse: boolean): Promise<string> {
+  httpContextJson: string, browse: boolean, copyOnAdmission: boolean): Promise<string> {
   let publicInitializationAllowed = false
   if (sourceRuntimeExecutionSourceId(httpContextJson) === 'com.picacomic.koma') {
     try {
@@ -92,10 +93,10 @@ async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
   }
   const call = SourcePrivateSessionHost.beginCall(httpContextJson, publicInitializationAllowed)
   try {
-    // Keep queued registry bytes by reference; only copy an admitted Browse
-    // request. Image/detail callers already pass their private byte snapshot.
-    const workerBytes = browse ? new Uint8Array(wasmBytes.byteLength) : wasmBytes
-    if (browse) workerBytes.set(wasmBytes)
+    // Browse and queued cover requests keep the immutable installed bytes by
+    // reference until admission. Foreground image/detail callers pass a snapshot.
+    const workerBytes = copyOnAdmission ? new Uint8Array(wasmBytes.byteLength) : wasmBytes
+    if (copyOnAdmission) workerBytes.set(wasmBytes)
     return browse
       ? await taskpool.execute(runBrowseSourceOperationTask, requestJson, workerBytes, call.httpContextJson) as string
       : await taskpool.execute(executeSourceRuntimeRequest, requestJson, workerBytes, call.httpContextJson) as string

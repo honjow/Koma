@@ -17,7 +17,7 @@ import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
-import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
+import { SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { safeSearchDiagnostic } from '../model/SearchStateMapper'
@@ -348,23 +348,6 @@ export struct SourceSearchPage {
   }
 
   @Builder
-  private RuntimeFilterControls() {
-    SourceFilterControls({
-      filters: this.runtimeFilters(),
-      values: this.viewModel.searchFilterValues,
-      busy: this.viewModel.loadingSearch,
-      optionsLoading: this.viewModel.loadingFilterData,
-      vertical: true,
-      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
-        this.setSearchFilterValue(filter, value)
-      },
-      onReset: () => {
-        this.resetSearchFilters()
-      },
-    })
-  }
-
-  @Builder
   private EmptySearch() {
     KomaEmptyState({
       title: this.emptySearchTitle(),
@@ -457,15 +440,22 @@ export struct SourceSearchPage {
       resetLabel: s('common_reset'),
       showReset: this.hasActiveSearchFilters(),
       resetEnabled: !this.viewModel.loadingSearch,
+      filters: this.runtimeFilters(),
+      values: this.viewModel.searchFilterValues,
+      optionsLoading: this.viewModel.loadingFilterData,
+      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
+        this.setSearchFilterValue(filter, value)
+      },
+      onApplyText: (changes: Record<string, string>) => {
+        if (this.viewModel.applySearchTextFilters(changes)) this.rerunSearchIfReady()
+      },
       onClose: () => {
         this.closeFilters()
       },
       onReset: () => {
         this.resetSearchFilters()
       },
-    }) {
-      this.RuntimeFilterControls()
-    }
+    })
   }
 
   @Builder
@@ -542,6 +532,7 @@ export struct SourceSearchPage {
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
           active: this.chrome.visible,
+          deferAvailability: this.viewModel.loadingSearch,
           onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {
             this.chrome.markRefreshNeeded()

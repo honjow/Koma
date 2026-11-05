@@ -1,7 +1,7 @@
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { fileIo as fs } from '@kit.CoreFileKit'
+import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import {
   configureReaderRemoteImageCache,
@@ -18,6 +18,12 @@ import {
 } from '../model/CoverPixelMapMemoryCache'
 
 const COVER_DECODE_MAX_EDGE: number = 320
+
+interface AnimatedCover {
+  uri: string
+  signature: string
+  generation: number
+}
 
 export function cachedCoverFailureKey(
   uri: string | undefined,
@@ -47,6 +53,7 @@ export struct CachedCoverImage {
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
   @Event onError: () => void = () => {}
   @Local private pixelMap: image.PixelMap | undefined = undefined
+  @Local private animatedCover: AnimatedCover | undefined = undefined
   @Local private loading: boolean = false
   @Local private failedSignature: string = ''
   private disposed: boolean = false
@@ -60,6 +67,7 @@ export struct CachedCoverImage {
   private loadingSignature: string = ''
   private loadingGeneration: number = 0
   private pixelMapLease: CoverPixelMapLease | undefined = undefined
+  private failedAnimationSignature: string = ''
 
   aboutToDisappear(): void {
     // Custom-component disappearance is the destruction boundary. A retained
@@ -83,6 +91,7 @@ export struct CachedCoverImage {
 
   private async releasePixelMap(): Promise<void> {
     this.pixelMap = undefined
+    this.animatedCover = undefined
     this.displayedSignature = ''
     const lease = this.pixelMapLease
     this.pixelMapLease = undefined
@@ -100,9 +109,29 @@ export struct CachedCoverImage {
     const previousLease = this.pixelMapLease
     this.pixelMapLease = lease
     this.pixelMap = lease.pixelMap
+    this.animatedCover = undefined
     this.displayedSignature = signature
     this.failedSignature = ''
     await coverPixelMapMemoryCache.release(previousLease)
+  }
+
+  private onAnimatedCoverReady(cover: AnimatedCover): void {
+    if (this.disposed || this.animatedCover?.generation !== cover.generation) return
+    const lease = this.pixelMapLease
+    this.pixelMapLease = undefined
+    this.pixelMap = undefined
+    void coverPixelMapMemoryCache.release(lease)
+  }
+
+  private onAnimatedCoverError(cover: AnimatedCover): void {
+    if (this.disposed || this.animatedCover?.generation !== cover.generation ||
+      this.sourceSignature !== cover.signature) return
+    // Let the original first-frame decoder handle a platform animation error.
+    this.failedAnimationSignature = cover.signature
+    this.animatedCover = undefined
+    this.displayedSignature = ''
+    this.loading = false
+    this.onSourceChanged()
   }
 
   private createSourceSignature(
@@ -198,6 +227,20 @@ export struct CachedCoverImage {
       const imageInfo = await imageSource.getImageInfo()
       if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         return
+      }
+      const format = imageInfo.mimeType
+      if (this.failedAnimationSignature !== signature && (format === 'image/gif' || format === 'image/webp')) {
+        const frames = await imageSource.getFrameCount().catch((): number => 1)
+        if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) return
+        if (frames > 1) {
+          const displayUri = resolvedUri.startsWith('/') ? fileUri.getUriFromPath(resolvedUri) : resolvedUri
+          // Feed the already cached original to the native Image. Avoid allocating
+          // every frame as a PixelMap and keep static covers on the thumbnail cache.
+          this.animatedCover = { uri: displayUri, signature, generation }
+          this.displayedSignature = signature
+          this.failedSignature = ''
+          return
+        }
       }
       const sourceWidth = Math.max(1, imageInfo.size.width)
       const sourceHeight = Math.max(1, imageInfo.size.height)
@@ -302,6 +345,17 @@ export struct CachedCoverImage {
     this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }
 
+  @Builder
+  private AnimatedCoverImage(cover: AnimatedCover) {
+    Image(cover.uri)
+      .width('100%')
+      .height('100%')
+      .objectFit(this.objectFit)
+      .interpolation(ImageInterpolation.Medium)
+      .onComplete(() => { this.onAnimatedCoverReady(cover) })
+      .onError(() => { this.onAnimatedCoverError(cover) })
+  }
+
   build() {
     Stack() {
       if (this.pixelMap !== undefined) {
@@ -310,6 +364,9 @@ export struct CachedCoverImage {
           .height('100%')
           .objectFit(this.objectFit)
           .interpolation(ImageInterpolation.Medium)
+      }
+      if (this.animatedCover !== undefined) {
+        this.AnimatedCoverImage(this.animatedCover)
       }
     }
     .width('100%')
