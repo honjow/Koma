@@ -7,16 +7,16 @@ const ts = require(process.env.KOMA_TYPESCRIPT_PATH ??
   '/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript')
 
 const root = path.resolve(__dirname, '../entry/src/main/ets/deviceSync')
-function compile(file, ports = {}) {
+function compile(file, ports = {}, globals = {}) {
   const source = fs.readFileSync(path.join(root, file + '.ets'), 'utf8')
   const compiled = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
   }).outputText
   const exports = {}
-  new Function('require', 'exports', compiled)(key => {
+  new Function('require', 'exports', ...Object.keys(globals), compiled)(key => {
     assert.ok(Object.hasOwn(ports, key), `Unexpected import ${key}`)
     return ports[key]
-  }, exports)
+  }, exports, ...Object.values(globals))
   return exports
 }
 
@@ -134,6 +134,44 @@ test('MangaDex public work proof accepts a romanized primary title and safe alte
   assert.equal(await read(), undefined)
   attributes.title = 'invalid primary title shape'
   assert.equal(await read(), undefined)
+})
+
+test('draft tests and merge failures preserve the active connection error', async () => {
+  const { appDeviceSync: runtime } = compile('DeviceSyncRuntime', {
+    '@kit.NetworkKit': {}, '@kit.ArkTS': {},
+    '../model/ReaderSessionStore': {}, '../model/SearchHistoryStore': {},
+    '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
+    './DeviceSyncEngine': { syncRequiresExplicitReview: () => false },
+    './DeviceSyncFacts': facts, './DeviceSyncOwners': {}, './DeviceSyncStorage': {},
+    './DeviceSyncData': data, './DeviceSyncSignals': {}, './DeviceSyncPublicSource': {},
+    '../sourceRuntime/SourceIndexMetadata': {},
+  }, { ObservedV2: value => value, Trace: () => {} })
+  const draft = { directory: 'https://draft.example.test/', username: '', password: '' }
+  let failure = 'sync_authentication_failed'
+  const execute = async () => { if (failure) throw new Error(failure) }
+  runtime.engine = {
+    active: () => ({ selected: ['reader-settings'], groups: [], lastSuccess: 123 }),
+    readingDecisions: () => [], readingScope: () => '',
+    testConnection: async () => { await execute(); return false },
+    prepare: execute, confirm: execute, syncNow: execute,
+  }
+  const operations = [() => runtime.test(draft, []), () => runtime.prepare(draft, [], false),
+    () => runtime.confirm('preview', [], false)]
+  for (const operation of operations) {
+    runtime.view.error = 'sync_network_failed'
+    await assert.rejects(operation(), /sync_authentication_failed/)
+    assert.equal(runtime.view.error, 'sync_network_failed')
+    assert.equal(runtime.view.busy, false)
+  }
+  failure = ''
+  await runtime.test(draft, [])
+  await runtime.prepare(draft, [], false)
+  assert.equal(runtime.view.error, 'sync_network_failed')
+  await runtime.confirm('preview', [], false)
+  assert.equal(runtime.view.error, '')
+  failure = 'sync_server_storage_full'
+  await assert.rejects(runtime.sync(), /sync_server_storage_full/)
+  assert.equal(runtime.view.error, 'sync_server_storage_full')
 })
 
 function engineFixture() {

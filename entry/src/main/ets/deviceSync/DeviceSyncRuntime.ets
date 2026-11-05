@@ -170,16 +170,17 @@ class DeviceSyncRuntime {
     return this.engine
   }
 
-  private async task<T>(action: () => Promise<T>): Promise<T> {
+  private async task<T>(action: () => Promise<T>, publishError: boolean = true): Promise<T> {
     if (this.view.busy) throw new Error('sync_already_running')
     this.view.busy = true
-    this.view.error = ''
+    // Draft requests share the task lock, while their errors belong to the form.
+    if (publishError) this.view.error = ''
     try {
       const result = await action()
       this.refresh()
       return result
     } catch (error) {
-      this.view.error = (error as Error).message
+      if (publishError) this.view.error = (error as Error).message
       this.refresh()
       throw error as Error
     } finally {
@@ -188,22 +189,29 @@ class DeviceSyncRuntime {
   }
 
   test(draft: SyncConnectionDraft, selected: SyncGroup[]): Promise<boolean> {
-    return this.task((): Promise<boolean> => this.needed().testConnection(draft, selected))
+    return this.task(async (): Promise<boolean> => {
+      const recovered = await this.needed().testConnection(draft, selected)
+      if (recovered) this.view.error = ''
+      return recovered
+    }, false)
   }
 
   draft(): Promise<SyncConnectionDraft | undefined> {
     return this.needed().connectionDraft()
   }
 
-  prepare(draft: SyncConnectionDraft, selected: SyncGroup[]): Promise<SyncPreview> {
+  prepare(draft: SyncConnectionDraft, selected: SyncGroup[], publishError: boolean = true): Promise<SyncPreview> {
     return this.task(async (): Promise<SyncPreview> => {
       if (selected.includes('reading')) await this.recordPositions()
       return this.needed().prepare(draft, selected)
-    })
+    }, publishError)
   }
 
-  confirm(token: string, choices: SyncMergeChoice[]): Promise<void> {
-    return this.task((): Promise<void> => this.needed().confirm(token, choices))
+  confirm(token: string, choices: SyncMergeChoice[], publishError: boolean = true): Promise<void> {
+    return this.task(async (): Promise<void> => {
+      await this.needed().confirm(token, choices)
+      this.view.error = ''
+    }, publishError)
   }
 
   discard(token: string): void {

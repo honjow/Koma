@@ -345,7 +345,7 @@ export struct DeviceSyncWebDavPage {
   }
 
   private async makePreview(draft: SyncConnectionDraft): Promise<void> {
-    const result = await appDeviceSync.prepare(draft, this.groups())
+    const result = await appDeviceSync.prepare(draft, this.groups(), !this.editing)
     if (!this.visible) {
       appDeviceSync.discard(result.token)
       return
@@ -433,7 +433,7 @@ export struct DeviceSyncWebDavPage {
     const preview = this.preview
     if (preview === undefined) return
     try {
-      await appDeviceSync.confirm(preview.token, this.choices)
+      await appDeviceSync.confirm(preview.token, this.choices, !this.editing)
       this.editing = false
       this.tested = false
       this.password = ''
