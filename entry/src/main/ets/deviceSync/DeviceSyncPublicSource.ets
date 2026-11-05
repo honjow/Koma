@@ -137,7 +137,8 @@ function mangaDexTitle(attributes: MangaDexAttributes): string {
  * Public proof uses fixed HTTPS catalogue endpoints, never the source WASM,
  * its settings, web sessions, signed page URLs or arbitrary remote strings.
  */
-async function readPublicText(address: string, max: number): Promise<string> {
+async function readPublicText(address: string, max: number, guard: () => void): Promise<string> {
+  guard()
   const request = http.createHttp()
   try {
     const response = await request.request(address, {
@@ -156,8 +157,8 @@ async function readPublicText(address: string, max: number): Promise<string> {
   }
 }
 
-async function readPublicJson(address: string, max: number): Promise<Object> {
-  return JSON.parse(await readPublicText(address, max)) as Object
+async function readPublicJson(address: string, max: number, guard: () => void): Promise<Object> {
+  return JSON.parse(await readPublicText(address, max, guard)) as Object
 }
 
 function htmlTagAttribute(tag: string, name: string): string | undefined {
@@ -237,7 +238,7 @@ export class DeviceSyncPublicSources {
   private readonly chapters = new Map<string, SyncPublicChapterProof>()
   private xkcd?: Promise<Record<string, XkcdPublicEntry>>
 
-  async work(source: string, id: string, allowFetch: boolean): Promise<SyncPublicWorkProof | undefined> {
+  async work(source: string, id: string, allowFetch: boolean, guard: () => void = (): void => {}): Promise<SyncPublicWorkProof | undefined> {
     if (!syncWorksOnSource(source, id) || !syncHasTrustedPackage(source)) return undefined
     const key = JSON.stringify([source, id])
     const cached = this.works.get(key)
@@ -247,14 +248,14 @@ export class DeviceSyncPublicSources {
       let sourceName = 'xkcd'
       if (source === MANGADEX_SYNC_SOURCE) {
         const uuid = id.substring(4)
-        const response = await readPublicJson('https://api.mangadex.org/manga/' + uuid, 512 * 1024) as MangaDexEntityResponse
+        const response = await readPublicJson('https://api.mangadex.org/manga/' + uuid, 512 * 1024, guard) as MangaDexEntityResponse
         if (response.result !== 'ok' || response.data.id !== uuid) return undefined
         title = mangaDexTitle(response.data.attributes)
         sourceName = 'MangaDex'
         if (!title) return undefined
       } else {
         // The archive itself establishes this public namespace.
-        const entries = await this.xkcdArchive()
+        const entries = await this.xkcdArchive(guard)
         if (Object.keys(entries).length === 0) return undefined
         if (id !== 'xkcd:zh') title += ' ' + id.substring('xkcd:zh:g:'.length)
       }
@@ -266,7 +267,7 @@ export class DeviceSyncPublicSources {
     }
   }
 
-  async chapter(source: string, work: string, id: string, allowFetch: boolean): Promise<SyncPublicChapterProof | undefined> {
+  async chapter(source: string, work: string, id: string, allowFetch: boolean, guard: () => void = (): void => {}): Promise<SyncPublicChapterProof | undefined> {
     if (!syncChapterBelongsToSource(source, work, id) || !syncHasTrustedPackage(source)) return undefined
     const key = JSON.stringify([source, work, id])
     const cached = this.chapters.get(key)
@@ -275,11 +276,11 @@ export class DeviceSyncPublicSources {
       let proof: SyncPublicChapterProof
       if (source === MANGADEX_SYNC_SOURCE) {
         const uuid = id.substring(3)
-        const chapter = await readPublicJson('https://api.mangadex.org/chapter/' + uuid, 256 * 1024) as MangaDexEntityResponse
+        const chapter = await readPublicJson('https://api.mangadex.org/chapter/' + uuid, 256 * 1024, guard) as MangaDexEntityResponse
         if (chapter.result !== 'ok' || chapter.data.id !== uuid ||
           !chapter.data.relationships?.some((item: MangaDexRelation): boolean =>
             item.type === 'manga' && item.id === work.substring(4))) return undefined
-        const pages = await readPublicJson('https://api.mangadex.org/at-home/server/' + uuid, 1024 * 1024) as MangaDexPageResponse
+        const pages = await readPublicJson('https://api.mangadex.org/at-home/server/' + uuid, 1024 * 1024, guard) as MangaDexPageResponse
         const table = pages.chapter
         if (pages.result !== 'ok' || !table || !/^[0-9a-f]{32,64}$/.test(table.hash) ||
           !Array.isArray(table.data) || !Array.isArray(table.dataSaver) || table.data.length === 0 ||
@@ -290,11 +291,11 @@ export class DeviceSyncPublicSources {
           pageTable: syncDigest(JSON.stringify([table.hash, table.data, table.dataSaver])),
           normalPages: table.data, saverPages: table.dataSaver, chapterHash: table.hash }
       } else {
-        const archive = await this.xkcdArchive()
+        const archive = await this.xkcdArchive(guard)
         const number = id.substring(id.lastIndexOf(':') + 1)
         const item = archive[number]
         if (!item || typeof item.title !== 'string') return undefined
-        const paths = checkedXkcdPagePaths(await readPublicText('https://xkcd.tw/' + number, 1024 * 1024))
+        const paths = checkedXkcdPagePaths(await readPublicText('https://xkcd.tw/' + number, 1024 * 1024, guard))
         if (paths.length === 0) return undefined
         proof = { title: syncPublicLabel(item.title, 240), pages: paths.length, pageTable: syncDigest(JSON.stringify(paths)),
           normalPages: paths, saverPages: [], chapterHash: '' }
@@ -312,9 +313,9 @@ export class DeviceSyncPublicSources {
     this.xkcd = undefined
   }
 
-  private xkcdArchive(): Promise<Record<string, XkcdPublicEntry>> {
+  private xkcdArchive(guard: () => void): Promise<Record<string, XkcdPublicEntry>> {
     if (this.xkcd === undefined) {
-      this.xkcd = readPublicJson('https://xkcd.tw/api/strips.json', 6 * 1024 * 1024)
+      this.xkcd = readPublicJson('https://xkcd.tw/api/strips.json', 6 * 1024 * 1024, guard)
         .then((raw: Object): Record<string, XkcdPublicEntry> => raw as Record<string, XkcdPublicEntry>)
         .catch((error: Error): Record<string, XkcdPublicEntry> => {
           this.xkcd = undefined

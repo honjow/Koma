@@ -32,6 +32,7 @@ export class DeviceSyncViewState {
   @Trace connected: boolean = false
   @Trace selected: SyncGroup[] = ['shelf', 'reading']
   @Trace automatic: boolean = false
+  @Trace enabled: boolean = true
   @Trace busy: boolean = false
   @Trace needsReview: boolean = false
   @Trace requiresExplicitReview: boolean = false
@@ -99,6 +100,7 @@ class DeviceSyncRuntime {
     this.owners = owners
     this.storage = storage
     this.engine = new DeviceSyncEngine(storage, owners)
+    owners.guardSyncRequests((): (() => void) => this.needed().requestGuard())
     this.view.ready = true
     try {
       this.refresh()
@@ -135,11 +137,14 @@ class DeviceSyncRuntime {
       network.on('netAvailable', (): void => { this.schedule(2500) })
       network.register((_error: BusinessError): void => {})
     }
-    if (!this.recoveredOnForeground && this.engine !== undefined) {
-      this.recoveredOnForeground = true
-      void this.task((): Promise<void> => this.needed().recoverOnForeground()).catch((): void => {})
-    }
+    this.recoverForeground()
     this.schedule(3000)
+  }
+
+  private recoverForeground(): void {
+    if (this.recoveredOnForeground || !this.foreground || this.engine === undefined || !this.view.enabled || this.view.busy) return
+    this.recoveredOnForeground = true
+    void this.task((): Promise<void> => this.needed().recoverOnForeground()).catch((): void => {})
   }
 
   attachPublisher(publish: (groups: SyncGroup[]) => void): void {
@@ -154,6 +159,7 @@ class DeviceSyncRuntime {
     this.view.connected = state !== undefined
     if (state !== undefined) this.view.selected = state.selected.slice()
     this.view.automatic = state?.automatic ?? false
+    this.view.enabled = state?.enabled !== false
     this.view.requiresExplicitReview = syncRequiresExplicitReview(state)
     this.view.needsReview = this.view.requiresExplicitReview || (state?.groups.some((group: SyncGroupState): boolean =>
       state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false)
@@ -180,11 +186,12 @@ class DeviceSyncRuntime {
       this.refresh()
       return result
     } catch (error) {
-      if (publishError) this.view.error = (error as Error).message
+      if (publishError && this.engine?.active()?.enabled !== false) this.view.error = (error as Error).message
       this.refresh()
       throw error as Error
     } finally {
       this.view.busy = false
+      this.recoverForeground()
     }
   }
 
@@ -240,6 +247,16 @@ class DeviceSyncRuntime {
     if (value) this.schedule(3000)
   }
 
+  setEnabled(value: boolean): void {
+    this.needed().setEnabled(value)
+    if (this.timer >= 0) clearTimeout(this.timer)
+    this.timer = -1
+    this.refresh()
+    this.recoveredOnForeground = false
+    if (value) this.recoverForeground()
+    if (value) this.schedule(3000)
+  }
+
   setSelection(selected: SyncGroup[]): void {
     if (this.view.connected) {
       this.needed().setSelection(selected)
@@ -258,7 +275,8 @@ class DeviceSyncRuntime {
         await owners.acceptShelfRemoval(item)
         return
       }
-      const work = await owners.publicSources.work(item.source, item.work, true)
+      const guard = engine.requestGuard()
+      const work = await owners.publicSources.work(item.source, item.work, true, guard)
       if (work === undefined) throw new Error('sync_public_work_unavailable')
       if (scope !== engine.groupScope('shelf')) throw new Error('sync_connection_changed')
       const label: SyncWorkLabel = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion }
@@ -306,11 +324,11 @@ class DeviceSyncRuntime {
   }
 
   private schedule(delay: number): void {
-    if (!this.foreground || !this.view.connected || !this.view.automatic || this.view.requiresExplicitReview ||
+    if (!this.foreground || !this.view.connected || !this.view.enabled || !this.view.automatic || this.view.requiresExplicitReview ||
       this.view.selected.length === 0 || this.timer >= 0) return
     this.timer = setTimeout((): void => {
       this.timer = -1
-      if (!this.foreground || !this.view.automatic || this.view.requiresExplicitReview) return
+      if (!this.foreground || !this.view.enabled || !this.view.automatic || this.view.requiresExplicitReview) return
       if (this.view.busy) {
         this.schedule(15000)
         return
@@ -432,8 +450,9 @@ class DeviceSyncRuntime {
       const owners = this.owners
       const scope = engine.readingScope()
       if (owners === undefined || scope === '' || capture.space !== engine.active()?.space) throw new Error('sync_connection_changed')
-      const work = await owners.publicSources.work(capture.source, capture.work, true)
-      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true)
+      const guard = engine.requestGuard()
+      const work = await owners.publicSources.work(capture.source, capture.work, true, guard)
+      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
       if (scope !== engine.readingScope()) throw new Error('sync_connection_changed')
       if (work === undefined || chapter === undefined || capture.total !== chapter.pages ||
         !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) throw new Error('sync_public_work_unavailable')
@@ -487,8 +506,9 @@ class DeviceSyncRuntime {
     const owners = this.owners
     const engine = this.engine
     const scope = engine?.readingScope() ?? ''
-    if (context === undefined || owners === undefined || engine === undefined || scope === '' ||
+    if (context === undefined || owners === undefined || engine === undefined || engine.active()?.enabled === false || scope === '' ||
       syncRequiresExplicitReview(engine.active())) return
+    const guard = engine.requestGuard()
     const reader = appReaderSessionStore(context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const actions = reader.pendingDeviceSyncActions()
@@ -507,8 +527,8 @@ class DeviceSyncRuntime {
     }
     for (const capture of pending) {
       if (capture.space !== engine.active()?.space || owners.readingAcknowledged(capture)) continue
-      const work = await owners.publicSources.work(capture.source, capture.work, true)
-      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true)
+      const work = await owners.publicSources.work(capture.source, capture.work, true, guard)
+      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
       if (scope !== engine.readingScope()) return
       if (work === undefined || chapter === undefined || chapter.pages !== capture.total ||
         !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) continue
@@ -584,6 +604,7 @@ class DeviceSyncRuntime {
     const engine = this.engine
     const owners = this.owners
     if (engine === undefined || owners === undefined) return
+    const guard = engine.requestGuard()
     const earlier = new Map<string, SyncVersion[]>()
     const blocked = new Set<string>()
     for (const capture of actions) {
@@ -594,7 +615,8 @@ class DeviceSyncRuntime {
         const known = position === undefined ? undefined : engine.knownReadingValue(position.key)
         const verify = capture.chapterId !== '' && (position === undefined ?
           capture.edits.some((edit: SyncCapturedReadingEdit): boolean => edit.observed.length === 0) : known === undefined)
-        const chapter = verify ? await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true) : undefined
+        const chapter = verify ? await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId,
+          engine.active()?.enabled !== false, guard) : undefined
         if (engine.readingScope() !== scope) return
         if (verify && chapter === undefined) {
           capture.edits.forEach((edit: SyncCapturedReadingEdit): void => { blocked.add(edit.key) })

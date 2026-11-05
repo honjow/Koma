@@ -360,7 +360,7 @@ function engineFixture(providerOverride) {
     }
     return { engine: new DeviceSyncEngine(store, owner), values, store, snapshotExtras }
   }
-  return { replica, draft, servers }
+  return { replica, draft, servers, assets }
 }
 
 test('first merge cancellation and stale preview leave the remote manifest unchanged', async () => {

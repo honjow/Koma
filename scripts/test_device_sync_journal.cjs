@@ -7,9 +7,9 @@ const path = require('node:path')
 // Only NetworkKit, native credentials and owner persistence are host substitutes.
 const support = new Function('require', '__dirname',
   fs.readFileSync(path.join(__dirname, 'test_device_sync.cjs'), 'utf8') +
-  '\nreturn { compile, wire, facts, data, journal, engineFixture, A, B, C, dot, edit };')(
+  '\nreturn { compile, wire, facts, data, journal, engineFixture, runtimeFixture, publicSourceFixture, A, B, C, dot, edit };')(
   name => name === 'node:test' ? () => {} : require(name), __dirname)
-const { compile, wire, facts, data, journal, engineFixture, A, B, C, dot, edit } = support
+const { compile, wire, facts, data, journal, engineFixture, runtimeFixture, publicSourceFixture, A, B, C, dot, edit } = support
 const models = compile('../remote/WebDavModels')
 const xml = compile('../remote/WebDavClient', { './WebDavModels': models })
 const noop = () => {}
@@ -338,4 +338,231 @@ test('an approved download-only first merge resumes its local apply without anot
   assert.ok(reader.engine.active(), 'the previously approved local plan must survive the owner interruption')
   assert.equal(reader.values.get('reader-settings').get(pageNumber), 'true')
   assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
+})
+
+test('service pause preserves scope and capture dots, blocks sync traffic, and is local to one engine', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.DeviceSyncWebDav)
+  const source = data.MANGADEX_SYNC_SOURCE
+  const work = 'mdx:11111111-1111-1111-1111-111111111111'
+  const chapter = 'ch:22222222-2222-2222-2222-222222222222'
+  const positionKey = data.syncKey(['position', source, work, chapter])
+  const value = JSON.stringify({ page: 1, total: 8, pageTable: 'a'.repeat(64) })
+  const left = fixture.replica(A, [['reader-settings', new Map([[pageNumber, 'true']])],
+    ['reading', new Map([[positionKey, value]])]])
+  const right = fixture.replica(B)
+  for (const replica of [left, right]) {
+    await replica.engine.testConnection(f.draft)
+    await replica.engine.confirm((await replica.engine.prepare(f.draft, ['reading', 'reader-settings'])).token, [])
+  }
+  left.store.update(state => { delete state.active.enabled })
+  assert.equal(left.engine.isEnabled(), true, 'legacy credentials default to enabled')
+  left.engine.setAutomatic(true)
+  const before = clone(left.engine.active())
+  const scope = left.engine.readingScope()
+  const stale = await left.engine.prepare(f.draft, ['reading', 'reader-settings'])
+  left.engine.setEnabled(false)
+  assert.equal(left.engine.isEnabled(), false)
+  assert.equal(left.engine.active().credential, before.credential)
+  assert.deepEqual(left.engine.selection(), before.selected)
+  assert.equal(left.engine.active().automatic, true)
+  assert.equal(left.engine.readingScope(), scope)
+  const requests = f.trace.length
+  await assert.rejects(left.engine.syncNow(), /disabled|paused/)
+  await assert.rejects(left.engine.prepare(f.draft, ['reading']), /disabled|paused/)
+  await assert.rejects(left.engine.confirm(stale.token, []), /disabled|paused|preview_changed|connection_changed/)
+  await left.engine.recoverOnForeground()
+  assert.equal(f.trace.length, requests)
+  left.values.get('reading').delete(positionKey)
+  const captured = left.engine.recordEdits('reading', [{ key: positionKey, kind: 'delete', value: '' }])
+  assert.ok(captured)
+  assert.equal(f.trace.length, requests)
+  right.values.get('reader-settings').set(pageNumber, 'false')
+  await right.engine.syncNow()
+  assert.equal(right.engine.isEnabled(), true)
+  assert.equal(left.values.get('reader-settings').get(pageNumber), 'true')
+  left.engine.setEnabled(true)
+  await left.engine.syncNow()
+  assert.equal(left.values.get('reader-settings').get(pageNumber), 'false')
+  const remote = await f.provider().readManifest(noop)
+  const refs = wire.syncDatasetBranches(remote.manifest, 'reading')
+  const stored = refs.flatMap(ref => ref.shards.flatMap(shard => wire.decodeSyncShard('reading', shard,
+    f.files.get(f.root + wire.syncShardPath(shard)), data.syncBucketKey))).find(fact => fact.key === positionKey)
+  assert.deepEqual(stored.barriers.find(edit => edit.kind === 'delete').version, captured)
+  const next = left.store.load().counter + 1
+  const concurrent = facts.mergeSyncFact(edit(stored, dot(A, next), 'set', value),
+    edit(stored, dot(B, 100), 'set', JSON.stringify({ page: 2, total: 8, pageTable: 'a'.repeat(64) })))
+  left.store.update(state => {
+    state.counter = next
+    state.active.groups.find(group => group.id === 'reading').facts = [concurrent]
+  })
+  let enter, release
+  const entered = new Promise(resolve => { enter = resolve })
+  const gate = new Promise(resolve => { release = resolve })
+  const snapshot = left.engine.owner.snapshot.bind(left.engine.owner)
+  left.engine.owner.snapshot = async (...args) => { enter(); await gate; return snapshot(...args) }
+  const choice = left.engine.chooseReadingDecision(positionKey, value)
+  const cancelled = assert.rejects(choice, /connection_changed|disabled|paused/)
+  await entered
+  left.engine.setEnabled(false)
+  release()
+  await cancelled
+  assert.equal(left.engine.readingDecisions()[0].values.length, 2,
+    'pausing during the local check must retain the unresolved reading decision')
+})
+
+test('pause invalidates an in-flight callback but keeps its intent for enabled recovery', async () => {
+  const f = transportFixture()
+  const reader = engineFixture(f.DeviceSyncWebDav).replica(A,
+    [['reader-settings', new Map([[pageNumber, 'true']])]])
+  await reader.engine.testConnection(f.draft)
+  await reader.engine.confirm((await reader.engine.prepare(f.draft, ['reader-settings'])).token, [])
+  reader.values.get('reader-settings').set(pageNumber, 'false')
+  let enter, release
+  const entered = new Promise(resolve => { enter = resolve })
+  const resumed = new Promise(resolve => { release = resolve })
+  f.onCommit(async () => { enter(); await resumed })
+  const pending = reader.engine.syncNow()
+  const rejected = assert.rejects(pending, /connection_changed|disabled|paused/)
+  await entered
+  reader.engine.setEnabled(false)
+  const name = reader.store.load().intent.commit
+  release()
+  await rejected
+  assert.equal(reader.engine.isEnabled(), false)
+  assert.ok(reader.store.load().intent)
+  assert.notEqual(reader.store.load().intent.detached, true)
+  const requests = f.trace.length
+  await reader.engine.recoverOnForeground()
+  assert.equal(f.trace.length, requests)
+  assert.equal(await reader.engine.testConnection(f.draft, ['reader-settings']), false)
+  assert.ok(reader.store.load().intent, 'a synthetic probe must not consume the paused receipt')
+  assert.equal(reader.engine.isEnabled(), false)
+  f.onCommit(async () => {})
+  reader.engine.setAutomatic(true)
+  reader.engine.setEnabled(true)
+  await reader.engine.recoverOnForeground()
+  assert.equal(reader.engine.isEnabled(), true, 'the old intent must preserve the latest service switch')
+  assert.equal(reader.engine.active().automatic, true, 'receipt recovery must keep the latest automatic preference')
+  assert.equal(reader.store.load().intent, undefined)
+  assert.equal(f.files.has(f.root + name), true)
+  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address === f.root + name).length, 1)
+})
+
+test('paused runtime retains Reader clears, uses cache-only proof, and clears its scheduled task', async () => {
+  const f = transportFixture()
+  const source = data.MANGADEX_SYNC_SOURCE, work = 'mdx:11111111-1111-1111-1111-111111111111'
+  const recentKey = data.syncKey(['recent', source, work])
+  const chapter = 'ch:22222222-2222-2222-2222-222222222222'
+  const recent = JSON.stringify({ title: 'Public work', sourceName: 'MangaDex', sourceVersion: '0.1.25',
+    chapter, chapterTitle: 'Chapter', date: 123 })
+  const reader = engineFixture(f.DeviceSyncWebDav).replica(A, [['reading', new Map([[recentKey, recent]])]])
+  await reader.engine.testConnection(f.draft)
+  await reader.engine.confirm((await reader.engine.prepare(f.draft, ['reading'])).token, [])
+  const signals = compile('DeviceSyncSignals')
+  let pendingPositions = []
+  const runtime = runtimeFixture({ './DeviceSyncSignals': signals,
+    '../model/ReaderSessionStore': { appReaderSessionStore: () => ({ flush: () => true,
+      pendingDeviceSyncActions: () => [], pendingDeviceSyncPositions: () => pendingPositions,
+      getProgress: () => undefined }) },
+    '@kit.ArkTS': { util: { generateRandomUUID: () => '33333333-3333-3333-3333-333333333333' } } })
+  const networkFlags = []
+  runtime.engine = reader.engine
+  runtime.storage = reader.store
+  runtime.owners = {
+    receivedSubscriptions: () => [], readingAcknowledged: () => false,
+    readingActionAcknowledged: capture => !!runtime.owners.readingActionReceipt(capture),
+    readingActionReceipt: capture => reader.store.load().readingReceipts?.find(row => row.key === signals.deviceSyncActionCaptureKey(capture)),
+    publicSources: { async chapter(_source, _work, _chapter, network, guard = noop) {
+      if (network) { try { guard() } catch { return undefined } }
+      networkFlags.push(network); return undefined
+    } },
+  }
+  runtime.refresh()
+  let fired = false
+  runtime.timer = setTimeout(() => { fired = true }, 30)
+  runtime.timer.unref()
+  runtime.setEnabled(false)
+  const scope = reader.engine.readingScope()
+  const captures = runtime.stageReaderActions([{ comicId: source + ':' + work, chapterId: '', kind: 'clear-history' }])
+  assert.equal(captures.length, 1)
+  const requests = f.trace.length
+  await runtime.recordReaderActions(captures, scope)
+  assert.equal(reader.engine.knownReadingValue(recentKey), undefined)
+  const bookmarkKey = data.syncKey(['bookmark', source, work, chapter])
+  await runtime.recordReaderActions([{ id: '44444444-4444-4444-4444-444444444444', space: reader.engine.active().space,
+    source, work, chapterId: chapter, edits: [{ key: bookmarkKey, kind: 'set', value: 'true', observed: [] }] }], scope)
+  assert.equal(networkFlags.some(Boolean), false)
+  assert.equal(f.trace.length, requests)
+  await new Promise(resolve => setTimeout(resolve, 50))
+  assert.equal(fired, false)
+  runtime.context = { filesDir: '/synthetic-reader' }
+  pendingPositions = [{ id: '55555555-5555-5555-5555-555555555555', space: reader.engine.active().space,
+    source, work, comicId: source + ':' + work, chapterId: chapter, page: 2, total: 8,
+    descriptorHash: 'a'.repeat(64), date: 123, complete: false, observedActions: [],
+    positionSeen: [], recentSeen: [], recentCleared: [], readSeen: [] }]
+  const chapterFlags = []
+  runtime.owners.publicSources.work = async (_source, _work, network, guard = noop) => {
+    assert.equal(network, true)
+    guard()
+    runtime.setEnabled(false)
+    return undefined
+  }
+  runtime.owners.publicSources.chapter = async (_source, _work, _chapter, network, guard = noop) => {
+    if (network) { try { guard() } catch { return undefined } }
+    chapterFlags.push(network)
+    return undefined
+  }
+  runtime.setEnabled(true)
+  await runtime.recordPositions()
+  assert.equal(chapterFlags.some(Boolean), false, 'a pause during the first proof must block the next network proof')
+  assert.equal(pendingPositions.length, 1)
+  let allowed = true
+  const requestsToPublicSource = []
+  const { DeviceSyncPublicSources } = publicSourceFixture(source, address => {
+    requestsToPublicSource.push(address)
+    if (address.includes('/chapter/')) {
+      allowed = false
+      return { result: 'ok', data: { id: chapter.slice(3), attributes: { title: 'Chapter', chapter: '1' },
+        relationships: [{ type: 'manga', id: work.slice(4) }] } }
+    }
+    return { result: 'ok', chapter: { hash: 'a'.repeat(32), data: ['1.jpg'], dataSaver: ['1.jpg'] } }
+  })
+  const publicSources = new DeviceSyncPublicSources()
+  assert.equal(await publicSources.chapter(source, work, chapter, true,
+    () => { if (!allowed) throw new Error('sync_service_disabled') }), undefined)
+  assert.equal(requestsToPublicSource.length, 1, 'pause between chapter and at-home must block the second actual HTTP request')
+  assert.equal((await publicSources.chapter(source, work, chapter, true)).pages, 1,
+    'an ordinary Reader proof without the sync guard remains available')
+})
+
+test('disconnect removes this engine probe credentials while pause and another engine keep theirs', async () => {
+  const fixture = engineFixture()
+  const left = fixture.replica(A), right = fixture.replica(B)
+  for (const replica of [left, right]) {
+    await replica.engine.testConnection(fixture.draft)
+    await replica.engine.confirm((await replica.engine.prepare(fixture.draft, ['reader-settings'])).token, [])
+  }
+  const leftCredential = left.engine.active().credential
+  const rightCredential = right.engine.active().credential
+  const leftProbe = '11111111-1111-1111-1111-111111111111'
+  const rightProbe = '22222222-2222-2222-2222-222222222222'
+  fixture.assets.set(leftProbe, clone(fixture.draft))
+  fixture.assets.set(rightProbe, clone(fixture.draft))
+  left.store.update(state => { state.probes.push({ credential: leftProbe, id: C, collection: 2 }) })
+  right.store.update(state => { state.probes.push({ credential: rightProbe, id: C, collection: 2 }) })
+  const before = clone(left.store.load())
+  left.engine.setEnabled(false)
+  assert.equal(fixture.assets.has(leftCredential), true)
+  assert.equal(fixture.assets.has(leftProbe), true)
+  await left.engine.disconnect()
+  assert.deepEqual(left.store.load().probes, [])
+  assert.equal(fixture.assets.has(leftCredential), false)
+  assert.equal(fixture.assets.has(leftProbe), false)
+  assert.equal(left.store.load().replica, before.replica)
+  assert.equal(left.store.load().counter, before.counter)
+  assert.equal(fixture.assets.has(rightCredential), true)
+  assert.equal(fixture.assets.has(rightProbe), true)
+  assert.equal(right.store.load().probes.length, 1)
+  assert.equal(right.engine.isEnabled(), true)
 })

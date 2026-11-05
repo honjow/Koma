@@ -51,6 +51,7 @@ function errorText(code: string): string {
   if (code === 'sync_response_invalid') return t('device_sync_error_response')
   if (code.startsWith('sync_server_http_')) return t('device_sync_error_http').replace('%s', code.substring('sync_server_http_'.length))
   if (code === 'sync_protocol_review_required') return t('device_sync_protocol_review')
+  if (code === 'sync_service_disabled') return t('device_sync_paused_detail')
   if (code === 'sync_server_storage_full') return t('device_sync_error_storage')
   if (code === 'sync_update_required') return t('device_sync_error_upgrade')
   if (code === 'sync_preview_changed' || code === 'sync_remote_changed' || code === 'sync_review_required' ||
@@ -71,6 +72,7 @@ function errorText(code: string): string {
 
 function stateText(state: DeviceSyncViewState): string {
   if (!state.ready) return t('device_sync_loading')
+  if (state.connected && !state.enabled) return t('device_sync_paused')
   if (state.busy) return t('device_sync_running')
   if (state.requiresExplicitReview) return t('device_sync_review_required')
   if (state.error.length > 0) return t('device_sync_needs_attention')
@@ -227,7 +229,7 @@ export struct DeviceSyncOverviewPage {
               ConciseListRow({ title: item.title || t('device_sync_group_reading'), subtitle: t('device_sync_reading_conflict'), showChevron: false })
               ForEach(item.values, (value: string) => {
                 ConciseListRow({ title: conflictValue(item.key, value), subtitle: t('device_sync_apply_reading'),
-                  isEnabled: !this.state.busy && !this.state.requiresExplicitReview, action: (): void => {
+                  isEnabled: this.state.enabled && !this.state.busy && !this.state.requiresExplicitReview, action: (): void => {
                     void appDeviceSync.chooseReadingDecision(item.key, value).catch((): void => {})
                   } })
               }, (value: string): string => value)
@@ -236,7 +238,7 @@ export struct DeviceSyncOverviewPage {
             ForEach(this.state.blockedReadings, (item: SyncBlockedReading) => {
               ConciseListRow({ title: item.title || t('device_sync_group_reading'),
                 subtitle: t('device_sync_reading_retained').replace('%s', (item.capture.page + 1).toString()),
-                isEnabled: !this.state.busy && !this.state.requiresExplicitReview, action: (): void => {
+                isEnabled: this.state.enabled && !this.state.busy && !this.state.requiresExplicitReview, action: (): void => {
                   this.getUIContext().showAlertDialog({
                     title: t('device_sync_apply_reading'), message: t('device_sync_reading_retained_confirmation'),
                     systemMaterial: komaDialogMaterial(), primaryButton: { value: t('common_cancel'), action: (): void => {} },
@@ -400,7 +402,7 @@ export struct DeviceSyncWebDavPage {
         return
       }
       this.tested = true
-      if (this.groups().length > 0) await this.makePreview(draft)
+      if (this.groups().length > 0 && this.state.enabled) await this.makePreview(draft)
     } catch (error) {
       this.draftError = (error as Error).message
     } finally {
@@ -604,10 +606,19 @@ export struct DeviceSyncWebDavPage {
   }
 
   @Builder
-  private Run() {
+  private Run(showActions: boolean = true) {
     GroupedListSection({ title: t('device_sync_run') }) {
+      ConciseListRow({ title: t('device_sync_enabled'), hasSwitch: true, checked: this.state.enabled,
+        showChevron: false, subtitle: this.state.enabled ? undefined : t('device_sync_paused_detail'),
+        switchAction: (value: boolean): void => {
+          if (value === this.state.enabled) return
+          if (!value) this.discard()
+          appDeviceSync.setEnabled(value)
+        } })
+      if (showActions) {
+      ListDivider()
       ConciseListRow({ title: t('device_sync_auto'), hasSwitch: true, checked: this.state.automatic,
-        showChevron: false, isEnabled: !this.state.busy && !this.state.requiresExplicitReview,
+        showChevron: false, isEnabled: this.state.enabled && !this.state.busy && !this.state.requiresExplicitReview,
         switchAction: (value: boolean): void => {
           if (value !== this.state.automatic) appDeviceSync.setAutomatic(value)
         } })
@@ -615,13 +626,14 @@ export struct DeviceSyncWebDavPage {
         ListDivider()
         ConciseListRow({ title: t('device_sync_now'),
           subtitle: this.state.selected.length === 0 ? t('device_sync_no_selection') : '',
-          isEnabled: !this.state.busy && this.state.selected.length > 0,
+          isEnabled: this.state.enabled && !this.state.busy && this.state.selected.length > 0,
           action: (): void => { void appDeviceSync.sync().catch((): void => {}) } })
       }
       if (this.state.needsReview || this.proposedSelection.length > 0) {
         ListDivider()
         ConciseListRow({ title: t(this.state.requiresExplicitReview ? 'device_sync_preview' : 'device_sync_review_differences'),
-          isEnabled: !this.state.busy, action: (): void => { void this.previewSaved() } })
+          isEnabled: this.state.enabled && !this.state.busy, action: (): void => { void this.previewSaved() } })
+      }
       }
     }
   }
@@ -629,11 +641,12 @@ export struct DeviceSyncWebDavPage {
   build() {
     SecondaryListScaffold({ scroller: this.chrome.scroller, bottomPadding: ThemeConstants.SPACE_XL }) {
       if (this.preview !== undefined) {
+        if (this.state.connected) { ListItem() { this.Run(false) } }
         this.Review(this.preview)
       } else {
         ListItem() { this.Connection() }
-        if (this.state.connected && !this.editing) {
-          ListItem() { this.Run() }
+        if (this.state.connected) {
+          ListItem() { this.Run(!this.editing) }
         }
         ListItem() {
           GroupedListSection({ title: t('device_sync_status') }) {

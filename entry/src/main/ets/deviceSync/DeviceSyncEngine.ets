@@ -258,6 +258,30 @@ export class DeviceSyncEngine {
     }
   }
 
+  isEnabled(): boolean { return this.active()?.enabled !== false }
+
+  private requireEnabled(): void {
+    if (!this.isEnabled()) throw new Error('sync_service_disabled')
+  }
+
+  private transferGuard(expected: number): SyncRequestGuard {
+    const generationGuard = this.guard(expected)
+    return (): void => { generationGuard(); this.requireEnabled() }
+  }
+
+  requestGuard(): SyncRequestGuard { return this.transferGuard(this.generation) }
+
+  setEnabled(value: boolean): void {
+    if (this.active() === undefined || this.isEnabled() === value) return
+    this.storage.update((state: SyncLocalDocument): void => {
+      if (state.active !== undefined) state.active.enabled = value
+    })
+    // Stop transfer callbacks, not local observation: paused deletes and unread
+    // actions keep their original scope and cannot resurrect after resuming.
+    this.generation++
+    this.prepared = undefined
+  }
+
   async testConnection(raw: SyncConnectionDraft, input: SyncGroup[] = []): Promise<boolean> {
     const draft = checkedSyncDraft(raw)
     const guard = this.guard(this.generation)
@@ -275,6 +299,7 @@ export class DeviceSyncEngine {
       // The old endpoint and exact probe path remain in private storage until cleanup succeeds.
       throw error as Error
     }
+    if (!this.isEnabled()) return false
     const state = this.storage.load()
     const intent = state.intent
     const selected = selectedGroups(input)
@@ -294,6 +319,7 @@ export class DeviceSyncEngine {
   }
 
   async cleanProbes(): Promise<void> {
+    if (!this.isEnabled()) return
     const guard = this.guard(this.generation)
     const retired = this.storage.load().retiredCredentials ?? []
     for (const ref of retired) {
@@ -320,13 +346,14 @@ export class DeviceSyncEngine {
   }
 
   async prepare(raw: SyncConnectionDraft, input: SyncGroup[]): Promise<SyncPreview> {
+    this.requireEnabled()
     this.prepared = undefined
     const draft = checkedSyncDraft(raw)
     const selected = selectedGroups(input)
     if (selected.length === 0) throw new Error('sync_select_contents')
     const generation = this.generation
     const counter = this.storage.load().counter
-    const guard = this.guard(generation)
+    const guard = this.transferGuard(generation)
     const connection = this.active()
     const saved = connection === undefined ? undefined : await this.connectionDraft()
     const archived = this.storage.load().archives?.find((entry: SyncSavedConnection): boolean =>
@@ -366,7 +393,8 @@ export class DeviceSyncEngine {
   }
 
   private async confirmPrepared(prepared: PreparedSync, choices: SyncMergeChoice[]): Promise<void> {
-    const guard = this.guard(prepared.generation)
+    this.requireEnabled()
+    const guard = this.transferGuard(prepared.generation)
     const provider = new DeviceSyncWebDav(prepared.draft, prepared.connection?.frontier, prepared.connection?.space)
     const current = await provider.readManifest(guard, prepared.remote.etag)
     if (current.etag !== prepared.remote.etag || current.hash !== prepared.remote.hash) {
@@ -405,11 +433,12 @@ export class DeviceSyncEngine {
   }
 
   private async runActive(): Promise<void> {
+    this.requireEnabled()
     await this.recoverIntent()
     const connection = this.active()
     if (connection === undefined || connection.selected.length === 0) throw new Error('sync_select_contents')
     if (syncRequiresExplicitReview(connection)) throw new Error('sync_review_required')
-    const guard = this.guard(this.generation)
+    const guard = this.transferGuard(this.generation)
     const draft = await readSyncCredential(connection.credential)
     if (connection.frontier === undefined) {
       this.storage.update((state: SyncLocalDocument): void => {
@@ -763,6 +792,7 @@ export class DeviceSyncEngine {
       selected, automatic: prior?.automatic ?? false, reviewRequired: groups.some((group: SyncGroupState): boolean =>
         selected.includes(group.id) && (group.deferred?.length ?? 0) > 0),
       requiresExplicitReview: false, lastSuccess: prior?.lastSuccess ?? 0, lastError: '', groups,
+      enabled: prior?.enabled ?? true,
     }
     guard()
     this.storage.update((state: SyncLocalDocument): void => {
@@ -880,6 +910,10 @@ export class DeviceSyncEngine {
         entry.endpointIdentity !== archived.endpointIdentity).concat(archived)
     }
     const active = copySyncConnection(connection)
+    if (replaced?.endpointIdentity === connection.endpointIdentity) {
+      active.enabled = replaced.enabled ?? true
+      active.automatic = replaced.automatic
+    }
     active.groups = replaced?.space === connection.space ? replaced.groups.slice() : []
     committed.forEach((group: SyncGroupState): void => { active.groups = replaceGroup(active.groups, group) })
     active.lastSuccess = Date.now()
@@ -1050,8 +1084,11 @@ export class DeviceSyncEngine {
   }
 
   async chooseReadingDecision(key: string, value: string): Promise<SyncVersion | undefined> {
+    this.requireEnabled()
+    const guard = this.requestGuard()
     const scope = this.readingScope()
     await this.assertReadingUnprotected([key])
+    guard()
     if (scope !== this.readingScope()) throw new Error('sync_connection_changed')
     if (!this.readingDecisions().some((decision: SyncReadingDecision): boolean =>
       decision.key === key && decision.values.includes(value))) throw new Error('sync_preview_changed')
@@ -1111,6 +1148,7 @@ export class DeviceSyncEngine {
   }
 
   recoverOnForeground(): Promise<void> {
+    if (!this.isEnabled()) return Promise.resolve()
     if (this.running !== undefined) return this.running
     return this.start(async (): Promise<void> => {
       await this.cleanProbes()
@@ -1131,6 +1169,7 @@ export class DeviceSyncEngine {
   }
 
   private async recoverIntent(): Promise<void> {
+    if (!this.isEnabled()) return
     const starting = this.storage.load()
     const intent = starting.intent
     if (intent === undefined || intent.detached || this.restoreInProgress) return
@@ -1143,7 +1182,7 @@ export class DeviceSyncEngine {
     const connection = intent.connection
     // An explicit disable seals its intent when changing selection. An old
     // active selection alone can also mean that enabling a group was interrupted.
-    const guard = this.guard(this.generation)
+    const guard = this.transferGuard(this.generation)
     const provider = new DeviceSyncWebDav(await readSyncCredential(connection.credential), connection.frontier, connection.space)
     let receipt = intent.commit !== undefined ? await provider.readCommit(intent.commit, guard) :
       connection.frontier !== undefined ? await provider.readManifest(guard) : await provider.readLegacyManifest(guard)
@@ -1226,7 +1265,17 @@ export class DeviceSyncEngine {
     this.cache = []
     this.cacheSize = 0
     const active = current.active
-    if (active === undefined) return
+    const probeCredentials = current.probes.map((probe: SyncProbeRecord): string => probe.credential)
+    // Explicitly forgetting this service also withdraws its probe credentials.
+    // Remote files are retained; a different service owns its own state/store.
+    this.storage.update((state: SyncLocalDocument): void => {
+      state.probes = []
+      state.retiredCredentials = Array.from(new Set<string>((state.retiredCredentials ?? []).concat(probeCredentials)))
+    })
+    if (active === undefined) {
+      for (const ref of probeCredentials) await this.removeUnusedCredential(ref)
+      return
+    }
     const archive = copySyncConnection(active)
     archive.credential = ''
     archive.automatic = false
@@ -1238,6 +1287,7 @@ export class DeviceSyncEngine {
       if (state.intent !== undefined) state.intent = detachedIntent(state.intent)
     })
     await this.removeUnusedCredential(active.credential)
+    for (const ref of probeCredentials) await this.removeUnusedCredential(ref)
   }
 
   beginRestore(): void {

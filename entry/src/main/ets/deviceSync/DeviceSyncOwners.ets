@@ -152,6 +152,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   private readonly context: common.UIAbilityContext
   private readonly storage: DeviceSyncStorage
   private publisher?: (groups: SyncGroup[]) => void
+  private syncGuardFactory: () => (() => void) = (): (() => void) => (): void => {}
 
   constructor(context: common.UIAbilityContext, storage: DeviceSyncStorage) {
     this.context = context
@@ -161,6 +162,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   publishWith(publisher: (groups: SyncGroup[]) => void): void {
     this.publisher = publisher
   }
+
+  guardSyncRequests(factory: () => (() => void)): void { this.syncGuardFactory = factory }
 
   private path(name: string): string {
     return this.context.filesDir + '/' + name
@@ -226,6 +229,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   async snapshot(group: SyncGroup, verify: boolean): Promise<SyncLocalSnapshot> {
+    const guard = this.syncGuardFactory()
     const side = readFile(this.path(SYNC_PROJECTION)) ?? ''
     const projection = this.projection()
     const values: SyncLocalValue[] = []
@@ -266,7 +270,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           skipped++
           continue
         }
-        const proof = await this.publicSources.work(identity.source, identity.work, verify)
+        const proof = await this.publicSources.work(identity.source, identity.work, verify, guard)
         if (proof === undefined) {
           skipped++
           continue
@@ -295,7 +299,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       row(values, ['global', 'image-fit'], preferences.imageFitMode)
       for (const id of Object.keys(preferences.books)) {
         const identity = identities.get(id)
-        const proof = identity === undefined ? undefined : await this.publicSources.work(identity.source, identity.work, verify)
+        const proof = identity === undefined ? undefined : await this.publicSources.work(identity.source, identity.work, verify, guard)
         if (identity === undefined || proof === undefined) {
           skipped++
           continue
@@ -313,9 +317,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         skipped++
         continue
       }
-      const work = await this.publicSources.work(identity.source, identity.work, verify)
+      const work = await this.publicSources.work(identity.source, identity.work, verify, guard)
       const chapter = work === undefined ? undefined :
-        await this.publicSources.chapter(identity.source, identity.work, progress.chapterId, verify)
+        await this.publicSources.chapter(identity.source, identity.work, progress.chapterId, verify, guard)
       if (work === undefined || chapter === undefined) {
         skipped++
         continue
@@ -335,9 +339,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     for (const chapter of reading.chapters) {
       const identity = identities.get(chapter.comicId)
       if (identity === undefined || !syncChapterBelongsToSource(identity.source, identity.work, chapter.chapterId)) continue
-      const work = await this.publicSources.work(identity.source, identity.work, verify)
+      const work = await this.publicSources.work(identity.source, identity.work, verify, guard)
       const proof = work === undefined ? undefined :
-        await this.publicSources.chapter(identity.source, identity.work, chapter.chapterId, verify)
+        await this.publicSources.chapter(identity.source, identity.work, chapter.chapterId, verify, guard)
       if (proof === undefined) continue
       const position = chapter.position
       const savedChapter = library.comics.find((item: PersistedComic): boolean => item.id === chapter.comicId)
@@ -370,15 +374,15 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       candidate.space === space)
     return { values, revision: syncDigest(rawLibrary + rawReading + side + JSON.stringify(archive ?? null)),
       skipped: skipped + pending.length + actions.length, protectedKeys: Array.from(protectedKeys),
-      restoreEdits: verify && archive !== undefined ? await this.verifiedRestoreEdits(archive) : undefined }
+      restoreEdits: verify && archive !== undefined ? await this.verifiedRestoreEdits(archive, guard) : undefined }
   }
 
-  private async verifiedRestoreEdits(archive: SyncReadingRestoreCandidate): Promise<SyncRestoreEdit[]> {
+  private async verifiedRestoreEdits(archive: SyncReadingRestoreCandidate, guard: () => void): Promise<SyncRestoreEdit[]> {
     const result = new Map<string, SyncRestoreEdit>()
     const lastAction = new Map<string, string>()
     for (const action of archive.actions) {
       const chapter = action.chapterId === '' ? undefined :
-        await this.publicSources.chapter(action.source, action.work, action.chapterId, true)
+        await this.publicSources.chapter(action.source, action.work, action.chapterId, true, guard)
       if (action.chapterId !== '' && chapter === undefined) continue
       for (const edit of action.edits) {
         let value = edit.value
@@ -395,8 +399,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       }
     }
     for (const capture of archive.positions) {
-      const work = await this.publicSources.work(capture.source, capture.work, true)
-      const chapter = await this.publicSources.chapter(capture.source, capture.work, capture.chapterId, true)
+      const work = await this.publicSources.work(capture.source, capture.work, true, guard)
+      const chapter = await this.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
       if (work === undefined || chapter === undefined || capture.total !== chapter.pages ||
         !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) continue
       const position: SyncPositionValue = { page: capture.page, total: chapter.pages, pageTable: chapter.pageTable }
@@ -913,6 +917,6 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   publicWork(source: string, work: string): Promise<SyncPublicWorkProof | undefined> {
-    return this.publicSources.work(source, work, true)
+    return this.publicSources.work(source, work, this.storage.load().active?.enabled !== false, this.syncGuardFactory())
   }
 }

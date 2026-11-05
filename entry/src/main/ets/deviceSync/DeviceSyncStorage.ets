@@ -71,6 +71,8 @@ export interface SyncSavedConnection {
   frontier?: string[]
   selected: SyncGroup[]
   automatic: boolean
+  // WebDAV service state, never an application-wide switch for future providers.
+  enabled?: boolean
   reviewRequired: boolean
   requiresExplicitReview?: boolean
   restoreReview?: boolean
@@ -125,6 +127,7 @@ export interface SyncLocalDocument {
 export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnection {
   return { credential: value.credential, endpointIdentity: value.endpointIdentity, space: value.space, revision: value.revision,
     manifestHash: value.manifestHash, frontier: value.frontier?.slice(), selected: value.selected.slice(), automatic: value.automatic,
+    enabled: value.enabled,
     reviewRequired: value.reviewRequired, requiresExplicitReview: value.requiresExplicitReview,
     restoreReview: value.restoreReview, lastSuccess: value.lastSuccess, lastError: value.lastError,
     groups: value.groups.slice() }
