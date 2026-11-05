@@ -46,6 +46,15 @@ export class SourceWebChallengeGate {
     return true
   }
 
+  /** Explicit login may be canceled and opened again. Rotate the receipt; an old form cannot complete the new claim. */
+  releaseLogin(id: number): SourceWebChallengeReceipt | null {
+    if (this.receipt?.id !== id || !this.current()) return null
+    const previous = this.receipt
+    const current = this.current
+    const retry = this.retry
+    return this.issue(previous.sourceId, previous.scope, true, current, retry, false, previous.requestHandle)
+  }
+
   async complete(id: number, visible: boolean): Promise<boolean> {
     if (this.receipt?.id !== id) return false
     const valid = visible && this.claimed && this.current()

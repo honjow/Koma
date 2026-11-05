@@ -1,3 +1,4 @@
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { runBrowseSourceRequestInWorker as runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
@@ -14,6 +15,7 @@ import {
   SourceMangaList,
   SourceMangaStatus,
   parseSourceFilterSchemaJson,
+  sourceStaticCoverHeaders,
   sourceFiltersForQuery,
 } from '../model/SourceModels'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
@@ -246,6 +248,7 @@ function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
 
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
   const title = optionalString(item['title']) ?? optionalString(item['id']) ?? AppStrings.get('browse_untitled_manga')
+  const coverUrl = sourceItemCoverUrl(item)
   return {
     id: optionalString(item['id']) ?? title,
     sourceId,
@@ -253,7 +256,8 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     author: firstDisplayText([item['author'], item['authors']]),
     artist: firstDisplayText([item['artist'], item['artists']]),
     description: firstDisplayText([item['description'], item['summary'], item['synopsis']]),
-    coverUrl: sourceItemCoverUrl(item),
+    coverUrl,
+    coverHeaders: sourceStaticCoverHeaders(itemRecord(item['cover']), coverUrl),
     status: normalizeStatus(item['status']),
     contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
     tags: normalizeStringArray(item['tags']),
@@ -456,6 +460,32 @@ export class BrowseViewModel {
   @Trace searchWebChallenge: SourceWebChallengeReceipt | null = null
   private browseWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
   private searchWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  @Trace browseAuthentication: SourceWebChallengeReceipt | null = null
+  @Trace searchAuthentication: SourceWebChallengeReceipt | null = null
+  private browseAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  private searchAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+
+  authenticationRequest(scope: SourceWebChallengeScope, visible: () => boolean): SourceAuthenticationRequest | null {
+    const receipt = scope === 'browse' ? this.browseAuthentication : this.searchAuthentication
+    const gate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
+    if (receipt === null || !gate.claim(receipt.id, visible())) return null
+    const current = (): boolean => visible() && gate.isCurrentClaim(receipt.id)
+    return new SourceAuthenticationRequest(receipt.sourceId, current,
+      async (): Promise<void> => {
+        try { await gate.complete(receipt.id, visible()) }
+        finally {
+          if ((scope === 'browse' ? this.browseAuthentication : this.searchAuthentication)?.id === receipt.id) {
+            if (scope === 'browse') this.browseAuthentication = null
+            else this.searchAuthentication = null
+          }
+        }
+      }, (): void => {
+        const next = gate.releaseLogin(receipt.id)
+        if (scope === 'browse' && this.browseAuthentication?.id === receipt.id) this.browseAuthentication = next
+        else if (scope !== 'browse' && this.searchAuthentication?.id === receipt.id) this.searchAuthentication = next
+      })
+  }
+
   private browseChallengeHandle?: string
   private searchChallengeHandle?: string
 
@@ -464,6 +494,11 @@ export class BrowseViewModel {
   }
 
   private clearWebChallenge(scope: SourceWebChallengeScope): void {
+    const authenticationGate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
+    authenticationGate.clear()
+    if (scope === 'browse') this.browseAuthentication = null
+    else this.searchAuthentication = null
+
     this.challengeGate(scope).clear()
     const receipt = scope === 'browse' ? this.browseWebChallenge : this.searchWebChallenge
     const handle = scope === 'browse' ? this.browseChallengeHandle : this.searchChallengeHandle
@@ -527,8 +562,18 @@ export class BrowseViewModel {
   private publishWebChallenge(scope: SourceWebChallengeScope, error: Error, automaticRecovery: boolean,
     current: () => boolean, retry: (handle?: string) => Promise<void>): void {
     const source = this.selectedSource
+    const explicitLogin = error instanceof SourceRuntimeError &&
+      (error.diagnostic.code === 'auth_required' || error.diagnostic.reason === 'auth_required') &&
+      (error.diagnostic.status === 0 || error.diagnostic.status === 401)
+    if (!automaticRecovery && explicitLogin && source?.authentication !== undefined) {
+      const gate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
+      const receipt = gate.issue(source.sourceId, scope, true, current, async (): Promise<void> => { await retry() })
+      if (scope === 'browse') this.browseAuthentication = receipt
+      else this.searchAuthentication = receipt
+      return
+    }
     const eligible = !automaticRecovery && error instanceof SourceRuntimeError &&
-      (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required') &&
+      (error.diagnostic.kind === 'challenge' || (error.diagnostic.code === 'auth_required' && source?.authentication === undefined)) &&
       source !== undefined && (source.webSessionOrigins ?? []).length > 0
     const handle = scope === 'browse' ? this.browseChallengeHandle : this.searchChallengeHandle
     const sourceId = source?.sourceId ?? ''

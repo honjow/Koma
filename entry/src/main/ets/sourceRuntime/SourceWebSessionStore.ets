@@ -1,3 +1,5 @@
+import { sourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
+import { sourceAuthenticationIdentity } from './SourceAuthenticationDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
@@ -29,6 +31,7 @@ export interface SourceHttpIdentity {
   packageIdentity: string
   webSessionOrigins: string[]
   privateCallId?: string
+  credentialGrantId?: string
   operationGuardId?: string
   detailChapterContext?: boolean
   // Host-owned trace label only; never part of a grant, package identity or persisted session.
@@ -79,8 +82,13 @@ interface PersistedWebSessions {
 }
 
 export function sourceWebPackageIdentity(entry: SourceRuntimeRegistryEntry): string {
-  return JSON.stringify([entry.sourceId, entry.manifestVersion, entry.wasmPath ?? entry.archivePath ?? '',
-    JSON.stringify((entry.webSessionOrigins ?? []).slice().sort())])
+  const parts: string[] = [entry.sourceId, entry.manifestVersion, entry.wasmPath ?? entry.archivePath ?? '',
+    JSON.stringify((entry.webSessionOrigins ?? []).slice().sort())]
+  // Keep every old no-descriptor identity byte-for-byte, including persisted Web grants/Asset keys.
+  if (entry.authentication !== undefined) parts.push(sourceAuthenticationIdentity(entry.authentication))
+  const required = sourceRequiredImageDecodes(entry.requiredImageDecodes) ?? []
+  if (required.length > 0) parts.push('requiredImageDecodes:' + JSON.stringify(required))
+  return JSON.stringify(parts)
 }
 
 export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operationGuardId?: string,
@@ -147,16 +155,26 @@ export class SourceWebSessionStore {
     if (origin.length > 0 && identity.webSessionOrigins.includes(origin)) this.rejectedUrls.set(identity.sourceId, fullUrl)
   }
 
-  begin(registry: SourceRuntimeRegistry, sourceId: string, fullUrl: string): SourceWebSessionStatus {
+  begin(registry: SourceRuntimeRegistry, sourceId: string, fullUrl: string, loginUserAgent?: string): SourceWebSessionStatus {
     const entry = registry.lookup(sourceId).entry
     const origin = sourceWebOrigin(fullUrl)
     if (entry === undefined || !entry.enabled || origin.length === 0 ||
-      !(entry.webSessionOrigins ?? []).includes(origin)) throw new Error('source_web_session_not_allowed')
+      !(entry.webSessionOrigins ?? []).includes(origin) || (loginUserAgent !== undefined &&
+        (entry.authentication?.kind !== 'web' || entry.authentication.userAgent !== loginUserAgent))) {
+      throw new Error('source_web_session_not_allowed')
+    }
     const status: SourceWebSessionStatus = {
       sourceId, sessionId: util.generateRandomUUID(true), initialUrl: fullUrl, origin, state: 'pending',
     }
-    this.pending.set(sourceId, { status, registry, entry, packageIdentity: sourceWebPackageIdentity(entry), userAgent: '' })
+    this.pending.set(sourceId, { status, registry, entry, packageIdentity: sourceWebPackageIdentity(entry), userAgent: loginUserAgent ?? '' })
     return { sourceId, sessionId: status.sessionId, initialUrl: fullUrl, origin, state: 'pending' }
+  }
+
+  pendingLoginUserAgent(sourceId: string, sessionId: string): string | undefined {
+    const pending = this.pending.get(sourceId)
+    if (pending === undefined || pending.status.sessionId !== sessionId || pending.userAgent.length === 0 ||
+      pending.registry.lookup(sourceId).entry !== pending.entry || !pending.entry.enabled) return undefined
+    return pending.userAgent
   }
 
   complete(sourceId: string, sessionId: string, currentFullUrl: string, actualUserAgent: string): SourceWebSessionStatus {
@@ -165,7 +183,9 @@ export class SourceWebSessionStore {
       sourceWebPackageIdentity(session.registry.lookup(sourceId).entry ?? session.entry) !== session.packageIdentity ||
       session.registry.lookup(sourceId).entry?.enabled !== true ||
       sourceWebOrigin(currentFullUrl) !== session.status.origin || actualUserAgent.trim().length === 0 ||
-      /[\r\n]/.test(actualUserAgent)) throw new Error('source_web_session_not_allowed')
+      /[\r\n]/.test(actualUserAgent) || (session.userAgent.length > 0 && session.userAgent !== actualUserAgent)) {
+      throw new Error('source_web_session_not_allowed')
+    }
     const key = sourceSessionKey(sourceId, session.status.origin)
     const previous = this.sessions.get(key)
     const previousRecord = this.persisted.get(key)
@@ -228,7 +248,8 @@ export class SourceWebSessionStore {
       !identity.webSessionOrigins.includes(session.status.origin) ||
       sourceWebPackageIdentity(session.registry.lookup(identity.sourceId).entry ?? session.entry) !== session.packageIdentity ||
       session.registry.lookup(identity.sourceId).entry?.enabled !== true ||
-      proof.userAgent.trim().length === 0 || /[\r\n]/.test(proof.userAgent)) return undefined
+      proof.userAgent.trim().length === 0 || /[\r\n]/.test(proof.userAgent) ||
+      (session.userAgent.length > 0 && session.userAgent !== proof.userAgent)) return undefined
     // This does not publish or persist a grant. Ordinary requests still use requestSession.
     try { return { userAgent: proof.userAgent, cookie: readSourceWebCookies(fullUrl) } }
     catch (_error) { return undefined }

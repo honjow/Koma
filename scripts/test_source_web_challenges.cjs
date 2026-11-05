@@ -11,13 +11,14 @@ function moduleFrom(name, requireMock = () => ({})) {
   const exports = {}; new Function('exports', 'require', compile(read(name)))(exports, requireMock); return exports
 }
 const { SourceWebChallengeGate } = moduleFrom('sourceRuntime/SourceWebChallengeGate')
+const { SourceAuthenticationRequest } = moduleFrom('sourceRuntime/SourceAuthenticationService')
 const { SourceRuntimeError } = moduleFrom('model/SourceRuntimeError', () => ({
   AppStrings: { get: key => key, format: (_key, text, status) => `${text}:${status}` },
 }))
 const { sourceFiltersForQuery } = moduleFrom('model/SourceModels', () => ({ AppStrings: { get: key => key } }))
 const ast = ts.createSourceFile('vm.ts', read('viewmodel/BrowseViewModel'), ts.ScriptTarget.Latest, true)
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
-const methods = ['challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
+const methods = ['authenticationRequest', 'challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
   'searchResultFingerprint', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'selectBrowseHome', 'loadBrowseHome', 'setSelectedSource',
@@ -36,10 +37,10 @@ function fixture() {
   const preferenceReads = [], preferenceWrites = []
   let savedSearchFilters = {}
   const exports = {}
-  new Function('exports', 'SourceRuntimeError', 'appSourceSettingsStore', 'safeSearchDiagnostic',
+  new Function('exports', 'SourceRuntimeError', 'SourceAuthenticationRequest', 'appSourceSettingsStore', 'safeSearchDiagnostic',
     'safeSourceBrowseErrorText', 'BrowseLoadIntent', 'BrowseContentState', 'appendUniqueSourceManga',
     'sourceFiltersForQuery', 'appSourceFilterPreferencesStore', compile(source))(
-    exports, SourceRuntimeError, { revisionForSource: () => revision }, error => ({ userText: error.userText }),
+    exports, SourceRuntimeError, SourceAuthenticationRequest, { revisionForSource: () => revision }, error => ({ userText: error.userText }),
     error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error', EMPTY: 'empty', UNRESOLVED: 'unresolved' }, (a,b) => a.concat(b),
     sourceFiltersForQuery, {
       loadForSource: (id, kind) => { preferenceReads.push([id, kind]); return kind === 'search' ? savedSearchFilters : {} },
@@ -50,6 +51,8 @@ function fixture() {
   Object.assign(model, { selectedSource: sourceSummary, registry: { lookup: () => ({ ok: true, entry }) },
     browseWebChallenge: null, searchWebChallenge: null,
     browseWebChallengeGate: new SourceWebChallengeGate(), searchWebChallengeGate: new SourceWebChallengeGate(),
+    browseAuthenticationGate: new SourceWebChallengeGate(), searchAuthenticationGate: new SourceWebChallengeGate(),
+    browseAuthentication: null, searchAuthentication: null,
     browseRequestId: 1, searchRequestId: 1, selectedListingId: 'popular', searchQuery: '',
     browseFilterValues: {}, searchFilterValues: {}, filters: [], persistSearchFilters: true,
     filterDataRevision: 0, browsePage: 1, searchPage: 1,
@@ -82,6 +85,39 @@ function searchInitializationFixture() {
   ], supportsFilterFetching: false })
   return f
 }
+
+test('explicit source login cancels and reopens safely, then retries only its original operation once', async () => {
+  for (const scope of ['browse', 'search']) {
+    const f = fixture(); f.source.authentication = { kind: 'credentials' }; let retries = 0
+    const error = new SourceRuntimeError({ ok: false, error: { code: 'auth_required', status: 401 } })
+    f.model.publishWebChallenge(scope, error, false, f.model.webChallengeGuard(scope), async () => { retries++ })
+    assert.equal(f.model[scope + 'WebChallenge'], null)
+    const first = f.model.authenticationRequest(scope, () => true)
+    assert.ok(first); assert.equal(f.model.authenticationRequest(scope, () => true), null)
+    first.cancel(); const second = f.model.authenticationRequest(scope, () => true)
+    assert.ok(second); await first.complete(); assert.equal(retries, 0)
+    await second.complete(); await second.complete(); assert.equal(retries, 1)
+    assert.equal(f.model[scope + 'Authentication'], null)
+  }
+})
+
+test('login cannot replay an obsolete query, filter, installation or settings; HTTP403 remains a refusal', async () => {
+  for (const changed of ['query', 'filter', 'installation', 'settings']) {
+    const f = fixture(); f.source.authentication = { kind: 'credentials' }; let retries = 0
+    f.model.publishWebChallenge('search', new SourceRuntimeError({ ok: false, error: { code: 'auth_required' } }), false,
+      f.model.webChallengeGuard('search'), async () => { retries++ })
+    const request = f.model.authenticationRequest('search', () => true)
+    if (changed === 'query') f.model.searchQuery = 'different'
+    if (changed === 'filter') f.model.searchFilterValues = { sort: 'different' }
+    if (changed === 'installation') f.replaceEntry()
+    if (changed === 'settings') f.changeSettings()
+    assert.equal(request.current(), false); await request.complete(); assert.equal(retries, 0)
+  }
+  const f = fixture(); f.source.authentication = { kind: 'credentials' }
+  f.model.publishWebChallenge('search', new SourceRuntimeError({ ok: false, error: { code: 'auth_required', status: 403 } }), false,
+    () => true, async () => assert.fail('403 must not retry'))
+  assert.equal(f.model.searchAuthentication, null)
+})
 
 test('in-place Browse search restores saved filters before dispatch and late listing cannot retire its guard', async () => {
   const f = searchInitializationFixture()
@@ -382,7 +418,7 @@ const sheetOwner = sheetAst.statements.find(n => ts.isClassDeclaration(n) && n.n
 const sheetMethods = ['isCurrent','updateNavState','loadInitialPage','pageBegan','pageEnded','mainPageFailed',
   'completeSourceSession','close','sessionChanged','aboutToDisappear','consoleMessage','resourceFailed','navigationRequested']
 const sheetSource = `export class Sheet { ${sheetMethods.map(name => sheetOwner.members.find(n => n.name?.text === name).getText(sheetAst).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
-function sheetFixture() {
+function sheetFixture(loginUserAgent) {
   let cookies = 'cf_clearance=old', failRead = false, saveError = false, saveWait = Promise.resolve(), probeResult = Promise.resolve(false)
   const probes = [], cancelledProbes = []
   const exports = {}, granted = [], completed = [], events = []
@@ -392,7 +428,8 @@ function sheetFixture() {
     saveCookieSync: () => { if (saveError) throw Error('async required') }, saveCookieAsync: () => saveWait,
   } }
   new Function('exports','webview','appSourceWebSessionStore','sourceWebOrigin','hasNewSourceClearance','sourceClearanceCookieState','DiagnosticLogger','AppStrings','mangaHttpUrl','readSourceWebCookies','probeSourceWebSession','cancelSourceWebProbe', compile(sheetSource))(
-    exports, webview, { complete: (...args) => { granted.push(args); return { state:'available' } } },
+    exports, webview, { pendingLoginUserAgent: () => loginUserAgent,
+      complete: (...args) => { granted.push(args); return { state:'available' } } },
     u => { try { return new URL(u).origin } catch { return '' } }, hasNewSourceClearance, sourceClearanceCookieState,
     { info: (...args) => events.push(args) }, { get: s => s }, moduleFrom('model/MangaWebLink').mangaHttpUrl,
     fullUrl => webview.WebCookieManager.fetchCookieSync(fullUrl, false),
@@ -401,7 +438,8 @@ function sheetFixture() {
   Object.assign(sheet, { params: {url:initialUrl,sourceSession:{sourceId:'test',sessionId:'attempt1'}},
     autoRetryOnClearance:true,canProbeOriginal:()=>true,active:true,epoch:1,controllerReady:true,loading:false,completing:false,completed:false,
     autoRetryStarted:false,pageRevision:0,pageUrl:'',pageFailed:false,clearanceBaseline:undefined,
-    controller:{loadUrl:()=>{},getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>'',getUserAgent:()=> 'Web UA',
+    controller:{loadUrl:()=>{},getUrl:()=>sheet.pageUrl,getCustomUserAgent:()=>sheet.customUa??'',
+      setCustomUserAgent: ua => { sheet.customUa=ua },getUserAgent:()=> 'Web UA',
       accessBackward:()=>false,accessForward:()=>false},
     onCompleted: status => completed.push(status),onClose:()=>events.push('closed'),
     getUIContext:()=>({getPromptAction:()=>({showToast:()=>{}})}),
@@ -411,6 +449,54 @@ function sheetFixture() {
     delaySave:()=> { saveError=true; let resolve; saveWait=new Promise(r=>resolve=r); return resolve } }
 }
 const settled = () => new Promise(resolve=>setImmediate(resolve))
+test('declared web login uses its source UA for the actual page and completion', async () => {
+  const f = sheetFixture('Fixed source desktop UA')
+  f.sheet.autoRetryOnClearance = false
+  f.sheet.pageEnded({ url: f.initialUrl }); await f.sheet.completeSourceSession()
+  assert.equal(f.sheet.customUa, 'Fixed source desktop UA')
+  assert.equal(f.granted[0][3], 'Fixed source desktop UA')
+})
+
+function authenticationPresenterFixture() {
+  const ast = ts.createSourceFile('auth.ts', read('components/SourceAuthenticationSheetHost').replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
+  const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceAuthenticationSheetHost')
+  const methods = ['aboutToAppear', 'aboutToDisappear', 'requestChanged', 'current', 'open', 'openWeb', 'status', 'authenticate', 'logout', 'finish', 'close', 'finishDismissal']
+  const source = `export class Presenter { ${methods.map(name => owner.members.find(n => n.name?.text === name).getText(ast).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
+  const replies = [], operations = [], exports = {}; let canceled = 0, completed = 0
+  class Service {
+    descriptor = { kind: 'credentials', loginUrl: 'https://api.invalid/auth', credentialStorage: 'private' }
+    title = 'Source'; alive = true
+    constructor(_id, current) { this.current = current }
+    isCurrent() { return this.alive && this.current() }
+    cancel() { this.alive = false }
+    async run(op) { operations.push(op); const reply = replies.shift(); return await (reply ?? false) }
+  }
+  new Function('exports', 'SourceAuthenticationService', 'AppStrings', 'sourceAuthenticationOrigin', 'SourceRuntimeError', compile(source))(
+    exports, Service, { get: key => key }, value => new URL(value).origin, SourceRuntimeError)
+  const host = new exports.Presenter()
+  const request = () => new SourceAuthenticationRequest('source', () => true, async () => { completed++ }, () => { canceled++ })
+  Object.assign(host, { request: request(), active: true, mounted: false, shown: false, closing: false, opening: false,
+    completed: false, handled: null, presented: null, service: null, epoch: 0, webParams: {},
+    onPresentedChanged() {}, getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }) })
+  return { host, replies, operations, request, get canceled() { return canceled }, get completed() { return completed } }
+}
+test('login presenter retries after dismissal only, and late canceled initialization cannot close its replacement', async () => {
+  const f = authenticationPresenterFixture(); f.host.aboutToAppear(); await settled()
+  f.host.username = 'synthetic-user'; f.host.password = 'synthetic-password'; f.replies.push(true)
+  await f.host.authenticate(); assert.equal(f.completed, 0); assert.equal(f.host.password, '')
+  f.host.finishDismissal(); await settled(); assert.equal(f.completed, 1)
+  f.host.finishDismissal(); assert.equal(f.completed, 1)
+  let resolve
+  f.host.request = f.request(); f.replies.push(new Promise(r => { resolve = r }))
+  f.host.requestChanged(); assert.equal(f.host.shown, true)
+  f.host.close(); f.host.finishDismissal()
+  f.host.request = f.request(); f.host.requestChanged(); await settled()
+  const presented = f.host.presented
+  resolve(false); await settled()
+  assert.equal(f.host.presented, presented); assert.equal(f.host.shown, true)
+  f.host.aboutToDisappear(); f.host.finishDismissal(); assert.equal(f.completed, 1)
+  assert.ok(f.canceled > 0)
+})
 test('changed clearance on current successful document retries once without a manual tap', async () => {
   const f=sheetFixture();f.setCookies('cf_clearance=new');f.sheet.pageEnded({url:f.initialUrl});
   f.sheet.pageEnded({url:f.initialUrl});await settled()
@@ -663,11 +749,11 @@ test('successful same-query empty refresh replaces old rows and clearSearch inva
 const crossAst = ts.createSourceFile('cross.ts', read('model/CrossSearchService'), ts.ScriptTarget.Latest, true)
 const crossOwner = crossAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'CrossSearchService')
 const crossMethods = ['search','cancelPendingSearch','cancelWebChallenges','claimWebChallenge','canRetryWebChallenge',
-  'cancelWebChallenge','completeWebChallenge','sourceWebChallengeGuard','pendingSections','sourceMatchesFilter',
+  'cancelWebChallenge','releaseAuthentication','completeWebChallenge','sourceWebChallengeGuard','pendingSections','sourceMatchesFilter',
   'searchWasmSource','section','stateSection','errorSection','sourceSupportsSearch','selectedSourceSummaries']
 const pageAst = ts.createSourceFile('page.ts', read('pages/SearchPage').replace('struct SearchPage', 'class SearchPage'), ts.ScriptTarget.Latest, true)
 const pageOwner = pageAst.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SearchPage')
-const pageMethods = ['ownsRoute','runSearch','prepareSearchResults','hasMeaningfulSearchQuery','effectiveSourceFilter',
+const pageMethods = ['authenticateSection','ownsRoute','runSearch','prepareSearchResults','hasMeaningfulSearchQuery','effectiveSourceFilter',
   'libraryQueryActive','invalidateWebChallenges','cancelCurrentWebSession',
   'handleWebChallenges','closeWebChallenge','completeWebChallenge','finishWebChallengeDismiss']
 const classText = (owner, ast, names) => `export class Owner { ${names.map(name => owner.members.find(n => n.name?.text === name).getText(ast)).join('\n')} }`
@@ -708,10 +794,10 @@ function crossWebFixture(ids) {
       return reply
     }}})
   const pageExports={}; let session=0
-  new Function('exports','isCrossSearchQueryMeaningful','safeSearchDiagnostic','DiagnosticLogger',
+  new Function('exports','SourceAuthenticationRequest','isCrossSearchQueryMeaningful','safeSearchDiagnostic','DiagnosticLogger',
     'appSourceWebSessionStore','cancelSourceWebProbe','prepareSourceWebSession',
     'parseLibrarySearchQuery','appDeviceSync',
-    compile(classText(pageOwner,pageAst,pageMethods)))(pageExports,q=>q.length>0,()=>({userText:'failed',code:'failed'}),
+    compile(classText(pageOwner,pageAst,pageMethods)))(pageExports,SourceAuthenticationRequest,q=>q.length>0,()=>({userText:'failed',code:'failed'}),
     {error(){}},{cancel(){}},()=>{},(sourceId,title,requestHandle)=>({url:'https://source.invalid/',title,
       sourceSession:{sourceId,sessionId:String(++session),requestHandle}}),moduleFrom('model/LibrarySearchQuery').parseLibrarySearchQuery,
       {view:{connected:false,selected:[]}})
@@ -720,11 +806,27 @@ function crossWebFixture(ids) {
     sourceFilter:'source',resultsQuery:'',resultsSourceFilter:'source',webChallengeEpoch:0,webChallengeRetrySerial:0,
     webChallengeRetryPending:false,webChallengeClosing:false,webChallengeShown:false,webChallengeParams:{url:'',title:''},
     recordHistory(){}})
-  return {page,service,calls,revisions,entries,
+  return {page,service,calls,revisions,entries,sources,
     reply:(id,query,...values)=>replies.set(id+'|'+query,values),
     ready:id=>({manga:[{id,sourceId:id,title:id}],hasNextPage:false}),
     section:id=>page.sections.find(s=>s.id==='wasm:'+id)}
 }
+
+test('global explicit login recovers only its source and canceled forms cannot replay', async () => {
+  const f = crossWebFixture(['one', 'two'])
+  f.sources[0].authentication = { kind: 'credentials' }
+  f.reply('one', 'q', new SourceRuntimeError({ ok: false, error: { code: 'auth_required' } }), f.ready('one'))
+  f.reply('two', 'q', f.ready('two'))
+  await f.page.runSearch('q')
+  assert.equal(f.page.webChallengeShown, false)
+  const section = f.section('one'); assert.ok(section.authentication)
+  f.page.authenticateSection(section); const old = f.page.authentication
+  old.cancel(); f.page.authenticateSection(section)
+  await old.complete(); assert.equal(f.calls.length, 2)
+  await f.page.authentication.complete()
+  assert.equal(f.section('one').state, 'ready'); assert.equal(f.section('two').state, 'ready')
+  assert.deepEqual(f.calls.map(c => c[0]), ['one', 'two', 'one'])
+})
 
 test('global verification serializes sources, retains independent results and only replays the verified source', async () => {
   const f=crossWebFixture(['one','two','three','four'])

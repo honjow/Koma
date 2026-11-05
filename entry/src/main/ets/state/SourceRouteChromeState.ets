@@ -13,6 +13,8 @@ export class SourceBrowseRouteChromeState {
   @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
+  @Trace authenticationAvailable: boolean = false
+  @Trace authenticationRequestSeq: number = 0
   @Trace settingsAvailable: boolean = false
   @Trace settingsRequestSeq: number = 0
   @Trace filterRequestSeq: number = 0
@@ -38,6 +40,8 @@ export class SourceBrowseRouteChromeState {
     this.sourceName = sourceName
     this.sourceId = sourceId
   }
+
+  requestAuthentication(): void { this.authenticationRequestSeq += 1 }
 
   requestSettings(): void { this.settingsRequestSeq += 1 }
 
@@ -65,6 +69,8 @@ export class SourceSearchRouteChromeState {
   @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false
+  @Trace authenticationAvailable: boolean = false
+  @Trace authenticationRequestSeq: number = 0
   @Trace settingsAvailable: boolean = false
   @Trace settingsRequestSeq: number = 0
   @Trace filterRequestSeq: number = 0
@@ -92,6 +98,8 @@ export class SourceSearchRouteChromeState {
     this.initialQuery = initialQuery.trim()
     this.query = this.initialQuery
   }
+
+  requestAuthentication(): void { this.authenticationRequestSeq += 1 }
 
   requestSettings(): void { this.settingsRequestSeq += 1 }
 

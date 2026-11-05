@@ -1,3 +1,5 @@
+import { SourceRequiredImageDecode, sourceRequiredImageDecode, SourceRequiredImageDecodeService,
+  readSourceImageBytes } from './SourceRequiredImageDecode'
 import { SourceTextOverlay } from './SourceTextOverlay'
 import { SourceTextOverlayService } from './SourceTextOverlayService'
 import { configureSourceRequestPolicy, waitForSourceRequestSlot } from '../sourceRuntime/SourceRequestPolicy'
@@ -16,6 +18,8 @@ import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegist
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { sourcePicaDnsOverride, sourcePicaChannelIp, requestSourcePicaHop, SourcePicaDnsOverride,
+  SourcePicaChannelScope } from '../sourceRuntime/SourcePicaChannelTransport'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
@@ -350,7 +354,52 @@ function isLocalFileUri(uri: string): boolean {
   return normalized.startsWith('file://') || normalized.startsWith('mock://')
 }
 
-async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = ''): Promise<ArrayBuffer> {
+async function downloadPicaChannelImage(fullUrl: string, extraHeaders: RemoteImageCacheHeaders | undefined,
+  sourceId: string, hint: SourcePicaDnsOverride): Promise<ArrayBuffer> {
+  const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+  if (entry === undefined || sourceId !== 'com.picacomic.koma' || !entry.enabled) throw new Error('reader_source_image_request_rejected')
+  const identity = JSON.parse(sourceHttpIdentityJson(entry)) as Record<string, string>
+  const revision = appSourceSettingsStore.revisionForSource(sourceId)
+  const scope: SourcePicaChannelScope = { sourceId, packageIdentity: identity['packageIdentity'], current: (): boolean =>
+    appSourceRuntimeRegistry.lookup(sourceId).entry === entry && entry.enabled &&
+    appSourceSettingsStore.revisionForSource(sourceId) === revision }
+  let target = fullUrl
+  const started = Date.now()
+  for (let redirects = 0; ; redirects += 1) {
+    await waitForSourceRequestSlot(sourceId, target, scope.current)
+    if (!scope.current()) throw new Error('reader_source_image_request_rejected')
+    const parsed = new url.URL(target)
+    const matching = parsed.hostname === 'picacomic.com' || parsed.hostname.endsWith('.picacomic.com')
+    if (redirects === 0 && !matching) throw new Error('reader_source_image_request_invalid')
+    const dnsRemaining = 60000 - (Date.now() - started)
+    if (dnsRemaining <= 0) throw new Error('reader_remote_image_fetch_failed_2300028')
+    const ip = matching ? await sourcePicaChannelIp(target, hint, scope, dnsRemaining) : undefined
+    const headers: Record<string, string> = {}
+    const sourceHeaderValues: RemoteImageCacheHeaders = extraHeaders ?? {}
+    Object.keys(sourceHeaderValues).forEach((name: string): void => {
+      if (new url.URL(target).origin === new url.URL(fullUrl).origin || name.toLowerCase() !== 'authorization') {
+        headers[name] = sourceHeaderValues[name]
+      }
+    })
+    const remaining = 60000 - (Date.now() - started)
+    if (remaining <= 0) throw new Error('reader_remote_image_fetch_failed_2300028')
+    const response = await requestSourcePicaHop(target, 'GET', headers, '', remaining, scope.current, ip, 128 * 1024 * 1024)
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const fields = response.headers as Record<string, Object>
+      const key = Object.keys(fields).find((name: string): boolean => name.toLowerCase() === 'location')
+      const location = key === undefined ? undefined : fields[key]
+      if (typeof location !== 'string' || redirects >= 20) throw new Error('reader_remote_image_redirect_failed')
+      target = new url.URL(location, target).toString()
+      continue
+    }
+    if (response.status !== 200) throw new Error(`reader_remote_image_http_${response.status}`)
+    return response.bytes
+  }
+}
+
+async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
+  dnsOverride?: SourcePicaDnsOverride): Promise<ArrayBuffer> {
+  if (dnsOverride !== undefined) return downloadPicaChannelImage(url, extraHeaders, sourceId, dnsOverride)
   await waitForSourceRequestSlot(sourceId, url)
   const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=30000 readTimeoutMs=60000')
   const httpRequest = http.createHttp()
@@ -495,18 +544,22 @@ interface ReaderImageRuntimeRequest {
   hostHints: ReaderImageRuntimeHostHints
 }
 
-interface SourceImageProcessingCache { hint: ImageProcessingHint | null }
+interface SourceImageProcessingCache { hint: ImageProcessingHint | null; requiredImageDecode?: SourceRequiredImageDecode | null }
 
 class SourceImageRequestDescriptor {
   url: string
   headers: RemoteImageCacheHeaders | undefined
   imageProcessing?: ImageProcessingHint
+  requiredImageDecode?: SourceRequiredImageDecode
+  dnsOverride?: SourcePicaDnsOverride
 
-  constructor(url: string, headers?: RemoteImageCacheHeaders, processing?: Object) {
+  constructor(url: string, headers?: RemoteImageCacheHeaders, processing?: Object, requiredDecode?: Object, dns?: Object) {
     this.url = url
     this.headers = headers
     const hint = processing as ImageProcessingHint | undefined
     if (typeof hint?.kind === 'string' && typeof hint?.mode === 'string') this.imageProcessing = { kind: hint.kind, mode: hint.mode }
+    if (requiredDecode !== undefined) this.requiredImageDecode = sourceRequiredImageDecode(requiredDecode)
+    if (dns !== undefined) this.dnsOverride = sourcePicaDnsOverride(dns)
   }
 }
 
@@ -538,12 +591,12 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
       const imageRecord = imageRequest as Record<string, Object>
       const url = imageRecord['url']
       if (typeof url === 'string' && url.length > 0) {
-        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']), record['imageProcessing'])
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']), record['imageProcessing'], record['requiredImageDecode'], record['dnsOverride'])
       }
     }
     const directUrl = record['url']
     if (typeof directUrl === 'string' && directUrl.length > 0) {
-      const descriptor = new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']))
+      const descriptor = new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']), undefined, record['requiredImageDecode'], record['dnsOverride'])
       const processing = record['imageProcessing'] as Record<string, Object> | undefined
       if (typeof processing?.['kind'] === 'string' && typeof processing?.['mode'] === 'string') {
         descriptor.imageProcessing = { kind: processing['kind'] as string, mode: processing['mode'] as string }
@@ -557,7 +610,7 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
       const requestRecord = request as Record<string, Object>
       const url = requestRecord['url']
       if (requestRecord['method'] === 'GET' && typeof url === 'string' && url.length > 0) {
-        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']), record['imageProcessing'])
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']), record['imageProcessing'], record['requiredImageDecode'], record['dnsOverride'])
       }
     }
     return undefined
@@ -654,16 +707,24 @@ async function resolveSourceRuntimeImageRequest(
     if (descriptorRequired) throw new Error('reader_source_image_request_failed')
     return unavailableSourceImageDescriptor(sourceId)
   }
+  let response: SourceRuntimeCallResponse
   try {
-    const response = JSON.parse(responseJson) as Record<string, Object>
-    if (response['ok'] !== true) {
-      if (descriptorRequired) throw new Error('reader_source_image_request_rejected')
-      return unavailableSourceImageDescriptor(sourceId)
-    }
+    const parsed = JSON.parse(responseJson) as SourceRuntimeCallResponse
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid_response')
+    response = parsed
   } catch (_error) {
     if (descriptorRequired) throw new Error('reader_source_image_request_rejected')
     return unavailableSourceImageDescriptor(sourceId)
   }
+  if (response.ok !== true) {
+    // Required image descriptors retain safe provider diagnostics, as text pages
+    // already do. Keep the optional-descriptor fallback for older sources.
+    if (descriptorRequired) throw new SourceRuntimeError(response)
+    return unavailableSourceImageDescriptor(sourceId)
+  }
+  const data = response.data as Record<string, Object> | undefined
+  if (data?.['requiredImageDecode'] !== undefined) sourceRequiredImageDecode(data['requiredImageDecode'])
+  if (data?.['dnsOverride'] !== undefined) sourcePicaDnsOverride(data['dnsOverride'])
   const descriptor = parseSourceImageRequestDescriptor(responseJson)
   if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
   return descriptor ?? unavailableSourceImageDescriptor(sourceId)
@@ -721,6 +782,11 @@ function sourceImageProcessingFingerprint(sourceId: string): string {
     entry?.manifestVersion ?? '', entry?.wasmPath ?? ''])
 }
 
+function sourceRemoteImageCacheKey(sourceId: string, uri: string, sourceImageId: string, route?: string): string {
+  const identity = route === undefined ? [sourceId, sourceImageId, uri] : [sourceId, sourceImageId, uri, route]
+  return `source-page-v2:${JSON.stringify(identity)}`
+}
+
 export async function fetchAndCacheSourceRuntimeRemoteImage(
   sourceRuntimeId: string,
   uri: string,
@@ -730,6 +796,8 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND,
   onProcessing?: (hint: ImageProcessingHint | undefined) => void,
   discoverCachedProcessing: boolean = false,
+  onRequiredDecode?: (hint: SourceRequiredImageDecode | undefined) => void,
+  discoverCachedRequired: boolean = false,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
@@ -740,34 +808,41 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   }
   // Source page IDs can be chapter-local, so the original image URI belongs in the cache identity.
   const route = sourceImageMangaRoute(mangaUrl)
-  const cacheIdentity = route === undefined
-    ? [sourceId, sourceImageId, uri] : [sourceId, sourceImageId, uri, route]
-  const cacheKeySeed = `source-page-v2:${JSON.stringify(cacheIdentity)}`
+  const cacheKeySeed = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, route)
   const cachedFast = forceReload ? undefined : await readerImageCacheStore.get('', undefined, cacheKeySeed)
   const hintKey = cacheKeySeed + ':processing:' + sourceImageProcessingFingerprint(sourceId)
   if (cachedFast !== undefined && cachedFast.length > 0) {
-    if (onProcessing === undefined) return cachedFast
+    if (onProcessing === undefined && onRequiredDecode === undefined) return cachedFast
     const hintPath = await readerImageCacheStore.get('source-image-processing.json', undefined, hintKey)
     if (hintPath !== undefined) {
-      const value = JSON.parse(await fs.readText(hintPath)) as Record<string, ImageProcessingHint | null>
-      onProcessing(value['hint'] ?? undefined)
-      return cachedFast
+      const value = JSON.parse(await fs.readText(hintPath)) as SourceImageProcessingCache
+      onProcessing?.(value.hint ?? undefined)
+      if (value.requiredImageDecode !== undefined) {
+        onRequiredDecode?.(value.requiredImageDecode === null ? undefined : sourceRequiredImageDecode(value.requiredImageDecode))
+        return cachedFast
+      }
+      if (!discoverCachedRequired) return cachedFast
     }
-    if (!discoverCachedProcessing) return cachedFast
+    // Existing ordinary cache hits do not acquire a new webpage/descriptor dependency.
+    // New required sources declare page hints and fail closed on older Hosts.
+    if (!discoverCachedProcessing && !discoverCachedRequired) return cachedFast
   }
   let imageRequest: SourceImageRequestDescriptor | undefined
   try {
     imageRequest = await resolveSourceRuntimeImageRequest(sourceId, uri, sourceImageId, route, priority)
   } catch (error) {
-    if (cachedFast === undefined || cachedFast.length === 0) throw error as Error
+    if (discoverCachedRequired || cachedFast === undefined || cachedFast.length === 0 || (error instanceof Error &&
+      error.message.startsWith('source_required_decode_'))) throw error as Error
     // Legacy metadata discovery must not break a usable original. Resolve only
     // this attempt in memory, without persisting a failed request as absence.
     onProcessing?.(undefined)
     return cachedFast
   }
-  if (onProcessing !== undefined) {
-    onProcessing(imageRequest?.imageProcessing)
-    const cachedProcessing: SourceImageProcessingCache = { hint: imageRequest?.imageProcessing ?? null }
+  onRequiredDecode?.(imageRequest?.requiredImageDecode)
+  if (onProcessing !== undefined || onRequiredDecode !== undefined) {
+    onProcessing?.(imageRequest?.imageProcessing)
+    const cachedProcessing: SourceImageProcessingCache = { hint: imageRequest?.imageProcessing ?? null,
+      requiredImageDecode: imageRequest?.requiredImageDecode ?? null }
     const text = JSON.stringify(cachedProcessing)
     const bytes = new util.TextEncoder().encodeInto(text)
     await readerImageCacheStore.put('source-image-processing.json', undefined, bytes.buffer as ArrayBuffer, hintKey)
@@ -779,14 +854,26 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const resolvedRequest = imageRequest
   const cacheHeaders = resolvedRequest.headers
   const path = await readerImageCacheStore.getOrFetch(resolvedRequest.url, cacheHeaders,
-    () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId), cacheKeySeed, forceReload)
+    () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId, resolvedRequest.dnsOverride), cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
 }
 
-/** Covers share the same cache and ownership checks; only pending Worker priority differs. */
-export function fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId: string, uri: string,
-  sourceImageId: string, mangaUrl?: string): Promise<string> {
+/** Complete public cover requests can start without a separate WASM call for each card. */
+export async function fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId: string, uri: string,
+  sourceImageId: string, mangaUrl?: string, publicHeaders?: RemoteImageCacheHeaders): Promise<string> {
+  const sourceId = sourceRuntimeId.trim()
+  if (publicHeaders !== undefined && sourceId.length > 0 && readerImageCacheStore !== null &&
+    appSourceRuntimeRegistry.lookup(sourceId).entry?.enabled === true) {
+    const key = sourceRemoteImageCacheKey(sourceId, uri, sourceImageId, sourceImageMangaRoute(mangaUrl))
+    let fetched = false
+    const path = await readerImageCacheStore.getOrFetch(uri, publicHeaders, (): Promise<ArrayBuffer> => {
+      fetched = true
+      return downloadReaderRemoteBytes(uri, publicHeaders, sourceId)
+    }, key)
+    if (fetched) await maintainReaderImageCacheAfterWrite(path)
+    return path
+  }
   return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId, mangaUrl,
     false, SourceWorkerPriority.BACKGROUND)
 }
@@ -808,6 +895,9 @@ export enum ReaderPageRenderKind {
 
 export interface ReaderPageRenderSource extends ReaderRemoteIdentity {
   comicId?: string
+  requiredImageDecode?: SourceRequiredImageDecode
+  /** True only when this local file already contains canonical pixels, never for a remote raw cache. */
+  requiredImageDecodeResolved?: boolean
   imageProcessing?: ImageProcessingHint
   imageProcessingResolved?: boolean
   imageProcessingFingerprint?: string
@@ -866,7 +956,7 @@ function resolveOfflineReaderPage(
  * manifest and walk every downloaded image.  Keep that integrity boundary,
  * but execute it once here and hand the Reader an immutable source list.
  */
-interface OfflineReaderPage { path: string; hint?: ImageProcessingHint; processingResolved?: boolean; processingFingerprint?: string }
+interface OfflineReaderPage { path: string; hint?: ImageProcessingHint; processingResolved?: boolean; processingFingerprint?: string; requiredImageDecodeResolved?: boolean }
 
 function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPage[] {
   const count = Math.max(0, Math.floor(config.totalPages))
@@ -893,7 +983,7 @@ function resolveOfflineReaderPages(config: ReaderSessionConfig): OfflineReaderPa
     for (let index = 0; index < validation.manifest.pages.length; index += 1) {
       const page = validation.manifest.pages[index]
       if (page.pageIndex >= 0 && page.pageIndex < count && fs.accessSync(page.localPath)) {
-        paths[page.pageIndex] = { path: page.localPath, hint: page.imageProcessing, processingResolved: page.imageProcessingResolved, processingFingerprint: page.imageProcessingFingerprint }
+        paths[page.pageIndex] = { path: page.localPath, hint: page.imageProcessing, processingResolved: page.imageProcessingResolved, processingFingerprint: page.imageProcessingFingerprint, requiredImageDecodeResolved: page.requiredImageDecodeResolved }
       }
     }
   } catch (_err) {
@@ -996,9 +1086,12 @@ export function createReaderPageRenderSource(
   }
   const source = createReaderPageRenderSourceWithOfflinePath(config, index, offlinePath, offlineOnly)
   source.comicId = config.comicId
+  const required = config.pageRequiredImageDecodes?.[index]
+  if (required !== undefined && required !== null) source.requiredImageDecode = sourceRequiredImageDecode(required)
   if (offlinePath) {
     const offline = resolveOfflineReaderPages(config)[index]
     source.imageProcessing = offline?.hint; source.imageProcessingResolved = offline?.processingResolved; source.imageProcessingFingerprint = offline?.processingFingerprint
+    source.requiredImageDecodeResolved = offline?.requiredImageDecodeResolved
   }
   return source
 }
@@ -1027,6 +1120,9 @@ export function createReaderPageRenderSources(
   }
   sources.forEach((source: ReaderPageRenderSource, index: number): void => {
     source.comicId = config.comicId; source.imageProcessing = offlinePaths[index]?.hint
+    const required = config.pageRequiredImageDecodes?.[index]
+    if (required !== undefined && required !== null) source.requiredImageDecode = sourceRequiredImageDecode(required)
+    source.requiredImageDecodeResolved = offlinePaths[index]?.requiredImageDecodeResolved
     source.imageProcessingResolved = offlinePaths[index]?.processingResolved
     source.imageProcessingFingerprint = offlinePaths[index]?.processingFingerprint
   })
@@ -1040,10 +1136,26 @@ async function readerBannerPresentation(source: ReaderPageRenderSource, context:
   return { snapshot: source.imageRuleSnapshot, policy: effectiveBannerFilter(preferences.bannerFilter, preferences.bannerFilterOverride) }
 }
 
+function retainRequiredDecode(source: ReaderPageRenderSource, hint: SourceRequiredImageDecode | undefined): void {
+  if (hint === undefined) return
+  const next = sourceRequiredImageDecode(hint)
+  if (source.requiredImageDecode !== undefined && (source.requiredImageDecode.kind !== next.kind || source.requiredImageDecode.rows !== next.rows)) {
+    throw new Error('source_required_decode_conflict')
+  }
+  source.requiredImageDecode = next
+}
+
 async function prepareSourcePagePresentation(source: ReaderPageRenderSource, originalPath: string,
   context?: common.UIAbilityContext, presentation?: ReaderBannerPresentation): Promise<string> {
   const sourceId = source.sourceRuntimeId?.trim() ?? ''
   let path = originalPath
+  if (source.requiredImageDecode !== undefined && source.requiredImageDecodeResolved !== true) {
+    if (readerImageCacheStore === null) throw new Error('source_required_decode_cache_unavailable')
+    const entry = sourceId.length === 0 ? undefined : appSourceRuntimeRegistry.lookup(sourceId).entry
+    const identity = JSON.stringify([sourceId, entry?.manifestVersion ?? '', entry?.wasmPath ?? '', source.pageId, source.sourceOriginalImageUri ?? source.imageUri])
+    path = await SourceRequiredImageDecodeService.prepare(path, sourceRequiredImageDecode(source.requiredImageDecode), readerImageCacheStore, identity)
+    await maintainReaderImageCacheAfterWrite(path)
+  }
   if (source.sourceTextOverlay !== undefined) {
     if (readerImageCacheStore === null) throw new Error('source_overlay_cache_unavailable')
     const offline = source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
@@ -1105,7 +1217,9 @@ export async function fetchAndCacheReaderRemoteSource(source: ReaderPageRenderSo
       const original = await fetchAndCacheSourceRuntimeRemoteImage(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl, forceReload,
         SourceWorkerPriority.FOREGROUND, (hint: ImageProcessingHint | undefined): void => {
           source.imageProcessing = hint; source.imageProcessingResolved = true; source.imageProcessingFingerprint = processingFingerprint
-        }, discoverCachedProcessing)
+        }, discoverCachedProcessing, (hint: SourceRequiredImageDecode | undefined): void => { retainRequiredDecode(source, hint) },
+        source.requiredImageDecode !== undefined ||
+          (appSourceRuntimeRegistry.lookup(source.sourceRuntimeId).entry?.requiredImageDecodes ?? []).includes('jm_stripes_v1'))
       return prepareSourcePagePresentation(source, original, context, presentation)
     }
     return prepareSourcePagePresentation(source, await fetchAndCacheReaderRemoteImage(source.imageUri, source, context, forceReload), context, presentation)
@@ -1120,6 +1234,7 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
     const path = source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE
       ? (source.sourceText === undefined ? source.imageUri : await cacheSourceTextPageImage(source.sourceText))
       : await fetchAndCacheReaderRemoteSource(source, context)
+    if (source.requiredImageDecode !== undefined) return readSourceImageBytes(path)
     const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     try {
       const stat = fs.statSync(path)
@@ -1134,10 +1249,11 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
     if (source.sourceRuntimeId !== undefined && source.sourceRuntimeId.trim().length > 0 && source.pageId !== undefined) {
       const imageRequest = await resolveSourceRuntimeImageRequest(source.sourceRuntimeId, source.imageUri, source.pageId, source.sourceMangaUrl)
       if (imageRequest !== undefined) {
+        retainRequiredDecode(source, imageRequest.requiredImageDecode)
         source.imageProcessing = imageRequest.imageProcessing
         source.imageProcessingResolved = true
         source.imageProcessingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
-        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId)
+        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId, imageRequest.dnsOverride)
       }
     }
     const request = await resolveReaderRemoteRequest(source.imageUri, source, context)

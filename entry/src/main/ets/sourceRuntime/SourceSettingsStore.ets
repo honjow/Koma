@@ -13,7 +13,17 @@ export type SourceSettingValue = SettingsFieldValue
 export type SourceSettingsRecord = SettingsFieldValues
 export type SourceSettingOption = SettingsFieldOption
 export type SourceSettingValidation = SettingsFieldValidation
-export type SourceSettingDescriptor = SettingsFieldDescriptor
+interface SourceSettingVisibility { settingId: string; values: string[] }
+export interface SourceSettingDescriptor extends SettingsFieldDescriptor {
+  visibleWhen?: SourceSettingVisibility
+}
+
+export function sourceSettingIsVisible(descriptor: SourceSettingDescriptor, draft: SourceSettingsRecord): boolean {
+  const visibility = descriptor.visibleWhen
+  if (visibility === undefined) return true
+  const current = draft[visibility.settingId]
+  return typeof current === 'string' && visibility.values.includes(current)
+}
 
 export interface SourceSettingsDescriptorResult {
   ready: boolean
@@ -159,10 +169,37 @@ function settingOptionIds(descriptor: SourceSettingDescriptor): string[] {
   return (descriptor.options ?? []).map((option: SourceSettingOption): string => option.id)
 }
 
-/** UUID lists are synchronous; Java regex validation uses the native async worker in the sheet. */
+// Kotlin/JVM toIntOrNull uses UTF-16 decimal digits, not trimmed text or
+// JavaScript's ASCII/float coercion. WNACG's adopted save rule is Int >= 1;
+// preserve the text itself and keep its getter's default separate from saving.
+function isPositiveIntegerSetting(value: string): boolean {
+  const zeros: number[] = [0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6,
+    0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0, 0xf20, 0x1040, 0x1090, 0x17e0, 0x1810, 0x1946,
+    0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50, 0xa620, 0xa8d0, 0xa900, 0xa9d0,
+    0xa9f0, 0xaa50, 0xabf0, 0xff10]
+  let index = value.startsWith('+') ? 1 : 0
+  if (index === value.length) return false
+  let number = 0
+  for (; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    const zero = zeros.find((start: number): boolean => code >= start && code < start + 10)
+    if (zero === undefined) return false
+    number = number * 10 + code - zero
+    if (number > 2147483647) return false
+  }
+  return number >= 1
+}
+
+/** Text validators are synchronous; Java regex uses the native async worker in the sheet. */
 export function sourceSettingValidationError(
   descriptor: SourceSettingDescriptor, value: SourceSettingValue | undefined,
 ): string | undefined {
+  if (descriptor.validation?.kind === 'non_blank' && value !== undefined) {
+    return typeof value === 'string' && value.trim().length > 0 ? undefined : descriptor.validation.message
+  }
+  if (descriptor.validation?.kind === 'positive_integer' && value !== undefined) {
+    return typeof value === 'string' && isPositiveIntegerSetting(value) ? undefined : descriptor.validation.message
+  }
   if (descriptor.validation?.kind !== 'uuid_list' || value === undefined) return undefined
   if (typeof value !== 'string') return descriptor.validation.message
   if (value.trim().length === 0) return undefined
@@ -175,8 +212,20 @@ function normalizeSettingValidation(value: RuntimeValue | undefined, kind: strin
   const record = value as RuntimeRecord
   const validationKind = optionalString(record['kind'])
   const message = optionalString(record['message'])
-  if ((validationKind !== 'uuid_list' && validationKind !== 'java_regex') || message === undefined) return undefined
+  if ((validationKind !== 'uuid_list' && validationKind !== 'java_regex' && validationKind !== 'positive_integer' &&
+    validationKind !== 'non_blank') ||
+    message === undefined) return undefined
   return { kind: validationKind, message }
+}
+
+function normalizeSettingVisibility(value: RuntimeValue | undefined, owner: string): SourceSettingVisibility | undefined {
+  if (!isRuntimeRecord(value)) return undefined
+  const record = value as RuntimeRecord
+  const settingId = optionalString(record['settingId'])
+  const values = record['values']
+  if (settingId === undefined || settingId === owner || !Array.isArray(values) || values.length === 0 ||
+    values.some((item: RuntimeValue): boolean => typeof item !== 'string')) return undefined
+  return { settingId, values: values as string[] }
 }
 
 function normalizedRangeValue(value: SourceSettingValue, descriptor: SourceSettingDescriptor): number | undefined {
@@ -239,7 +288,9 @@ function normalizeOptions(value: RuntimeValue | undefined): SourceSettingOption[
       return
     }
     const record = raw as RuntimeRecord
-    const id = optionalString(record['id']) ?? optionalString(record['value'])
+    const explicit = record['id'] ?? record['value']
+    const id = explicit === '' && displayLabel(record, '').length > 0
+      ? '' : optionalString(record['id']) ?? optionalString(record['value'])
     if (id === undefined) {
       return
     }
@@ -310,7 +361,16 @@ export function normalizeSourceSettingDescriptors(response: SourceRuntimeCallRes
       sensitive,
     }
     if (validation !== undefined) descriptor.validation = validation
+    const visibility = normalizeSettingVisibility(record['visibleWhen'], id)
+    if (visibility !== undefined) descriptor.visibleWhen = visibility
     descriptors.push(descriptor)
+  })
+  descriptors.forEach((descriptor: SourceSettingDescriptor): void => {
+    const visibility = descriptor.visibleWhen
+    if (visibility !== undefined && !descriptors.some((control: SourceSettingDescriptor): boolean =>
+      control.id === visibility.settingId && control.kind === 'select' && control.supported)) {
+      descriptor.visibleWhen = undefined
+    }
   })
   return descriptors
 }

@@ -4,6 +4,7 @@ import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaSegmentedControl } from './ui/KomaSegmentedControl'
+import { KomaSearchField } from './KomaSearchField'
 
 export const SOURCE_MANAGER_SECTIONS_HEIGHT: number = 64
 
@@ -21,11 +22,28 @@ struct SourceCatalogSections {
 
 
   build() {
+    // The cached ComponentContent keeps this V2 owner mounted; observe the
+    // search state here so the fixed slot actually switches when it changes.
+    if (this.chrome.searchExpanded) {
+      Row({ space: ThemeConstants.SPACE_SM }) {
+        KomaSearchField({ value: this.chrome.search.query, placeholder: AppStrings.get('source_catalog_search_placeholder'),
+          autoFocus: true, useSystemMaterial: true,
+          change: (value: string): void => { this.chrome.search.updateQuery(value) },
+          submit: (value: string): void => { this.chrome.search.submitQuery(value) } })
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .height(SOURCE_MANAGER_SECTIONS_HEIGHT)
+      .alignItems(VerticalAlign.Center)
+      .padding({ top: ThemeConstants.SPACE_XS, bottom: ThemeConstants.SPACE_XS,
+        left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
+    } else {
     Stack({ alignContent: Alignment.Center }) {
       KomaSegmentedControl({
         labels: [AppStrings.get('settings_row_sources_title'), AppStrings.get('image_plugins_title')],
         selectedIndex: this.chrome.section === 'sources' ? 0 : 1,
         select: (index: number): void => {
+          if (index !== 0 && this.chrome.searchExpanded) this.getUIContext().getFocusController().clearFocus()
           // Keep HDS actions outside the segmented control's selection animation.
           this.getUIContext().animateToImmediately({ duration: 0 }, (): void => {
             this.chrome.selectSection(index === 0 ? 'sources' : 'plugins')
@@ -47,6 +65,7 @@ struct SourceCatalogSections {
     .width('100%')
     .height(SOURCE_MANAGER_SECTIONS_HEIGHT)
     .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD, bottom: ThemeConstants.SPACE_SM })
+    }
   }
 }
 

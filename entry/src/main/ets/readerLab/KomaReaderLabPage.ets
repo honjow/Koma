@@ -1,4 +1,6 @@
 import { connectImageRuleState, ImageRuleState } from '../state/ImageRuleState'
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { effectiveBannerFilter } from '../model/ImageBannerRules'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
 import { komaReaderImageEffects } from './KomaReaderDisplayEffects'
@@ -139,6 +141,42 @@ export struct KomaReaderLabPage {
   @Local private chapterBusy: boolean = false
   @Local private readerMode: ReaderModeState = connectReaderModeState()
   @Local private readerSettingsSheetShown: boolean = false
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  @Local private authenticationShown: boolean = false
+
+  private requestSourceAuthentication(sourceId: string, unit: ReaderUnitKey, current: () => boolean,
+    reopenCatalog: boolean = false): Promise<boolean> {
+    const session = this.session
+    const adapter = this.adapter
+    if (session === null || adapter === null || this.readerClosed || !this.routeActive || !current()) return Promise.resolve(false)
+    return new Promise<boolean>((resolve: (value: boolean) => void): void => {
+      let settled = false
+      const active = (): boolean => !settled && !this.readerClosed && this.routeActive && this.labVisibility.foreground &&
+        this.session === session && this.adapter === adapter && current()
+      const finish = (value: boolean): void => { if (!settled) { settled = true; resolve(value) } }
+      this.authentication?.cancel()
+      this.authentication = new SourceAuthenticationRequest(sourceId, active,
+        async (): Promise<void> => {
+          if (!active()) { finish(false); return }
+          if (reopenCatalog) {
+            adapter.invalidateAuthenticationCatalog(unit)
+            try { await session.open(unit.copy(), 0) } finally { finish(false) }
+          } else finish(true)
+        }, (): void => { finish(false) })
+    })
+  }
+
+  private async recoverCatalogFailure(): Promise<void> {
+    const session = this.session
+    const adapter = this.adapter
+    if (session === null || adapter === null) return
+    const sourceId = adapter.catalogAuthenticationSource()
+    const target = adapter.catalogAuthenticationTarget()
+    if (sourceId.length === 0 || target === null) { await session.retry(); return }
+    const current = (): boolean => this.session === session && this.adapter === adapter &&
+      adapter.catalogAuthenticationTarget()?.equals(target) === true && session.snapshot().error.length > 0
+    if (await this.requestSourceAuthentication(sourceId, target, current) && current()) await session.retry()
+  }
   @Local private filterSheetHeight: number = 0
   @Local private readerFilterPreview: boolean = false
   @Local private hostPreferences: ReaderPreferences | null = null
@@ -294,6 +332,8 @@ export struct KomaReaderLabPage {
         (): boolean => readerRemotePreloadAllowed(this.hostPreferences?.preloadWifiOnly === true),
         () => effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride))
       this.adapter = adapter
+      adapter.onAuthenticationRequested = (sourceId: string, unit: ReaderUnitKey, current: () => boolean,
+        reopen: boolean): Promise<boolean> => this.requestSourceAuthentication(sourceId, unit, current, reopen)
       this.imageSave = new ReaderSystemImageSaveHost(context)
       this.imageShare = new KomaReaderLabImageShareHost(context, adapter)
       this.unitKey = adapter.initialKey(this.request.work, this.request.unit)
@@ -382,6 +422,8 @@ export struct KomaReaderLabPage {
     this.translationAutoEnabled = false
     this.translationSettingsGeneration += 1
     this.readerClosed = true
+    this.authentication?.cancel()
+    this.authentication = null
     this.readerSettingsSheetShown = false
     this.chapterPickerShown = false
     this.chapterPickerTarget = null
@@ -418,10 +460,10 @@ export struct KomaReaderLabPage {
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.keepScreenAwake',
-    'readerSettingsSheetShown', 'chapterPickerShown')
+    'readerSettingsSheetShown', 'chapterPickerShown', 'authenticationShown')
   syncKeepScreenOn(): void {
     this.keepScreenOn?.setActive(this.request.readingChrome && this.session !== null && this.routeActive &&
-      this.labVisibility.foreground && this.readerMode.hydrated && !this.readerSettingsSheetShown && !this.chapterPickerShown &&
+      this.labVisibility.foreground && this.readerMode.hydrated && !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown &&
       (this.hostPreferences?.keepScreenAwake ?? this.readerMode.keepScreenAwake))
   }
 
@@ -449,14 +491,14 @@ export struct KomaReaderLabPage {
   }
 
   @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
-    'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown',
+    'readerMode.volumeKeyNavigationEnabled', 'readerMode.volumeKeyBehavior', 'readerSettingsSheetShown', 'authenticationShown',
     'chapterPickerShown', 'session')
   syncVolumeKeys(): void {
     const enabled = this.request.volumeKeysOverride ??
       (this.hostPreferences?.volumeKeyNavigationEnabled ?? this.readerMode.volumeKeyNavigationEnabled)
     this.volumeKeys.setActive(!this.readerClosed && this.request.readingChrome && this.session !== null &&
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
-      !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
+      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
   }
 
@@ -1132,6 +1174,8 @@ export struct KomaReaderLabPage {
   build() {
     HdsNavDestination() {
       Column() {
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.routeActive && this.labVisibility.foreground,
+          onPresentedChanged: (shown: boolean) => { this.authenticationShown = shown } })
         if (this.session !== null) {
           ForEach(this.surfaceEntries, (entry: KomaReaderSessionEntry) => {
             if (this.request.readingChrome) {
@@ -1143,6 +1187,9 @@ export struct KomaReaderLabPage {
                 modeControl: (params: ReaderModeControlParams): void => { this.HostModeControl(params) },
                 titleControl: (params: Binding<ReaderTitleParams>): void => { this.HostTitleControl(params) },
                 catalogFailureText: (): string => this.adapter?.catalogFailureMessage() ?? '',
+                catalogFailureActionLabel: (): string => (this.adapter?.catalogAuthenticationSource().length ?? 0) > 0
+                  ? AppStrings.get('source_login') : '',
+                catalogFailureAction: (): Promise<void> => this.recoverCatalogFailure(),
                 imageInterpolation: (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'low'
                   ? ImageInterpolation.Low :
                   (this.hostPreferences?.imageScalingQuality ?? this.readerMode.imageScalingQuality) === 'high'
@@ -1177,7 +1224,7 @@ export struct KomaReaderLabPage {
                     this.handleHostAction(id, source, navigation, index)
                   }),
                 hostStatus: this.translationStatus(),
-                active: this.routeActive && this.labVisibility.foreground && !this.readerSettingsSheetShown &&
+                active: this.routeActive && this.labVisibility.foreground && !this.authenticationShown && !this.readerSettingsSheetShown &&
                   !this.chapterPickerShown,
                 centerAction: this.chapterChoices.length > 0
                   ? new ReaderCenterAction(this.chapterControlLabel(),

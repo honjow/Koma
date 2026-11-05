@@ -1,4 +1,5 @@
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
+import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
 import { common } from '@kit.AbilityKit'
@@ -54,6 +55,8 @@ function closeFileQuietly(file: fs.File | undefined): void {
 interface OfflineDownloadPageWriteResult {
   size: number
   contentHash: string
+  localPath?: string
+  requiredImageDecodeResolved?: boolean
 }
 
 function writeBytesSync(path: string, bytes: ArrayBuffer): OfflineDownloadPageWriteResult {
@@ -384,6 +387,7 @@ export class OfflineDownloadService {
             imageProcessingFingerprint: reusablePage.imageProcessingFingerprint,
             sourceOriginalUri: reusablePage.sourceOriginalUri,
             sourceTextOverlay: page === undefined ? reusablePage.sourceTextOverlay : page.sourceTextOverlay,
+            requiredImageDecodeResolved: reusablePage.requiredImageDecodeResolved,
             updatedAt: reusablePage.updatedAt,
           })
           this.queueStore.upsert(this.queueStore.fromManifest(manifest, labels?.comicTitle ?? comic.title, labels?.chapterTitle ?? chapter.title))
@@ -392,10 +396,11 @@ export class OfflineDownloadService {
         const source = createReaderPageRenderSource(config, index, { preferOffline: false })
         const extension = source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST ? 'png' :
           extensionFromUri(source.uri.length > 0 ? source.uri : source.imageUri)
-        const localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extension)
+        let localPath = this.store.pageFilePath(comic.id, chapterId, pageId, index, extension)
         let writtenPage: OfflineDownloadPageWriteResult
         try {
           writtenPage = await this.writePage(source, localPath)
+          localPath = writtenPage.localPath ?? localPath
         } catch (error) {
           void error
           pageFetchFailed = true
@@ -415,6 +420,7 @@ export class OfflineDownloadService {
           imageProcessingFingerprint: source.imageProcessingFingerprint,
           sourceOriginalUri: publicBaoziUri(comic.sourceRuntimeId, page?.uri),
           sourceTextOverlay: page?.sourceTextOverlay,
+          requiredImageDecodeResolved: writtenPage.requiredImageDecodeResolved,
           updatedAt: Date.now(),
         }
         manifest = this.store.recordPage(manifest, row)
@@ -466,16 +472,33 @@ export class OfflineDownloadService {
   private async writePage(source: ReaderPageRenderSource, localPath: string): Promise<OfflineDownloadPageWriteResult> {
     if (source.kind === ReaderPageRenderKind.LOCAL_FILE_IMAGE) {
       if (source.sourceText !== undefined) {
+        if (source.requiredImageDecode !== undefined) throw new Error('source_required_decode_invalid')
         const path = await cacheSourceTextPageImage(source.sourceText)
         return copyLocalFile(path, localPath)
       }
-      return copyLocalFile(source.imageUri, localPath)
+      if (source.requiredImageDecode === undefined || source.requiredImageDecodeResolved === true) {
+        const copied = await copyLocalFile(source.imageUri, localPath)
+        if (source.requiredImageDecodeResolved === true) copied.requiredImageDecodeResolved = true
+        return copied
+      }
     }
-    if (source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE &&
+    if (source.kind !== ReaderPageRenderKind.LOCAL_FILE_IMAGE && source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE &&
       source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST) {
       throw new Error('unsupported page source')
     }
+    if (source.kind === ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.requiredImageDecode !== undefined) {
+      throw new Error('source_required_decode_invalid')
+    }
     const bytes = await fetchReaderRemoteSourceBytes(source, this.requestContext)
+    if (source.requiredImageDecode !== undefined && source.requiredImageDecodeResolved !== true) {
+      const decoded = await SourceRequiredImageDecodeService.decodeBytes(bytes, source.requiredImageDecode)
+      // Canonical file extension follows actual GIF bytes, never the URL suffix.
+      const canonicalPath = localPath.replace(/\.[^/.]+$/, '.' + decoded.extension)
+      const result = writeBytesSync(canonicalPath, decoded.bytes)
+      result.localPath = canonicalPath
+      result.requiredImageDecodeResolved = true
+      return result
+    }
     return writeBytesSync(localPath, bytes)
   }
 }

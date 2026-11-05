@@ -1,3 +1,5 @@
+import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
+import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
 import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { taskpool, url } from '@kit.ArkTS'
@@ -88,6 +90,8 @@ export interface LocalSourcePackagePermissions {
   network: boolean
   hostImports: string[]
   webSessionOrigins?: string[]
+  authentication?: SourceAuthenticationDescriptor
+  requiredImageDecodes?: string[]
 }
 
 export interface LocalSourcePackageContentPolicy {
@@ -109,6 +113,8 @@ export interface LocalSourcePackageManifest {
 interface SourceRepoPackageManifest {
   chapterOrder?: SourceChapterOrder
   webSessionOrigins?: string[]
+  authentication?: SourceAuthenticationDescriptor
+  requiredImageDecodes?: string[]
   icon?: string
   id: string
   name: string
@@ -647,7 +653,9 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
 
   const capabilities = isPlainObject(parsed.capabilities as Object | null) ? parsed.capabilities : undefined
   const contentPolicy = isPlainObject(parsed.contentPolicy as Object | null) ? parsed.contentPolicy : undefined
-  if (!validSourceWebSessionOrigins(parsed.webSessionOrigins)) return undefined
+  if (!validSourceWebSessionOrigins(parsed.webSessionOrigins) ||
+    !validSourceAuthentication(parsed.authentication, parsed.webSessionOrigins) ||
+    !validSourceRequiredImageDecodes(parsed.requiredImageDecodes)) return undefined
   const declaredSha256 = nonEmptyString(parsed.wasmSha256) ?? nonEmptyString(parsed.sourceWasmSha256) ?? ''
   const maxWasmBytes = optionalNumber(parsed.maxWasmBytes, Math.max(wasmSize, SOURCE_PACKAGE_WASM_MAX_BYTES))
   return {
@@ -677,6 +685,8 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
     },
     permissions: {
       webSessionOrigins: parsed.webSessionOrigins ?? [],
+      authentication: sourceAuthenticationDescriptor(parsed.authentication),
+      requiredImageDecodes: sourceRequiredImageDecodes(parsed.requiredImageDecodes),
       network: optionalBoolean(capabilities?.network, false),
       hostImports: [],
     },
@@ -692,7 +702,9 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
 
 export function validateNormalizedManifest(manifest: LocalSourcePackageManifest): SourceArchiveValidationReason | undefined {
   if (manifest.permissions === undefined || manifest.permissions === null ||
-    !validSourceWebSessionOrigins(manifest.permissions.webSessionOrigins)) return 'manifest_invalid'
+    !validSourceWebSessionOrigins(manifest.permissions.webSessionOrigins) ||
+    !validSourceAuthentication(manifest.permissions.authentication, manifest.permissions.webSessionOrigins) ||
+    !validSourceRequiredImageDecodes(manifest.permissions.requiredImageDecodes)) return 'manifest_invalid'
   if (manifest.package.id.length === 0 || manifest.package.version.length === 0 || manifest.package.id.length > 96) {
     return 'manifest_invalid'
   }

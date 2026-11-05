@@ -15,6 +15,379 @@ function moduleFrom(name, requireMock, globals = {}) {
   vm.runInNewContext(javascript, { exports, require: requireMock, Map, Date, JSON, Error, ...globals })
   return exports
 }
+
+// The real private owner runs against an in-memory platform Asset backend. No input/state is written to disk.
+function credentialFixture() {
+  const crypto = require('node:crypto'), assets = new Map()
+  const Tag = { ALIAS: 'alias', SECRET: 'secret', RETURN_TYPE: 'returnType', RETURN_LIMIT: 'returnLimit',
+    ACCESSIBILITY: 'accessibility', CONFLICT_RESOLUTION: 'conflict' }
+  let beforeWrite, beforeRemove, beforeQuery
+  const alias = attrs => Buffer.from(attrs.get(Tag.ALIAS)).toString('utf8')
+  const asset = { Tag, ReturnType: { ALL: 1 }, Accessibility: { DEVICE_FIRST_UNLOCKED: 1 }, ConflictResolution: { OVERWRITE: 1 },
+    query: async attrs => { if (beforeQuery) await beforeQuery(attrs); return assets.has(alias(attrs)) ? [new Map(assets.get(alias(attrs)))] : [] },
+    add: async attrs => { if (beforeWrite) await beforeWrite(attrs); assets.set(alias(attrs), new Map(attrs)) },
+    remove: async attrs => { if (beforeRemove && await beforeRemove(attrs) === false) return; assets.delete(alias(attrs)) } }
+  const from = (input, encoding) => {
+    const bytes = Buffer.from(input, encoding)
+    return { buffer: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      toString: kind => bytes.toString(kind) }
+  }
+  const descriptor = moduleFrom('SourceAuthenticationDescriptor', () => ({ url: { URL } }))
+  const mocks = name => {
+    if (name === '@kit.AssetStoreKit') return { asset }
+    if (name === '@kit.ArkTS') return { buffer: { from }, util: { generateRandomUUID: () => crypto.randomUUID() } }
+    if (name === '@kit.CryptoArchitectureKit') return { cryptoFramework: {
+      createRandom: () => ({ generateRandom: async n => ({ data: new Uint8Array(crypto.randomBytes(n)) }) }),
+      createMd: () => { const hash = crypto.createHash('sha256'); return {
+        update: async ({ data }) => { hash.update(data) }, digest: async () => ({ data: new Uint8Array(hash.digest()) }),
+      } },
+    } }
+    if (name === './SourceAuthenticationDescriptor') return descriptor
+    return {}
+  }
+  const { SourcePrivateSessionHost: host } = moduleFrom('SourcePrivateSessionHost', mocks, { Uint8Array, ArrayBuffer })
+  const identity = { sourceId: 'source.credential', packageIdentity: 'installed-package-one' }
+  const begin = extra => {
+    const call = host.beginCall(JSON.stringify({ ...identity, ...extra }))
+    return { call, scope: { ...identity, ...extra, callId: call.id } }
+  }
+  const rpc = async (scope, op, fields = {}, current = () => true) => JSON.parse(await host.execute(
+    JSON.stringify({ type: 'private_session', version: 1, op, ...fields }), scope, current))
+  return { host, identity, begin, rpc, assets, setBeforeWrite: fn => { beforeWrite = fn },
+    setBeforeRemove: fn => { beforeRemove = fn }, setBeforeQuery: fn => { beforeQuery = fn }, descriptor }
+}
+
+test('credential input is explicit, source/install/call scoped, exact-origin and retired on cancellation', async () => {
+  const f = credentialFixture(), ordinary = f.begin()
+  assert.equal((await f.rpc(ordinary.scope, 'credential_input')).ok, false)
+  let current = true
+  const grant = f.host.grantCredentials(f.identity.sourceId, f.identity.packageIdentity, 'https://login.invalid',
+    'authenticate', 'sample-user', 'unit-test-password', () => current)
+  const wrong = f.host.beginCall(JSON.stringify({ ...f.identity, packageIdentity: 'replacement', credentialGrantId: grant }))
+  assert.equal(wrong.id, '')
+  const bound = f.begin({ credentialGrantId: grant })
+  assert.equal((await f.rpc(bound.scope, 'credential_input')).credentials.username, 'sample-user')
+  assert.equal(f.host.credentialRequestAllowed(bound.call.id, grant, 'https://login.invalid/auth'), true)
+  assert.equal(f.host.credentialRequestAllowed(bound.call.id, grant, 'https://other.invalid/auth'), false)
+  assert.equal(f.host.credentialRequestAllowed(ordinary.call.id, grant, 'https://login.invalid/auth'), false)
+  current = false
+  assert.equal((await f.rpc(bound.scope, 'credential_input')).ok, false)
+  assert.equal(f.host.credentialRequestAllowed(bound.call.id, grant, 'https://login.invalid/auth'), false)
+  f.host.finishCall(bound.call.id); f.host.finishCall(ordinary.call.id)
+  assert.equal(f.assets.size, 0, 'input grant never becomes an Asset value')
+})
+
+test('process scope is stable only in this Host process and cannot be obtained without a live call', async () => {
+  const f = credentialFixture(), first = f.begin(), second = f.begin()
+  const tag = (await f.rpc(first.scope, 'process_scope')).processTag
+  assert.equal(typeof tag, 'string'); assert.equal((await f.rpc(second.scope, 'process_scope')).processTag, tag)
+  f.host.finishCall(first.call.id)
+  assert.equal((await f.rpc(first.scope, 'process_scope')).ok, false)
+  const nextProcess = credentialFixture(), next = nextProcess.begin()
+  assert.notEqual((await nextProcess.rpc(next.scope, 'process_scope')).processTag, tag)
+  assert.equal(f.assets.size, 0)
+})
+
+test('web authentication preserves a package-declared UA and exact origin through HTTP reuse', async () => {
+  const f = fixture(), ua = 'Source desktop identity'
+  f.changeEntry(e => ({ ...e, authentication: { kind: 'web', loginUrl: 'https://site.invalid/login', userAgent: ua } }))
+  const descriptor = moduleFrom('SourceAuthenticationDescriptor', () => ({ url: { URL } }))
+  for (const bad of ['', 'x\r\nHeader: value', 'x\0', 'x'.repeat(1025)]) {
+    assert.equal(descriptor.sourceAuthenticationDescriptor({ kind: 'web', loginUrl: 'https://site.invalid/login', userAgent: bad }), undefined)
+  }
+  assert.throws(() => f.store.begin(f.registry, 'source.one', 'https://site.invalid/login', 'Other-UA'))
+  const pending = f.store.begin(f.registry, 'source.one', 'https://site.invalid/login', ua)
+  assert.equal(f.store.pendingLoginUserAgent('source.one', pending.sessionId), ua)
+  assert.throws(() => f.store.complete('source.one', pending.sessionId, 'https://site.invalid/login', 'Other-UA'))
+  f.store.complete('source.one', pending.sessionId, 'https://site.invalid/login', ua)
+  const sent = await f.http([response(200)], JSON.stringify(f.identity()), { headers: { 'User-Agent': 'Source desktop identity' } })
+  const headers = sent.calls[0].options.header
+  assert.equal(Object.entries(headers).find(([key]) => key.toLowerCase() === 'user-agent')[1], ua)
+  assert.equal(f.store.requestSession(f.identity(), 'https://other.invalid/image'), undefined)
+})
+
+test('package identity keeps legacy bytes and only new declarations extend their own installed identity', () => {
+  const f = fixture(), old = f.registry.lookup('source.one').entry
+  const expected = JSON.stringify([old.sourceId, old.manifestVersion, old.wasmPath, JSON.stringify(old.webSessionOrigins.slice().sort())])
+  assert.equal(f.api.sourceWebPackageIdentity(old), expected)
+  assert.equal(f.api.sourceWebPackageIdentity({ ...old, requiredImageDecodes: [] }), expected)
+  const required = f.api.sourceWebPackageIdentity({ ...old, requiredImageDecodes: ['jm_stripes_v1'] })
+  assert.notEqual(required, expected)
+  const auth = { kind: 'web', loginUrl: 'https://site.invalid/login', userAgent: 'Fixed-UA' }
+  assert.notEqual(f.api.sourceWebPackageIdentity({ ...old, authentication: auth }), expected)
+  assert.notEqual(f.api.sourceWebPackageIdentity({ ...old, authentication: auth }),
+    f.api.sourceWebPackageIdentity({ ...old, authentication: { ...auth, userAgent: 'Different-UA' } }))
+  assert.equal(f.api.sourceWebPackageIdentity(old), expected)
+})
+
+test('cancelled credential transaction cannot publish a late Asset index or replace the prior private session', async () => {
+  const f = credentialFixture(), initial = f.begin()
+  const owned = await f.rpc(initial.scope, 'begin')
+  const saved = await f.rpc(initial.scope, 'commit', { lease: owned.lease, value: 'prior-private-state' })
+  assert.equal(saved.ok, true); f.host.finishCall(initial.call.id)
+  let current = true
+  const grant = f.host.grantCredentials(f.identity.sourceId, f.identity.packageIdentity, 'https://login.invalid',
+    'authenticate', 'sample-user', 'unit-test-password', () => current)
+  const login = f.begin({ credentialGrantId: grant })
+  assert.equal((await f.rpc(login.scope, 'invalidate', { versionTag: saved.versionTag })).ok, false)
+  const owner = await f.rpc(login.scope, 'begin', { replaceVersionTag: saved.versionTag })
+  assert.equal(owner.state, 'owner')
+  let release, staged
+  const waiting = new Promise(resolve => { staged = resolve })
+  f.setBeforeWrite(async attrs => {
+    const value = Buffer.from(attrs.get('secret')).toString('utf8')
+    if (value.startsWith('{"format":"private-v1"')) {
+      f.setBeforeWrite(undefined)
+      staged(); await new Promise(resolve => { release = resolve })
+    }
+  })
+  const commit = f.rpc(login.scope, 'commit', { lease: owner.lease, value: 'candidate-private-state' })
+  await waiting; current = false; release()
+  assert.equal((await commit).ok, false); f.host.finishCall(login.call.id)
+  f.setBeforeWrite(undefined)
+  const readback = f.begin(), result = await f.rpc(readback.scope, 'begin')
+  assert.equal(result.state, 'ready', 'canceled login must retain its previously usable session')
+  assert.equal(result.value, 'prior-private-state')
+  f.host.finishCall(readback.call.id)
+})
+
+test('ordinary private replacement preserves the prior generation on cancel, abort and storage failure', async () => {
+  for (const failure of ['before', 'chunk', 'storage', 'abort']) {
+    const f = credentialFixture(), seed = f.begin(), lease = await f.rpc(seed.scope, 'begin')
+    const prior = await f.rpc(seed.scope, 'commit', { lease: lease.lease, value: 'prior-cache' })
+    f.host.finishCall(seed.call.id)
+    const update = f.begin(); let active = true
+    const replacement = await f.rpc(update.scope, 'begin', { replaceVersionTag: prior.versionTag })
+    assert.equal(replacement.state, 'owner', 'ordinary live calls may replace only their current version')
+    if (failure === 'abort') assert.equal((await f.rpc(update.scope, 'abort', { lease: replacement.lease })).ok, true)
+    else {
+      if (failure === 'before') active = false
+      if (failure === 'chunk') f.setBeforeWrite(async () => { active = false })
+      if (failure === 'storage') f.setBeforeWrite(async () => { throw Error('unavailable') })
+      assert.equal((await f.rpc(update.scope, 'commit', { lease: replacement.lease, value: 'new-cache' }, () => active)).ok, false)
+    }
+    f.setBeforeWrite(undefined); f.host.finishCall(update.call.id)
+    const reader = f.begin(), retained = await f.rpc(reader.scope, 'begin')
+    assert.equal(retained.state, 'ready'); assert.equal(retained.value, 'prior-cache')
+    assert.equal(retained.versionTag, prior.versionTag); f.host.finishCall(reader.call.id)
+  }
+})
+
+test('private replacement uses a compare-and-swap generation and cannot borrow another installation', async () => {
+  const f = credentialFixture(), seed = f.begin(), lease = await f.rpc(seed.scope, 'begin')
+  const old = await f.rpc(seed.scope, 'commit', { lease: lease.lease, value: 'old' }); f.host.finishCall(seed.call.id)
+  const wrong = f.begin({ packageIdentity: 'other-installation' })
+  assert.equal((await f.rpc(wrong.scope, 'begin', { replaceVersionTag: old.versionTag })).error.code, 'stale_version')
+  f.host.finishCall(wrong.call.id)
+  const update = f.begin(), owned = await f.rpc(update.scope, 'begin', { replaceVersionTag: old.versionTag })
+  const invalidator = f.begin()
+  assert.equal((await f.rpc(invalidator.scope, 'invalidate', { versionTag: old.versionTag })).ok, true)
+  assert.equal((await f.rpc(update.scope, 'commit', { lease: owned.lease, value: 'obsolete' })).error.code, 'stale_version')
+  await f.rpc(update.scope, 'abort', { lease: owned.lease }); f.host.finishCall(update.call.id)
+  const fresh = await f.rpc(invalidator.scope, 'begin')
+  const next = await f.rpc(invalidator.scope, 'commit', { lease: fresh.lease, value: 'current' })
+  const replacement = await f.rpc(invalidator.scope, 'begin', { replaceVersionTag: next.versionTag })
+  assert.equal((await f.rpc(invalidator.scope, 'commit', { lease: replacement.lease, value: 'replaced' })).ok, true)
+  assert.equal((await f.rpc(invalidator.scope, 'begin', { replaceVersionTag: next.versionTag })).error.code, 'stale_version')
+  assert.equal((await f.rpc(invalidator.scope, 'begin')).value, 'replaced')
+  f.host.finishCall(invalidator.call.id)
+})
+
+function privateUninstallFixture(f, failure) {
+  const files = new Map([['/scope/source-settings.json', 'settings-original'],
+    ['/scope/source-filter-preferences.json', 'filters-original'], ['/scope/registry.json', 'registry-original']])
+  let entry = { sourceId: f.identity.sourceId, archivePath: '/scope/exact-package/source.koma' }, packagePresent = true
+  const globals = { SourcePrivateSessionHost: f.host, sourceWebPackageIdentity: () => f.identity.packageIdentity,
+    BackupRestoreActivity: { runWrite: fn => fn() }, appSourceSettingObservationStore: { withSourceRemoved: (_id, fn) => fn() },
+    appSourceRuntimeRegistry: { lookup: () => ({ entry }), remove: () => { entry = undefined } },
+    appSourceSettingsStore: { exportAll() {}, invalidateCachedDocument() {}, removeSource() {
+      files.set('/scope/source-settings.json', 'changed-settings'); if (failure === 'settings') throw Error('disk failed') } },
+    appSourceFilterPreferencesStore: { exportAll() {}, removeSource() {
+      files.set('/scope/source-filter-preferences.json', 'changed-filters'); if (failure === 'filters') throw Error('disk failed') } },
+    persistInstalledSources: () => { if (failure === 'registry') throw Error('atomic registry write failed'); files.set('/scope/registry.json', 'registry-removed') },
+    appSourceRoot: () => '/scope', joinSourceRuntimePath: (parent, child) => parent + '/' + child,
+    fs: { accessSync: path => files.has(path), readTextSync: path => files.get(path), unlinkSync: path => files.delete(path) },
+    writeAppTextFile: (path, value) => files.set(path, value), appSourceWebSessionStore: { revoke() {} },
+    clearSourceRuntimeDiagnostic() {}, SourceRuntimeStateBridge: { notifyChanged() {} }, DiagnosticLogger: { info() {} },
+    removeAppSourcePackageDir: async () => { packagePresent = false } }
+  const source = declarations('sourceRuntime/SourceRuntimeAppRegistry', ['sourceRemovePreferenceImages', 'restoreSourceRemovePreferences', 'remove'])
+  const out = {}; new Function('exports', ...Object.keys(globals), ts.transpileModule(source,
+    { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(out, ...Object.values(globals))
+  return { files, remove: () => out.remove({}, f.identity.sourceId), hasEntry: () => entry !== undefined,
+    replaceEntry: () => { entry = { ...entry, archivePath: '/scope/new-install/source.koma' } },
+    packagePresent: () => packagePresent }
+}
+
+test('ordinary uninstall deletes only its exact current private scope and rolls back Asset/public failures', async () => {
+  for (const failure of ['none', 'root', 'chunk', 'ignored-delete', 'settings', 'filters', 'registry']) {
+    const f = credentialFixture()
+    const save = async extra => { const call = f.begin(extra), owner = await f.rpc(call.scope, 'begin')
+      const saved = await f.rpc(call.scope, 'commit', { lease: owner.lease, value: 'synthetic-cache'.repeat(150) })
+      f.host.finishCall(call.call.id); return saved }
+    const prior = await save(); await save({ sourceId: 'other-source' }); await save({ packageIdentity: 'other-install' })
+    const snapshot = new Map([...f.assets].map(([key, attrs]) => [key, Buffer.from(attrs.get('secret')).toString('hex')]))
+    const publicFiles = privateUninstallFixture(f, failure)
+    const initialFiles = [...publicFiles.files]
+    let removed = 0
+    f.setBeforeRemove(async () => {
+      removed++
+      if (failure === 'ignored-delete') return false
+      if ((failure === 'root' && removed === 1) || (failure === 'chunk' && removed === 2)) throw Error('Asset failed')
+    })
+    if (failure === 'none') {
+      assert.equal(await publicFiles.remove(), true); assert.equal(publicFiles.hasEntry(), false)
+      assert.equal(publicFiles.packagePresent(), false); assert(f.assets.size < snapshot.size)
+      const fresh = f.begin(); assert.equal((await f.rpc(fresh.scope, 'begin')).state, 'owner'); f.host.finishCall(fresh.call.id)
+    } else {
+      await assert.rejects(publicFiles.remove(), /source_remove_(?:private_delete_failed|commit_failed)/)
+      assert.equal(publicFiles.hasEntry(), true); assert.equal(publicFiles.packagePresent(), true)
+      assert.deepEqual([...publicFiles.files], initialFiles)
+      assert.deepEqual(new Map([...f.assets].map(([key, attrs]) => [key, Buffer.from(attrs.get('secret')).toString('hex')])), snapshot)
+      const read = f.begin(); assert.equal((await f.rpc(read.scope, 'begin')).versionTag, prior.versionTag); f.host.finishCall(read.call.id)
+    }
+    for (const extra of [{ sourceId: 'other-source' }, { packageIdentity: 'other-install' }]) {
+      const other = f.begin(extra); assert.equal((await f.rpc(other.scope, 'begin')).state, 'ready'); f.host.finishCall(other.call.id)
+    }
+  }
+})
+
+test('uninstall retires an in-flight private commit before deleting its last published generation', async () => {
+  for (const phase of ['chunk', 'manifest']) {
+    const f = credentialFixture(), seed = f.begin(), first = await f.rpc(seed.scope, 'begin')
+    const prior = await f.rpc(seed.scope, 'commit', { lease: first.lease, value: 'prior' }); f.host.finishCall(seed.call.id)
+    const pending = f.begin(), owned = await f.rpc(pending.scope, 'begin', { replaceVersionTag: prior.versionTag })
+    let entered, release; const staged = new Promise(resolve => { entered = resolve })
+    f.setBeforeWrite(async attrs => {
+      const root = Buffer.from(attrs.get('secret')).toString().startsWith('{"format":"private-v1"')
+      if ((phase === 'manifest') !== root) return
+      f.setBeforeWrite(undefined); entered(); await new Promise(resolve => { release = resolve })
+    })
+    const committing = f.rpc(pending.scope, 'commit', { lease: owned.lease, value: 'late-value' })
+    await staged; let publicCommitted = false
+    const removing = f.host.withScopeRemoved(f.identity.sourceId, f.identity.packageIdentity, async () => { publicCommitted = true })
+    assert.equal(f.host.callIsActive(pending.scope), false); assert.equal(publicCommitted, false)
+    release(); assert.equal((await committing).ok, false); await removing
+    assert.equal(publicCommitted, true); assert.equal(f.assets.size, 0)
+  }
+})
+
+test('uninstall keeps public files on private read failure and reports a failed rollback without broad cleanup', async () => {
+  const f = credentialFixture(), seed = f.begin(), owner = await f.rpc(seed.scope, 'begin')
+  const saved = await f.rpc(seed.scope, 'commit', { lease: owner.lease, value: 'prior-private-value' }); f.host.finishCall(seed.call.id)
+  const original = [...f.assets.keys()], publicFiles = privateUninstallFixture(f)
+  f.setBeforeQuery(async () => { throw { code: 201 } })
+  await assert.rejects(publicFiles.remove(), /source_remove_private_read_failed/)
+  assert.equal(publicFiles.hasEntry(), true); assert.equal(publicFiles.packagePresent(), true)
+  assert.deepEqual([...f.assets.keys()], original)
+  f.setBeforeQuery(undefined)
+  const read = f.begin(); assert.equal((await f.rpc(read.scope, 'begin')).versionTag, saved.versionTag); f.host.finishCall(read.call.id)
+  f.setBeforeWrite(async () => { throw Error('restore unavailable') })
+  await assert.rejects(f.host.withScopeRemoved(f.identity.sourceId, f.identity.packageIdentity, async () => {
+    throw Error('public file commit failed')
+  }), /source_remove_private_rollback_failed/)
+  assert.equal(publicFiles.hasEntry(), true)
+})
+
+test('uninstall snapshots public files after its Asset wait and cannot remove a replaced entry', async () => {
+  for (const replaced of [false, true]) {
+    const f = credentialFixture(), seed = f.begin(), owned = await f.rpc(seed.scope, 'begin')
+    const prior = await f.rpc(seed.scope, 'commit', { lease: owned.lease, value: 'prior' }); f.host.finishCall(seed.call.id)
+    const publicFiles = privateUninstallFixture(f, 'registry')
+    f.setBeforeRemove(async () => {
+      f.setBeforeRemove(undefined)
+      if (replaced) publicFiles.replaceEntry()
+      else publicFiles.files.set('/scope/source-settings.json', 'newer-other-source-setting')
+    })
+    await assert.rejects(publicFiles.remove(), replaced ? /source_remove_source_changed/ : /source_remove_commit_failed/)
+    assert.equal(publicFiles.hasEntry(), true); assert.equal(publicFiles.packagePresent(), true)
+    if (!replaced) assert.equal(publicFiles.files.get('/scope/source-settings.json'), 'newer-other-source-setting')
+    const read = f.begin(); assert.equal((await f.rpc(read.scope, 'begin')).versionTag, prior.versionTag); f.host.finishCall(read.call.id)
+  }
+})
+
+test('uninstall queue fence rejects old waiting calls after same-identity reinstall and admits a new operation', async () => {
+  const f = credentialFixture(), calls = []; let release
+  const waiting = new Promise(resolve => { release = resolve })
+  const worker = sourceWorkerFixture(async (_fn, request, _bytes, context) => {
+    const parsed = JSON.parse(context), scope = { sourceId: parsed.sourceId, packageIdentity: parsed.packageIdentity, callId: parsed.privateCallId }
+    calls.push(request)
+    if (request === 'first') { await waiting; assert.equal((await f.rpc(scope, 'begin')).ok, false) }
+    return request
+  }, {}, f.host)
+  const context = JSON.stringify(f.identity), bytes = new Uint8Array(1)
+  const first = worker.client.executeSourceRequestInWorker('first', bytes, context)
+  const queued = worker.client.executeSourceRequestInWorker('old-waiting', bytes, context)
+  const rejected = assert.rejects(queued, /search_cancelled/)
+  await new Promise(setImmediate)
+  await f.host.withScopeRemoved(f.identity.sourceId, f.identity.packageIdentity, async () => {})
+  release(); await first; await rejected
+  assert.equal(await worker.client.executeSourceRequestInWorker('new-user-operation', bytes, context), 'new-user-operation')
+  assert.deepEqual(calls, ['first', 'new-user-operation'])
+})
+
+test('authentication service keeps input outside source requests and retires queued or replaced work', async () => {
+  const f = credentialFixture(), web = fixture(), calls = []
+  const auth = { kind: 'credentials', loginUrl: 'https://login.invalid/auth', credentialStorage: 'private' }
+  let entry = { ...f.identity, enabled: true, manifestVersion: '1', authentication: auth, wasmBytes: new Uint8Array([1]) }
+  let revision = 'original', alive = true, pause, reply
+  const { SourceAuthenticationService } = moduleFrom('SourceAuthenticationService', name => {
+    if (name === './SourceAuthenticationDescriptor') return f.descriptor
+    if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: { lookup: () => ({ entry }) }, sourceDisplayName: id => id }
+    if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: e => e?.enabled === true }
+    if (name === './SourceSettingsStore') return { appSourceSettingsStore: { revisionForSource: () => revision, loadForSource: () => ({ public: true }) } }
+    if (name === './SourceSettingObservationStore') return { appSourceSettingObservationStore: { snapshotForSource: () => ({}) } }
+    if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: f.host }
+    if (name === './SourceWebSessionStore') return web.api
+    if (name === './SourceHostFeatures') return moduleFrom('SourceHostFeatures', () => ({}))
+    if (name === './SourceRuntimeWorkerClient') return { SourceWorkerPriority: { FOREGROUND: 1 }, executeSourceRequestInWorker: async (raw, wasm, context, _priority, current) => {
+      calls.push(raw); if (pause) await pause
+      if (!current()) throw Error('cancelled before worker')
+      // TaskPool transfers the argument's buffer and invalidates it on the caller thread.
+      const workerWasm = structuredClone(wasm, { transfer: [wasm.buffer] })
+      assert.deepEqual(Array.from(workerWasm), [1])
+      const req = JSON.parse(raw), call = f.host.beginCall(context), scope = { ...JSON.parse(context), callId: call.id }
+      try {
+        assert.ok(call.id)
+        assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, 'https://other.invalid/'), false)
+        if (req.operation === 'authenticate') {
+          assert.equal((await f.rpc(scope, 'credential_input')).credentials.password, 'synthetic-password')
+          assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, auth.loginUrl), true)
+        } else {
+          assert.equal((await f.rpc(scope, 'credential_input')).ok, false)
+          assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, auth.loginUrl), req.operation === 'logout')
+        }
+        return JSON.stringify({ ok: true, operation: req.operation, data: reply ?? { authenticated: req.operation === 'authenticate', authentication: auth } })
+      } finally { f.host.finishCall(call.id) }
+    } }
+    if (name === './SourceRequestPolicy') return { configureSourceRequestPolicy() {} }
+    if (name === '../model/SourceRuntimeError') return { SourceRuntimeError: class extends Error {} }
+    return {}
+  })
+  const service = new SourceAuthenticationService(entry.sourceId, () => alive)
+  assert.equal(await service.run('get_authentication'), false)
+  assert.equal(entry.wasmBytes.byteLength, 1, 'opening account settings must preserve the source bytes for the next settings call')
+  assert.equal(await service.run('authenticate', 'synthetic-user', 'synthetic-password'), true)
+  assert.equal(await service.run('logout'), false)
+  assert(calls.every(raw => !raw.includes('synthetic-user') && !raw.includes('synthetic-password')))
+  assert.equal(f.assets.size, 0)
+  for (const changed of ['settings', 'installation', 'cancel']) {
+    const pending = new SourceAuthenticationService(entry.sourceId, () => alive)
+    let release; pause = new Promise(resolve => { release = resolve })
+    const run = pending.run('authenticate', 'synthetic-user', 'synthetic-password')
+    if (changed === 'settings') revision += 'changed'
+    if (changed === 'installation') entry = { ...entry, wasmPath: '/new/source.wasm' }
+    if (changed === 'cancel') pending.cancel()
+    release(); await assert.rejects(run); pause = undefined
+  }
+  entry = { ...entry, webSessionOrigins: ['https://site.invalid', 'https://mirror.invalid'],
+    authentication: { kind: 'web', loginUrl: 'https://site.invalid/users-login.html', userAgent: 'Declared-UA' } }
+  const dynamic = new SourceAuthenticationService(entry.sourceId, () => true)
+  reply = { authenticated: false, authentication: { ...entry.authentication, loginUrl: 'https://mirror.invalid/users-login.html' } }
+  await dynamic.run('get_authentication'); assert.equal(dynamic.webLoginUrl, reply.authentication.loginUrl)
+  reply.authentication.userAgent = 'Other-UA'; await assert.rejects(dynamic.run('get_authentication'), /invalid_response/)
+  reply.authentication = { ...entry.authentication, loginUrl: 'https://undeclared.invalid/users-login.html' }
+  await assert.rejects(dynamic.run('get_authentication'), /origin_not_allowed/)
+})
 function fixture(sdkApiVersion = 23) {
   const disk = new Map(), writes = [], fetched = [], diagnostics = [], configured = []
   const extraEntries = new Map(), cookieReads = []
@@ -24,7 +397,7 @@ function fixture(sdkApiVersion = 23) {
     wasmPath: '/app/packages/one/source.wasm', webSessionOrigins: ['https://site.invalid'] }
   const registry = { lookup: id => ({ entry: id === entry.sourceId ? entry : extraEntries.get(id) }) }
   const mocks = name => {
-    if (name === '@kit.ArkTS') return { url: { URL }, util: { generateRandomUUID: () => String(++uuid) } }
+    if (name === '@kit.ArkTS') return { buffer: { from: (...args) => Buffer.from(...args) }, url: { URL }, util: { generateRandomUUID: () => String(++uuid) } }
     if (name === '@kit.BasicServicesKit') return { deviceInfo: { sdkApiVersion } }
     if (name === '@kit.ArkWeb') return { webview: { WebCookieManager: { fetchCookieSync: (...args) => {
       cookieReads.push(args);fetched.push(args[0]); return cookie
@@ -38,10 +411,15 @@ function fixture(sdkApiVersion = 23) {
       if (failWrite) throw Error('storage unavailable')
       disk.set(p, content); writes.push(content)
     } }
+    if (name === './SourceAuthenticationDescriptor') return moduleFrom('SourceAuthenticationDescriptor', mocks)
+    if (name === './SourceRequiredImageDecodeDeclaration') return moduleFrom('SourceRequiredImageDecodeDeclaration', () => ({}))
+    if (name === '@kit.AssetStoreKit') return { asset: {} }
+    if (name === '@kit.CryptoArchitectureKit') return { cryptoFramework: {} }
     if (name === './SourceRuntimeRegistry' || name === '@kit.AbilityKit') return {}
     throw Error('unexpected import: ' + name)
   }
   const api = moduleFrom('SourceWebSessionStore', mocks)
+  const privateHost = moduleFrom('SourcePrivateSessionHost', mocks).SourcePrivateSessionHost
   const store = new api.SourceWebSessionStore()
   store.configure({ filesDir: '/files' }, registry)
   const identity = () => ({ sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
@@ -62,7 +440,11 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRuntimeOperationGuard') return guards
       if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
       if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
-      if (name === './SourcePrivateSessionHost') return {}
+      if (name === './SourceSettingsStore') return { appSourceSettingsStore: {} }
+      if (name === './CopyMangaHostContract') return moduleFrom('CopyMangaHostContract', () => ({ url: { URL } }))
+      if (name === './SourceRcpTransport') return moduleFrom('SourceRcpTransport', () => ({}))
+      if (name === './SourcePicaChannelTransport') return moduleFrom('SourcePicaChannelTransport', () => ({}))
+      if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: network.privateHost ?? privateHost }
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: {
         configureHttpTransport: fn => { callback = fn; return true },
         sourceBrowserHttp: network.sourceBrowserHttp,
@@ -133,7 +515,7 @@ function fixture(sdkApiVersion = 23) {
     const after = network.afterInitial === undefined ? undefined : await network.afterInitial({ transport, execute: callback })
     return { calls, instances, intercepts, result: JSON.parse(result), after }
   }
-  return { api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http, guards,
+  return { privateHost, api, store, registry, writes, fetched, cookieReads, diagnostics, configured, identity, grant, http, guards,
     addSource: e => extraEntries.set(e.sourceId, e), setWriteFailure: value => { failWrite = value },
     changeEntry: fn => { entry = fn(entry) }, setCookie: value => { cookie = value },
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
@@ -503,12 +885,13 @@ function declarations(relative, names, owner) {
   }).join('\n')
 }
 
-function sourceWorkerFixture(execute, workers = {}) {
+function sourceWorkerFixture(execute, workers = {}, privateHost) {
   const identity = moduleFrom('SourceRuntimeExecutionIdentity', () => ({}))
   const client = moduleFrom('SourceRuntimeWorkerClient', name => {
     if (name === '@kit.ArkTS') return { taskpool: { execute } }
     if (name === './SourceRuntimeExecutionIdentity') return identity
-    if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: {
+    if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: privateHost ?? {
+      callAdmission: () => () => true,
       beginCall: context => ({ id: '', httpContextJson: context }), finishCall: () => {},
     } }
     if (name === './SourceRuntimeWorker') return workers
@@ -518,6 +901,24 @@ function sourceWorkerFixture(execute, workers = {}) {
     client.runBrowseSourceRequestInWorker(request, bytes, JSON.stringify({ sourceId }), active)
   return { client, enqueueSourceOperation }
 }
+
+test('public initialization permission follows the actual admitted network operation and retires with its private call', async () => {
+  const f = credentialFixture(), seen = []
+  const worker = sourceWorkerFixture(async (_fn, request, _bytes, context) => {
+    const identity = JSON.parse(context)
+    const scope = { ...identity, callId: identity.privateCallId }
+    seen.push({ operation: JSON.parse(request).operation,
+      allowed: f.host.publicInitializationIsAllowed(scope), scope })
+    return '{}'
+  }, {}, f.host)
+  for (const [operation, network, expected] of [['get_settings', true, false], ['get_authentication', true, false],
+    ['search', false, false], ['search', true, true], ['authenticate', true, true]]) {
+    await worker.client.executeSourceRequestInWorker(JSON.stringify({ operation, hostHints: { network } }),
+      new Uint8Array([0]), JSON.stringify({ ...f.identity, sourceId: 'com.picacomic.koma' }))
+    assert.equal(seen.at(-1).allowed, expected, operation)
+    assert.equal(f.host.publicInitializationIsAllowed(seen.at(-1).scope), false)
+  }
+})
 
 test('ordinary Browse queue derives native identity from the admitted registry entry, not source JSON', async () => {
   const f = fixture(), nativeCalls = [], exports = {}
@@ -819,9 +1220,16 @@ test('ordinary source menus advertise only already-known website addresses',()=>
  const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='Index')
  const methods=['sourceHomepageMenuItem','sourceBrowseTitleBarOpts','sourceSearchTitleBarOpts']
  const body=methods.map(name=>owner.members.find(n=>n.name?.getText(tree)===name).getText(tree)).join('\n')
- const exports={};vm.runInNewContext(ts.transpileModule('export class Subject {'+body+'}',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
+ const menuLimit = tree.statements.find(node => ts.isVariableStatement(node) &&
+  node.declarationList.declarations.some(declaration => declaration.name.getText(tree) === 'SOURCE_ROUTE_TITLE_MENU_MAX_COUNT'))
+ const subjectSource = menuLimit.getText(tree) + '\nexport class Subject {' + body + '}'
+ const {copyMangaSelectedHomepage}=moduleFrom('CopyMangaHostContract',()=>({url:{URL}}))
+ const pushed=[];let savedDomain,settingsReads=0
+ const exports={};vm.runInNewContext(ts.transpileModule(subjectSource,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
   exports,AppStrings:{get:key=>key},$r:key=>key,sourceDisplayName:(_id,name)=>name,
-  normalizeSourceHomepage:homepageFixture().guard,appSourcePackageManagerCache:{indexEntries:[]},RouterHelper:{pushMangaWeb(){}},
+  normalizeSourceHomepage:homepageFixture().guard,appSourcePackageManagerCache:{indexEntries:[]},
+  copyMangaSelectedHomepage,appSourceSettingsStore:{loadForSource(){settingsReads++;return {domain:savedDomain}}},
+  RouterHelper:{pushMangaWeb:params=>pushed.push({...params})},
   BottomBuilderShowType:{DIRECTLY_SHOW:1},SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT:1,SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT:1})
  const subject=new exports.Subject();subject.browseFieldContent=()=>({});subject.sourceSearchFieldContent=()=>({});subject.sourceRouteTitleBarOpts=opts=>opts
  const source={sourceId:'one',displayName:'Site',enabled:true,homepage:'https://site.example/'},chrome={visible:true,filtersAvailable:false,settingsAvailable:false,webSessionAvailable:false}
@@ -829,12 +1237,27 @@ test('ordinary source menus advertise only already-known website addresses',()=>
   const opts=subject[method]({source,chrome})
   assert.deepEqual(Array.from(opts.menu.value,item=>item.content.label),['manga_detail_menu_open_webview'])
   assert.equal(opts.menu.value[0].content.isEnabled,true)
+  const readsBefore=settingsReads
+  opts.menu.value[0].content.action()
+  assert.deepEqual(pushed.pop(),{url:source.homepage,title:source.displayName})
+  assert.equal(settingsReads,readsBefore)
   chrome.webSessionAvailable=true
   const withSession=subject[method]({source,chrome})
   assert.deepEqual(Array.from(withSession.menu.value,item=>item.content.label),['manga_detail_menu_open_webview','source_web_open'])
   chrome.webSessionAvailable=false
   const absent=subject[method]({source:{...source,homepage:undefined},chrome})
   assert.equal(absent.menu.value.length,0)
+  const copy={sourceId:'com.copymanga.koma',displayName:'拷贝漫画',enabled:true,homepage:'https://www.mangacopy.com'}
+  const openCopy=subject[method]({source:copy,chrome}).menu.value[0].content.action
+  savedDomain='https://api.copy3000.com'
+  openCopy()
+  assert.deepEqual(pushed.pop(),{url:'https://www.copy3000.com',title:copy.displayName})
+  assert.equal(settingsReads,readsBefore+1)
+  chrome.visible=false
+  openCopy()
+  assert.equal(pushed.length,0)
+  assert.equal(settingsReads,readsBefore+1)
+  chrome.visible=true
  }
 })
 

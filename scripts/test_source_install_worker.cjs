@@ -19,6 +19,14 @@ function functions(file, names, globals) {
   new Function('exports', ...Object.keys(globals), code)(exports, ...Object.values(globals))
   return exports
 }
+function evaluate(file, requireModule, globals = {}) {
+  const code = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const exports = {}
+  new Function('exports', 'require', ...Object.keys(globals), code)(exports, requireModule, ...Object.values(globals))
+  return exports
+}
 const registryFile = 'sourceRuntime/SourceRuntimeAppRegistry.ets'
 const response = { ok: true, operation: 'source_info', data: { capabilities: { search: true, pages: true } } }
 function deferred() { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b }); return {promise,resolve,reject} }
@@ -46,15 +54,15 @@ test('Browse source publication keeps unchanged row inputs while retaining metad
   failed=true;model.loadInstalledSources();assert.deepEqual(model.sources,[])
   assert.equal(model.sourceErrorMessage,'failed');assert.equal(model.loadingSources,false)
 })
-function installFixture() {
+function installFixture(appVersionSupported = true, minAppVersion = '0') {
   const probe = deferred(), events = [], old = {sourceId:'one',enabled:false,archivePath:'/packages/old/source.koma'}, other = {sourceId:'other'}
   let entries=[other,old], persistFails=false, registerFails=false, next
   const registry={ list:()=>entries.slice(), lookup:id=>({entry:entries.find(e=>e.sourceId===id)}),
     remove:id=>{const e=entries.find(e=>e.sourceId===id);events.push('remove:'+id);entries=entries.filter(e=>e.sourceId!==id);return e},
     register:(entry,index)=>{events.push('register');next=entry;if(registerFails)return {ok:false,reasonCode:'register_failed'};entries.splice(index,0,entry);return {ok:true}} }
   const globals={appSourceRuntimeRegistry:registry, ensureDirSync:()=>{},appSourceRoot:()=>'/files',appSourcePackagesRoot:()=>'/packages',joinSourceRuntimePath:(a,b)=>a+'/'+b,writeBytesSync:()=>{},
-    importLocalSourceArchive:async()=>({ok:true,manifest:{package:{id:'one',name:'One',minAppVersion:'0'}},wasmBytes:new Uint8Array([1,2]),hashOk:true}),
-    removeAppSourcePackageDir:async(_c,p)=>{events.push('delete:'+p)},isSourcePackageMinAppVersionSatisfied:()=>true,
+    importLocalSourceArchive:async()=>({ok:true,manifest:{package:{id:'one',name:'One',minAppVersion}},wasmBytes:new Uint8Array([1,2]),hashOk:true}),
+    removeAppSourcePackageDir:async(_c,p)=>{events.push('delete:'+p)},isSourcePackageMinAppVersionSatisfied:()=>appVersionSupported,
     runSourceOperationFromValidatedBytesAsync:async(request,bytes)=>{const r=JSON.parse(request);assert.equal(r.operation,'source_info');assert.deepEqual(r.settings,{});assert.equal(r.hostHints.network,false);assert.equal(registry.lookup('one').entry,old);events.push('probe');return probe.promise},
     IMPORTED_SOURCE_ROUTE:'imported', DiagnosticLogger:{error(){},info(){}},persistInstalledSources:()=>{events.push('persist');if(persistFails)throw Error('disk')},
     restoreRuntimeRegistryEntry:(entry,index)=>{events.push('restore');if(entry&&!entries.some(e=>e.sourceId===entry.sourceId))entries.splice(index,0,entry)},
@@ -62,14 +70,36 @@ function installFixture() {
   const api=functions(registryFile,['sourceInfoCapabilityToken','detectSourceRuntimeCapabilities','registerSourcePackageFromBytes','installFromBytes'],{...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
   return {api,probe,events,old,registry,set persistFails(v){persistFails=v},set registerFails(v){registerFails=v},get next(){return next}}
 }
+test('an incompatible archive reports its required app version before probing or replacing the installed source', async () => {
+  const fixture = installFixture(false, '1.2.0')
+  const result = await fixture.api.registerSourcePackageFromBytes({}, new Uint8Array([1]), 'source.koma', 'one', '/packages/new')
+  assert.deepEqual(result, { ok: false, reasonCode: 'app_version_unsupported', requiredAppVersion: '1.2.0' })
+  assert.equal(fixture.registry.lookup('one').entry, fixture.old)
+  assert.deepEqual(fixture.events, ['delete:/packages/new'])
+})
 test('validated bytes use the existing worker executor, copied bytes and no HTTP identity',async()=>{
   const pending=deferred(), original=new Uint8Array([7,8]);let call, executed=0
   const executor=()=>{executed++}
   // The production worker path now decorates requests with host features; use
   // its real helper rather than leaving that dependency undefined in the fixture.
   const hostFeatures=functions('sourceRuntime/SourceHostFeatures.ets',['sourceHostFeatures','sourceRequestWithHostFeatures'],{})
-  const api=functions('sourceRuntime/SourceRuntimeService.ets',['runSourceOperationFromValidatedBytesAsync'],{...hostFeatures,taskpool:{execute:(...args)=>{call=args;return pending.promise}},executeRegisteredSourceRequest:executor})
+  const executionIdentity = evaluate('sourceRuntime/SourceRuntimeExecutionIdentity.ets', name => {
+    throw Error('unexpected worker identity dependency ' + name)
+  })
+  const worker = evaluate('sourceRuntime/SourceRuntimeWorkerClient.ets', name => {
+    if (name === '@kit.ArkTS') return { taskpool: { execute: (...args) => { call=args;return pending.promise } } }
+    if (name === './SourceRuntimeExecutionIdentity') return executionIdentity
+    if (name === './SourceRuntimeWorker') return { executeSourceRuntimeRequest: executor }
+    if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: {
+      callAdmission: () => () => true,
+      beginCall: httpContextJson => ({ id: '', httpContextJson }),
+    } }
+    throw Error('unexpected worker dependency ' + name)
+  })
+  const api=functions('sourceRuntime/SourceRuntimeService.ets',['runSourceOperationFromValidatedBytesAsync'],
+    {...hostFeatures,executeRegisteredSourceRequest:worker.executeSourceRequestInWorker})
   const running=api.runSourceOperationFromValidatedBytesAsync('request',original)
+  await Promise.resolve()
   assert.equal(call[0],executor);assert.notEqual(call[2],original);assert.deepEqual(Array.from(call[2]),[7,8]);assert.equal(call[3],'');assert.equal(executed,0)
   original[0]=9;assert.equal(call[2][0],7);pending.resolve(JSON.stringify(response));assert.deepEqual(await running,response)
 })
@@ -169,12 +199,15 @@ function persistenceFixture() {
   const guards=functions('sourceRuntime/SourcePackageImporter.ets',
     ['isValidSourcePackageMinAppVersion','normalizeSourceOperationCapabilityToken','normalizeSourceOperationCapabilityTokens','validSourceWebSessionOrigins','normalizeSourceHomepage'],
     {SOURCE_PACKAGE_MIN_APP_VERSION_PATTERN:new Function('return ('+pattern+')')(),url:{URL:class extends URL {static parseURL(value){return new URL(value)}}}})
-  function evaluate(file,requireModule) {
-    const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{
-      compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
-    const exports={};new Function('exports','require',code)(exports,requireModule);return exports
-  }
-  Object.assign(guards,evaluate('sourceRuntime/SourceChapterOrder.ets',()=>{throw Error('unexpected order dependency')}))
+  const chapterOrder = evaluate('sourceRuntime/SourceChapterOrder.ets',()=>{throw Error('unexpected order dependency')})
+  const requiredDecode = evaluate('sourceRuntime/SourceRequiredImageDecodeDeclaration.ets', name => {
+    throw Error('unexpected decode declaration dependency ' + name)
+  })
+  const authentication = evaluate('sourceRuntime/SourceAuthenticationDescriptor.ets', name => {
+    if (name === '@kit.ArkTS') return { url: { URL } }
+    throw Error('unexpected authentication declaration dependency ' + name)
+  })
+  Object.assign(guards, chapterOrder, requiredDecode, authentication)
   const names=evaluate('sourceRuntime/SourceLocalizedNames.ets',()=>{throw Error('unexpected name dependency')})
   const files=new Map(),reads=[],writes=[],opened=[],closed=[],directories=new Set(),unreadable=new Set();let writeFails=false
   const nativeFs={OpenMode:{READ_ONLY:0},accessSync:p=>p==='/files'||files.has(p),
@@ -184,7 +217,9 @@ function persistenceFixture() {
     mkdirSync:()=>{throw Error('unexpected directory creation')}}
   const api=evaluate('sourceRuntime/SourceRuntimeRegistry.ets',name=>{
     if(name==='@kit.CoreFileKit')return {fileIo:nativeFs,fileUri:{getUriFromPath:p=>'file://'+p}}
-    if(name==='./SourceChapterOrder')return guards
+    if(name==='./SourceChapterOrder')return chapterOrder
+    if(name==='./SourceRequiredImageDecodeDeclaration')return requiredDecode
+    if(name==='./SourceAuthenticationDescriptor')return authentication
     if(name==='./SourceLocalizedNames')return names
     // Exercise the original per-entry failure contract; the real native fast path is checked below.
     if(name==='./NativeSourceRuntime')return {NativeSourceRuntime:{sourcePackageFilesMatch:()=>false}}
@@ -319,6 +354,7 @@ test('single installed-row refresh preserves localized ordering, fallback and ne
     const manager=new Manager();manager.packages=[neighbor,previous,fallback];manager.languageState={effectiveLocale:locale}
     manager.sourceSheetSourceId='target';manager.savedSettingCounts={neighbor:2};manager.settingsValidationStatuses=[]
     manager.settingsSourceReloads={};manager.settingsReloadRevision=1
+    manager.managerCache={recordInstalledPackage(){}}
     manager.publishSourceSettings=()=>{};manager.reloadInstalledPackageSettings=async()=>{}
     manager.refreshInstalledPackage('target')
     assert.deepEqual(manager.packages.map(source=>source.id),expected)
@@ -334,6 +370,9 @@ test('browse ordering resolves each enabled name once while preserving locale or
   const names=functions('sourceRuntime/SourceLocalizedNames.ets',
     ['hasUnpairedSurrogate','normalizeSourceLocalizedNames','resolveSourceLocalizedName'],{})
   const order=functions('sourceRuntime/SourceListOrder.ets',['compareSourceNames'],{})
+  const catalog = evaluate('model/SourceCatalogPresentation.ets', name => {
+    throw Error('unexpected catalog presentation dependency ' + name)
+  })
   const source=fs.readFileSync(path.join(root,'pages/BrowsePage.ets'),'utf8')
   const tree=ts.createSourceFile('browse',source.replace('export struct BrowsePage','export class BrowsePage'),ts.ScriptTarget.Latest,true)
   const owner=tree.statements.find(n=>ts.isClassDeclaration(n)&&n.name?.text==='BrowsePage')
@@ -342,13 +381,16 @@ test('browse ordering resolves each enabled name once while preserving locale or
   const code=ts.transpileModule('class Browse {'+getter.getText(tree)+'} exports.Browse=Browse',{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText
   let calls=0
-  const exports={};new Function('exports','compareSourceNames','resolveSourceLocalizedName','Computed',code)(exports,
-    order.compareSourceNames,(...args)=>{calls++;return names.resolveSourceLocalizedName(...args)},()=>{})
+  const exports={};new Function('exports','compareSourceNames','resolveSourceLocalizedName',
+    'sourceMatchesCatalogFilters','sourceMatchesCatalogSearch','Computed',code)(exports,
+    order.compareSourceNames,(...args)=>{calls++;return names.resolveSourceLocalizedName(...args)},
+    catalog.sourceMatchesCatalogFilters,catalog.sourceMatchesCatalogSearch,()=>{})
   const a={sourceId:'target',displayName:'Beta',localizedNames:{'zh-Hans':'Alpha','zh-Hant':'Zulu',en:'Same'},enabled:true}
   const b={sourceId:'neighbor',displayName:'Zulu',localizedNames:{'zh-Hans':'Zulu','zh-Hant':'Alpha',en:'same'},enabled:true}
   const c={sourceId:'fallback',displayName:'Middle',localizedNames:{en:' invalid '},enabled:true}
   const hidden={sourceId:'disabled',displayName:'First',enabled:false}
   const inputs=[b,hidden,a,c],page=new exports.Browse();page.viewModel={sources:inputs}
+  page.catalogFilters={rating:'all'};page.chrome={search:{query:''}}
   for(const [locale,expected] of [['zh-Hans',['target','fallback','neighbor']],['zh-Hant',['neighbor','fallback','target']],
     ['en',['fallback','neighbor','target']],['invalid!',['target','fallback','neighbor']]]) {
     page.languageState={effectiveLocale:locale};calls=0
@@ -360,10 +402,20 @@ test('browse ordering resolves each enabled name once while preserving locale or
 })
 for(const outcome of ['installed','cancelled','failed','exception'])test('local archive '+outcome+' retains its declared update boundary',async()=>{
   const events=[],pending=deferred()
-  const Manager=localImportMethod({t:k=>k,tf:(k,r)=>k+':'+r,
-    pickSourcePackageArchive:async()=>outcome==='cancelled'?undefined:'picked.koma',
-    installFromArchive:()=>pending.promise})
+  const { SourcePackageLocalImport } = evaluate('sourceRuntime/SourcePackageLocalImport.ets', name => {
+    if (name === './SourceRuntimeAppRegistry') return {
+      pickSourcePackageArchive: async () => outcome === 'cancelled' ? undefined : 'picked.koma',
+      getInstalledSourcePackage: () => undefined,
+    }
+    if (name === './SourceIndexService') return { SourceIndexService: class {
+      installLocalArchive(uri) { assert.equal(uri,'picked.koma');return pending.promise }
+    } }
+    if (name === '../viewmodel/SourcePackageManagerCache') return { appSourcePackageManagerCache: { recordInstalledPackage(){} } }
+    throw Error('unexpected local archive dependency ' + name)
+  }, { ObservedV2: klass => klass, Trace: () => {} })
+  const Manager=localImportMethod({t:k=>k,tf:(k,r)=>k+':'+r})
   const manager=new Manager();manager.busy=false;manager.context=()=>({});manager.showToast=()=>{}
+  manager.localImport=new SourcePackageLocalImport()
   manager.sourceReasonText=x=>x;manager.reload=()=>events.push('reload')
   manager.refreshInstalledPackage=id=>events.push('single:'+id)
   const work=manager.importPackage();await new Promise(setImmediate)

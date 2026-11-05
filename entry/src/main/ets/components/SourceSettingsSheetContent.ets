@@ -2,9 +2,11 @@ import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { SourceSettingDescriptor, SourceSettingOption, SourceSettingValue, SourceSettingsRecord,
-  appSourceSettingsStore, sourceSettingValidationError } from '../sourceRuntime/SourceSettingsStore'
+  appSourceSettingsStore, sourceSettingIsVisible, sourceSettingValidationError } from '../sourceRuntime/SourceSettingsStore'
 import { KomaModalScaffold } from './KomaModalScaffold'
+import { SourceAuthenticationSheetHost } from './SourceAuthenticationSheetHost'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaActionButton } from './ui/KomaActionButton'
@@ -33,9 +35,13 @@ export struct SourceSettingsSheetContent {
   @Param settingsSourceName: string = ''
   @Param settingDescriptors: SourceSettingDescriptor[] = []
   @Param initialDraft: SourceSettingsRecord = {}
+  @Param authenticationAvailable: boolean = false
+  @Param active: boolean = false
   @Event onSaved: (cleared: boolean) => void = () => {}
   @Event onClose: () => void = () => {}
+  @Event onAuthenticationChanged: () => void = () => {}
   @Local private settingDraft: SourceSettingsRecord = {}
+  @Local private authentication: SourceAuthenticationRequest | null = null
   @Local private regexErrors: Record<string, string> = {}
   @Local private regexCheckPending: boolean = false
   private regexCheckToken: number = 0
@@ -45,8 +51,10 @@ export struct SourceSettingsSheetContent {
   private regexCheckValue: string = ''
   private regexValidatedSourceId: string = ''
   private regexValidatedStoreRevision: string = ''
+  private mounted: boolean = false
 
   aboutToAppear(): void {
+    this.mounted = true
     this.settingDraft = this.initialDraft
     const descriptor = this.settingDescriptors.find((item: SourceSettingDescriptor): boolean =>
       item.supported && !item.sensitive && item.validation?.kind === 'java_regex')
@@ -54,10 +62,21 @@ export struct SourceSettingsSheetContent {
   }
 
   aboutToDisappear(): void {
+    this.mounted = false
     // Do not save a stale draft when native validation finishes after dismissal.
     this.regexCheckToken += 1
     this.regexCheckValue = ''
     this.regexCheckPending = false
+  }
+
+  private openAuthentication(): void {
+    if (!this.mounted || !this.active || !this.authenticationAvailable || this.authentication !== null) return
+    const sourceId = this.settingsSourceId
+    const request: SourceAuthenticationRequest = new SourceAuthenticationRequest(sourceId,
+      (): boolean => this.mounted && this.active && this.settingsSourceId === sourceId && this.authentication === request,
+      async (): Promise<void> => { if (this.authentication === request) this.authentication = null },
+      (): void => { if (this.authentication === request) this.authentication = null })
+    this.authentication = request
   }
 
   private saveSettings(): void {
@@ -205,8 +224,16 @@ export struct SourceSettingsSheetContent {
       descriptor.supported && !descriptor.sensitive && this.settingValidationError(descriptor) !== undefined)
   }
 
+  @Computed
+  private get visibleDescriptors(): SourceSettingDescriptor[] {
+    // Only the presentation changes. Keep hidden preferences in the draft and on disk.
+    return this.settingDescriptors.filter((descriptor: SourceSettingDescriptor): boolean =>
+      sourceSettingIsVisible(descriptor, this.settingDraft))
+  }
 
-  build() {
+
+  @Builder
+  private SettingsContent() {
     KomaModalScaffold({
       title: t('source_pkg_settings_title'),
       subtitle: sourceDisplayName(this.settingsSourceId, this.settingsSourceName),
@@ -218,24 +245,31 @@ export struct SourceSettingsSheetContent {
       },
     }) {
       Column({ space: ThemeConstants.SPACE_MD }) {
-      if (this.settingDescriptors.length === 0) {
+      if (this.authenticationAvailable) {
+        GroupedListSection({ inset: ThemeConstants.SPACE_SM }) {
+          ConciseListRow({ title: t('source_account_settings'), leadingIcon: $r('sys.symbol.person'),
+            action: () => { this.openAuthentication() } })
+        }
+      }
+      if (this.visibleDescriptors.length === 0 && (!this.authenticationAvailable || this.settingDescriptors.length > 0)) {
         Text(t('source_pkg_no_settings'))
           .width('100%')
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
-      } else {
+      } else if (this.visibleDescriptors.length > 0) {
         GroupedListSection({ inset: ThemeConstants.SPACE_SM }) {
-          ForEach(this.settingDescriptors, (descriptor: SourceSettingDescriptor, index: number) => {
+          ForEach(this.visibleDescriptors, (descriptor: SourceSettingDescriptor, index: number) => {
             SettingsFieldRow({ descriptor, value: this.settingDraft[descriptor.id],
               errorMessage: this.settingValidationError(descriptor),
               onChange: (value: SourceSettingValue): void => { this.updateSettingValue(descriptor.id, value) } })
-            if (index < this.settingDescriptors.length - 1) {
+            if (index < this.visibleDescriptors.length - 1) {
               ListDivider()
             }
           }, (descriptor: SourceSettingDescriptor) => descriptor.id)
         }
       }
 
+      if (!this.authenticationAvailable || this.settingDescriptors.length > 0) {
       Column({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
           label: t('source_pkg_save_settings'),
@@ -258,6 +292,7 @@ export struct SourceSettingsSheetContent {
         })
       }
       .width('100%')
+      }
       Blank().height(ThemeConstants.SPACE_XL)
       }
       .width('100%')
@@ -265,4 +300,13 @@ export struct SourceSettingsSheetContent {
     }
   }
 
+  build() {
+    if (this.authentication !== null) {
+      // Keep the draft in this owner while authentication uses the same sheet and the saved settings snapshot.
+      SourceAuthenticationSheetHost({ request: this.authentication, active: this.active, inSettings: true,
+        onAuthenticationChanged: () => { this.onAuthenticationChanged() } })
+    } else {
+      this.SettingsContent()
+    }
+  }
 }

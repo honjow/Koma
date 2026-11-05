@@ -38,9 +38,19 @@ test('host capability handoff preserves requests and validates plain text withou
   const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
   assert.deepEqual(enriched.args, request.args)
   assert.deepEqual(enriched.settings, request.settings)
-  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1', 'source_chapter_exclusions_v1', 'mangabz_language_cookie_v1', 'source_settings_context_v1', 'source_http_batch_v1'])
+  // The previous exhaustive fixture already failed on HEAD: it stopped at
+  // http_batch. Keep a strict list for the adopted and separately exercised contracts.
+  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'source_rate_limit_buondua_v1',
+    'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1',
+    'source_chapter_exclusions_v1', 'source_setting_uuid_list_v1', 'mangabz_language_cookie_v1', 'mangabz_mirror_session_v1',
+    'source_settings_context_v1', 'source_http_batch_v1', 'source_filter_scope_header_v1', 'source_filter_fetching_v1',
+    'source_filter_tristate_v1', 'chapter_reading_order_v1', 'source_private_session_v1', 'source_page_image_processing_v1',
+    'source_baozi_chapter_identity_v1', 'source_java_regex_v1', 'source_page_text_overlay_v1', 'source_authentication_v1',
+    'source_private_session_process_v1', 'source_private_session_replace_v1', 'source_required_image_decode_jm_stripes_v1',
+    'source_rate_limit_jm_v1', 'source_rate_limit_hentaiclub_v1', 'source_rate_limit_wnacg_v1', 'source_setting_positive_integer_v1', 'source_dns_pica_channel_v1'])
   // The adopted language setting affects all same-site metadata requests too.
-  for (const operation of ['search', 'get_manga', 'get_manga_list', 'get_listings', 'get_home', 'get_filters']) {
+  for (const operation of ['search', 'get_manga', 'get_manga_list', 'get_listings', 'get_home', 'get_filters',
+    'get_authentication', 'authenticate', 'logout']) {
     const original = { ...request, operation }
     const actual = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(original)))
     assert.deepEqual(actual, { ...original, hostFeatures: enriched.hostFeatures })
@@ -56,6 +66,44 @@ test('host capability handoff preserves requests and validates plain text withou
   assert.throws(() => sourceTextPage({ ...spec, template: 'remote-html' }))
   assert.throws(() => sourceTextPage({ ...spec, paragraphs: [123] }))
   assert.throws(() => sourceTextPage({ ...spec, paragraphs: ['x'.repeat(64001)] }))
+})
+
+test('required image decoding discovers declared old cache, fails closed, and precedes optional processing', async () => {
+  const required = load('model/SourceRequiredImageDecode.ets')
+  let entry = { enabled: true, manifestVersion: '1', wasmPath: '/installed/source.wasm' }
+  let sidecar, calls = 0, fail = false, rows = 10
+  const decoded = [], hint = { kind: 'jm_stripes_v1', rows: 10 }
+  const cache = { get: async url => url === '' ? 'wire-cache' : sidecar === undefined ? undefined : 'sidecar',
+    put: async (_url, _headers, bytes) => { sidecar = JSON.parse(Buffer.from(bytes).toString()); return 'sidecar' } }
+  const kinds = { LOCAL_FILE_IMAGE: 'local', REMOTE_URL_IMAGE: 'remote', SOURCE_TEXT_REQUEST: 'text' }
+  const adapter = functions('model/ReaderPageSourceAdapter.ets', ['sourceImageMangaRoute', 'sourceRemoteImageCacheKey', 'fetchAndCacheSourceRuntimeRemoteImage',
+    'retainRequiredDecode', 'prepareSourcePagePresentation', 'fetchAndCacheReaderRemoteSource'], {
+    ...required, ReaderPageRenderKind: kinds, readerImageCacheStore: cache, SourceWorkerPriority: { FOREGROUND: 1 },
+    appSourceRuntimeRegistry: { lookup: () => ({ entry }) }, sourceImageProcessingFingerprint: () => 'settings-identity',
+    fs: { readText: async () => JSON.stringify(sidecar) },
+    util: { TextEncoder: class { encodeInto(text) { return new TextEncoder().encode(text) } } },
+    resolveSourceRuntimeImageRequest: async () => { calls++; if (fail) throw Error('descriptor failed'); return { url: 'image', requiredImageDecode: { ...hint, rows } } },
+    SourceRequiredImageDecodeService: { prepare: async (raw, rule) => { decoded.push([raw, rule]); return 'canonical' } },
+    maintainReaderImageCacheAfterWrite: async () => {}, canDiscoverSourceImageProcessing: () => false,
+  })
+  const source = () => ({ kind: kinds.REMOTE_URL_IMAGE, sourceRuntimeId: 'new-source', pageId: 'p', imageUri: 'https://cdn.invalid/image' })
+  assert.equal(await adapter.fetchAndCacheReaderRemoteSource(source()), 'wire-cache')
+  assert.equal(calls, 0, 'ordinary legacy cache adds no descriptor dependency')
+  entry = { ...entry, requiredImageDecodes: ['jm_stripes_v1'] }
+  assert.equal(await adapter.fetchAndCacheReaderRemoteSource(source(), {}, false, { policy: 'off' }), 'canonical')
+  assert.equal(calls, 1); assert.deepEqual(decoded[0], ['wire-cache', hint])
+  assert.equal(await adapter.fetchAndCacheReaderRemoteSource(source()), 'canonical')
+  assert.equal(calls, 1, 'a known sidecar does not refetch the descriptor')
+  sidecar = undefined; fail = true
+  await assert.rejects(adapter.fetchAndCacheReaderRemoteSource(source()), /descriptor failed/)
+  fail = false; rows = 12
+  await assert.rejects(adapter.fetchAndCacheReaderRemoteSource({ ...source(), requiredImageDecode: hint }), /conflict/)
+  const before = decoded.length
+  assert.equal(await adapter.fetchAndCacheReaderRemoteSource({ kind: kinds.LOCAL_FILE_IMAGE, imageUri: 'offline-canonical',
+    requiredImageDecode: hint, requiredImageDecodeResolved: true }), 'offline-canonical')
+  assert.equal(decoded.length, before, 'downloaded canonical bytes are not decoded twice')
+  assert.equal(await adapter.fetchAndCacheReaderRemoteSource({ kind: kinds.LOCAL_FILE_IMAGE, imageUri: 'local-wire',
+    requiredImageDecode: hint }), 'canonical')
 })
 
 test('native worker follows the adopted comment cutoff and minimum height without changing existing templates', async () => {
@@ -142,6 +190,7 @@ test('deferred text keeps the body available, retries only its page, and shares 
     'fetchAndCacheSourceRuntimeTextPage', 'readerPageIdAt', 'createReaderPageRenderSourceWithOfflinePath',
     'fetchAndCacheReaderRemoteSource', 'fetchReaderRemoteSourceBytes'], {
     ...descriptor, ...feature, ...error, fs: io, ReaderPageRenderKind: kinds, readerImageCacheStore: cache,
+    SourceWorkerPriority: { FOREGROUND: 1 },
     appSourceRuntimeRegistry: { lookup: () => ({ ok: true, entry }) },
     appSourceSettingsStore: { loadForSource: () => ({ ...settings }) }, sourceSettingsFingerprint: JSON.stringify,
     configureSourceRequestPolicy() {}, sourceHttpIdentityJson: () => '{}',
@@ -216,6 +265,40 @@ test('actual sliding windows share the CDN quota, isolate main-site quota and re
   await policy.waitForSourceRequestSlot(id, 'https://unrelated.example/a')
   await advance(10000); await main
   assert.deepEqual(starts, [['cdn', 1000], ['main', 10000]])
+
+  const buondua = 'com.buondua.koma', buonStarts = []
+  for (let i = 0; i < 10; i++) await policy.waitForSourceRequestSlot(buondua, `https://buondua.com/${i}`)
+  const eleventh = policy.waitForSourceRequestSlot(buondua, 'https://buondua.com/11').then(() => buonStarts.push(now))
+  await flush(); assert.deepEqual(buonStarts, [], 'BuonDua request 11 must wait for its own one-second window')
+  // Only this source's exact main host is limited; its CDN and other sources do not share that quota.
+  for (const [source, address] of [
+    ['other.source', 'https://buondua.com/a'], [id, 'https://buondua.com/a'],
+    [buondua, 'https://cdn.buondua.com/a'], [buondua, 'https://www.buondua.com/a'],
+    [buondua, 'https://buondua.com.evil.test/a'], [id, 'https://i.hamreus.com/independent'],
+  ]) await policy.waitForSourceRequestSlot(source, address)
+  await advance(10999); assert.deepEqual(buonStarts, [])
+  await advance(11000); await eleventh; assert.deepEqual(buonStarts, [11000])
+
+  for (let i = 0; i < 9; i++) await policy.waitForSourceRequestSlot(buondua, `https://buondua.com/fill-${i}`)
+  let alive = true
+  const abandoned = policy.waitForSourceRequestSlot(buondua, 'https://buondua.com/cancelled', () => alive)
+  const cancellation = assert.rejects(abandoned, /source_request_cancelled/)
+  await flush(); alive = false
+  const follower = policy.waitForSourceRequestSlot(buondua, 'https://buondua.com/follower')
+  await advance(12000); await cancellation; await follower
+  let remainingStarted = 0
+  const remaining = Promise.all(Array.from({ length: 9 }, (_, i) =>
+    policy.waitForSourceRequestSlot(buondua, `https://buondua.com/remaining-${i}`).then(() => remainingStarted++)))
+  await flush(); assert.equal(remainingStarted, 9, 'a cancelled waiter cannot consume one of the ten slots')
+  await remaining
+
+  const host = load('sourceRuntime/SourceHostFeatures.ets')
+  for (const operation of ['search', 'get_pages', 'get_image_request']) {
+    const request = { operation, settings: { plain: true }, args: { value: 'unchanged' } }
+    const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
+    assert(enriched.hostFeatures.includes('source_rate_limit_buondua_v1'))
+    assert.deepEqual(enriched.args, request.args); assert.deepEqual(enriched.settings, request.settings)
+  }
 })
 
 test('source text survives persistence and session cloning, then rebuilds through the real image cache after cleanup', async () => {

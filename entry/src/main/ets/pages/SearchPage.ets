@@ -1,3 +1,6 @@
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
+import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
 import { SearchResultRow, SearchResultRowSource } from '../model/SearchResultRowSource'
 import { komaSheetOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
@@ -71,6 +74,22 @@ export struct SearchPage {
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private queryText: string = ''
   @Local private sections: CrossSearchSection[] = []
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  private authenticateSection(section: CrossSearchSection): void {
+    const service = this.service
+    const receipt = section.authentication
+    if (receipt === undefined || service === undefined || !service.claimWebChallenge(receipt, this.routeActive && this.chrome.visible)) return
+    this.authentication = new SourceAuthenticationRequest(receipt.sourceId,
+      (): boolean => service === this.service && service.canRetryWebChallenge(receipt, this.routeActive && this.chrome.visible),
+      async (): Promise<void> => { await service.completeWebChallenge(receipt, this.routeActive && this.chrome.visible) },
+      (): void => {
+        if (section.authentication?.id === receipt.id) {
+          section.authentication = service.releaseAuthentication(receipt)
+          this.sections = this.sections.slice()
+        }
+      })
+  }
+
   @Local private history: SearchHistoryEntry[] = []
   @Local private historyLoadState: SearchHistoryLoadState = SearchHistoryLoadState.LOADING
   @Local private loading: boolean = false
@@ -1274,6 +1293,10 @@ export struct SearchPage {
             .padding(ThemeConstants.SPACE_LG)
             .borderRadius(ThemeConstants.RADIUS_CARD)
             .backgroundColor(ThemeConstants.CARD)
+          if (row.section.authentication !== undefined) {
+            KomaActionButton({ label: s('source_login'), kind: 'primary',
+              action: () => { this.authenticateSection(row.section) } })
+          }
         }
       }
       .width('100%')
@@ -1283,6 +1306,7 @@ export struct SearchPage {
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
+      SourceAuthenticationSheetHost({ request: this.authentication, active: this.routeActive && this.chrome.visible })
       SecondaryListScaffold({
         listSpace: ThemeConstants.SPACE_MD,
         pinnedOverlayHeight: SEARCH_TITLE_BOTTOM_HEIGHT,

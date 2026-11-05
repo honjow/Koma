@@ -68,9 +68,11 @@ function startWaitingSourceOperations(): void {
 
 function enqueueSourceWorker(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string,
   browse: boolean, priority: SourceWorkerPriority, isActive?: () => boolean): Promise<string> {
+  const scopeCurrent = SourcePrivateSessionHost.callAdmission(httpContextJson)
+  const current = (): boolean => scopeCurrent() && (isActive === undefined || isActive())
   return new Promise<string>((resolve, reject) => {
     pendingOperations.push({ sourceId: sourceRuntimeExecutionSourceId(httpContextJson), requestJson, wasmBytes,
-      httpContextJson, browse, priority, isActive, resolve, reject })
+      httpContextJson, browse, priority, isActive: current, resolve, reject })
     startWaitingSourceOperations()
   })
 }
@@ -79,7 +81,16 @@ function enqueueSourceWorker(requestJson: string, wasmBytes: Uint8Array, httpCon
 // A trapped/cancelled module cannot leave its private-session initializer owned.
 async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
   httpContextJson: string, browse: boolean): Promise<string> {
-  const call = SourcePrivateSessionHost.beginCall(httpContextJson)
+  let publicInitializationAllowed = false
+  if (sourceRuntimeExecutionSourceId(httpContextJson) === 'com.picacomic.koma') {
+    try {
+      const request = JSON.parse(requestJson) as Record<string, Object>
+      const hints = request['hostHints'] as Record<string, Object> | undefined
+      publicInitializationAllowed = hints?.['network'] === true && ['search', 'get_manga', 'get_chapters', 'get_pages',
+        'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_image_request', 'authenticate'].includes(request['operation'] as string)
+    } catch (_error) {}
+  }
+  const call = SourcePrivateSessionHost.beginCall(httpContextJson, publicInitializationAllowed)
   try {
     // Keep queued registry bytes by reference; only copy an admitted Browse
     // request. Image/detail callers already pass their private byte snapshot.
@@ -94,8 +105,9 @@ async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
 }
 
 export function executeSourceRequestInWorker(requestJson: string, wasmBytes: Uint8Array,
-  httpContextJson: string, priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND): Promise<string> {
-  return enqueueSourceWorker(requestJson, wasmBytes, httpContextJson, false, priority)
+  httpContextJson: string, priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND,
+  isActive?: () => boolean): Promise<string> {
+  return enqueueSourceWorker(requestJson, wasmBytes, httpContextJson, false, priority, isActive)
 }
 
 export function runBrowseSourceRequestInWorker(requestJson: string, wasmBytes: Uint8Array,

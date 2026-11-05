@@ -8,6 +8,7 @@ import {
   fetchAndCacheSourceRuntimeCoverImage,
 } from '../model/ReaderPageSourceAdapter'
 import { ComicSourceKind } from '../model/ComicModels'
+import { SourceCoverHeaders } from '../model/SourceModels'
 import { resolveCachedCoverImage } from '../model/CoverImageCacheService'
 import { waitForRestoredLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import {
@@ -25,10 +26,12 @@ export function cachedCoverFailureKey(
   sourceKind?: ComicSourceKind,
   remoteServerId?: string,
   sourceMangaUrl?: string,
+  sourceCoverHeaders?: SourceCoverHeaders,
 ): string {
   const key = `${uri ?? ''}::${(sourceRuntimeId ?? '').trim()}::${(sourceImageId ?? '').trim()}::${sourceKind ?? ''}::${(remoteServerId ?? '').trim()}`
   const route = sourceMangaUrl?.trim() ?? ''
-  return route.length === 0 ? key : `${key}::${route}`
+  const routedKey = route.length === 0 ? key : `${key}::${route}`
+  return sourceCoverHeaders === undefined ? routedKey : `${routedKey}::${JSON.stringify(sourceCoverHeaders)}`
 }
 
 @ComponentV2
@@ -38,6 +41,7 @@ export struct CachedCoverImage {
   @Param sourceRuntimeId: string = ''
   @Param sourceImageId: string = ''
   @Param sourceMangaUrl: string = ''
+  @Param sourceCoverHeaders: SourceCoverHeaders | undefined = undefined
   @Param sourceKind: ComicSourceKind | undefined = undefined
   @Param remoteServerId: string = ''
   @Param decodeMaxEdge: number = COVER_DECODE_MAX_EDGE
@@ -109,7 +113,8 @@ export struct CachedCoverImage {
     remoteServerId: string | undefined,
     sourceMangaUrl: string | undefined,
   ): string {
-    return `${cachedCoverFailureKey(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)}::${Math.max(1, Math.round(this.decodeMaxEdge))}`
+    return `${cachedCoverFailureKey(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl,
+      this.sourceCoverHeaders)}::${Math.max(1, Math.round(this.decodeMaxEdge))}`
   }
 
   private async resolveImageUri(
@@ -126,7 +131,7 @@ export struct CachedCoverImage {
     const context = getContext(this) as common.UIAbilityContext
     if (sourceRuntimeId.trim().length > 0) {
       configureReaderRemoteImageCache(context.cacheDir)
-      return fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl)
+      return fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId, uri, sourceImageId, sourceMangaUrl, this.sourceCoverHeaders)
     }
     return resolveCachedCoverImage(context, {
       uri,
@@ -292,7 +297,7 @@ export struct CachedCoverImage {
     }
   }
 
-  @Monitor('uri', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'decodeMaxEdge')
+  @Monitor('uri', 'sourceRuntimeId', 'sourceImageId', 'sourceKind', 'remoteServerId', 'sourceMangaUrl', 'sourceCoverHeaders', 'decodeMaxEdge')
   onSourceChanged(): void {
     this.handleSourceChanged(this.uri, this.sourceRuntimeId, this.sourceImageId, this.sourceKind, this.remoteServerId, this.sourceMangaUrl)
   }

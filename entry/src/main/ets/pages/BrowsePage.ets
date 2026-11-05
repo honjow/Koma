@@ -2,7 +2,7 @@ import { komaSheetOptions, komaToastOptions } from '../theme/KomaPopupOptions'
 import { SourceCatalogFiltersContent } from '../components/SourceCatalogFiltersContent'
 import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
-import { groupSourcesByLanguage, SourceCatalogFilters, SourceLanguageGroup, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
+import { groupSourcesByLanguage, SourceCatalogFilters, SourceLanguageGroup, sourceCatalogLanguage, sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
@@ -35,7 +35,7 @@ type PrivateBrowseSourceKey = 'komga' | 'kavita' | 'webdav' | 'opds'
 
 interface PrivateBrowseSourceEntry {
   key: PrivateBrowseSourceKey
-  title: ResourceStr
+  title: string
   badge: ResourceStr
   detail: ResourceStr
   color: ResourceColor
@@ -202,7 +202,8 @@ export struct BrowsePage {
         color: ThemeConstants.SOURCE_OPDS_COLOR,
       })
     }
-    return entries
+    return entries.filter((entry: PrivateBrowseSourceEntry): boolean =>
+      sourceMatchesCatalogSearch(this.chrome.search.query, entry.title, entry.title, undefined, entry.key))
   }
 
   private openPrivateSource(key: PrivateBrowseSourceKey): void {
@@ -237,7 +238,10 @@ export struct BrowsePage {
     sources.forEach((source: SourceRuntimeRegistryInstalledSourceSummary): void => {
       displayNames.set(source.sourceId, resolveSourceLocalizedName(source.displayName, source.localizedNames, locale))
     })
-    return sources.sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
+    return sources.filter((source: SourceRuntimeRegistryInstalledSourceSummary): boolean =>
+      sourceMatchesCatalogSearch(this.chrome.search.query, displayNames.get(source.sourceId) ?? source.displayName,
+        source.displayName, source.localizedNames, source.sourceId))
+      .sort((left: SourceRuntimeRegistryInstalledSourceSummary, right: SourceRuntimeRegistryInstalledSourceSummary): number =>
       compareSourceNames(displayNames.get(left.sourceId) ?? left.displayName, left.sourceId,
         displayNames.get(right.sourceId) ?? right.displayName, right.sourceId))
   }
@@ -246,8 +250,10 @@ export struct BrowsePage {
   private EmptySources() {
     KomaEmptyState({
       icon: $r('sys.symbol.compass'),
-      title: s(this.catalogFilters.active ? 'source_catalog_no_matches' : 'browse_empty_title'),
-      message: s(this.catalogFilters.active ? 'source_catalog_no_matches_hint' : 'browse_empty_message'),
+      title: s(this.chrome.search.query.trim().length > 0 ? 'source_catalog_search_no_matches' :
+        this.catalogFilters.active ? 'source_catalog_no_matches' : 'browse_empty_title'),
+      message: s(this.chrome.search.query.trim().length > 0 ? 'source_catalog_search_hint' :
+        this.catalogFilters.active ? 'source_catalog_no_matches_hint' : 'browse_empty_message'),
       showAction: false,
     })
   }
@@ -401,6 +407,7 @@ export struct BrowsePage {
     Stack() {
     PullRefreshListScaffold({
       scroller: this.browseScroller,
+      pinnedOverlayHeight: this.chrome.searchHeight,
       listSpace: ThemeConstants.SPACE_SM,
       bottomPadding: ThemeConstants.SPACE_XL,
       floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
@@ -419,7 +426,7 @@ export struct BrowsePage {
           .width('100%')
           .justifyContent(FlexAlign.Center)
         }
-      } else if (this.enabledRuntimeSources.length === 0 && !this.komgaConfigured && !this.kavitaConfigured && !this.opdsConfigured && !this.webDavConfigured) {
+      } else if (this.enabledRuntimeSources.length === 0 && this.configuredPrivateSourceEntries().length === 0) {
         ListItem() {
           this.EmptySources()
         }

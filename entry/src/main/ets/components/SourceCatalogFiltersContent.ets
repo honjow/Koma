@@ -55,15 +55,8 @@ export struct SourceCatalogFiltersContent {
             dropdownMenuBuilder: (select: (action: () => void) => void) => { this.RatingMenu(select) } })
         }
         GroupedListSection({ title: AppStrings.get('source_catalog_languages') }) {
-          ConciseListRow({ title: AppStrings.get('source_catalog_all_languages'), hasSwitch: true,
-            checked: this.filters.languages === undefined,
-            switchAction: (enabled: boolean): void => {
-              void this.filters.setAllLanguages(enabled).catch((): void => {
-                this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_catalog_filter_save_failed') }))
-              })
-            } })
-          ForEach(this.languages, (language: string) => {
-            ListDivider()
+          ForEach(this.languages, (language: string, index: number) => {
+            if (index > 0) { ListDivider() }
             ConciseListRow({ title: sourceLanguageName(language) || AppStrings.get('source_catalog_language_unknown'),
               hasSwitch: true, checked: this.filters.languages === undefined || this.filters.languages.includes(language),
               switchAction: (enabled: boolean): void => { this.setLanguage(language, enabled) } })

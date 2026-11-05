@@ -171,3 +171,40 @@ async function sourcePageFailureChain() {
   console.log('PASS Koma page resolution preserves safe network/HTTP causes, unsupported copy, success, and library retention')
 }
 sourcePageFailureChain().catch(error => { console.error(error); process.exitCode = 1 })
+
+async function sourceLoginHandoff() {
+  const core = require('../third_party/reader-kit/tests/load-core.cjs')('ReaderSession')
+  const entry = { sourceId: 'synthetic-source', enabled: true, authentication: { kind: 'credentials' } }
+  const exports = {}
+  new Function('exports', 'require', compile(fs.readFileSync(path.join(root, 'readerLab/KomaReaderLabAdapter.ets'), 'utf8')))(exports, name => {
+    if (name === '@reader-kit/core') return core
+    if (name === '../model/SourceRuntimeError') return errorExports
+    if (name === '../sourceRuntime/SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: { lookup: () => ({ entry }) } }
+    if (name === '../i18n/AppStrings') return { AppStrings: strings }
+    return {}
+  })
+  const adapter = Object.create(exports.KomaReaderLabAdapter.prototype)
+  const key = new core.ReaderUnitKey('host', 'work', 'chapter'), page = new core.ReaderPage(key, 'p', 0)
+  const cancellation = new core.ReaderCancellation(); let actions = 0, blocked = true
+  Object.assign(adapter, { closed: false, configs: new Map([[adapter.unitId(key), { sourceRuntimeId: entry.sourceId }]]),
+    library: { getComic: () => undefined }, catalogHost: null,
+    onAuthenticationRequested: async (sourceId, unit, current) => {
+      assert.equal(sourceId, entry.sourceId); assert(unit.equals(key)); assert.equal(current(), true)
+      actions++; blocked = false; return true
+    } })
+  const login = new errorExports.SourceRuntimeError({ ok: false, error: { code: 'auth_required', status: 401 } })
+  assert.equal(adapter.authenticationNotice(login, page, 'thumbnail', cancellation), null)
+  assert.equal(adapter.authenticationNotice(new errorExports.SourceRuntimeError({ ok: false, error: { code: 'auth_required', status: 403 } }), page, 'original', cancellation), null)
+  const notice = adapter.authenticationNotice(login, page, 'original', cancellation)
+  const session = new core.ReaderSession({ open: async target => new core.ReaderUnit(target, 'Chapter', 1),
+    page: async () => page, adjacent: () => null }, { cancellationMode: 'consumer-only',
+    load: async () => blocked ? notice : new core.ReaderAsset('file:///canonical') })
+  session.setViewportActive(true); await session.open(key)
+  const snapshot = session.snapshot(); assert.equal(snapshot.phase, 'suppressed'); assert.equal(actions, 0)
+  assert.equal(await session.resolveNotice(snapshot.assetRequestId, 'koma-source-login'), true)
+  assert.equal(actions, 1); assert.equal(session.snapshot().phase, 'decoding')
+  const canceled = adapter.authenticationNotice(login, page, 'original', cancellation)
+  cancellation.cancel(); assert.equal(await canceled.resolveNotice(), false); assert.equal(actions, 1)
+  console.log('PASS Koma source auth becomes an explicit suppressed Notice and only its live original action reloads')
+}
+sourceLoginHandoff().catch(error => { console.error(error); process.exitCode = 1 })

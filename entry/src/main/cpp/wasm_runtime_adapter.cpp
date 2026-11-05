@@ -413,6 +413,7 @@ std::string ExtractOperation(const std::string &requestJson)
                 operation == "get_pages" || operation == "get_listings" ||
                 operation == "get_manga_list" || operation == "get_home" ||
                 operation == "get_filters" || operation == "get_settings" ||
+                operation == "get_authentication" || operation == "authenticate" || operation == "logout" ||
                 operation == "get_image_request" ||
                 operation == "test_oversized_result" ||
                 operation == "test_malformed_result") {
@@ -460,6 +461,15 @@ const char *ExportForOperation(const std::string &operation)
     }
     if (operation == "get_settings") {
         return "koma_source_get_settings";
+    }
+    if (operation == "get_authentication") {
+        return "koma_source_get_authentication";
+    }
+    if (operation == "authenticate") {
+        return "koma_source_authenticate";
+    }
+    if (operation == "logout") {
+        return "koma_source_logout";
     }
     if (operation == "get_image_request") {
         return "koma_source_get_image_request";

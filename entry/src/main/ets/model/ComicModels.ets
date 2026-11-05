@@ -1,4 +1,5 @@
 import { SourceTextOverlay } from './SourceTextOverlay'
+import { SourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { SourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
 import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
 import { AppStrings } from '../i18n/AppStrings'
@@ -43,6 +44,8 @@ export interface Page {
   sourceText?: SourceTextPage
   sourceTextRequest?: SourceTextPageRequest
   sourceTextOverlay?: SourceTextOverlay
+  /** Required source decode is separate from optional image processing rules. */
+  requiredImageDecode?: SourceRequiredImageDecode
 }
 
 export interface Chapter {

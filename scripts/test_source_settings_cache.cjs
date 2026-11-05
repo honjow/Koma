@@ -58,6 +58,31 @@ test('UUID-list settings reject an invalid edit without overwriting the saved so
   assert.equal(f.store.loadForSource('A').blockedGroups_en, uuid)
 })
 
+test('positive-integer text settings follow Kotlin Int parsing and reject the entire invalid save', () => {
+  const f = fixture(), api = f.exports, message = '请输入不小于 1 的正整数。'
+  const [descriptor] = api.normalizeSourceSettingDescriptors({ ok: true, data: { settings: [{
+    id: 'blacklistMaxScanPages', kind: 'text', label: '扫描页数', default: '5',
+    validation: { kind: 'positive_integer', message },
+  }] } })
+  assert.deepEqual(descriptor.validation, { kind: 'positive_integer', message })
+  // Original kotlin-stdlib StringsKt.toIntOrNull oracle; no trim, ASCII-only
+  // shortcut, parseFloat, or supplementary-plane codepoint interpretation.
+  for (const value of ['1', '+1', '01', '2147483647', '١', '１', '+٠١', '0000000000000000001']) {
+    assert.equal(api.sourceSettingValidationError(descriptor, value), undefined, value)
+    f.store.saveForSource('A', { blacklistMaxScanPages: value }, [descriptor])
+    assert.equal(f.store.loadForSource('A').blacklistMaxScanPages, value)
+  }
+  const before = f.disk.get(f.file), revision = f.store.revisionForSource('A')
+  for (const value of ['', ' 1', '1 ', '-1', '-0', '0', '2147483648', '𝟙', '1_0', '1.0', '+', 1, true]) {
+    assert.equal(api.sourceSettingValidationError(descriptor, value), message, String(value))
+    assert.throws(() => f.store.saveForSource('A', { blacklistMaxScanPages: value }, [descriptor]),
+      /source_settings_invalid_value/)
+    assert.equal(f.disk.get(f.file), before)
+    assert.equal(f.store.revisionForSource('A'), revision)
+  }
+  assert.equal(api.sourceSettingValidationError({ ...descriptor, validation: undefined }, 'arbitrary text'), undefined)
+})
+
 test('the source settings form disables saving when either UUID field is invalid', () => {
   const f = fixture(), api = f.exports
   const input = fs.readFileSync(path.join(root, '../components/SourceSettingsSheetContent.ets'), 'utf8')
@@ -70,8 +95,13 @@ test('the source settings form disables saving when either UUID field is invalid
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText
   const exports = {}, events = []
-  new Function('exports', 'sourceSettingValidationError', 'appSourceSettingsStore', 't', js)(exports,
-    api.sourceSettingValidationError, f.store, key => key)
+  const popupExports = {}
+  const popupJs = ts.transpileModule(fs.readFileSync(path.join(root, '../theme/KomaPopupOptions.ets'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  new Function('exports', 'require', popupJs)(popupExports, () => ({ deviceInfo: { apiAvailable: () => false } }))
+  new Function('exports', 'sourceSettingValidationError', 'appSourceSettingsStore', 't', 'komaToastOptions', js)(exports,
+    api.sourceSettingValidationError, f.store, key => key, popupExports.komaToastOptions)
   const descriptors = api.normalizeSourceSettingDescriptors({ ok: true, data: { settings: ['groups','uploaders'].map(id => ({
     id, kind: 'string', label: id, default: '', validation: { kind: 'uuid_list', message: 'invalid' },
   })) } })

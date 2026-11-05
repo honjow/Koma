@@ -95,6 +95,7 @@ export interface CrossSearchSection {
   errorText: string
   items: CrossSearchResultItem[]
   webChallenge?: SourceWebChallengeReceipt
+  authentication?: SourceWebChallengeReceipt
 }
 
 interface SourceSearchOutcome {
@@ -255,6 +256,10 @@ export class CrossSearchService {
 
   canRetryWebChallenge(receipt: SourceWebChallengeReceipt, visible: boolean): boolean {
     return visible && (this.webChallengeGates.get(receipt.sourceId)?.isCurrentClaim(receipt.id) ?? false)
+  }
+
+  releaseAuthentication(receipt: SourceWebChallengeReceipt): SourceWebChallengeReceipt | undefined {
+    return this.webChallengeGates.get(receipt.sourceId)?.releaseLogin(receipt.id) ?? undefined
   }
 
   cancelWebChallenge(receipt: SourceWebChallengeReceipt): void {
@@ -636,9 +641,12 @@ export class CrossSearchService {
       const diagnostic = safeSearchDiagnostic(e)
       DiagnosticLogger.error('cross_search_service', 'wasm_failed', `[Search] step=wasm_failed source=${source.sourceId} code=${diagnostic.code}`)
       const section = this.errorSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', diagnostic)
-      const eligible = !automaticRecovery && e instanceof SourceRuntimeError &&
-        (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required') &&
-        (source.webSessionOrigins ?? []).length > 0
+      const login = e instanceof SourceRuntimeError && source.authentication !== undefined &&
+        (e.diagnostic.code === 'auth_required' || e.diagnostic.reason === 'auth_required') &&
+        (e.diagnostic.status === 0 || e.diagnostic.status === 401)
+      const eligible = !automaticRecovery && e instanceof SourceRuntimeError && (login ||
+        ((e.diagnostic.kind === 'challenge' || (e.diagnostic.code === 'auth_required' && source.authentication === undefined)) &&
+          (source.webSessionOrigins ?? []).length > 0))
       if (eligible && current()) {
         // The source may echo an ID from its actual failed HTTP response. The
         // transport validates it against this operation's host-owned records.
@@ -651,13 +659,15 @@ export class CrossSearchService {
         }
         const previousHandle = this.webChallengeHandles.get(source.sourceId)
         if (previousHandle !== undefined && previousHandle !== guardId) clearSourceRejectedRequest(source.sourceId, previousHandle)
-        section.webChallenge = gate.issue(source.sourceId, 'search', true, current, async (): Promise<void> => {
+        const receipt = gate.issue(source.sourceId, 'search', true, current, async (): Promise<void> => {
           onSectionResolved?.(this.stateSection(`wasm:${source.sourceId}`, source.displayName, 'wasm', 'running'))
           const recovered = await this.searchWasmSource(source, query, run, onSectionResolved, true, guardId)
           if (current()) onSectionResolved?.(recovered.section)
           else if (!run.cancelled) onSectionResolved?.(section)
         }, e.diagnostic.kind === 'challenge', guardId) ?? undefined
-        if (section.webChallenge !== undefined) {
+        if (login) section.authentication = receipt
+        else section.webChallenge = receipt
+        if (receipt !== undefined) {
           this.webChallengeHandles.set(source.sourceId, guardId)
           keepRejectedRequest = true
         }

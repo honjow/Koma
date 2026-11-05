@@ -3,6 +3,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 
 export type SourceMangaStatus = 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
+export type SourceCoverHeaders = Record<string, string>
 
 export interface SourceManga {
   id: string
@@ -12,6 +13,7 @@ export interface SourceManga {
   artist?: string
   description?: string
   coverUrl?: string
+  coverHeaders?: SourceCoverHeaders
   status?: SourceMangaStatus
   contentRating?: string
   tags?: string[]
@@ -56,6 +58,27 @@ interface SourceRuntimeCoverPayload {
   src?: string
   href?: string
   kind?: string
+  headers?: Object
+}
+
+/** An already resolved public cover. Invalid or stateful descriptors use the legacy resolver. */
+export function sourceStaticCoverHeaders(cover: Object | undefined, url: string | undefined): SourceCoverHeaders | undefined {
+  if (cover === undefined || cover === null || Array.isArray(cover) || typeof cover !== 'object' ||
+    url === undefined || !/^https?:\/\/[^\s/?#@]+(?:[/?#][^\s]*)?$/i.test(url)) return undefined
+  const descriptor = cover as Record<string, Object>
+  const raw = descriptor['headers']
+  if (descriptor['kind'] !== 'url' || descriptor['url'] !== url || raw === null || raw === undefined ||
+    typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const headers: SourceCoverHeaders = {}
+  const values = raw as Record<string, Object>
+  for (const name of Object.keys(values)) {
+    const key = name.toLowerCase()
+    const value = values[name]
+    if ((key !== 'accept' && key !== 'referer') || headers[key] !== undefined || typeof value !== 'string' ||
+      value.length === 0 || /[\r\n\u0000]/.test(value)) return undefined
+    headers[key] = value
+  }
+  return headers
 }
 
 interface SourceRuntimeMangaPayload {
@@ -273,6 +296,11 @@ function normalizeTags(payload: SourceRuntimeMangaPayload): string[] | undefined
 
 export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMangaPayload): SourceManga {
   const title = firstNonEmpty([payload.title, payload.subtitle, payload.id]) ?? AppStrings.get('manga_detail_title_fallback')
+  const coverUrl = normalizeSourceImageUrl(firstNonEmpty([
+    payload.cover_url, payload.coverUrl, payload.cover_uri, payload.coverUri, payload.thumbnail, payload.thumbnailUrl,
+    payload.imageUrl, payload.image_url, payload.cover?.url, payload.cover?.uri, payload.cover?.src, payload.cover?.href,
+    payload.image?.url, payload.image?.uri, payload.image?.src, payload.image?.href,
+  ]))
   return {
     id: firstNonEmpty([payload.id, title]) ?? title,
     sourceId,
@@ -280,24 +308,8 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     author: firstNonEmptyList([payload.author, payload.authors]),
     artist: firstNonEmptyList([payload.artist, payload.artists]),
     description: normalizeSourceDisplayText(firstNonEmpty([payload.description, payload.summary, payload.synopsis])),
-    coverUrl: normalizeSourceImageUrl(firstNonEmpty([
-      payload.cover_url,
-      payload.coverUrl,
-      payload.cover_uri,
-      payload.coverUri,
-      payload.thumbnail,
-      payload.thumbnailUrl,
-      payload.imageUrl,
-      payload.image_url,
-      payload.cover === undefined ? undefined : payload.cover.url,
-      payload.cover === undefined ? undefined : payload.cover.uri,
-      payload.cover === undefined ? undefined : payload.cover.src,
-      payload.cover === undefined ? undefined : payload.cover.href,
-      payload.image === undefined ? undefined : payload.image.url,
-      payload.image === undefined ? undefined : payload.image.uri,
-      payload.image === undefined ? undefined : payload.image.src,
-      payload.image === undefined ? undefined : payload.image.href,
-    ])),
+    coverUrl,
+    coverHeaders: sourceStaticCoverHeaders(payload.cover, coverUrl),
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating ?? payload.content_rating),
     tags: normalizeTags(payload),

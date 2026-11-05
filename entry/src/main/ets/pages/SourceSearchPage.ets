@@ -1,3 +1,5 @@
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -144,6 +146,32 @@ export struct SourceSearchPage {
     this.retrySearch()
   }
 
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  private handledAuthenticationRequestSeq: number = 0
+  private authenticationFingerprint(): string {
+    const source = this.currentSource()
+    return JSON.stringify([source.sourceId, source.version, source.wasmByteCount, this.chrome.query,
+      this.viewModel.selectedListingId, this.viewModel.browseFilterValues, this.viewModel.searchFilterValues])
+  }
+  @Monitor('chrome.authenticationRequestSeq')
+  private handleAuthenticationRequest(): void {
+    if (this.chrome.authenticationRequestSeq <= this.handledAuthenticationRequestSeq) return
+    this.handledAuthenticationRequestSeq = this.chrome.authenticationRequestSeq
+    if (!this.chrome.visible || this.currentSource().authentication === undefined) return
+    if (this.canAuthenticateSource()) { this.authenticateSource(); return }
+    const fingerprint = this.authenticationFingerprint()
+    this.authentication = new SourceAuthenticationRequest(this.currentSource().sourceId,
+      (): boolean => this.chrome.visible && this.authenticationFingerprint() === fingerprint,
+      async (): Promise<void> => { this.chrome.markRefreshNeeded(); this.chrome.resume() })
+  }
+
+  private canAuthenticateSource(): boolean {
+    return this.viewModel.searchAuthentication !== null
+  }
+  private authenticateSource(): void {
+    this.authentication = this.viewModel.authenticationRequest('search', (): boolean => this.chrome.visible)
+  }
+
   private canVerifySource(): boolean {
     return this.viewModel.searchNeedsWebSession && (this.currentSource().webSessionOrigins ?? []).length > 0
   }
@@ -265,6 +293,7 @@ export struct SourceSearchPage {
 
   private syncTitleActions(): void {
     const source = this.currentSource()
+    this.chrome.authenticationAvailable = source.enabled && source.authentication !== undefined
     this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
     this.chrome.filtersAvailable = this.hasRuntimeFilters()
   }
@@ -351,12 +380,14 @@ export struct SourceSearchPage {
   @Builder
   private SearchErrorState() {
     KomaEmptyState({
-      title: s('source_search_error_title'),
-      message: this.viewModel.searchErrorMessage === s('search_state_failed') ? '' : this.viewModel.searchErrorMessage,
-      actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
+      title: this.canAuthenticateSource() ? s('source_login_required') : s('source_search_error_title'),
+      message: this.canAuthenticateSource() || this.viewModel.searchErrorMessage === s('search_state_failed')
+        ? '' : this.viewModel.searchErrorMessage,
+      actionLabel: this.canAuthenticateSource() ? s('source_login') : this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: !this.searchFiltersReady || this.query.trim().length > 0,
       action: () => {
-        if (this.canVerifySource()) this.verifySource()
+        if (this.canAuthenticateSource()) this.authenticateSource()
+        else if (this.canVerifySource()) this.verifySource()
         else this.retrySearch()
       },
     })
@@ -505,6 +536,7 @@ export struct SourceSearchPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
           sourceName: this.source.displayName,

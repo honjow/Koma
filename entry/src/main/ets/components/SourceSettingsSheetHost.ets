@@ -1,6 +1,7 @@
 import { AppStrings } from '../i18n/AppStrings'
 import { komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { sourceHasAuthentication } from '../sourceRuntime/SourceAuthenticationService'
 import { SourceSettingDescriptor, SourceSettingsRecord, appSourceSettingsStore,
   loadSourceSettingsDescriptorsAsync } from '../sourceRuntime/SourceSettingsStore'
 import { SourceSettingsSheetContent, sourceSettingsDraft } from './SourceSettingsSheetContent'
@@ -17,10 +18,12 @@ export struct SourceSettingsSheetHost {
   @Local private shown: boolean = false
   @Local private descriptors: SourceSettingDescriptor[] = []
   @Local private draft: SourceSettingsRecord = {}
+  @Local private authenticationAvailable: boolean = false
   private mounted: boolean = false
   private epoch: number = 0
   private handledRequestSeq: number = 0
   private saved: boolean = false
+  private authenticationChanged: boolean = false
 
   aboutToAppear(): void {
     this.mounted = true
@@ -32,7 +35,7 @@ export struct SourceSettingsSheetHost {
     try {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, sourceId)
       if (!this.mounted || sourceId !== this.sourceId) return
-      this.onAvailabilityChanged(result.ready && result.descriptors.length > 0)
+      this.onAvailabilityChanged(result.ready && (result.descriptors.length > 0 || sourceHasAuthentication(sourceId)))
     } catch (_error) {
       if (this.mounted && sourceId === this.sourceId) this.onAvailabilityChanged(false)
     }
@@ -68,12 +71,14 @@ export struct SourceSettingsSheetHost {
       if (!this.mounted || !this.active || epoch !== this.epoch || sourceId !== this.sourceId) return
       if (!result.ready) throw new Error('source_settings_unavailable')
       const descriptors = result.descriptors
-      this.onAvailabilityChanged(descriptors.length > 0)
-      if (descriptors.length === 0) return
+      this.authenticationAvailable = sourceHasAuthentication(sourceId)
+      this.onAvailabilityChanged(descriptors.length > 0 || this.authenticationAvailable)
+      if (descriptors.length === 0 && !this.authenticationAvailable) return
       schemaReady = true
       this.draft = sourceSettingsDraft(descriptors, appSourceSettingsStore.loadForSource(sourceId))
       this.descriptors = descriptors
       this.saved = false
+      this.authenticationChanged = false
       this.shown = true
     } catch (_error) {
       if (!this.mounted || !this.active || epoch !== this.epoch) return
@@ -87,8 +92,9 @@ export struct SourceSettingsSheetHost {
 
   private finishDismissal(): void {
     this.shown = false
-    if (this.saved && this.mounted && this.active) this.onSettingsSaved()
+    if ((this.saved || this.authenticationChanged) && this.mounted && this.active) this.onSettingsSaved()
     this.saved = false
+    this.authenticationChanged = false
   }
 
   @Builder
@@ -98,7 +104,10 @@ export struct SourceSettingsSheetHost {
       settingsSourceName: this.sourceName,
       settingDescriptors: this.descriptors,
       initialDraft: this.draft,
+      authenticationAvailable: this.authenticationAvailable,
+      active: this.active && this.shown,
       onSaved: () => { this.saved = true },
+      onAuthenticationChanged: () => { this.authenticationChanged = true },
       onClose: () => { this.shown = false },
     })
   }
