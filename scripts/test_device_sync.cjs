@@ -103,28 +103,38 @@ test('wire search identity is independent of host language and folds Unicode exp
   assert.equal(data.safeSyncSearch('https://example.test/path-with-key'), false)
 })
 
-test('MangaDex public work proof accepts a romanized primary title and safe alternative titles', async () => {
-  const source = data.MANGADEX_SYNC_SOURCE
-  const manga = '65208a20-4253-42c8-b0e7-56524bbe795b'
-  let attributes = { title: { 'zh-ro': 'Xīngjiǎ Húnjiàng Zhuàn' }, altTitles: [{ en: 'Legend of Star General' }] }
-  const { DeviceSyncPublicSources } = compile('DeviceSyncPublicSource', {
+function publicSourceFixture(source, responseFor) {
+  const version = source === data.MANGADEX_SYNC_SOURCE ? '0.1.25' : '0.1.7'
+  return compile('DeviceSyncPublicSource', {
     '@kit.NetworkKit': { http: { RequestMethod: { GET: 'GET' }, HttpDataType: { ARRAY_BUFFER: 1 }, createHttp: () => ({
       async request(address) {
-        assert.equal(address, `https://api.mangadex.org/manga/${manga}`)
-        const response = { result: 'ok', data: { id: manga, attributes } }
-        return { responseCode: 200, result: new TextEncoder().encode(JSON.stringify(response)).buffer }
+        const response = responseFor(address)
+        const text = typeof response === 'string' ? response : JSON.stringify(response)
+        return { responseCode: 200, result: new TextEncoder().encode(text).buffer }
       },
       destroy() {},
     }) } },
     '@kit.ArkTS': { util: { TextDecoder: { create: () => ({ decodeToString: bytes => new TextDecoder().decode(bytes) }) } } },
     '@kit.CoreFileKit': {},
     '../sourceRuntime/SourceRuntimeAppRegistry': {
-      getInstalledSourcePackage: () => ({ enabled: true, version: '0.1.25', catalogOrigin: data.SYNC_OFFICIAL_CATALOG }),
-      appSourceRuntimeRegistry: { lookup: () => ({ entry: { manifestId: source, manifestVersion: '0.1.25' } }) },
+      getInstalledSourcePackage: () => ({ enabled: true, version, catalogOrigin: data.SYNC_OFFICIAL_CATALOG }),
+      appSourceRuntimeRegistry: { lookup: () => ({ entry: { manifestId: source, manifestVersion: version } }) },
     },
     '../sourceRuntime/SourceIndexMetadata': { resolveIndexDocumentUrl: address => address, subscriptionIdentity: address => address },
     './DeviceSyncData': data,
-    './DeviceSyncWire': { ...wire, syncDigestBytes: () => 'ff51c584cbb49819f073d0718d7b76fe855588717982effe033159096d4caed3' },
+    './DeviceSyncWire': { ...wire, syncDigestBytes: () => source === data.MANGADEX_SYNC_SOURCE ?
+      'ff51c584cbb49819f073d0718d7b76fe855588717982effe033159096d4caed3' :
+      '29e9d902619370397815798f6c8b79fad6b0918012f6b794bfd226bd300a5863' },
+  })
+}
+
+test('MangaDex public work proof accepts a romanized primary title and safe alternative titles', async () => {
+  const source = data.MANGADEX_SYNC_SOURCE
+  const manga = '65208a20-4253-42c8-b0e7-56524bbe795b'
+  let attributes = { title: { 'zh-ro': 'Xīngjiǎ Húnjiàng Zhuàn' }, altTitles: [{ en: 'Legend of Star General' }] }
+  const { DeviceSyncPublicSources } = publicSourceFixture(source, address => {
+    assert.equal(address, `https://api.mangadex.org/manga/${manga}`)
+    return { result: 'ok', data: { id: manga, attributes } }
   })
   const read = () => new DeviceSyncPublicSources().work(source, `mdx:${manga}`, true)
   assert.equal((await read()).title, 'Legend of Star General')
@@ -136,8 +146,29 @@ test('MangaDex public work proof accepts a romanized primary title and safe alte
   assert.equal(await read(), undefined)
 })
 
-test('draft tests and merge failures preserve the active connection error', async () => {
-  const { appDeviceSync: runtime } = compile('DeviceSyncRuntime', {
+test('xkcd page proof crosses nested controls and keeps only direct chapter images in order', async () => {
+  let html = '<div id="content"><div class="randomLink"><a href="/2">Next</a></div>' +
+    '<img id="feed" src="/strip/feed.svg"><img id src="/strip/skip.jpg">' +
+    '<img alt=" src=\'/strip/fake.jpg\'" src="/strip/1.jpg">' +
+    '<div><img src="/strip/not-a-page.jpg"></div><!-- <img src="/strip/comment.jpg"> -->' +
+    '<img src="https://elsewhere.invalid/strip/1.jpg"><img src="/strip/2.jpg"></div>' +
+    '<img src="/strip/outside.jpg">'
+  const source = data.XKCD_SYNC_SOURCE
+  const { DeviceSyncPublicSources } = publicSourceFixture(source, address => {
+    if (address === 'https://xkcd.tw/api/strips.json') return { 1: { title: '桶子之一', img_url: '/strip/1.jpg' } }
+    assert.equal(address, 'https://xkcd.tw/1')
+    return html
+  })
+  const read = () => new DeviceSyncPublicSources().chapter(source, 'xkcd:zh', 'xkcdch:zh:1', true)
+  const proof = await read()
+  assert.deepEqual(proof.normalPages, ['/strip/1.jpg', '/strip/2.jpg'])
+  assert.equal(proof.pages, 2)
+  html = '<div id="content"><div><img src="/strip/1.jpg"></div>'
+  assert.equal(await read(), undefined)
+})
+
+function runtimeFixture(extra = {}) {
+  return compile('DeviceSyncRuntime', {
     '@kit.NetworkKit': {}, '@kit.ArkTS': {},
     '../model/ReaderSessionStore': {}, '../model/SearchHistoryStore': {},
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
@@ -145,7 +176,12 @@ test('draft tests and merge failures preserve the active connection error', asyn
     './DeviceSyncFacts': facts, './DeviceSyncOwners': {}, './DeviceSyncStorage': {},
     './DeviceSyncData': data, './DeviceSyncSignals': {}, './DeviceSyncPublicSource': {},
     '../sourceRuntime/SourceIndexMetadata': {},
-  }, { ObservedV2: value => value, Trace: () => {} })
+    ...extra,
+  }, { ObservedV2: value => value, Trace: () => {} }).appDeviceSync
+}
+
+test('draft tests and merge failures preserve the active connection error', async () => {
+  const runtime = runtimeFixture()
   const draft = { directory: 'https://draft.example.test/', username: '', password: '' }
   let failure = 'sync_authentication_failed'
   const execute = async () => { if (failure) throw new Error(failure) }
@@ -172,6 +208,25 @@ test('draft tests and merge failures preserve the active connection error', asyn
   failure = 'sync_server_storage_full'
   await assert.rejects(runtime.sync(), /sync_server_storage_full/)
   assert.equal(runtime.view.error, 'sync_server_storage_full')
+})
+
+test('received reading distinguishes an installed unverified source from a missing or disabled source', async () => {
+  let installed = { enabled: true }
+  let received = true
+  const runtime = runtimeFixture({
+    '../sourceRuntime/SourceRuntimeAppRegistry': { getInstalledSourcePackage: () => installed },
+    './DeviceSyncPublicSource': { syncHasTrustedPackage: () => false },
+  })
+  runtime.owners = { resumeProof: () => '', receivedReading: () => received }
+  const request = { comicId: 'sample', sourceId: data.MANGADEX_SYNC_SOURCE,
+    mangaId: 'mdx:65208a20-4253-42c8-b0e7-56524bbe795b', chapterId: 'ch:55b179dd-c647-4be8-b57c-204c09e3557e' }
+  assert.equal(await runtime.openReading(request), 'unverified')
+  installed.enabled = false
+  assert.equal(await runtime.openReading(request), 'missing')
+  installed = undefined
+  assert.equal(await runtime.openReading(request), 'missing')
+  received = false
+  assert.equal(await runtime.openReading(request), 'ready')
 })
 
 function engineFixture() {

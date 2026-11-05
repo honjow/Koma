@@ -63,16 +63,24 @@ interface XkcdPublicEntry {
 
 function isPinnedOfficialManifest(source: string, path: string | undefined): boolean {
   if (path === undefined) return false
-  const size = source === MANGADEX_SYNC_SOURCE ? 314 : 513
   const expected = source === MANGADEX_SYNC_SOURCE ?
     'bf834cd800ec054651d7c5e327f82f01a5c344f4a1221ef2406da51ec85cf7fa' :
     'c6d04fc5e7376c8a0d792569699f48a9a5a9a2563e89b24c6575e26c6ec3d71f'
+  const restored = source === MANGADEX_SYNC_SOURCE ?
+    'cc50a58cd2f9e16e8ca52f8dc726f05704c16843bfaeec50c5196aa5fdc94019' :
+    '8cbd712d9f7aff2239829bcb79875db2ca12caf4f1a14b8e5951685c13ac1b38'
   try {
-    if (fs.statSync(path).size !== size) return false
+    const size = fs.statSync(path).size
+    const originalSize = source === MANGADEX_SYNC_SOURCE ? 314 : 513
+    const restoredSize = source === MANGADEX_SYNC_SOURCE ? 839 : 980
+    if (size !== originalSize && size !== restoredSize) return false
     const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     try {
       const data = new Uint8Array(size)
-      return fs.readSync(file.fd, data.buffer) === size && syncDigestBytes(data) === expected
+      if (fs.readSync(file.fd, data.buffer) !== size) return false
+      const hash = syncDigestBytes(data)
+      // Backups store the host-normalized form of the same official package.
+      return hash === expected || hash === restored
     } finally {
       fs.closeSync(file)
     }
@@ -93,8 +101,8 @@ export function syncHasTrustedPackage(source: string): boolean {
   if (syncDigestBytes(registered.wasmBytes) !== expected) return false
   const officialCatalog = installed.catalogOrigin !== undefined &&
     subscriptionIdentity(resolveIndexDocumentUrl(installed.catalogOrigin)) === subscriptionIdentity(SYNC_OFFICIAL_CATALOG)
-  // ZIP compression and metadata can change without altering either release
-  // payload. Require the original manifest and runtime bytes on local imports.
+  // Local imports and normal backup restores must retain an audited manifest
+  // representation and the actual release runtime bytes.
   return officialCatalog || isPinnedOfficialManifest(source, registered.manifestPath)
 }
 
@@ -152,17 +160,47 @@ async function readPublicJson(address: string, max: number): Promise<Object> {
   return JSON.parse(await readPublicText(address, max)) as Object
 }
 
+function htmlTagAttribute(tag: string, name: string): string | undefined {
+  const prefix = /^<\/?[a-z][a-z0-9:-]*/i.exec(tag)
+  if (prefix === null) return undefined
+  const attributes = tag.substring(prefix[0].length, tag.length - 1)
+  const tokens = /([^\s"'<>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
+  let attribute: RegExpExecArray | null
+  while ((attribute = tokens.exec(attributes)) !== null) {
+    if (attribute[1].toLowerCase() === name) return attribute[2] ?? attribute[3] ?? attribute[4] ?? ''
+  }
+  return undefined
+}
+
 function checkedXkcdPagePaths(html: string): string[] {
-  const section = /<div\b[^>]*\bid=["']content["'][^>]*>([\s\S]*?)<\/div>/i.exec(html)
-  if (section === null) return []
-  const images = section[1].match(/<img\b[^>]*>/gi) ?? []
+  const tags = /<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<\/?([a-z][a-z0-9:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi
+  const stack: string[] = []
   const paths: string[] = []
-  images.forEach((image: string): void => {
-    if (/\s+id\s*=/i.test(image)) return
-    const match = /\s+src=["']((?:https:\/\/xkcd\.tw)?\/strip\/[A-Za-z0-9._\/-]+)["']/i.exec(image)
-    if (match !== null) paths.push(match[1].replace(/^https:\/\/xkcd\.tw/, ''))
-  })
-  return paths
+  const voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']
+  let tag: RegExpExecArray | null
+  // Match the source's #content > img:not([id]) selector across nested controls.
+  while ((tag = tags.exec(html)) !== null) {
+    if (tag[2] === undefined) continue
+    const name = tag[2].toLowerCase()
+    if (stack.length === 0) {
+      if (name === 'div' && htmlTagAttribute(tag[0], 'id') === 'content') stack.push(name)
+      continue
+    }
+    if (tag[0].startsWith('</')) {
+      if (stack[stack.length - 1] !== name) return []
+      stack.pop()
+      if (stack.length === 0) return paths
+    } else {
+      if (name === 'img' && stack.length === 1 && htmlTagAttribute(tag[0], 'id') === undefined) {
+        const src = htmlTagAttribute(tag[0], 'src')
+        if (src !== undefined && /^(?:https:\/\/xkcd\.tw)?\/strip\/[A-Za-z0-9._\/-]+$/.test(src)) {
+          paths.push(src.replace(/^https:\/\/xkcd\.tw/, ''))
+        }
+      }
+      if (!voidTags.includes(name) && !/\/\s*>$/.test(tag[0])) stack.push(name)
+    }
+  }
+  return []
 }
 
 /** Match the actual Reader descriptor order, including source-specific quality. */

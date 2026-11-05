@@ -1106,16 +1106,18 @@ struct Index {
     if (requestId !== this.sourceReaderOpenRequest) return
     if (synchronized !== 'ready') {
       const name = nextRequest.sourceName || nextRequest.sourceId
+      const needsSource = synchronized === 'missing' || synchronized === 'unverified'
       const key = synchronized === 'missing' ? 'device_sync_missing_source' :
-        synchronized === 'changed' ? 'device_sync_changed_chapter' : 'device_sync_source_unavailable'
+        synchronized === 'unverified' ? 'device_sync_unverified_source' :
+          synchronized === 'changed' ? 'device_sync_changed_chapter' : 'device_sync_source_unavailable'
       this.getUIContext().showAlertDialog({
         title: AppStrings.get(key).replace('%s', name),
-        message: AppStrings.get('device_sync_saved_location'),
+        message: AppStrings.get(synchronized === 'unverified' ? 'device_sync_unverified_source_detail' : 'device_sync_saved_location'),
         systemMaterial: komaDialogMaterial(),
         primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
-        secondaryButton: { value: AppStrings.get(synchronized === 'missing' ? 'device_sync_find_source' :
+        secondaryButton: { value: AppStrings.get(needsSource ? 'device_sync_find_source' :
           synchronized === 'changed' ? 'device_sync_start_chapter' : 'device_sync_retry'), action: (): void => {
-          if (synchronized === 'missing') {
+          if (needsSource) {
             const recovery: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: nextRequest.sourceId,
               recoverySourceName: name, chrome: new SourceCatalogPageChrome() }
             this.appPathStack.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })

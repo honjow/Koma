@@ -7,7 +7,7 @@ import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import { MAX_SEARCH_HISTORY_COUNT, SearchHistoryEntry } from '../model/SearchHistoryStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
-import { appSourceRuntimeRegistry, InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { appSourceRuntimeRegistry, getInstalledSourcePackage, InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision,
   syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
@@ -343,12 +343,16 @@ class DeviceSyncRuntime {
   }
 
   async openReading(request: SourceReaderSessionRequest, fromStart: boolean = false):
-    Promise<'ready' | 'missing' | 'changed' | 'unavailable'> {
+    Promise<'ready' | 'missing' | 'unverified' | 'changed' | 'unavailable'> {
     this.session = undefined
     const owners = this.owners
     if (owners === undefined || !syncChapterBelongsToSource(request.sourceId, request.mangaId, request.chapterId)) return 'ready'
     const proof = owners.resumeProof(request.comicId, request.chapterId)
-    if (!syncHasTrustedPackage(request.sourceId)) return owners.receivedReading(request.comicId, request.chapterId) ? 'missing' : 'ready'
+    if (!syncHasTrustedPackage(request.sourceId)) {
+      if (!owners.receivedReading(request.comicId, request.chapterId)) return 'ready'
+      const installed = getInstalledSourcePackage(request.sourceId)
+      return installed !== undefined && installed.enabled ? 'unverified' : 'missing'
+    }
     if (proof !== '' && !fromStart) {
       const remote = await owners.publicSources.chapter(request.sourceId, request.mangaId, request.chapterId, true)
       if (remote === undefined) return 'unavailable'
