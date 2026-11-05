@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T01:50:14+08:00",
+  "updatedAt": "2026-11-06T02:17:37+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -114,19 +114,22 @@
       "kind": "active",
       "priority": "用户最新明确要求",
       "owner": "Terra实现列表投影与搜索框；Root真实路径验收",
-      "status": "237管理搜索替换与名称过滤已核，浏览透明代理及角标归属继续修正",
+      "status": "237具名搜索/标题/按钮内角标及阴影已通过，精确代码交付中",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户明确要求源的搜索，并纠正为“在源列表里面搜索需要源”；精确消息时刻未核实。 2026-11-06用户进一步指定管理页参考NextE下载管理，用搜索替换分段并将搜索图标切成关闭；随后要求仅搜索展开时允许标题随列表滚动收起、搜索框保留，精确消息时刻未核实。",
-      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；浏览页切换与恢复仍待实机，管理页具名结果如下，不以编译或局部截图宣布通过。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。",
-      "remaining": "浏览页搜索可见、动画展开/关闭与第二次重入、角标和真实管理按钮共同随标题滚动仍待v10完整实机；管理页既有具名路径已核，新包只补稳定组件ID须核实际落点。两页未搜索时标题保持、其它Tab不残留及原列表位置继续核对，通过后精确提交推送。当前237同一租约验证中，原数据备份保留，结束独立恢复测试数据/电源并释租。",
+      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；浏览页切换与恢复仍待实机，管理页具名结果如下，不以编译或局部截图宣布通过。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。 v10在237实际恢复浏览搜索可见；首次展开、重复开合与标题随滚动隐藏/恢复已按连续原片对应区域亲审，稳定整页图另核。角标现在位于HDS标题树内，并直接包住可点击管理Button；上滑与标题共同收起、下滑共同恢复，关闭搜索恢复常驻标题且列表没有回顶。三个标题按钮与跨History返回路径已核，管理官方组件ID也实际可点击开关搜索。用户随后以078原图指出搜索框阴影在正文边界横向截断，整体仍未通过；边线与新动画Column底边477重合，原标准搜索组件无该clip。现最小候选仅让开合期间裁剪，稳定展开解除裁剪，保持64高度、原边距与系统材质阴影；原因需v11同位置图对照，不把节点或本地状态测试当画面通过。 v11只调整动画裁剪状态；237同位置对照中Search与容器bounds完全相同，稳定展开Column变为clip=false，477底边的硬阶跃消失，系统阴影自然延伸渐淡。初次开与关闭/重入/再关闭连续原片对应区域均已完整亲审，稳定整页另核；保持原64高度、间距和材质，没有加宽加高。原四份数据及registry逐字等、原SLEEP/120000/Override10000已独立读回，租约释放，保留v11测试包。",
+      "remaining": "源列表UI具名验收完成，正在仅提交本项与多语言分类的精确代码/资源/规则/进度；CI与推送按实际结果登记，不混Auth、JM或并行Reader WIP。其他设备形态/大字号未外推。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-host-ui-v1.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-search-ui-v8.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-search-ui-v8-017-browse-open-invisible-search-bounds/layout.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/koma-new-sources-search-ui-v8-19-manager-slot-roundtrip.mp4",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-search-ui-v8-031-movie-stop-browse-scroll-title/screen.jpeg"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-search-ui-v8-031-movie-stop-browse-scroll-title/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v9-root-review.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v10-root-review.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/search-ui-v11-root-review.json"
       ]
     },
     {
@@ -18453,6 +18456,18 @@
       "at": "2026-11-06T01:50:14+08:00",
       "title": "237管理页搜索状态滚动标题与关闭恢复已核",
       "result": "完整连续原片观察主标题随上滑收起、搜索保留，返回关闭后标题和原分段恢复且列表没有回顶；浏览与角标仍未通过。"
+    },
+    {
+      "id": "source-catalog-v10-badge-and-shadow-20261106",
+      "at": "2026-11-06T02:08:47+08:00",
+      "title": "237角标归属及搜索路径已核，保留用户新阴影反例",
+      "result": "实际Badge包可点击管理按钮，随标题共同收起恢复；浏览搜索可见、重复开合及跨Tab路径具名通过。用户指出底边阴影硬分界，仍不提交UI，最小裁剪候选待同位置实测。"
+    },
+    {
+      "id": "source-catalog-v11-shadow-native-and-restore-20261106",
+      "at": "2026-11-06T02:17:37+08:00",
+      "title": "237阴影因果修正与开合通过，原状态恢复并释租",
+      "result": "稳定展开解除多余裁剪后硬边消失，搜索尺寸/间距保持；开合和重入具名原片已审。原源/四数据与电源恢复，保留新包并独立释租；精确代码交付进行中。"
     }
   ],
   "reportAgeAudit": {

@@ -5,7 +5,7 @@ import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/Sour
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsPage } from './ImagePluginsPage'
-import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
+import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
 import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
@@ -813,11 +813,23 @@ export struct SourcePackageManagerPage {
   private packageListGroups(): SourcePackageListGroups {
     const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
     const matches = (entry: SourceIndexEntry): boolean => sourceMatchesCatalogFilters(entry.lang, entry.nsfw, entry.contentRating, filters)
-    const updates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
-    const updating = updates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
-    return { updates, missing: this.missingIndexEntries().filter(matches),
+    const locale = this.languageState.effectiveLocale
+    const matchesName = (id: string, name: string, localizedNames?: Record<string, string>): boolean =>
+      this.chrome.search.query.trim().length === 0 ||
+      sourceMatchesCatalogSearch(this.chrome.search.query, resolveSourceLocalizedName(name, localizedNames, locale), name, localizedNames, id)
+    const allUpdates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
+    const updating = allUpdates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
+    const updates = allUpdates.filter((candidate: SourcePackageUpdateCandidate): boolean => {
+      const entry = candidate.entry
+      const installed = this.installedPackage(entry.id)
+      return matchesName(entry.id, entry.name, entry.localizedNames) || (installed !== undefined &&
+        matchesName(installed.id, installed.name, installed.localizedNames))
+    })
+    return { updates, missing: this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
+      matches(entry) && matchesName(entry.id, entry.name, entry.localizedNames)),
       installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.includes(source.id) &&
-        sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters)) }
+        sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters) &&
+        matchesName(source.id, source.name, source.localizedNames)) }
   }
 
   @Computed
@@ -2569,6 +2581,7 @@ export struct SourcePackageManagerPage {
       Stack() {
         Column() {
           PullRefreshListScaffold({
+            scroller: this.chrome.scroller,
             pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
             listSpace: ThemeConstants.SPACE_MD,
             bottomPadding: ThemeConstants.SPACE_XL,
@@ -2586,7 +2599,10 @@ export struct SourcePackageManagerPage {
             if (this.recoverySourceId.length === 0 &&
               this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {
               ListItem() {
-                if (this.catalogFilters.active) {
+                if (this.chrome.search.query.trim().length > 0) {
+                  KomaEmptyState({ icon: $r('sys.symbol.magnifyingglass'), title: t('source_catalog_search_no_matches'),
+                    message: t('source_catalog_search_hint'), showAction: false })
+                } else if (this.catalogFilters.active) {
                   KomaEmptyState({ icon: $r('sys.symbol.funnel'), title: t('source_catalog_no_matches'),
                     message: t('source_catalog_no_matches_hint'), showAction: false })
                 } else if (this.packages.length === 0) { this.EmptyCard() }
