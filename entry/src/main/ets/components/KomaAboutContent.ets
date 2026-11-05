@@ -12,6 +12,9 @@ import { ReleaseNotesPager } from './ReleaseNotesPager'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 
+// Koma's own community link is user-supplied; do not inherit the reference app's group.
+const KOMA_COMMUNITY_GROUP_URL: string = 'https://qm.qq.com/q/6JvdNTKbpS'
+
 @ComponentV2
 export struct KomaAboutContent {
   @Local appVersion: string = ''
@@ -276,6 +279,14 @@ export struct KomaAboutContent {
     })
   }
 
+  private openCommunityGroup(): void {
+    const want: Want = { action: 'ohos.want.action.viewData', uri: KOMA_COMMUNITY_GROUP_URL }
+    this.ctx().startAbility(want).catch((error: Error) => {
+      DiagnosticLogger.warn('settings', 'about_community_group_open_failed', error.message)
+      this.toast(AppStrings.get('about_community_group_open_failed'))
+    })
+  }
+
   private selectedRelease(): AppRelease | null {
     if (this.releaseHistory.length === 0) {
       return null
@@ -350,7 +361,14 @@ export struct KomaAboutContent {
         trailingText: 'HarmonyOS NEXT',
         showChevron: false,
       })
-
+      this.DividerRow()
+      ConciseListRow({
+        title: AppStrings.get('about_community_group'),
+        subtitle: AppStrings.get('about_community_group_number'),
+        action: () => {
+          this.openCommunityGroup()
+        },
+      })
     }
   }
 

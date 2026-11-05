@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-05T18:23:14+08:00",
+  "updatedAt": "2026-11-05T19:14:23+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "",
   "activity": "跨设备同步核心路径经独立代码、UI及197/103实机核对，两台保留0333正常包并清理测试连接。原图页索引、极端故障与超长列表等验证边界保留在原项。备份门禁及已登记的覆盖缺口仍按各自事项维护。",
@@ -81,6 +81,29 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "ABOUT_COMMUNITY_GROUP_LINK",
+      "title": "关于页添加 Koma 交流群入口",
+      "kind": "done",
+      "priority": "用户明确要求",
+      "owner": "Root",
+      "status": "入口已实现，本地构建通过",
+      "reportedAt": null,
+      "reportedDate": "2026-11-05",
+      "reportedAtSource": "本会话用户要求：在关于页添加一行交流群入口，链接 https://qm.qq.com/q/6JvdNTKbpS，群号 1134776369，群名 Koma漫画阅读器交流群；精确消息时刻未核实。",
+      "result": "关于页应用信息末尾复用现有列表行，显示群名与群号，点击沿系统链接打开方式跳转；失败沿现有提示与诊断日志反馈。设置搜索可按群名、交流群或群号找到关于页入口。三套语言资源检查及 debug assembleHap 通过。",
+      "remaining": "",
+      "boundaries": [
+        "只新增用户指定的 Koma 群入口，保留关于页原布局、更新日志与版本行为。",
+        "本次未操作设备；关于页实际显示、外部 QQ 加群页跳转及返回未实机验证，构建通过不代表这些路径已验收。"
+      ],
+      "evidence": [
+        "entry/src/main/ets/components/KomaAboutContent.ets",
+        "entry/src/main/ets/pages/SettingsPage.ets",
+        "python3 scripts/check_i18n_duplicates.py：3 locales，键集一致且无重复。",
+        "hvigorw --no-daemon --warn --mode module -p product=default -p buildMode=debug -p module=entry@default assembleHap：exit 0。"
+      ]
+    },
     {
       "id": "SOURCE_SCITECHVISTA_MULTI_AUTHOR",
       "title": "科技大观园双作者作品详情误判解析失败",
@@ -7411,6 +7434,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "about-community-group-implemented-20261105",
+      "at": "2026-11-05T19:14:23+08:00",
+      "title": "关于页交流群入口实现并通过本地构建",
+      "detail": "新增用户指定的 Koma 群名、群号及链接，复用原列表行和系统跳转，接入设置搜索；三套语言资源检查及 debug 构建通过。未操作设备，实际加群页面跳转及返回未验。",
+      "itemIds": [
+        "ABOUT_COMMUNITY_GROUP_LINK"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "source-batch1-public-and-host-contract",
       "at": "2026-11-05T14:00:18+08:00",
