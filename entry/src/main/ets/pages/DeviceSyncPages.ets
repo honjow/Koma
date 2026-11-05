@@ -617,7 +617,7 @@ export struct DeviceSyncWebDavPage {
           GroupedListSection({ title: t('device_sync_status') }) {
             ConciseListRow({ title: this.statusTitle(), subtitle: errorText(this.isDraft() ? this.draftError : this.state.error),
               showChevron: false })
-            if (!this.editing && this.state.lastSuccess > 0) {
+            if (!this.isDraft() && this.state.lastSuccess > 0) {
               ListDivider()
               ConciseListRow({ title: t('device_sync_last_success'), subtitle: new Date(this.state.lastSuccess).toLocaleString(),
                 showChevron: false })
