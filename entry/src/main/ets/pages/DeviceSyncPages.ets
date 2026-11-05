@@ -314,7 +314,7 @@ export struct DeviceSyncWebDavPage {
     const draft: SyncConnectionDraft = { directory: this.directory, username: this.username, password: this.password }
     this.discard()
     try {
-      const recovered = await appDeviceSync.test(draft)
+      const recovered = await appDeviceSync.test(draft, this.groups())
       if (!this.visible) return
       if (recovered) {
         this.editing = false

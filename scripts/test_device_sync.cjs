@@ -394,9 +394,38 @@ test('the first connection form retries the exact committed preview before propo
   assert.equal(right.engine.active(), undefined)
   const accepted = structuredClone(server.head)
   const writes = server.published.length
-  assert.equal(await right.engine.testConnection(draft), true)
+  assert.equal(await right.engine.testConnection(draft), false)
+  assert.equal(await right.engine.testConnection(draft, ['shelf']), false)
+  assert.equal(await right.engine.testConnection({ ...draft, password: 'different' }, ['reader-settings']), false)
+  assert.equal(right.engine.active(), undefined)
+  assert.equal(right.values.get('reader-settings').get(mode), '"fit_width"')
+  assert.equal(await right.engine.testConnection(draft, ['reader-settings']), true)
   assert.equal(right.values.get('reader-settings').get(mode), '"contain"')
   assert.equal(right.engine.active().revision, accepted.revision)
   assert.equal(server.published.length, writes)
   assert.deepEqual(server.head, accepted)
+})
+
+test('new credentials and a different group leave an earlier unconfirmed submission isolated', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const mode = data.syncKey(['global', 'image-fit'])
+  const left = replica(A, [['reader-settings', new Map([[mode, '"contain"']])]])
+  const right = replica(B, [['reader-settings', new Map([[mode, '"fit_width"']])]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['reader-settings'])).token, [])
+  await right.engine.testConnection(draft)
+  const preview = await right.engine.prepare(draft, ['reader-settings'])
+  servers.get(draft.directory).failures.push('lost-response')
+  await assert.rejects(right.engine.confirm(preview.token, [{ group: 'reader-settings', key: mode, useLocal: false }]),
+    /sync_remote_result_unknown/)
+  const previous = right.store.load().intent.connection
+  const edited = { ...draft, password: 'different' }
+  assert.equal(await right.engine.testConnection(edited, ['shelf']), false)
+  const shelf = await right.engine.prepare(edited, ['shelf'])
+  assert.equal(shelf.earlierUnconfirmed, 1)
+  await right.engine.confirm(shelf.token, [])
+  const archived = right.store.load().archivedIntents
+  assert.equal(archived[0].connection.manifestHash, previous.manifestHash)
+  assert.equal(archived[0].connection.credential, '')
+  assert.equal(right.values.get('reader-settings').get(mode), '"fit_width"')
 })

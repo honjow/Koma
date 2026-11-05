@@ -183,8 +183,8 @@ class DeviceSyncRuntime {
     }
   }
 
-  test(draft: SyncConnectionDraft): Promise<boolean> {
-    return this.task((): Promise<boolean> => this.needed().testConnection(draft))
+  test(draft: SyncConnectionDraft, selected: SyncGroup[]): Promise<boolean> {
+    return this.task((): Promise<boolean> => this.needed().testConnection(draft, selected))
   }
 
   draft(): Promise<SyncConnectionDraft | undefined> {

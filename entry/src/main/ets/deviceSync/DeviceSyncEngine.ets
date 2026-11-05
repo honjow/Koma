@@ -217,7 +217,7 @@ export class DeviceSyncEngine {
     }
   }
 
-  async testConnection(raw: SyncConnectionDraft): Promise<boolean> {
+  async testConnection(raw: SyncConnectionDraft, input: SyncGroup[] = []): Promise<boolean> {
     const draft = checkedSyncDraft(raw)
     const guard = this.guard(this.generation)
     const credential = util.generateRandomUUID()
@@ -236,8 +236,11 @@ export class DeviceSyncEngine {
     }
     const state = this.storage.load()
     const intent = state.intent
+    const selected = selectedGroups(input)
     if (intent === undefined || !intent.sent || intent.detached ||
-      intent.connection.endpointIdentity !== endpointIdentity(draft)) return false
+      intent.connection.endpointIdentity !== endpointIdentity(draft) || selected.length === 0 ||
+      selected.length !== intent.connection.selected.length ||
+      selected.some((group: SyncGroup): boolean => !intent.connection.selected.includes(group))) return false
     const previousDraft = await readSyncCredential(intent.connection.credential)
     guard()
     if (!sameConnection(previousDraft, draft) || previousDraft.password !== draft.password) return false
@@ -499,7 +502,7 @@ export class DeviceSyncEngine {
   private unconfirmedFromEarlierConnection(endpoint: string, space: string, groups: PreparedGroup[]): number {
     const state = this.storage.load()
     const earlier = (state.archivedIntents ?? []).slice()
-    if (state.intent?.detached) earlier.push(state.intent)
+    if (state.intent?.sent) earlier.push(state.intent)
     const remoteByGroup = new Map<SyncGroup, Map<string, SyncFact>>()
     groups.forEach((row: PreparedGroup): void => { remoteByGroup.set(row.id, bySyncFact(row.remote)) })
     let count = 0
@@ -689,7 +692,7 @@ export class DeviceSyncEngine {
         })
       }
       const detached = state.intent
-      if (detached !== undefined && (detached.detached || detached.connection.endpointIdentity !== endpoint)) {
+      if (detached !== undefined && (detached.sent || detached.detached || detached.connection.endpointIdentity !== endpoint)) {
         const archived: SyncCommitIntent = { connection: copySyncConnection(detached.connection),
           expected: detached.expected, sent: detached.sent, detached: true,
           groupRevisions: detached.groupRevisions, applies: detached.applies }
