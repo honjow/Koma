@@ -6,6 +6,9 @@ import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { FormTitleActionState } from '../state/FormTitleActionState'
+import { ReadingDirection } from '../model/ComicModels'
+import { readerControlDirection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
+import { ReaderPageMode } from '../model/ReaderPreferencesStore'
 import { appDeviceSync, DeviceSyncViewState } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup, SYNC_GROUPS } from '../deviceSync/DeviceSyncFacts'
 import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup, SyncReadingDecision } from '../deviceSync/DeviceSyncEngine'
@@ -74,11 +77,10 @@ function conflictValue(key: string, value: string): string {
   if (kind === 'catalog') return (JSON.parse(value) as SyncSubscription).label || t('device_sync_group_source_subscriptions')
   if (kind === 'book-mode' || (kind === 'global' && parts[1] === 'mode')) {
     const mode = JSON.parse(value) as SyncReaderMode
-    const layout = mode.mode === 'single_page' ? 'reader_page_mode_single' : mode.mode === 'double_page' ? 'reader_page_mode_double' :
-      mode.mode === 'vertical_page' ? 'reader_page_mode_vertical_page' : 'reader_page_mode_continuous'
-    const direction = mode.direction === 'left_to_right' ? 'reader_direction_ltr' :
-      mode.direction === 'right_to_left' ? 'reader_direction_rtl' : 'reader_direction_effective_top_to_bottom'
-    return t(layout) + ' · ' + t(direction)
+    const direction = readerControlDirection({ pageMode: mode.mode as ReaderPageMode, readingDirection: mode.direction as ReadingDirection })
+    const directionText = t(readerControlDirectionLabelKey(direction))
+    if (direction === 'vertical_page' || direction === 'continuous') return directionText
+    return t(mode.mode === 'double_page' ? 'reader_page_mode_double' : 'reader_page_mode_single') + ' · ' + directionText
   }
   if (kind === 'global' && parts[1] === 'image-fit') {
     const fit = JSON.parse(value) as string
@@ -98,7 +100,8 @@ function conflictTitle(conflict: SyncMergeConflict): string {
     if (parts[1] === 'image-fit') return t('settings_row_reader_image_fit_title')
     return t('reader_settings_tab_mode')
   }
-  if (parts[0] === 'book-mode') return t('device_sync_book_reader_mode')
+  if (parts[0] === 'book-mode') return conflict.label === undefined ? t('device_sync_book_reader_mode') :
+    conflict.label + ' · ' + t('reader_settings_tab_mode')
   if (parts[0] === 'book' || parts[0] === 'recent') return conflictValue(conflict.key, conflict.local)
   return t(groupKey(conflict.group))
 }

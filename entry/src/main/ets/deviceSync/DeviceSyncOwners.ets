@@ -287,6 +287,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const identities = this.sourceIdentities(library, reading)
     if (group === 'reader-settings') {
       const preferences = await new ReaderPreferencesStore(this.context).captureDeviceSyncPreferences()
+      const labels: Record<string, string> = {}
       const mode: SyncReaderMode = { mode: preferences.mode.pageMode, direction: preferences.mode.readingDirection }
       row(values, ['global', 'mode'], mode)
       row(values, ['global', 'animation'], preferences.pageTurnAnimation)
@@ -294,15 +295,17 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       row(values, ['global', 'image-fit'], preferences.imageFitMode)
       for (const id of Object.keys(preferences.books)) {
         const identity = identities.get(id)
-        if (identity === undefined || await this.publicSources.work(identity.source, identity.work, verify) === undefined) {
+        const proof = identity === undefined ? undefined : await this.publicSources.work(identity.source, identity.work, verify)
+        if (identity === undefined || proof === undefined) {
           skipped++
           continue
         }
         const book = preferences.books[id]
+        labels[syncKey(['book-mode', identity.source, identity.work])] = proof.title
         row(values, ['book-mode', identity.source, identity.work],
           { mode: book.pageMode, direction: book.readingDirection } as SyncReaderMode)
       }
-      return { values, revision: syncDigest(JSON.stringify(preferences) + rawLibrary + rawReading), skipped }
+      return { values, revision: syncDigest(JSON.stringify(preferences) + rawLibrary + rawReading), skipped, labels }
     }
     for (const progress of reading.progress) {
       const identity = identities.get(progress.comicId)

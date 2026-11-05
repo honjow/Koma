@@ -40,6 +40,7 @@ export interface SyncMergeConflict {
   local: string
   remote: string
   deleted: boolean
+  label?: string
 }
 
 export interface SyncMergeChoice {
@@ -469,7 +470,7 @@ export class DeviceSyncEngine {
         const theirs = syncVisibleValue(fact)
         if (theirs === value) return
         if (entry.requiresPreview || entry.previous?.deferred?.includes(key) === true) conflicts.push({ group: entry.id, key, local: value,
-          remote: theirs ?? '', deleted: theirs === undefined })
+          remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key] })
         if (theirs === undefined) remove++
         else download++
       })

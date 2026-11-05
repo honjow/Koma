@@ -19,6 +19,7 @@ export interface SyncLocalSnapshot {
   skipped: number
   protectedKeys?: string[]
   restoreEdits?: SyncRestoreEdit[]
+  labels?: Record<string, string>
 }
 
 export interface SyncRestoreEdit {

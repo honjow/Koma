@@ -1003,6 +1003,7 @@ export struct SettingsPage {
     if (result.row.key === 'device-sync-webdav') return this.paneTitle('backup') + ' · ' + this.t('device_sync_title')
     const pane = this.paneTitle(result.pane)
     const section = result.sectionTitle
+    if (result.row.key === 'webdav' && section.length > 0 && section !== pane) return pane + ' · ' + section
     return section.length === 0 || pane === section ? pane : `${pane} / ${section}`
   }
 
@@ -2464,7 +2465,8 @@ export struct SettingsPage {
 
   private openSearchResult(result: SettingsSearchResult): void {
     this.getUIContext().getFocusController().clearFocus()
-    if (result.row.key !== 'device-sync' && result.row.key !== 'device-sync-webdav') this.settingsSearchText = ''
+    // Backup and the two WebDAV destinations share a search return path.
+    if (result.pane !== 'backup' && result.row.key !== 'webdav') this.settingsSearchText = ''
     // Search may navigate directly, but must never run a command or change a preference.
     if (result.row.key === 'settings-category') {
       this.onOpenSettingsPane(result.pane)
