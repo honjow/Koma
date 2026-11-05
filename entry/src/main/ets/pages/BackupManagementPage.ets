@@ -71,6 +71,7 @@ interface BackupSaveDraft {
 
 type BackupPreferenceLoadState = 'loading' | 'ready' | 'failed'
 const BACKUP_DISCLOSURE_DURATION_MS: number = 200
+const BACKUP_SECTIONS: string[] = ['backup-actions', 'device-sync', 'backup-files', 'backup-automatic', 'backup-content', 'backup-details']
 
 @ComponentV2
 export struct BackupManagementPage {
@@ -832,11 +833,11 @@ export struct BackupManagementPage {
 
   private positionBackupSection(): void {
     // Search positions the same page without creating, importing or changing a preference.
-    const index = this.searchTarget === 'backup-files' ? 3 :
-      this.searchTarget === 'backup-automatic' ? 4 : this.searchTarget === 'backup-content' ? 5 : 0
-    if (index === 0) return
+    const index = BACKUP_SECTIONS.indexOf(this.searchTarget)
+    if (index < 0) return
     const inset = this.backupSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT + ThemeConstants.SPACE_MD
-    this.backupScroller.scrollToIndex(index, false, ScrollAlign.START, { extraOffset: LengthMetrics.vp(-inset) })
+    // The shared scaffold owns the first spacer item.
+    this.backupScroller.scrollToIndex(index + 1, false, ScrollAlign.START, { extraOffset: LengthMetrics.vp(-inset) })
   }
 
   @Builder
@@ -1281,17 +1282,20 @@ export struct BackupManagementPage {
           listSpace: ThemeConstants.SPACE_LG,
           bottomPadding: ThemeConstants.SPACE_XL,
         }) {
-          ListItem() { this.BackupActions() }
-          ListItem() {
-            GroupedListSection() {
-              ConciseListRow({ title: t('device_sync_title'), subtitle: t('device_sync_entry_detail'),
-                action: (): void => { this.onOpenDeviceSync() } })
+          ForEach(BACKUP_SECTIONS, (section: string) => {
+            ListItem() {
+              if (section === 'backup-actions') this.BackupActions()
+              else if (section === 'device-sync') {
+                GroupedListSection() {
+                  ConciseListRow({ title: t('device_sync_title'), subtitle: t('device_sync_entry_detail'),
+                    action: (): void => { this.onOpenDeviceSync() } })
+                }
+              } else if (section === 'backup-files') this.LocalBackupsCard()
+              else if (section === 'backup-automatic') this.AutomaticBackupCard()
+              else if (section === 'backup-content') this.DomainsCard()
+              else this.TechnicalDetailsCard()
             }
-          }
-          ListItem() { this.LocalBackupsCard() }
-          ListItem() { this.AutomaticBackupCard() }
-          ListItem() { this.DomainsCard() }
-          ListItem() { this.TechnicalDetailsCard() }
+          }, (section: string): string => section)
         }
       }
       .width('100%')

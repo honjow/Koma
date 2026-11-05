@@ -26,6 +26,8 @@ export interface SyncRestoreEdit {
   value: string
   kind: SyncEditKind
   observed?: SyncVersion[]
+  bundle?: string
+  followUp?: string
 }
 
 export interface SyncReadingReceipt {
@@ -38,6 +40,11 @@ export interface SyncReadingRestoreCandidate {
   space: string
   positions: SyncReadingCapture[]
   actions: SyncReadingActionCapture[]
+}
+
+export interface SyncBlockedReading {
+  title: string
+  capture: SyncReadingCapture
 }
 
 export interface SyncPendingEdit {
@@ -105,6 +112,7 @@ export interface SyncLocalDocument {
   retiredCredentials?: string[]
   readingReceipts?: SyncReadingReceipt[]
   readingRestoreCandidates?: SyncReadingRestoreCandidate[]
+  blockedReadings?: SyncBlockedReading[]
 }
 
 export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnection {
@@ -145,7 +153,7 @@ export class DeviceSyncStorage {
       intent: current.intent, probes: current.probes.slice(), localReceipt: current.localReceipt,
       archives: current.archives?.slice(), archivedIntents: current.archivedIntents?.slice(),
       retiredCredentials: current.retiredCredentials?.slice(), readingReceipts: current.readingReceipts?.slice(),
-      readingRestoreCandidates: current.readingRestoreCandidates?.slice() }
+      readingRestoreCandidates: current.readingRestoreCandidates?.slice(), blockedReadings: current.blockedReadings?.slice() }
     change(state)
     this.save(state)
   }

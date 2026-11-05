@@ -252,3 +252,59 @@ test('a pre-restore action stays local until explicitly selected in the merge pr
   await first.engine.confirm(explicit.token, [{ group: 'reading', key, useLocal: true, useBeforeRestore: true }])
   assert.equal(first.values.get('reading').get(key), position(6))
 })
+
+test('restoring a pending unread action resets the corresponding position in the same commit', async () => {
+  const { replica, draft } = engineFixture()
+  const read = data.syncKey(['read', ...data.syncKeyParts(key).slice(1)])
+  const first = replica(A, [['reading', new Map([[key, position(7)], [read, 'true']])]])
+  await first.engine.testConnection(draft)
+  await first.engine.confirm((await first.engine.prepare(draft, ['reading'])).token, [])
+  first.snapshotExtras.set('reading', { restoreEdits: [
+    { key: read, kind: 'reset', value: 'false', bundle: 'unread-action' },
+    { key, kind: 'reset', value: position(0), bundle: 'unread-action' },
+  ] })
+  const preview = await first.engine.prepare(draft, ['reading'])
+  assert.deepEqual(preview.beforeRestore.map(item => item.key), [key])
+  await first.engine.confirm(preview.token, [{ group: 'reading', key, useLocal: true, useBeforeRestore: true }])
+  assert.equal(first.values.get('reading').get(read), 'false')
+  assert.equal(first.values.get('reading').get(key), position(0))
+})
+
+test('a successful backup restore seals an already-sent intent before foreground recovery', async () => {
+  const { replica, draft } = engineFixture()
+  const first = replica(A, [['reading', new Map([[key, position(1)]])]])
+  await first.engine.testConnection(draft)
+  await first.engine.confirm((await first.engine.prepare(draft, ['reading'])).token, [])
+  first.store.update(state => {
+    state.intent = { connection: structuredClone(state.active), sent: true, expected: '"older"',
+      groupRevisions: [{ group: 'reading', revision: JSON.stringify([{ key, value: position(1) }]) }],
+      applies: [{ group: 'reading', changes: [{ key, value: position(5) }] }] }
+  })
+  first.engine.beginRestore()
+  first.engine.finishRestore(true)
+  await first.engine.recoverOnForeground()
+  assert.equal(first.values.get('reading').get(key), position(1))
+  assert.equal(first.store.load().intent.detached, true)
+  assert.equal(first.engine.active().reviewRequired, true)
+})
+
+test('an explicit reading decision observes both concurrently saved page positions', async () => {
+  const { replica, draft } = engineFixture()
+  const left = replica(A, [['reading', new Map([[key, position(1)]])]])
+  const right = replica(B)
+  for (const device of [left, right]) {
+    await device.engine.testConnection(draft)
+    await device.engine.confirm((await device.engine.prepare(draft, ['reading'])).token, [])
+  }
+  left.engine.recordEdits('reading', [{ key, kind: 'set', value: position(3) }])
+  right.engine.recordEdits('reading', [{ key, kind: 'set', value: position(4) }])
+  await left.engine.syncNow()
+  await right.engine.syncNow()
+  assert.deepEqual(new Set(right.engine.readingDecisions()[0].values), new Set([position(3), position(4)]))
+  right.engine.chooseReadingDecision(key, position(3))
+  await right.engine.syncNow()
+  await left.engine.syncNow()
+  assert.equal(left.values.get('reading').get(key), position(3))
+  assert.equal(right.values.get('reading').get(key), position(3))
+  assert.equal(right.engine.readingDecisions().length, 0)
+})

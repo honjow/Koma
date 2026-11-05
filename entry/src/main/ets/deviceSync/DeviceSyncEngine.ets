@@ -3,7 +3,7 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, syncBucketKey, syncKeyParts } from './DeviceSyncData'
+import { checkSyncGroupFact, SyncRecentValue, syncBucketKey, syncKey, syncKeyParts } from './DeviceSyncData'
 import {
   buildSyncDataset, decodeSyncShard, newSyncManifest, syncDatasetBytes, syncDigest, syncShardPath,
   SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
@@ -77,6 +77,12 @@ export interface SyncPreview {
   earlierUnconfirmed: number
 }
 
+export interface SyncReadingDecision {
+  key: string
+  title: string
+  values: string[]
+}
+
 interface PreparedSync {
   preview: SyncPreview
   generation: number
@@ -127,6 +133,13 @@ function conflictChoice(choices: SyncMergeChoice[], group: SyncGroup, key: strin
   return choices.find((choice: SyncMergeChoice): boolean => choice.group === group && choice.key === key)
 }
 
+function restorableEdits(local: SyncLocalSnapshot): SyncRestoreEdit[] {
+  const all = local.restoreEdits ?? []
+  return all.filter((edit: SyncRestoreEdit): boolean => !local.protectedKeys?.includes(edit.key) &&
+    (edit.bundle === undefined || !all.some((related: SyncRestoreEdit): boolean =>
+      edit.bundle === related.bundle && local.protectedKeys?.includes(related.key) === true)))
+}
+
 function replaceGroup(groups: SyncGroupState[], next: SyncGroupState): SyncGroupState[] {
   return groups.filter((group: SyncGroupState): boolean => group.id !== next.id).concat(next)
 }
@@ -137,6 +150,11 @@ function endpointIdentity(draft: SyncConnectionDraft): string {
 
 function sameConnection(a: SyncConnectionDraft, b: SyncConnectionDraft): boolean {
   return a.directory === b.directory && a.username === b.username
+}
+
+function detachedIntent(intent: SyncCommitIntent): SyncCommitIntent {
+  return { connection: intent.connection, expected: intent.expected, sent: intent.sent, detached: true,
+    groupRevisions: intent.groupRevisions, applies: intent.applies }
 }
 
 export class DeviceSyncEngine {
@@ -150,6 +168,7 @@ export class DeviceSyncEngine {
   private restoreInProgress: boolean = false
   private tested?: SyncConnectionDraft
   private restoreBefore?: SyncSavedConnection
+  private restoreBeforeIntent?: SyncCommitIntent
   private readonly groupEpochs: Map<SyncGroup, number> = new Map()
 
   constructor(storage: DeviceSyncStorage, owner: DeviceSyncOwner) {
@@ -411,9 +430,10 @@ export class DeviceSyncEngine {
       let remove = 0
       const local = byLocalValue(entry.local.values)
       const remote = bySyncFact(entry.remote)
-      entry.local.restoreEdits?.forEach((edit: SyncRestoreEdit): void => {
-        if (!entry.local.protectedKeys?.includes(edit.key) && (edit.kind !== 'set' || edit.value !== local.get(edit.key))) {
-          beforeRestore.push({ group: entry.id, key: edit.key, local: edit.value,
+      restorableEdits(entry.local).forEach((edit: SyncRestoreEdit): void => {
+        if ((edit.bundle === undefined || syncKeyParts(edit.key)[0] === 'position') &&
+          (edit.kind !== 'set' || edit.value !== local.get(edit.key))) {
+          beforeRestore.push({ group: entry.id, key: edit.key, local: edit.followUp ?? edit.value,
             remote: local.get(edit.key) ?? '', deleted: edit.kind === 'delete' || edit.kind === 'clear-observed' })
         }
       })
@@ -479,8 +499,18 @@ export class DeviceSyncEngine {
       const deferred = new Set<string>()
       const protectedKeys = new Set<string>(row.local.protectedKeys ?? [])
       const adopted = new Set<string>()
+      const restoreEdits = restorableEdits(row.local)
+      const selectedBundles = new Set<string>()
+      restoreEdits.forEach((edit: SyncRestoreEdit): void => {
+        if (edit.bundle !== undefined && conflictChoice(choices, row.id, edit.key)?.useBeforeRestore === true) {
+          selectedBundles.add(edit.bundle)
+        }
+      })
+      const useBeforeRestore = (edit: SyncRestoreEdit): boolean =>
+        conflictChoice(choices, row.id, edit.key)?.useBeforeRestore === true ||
+        (edit.bundle !== undefined && selectedBundles.has(edit.bundle))
       local.forEach((value: string, key: string): void => {
-        if (protectedKeys.has(key) || conflictChoice(choices, row.id, key)?.useBeforeRestore === true) return
+        if (protectedKeys.has(key) || restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
         if (((row.requiresPreview && remoteFact !== undefined) || row.previous?.deferred?.includes(key) === true) &&
@@ -505,11 +535,12 @@ export class DeviceSyncEngine {
         edits.set(key, updated)
         pending.push({ key, version })
       }
-      row.local.restoreEdits?.forEach((edit: SyncRestoreEdit): void => {
-        if (protectedKeys.has(edit.key) || conflictChoice(choices, row.id, edit.key)?.useBeforeRestore !== true) return
+      restoreEdits.forEach((edit: SyncRestoreEdit): void => {
+        if (!useBeforeRestore(edit)) return
         deferred.delete(edit.key)
         editFact(edit.key, edit.kind, edit.value, remote.get(edit.key),
           edit.kind === 'clear-observed' ? edit.observed : undefined)
+        if (edit.followUp !== undefined) editFact(edit.key, 'set', edit.followUp)
         adopted.add(edit.key)
       })
       local.forEach((value: string, key: string): void => {
@@ -784,8 +815,7 @@ export class DeviceSyncEngine {
       if (active === undefined) return
       if (intent?.connection.space === active.space && active.selected.some((id: SyncGroup): boolean =>
         !selected.includes(id) && intent.connection.selected.includes(id))) {
-        state.intent = { connection: intent.connection, expected: intent.expected, sent: intent.sent,
-          detached: true, groupRevisions: intent.groupRevisions, applies: intent.applies }
+        state.intent = detachedIntent(intent)
       }
       active.selected = selected
     })
@@ -827,6 +857,34 @@ export class DeviceSyncEngine {
     const fact = this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
       ?.facts.find((item: SyncFact): boolean => item.key === key)
     return fact === undefined ? undefined : syncVisibleValue(fact)
+  }
+
+  readingDecisions(): SyncReadingDecision[] {
+    const group = this.active()?.groups.find((row: SyncGroupState): boolean => row.id === 'reading')
+    if (group === undefined || this.readingScope() === '') return []
+    const facts = bySyncFact(group.facts)
+    const decisions: SyncReadingDecision[] = []
+    group.facts.forEach((fact: SyncFact): void => {
+      const parts = syncKeyParts(fact.key)
+      if (parts[0] !== 'recent' && parts[0] !== 'position') return
+      const byPosition = new Map<string, string>()
+      syncVisibleHeads(fact).forEach((edit: SyncEdit): void => {
+        const key = parts[0] === 'recent' ? (JSON.parse(edit.value) as SyncRecentValue).chapter : edit.value
+        byPosition.set(key, edit.value)
+      })
+      const values = Array.from(byPosition.values())
+      if (values.length < 2) return
+      const recent = facts.get(syncKey(['recent', parts[1], parts[2]]))
+      const label = recent === undefined ? undefined : syncVisibleValue(recent)
+      decisions.push({ key: fact.key, title: label === undefined ? '' : (JSON.parse(label) as SyncRecentValue).title, values })
+    })
+    return decisions
+  }
+
+  chooseReadingDecision(key: string, value: string): void {
+    if (!this.readingDecisions().some((decision: SyncReadingDecision): boolean =>
+      decision.key === key && decision.values.includes(value))) throw new Error('sync_preview_changed')
+    this.recordEdits('reading', [{ key, kind: 'set', value }])
   }
 
   recordEdits(group: SyncGroup, actions: DeviceSyncLocalEdit[], receipt?: SyncReadingReceipt): SyncVersion | undefined {
@@ -979,7 +1037,7 @@ export class DeviceSyncEngine {
       state.archives = (state.archives ?? []).filter((item: SyncSavedConnection): boolean =>
         item.endpointIdentity !== archive.endpointIdentity).concat(archive)
       state.retiredCredentials = (state.retiredCredentials ?? []).concat(active.credential)
-      if (state.intent !== undefined) state.intent.detached = true
+      if (state.intent !== undefined) state.intent = detachedIntent(state.intent)
     })
     await this.removeUnusedCredential(active.credential)
   }
@@ -989,13 +1047,16 @@ export class DeviceSyncEngine {
     this.prepared = undefined
     this.restoreInProgress = true
     SYNC_GROUPS.forEach((group: SyncGroup): void => { this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1) })
-    this.restoreBefore = this.active()
-    if (this.restoreBefore !== undefined) {
+    const current = this.storage.load()
+    this.restoreBefore = current.active
+    this.restoreBeforeIntent = current.intent
+    if (this.restoreBefore !== undefined || this.restoreBeforeIntent !== undefined) {
       this.storage.update((state: SyncLocalDocument): void => {
         if (state.active !== undefined) {
           state.active.reviewRequired = true
           state.active.restoreReview = true
         }
+        if (state.intent !== undefined) state.intent = detachedIntent(state.intent)
       })
     }
   }
@@ -1003,12 +1064,17 @@ export class DeviceSyncEngine {
   finishRestore(committed: boolean): void {
     this.restoreInProgress = false
     const prior = this.restoreBefore
+    const priorIntent = this.restoreBeforeIntent
     this.restoreBefore = undefined
-    if (!committed && prior !== undefined) {
+    this.restoreBeforeIntent = undefined
+    if (!committed && (prior !== undefined || priorIntent !== undefined)) {
       this.storage.update((state: SyncLocalDocument): void => {
-        if (state.active?.space === prior.space) {
+        if (prior !== undefined && state.active?.space === prior.space) {
           state.active.reviewRequired = prior.reviewRequired
           state.active.restoreReview = prior.restoreReview
+        }
+        if (priorIntent !== undefined && state.intent?.connection.manifestHash === priorIntent.connection.manifestHash) {
+          state.intent = priorIntent
         }
       })
     }

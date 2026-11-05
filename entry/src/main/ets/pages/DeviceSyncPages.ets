@@ -8,9 +8,10 @@ import { komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { FormTitleActionState } from '../state/FormTitleActionState'
 import { appDeviceSync, DeviceSyncViewState } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup, SYNC_GROUPS } from '../deviceSync/DeviceSyncFacts'
-import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup } from '../deviceSync/DeviceSyncEngine'
+import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup, SyncReadingDecision } from '../deviceSync/DeviceSyncEngine'
 import { SyncConnectionDraft } from '../deviceSync/DeviceSyncWebDav'
-import { SyncLocalValue } from '../deviceSync/DeviceSyncStorage'
+import { SyncBlockedReading, SyncLocalValue } from '../deviceSync/DeviceSyncStorage'
+import { SyncShelfRemoval } from '../deviceSync/DeviceSyncOwners'
 import { syncKeyParts, SyncPositionValue, SyncRecentValue, SyncSubscription, SyncWorkLabel } from '../deviceSync/DeviceSyncData'
 
 function t(key: string): string {
@@ -37,6 +38,7 @@ function errorText(code: string): string {
   if (code === 'sync_remote_result_unknown') return t('device_sync_error_unknown_result')
   if (code === 'sync_catalog_limit') return t('device_sync_error_catalog_limit')
   if (code === 'sync_catalog_unavailable') return t('device_sync_error_catalog_unavailable')
+  if (code === 'sync_public_work_unavailable') return t('device_sync_error_public_work')
   if (code === 'sync_maintenance_running') return t('device_sync_error_maintenance')
   if (code === 'sync_invalid_username' || code === 'sync_credentials_too_long') return t('device_sync_error_credentials')
   if (code === 'sync_select_contents') return t('device_sync_no_selection')
@@ -94,7 +96,7 @@ export struct DeviceSyncOverviewPage {
     ConciseListRow({
       title: t(groupKey(group)), subtitle: t(groupKey(group) + '_detail'),
       hasSwitch: true, showChevron: false, checked: this.state.selected.includes(group),
-      isEnabled: this.state.ready && !this.state.busy,
+      isEnabled: this.state.ready && (!this.state.busy || (this.state.connected && this.state.selected.includes(group))),
       switchAction: (checked: boolean): void => { this.toggle(group, checked) },
     })
   }
@@ -134,6 +136,46 @@ export struct DeviceSyncOverviewPage {
           }
         }
       }
+      if (this.state.shelfRemovals.length > 0) {
+        ListItem() {
+          GroupedListSection({ title: t('device_sync_shelf_removals') }) {
+            ForEach(this.state.shelfRemovals, (item: SyncShelfRemoval, index: number) => {
+              if (index > 0) ListDivider()
+              ConciseListRow({ title: item.title, subtitle: t('device_sync_shelf_removal_detail'), subtitleMaxLines: 4,
+                isEnabled: !this.state.busy, action: (): void => { this.reviewShelfRemoval(item) } })
+            }, (item: SyncShelfRemoval): string => item.id)
+          }
+        }
+      }
+      if (this.state.readingDecisions.length > 0 || this.state.blockedReadings.length > 0) {
+        ListItem() {
+          GroupedListSection({ title: t('device_sync_reading_results') }) {
+            ForEach(this.state.readingDecisions, (item: SyncReadingDecision) => {
+              ConciseListRow({ title: item.title || t('device_sync_group_reading'), subtitle: t('device_sync_reading_conflict'), showChevron: false })
+              ForEach(item.values, (value: string) => {
+                ConciseListRow({ title: conflictValue(item.key, value), subtitle: t('device_sync_apply_reading'),
+                  isEnabled: !this.state.busy && !this.state.needsReview, action: (): void => {
+                    void appDeviceSync.chooseReadingDecision(item.key, value).catch((): void => {})
+                  } })
+              }, (value: string): string => value)
+              ListDivider()
+            }, (item: SyncReadingDecision): string => item.key)
+            ForEach(this.state.blockedReadings, (item: SyncBlockedReading) => {
+              ConciseListRow({ title: item.title || t('device_sync_group_reading'),
+                subtitle: t('device_sync_reading_retained').replace('%s', (item.capture.page + 1).toString()),
+                isEnabled: !this.state.busy && !this.state.needsReview, action: (): void => {
+                  this.getUIContext().showAlertDialog({
+                    title: t('device_sync_apply_reading'), message: t('device_sync_reading_retained_confirmation'),
+                    systemMaterial: komaDialogMaterial(), primaryButton: { value: t('common_cancel'), action: (): void => {} },
+                    secondaryButton: { value: t('common_confirm'), action: (): void => {
+                      void appDeviceSync.recoverBlockedReading(item).catch((): void => {})
+                    } },
+                  })
+                } })
+            }, (item: SyncBlockedReading): string => item.capture.id)
+          }
+        }
+      }
       if (this.state.error.length > 0) {
         ListItem() {
           GroupedListSection() {
@@ -143,6 +185,20 @@ export struct DeviceSyncOverviewPage {
         }
       }
     }
+  }
+
+  private reviewShelfRemoval(item: SyncShelfRemoval): void {
+    void this.getUIContext().getPromptAction().showDialog({
+      title: item.title, message: t('device_sync_shelf_removal_detail'), systemMaterial: komaDialogMaterial(),
+      buttons: [
+        { text: t('device_sync_remove_from_shelf'), color: $r('sys.color.font_emphasize') },
+        { text: t('device_sync_keep_on_shelf'), color: $r('app.color.koma_accent') },
+      ],
+    }).then((result): void => {
+      if (result.index >= 0 && result.index <= 1) {
+        void appDeviceSync.resolveShelfRemoval(item, result.index === 1).catch((): void => {})
+      }
+    }).catch((): void => {})
   }
 }
 
@@ -392,7 +448,9 @@ export struct DeviceSyncWebDavPage {
       }
       ListItem() {
         GroupedListSection({ title: t('device_sync_status') }) {
-          ConciseListRow({ title: stateText(this.state), subtitle: errorText(this.state.error), showChevron: false })
+          ConciseListRow({ title: this.preview !== undefined && !this.state.busy && !this.state.connected ?
+            t('device_sync_waiting_confirmation') : stateText(this.state),
+            subtitle: errorText(this.state.error), showChevron: false })
           if (this.state.lastSuccess > 0) {
             ListDivider()
             ConciseListRow({ title: t('device_sync_last_success'), subtitle: new Date(this.state.lastSuccess).toLocaleString(),

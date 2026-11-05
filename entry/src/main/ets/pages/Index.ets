@@ -180,6 +180,7 @@ import {
   SourceReaderSessionRequest,
   cloneSourceReaderSessionRequest,
   sourceReadHistoryEntryFromRequest,
+  sourceReaderSessionRequestFromHistory,
   sourceReaderSessionRequestForChapter,
 } from '../model/SourceReaderSession'
 import { SourceRuntimeRegistry, sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -998,6 +999,16 @@ struct Index {
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     let comic = this.readerComicForOpen(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
+    if (targetChapterId !== undefined && comic?.sourceRuntimeId &&
+      appDeviceSync.receivedReading(comicId, targetChapterId)) {
+      const history = this.readerSessionStore.getSourceHistory(comicId)
+      const request = history === undefined || history.chapterId !== targetChapterId ? undefined :
+        sourceReaderSessionRequestFromHistory(history)
+      if (request !== undefined) {
+        await this.openSourceReader(request, intent)
+        return
+      }
+    }
     const remoteHistory = this.readerSessionStore.getRemoteHistory(comicId)
     if (comic?.sourceKind === ComicSourceKind.KAVITA_REMOTE && remoteHistory?.kind === 'kavita' && targetChapterId !== undefined) {
       remoteHistory.chapterId = targetChapterId
@@ -1359,6 +1370,7 @@ struct Index {
     // to the shelf, including future Reader close implementations.
     this.readingStatisticsRecorder.close()
     const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
+    appDeviceSync.retainBlockedReading()
     this.cleanupProgressCommitted = committed
     this.readerTrackerProgress?.close(committed)
     this.readerProgressRevision += 1
@@ -3503,7 +3515,7 @@ struct Index {
     if (titleAction.enabled) {
       const content = options['content'] as Record<string, Object>
       const action: Record<string, Object> = { 'label': AppStrings.get('device_sync_confirm_merge'),
-        'icon': $r('sys.symbol.checkmark'), 'isEnabled': !appDeviceSync.view.busy,
+        'type': TextStyleMode.NORMAL, 'isEnabled': !appDeviceSync.view.busy,
         'action': (): void => { titleAction.requestSave() } }
       const item: Record<string, Object> = { 'content': action }
       const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }

@@ -8,11 +8,11 @@ import { MAX_SEARCH_HISTORY_COUNT, SearchHistoryEntry } from '../model/SearchHis
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { appSourceRuntimeRegistry, InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview } from './DeviceSyncEngine'
+import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
-import { KomaDeviceSyncOwners } from './DeviceSyncOwners'
+import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
 import {
-  DeviceSyncStorage, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
+  DeviceSyncStorage, SyncBlockedReading, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
 } from './DeviceSyncStorage'
 import {
   safeSyncSearch, syncChapterBelongsToSource, syncKey, syncKeyParts, syncSearchIdentity, SyncPositionValue,
@@ -37,6 +37,9 @@ export class DeviceSyncViewState {
   @Trace error: string = ''
   @Trace revision: number = 0
   @Trace subscriptions: SyncLocalValue[] = []
+  @Trace shelfRemovals: SyncShelfRemoval[] = []
+  @Trace readingDecisions: SyncReadingDecision[] = []
+  @Trace blockedReadings: SyncBlockedReading[] = []
 }
 
 interface ActiveReadingSync {
@@ -77,6 +80,7 @@ class DeviceSyncRuntime {
   private network?: connection.NetConnection
   private session?: ActiveReadingSync
   private pendingReading?: PendingReadingSync
+  private blockedReading?: PendingReadingSync
   private descriptorUris?: string[]
   private descriptorHash: string = ''
   private recoveredOnForeground: boolean = false
@@ -117,6 +121,7 @@ class DeviceSyncRuntime {
   onForeground(active: boolean): void {
     this.foreground = active
     if (!active) {
+      this.retainBlockedReading()
       if (this.timer >= 0) clearTimeout(this.timer)
       this.timer = -1
       return
@@ -149,6 +154,10 @@ class DeviceSyncRuntime {
     this.view.needsReview = state?.reviewRequired ?? false
     this.view.lastSuccess = state?.lastSuccess ?? 0
     this.view.subscriptions = this.owners?.receivedSubscriptions() ?? []
+    this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
+    this.view.readingDecisions = this.engine?.readingDecisions() ?? []
+    this.view.blockedReadings = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
+      .filter((item: SyncBlockedReading): boolean => item.capture.space === state.space) : []
   }
 
   private needed(): DeviceSyncEngine {
@@ -219,8 +228,30 @@ class DeviceSyncRuntime {
   }
 
   setSelection(selected: SyncGroup[]): void {
-    if (this.view.connected) this.needed().setSelection(selected)
+    if (this.view.connected) {
+      this.needed().setSelection(selected)
+      this.refresh()
+    }
     this.view.selected = selected.slice()
+  }
+
+  resolveShelfRemoval(item: SyncShelfRemoval, keep: boolean): Promise<void> {
+    return this.task(async (): Promise<void> => {
+      const engine = this.needed()
+      const owners = this.owners
+      const scope = engine.groupScope('shelf')
+      if (owners === undefined || scope === '' || !owners.blockedShelfItems().some((row: SyncShelfRemoval): boolean => row.id === item.id)) return
+      if (!keep) {
+        await owners.acceptShelfRemoval(item)
+        return
+      }
+      const work = await owners.publicSources.work(item.source, item.work, true)
+      if (work === undefined) throw new Error('sync_public_work_unavailable')
+      if (scope !== engine.groupScope('shelf')) throw new Error('sync_connection_changed')
+      const label: SyncWorkLabel = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion }
+      engine.recordEdits('shelf', [{ key: syncKey(['book', item.source, item.work]), kind: 'set', value: JSON.stringify(label) }])
+      await engine.syncNow()
+    })
   }
 
   beginRestore(): void {
@@ -279,6 +310,7 @@ class DeviceSyncRuntime {
   }
 
   beginReadingChapter(request: SourceReaderSessionRequest): void {
+    this.retainBlockedReading()
     this.descriptorUris = undefined
     const scope = this.engine?.readingScope() ?? ''
     if (scope === '' || !syncHasTrustedPackage(request.sourceId) ||
@@ -303,7 +335,7 @@ class DeviceSyncRuntime {
     const owners = this.owners
     if (owners === undefined || !syncChapterBelongsToSource(request.sourceId, request.mangaId, request.chapterId)) return 'ready'
     const proof = owners.resumeProof(request.comicId, request.chapterId)
-    if (!syncHasTrustedPackage(request.sourceId)) return proof === '' ? 'ready' : 'missing'
+    if (!syncHasTrustedPackage(request.sourceId)) return owners.receivedReading(request.comicId, request.chapterId) ? 'missing' : 'ready'
     if (proof !== '' && !fromStart) {
       const remote = await owners.publicSources.chapter(request.sourceId, request.mangaId, request.chapterId, true)
       if (remote === undefined) return 'unavailable'
@@ -311,6 +343,10 @@ class DeviceSyncRuntime {
     }
     this.beginReadingChapter(request)
     return 'ready'
+  }
+
+  receivedReading(comicId: string, chapterId: string): boolean {
+    return this.owners?.receivedReading(comicId, chapterId) ?? false
   }
 
   private allowProgress(progress: ReadingProgress): boolean {
@@ -323,7 +359,7 @@ class DeviceSyncRuntime {
 
   observeReading(progress: ReadingProgress, uris: string[]): void {
     const session = this.session
-    if (session === undefined || this.engine?.readingScope() !== session.scope || !this.allowProgress(progress) || session.comicId !== progress.comicId || session.chapter !== progress.chapterId ||
+    if (session === undefined || this.engine?.readingScope() !== session.scope || session.comicId !== progress.comicId || session.chapter !== progress.chapterId ||
       (session.lastPage === progress.pageIndex && session.lastComplete === progress.completed)) return
     session.lastPage = progress.pageIndex
     session.lastComplete = progress.completed
@@ -335,7 +371,65 @@ class DeviceSyncRuntime {
     const observedActions = reader?.pendingDeviceSyncActions().filter((action: SyncReadingActionCapture): boolean =>
       action.source === session.source && action.work === session.work && (action.chapterId === '' || action.chapterId === session.chapter))
       .map((action: SyncReadingActionCapture): string => action.id) ?? []
-    this.pendingReading = { session, progress, id: util.generateRandomUUID(), descriptorHash: this.descriptorHash, observedActions }
+    const pending: PendingReadingSync = { session, progress, id: util.generateRandomUUID(), descriptorHash: this.descriptorHash, observedActions }
+    if (this.allowProgress(progress)) this.pendingReading = pending
+    else this.blockedReading = pending
+  }
+
+  retainBlockedReading(): void {
+    const blocked = this.blockedReading
+    const active = this.engine?.active()
+    if (blocked === undefined || active === undefined || this.engine?.readingScope() !== blocked.session.scope) return
+    const session = blocked.session
+    const progress = blocked.progress
+    const capture: SyncReadingCapture = { id: blocked.id, space: active.space, source: session.source, work: session.work,
+      comicId: session.comicId, chapterId: session.chapter, page: progress.pageIndex, total: progress.totalPages,
+      complete: progress.completed, date: progress.updatedAt, descriptorHash: blocked.descriptorHash,
+      observedActions: blocked.observedActions, positionSeen: session.positionSeen, recentSeen: session.recentSeen,
+      recentCleared: session.recentCleared, readSeen: session.readSeen }
+    try {
+      this.storage?.update((state: SyncLocalDocument): void => {
+        const key = deviceSyncCaptureKey(capture)
+        state.blockedReadings = (state.blockedReadings ?? []).filter((item: SyncBlockedReading): boolean =>
+          deviceSyncCaptureKey(item.capture) !== key).concat({ title: session.title, capture })
+      })
+      this.blockedReading = undefined
+      this.view.blockedReadings = (this.storage?.load().blockedReadings ?? []).filter((item: SyncBlockedReading): boolean =>
+        item.capture.space === active.space)
+    } catch (_error) { this.view.error = 'sync_local_recovery_required' }
+  }
+
+  chooseReadingDecision(key: string, value: string): Promise<void> {
+    return this.task(async (): Promise<void> => {
+      this.needed().chooseReadingDecision(key, value)
+      await this.needed().syncNow()
+    })
+  }
+
+  recoverBlockedReading(item: SyncBlockedReading): Promise<void> {
+    return this.task(async (): Promise<void> => {
+      const capture = item.capture
+      const engine = this.needed()
+      const owners = this.owners
+      const scope = engine.readingScope()
+      if (owners === undefined || scope === '' || capture.space !== engine.active()?.space) throw new Error('sync_connection_changed')
+      const work = await owners.publicSources.work(capture.source, capture.work, true)
+      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true)
+      if (scope !== engine.readingScope()) throw new Error('sync_connection_changed')
+      if (work === undefined || chapter === undefined || capture.total !== chapter.pages ||
+        !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) throw new Error('sync_public_work_unavailable')
+      const position: SyncPositionValue = { page: capture.page, total: chapter.pages, pageTable: chapter.pageTable }
+      const recent: SyncRecentValue = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
+        chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
+      engine.recordEdits('reading', [
+        { key: syncKey(['position', capture.source, capture.work, capture.chapterId]), kind: 'set', value: JSON.stringify(position) },
+        { key: syncKey(['recent', capture.source, capture.work]), kind: 'set', value: JSON.stringify(recent) },
+      ], { key: deviceSyncCaptureKey(capture), id: capture.id })
+      await engine.syncNow()
+      this.storage?.update((state: SyncLocalDocument): void => {
+        state.blockedReadings = state.blockedReadings?.filter((row: SyncBlockedReading): boolean => row.capture.id !== capture.id)
+      })
+    })
   }
 
   private stagePosition(rows: ReadingProgress[]): SyncReadingCapture | undefined {

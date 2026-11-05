@@ -30,8 +30,8 @@ import {
   SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSubscription,
   SyncWorkLabel, syncChapterBelongsToSource, syncKey, syncKeyParts, syncKnownSource, syncPublicLabel, syncSearchIdentity,
 } from './DeviceSyncData'
-import { DeviceSyncStorage, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt, SyncReadingRestoreCandidate,
-  SyncRestoreEdit } from './DeviceSyncStorage'
+import { DeviceSyncStorage, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision, SyncReadingReceipt,
+  SyncReadingRestoreCandidate, SyncRestoreEdit } from './DeviceSyncStorage'
 import { deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncCapturedReadingEdit, SyncReadingActionCapture,
   SyncReadingCapture } from './DeviceSyncSignals'
 import { DeviceSyncPublicSources, SyncPublicWorkProof, syncHasTrustedPackage, matchesPublicSyncPageHash,
@@ -61,6 +61,20 @@ interface SyncResumeProof {
   comicId: string
   chapterId: string
   pageTable: string
+  received?: boolean
+}
+
+export interface SyncShelfRemoval {
+  id: string
+  title: string
+  source: string
+  work: string
+}
+
+interface SyncKeptShelfDetails {
+  id: string
+  notes?: string
+  cover?: string
 }
 
 interface SyncProjection {
@@ -73,6 +87,8 @@ interface SyncProjection {
   categoryOrder?: string[]
   projectedOrder?: string[]
   adoptedSharedCatalog?: boolean
+  keptShelfDetails?: SyncKeptShelfDetails[]
+  receivedRecent?: string[]
 }
 
 interface SyncFileImage {
@@ -368,7 +384,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           const position: SyncPositionValue = { page: 0, total: chapter.pages, pageTable: chapter.pageTable }
           value = JSON.stringify(position)
         }
-        result.set(edit.key, { key: edit.key, value, kind: edit.kind, observed: edit.observed })
+        const previous = result.get(edit.key)
+        if (previous?.bundle !== undefined && edit.kind === 'set') previous.followUp = value
+        else result.set(edit.key, { key: edit.key, value, kind: edit.kind, observed: edit.observed,
+          bundle: action.edits.length > 1 ? action.id : undefined })
         lastAction.set(edit.key, action.id)
       }
     }
@@ -382,7 +401,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
       const save = (key: string, value: string): void => {
         const priorAction = lastAction.get(key)
-        if (priorAction === undefined || capture.observedActions.includes(priorAction)) result.set(key, { key, value, kind: 'set' })
+        if (priorAction !== undefined && !capture.observedActions.includes(priorAction)) return
+        const previous = result.get(key)
+        if (previous?.bundle !== undefined) previous.followUp = value
+        else result.set(key, { key, value, kind: 'set' })
       }
       save(syncKey(['position', capture.source, capture.work, capture.chapterId]), JSON.stringify(position))
       save(syncKey(['recent', capture.source, capture.work]), JSON.stringify(recent))
@@ -440,7 +462,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return value
   }
 
-  private applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument, projection: SyncProjection): void {
+  private applyShelf(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument, projection: SyncProjection,
+    acceptedRemoval: string = ''): void {
     const categories = library.customCategories ?? []
     library.customCategories = categories
     const names = new Set<string>((library.smartCategories ?? []).map(item => libraryCategoryNameKey(item.name)))
@@ -498,18 +521,28 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const existing = library.comics.find((comic: PersistedComic): boolean => comic.id === id)
       if (change.value === '') {
         if (existing === undefined) return
-        if (existing.personalNotes || existing.customCoverUri) {
+        if (id !== acceptedRemoval && (existing.personalNotes || existing.customCoverUri)) {
           if (!projection.blockedShelf.includes(id)) projection.blockedShelf.push(id)
           return
+        }
+        if (id === acceptedRemoval) {
+          projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
+          const details: SyncKeptShelfDetails = { id, notes: existing.personalNotes, cover: existing.customCoverUri }
+          projection.keptShelfDetails = (projection.keptShelfDetails ?? []).filter((entry: SyncKeptShelfDetails): boolean =>
+            entry.id !== id).concat(details)
         }
         library.comics = library.comics.filter((comic: PersistedComic): boolean => comic.id !== id)
       } else if (existing === undefined) {
         const label = JSON.parse(change.value) as SyncWorkLabel
+        const kept = projection.keptShelfDetails?.find((entry: SyncKeptShelfDetails): boolean => entry.id === id)
         library.comics.push({ id, title: label.title, sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
           sourcePath: 'source://' + key[1] + '/' + key[2], sourceRuntimeId: key[1], remoteResourceId: key[2],
           sourceMetadata: { sourceName: label.sourceName }, sortTitle: normalizeSortKey(label.title),
           preferredDirection: ReadingDirection.RIGHT_TO_LEFT, chapters: [], chapterCount: 0, pageCount: 0,
+          personalNotes: kept?.notes, customCoverUri: kept?.cover, coverUri: kept?.cover,
           createdAt: now, updatedAt: now, lastImportedAt: now })
+        if (kept !== undefined) projection.keptShelfDetails = projection.keptShelfDetails?.filter((entry: SyncKeptShelfDetails): boolean =>
+          entry.id !== id)
       } else {
         projection.blockedShelf = projection.blockedShelf.filter((value: string): boolean => value !== id)
       }
@@ -569,7 +602,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         } else {
           const position = JSON.parse(change.value) as SyncPositionValue
           chapter.position = makeProgress(id, key[3], position, chapter.isRead, chapter.position?.updatedAt ?? 0, chapter.position)
-          projection.readingProofs.push({ comicId: id, chapterId: key[3], pageTable: position.pageTable })
+          projection.readingProofs.push({ comicId: id, chapterId: key[3], pageTable: position.pageTable, received: true })
         }
       } else if (key[0] === 'read') {
         chapter.isRead = change.value === 'true'
@@ -592,7 +625,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       snapshot.progress = snapshot.progress.filter((item: ReadingProgress): boolean => item.comicId !== id)
       const oldSource = snapshot.sourceHistory.find((item: SourceReadHistoryEntry): boolean => item.comicId === id)
       snapshot.sourceHistory = snapshot.sourceHistory.filter((item: SourceReadHistoryEntry): boolean => item.comicId !== id)
+      projection.receivedRecent = (projection.receivedRecent ?? []).filter((comic: string): boolean => comic !== id)
       if (change.value === '') return
+      projection.receivedRecent.push(id)
       const value = JSON.parse(change.value) as SyncRecentValue
       const known = snapshot.chapters.find((item: ChapterReadingState): boolean => item.comicId === id && item.chapterId === value.chapter)
       const date = validDate(value.date)
@@ -654,12 +689,15 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     if (before !== after) files.push({ name, before, after })
   }
 
-  async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (id: string) => void): Promise<void> {
+  async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (id: string) => void,
+    acceptedRemoval: string = ''): Promise<void> {
     const reader = appReaderSessionStore(this.context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const readerRevision = reader.currentDeviceSyncRevision()
     try {
     await BackupRestoreActivity.runDeviceSyncCommit(async (): Promise<void> => {
+      const fileNames = [LIBRARY_STORE_PERSISTENCE_FILE_NAME, READER_PROGRESS_PERSISTENCE_FILE_NAME, SYNC_PROJECTION]
+      const admittedFiles = fileNames.map((name: string): string | undefined => readFile(this.path(name)))
       for (const target of expected) {
         if ((await this.snapshot(target.group, false)).revision !== target.revision) throw new Error('sync_local_changed')
       }
@@ -673,7 +711,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         if (group.changes.length === 0) continue
         if (group.group === 'shelf') {
           const library = this.library()
-          this.applyShelf(group.changes, library, projection)
+          this.applyShelf(group.changes, library, projection, acceptedRemoval)
           const json = JSON.stringify(library)
           assertValidLibraryStoreJson(json)
           this.addImage(files, LIBRARY_STORE_PERSISTENCE_FILE_NAME, json)
@@ -711,8 +749,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       try {
         if (nextPreferences !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(nextPreferences)
         if (nextSearch !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(nextSearch)
-        if (reader.currentDeviceSyncRevision() !== readerRevision || files.some((image: SyncFileImage): boolean =>
-          readFile(this.path(image.name)) !== image.before)) throw new Error('sync_local_changed')
+        if (reader.currentDeviceSyncRevision() !== readerRevision || fileNames.some((name: string, index: number): boolean =>
+          readFile(this.path(name)) !== admittedFiles[index])) throw new Error('sync_local_changed')
         // File owners commit synchronously. They can accept ordinary edits
         // while Preferences await, but never interleave with this file phase.
         journal.filesStarted = true
@@ -779,7 +817,34 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
 
   resumeProof(comicId: string, chapterId: string): string {
     return this.projection().readingProofs.find((proof: SyncResumeProof): boolean =>
-      proof.comicId === comicId && proof.chapterId === chapterId)?.pageTable ?? ''
+      proof.received === true && proof.comicId === comicId && proof.chapterId === chapterId)?.pageTable ?? ''
+  }
+
+  blockedShelfItems(): SyncShelfRemoval[] {
+    const pending = this.projection().blockedShelf
+    if (pending.length === 0) return []
+    const rows: SyncShelfRemoval[] = []
+    this.library().comics.forEach((comic: PersistedComic): void => {
+      if (!pending.includes(comic.id)) return
+      const identity = knownWork(comic.sourceRuntimeId, comic.remoteResourceId)
+      if (identity !== undefined) rows.push({ id: comic.id, title: comic.title, source: identity.source, work: identity.work })
+    })
+    return rows
+  }
+
+  receivedReading(comicId: string, chapterId: string): boolean {
+    const projection = this.projection()
+    return projection.receivedRecent?.includes(comicId) === true || projection.readingProofs.some((proof: SyncResumeProof): boolean =>
+      proof.received === true && proof.comicId === comicId && proof.chapterId === chapterId)
+  }
+
+  async acceptShelfRemoval(item: SyncShelfRemoval): Promise<void> {
+    const snapshot = await this.snapshot('shelf', false)
+    if (!this.blockedShelfItems().some((row: SyncShelfRemoval): boolean => row.id === item.id)) return
+    await this.commit([{ group: 'shelf', changes: [{ key: syncKey(['book', item.source, item.work]), value: '' }] }],
+      [{ group: 'shelf', revision: snapshot.revision }], (id: string): void => {
+        this.storage.update((state: SyncLocalDocument): void => { state.localReceipt = id })
+      }, item.id)
   }
 
   sourceIdentity(comicId: string): SyncSourceIdentity | undefined {
