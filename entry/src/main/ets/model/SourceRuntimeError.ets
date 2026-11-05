@@ -10,7 +10,8 @@ export interface SourceFailureDetails {
 
 const SOURCE_FAILURE_CODES: string[] = [
   'timeout', 'network_error', 'http_error', 'region_restricted', 'permission_denied', 'challenge_required', 'auth_required',
-  'unauthorized', 'forbidden', 'rate_limited', 'rate_limit', 'not_found', 'no_chapters', 'server_error', 'client_error', 'parse_error',
+  'unauthorized', 'forbidden', 'paid_chapter', 'chapter_locked', 'chapter_unavailable',
+  'rate_limited', 'rate_limit', 'not_found', 'no_chapters', 'server_error', 'client_error', 'parse_error',
   'invalid_response', 'invalid_json', 'malformed_result', 'result_too_large', 'request_too_large',
   'source_disabled', 'source_changed', 'source_id_not_registered', 'wasm_missing', 'unsupported',
   'unsupported_operation', 'not_implemented', 'not_supported', 'wamr_runtime_error', 'runtime_error', 'source_worker_failed',
@@ -42,13 +43,20 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   }
   let kind = 'runtime'
   if (candidates.includes('challenge_required')) kind = 'challenge'
-  else if (status === 401 || status === 403 || candidates.some((item: string): boolean =>
-    ['permission_denied', 'challenge_required', 'auth_required', 'unauthorized', 'forbidden'].includes(item))) kind = 'access'
+  else if (status === 401 || candidates.some((item: string): boolean =>
+    ['auth_required', 'unauthorized'].includes(item))) kind = 'auth'
+  else if (status === 403 || candidates.some((item: string): boolean =>
+    ['permission_denied', 'forbidden'].includes(item))) kind = 'access'
   else if (status === 429 || candidates.some((item: string): boolean => ['rate_limited', 'rate_limit'].includes(item))) kind = 'rate_limit'
   // A missing response may mean removal or a stale URL, not a confirmed takedown.
   // Never infer it from empty/invalid results, transport errors, or challenge text.
   else if (status === 404 || candidates.includes('not_found')) kind = 'not_found'
   else if (status >= 500 || candidates.includes('server_error')) kind = 'server'
+  // Chapter access states come only from explicit provider outcomes. Never
+  // infer payment/login from an arbitrary error message, missing flags or 403.
+  else if (status === 0 && candidates.includes('paid_chapter')) kind = 'paid_chapter'
+  else if (status === 0 && candidates.includes('chapter_locked')) kind = 'chapter_locked'
+  else if (status === 0 && candidates.includes('chapter_unavailable')) kind = 'chapter_unavailable'
   else if ((status === 0 || status === 400) && candidates.includes('region_restricted')) kind = 'region'
   else if (candidates.includes('timeout')) kind = 'timeout'
   else if (candidates.includes('network_error')) kind = 'network'

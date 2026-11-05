@@ -751,12 +751,6 @@ export class BrowseViewModel {
         this.defaultSourceFilterValues(filters, ''),
         filters,
       )
-      const searchFilterValues = this.mergeSavedSourceFilterValues(
-        source.sourceId,
-        'search',
-        this.defaultSourceFilterValues(filters),
-        filters,
-      )
       // Home and a listing are mutually exclusive destinations (CURRENT_STATUS:
       // SOURCE_BROWSE_HOME_STRUCTURE, user adopted 2026-10-25). An empty selected
       // listing ID denotes Home; refresh must not append/reset to Popular.
@@ -796,7 +790,6 @@ export class BrowseViewModel {
       this.homeAvailable = homeAvailable
       this.publishFilterSchema(filterSchema)
       this.browseFilterValues = browseFilterValues
-      this.searchFilterValues = searchFilterValues
       this.homeSections = listing === undefined ? homeSections : []
       if (listing !== undefined && listingResult !== undefined) {
         this.applyBrowseListing(listing, listingResult, 1)
@@ -954,13 +947,7 @@ export class BrowseViewModel {
 
   async ensureSearchFilters(source: SourceRuntimeRegistryInstalledSourceSummary, persistFilters: boolean = true): Promise<void> {
     this.persistSearchFilters = persistFilters
-    const sourceChanged = this.selectedSource === undefined || this.selectedSource.sourceId !== source.sourceId
-    if (sourceChanged) {
-      this.clearSearch(source)
-      this.filters = []
-      this.browseFilterValues = {}
-      this.searchFilterValues = {}
-    }
+    this.prepareSearchSource(source)
     if (this.filters.length > 0) {
       if (Object.keys(this.searchFilterValues).length === 0) {
         this.searchFilterValues = this.initialSearchFilterValues()
@@ -969,11 +956,32 @@ export class BrowseViewModel {
       return
     }
     const selected = this.selectedSource
+    const requestId = this.searchRequestId
+    const entry = this.registry.lookup(source.sourceId).entry
+    const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
+    const values = this.searchFilterValues
     const schema = await this.loadSourceFilters(source)
-    if (this.selectedSource !== selected) return
+    if (this.selectedSource !== selected || this.searchRequestId !== requestId ||
+      this.registry.lookup(source.sourceId).entry !== entry ||
+      appSourceSettingsStore.revisionForSource(source.sourceId) !== settingsRevision ||
+      this.searchFilterValues !== values || this.persistSearchFilters !== persistFilters) return
     this.publishFilterSchema(schema)
-    this.searchFilterValues = this.initialSearchFilterValues()
-    this.restoreSavedSearchFilterValues(source.sourceId)
+    // An empty schema is still a completed initialization. Central search
+    // preparation must preserve current temporary/legacy values on re-entry.
+    if (Object.keys(this.searchFilterValues).length === 0) {
+      this.searchFilterValues = this.initialSearchFilterValues()
+      this.restoreSavedSearchFilterValues(source.sourceId)
+    }
+  }
+
+  private prepareSearchSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
+    const sourceChanged = this.selectedSource === undefined || this.selectedSource.sourceId !== source.sourceId
+    if (sourceChanged) {
+      this.clearSearch(source)
+      this.filters = []
+      this.browseFilterValues = {}
+      this.searchFilterValues = {}
+    }
   }
 
   setSearchFilterValue(filterId: string, value: SourceFilterValue | undefined): boolean {
@@ -1071,10 +1079,16 @@ export class BrowseViewModel {
   }
 
   async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
+    // In-place Browse search also comes here without ensureSearchFilters.
+    // Search owns its defaults/saved choices; a late Browse listing must never
+    // overwrite them and retire the new search's HTTP guard (237 MangaBall).
+    this.prepareSearchSource(source)
     const entry = this.registry.lookup(source.sourceId).entry
-    const fingerprint = this.searchResultFingerprint(source, query)
+    const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
+    const persistFilters = this.persistSearchFilters
+    let fingerprint = this.searchResultFingerprint(source, query)
     const retained = this.searchResultsIdentity
-    const retainsCurrentResults = this.searchResults.length > 0 && entry !== undefined &&
+    let retainsCurrentResults = this.searchResults.length > 0 && entry !== undefined &&
       retained?.entry === entry && retained.fingerprint === fingerprint
     const requestId = this.searchRequestId + 1
     this.searchRequestId = requestId
@@ -1087,7 +1101,7 @@ export class BrowseViewModel {
     this.searchErrorMessage = ''
     this.searchNeedsWebSession = false
     this.clearWebChallenge('search')
-    const challengeCurrent = this.webChallengeGuard('search')
+    let challengeCurrent = this.webChallengeGuard('search')
     let continueEmptyPage = false
     try {
       const normalizedQuery = query.trim()
@@ -1096,6 +1110,17 @@ export class BrowseViewModel {
         this.hasMoreSearch = false
         return
       }
+      await this.ensureSearchFilters(source, persistFilters)
+      if (requestId !== this.searchRequestId || !this.isCurrentBrowseSource(source) ||
+        this.registry.lookup(source.sourceId).entry !== entry ||
+        appSourceSettingsStore.revisionForSource(source.sourceId) !== settingsRevision ||
+        this.persistSearchFilters !== persistFilters) return
+      fingerprint = this.searchResultFingerprint(source, query)
+      retainsCurrentResults = this.searchResults.length > 0 && entry !== undefined &&
+        retained?.entry === entry && retained.fingerprint === fingerprint
+      this.searchPage = retainsCurrentResults ? retained!.page : 1
+      this.searchNextCursor = retainsCurrentResults ? retained!.cursor : ''
+      challengeCurrent = this.webChallengeGuard('search')
       const result = await this.searchSource(source, normalizedQuery, 1, '', challengeCurrent, operationGuardId)
       if (requestId !== this.searchRequestId) {
         return
