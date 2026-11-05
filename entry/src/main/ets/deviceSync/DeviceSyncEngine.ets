@@ -152,6 +152,19 @@ function replaceGroup(groups: SyncGroupState[], next: SyncGroupState): SyncGroup
   return groups.filter((group: SyncGroupState): boolean => group.id !== next.id).concat(next)
 }
 
+function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup[]): SyncGroupState[] {
+  return groups.map((group: SyncGroupState): SyncGroupState => {
+    const changes = applies.find((value: SyncApplyGroup): boolean => value.group === group.id)?.changes
+    if (changes === undefined || changes.length === 0) return group
+    const baseline = byLocalValue(group.baseline)
+    changes.forEach((change: SyncLocalValue): void => {
+      if (change.value === '') baseline.delete(change.key)
+      else baseline.set(change.key, change.value)
+    })
+    return { id: group.id, facts: group.facts, pending: group.pending, baseline: localValueRows(baseline), deferred: group.deferred }
+  })
+}
+
 function endpointIdentity(draft: SyncConnectionDraft): string {
   return syncDigest(JSON.stringify([draft.directory, draft.username]))
 }
@@ -703,38 +716,9 @@ export class DeviceSyncEngine {
     await this.owner.commit(proposal.applies, proposal.revisions, (localReceipt: string): void => {
       guard()
       if (this.storage.load().counter !== proposal.counter) throw new Error('sync_local_changed')
-      const committed = proposal.remaining.map((group: SyncGroupState): SyncGroupState => {
-        const updates = proposal.applies.find((value: SyncApplyGroup): boolean => value.group === group.id)
-        if (updates === undefined) return group
-        const baseline = byLocalValue(group.baseline)
-        updates.changes.forEach((change: SyncLocalValue): void => {
-          if (change.value === '') baseline.delete(change.key)
-          else baseline.set(change.key, change.value)
-        })
-        const rows: SyncLocalValue[] = []
-        baseline.forEach((value: string, key: string): void => { rows.push({ key, value }) })
-        return { id: group.id, facts: group.facts, pending: group.pending, baseline: rows, deferred: group.deferred }
-      })
+      const committed = applyReceiptBaselines(proposal.remaining, proposal.applies)
       this.storage.update((state: SyncLocalDocument): void => {
-        state.intent = undefined
-        state.localReceipt = localReceipt
-        const replaced = state.active
-        if (replaced !== undefined && replaced.endpointIdentity !== endpoint) {
-          const archived = copySyncConnection(replaced)
-          archived.credential = ''
-          archived.automatic = false
-          state.archives = (state.archives ?? []).filter((entry: SyncSavedConnection): boolean =>
-            entry.endpointIdentity !== archived.endpointIdentity).concat(archived)
-        }
-        const active = copySyncConnection(connection)
-        active.groups = state.active?.space === connection.space ? state.active.groups.slice() : []
-        committed.forEach((group: SyncGroupState): void => { active.groups = replaceGroup(active.groups, group) })
-        active.lastSuccess = Date.now()
-        state.active = active
-        if (previousCredential !== undefined && previousCredential !== credential) {
-          state.retiredCredentials = (state.retiredCredentials ?? []).concat(previousCredential)
-        }
-        state.archives = state.archives?.filter((entry: SyncSavedConnection): boolean => entry.endpointIdentity !== endpoint)
+        this.finishLocalReceipt(state, connection, committed, localReceipt)
         // Only the exact remote dots of the old, same-space plan prove that
         // it was accepted or superseded. A new merge does not stand in for it.
         state.archivedIntents = state.archivedIntents?.filter((entry: SyncCommitIntent): boolean => {
@@ -752,6 +736,29 @@ export class DeviceSyncEngine {
     if (previousCredential !== undefined && previousCredential !== credential) {
       await this.removeUnusedCredential(previousCredential).catch((): void => {})
     }
+  }
+
+  private finishLocalReceipt(state: SyncLocalDocument, connection: SyncSavedConnection,
+    committed: SyncGroupState[], localReceipt: string): void {
+    const replaced = state.active
+    state.intent = undefined
+    state.localReceipt = localReceipt
+    if (replaced !== undefined && replaced.endpointIdentity !== connection.endpointIdentity) {
+      const archived = copySyncConnection(replaced)
+      archived.credential = ''
+      archived.automatic = false
+      state.archives = (state.archives ?? []).filter((entry: SyncSavedConnection): boolean =>
+        entry.endpointIdentity !== archived.endpointIdentity).concat(archived)
+    }
+    const active = copySyncConnection(connection)
+    active.groups = replaced?.space === connection.space ? replaced.groups.slice() : []
+    committed.forEach((group: SyncGroupState): void => { active.groups = replaceGroup(active.groups, group) })
+    active.lastSuccess = Date.now()
+    state.active = active
+    if (replaced !== undefined && replaced.credential !== connection.credential) {
+      state.retiredCredentials = (state.retiredCredentials ?? []).concat(replaced.credential)
+    }
+    state.archives = state.archives?.filter((entry: SyncSavedConnection): boolean => entry.endpointIdentity !== connection.endpointIdentity)
   }
 
   private async acknowledge(provider: DeviceSyncWebDav, connection: SyncSavedConnection, remote: SyncRemoteManifest,
@@ -997,7 +1004,8 @@ export class DeviceSyncEngine {
   }
 
   private async recoverIntent(): Promise<void> {
-    const intent = this.storage.load().intent
+    const starting = this.storage.load()
+    const intent = starting.intent
     if (intent === undefined || intent.detached || this.restoreInProgress) return
     if (!intent.sent) {
       this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
@@ -1059,14 +1067,14 @@ export class DeviceSyncEngine {
       })
       throw new Error('sync_review_required')
     }
+    await this.acknowledge(provider, connection, receipt, guard)
+    const accepted = this.storage.load().intent?.connection.groups ?? connection.groups
+    const committed = applyReceiptBaselines(accepted, intent.applies)
     await this.owner.commit(intent.applies, intent.groupRevisions, (localReceipt: string): void => {
       guard()
+      if (this.storage.load().counter !== starting.counter) throw new Error('sync_local_changed')
       this.storage.update((state: SyncLocalDocument): void => {
-        state.intent = undefined
-        state.localReceipt = localReceipt
-        const active = copySyncConnection(connection)
-        active.lastSuccess = Date.now()
-        state.active = active
+        this.finishLocalReceipt(state, connection, committed, localReceipt)
       })
     })
   }

@@ -12,7 +12,7 @@ import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup, Sync
 import { SyncConnectionDraft } from '../deviceSync/DeviceSyncWebDav'
 import { SyncBlockedReading, SyncLocalValue } from '../deviceSync/DeviceSyncStorage'
 import { SyncShelfRemoval } from '../deviceSync/DeviceSyncOwners'
-import { syncKeyParts, SyncPositionValue, SyncRecentValue, SyncSubscription, SyncWorkLabel } from '../deviceSync/DeviceSyncData'
+import { syncKeyParts, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSubscription, SyncWorkLabel } from '../deviceSync/DeviceSyncData'
 
 function t(key: string): string {
   return AppStrings.get(key)
@@ -72,10 +72,35 @@ function conflictValue(key: string, value: string): string {
   }
   if (kind === 'book') return (JSON.parse(value) as SyncWorkLabel).title
   if (kind === 'catalog') return (JSON.parse(value) as SyncSubscription).label || t('device_sync_group_source_subscriptions')
+  if (kind === 'book-mode' || (kind === 'global' && parts[1] === 'mode')) {
+    const mode = JSON.parse(value) as SyncReaderMode
+    const layout = mode.mode === 'single_page' ? 'reader_page_mode_single' : mode.mode === 'double_page' ? 'reader_page_mode_double' :
+      mode.mode === 'vertical_page' ? 'reader_page_mode_vertical_page' : 'reader_page_mode_continuous'
+    const direction = mode.direction === 'left_to_right' ? 'reader_direction_ltr' :
+      mode.direction === 'right_to_left' ? 'reader_direction_rtl' : 'reader_direction_effective_top_to_bottom'
+    return t(layout) + ' · ' + t(direction)
+  }
+  if (kind === 'global' && parts[1] === 'image-fit') {
+    const fit = JSON.parse(value) as string
+    return t(fit === 'fit_width' ? 'reader_image_fit_width' : fit === 'fit_height' ? 'reader_image_fit_height' : 'reader_image_fit_screen')
+  }
   if (value === 'true') return t('device_sync_value_on')
   if (value === 'false') return t('device_sync_value_off')
   const parsed = JSON.parse(value) as Object
   return typeof parsed === 'string' ? parsed : t('device_sync_changed_value')
+}
+
+function conflictTitle(conflict: SyncMergeConflict): string {
+  const parts = syncKeyParts(conflict.key)
+  if (parts[0] === 'global') {
+    if (parts[1] === 'animation') return t('reader_page_turn_animation_title')
+    if (parts[1] === 'page-number') return t('reader_show_page_number_title')
+    if (parts[1] === 'image-fit') return t('settings_row_reader_image_fit_title')
+    return t('reader_settings_tab_mode')
+  }
+  if (parts[0] === 'book-mode') return t('device_sync_book_reader_mode')
+  if (parts[0] === 'book' || parts[0] === 'recent') return conflictValue(conflict.key, conflict.local)
+  return t(groupKey(conflict.group))
 }
 
 @ComponentV2
@@ -386,8 +411,9 @@ export struct DeviceSyncWebDavPage {
       }
       ForEach(preview.conflicts, (conflict: SyncMergeConflict) => {
         ListDivider()
-        ConciseListRow({ title: t(groupKey(conflict.group)), showChevron: false,
-          subtitle: conflictValue(conflict.key, conflict.local) + ' / ' + conflictValue(conflict.key, conflict.remote) })
+        ConciseListRow({ title: conflictTitle(conflict), showChevron: false, wrapTitle: true, subtitleMaxLines: 6,
+          subtitle: t('device_sync_this_device') + ' · ' + conflictValue(conflict.key, conflict.local) + '\n' +
+            t('device_sync_other_device') + ' · ' + conflictValue(conflict.key, conflict.remote) })
         ConciseListRow({ title: t('device_sync_keep_local'), showChevron: false,
           isEnabled: !this.choices.some((choice: SyncMergeChoice): boolean => choice.key === conflict.key && choice.useLocal),
           action: (): void => { this.choose(conflict, true) } })

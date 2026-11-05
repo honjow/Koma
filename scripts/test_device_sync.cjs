@@ -349,3 +349,31 @@ test('a real preference change keeps its dot through a rejected conditional writ
   await first.engine.syncNow()
   assert.equal(server.published.length, 3, 'the accepted write is not issued again')
 })
+
+test('receipt recovery keeps an independently received preference as remote data', async () => {
+  const { replica, draft, servers } = engineFixture()
+  const pageNumber = data.syncKey(['global', 'page-number'])
+  const animation = data.syncKey(['global', 'animation'])
+  const left = replica(A, [['reader-settings', new Map([[pageNumber, 'true'], [animation, 'true']])]])
+  const right = replica(B)
+  for (const device of [left, right]) {
+    await device.engine.testConnection(draft)
+    await device.engine.confirm((await device.engine.prepare(draft, ['reader-settings'])).token, [])
+  }
+  right.values.get('reader-settings').set(animation, 'false')
+  await right.engine.syncNow()
+  const server = servers.get(draft.directory)
+  server.failures.push('412', 'lost-response')
+  left.values.get('reader-settings').set(pageNumber, 'false')
+  await assert.rejects(left.engine.syncNow(), /sync_network_failed/)
+  const before = structuredClone(server.head)
+  const writes = server.published.length
+  await left.engine.syncNow()
+  assert.equal(left.values.get('reader-settings').get(animation), 'false')
+  assert.equal(server.published.length, writes)
+  assert.deepEqual(server.head, before)
+  const received = server.head.datasets.flatMap(dataset => dataset.shards
+    .flatMap(ref => wire.decodeSyncShard(dataset.id, ref, server.objects.get(wire.syncShardPath(ref)), data.syncBucketKey)))
+    .find(fact => fact.key === animation)
+  assert.equal(received.values[0].version.replica, B)
+})
