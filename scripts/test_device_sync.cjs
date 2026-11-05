@@ -237,6 +237,49 @@ test('first conflict is deferred across runs and a choice for the other device i
   assert.equal(right.engine.active().reviewRequired, false)
 })
 
+test('a deferred book mode stays local even when source verification temporarily omits it', async () => {
+  const { replica, draft } = engineFixture()
+  const bookMode = data.syncKey(['book-mode', ...data.syncKeyParts(key).slice(1, 3)])
+  const local = JSON.stringify({ mode: 'single_page', direction: 'right_to_left' })
+  const other = JSON.stringify({ mode: 'vertical_page', direction: 'right_to_left' })
+  const left = replica(A, [['reader-settings', new Map([[bookMode, other]])]])
+  const right = replica(B, [['reader-settings', new Map([[bookMode, local]])]])
+  for (const device of [left, right]) {
+    await device.engine.testConnection(draft)
+    await device.engine.confirm((await device.engine.prepare(draft, ['reader-settings'])).token, [])
+  }
+  right.snapshotExtras.set('reader-settings', { values: [] })
+  await right.engine.syncNow()
+  assert.equal(right.values.get('reader-settings').get(bookMode), local)
+  assert.equal(right.engine.active().reviewRequired, true)
+  right.snapshotExtras.delete('reader-settings')
+  assert.equal((await right.engine.prepare(draft, ['reader-settings'])).conflicts[0].key, bookMode)
+})
+
+test('category dependencies wait for their choice and disabled legacy conflicts leave other groups running', async () => {
+  const { replica, draft } = engineFixture()
+  const id = '11111111-1111-1111-1111-111111111111'
+  const category = data.syncKey(['category', id])
+  const order = data.syncKey(['order'])
+  const left = replica(A, [['shelf', new Map([[category, '"A"'], [order, JSON.stringify([id])]])]])
+  const right = replica(B, [['shelf', new Map([[category, '"B"']])]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['shelf'])).token, [])
+  await right.engine.testConnection(draft)
+  const preview = await right.engine.prepare(draft, ['shelf', 'reader-settings'])
+  const shelf = preview.groups.find(group => group.group === 'shelf')
+  assert.equal(shelf.download, 0)
+  assert.deepEqual(shelf.dependent, [{ action: 'download', choices: [category] }])
+  await right.engine.confirm(preview.token, [])
+  assert.equal(right.values.get('shelf').has(order), false)
+  right.store.update(state => {
+    state.active.requiresExplicitReview = undefined
+    state.active.selected = ['reader-settings']
+  })
+  await right.engine.syncNow()
+  assert.equal(right.engine.active().reviewRequired, false)
+})
+
 test('an unverified durable Reader edit protects local position without changing the remote head', async () => {
   const { replica, draft, servers } = engineFixture()
   const first = replica(A, [['reading', new Map([[key, position(1)]])]])

@@ -13,7 +13,7 @@ import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, Sy
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
 import {
-  DeviceSyncStorage, SyncBlockedReading, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
+  DeviceSyncStorage, SyncBlockedReading, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
 } from './DeviceSyncStorage'
 import {
   safeSyncSearch, syncChapterBelongsToSource, syncKey, syncKeyParts, syncSearchIdentity, SyncPositionValue,
@@ -154,8 +154,9 @@ class DeviceSyncRuntime {
     this.view.connected = state !== undefined
     if (state !== undefined) this.view.selected = state.selected.slice()
     this.view.automatic = state?.automatic ?? false
-    this.view.needsReview = state?.reviewRequired ?? false
     this.view.requiresExplicitReview = syncRequiresExplicitReview(state)
+    this.view.needsReview = this.view.requiresExplicitReview || (state?.groups.some((group: SyncGroupState): boolean =>
+      state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false)
     this.view.lastSuccess = state?.lastSuccess ?? 0
     this.view.subscriptions = this.owners?.receivedSubscriptions() ?? []
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []

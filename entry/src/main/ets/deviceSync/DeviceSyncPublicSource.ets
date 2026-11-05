@@ -1,5 +1,6 @@
 import { http } from '@kit.NetworkKit'
 import { util, url } from '@kit.ArkTS'
+import { fileIo as fs } from '@kit.CoreFileKit'
 import { appSourceRuntimeRegistry, getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { resolveIndexDocumentUrl, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 import {
@@ -61,11 +62,29 @@ interface XkcdPublicEntry {
 
 const trustedBytes = new Map<string, Uint8Array>()
 
+function isPinnedOfficialArchive(source: string, path: string | undefined): boolean {
+  if (path === undefined) return false
+  const size = source === MANGADEX_SYNC_SOURCE ? 52058 : 37918
+  const expected = source === MANGADEX_SYNC_SOURCE ?
+    '7e81d93932bdd611eafd177a55fc8883538511fb1da3fff80f6dd3657459b0f0' :
+    '2db68bb8857652aa4b6e39766512a544aea4928e2fe6fb1b512c4dfcac1124c2'
+  try {
+    if (fs.statSync(path).size !== size) return false
+    const file = fs.openSync(path, fs.OpenMode.READ_ONLY)
+    try {
+      const data = new Uint8Array(size)
+      return fs.readSync(file.fd, data.buffer) === size && syncDigestBytes(data) === expected
+    } finally {
+      fs.closeSync(file)
+    }
+  } catch (_error) {
+    return false
+  }
+}
+
 export function syncHasTrustedPackage(source: string): boolean {
   const installed = getInstalledSourcePackage(source)
-  if (installed === undefined || installed.catalogOrigin === undefined || !syncSupportedSource(source, installed.version)) return false
-  if (!installed.enabled || subscriptionIdentity(resolveIndexDocumentUrl(installed.catalogOrigin)) !==
-    subscriptionIdentity(SYNC_OFFICIAL_CATALOG)) return false
+  if (installed === undefined || !installed.enabled || !syncSupportedSource(source, installed.version)) return false
   const registered = appSourceRuntimeRegistry.lookup(source).entry
   if (registered === undefined) return false
   const expected = source === MANGADEX_SYNC_SOURCE ?
@@ -74,6 +93,11 @@ export function syncHasTrustedPackage(source: string): boolean {
   const verified = trustedBytes.get(source)
   if (verified === registered.wasmBytes) return true
   if (syncDigestBytes(registered.wasmBytes) !== expected) return false
+  const officialCatalog = installed.catalogOrigin !== undefined &&
+    subscriptionIdentity(resolveIndexDocumentUrl(installed.catalogOrigin)) === subscriptionIdentity(SYNC_OFFICIAL_CATALOG)
+  // A locally imported official archive can prove its distribution even if
+  // the installer did not record the catalog. Match both original artifacts.
+  if (!officialCatalog && !isPinnedOfficialArchive(source, registered.archivePath)) return false
   trustedBytes.set(source, registered.wasmBytes)
   return true
 }

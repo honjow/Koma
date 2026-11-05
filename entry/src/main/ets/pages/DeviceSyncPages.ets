@@ -12,7 +12,8 @@ import { readerControlDirection, readerControlDirectionLabelKey } from '../model
 import { ReaderPageMode } from '../model/ReaderPreferencesStore'
 import { appDeviceSync, DeviceSyncViewState } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup, SYNC_GROUPS } from '../deviceSync/DeviceSyncFacts'
-import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup, SyncReadingDecision } from '../deviceSync/DeviceSyncEngine'
+import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewEffect, SyncPreviewGroup,
+  SyncReadingDecision } from '../deviceSync/DeviceSyncEngine'
 import { SyncConnectionDraft } from '../deviceSync/DeviceSyncWebDav'
 import { SyncBlockedReading, SyncLocalValue } from '../deviceSync/DeviceSyncStorage'
 import { SyncShelfRemoval } from '../deviceSync/DeviceSyncOwners'
@@ -383,6 +384,13 @@ export struct DeviceSyncWebDavPage {
       else if (item.deleted) remove++
       else if (selected !== undefined) download++
       else deferred++
+    })
+    group.dependent.forEach((effect: SyncPreviewEffect): void => {
+      if (!effect.choices.every((key: string): boolean => this.choices.some((choice: SyncMergeChoice): boolean =>
+        choice.group === group.group && choice.key === key))) return
+      if (effect.action === 'upload') upload++
+      else if (effect.action === 'download') download++
+      else remove++
     })
     const parts: string[] = []
     if (upload > 0) parts.push(t('device_sync_summary_upload').replace('%s', upload.toString()))

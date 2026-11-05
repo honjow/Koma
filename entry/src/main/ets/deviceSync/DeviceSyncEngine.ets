@@ -56,6 +56,12 @@ export interface SyncPreviewGroup {
   download: number
   remove: number
   skipped: number
+  dependent: SyncPreviewEffect[]
+}
+
+export interface SyncPreviewEffect {
+  action: 'upload' | 'download' | 'remove'
+  choices: string[]
 }
 
 interface PreparedGroup {
@@ -124,7 +130,7 @@ export function syncRequiresExplicitReview(value: SyncSavedConnection | undefine
   if (value === undefined || !value.reviewRequired) return false
   if (value.requiresExplicitReview !== undefined) return value.requiresExplicitReview
   return value.restoreReview === true || value.lastError === 'sync_remote_committed_locally_changed' ||
-    !value.groups.some((row: SyncGroupState): boolean => value.selected.includes(row.id) && (row.deferred?.length ?? 0) > 0)
+    !value.groups.some((row: SyncGroupState): boolean => (row.deferred?.length ?? 0) > 0)
 }
 
 function byLocalValue(values: SyncLocalValue[]): Map<string, string> {
@@ -156,6 +162,18 @@ function restorableEdits(local: SyncLocalSnapshot): SyncRestoreEdit[] {
       edit.bundle === related.bundle && local.protectedKeys?.includes(related.key) === true)))
 }
 
+function priorConflictRoots(group: PreparedGroup): string[] {
+  return group.previous?.deferredRoots ?? group.previous?.deferred ?? []
+}
+
+function dependsOnConflict(key: string, root: string): boolean {
+  const parts = syncKeyParts(key)
+  const conflict = syncKeyParts(root)
+  return (conflict[0] === 'book' && parts[0] === 'member' && parts[1] === conflict[1] && parts[2] === conflict[2]) ||
+    (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]))) ||
+    (conflict[0] === 'recent' && parts.length === 4 && parts[1] === conflict[1] && parts[2] === conflict[2])
+}
+
 function replaceGroup(groups: SyncGroupState[], next: SyncGroupState): SyncGroupState[] {
   return groups.filter((group: SyncGroupState): boolean => group.id !== next.id).concat(next)
 }
@@ -169,7 +187,8 @@ function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup
       if (change.value === '') baseline.delete(change.key)
       else baseline.set(change.key, change.value)
     })
-    return { id: group.id, facts: group.facts, pending: group.pending, baseline: localValueRows(baseline), deferred: group.deferred }
+    return { id: group.id, facts: group.facts, pending: group.pending, baseline: localValueRows(baseline),
+      deferred: group.deferred, deferredRoots: group.deferredRoots }
   })
 }
 
@@ -473,8 +492,12 @@ export class DeviceSyncEngine {
       let upload = 0
       let download = 0
       let remove = 0
+      const dependent: SyncPreviewEffect[] = []
+      const effects: SyncLocalValue[] = []
       const local = byLocalValue(entry.local.values)
       const remote = bySyncFact(entry.remote)
+      const previous = priorConflictRoots(entry)
+      const unresolved = previous.filter((key: string): boolean => !local.has(key) || entry.local.protectedKeys?.includes(key) === true)
       restorableEdits(entry.local).forEach((edit: SyncRestoreEdit): void => {
         if ((edit.bundle === undefined || syncKeyParts(edit.key)[0] === 'position') &&
           (edit.kind !== 'set' || edit.value !== local.get(edit.key))) {
@@ -487,23 +510,34 @@ export class DeviceSyncEngine {
         const fact = remote.get(key)
         if (key.startsWith('["category",')) categories.push(JSON.parse(value) as string)
         if (fact === undefined) {
-          upload++
+          effects.push({ key, value: 'upload' })
           return
         }
         const theirs = syncVisibleValue(fact)
         if (theirs === value) return
-        if (entry.requiresPreview || entry.previous?.deferred?.includes(key) === true) {
+        if (entry.requiresPreview || previous.includes(key)) {
           conflicts.push({ group: entry.id, key, local: value,
             remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key] })
+          if (theirs !== undefined) unresolved.push(key)
           return
         }
-        if (theirs === undefined) remove++
-        else download++
+        effects.push({ key, value: theirs === undefined ? 'remove' : 'download' })
       })
       remote.forEach((fact: SyncFact, key: string): void => {
-        if (!entry.local.protectedKeys?.includes(key) && !local.has(key) && syncVisibleValue(fact) !== undefined) download++
+        if (!entry.local.protectedKeys?.includes(key) && !local.has(key) && syncVisibleValue(fact) !== undefined) {
+          effects.push({ key, value: 'download' })
+        }
       })
-      return { group: entry.id, upload, download, remove, skipped: entry.local.skipped }
+      effects.forEach((effect: SyncLocalValue): void => {
+        if (unresolved.includes(effect.key)) return
+        const choices = unresolved.filter((root: string): boolean => dependsOnConflict(effect.key, root))
+        if (choices.length > 0) {
+          dependent.push({ action: effect.value as 'upload' | 'download' | 'remove', choices })
+        } else if (effect.value === 'upload') upload++
+        else if (effect.value === 'download') download++
+        else remove++
+      })
+      return { group: entry.id, upload, download, remove, skipped: entry.local.skipped, dependent }
     })
     return { token: util.generateRandomUUID(), groups: summaries, conflicts, freshConnection: fresh, categories, beforeRestore,
       earlierUnconfirmed: 0 }
@@ -547,8 +581,10 @@ export class DeviceSyncEngine {
       const edits = bySyncFact(row.resetBaseline ? [] : row.previous?.facts ?? [])
       const pending = row.resetBaseline ? [] : row.previous?.pending.slice() ?? []
       const pendingBefore = pending.length
-      const deferred = new Set<string>()
       const protectedKeys = new Set<string>(row.local.protectedKeys ?? [])
+      const previousRoots = priorConflictRoots(row)
+      const deferred = new Set<string>(previousRoots.filter((key: string): boolean =>
+        (protectedKeys.has(key) || !local.has(key)) && conflictChoice(choices, row.id, key) === undefined))
       const adopted = new Set<string>()
       const restoreEdits = restorableEdits(row.local)
       const selectedBundles = new Set<string>()
@@ -564,17 +600,13 @@ export class DeviceSyncEngine {
         if (protectedKeys.has(key) || restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
-        if (((row.requiresPreview && remoteFact !== undefined) || row.previous?.deferred?.includes(key) === true) &&
+        if (((row.requiresPreview && remoteFact !== undefined) || previousRoots.includes(key)) &&
           theirs !== undefined && theirs !== value && conflictChoice(choices, row.id, key) === undefined) deferred.add(key)
       })
-      const conflicts = Array.from(deferred).map(syncKeyParts)
+      const conflictRoots = Array.from(deferred)
       const isDeferred = (key: string): boolean => {
         if (deferred.has(key)) return true
-        const parts = syncKeyParts(key)
-        return conflicts.some((conflict: string[]): boolean =>
-          (conflict[0] === 'book' && parts[0] === 'member' && parts[1] === conflict[1] && parts[2] === conflict[2]) ||
-          (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]))) ||
-          (conflict[0] === 'recent' && parts.length === 4 && parts[1] === conflict[1] && parts[2] === conflict[2]))
+        return conflictRoots.some((root: string): boolean => deferred.has(root) && dependsOnConflict(key, root))
       }
       const editFact = (key: string, kind: SyncEditKind, value: string, remoteFact?: SyncFact, observed?: SyncVersion[],
         sharedVersion?: SyncVersion): void => {
@@ -607,7 +639,7 @@ export class DeviceSyncEngine {
         if (isDeferred(key) || protectedKeys.has(key) || adopted.has(key)) return
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
-        const needsDecision = (row.requiresPreview || row.previous?.deferred?.includes(key) === true) &&
+        const needsDecision = (row.requiresPreview || previousRoots.includes(key)) &&
           remoteFact !== undefined && theirs !== value
         const choice = conflictChoice(choices, row.id, key)
         if (needsDecision && (choice?.useLocal === false || (theirs === undefined && choice === undefined))) {
@@ -628,7 +660,7 @@ export class DeviceSyncEngine {
       })
       if (pending.length !== pendingBefore) {
         staged.push({ id: row.id, facts: Array.from(edits.values()), baseline: localValueRows(prior),
-          pending: pending.slice(), deferred: row.previous?.deferred })
+          pending: pending.slice(), deferred: row.previous?.deferred, deferredRoots: row.previous?.deferredRoots })
       }
       const facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
       const changes: SyncLocalValue[] = []
@@ -654,8 +686,9 @@ export class DeviceSyncEngine {
       objects.push(...built.objects)
       const allDeferred = Array.from(new Set<string>(Array.from(deferred)
         .concat(facts.filter((fact: SyncFact): boolean => isDeferred(fact.key)).map((fact: SyncFact): string => fact.key))))
-      groups.push({ id: row.id, facts, baseline, pending, deferred: allDeferred })
-      remaining.push({ id: row.id, facts, baseline, pending: unpublished, deferred: allDeferred })
+      const deferredRoots = Array.from(deferred)
+      groups.push({ id: row.id, facts, baseline, pending, deferred: allDeferred, deferredRoots })
+      remaining.push({ id: row.id, facts, baseline, pending: unpublished, deferred: allDeferred, deferredRoots })
       applies.push({ group: row.id, changes })
       revisions.push({ group: row.id, revision: row.local.revision })
     }
@@ -818,7 +851,8 @@ export class DeviceSyncEngine {
         const remoteFact = facts.get(row.key)
         return remoteFact === undefined || !syncObserves(remoteFact.seen, row.version)
       })
-      groups.push({ id: group.id, facts: group.facts, baseline: group.baseline, pending, deferred: group.deferred })
+      groups.push({ id: group.id, facts: group.facts, baseline: group.baseline, pending,
+        deferred: group.deferred, deferredRoots: group.deferredRoots })
     }
     this.storage.update((state: SyncLocalDocument): void => {
       if (state.intent === undefined) return
@@ -1014,7 +1048,8 @@ export class DeviceSyncEngine {
     if (!changed && receipt === undefined) return
     const rows: SyncLocalValue[] = []
     baseline.forEach((value: string, key: string): void => { rows.push({ key, value }) })
-    const next: SyncGroupState = { id: previous.id, facts: Array.from(facts.values()), pending, baseline: rows, deferred: previous.deferred }
+    const next: SyncGroupState = { id: previous.id, facts: Array.from(facts.values()), pending, baseline: rows,
+      deferred: previous.deferred, deferredRoots: previous.deferredRoots }
     this.storage.update((state: SyncLocalDocument): void => {
       if (changed) {
         state.counter = version.sequence
@@ -1091,7 +1126,8 @@ export class DeviceSyncEngine {
             const currentGroup = value.active?.groups.find((entry: SyncGroupState): boolean => entry.id === group.id)
             if (currentGroup === undefined || value.active === undefined) return
             const combined: SyncGroupState = { id: group.id, facts: mergeSyncFacts(currentGroup.facts, group.facts),
-              baseline: currentGroup.baseline, pending: currentGroup.pending.concat(group.pending), deferred: currentGroup.deferred }
+              baseline: currentGroup.baseline, pending: currentGroup.pending.concat(group.pending), deferred: currentGroup.deferred,
+              deferredRoots: currentGroup.deferredRoots }
             value.active.groups = replaceGroup(value.active.groups, combined)
           })
         }

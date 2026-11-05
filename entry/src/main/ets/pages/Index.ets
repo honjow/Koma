@@ -3523,15 +3523,17 @@ struct Index {
   private deviceSyncTitleBarOpts(chrome: DeviceSyncWebDavChrome): Record<string, Object> {
     const titleAction = chrome.confirm
     const options = this.navDestTitleBarOpts(AppStrings.get(chrome.reviewing ? 'device_sync_merge_review_title' : 'device_sync_webdav'))
-    if (titleAction.enabled) {
-      const content = options['content'] as Record<string, Object>
+    const content = options['content'] as Record<string, Object>
+    const items: Record<string, Object>[] = []
+    if (chrome.reviewing && titleAction.enabled) {
       const action: Record<string, Object> = { 'label': AppStrings.get('device_sync_confirm_merge'),
         'type': TextStyleMode.NORMAL, 'isEnabled': !appDeviceSync.view.busy,
         'action': (): void => { titleAction.requestSave() } }
-      const item: Record<string, Object> = { 'content': action }
-      const menu: Record<string, Object> = { 'value': [item], 'maxCount': 1 }
-      content['menu'] = menu
+      items.push({ 'content': action })
     }
+    // HDS preserves the previous menu when the property is omitted.
+    const menu: Record<string, Object> = { 'value': items, 'maxCount': 1 }
+    content['menu'] = menu
     return options
   }
 

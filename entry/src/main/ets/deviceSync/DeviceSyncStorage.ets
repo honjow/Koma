@@ -59,6 +59,7 @@ export interface SyncGroupState {
   baseline: SyncLocalValue[]
   pending: SyncPendingEdit[]
   deferred?: string[]
+  deferredRoots?: string[]
 }
 
 export interface SyncSavedConnection {
