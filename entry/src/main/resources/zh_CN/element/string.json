@@ -2199,6 +2199,8 @@
     { "name": "device_sync_group_search_history_detail", "value": "公开书源搜索词会原文发送到 WebDAV" },
     { "name": "device_sync_connection", "value": "连接" },
     { "name": "device_sync_status", "value": "状态" },
+    { "name": "device_sync_testing_draft", "value": "正在测试连接" },
+    { "name": "device_sync_draft_not_applied", "value": "草稿尚未应用" },
     { "name": "device_sync_run", "value": "运行" },
     { "name": "device_sync_address", "value": "WebDAV 目录" },
     { "name": "device_sync_user", "value": "用户名" },

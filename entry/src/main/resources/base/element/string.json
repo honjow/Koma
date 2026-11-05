@@ -2199,6 +2199,8 @@
     { "name": "device_sync_group_search_history_detail", "value": "Public-source search terms are sent to WebDAV as entered" },
     { "name": "device_sync_connection", "value": "Connection" },
     { "name": "device_sync_status", "value": "Status" },
+    { "name": "device_sync_testing_draft", "value": "Testing connection" },
+    { "name": "device_sync_draft_not_applied", "value": "Draft not applied" },
     { "name": "device_sync_run", "value": "Run" },
     { "name": "device_sync_address", "value": "WebDAV directory" },
     { "name": "device_sync_user", "value": "Username" },

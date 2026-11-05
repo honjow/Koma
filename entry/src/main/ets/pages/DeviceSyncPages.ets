@@ -265,6 +265,8 @@ export struct DeviceSyncWebDavPage {
   @Local private state: DeviceSyncViewState = appDeviceSync.view
   @Local private editing: boolean = false
   @Local private tested: boolean = false
+  @Local private testingDraft: boolean = false
+  @Local private draftError: string = ''
   @Local private directory: string = ''
   @Local private username: string = ''
   @Local private password: string = ''
@@ -310,6 +312,7 @@ export struct DeviceSyncWebDavPage {
   private edit(): void {
     this.discard()
     this.tested = false
+    this.draftError = ''
     this.editing = true
     void appDeviceSync.draft().then((draft: SyncConnectionDraft | undefined): void => {
       if (!this.visible || !this.editing || draft === undefined) return
@@ -321,7 +324,16 @@ export struct DeviceSyncWebDavPage {
 
   private edited(): void {
     this.tested = false
+    this.draftError = ''
     this.discard()
+  }
+
+  private statusTitle(): string {
+    if (!this.editing) return stateText(this.state)
+    // The active connection can keep syncing while the draft points elsewhere.
+    if (this.testingDraft) return t('device_sync_testing_draft')
+    if (this.draftError !== '') return t('device_sync_needs_attention')
+    return t(this.state.connected ? 'device_sync_draft_not_applied' : 'device_sync_disconnected')
   }
 
   private async previewSaved(): Promise<void> {
@@ -349,6 +361,9 @@ export struct DeviceSyncWebDavPage {
   private async testConnection(): Promise<void> {
     const draft: SyncConnectionDraft = { directory: this.directory, username: this.username, password: this.password }
     this.discard()
+    this.tested = false
+    this.draftError = ''
+    this.testingDraft = true
     try {
       const recovered = await appDeviceSync.test(draft, this.groups())
       if (!this.visible) return
@@ -360,7 +375,10 @@ export struct DeviceSyncWebDavPage {
       }
       this.tested = true
       if (this.groups().length > 0) await this.makePreview(draft)
-    } catch (_error) {
+    } catch (error) {
+      this.draftError = (error as Error).message
+    } finally {
+      this.testingDraft = false
     }
   }
 
@@ -419,7 +437,8 @@ export struct DeviceSyncWebDavPage {
       this.editing = false
       this.tested = false
       this.password = ''
-    } catch (_error) {
+    } catch (error) {
+      if (this.editing) this.draftError = (error as Error).message
     } finally {
       this.discard()
       this.chrome.scroller.scrollEdge(Edge.Top)
@@ -435,6 +454,7 @@ export struct DeviceSyncWebDavPage {
         this.discard()
         void appDeviceSync.disconnect().then((): void => {
           this.editing = true
+          this.draftError = ''
           this.directory = ''
           this.username = ''
           this.password = ''
@@ -585,8 +605,9 @@ export struct DeviceSyncWebDavPage {
         }
         ListItem() {
           GroupedListSection({ title: t('device_sync_status') }) {
-            ConciseListRow({ title: stateText(this.state), subtitle: errorText(this.state.error), showChevron: false })
-            if (this.state.lastSuccess > 0) {
+            ConciseListRow({ title: this.statusTitle(), subtitle: errorText(this.editing ? this.draftError : this.state.error),
+              showChevron: false })
+            if (!this.editing && this.state.lastSuccess > 0) {
               ListDivider()
               ConciseListRow({ title: t('device_sync_last_success'), subtitle: new Date(this.state.lastSuccess).toLocaleString(),
                 showChevron: false })
