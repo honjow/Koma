@@ -87,12 +87,13 @@ export struct BrowsePage {
 
   private toggleSourcePin(id: string): void {
     const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
-    // In this nested list, shared-element transitions duplicate the row
-    // during layout. Apply the group change without moving the scroll offset.
-    void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
-      if (this.active && this.navigationVisible) {
-        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
-      }
+    // Animate the layout change, with no outgoing copy of a source row.
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, (): void => {
+      void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
+        if (this.active && this.navigationVisible) {
+          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
+        }
+      })
     })
   }
 
@@ -275,6 +276,7 @@ export struct BrowsePage {
       accentColor: ThemeConstants.SOURCE_WASM_COLOR, showSearchButton: false, showPinButton: this.catalogFilters.loaded, pinned,
       onSourceTap: (selected: SourceRuntimeRegistryInstalledSourceSummary): void => { this.openSource(selected) },
       onPinToggle: (id: string): void => { this.toggleSourcePin(id) } })
+      .transition(TransitionEffect.IDENTITY)
   }
 
   @Builder
@@ -287,7 +289,7 @@ export struct BrowsePage {
         }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
           sourceDisplayName(source.sourceId, source.displayName)]))
       }
-    }
+    }.transition(TransitionEffect.IDENTITY)
   }
 
   @Builder
@@ -304,7 +306,7 @@ export struct BrowsePage {
           }, (source: SourceRuntimeRegistryInstalledSourceSummary) => JSON.stringify([source.sourceId, source.version,
             sourceDisplayName(source.sourceId, source.displayName)]))
         }
-      }
+      }.transition(TransitionEffect.IDENTITY)
     }, (language: string) => language)
   }
 
