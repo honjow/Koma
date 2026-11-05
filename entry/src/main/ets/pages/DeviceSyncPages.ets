@@ -166,7 +166,7 @@ export struct DeviceSyncOverviewPage {
         }
       }
       ListItem() {
-        GroupedListSection({ title: t('device_sync_contents') }) {
+        GroupedListSection({ title: t('device_sync_contents'), subtitle: t('device_sync_supported_sources') }) {
           ForEach(SYNC_GROUPS, (group: SyncGroup, index: number) => {
             if (index > 0) ListDivider()
             this.DatasetRow(group)
@@ -328,8 +328,15 @@ export struct DeviceSyncWebDavPage {
     this.discard()
   }
 
+  private isDraft(): boolean {
+    const proposed = this.proposedSelection
+    return this.editing || (proposed.length > 0 && (proposed.length !== this.state.selected.length ||
+      proposed.some((group: SyncGroup): boolean => !this.state.selected.includes(group))))
+  }
+
   private statusTitle(): string {
-    if (!this.editing) return stateText(this.state)
+    if (!this.isDraft()) return stateText(this.state)
+    if (!this.editing) return t('device_sync_scope_not_applied')
     // The active connection can keep syncing while the draft points elsewhere.
     if (this.testingDraft) return t('device_sync_testing_draft')
     if (this.draftError !== '') return t('device_sync_needs_attention')
@@ -337,15 +344,17 @@ export struct DeviceSyncWebDavPage {
   }
 
   private async previewSaved(): Promise<void> {
+    if (this.isDraft()) this.draftError = ''
     try {
       const draft = await appDeviceSync.draft()
       if (draft !== undefined) await this.makePreview(draft)
-    } catch (_error) {
+    } catch (error) {
+      if (this.isDraft()) this.draftError = (error as Error).message
     }
   }
 
   private async makePreview(draft: SyncConnectionDraft): Promise<void> {
-    const result = await appDeviceSync.prepare(draft, this.groups(), !this.editing)
+    const result = await appDeviceSync.prepare(draft, this.groups(), !this.isDraft())
     if (!this.visible) {
       appDeviceSync.discard(result.token)
       return
@@ -433,12 +442,12 @@ export struct DeviceSyncWebDavPage {
     const preview = this.preview
     if (preview === undefined) return
     try {
-      await appDeviceSync.confirm(preview.token, this.choices, !this.editing)
+      await appDeviceSync.confirm(preview.token, this.choices, !this.isDraft())
       this.editing = false
       this.tested = false
       this.password = ''
     } catch (error) {
-      if (this.editing) this.draftError = (error as Error).message
+      if (this.isDraft()) this.draftError = (error as Error).message
     } finally {
       this.discard()
       this.chrome.scroller.scrollEdge(Edge.Top)
@@ -521,7 +530,8 @@ export struct DeviceSyncWebDavPage {
   @Builder
   private Review(preview: SyncPreview) {
     ListItem() {
-      GroupedListSection({ title: t('device_sync_review_contents') }) {
+      GroupedListSection({ title: t('device_sync_review_contents'),
+        subtitle: preview.groups.some((row: SyncPreviewGroup): boolean => row.skipped > 0) ? t('device_sync_skipped_detail') : undefined }) {
         ForEach(preview.groups, (row: SyncPreviewGroup, index: number) => {
           if (index > 0) ListDivider()
           ConciseListRow({ title: t(groupKey(row.group)), showChevron: false, subtitle: this.summary(preview, row) })
@@ -605,7 +615,7 @@ export struct DeviceSyncWebDavPage {
         }
         ListItem() {
           GroupedListSection({ title: t('device_sync_status') }) {
-            ConciseListRow({ title: this.statusTitle(), subtitle: errorText(this.editing ? this.draftError : this.state.error),
+            ConciseListRow({ title: this.statusTitle(), subtitle: errorText(this.isDraft() ? this.draftError : this.state.error),
               showChevron: false })
             if (!this.editing && this.state.lastSuccess > 0) {
               ListDivider()
