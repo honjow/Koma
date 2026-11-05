@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T03:29:10+08:00",
+  "updatedAt": "2026-11-06T03:49:38+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -206,12 +206,12 @@
       "kind": "active",
       "priority": "用户指定独立子代理",
       "owner": "new_source_ports独立执行；Root237验收与发布",
-      "status": "8源审计发现的5项图标已处理或补齐；JM新包与列表待237亲审",
+      "status": "JM图标与具名封面已在237核对；其它可用稿保留，未发布新源",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户指出Mihon有哔哩漫画而当前未移植，随后明确要求开子代理负责新移植源；精确消息时刻未核实。 用户随后明确扩大为更多可移植源的检查与实际移植，不止BiliManga。 用户最新明确将哔咔、拷贝漫画、Buon Dua和CosplayTele列入优先移植队列，未指定五源内部排序。 用户随后明确优先真正禁漫天堂JM、绅士会所与紳士漫畫；要求按给定Keiyoushi index.pb和现有Mihon完整源行为直接移植，并反馈JM实测可用。",
-      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。 JM内部V3归档包含额外许可文件，被当前完整Importer真实执行拒为unsafe_archive_entry；原失败保留。V4仅重新封装允许的3项，WASM/manifest/icon逐字不变，许可旁置交付；当前生产完整导入流程的平台适配执行已通过，不冒HarmonyNative。237新租约/新事务备份及唤醒门禁进行中。 用户反馈JM图标后，Root与两执行者已实际逐图审八个新源、13内部包及2公开/镜像包：JM圆角底板/外阴影/外留白未处理；哔咔字标有全白额外底板，且原取图网页为第三方PicaWeb，不能称官方身份已证；哔哩/拷贝/绅士会所尚缺图。Buon/Cosplay/WN本次未见外板/外罩/外阴影，不扩为全部源功能通过。已查原始工具记录，执行者在20:19读到了既有规范，缺陷发生于未执行和主审未拦截，不归咎文档不存在。两仓AGENTS已接入源仓唯一素材规范的双人强制读取与最终包/列表实图亲审流程；正在实际修正五项，不以写规则当完成。JM V4已在237普通导入并核实际WASM/图标，正常搜索和93章目录可见，但封面get_image_request实际失败，未进入Reader或验收。 237已走正常UI删除本次JM，原registry、七文件字节及两项原缺失状态、单独新增导入目录/上传缺失与原电源均读回；保留App，03:14:33释租。未运行Reader或Buon。后续素材图像编辑三稿分别留反例：用户指出JM重画了主体，哔哩稿外缘杂色、绅士会所稿变形，不把用户对JM的否定扩成其它稿的要求。Root已逐图审并写入五项原像素资产：JM与Pica来自同固定上游192原图，移除额外底板/影保原人物字形；哔哩/绅士会所由同固定上游原图提取原粉圆漫/青字；拷贝按实际页面CSS精确取原sprite区域，逐RGBA同。所有保留素材的原RGB像素未改，无生成稿入源或包；Buon/Cosplay/WN原图不动。现规范明确禁止重画主体替代抠背景。JM封面独立真实MID分支已本地修好，238真实封面及Reader原分支回放通过，尚未新包/Native。",
-      "remaining": "先用最终JM新包亲审包内真实图标与237列表，并核新封面和具名正文；其余4项素材通过本地实图，随对应源完成后亲审其最终包及列表。JM私有scope本轮已恢复；Buon双模式及其他优先源功能继续按原队列。",
+      "result": "当前源仓目录及公开发布索引未找到BiliManga。已查上游keiyoushi当前定义，源名嗶哩漫畫、语言zh、地址https://www.bilimanga.net；与B站官方漫画不是同一个源，前者才是本项。新移植按完整参考行为独立实现Rust/WASM，先本地与网页/API足量分层核对，再由Root在237普通入口验收；不改App样式、不创建工作树或项目副本，不把构建或两本成功当全源完成。 已实际建立独立子代理new_source_ports并收到接管回执。范围为上游中文及支持中文的multi源，逐个与当前sourceId/域名/别名去重，核真实可用性和宿主兼容后实际移植；不以候选列表或目录存在当交付。 当前优先组为BiliManga、哔咔、拷贝漫画、Buon Dua、CosplayTele，已实际同步独立执行者。BiliManga及CosplayTele有未发布可编译候选；CosplayTele真实WASM最新入口已返回12张卡，扩大相册及原图样本中。BiliManga搜索Cookie流程和哔咔私密账号输入需要核现有宿主能力，不能把密码放普通设置；拷贝仍核真实参考及许可，Buon Dua首页已实际响应。以上尚无237验收或发布结论。 CosplayTele已核55个去重相册、3204个原图位置及12图解码/10图目视，完整页表和网页解析一致；真实CLI入口已成功，可review候选已冻结，尚未237或公开发布。独立代理继续Buon Dua，不能把本地单源候选index当完整公开索引。 CosplayTele V2已修正文网络失败分类、严格JSON输入与owner、精确HostFeature判定，保持55作/3204位置；旧包保留，尚未实机或公开。Buon已完成55相册269网页/4888位置拆合模式对照，现沿既有章节排除合同完善普通设置双向切换，Host专属限流已本地实现但新HAP未构建/实机；旧CLI成功发生在加门控前，最终不冒真实限流支持。拷贝已找到完整固定Apache参考，并取得公开列表、搜索与402条目录；正文仍为空键/独立API210，未绕取。BiliCookie与哔咔私密输入仍按真实缺口推进，不把部分metadata或编译当可用移植。 已解码用户指定Keiyoushi GZIP Protobuf索引，真实条目含禁漫天堂、HANMAN18、绅士会所、紳士漫畫，名称与站点身份分别核对。JM独立匿名WASM已实际运行，目录/搜索/详情/章节/页表API成功且已有70部以上完整分层作品；真实数据库明文错误和TLS失败保留，不算通过。Root已确定独立必需解扰能力合同及选定API域的3请求/2秒限流边界，Host实现尚未完成，未冒已可直接阅读或已安装。其余候选冻结范围保留，八源互不因单个账号/API缺口停工。 JM匿名V2已按真实75作品分层取样保73完整成功（55热门、10最新、8搜索），4842原章节／9142页位置独立核对；两作数据库异常与三次TLS失败独立保留，不算健康。229次既有成功操作原体回放与66个身份／错误边界已核，图片请求补PID与URI章归属，实际12不同作品中间图含8解扰与4旧aid无hint。Host解扰核心8张真实图逐像素等于独立参考，主线程整图I/O已移至后台，离线canonical标记避免重复解扰；真实Harmony解码与完整消费者尚待统一HAP和237，不声明已可Native阅读。CosplayTele237新事务已独立备份，原机无该源，普通导入核验进行中；Buon仍等待精确新能力HAP。绅士会所独立匿名源已实际编码，当前同身份两次TLS失败，无HTTP状态，不能说全站不可用；紳士漫畫匿名与可选网页登录合同继续实际移植。 CosplayTele V2已在237按普通FilePicker导入、URL搜索和Gallery入口实际核对Robin的1/62与62/62、Evanescia的1/99与99/99真实照片，稳定源／作品／章节身份已读回；Root已亲审。原筛选偏好、registry与四份测试数据共六份原字节已恢复，本次新增源目录及上传文件已精确移除，原电源读回并释租。详情封面仍为占位，用户反馈后单列修复，不能把正文验收扩大为完整交付或公开发布。JM V3已通过标准metadata透传必需解扰声明，新宿主同签HAP已实际构建，尚未安装或平台图像链验收。 CosplayTele V3两作真实封面补齐已在237普通网址入口亲审，原目录及55/3204固定回放保持；本事务数据偏好源与电源全部恢复释租，候选未公开。宿主源列表常驻搜索已被用户否决，正在改为标题栏按需进入；不拿功能筛选结果抵消该UI未通过。 CosplayTele已连同真实特色封面修复正式分发，公开包／索引／图标／许可及镜像核一致，公开WASM固定体行为等于具名237候选，未混其它源WIP。紳士漫畫WN已实际编码并离线编译，以预先固定60作计划保59完整、1连接原失败；59作92章／5807页与独立网页固定体逐项等，12不同作品中间原图已解码目视。镜像更新、严格身份、黑名单跳页和失败恢复本地执行；扫描页数正整数保存校验尚需宿主最小增量，未冒完整Native或发布。 JM内部V3归档包含额外许可文件，被当前完整Importer真实执行拒为unsafe_archive_entry；原失败保留。V4仅重新封装允许的3项，WASM/manifest/icon逐字不变，许可旁置交付；当前生产完整导入流程的平台适配执行已通过，不冒HarmonyNative。237新租约/新事务备份及唤醒门禁进行中。 用户反馈JM图标后，Root与两执行者已实际逐图审八个新源、13内部包及2公开/镜像包：JM圆角底板/外阴影/外留白未处理；哔咔字标有全白额外底板，且原取图网页为第三方PicaWeb，不能称官方身份已证；哔哩/拷贝/绅士会所尚缺图。Buon/Cosplay/WN本次未见外板/外罩/外阴影，不扩为全部源功能通过。已查原始工具记录，执行者在20:19读到了既有规范，缺陷发生于未执行和主审未拦截，不归咎文档不存在。两仓AGENTS已接入源仓唯一素材规范的双人强制读取与最终包/列表实图亲审流程；正在实际修正五项，不以写规则当完成。JM V4已在237普通导入并核实际WASM/图标，正常搜索和93章目录可见，但封面get_image_request实际失败，未进入Reader或验收。 237已走正常UI删除本次JM，原registry、七文件字节及两项原缺失状态、单独新增导入目录/上传缺失与原电源均读回；保留App，03:14:33释租。未运行Reader或Buon。后续素材图像编辑三稿分别留反例：用户指出JM重画了主体，哔哩稿外缘杂色、绅士会所稿变形，不把用户对JM的否定扩成其它稿的要求。Root已逐图审并写入五项原像素资产：JM与Pica来自同固定上游192原图，移除额外底板/影保原人物字形；哔哩/绅士会所由同固定上游原图提取原粉圆漫/青字；拷贝按实际页面CSS精确取原sprite区域，逐RGBA同。所有保留素材的原RGB像素未改，无生成稿入源或包；Buon/Cosplay/WN原图不动。现规范明确禁止重画主体替代抠背景。JM封面独立真实MID分支已本地修好，238真实封面及Reader原分支回放通过，尚未新包/Native。 用户明确：原图画面内部填色不当成外加底板，去外影/外遮罩并恢复旧圆角缺角，App自行做圆角；先裁边和阴影，低清才恢复或严格重绘。此前按颜色抠的四图方案作废，原审计不能仅因哔咔原白底就认定多余外板，PicaWeb素材身份仍待源完整核对。只否定JM重绘，哔哩/绅士会所原可用稿恢复，拷贝原CSS提取不重做。JM V6只切外影/留白并恢复172个旧遮罩边缘像素，其余22932原RGB逐字保持，原画内蓝底无透色；包内与现Importer核对通过。237实际新图标和同一作品真实封面及原93章已亲审，具名通过；未进入Reader。原数据和电源读回，正常卸载私有scope与本次目录缺失均核，已释租。",
+      "remaining": "JM图标和具名封面完成本轮纠正。JM正文解扰与离线消费者、Buon双模式和其它优先源分别继续；哔哩/绅士会所可用稿保持，拷贝图保站点原像素，哔咔不因原白底误抠；其余源最终包与列表按各自实际验收。",
       "evidence": [
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/build.gradle.kts",
         "https://github.com/keiyoushi/extensions-source/blob/main/src/zh/bilimanga/src/eu/kanade/tachiyomi/extension/zh/bilimanga/BiliManga.kt",
@@ -232,7 +232,10 @@
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-icon-audit/separate-cover-request-counterexample.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-icon-audit/rejected-generated-attempts.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-icon-audit/original-pixel-candidates/records.json",
-        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-cover-fix/cover-request-result.json"
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-cover-fix/cover-request-result.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-icon-audit/jm-outer-mask-only/receipt.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/jm-internal-237-v6/validation/importer-result.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-jm-icon-v6.json"
       ]
     },
     {
@@ -18512,6 +18515,12 @@
       "at": "2026-11-06T03:29:10+08:00",
       "title": "五项源图标原像素素材已落，JM本轮数据与电源已恢复",
       "result": "两素材缺陷已修、三缺图已补，均逐图明暗亲审及原像素核对，未采用重绘；完整包与237显示按各源实际验证。JM正常卸载精确scope，原状态读回并释租，封面修正已本地回放，旧Native失败保留。"
+    },
+    {
+      "id": "source-jm-outer-mask-only-native-20261106",
+      "at": "2026-11-06T03:49:38+08:00",
+      "title": "JM按原画外边界修复并通过237图标与具名封面",
+      "result": "纠正半抠和重绘误扩范围：只去外影、留白和旧圆角遮罩，保持完整原画，保留其它可用稿。新包已在237实际显示图标和同作封面/93章，未进入Reader；原数据/电源恢复，已释租。"
     }
   ],
   "reportAgeAudit": {
