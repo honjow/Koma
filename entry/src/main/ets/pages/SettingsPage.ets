@@ -37,6 +37,7 @@ import {
 } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import {
+  effectiveLibraryDefaultSort,
   LibraryFilterPreferences,
   LibraryFilterPreferenceChanges,
   LibraryFilterStore,
@@ -757,7 +758,8 @@ export struct SettingsPage {
       return this.getEffectiveLibraryUpdateSummary() === undefined ? this.t('library_update_no_result') : this.t('settings_library_update_results_view')
     }
     if (row.key === 'library-categories') {
-      const count = this.libraryStore === undefined ? 0 : this.libraryStore.listCustomCategories().length
+      const count = (this.libraryStore?.listCustomCategories().length ?? 0) +
+        (this.libraryStore?.listSmartCategories().length ?? 0)
       return count > 0 ? this.t('settings_library_categories_count').replace('%s', `${count}`) : this.t('settings_row_library_categories_detail')
     }
     if (row.key === 'library-default-sort') {
@@ -2408,11 +2410,13 @@ export struct SettingsPage {
         title: this.rowTitle(row),
         // The switch itself is the state affordance. Repeating “on/off” in
         // the subtitle adds noise and hides the setting's actual purpose.
-        subtitle: '',
+        subtitle: row.key === 'library-background-update' && !this.libraryUpdatePreferences.autoCheckEnabled
+          ? s('library_background_update_paused') : '',
         showChevron: false,
         hasSwitch: true,
         checked: this.switchRowValue(row),
-        isEnabled: row.key !== 'reader-volume-key-behavior' || this.readerVolumeKeyNavigationEnabled,
+        isEnabled: (row.key !== 'reader-volume-key-behavior' || this.readerVolumeKeyNavigationEnabled) &&
+          (row.key !== 'library-background-update' || this.libraryUpdatePreferences.autoCheckEnabled),
         switchAction: (isOn: boolean) => {
           this.setSwitchRowValue(row, isOn)
         },
@@ -2697,8 +2701,9 @@ export struct SettingsPage {
   }
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
-    this.libraryDefaultSortBy = preferences.sortBy
-    this.libraryDefaultSortDirection = preferences.sortDirection
+    const sort = effectiveLibraryDefaultSort(preferences, this.libraryStore)
+    this.libraryDefaultSortBy = sort.sortBy
+    this.libraryDefaultSortDirection = sort.sortDirection
     this.libraryViewMode = preferences.viewMode
     this.libraryListDensity = preferences.listDensity
     this.showLibraryBadges = preferences.showBadges

@@ -9,6 +9,7 @@ import {
   isLibrarySortBy,
   librarySortDirection,
   LibraryCategoryFilter,
+  LibraryStore,
 } from './LibraryStore'
 
 export type LibraryServerSourceFilter = string
@@ -19,9 +20,16 @@ export type LibraryMetadataStatusFilter = 'all' | 'ongoing' | 'completed' | 'hia
 export type LibraryViewMode = 'grid' | 'list'
 export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
 
-export interface LibraryFilterPreferences {
+export interface LibrarySortSelection {
   sortBy: LibrarySortBy
   sortDirection: LibrarySortDirection
+}
+
+export interface LibraryDefaultSortPreference extends LibrarySortSelection {
+  sortConfigured: boolean
+}
+
+export interface LibraryFilterPreferences extends LibraryDefaultSortPreference {
   viewMode: LibraryViewMode
   listDensity: LibraryListDensity
   showBadges: boolean
@@ -60,6 +68,7 @@ const libraryFilterOperations: Map<string, Promise<void>> = new Map()
 const LIBRARY_FILTER_STORE_NAME: string = 'koma_library_filter_preferences'
 const LIBRARY_SORT_KEY: string = 'library.sort'
 const LIBRARY_SORT_DIRECTION_KEY: string = 'library.sortDirection'
+const LIBRARY_SORT_CONFIGURED_KEY: string = 'library.sortConfigured'
 const LIBRARY_VIEW_MODE_KEY: string = 'library.viewMode'
 const LIBRARY_LIST_DENSITY_KEY: string = 'library.listDensity'
 const LIBRARY_SHOW_BADGES_KEY: string = 'library.showBadges'
@@ -72,6 +81,7 @@ const LIBRARY_FILTER_METADATA_STATUS_KEY: string = 'library.filter.metadataStatu
 const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   sortBy: 'lastRead',
   sortDirection: 'desc',
+  sortConfigured: false,
   viewMode: 'grid',
   listDensity: 'standard',
   showBadges: true,
@@ -80,6 +90,16 @@ const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   category: 'all',
   availability: 'all',
   metadataStatus: 'all',
+}
+
+export function effectiveLibraryDefaultSort(value: LibraryDefaultSortPreference, library?: LibraryStore): LibrarySortSelection {
+  // The old "All" category could store its own sort. Keep the visible sort of
+  // existing libraries until the user explicitly sets a new shelf default.
+  const legacy = value.sortConfigured ? undefined : library?.getCategoryDisplayStrategy('all')
+  if (legacy !== undefined && legacy.followsDefaultSort !== true) {
+    return { sortBy: legacy.sortBy, sortDirection: librarySortDirection(legacy.sortBy, legacy.sortDirection) }
+  }
+  return { sortBy: value.sortBy, sortDirection: value.sortDirection }
 }
 
 function normalizeSortBy(value: string): LibrarySortBy {
@@ -238,6 +258,7 @@ export class LibraryFilterStore {
     return {
       sortBy,
       sortDirection,
+      sortConfigured: store.getSync(LIBRARY_SORT_CONFIGURED_KEY, false) === true,
       viewMode: normalizeViewMode(viewMode),
       listDensity: density,
       showBadges: normalizeShowBadges(showBadges),
@@ -252,7 +273,10 @@ export class LibraryFilterStore {
   update(changes: LibraryFilterPreferenceChanges): Promise<LibraryFilterPreferences> {
     // Capture the caller's field intent before waiting behind another writer.
     const writes: LibraryFilterWrite[] = []
-    if (changes.sortBy !== undefined) writes.push({ key: LIBRARY_SORT_KEY, value: normalizeSortBy(changes.sortBy) })
+    if (changes.sortBy !== undefined) {
+      writes.push({ key: LIBRARY_SORT_KEY, value: normalizeSortBy(changes.sortBy) })
+      writes.push({ key: LIBRARY_SORT_CONFIGURED_KEY, value: true })
+    }
     if (changes.sortDirection !== undefined) writes.push({ key: LIBRARY_SORT_DIRECTION_KEY, value: changes.sortDirection })
     if (changes.viewMode !== undefined) writes.push({ key: LIBRARY_VIEW_MODE_KEY, value: normalizeViewMode(changes.viewMode) })
     if (changes.listDensity !== undefined) writes.push({ key: LIBRARY_LIST_DENSITY_KEY, value: normalizeListDensity(changes.listDensity) })

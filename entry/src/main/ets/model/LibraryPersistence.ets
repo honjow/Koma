@@ -83,6 +83,7 @@ export interface PersistedCategoryDisplayStrategy {
   categoryId: string
   sortBy: string
   sortDirection?: string
+  followsDefaultSort?: boolean
   readState: string
   updatedAt: number
 }
@@ -650,6 +651,7 @@ function persistCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy
     categoryId: strategy.categoryId,
     sortBy: strategy.sortBy,
     sortDirection: strategy.sortDirection,
+    followsDefaultSort: strategy.followsDefaultSort,
     readState: strategy.readState,
     updatedAt: strategy.updatedAt,
   }
@@ -661,6 +663,7 @@ function hydrateCategoryDisplayStrategy(row: PersistedCategoryDisplayStrategy): 
     categoryId: row.categoryId,
     sortBy: row.sortBy as LibrarySortBy,
     sortDirection: row.sortDirection as LibrarySortDirection | undefined,
+    followsDefaultSort: row.followsDefaultSort,
     readState: row.readState as 'all' | 'unread' | 'reading' | 'completed',
     updatedAt: row.updatedAt,
   }
@@ -675,6 +678,9 @@ function assertValidPersistedCategoryDisplayStrategy(row: PersistedCategoryDispl
   assertLibrarySortBy(row.sortBy, 'categoryDisplayStrategy.sortBy')
   if (row.sortDirection !== undefined && row.sortDirection !== 'asc' && row.sortDirection !== 'desc') {
     throw new Error('Invalid library store persistence categoryDisplayStrategy.sortDirection')
+  }
+  if (row.followsDefaultSort !== undefined && typeof row.followsDefaultSort !== 'boolean') {
+    throw new Error('Invalid library store persistence categoryDisplayStrategy.followsDefaultSort')
   }
   assertLibraryReadState(row.readState, 'categoryDisplayStrategy.readState')
   assertNumberField(row.updatedAt, 'categoryDisplayStrategy.updatedAt')

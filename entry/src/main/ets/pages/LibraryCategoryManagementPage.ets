@@ -1,6 +1,8 @@
 import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { LibrarySortMenuItems, librarySortSummary } from '../components/LibrarySortMenu'
+import { LibrarySortMenuItems, libraryCategorySortSummary } from '../components/LibrarySortMenu'
+import { common } from '@kit.AbilityKit'
+import { effectiveLibraryDefaultSort, LibraryFilterStore, LibrarySortSelection } from '../model/LibraryFilterStore'
 import {
   Comic,
   CustomLibraryCategory,
@@ -47,6 +49,7 @@ export struct LibraryCategoryManagementPage {
   @Event onLibraryChanged: () => void = () => {}
   @Event onDisplayStrategyChanged: (strategy: LibraryCategoryDisplayStrategy) => void = () => {}
   @Local private categoryDisplayStrategies: LibraryCategoryDisplayStrategy[] = []
+  @Local private defaultSort: LibrarySortSelection = { sortBy: 'lastRead', sortDirection: 'desc' }
   @Local private categories: CustomLibraryCategory[] = []
   @Local private draftName: string = ''
   @Local private editingCategoryId: string = ''
@@ -91,15 +94,23 @@ export struct LibraryCategoryManagementPage {
     }
     return {
       categoryId,
-      sortBy: 'lastRead',
+      sortBy: this.defaultSort.sortBy,
+      sortDirection: this.defaultSort.sortDirection,
+      followsDefaultSort: true,
       readState: 'all',
       updatedAt: 0,
     }
   }
 
   private sortSummary(categoryId: LibraryCategoryDisplayCategoryId): string {
+    return libraryCategorySortSummary(this.categoryStrategy(categoryId))
+  }
+
+  private categorySort(categoryId: LibraryCategoryDisplayCategoryId): LibrarySortSelection {
     const strategy = this.categoryStrategy(categoryId)
-    return librarySortSummary(strategy.sortBy, strategy.sortDirection)
+    return strategy.followsDefaultSort === true ? this.defaultSort : {
+      sortBy: strategy.sortBy, sortDirection: librarySortDirection(strategy.sortBy, strategy.sortDirection),
+    }
   }
 
   private readStateLabel(readState: LibraryReadStateFilter): string {
@@ -119,7 +130,8 @@ export struct LibraryCategoryManagementPage {
     categoryId: LibraryCategoryDisplayCategoryId,
     sortBy: LibrarySortBy,
     sortDirection: LibrarySortDirection | undefined,
-    readState: LibraryReadStateFilter
+    readState: LibraryReadStateFilter,
+    followsDefaultSort?: boolean,
   ): void {
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
       this.showToast(s('library_category_management_unavailable'))
@@ -131,6 +143,7 @@ export struct LibraryCategoryManagementPage {
         sortBy,
         sortDirection,
         readState,
+        followsDefaultSort,
         updatedAt: Date.now(),
       })
       this.onLibraryChanged()
@@ -142,16 +155,18 @@ export struct LibraryCategoryManagementPage {
     }
   }
 
-  private setCategorySort(categoryId: LibraryCategoryDisplayCategoryId, sortBy: LibrarySortBy, direction: LibrarySortDirection): void {
+  private setCategorySort(categoryId: LibraryCategoryDisplayCategoryId, sortBy: LibrarySortBy,
+    direction: LibrarySortDirection, followsDefaultSort: boolean = false): void {
     const strategy = this.categoryStrategy(categoryId)
-    if (strategy.sortBy === sortBy && librarySortDirection(strategy.sortBy, strategy.sortDirection) === direction) return
-    this.persistCategoryStrategy(categoryId, sortBy, direction, strategy.readState)
+    if ((strategy.followsDefaultSort === true) === followsDefaultSort && strategy.sortBy === sortBy &&
+      librarySortDirection(strategy.sortBy, strategy.sortDirection) === direction) return
+    this.persistCategoryStrategy(categoryId, sortBy, direction, strategy.readState, followsDefaultSort)
     this.categoryMenuKey = ''
   }
 
   private setCategoryReadState(categoryId: LibraryCategoryDisplayCategoryId, readState: LibraryReadStateFilter): void {
     const strategy = this.categoryStrategy(categoryId)
-    this.persistCategoryStrategy(categoryId, strategy.sortBy, strategy.sortDirection, readState)
+    this.persistCategoryStrategy(categoryId, strategy.sortBy, strategy.sortDirection, readState, strategy.followsDefaultSort)
     this.categoryMenuKey = ''
   }
 
@@ -161,6 +176,7 @@ export struct LibraryCategoryManagementPage {
 
   private categoryStrategySummary(categoryId: LibraryCategoryDisplayCategoryId): string {
     const strategy = this.categoryStrategy(categoryId)
+    if (categoryId === 'all') return this.readStateLabel(strategy.readState)
     return `${this.sortSummary(categoryId)} · ${this.readStateLabel(strategy.readState)}`
   }
 
@@ -249,11 +265,16 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CategorySortMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
     Menu() {
-      LibrarySortMenuItems(this.categoryStrategy(categoryId).sortBy,
-        librarySortDirection(this.categoryStrategy(categoryId).sortBy, this.categoryStrategy(categoryId).sortDirection),
+      LibrarySortMenuItems(this.categorySort(categoryId).sortBy, this.categorySort(categoryId).sortDirection,
         (sortBy: LibrarySortBy, direction: LibrarySortDirection): void => {
           select(() => { this.setCategorySort(categoryId, sortBy, direction) })
-        })
+        }, (): void => {
+          select(() => {
+            if (this.categoryStrategy(categoryId).followsDefaultSort !== true) {
+              this.setCategorySort(categoryId, this.defaultSort.sortBy, this.defaultSort.sortDirection, true)
+            }
+          })
+        }, this.categoryStrategy(categoryId).followsDefaultSort === true)
     }
   }
 
@@ -295,19 +316,25 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private DisplayStrategyMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
     Menu() {
-      MenuItem({ content: s('settings_row_library_default_sort_title'),
-        labelInfo: this.sortSummary(categoryId),
-        builder: (): void => { this.CategorySortMenu(categoryId, select) } })
-      MenuItem({ content: s('library_category_read_state_title'),
-        labelInfo: this.readStateLabel(this.categoryStrategy(categoryId).readState),
-        builder: (): void => { this.CategoryReadStateMenu(categoryId, select) } })
+      this.DisplayStrategyItems(categoryId, select)
     }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
+  }
+
+  @Builder
+  private DisplayStrategyItems(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
+    if (categoryId !== 'all') {
+      MenuItem({ content: s('library_category_sort_title'), labelInfo: this.sortSummary(categoryId),
+        builder: (): void => { this.CategorySortMenu(categoryId, select) } })
+    }
+    MenuItem({ content: s('library_category_read_state_title'),
+      labelInfo: this.readStateLabel(this.categoryStrategy(categoryId).readState),
+      builder: (): void => { this.CategoryReadStateMenu(categoryId, select) } })
   }
 
   @Builder
   private DisplayStrategySection() {
     Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: s('library_category_display_section') }) {
+      GroupedListSection({ title: s('library_category_builtin_section') }) {
         this.StrategySummaryRow('all', s('library_category_all'))
         ListDivider()
         this.StrategySummaryRow('uncategorized', s('library_category_uncategorized'))
@@ -315,15 +342,6 @@ export struct LibraryCategoryManagementPage {
         this.StrategySummaryRow(LIBRARY_CATEGORY_FAVORITE_ID, s('library_category_favorite'))
         ListDivider()
         this.StrategySummaryRow(LIBRARY_CATEGORY_READ_LATER_ID, s('library_category_read_later'))
-        if (this.categories.length > 0) {
-          ListDivider()
-        }
-        ForEach(this.categories, (category: CustomLibraryCategory, index: number) => {
-          this.StrategySummaryRow(category.id, category.name)
-          if (index < this.categories.length - 1) {
-            ListDivider()
-          }
-        }, (category: CustomLibraryCategory) => JSON.stringify(category))
       }
     }
     .width('100%')
@@ -367,6 +385,10 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CategoryActionMenu(category: CustomLibraryCategory) {
     Menu() {
+      this.DisplayStrategyItems(category.id, (action: () => void): void => {
+        this.categoryMenuKey = ''
+        action()
+      })
       MenuItem({ content: s('library_category_action_rename') })
         .onClick(() => {
           this.startRename(category)
@@ -385,7 +407,7 @@ export struct LibraryCategoryManagementPage {
         .onClick(() => {
           this.confirmDelete(category)
         })
-    }
+    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
   @Builder
@@ -483,7 +505,8 @@ export struct LibraryCategoryManagementPage {
     } else {
       KomaMenuListRow({
         title: category.name,
-        subtitle: s('library_count_books').replace('%s', `${this.categoryUsageCount(category.id)}`),
+        subtitle: s('library_count_books').replace('%s', `${this.categoryUsageCount(category.id)}`) +
+          ' · ' + this.sortSummary(category.id),
         isMenuOpen: this.categoryMenuKey === this.categoryActionMenuKey(category.id),
         onDismiss: (): void => {
           if (this.categoryMenuKey === this.categoryActionMenuKey(category.id)) this.categoryMenuKey = ''
@@ -499,6 +522,12 @@ export struct LibraryCategoryManagementPage {
 
   aboutToAppear(): void {
     this.refreshCategories()
+    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+    void new LibraryFilterStore(context).load().then((value): void => {
+      this.defaultSort = effectiveLibraryDefaultSort(value, this.libraryStore)
+    }).catch((): void => {
+      DiagnosticLogger.warn('library_category_management_page', 'load_default_sort_failed', '[LibraryCategory] step=load_default_sort_failed')
+    })
   }
 
   build() {
@@ -518,7 +547,14 @@ export struct LibraryCategoryManagementPage {
         }
         ListItem() {
           LibrarySmartCategorySection({ libraryStore: this.libraryStore, persistence: this.libraryPersistenceService,
-            onChanged: (): void => { this.onLibraryChanged() } })
+            displayStrategies: this.categoryDisplayStrategies,
+            strategyItems: (categoryId: string, select: (action: () => void) => void): void => {
+              this.DisplayStrategyItems(categoryId, select)
+            },
+            onChanged: (): void => {
+              this.refreshCategories()
+              this.onLibraryChanged()
+            } })
         }
       }
     }

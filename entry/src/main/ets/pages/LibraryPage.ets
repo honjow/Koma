@@ -53,6 +53,8 @@ import {
 } from '../model/LibraryStore'
 import {
   LibraryAvailabilityFilter,
+  effectiveLibraryDefaultSort,
+  LibraryDefaultSortPreference,
   LibraryFilterPreferences,
   LibraryFilterStore,
   LibraryFilterPreferenceChanges,
@@ -242,11 +244,15 @@ export struct LibraryPage {
   @Local private suppressOpenComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
   @Local private sortDirection: LibrarySortDirection = 'desc'
+  @Local private followsDefaultSort: boolean = false
+  @Local private hasCategoryContents: boolean = false
+  private defaultSort: LibraryDefaultSortPreference = { sortBy: 'lastRead', sortDirection: 'desc', sortConfigured: false }
   @Local private viewMode: LibraryViewMode = 'grid'
   @Local private listDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
+  @Local private categoryReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   private smartSubscriptions: (() => void)[] = []
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
@@ -260,9 +266,6 @@ export struct LibraryPage {
       count += 1
     }
     if (this.filterReadState !== 'all') {
-      count += 1
-    }
-    if (this.filterCategory !== 'all') {
       count += 1
     }
     if (this.filterAvailability !== 'all') {
@@ -390,14 +393,7 @@ export struct LibraryPage {
   private onCategoryDisplayStrategyChanged(): void {
     const changed = this.categoryDisplayStrategyChange
     if (changed === undefined || changed.categoryId !== this.filterCategory) return
-    const strategy = this.libraryStore.getCategoryDisplayStrategy(changed.categoryId)
-    if (strategy === undefined) return
-    // Only a successful edit of the active category replaces its current view.
-    // Unrelated library updates and edits of other categories retain user filters.
-    this.markFilterPreferencesMutation()
-    this.applyCategoryDisplayStrategy(changed.categoryId)
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences({ sortBy: strategy.sortBy, sortDirection: this.sortDirection, readState: strategy.readState })
   }
 
   @Monitor('libraryPreferencesRevision')
@@ -407,7 +403,11 @@ export struct LibraryPage {
 
   private refreshDisplayedSnapshotFromStore(): void {
     const progressByComicId = this.progressByComicId()
-    const items = this.libraryStore.listLibraryItems(progressByComicId, this.currentListOptions())
+    const category = this.validCategoryFilter()
+    const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
+    this.applyCategorySort(strategy)
+    this.categoryReadState = strategy?.readState ?? 'all'
+    const items = this.libraryStore.listLibraryItems(progressByComicId, this.currentListOptions(category))
     const nextComics: Comic[] = []
     items.forEach((item: LibraryItem) => {
       const comic = this.libraryStore.getComic(item.comicId)
@@ -415,9 +415,18 @@ export struct LibraryPage {
         nextComics.push(comic)
       }
     })
-    this.displayedComics = this.filterSmartCategoryComics(this.filterMetadataStatusComics(
-      this.filterAvailabilityComics(this.filterPreciseSourceComics(nextComics))
-    ))
+    const categoryComics = this.filterSmartCategoryComics(nextComics)
+    this.hasCategoryContents = categoryComics.length > 0
+    const sourceKinds = this.sourceKindsForFilter()
+    const scopedComics = categoryComics.filter((comic: Comic): boolean => {
+      if (sourceKinds !== undefined && !sourceKinds.includes(comic.sourceKind)) return false
+      if (this.categoryReadState === 'all' && this.filterReadState === 'all') return true
+      const state = this.readerSessionStore.comicReadingState(comic)
+      return (this.categoryReadState === 'all' || this.categoryReadState === state) &&
+        (this.filterReadState === 'all' || this.filterReadState === state)
+    })
+    this.displayedComics = this.filterMetadataStatusComics(
+      this.filterAvailabilityComics(this.filterPreciseSourceComics(scopedComics)))
     this.displayedRevision += 1
     this.removeMissingSelectedComics()
   }
@@ -576,15 +585,14 @@ export struct LibraryPage {
     return progressByComicId
   }
 
-  private currentListOptions(): LibraryListOptions {
+  private currentListOptions(category: LibraryCategoryFilter): LibraryListOptions {
     return {
       readerSessionStore: this.readerSessionStore,
       sortBy: this.sortBy,
       sortDirection: this.sortDirection,
       chapterUpdateTimes: this.sortBy === 'lastUpdate' ? cachedLibraryChapterUpdateTimes() : undefined,
-      filterSource: this.sourceKindsForFilter(),
-      filterReadState: this.filterReadState,
-      filterCategoryId: this.validCategoryFilter(),
+      sourceSortName: this.sortBy === 'source' ? (comic: Comic): string => this.librarySourceSortName(comic) : undefined,
+      filterCategoryId: category,
     }
   }
 
@@ -688,27 +696,19 @@ export struct LibraryPage {
   private saveFilterPreferences(changes: LibraryFilterPreferenceChanges): void {
     const revision = this.filterPreferencesMutationRevision
     const restoreEpoch = this.filterPreferencesRestoreEpoch
-    const hasCategoryStrategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory) !== undefined
-    const effectiveSortBy = this.sortBy
-    const effectiveSortDirection = this.sortDirection
-    const effectiveReadState = this.filterReadState
     try {
       const context = getContext(this) as common.UIAbilityContext
       void new LibraryFilterStore(context).update(changes)
         .then((value: LibraryFilterPreferences) => {
           if (revision !== this.filterPreferencesMutationRevision || restoreEpoch !== this.filterPreferencesRestoreEpoch) return
-          // Unrelated saves must not replace the active category's effective display with older global fields.
-          if (hasCategoryStrategy) {
-            if (changes.sortBy === undefined) value.sortBy = effectiveSortBy
-            if (changes.sortDirection === undefined) value.sortDirection = effectiveSortDirection
-            if (changes.readState === undefined) value.readState = effectiveReadState
-          }
-          this.applyFilterPreferences(value, false)
+          this.applyFilterPreferences(value)
           this.refreshDisplayedSnapshotFromStore()
         })
         .catch(() => {
           console.info('[Library] step=filter_save_failed reason=filter_save')
-          void this.recoverFilterPreferencesAfterSave()
+          if (revision === this.filterPreferencesMutationRevision && restoreEpoch === this.filterPreferencesRestoreEpoch) {
+            void this.recoverFilterPreferencesAfterSave()
+          }
         })
     } catch (_error) {
       console.info('[Library] step=filter_save_failed reason=filter_save')
@@ -717,33 +717,36 @@ export struct LibraryPage {
   }
 
   private setSortBy(sortBy: LibrarySortBy, sortDirection: LibrarySortDirection): void {
-    if (this.sortBy === sortBy && this.sortDirection === sortDirection) {
+    if (!this.followsDefaultSort && this.sortBy === sortBy && this.sortDirection === sortDirection) {
       return
     }
-    const categoryStrategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
-    const persistence = this.libraryPersistenceService
-    // Change the owner of the current sort. A configured category overrides
-    // the default on every restore, so saving the default alone loses the choice.
-    if (categoryStrategy !== undefined && persistence !== undefined) {
-      try {
-        setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, persistence, {
-          categoryId: categoryStrategy.categoryId,
-          sortBy,
-          sortDirection,
-          readState: categoryStrategy.readState,
-          updatedAt: Date.now(),
-        })
-      } catch (_error) {
-        this.showToast(s('library_category_display_save_failed'))
-        return
-      }
+    if (this.filterCategory !== 'all') {
+      this.saveCategorySort(sortBy, sortDirection, false)
+      return
     }
     this.markFilterPreferencesMutation()
-    this.sortBy = sortBy
-    this.sortDirection = sortDirection
+    this.defaultSort = { sortBy, sortDirection, sortConfigured: true }
     this.refreshDisplayedSnapshotFromStore()
-    if (categoryStrategy === undefined || persistence === undefined) this.saveFilterPreferences({ sortBy, sortDirection })
-    console.info(`[Library] step=sort_changed sortBy=${sortBy} direction=${sortDirection}`)
+    this.saveFilterPreferences({ sortBy, sortDirection })
+  }
+
+  private saveCategorySort(sortBy: LibrarySortBy, sortDirection: LibrarySortDirection, followsDefaultSort: boolean): void {
+    const persistence = this.libraryPersistenceService
+    if (persistence === undefined) {
+      this.showToast(s('library_category_display_save_failed'))
+      return
+    }
+    const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
+    try {
+      setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, persistence, {
+        categoryId: this.filterCategory, sortBy, sortDirection, followsDefaultSort,
+        readState: strategy?.readState ?? 'all',
+        updatedAt: Date.now(),
+      })
+      this.refreshDisplayedSnapshotFromStore()
+    } catch (_error) {
+      this.showToast(s('library_category_display_save_failed'))
+    }
   }
 
   private setViewMode(viewMode: LibraryViewMode): void {
@@ -783,12 +786,8 @@ export struct LibraryPage {
     }
     this.markFilterPreferencesMutation()
     this.filterCategory = category
-    this.applyCategoryDisplayStrategy(category)
     this.refreshDisplayedSnapshotFromStore()
-    const strategy = this.libraryStore.getCategoryDisplayStrategy(category)
-    this.saveFilterPreferences(strategy === undefined
-      ? { category }
-      : { category, sortBy: strategy.sortBy, sortDirection: this.sortDirection, readState: strategy.readState })
+    this.saveFilterPreferences({ category })
     console.info(`[Library] step=filter_changed category=${category}`)
   }
 
@@ -815,12 +814,7 @@ export struct LibraryPage {
   }
 
   private hasActiveFilters(): boolean {
-    return this.sortBy !== 'lastRead' || this.sortDirection !== 'desc' ||
-      this.filterSource !== 'all' ||
-      this.filterReadState !== 'all' ||
-      this.filterCategory !== 'all' ||
-      this.filterAvailability !== 'all' ||
-      this.filterMetadataStatus !== 'all'
+    return this.activeFilterCount() > 0
   }
 
   private resetFilters(): void {
@@ -828,27 +822,26 @@ export struct LibraryPage {
       return
     }
     this.markFilterPreferencesMutation()
-    this.sortBy = 'lastRead'
-    this.sortDirection = 'desc'
     this.filterSource = 'all'
     this.filterReadState = 'all'
-    this.filterCategory = 'all'
     this.filterAvailability = 'all'
     this.filterMetadataStatus = 'all'
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences({ sortBy: 'lastRead', sortDirection: 'desc',
-      source: 'all', readState: 'all', category: 'all', availability: 'all', metadataStatus: 'all' })
+    this.saveFilterPreferences({ source: 'all', readState: 'all', availability: 'all', metadataStatus: 'all' })
     console.info('[Library] step=filters_reset')
   }
 
-  private applyCategoryDisplayStrategy(category: LibraryCategoryFilter): void {
-    const strategy = this.libraryStore.getCategoryDisplayStrategy(category)
-    if (strategy === undefined) {
-      return
+  private applyCategorySort(strategy?: LibraryCategoryDisplayStrategy): void {
+    const isCategory = this.filterCategory !== 'all'
+    this.followsDefaultSort = isCategory && (strategy === undefined || strategy.followsDefaultSort === true)
+    if (isCategory && strategy !== undefined && !this.followsDefaultSort) {
+      this.sortBy = strategy.sortBy
+      this.sortDirection = librarySortDirection(strategy.sortBy, strategy.sortDirection)
+    } else {
+      const sort = effectiveLibraryDefaultSort(this.defaultSort, this.libraryStore)
+      this.sortBy = sort.sortBy
+      this.sortDirection = sort.sortDirection
     }
-    this.sortBy = strategy.sortBy
-    this.sortDirection = librarySortDirection(strategy.sortBy, strategy.sortDirection)
-    this.filterReadState = strategy.readState
   }
 
   private sourceLabel(): string {
@@ -906,20 +899,22 @@ export struct LibraryPage {
     return option === undefined ? s('library_source_package') : option.title
   }
 
-  private readStateLabel(): string {
-    if (this.filterReadState === 'unread') {
+  private readStateLabel(readState: LibraryReadStateFilter = this.filterReadState): string {
+    if (readState === 'unread') {
       return s('library_read_state_unread')
     }
-    if (this.filterReadState === 'reading') {
+    if (readState === 'reading') {
       return s('library_read_state_reading')
     }
-    if (this.filterReadState === 'completed') {
+    if (readState === 'completed') {
       return s('library_read_state_completed')
     }
     return s('library_read_state_all')
   }
 
   private categoryLabel(): string {
+    // Category names can change while this shelf stays mounted.
+    void this.displayedRevision
     const smart = this.selectedSmartCategory()
     if (smart !== undefined) return smart.name
     if (this.filterCategory === 'uncategorized') {
@@ -1214,6 +1209,15 @@ export struct LibraryPage {
       return s('library_source_server').replace('%s', s('route_webdav_title'))
     }
     return s('library_source_private_server')
+  }
+
+  private librarySourceSortName(comic: Comic): string {
+    if (comic.sourceRuntimeId) {
+      return sourceDisplayName(comic.sourceRuntimeId, comic.sourceMetadata?.sourceName ?? comic.sourceRuntimeId)
+    }
+    if (comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) return s('library_source_private')
+    if (this.isPrivateLibraryComic(comic)) return this.privateServerFilterTitle(comic)
+    return s('library_source_local')
   }
 
   private hasLibraryContent(): boolean {
@@ -1596,7 +1600,9 @@ export struct LibraryPage {
     Menu() {
       LibrarySortMenuItems(this.sortBy, this.sortDirection, (sortBy: LibrarySortBy, direction: LibrarySortDirection): void => {
         this.setSortBy(sortBy, direction)
-      })
+      }, this.filterCategory === 'all' ? undefined : (): void => {
+        if (!this.followsDefaultSort) this.saveCategorySort(this.sortBy, this.sortDirection, true)
+      }, this.followsDefaultSort)
     }
   }
 
@@ -1729,36 +1735,37 @@ export struct LibraryPage {
   }
 
   @Builder
-  private CategoryMenu(select: (action: () => void) => void) {
+  private CategoryMenu() {
     Menu() {
-      MenuItem({ content: s('common_all') })
-        .onClick(() => {
-          select(() => { this.setCategoryFilter('all') })
-        })
-      MenuItem({ content: s('library_category_uncategorized') })
-        .onClick(() => {
-          select(() => { this.setCategoryFilter('uncategorized') })
-        })
-      MenuItem({ content: s('library_category_read_later') })
-        .onClick(() => {
-          select(() => { this.setCategoryFilter(LIBRARY_CATEGORY_READ_LATER_ID) })
-        })
-      MenuItem({ content: s('library_category_favorite') })
-        .onClick(() => {
-          select(() => { this.setCategoryFilter(LIBRARY_CATEGORY_FAVORITE_ID) })
-        })
-      ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
-        MenuItem({ content: category.name })
-          .onClick(() => {
-            select(() => { this.setCategoryFilter(category.id) })
-          })
-      }, (category: CustomLibraryCategory) => category.id)
-      ForEach(this.libraryStore.listSmartCategories(), (category: LibrarySmartCategory) => {
-        MenuItem({ content: category.name })
-          .selected(this.filterCategory === category.id)
-          .onClick(() => { select(() => { this.setCategoryFilter(category.id) }) })
-      }, (category: LibrarySmartCategory) => category.id)
+      MenuItemGroup() {
+        this.CategoryMenuItem('all', s('library_category_all'))
+        this.CategoryMenuItem('uncategorized', s('library_category_uncategorized'))
+        this.CategoryMenuItem(LIBRARY_CATEGORY_FAVORITE_ID, s('library_category_favorite'))
+        this.CategoryMenuItem(LIBRARY_CATEGORY_READ_LATER_ID, s('library_category_read_later'))
+      }
+      if (this.libraryStore.listCustomCategories().length > 0) {
+        MenuItemGroup({ header: s('library_category_custom_section') }) {
+          ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
+            this.CategoryMenuItem(category.id, category.name)
+          }, (category: CustomLibraryCategory) => category.id)
+        }
+      }
+      if (this.libraryStore.listSmartCategories().length > 0) {
+        MenuItemGroup({ header: s('library_smart_title') }) {
+          ForEach(this.libraryStore.listSmartCategories(), (category: LibrarySmartCategory) => {
+            this.CategoryMenuItem(category.id, category.name)
+          }, (category: LibrarySmartCategory) => category.id)
+        }
+      }
     }
+  }
+
+  @Builder
+  private CategoryMenuItem(categoryId: string, title: string) {
+    MenuItem({ content: title })
+      .selected(this.filterCategory === categoryId)
+      .selectIcon(true)
+      .onClick(() => { this.setCategoryFilter(categoryId) })
   }
 
   private titleMenuItems(key: string): LibraryTitleMenuItem[] {
@@ -1821,6 +1828,26 @@ export struct LibraryPage {
   }
 
   @Builder
+  private CategorySelector() {
+    Row({ space: ThemeConstants.SPACE_XS }) {
+      Text(this.categoryLabel())
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .constraintSize({ maxWidth: '85%' })
+      SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
+        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+        .fontColor([ThemeConstants.TEXT_TERTIARY])
+    }
+    .height(ThemeConstants.BUTTON_HEIGHT)
+    .padding({ right: ThemeConstants.SPACE_SM })
+    .accessibilityDescription(s('library_category_switch'))
+    .bindMenu(this.CategoryMenu(), komaMenuOptions())
+  }
+
+  @Builder
   private LibraryFiltersSheet() {
     KomaModalScaffold({
       title: s('common_filter'),
@@ -1842,6 +1869,8 @@ export struct LibraryPage {
             ListDivider()
             ConciseListRow({
               title: s('library_filter_read_state_title'),
+              subtitle: this.categoryReadState === 'all' ? '' :
+                AppStrings.format('library_category_read_state_applied', this.readStateLabel(this.categoryReadState)),
               trailingText: this.readStateLabel(),
               trailingDropdown: true,
               dropdownMenuEnabled: true,
@@ -1867,16 +1896,6 @@ export struct LibraryPage {
               dropdownMenuEnabled: true,
               dropdownMenuBuilder: (select: (action: () => void) => void) => {
                 this.MetadataStatusMenu(select)
-              },
-            })
-            ListDivider()
-            ConciseListRow({
-              title: s('library_filter_category_title'),
-              trailingText: this.categoryLabel(),
-              trailingDropdown: true,
-              dropdownMenuEnabled: true,
-              dropdownMenuBuilder: (select: (action: () => void) => void) => {
-                this.CategoryMenu(select)
               },
             })
           }
@@ -1933,6 +1952,16 @@ export struct LibraryPage {
   }
 
   @Builder
+  private LibraryViewControls() {
+    Column() {
+      this.CategorySelector()
+      this.SortFilterBar()
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
   private EmptyLibrary() {
     KomaEmptyState({
       icon: $r('sys.symbol.book'),
@@ -1958,12 +1987,20 @@ export struct LibraryPage {
   private EmptyFilteredLibrary() {
     KomaEmptyState({
       title: s('library_filtered_empty_title'),
-      message: s('library_filtered_empty_message'),
+      message: this.hasActiveFilters() ? s('library_filtered_empty_message') : s('library_category_read_state_empty'),
       actionLabel: s('common_reset'),
-      showAction: true,
+      showAction: this.hasActiveFilters(),
       action: () => {
         this.resetFilters()
       },
+    })
+  }
+
+  @Builder
+  private EmptyCategory() {
+    KomaEmptyState({
+      title: AppStrings.format('library_category_empty_shelf', this.categoryLabel()),
+      showAction: false,
     })
   }
 
@@ -2094,7 +2131,7 @@ export struct LibraryPage {
           .clip(false)
       }
 
-      GridItem() { this.SortFilterBar() }
+      GridItem() { this.LibraryViewControls() }
         .padding({ bottom: ThemeConstants.SPACE_LG })
         .clip(false)
 
@@ -2269,9 +2306,8 @@ export struct LibraryPage {
     .width('100%')
   }
 
-  private applyFilterPreferences(preferencesValue: LibraryFilterPreferences, applyCategoryStrategy: boolean = true): void {
-    this.sortBy = preferencesValue.sortBy
-    this.sortDirection = preferencesValue.sortDirection
+  private applyFilterPreferences(preferencesValue: LibraryFilterPreferences): void {
+    this.defaultSort = preferencesValue
     this.viewMode = preferencesValue.viewMode
     this.listDensity = preferencesValue.listDensity
     this.showLibraryBadges = preferencesValue.showBadges
@@ -2280,7 +2316,6 @@ export struct LibraryPage {
     this.filterCategory = preferencesValue.category
     this.filterAvailability = preferencesValue.availability
     this.filterMetadataStatus = preferencesValue.metadataStatus
-    if (applyCategoryStrategy) this.applyCategoryDisplayStrategy(this.validCategoryFilter())
     console.info(
       `[Library] step=filter_restored sortBy=${this.sortBy} viewMode=${this.viewMode} listDensity=${this.listDensity} showBadges=${this.showLibraryBadges} source=${this.filterSource} readState=${this.filterReadState} category=${this.filterCategory} availability=${this.filterAvailability} metadataStatus=${this.filterMetadataStatus}`
     )
@@ -2293,7 +2328,7 @@ export struct LibraryPage {
       const context = getContext(this) as common.UIAbilityContext
       const value = await new LibraryFilterStore(context).load()
       if (revision !== this.filterPreferencesMutationRevision || restoreEpoch !== this.filterPreferencesRestoreEpoch) return
-      this.applyFilterPreferences(value, false)
+      this.applyFilterPreferences(value)
       this.refreshDisplayedSnapshotFromStore()
     } catch (_error) {
       console.info('[Library] step=filter_restore_failed reason=filter_save_recovery')
@@ -2357,12 +2392,16 @@ export struct LibraryPage {
           }
 
           ListItem() {
-            this.SortFilterBar()
+            this.LibraryViewControls()
           }
 
           if (this.hasVisibleLibraryContent()) {
             ListItem() {
               this.LibraryList()
+            }
+          } else if (!this.hasCategoryContents && this.filterCategory !== 'all') {
+            ListItem() {
+              this.EmptyCategory()
             }
           } else {
             ListItem() {
@@ -2371,7 +2410,14 @@ export struct LibraryPage {
           }
         } else {
           ListItem() {
-            this.EmptyLibrary()
+            this.CategorySelector()
+          }
+          ListItem() {
+            if (this.filterCategory === 'all') {
+              this.EmptyLibrary()
+            } else {
+              this.EmptyCategory()
+            }
           }
         }
       }

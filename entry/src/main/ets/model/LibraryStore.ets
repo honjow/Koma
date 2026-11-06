@@ -40,6 +40,7 @@ export interface LibraryCategoryDisplayStrategy {
   categoryId: LibraryCategoryDisplayCategoryId
   sortBy: LibrarySortBy
   sortDirection?: LibrarySortDirection
+  followsDefaultSort?: boolean
   readState: LibraryReadStateFilter
   updatedAt: number
 }
@@ -48,6 +49,7 @@ export interface LibraryListOptions {
   sortBy?: LibrarySortBy
   sortDirection?: LibrarySortDirection
   chapterUpdateTimes?: Map<ComicId, number>
+  sourceSortName?: (comic: Comic) => string
   filterSource?: ComicSourceKind[]
   filterReadState?: LibraryReadStateFilter
   filterCategoryId?: LibraryCategoryFilter
@@ -88,7 +90,13 @@ export class InMemoryLibraryStore implements LibraryStore {
   }
 
   replaceSmartCategories(categories: LibrarySmartCategory[]): void {
-    this.smartCategories = validateLibrarySmartCategories(categories, this.listCustomCategories().map((category: CustomLibraryCategory): string => category.name))
+    const next = validateLibrarySmartCategories(categories,
+      this.listCustomCategories().map((category: CustomLibraryCategory): string => category.name))
+    const retainedIds = new Set<string>(next.map((category: LibrarySmartCategory): string => category.id))
+    this.smartCategories.forEach((category: LibrarySmartCategory): void => {
+      if (!retainedIds.has(category.id)) this.categoryDisplayStrategies.delete(category.id)
+    })
+    this.smartCategories = next
   }
   private comics: Map<ComicId, Comic> = new Map<ComicId, Comic>()
   private customCategories: Map<string, CustomLibraryCategory> = new Map<string, CustomLibraryCategory>()
@@ -161,8 +169,17 @@ export class InMemoryLibraryStore implements LibraryStore {
       })
 
     if (sortBy === 'title' || sortBy === 'source') {
+      const sourceNames = new Map<ComicId, string>()
+      const sourceName = options?.sourceSortName
+      if (sortBy === 'source' && sourceName !== undefined) {
+        rows.forEach((row: LibraryItem): void => {
+          const comic = this.comics.get(row.comicId)
+          if (comic !== undefined) sourceNames.set(row.comicId, sourceName(comic))
+        })
+      }
       return rows.sort((a: LibraryItem, b: LibraryItem): number => {
-        const comparison = sortBy === 'source' ? a.sourceKind.localeCompare(b.sourceKind) :
+        const comparison = sortBy === 'source' ? (sourceNames.get(a.comicId) ?? a.sourceKind)
+          .localeCompare(sourceNames.get(b.comicId) ?? b.sourceKind) :
           this.sortTitleForItem(a).localeCompare(this.sortTitleForItem(b))
         return multiplier * comparison || this.compareByTitleAsc(a, b)
       })
@@ -424,6 +441,7 @@ export class InMemoryLibraryStore implements LibraryStore {
       categoryId: strategy.categoryId,
       sortBy: strategy.sortBy,
       sortDirection: strategy.sortDirection,
+      followsDefaultSort: strategy.followsDefaultSort,
       readState: strategy.readState,
       updatedAt: strategy.updatedAt,
     }
@@ -440,6 +458,9 @@ export class InMemoryLibraryStore implements LibraryStore {
     if (strategy.sortDirection !== undefined && strategy.sortDirection !== 'asc' && strategy.sortDirection !== 'desc') {
       throw new Error('Invalid category display strategy sortDirection')
     }
+    if (strategy.followsDefaultSort !== undefined && typeof strategy.followsDefaultSort !== 'boolean') {
+      throw new Error('Invalid category display strategy followsDefaultSort')
+    }
     if (
       strategy.readState !== 'all' &&
       strategy.readState !== 'unread' &&
@@ -455,6 +476,7 @@ export class InMemoryLibraryStore implements LibraryStore {
       categoryId,
       sortBy: strategy.sortBy,
       sortDirection: strategy.sortDirection,
+      followsDefaultSort: strategy.followsDefaultSort,
       readState: strategy.readState,
       updatedAt: strategy.updatedAt,
     }

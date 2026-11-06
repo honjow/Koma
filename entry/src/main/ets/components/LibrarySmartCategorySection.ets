@@ -1,6 +1,7 @@
 import { Comic, CustomLibraryCategory, LIBRARY_CATEGORY_FAVORITE_ID, LIBRARY_CATEGORY_READ_LATER_ID,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH } from '../model/ComicModels'
-import { LibraryStore } from '../model/LibraryStore'
+import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
+import { libraryCategorySortSummary } from './LibrarySortMenu'
 import { LibraryStorePersistenceService, replaceSmartCategoriesAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { LibrarySmartCategory, LibrarySmartFilter, LibrarySmartFilterMethod, LIBRARY_SMART_FILTER_METHODS,
   copyLibrarySmartCategory, comicSmartSourceKey, comicSmartContentRating } from '../model/LibrarySmartCategory'
@@ -21,6 +22,8 @@ function s(key: string): string { return AppStrings.get(key) }
 export struct LibrarySmartCategorySection {
   @Param libraryStore?: LibraryStore = undefined
   @Param persistence?: LibraryStorePersistenceService = undefined
+  @Param displayStrategies: LibraryCategoryDisplayStrategy[] = []
+  @BuilderParam strategyItems: (categoryId: string, select: (action: () => void) => void) => void
   @Event onChanged: () => void = () => {}
   @Local private groups: LibrarySmartCategory[] = []
   @Local private editorShown: boolean = false
@@ -185,6 +188,7 @@ export struct LibrarySmartCategorySection {
   @Builder
   private GroupMenu(group: LibrarySmartCategory, index: number, select: (action: () => void) => void) {
     Menu() {
+      this.strategyItems(group.id, select)
       MenuItem({ content: s('library_smart_edit') }).onClick((): void => { select((): void => { this.openEditor(group) }) })
       MenuItem({ content: s('library_category_action_move_up') }).enabled(index > 0)
         .onClick((): void => { select((): void => { this.move(group, -1) }) })
@@ -192,7 +196,7 @@ export struct LibrarySmartCategorySection {
         .onClick((): void => { select((): void => { this.move(group, 1) }) })
       MenuItem({ content: s('common_delete') }).contentFontColor(ThemeConstants.DANGER)
         .onClick((): void => { select((): void => { this.confirmDelete(group) }) })
-    }
+    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
   }
 
   build() {
@@ -200,7 +204,9 @@ export struct LibrarySmartCategorySection {
       GroupedListSection({ title: s('library_smart_title') }) {
         ForEach(this.groups, (group: LibrarySmartCategory, index: number) => {
           ConciseListRow({ title: group.name,
-            trailingText: AppStrings.format('library_smart_rules_count', group.filters.length),
+            subtitle: AppStrings.format('library_smart_rules_count', group.filters.length) + ' · ' +
+              libraryCategorySortSummary(this.displayStrategies.find((strategy: LibraryCategoryDisplayStrategy): boolean =>
+                strategy.categoryId === group.id)),
             showChevron: false, trailingDropdown: true, dropdownMenuEnabled: true,
             dropdownMenuBuilder: (select: (action: () => void) => void): void => { this.GroupMenu(group, index, select) } })
           ListDivider()
