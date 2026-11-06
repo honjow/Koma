@@ -1,5 +1,5 @@
 import { Comic, ComicSourceKind, normalizeLibraryCategoryName, libraryCategoryNameKey,
-  LIBRARY_CATEGORY_NAME_MAX_LENGTH, isBuiltInLibraryCategoryName } from './ComicModels'
+  LIBRARY_CATEGORY_NAME_MAX_LENGTH } from './ComicModels'
 import type { ReaderSessionStore } from './ReaderSessionStore'
 import { AppStrings } from '../i18n/AppStrings'
 
@@ -36,7 +36,6 @@ export function validateLibrarySmartCategories(categories: LibrarySmartCategory[
     if (!category.id.startsWith('smart:') || ids.has(category.id)) throw new Error('Invalid smart category identity')
     if (!name) throw new Error(AppStrings.get('library_category_error_name_empty'))
     if (name.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) throw new Error(AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH))
-    if (isBuiltInLibraryCategoryName(name)) throw new Error(AppStrings.get('library_category_error_name_builtin'))
     if (names.has(libraryCategoryNameKey(name))) throw new Error(AppStrings.get('library_category_error_name_duplicate'))
     if (!Number.isFinite(category.sortOrder) || !Number.isFinite(category.createdAt) || !Number.isFinite(category.updatedAt) ||
       !Array.isArray(category.filters) || category.filters.length === 0) throw new Error('Invalid smart category rules')

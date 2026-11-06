@@ -65,6 +65,45 @@ test('rules and work rating survive library/backup serialization; failed persist
  assert.deepEqual(clone(library.listSmartCategories()),[selected])
  assert.throws(()=>library.renameCustomCategory(manual.id,'Smart'),/duplicate/)
 })
+test('a used preset becomes an editable category while a fresh shelf stays empty of manual categories', () => {
+ const library = new InMemoryLibraryStore()
+ const empty = persistence.serializeLibraryStore(library)
+ assert.equal(persistence.readLibraryStoreDocument(empty).customCategories, undefined)
+ const existing = book('existing')
+ existing.categoryIds = ['favorite']
+ library.addComic(existing)
+ persistence.hydrateLibraryStoreFromJson(library, persistence.serializeLibraryStore(library))
+ assert.deepEqual(clone(library.listCustomCategories().map(category => category.id)), ['favorite'])
+ library.renameCustomCategory('favorite', 'Keep')
+ persistence.hydrateLibraryStoreFromJson(library, persistence.serializeLibraryStore(library))
+ assert.equal(library.listCustomCategories()[0].name, 'Keep')
+ assert.equal(library.deleteCustomCategory('favorite'), true)
+ persistence.hydrateLibraryStoreFromJson(library, persistence.serializeLibraryStore(library))
+ assert.equal(library.listCustomCategories().length, 0)
+ assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 1)
+})
+test('batch editing preserves untouched mixed memberships, saves once and rolls back on failure', () => {
+ const library = new InMemoryLibraryStore()
+ const a = library.createCustomCategory('A'), b = library.createCustomCategory('B')
+ const first = book('first')
+ first.categoryIds = [a.id]
+ library.addComic(first)
+ library.addComic(book('second'))
+ let saves = 0
+ const edit = persistence.editComicCategoriesAndPersistLibraryStore
+ const selected = ['first', 'second']
+ const disk = { persist() { saves++ } }
+ assert.equal(edit(library, disk, selected, [b.id], []), 2)
+ assert.deepEqual(clone(library.getComic('first').categoryIds), [a.id, b.id])
+ assert.deepEqual(clone(library.getComic('second').categoryIds), [b.id])
+ assert.equal(edit(library, disk, selected, [b.id], []), 0)
+ assert.equal(saves, 1)
+ assert.throws(() => edit(library, { persist() { throw Error('disk full') } }, selected, [], [a.id, b.id]), /disk full/)
+ assert.deepEqual(clone(library.getComic('first').categoryIds), [a.id, b.id])
+ assert.equal(edit(library, disk, selected, [], [a.id, b.id]), 2)
+ assert.equal(library.listLibraryItems(undefined, { filterCategoryId: 'all' }).length, 2)
+ assert.equal(library.listLibraryItems(undefined, { filterCategoryId: b.id }).length, 0)
+})
 test('tracker mapping projection publishes only committed public mappings and refreshes after backup replacement',async()=>{
  const store=new TrackerPreferencesStore({filesDir:'/smart-test'}),seen=[]
  const stop=store.subscribeMappings(()=>seen.push(clone(store.mappingSnapshot())))

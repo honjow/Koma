@@ -1,7 +1,6 @@
-import { Comic, CustomLibraryCategory, LIBRARY_CATEGORY_FAVORITE_ID, LIBRARY_CATEGORY_READ_LATER_ID,
+import { Comic, CustomLibraryCategory, LEGACY_LIBRARY_CATEGORIES, LegacyLibraryCategory,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH } from '../model/ComicModels'
-import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
-import { libraryCategorySortSummary } from './LibrarySortMenu'
+import { LibraryStore } from '../model/LibraryStore'
 import { LibraryStorePersistenceService, replaceSmartCategoriesAndPersistLibraryStore } from '../model/LibraryPersistence'
 import { LibrarySmartCategory, LibrarySmartFilter, LibrarySmartFilterMethod, LIBRARY_SMART_FILTER_METHODS,
   copyLibrarySmartCategory, comicSmartSourceKey, comicSmartContentRating } from '../model/LibrarySmartCategory'
@@ -9,10 +8,10 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { AppStrings } from '../i18n/AppStrings'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { ConciseListRow } from './ui/ConciseListRow'
-import { KomaModalScaffold } from './KomaModalScaffold'
+import { KomaModalScaffold, komaModalSheetOptions } from './KomaModalScaffold'
 import { KomaFormTextField } from './ui/KomaFormTextField'
 
 interface SmartFilterChoice { value: string; title: string }
@@ -22,8 +21,6 @@ function s(key: string): string { return AppStrings.get(key) }
 export struct LibrarySmartCategorySection {
   @Param libraryStore?: LibraryStore = undefined
   @Param persistence?: LibraryStorePersistenceService = undefined
-  @Param displayStrategies: LibraryCategoryDisplayStrategy[] = []
-  @BuilderParam strategyItems: (categoryId: string, select: (action: () => void) => void) => void
   @Event onChanged: () => void = () => {}
   @Local private groups: LibrarySmartCategory[] = []
   @Local private editorShown: boolean = false
@@ -50,7 +47,7 @@ export struct LibrarySmartCategorySection {
     } catch (error) {
       const message = (error as Error).message
       const validation = [s('library_category_error_name_empty'), s('library_category_error_name_duplicate'),
-        s('library_category_error_name_builtin'), AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH)]
+        AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH)]
       DiagnosticLogger.exception('library', 'smart_category_save_failed', error)
       this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: validation.includes(message) ? message : s('library_category_save_failed') }))
       return false
@@ -101,9 +98,11 @@ export struct LibrarySmartCategorySection {
     const choices = new Map<string, string>()
     if (method === 'category') {
       choices.set('uncategorized', s('library_category_uncategorized'))
-      choices.set(LIBRARY_CATEGORY_FAVORITE_ID, s('library_category_favorite'))
-      choices.set(LIBRARY_CATEGORY_READ_LATER_ID, s('library_category_read_later'))
       this.libraryStore?.listCustomCategories().forEach((category: CustomLibraryCategory): void => { choices.set(category.id, category.name) })
+      LEGACY_LIBRARY_CATEGORIES.forEach((category: LegacyLibraryCategory): void => {
+        if (!choices.has(category.id) && this.draftFilters.some((filter: LibrarySmartFilter): boolean =>
+          filter.method === 'category' && filter.value === category.id)) choices.set(category.id, s(category.nameKey))
+      })
     } else if (method === 'contentRating') {
       choices.set('unknown', s('library_smart_unknown_rating'))
       this.libraryStore?.listComics().forEach((comic: Comic): void => {
@@ -188,7 +187,6 @@ export struct LibrarySmartCategorySection {
   @Builder
   private GroupMenu(group: LibrarySmartCategory, index: number, select: (action: () => void) => void) {
     Menu() {
-      this.strategyItems(group.id, select)
       MenuItem({ content: s('library_smart_edit') }).onClick((): void => { select((): void => { this.openEditor(group) }) })
       MenuItem({ content: s('library_category_action_move_up') }).enabled(index > 0)
         .onClick((): void => { select((): void => { this.move(group, -1) }) })
@@ -204,9 +202,7 @@ export struct LibrarySmartCategorySection {
       GroupedListSection({ title: s('library_smart_title') }) {
         ForEach(this.groups, (group: LibrarySmartCategory, index: number) => {
           ConciseListRow({ title: group.name,
-            subtitle: AppStrings.format('library_smart_rules_count', group.filters.length) + ' · ' +
-              libraryCategorySortSummary(this.displayStrategies.find((strategy: LibraryCategoryDisplayStrategy): boolean =>
-                strategy.categoryId === group.id)),
+            subtitle: AppStrings.format('library_smart_rules_count', group.filters.length),
             showChevron: false, trailingDropdown: true, dropdownMenuEnabled: true,
             dropdownMenuBuilder: (select: (action: () => void) => void): void => { this.GroupMenu(group, index, select) } })
           ListDivider()
@@ -215,8 +211,8 @@ export struct LibrarySmartCategorySection {
           action: (): void => { this.openEditor() } })
       }
     }.width('100%')
-      .bindSheet($$this.editorShown, this.Editor, komaSheetOptions({ detents: [SheetSize.LARGE],
-        showClose: false, enableFloatingDragBar: true,
-        onWillDismiss: (action: DismissSheetAction): void => { this.editorShown = false; action.dismiss() } }))
+      // Gesture dismissal belongs to the native sheet. Its two-way binding
+      // updates editorShown after closing without a second close request.
+      .bindSheet($$this.editorShown, this.Editor, komaModalSheetOptions({ detents: [SheetSize.LARGE] }))
   }
 }

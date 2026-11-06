@@ -2,7 +2,7 @@ import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
-import { LibrarySortMenuItems, librarySortSummary } from '../components/LibrarySortMenu'
+import { LibrarySortMenuItems, librarySortLabel, librarySortSummary } from '../components/LibrarySortMenu'
 import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -17,7 +17,7 @@ import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSec
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
-import { KomaModalScaffold } from '../components/KomaModalScaffold'
+import { KomaModalScaffold, komaModalSheetOptions } from '../components/KomaModalScaffold'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { gridFallbackContainerWidth } from '../utils/GridColumns'
 import { libraryCoverGridColumnCount, libraryCoverGridGap } from '../utils/LibraryCoverLayout'
@@ -36,8 +36,6 @@ import {
   CustomLibraryCategory,
   LibraryItem,
   ReadingProgress,
-  LIBRARY_CATEGORY_FAVORITE_ID,
-  LIBRARY_CATEGORY_READ_LATER_ID,
   normalizeCategoryIds,
 } from '../model/ComicModels'
 import {
@@ -96,6 +94,14 @@ function s(name: string): string {
 interface LibraryServerSourceFilterOption {
   filter: LibrarySourceFilter
   title: string
+}
+
+type CategoryCheckState = 'none' | 'mixed' | 'all'
+
+interface LibraryCategoryChoice {
+  id: string
+  name: string
+  initial: CategoryCheckState
 }
 
 interface LibraryGridProjection {
@@ -231,7 +237,6 @@ export struct LibraryPage {
   @Param libraryComics: Comic[] = []
   @Param libraryRevision: number = 0
   @Param libraryPreferencesRevision: number = 0
-  @Param categoryDisplayStrategyChange?: LibraryCategoryDisplayStrategy = undefined
   @Param readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
   @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
@@ -252,7 +257,6 @@ export struct LibraryPage {
   @Local private showLibraryBadges: boolean = true
   @Local private filterSource: LibrarySourceFilter = 'all'
   @Local private filterReadState: LibraryReadStateFilter = 'all'
-  @Local private categoryReadState: LibraryReadStateFilter = 'all'
   @Local private filterCategory: LibraryCategoryFilter = 'all'
   private smartSubscriptions: (() => void)[] = []
   @Local private filterAvailability: LibraryAvailabilityFilter = 'all'
@@ -287,6 +291,10 @@ export struct LibraryPage {
   }
 
   @Local private filtersShown: boolean = false
+  @Local private categoryEditorShown: boolean = false
+  @Local private categoryChoices: LibraryCategoryChoice[] = []
+  @Local private categoryChecks: Map<string, CategoryCheckState> = new Map<string, CategoryCheckState>()
+  private categoryEditComicIds: ComicId[] = []
   private titleMenu: KomaMenuController = new KomaMenuController()
   @Local private comicActionMenuKey: string = ''
   @Local private failedCoverUris: string[] = []
@@ -304,14 +312,13 @@ export struct LibraryPage {
   @Event onMigrationRequested: (comicIds: string[]) => void = () => {}
   @Event onOpenDownloadsRequested: () => void = () => {}
   @Event onOpenUpdatesRequested: () => void = () => {}
+  @Event onOpenCategoriesRequested: () => void = () => {}
   @Event onTitleBarChange: (presentation: LibraryTitleBarPresentation) => void =
     (_presentation: LibraryTitleBarPresentation) => {}
   @Event onRemoveComicRequested: (comicId: ComicId) => boolean = (_comicId: ComicId) => false
   @Event onRemoveComicsRequested: (comicIds: ComicId[]) => number = (_comicIds: ComicId[]) => 0
-  @Event onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => boolean =
-    (_comicIds: ComicId[], _categoryIds?: string[]) => false
-  @Event onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => boolean =
-    (_comicIds: ComicId[], _categoryId: string, _selected: boolean) => false
+  @Event onEditCategoriesRequested: (comicIds: ComicId[], added: string[], removed: string[]) => void =
+    (_comicIds: ComicId[], _added: string[], _removed: string[]) => {}
 
   @Monitor('selectionMode', 'selectedIds', 'viewMode', 'displayedRevision', 'batchDownloadBusy', 'languageState.effectiveLocale')
   private publishTitleBar(): void {
@@ -319,7 +326,7 @@ export struct LibraryPage {
       this.titleMenuItem(s('library_action_select_all'), $r('sys.symbol.checkmark_square'),
         () => { this.selectAllVisibleComics() }, this.hasVisibleLibraryContent()),
       this.titleMenuItem(s('library_action_categories'), $r('sys.symbol.folder'),
-        () => { this.openTitleMenu('categories') }, this.selectedCount() > 0, 'library-title-categories'),
+        () => { this.openCategoryEditor() }, this.selectedCount() > 0, 'library-title-categories'),
       this.titleMenuItem(s('migration_title'), $r('sys.symbol.arrow_right'), () => {
         const ids = Array.from(this.selectedIds)
         this.exitSelectionMode()
@@ -349,7 +356,10 @@ export struct LibraryPage {
       batchDownloadBusy: this.batchDownloadBusy,
       selectedCount: this.selectedCount(),
       menuItems: items,
-      cancelSelection: () => { this.exitSelectionMode() },
+      cancelSelection: () => {
+        if (this.categoryEditorShown) this.categoryEditorShown = false
+        else this.exitSelectionMode()
+      },
     })
   }
 
@@ -389,13 +399,6 @@ export struct LibraryPage {
     this.refreshDisplayedSnapshotFromStore()
   }
 
-  @Monitor('categoryDisplayStrategyChange')
-  private onCategoryDisplayStrategyChanged(): void {
-    const changed = this.categoryDisplayStrategyChange
-    if (changed === undefined || changed.categoryId !== this.filterCategory) return
-    this.refreshDisplayedSnapshotFromStore()
-  }
-
   @Monitor('libraryPreferencesRevision')
   private onLibraryPreferencesChanged(): void {
     this.beginFilterPreferencesRestore()
@@ -406,7 +409,6 @@ export struct LibraryPage {
     const category = this.validCategoryFilter()
     const strategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
     this.applyCategorySort(strategy)
-    this.categoryReadState = strategy?.readState ?? 'all'
     const items = this.libraryStore.listLibraryItems(progressByComicId, this.currentListOptions(category))
     const nextComics: Comic[] = []
     items.forEach((item: LibraryItem) => {
@@ -420,10 +422,7 @@ export struct LibraryPage {
     const sourceKinds = this.sourceKindsForFilter()
     const scopedComics = categoryComics.filter((comic: Comic): boolean => {
       if (sourceKinds !== undefined && !sourceKinds.includes(comic.sourceKind)) return false
-      if (this.categoryReadState === 'all' && this.filterReadState === 'all') return true
-      const state = this.readerSessionStore.comicReadingState(comic)
-      return (this.categoryReadState === 'all' || this.categoryReadState === state) &&
-        (this.filterReadState === 'all' || this.filterReadState === state)
+      return this.filterReadState === 'all' || this.readerSessionStore.comicReadingState(comic) === this.filterReadState
     })
     this.displayedComics = this.filterMetadataStatusComics(
       this.filterAvailabilityComics(this.filterPreciseSourceComics(scopedComics)))
@@ -598,14 +597,7 @@ export struct LibraryPage {
 
   private validCategoryFilter(): LibraryCategoryFilter {
     if (this.selectedSmartCategory() !== undefined) return 'all'
-    if (
-      this.filterCategory === 'all' ||
-      this.filterCategory === 'uncategorized' ||
-      this.filterCategory === LIBRARY_CATEGORY_READ_LATER_ID ||
-      this.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID
-    ) {
-      return this.filterCategory
-    }
+    if (this.filterCategory === 'all') return 'all'
     const categoryExists = this.libraryStore.listCustomCategories().some((category: CustomLibraryCategory): boolean => {
       return category.id === this.filterCategory
     })
@@ -917,22 +909,13 @@ export struct LibraryPage {
     void this.displayedRevision
     const smart = this.selectedSmartCategory()
     if (smart !== undefined) return smart.name
-    if (this.filterCategory === 'uncategorized') {
-      return s('library_category_uncategorized')
-    }
-    if (this.filterCategory === LIBRARY_CATEGORY_READ_LATER_ID) {
-      return s('library_category_read_later')
-    }
-    if (this.filterCategory === LIBRARY_CATEGORY_FAVORITE_ID) {
-      return s('library_category_favorite')
-    }
     const customCategory = this.libraryStore.listCustomCategories().find((category: CustomLibraryCategory): boolean => {
       return category.id === this.filterCategory
     })
     if (customCategory !== undefined) {
       return customCategory.name
     }
-    return s('library_category_all')
+    return s('common_all')
   }
 
   private availabilityLabel(): string {
@@ -1127,18 +1110,8 @@ export struct LibraryPage {
     const labels: string[] = []
     const customCategories = this.libraryStore.listCustomCategories()
     normalizeCategoryIds(comic.categoryIds).forEach((categoryId: string) => {
-      if (categoryId === LIBRARY_CATEGORY_FAVORITE_ID) {
-        labels.push(s('library_category_favorite'))
-      } else if (categoryId === LIBRARY_CATEGORY_READ_LATER_ID) {
-        labels.push(s('library_category_read_later'))
-      } else {
-        const customCategory = customCategories.find((category: CustomLibraryCategory): boolean => {
-          return category.id === categoryId
-        })
-        if (customCategory !== undefined) {
-          labels.push(customCategory.name)
-        }
-      }
+      const customCategory = customCategories.find((category: CustomLibraryCategory): boolean => category.id === categoryId)
+      if (customCategory !== undefined) labels.push(customCategory.name)
     })
     return labels
   }
@@ -1386,36 +1359,85 @@ export struct LibraryPage {
     }
   }
 
-  private assignSelectedCategory(categoryIds?: string[]): void {
-    const comicIds = Array.from(this.selectedIds)
-    if (comicIds.length === 0) {
-      return
-    }
-    if (this.onAssignCategoriesRequested(comicIds, categoryIds)) {
+  private openCategoryEditor(): void {
+    const comics = Array.from(this.selectedIds)
+      .map((id: ComicId): Comic | undefined => this.libraryStore.getComic(id))
+      .filter((comic: Comic | undefined): boolean => comic !== undefined) as Comic[]
+    if (comics.length === 0) return
+    this.categoryEditComicIds = comics.map((comic: Comic): ComicId => comic.id)
+    this.categoryChoices = this.libraryStore.listCustomCategories().map((category: CustomLibraryCategory): LibraryCategoryChoice => {
+      const count = comics.filter((comic: Comic): boolean => normalizeCategoryIds(comic.categoryIds).includes(category.id)).length
+      return { id: category.id, name: category.name, initial: count === 0 ? 'none' : count === comics.length ? 'all' : 'mixed' }
+    })
+    this.categoryChecks = new Map<string, CategoryCheckState>()
+    this.categoryEditorShown = true
+  }
+
+  private categoryCheck(choice: LibraryCategoryChoice): CategoryCheckState {
+    return this.categoryChecks.get(choice.id) ?? choice.initial
+  }
+
+  private toggleCategoryCheck(choice: LibraryCategoryChoice): void {
+    const current = this.categoryCheck(choice)
+    const next = current === 'all' ? 'none' : current === 'none' && choice.initial === 'mixed' ? 'mixed' : 'all'
+    const checks = new Map<string, CategoryCheckState>(this.categoryChecks)
+    if (next === choice.initial) checks.delete(choice.id)
+    else checks.set(choice.id, next)
+    this.categoryChecks = checks
+  }
+
+  private saveCategoryEditor(): void {
+    const added: string[] = []
+    const removed: string[] = []
+    this.categoryChecks.forEach((state: CategoryCheckState, id: string): void => {
+      if (state === 'all') added.push(id)
+      else if (state === 'none') removed.push(id)
+    })
+    try {
+      this.onEditCategoriesRequested(this.categoryEditComicIds, added, removed)
+      this.categoryEditorShown = false
       this.exitSelectionMode()
-      this.refreshDisplayedSnapshotFromStore()
+    } catch (_error) {
+      this.showToast(s('library_category_save_failed'))
     }
   }
 
-  private addSelectedCategory(categoryId: string): void {
-    const comicIds = Array.from(this.selectedIds)
-    if (comicIds.length === 0) {
-      return
-    }
-    if (this.onUpdateCategoryMembershipRequested(comicIds, categoryId, true)) {
-      this.exitSelectionMode()
-      this.refreshDisplayedSnapshotFromStore()
-    }
-  }
-
-  private removeSelectedCategory(categoryId: string): void {
-    const comicIds = Array.from(this.selectedIds)
-    if (comicIds.length === 0) {
-      return
-    }
-    if (this.onUpdateCategoryMembershipRequested(comicIds, categoryId, false)) {
-      this.exitSelectionMode()
-      this.refreshDisplayedSnapshotFromStore()
+  @Builder
+  private CategoryEditor() {
+    KomaModalScaffold({
+      title: s('library_action_categories'),
+      confirmLabel: this.categoryChoices.length > 0 ? s('common_save') : undefined,
+      confirmEnabled: this.categoryChecks.size > 0,
+      onConfirm: (): void => { this.saveCategoryEditor() },
+      onClose: (): void => { this.categoryEditorShown = false },
+    }) {
+      ListItem() {
+        GroupedListSection() {
+          if (this.categoryChoices.length === 0) {
+            ConciseListRow({ title: s('settings_row_library_categories_title'), leadingIcon: $r('sys.symbol.plus'),
+              action: (): void => {
+                this.categoryEditorShown = false
+                this.onOpenCategoriesRequested()
+              } })
+          } else {
+            ForEach(this.categoryChoices, (choice: LibraryCategoryChoice, index: number) => {
+              ConciseListRow({
+                title: choice.name,
+                wrapTitle: true,
+                showChevron: false,
+                trailingIcon: this.categoryCheck(choice) === 'all' ? $r('sys.symbol.checkmark') :
+                  this.categoryCheck(choice) === 'mixed' ? $r('sys.symbol.minus') : undefined,
+                trailingIconColor: ThemeConstants.BRAND_PRIMARY,
+                trailingIconLabel: this.categoryCheck(choice) === 'mixed' ? s('library_category_partial_selection') :
+                  s('library_category_selection_checked'),
+                trailingIconAction: (): void => { this.toggleCategoryCheck(choice) },
+                action: (): void => { this.toggleCategoryCheck(choice) },
+              })
+              if (index < this.categoryChoices.length - 1) ListDivider()
+            }, (choice: LibraryCategoryChoice): string => choice.id)
+          }
+        }
+      }
     }
   }
 
@@ -1738,24 +1760,21 @@ export struct LibraryPage {
   private CategoryMenu() {
     Menu() {
       MenuItemGroup() {
-        this.CategoryMenuItem('all', s('library_category_all'))
-        this.CategoryMenuItem('uncategorized', s('library_category_uncategorized'))
-        this.CategoryMenuItem(LIBRARY_CATEGORY_FAVORITE_ID, s('library_category_favorite'))
-        this.CategoryMenuItem(LIBRARY_CATEGORY_READ_LATER_ID, s('library_category_read_later'))
-      }
-      if (this.libraryStore.listCustomCategories().length > 0) {
-        MenuItemGroup({ header: s('library_category_custom_section') }) {
-          ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
-            this.CategoryMenuItem(category.id, category.name)
-          }, (category: CustomLibraryCategory) => category.id)
-        }
+        this.CategoryMenuItem('all', s('common_all'))
+        ForEach(this.libraryStore.listCustomCategories(), (category: CustomLibraryCategory) => {
+          this.CategoryMenuItem(category.id, category.name)
+        }, (category: CustomLibraryCategory) => category.id)
       }
       if (this.libraryStore.listSmartCategories().length > 0) {
-        MenuItemGroup({ header: s('library_smart_title') }) {
+        MenuItemGroup() {
           ForEach(this.libraryStore.listSmartCategories(), (category: LibrarySmartCategory) => {
             this.CategoryMenuItem(category.id, category.name)
           }, (category: LibrarySmartCategory) => category.id)
         }
+      }
+      MenuItemGroup() {
+        MenuItem({ content: s('settings_row_library_categories_title'), startIcon: $r('sys.symbol.folder') })
+          .onClick((): void => { this.onOpenCategoriesRequested() })
       }
     }
   }
@@ -1788,64 +1807,53 @@ export struct LibraryPage {
           action: () => { this.setViewMode('list') } },
       ]
     }
-    const items: LibraryTitleMenuItem[] = [
-      { label: s('library_batch_add_favorite'), action: () => { this.addSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID) } },
-      { label: s('library_batch_move_favorite'), action: () => { this.assignSelectedCategory([LIBRARY_CATEGORY_FAVORITE_ID]) } },
-      { label: s('library_batch_remove_favorite'), action: () => { this.removeSelectedCategory(LIBRARY_CATEGORY_FAVORITE_ID) } },
-      { label: s('library_batch_add_read_later'), action: () => { this.addSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID) } },
-      { label: s('library_batch_move_read_later'), action: () => { this.assignSelectedCategory([LIBRARY_CATEGORY_READ_LATER_ID]) } },
-      { label: s('library_batch_remove_read_later'), action: () => { this.removeSelectedCategory(LIBRARY_CATEGORY_READ_LATER_ID) } },
-    ]
-    this.libraryStore.listCustomCategories().forEach((category: CustomLibraryCategory) => {
-      items.push({ label: s('library_batch_add_category').replace('%s', category.name),
-        action: () => { this.addSelectedCategory(category.id) } })
-      items.push({ label: s('library_batch_move_category').replace('%s', category.name),
-        action: () => { this.assignSelectedCategory([category.id]) } })
-      items.push({ label: s('library_batch_remove_category').replace('%s', category.name),
-        action: () => { this.removeSelectedCategory(category.id) } })
-    })
-    items.push({ label: s('library_batch_clear_categories'), action: () => { this.assignSelectedCategory(undefined) } })
-    return items
+    return []
   }
 
 
   @Builder
   private SortSelector() {
     Row({ space: ThemeConstants.SPACE_XS }) {
-      Text(librarySortSummary(this.sortBy, this.sortDirection))
+      Text(librarySortLabel(this.sortBy))
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .fontWeight(FontWeight.Medium)
-        .fontColor(this.sortBy === 'lastRead' && this.sortDirection === 'desc' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-      SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
-        .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-        .fontColor([ThemeConstants.TEXT_TERTIARY])
+        .flexShrink(1)
+      Text(this.sortDirection === 'asc' ? '↑' : '↓')
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(ThemeConstants.TEXT_PRIMARY)
+        .flexShrink(0)
+        .accessibilityLevel('no')
     }
     .height(ThemeConstants.BUTTON_HEIGHT)
     .padding({ right: ThemeConstants.SPACE_SM })
     .backgroundColor(Color.Transparent)
     .alignItems(VerticalAlign.Center)
+    .accessibilityText(librarySortSummary(this.sortBy, this.sortDirection))
   }
 
   @Builder
   private CategorySelector() {
     Row({ space: ThemeConstants.SPACE_XS }) {
       Text(this.categoryLabel())
-        .fontSize(ThemeConstants.FONT_SIZE_BODY)
-        .fontWeight(FontWeight.Medium)
+        .fontSize(ThemeConstants.FONT_SIZE_TITLE)
+        .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .constraintSize({ maxWidth: '85%' })
+        .constraintSize({ maxWidth: 'calc(100% - 20vp)' })
       SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
         .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
         .fontColor([ThemeConstants.TEXT_TERTIARY])
     }
     .height(ThemeConstants.BUTTON_HEIGHT)
     .padding({ right: ThemeConstants.SPACE_SM })
+    .accessibilityText(this.categoryLabel())
     .accessibilityDescription(s('library_category_switch'))
-    .bindMenu(this.CategoryMenu(), komaMenuOptions())
+    .bindMenu(this.CategoryMenu(), komaMenuOptions({ placement: Placement.BottomLeft }))
   }
 
   @Builder
@@ -1870,8 +1878,6 @@ export struct LibraryPage {
             ListDivider()
             ConciseListRow({
               title: s('library_filter_read_state_title'),
-              subtitle: this.categoryReadState === 'all' ? '' :
-                AppStrings.format('library_category_read_state_applied', this.readStateLabel(this.categoryReadState)),
               trailingText: this.readStateLabel(),
               trailingDropdown: true,
               dropdownMenuEnabled: true,
@@ -1921,9 +1927,17 @@ export struct LibraryPage {
   @Builder
   private SortFilterBar() {
     Row({ space: ThemeConstants.SPACE_SM }) {
+      // The spacer takes the available width. The menu anchors to the inner
+      // button, whose bounds stop at the disclosure glyph.
+      Row() {
+        this.CategorySelector()
+      }
+      .layoutWeight(1)
+
       Row() {
         this.SortSelector()
       }
+      .constraintSize({ maxWidth: '53%' })
       .bindMenu(this.SortMenu(), komaMenuOptions())
 
       Row() {
@@ -1954,12 +1968,7 @@ export struct LibraryPage {
 
   @Builder
   private LibraryViewControls() {
-    Column() {
-      this.CategorySelector()
-      this.SortFilterBar()
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
+    this.SortFilterBar()
   }
 
   @Builder
@@ -2365,6 +2374,10 @@ export struct LibraryPage {
   }
 
   onBackPress(): boolean {
+    if (this.categoryEditorShown) {
+      this.categoryEditorShown = false
+      return true
+    }
     if (this.selectionMode) {
       this.exitSelectionMode()
       return true
@@ -2438,6 +2451,10 @@ export struct LibraryPage {
     .width('100%')
     .height('100%')
     .backgroundColor(ThemeConstants.BG_SUB)
+    .bindSheet($$this.categoryEditorShown, this.CategoryEditor, komaModalSheetOptions({
+      height: SheetSize.MEDIUM, detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      showClose: false, enableOutsideInteractive: false, scrollSizeMode: ScrollSizeMode.CONTINUOUS,
+    }))
     .onAreaChange((_old: Area, next: Area) => {
       this.containerWidth = next.width as number
     })

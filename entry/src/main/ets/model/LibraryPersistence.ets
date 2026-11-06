@@ -20,22 +20,21 @@ import {
   copyComicUpdateSchedule,
   SourceMangaMetadata,
   copySourceMangaMetadata,
-  CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
   ComicSourceKind,
   CustomLibraryCategory,
+  LegacyLibraryCategory,
+  LEGACY_LIBRARY_CATEGORIES,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH,
   Page,
   ReadingDirection,
-  isBuiltInLibraryCategoryId,
-  isBuiltInLibraryCategoryName,
+  isManualLibraryCategoryId,
   libraryCategoryNameKey,
   normalizeCategoryIds,
   normalizeLibraryCategoryName,
   normalizeSortKey,
-  withComicAddedCategoryId,
   withComicCategoryIds,
-  withComicRemovedCategoryId,
 } from './ComicModels'
+import { AppStrings } from '../i18n/AppStrings'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import {
   isLibrarySortBy,
@@ -619,7 +618,7 @@ function assertValidPersistedLibraryCategory(row: PersistedLibraryCategory): voi
   assertNumberField(row.sortOrder, 'category.sortOrder')
   assertNumberField(row.createdAt, 'category.createdAt')
   assertNumberField(row.updatedAt, 'category.updatedAt')
-  if (!row.id.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) || isBuiltInLibraryCategoryId(row.id)) {
+  if (!isManualLibraryCategoryId(row.id)) {
     throw new Error('Invalid library store persistence category.id: expected custom category id')
   }
   const normalizedName = normalizeLibraryCategoryName(row.name)
@@ -628,9 +627,6 @@ function assertValidPersistedLibraryCategory(row: PersistedLibraryCategory): voi
   }
   if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
     throw new Error(`Invalid library store persistence category.name: expected at most ${LIBRARY_CATEGORY_NAME_MAX_LENGTH} characters`)
-  }
-  if (isBuiltInLibraryCategoryName(normalizedName)) {
-    throw new Error('Invalid library store persistence category.name: conflicts with built-in category')
   }
 }
 
@@ -741,8 +737,38 @@ export function assertValidLibraryStoreJson(payload: string): void {
   parseValidatedLibraryStoreDocument(payload)
 }
 
-export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload: string): void {
+export function readLibraryStoreDocument(payload: string): PersistedLibraryStoreDocument {
   const document = parseValidatedLibraryStoreDocument(payload)
+  const categories = document.customCategories ?? []
+  const names = new Set<string>(categories.map((category: PersistedLibraryCategory): string => libraryCategoryNameKey(category.name)))
+  document.smartCategories?.forEach((category: LibrarySmartCategory): void => {
+    names.add(libraryCategoryNameKey(category.name))
+  })
+  let nextOrder = categories.reduce((next: number, category: PersistedLibraryCategory): number =>
+    Math.max(next, category.sortOrder + 1), 0)
+  // Old shelves stored preset memberships without category records. Promote
+  // used IDs to ordinary editable records, including when reading an old backup.
+  LEGACY_LIBRARY_CATEGORIES.forEach((legacy: LegacyLibraryCategory): void => {
+    if (categories.some((category: PersistedLibraryCategory): boolean => category.id === legacy.id)) return
+    const strategy = document.categoryDisplayStrategies?.find((item: PersistedCategoryDisplayStrategy): boolean =>
+      item.categoryId === legacy.id)
+    if (strategy === undefined && !document.comics.some((comic: PersistedComic): boolean =>
+      normalizeCategoryIds(comic.categoryIds).includes(legacy.id))) return
+    const label = AppStrings.get(legacy.nameKey)
+    let name = label
+    let suffix = 2
+    while (names.has(libraryCategoryNameKey(name))) {
+      name = label + ' (' + suffix++ + ')'
+    }
+    names.add(libraryCategoryNameKey(name))
+    categories.push({ id: legacy.id, name, sortOrder: nextOrder++, createdAt: 0, updatedAt: strategy?.updatedAt ?? 0 })
+  })
+  if (categories.length > 0) document.customCategories = categories
+  return document
+}
+
+export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload: string): void {
+  const document = readLibraryStoreDocument(payload)
   const customCategories = document.customCategories === undefined ? [] : document.customCategories.map((row: PersistedLibraryCategory) => {
     return hydrateLibraryCategory(row)
   })
@@ -1233,69 +1259,38 @@ function syncLibraryMembershipChanges(comic: Comic, next: string[]): SyncLibrary
   return actions
 }
 
-export function assignComicCategoriesAndPersistLibraryStore(
+export function editComicCategoriesAndPersistLibraryStore(
   libraryStore: LibraryStore,
-  persistenceService: LibraryStorePersistenceService,
+  persistenceService: LibraryStorePersistenceService | undefined,
   comicIds: ComicId[],
-  categoryIds?: string[]
+  addedCategoryIds: string[],
+  removedCategoryIds: string[],
 ): number {
-  const normalizedCategoryIds = normalizeCategoryIds(categoryIds)
-  const previousPayload = serializeLibraryStore(libraryStore)
-  let changedCount = 0
+  const known = new Set<string>(libraryStore.listCustomCategories().map((category: CustomLibraryCategory): string => category.id))
+  const added = normalizeCategoryIds(addedCategoryIds).filter((id: string): boolean => known.has(id))
+  const removed = new Set<string>(normalizeCategoryIds(removedCategoryIds))
+  const edits: Comic[] = []
   const syncEdits: SyncLibrarySignal[] = []
-  comicIds.forEach((comicId: ComicId) => {
+  // A mixed row left untouched keeps each book's own membership. Apply only
+  // explicit changes against the latest records and persist them together.
+  new Set<ComicId>(comicIds).forEach((comicId: ComicId): void => {
     const comic = libraryStore.getComic(comicId)
-    if (comic !== undefined) {
-      syncEdits.push(...syncLibraryMembershipChanges(comic, normalizedCategoryIds))
-      libraryStore.upsertComic(withComicCategoryIds(comic, normalizedCategoryIds))
-      changedCount += 1
-    }
+    if (comic === undefined) return
+    const before = normalizeCategoryIds(comic.categoryIds)
+    const next = before.filter((id: string): boolean => !removed.has(id))
+    added.forEach((id: string): void => { if (!next.includes(id)) next.push(id) })
+    if (before.length === next.length && before.every((id: string): boolean => next.includes(id))) return
+    syncEdits.push(...syncLibraryMembershipChanges(comic, next))
+    edits.push(withComicCategoryIds(comic, next))
   })
-  if (changedCount === 0) {
-    return 0
-  }
+  if (edits.length === 0) return 0
+  const previousPayload = persistenceService === undefined ? '' : serializeLibraryStore(libraryStore)
+  edits.forEach((comic: Comic): void => { libraryStore.upsertComic(comic) })
+  if (persistenceService === undefined) return edits.length
   try {
     persistenceService.persist()
     signalDeviceSyncLibrary(syncEdits)
-    return changedCount
-  } catch (error) {
-    hydrateLibraryStoreFromJson(libraryStore, previousPayload)
-    throw error as Error
-  }
-}
-
-export function updateComicCategoryMembershipAndPersistLibraryStore(
-  libraryStore: LibraryStore,
-  persistenceService: LibraryStorePersistenceService,
-  comicIds: ComicId[],
-  categoryId: string,
-  selected: boolean
-): number {
-  const normalizedCategoryId = categoryId.trim()
-  if (normalizedCategoryId.length === 0) {
-    return 0
-  }
-  const previousPayload = serializeLibraryStore(libraryStore)
-  let changedCount = 0
-  const syncEdits: SyncLibrarySignal[] = []
-  comicIds.forEach((comicId: ComicId) => {
-    const comic = libraryStore.getComic(comicId)
-    if (comic !== undefined) {
-      const nextComic = selected ?
-        withComicAddedCategoryId(comic, normalizedCategoryId) :
-        withComicRemovedCategoryId(comic, normalizedCategoryId)
-      syncEdits.push(...syncLibraryMembershipChanges(comic, nextComic.categoryIds ?? []))
-      libraryStore.upsertComic(nextComic)
-      changedCount += 1
-    }
-  })
-  if (changedCount === 0) {
-    return 0
-  }
-  try {
-    persistenceService.persist()
-    signalDeviceSyncLibrary(syncEdits)
-    return changedCount
+    return edits.length
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)
     throw error as Error
@@ -1339,10 +1334,10 @@ export function moveCustomCategoryAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
   categoryId: string,
-  direction: 'up' | 'down'
+  destinationId: string,
 ): boolean {
   const previousPayload = serializeLibraryStore(libraryStore)
-  const moved = libraryStore.moveCustomCategory(categoryId, direction)
+  const moved = libraryStore.moveCustomCategory(categoryId, destinationId)
   if (!moved) {
     return false
   }

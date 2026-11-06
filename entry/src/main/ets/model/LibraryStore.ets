@@ -7,8 +7,7 @@ import {
   ReadingProgress,
   CUSTOM_LIBRARY_CATEGORY_ID_PREFIX,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH,
-  isBuiltInLibraryCategoryId,
-  isBuiltInLibraryCategoryName,
+  isManualLibraryCategoryId,
   libraryCategoryNameKey,
   normalizeLibraryCategoryName,
   comicToLibraryItem,
@@ -70,7 +69,7 @@ export interface LibraryStore {
   replaceCustomCategories(categories: CustomLibraryCategory[]): void
   createCustomCategory(name: string, now?: number): CustomLibraryCategory
   renameCustomCategory(categoryId: string, name: string, now?: number): CustomLibraryCategory
-  moveCustomCategory(categoryId: string, direction: 'up' | 'down', now?: number): boolean
+  moveCustomCategory(categoryId: string, destinationId: string, now?: number): boolean
   deleteCustomCategory(categoryId: string): boolean
   listCategoryDisplayStrategies(): LibraryCategoryDisplayStrategy[]
   getCategoryDisplayStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy | undefined
@@ -300,42 +299,23 @@ export class InMemoryLibraryStore implements LibraryStore {
     return this.cloneCustomCategory(next)
   }
 
-  moveCustomCategory(categoryId: string, direction: 'up' | 'down', now: number = Date.now()): boolean {
-    if (isBuiltInLibraryCategoryId(categoryId)) {
-      return false
-    }
+  moveCustomCategory(categoryId: string, destinationId: string, now: number = Date.now()): boolean {
     const categories = this.listCustomCategories()
     const index = categories.findIndex((category: CustomLibraryCategory): boolean => category.id === categoryId)
-    if (index < 0) {
-      return false
-    }
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= categories.length) {
-      return false
-    }
-    const current = categories[index]
-    const target = categories[targetIndex]
-    this.customCategories.set(current.id, {
-      id: current.id,
-      name: current.name,
-      sortOrder: target.sortOrder,
-      createdAt: current.createdAt,
-      updatedAt: now,
-    })
-    this.customCategories.set(target.id, {
-      id: target.id,
-      name: target.name,
-      sortOrder: current.sortOrder,
-      createdAt: target.createdAt,
-      updatedAt: now,
+    const targetIndex = categories.findIndex((category: CustomLibraryCategory): boolean => category.id === destinationId)
+    if (index < 0 || targetIndex < 0 || index === targetIndex) return false
+    const moved = categories.splice(index, 1)[0]
+    categories.splice(targetIndex, 0, moved)
+    categories.forEach((category: CustomLibraryCategory, position: number): void => {
+      if (category.sortOrder === position) return
+      category.sortOrder = position
+      category.updatedAt = now
+      this.customCategories.set(category.id, category)
     })
     return true
   }
 
   deleteCustomCategory(categoryId: string): boolean {
-    if (isBuiltInLibraryCategoryId(categoryId)) {
-      return false
-    }
     if (!this.customCategories.has(categoryId)) {
       return false
     }
@@ -497,7 +477,7 @@ export class InMemoryLibraryStore implements LibraryStore {
     nextCategories: Map<string, CustomLibraryCategory>,
     nameKeys: string[]
   ): CustomLibraryCategory {
-    if (!category.id.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) || isBuiltInLibraryCategoryId(category.id)) {
+    if (!isManualLibraryCategoryId(category.id)) {
       throw new Error('Invalid custom category id')
     }
     if (nextCategories.has(category.id)) {
@@ -509,9 +489,6 @@ export class InMemoryLibraryStore implements LibraryStore {
     }
     if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
       throw new Error(AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH))
-    }
-    if (isBuiltInLibraryCategoryName(normalizedName)) {
-      throw new Error(AppStrings.get('library_category_error_name_builtin'))
     }
     const nameKey = libraryCategoryNameKey(normalizedName)
     if (nameKeys.includes(nameKey)) {
@@ -534,9 +511,6 @@ export class InMemoryLibraryStore implements LibraryStore {
     }
     if (normalizedName.length > LIBRARY_CATEGORY_NAME_MAX_LENGTH) {
       throw new Error(AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH))
-    }
-    if (isBuiltInLibraryCategoryName(normalizedName)) {
-      throw new Error(AppStrings.get('library_category_error_name_builtin'))
     }
     const key = libraryCategoryNameKey(normalizedName)
     const duplicate = Array.from(this.customCategories.values()).some((category: CustomLibraryCategory): boolean => {

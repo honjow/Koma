@@ -1,5 +1,5 @@
 import { AppStrings } from '../i18n/AppStrings'
-import { LibraryCategoryDisplayStrategy, LibrarySortBy, LibrarySortDirection, librarySortDirection } from '../model/LibraryStore'
+import { LibrarySortBy, LibrarySortDirection, librarySortDirection } from '../model/LibraryStore'
 
 interface LibrarySortOption {
   key: LibrarySortBy
@@ -28,15 +28,13 @@ function directionLabel(sortBy: LibrarySortBy, direction: LibrarySortDirection):
   return AppStrings.get(ascending ? 'library_sort_oldest_first' : 'library_sort_newest_first')
 }
 
-export function librarySortSummary(sortBy: LibrarySortBy, direction?: LibrarySortDirection): string {
+export function librarySortLabel(sortBy: LibrarySortBy): string {
   const option = SORT_OPTIONS.find((item: LibrarySortOption): boolean => item.key === sortBy)
-  return AppStrings.get(option?.labelKey ?? 'library_sort_last_read') +
-    ' · ' + directionLabel(sortBy, librarySortDirection(sortBy, direction))
+  return AppStrings.get(option?.labelKey ?? 'library_sort_last_read')
 }
 
-export function libraryCategorySortSummary(strategy?: LibraryCategoryDisplayStrategy): string {
-  return strategy === undefined || strategy.followsDefaultSort === true ?
-    AppStrings.get('library_category_sort_follow_default') : librarySortSummary(strategy.sortBy, strategy.sortDirection)
+export function librarySortSummary(sortBy: LibrarySortBy, direction?: LibrarySortDirection): string {
+  return librarySortLabel(sortBy) + ' · ' + directionLabel(sortBy, librarySortDirection(sortBy, direction))
 }
 
 // All shelf sorting entries share the native group separator and checkmarks.

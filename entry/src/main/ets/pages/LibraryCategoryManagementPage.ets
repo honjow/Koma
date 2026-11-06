@@ -1,38 +1,22 @@
-import { komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { LibrarySortMenuItems, libraryCategorySortSummary } from '../components/LibrarySortMenu'
-import { common } from '@kit.AbilityKit'
-import { effectiveLibraryDefaultSort, LibraryFilterStore, LibrarySortSelection } from '../model/LibraryFilterStore'
 import {
   Comic,
   CustomLibraryCategory,
-  LIBRARY_CATEGORY_FAVORITE_ID,
   LIBRARY_CATEGORY_NAME_MAX_LENGTH,
-  LIBRARY_CATEGORY_READ_LATER_ID,
 } from '../model/ComicModels'
-import {
-  LibraryCategoryDisplayCategoryId,
-  LibraryCategoryDisplayStrategy,
-  LibraryReadStateFilter,
-  LibrarySortBy,
-  LibrarySortDirection,
-  librarySortDirection,
-  LibraryStore,
-} from '../model/LibraryStore'
+import { LibraryStore } from '../model/LibraryStore'
 import {
   LibraryStorePersistenceService,
   createCustomCategoryAndPersistLibraryStore,
   deleteCustomCategoryAndPersistLibraryStore,
   moveCustomCategoryAndPersistLibraryStore,
   renameCustomCategoryAndPersistLibraryStore,
-  setCategoryDisplayStrategyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
-import { KomaActionButton } from '../components/ui/KomaActionButton'
-import { KomaFormTextField } from '../components/ui/KomaFormTextField'
-import { KomaMenuListRow } from '../components/ui/KomaMenuListRow'
+import { KomaTextInputDialog } from '../components/ui/KomaTextInputDialog'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { AppStrings } from '../i18n/AppStrings'
 import { LibrarySmartCategorySection } from '../components/LibrarySmartCategorySection'
@@ -42,24 +26,28 @@ function s(name: string): string {
   return AppStrings.get(name)
 }
 
+@ObservedV2
+export class LibraryCategoryManagementChrome {
+  @Trace createRequest: number = 0
+}
+
 @ComponentV2
 export struct LibraryCategoryManagementPage {
+  @Param chrome: LibraryCategoryManagementChrome = new LibraryCategoryManagementChrome()
   @Param libraryStore?: LibraryStore = undefined
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
-  @Event onDisplayStrategyChanged: (strategy: LibraryCategoryDisplayStrategy) => void = () => {}
-  @Local private categoryDisplayStrategies: LibraryCategoryDisplayStrategy[] = []
-  @Local private defaultSort: LibrarySortSelection = { sortBy: 'lastRead', sortDirection: 'desc' }
   @Local private categories: CustomLibraryCategory[] = []
   @Local private draftName: string = ''
+  @Local private draftError: string = ''
+  private categoryDialogId: number = -1
+  private categoryDialogOpening: boolean = false
+  private pageVisible: boolean = false
   @Local private editingCategoryId: string = ''
-  @Local private editingName: string = ''
-  @Local private categoryMenuKey: string = ''
   @Local private languageState: LanguageState = connectLanguageState()
 
   private refreshCategories(): void {
     this.categories = this.libraryStore === undefined ? [] : this.libraryStore.listCustomCategories()
-    this.categoryDisplayStrategies = this.libraryStore?.listCategoryDisplayStrategies() ?? []
   }
 
   private showToast(message: string): void {
@@ -75,7 +63,6 @@ export struct LibraryCategoryManagementPage {
       s('library_category_error_missing'),
       s('library_category_error_name_empty'),
       AppStrings.format('library_category_error_name_too_long', LIBRARY_CATEGORY_NAME_MAX_LENGTH),
-      s('library_category_error_name_builtin'),
       s('library_category_error_name_duplicate'),
     ]
     if (allowedValidationMessages.includes(message)) {
@@ -85,143 +72,59 @@ export struct LibraryCategoryManagementPage {
     return s('library_category_save_failed')
   }
 
-  private categoryStrategy(categoryId: LibraryCategoryDisplayCategoryId): LibraryCategoryDisplayStrategy {
-    const strategy = this.categoryDisplayStrategies.find((value: LibraryCategoryDisplayStrategy): boolean => {
-      return value.categoryId === categoryId
-    })
-    if (strategy !== undefined) {
-      return strategy
-    }
-    return {
-      categoryId,
-      sortBy: this.defaultSort.sortBy,
-      sortDirection: this.defaultSort.sortDirection,
-      followsDefaultSort: true,
-      readState: 'all',
-      updatedAt: 0,
-    }
+  @Monitor('chrome.createRequest')
+  private onCreateRequested(): void {
+    this.openCategoryDialog()
   }
 
-  private sortSummary(categoryId: LibraryCategoryDisplayCategoryId): string {
-    return libraryCategorySortSummary(this.categoryStrategy(categoryId))
-  }
-
-  private categorySort(categoryId: LibraryCategoryDisplayCategoryId): LibrarySortSelection {
-    const strategy = this.categoryStrategy(categoryId)
-    return strategy.followsDefaultSort === true ? this.defaultSort : {
-      sortBy: strategy.sortBy, sortDirection: librarySortDirection(strategy.sortBy, strategy.sortDirection),
-    }
-  }
-
-  private readStateLabel(readState: LibraryReadStateFilter): string {
-    if (readState === 'unread') {
-      return s('library_read_state_unread')
-    }
-    if (readState === 'reading') {
-      return s('library_read_state_reading')
-    }
-    if (readState === 'completed') {
-      return s('library_read_state_completed')
-    }
-    return s('library_read_state_all')
-  }
-
-  private persistCategoryStrategy(
-    categoryId: LibraryCategoryDisplayCategoryId,
-    sortBy: LibrarySortBy,
-    sortDirection: LibrarySortDirection | undefined,
-    readState: LibraryReadStateFilter,
-    followsDefaultSort?: boolean,
-  ): void {
-    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
+  private openCategoryDialog(category?: CustomLibraryCategory): void {
+    if (this.categoryDialogId >= 0 || this.categoryDialogOpening) return
+    this.categoryDialogOpening = true
+    this.editingCategoryId = category?.id ?? ''
+    this.draftName = category?.name ?? ''
+    this.draftError = ''
+    const prompt = this.getUIContext().getPromptAction()
+    void prompt.openCustomDialog({
+      systemMaterial: komaDialogMaterial(),
+      builder: (): void => { this.CategoryDialog() },
+      alignment: DialogAlignment.Center,
+      autoCancel: true,
+      onDidDisappear: (): void => { this.categoryDialogId = -1 },
+    }).then((id: number): void => {
+      this.categoryDialogId = id
+      if (!this.pageVisible) this.closeCategoryDialog()
+    }).catch((): void => {
       this.showToast(s('library_category_management_unavailable'))
+    }).finally((): void => { this.categoryDialogOpening = false })
+  }
+
+  private closeCategoryDialog(): void {
+    if (this.categoryDialogId < 0) return
+    const id = this.categoryDialogId
+    this.categoryDialogId = -1
+    this.getUIContext().getPromptAction().closeCustomDialog(id)
+  }
+
+  private saveCategoryDialog(): void {
+    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
+      this.draftError = s('library_category_management_unavailable')
       return
     }
     try {
-      const savedStrategy = setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, {
-        categoryId,
-        sortBy,
-        sortDirection,
-        readState,
-        followsDefaultSort,
-        updatedAt: Date.now(),
-      })
-      this.onLibraryChanged()
-      this.refreshCategories()
-      this.onDisplayStrategyChanged(savedStrategy)
-      this.showToast(s('library_category_display_updated'))
-    } catch (_error) {
-      this.showToast(s('library_category_display_save_failed'))
-    }
-  }
-
-  private setCategorySort(categoryId: LibraryCategoryDisplayCategoryId, sortBy: LibrarySortBy,
-    direction: LibrarySortDirection, followsDefaultSort: boolean = false): void {
-    const strategy = this.categoryStrategy(categoryId)
-    if ((strategy.followsDefaultSort === true) === followsDefaultSort && strategy.sortBy === sortBy &&
-      librarySortDirection(strategy.sortBy, strategy.sortDirection) === direction) return
-    this.persistCategoryStrategy(categoryId, sortBy, direction, strategy.readState, followsDefaultSort)
-    this.categoryMenuKey = ''
-  }
-
-  private setCategoryReadState(categoryId: LibraryCategoryDisplayCategoryId, readState: LibraryReadStateFilter): void {
-    const strategy = this.categoryStrategy(categoryId)
-    this.persistCategoryStrategy(categoryId, strategy.sortBy, strategy.sortDirection, readState, strategy.followsDefaultSort)
-    this.categoryMenuKey = ''
-  }
-
-  private categoryActionMenuKey(categoryId: string): string {
-    return `${categoryId}:actions`
-  }
-
-  private categoryStrategySummary(categoryId: LibraryCategoryDisplayCategoryId): string {
-    const strategy = this.categoryStrategy(categoryId)
-    if (categoryId === 'all') return this.readStateLabel(strategy.readState)
-    return `${this.sortSummary(categoryId)} · ${this.readStateLabel(strategy.readState)}`
-  }
-
-  private persistCreate(): void {
-    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast(s('library_category_management_unavailable'))
-      return
-    }
-    try {
-      createCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, this.draftName)
-      this.draftName = ''
+      const creating = this.editingCategoryId.length === 0
+      if (creating) {
+        createCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, this.draftName)
+      } else {
+        renameCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService,
+          this.editingCategoryId, this.draftName)
+      }
+      this.closeCategoryDialog()
       this.refreshCategories()
       this.onLibraryChanged()
-      this.showToast(s('library_category_created'))
+      this.showToast(s(creating ? 'library_category_created' : 'library_category_renamed'))
     } catch (error) {
       const e = error as Error
-      this.showToast(this.categoryMutationErrorMessage(e))
-    }
-  }
-
-  private startRename(category: CustomLibraryCategory): void {
-    this.editingCategoryId = category.id
-    this.editingName = category.name
-    this.categoryMenuKey = ''
-  }
-
-  private cancelRename(): void {
-    this.editingCategoryId = ''
-    this.editingName = ''
-  }
-
-  private persistRename(categoryId: string): void {
-    if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
-      this.showToast(s('library_category_management_unavailable'))
-      return
-    }
-    try {
-      renameCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId, this.editingName)
-      this.cancelRename()
-      this.refreshCategories()
-      this.onLibraryChanged()
-      this.showToast(s('library_category_renamed'))
-    } catch (error) {
-      const e = error as Error
-      this.showToast(this.categoryMutationErrorMessage(e))
+      this.draftError = this.categoryMutationErrorMessage(e)
     }
   }
 
@@ -251,7 +154,6 @@ export struct LibraryCategoryManagementPage {
     }
     try {
       if (deleteCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId)) {
-        this.categoryMenuKey = ''
         this.refreshCategories()
         this.onLibraryChanged()
         this.showToast(s('library_category_deleted'))
@@ -262,115 +164,23 @@ export struct LibraryCategoryManagementPage {
     }
   }
 
-  @Builder
-  private CategorySortMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
-    Menu() {
-      LibrarySortMenuItems(this.categorySort(categoryId).sortBy, this.categorySort(categoryId).sortDirection,
-        (sortBy: LibrarySortBy, direction: LibrarySortDirection): void => {
-          select(() => { this.setCategorySort(categoryId, sortBy, direction) })
-        }, (): void => {
-          select(() => {
-            if (this.categoryStrategy(categoryId).followsDefaultSort !== true) {
-              this.setCategorySort(categoryId, this.defaultSort.sortBy, this.defaultSort.sortDirection, true)
-            }
-          })
-        }, this.categoryStrategy(categoryId).followsDefaultSort === true)
-    }
-  }
-
-  @Builder
-  private CategoryReadStateMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
-    Menu() {
-      MenuItem({ content: s('library_read_state_all') })
-        .selected(this.categoryStrategy(categoryId).readState === 'all').selectIcon(true)
-        .onClick(() => {
-          select(() => { this.setCategoryReadState(categoryId, 'all') })
-        })
-      MenuItem({ content: s('library_read_state_unread') })
-        .selected(this.categoryStrategy(categoryId).readState === 'unread').selectIcon(true)
-        .onClick(() => {
-          select(() => { this.setCategoryReadState(categoryId, 'unread') })
-        })
-      MenuItem({ content: s('library_read_state_reading') })
-        .selected(this.categoryStrategy(categoryId).readState === 'reading').selectIcon(true)
-        .onClick(() => {
-          select(() => { this.setCategoryReadState(categoryId, 'reading') })
-        })
-      MenuItem({ content: s('library_read_state_completed') })
-        .selected(this.categoryStrategy(categoryId).readState === 'completed').selectIcon(true)
-        .onClick(() => {
-          select(() => { this.setCategoryReadState(categoryId, 'completed') })
-        })
-    }
-  }
-
-  @Builder
-  private StrategySummaryRow(categoryId: LibraryCategoryDisplayCategoryId, title: string) {
-    ConciseListRow({ title, subtitle: this.categoryStrategySummary(categoryId),
-      trailingDropdown: true, showChevron: false, dropdownMenuEnabled: true,
-      dropdownMenuBuilder: (select: (action: () => void) => void): void => {
-        this.DisplayStrategyMenu(categoryId, select)
-      } })
-  }
-
-  @Builder
-  private DisplayStrategyMenu(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
-    Menu() {
-      this.DisplayStrategyItems(categoryId, select)
-    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
-  }
-
-  @Builder
-  private DisplayStrategyItems(categoryId: LibraryCategoryDisplayCategoryId, select: (action: () => void) => void) {
-    if (categoryId !== 'all') {
-      MenuItem({ content: s('library_category_sort_title'), labelInfo: this.sortSummary(categoryId),
-        builder: (): void => { this.CategorySortMenu(categoryId, select) } })
-    }
-    MenuItem({ content: s('library_category_read_state_title'),
-      labelInfo: this.readStateLabel(this.categoryStrategy(categoryId).readState),
-      builder: (): void => { this.CategoryReadStateMenu(categoryId, select) } })
-  }
-
-  @Builder
-  private DisplayStrategySection() {
-    Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: s('library_category_builtin_section') }) {
-        this.StrategySummaryRow('all', s('library_category_all'))
-        ListDivider()
-        this.StrategySummaryRow('uncategorized', s('library_category_uncategorized'))
-        ListDivider()
-        this.StrategySummaryRow(LIBRARY_CATEGORY_FAVORITE_ID, s('library_category_favorite'))
-        ListDivider()
-        this.StrategySummaryRow(LIBRARY_CATEGORY_READ_LATER_ID, s('library_category_read_later'))
-      }
-    }
-    .width('100%')
-  }
-
-  private persistMove(categoryId: string, direction: 'up' | 'down'): void {
+  private persistMove(from: number, to: number): void {
+    const category = this.categories[from]
+    const destination = this.categories[to]
+    if (category === undefined || destination === undefined || from === to) return
     if (this.libraryStore === undefined || this.libraryPersistenceService === undefined) {
       this.showToast(s('library_category_management_unavailable'))
       return
     }
     try {
-      if (moveCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, categoryId, direction)) {
-        this.categoryMenuKey = ''
+      if (moveCustomCategoryAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, category.id, destination.id)) {
         this.refreshCategories()
         this.onLibraryChanged()
-        this.showToast(s('library_category_order_updated'))
       }
     } catch (error) {
-      const e = error as Error
-      this.showToast(this.categoryMutationErrorMessage(e))
+      this.refreshCategories()
+      this.showToast(this.categoryMutationErrorMessage(error as Error))
     }
-  }
-
-  private isFirstCategory(category: CustomLibraryCategory): boolean {
-    return this.categories.length > 0 && this.categories[0].id === category.id
-  }
-
-  private isLastCategory(category: CustomLibraryCategory): boolean {
-    return this.categories.length > 0 && this.categories[this.categories.length - 1].id === category.id
   }
 
   private categoryUsageCount(categoryId: string): number {
@@ -385,177 +195,127 @@ export struct LibraryCategoryManagementPage {
   @Builder
   private CategoryActionMenu(category: CustomLibraryCategory) {
     Menu() {
-      this.DisplayStrategyItems(category.id, (action: () => void): void => {
-        this.categoryMenuKey = ''
-        action()
-      })
       MenuItem({ content: s('library_category_action_rename') })
-        .onClick(() => {
-          this.startRename(category)
-        })
-      MenuItem({ content: s('library_category_action_move_up') })
-        .enabled(!this.isFirstCategory(category))
-        .onClick(() => {
-          this.persistMove(category.id, 'up')
-        })
-      MenuItem({ content: s('library_category_action_move_down') })
-        .enabled(!this.isLastCategory(category))
-        .onClick(() => {
-          this.persistMove(category.id, 'down')
-        })
+        .onClick((): void => { this.openCategoryDialog(category) })
       MenuItem({ content: s('library_category_action_delete') })
-        .onClick(() => {
-          this.confirmDelete(category)
-        })
-    }.subMenuExpandingMode(SubMenuExpandingMode.STACK_EXPAND)
+        .contentFontColor(ThemeConstants.DANGER)
+        .onClick((): void => { this.confirmDelete(category) })
+    }
   }
 
   @Builder
-  private CustomCategoriesSection() {
-    Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: s('library_category_custom_section') }) {
-        if (this.categories.length === 0) {
-          ConciseListRow({
-            title: s('library_category_empty_title'),
-            showChevron: false,
-          })
-        } else {
-          ForEach(this.categories, (category: CustomLibraryCategory, index: number) => {
-            this.CategoryRow(category)
-            if (index < this.categories.length - 1) {
-              ListDivider()
-            }
-          }, (category: CustomLibraryCategory) => JSON.stringify(category))
-        }
+  private CategoryActions(category: CustomLibraryCategory) {
+    Row({ space: ThemeConstants.SPACE_SM }) {
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        SymbolGlyph($r('sys.symbol.ellipsis_circle')).fontSize(20).fontColor([ThemeConstants.TEXT_SECONDARY])
+      }
+      .id('library-category-actions-' + category.id)
+      .width(40)
+      .height(40)
+      .backgroundColor(Color.Transparent)
+      .accessibilityText(s('common_more_actions'))
+      .bindMenu(this.CategoryActionMenu(category), komaMenuOptions({ placement: Placement.BottomRight }))
+
+      if (this.categories.length > 1) {
+        SymbolGlyph($r('sys.symbol.line_3_horizontal'))
+          .fontSize(20)
+          .fontColor([ThemeConstants.TEXT_SECONDARY])
+          .accessibilityText(s('library_category_drag_to_sort'))
       }
     }
-    .width('100%')
   }
 
   @Builder
-  private CreateSection() {
-    Column({ space: ThemeConstants.SPACE_XS }) {
-      GroupedListSection({ title: s('library_category_create_section'), inset: ThemeConstants.SPACE_LG }) {
-        Column({ space: ThemeConstants.SPACE_MD }) {
-          KomaFormTextField({
-            label: s('library_category_name_label'),
-            placeholder: s('library_category_name_placeholder').replace('%s', `${LIBRARY_CATEGORY_NAME_MAX_LENGTH}`),
-            value: this.draftName,
-            submit: () => {
-              this.persistCreate()
-            },
-            change: (value: string) => {
-              this.draftName = value
-            },
-          })
-          KomaActionButton({
-            label: s('library_category_action_create'),
-            kind: 'primary',
-            fullWidth: true,
-            isEnabled: this.draftName.trim().length > 0,
-            action: () => {
-              this.persistCreate()
-            },
-          })
-        }
-        .width('100%')
-      }
-    }
-    .width('100%')
+  private CategoryDialog() {
+    KomaTextInputDialog({
+      title: s(this.editingCategoryId.length === 0 ? 'library_category_create_section' : 'library_category_action_rename'),
+      label: s('library_category_name_label'),
+      placeholder: AppStrings.format('library_category_name_placeholder', LIBRARY_CATEGORY_NAME_MAX_LENGTH),
+      value: this.draftName,
+      error: this.draftError,
+      confirmLabel: s(this.editingCategoryId.length === 0 ? 'library_category_action_create' : 'common_save'),
+      confirmEnabled: this.draftName.trim().length > 0,
+      change: (value: string): void => {
+        this.draftName = value
+        this.draftError = ''
+      },
+      confirm: (): void => { this.saveCategoryDialog() },
+      cancel: (): void => { this.closeCategoryDialog() },
+    })
   }
 
   @Builder
   private CategoryRow(category: CustomLibraryCategory) {
-    if (this.editingCategoryId === category.id) {
-      Column({ space: ThemeConstants.SPACE_MD }) {
-        KomaFormTextField({
-          label: s('library_category_name_label'),
-          value: this.editingName,
-          submit: () => {
-            this.persistRename(category.id)
-          },
-          change: (value: string) => {
-            this.editingName = value
-          },
-        })
-        Row({ space: ThemeConstants.SPACE_MD }) {
-          KomaActionButton({
-            label: s('library_category_action_save'),
-            kind: 'primary',
-            fill: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.persistRename(category.id)
-            },
-          })
-          KomaActionButton({
-            label: s('common_cancel'),
-            kind: 'secondary',
-            fill: true,
-            controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-            action: () => {
-              this.cancelRename()
-            },
-          })
-        }
-        .width('100%')
-      }
-      .width('100%')
-      .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_LG, bottom: ThemeConstants.SPACE_LG })
-    } else {
-      KomaMenuListRow({
-        title: category.name,
-        subtitle: s('library_count_books').replace('%s', `${this.categoryUsageCount(category.id)}`) +
-          ' · ' + this.sortSummary(category.id),
-        isMenuOpen: this.categoryMenuKey === this.categoryActionMenuKey(category.id),
-        onDismiss: (): void => {
-          if (this.categoryMenuKey === this.categoryActionMenuKey(category.id)) this.categoryMenuKey = ''
-        },
-        action: () => {
-          this.categoryMenuKey = this.categoryActionMenuKey(category.id)
-        },
-      }) {
-        this.CategoryActionMenu(category)
-      }
-    }
+    ConciseListRow({
+      title: category.name,
+      wrapTitle: true,
+      subtitle: AppStrings.format('library_count_books', this.categoryUsageCount(category.id)),
+      showChevron: false,
+      surfaceRadius: ThemeConstants.GROUPED_LIST_INNER_RADIUS,
+      suffixBuilderParam: (): void => { this.CategoryActions(category) },
+    })
+  }
+
+  private isFirstCategory(category: CustomLibraryCategory): boolean {
+    return this.categories[0]?.id === category.id
+  }
+
+  private isLastCategory(category: CustomLibraryCategory): boolean {
+    return this.categories[this.categories.length - 1]?.id === category.id
   }
 
   aboutToAppear(): void {
+    this.pageVisible = true
     this.refreshCategories()
-    const context = this.getUIContext().getHostContext() as common.UIAbilityContext
-    void new LibraryFilterStore(context).load().then((value): void => {
-      this.defaultSort = effectiveLibraryDefaultSort(value, this.libraryStore)
-    }).catch((): void => {
-      DiagnosticLogger.warn('library_category_management_page', 'load_default_sort_failed', '[LibraryCategory] step=load_default_sort_failed')
-    })
+  }
+
+  aboutToDisappear(): void {
+    this.pageVisible = false
+    this.closeCategoryDialog()
   }
 
   build() {
     Column() {
       SecondaryListScaffold({
-        listSpace: ThemeConstants.SPACE_LG,
+        listSpace: 0,
         bottomPadding: ThemeConstants.SPACE_XL,
       }) {
-        ListItem() {
-          this.DisplayStrategySection()
-        }
-        ListItem() {
-          this.CustomCategoriesSection()
-        }
-        ListItem() {
-          this.CreateSection()
+        if (this.categories.length === 0) {
+          ListItem() {
+            GroupedListSection() {
+              ConciseListRow({ title: s('library_category_empty_title'), showChevron: false })
+            }
+          }
+        } else {
+          // The native onMove callback needs direct ListItem children. Stable
+          // keys preserve each row during a drag, while a rename updates its row.
+          ForEach(this.categories, (category: CustomLibraryCategory) => {
+            ListItem() {
+              Column() {
+                this.CategoryRow(category)
+                if (!this.isLastCategory(category)) ListDivider()
+              }
+              .padding({ left: ThemeConstants.LIST_SECTION_INSET, right: ThemeConstants.LIST_SECTION_INSET,
+                top: this.isFirstCategory(category) ? ThemeConstants.LIST_SECTION_INSET : 0,
+                bottom: this.isLastCategory(category) ? ThemeConstants.LIST_SECTION_INSET : 0 })
+            }
+            .backgroundColor(ThemeConstants.CARD)
+            .borderRadius({
+              topLeft: this.isFirstCategory(category) ? ThemeConstants.RADIUS_CARD : 0,
+              topRight: this.isFirstCategory(category) ? ThemeConstants.RADIUS_CARD : 0,
+              bottomLeft: this.isLastCategory(category) ? ThemeConstants.RADIUS_CARD : 0,
+              bottomRight: this.isLastCategory(category) ? ThemeConstants.RADIUS_CARD : 0,
+            })
+          }, (category: CustomLibraryCategory): string => category.id + ':' + category.name)
+            .onMove((from: number, to: number): void => { this.persistMove(from, to) })
         }
         ListItem() {
           LibrarySmartCategorySection({ libraryStore: this.libraryStore, persistence: this.libraryPersistenceService,
-            displayStrategies: this.categoryDisplayStrategies,
-            strategyItems: (categoryId: string, select: (action: () => void) => void): void => {
-              this.DisplayStrategyItems(categoryId, select)
-            },
             onChanged: (): void => {
               this.refreshCategories()
               this.onLibraryChanged()
             } })
-        }
+        }.margin({ top: ThemeConstants.SPACE_LG })
       }
     }
     .width('100%')

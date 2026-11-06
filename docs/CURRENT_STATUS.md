@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T11:27:47+08:00",
+  "updatedAt": "2026-11-06T13:26:42+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READER_ASYNC_PAGE_ROLLBACK",
   "activity": "备份设置遗漏已修复推送；条漫入场已通过手机和平板复验，共享修复待仓库写权限；继续处理偶发翻页回退。",
@@ -90,9 +90,9 @@
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户指出排序顺序与 Aidoku 不符，且书架分类切换藏在筛选内，要求对照 Aidoku 与 Mihon 核查。精确消息时刻未核实。",
-      "status": "197 已核分类切换、排序隔离与筛选重置",
-      "result": "197 复现旧入口后，按用户确认把分类独立放在书架首页。排序项按 Aidoku 相对次序，分类可独立排序或跟随书架默认。分类管理每类一行，后台检查随自动更新暂停。197 实测临时分类独立标题正序、重置只清筛选、冷启动保持以及切回全部分类仍用原全局排序，分类管理可改回跟随默认。测试分类已删除，原书架和电源状态已恢复并释租。 用户指出排序与筛选同排字号不同，已统一为 14 fp 中等字重，并在 197 对照实拍、打开和关闭两个入口。",
-      "remaining": "",
+      "status": "书架分类、管理和排序已在 197 复验",
+      "result": "197 复现旧入口后，按用户确认把分类独立放在书架首页。排序项按 Aidoku 相对次序，分类可独立排序或跟随书架默认。分类管理每类一行，后台检查随自动更新暂停。197 实测临时分类独立标题正序、重置只清筛选、冷启动保持以及切回全部分类仍用原全局排序，分类管理可改回跟随默认。测试分类已删除，原书架和电源状态已恢复并释租。 用户指出排序与筛选同排字号不同，已统一为 14 fp 中等字重，并在 197 对照实拍、打开和关闭两个入口。 用户要求对比同排和独立大标题两版，另要求同排方向用符号及支持长分类名。197 两版均验证分类、排序和筛选入口。同排版收起显示排序方式及 ↑／↓，菜单保留完整方向文字。37 字符临时名称在同排省略，展开菜单完整换行，箭头和筛选不受挤压。临时分类已删除，原书架和电源状态已恢复，测试机保留同排箭头候选。 同排候选按用户要求仅将分类字号从 14 fp 中等字重改到 16 fp 粗体，197 同页对比并验证分类菜单开合，排序、筛选和首屏书目位置一致。197 暂留粗体候选。 用户指出 14 至 16 fp 跨度偏大，补拍 15 fp 粗体候选并提供三个同排版完整界面对照。197 实测分类菜单可正常开合，排序、筛选和首屏书目位置相同，原电源已恢复，保留 15 fp 粗体候选。 197 已安装用户选定的同排 16 fp 粗体签名包，核对了分类、排序和筛选的开合及整页外观。定稿源码的书架差异与该候选一致。长分类名使用已验证的同排省略布局；本次未重建长名测试数据。197 已恢复电源和超时并释租。 用户指出长按多选后分类菜单每类有三项。源码确认加入和移出只改指定分类，移动会替换整本书的分类，菜单没有解释。 进一步核对确认：详情书签控制入架，内置收藏和稍后阅读却是额外可分配的分类；全部、未分类是系统视图，智能分类由规则计算。分类管理将两个系统视图和两个固定手动分类放在同一组，后台更新、自动下载和清理按实际归属 ID 匹配。Aidoku 批量点选只加入所选分类，Mihon 用同一勾选列表调整指定归属。 用户最终确定唯一固定入口叫「全部」，任何归类变动都不移出书架。已使用的旧预设按原 ID 转为普通分类。分类和排序从书架操作，分类菜单从实际按钮左下方打开。197 实测长名省略及菜单内全名、临时分类标题排序仍用正文色、右上角加号打开新建 Dialog、专用菜单重命名保存及取消、三条杠拖拽及重启保序。多选半模态勾选、重开读回、取消最后一项后测试书仍在全部。书架设置已实机核对无分类管理和默认排序。智能分类下拉仅由系统关闭，用户反馈正常；197 两段下拉连续画面无回顶。测试分类和设备录制已清除，电源已读回并释租。",
+      "remaining": "本项具名手机路径已完成。旧预设兼容在模型和序列化测试中核对，迁移后的原同步归属键保留，旧预设名称与顺序仅本机保存。",
       "evidence": [
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T103737487853/screen.png",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T103832502362/screen.png",
@@ -110,7 +110,24 @@
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/restore-20261106T111842170595/run-metadata.json",
         ".hvigor/outputs/library-shelf-typography-20261106/197-sort-filter-before-after.png",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-typography/navigate-20261106T112701884191/run-metadata.json",
-        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-typography/restore-20261106T112706393302/run-metadata.json"
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-typography/restore-20261106T112706393302/run-metadata.json",
+        ".hvigor/outputs/library-category-layout-compare-20261106/197-arrows-vs-large-heading.jpg",
+        ".hvigor/outputs/library-category-layout-compare-20261106/197-long-category-directions.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-same-row-arrows/restore-20261106T115053743595/run-metadata.json",
+        ".hvigor/outputs/library-category-layout-compare-20261106/197-category-14-medium-vs-16-bold.png",
+        ".hvigor/outputs/library-category-layout-compare-20261106/197-full-shelf-14-15-16.jpg",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-final/install-20261106T121104324356/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-final/navigate-20261106T121122777666/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-final/navigate-20261106T121131228943/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-final/restore-20261106T121141685682/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-color/navigate-20261106T132003915028/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-color/navigate-20261106T132016124290/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-reorder/navigate-20261106T130937981897/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-final-qa/navigate-20261106T131302939081/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-final-qa/navigate-20261106T131618747211/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-color/record-export-20261106T132426713228/koma-redesign-197-20261106T132411014104.mp4",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-color/navigate-20261106T132525093602/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-color/restore-20261106T132529107551/run-metadata.json"
       ],
       "boundaries": [
         "书架搜索和手动下拉检查的范围按现有行为。新增的全局排序设置进入应用设置备份。",
@@ -7881,6 +7898,66 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-category-all-and-editor-verified-197-20261106",
+      "at": "2026-11-06T13:26:42+08:00",
+      "title": "书架「全部」、独立分类管理及关闭动效已复验",
+      "detail": "197 核对勾选和取消归属、菜单锚点、长名、非默认排序正文色、输入 Dialog、三条杠拖动以及设置入口。用户确认智能分类下拉恢复正常，最终签名包连续录屏复测通过。测试分类、录制和电源均清理恢复。通用页面与关闭规则已写 Koma 规范，并接入本地鸿蒙预检所引用的共享交互技能。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-preset-category-responsibilities-audit-20261106",
+      "at": "2026-11-06T12:18:56+08:00",
+      "title": "核查书架预设分类职责",
+      "detail": "从书签入架、真实归属、智能规则和自动化 ID 对照 Koma；对照 Aidoku 与 Mihon 批量分类源码。用户要求先理清职责，再决定多选半模态点选语义。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-category-16-fp-final-197-20261106",
+      "at": "2026-11-06T12:13:24+08:00",
+      "title": "同排分类 16 fp 定稿并复核多选菜单",
+      "detail": "197 已安装用户选定的同排 16 fp 粗体签名包，核对了分类、排序和筛选的开合及整页外观。定稿源码的书架差异与该候选一致。长分类名使用已验证的同排省略布局；本次未重建长名测试数据。197 已恢复电源和超时并释租。 用户指出长按多选后分类菜单每类有三项。源码确认加入和移出只改指定分类，移动会替换整本书的分类，菜单没有解释。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-category-same-row-15-bold-full-preview-197-20261106",
+      "at": "2026-11-06T12:04:08+08:00",
+      "title": "补拍 15 fp 粗体与完整字号对照",
+      "detail": "197 三版整页对照含 14 fp 中等、15 fp 粗体及 16 fp 粗体。15 fp 入口已核菜单开合，设备恢复电源后保留 15 fp 候选。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-category-same-row-bold-preview-197-20261106",
+      "at": "2026-11-06T11:57:43+08:00",
+      "title": "书架同排分类粗体候选已实拍",
+      "detail": "197 对比 14 fp 中等字重与 16 fp 粗体，同排右侧控件位置相同，分类菜单可打开及收起。原电源已恢复，保留粗体候选。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-category-layout-comparison-197-20261106",
+      "at": "2026-11-06T11:51:49+08:00",
+      "title": "两种书架分类布局已实机对比",
+      "detail": "同排箭头版和 20 fp 独立标题版均在 197 实拍。长分类测试覆盖省略、展开全名、双向箭头与筛选入口，测试数据已清理并释租。候选样式未合入正式源码。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "library-shelf-control-font-197-20261106",
       "at": "2026-11-06T11:27:47+08:00",

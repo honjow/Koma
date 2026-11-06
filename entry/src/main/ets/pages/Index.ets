@@ -94,7 +94,7 @@ import { KavitaBrowsePage, KavitaBrowseRouteParam } from './KavitaBrowsePage'
 import { OpdsBrowsePage, OpdsBrowseRouteParam } from './OpdsBrowsePage'
 import { WebDavBrowsePage, WebDavBrowseRouteParam } from './WebDavBrowsePage'
 import { LibraryUpdateResultPage } from './LibraryUpdateResultPage'
-import { LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
+import { LibraryCategoryManagementChrome, LibraryCategoryManagementPage } from './LibraryCategoryManagementPage'
 import { KomgaServerPage } from './KomgaServerPage'
 import { KavitaServerPage } from './KavitaServerPage'
 import { OpdsServerPage } from './OpdsServerPage'
@@ -130,9 +130,6 @@ import {
   ComicSourceKind,
   Page,
   ReadingProgress,
-  withComicAddedCategoryId,
-  withComicCategoryIds,
-  withComicRemovedCategoryId,
 } from '../model/ComicModels'
 import {
   LocalLibraryFolderScanResult,
@@ -148,16 +145,15 @@ import {
   canImportLocalLibraryFolder,
 } from '../model/LocalLibraryFolderAccessService'
 import { LocalLibraryFolderRescanActionResult } from '../model/LocalLibraryRefreshService'
-import { LibraryCategoryDisplayStrategy, LibraryStore } from '../model/LibraryStore'
+import { LibraryStore } from '../model/LibraryStore'
 import {
   AppFilesLibraryStorePersistenceAdapter,
   LibraryStorePersistenceService,
-  assignComicCategoriesAndPersistLibraryStore,
+  editComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
   removeComicAndPersistLibraryStore,
   removeComicsAndPersistLibraryStore,
   retainLibrarySourceNameAndPersist,
-  updateComicCategoryMembershipAndPersistLibraryStore,
   upsertComicAndPersistLibraryStore,
   upsertLocalLibraryFolderScanAndPersistLibraryStore,
   upsertLocalLibraryFolderRescanAndPersistLibraryStore,
@@ -289,7 +285,6 @@ struct Index {
   @Local private applicationSettingsRestoreRevision: number = 0
   @Local private backupSettingsRevision: number = 0
   @Local private libraryPreferencesRevision: number = 0
-  @Local private categoryDisplayStrategyChange?: LibraryCategoryDisplayStrategy = undefined
   @Local private libraryTitleBar: LibraryTitleBarPresentation = {
     selectionMode: false,
     batchDownloadBusy: false,
@@ -452,6 +447,17 @@ struct Index {
     const content = options['content'] as Record<string, Object>
     const add: Record<string, Object> = { 'label': AppStrings.get('source_pkg_add_subscription'),
       'type': TextStyleMode.NORMAL, 'action': (): void => { chrome.request('addSubscription') } }
+    const items: Record<string, Object>[] = [{ 'content': add }]
+    content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
+    return options
+  }
+
+  private libraryCategoryTitleBarOptions(chrome: LibraryCategoryManagementChrome): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('route_library_categories_title'))
+    const content = options['content'] as Record<string, Object>
+    const add: Record<string, Object> = { 'label': AppStrings.get('library_category_create_section'),
+      'icon': $r('sys.symbol.plus'), 'componentId': 'library-category-create',
+      'action': (): void => { chrome.createRequest++ } }
     const items: Record<string, Object>[] = [{ 'content': add }]
     content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
     return options
@@ -2226,69 +2232,6 @@ struct Index {
     }
   }
 
-  private handleAssignCategoriesRequested(comicIds: ComicId[], categoryIds?: string[]): boolean {
-    const persistenceService = this.ensureLibraryPersistenceService()
-    if (persistenceService === undefined) {
-      comicIds.forEach((comicId: ComicId) => {
-        const comic = this.libraryStore.getComic(comicId)
-        if (comic !== undefined) {
-          this.libraryStore.upsertComic(withComicCategoryIds(comic, categoryIds))
-        }
-      })
-      this.refreshLibrarySnapshot()
-      return comicIds.length > 0
-    }
-    try {
-      const changedCount = assignComicCategoriesAndPersistLibraryStore(
-        this.libraryStore,
-        persistenceService,
-        comicIds,
-        categoryIds
-      )
-      if (changedCount > 0) {
-        this.refreshLibrarySnapshot()
-      }
-      return changedCount > 0
-    } catch (error) {
-      const e = error as Error
-      DiagnosticLogger.error('index', 'persist_category_assignment_failed', '[Library] step=persist_category_assignment_failed code=library_persist_failed')
-      throw e
-    }
-  }
-
-  private handleUpdateCategoryMembershipRequested(comicIds: ComicId[], categoryId: string, selected: boolean): boolean {
-    const persistenceService = this.ensureLibraryPersistenceService()
-    if (persistenceService === undefined) {
-      comicIds.forEach((comicId: ComicId) => {
-        const comic = this.libraryStore.getComic(comicId)
-        if (comic !== undefined) {
-          this.libraryStore.upsertComic(
-            selected ? withComicAddedCategoryId(comic, categoryId) : withComicRemovedCategoryId(comic, categoryId)
-          )
-        }
-      })
-      this.refreshLibrarySnapshot()
-      return comicIds.length > 0
-    }
-    try {
-      const changedCount = updateComicCategoryMembershipAndPersistLibraryStore(
-        this.libraryStore,
-        persistenceService,
-        comicIds,
-        categoryId,
-        selected
-      )
-      if (changedCount > 0) {
-        this.refreshLibrarySnapshot()
-      }
-      return changedCount > 0
-    } catch (error) {
-      const e = error as Error
-      DiagnosticLogger.error('index', 'persist_category_membership_failed', '[Library] step=persist_category_membership_failed code=library_persist_failed')
-      throw e
-    }
-  }
-
   private ensureLibraryPersistenceService(): LibraryStorePersistenceService | undefined {
     if (this.libraryPersistenceService !== undefined) {
       return this.libraryPersistenceService
@@ -2950,9 +2893,6 @@ struct Index {
           onOpenLibraryUpdateResults: () => {
             this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
           },
-          onOpenLibraryCategories: () => {
-            this.openSettingsSecondary(RouteName.LIBRARY_CATEGORIES)
-          },
           onOpenDownloads: () => {
             this.openSettingsSecondary(RouteName.DOWNLOADS)
           },
@@ -2987,17 +2927,15 @@ struct Index {
     } else if (name === RouteName.LIBRARY_CATEGORIES) {
       HdsNavDestination() {
         LibraryCategoryManagementPage({
+          chrome: param as LibraryCategoryManagementChrome,
           libraryStore: this.libraryStore,
           libraryPersistenceService: this.ensureLibraryPersistenceService(),
-          onDisplayStrategyChanged: (strategy: LibraryCategoryDisplayStrategy) => {
-            this.categoryDisplayStrategyChange = strategy
-          },
           onLibraryChanged: () => {
             this.refreshLibrarySnapshot()
           }
         })
       }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('route_library_categories_title')))
+      .titleBar(this.libraryCategoryTitleBarOptions(param as LibraryCategoryManagementChrome))
     } else if (name === RouteName.DOWNLOADS) {
       HdsNavDestination() {
         DownloadsPage({
@@ -3109,7 +3047,6 @@ struct Index {
                 libraryScroller: this.rootTabScrollers[TabIndex.LIBRARY],
                 libraryStore: this.libraryStore,
                 libraryPreferencesRevision: this.libraryPreferencesRevision,
-                categoryDisplayStrategyChange: this.categoryDisplayStrategyChange,
                 libraryComics: this.libraryComics,
                 libraryRevision: this.libraryRevision,
                 readerSessionStore: this.readerSessionStore,
@@ -3136,6 +3073,9 @@ struct Index {
                   void this.openMangaMigration(comicIds, false)
                 },
                 onOpenUpdatesRequested: (): void => { this.appPathStack.pushPath({ name: RouteName.LIBRARY_UPDATES }) },
+                onOpenCategoriesRequested: (): void => {
+                  this.appPathStack.pushPath({ name: RouteName.LIBRARY_CATEGORIES, param: new LibraryCategoryManagementChrome() })
+                },
                 onOpenDownloadsRequested: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)
                 },
@@ -3148,11 +3088,10 @@ struct Index {
                 onRemoveComicsRequested: (comicIds: ComicId[]) => {
                   return this.handleRemoveComicsRequested(comicIds)
                 },
-                onAssignCategoriesRequested: (comicIds: ComicId[], categoryIds?: string[]) => {
-                  return this.handleAssignCategoriesRequested(comicIds, categoryIds)
-                },
-                onUpdateCategoryMembershipRequested: (comicIds: ComicId[], categoryId: string, selected: boolean) => {
-                  return this.handleUpdateCategoryMembershipRequested(comicIds, categoryId, selected)
+                onEditCategoriesRequested: (comicIds: ComicId[], added: string[], removed: string[]): void => {
+                  const changed = editComicCategoriesAndPersistLibraryStore(this.libraryStore,
+                    this.ensureLibraryPersistenceService(), comicIds, added, removed)
+                  if (changed > 0) this.refreshLibrarySnapshot()
                 }
               })
             }.tabBar(this.TabIcon(tabLabel(TabIndex.LIBRARY), TabIndex.LIBRARY))
@@ -3241,9 +3180,6 @@ struct Index {
                 },
                 onOpenLibraryUpdateResults: () => {
                   this.openSettingsSecondary(RouteName.LIBRARY_UPDATE_RESULTS)
-                },
-                onOpenLibraryCategories: () => {
-                  this.openSettingsSecondary(RouteName.LIBRARY_CATEGORIES)
                 },
                 onOpenDownloads: () => {
                   this.openSettingsSecondary(RouteName.DOWNLOADS)

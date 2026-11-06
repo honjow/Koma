@@ -2,7 +2,6 @@ import { SourceTextOverlay } from './SourceTextOverlay'
 import { SourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { SourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
 import { LocalLibraryStoredMetadata } from './LocalLibraryMetadataService'
-import { AppStrings } from '../i18n/AppStrings'
 import { ComicUpdateSchedule } from './ComicReleaseSchedule'
 
 export type ComicId = string
@@ -183,9 +182,15 @@ export interface LibraryCategoryDefinition {
   builtIn?: boolean
 }
 
-export const BUILT_IN_LIBRARY_CATEGORIES: LibraryCategoryDefinition[] = [
-  { id: LIBRARY_CATEGORY_FAVORITE_ID, name: 'Favorite', sortOrder: 0, builtIn: true },
-  { id: LIBRARY_CATEGORY_READ_LATER_ID, name: 'Read later', sortOrder: 1, builtIn: true },
+// These identifiers survive old library files, backup rules and WebDAV membership keys.
+export interface LegacyLibraryCategory {
+  id: string
+  nameKey: string
+}
+
+export const LEGACY_LIBRARY_CATEGORIES: LegacyLibraryCategory[] = [
+  { id: LIBRARY_CATEGORY_FAVORITE_ID, nameKey: 'library_category_favorite' },
+  { id: LIBRARY_CATEGORY_READ_LATER_ID, nameKey: 'library_category_read_later' },
 ]
 
 export interface CustomLibraryCategory {
@@ -204,20 +209,9 @@ export function libraryCategoryNameKey(name: string): string {
   return normalizeLibraryCategoryName(name).toLocaleLowerCase()
 }
 
-export function isBuiltInLibraryCategoryId(categoryId: string): boolean {
-  return categoryId === LIBRARY_CATEGORY_FAVORITE_ID || categoryId === LIBRARY_CATEGORY_READ_LATER_ID
-}
-
-export function isBuiltInLibraryCategoryName(name: string): boolean {
-  const key = libraryCategoryNameKey(name)
-  const localizedFavoriteKey = libraryCategoryNameKey(AppStrings.get('library_category_favorite'))
-  const localizedReadLaterKey = libraryCategoryNameKey(AppStrings.get('library_category_read_later'))
-  if (key === localizedFavoriteKey || key === localizedReadLaterKey) {
-    return true
-  }
-  return BUILT_IN_LIBRARY_CATEGORIES.some((category: LibraryCategoryDefinition): boolean => {
-    return libraryCategoryNameKey(category.name) === key || category.id === key
-  })
+export function isManualLibraryCategoryId(categoryId: string): boolean {
+  return categoryId.startsWith(CUSTOM_LIBRARY_CATEGORY_ID_PREFIX) ||
+    categoryId === LIBRARY_CATEGORY_FAVORITE_ID || categoryId === LIBRARY_CATEGORY_READ_LATER_ID
 }
 
 export interface ReadingProgress {

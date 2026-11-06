@@ -6,6 +6,7 @@ import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
 import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME, LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, PersistedComic,
   PersistedLibraryCategory, PersistedLibraryStoreDocument, PersistedChapter, PersistedPage, assertValidLibraryStoreJson,
+  readLibraryStoreDocument,
 } from '../model/LibraryPersistence'
 import {
   AppFilesReaderSessionPersistenceAdapter, ChapterReadingState, ReaderSessionDocumentSnapshot,
@@ -16,7 +17,7 @@ import {
   ReaderSeriesModeOverride,
 } from '../model/ReaderPreferencesStore'
 import {
-  ComicSourceKind, ReadingDirection, ReadingProgress, isBuiltInLibraryCategoryName,
+  ComicSourceKind, ReadingDirection, ReadingProgress,
   libraryCategoryNameKey, normalizeLibraryCategoryName, normalizeSortKey,
 } from '../model/ComicModels'
 import { SourceReadHistoryEntry } from '../model/SourceReaderSession'
@@ -203,8 +204,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     if (raw === undefined) {
       return { schemaVersion: LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION, comics: [], customCategories: [] }
     }
-    assertValidLibraryStoreJson(raw)
-    return JSON.parse(raw) as PersistedLibraryStoreDocument
+    return readLibraryStoreDocument(raw)
   }
 
   private reading(): ReaderSessionDocumentSnapshot {
@@ -212,11 +212,18 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   }
 
   private toSharedCategory(local: string, projection: SyncProjection): string | undefined {
-    if (local === FAVORITE) return 'builtin-favorite'
-    if (local === READ_LATER) return 'builtin-read-later'
     const existing = projection.categories.find((row: SyncLocalCategory): boolean => row.local === local)
     if (existing?.localOnly === true) return undefined
+    if (local === FAVORITE) return 'builtin-favorite'
+    if (local === READ_LATER) return 'builtin-read-later'
     return existing?.shared ?? syncUuid(this.storage.load().replica + ':category:' + local)
+  }
+
+  private sharedCategoryRecord(local: string, projection: SyncProjection): string | undefined {
+    // Legacy sync keys carry membership only. Keep the promoted local name and
+    // order out of category records, whose wire identity must be a UUID.
+    if (local === FAVORITE || local === READ_LATER) return undefined
+    return this.toSharedCategory(local, projection)
   }
 
   private toLocalCategory(shared: string, library: PersistedLibraryStoreDocument, projection: SyncProjection): string {
@@ -282,7 +289,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         b: PersistedLibraryCategory): number => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
       const order: string[] = []
       categories.forEach((category: PersistedLibraryCategory): void => {
-        const key = this.toSharedCategory(category.id, projection)
+        const key = this.sharedCategoryRecord(category.id, projection)
         if (key === undefined) return
         order.push(key)
         const mapping = projection.categories.find((item: SyncLocalCategory): boolean => item.local === category.id)
@@ -507,7 +514,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const original = normalizeLibraryCategoryName(name)
     let value = original
     let index = 2
-    while (used.has(libraryCategoryNameKey(value)) || isBuiltInLibraryCategoryName(value)) {
+    while (used.has(libraryCategoryNameKey(value))) {
       const suffix = ' (' + index++ + ')'
       value = original.substring(0, 40 - suffix.length).trimEnd() + suffix
     }
@@ -616,7 +623,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         const ordered = categories.slice().sort((a: PersistedLibraryCategory,
           b: PersistedLibraryCategory): number => a.sortOrder - b.sortOrder)
         const shared = ordered.filter((category: PersistedLibraryCategory): boolean =>
-          this.toSharedCategory(category.id, projection) !== undefined)
+          this.sharedCategoryRecord(category.id, projection) !== undefined)
         shared.sort((a: PersistedLibraryCategory, b: PersistedLibraryCategory): number => {
           const aid = this.toSharedCategory(a.id, projection) ?? ''
           const bid = this.toSharedCategory(b.id, projection) ?? ''
@@ -631,7 +638,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         projection.projectedOrder = shared.map((item: PersistedLibraryCategory): string => this.toSharedCategory(item.id, projection) ?? '')
         let next = 0
         ordered.forEach((category: PersistedLibraryCategory, index: number): void => {
-          if (this.toSharedCategory(category.id, projection) === undefined) category.sortOrder = index
+          if (this.sharedCategoryRecord(category.id, projection) === undefined) category.sortOrder = index
           else shared[next++].sortOrder = index
         })
       }

@@ -8,7 +8,7 @@ import { synchronizeBackgroundMaintenance } from '../model/BackgroundMaintenance
 import { LibraryAutomationSettingRow, LIBRARY_AUTOMATION_SETTING_KEYS } from '../components/LibraryAutomationSettingRow'
 import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } from '../model/LibraryAutomationPolicy'
 import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
-import { LibraryCategoryDefinition } from '../model/ComicModels'
+import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory, LEGACY_LIBRARY_CATEGORIES } from '../model/ComicModels'
 import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
@@ -17,7 +17,6 @@ import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsCon
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
 import { readerModeSelection, readerDirectionSelection, normalizeReaderPreferences } from '../model/ReaderPreferencesStore'
 import { ReaderDirectionMenuItems } from '../components/ReaderDirectionMenu'
-import { LibrarySortMenuItems, librarySortSummary } from '../components/LibrarySortMenu'
 import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettingsContent } from './DiagnosticsSettingsContent'
@@ -31,13 +30,10 @@ import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSec
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
 import {
-  LibrarySortBy,
-  LibrarySortDirection,
   LibraryStore,
 } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import {
-  effectiveLibraryDefaultSort,
   LibraryFilterPreferences,
   LibraryFilterPreferenceChanges,
   LibraryFilterStore,
@@ -292,10 +288,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'download-cleanup-exclude', titleKey: 'automation_cleanup_exclude', detailKey: 'automation_cleanup_exclude' },
         { key: 'library-update', titleKey: 'settings_row_library_update_title', detailKey: 'settings_row_library_update_detail' },
         { key: 'library-update-results', titleKey: 'settings_row_library_update_results_title', detailKey: 'settings_row_library_update_results_detail' },
-        { key: 'library-categories', titleKey: 'settings_row_library_categories_title', detailKey: 'settings_row_library_categories_detail' },
         { key: 'library-view-mode', titleKey: 'settings_row_library_view_mode_title', detailKey: 'settings_row_library_view_mode_detail' },
         { key: 'list-density', titleKey: 'settings_row_list_density_title', detailKey: 'settings_row_list_density_detail' },
-        { key: 'library-default-sort', titleKey: 'settings_row_library_default_sort_title', detailKey: 'settings_row_library_default_sort_detail' },
         { key: 'library-badges', titleKey: 'settings_row_library_badges_title', detailKey: 'settings_row_library_badges_detail' },
         { key: 'local-library-refresh', titleKey: 'settings_row_local_library_refresh_title', detailKey: 'settings_row_local_library_refresh_detail' },
         { key: 'sources', titleKey: 'settings_row_sources_title', detailKey: 'settings_row_sources_detail' },
@@ -480,7 +474,6 @@ export struct SettingsPage {
   @Event onOpenImagePlugins: (request: ImagePluginsRequest) => void = () => {}
   @Event onOpenSourcePackageManager: () => void = () => {}
   @Event onOpenLibraryUpdateResults: () => void = () => {}
-  @Event onOpenLibraryCategories: () => void = () => {}
   @Event onOpenDownloads: () => void = () => {}
   @Event onOpenImportRequested: () => void = () => {}
   @Event onRefreshLocalFolders: () => Promise<LocalLibraryFolderRescanActionResult | undefined> =
@@ -548,8 +541,6 @@ export struct SettingsPage {
   @Local private downloadNotificationStatus: OfflineDownloadNotificationStatus = 'unavailable'
   private libraryFilterMutationRevision: number = 0
   private libraryFilterLoadEpoch: number = 0
-  @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
-  @Local private libraryDefaultSortDirection: LibrarySortDirection = 'desc'
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private libraryListDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
@@ -757,14 +748,6 @@ export struct SettingsPage {
     if (row.key === 'library-update-results') {
       return this.getEffectiveLibraryUpdateSummary() === undefined ? this.t('library_update_no_result') : this.t('settings_library_update_results_view')
     }
-    if (row.key === 'library-categories') {
-      const count = (this.libraryStore?.listCustomCategories().length ?? 0) +
-        (this.libraryStore?.listSmartCategories().length ?? 0)
-      return count > 0 ? this.t('settings_library_categories_count').replace('%s', `${count}`) : this.t('settings_row_library_categories_detail')
-    }
-    if (row.key === 'library-default-sort') {
-      return librarySortSummary(this.libraryDefaultSortBy, this.libraryDefaultSortDirection)
-    }
     if (row.key === 'library-view-mode') {
       return this.libraryViewModeLabel(this.libraryViewMode)
     }
@@ -809,10 +792,8 @@ export struct SettingsPage {
           key: 'library-organization',
           titleKey: 'settings_section_library_organization',
           rows: this.rowsByKeys([
-            'library-categories',
             'library-view-mode',
             'list-density',
-            'library-default-sort',
             'library-badges',
           ]),
         },
@@ -1702,10 +1683,20 @@ export struct SettingsPage {
   }
 
   private automationCategories(): LibraryCategoryDefinition[] {
-    const categories: LibraryCategoryDefinition[] = [{ id: 'uncategorized', name: s('library_category_uncategorized') },
-      { id: 'favorite', name: s('library_category_favorite') },
-      { id: 'read_later', name: s('library_category_read_later') }]
-    return categories.concat(this.libraryStore?.listCustomCategories() ?? [])
+    const categories: LibraryCategoryDefinition[] = [{ id: 'uncategorized', name: s('library_category_uncategorized') }]
+    this.libraryStore?.listCustomCategories().forEach((category: CustomLibraryCategory): void => {
+      categories.push({ id: category.id, name: category.name })
+    })
+    const policy = this.automationPolicy
+    const saved = new Set<string>([...policy.updateIncludedCategories, ...policy.updateExcludedCategories,
+      ...policy.downloadIncludedCategories, ...policy.downloadExcludedCategories, ...policy.cleanupExcludedCategories])
+    // An old rule can outlive its preset's books. Keep that rule editable.
+    LEGACY_LIBRARY_CATEGORIES.forEach((legacy: LegacyLibraryCategory): void => {
+      if (saved.has(legacy.id) && !categories.some((category: LibraryCategoryDefinition): boolean => category.id === legacy.id)) {
+        categories.push({ id: legacy.id, name: s(legacy.nameKey) })
+      }
+    })
+    return categories
   }
 
   private loadAutomationPolicy(): void {
@@ -1831,12 +1822,6 @@ export struct SettingsPage {
         this.downloadNotificationStatus = 'unavailable'
         this.showToast(s('settings_download_notification_failed'))
       })
-  }
-
-  private saveLibraryDefaultSort(sortBy: LibrarySortBy, sortDirection: LibrarySortDirection): void {
-    this.libraryDefaultSortBy = sortBy
-    this.libraryDefaultSortDirection = sortDirection
-    this.saveLibraryFilterChanges({ sortBy, sortDirection }, s('settings_library_default_sort_save_failed'))
   }
 
   private saveLibraryViewMode(viewMode: LibraryViewMode): void {
@@ -2110,7 +2095,6 @@ export struct SettingsPage {
       row.key === 'cache-limit' ||
       row.key === 'library-view-mode' ||
       row.key === 'list-density' ||
-      row.key === 'library-default-sort' ||
       row.key === 'library-update-interval' ||
       row.key === 'tracker-update-strategy'
   }
@@ -2302,11 +2286,6 @@ export struct SettingsPage {
             this.saveImageCacheLimit(maxBytes)
           })
         }, (maxBytes: number) => `${maxBytes}`)
-      } else if (row.key === 'library-default-sort') {
-        LibrarySortMenuItems(this.libraryDefaultSortBy, this.libraryDefaultSortDirection,
-          (sortBy: LibrarySortBy, direction: LibrarySortDirection): void => {
-            select(() => { this.saveLibraryDefaultSort(sortBy, direction) })
-          })
       } else if (row.key === 'library-view-mode') {
         this.SelectionMenuItem(select, s('library_view_mode_grid'), this.libraryViewMode === 'grid', () => { this.saveLibraryViewMode('grid') })
         this.SelectionMenuItem(select, s('library_view_mode_list'), this.libraryViewMode === 'list', () => { this.saveLibraryViewMode('list') })
@@ -2372,8 +2351,6 @@ export struct SettingsPage {
       this.checkLibraryUpdates()
     } else if (row.key === 'library-update-results') {
       this.openLibraryUpdateResults()
-    } else if (row.key === 'library-categories') {
-      this.onOpenLibraryCategories()
     } else if (row.key === 'local-library-refresh') {
       void this.checkLocalLibraryRefresh()
     } else if (row.key === 'reader-display-effects') {
@@ -2473,7 +2450,7 @@ export struct SettingsPage {
       return
     }
     const navigationRows: string[] = ['komga', 'kavita', 'opds', 'webdav', 'sources',
-      'downloads', 'library-update-results', 'library-categories', 'translation', 'enhancement-models', 'diagnostics',
+      'downloads', 'library-update-results', 'translation', 'enhancement-models', 'diagnostics',
       'image-plugins']
     if (navigationRows.includes(result.row.key)) {
       this.handleRowClick(result.row)
@@ -2701,9 +2678,6 @@ export struct SettingsPage {
   }
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
-    const sort = effectiveLibraryDefaultSort(preferences, this.libraryStore)
-    this.libraryDefaultSortBy = sort.sortBy
-    this.libraryDefaultSortDirection = sort.sortDirection
     this.libraryViewMode = preferences.viewMode
     this.libraryListDensity = preferences.listDensity
     this.showLibraryBadges = preferences.showBadges
