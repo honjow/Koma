@@ -30,7 +30,7 @@ import { KomaReaderLabThumbnailProvider } from './KomaReaderLabThumbnailProvider
 import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 import {
   ReaderPageRenderKind, ReaderPageRenderSource, configureReaderOfflineDownloads, configureReaderRemoteImageCache,
-  createReaderPageRenderSources, fetchAndCacheReaderRemoteSource,
+  createReaderPageRenderSources, fetchAndCacheReaderRemoteSource, prepareReaderDisplayImage,
 } from '../model/ReaderPageSourceAdapter'
 
 export class KomaReaderLabChapterChoice {
@@ -627,10 +627,14 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     }
     cancellation.check()
     if (this.closed) throw new Error('closed_koma_reader')
-    if (kind === 'thumbnail') return this.thumbnails.load(filePath, cancellation)
-    const asset = new ReaderAsset(filePath.startsWith('/') ? `file://${filePath}` : filePath,
+    const displayPath = await prepareReaderDisplayImage(filePath)
+    cancellation.check()
+    if (this.closed) throw new Error('closed_koma_reader')
+    if (kind === 'thumbnail') return this.thumbnails.load(displayPath, cancellation)
+    const asset = new ReaderAsset(displayPath.startsWith('/') ? `file://${displayPath}` : displayPath,
       () => {}, new KomaReaderFileInformation(filePath))
-    asset.crop = new KomaReaderCropSource(filePath, this.cropStrength)
+    asset.saveUri = filePath.startsWith('/') ? `file://${filePath}` : filePath
+    asset.crop = new KomaReaderCropSource(displayPath, this.cropStrength)
     return asset
   }
 

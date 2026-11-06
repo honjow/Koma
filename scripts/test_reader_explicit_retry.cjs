@@ -52,11 +52,17 @@ test('reader cache hits update live eviction and coalesce restart metadata witho
     },
   }
   const exports = {}
+  const imports = { '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer } }
+  const imageFileContent = {}
+  const imageSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/ImageFileContent.ets'), 'utf8')
+  vm.runInNewContext(ts.transpileModule(imageSource.replace(/^@Concurrent\s*$/gm, ''), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: imageFileContent, require: name => imports[name] })
   const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/model/RemoteImageCacheStore.ets'), 'utf8')
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, {
-    exports, require: name => ({ '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer } })[name],
+    exports, require: name => name === './ImageFileContent' ? imageFileContent : imports[name],
     Date: { now: () => now }, console: { info() {} },
     setTimeout: callback => { writes.set(++timer, callback); return timer }, clearTimeout: id => writes.delete(id),
   })

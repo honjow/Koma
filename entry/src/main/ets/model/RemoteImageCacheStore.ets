@@ -1,5 +1,6 @@
 import { fileIo as fs, ListFileOptions } from '@kit.CoreFileKit'
 import { buffer } from '@kit.ArkTS'
+import { isAvifFileType } from './ImageFileContent'
 
 export type RemoteImageCacheHeaders = Record<string, string>
 
@@ -15,6 +16,7 @@ export interface RemoteImageCacheManifestEntry {
   path: string
   size: number
   lastAccessAt: number
+  avif?: boolean
 }
 
 export interface RemoteImageCacheStats {
@@ -193,6 +195,14 @@ export class RemoteImageCacheStore {
     this.restore()
   }
 
+  /** Only the cache can identify the format of bytes it published at this path. */
+  avifAtPath(path: string): boolean | undefined {
+    if (!path.startsWith(this.rootDir + '/')) return undefined
+    const leaf = path.slice(this.rootDir.length + 1)
+    const entry = this.entries.get(leaf.split('.')[0])
+    return entry?.path === path && typeof entry.avif === 'boolean' ? entry.avif : undefined
+  }
+
   get(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
     return this.enqueue(() => this.getNow(url, headers, cacheKeySeed))
   }
@@ -269,16 +279,17 @@ export class RemoteImageCacheStore {
       path: filePath,
       size: stat.size,
       lastAccessAt: Date.now(),
+      avif: this.deferReaderAccess ? isAvifFileType(bytes, Math.min(bytes.byteLength, 128)) : undefined,
     })
     this.persist()
     return filePath
   }
 
-  evictIfOver(maxBytes: number, preservedPath?: string): Promise<void> {
+  evictIfOver(maxBytes: number, preservedPath?: string | string[]): Promise<void> {
     return this.enqueue(() => this.evictIfOverNow(maxBytes, preservedPath))
   }
 
-  private async evictIfOverNow(maxBytes: number, preservedPath?: string): Promise<void> {
+  private async evictIfOverNow(maxBytes: number, preservedPath?: string | string[]): Promise<void> {
     if (maxBytes <= 0) {
       return
     }
@@ -300,7 +311,7 @@ export class RemoteImageCacheStore {
       if (total <= maxBytes) {
         break
       }
-      if (entry.path === preservedPath) continue
+      if (typeof preservedPath === 'string' ? entry.path === preservedPath : preservedPath?.includes(entry.path)) continue
       try {
         await fs.unlink(entry.path)
       } catch (_err) {

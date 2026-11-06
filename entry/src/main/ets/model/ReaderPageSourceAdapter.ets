@@ -2,6 +2,7 @@ import { SourceRequiredImageDecode, sourceRequiredImageDecode, SourceRequiredIma
   readSourceImageBytes } from './SourceRequiredImageDecode'
 import { SourceTextOverlay } from './SourceTextOverlay'
 import { SourceTextOverlayService } from './SourceTextOverlayService'
+import { ReaderAvifDisplayService } from './ReaderAvifDisplayService'
 import { configureSourceRequestPolicy, waitForSourceRequestSlot } from '../sourceRuntime/SourceRequestPolicy'
 import { renderSourceTextPage } from './SourceTextPageRenderer'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest } from './SourceTextPageDescriptor'
@@ -212,14 +213,21 @@ export function configureReaderRemoteImageCache(
   }
 }
 
-async function maintainReaderImageCacheAfterWrite(path: string): Promise<void> {
+async function maintainReaderImageCacheAfterWrite(path: string, original?: string): Promise<void> {
   if (readerImageCacheStore === null || !readerImageCacheAutoCleanEnabled) return
   try {
     // Keep the just-returned image available even when one image alone exceeds the limit.
-    await readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes, path)
+    await readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes, original === undefined ? path : [path, original])
   } catch (_error) {
     DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
   }
+}
+
+/** Display compatibility is separate from the source, export and offline paths. */
+export async function prepareReaderDisplayImage(path: string): Promise<string> {
+  if (readerImageCacheStore === null) return path
+  return ReaderAvifDisplayService.prepare(path, readerImageCacheStore,
+    (displayPath: string): Promise<void> => maintainReaderImageCacheAfterWrite(displayPath, path))
 }
 
 export function getReaderRemoteImageCacheStats(): Promise<ReaderRemoteImageCacheStats> {

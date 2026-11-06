@@ -52,6 +52,7 @@ import {
   createReaderPageRenderSource,
   createReaderPageRenderSources,
   fetchAndCacheReaderRemoteSource,
+  prepareReaderDisplayImage,
 } from '../model/ReaderPageSourceAdapter'
 import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
@@ -366,7 +367,8 @@ struct ReaderImageSurface {
       return
     }
     try {
-      const filePath = await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext)
+      const filePath = await prepareReaderDisplayImage(
+        await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext))
       if (this.disposed || run !== this.generation) return
       this.displayUri = readerDisplayUri(filePath)
       console.info(`[ReaderImage] step=display_ready page=${this.pageIndex + 1}`)
@@ -1547,7 +1549,8 @@ struct ReaderThumbnailTile {
   private async loadThumbnailPixelMap(): Promise<image.PixelMap> {
     let imageSource: image.ImageSource | undefined = undefined
     try {
-      const filePath = await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext)
+      const filePath = await prepareReaderDisplayImage(
+        await fetchAndCacheReaderRemoteSource(this.source, getContext(this) as common.UIAbilityContext))
       imageSource = image.createImageSource(filePath)
       const info = await imageSource.getImageInfo()
       const sourceWidth = Math.max(1, info.size.width)

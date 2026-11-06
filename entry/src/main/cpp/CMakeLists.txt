@@ -25,6 +25,22 @@ target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z
 # dependencies avoid a second curl/SSL namespace and a versioned SO in the HAP.
 set(KOMA_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${KOMA_PROJECT_ROOT}/scripts/prepare-reader-avif.sh")
+execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-reader-avif.sh"
+    "${OHOS_SDK_NATIVE}" "${KOMA_PROJECT_ROOT}/.hvigor/avif-deps" "${OHOS_ARCH}"
+    RESULT_VARIABLE KOMA_AVIF_RESULT OUTPUT_VARIABLE KOMA_AVIF_ROOT ERROR_VARIABLE KOMA_AVIF_ERROR)
+if(NOT KOMA_AVIF_RESULT EQUAL 0)
+    message(FATAL_ERROR "Reader AVIF preparation failed: ${KOMA_AVIF_ERROR}")
+endif()
+string(STRIP "${KOMA_AVIF_ROOT}" KOMA_AVIF_ROOT)
+add_library(koma_reader_avif SHARED reader_avif_module.cpp reader_avif_decode.cpp)
+target_compile_features(koma_reader_avif PRIVATE cxx_std_17)
+target_include_directories(koma_reader_avif PRIVATE "${KOMA_AVIF_ROOT}/include")
+target_link_options(koma_reader_avif PRIVATE "-Wl,--exclude-libs,ALL")
+target_link_libraries(koma_reader_avif PRIVATE libace_napi.z.so libimage_packer.so libpixelmap.so
+    "${KOMA_AVIF_ROOT}/lib/libavif.a" "${KOMA_AVIF_ROOT}/lib/libaom.a" m)
+
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh")
 execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-comic-archive.sh"
     "${OHOS_SDK_NATIVE}" "${KOMA_PROJECT_ROOT}/.hvigor/archive-deps" "${OHOS_ARCH}"
