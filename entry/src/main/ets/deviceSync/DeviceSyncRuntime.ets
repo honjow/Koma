@@ -17,14 +17,14 @@ import {
   DeviceSyncStorage, SyncBlockedReading, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
 } from './DeviceSyncStorage'
 import {
-  safeSyncSearch, syncChapterBelongsToSource, syncKey, syncKeyParts, syncSearchIdentity, SyncPositionValue,
-  SyncRecentValue, SyncSearchValue, SyncSubscription, SyncReaderMode, SyncWorkLabel, SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG,
+  safeSyncSearch, syncKey, syncKeyParts, syncReadingIdentity, syncReadingPosition, syncReadingRecent, syncSearchIdentity, SyncPositionValue,
+  SyncSearchValue, SyncSubscription, SyncReaderMode, SyncWorkLabel, SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG,
 } from './DeviceSyncData'
 import { connectDeviceSyncOwnerEdits, connectDeviceSyncProgress, connectDeviceSyncReadingCapture, connectDeviceSyncRestore,
   connectDeviceSyncSignals, deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncBookModeSignal, SyncCapturedReadingEdit,
   SyncLibrarySignal, SyncReadingActionCapture, SyncReadingCapture, SyncReadingSignal } from './DeviceSyncSignals'
 import { SyncConnectionDraft } from './DeviceSyncWebDav'
-import { matchesPublicSyncPageHash, matchesPublicSyncPages, syncHasTrustedPackage, syncPageDescriptorHash } from './DeviceSyncPublicSource'
+import { syncHasTrustedPackage } from './DeviceSyncPublicSource'
 import { subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 
 @ObservedV2
@@ -59,6 +59,9 @@ interface ActiveReadingSync {
   work: string
   chapter: string
   title: string
+  sourceName: string
+  chapterTitle: string
+  workUrl?: string
   positionKey: string
   recentKey: string
   readKey: string
@@ -74,7 +77,6 @@ interface PendingReadingSync {
   session: ActiveReadingSync
   progress: ReadingProgress
   id: string
-  descriptorHash: string
   observedActions: string[]
 }
 
@@ -95,8 +97,6 @@ class DeviceSyncRuntime {
   private session?: ActiveReadingSync
   private pendingReading: Map<string, PendingReadingSync> = new Map()
   private blockedReading?: PendingReadingSync
-  private descriptorUris?: string[]
-  private descriptorHash: string = ''
   private recoveredOnForeground: boolean = false
   private libraryEdits: Promise<void> = Promise.resolve()
   private bookModeEdits: Promise<void> = Promise.resolve()
@@ -244,7 +244,7 @@ class DeviceSyncRuntime {
       const engine = this.needed()
       const permit = engine.beginReview()
       const guard = engine.reviewRequestGuard(permit)
-      if (this.view.connected && selected.includes('reading')) await this.recordPositions(guard)
+      if (this.view.connected && selected.includes('reading')) this.recordPositions(guard)
       guard()
       return engine.prepareSaved(selected, permit)
     }, false, false)
@@ -263,7 +263,7 @@ class DeviceSyncRuntime {
 
   prepare(draft: SyncConnectionDraft, selected: SyncGroup[], publishError: boolean = true): Promise<SyncPreview> {
     return this.task(async (): Promise<SyncPreview> => {
-      if (selected.includes('reading')) await this.recordPositions()
+      if (selected.includes('reading')) this.recordPositions()
       return this.needed().prepare(draft, selected)
     }, publishError)
   }
@@ -287,7 +287,7 @@ class DeviceSyncRuntime {
     const generation = this.changeGeneration
     this.view.transferInFlight = true
     const active = this.task(async (): Promise<void> => {
-      await this.recordPositions()
+      this.recordPositions()
       await this.needed().syncNow(allowIdle && generation === this.syncedGeneration)
       this.syncedGeneration = generation
     }).finally((): void => {
@@ -512,10 +512,8 @@ class DeviceSyncRuntime {
       this.session.scope === this.engine?.readingScope()) return
     this.retainBlockedReading()
     this.session = undefined
-    this.descriptorUris = undefined
     const scope = this.engine?.readingScope() ?? ''
-    if (scope === '' || !syncHasTrustedPackage(request.sourceId) ||
-      !syncChapterBelongsToSource(request.sourceId, request.mangaId, request.chapterId)) return
+    if (scope === '' || !syncReadingIdentity(request.sourceId, request.mangaId, request.chapterId)) return
     const suffix = [request.sourceId, request.mangaId, request.chapterId]
     const positionKey = syncKey(['position'].concat(suffix))
     const recentKey = syncKey(['recent', request.sourceId, request.mangaId])
@@ -523,29 +521,20 @@ class DeviceSyncRuntime {
     const engine = this.needed()
     const previous = this.context === undefined ? undefined : appReaderSessionStore(this.context.filesDir).getProgress(request.comicId)
     this.session = { comicId: request.comicId, scope, source: request.sourceId, work: request.mangaId, chapter: request.chapterId,
-      title: request.title, positionKey, recentKey, readKey,
+      title: request.title, sourceName: request.sourceName ?? getInstalledSourcePackage(request.sourceId)?.name ?? request.sourceId,
+      chapterTitle: request.chapterTitles?.[request.chapterIds.indexOf(request.chapterId)] ?? '', workUrl: request.mangaUrl,
+      positionKey, recentKey, readKey,
       positionSeen: engine.observed('reading', positionKey), recentSeen: engine.observed('reading', recentKey),
       recentCleared: engine.cleared('reading', recentKey),
       readSeen: engine.observed('reading', readKey), lastPage: previous?.chapterId === request.chapterId ? previous.pageIndex : -1,
       lastComplete: previous?.chapterId === request.chapterId && previous.completed }
   }
 
-  async openReading(request: SourceReaderSessionRequest, fromStart: boolean = false):
-    Promise<'ready' | 'missing' | 'unverified' | 'changed' | 'unavailable'> {
+  openReading(request: SourceReaderSessionRequest): 'ready' | 'missing' {
+    this.retainBlockedReading()
     this.session = undefined
-    const owners = this.owners
-    if (owners === undefined || !syncChapterBelongsToSource(request.sourceId, request.mangaId, request.chapterId)) return 'ready'
-    const proof = owners.resumeProof(request.comicId, request.chapterId)
-    if (!syncHasTrustedPackage(request.sourceId)) {
-      if (!owners.receivedReading(request.comicId, request.chapterId)) return 'ready'
-      const installed = getInstalledSourcePackage(request.sourceId)
-      return installed !== undefined && installed.enabled ? 'unverified' : 'missing'
-    }
-    if (proof !== '' && !fromStart) {
-      const remote = await owners.publicSources.chapter(request.sourceId, request.mangaId, request.chapterId, true)
-      if (remote === undefined) return 'unavailable'
-      if (remote.pageTable !== proof) return 'changed'
-    }
+    if (this.owners?.receivedReading(request.comicId, request.chapterId) === true &&
+      getInstalledSourcePackage(request.sourceId)?.enabled !== true) return 'missing'
     this.beginReadingChapter(request)
     return 'ready'
   }
@@ -562,21 +551,18 @@ class DeviceSyncRuntime {
       this.engine?.hasUnseenBarrier('reading', session.recentKey, session.recentSeen, session.recentCleared) !== true
   }
 
-  observeReading(progress: ReadingProgress, uris: string[]): void {
+  observeReading(progress: ReadingProgress): void {
     const session = this.session
     if (session === undefined || this.engine?.readingScope() !== session.scope || session.comicId !== progress.comicId || session.chapter !== progress.chapterId ||
+      syncReadingPosition(progress.pageIndex, progress.totalPages) === undefined ||
       (session.lastPage === progress.pageIndex && session.lastComplete === progress.completed)) return
     session.lastPage = progress.pageIndex
     session.lastComplete = progress.completed
-    if (uris !== this.descriptorUris) {
-      this.descriptorUris = uris
-      this.descriptorHash = syncPageDescriptorHash(session.source, uris)
-    }
     const reader = this.context === undefined ? undefined : appReaderSessionStore(this.context.filesDir)
     const observedActions = reader?.pendingDeviceSyncActions().filter((action: SyncReadingActionCapture): boolean =>
       action.source === session.source && action.work === session.work && (action.chapterId === '' || action.chapterId === session.chapter))
       .map((action: SyncReadingActionCapture): string => action.id) ?? []
-    const pending: PendingReadingSync = { session, progress, id: util.generateRandomUUID(), descriptorHash: this.descriptorHash, observedActions }
+    const pending: PendingReadingSync = { session, progress, id: util.generateRandomUUID(), observedActions }
     if (this.allowProgress(progress)) this.pendingReading.set(session.positionKey, pending)
     else this.blockedReading = pending
   }
@@ -589,7 +575,8 @@ class DeviceSyncRuntime {
     const progress = blocked.progress
     const capture: SyncReadingCapture = { id: blocked.id, space: active.space, source: session.source, work: session.work,
       comicId: session.comicId, chapterId: session.chapter, page: progress.pageIndex, total: progress.totalPages,
-      complete: progress.completed, date: progress.updatedAt, descriptorHash: blocked.descriptorHash,
+      complete: progress.completed, date: progress.updatedAt, recent: syncReadingRecent(session.source, session.chapter, progress.updatedAt, session.title,
+        session.sourceName, session.chapterTitle, progress.pageIndex, session.workUrl),
       observedActions: blocked.observedActions, positionSeen: session.positionSeen, recentSeen: session.recentSeen,
       recentCleared: session.recentCleared, readSeen: session.readSeen }
     try {
@@ -621,14 +608,11 @@ class DeviceSyncRuntime {
       const scope = engine.readingScope()
       if (owners === undefined || scope === '' || capture.space !== engine.active()?.space) throw new Error('sync_connection_changed')
       const guard = engine.requestGuard()
-      const work = await owners.publicSources.work(capture.source, capture.work, true, guard)
-      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
-      if (scope !== engine.readingScope()) throw new Error('sync_connection_changed')
-      if (work === undefined || chapter === undefined || capture.total !== chapter.pages ||
-        !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) throw new Error('sync_public_work_unavailable')
-      const position: SyncPositionValue = { page: capture.page, total: chapter.pages, pageTable: chapter.pageTable }
-      const recent: SyncRecentValue = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
-        chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
+      const position = syncReadingPosition(capture.page, capture.total, capture.date)
+      if (position === undefined || !syncReadingIdentity(capture.source, capture.work, capture.chapterId)) {
+        throw new Error('sync_unsupported_value')
+      }
+      const recent = owners.localReadingRecent(capture)
       const positionKey = syncKey(['position', capture.source, capture.work, capture.chapterId])
       const recentKey = syncKey(['recent', capture.source, capture.work])
       await engine.assertReadingUnprotected([positionKey, recentKey])
@@ -664,7 +648,8 @@ class DeviceSyncRuntime {
       if (progress === undefined) return
       const capture: SyncReadingCapture = { id: pending.id, space: active.space, source: session.source, work: session.work,
         comicId: session.comicId, chapterId: session.chapter, page: progress.pageIndex, total: progress.totalPages,
-        complete: progress.completed, date: progress.updatedAt, descriptorHash: pending.descriptorHash, observedActions: pending.observedActions,
+        complete: progress.completed, date: progress.updatedAt, recent: syncReadingRecent(session.source, session.chapter, progress.updatedAt, session.title,
+          session.sourceName, session.chapterTitle, progress.pageIndex, session.workUrl), observedActions: pending.observedActions,
         positionSeen: session.positionSeen, recentSeen: session.recentSeen, recentCleared: session.recentCleared, readSeen: session.readSeen }
       if (this.owners?.readingAcknowledged(capture) === true) this.pendingReading.delete(key)
       else captures.push(capture)
@@ -672,16 +657,13 @@ class DeviceSyncRuntime {
     return captures
   }
 
-  async validateReadingPages(request: SourceReaderSessionRequest, uris: string[]): Promise<boolean> {
-    const owners = this.owners
-    if (owners === undefined) return true
-    const saved = owners.resumeProof(request.comicId, request.chapterId)
-    if (saved === '') return true
-    const chapter = await owners.publicSources.chapter(request.sourceId, request.mangaId, request.chapterId, true)
-    return chapter !== undefined && chapter.pageTable === saved && matchesPublicSyncPages(request.sourceId, chapter, uris)
+  validateReadingPages(comicId: string, chapterId: string, totalPages: number): boolean {
+    if (this.context === undefined || this.owners?.receivedReadingPosition(comicId, chapterId) !== true) return true
+    const progress = appReaderSessionStore(this.context.filesDir).getChapterProgress(comicId, chapterId)
+    return progress === undefined || progress.totalPages === totalPages
   }
 
-  private async recordPositions(reviewGuard?: () => void): Promise<void> {
+  private recordPositions(reviewGuard?: () => void): void {
     const context = this.context
     const owners = this.owners
     const engine = this.engine
@@ -693,7 +675,7 @@ class DeviceSyncRuntime {
     const reader = appReaderSessionStore(context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const actions = reader.pendingDeviceSyncActions()
-    await this.recordReaderActions(actions, scope, reviewGuard)
+    this.recordReaderActions(actions, scope, reviewGuard)
     guard()
     const pending = reader.pendingDeviceSyncPositions()
     const positionSeenAfterLocalActions = (capture: SyncReadingCapture, key: string, seen: SyncVersion[]): SyncVersion[] => {
@@ -713,47 +695,26 @@ class DeviceSyncRuntime {
       const positionKey = syncKey(['position'].concat(suffix))
       const recentKey = syncKey(['recent', capture.source, capture.work])
       const readKey = syncKey(['read'].concat(suffix))
-      let pageTable = owners.verifiedPageTable?.(capture.comicId, capture.chapterId, capture.descriptorHash) ?? ''
-      const known = engine.knownReadingValue(recentKey)
-      let recent = known === undefined ? undefined : JSON.parse(known) as SyncRecentValue
-      if (recent?.chapter !== capture.chapterId) recent = undefined
-      if (recent === undefined || pageTable === '') {
-        const work = await owners.publicSources.work(capture.source, capture.work, true, guard)
-        const chapter = work === undefined ? undefined :
-          await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
-        if (scope !== engine.readingScope()) return
-        if (work !== undefined && chapter !== undefined) {
-          recent = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
-            chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
-          if (chapter.pages === capture.total && matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) {
-            pageTable = chapter.pageTable
-          }
-        }
-      }
-      if ((recent === undefined && pageTable === '') ||
-        !reader.pendingDeviceSyncPositions().some((item: SyncReadingCapture): boolean => item.id === capture.id)) continue
-      const position: SyncPositionValue = { page: capture.page, total: capture.total, pageTable }
+      const position = syncReadingPosition(capture.page, capture.total, capture.date)
+      if (position === undefined || !syncReadingIdentity(capture.source, capture.work, capture.chapterId)) continue
+      const recent = owners.localReadingRecent(capture)
       const saved = reader.getProgress(capture.comicId)
       const edits: DeviceSyncLocalEdit[] = []
       const positionSeen = positionSeenAfterLocalActions(capture, positionKey, capture.positionSeen)
       const recentSeen = positionSeenAfterLocalActions(capture, recentKey, capture.recentSeen)
       const readSeen = positionSeenAfterLocalActions(capture, readKey, capture.readSeen)
-      if (pageTable !== '' && !engine.hasUnseenBarrier('reading', positionKey, positionSeen)) {
+      if (!engine.hasUnseenBarrier('reading', positionKey, positionSeen)) {
         edits.push({ key: positionKey, kind: 'set', value: JSON.stringify(position), observed: positionSeen })
       }
-      if (recent !== undefined && saved?.chapterId === capture.chapterId &&
+      if (saved?.chapterId === capture.chapterId &&
         !owners.readingHistoryAcknowledged?.(capture) &&
         !engine.hasUnseenBarrier('reading', recentKey, recentSeen, capture.recentCleared)) {
-        recent.date = capture.date
-        recent.savedPage = capture.page
         edits.push({ key: recentKey, kind: 'set', value: JSON.stringify(recent), observed: recentSeen })
       }
-      if (pageTable !== '' && capture.complete && !engine.hasUnseenBarrier('reading', readKey, readSeen)) {
+      if (capture.complete && !engine.hasUnseenBarrier('reading', readKey, readSeen)) {
         edits.push({ key: readKey, kind: 'set', value: 'true', observed: readSeen })
       }
-      if (pageTable !== '') owners.rememberLocalReadingProof(capture.comicId, capture.chapterId, pageTable, capture.descriptorHash)
-      if (pageTable === '' && edits.length === 0) continue
-      const key = (pageTable === '' ? 'history:' : '') + deviceSyncCaptureKey(capture)
+      const key = deviceSyncCaptureKey(capture)
       const version = engine.recordEdits('reading', edits, { key, id: capture.id })
       const session = this.session
       if (version !== undefined && session?.chapter === capture.chapterId && session.comicId === capture.comicId && session.scope === scope) {
@@ -767,13 +728,14 @@ class DeviceSyncRuntime {
   private stageReaderActions(actions: SyncReadingSignal[]): SyncReadingActionCapture[] {
     const engine = this.engine
     const active = engine?.active()
-    if (engine === undefined || active === undefined || engine.readingScope() === '') return []
+    if (actions.length === 0 || engine === undefined || active === undefined || engine.readingScope() === '') return []
     const captured: SyncReadingActionCapture[] = []
+    const identities = this.owners?.readingIdentities()
     for (const action of actions) {
-      const separator = action.comicId.indexOf(':')
-      if (separator < 1) continue
-      const source = action.comicId.substring(0, separator)
-      const work = action.comicId.substring(separator + 1)
+      const identity = action.identity ?? identities?.get(action.comicId)
+      if (identity === undefined || !syncReadingIdentity(identity.source, identity.work, action.chapterId || undefined)) continue
+      const source = identity.source
+      const work = identity.work
       const edits: SyncCapturedReadingEdit[] = []
       const append = (key: string, kind: SyncEditKind, value: string): void => {
         edits.push({ key, kind, value, observed: engine.observed('reading', key) })
@@ -781,7 +743,7 @@ class DeviceSyncRuntime {
       if (action.kind === 'remove-history' || action.kind === 'clear-history') {
         const key = syncKey(['recent', source, work])
         if (engine.observed('reading', key).length > 0) append(key, action.kind === 'clear-history' ? 'clear-observed' : 'delete', '')
-      } else if (syncChapterBelongsToSource(source, work, action.chapterId) && syncHasTrustedPackage(source)) {
+      } else if (action.chapterId !== '') {
         const suffix = [source, work, action.chapterId]
         if (action.kind === 'bookmark' || action.kind === 'unbookmark') {
           append(syncKey(['bookmark'].concat(suffix)), action.kind === 'bookmark' ? 'set' : 'delete',
@@ -799,39 +761,29 @@ class DeviceSyncRuntime {
     return captured
   }
 
-  private async recordReaderActions(actions: SyncReadingActionCapture[], scope: string, reviewGuard?: () => void): Promise<void> {
+  private recordReaderActions(actions: SyncReadingActionCapture[], scope: string, reviewGuard?: () => void): void {
     const engine = this.engine
     const owners = this.owners
     if (engine === undefined || owners === undefined) return
-    const serviceGuard = engine.requestGuard()
-    const guard = (): void => { serviceGuard(); reviewGuard?.() }
     const earlier = new Map<string, SyncVersion[]>()
-    const blocked = new Set<string>()
     for (const capture of actions) {
       if (capture.space !== engine.active()?.space) continue
-      if (capture.edits.some((edit: SyncCapturedReadingEdit): boolean => blocked.has(edit.key))) continue
       if (!owners.readingActionAcknowledged(capture)) {
-        const position = capture.edits.find((edit: SyncCapturedReadingEdit): boolean => edit.kind === 'reset' && edit.value === '')
-        const known = position === undefined ? undefined : engine.knownReadingValue(position.key)
-        const verify = capture.chapterId !== '' && (position === undefined ?
-          capture.edits.some((edit: SyncCapturedReadingEdit): boolean => edit.observed.length === 0) : known === undefined)
-        const chapter = verify ? await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId,
-          engine.active()?.enabled !== false, guard) : undefined
         reviewGuard?.()
         if (engine.readingScope() !== scope) return
-        if (verify && chapter === undefined) {
-          capture.edits.forEach((edit: SyncCapturedReadingEdit): void => { blocked.add(edit.key) })
-          continue
-        }
         const edits = capture.edits.map((edit: SyncCapturedReadingEdit): DeviceSyncLocalEdit => {
           let value = edit.value
-          if (edit === position) {
-            const reset = known === undefined ? { page: 0, total: chapter?.pages ?? 0, pageTable: chapter?.pageTable ?? '' } as SyncPositionValue :
-              JSON.parse(known) as SyncPositionValue
-            reset.page = 0
-            value = JSON.stringify(reset)
+          let kind = edit.kind
+          if (kind === 'reset' && value === '') {
+            const known = engine.knownReadingValue(edit.key)
+            if (known === undefined) kind = 'delete'
+            else {
+              const reset = JSON.parse(known) as SyncPositionValue
+              reset.page = 0
+              value = JSON.stringify(reset)
+            }
           }
-          return { key: edit.key, kind: edit.kind, value, observed: mergeSyncVectors(edit.observed, earlier.get(edit.key) ?? []) }
+          return { key: edit.key, kind, value, observed: mergeSyncVectors(edit.observed, earlier.get(edit.key) ?? []) }
         })
         engine.recordEdits('reading', edits, { key: deviceSyncActionCaptureKey(capture), id: capture.id })
       }

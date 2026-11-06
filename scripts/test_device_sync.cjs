@@ -147,27 +147,6 @@ test('MangaDex public work proof accepts a romanized primary title and safe alte
   assert.equal(await read(), undefined)
 })
 
-test('xkcd page proof crosses nested controls and keeps only direct chapter images in order', async () => {
-  let html = '<div id="content"><div class="randomLink"><a href="/2">Next</a></div>' +
-    '<img id="feed" src="/strip/feed.svg"><img id src="/strip/skip.jpg">' +
-    '<img alt=" src=\'/strip/fake.jpg\'" src="/strip/1.jpg">' +
-    '<div><img src="/strip/not-a-page.jpg"></div><!-- <img src="/strip/comment.jpg"> -->' +
-    '<img src="https://elsewhere.invalid/strip/1.jpg"><img src="/strip/2.jpg"></div>' +
-    '<img src="/strip/outside.jpg">'
-  const source = data.XKCD_SYNC_SOURCE
-  const { DeviceSyncPublicSources } = publicSourceFixture(source, address => {
-    if (address === 'https://xkcd.tw/api/strips.json') return { 1: { title: '桶子之一', img_url: '/strip/1.jpg' } }
-    assert.equal(address, 'https://xkcd.tw/1')
-    return html
-  })
-  const read = () => new DeviceSyncPublicSources().chapter(source, 'xkcd:zh', 'xkcdch:zh:1', true)
-  const proof = await read()
-  assert.deepEqual(proof.normalPages, ['/strip/1.jpg', '/strip/2.jpg'])
-  assert.equal(proof.pages, 2)
-  html = '<div id="content"><div><img src="/strip/1.jpg"></div>'
-  assert.equal(await read(), undefined)
-})
-
 function runtimeFixture(extra = {}) {
   return compile('DeviceSyncRuntime', {
     '@kit.NetworkKit': {}, '@kit.ArkTS': {}, '@kit.BackgroundTasksKit': {},
@@ -214,17 +193,17 @@ test('draft tests and merge failures preserve the active connection error', asyn
   assert.equal(runtime.view.error, 'sync_server_storage_full')
 })
 
-test('received reading distinguishes an installed unverified source from a missing or disabled source', async () => {
+test('received reading opens through any enabled source and identifies a missing or disabled source', async () => {
   let installed = { enabled: true }
   let received = true
   const runtime = runtimeFixture({
     '../sourceRuntime/SourceRuntimeAppRegistry': { getInstalledSourcePackage: () => installed },
     './DeviceSyncPublicSource': { syncHasTrustedPackage: () => false },
   })
-  runtime.owners = { resumeProof: () => '', receivedReading: () => received }
-  const request = { comicId: 'sample', sourceId: data.MANGADEX_SYNC_SOURCE,
-    mangaId: 'mdx:65208a20-4253-42c8-b0e7-56524bbe795b', chapterId: 'ch:55b179dd-c647-4be8-b57c-204c09e3557e' }
-  assert.equal(await runtime.openReading(request), 'unverified')
+  runtime.owners = { receivedReading: () => received }
+  const request = { comicId: 'sample', sourceId: 'com.picacg.koma',
+    mangaId: 'pica:0123456789', chapterId: 'pica:0123456789:1' }
+  assert.equal(runtime.openReading(request), 'ready')
   installed.enabled = false
   assert.equal(await runtime.openReading(request), 'missing')
   installed = undefined
@@ -337,7 +316,7 @@ function engineFixture(providerOverride) {
     '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
   })
   const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }
-  function replica(id, initial = []) {
+  function replica(id, initial = [], ownerFactory) {
     let document = { schema: 1, replica: id, counter: 0, probes: [] }
     const values = new Map(initial)
     const snapshotExtras = new Map()
@@ -345,7 +324,7 @@ function engineFixture(providerOverride) {
       load: () => document,
       update(change) { const next = clone(document); change(next); document = next },
     }
-    const owner = {
+    const owner = ownerFactory?.(store) ?? {
       async snapshot(group) {
         const rows = [...(values.get(group) ?? new Map())].map(([key, value]) => ({ key, value }))
         return { values: rows, revision: JSON.stringify(rows), skipped: 0, ...snapshotExtras.get(group) }

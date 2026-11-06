@@ -126,6 +126,7 @@ import {
   createReaderSessionConfigFromComic,
 } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
+import { SyncReadingSource } from '../deviceSync/DeviceSyncSignals'
 import {
   TrackerProgressSyncResult,
   TrackerProgressSyncReason,
@@ -2168,11 +2169,18 @@ export struct MangaDetailPage {
   }
 
 
+  private readingSourceIdentity(): SyncReadingSource | undefined {
+    const manga = this.manga
+    if (manga?.sourceId === undefined) return undefined
+    return { source: manga.sourceId, work: manga.id }
+  }
+
   private markChapterReadState(chapterId: string, isRead: boolean): void {
     if (chapterId.trim().length === 0) {
       return
     }
-    const result = this.readerSessionStore.commitChapterReadStates([{ comicId: this.currentComicId(), chapterId, isRead }])
+    const result = this.readerSessionStore.commitChapterReadStates([{ comicId: this.currentComicId(), chapterId, isRead }],
+      this.readingSourceIdentity())
     if (!result.committed) {
       this.showToast(s('reader_progress_save_failed'))
       return
@@ -2235,6 +2243,7 @@ export struct MangaDetailPage {
     const comicId = this.currentComicId()
     const result = this.readerSessionStore.commitChapterReadStates(
       targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead })),
+      this.readingSourceIdentity(),
     )
     if (!result.committed) {
       this.showToast(s('reader_progress_save_failed'))
@@ -2626,7 +2635,8 @@ export struct MangaDetailPage {
             if (comicId !== this.currentComicId()) return
             // Import only read facts. Keep the resume location and do not echo them back to trackers.
             const saved = this.readerSessionStore.commitChapterReadStates(
-              targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead: true })))
+              targetIds.map((chapterId: string): ChapterReadMutation => ({ comicId, chapterId, isRead: true })),
+              this.readingSourceIdentity())
             if (!saved.committed) {
               this.showToast(s('reader_progress_save_failed'))
               return
@@ -3639,7 +3649,7 @@ export struct MangaDetailPage {
         chapters: this.chapters,
         onExportChapter: (chapterId: string, share: boolean) => { void this.exportChapter(chapterId, share) },
         onBookmarkChapter: (chapterId: string, bookmarked: boolean) => {
-          if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked)) {
+          if (this.readerSessionStore.commitChapterBookmark(this.currentComicId(), chapterId, bookmarked, this.readingSourceIdentity())) {
             this.applyChapterStatesToCurrent()
             this.onReadingStateChanged()
           } else this.showToast(s('chapter_bookmark_save_failed'))

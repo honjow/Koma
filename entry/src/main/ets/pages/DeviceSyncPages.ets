@@ -579,9 +579,7 @@ export struct DeviceSyncReviewPage {
     if ((group.retained ?? 0) > 0) parts.push(t('device_sync_summary_retained').replace('%s', (group.retained ?? 0).toString()))
     if ((group.deferred ?? 0) > 0) parts.push(t('device_sync_summary_defer').replace('%s', (group.deferred ?? 0).toString()))
     const outside = group.readingOutsideScope ?? 0
-    const unverified = group.readingUnverified ?? 0
     if (outside > 0) parts.push(t('device_sync_reading_outside_scope').replace('%s', outside.toString()))
-    if (unverified > 0) parts.push(t('device_sync_reading_unverified').replace('%s', unverified.toString()))
     if (group.group !== 'reading' && group.skipped > 0) parts.push(t('device_sync_summary_skip').replace('%s', group.skipped.toString()))
     return parts.length === 0 ? t('device_sync_summary_empty') : parts.join(' · ')
   }

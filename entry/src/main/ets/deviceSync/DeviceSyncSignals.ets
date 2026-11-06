@@ -1,10 +1,17 @@
 import { SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { ReadingProgress } from '../model/ComicModels'
+import { SyncRecentValue } from './DeviceSyncData'
 
 export interface SyncReadingSignal {
   comicId: string
   chapterId: string
   kind: 'read' | 'unread' | 'bookmark' | 'unbookmark' | 'remove-history' | 'clear-history'
+  identity?: SyncReadingSource
+}
+
+export interface SyncReadingSource {
+  source: string
+  work: string
 }
 
 let restoreStarted: (() => void) | undefined
@@ -53,7 +60,7 @@ export interface SyncReadingCapture {
   total: number
   complete: boolean
   date: number
-  descriptorHash: string
+  recent?: SyncRecentValue
   observedActions: string[]
   positionSeen: SyncVersion[]
   recentSeen: SyncVersion[]

@@ -160,7 +160,9 @@ export struct KomaReaderLabPage {
           if (!active()) { finish(false); return }
           if (reopenCatalog) {
             adapter.invalidateAuthenticationCatalog(unit)
-            try { await session.open(unit.copy(), 0) } finally { finish(false) }
+            const anchor = session.snapshot().anchor
+            const page = anchor !== null && anchor.unit.equals(unit) ? anchor.sourceIndexHint : 0
+            try { await session.open(unit.copy(), page) } finally { finish(false) }
           } else finish(true)
         }, (): void => { finish(false) })
     })

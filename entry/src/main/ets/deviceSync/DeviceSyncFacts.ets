@@ -26,7 +26,8 @@ export interface SyncFact {
 }
 
 const MAX_REPLICAS = 128
-const MAX_KEY_LENGTH = 1024
+// Reading keys can include both opaque 512-character work and chapter IDs.
+const MAX_KEY_LENGTH = 4096
 const MAX_VALUE_LENGTH = 8192
 
 export function isSyncReplica(value: string): boolean {

@@ -3,7 +3,7 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, SyncRecentValue, syncBucketKey, syncKey, syncKeyParts } from './DeviceSyncData'
+import { checkSyncGroupFact, SyncRecentValue, syncBucketKey, syncKey, syncKeyParts, SYNC_READING_DATASET } from './DeviceSyncData'
 import {
   buildSyncDataset, decodeSyncShard, newSyncManifest, syncDatasetBytes, syncDigest, syncShardPath, syncDatasetBranches,
   SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
@@ -58,7 +58,6 @@ export interface SyncPreviewGroup {
   remove: number
   skipped: number
   readingOutsideScope?: number
-  readingUnverified?: number
   deferred?: number
   retained?: number
   dependent: SyncPreviewEffect[]
@@ -154,6 +153,23 @@ interface DatasetCache {
 }
 
 const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
+
+function writeDatasetId(group: SyncGroup): string {
+  return group === 'reading' ? SYNC_READING_DATASET : group
+}
+
+function groupDatasets(manifest: SyncManifest | undefined, group: SyncGroup): SyncDatasetRef[] {
+  const refs = syncDatasetBranches(manifest, writeDatasetId(group))
+  // The previous client rejects the whole round if its reading dataset contains
+  // another source. Keep those immutable records readable during upgrades.
+  return group === 'reading' ? refs.concat(syncDatasetBranches(manifest, 'reading')) : refs
+}
+
+function selectedDatasetIds(groups: SyncGroup[]): string[] {
+  const ids: string[] = groups.slice()
+  if (groups.includes('reading')) ids.push(SYNC_READING_DATASET)
+  return ids
+}
 
 function selectedGroups(groups: SyncGroup[]): SyncGroup[] {
   return SYNC_GROUPS.filter((group: SyncGroup): boolean => groups.includes(group))
@@ -611,7 +627,7 @@ export class DeviceSyncEngine {
         else download++
       })
       return { group: summary.group, upload, download, remove, skipped: summary.skipped,
-        readingOutsideScope: summary.readingOutsideScope, readingUnverified: summary.readingUnverified,
+        readingOutsideScope: summary.readingOutsideScope,
         deferred: output.deferredRoots?.length ?? 0, retained, dependent: summary.dependent }
     })
     return { token: prepared.preview.token, destination: prepared.preview.destination, groups, removals, conflicts: prepared.preview.conflicts,
@@ -758,11 +774,11 @@ export class DeviceSyncEngine {
     const rows: SyncFact[] = []
     const keys = new Set<string>()
     for (const ref of dataset.shards) {
-      const path = id + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
+      const path = dataset.id + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
       let cache = this.cache.find((item: DatasetCache): boolean => item.path === path)
       if (cache === undefined) {
         const body = await provider.readObject(ref, guard)
-        const data = decodeSyncShard(id, ref, body, syncBucketKey)
+        const data = decodeSyncShard(dataset.id, ref, body, syncBucketKey)
         cache = { path, data, bytes: ref.bytes }
         this.cache.push(cache)
         this.cacheSize += ref.bytes
@@ -785,7 +801,7 @@ export class DeviceSyncEngine {
     let budget = SYNC_MAX_ROUND_BYTES
     const groups: PreparedGroup[] = []
     for (const id of selected) {
-      const refs = syncDatasetBranches(manifest, id)
+      const refs = groupDatasets(manifest, id)
       budget -= refs.reduce((size: number, ref: SyncDatasetRef): number => size + syncDatasetBytes(ref), 0)
       if (budget < 0) throw new Error('sync_round_too_large')
       let remote: SyncFact[] = []
@@ -796,10 +812,10 @@ export class DeviceSyncEngine {
         syncRequiresExplicitReview(connection) || !connection?.selected.includes(id)
       const removed = requiresPreview || previous === undefined ? [] :
         this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
-      const ownRef = transport?.own?.datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === id)
+      const ownRef = transport?.own?.datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === writeDatasetId(id))
       const published = ownRef === undefined ? undefined : await this.loadDataset(provider, ownRef, guard, id)
       let migrating: SyncFact[] = []
-      for (const ref of syncDatasetBranches(transport?.old, id)) {
+      for (const ref of groupDatasets(transport?.old, id)) {
         migrating = mergeSyncFacts(migrating, await this.loadDataset(provider, ref, guard, id))
       }
       groups.push({ id, local, remote, previous, requiresPreview, resetBaseline: connection?.restoreReview === true,
@@ -873,7 +889,7 @@ export class DeviceSyncEngine {
         else remove++
       })
       return { group: entry.id, upload, download, remove, skipped: entry.local.skipped,
-        readingOutsideScope: entry.local.readingOutsideScope, readingUnverified: entry.local.readingUnverified, dependent }
+        readingOutsideScope: entry.local.readingOutsideScope, dependent }
     })
     return { token: util.generateRandomUUID(), groups: summaries, conflicts, removals, freshConnection: fresh, categories, beforeRestore,
       earlierUnconfirmed: 0 }
@@ -1014,9 +1030,26 @@ export class DeviceSyncEngine {
         if ((needsDecision && choice?.useLocal !== true) || (row.requiresPreview && theirs === value)) return
         if (!row.requiresPreview && choice?.useLocal !== true) {
           if (row.id === 'reading') {
-            // Backfill pre-sync history only for an untouched key. A known
-            // value or tombstone may be newer than the retained owner data.
-            if (remoteFact !== undefined || edits.has(key)) return
+            const recorded = edits.get(key)
+            const existing = recorded === undefined ? remoteFact : remoteFact === undefined ? recorded :
+              mergeSyncFacts([recorded], [remoteFact])[0]
+            if (existing !== undefined) {
+              const currentValue = syncVisibleValue(existing)
+              // Older clients could save a newer position without staging it
+              // for sync. Keep a distinct local save even if device clocks
+              // disagree. An unchanged receive projection is not a local save.
+              const kind = syncKeyParts(key)[0]
+              if ((kind !== 'position' && kind !== 'recent') || currentValue === undefined || prior.get(key) === value ||
+                pending.some((item: SyncPendingEdit): boolean => item.key === key) ||
+                existing.barriers.length > 0 || existing.cleared.length > 0 ||
+                existing.values.some((candidate: SyncEdit): boolean => candidate.value === value)) return
+              const localDate = (JSON.parse(value) as SyncRecentValue).date
+              if (localDate === undefined || localDate <= 0) return
+              // The local save could only have observed the previous local
+              // baseline, not records first seen in this round.
+              editFact(key, 'set', value, remoteFact, recorded?.seen ?? [])
+              return
+            }
           } else if (prior.get(key) === value) return
         }
         editFact(key, 'set', value, row.requiresPreview || choice?.useLocal === true ? remoteFact : undefined)
@@ -1043,7 +1076,8 @@ export class DeviceSyncEngine {
           changes.push({ key: fact.key, value: value ?? '' })
         }
       })
-      const ref = datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === row.id)
+      const datasetId = writeDatasetId(row.id)
+      const ref = datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === datasetId)
       let outgoing = facts.filter((fact: SyncFact): boolean => !isDeferred(fact.key) && !protectedKeys.has(fact.key))
         .concat(row.remote.filter((fact: SyncFact): boolean => isDeferred(fact.key) || protectedKeys.has(fact.key)))
       if (writer) {
@@ -1062,10 +1096,10 @@ export class DeviceSyncEngine {
         return fact === undefined || !syncObserves(fact.seen, item.version)
       })
       if (!projectOnly) {
-        const built = buildSyncDataset(row.id, outgoing, base.epoch, ref, syncBucketKey)
-        alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== row.id)
+        const built = buildSyncDataset(datasetId, outgoing, base.epoch, ref, syncBucketKey)
+        alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== datasetId)
         if (built.ref.shards.length > 0 || ref !== undefined) {
-          datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== row.id).concat(built.ref)
+          datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== datasetId).concat(built.ref)
         }
         objects.push(...built.objects)
       }
@@ -1078,7 +1112,7 @@ export class DeviceSyncEngine {
       revisions.push({ group: row.id, revision: row.local.revision })
     }
     const outputBytes = datasets.filter((dataset: SyncDatasetRef): boolean =>
-      prepared.some((group: PreparedGroup): boolean => group.id === dataset.id))
+      prepared.some((group: PreparedGroup): boolean => writeDatasetId(group.id) === dataset.id))
       .reduce((total: number, dataset: SyncDatasetRef): number => total + syncDatasetBytes(dataset), 0)
     if (outputBytes > SYNC_MAX_ROUND_BYTES) throw new Error('sync_round_too_large')
     datasets.sort((a: SyncDatasetRef, b: SyncDatasetRef): number => a.id < b.id ? -1 : a.id === b.id ? 0 : 1)
@@ -1170,7 +1204,7 @@ export class DeviceSyncEngine {
     }
     let receipt: SyncRemoteManifest
     try {
-      if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard, beforeSend, selected))) {
+      if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard, beforeSend, selectedDatasetIds(selected)))) {
         this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
         throw new Error(manualPreview ? 'sync_preview_changed' : 'sync_remote_changed')
       }
@@ -1299,14 +1333,18 @@ export class DeviceSyncEngine {
     let budget = SYNC_MAX_ROUND_BYTES
     for (const group of connection.groups) {
       if (!connection.selected.includes(group.id)) continue
-      const ref = remote.manifest.datasets.find((row: SyncDatasetRef): boolean => row.id === group.id)
-      if (ref === undefined || group.pending.length === 0) {
+      const refs = groupDatasets(remote.manifest, group.id)
+      if (refs.length === 0 || group.pending.length === 0) {
         groups.push(group)
         continue
       }
-      budget -= syncDatasetBytes(ref)
-      if (budget < 0) throw new Error('sync_round_too_large')
-      const facts = bySyncFact(await this.loadDataset(provider, ref, guard, group.id))
+      let received: SyncFact[] = []
+      for (const ref of refs) {
+        budget -= syncDatasetBytes(ref)
+        if (budget < 0) throw new Error('sync_round_too_large')
+        received = mergeSyncFacts(received, await this.loadDataset(provider, ref, guard, group.id))
+      }
+      const facts = bySyncFact(received)
       const pending = group.pending.filter((row: SyncPendingEdit): boolean => {
         const remoteFact = facts.get(row.key)
         return remoteFact === undefined || !syncObserves(remoteFact.seen, row.version)
@@ -1570,7 +1608,7 @@ export class DeviceSyncEngine {
     if (receipt === undefined && intent.commitBody !== undefined) {
       // An absent reply may mean the original PUT never arrived. Replaying the
       // exact immutable bytes is safe even if that original request arrives late.
-      receipt = await provider.retryCommit(intent.commitBody, guard, connection.selected, intent.commit)
+      receipt = await provider.retryCommit(intent.commitBody, guard, selectedDatasetIds(connection.selected), intent.commit)
     }
     if (receipt === undefined) throw new Error('sync_remote_result_unknown')
     if (active?.space === connection.space && intent.commit === undefined) this.checkHighWater(active, receipt)

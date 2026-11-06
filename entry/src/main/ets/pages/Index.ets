@@ -873,21 +873,21 @@ struct Index {
       this.readerSessionConfig = unavailableConfig
       // An unavailable placeholder has no real pages: an 'end' intent must not
       // be consumed as a successful landing (openPageIndex returns 0 there).
-      this.readerPageIndex = this.readerSessionStore.openPageIndex(unavailableConfig, this.readerOpenIntent)
+      const saved = this.readerRouteBackend === KomaReaderBackend.SHARED && this.readerOpenIntent === 'resume' &&
+        appDeviceSync.receivedReading(request.comicId, request.chapterId) ?
+        this.readerSessionStore.getChapterProgress(request.comicId, request.chapterId) : undefined
+      // The shared reader retries with its initial index after local login.
+      // Do not clamp a synced resume position against the failure placeholder.
+      this.readerPageIndex = saved?.pageIndex ?? this.readerSessionStore.openPageIndex(unavailableConfig, this.readerOpenIntent)
       this.readerSessionLoading = false
       return
     }
     const nextSessionConfig = this.createSourceReaderSessionConfig(preparedRequest, resolution.pages)
-    if (this.readerOpenIntent !== 'start' && !(await appDeviceSync.validateReadingPages(preparedRequest, nextSessionConfig.pageUris))) {
+    if (this.readerOpenIntent !== 'start' && !appDeviceSync.validateReadingPages(preparedRequest.comicId, preparedRequest.chapterId, nextSessionConfig.totalPages)) {
       if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
+      this.readerSessionConfig = this.createUnavailableSourceReaderSessionConfig(preparedRequest, 'sync_saved_position_changed')
       this.readerSessionLoading = false
-      this.getUIContext().showAlertDialog({ title: AppStrings.get('device_sync_changed_chapter'),
-        message: AppStrings.get('device_sync_saved_location'), systemMaterial: komaDialogMaterial(),
-        primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => { this.closeReader() } },
-        secondaryButton: { value: AppStrings.get('device_sync_start_chapter'), action: (): void => {
-          void this.openSourceReader(preparedRequest, 'start')
-        } },
-      })
+      this.showSyncedChapterChanged(preparedRequest)
       return
     }
     if (openEpoch !== this.readerOpenEpoch || !this.readerOpen || this.readerClosing) return
@@ -900,6 +900,16 @@ struct Index {
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(preparedRequest))
     this.readerSessionStore.flush()
     this.readerSessionLoading = false
+  }
+
+  private showSyncedChapterChanged(request: SourceReaderSessionRequest): void {
+    this.getUIContext().showAlertDialog({ title: AppStrings.get('device_sync_changed_chapter'),
+      message: AppStrings.get('device_sync_saved_location'), systemMaterial: komaDialogMaterial(),
+      primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => { this.closeReader() } },
+      secondaryButton: { value: AppStrings.get('device_sync_start_chapter'), action: (): void => {
+        void this.openSourceReader(request, 'start')
+      } },
+    })
   }
 
   private readerLabInitialConfig(work: string, unit: string): ReaderSessionConfig | null {
@@ -940,6 +950,12 @@ struct Index {
       // Do not turn a provider failure into a committed placeholder unit: reject
       // the handoff so the current chapter stays visible and can be retried.
       if (resolution.pages.length === 0) throw KomaReaderFailure.sourceError(resolution.sourceFailureReason, resolution.sourceFailure)
+      if (this.readerOpenIntent === 'resume' && this.readerSessionConfig.chapterId === target.unit &&
+        this.readerSessionConfig.pageUris.includes('source-placeholder://chapter') &&
+        !appDeviceSync.validateReadingPages(target.work, target.unit, resolution.pages.length)) {
+        this.showSyncedChapterChanged(nextRequest)
+        throw new Error('sync_saved_position_changed')
+      }
       return this.createSourceReaderSessionConfig(nextRequest, resolution.pages)
     }
     let original = this.readerComicForOpen(target.work)
@@ -1082,7 +1098,9 @@ struct Index {
   private beginShelfReadingSync(comic: Comic | undefined, chapter: string): void {
     if (comic?.sourceRuntimeId === undefined || comic.remoteResourceId === undefined) return
     appDeviceSync.beginReadingChapter({ comicId: comic.id, sourceId: comic.sourceRuntimeId,
-      mangaId: comic.remoteResourceId, title: comic.title, chapterId: chapter, chapterIds: [chapter] })
+      mangaId: comic.remoteResourceId, mangaUrl: comic.sourcePath, sourceName: comic.sourceMetadata?.sourceName,
+      title: comic.title, chapterId: chapter, chapterIds: [chapter],
+      chapterTitles: [comic.chapters.find((item: Chapter): boolean => item.id === chapter)?.title ?? ''] })
   }
 
   private async openReader(
@@ -1097,7 +1115,7 @@ struct Index {
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     let comic = this.readerComicForOpen(comicId)
     const targetChapterId = comic === undefined ? chapterId : this.readerChapterIdForOpen(comic, chapterId)
-    if (targetChapterId !== undefined && comic?.sourceRuntimeId &&
+    if (targetChapterId !== undefined && comic?.sourceRuntimeId && !this.hasAvailableOfflineReaderPages(comicId, targetChapterId) &&
       appDeviceSync.receivedReading(comicId, targetChapterId)) {
       const history = this.readerSessionStore.getSourceHistory(comicId)
       const request = history === undefined || history.chapterId !== targetChapterId ? undefined :
@@ -1195,29 +1213,18 @@ struct Index {
       !nextRequest.chapterIds.includes(nextRequest.chapterId)) {
       return
     }
-    const requestId = ++this.sourceReaderOpenRequest
-    const synchronized = await appDeviceSync.openReading(nextRequest, intent === 'start')
-    if (requestId !== this.sourceReaderOpenRequest) return
-    if (synchronized !== 'ready') {
+    this.sourceReaderOpenRequest++
+    if (appDeviceSync.openReading(nextRequest) === 'missing') {
       const name = nextRequest.sourceName || nextRequest.sourceId
-      const needsSource = synchronized === 'missing' || synchronized === 'unverified'
-      const key = synchronized === 'missing' ? 'device_sync_missing_source' :
-        synchronized === 'unverified' ? 'device_sync_unverified_source' :
-          synchronized === 'changed' ? 'device_sync_changed_chapter' : 'device_sync_source_unavailable'
       this.getUIContext().showAlertDialog({
-        title: AppStrings.get(key).replace('%s', name),
-        message: AppStrings.get(synchronized === 'unverified' ? 'device_sync_unverified_source_detail' : 'device_sync_saved_location'),
+        title: AppStrings.get('device_sync_missing_source').replace('%s', name),
+        message: AppStrings.get('device_sync_saved_location'),
         systemMaterial: komaDialogMaterial(),
         primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
-        secondaryButton: { value: AppStrings.get(needsSource ? 'device_sync_find_source' :
-          synchronized === 'changed' ? 'device_sync_start_chapter' : 'device_sync_retry'), action: (): void => {
-          if (needsSource) {
-            const recovery: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: nextRequest.sourceId,
-              recoverySourceName: name, chrome: new SourceCatalogPageChrome() }
-            this.appPathStack.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
-          }
-          else if (synchronized === 'changed') void this.openSourceReader(nextRequest, 'start')
-          else void this.openSourceReader(nextRequest, intent)
+        secondaryButton: { value: AppStrings.get('device_sync_find_source'), action: (): void => {
+          const recovery: SourcePackageManagerRouteParam = { settingsSourceId: '', recoverySourceId: nextRequest.sourceId,
+            recoverySourceName: name, chrome: new SourceCatalogPageChrome() }
+          this.appPathStack.pushPath({ name: RouteName.SOURCE_PACKAGE_MANAGER, param: recovery })
         } },
       })
       return
@@ -1593,7 +1600,7 @@ struct Index {
       columnMode: column,
     }
     this.readerSessionStore.saveProgress(progress)
-    appDeviceSync.observeReading(progress, config.pageUris)
+    appDeviceSync.observeReading(progress)
     if (this.readerOpen) this.observeReaderTrackerProgress(progress)
     // Keep page persistence live, but do not rebuild the covered shelf/history
     // and full chapter catalog on every page crossing. Reader close publishes
@@ -2487,7 +2494,7 @@ struct Index {
           this.readerWebtoonMode = value
         },
         onObservedProgress: (progress: ReadingProgress): void => {
-          appDeviceSync.observeReading(progress, this.readerSessionConfig.pageUris)
+          appDeviceSync.observeReading(progress)
           this.observeReaderTrackerProgress(progress)
         },
         onObservedReadingPages: (comic: string, chapter: string, pages: number[]): void => {

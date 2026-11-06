@@ -4,13 +4,13 @@ import { syncDefaultCaseFold } from './DeviceSyncCaseFold'
 
 export const SYNC_OFFICIAL_CATALOG = 'https://github.com/honjow/koma-sources/releases/latest/download/index.json'
 export const SYNC_CATALOG_ID = 'honjow/koma-sources'
+export const SYNC_READING_DATASET = 'reading-records'
 export const MANGADEX_SYNC_SOURCE = 'org.mangadex.koma'
 export const XKCD_SYNC_SOURCE = 'com.xkcd.zh.koma'
 const UUID_TEXT = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const MANGADEX_WORK = new RegExp('^mdx:' + UUID_TEXT + '$')
-const MANGADEX_CHAPTER = new RegExp('^ch:' + UUID_TEXT + '$')
 const XKCD_GROUP = /^xkcd:zh:g:([1-9][0-9]{3}(0[0-9]|1[0-2]))$/
-const SOURCE_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/
+const READING_CREDENTIAL_PARAMETER = /(?:^|[/?&#;])(?:[a-z0-9_.-]*(?:token|secret|password|signature|credential)[a-z0-9_.-]*|auth|authorization|cookie|key|api[_-]?key|access[_-]?key|sign|sig|ticket|session(?:[_-]?id)?|hdnts|hdnea|hmac|policy|key-pair-id|x-amz-[^=&#;]+|x-goog-[^=&#;]+)\s*=/i
 
 export interface SyncWorkLabel {
   title: string
@@ -18,17 +18,22 @@ export interface SyncWorkLabel {
   sourceVersion: string
 }
 
-export interface SyncRecentValue extends SyncWorkLabel {
+export interface SyncRecentValue {
+  title: string
+  sourceName: string
+  sourceVersion?: string // Kept when reading the legacy dataset.
   chapter: string
   chapterTitle: string
   date: number
   savedPage?: number
+  workUrl?: string
 }
 
 export interface SyncPositionValue {
   page: number
   total: number
-  pageTable: string
+  date?: number
+  pageTable?: string // Kept when reading the legacy dataset.
 }
 
 export interface SyncReaderMode {
@@ -59,14 +64,6 @@ export function syncWorksOnSource(source: string, work: string): boolean {
   if (source === MANGADEX_SYNC_SOURCE) return MANGADEX_WORK.test(work)
   if (source === XKCD_SYNC_SOURCE) return work === 'xkcd:zh' || XKCD_GROUP.test(work)
   return false
-}
-
-export function syncChapterBelongsToSource(source: string, work: string, chapter: string): boolean {
-  if (!syncWorksOnSource(source, work)) return false
-  if (source === MANGADEX_SYNC_SOURCE) return MANGADEX_CHAPTER.test(chapter)
-  if (work === 'xkcd:zh') return /^xkcdch:zh:[1-9][0-9]{0,9}$/.test(chapter)
-  const group = XKCD_GROUP.exec(work)
-  return group !== null && new RegExp('^xkcdch:zh:g:' + group[1] + ':[1-9][0-9]{0,9}$').test(chapter)
 }
 
 export function syncKey(parts: string[]): string {
@@ -100,13 +97,44 @@ export function syncPublicLabel(value: string, max: number): string {
   return text
 }
 
-function isSourceWork(parts: string[], hasChapter: boolean = false): boolean {
-  if (!SOURCE_ID.test(parts[1])) return false
-  if (!syncKnownSource(parts[1])) {
-    return /^[a-zA-Z0-9:._-]{1,256}$/.test(parts[2]) &&
-      (!hasChapter || /^[a-zA-Z0-9:._-]{1,256}$/.test(parts[3]))
+function safeReadingId(value: string, max: number = 512): boolean {
+  if (!checkText(value, max)) return false
+  let decoded = value
+  for (let pass = 0; pass < 3; pass++) {
+    const next = decoded.replace(/%([0-7][0-9a-f])/gi, (_match: string, hex: string): string => String.fromCharCode(parseInt(hex, 16)))
+    if (next === decoded) break
+    decoded = next
   }
-  return hasChapter ? syncChapterBelongsToSource(parts[1], parts[2], parts[3]) : syncWorksOnSource(parts[1], parts[2])
+  // Some chapter IDs include a path, stable query parameters or a title.
+  // Exclude credentials and local paths from these IDs, independently of source.
+  return checkText(decoded, max) && !READING_CREDENTIAL_PARAMETER.test(decoded) &&
+    !/(?:^|:)file:\/\/|\/\/[^/?#\s]*@|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/i.test(decoded)
+}
+
+export function syncReadingIdentity(source: string, work: string, chapter?: string): boolean {
+  return typeof source === 'string' && source.length <= 96 && source.trim() === source && safeReadingId(source) &&
+    safeReadingId(work) && (chapter === undefined || safeReadingId(chapter))
+}
+
+export function syncReadingPosition(page: number, total: number, date?: number): SyncPositionValue | undefined {
+  if (!Number.isSafeInteger(page) || !Number.isSafeInteger(total) || page < 0 || page >= total) return undefined
+  return { page, total, date: date !== undefined && validateDate(date) ? date : undefined }
+}
+
+function safeReadingWorkUrl(value: string): boolean {
+  return /^https?:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?(?:[/?#][^\s\\"<>]*)?$/i.test(value) && safeReadingId(value, 4096)
+}
+
+export function syncReadingRecent(source: string, chapter: string, date: number, title: string,
+  sourceName: string, chapterTitle: string, savedPage?: number, workUrl?: string): SyncRecentValue {
+  return { title: syncPublicLabel(title.slice(0, 240), 240) || source,
+    sourceName: syncPublicLabel(sourceName.slice(0, 80), 80) || source.slice(0, 80), chapter,
+    chapterTitle: syncPublicLabel(chapterTitle.slice(0, 240), 240), date: validateDate(date) ? date : 0, savedPage,
+    workUrl: workUrl !== undefined && safeReadingWorkUrl(workUrl) ? workUrl : undefined }
+}
+
+function isSourceWork(parts: string[]): boolean {
+  return syncWorksOnSource(parts[1], parts[2])
 }
 
 function validCategory(value: string): boolean {
@@ -118,10 +146,13 @@ function onlyFields(value: Object, keys: string): boolean {
     Object.keys(value).sort().join(',') === keys
 }
 
-function validLabel(label: SyncWorkLabel, source: string): boolean {
+function validLabelText(label: SyncRecentValue | SyncWorkLabel): boolean {
   return typeof label.title === 'string' && label.title === syncPublicLabel(label.title, 240) && label.title.length > 0 &&
-    typeof label.sourceName === 'string' && label.sourceName === syncPublicLabel(label.sourceName, 80) && label.sourceName.length > 0 &&
-    typeof label.sourceVersion === 'string' && /^\d+\.\d+\.\d+$/.test(label.sourceVersion) &&
+    typeof label.sourceName === 'string' && label.sourceName === syncPublicLabel(label.sourceName, 80) && label.sourceName.length > 0
+}
+
+function validLabel(label: SyncWorkLabel, source: string): boolean {
+  return validLabelText(label) && typeof label.sourceVersion === 'string' && /^\d+\.\d+\.\d+$/.test(label.sourceVersion) &&
     (!syncKnownSource(source) || syncSupportedSource(source, label.sourceVersion))
 }
 
@@ -143,19 +174,23 @@ function validShelfValue(parts: string[], value: Object): boolean {
 function validReadingValue(parts: string[], value: Object): boolean {
   if (parts[0] === 'recent') {
     const row = value as SyncRecentValue
-    const fields = row?.savedPage === undefined ? 'chapter,chapterTitle,date,sourceName,sourceVersion,title' :
-      'chapter,chapterTitle,date,savedPage,sourceName,sourceVersion,title'
+    if (row === null || typeof row !== 'object') return false
+    const fields = 'chapter,chapterTitle,date,' + (row.savedPage === undefined ? '' : 'savedPage,') +
+      'sourceName,' + (row.sourceVersion === undefined ? '' : 'sourceVersion,') + 'title' +
+      (row.workUrl === undefined ? '' : ',workUrl')
     if (!onlyFields(value, fields) || row.savedPage !== undefined &&
-      (!Number.isSafeInteger(row.savedPage) || row.savedPage < 0 || row.savedPage >= 10000)) return false
-    return validLabel(row, parts[1]) && isSourceWork([parts[0], parts[1], parts[2], row.chapter], true) &&
+      (!Number.isSafeInteger(row.savedPage) || row.savedPage < 0)) return false
+    return validLabelText(row) && typeof row.chapter === 'string' && syncReadingIdentity(parts[1], parts[2], row.chapter) &&
+      (row.sourceVersion === undefined || (typeof row.sourceVersion === 'string' && /^\d+\.\d+\.\d+$/.test(row.sourceVersion))) &&
+      (row.workUrl === undefined || (typeof row.workUrl === 'string' && safeReadingWorkUrl(row.workUrl))) &&
       typeof row.chapterTitle === 'string' &&
       (row.chapterTitle === '' || row.chapterTitle === syncPublicLabel(row.chapterTitle, 240)) && validateDate(row.date)
   }
   if (parts[0] === 'position') {
-    if (!onlyFields(value, 'page,pageTable,total')) return false
     const row = value as SyncPositionValue
-    return Number.isSafeInteger(row.page) && Number.isSafeInteger(row.total) && row.page >= 0 &&
-      row.page < row.total && row.total <= 10000 && isSyncDigest(row.pageTable)
+    const fields = (row?.date === undefined ? '' : 'date,') + 'page,' + (row?.pageTable === undefined ? '' : 'pageTable,') + 'total'
+    return onlyFields(value, fields) && syncReadingPosition(row.page, row.total) !== undefined &&
+      (row.date === undefined || validateDate(row.date)) && (row.pageTable === undefined || isSyncDigest(row.pageTable))
   }
   return typeof value === 'boolean'
 }
@@ -188,8 +223,9 @@ function validKey(group: SyncGroup, parts: string[]): boolean {
       (kind === 'category' && parts.length === 2 && isSyncReplica(parts[1])) || (kind === 'order' && parts.length === 1)
   }
   if (group === 'reading') {
-    return (kind === 'recent' && parts.length === 3 && isSourceWork(parts)) ||
-      (['position', 'read', 'bookmark'].includes(kind) && parts.length === 4 && isSourceWork(parts, true))
+    return ((kind === 'recent' && parts.length === 3) ||
+      (['position', 'read', 'bookmark'].includes(kind) && parts.length === 4)) &&
+      syncReadingIdentity(parts[1], parts[2], parts[3])
   }
   if (group === 'reader-settings') {
     return (kind === 'book-mode' && parts.length === 3 && isSourceWork(parts)) ||
@@ -204,7 +240,7 @@ function validKey(group: SyncGroup, parts: string[]): boolean {
 
 export function checkSyncGroupFact(group: SyncGroup, fact: SyncFact): void {
   const parts = syncKeyParts(fact.key)
-  if (['book', 'member', 'recent', 'position', 'read', 'bookmark', 'book-mode'].includes(parts[0]) &&
+  if (['book', 'member', 'book-mode'].includes(parts[0]) &&
     !syncKnownSource(parts[1])) throw new Error('sync_update_required')
   if (!validKey(group, parts)) throw new Error('sync_update_required')
   fact.values.concat(fact.barriers).forEach((edit: SyncEdit): void => {

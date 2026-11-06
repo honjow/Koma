@@ -1,6 +1,6 @@
 import { allowDeviceSyncReaderProgress, deviceSyncReadingAcknowledged, deviceSyncReadingActionAcknowledged,
   signalDeviceSyncChange, stageDeviceSyncReading, stageDeviceSyncReadingActions, SyncReadingCapture,
-  SyncReadingActionCapture, SyncReadingSignal } from '../deviceSync/DeviceSyncSignals'
+  SyncReadingActionCapture, SyncReadingSignal, SyncReadingSource } from '../deviceSync/DeviceSyncSignals'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode } from './SourceRequiredImageDecode'
@@ -32,6 +32,7 @@ import { AppFilesChapterReadStatePersistenceAdapter, ChapterReadStateOverride } 
 export interface ChapterReadingState {
   comicId: ComicId
   chapterId: ChapterId
+  sourceIdentity?: SyncReadingSource
   position?: ReadingProgress
   isRead: boolean
   bookmarked?: boolean
@@ -490,12 +491,12 @@ export abstract class ReaderSessionStore {
   /** Writes any queued update before the Reader route releases its session. */
   abstract flush(): boolean
 
-  commitChapterReadStates(mutations: ChapterReadMutation[]): ChapterReadCommitResult {
+  commitChapterReadStates(mutations: ChapterReadMutation[], identity?: SyncReadingSource): ChapterReadCommitResult {
     let changedCount = 0
     const committed = this.commitUserMutation((): void => {
-      changedCount = this.markChapterReadStates(mutations)
+      changedCount = this.markChapterReadStates(mutations, identity)
     }, mutations.map((mutation: ChapterReadMutation): SyncReadingSignal => ({
-      comicId: mutation.comicId, chapterId: mutation.chapterId, kind: mutation.isRead ? 'read' : 'unread',
+      comicId: mutation.comicId, chapterId: mutation.chapterId, kind: mutation.isRead ? 'read' : 'unread', identity,
     })))
     return { committed, changedCount: committed ? changedCount : 0 }
   }
@@ -504,14 +505,15 @@ export abstract class ReaderSessionStore {
     return this.chapterStates.get(chapterStateKey(comicId, chapterId))?.bookmarked === true
   }
 
-  commitChapterBookmark(comicId: ComicId, chapterId: ChapterId, bookmarked: boolean): boolean {
+  commitChapterBookmark(comicId: ComicId, chapterId: ChapterId, bookmarked: boolean, identity?: SyncReadingSource): boolean {
     const committed = this.commitUserMutation((): void => {
       const key = chapterStateKey(comicId, chapterId)
       const old = this.chapterStates.get(key)
       this.chapterStates.set(key, { comicId, chapterId, position: old?.position,
+        sourceIdentity: identity ?? old?.sourceIdentity,
         isRead: old?.isRead === true, bookmarked, updatedAt: old?.updatedAt ?? Date.now() })
       this.chapterStatesChanged()
-    }, [{ comicId, chapterId, kind: bookmarked ? 'bookmark' : 'unbookmark' }])
+    }, [{ comicId, chapterId, kind: bookmarked ? 'bookmark' : 'unbookmark', identity }])
     return committed
   }
 
@@ -629,13 +631,14 @@ export abstract class ReaderSessionStore {
     this.markChapterReadStates([{ comicId, chapterId, isRead }])
   }
 
-  markChapterReadStates(mutations: ChapterReadMutation[]): number {
+  markChapterReadStates(mutations: ChapterReadMutation[], identity?: SyncReadingSource): number {
     let changed = 0
     mutations.forEach((mutation: ChapterReadMutation): void => {
       if (mutation.comicId.length === 0 || mutation.chapterId.length === 0) return
       const key = chapterStateKey(mutation.comicId, mutation.chapterId)
       const old = this.chapterStates.get(key)
       const state: ChapterReadingState = { comicId: mutation.comicId, chapterId: mutation.chapterId,
+        sourceIdentity: identity ?? old?.sourceIdentity,
         position: old?.position, isRead: mutation.isRead, bookmarked: old?.bookmarked, updatedAt: Date.now() }
       if (!mutation.isRead && state.position !== undefined) {
         const previous = state.position
@@ -661,9 +664,13 @@ export abstract class ReaderSessionStore {
 
   protected recordChapterProgress(progress: ReadingProgress): void {
     const key = chapterStateKey(progress.comicId, progress.chapterId)
+    const old = this.chapterStates.get(key)
+    const history = this.getSourceHistory(progress.comicId)
+    const identity: SyncReadingSource | undefined = history === undefined ? old?.sourceIdentity :
+      { source: history.sourceId, work: history.mangaId }
     this.chapterStates.set(key, { comicId: progress.comicId, chapterId: progress.chapterId,
-      position: progress, isRead: this.chapterStates.get(key)?.isRead === true || progress.completed === true,
-      bookmarked: this.chapterStates.get(key)?.bookmarked,
+      sourceIdentity: identity, position: progress, isRead: old?.isRead === true || progress.completed === true,
+      bookmarked: old?.bookmarked,
       updatedAt: progress.updatedAt })
   }
 
@@ -900,6 +907,13 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       this.readingSessions.some((row: ReadingSessionRecord): boolean => ids.has(row.comicId))
     if (!hasHistory) return true
     const committed = this.commitUserMutation((): void => {
+      // Clearing the recent item keeps independently saved chapter positions.
+      // Carry their identity forward before removing the history that held it.
+      this.chapterStates.forEach((state: ChapterReadingState): void => {
+        if (!ids.has(state.comicId)) return
+        const entry = this.sourceHistoryByComicId.get(state.comicId)
+        if (entry !== undefined) state.sourceIdentity = { source: entry.sourceId, work: entry.mangaId }
+      })
       ids.forEach((comicId: ComicId): void => {
         this.progressByComicId.delete(comicId)
         this.sourceHistoryByComicId.delete(comicId)
