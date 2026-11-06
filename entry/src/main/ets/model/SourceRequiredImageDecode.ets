@@ -40,7 +40,8 @@ async function requiredDecodeFileTask(path: string, rows: number, expectedHash: 
   digest.updateSync({ data: new Uint8Array(bytes) })
   const actual = Array.from(digest.digestSync().data).map((v: number): string => v.toString(16).padStart(2, '0')).join('')
   if (actual !== expectedHash) throw new Error('source_required_decode_replaced')
-  return requiredDecodeTask(bytes, rows)
+  // The TaskPool worker must finish decoding before it returns its result.
+  return await requiredDecodeTask(bytes, rows)
 }
 
 /** Canonical source decoding precedes every optional plugin/crop. Never return scrambled input on failure. */
