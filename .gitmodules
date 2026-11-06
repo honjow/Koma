@@ -4,3 +4,4 @@
 [submodule "third_party/reader-kit"]
 	path = third_party/reader-kit
 	url = https://github.com/erosTeam/reader-kit.git
+	branch = main

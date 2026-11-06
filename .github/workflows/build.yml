@@ -44,6 +44,9 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma/third_party/reader-kit"
           git config --global --add safe.directory "$GITHUB_WORKSPACE/Koma/third_party/lexbor"
 
+      - name: Sync reader-kit from main
+        run: git submodule update --remote --checkout -- third_party/reader-kit
+
       - name: Guard public build profile
         run: bash scripts/check-public-build-profile.sh --head
 
