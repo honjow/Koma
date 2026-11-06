@@ -1,10 +1,12 @@
 import { CachedCoverImage, cachedCoverFailureKey } from './CachedCoverImage'
 import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
+import { ConciseListRow } from './ui/ConciseListRow'
 
 @ComponentV2
 export struct MangaGridItem {
   @Param reserveTitleSpace: boolean = false
+  @Param listLayout: boolean = false
   @Param manga: SourceManga = {
     id: '',
     sourceId: '',
@@ -27,7 +29,7 @@ export struct MangaGridItem {
   private CoverPlaceholder() {
     Column() {
       SymbolGlyph($r('sys.symbol.book'))
-        .fontSize(42)
+        .fontSize(this.listLayout ? ThemeConstants.FONT_SIZE_H2 : 42)
         .fontColor([ThemeConstants.TEXT_TERTIARY])
     }
       .width('100%')
@@ -38,25 +40,36 @@ export struct MangaGridItem {
       .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
   }
 
-  build() {
-    Column({ space: ThemeConstants.SPACE_SM }) {
-      Stack({ alignContent: Alignment.Center }) {
-        this.CoverPlaceholder()
+  @Builder
+  private CoverContent() {
+    this.CoverPlaceholder()
+    if (this.hasCover()) {
+      CachedCoverImage({
+        uri: this.manga.coverUrl ?? '',
+        objectFit: ImageFit.Cover,
+        sourceRuntimeId: this.manga.sourceId,
+        sourceImageId: this.manga.id,
+        sourceMangaUrl: this.manga.url ?? '',
+        sourceCoverHeaders: this.manga.coverHeaders,
+        onError: () => { this.failedCoverUrl = this.coverFailureKey() },
+      })
+    }
+  }
 
-        if (this.hasCover()) {
-          CachedCoverImage({
-            uri: this.manga.coverUrl ?? '',
-            objectFit: ImageFit.Cover,
-            sourceRuntimeId: this.manga.sourceId,
-            sourceImageId: this.manga.id,
-            sourceMangaUrl: this.manga.url ?? '',
-            sourceCoverHeaders: this.manga.coverHeaders,
-            onError: () => {
-              this.failedCoverUrl = this.coverFailureKey()
-            },
-          })
-        }
-      }
+  @Builder
+  private ListCover() {
+    Stack({ alignContent: Alignment.Center }) { this.CoverContent() }
+    .width(ThemeConstants.LIST_COVER_WIDTH)
+    .height(ThemeConstants.LIST_COVER_HEIGHT)
+    .borderRadius(ThemeConstants.RADIUS_COVER)
+    .clip(true)
+    .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+  }
+
+  @Builder
+  private GridCard() {
+    Column({ space: ThemeConstants.SPACE_SM }) {
+      Stack({ alignContent: Alignment.Center }) { this.CoverContent() }
       .width('100%')
       .aspectRatio(0.68)
       .borderRadius(ThemeConstants.RADIUS_COVER)
@@ -79,5 +92,21 @@ export struct MangaGridItem {
     .onClick(() => {
       this.onMangaTap(this.manga)
     })
+  }
+
+  build() {
+    if (this.listLayout) {
+      Row() {
+        ConciseListRow({ title: this.manga.title, showChevron: false, prefixActsAsLeading: true,
+          prefixBuilderParam: () => { this.ListCover() }, action: () => { this.onMangaTap(this.manga) } })
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .padding({ top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
+      .borderRadius(ThemeConstants.LIST_ROW_RADIUS)
+      .backgroundColor(ThemeConstants.CARD)
+    } else {
+      this.GridCard()
+    }
   }
 }

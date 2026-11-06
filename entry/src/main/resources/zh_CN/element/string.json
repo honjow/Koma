@@ -797,6 +797,8 @@
     { "name": "source_listing_recent_updates", "value": "最近更新" },
     { "name": "common_start_reading", "value": "开始阅读" },
     { "name": "source_search_placeholder", "value": "搜索漫画" },
+    { "name": "source_browse_layout_style", "value": "列表样式" },
+    { "name": "source_browse_layout_save_failed", "value": "保存书源浏览布局失败" },
     { "name": "source_search_empty_idle_title", "value": "输入关键词搜索" },
     { "name": "source_search_empty_idle_message", "value": "搜索当前源内的漫画" },
     { "name": "source_search_empty_results_title", "value": "没有找到结果" },

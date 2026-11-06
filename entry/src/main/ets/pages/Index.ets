@@ -206,6 +206,7 @@ import { BackupService, BackupAutomaticRunResult } from '../model/BackupService'
 import { TrackerPendingProgressDrainSummary, TrackerProgressSyncService } from '../model/TrackerProgressSyncService'
 import { ReaderTrackerProgressCoordinator } from '../model/TrackerReadingProgress'
 import { SourceBrowseRouteChromeState, SourceSearchRouteChromeState } from '../state/SourceRouteChromeState'
+import { SourceBrowseLayout, SourceBrowseLayoutPreferences } from '../model/SourceBrowseLayoutPreferences'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
 import { shouldSuppressKomaDeviceVerificationBackgroundSideEffects } from '../state/KomaDeviceVerificationIsolation'
@@ -318,6 +319,7 @@ struct Index {
   @Local private sourcePackageManagerCache: SourcePackageManagerCache = appSourcePackageManagerCache
   private migrationOpening: boolean = false
   private detailMenu: KomaMenuController = new KomaMenuController()
+  private sourceBrowseMenu: KomaMenuController = new KomaMenuController()
   @Local private browseCatalogChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   @Local private catalogFilters: SourceCatalogFilterState = appSourceCatalogFilters
   @Local private localSourceImport: SourcePackageLocalImport = appSourcePackageLocalImport
@@ -2592,7 +2594,10 @@ struct Index {
       this.disposeSourceBrowseFieldContent(param.chrome)
     })
     .onShown(() => { param.chrome.resume() })
-    .onHidden(() => { param.chrome.hide() })
+    .onHidden(() => {
+      param.chrome.hide()
+      this.sourceBrowseMenu.close()
+    })
     .titleBar(this.sourceBrowseTitleBarOpts(param))
     .dynamicHideTitleBar({
       hideTitleArea: true,
@@ -3518,6 +3523,46 @@ struct Index {
     return { 'content': content }
   }
 
+  private setSourceBrowseLayout(chrome: SourceBrowseRouteChromeState, layout: SourceBrowseLayout): void {
+    if (!chrome.visible) return
+    const store = new SourceBrowseLayoutPreferences(getContext(this) as common.UIAbilityContext)
+    void store.save(chrome.sourceId, layout).then((): void => {
+      chrome.layout = layout
+    }).catch((): void => {
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({
+        message: AppStrings.get('source_browse_layout_save_failed'),
+      }))
+    })
+  }
+
+  private sourceBrowseOverflow(chrome: SourceBrowseRouteChromeState, items: Record<string, Object>[]): Record<string, Object> {
+    const content: Record<string, Object> = {
+      'label': AppStrings.get('common_more_actions'),
+      'icon': komaTitleMoreIcon(), 'componentId': chrome.menuAnchorId, 'isEnabled': true,
+      'action': (): void => {
+        if (!chrome.visible) return
+        this.sourceBrowseMenu.open(this.getUIContext(), chrome.menuAnchorId, (): KomaMenuGroup[] => {
+          const actions: KomaMenuAction[] = items.map((item: Record<string, Object>): KomaMenuAction => {
+            const action = item['content'] as Record<string, Object>
+            return { label: action['label'] as string, icon: action['icon'] as Resource,
+              isEnabled: action['isEnabled'] as boolean, action: action['action'] as () => void }
+          })
+          const layout: KomaMenuAction = {
+            label: AppStrings.get('source_browse_layout_style'), action: (): void => {},
+            children: [
+              { label: AppStrings.get('library_view_mode_grid'), selected: chrome.layout === 'grid',
+                action: (): void => { this.setSourceBrowseLayout(chrome, 'grid') } },
+              { label: AppStrings.get('library_view_mode_list'), selected: chrome.layout === 'list',
+                action: (): void => { this.setSourceBrowseLayout(chrome, 'list') } },
+            ],
+          }
+          return [{ id: 'source-actions', items: actions }, { id: 'source-layout', items: [layout] }]
+        }, (): void => { DiagnosticLogger.warn('source_browse', 'menu_open_failed', 'result=failed') })
+      },
+    }
+    return { 'content': content }
+  }
+
   private sourceBrowseTitleBarOpts(param: SourceBrowseRouteParam): Record<string, Object> {
     const source = param.source
     const chrome = param.chrome
@@ -3575,7 +3620,11 @@ struct Index {
       }
       menuItems.push({ 'content': webContent })
     }
-    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': SOURCE_ROUTE_TITLE_MENU_MAX_COUNT }
+    // The HDS automatic overflow is flat. Keep the existing action order and
+    // two direct slots, with the shared native layout submenu in the last slot.
+    const direct = menuItems.slice(0, SOURCE_ROUTE_TITLE_MENU_MAX_COUNT - 1)
+    direct.push(this.sourceBrowseOverflow(chrome, menuItems.slice(direct.length)))
+    const menu: Record<string, Object> = { 'value': direct, 'maxCount': SOURCE_ROUTE_TITLE_MENU_MAX_COUNT }
     content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }

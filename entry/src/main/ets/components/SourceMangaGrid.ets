@@ -23,6 +23,7 @@ export struct SourceMangaGrid {
   @Param contentItemCount: number = 0
   @Param fullRowIndexes: number[] = []
   @Param pinnedOverlayHeight: number = 0
+  @Param singleColumn: boolean = false
   @Param withPullRefresh: boolean = false
   @Param resumeAtVisibleTail: boolean = false
   @Local private lastVisibleIndex: number = -1
@@ -50,6 +51,7 @@ export struct SourceMangaGrid {
   }
 
   private columnsTemplate(): string {
+    if (this.singleColumn) return '1fr'
     const width = this.safeArea.windowWidthVp > 0 ? this.safeArea.windowWidthVp : gridFallbackContainerWidth()
     return `repeat(${libraryCoverGridColumnCount(width, this.coverLayout.density)}, 1fr)`
   }

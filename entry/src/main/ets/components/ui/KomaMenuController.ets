@@ -9,6 +9,7 @@ export function komaTitleMoreIcon(): Resource {
 
 export interface KomaMenuAction {
   label: string
+  icon?: Resource
   selected?: boolean
   isEnabled?: boolean
   children?: KomaMenuAction[]
@@ -50,7 +51,7 @@ struct KomaNestedMenu {
       MenuItem({ content: item.label, builder: () => { this.Choices(item) } })
         .enabled(item.isEnabled ?? true)
     } else {
-      MenuItem({ content: item.label }).selected(item.selected ?? false)
+      MenuItem({ content: item.label, startIcon: item.icon }).selected(item.selected ?? false)
         .selectIcon(item.selected !== undefined).enabled(item.isEnabled ?? true).onClick(item.action)
     }
   }

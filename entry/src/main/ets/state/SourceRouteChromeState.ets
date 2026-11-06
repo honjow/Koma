@@ -1,3 +1,5 @@
+import { SourceBrowseLayout } from '../model/SourceBrowseLayoutPreferences'
+
 /**
  * Route-local command state shared by the root HDS title bar and one source page.
  *
@@ -7,9 +9,12 @@
  */
 @ObservedV2
 export class SourceBrowseRouteChromeState {
+  private static nextMenuId: number = 0
   readonly sourceName: string
   readonly sourceId: string
+  readonly menuAnchorId: string = `source-browse-more-${SourceBrowseRouteChromeState.nextMenuId++}`
   readonly scroller: Scroller = new Scroller()
+  @Trace layout: SourceBrowseLayout = 'grid'
   @Trace visible: boolean = false
   @Trace filtersAvailable: boolean = false
   @Trace webSessionAvailable: boolean = false

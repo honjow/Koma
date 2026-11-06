@@ -797,6 +797,8 @@
     { "name": "source_listing_recent_updates", "value": "Latest updates" },
     { "name": "common_start_reading", "value": "Start reading" },
     { "name": "source_search_placeholder", "value": "Search manga" },
+    { "name": "source_browse_layout_style", "value": "Layout" },
+    { "name": "source_browse_layout_save_failed", "value": "Could not save the source layout" },
     { "name": "source_search_empty_idle_title", "value": "Enter a keyword to search" },
     { "name": "source_search_empty_idle_message", "value": "Search within the current source" },
     { "name": "source_search_empty_results_title", "value": "No results found" },

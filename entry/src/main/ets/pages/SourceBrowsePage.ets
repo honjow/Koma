@@ -21,6 +21,7 @@ import { SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceFilter, SourceManga, sourceFiltersForQuery } from '../model/SourceModels'
+import { SourceBrowseLayoutPreferences } from '../model/SourceBrowseLayoutPreferences'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { connectSourceRuntimeState, SourceRuntimeState } from '../state/SourceRuntimeState'
@@ -626,7 +627,8 @@ export struct SourceBrowsePage {
   @Builder
   private GridRowContent(params: SourceBrowseGridRowParams) {
     if (params.row.kind === 'manga') {
-      MangaGridItem({ manga: params.row.manga!, onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
+      MangaGridItem({ manga: params.row.manga!, listLayout: this.chrome.layout === 'list',
+        onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (params.row.kind === 'home-header') {
       this.HomeSectionHeader({ section: params.row.homeSection! })
     } else if (params.row.kind === 'browse-selector') {
@@ -764,7 +766,13 @@ export struct SourceBrowsePage {
   }
 
   aboutToAppear(): void {
-    reloadInstalledSourcePackages(getContext(this) as common.UIAbilityContext)
+    const context = getContext(this) as common.UIAbilityContext
+    try {
+      this.chrome.layout = new SourceBrowseLayoutPreferences(context).load(this.source.sourceId)
+    } catch (_error) {
+      // A failed local preference read keeps the route's default grid.
+    }
+    reloadInstalledSourcePackages(context)
     this.viewModel.loadInstalledSources()
     this.syncTitleActions()
     if (this.shouldLoadBrowseOnAppear()) {
@@ -816,6 +824,7 @@ export struct SourceBrowsePage {
           }))
         SourceMangaGrid({
           scroller: this.chrome.scroller,
+          singleColumn: this.chrome.layout === 'list',
           contentItemCount: this.gridProjection.rows.length,
           fullRowIndexes: this.gridProjection.fullRowIndexes,
           pinnedOverlayHeight: SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT,
