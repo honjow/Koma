@@ -6,7 +6,7 @@
 
 设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源并释租，保留 1.2.1 同签验收包。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
-书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.0 已正式发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源中，哔哩漫画和 JM 尚未公开。哔哩漫画和 JM 已通过 237 具名阅读，适用 1.2.1 的正式候选已封包，两条书源待正式 App 发布后上架。Komiic 已在 237 核对两个镜像的登录表单及 .cc 游客阅读，宿主已推主分支。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。现有源继续核对上游功能、补足样本并逐项修复。
+书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.0 已正式发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源中，哔哩漫画和 JM 尚未公开。哔哩漫画和 JM 已通过 237 具名阅读，适用 1.2.1 的正式候选已封包，两条书源待正式 App 发布后上架。Komiic 0.1.15 双镜像真实登录及各自 CDN 取图已通过，237 实测 .cc 登录、正文和退出，宿主已推主分支，候选待上架。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。现有源继续核对上游功能、补足样本并逐项修复。
 
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T20:25:42+08:00",
+  "updatedAt": "2026-11-06T21:10:02+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
@@ -354,13 +354,19 @@
       "kind": "open",
       "priority": "用户直接反馈",
       "owner": "Root 真机和设置；source_known_fixes 正式源和现网对照",
-      "status": "1.2.1 宿主已推，0.1.15 双镜像表单与 .cc 游客阅读通过 237",
+      "status": "0.1.15 双镜像真实账号通过，237 已验 .cc 登录、正文和退出",
       "reportedAt": "2026-11-06T18:33:50+08:00",
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户询问 Komiic 设置 .cc 后无代理仍不能请求，是否镜像未保存。",
-      "result": "237 原装正式 Komiic 0.1.11，系统 WLAN 代理设置为无。用户随后明确当前路由器仍有代理。原测试只核到设备代理层，不能当作整条线路直连。通过普通设置选 .cc 保存并读盘 preferredMirror=https://komiic.cc。保存后首次热门刷新在响应头前失败，随后「間諜」搜索及两次相同热门刷新均成功。正式 0.1.11 和 0.1.14 的 WASM 回放确认持久值进入列表、搜索、目录、页表和票据请求的 .cc/api/query。Mac Surge 标记 DIRECT 时，.cc 具名请求和共用 .com CDN 图片为 200。该对照仍经过当前路由网络，且只取了一张正文图。通用网页入口另读包固定 .com 首页。 237 临时普通导入并核对正式 0.1.14 原包，再选 .cc 保存读盘。《入間同學入魔了》01 話第 3/46 页 JPEG 423204 字节完整下载并实显。《航海王》1197 話第 7/15 页 WebP 实显，记录内近邻正文最大 727558 字节完整下载；Mac 同一具名页另取到 977804 字节。该次定位附近取票操作最长约 3.9 秒（含排队），几张原图请求约 0.2–0.4 秒。两部未复现正文打不开。原章序、原包、设置、读态与电源恢复，租约释放。 正式 0.1.14 的取图实现会调用所选 .cc 的 getImageTicket，但只接受响应中的 img.komiic.com，随后按该 URL 下载。Keiyoushi 参考从镜像自己的 /api/image/<kid> 请求图片。 用同两张正文图，在当前有路由代理的 Mac 网络上禁用 HTTP 重定向，komiic.cc/api/image 直接返回 JPEG/WebP，img.komiic.cc 配同一服务端票据也为 HTTP 200，完整长度与 .com 一致。 按 Hyperion 1.6.13 实现按当前镜像授权、Cookie 与账号确认、续期及独立私有会话。App 宿主复用原生表单和 Asset，读取会话不等待初始化。冻结 Komiic 0.1.15 的 `.cc` 现网 WASM 三作六页通过，默认 `.com` 两页对照通过。237 同签 1.2.1 正常导入候选，核 .com 默认表单、保存 .cc 后的表单目的地和游客页面。碧藍之海第 3/193 页、航海王第 3/23 页已亲审。用户本轮选择只验游客和表单，登录、续期和退出用控制回放。普通移除测试源并恢复 237 原 Komiic 0.1.11、数据和原电源，已释租，保留 1.2.1 同签验收包。宿主与版本定义已推 master。",
-      "remaining": "Komiic 0.1.15 候选未上架，最低 App 1.2.1。真实账号未列入本轮 237 验收，原故障线路绕开路由代理仍未测。",
+      "result": "237 原装正式 Komiic 0.1.11，系统 WLAN 代理设置为无。用户随后明确当前路由器仍有代理。原测试只核到设备代理层，不能当作整条线路直连。通过普通设置选 .cc 保存并读盘 preferredMirror=https://komiic.cc。保存后首次热门刷新在响应头前失败，随后「間諜」搜索及两次相同热门刷新均成功。正式 0.1.11 和 0.1.14 的 WASM 回放确认持久值进入列表、搜索、目录、页表和票据请求的 .cc/api/query。Mac Surge 标记 DIRECT 时，.cc 具名请求和共用 .com CDN 图片为 200。该对照仍经过当前路由网络，且只取了一张正文图。通用网页入口另读包固定 .com 首页。 237 临时普通导入并核对正式 0.1.14 原包，再选 .cc 保存读盘。《入間同學入魔了》01 話第 3/46 页 JPEG 423204 字节完整下载并实显。《航海王》1197 話第 7/15 页 WebP 实显，记录内近邻正文最大 727558 字节完整下载；Mac 同一具名页另取到 977804 字节。该次定位附近取票操作最长约 3.9 秒（含排队），几张原图请求约 0.2–0.4 秒。两部未复现正文打不开。原章序、原包、设置、读态与电源恢复，租约释放。 正式 0.1.14 的取图实现会调用所选 .cc 的 getImageTicket，但只接受响应中的 img.komiic.com，随后按该 URL 下载。Keiyoushi 参考从镜像自己的 /api/image/<kid> 请求图片。 用同两张正文图，在当前有路由代理的 Mac 网络上禁用 HTTP 重定向，komiic.cc/api/image 直接返回 JPEG/WebP，img.komiic.cc 配同一服务端票据也为 HTTP 200，完整长度与 .com 一致。 按 Hyperion 1.6.13 实现按当前镜像授权、Cookie 与账号确认、续期及独立私有会话。App 宿主复用原生表单和 Asset，读取会话不等待初始化。冻结 Komiic 0.1.15 的 `.cc` 现网 WASM 三作六页通过，默认 `.com` 两页对照通过。237 同签 1.2.1 正常导入候选，核 .com 默认表单、保存 .cc 后的表单目的地和游客页面。碧藍之海第 3/193 页、航海王第 3/23 页已亲审。用户本轮选择只验游客和表单，登录、续期和退出用控制回放。普通移除测试源并恢复 237 原 Komiic 0.1.11、数据和原电源，已释租，保留 1.2.1 同签验收包。宿主与版本定义已推 master。 用户提供测试账号后，冻结 0.1.15 生产 WASM 直请求两个官网镜像，均获新会话并经 account 查询确认身份，带会话取到正文票据，实际从各自 img.komiic.cc 和 img.komiic.com 下载同一张 423204 字节 JPEG。.cc 使用本地时钟模拟临期触发真实官网续期，返回新 Cookie，身份复查和续期后取图通过。237 保留同签 1.2.1 构建 10，原生表单实登 .cc，重开显示已登录，从详情读到《入間同學入魔了》01 話第 3/46 页，退出后邮箱与密码框均为空。已普通卸载测试源并读回原 Komiic 0.1.11、测试前的数据和电源状态，清理临时输入文件并释租。",
+      "remaining": "Komiic 0.1.15 候选未上架，最低 App 1.2.1。237 实登使用 .cc 和当前带路由代理的网络。续期使用本地临期触发及真实 .cc HTTP，尚无 237 自然临期观察；原故障线路绕开路由代理仍未测。",
       "evidence": [
+        ".hvigor/outputs/source-coverage-20261105/komiic-mirror-20261106/komiic-0.1.15/real-account-live.json",
+        ".hvigor/outputs/source-coverage-20261105/komiic-mirror-20261106/komiic-0.1.15/real-account-live-renewal.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-komiic-real-account-121.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-real-account-121-055-komiic-native-account-komiic.cc/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-real-account-121-063-komiic-cc-reader-swipe-to-3/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-real-account-121-068-komiic-logout/layout.json",
         "https://github.com/honjow/Koma/commit/634392cee40a56b03e60e34a93b0bbddf9193e64",
         "https://github.com/honjow/Koma/actions/runs/42217059923",
         ".hvigor/outputs/source-coverage-20261105/komiic-mirror-20261106/komiic-0.1.15/komiic-0.1.15.koma",
@@ -8602,6 +8608,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-komiic-real-account-237-20261106",
+      "at": "2026-11-06T21:10:02+08:00",
+      "title": "Komiic 双镜像真实登录和 237 .cc 正文通过",
+      "detail": "冻结源实测两镜像登录及各自 CDN 取图。.cc 本地模拟临期触发官网续期并获得新会话。237 原生登录、阅读及退出通过，原源、数据和电源恢复并释租，候选尚未上架。",
+      "itemIds": [
+        "SOURCE_KOMIIC_CC_DIRECT"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "source-koma-121-candidates-native-20261106",
       "at": "2026-11-06T20:25:42+08:00",
