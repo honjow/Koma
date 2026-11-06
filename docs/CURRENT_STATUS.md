@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T05:24:46+08:00",
+  "updatedAt": "2026-11-06T10:32:29+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READER_ASYNC_PAGE_ROLLBACK",
   "activity": "备份设置遗漏已修复推送；条漫入场已通过手机和平板复验，共享修复待仓库写权限；继续处理偶发翻页回退。",
@@ -81,6 +81,30 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "LIBRARY_SORT_AND_UPDATE_DEFAULTS",
+      "title": "书架排序方向与自动更新默认值",
+      "kind": "done",
+      "priority": "用户明确要求",
+      "owner": "Root",
+      "status": "书架双向排序和新文案已在 197 核对",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户确认参考 Aidoku 的排序菜单，排序方式和方向以分割线分组，并默认开启自动更新与后台检查。精确消息时刻未核实。",
+      "result": "书架、默认排序与分类排序共用系统分组和勾选。新增最近更新、新章发布、未读章节数和总章节数。197 验证章节数双向重排，冷启动保留当前分类的选择。中文仅缩短「新章发布」这一项。自动更新及后台检查缺省开启，197 已有的关闭设置保留。已恢复测试前的排序和电源状态。",
+      "remaining": "",
+      "boundaries": [
+        "最近更新按实际发现新章的时间，新章发布按书源给出的最新章节发布时间。缺值始终排在已知值之后。",
+        "自动更新及后台检查仅在未保存时默认开启。手动检查、更新间隔和自动检查范围保持。已核对缺省读值和已有偏好，未等待系统在后台实际调度。"
+      ],
+      "evidence": [
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-sort/restart-20261106T102706259486/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-sort/navigate-20261106T102228156213/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-sort/navigate-20261106T102351932241/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-sort/navigate-20261106T103128182629/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-sort/restore-20261106T103136595319/run-metadata.json"
+      ]
+    },
     {
       "id": "BROWSE_SOURCE_PIN",
       "title": "浏览页书源置顶与分组动画",
@@ -6370,7 +6394,7 @@
         "取得获授权的 Kitsu 或 MangaUpdates 账号后，核对该服务的登录、绑定和远端同步。"
       ],
       "boundaries": [
-        "使用现有Koma控件；新自动功能默认关闭，手动检查仍覆盖全书库。",
+        "使用现有Koma控件。书架自动更新及后台检查的当前默认值见 LIBRARY_SORT_AND_UPDATE_DEFAULTS，手动检查仍覆盖全书库。",
         "首批入口与默认值已获用户采用；197候选fdf340b6具名路径、完整备份预览及设备恢复已核。最后后台合并修正仅编译和逻辑验证，未安装。",
         "保留既有已确认行为与样式。",
         "用户本轮采用取消列表扁图，保留阅读中全屏点击区域预览；音量键方向改反转开关，沿用旧枚举与原按键行为。强调色仅修右侧对齐，色块/颜色/菜单保留。",
@@ -6450,7 +6474,7 @@
       ],
       "modificationBasis": {
         "object": "首批书库更新、离线下载与备份设置",
-        "allowedDifference": "书库更新增加后台检查、分类范围、跳过条件以及WiFi和充电约束；下载支持新章自动下载及分类，读后清理提供关闭、读完、保留2/3/5和排除分类；备份管理增加目录及后台开关。沿用现有控件，新自动功能默认关闭，手动检查仍全库。",
+        "allowedDifference": "书库更新增加后台检查、分类范围、跳过条件以及WiFi和充电约束；下载支持新章自动下载及分类，读后清理提供关闭、读完、保留2/3/5和排除分类；备份管理增加目录及后台开关。沿用现有控件，手动检查仍全库。首批默认值后来由 LIBRARY_SORT_AND_UPDATE_DEFAULTS 更新其中的书架自动更新及后台检查。",
         "decision": "用户本轮通过call_4bfc明确采用。",
         "secondBatchAllowedDifference": "用户call3537采用：已下载章节长按及下载页菜单导出/分享CBZ；队列单章或整本移顶部/底部，活动下载不中断；现有排序、已读下载、语言和汉化组按书记忆。",
         "thirdBatchAllowedDifference": "用户call63d597批准：章节菜单书签、小标识及独立书签筛选；已收藏详情菜单更换/恢复封面，使用系统picker并在源刷新时保留；详情个人笔记使用现有半模态及有内容详情展示，数据随备份。",
@@ -7821,6 +7845,36 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-sort-zh-copy-197-20261106",
+      "at": "2026-11-06T10:32:29+08:00",
+      "title": "书架排序短文案已在 197 核对",
+      "detail": "将「最新章节发布时间」缩为「新章发布」。最终菜单保留「标题」「来源」「未读章节数」和原生分组，设备已恢复原电源状态并释租。",
+      "itemIds": [
+        "LIBRARY_SORT_AND_UPDATE_DEFAULTS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-sort-category-restart-197-20261106",
+      "at": "2026-11-06T10:27:22+08:00",
+      "title": "书架分类排序冷启动复验通过",
+      "detail": "197 关闭并重启 Koma，全部分类仍为总章节数最少优先，首屏按实际章节数排列。设置和分类入口已核，原有两个关闭状态保留。原书架排序与设备电源状态已恢复。",
+      "itemIds": [
+        "LIBRARY_SORT_AND_UPDATE_DEFAULTS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-sort-direction-197-first-pass-20261106",
+      "at": "2026-11-06T10:22:56+08:00",
+      "title": "书架双向排序已实机核对，修复分类覆盖",
+      "detail": "197 确认原生菜单选项分隔、两项勾选及实际重排。发现冷启动既有分类策略会覆盖新保存的默认排序，改为写入当前策略。",
+      "itemIds": [
+        "LIBRARY_SORT_AND_UPDATE_DEFAULTS"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "browse-source-pin-native-layout-accepted-20261106",
       "at": "2026-11-06T05:24:46+08:00",
