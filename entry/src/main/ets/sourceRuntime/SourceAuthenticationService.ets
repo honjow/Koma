@@ -45,7 +45,7 @@ export class SourceAuthenticationService {
   readonly entry: SourceRuntimeRegistryEntry
   readonly descriptor: SourceAuthenticationDescriptor
   readonly title: string
-  webLoginUrl: string = ''
+  loginUrl: string = ''
   private settingsRevision: string
   private packageIdentity: string
   private alive: boolean = true
@@ -56,7 +56,7 @@ export class SourceAuthenticationService {
     const descriptor = sourceAuthenticationDescriptor(entry?.authentication)
     if (entry === undefined || !sourceRuntimeEntryEnabled(entry) || descriptor === undefined) throw new Error('source_login_not_allowed')
     this.entry = entry; this.descriptor = descriptor; this.title = sourceDisplayName(sourceId, entry.manifestName)
-    this.webLoginUrl = descriptor.loginUrl
+    this.loginUrl = descriptor.loginUrls === undefined ? descriptor.loginUrl : ''
     this.settingsRevision = appSourceSettingsStore.revisionForSource(sourceId)
     this.packageIdentity = sourceWebPackageIdentity(entry); this.current = current
   }
@@ -76,9 +76,12 @@ export class SourceAuthenticationService {
   async run(operation: 'get_authentication' | 'authenticate' | 'logout', username: string = '', password: string = ''): Promise<boolean> {
     if (!this.isCurrent() || this.grantId.length > 0 ||
       (this.descriptor.kind !== 'credentials' && operation !== 'get_authentication')) throw new Error('source_login_not_allowed')
+    const target = operation === 'get_authentication' ? this.descriptor.loginUrl : this.loginUrl
+    if (target.length === 0) throw new Error('source_login_not_allowed')
+    if (operation === 'get_authentication' && this.descriptor.loginUrls !== undefined) this.loginUrl = ''
     const current = (): boolean => this.isCurrent()
     const grantId = SourcePrivateSessionHost.grantCredentials(this.entry.sourceId, this.packageIdentity,
-      sourceAuthenticationOrigin(this.descriptor.loginUrl), operation, username, password, current)
+      sourceAuthenticationOrigin(target), operation, username, password, current)
     this.grantId = grantId
     try {
       const context = JSON.parse(sourceHttpIdentityJson(this.entry)) as SourceHttpIdentity
@@ -111,10 +114,15 @@ export class SourceAuthenticationService {
           if (!(this.entry.webSessionOrigins ?? []).includes(sourceAuthenticationOrigin(descriptor.loginUrl))) {
             throw new Error('source_login_origin_not_allowed')
           }
-          this.webLoginUrl = descriptor.loginUrl
-        } else if (sourceAuthenticationIdentity(descriptor) !== sourceAuthenticationIdentity(this.descriptor)) {
-          throw new Error('source_login_invalid_response')
+        } else {
+          // A source may choose only a package-declared destination. All other fields must match.
+          const allowed = this.descriptor.loginUrls ?? [this.descriptor.loginUrl]
+          if (!allowed.includes(descriptor.loginUrl) ||
+            sourceAuthenticationIdentity(descriptor, this.descriptor.loginUrl) !== sourceAuthenticationIdentity(this.descriptor)) {
+            throw new Error('source_login_invalid_response')
+          }
         }
+        this.loginUrl = descriptor.loginUrl
       }
       if (operation === 'authenticate' && data['authenticated'] !== true) throw new Error('source_login_failed')
       if (operation === 'logout' && data['authenticated'] !== false) throw new Error('source_login_failed')

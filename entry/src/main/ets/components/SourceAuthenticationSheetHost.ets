@@ -79,7 +79,7 @@ export struct SourceAuthenticationSheetHost {
       this.title = this.service.title
       this.usernameLabel = descriptor.usernameLabel ?? AppStrings.get('common_username')
       this.passwordLabel = descriptor.passwordLabel ?? AppStrings.get('common_password')
-      this.loginOrigin = sourceAuthenticationOrigin(descriptor.loginUrl)
+      this.loginOrigin = sourceAuthenticationOrigin(this.service.loginUrl)
       this.credentialStorage = descriptor.credentialStorage ?? ''
       this.web = descriptor.kind === 'web'
       if (this.web) {
@@ -102,7 +102,7 @@ export struct SourceAuthenticationSheetHost {
       await this.service!.run('get_authentication')
       if (!this.current(epoch)) { if (this.epoch === epoch) this.close(); return }
       const sourceId = this.presented!.sourceId
-      const url = this.service!.webLoginUrl
+      const url = this.service!.loginUrl
       const status = appSourceWebSessionStore.begin(appSourceRuntimeRegistry, sourceId, url, this.service!.descriptor.userAgent)
       this.webParams = { url, title: this.title, sourceSession: { sourceId, sessionId: status.sessionId } }
       this.opening = false; this.shown = true; this.onPresentedChanged(true)
@@ -120,6 +120,7 @@ export struct SourceAuthenticationSheetHost {
     try {
       const authenticated = await this.service!.run('get_authentication')
       if (!this.current(epoch)) { if (this.epoch === epoch) this.close(); return }
+      this.loginOrigin = sourceAuthenticationOrigin(this.service!.loginUrl)
       this.authenticated = authenticated; this.ready = true
     } catch (_error) {
       if (this.current(epoch)) this.errorText = AppStrings.get('source_login_unavailable')
@@ -213,8 +214,10 @@ export struct SourceAuthenticationSheetHost {
         Column({ space: ThemeConstants.SPACE_MD }) {
           Text(this.authenticated ? AppStrings.get('source_login_connected') : AppStrings.get('source_login_required'))
             .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)
-          Text(AppStrings.format('source_login_destination', this.loginOrigin))
-            .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+          if (this.loginOrigin.length > 0) {
+            Text(AppStrings.format('source_login_destination', this.loginOrigin))
+              .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+          }
           Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
             .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
           if (!this.authenticated || this.replacing) {

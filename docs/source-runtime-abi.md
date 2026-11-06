@@ -183,6 +183,12 @@ API 23–25 的 RCP 有禁止连接复用的配置，指定 HTTP 版本的配置
 
 三个可选导出由SDK独立 `koma_source_authentication_exports!` 添加，不改变旧源宏。`get_authentication` 是0网络元数据操作，接收本源settings与公开settingObservations，成功返回 `data:{authentication:descriptor,authenticated:boolean}`。credentials的descriptor须与包完整一致；web可按同设置/安装快照返回当前镜像实际loginUrl，仅接受同kind和包已声明精确HTTPSorigin，未声明新域明确提示更新源/选择支持镜像，不改到默认别站、不以正则扩大授权。`authenticate/logout` 返回 `data.authenticated:true/false`，不得返回token或原私有响应。
 
+`source_native_cookie_session_v1` 允许原生表单和账号请求使用所选站点的私有 Cookie。凭据声明可同时增加 `loginUrls`（最多 8 个精确 HTTPS URL，每个 origin 一项，包含包内默认 `loginUrl`）和 `sessionCookieNames`（最多 16 个 ASCII 名称）。`get_authentication` 可从该列表选当前 `loginUrl`，其余声明逐项相同。Host 在读取状态后显示实际域，并只给所选 origin 发放此次凭据授权；设置变化或取消仍使原授权失效。旧凭据声明与网页会话沿用原合同。
+
+源在相关 HTTP 请求传 `nativeSession:true`。Host 要求已安装包、当前调用、声明的精确 HTTPS origin 和白名单内的请求 Cookie，每次只发一跳。此请求不读写网页 Cookie，也不进入网页验证结果交接。正常 HTTP 响应附 `sessionSetCookies` 数组，只返回声明名称的同域或 host-only `Set-Cookie`，保留每条的 Path、Expires 等属性，不按逗号拆分。取消、安装变化和跳转不交付 Cookie。源负责遵守有效期及路径，按 origin 隔离会话，官网确认身份后才通过私有 Asset 提交新代；账号材料、会话和 CDN 图片凭证不得混入公开结果。依赖此能力的包最低 App 版本为 1.2.1。
+
+该能力同时提供同源安装范围的私有 RPC `op:"peek"`。返回当前已提交的 `{ok:true,state:"ready",value,versionTag,nowMs}`，无值返回 `{ok:true,state:"empty"}`。它不认领初始化、不等待登录或续期提交，游客和已登录的普通图片请求都可以直接读取当前代。只有实际登录、续期和退出需要认领写入。
+
 显式点击Host表单后，认证事务只将随机grant引用放入可信Native HTTP context，WASM请求args不含账号密码。同次本源/安装/callId经 `private_session` 的 `credential_input` 读取 `{ok:true,credentials:{username,password}}`；只有authenticate可读，探测/普通call/异源/旧包/已取消事务均不能读。HTTP每跳限该grant的精确APIorigin；取消、换包、设置/页面过期后不发新请求、不提交Asset新代、不重试原操作。源沿真实协议处理签名、登录、token与同代401刷新，Host不把任意401/403或challenge推为登录、不自动授权Cookie。成功后在原query/filter/作品/章节仍有效且页面可见时只重试原操作一次，取消保原错误；旧无descriptor包沿原WebChallenge路径。
 
 账号材料与token复用 `SourcePrivateSessionHost` 原Asset分块/版本/发布/回滚职责，不建另一CookieJar或明文账户库。网页会话和private值按安装identity隔离。新descriptor或requiredImageDecodes仅对该声明包追加身份；旧无声明包identity字串保持逐字不变。退出只作用本源本安装私有代，不全局清Cookie/Asset。

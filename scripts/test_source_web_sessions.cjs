@@ -88,6 +88,23 @@ test('process scope is stable only in this Host process and cannot be obtained w
   assert.equal(f.assets.size, 0)
 })
 
+test('session readers neither acquire an empty session nor wait for an uncommitted replacement', { timeout: 1500 }, async () => {
+  const f = credentialFixture(), writer = f.begin(), reader = f.begin()
+  assert.deepEqual(await f.rpc(reader.scope, 'peek'), { ok: true, state: 'empty' })
+  const init = await f.rpc(writer.scope, 'begin')
+  assert.equal(init.state, 'owner')
+  assert.deepEqual(await f.rpc(reader.scope, 'peek'), { ok: true, state: 'empty' })
+  const committed = await f.rpc(writer.scope, 'commit', { lease: init.lease, value: 'old-value' })
+  const replacement = await f.rpc(writer.scope, 'begin', { replaceVersionTag: committed.versionTag })
+  assert.equal(replacement.state, 'owner')
+  const ready = await f.rpc(reader.scope, 'peek')
+  assert.equal(ready.value, 'old-value')
+  assert.equal(ready.versionTag, committed.versionTag)
+  f.host.finishCall(reader.call.id)
+  assert.equal((await f.rpc(reader.scope, 'peek')).ok, false)
+  f.host.finishCall(writer.call.id)
+})
+
 test('web authentication preserves a package-declared UA and exact origin through HTTP reuse', async () => {
   const f = fixture(), ua = 'Source desktop identity'
   f.changeEntry(e => ({ ...e, authentication: { kind: 'web', loginUrl: 'https://site.invalid/login', userAgent: ua } }))
@@ -349,14 +366,17 @@ test('authentication service keeps input outside source requests and retires que
       try {
         assert.ok(call.id)
         assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, 'https://other.invalid/'), false)
+        const expectedUrl = entry.authentication.loginUrls ? reply.authentication.loginUrl : auth.loginUrl
         if (req.operation === 'authenticate') {
           assert.equal((await f.rpc(scope, 'credential_input')).credentials.password, 'synthetic-password')
-          assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, auth.loginUrl), true)
+          assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, expectedUrl), true)
+          if (entry.authentication.loginUrls) assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, auth.loginUrl), false)
         } else {
           assert.equal((await f.rpc(scope, 'credential_input')).ok, false)
-          assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, auth.loginUrl), req.operation === 'logout')
+          assert.equal(f.host.credentialRequestAllowed(call.id, scope.credentialGrantId, expectedUrl), req.operation === 'logout')
         }
-        return JSON.stringify({ ok: true, operation: req.operation, data: reply ?? { authenticated: req.operation === 'authenticate', authentication: auth } })
+        return JSON.stringify({ ok: true, operation: req.operation, data: req.operation === 'get_authentication' && reply ? reply :
+          { authenticated: req.operation === 'authenticate', authentication: auth } })
       } finally { f.host.finishCall(call.id) }
     } }
     if (name === './SourceRequestPolicy') return { configureSourceRequestPolicy() {} }
@@ -383,10 +403,22 @@ test('authentication service keeps input outside source requests and retires que
     authentication: { kind: 'web', loginUrl: 'https://site.invalid/users-login.html', userAgent: 'Declared-UA' } }
   const dynamic = new SourceAuthenticationService(entry.sourceId, () => true)
   reply = { authenticated: false, authentication: { ...entry.authentication, loginUrl: 'https://mirror.invalid/users-login.html' } }
-  await dynamic.run('get_authentication'); assert.equal(dynamic.webLoginUrl, reply.authentication.loginUrl)
+  await dynamic.run('get_authentication'); assert.equal(dynamic.loginUrl, reply.authentication.loginUrl)
   reply.authentication.userAgent = 'Other-UA'; await assert.rejects(dynamic.run('get_authentication'), /invalid_response/)
   reply.authentication = { ...entry.authentication, loginUrl: 'https://undeclared.invalid/users-login.html' }
   await assert.rejects(dynamic.run('get_authentication'), /origin_not_allowed/)
+
+  entry = { ...entry, authentication: { ...auth, credentialStorage: 'memory',
+    loginUrls: [auth.loginUrl, 'https://mirror.invalid/auth'], sessionCookieNames: ['session'] } }
+  const native = new SourceAuthenticationService(entry.sourceId, () => true)
+  await assert.rejects(native.run('authenticate', 'synthetic-user', 'synthetic-password'), /not_allowed/)
+  reply.authentication = { ...entry.authentication, loginUrl: 'https://mirror.invalid/auth' }
+  await native.run('get_authentication')
+  assert.equal(native.loginUrl, reply.authentication.loginUrl)
+  assert.equal(await native.run('authenticate', 'synthetic-user', 'synthetic-password'), true)
+  reply.authentication = { ...reply.authentication, sessionCookieNames: ['extra'] }
+  await assert.rejects(native.run('get_authentication'), /invalid_response/)
+  await assert.rejects(native.run('authenticate', 'synthetic-user', 'synthetic-password'), /not_allowed/)
 })
 function fixture(sdkApiVersion = 23) {
   const disk = new Map(), writes = [], fetched = [], diagnostics = [], configured = []
@@ -445,6 +477,7 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRcpTransport') return moduleFrom('SourceRcpTransport', () => ({}))
       if (name === './SourcePicaChannelTransport') return moduleFrom('SourcePicaChannelTransport', () => ({}))
       if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: network.privateHost ?? privateHost }
+      if (name === './SourceAuthenticationDescriptor') return mocks(name)
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: {
         configureHttpTransport: fn => { callback = fn; return true },
         sourceBrowserHttp: network.sourceBrowserHttp,
@@ -891,6 +924,50 @@ test('response cookies renew only the exact granted source/origin and preserve E
   f.store.acceptResponseCookies({ ...f.identity(), sourceId: 'other' }, 'https://site.invalid/a', ['bad=secret'])
   assert.equal(f.configured.length, count)
   assert(f.writes.every(v => !v.includes('session=new') && !v.includes('other=x')))
+})
+test('native account requests isolate declared cookies and stop redirects before another host can receive them', async () => {
+  const f = fixture()
+  f.changeEntry(entry => ({ ...entry, authentication: { kind: 'credentials', loginUrl: 'https://site.invalid/api/login',
+    credentialStorage: 'memory', loginUrls: ['https://site.invalid/api/login', 'https://mirror.invalid/api/login'],
+    sessionCookieNames: ['session'] } }))
+  f.grant()
+  const call = f.privateHost.beginCall(JSON.stringify(f.identity()))
+  const context = call.httpContextJson
+  const request = { url: 'https://site.invalid/api/query', method: 'POST', nativeSession: true,
+    headers: { Cookie: 'session=only-native' } }
+  const cookie = 'session=private-new; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/; Secure; HttpOnly'
+  const renewed = await f.http([response(200, { 'Set-Cookie': [cookie,
+    'session=foreign; Domain=mirror.invalid', 'session=parent; Domain=invalid', 'not-declared=web; Path=/'] })], context, request)
+  assert.deepEqual(renewed.result.sessionSetCookies, [cookie])
+  assert.equal(renewed.calls[0].options.header.Cookie, 'session=only-native')
+  assert.equal(f.configured.length, 0, 'native cookies never enter the WebView jar')
+  assert(f.diagnostics.every(line => !line.includes('only-native') && !line.includes('private-new')))
+  const ordinary = await f.http([response(200, { 'Set-Cookie': [cookie] })], context, { ...request, nativeSession: false })
+  assert.equal(ordinary.result.sessionSetCookies, undefined)
+
+  for (const bad of [{ ...request, url: 'https://img.site.invalid/api/query' },
+    { ...request, headers: { Cookie: 'not-declared=foreign' } }]) {
+    const rejected = await f.http([], context, bad)
+    assert.equal(rejected.result.error.code, 'invalid_request')
+    assert.equal(rejected.calls.length, 0)
+  }
+  const redirect = await f.http([response(307, { Location: 'https://mirror.invalid/api/query', 'Set-Cookie': [cookie] })], context, request)
+  assert.equal(redirect.result.error.code, 'source_login_redirect_rejected')
+  assert.deepEqual(redirect.intercepts, [{ status: 307, continued: false }])
+  assert.equal(redirect.calls.length, 1)
+  const unavailable = await f.http([], context, request, { applyResult: false })
+  assert.equal(unavailable.calls.length, 0)
+
+  let send
+  const delayed = new Promise(resolve => { send = resolve })
+  const pending = f.http([delayed], context, request)
+  await new Promise(setImmediate)
+  f.privateHost.finishCall(call.id)
+  send(response(200, { 'Set-Cookie': [cookie] }))
+  const cancelled = await pending
+  assert.equal(cancelled.calls.length, 1)
+  assert.equal(cancelled.result.error.code, 'source_request_cancelled')
+  assert.equal(cancelled.result.sessionSetCookies, undefined)
 })
 test('parallel native identities do not share a last-source session context', async () => {
   const f = fixture(); f.grant()

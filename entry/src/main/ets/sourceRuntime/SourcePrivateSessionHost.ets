@@ -403,6 +403,18 @@ export class SourcePrivateSessionHost {
         else SourcePrivateSessionHost.states.set(key, state)
       }
       const selected = state
+      if (req.op === 'peek') {
+        // Readers use the last committed generation without waiting for a login or renewal owner.
+        if (!selected.loaded) {
+          try { await SourcePrivateSessionHost.locked(selected, (): Promise<void> => SourcePrivateSessionHost.load(selected)) }
+          catch (error) { return SourcePrivateSessionHost.stageFailure('cache_read', error as Object) }
+        }
+        if (!SourcePrivateSessionHost.active(scope, isCurrent)) return SourcePrivateSessionHost.fail('inactive')
+        const currentValue = selected.value
+        const response: PrivateResponse = currentValue === null ? { ok: true, state: 'empty' } :
+          { ok: true, state: 'ready', value: currentValue.value, versionTag: currentValue.versionTag, nowMs: Date.now().toString() }
+        return JSON.stringify(response)
+      }
       if (req.op === 'begin') {
         const result = await SourcePrivateSessionHost.locked(selected, async (): Promise<BeginResult> => {
           if (!SourcePrivateSessionHost.active(scope, isCurrent)) return { response: SourcePrivateSessionHost.fail('inactive'), wait: null }

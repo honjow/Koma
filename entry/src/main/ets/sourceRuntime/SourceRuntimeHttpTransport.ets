@@ -4,6 +4,7 @@ import { appSourceWebSessionStore, sourceWebOrigin, sourceWebPackageIdentity, So
 import { appSourceRuntimeRegistry } from './SourceRuntimeAppRegistry'
 import { sourceRuntimeEntryEnabled } from './SourceRuntimeRegistry'
 import { SourcePrivateSessionHost, SourcePrivateSessionScope } from './SourcePrivateSessionHost'
+import { sourceAuthenticationOrigin } from './SourceAuthenticationDescriptor'
 import { sourceClearanceCookieState } from './SourceWebChallengeGate'
 import { sourceRuntimeOperationIsCurrent } from './SourceRuntimeOperationGuard'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -46,6 +47,7 @@ interface SourceHttpRequestEnvelope {
   requests?: SourceHttpRequestEnvelope[]
   wantChallengeRequestId?: boolean
   guestSearch?: boolean
+  nativeSession?: boolean
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
   headers?: Object | string | number | boolean | null
@@ -164,6 +166,7 @@ class SourceHttpSuccessEnvelope {
   challengeRequestId?: string
   guestSearchCookie?: string
   guestSearchUrl?: string
+  sessionSetCookies?: string[]
   dnsOverride?: SourcePicaDnsOverride
 
   constructor(status: number, bodyText: string, accessSignal?: string, challengeRequestId?: string) {
@@ -421,6 +424,51 @@ function sourceBrowserHttpHeaders(lines: string[]): Record<string, Object> {
   return result
 }
 
+function nativeSessionHeadersValid(headers: Record<string, string>, names: string[]): boolean {
+  const keys = Object.keys(headers)
+  if (keys.some((key: string): boolean => !/^[A-Za-z0-9_-]+$/.test(key) || /[\u0000-\u001f\u007f]/.test(headers[key]) ||
+    ['host', 'authorization', 'proxy-authorization'].includes(key.toLowerCase()))) return false
+  const cookie = keys.filter((key: string): boolean => key.toLowerCase() === 'cookie')
+  if (cookie.length === 0) return true
+  if (cookie.length !== 1) return false
+  const seen = new Set<string>()
+  for (const pair of headers[cookie[0]].split(';')) {
+    const part = pair.trim()
+    const separator = part.indexOf('=')
+    const name = part.substring(0, separator)
+    const value = part.substring(separator + 1)
+    if (!names.includes(name) || seen.has(name) || !/^[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]+$/.test(value)) return false
+    seen.add(name)
+  }
+  return true
+}
+
+function nativeSessionResponseCookies(headers: Object, hostname: string, names: string[]): string[] {
+  const values = headers as Record<string, Object | string | number | boolean | null>
+  const result: string[] = []
+  let bytes = 0
+  for (const key of Object.keys(values)) {
+    if (key.toLowerCase() !== 'set-cookie') continue
+    const raw = values[key]
+    const cookies: Object[] = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? raw as Object[] : []
+    for (const cookie of cookies) {
+      if (typeof cookie !== 'string' || cookie.length > 4096 || /[^\x20-\x7E]/.test(cookie) ||
+        /,\s*[^\s;=,]+=/.test(cookie)) continue
+      const parts = cookie.split(';')
+      const separator = parts[0].indexOf('=')
+      if (separator <= 0 || !names.includes(parts[0].substring(0, separator).trim())) continue
+      const domains = parts.slice(1).map((part: string): string => part.trim().toLowerCase())
+        .filter((part: string): boolean => /^domain(?:\s*=|\s*$)/.test(part))
+      if (domains.length > 1 || (domains.length === 1 &&
+        domains[0].replace(/^domain\s*=\s*\.?/, '') !== hostname)) continue
+      bytes += cookie.length
+      if (bytes > 16384 || result.length >= 32) return []
+      result.push(cookie)
+    }
+  }
+  return result
+}
+
 function picaScope(identity: SourceHttpIdentity | undefined, current: () => boolean): SourcePicaChannelScope {
   if (identity?.sourceId !== 'com.picacomic.koma') throw new SourceRcpTransportFailure('invalid_request')
   const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
@@ -546,9 +594,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     const result = await SourcePrivateSessionHost.execute(requestJson, scope, current)
     const op = typeof envelope.op === 'string' &&
-      ['begin', 'commit', 'abort', 'invalidate', 'clock', 'rsa_pkcs1', 'credential_input', 'process_scope'].includes(envelope.op) ? envelope.op : 'unknown'
+      ['begin', 'commit', 'abort', 'invalidate', 'clock', 'rsa_pkcs1', 'credential_input', 'process_scope', 'peek'].includes(envelope.op) ? envelope.op : 'unknown'
     try {
       const summary = JSON.parse(result) as SourcePrivateResultSummary
+      if (op === 'peek' && summary.ok === true) return result
       const state = summary.state === 'ready' || summary.state === 'owner' ? summary.state : 'none'
       DiagnosticLogger.info('source_private_session', 'rpc', 'operation=' + op +
         ' ok=' + (summary.ok === true) + ' state=' + state + ' reason=' + (summary.error?.code ?? 'none'))
@@ -597,10 +646,28 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     if (typeof parsed.sourceId === 'string' && typeof parsed.sourceVersion === 'string' && typeof parsed.packageIdentity === 'string' &&
       Array.isArray(parsed.webSessionOrigins) && parsed.webSessionOrigins.every((item: string): boolean => typeof item === 'string')) identity = parsed
   } catch (_error) {}
+  const nativeSession = envelope.nativeSession === true
+  const nativeOrigin = nativeSession ? sourceAuthenticationOrigin(url) : ''
+  const nativeEntry = nativeSession && identity !== undefined ? appSourceRuntimeRegistry.lookup(identity.sourceId).entry : undefined
+  const nativeScope: SourcePrivateSessionScope | undefined = nativeSession && identity !== undefined &&
+    typeof identity.privateCallId === 'string'
+    ? { sourceId: identity.sourceId, packageIdentity: identity.packageIdentity, callId: identity.privateCallId } : undefined
+  const nativeCookieNames = nativeEntry?.authentication?.sessionCookieNames ?? []
+  if (nativeSession && (probe !== undefined || envelope.guestSearch === true || envelope.dnsOverride !== undefined ||
+    nativeScope === undefined || nativeEntry === undefined || !sourceRuntimeEntryEnabled(nativeEntry) ||
+    nativeEntry.manifestVersion !== identity?.sourceVersion || sourceWebPackageIdentity(nativeEntry) !== nativeScope.packageIdentity ||
+    nativeOrigin.length === 0 || nativeCookieNames.length === 0 ||
+    !(nativeEntry.authentication?.loginUrls ?? []).some((target: string): boolean => sourceAuthenticationOrigin(target) === nativeOrigin) ||
+    !nativeSessionHeadersValid(sourceHeaders(envelope.headers), nativeCookieNames))) {
+    trace.finish('rejected', 'reason=invalid_native_session_request')
+    return transportError('invalid_request', false)
+  }
   // A verification probe has its own visible-session guard; the originating
   // worker has already ended and its search guard is intentionally released.
   const current = (): boolean => probe === undefined ?
     sourceRuntimeOperationIsCurrent(identity?.operationGuardId) &&
+      (nativeScope === undefined || (appSourceRuntimeRegistry.lookup(nativeScope.sourceId).entry === nativeEntry &&
+        SourcePrivateSessionHost.callIsActive(nativeScope))) &&
       SourcePrivateSessionHost.credentialRequestAllowed(identity?.privateCallId, identity?.credentialGrantId, url) : probe.current()
   if (!current()) {
     trace.finish('cancelled', 'reason=source_request_cancelled')
@@ -622,7 +689,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       return transportError('invalid_request', false)
     }
   }
-  if (!guestSearch && !copyMangaApi && probe === undefined && verifiedSourceGet !== undefined) {
+  if (!guestSearch && !copyMangaApi && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
     if (identity !== undefined && ready.request.requestJson === requestJson &&
       ready.request.httpContextJson === httpContextJson) {
@@ -644,12 +711,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     const forbiddenHeader = Object.keys(sourceHeaders(envelope.headers)).some((name: string): boolean =>
       ['authorization', 'proxy-authorization', 'cookie', 'host'].includes(name.toLowerCase()))
-    if (probe !== undefined || method !== 'GET' || body.length > 0 || forbiddenHeader || identity?.credentialGrantId !== undefined) {
+    if (probe !== undefined || nativeSession || method !== 'GET' || body.length > 0 || forbiddenHeader || identity?.credentialGrantId !== undefined) {
       trace.finish('rejected', 'reason=invalid_request')
       return rcpFailure(new SourceRcpTransportFailure('invalid_request'))
     }
   }
-  const session = guestSearch || copyMangaApi || identity === undefined ? undefined : probe === undefined
+  // A native account uses its own private Cookie header, isolated from ArkWeb's cookie jar.
+  const session = guestSearch || copyMangaApi || nativeSession || identity === undefined ? undefined : probe === undefined
     ? appSourceWebSessionStore.requestSession(identity, url)
     : appSourceWebSessionStore.pendingRequestSession(identity, url, probe.proof)
   if (probe !== undefined && (session === undefined || !probe.current())) {
@@ -749,7 +817,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // Only the named source/origin pairs use browser-compatible transport.
     // Request identity and grant boundaries remain with the existing owner.
     let browserProfile = ''
-    if (currentMethod === 'GET' && currentBody.length === 0) {
+    if (!nativeSession && currentMethod === 'GET' && currentBody.length === 0) {
       const origin = sourceWebOrigin(currentUrl)
       if (identity?.sourceId === 'com.simplyhentai.zh.koma' && origin === 'https://api.simply-hentai.com') {
         browserProfile = 'firefox133'
@@ -788,7 +856,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         request.on('headersReceive', () => {
           if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
         })
-        if ((session !== undefined || guestSearch) && !attachSourceRedirectStop(request)) {
+        if ((session !== undefined || guestSearch || nativeSession) && !attachSourceRedirectStop(request)) {
           trace.finish('failed', 'reason=web_session_redirect_unavailable')
           return transportError('web_session_redirect_unavailable', false)
         }
@@ -809,6 +877,14 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode +
       ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
+    if (nativeSession && !current()) {
+      trace.finish('cancelled', 'reason=source_request_cancelled')
+      return transportError('source_request_cancelled', false)
+    }
+    if (nativeSession && [301, 302, 303, 307, 308].includes(response.responseCode)) {
+      trace.finish('failed', 'reason=source_login_redirect_rejected')
+      return transportError('source_login_redirect_rejected', false)
+    }
     if (probe !== undefined && !probe.current()) {
       trace.finish('failed', 'reason=web_session_probe_cancelled')
       return transportError('web_session_unavailable', false)
@@ -830,7 +906,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const accessSignal = sourceResponseAccessSignal(response.header)
     let challengeRequestId: string | undefined = undefined
     const optedIn = envelope.wantChallengeRequestId === true && identity?.operationGuardId !== undefined
-    if (!guestSearch && identity !== undefined && (response.responseCode === 403 ||
+    if (!guestSearch && !nativeSession && identity !== undefined && (response.responseCode === 403 ||
       ((accessSignal === 'challenge_required' || optedIn) && (response.responseCode === 401 || response.responseCode === 503)))) {
       if (response.responseCode === 403 || accessSignal === 'challenge_required') {
         appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
@@ -909,6 +985,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     if (guestSearch) {
       result.guestSearchUrl = currentUrl
       if (response.responseCode === 200) result.guestSearchCookie = bilimangaGuestCookie(currentUrl, response.header)
+    }
+    if (nativeSession) {
+      const hostname = new urlKit.URL(currentUrl).hostname.toLowerCase()
+      result.sessionSetCookies = nativeSessionResponseCookies(response.header, hostname, nativeCookieNames)
     }
     return JSON.stringify(result)
     }
