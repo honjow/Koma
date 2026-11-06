@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T11:19:26+08:00",
+  "updatedAt": "2026-11-06T11:27:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READER_ASYNC_PAGE_ROLLBACK",
   "activity": "备份设置遗漏已修复推送；条漫入场已通过手机和平板复验，共享修复待仓库写权限；继续处理偶发翻页回退。",
@@ -91,7 +91,7 @@
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户指出排序顺序与 Aidoku 不符，且书架分类切换藏在筛选内，要求对照 Aidoku 与 Mihon 核查。精确消息时刻未核实。",
       "status": "197 已核分类切换、排序隔离与筛选重置",
-      "result": "197 复现旧入口后，按用户确认把分类独立放在书架首页。排序项按 Aidoku 相对次序，分类可独立排序或跟随书架默认。分类管理每类一行，后台检查随自动更新暂停。197 实测临时分类独立标题正序、重置只清筛选、冷启动保持以及切回全部分类仍用原全局排序，分类管理可改回跟随默认。测试分类已删除，原书架和电源状态已恢复并释租。",
+      "result": "197 复现旧入口后，按用户确认把分类独立放在书架首页。排序项按 Aidoku 相对次序，分类可独立排序或跟随书架默认。分类管理每类一行，后台检查随自动更新暂停。197 实测临时分类独立标题正序、重置只清筛选、冷启动保持以及切回全部分类仍用原全局排序，分类管理可改回跟随默认。测试分类已删除，原书架和电源状态已恢复并释租。 用户指出排序与筛选同排字号不同，已统一为 14 fp 中等字重，并在 197 对照实拍、打开和关闭两个入口。",
       "remaining": "",
       "evidence": [
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T103737487853/screen.png",
@@ -107,7 +107,10 @@
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/restart-20261106T111618076679/run-metadata.json",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111741590674/screen.png",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111825505225/run-metadata.json",
-        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/restore-20261106T111842170595/run-metadata.json"
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/restore-20261106T111842170595/run-metadata.json",
+        ".hvigor/outputs/library-shelf-typography-20261106/197-sort-filter-before-after.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-typography/navigate-20261106T112701884191/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-typography/restore-20261106T112706393302/run-metadata.json"
       ],
       "boundaries": [
         "书架搜索和手动下拉检查的范围按现有行为。新增的全局排序设置进入应用设置备份。",
@@ -7878,6 +7881,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-shelf-control-font-197-20261106",
+      "at": "2026-11-06T11:27:47+08:00",
+      "title": "书架同排控件字号和字重统一",
+      "detail": "197 对照原图，排序摘要由 13 fp 常规改为和筛选一致的 14 fp 中等。安装候选后对照实拍，排序及筛选均可展开和关闭，原电源已恢复。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "library-category-settings-device-verified-20261106",
       "at": "2026-11-06T11:19:26+08:00",
