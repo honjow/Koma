@@ -24,6 +24,7 @@ export function sourceRequestWithHostFeatures(requestJson: string, challengeCaus
       features.push('source_public_cover_user_agent_v1')
       features.push('source_public_cover_client_headers_v1')
       features.push('source_filter_search_without_query_v1')
+      features.push('source_listing_filter_scope_v1')
       if ((deviceInfo?.sdkApiVersion ?? 0) >= COPY_MANGA_API_MIN_SDK) features.push(COPY_MANGA_API_FEATURE)
       if (challengeCause) features.push('source_http_challenge_cause_v1')
       if (detailChapterContext) features.push('source_detail_chapter_context_v1')

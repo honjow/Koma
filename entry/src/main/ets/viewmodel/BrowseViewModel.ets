@@ -53,6 +53,7 @@ export interface SourceListingDescriptor {
   id: string
   name: string
   kind: string
+  supportsFilters?: boolean
 }
 
 export interface BrowseSourceSectionState {
@@ -356,11 +357,13 @@ function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): S
       if (name === undefined) {
         return
       }
-      listings.push({
+      const descriptor: SourceListingDescriptor = {
         id,
         name,
         kind: optionalString(listing['kind']) ?? 'custom',
-      })
+      }
+      if (listing['supportsFilters'] === false) descriptor.supportsFilters = false
+      listings.push(descriptor)
     })
   }
   return listings
@@ -833,7 +836,8 @@ export class BrowseViewModel {
       let listingResult: SourceMangaList | undefined = undefined
       if (listing !== undefined) {
         challengeCurrent = this.webChallengeGuard('browse')
-        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, filters, challengeCurrent, operationGuardId)
+        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, filters,
+          challengeCurrent, operationGuardId, listing.supportsFilters !== false)
         if (requestId !== this.browseRequestId) {
           return
         }
@@ -966,6 +970,7 @@ export class BrowseViewModel {
   }
 
   private async applyBrowseFilterValues(nextValues: SourceMangaListFilters): Promise<void> {
+    if (!this.browseListingAllowsFilters()) return
     this.saveSourceFilterValues('browse', nextValues)
     this.browseFilterValues = nextValues
     const listing = this.currentListing()
@@ -975,7 +980,7 @@ export class BrowseViewModel {
   }
 
   async resetBrowseFilters(): Promise<void> {
-    if (this.selectedSource === undefined) {
+    if (this.selectedSource === undefined || !this.browseListingAllowsFilters()) {
       return
     }
     const nextValues = this.defaultSourceFilterValues(this.filters, '')
@@ -1362,6 +1367,11 @@ export class BrowseViewModel {
     return this.loadMangaListing(source, section === 'latest' ? 'listing:latest' : 'listing:popular', page)
   }
 
+  browseListingAllowsFilters(listingId: string = this.selectedListingId): boolean {
+    return this.listings.find((listing: SourceListingDescriptor): boolean => listing.id === listingId)
+      ?.supportsFilters !== false
+  }
+
   async loadMangaListing(
     source: SourceRuntimeRegistryInstalledSourceSummary,
     listingId: string,
@@ -1371,6 +1381,7 @@ export class BrowseViewModel {
     filters: SourceFilter[] = this.filters,
     isActive: (() => boolean) | undefined = undefined,
     operationGuardId?: string,
+    listingAllowsFilters: boolean = this.browseListingAllowsFilters(listingId),
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: this.pageCursor(page, cursor),
@@ -1379,7 +1390,7 @@ export class BrowseViewModel {
     const args: SourceMangaListArgs = {
       listingId,
       page: pageArg,
-      filters: this.filterValuesForQuery(filterValues, '', filters),
+      filters: listingAllowsFilters ? this.filterValuesForQuery(filterValues, '', filters) : {},
     }
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page, isActive, operationGuardId)
   }

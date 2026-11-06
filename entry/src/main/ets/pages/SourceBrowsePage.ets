@@ -373,6 +373,7 @@ export struct SourceBrowsePage {
   }
 
   private runtimeFilters(): SourceFilter[] {
+    if (!this.hasSearchFilterQuery() && !this.viewModel.browseListingAllowsFilters()) return []
     return sourceFiltersForQuery(this.viewModel.filters, this.chrome.query, this.viewModel.useSearchForFilters)
   }
 
@@ -387,6 +388,7 @@ export struct SourceBrowsePage {
   }
 
   private openFilters(): void {
+    if (!this.hasRuntimeFilters()) return
     if (this.viewModel.useSearchForFilters) void this.viewModel.ensureSearchFilters(this.currentSource())
     this.filtersShown = true
     void this.loadFilterData()
@@ -418,7 +420,7 @@ export struct SourceBrowsePage {
     this.openFilters()
   }
 
-  @Monitor('viewModel.filters')
+  @Monitor('viewModel.filters', 'viewModel.selectedListingId')
   private syncTitleActionsFromViewModel(): void {
     this.syncTitleActions()
   }
@@ -661,7 +663,8 @@ export struct SourceBrowsePage {
       title: s('source_browse_empty_results_title'),
       message: s('source_browse_empty_results_message'),
       actionLabel: this.shouldOfferSearchFromEmptyState() ? s('tab_search') : s('common_reset'),
-      showAction: this.shouldOfferSearchFromEmptyState() || this.viewModel.filters.length > 0,
+      showAction: this.shouldOfferSearchFromEmptyState() ||
+        (this.viewModel.browseListingAllowsFilters() && this.viewModel.filters.length > 0),
       action: () => {
         if (this.shouldOfferSearchFromEmptyState()) {
           this.onSearchRequested(this.currentSource())

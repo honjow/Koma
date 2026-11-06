@@ -119,3 +119,34 @@ test('filter-only search uses search scope through first-page retry and cursor c
   assert.equal(vm.hasActiveSearch, false)
   assert.equal(calls.length, 3)
 })
+
+test('a listing can omit filters without changing the saved values or other listings', async () => {
+  const src = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/viewmodel/BrowseViewModel.ets'), 'utf8')
+  const ast = ts.createSourceFile('model.ts', src, ts.ScriptTarget.Latest, true)
+  const model = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
+  const methods = ['browseListingAllowsFilters', 'loadMangaListing', 'pageCursor']
+  const body = methods.map(name => model.members.find(node => node.name?.text === name).getText(ast)).join('\n')
+  const parse = ast.statements.find(node => node.name?.text === 'parseSourceListingsFromResponse').getText(ast)
+  const output = ts.transpileModule(`export ${parse}\nexport class Model { ${body} }`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const exports = {}
+  new Function('exports', 'itemRecord', 'optionalString', 'normalizeSourceDisplayText',
+    'SOURCE_OPERATION_PAGE_SIZE', output)(
+    exports, value => value, value => typeof value === 'string' ? value : undefined, value => value, 20)
+  const listings = exports.parseSourceListingsFromResponse({ ok: true, data: { listings: [
+    { id: 'popular', name: 'Popular' }, { id: 'latest', name: 'Latest', supportsFilters: false },
+  ] } })
+  const calls = []
+  const vm = Object.assign(new exports.Model(), {
+    listings, browseFilterValues: { genre: 'mystery' }, filterValuesForQuery: values => values,
+    runSourceOperation: async (_id, _operation, args) => calls.push([args.listingId, args.page.cursor, args.filters]),
+  })
+  const source = { sourceId: 'source' }
+  await vm.loadMangaListing(source, 'popular', 1)
+  await vm.loadMangaListing(source, 'latest', 2, 'latest-page-2')
+  await vm.loadMangaListing(source, 'popular', 1)
+  assert.deepEqual(calls, [
+    ['popular', null, { genre: 'mystery' }], ['latest', 'latest-page-2', {}], ['popular', null, { genre: 'mystery' }],
+  ])
+})

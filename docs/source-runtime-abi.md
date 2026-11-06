@@ -53,6 +53,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 `source_filter_search_without_query_v1` 允许书源用 `get_filters` 的 `data.useSearchForFilters: true` 将筛选交给 `search`。筛选项声明 `scope: "search"`，基础与延迟 schema 保持同一作用域。用户选择或提交筛选时，宿主可发送 `args.query: ""`，分页、重试和网页验证仍使用同一搜索上下文。普通热门、最近更新等列表继续各用原入口。清空关键词或重置空词筛选时返回未筛选状态。旧宿主没有此声明，源保留原 schema。
 
+`source_listing_filter_scope_v1` 支持 `get_listings` 的栏目声明 `supportsFilters: false`。宿主在该栏目不显示浏览筛选，并发送空 `args.filters`，同时保留已保存的其他栏目筛选。关键词搜索和专用筛选搜索独立生效。省略此属性的栏目沿用原行为。
+
 是否允许某项操作仍由当前源声明、真实导出和准入共同决定；原生有映射不代表所有源实现。测试专用导出不构成产品能力。响应沿 NativeSourceRuntime 的 ok/operation/data/error/reasonCode/hostHints 合同，由服务及实际 DTO 消费者校验，不凭字段存在冒调用通过。
 
 ## 宿主边界
