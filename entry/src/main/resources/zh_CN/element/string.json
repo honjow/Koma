@@ -2392,7 +2392,7 @@
     {"name": "device_sync_keep_local_setting", "value": "保留本机设置"},
     {"name": "device_sync_upload_local_setting", "value": "同步本机值"},
     {"name": "device_sync_summary_retained", "value": "本机保留 %s 项"},
-    {"name": "device_sync_retained_setting_detail", "value": "同步端已删除的全局设置保留本机值；选择「同步本机值」可重新共享。其他未选择的差异暂缓。"}
+    {"name": "device_sync_retained_setting_detail", "value": "同步端已删除的全局设置保留本机值；选择「同步本机值」可重新共享。其他未选择的差异暂缓。"},
     {"name": "source_login", "value": "登录"},
     {"name": "source_account_settings", "value": "账号管理"},
     {"name": "source_account_switch", "value": "更换账号"},

@@ -2392,7 +2392,7 @@
     {"name": "device_sync_keep_local_setting", "value": "Keep the local setting"},
     {"name": "device_sync_upload_local_setting", "value": "Share the local value"},
     {"name": "device_sync_summary_retained", "value": "Keep %s locally"},
-    {"name": "device_sync_retained_setting_detail", "value": "Global settings deleted from sync keep their local values. Choose “Share the local value” to share them again. Other unresolved differences are deferred."}
+    {"name": "device_sync_retained_setting_detail", "value": "Global settings deleted from sync keep their local values. Choose “Share the local value” to share them again. Other unresolved differences are deferred."},
     {"name": "source_login", "value": "Log in"},
     {"name": "source_account_settings", "value": "Account management"},
     {"name": "source_account_switch", "value": "Switch account"},
