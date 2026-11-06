@@ -16,8 +16,7 @@ if [ ! -x "$hvigorw" ]; then
   exit 1
 fi
 
-scripts/check-public-build-profile.sh --head
-python3 scripts/check_i18n_duplicates.py
+bash scripts/check_release_preflight.sh
 
 "$hvigorw" --no-daemon --warn --mode module \
   -p "product=$product" \

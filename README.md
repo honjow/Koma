@@ -38,16 +38,17 @@ git clone --recurse-submodules https://github.com/honjow/Koma.git
 cd Koma
 ```
 
-已克隆仓库可在根目录执行 `git submodule update --init --recursive` 补齐依赖。共享阅读器与原生依赖均在 `third_party` 中，由仓库固定提交，不需要另行准备同级目录。
+已克隆仓库可在根目录执行 `git submodule update --init --recursive` 补齐 `third_party` 中的依赖。GitHub 构建会同步共享阅读器的 `main`；本地也可执行 `git submodule update --remote --checkout -- third_party/reader-kit` 同步。
 
 用 DevEco Studio 打开仓库根目录，等待依赖同步后构建。也可在已配置 DevEco 工具环境的终端执行：
 
 ```sh
 ohpm install --all
+bash scripts/check_release_preflight.sh
 hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-daemon
 ```
 
-未签名产物位于 `entry/build/default/outputs/default/entry-default-unsigned.hap`。运行到设备需在 DevEco Studio 中配置自己的签名；本地签名配置与公开构建配置的分离方式见[本地构建脚本](scripts/setup-local-build-profile.sh)。
+未签名产物位于 `entry/build/default/outputs/default/entry-default-unsigned.hap`。配置本机签名后，可用 [本地发行构建脚本](scripts/build_release_artifact.sh) 在构建前自动执行同一套检查。签名配置的设置方式见 [本地签名配置脚本](scripts/setup-local-build-profile.sh)。
 
 ## 添加书源
 
