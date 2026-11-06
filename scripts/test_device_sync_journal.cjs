@@ -21,6 +21,7 @@ function transportFixture() {
   const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }
   const directory = draft.directory + '/'
   const root = directory + 'koma-device-sync-v2/'
+  const writerRoot = directory + 'koma-device-sync-v3/'
   const legacy = directory + 'koma-device-sync-v1/'
   const files = new Map()
   const directories = new Set([directory, root])
@@ -39,16 +40,18 @@ function transportFixture() {
       assert.equal(options.maxRedirects, 0)
       if (method === 'PROPFIND') {
         if (!directories.has(address)) return response(404)
-        const names = options.header.Depth === '0' ? [] : filterListing([...files.keys()]
-          .filter(name => name.startsWith(root)).map(name => name.slice(root.length)))
+        const names = options.header.Depth === '0' ? [] : filterListing([...files.keys(), ...directories]
+          .filter(name => name.startsWith(address) && name !== address &&
+            !name.slice(address.length).replace(/\/$/, '').includes('/')).map(name => name.slice(address.length)))
         return response(207, '<d:multistatus xmlns:d="DAV:">' + resource(address, true) +
-          names.map(name => resource(root + name, false)).join('') + '</d:multistatus>')
+          names.map(name => resource(address + name, directories.has(address + name))).join('') + '</d:multistatus>')
       }
       if (method === 'MKCOL') { directories.add(address); return response(201) }
       if (method === 'GET') return files.has(address) ? response(200, files.get(address)) : response(404)
       if (method === 'DELETE') { files.delete(address); return response(204) }
       if (method === 'PUT') {
-        const isCommit = journal.SYNC_COMMIT_NAME.test(address.slice(root.length))
+        const isCommit = journal.SYNC_COMMIT_NAME.test(address.slice(root.length)) ||
+          (address.startsWith(writerRoot) && /\/[0-9]{16}-[0-9a-f]{64}\.json$/.test(address))
         if (isCommit) await beforeCommit(address, options.extraData)
         const failure = isCommit ? faults.shift() : undefined
         if (failure === 'before-accept') throw Object.assign(new Error('offline'), { code: 2300007 })
@@ -76,7 +79,11 @@ function transportFixture() {
     files.set(root + name, body)
     return name
   }
-  return { draft, root, legacy, files, directories, trace, faults, DeviceSyncWebDav, seedObject, seedCommit,
+  class V2WebDav extends DeviceSyncWebDav {
+    constructor(draft, witnesses, space) { super(draft, witnesses, space) }
+  }
+  return { draft, root, writerRoot, legacy, files, directories, trace, faults,
+    DeviceSyncWebDav: V2WebDav, WriterWebDav: DeviceSyncWebDav, seedObject, seedCommit,
     provider: witnesses => new DeviceSyncWebDav(draft, witnesses),
     listing: filter => { filterListing = filter }, onCommit: hook => { beforeCommit = hook } }
 }
@@ -90,6 +97,115 @@ function manifest(space, datasets, revision = 1) {
 }
 const pageNumber = data.syncKey(['global', 'page-number'])
 const animation = data.syncKey(['global', 'animation'])
+
+test('independent writer publications receive chapter and page without shared conditional writes', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.WriterWebDav)
+  const a = fixture.replica(A)
+  const b = fixture.replica(B)
+  const source = data.MANGADEX_SYNC_SOURCE
+  const work = 'mdx:11111111-1111-1111-1111-111111111111'
+  const chapter = 'ch:22222222-2222-2222-2222-222222222222'
+  const recent = data.syncKey(['recent', source, work])
+  const position = data.syncKey(['position', source, work, chapter])
+  const chapterValue = JSON.stringify({ title: 'Public work', sourceName: 'MangaDex', sourceVersion: '0.1.25',
+    chapter, chapterTitle: 'Chapter', date: 123 })
+  const pageValue = JSON.stringify({ page: 5, total: 9, pageTable: 'a'.repeat(64) })
+  const connect = async replica => {
+    await replica.engine.testConnection(f.draft)
+    const preview = await replica.engine.prepare(f.draft, ['reading', 'reader-settings'])
+    await replica.engine.confirm(preview.token, [])
+  }
+  await connect(a)
+  await connect(b)
+  a.values.get('reading').set(recent, chapterValue)
+  a.values.get('reading').set(position, pageValue)
+  a.engine.recordEdits('reading', [{ key: recent, kind: 'set', value: chapterValue },
+    { key: position, kind: 'set', value: pageValue }])
+  b.values.get('reader-settings').set(pageNumber, 'false')
+  await Promise.all([a.engine.syncNow(), b.engine.syncNow()])
+  await b.engine.syncNow()
+  assert.equal(b.values.get('reading').get(recent), chapterValue)
+  assert.equal(b.values.get('reading').get(position), pageValue)
+  await a.engine.syncNow()
+  assert.equal(a.values.get('reader-settings').get(pageNumber), 'false')
+  const own = await new f.WriterWebDav(f.draft, [], undefined, B).readManifest(noop)
+  assert.equal(own.own.datasets.some(row => row.id === 'reading'), false)
+  assert.equal(f.trace.some(row => row.method === 'PUT' &&
+    ('If-Match' in row.headers || 'If-None-Match' in row.headers)), false)
+  assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
+})
+
+test('an empty next segment preserves the last complete publication on a fresh client', async () => {
+  const f = transportFixture()
+  const writer = new f.WriterWebDav(f.draft, [], undefined, A)
+  const ref = dataset('reader-settings', pageNumber, A, 'false')
+  for (const object of ref.objects) await writer.storeObject(object, noop)
+  const last = manifest(writer.spaceId(), [ref.ref], 128)
+  await writer.publish(last, '', noop, noop, ['reader-settings'])
+  f.directories.add(f.writerRoot + A + '/00000000000001/')
+  const reader = new f.WriterWebDav(f.draft, [], undefined, B)
+  assert.equal((await reader.readManifest(noop)).manifest.revision, 128)
+})
+
+test('a known public chapter can publish history while its exact page waits for proof', async () => {
+  const f = transportFixture()
+  const writer = engineFixture(f.WriterWebDav).replica(A)
+  await writer.engine.testConnection(f.draft)
+  await writer.engine.confirm((await writer.engine.prepare(f.draft, ['reading'])).token, [])
+  const source = data.MANGADEX_SYNC_SOURCE
+  const work = 'mdx:11111111-1111-1111-1111-111111111111'
+  const chapterId = 'ch:22222222-2222-2222-2222-222222222222'
+  const capture = { id: '33333333-3333-3333-3333-333333333333', space: writer.engine.active().space,
+    source, work, chapterId, comicId: source + ':' + work, page: 5, total: 9, date: 123,
+    descriptorHash: 'a'.repeat(64), positionSeen: [], recentSeen: [], recentCleared: [], readSeen: [],
+    complete: false, observedActions: [] }
+  const runtime = runtimeFixture({
+    './DeviceSyncSignals': compile('DeviceSyncSignals'),
+    './DeviceSyncPublicSource': { matchesPublicSyncPageHash: () => false },
+    '../model/ReaderSessionStore': { appReaderSessionStore: () => ({ flush: () => true,
+      pendingDeviceSyncActions: () => [], pendingDeviceSyncPositions: () => [capture],
+      getProgress: () => ({ chapterId }) }) },
+  })
+  runtime.context = { filesDir: '/synthetic-reader' }
+  runtime.engine = writer.engine
+  runtime.owners = {
+    readingAcknowledged: () => false,
+    publicSources: {
+      work: async () => ({ title: 'Public work', sourceName: 'MangaDex', sourceVersion: '0.1.25' }),
+      chapter: async () => ({ title: 'Chapter 2', pages: 9, pageTable: 'b'.repeat(64) }),
+    },
+  }
+  await runtime.recordPositions()
+  const recent = writer.engine.knownReadingValue(data.syncKey(['recent', source, work]))
+  assert.equal(JSON.parse(recent).savedPage, 5)
+  assert.equal(writer.engine.knownReadingValue(data.syncKey(['position', source, work, chapterId])), undefined)
+  assert.equal(writer.store.load().readingReceipts[0].key.startsWith('history:'), true)
+})
+
+test('upgrading without local edits preserves legacy facts in a writer publication', async () => {
+  const f = transportFixture()
+  const v2 = f.provider()
+  const old = dataset('reader-settings', pageNumber, A, 'false')
+  for (const object of old.objects) f.seedObject(object)
+  const oldName = f.seedCommit(manifest(v2.spaceId(), [old.ref]))
+  const reader = engineFixture(f.WriterWebDav).replica(B)
+  await reader.engine.testConnection(f.draft)
+  await reader.engine.confirm((await reader.engine.prepare(f.draft, ['reader-settings'])).token, [])
+  const current = await new f.WriterWebDav(f.draft, [], undefined, B).readManifest(noop)
+  assert.equal(current.own.datasets[0].id, 'reader-settings')
+  assert.equal(reader.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
+  f.files.delete(f.root + oldName)
+  reader.values.get('reader-settings').set(pageNumber, 'true')
+  await assert.rejects(reader.engine.syncNow(), /sync_legacy_unavailable/)
+  const reopened = await new f.WriterWebDav(f.draft, reader.engine.active().frontier, undefined, B).readManifest(noop)
+  assert.equal(reopened.warning, 'sync_legacy_unavailable')
+  const ref = reopened.own.datasets.find(row => row.id === 'reader-settings')
+  const values = (await Promise.all(ref.shards.map(async shard => wire.decodeSyncShard('reader-settings', shard,
+    await new f.WriterWebDav(f.draft, [], undefined, B).readObject(shard, noop), data.syncBucketKey)))).flat()
+  assert.equal(facts.syncVisibleValue(values.find(row => row.key === pageNumber)), 'true')
+})
 
 test('connection creates the selected directory and cleans its probe without ETag or conditional-write support', async () => {
   const f = transportFixture()

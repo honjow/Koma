@@ -1,6 +1,9 @@
 import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
+import { common } from '@kit.AbilityKit'
 import { webview } from '@kit.ArkWeb'
+import { uniformTypeDescriptor as utd } from '@kit.ArkData'
+import { systemShare } from '@kit.ShareKit'
 import { BlurStrategy, hdsMaterial, HdsNavDestination, ScrollEffectType } from '@kit.UIDesignKit'
 import { MangaWebView } from '../components/MangaWebView'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
@@ -19,7 +22,9 @@ export struct MangaWebPage {
   @Local private pageTitle: string = ''
   @Local private canBack: boolean = false
   @Local private canForward: boolean = false
+  @Local private canUsePageLink: boolean = false
   private controller: webview.WebviewController = new webview.WebviewController()
+  private linkShareController?: systemShare.ShareController
   private scroller: Scroller = new Scroller()
   private webDiagnostic: DiagnosticOperation | undefined = undefined
   private documentRevision: number = 0
@@ -103,12 +108,61 @@ export struct MangaWebPage {
 
   private updateNavState(): void {
     if (!this.controllerReady) return
+    this.canUsePageLink = this.currentPageLink() !== undefined
     try {
       this.canBack = this.controller.accessBackward()
       this.canForward = this.controller.accessForward()
     } catch (_error) {
       this.canBack = false
       this.canForward = false
+    }
+  }
+
+  private currentPageLink(): string | undefined {
+    if (!this.controllerReady || this.params.sourceSession !== undefined) return undefined
+    try {
+      return mangaHttpUrl(this.controller.getUrl())
+    } catch (_error) {
+      return undefined
+    }
+  }
+
+  private async sharePageLink(): Promise<void> {
+    const url = this.currentPageLink()
+    if (url === undefined || this.linkShareController !== undefined) return
+    let controller: systemShare.ShareController | undefined
+    const dismissed = (): void => {
+      controller?.off('dismiss', dismissed)
+      if (this.linkShareController === controller) this.linkShareController = undefined
+    }
+    try {
+      controller = new systemShare.ShareController(new systemShare.SharedData({
+        utd: utd.UniformDataType.HYPERLINK, content: url, title: this.pageTitle || this.params.title,
+      }))
+      this.linkShareController = controller
+      controller.on('dismiss', dismissed)
+      await controller.show(this.getUIContext().getHostContext() as common.UIAbilityContext, {
+        selectionMode: systemShare.SelectionMode.SINGLE,
+        previewMode: systemShare.SharePreviewMode.DEFAULT,
+      })
+    } catch (_error) {
+      dismissed()
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({
+        message: AppStrings.get('manga_detail_share_failed'),
+      }))
+    }
+  }
+
+  private async openPageInBrowser(): Promise<void> {
+    const url = this.currentPageLink()
+    if (url === undefined) return
+    try {
+      const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+      await context.startAbility({ action: 'ohos.want.action.viewData', uri: url })
+    } catch (_error) {
+      this.getUIContext().getPromptAction().showToast(komaToastOptions({
+        message: AppStrings.get('manga_detail_open_browser_failed'),
+      }))
     }
   }
 
@@ -146,6 +200,21 @@ export struct MangaWebPage {
         'action': () => { void this.completeSourceSession() },
       }
       items.unshift({ 'content': complete })
+    } else {
+      // HDS uses the third slot for overflow, keeping the two history actions visible.
+      const share: Record<string, Object> = {
+        'label': AppStrings.get('manga_detail_menu_share_link'),
+        'icon': $r('sys.symbol.share'),
+        'isEnabled': this.canUsePageLink,
+        'action': (): void => { void this.sharePageLink() },
+      }
+      const browser: Record<string, Object> = {
+        'label': AppStrings.get('manga_detail_menu_open_browser'),
+        'icon': $r('sys.symbol.worldclock'),
+        'isEnabled': this.canUsePageLink,
+        'action': (): void => { void this.openPageInBrowser() },
+      }
+      items.push({ 'content': share }, { 'content': browser })
     }
     return { 'value': items, 'maxCount': 3 }
   }

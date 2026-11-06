@@ -17,6 +17,8 @@ export interface SyncLocalSnapshot {
   values: SyncLocalValue[]
   revision: string
   skipped: number
+  readingOutsideScope?: number
+  readingUnverified?: number
   protectedKeys?: string[]
   // Fixed host settings keep their actual local value when their shared record
   // is deleted. This does not protect normal edits or an explicit re-upload.
@@ -125,6 +127,7 @@ export interface SyncProbeRecord {
 export interface SyncLocalDocument {
   schema: number
   replica: string
+  publicationWriter?: string
   counter: number
   active?: SyncSavedConnection
   pendingConfiguration?: SyncSavedConfiguration
@@ -174,7 +177,8 @@ export class DeviceSyncStorage {
 
   update(change: (state: SyncLocalDocument) => void): void {
     const current = this.load()
-    const state: SyncLocalDocument = { schema: current.schema, replica: current.replica, counter: current.counter,
+    const state: SyncLocalDocument = { schema: current.schema, replica: current.replica,
+      publicationWriter: current.publicationWriter, counter: current.counter,
       active: current.active === undefined ? undefined : copySyncConnection(current.active),
       pendingConfiguration: current.pendingConfiguration === undefined ? undefined : {
         credential: current.pendingConfiguration.credential, endpointIdentity: current.pendingConfiguration.endpointIdentity,

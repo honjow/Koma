@@ -51,6 +51,7 @@ export default class EntryAbility extends UIAbility {
   private keyboardHeightCallback: ((height: number) => void) | undefined = undefined
   private startupReady: boolean = false
   private startupPromise: Promise<void> = Promise.resolve()
+  private syncForegroundGeneration: number = 0
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     DiagnosticLogger.configure(false)
     DiagnosticLogger.initializePersistentSink(this.context)
@@ -180,6 +181,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    this.syncForegroundGeneration++
     DiagnosticLogger.info('app', 'destroy', '')
     DiagnosticLogger.closePersistentSink()
     this.unbindLayoutWindow()
@@ -195,8 +197,11 @@ export default class EntryAbility extends UIAbility {
     DiagnosticLogger.info('app', 'foreground', '')
     updateReaderLabForeground(true, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onForeground()
+    const syncGeneration = ++this.syncForegroundGeneration
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
-      void this.startupPromise.then((): void => { appDeviceSync.onForeground(true) })
+      void this.startupPromise.then((): void => {
+        if (this.syncForegroundGeneration === syncGeneration) appDeviceSync.onForeground(true)
+      })
     }
     if (!shouldSuppressKomaDeviceVerificationBackgroundSideEffects()) {
       setTimeout(() => {
@@ -206,6 +211,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onBackground(): void {
+    this.syncForegroundGeneration++
     DiagnosticLogger.info('app', 'background', '')
     updateReaderLabForeground(false, this.context.applicationInfo.debug)
     AppForegroundStateBridge.onBackground()

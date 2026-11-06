@@ -22,6 +22,7 @@ export interface SyncRecentValue extends SyncWorkLabel {
   chapter: string
   chapterTitle: string
   date: number
+  savedPage?: number
 }
 
 export interface SyncPositionValue {
@@ -141,8 +142,11 @@ function validShelfValue(parts: string[], value: Object): boolean {
 
 function validReadingValue(parts: string[], value: Object): boolean {
   if (parts[0] === 'recent') {
-    if (!onlyFields(value, 'chapter,chapterTitle,date,sourceName,sourceVersion,title')) return false
     const row = value as SyncRecentValue
+    const fields = row?.savedPage === undefined ? 'chapter,chapterTitle,date,sourceName,sourceVersion,title' :
+      'chapter,chapterTitle,date,savedPage,sourceName,sourceVersion,title'
+    if (!onlyFields(value, fields) || row.savedPage !== undefined &&
+      (!Number.isSafeInteger(row.savedPage) || row.savedPage < 0 || row.savedPage >= 10000)) return false
     return validLabel(row, parts[1]) && isSourceWork([parts[0], parts[1], parts[2], row.chapter], true) &&
       typeof row.chapterTitle === 'string' &&
       (row.chapterTitle === '' || row.chapterTitle === syncPublicLabel(row.chapterTitle, 240)) && validateDate(row.date)

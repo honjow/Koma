@@ -263,7 +263,7 @@ export struct HistoryPage {
         .replace('%s', `${item.chapterCount}`)
     }
     const page = item.progress.pageIndex + 1
-    const total = item.progress.totalPages > 0 ? item.progress.totalPages : item.pageCount
+    const total = item.progress.totalPages > 0 ? item.progress.totalPages : item.sourceHistory !== undefined ? 0 : item.pageCount
     // A migrated position knows the corresponding chapter before the new
     // edition's images are loaded. Do not present that unknown size as "1 / 0".
     if (total <= 0) return this.chapterText(item)

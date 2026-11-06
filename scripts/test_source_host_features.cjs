@@ -28,7 +28,10 @@ function fileCache(directory) {
     writeSync: (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes)),
     unlinkSync: fs.unlinkSync, unlink: p => fs.promises.unlink(p), listFile: p => fs.promises.readdir(p),
     readTextSync: p => fs.readFileSync(p, 'utf8') }
-  const { RemoteImageCacheStore } = load('model/RemoteImageCacheStore.ets', { '@kit.CoreFileKit': { fileIo: io } })
+  const imageFileContent = functions('model/ImageFileContent.ets', ['isAvifFileType'], {})
+  const { RemoteImageCacheStore } = load('model/RemoteImageCacheStore.ets', {
+    '@kit.CoreFileKit': { fileIo: io }, './ImageFileContent': imageFileContent,
+  })
   return { io, cache: new RemoteImageCacheStore(directory) }
 }
 
@@ -342,15 +345,8 @@ test('source text survives persistence and session cloning, then rebuilds throug
   spec.paragraphs[0] = 'Changed outside the prepared session'
   assert.equal(config.pageTextPages[0].paragraphs[0], '甲: 原始评论 😀')
   const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'koma-text-cache-'))
-  const io = { accessSync: fs.existsSync, mkdirSync: p => fs.mkdirSync(p, { recursive: true }),
-    OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 }, openSync: p => ({ fd: fs.openSync(p, 'w') }),
-    closeSync: file => fs.closeSync(file.fd), statSync: fs.statSync, renameSync: fs.renameSync,
-    writeSync: (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes)),
-    unlinkSync: fs.unlinkSync, unlink: p => fs.promises.unlink(p), listFile: p => fs.promises.readdir(p),
-    readTextSync: p => fs.readFileSync(p, 'utf8') }
   try {
-    const { RemoteImageCacheStore } = load('model/RemoteImageCacheStore.ets', { '@kit.CoreFileKit': { fileIo: io } })
-    const cache = new RemoteImageCacheStore(directory)
+    const { cache } = fileCache(directory)
     let renders = 0
     const adapter = functions('model/ReaderPageSourceAdapter.ets', ['isLocalFileUri', 'isRemoteHttpUrl', 'readerPageIdAt',
       'createReaderPageRenderSourceWithOfflinePath', 'cacheSourceTextPageImage', 'fetchAndCacheReaderRemoteSource'], {

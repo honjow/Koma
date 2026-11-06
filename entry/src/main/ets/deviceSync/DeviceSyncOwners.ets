@@ -26,7 +26,7 @@ import { sourceLibraryComicId } from '../model/SourceLibraryComic'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { SourceIndexRepository, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncEngine'
-import { SyncFact, SyncGroup } from './DeviceSyncFacts'
+import { SyncFact, SyncGroup, syncVisibleValue } from './DeviceSyncFacts'
 import {
   SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
   SyncWorkLabel, syncChapterBelongsToSource, syncKey, syncKeyParts, syncKnownSource, syncPublicLabel, syncSearchIdentity,
@@ -63,6 +63,7 @@ interface SyncResumeProof {
   chapterId: string
   pageTable: string
   received?: boolean
+  descriptorHash?: string
 }
 
 export interface SyncShelfRemoval {
@@ -354,27 +355,38 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         retainedDeletionKeys: values.filter((item: SyncLocalValue): boolean => syncKeyParts(item.key)[0] === 'global')
           .map((item: SyncLocalValue): string => item.key) }
     }
+    let readingOutsideScope = 0
+    let readingUnverified = 0
+    const protectedKeys = new Set<string>()
+    const knownFacts = this.storage.load().active?.groups.find((item: SyncGroupState): boolean => item.id === 'reading')?.facts ?? []
+    const knownValues = new Map<string, string>()
+    knownFacts.forEach((fact: SyncFact): void => {
+      const value = syncVisibleValue(fact)
+      if (value !== undefined) knownValues.set(fact.key, value)
+    })
     for (const progress of reading.progress) {
       const identity = identities.get(progress.comicId)
       if (identity === undefined || !syncChapterBelongsToSource(identity.source, identity.work, progress.chapterId)) {
-        skipped++
+        readingOutsideScope++
+        continue
+      }
+      const recentKey = syncKey(['recent', identity.source, identity.work])
+      const known = knownValues.get(recentKey)
+      const saved = known === undefined ? undefined : JSON.parse(known) as SyncRecentValue
+      if (saved?.chapter === progress.chapterId && saved.date === validDate(progress.updatedAt) && known !== undefined) {
+        values.push({ key: recentKey, value: known })
         continue
       }
       const work = await this.publicSources.work(identity.source, identity.work, verify, guard)
       const chapter = work === undefined ? undefined :
         await this.publicSources.chapter(identity.source, identity.work, progress.chapterId, verify, guard)
       if (work === undefined || chapter === undefined) {
-        skipped++
+        if (projection.receivedRecent?.includes(progress.comicId) !== true) protectedKeys.add(recentKey)
+        readingUnverified++
         continue
       }
-      const savedChapter = library.comics.find((item: PersistedComic): boolean => item.id === progress.comicId)
-        ?.chapters.find((item: PersistedChapter): boolean => item.id === progress.chapterId)
-      const recorded = projection.readingProofs.some((item: SyncResumeProof): boolean =>
-        item.comicId === progress.comicId && item.chapterId === progress.chapterId && item.pageTable === chapter.pageTable)
-      if (!recorded && !matchesPublicSyncPages(identity.source, chapter, savedChapter?.pages.map((page: PersistedPage): string => page.uri) ?? [])) {
-        skipped++
-        continue
-      }
+      // A verified public chapter establishes history independently of whether
+      // we can identify the exact edition of its saved page table.
       const value: SyncRecentValue = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
         chapter: progress.chapterId, chapterTitle: chapter.title, date: validDate(progress.updatedAt) }
       row(values, ['recent', identity.source, identity.work], value)
@@ -382,10 +394,21 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     for (const chapter of reading.chapters) {
       const identity = identities.get(chapter.comicId)
       if (identity === undefined || !syncChapterBelongsToSource(identity.source, identity.work, chapter.chapterId)) continue
+      const positionKey = syncKey(['position', identity.source, identity.work, chapter.chapterId])
+      const known = knownValues.get(positionKey)
+      const saved = known === undefined ? undefined : JSON.parse(known) as SyncPositionValue
+      const received = projection.readingProofs.some((item: SyncResumeProof): boolean =>
+        item.received === true && item.comicId === chapter.comicId && item.chapterId === chapter.chapterId)
       const work = await this.publicSources.work(identity.source, identity.work, verify, guard)
       const proof = work === undefined ? undefined :
         await this.publicSources.chapter(identity.source, identity.work, chapter.chapterId, verify, guard)
-      if (proof === undefined || work === undefined) continue
+      if (proof === undefined || work === undefined) {
+        if (chapter.position !== undefined && saved?.page === chapter.position.pageIndex &&
+          saved.total === chapter.position.totalPages && known !== undefined) {
+          values.push({ key: positionKey, value: known })
+        } else if (chapter.position !== undefined && !received) protectedKeys.add(positionKey)
+        continue
+      }
       const label = work.title + ' · ' + proof.title
       for (const kind of ['position', 'read', 'bookmark']) {
         labels[syncKey([kind, identity.source, identity.work, chapter.chapterId])] = label
@@ -399,6 +422,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         (recorded || matchesPublicSyncPages(identity.source, proof, savedChapter?.pages.map((page: PersistedPage): string => page.uri) ?? []))) {
         const value: SyncPositionValue = { page: position.pageIndex, total: proof.pages, pageTable: proof.pageTable }
         row(values, ['position', identity.source, identity.work, chapter.chapterId], value)
+      } else if (position !== undefined && !received) {
+        protectedKeys.add(positionKey)
       }
       if (chapter.isRead) row(values, ['read', identity.source, identity.work, chapter.chapterId], true)
       if (chapter.bookmarked === true) row(values, ['bookmark', identity.source, identity.work, chapter.chapterId], true)
@@ -406,10 +431,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     const space = this.storage.load().active?.space
     const pending = (reading.syncPositions ?? []).filter((capture: SyncReadingCapture): boolean =>
       capture.space === space && !this.readingAcknowledged(capture))
-    const protectedKeys = new Set<string>()
     pending.forEach((capture: SyncReadingCapture): void => {
       protectedKeys.add(syncKey(['position', capture.source, capture.work, capture.chapterId]))
-      protectedKeys.add(syncKey(['recent', capture.source, capture.work]))
+      if (!this.readingHistoryAcknowledged(capture)) protectedKeys.add(syncKey(['recent', capture.source, capture.work]))
       if (capture.complete) protectedKeys.add(syncKey(['read', capture.source, capture.work, capture.chapterId]))
     })
     const actions = (reading.syncActions ?? []).filter((capture: SyncReadingActionCapture): boolean =>
@@ -419,11 +443,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     })
     const archive = this.storage.load().readingRestoreCandidates?.find((candidate: SyncReadingRestoreCandidate): boolean =>
       candidate.space === space)
-    const knownLabels = this.readingLabels(this.storage.load().active?.groups.find((item: SyncGroupState): boolean =>
-      item.id === 'reading')?.facts.map((item: SyncFact): string => item.key) ?? [])
+    const knownLabels = this.readingLabels(knownFacts.map((item: SyncFact): string => item.key))
     for (const key of Object.keys(knownLabels)) if (labels[key] === undefined) labels[key] = knownLabels[key]
     return { values, labels, revision: syncDigest(rawLibrary + rawReading + side + JSON.stringify(archive ?? null)),
-      skipped: skipped + pending.length + actions.length, protectedKeys: Array.from(protectedKeys),
+      skipped: readingOutsideScope + readingUnverified + pending.length + actions.length,
+      readingOutsideScope, readingUnverified: readingUnverified + pending.length + actions.length,
+      protectedKeys: Array.from(protectedKeys),
       restoreEdits: verify && archive !== undefined ? await this.verifiedRestoreEdits(archive, guard) : undefined }
   }
 
@@ -475,6 +500,12 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
 
   readingAcknowledged(capture: SyncReadingCapture): boolean {
     const key = deviceSyncCaptureKey(capture)
+    return this.storage.load().readingReceipts?.some((item: SyncReadingReceipt): boolean =>
+      item.key === key && item.id === capture.id) === true
+  }
+
+  readingHistoryAcknowledged(capture: SyncReadingCapture): boolean {
+    const key = 'history:' + deviceSyncCaptureKey(capture)
     return this.storage.load().readingReceipts?.some((item: SyncReadingReceipt): boolean =>
       item.key === key && item.id === capture.id) === true
   }
@@ -700,7 +731,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       const value = JSON.parse(change.value) as SyncRecentValue
       const known = snapshot.chapters.find((item: ChapterReadingState): boolean => item.comicId === id && item.chapterId === value.chapter)
       const date = validDate(value.date)
-      const progress: ReadingProgress = known?.position !== undefined ? datedProgress(known.position, date) :
+      const exact = known?.position !== undefined && (value.savedPage === undefined || value.savedPage === known.position.pageIndex)
+      const progress: ReadingProgress = exact && known?.position !== undefined ? datedProgress(known.position, date) :
         { comicId: id, chapterId: value.chapter, pageIndex: 0, totalPages: 0, progressRatio: 0,
           completed: known?.isRead === true, updatedAt: date, columnMode: previous?.columnMode }
       snapshot.progress.push(progress)
@@ -874,14 +906,21 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     fs.unlinkSync(this.path(SYNC_JOURNAL))
   }
 
-  rememberLocalReadingProof(comicId: string, chapterId: string, pageTable: string): void {
+  rememberLocalReadingProof(comicId: string, chapterId: string, pageTable: string, descriptorHash: string = ''): void {
     const projection = this.projection()
-    if (projection.readingProofs.some((proof: SyncResumeProof): boolean =>
-      proof.comicId === comicId && proof.chapterId === chapterId && proof.pageTable === pageTable)) return
+    const current = projection.readingProofs.find((proof: SyncResumeProof): boolean =>
+      proof.comicId === comicId && proof.chapterId === chapterId)
+    if (current?.pageTable === pageTable && (descriptorHash === '' || current.descriptorHash === descriptorHash)) return
     projection.readingProofs = projection.readingProofs.filter((proof: SyncResumeProof): boolean =>
       proof.comicId !== comicId || proof.chapterId !== chapterId)
-    projection.readingProofs.push({ comicId, chapterId, pageTable })
+    projection.readingProofs.push({ comicId, chapterId, pageTable, descriptorHash: descriptorHash || undefined })
     writeAppTextFile(this.path(SYNC_PROJECTION), JSON.stringify(projection))
+  }
+
+  verifiedPageTable(comicId: string, chapterId: string, descriptorHash: string): string {
+    if (descriptorHash === '') return ''
+    return this.projection().readingProofs.find((proof: SyncResumeProof): boolean =>
+      proof.comicId === comicId && proof.chapterId === chapterId && proof.descriptorHash === descriptorHash)?.pageTable ?? ''
   }
 
   resumeProof(comicId: string, chapterId: string): string {

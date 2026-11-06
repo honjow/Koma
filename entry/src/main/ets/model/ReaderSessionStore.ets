@@ -1043,15 +1043,19 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
       rows.push(progress)
     })
     if (this.adapter.saveSnapshot !== undefined) {
-      const staged = stageDeviceSyncReading(rows)
+      const chapters = this.listChapterStates()
+      // The most recent progress per book omits earlier chapters read before
+      // this flush. Match captures against the positions being saved per chapter.
+      const staged = stageDeviceSyncReading(chapters.flatMap((chapter: ChapterReadingState): ReadingProgress[] =>
+        chapter.position === undefined ? [] : [chapter.position]))
       const syncPositions = this.syncPositions.filter((item: SyncReadingCapture): boolean =>
-        !deviceSyncReadingAcknowledged(item) && (staged === undefined ||
-          item.comicId !== staged.comicId || item.chapterId !== staged.chapterId || item.space !== staged.space))
-      if (staged !== undefined) syncPositions.push(staged)
+        !deviceSyncReadingAcknowledged(item) && !staged.some((capture: SyncReadingCapture): boolean =>
+          item.comicId === capture.comicId && item.chapterId === capture.chapterId && item.space === capture.space))
+      syncPositions.push(...staged)
       const syncActions = this.syncActions.filter((item: SyncReadingActionCapture): boolean =>
         !deviceSyncReadingActionAcknowledged(item) || syncPositions.length > 0)
       this.adapter.saveSnapshot({ progress: rows, sourceHistory: this.listSourceHistory(),
-        remoteHistory: this.listRemoteHistory(), chapters: this.listChapterStates(), readingSessions: this.listReadingSessions(),
+        remoteHistory: this.listRemoteHistory(), chapters, readingSessions: this.listReadingSessions(),
         syncPositions: syncPositions.length > 0 ? syncPositions : undefined,
         syncActions: syncActions.length > 0 ? syncActions : undefined })
       this.syncPositions = syncPositions

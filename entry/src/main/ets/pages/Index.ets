@@ -1051,7 +1051,10 @@ struct Index {
       config.totalPages < 1 || config.pageUris.length !== config.totalPages) return
     this.readerSessionConfig = cloneReaderSessionConfig(config)
     const sourceRequest = this.activeSourceReaderRequest
-    if (sourceRequest === undefined || sourceRequest.comicId !== target.work) return
+    if (sourceRequest === undefined || sourceRequest.comicId !== target.work) {
+      this.beginShelfReadingSync(this.readerComicForOpen(target.work), target.unit)
+      return
+    }
     const committedRequest = sourceReaderSessionRequestForChapter(sourceRequest, target.unit)
     if (committedRequest === undefined) return
     if (sourceRequest.chapterId === committedRequest.chapterId &&
@@ -1074,6 +1077,12 @@ struct Index {
       comic.sourceKind === ComicSourceKind.KAVITA_REMOTE ||
       comic.sourceKind === ComicSourceKind.OPDS_REMOTE ||
       comic.sourceKind === ComicSourceKind.WEBDAV_REMOTE
+  }
+
+  private beginShelfReadingSync(comic: Comic | undefined, chapter: string): void {
+    if (comic?.sourceRuntimeId === undefined || comic.remoteResourceId === undefined) return
+    appDeviceSync.beginReadingChapter({ comicId: comic.id, sourceId: comic.sourceRuntimeId,
+      mangaId: comic.remoteResourceId, title: comic.title, chapterId: chapter, chapterIds: [chapter] })
   }
 
   private async openReader(
@@ -1148,6 +1157,7 @@ struct Index {
     this.readerSessionConfig = comic === undefined
       ? MOCK_LIBRARY_READER_SESSION
       : this.createReaderSessionConfigForOpen(comic, targetChapterId)
+    this.beginShelfReadingSync(comic, this.readerSessionConfig.chapterId)
     this.readerPageIndex = this.readerSessionStore.openPageIndex(this.readerSessionConfig, this.readerOpenIntent)
     this.readerPreparation = null
     this.captureSharedReaderEntry(shouldPresentReader)
@@ -1240,6 +1250,15 @@ struct Index {
       this.appPathStack.pushPath({ name: RouteName.READER }, true)
     }
     this.readerPreparation = this.prepareSourceReaderSession(nextRequest, openEpoch)
+  }
+
+  private async resumeSourceFromHistory(request: SourceReaderSessionRequest): Promise<void> {
+    const generation = ++this.sourceReaderOpenRequest
+    await appDeviceSync.waitForReadingSync()
+    if (generation !== this.sourceReaderOpenRequest || this.selectedTab !== TabIndex.HISTORY || !this.rootNavigationVisible) return
+    const history = this.readerSessionStore.getSourceHistory(request.comicId)
+    const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
+    if (latest !== undefined) await this.openSourceReader(latest)
   }
 
   private openRemoteHistory(entry: RemoteReadHistoryEntry): void {
@@ -1462,6 +1481,7 @@ struct Index {
     this.readingStatisticsRecorder.close()
     const committed = this.readerSessionPersistenceReady && this.readerSessionStore.flush()
     appDeviceSync.retainBlockedReading()
+    if (committed) appDeviceSync.readerClosed()
     this.cleanupProgressCommitted = committed
     this.readerTrackerProgress?.close(committed)
     this.readerProgressRevision += 1
@@ -3141,7 +3161,7 @@ struct Index {
                   void this.openReader(comicId, chapterId)
                 },
                 onOpenSourceReader: (request: SourceReaderSessionRequest) => {
-                  void this.openSourceReader(request)
+                  void this.resumeSourceFromHistory(request)
                 },
                 onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => {
                   this.openRemoteHistory(entry)
@@ -3217,6 +3237,7 @@ struct Index {
             this.leaveLibrarySelection(index)
             this.selectedTab = index
             this.titleScroller = this.rootTabScrollers[index]
+            if (index === TabIndex.HISTORY) appDeviceSync.historyOpened()
           })
         }
         .titleBar(this.titleBarOptions())

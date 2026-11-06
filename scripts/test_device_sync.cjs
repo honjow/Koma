@@ -170,7 +170,7 @@ test('xkcd page proof crosses nested controls and keeps only direct chapter imag
 
 function runtimeFixture(extra = {}) {
   return compile('DeviceSyncRuntime', {
-    '@kit.NetworkKit': {}, '@kit.ArkTS': {},
+    '@kit.NetworkKit': {}, '@kit.ArkTS': {}, '@kit.BackgroundTasksKit': {},
     '../model/ReaderSessionStore': {}, '../model/SearchHistoryStore': {},
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
     './DeviceSyncEngine': { syncRequiresExplicitReview: () => false },
@@ -406,7 +406,7 @@ test('saved zero-scope configuration survives a new engine and stays off until a
   reopened.connectionDraft = connectionDraft
   await reopened.confirm((await reopened.prepareSaved(['reader-settings'])).token, [])
   assert.equal(reopened.active().enabled, true)
-  assert.equal(reopened.active().automatic, false)
+  assert.equal(reopened.active().automatic, true, 'new connections become automatic only after the confirmed first merge')
   assert.equal(device.store.load().pendingConfiguration, undefined)
   // The Runtime performs a local capture pass before asking the Engine for
   // data. Its first await must share the same cancellation identity.

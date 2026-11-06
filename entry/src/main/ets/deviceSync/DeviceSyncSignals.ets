@@ -85,12 +85,12 @@ export function deviceSyncActionCaptureKey(capture: SyncReadingActionCapture): s
   return JSON.stringify([capture.space, capture.id])
 }
 
-let captureReading: ((rows: ReadingProgress[]) => SyncReadingCapture | undefined) | undefined
+let captureReading: ((rows: ReadingProgress[]) => SyncReadingCapture[]) | undefined
 let capturedReading: ((capture: SyncReadingCapture) => boolean) | undefined
 let captureActions: ((actions: SyncReadingSignal[]) => SyncReadingActionCapture[]) | undefined
 let capturedAction: ((capture: SyncReadingActionCapture) => boolean) | undefined
 
-export function connectDeviceSyncReadingCapture(stage: (rows: ReadingProgress[]) => SyncReadingCapture | undefined,
+export function connectDeviceSyncReadingCapture(stage: (rows: ReadingProgress[]) => SyncReadingCapture[],
   acknowledged: (capture: SyncReadingCapture) => boolean,
   stageActions: (actions: SyncReadingSignal[]) => SyncReadingActionCapture[],
   actionAcknowledged: (capture: SyncReadingActionCapture) => boolean): void {
@@ -100,8 +100,8 @@ export function connectDeviceSyncReadingCapture(stage: (rows: ReadingProgress[])
   capturedAction = actionAcknowledged
 }
 
-export function stageDeviceSyncReading(rows: ReadingProgress[]): SyncReadingCapture | undefined {
-  return captureReading?.(rows)
+export function stageDeviceSyncReading(rows: ReadingProgress[]): SyncReadingCapture[] {
+  return captureReading?.(rows) ?? []
 }
 
 export function deviceSyncReadingAcknowledged(capture: SyncReadingCapture): boolean {

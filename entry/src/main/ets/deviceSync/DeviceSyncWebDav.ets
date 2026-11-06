@@ -24,6 +24,11 @@ export interface SyncRemoteManifest {
   legacyHash?: string
   legacyRevision?: number
   legacySpace?: string
+  writer?: boolean
+  own?: SyncManifest
+  old?: SyncManifest
+  warning?: string
+  ownWritable?: boolean
 }
 
 interface SyncHttpResponse {
@@ -36,6 +41,30 @@ export type SyncRequestGuard = () => void
 
 const MANIFEST = 'manifest.json'
 const OBJECT_NAME = /^object-([1-9][0-9]*)-([0-9a-f]{64})\.json$/
+const WRITER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+const WRITER_NAME = new RegExp('^' + WRITER + '$')
+const WRITER_PUBLICATION = new RegExp('^(' + WRITER + ')/([0-9]{14})/([0-9]{16})-([0-9a-f]{64})\\.json$')
+const SEGMENT_SIZE = 128
+
+function publicationSegment(sequence: number): string {
+  return Math.floor((sequence - 1) / SEGMENT_SIZE).toString().padStart(14, '0')
+}
+
+interface SyncWriterPublication {
+  writer: string
+  manifest: SyncManifest
+}
+
+interface CachedJournalCommit {
+  address: string
+  commit: SyncJournalCommit
+  bytes: number
+}
+
+// Only immutable, hash-validated content is cached. Directory listings and
+// unlisted witnesses are fetched again to distinguish stale listings from loss.
+const journalCache: CachedJournalCommit[] = []
+let journalCacheBytes = 0
 
 export function canonicalSyncDirectory(input: string): string {
   try {
@@ -79,16 +108,23 @@ function conflict(status: number): boolean {
 export class DeviceSyncWebDav {
   private readonly directory: string
   private readonly root: string
+  private readonly writerRoot: string
+  private readonly writer: string
   private readonly authorization: string
   private readonly witnesses: string[]
   private readonly space: string
+  private readonly account: string
   private legacyObjects: SyncShardRef[] = []
 
-  constructor(draft: SyncConnectionDraft, witnesses: string[] = [], space: string = '') {
+  constructor(draft: SyncConnectionDraft, witnesses: string[] = [], space: string = '', writer: string = '') {
     this.directory = canonicalSyncDirectory(draft.directory) + '/'
     this.root = this.directory + SYNC_COLLECTION + '/'
+    this.writerRoot = this.directory + 'koma-device-sync-v3/'
+    if (writer !== '' && !WRITER_NAME.test(writer)) throw new Error('sync_invalid_writer')
+    this.writer = writer
     this.witnesses = witnesses.slice()
     const identity = syncDigest(JSON.stringify([canonicalSyncDirectory(draft.directory), draft.username.trim()]))
+    this.account = identity
     this.space = space || identity.substring(0, 8) + '-' + identity.substring(8, 12) + '-' + identity.substring(12, 16) +
       '-' + identity.substring(16, 20) + '-' + identity.substring(20, 32)
     if (draft.username.includes(':') || /[\r\n\u0000]/.test(draft.username) ||
@@ -117,7 +153,7 @@ export class DeviceSyncWebDav {
     const next = '{"probe":2}'
     let primaryError: Error | undefined
     try {
-      requireSuccess((await this.request('PUT', path, guard, first, '', true)).status)
+      requireSuccess((await this.request('PUT', path, guard, first)).status)
       const loaded = await this.request('GET', path, guard)
       requireSuccess(loaded.status)
       if (loaded.body !== first) throw new Error('sync_response_invalid')
@@ -167,32 +203,45 @@ export class DeviceSyncWebDav {
     }
   }
 
-  async readManifest(guard: SyncRequestGuard, requiredTag: string = ''): Promise<SyncRemoteManifest> {
+  private async readJournal(guard: SyncRequestGuard): Promise<SyncRemoteManifest> {
     const listing = await this.request('PROPFIND', '', guard, buildPropfindBody())
     if (listing.status !== 404) requireSuccess(listing.status)
     if (listing.status !== 404 && listing.status !== 207) throw new Error('sync_collection_listing_failed')
-    const names = new Set<string>(this.witnesses)
+    const listed = new Set<string>()
     if (listing.status === 207) parseWebDavMultiStatus(listing.body, this.root).forEach((item: DavResource): void => {
       if (!item.isCollection && item.href.startsWith(this.root)) {
         const name = item.href.substring(this.root.length)
-        if (SYNC_COMMIT_NAME.test(name)) names.add(name)
+        if (SYNC_COMMIT_NAME.test(name)) listed.add(name)
       }
     })
     const commits = new Map<string, SyncJournalCommit>()
     const parents = new Set<string>()
     let budget = SYNC_MAX_ROUND_BYTES
     // Direct GET witnesses and all parents: a cached/incomplete listing must never erase a seen branch.
-    const pending = Array.from(names).sort()
+    const pending = Array.from(new Set<string>(Array.from(listed).concat(this.witnesses.filter((name: string): boolean =>
+      SYNC_COMMIT_NAME.test(name))))).sort()
     while (pending.length > 0) {
       const name = pending.shift()!
       if (commits.has(name)) continue
       if (!SYNC_COMMIT_NAME.test(name) || commits.size >= 16384) throw new Error('sync_round_too_large')
-      const loaded = await this.request('GET', name, guard)
-      if (loaded.status === 404) throw new Error('sync_space_changed')
-      requireSuccess(loaded.status)
-      budget -= syncUtf8(loaded.body).byteLength
+      const address = this.account + ':' + name
+      let cached = journalCache.find((entry: CachedJournalCommit): boolean => entry.address === address)
+      if (cached === undefined || !listed.has(name)) {
+        const loaded = await this.request('GET', name, guard)
+        if (loaded.status === 404) throw new Error('sync_space_changed')
+        requireSuccess(loaded.status)
+        if (cached === undefined) {
+          cached = { address, commit: decodeSyncCommit(name, loaded.body), bytes: syncUtf8(loaded.body).byteLength }
+          journalCache.push(cached)
+          journalCacheBytes += cached.bytes
+          while (journalCacheBytes > 8 * SYNC_MAX_OBJECT_BYTES || journalCache.length > 4096) {
+            journalCacheBytes -= journalCache.shift()?.bytes ?? 0
+          }
+        } else if (syncCommitName(loaded.body) !== name) throw new Error('sync_invalid_commit')
+      }
+      budget -= cached.bytes
       if (budget < 0) throw new Error('sync_round_too_large')
-      const commit = decodeSyncCommit(name, loaded.body)
+      const commit = cached.commit
       commits.set(name, commit)
       commit.parents.forEach((parent: string): void => { parents.add(parent); if (!commits.has(parent)) pending.push(parent) })
     }
@@ -219,13 +268,138 @@ export class DeviceSyncWebDav {
           frontier: [], journal: true, legacyHash: syncDigest(legacy.body), legacyRevision: old.revision, legacySpace: old.space }
       }
     }
+    return result
+  }
+
+  private async listWriterPath(path: string, guard: SyncRequestGuard): Promise<DavResource[]> {
+    const address = this.writerRoot + path
+    const response = await this.requestAt('PROPFIND', address, guard, buildPropfindBody())
+    if (response.status === 404) return []
+    requireSuccess(response.status)
+    if (response.status !== 207) throw new Error('sync_collection_listing_failed')
+    return parseWebDavMultiStatus(response.body, address)
+      .filter((item: DavResource): boolean => item.href.startsWith(address) && item.href !== address)
+  }
+
+  private async readWriterManifest(legacy: SyncRemoteManifest, guard: SyncRequestGuard): Promise<SyncRemoteManifest> {
+    const root = await this.listWriterPath('', guard)
+    const names = new Set<string>(root.filter((item: DavResource): boolean => item.isCollection)
+      .map((item: DavResource): string => item.href.substring(this.writerRoot.length).replace(/\/$/, ''))
+      .filter((name: string): boolean => WRITER_NAME.test(name)))
+    const witnesses = this.witnesses.filter((name: string): boolean => WRITER_PUBLICATION.test(name))
+    witnesses.forEach((name: string): void => { names.add(name.split('/')[0]) })
+    if (names.size > 128) throw new Error('sync_replica_limit')
+    const heads: SyncJournalCommit[] = []
+    const frontier = legacy.frontier?.slice() ?? []
+    if (legacy.manifest !== undefined) heads.push({ format: 'KOMA_DEVICE_SYNC_COMMIT', schema: 1, parents: [], manifest: legacy.manifest })
+    let own: SyncManifest | undefined
+    let ownWritable = true
+    let warning = legacy.warning ?? ''
+    for (const writer of Array.from(names).sort()) {
+      const prefix = writer + '/'
+      const known = witnesses.find((name: string): boolean => name.startsWith(prefix))
+      const segments = await this.listWriterPath(prefix, guard)
+      const segmentNames = segments.filter((item: DavResource): boolean => item.isCollection)
+        .map((item: DavResource): string => item.href.substring(this.writerRoot.length + prefix.length).replace(/\/$/, ''))
+        .filter((segment: string): boolean => /^[0-9]{14}$/.test(segment)).sort().reverse()
+      let listed: string[] = []
+      for (const segment of segmentNames) {
+        const files = await this.listWriterPath(prefix + segment + '/', guard)
+        listed = files.filter((item: DavResource): boolean => !item.isCollection)
+          .map((item: DavResource): string => item.href.substring(this.writerRoot.length))
+          .filter((name: string): boolean => WRITER_PUBLICATION.test(name))
+        // MKCOL can complete before the first PUT in a new segment.
+        if (listed.length > 0) break
+      }
+      const candidates = listed.slice()
+      if (known !== undefined && !candidates.includes(known)) candidates.push(known)
+      candidates.sort().reverse()
+      let accepted = false
+      for (const path of candidates) {
+        const prefixWithoutHash = path.slice(0, path.lastIndexOf('-'))
+        if (candidates.some((name: string): boolean => name !== path && name.startsWith(prefixWithoutHash + '-'))) {
+          warning = 'sync_writer_conflicting_publications'
+          if (writer === this.writer) ownWritable = false
+          continue
+        }
+        try {
+          const read = await this.readWriterHead(path, listed.includes(path), guard)
+          if (read === undefined) throw new Error('sync_shard_missing')
+          if (writer === this.writer) own = read
+          heads.push({ format: 'KOMA_DEVICE_SYNC_COMMIT', schema: 1, parents: [], manifest: read })
+          frontier.push(known !== undefined && known > path ? known : path)
+          accepted = true
+          break
+        } catch (error) {
+          const code = (error as Error).message
+          if (code !== 'sync_shard_missing' && code !== 'sync_invalid_commit' && code !== 'sync_shard_damaged') throw error as Error
+          warning = code
+          if (writer === this.writer) ownWritable = false
+        }
+      }
+      if (!accepted && known !== undefined) frontier.push(known)
+    }
+    if (frontier.length === (legacy.frontier?.length ?? 0)) {
+      legacy.writer = true
+      legacy.old = legacy.manifest
+      legacy.warning = warning
+      legacy.ownWritable = ownWritable
+      return legacy
+    }
+    const manifest = heads.length === 0 ? undefined : mergeSyncJournal(heads, this.space)
+    return { manifest, own, old: legacy.manifest, writer: true, journal: true, frontier, warning, ownWritable,
+      hash: manifest === undefined ? '' : syncDigest(JSON.stringify(manifest)),
+      legacyHash: legacy.legacyHash, legacyRevision: legacy.legacyRevision, legacySpace: legacy.legacySpace,
+      etag: '"writer-' + syncDigest(JSON.stringify([legacy.etag, frontier])) + '"' }
+  }
+
+  private async readWriterHead(path: string, listed: boolean, guard: SyncRequestGuard): Promise<SyncManifest | undefined> {
+    const key = this.account + ':' + path
+    const cached = journalCache.find((entry: CachedJournalCommit): boolean => entry.address === key)
+    if (listed && cached !== undefined) return copySyncManifest(cached.commit.manifest, this.space)
+    const remote = await this.readCommit(path, guard)
+    if (remote?.manifest === undefined) return undefined
+    if (cached === undefined) {
+      const bytes = syncUtf8(JSON.stringify(remote.manifest)).byteLength
+      journalCache.push({ address: key, commit: { format: 'KOMA_DEVICE_SYNC_COMMIT', schema: 1,
+        parents: [], manifest: remote.manifest }, bytes })
+      journalCacheBytes += bytes
+      while (journalCacheBytes > 8 * SYNC_MAX_OBJECT_BYTES || journalCache.length > 4096) {
+        journalCacheBytes -= journalCache.shift()?.bytes ?? 0
+      }
+    }
+    return remote.manifest
+  }
+
+  async readManifest(guard: SyncRequestGuard, requiredTag: string = ''): Promise<SyncRemoteManifest> {
+    let legacy: SyncRemoteManifest
+    try {
+      legacy = await this.readJournal(guard)
+    } catch (error) {
+      if (this.writer === '' || (error as Error).message !== 'sync_space_changed' ||
+        !this.witnesses.some((name: string): boolean => WRITER_PUBLICATION.test(name))) throw error as Error
+      // A missing old witness is not a deletion. Keep the receipt and allow
+      // already migrated V3 content to be read while the old path is retried.
+      legacy = { hash: '', etag: '', journal: true, warning: 'sync_legacy_unavailable',
+        frontier: this.witnesses.filter((name: string): boolean => SYNC_COMMIT_NAME.test(name)) }
+    }
+    const result = this.writer === '' ? legacy : await this.readWriterManifest(legacy, guard)
+    if (legacy.warning === 'sync_legacy_unavailable' && result.manifest === undefined) throw new Error('sync_space_changed')
     if (requiredTag !== '' && requiredTag !== result.etag) throw new Error('sync_preview_changed')
     this.witnesses.splice(0, this.witnesses.length, ...(result.frontier ?? []))
     return result
   }
 
   async readObject(ref: SyncShardRef, guard: SyncRequestGuard): Promise<string> {
-    const result = await this.request('GET', syncShardPath(ref), guard)
+    const path = syncShardPath(ref)
+    if (this.writer !== '') {
+      const object = await this.requestAt('GET', this.writerRoot + path, guard)
+      if (object.status !== 404) {
+        requireSuccess(object.status)
+        return object.body
+      }
+    }
+    const result = await this.request('GET', path, guard)
     if (result.status === 404 && this.legacyObjects.some((old: SyncShardRef): boolean => syncShardPath(old) === syncShardPath(ref))) {
       const legacy = await this.requestAt('GET', this.directory + 'koma-device-sync-v1/' + syncShardPath(ref), guard)
       if (legacy.status === 404) throw new Error('sync_shard_missing')
@@ -242,24 +416,60 @@ export class DeviceSyncWebDav {
     if (syncDigest(object.body) !== object.ref.hash || syncUtf8(object.body).byteLength !== object.ref.bytes) {
       throw new Error('sync_shard_damaged')
     }
-    const before = await this.request('GET', path, guard)
+    if (this.writer !== '') await this.ensureWriterRoot(guard)
+    const address = (this.writer === '' ? this.root : this.writerRoot) + path
+    const before = await this.requestAt('GET', address, guard)
     if (before.status !== 404) {
       requireSuccess(before.status)
       if (before.body !== object.body) throw new Error('sync_shard_damaged')
       return
     }
-    requireSuccess((await this.request('PUT', path, guard, object.body)).status)
-    const existing = await this.readObject(object.ref, guard)
-    if (existing !== object.body) throw new Error('sync_shard_damaged')
+    requireSuccess((await this.requestAt('PUT', address, guard, object.body)).status)
+    const existing = await this.requestAt('GET', address, guard)
+    requireSuccess(existing.status)
+    if (existing.body !== object.body) throw new Error('sync_shard_damaged')
   }
 
   commitName(manifest: SyncManifest, frontier: string[]): string {
-    return syncCommitName(syncCommitBody(manifest, frontier))
+    const body = this.commitBody(manifest, frontier)
+    return this.writer === '' ? syncCommitName(body) : this.publicationName(this.writer, manifest.revision, body)
   }
 
-  commitBody(manifest: SyncManifest, frontier: string[]): string { return syncCommitBody(manifest, frontier) }
+  commitBody(manifest: SyncManifest, frontier: string[]): string {
+    if (this.writer === '') return syncCommitBody(manifest, frontier)
+    const publication: SyncWriterPublication = { writer: this.writer, manifest }
+    const body = JSON.stringify(publication)
+    if (syncUtf8(body).byteLength > SYNC_MAX_OBJECT_BYTES) throw new Error('sync_manifest_too_large')
+    return body
+  }
 
-  async retryCommit(body: string, guard: SyncRequestGuard, selected: string[]): Promise<SyncRemoteManifest> {
+  private publicationName(writer: string, sequence: number, body: string): string {
+    return writer + '/' + publicationSegment(sequence) + '/' + sequence.toString().padStart(16, '0') +
+      '-' + syncDigest(body) + '.json'
+  }
+
+  private decodePublication(name: string, body: string): SyncManifest {
+    const parts = WRITER_PUBLICATION.exec(name)
+    if (parts === null) throw new Error('sync_invalid_commit')
+    let publication: SyncWriterPublication
+    try { publication = JSON.parse(body) as SyncWriterPublication } catch (_error) { throw new Error('sync_invalid_commit') }
+    if (!publication || publication.writer !== parts[1]) throw new Error('sync_invalid_commit')
+    const manifest = decodeSyncManifest(JSON.stringify(publication.manifest))
+    if (manifest.schema !== 2 || manifest.maintenance || this.publicationName(publication.writer, manifest.revision, body) !== name) {
+      throw new Error('sync_invalid_commit')
+    }
+    return manifest
+  }
+
+  async retryCommit(body: string, guard: SyncRequestGuard, selected: string[], path: string = ''): Promise<SyncRemoteManifest> {
+    if (WRITER_PUBLICATION.test(path)) {
+      const manifest = this.decodePublication(path, body)
+      if (!path.startsWith(this.writer + '/')) throw new Error('sync_invalid_writer')
+      await this.writePublication(path, body, manifest, guard, selected)
+      const receipt = await this.readCommit(path, guard)
+      if (receipt === undefined) throw new Error('sync_remote_result_unknown')
+      return receipt
+    }
     const name = syncCommitName(body)
     const commit = decodeSyncCommit(name, body)
     for (const parent of commit.parents) {
@@ -287,6 +497,14 @@ export class DeviceSyncWebDav {
   }
 
   async readCommit(name: string, guard: SyncRequestGuard): Promise<SyncRemoteManifest | undefined> {
+    if (WRITER_PUBLICATION.test(name)) {
+      const response = await this.requestAt('GET', this.writerRoot + name, guard)
+      if (response.status === 404) return undefined
+      requireSuccess(response.status)
+      const manifest = copySyncManifest(this.decodePublication(name, response.body), this.space)
+      return { manifest, hash: syncDigest(JSON.stringify(manifest)), etag: '"writer-' + syncDigest(name) + '"',
+        frontier: [name], journal: true, writer: true }
+    }
     if (!SYNC_COMMIT_NAME.test(name)) throw new Error('sync_invalid_commit')
     const result = await this.request('GET', name, guard)
     if (result.status === 404) return undefined
@@ -297,8 +515,40 @@ export class DeviceSyncWebDav {
       frontier: [name], journal: true }
   }
 
+  private writerRootChecked: boolean = false
+
+  private async ensureWriterRoot(guard: SyncRequestGuard): Promise<void> {
+    if (this.writerRootChecked) return
+    await this.ensureCollection(this.writerRoot, guard)
+    this.writerRootChecked = true
+  }
+
+  private async writePublication(path: string, body: string, manifest: SyncManifest, guard: SyncRequestGuard,
+    selected: string[], beforeSend: () => void = (): void => {}): Promise<void> {
+    await this.ensureWriterRoot(guard)
+    const segment = path.split('/')[1]
+    await this.ensureCollection(this.writerRoot + this.writer + '/', guard)
+    await this.ensureCollection(this.writerRoot + this.writer + '/' + segment + '/', guard)
+    for (const dataset of manifest.datasets) {
+      if (!selected.includes(dataset.id)) continue
+      for (const ref of dataset.shards) {
+        const content = await this.readObject(ref, guard)
+        if (syncDigest(content) !== ref.hash || syncUtf8(content).byteLength !== ref.bytes) throw new Error('sync_shard_damaged')
+      }
+    }
+    beforeSend()
+    requireSuccess((await this.requestAt('PUT', this.writerRoot + path, guard, body)).status)
+  }
+
   async publish(manifest: SyncManifest, tag: string, guard: SyncRequestGuard,
-    beforeSend: () => void = (): void => {}): Promise<boolean> {
+    beforeSend: () => void = (): void => {}, selected: string[] = []): Promise<boolean> {
+    if (this.writer !== '') {
+      const body = this.commitBody(manifest, [])
+      const path = this.publicationName(this.writer, manifest.revision, body)
+      this.decodePublication(path, body)
+      await this.writePublication(path, body, manifest, guard, selected, beforeSend)
+      return true
+    }
     // Migration is a one-time remote-object preservation, never a local apply of disabled groups.
     for (const ref of this.legacyObjects) await this.storeObject({ ref, body: await this.readObject(ref, guard) }, guard)
     const current = await this.readManifest(guard)
@@ -338,7 +588,9 @@ export class DeviceSyncWebDav {
     const legacyName = address.startsWith(legacyRoot) ? address.substring(legacyRoot.length) : ''
     const legacyAllowed = (method === 'GET' && (legacyName === MANIFEST || OBJECT_NAME.test(legacyName))) ||
       ((method === 'GET' || method === 'DELETE') && /^probe-[0-9a-f-]{36}\.json$/.test(legacyName))
-    if (address !== this.directory && !address.startsWith(this.root) && !legacyAllowed) throw new Error('sync_invalid_path')
+    if (address !== this.directory && !address.startsWith(this.root) && !address.startsWith(this.writerRoot) && !legacyAllowed) {
+      throw new Error('sync_invalid_path')
+    }
     const headers: Record<string, string> = {
       'Accept': method === 'PROPFIND' ? 'application/xml' : 'application/json',
       'Cache-Control': 'no-cache, no-store',

@@ -57,6 +57,7 @@ function errorText(code: string): string {
   if (code === 'sync_preview_changed' || code === 'sync_remote_changed' || code === 'sync_review_required' ||
     code === 'sync_local_changed' || code === 'sync_remote_committed_locally_changed') return t('device_sync_error_review')
   if (code === 'sync_space_changed') return t('device_sync_error_space')
+  if (code === 'sync_legacy_unavailable') return t('device_sync_legacy_unavailable')
   if (code === 'sync_remote_result_unknown') return t('device_sync_error_unknown_result')
   if (code === 'sync_catalog_limit') return t('device_sync_error_catalog_limit')
   if (code === 'sync_catalog_unavailable') return t('device_sync_error_catalog_unavailable')
@@ -76,10 +77,9 @@ function stateText(state: DeviceSyncViewState): string {
   if (state.unresolvedCommit) return t('device_sync_review_last')
   if (state.awaitingFirstMerge) return t('device_sync_saved_pending')
   if (!state.enabled) return t('device_sync_paused')
-  if (state.busy) return t('device_sync_running')
+  if (state.manualInProgress || state.busy && !state.transferInFlight) return t('device_sync_running')
   if (state.requiresExplicitReview) return t('device_sync_review_required')
   if (state.error.length > 0) return t('device_sync_needs_attention')
-  if (state.needsReview) return t('device_sync_differences_pending')
   if (!state.connected) return t('device_sync_disconnected')
   if (!state.automatic) return t('device_sync_manual')
   return t('device_sync_connected')
@@ -227,7 +227,19 @@ export struct DeviceSyncWebDavPage {
     if (this.state.unresolvedCommit) this.onReview(this.state.selected.slice(), 'recovery')
     else if (this.state.awaitingFirstMerge) this.onReview(this.state.selected.slice(), 'first')
     else if (this.state.requiresExplicitReview) this.onReview(this.state.selected.slice(), 'restore')
-    else void appDeviceSync.sync().catch((): void => {})
+    else void appDeviceSync.syncManually().catch((): void => {})
+  }
+
+  private readingRoundText(): string {
+    if (this.state.manualInProgress) return t('device_sync_running')
+    if (this.state.error.length > 0) return errorText(this.state.error)
+    const report = this.state.manualReadingResult
+    if (report === undefined) return ''
+    const items: string[] = []
+    if (report.uploaded > 0) items.push(t('device_sync_summary_upload').replace('%s', report.uploaded.toString()))
+    if (report.downloaded > 0) items.push(t('device_sync_summary_download').replace('%s', report.downloaded.toString()))
+    if (report.pending > 0) items.push(t('device_sync_reading_round_pending').replace('%s', report.pending.toString()))
+    return items.length > 0 ? items.join(' · ') : t('device_sync_reading_round_empty')
   }
 
   private disconnect(): void {
@@ -259,8 +271,11 @@ export struct DeviceSyncWebDavPage {
           ListDivider()
           ConciseListRow({ title: this.primaryTitle(), showChevron: this.state.awaitingFirstMerge ||
               this.state.requiresExplicitReview || this.state.unresolvedCommit,
-            subtitle: this.state.selected.length === 0 ? t('device_sync_no_selection') : undefined,
-            isEnabled: !this.state.busy && this.state.configured && this.state.selected.length > 0 &&
+            subtitle: this.state.selected.length === 0 ? t('device_sync_no_selection') : this.readingRoundText(),
+            subtitleMaxLines: 3,
+            isEnabled: (!this.state.busy || this.state.transferInFlight && this.state.connected &&
+              !this.state.requiresExplicitReview && !this.state.unresolvedCommit) && !this.state.manualInProgress &&
+              this.state.configured && this.state.selected.length > 0 &&
               (this.state.enabled || this.state.awaitingFirstMerge && !this.state.unresolvedCommit || this.state.requiresExplicitReview),
             action: (): void => { this.run() } })
         }
@@ -563,7 +578,11 @@ export struct DeviceSyncReviewPage {
     if (group.remove > 0) parts.push(t('device_sync_summary_remove').replace('%s', group.remove.toString()))
     if ((group.retained ?? 0) > 0) parts.push(t('device_sync_summary_retained').replace('%s', (group.retained ?? 0).toString()))
     if ((group.deferred ?? 0) > 0) parts.push(t('device_sync_summary_defer').replace('%s', (group.deferred ?? 0).toString()))
-    if (group.skipped > 0) parts.push(t('device_sync_summary_skip').replace('%s', group.skipped.toString()))
+    const outside = group.readingOutsideScope ?? 0
+    const unverified = group.readingUnverified ?? 0
+    if (outside > 0) parts.push(t('device_sync_reading_outside_scope').replace('%s', outside.toString()))
+    if (unverified > 0) parts.push(t('device_sync_reading_unverified').replace('%s', unverified.toString()))
+    if (group.group !== 'reading' && group.skipped > 0) parts.push(t('device_sync_summary_skip').replace('%s', group.skipped.toString()))
     return parts.length === 0 ? t('device_sync_summary_empty') : parts.join(' · ')
   }
 
@@ -606,7 +625,8 @@ export struct DeviceSyncReviewPage {
     }
     ListItem() {
       GroupedListSection({ title: t('device_sync_review_contents'),
-        subtitle: preview.groups.some((row: SyncPreviewGroup): boolean => row.skipped > 0) ? t('device_sync_skipped_detail') : undefined }) {
+        subtitle: preview.groups.some((row: SyncPreviewGroup): boolean => row.group !== 'reading' && row.skipped > 0) ?
+          t('device_sync_skipped_detail') : undefined }) {
         if (preview.migration) {
           ConciseListRow({ title: t('device_sync_migration_title'), subtitle: t('device_sync_migration_detail'),
             subtitleMaxLines: 8, showChevron: false })

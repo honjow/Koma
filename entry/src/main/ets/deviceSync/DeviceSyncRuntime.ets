@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { connection } from '@kit.NetworkKit'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
 import { util } from '@kit.ArkTS'
 import { ReadingProgress } from '../model/ComicModels'
 import { appReaderSessionStore } from '../model/ReaderSessionStore'
@@ -8,7 +9,7 @@ import { MAX_SEARCH_HISTORY_COUNT, SearchHistoryEntry } from '../model/SearchHis
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
 import { appSourceRuntimeRegistry, getInstalledSourcePackage, InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision,
+import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision, SyncReadingRound,
   syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
@@ -37,6 +38,8 @@ export class DeviceSyncViewState {
   @Trace automatic: boolean = false
   @Trace enabled: boolean = true
   @Trace busy: boolean = false
+  @Trace transferInFlight: boolean = false
+  @Trace manualInProgress: boolean = false
   @Trace needsReview: boolean = false
   @Trace requiresExplicitReview: boolean = false
   @Trace lastSuccess: number = 0
@@ -46,6 +49,7 @@ export class DeviceSyncViewState {
   @Trace shelfRemovals: SyncShelfRemoval[] = []
   @Trace readingDecisions: SyncReadingDecision[] = []
   @Trace blockedReadings: SyncBlockedReading[] = []
+  @Trace manualReadingResult?: SyncReadingRound
 }
 
 interface ActiveReadingSync {
@@ -82,10 +86,14 @@ class DeviceSyncRuntime {
   private owners?: KomaDeviceSyncOwners
   private foreground: boolean = false
   private timer: number = -1
+  private deadline: number = 0
+  private activeSync?: Promise<void>
+  private changeGeneration: number = 0
+  private syncedGeneration: number = -1
   private failures: number = 0
   private network?: connection.NetConnection
   private session?: ActiveReadingSync
-  private pendingReading?: PendingReadingSync
+  private pendingReading: Map<string, PendingReadingSync> = new Map()
   private blockedReading?: PendingReadingSync
   private descriptorUris?: string[]
   private descriptorHash: string = ''
@@ -117,7 +125,7 @@ class DeviceSyncRuntime {
     connectDeviceSyncSignals((group: SyncGroup): void => { this.changed(group) })
     connectDeviceSyncRestore((): void => { this.beginRestore() }, (committed: boolean): void => { this.finishRestore(committed) })
     connectDeviceSyncProgress((progress: ReadingProgress): boolean => this.allowProgress(progress))
-    connectDeviceSyncReadingCapture((rows: ReadingProgress[]): SyncReadingCapture | undefined => this.stagePosition(rows),
+    connectDeviceSyncReadingCapture((rows: ReadingProgress[]): SyncReadingCapture[] => this.stagePositions(rows),
       (capture: SyncReadingCapture): boolean => owners.readingAcknowledged(capture),
       (actions: SyncReadingSignal[]): SyncReadingActionCapture[] => this.stageReaderActions(actions),
       (capture: SyncReadingActionCapture): boolean => owners.readingActionAcknowledged(capture))
@@ -127,11 +135,13 @@ class DeviceSyncRuntime {
   }
 
   onForeground(active: boolean): void {
+    const wasForeground = this.foreground
     this.foreground = active
     if (!active) {
       this.retainBlockedReading()
-      if (this.timer >= 0) clearTimeout(this.timer)
-      this.timer = -1
+      this.cancelTimer()
+      this.recoveredOnForeground = false
+      if (wasForeground) this.flushReadingInBackground()
       return
     }
     if (this.network === undefined) {
@@ -141,7 +151,7 @@ class DeviceSyncRuntime {
       network.register((_error: BusinessError): void => {})
     }
     this.recoverForeground()
-    this.schedule(3000)
+    this.schedule(0)
   }
 
   private recoverForeground(): void {
@@ -168,8 +178,8 @@ class DeviceSyncRuntime {
     this.view.automatic = configuration?.automatic ?? false
     this.view.enabled = configuration !== undefined && configuration.enabled !== false
     this.view.requiresExplicitReview = syncRequiresExplicitReview(state)
-    this.view.needsReview = this.view.requiresExplicitReview || (state?.groups.some((group: SyncGroupState): boolean =>
-      state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false)
+    this.view.needsReview = state?.groups.some((group: SyncGroupState): boolean =>
+      group.id !== 'reading' && state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false
     this.view.lastSuccess = state?.lastSuccess ?? 0
     this.view.subscriptions = this.owners?.receivedSubscriptions() ?? []
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
@@ -262,7 +272,7 @@ class DeviceSyncRuntime {
     return this.task(async (): Promise<void> => {
       await this.needed().confirm(token, choices)
       this.view.error = ''
-    }, publishError)
+    }, publishError).then((): void => { this.schedule(0) })
   }
 
   discard(token?: string): void {
@@ -271,11 +281,48 @@ class DeviceSyncRuntime {
 
   previewChoices(token: string, choices: SyncMergeChoice[]): SyncPreview { return this.needed().previewChoices(token, choices) }
 
-  sync(): Promise<void> {
-    return this.task(async (): Promise<void> => {
+  sync(allowIdle: boolean = false): Promise<void> {
+    if (this.activeSync !== undefined) return this.activeSync
+    if (this.view.busy) return Promise.reject(new Error('sync_already_running'))
+    const generation = this.changeGeneration
+    this.view.transferInFlight = true
+    const active = this.task(async (): Promise<void> => {
       await this.recordPositions()
-      await this.needed().syncNow()
+      await this.needed().syncNow(allowIdle && generation === this.syncedGeneration)
+      this.syncedGeneration = generation
+    }).finally((): void => {
+      this.activeSync = undefined
+      this.view.transferInFlight = false
     })
+    this.activeSync = active
+    return active
+  }
+
+  async syncManually(): Promise<void> {
+    if (this.view.manualInProgress) return
+    this.view.manualInProgress = true
+    this.view.manualReadingResult = undefined
+    try {
+      await this.sync()
+      if (this.changeGeneration !== this.syncedGeneration || this.needed().lastReadingRound === undefined) await this.sync()
+      this.updateManualReadingResult()
+    } finally {
+      this.view.manualInProgress = false
+    }
+  }
+
+  private updateManualReadingResult(): void {
+    const context = this.context
+    const engine = this.needed()
+    const report = engine.lastReadingRound
+    if (context === undefined || report === undefined || !this.view.selected.includes('reading')) return
+    const reader = appReaderSessionStore(context.filesDir)
+    const space = engine.active()?.space
+    const unsettled = reader.pendingDeviceSyncPositions().filter((row: SyncReadingCapture): boolean =>
+      row.space === space && this.owners?.readingAcknowledged(row) !== true).length +
+      reader.pendingDeviceSyncActions().filter((row: SyncReadingActionCapture): boolean =>
+        row.space === space && this.owners?.readingActionAcknowledged(row) !== true).length
+    this.view.manualReadingResult = { uploaded: report.uploaded, downloaded: report.downloaded, pending: report.pending + unsettled }
   }
 
   disconnect(): Promise<void> {
@@ -283,6 +330,7 @@ class DeviceSyncRuntime {
     // not arrived. The engine keeps the old intent separate.
     return this.needed().disconnect().then((): void => {
       this.view.error = ''
+      this.view.manualReadingResult = undefined
       this.refresh()
     })
   }
@@ -290,13 +338,13 @@ class DeviceSyncRuntime {
   setAutomatic(value: boolean): void {
     this.needed().setAutomatic(value)
     this.refresh()
-    if (value) this.schedule(3000)
+    if (value) this.schedule(0)
+    else this.cancelTimer()
   }
 
   setEnabled(value: boolean): void {
     this.needed().setEnabled(value)
-    if (this.timer >= 0) clearTimeout(this.timer)
-    this.timer = -1
+    this.cancelTimer()
     this.refresh()
     this.recoveredOnForeground = false
     if (value) this.recoverForeground()
@@ -367,28 +415,103 @@ class DeviceSyncRuntime {
   }
 
   changed(group: SyncGroup): void {
-    if (this.view.selected.includes(group)) this.schedule(15000)
+    if (this.view.selected.includes(group)) {
+      this.changeGeneration++
+      this.schedule(group === 'reading' ? 1500 : 5000)
+    }
+  }
+
+  readerClosed(): void {
+    this.session = undefined
+    if (this.view.selected.includes('reading')) this.schedule(0)
+  }
+
+  historyOpened(): void { this.schedule(0) }
+
+  async waitForReadingSync(): Promise<void> {
+    if (!this.foreground || !this.automaticAllowed() || !this.view.selected.includes('reading')) return
+    const running = this.activeSync
+    if (running === undefined && (this.view.busy || Date.now() - this.view.lastSuccess < 2000)) return
+    let timer = -1
+    try {
+      await Promise.race([running ?? this.sync(true), new Promise<void>((resolve: () => void): void => {
+        timer = setTimeout(resolve, 2000)
+      })])
+    } catch (_error) {
+      // The existing local position remains usable when transfer is unavailable.
+    } finally {
+      if (timer >= 0) clearTimeout(timer)
+    }
+  }
+
+  private automaticAllowed(): boolean {
+    return this.view.connected && this.view.enabled && this.view.automatic &&
+      !this.view.requiresExplicitReview && this.view.selected.length > 0
+  }
+
+  private cancelTimer(): void {
+    if (this.timer >= 0) clearTimeout(this.timer)
+    this.timer = -1
+    this.deadline = 0
+  }
+
+  private flushReadingInBackground(): void {
+    const context = this.context
+    if (context === undefined || !this.automaticAllowed() || !this.view.selected.includes('reading')) return
+    const reader = appReaderSessionStore(context.filesDir)
+    if (!reader.flush()) return
+    const connection = this.engine?.active()
+    const space = connection?.space
+    const pending = reader.pendingDeviceSyncPositions().some((row: SyncReadingCapture): boolean =>
+      row.space === space && this.owners?.readingAcknowledged(row) !== true) ||
+      reader.pendingDeviceSyncActions().some((row: SyncReadingActionCapture): boolean =>
+        row.space === space && this.owners?.readingActionAcknowledged(row) !== true) ||
+      connection?.groups.some((group: SyncGroupState): boolean => group.id === 'reading' && group.pending.length > 0) === true
+    if (this.activeSync === undefined && (this.view.busy || !pending)) return
+    try {
+      let id = -1
+      const finish = (): void => {
+        if (id < 0) return
+        const request = id
+        id = -1
+        try { backgroundTaskManager.cancelSuspendDelay(request) } catch (_error) {}
+      }
+      id = backgroundTaskManager.requestSuspendDelay('Koma', finish).requestId
+      void this.sync().catch((): void => {}).finally(finish)
+    } catch (_error) {
+      // The reader document already owns the outbox if the OS denies extra time.
+    }
   }
 
   private schedule(delay: number): void {
-    if (!this.foreground || !this.view.connected || !this.view.enabled || !this.view.automatic || this.view.requiresExplicitReview ||
-      this.view.selected.length === 0 || this.timer >= 0) return
+    if (!this.foreground || !this.automaticAllowed()) return
+    const deadline = Date.now() + delay
+    if (this.timer >= 0 && this.deadline <= deadline) return
+    this.cancelTimer()
+    this.deadline = deadline
     this.timer = setTimeout((): void => {
       this.timer = -1
-      if (!this.foreground || !this.view.enabled || !this.view.automatic || this.view.requiresExplicitReview) return
+      this.deadline = 0
+      if (!this.foreground || !this.automaticAllowed()) return
       if (this.view.busy) {
-        this.schedule(15000)
+        this.schedule(1500)
         return
       }
-      void this.sync().then((): void => { this.failures = 0 }).catch((): void => {
+      void this.sync(true).then((): void => {
+        this.failures = 0
+        this.schedule(6000)
+      }).catch((): void => {
         this.failures++
-        this.schedule(Math.min(300000, 60000 * this.failures))
+        this.schedule(Math.min(60000, 6000 * this.failures))
       })
     }, delay)
   }
 
   beginReadingChapter(request: SourceReaderSessionRequest): void {
+    if (this.session?.comicId === request.comicId && this.session.chapter === request.chapterId &&
+      this.session.scope === this.engine?.readingScope()) return
     this.retainBlockedReading()
+    this.session = undefined
     this.descriptorUris = undefined
     const scope = this.engine?.readingScope() ?? ''
     if (scope === '' || !syncHasTrustedPackage(request.sourceId) ||
@@ -454,7 +577,7 @@ class DeviceSyncRuntime {
       action.source === session.source && action.work === session.work && (action.chapterId === '' || action.chapterId === session.chapter))
       .map((action: SyncReadingActionCapture): string => action.id) ?? []
     const pending: PendingReadingSync = { session, progress, id: util.generateRandomUUID(), descriptorHash: this.descriptorHash, observedActions }
-    if (this.allowProgress(progress)) this.pendingReading = pending
+    if (this.allowProgress(progress)) this.pendingReading.set(session.positionKey, pending)
     else this.blockedReading = pending
   }
 
@@ -525,19 +648,28 @@ class DeviceSyncRuntime {
     })
   }
 
-  private stagePosition(rows: ReadingProgress[]): SyncReadingCapture | undefined {
-    const pending = this.pendingReading
+  private stagePositions(rows: ReadingProgress[]): SyncReadingCapture[] {
     const active = this.engine?.active()
-    if (pending === undefined || active === undefined || pending.session.scope !== this.engine?.readingScope()) return undefined
-    const session = pending.session
-    const progress = rows.find((row: ReadingProgress): boolean => row.comicId === session.comicId &&
-      row.chapterId === session.chapter && row.pageIndex === pending.progress.pageIndex && row.totalPages === pending.progress.totalPages)
-    if (progress === undefined) return undefined
-    const capture: SyncReadingCapture = { id: pending.id, space: active.space, source: session.source, work: session.work,
-      comicId: session.comicId, chapterId: session.chapter, page: progress.pageIndex, total: progress.totalPages,
-      complete: progress.completed, date: progress.updatedAt, descriptorHash: pending.descriptorHash, observedActions: pending.observedActions,
-      positionSeen: session.positionSeen, recentSeen: session.recentSeen, recentCleared: session.recentCleared, readSeen: session.readSeen }
-    return this.owners?.readingAcknowledged(capture) === true ? undefined : capture
+    const scope = this.engine?.readingScope()
+    if (active === undefined || scope === '') return []
+    const captures: SyncReadingCapture[] = []
+    this.pendingReading.forEach((pending: PendingReadingSync, key: string): void => {
+      const session = pending.session
+      if (session.scope !== scope) {
+        this.pendingReading.delete(key)
+        return
+      }
+      const progress = rows.find((row: ReadingProgress): boolean => row.comicId === session.comicId &&
+        row.chapterId === session.chapter && row.pageIndex === pending.progress.pageIndex && row.totalPages === pending.progress.totalPages)
+      if (progress === undefined) return
+      const capture: SyncReadingCapture = { id: pending.id, space: active.space, source: session.source, work: session.work,
+        comicId: session.comicId, chapterId: session.chapter, page: progress.pageIndex, total: progress.totalPages,
+        complete: progress.completed, date: progress.updatedAt, descriptorHash: pending.descriptorHash, observedActions: pending.observedActions,
+        positionSeen: session.positionSeen, recentSeen: session.recentSeen, recentCleared: session.recentCleared, readSeen: session.readSeen }
+      if (this.owners?.readingAcknowledged(capture) === true) this.pendingReading.delete(key)
+      else captures.push(capture)
+    })
+    return captures
   }
 
   async validateReadingPages(request: SourceReaderSessionRequest, uris: string[]): Promise<boolean> {
@@ -577,35 +709,52 @@ class DeviceSyncRuntime {
     }
     for (const capture of pending) {
       if (capture.space !== engine.active()?.space || owners.readingAcknowledged(capture)) continue
-      const work = await owners.publicSources.work(capture.source, capture.work, true, guard)
-      const chapter = await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
-      if (scope !== engine.readingScope()) return
-      if (work === undefined || chapter === undefined || chapter.pages !== capture.total ||
-        !matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) continue
-      if (!reader.pendingDeviceSyncPositions().some((item: SyncReadingCapture): boolean => item.id === capture.id)) continue
       const suffix = [capture.source, capture.work, capture.chapterId]
-      const position: SyncPositionValue = { page: capture.page, total: chapter.pages, pageTable: chapter.pageTable }
       const positionKey = syncKey(['position'].concat(suffix))
       const recentKey = syncKey(['recent', capture.source, capture.work])
       const readKey = syncKey(['read'].concat(suffix))
+      let pageTable = owners.verifiedPageTable?.(capture.comicId, capture.chapterId, capture.descriptorHash) ?? ''
+      const known = engine.knownReadingValue(recentKey)
+      let recent = known === undefined ? undefined : JSON.parse(known) as SyncRecentValue
+      if (recent?.chapter !== capture.chapterId) recent = undefined
+      if (recent === undefined || pageTable === '') {
+        const work = await owners.publicSources.work(capture.source, capture.work, true, guard)
+        const chapter = work === undefined ? undefined :
+          await owners.publicSources.chapter(capture.source, capture.work, capture.chapterId, true, guard)
+        if (scope !== engine.readingScope()) return
+        if (work !== undefined && chapter !== undefined) {
+          recent = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
+            chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
+          if (chapter.pages === capture.total && matchesPublicSyncPageHash(capture.source, chapter, capture.descriptorHash)) {
+            pageTable = chapter.pageTable
+          }
+        }
+      }
+      if ((recent === undefined && pageTable === '') ||
+        !reader.pendingDeviceSyncPositions().some((item: SyncReadingCapture): boolean => item.id === capture.id)) continue
+      const position: SyncPositionValue = { page: capture.page, total: capture.total, pageTable }
       const saved = reader.getProgress(capture.comicId)
       const edits: DeviceSyncLocalEdit[] = []
       const positionSeen = positionSeenAfterLocalActions(capture, positionKey, capture.positionSeen)
       const recentSeen = positionSeenAfterLocalActions(capture, recentKey, capture.recentSeen)
       const readSeen = positionSeenAfterLocalActions(capture, readKey, capture.readSeen)
-      if (!engine.hasUnseenBarrier('reading', positionKey, positionSeen)) {
+      if (pageTable !== '' && !engine.hasUnseenBarrier('reading', positionKey, positionSeen)) {
         edits.push({ key: positionKey, kind: 'set', value: JSON.stringify(position), observed: positionSeen })
       }
-      if (saved?.chapterId === capture.chapterId && !engine.hasUnseenBarrier('reading', recentKey, recentSeen, capture.recentCleared)) {
-        const recent: SyncRecentValue = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion,
-          chapter: capture.chapterId, chapterTitle: chapter.title, date: capture.date }
+      if (recent !== undefined && saved?.chapterId === capture.chapterId &&
+        !owners.readingHistoryAcknowledged?.(capture) &&
+        !engine.hasUnseenBarrier('reading', recentKey, recentSeen, capture.recentCleared)) {
+        recent.date = capture.date
+        recent.savedPage = capture.page
         edits.push({ key: recentKey, kind: 'set', value: JSON.stringify(recent), observed: recentSeen })
       }
-      if (capture.complete && !engine.hasUnseenBarrier('reading', readKey, readSeen)) {
+      if (pageTable !== '' && capture.complete && !engine.hasUnseenBarrier('reading', readKey, readSeen)) {
         edits.push({ key: readKey, kind: 'set', value: 'true', observed: readSeen })
       }
-      owners.rememberLocalReadingProof(capture.comicId, capture.chapterId, chapter.pageTable)
-      const version = engine.recordEdits('reading', edits, { key: deviceSyncCaptureKey(capture), id: capture.id })
+      if (pageTable !== '') owners.rememberLocalReadingProof(capture.comicId, capture.chapterId, pageTable, capture.descriptorHash)
+      if (pageTable === '' && edits.length === 0) continue
+      const key = (pageTable === '' ? 'history:' : '') + deviceSyncCaptureKey(capture)
+      const version = engine.recordEdits('reading', edits, { key, id: capture.id })
       const session = this.session
       if (version !== undefined && session?.chapter === capture.chapterId && session.comicId === capture.comicId && session.scope === scope) {
         if (edits.some((edit: DeviceSyncLocalEdit): boolean => edit.key === positionKey)) session.positionSeen = mergeSyncVectors(session.positionSeen, [version])
