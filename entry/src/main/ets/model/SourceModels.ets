@@ -61,6 +61,8 @@ interface SourceRuntimeCoverPayload {
   headers?: Object
 }
 
+const PUBLIC_COVER_HEADER_NAMES: string[] = ['accept', 'referer', 'user-agent', 'version', 'webp', 'platform']
+
 /** An already resolved public cover. Invalid or stateful descriptors use the legacy resolver. */
 export function sourceStaticCoverHeaders(cover: Object | undefined, url: string | undefined): SourceCoverHeaders | undefined {
   if (cover === undefined || cover === null || Array.isArray(cover) || typeof cover !== 'object' ||
@@ -74,8 +76,7 @@ export function sourceStaticCoverHeaders(cover: Object | undefined, url: string 
   for (const name of Object.keys(values)) {
     const key = name.toLowerCase()
     const value = values[name]
-    if ((key !== 'accept' && key !== 'referer' && key !== 'user-agent') ||
-      headers[key] !== undefined || typeof value !== 'string' ||
+    if (!PUBLIC_COVER_HEADER_NAMES.includes(key) || headers[key] !== undefined || typeof value !== 'string' ||
       value.length === 0 || /[\r\n\u0000]/.test(value)) return undefined
     headers[key] = value
   }
