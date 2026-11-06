@@ -75,6 +75,7 @@ import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../stat
 import {
   isRemovableLocalComic,
   LibraryStorePersistenceService,
+  setCategoryDisplayStrategyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
 import {
   InMemoryReaderSessionStore,
@@ -719,11 +720,29 @@ export struct LibraryPage {
     if (this.sortBy === sortBy && this.sortDirection === sortDirection) {
       return
     }
+    const categoryStrategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory)
+    const persistence = this.libraryPersistenceService
+    // Change the owner of the current sort. A configured category overrides
+    // the default on every restore, so saving the default alone loses the choice.
+    if (categoryStrategy !== undefined && persistence !== undefined) {
+      try {
+        setCategoryDisplayStrategyAndPersistLibraryStore(this.libraryStore, persistence, {
+          categoryId: categoryStrategy.categoryId,
+          sortBy,
+          sortDirection,
+          readState: categoryStrategy.readState,
+          updatedAt: Date.now(),
+        })
+      } catch (_error) {
+        this.showToast(s('library_category_display_save_failed'))
+        return
+      }
+    }
     this.markFilterPreferencesMutation()
     this.sortBy = sortBy
     this.sortDirection = sortDirection
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences({ sortBy, sortDirection })
+    if (categoryStrategy === undefined || persistence === undefined) this.saveFilterPreferences({ sortBy, sortDirection })
     console.info(`[Library] step=sort_changed sortBy=${sortBy} direction=${sortDirection}`)
   }
 
