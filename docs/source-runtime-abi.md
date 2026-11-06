@@ -41,7 +41,7 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 
 源设置可声明 `visibleWhen: {settingId, values}`，按指定普通单选字段的当前草稿值控制该行是否显示，隐藏后保留用户值。单选项显式声明空字符串并提供标签时，空字符串是可选择的值。文本项可声明 `validation: {kind:"non_blank", message}`，保存前拒绝去除首尾空白后为空的输入。旧宿主按已有字段渲染，源请求仍以当前选项决定实际行为。
 
-列表和搜索结果中的普通公开封面可在 `cover: {kind:"url", url, headers}` 直接提供完整 GET 请求。`headers` 仅允许 `Accept`、`Referer`，无额外头用空对象。封面卡片可并行发起这些请求，沿用原源限速、缓存身份和同图合并。需要票据、认证或其他动态行为的封面仍通过 `get_image_request`，应省略 `cover.headers`。旧宿主忽略此加法字段，源应保留原解析路径。
+公开封面的 GET 地址和请求头在列表或搜索操作内已知时，应随结果在 `cover: {kind:"url", url, headers}` 一次给出。无额外头用空对象。允许 `Accept`、`Referer`，宿主声明 `source_public_cover_user_agent_v1` 后也可提供原站要求的 `User-Agent`。封面卡片可并行发起这些请求，沿用原源限速、缓存身份和同图合并。镜像随生成卡片的列表操作确定。需要票据、认证或其他动态行为的封面仍通过 `get_image_request`，应省略 `cover.headers`。旧宿主沿原解析路径，书源应保留该路径。
 
 宿主可在一批调用间短时复用 WAMR 的进程级内存池，空闲后释放。每次调用独立创建模块实例和请求上下文，书源状态应通过 ABI 规定的存储能力传递，不能依赖上一次 WASM 实例。正常列表优先于菜单设置能力探测，后台图片操作在真正获得执行槽后才复制 WASM 输入。
 

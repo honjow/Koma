@@ -47,7 +47,8 @@ test('host capability handoff preserves requests and validates plain text withou
     'source_filter_tristate_v1', 'chapter_reading_order_v1', 'source_private_session_v1', 'source_page_image_processing_v1',
     'source_baozi_chapter_identity_v1', 'source_java_regex_v1', 'source_page_text_overlay_v1', 'source_authentication_v1',
     'source_private_session_process_v1', 'source_private_session_replace_v1', 'source_required_image_decode_jm_stripes_v1',
-    'source_rate_limit_jm_v1', 'source_rate_limit_hentaiclub_v1', 'source_rate_limit_wnacg_v1', 'source_setting_positive_integer_v1', 'source_dns_pica_channel_v1'])
+    'source_rate_limit_jm_v1', 'source_rate_limit_hentaiclub_v1', 'source_rate_limit_wnacg_v1', 'source_setting_positive_integer_v1', 'source_dns_pica_channel_v1',
+    'source_public_cover_user_agent_v1'])
   // The adopted language setting affects all same-site metadata requests too.
   for (const operation of ['search', 'get_manga', 'get_manga_list', 'get_listings', 'get_home', 'get_filters',
     'get_authentication', 'authenticate', 'logout']) {

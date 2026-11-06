@@ -74,7 +74,8 @@ export function sourceStaticCoverHeaders(cover: Object | undefined, url: string 
   for (const name of Object.keys(values)) {
     const key = name.toLowerCase()
     const value = values[name]
-    if ((key !== 'accept' && key !== 'referer') || headers[key] !== undefined || typeof value !== 'string' ||
+    if ((key !== 'accept' && key !== 'referer' && key !== 'user-agent') ||
+      headers[key] !== undefined || typeof value !== 'string' ||
       value.length === 0 || /[\r\n\u0000]/.test(value)) return undefined
     headers[key] = value
   }
