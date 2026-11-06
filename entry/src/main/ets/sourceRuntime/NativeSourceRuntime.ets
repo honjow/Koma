@@ -17,7 +17,8 @@ interface NativeSourceRuntimeModule {
   hello(): string;
   add(a: number, b: number): number;
   runJsonCall(requestJson: string): string;
-  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson?: string, sourceId?: string): string;
+  runJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson?: string, sourceId?: string,
+    localCover?: boolean): string;
   configureHttpTransport(transport: SourceRuntimeHttpTransport): boolean;
   sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean;
 }
@@ -77,9 +78,10 @@ export class NativeSourceRuntime {
     return JSON.parse(responseJson) as SourceRuntimeCallResponse;
   }
 
-  static runRawJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  static runRawJsonCallFromBytes(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string,
+    localCover: boolean = false): string {
     return nativeSourceRuntime.runJsonCallFromBytes(requestJson, wasmBytes, httpContextJson,
-      sourceRuntimeExecutionSourceId(httpContextJson));
+      sourceRuntimeExecutionSourceId(httpContextJson), localCover);
   }
 
   static sourcePackageFilesMatch(paths: string[], expectedByteCounts: number[]): boolean {

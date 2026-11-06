@@ -24,3 +24,10 @@ export function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uin
     sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)),
     wasmBytes, httpContextJson)
 }
+
+@Concurrent
+export function runLocalCoverOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
+    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)),
+    wasmBytes, httpContextJson, true)
+}

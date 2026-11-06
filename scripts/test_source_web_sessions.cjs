@@ -1037,6 +1037,34 @@ test('pending cover tasks yield to same-source interaction while other sources k
   calls[4].resolve('cover'); calls[1].resolve('other'); await Promise.all([cover, other])
 })
 
+test('legacy cover probes overlap, and only dependent covers enter the ordinary queue in order', async () => {
+  const calls = []
+  const local = () => {}
+  const ordinary = () => {}
+  const { client } = sourceWorkerFixture((fn, request) => new Promise(resolve => {
+    calls.push({ fn, request, resolve })
+  }), { runLocalCoverOperationTask: local, executeSourceRuntimeRequest: ordinary })
+  const bytes = new Uint8Array([1]), context = JSON.stringify({ sourceId: 'a' })
+  const first = client.executeSourceCoverRequestInWorker('first', bytes, context)
+  const second = client.executeSourceCoverRequestInWorker('second', bytes, context)
+  const pure = client.executeSourceCoverRequestInWorker('pure', bytes, context)
+  assert.deepEqual(calls.map(c => [c.fn, c.request]), [[local, 'first'], [local, 'second']])
+  calls[1].resolve('')
+  await new Promise(setImmediate)
+  assert.deepEqual(calls.map(c => [c.fn, c.request]), [[local, 'first'], [local, 'second'], [local, 'pure']])
+  calls[2].resolve('local result')
+  assert.equal(await pure, 'local result')
+  calls[0].resolve('')
+  await new Promise(setImmediate)
+  assert.deepEqual(calls.slice(3).map(c => [c.fn, c.request]), [[ordinary, 'first']])
+  calls[3].resolve('first ordinary result')
+  assert.equal(await first, 'first ordinary result')
+  await new Promise(setImmediate)
+  assert.deepEqual(calls.slice(4).map(c => [c.fn, c.request]), [[ordinary, 'second']])
+  calls[4].resolve('second ordinary result')
+  assert.equal(await second, 'second ordinary result')
+})
+
 test('shared Native worker retains each invocation request, bytes, HTTP context, reply and thrown error', () => {
   const calls = [], bytes = new Uint8Array([1]); let failure
   const features = moduleFrom('SourceHostFeatures', () => ({}))

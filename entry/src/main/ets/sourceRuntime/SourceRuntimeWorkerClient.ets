@@ -1,6 +1,6 @@
 import { taskpool } from '@kit.ArkTS'
 import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
-import { executeSourceRuntimeRequest, runBrowseSourceOperationTask } from './SourceRuntimeWorker'
+import { executeSourceRuntimeRequest, runBrowseSourceOperationTask, runLocalCoverOperationTask } from './SourceRuntimeWorker'
 import { sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
 
 export enum SourceWorkerPriority {
@@ -25,6 +25,22 @@ const activeSources: Set<string> = new Set<string>()
 const pendingOperations: PendingSourceWorkerOperation[] = []
 let activeOperations: number = 0
 let unidentifiedActive: boolean = false
+const LOCAL_COVER_CONCURRENCY: number = 2
+const pendingLocalCovers: (() => Promise<void>)[] = []
+const localCoverFallbackTails: Map<string, Promise<void>> = new Map<string, Promise<void>>()
+let activeLocalCovers: number = 0
+
+function startWaitingLocalCovers(): void {
+  while (activeLocalCovers < LOCAL_COVER_CONCURRENCY && pendingLocalCovers.length > 0) {
+    const run = pendingLocalCovers.shift()
+    if (run === undefined) return
+    activeLocalCovers += 1
+    run().finally((): void => {
+      activeLocalCovers -= 1
+      startWaitingLocalCovers()
+    })
+  }
+}
 
 function canAdmit(operation: PendingSourceWorkerOperation): boolean {
   if (unidentifiedActive) return false
@@ -109,6 +125,53 @@ export function executeSourceRequestInWorker(requestJson: string, wasmBytes: Uin
   httpContextJson: string, priority: SourceWorkerPriority = SourceWorkerPriority.FOREGROUND,
   isActive?: () => boolean): Promise<string> {
   return enqueueSourceWorker(requestJson, wasmBytes, httpContextJson, false, priority, isActive)
+}
+
+// Only host cover callers can opt in. A restricted run never owns a private
+// session or opens HTTP. If it needs either, queue the original request once.
+export function executeSourceCoverRequestInWorker(requestJson: string, wasmBytes: Uint8Array,
+  httpContextJson: string): Promise<string> {
+  const sourceId = sourceRuntimeExecutionSourceId(httpContextJson)
+  if (sourceId.length === 0) return enqueueSourceWorker(requestJson, wasmBytes, httpContextJson, false,
+    SourceWorkerPriority.BACKGROUND)
+  const current = SourcePrivateSessionHost.callAdmission(httpContextJson)
+  const probe = new Promise<string>((resolve, reject) => {
+    pendingLocalCovers.push(async (): Promise<void> => {
+      if (!current()) {
+        reject(new Error('search_cancelled'))
+        return
+      }
+      try {
+        resolve(await taskpool.execute(runLocalCoverOperationTask, requestJson, new Uint8Array(wasmBytes),
+          httpContextJson) as string)
+      } catch (_error) {
+        resolve('')
+      }
+    })
+    startWaitingLocalCovers()
+  })
+  return new Promise<string>((resolve, reject) => {
+    // A fast local answer can return immediately. The fallbacks enter the
+    // ordinary lane in their original same-source order even if probes finish
+    // out of order. No probe slot waits for an ordinary call to complete.
+    const previous = localCoverFallbackTails.get(sourceId) ?? Promise.resolve()
+    const classified = probe.then(async (response: string): Promise<void> => {
+      if (response.length === 0) {
+        await previous
+        if (!current()) throw new Error('search_cancelled')
+        resolve(enqueueSourceWorker(requestJson, wasmBytes, httpContextJson, false,
+          SourceWorkerPriority.BACKGROUND, current))
+      } else {
+        if (!current()) throw new Error('search_cancelled')
+        resolve(response)
+      }
+    }).catch(reject)
+    const tail = previous.then((): Promise<void> => classified)
+    localCoverFallbackTails.set(sourceId, tail)
+    tail.finally((): void => {
+      if (localCoverFallbackTails.get(sourceId) === tail) localCoverFallbackTails.delete(sourceId)
+    })
+  })
 }
 
 export function runBrowseSourceRequestInWorker(requestJson: string, wasmBytes: Uint8Array,

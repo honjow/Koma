@@ -41,7 +41,9 @@ constexpr uint32_t kMaxConcurrentSourceCalls = 4;
 // Preserve four source slots; two image workers have their own admission and
 // module budgets rather than waiting behind source HTTP requests.
 constexpr uint32_t kMaxConcurrentImageCalls = 2;
-constexpr uint32_t kRuntimeHeapBytes = (kMaxConcurrentSourceCalls + kMaxConcurrentImageCalls) * 8u * 1024u * 1024u;
+constexpr uint32_t kMaxConcurrentLocalCoverCalls = 2;
+constexpr uint32_t kRuntimeHeapBytes =
+    (kMaxConcurrentSourceCalls + kMaxConcurrentImageCalls + kMaxConcurrentLocalCoverCalls) * 8u * 1024u * 1024u;
 constexpr uint32_t kWasmStackBytes = 64u * 1024u;
 constexpr uint32_t kWasmHeapBytes = 256u * 1024u;
 constexpr uint32_t kMaxPayloadBytes = 1024u * 1024u;
@@ -193,17 +195,30 @@ std::vector<uint8_t> LoadWasmBytesFromExternalBytes(const std::vector<uint8_t> &
     return wasmBytes;
 }
 
-void HostLog(wasm_exec_env_t execEnv, int32_t level, char *message, uint32_t messageLen)
-{
-    (void)execEnv;
-    const uint32_t safeLen = messageLen > kMaxHostLogBytes ? kMaxHostLogBytes : messageLen;
-    std::string sanitized;
-    sanitized.reserve(safeLen);
-    for (uint32_t i = 0; i < safeLen; i++) {
-        const char ch = message[i];
-        sanitized += (ch >= 0x20 && ch <= 0x7e) ? ch : '?';
-    }
+struct CoverLog {
+    int32_t level;
+    uint32_t originalLength;
+    std::string message;
+};
 
+struct LocalCoverProbe {
+    bool needsOrdinaryCall = false;
+    std::vector<CoverLog> logs;
+};
+
+// WASM start can reach imports before its exec-env has an HTTP context.
+thread_local LocalCoverProbe *g_localCoverProbe = nullptr;
+
+bool RequireOrdinarySourceCall(wasm_exec_env_t execEnv)
+{
+    if (!g_localCoverProbe) return false;
+    g_localCoverProbe->needsOrdinaryCall = true;
+    wasm_runtime_set_exception(wasm_runtime_get_module_inst(execEnv), "cover requires ordinary source call");
+    return true;
+}
+
+void WriteHostLog(int32_t level, uint32_t messageLen, const std::string &sanitized)
+{
 #if defined(KOMA_HAS_HILOG)
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime",
         "HOST_LOG level=%{public}d len=%{public}u message=%{public}s",
@@ -212,6 +227,26 @@ void HostLog(wasm_exec_env_t execEnv, int32_t level, char *message, uint32_t mes
     std::fprintf(stderr, "KomaSourceRuntime HOST_LOG level=%d len=%u message=%s\n",
         level, messageLen, sanitized.c_str());
 #endif
+}
+
+void HostLog(wasm_exec_env_t execEnv, int32_t level, char *message, uint32_t messageLen)
+{
+    (void)execEnv;
+    constexpr size_t kMaxCoverProbeLogs = 8;
+    if (g_localCoverProbe && g_localCoverProbe->logs.size() >= kMaxCoverProbeLogs) return;
+    const uint32_t safeLen = messageLen > kMaxHostLogBytes ? kMaxHostLogBytes : messageLen;
+    std::string sanitized;
+    sanitized.reserve(safeLen);
+    for (uint32_t i = 0; i < safeLen; i++) {
+        const char ch = message[i];
+        sanitized += (ch >= 0x20 && ch <= 0x7e) ? ch : '?';
+    }
+
+    if (g_localCoverProbe) {
+        g_localCoverProbe->logs.push_back({level, messageLen, std::move(sanitized)});
+    } else {
+        WriteHostLog(level, messageLen, sanitized);
+    }
 }
 
 int32_t HostCheckCancel(wasm_exec_env_t execEnv)
@@ -228,6 +263,7 @@ int32_t HostCheckCancel(wasm_exec_env_t execEnv)
 
 int32_t HostHttpRequest(wasm_exec_env_t execEnv, char *request, uint32_t requestLen, char *out, uint32_t outCap)
 {
+    if (RequireOrdinarySourceCall(execEnv)) return -1;
     const auto *context = static_cast<const std::string *>(wasm_runtime_get_user_data(execEnv));
     return koma::http::HostRequest(request, requestLen, out, outCap, context ? *context : "");
 }
@@ -275,6 +311,7 @@ int32_t HostHtmlClose(wasm_exec_env_t execEnv, int32_t descriptor)
 
 int32_t HostUnixTimeMs(wasm_exec_env_t execEnv, char *out, uint32_t outCap)
 {
+    if (RequireOrdinarySourceCall(execEnv)) return -1;
     auto moduleInst = wasm_runtime_get_module_inst(execEnv);
     if (out == nullptr || outCap != 8 ||
         !wasm_runtime_validate_native_addr(moduleInst, out, 8)) return -1;
@@ -291,6 +328,7 @@ int32_t HostUnixTimeMs(wasm_exec_env_t execEnv, char *out, uint32_t outCap)
 
 int32_t HostRandomBytes(wasm_exec_env_t execEnv, char *out, uint32_t outCap)
 {
+    if (RequireOrdinarySourceCall(execEnv)) return -1;
     auto moduleInst = wasm_runtime_get_module_inst(execEnv);
     if (out == nullptr || outCap == 0 || outCap > 256 ||
         !wasm_runtime_validate_native_addr(moduleInst, out, outCap)) return -1;
@@ -531,6 +569,7 @@ std::condition_variable g_runtimeSlotAvailable;
 std::unique_ptr<Runtime> g_runtime;
 uint32_t g_runtimeUsers = 0;
 uint32_t g_imageRuntimeUsers = 0;
+uint32_t g_localCoverRuntimeUsers = 0;
 std::unordered_set<std::string> g_activeSources;
 bool g_unidentifiedSourceActive = false;
 
@@ -593,21 +632,30 @@ private:
     std::thread worker_;
 };
 
+enum class RuntimeLane { Source, ImagePlugin, LocalCover };
+
 class RuntimeLease {
 public:
-    explicit RuntimeLease(const std::string &sourceId = "", bool image = false) : sourceId_(sourceId), image_(image)
+    explicit RuntimeLease(const std::string &sourceId = "", RuntimeLane lane = RuntimeLane::Source) :
+        sourceId_(sourceId), lane_(lane)
     {
         std::unique_lock<std::mutex> lock(g_runtimeLifetimeMu);
         // Preserve per-source serialization, including HTTP wait time. An
         // unidentified call has no safe key, so it remains process-exclusive.
         g_runtimeSlotAvailable.wait(lock, [this] {
-            if (image_) return !g_unidentifiedSourceActive && g_imageRuntimeUsers < kMaxConcurrentImageCalls;
+            if (lane_ == RuntimeLane::ImagePlugin) {
+                return !g_unidentifiedSourceActive && g_imageRuntimeUsers < kMaxConcurrentImageCalls;
+            }
+            if (lane_ == RuntimeLane::LocalCover) {
+                return !g_unidentifiedSourceActive && g_localCoverRuntimeUsers < kMaxConcurrentLocalCoverCalls;
+            }
             if (sourceId_.empty()) return g_runtimeUsers == 0;
             return !g_unidentifiedSourceActive && g_activeSources.size() < kMaxConcurrentSourceCalls &&
                 g_activeSources.find(sourceId_) == g_activeSources.end();
         });
         try {
-            if (image_) ++g_imageRuntimeUsers;
+            if (lane_ == RuntimeLane::ImagePlugin) ++g_imageRuntimeUsers;
+            else if (lane_ == RuntimeLane::LocalCover) ++g_localCoverRuntimeUsers;
             else if (sourceId_.empty()) g_unidentifiedSourceActive = true;
             else g_activeSources.insert(sourceId_);
             if (!g_runtime) {
@@ -617,9 +665,7 @@ public:
             }
             ++g_runtimeUsers;
         } catch (...) {
-            if (image_) --g_imageRuntimeUsers;
-            else if (sourceId_.empty()) g_unidentifiedSourceActive = false;
-            else g_activeSources.erase(sourceId_);
+            ReleaseSlot();
             lock.unlock();
             g_runtimeSlotAvailable.notify_all();
             throw;
@@ -630,9 +676,7 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock(g_runtimeLifetimeMu);
-            if (image_) --g_imageRuntimeUsers;
-            else if (sourceId_.empty()) g_unidentifiedSourceActive = false;
-            else g_activeSources.erase(sourceId_);
+            ReleaseSlot();
             if (--g_runtimeUsers == 0) {
                 try {
                     RuntimeIdleReaper::Get().KeepWarmLocked();
@@ -649,8 +693,16 @@ public:
     RuntimeLease &operator=(const RuntimeLease &) = delete;
 
 private:
+    void ReleaseSlot()
+    {
+        if (lane_ == RuntimeLane::ImagePlugin) --g_imageRuntimeUsers;
+        else if (lane_ == RuntimeLane::LocalCover) --g_localCoverRuntimeUsers;
+        else if (sourceId_.empty()) g_unidentifiedSourceActive = false;
+        else g_activeSources.erase(sourceId_);
+    }
+
     std::string sourceId_;
-    bool image_;
+    RuntimeLane lane_;
 };
 
 class ThreadEnv {
@@ -686,6 +738,43 @@ public:
     HtmlScope &operator=(const HtmlScope &) = delete;
 };
 
+bool CanRestrictCoverImports(wasm_module_t module)
+{
+    // Keep unguarded imports (including WAMR's built-in clock) and any future
+    // host imports on the ordinary lane until explicitly reviewed here.
+    const char *allowed[] = {"log", "check_cancel", "http_request", "unix_time_ms", "random_bytes",
+        "html_parse", "html_select", "html_select_all", "html_attr", "html_text", "html_close"};
+    const int32_t count = wasm_runtime_get_import_count(module);
+    for (int32_t i = 0; i < count; ++i) {
+        wasm_import_t import {};
+        wasm_runtime_get_import_type(module, i, &import);
+        if (import.kind != WASM_IMPORT_EXPORT_KIND_FUNC || !import.module_name || !import.name ||
+            std::strcmp(import.module_name, "koma_host") != 0) return false;
+        bool allowedImport = false;
+        for (const char *name : allowed) {
+            if (std::strcmp(import.name, name) == 0) {
+                allowedImport = true;
+                break;
+            }
+        }
+        if (!allowedImport) return false;
+    }
+    return count >= 0;
+}
+
+class LocalCoverScope {
+public:
+    LocalCoverScope() { g_localCoverProbe = &probe_; }
+    ~LocalCoverScope() { g_localCoverProbe = nullptr; }
+    bool HasDependency() const { return probe_.needsOrdinaryCall; }
+    void WriteLogs() const
+    {
+        for (const auto &log : probe_.logs) WriteHostLog(log.level, log.originalLength, log.message);
+    }
+private:
+    LocalCoverProbe probe_;
+};
+
 class Module {
 public:
     explicit Module(std::vector<uint8_t> wasmBytes, const std::string &httpContextJson = "") : httpContextJson_(httpContextJson), wasmBytes_(std::move(wasmBytes))
@@ -699,6 +788,9 @@ public:
                 sizeof(errorBuf));
             if (!module_) {
                 throw std::runtime_error(std::string("wasm_runtime_load failed: ") + errorBuf);
+            }
+            if (g_localCoverProbe && !CanRestrictCoverImports(module_)) {
+                throw std::runtime_error("cover has unrestricted imports");
             }
 
             moduleInst_ = wasm_runtime_instantiate(module_, kWasmStackBytes, kWasmHeapBytes, errorBuf, sizeof(errorBuf));
@@ -884,7 +976,7 @@ ImageProcessorResult RunImageProcessor(const std::vector<uint8_t> &wasm, const u
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
-        RuntimeLease runtime("", true);
+        RuntimeLease runtime("", RuntimeLane::ImagePlugin);
         ThreadEnv environment;
         return ExecuteImageProcessor(wasm, rgba, byteCount, width, height, configuration);
     } catch (const std::exception &error) {
@@ -901,7 +993,7 @@ std::string RunImageProcessorInspection(const std::vector<uint8_t> &wasm)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
-        RuntimeLease runtime("", true);
+        RuntimeLease runtime("", RuntimeLane::ImagePlugin);
         ThreadEnv environment;
         return InspectImageProcessor(wasm);
     } catch (const std::exception &error) { return error.what(); }
@@ -933,10 +1025,28 @@ std::string RunBundledWasmJsonCall(const std::string &requestJson)
 }
 
 std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes,
-    const std::string &httpContextJson, const std::string &sourceId)
+    const std::string &httpContextJson, const std::string &sourceId, bool localCover)
 {
 #if defined(KOMA_ENABLE_WAMR)
     try {
+        if (localCover) {
+            if (sourceId.empty() || ExtractOperation(requestJson) != "get_image_request" ||
+                HasTestOnlyGuard(requestJson, kTestTimeoutGuard)) return {};
+            auto moduleBytes = LoadWasmBytesFromExternalBytes(wasmBytes);
+            RuntimeLease runtime(sourceId, RuntimeLane::LocalCover);
+            ThreadEnv threadEnv;
+            HtmlScope htmlScope;
+            LocalCoverScope restriction;
+            Module module(std::move(moduleBytes), httpContextJson);
+            auto response = module.RunOperation(requestJson);
+            if (restriction.HasDependency()) return {};
+            restriction.WriteLogs();
+#if defined(KOMA_HAS_HILOG)
+            OH_LOG_Print(LOG_APP, LOG_INFO, 0x0, "KomaSourceRuntime",
+                "[SourceRuntime] step=wasm_local_cover_complete source=%{public}s", sourceId.c_str());
+#endif
+            return response;
+        }
         if (HasTestOnlyGuard(requestJson, kTestTimeoutGuard)) {
             return ErrorJson("WAMR_RUNTIME_TIMEOUT", "source runtime call timed out", "timeout");
         }
@@ -961,6 +1071,7 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
 #endif
         return response;
     } catch (const std::exception &err) {
+        if (localCover) return {};
 #if defined(KOMA_HAS_HILOG)
         OH_LOG_Print(LOG_APP, LOG_ERROR, 0x0, "KomaSourceRuntime",
             "RunWasmJsonCallFromBytes exception: %{public}s", err.what());
@@ -972,6 +1083,7 @@ std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::
     (void)wasmBytes;
     (void)httpContextJson;
     (void)sourceId;
+    if (localCover) return {};
     return ErrorJson("WAMR_NOT_BUILT", "native module was built without WAMR_ROOT_DIR", "wamr_not_built");
 #endif
 }

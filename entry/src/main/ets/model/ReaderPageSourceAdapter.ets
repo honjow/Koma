@@ -53,7 +53,8 @@ import { normalizeKavitaBaseUrl } from '../remote/KavitaClient'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
-import { executeSourceRequestInWorker as executeReaderSourceImageRequestOperation, SourceWorkerPriority } from '../sourceRuntime/SourceRuntimeWorkerClient'
+import { executeSourceRequestInWorker as executeReaderSourceImageRequestOperation, executeSourceCoverRequestInWorker,
+  SourceWorkerPriority } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { runSourceOperationFromValidatedBytesAsync } from '../sourceRuntime/SourceRuntimeService'
 
 export interface ReaderRemoteImageCachePreferences {
@@ -671,8 +672,9 @@ async function runReaderSourceImageOperation(entry: SourceRuntimeRegistryEntry, 
   const httpContextJson = sourceHttpIdentityJson(entry, undefined, false, 'get_image_request')
   // Keep normal images and deferred text on the same worker/host HTTP bridge.
   const hostRequest = sourceRequestWithHostFeatures(requestJson)
-  return diagnoseSourceOperation(hostRequest, () => executeReaderSourceImageRequestOperation( hostRequest, wasmBytes, httpContextJson, priority,
-  ))
+  return diagnoseSourceOperation(hostRequest, (): Promise<string> => priority === SourceWorkerPriority.BACKGROUND
+    ? executeSourceCoverRequestInWorker(hostRequest, wasmBytes, httpContextJson)
+    : executeReaderSourceImageRequestOperation(hostRequest, wasmBytes, httpContextJson, priority))
 }
 
 async function resolveSourceRuntimeImageRequest(
