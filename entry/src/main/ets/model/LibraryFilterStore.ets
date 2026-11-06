@@ -5,6 +5,9 @@ import { preferences } from '@kit.ArkData'
 import {
   LibraryReadStateFilter,
   LibrarySortBy,
+  LibrarySortDirection,
+  isLibrarySortBy,
+  librarySortDirection,
   LibraryCategoryFilter,
 } from './LibraryStore'
 
@@ -18,6 +21,7 @@ export type LibraryListDensity = 'compact' | 'standard' | 'comfortable'
 
 export interface LibraryFilterPreferences {
   sortBy: LibrarySortBy
+  sortDirection: LibrarySortDirection
   viewMode: LibraryViewMode
   listDensity: LibraryListDensity
   showBadges: boolean
@@ -30,6 +34,7 @@ export interface LibraryFilterPreferences {
 
 export interface LibraryFilterPreferenceChanges {
   sortBy?: LibrarySortBy
+  sortDirection?: LibrarySortDirection
   viewMode?: LibraryViewMode
   listDensity?: LibraryListDensity
   showBadges?: boolean
@@ -54,6 +59,7 @@ const libraryFilterOperations: Map<string, Promise<void>> = new Map()
 
 const LIBRARY_FILTER_STORE_NAME: string = 'koma_library_filter_preferences'
 const LIBRARY_SORT_KEY: string = 'library.sort'
+const LIBRARY_SORT_DIRECTION_KEY: string = 'library.sortDirection'
 const LIBRARY_VIEW_MODE_KEY: string = 'library.viewMode'
 const LIBRARY_LIST_DENSITY_KEY: string = 'library.listDensity'
 const LIBRARY_SHOW_BADGES_KEY: string = 'library.showBadges'
@@ -65,6 +71,7 @@ const LIBRARY_FILTER_METADATA_STATUS_KEY: string = 'library.filter.metadataStatu
 
 const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
   sortBy: 'lastRead',
+  sortDirection: 'desc',
   viewMode: 'grid',
   listDensity: 'standard',
   showBadges: true,
@@ -76,10 +83,7 @@ const DEFAULT_LIBRARY_FILTER_PREFERENCES: LibraryFilterPreferences = {
 }
 
 function normalizeSortBy(value: string): LibrarySortBy {
-  if (value === 'added' || value === 'title' || value === 'source') {
-    return value
-  }
-  return 'lastRead'
+  return isLibrarySortBy(value) ? value as LibrarySortBy : 'lastRead'
 }
 
 function normalizeViewMode(value: string): LibraryViewMode {
@@ -219,7 +223,8 @@ export class LibraryFilterStore {
   }
 
   private readSnapshot(store: preferences.Preferences): LibraryFilterPreferences {
-    const sortBy = store.getSync(LIBRARY_SORT_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.sortBy) as string
+    const sortBy = normalizeSortBy(store.getSync(LIBRARY_SORT_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.sortBy) as string)
+    const sortDirection = librarySortDirection(sortBy, store.getSync(LIBRARY_SORT_DIRECTION_KEY, '') as string)
     const viewMode = store.getSync(LIBRARY_VIEW_MODE_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.viewMode) as string
     const listDensity = store.getSync(LIBRARY_LIST_DENSITY_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.listDensity) as string
     const showBadges = store.getSync(LIBRARY_SHOW_BADGES_KEY, DEFAULT_LIBRARY_FILTER_PREFERENCES.showBadges) as boolean
@@ -231,7 +236,8 @@ export class LibraryFilterStore {
     const density = normalizeListDensity(listDensity)
     connectLibraryCoverLayout().density = density
     return {
-      sortBy: normalizeSortBy(sortBy),
+      sortBy,
+      sortDirection,
       viewMode: normalizeViewMode(viewMode),
       listDensity: density,
       showBadges: normalizeShowBadges(showBadges),
@@ -247,6 +253,7 @@ export class LibraryFilterStore {
     // Capture the caller's field intent before waiting behind another writer.
     const writes: LibraryFilterWrite[] = []
     if (changes.sortBy !== undefined) writes.push({ key: LIBRARY_SORT_KEY, value: normalizeSortBy(changes.sortBy) })
+    if (changes.sortDirection !== undefined) writes.push({ key: LIBRARY_SORT_DIRECTION_KEY, value: changes.sortDirection })
     if (changes.viewMode !== undefined) writes.push({ key: LIBRARY_VIEW_MODE_KEY, value: normalizeViewMode(changes.viewMode) })
     if (changes.listDensity !== undefined) writes.push({ key: LIBRARY_LIST_DENSITY_KEY, value: normalizeListDensity(changes.listDensity) })
     if (changes.showBadges !== undefined) writes.push({ key: LIBRARY_SHOW_BADGES_KEY, value: normalizeShowBadges(changes.showBadges) })

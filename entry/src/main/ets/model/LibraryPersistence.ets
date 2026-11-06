@@ -37,7 +37,10 @@ import {
 } from './ComicModels'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import {
+  isLibrarySortBy,
   LibraryCategoryDisplayStrategy,
+  LibrarySortBy,
+  LibrarySortDirection,
   LibraryStore,
 } from './LibraryStore'
 import {
@@ -79,6 +82,7 @@ export interface PersistedLibraryCategory {
 export interface PersistedCategoryDisplayStrategy {
   categoryId: string
   sortBy: string
+  sortDirection?: string
   readState: string
   updatedAt: number
 }
@@ -479,7 +483,7 @@ function assertReadingDirection(value: ReadingDirection | undefined, label: stri
 }
 
 function assertLibrarySortBy(value: string | undefined, label: string): void {
-  if (value !== 'lastRead' && value !== 'added' && value !== 'title' && value !== 'source') {
+  if (!isLibrarySortBy(value)) {
     throw new Error(`Invalid library store persistence ${label}: expected library sort`)
   }
 }
@@ -645,6 +649,7 @@ function persistCategoryDisplayStrategy(strategy: LibraryCategoryDisplayStrategy
   return {
     categoryId: strategy.categoryId,
     sortBy: strategy.sortBy,
+    sortDirection: strategy.sortDirection,
     readState: strategy.readState,
     updatedAt: strategy.updatedAt,
   }
@@ -654,7 +659,8 @@ function hydrateCategoryDisplayStrategy(row: PersistedCategoryDisplayStrategy): 
   assertValidPersistedCategoryDisplayStrategy(row)
   return {
     categoryId: row.categoryId,
-    sortBy: row.sortBy as 'lastRead' | 'added' | 'title' | 'source',
+    sortBy: row.sortBy as LibrarySortBy,
+    sortDirection: row.sortDirection as LibrarySortDirection | undefined,
     readState: row.readState as 'all' | 'unread' | 'reading' | 'completed',
     updatedAt: row.updatedAt,
   }
@@ -667,6 +673,9 @@ function assertValidPersistedCategoryDisplayStrategy(row: PersistedCategoryDispl
     throw new Error('Invalid library store persistence categoryDisplayStrategy.categoryId: expected non-empty category id')
   }
   assertLibrarySortBy(row.sortBy, 'categoryDisplayStrategy.sortBy')
+  if (row.sortDirection !== undefined && row.sortDirection !== 'asc' && row.sortDirection !== 'desc') {
+    throw new Error('Invalid library store persistence categoryDisplayStrategy.sortDirection')
+  }
   assertLibraryReadState(row.readState, 'categoryDisplayStrategy.readState')
   assertNumberField(row.updatedAt, 'categoryDisplayStrategy.updatedAt')
 }

@@ -1523,6 +1523,13 @@ struct Index {
     this.applicationSettingsRestoreRevision += 1
     this.readerProgressRevision += 1
     this.refreshLibrarySnapshot()
+    this.loadLibraryChapterUpdateHistory(getContext(this) as common.UIAbilityContext)
+  }
+
+  private loadLibraryChapterUpdateHistory(context: common.UIAbilityContext): void {
+    void new LibraryUpdateResultStore(context).loadChapterUpdates()
+      .then((): void => { this.libraryRevision += 1 })
+      .catch((): void => { DiagnosticLogger.warn('library_updates', 'history_load_failed', 'phase=preferences') })
   }
 
   private openLibraryMangaDetail(comicId: ComicId, newInstance: boolean = false): void {
@@ -2303,9 +2310,7 @@ struct Index {
       }
       if (groups.includes('reading')) this.readerProgressRevision++
     })
-    void new LibraryUpdateResultStore(context).loadChapterUpdates().catch((): void => {
-      DiagnosticLogger.warn('library_updates', 'history_load_failed', 'phase=preferences')
-    })
+    this.loadLibraryChapterUpdateHistory(context)
     configureSourceSettingsStore(context)
     configureSourceFilterPreferencesStore(context)
     void this.catalogFilters.prepare(context).catch((): void => {

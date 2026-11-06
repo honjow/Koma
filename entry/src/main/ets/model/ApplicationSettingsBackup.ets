@@ -33,7 +33,7 @@ const PORTABLE_FIELDS: Record<string, string[]> = {
   'koma_app_preferences_v1': ['app.language'],
   'koma_appearance_preferences_v1': ['appearance.accentColor'],
   'koma_library_filter_preferences': [
-    'library.sort', 'library.viewMode', 'library.listDensity', 'library.showBadges',
+    'library.sort', 'library.sortDirection', 'library.viewMode', 'library.listDensity', 'library.showBadges',
     'library.filter.source', 'library.filter.readState', 'library.filter.category',
     'library.filter.availability', 'library.filter.metadataStatus',
   ],

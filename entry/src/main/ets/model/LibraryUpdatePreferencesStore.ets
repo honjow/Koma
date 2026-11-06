@@ -37,9 +37,10 @@ export const LIBRARY_UPDATE_NOTIFICATION_STATUS: LibraryUpdateNotificationStatus
 export const LIBRARY_UPDATE_MAX_BACKOFF_HOURS: number = 24
 
 export const DEFAULT_LIBRARY_UPDATE_PREFERENCES: LibraryUpdatePreferences = {
-  autoCheckEnabled: false,
+  // Defaults apply to missing keys. Explicit user choices are read unchanged.
+  autoCheckEnabled: true,
   intervalHours: 24,
-  foregroundOnly: true,
+  foregroundOnly: false,
   failureCount: 0,
 }
 

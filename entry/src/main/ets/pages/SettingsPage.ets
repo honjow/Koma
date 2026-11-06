@@ -17,6 +17,7 @@ import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsCon
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
 import { readerModeSelection, readerDirectionSelection, normalizeReaderPreferences } from '../model/ReaderPreferencesStore'
 import { ReaderDirectionMenuItems } from '../components/ReaderDirectionMenu'
+import { LibrarySortMenuItems, librarySortSummary } from '../components/LibrarySortMenu'
 import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettingsContent } from './DiagnosticsSettingsContent'
@@ -31,6 +32,7 @@ import { ThemeConstants } from '../theme/ThemeConstants'
 import { ReadingDirection } from '../model/ComicModels'
 import {
   LibrarySortBy,
+  LibrarySortDirection,
   LibraryStore,
 } from '../model/LibraryStore'
 import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
@@ -546,6 +548,7 @@ export struct SettingsPage {
   private libraryFilterMutationRevision: number = 0
   private libraryFilterLoadEpoch: number = 0
   @Local private libraryDefaultSortBy: LibrarySortBy = 'lastRead'
+  @Local private libraryDefaultSortDirection: LibrarySortDirection = 'desc'
   @Local private libraryViewMode: LibraryViewMode = 'grid'
   @Local private libraryListDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
@@ -598,19 +601,6 @@ export struct SettingsPage {
 
   private rowBaseDetail(row: SettingsRow): string {
     return this.t(row.detailKey)
-  }
-
-  private librarySortLabel(sortBy: LibrarySortBy): string {
-    if (sortBy === 'added') {
-      return this.t('library_sort_added')
-    }
-    if (sortBy === 'title') {
-      return this.t('library_sort_title')
-    }
-    if (sortBy === 'source') {
-      return this.t('library_sort_source')
-    }
-    return this.t('library_sort_last_read')
   }
 
   private libraryViewModeLabel(viewMode: LibraryViewMode): string {
@@ -771,7 +761,7 @@ export struct SettingsPage {
       return count > 0 ? this.t('settings_library_categories_count').replace('%s', `${count}`) : this.t('settings_row_library_categories_detail')
     }
     if (row.key === 'library-default-sort') {
-      return this.librarySortLabel(this.libraryDefaultSortBy)
+      return librarySortSummary(this.libraryDefaultSortBy, this.libraryDefaultSortDirection)
     }
     if (row.key === 'library-view-mode') {
       return this.libraryViewModeLabel(this.libraryViewMode)
@@ -1841,9 +1831,10 @@ export struct SettingsPage {
       })
   }
 
-  private saveLibraryDefaultSort(sortBy: LibrarySortBy): void {
+  private saveLibraryDefaultSort(sortBy: LibrarySortBy, sortDirection: LibrarySortDirection): void {
     this.libraryDefaultSortBy = sortBy
-    this.saveLibraryFilterChanges({ sortBy }, s('settings_library_default_sort_save_failed'))
+    this.libraryDefaultSortDirection = sortDirection
+    this.saveLibraryFilterChanges({ sortBy, sortDirection }, s('settings_library_default_sort_save_failed'))
   }
 
   private saveLibraryViewMode(viewMode: LibraryViewMode): void {
@@ -2310,10 +2301,10 @@ export struct SettingsPage {
           })
         }, (maxBytes: number) => `${maxBytes}`)
       } else if (row.key === 'library-default-sort') {
-        this.SelectionMenuItem(select, s('library_sort_last_read'), this.libraryDefaultSortBy === 'lastRead', () => { this.saveLibraryDefaultSort('lastRead') })
-        this.SelectionMenuItem(select, s('library_sort_added'), this.libraryDefaultSortBy === 'added', () => { this.saveLibraryDefaultSort('added') })
-        this.SelectionMenuItem(select, s('library_sort_title'), this.libraryDefaultSortBy === 'title', () => { this.saveLibraryDefaultSort('title') })
-        this.SelectionMenuItem(select, s('library_sort_source'), this.libraryDefaultSortBy === 'source', () => { this.saveLibraryDefaultSort('source') })
+        LibrarySortMenuItems(this.libraryDefaultSortBy, this.libraryDefaultSortDirection,
+          (sortBy: LibrarySortBy, direction: LibrarySortDirection): void => {
+            select(() => { this.saveLibraryDefaultSort(sortBy, direction) })
+          })
       } else if (row.key === 'library-view-mode') {
         this.SelectionMenuItem(select, s('library_view_mode_grid'), this.libraryViewMode === 'grid', () => { this.saveLibraryViewMode('grid') })
         this.SelectionMenuItem(select, s('library_view_mode_list'), this.libraryViewMode === 'list', () => { this.saveLibraryViewMode('list') })
@@ -2707,6 +2698,7 @@ export struct SettingsPage {
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
     this.libraryDefaultSortBy = preferences.sortBy
+    this.libraryDefaultSortDirection = preferences.sortDirection
     this.libraryViewMode = preferences.viewMode
     this.libraryListDensity = preferences.listDensity
     this.showLibraryBadges = preferences.showBadges

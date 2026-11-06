@@ -9,12 +9,28 @@ export interface LibraryChapterUpdate {
 }
 
 let cachedUpdates: LibraryChapterUpdate[] | undefined = undefined
+let cachedUpdateTimes: Map<string, number> | undefined = undefined
 let cacheEpoch: number = 0
 export function cachedLibraryChapterUpdates(): LibraryChapterUpdate[] | undefined { return cachedUpdates }
 export function libraryChapterUpdatesEpoch(): number { return cacheEpoch }
 export function setCachedLibraryChapterUpdates(value: LibraryChapterUpdate[] | undefined): void {
   if (value === undefined) cacheEpoch += 1
   cachedUpdates = value
+  cachedUpdateTimes = undefined
+}
+
+// Derive the shelf key from the same persisted discoveries as the Updates page.
+// Reuse the index across shelf projections until the owner publishes new records.
+export function cachedLibraryChapterUpdateTimes(): Map<string, number> | undefined {
+  if (cachedUpdates === undefined) return undefined
+  if (cachedUpdateTimes === undefined) {
+    const times = new Map<string, number>()
+    for (const record of cachedUpdates) {
+      if (record.discoveredAt > (times.get(record.comicId) ?? 0)) times.set(record.comicId, record.discoveredAt)
+    }
+    cachedUpdateTimes = times
+  }
+  return cachedUpdateTimes
 }
 
 // Reuse the update pipeline's exact pre-update chapter IDs, also used by auto

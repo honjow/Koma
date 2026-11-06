@@ -2,6 +2,8 @@ import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry
 import { canMigrateLibraryComic } from '../model/SourceMangaMigration'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { libraryUnreadBadgeOptions } from '../components/LibraryUnreadBadge'
+import { LibrarySortMenuItems, librarySortSummary } from '../components/LibrarySortMenu'
+import { cachedLibraryChapterUpdateTimes } from '../model/LibraryChapterUpdates'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
@@ -45,6 +47,8 @@ import {
   LibraryListOptions,
   LibraryReadStateFilter,
   LibrarySortBy,
+  LibrarySortDirection,
+  librarySortDirection,
   LibraryStore,
 } from '../model/LibraryStore'
 import {
@@ -236,6 +240,7 @@ export struct LibraryPage {
   @Local private batchDownloadBusy: boolean = false
   @Local private suppressOpenComicId: ComicId = ''
   @Local private sortBy: LibrarySortBy = 'lastRead'
+  @Local private sortDirection: LibrarySortDirection = 'desc'
   @Local private viewMode: LibraryViewMode = 'grid'
   @Local private listDensity: LibraryListDensity = 'standard'
   @Local private showLibraryBadges: boolean = true
@@ -391,7 +396,7 @@ export struct LibraryPage {
     this.markFilterPreferencesMutation()
     this.applyCategoryDisplayStrategy(changed.categoryId)
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences({ sortBy: strategy.sortBy, readState: strategy.readState })
+    this.saveFilterPreferences({ sortBy: strategy.sortBy, sortDirection: this.sortDirection, readState: strategy.readState })
   }
 
   @Monitor('libraryPreferencesRevision')
@@ -574,6 +579,8 @@ export struct LibraryPage {
     return {
       readerSessionStore: this.readerSessionStore,
       sortBy: this.sortBy,
+      sortDirection: this.sortDirection,
+      chapterUpdateTimes: this.sortBy === 'lastUpdate' ? cachedLibraryChapterUpdateTimes() : undefined,
       filterSource: this.sourceKindsForFilter(),
       filterReadState: this.filterReadState,
       filterCategoryId: this.validCategoryFilter(),
@@ -682,6 +689,7 @@ export struct LibraryPage {
     const restoreEpoch = this.filterPreferencesRestoreEpoch
     const hasCategoryStrategy = this.libraryStore.getCategoryDisplayStrategy(this.filterCategory) !== undefined
     const effectiveSortBy = this.sortBy
+    const effectiveSortDirection = this.sortDirection
     const effectiveReadState = this.filterReadState
     try {
       const context = getContext(this) as common.UIAbilityContext
@@ -691,6 +699,7 @@ export struct LibraryPage {
           // Unrelated saves must not replace the active category's effective display with older global fields.
           if (hasCategoryStrategy) {
             if (changes.sortBy === undefined) value.sortBy = effectiveSortBy
+            if (changes.sortDirection === undefined) value.sortDirection = effectiveSortDirection
             if (changes.readState === undefined) value.readState = effectiveReadState
           }
           this.applyFilterPreferences(value, false)
@@ -706,15 +715,16 @@ export struct LibraryPage {
     }
   }
 
-  private setSortBy(sortBy: LibrarySortBy): void {
-    if (this.sortBy === sortBy) {
+  private setSortBy(sortBy: LibrarySortBy, sortDirection: LibrarySortDirection): void {
+    if (this.sortBy === sortBy && this.sortDirection === sortDirection) {
       return
     }
     this.markFilterPreferencesMutation()
     this.sortBy = sortBy
+    this.sortDirection = sortDirection
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences({ sortBy })
-    console.info(`[Library] step=sort_changed sortBy=${sortBy}`)
+    this.saveFilterPreferences({ sortBy, sortDirection })
+    console.info(`[Library] step=sort_changed sortBy=${sortBy} direction=${sortDirection}`)
   }
 
   private setViewMode(viewMode: LibraryViewMode): void {
@@ -759,7 +769,7 @@ export struct LibraryPage {
     const strategy = this.libraryStore.getCategoryDisplayStrategy(category)
     this.saveFilterPreferences(strategy === undefined
       ? { category }
-      : { category, sortBy: strategy.sortBy, readState: strategy.readState })
+      : { category, sortBy: strategy.sortBy, sortDirection: this.sortDirection, readState: strategy.readState })
     console.info(`[Library] step=filter_changed category=${category}`)
   }
 
@@ -786,7 +796,7 @@ export struct LibraryPage {
   }
 
   private hasActiveFilters(): boolean {
-    return this.sortBy !== 'lastRead' ||
+    return this.sortBy !== 'lastRead' || this.sortDirection !== 'desc' ||
       this.filterSource !== 'all' ||
       this.filterReadState !== 'all' ||
       this.filterCategory !== 'all' ||
@@ -800,13 +810,15 @@ export struct LibraryPage {
     }
     this.markFilterPreferencesMutation()
     this.sortBy = 'lastRead'
+    this.sortDirection = 'desc'
     this.filterSource = 'all'
     this.filterReadState = 'all'
     this.filterCategory = 'all'
     this.filterAvailability = 'all'
     this.filterMetadataStatus = 'all'
     this.refreshDisplayedSnapshotFromStore()
-    this.saveFilterPreferences({ sortBy: 'lastRead', source: 'all', readState: 'all', category: 'all', availability: 'all', metadataStatus: 'all' })
+    this.saveFilterPreferences({ sortBy: 'lastRead', sortDirection: 'desc',
+      source: 'all', readState: 'all', category: 'all', availability: 'all', metadataStatus: 'all' })
     console.info('[Library] step=filters_reset')
   }
 
@@ -816,20 +828,8 @@ export struct LibraryPage {
       return
     }
     this.sortBy = strategy.sortBy
+    this.sortDirection = librarySortDirection(strategy.sortBy, strategy.sortDirection)
     this.filterReadState = strategy.readState
-  }
-
-  private sortLabel(): string {
-    if (this.sortBy === 'added') {
-      return s('library_sort_added')
-    }
-    if (this.sortBy === 'title') {
-      return s('library_sort_title')
-    }
-    if (this.sortBy === 'source') {
-      return s('library_sort_source')
-    }
-    return s('library_sort_last_read')
   }
 
   private sourceLabel(): string {
@@ -1575,22 +1575,9 @@ export struct LibraryPage {
   @Builder
   private SortMenu() {
     Menu() {
-      MenuItem({ content: s('library_sort_last_read') })
-        .onClick(() => {
-          this.setSortBy('lastRead')
-        })
-      MenuItem({ content: s('library_sort_added') })
-        .onClick(() => {
-          this.setSortBy('added')
-        })
-      MenuItem({ content: s('library_sort_title') })
-        .onClick(() => {
-          this.setSortBy('title')
-        })
-      MenuItem({ content: s('library_sort_source') })
-        .onClick(() => {
-          this.setSortBy('source')
-        })
+      LibrarySortMenuItems(this.sortBy, this.sortDirection, (sortBy: LibrarySortBy, direction: LibrarySortDirection): void => {
+        this.setSortBy(sortBy, direction)
+      })
     }
   }
 
@@ -1799,9 +1786,9 @@ export struct LibraryPage {
   @Builder
   private SortSelector() {
     Row({ space: ThemeConstants.SPACE_XS }) {
-      Text(s('library_sort_chip').replace('%s', this.sortLabel()))
+      Text(librarySortSummary(this.sortBy, this.sortDirection))
         .fontSize(ThemeConstants.FONT_SIZE_META)
-        .fontColor(this.sortBy === 'lastRead' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
+        .fontColor(this.sortBy === 'lastRead' && this.sortDirection === 'desc' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       SymbolGlyph($r('sys.symbol.arrowtriangle_down_fill'))
@@ -2265,6 +2252,7 @@ export struct LibraryPage {
 
   private applyFilterPreferences(preferencesValue: LibraryFilterPreferences, applyCategoryStrategy: boolean = true): void {
     this.sortBy = preferencesValue.sortBy
+    this.sortDirection = preferencesValue.sortDirection
     this.viewMode = preferencesValue.viewMode
     this.listDensity = preferencesValue.listDensity
     this.showLibraryBadges = preferencesValue.showBadges

@@ -19,7 +19,19 @@ import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { LibrarySmartCategory, copyLibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
 
-export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source'
+export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source' | 'lastUpdate' | 'latestChapter' | 'unreadCount' | 'chapterCount'
+export type LibrarySortDirection = 'asc' | 'desc'
+
+export function isLibrarySortBy(value: string | undefined): boolean {
+  return value === 'lastRead' || value === 'added' || value === 'title' || value === 'source' ||
+    value === 'lastUpdate' || value === 'latestChapter' || value === 'unreadCount' || value === 'chapterCount'
+}
+
+export function librarySortDirection(sortBy: LibrarySortBy, value?: string): LibrarySortDirection {
+  if (value === 'asc' || value === 'desc') return value
+  // Older preferences and category strategies had implicit directions.
+  return sortBy === 'title' || sortBy === 'source' ? 'asc' : 'desc'
+}
 export type LibraryReadStateFilter = 'all' | 'unread' | 'reading' | 'completed'
 export type LibraryCategoryFilter = 'all' | 'uncategorized' | string
 export type LibraryCategoryDisplayCategoryId = 'all' | 'uncategorized' | string
@@ -27,12 +39,15 @@ export type LibraryCategoryDisplayCategoryId = 'all' | 'uncategorized' | string
 export interface LibraryCategoryDisplayStrategy {
   categoryId: LibraryCategoryDisplayCategoryId
   sortBy: LibrarySortBy
+  sortDirection?: LibrarySortDirection
   readState: LibraryReadStateFilter
   updatedAt: number
 }
 
 export interface LibraryListOptions {
   sortBy?: LibrarySortBy
+  sortDirection?: LibrarySortDirection
+  chapterUpdateTimes?: Map<ComicId, number>
   filterSource?: ComicSourceKind[]
   filterReadState?: LibraryReadStateFilter
   filterCategoryId?: LibraryCategoryFilter
@@ -108,6 +123,8 @@ export class InMemoryLibraryStore implements LibraryStore {
     const readStateFilter = options?.filterReadState ?? 'all'
     const categoryFilter = options?.filterCategoryId ?? 'all'
     const sortBy = options?.sortBy ?? 'lastRead'
+    const direction = librarySortDirection(sortBy, options?.sortDirection)
+    const multiplier = direction === 'asc' ? 1 : -1
     const rows: LibraryItem[] = Array.from(this.comics.values())
       .filter((comic: Comic): boolean => {
         return sourceFilters === undefined || sourceFilters.includes(comic.sourceKind)
@@ -143,26 +160,39 @@ export class InMemoryLibraryStore implements LibraryStore {
         return item.progress !== undefined && !item.progress.completed
       })
 
-    return rows.sort((a: LibraryItem, b: LibraryItem): number => {
-      if (sortBy === 'added') {
-        return this.compareByAddedDesc(a, b)
-      }
-      if (sortBy === 'title') {
-        return this.compareByTitleAsc(a, b)
-      }
-      if (sortBy === 'source') {
-        return this.compareBySourceKind(a, b)
-      }
-      return this.compareByLastReadDesc(a, b)
-    })
-  }
-
-  private compareByLastReadDesc(a: LibraryItem, b: LibraryItem): number {
-    const lastReadCompare = (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0)
-    if (lastReadCompare !== 0) {
-      return lastReadCompare
+    if (sortBy === 'title' || sortBy === 'source') {
+      return rows.sort((a: LibraryItem, b: LibraryItem): number => {
+        const comparison = sortBy === 'source' ? a.sourceKind.localeCompare(b.sourceKind) :
+          this.sortTitleForItem(a).localeCompare(this.sortTitleForItem(b))
+        return multiplier * comparison || this.compareByTitleAsc(a, b)
+      })
     }
-    return this.compareByAddedDesc(a, b)
+    const values = new Map<ComicId, number | undefined>()
+    for (const row of rows) {
+      const comic = this.comics.get(row.comicId)
+      let value: number | undefined
+      if (sortBy === 'added') value = row.addedAt
+      else if (sortBy === 'lastRead') value = row.lastReadAt
+      else if (sortBy === 'lastUpdate') value = options?.chapterUpdateTimes?.get(row.comicId)
+      else if (sortBy === 'chapterCount') value = row.chapterCount
+      else if (comic !== undefined && sortBy === 'unreadCount') value = options?.readerSessionStore?.unreadChapterCount(comic)
+      else if (comic !== undefined && sortBy === 'latestChapter') {
+        for (const chapter of comic.chapters) {
+          const date = chapter.dateUpload
+          if (date !== undefined && Number.isFinite(date) && date > (value ?? 0)) value = date
+        }
+      }
+      values.set(row.comicId, value)
+    }
+    return rows.sort((a: LibraryItem, b: LibraryItem): number => {
+      const left = values.get(a.comicId)
+      const right = values.get(b.comicId)
+      // Unknown dates and incomplete unread counts stay after known values
+      // in either direction. Direction affects the chosen key, not the tie break.
+      if (left === undefined) return right === undefined ? this.compareByAddedDesc(a, b) : 1
+      if (right === undefined) return -1
+      return multiplier * (left - right) || this.compareByAddedDesc(a, b)
+    })
   }
 
   private compareByAddedDesc(a: LibraryItem, b: LibraryItem): number {
@@ -179,18 +209,6 @@ export class InMemoryLibraryStore implements LibraryStore {
       return titleCompare
     }
     return a.addedAt - b.addedAt
-  }
-
-  private compareBySourceKind(a: LibraryItem, b: LibraryItem): number {
-    const comicA = this.comics.get(a.comicId)
-    const comicB = this.comics.get(b.comicId)
-    const sourceA = comicA === undefined ? '' : comicA.sourceKind
-    const sourceB = comicB === undefined ? '' : comicB.sourceKind
-    const sourceCompare = sourceA.localeCompare(sourceB)
-    if (sourceCompare !== 0) {
-      return sourceCompare
-    }
-    return this.compareByTitleAsc(a, b)
   }
 
   private sortTitleForItem(item: LibraryItem): string {
@@ -405,6 +423,7 @@ export class InMemoryLibraryStore implements LibraryStore {
     return {
       categoryId: strategy.categoryId,
       sortBy: strategy.sortBy,
+      sortDirection: strategy.sortDirection,
       readState: strategy.readState,
       updatedAt: strategy.updatedAt,
     }
@@ -415,13 +434,11 @@ export class InMemoryLibraryStore implements LibraryStore {
     if (categoryId.length === 0) {
       throw new Error('Invalid category display strategy categoryId')
     }
-    if (
-      strategy.sortBy !== 'lastRead' &&
-      strategy.sortBy !== 'added' &&
-      strategy.sortBy !== 'title' &&
-      strategy.sortBy !== 'source'
-    ) {
+    if (!isLibrarySortBy(strategy.sortBy)) {
       throw new Error('Invalid category display strategy sortBy')
+    }
+    if (strategy.sortDirection !== undefined && strategy.sortDirection !== 'asc' && strategy.sortDirection !== 'desc') {
+      throw new Error('Invalid category display strategy sortDirection')
     }
     if (
       strategy.readState !== 'all' &&
@@ -437,6 +454,7 @@ export class InMemoryLibraryStore implements LibraryStore {
     return {
       categoryId,
       sortBy: strategy.sortBy,
+      sortDirection: strategy.sortDirection,
       readState: strategy.readState,
       updatedAt: strategy.updatedAt,
     }
