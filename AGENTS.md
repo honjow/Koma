@@ -33,6 +33,8 @@
 | 书源 | [运行方向](docs/WASM_SOURCE_RUNTIME_DIRECTION.md)、[ABI](docs/source-runtime-abi.md) |
 | 本地证据 | [产物目录](docs/CONTROLLER_ARTIFACTS.md) |
 
+书源移植、素材变更和打包还必须先读源仓 [制作规范](https://github.com/honjow/koma-sources/blob/master/docs/WRITING_A_SOURCE.md) 的素材制作与验收段。主代理和实际执行子代理都须读取；不能只由一方阅读，也不能用父仓规则或摘要代替。素材检查和最终包亲审按该段执行，来源、尺寸、解码及哈希通过不代表素材已经验收。
+
 历史记录用于查证，不自动恢复旧任务、重跑已接受路径或生成新队列。本文不保存具体功能需求、实现参数、设备地址和验收状态。
 
 开始本地验证前，按[验证产物保留规则](docs/CONTROLLER_ARTIFACTS.md#验证产物保留)执行一次过期清理。
