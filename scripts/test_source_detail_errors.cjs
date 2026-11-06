@@ -237,6 +237,14 @@ test('only a structured no-chapters outcome gets the empty-catalogue explanation
   assert.equal(unknown.userTextFor('manga_detail_load_source_chapters_failed'),'manga_detail_load_source_chapters_failed')
   assert.ok(!empty.userText.includes('PRIVATE_TOKEN'))
 })
+test('confirmed removal is distinct from a plain 404 and does not override access denial', () => {
+  const removed = new SourceRuntimeError({ ok: false, reasonCode: 'not_found', error: { code: 'content_removed' } })
+  assert.equal(removed.userText, 'source_failure_content_removed')
+  const missing = new SourceRuntimeError({ ok: false, error: { code: 'not_found', message: 'content_removed' } })
+  assert.equal(missing.userText, 'source_failure_not_found')
+  const denied = new SourceRuntimeError({ ok: false, error: { code: 'content_removed', status: 403 } })
+  assert.equal(denied.diagnostic.kind, 'access')
+})
 test('get_manga keeps structured access status and never exposes the provider message', async () => {
   const f = fixture()
   f.state.response = { ok: false, error: { code: 'permission_denied', status: 403, message: 'PRIVATE_TOKEN' } }
@@ -277,7 +285,7 @@ test('chapter failure keeps real detail and saved rows without caching the fallb
   assert.equal(f.writes[0][3].chaptersResolved, false)
 })
 test('unavailable-content explanations keep stored chapters and do not claim a resolved catalogue', async () => {
-  for (const code of ['not_found','no_chapters']) {
+  for (const code of ['not_found','content_removed','no_chapters']) {
     const f = fixture()
     const saved = [{title:'Saved chapter'}]
     f.state.library = {chapters:saved}
@@ -374,20 +382,26 @@ test('root menu exposes only recovery when regular detail actions are unavailabl
   const src = read('pages/Index').replace(/\bstruct (\w+)/g, 'class $1')
   const f = ts.createSourceFile('index.ts', src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const owner = f.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'Index')
-  const member = owner.members.find(node => node.name?.text === 'mangaDetailTitleBarOpts')
-  const exports = {}, actions = [], chrome = { pageActionsAvailable: false, sourceReloadAvailable: true,
+  const members = ['mangaDetailTitleBarOpts', 'mangaDetailOverflow', 'mangaDetailMenuGroups']
+    .map(name => owner.members.find(node => node.name?.text === name).getText(f))
+  const exports = {}, actions = [], chrome = { chapterPresentation: { selectionMode: false },
+    visible: true, filteredChapterIds: [], pageActionsAvailable: false, sourceReloadAvailable: true,
     requestAction: action => actions.push(action) }
-  new Function('exports', 'RouterHelper', 'AppStrings', '$r', 'MangaDetailTitleAction',
-    compile(`export class Root { ${member.getText(f)} }`))(
-    exports, { ensureMangaDetailRouteChrome: () => chrome }, strings, value => value, { RELOAD_SOURCE: 'reload_source' })
+  new Function('exports', 'RouterHelper', 'AppStrings', '$r', 'MangaDetailTitleAction', 'komaTitleMoreIcon',
+    compile(`export class Root { ${members.join('\n')} }`))(
+    exports, { ensureMangaDetailRouteChrome: () => chrome }, strings, value => value, { RELOAD_SOURCE: 'reload_source' },
+    () => 'more_icon')
   const page = new exports.Root()
   page.mangaDetailTitle = () => ''
   page.sourceRouteTitleBarOpts = content => content
+  page.getUIContext = () => ({})
+  let opened = []
+  page.detailMenu = { open: (_context, _anchor, groups) => { opened = groups().flatMap(group => group.items) } }
   const menu = page.mangaDetailTitleBarOpts({}).menu
   assert.equal(menu.value.length, 1)
-  assert.equal(menu.value[0].content.label, 'manga_detail_menu_reload_source')
-  assert.equal(menu.value[0].content.isEnabled, true)
   menu.value[0].content.action()
+  assert.deepEqual(opened.map(item => [item.label, item.isEnabled]), [['manga_detail_menu_reload_source', true]])
+  opened[0].action()
   assert.deepEqual(actions, ['reload_source'])
   for (const locale of ['base', 'en_US', 'zh_CN']) {
     const values = JSON.parse(fs.readFileSync(path.join(root, `entry/src/main/resources/${locale}/element/string.json`))).string

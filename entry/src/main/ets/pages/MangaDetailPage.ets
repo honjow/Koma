@@ -1362,7 +1362,7 @@ export struct MangaDetailPage {
         'operation=' + operation + ' reason=' + details.reason + ' error=' + details.code +
         ' http=' + details.status + ' kind=' + details.kind)
       const cause = error.userTextFor('')
-      if (cause && (details.kind === 'not_found' || details.kind === 'no_chapters')) return cause
+      if (cause && ['not_found', 'content_removed', 'no_chapters'].includes(details.kind)) return cause
       return cause ? s(fallbackKey) + ' ' + cause : s(fallbackKey)
     }
     // Unexpected exceptions may contain URLs or credentials. Keep the phase, never their raw message.
