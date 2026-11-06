@@ -1813,7 +1813,8 @@ export struct LibraryPage {
   private SortSelector() {
     Row({ space: ThemeConstants.SPACE_XS }) {
       Text(librarySortSummary(this.sortBy, this.sortDirection))
-        .fontSize(ThemeConstants.FONT_SIZE_META)
+        .fontSize(ThemeConstants.FONT_SIZE_BODY)
+        .fontWeight(FontWeight.Medium)
         .fontColor(this.sortBy === 'lastRead' && this.sortDirection === 'desc' ? ThemeConstants.TEXT_PRIMARY : ThemeConstants.BRAND_PRIMARY)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
