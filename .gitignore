@@ -8,6 +8,7 @@ build/
 .hermes-artifacts/
 .env.local
 .DS_Store
+__pycache__/
 # Local DevEco/Harmony build profiles; public config stays in build-profile.json5.
 build-profile.local.json5
 build-profile.github.json5

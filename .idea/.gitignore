@@ -1,3 +1,10 @@
 # 默认忽略的文件
 /shelf/
 /workspace.xml
+/.deveco/cxx/.cache/
+/.deveco/cxx/compile_commands.json
+/.deveco/module/
+/.deveco/project.cache.json
+/modules/
+/modules.xml
+/vcs.xml
