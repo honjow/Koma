@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T18:49:22+08:00",
+  "updatedAt": "2026-11-06T19:08:54+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
@@ -350,17 +350,22 @@
     },
     {
       "id": "SOURCE_KOMIIC_CC_DIRECT",
-      "title": "Komiic 切换 .cc 后直连间歇失败",
+      "title": "Komiic 切换 .cc 后偶发连接失败及正文大图问题",
       "kind": "open",
       "priority": "用户直接反馈",
       "owner": "Root 真机和设置；source_known_fixes 正式源和现网对照",
-      "status": "237 确认 .cc 保存有效，首次刷新失败，重试和搜索通过",
+      "status": "237 确认 .cc 保存生效，当前路由下两部正文实际显示",
       "reportedAt": "2026-11-06T18:33:50+08:00",
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户询问 Komiic 设置 .cc 后无代理仍不能请求，是否镜像未保存。",
-      "result": "237 原装正式 Komiic 0.1.11、WLAN 无代理。通过普通设置选 .cc 保存并读盘 preferredMirror=https://komiic.cc。保存后首次热门刷新在响应头前失败，随后「間諜」搜索及两次相同热门刷新均成功。正式 0.1.11 和 0.1.14 的 WASM 回放确认持久值进入列表、搜索、目录、页表和票据请求的 .cc/api/query。Mac 显式 DIRECT 下 .cc 具名请求和共用 .com 封面、正文 CDN 实图均 200。通用网页入口另读包固定 .com 首页。",
-      "remaining": "237 仅复现一次间歇连接失败，精确传输阶段及用户所在网络的失败入口未核实。",
+      "result": "237 原装正式 Komiic 0.1.11，系统 WLAN 代理设置为无。用户随后明确当前路由器仍有代理。原测试只核到设备代理层，不能当作整条线路直连。通过普通设置选 .cc 保存并读盘 preferredMirror=https://komiic.cc。保存后首次热门刷新在响应头前失败，随后「間諜」搜索及两次相同热门刷新均成功。正式 0.1.11 和 0.1.14 的 WASM 回放确认持久值进入列表、搜索、目录、页表和票据请求的 .cc/api/query。Mac Surge 标记 DIRECT 时，.cc 具名请求和共用 .com CDN 图片为 200。该对照仍经过当前路由网络，且只取了一张正文图。通用网页入口另读包固定 .com 首页。 237 临时普通导入并核对正式 0.1.14 原包，再选 .cc 保存读盘。《入間同學入魔了》01 話第 3/46 页 JPEG 423204 字节完整下载并实显。《航海王》1197 話第 7/15 页 WebP 实显，记录内近邻正文最大 727558 字节完整下载；Mac 同一具名页另取到 977804 字节。该次定位附近取票操作最长约 3.9 秒（含排队），几张原图请求约 0.2–0.4 秒。两部未复现正文打不开。原章序、原包、设置、读态与电源恢复，租约释放。",
+      "remaining": "目前只核当前含路由代理网络上的两部作品。用户故障的具名作品及绕开路由代理后的表现未核实。",
       "evidence": [
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-komiic-cc-reader-public.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-cc-reader-public-039-komiic-cc-reader-next-image/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-cc-reader-public-052-komiic-cc-reader-page-7/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-cc-reader-public-053-komiic-reader-network-receipt/run-metadata.json",
+        ".hvigor/outputs/source-coverage-20261105/komiic-mirror-20261106/cold-sample-receipt.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-komiic-cc-original.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-cc-original-017-komiic-cc-network-readback/run-metadata.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-cc-original-020-komiic-cc-search-readback/run-metadata.json",
@@ -8569,6 +8574,26 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-komiic-cc-big-reader-20261106",
+      "at": "2026-11-06T19:08:54+08:00",
+      "title": "Komiic .cc 两部大图在当前路由下实显",
+      "detail": "正式 0.1.14 保存 cc 后，237 从普通详情进入两部具名章，实际显示 JPEG 和 WebP。已恢复原包、设置和读态。路由器代理仍在，结果不代表无代理线路。",
+      "itemIds": [
+        "SOURCE_KOMIIC_CC_DIRECT"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-komiic-router-proxy-scope-20261106",
+      "at": "2026-11-06T18:59:45+08:00",
+      "title": "更正 Komiic 线路范围，补正文大图用例",
+      "detail": "用户明确当前路由器有代理。设备 WLAN 的无代理状态与 Mac Surge DIRECT 均不能证明端到端直连。原 App 测试只覆盖设置、列表和搜索，按用户指出的入口补正式包正文大图。",
+      "itemIds": [
+        "SOURCE_KOMIIC_CC_DIRECT"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "source-komiic-237-cc-persisted-20261106",
       "at": "2026-11-06T18:49:22+08:00",
