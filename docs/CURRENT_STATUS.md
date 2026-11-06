@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T10:32:29+08:00",
+  "updatedAt": "2026-11-06T11:19:26+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READER_ASYNC_PAGE_ROLLBACK",
   "activity": "备份设置遗漏已修复推送；条漫入场已通过手机和平板复验，共享修复待仓库写权限；继续处理偶发翻页回退。",
@@ -81,6 +81,39 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW",
+      "title": "书架分类切换与设置分工",
+      "kind": "done",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-06",
+      "reportedAtSource": "本会话用户指出排序顺序与 Aidoku 不符，且书架分类切换藏在筛选内，要求对照 Aidoku 与 Mihon 核查。精确消息时刻未核实。",
+      "status": "197 已核分类切换、排序隔离与筛选重置",
+      "result": "197 复现旧入口后，按用户确认把分类独立放在书架首页。排序项按 Aidoku 相对次序，分类可独立排序或跟随书架默认。分类管理每类一行，后台检查随自动更新暂停。197 实测临时分类独立标题正序、重置只清筛选、冷启动保持以及切回全部分类仍用原全局排序，分类管理可改回跟随默认。测试分类已删除，原书架和电源状态已恢复并释租。",
+      "remaining": "",
+      "evidence": [
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T103737487853/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T103832502362/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T104054843405/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/navigate-20261106T104059057413/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-shelf-audit/restore-20261106T104144032719/run-metadata.json",
+        ".hvigor/outputs/library-shelf-audit-20261106/197-entry-and-sorting.jpg",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/install-20261106T111121040488/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111157318029/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111514545047/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111609629853/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/restart-20261106T111618076679/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111741590674/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/navigate-20261106T111825505225/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/library-category-settings/restore-20261106T111842170595/run-metadata.json"
+      ],
+      "boundaries": [
+        "书架搜索和手动下拉检查的范围按现有行为。新增的全局排序设置进入应用设置备份。",
+        "197 核对了后台检查暂停的界面，未等待系统实际调度。筛选收起后的首次重开有一次点按未打开，确认半模态退出后重新进入和重置均正常。"
+      ]
+    },
     {
       "id": "LIBRARY_SORT_AND_UPDATE_DEFAULTS",
       "title": "书架排序方向与自动更新默认值",
@@ -7845,6 +7878,36 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "library-category-settings-device-verified-20261106",
+      "at": "2026-11-06T11:19:26+08:00",
+      "title": "书架分类与排序状态真机复核完成",
+      "detail": "197 实测筛选重置保留分类和独立排序，重启仍保留；切回全部分类使用原全局值。分类管理可设跟随默认，临时分类已删除，原电源状态已恢复并释租。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-category-settings-implemented-20261106",
+      "at": "2026-11-06T11:13:27+08:00",
+      "title": "书架分类和筛选已拆分",
+      "detail": "已按用户确认的方案实施并在 197 核对入口、空态、菜单排序和后台检查暂停提示。分类独立排序和重置正在复核。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "library-category-and-settings-audit-20261106",
+      "at": "2026-11-06T10:42:33+08:00",
+      "title": "核对书架分类、排序与设置",
+      "detail": "197 复现分类藏在筛选以及空分类提示。对照 Aidoku 与 Mihon 源码，查到排序顺序偏差和分类设置污染全局设置的路径。已恢复测试前状态，当前仅核查。",
+      "itemIds": [
+        "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "library-sort-zh-copy-197-20261106",
       "at": "2026-11-06T10:32:29+08:00",
