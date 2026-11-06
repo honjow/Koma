@@ -9,6 +9,7 @@ import json
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-?pre)?", re.I)
+NOTE_SECTIONS = {"新增", "修复", "优化", "已知问题"}
 
 
 def field(path, name):
@@ -19,6 +20,17 @@ def field(path, name):
     if match is None:
         raise ValueError(f"Missing {name} in {path.relative_to(ROOT)}")
     return match.group(1) or match.group(2)
+
+
+def check_note_sections(notes):
+    intro, *sections = re.split(r"^##[ \t]+([^\n]+)$", notes.strip(), flags=re.M)
+    if not sections or re.search(r"^\s*-\s+\S", intro, re.M):
+        raise ValueError("Group release changes under 新增, 修复, 优化 or 已知问题")
+    for heading, changes in zip(sections[::2], sections[1::2]):
+        if heading.strip() not in NOTE_SECTIONS:
+            raise ValueError(f"Unsupported release notes section: {heading}")
+        if not re.search(r"^\s*-\s+\S", changes, re.M):
+            raise ValueError(f"Release notes section has no changes: {heading}")
 
 
 def verify(tag="", manifest=None):
@@ -38,9 +50,7 @@ def verify(tag="", manifest=None):
         if version.lower().endswith("pre") and not tagged.lower().endswith("pre"):
             raise ValueError("A prerelease app cannot be published with a stable tag")
     relative = f"changelog/v{base}.md"
-    notes = (ROOT / relative).read_text(encoding="utf-8").strip()
-    if not notes or not re.search(r"^\s*-\s+\S", notes, re.M):
-        raise ValueError("Release notes must contain user-facing changes")
+    check_note_sections((ROOT / relative).read_text(encoding="utf-8"))
     if manifest is not None:
         data = json.loads(Path(manifest).read_text(encoding="utf-8"))
         if data.get("versionName") != version or data.get("versionCode") != code:
