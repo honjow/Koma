@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T10:57:04+08:00",
+  "updatedAt": "2026-11-06T14:02:12+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -559,11 +559,11 @@
       "kind": "done",
       "priority": "用户明确要求",
       "owner": "Root",
-      "status": "选项标题已改为「交流群」，文案检查通过",
+      "status": "副标题已缩短为「QQ · 1134776369」",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户要求：在关于页添加一行交流群入口，链接 https://qm.qq.com/q/6JvdNTKbpS，群号 1134776369，群名 Koma漫画阅读器交流群；精确消息时刻未核实。",
-      "result": "关于页应用信息末尾复用现有列表行；按用户后续纠正，选项标题为「交流群」，副标题保留 Koma漫画阅读器交流群及 1134776369。点击沿系统链接打开方式跳转；失败沿现有提示与诊断日志反馈。设置搜索同步使用新标题，仍可按完整群名或群号找到入口。首次入口实现已通过 debug assembleHap；本轮仅修改文案，三套语言资源检查通过。",
+      "result": "关于页应用信息末尾显示「交流群」及副标题「QQ · 1134776369」。点击沿系统链接打开指定加群页，失败沿现有提示与诊断日志反馈。设置搜索可按完整群名、QQ 或群号找到入口。首次入口实现已通过 debug assembleHap，本轮语言资源检查通过。",
       "remaining": "",
       "boundaries": [
         "只新增用户指定的 Koma 群入口，保留关于页原布局、更新日志与版本行为。",
@@ -8002,6 +8002,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "about-community-group-qq-subtitle-20261106",
+      "at": "2026-11-06T14:02:12+08:00",
+      "title": "关于页交流群副标题缩短",
+      "detail": "按用户要求使用「QQ · 1134776369」。设置搜索继续匹配原群名及号码。语言资源检查通过，本轮未操作设备。",
+      "itemIds": [
+        "ABOUT_COMMUNITY_GROUP_LINK"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "source-public-cover-followup-20261106",
       "at": "2026-11-06T10:57:04+08:00",
