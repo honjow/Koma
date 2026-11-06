@@ -183,11 +183,13 @@ interface SourceRuntimeFiltersPayload {
   filters?: SourceRuntimeFilterPayload[]
   items?: SourceRuntimeFilterPayload[]
   supportsFilterFetching?: boolean
+  useSearchForFilters?: boolean
 }
 
 export interface SourceFilterSchema {
   filters: SourceFilter[]
   supportsFilterFetching: boolean
+  useSearchForFilters?: boolean
 }
 
 function normalizeSourceMangaStatus(value: string | undefined): SourceMangaStatus {
@@ -415,7 +417,9 @@ export function parseSourceFilterSchemaJson(json: string): SourceFilterSchema {
     const payload = JSON.parse(json) as SourceRuntimeFiltersPayload
     const filters: SourceFilter[] = []
     appendSourceFilters(filters, payload.filters ?? (payload.items ?? []))
-    return { filters, supportsFilterFetching: payload.supportsFilterFetching === true }
+    const schema: SourceFilterSchema = { filters, supportsFilterFetching: payload.supportsFilterFetching === true }
+    if (payload.useSearchForFilters === true) schema.useSearchForFilters = true
+    return schema
   } catch (_err) {
     return { filters: [], supportsFilterFetching: false }
   }
@@ -447,7 +451,7 @@ function appendSourceFilters(target: SourceFilter[], rows: SourceRuntimeFilterPa
 
 // A missing scope keeps legacy filters available on both routes. A header is
 // presentation only and remains in this list so both pages can render it.
-export function sourceFiltersForQuery(filters: SourceFilter[], query: string): SourceFilter[] {
-  const scope = query.trim().length === 0 ? 'browse' : 'search'
+export function sourceFiltersForQuery(filters: SourceFilter[], query: string, searchWithoutQuery: boolean = false): SourceFilter[] {
+  const scope = searchWithoutQuery || query.trim().length > 0 ? 'search' : 'browse'
   return filters.filter((filter: SourceFilter): boolean => filter.scope === undefined || filter.scope === scope)
 }

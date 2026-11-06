@@ -238,7 +238,7 @@ export struct SourceBrowsePage {
   }
 
   private isSearchActive(): boolean {
-    return this.viewModel.searchQuery.trim().length > 0
+    return this.viewModel.hasActiveSearch
   }
 
   private clearPendingSearchTimer(): void {
@@ -348,7 +348,7 @@ export struct SourceBrowsePage {
     // state (CURRENT_STATUS: SOURCE_SETTINGS_MIGRATION_AUDIT / SOURCE_FILTERS).
     if (this.hasSearchFilterQuery()) {
       if (this.viewModel.setSearchFilterValue(filter.id, value)) {
-        this.submitBrowseSearch(this.chrome.query)
+        this.submitFilterSearch()
       }
       return
     }
@@ -369,11 +369,16 @@ export struct SourceBrowsePage {
   }
 
   private hasSearchFilterQuery(): boolean {
-    return this.chrome.query.trim().length > 0
+    return this.viewModel.useSearchForFilters || this.chrome.query.trim().length > 0
   }
 
   private runtimeFilters(): SourceFilter[] {
-    return sourceFiltersForQuery(this.viewModel.filters, this.chrome.query)
+    return sourceFiltersForQuery(this.viewModel.filters, this.chrome.query, this.viewModel.useSearchForFilters)
+  }
+
+  private submitFilterSearch(): void {
+    this.clearPendingSearchTimer()
+    void this.viewModel.runSearch(this.currentSource(), this.chrome.query, false, undefined, true)
   }
 
   private shouldOfferSearchFromEmptyState(): boolean {
@@ -382,6 +387,7 @@ export struct SourceBrowsePage {
   }
 
   private openFilters(): void {
+    if (this.viewModel.useSearchForFilters) void this.viewModel.ensureSearchFilters(this.currentSource())
     this.filtersShown = true
     void this.loadFilterData()
   }
@@ -705,7 +711,7 @@ export struct SourceBrowsePage {
       },
       onApplyText: (changes: Record<string, string>) => {
         if (this.hasSearchFilterQuery()) {
-          if (this.viewModel.applySearchTextFilters(changes)) this.submitBrowseSearch(this.chrome.query)
+          if (this.viewModel.applySearchTextFilters(changes)) this.submitFilterSearch()
         } else {
           void this.viewModel.applyBrowseTextFilters(changes)
         }

@@ -422,6 +422,7 @@ export class BrowseViewModel {
   @Trace listings: SourceListingDescriptor[] = []
   @Trace filters: SourceFilter[] = []
   @Trace loadingFilterData: boolean = false
+  @Trace useSearchForFilters: boolean = false
   private supportsFilterFetching: boolean = false
   private filterDataReady: boolean = false
   private filterDataRevision: number = 0
@@ -449,12 +450,16 @@ export class BrowseViewModel {
 
   @Computed
   get errorMessage(): string {
-    return this.searchQuery.trim().length > 0 ? this.searchErrorMessage : this.browseErrorMessage
+    return this.hasActiveSearch ? this.searchErrorMessage : this.browseErrorMessage
   }
   @Trace browseContentState: BrowseContentState = BrowseContentState.UNRESOLVED
   @Trace browseLoadIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace browseErrorIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace searchQuery: string = ''
+  @Trace private filterOnlySearch: boolean = false
+  get hasActiveSearch(): boolean {
+    return this.filterOnlySearch || this.searchQuery.trim().length > 0
+  }
   @Trace searchNextCursor: string = ''
   @Trace browseWebChallenge: SourceWebChallengeReceipt | null = null
   @Trace searchWebChallenge: SourceWebChallengeReceipt | null = null
@@ -669,6 +674,7 @@ export class BrowseViewModel {
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
     this.cancelFilterDataLoad()
     this.supportsFilterFetching = false
+    this.useSearchForFilters = false
     this.filterDataReady = false
     this.clearWebChallenge('browse')
     this.clearWebChallenge('search')
@@ -790,12 +796,13 @@ export class BrowseViewModel {
       if (requestId !== this.browseRequestId) {
         return
       }
-      const browseFilterValues = this.mergeSavedSourceFilterValues(
-        source.sourceId,
-        'browse',
-        this.defaultSourceFilterValues(filters, ''),
-        filters,
-      )
+      const browseFilterValues: SourceMangaListFilters = filterSchema.useSearchForFilters === true ? {} :
+        this.mergeSavedSourceFilterValues(
+          source.sourceId,
+          'browse',
+          this.defaultSourceFilterValues(filters, ''),
+          filters,
+        )
       // Home and a listing are mutually exclusive destinations (CURRENT_STATUS:
       // SOURCE_BROWSE_HOME_STRUCTURE, user adopted 2026-10-25). An empty selected
       // listing ID denotes Home; refresh must not append/reset to Popular.
@@ -1042,6 +1049,7 @@ export class BrowseViewModel {
     if (sourceChanged) {
       this.clearSearch(source)
       this.filters = []
+      this.useSearchForFilters = false
       this.browseFilterValues = {}
       this.searchFilterValues = {}
     }
@@ -1073,7 +1081,7 @@ export class BrowseViewModel {
     }
     // Reset only the active scope; choices in the other scope remain available
     // when the query changes, including in the persisted search preferences.
-    const activeFilters = sourceFiltersForQuery(this.filters, query)
+    const activeFilters = sourceFiltersForQuery(this.filters, query, this.useSearchForFilters)
     const nextValues: SourceMangaListFilters = {}
     Object.keys(this.searchFilterValues).forEach((key: string) => {
       if (!activeFilters.some((filter: SourceFilter): boolean => this.filterRequestKey(filter) === key)) {
@@ -1091,8 +1099,8 @@ export class BrowseViewModel {
   }
 
   hasSearchFilterChanges(query: string = this.searchQuery): boolean {
-    return !this.sourceFilterValuesEqual(this.filterValuesForQuery(this.searchFilterValues, query),
-      this.filterValuesForQuery(this.initialSearchFilterValues(), query))
+    return !this.sourceFilterValuesEqual(this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
+      this.filterValuesForQuery(this.initialSearchFilterValues(), query, this.filters, this.useSearchForFilters))
   }
 
   private initialSearchFilterValues(): SourceMangaListFilters {
@@ -1149,11 +1157,15 @@ export class BrowseViewModel {
       appSourceSettingsStore.revisionForSource(source.sourceId), query.trim(), this.searchFilterValues])
   }
 
-  async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
+  async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false,
+    operationGuardId?: string, fromFilters: boolean = this.filterOnlySearch): Promise<void> {
     // In-place Browse search also comes here without ensureSearchFilters.
     // Search owns its defaults/saved choices; a late Browse listing must never
     // overwrite them and retire the new search's HTTP guard (237 MangaBall).
     this.prepareSearchSource(source)
+    const normalizedQuery = query.trim()
+    const filterOnly = fromFilters && this.useSearchForFilters && normalizedQuery.length === 0
+    this.filterOnlySearch = filterOnly
     const entry = this.registry.lookup(source.sourceId).entry
     const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
     const persistFilters = this.persistSearchFilters
@@ -1175,8 +1187,7 @@ export class BrowseViewModel {
     let challengeCurrent = this.webChallengeGuard('search')
     let continueEmptyPage = false
     try {
-      const normalizedQuery = query.trim()
-      if (normalizedQuery.length === 0) {
+      if (normalizedQuery.length === 0 && !filterOnly) {
         this.searchResults = []
         this.hasMoreSearch = false
         return
@@ -1211,7 +1222,7 @@ export class BrowseViewModel {
       this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
-        async (handle?: string): Promise<void> => { await this.runSearch(source, query, true, handle) })
+        async (handle?: string): Promise<void> => { await this.runSearch(source, query, true, handle, fromFilters) })
       this.searchErrorIsFirstPage = true
       if (!retainsCurrentResults) {
         this.searchResults = []
@@ -1237,6 +1248,7 @@ export class BrowseViewModel {
       this.selectedSource = source
     }
     this.searchQuery = ''
+    this.filterOnlySearch = false
     this.searchResultsIdentity = undefined
     this.searchErrorIsFirstPage = false
     this.searchPage = 1
@@ -1250,7 +1262,7 @@ export class BrowseViewModel {
 
   async retrySearchPage(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
     if (this.loadingSearch || this.searchErrorMessage.length === 0 ||
-      this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
+      this.selectedSource === undefined || !this.hasActiveSearch) {
       return
     }
     if (this.searchErrorIsFirstPage) {
@@ -1262,7 +1274,7 @@ export class BrowseViewModel {
   }
 
   async loadMoreSearch(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
-    if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
+    if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || !this.hasActiveSearch) {
       return
     }
     const requestId = this.searchRequestId
@@ -1337,7 +1349,7 @@ export class BrowseViewModel {
     const args: SourceSearchArgs = {
       query,
       page: pageArg,
-      filters: this.filterValuesForQuery(this.searchFilterValues, query),
+      filters: this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
     }
     return this.runSourceOperation(source.sourceId, 'search', args, page, isActive, operationGuardId)
   }
@@ -1375,6 +1387,7 @@ export class BrowseViewModel {
   private publishFilterSchema(schema: SourceFilterSchema): void {
     this.cancelFilterDataLoad()
     this.filters = schema.filters
+    this.useSearchForFilters = schema.useSearchForFilters === true
     this.supportsFilterFetching = schema.supportsFilterFetching
     this.filterDataReady = false
   }
@@ -1535,8 +1548,8 @@ export class BrowseViewModel {
   }
 
   private filterValuesForQuery(values: SourceMangaListFilters, query: string,
-    filters: SourceFilter[] = this.filters): SourceMangaListFilters {
-    const applicable = sourceFiltersForQuery(filters, query)
+    filters: SourceFilter[] = this.filters, searchWithoutQuery: boolean = false): SourceMangaListFilters {
+    const applicable = sourceFiltersForQuery(filters, query, searchWithoutQuery)
     const result: SourceMangaListFilters = {}
     Object.keys(values).forEach((key: string) => {
       const matching = filters.filter((filter: SourceFilter): boolean => this.filterRequestKey(filter) === key)

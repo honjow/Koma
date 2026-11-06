@@ -233,8 +233,9 @@ export struct SourceSearchPage {
   }
 
   private rerunSearchIfReady(): void {
-    if (this.searchFiltersReady && this.query.trim().length > 0) {
-      void this.viewModel.runSearch(this.currentSource(), this.query)
+    if (this.searchFiltersReady && (this.query.trim().length > 0 || this.viewModel.useSearchForFilters)) {
+      this.clearPendingSearchTimer()
+      void this.viewModel.runSearch(this.currentSource(), this.query, false, undefined, true)
     }
   }
 
@@ -244,7 +245,7 @@ export struct SourceSearchPage {
       void this.initializeSearch()
       return
     }
-    if (this.query.trim().length === 0) {
+    if (!this.viewModel.hasActiveSearch) {
       return
     }
     void this.viewModel.retrySearchPage()
@@ -265,16 +266,16 @@ export struct SourceSearchPage {
   }
 
   private runtimeFilters(): SourceFilter[] {
-    return sourceFiltersForQuery(this.viewModel.filters, this.query)
+    return sourceFiltersForQuery(this.viewModel.filters, this.query, this.viewModel.useSearchForFilters)
   }
 
   private isFilteredEmptySearch(): boolean {
-    return this.query.trim().length > 0 && this.hasActiveSearchFilters()
+    return this.viewModel.hasActiveSearch && this.hasActiveSearchFilters()
   }
 
   private resetSearchFilters(): void {
     this.viewModel.resetSearchFilters(this.query)
-    this.rerunSearchIfReady()
+    this.submitSearch(this.query)
   }
 
   private openFilters(): void {
@@ -334,14 +335,14 @@ export struct SourceSearchPage {
   }
 
   private emptySearchTitle(): string {
-    if (this.query.trim().length === 0) {
+    if (this.query.trim().length === 0 && !this.viewModel.hasActiveSearch) {
       return s('source_search_empty_idle_title')
     }
     return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_title') : s('source_search_empty_results_title')
   }
 
   private emptySearchMessage(): string {
-    if (this.query.trim().length === 0) {
+    if (this.query.trim().length === 0 && !this.viewModel.hasActiveSearch) {
       return s('source_search_empty_idle_message')
     }
     return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_message') : s('source_search_empty_results_message')
@@ -367,7 +368,7 @@ export struct SourceSearchPage {
       message: this.canAuthenticateSource() || this.viewModel.searchErrorMessage === s('search_state_failed')
         ? '' : this.viewModel.searchErrorMessage,
       actionLabel: this.canAuthenticateSource() ? s('source_login') : this.canVerifySource() ? s('source_web_open') : s('common_retry'),
-      showAction: !this.searchFiltersReady || this.query.trim().length > 0,
+      showAction: !this.searchFiltersReady || this.viewModel.hasActiveSearch,
       action: () => {
         if (this.canAuthenticateSource()) this.authenticateSource()
         else if (this.canVerifySource()) this.verifySource()
