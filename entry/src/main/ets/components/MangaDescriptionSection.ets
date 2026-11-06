@@ -2,6 +2,8 @@ import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { KomaActionButton } from './ui/KomaActionButton'
+import { MarkdownSpans } from './MarkdownContent'
+import { MarkdownDocument, MarkdownInline } from '../parser/MarkdownDocument'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -12,6 +14,8 @@ export struct MangaDescriptionSection {
   @Param titleKey: string = 'common_description'
   @Param description: string | undefined = undefined
   @Param expandOnlyWhenOverflow: boolean = false
+  @Param formatSynopsis: boolean = false
+  @Event onLinkClick: (url: string) => void = (_url: string) => {}
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private expanded: boolean = false
   @Local private overflowsPreview: boolean = false
@@ -46,6 +50,11 @@ export struct MangaDescriptionSection {
     return this.normalizedDescription().length > 0
   }
 
+  @Computed
+  get synopsisSpans(): MarkdownInline[] {
+    return this.formatSynopsis ? MarkdownDocument.synopsisSpans(this.normalizedDescription()) : []
+  }
+
   private toggleLabel(): string {
     return this.expanded ? s('common_collapse') : s('common_expand')
   }
@@ -58,7 +67,12 @@ export struct MangaDescriptionSection {
         .fontWeight(FontWeight.Bold)
         .fontColor(ThemeConstants.TEXT_PRIMARY)
 
-      Text(this.hasDescription() ? this.normalizedDescription() : s('manga_detail_description_empty'))
+      Text(this.synopsisSpans.length > 0 ? undefined :
+        (this.hasDescription() ? this.normalizedDescription() : s('manga_detail_description_empty'))) {
+        if (this.synopsisSpans.length > 0) {
+          MarkdownSpans(this.synopsisSpans, ThemeConstants.TEXT_PRIMARY, false, this.onLinkClick, false)
+        }
+      }
         .width('100%')
         .fontSize(ThemeConstants.FONT_SIZE_BODY)
         .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
@@ -67,6 +81,7 @@ export struct MangaDescriptionSection {
         // Keep the existing three-line collapsed preview and empty placeholder.
         .maxLines(this.expanded ? undefined : (this.hasDescription() ? 3 : 20))
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .copyOption(this.formatSynopsis && this.hasDescription() ? CopyOptions.LocalDevice : CopyOptions.None)
         .animation({ duration: 180, curve: Curve.EaseInOut })
         .onAreaChange((_oldArea: Area, area: Area) => {
           this.contentWidth = Number(area.width)

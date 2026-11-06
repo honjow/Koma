@@ -159,6 +159,7 @@ export struct MangaDetailHeader {
           .fontColor(ThemeConstants.TEXT_PRIMARY)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .copyOption(this.manga.title.length > 0 ? CopyOptions.LocalDevice : CopyOptions.None)
 
         Text(this.creatorText())
           .fontSize(ThemeConstants.FONT_SIZE_BODY)

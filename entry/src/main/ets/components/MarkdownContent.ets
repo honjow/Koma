@@ -26,8 +26,8 @@ function markdownSpanColor(segment: MarkdownInline, color: ResourceColor): Resou
   return color
 }
 
-function markdownSpanDecoration(segment: MarkdownInline): TextDecorationType {
-  if (markdownExternalUrl(segment.url).length > 0) {
+function markdownSpanDecoration(segment: MarkdownInline, underlineLinks: boolean): TextDecorationType {
+  if (underlineLinks && markdownExternalUrl(segment.url).length > 0) {
     return TextDecorationType.Underline
   }
   if (segment.strike) {
@@ -51,11 +51,12 @@ function openMarkdownExternalLink(value: string, onLinkClick: (url: string) => v
 }
 
 @Builder
-function MarkdownSpans(
+export function MarkdownSpans(
   segments: MarkdownInline[],
   color: ResourceColor,
   emphasized: boolean,
   onLinkClick: (url: string) => void,
+  underlineLinks: boolean = true,
 ) {
   ForEach(segments, (segment: MarkdownInline) => {
     Span(segment.text)
@@ -66,7 +67,7 @@ function MarkdownSpans(
           : (segment.code ? FontWeight.Medium : FontWeight.Regular),
       )
       .fontStyle(segment.italic ? FontStyle.Italic : FontStyle.Normal)
-      .decoration({ type: markdownSpanDecoration(segment) })
+      .decoration({ type: markdownSpanDecoration(segment, underlineLinks) })
       .onClick(() => {
         openMarkdownExternalLink(segment.url, onLinkClick)
       })

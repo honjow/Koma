@@ -37,6 +37,8 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 | authenticate（可选） | koma_source_authenticate |
 | logout（可选） | koma_source_logout |
 
+`get_manga` 的 `data.manga.description` 仍使用字符串。纯文本保留原有换行。简介可使用原生 Markdown 渲染支持的链接、加粗、斜体、列表等格式，折叠预览和展开均支持长按复制。只有用户点击 HTTP(S) 链接时才交给外部浏览器。
+
 `home` 表示源的独立首页内容，不能仅把已有热门、最新等列表的第一页包装成同义首页。只有列表的源声明 `home: false`，由宿主直接进入既有默认列表；为兼容 ABI 保留的 `get_home` 导出返回 `not_implemented`，不为这个空能力再发请求。真实首页及其分区与完整列表的关系仍由源合同决定，宿主不能因为部分卡片相同就隐藏首页。
 
 源设置可声明 `visibleWhen: {settingId, values}`，按指定普通单选字段的当前草稿值控制该行是否显示，隐藏后保留用户值。单选项显式声明空字符串并提供标签时，空字符串是可选择的值。文本项可声明 `validation: {kind:"non_blank", message}`，保存前拒绝去除首尾空白后为空的输入。旧宿主按已有字段渲染，源请求仍以当前选项决定实际行为。

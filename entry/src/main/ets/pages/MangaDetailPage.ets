@@ -777,10 +777,7 @@ export struct MangaDetailPage {
       if (action === MangaDetailTitleAction.OPEN_WEBVIEW) {
         RouterHelper.pushMangaWeb({ url, title: this.manga?.title ?? '' })
       } else {
-        const context = getContext(this) as common.UIAbilityContext
-        void context.startAbility({ action: 'ohos.want.action.viewData', uri: url }).catch(() => {
-          this.getUIContext().getPromptAction().openToast(komaToastOptions({ message: s('manga_detail_open_browser_failed') }))
-        })
+        this.openMangaExternalLink(url)
       }
       return
     }
@@ -791,6 +788,13 @@ export struct MangaDetailPage {
     if (action === MangaDetailTitleAction.EDIT_LOCAL_METADATA && this.canEditLocalMetadata()) {
       this.openLocalMetadataEditor()
     }
+  }
+
+  private openMangaExternalLink(url: string): void {
+    const context = getContext(this) as common.UIAbilityContext
+    void context.startAbility({ action: 'ohos.want.action.viewData', uri: url }).catch(() => {
+      this.getUIContext().getPromptAction().openToast(komaToastOptions({ message: s('manga_detail_open_browser_failed') }))
+    })
   }
 
   private offlineDownloadService(): OfflineDownloadService | undefined {
@@ -3607,6 +3611,8 @@ export struct MangaDetailPage {
         ListItem() {
           MangaDescriptionSection({
             description: this.manga.description,
+            formatSynopsis: true,
+            onLinkClick: (url: string) => { this.openMangaExternalLink(url) },
           })
         }
 
