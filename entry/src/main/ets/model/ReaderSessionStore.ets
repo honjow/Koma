@@ -3,6 +3,7 @@ import { allowDeviceSyncReaderProgress, deviceSyncReadingAcknowledged, deviceSyn
   SyncReadingActionCapture, SyncReadingSignal } from '../deviceSync/DeviceSyncSignals'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
+import { SourceRequiredImageDecode, sourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -161,6 +162,7 @@ export interface ReaderSessionConfig {
   pageWidths?: (number | undefined)[]
   pageHeights?: (number | undefined)[]
   pageTextOverlays?: (SourceTextOverlay | null | undefined)[]
+  pageRequiredImageDecodes?: (SourceRequiredImageDecode | null | undefined)[]
   pageTextPages?: (SourceTextPage | null | undefined)[]
   pageTextRequests?: (SourceTextPageRequest | null | undefined)[]
   sourceRuntimeId?: string
@@ -201,6 +203,8 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     pageHeights: config.pageHeights?.slice(),
     pageTextOverlays: config.pageTextOverlays?.map((page: SourceTextOverlay | null | undefined): SourceTextOverlay | undefined =>
       page === undefined || page === null ? undefined : sourceTextOverlay(page)),
+    pageRequiredImageDecodes: config.pageRequiredImageDecodes?.map((page: SourceRequiredImageDecode | null | undefined): SourceRequiredImageDecode | undefined =>
+      page === undefined || page === null ? undefined : sourceRequiredImageDecode(page)),
     pageTextPages: config.pageTextPages?.map((page: SourceTextPage | null | undefined): SourceTextPage | undefined =>
       page === undefined || page === null ? undefined : sourceTextPage(page)),
     pageTextRequests: config.pageTextRequests?.map((page: SourceTextPageRequest | null | undefined): SourceTextPageRequest | undefined =>
@@ -1097,6 +1101,7 @@ export function createReaderSessionConfigFromComic(
     pageWidths: chapter === undefined ? [] : chapter.pages.map((page) => page.width),
     pageHeights: chapter === undefined ? [] : chapter.pages.map((page) => page.height),
     pageTextOverlays: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextOverlay),
+    pageRequiredImageDecodes: chapter === undefined ? [] : chapter.pages.map((page) => page.requiredImageDecode),
     pageTextPages: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceText),
     pageTextRequests: chapter === undefined ? [] : chapter.pages.map((page) => page.sourceTextRequest),
     sourceRuntimeId: comic.sourceRuntimeId,

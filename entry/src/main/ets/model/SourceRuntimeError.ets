@@ -11,7 +11,7 @@ export interface SourceFailureDetails {
 const SOURCE_FAILURE_CODES: string[] = [
   'timeout', 'network_error', 'http_error', 'region_restricted', 'permission_denied', 'challenge_required', 'auth_required',
   'unauthorized', 'forbidden', 'paid_chapter', 'chapter_locked', 'chapter_unavailable',
-  'rate_limited', 'rate_limit', 'not_found', 'no_chapters', 'server_error', 'client_error', 'parse_error',
+  'rate_limited', 'rate_limit', 'not_found', 'content_removed', 'no_chapters', 'server_error', 'client_error', 'parse_error',
   'invalid_response', 'invalid_json', 'malformed_result', 'result_too_large', 'request_too_large',
   'source_disabled', 'source_changed', 'source_id_not_registered', 'wasm_missing', 'unsupported',
   'unsupported_operation', 'not_implemented', 'not_supported', 'wamr_runtime_error', 'runtime_error', 'source_worker_failed',
@@ -50,6 +50,7 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   else if (status === 429 || candidates.some((item: string): boolean => ['rate_limited', 'rate_limit'].includes(item))) kind = 'rate_limit'
   // A missing response may mean removal or a stale URL, not a confirmed takedown.
   // Never infer it from empty/invalid results, transport errors, or challenge text.
+  else if ((status === 0 || status === 404) && candidates.includes('content_removed')) kind = 'content_removed'
   else if (status === 404 || candidates.includes('not_found')) kind = 'not_found'
   else if (status >= 500 || candidates.includes('server_error')) kind = 'server'
   // Chapter access states come only from explicit provider outcomes. Never

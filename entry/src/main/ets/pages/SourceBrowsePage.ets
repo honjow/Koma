@@ -1,3 +1,5 @@
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { komaMenuOptions, komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -15,7 +17,7 @@ import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
-import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
+import { SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { SourceFilter, SourceManga, sourceFiltersForQuery } from '../model/SourceModels'
@@ -161,6 +163,32 @@ export struct SourceBrowsePage {
     else void this.refreshBrowse()
   }
 
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  private handledAuthenticationRequestSeq: number = 0
+  private authenticationFingerprint(): string {
+    const source = this.currentSource()
+    return JSON.stringify([source.sourceId, source.version, source.wasmByteCount, this.chrome.query,
+      this.viewModel.selectedListingId, this.viewModel.browseFilterValues, this.viewModel.searchFilterValues])
+  }
+  @Monitor('chrome.authenticationRequestSeq')
+  private handleAuthenticationRequest(): void {
+    if (this.chrome.authenticationRequestSeq <= this.handledAuthenticationRequestSeq) return
+    this.handledAuthenticationRequestSeq = this.chrome.authenticationRequestSeq
+    if (!this.chrome.visible || this.currentSource().authentication === undefined) return
+    if (this.canAuthenticateSource()) { this.authenticateSource(); return }
+    const fingerprint = this.authenticationFingerprint()
+    this.authentication = new SourceAuthenticationRequest(this.currentSource().sourceId,
+      (): boolean => this.chrome.visible && this.authenticationFingerprint() === fingerprint,
+      async (): Promise<void> => { this.chrome.markRefreshNeeded(); this.chrome.resume() })
+  }
+
+  private canAuthenticateSource(): boolean {
+    return (this.isSearchActive() ? this.viewModel.searchAuthentication : this.viewModel.browseAuthentication) !== null
+  }
+  private authenticateSource(): void {
+    this.authentication = this.viewModel.authenticationRequest(this.isSearchActive() ? 'search' : 'browse', (): boolean => this.chrome.visible)
+  }
+
   private canVerifySource(): boolean {
     const needsSession = this.isSearchActive() ? this.viewModel.searchNeedsWebSession : this.viewModel.browseNeedsWebSession
     return needsSession && (this.currentSource().webSessionOrigins ?? []).length > 0
@@ -210,7 +238,7 @@ export struct SourceBrowsePage {
   }
 
   private isSearchActive(): boolean {
-    return this.viewModel.searchQuery.trim().length > 0
+    return this.viewModel.hasActiveSearch
   }
 
   private clearPendingSearchTimer(): void {
@@ -320,7 +348,7 @@ export struct SourceBrowsePage {
     // state (CURRENT_STATUS: SOURCE_SETTINGS_MIGRATION_AUDIT / SOURCE_FILTERS).
     if (this.hasSearchFilterQuery()) {
       if (this.viewModel.setSearchFilterValue(filter.id, value)) {
-        this.submitBrowseSearch(this.chrome.query)
+        this.submitFilterSearch()
       }
       return
     }
@@ -341,11 +369,17 @@ export struct SourceBrowsePage {
   }
 
   private hasSearchFilterQuery(): boolean {
-    return this.chrome.query.trim().length > 0
+    return this.viewModel.useSearchForFilters || this.chrome.query.trim().length > 0
   }
 
   private runtimeFilters(): SourceFilter[] {
-    return sourceFiltersForQuery(this.viewModel.filters, this.chrome.query)
+    if (!this.hasSearchFilterQuery() && !this.viewModel.browseListingAllowsFilters()) return []
+    return sourceFiltersForQuery(this.viewModel.filters, this.chrome.query, this.viewModel.useSearchForFilters)
+  }
+
+  private submitFilterSearch(): void {
+    this.clearPendingSearchTimer()
+    void this.viewModel.runSearch(this.currentSource(), this.chrome.query, false, undefined, true)
   }
 
   private shouldOfferSearchFromEmptyState(): boolean {
@@ -354,6 +388,8 @@ export struct SourceBrowsePage {
   }
 
   private openFilters(): void {
+    if (!this.hasRuntimeFilters()) return
+    if (this.viewModel.useSearchForFilters) void this.viewModel.ensureSearchFilters(this.currentSource())
     this.filtersShown = true
     void this.loadFilterData()
   }
@@ -369,6 +405,7 @@ export struct SourceBrowsePage {
 
   private syncTitleActions(): void {
     const source = this.currentSource()
+    this.chrome.authenticationAvailable = source.enabled && source.authentication !== undefined
     this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
     this.chrome.filtersAvailable = this.hasRuntimeFilters()
   }
@@ -383,7 +420,7 @@ export struct SourceBrowsePage {
     this.openFilters()
   }
 
-  @Monitor('viewModel.filters')
+  @Monitor('viewModel.filters', 'viewModel.selectedListingId')
   private syncTitleActionsFromViewModel(): void {
     this.syncTitleActions()
   }
@@ -401,7 +438,7 @@ export struct SourceBrowsePage {
           })
       }
       ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
-        MenuItem({ content: listing.name })
+        MenuItem({ content: this.listingLabel(listing) })
           .selected(this.viewModel.selectedListingId === listing.id)
           .selectIcon(true)
           .onClick(() => {
@@ -410,23 +447,6 @@ export struct SourceBrowsePage {
           })
       }, (listing: SourceListingDescriptor) => listing.id)
     }
-  }
-
-  @Builder
-  private RuntimeFilterControls() {
-    SourceFilterControls({
-      filters: this.runtimeFilters(),
-      values: this.hasSearchFilterQuery() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
-      busy: this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse,
-      optionsLoading: this.viewModel.loadingFilterData,
-      vertical: true,
-      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
-        this.setRuntimeFilterValue(filter, value)
-      },
-      onReset: () => {
-        this.resetRuntimeFilters()
-      },
-    })
   }
 
   private openListingMenu(): void {
@@ -441,8 +461,18 @@ export struct SourceBrowsePage {
 
   private selectedListingName(): string {
     if (this.viewModel.homeAvailable && this.viewModel.selectedListingId.length === 0) return s('common_home')
-    return this.viewModel.listings.find((listing: SourceListingDescriptor): boolean =>
-      listing.id === this.viewModel.selectedListingId)?.name ?? ''
+    const listing = this.viewModel.listings.find((item: SourceListingDescriptor): boolean =>
+      item.id === this.viewModel.selectedListingId)
+    return listing === undefined ? '' : this.listingLabel(listing)
+  }
+
+  private listingLabel(listing: SourceListingDescriptor): string {
+    // Localize the standard tabs without renaming a site's actual categories or rankings.
+    if ((listing.kind === 'popular' || listing.id === 'popular' || listing.id === 'listing:popular') &&
+      ['Popular', '热门', '熱門'].includes(listing.name)) return s('common_popular')
+    if ((listing.kind === 'latest' || listing.id === 'latest' || listing.id === 'listing:latest') &&
+      ['Latest', 'Latest Updates', '最新', '最近更新'].includes(listing.name)) return s('source_listing_recent_updates')
+    return listing.name
   }
 
   @Builder
@@ -485,7 +515,9 @@ export struct SourceBrowsePage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
       Blank()
-      if (this.viewModel.selectedListingId.length > 0) {
+      // A pageable listing's loaded cards do not represent its total size.
+      if (this.viewModel.selectedListingId.length > 0 && this.viewModel.browsePage === 1 &&
+        !this.viewModel.hasMoreBrowse) {
         Text(s('library_count_books').replace('%s', `${this.viewModel.popularManga.length}`))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -631,7 +663,8 @@ export struct SourceBrowsePage {
       title: s('source_browse_empty_results_title'),
       message: s('source_browse_empty_results_message'),
       actionLabel: this.shouldOfferSearchFromEmptyState() ? s('tab_search') : s('common_reset'),
-      showAction: this.shouldOfferSearchFromEmptyState() || this.viewModel.filters.length > 0,
+      showAction: this.shouldOfferSearchFromEmptyState() ||
+        (this.viewModel.browseListingAllowsFilters() && this.viewModel.filters.length > 0),
       action: () => {
         if (this.shouldOfferSearchFromEmptyState()) {
           this.onSearchRequested(this.currentSource())
@@ -643,6 +676,7 @@ export struct SourceBrowsePage {
   }
 
   private browseErrorTitle(): string {
+    if (this.canAuthenticateSource()) return s('source_login_required')
     if (this.isSearchActive()) return s('source_search_error_title')
     return this.viewModel.browseErrorIntent === BrowseLoadIntent.PAGINATION
       ? s('browse_error_load_more') : s('browse_error_load_home')
@@ -652,12 +686,13 @@ export struct SourceBrowsePage {
   private BrowseErrorState() {
     KomaEmptyState({
       title: this.browseErrorTitle(),
-      message: this.viewModel.errorMessage === this.browseErrorTitle() ||
+      message: this.canAuthenticateSource() || this.viewModel.errorMessage === this.browseErrorTitle() ||
         (this.isSearchActive() && this.viewModel.errorMessage === s('search_state_failed')) ? '' : this.viewModel.errorMessage,
-      actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
+      actionLabel: this.canAuthenticateSource() ? s('source_login') : this.canVerifySource() ? s('source_web_open') : s('common_retry'),
       showAction: true,
       action: () => {
-        if (this.canVerifySource()) this.verifySource()
+        if (this.canAuthenticateSource()) this.authenticateSource()
+        else if (this.canVerifySource()) this.verifySource()
         else if (this.isSearchActive()) void this.viewModel.retrySearchPage()
         else this.retryBrowseError()
       },
@@ -671,15 +706,26 @@ export struct SourceBrowsePage {
       resetLabel: s('common_reset'),
       showReset: true,
       resetEnabled: !(this.hasSearchFilterQuery() ? this.viewModel.loadingSearch : this.viewModel.loadingBrowse),
+      filters: this.runtimeFilters(),
+      values: this.hasSearchFilterQuery() ? this.viewModel.searchFilterValues : this.viewModel.browseFilterValues,
+      optionsLoading: this.viewModel.loadingFilterData,
+      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
+        this.setRuntimeFilterValue(filter, value)
+      },
+      onApplyText: (changes: Record<string, string>) => {
+        if (this.hasSearchFilterQuery()) {
+          if (this.viewModel.applySearchTextFilters(changes)) this.submitFilterSearch()
+        } else {
+          void this.viewModel.applyBrowseTextFilters(changes)
+        }
+      },
       onClose: () => {
         this.closeFilters()
       },
       onReset: () => {
         this.resetRuntimeFilters()
       },
-    }) {
-      this.RuntimeFilterControls()
-    }
+    })
   }
 
   @Builder
@@ -743,11 +789,13 @@ export struct SourceBrowsePage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
           active: this.chrome.visible,
+          deferAvailability: this.isSearchActive() ? this.viewModel.loadingSearch : this.isBlockingBrowseLoading(),
           onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {
             this.chrome.markRefreshNeeded()

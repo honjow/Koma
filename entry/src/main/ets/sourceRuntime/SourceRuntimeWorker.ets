@@ -1,7 +1,6 @@
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
-import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard,
-  sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
+import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard } from './SourceRuntimeExecutionIdentity'
 
 // TaskPool evaluates this module's transitive imports on a worker. Keep this
 // entry Native-only: Service/Runner pull in UI state and localization, whose
@@ -17,14 +16,18 @@ export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint
       sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)), wasmBytes, httpContextJson))
 }
 
-// Browse historically uses the asynchronous raw-string Native entry. Preserve
-// that transport separately; image/detail callers must keep the static Native
-// wrapper above (dynamic image-worker loading previously crashed ticketed reads).
+// Browse consumes the raw string. Use the same statically loaded NAPI module
+// that the worker already uses for detail and images.
 @Concurrent
-export async function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): Promise<string> {
-  const mod: Record<string, Object> = await import('libkoma_source_runtime.so') as Record<string, Object>
-  const nativeRuntime = (mod.default ?? mod) as Record<string, Function>
-  return nativeRuntime.runJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
-    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)), wasmBytes, httpContextJson,
-    sourceRuntimeExecutionSourceId(httpContextJson)) as string
+export function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
+    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)),
+    wasmBytes, httpContextJson)
+}
+
+@Concurrent
+export function runLocalCoverOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
+  return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
+    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)),
+    wasmBytes, httpContextJson, true)
 }

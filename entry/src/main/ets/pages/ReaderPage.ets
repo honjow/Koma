@@ -1,3 +1,7 @@
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
+import { SourceFailureDetails, SourceRuntimeError, sourceFailureText } from '../model/SourceRuntimeError'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { komaToastOptions } from '../theme/KomaPopupOptions'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
@@ -187,6 +191,8 @@ struct ReaderImageSurface {
   @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Param scalingQuality: string = 'medium'
   @Param sourceFailureReason: string = ''
+  @Param sourceFailure: SourceFailureDetails | undefined = undefined
+  @Param authenticationAvailable: boolean = false
   @Param splitSide: 'none' | 'left' | 'right' = 'none'
   @Param rotateClockwise: boolean = false
   @Param zoomEnabled: boolean = true
@@ -209,6 +215,7 @@ struct ReaderImageSurface {
   @Event onImageInfo: (pageIndex: number, width: number, height: number) => void = (_pageIndex: number, _width: number, _height: number) => {}
   @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onSourceFailure: (pageIndex: number, details: SourceFailureDetails | undefined) => void = (_pageIndex: number, _details: SourceFailureDetails | undefined) => {}
   @Event onRetry: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => void =
     (_id: number, _region: ReaderRetryHitRegion | undefined) => {}
@@ -218,6 +225,7 @@ struct ReaderImageSurface {
   @Local private displayUri: string = ''
   @Local private loading: boolean = false
   @Local private failed: boolean = false
+  @Local private resolvedFailure: SourceFailureDetails | undefined = undefined
   @Local private sourceToken: string = ''
   private disposed: boolean = false
   private generation: number = 0
@@ -345,6 +353,7 @@ struct ReaderImageSurface {
     this.generation += 1
     const run = this.generation
     this.sourceToken = key
+    this.resolvedFailure = this.sourceFailure
     this.loading = true
     this.failed = false
     this.displayUri = ''
@@ -352,6 +361,7 @@ struct ReaderImageSurface {
       (this.source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && this.source.imageUri.length === 0)) {
       this.loading = false
       this.failed = true
+      this.onSourceFailure(this.pageIndex, this.resolvedFailure)
       this.onFailed(this.pageIndex)
       return
     }
@@ -364,6 +374,8 @@ struct ReaderImageSurface {
       if (!this.disposed && run === this.generation) {
         const message = error instanceof Error ? error.message : String(error)
         DiagnosticLogger.warn('reader_page', 'resolve_failed', `[ReaderImage] step=resolve_failed page=${this.pageIndex + 1} reason=${message}`)
+        this.resolvedFailure = error instanceof SourceRuntimeError ? error.diagnostic : undefined
+        this.onSourceFailure(this.pageIndex, this.resolvedFailure)
         this.failed = true
         this.onFailed(this.pageIndex)
       }
@@ -709,18 +721,29 @@ struct ReaderImageSurface {
     }
   }
 
+  private needsAuthentication(): boolean {
+    const details = this.resolvedFailure
+    return this.authenticationAvailable && details !== undefined &&
+      (details.code === 'auth_required' || details.reason === 'auth_required') && (details.status === 0 || details.status === 401)
+  }
+  private failureText(): string {
+    if (this.needsAuthentication()) return s('source_login_required')
+    if (this.resolvedFailure !== undefined) return sourceFailureText(this.resolvedFailure, s('reader_page_load_failed'))
+    return s(this.sourceFailureReason === 'unsupported' &&
+      (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.uri === 'source-placeholder://chapter')
+      ? 'reader_source_chapter_unsupported' : 'reader_page_load_failed')
+  }
+
   @Builder
   private LoadingContent() {
     Column({ space: ThemeConstants.SPACE_SM }) {
       if (!this.failed) {
         LoadingProgress().width(28).height(28).color(Color.White)
       }
-      Text(this.failed ? s(this.sourceFailureReason === 'unsupported' &&
-        (this.source.kind === ReaderPageRenderKind.URI_PLACEHOLDER || this.source.uri === 'source-placeholder://chapter')
-        ? 'reader_source_chapter_unsupported' : 'reader_page_load_failed') : s('reader_decoding_image')).fontSize(13).fontColor(Color.White)
+      Text(this.failed ? this.failureText() : s('reader_decoding_image')).fontSize(13).fontColor(Color.White)
       if (this.failed) {
         Button({ type: ButtonType.Capsule, stateEffect: true }) {
-          Text(s('common_retry')).fontSize(13).fontColor(ThemeConstants.TEXT_ON_BRAND)
+          Text(s(this.needsAuthentication() ? 'source_login' : 'common_retry')).fontSize(13).fontColor(ThemeConstants.TEXT_ON_BRAND)
         }
         .padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG,
           top: ThemeConstants.SPACE_SM, bottom: ThemeConstants.SPACE_SM })
@@ -889,6 +912,8 @@ struct ReaderSpreadSurface {
   @Local private displayPreview: ReaderDisplayPreviewState = connectReaderDisplayPreview()
   @Param scalingQuality: string = 'medium'
   @Param sourceFailureReason: string = ''
+  @Param sourceFailure: SourceFailureDetails | undefined = undefined
+  @Param authenticationAvailable: boolean = false
   @Param parentViewportWidth: number = 0
   @Param parentViewportHeight: number = 0
   @Param active: boolean = true
@@ -903,6 +928,7 @@ struct ReaderSpreadSurface {
     (_pageIndex: number, _width: number, _height: number) => {}
   @Event onLoaded: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onFailed: (pageIndex: number) => void = (_pageIndex: number) => {}
+  @Event onSourceFailure: (pageIndex: number, details: SourceFailureDetails | undefined) => void = (_pageIndex: number, _details: SourceFailureDetails | undefined) => {}
   @Event onRetry: (pageIndex: number) => void = (_pageIndex: number) => {}
   @Event onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => void =
     (_id: number, _region: ReaderRetryHitRegion | undefined) => {}
@@ -1286,7 +1312,7 @@ struct ReaderSpreadSurface {
       fit: ImageFit.Contain,
       fitMode: 'contain',
       scalingQuality: this.scalingQuality, displaySettings: this.displaySettings,
-      sourceFailureReason: this.sourceFailureReason,
+      sourceFailureReason: this.sourceFailureReason, sourceFailure: this.sourceFailure, authenticationAvailable: this.authenticationAvailable,
       rotateClockwise: rotateClockwise,
       zoomEnabled: false,
       gesturesEnabled: false,
@@ -1299,6 +1325,7 @@ struct ReaderSpreadSurface {
       },
       onLoaded: (pageIndex: number) => { this.onLoaded(pageIndex) },
       onFailed: (pageIndex: number) => { this.onFailed(pageIndex) },
+      onSourceFailure: (pageIndex: number, details: SourceFailureDetails | undefined) => { this.onSourceFailure(pageIndex, details) },
       onRetry: (pageIndex: number) => { this.onRetry(pageIndex) },
       onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => {
         this.onRetryRegionChange(id, region)
@@ -1733,6 +1760,46 @@ export struct ReaderPage {
   @Local private zoomResetToken: number = 0
   @Local private loadedRevision: number = 0
   @Local private failedPages: number[] = []
+  @Local private pageSourceFailures: Record<number, SourceFailureDetails> = {}
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  @Local private authenticationShown: boolean = false
+
+  private sourceSupportsAuthentication(): boolean {
+    const entry = appSourceRuntimeRegistry.lookup(this.sessionConfig.sourceRuntimeId ?? '').entry
+    return entry?.enabled === true && entry.authentication !== undefined
+  }
+  private canAuthenticatePage(index: number): boolean {
+    const details = this.pageSourceFailures[index] ?? this.sessionConfig.sourceFailure
+    return this.sourceSupportsAuthentication() && details !== undefined &&
+      (details.code === 'auth_required' || details.reason === 'auth_required') && (details.status === 0 || details.status === 401)
+  }
+  private rememberSourceFailure(index: number, details: SourceFailureDetails | undefined): void {
+    if (this.pageSourceFailures[index] === details) return
+    const next: Record<number, SourceFailureDetails> = {}
+    for (const key of Object.keys(this.pageSourceFailures)) {
+      const page = Number(key)
+      if (page !== index) next[page] = this.pageSourceFailures[page]
+    }
+    if (details !== undefined) next[index] = details
+    this.pageSourceFailures = next
+  }
+  private authenticatePage(index: number): void {
+    const config = this.sessionConfig
+    const entry = appSourceRuntimeRegistry.lookup(config.sourceRuntimeId ?? '').entry
+    if (entry === undefined || entry.authentication === undefined || !this.canAuthenticatePage(index)) return
+    const page = this.pageIndex
+    let settled = false
+    const current = (): boolean => !settled && this.readerOpen && this.routeVisible && !this.closing && this.sessionConfig === config &&
+      this.pageIndex === page && appSourceRuntimeRegistry.lookup(entry.sourceId).entry === entry
+    this.authentication?.cancel()
+    this.authentication = new SourceAuthenticationRequest(entry.sourceId, current,
+      async (): Promise<void> => {
+        if (!current()) return
+        settled = true
+        this.rememberSourceFailure(index, undefined)
+        this.performPageRetry(index)
+      }, (): void => { settled = true })
+  }
   @Local private loadedPageIndexes: number[] = []
   @Local private continuousOffset: number = 0
   @Local private settingsReady: boolean = false
@@ -2176,6 +2243,9 @@ export struct ReaderPage {
     this.sourceSignature = signature
     this.loadedRevision += 1
     this.failedPages = []
+    this.pageSourceFailures = {}
+    this.authentication?.cancel()
+    this.authentication = null
     this.loadedPageIndexes = []
     this.autoPageWaitingIndex = -1
     this.measuredPageWidths = []
@@ -2991,6 +3061,7 @@ export struct ReaderPage {
   }
 
   private onImageLoaded(index: number): void {
+    this.rememberSourceFailure(index, undefined)
     if (this.failedPages.includes(index)) this.failedPages = this.failedPages.filter((item: number) => item !== index)
     if (!this.loadedPageIndexes.includes(index)) {
       this.loadedPageIndexes = this.loadedPageIndexes.concat([index])
@@ -3221,6 +3292,7 @@ export struct ReaderPage {
   }
 
   private handleKeyEvent(event: KeyEvent): boolean {
+    if (this.authenticationShown) return false
     if (!this.preferences.volumeKeyNavigationEnabled) {
       return false
     }
@@ -3308,6 +3380,11 @@ export struct ReaderPage {
   private sourceRetryConfig: ReaderSessionConfig | null = null
 
   private retryCurrentPage(index: number = this.pageIndex): void {
+    if (this.canAuthenticatePage(index)) this.authenticatePage(index)
+    else this.performPageRetry(index)
+  }
+
+  private performPageRetry(index: number): void {
     if (this.sessionConfig.pageUris.includes('source-placeholder://chapter')) {
       if (!this.readerOpen || !this.routeVisible || this.closing || this.sessionLoading ||
         this.sourceRetryConfig === this.sessionConfig) return
@@ -3512,6 +3589,7 @@ export struct ReaderPage {
         fitMode: continuous ? this.preferences.imageFitMode : 'contain',
         scalingQuality: this.preferences.imageScalingQuality, displaySettings: this.preferences.displaySettings,
         sourceFailureReason: this.sessionConfig.sourceFailureReason ?? '',
+        sourceFailure: this.sessionConfig.sourceFailure, authenticationAvailable: this.sourceSupportsAuthentication(),
         splitSide: splitSide,
         rotateClockwise: this.preferences.wideImageMode === 'rotate_wide_pages' && isWidePage(this.pageWidth(index), this.pageHeight(index)),
         zoomEnabled: true,
@@ -3559,6 +3637,7 @@ export struct ReaderPage {
         },
         onLoaded: (page: number) => { this.onImageLoaded(page) },
         onFailed: (page: number) => { this.onImageFailed(page) },
+        onSourceFailure: (page: number, details: SourceFailureDetails | undefined) => { this.rememberSourceFailure(page, details) },
         onRetry: (page: number) => { this.retryCurrentPage(page) },
         onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => {
           this.rememberRetryHitRegion(id, region)
@@ -3642,6 +3721,7 @@ export struct ReaderPage {
           gap: this.preferences.spreadLayoutMode === 'split' ? pageGap(this.preferences.pageGapMode) : 0,
           scalingQuality: this.preferences.imageScalingQuality, displaySettings: this.preferences.displaySettings,
           sourceFailureReason: this.sessionConfig.sourceFailureReason ?? '',
+        sourceFailure: this.sessionConfig.sourceFailure, authenticationAvailable: this.sourceSupportsAuthentication(),
           parentViewportWidth: this.viewportWidth,
           parentViewportHeight: this.viewportHeight,
           active: this.pageIsZoomActive(start, false),
@@ -3661,6 +3741,7 @@ export struct ReaderPage {
           },
           onLoaded: (page: number) => { this.onImageLoaded(page) },
           onFailed: (page: number) => { this.onImageFailed(page) },
+        onSourceFailure: (page: number, details: SourceFailureDetails | undefined) => { this.rememberSourceFailure(page, details) },
           onRetry: (page: number) => { this.retryCurrentPage(page) },
           onRetryRegionChange: (id: number, region: ReaderRetryHitRegion | undefined) => {
             this.rememberRetryHitRegion(id, region)
@@ -3867,6 +3948,8 @@ export struct ReaderPage {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
+      SourceAuthenticationSheetHost({ request: this.authentication, active: this.readerOpen && this.routeVisible && !this.closing,
+        onPresentedChanged: (shown: boolean) => { this.authenticationShown = shown } })
       if (this.readerOpen) {
         this.ReaderContent()
       } else {

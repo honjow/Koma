@@ -1,6 +1,8 @@
 import { ImageRuleStore } from '../model/ImageRuleStore'
 import { BannerFilterMode, ImageRuleSnapshot } from '../model/ImageBannerRules'
-import { sourceChapterOrderFor } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { sourceChapterOrderFor, appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { SourceRuntimeError } from '../model/SourceRuntimeError'
+import { AppStrings } from '../i18n/AppStrings'
 import { firstReaderChapter } from '../model/ReaderChapterSequence'
 import { common } from '@kit.AbilityKit'
 import { taskpool } from '@kit.ArkTS'
@@ -9,7 +11,7 @@ import {
   ReaderCatalog, ReaderAssetProvider, ReaderPreloadHost, ReaderUnitKey, ReaderUnit, ReaderPage,
   ReaderCancellation, ReaderProcessingCancellation, ReaderAsset, ReaderAssetKind,
   ReaderImageInformation, ReaderImageInformationSource, ReaderImageShareTarget,
-  ReaderAssetFailure, ReaderAssetFailureClassifier,
+  ReaderAssetFailure, ReaderAssetFailureClassifier, ReaderAssetNotice,
 } from '@reader-kit/core'
 import { KomaReaderFailure } from './KomaReaderFailure'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -112,8 +114,41 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
   private remotePreloadAllowed: () => boolean
   private closed: boolean = false
   private catalogFailureText: string = ''
+  private catalogLoginSource: string = ''
+  private catalogLoginUnit: ReaderUnitKey | null = null
+  onAuthenticationRequested: ((sourceId: string, unit: ReaderUnitKey, current: () => boolean, reopenCatalog: boolean) => Promise<boolean>) | null = null
 
   catalogFailureMessage(): string { return this.catalogFailureText }
+  catalogAuthenticationSource(): string { return this.catalogLoginSource }
+  catalogAuthenticationTarget(): ReaderUnitKey | null { return this.catalogLoginUnit?.copy() ?? null }
+  invalidateAuthenticationCatalog(unit: ReaderUnitKey): void {
+    const id = this.unitId(unit)
+    this.preparedUnits.delete(id); this.sources.delete(id); this.configs.delete(id); this.sourceRequests.clear()
+  }
+
+  private authenticationSource(error: Error, unit: ReaderUnitKey): string {
+    if (!(error instanceof SourceRuntimeError) ||
+      (error.diagnostic.code !== 'auth_required' && error.diagnostic.reason !== 'auth_required') ||
+      (error.diagnostic.status !== 0 && error.diagnostic.status !== 401)) return ''
+    const config = this.configs.get(this.unitId(unit)) ?? this.catalogHost?.initial(unit.work, unit.unit)
+    const id = config?.sourceRuntimeId ?? this.library.getComic(unit.work)?.sourceRuntimeId ?? ''
+    const entry = appSourceRuntimeRegistry.lookup(id).entry
+    return entry?.enabled === true && entry.authentication !== undefined ? id : ''
+  }
+
+  private authenticationNotice(error: Error, page: ReaderPage, kind: ReaderAssetKind,
+    cancellation: ReaderCancellation, reopenCatalog: boolean = false): ReaderAsset | null {
+    const sourceId = this.authenticationSource(error, page.unit)
+    const action = this.onAuthenticationRequested
+    if (sourceId.length === 0 || kind !== 'original' || action === null) return null
+    const unit = page.unit.copy()
+    const current = (): boolean => !this.closed && !cancellation.isCancelled()
+    const asset = new ReaderAsset('')
+    asset.setNotice(new ReaderAssetNotice('koma-source-login', AppStrings.get('source_login'),
+      error instanceof SourceRuntimeError ? error.userText : AppStrings.get('source_login_required'), AppStrings.get('source_login')),
+      async (): Promise<boolean> => current() ? await action(sourceId, unit, current, reopenCatalog) : false)
+    return asset
+  }
   private requestContext?: common.UIAbilityContext
   private filesDir: string
   private thumbnails: KomaReaderLabThumbnailProvider
@@ -163,12 +198,15 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
    * Cancelling a prefetch consumer must not cancel a foreground chapter join. */
   async prepare(key: ReaderUnitKey, cancellation: ReaderCancellation): Promise<ReaderUnit> {
     this.catalogFailureText = ''
+    this.catalogLoginSource = ''; this.catalogLoginUnit = null
     try {
       return await this.prepareShared(key, cancellation)
     } catch (error) {
       cancellation.check()
       if (this.closed) throw new Error('closed_koma_reader')
       this.catalogFailureText = KomaReaderFailure.catalogMessage(error as Error)
+      this.catalogLoginSource = this.authenticationSource(error as Error, key)
+      this.catalogLoginUnit = this.catalogLoginSource.length > 0 ? key.copy() : null
       throw error as Error
     }
   }
@@ -554,7 +592,10 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
       source.uri === 'source-placeholder://chapter' ||
       (source.kind !== ReaderPageRenderKind.SOURCE_TEXT_REQUEST && source.imageUri.length === 0)) {
       const config = this.configs.get(this.unitId(page.unit))
-      throw KomaReaderFailure.sourceError(config?.sourceFailureReason, config?.sourceFailure)
+      const error = KomaReaderFailure.sourceError(config?.sourceFailureReason, config?.sourceFailure)
+      const notice = this.authenticationNotice(error, page, kind, cancellation, true)
+      if (notice !== null) return notice
+      throw error
     }
     let filePath: string
     try {
@@ -562,6 +603,8 @@ export class KomaReaderLabAdapter implements ReaderCatalog, ReaderAssetProvider,
     } catch (error) {
       cancellation.check()
       if (this.closed) throw new Error('closed_koma_reader')
+      const notice = this.authenticationNotice(error as Error, page, kind, cancellation)
+      if (notice !== null) return notice
       const retryId = JSON.stringify([this.unitId(page.unit), page.key])
       if (forceReload || source.kind !== ReaderPageRenderKind.REMOTE_URL_IMAGE ||
         source.sourceRuntimeId === undefined || source.sourceRuntimeId.length === 0 ||

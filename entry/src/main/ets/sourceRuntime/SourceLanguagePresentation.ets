@@ -1,4 +1,5 @@
 import { i18n } from '@kit.LocalizationKit'
+import { AppStrings } from '../i18n/AppStrings'
 
 // Language autonyms, shared by source browsing and package management.
 // Only presentation is normalized; package/index identifiers stay untouched.
@@ -7,6 +8,8 @@ const names: Map<string, string> = new Map()
 export function sourceLanguageName(language: string): string {
   const code = language.trim()
   if (code.length === 0) return ''
+  // The source declaration "all" is a multilingual catalogue, not a language-filter master switch.
+  if (code.toLowerCase() === 'all') return AppStrings.get('source_catalog_language_multilingual')
   const cached = names.get(code)
   if (cached !== undefined) return cached
   const tag = code.replace(/_/g, '-')

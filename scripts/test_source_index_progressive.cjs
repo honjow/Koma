@@ -7,6 +7,7 @@ const ts = require('/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor
 const root = path.join(__dirname, '../entry/src/main/ets')
 function subject(file, owner, methods, globals) {
   if (owner === 'SourcePackageManagerPage') methods = methods.concat('packageInstallAdmissionBlocked')
+  if (owner === 'SourceIndexService') methods = methods.concat('subscriptionEpoch')
   const source = fs.readFileSync(path.join(root, file), 'utf8').replace(/\bstruct /g, 'class ')
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
   const cls = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.getText(tree) === owner)
@@ -18,7 +19,7 @@ function subject(file, owner, methods, globals) {
   vm.runInNewContext(ts.transpileModule(`export class Subject {${body}}`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, console, ...globals })
-  return Object.assign(new exports.Subject(), {catalogFilters:{rating:'all'},localImport:{busy:false},packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){},recordInstalledPackage(){}}})
+  return Object.assign(new exports.Subject(), {catalogFilters:{rating:'all'},chrome:{search:{query:''}},localImport:{busy:false},packages:[],indexEntries:[],managerCache:{retireCheck(){},rememberSavedIndex(){},recordInstalledPackage(){}}})
 }
 function productionModule(file, bindings = {}, names) {
   let source = fs.readFileSync(path.join(root, file), 'utf8')
@@ -33,6 +34,8 @@ function productionModule(file, bindings = {}, names) {
   return exports
 }
 const presentation = productionModule('model/SourceCatalogPresentation.ets')
+const { SourceCatalogPageChrome } = productionModule('state/SourceCatalogPageChrome.ets',
+  { ...productionModule('state/SearchRouteChromeState.ets'), Scroller: class {} })
 const metadataBindings = productionModule('sourceRuntime/SourceLocalizedNames.ets')
 Object.assign(metadataBindings, productionModule('sourceRuntime/SourcePackageMetadata.ets', {}, ['normalizeSourceHomepage']))
 const {entryWithCachedIcon,subscriptionIdentity} = productionModule('sourceRuntime/SourceIndexMetadata.ets', metadataBindings,
@@ -41,6 +44,7 @@ const {mergeSourceIndexCatalog} = productionModule('sourceRuntime/SourceIndexCat
 const entry = id => ({ id, name: id, version: '1', sha256: '', icon: `${id}.png` })
 const globals = {
   ...presentation,
+  ...productionModule('model/BackupRestoreActivity.ets'),
   resolveIndexDocumentUrl: value => value,
   entryWithCachedIcon: (entry, iconUri) => ({ ...entry, iconUri }),
   SOURCE_INDEX_ICON_FETCH_CONCURRENCY: 4,
@@ -243,6 +247,68 @@ function packageManager(packages, indexEntries, packageUpdateStatuses = []) {
 }
 const installed = (id, version, enabled = true) => ({ id, name: id, version, enabled, icon: 'file://installed.png' })
 const indexed = (id, version) => ({ ...entry(id), version })
+test('source search matches localized and canonical names and source ID', () => {
+  const match=presentation.sourceMatchesCatalogSearch
+  assert.equal(match('  mixed   CASE  ','Mixed Case','Canonical',{zh:'漫画源'},'com.example'),true)
+  assert.equal(match('漫画','Mixed Case','Canonical',{zh:'漫画源'},'com.example'),true)
+  assert.equal(match('CANON','Mixed Case','Canonical',undefined,'com.example'),true)
+  assert.equal(match('example','Mixed Case','Canonical',undefined,'com.example'),true)
+  assert.equal(match('  ','Mixed Case','Canonical',undefined,'com.example'),true)
+  assert.equal(match('missing','Mixed Case','Canonical',undefined,'com.example'),false)
+})
+test('catalog search state belongs to each page and cancel restores its query', () => {
+  const browse=new SourceCatalogPageChrome(),manager=new SourceCatalogPageChrome()
+  browse.openSearch();browse.search.updateQuery('快看')
+  assert.equal(manager.searchExpanded,false);assert.equal(manager.search.query,'')
+  browse.closeSearch();assert.equal(browse.searchExpanded,false);assert.equal(browse.search.query,'')
+  manager.openSearch();manager.search.updateQuery('test');manager.selectSection('plugins')
+  assert.equal(manager.searchExpanded,false);assert.equal(manager.search.query,'')
+})
+test('catalog search animates closed/open state and ignores obsolete completion callbacks', () => {
+  const page=subject('pages/Index.ets','Index',['setCatalogSearch'],{...globals,
+    SEARCH_TITLE_BOTTOM_HEIGHT:64,Curve:{EaseOut:'ease'}})
+  const completions=[];let clears=0
+  page.getUIContext=()=>({getFocusController:()=>({clearFocus:()=>clears++}),
+    animateTo:(options,update)=>{completions.push(options.onFinish);update()}})
+  const chrome=new SourceCatalogPageChrome()
+  page.setCatalogSearch(chrome,true)
+  assert.equal(chrome.searchVisible,true);assert.equal(chrome.searchHeight,64);assert.equal(chrome.searchFocus,false);assert.equal(chrome.searchAnimating,true)
+  chrome.search.updateQuery('快看');page.setCatalogSearch(chrome,false)
+  assert.equal(chrome.searchHeight,0);assert.equal(chrome.searchVisible,true);assert.equal(chrome.search.query,'');assert.equal(clears,1)
+  page.setCatalogSearch(chrome,true);completions[0]();completions[1]()
+  assert.equal(chrome.searchVisible,true);assert.equal(chrome.searchFocus,false);assert.equal(chrome.searchAnimating,true)
+  completions[2]();assert.equal(chrome.searchFocus,true);assert.equal(chrome.searchAnimating,false)
+  page.setCatalogSearch(chrome,false);completions[3]()
+  assert.equal(chrome.searchVisible,false);assert.equal(chrome.searchFocus,false);assert.equal(chrome.searchAnimating,false)
+})
+test('manager toggles search in its fixed slot and clears the query on close', () => {
+  const page=subject('pages/Index.ets','Index',['toggleManagerCatalogSearch'],globals)
+  let clears=0
+  page.getUIContext=()=>({getFocusController:()=>({clearFocus:()=>clears++})})
+  const chrome=new SourceCatalogPageChrome()
+  page.toggleManagerCatalogSearch(chrome)
+  assert.equal(chrome.searchExpanded,true);assert.equal(chrome.searchHeight,0)
+  chrome.search.updateQuery('快看');page.toggleManagerCatalogSearch(chrome)
+  assert.equal(chrome.searchExpanded,false);assert.equal(chrome.search.query,'');assert.equal(clears,1)
+})
+test('browse search composes with catalog filters and resolves each source name once', () => {
+  let resolved=0
+  const page=subject('pages/BrowsePage.ets','BrowsePage',[],{...globals,
+    resolveSourceLocalizedName:(name,names)=>{resolved++;return names?.zh ?? name},
+    compareSourceNames:(left,_leftId,right)=>left.localeCompare(right)})
+  page.languageState={effectiveLocale:'zh'}
+  page.catalogFilters={languages:['zh-Hans'],rating:'safe'}
+  page.viewModel={sources:[
+    {sourceId:'one',displayName:'Alpha',localizedNames:{zh:'甲漫画'},language:'zh-CN',nsfw:false,contentRating:'safe',enabled:true},
+    {sourceId:'two',displayName:'Beta',language:'zh-CN',nsfw:false,contentRating:'safe',enabled:true},
+    {sourceId:'three',displayName:'Hidden',language:'en',nsfw:false,contentRating:'safe',enabled:true},
+  ]}
+  page.chrome.search.query='甲'
+  assert.equal(page.enabledRuntimeSources.map(s=>s.sourceId).join(','),'one')
+  assert.equal(resolved,2)
+  page.chrome.search.query='';resolved=0
+  assert.equal(page.enabledRuntimeSources.length,2);assert.equal(resolved,2)
+})
 test('source groups contain each installed identity once; updates precede missing and current packages', () => {
   const packages = [installed('A', '1.0'), installed('B', '1.0'), installed('C', '2.0', false)]
   const manager = packageManager(packages, [indexed('A','1.1'), indexed('B','1.0'), indexed('C','1.0'), indexed('D','1.0')])
@@ -252,6 +318,20 @@ test('source groups contain each installed identity once; updates precede missin
   assert.equal(groups.installed.map(e => e.id).join(','), 'B,C')
   assert.equal(groups.installed[1].enabled, false)
   assert.equal(packages.map(e => e.id).join(','), 'A,B,C')
+})
+test('source search filters existing groups and restores their original order when cleared', () => {
+  const packages=[installed('A','1.0'),installed('B','1.0')]
+  const manager=packageManager(packages,[indexed('A','1.1'),indexed('C','1.0')])
+  manager.chrome.search.query='a'
+  let groups=manager.packageListGroups()
+  assert.equal(groups.updates.map(c=>c.entry.id).join(','),'A')
+  assert.equal(groups.installed.length,0);assert.equal(groups.missing.length,0)
+  manager.chrome.search.query='C';groups=manager.packageListGroups()
+  assert.equal(groups.missing.map(e=>e.id).join(','),'C');assert.equal(groups.updates.length,0)
+  manager.chrome.search.query='';groups=manager.packageListGroups()
+  assert.equal(groups.updates.map(c=>c.entry.id).join(','),'A')
+  assert.equal(groups.missing.map(e=>e.id).join(','),'C')
+  assert.equal(groups.installed.map(e=>e.id).join(','),'B')
 })
 test('checked updates retain their actual repository and ignore a stale update after local installation', () => {
   const manager = packageManager([installed('A','1.0'), installed('B','1.0')], [indexed('A','1.1')], [
@@ -851,8 +931,14 @@ test('opening an unavailable source schema leaves other saved settings healthy',
 
 test('a real saved-settings read failure retains its known settings action and reports the read stage', async()=>{
   const visible=[],toast=[]
+  const registry = { lookup: () => ({ entry: { enabled: true } }) }
+  const { sourceHasAuthentication } = productionModule('sourceRuntime/SourceAuthenticationService.ets',
+    { appSourceRuntimeRegistry: registry,
+      ...productionModule('sourceRuntime/SourceRuntimeRegistry.ets', {}, ['sourceRuntimeEntryEnabled']),
+      ...productionModule('sourceRuntime/SourceAuthenticationDescriptor.ets', { url: { URL } }) },
+    ['sourceHasAuthentication'])
   const host=subject('components/SourceSettingsSheetHost.ets','SourceSettingsSheetHost',
-    ['openSettings'],{appSourceRuntimeRegistry:{},loadSourceSettingsDescriptorsAsync:async()=>({ready:true,descriptors:[{id:'region'}]}),
+    ['openSettings'],{appSourceRuntimeRegistry:registry,sourceHasAuthentication,loadSourceSettingsDescriptorsAsync:async()=>({ready:true,descriptors:[{id:'region'}]}),
       sourceSettingsDraft:()=>{},appSourceSettingsStore:{loadForSource(){throw Error('read failed')}},AppStrings:{get:x=>x},
       komaToastOptions:options=>options})
   Object.assign(host,{mounted:true,active:true,epoch:0,sourceId:'A',onAvailabilityChanged:x=>visible.push(x),

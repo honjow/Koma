@@ -5,12 +5,13 @@ import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/Sour
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsPage } from './ImagePluginsPage'
-import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters } from '../model/SourceCatalogPresentation'
+import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
 import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceSettingsSheetContent as SourceSettingsForm, sourceSettingsDraft } from '../components/SourceSettingsSheetContent'
+import { sourceHasAuthentication } from '../sourceRuntime/SourceAuthenticationService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { compareSourceNames } from '../sourceRuntime/SourceListOrder'
 import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
@@ -186,6 +187,7 @@ export struct SourcePackageManagerPage {
   @Local private sourceSheetSourceId: string = ''
   @Local private sourceSheetRetainedSource: InstalledSourcePackage | undefined = undefined
   @Local private sourceSettingsSheetShown: boolean = false
+  private settingsAuthenticationChanged: boolean = false
   @Local private settingsDescriptorSnapshot: Record<string, SourceSettingDescriptor[]> = {}
   private settingsReloadRevision: number = 0
   private settingsSourceReloads: Record<string, number> = {}
@@ -220,7 +222,7 @@ export struct SourcePackageManagerPage {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
       if (!this.settingsRouteActive) return
       if (!result.ready) throw new Error('source_settings_unavailable')
-      if (result.descriptors.length === 0) return
+      if (result.descriptors.length === 0 && !sourceHasAuthentication(source.id)) return
       schemaReady = true
       this.openSettings(source, result.descriptors)
       this.sourceSettingsSheetShown = true
@@ -634,7 +636,7 @@ export struct SourcePackageManagerPage {
       const result = await loadSourceSettingsDescriptorsAsync(appSourceRuntimeRegistry, source.id)
       if (!this.sourceSheetShown || this.sourceSheetSourceId !== source.id) return
       if (!result.ready) throw new Error('source_settings_unavailable')
-      if (result.descriptors.length === 0) {
+      if (result.descriptors.length === 0 && !sourceHasAuthentication(source.id)) {
         const snapshot: Record<string, SourceSettingDescriptor[]> = {}
         Object.keys(this.settingsDescriptorSnapshot).forEach((id: string): void => {
           snapshot[id] = this.settingsDescriptorSnapshot[id]
@@ -666,6 +668,8 @@ export struct SourcePackageManagerPage {
   private finishSourceSettingsSheetDismissal(): void {
     this.sourceSettingsSheetShown = false
     this.closeSettings()
+    if (this.settingsRouteActive && this.settingsAuthenticationChanged) this.onSettingsSaved()
+    this.settingsAuthenticationChanged = false
     if (this.settingsRouteActive && this.initialSettingsSourceId.length > 0) RouterHelper.pop()
   }
 
@@ -813,11 +817,23 @@ export struct SourcePackageManagerPage {
   private packageListGroups(): SourcePackageListGroups {
     const filters: SourceCatalogFilters = { languages: this.catalogFilters.languages, rating: this.catalogFilters.rating }
     const matches = (entry: SourceIndexEntry): boolean => sourceMatchesCatalogFilters(entry.lang, entry.nsfw, entry.contentRating, filters)
-    const updates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
-    const updating = updates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
-    return { updates, missing: this.missingIndexEntries().filter(matches),
+    const locale = this.languageState.effectiveLocale
+    const matchesName = (id: string, name: string, localizedNames?: Record<string, string>): boolean =>
+      this.chrome.search.query.trim().length === 0 ||
+      sourceMatchesCatalogSearch(this.chrome.search.query, resolveSourceLocalizedName(name, localizedNames, locale), name, localizedNames, id)
+    const allUpdates = this.availablePackageUpdates().filter((candidate: SourcePackageUpdateCandidate): boolean => matches(candidate.entry))
+    const updating = allUpdates.map((candidate: SourcePackageUpdateCandidate): string => candidate.entry.id)
+    const updates = allUpdates.filter((candidate: SourcePackageUpdateCandidate): boolean => {
+      const entry = candidate.entry
+      const installed = this.installedPackage(entry.id)
+      return matchesName(entry.id, entry.name, entry.localizedNames) || (installed !== undefined &&
+        matchesName(installed.id, installed.name, installed.localizedNames))
+    })
+    return { updates, missing: this.missingIndexEntries().filter((entry: SourceIndexEntry): boolean =>
+      matches(entry) && matchesName(entry.id, entry.name, entry.localizedNames)),
       installed: this.packages.filter((source: InstalledSourcePackage): boolean => !updating.includes(source.id) &&
-        sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters)) }
+        sourceMatchesCatalogFilters(source.lang, source.nsfw, source.contentRating, filters) &&
+        matchesName(source.id, source.name, source.localizedNames)) }
   }
 
   @Computed
@@ -1171,9 +1187,11 @@ export struct SourcePackageManagerPage {
           remoteVersion: entry.version,
           localVersion: source.version,
           reasonCode: result.reasonCode,
+          requiredAppVersion: result.requiredAppVersion,
         })
-        this.statusText = tf('source_pkg_update_failed', this.sourceRedactedReasonText(result.reasonCode))
-        this.showToast(t('source_pkg_toast_install_failed'))
+        const reason = this.sourceRedactedReasonText(result.reasonCode, result.requiredAppVersion)
+        this.statusText = tf('source_pkg_update_failed', reason)
+        this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_install_failed'))
         DiagnosticLogger.error('source_package_manager_page', 'install_failed', '[SourcePackageUpdate] step=install_failed id=' + source.id + ' reason=' + (result.reasonCode ?? 'unknown'))
       }
     } catch (_error) {
@@ -1200,7 +1218,7 @@ export struct SourcePackageManagerPage {
     return tf('source_pkg_index_version_installed', installed.version, entry.version)
   }
 
-  private sourceReasonText(reasonCode: string | undefined): string {
+  private sourceReasonText(reasonCode: string | undefined, requiredAppVersion?: string): string {
     const code = reasonCode ?? 'unknown'
     switch (code) {
       case 'subscription_conflict':
@@ -1220,7 +1238,8 @@ export struct SourcePackageManagerPage {
       case 'invalid_pkg_url':
         return t('source_pkg_reason_invalid_pkg_url')
       case 'app_version_unsupported':
-        return t('source_pkg_reason_app_version_unsupported')
+        return requiredAppVersion ? tf('source_pkg_reason_min_app_version', requiredAppVersion)
+          : t('source_pkg_reason_app_version_unsupported')
       case 'invalid_response':
         return t('source_pkg_reason_invalid_response')
       case 'empty_package':
@@ -1290,7 +1309,7 @@ export struct SourcePackageManagerPage {
     }
   }
 
-  private sourceRedactedReasonText(reasonCode: string | undefined): string {
+  private sourceRedactedReasonText(reasonCode: string | undefined, requiredAppVersion?: string): string {
     const code = reasonCode ?? 'unknown'
     switch (code) {
       case 'invalid_url':
@@ -1330,7 +1349,7 @@ export struct SourcePackageManagerPage {
       case 'settings_read_failed':
       case 'ok':
       case 'unknown':
-        return this.sourceReasonText(code)
+        return this.sourceReasonText(code, requiredAppVersion)
       default:
         return t('source_pkg_reason_redacted')
     }
@@ -1360,8 +1379,9 @@ export struct SourcePackageManagerPage {
         if (result.id !== undefined) this.refreshInstalledPackage(result.id)
         else this.reload()
       } else {
-        this.statusText = tf('source_pkg_import_failed', this.sourceReasonText(result.reasonCode))
-        this.showToast(t('source_pkg_toast_validation_failed'))
+        const reason = this.sourceReasonText(result.reasonCode, result.requiredAppVersion)
+        this.statusText = tf('source_pkg_import_failed', reason)
+        this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_validation_failed'))
         this.reload()
       }
     } catch (_error) {
@@ -1476,10 +1496,11 @@ export struct SourcePackageManagerPage {
         this.showToast(replaceExisting ? t('source_pkg_toast_updated') : t('source_pkg_toast_install_success'))
         this.refreshInstalledPackage(entry.id)
       } else {
+        const reason = this.sourceReasonText(result.reasonCode, result.requiredAppVersion)
         this.indexStatusText = replaceExisting
-          ? tf('source_pkg_update_failed', this.sourceReasonText(result.reasonCode))
-          : tf('source_pkg_install_failed', this.sourceReasonText(result.reasonCode))
-        this.showToast(t('source_pkg_toast_install_failed'))
+          ? tf('source_pkg_update_failed', reason)
+          : tf('source_pkg_install_failed', reason)
+        this.showToast(result.reasonCode === 'app_version_unsupported' ? reason : t('source_pkg_toast_install_failed'))
       }
     } catch (_error) {
       this.indexStatusText = replaceExisting
@@ -1508,6 +1529,7 @@ export struct SourcePackageManagerPage {
     let successCount = 0
     let failedCount = 0
     let skippedCount = 0
+    let requiredAppVersion = ''
     this.indexStatusText = replaceExisting
       ? tf('source_pkg_batch_update_running', entries.length)
       : tf('source_pkg_batch_install_running', entries.length)
@@ -1548,6 +1570,9 @@ export struct SourcePackageManagerPage {
           }
         } else {
           failedCount += 1
+          if (result.requiredAppVersion !== undefined) {
+            requiredAppVersion = this.highestFailedAppVersion(requiredAppVersion, result)
+          }
           if (replaceExisting) {
             this.setUpdateStatus({
               sourceId: entry.id,
@@ -1557,6 +1582,7 @@ export struct SourcePackageManagerPage {
               remoteVersion: entry.version,
               localVersion: existing?.version ?? '',
               reasonCode: result.reasonCode,
+              requiredAppVersion: result.requiredAppVersion,
             })
           }
         }
@@ -1565,6 +1591,9 @@ export struct SourcePackageManagerPage {
       this.indexStatusText = replaceExisting
         ? tf('source_pkg_batch_update_done', successCount, failedCount, skippedCount)
         : tf('source_pkg_batch_install_done', successCount, failedCount, skippedCount)
+      if (requiredAppVersion.length > 0) {
+        this.indexStatusText += ' · ' + tf('source_pkg_batch_min_app_version', requiredAppVersion)
+      }
       this.showToast(replaceExisting ? t('source_pkg_batch_update_toast') : t('source_pkg_batch_install_toast'))
       console.info('[SourcePackageBatch] step=done mode=' + (replaceExisting ? 'update' : 'install') +
         ' success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
@@ -1578,6 +1607,12 @@ export struct SourcePackageManagerPage {
       this.reload()
       this.indexInstallBusy = false
     }
+  }
+
+  private highestFailedAppVersion(current: string, result: SourceIndexInstallResult): string {
+    const version = result.requiredAppVersion
+    return result.reasonCode === 'app_version_unsupported' && version !== undefined && version.length > 0 &&
+      (current.length === 0 || this.compareVersion(version, current) > 0) ? version : current
   }
 
   private installMissingIndexEntries(): void {
@@ -1602,6 +1637,7 @@ export struct SourcePackageManagerPage {
     let successCount = 0
     let failedCount = 0
     let skippedCount = 0
+    let requiredAppVersion = ''
     this.statusText = tf('source_pkg_batch_update_running', statuses.length)
     console.info('[SourcePackageUpdateBatch] step=start count=' + statuses.length)
     try {
@@ -1636,6 +1672,9 @@ export struct SourcePackageManagerPage {
           })
         } else {
           failedCount += 1
+          if (result.requiredAppVersion !== undefined) {
+            requiredAppVersion = this.highestFailedAppVersion(requiredAppVersion, result)
+          }
           this.setUpdateStatus({
             sourceId: status.sourceId,
             status: 'failed',
@@ -1644,10 +1683,14 @@ export struct SourcePackageManagerPage {
             remoteVersion: entry.version,
             localVersion: source.version,
             reasonCode: result.reasonCode,
+            requiredAppVersion: result.requiredAppVersion,
           })
         }
       }
       this.statusText = tf('source_pkg_batch_update_done', successCount, failedCount, skippedCount)
+      if (requiredAppVersion.length > 0) {
+        this.statusText += ' · ' + tf('source_pkg_batch_min_app_version', requiredAppVersion)
+      }
       this.showToast(t('source_pkg_batch_update_toast'))
       console.info('[SourcePackageUpdateBatch] step=done success=' + successCount + ' failed=' + failedCount + ' skipped=' + skippedCount)
     } catch (_error) {
@@ -1824,6 +1867,7 @@ export struct SourcePackageManagerPage {
   private openSettings(source: InstalledSourcePackage, descriptors: SourceSettingDescriptor[]): void {
     const saved = appSourceSettingsStore.loadForSource(source.id)
     this.savedSettingsReadFailed = false
+    this.settingsAuthenticationChanged = false
     this.settingsSourceId = source.id
     this.settingsSourceName = source.name
     this.settingDescriptors = descriptors
@@ -1838,6 +1882,7 @@ export struct SourcePackageManagerPage {
   }
 
   private sourceSettingsSaved(cleared: boolean): void {
+    this.settingsAuthenticationChanged = false
     this.setSettingsValidationStatus({
       sourceId: this.settingsSourceId,
       status: 'unknown',
@@ -2004,7 +2049,7 @@ export struct SourcePackageManagerPage {
       case 'incomplete':
         return t('source_pkg_update_status_incomplete')
       case 'failed':
-        return this.sourceRedactedReasonText(status.reasonCode)
+        return this.sourceRedactedReasonText(status.reasonCode, status.requiredAppVersion)
       case 'unknown':
       default:
         return t('source_pkg_not_checked')
@@ -2212,11 +2257,12 @@ export struct SourcePackageManagerPage {
             this.openSourceSearchFromSheet(params.source)
           },
         })
-        if ((this.settingsDescriptorSnapshot[params.source.id]?.length ?? 0) > 0) {
+        if ((this.settingsDescriptorSnapshot[params.source.id]?.length ?? 0) > 0 || sourceHasAuthentication(params.source.id)) {
           ListDivider()
           ConciseListRow({
             title: t('source_pkg_settings'),
-            trailingText: this.sourceSettingsText(params.source),
+            trailingText: (this.settingsDescriptorSnapshot[params.source.id]?.length ?? 0) > 0
+              ? this.sourceSettingsText(params.source) : '',
             leadingIcon: $r('sys.symbol.gearshape'),
             action: () => {
               this.openSourceSettingsFromSheet(params.source)
@@ -2365,7 +2411,10 @@ export struct SourcePackageManagerPage {
       settingsSourceName: this.settingsSourceName,
       settingDescriptors: this.settingDescriptors,
       initialDraft: this.settingDraft,
+      authenticationAvailable: sourceHasAuthentication(this.settingsSourceId),
+      active: this.sourceSettingsSheetShown,
       onSaved: (cleared: boolean) => { this.sourceSettingsSaved(cleared) },
+      onAuthenticationChanged: () => { this.settingsAuthenticationChanged = true },
       onClose: () => { this.closeSourceSettingsSheet() },
     })
   }
@@ -2569,6 +2618,7 @@ export struct SourcePackageManagerPage {
       Stack() {
         Column() {
           PullRefreshListScaffold({
+            scroller: this.chrome.scroller,
             pinnedOverlayHeight: this.initialSettingsSourceId.length === 0 ? SOURCE_MANAGER_SECTIONS_HEIGHT : 0,
             listSpace: ThemeConstants.SPACE_MD,
             bottomPadding: ThemeConstants.SPACE_XL,
@@ -2586,7 +2636,10 @@ export struct SourcePackageManagerPage {
             if (this.recoverySourceId.length === 0 &&
               this.listGroups.updates.length + this.listGroups.missing.length + this.listGroups.installed.length === 0) {
               ListItem() {
-                if (this.catalogFilters.active) {
+                if (this.chrome.search.query.trim().length > 0) {
+                  KomaEmptyState({ icon: $r('sys.symbol.magnifyingglass'), title: t('source_catalog_search_no_matches'),
+                    message: t('source_catalog_search_hint'), showAction: false })
+                } else if (this.catalogFilters.active) {
                   KomaEmptyState({ icon: $r('sys.symbol.funnel'), title: t('source_catalog_no_matches'),
                     message: t('source_catalog_no_matches_hint'), showAction: false })
                 } else if (this.packages.length === 0) { this.EmptyCard() }

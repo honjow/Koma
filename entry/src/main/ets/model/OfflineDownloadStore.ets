@@ -60,6 +60,8 @@ export interface OfflineDownloadedPage {
   /** Optional public source URL for source-owned presentation; never an access token. */
   sourceOriginalUri?: string
   sourceTextOverlay?: SourceTextOverlay
+  /** The persisted file is canonical already; do not apply the source decode again. */
+  requiredImageDecodeResolved?: boolean
   updatedAt: number
 }
 
@@ -283,6 +285,7 @@ function safeParseManifest(payload: string): OfflineChapterDownloadManifest {
       (page.contentHash !== undefined && typeof page.contentHash !== 'string') ||
       (page.imageProcessing !== undefined && (typeof page.imageProcessing.kind !== 'string' || typeof page.imageProcessing.mode !== 'string')) ||
       (page.sourceOriginalUri !== undefined && typeof page.sourceOriginalUri !== 'string') ||
+      (page.requiredImageDecodeResolved !== undefined && page.requiredImageDecodeResolved !== true) ||
       typeof page.updatedAt !== 'number') {
       throw new Error('Unsupported offline download page manifest')
     }
@@ -301,13 +304,17 @@ function manifestIntegrityPayload(manifest: OfflineChapterDownloadManifest): str
   const pages = manifest.pages.slice().sort((left: OfflineDownloadedPage, right: OfflineDownloadedPage): number => {
     return left.pageIndex - right.pageIndex
   }).map((page: OfflineDownloadedPage): string => {
-    return [
+    const fields: (string | number)[] = [
       page.pageIndex,
       page.pageId,
       page.fileName ?? pathBaseName(page.localPath),
       Math.max(0, Math.floor(page.size)),
       page.contentHash ?? '',
-    ].join(':')
+    ]
+    // Old manifests retain their exact hash. New canonical pages protect the
+    // marker so removing it cannot cause an offline second decode.
+    if (page.requiredImageDecodeResolved === true) fields.push('required-decode-resolved-v1')
+    return fields.join(':')
   })
   return [
     OFFLINE_DOWNLOAD_SCHEMA_VERSION,
@@ -815,6 +822,7 @@ export class OfflineDownloadStore {
         imageProcessingFingerprint: page.imageProcessingFingerprint,
         sourceOriginalUri: page.sourceOriginalUri,
         sourceTextOverlay: page.sourceTextOverlay === undefined ? undefined : sourceTextOverlay(page.sourceTextOverlay),
+        requiredImageDecodeResolved: page.requiredImageDecodeResolved,
         updatedAt: page.updatedAt,
       }
     })

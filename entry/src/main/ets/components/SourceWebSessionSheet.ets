@@ -102,6 +102,16 @@ export struct SourceWebSessionSheet {
       return
     }
     const session = this.params.sourceSession
+    const loginUserAgent = session === undefined ? undefined :
+      appSourceWebSessionStore.pendingLoginUserAgent(session.sourceId, session.sessionId)
+    if (loginUserAgent !== undefined) {
+      try { this.controller.setCustomUserAgent(loginUserAgent) }
+      catch (_error) {
+        this.controllerReady = false; this.loading = false
+        this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('source_web_session_failed') }))
+        return
+      }
+    }
     if (session?.requestHandle !== undefined) {
       const requestUa = sourceRejectedRequestUserAgent(session.sourceId, session.requestHandle, url)
       // MANHUAWU_SOURCE_UNAVAILABLE: user adopted this source-and-origin exception.

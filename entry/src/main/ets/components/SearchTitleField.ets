@@ -19,6 +19,7 @@ function s(name: string): string {
 export struct SearchTitleField {
   @Param chrome: SearchRouteChromeState = new SearchRouteChromeState()
   @Param placeholder: string = s('search_placeholder')
+  @Param focusOnShow: boolean = false
   @Local private fieldText: string = ''
 
   aboutToAppear(): void {
@@ -37,7 +38,7 @@ export struct SearchTitleField {
       KomaSearchField({
         value: this.fieldText,
         placeholder: this.placeholder,
-        autoFocus: this.chrome.autoFocus,
+        autoFocus: this.chrome.autoFocus || this.focusOnShow,
         showSearchButton: true,
         searchButtonText: s('tab_search'),
         useSystemMaterial: true,

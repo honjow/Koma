@@ -3,6 +3,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 
 export type SourceMangaStatus = 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown'
+export type SourceCoverHeaders = Record<string, string>
 
 export interface SourceManga {
   id: string
@@ -12,6 +13,7 @@ export interface SourceManga {
   artist?: string
   description?: string
   coverUrl?: string
+  coverHeaders?: SourceCoverHeaders
   status?: SourceMangaStatus
   contentRating?: string
   tags?: string[]
@@ -56,6 +58,29 @@ interface SourceRuntimeCoverPayload {
   src?: string
   href?: string
   kind?: string
+  headers?: Object
+}
+
+const PUBLIC_COVER_HEADER_NAMES: string[] = ['accept', 'referer', 'user-agent', 'version', 'webp', 'platform']
+
+/** An already resolved public cover. Invalid or stateful descriptors use the legacy resolver. */
+export function sourceStaticCoverHeaders(cover: Object | undefined, url: string | undefined): SourceCoverHeaders | undefined {
+  if (cover === undefined || cover === null || Array.isArray(cover) || typeof cover !== 'object' ||
+    url === undefined || !/^https?:\/\/[^\s/?#@]+(?:[/?#][^\s]*)?$/i.test(url)) return undefined
+  const descriptor = cover as Record<string, Object>
+  const raw = descriptor['headers']
+  if (descriptor['kind'] !== 'url' || descriptor['url'] !== url || raw === null || raw === undefined ||
+    typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const headers: SourceCoverHeaders = {}
+  const values = raw as Record<string, Object>
+  for (const name of Object.keys(values)) {
+    const key = name.toLowerCase()
+    const value = values[name]
+    if (!PUBLIC_COVER_HEADER_NAMES.includes(key) || headers[key] !== undefined || typeof value !== 'string' ||
+      value.length === 0 || /[\r\n\u0000]/.test(value)) return undefined
+    headers[key] = value
+  }
+  return headers
 }
 
 interface SourceRuntimeMangaPayload {
@@ -158,11 +183,13 @@ interface SourceRuntimeFiltersPayload {
   filters?: SourceRuntimeFilterPayload[]
   items?: SourceRuntimeFilterPayload[]
   supportsFilterFetching?: boolean
+  useSearchForFilters?: boolean
 }
 
 export interface SourceFilterSchema {
   filters: SourceFilter[]
   supportsFilterFetching: boolean
+  useSearchForFilters?: boolean
 }
 
 function normalizeSourceMangaStatus(value: string | undefined): SourceMangaStatus {
@@ -273,6 +300,11 @@ function normalizeTags(payload: SourceRuntimeMangaPayload): string[] | undefined
 
 export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMangaPayload): SourceManga {
   const title = firstNonEmpty([payload.title, payload.subtitle, payload.id]) ?? AppStrings.get('manga_detail_title_fallback')
+  const coverUrl = normalizeSourceImageUrl(firstNonEmpty([
+    payload.cover_url, payload.coverUrl, payload.cover_uri, payload.coverUri, payload.thumbnail, payload.thumbnailUrl,
+    payload.imageUrl, payload.image_url, payload.cover?.url, payload.cover?.uri, payload.cover?.src, payload.cover?.href,
+    payload.image?.url, payload.image?.uri, payload.image?.src, payload.image?.href,
+  ]))
   return {
     id: firstNonEmpty([payload.id, title]) ?? title,
     sourceId,
@@ -280,24 +312,8 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
     author: firstNonEmptyList([payload.author, payload.authors]),
     artist: firstNonEmptyList([payload.artist, payload.artists]),
     description: normalizeSourceDisplayText(firstNonEmpty([payload.description, payload.summary, payload.synopsis])),
-    coverUrl: normalizeSourceImageUrl(firstNonEmpty([
-      payload.cover_url,
-      payload.coverUrl,
-      payload.cover_uri,
-      payload.coverUri,
-      payload.thumbnail,
-      payload.thumbnailUrl,
-      payload.imageUrl,
-      payload.image_url,
-      payload.cover === undefined ? undefined : payload.cover.url,
-      payload.cover === undefined ? undefined : payload.cover.uri,
-      payload.cover === undefined ? undefined : payload.cover.src,
-      payload.cover === undefined ? undefined : payload.cover.href,
-      payload.image === undefined ? undefined : payload.image.url,
-      payload.image === undefined ? undefined : payload.image.uri,
-      payload.image === undefined ? undefined : payload.image.src,
-      payload.image === undefined ? undefined : payload.image.href,
-    ])),
+    coverUrl,
+    coverHeaders: sourceStaticCoverHeaders(payload.cover, coverUrl),
     status: normalizeSourceMangaStatus(payload.status),
     contentRating: optionalString(payload.contentRating ?? payload.content_rating),
     tags: normalizeTags(payload),
@@ -401,7 +417,9 @@ export function parseSourceFilterSchemaJson(json: string): SourceFilterSchema {
     const payload = JSON.parse(json) as SourceRuntimeFiltersPayload
     const filters: SourceFilter[] = []
     appendSourceFilters(filters, payload.filters ?? (payload.items ?? []))
-    return { filters, supportsFilterFetching: payload.supportsFilterFetching === true }
+    const schema: SourceFilterSchema = { filters, supportsFilterFetching: payload.supportsFilterFetching === true }
+    if (payload.useSearchForFilters === true) schema.useSearchForFilters = true
+    return schema
   } catch (_err) {
     return { filters: [], supportsFilterFetching: false }
   }
@@ -433,7 +451,7 @@ function appendSourceFilters(target: SourceFilter[], rows: SourceRuntimeFilterPa
 
 // A missing scope keeps legacy filters available on both routes. A header is
 // presentation only and remains in this list so both pages can render it.
-export function sourceFiltersForQuery(filters: SourceFilter[], query: string): SourceFilter[] {
-  const scope = query.trim().length === 0 ? 'browse' : 'search'
+export function sourceFiltersForQuery(filters: SourceFilter[], query: string, searchWithoutQuery: boolean = false): SourceFilter[] {
+  const scope = searchWithoutQuery || query.trim().length > 0 ? 'search' : 'browse'
   return filters.filter((filter: SourceFilter): boolean => filter.scope === undefined || filter.scope === scope)
 }

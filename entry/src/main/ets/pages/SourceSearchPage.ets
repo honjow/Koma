@@ -1,3 +1,5 @@
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { komaSheetOptions, komaToastOptions } from "../theme/KomaPopupOptions"
 import { SourceSettingsSheetHost } from '../components/SourceSettingsSheetHost'
 import { MangaWebRouteParam } from '../common/RouterHelper'
@@ -15,7 +17,7 @@ import { libraryCoverGridColumnCount } from '../utils/LibraryCoverLayout'
 import { connectLibraryCoverLayout, LibraryCoverLayoutState } from '../state/LibraryCoverLayoutState'
 import { SourceFiltersSheetScaffold } from '../components/SourceFiltersSheetScaffold'
 import { sourceFilterSheetOptions } from '../components/SourceFilterSheetOptions'
-import { SourceFilterControls, SourceFilterControlValue } from '../components/SourceFilterControls'
+import { SourceFilterControlValue } from '../components/SourceFilterControls'
 import { AppStrings } from '../i18n/AppStrings'
 import { openSourceWebSession, prepareSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { safeSearchDiagnostic } from '../model/SearchStateMapper'
@@ -144,6 +146,32 @@ export struct SourceSearchPage {
     this.retrySearch()
   }
 
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  private handledAuthenticationRequestSeq: number = 0
+  private authenticationFingerprint(): string {
+    const source = this.currentSource()
+    return JSON.stringify([source.sourceId, source.version, source.wasmByteCount, this.chrome.query,
+      this.viewModel.selectedListingId, this.viewModel.browseFilterValues, this.viewModel.searchFilterValues])
+  }
+  @Monitor('chrome.authenticationRequestSeq')
+  private handleAuthenticationRequest(): void {
+    if (this.chrome.authenticationRequestSeq <= this.handledAuthenticationRequestSeq) return
+    this.handledAuthenticationRequestSeq = this.chrome.authenticationRequestSeq
+    if (!this.chrome.visible || this.currentSource().authentication === undefined) return
+    if (this.canAuthenticateSource()) { this.authenticateSource(); return }
+    const fingerprint = this.authenticationFingerprint()
+    this.authentication = new SourceAuthenticationRequest(this.currentSource().sourceId,
+      (): boolean => this.chrome.visible && this.authenticationFingerprint() === fingerprint,
+      async (): Promise<void> => { this.chrome.markRefreshNeeded(); this.chrome.resume() })
+  }
+
+  private canAuthenticateSource(): boolean {
+    return this.viewModel.searchAuthentication !== null
+  }
+  private authenticateSource(): void {
+    this.authentication = this.viewModel.authenticationRequest('search', (): boolean => this.chrome.visible)
+  }
+
   private canVerifySource(): boolean {
     return this.viewModel.searchNeedsWebSession && (this.currentSource().webSessionOrigins ?? []).length > 0
   }
@@ -205,8 +233,9 @@ export struct SourceSearchPage {
   }
 
   private rerunSearchIfReady(): void {
-    if (this.searchFiltersReady && this.query.trim().length > 0) {
-      void this.viewModel.runSearch(this.currentSource(), this.query)
+    if (this.searchFiltersReady && (this.query.trim().length > 0 || this.viewModel.useSearchForFilters)) {
+      this.clearPendingSearchTimer()
+      void this.viewModel.runSearch(this.currentSource(), this.query, false, undefined, true)
     }
   }
 
@@ -216,7 +245,7 @@ export struct SourceSearchPage {
       void this.initializeSearch()
       return
     }
-    if (this.query.trim().length === 0) {
+    if (!this.viewModel.hasActiveSearch) {
       return
     }
     void this.viewModel.retrySearchPage()
@@ -237,16 +266,16 @@ export struct SourceSearchPage {
   }
 
   private runtimeFilters(): SourceFilter[] {
-    return sourceFiltersForQuery(this.viewModel.filters, this.query)
+    return sourceFiltersForQuery(this.viewModel.filters, this.query, this.viewModel.useSearchForFilters)
   }
 
   private isFilteredEmptySearch(): boolean {
-    return this.query.trim().length > 0 && this.hasActiveSearchFilters()
+    return this.viewModel.hasActiveSearch && this.hasActiveSearchFilters()
   }
 
   private resetSearchFilters(): void {
     this.viewModel.resetSearchFilters(this.query)
-    this.rerunSearchIfReady()
+    this.submitSearch(this.query)
   }
 
   private openFilters(): void {
@@ -265,6 +294,7 @@ export struct SourceSearchPage {
 
   private syncTitleActions(): void {
     const source = this.currentSource()
+    this.chrome.authenticationAvailable = source.enabled && source.authentication !== undefined
     this.chrome.webSessionAvailable = source.enabled && (source.webSessionOrigins ?? []).length > 0
     this.chrome.filtersAvailable = this.hasRuntimeFilters()
   }
@@ -305,34 +335,17 @@ export struct SourceSearchPage {
   }
 
   private emptySearchTitle(): string {
-    if (this.query.trim().length === 0) {
+    if (this.query.trim().length === 0 && !this.viewModel.hasActiveSearch) {
       return s('source_search_empty_idle_title')
     }
     return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_title') : s('source_search_empty_results_title')
   }
 
   private emptySearchMessage(): string {
-    if (this.query.trim().length === 0) {
+    if (this.query.trim().length === 0 && !this.viewModel.hasActiveSearch) {
       return s('source_search_empty_idle_message')
     }
     return this.isFilteredEmptySearch() ? s('source_search_filtered_empty_message') : s('source_search_empty_results_message')
-  }
-
-  @Builder
-  private RuntimeFilterControls() {
-    SourceFilterControls({
-      filters: this.runtimeFilters(),
-      values: this.viewModel.searchFilterValues,
-      busy: this.viewModel.loadingSearch,
-      optionsLoading: this.viewModel.loadingFilterData,
-      vertical: true,
-      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
-        this.setSearchFilterValue(filter, value)
-      },
-      onReset: () => {
-        this.resetSearchFilters()
-      },
-    })
   }
 
   @Builder
@@ -351,12 +364,14 @@ export struct SourceSearchPage {
   @Builder
   private SearchErrorState() {
     KomaEmptyState({
-      title: s('source_search_error_title'),
-      message: this.viewModel.searchErrorMessage === s('search_state_failed') ? '' : this.viewModel.searchErrorMessage,
-      actionLabel: this.canVerifySource() ? s('source_web_open') : s('common_retry'),
-      showAction: !this.searchFiltersReady || this.query.trim().length > 0,
+      title: this.canAuthenticateSource() ? s('source_login_required') : s('source_search_error_title'),
+      message: this.canAuthenticateSource() || this.viewModel.searchErrorMessage === s('search_state_failed')
+        ? '' : this.viewModel.searchErrorMessage,
+      actionLabel: this.canAuthenticateSource() ? s('source_login') : this.canVerifySource() ? s('source_web_open') : s('common_retry'),
+      showAction: !this.searchFiltersReady || this.viewModel.hasActiveSearch,
       action: () => {
-        if (this.canVerifySource()) this.verifySource()
+        if (this.canAuthenticateSource()) this.authenticateSource()
+        else if (this.canVerifySource()) this.verifySource()
         else this.retrySearch()
       },
     })
@@ -426,15 +441,22 @@ export struct SourceSearchPage {
       resetLabel: s('common_reset'),
       showReset: this.hasActiveSearchFilters(),
       resetEnabled: !this.viewModel.loadingSearch,
+      filters: this.runtimeFilters(),
+      values: this.viewModel.searchFilterValues,
+      optionsLoading: this.viewModel.loadingFilterData,
+      onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => {
+        this.setSearchFilterValue(filter, value)
+      },
+      onApplyText: (changes: Record<string, string>) => {
+        if (this.viewModel.applySearchTextFilters(changes)) this.rerunSearchIfReady()
+      },
       onClose: () => {
         this.closeFilters()
       },
       onReset: () => {
         this.resetSearchFilters()
       },
-    }) {
-      this.RuntimeFilterControls()
-    }
+    })
   }
 
   @Builder
@@ -505,11 +527,13 @@ export struct SourceSearchPage {
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack() {
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         SourceSettingsSheetHost({
           sourceId: this.source.sourceId,
           sourceName: this.source.displayName,
           requestSeq: this.chrome.settingsRequestSeq,
           active: this.chrome.visible,
+          deferAvailability: this.viewModel.loadingSearch,
           onAvailabilityChanged: (available: boolean) => { this.chrome.settingsAvailable = available },
           onSettingsSaved: () => {
             this.chrome.markRefreshNeeded()

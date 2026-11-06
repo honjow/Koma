@@ -19,6 +19,8 @@ const { SourceRuntimeError } = errors.exports
 const gateModule = { exports: {} }
 new Function('exports', compile(read('sourceRuntime/SourceWebChallengeGate')))(gateModule.exports)
 const { SourceWebChallengeGate } = gateModule.exports
+const authentication = {}
+new Function('exports', 'require', compile(read('sourceRuntime/SourceAuthenticationService')))(authentication, () => ({}))
 const chapterIdentity = {}
 new Function('exports', 'require', compile(read('model/SourceChapterIdentity')))(chapterIdentity, () => ({}))
 const chapterChronology = {}
@@ -38,13 +40,13 @@ function fixture() {
     chapterError: undefined, library: undefined, cache: undefined, chapters: [], task: undefined }
   const exports = {}
   const code = compile(`export class Page {
-    ${['runSourceMangaOperation', 'sourceMangaResponseItem', 'sourceOperationFailureText', 'isDetailPending', 'canReloadSourceDetail', 'canPullRefreshDetail', 'refreshMangaDetail', 'performDetailRefresh', 'loadSourceMangaDetail', 'clearDetailWebChallenge', 'closeDetailWebChallenge', 'completeDetailWebChallenge', 'finishDetailWebChallengeDismiss', 'publishDetailWebChallenge'].map(method).join('\n')}
+    ${['authenticateSource', 'runSourceMangaOperation', 'sourceMangaResponseItem', 'sourceOperationFailureText', 'isDetailPending', 'canReloadSourceDetail', 'canPullRefreshDetail', 'refreshMangaDetail', 'performDetailRefresh', 'loadSourceMangaDetail', 'clearDetailWebChallenge', 'closeDetailWebChallenge', 'completeDetailWebChallenge', 'finishDetailWebChallengeDismiss', 'publishDetailWebChallenge'].map(method).join('\n')}
   }`)
-  new Function('exports', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
+  new Function('exports', 'SourceAuthenticationRequest', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
     'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem',
     'parseMangaChapterFromSourceItem', 'sourceRuntimeEntryEnabled', 'sourceMangaDetailSnapshotCache',
     'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', code)(
-    exports, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
+    exports, authentication.SourceAuthenticationRequest, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
     (...args) => { identities.push(args); return '{}' },
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) },
     async () => state.task ? state.task() : JSON.stringify(state.response),
@@ -56,7 +58,7 @@ function fixture() {
   Object.assign(page, {
     chrome: { visible: true }, detailWebChallenge: null, detailWebChallengeShown: false, detailWebChallengeId: 0,
     detailWebChallengeClosing: false, detailWebChallengeParams: { url: '', title: '' },
-    detailWebChallengeGate: new SourceWebChallengeGate(), sourceDetailRegistryEntry: entry,
+    detailWebChallengeGate: new SourceWebChallengeGate(), detailAuthenticationGate: new SourceWebChallengeGate(), detailAuthentication: null, sourceDetailRegistryEntry: entry,
     handleDetailWebChallenge: () => {},
     sourceRegistry: { lookup: () => ({ ok: true, entry }) },
     buildSourceDetailRequestJson: () => '{}', copyWasmBytes: () => new Uint8Array(1),
@@ -70,6 +72,78 @@ function fixture() {
   })
   return { page, state, entry, logs, applied, writes, reads, cancelledSessions, chapterCalls, identities }
 }
+
+test('required image descriptors retain source access failures and optional descriptors keep their fallback', async () => {
+  const source = read('model/ReaderPageSourceAdapter')
+  const tree = ts.createSourceFile('adapter.ts', source, ts.ScriptTarget.Latest, true)
+  const owner = tree.statements.find(node => node.name?.text === 'resolveSourceRuntimeImageRequest')
+  const deps = { SourceRuntimeError, SourceWorkerPriority: { FOREGROUND: 1 },
+    appSourceRuntimeRegistry: { lookup: () => ({ ok: true, entry: {
+      sourceId: 'source.test', enabled: true, wasmBytes: new Uint8Array(1), capabilities: [],
+    } }) },
+    readerImageRequestForPage: () => '{}', sourceExplicitlyLacksImageRequest: async () => false,
+    unavailableSourceImageDescriptor: () => undefined,
+  }
+  let reply
+  deps.runReaderSourceImageOperation = async () => reply
+  const resolve = new Function('exports', ...Object.keys(deps),
+    compile(owner.getText(tree)) + ';return resolveSourceRuntimeImageRequest')({}, ...Object.values(deps))
+  for (const error of [{ code: 'auth_required', status: 401 }, { code: 'permission_denied', status: 403 },
+    { code: 'paid_chapter' }]) {
+    reply = JSON.stringify({ ok: false, error })
+    for (const required of [true, false]) {
+      deps.appSourceRuntimeRegistry.lookup = () => ({ ok: true, entry: {
+        sourceId: 'source.test', enabled: true, wasmBytes: new Uint8Array(1), capabilities: required ? ['imageRequest'] : [],
+      } })
+      if (required) await assert.rejects(resolve('source.test', 'https://test.invalid/image', 'page'), failure =>
+        failure instanceof SourceRuntimeError && failure.diagnostic.code === error.code &&
+        failure.diagnostic.status === (error.status ?? 0))
+      else assert.equal(await resolve('source.test', 'https://test.invalid/image', 'page'), undefined)
+    }
+  }
+  deps.appSourceRuntimeRegistry.lookup = () => ({ ok: true, entry: {
+    sourceId: 'source.test', enabled: true, wasmBytes: new Uint8Array(1), capabilities: ['imageRequest'],
+  } })
+  reply = '{invalid'
+  await assert.rejects(resolve('source.test', 'https://test.invalid/image', 'page'), failure =>
+    !(failure instanceof SourceRuntimeError) && failure.message === 'reader_source_image_request_rejected')
+})
+
+test('detail login preserves the exact failed stage and canceled login may reopen without an old retry', async () => {
+  for (const stage of ['detail', 'chapters']) {
+    const f = fixture(), retries = []
+    f.entry.authentication = { kind: 'credentials' }
+    f.page.loadSourceMangaDetail = async (...args) => { retries.push(args) }
+    f.page.publishDetailWebChallenge(new SourceRuntimeError({ ok: false, error: { code: 'auth_required' } }),
+      'source.test', 'original-work', 3, stage, false)
+    f.page.authenticateSource(); const original = f.page.authentication
+    original.cancel(); f.page.authenticateSource(); const reopened = f.page.authentication
+    await original.complete(); assert.deepEqual(retries, [])
+    await reopened.complete(); await reopened.complete()
+    assert.deepEqual(retries, [['source.test', 'original-work', true, true, stage]])
+  }
+})
+
+test('Legacy login consumes completion once and cancellation cannot retry a retained page request', async () => {
+  const tree = ts.createSourceFile('legacy.ts', read('pages/ReaderPage').replace(/\bstruct /g, 'class '), ts.ScriptTarget.Latest, true)
+  const owner = tree.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'ReaderPage')
+  const names = ['sourceSupportsAuthentication', 'canAuthenticatePage', 'rememberSourceFailure', 'authenticatePage', 'retryCurrentPage', 'performPageRetry']
+  const body = `exports.Page=class Page { ${names.map(name => owner.members.find(n => n.name?.text === name).getText(tree)).join('\n')} }`
+  const entry = { sourceId: 'synthetic-source', enabled: true, authentication: { kind: 'credentials' } }, exports = {}
+  new Function('exports', 'appSourceRuntimeRegistry', 'SourceAuthenticationRequest', compile(body))(
+    exports, { lookup: () => ({ entry }) }, authentication.SourceAuthenticationRequest)
+  const page = new exports.Page()
+  Object.assign(page, { sessionConfig: { sourceRuntimeId: entry.sourceId, pageUris: ['https://image.invalid/1'] },
+    pageSourceFailures: { 0: { code: 'auth_required', reason: 'unknown', status: 401 } },
+    pageIndex: 0, readerOpen: true, routeVisible: true, closing: false, failedPages: [0], loadedRevision: 0 })
+  page.retryCurrentPage(); const canceled = page.authentication
+  canceled.cancel(); assert.equal(canceled.current(), false); await canceled.complete(); assert.equal(page.loadedRevision, 0)
+  page.retryCurrentPage(); const complete = page.authentication
+  await complete.complete(); await complete.complete(); assert.equal(page.loadedRevision, 1)
+  page.pageSourceFailures = { 0: { code: 'auth_required', reason: 'unknown', status: 401 } }
+  page.retryCurrentPage(); const replaced = page.authentication
+  page.retryCurrentPage(); assert.equal(replaced.current(), false); await replaced.complete(); assert.equal(page.loadedRevision, 1)
+})
 
 test('chapter identity ambiguity retains the readable catalog and skips snapshot writes', async () => {
   for (const forceReload of [false, true]) {
@@ -163,6 +237,14 @@ test('only a structured no-chapters outcome gets the empty-catalogue explanation
   assert.equal(unknown.userTextFor('manga_detail_load_source_chapters_failed'),'manga_detail_load_source_chapters_failed')
   assert.ok(!empty.userText.includes('PRIVATE_TOKEN'))
 })
+test('confirmed removal is distinct from a plain 404 and does not override access denial', () => {
+  const removed = new SourceRuntimeError({ ok: false, reasonCode: 'not_found', error: { code: 'content_removed' } })
+  assert.equal(removed.userText, 'source_failure_content_removed')
+  const missing = new SourceRuntimeError({ ok: false, error: { code: 'not_found', message: 'content_removed' } })
+  assert.equal(missing.userText, 'source_failure_not_found')
+  const denied = new SourceRuntimeError({ ok: false, error: { code: 'content_removed', status: 403 } })
+  assert.equal(denied.diagnostic.kind, 'access')
+})
 test('get_manga keeps structured access status and never exposes the provider message', async () => {
   const f = fixture()
   f.state.response = { ok: false, error: { code: 'permission_denied', status: 403, message: 'PRIVATE_TOKEN' } }
@@ -203,7 +285,7 @@ test('chapter failure keeps real detail and saved rows without caching the fallb
   assert.equal(f.writes[0][3].chaptersResolved, false)
 })
 test('unavailable-content explanations keep stored chapters and do not claim a resolved catalogue', async () => {
-  for (const code of ['not_found','no_chapters']) {
+  for (const code of ['not_found','content_removed','no_chapters']) {
     const f = fixture()
     const saved = [{title:'Saved chapter'}]
     f.state.library = {chapters:saved}
@@ -300,20 +382,26 @@ test('root menu exposes only recovery when regular detail actions are unavailabl
   const src = read('pages/Index').replace(/\bstruct (\w+)/g, 'class $1')
   const f = ts.createSourceFile('index.ts', src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const owner = f.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'Index')
-  const member = owner.members.find(node => node.name?.text === 'mangaDetailTitleBarOpts')
-  const exports = {}, actions = [], chrome = { pageActionsAvailable: false, sourceReloadAvailable: true,
+  const members = ['mangaDetailTitleBarOpts', 'mangaDetailOverflow', 'mangaDetailMenuGroups']
+    .map(name => owner.members.find(node => node.name?.text === name).getText(f))
+  const exports = {}, actions = [], chrome = { chapterPresentation: { selectionMode: false },
+    visible: true, filteredChapterIds: [], pageActionsAvailable: false, sourceReloadAvailable: true,
     requestAction: action => actions.push(action) }
-  new Function('exports', 'RouterHelper', 'AppStrings', '$r', 'MangaDetailTitleAction',
-    compile(`export class Root { ${member.getText(f)} }`))(
-    exports, { ensureMangaDetailRouteChrome: () => chrome }, strings, value => value, { RELOAD_SOURCE: 'reload_source' })
+  new Function('exports', 'RouterHelper', 'AppStrings', '$r', 'MangaDetailTitleAction', 'komaTitleMoreIcon',
+    compile(`export class Root { ${members.join('\n')} }`))(
+    exports, { ensureMangaDetailRouteChrome: () => chrome }, strings, value => value, { RELOAD_SOURCE: 'reload_source' },
+    () => 'more_icon')
   const page = new exports.Root()
   page.mangaDetailTitle = () => ''
   page.sourceRouteTitleBarOpts = content => content
+  page.getUIContext = () => ({})
+  let opened = []
+  page.detailMenu = { open: (_context, _anchor, groups) => { opened = groups().flatMap(group => group.items) } }
   const menu = page.mangaDetailTitleBarOpts({}).menu
   assert.equal(menu.value.length, 1)
-  assert.equal(menu.value[0].content.label, 'manga_detail_menu_reload_source')
-  assert.equal(menu.value[0].content.isEnabled, true)
   menu.value[0].content.action()
+  assert.deepEqual(opened.map(item => [item.label, item.isEnabled]), [['manga_detail_menu_reload_source', true]])
+  opened[0].action()
   assert.deepEqual(actions, ['reload_source'])
   for (const locale of ['base', 'en_US', 'zh_CN']) {
     const values = JSON.parse(fs.readFileSync(path.join(root, `entry/src/main/resources/${locale}/element/string.json`))).string

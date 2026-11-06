@@ -1,3 +1,5 @@
+import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
+import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
@@ -38,6 +40,8 @@ export interface SourceRuntimeRegistryEntryInput {
   packageContentRating?: string
   packageMinAppVersion?: string
   webSessionOrigins?: string[]
+  authentication?: SourceAuthenticationDescriptor
+  requiredImageDecodes?: string[]
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -72,6 +76,8 @@ export interface SourceRuntimeRegistryEntry {
   packageContentRating: string
   packageMinAppVersion: string
   webSessionOrigins?: string[]
+  authentication?: SourceAuthenticationDescriptor
+  requiredImageDecodes?: string[]
   presentationDescription: string
   presentationIcon: string
 }
@@ -118,6 +124,8 @@ export interface SourceRuntimeRegistryPersistedEntry {
   packageContentRating?: string
   packageMinAppVersion?: string
   webSessionOrigins?: string[]
+  authentication?: SourceAuthenticationDescriptor
+  requiredImageDecodes?: string[]
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -152,6 +160,8 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   networkEnabled: boolean
   httpEnabled: boolean
   webSessionOrigins?: string[]
+  authentication?: SourceAuthenticationDescriptor
+  requiredImageDecodes?: string[]
   enabled: boolean
   language: string
   nsfw: boolean
@@ -367,6 +377,8 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       network: false,
       hostImports: [],
       webSessionOrigins: entry.webSessionOrigins ?? [],
+      authentication: sourceAuthenticationDescriptor(entry.authentication),
+      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -407,6 +419,8 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     packageContentRating: entry.packageContentRating,
     packageMinAppVersion: entry.packageMinAppVersion,
     webSessionOrigins: entry.webSessionOrigins ?? [],
+      authentication: sourceAuthenticationDescriptor(entry.authentication),
+      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }
@@ -499,7 +513,9 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   if (entry.packageContentRating !== undefined && typeof entry.packageContentRating !== 'string') {
     return true
   }
-  if (!validSourceWebSessionOrigins(entry.webSessionOrigins)) return true
+  if (!validSourceWebSessionOrigins(entry.webSessionOrigins) ||
+    !validSourceAuthentication(entry.authentication, entry.webSessionOrigins) ||
+    !validSourceRequiredImageDecodes(entry.requiredImageDecodes)) return true
   if (entry.packageMinAppVersion !== undefined && typeof entry.packageMinAppVersion !== 'string') {
     return true
   }
@@ -569,6 +585,8 @@ export class SourceRuntimeRegistry {
       packageContentRating: normalizePresentationText(input.manifest.package.contentRating),
       packageMinAppVersion: normalizePresentationText(input.manifest.package.minAppVersion),
       webSessionOrigins: input.manifest.permissions.webSessionOrigins ?? [],
+      authentication: sourceAuthenticationDescriptor(input.manifest.permissions.authentication),
+      requiredImageDecodes: sourceRequiredImageDecodes(input.manifest.permissions.requiredImageDecodes),
       presentationDescription: normalizePresentationText(input.presentationDescription),
       presentationIcon: normalizePresentationText(input.presentationIcon),
     }
@@ -653,6 +671,8 @@ export class SourceRuntimeRegistry {
         networkEnabled: false,
         httpEnabled: false,
         webSessionOrigins: entry.webSessionOrigins ?? [],
+      authentication: sourceAuthenticationDescriptor(entry.authentication),
+      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
         enabled: entry.enabled,
         language: entry.language,
         nsfw: entry.nsfw,
@@ -795,6 +815,8 @@ export class SourceRuntimeRegistry {
           packageContentRating: entry.packageContentRating,
           packageMinAppVersion: entry.packageMinAppVersion,
           webSessionOrigins: entry.webSessionOrigins ?? [],
+      authentication: sourceAuthenticationDescriptor(entry.authentication),
+      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
           presentationDescription: entry.presentationDescription,
           presentationIcon: entry.presentationIcon,
         })

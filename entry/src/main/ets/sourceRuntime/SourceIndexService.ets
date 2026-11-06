@@ -55,6 +55,7 @@ export interface SourceIndexFetchResult {
 export interface SourceIndexInstallResult {
   ok: boolean
   reasonCode?: string
+  requiredAppVersion?: string
   install?: SourcePackageInstallResult
 }
 
@@ -648,7 +649,7 @@ export class SourceIndexService {
     return BackupRestoreActivity.runWrite(async (): Promise<SourceIndexInstallResult> => {
       if (!isSourcePackageMinAppVersionSatisfied(entry.minAppVersion)) {
         DiagnosticLogger.error('source_index_service', 'install_blocked', '[SourceIndex] step=install_blocked reason=app_version_unsupported')
-        return { ok: false, reasonCode: 'app_version_unsupported' }
+        return { ok: false, reasonCode: 'app_version_unsupported', requiredAppVersion: entry.minAppVersion }
       }
 
       const document = resolveIndexDocumentUrl(indexUrl)
@@ -748,7 +749,8 @@ export class SourceIndexService {
       const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent)
       if (!install.ok) {
         DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
-        return { ok: false, reasonCode: install.reasonCode, install }
+        // After download the validated archive can require a newer App than the index advertises.
+        return { ok: false, reasonCode: install.reasonCode, requiredAppVersion: install.requiredAppVersion, install }
       }
 
       DiagnosticLogger.info('source_index', 'install_ok', '[SourceIndex] step=install_ok id=' + install.id)

@@ -120,8 +120,8 @@ napi_value RunJsonCall(napi_env env, napi_callback_info info)
 
 napi_value RunJsonCallFromBytes(napi_env env, napi_callback_info info)
 {
-    size_t argc = 4;
-    napi_value argv[4] = {nullptr, nullptr, nullptr, nullptr};
+    size_t argc = 5;
+    napi_value argv[5] = {};
     napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
 
     std::string requestJson;
@@ -137,8 +137,10 @@ napi_value RunJsonCallFromBytes(napi_env env, napi_callback_info info)
             "\"reasonCode\":\"bad_wasm_bytes\",\"warnings\":[]}");
     }
 
+    bool localCover = false;
+    if (argc > 4) napi_get_value_bool(env, argv[4], &localCover);
     const std::string response = koma::RunWasmJsonCallFromBytes(requestJson, wasmBytes,
-        argc > 2 ? GetStringArg(env, argv[2]) : "", argc > 3 ? GetStringArg(env, argv[3]) : "");
+        argc > 2 ? GetStringArg(env, argv[2]) : "", argc > 3 ? GetStringArg(env, argv[3]) : "", localCover);
     return CreateUtf8(env, response);
 }
 

@@ -8,6 +8,6 @@ namespace koma {
 
 std::string RunBundledWasmJsonCall(const std::string &requestJson);
 std::string RunWasmJsonCallFromBytes(const std::string &requestJson, const std::vector<uint8_t> &wasmBytes,
-    const std::string &httpContextJson = "", const std::string &sourceId = "");
+    const std::string &httpContextJson = "", const std::string &sourceId = "", bool localCover = false);
 
 } // namespace koma

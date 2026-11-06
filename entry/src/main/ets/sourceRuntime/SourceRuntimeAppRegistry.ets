@@ -1,5 +1,6 @@
 import { SourceChapterOrder } from './SourceChapterOrder'
-import { appSourceWebSessionStore } from './SourceWebSessionStore'
+import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
+import { appSourceWebSessionStore, sourceWebPackageIdentity } from './SourceWebSessionStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
@@ -109,6 +110,7 @@ export interface SourcePackageInstallResult {
   id?: string
   name?: string
   reasonCode?: string
+  requiredAppVersion?: string
 }
 
 export interface SourcePackageSmokeResult {
@@ -644,6 +646,8 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       network: false,
       hostImports: [],
       webSessionOrigins: entry.webSessionOrigins ?? [],
+      authentication: entry.authentication,
+      requiredImageDecodes: entry.requiredImageDecodes,
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -997,7 +1001,9 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
         existing.packageDescription === entry.packageDescription &&
         existing.packageContentRating === entry.packageContentRating &&
         existing.packageMinAppVersion === entry.packageMinAppVersion &&
-        JSON.stringify(existing.webSessionOrigins ?? []) === JSON.stringify(entry.webSessionOrigins ?? [])
+        JSON.stringify(existing.webSessionOrigins ?? []) === JSON.stringify(entry.webSessionOrigins ?? []) &&
+        JSON.stringify(existing.authentication) === JSON.stringify(entry.authentication) &&
+        JSON.stringify(existing.requiredImageDecodes) === JSON.stringify(entry.requiredImageDecodes)
       if (unchanged) {
         continue
       }
@@ -1038,6 +1044,8 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
           network: false,
           hostImports: [],
           webSessionOrigins: entry.webSessionOrigins ?? [],
+      authentication: entry.authentication,
+      requiredImageDecodes: entry.requiredImageDecodes,
         },
         operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
         contentPolicy: {
@@ -1182,7 +1190,8 @@ async function registerSourcePackageFromBytes(
     if (!isSourcePackageMinAppVersionSatisfied(imported.manifest.package.minAppVersion)) {
       await removeAppSourcePackageDir(context, packageDir)
       DiagnosticLogger.error('source_runtime_app_registry', 'import_fail', '[SourceManager] step=import_fail reason=app_version_unsupported')
-      return { ok: false, reasonCode: 'app_version_unsupported' }
+      return { ok: false, reasonCode: 'app_version_unsupported',
+        requiredAppVersion: imported.manifest.package.minAppVersion }
     }
     // Keep the installed entry available while the worker probes the new bytes.
     // Read its latest position/enabled state only after the asynchronous boundary.
@@ -1371,23 +1380,28 @@ export async function remove(context: common.UIAbilityContext, id: string, befor
     // The host's library may retain public identity before it becomes unavailable.
     // Failure stops removal; this hook never transfers source settings or sessions.
     beforeRemove?.()
-    appSourceSettingsStore.exportAll()
-    appSourceFilterPreferencesStore.exportAll()
-    const images = sourceRemovePreferenceImages(context)
-    try {
-      // No awaited work or runtime/package removal before all file commits.
-      appSourceSettingsStore.removeSource(entry.sourceId)
-      appSourceFilterPreferencesStore.removeSource(entry.sourceId)
-      persistInstalledSources(context, entry.sourceId)
-    } catch (_error) {
+    await SourcePrivateSessionHost.withScopeRemoved(entry.sourceId, sourceWebPackageIdentity(entry), async (): Promise<void> => {
+      // The Asset fence may await a running commit. Snapshot public files only
+      // now so another source's intervening settings are never rolled back.
+      if (appSourceRuntimeRegistry.lookup(id).entry !== entry) throw new Error('source_remove_source_changed')
+      appSourceSettingsStore.exportAll()
+      appSourceFilterPreferencesStore.exportAll()
+      const images = sourceRemovePreferenceImages(context)
       try {
-        restoreSourceRemovePreferences(images)
-      } catch (_restoreError) {
-        throw new Error('source_remove_rollback_failed')
+        // No awaited work or runtime/package removal before all file commits.
+        appSourceSettingsStore.removeSource(entry.sourceId)
+        appSourceFilterPreferencesStore.removeSource(entry.sourceId)
+        persistInstalledSources(context, entry.sourceId)
+      } catch (_error) {
+        try {
+          restoreSourceRemovePreferences(images)
+        } catch (_restoreError) {
+          throw new Error('source_remove_rollback_failed')
+        }
+        throw new Error('source_remove_commit_failed')
       }
-      throw new Error('source_remove_commit_failed')
-    }
-    appSourceRuntimeRegistry.remove(entry.sourceId)
+      appSourceRuntimeRegistry.remove(entry.sourceId)
+    })
     appSourceWebSessionStore.revoke(entry.sourceId)
     clearSourceRuntimeDiagnostic(entry.sourceId)
     SourceRuntimeStateBridge.notifyChanged()

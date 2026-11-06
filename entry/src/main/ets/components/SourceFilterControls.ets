@@ -22,11 +22,14 @@ export struct SourceFilterControls {
   @Param busy: boolean = false
   @Param optionsLoading: boolean = false
   @Param vertical: boolean = false
+  @Param textDraft: Record<string, string> | undefined = undefined
   @Local private activeFilterMenuId: string = ''
   @Local private pendingTextFilters: Record<string, string> = {}
   @Event onFilterChange: (filter: SourceFilter, value: SourceFilterControlValue | undefined) => void =
     (_filter: SourceFilter, _value: SourceFilterControlValue | undefined) => {}
   @Event onReset: () => void = () => {}
+  @Event onTextDraftChange: (id: string, value: string) => void = (_id: string, _value: string) => {}
+  @Event onTextSubmit: (() => void) | undefined = undefined
 
   private filterRequestKey(filter: SourceFilter): string {
     return filter.id.startsWith('filter:') ? filter.id.substring('filter:'.length) : filter.id
@@ -78,7 +81,7 @@ export struct SourceFilterControls {
 
   private pendingTextFilterValue(filter: SourceFilter): string {
     const key = this.filterRequestKey(filter)
-    const pending = this.pendingTextFilters[key]
+    const pending = (this.textDraft ?? this.pendingTextFilters)[key]
     if (pending !== undefined) {
       return pending
     }
@@ -88,6 +91,10 @@ export struct SourceFilterControls {
 
   private setPendingTextFilterValue(filter: SourceFilter, value: string): void {
     const key = this.filterRequestKey(filter)
+    if (this.textDraft !== undefined) {
+      this.onTextDraftChange(key, value)
+      return
+    }
     const next: Record<string, string> = {}
     Object.keys(this.pendingTextFilters).forEach((itemKey: string) => {
       next[itemKey] = this.pendingTextFilters[itemKey]
@@ -275,14 +282,19 @@ export struct SourceFilterControls {
           .width('100%')
           .height(ThemeConstants.INPUT_HEIGHT)
           .fontSize(ThemeConstants.FONT_SIZE_BODY)
+          .enterKeyType(EnterKeyType.Done)
           .backgroundColor($r('sys.color.comp_background_tertiary'))
           .borderRadius(ThemeConstants.RADIUS_CHIP)
           .onChange((value: string) => {
             this.setPendingTextFilterValue(filter, value)
           })
           .onSubmit(() => {
-            const value = this.pendingTextFilterValue(filter).trim()
-            this.onFilterChange(filter, value.length > 0 ? value : undefined)
+            if (this.onTextSubmit !== undefined) {
+              this.onTextSubmit()
+            } else {
+              const value = this.pendingTextFilterValue(filter).trim()
+              this.onFilterChange(filter, value.length > 0 ? value : undefined)
+            }
           })
       }
       .width('100%')

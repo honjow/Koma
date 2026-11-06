@@ -21,6 +21,7 @@ export interface SourcePackageUpdateStatus {
   remoteVersion?: string
   localVersion?: string
   reasonCode?: string
+  requiredAppVersion?: string
 }
 
 export interface SourcePackageUpdateCandidate {

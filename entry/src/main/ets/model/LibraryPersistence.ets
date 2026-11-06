@@ -1,6 +1,7 @@
 import { signalDeviceSyncChange, signalDeviceSyncLibrary, SyncLibrarySignal } from '../deviceSync/DeviceSyncSignals'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
+import { SourceRequiredImageDecode, sourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
@@ -153,6 +154,7 @@ export interface PersistedPage {
   sourceText?: SourceTextPage
   sourceTextRequest?: SourceTextPageRequest
   sourceTextOverlay?: SourceTextOverlay
+  requiredImageDecode?: SourceRequiredImageDecode
 }
 
 function persistPage(page: Page): PersistedPage {
@@ -177,6 +179,7 @@ function persistPage(page: Page): PersistedPage {
   if (page.sourceText !== undefined) row.sourceText = sourceTextPage(page.sourceText)
   if (page.sourceTextRequest !== undefined) row.sourceTextRequest = sourceTextPageRequest(page.sourceTextRequest)
   if (page.sourceTextOverlay !== undefined) row.sourceTextOverlay = sourceTextOverlay(page.sourceTextOverlay)
+  if (page.requiredImageDecode !== undefined) row.requiredImageDecode = sourceRequiredImageDecode(page.requiredImageDecode)
   return row
 }
 
@@ -203,6 +206,7 @@ function hydratePage(row: PersistedPage): Page {
   if (row.sourceText !== undefined) page.sourceText = sourceTextPage(row.sourceText)
   if (row.sourceTextRequest !== undefined) page.sourceTextRequest = sourceTextPageRequest(row.sourceTextRequest)
   if (row.sourceTextOverlay !== undefined) page.sourceTextOverlay = sourceTextOverlay(row.sourceTextOverlay)
+  if (row.requiredImageDecode !== undefined) page.requiredImageDecode = sourceRequiredImageDecode(row.requiredImageDecode)
   return page
 }
 

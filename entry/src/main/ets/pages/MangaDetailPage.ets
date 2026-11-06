@@ -1,3 +1,5 @@
+import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { gridColumnCount } from '../utils/GridColumns'
 import { ActionBarButton, ActionBarStyle, BottomBuilderShowType, HdsActionBar } from '@kit.UIDesignKit'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
@@ -394,10 +396,30 @@ export struct MangaDetailPage {
   @Local private detailWebChallengeShown: boolean = false
   @Local private detailWebChallengeParams: MangaWebRouteParam = { url: '', title: '' }
   private detailWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  @Local private detailAuthentication: SourceWebChallengeReceipt | null = null
+  @Local private authentication: SourceAuthenticationRequest | null = null
+  private detailAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+
+  private authenticateSource(): void {
+    const receipt = this.detailAuthentication
+    if (receipt === null || !this.detailAuthenticationGate.claim(receipt.id, this.chrome.visible)) return
+    this.authentication = new SourceAuthenticationRequest(receipt.sourceId,
+      (): boolean => this.chrome.visible && this.detailAuthenticationGate.isCurrentClaim(receipt.id),
+      async (): Promise<void> => {
+        try { await this.detailAuthenticationGate.complete(receipt.id, this.chrome.visible) }
+        finally { if (this.detailAuthentication?.id === receipt.id) this.detailAuthentication = null }
+      }, (): void => {
+        const next = this.detailAuthenticationGate.releaseLogin(receipt.id)
+        if (this.detailAuthentication?.id === receipt.id) this.detailAuthentication = next
+      })
+  }
+
   private detailWebChallengeId: number = 0
   private detailWebChallengeClosing: boolean = false
 
   private clearDetailWebChallenge(): void {
+    this.detailAuthenticationGate.clear()
+    this.detailAuthentication = null
     this.detailWebChallengeGate.clear()
     this.detailWebChallenge = null
   }
@@ -455,8 +477,17 @@ export struct MangaDetailPage {
   private publishDetailWebChallenge(error: Object, sourceId: string, mangaId: string, requestEpoch: number,
     retryStage: 'detail' | 'chapters', automaticRecovery: boolean): void {
     const entry = this.sourceDetailRegistryEntry
+    const explicitLogin = error instanceof SourceRuntimeError &&
+      (error.diagnostic.code === 'auth_required' || error.diagnostic.reason === 'auth_required') &&
+      (error.diagnostic.status === 0 || error.diagnostic.status === 401)
+    if (!automaticRecovery && explicitLogin && entry?.authentication !== undefined) {
+      this.detailAuthentication = this.detailAuthenticationGate.issue(sourceId, 'detail', true,
+        (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId),
+        async (): Promise<void> => { await this.loadSourceMangaDetail(sourceId, mangaId, true, true, retryStage) })
+      return
+    }
     const eligible = !automaticRecovery && error instanceof SourceRuntimeError &&
-      (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required') &&
+      (error.diagnostic.kind === 'challenge' || (error.diagnostic.code === 'auth_required' && entry?.authentication === undefined)) &&
       entry !== undefined && (entry.webSessionOrigins ?? []).length > 0
     this.detailWebChallenge = this.detailWebChallengeGate.issue(sourceId, 'detail', eligible,
       (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId),
@@ -1331,7 +1362,7 @@ export struct MangaDetailPage {
         'operation=' + operation + ' reason=' + details.reason + ' error=' + details.code +
         ' http=' + details.status + ' kind=' + details.kind)
       const cause = error.userTextFor('')
-      if (cause && (details.kind === 'not_found' || details.kind === 'no_chapters')) return cause
+      if (cause && ['not_found', 'content_removed', 'no_chapters'].includes(details.kind)) return cause
       return cause ? s(fallbackKey) + ' ' + cause : s(fallbackKey)
     }
     // Unexpected exceptions may contain URLs or credentials. Keep the phase, never their raw message.
@@ -3546,10 +3577,7 @@ export struct MangaDetailPage {
 
     if ((!this.usesDetailPanes || this.shouldRenderChapterList()) && !this.isDetailPending() && this.feedbackText.length > 0) {
       ListItem() {
-        Text(this.feedbackText)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
+        this.DetailFailureFeedback()
       }
     }
 
@@ -3634,10 +3662,7 @@ export struct MangaDetailPage {
       }
     } else if (this.usesDetailPanes && this.feedbackText.length > 0) {
       ListItem() {
-        Text(this.feedbackText)
-          .width('100%')
-          .fontSize(ThemeConstants.FONT_SIZE_META)
-          .fontColor(ThemeConstants.TEXT_SECONDARY)
+        this.DetailFailureFeedback()
       }
     }
   }
@@ -3844,9 +3869,22 @@ export struct MangaDetailPage {
     }
   }
 
+  @Builder
+  private DetailFailureFeedback() {
+    if (this.detailAuthentication !== null) {
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        Text(s('source_login_required')).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+        KomaActionButton({ label: s('source_login'), kind: 'primary', action: () => { this.authenticateSource() } })
+      }.width('100%')
+    } else {
+      Text(this.feedbackText).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+  }
+
   build() {
     if (this.languageState.effectiveLocale.length >= 0) {
       Stack({ alignContent: Alignment.TopEnd }) {
+        SourceAuthenticationSheetHost({ request: this.authentication, active: this.chrome.visible })
         Column() {}.width(0).height(0)
           .bindSheet($$this.notesEditorShown, this.NotesEditor, komaSheetOptions({
             detents: [SheetSize.LARGE], showClose: false, enableFloatingDragBar: true,

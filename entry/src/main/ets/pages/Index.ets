@@ -15,6 +15,8 @@ import { setCachedLibraryChapterUpdates } from '../model/LibraryChapterUpdates'
 import { SourceSubscriptionsPage } from './SourceSubscriptionsPage'
 import { TextStyleMode } from '@kit.UIDesignKit'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
+import { SourceCatalogBottomSearchBuilder } from '../components/SourceCatalogBottomSearch'
+import { SourceCatalogHeaderActionsBuilder, SourceCatalogHeaderActionsParams } from '../components/SourceCatalogHeaderActions'
 import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/SourceCatalogFilterState'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { connectReaderDisplayPreview, ReaderDisplayPreviewState } from '../state/ReaderDisplayPreviewState'
@@ -191,10 +193,11 @@ import {
   appSourceRuntimeRegistry,
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { appSourceSettingsStore, configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { normalizeSourceHomepage } from '../sourceRuntime/SourcePackageMetadata'
+import { copyMangaSelectedHomepage } from '../sourceRuntime/CopyMangaHostContract'
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -213,6 +216,8 @@ const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
 const libraryPresentationByComicId: LibraryPresentationByComicId = createMockLibraryPresentationMap()
 const sourceRuntimeRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
+// HDS uses one slot for More when the source has more than three actions.
+const SOURCE_ROUTE_TITLE_MENU_MAX_COUNT = 3
 interface SettingsPaneRouteParam {
   pane: string
   searchTarget?: string
@@ -318,6 +323,61 @@ struct Index {
   @Local private localSourceImport: SourcePackageLocalImport = appSourcePackageLocalImport
   private defaultSourceManagerChrome: SourceCatalogPageChrome = new SourceCatalogPageChrome()
   private sourceManagerSectionContents: Map<SourceCatalogPageChrome, ComponentContent<SourceCatalogPageChrome>> = new Map()
+  private catalogSearchContents: Map<SourceCatalogPageChrome, ComponentContent<SourceCatalogPageChrome>> = new Map()
+  private catalogHeaderActions?: ComponentContent<SourceCatalogHeaderActionsParams>
+
+  private catalogHeaderActionsContent(): ComponentContent<SourceCatalogHeaderActionsParams> {
+    const existing = this.catalogHeaderActions
+    if (existing !== undefined && !existing.isDisposed()) return existing
+    const params = new SourceCatalogHeaderActionsParams(this.browseCatalogChrome,
+      (): void => { this.setCatalogSearch(this.browseCatalogChrome, !this.browseCatalogChrome.searchExpanded) },
+      (): void => { this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER) })
+    const content = new ComponentContent<SourceCatalogHeaderActionsParams>(this.getUIContext(),
+      wrapBuilder<[SourceCatalogHeaderActionsParams]>(SourceCatalogHeaderActionsBuilder), params)
+    this.catalogHeaderActions = content
+    return content
+  }
+
+  private catalogSearchContent(chrome: SourceCatalogPageChrome): ComponentContent<SourceCatalogPageChrome> {
+    const existing = this.catalogSearchContents.get(chrome)
+    if (existing !== undefined && !existing.isDisposed()) return existing
+    const content = new ComponentContent<SourceCatalogPageChrome>(this.getUIContext(),
+      wrapBuilder<[SourceCatalogPageChrome]>(SourceCatalogBottomSearchBuilder), chrome)
+    this.catalogSearchContents.set(chrome, content)
+    return content
+  }
+
+  private disposeCatalogSearch(chrome: SourceCatalogPageChrome): void {
+    const content = this.catalogSearchContents.get(chrome)
+    this.catalogSearchContents.delete(chrome)
+    if (content !== undefined && !content.isDisposed()) content.dispose()
+  }
+
+  private setCatalogSearch(chrome: SourceCatalogPageChrome, expanded: boolean): void {
+    if (chrome.searchExpanded === expanded) return
+    const transition = ++chrome.searchTransitionId
+    chrome.searchAnimating = true
+    if (expanded) chrome.openSearch()
+    else {
+      this.getUIContext().getFocusController().clearFocus()
+      chrome.closeSearch()
+    }
+    this.getUIContext().animateTo({ duration: 200, curve: Curve.EaseOut, onFinish: (): void => {
+      if (chrome.searchTransitionId !== transition) return
+      chrome.searchAnimating = false
+      if (expanded && chrome.searchExpanded) chrome.searchFocus = true
+      else if (!chrome.searchExpanded) chrome.searchVisible = false
+    } }, (): void => { chrome.searchHeight = expanded ? SEARCH_TITLE_BOTTOM_HEIGHT : 0 })
+  }
+
+  private toggleManagerCatalogSearch(chrome: SourceCatalogPageChrome): void {
+    // Adopted NextE downloads contract: replace the fixed segment slot; no extra bottom row.
+    if (chrome.searchExpanded) {
+      this.getUIContext().getFocusController().clearFocus()
+      chrome.closeSearch()
+      chrome.searchVisible = false
+    } else chrome.openSearch()
+  }
 
   private sourceManagerSectionContent(chrome: SourceCatalogPageChrome): ComponentContent<SourceCatalogPageChrome> {
     const existing = this.sourceManagerSectionContents.get(chrome)
@@ -347,7 +407,8 @@ struct Index {
     const chrome = this.sourceManagerChrome(param)
     const content = options['content'] as Record<string, Object>
     content['bottomBuilder'] = { 'builderComponent': this.sourceManagerSectionContent(chrome),
-      'height': SOURCE_MANAGER_SECTIONS_HEIGHT, 'showType': BottomBuilderShowType.DIRECTLY_SHOW } as Record<string, Object>
+      'height': SOURCE_MANAGER_SECTIONS_HEIGHT,
+      'showType': BottomBuilderShowType.DIRECTLY_SHOW } as Record<string, Object>
     if (chrome.section === 'plugins') {
       content['menu'] = (this.imagePluginsTitleBarOptions()['content'] as Record<string, Object>)['menu']
       return options
@@ -361,8 +422,14 @@ struct Index {
     const filterItem: Record<string, Object> = { 'content': filter }
     const localItem: Record<string, Object> = { 'content': local }
     const subscriptionsItem: Record<string, Object> = { 'content': subscriptions }
-    const items: Record<string, Object>[] = [filterItem, localItem, subscriptionsItem]
-    content['menu'] = { 'value': items, 'maxCount': 2 } as Record<string, Object>
+    const search: Record<string, Object> = { 'label': AppStrings.get(chrome.searchExpanded ?
+      'source_catalog_search_close' : 'source_catalog_search_placeholder'),
+      'icon': chrome.searchExpanded ? $r('sys.symbol.xmark') : $r('sys.symbol.magnifyingglass'),
+      'componentId': 'source-catalog-manager-search',
+      'action': (): void => { this.toggleManagerCatalogSearch(chrome) } }
+    const items: Record<string, Object>[] = (param?.recoverySourceId?.length ?? 0) > 0 ?
+      [filterItem, localItem, subscriptionsItem] : [{ 'content': search }, filterItem, localItem, subscriptionsItem]
+    content['menu'] = { 'value': items, 'maxCount': (param?.recoverySourceId?.length ?? 0) > 0 ? 2 : 3 } as Record<string, Object>
     return options
   }
 
@@ -1852,6 +1919,9 @@ struct Index {
     if (this.selectedTab === TabIndex.LIBRARY && nextTab !== TabIndex.LIBRARY) {
       this.libraryTitleBar.cancelSelection()
     }
+    if (this.selectedTab === TabIndex.BROWSE && nextTab !== TabIndex.BROWSE) {
+      this.setCatalogSearch(this.browseCatalogChrome, false)
+    }
   }
 
   private settingsPaneFromParam(param: Object): SettingsPaneKey {
@@ -2287,6 +2357,12 @@ struct Index {
 
   aboutToDisappear(): void {
     this.readingStatisticsRecorder.close()
+    if (this.catalogHeaderActions !== undefined && !this.catalogHeaderActions.isDisposed()) this.catalogHeaderActions.dispose()
+    this.catalogHeaderActions = undefined
+    this.catalogSearchContents.forEach((content: ComponentContent<SourceCatalogPageChrome>): void => {
+      if (!content.isDisposed()) content.dispose()
+    })
+    this.catalogSearchContents.clear()
     if (this.readerSessionPersistenceReady) this.readerSessionStore.flush()
     this.automaticDownloads?.dispose()
     this.automaticDownloads = undefined
@@ -2807,7 +2883,24 @@ struct Index {
         })
       }
       .titleBar(this.sourceManagerTitleBarOptions(param as SourcePackageManagerRouteParam | undefined))
-      .onDisAppear((): void => { this.disposeSourceManagerSection(this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)) })
+      .dynamicHideTitleBar({
+        hideTitleArea: this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).searchExpanded,
+        hideBottomBuilder: false,
+        hideStatusBar: false,
+        mode: HideMode.SCROLL_UP,
+      })
+      .bindToScrollable([this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined).scroller])
+      .onBackPressed((): boolean => {
+        const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
+        if (!chrome.searchExpanded) return false
+        this.toggleManagerCatalogSearch(chrome)
+        return true
+      })
+      .onDisAppear((): void => {
+        const chrome = this.sourceManagerChrome(param as SourcePackageManagerRouteParam | undefined)
+        this.disposeSourceManagerSection(chrome)
+        this.disposeCatalogSearch(chrome)
+      })
     } else if (name === RouteName.SOURCE_SUBSCRIPTIONS) {
       HdsNavDestination() {
         SourceSubscriptionsPage({ chrome: param as SourceCatalogPageChrome })
@@ -2986,6 +3079,11 @@ struct Index {
   onBackPress(): boolean {
     if (this.readerOpen && this.isReaderRouteVisible()) {
       this.closeReader()
+      return true
+    }
+    if (this.appPathStack.getAllPathName().length === 0 && this.selectedTab === TabIndex.BROWSE &&
+      this.browseCatalogChrome.searchExpanded) {
+      this.setCatalogSearch(this.browseCatalogChrome, false)
       return true
     }
     if (this.appPathStack.getAllPathName().length === 0 && this.selectedTab === TabIndex.LIBRARY &&
@@ -3185,7 +3283,7 @@ struct Index {
         .titleMode(HdsNavigationTitleMode.MINI)
         .hideBackButton(this.selectedTab !== TabIndex.LIBRARY || !this.libraryTitleBar.selectionMode)
         .dynamicHideTitleBar({
-          hideTitleArea: false,
+          hideTitleArea: this.selectedTab === TabIndex.BROWSE && this.browseCatalogChrome.searchExpanded,
           hideBottomBuilder: false,
           hideStatusBar: false,
           mode: HideMode.SCROLL_UP,
@@ -3201,18 +3299,6 @@ struct Index {
         .width('100%')
         .height('100%')
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-      }
-
-      // HDS renders its menu badge for icon actions only. Keep the native
-      // text action and align its decoration with the title bar's end inset.
-      if (this.rootNavigationVisible && this.selectedTab === TabIndex.BROWSE && this.catalogUpdateCount() > 0) {
-        ForEach([this.catalogUpdateCount()], (count: number) => {
-          Badge({ count, position: BadgePosition.RightTop, style: {} }) {
-            Row().width(1).height(1)
-          }
-          .margin({ top: this.layoutSafeArea.topAvoidHeight + ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_LG })
-          .hitTestBehavior(HitTestMode.None)
-        }, (count: number): string => count.toString())
       }
 
       Row()
@@ -3263,14 +3349,17 @@ struct Index {
       menu['value'] = [statisticsItem]
       menu['maxCount'] = 1
     } else if (this.selectedTab === TabIndex.BROWSE) {
-      const filter: Record<string, Object> = { 'label': AppStrings.get('common_filter'), 'icon': $r('sys.symbol.funnel'),
-        'action': (): void => { this.browseCatalogChrome.request('filters') } }
-      const manage: Record<string, Object> = { 'label': AppStrings.get('route_source_package_manager_title'),
-        'type': TextStyleMode.NORMAL,
-        'action': (): void => { this.openSettingsSecondary(RouteName.SOURCE_PACKAGE_MANAGER) } }
-      const items: Record<string, Object>[] = [{ 'content': filter }, { 'content': manage }]
-      menu['value'] = items
-      menu['maxCount'] = 2
+      // HDS must first attach this bottomBuilder at its real nonzero height;
+      // mounting it at zero retained an invisible proxy on the tested device.
+      // The inner component and list reserve still animate from/to zero.
+      if (this.browseCatalogChrome.searchVisible) {
+        content['bottomBuilder'] = { 'builderComponent': this.catalogSearchContent(this.browseCatalogChrome),
+          'height': SEARCH_TITLE_BOTTOM_HEIGHT,
+          'showType': BottomBuilderShowType.DIRECTLY_SHOW } as Record<string, Object>
+      }
+      content['stackBuilderComponent'] = this.catalogHeaderActionsContent()
+      menu['value'] = []
+      menu['maxCount'] = 0
     } else {
       // HDS retains the preceding title menu unless the next tab explicitly
       // supplies an empty menu. Global search belongs only to the Library root.
@@ -3411,7 +3500,8 @@ struct Index {
     isCurrent: () => boolean): Record<string, Object> | undefined {
     // 2026-10-27: only advertise an address already declared by this source.
     // The user's no-empty-entry decision replaces optimistic IO on menu taps.
-    const homepage = normalizeSourceHomepage(source.homepage) ?? normalizeSourceHomepage(
+    const installedHomepage = normalizeSourceHomepage(source.homepage)
+    const homepage = installedHomepage ?? normalizeSourceHomepage(
       appSourcePackageManagerCache.indexEntries.find((entry): boolean => entry.id === source.sourceId)?.homepage)
     if (homepage === undefined) return undefined
     const content: Record<string, Object> = {
@@ -3419,8 +3509,10 @@ struct Index {
       'icon': $r('sys.symbol.worldclock'),
       'isEnabled': true,
       'action': (): void => {
-        if (isCurrent()) RouterHelper.pushMangaWeb({ url: homepage,
-          title: sourceDisplayName(source.sourceId, source.displayName) })
+        if (!isCurrent()) return
+        const selected = copyMangaSelectedHomepage(source.sourceId, installedHomepage,
+          () => appSourceSettingsStore.loadForSource(source.sourceId)['domain'])
+        RouterHelper.pushMangaWeb({ url: selected ?? homepage, title: sourceDisplayName(source.sourceId, source.displayName) })
       },
     }
     return { 'content': content }
@@ -3451,6 +3543,13 @@ struct Index {
       filterItem['content'] = filterContent
       menuItems.push(filterItem)
     }
+    if (chrome.authenticationAvailable) {
+      const authenticationContent: Record<string, Object> = {
+        'label': AppStrings.get('source_login'), 'icon': $r('sys.symbol.person'),
+        'isEnabled': source.enabled, 'action': () => { chrome.requestAuthentication() },
+      }
+      menuItems.push({ 'content': authenticationContent })
+    }
     if (chrome.settingsAvailable) {
       const settingsContent: Record<string, Object> = {
         'label': AppStrings.get('source_pkg_settings'),
@@ -3476,7 +3575,7 @@ struct Index {
       }
       menuItems.push({ 'content': webContent })
     }
-    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
+    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': SOURCE_ROUTE_TITLE_MENU_MAX_COUNT }
     content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }
@@ -3531,6 +3630,13 @@ struct Index {
       filterItem['content'] = filterContent
       menuItems.push(filterItem)
     }
+    if (chrome.authenticationAvailable) {
+      const authenticationContent: Record<string, Object> = {
+        'label': AppStrings.get('source_login'), 'icon': $r('sys.symbol.person'),
+        'isEnabled': source.enabled, 'action': () => { chrome.requestAuthentication() },
+      }
+      menuItems.push({ 'content': authenticationContent })
+    }
     if (chrome.settingsAvailable) {
       const settingsContent: Record<string, Object> = {
         'label': AppStrings.get('source_pkg_settings'),
@@ -3556,7 +3662,7 @@ struct Index {
       }
       menuItems.push({ 'content': webContent })
     }
-    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': 1 }
+    const menu: Record<string, Object> = { 'value': menuItems, 'maxCount': SOURCE_ROUTE_TITLE_MENU_MAX_COUNT }
     content['menu'] = menu
     return this.sourceRouteTitleBarOpts(content)
   }

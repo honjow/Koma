@@ -33,6 +33,16 @@ export function sourceMatchesCatalogFilters(language: string, nsfw: boolean, rat
     (filters.rating === 'all' || filters.rating === sourceCatalogRating(nsfw, rating))
 }
 
+/** Search only the source's own names and ID; filtering never changes row identity or order. */
+export function sourceMatchesCatalogSearch(query: string, displayName: string, canonicalName: string,
+  localizedNames: Record<string, string> | undefined, sourceId: string): boolean {
+  const needle = query.trim().replace(/\s+/g, ' ').toLowerCase()
+  if (needle.length === 0) return true
+  const matches = (value: string): boolean => value.trim().replace(/\s+/g, ' ').toLowerCase().includes(needle)
+  return matches(displayName) || matches(canonicalName) || matches(sourceId) ||
+    (localizedNames !== undefined && Object.values(localizedNames).some((value: string): boolean => matches(value)))
+}
+
 export function groupSourcesByLanguage<T>(items: T[], language: (item: T) => string): SourceLanguageGroup<T>[] {
   const groups = new Map<string, T[]>()
   items.forEach((item: T): void => {

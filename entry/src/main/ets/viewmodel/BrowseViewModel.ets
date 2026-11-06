@@ -1,3 +1,4 @@
+import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { runBrowseSourceRequestInWorker as runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
@@ -14,6 +15,7 @@ import {
   SourceMangaList,
   SourceMangaStatus,
   parseSourceFilterSchemaJson,
+  sourceStaticCoverHeaders,
   sourceFiltersForQuery,
 } from '../model/SourceModels'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from '../model/SourceTextNormalizer'
@@ -51,6 +53,7 @@ export interface SourceListingDescriptor {
   id: string
   name: string
   kind: string
+  supportsFilters?: boolean
 }
 
 export interface BrowseSourceSectionState {
@@ -246,6 +249,7 @@ function sourceItemCoverUrl(item: RuntimeRecord): string | undefined {
 
 function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): SourceManga {
   const title = optionalString(item['title']) ?? optionalString(item['id']) ?? AppStrings.get('browse_untitled_manga')
+  const coverUrl = sourceItemCoverUrl(item)
   return {
     id: optionalString(item['id']) ?? title,
     sourceId,
@@ -253,7 +257,8 @@ function parseSourceMangaFromItem(sourceId: string, item: RuntimeRecord): Source
     author: firstDisplayText([item['author'], item['authors']]),
     artist: firstDisplayText([item['artist'], item['artists']]),
     description: firstDisplayText([item['description'], item['summary'], item['synopsis']]),
-    coverUrl: sourceItemCoverUrl(item),
+    coverUrl,
+    coverHeaders: sourceStaticCoverHeaders(itemRecord(item['cover']), coverUrl),
     status: normalizeStatus(item['status']),
     contentRating: normalizeSourceDisplayText(optionalString(item['content_rating']) ?? optionalString(item['contentRating'])),
     tags: normalizeStringArray(item['tags']),
@@ -352,11 +357,13 @@ function parseSourceListingsFromResponse(response: SourceRuntimeCallResponse): S
       if (name === undefined) {
         return
       }
-      listings.push({
+      const descriptor: SourceListingDescriptor = {
         id,
         name,
         kind: optionalString(listing['kind']) ?? 'custom',
-      })
+      }
+      if (listing['supportsFilters'] === false) descriptor.supportsFilters = false
+      listings.push(descriptor)
     })
   }
   return listings
@@ -418,6 +425,7 @@ export class BrowseViewModel {
   @Trace listings: SourceListingDescriptor[] = []
   @Trace filters: SourceFilter[] = []
   @Trace loadingFilterData: boolean = false
+  @Trace useSearchForFilters: boolean = false
   private supportsFilterFetching: boolean = false
   private filterDataReady: boolean = false
   private filterDataRevision: number = 0
@@ -445,17 +453,47 @@ export class BrowseViewModel {
 
   @Computed
   get errorMessage(): string {
-    return this.searchQuery.trim().length > 0 ? this.searchErrorMessage : this.browseErrorMessage
+    return this.hasActiveSearch ? this.searchErrorMessage : this.browseErrorMessage
   }
   @Trace browseContentState: BrowseContentState = BrowseContentState.UNRESOLVED
   @Trace browseLoadIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace browseErrorIntent: BrowseLoadIntent = BrowseLoadIntent.NONE
   @Trace searchQuery: string = ''
+  @Trace private filterOnlySearch: boolean = false
+  get hasActiveSearch(): boolean {
+    return this.filterOnlySearch || this.searchQuery.trim().length > 0
+  }
   @Trace searchNextCursor: string = ''
   @Trace browseWebChallenge: SourceWebChallengeReceipt | null = null
   @Trace searchWebChallenge: SourceWebChallengeReceipt | null = null
   private browseWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
   private searchWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  @Trace browseAuthentication: SourceWebChallengeReceipt | null = null
+  @Trace searchAuthentication: SourceWebChallengeReceipt | null = null
+  private browseAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+  private searchAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
+
+  authenticationRequest(scope: SourceWebChallengeScope, visible: () => boolean): SourceAuthenticationRequest | null {
+    const receipt = scope === 'browse' ? this.browseAuthentication : this.searchAuthentication
+    const gate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
+    if (receipt === null || !gate.claim(receipt.id, visible())) return null
+    const current = (): boolean => visible() && gate.isCurrentClaim(receipt.id)
+    return new SourceAuthenticationRequest(receipt.sourceId, current,
+      async (): Promise<void> => {
+        try { await gate.complete(receipt.id, visible()) }
+        finally {
+          if ((scope === 'browse' ? this.browseAuthentication : this.searchAuthentication)?.id === receipt.id) {
+            if (scope === 'browse') this.browseAuthentication = null
+            else this.searchAuthentication = null
+          }
+        }
+      }, (): void => {
+        const next = gate.releaseLogin(receipt.id)
+        if (scope === 'browse' && this.browseAuthentication?.id === receipt.id) this.browseAuthentication = next
+        else if (scope !== 'browse' && this.searchAuthentication?.id === receipt.id) this.searchAuthentication = next
+      })
+  }
+
   private browseChallengeHandle?: string
   private searchChallengeHandle?: string
 
@@ -464,6 +502,11 @@ export class BrowseViewModel {
   }
 
   private clearWebChallenge(scope: SourceWebChallengeScope): void {
+    const authenticationGate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
+    authenticationGate.clear()
+    if (scope === 'browse') this.browseAuthentication = null
+    else this.searchAuthentication = null
+
     this.challengeGate(scope).clear()
     const receipt = scope === 'browse' ? this.browseWebChallenge : this.searchWebChallenge
     const handle = scope === 'browse' ? this.browseChallengeHandle : this.searchChallengeHandle
@@ -527,8 +570,18 @@ export class BrowseViewModel {
   private publishWebChallenge(scope: SourceWebChallengeScope, error: Error, automaticRecovery: boolean,
     current: () => boolean, retry: (handle?: string) => Promise<void>): void {
     const source = this.selectedSource
+    const explicitLogin = error instanceof SourceRuntimeError &&
+      (error.diagnostic.code === 'auth_required' || error.diagnostic.reason === 'auth_required') &&
+      (error.diagnostic.status === 0 || error.diagnostic.status === 401)
+    if (!automaticRecovery && explicitLogin && source?.authentication !== undefined) {
+      const gate = scope === 'browse' ? this.browseAuthenticationGate : this.searchAuthenticationGate
+      const receipt = gate.issue(source.sourceId, scope, true, current, async (): Promise<void> => { await retry() })
+      if (scope === 'browse') this.browseAuthentication = receipt
+      else this.searchAuthentication = receipt
+      return
+    }
     const eligible = !automaticRecovery && error instanceof SourceRuntimeError &&
-      (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required') &&
+      (error.diagnostic.kind === 'challenge' || (error.diagnostic.code === 'auth_required' && source?.authentication === undefined)) &&
       source !== undefined && (source.webSessionOrigins ?? []).length > 0
     const handle = scope === 'browse' ? this.browseChallengeHandle : this.searchChallengeHandle
     const sourceId = source?.sourceId ?? ''
@@ -624,6 +677,7 @@ export class BrowseViewModel {
   setSelectedSource(source: SourceRuntimeRegistryInstalledSourceSummary): void {
     this.cancelFilterDataLoad()
     this.supportsFilterFetching = false
+    this.useSearchForFilters = false
     this.filterDataReady = false
     this.clearWebChallenge('browse')
     this.clearWebChallenge('search')
@@ -745,12 +799,13 @@ export class BrowseViewModel {
       if (requestId !== this.browseRequestId) {
         return
       }
-      const browseFilterValues = this.mergeSavedSourceFilterValues(
-        source.sourceId,
-        'browse',
-        this.defaultSourceFilterValues(filters, ''),
-        filters,
-      )
+      const browseFilterValues: SourceMangaListFilters = filterSchema.useSearchForFilters === true ? {} :
+        this.mergeSavedSourceFilterValues(
+          source.sourceId,
+          'browse',
+          this.defaultSourceFilterValues(filters, ''),
+          filters,
+        )
       // Home and a listing are mutually exclusive destinations (CURRENT_STATUS:
       // SOURCE_BROWSE_HOME_STRUCTURE, user adopted 2026-10-25). An empty selected
       // listing ID denotes Home; refresh must not append/reset to Popular.
@@ -781,7 +836,8 @@ export class BrowseViewModel {
       let listingResult: SourceMangaList | undefined = undefined
       if (listing !== undefined) {
         challengeCurrent = this.webChallengeGuard('browse')
-        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, filters, challengeCurrent, operationGuardId)
+        listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, filters,
+          challengeCurrent, operationGuardId, listing.supportsFilters !== false)
         if (requestId !== this.browseRequestId) {
           return
         }
@@ -896,6 +952,25 @@ export class BrowseViewModel {
     if (nextValues === undefined) {
       return
     }
+    await this.applyBrowseFilterValues(nextValues)
+  }
+
+  private textFilterValues(current: SourceMangaListFilters, changes: Record<string, string>): SourceMangaListFilters {
+    let next = current
+    for (const id of Object.keys(changes)) {
+      const value = changes[id].trim()
+      next = this.updateFilterValue(next, id, value.length > 0 ? value : undefined) ?? next
+    }
+    return next
+  }
+
+  async applyBrowseTextFilters(changes: Record<string, string>): Promise<void> {
+    const next = this.textFilterValues(this.browseFilterValues, changes)
+    if (next !== this.browseFilterValues) await this.applyBrowseFilterValues(next)
+  }
+
+  private async applyBrowseFilterValues(nextValues: SourceMangaListFilters): Promise<void> {
+    if (!this.browseListingAllowsFilters()) return
     this.saveSourceFilterValues('browse', nextValues)
     this.browseFilterValues = nextValues
     const listing = this.currentListing()
@@ -905,7 +980,7 @@ export class BrowseViewModel {
   }
 
   async resetBrowseFilters(): Promise<void> {
-    if (this.selectedSource === undefined) {
+    if (this.selectedSource === undefined || !this.browseListingAllowsFilters()) {
       return
     }
     const nextValues = this.defaultSourceFilterValues(this.filters, '')
@@ -979,6 +1054,7 @@ export class BrowseViewModel {
     if (sourceChanged) {
       this.clearSearch(source)
       this.filters = []
+      this.useSearchForFilters = false
       this.browseFilterValues = {}
       this.searchFilterValues = {}
     }
@@ -994,6 +1070,14 @@ export class BrowseViewModel {
     return true
   }
 
+  applySearchTextFilters(changes: Record<string, string>): boolean {
+    const next = this.textFilterValues(this.searchFilterValues, changes)
+    if (next === this.searchFilterValues) return false
+    this.saveSourceFilterValues('search', next)
+    this.searchFilterValues = next
+    return true
+  }
+
   resetSearchFilters(query: string = this.searchQuery): void {
     if (!this.filters.some((filter: SourceFilter): boolean => filter.scope !== undefined)) {
       this.clearSavedSourceFilterValues('search')
@@ -1002,7 +1086,7 @@ export class BrowseViewModel {
     }
     // Reset only the active scope; choices in the other scope remain available
     // when the query changes, including in the persisted search preferences.
-    const activeFilters = sourceFiltersForQuery(this.filters, query)
+    const activeFilters = sourceFiltersForQuery(this.filters, query, this.useSearchForFilters)
     const nextValues: SourceMangaListFilters = {}
     Object.keys(this.searchFilterValues).forEach((key: string) => {
       if (!activeFilters.some((filter: SourceFilter): boolean => this.filterRequestKey(filter) === key)) {
@@ -1020,8 +1104,8 @@ export class BrowseViewModel {
   }
 
   hasSearchFilterChanges(query: string = this.searchQuery): boolean {
-    return !this.sourceFilterValuesEqual(this.filterValuesForQuery(this.searchFilterValues, query),
-      this.filterValuesForQuery(this.initialSearchFilterValues(), query))
+    return !this.sourceFilterValuesEqual(this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
+      this.filterValuesForQuery(this.initialSearchFilterValues(), query, this.filters, this.useSearchForFilters))
   }
 
   private initialSearchFilterValues(): SourceMangaListFilters {
@@ -1078,11 +1162,15 @@ export class BrowseViewModel {
       appSourceSettingsStore.revisionForSource(source.sourceId), query.trim(), this.searchFilterValues])
   }
 
-  async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
+  async runSearch(source: SourceRuntimeRegistryInstalledSourceSummary, query: string, automaticRecovery: boolean = false,
+    operationGuardId?: string, fromFilters: boolean = this.filterOnlySearch): Promise<void> {
     // In-place Browse search also comes here without ensureSearchFilters.
     // Search owns its defaults/saved choices; a late Browse listing must never
     // overwrite them and retire the new search's HTTP guard (237 MangaBall).
     this.prepareSearchSource(source)
+    const normalizedQuery = query.trim()
+    const filterOnly = fromFilters && this.useSearchForFilters && normalizedQuery.length === 0
+    this.filterOnlySearch = filterOnly
     const entry = this.registry.lookup(source.sourceId).entry
     const settingsRevision = appSourceSettingsStore.revisionForSource(source.sourceId)
     const persistFilters = this.persistSearchFilters
@@ -1104,8 +1192,7 @@ export class BrowseViewModel {
     let challengeCurrent = this.webChallengeGuard('search')
     let continueEmptyPage = false
     try {
-      const normalizedQuery = query.trim()
-      if (normalizedQuery.length === 0) {
+      if (normalizedQuery.length === 0 && !filterOnly) {
         this.searchResults = []
         this.hasMoreSearch = false
         return
@@ -1140,7 +1227,7 @@ export class BrowseViewModel {
       this.searchNeedsWebSession = e instanceof SourceRuntimeError &&
         (e.diagnostic.kind === 'challenge' || e.diagnostic.code === 'auth_required')
       this.publishWebChallenge('search', e, automaticRecovery, challengeCurrent,
-        async (handle?: string): Promise<void> => { await this.runSearch(source, query, true, handle) })
+        async (handle?: string): Promise<void> => { await this.runSearch(source, query, true, handle, fromFilters) })
       this.searchErrorIsFirstPage = true
       if (!retainsCurrentResults) {
         this.searchResults = []
@@ -1166,6 +1253,7 @@ export class BrowseViewModel {
       this.selectedSource = source
     }
     this.searchQuery = ''
+    this.filterOnlySearch = false
     this.searchResultsIdentity = undefined
     this.searchErrorIsFirstPage = false
     this.searchPage = 1
@@ -1179,7 +1267,7 @@ export class BrowseViewModel {
 
   async retrySearchPage(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
     if (this.loadingSearch || this.searchErrorMessage.length === 0 ||
-      this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
+      this.selectedSource === undefined || !this.hasActiveSearch) {
       return
     }
     if (this.searchErrorIsFirstPage) {
@@ -1191,7 +1279,7 @@ export class BrowseViewModel {
   }
 
   async loadMoreSearch(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
-    if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || this.searchQuery.trim().length === 0) {
+    if (this.loadingSearch || !this.hasMoreSearch || this.selectedSource === undefined || !this.hasActiveSearch) {
       return
     }
     const requestId = this.searchRequestId
@@ -1266,7 +1354,7 @@ export class BrowseViewModel {
     const args: SourceSearchArgs = {
       query,
       page: pageArg,
-      filters: this.filterValuesForQuery(this.searchFilterValues, query),
+      filters: this.filterValuesForQuery(this.searchFilterValues, query, this.filters, this.useSearchForFilters),
     }
     return this.runSourceOperation(source.sourceId, 'search', args, page, isActive, operationGuardId)
   }
@@ -1279,6 +1367,11 @@ export class BrowseViewModel {
     return this.loadMangaListing(source, section === 'latest' ? 'listing:latest' : 'listing:popular', page)
   }
 
+  browseListingAllowsFilters(listingId: string = this.selectedListingId): boolean {
+    return this.listings.find((listing: SourceListingDescriptor): boolean => listing.id === listingId)
+      ?.supportsFilters !== false
+  }
+
   async loadMangaListing(
     source: SourceRuntimeRegistryInstalledSourceSummary,
     listingId: string,
@@ -1288,6 +1381,7 @@ export class BrowseViewModel {
     filters: SourceFilter[] = this.filters,
     isActive: (() => boolean) | undefined = undefined,
     operationGuardId?: string,
+    listingAllowsFilters: boolean = this.browseListingAllowsFilters(listingId),
   ): Promise<SourceMangaList> {
     const pageArg: SourceOperationPageArg = {
       cursor: this.pageCursor(page, cursor),
@@ -1296,7 +1390,7 @@ export class BrowseViewModel {
     const args: SourceMangaListArgs = {
       listingId,
       page: pageArg,
-      filters: this.filterValuesForQuery(filterValues, '', filters),
+      filters: listingAllowsFilters ? this.filterValuesForQuery(filterValues, '', filters) : {},
     }
     return this.runSourceOperation(source.sourceId, 'get_manga_list', args, page, isActive, operationGuardId)
   }
@@ -1304,6 +1398,7 @@ export class BrowseViewModel {
   private publishFilterSchema(schema: SourceFilterSchema): void {
     this.cancelFilterDataLoad()
     this.filters = schema.filters
+    this.useSearchForFilters = schema.useSearchForFilters === true
     this.supportsFilterFetching = schema.supportsFilterFetching
     this.filterDataReady = false
   }
@@ -1464,8 +1559,8 @@ export class BrowseViewModel {
   }
 
   private filterValuesForQuery(values: SourceMangaListFilters, query: string,
-    filters: SourceFilter[] = this.filters): SourceMangaListFilters {
-    const applicable = sourceFiltersForQuery(filters, query)
+    filters: SourceFilter[] = this.filters, searchWithoutQuery: boolean = false): SourceMangaListFilters {
+    const applicable = sourceFiltersForQuery(filters, query, searchWithoutQuery)
     const result: SourceMangaListFilters = {}
     Object.keys(values).forEach((key: string) => {
       const matching = filters.filter((filter: SourceFilter): boolean => this.filterRequestKey(filter) === key)
