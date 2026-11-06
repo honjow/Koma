@@ -326,7 +326,7 @@ function createSettingsSections(): SettingsSection[] {
       rows: [
         { key: 'version', titleKey: 'settings_row_version_title', detailKey: 'settings_row_version_detail' },
         { key: 'app-release', titleKey: 'about_check_update', detailKey: 'about_update_hint' },
-        { key: 'community-group', titleKey: 'about_community_group', detailKey: 'about_community_group_number' },
+        { key: 'community-group', titleKey: 'about_community_group', detailKey: 'about_community_group_search_detail' },
       ],
     },
   ]
