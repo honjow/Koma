@@ -45,6 +45,7 @@ interface SourceHttpRequestEnvelope {
   texts?: string[]
   requests?: SourceHttpRequestEnvelope[]
   wantChallengeRequestId?: boolean
+  guestSearch?: boolean
   url?: Object | string | number | boolean | null
   method?: Object | string | number | boolean | null
   headers?: Object | string | number | boolean | null
@@ -161,6 +162,8 @@ class SourceHttpSuccessEnvelope {
   // An additive host signal, without forwarding response headers or cookies.
   accessSignal?: string
   challengeRequestId?: string
+  guestSearchCookie?: string
+  guestSearchUrl?: string
   dnsOverride?: SourcePicaDnsOverride
 
   constructor(status: number, bodyText: string, accessSignal?: string, challengeRequestId?: string) {
@@ -223,6 +226,69 @@ function sourceHeaders(value: Object | string | number | boolean | null | undefi
     headers[name] = raw
   })
   return headers
+}
+
+const BILIMANGA_GUEST_ORIGIN = 'https://www.bilimanga.net'
+const BILIMANGA_GUEST_COOKIE_NAMES = ['night', 'jieqiSearchCss', 'jieqiSearchJs', 'jieqiSearchTicket']
+
+function bilimangaGuestTarget(url: string, redirect: boolean = false): boolean {
+  if (!url.startsWith(BILIMANGA_GUEST_ORIGIN + '/')) return false
+  const path = url.substring(BILIMANGA_GUEST_ORIGIN.length)
+  return /^\/search\.html\?search_guard=(css|js|redeem)$/.test(path) ||
+    /^\/search\/[^/?#\\]+_[1-9]\d*\.html$/.test(path) ||
+    (redirect && /^\/detail\/[1-9]\d*\.html$/.test(path))
+}
+
+function bilimangaGuestHeadersValid(headers: Record<string, string>): boolean {
+  const names = Object.keys(headers)
+  if (names.some((name: string): boolean =>
+    /[\r\n]/.test(name) || /[\r\n]/.test(headers[name]) ||
+    ['authorization', 'proxy-authorization', 'host'].includes(name.toLowerCase()))) return false
+  const cookieHeaders = names.filter((name: string): boolean => name.toLowerCase() === 'cookie')
+  if (cookieHeaders.length === 0) return true
+  if (cookieHeaders.length !== 1 || /[\r\n]/.test(headers[cookieHeaders[0]])) return false
+  const seen: Set<string> = new Set<string>()
+  return headers[cookieHeaders[0]].split(';').every((part: string): boolean => {
+    const cookie = part.trim()
+    const separator = cookie.indexOf('=')
+    const name = cookie.substring(0, separator)
+    const value = cookie.substring(separator + 1)
+    if (separator < 1 || !BILIMANGA_GUEST_COOKIE_NAMES.includes(name) || seen.has(name) ||
+      (name === 'night' ? value !== '1' : !/^[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]{1,4096}$/.test(value))) return false
+    seen.add(name)
+    return true
+  })
+}
+
+// Only the site's anonymous bootstrap headers are visible to this source.
+// Login and WebView cookies are kept in their existing, separately granted session.
+function bilimangaGuestCookie(url: string, headers: Object): string | undefined {
+  const name = url === BILIMANGA_GUEST_ORIGIN + '/search.html?search_guard=css' ? 'jieqiSearchCss' :
+    url === BILIMANGA_GUEST_ORIGIN + '/search.html?search_guard=redeem' ? 'jieqiSearchTicket' : undefined
+  if (name === undefined) return undefined
+  const values = headers as Record<string, Object | string | number | boolean | null>
+  const key = Object.keys(values).find((field: string): boolean => field.toLowerCase() === 'set-cookie')
+  const raw = key === undefined ? undefined : values[key]
+  const cookies = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? raw as Object[] : []
+  const matched: string[] = []
+  for (const cookie of cookies) {
+    if (typeof cookie !== 'string' || /[\r\n]/.test(cookie)) continue
+    const parts = cookie.split(';')
+    const pair = parts[0].trim()
+    const wrongScope = parts.slice(1).some((part: string): boolean => {
+      const attribute = part.trim().toLowerCase()
+      if (attribute.startsWith('domain=')) return !['domain=www.bilimanga.net', 'domain=bilimanga.net',
+        'domain=.bilimanga.net'].includes(attribute)
+      if (attribute.startsWith('path=')) return attribute !== 'path=/'
+      return attribute.startsWith('max-age=') && !(Number(attribute.substring(8)) > 0)
+    })
+    if (wrongScope) continue
+    if (!pair.startsWith(name + '=')) continue
+    const cookieHeader: Record<string, string> = {}
+    cookieHeader['Cookie'] = pair
+    if (bilimangaGuestHeadersValid(cookieHeader)) matched.push(pair)
+  }
+  return matched.length === 1 ? matched[0] : undefined
 }
 
 // A public redirect is not a grant to forward the previous origin's credentials.
@@ -541,7 +607,22 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     return transportError('source_request_cancelled', false)
   }
   const copyMangaApi = identity !== undefined && copyMangaApiTarget(identity.sourceId, url)
-  if (!copyMangaApi && probe === undefined && verifiedSourceGet !== undefined) {
+  const guestSearch = envelope.guestSearch === true
+  if (guestSearch && (identity?.sourceId !== 'net.bilimanga.koma' || probe !== undefined ||
+    identity.credentialGrantId !== undefined || method !== 'GET' || body.length !== 0 || envelope.dnsOverride !== undefined ||
+    !bilimangaGuestTarget(url) || !bilimangaGuestHeadersValid(sourceHeaders(envelope.headers)))) {
+    trace.finish('rejected', 'reason=invalid_guest_search_request')
+    return transportError('invalid_request', false)
+  }
+  if (guestSearch && identity !== undefined) {
+    const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
+    if (entry === undefined || !sourceRuntimeEntryEnabled(entry) || entry.manifestVersion !== identity.sourceVersion ||
+      sourceWebPackageIdentity(entry) !== identity.packageIdentity) {
+      trace.finish('rejected', 'reason=stale_guest_search_identity')
+      return transportError('invalid_request', false)
+    }
+  }
+  if (!guestSearch && !copyMangaApi && probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
     if (identity !== undefined && ready.request.requestJson === requestJson &&
       ready.request.httpContextJson === httpContextJson) {
@@ -568,7 +649,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       return rcpFailure(new SourceRcpTransportFailure('invalid_request'))
     }
   }
-  const session = copyMangaApi || identity === undefined ? undefined : probe === undefined
+  const session = guestSearch || copyMangaApi || identity === undefined ? undefined : probe === undefined
     ? appSourceWebSessionStore.requestSession(identity, url)
     : appSourceWebSessionStore.pendingRequestSession(identity, url, probe.proof)
   if (probe !== undefined && (session === undefined || !probe.current())) {
@@ -642,7 +723,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' uaSource=' + (active === undefined ? 'source' : 'webview'))
     trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
     if (active !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
-    const remaining = session === undefined && picaDns === undefined && !copyMangaApi ? sourceTimeout(envelope.timeoutMs) :
+    const remaining = session === undefined && picaDns === undefined && !copyMangaApi && !guestSearch ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     let response: SourceHopResponse | undefined = undefined
     const hopStartedAt = Date.now()
@@ -707,7 +788,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         request.on('headersReceive', () => {
           if (firstHeaderMs < 0) firstHeaderMs = Math.max(0, Date.now() - hopStartedAt)
         })
-        if (session !== undefined && !attachSourceRedirectStop(request)) {
+        if ((session !== undefined || guestSearch) && !attachSourceRedirectStop(request)) {
           trace.finish('failed', 'reason=web_session_redirect_unavailable')
           return transportError('web_session_redirect_unavailable', false)
         }
@@ -749,7 +830,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const accessSignal = sourceResponseAccessSignal(response.header)
     let challengeRequestId: string | undefined = undefined
     const optedIn = envelope.wantChallengeRequestId === true && identity?.operationGuardId !== undefined
-    if (identity !== undefined && (response.responseCode === 403 ||
+    if (!guestSearch && identity !== undefined && (response.responseCode === 403 ||
       ((accessSignal === 'challenge_required' || optedIn) && (response.responseCode === 401 || response.responseCode === 503)))) {
       if (response.responseCode === 403 || accessSignal === 'challenge_required') {
         appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
@@ -784,11 +865,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         } else rejectedSourceGets.set(key, rejected)
       }
     }
-    if ((session !== undefined || picaDns !== undefined || copyMangaApi) && [301, 302, 303, 307, 308].includes(response.responseCode)) {
+    if ((session !== undefined || picaDns !== undefined || copyMangaApi || guestSearch) &&
+      [301, 302, 303, 307, 308].includes(response.responseCode)) {
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
       const locationKey = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'location')
       const locationValue = locationKey === undefined ? undefined : responseHeaders[locationKey]
-      const location = copyMangaApi && Array.isArray(locationValue) && locationValue.length === 1
+      const location = (copyMangaApi || guestSearch) && Array.isArray(locationValue) && locationValue.length === 1
         ? sourceString(locationValue[0]) : sourceString(locationValue)
       if (location === undefined || redirects >= (picaDns === undefined && !copyMangaApi ? 30 : 20) ||
         Date.now() - startedAt - policyWaitMs >= sourceTimeout(envelope.timeoutMs)) {
@@ -801,6 +883,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         return rcpFailure(new SourceRcpTransportFailure('invalid_response', true))
       }
       const nextUrl = nextTarget.toString()
+      if (guestSearch && !bilimangaGuestTarget(nextUrl, true)) {
+        trace.finish('failed', 'reason=guest_search_redirect_rejected')
+        return transportError('invalid_request', false)
+      }
       // Re-check the full next URL against this source's explicit session grant.
       const nextSession = copyMangaApi || identity === undefined ? undefined : probe === undefined
         ? appSourceWebSessionStore.requestSession(identity, nextUrl)
@@ -819,7 +905,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
     if (accessSignal !== undefined) trace.info('access_signal', 'signal=' + accessSignal)
     trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode + ' chars=' + responseBody.length)
-    return JSON.stringify(new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId))
+    const result = new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId)
+    if (guestSearch) {
+      result.guestSearchUrl = currentUrl
+      if (response.responseCode === 200) result.guestSearchCookie = bilimangaGuestCookie(currentUrl, response.header)
+    }
+    return JSON.stringify(result)
     }
   } catch (_error) {
     if (envelope.dnsOverride !== undefined || _error instanceof SourceRcpTransportFailure || rcpNetworkPerformed) {

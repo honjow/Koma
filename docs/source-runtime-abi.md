@@ -145,6 +145,10 @@ API 23–25 的 RCP 有禁止连接复用的配置，指定 HTTP 版本的配置
 
 `source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
 
+`source_bilimanga_guest_search_v1` 允许嗶哩漫畫在 `http_request` 对同源搜索 GET 显式传 `guestSearch:true`。源并行读取站点 CSS 和 JS，随后提交原站要求的兑换请求并搜索。只准向 `https://www.bilimanga.net` 的搜索入口发送 `night=1` 及原站下发的三个游客凭据。仅 CSS 和兑换成功的响应可提供 `guestSearchCookie` 的 `name=value`，同源响应另有 `guestSearchUrl` 供区分结果列表和直接详情。禁止跨域跟跳、账户授权头、借用系统 WebView 的 Cookie、记日志和公开持久化。旧宿主不声明此能力。
+
+`source_rate_limit_bilimanga_v1` 沿 Mihon 客户端以单一滑动窗口给元数据、封面和正文请求限速，默认 10 秒内 10 个请求，`RATE_LIMIT` 以「次数/秒」设置，启动后使用首次加载的有效设置。该限额只约束本源实际联网，别源、缓存命中不共享；等候不占用请求网络超时。
+
 `mangabz_language_cookie_v1` 支持已采用的 MangaBz 简繁设置：源在请求中提供 `mangabz_lang=2`（默认简体）或 `1`（繁体）。只有宿主确认的 `com.mangabz.koma` 身份、实际请求域为 `mangabz.com` 或其子域、且源头包含唯一合法语言项时，该项才能替换同名会话 Cookie；其它 Cookie、验证/登录、UA、源会话及重定向边界保持。每跳重新核域，不写 Web Cookie 仓，也不允许源覆盖其它会话 Cookie；图像描述只有同站地址可带语言项，外域 CDN 不携带。源设置改变沿现有页表设置身份按需重取，不清图片缓存或主动改写书库已有标题；旧空设置页表仍沿原兼容合同保留，不能声称默认切换自动刷新了它。
 
 `source_settings_context_v1` 允许 `get_settings` 的 `args.settingValues` 携带本源当前已保存的公开设置副本，供源在设置键或类型迁移时继承原选择；顶层 `settings` 仍为空，`network:false` 保持。成功读取且未保存时传 `{}`；读取失败则省略该字段，源须保留原 schema，不把缺失当作已读空值。其它源的值及凭据字段不进入该上下文；读取不写文件、不修改 revision、不主动迁移或清设置，表单沿原保存与读取错误处理。源对新 schema 同时核 feature 和上下文；依赖该支持的新设置消费也须核 feature，旧 Host 保留旧设置和请求合同。

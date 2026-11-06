@@ -521,6 +521,50 @@ function fixture(sdkApiVersion = 23) {
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
 
+test('BiliManga guest search receives only its own guest cookies and follows only same-site results', async () => {
+  const f = fixture()
+  const sourceId = 'net.bilimanga.koma'
+  const origin = 'https://www.bilimanga.net'
+  f.changeEntry(e => ({ ...e, sourceId, webSessionOrigins: [origin] }))
+  const pending = f.store.begin(f.registry, sourceId, origin + '/')
+  f.store.complete(sourceId, pending.sessionId, origin + '/', 'private-browser-ua')
+  const context = JSON.stringify(f.identity())
+  const request = { guestSearch: true, headers: { Cookie: 'night=1', 'User-Agent': 'source-ua' } }
+  const css = await f.http([{ responseCode: 200, result: '/* CSS */',
+    header: { 'Set-Cookie': ['jieqiSearchCss=css-guest; Path=/; Secure; HttpOnly', 'account=private; Path=/'] } }],
+  context, { ...request, url: origin + '/search.html?search_guard=css' })
+  assert.equal(css.result.guestSearchCookie, 'jieqiSearchCss=css-guest')
+  assert.equal(css.calls[0].options.header.Cookie, 'night=1')
+  assert.equal(css.calls[0].options.header['User-Agent'], 'source-ua')
+  assert(!JSON.stringify(css.result).includes('account='))
+
+  const detail = origin + '/detail/917.html'
+  const url = origin + '/search/test_1.html'
+  const success = await f.http([
+    { responseCode: 302, result: '', header: { Location: '/detail/917.html' } },
+    { responseCode: 200, result: 'detail', header: { 'Set-Cookie': 'account=ignored' } },
+  ], context, { ...request, url, headers: { Cookie: 'night=1; jieqiSearchTicket=guest-ticket' } })
+  assert.deepEqual(success.calls.map(call => call.fullUrl), [url, detail])
+  assert.equal(success.result.guestSearchUrl, detail)
+  assert.equal(success.result.guestSearchCookie, undefined)
+  assert.equal(success.result.bodyText, 'detail')
+
+  const redirect = await f.http([{ responseCode: 302, result: '', header: { Location: 'https://other.invalid/detail/917.html' } }],
+    context, { ...request, url })
+  assert.equal(redirect.result.error.code, 'invalid_request')
+  assert.equal(redirect.calls.length, 1)
+  for (const [ctx, options] of [
+    [JSON.stringify({ ...f.identity(), sourceId: 'another.source' }), { ...request, url }],
+    [context, { ...request, url, headers: { Cookie: 'account=private' } }],
+    [context, { ...request, url: 'https://www.bilimanga.net.attacker.invalid/search/test_1.html' }],
+  ]) {
+    const rejected = await f.http([], ctx, options)
+    assert.equal(rejected.result.error.code, 'invalid_request')
+    assert.equal(rejected.calls.length, 0)
+  }
+  assert(!f.diagnostics.some(line => line.includes('guest-ticket') || line.includes('css-guest')))
+})
+
 test('browser-compatible source HTTP preserves the original request and stays within its source and origin', async () => {
   const f = fixture()
   f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))

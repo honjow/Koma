@@ -5,8 +5,12 @@ const BUONDUA: string = 'com.buondua.koma'
 const JMCOMIC: string = 'com.jmcomic.koma'
 const HENTAICLUB: string = 'com.hentaiclub.koma'
 const WNACG: string = 'com.wnacg.koma'
+const BILIMANGA: string = 'net.bilimanga.koma'
 let mainPermits: number = 10
 let imagePermits: number = 4
+interface SourceRateWindow { permits: number; periodMs: number }
+const BILIMANGA_DEFAULT_RATE: SourceRateWindow = { permits: 10, periodMs: 10000 }
+let bilimangaRate: SourceRateWindow | undefined
 
 class SourceRequestWindow {
   starts: number[] = []
@@ -35,9 +39,21 @@ function permits(value: Object | undefined, fallback: number): number {
 
 /** Publish the request's existing settings snapshot; the HTTP/image hot paths never read preferences. */
 export function configureSourceRequestPolicy(sourceId: string, settings: Object | null | undefined): void {
-  if (sourceId !== MANHUAGUI) return
+  if (sourceId !== MANHUAGUI && sourceId !== BILIMANGA) return
   const values: Record<string, Object> = settings !== undefined && settings !== null &&
     typeof settings === 'object' && !Array.isArray(settings) ? settings as Record<string, Object> : {}
+  if (sourceId === BILIMANGA) {
+    // Mihon reads this setting when building its shared client. Keep one
+    // allowance across metadata and image fetches until the app restarts.
+    if (bilimangaRate !== undefined) return
+    const configured = values['RATE_LIMIT']
+    const match = typeof configured === 'string' ? /^(\d+)\/(\d+)$/.exec(configured) : null
+    const permits = match === null ? 0 : Number(match[1])
+    const seconds = match === null ? 0 : Number(match[2])
+    bilimangaRate = permits >= 1 && permits <= 2147483647 && seconds >= 1 && seconds <= 2147483647 ?
+      { permits: permits, periodMs: seconds * 1000 } : BILIMANGA_DEFAULT_RATE
+    return
+  }
   mainPermits = permits(values['mainSiteRatelimitPreference'], 10)
   imagePermits = permits(values['imgCDNRatelimitPreference'], 4)
 }
@@ -51,7 +67,7 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
   isCurrent: () => boolean = (): boolean => true,
   headers?: Object | string | number | boolean | null, admission?: SourceRequestAdmission): Promise<void> {
   if (sourceId !== MANHUAGUI && sourceId !== BUONDUA && sourceId !== JMCOMIC && sourceId !== HENTAICLUB &&
-    sourceId !== WNACG) return
+    sourceId !== WNACG && sourceId !== BILIMANGA) return
   let host: string
   let origin: string
   try {
@@ -81,9 +97,10 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
   // three-per-two-second origin window; server-list and CDN lack these headers.
   const jm: boolean = sourceId === JMCOMIC && origin.startsWith('https://') && token && tokenParam
   if (jm && admission?.jmAdmitted === true) return
-  if (!main && !image && !buondua && !jm && !hentaiclub && !wnacg) return
+  const bili = sourceId === BILIMANGA ? bilimangaRate ?? BILIMANGA_DEFAULT_RATE : undefined
+  if (!main && !image && !buondua && !jm && !hentaiclub && !wnacg && bili === undefined) return
   const window = sourceRequestWindow(sourceId, jm ? origin : image ? 'image' : 'main')
-  const period: number = wnacg ? 60000 : jm ? 2000 : main ? 10000 : 1000
+  const period: number = bili?.periodMs ?? (wnacg ? 60000 : jm ? 2000 : main ? 10000 : 1000)
   const previous: Promise<void> = window.tail
   let release: () => void = () => {}
   window.tail = new Promise<void>((resolve) => { release = resolve })
@@ -93,7 +110,8 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
       if (!isCurrent()) throw new Error('source_request_cancelled')
       const now: number = Date.now()
       window.starts = window.starts.filter((started: number): boolean => now - started < period)
-      const limit: number = wnacg ? 50 : jm ? 3 : hentaiclub ? 2 : buondua ? 10 : main ? mainPermits : imagePermits
+      const limit: number = bili?.permits ?? (wnacg ? 50 : jm ? 3 : hentaiclub ? 2 : buondua ? 10 :
+        main ? mainPermits : imagePermits)
       if (window.starts.length < limit) {
         window.starts.push(now)
         if (wnacg && admission !== undefined) admission.wnacgAdmitted = true
@@ -101,7 +119,10 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
         return
       }
       await new Promise<void>((resolve) => {
-        setTimeout(resolve, Math.max(1, window.starts[0] + period - now))
+        const wait = Math.max(1, window.starts[0] + period - now)
+        // A configured BiliManga window may span a long period. Recheck
+        // cancellation without delaying unrelated queued calls for that period.
+        setTimeout(resolve, bili === undefined ? wait : Math.min(1000, wait))
       })
     }
   } finally { release() }
