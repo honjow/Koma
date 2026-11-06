@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.1.1 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-06T10:32:56+08:00",
+  "updatedAt": "2026-11-06T10:57:04+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "READING_HISTORY_SYNC",
   "activity": "功能遗留已复核：条漫入场顶部闪烁仍仅登记，备份覆盖遗漏仍在；未将同步完成扩大为其它问题已解决。",
@@ -205,13 +205,13 @@
       "title": "书源冷缓存下的封面和页面加载慢",
       "kind": "open",
       "priority": "用户直接要求",
-      "owner": "Root",
-      "status": "紳士漫畫0.1.1已公开，237已验证新宿主冷封面并发",
+      "owner": "Root负责宿主、源修复及237验证；Terra已完成71源静态分类",
+      "status": "绅士会所0.1.1、拷贝漫画0.1.2已公开，237冷封面并发通过",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告同网络同源慢于Mihon，冷封面逐张显示并明确要求修正。",
-      "result": "源码确认无缓存时Koma每张封面先经过ArkTS及WAMR同源串行，再发图片下载；Mihon从缓存/普通GET直接消费封面。磁盘清单的旧逐命中写入已由现有改动合并刷新，文件提交仍需保证身份。新增公共cover.headers解析及卡片直连，实际生产函数本地验证两张独立冷图可重叠开始，缓存键、限速、动态旧入口保留。Komiic真实180封面及两个镜像的请求头回放等价，App同签候选构建通过。 237 Koma候选的同一Komiic列表滚动阶段，3张独立冷封面在54ms内开始，早于最先一张完成，全部HTTP200；真实滚动已显示新的封面。首屏前get_listings/get_settings/get_filters在同源队列耗时约2.8秒，实际作品API约1.2秒，和已优化的封面阶段分开。 拷贝漫画同候选从get_listings到get_manga_list发起由3.061秒缩到2.038秒，设置探测后移到列表结果之后。第二次App候选在两秒空闲期复用WAMR运行池，237实测连续的同一WASM调用约43至56ms。每次仍独立模块与请求上下文。拷贝的列表封面候选未声明公开头，旧逐图解析出现失败，列入后续针对源的修正。 拷贝封面修复版保留正文身份验证，独立处理作品封面MID。237普通导入后实显6张列表封面。该次同源新版的元数据首请求到正式列表发起为0.675秒，设置探测仍在列表返回之后。此样本WASM版本也变了，不能当作仅宿主的对比。 拷贝0.1.1已公开，下载的正式WASM已对原36个操作、8个真实封面与32个错误身份边界重放；新版索引仍列六个本批优先源。 用户具名复现紳士漫畫。此前0.1.0逐封面读取私有镜像会话，237连续解析尾部排队近4秒。运行时增加版本化能力 source_public_cover_user_agent_v1：源随列表声明已有公开GET的URL、镜像Referer和原UA，宿主负责并发、限速及缓存。新版保持旧宿主回退。163张固定真实封面与旧解析请求等价。237同签1.2.0候选+0.1.1源包普通滚动进入新页，5个HTTP200请求在110毫秒内发出且重叠，同段无逐图WASM。首屏列表本身另耗4.861秒。正式90源中84声明自定义图片请求，75个源有可用的历史列表/搜索封面响应，其中71个样本源存在会进旧解析队列的封面；不能据此推算逐源时延。 紳士漫畫0.1.1正式索引及包已读回，公开WASM对163个真实封面请求与候选一致。",
-      "remaining": "App运行时能力在本地1.2.0准备分支8e5c2fea，需搭配新版宿主。旧图源根据实际依赖逐项处理，拷贝、会所、哔咔仍有旧逐图路径。",
+      "result": "源码确认无缓存时Koma每张封面先经过ArkTS及WAMR同源串行，再发图片下载；Mihon从缓存/普通GET直接消费封面。磁盘清单的旧逐命中写入已由现有改动合并刷新，文件提交仍需保证身份。新增公共cover.headers解析及卡片直连，实际生产函数本地验证两张独立冷图可重叠开始，缓存键、限速、动态旧入口保留。Komiic真实180封面及两个镜像的请求头回放等价，App同签候选构建通过。 237 Koma候选的同一Komiic列表滚动阶段，3张独立冷封面在54ms内开始，早于最先一张完成，全部HTTP200；真实滚动已显示新的封面。首屏前get_listings/get_settings/get_filters在同源队列耗时约2.8秒，实际作品API约1.2秒，和已优化的封面阶段分开。 拷贝漫画同候选从get_listings到get_manga_list发起由3.061秒缩到2.038秒，设置探测后移到列表结果之后。第二次App候选在两秒空闲期复用WAMR运行池，237实测连续的同一WASM调用约43至56ms。每次仍独立模块与请求上下文。拷贝的列表封面候选未声明公开头，旧逐图解析出现失败，列入后续针对源的修正。 拷贝封面修复版保留正文身份验证，独立处理作品封面MID。237普通导入后实显6张列表封面。该次同源新版的元数据首请求到正式列表发起为0.675秒，设置探测仍在列表返回之后。此样本WASM版本也变了，不能当作仅宿主的对比。 拷贝0.1.1已公开，下载的正式WASM已对原36个操作、8个真实封面与32个错误身份边界重放；新版索引仍列六个本批优先源。 用户具名复现紳士漫畫。此前0.1.0逐封面读取私有镜像会话，237连续解析尾部排队近4秒。运行时增加版本化能力 source_public_cover_user_agent_v1：源随列表声明已有公开GET的URL、镜像Referer和原UA，宿主负责并发、限速及缓存。新版保持旧宿主回退。163张固定真实封面与旧解析请求等价。237同签1.2.0候选+0.1.1源包普通滚动进入新页，5个HTTP200请求在110毫秒内发出且重叠，同段无逐图WASM。首屏列表本身另耗4.861秒。正式90源中84声明自定义图片请求，75个源有可用的历史列表/搜索封面响应，其中71个样本源存在会进旧解析队列的封面；不能据此推算逐源时延。 紳士漫畫0.1.1正式索引及包已读回，公开WASM对163个真实封面请求与候选一致。 补核同批剩余三源：会所和拷贝在列表声明完整公开封面请求，运行时新增版本化公开客户端标记头；会所3个HTTP200冷封面请求76ms内发出，拷贝3个50ms内发出，均早于最先完成，无逐图WASM。公开WASM回放144个会所及100个拷贝真实列表封面，与旧请求地址和头一致。哔咔普通线路或外部CDN可直接声明，分流2同站图片保留会话和专用DNS，离线边界通过。Terra对71个历史样本在固定发布源码逐项分类：46纯计算，4依设置，18远端归属核验，2混合，1未判明。",
+      "remaining": "App运行时能力在本地1.2.0准备分支8dddd335。哔咔候选仅通过离线回放，真实登录后图请求待实测，未发布。其他源已分类，待逐项核对实际请求和改造，未逐源测时。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/komiic-live/cover-clean-replay.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-delivery-cover-host-build.log",
@@ -231,7 +231,14 @@
         "https://github.com/honjow/koma-sources/commit/8a0b682806fb3be67ba53b3367629c975d14a87d",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/wnacg-parallel-covers/public/receipt.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/wnacg-parallel-covers/public/protocol-equivalence.json",
-        "https://github.com/honjow/koma-sources/releases/tag/sources-8a0b682806fb3be67ba53b3367629c975d14a87d"
+        "https://github.com/honjow/koma-sources/releases/tag/sources-8a0b682806fb3be67ba53b3367629c975d14a87d",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/parallel-covers-followup/hentaiclub-device-overlap.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/parallel-covers-followup/copymanga-device-overlap.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/parallel-covers-followup/catalogue-source-classification.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/parallel-covers-followup/pica/source-replay.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/parallel-covers-followup/public/receipt.json",
+        ".hvigor/outputs/source-coverage-20261105/new-source-ports/parallel-covers-followup/public/protocol-equivalence.json",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-e8440d63b840955835b62e96dbda4802e9a35a75"
       ]
     },
     {
@@ -7995,6 +8002,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "source-public-cover-followup-20261106",
+      "at": "2026-11-06T10:57:04+08:00",
+      "title": "会所和拷贝冷封面并发实测并发布",
+      "detail": "宿主保留原请求头，官方包精确回放通过。237已恢复原数据和电源并释租。Terra完成71样本静态分类。",
+      "itemIds": [
+        "SOURCE_COLD_COVER_SERIAL_ADMISSION"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "source-wnacg-public-cover-runtime-capability-20261106",
       "at": "2026-11-06T10:32:56+08:00",
