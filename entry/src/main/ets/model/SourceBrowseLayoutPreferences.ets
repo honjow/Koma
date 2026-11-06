@@ -6,7 +6,7 @@ export type SourceBrowseLayout = 'grid' | 'list'
 const STORE = 'koma_source_browse_layout_v1'
 let writes: Promise<void> = Promise.resolve()
 
-/** Host display preferences are keyed by source identity, independent of the source package. */
+/** Device-local display preferences keyed by source identity. Backup and sync leave this store local. */
 export class SourceBrowseLayoutPreferences {
   private context: common.Context
   constructor(context: common.Context) { this.context = context }

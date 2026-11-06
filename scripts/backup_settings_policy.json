@@ -166,6 +166,10 @@
   },
   "pending": {},
   "dynamic": {
+    "model/SourceBrowseLayoutPreferences.ets": [
+      "load: sourceId",
+      "save: sourceId"
+    ],
     "model/ReaderPreferencesStore.ets": [
       "persistPreferences: key"
     ],
