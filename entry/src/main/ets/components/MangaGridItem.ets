@@ -3,6 +3,9 @@ import { SourceManga } from '../model/SourceModels'
 import { ThemeConstants } from '../theme/ThemeConstants'
 import { ConciseListRow } from './ui/ConciseListRow'
 
+const SOURCE_LIST_COVER_WIDTH = 56
+const SOURCE_LIST_COVER_HEIGHT = 78
+
 @ComponentV2
 export struct MangaGridItem {
   @Param reserveTitleSpace: boolean = false
@@ -59,8 +62,8 @@ export struct MangaGridItem {
   @Builder
   private ListCover() {
     Stack({ alignContent: Alignment.Center }) { this.CoverContent() }
-    .width(ThemeConstants.LIST_COVER_WIDTH)
-    .height(ThemeConstants.LIST_COVER_HEIGHT)
+    .width(SOURCE_LIST_COVER_WIDTH)
+    .height(SOURCE_LIST_COVER_HEIGHT)
     .borderRadius(ThemeConstants.RADIUS_COVER)
     .clip(true)
     .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
@@ -97,7 +100,8 @@ export struct MangaGridItem {
   build() {
     if (this.listLayout) {
       Row() {
-        ConciseListRow({ title: this.manga.title, showChevron: false, prefixActsAsLeading: true,
+        ConciseListRow({ title: this.manga.title, wrapTitle: true, wrapTitleByWord: true,
+          showChevron: false, prefixActsAsLeading: true,
           prefixBuilderParam: () => { this.ListCover() }, action: () => { this.onMangaTap(this.manga) } })
           .layoutWeight(1)
       }

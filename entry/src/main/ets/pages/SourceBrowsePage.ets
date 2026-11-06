@@ -624,6 +624,11 @@ export struct SourceBrowsePage {
     return this.gridProjection.byKey.get(row.key) ?? row
   }
 
+  private rowBottomPadding(row: SourceBrowseGridRow): number {
+    if (this.chrome.layout === 'list' && row.kind === 'manga') return ThemeConstants.SPACE_SM
+    return row.bottomPadding
+  }
+
   @Builder
   private GridRowContent(params: SourceBrowseGridRowParams) {
     if (params.row.kind === 'manga') {
@@ -842,7 +847,7 @@ export struct SourceBrowsePage {
         }) {
           ForEach(this.gridProjection.rows, (row: SourceBrowseGridRow) => {
             GridItem() { this.GridRowContent({ row: this.currentGridRow(row) }) }
-              .padding({ bottom: this.currentGridRow(row).bottomPadding })
+              .padding({ bottom: this.rowBottomPadding(this.currentGridRow(row)) })
               .clip(false)
           }, (row: SourceBrowseGridRow) => row.key)
         }
