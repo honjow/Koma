@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-07T21:52:01+08:00",
+  "updatedAt": "2026-11-08T00:38:59+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
@@ -4423,9 +4423,9 @@
       "priority": "P1（Tab切换动效新反例）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
       "kind": "accepted",
-      "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
-      "result": "b8a50cf已push，精确CI40015663006 success；243完整539PTS四跨选形变/回稳具名成立，原重复段与底栏范围保持。",
-      "remaining": "原图标/跨Tab动效具名范围已闭环；所有输入或FPS未外推不构成待办，不重跑已验动效。",
+      "status": "原具名动效范围已交付，书架图标已按最新要求替换，画面待核对",
+      "result": "b8a50cf已push，精确CI40015663006 success；243完整539PTS四跨选形变/回稳具名成立，原重复段与底栏范围保持。2026-11-08 按用户要求，书架选中用 bookshelf，未选中用空心 bookshelf_1，沿用原配色与选中动效。",
+      "remaining": "原动效具名范围已闭环。新书架图标尚未真机核对，当前工作区的同步代码使用 ArkTS 不支持的解构声明，阻塞调试 HAP 构建。",
       "reportedAt": "2026-10-23T16:04:59.789Z",
       "reportedDate": "2026-10-24",
       "reportedAtSource": "当前定位的10-22续接窗口内最早明确人类反馈，原始timestamp实值；尚未排除原主档有更早同问题，不冒全历史首次。原始会话JSONL response_item/user实际反馈；已限定唯一原会话归档 rollout-2026-10-22T17-43-28-01a11fb1-9f44-7123-8590-b6e849190eab_01a162fe-7f97-7eb1-8c44-fa263235b9de.jsonl，字节偏移 822568417 读取原文，不是登记/处理/取证时间。",
@@ -4435,7 +4435,7 @@
       "closedAt": "2026-10-25T21:46:33+00:00",
       "evidencePoints": [],
       "remainingActions": [
-        "原图标/跨Tab动效具名范围已闭环；所有输入或FPS未外推不构成待办，不重跑已验动效。"
+        "原动效具名范围已闭环。新书架图标尚未真机核对，调试 HAP 构建受同步代码阻塞。"
       ],
       "boundaries": [
         "只重开跨Tab弹跳动效，不重开填充或普通源图标已验范围；底栏结构、文字、尺寸、颜色及根导航/滚动所有权保持。",
@@ -8753,6 +8753,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "bookshelf-tab-symbols-20261108",
+      "at": "2026-11-08T00:38:59+08:00",
+      "title": "主页书架图标已替换",
+      "detail": "SDK 系统图标表含所需实心和空心图标。当前工作区同步代码的 ArkTS 解构声明阻塞调试 HAP 构建，尚未真机核对。",
+      "itemIds": [
+        "TAB_ICON_SELECTION_FEEDBACK"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "app-pc-2in1-declaration-20261107",
       "at": "2026-11-07T21:52:01+08:00",

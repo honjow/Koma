@@ -14,7 +14,7 @@ export struct KomaTabIcon {
 
   private iconForIndex(index: number): Resource {
     if (index === TabIndex.LIBRARY) {
-      return this.currentIndex === index ? $r('sys.symbol.square_fill_grid_2x2') : $r('sys.symbol.square_grid_2x2')
+      return this.currentIndex === index ? $r('sys.symbol.bookshelf') : $r('sys.symbol.bookshelf_1')
     } else if (index === TabIndex.BROWSE) {
       return this.currentIndex === index ? $r('sys.symbol.compass_circle_fill') : $r('sys.symbol.compass_circle')
     } else if (index === TabIndex.HISTORY) {
