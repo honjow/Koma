@@ -90,7 +90,7 @@ JSON POST 使用 HTTP 信封的 `body` 字段传入已经序列化的正文字�
 
 `source_rate_limit_buondua_v1` 明确保证 `com.buondua.koma` 对精确主机 `buondua.com` 的请求沿参考共用每秒10次窗口；元数据、封面及 Reader 图片缓存未命中的实际请求由现有 `SourceRequestPolicy` 统一限流。其它 CDN、其它源和缓存命中不使用该窗口。源必须显式检查此能力，旧的 `source_rate_limit_v1` 只保证漫画柜既有规则，不能据此推断 BuonDua 已限流；生产包的 `minAppVersion` 还需对应实际包含该能力的公开 App。窗口按源与规则组隔离，保漫画柜主站配置及双CDN共享限额、排队取消与网络超时预算；该能力不是 Cookie、账号、镜像或新增网络权限。
 
-`source_rate_limit_xiutaku_v1` 使用同一个宿主限流入口，对 `com.xiutaku.koma` 请求精确主机 `xiutaku.com` 应用共用的每秒 10 次滑动窗口。同一宿主 HTTP 调用的匹配重定向最多入窗一次，未命中主域的 `i.xiutaku.com` CDN、其它源和缓存命中不占用额度。源需要该明确声明才发起联网请求，生产包仍须以实际公开的宿主版本为准。
+`source_rate_limit_xiutaku_v1` 使用同一个宿主限流入口，对 `com.xiutaku.koma` 请求精确主机 `xiutaku.com` 应用共用的每秒 10 次滑动窗口。同一宿主 HTTP 调用的匹配重定向最多入窗一次，未命中主域的 `i.xiutaku.com` CDN、其它源和缓存命中不占用额度。源需要该明确声明才发起联网请求。生产包和正式索引的最低版本须锁定首个包含该能力的 App 版本（1.2.2）；书源先上线时，旧 App 由安装门禁拦截。
 
 `source_related_manga_v1` 允许 `get_manga` 在 `data.manga.relatedManga` 返回可选的同源作品卡片数组，使用现有列表卡片的身份、标题、封面及公开图片请求字段。宿主保留原顺序，跳过本作、重复和无效条目，最多读取前 100 项。详情仅在有有效条目时通过现有更多菜单显示「相关作品」，用同一书源的普通详情入口打开卡片。缺省或空数组不改变现有详情与阅读，宿主不会为此发起额外的源调用。
 

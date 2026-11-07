@@ -155,7 +155,10 @@ export struct SourceAuthenticationSheetHost {
     const epoch = this.epoch
     if (!this.current(epoch)) { this.close(); return }
     if (!this.ready || this.busy) return
-    if (this.authenticated && !this.replacing) { this.finish(); return }
+    if (this.authenticated && !this.replacing) {
+      if (!this.inSettings) this.finish()
+      return
+    }
     if (this.checking || this.checkFailed) return
     if (this.username.trim().length === 0 || this.password.length === 0) return
     this.busy = true; this.errorText = ''
@@ -248,12 +251,15 @@ export struct SourceAuthenticationSheetHost {
     if (this.errorText.length > 0) {
       Text(this.errorText).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
     }
-    KomaActionButton({ label: AppStrings.get(this.replacing ? 'source_account_switch' :
-      this.authenticated ? (this.inSettings ? 'common_close' : 'source_login_continue') : 'source_login'), kind: 'primary',
-      fullWidth: true, busy: this.busy, isEnabled: this.ready && !this.busy &&
-        ((this.authenticated && !this.replacing) ||
-          (!this.checking && !this.checkFailed && this.username.trim().length > 0 && this.password.length > 0)),
-      action: () => { void this.authenticate() } })
+    // The title bar owns dismissal in settings. Continue is reserved for resuming a blocked operation.
+    if (!this.inSettings || !this.authenticated || this.replacing) {
+      KomaActionButton({ label: AppStrings.get(this.replacing ? 'source_account_switch' :
+        this.authenticated ? 'source_login_continue' : 'source_login'), kind: 'primary',
+        fullWidth: true, busy: this.busy, isEnabled: this.ready && !this.busy &&
+          ((this.authenticated && !this.replacing) ||
+            (!this.checking && !this.checkFailed && this.username.trim().length > 0 && this.password.length > 0)),
+        action: () => { void this.authenticate() } })
+    }
     if (this.replacing) {
       KomaActionButton({ label: AppStrings.get('common_cancel'), kind: 'ghost', fullWidth: true,
         isEnabled: !this.busy, action: () => { this.changeReplacement(false) } })

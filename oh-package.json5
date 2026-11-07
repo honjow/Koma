@@ -1,7 +1,7 @@
 {
   "modelVersion": "6.1.0",
   "name": "koma",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Koma - private manga bookshelf and reader for HarmonyOS",
   "main": "",
   "author": "",
