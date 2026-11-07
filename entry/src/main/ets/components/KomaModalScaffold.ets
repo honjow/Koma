@@ -25,7 +25,6 @@ export struct KomaModalScaffold {
   // not another horizontal wrapper. A full-bleed WebView explicitly opts out.
   @Param contentHorizontalPadding: number = ThemeConstants.SPACE_LG
   @Param contentOwnsScrolling: boolean = false
-  @Param contentScrollsUnderTitle: boolean = false
   // Fixed search results can consume scrolling without changing the sheet detent.
   @Param keepScrollInContent: boolean = false
   @Param titleBottom: BottomBuilderParams | undefined = undefined
@@ -140,8 +139,8 @@ export struct KomaModalScaffold {
               })
               .scrollBar(BarState.Off)
               // Keep outgoing rows rendered while they pass beneath the HDS title bar.
-              .clip(!this.contentScrollsUnderTitle)
-              .cachedCount(3, this.contentScrollsUnderTitle)
+              .clip(false)
+              .cachedCount(3, true)
               .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
               .nestedScroll({
                 scrollForward: this.keepScrollInContent ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
