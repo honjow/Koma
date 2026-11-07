@@ -293,6 +293,9 @@ function formatSourceSubtitle(comic: Comic): string {
     return AppStrings.format(comic.chapterCount === 1
       ? 'library_source_subtitle_chapter' : 'library_source_subtitle_chapters', comic.chapterCount)
   }
+  // A newly synced favorite has its source identity before its catalog has
+  // loaded. The legacy storage kind is not the name of that source.
+  if (comic.sourceRuntimeId) return comic.sourceMetadata?.sourceName?.trim() || comic.sourceRuntimeId
   if (comic.author !== undefined && comic.author.trim().length > 0) {
     return comic.author.trim()
   }

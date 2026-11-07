@@ -17,6 +17,7 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { LibrarySmartCategory, copyLibrarySmartCategory, validateLibrarySmartCategories } from './LibrarySmartCategory'
+import { SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
 
 export type LibrarySortBy = 'lastRead' | 'added' | 'title' | 'source' | 'lastUpdate' | 'latestChapter' | 'unreadCount' | 'chapterCount'
 export type LibrarySortDirection = 'asc' | 'desc'
@@ -56,6 +57,8 @@ export interface LibraryListOptions {
 }
 
 export interface LibraryStore {
+  listSyncShelfMoves(): SyncLocalShelfMove[]
+  replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void
   listSmartCategories(): LibrarySmartCategory[]
   replaceSmartCategories(categories: LibrarySmartCategory[]): void
   getComic(comicId: ComicId): Comic | undefined
@@ -82,6 +85,11 @@ export interface LibraryStore {
 
 export class InMemoryLibraryStore implements LibraryStore {
   private smartCategories: LibrarySmartCategory[] = []
+  private syncShelfMoves: SyncLocalShelfMove[] = []
+
+  listSyncShelfMoves(): SyncLocalShelfMove[] { return this.syncShelfMoves.slice() }
+
+  replaceSyncShelfMoves(moves: SyncLocalShelfMove[]): void { this.syncShelfMoves = moves.slice() }
 
   listSmartCategories(): LibrarySmartCategory[] {
     return this.smartCategories.map(copyLibrarySmartCategory).sort((a: LibrarySmartCategory, b: LibrarySmartCategory): number =>
@@ -363,6 +371,7 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   clear(): void {
     this.smartCategories = []
+    this.syncShelfMoves = []
     this.comics.clear()
     this.customCategories.clear()
     this.categoryDisplayStrategies.clear()
@@ -379,6 +388,7 @@ export class InMemoryLibraryStore implements LibraryStore {
 
   restoreJson(payload: string): void {
     this.smartCategories = []
+    this.syncShelfMoves = []
     this.comics.clear()
     this.customCategories.clear()
     this.categoryDisplayStrategies.clear()

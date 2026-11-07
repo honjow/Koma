@@ -3,7 +3,8 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, SyncRecentValue, syncBucketKey, syncKey, syncKeyParts, SYNC_READING_DATASET } from './DeviceSyncData'
+import { checkSyncGroupFact, SyncRecentValue, SyncWorkLabel, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
+  SYNC_READING_DATASET, SYNC_SHELF_DATASET, syncShelfMove, syncShelfMoveDestination } from './DeviceSyncData'
 import {
   buildSyncDataset, decodeSyncShard, newSyncManifest, syncDatasetBytes, syncDigest, syncShardPath, syncDatasetBranches,
   SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
@@ -29,7 +30,7 @@ export interface SyncApplyGroup {
 
 /** Real application owners participate in one local commit before UI publication. */
 export interface DeviceSyncOwner {
-  snapshot(group: SyncGroup, verifyPublic: boolean, guard?: SyncRequestGuard): Promise<SyncLocalSnapshot>
+  snapshot(group: SyncGroup, verifyPublic: boolean, guard?: SyncRequestGuard, shelfSpace?: string): Promise<SyncLocalSnapshot>
   removed(group: SyncGroup, keys: string[]): string[]
   commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (receipt: string) => void): Promise<void>
 }
@@ -155,19 +156,20 @@ interface DatasetCache {
 const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
 
 function writeDatasetId(group: SyncGroup): string {
-  return group === 'reading' ? SYNC_READING_DATASET : group
+  if (group === 'reading') return SYNC_READING_DATASET
+  return group === 'shelf' ? SYNC_SHELF_DATASET : group
 }
 
 function groupDatasets(manifest: SyncManifest | undefined, group: SyncGroup): SyncDatasetRef[] {
   const refs = syncDatasetBranches(manifest, writeDatasetId(group))
-  // The previous client rejects the whole round if its reading dataset contains
-  // another source. Keep those immutable records readable during upgrades.
-  return group === 'reading' ? refs.concat(syncDatasetBranches(manifest, 'reading')) : refs
+  // Older clients keep their original shards and never see a partial move.
+  return group === 'reading' || group === 'shelf' ? refs.concat(syncDatasetBranches(manifest, group)) : refs
 }
 
 function selectedDatasetIds(groups: SyncGroup[]): string[] {
   const ids: string[] = groups.slice()
   if (groups.includes('reading')) ids.push(SYNC_READING_DATASET)
+  if (groups.includes('shelf')) ids.push(SYNC_SHELF_DATASET)
   return ids
 }
 
@@ -224,7 +226,7 @@ function priorConflictRoots(group: PreparedGroup): string[] {
     if (!legacy.some((root: string): boolean => root !== key && dependsOnConflict(key, root))) return true
     const local = baseline.get(key)
     const fact = facts.get(key)
-    const remote = fact === undefined ? undefined : syncVisibleValue(fact)
+    const remote = fact === undefined ? undefined : syncGroupVisibleValue(group.id, fact)
     return local !== undefined && remote !== undefined && local !== remote
   })
 }
@@ -235,6 +237,19 @@ function dependsOnConflict(key: string, root: string): boolean {
   return (conflict[0] === 'book' && parts[0] === 'member' && parts[1] === conflict[1] && parts[2] === conflict[2]) ||
     (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]))) ||
     (conflict[0] === 'recent' && parts.length === 4 && parts[1] === conflict[1] && parts[2] === conflict[2])
+}
+
+function isShelfBook(group: SyncGroup, key: string): boolean {
+  return group === 'shelf' && syncKeyParts(key)[0] === 'book'
+}
+
+function shelfMoveValue(group: SyncGroup, key: string, value: string | undefined): boolean {
+  return isShelfBook(group, key) && syncShelfMove(value) !== undefined
+}
+
+function sameShelfBook(group: SyncGroup, key: string, left: string | undefined, right: string | undefined): boolean {
+  return isShelfBook(group, key) && left !== undefined && right !== undefined &&
+    syncShelfMove(left) === undefined && syncShelfMove(right) === undefined
 }
 
 function replaceGroup(groups: SyncGroupState[], next: SyncGroupState): SyncGroupState[] {
@@ -254,6 +269,16 @@ function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup
     if (changes === undefined || changes.length === 0) return group
     const baseline = byLocalValue(group.baseline)
     changes.forEach((change: SyncLocalValue): void => {
+      if (shelfMoveValue(group.id, change.key, change.value)) {
+        // A received move is never a local favorite. Even if the owner keeps
+        // it because of a local note, this receipt cannot turn its later
+        // absence into a separate delete of a newer remote re-add.
+        baseline.delete(change.key)
+        baseline.forEach((_value: string, key: string): void => {
+          if (dependsOnConflict(key, change.key)) baseline.delete(key)
+        })
+        return
+      }
       if (change.value === '') baseline.delete(change.key)
       else baseline.set(change.key, change.value)
     })
@@ -616,14 +641,17 @@ export class DeviceSyncEngine {
           input.local.retainedDeletionKeys?.includes(fact.key)) retained++
         const prior = remote.get(fact.key)
         if (JSON.stringify(fact) === JSON.stringify(prior)) return
-        const value = syncVisibleValue(fact)
-        const remoteValue = prior === undefined ? undefined : syncVisibleValue(prior)
-        if (value === undefined && remoteValue !== undefined) removed(fact.key, remoteValue, 'remote')
+        const value = syncGroupVisibleValue(input.id, fact)
+        const remoteValue = prior === undefined ? undefined : syncGroupVisibleValue(input.id, prior)
+        if ((value === undefined || shelfMoveValue(input.id, fact.key, value)) &&
+          remoteValue !== undefined && !shelfMoveValue(input.id, fact.key, remoteValue)) removed(fact.key, remoteValue, 'remote')
         else if (value !== undefined) upload++
       })
       const apply = plan.applies.find((item: SyncApplyGroup): boolean => item.group === input.id)
       apply?.changes.forEach((change: SyncLocalValue): void => {
-        if (change.value === '') removed(change.key, local.get(change.key) ?? before.get(change.key) ?? '', 'local')
+        if (change.value === '' || shelfMoveValue(input.id, change.key, change.value)) {
+          removed(change.key, local.get(change.key) ?? before.get(change.key) ?? '', 'local')
+        }
         else download++
       })
       return { group: summary.group, upload, download, remove, skipped: summary.skipped,
@@ -788,7 +816,7 @@ export class DeviceSyncEngine {
       }
       cache.data.forEach((fact: SyncFact): void => {
         if (keys.has(fact.key)) throw new Error('sync_duplicate_fact')
-        checkSyncGroupFact(id, fact)
+        checkSyncGroupFact(id, fact, dataset.id === 'shelf')
         keys.add(fact.key)
         rows.push(fact)
       })
@@ -806,7 +834,7 @@ export class DeviceSyncEngine {
       if (budget < 0) throw new Error('sync_round_too_large')
       let remote: SyncFact[] = []
       for (const ref of refs) remote = mergeSyncFacts(remote, await this.loadDataset(provider, ref, guard, id))
-      const local = await this.owner.snapshot(id, verifyPublic, guard)
+      const local = await this.owner.snapshot(id, verifyPublic, guard, manifest?.space ?? connection?.space ?? '')
       const previous = connection?.groups.find((row: SyncGroupState): boolean => row.id === id)
       const requiresPreview = previous === undefined || connection?.credential === '' ||
         syncRequiresExplicitReview(connection) || !connection?.selected.includes(id)
@@ -856,22 +884,27 @@ export class DeviceSyncEngine {
           effects.push({ key, value: 'upload' })
           return
         }
-        const theirs = syncVisibleValue(fact)
-        if (theirs === value) return
+        const theirs = syncGroupVisibleValue(entry.id, fact)
+        if (theirs === value || sameShelfBook(entry.id, key, value, theirs)) return
+        const moving = shelfMoveValue(entry.id, key, theirs)
         const retainedDeletion = theirs === undefined && entry.local.retainedDeletionKeys?.includes(key) === true
         const unchangedRetainedValue = retainedDeletion && (entry.previous?.baseline.some((item: SyncLocalValue): boolean =>
           item.key === key && item.value === value) === true || hasLegacyRetainedDeletion(entry.local, entry.previous, key))
         if (entry.requiresPreview || previous.includes(key) || unchangedRetainedValue) {
+          const label = entry.local.labels?.[key] ?? (theirs !== undefined && !moving && isShelfBook(entry.id, key) ?
+            (JSON.parse(theirs) as SyncWorkLabel).title : undefined)
           conflicts.push({ group: entry.id, key, local: value,
-            remote: theirs ?? '', deleted: theirs === undefined, label: entry.local.labels?.[key],
+            remote: moving ? '' : theirs ?? '', deleted: moving || theirs === undefined, label,
             retainLocalOnDelete: retainedDeletion })
-          if (theirs !== undefined) unresolved.push(key)
+          if (theirs !== undefined && !moving) unresolved.push(key)
           return
         }
-        effects.push({ key, value: theirs === undefined ? 'remove' : 'download' })
+        effects.push({ key, value: moving || theirs === undefined ? 'remove' : 'download' })
       })
       remote.forEach((fact: SyncFact, key: string): void => {
-        if (!entry.local.protectedKeys?.includes(key) && !local.has(key) && syncVisibleValue(fact) !== undefined) {
+        const value = syncGroupVisibleValue(entry.id, fact)
+        if (!entry.local.protectedKeys?.includes(key) && !local.has(key) && value !== undefined &&
+          !shelfMoveValue(entry.id, key, value)) {
           effects.push({ key, value: 'download' })
         }
       })
@@ -959,9 +992,10 @@ export class DeviceSyncEngine {
       local.forEach((value: string, key: string): void => {
         if (protectedKeys.has(key) || restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
         const remoteFact = remote.get(key)
-        const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
-        if (((row.requiresPreview && remoteFact !== undefined) || reviewRoots.includes(key)) &&
-          theirs !== undefined && theirs !== value && conflictChoice(choices, row.id, key) === undefined) deferred.add(key)
+        const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
+        if (!sameShelfBook(row.id, key, value, theirs) && ((row.requiresPreview && remoteFact !== undefined) || reviewRoots.includes(key)) &&
+          theirs !== undefined && theirs !== value && !shelfMoveValue(row.id, key, theirs) &&
+          conflictChoice(choices, row.id, key) === undefined) deferred.add(key)
       })
       const conflictRoots = Array.from(deferred)
       const isDeferred = (key: string): boolean => {
@@ -1012,25 +1046,30 @@ export class DeviceSyncEngine {
       local.forEach((value: string, key: string): void => {
         if (isDeferred(key) || protectedKeys.has(key) || adopted.has(key)) return
         const remoteFact = remote.get(key)
-        const theirs = remoteFact === undefined ? undefined : syncVisibleValue(remoteFact)
+        const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
+        const recorded = edits.get(key)
         const needsDecision = (row.requiresPreview || reviewRoots.includes(key)) &&
-          remoteFact !== undefined && theirs !== value
+          remoteFact !== undefined && theirs !== value && !sameShelfBook(row.id, key, value, theirs)
         const choice = conflictChoice(choices, row.id, key)
         // A completed older receipt could omit a fixed setting's baseline.
         // Its already-observed tombstone is not evidence of a new local edit.
         if (!row.resetBaseline && theirs === undefined && hasLegacyRetainedDeletion(row.local, row.previous, key) &&
           choice?.useLocal !== true) return
         if (needsDecision && theirs === undefined && row.local.retainedDeletionKeys?.includes(key) && choice?.useLocal !== true) return
+        // The review shows the same default as an ordinary removal, but a
+        // received move must keep its dependency and its original version.
+        if (needsDecision && choice?.useLocal !== true && shelfMoveValue(row.id, key, theirs)) return
         if (needsDecision && (choice?.useLocal === false || (theirs === undefined && choice === undefined))) {
           if (theirs !== undefined || remoteFact !== undefined) {
             editFact(key, theirs === undefined ? 'delete' : 'set', theirs ?? '', remoteFact)
           }
           return
         }
-        if ((needsDecision && choice?.useLocal !== true) || (row.requiresPreview && theirs === value)) return
+        if ((needsDecision && choice?.useLocal !== true) || (row.requiresPreview && theirs === value) ||
+          (choice?.useLocal !== true && sameShelfBook(row.id, key, value,
+            theirs ?? (recorded === undefined ? undefined : syncGroupVisibleValue(row.id, recorded))))) return
         if (!row.requiresPreview && choice?.useLocal !== true) {
           if (row.id === 'reading') {
-            const recorded = edits.get(key)
             const existing = recorded === undefined ? remoteFact : remoteFact === undefined ? recorded :
               mergeSyncFacts([recorded], [remoteFact])[0]
             if (existing !== undefined) {
@@ -1050,11 +1089,24 @@ export class DeviceSyncEngine {
               editFact(key, 'set', value, remoteFact, recorded?.seen ?? [])
               return
             }
-          } else if (prior.get(key) === value) return
+          } else if (prior.get(key) === value ||
+            (!shelfMoveValue(row.id, key, value) && shelfMoveValue(row.id, key,
+              recorded === undefined ? theirs : syncGroupVisibleValue(row.id, recorded)))) return
         }
-        editFact(key, 'set', value, row.requiresPreview || choice?.useLocal === true ? remoteFact : undefined)
+        const kind: SyncEditKind = shelfMoveValue(row.id, key, value) ? 'reset' : 'set'
+        editFact(key, kind, value, row.requiresPreview || choice?.useLocal === true ? remoteFact : undefined)
       })
       row.removed.forEach((key: string): void => {
+        if (row.id === 'shelf') {
+          const parts = syncKeyParts(key)
+          if (parts[0] === 'book' || parts[0] === 'member') {
+            const book = syncKey(['book', parts[1], parts[2]])
+            const oldBook = edits.get(book)
+            const newBook = remote.get(book)
+            const candidates = mergeSyncFacts(oldBook === undefined ? [] : [oldBook], newBook === undefined ? [] : [newBook])
+            if (candidates.length > 0 && shelfMoveValue(row.id, book, syncGroupVisibleValue(row.id, candidates[0]))) return
+          }
+        }
         if (!isDeferred(key) && !protectedKeys.has(key) && !local.has(key) && syncVisibleValue(edits.get(key) ?? emptySyncFact(key)) !== undefined) {
           editFact(key, 'delete', '')
         }
@@ -1064,11 +1116,28 @@ export class DeviceSyncEngine {
           pending: pending.slice(), deferred: row.previous?.deferred, deferredRoots: row.previous?.deferredRoots })
       }
       const facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
+      const accepted = bySyncFact(facts)
+      const visible = (key: string): string | undefined => {
+        const fact = accepted.get(key)
+        return fact === undefined || isDeferred(key) || protectedKeys.has(key) ? undefined : syncGroupVisibleValue(row.id, fact)
+      }
       const changes: SyncLocalValue[] = []
       const baseline = row.local.values.slice()
       facts.forEach((fact: SyncFact): void => {
-        const value = syncVisibleValue(fact)
+        const value = syncGroupVisibleValue(row.id, fact)
         if (!isDeferred(fact.key) && !protectedKeys.has(fact.key) && value !== local.get(fact.key)) {
+          if (row.id === 'shelf') {
+            const parts = syncKeyParts(fact.key)
+            if (parts[0] === 'member' && syncShelfMove(visible(syncKey(['book', parts[1], parts[2]]))) !== undefined) return
+            if (shelfMoveValue(row.id, fact.key, value)) {
+              if (!local.has(fact.key)) return
+              const target = syncShelfMoveDestination(fact.key, visible, (key: string): boolean =>
+                accepted.has(key) && !isDeferred(key) && !protectedKeys.has(key))
+              if (target === undefined) return
+              changes.push({ key: fact.key, value: JSON.stringify(target) })
+              return
+            }
+          }
           // Keep the real owner value and its baseline. Dropping only the UI
           // count would still delete the receipt baseline and resurrect this
           // old setting on the next ordinary sync.
@@ -1366,7 +1435,7 @@ export class DeviceSyncEngine {
     const current = remote.manifest
     if (current === undefined || !current.maintenance) return remote
     if (current.datasets.concat(current.previous).some((dataset: SyncDatasetRef): boolean =>
-      dataset.schema !== 1 || !SYNC_GROUPS.includes(dataset.id as SyncGroup))) throw new Error('sync_update_required')
+      dataset.schema !== 1 || !selectedDatasetIds(SYNC_GROUPS).includes(dataset.id))) throw new Error('sync_update_required')
     const candidates = await provider.sweepable(current, guard)
     for (const path of candidates) await provider.removeUnreferenced(path, guard)
     const next: SyncManifest = { format: current.format, schema: current.schema, minWriter: current.minWriter,
@@ -1476,6 +1545,12 @@ export class DeviceSyncEngine {
     const fact = this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
       ?.facts.find((item: SyncFact): boolean => item.key === key)
     return fact === undefined ? undefined : syncVisibleValue(fact)
+  }
+
+  hasShelfMove(key: string): boolean {
+    return this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'shelf')
+      ?.facts.find((fact: SyncFact): boolean => fact.key === key)
+      ?.barriers.some((edit: SyncEdit): boolean => syncShelfMove(edit.value) !== undefined) === true
   }
 
   readingDecisions(): SyncReadingDecision[] {

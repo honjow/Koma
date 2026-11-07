@@ -97,7 +97,7 @@ function conflictValue(key: string, value: string): string {
     const position = JSON.parse(value) as SyncPositionValue
     return (position.page + 1).toString() + ' / ' + position.total.toString()
   }
-  if (kind === 'book') return (JSON.parse(value) as SyncWorkLabel).title
+  if (kind === 'book') return (JSON.parse(value) as SyncWorkLabel).title ?? t('device_sync_deleted')
   if (kind === 'catalog') return (JSON.parse(value) as SyncSubscription).label || t('device_sync_group_source_subscriptions')
   if (kind === 'book-mode' || (kind === 'global' && parts[1] === 'mode')) {
     const mode = JSON.parse(value) as SyncReaderMode

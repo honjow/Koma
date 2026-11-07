@@ -99,7 +99,7 @@ function manifest(space, datasets, revision = 1) {
 const pageNumber = data.syncKey(['global', 'page-number'])
 const animation = data.syncKey(['global', 'animation'])
 
-function readingDevice(fixture, id, installed) {
+function readingDevice(fixture, id, installed, withShelf = false) {
   const filesDir = '/' + id
   const files = new Map()
   const fileIo = { accessSync: file => files.has(file), readTextSync: file => files.get(file),
@@ -120,17 +120,31 @@ function readingDevice(fixture, id, installed) {
   files.set(filesDir + '/' + sessions.READER_PROGRESS_PERSISTENCE_FILE_NAME, sessions.serializeReaderSessionForDevice({
     progress: [], sourceHistory: [], chapters: [],
   }))
+  const strings = { AppStrings: { get: key => key } }
+  const smart = withShelf ? compile('../model/LibrarySmartCategory', { './ComicModels': comics, '../i18n/AppStrings': strings }) : undefined
+  const stores = withShelf ? compile('../model/LibraryStore', { './ComicModels': comics, './ReaderSessionStore': sessions,
+    './LibrarySmartCategory': smart, '../i18n/AppStrings': strings }) : undefined
+  const persistence = withShelf ? compile('../model/LibraryPersistence', {
+    './ComicModels': comics, './LibraryStore': stores, './LibrarySmartCategory': smart, '@kit.CoreFileKit': nativeFs,
+    './AppFileTextPersistence': { writeAppTextFile }, '../deviceSync/DeviceSyncSignals': signals,
+    '../deviceSync/DeviceSyncData': data, '../deviceSync/DeviceSyncFacts': facts,
+    './BackupRestoreActivity': backup, '../i18n/AppStrings': strings, './SourceTextOverlay': {},
+    './SourceRequiredImageDecode': {}, './SourceChapterMetadata': {}, './SourceTextPageDescriptor': {},
+    '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { debug: noop, exception: noop } },
+    './LocalLibraryMetadataService': {}, './LocalLibraryFolderContract': {},
+    './LocalLibraryRescanService': {},
+  }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1 }
   const { KomaDeviceSyncOwners } = compile('DeviceSyncOwners', {
     '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
     '../model/AppFileTextPersistence': { writeAppTextFile }, '../model/BackupRestoreActivity': backup,
-    '../model/LibraryPersistence': { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1 },
+    '../model/LibraryPersistence': persistence,
     '../model/ReaderSessionStore': sessions, '../model/ReaderPreferencesStore': {}, '../model/ComicModels': comics,
     '../model/SearchHistoryStore': {}, '../model/SourceLibraryComic': compile('../model/SourceLibraryComic', {
       './ComicModels': comics, '../i18n/AppStrings': {},
     }),
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceIndexMetadata': {},
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncSignals': signals, './DeviceSyncWire': wire,
-    './DeviceSyncPublicSource': { DeviceSyncPublicSources: class { work() { assert.fail('Reading must not request a source proof') } } },
+    './DeviceSyncPublicSource': { DeviceSyncPublicSources: class { work() { assert.fail('Shelf and reading must not request a source proof') } } },
   })
   const context = { filesDir }
   let owner
@@ -142,8 +156,156 @@ function readingDevice(fixture, id, installed) {
     rows => runtime.stageReaderActions(rows), capture => owner.readingActionAcknowledged(capture))
   const reader = sessions.appReaderSessionStore(filesDir)
   const coldReader = () => new sessions.PersistentReaderSessionStore(new sessions.AppFilesReaderSessionPersistenceAdapter(filesDir))
-  return { ...replica, runtime, reader, coldReader }
+  const coldShelf = () => {
+    const shelf = new stores.InMemoryLibraryStore()
+    const service = new persistence.LibraryStorePersistenceService(shelf, new persistence.AppFilesLibraryStorePersistenceAdapter(filesDir))
+    service.restore()
+    return { shelf, service }
+  }
+  if (withShelf) {
+    signals.connectDeviceSyncOwnerEdits(actions => runtime.recordLibrary(actions), noop, noop,
+      () => replica.engine.groupScope('shelf') ? replica.engine.active()?.space : undefined)
+  }
+  return { ...replica, runtime, reader, coldReader, coldShelf, persistence, owner }
 }
+
+function shelfComic(source, work, categoryIds = [], url = 'https://works.example.test/title/12') {
+  return { id: source + ':' + work, sourceRuntimeId: source, remoteResourceId: work, title: 'Series ' + work,
+    sourceKind: 'private_library', sourcePath: url, sortTitle: work, preferredDirection: 'right_to_left',
+    categoryIds, sourceMetadata: { sourceName: 'Source ' + source }, chapters: [], chapterCount: 0, pageCount: 0,
+    createdAt: 1, updatedAt: 1, lastImportedAt: 1 }
+}
+
+test('source shelf and category survive an interrupted move; retry publishes both, and a new favorite stays uncategorized', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const c = readingDevice(fixture, C, new Map(), true)
+  const connect = async device => {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  const local = a.coldShelf()
+  const category = local.shelf.createCustomCategory('Reading')
+  const original = shelfComic('com.example.public', 'old', [category.id])
+  const target = shelfComic('org.example.login', 'new', [category.id], 'https://works.example.test/title/12?session_id=private')
+  a.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, original)
+  await a.runtime.libraryEdits
+  await connect(a)
+  await connect(b)
+  assert.equal(b.coldShelf().shelf.getComic(original.id).sourcePath, original.sourcePath)
+  assert.equal(b.coldShelf().shelf.listCustomCategories()[0].name, 'Reading')
+  assert.equal(b.coldShelf().shelf.getComic(original.id).categoryIds.length, 1)
+  a.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, target)
+  a.persistence.removeComicRecordAndPersistLibraryStore(local.shelf, local.service, original.id, target)
+  assert.equal(a.coldShelf().shelf.listSyncShelfMoves()[0].target.toSource, target.sourceRuntimeId)
+  const backup = a.persistence.libraryStoreBackupPayload(a.persistence.serializeLibraryStore(a.coldShelf().shelf))
+  assert.equal(JSON.parse(backup).syncShelfMoves, undefined)
+  await a.runtime.libraryEdits
+  transport.faults.push('before-accept')
+  await assert.rejects(a.engine.syncNow(), /sync_remote_result_unknown/)
+  await b.engine.syncNow()
+  assert.ok(b.coldShelf().shelf.getComic(original.id))
+  assert.equal(b.coldShelf().shelf.getComic(target.id), undefined)
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  assert.equal(b.coldShelf().shelf.getComic(original.id), undefined)
+  const received = b.coldShelf().shelf.getComic(target.id)
+  assert.equal(received.categoryIds.length, 1)
+  assert.match(received.sourcePath, /^source:\/\//)
+  assert.equal([...transport.files.values()].some(value => value.includes('session_id=private')), false)
+  const firstMerge = c.coldShelf()
+  c.persistence.upsertComicAndPersistLibraryStore(firstMerge.shelf, firstMerge.service, original)
+  await connect(c)
+  assert.equal(c.coldShelf().shelf.getComic(original.id), undefined)
+  assert.equal(c.engine.active().reviewRequired, false)
+  const onB = b.coldShelf()
+  b.persistence.upsertComicAndPersistLibraryStore(onB.shelf, onB.service, { ...original, categoryIds: [] })
+  await b.runtime.libraryEdits
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  await c.engine.syncNow()
+  for (const device of [a, b, c]) assert.deepEqual(device.coldShelf().shelf.getComic(original.id).categoryIds ?? [], [])
+})
+
+test('a move keeps the original if the destination was independently removed, including a receiver with local notes', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const original = shelfComic('com.example.public', 'old')
+  const target = shelfComic('org.example.login', 'new')
+  const left = a.coldShelf()
+  for (const book of [original, target]) a.persistence.upsertComicAndPersistLibraryStore(left.shelf, left.service, book)
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  const right = b.coldShelf()
+  b.persistence.upsertComicAndPersistLibraryStore(right.shelf, right.service,
+    { ...right.shelf.getComic(original.id), personalNotes: 'My notes' })
+  b.persistence.removeComicRecordAndPersistLibraryStore(right.shelf, right.service, target.id)
+  a.persistence.removeComicRecordAndPersistLibraryStore(left.shelf, left.service, original.id, target)
+  await b.runtime.libraryEdits
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  assert.equal(b.coldShelf().shelf.getComic(target.id), undefined)
+  assert.equal(b.coldShelf().shelf.getComic(original.id).personalNotes, 'My notes')
+  assert.deepEqual(b.owner.blockedShelfItems(), [])
+})
+
+test('shelf receipts cannot update an unrelated row with the same storage ID', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const original = shelfComic('org.example.source', 'same')
+  const left = a.coldShelf()
+  a.persistence.upsertComicAndPersistLibraryStore(left.shelf, left.service, original)
+  const right = b.coldShelf()
+  const resident = { ...original, sourceRuntimeId: undefined, sourceKind: 'komga_remote',
+    remoteServerId: 'server', sourcePath: 'komga://server/same', title: 'Private library' }
+  b.persistence.upsertComicAndPersistLibraryStore(right.shelf, right.service, resident)
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  a.persistence.removeComicRecordAndPersistLibraryStore(left.shelf, left.service, original.id)
+  await a.runtime.libraryEdits
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  assert.equal(b.coldShelf().shelf.getComic(original.id).title, 'Private library')
+})
+
+test('a writer keeps its original shelf shards while publishing new source books after upgrade', async () => {
+  const f = transportFixture()
+  const writer = new f.WriterWebDav(f.draft, [], undefined, A)
+  const old = shelfComic(data.XKCD_SYNC_SOURCE, 'xkcd:zh')
+  const oldKey = data.syncKey(['book', old.sourceRuntimeId, old.remoteResourceId])
+  const oldShard = dataset('shelf', oldKey, A, JSON.stringify({ title: 'xkcd', sourceName: 'xkcd 中文', sourceVersion: '0.1.7' }))
+  for (const object of oldShard.objects) await writer.storeObject(object, noop)
+  await writer.publish(manifest(writer.spaceId(), [oldShard.ref]), '', noop, noop, ['shelf'])
+  const device = readingDevice(engineFixture(f.WriterWebDav), A, new Map(), true)
+  const connect = async row => {
+    await row.engine.testConnection(f.draft)
+    await row.engine.confirm((await row.engine.prepare(f.draft, ['shelf'])).token, [])
+  }
+  await connect(device)
+  const local = device.coldShelf()
+  assert.equal(local.shelf.getComic(old.id).title, 'xkcd')
+  const added = shelfComic('com.example.public', 'new')
+  device.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, added)
+  await device.runtime.libraryEdits
+  await device.engine.syncNow()
+  const receipt = await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)
+  assert.deepEqual(receipt.own.datasets.find(item => item.id === 'shelf'), oldShard.ref)
+  assert.ok(receipt.own.datasets.some(item => item.id === data.SYNC_SHELF_DATASET))
+  const other = readingDevice(engineFixture(f.WriterWebDav), B, new Map(), true)
+  await connect(other)
+  assert.deepEqual(other.coldShelf().shelf.listComics().map(book => book.id).sort(), [old.id, added.id].sort())
+})
 
 test('saved history and live page turns from other sources reach a fresh reader without a source request', async () => {
   const f = transportFixture()

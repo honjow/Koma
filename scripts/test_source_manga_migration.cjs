@@ -35,6 +35,7 @@ function load(file) {
   const source = fs.readFileSync(path.join(root, file + '.ets'), 'utf8')
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
   vm.runInNewContext(js, { exports, console, Map, Set, Date, Uint8Array, setTimeout, clearTimeout,
+    ObservedV2: value => value, Trace: () => {},
     require(name) {
       if (ports[name]) return ports[name]
       if (name.startsWith('@kit.')) return {}

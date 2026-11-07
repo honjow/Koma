@@ -1,4 +1,7 @@
-import { signalDeviceSyncChange, signalDeviceSyncLibrary, SyncLibrarySignal } from '../deviceSync/DeviceSyncSignals'
+import { deviceSyncShelfSpace, signalDeviceSyncChange, signalDeviceSyncLibrary, SyncLibrarySignal,
+  SyncLocalShelfMove } from '../deviceSync/DeviceSyncSignals'
+import { syncShelfIdentity } from '../deviceSync/DeviceSyncData'
+import { isSyncReplica } from '../deviceSync/DeviceSyncFacts'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode } from './SourceRequiredImageDecode'
@@ -64,6 +67,7 @@ export const LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION = 1
 export const LIBRARY_STORE_PERSISTENCE_FILE_NAME = 'library-store.v1.json'
 
 export interface PersistedLibraryStoreDocument {
+  syncShelfMoves?: SyncLocalShelfMove[]
   smartCategories?: LibrarySmartCategory[]
   schemaVersion: number
   customCategories?: PersistedLibraryCategory[]
@@ -396,6 +400,8 @@ export function createLibraryStorePersistenceDocument(libraryStore: LibraryStore
   if (categoryDisplayStrategies.length > 0) {
     document.categoryDisplayStrategies = categoryDisplayStrategies
   }
+  const moves = libraryStore.listSyncShelfMoves()
+  if (moves.length > 0) document.syncShelfMoves = moves
   return document
 }
 
@@ -730,11 +736,26 @@ function parseValidatedLibraryStoreDocument(payload: string): PersistedLibrarySt
   document.comics.forEach((row: PersistedComic) => {
     assertValidPersistedComic(row)
   })
+  if (document.syncShelfMoves !== undefined && (!Array.isArray(document.syncShelfMoves) ||
+    document.syncShelfMoves.some((move: SyncLocalShelfMove): boolean => !move || !isSyncReplica(move.space) ||
+      !syncShelfIdentity(move.source, move.work) || (move.target !== undefined && (!move.target ||
+        !syncShelfIdentity(move.target.toSource, move.target.toWork) ||
+        move.source === move.target.toSource && move.work === move.target.toWork))))) {
+    throw new Error('Invalid library store persistence syncShelfMoves')
+  }
   return document
 }
 
 export function assertValidLibraryStoreJson(payload: string): void {
   parseValidatedLibraryStoreDocument(payload)
+}
+
+export function libraryStoreBackupPayload(payload: string): string {
+  const document = parseValidatedLibraryStoreDocument(payload)
+  // Pending replacements belong to this WebDAV space and this installation.
+  if (document.syncShelfMoves === undefined) return payload
+  document.syncShelfMoves = undefined
+  return JSON.stringify(document)
 }
 
 export function readLibraryStoreDocument(payload: string): PersistedLibraryStoreDocument {
@@ -783,6 +804,7 @@ export function hydrateLibraryStoreFromJson(libraryStore: LibraryStore, payload:
   comics.forEach((comic: Comic) => {
     libraryStore.upsertComic(comic)
   })
+  libraryStore.replaceSyncShelfMoves(document.syncShelfMoves ?? [])
 }
 
 export interface LibraryStorePersistenceAdapter {
@@ -868,6 +890,8 @@ export function upsertComicAndPersistLibraryStore(
   const newMembership = libraryStore.getComic(comic.id) === undefined
   const previousPayload = serializeLibraryStore(libraryStore)
   libraryStore.addComic(comic)
+  if (newMembership) libraryStore.replaceSyncShelfMoves(libraryStore.listSyncShelfMoves().filter((move: SyncLocalShelfMove): boolean =>
+    move.source !== comic.sourceRuntimeId || move.work !== comic.remoteResourceId))
   try {
     persistenceService.persist()
     if (newMembership && comic.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined) {
@@ -1414,18 +1438,33 @@ export function removeComicAndPersistLibraryStore(
 export function removeComicRecordAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
-  comicId: ComicId
+  comicId: ComicId,
+  migrationTarget?: Comic,
 ): boolean {
   const removedComic = libraryStore.getComic(comicId)
   if (removedComic === undefined) {
     return false
   }
   const previousPayload = serializeLibraryStore(libraryStore)
+  const space = migrationTarget === undefined ? undefined : deviceSyncShelfSpace()
+  const fromSource = removedComic.sourceRuntimeId
+  const fromWork = removedComic.remoteResourceId
+  if (space !== undefined && fromSource !== undefined && fromWork !== undefined && syncShelfIdentity(fromSource, fromWork)) {
+    const toSource = migrationTarget?.sourceRuntimeId
+    const toWork = migrationTarget?.remoteResourceId
+    const move: SyncLocalShelfMove = { space, source: fromSource, work: fromWork,
+      target: toSource !== undefined && toWork !== undefined && syncShelfIdentity(toSource, toWork) ?
+        { toSource, toWork } : undefined }
+    // Record the replacement in the same file write that removes the original.
+    // An unsyncable destination must never turn a migration into a bare delete.
+    libraryStore.replaceSyncShelfMoves(libraryStore.listSyncShelfMoves().filter((item: SyncLocalShelfMove): boolean =>
+      item.source !== fromSource || item.work !== fromWork).concat(move))
+  }
   libraryStore.removeComic(comicId)
   try {
     persistenceService.persist()
-    if (removedComic.sourceRuntimeId !== undefined && removedComic.remoteResourceId !== undefined) {
-      signalDeviceSyncLibrary([{ kind: 'remove-book', source: removedComic.sourceRuntimeId, work: removedComic.remoteResourceId }])
+    if (migrationTarget === undefined && fromSource !== undefined && fromWork !== undefined) {
+      signalDeviceSyncLibrary([{ kind: 'remove-book', source: fromSource, work: fromWork }])
     }
     return true
   } catch (error) {

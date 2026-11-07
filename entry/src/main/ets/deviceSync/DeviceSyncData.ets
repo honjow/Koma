@@ -1,10 +1,11 @@
-import { SyncEdit, SyncFact, SyncGroup, isSyncReplica } from './DeviceSyncFacts'
+import { SyncEdit, SyncFact, SyncGroup, isSyncReplica, syncVisibleValue, syncObserves } from './DeviceSyncFacts'
 import { isSyncDigest } from './DeviceSyncWire'
 import { syncDefaultCaseFold } from './DeviceSyncCaseFold'
 
 export const SYNC_OFFICIAL_CATALOG = 'https://github.com/honjow/koma-sources/releases/latest/download/index.json'
 export const SYNC_CATALOG_ID = 'honjow/koma-sources'
 export const SYNC_READING_DATASET = 'reading-records'
+export const SYNC_SHELF_DATASET = 'shelf-records'
 export const MANGADEX_SYNC_SOURCE = 'org.mangadex.koma'
 export const XKCD_SYNC_SOURCE = 'com.xkcd.zh.koma'
 const UUID_TEXT = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -15,7 +16,14 @@ const READING_CREDENTIAL_PARAMETER = /(?:^|[/?&#;])(?:[a-z0-9_.-]*(?:token|secre
 export interface SyncWorkLabel {
   title: string
   sourceName: string
-  sourceVersion: string
+  sourceVersion?: string // Legacy shelf label.
+  workUrl?: string
+}
+
+export interface SyncShelfMove {
+  toSource: string
+  toWork: string
+  categories?: string[]
 }
 
 export interface SyncRecentValue {
@@ -133,6 +141,70 @@ export function syncReadingRecent(source: string, chapter: string, date: number,
     workUrl: workUrl !== undefined && safeReadingWorkUrl(workUrl) ? workUrl : undefined }
 }
 
+export function syncShelfLabel(source: string, title: string, sourceName: string, workUrl: string): SyncWorkLabel {
+  return { title: syncPublicLabel(title.slice(0, 240), 240) || syncPublicLabel(source, 96) || '—',
+    sourceName: syncPublicLabel(sourceName.slice(0, 80), 80) || syncPublicLabel(source.slice(0, 80), 80) || '—',
+    workUrl: safeReadingWorkUrl(workUrl) ? workUrl : undefined }
+}
+
+export function syncShelfMove(value: string | undefined): SyncShelfMove | undefined {
+  if (value === undefined || value === '') return undefined
+  const move = JSON.parse(value) as SyncShelfMove
+  return onlyFields(move, move?.categories === undefined ? 'toSource,toWork' : 'categories,toSource,toWork') &&
+    syncShelfIdentity(move.toSource, move.toWork) &&
+    (move.categories === undefined || (Array.isArray(move.categories) && move.categories.length <= 1024 &&
+      move.categories.every(validCategory) && new Set<string>(move.categories).size === move.categories.length)) ? move : undefined
+}
+
+export function syncShelfIdentity(source: string, work: string): boolean {
+  // Runtime package IDs cannot be the prefixes of local or private server rows.
+  return syncReadingIdentity(source, work) && !['local', 'komga', 'kavita', 'opds', 'webdav'].includes(source.toLowerCase())
+}
+
+/** Resolve chains against accepted facts. A removed or cyclic destination
+ * never authorizes a shelf removal. */
+export function syncShelfMoveDestination(key: string, visible: (key: string) => string | undefined,
+  known: (key: string) => boolean): SyncShelfMove | undefined {
+  const visited = new Set<string>([key])
+  let move = syncShelfMove(visible(key))
+  while (move !== undefined) {
+    const target = syncKey(['book', move.toSource, move.toWork])
+    if (visited.has(target)) return undefined
+    visited.add(target)
+    const value = visible(target)
+    if (value === undefined || value === '') return undefined
+    const next = syncShelfMove(value)
+    if (next === undefined) {
+      const destination = move
+      if (destination.categories?.some((category: string): boolean => {
+        const member = syncKey(['member', destination.toSource, destination.toWork, category])
+        return !known(member) || (visible(member) !== undefined &&
+          category !== 'builtin-favorite' && category !== 'builtin-read-later' &&
+          !known(syncKey(['category', category])))
+      })) return undefined
+      const categories = destination.categories?.filter((category: string): boolean =>
+        visible(syncKey(['member', destination.toSource, destination.toWork, category])) !== undefined &&
+        (category === 'builtin-favorite' || category === 'builtin-read-later' ||
+          visible(syncKey(['category', category])) !== undefined))
+      return { toSource: move.toSource, toWork: move.toWork, categories }
+    }
+    move = next
+  }
+  return undefined
+}
+
+export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string | undefined {
+  const value = syncVisibleValue(fact)
+  if (group !== 'shelf' || !fact.key.startsWith('["book",') ||
+    !fact.barriers.some((edit: SyncEdit): boolean => syncShelfMove(edit.value) !== undefined)) return value
+  // A move only replaces the shelf entry the sender observed. A separate
+  // explicit re-add on a device that has not seen it wins over the move.
+  const deletes = fact.barriers.filter((edit: SyncEdit): boolean => edit.kind === 'delete')
+  const concurrent = fact.values.filter((edit: SyncEdit): boolean => !syncObserves(fact.cleared, edit.version) &&
+    deletes.every((barrier: SyncEdit): boolean => syncObserves(edit.observed, barrier.version)))
+  return concurrent[concurrent.length - 1]?.value ?? value
+}
+
 function isSourceWork(parts: string[]): boolean {
   return syncWorksOnSource(parts[1], parts[2])
 }
@@ -160,9 +232,15 @@ function validateDate(date: number): boolean {
   return Number.isSafeInteger(date) && date >= 0 && date <= 4102444800000
 }
 
-function validShelfValue(parts: string[], value: Object): boolean {
+function validShelfValue(parts: string[], value: Object, legacy: boolean): boolean {
   if (parts[0] === 'book') {
-    return onlyFields(value, 'sourceName,sourceVersion,title') && validLabel(value as SyncWorkLabel, parts[1])
+    const label = value as SyncWorkLabel
+    if (legacy || label?.sourceVersion !== undefined) {
+      return onlyFields(value, 'sourceName,sourceVersion,title') && isSourceWork(parts) && validLabel(label, parts[1])
+    }
+    return onlyFields(value, label?.workUrl === undefined ? 'sourceName,title' : 'sourceName,title,workUrl') &&
+      validLabelText(label) && (label.workUrl === undefined ||
+        typeof label.workUrl === 'string' && safeReadingWorkUrl(label.workUrl))
   }
   if (parts[0] === 'member') return value === true
   if (parts[0] === 'category') return checkText(value as string, 40)
@@ -215,11 +293,13 @@ export function syncSearchIdentity(text: string): string {
   return syncDefaultCaseFold(text.trim().replace(/\s+/g, ' ').normalize('NFC')).normalize('NFC')
 }
 
-function validKey(group: SyncGroup, parts: string[]): boolean {
+function validKey(group: SyncGroup, parts: string[], legacyShelf: boolean): boolean {
   const kind = parts[0]
   if (group === 'shelf') {
-    return (kind === 'book' && parts.length === 3 && isSourceWork(parts)) ||
-      (kind === 'member' && parts.length === 4 && isSourceWork(parts) && validCategory(parts[3])) ||
+    const work = (kind === 'book' || kind === 'member') &&
+      (legacyShelf ? isSourceWork(parts) : syncShelfIdentity(parts[1], parts[2]))
+    return (kind === 'book' && parts.length === 3 && work) ||
+      (kind === 'member' && parts.length === 4 && work && validCategory(parts[3])) ||
       (kind === 'category' && parts.length === 2 && isSyncReplica(parts[1])) || (kind === 'order' && parts.length === 1)
   }
   if (group === 'reading') {
@@ -238,16 +318,19 @@ function validKey(group: SyncGroup, parts: string[]): boolean {
     parts[2].split(',').every((source: string): boolean => syncKnownSource(source))
 }
 
-export function checkSyncGroupFact(group: SyncGroup, fact: SyncFact): void {
+export function checkSyncGroupFact(group: SyncGroup, fact: SyncFact, legacyShelf: boolean = false): void {
   const parts = syncKeyParts(fact.key)
-  if (['book', 'member', 'book-mode'].includes(parts[0]) &&
-    !syncKnownSource(parts[1])) throw new Error('sync_update_required')
-  if (!validKey(group, parts)) throw new Error('sync_update_required')
+  if (!validKey(group, parts, legacyShelf)) throw new Error('sync_update_required')
   fact.values.concat(fact.barriers).forEach((edit: SyncEdit): void => {
     if (edit.kind === 'delete') return
     const value = JSON.parse(edit.value) as Object
     let valid = false
-    if (group === 'shelf') valid = validShelfValue(parts, value)
+    if (group === 'shelf' && edit.kind === 'reset' && parts[0] === 'book' && !legacyShelf) {
+      const move = syncShelfMove(edit.value)
+      if (move === undefined || move.toSource === parts[1] && move.toWork === parts[2]) throw new Error('sync_unsupported_value')
+      return
+    }
+    if (group === 'shelf') valid = validShelfValue(parts, value, legacyShelf)
     else if (group === 'reading') valid = validReadingValue(parts, value)
     else if (group === 'reader-settings') valid = validPreferenceValue(parts, value)
     else if (group === 'source-subscriptions') {

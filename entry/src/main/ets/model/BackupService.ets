@@ -30,6 +30,7 @@ import {
   LIBRARY_STORE_PERSISTENCE_FILE_NAME,
   LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION,
   assertValidLibraryStoreJson,
+  libraryStoreBackupPayload,
 } from './LibraryPersistence'
 import {
   READER_PROGRESS_PERSISTENCE_FILE_NAME,
@@ -1296,8 +1297,8 @@ export class BackupService {
         throw new Error('reader_progress_save_failed')
       }
       const sourceSettingObservations = await appSourceSettingObservationStore.exportAll()
-      const libraryStore = backgroundTemplate ? emptyLibraryStorePayload() : readTextIfExists(this.libraryPath(), emptyLibraryStorePayload())
-      assertValidLibraryStoreJson(libraryStore)
+      const libraryStore = backgroundTemplate ? emptyLibraryStorePayload() :
+        libraryStoreBackupPayload(readTextIfExists(this.libraryPath(), emptyLibraryStorePayload()))
       const document: KomaBackupDocument = {
         schemaVersion,
         exportedAt: Date.now(),
@@ -1371,7 +1372,7 @@ export class BackupService {
       const sessionStore = appReaderSessionStore(this.context.filesDir)
       // Include the user's already pending progress in the original state.
       if (sessionStore.flush() === false) throw new Error('reader_progress_save_failed')
-      coverPlan = await prepareRestoredComicCovers(this.context, document.libraryStore, document.customCovers)
+      coverPlan = await prepareRestoredComicCovers(this.context, libraryStoreBackupPayload(document.libraryStore), document.customCovers)
       document.libraryStore = coverPlan.libraryStore
       checkpoint = await BackupRestoreCheckpoint.prepare(this.context)
       writeAppTextFile(this.libraryPath(), document.libraryStore)

@@ -414,6 +414,12 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
     webDavServer: 'webdav', opdsServer: 'opds',
     komgaCredential: 'fixture-token', webDavCredential: 'fixture-password',
   }
+  const syncFacts = evaluate(read('deviceSync/DeviceSyncFacts.ets'), {})
+  const libraryPersistence = evaluate(read('model/LibraryPersistence.ets'), {
+    './ComicModels': evaluate(read('model/ComicModels.ets'), {}),
+    '../deviceSync/DeviceSyncFacts': syncFacts,
+    '../deviceSync/DeviceSyncData': evaluate(read('deviceSync/DeviceSyncData.ets'), { './DeviceSyncFacts': syncFacts }),
+  })
   const { BackupService } = evaluate(read('model/BackupService.ets'), {
     ...ports,
     './ApplicationSettingsBackup': { ...applicationSettings, reloadApplicationSettingsRuntime: async () => {} },
@@ -428,7 +434,7 @@ async function verifyBackupDocument(ports, applicationSettings, stores, setResto
     './AppFileTextPersistence': { writeAppTextFile() {} },
     './AutomationStateEpoch': { beginAutomationRestore() {}, finishAutomationRestore() {}, resetGeneratedAutomationWork() {} },
     '@kit.CoreFileKit': { fileIo: { accessSync: () => false } },
-    './LibraryPersistence': { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', assertValidLibraryStoreJson() {} },
+    './LibraryPersistence': libraryPersistence,
     './ReaderSessionStore': {
       READER_PROGRESS_PERSISTENCE_FILE_NAME: 'reader.json', appReaderSessionStore: () => ({ flush: () => true, reload() {} }),
       normalizeReaderSessionBackupPayload: value => value,

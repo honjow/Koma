@@ -1,6 +1,6 @@
 import { SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { ReadingProgress } from '../model/ComicModels'
-import { SyncRecentValue } from './DeviceSyncData'
+import { SyncRecentValue, SyncShelfMove } from './DeviceSyncData'
 
 export interface SyncReadingSignal {
   comicId: string
@@ -130,6 +130,13 @@ export interface SyncLibrarySignal {
   category?: string
 }
 
+export interface SyncLocalShelfMove {
+  space: string
+  source: string
+  work: string
+  target?: SyncShelfMove
+}
+
 export interface SyncBookModeSignal {
   comicId: string
   mode?: string
@@ -139,12 +146,19 @@ export interface SyncBookModeSignal {
 let libraryEdit: ((actions: SyncLibrarySignal[]) => void) | undefined
 let readerModeEdit: ((action: SyncBookModeSignal) => void) | undefined
 let removedSubscription: ((address: string) => void) | undefined
+let shelfSpace: (() => string | undefined) | undefined
 
 export function connectDeviceSyncOwnerEdits(library: (actions: SyncLibrarySignal[]) => void,
-  readerMode: (action: SyncBookModeSignal) => void, subscription: (address: string) => void): void {
+  readerMode: (action: SyncBookModeSignal) => void, subscription: (address: string) => void,
+  activeShelfSpace: () => string | undefined): void {
   libraryEdit = library
   readerModeEdit = readerMode
   removedSubscription = subscription
+  shelfSpace = activeShelfSpace
+}
+
+export function deviceSyncShelfSpace(): string | undefined {
+  return shelfSpace?.()
 }
 
 export function signalDeviceSyncLibrary(actions: SyncLibrarySignal[]): void {

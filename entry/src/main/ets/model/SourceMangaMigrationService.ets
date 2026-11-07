@@ -192,7 +192,7 @@ export async function commitMangaMigration(
           chapterTitle: source.chapters.find((chapter: Chapter): boolean => chapter.id === progress.chapterId)?.title })
         if (!reader.flush()) throw new Error('migration_save_failed')
       }
-      removeComicRecordAndPersistLibraryStore(library, persistence, source.id)
+      removeComicRecordAndPersistLibraryStore(library, persistence, source.id, target)
       await new ReaderPreferencesStore(context).copyBannerOverride(source.id, '', true)
     }
     return { targetComicId: target.id, unmatchedReadCount: options.readProgress ? plan.unmatchedReadCount : 0 }

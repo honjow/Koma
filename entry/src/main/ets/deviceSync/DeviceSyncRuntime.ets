@@ -17,8 +17,9 @@ import {
   DeviceSyncStorage, SyncBlockedReading, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
 } from './DeviceSyncStorage'
 import {
-  safeSyncSearch, syncKey, syncKeyParts, syncReadingIdentity, syncReadingPosition, syncReadingRecent, syncSearchIdentity, SyncPositionValue,
-  SyncSearchValue, SyncSubscription, SyncReaderMode, SyncWorkLabel, SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG,
+  safeSyncSearch, syncKey, syncKeyParts, syncReadingIdentity, syncReadingPosition, syncReadingRecent, syncSearchIdentity,
+  syncShelfIdentity, SyncPositionValue,
+  SyncSearchValue, SyncSubscription, SyncReaderMode, SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG,
 } from './DeviceSyncData'
 import { connectDeviceSyncOwnerEdits, connectDeviceSyncProgress, connectDeviceSyncReadingCapture, connectDeviceSyncRestore,
   connectDeviceSyncSignals, deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncBookModeSignal, SyncCapturedReadingEdit,
@@ -131,7 +132,8 @@ class DeviceSyncRuntime {
       (capture: SyncReadingActionCapture): boolean => owners.readingActionAcknowledged(capture))
     connectDeviceSyncOwnerEdits((actions: SyncLibrarySignal[]): void => { this.recordLibrary(actions) },
       (action: SyncBookModeSignal): void => { this.recordBookMode(action) },
-      (address: string): void => { this.removeSharedSubscription(address) })
+      (address: string): void => { this.removeSharedSubscription(address) },
+      (): string | undefined => this.engine?.groupScope('shelf') ? this.engine.active()?.space : undefined)
   }
 
   onForeground(active: boolean): void {
@@ -369,12 +371,9 @@ class DeviceSyncRuntime {
         await owners.acceptShelfRemoval(item)
         return
       }
-      const guard = engine.requestGuard()
-      const work = await owners.publicSources.work(item.source, item.work, true, guard)
-      guard()
-      if (work === undefined) throw new Error('sync_public_work_unavailable')
+      const label = owners.shelfWorkLabel(item.source, item.work)
+      if (label === undefined) return
       if (scope !== engine.groupScope('shelf')) throw new Error('sync_connection_changed')
-      const label: SyncWorkLabel = { title: work.title, sourceName: work.sourceName, sourceVersion: work.sourceVersion }
       engine.recordEdits('shelf', [{ key: syncKey(['book', item.source, item.work]), kind: 'set', value: JSON.stringify(label) }])
       await engine.syncNow()
     })
@@ -833,6 +832,7 @@ class DeviceSyncRuntime {
       }
       const source = action.source ?? ''
       const work = action.work ?? ''
+      if (!syncShelfIdentity(source, work)) continue
       if (action.kind === 'remove-book') {
         const key = syncKey(['book', source, work])
         if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
@@ -841,10 +841,19 @@ class DeviceSyncRuntime {
           if (parts[0] === 'member' && parts[1] === source && parts[2] === work) add(item, 'delete', '')
         })
       } else if (action.kind === 'add-book') {
-        const proof = await owners.publicWork(source, work)
-        if (proof !== undefined && owners.isLocallyShelved(source, work)) {
-          const label: SyncWorkLabel = { title: proof.title, sourceName: proof.sourceName, sourceVersion: proof.sourceVersion }
-          add(syncKey(['book', source, work]), 'set', JSON.stringify(label))
+        const label = owners.shelfWorkLabel(source, work)
+        if (label !== undefined) {
+          const key = syncKey(['book', source, work])
+          add(key, 'set', JSON.stringify(label))
+          if (engine.hasShelfMove(key)) {
+            const categories = owners.shelfMemberships(source, work)
+            engine.knownGroupKeys('shelf').forEach((item: string): void => {
+              const parts = syncKeyParts(item)
+              if (parts[0] === 'member' && parts[1] === source && parts[2] === work && !categories.includes(parts[3])) {
+                add(item, 'delete', '')
+              }
+            })
+          }
         }
       } else {
         const category = owners.sharedCategory(action.category ?? '')
@@ -852,7 +861,7 @@ class DeviceSyncRuntime {
         const key = syncKey(['member', source, work, category])
         if (action.kind === 'remove-member') {
           if (engine.observed('shelf', key).length > 0) add(key, 'delete', '')
-        } else if (await owners.publicWork(source, work) !== undefined) add(key, 'set', 'true')
+        } else if (owners.shelfWorkLabel(source, work) !== undefined) add(key, 'set', 'true')
       }
     }
     if (scope !== engine.groupScope('shelf')) return
