@@ -3,6 +3,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { common } from '@kit.AbilityKit'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
+import { PullRefresh } from '../components/PullRefresh'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
@@ -29,6 +30,7 @@ import {
 import { AppStrings } from '../i18n/AppStrings'
 import { RemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 
 const HISTORY_LIMIT: number = 50
 const MS_PER_MINUTE: number = 60 * 1000
@@ -81,12 +83,15 @@ export struct HistoryPage {
   @Param readerSessionStore?: ReaderSessionStore = undefined
   @Param readerProgressRevision: number = 0
   @Local private languageState: LanguageState = connectLanguageState()
+  @Local private safeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private remoteProgress: RemoteProgressSyncState = connectRemoteProgressSyncState()
+  @Local private scrollEnabled: boolean = true
   @Local private historyItems: HistoryItem[] = []
   @Local private failedCoverUris: string[] = []
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
   @Event onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => void = () => {}
+  @Event onRefresh: () => Promise<void> = async () => {}
 
   @Monitor('active')
   private onActiveChanged(): void {
@@ -127,6 +132,9 @@ export struct HistoryPage {
   private reloadHistory(reason: string): void {
     console.info(`[History] step=load_start reason=${reason}`)
     const sessionStore = this.createReaderSessionStore()
+    const sourceEntries = sessionStore?.listSourceHistory() ?? []
+    const sourceByComic = new Map<ComicId, SourceReadHistoryEntry>()
+    sourceEntries.forEach((entry: SourceReadHistoryEntry): void => { sourceByComic.set(entry.comicId, entry) })
     const progressByComicId: Map<ComicId, ReadingProgress> = new Map<ComicId, ReadingProgress>()
     if (sessionStore !== undefined) {
       sessionStore.listProgress().forEach((progress: ReadingProgress): void => {
@@ -135,7 +143,7 @@ export struct HistoryPage {
     }
     const libraryItems: HistoryItem[] = this.libraryStore.listLibraryItems(progressByComicId)
       .filter((item: LibraryItem) => item.lastReadAt !== undefined)
-      .map((item: LibraryItem): HistoryItem => this.libraryHistoryItem(item))
+      .map((item: LibraryItem): HistoryItem => this.libraryHistoryItem(item, sourceByComic.get(item.comicId)?.coverUri))
     const libraryComicIds: Set<ComicId> = new Set<ComicId>()
     libraryItems.forEach((item: HistoryItem): void => {
       libraryComicIds.add(item.comicId)
@@ -143,7 +151,7 @@ export struct HistoryPage {
     const sourceItems: HistoryItem[] = []
     const remoteItems: HistoryItem[] = []
     if (sessionStore !== undefined) {
-      sessionStore.listSourceHistory().forEach((entry: SourceReadHistoryEntry): void => {
+      sourceEntries.forEach((entry: SourceReadHistoryEntry): void => {
         const progress = progressByComicId.get(entry.comicId)
         if (!libraryComicIds.has(entry.comicId) && progress !== undefined) {
           sourceItems.push(this.sourceHistoryItem(entry, progress))
@@ -166,12 +174,12 @@ export struct HistoryPage {
     console.info(`[History] step=load_done count=${this.historyItems.length}`)
   }
 
-  private libraryHistoryItem(item: LibraryItem): HistoryItem {
+  private libraryHistoryItem(item: LibraryItem, historyCover?: string): HistoryItem {
     return {
       id: item.id,
       comicId: item.comicId,
       title: item.title,
-      coverUri: item.coverUri,
+      coverUri: item.coverUri || historyCover,
       sourceRuntimeId: item.sourceRuntimeId,
       sourceMangaUrl: item.sourcePath,
       sourceImageId: item.sourceImageId,
@@ -649,33 +657,53 @@ export struct HistoryPage {
     this.reloadHistory('appear')
   }
 
+  @Builder
+  private HistoryList() {
+    SecondaryListScaffold({
+      scroller: this.scroller,
+      scrollEnabled: this.scrollEnabled,
+      alwaysEnableEdgeSpring: false,
+      listSpace: ThemeConstants.SPACE_MD,
+      bottomPadding: ThemeConstants.SPACE_XL,
+      floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
+    }) {
+      if (this.historyItems.length === 0) {
+        ListItem() {
+          this.EmptyHistory()
+        }
+      } else {
+        ListItem() {
+          this.HistoryHeader()
+        }
+        ForEach(this.historySections(), (section: HistorySection) => {
+          ListItem() {
+            this.HistoryGroupHeader(section)
+          }
+          ForEach(section.items, (item: HistoryItem) => {
+            ListItem() {
+              this.HistoryRow(item)
+            }
+          }, (item: HistoryItem) => this.historyItemRenderIdentity(item))
+        }, (section: HistorySection) => this.historySectionRenderIdentity(section))
+      }
+    }
+  }
+
   build() {
     Column() {
-      SecondaryListScaffold({
+      PullRefresh({
         scroller: this.scroller,
-        listSpace: ThemeConstants.SPACE_MD,
-        bottomPadding: ThemeConstants.SPACE_XL,
-        floatingTabTailPadding: ThemeConstants.FLOATING_TAB_BAR_CLEARANCE,
+        indicatorTop: this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
+        onRefresh: async (): Promise<void> => {
+          try {
+            await this.onRefresh()
+          } finally {
+            this.reloadHistory('pull_refresh')
+          }
+        },
+        onScrollEnableChange: (enabled: boolean): void => { this.scrollEnabled = enabled },
       }) {
-        if (this.historyItems.length === 0) {
-          ListItem() {
-            this.EmptyHistory()
-          }
-        } else {
-          ListItem() {
-            this.HistoryHeader()
-          }
-          ForEach(this.historySections(), (section: HistorySection) => {
-            ListItem() {
-              this.HistoryGroupHeader(section)
-            }
-            ForEach(section.items, (item: HistoryItem) => {
-              ListItem() {
-                this.HistoryRow(item)
-              }
-            }, (item: HistoryItem) => this.historyItemRenderIdentity(item))
-          }, (section: HistorySection) => this.historySectionRenderIdentity(section))
-        }
+        this.HistoryList()
       }
     }
     .width('100%')

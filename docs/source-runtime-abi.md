@@ -7,6 +7,7 @@
 - 用户配置 source index URL，索引项提供身份、版本、本地化名称、语言、分级、包/图标地址等元数据。相对地址按索引 URL 解析。
 - 生产包使用根 manifest.json、source.wasm 和一个包内身份图标。可接受格式及归档限制以 SourcePackageImporter 和 SourcePackageMetadata 为准；文件后缀不能替代内容校验。
 - 仓库包 manifest 由 SourceRepoPackageManifest 解析为宿主 LocalSourcePackageManifest；后者分 package、runtime、permissions、contentPolicy 及 operationCapabilities。宿主保留 sourceId、版本、安装身份、启用状态、合法主页和已核目录方向。
+- 宿主按 ABI、包声明与用户授权执行同一套能力和权限校验。禁止按书源名称、标识、站点或某个包版本写白名单、黑名单或授予特殊能力；能力适配应由所有合规包可使用的声明表达。源标识仍用于记录身份及安装实例间的会话、凭据和缓存隔离，完整性校验不授予额外权限。
 - 源生产校验要求合法 homepage；App 兼容没有该字段的既有包。地址只接受无账号信息的完整 HTTP(S) URL，不从 API、CDN、失败请求或 ID 猜站点。普通网页仅显示已安装或缓存中已有合法地址的入口，不在点击后补取地址或摆空选项。
 - homepage 与 webSessionOrigins 分工独立：前者用于普通导航，后者限定验证会话。主页不扩大 Cookie、UA 或网络权限。
 - 拷贝漫画已安装包声明默认主页时，普通网站入口用点击时已保存的 `domain` 在同一份三个已知 API/网页域对中选站。没有保存值、保存值无效或设置不可读时，仍打开默认声明主页。这个映射只用于普通导航。

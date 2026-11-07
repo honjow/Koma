@@ -3,8 +3,9 @@ import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
-import { checkSyncGroupFact, SyncRecentValue, SyncWorkLabel, syncBucketKey, syncGroupVisibleValue, syncKey, syncKeyParts,
-  SYNC_READING_DATASET, SYNC_SHELF_DATASET, syncShelfMove, syncShelfMoveDestination } from './DeviceSyncData'
+import { checkSyncGroupFact, SyncRecentValue, SyncWorkLabel, syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts,
+  SYNC_READING_DATASET, SYNC_SHELF_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET, SYNC_SEARCH_DATASET,
+  syncShelfMove, syncShelfMoveDestination } from './DeviceSyncData'
 import {
   buildSyncDataset, decodeSyncShard, newSyncManifest, syncDatasetBytes, syncDigest, syncShardPath, syncDatasetBranches,
   SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
@@ -15,24 +16,13 @@ import {
   readSyncCredential, writeSyncCredential, clearSyncCredential,
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
+import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 
 export interface DeviceSyncLocalEdit {
   key: string
   kind: SyncEditKind
   value: string
   observed?: SyncVersion[]
-}
-
-export interface SyncApplyGroup {
-  group: SyncGroup
-  changes: SyncLocalValue[]
-}
-
-/** Real application owners participate in one local commit before UI publication. */
-export interface DeviceSyncOwner {
-  snapshot(group: SyncGroup, verifyPublic: boolean, guard?: SyncRequestGuard, shelfSpace?: string): Promise<SyncLocalSnapshot>
-  removed(group: SyncGroup, keys: string[]): string[]
-  commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (receipt: string) => void): Promise<void>
 }
 
 export interface SyncMergeConflict {
@@ -84,6 +74,7 @@ export interface SyncReviewPermit {
 }
 
 interface PreparedGroup {
+  coverUnavailable?: boolean
   id: SyncGroup
   local: SyncLocalSnapshot
   remote: SyncFact[]
@@ -93,6 +84,7 @@ interface PreparedGroup {
   removed: string[]
   published?: SyncFact[]
   migrating?: SyncFact[]
+  degraded?: boolean
 }
 
 export interface SyncPreview {
@@ -135,6 +127,7 @@ interface PreparedSync {
 }
 
 interface ProposedSync {
+  writtenDatasets?: string[]
   manifest: SyncManifest
   objects: SyncObject[]
   groups: SyncGroupState[]
@@ -157,20 +150,54 @@ const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
 
 function writeDatasetId(group: SyncGroup): string {
   if (group === 'reading') return SYNC_READING_DATASET
-  return group === 'shelf' ? SYNC_SHELF_DATASET : group
+  if (group === 'shelf') return SYNC_SHELF_CATALOG_DATASET
+  if (group === 'reader-settings') return SYNC_READER_SETTINGS_DATASET
+  return group === 'source-subscriptions' ? SYNC_SUBSCRIPTIONS_DATASET : SYNC_SEARCH_DATASET
+}
+
+function coverDatasetId(group: SyncGroup): string {
+  // Older readers validate keys strictly in the existing datasets.
+  return group === 'shelf' || group === 'reading' ? group + '-cover-records' : ''
+}
+
+function writeDatasetIds(group: SyncGroup): string[] {
+  const cover = coverDatasetId(group)
+  return cover === '' ? [writeDatasetId(group)] : [writeDatasetId(group), cover]
+}
+
+function isCoverKey(key: string): boolean {
+  return key.startsWith('["cover",')
 }
 
 function groupDatasets(manifest: SyncManifest | undefined, group: SyncGroup): SyncDatasetRef[] {
   const refs = syncDatasetBranches(manifest, writeDatasetId(group))
-  // Older clients keep their original shards and never see a partial move.
-  return group === 'reading' || group === 'shelf' ? refs.concat(syncDatasetBranches(manifest, group)) : refs
+  // Older clients still read their own dataset IDs. Never write records that
+  // they cannot decode into those datasets.
+  return refs.concat(syncDatasetBranches(manifest, group),
+    group === 'shelf' ? syncDatasetBranches(manifest, SYNC_SHELF_DATASET) : [])
 }
 
 function selectedDatasetIds(groups: SyncGroup[]): string[] {
   const ids: string[] = groups.slice()
-  if (groups.includes('reading')) ids.push(SYNC_READING_DATASET)
+  groups.forEach((group: SyncGroup): void => { ids.push(...writeDatasetIds(group)) })
   if (groups.includes('shelf')) ids.push(SYNC_SHELF_DATASET)
   return ids
+}
+
+function businessFact(group: SyncGroup, fact: SyncFact): SyncFact {
+  const key = syncBusinessKey(group, fact.key)
+  return key === fact.key ? fact : { key, seen: fact.seen, values: fact.values, barriers: fact.barriers, cleared: fact.cleared }
+}
+
+function businessGroup(row: SyncGroupState | undefined): SyncGroupState | undefined {
+  if (row === undefined || (row.id !== 'source-subscriptions' && row.id !== 'search-history')) return row
+  return { id: row.id, facts: mergeSyncFacts([], row.facts.map((fact: SyncFact): SyncFact => businessFact(row.id, fact))),
+    baseline: row.baseline.map((item: SyncLocalValue): SyncLocalValue =>
+      ({ key: syncBusinessKey(row.id, item.key), value: item.value })),
+    pending: row.pending.map((item: SyncPendingEdit): SyncPendingEdit =>
+      ({ key: syncBusinessKey(row.id, item.key), version: item.version })),
+    deferred: row.deferred?.map((key: string): string => syncBusinessKey(row.id, key)),
+    deferredRoots: row.deferredRoots?.map((key: string): string => syncBusinessKey(row.id, key)) }
 }
 
 function selectedGroups(groups: SyncGroup[]): SyncGroup[] {
@@ -302,7 +329,8 @@ function detachedIntent(intent: SyncCommitIntent, state: SyncLocalDocument): Syn
     state.publicationWriter = util.generateRandomUUID()
   }
   return { connection: intent.connection, expected: intent.expected, sent: intent.sent, detached: true,
-    groupRevisions: intent.groupRevisions, applies: intent.applies, commit: intent.commit, commitBody: intent.commitBody }
+    groupRevisions: intent.groupRevisions, applies: intent.applies, commit: intent.commit, commitBody: intent.commitBody,
+    writtenDatasets: intent.writtenDatasets }
 }
 
 export class DeviceSyncEngine {
@@ -347,7 +375,8 @@ export class DeviceSyncEngine {
   }
 
   selection(): SyncGroup[] {
-    return this.configuration()?.selected.slice() ?? DEFAULT_GROUPS.slice()
+    const groups = this.storage.load().syncContents ?? this.configuration()?.selected ?? DEFAULT_GROUPS
+    return selectedGroups(groups)
   }
 
   async connectionDraft(): Promise<SyncConnectionDraft | undefined> {
@@ -381,7 +410,6 @@ export class DeviceSyncEngine {
     const pending = this.storage.load().pendingConfiguration
     if (pending !== undefined) {
       if (pending.enabled === value) return
-      if (value && !this.hasUnresolvedCommit()) throw new Error('sync_review_required')
       this.storage.update((state: SyncLocalDocument): void => {
         if (state.pendingConfiguration !== undefined) state.pendingConfiguration.enabled = value
       })
@@ -441,7 +469,7 @@ export class DeviceSyncEngine {
 
   cancelConnectionTest(): void { this.probeGeneration++; this.tested = undefined }
 
-  async saveConfiguration(raw: SyncConnectionDraft, input: SyncGroup[]): Promise<void> {
+  async saveConfiguration(raw: SyncConnectionDraft): Promise<void> {
     const draft = checkedSyncDraft(raw)
     const guard = this.guard(this.generation)
     if (this.tested === undefined || !sameConnection(this.tested, draft) || this.tested.password !== draft.password) {
@@ -456,7 +484,9 @@ export class DeviceSyncEngine {
       const endpoint = endpointIdentity(draft)
       const previous = this.configuration()
       const previousCredential = previous?.credential
+      const selected = this.selection()
       this.storage.update((state: SyncLocalDocument): void => {
+        state.syncContents = selected.slice()
         if (previous?.endpointIdentity === endpoint) {
           if (state.pendingConfiguration !== undefined) state.pendingConfiguration.credential = credential
           else if (state.active !== undefined) state.active.credential = credential
@@ -474,7 +504,7 @@ export class DeviceSyncEngine {
           }
           state.active = undefined
           if (state.intent !== undefined) state.intent = detachedIntent(state.intent, state)
-          state.pendingConfiguration = { credential, endpointIdentity: endpoint, selected: selectedGroups(input),
+          state.pendingConfiguration = { credential, endpointIdentity: endpoint, selected: selected.slice(),
             automatic: true, enabled: false }
         }
         state.retiredCredentials = state.retiredCredentials?.filter((ref: string): boolean => ref !== credential)
@@ -725,39 +755,55 @@ export class DeviceSyncEngine {
     this.lastReadingRound = undefined
     this.requireEnabled()
     await this.recoverIntent()
-    const connection = this.active()
-    if (connection === undefined || connection.selected.length === 0) throw new Error('sync_select_contents')
-    if (syncRequiresExplicitReview(connection)) throw new Error('sync_review_required')
+    const configured = this.configuration()
+    if (configured === undefined || configured.selected.length === 0) throw new Error('sync_select_contents')
+    const active = this.active()
+    if (active?.restoreReview === true && syncRequiresExplicitReview(active)) throw new Error('sync_review_required')
+    const connection = active ?? this.storage.load().archives?.find((item: SyncSavedConnection): boolean =>
+      item.endpointIdentity === configured.endpointIdentity)
     const guard = this.transferGuard(this.generation)
-    const draft = await readSyncCredential(connection.credential)
-    if (connection.frontier === undefined) {
-      this.storage.update((state: SyncLocalDocument): void => {
-        if (state.active !== undefined) { state.active.requiresExplicitReview = true; state.active.reviewRequired = true }
-      })
-      throw new Error('sync_protocol_review_required')
-    }
-    const provider = new DeviceSyncWebDav(draft, connection.frontier, connection.space, this.publicationWriter())
+    const draft = await readSyncCredential(configured.credential)
+    guard()
+    const provider = new DeviceSyncWebDav(draft, connection?.frontier, connection?.space, this.publicationWriter())
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) await this.recoverIntent()
-        let remote = await provider.readManifest(guard)
-        const appliedTag = JSON.stringify([connection.endpointIdentity, connection.selected, remote.etag, remote.hash])
-        if (probeOnly && !remote.warning && appliedTag === this.appliedRemoteTag &&
-          !connection.groups.some((group: SyncGroupState): boolean => connection.selected.includes(group.id) && group.pending.length > 0)) return
+        let remote = await provider.readManifest(guard, '', probeOnly && attempt === 0)
+        const appliedTag = JSON.stringify([configured.endpointIdentity, configured.selected, remote.etag, remote.hash])
+        if (probeOnly && active !== undefined && !remote.warning && appliedTag === this.appliedRemoteTag &&
+          !active.groups.some((group: SyncGroupState): boolean => configured.selected.includes(group.id) && group.pending.length > 0)) return
         this.checkHighWater(this.active(), remote)
         if (remote.manifest?.maintenance === true) remote = await this.finishMaintenance(provider, remote, guard)
         this.checkHighWater(this.active(), remote)
-        this.rememberRemote(connection.space, remote)
+        this.rememberRemote(provider.spaceId(), remote)
         if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
         const counter = this.storage.load().counter
-        const groups = await this.prepareGroups(provider, connection.selected, this.active(), remote.manifest, guard, true, remote)
+        const groupErrors: string[] = []
+        let groups = await this.prepareGroups(provider, configured.selected, this.active() ?? connection,
+          remote.manifest, guard, true, remote, true, groupErrors)
         if (counter !== this.storage.load().counter) continue
-        const proposal = this.propose(groups, remote.manifest, [], provider.spaceId(), false, remote)
+        let proposal = this.propose(groups, remote.manifest, [], provider.spaceId(), false, remote)
+        const rejected = new Set<SyncGroup>()
+        for (const apply of proposal.applies) {
+          try { await this.owner.validateChanges?.(apply) } catch (error) {
+            guard()
+            rejected.add(apply.group)
+            groupErrors.push((error as Error).message)
+          }
+        }
+        if (rejected.size > 0) {
+          groups = groups.filter((row: PreparedGroup): boolean => !rejected.has(row.id))
+          proposal = this.propose(groups, remote.manifest, [], provider.spaceId(), false, remote)
+        }
+        if (groups.length === 0 && groupErrors.length > 0) throw new Error(groupErrors[0])
         try {
-          await this.execute(provider, this.active(), connection.credential, connection.selected, remote, proposal, guard, false, connection.endpointIdentity)
+          await this.execute(provider, this.active() ?? connection, configured.credential, configured.selected, remote,
+            proposal, guard, false, configured.endpointIdentity, [], active === undefined)
           await this.maybeMaintain(provider, guard).catch((): void => {})
           if (remote.warning) throw new Error(remote.warning)
-          this.appliedRemoteTag = proposal.publish ? '' : appliedTag
+          if (groupErrors.length > 0) throw new Error('sync_partial:' + groupErrors[0])
+          this.appliedRemoteTag = proposal.publish || groups.some((group: PreparedGroup): boolean =>
+            group.coverUnavailable === true) ? '' : appliedTag
           return
         } catch (error) {
           if ((error as Error).message !== 'sync_remote_changed') throw error as Error
@@ -816,39 +862,119 @@ export class DeviceSyncEngine {
       }
       cache.data.forEach((fact: SyncFact): void => {
         if (keys.has(fact.key)) throw new Error('sync_duplicate_fact')
+        if (isCoverKey(fact.key) !== (dataset.id === coverDatasetId(id))) throw new Error('sync_update_required')
         checkSyncGroupFact(id, fact, dataset.id === 'shelf')
         keys.add(fact.key)
-        rows.push(fact)
+        rows.push(businessFact(id, fact))
       })
     }
-    return rows
+    return mergeSyncFacts([], rows)
+  }
+
+  private damagedGroup(error: Error): boolean {
+    return error.message === 'sync_shard_missing' || error.message === 'sync_shard_damaged'
+  }
+
+  private async loadGroup(provider: DeviceSyncWebDav, refs: SyncDatasetRef[], id: SyncGroup,
+    guard: SyncRequestGuard): Promise<SyncFact[]> {
+    let facts: SyncFact[] = []
+    for (const ref of refs) facts = mergeSyncFacts(facts, await this.loadDataset(provider, ref, guard, id))
+    return facts
   }
 
   private async prepareGroups(provider: DeviceSyncWebDav, selected: SyncGroup[], connection: SyncSavedConnection | undefined,
-    manifest: SyncManifest | undefined, guard: SyncRequestGuard, verifyPublic: boolean, transport?: SyncRemoteManifest): Promise<PreparedGroup[]> {
+    manifest: SyncManifest | undefined, guard: SyncRequestGuard, verifyPublic: boolean, transport?: SyncRemoteManifest,
+    automatic: boolean = false, groupErrors?: string[]): Promise<PreparedGroup[]> {
     let budget = SYNC_MAX_ROUND_BYTES
     const groups: PreparedGroup[] = []
     for (const id of selected) {
-      const refs = groupDatasets(manifest, id)
-      budget -= refs.reduce((size: number, ref: SyncDatasetRef): number => size + syncDatasetBytes(ref), 0)
-      if (budget < 0) throw new Error('sync_round_too_large')
-      let remote: SyncFact[] = []
-      for (const ref of refs) remote = mergeSyncFacts(remote, await this.loadDataset(provider, ref, guard, id))
-      const local = await this.owner.snapshot(id, verifyPublic, guard, manifest?.space ?? connection?.space ?? '')
-      const previous = connection?.groups.find((row: SyncGroupState): boolean => row.id === id)
-      const requiresPreview = previous === undefined || connection?.credential === '' ||
-        syncRequiresExplicitReview(connection) || !connection?.selected.includes(id)
-      const removed = requiresPreview || previous === undefined ? [] :
-        this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
-      const ownRef = transport?.own?.datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === writeDatasetId(id))
-      const published = ownRef === undefined ? undefined : await this.loadDataset(provider, ownRef, guard, id)
-      let migrating: SyncFact[] = []
-      for (const ref of groupDatasets(transport?.old, id)) {
-        migrating = mergeSyncFacts(migrating, await this.loadDataset(provider, ref, guard, id))
+      const load = (refs: SyncDatasetRef[]): Promise<SyncFact[]> => {
+        const bytes = refs.reduce((size: number, ref: SyncDatasetRef): number => size + syncDatasetBytes(ref), 0)
+        if (bytes > budget) throw new Error('sync_round_too_large')
+        budget -= bytes
+        return this.loadGroup(provider, refs, id, guard)
       }
-      groups.push({ id, local, remote, previous, requiresPreview, resetBaseline: connection?.restoreReview === true,
-        removed, published, migrating })
-      guard()
+      try {
+        const refs = groupDatasets(manifest, id)
+        const local = await this.owner.snapshot(id, verifyPublic, guard, manifest?.space ?? connection?.space ?? '')
+        const previous = businessGroup(connection?.groups.find((row: SyncGroupState): boolean => row.id === id))
+        let remote: SyncFact[]
+        try { remote = await load(refs) } catch (error) {
+          const failure = error as Error
+          if (!automatic || groupErrors === undefined || !this.damagedGroup(failure) ||
+            transport?.writerHeads === undefined) throw failure
+          groupErrors.push(failure.message)
+          // A receiver that has already applied this group keeps its durable
+          // projection and pending edits. Only a fresh group needs a preview
+          // of the last complete publication.
+          if (previous !== undefined || local.values.some((item: SyncLocalValue): boolean =>
+            local.unsetKeys?.includes(item.key) !== true)) continue
+          let fallback = await load(groupDatasets(transport.old, id))
+          let complete = true
+          for (const writer of transport.writerHeads) {
+            let contribution: SyncFact[] = []
+            const currentRefs = groupDatasets(writer.manifest, id)
+            try { contribution = await load(currentRefs) } catch (broken) {
+              if (!this.damagedGroup(broken as Error)) throw broken as Error
+              const tried = new Set<string>([JSON.stringify(currentRefs)])
+              complete = await provider.readEarlierWriterGroup(writer, guard, async (candidate: SyncManifest): Promise<boolean> => {
+                const older = groupDatasets(candidate, id)
+                const signature = JSON.stringify(older)
+                if (older.length === 0 || tried.has(signature)) return false
+                tried.add(signature)
+                try { contribution = await load(older); return true } catch (damage) {
+                  if (!this.damagedGroup(damage as Error)) throw damage as Error
+                  return false
+                }
+              })
+              if (!complete) break
+            }
+            fallback = mergeSyncFacts(fallback, contribution)
+          }
+          guard()
+          if (complete) groups.push({ id, local, remote: fallback, requiresPreview: false, resetBaseline: false,
+            removed: [], degraded: true })
+          continue
+        }
+        const requiresPreview = !automatic && (previous === undefined || connection?.credential === '' ||
+          syncRequiresExplicitReview(connection) || !connection?.selected.includes(id))
+        const removed = requiresPreview || previous === undefined ? [] : id === 'source-subscriptions' ?
+          previous.baseline.filter((item: SyncLocalValue): boolean => !local.values.some((now: SyncLocalValue): boolean =>
+            now.key === item.key)).map((item: SyncLocalValue): string => item.key) :
+          this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
+        const ownRef = transport?.own?.datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === writeDatasetId(id))
+        let published = ownRef === undefined ? [] : await this.loadDataset(provider, ownRef, guard, id)
+        let migrating: SyncFact[] = []
+        for (const ref of groupDatasets(transport?.old, id)) {
+          migrating = mergeSyncFacts(migrating, await this.loadDataset(provider, ref, guard, id))
+        }
+        let coverUnavailable = false
+        const coverId = coverDatasetId(id)
+        if (coverId !== '') {
+          // Artwork is optional. An unreadable cover shard cannot interrupt
+          // reading progress or shelf changes, or erase the writer's old ref.
+          const savedBudget = budget
+          try {
+            const cover = await load(syncDatasetBranches(manifest, coverId))
+            const ownCover = await this.loadGroup(provider, syncDatasetBranches(transport?.own, coverId), id, guard)
+            const oldCover = await this.loadGroup(provider, syncDatasetBranches(transport?.old, coverId), id, guard)
+            remote = mergeSyncFacts(remote, cover)
+            published = mergeSyncFacts(published, ownCover)
+            migrating = mergeSyncFacts(migrating, oldCover)
+          } catch (_error) {
+            guard()
+            budget = savedBudget
+            coverUnavailable = true
+          }
+        }
+        guard()
+        groups.push({ id, local, remote, previous, requiresPreview, resetBaseline: connection?.restoreReview === true,
+          removed, published, migrating, coverUnavailable })
+      } catch (error) {
+        guard()
+        if (groupErrors === undefined) throw error as Error
+        groupErrors.push((error as Error).message)
+      }
     }
     return groups
   }
@@ -877,7 +1003,7 @@ export class DeviceSyncEngine {
         }
       })
       local.forEach((value: string, key: string): void => {
-        if (entry.local.protectedKeys?.includes(key)) return
+        if (isCoverKey(key) || entry.local.protectedKeys?.includes(key)) return
         const fact = remote.get(key)
         if (key.startsWith('["category",')) categories.push(JSON.parse(value) as string)
         if (fact === undefined) {
@@ -902,6 +1028,7 @@ export class DeviceSyncEngine {
         effects.push({ key, value: moving || theirs === undefined ? 'remove' : 'download' })
       })
       remote.forEach((fact: SyncFact, key: string): void => {
+        if (isCoverKey(key)) return
         const value = syncGroupVisibleValue(entry.id, fact)
         if (!entry.local.protectedKeys?.includes(key) && !local.has(key) && value !== undefined &&
           !shelfMoveValue(entry.id, key, value)) {
@@ -963,6 +1090,24 @@ export class DeviceSyncEngine {
     let datasets = base.datasets.slice()
     let alternatives = base.alternatives?.slice() ?? []
     for (const row of prepared) {
+      if (row.degraded === true) {
+        const changes: SyncLocalValue[] = []
+        const facts = row.remote.filter((fact: SyncFact): boolean => {
+          if (row.local.protectedKeys?.includes(fact.key)) return false
+          const value = syncGroupVisibleValue(row.id, fact)
+          if (value !== undefined && shelfMoveValue(row.id, fact.key, value)) return false
+          if (value !== undefined) changes.push({ key: fact.key, value })
+          // Keep observed deletion dots for a future complete round, without
+          // applying deletions or writing any recovered data back to WebDAV.
+          return true
+        })
+        const group: SyncGroupState = { id: row.id, facts, baseline: row.local.values.slice(), pending: [] }
+        groups.push(group)
+        remaining.push(group)
+        applies.push({ group: row.id, changes })
+        revisions.push({ group: row.id, revision: row.local.revision })
+        continue
+      }
       const remote = bySyncFact(row.remote)
       const local = byLocalValue(row.local.values)
       const prior = byLocalValue(row.previous?.baseline ?? [])
@@ -971,11 +1116,10 @@ export class DeviceSyncEngine {
       const pendingBefore = pending.length
       const protectedKeys = new Set<string>(row.local.protectedKeys ?? [])
       const previousRoots = priorConflictRoots(row)
-      // Older reviews held a reading conflict and all positions for that book.
-      // The facts already retain concurrent candidates. Only an explicit
-      // first/restore/scope review may defer ordinary reading facts.
-      const automaticReading = row.id === 'reading' && !row.requiresPreview && choices.length === 0
-      const reviewRoots = automaticReading ? previousRoots.filter((key: string): boolean => protectedKeys.has(key)) : previousRoots
+      // Old review flags are not permission gates for already selected data.
+      // The facts retain both candidates and owner protection still applies.
+      const automaticMerge = !row.requiresPreview && choices.length === 0
+      const reviewRoots = automaticMerge ? previousRoots.filter((key: string): boolean => protectedKeys.has(key)) : previousRoots
       const deferred = new Set<string>(reviewRoots.filter((key: string): boolean =>
         (protectedKeys.has(key) || !local.has(key)) && conflictChoice(choices, row.id, key) === undefined))
       const adopted = new Set<string>()
@@ -990,7 +1134,8 @@ export class DeviceSyncEngine {
         conflictChoice(choices, row.id, edit.key)?.useBeforeRestore === true ||
         (edit.bundle !== undefined && selectedBundles.has(edit.bundle))
       local.forEach((value: string, key: string): void => {
-        if (protectedKeys.has(key) || restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
+        if (isCoverKey(key) || protectedKeys.has(key) ||
+          restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
         if (!sameShelfBook(row.id, key, value, theirs) && ((row.requiresPreview && remoteFact !== undefined) || reviewRoots.includes(key)) &&
@@ -1000,7 +1145,7 @@ export class DeviceSyncEngine {
       const conflictRoots = Array.from(deferred)
       const isDeferred = (key: string): boolean => {
         if (deferred.has(key)) return true
-        if (automaticReading) return false
+        if (automaticMerge) return false
         return conflictRoots.some((root: string): boolean => deferred.has(root) && dependsOnConflict(key, root))
       }
       const editFact = (key: string, kind: SyncEditKind, value: string, remoteFact?: SyncFact, observed?: SyncVersion[],
@@ -1017,7 +1162,7 @@ export class DeviceSyncEngine {
         else prior.set(key, value)
       }
       const bundleVersions = new Map<string, SyncVersion>()
-      if (automaticReading) {
+      if (automaticMerge) {
         previousRoots.forEach((key: string): void => {
           const value = local.get(key)
           const fact = edits.get(key)
@@ -1048,6 +1193,14 @@ export class DeviceSyncEngine {
         const remoteFact = remote.get(key)
         const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
         const recorded = edits.get(key)
+        if (isCoverKey(key)) {
+          if (row.coverUnavailable !== true && remoteFact === undefined && recorded === undefined) editFact(key, 'set', value)
+          return
+        }
+        // A fresh device's built-in defaults are not new edits. Once it has
+        // a baseline, returning to the default is a normal, shareable change.
+        if (automaticMerge && theirs !== undefined && recorded === undefined && !prior.has(key) &&
+          row.local.defaultKeys?.includes(key) === true) return
         const needsDecision = (row.requiresPreview || reviewRoots.includes(key)) &&
           remoteFact !== undefined && theirs !== value && !sameShelfBook(row.id, key, value, theirs)
         const choice = conflictChoice(choices, row.id, key)
@@ -1125,6 +1278,7 @@ export class DeviceSyncEngine {
       const baseline = row.local.values.slice()
       facts.forEach((fact: SyncFact): void => {
         const value = syncGroupVisibleValue(row.id, fact)
+        if (isCoverKey(fact.key) && (value === undefined || local.has(fact.key))) return
         if (!isDeferred(fact.key) && !protectedKeys.has(fact.key) && value !== local.get(fact.key)) {
           if (row.id === 'shelf') {
             const parts = syncKeyParts(fact.key)
@@ -1145,8 +1299,6 @@ export class DeviceSyncEngine {
           changes.push({ key: fact.key, value: value ?? '' })
         }
       })
-      const datasetId = writeDatasetId(row.id)
-      const ref = datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === datasetId)
       let outgoing = facts.filter((fact: SyncFact): boolean => !isDeferred(fact.key) && !protectedKeys.has(fact.key))
         .concat(row.remote.filter((fact: SyncFact): boolean => isDeferred(fact.key) || protectedKeys.has(fact.key)))
       if (writer) {
@@ -1161,16 +1313,23 @@ export class DeviceSyncEngine {
       }
       const published = bySyncFact(outgoing)
       const unpublished = pending.filter((item: SyncPendingEdit): boolean => {
+        if (row.coverUnavailable === true && isCoverKey(item.key)) return true
         const fact = published.get(item.key)
         return fact === undefined || !syncObserves(fact.seen, item.version)
       })
       if (!projectOnly) {
-        const built = buildSyncDataset(datasetId, outgoing, base.epoch, ref, syncBucketKey)
-        alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== datasetId)
-        if (built.ref.shards.length > 0 || ref !== undefined) {
-          datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== datasetId).concat(built.ref)
+        for (const datasetId of writeDatasetIds(row.id)) {
+          const ref = datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === datasetId)
+          const covers = datasetId === coverDatasetId(row.id)
+          if (covers && row.coverUnavailable === true) continue
+          const records = outgoing.filter((fact: SyncFact): boolean => isCoverKey(fact.key) === covers)
+          const built = buildSyncDataset(datasetId, records, base.epoch, ref, syncBucketKey)
+          alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== datasetId)
+          if (built.ref.shards.length > 0 || ref !== undefined) {
+            datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== datasetId).concat(built.ref)
+          }
+          objects.push(...built.objects)
         }
-        objects.push(...built.objects)
       }
       const allDeferred = Array.from(new Set<string>(Array.from(deferred)
         .concat(facts.filter((fact: SyncFact): boolean => isDeferred(fact.key)).map((fact: SyncFact): string => fact.key))))
@@ -1181,7 +1340,8 @@ export class DeviceSyncEngine {
       revisions.push({ group: row.id, revision: row.local.revision })
     }
     const outputBytes = datasets.filter((dataset: SyncDatasetRef): boolean =>
-      prepared.some((group: PreparedGroup): boolean => writeDatasetId(group.id) === dataset.id))
+      prepared.some((group: PreparedGroup): boolean => writeDatasetId(group.id) === dataset.id ||
+        (group.coverUnavailable !== true && coverDatasetId(group.id) === dataset.id)))
       .reduce((total: number, dataset: SyncDatasetRef): number => total + syncDatasetBytes(dataset), 0)
     if (outputBytes > SYNC_MAX_ROUND_BYTES) throw new Error('sync_round_too_large')
     datasets.sort((a: SyncDatasetRef, b: SyncDatasetRef): number => a.id < b.id ? -1 : a.id === b.id ? 0 : 1)
@@ -1194,7 +1354,13 @@ export class DeviceSyncEngine {
     const manifest: SyncManifest = publish ? { format: base.format, schema: base.schema, minWriter: base.minWriter,
       space: base.space, revision: base.revision + 1, epoch: base.epoch, maintenance: base.maintenance,
       datasets, previous: writer ? [] : base.datasets, alternatives } : writer ? existing ?? base : base
-    return { manifest, objects, groups, staged, remaining, applies, revisions, counter, initialCounter: current.counter, publish }
+    // V3 republishes the writer's unchanged refs verbatim. Verify new refs
+    // here, so known damage in an unrelated old group cannot block a repair.
+    const writtenDatasets = writer ? datasets.filter((ref: SyncDatasetRef): boolean =>
+      !base.datasets.some((old: SyncDatasetRef): boolean => JSON.stringify(old) === JSON.stringify(ref)))
+      .map((ref: SyncDatasetRef): string => ref.id) : undefined
+    return { manifest, objects, groups, staged, remaining, applies, revisions, counter, initialCounter: current.counter,
+      publish, writtenDatasets }
   }
 
   private async assertRevisions(revisions: SyncOwnerRevision[]): Promise<SyncLocalSnapshot[]> {
@@ -1237,7 +1403,8 @@ export class DeviceSyncEngine {
       if (detached !== undefined && (detached.sent || detached.detached || detached.connection.endpointIdentity !== endpoint)) {
         const archived: SyncCommitIntent = { connection: copySyncConnection(detached.connection),
           expected: detached.expected, sent: detached.sent, detached: true,
-          groupRevisions: detached.groupRevisions, applies: detached.applies, commit: detached.commit, commitBody: detached.commitBody }
+          groupRevisions: detached.groupRevisions, applies: detached.applies, commit: detached.commit, commitBody: detached.commitBody,
+          writtenDatasets: detached.writtenDatasets }
         archived.connection.credential = ''
         state.archivedIntents = (state.archivedIntents ?? []).filter((item: SyncCommitIntent): boolean =>
           item.connection.endpointIdentity !== detached.connection.endpointIdentity ||
@@ -1250,7 +1417,8 @@ export class DeviceSyncEngine {
       }
       const commit = proposal.publish && remote.journal ? provider.commitName(proposal.manifest, remote.frontier ?? []) : undefined
       const commitBody = commit === undefined ? undefined : provider.commitBody(proposal.manifest, remote.frontier ?? [])
-      state.intent = { connection, expected: remote.etag, sent: false, groupRevisions: proposal.revisions, applies: proposal.applies, commit, commitBody }
+      state.intent = { connection, expected: remote.etag, sent: false, groupRevisions: proposal.revisions,
+        applies: proposal.applies, commit, commitBody, writtenDatasets: proposal.writtenDatasets }
       if (activate) {
         if (state.pendingConfiguration?.endpointIdentity === endpoint) state.pendingConfiguration.enabled = true
         if (state.active?.endpointIdentity === endpoint) state.active.enabled = true
@@ -1267,13 +1435,14 @@ export class DeviceSyncEngine {
         if (intent === undefined) throw new Error('sync_connection_changed')
         state.intent = { connection: intent.connection, expected: intent.expected, sent: true,
           detached: intent.detached, groupRevisions: intent.groupRevisions, applies: intent.applies,
-          commit: intent.commit, commitBody: intent.commitBody }
+          commit: intent.commit, commitBody: intent.commitBody, writtenDatasets: intent.writtenDatasets }
       })
       sent = true
     }
     let receipt: SyncRemoteManifest
     try {
-      if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard, beforeSend, selectedDatasetIds(selected)))) {
+      if (proposal.publish && !(await provider.publish(proposal.manifest, remote.etag, guard, beforeSend,
+        proposal.writtenDatasets ?? selectedDatasetIds(selected)))) {
         this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
         throw new Error(manualPreview ? 'sync_preview_changed' : 'sync_remote_changed')
       }
@@ -1364,12 +1533,17 @@ export class DeviceSyncEngine {
       active.enabled = pending.enabled
       active.automatic = pending.automatic
       active.credential = pending.credential
+      active.selected = pending.selected.slice()
     } else if (replaced?.endpointIdentity === connection.endpointIdentity) {
       active.enabled = replaced.enabled ?? true
       active.automatic = replaced.automatic
       active.credential = replaced.credential
     }
-    active.groups = replaced?.space === connection.space ? replaced.groups.slice() : []
+    state.syncContents = selectedGroups(state.syncContents ?? active.selected)
+    active.selected = state.syncContents.slice()
+    const previous = replaced?.space === connection.space ? replaced : state.archives?.find((item: SyncSavedConnection): boolean =>
+      item.endpointIdentity === connection.endpointIdentity && item.space === connection.space)
+    active.groups = previous?.groups.slice() ?? []
     committed.forEach((group: SyncGroupState): void => { active.groups = replaceGroup(active.groups, group) })
     active.lastSuccess = Date.now()
     state.active = active
@@ -1400,9 +1574,17 @@ export class DeviceSyncEngine {
     if (remote.manifest === undefined || remote.manifest.space !== connection.space) return
     const groups: SyncGroupState[] = []
     let budget = SYNC_MAX_ROUND_BYTES
+    const written = this.storage.load().intent?.writtenDatasets
     for (const group of connection.groups) {
       if (!connection.selected.includes(group.id)) continue
-      const refs = groupDatasets(remote.manifest, group.id)
+      if (written !== undefined && !writeDatasetIds(group.id).some((id: string): boolean => written.includes(id))) {
+        groups.push(group)
+        continue
+      }
+      const coverId = coverDatasetId(group.id)
+      const refs = groupDatasets(remote.manifest, group.id).concat(syncDatasetBranches(remote.manifest, coverId))
+        .filter((ref: SyncDatasetRef): boolean => (written === undefined || written.includes(ref.id)) &&
+          group.pending.some((row: SyncPendingEdit): boolean => isCoverKey(row.key) === (ref.id === coverId)))
       if (refs.length === 0 || group.pending.length === 0) {
         groups.push(group)
         continue
@@ -1426,7 +1608,8 @@ export class DeviceSyncEngine {
       const confirmed = copySyncConnection(connection)
       confirmed.groups = groups
       state.intent = { connection: confirmed, expected: state.intent.expected, sent: state.intent.sent, detached: state.intent.detached,
-        groupRevisions: state.intent.groupRevisions, applies: state.intent.applies, commit: state.intent.commit, commitBody: state.intent.commitBody }
+        groupRevisions: state.intent.groupRevisions, applies: state.intent.applies, commit: state.intent.commit, commitBody: state.intent.commitBody,
+        writtenDatasets: state.intent.writtenDatasets }
     })
   }
 
@@ -1469,44 +1652,66 @@ export class DeviceSyncEngine {
 
   setAutomatic(value: boolean): void {
     const current = this.storage.load()
+    if (current.pendingConfiguration !== undefined) {
+      this.storage.update((state: SyncLocalDocument): void => {
+        if (state.pendingConfiguration !== undefined) state.pendingConfiguration.automatic = value
+      })
+      return
+    }
     if (current.active === undefined || current.active.automatic === value) return
     this.storage.update((state: SyncLocalDocument): void => { if (state.active !== undefined) state.active.automatic = value })
   }
 
   setSelection(input: SyncGroup[]): void {
     const current = this.storage.load()
-    if (current.pendingConfiguration !== undefined) {
-      if (this.hasUnresolvedCommit()) throw new Error('sync_review_required')
-      this.storage.update((state: SyncLocalDocument): void => {
-        if (state.pendingConfiguration !== undefined) state.pendingConfiguration.selected = selectedGroups(input)
-      })
-      this.reviewGeneration++
-      this.prepared = undefined
-      return
-    }
-    if (current.active === undefined) return
     const selected = selectedGroups(input)
-    if (selected.some((id: SyncGroup): boolean => !current.active?.selected.includes(id))) throw new Error('sync_review_required')
-    this.generation++
-    this.prepared = undefined
-    current.active.selected.forEach((group: SyncGroup): void => {
-      if (!selected.includes(group)) this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1)
-    })
+    const before = this.selection()
+    if (selected.join(',') === before.join(',')) return
+    const configuration = this.configuration()
     this.storage.update((state: SyncLocalDocument): void => {
+      state.syncContents = selected.slice()
+      if (configuration !== undefined) this.adjustIntentSelection(state, configuration.endpointIdentity, selected)
+      const pending = state.pendingConfiguration
+      if (pending !== undefined) {
+        pending.selected = selected.slice()
+        return
+      }
       const active = state.active
-      const intent = state.intent
-      if (active === undefined) return
-      if (intent?.connection.space === active.space && active.selected.some((id: SyncGroup): boolean =>
-        !selected.includes(id) && intent.connection.selected.includes(id))) {
-        state.intent = detachedIntent(intent, state)
+      if (active === undefined) {
+        if (configuration !== undefined) {
+          state.pendingConfiguration = { credential: configuration.credential, endpointIdentity: configuration.endpointIdentity,
+            selected: selected.slice(), automatic: configuration.automatic, enabled: configuration.enabled !== false }
+        }
+        return
       }
       const explicit = syncRequiresExplicitReview(active)
-      active.selected = selected
+      active.selected = selected.slice()
       if (!explicit) {
         active.reviewRequired = active.groups.some((group: SyncGroupState): boolean =>
           selected.includes(group.id) && (group.deferred?.length ?? 0) > 0)
       }
     })
+    this.generation++
+    this.reviewGeneration++
+    this.prepared = undefined
+    before.forEach((group: SyncGroup): void => {
+      if (!selected.includes(group)) this.groupEpochs.set(group, (this.groupEpochs.get(group) ?? 0) + 1)
+    })
+  }
+
+  private adjustIntentSelection(state: SyncLocalDocument, endpoint: string, selected: SyncGroup[]): void {
+    const intent = state.intent
+    if (intent === undefined || intent.detached || intent.connection.endpointIdentity !== endpoint) return
+    if (intent.connection.selected.some((id: SyncGroup): boolean => !selected.includes(id))) {
+      state.intent = detachedIntent(intent, state)
+    } else {
+      // An earlier published round may finish, but must not overwrite a newer scope choice.
+      const connection = copySyncConnection(intent.connection)
+      connection.selected = selected.slice()
+      state.intent = { connection, expected: intent.expected, sent: intent.sent, detached: intent.detached,
+        commit: intent.commit, commitBody: intent.commitBody, applies: intent.applies, groupRevisions: intent.groupRevisions,
+        writtenDatasets: intent.writtenDatasets }
+    }
   }
 
   groupScope(group: SyncGroup): string {
@@ -1602,7 +1807,8 @@ export class DeviceSyncEngine {
   recordEdits(group: SyncGroup, actions: DeviceSyncLocalEdit[], receipt?: SyncReadingReceipt): SyncVersion | undefined {
     const current = this.storage.load()
     const active = current.active
-    if (active === undefined || !active.selected.includes(group) || syncRequiresExplicitReview(active) || this.restoreInProgress) return
+    if (active === undefined || !active.selected.includes(group) ||
+      (active.restoreReview === true && syncRequiresExplicitReview(active)) || this.restoreInProgress) return
     const previous = active.groups.find((item: SyncGroupState): boolean => item.id === group)
     if (previous === undefined || (actions.length === 0 && receipt === undefined) ||
       current.readingReceipts?.some((item: SyncReadingReceipt): boolean => item.key === receipt?.key && item.id === receipt?.id)) return
@@ -1683,7 +1889,8 @@ export class DeviceSyncEngine {
     if (receipt === undefined && intent.commitBody !== undefined) {
       // An absent reply may mean the original PUT never arrived. Replaying the
       // exact immutable bytes is safe even if that original request arrives late.
-      receipt = await provider.retryCommit(intent.commitBody, guard, selectedDatasetIds(connection.selected), intent.commit)
+      receipt = await provider.retryCommit(intent.commitBody, guard,
+        intent.writtenDatasets ?? selectedDatasetIds(connection.selected), intent.commit)
     }
     if (receipt === undefined) throw new Error('sync_remote_result_unknown')
     if (active?.space === connection.space && intent.commit === undefined) this.checkHighWater(active, receipt)
@@ -1772,6 +1979,7 @@ export class DeviceSyncEngine {
 
   async disconnect(): Promise<void> {
     const current = this.storage.load()
+    const selected = this.selection()
     this.generation++
     this.prepared = undefined
     this.tested = undefined
@@ -1787,6 +1995,7 @@ export class DeviceSyncEngine {
     // Explicitly forgetting this service also withdraws its probe credentials.
     // Remote files are retained; a different service owns its own state/store.
     this.storage.update((state: SyncLocalDocument): void => {
+      state.syncContents = selected.slice()
       state.probes = []
       state.pendingConfiguration = undefined
       if (state.intent !== undefined) state.intent = detachedIntent(state.intent, state)

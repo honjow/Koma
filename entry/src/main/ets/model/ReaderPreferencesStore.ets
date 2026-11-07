@@ -5,7 +5,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { AppStrings } from '../i18n/AppStrings'
-import { ReadingDirection } from './ComicModels'
+import { ReaderSeriesFormat, ReadingDirection } from './ComicModels'
 import { ReaderModeSnapshot, ReaderModeStateBridge } from '../state/ReaderModeState'
 import { KomaReaderBackend, connectKomaReaderBackendSelection } from '../state/KomaReaderBackendSelectionState'
 
@@ -117,6 +117,7 @@ export interface ReaderDeviceSyncPreferences {
   showPageNumber: boolean
   imageFitMode: ReaderImageFitMode
   books: Record<string, ReaderSeriesModeOverride>
+  unsetFields?: string[]
 }
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -826,12 +827,19 @@ export class ReaderPreferencesStore {
   captureDeviceSyncPreferences(): Promise<ReaderDeviceSyncPreferences> {
     return this.ordered(async (): Promise<ReaderDeviceSyncPreferences> => {
       const current = await this.readPreferences()
+      const store = await this.preferences()
+      const unsetFields: string[] = []
+      if (!(await store.has('reader.pageMode')) && !(await store.has('reader.readingDirection'))) unsetFields.push('mode')
+      if (!(await store.has('reader.pageTurnAnimation'))) unsetFields.push('animation')
+      if (!(await store.has('reader.showPageNumber'))) unsetFields.push('page-number')
+      if (!(await store.has('reader.imageFitMode'))) unsetFields.push('image-fit')
       return {
         mode: { pageMode: current.pageMode, readingDirection: current.readingDirection },
         pageTurnAnimation: current.pageTurnAnimation,
         showPageNumber: current.showPageNumber,
         imageFitMode: current.imageFitMode,
         books: await this.readSeriesModeOverrides(),
+        unsetFields,
       }
     })
   }
@@ -929,11 +937,21 @@ export class ReaderPreferencesStore {
     return normalized
   }
 
-  async loadForComic(comicId: string): Promise<ReaderPreferences> {
+  async loadForComic(comicId: string, format?: ReaderSeriesFormat): Promise<ReaderPreferences> {
     return this.ordered(async (): Promise<ReaderPreferences> => {
       const base = await this.readPreferences()
       const override = (await this.readSeriesModeOverrides())[comicId.trim()]
       const effective = normalizeReaderPreferences(applyReaderSeriesModeOverride(base, override))
+      // A format hint chooses an initial view without writing a user override.
+      if (override === undefined && base.pageMode === DEFAULT_READER_PREFERENCES.pageMode &&
+        base.readingDirection === DEFAULT_READER_PREFERENCES.readingDirection) {
+        if (format === 'webtoon') {
+          effective.pageMode = 'continuous_scroll'
+          effective.readingDirection = ReadingDirection.WEBTOON
+        } else if (format === 'manga') {
+          effective.readingDirection = ReadingDirection.RIGHT_TO_LEFT
+        }
+      }
       effective.bannerFilterOverride = (await this.readBannerOverrides())[comicId.trim()] ?? 'global'
       publishReaderModeState(effective)
       return effective

@@ -285,33 +285,17 @@ export function formatContinueReadingDetail(comic: MockLibraryComic, progress?: 
     .replace('%s', comic.chapterTitle)
 }
 
-function formatSourceSubtitle(comic: Comic): string {
-  if (comic.subtitle !== undefined && comic.subtitle.length > 0 && comic.subtitle.length <= 20) {
-    return comic.subtitle
-  }
-  if (comic.chapterCount > 0) {
-    return AppStrings.format(comic.chapterCount === 1
-      ? 'library_source_subtitle_chapter' : 'library_source_subtitle_chapters', comic.chapterCount)
-  }
-  // A newly synced favorite has its source identity before its catalog has
-  // loaded. The legacy storage kind is not the name of that source.
-  if (comic.sourceRuntimeId) return comic.sourceMetadata?.sourceName?.trim() || comic.sourceRuntimeId
-  if (comic.author !== undefined && comic.author.trim().length > 0) {
-    return comic.author.trim()
-  }
-  if (comic.sourceKind === ComicSourceKind.LOCAL_FOLDER) {
-    return AppStrings.get('library_source_subtitle_folder').replace('%s', `${comic.chapterCount}`)
-  }
-  if (comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY) {
-    return AppStrings.get('library_source_subtitle_private').replace('%s', `${comic.chapterCount}`)
-  }
-  return AppStrings.get('library_source_subtitle_archive').replace('%s', `${comic.chapterCount}`)
+function formatLibraryChapterCount(comic: Comic): string {
+  // A synchronized work can arrive before its chapter catalog.
+  if (comic.chapterCount <= 0) return ''
+  return AppStrings.format(comic.chapterCount === 1 ?
+    'library_source_subtitle_chapter' : 'library_source_subtitle_chapters', comic.chapterCount)
 }
 
 function createFallbackPresentation(comic: Comic): LibraryComicPresentation {
   const colorIndex = hashComicId(comic.id) % FALLBACK_COVER_COLORS.length
   return {
-    subtitle: formatSourceSubtitle(comic),
+    subtitle: formatLibraryChapterCount(comic),
     chapterTitle: comic.chapters.length === 0 ? comic.title : comic.chapters[0].title,
     fallbackProgressText: AppStrings.get('library_progress_unread'),
     coverColor: FALLBACK_COVER_COLORS[colorIndex],
@@ -382,7 +366,7 @@ export function createLibraryViewModelFromComics(
     return {
       id: comic.id,
       title: comic.title,
-      subtitle: presentation.subtitle ?? formatSourceSubtitle(comic),
+      subtitle: formatLibraryChapterCount(comic),
       unreadChapterCount: sessionStore?.unreadChapterCount(comic),
       coverColor: presentation.coverColor,
       accentColor: presentation.accentColor,

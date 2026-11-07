@@ -66,6 +66,10 @@ export function mutateLibraryUpdatePreferences(
   return result
 }
 
+export function pendingLibraryUpdateCheck(): Promise<LibraryUpdateCheckResult> | undefined {
+  return inFlight
+}
+
 export function requestLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promise<LibraryUpdateCheckResult> {
   const active = inFlight
   const activeReason = inFlightReason
@@ -190,10 +194,12 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
       result.persistenceFailed = true
       DiagnosticLogger.warn('library_update_coordinator', 'failure_result_save_failed', '[LibraryUpdateCoordinator] step=failure_result_save_failed')
     }
-    try {
-      result.notification = await publishLibraryUpdateFailureNotification(checkedAt, failureCode)
-    } catch (_notificationError) {
-      result.notification = { delivered: false, code: 'publish_failed' }
+    if (!connectAppForegroundState().active) {
+      try {
+        result.notification = await publishLibraryUpdateFailureNotification(checkedAt, failureCode)
+      } catch (_notificationError) {
+        result.notification = { delivered: false, code: 'publish_failed' }
+      }
     }
     return result
   }
@@ -229,10 +235,12 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     result.persistenceFailed = true
     DiagnosticLogger.warn('library_update_coordinator', 'summary_result_save_failed', '[LibraryUpdateCoordinator] step=summary_result_save_failed')
   }
-  try {
-    result.notification = await publishLibraryUpdateNotification(summary)
-  } catch (_error) {
-    result.notification = { delivered: false, code: 'publish_failed' }
+  if (!connectAppForegroundState().active) {
+    try {
+      result.notification = await publishLibraryUpdateNotification(summary)
+    } catch (_error) {
+      result.notification = { delivered: false, code: 'publish_failed' }
+    }
   }
   return result
 }

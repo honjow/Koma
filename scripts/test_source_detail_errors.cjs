@@ -43,14 +43,14 @@ function fixture() {
     ${['authenticateSource', 'runSourceMangaOperation', 'sourceMangaResponseItem', 'sourceOperationFailureText', 'isDetailPending', 'canReloadSourceDetail', 'canPullRefreshDetail', 'refreshMangaDetail', 'performDetailRefresh', 'loadSourceMangaDetail', 'clearDetailWebChallenge', 'closeDetailWebChallenge', 'completeDetailWebChallenge', 'finishDetailWebChallengeDismiss', 'publishDetailWebChallenge'].map(method).join('\n')}
   }`)
   new Function('exports', 'SourceAuthenticationRequest', 'SourceRuntimeError', 'DiagnosticLogger', 's', 'sourceHttpIdentityJson',
-    'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem',
+    'diagnoseSourceOperation', 'taskpool', 'executeMangaDetailSourceOperation', 'parseMangaDetailFromSourceItem', 'parseSourceRelatedManga',
     'parseMangaChapterFromSourceItem', 'sourceRuntimeEntryEnabled', 'sourceMangaDetailSnapshotCache',
     'resolveSourceChapterList', 'SourceDetailContentState', 'mangaChapterItemFromComicChapter', 'SourceWebChallengeGate', 'appSourceWebSessionStore', 'appSourceSettingsStore', 'sourceSettingsFingerprint', code)(
     exports, authentication.SourceAuthenticationRequest, SourceRuntimeError, { warn: (...args) => logs.push(args.join(' ')) }, key => key,
     (...args) => { identities.push(args); return '{}' },
     (_request, execute) => execute(), { execute: async () => state.task ? state.task() : JSON.stringify(state.response) },
     async () => state.task ? state.task() : JSON.stringify(state.response),
-    (_source, item) => item, item => item, item => item.enabled,
+    (_source, item) => item, () => undefined, item => item, item => item.enabled,
     { read: () => { reads.push(true); return state.cache }, write: (...args) => writes.push(args) },
     async (...args) => { chapterCalls.push(args); if (state.chapterError) throw state.chapterError; return { resolved: true, chapters: state.chapters, excludedChapterIds: state.excludedChapterIds } },
     { UNRESOLVED: 'unresolved', LOADING: 'loading', READY: 'ready', ERROR: 'error' }, chapter => ({ ...chapter }), SourceWebChallengeGate, { cancel: (...args) => cancelledSessions.push(args) }, { loadForSource: () => ({}) }, () => '')
@@ -65,13 +65,32 @@ function fixture() {
     sourceEmbeddedChapterItems: () => [], sourceMangaRouteUrl: () => undefined,
     beginSourceDetailRequest: () => 1, isCurrentSourceDetailRequest: () => true,
     sourceDetailWithRouteIdentity: detail => detail, refreshSourceLibraryDetail: () => {},
-    applySourceMangaDetail: (...args) => { applied.push(args); page.manga = args[4]; page.chapters = args[5]; page.sourceDetailContentState = args[7]; page.sourceDetailDataResolved = true; return true },
+    applySourceMangaDetail: (...args) => { applied.push(args); page.manga = args[4]; page.chapters = args[5]; page.feedbackText = args[6]; page.sourceDetailContentState = args[7]; page.sourceDetailDataResolved = true; return true },
     sourceComicId: () => 'saved', findSourceRuntimeComic: () => state.library,
     sourceDetailFromInitialRouteManga: () => ({ title: 'Original preview' }),
     loadLocalOrMissingManga: () => { page.chapters = state.library.chapters; page.manga = state.library },
   })
   return { page, state, entry, logs, applied, writes, reads, cancelledSessions, chapterCalls, identities }
 }
+
+test('a synced detail without local chapter rows visibly waits and reports a failed catalogue request', async () => {
+  const f = fixture()
+  f.page.manga = { title: 'Synced work', chapterCount: 273 }
+  f.page.chapters = []
+  f.page.sourceDetailDataResolved = true
+  f.page.sourceChaptersResolved = false
+  f.page.sourceDetailContentState = 'local'
+  let release
+  f.state.task = () => new Promise(resolve => { release = resolve })
+  f.state.chapterError = new SourceRuntimeError({ ok: false, error: { code: 'network_error' } })
+  const loading = f.page.loadSourceMangaDetail('source.test', 'saved')
+  assert.equal(f.page.sourceDetailContentState, 'loading')
+  assert.equal(f.page.feedbackText, 'manga_detail_loading_chapters')
+  release(JSON.stringify(f.state.response))
+  await loading
+  assert.equal(f.page.sourceDetailContentState, 'error')
+  assert.notEqual(f.applied.at(-1)[6], '')
+})
 
 test('required image descriptors retain source access failures and optional descriptors keep their fallback', async () => {
   const source = read('model/ReaderPageSourceAdapter')

@@ -17,8 +17,10 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  ReaderSeriesFormat,
   ReadingProgress,
   currentComicReadingProgress,
+  readerFormatFromTags,
   readingProgressPageIndex,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
@@ -86,6 +88,7 @@ function copySourceReadHistoryEntry(entry: SourceReadHistoryEntry): SourceReadHi
     title,
     chapterId,
   }
+  if (entry.readingFormat === 'manga' || entry.readingFormat === 'webtoon') next.readingFormat = entry.readingFormat
   const mangaUrl = entry.mangaUrl?.trim()
   if (mangaUrl !== undefined && mangaUrl.length > 0) {
     next.mangaUrl = mangaUrl
@@ -155,6 +158,7 @@ export interface ReaderSessionConfig {
   chapterTitles?: string[]
   title?: string
   chapterTitle?: string
+  readingFormat?: ReaderSeriesFormat
   totalPages: number
   pageUris: string[]
   /** Original public image URIs retained by newer offline manifests, when available. */
@@ -196,6 +200,7 @@ export function cloneReaderSessionConfig(config: ReaderSessionConfig): ReaderSes
     chapterTitles: config.chapterTitles?.slice(),
     title: config.title,
     chapterTitle: config.chapterTitle,
+    readingFormat: config.readingFormat,
     totalPages: config.totalPages,
     pageUris: config.pageUris.slice(),
     sourceOriginalImageUris: config.sourceOriginalImageUris?.slice(),
@@ -604,8 +609,10 @@ export abstract class ReaderSessionStore {
   unreadChapterCount(comic: Comic): number | undefined {
     // Compare completeness with received rows; a complete source catalog may repeat IDs.
     // Count logical chapters only once, without treating duplicates as missing chapters.
-    const chapterIds = new Set<ChapterId>(comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
-    if (chapterIds.size === 0 || comic.chapterCount > comic.chapters.length) return undefined
+    const shared = comic.sourceMetadata?.sharedChapterIds
+    if (shared === undefined && comic.chapterCount > comic.chapters.length) return undefined
+    const chapterIds = new Set<ChapterId>(shared ?? comic.chapters.map((chapter: Chapter): ChapterId => chapter.id))
+    if (chapterIds.size === 0) return undefined
     let unread = 0
     chapterIds.forEach((chapterId: ChapterId): void => {
       if (!this.isChapterRead(comic.id, chapterId)) unread += 1
@@ -618,10 +625,12 @@ export abstract class ReaderSessionStore {
   }
 
   comicReadingState(comic: Comic): ComicReadingState {
-    if (comic.chapters.length > 0 && comic.chapters.every((chapter: Chapter): boolean =>
-      this.isChapterRead(comic.id, chapter.id))) return 'completed'
-    return comic.chapters.some((chapter: Chapter): boolean => {
-      const state = this.chapterStates.get(chapterStateKey(comic.id, chapter.id))
+    const shared = comic.sourceMetadata?.sharedChapterIds
+    const ids = shared ?? comic.chapters.map((chapter: Chapter): ChapterId => chapter.id)
+    if (ids.length > 0 && (shared !== undefined || comic.chapterCount <= ids.length) &&
+      ids.every((id: ChapterId): boolean => this.isChapterRead(comic.id, id))) return 'completed'
+    return ids.some((id: ChapterId): boolean => {
+      const state = this.chapterStates.get(chapterStateKey(comic.id, id))
       return state !== undefined && (state.isRead || (state.position !== undefined &&
         state.position.totalPages > 0 && state.position.pageIndex > 0))
     }) ? 'reading' : 'unread'
@@ -1113,6 +1122,7 @@ export function createReaderSessionConfigFromComic(
     chapterTitles: comic.chapters.map((item) => readerChapterDisplayTitle(item)),
     title: comic.title,
     chapterTitle: chapter === undefined ? undefined : readerChapterDisplayTitle(chapter),
+    readingFormat: readerFormatFromTags(comic.sourceMetadata?.tags),
     totalPages: chapter === undefined ? 0 : chapter.pageCount,
     pageUris: chapter === undefined ? [] : chapter.pages.map((page) => page.uri),
     pageIds: chapter === undefined ? [] : chapter.pages.map((page) => page.id),
@@ -1127,6 +1137,24 @@ export function createReaderSessionConfigFromComic(
     sourceKind: comic.sourceKind,
     remoteServerId: comic.remoteServerId,
   }
+}
+
+export function readerSessionFormat(config?: ReaderSessionConfig): ReaderSeriesFormat | undefined {
+  if (config?.readingFormat !== undefined) return config.readingFormat
+  // A chapter of split strip tiles can look like ordinary pages. Only
+  // several unmistakably long original images establish a format by shape.
+  let known = 0
+  let long = 0
+  const widths = config?.pageWidths ?? []
+  const heights = config?.pageHeights ?? []
+  for (let i = 0; i < widths.length && known < 6; i++) {
+    const width = widths[i] ?? 0
+    const height = heights[i] ?? 0
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) continue
+    known++
+    if (height >= width * 3) long++
+  }
+  return known >= 3 && long * 3 >= known * 2 ? 'webtoon' : undefined
 }
 
 export function getReaderSessionPageUri(config: ReaderSessionConfig, pageIndex: number): string {

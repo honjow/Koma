@@ -29,6 +29,14 @@ export interface SyncRemoteManifest {
   old?: SyncManifest
   warning?: string
   ownWritable?: boolean
+  writerHeads?: SyncWriterHead[]
+}
+
+export interface SyncWriterHead {
+  path: string
+  manifest: SyncManifest
+  segments: string[]
+  listed: string[]
 }
 
 interface SyncHttpResponse {
@@ -45,6 +53,17 @@ const WRITER = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const WRITER_NAME = new RegExp('^' + WRITER + '$')
 const WRITER_PUBLICATION = new RegExp('^(' + WRITER + ')/([0-9]{14})/([0-9]{16})-([0-9a-f]{64})\\.json$')
 const SEGMENT_SIZE = 128
+const LEGACY_DISCOVERY_MS = 5 * 60 * 1000
+
+interface LegacyDiscovery {
+  account: string
+  space: string
+  checked: number
+  manifest: SyncRemoteManifest
+  objects: SyncShardRef[]
+}
+
+const legacyDiscovery: LegacyDiscovery[] = []
 
 function publicationSegment(sequence: number): string {
   return Math.floor((sequence - 1) / SEGMENT_SIZE).toString().padStart(14, '0')
@@ -290,6 +309,7 @@ export class DeviceSyncWebDav {
     witnesses.forEach((name: string): void => { names.add(name.split('/')[0]) })
     if (names.size > 128) throw new Error('sync_replica_limit')
     const heads: SyncJournalCommit[] = []
+    const writerHeads: SyncWriterHead[] = []
     const frontier = legacy.frontier?.slice() ?? []
     if (legacy.manifest !== undefined) heads.push({ format: 'KOMA_DEVICE_SYNC_COMMIT', schema: 1, parents: [], manifest: legacy.manifest })
     let own: SyncManifest | undefined
@@ -327,6 +347,7 @@ export class DeviceSyncWebDav {
           if (read === undefined) throw new Error('sync_shard_missing')
           if (writer === this.writer) own = read
           heads.push({ format: 'KOMA_DEVICE_SYNC_COMMIT', schema: 1, parents: [], manifest: read })
+          writerHeads.push({ path, manifest: read, segments: segmentNames, listed })
           frontier.push(known !== undefined && known > path ? known : path)
           accepted = true
           break
@@ -347,10 +368,44 @@ export class DeviceSyncWebDav {
       return legacy
     }
     const manifest = heads.length === 0 ? undefined : mergeSyncJournal(heads, this.space)
-    return { manifest, own, old: legacy.manifest, writer: true, journal: true, frontier, warning, ownWritable,
+    return { manifest, own, old: legacy.manifest, writer: true, journal: true, frontier, warning, ownWritable, writerHeads,
       hash: manifest === undefined ? '' : syncDigest(JSON.stringify(manifest)),
       legacyHash: legacy.legacyHash, legacyRevision: legacy.legacyRevision, legacySpace: legacy.legacySpace,
       etag: '"writer-' + syncDigest(JSON.stringify([legacy.etag, frontier])) + '"' }
+  }
+
+  async readEarlierWriterGroup(head: SyncWriterHead, guard: SyncRequestGuard,
+    accept: (manifest: SyncManifest) => Promise<boolean>): Promise<boolean> {
+    const parts = head.path.split('/')
+    const writer = parts[0]
+    const currentSegment = parts[1]
+    let remaining = SEGMENT_SIZE
+    const segments = Array.from(new Set<string>([currentSegment].concat(head.segments)))
+      .filter((segment: string): boolean => segment <= currentSegment).sort().reverse()
+    for (const segment of segments.slice(0, 4)) {
+      const prefix = writer + '/' + segment + '/'
+      const listed = head.listed.some((path: string): boolean => path.startsWith(prefix)) ?
+        head.listed : (await this.listWriterPath(prefix, guard)).filter((item: DavResource): boolean => !item.isCollection)
+          .map((item: DavResource): string => item.href.substring(this.writerRoot.length))
+          .filter((path: string): boolean => WRITER_PUBLICATION.test(path))
+      const currentSequence = WRITER_PUBLICATION.exec(head.path)?.[3]
+      for (const path of listed.filter((item: string): boolean => {
+        const sequence = WRITER_PUBLICATION.exec(item)?.[3]
+        return sequence !== undefined && currentSequence !== undefined && sequence < currentSequence
+      }).sort().reverse()) {
+        if (remaining-- <= 0) return false
+        const sequence = path.slice(0, path.lastIndexOf('-') + 1)
+        if (listed.some((item: string): boolean => item !== path && item.startsWith(sequence))) continue
+        let older: SyncManifest | undefined
+        try { older = await this.readWriterHead(path, true, guard) } catch (error) {
+          const code = (error as Error).message
+          if (code !== 'sync_invalid_commit' && code !== 'sync_shard_damaged' && code !== 'sync_shard_missing') throw error as Error
+          continue
+        }
+        if (older !== undefined && await accept(older)) return true
+      }
+    }
+    return false
   }
 
   private async readWriterHead(path: string, listed: boolean, guard: SyncRequestGuard): Promise<SyncManifest | undefined> {
@@ -371,15 +426,33 @@ export class DeviceSyncWebDav {
     return remote.manifest
   }
 
-  async readManifest(guard: SyncRequestGuard, requiredTag: string = ''): Promise<SyncRemoteManifest> {
+  async readManifest(guard: SyncRequestGuard, requiredTag: string = '', discoveryOnly: boolean = false): Promise<SyncRemoteManifest> {
     let legacy: SyncRemoteManifest
+    const previous = legacyDiscovery.find((entry: LegacyDiscovery): boolean =>
+      entry.account === this.account && entry.space === this.space)
+    const hasWriterWitness = this.witnesses.some((name: string): boolean => WRITER_PUBLICATION.test(name))
     try {
-      legacy = await this.readJournal(guard)
+      guard()
+      if (discoveryOnly && hasWriterWitness && previous !== undefined &&
+        Date.now() - previous.checked < LEGACY_DISCOVERY_MS && requiredTag === '') {
+        legacy = JSON.parse(JSON.stringify(previous.manifest)) as SyncRemoteManifest
+        this.legacyObjects = previous.objects.slice()
+      } else {
+        legacy = await this.readJournal(guard)
+        if (this.writer !== '') {
+          if (previous !== undefined) legacyDiscovery.splice(legacyDiscovery.indexOf(previous), 1)
+          const snapshot = JSON.parse(JSON.stringify(legacy)) as SyncRemoteManifest
+          legacyDiscovery.push({ account: this.account, space: this.space, checked: Date.now(),
+            manifest: snapshot, objects: this.legacyObjects.slice() })
+          if (legacyDiscovery.length > 8) legacyDiscovery.shift()
+        }
+      }
     } catch (error) {
-      if (this.writer === '' || (error as Error).message !== 'sync_space_changed' ||
-        !this.witnesses.some((name: string): boolean => WRITER_PUBLICATION.test(name))) throw error as Error
-      // A missing old witness is not a deletion. Keep the receipt and allow
-      // already migrated V3 content to be read while the old path is retried.
+      const code = (error as Error).message
+      if (this.writer === '' || !hasWriterWitness || (code !== 'sync_space_changed' &&
+        code !== 'sync_invalid_commit' && code !== 'sync_invalid_manifest' && code !== 'sync_shard_damaged')) throw error as Error
+      // Old damage or missing witnesses are not deletions. Keep the receipt
+      // and allow the migrated records to keep moving.
       legacy = { hash: '', etag: '', journal: true, warning: 'sync_legacy_unavailable',
         frontier: this.witnesses.filter((name: string): boolean => SYNC_COMMIT_NAME.test(name)) }
     }

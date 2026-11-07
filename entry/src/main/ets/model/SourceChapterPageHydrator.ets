@@ -12,6 +12,7 @@ import {
   Comic,
   Page,
   sameComicIdentity,
+  setCompleteSourceChapterCatalog,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -35,6 +36,7 @@ import { continuationChapterIds } from './ReaderChapterSequence'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { SourceFailureDetails, sourceFailureDetails } from './SourceRuntimeError'
+import { MangaChapterItem } from './MangaDetailModels'
 
 interface SourceOperationDataPayload {
   items?: Record<string, Object>[]
@@ -425,7 +427,7 @@ export class SourceChapterPageHydrator {
     }
     const updated = JSON.parse(JSON.stringify(latest)) as Comic
     updated.chapters = updated.chapters.concat([chapter])
-    updated.chapterCount = updated.chapters.length
+    updated.chapterCount = updated.sourceMetadata?.sharedChapterIds?.length ?? updated.chapters.length
     updated.updatedAt = now
     if (this.libraryPersistenceService === undefined) {
       this.libraryStore.upsertComic(updated)
@@ -454,7 +456,9 @@ export class SourceChapterPageHydrator {
       latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) return undefined
     const resolved = reconcileSourceChapterIdentity(latest, mangaId, catalog.chapters, undefined)
     const updated = JSON.parse(JSON.stringify(latest)) as Comic
-    if (enrichSourceChapterMetadata(updated, resolved.chapters)) {
+    const catalogChanged = setCompleteSourceChapterCatalog(updated,
+      resolved.chapters.map((item: MangaChapterItem): string => item.id), Date.now())
+    if (enrichSourceChapterMetadata(updated, resolved.chapters) || catalogChanged) {
       if (this.libraryPersistenceService === undefined) this.libraryStore.upsertComic(updated)
       else upsertComicAndPersistLibraryStore(this.libraryStore, this.libraryPersistenceService, updated)
       this.onLibraryChanged?.()

@@ -1,16 +1,15 @@
-import { SyncEdit, SyncFact, SyncGroup, isSyncReplica, syncVisibleValue, syncObserves } from './DeviceSyncFacts'
-import { isSyncDigest } from './DeviceSyncWire'
+import { SyncEdit, SyncFact, SyncGroup, isSyncReplica, syncVisibleHeads, syncVisibleValue, syncObserves } from './DeviceSyncFacts'
+import { isSyncDigest, syncDigest } from './DeviceSyncWire'
 import { syncDefaultCaseFold } from './DeviceSyncCaseFold'
 
 export const SYNC_OFFICIAL_CATALOG = 'https://github.com/honjow/koma-sources/releases/latest/download/index.json'
 export const SYNC_CATALOG_ID = 'honjow/koma-sources'
 export const SYNC_READING_DATASET = 'reading-records'
 export const SYNC_SHELF_DATASET = 'shelf-records'
-export const MANGADEX_SYNC_SOURCE = 'org.mangadex.koma'
-export const XKCD_SYNC_SOURCE = 'com.xkcd.zh.koma'
-const UUID_TEXT = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-const MANGADEX_WORK = new RegExp('^mdx:' + UUID_TEXT + '$')
-const XKCD_GROUP = /^xkcd:zh:g:([1-9][0-9]{3}(0[0-9]|1[0-2]))$/
+export const SYNC_SHELF_CATALOG_DATASET = 'shelf-catalog-records'
+export const SYNC_READER_SETTINGS_DATASET = 'reader-settings-records'
+export const SYNC_SUBSCRIPTIONS_DATASET = 'source-subscriptions-records'
+export const SYNC_SEARCH_DATASET = 'search-history-records'
 const READING_CREDENTIAL_PARAMETER = /(?:^|[/?&#;])(?:[a-z0-9_.-]*(?:token|secret|password|signature|credential)[a-z0-9_.-]*|auth|authorization|cookie|key|api[_-]?key|access[_-]?key|sign|sig|ticket|session(?:[_-]?id)?|hdnts|hdnea|hmac|policy|key-pair-id|x-amz-[^=&#;]+|x-goog-[^=&#;]+)\s*=/i
 
 export interface SyncWorkLabel {
@@ -18,6 +17,13 @@ export interface SyncWorkLabel {
   sourceName: string
   sourceVersion?: string // Legacy shelf label.
   workUrl?: string
+}
+
+export interface SyncChapterCatalog {
+  digest: string
+  count: number
+  blocks: number
+  date: number
 }
 
 export interface SyncShelfMove {
@@ -59,21 +65,6 @@ export interface SyncSearchValue {
   date: number
 }
 
-export function syncSupportedSource(source: string, version: string): boolean {
-  return (source === MANGADEX_SYNC_SOURCE && version === '0.1.25') ||
-    (source === XKCD_SYNC_SOURCE && version === '0.1.7')
-}
-
-export function syncKnownSource(source: string): boolean {
-  return source === MANGADEX_SYNC_SOURCE || source === XKCD_SYNC_SOURCE
-}
-
-export function syncWorksOnSource(source: string, work: string): boolean {
-  if (source === MANGADEX_SYNC_SOURCE) return MANGADEX_WORK.test(work)
-  if (source === XKCD_SYNC_SOURCE) return work === 'xkcd:zh' || XKCD_GROUP.test(work)
-  return false
-}
-
 export function syncKey(parts: string[]): string {
   return JSON.stringify(parts)
 }
@@ -88,7 +79,7 @@ export function syncKeyParts(key: string): string[] {
 
 export function syncBucketKey(key: string): string {
   const parts = syncKeyParts(key)
-  if (['book', 'member', 'recent', 'position', 'read', 'bookmark', 'book-mode'].includes(parts[0])) {
+  if (['book', 'member', 'recent', 'position', 'read', 'bookmark', 'book-mode', 'cover'].includes(parts[0])) {
     return syncKey(parts.slice(1, 3))
   }
   return key
@@ -133,6 +124,15 @@ function safeReadingWorkUrl(value: string): boolean {
   return /^https?:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?(?:[/?#][^\s\\"<>]*)?$/i.test(value) && safeReadingId(value, 4096)
 }
 
+export function syncCoverAddress(value: string | undefined): string | undefined {
+  if (value === undefined || value.length > 2048 || !safeReadingWorkUrl(value)) return undefined
+  // Synced artwork can load on a device before its source is installed.
+  // Leave IP literals and device-local names to that device's source settings.
+  const host = /^https?:\/\/([a-z0-9.-]+)/i.exec(value)?.[1].replace(/\.$/, '') ?? ''
+  return /\.[a-z][a-z0-9-]*$/i.test(host) && !/\.(?:local|localhost|internal|lan|home\.arpa)$/i.test(host) ?
+    value : undefined
+}
+
 export function syncReadingRecent(source: string, chapter: string, date: number, title: string,
   sourceName: string, chapterTitle: string, savedPage?: number, workUrl?: string): SyncRecentValue {
   return { title: syncPublicLabel(title.slice(0, 240), 240) || source,
@@ -157,8 +157,7 @@ export function syncShelfMove(value: string | undefined): SyncShelfMove | undefi
 }
 
 export function syncShelfIdentity(source: string, work: string): boolean {
-  // Runtime package IDs cannot be the prefixes of local or private server rows.
-  return syncReadingIdentity(source, work) && !['local', 'komga', 'kavita', 'opds', 'webdav'].includes(source.toLowerCase())
+  return syncReadingIdentity(source, work)
 }
 
 /** Resolve chains against accepted facts. A removed or cyclic destination
@@ -195,6 +194,16 @@ export function syncShelfMoveDestination(key: string, visible: (key: string) => 
 
 export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string | undefined {
   const value = syncVisibleValue(fact)
+  const kind = syncKeyParts(fact.key)[0]
+  if (value !== undefined && (kind === 'recent' || kind === 'position' || kind === 'query' || kind === 'chapter-catalog')) {
+    let best = value
+    let date = (JSON.parse(best) as SyncRecentValue).date ?? 0
+    syncVisibleHeads(fact).forEach((candidate: SyncEdit): void => {
+      const nextDate = (JSON.parse(candidate.value) as SyncRecentValue).date ?? 0
+      if (nextDate > date) { date = nextDate; best = candidate.value }
+    })
+    return best
+  }
   if (group !== 'shelf' || !fact.key.startsWith('["book",') ||
     !fact.barriers.some((edit: SyncEdit): boolean => syncShelfMove(edit.value) !== undefined)) return value
   // A move only replaces the shelf entry the sender observed. A separate
@@ -206,7 +215,7 @@ export function syncGroupVisibleValue(group: SyncGroup, fact: SyncFact): string 
 }
 
 function isSourceWork(parts: string[]): boolean {
-  return syncWorksOnSource(parts[1], parts[2])
+  return syncReadingIdentity(parts[1], parts[2])
 }
 
 function validCategory(value: string): boolean {
@@ -223,9 +232,8 @@ function validLabelText(label: SyncRecentValue | SyncWorkLabel): boolean {
     typeof label.sourceName === 'string' && label.sourceName === syncPublicLabel(label.sourceName, 80) && label.sourceName.length > 0
 }
 
-function validLabel(label: SyncWorkLabel, source: string): boolean {
-  return validLabelText(label) && typeof label.sourceVersion === 'string' && /^\d+\.\d+\.\d+$/.test(label.sourceVersion) &&
-    (!syncKnownSource(source) || syncSupportedSource(source, label.sourceVersion))
+function validLabel(label: SyncWorkLabel): boolean {
+  return validLabelText(label) && typeof label.sourceVersion === 'string' && /^\d+\.\d+\.\d+$/.test(label.sourceVersion)
 }
 
 function validateDate(date: number): boolean {
@@ -233,10 +241,20 @@ function validateDate(date: number): boolean {
 }
 
 function validShelfValue(parts: string[], value: Object, legacy: boolean): boolean {
+  if (parts[0] === 'chapter-catalog') {
+    const catalog = value as SyncChapterCatalog
+    return onlyFields(value, 'blocks,count,date,digest') && isSyncDigest(catalog.digest) && validateDate(catalog.date) &&
+      Number.isSafeInteger(catalog.count) && Number.isSafeInteger(catalog.blocks) && catalog.count >= 0 && catalog.count <= 1000000 &&
+      catalog.blocks >= 0 && catalog.blocks <= catalog.count
+  }
+  if (parts[0] === 'chapter-catalog-block') {
+    const ids = value as string[]
+    return Array.isArray(ids) && ids.length > 0 && ids.every((id: string): boolean => syncReadingIdentity(parts[1], parts[2], id))
+  }
   if (parts[0] === 'book') {
     const label = value as SyncWorkLabel
     if (legacy || label?.sourceVersion !== undefined) {
-      return onlyFields(value, 'sourceName,sourceVersion,title') && isSourceWork(parts) && validLabel(label, parts[1])
+      return onlyFields(value, 'sourceName,sourceVersion,title') && isSourceWork(parts) && validLabel(label)
     }
     return onlyFields(value, label?.workUrl === undefined ? 'sourceName,title' : 'sourceName,title,workUrl') &&
       validLabelText(label) && (label.workUrl === undefined ||
@@ -286,7 +304,26 @@ function validPreferenceValue(parts: string[], value: Object): boolean {
 }
 
 export function safeSyncSearch(text: string): boolean {
-  return checkText(text, 240) && !/:\/\/|\b(?:token|password|cookie|secret|bearer|authorization)\s*[=:\s]|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[:=()<>]|&&|\|\|/i.test(text)
+  return checkText(text, 240) && !/:\/\/|\b(?:token|password|cookie|secret|bearer|authorization)\s*[=:\s]|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/i.test(text)
+}
+
+export function syncCatalogAddress(value: string): boolean {
+  return checkText(value, 2048) && /^https?:\/\/[^@?#\s\\/]+(?:\/[^?#\s\\]*)?$/i.test(value)
+}
+
+export function syncCatalogRecordKey(identity: string): string {
+  return syncKey(['catalog', syncDigest(identity)])
+}
+
+/** Translate the original subscription key as wire data, not a permission rule. */
+export function syncBusinessKey(group: SyncGroup, key: string): string {
+  const parts = syncKeyParts(key)
+  if (group === 'source-subscriptions' && parts[0] === 'catalog' && parts[1] === SYNC_CATALOG_ID) {
+    return syncCatalogRecordKey(SYNC_OFFICIAL_CATALOG)
+  }
+  // A legacy search deletion only observed its own source scope. Keeping the
+  // old key prevents it from deleting an independent same-term record.
+  return key
 }
 
 export function syncSearchIdentity(text: string): string {
@@ -295,7 +332,13 @@ export function syncSearchIdentity(text: string): string {
 
 function validKey(group: SyncGroup, parts: string[], legacyShelf: boolean): boolean {
   const kind = parts[0]
+  if (kind === 'cover') return !legacyShelf && (group === 'shelf' || group === 'reading') &&
+    parts.length === 3 && isSourceWork(parts)
   if (group === 'shelf') {
+    if (kind === 'chapter-catalog' || kind === 'chapter-catalog-block') {
+      return !legacyShelf && isSourceWork(parts) && ((kind === 'chapter-catalog' && parts.length === 3) ||
+        (kind === 'chapter-catalog-block' && parts.length === 5 && isSyncDigest(parts[3]) && /^\d+$/.test(parts[4])))
+    }
     const work = (kind === 'book' || kind === 'member') &&
       (legacyShelf ? isSourceWork(parts) : syncShelfIdentity(parts[1], parts[2]))
     return (kind === 'book' && parts.length === 3 && work) ||
@@ -312,10 +355,10 @@ function validKey(group: SyncGroup, parts: string[], legacyShelf: boolean): bool
       (kind === 'global' && parts.length === 2 && ['mode', 'animation', 'page-number', 'image-fit'].includes(parts[1]))
   }
   if (group === 'source-subscriptions') {
-    return kind === 'catalog' && parts.length === 2 && parts[1] === SYNC_CATALOG_ID
+    return kind === 'catalog' && parts.length === 2 && (isSyncDigest(parts[1]) || parts[1] === SYNC_CATALOG_ID)
   }
-  return kind === 'query' && parts.length === 3 && safeSyncSearch(parts[1]) &&
-    parts[2].split(',').every((source: string): boolean => syncKnownSource(source))
+  return kind === 'query' && (parts.length === 2 || parts.length === 3) && safeSyncSearch(parts[1]) &&
+    (parts.length === 2 || parts[2].split(',').every((source: string): boolean => syncReadingIdentity(source, 'query')))
 }
 
 export function checkSyncGroupFact(group: SyncGroup, fact: SyncFact, legacyShelf: boolean = false): void {
@@ -330,12 +373,13 @@ export function checkSyncGroupFact(group: SyncGroup, fact: SyncFact, legacyShelf
       if (move === undefined || move.toSource === parts[1] && move.toWork === parts[2]) throw new Error('sync_unsupported_value')
       return
     }
-    if (group === 'shelf') valid = validShelfValue(parts, value, legacyShelf)
+    if (parts[0] === 'cover') valid = typeof value === 'string' && syncCoverAddress(value as string) !== undefined
+    else if (group === 'shelf') valid = validShelfValue(parts, value, legacyShelf)
     else if (group === 'reading') valid = validReadingValue(parts, value)
     else if (group === 'reader-settings') valid = validPreferenceValue(parts, value)
     else if (group === 'source-subscriptions') {
       const subscription = value as SyncSubscription
-      valid = onlyFields(value, 'address,label') && subscription.address === SYNC_OFFICIAL_CATALOG &&
+      valid = onlyFields(value, 'address,label') && syncCatalogAddress(subscription.address) &&
         checkText(subscription.label, 120, true)
     } else {
       const search = value as SyncSearchValue

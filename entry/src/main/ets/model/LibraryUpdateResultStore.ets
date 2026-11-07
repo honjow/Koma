@@ -30,6 +30,7 @@ export const LIBRARY_UPDATE_RESULT_STORE_NAME: string = 'koma_library_update_res
 export const LIBRARY_UPDATE_LATEST_RESULT_JSON_KEY: string = 'libraryUpdate.latestResultJson'
 export const LIBRARY_UPDATE_LATEST_JOB_JSON_KEY: string = 'libraryUpdate.latestJobJson'
 const LIBRARY_CHAPTER_UPDATES_KEY: string = 'libraryUpdate.chapterUpdatesJson'
+const LIBRARY_CHAPTER_UPDATES_SEEN_KEY: string = 'libraryUpdate.chapterUpdatesSeenAt'
 export const LIBRARY_UPDATE_RESULT_MAX_RESULTS: number = 200
 export const LIBRARY_UPDATE_RESULT_MAX_PROVIDER_SUMMARIES: number = 80
 export const LIBRARY_UPDATE_RESULT_MAX_COMIC_ID_LENGTH: number = 256
@@ -832,6 +833,24 @@ export class LibraryUpdateResultStore {
     if (epoch !== libraryChapterUpdatesEpoch()) return this.loadChapterUpdates()
     if (cachedLibraryChapterUpdates() === undefined) setCachedLibraryChapterUpdates(received)
     return cachedLibraryChapterUpdates()!
+  }
+
+  async hasUnseenChapterUpdates(): Promise<boolean> {
+    const updates = await this.loadChapterUpdates()
+    const store = await this.preferences()
+    const seen = await store.get(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, 0) as number
+    return updates.some((update: LibraryChapterUpdate): boolean => update.discoveredAt > seen)
+  }
+
+  async markChapterUpdatesSeen(): Promise<void> {
+    const updates = await this.loadChapterUpdates()
+    const latest = updates.reduce((time: number, update: LibraryChapterUpdate): number =>
+      Math.max(time, update.discoveredAt), 0)
+    const store = await this.preferences()
+    const seen = await store.get(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, 0) as number
+    if (latest <= seen) return
+    await store.put(LIBRARY_CHAPTER_UPDATES_SEEN_KEY, latest)
+    await store.flush()
   }
 
   async save(summary: LibraryUpdateSummary, snapshot?: LibraryUpdateJobSnapshot,

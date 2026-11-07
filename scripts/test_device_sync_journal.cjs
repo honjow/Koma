@@ -30,6 +30,7 @@ function transportFixture() {
   const faults = []
   let filterListing = names => names
   let beforeCommit = async () => {}
+  let beforeRequest = async () => {}
   const resource = (address, collection) => '<d:response><d:href>' + new URL(address).pathname +
     '</d:href><d:propstat><d:prop><d:resourcetype>' + (collection ? '<d:collection/>' : '') +
     '</d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>'
@@ -37,6 +38,7 @@ function transportFixture() {
     async request(address, options) {
       const method = options.customMethod
       trace.push({ method, address, body: options.extraData, headers: clone(options.header) })
+      await beforeRequest(method, address)
       assert.equal(options.usingCache, false)
       assert.equal(options.maxRedirects, 0)
       if (method === 'PROPFIND') {
@@ -86,7 +88,8 @@ function transportFixture() {
   return { draft, root, writerRoot, legacy, files, directories, trace, faults,
     DeviceSyncWebDav: V2WebDav, WriterWebDav: DeviceSyncWebDav, seedObject, seedCommit,
     provider: witnesses => new DeviceSyncWebDav(draft, witnesses),
-    listing: filter => { filterListing = filter }, onCommit: hook => { beforeCommit = hook } }
+    listing: filter => { filterListing = filter }, onCommit: hook => { beforeCommit = hook },
+    onRequest: hook => { beforeRequest = hook } }
 }
 
 function dataset(group, key, replica, value) {
@@ -144,7 +147,6 @@ function readingDevice(fixture, id, installed, withShelf = false) {
     }),
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceIndexMetadata': {},
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncSignals': signals, './DeviceSyncWire': wire,
-    './DeviceSyncPublicSource': { DeviceSyncPublicSources: class { work() { assert.fail('Shelf and reading must not request a source proof') } } },
   })
   const context = { filesDir }
   let owner
@@ -175,6 +177,203 @@ function shelfComic(source, work, categoryIds = [], url = 'https://works.example
     categoryIds, sourceMetadata: { sourceName: 'Source ' + source }, chapters: [], chapterCount: 0, pageCount: 0,
     createdAt: 1, updatedAt: 1, lastImportedAt: 1 }
 }
+
+test('automatic first merge persists a shared chapter directory and unread count with no source installed', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const source = 'org.example.login', work = 'account-book:series'
+  const comic = shelfComic(source, work)
+  comic.coverUri = comic.customCoverUri = 'file:///local/custom-cover.png'
+  comic.sourceCoverUri = 'https://images.example.test/covers/series.jpg'
+  const ids = Array.from({ length: 440 }, (_, index) => 'stable-chapter-id:' + index)
+  comic.sourceMetadata = { ...comic.sourceMetadata, sharedChapterIds: ids, chapterCatalogUpdatedAt: 123 }
+  comic.chapterCount = ids.length
+  const local = a.coldShelf()
+  a.persistence.upsertComicAndPersistLibraryStore(local.shelf, local.service, comic)
+  a.reader.markChapterReadStates([{ comicId: comic.id, chapterId: ids[0], isRead: true }],
+    { sourceId: source, mangaId: work })
+  assert.equal(a.reader.flush(), true)
+  for (const device of [a, b]) {
+    device.engine.setSelection(['shelf', 'reading'])
+    await device.engine.saveConfiguration(transport.draft)
+    device.engine.setEnabled(true)
+    await device.engine.syncNow()
+    assert.equal(device.engine.active().reviewRequired, false)
+  }
+  const received = b.coldShelf().shelf.getComic(comic.id)
+  assert.equal(received.coverUri, comic.sourceCoverUri)
+  assert.equal(received.customCoverUri, undefined)
+  assert.equal(received.chapterCount, ids.length)
+  assert.deepEqual(received.sourceMetadata.sharedChapterIds, ids)
+  assert.equal(b.coldReader().unreadChapterCount(received), ids.length - 1)
+  assert.equal(b.coldReader().comicReadingState(received), 'reading')
+})
+
+test('revoking a scope during the first network request neither applies it nor restores the old selection', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.WriterWebDav)
+  const a = fixture.replica(A, [['reader-settings', new Map([[pageNumber, 'false']])]])
+  const b = fixture.replica(B, [['reader-settings', new Map([[pageNumber, 'true']])]])
+  b.snapshotExtras.set('reader-settings', { defaultKeys: [pageNumber] })
+  a.engine.setSelection(['shelf', 'reader-settings'])
+  await a.engine.saveConfiguration(f.draft)
+  a.engine.setEnabled(true)
+  await a.engine.syncNow()
+  b.engine.setSelection(['shelf', 'reader-settings'])
+  await b.engine.saveConfiguration(f.draft)
+  b.engine.setEnabled(true)
+  let enter, release
+  const entered = new Promise(resolve => { enter = resolve })
+  const resumed = new Promise(resolve => { release = resolve })
+  f.onRequest(async (method, address) => {
+    if (method === 'PROPFIND' && address === f.root) { enter(); await resumed }
+  })
+  const rejected = assert.rejects(b.engine.syncNow(), /connection_changed/)
+  await entered
+  b.engine.setSelection(['shelf'])
+  release()
+  await rejected
+  f.onRequest(async () => {})
+  await b.engine.syncNow()
+  assert.deepEqual(b.engine.active().selected, ['shelf'])
+  assert.equal(b.values.get('reader-settings').get(pageNumber), 'true')
+  b.engine.setSelection(['shelf', 'reader-settings'])
+  await b.engine.syncNow()
+  assert.equal(b.values.get('reader-settings').get(pageNumber), 'false')
+  b.values.get('reader-settings').set(pageNumber, 'true')
+  await b.engine.syncNow()
+  await a.engine.syncNow()
+  assert.equal(a.values.get('reader-settings').get(pageNumber), 'true')
+})
+
+test('a missing settings shard keeps that group pending while the received bookshelf lands', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.WriterWebDav)
+  const book = data.syncKey(['book', 'org.example.other', 'book:12'])
+  const label = JSON.stringify({ title: 'Book 12', sourceName: 'Source' })
+  const a = fixture.replica(A, [['shelf', new Map([[book, label]])],
+    ['reader-settings', new Map([[pageNumber, 'false']])]])
+  const b = fixture.replica(B, [])
+  const groups = ['shelf', 'reader-settings']
+  a.engine.setSelection(groups)
+  await a.engine.saveConfiguration(f.draft)
+  a.engine.setEnabled(true)
+  await a.engine.syncNow()
+  const published = [...f.files.entries()].find(([address]) => address.startsWith(f.writerRoot) &&
+    /\/[0-9]{16}-[0-9a-f]{64}\.json$/.test(address))
+  const settings = JSON.parse(published[1]).manifest.datasets.find(row => row.id === 'reader-settings-records')
+  const path = f.writerRoot + wire.syncShardPath(settings.shards[0])
+  const body = f.files.get(path)
+  assert.ok(f.files.delete(path))
+  b.engine.setSelection(groups)
+  await b.engine.saveConfiguration(f.draft)
+  b.engine.setEnabled(true)
+  await assert.rejects(b.engine.syncNow(), /sync_partial:sync_shard_missing/)
+  assert.equal(b.values.get('shelf').get(book), label)
+  assert.equal(b.values.get('reader-settings')?.get(pageNumber), undefined)
+  f.files.set(path, body)
+  await b.engine.syncNow()
+  assert.equal(b.values.get('reader-settings').get(pageNumber), 'false')
+})
+
+test('a damaged current group falls back across writer segments for a new device without rewinding an existing one', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.WriterWebDav)
+  const writer = new f.WriterWebDav(f.draft, [], undefined, A)
+  const scope = ['shelf', 'reader-settings']
+  const settings = 'reader-settings-records'
+  const book = data.syncKey(['book', 'org.example.source', 'fallback'])
+  const label = JSON.stringify({ title: 'Healthy group', sourceName: 'Source' })
+  const first = [edit(facts.emptySyncFact(pageNumber), dot(A, 1), 'set', 'true'),
+    edit(facts.emptySyncFact(animation), dot(A, 2), 'set', 'false')]
+  const second = [edit(first[0], dot(A, 3), 'set', 'false'), edit(first[1], dot(A, 4), 'set', 'true')]
+  const previous = wire.buildSyncDataset(settings, first, 1, undefined, data.syncBucketKey)
+  const latest = wire.buildSyncDataset(settings, second, 1, previous.ref, data.syncBucketKey)
+  assert.equal(latest.objects.length, 2, 'damage one of two separately updated shards')
+  const shelf = dataset(data.SYNC_SHELF_CATALOG_DATASET, book, A, label)
+  for (const [revision, datasets] of [[128, [previous]], [129, [latest, shelf]]]) {
+    for (const d of datasets) for (const obj of d.objects) await writer.storeObject(obj, noop)
+    await writer.publish(manifest(writer.spaceId(), datasets.map(d => d.ref), revision), '', noop, noop,
+      [settings, data.SYNC_SHELF_CATALOG_DATASET])
+  }
+  const connect = async device => {
+    device.engine.setSelection(scope)
+    await device.engine.saveConfiguration(f.draft)
+    device.engine.setEnabled(true)
+  }
+  const warm = fixture.replica(C)
+  await connect(warm)
+  await warm.engine.syncNow()
+  assert.equal(warm.values.get('reader-settings').get(pageNumber), 'false')
+  const shard = latest.objects[0]
+  f.files.set(f.writerRoot + wire.syncShardPath(shard.ref), 'broken')
+  const cold = fixture.replica(B)
+  await connect(cold)
+  const firstWrites = f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRoot)).length
+  await assert.rejects(cold.engine.syncNow(), /sync_partial:sync_shard_damaged/)
+  assert.deepEqual([...cold.values.get('reader-settings')].sort(), [[pageNumber, 'true'], [animation, 'false']].sort())
+  assert.equal(cold.values.get('shelf').get(book), label)
+  assert.equal(cold.engine.active().frontier.some(path => path.includes('/0000000000000129-')), true)
+  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRoot)).length, firstWrites)
+  await assert.rejects(warm.restart().syncNow(), /sync_partial:sync_shard_damaged/)
+  assert.equal(warm.values.get('reader-settings').get(pageNumber), 'false')
+  const explicit = fixture.replica(randomUUID(), [['reader-settings', new Map([[animation, 'true']])]])
+  explicit.snapshotExtras.set('reader-settings', { defaultKeys: [animation], unsetKeys: [] })
+  await connect(explicit)
+  await assert.rejects(explicit.engine.syncNow(), /sync_partial:sync_shard_damaged/)
+  assert.equal(explicit.values.get('reader-settings').get(animation), 'true',
+    'an explicitly stored default is not an unset setting eligible for fallback')
+  warm.values.get('reader-settings').set(animation, 'false')
+  warm.engine.recordEdits('reader-settings', [{ key: animation, kind: 'set', value: 'false' }])
+  const pending = structuredClone(warm.engine.active().groups.find(group => group.id === 'reader-settings').pending)
+  assert.ok(pending.length > 0)
+  await assert.rejects(warm.restart().syncNow(), /sync_partial:sync_shard_damaged/)
+  assert.deepEqual(warm.engine.active().groups.find(group => group.id === 'reader-settings').pending, pending)
+  f.files.set(f.writerRoot + wire.syncShardPath(shard.ref), shard.body)
+  await cold.restart().syncNow()
+  assert.equal(cold.values.get('reader-settings').get(pageNumber), 'false')
+  assert.equal(cold.values.get('reader-settings').get(animation), 'true')
+  assert.equal(f.trace.filter(row => row.method === 'PUT' && row.address.startsWith(f.writerRoot)).length, firstWrites)
+  await warm.restart().syncNow()
+  assert.equal(warm.engine.active().groups.find(group => group.id === 'reader-settings').pending.length, 0)
+  await cold.restart().syncNow()
+  assert.equal(cold.values.get('reader-settings').get(animation), 'false')
+})
+
+test('the writer can retry a healthy group publication without revalidating an unchanged damaged group', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.WriterWebDav)
+  const book = data.syncKey(['book', 'org.example.source', 'healthy'])
+  const label = JSON.stringify({ title: 'Healthy', sourceName: 'Source' })
+  const writer = fixture.replica(A, [['reader-settings', new Map([[pageNumber, 'false']])]])
+  writer.engine.setSelection(['shelf', 'reader-settings'])
+  await writer.engine.saveConfiguration(f.draft)
+  writer.engine.setEnabled(true)
+  await writer.engine.syncNow()
+  const prior = (await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)).own
+  const broken = prior.datasets.find(ref => ref.id === 'reader-settings-records')
+  const shardPath = f.writerRoot + wire.syncShardPath(broken.shards[0])
+  const body = f.files.get(shardPath)
+  f.files.delete(shardPath)
+  writer.values.set('shelf', new Map([[book, label]]))
+  f.faults.push('before-accept')
+  const reopened = writer.restart()
+  await assert.rejects(reopened.syncNow(), /sync_remote_result_unknown/)
+  assert.deepEqual(writer.store.load().intent.writtenDatasets, [data.SYNC_SHELF_CATALOG_DATASET])
+  await assert.rejects(writer.restart().syncNow(), /sync_partial:sync_shard_missing/)
+  const current = (await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)).own
+  assert.deepEqual(current.datasets.find(ref => ref.id === broken.id), broken)
+  const receiver = fixture.replica(B)
+  receiver.engine.setSelection(['shelf'])
+  await receiver.engine.saveConfiguration(f.draft)
+  receiver.engine.setEnabled(true)
+  await receiver.engine.syncNow()
+  assert.equal(receiver.values.get('shelf').get(book), label)
+  f.files.set(shardPath, body)
+  await writer.restart().syncNow()
+})
 
 test('source shelf and category survive an interrupted move; retry publishes both, and a new favorite stays uncategorized', async () => {
   const transport = transportFixture()
@@ -282,7 +481,7 @@ test('shelf receipts cannot update an unrelated row with the same storage ID', a
 test('a writer keeps its original shelf shards while publishing new source books after upgrade', async () => {
   const f = transportFixture()
   const writer = new f.WriterWebDav(f.draft, [], undefined, A)
-  const old = shelfComic(data.XKCD_SYNC_SOURCE, 'xkcd:zh')
+  const old = shelfComic('com.xkcd.zh.koma', 'xkcd:zh')
   const oldKey = data.syncKey(['book', old.sourceRuntimeId, old.remoteResourceId])
   const oldShard = dataset('shelf', oldKey, A, JSON.stringify({ title: 'xkcd', sourceName: 'xkcd 中文', sourceVersion: '0.1.7' }))
   for (const object of oldShard.objects) await writer.storeObject(object, noop)
@@ -301,7 +500,7 @@ test('a writer keeps its original shelf shards while publishing new source books
   await device.engine.syncNow()
   const receipt = await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)
   assert.deepEqual(receipt.own.datasets.find(item => item.id === 'shelf'), oldShard.ref)
-  assert.ok(receipt.own.datasets.some(item => item.id === data.SYNC_SHELF_DATASET))
+  assert.ok(receipt.own.datasets.some(item => item.id === data.SYNC_SHELF_CATALOG_DATASET))
   const other = readingDevice(engineFixture(f.WriterWebDav), B, new Map(), true)
   await connect(other)
   assert.deepEqual(other.coldShelf().shelf.listComics().map(book => book.id).sort(), [old.id, added.id].sort())
@@ -321,13 +520,14 @@ test('saved history and live page turns from other sources reach a fresh reader 
   const previousChapter = chapter.replace('episode_no=15', 'episode_no=14')
   const publicComic = publicId + ':' + work
   const publicUrl = 'https://www.webtoons.com/zh-hant/title/list?title_no=1860'
+  const publicCover = 'https://images.example.test/covers/1860.jpg?width=300'
   const save = (reader, comicId, chapterId, pageIndex, totalPages, updatedAt) => reader.saveProgress({
     comicId, chapterId, pageIndex, totalPages, updatedAt, progressRatio: (pageIndex + 1) / totalPages, completed: false,
   })
   save(a.reader, publicComic, previousChapter, 2, 9, 100)
   save(a.reader, publicComic, chapter, 5, 11, 200)
   a.reader.saveSourceHistory({ comicId: publicComic, sourceId: publicId, mangaId: work, title: '普通書源',
-    sourceName: 'WEBTOON', chapterId: chapter, chapterTitle: '第 15 話', mangaUrl: publicUrl })
+    sourceName: 'WEBTOON', chapterId: chapter, chapterTitle: '第 15 話', mangaUrl: publicUrl, coverUri: publicCover })
   const removedWork = 'webtoon:cleared-history'
   const removedComic = publicId + ':' + removedWork
   save(a.reader, removedComic, previousChapter, 4, 10, 100)
@@ -343,6 +543,14 @@ test('saved history and live page turns from other sources reach a fresh reader 
   await connect(b)
   let cold = b.coldReader()
   assert.equal(cold.getSourceHistory(publicComic).mangaUrl, publicUrl)
+  assert.equal(cold.getSourceHistory(publicComic).coverUri, publicCover)
+  const head = (await new f.WriterWebDav(f.draft, [], undefined, A).readManifest(noop)).own
+  const coverRef = head.datasets.find(row => row.id === 'reading-cover-records')
+  const readingRef = head.datasets.find(row => row.id === data.SYNC_READING_DATASET)
+  assert.ok(coverRef && readingRef)
+  for (const ref of readingRef.shards) {
+    assert.equal(f.files.get(f.writerRoot + wire.syncShardPath(ref)).includes(publicCover), false)
+  }
   assert.equal(cold.getProgress(publicComic).updatedAt, a.reader.getProgress(publicComic).updatedAt)
   assert.equal(cold.getProgress(publicComic).pageIndex, 5)
   assert.equal(cold.getChapterProgress(publicComic, previousChapter).pageIndex, 2)
@@ -415,7 +623,7 @@ test('independent writer publications receive chapter and page without shared co
   const fixture = engineFixture(f.WriterWebDav)
   const a = fixture.replica(A)
   const b = fixture.replica(B)
-  const source = data.MANGADEX_SYNC_SOURCE
+  const source = 'org.mangadex.koma'
   const work = 'mdx:11111111-1111-1111-1111-111111111111'
   const chapter = 'ch:22222222-2222-2222-2222-222222222222'
   const recent = data.syncKey(['recent', source, work])
@@ -451,7 +659,7 @@ test('independent writer publications receive chapter and page without shared co
 test('reading publications retain the old dataset and verify new shards before recovering a missing publication', async () => {
   const f = transportFixture()
   const oldWriter = new f.WriterWebDav(f.draft, [], undefined, C)
-  const legacy = dataset('reading', data.syncKey(['position', data.XKCD_SYNC_SOURCE, 'xkcd:zh', 'xkcdch:zh:1']),
+  const legacy = dataset('reading', data.syncKey(['position', 'com.xkcd.zh.koma', 'xkcd:zh', 'xkcdch:zh:1']),
     C, JSON.stringify({ page: 1, total: 3, pageTable: 'a'.repeat(64) }))
   for (const object of legacy.objects) await oldWriter.storeObject(object, noop)
   await oldWriter.publish(manifest(oldWriter.spaceId(), [legacy.ref]), '', noop, noop, ['reading'])
@@ -493,6 +701,49 @@ test('an empty next segment preserves the last complete publication on a fresh c
   assert.equal((await reader.readManifest(noop)).manifest.revision, 128)
 })
 
+test('a broken cover shard does not stop reading or get replaced by a retry', async () => {
+  const f = transportFixture()
+  const fixture = engineFixture(f.WriterWebDav)
+  const source = 'org.example.login-required', work = 'work:77'
+  const position = data.syncKey(['position', source, work, 'chapter:77:2'])
+  const cover = data.syncKey(['cover', source, work])
+  const url = 'https://images.example.test/covers/77.jpg'
+  const first = JSON.stringify({ page: 2, total: 9, date: 100 })
+  const latest = JSON.stringify({ page: 5, total: 9, date: 200 })
+  const a = fixture.replica(A, [['reading', new Map([[position, first], [cover, JSON.stringify(url)]])]])
+  const b = fixture.replica(B)
+  for (const device of [a, b]) {
+    device.engine.setSelection(['reading'])
+    await device.engine.saveConfiguration(f.draft)
+    device.engine.setEnabled(true)
+    await device.engine.syncNow()
+  }
+  const writer = new f.WriterWebDav(f.draft, [], undefined, A)
+  const coverRef = (await writer.readManifest(noop)).own.datasets.find(row => row.id === 'reading-cover-records')
+  const address = f.writerRoot + wire.syncShardPath(coverRef.shards[0])
+  const bytes = f.files.get(address)
+  assert.ok(bytes)
+  f.files.delete(address)
+  a.values.get('reading').set(position, latest)
+  a.engine.recordEdits('reading', [{ key: position, kind: 'set', value: latest }])
+  f.faults.push('lost-response')
+  await assert.rejects(a.engine.syncNow())
+  await a.restart().syncNow()
+  await b.restart().syncNow()
+  assert.equal(b.values.get('reading').get(position), latest)
+  assert.equal(b.values.get('reading').get(cover), JSON.stringify(url))
+  assert.deepEqual((await writer.readManifest(noop)).own.datasets.find(row => row.id === coverRef.id), coverRef)
+  assert.equal(f.files.has(address), false)
+  f.files.set(address, bytes)
+  const c = fixture.replica(C)
+  c.engine.setSelection(['reading'])
+  await c.engine.saveConfiguration(f.draft)
+  c.engine.setEnabled(true)
+  await c.engine.syncNow()
+  assert.equal(c.values.get('reading').get(position), latest)
+  assert.equal(c.values.get('reading').get(cover), JSON.stringify(url))
+})
+
 test('upgrading without local edits preserves legacy facts in a writer publication', async () => {
   const f = transportFixture()
   const v2 = f.provider()
@@ -503,7 +754,7 @@ test('upgrading without local edits preserves legacy facts in a writer publicati
   await reader.engine.testConnection(f.draft)
   await reader.engine.confirm((await reader.engine.prepare(f.draft, ['reader-settings'])).token, [])
   const current = await new f.WriterWebDav(f.draft, [], undefined, B).readManifest(noop)
-  assert.equal(current.own.datasets[0].id, 'reader-settings')
+  assert.equal(current.own.datasets[0].id, data.SYNC_READER_SETTINGS_DATASET)
   assert.equal(reader.values.get('reader-settings').get(pageNumber), 'false')
   assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
   f.files.delete(f.root + oldName)
@@ -511,8 +762,8 @@ test('upgrading without local edits preserves legacy facts in a writer publicati
   await assert.rejects(reader.engine.syncNow(), /sync_legacy_unavailable/)
   const reopened = await new f.WriterWebDav(f.draft, reader.engine.active().frontier, undefined, B).readManifest(noop)
   assert.equal(reopened.warning, 'sync_legacy_unavailable')
-  const ref = reopened.own.datasets.find(row => row.id === 'reader-settings')
-  const values = (await Promise.all(ref.shards.map(async shard => wire.decodeSyncShard('reader-settings', shard,
+  const ref = reopened.own.datasets.find(row => row.id === data.SYNC_READER_SETTINGS_DATASET)
+  const values = (await Promise.all(ref.shards.map(async shard => wire.decodeSyncShard(ref.id, shard,
     await new f.WriterWebDav(f.draft, [], undefined, B).readObject(shard, noop), data.syncBucketKey)))).flat()
   assert.equal(facts.syncVisibleValue(values.find(row => row.key === pageNumber)), 'true')
 })
@@ -604,8 +855,8 @@ for (const fault of ['before-accept', 'lost-response']) {
     await reader.engine.syncNow()
     assert.equal(reader.store.load().intent, undefined)
     const current = await f.provider().readManifest(noop)
-    const ref = wire.syncDatasetBranches(current.manifest, 'reader-settings')[0]
-    const values = ref.shards.flatMap(shard => wire.decodeSyncShard('reader-settings', shard,
+    const ref = wire.syncDatasetBranches(current.manifest, data.SYNC_READER_SETTINGS_DATASET)[0]
+    const values = ref.shards.flatMap(shard => wire.decodeSyncShard(ref.id, shard,
       f.files.get(f.root + wire.syncShardPath(shard)), data.syncBucketKey))
     const fact = values.find(value => value.key === pageNumber)
     assert.equal(fact.values[0].value, 'false')
@@ -750,14 +1001,15 @@ test('retrying a missing commit preserves opaque references without downloading 
     'recovery must retain the ordinary unselected-group transfer boundary')
 })
 
-test('an approved download-only first merge resumes its local apply without another confirmation', async () => {
+test('a first automatic connection retries local application without losing the received fact', async () => {
   const f = transportFixture(), provider = f.provider()
   const remote = dataset('reader-settings', pageNumber, A, 'true')
   for (const object of remote.objects) f.seedObject(object)
   f.seedCommit(manifest(provider.spaceId(), [remote.ref]))
   const reader = engineFixture(f.DeviceSyncWebDav).replica(B)
-  await reader.engine.testConnection(f.draft)
-  const preview = await reader.engine.prepare(f.draft, ['reader-settings'])
+  reader.engine.setSelection(['reader-settings'])
+  await reader.engine.saveConfiguration(f.draft)
+  reader.engine.setEnabled(true)
   const owner = reader.engine.owner
   const commit = owner.commit.bind(owner)
   let fail = true
@@ -765,19 +1017,17 @@ test('an approved download-only first merge resumes its local apply without anot
     if (fail) { fail = false; throw new Error('synthetic_owner_boundary') }
     return commit(...args)
   }
-  await assert.rejects(reader.engine.confirm(preview.token, []), /synthetic_owner_boundary/)
+  await assert.rejects(reader.engine.syncNow(), /synthetic_owner_boundary/)
   assert.equal(reader.engine.active(), undefined)
-  assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
-  await reader.engine.recoverOnForeground()
-  assert.ok(reader.engine.active(), 'the previously approved local plan must survive the owner interruption')
+  await reader.engine.syncNow()
+  assert.ok(reader.engine.active(), 'automatic retry must finish the previously interrupted receive')
   assert.equal(reader.values.get('reader-settings').get(pageNumber), 'true')
-  assert.equal(f.trace.some(row => row.method === 'PUT' && journal.SYNC_COMMIT_NAME.test(row.address.slice(f.root.length))), false)
 })
 
 test('service pause preserves scope and capture dots, blocks sync traffic, and is local to one engine', async () => {
   const f = transportFixture()
   const fixture = engineFixture(f.DeviceSyncWebDav)
-  const source = data.MANGADEX_SYNC_SOURCE
+  const source = 'org.mangadex.koma'
   const work = 'mdx:11111111-1111-1111-1111-111111111111'
   const chapter = 'ch:22222222-2222-2222-2222-222222222222'
   const positionKey = data.syncKey(['position', source, work, chapter])

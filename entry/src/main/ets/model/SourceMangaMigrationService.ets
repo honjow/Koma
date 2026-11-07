@@ -1,6 +1,7 @@
 import { ReaderPreferencesStore } from './ReaderPreferencesStore'
 import { common } from '@kit.AbilityKit'
-import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields, copyComicUpdateSchedule } from './ComicModels'
+import { Comic, Chapter, sameComicIdentity, copyComicPersonalFields, copyComicUpdateSchedule,
+  setCompleteSourceChapterCatalog } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore,
   removeComicRecordAndPersistLibraryStore } from './LibraryPersistence'
@@ -63,6 +64,7 @@ function preparedMigrationFromSnapshot(
   const detail = snapshot.detail
   detail.chapterCount = snapshot.chapters.length
   const comic = comicFromSourceManga(detail, snapshot.chapters, sourceLibraryComicId(manga.sourceId, manga.id))
+  setCompleteSourceChapterCatalog(comic, snapshot.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
   if (comic.sourceMetadata !== undefined) {
     comic.sourceMetadata.excludedChapterIds = snapshot.excludedChapterIds
     comic.sourceMetadata.settingsFingerprint = sourceSettingsFingerprint(settings)

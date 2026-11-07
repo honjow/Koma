@@ -39,6 +39,10 @@ const SOURCE_INDEX_PREFS_STORE_NAME: string = 'koma_source_package_manager_v1'
 const SOURCE_INDEX_URL_KEY: string = 'source_index.url'
 const SOURCE_INDEX_REPOSITORIES_KEY: string = 'source_index.repositories.v1'
 const SOURCE_INDEX_REPOSITORY_LIMIT: number = 12
+export interface SourceIndexDeviceSyncSnapshot {
+  repositories: SourceIndexRepository[]
+  activeUrl: string
+}
 const SOURCE_INDEX_METADATA_CACHE_KEY: string = 'source_index.metadata_cache.v1'
 // Bound only the optional cache, never truncate a successful online index.
 const SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME: string = 'source-index-icon-cache'
@@ -301,8 +305,8 @@ export class SourceIndexService {
     const record: SourceIndexMetadataCacheRecord = { url, entries: metadata }
     if (JSON.stringify(record).length > SOURCE_INDEX_METADATA_RECORD_LIMIT) return
     try {
-      await this.ordered(async (): Promise<void> => {
-        await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      await BackupRestoreActivity.runWrite(async (): Promise<void> => {
+        await this.ordered(async (): Promise<void> => {
           const key = this.metadataRequestKey(url)
           if (sourceIndexMetadataRequests.get(key) !== revision) return
           const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
@@ -373,6 +377,7 @@ export class SourceIndexService {
     repositories?: SourceIndexRepository[],
     url?: string,
     removeUrl: boolean = false,
+    notifySync: boolean = true,
   ): Promise<void> {
     const urlExisted = await store.has(SOURCE_INDEX_URL_KEY)
     const previousUrl = await store.get(SOURCE_INDEX_URL_KEY, '')
@@ -385,7 +390,7 @@ export class SourceIndexService {
         await store.put(SOURCE_INDEX_REPOSITORIES_KEY, serializeSourceIndexRepositories(repositories))
       }
       await store.flush()
-      if (repositories !== undefined) signalDeviceSyncChange('source-subscriptions')
+      if (repositories !== undefined && notifySync) signalDeviceSyncChange('source-subscriptions')
     } catch (_error) {
       if (urlExisted) await store.put(SOURCE_INDEX_URL_KEY, previousUrl)
       else await store.delete(SOURCE_INDEX_URL_KEY)
@@ -394,6 +399,35 @@ export class SourceIndexService {
       await store.flush()
       throw new Error('source_index_preferences_commit_failed')
     }
+  }
+
+  async captureDeviceSyncSnapshot(): Promise<SourceIndexDeviceSyncSnapshot> {
+    return this.ordered(async (): Promise<SourceIndexDeviceSyncSnapshot> => {
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      return { repositories: await this.savedRepositories(store), activeUrl: await this.savedUrl(store) }
+    })
+  }
+
+  // Called by the local sync transaction and its crash recovery. It doesn't
+  // fetch a catalog, install a package, or publish a remote change as local.
+  async applyDeviceSyncSnapshot(snapshot: SourceIndexDeviceSyncSnapshot): Promise<void> {
+    await this.ordered(async (): Promise<void> => {
+      SourceIndexService.validateDeviceSyncSnapshot(snapshot)
+      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
+      const before = await this.savedRepositories(store)
+      await this.commitSavedPreferences(store, snapshot.repositories, snapshot.activeUrl || undefined,
+        snapshot.activeUrl === '', false)
+      before.forEach((repo: SourceIndexRepository): void => {
+        if (!snapshot.repositories.some((saved: SourceIndexRepository): boolean => saved.url === repo.url)) {
+          this.retireSubscription(repo.url)
+        }
+      })
+      snapshot.repositories.forEach((repo: SourceIndexRepository): void => this.rememberSubscriptionState(repo))
+    })
+  }
+
+  static validateDeviceSyncSnapshot(snapshot: SourceIndexDeviceSyncSnapshot): void {
+    if (snapshot.repositories.length > SOURCE_INDEX_REPOSITORY_LIMIT) throw new Error('sync_catalog_limit')
   }
 
   async saveUrl(url: string): Promise<void> {
@@ -467,24 +501,9 @@ export class SourceIndexService {
       await this.commitSavedPreferences(store, next, previous === undefined || active === previous ? normalized : undefined)
       this.rememberSubscriptionState(repository)
       if (previous !== undefined && !sameDocument) this.retireSubscription(previous)
+      if (previous !== undefined && !next.some((item: SourceIndexRepository): boolean =>
+        subscriptionIdentity(item.url) === subscriptionIdentity(previous))) signalDeviceSyncSubscriptionRemoved(previous)
       return next
-    }))
-  }
-
-  async acceptDeviceSyncSubscription(url: string, label: string): Promise<void> {
-    // User action from sync results, never an automatic remote side effect.
-    const result = await this.fetchIndex(url)
-    if (!result.ok) throw new Error('sync_catalog_unavailable')
-    await BackupRestoreActivity.runWrite(async (): Promise<void> => this.ordered(async (): Promise<void> => {
-      const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
-      const current = await this.savedRepositories(store)
-      if (current.some((repository: SourceIndexRepository): boolean =>
-        subscriptionIdentity(repository.url) === subscriptionIdentity(url))) return
-      if (current.length >= SOURCE_INDEX_REPOSITORY_LIMIT) throw new Error('sync_catalog_limit')
-      const added: SourceIndexRepository = { url: normalizeIndexUrl(url), lastUsedAt: 0,
-        customName: label.trim().slice(0, 120) || undefined, name: result.metadata?.name, website: result.metadata?.website }
-      await this.commitSavedPreferences(store, current.concat(added))
-      this.rememberSubscriptionState(added)
     }))
   }
 
@@ -547,7 +566,8 @@ export class SourceIndexService {
             removingActive && repositories.length > 0 ? repositories[0].url : undefined,
             removingActive && repositories.length === 0)
           this.retireSubscription(normalized)
-          signalDeviceSyncSubscriptionRemoved(normalized)
+          if (!repositories.some((item: SourceIndexRepository): boolean =>
+            subscriptionIdentity(item.url) === subscriptionIdentity(normalized))) signalDeviceSyncSubscriptionRemoved(normalized)
           return repositories
         } catch (_error) {
           throw new Error('source_index_preferences_remove_failed')

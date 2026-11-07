@@ -17,6 +17,7 @@ export interface SyncReadingSource {
 let restoreStarted: (() => void) | undefined
 let restoreFinished: ((committed: boolean) => void) | undefined
 let changed: ((group: SyncGroup) => void) | undefined
+let searchHistoryRemoved: ((query?: string) => void) | undefined
 
 export function connectDeviceSyncSignals(onChanged: (group: SyncGroup) => void): void {
   changed = onChanged
@@ -24,6 +25,14 @@ export function connectDeviceSyncSignals(onChanged: (group: SyncGroup) => void):
 
 export function signalDeviceSyncChange(group: SyncGroup): void {
   changed?.(group)
+}
+
+export function connectDeviceSyncSearchHistory(onRemoved: (query?: string) => void): void {
+  searchHistoryRemoved = onRemoved
+}
+
+export function signalDeviceSyncSearchRemoved(query?: string): void {
+  searchHistoryRemoved?.(query)
 }
 
 export function connectDeviceSyncRestore(onStart: () => void, onFinish: (committed: boolean) => void): void {

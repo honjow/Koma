@@ -35,6 +35,7 @@ import {
   normalizeCategoryIds,
   normalizeLibraryCategoryName,
   normalizeSortKey,
+  setCompleteSourceChapterCatalog,
   withComicCategoryIds,
 } from './ComicModels'
 import { AppStrings } from '../i18n/AppStrings'
@@ -577,6 +578,10 @@ function assertValidPersistedComic(row: PersistedComic): void {
     assertOptionalStringField(metadata.settingsFingerprint, 'comic.sourceMetadata.settingsFingerprint')
     assertOptionalStringArrayField(metadata.tags, 'comic.sourceMetadata.tags')
     assertOptionalStringArrayField(metadata.excludedChapterIds, 'comic.sourceMetadata.excludedChapterIds')
+    assertOptionalStringArrayField(metadata.sharedChapterIds, 'comic.sourceMetadata.sharedChapterIds')
+    if (metadata.chapterCatalogUpdatedAt !== undefined) {
+      assertNumberField(metadata.chapterCatalogUpdatedAt, 'comic.sourceMetadata.chapterCatalogUpdatedAt')
+    }
   }
   if (row.localImportOrigin !== undefined) {
     copyLocalImportOrigin(row.localImportOrigin)
@@ -989,8 +994,13 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
     webUrl: detail.webUrl,
     excludedChapterIds: chaptersResolved ? excludedChapterIds.slice() : previous.sourceMetadata?.excludedChapterIds,
     settingsFingerprint: chaptersResolved ? settingsFingerprint : previous.sourceMetadata?.settingsFingerprint,
+    sharedChapterIds: previous.sourceMetadata?.sharedChapterIds?.slice(),
+    chapterCatalogUpdatedAt: previous.sourceMetadata?.chapterCatalogUpdatedAt,
   }
-  if (chaptersResolved) enrichSourceChapterMetadata(next, chapters)
+  if (chaptersResolved) {
+    enrichSourceChapterMetadata(next, chapters)
+    setCompleteSourceChapterCatalog(next, chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
+  }
   if (JSON.stringify(next) === JSON.stringify(previous)) return false
   upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)
   return true

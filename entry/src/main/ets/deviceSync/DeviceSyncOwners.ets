@@ -13,7 +13,7 @@ import {
   READER_PROGRESS_PERSISTENCE_FILE_NAME, appReaderSessionStore, serializeReaderSessionForDevice,
 } from '../model/ReaderSessionStore'
 import {
-  ReaderDeviceSyncPreferences, ReaderImageFitMode, ReaderPageMode, ReaderPreferencesStore,
+  DEFAULT_READER_PREFERENCES, ReaderDeviceSyncPreferences, ReaderImageFitMode, ReaderPageMode, ReaderPreferencesStore,
   ReaderSeriesModeOverride,
 } from '../model/ReaderPreferencesStore'
 import {
@@ -21,15 +21,15 @@ import {
   libraryCategoryNameKey, normalizeLibraryCategoryName, normalizeSortKey,
 } from '../model/ComicModels'
 import { SourceReadHistoryEntry } from '../model/SourceReaderSession'
-import { SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
+import { normalizeSearchHistoryEntries, SearchHistoryEntry, SearchHistoryStore } from '../model/SearchHistoryStore'
 import { sourceLibraryComicId } from '../model/SourceLibraryComic'
-import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
-import { SourceIndexRepository, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
-import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncEngine'
+import { SourceIndexDeviceSyncSnapshot, SourceIndexService } from '../sourceRuntime/SourceIndexService'
+import { isValidHttpUrl, normalizeIndexUrl, SourceIndexRepository, subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
+import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
 import { SyncEdit, SyncFact, SyncGroup, syncVisibleValue } from './DeviceSyncFacts'
 import {
-  SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
-  SyncWorkLabel, syncKey, syncKeyParts, syncKnownSource, syncPublicLabel, syncReadingIdentity, syncReadingPosition,
+  safeSyncSearch, syncCatalogAddress, syncCatalogRecordKey, syncCoverAddress, SyncChapterCatalog, SyncPositionValue, SyncReaderMode, SyncRecentValue, SyncSearchValue, SyncSubscription,
+  SyncWorkLabel, syncKey, syncKeyParts, syncPublicLabel, syncReadingIdentity, syncReadingPosition,
   syncReadingRecent, syncSearchIdentity, syncShelfIdentity, syncShelfLabel, syncShelfMove, syncShelfMoveDestination,
   syncGroupVisibleValue, SyncShelfMove,
 } from './DeviceSyncData'
@@ -37,7 +37,6 @@ import { DeviceSyncStorage, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot
   SyncReadingRestoreCandidate, SyncRestoreEdit } from './DeviceSyncStorage'
 import { deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncCapturedReadingEdit, SyncReadingActionCapture,
   SyncReadingCapture, SyncLocalShelfMove } from './DeviceSyncSignals'
-import { DeviceSyncPublicSources, SyncPublicWorkProof } from './DeviceSyncPublicSource'
 import { syncDigest } from './DeviceSyncWire'
 
 const SYNC_PROJECTION = 'device-sync-projection.v1.json'
@@ -90,6 +89,7 @@ interface SyncProjection {
   acceptedQueries: SyncLocalValue[]
   receivedQueries: SyncLocalValue[]
   subscriptions: SyncLocalValue[]
+  acceptedSubscriptionKey?: string
   categoryOrder?: string[]
   projectedOrder?: string[]
   adoptedSharedCatalog?: boolean
@@ -111,6 +111,8 @@ interface LocalJournal {
   nextPreferences?: ReaderDeviceSyncPreferences
   previousSearch?: SearchHistoryEntry[]
   nextSearch?: SearchHistoryEntry[]
+  previousSubscriptions?: SourceIndexDeviceSyncSnapshot
+  nextSubscriptions?: SourceIndexDeviceSyncSnapshot
 }
 
 function readFile(path: string): string | undefined {
@@ -145,7 +147,7 @@ function syncUuid(text: string): string {
 }
 
 function knownWork(source: string | undefined, work: string | undefined): SyncSourceIdentity | undefined {
-  return source !== undefined && work !== undefined && syncKnownSource(source) ? { source, work } : undefined
+  return source !== undefined && work !== undefined && syncReadingIdentity(source, work) ? { source, work } : undefined
 }
 
 function shelfWork(comic: PersistedComic): SyncSourceIdentity | undefined {
@@ -160,6 +162,10 @@ function shelfLabel(comic: PersistedComic, source: string): SyncWorkLabel {
   return syncShelfLabel(source, comic.title, comic.sourceMetadata?.sourceName ?? '', comic.sourcePath)
 }
 
+function shelfSourceCover(comic?: PersistedComic): string | undefined {
+  return syncCoverAddress(comic?.sourceCoverUri ?? (comic?.customCoverUri === undefined ? comic?.coverUri : undefined))
+}
+
 function matchesShelfWork(comic: PersistedComic, source: string, work: string): boolean {
   const identity = shelfWork(comic)
   return identity?.source === source && identity?.work === work
@@ -171,11 +177,9 @@ function validDate(date: number): number {
 }
 
 export class KomaDeviceSyncOwners implements DeviceSyncOwner {
-  readonly publicSources: DeviceSyncPublicSources = new DeviceSyncPublicSources()
   private readonly context: common.UIAbilityContext
   private readonly storage: DeviceSyncStorage
   private publisher?: (groups: SyncGroup[]) => void
-  private syncGuardFactory: () => (() => void) = (): (() => void) => (): void => {}
 
   constructor(context: common.UIAbilityContext, storage: DeviceSyncStorage) {
     this.context = context
@@ -185,8 +189,6 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   publishWith(publisher: (groups: SyncGroup[]) => void): void {
     this.publisher = publisher
   }
-
-  guardSyncRequests(factory: () => (() => void)): void { this.syncGuardFactory = factory }
 
   readingLabels(keys: string[]): Record<string, string> {
     const labels: Record<string, string> = {}
@@ -315,10 +317,9 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return this.sourceIdentities(this.library(), this.reading(), this.readingFacts())
   }
 
-  async snapshot(group: SyncGroup, verify: boolean, reviewGuard?: () => void, shelfSpace?: string): Promise<SyncLocalSnapshot> {
+  async snapshot(group: SyncGroup, verify: boolean, _reviewGuard?: () => void, shelfSpace?: string): Promise<SyncLocalSnapshot> {
     // An explicit first-merge read has a per-review cancellation guard. It does
     // not turn the service on or grant unrelated owner requests permission.
-    const guard = reviewGuard ?? this.syncGuardFactory()
     const side = readFile(this.path(SYNC_PROJECTION)) ?? ''
     const projection = this.projection()
     const values: SyncLocalValue[] = []
@@ -326,21 +327,33 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     let skipped = 0
     if (group === 'search-history') {
       const entries = await new SearchHistoryStore(this.context).load()
-      projection.acceptedQueries.forEach((item: SyncLocalValue): void => {
-        labels[item.key] = (JSON.parse(item.value) as SyncSearchValue).text
+      const terms = new Map<string, SearchHistoryEntry>()
+      entries.forEach((item: SearchHistoryEntry): void => {
+        if (!safeSyncSearch(item.query)) return
+        const key = syncSearchIdentity(item.query)
+        if ((terms.get(key)?.updatedAt ?? 0) <= item.updatedAt) terms.set(key, item)
       })
-      return { values: projection.acceptedQueries, labels, revision: syncDigest(side + JSON.stringify(entries)), skipped }
+      terms.forEach((item: SearchHistoryEntry, term: string): void => {
+        const value: SyncSearchValue = { text: item.query, date: item.updatedAt }
+        row(values, ['query', term], value)
+        labels[syncKey(['query', term])] = item.query
+      })
+      return { values, labels, revision: syncDigest(JSON.stringify(entries)), skipped }
     }
     if (group === 'source-subscriptions') {
-      const repositories = await new SourceIndexService(this.context).loadSavedRepositories()
-      const official = repositories.find((repo: SourceIndexRepository): boolean =>
-        subscriptionIdentity(repo.url) === subscriptionIdentity(SYNC_OFFICIAL_CATALOG))
-      if (official !== undefined && projection.adoptedSharedCatalog !== true) {
-        const value: SyncSubscription = { address: SYNC_OFFICIAL_CATALOG, label: syncPublicLabel(official.customName ?? '', 120) }
-        row(values, ['catalog', SYNC_CATALOG_ID], value)
-        labels[syncKey(['catalog', SYNC_CATALOG_ID])] = value.label || value.address
-      }
-      return { values, labels, revision: syncDigest(JSON.stringify(repositories) + side), skipped: repositories.length - values.length }
+      const snapshot = await new SourceIndexService(this.context).captureDeviceSyncSnapshot()
+      const seen = new Set<string>()
+      snapshot.repositories.forEach((repo: SourceIndexRepository): void => {
+        const identity = subscriptionIdentity(repo.url)
+        const address = identity
+        if (!syncCatalogAddress(address) || !syncCatalogAddress(identity) || seen.has(identity)) return
+        seen.add(identity)
+        const value: SyncSubscription = { address, label: syncPublicLabel(repo.customName ?? '', 120) }
+        const key = syncCatalogRecordKey(identity)
+        values.push({ key, value: JSON.stringify(value) })
+        labels[key] = value.label || value.address
+      })
+      return { values, labels, revision: syncDigest(JSON.stringify(snapshot)), skipped }
     }
     const rawLibrary = readFile(this.path(LIBRARY_STORE_PERSISTENCE_FILE_NAME)) ?? ''
     const library = this.library()
@@ -367,7 +380,10 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         }
         const label = shelfLabel(comic, identity.source)
         row(values, ['book', identity.source, identity.work], label)
+        const cover = shelfSourceCover(comic)
+        if (cover !== undefined) row(values, ['cover', identity.source, identity.work], cover)
         labels[syncKey(['book', identity.source, identity.work])] = label.title
+        this.appendChapterCatalog(values, identity, comic)
         comic.categoryIds?.forEach((category: string): void => {
           const key = this.toSharedCategory(category, projection)
           if (key !== undefined) {
@@ -430,19 +446,29 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       row(values, ['global', 'image-fit'], preferences.imageFitMode)
       for (const id of Object.keys(preferences.books)) {
         const identity = identities.get(id)
-        const proof = identity === undefined ? undefined : await this.publicSources.work(identity.source, identity.work, verify, guard)
-        if (identity === undefined || proof === undefined) {
+        if (identity === undefined) {
           skipped++
           continue
         }
         const book = preferences.books[id]
-        labels[syncKey(['book-mode', identity.source, identity.work])] = proof.title
+        const label = library.comics.find((comic: PersistedComic): boolean => comic.id === id)?.title
+        if (label !== undefined) labels[syncKey(['book-mode', identity.source, identity.work])] = label
         row(values, ['book-mode', identity.source, identity.work],
           { mode: book.pageMode, direction: book.readingDirection } as SyncReaderMode)
       }
       // Global controls always have a real local value; a shared tombstone
       // cannot remove that setting. Optional per-book overrides can be removed.
+      const defaultKeys: string[] = []
+      const defaults = DEFAULT_READER_PREFERENCES
+      if (mode.mode === defaults.pageMode && mode.direction === defaults.readingDirection) {
+        defaultKeys.push(syncKey(['global', 'mode']))
+      }
+      if (preferences.pageTurnAnimation === defaults.pageTurnAnimation) defaultKeys.push(syncKey(['global', 'animation']))
+      if (preferences.showPageNumber === defaults.showPageNumber) defaultKeys.push(syncKey(['global', 'page-number']))
+      if (preferences.imageFitMode === defaults.imageFitMode) defaultKeys.push(syncKey(['global', 'image-fit']))
       return { values, revision: syncDigest(JSON.stringify(preferences) + rawLibrary + rawReading), skipped, labels,
+        defaultKeys,
+        unsetKeys: preferences.unsetFields?.map((name: string): string => syncKey(['global', name])),
         retainedDeletionKeys: values.filter((item: SyncLocalValue): boolean => syncKeyParts(item.key)[0] === 'global')
           .map((item: SyncLocalValue): string => item.key) }
     }
@@ -462,6 +488,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
         continue
       }
       const recentKey = syncKey(['recent', identity.source, identity.work])
+      const cover = shelfSourceCover(identity.comic) ?? syncCoverAddress(identity.history?.coverUri)
+      if (cover !== undefined) row(values, ['cover', identity.source, identity.work], cover)
       const known = knownValues.get(recentKey)
       const saved = known === undefined ? undefined : JSON.parse(known) as SyncRecentValue
       if (known !== undefined && saved?.chapter === progress.chapterId && saved.date === validDate(progress.updatedAt)) {
@@ -597,6 +625,57 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     })
   }
 
+  private appendChapterCatalog(values: SyncLocalValue[], identity: SyncSourceIdentity, comic: PersistedComic): void {
+    const ids = comic.sourceMetadata?.sharedChapterIds
+    if (ids === undefined || ids.some((id: string): boolean => !syncReadingIdentity(identity.source, identity.work, id))) return
+    const digest = syncDigest(JSON.stringify(ids))
+    const blocks: string[][] = []
+    let current: string[] = []
+    let length = 2
+    ids.forEach((id: string): void => {
+      const size = JSON.stringify(id).length + 1
+      if (length + size > 4096 && current.length > 0) { blocks.push(current); current = []; length = 2 }
+      current.push(id)
+      length += size
+    })
+    if (current.length > 0) blocks.push(current)
+    const header: SyncChapterCatalog = { digest, count: ids.length, blocks: blocks.length,
+      date: comic.sourceMetadata?.chapterCatalogUpdatedAt ?? 0 }
+    row(values, ['chapter-catalog', identity.source, identity.work], header)
+    blocks.forEach((ids: string[], index: number): void => {
+      row(values, ['chapter-catalog-block', identity.source, identity.work, digest, index.toString()], ids)
+    })
+  }
+
+  private applyChapterCatalogs(changes: SyncLocalValue[], library: PersistedLibraryStoreDocument): void {
+    const values = new Map<string, string>()
+    changes.forEach((item: SyncLocalValue): void => { if (item.value !== '') values.set(item.key, item.value) })
+    changes.forEach((change: SyncLocalValue): void => {
+      const parts = syncKeyParts(change.key)
+      if (parts[0] !== 'chapter-catalog' || change.value === '') return
+      const comic = library.comics.find((item: PersistedComic): boolean => matchesShelfWork(item, parts[1], parts[2]))
+      if (comic === undefined) return
+      const header = JSON.parse(change.value) as SyncChapterCatalog
+      const known = comic.sourceMetadata?.sharedChapterIds
+      let ids: string[] = []
+      if (known !== undefined && syncDigest(JSON.stringify(known)) === header.digest) ids = known.slice()
+      else {
+        if (header.blocks > values.size) throw new Error('sync_catalog_incomplete')
+        for (let index = 0; index < header.blocks; index++) {
+          const block = values.get(syncKey(['chapter-catalog-block', parts[1], parts[2], header.digest, index.toString()]))
+          if (block === undefined) throw new Error('sync_catalog_incomplete')
+          ids = ids.concat(JSON.parse(block) as string[])
+        }
+      }
+      if (ids.length !== header.count || new Set<string>(ids).size !== header.count ||
+        syncDigest(JSON.stringify(ids)) !== header.digest) throw new Error('sync_catalog_incomplete')
+      comic.sourceMetadata = comic.sourceMetadata ?? {}
+      comic.sourceMetadata.sharedChapterIds = ids
+      comic.sourceMetadata.chapterCatalogUpdatedAt = header.date
+      comic.chapterCount = ids.length
+    })
+  }
+
   private uniqueCategoryName(name: string, used: Set<string>): string {
     const original = normalizeLibraryCategoryName(name)
     let value = original
@@ -710,6 +789,15 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     })
     changes.forEach((change: SyncLocalValue): void => {
       const key = syncKeyParts(change.key)
+      if (key[0] === 'cover' && change.value !== '') {
+        const comic = library.comics.find((item: PersistedComic): boolean => matchesShelfWork(item, key[1], key[2]))
+        if (comic !== undefined && shelfSourceCover(comic) === undefined) {
+          const cover = JSON.parse(change.value) as string
+          if (comic.customCoverUri !== undefined) comic.sourceCoverUri = comic.sourceCoverUri || cover
+          else comic.coverUri = comic.coverUri || cover
+        }
+        return
+      }
       if (key[0] === 'order' && change.value !== '') {
         const order = JSON.parse(change.value) as string[]
         const ordered = categories.slice().sort((a: PersistedLibraryCategory,
@@ -772,7 +860,7 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
   private applyReading(changes: SyncLocalValue[], snapshot: ReaderSessionDocumentSnapshot, projection: SyncProjection): void {
     changes.forEach((change: SyncLocalValue): void => {
       const key = syncKeyParts(change.key)
-      if (key[0] === 'recent') return
+      if (key[0] === 'recent' || key[0] === 'cover') return
       const id = sourceLibraryComicId(key[1], key[2])
       let chapter = snapshot.chapters.find((state: ChapterReadingState): boolean => state.comicId === id && state.chapterId === key[3])
       if (chapter === undefined) {
@@ -833,14 +921,23 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       snapshot.progress.push(progress)
       snapshot.sourceHistory.push({ comicId: id, sourceId: key[1], mangaId: key[2], title: value.title,
         sourceName: value.sourceName, chapterId: value.chapter, chapterTitle: value.chapterTitle,
+        readingFormat: oldSource?.readingFormat,
         mangaUrl: oldSource?.mangaUrl ?? value.workUrl, coverUri: oldSource?.coverUri })
+    })
+    changes.forEach((change: SyncLocalValue): void => {
+      const key = syncKeyParts(change.key)
+      if (key[0] !== 'cover' || change.value === '') return
+      const id = sourceLibraryComicId(key[1], key[2])
+      const history = snapshot.sourceHistory.find((item: SourceReadHistoryEntry): boolean =>
+        item.comicId === id && item.sourceId === key[1] && item.mangaId === key[2])
+      if (history !== undefined && !history.coverUri) history.coverUri = JSON.parse(change.value) as string
     })
   }
 
   private applyPreferences(changes: SyncLocalValue[], preferences: ReaderDeviceSyncPreferences): void {
     changes.forEach((change: SyncLocalValue): void => {
       const key = syncKeyParts(change.key)
-      if (key[0] === 'book-mode' && syncKnownSource(key[1])) {
+      if (key[0] === 'book-mode' && syncReadingIdentity(key[1], key[2])) {
         const id = sourceLibraryComicId(key[1], key[2])
         if (change.value === '') {
           const remaining: Record<string, ReaderSeriesModeOverride> = {}
@@ -865,24 +962,61 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     })
   }
 
-  private applyAuxiliary(group: SyncGroup, changes: SyncLocalValue[], projection: SyncProjection): void {
+  private applySearch(changes: SyncLocalValue[], entries: SearchHistoryEntry[]): SearchHistoryEntry[] {
+    let next = entries.slice()
     changes.forEach((change: SyncLocalValue): void => {
-      if (group === 'search-history') {
-        projection.receivedQueries = projection.receivedQueries.filter((value: SyncLocalValue): boolean => value.key !== change.key)
-        if (change.value === '') {
-          projection.acceptedQueries = projection.acceptedQueries.filter((value: SyncLocalValue): boolean => value.key !== change.key)
-        }
-        if (change.value !== '') projection.receivedQueries.push(change)
-      } else if (group === 'source-subscriptions') {
-        projection.subscriptions = projection.subscriptions.filter((value: SyncLocalValue): boolean => value.key !== change.key)
-        if (change.value !== '') projection.subscriptions.push(change)
+      const key = syncKeyParts(change.key)
+      const term = key[1]
+      if (change.value === '') {
+        next = next.filter((item: SearchHistoryEntry): boolean => syncSearchIdentity(item.query) !== term ||
+          (key.length === 3 && item.syncSourceSet !== key[2]))
+        return
+      }
+      const value = JSON.parse(change.value) as SyncSearchValue
+      const current = next.find((item: SearchHistoryEntry): boolean => syncSearchIdentity(item.query) === term)
+      if (current === undefined) {
+        next.push(key.length === 3 ? { query: value.text, updatedAt: value.date, sourceFilter: 'source', syncSourceSet: key[2] } :
+          { query: value.text, updatedAt: value.date })
+      } else if ((key.length === 2 || current.updatedAt < value.date) &&
+        (current.updatedAt !== value.date || current.query !== value.text)) {
+        next[next.indexOf(current)] = { query: value.text, updatedAt: value.date, sourceFilter: current.sourceFilter,
+          librarySource: current.librarySource }
       }
     })
+    return normalizeSearchHistoryEntries(next)
+  }
+
+  private applySubscriptions(changes: SyncLocalValue[], snapshot: SourceIndexDeviceSyncSnapshot): SourceIndexDeviceSyncSnapshot {
+    let repositories = snapshot.repositories.slice()
+    changes.forEach((change: SyncLocalValue): void => {
+      if (change.value === '') {
+        repositories = repositories.filter((repo: SourceIndexRepository): boolean => syncCatalogRecordKey(subscriptionIdentity(repo.url)) !== change.key)
+        return
+      }
+      const value = JSON.parse(change.value) as SyncSubscription
+      if (!isValidHttpUrl(value.address) || syncCatalogRecordKey(subscriptionIdentity(value.address)) !== change.key) {
+        throw new Error('sync_unsupported_value')
+      }
+      const current = repositories.find((repo: SourceIndexRepository): boolean => syncCatalogRecordKey(subscriptionIdentity(repo.url)) === change.key)
+      const label = value.label || undefined
+      if (current === undefined) repositories.push({ url: normalizeIndexUrl(value.address), lastUsedAt: 0, customName: label })
+      else repositories[repositories.indexOf(current)] = { url: current.url, lastUsedAt: current.lastUsedAt,
+        disabled: current.disabled, name: current.name, website: current.website, customName: label }
+    })
+    const activeUrl = snapshot.activeUrl
+    return { repositories, activeUrl: activeUrl === '' || repositories.some((repo: SourceIndexRepository): boolean =>
+      subscriptionIdentity(repo.url) === subscriptionIdentity(activeUrl)) ? activeUrl : repositories[0]?.url ?? '' }
   }
 
   private addImage(files: SyncFileImage[], name: string, after: string): void {
     const before = readFile(this.path(name))
     if (before !== after) files.push({ name, before, after })
+  }
+
+  async validateChanges(group: SyncApplyGroup): Promise<void> {
+    if (group.group !== 'source-subscriptions' || group.changes.length === 0) return
+    const snapshot = await new SourceIndexService(this.context).captureDeviceSyncSnapshot()
+    SourceIndexService.validateDeviceSyncSnapshot(this.applySubscriptions(group.changes, snapshot))
   }
 
   async commit(groups: SyncApplyGroup[], expected: SyncOwnerRevision[], saveCursor: (id: string) => void,
@@ -903,11 +1037,14 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
       let nextPreferences: ReaderDeviceSyncPreferences | undefined
       let previousSearch: SearchHistoryEntry[] | undefined
       let nextSearch: SearchHistoryEntry[] | undefined
+      let previousSubscriptions: SourceIndexDeviceSyncSnapshot | undefined
+      let nextSubscriptions: SourceIndexDeviceSyncSnapshot | undefined
       for (const group of groups) {
         if (group.changes.length === 0) continue
         if (group.group === 'shelf') {
           const library = this.library()
           this.applyShelf(group.changes, library, projection, acceptedRemoval)
+          this.applyChapterCatalogs(group.changes, library)
           const json = JSON.stringify(library)
           assertValidLibraryStoreJson(json)
           this.addImage(files, LIBRARY_STORE_PERSISTENCE_FILE_NAME, json)
@@ -922,30 +1059,29 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
           previousPreferences = await new ReaderPreferencesStore(this.context).captureDeviceSyncPreferences()
           nextPreferences = clonePrefs(previousPreferences)
           this.applyPreferences(group.changes, nextPreferences)
-        } else {
-          this.applyAuxiliary(group.group, group.changes, projection)
-          if (group.group === 'search-history' && group.changes.some((change: SyncLocalValue): boolean => change.value === '')) {
-            const dropped = group.changes.filter((change: SyncLocalValue): boolean => change.value === '')
-              .map((change: SyncLocalValue): string => change.key)
-            previousSearch = await new SearchHistoryStore(this.context).load()
-            nextSearch = previousSearch.filter((entry: SearchHistoryEntry): boolean => entry.syncSourceSet === undefined ||
-              !dropped.includes(syncKey(['query', syncSearchIdentity(entry.query), entry.syncSourceSet])))
-          }
+        } else if (group.group === 'search-history') {
+          previousSearch = await new SearchHistoryStore(this.context).load()
+          nextSearch = this.applySearch(group.changes, previousSearch)
+        } else if (group.group === 'source-subscriptions') {
+          previousSubscriptions = await new SourceIndexService(this.context).captureDeviceSyncSnapshot()
+          nextSubscriptions = this.applySubscriptions(group.changes, previousSubscriptions)
         }
       }
       const oldProjection = this.projection()
       if (JSON.stringify(oldProjection) !== JSON.stringify(projection)) this.addImage(files, SYNC_PROJECTION, JSON.stringify(projection))
       const id = util.generateRandomUUID()
-      if (files.length === 0 && nextPreferences === undefined && nextSearch === undefined) {
+      if (files.length === 0 && nextPreferences === undefined && nextSearch === undefined && nextSubscriptions === undefined) {
         if (stillAllowed?.() === false) throw new Error('sync_local_changed')
         saveCursor(id)
         return
       }
-      const journal: LocalJournal = { id, files, filesStarted: false, previousPreferences, nextPreferences, previousSearch, nextSearch }
+      const journal: LocalJournal = { id, files, filesStarted: false, previousPreferences, nextPreferences, previousSearch, nextSearch,
+        previousSubscriptions, nextSubscriptions }
       writeAppTextFile(this.path(SYNC_JOURNAL), JSON.stringify(journal))
       try {
         if (nextPreferences !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(nextPreferences)
         if (nextSearch !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(nextSearch)
+        if (nextSubscriptions !== undefined) await new SourceIndexService(this.context).applyDeviceSyncSnapshot(nextSubscriptions)
         if (stillAllowed?.() === false || reader.currentDeviceSyncRevision() !== readerRevision ||
           fileNames.some((name: string, index: number): boolean =>
           readFile(this.path(name)) !== admittedFiles[index])) throw new Error('sync_local_changed')
@@ -1000,6 +1136,8 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     if (prefs !== undefined) await new ReaderPreferencesStore(this.context).applyDeviceSyncPreferences(prefs)
     const search = committed ? journal.nextSearch : journal.previousSearch
     if (search !== undefined) await new SearchHistoryStore(this.context).applyDeviceSyncEntries(search)
+    const subscriptions = committed ? journal.nextSubscriptions : journal.previousSubscriptions
+    if (subscriptions !== undefined) await new SourceIndexService(this.context).applyDeviceSyncSnapshot(subscriptions)
     fs.unlinkSync(this.path(SYNC_JOURNAL))
   }
 
@@ -1085,13 +1223,6 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return knownWork(identity?.source, identity?.work)
   }
 
-  markAcceptedSharedSubscription(): void {
-    const projection = this.projection()
-    if (projection.adoptedSharedCatalog === true) return
-    projection.adoptedSharedCatalog = true
-    writeAppTextFile(this.path(SYNC_PROJECTION), JSON.stringify(projection))
-  }
-
   sharedCategory(id: string): string | undefined {
     return this.toSharedCategory(id, this.projection())
   }
@@ -1112,22 +1243,4 @@ export class KomaDeviceSyncOwners implements DeviceSyncOwner {
     return categories
   }
 
-  receivedSubscriptions(): SyncLocalValue[] {
-    return this.projection().subscriptions
-  }
-
-  receivedQueries(): SyncLocalValue[] {
-    return this.projection().receivedQueries
-  }
-
-  saveSearchValues(values: SyncLocalValue[], remove: string[] = []): void {
-    const projection = this.projection()
-    projection.acceptedQueries = values
-    projection.receivedQueries = projection.receivedQueries.filter((row: SyncLocalValue): boolean => !remove.includes(row.key))
-    writeAppTextFile(this.path(SYNC_PROJECTION), JSON.stringify(projection))
-  }
-
-  publicWork(source: string, work: string): Promise<SyncPublicWorkProof | undefined> {
-    return this.publicSources.work(source, work, this.storage.load().active?.enabled !== false, this.syncGuardFactory())
-  }
 }

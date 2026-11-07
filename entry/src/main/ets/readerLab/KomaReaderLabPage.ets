@@ -32,7 +32,7 @@ import { readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/Reade
 import { KomaReaderInitialPolicy } from './KomaReaderInitialPolicy'
 import { KomaReaderPreferenceBridge } from './KomaReaderPreferenceBridge'
 import { connectReaderModeState, ReaderModeState } from '../state/ReaderModeState'
-import { ReaderMode } from '../model/ReaderSessionStore'
+import { ReaderMode, readerSessionFormat } from '../model/ReaderSessionStore'
 import { ReaderSettingsContent } from '../components/ReaderSettingsContent'
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { ConciseListRow } from '../components/ui/ConciseListRow'
@@ -375,8 +375,10 @@ export struct KomaReaderLabPage {
       if (this.productionEntry) await this.prepareInitial()
       if (cancellation.isCancelled() || this.readerClosed) return
       const preferencesStore = new ReaderPreferencesStore(context)
+      const initial = this.catalogHost?.initial(this.unitKey.work, this.unitKey.unit)
       const preferences = this.productionEntry
-        ? await preferencesStore.loadForComic(this.unitKey.work) : await preferencesStore.load()
+        ? await preferencesStore.loadForComic(this.unitKey.work, readerSessionFormat(initial ?? undefined)) :
+        await preferencesStore.load()
       if (this.productionEntry) {
         this.seriesOverrideActive = await preferencesStore.seriesModeOverride(this.unitKey.work) !== undefined
       }

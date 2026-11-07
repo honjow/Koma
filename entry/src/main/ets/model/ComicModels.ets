@@ -28,6 +28,17 @@ export enum ReadingDirection {
   WEBTOON = 'webtoon',
 }
 
+export type ReaderSeriesFormat = 'manga' | 'webtoon'
+
+/** Format tags describe the work, independently of the source or translation language. */
+export function readerFormatFromTags(tags?: string[]): ReaderSeriesFormat | undefined {
+  const labels = tags?.map((tag: string): string => tag.trim().toLowerCase().replace(/[\s_-]+/g, ' ')) ?? []
+  if (labels.some((tag: string): boolean => ['webtoon', 'long strip', '条漫', '條漫', '縦読み', 'タテ読み', '웹툰'].includes(tag))) {
+    return 'webtoon'
+  }
+  return labels.some((tag: string): boolean => ['manga', '日漫', '日本漫画', '日本漫畫'].includes(tag)) ? 'manga' : undefined
+}
+
 export interface Page {
   id: PageId
   comicId: ComicId
@@ -98,6 +109,9 @@ export interface SourceMangaMetadata {
   webUrl?: string
   excludedChapterIds?: string[]
   settingsFingerprint?: string
+  /** Ordered, complete chapter identities; available before this device fetches pages. */
+  sharedChapterIds?: string[]
+  chapterCatalogUpdatedAt?: number
 }
 
 export function copySourceMangaMetadata(value: SourceMangaMetadata): SourceMangaMetadata {
@@ -110,7 +124,22 @@ export function copySourceMangaMetadata(value: SourceMangaMetadata): SourceManga
     webUrl: value.webUrl,
     excludedChapterIds: value.excludedChapterIds?.slice(),
     settingsFingerprint: value.settingsFingerprint,
+    sharedChapterIds: value.sharedChapterIds?.slice(),
+    chapterCatalogUpdatedAt: value.chapterCatalogUpdatedAt,
   }
+}
+
+export function setCompleteSourceChapterCatalog(comic: Comic, ids: string[], observedAt: number): boolean {
+  const distinct = Array.from(new Set<string>(ids))
+  const old = comic.sourceMetadata?.sharedChapterIds
+  if (old !== undefined && old.length === distinct.length && old.every((id: string, index: number): boolean => id === distinct[index])) {
+    return false
+  }
+  comic.sourceMetadata = comic.sourceMetadata ?? {}
+  comic.sourceMetadata.sharedChapterIds = distinct
+  comic.sourceMetadata.chapterCatalogUpdatedAt = observedAt
+  comic.chapterCount = distinct.length
+  return true
 }
 
 export interface Comic {

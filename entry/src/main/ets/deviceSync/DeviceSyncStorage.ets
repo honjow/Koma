@@ -22,6 +22,8 @@ export interface SyncLocalSnapshot {
   // Fixed host settings keep their actual local value when their shared record
   // is deleted. This does not protect normal edits or an explicit re-upload.
   retainedDeletionKeys?: string[]
+  defaultKeys?: string[]
+  unsetKeys?: string[]
   restoreEdits?: SyncRestoreEdit[]
   labels?: Record<string, string>
 }
@@ -110,6 +112,7 @@ export interface SyncCommitIntent {
   applies: SyncStoredApplyGroup[]
   commit?: string
   commitBody?: string
+  writtenDatasets?: string[]
 }
 
 export interface SyncOwnerRevision {
@@ -128,6 +131,9 @@ export interface SyncLocalDocument {
   replica: string
   publicationWriter?: string
   counter: number
+  // Shared service policy on this device. Connection selections are kept in
+  // old receipts so in-flight and pre-upgrade publications can be recovered.
+  syncContents?: SyncGroup[]
   active?: SyncSavedConnection
   pendingConfiguration?: SyncSavedConfiguration
   intent?: SyncCommitIntent
@@ -167,7 +173,8 @@ export class DeviceSyncStorage {
     }
     const loaded = JSON.parse(fs.readTextSync(this.path, { encoding: 'utf-8' })) as SyncLocalDocument
     if (!loaded || loaded.schema !== 1 || !isSyncReplica(loaded.replica) ||
-      !Number.isSafeInteger(loaded.counter) || loaded.counter < 0 || !Array.isArray(loaded.probes)) {
+      !Number.isSafeInteger(loaded.counter) || loaded.counter < 0 || !Array.isArray(loaded.probes) ||
+      (loaded.syncContents !== undefined && !Array.isArray(loaded.syncContents))) {
       throw new Error('sync_local_state_invalid')
     }
     this.current = loaded
@@ -178,6 +185,7 @@ export class DeviceSyncStorage {
     const current = this.load()
     const state: SyncLocalDocument = { schema: current.schema, replica: current.replica,
       publicationWriter: current.publicationWriter, counter: current.counter,
+      syncContents: current.syncContents?.slice(),
       active: current.active === undefined ? undefined : copySyncConnection(current.active),
       pendingConfiguration: current.pendingConfiguration === undefined ? undefined : {
         credential: current.pendingConfiguration.credential, endpointIdentity: current.pendingConfiguration.endpointIdentity,

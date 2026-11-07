@@ -1,5 +1,6 @@
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { syncSearchIdentity } from '../deviceSync/DeviceSyncData'
+import { signalDeviceSyncChange, signalDeviceSyncSearchRemoved } from '../deviceSync/DeviceSyncSignals'
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { CrossSearchSourceFilter } from './CrossSearchService'
@@ -174,6 +175,7 @@ export class SearchHistoryStore {
       const store = await this.preferences()
       const entries = addSearchHistoryEntry(await this.readEntries(store), query, Date.now(), scope)
       await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      signalDeviceSyncChange('search-history')
       return entries
     }))
   }
@@ -181,6 +183,7 @@ export class SearchHistoryStore {
   async clear(): Promise<void> {
     return BackupRestoreActivity.runWrite(() => this.ordered(async (): Promise<void> => {
       await this.commit(await this.preferences(), SEARCH_HISTORY_QUERIES_KEY, '[]')
+      signalDeviceSyncSearchRemoved()
     }))
   }
 
@@ -189,6 +192,9 @@ export class SearchHistoryStore {
       const store = await this.preferences()
       const entries = removeSearchHistoryEntry(await this.readEntries(store), query, scope)
       await this.commit(store, SEARCH_HISTORY_QUERIES_KEY, JSON.stringify(entries))
+      if (!entries.some((item: SearchHistoryEntry): boolean => syncSearchIdentity(item.query) === syncSearchIdentity(query))) {
+        signalDeviceSyncSearchRemoved(query)
+      }
       return entries
     }))
   }

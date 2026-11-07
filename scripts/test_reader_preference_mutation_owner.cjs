@@ -14,6 +14,7 @@ const backendModule = evaluate('entry/src/main/ets/state/KomaReaderBackendSelect
 });
 const display = evaluate('entry/src/main/ets/model/ReaderDisplaySettings.ets',{});
 const mod = evaluate('entry/src/main/ets/model/ReaderPreferencesStore.ets',{
+ '../deviceSync/DeviceSyncSignals':evaluate('entry/src/main/ets/deviceSync/DeviceSyncSignals.ets',{}),
  './ImageBannerRules':evaluate('entry/src/main/ets/model/ImageBannerRules.ets',{
   './ImageProcessingPlugins':evaluate('entry/src/main/ets/model/ImageProcessingPlugins.ets',{})
  }),
@@ -36,6 +37,10 @@ const ctx={filesDir:'/owned-memory/preferences'}, store=new mod.ReaderPreference
  ctx.failTheme=true;await assert.rejects(()=>store.saveThemeMode('dark'),/platform_fail/);assert.equal((await store.load()).themeMode,'system');ctx.failTheme=false;
  mod.unbindReaderThemeWindow();await store.saveThemeMode('dark');assert.equal(applied.at(-1),-1);mod.bindReaderThemeWindow(ctx);await store.load();assert.equal(applied.at(-1),0);
  await store.save(mod.DEFAULT_READER_PREFERENCES);published.length=0;
+ assert.equal((await store.loadForComic('strip', 'webtoon')).pageMode, 'continuous_scroll');
+ assert.equal((await store.loadForComic('manga', 'manga')).readingDirection, ReadingDirection.RIGHT_TO_LEFT);
+ assert.equal((await store.loadForComic('unknown')).readingDirection, ReadingDirection.LEFT_TO_RIGHT);
+ assert.equal((await store.load()).pageMode, 'single_page');
  const displayBase=await store.load();
  const gray={...displayBase,displaySettings:{...displayBase.displaySettings,grayscale:true}};
  const tint={...displayBase,displaySettings:{...displayBase.displaySettings,filterEnabled:true,red:160,alpha:64}};

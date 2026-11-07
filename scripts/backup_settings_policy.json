@@ -124,6 +124,7 @@
     "model/LibraryUpdateResultStore.ets": [
       "libraryUpdate.latestResultJson",
       "libraryUpdate.chapterUpdatesJson",
+      "libraryUpdate.chapterUpdatesSeenAt",
       "libraryUpdate.latestJobJson"
     ],
     "model/SearchHistoryStore.ets": [

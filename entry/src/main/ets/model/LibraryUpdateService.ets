@@ -12,6 +12,7 @@ import {
   copyComicPersonalFields,
   assignComicSourceCover,
   copyComicUpdateSchedule,
+  setCompleteSourceChapterCatalog,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -626,13 +627,22 @@ export class LibraryUpdateService {
         currentComic.updatedAt = Date.now()
       }
       const remoteIds = remoteChapters.map((chapter: MangaChapterItem): string => chapter.id)
-      const localIds = currentComic.chapters.map((chapter: Chapter): string => chapter.id)
+      const previousCatalog = currentComic.sourceMetadata?.sharedChapterIds
+      const localIds = previousCatalog ?? currentComic.chapters.map((chapter: Chapter): string => chapter.id)
+      const firstCatalog = previousCatalog === undefined && currentComic.chapters.length === 0
       const addedChapterCount = new Set<string>(remoteIds.filter(
         (chapterId: string): boolean => !localIds.includes(chapterId))).size
-      if (addedChapterCount === 0) {
-        const metadataChanged = enrichSourceChapterMetadata(currentComic, remoteChapters) || identityChanged
+      if (addedChapterCount === 0 || firstCatalog) {
+        const nextComic = JSON.parse(JSON.stringify(currentComic)) as Comic
+        const now = Date.now()
+        const storedIds = new Set<string>(nextComic.chapters.map((chapter: Chapter): string => chapter.id))
+        const directoryMissing = remoteIds.some((id: string): boolean => !storedIds.has(id))
+        if (directoryMissing) nextComic.chapters = mergeSourceChapters(currentComic, remoteChapters, now)
+        const catalogChanged = setCompleteSourceChapterCatalog(nextComic, remoteIds, now)
+        const metadataChanged = enrichSourceChapterMetadata(nextComic, remoteChapters) || catalogChanged ||
+          identityChanged || directoryMissing
         if (metadataChanged) {
-          this.libraryStore.upsertComic(currentComic)
+          this.libraryStore.upsertComic(nextComic)
         }
         return {
           comicId: comic.id,
@@ -641,13 +651,15 @@ export class LibraryUpdateService {
           status: 'unchanged',
           metadataChanged,
           previousChapterCount,
-          newChapterCount: currentComic.chapters.length,
+          newChapterCount: nextComic.chapterCount,
           message: AppStrings.get('library_update_no_new_chapters'),
         }
       }
       const now = Date.now()
       const mergedChapters = mergeSourceChapters(currentComic, remoteChapters, now)
-      this.libraryStore.upsertComic(updatedComicWithChapters(comic, mergedChapters, now))
+      const updated = updatedComicWithChapters(comic, mergedChapters, now)
+      setCompleteSourceChapterCatalog(updated, remoteIds, now)
+      this.libraryStore.upsertComic(updated)
       return {
         comicId: comic.id,
         providerKind: providerKindForComic(comic),

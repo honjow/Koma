@@ -10,10 +10,11 @@ import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { LibraryUpdatesPage } from './LibraryUpdatesPage'
 import { PullRefreshController } from '../components/PullRefresh'
-import { LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
+import { classifyLibraryUpdateSummary, LibraryUpdateResultStore } from '../model/LibraryUpdateResultStore'
+import { countLibraryUpdateNewChapters } from '../model/LibraryUpdateService'
 import { setCachedLibraryChapterUpdates } from '../model/LibraryChapterUpdates'
 import { SourceSubscriptionsPage } from './SourceSubscriptionsPage'
-import { TextStyleMode } from '@kit.UIDesignKit'
+import { HdsNavigationBadgeOptions, TextStyleMode } from '@kit.UIDesignKit'
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { SourceCatalogBottomSearchBuilder } from '../components/SourceCatalogBottomSearch'
 import { SourceCatalogHeaderActionsBuilder, SourceCatalogHeaderActionsParams } from '../components/SourceCatalogHeaderActions'
@@ -133,6 +134,7 @@ import {
   ComicSourceKind,
   Page,
   ReadingProgress,
+  setCompleteSourceChapterCatalog,
 } from '../model/ComicModels'
 import {
   LocalLibraryFolderScanResult,
@@ -210,7 +212,7 @@ import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { AppForegroundState, connectAppForegroundState } from '../state/AppForegroundState'
 import { shouldSuppressKomaDeviceVerificationBackgroundSideEffects } from '../state/KomaDeviceVerificationIsolation'
 import { LibraryUpdateState, connectLibraryUpdateState } from '../state/LibraryUpdateState'
-import { requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
+import { LibraryUpdateCheckResult, pendingLibraryUpdateCheck, requestLibraryUpdateCheck } from '../model/LibraryUpdateCoordinator'
 
 const readerSessionStore: ReaderSessionStore = new InMemoryReaderSessionStore()
 const seededLibraryStore: LibraryStore = createSeededLibraryStore()
@@ -250,6 +252,8 @@ interface BackupManagementRouteParam {
 @ComponentV2
 struct Index {
   private libraryUpdatesRefreshController: PullRefreshController = new PullRefreshController()
+  private libraryManualUpdate?: Promise<void>
+  private libraryUpdateBadgeRevision: number = 0
   @Local private enhancementModelsRevision: number = 0
 
   @Local private tabIconBounceTriggers: number[] = [-1, -1, -1, -1]
@@ -299,6 +303,7 @@ struct Index {
   @Local private layoutSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
   @Local private appForegroundState: AppForegroundState = connectAppForegroundState()
   @Local private libraryUpdateState: LibraryUpdateState = connectLibraryUpdateState()
+  @Local private libraryUpdatesUnseen: boolean = false
   @Local private readerOpen: boolean = false
   @Local private readerClosing: boolean = false
   @Local private readerRouteVisible: boolean = false
@@ -553,6 +558,11 @@ struct Index {
   }
 
   @Monitor('libraryUpdateState.revision')
+  private onLibraryUpdateCompleted(): void {
+    this.refreshLibraryUpdateBadge(getContext(this) as common.UIAbilityContext)
+  }
+
+  @Monitor('libraryUpdateState.revision')
   private refreshLibrarySnapshot(): void {
     this.libraryComics = this.libraryStore.listComics()
     this.libraryRevision += 1
@@ -594,13 +604,20 @@ struct Index {
       requireForeground: true,
     })).then((result) => {
       console.info('[LibraryUpdate] step=foreground_check status=' + result.status)
+      if (result !== undefined) this.showLibraryUpdateResult(result, false)
     }).catch((_error: Error) => {
       DiagnosticLogger.warn('index', 'foreground_check_failed', '[LibraryUpdate] step=foreground_check_failed')
     })
   }
 
-  private async checkLibraryUpdatesNow(): Promise<void> {
-    if (this.libraryUpdateState.busy) return
+  private checkLibraryUpdatesNow(showStart: boolean = false): Promise<void> {
+    if (this.libraryManualUpdate !== undefined) return this.libraryManualUpdate
+    if (showStart && this.appForegroundState.active) this.showLibraryUpdateToast(AppStrings.get('library_updates_checking'))
+    this.libraryManualUpdate = this.runLibraryUpdateCheck().finally((): void => { this.libraryManualUpdate = undefined })
+    return this.libraryManualUpdate
+  }
+
+  private async runLibraryUpdateCheck(): Promise<void> {
     try {
       const context = getContext(this) as common.UIAbilityContext
       await applyBackgroundLibraryResults(context, this.libraryStore, this.libraryPersistenceService)
@@ -608,12 +625,48 @@ struct Index {
         sourceRegistry: this.sourceRegistry, libraryPersistenceService: this.libraryPersistenceService,
         reason: 'manual', requireForeground: true })
       this.refreshLibrarySnapshot()
-      const message = result.status === 'failed' ? 'library_updates_check_failed' :
-        result.persistenceFailed ? 'library_updates_save_failed' : ''
-      if (message) this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get(message) }))
+      this.showLibraryUpdateResult(result, true)
     } catch (error) {
       DiagnosticLogger.exception('library_updates', 'check_failed', error as Error)
-      this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('library_updates_check_failed') }))
+      if (this.appForegroundState.active) this.showLibraryUpdateToast(AppStrings.get('library_updates_check_failed'))
+    }
+  }
+
+  private showLibraryUpdateToast(message: string): void {
+    this.getUIContext().getPromptAction().showToast(komaToastOptions({ message }))
+  }
+
+  private showLibraryUpdateResult(result: LibraryUpdateCheckResult, manual: boolean): void {
+    if (!this.appForegroundState.active) return
+    const summary = result.summary
+    const count = summary === undefined ? 0 : countLibraryUpdateNewChapters(summary)
+    if (count > 0) {
+      this.showLibraryUpdateToast(AppStrings.get('library_update_found_new_chapters').replace('%s', `${count}`))
+    } else if (manual) {
+      const failed = result.status === 'failed' || result.status === 'unavailable' ||
+        (summary !== undefined && classifyLibraryUpdateSummary(summary) === 'all-failed')
+      this.showLibraryUpdateToast(AppStrings.get(result.persistenceFailed ? 'library_updates_save_failed' :
+        failed ? 'library_updates_check_failed' : 'library_update_no_new_chapters'))
+    }
+  }
+
+  private async refreshBookshelf(): Promise<void> {
+    try {
+      await this.syncFromRootRefresh()
+    } finally {
+      // Include newly synced books and avoid competing for the library write guard.
+      void this.checkLibraryUpdatesNow(true)
+    }
+  }
+
+  private async syncFromRootRefresh(): Promise<void> {
+    try {
+      await appDeviceSync.syncFromRefresh()
+    } catch (error) {
+      const checking = pendingLibraryUpdateCheck()
+      if ((error as Error).message !== 'sync_local_busy' || checking === undefined) throw error as Error
+      await checking.catch(() => {})
+      await appDeviceSync.syncFromRefresh()
     }
   }
 
@@ -800,6 +853,7 @@ struct Index {
         ? continuationChapterIds(request.chapters, request.chapterId) : undefined,
       title: request.title,
       chapterTitle: chapterTitles[selectedIndex],
+      readingFormat: request.readingFormat,
       totalPages: pages.length,
       pageUris: pages.map((page: Page): string => page.uri),
       pageIds: pages.map((page: Page): string => page.id),
@@ -843,6 +897,8 @@ struct Index {
             preparedRequest.chapterIds = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.id)
             preparedRequest.chapterTitles = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.title)
             preparedRequest.chaptersResolved = true
+            if (openEpoch === this.readerOpenEpoch && this.readerOpen && !this.readerClosing &&
+              this.sourceRegistry.lookup(request.sourceId).entry === lookup.entry) this.rememberSharedChapterCatalog(preparedRequest)
           }
         }
       } catch (_error) {
@@ -903,6 +959,18 @@ struct Index {
     this.readerSessionStore.saveSourceHistory(sourceReadHistoryEntryFromRequest(preparedRequest))
     this.readerSessionStore.flush()
     this.readerSessionLoading = false
+  }
+
+  private rememberSharedChapterCatalog(request: SourceReaderSessionRequest): void {
+    const comic = this.libraryStore.getComic(request.comicId)
+    if (request.chaptersResolved !== true || request.chapters === undefined || comic === undefined ||
+      comic.sourceRuntimeId !== request.sourceId || comic.remoteResourceId !== request.mangaId) return
+    const next = JSON.parse(JSON.stringify(comic)) as Comic
+    if (!setCompleteSourceChapterCatalog(next, request.chapters.map((item: ReaderChapterDescriptor): string => item.id), Date.now())) return
+    const persistence = this.ensureLibraryPersistenceService()
+    if (persistence === undefined) return
+    upsertComicAndPersistLibraryStore(this.libraryStore, persistence, next)
+    this.refreshLibrarySnapshot()
   }
 
   private showSyncedChapterChanged(request: SourceReaderSessionRequest): void {
@@ -1019,6 +1087,7 @@ struct Index {
       updated.chapterTitles = catalog.chapters.map((chapter: ReaderChapterDescriptor): string => chapter.title)
       updated.chaptersResolved = true
       this.activeSourceReaderRequest = updated
+      this.rememberSharedChapterCatalog(updated)
       return continuationChapterIds(catalog.chapters, target.unit)
     }
     return new SourceChapterPageHydrator(this.libraryStore, this.sourceRegistry,
@@ -1635,6 +1704,20 @@ struct Index {
     void new LibraryUpdateResultStore(context).loadChapterUpdates()
       .then((): void => { this.libraryRevision += 1 })
       .catch((): void => { DiagnosticLogger.warn('library_updates', 'history_load_failed', 'phase=preferences') })
+    this.refreshLibraryUpdateBadge(context)
+  }
+
+  private refreshLibraryUpdateBadge(context: common.UIAbilityContext): void {
+    const revision = ++this.libraryUpdateBadgeRevision
+    void new LibraryUpdateResultStore(context).hasUnseenChapterUpdates().then((unseen: boolean): void => {
+      if (revision === this.libraryUpdateBadgeRevision) this.libraryUpdatesUnseen = unseen
+    }).catch((): void => {})
+  }
+
+  private markLibraryUpdatesSeen(): void {
+    const context = getContext(this) as common.UIAbilityContext
+    void new LibraryUpdateResultStore(context).markChapterUpdatesSeen()
+      .then((): void => { this.refreshLibraryUpdateBadge(context) }).catch((): void => {})
   }
 
   private openLibraryMangaDetail(comicId: ComicId, newInstance: boolean = false): void {
@@ -2968,6 +3051,7 @@ struct Index {
           onRefresh: async (): Promise<void> => { await this.checkLibraryUpdatesNow() } })
       }
       .titleBar(this.libraryUpdatesTitleBarOptions())
+      .onShown((): void => { this.markLibraryUpdatesSeen() })
     } else if (name === RouteName.LIBRARY_UPDATE_RESULTS) {
       HdsNavDestination() {
         LibraryUpdateResultPage({
@@ -3027,7 +3111,7 @@ struct Index {
           onEditConnection: (): void => { this.openDeviceSyncConnection() },
           onReview: (groups: SyncGroup[], reason: DeviceSyncReviewReason): void => { this.openDeviceSyncReview(groups, reason) } })
       }
-      .titleBar(this.navDestTitleBarOpts(AppStrings.get('device_sync_webdav')))
+      .titleBar(this.deviceSyncWebDavTitleBarOpts())
       .bindToScrollable([(param as DeviceSyncWebDavRouteParam).chrome.scroller])
       .onShown((): void => { (param as DeviceSyncWebDavRouteParam).chrome.shownSeq++ })
     } else if (name === RouteName.DEVICE_SYNC_CONNECTION) {
@@ -3115,6 +3199,7 @@ struct Index {
                 onProgressStoreReloadRequested: () => {
                   this.reloadReaderSessionStore('bootstrap_sync')
                 },
+                onRefresh: async (): Promise<void> => { await this.refreshBookshelf() },
                 onImportRequested: () => {
                   this.openImport()
                 },
@@ -3189,6 +3274,7 @@ struct Index {
                 active: this.selectedTab === TabIndex.HISTORY,
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
+                onRefresh: async (): Promise<void> => { await this.syncFromRootRefresh() },
                 onOpenReader: (comicId: ComicId, chapterId?: string) => {
                   void this.openReader(comicId, chapterId)
                 },
@@ -3270,6 +3356,7 @@ struct Index {
             this.selectedTab = index
             this.titleScroller = this.rootTabScrollers[index]
             if (index === TabIndex.HISTORY) appDeviceSync.historyOpened()
+            if (index === TabIndex.LIBRARY) appDeviceSync.bookshelfOpened()
           })
         }
         .titleBar(this.titleBarOptions())
@@ -3333,7 +3420,16 @@ struct Index {
         titleInfo = { 'mainTitle': AppStrings.get('library_download_enqueuing') }
         content['title'] = titleInfo
       }
-      menu['value'] = this.libraryTitleBar.menuItems
+      menu['value'] = this.libraryTitleBar.menuItems.map((item: Record<string, Object>): Record<string, Object> => {
+        const action = item['content'] as Record<string, Object>
+        if (action['componentId'] !== 'library-title-updates') return item
+        const bell: Record<string, Object> = { 'content': action }
+        if (this.libraryUpdatesUnseen) {
+          const badge: HdsNavigationBadgeOptions = { value: '' }
+          bell['badge'] = badge
+        }
+        return bell
+      })
       menu['maxCount'] = 3
     } else if (this.selectedTab === TabIndex.HISTORY) {
       const statisticsContent: Record<string, Object> = { 'label': AppStrings.get('reading_statistics_title'),
@@ -3736,13 +3832,38 @@ struct Index {
     const items: Record<string, Object>[] = []
     if (chrome.actionVisible) {
       const action: Record<string, Object> = { 'label': AppStrings.get(actionKey),
-        'type': TextStyleMode.NORMAL, 'isEnabled': titleAction.enabled && !appDeviceSync.view.busy,
+        'type': TextStyleMode.NORMAL, 'isEnabled': titleAction.enabled,
         'action': (): void => { titleAction.requestSave() } }
       items.push({ 'content': action })
     }
     // HDS preserves the previous menu when the property is omitted.
     const menu: Record<string, Object> = { 'value': items, 'maxCount': 1 }
     content['menu'] = menu
+    return options
+  }
+
+  private deviceSyncWebDavTitleBarOpts(): Record<string, Object> {
+    const options = this.navDestTitleBarOpts(AppStrings.get('device_sync_webdav'))
+    const content = options['content'] as Record<string, Object>
+    const state = appDeviceSync.view
+    const items: Record<string, Object>[] = []
+    if (state.configured) {
+      const automatic: Record<string, Object> = { 'type': TextStyleMode.NORMAL,
+        'label': AppStrings.get(state.automatic ? 'device_sync_switch_manual' : 'device_sync_switch_auto'),
+        'action': (): void => { appDeviceSync.setAutomatic(!appDeviceSync.view.automatic) } }
+      items.push({ 'content': automatic })
+      const disconnect: Record<string, Object> = { 'type': TextStyleMode.NORMAL, 'label': AppStrings.get('device_sync_disconnect'),
+        'action': (): void => {
+          this.getUIContext().showAlertDialog({ title: AppStrings.get('device_sync_disconnect'),
+            message: AppStrings.get('device_sync_disconnect_detail'), systemMaterial: komaDialogMaterial(),
+            primaryButton: { value: AppStrings.get('common_cancel'), action: (): void => {} },
+            secondaryButton: { value: AppStrings.get('device_sync_disconnect'), action: (): void => {
+              void appDeviceSync.disconnect().catch((): void => {})
+            } } })
+        } }
+      items.push({ 'content': disconnect })
+    }
+    content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
     return options
   }
 

@@ -282,6 +282,21 @@ async function main() {
     'Explicit Settings due is not suppressed by the lifecycle admission gate')
   assert.equal((await backgrounded.run('manual', true)).status, 'completed')
 
+  const active = await environment()
+  active.foreground.active = true
+  active.controls.statuses = ['updated']
+  assert.equal((await active.run()).summary.updatedCount, 1)
+  assert.equal(active.calls.notify, 0, 'Foreground presents the saved result in the app')
+  const resultStore = new active.results.LibraryUpdateResultStore(active.request.context)
+  const chapter = { comicId: 'test-work', chapterId: 'first-new', discoveredAt: 100 }
+  const updates = summary(['updated'])
+  await resultStore.save(updates, undefined, [chapter])
+  assert.equal(await resultStore.hasUnseenChapterUpdates(), true)
+  await resultStore.markChapterUpdatesSeen()
+  assert.equal(await resultStore.hasUnseenChapterUpdates(), false)
+  await resultStore.save(updates, undefined, [{ ...chapter, chapterId: 'second-new', discoveredAt: 200 }])
+  assert.equal(await resultStore.hasUnseenChapterUpdates(), true)
+
   for (const [statuses, state, count] of [
     [['failed', 'skipped'], 'backed-off', 1], [['updated', 'failed'], 'failed', 0],
   ]) {

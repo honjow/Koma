@@ -1,4 +1,4 @@
-import { ComicId } from './ComicModels'
+import { ComicId, ReaderSeriesFormat } from './ComicModels'
 import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from './ReaderChapterSequence'
 
 /**
@@ -14,6 +14,7 @@ export interface SourceReaderSessionRequest {
   title: string
   coverUri?: string
   sourceName?: string
+  readingFormat?: ReaderSeriesFormat
   chapterId: string
   chapterIds: string[]
   chapterTitles?: string[]
@@ -34,6 +35,7 @@ export interface SourceReadHistoryEntry {
   title: string
   coverUri?: string
   sourceName?: string
+  readingFormat?: ReaderSeriesFormat
   chapterId: string
   chapterTitle?: string
 }
@@ -60,6 +62,7 @@ export function cloneSourceReaderSessionRequest(request: SourceReaderSessionRequ
     sourceId: request.sourceId,
     mangaId: request.mangaId,
     title: request.title,
+    readingFormat: request.readingFormat,
     chapterId: request.chapterId,
     chapterIds: request.chapterIds.slice(),
     chapters: request.chapters?.map((chapter: ReaderChapterDescriptor): ReaderChapterDescriptor => cloneReaderChapterDescriptor(chapter)),
@@ -104,6 +107,7 @@ export function sourceReadHistoryEntryFromRequest(
     sourceId: request.sourceId,
     mangaId: request.mangaId,
     title: request.title,
+    readingFormat: request.readingFormat,
     chapterId: request.chapterId,
   }
   const mangaUrl = normalizedText(request.mangaUrl)
@@ -140,6 +144,7 @@ export function sourceReaderSessionRequestFromHistory(
     sourceId,
     mangaId,
     title,
+    readingFormat: entry.readingFormat,
     chapterId,
     chapterIds: [chapterId],
     chaptersResolved: false,

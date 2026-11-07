@@ -5,28 +5,29 @@ import { backgroundTaskManager } from '@kit.BackgroundTasksKit'
 import { util } from '@kit.ArkTS'
 import { ReadingProgress } from '../model/ComicModels'
 import { appReaderSessionStore } from '../model/ReaderSessionStore'
-import { MAX_SEARCH_HISTORY_COUNT, SearchHistoryEntry } from '../model/SearchHistoryStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
-import { SourceIndexService } from '../sourceRuntime/SourceIndexService'
-import { appSourceRuntimeRegistry, getInstalledSourcePackage, InstalledSourcePackage, listInstalled } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision, SyncReadingRound,
   syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
 import {
-  DeviceSyncStorage, SyncBlockedReading, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncReadingRestoreCandidate,
+  DeviceSyncStorage, SyncBlockedReading, SyncGroupState, SyncLocalDocument, SyncReadingRestoreCandidate,
 } from './DeviceSyncStorage'
 import {
-  safeSyncSearch, syncKey, syncKeyParts, syncReadingIdentity, syncReadingPosition, syncReadingRecent, syncSearchIdentity,
+  syncBusinessKey, syncCatalogRecordKey, syncKey, syncKeyParts, syncReadingIdentity, syncReadingPosition, syncReadingRecent, syncSearchIdentity,
   syncShelfIdentity, SyncPositionValue,
-  SyncSearchValue, SyncSubscription, SyncReaderMode, SYNC_CATALOG_ID, SYNC_OFFICIAL_CATALOG,
+  SyncReaderMode,
 } from './DeviceSyncData'
 import { connectDeviceSyncOwnerEdits, connectDeviceSyncProgress, connectDeviceSyncReadingCapture, connectDeviceSyncRestore,
-  connectDeviceSyncSignals, deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncBookModeSignal, SyncCapturedReadingEdit,
+  connectDeviceSyncSignals, connectDeviceSyncSearchHistory, deviceSyncActionCaptureKey, deviceSyncCaptureKey, SyncBookModeSignal, SyncCapturedReadingEdit,
   SyncLibrarySignal, SyncReadingActionCapture, SyncReadingCapture, SyncReadingSignal } from './DeviceSyncSignals'
 import { SyncConnectionDraft } from './DeviceSyncWebDav'
-import { syncHasTrustedPackage } from './DeviceSyncPublicSource'
 import { subscriptionIdentity } from '../sourceRuntime/SourceIndexMetadata'
+
+const IDLE_CHECK_MIN_MS: number = 60000
+const IDLE_CHECK_MAX_MS: number = 300000
+type SyncScheduleReason = 'activity' | 'idle' | 'retry'
 
 @ObservedV2
 export class DeviceSyncViewState {
@@ -46,7 +47,7 @@ export class DeviceSyncViewState {
   @Trace lastSuccess: number = 0
   @Trace error: string = ''
   @Trace revision: number = 0
-  @Trace subscriptions: SyncLocalValue[] = []
+  @Trace searchHistoryRevision: number = 0
   @Trace shelfRemovals: SyncShelfRemoval[] = []
   @Trace readingDecisions: SyncReadingDecision[] = []
   @Trace blockedReadings: SyncBlockedReading[] = []
@@ -88,9 +89,14 @@ class DeviceSyncRuntime {
   private storage?: DeviceSyncStorage
   private owners?: KomaDeviceSyncOwners
   private foreground: boolean = false
+  private openReviews: number = 0
   private timer: number = -1
   private deadline: number = 0
+  private idleCheckDelay: number = IDLE_CHECK_MIN_MS
   private activeSync?: Promise<void>
+  private manualSync?: Promise<void>
+  private editingConnection: boolean = false
+  private taskDone?: Promise<void>
   private changeGeneration: number = 0
   private syncedGeneration: number = -1
   private failures: number = 0
@@ -112,10 +118,9 @@ class DeviceSyncRuntime {
     this.owners = owners
     this.storage = storage
     this.engine = new DeviceSyncEngine(storage, owners)
-    owners.guardSyncRequests((): (() => void) => this.needed().requestGuard())
-    this.view.ready = true
     try {
       this.refresh()
+      this.view.ready = true
     } catch (_error) {
       // Optional sync metadata is isolated from normal shelf and Reader startup.
       this.engine = undefined
@@ -124,6 +129,7 @@ class DeviceSyncRuntime {
       return
     }
     connectDeviceSyncSignals((group: SyncGroup): void => { this.changed(group) })
+    connectDeviceSyncSearchHistory((query?: string): void => { this.removeSharedSearch(query) })
     connectDeviceSyncRestore((): void => { this.beginRestore() }, (committed: boolean): void => { this.finishRestore(committed) })
     connectDeviceSyncProgress((progress: ReadingProgress): boolean => this.allowProgress(progress))
     connectDeviceSyncReadingCapture((rows: ReadingProgress[]): SyncReadingCapture[] => this.stagePositions(rows),
@@ -157,7 +163,8 @@ class DeviceSyncRuntime {
   }
 
   private recoverForeground(): void {
-    if (this.recoveredOnForeground || !this.foreground || this.engine === undefined || !this.view.enabled || this.view.busy) return
+    if (this.recoveredOnForeground || !this.foreground || this.openReviews > 0 || this.engine === undefined ||
+      !this.view.enabled || this.view.busy) return
     this.recoveredOnForeground = true
     void this.task((): Promise<void> => this.needed().recoverOnForeground()).catch((): void => {})
   }
@@ -165,6 +172,7 @@ class DeviceSyncRuntime {
   attachPublisher(publish: (groups: SyncGroup[]) => void): void {
     this.owners?.publishWith((groups: SyncGroup[]): void => {
       this.view.revision++
+      if (groups.includes('search-history')) this.view.searchHistoryRevision++
       publish(groups)
     })
   }
@@ -176,14 +184,13 @@ class DeviceSyncRuntime {
     this.view.configured = configuration !== undefined
     this.view.awaitingFirstMerge = configuration !== undefined && state === undefined
     this.view.unresolvedCommit = this.engine?.hasUnresolvedCommit() ?? false
-    if (configuration !== undefined) this.view.selected = configuration.selected.slice()
+    this.view.selected = this.engine?.selection() ?? this.view.selected
     this.view.automatic = configuration?.automatic ?? false
     this.view.enabled = configuration !== undefined && configuration.enabled !== false
-    this.view.requiresExplicitReview = syncRequiresExplicitReview(state)
+    this.view.requiresExplicitReview = state?.restoreReview === true && syncRequiresExplicitReview(state)
     this.view.needsReview = state?.groups.some((group: SyncGroupState): boolean =>
       group.id !== 'reading' && state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false
     this.view.lastSuccess = state?.lastSuccess ?? 0
-    this.view.subscriptions = this.owners?.receivedSubscriptions() ?? []
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
     const decisions = this.engine?.readingDecisions() ?? []
     const retained = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
@@ -204,6 +211,8 @@ class DeviceSyncRuntime {
 
   private async task<T>(action: () => Promise<T>, publishError: boolean = true, resumeRecovery: boolean = true): Promise<T> {
     if (this.view.busy) throw new Error('sync_already_running')
+    let finish: () => void = (): void => {}
+    this.taskDone = new Promise<void>((resolve: () => void): void => { finish = resolve })
     const stateGuard = this.engine?.stateGuard()
     this.view.busy = true
     // Draft requests share the task lock, while their errors belong to the form.
@@ -220,25 +229,40 @@ class DeviceSyncRuntime {
       throw error as Error
     } finally {
       this.view.busy = false
+      this.taskDone = undefined
+      finish()
       if (resumeRecovery) this.recoverForeground()
     }
   }
 
+  private async editConnection<T>(action: () => Promise<T>): Promise<T> {
+    if (this.editingConnection) throw new Error('sync_already_running')
+    this.editingConnection = true
+    try {
+      const result = await action()
+      this.refresh()
+      return result
+    } finally { this.editingConnection = false }
+  }
+
   test(draft: SyncConnectionDraft, selected: SyncGroup[]): Promise<boolean> {
-    return this.task(async (): Promise<boolean> => {
+    return this.editConnection(async (): Promise<boolean> => {
       const recovered = await this.needed().testConnection(draft, selected)
-      if (recovered) this.view.error = ''
       return recovered
-    }, false, false)
+    })
   }
 
   cancelConnectionTest(): void { this.engine?.cancelConnectionTest() }
 
-  saveConfiguration(draft: SyncConnectionDraft, selected: SyncGroup[]): Promise<void> {
-    return this.task(async (): Promise<void> => {
-      await this.needed().saveConfiguration(draft, selected)
-      if (this.needed().active() === undefined) this.view.error = ''
-    }, false, false)
+  saveConfiguration(draft: SyncConnectionDraft): Promise<void> {
+    return this.editConnection(async (): Promise<void> => {
+      const previous = this.needed().configuration()?.endpointIdentity
+      await this.needed().saveConfiguration(draft)
+      if (previous !== this.needed().configuration()?.endpointIdentity) {
+        this.view.error = ''
+        this.view.manualReadingResult = undefined
+      }
+    })
   }
 
   prepareSaved(selected: SyncGroup[]): Promise<SyncPreview> {
@@ -281,6 +305,26 @@ class DeviceSyncRuntime {
     this.engine?.discardPreview(token)
   }
 
+  holdAutomaticForReview(): () => void {
+    // Keep an explicit review stable without interrupting an in-flight write.
+    this.openReviews++
+    this.cancelTimer()
+    let held = true
+    return (): void => {
+      if (!held) return
+      held = false
+      this.openReviews--
+      if (this.openReviews !== 0) return
+      this.recoverForeground()
+      this.schedule(0)
+    }
+  }
+
+  waitForCurrentTransfer(): Promise<void> {
+    // Transfer errors are reported separately from the requested settings action.
+    return this.activeSync?.catch((): void => {}) ?? Promise.resolve()
+  }
+
   previewChoices(token: string, choices: SyncMergeChoice[]): SyncPreview { return this.needed().previewChoices(token, choices) }
 
   sync(allowIdle: boolean = false): Promise<void> {
@@ -300,11 +344,26 @@ class DeviceSyncRuntime {
     return active
   }
 
-  async syncManually(): Promise<void> {
-    if (this.view.manualInProgress) return
+  syncFromRefresh(): Promise<void> {
+    const state = this.view
+    // Pulling is an explicit request, even when automatic checks are off.
+    if (!state.configured || !state.enabled || state.selected.length === 0 || state.requiresExplicitReview) {
+      return Promise.resolve()
+    }
+    return this.syncManually()
+  }
+
+  syncManually(): Promise<void> {
+    if (this.manualSync !== undefined) return this.manualSync
+    this.manualSync = this.runManualSync().finally((): void => { this.manualSync = undefined })
+    return this.manualSync
+  }
+
+  private async runManualSync(): Promise<void> {
     this.view.manualInProgress = true
     this.view.manualReadingResult = undefined
     try {
+      while (this.activeSync === undefined && this.taskDone !== undefined) await this.taskDone
       await this.sync()
       if (this.changeGeneration !== this.syncedGeneration || this.needed().lastReadingRound === undefined) await this.sync()
       this.updateManualReadingResult()
@@ -354,11 +413,12 @@ class DeviceSyncRuntime {
   }
 
   setSelection(selected: SyncGroup[]): void {
-    if (this.view.configured) {
-      this.needed().setSelection(selected)
-      this.refresh()
-    }
-    this.view.selected = selected.slice()
+    this.needed().setSelection(selected)
+    this.cancelTimer()
+    this.refresh()
+    if (!selected.includes('reading')) this.view.manualReadingResult = undefined
+    if (this.activeSync === undefined) this.schedule(0)
+    else void this.waitForCurrentTransfer().then((): void => { this.schedule(0) })
   }
 
   resolveShelfRemoval(item: SyncShelfRemoval, keep: boolean): Promise<void> {
@@ -427,6 +487,10 @@ class DeviceSyncRuntime {
 
   historyOpened(): void { this.schedule(0) }
 
+  bookshelfOpened(): void {
+    if (this.view.selected.includes('shelf') || this.view.selected.includes('reading')) this.schedule(0)
+  }
+
   async waitForReadingSync(): Promise<void> {
     if (!this.foreground || !this.automaticAllowed() || !this.view.selected.includes('reading')) return
     const running = this.activeSync
@@ -444,7 +508,7 @@ class DeviceSyncRuntime {
   }
 
   private automaticAllowed(): boolean {
-    return this.view.connected && this.view.enabled && this.view.automatic &&
+    return this.openReviews === 0 && this.view.configured && this.view.enabled && this.view.automatic &&
       !this.view.requiresExplicitReview && this.view.selected.length > 0
   }
 
@@ -482,8 +546,9 @@ class DeviceSyncRuntime {
     }
   }
 
-  private schedule(delay: number): void {
+  private schedule(delay: number, reason: SyncScheduleReason = 'activity'): void {
     if (!this.foreground || !this.automaticAllowed()) return
+    if (reason === 'activity') this.idleCheckDelay = IDLE_CHECK_MIN_MS
     const deadline = Date.now() + delay
     if (this.timer >= 0 && this.deadline <= deadline) return
     this.cancelTimer()
@@ -493,15 +558,20 @@ class DeviceSyncRuntime {
       this.deadline = 0
       if (!this.foreground || !this.automaticAllowed()) return
       if (this.view.busy) {
-        this.schedule(1500)
+        this.schedule(1500, reason)
         return
       }
+      const lastApplied = this.view.lastSuccess
       void this.sync(true).then((): void => {
         this.failures = 0
-        this.schedule(6000)
+        // Local changes and user entry points still pull promptly. An unchanged
+        // idle probe should spend less time on the remote directory next time.
+        this.idleCheckDelay = reason === 'idle' && this.view.lastSuccess === lastApplied ?
+          Math.min(IDLE_CHECK_MAX_MS, this.idleCheckDelay * 2) : IDLE_CHECK_MIN_MS
+        this.schedule(this.idleCheckDelay, 'idle')
       }).catch((): void => {
         this.failures++
-        this.schedule(Math.min(60000, 6000 * this.failures))
+        this.schedule(Math.min(IDLE_CHECK_MAX_MS, IDLE_CHECK_MIN_MS * this.failures), 'retry')
       })
     }, delay)
   }
@@ -668,7 +738,7 @@ class DeviceSyncRuntime {
     const engine = this.engine
     const scope = engine?.readingScope() ?? ''
     if (context === undefined || owners === undefined || engine === undefined || engine.active()?.enabled === false || scope === '' ||
-      syncRequiresExplicitReview(engine.active())) return
+      (engine.active()?.restoreReview === true && syncRequiresExplicitReview(engine.active()))) return
     const serviceGuard = engine.requestGuard()
     const guard = (): void => { serviceGuard(); reviewGuard?.() }
     const reader = appReaderSessionStore(context.filesDir)
@@ -889,8 +959,7 @@ class DeviceSyncRuntime {
       }
     } else {
       const value: SyncReaderMode = { mode: action.mode, direction: action.direction }
-      const proof = await owners.publicWork(identity.source, identity.work)
-      if (proof !== undefined && scope === engine.groupScope('reader-settings')) {
+      if (scope === engine.groupScope('reader-settings')) {
         engine.recordEdits('reader-settings', [{ key, kind: 'set', value: JSON.stringify(value) }])
       }
     }
@@ -899,95 +968,30 @@ class DeviceSyncRuntime {
 
   private removeSharedSubscription(address: string): void {
     const engine = this.engine
-    if (engine === undefined || engine.groupScope('source-subscriptions') === '' ||
-      subscriptionIdentity(address) !== subscriptionIdentity(SYNC_OFFICIAL_CATALOG)) return
-    const key = syncKey(['catalog', SYNC_CATALOG_ID])
+    if (engine === undefined || engine.groupScope('source-subscriptions') === '') return
+    const key = syncCatalogRecordKey(subscriptionIdentity(address))
+    const known = engine.knownGroupKeys('source-subscriptions').filter((item: string): boolean =>
+      syncBusinessKey('source-subscriptions', item) === key)
     try {
-      if (engine.observed('source-subscriptions', key).length > 0) {
-        engine.recordEdits('source-subscriptions', [{ key, kind: 'delete', value: '' }])
-      }
-    } catch (error) {
-      this.view.error = (error as Error).message
-    }
-  }
-
-  publicSearchSourceSet(): string {
-    return this.verifyPublicSearchPlan(listInstalled().filter((source: InstalledSourcePackage): boolean => source.enabled)
-      .map((source: InstalledSourcePackage): string => source.id))
-  }
-
-  verifyPublicSearchPlan(ids: string[]): string {
-    if (ids.length === 0 || ids.some((source: string): boolean => !syncHasTrustedPackage(source) ||
-      (appSourceRuntimeRegistry.lookup(source).entry?.webSessionOrigins?.length ?? 0) > 0)) return ''
-    return ids.slice().sort().join(',')
-  }
-
-  availablePublicSearchSources(sourceSet: string): string[] {
-    const original = sourceSet.split(',')
-    return listInstalled().filter((source: InstalledSourcePackage): boolean => source.enabled &&
-      original.includes(source.id) && this.verifyPublicSearchPlan([source.id]) !== '')
-      .map((source: InstalledSourcePackage): string => source.id).sort()
-  }
-
-  recordPublicSearch(query: string, sources: string): void {
-    if (!this.view.connected || !this.view.selected.includes('search-history') || !safeSyncSearch(query)) return
-    if (sources === '') return
-    const key = syncKey(['query', syncSearchIdentity(query), sources])
-    const value: SyncSearchValue = { text: query.trim(), date: Date.now() }
-    const json = JSON.stringify(value)
-    const owners = this.owners
-    if (owners === undefined) return
-    void owners.snapshot('search-history', false).then((snapshot: SyncLocalSnapshot): void => {
-      owners.saveSearchValues(snapshot.values.filter((row: SyncLocalValue): boolean => row.key !== key).concat({ key, value: json }))
-      this.engine?.recordEdits('search-history', [{ key, kind: 'set', value: json }])
-      this.changed('search-history')
-    }).catch((): void => {})
-  }
-
-  mergeSearchHistory(local: SearchHistoryEntry[]): SearchHistoryEntry[] {
-    const rows = this.owners?.receivedQueries() ?? []
-    if (rows.length === 0) return local
-    const remote = rows.map((row: SyncLocalValue): SearchHistoryEntry => {
-      const value = JSON.parse(row.value) as SyncSearchValue
-      return { query: value.text, updatedAt: Math.min(value.date, Date.now() + 86400000),
-        sourceFilter: 'source', syncSourceSet: syncKeyParts(row.key)[2] }
-    }).filter((entry: SearchHistoryEntry): boolean => !local.some((row: SearchHistoryEntry): boolean =>
-      row.sourceFilter === 'source' && row.librarySource === undefined && row.syncSourceSet === entry.syncSourceSet &&
-      syncSearchIdentity(row.query) === syncSearchIdentity(entry.query)))
-    return local.concat(remote).sort((a: SearchHistoryEntry, b: SearchHistoryEntry): number => b.updatedAt - a.updatedAt)
-      .slice(0, MAX_SEARCH_HISTORY_COUNT)
-  }
-
-  removePublicSearch(query: string | undefined, sourceSet: string = ''): void {
-    const owners = this.owners
-    if (owners === undefined || !this.view.selected.includes('search-history')) return
-    const target = query === undefined ? '' : syncSearchIdentity(query)
-    if (target !== '' && sourceSet === '') return
-    void owners.snapshot('search-history', false).then((snapshot: SyncLocalSnapshot): void => {
-      const shouldRemove = (row: SyncLocalValue): boolean => {
-        const parts = syncKeyParts(row.key)
-        return target === '' || (parts[1] === target && parts[2] === sourceSet)
-      }
-      const keys = new Set<string>(snapshot.values.concat(owners.receivedQueries()).filter(shouldRemove)
-        .map((row: SyncLocalValue): string => row.key))
-      const kind: SyncEditKind = target === '' ? 'clear-observed' : 'delete'
-      this.engine?.recordEdits('search-history', Array.from(keys).map((key: string): DeviceSyncLocalEdit => ({ key, kind, value: '' })))
-      owners.saveSearchValues(snapshot.values.filter((row: SyncLocalValue): boolean => !shouldRemove(row)), Array.from(keys))
-      this.changed('search-history')
-    }).catch((): void => {})
-  }
-
-  async acceptSubscription(candidate: SyncLocalValue): Promise<void> {
-    const context = this.context
-    if (context === undefined || !this.view.subscriptions.some((item: SyncLocalValue): boolean => item.key === candidate.key)) return
-    const value = JSON.parse(candidate.value) as SyncSubscription
-    await this.task(async (): Promise<void> => {
-      const local = await this.owners?.snapshot('source-subscriptions', false)
-      if ((local?.values.length ?? 0) === 0) this.owners?.markAcceptedSharedSubscription()
-      await new SourceIndexService(context).acceptDeviceSyncSubscription(value.address, value.label)
+      engine.recordEdits('source-subscriptions', known.map((item: string): DeviceSyncLocalEdit =>
+        ({ key: item, kind: 'delete', value: '' })))
       this.changed('source-subscriptions')
-    })
+    } catch (error) { this.view.error = (error as Error).message }
   }
+
+  private removeSharedSearch(query?: string): void {
+    const engine = this.engine
+    if (engine === undefined || engine.groupScope('search-history') === '') return
+    const term = query === undefined ? undefined : syncSearchIdentity(query)
+    const keys = engine.knownGroupKeys('search-history').filter((key: string): boolean =>
+      term === undefined || syncKeyParts(key)[1] === term)
+    const kind: SyncEditKind = term === undefined ? 'clear-observed' : 'delete'
+    try {
+      engine.recordEdits('search-history', keys.map((key: string): DeviceSyncLocalEdit => ({ key, kind, value: '' })))
+      this.changed('search-history')
+    } catch (error) { this.view.error = (error as Error).message }
+  }
+
 }
 
 export const appDeviceSync: DeviceSyncRuntime = new DeviceSyncRuntime()

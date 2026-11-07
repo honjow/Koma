@@ -74,6 +74,8 @@ import {
   ReadingProgress,
   updateReadingProgress,
   normalizeSortKey,
+  readerFormatFromTags,
+  setCompleteSourceChapterCatalog,
 } from '../model/ComicModels'
 import { OfflineDownloadService } from '../model/OfflineDownloadService'
 import {
@@ -1044,12 +1046,13 @@ export struct MangaDetailPage {
     this.closeDetailWebChallenge()
     this.clearDetailWebChallenge()
     const retainedDetail = this.sourceDetailDataResolved ? this.manga : undefined
-    // Automatic revalidation must not interrupt a readable collected detail
-    // with loading/error text or a verification sheet. Explicit refresh keeps
-    // its existing progress and challenge/recovery behavior.
-    const backgroundRefresh = !forceReload && retainedDetail !== undefined
     const retainedChapters = retainedDetail === undefined ? [] : this.chapters.slice()
     const retainedChaptersResolved = this.sourceChaptersResolved
+    const waitingForChapters = retainedDetail !== undefined && retainedChapters.length === 0 && !retainedChaptersResolved
+    // Automatic revalidation must not interrupt a readable collected detail
+    // with loading/error text. A synced shelf entry can have a title and
+    // chapter count before it has any locally usable chapter rows.
+    const backgroundRefresh = !forceReload && retainedDetail !== undefined && !waitingForChapters
     const retainedState = this.isDetailPending() ? SourceDetailContentState.READY : this.sourceDetailContentState
     const requestEpoch = this.beginSourceDetailRequest(sourceId, mangaId)
     if (retainedDetail === undefined) {
@@ -1057,9 +1060,9 @@ export struct MangaDetailPage {
       this.sourceDetailDataResolved = false
       this.feedbackText = s('manga_detail_loading_source')
     } else {
-      this.sourceDetailContentState = retainedState
+      this.sourceDetailContentState = waitingForChapters ? SourceDetailContentState.LOADING : retainedState
       this.sourceChaptersResolved = retainedChaptersResolved
-      this.feedbackText = ''
+      this.feedbackText = waitingForChapters ? s('manga_detail_loading_chapters') : ''
     }
     try {
       const lookup = this.sourceRegistry.lookup(sourceId)
@@ -1193,7 +1196,7 @@ export struct MangaDetailPage {
         this.chapters = retainedChapters
         this.sourceDetailDataResolved = true
         this.sourceChaptersResolved = retainedChaptersResolved
-        this.sourceDetailContentState = retainedState
+        this.sourceDetailContentState = waitingForChapters ? SourceDetailContentState.ERROR : retainedState
         this.feedbackText = backgroundRefresh ? '' : failureText
         return
       }
@@ -1748,6 +1751,9 @@ export struct MangaDetailPage {
       }
     }
     const comic = comicFromSourceManga(manga, this.chapters, this.currentComicId())
+    if (this.sourceChaptersResolved) {
+      setCompleteSourceChapterCatalog(comic, this.chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
+    }
     try {
       if (this.libraryPersistenceService === undefined) {
         this.libraryStore.upsertComic(comic)
@@ -1822,6 +1828,7 @@ export struct MangaDetailPage {
       mangaId,
       mangaUrl: manga.url,
       title,
+      readingFormat: readerFormatFromTags(manga.tags),
       chapterId: resolvedChapterId,
       chapterIds,
       chapterTitles: this.chapters.map((chapter: MangaChapterItem): string => chapter.title),
@@ -3506,13 +3513,13 @@ export struct MangaDetailPage {
   }
 
   @Builder
-  private DetailPendingState() {
+  private DetailPendingState(chaptersOnly: boolean = false) {
     Column({ space: ThemeConstants.SPACE_MD }) {
       LoadingProgress()
         .width(ThemeConstants.LOADING_SIZE_LARGE)
         .height(ThemeConstants.LOADING_SIZE_LARGE)
         .color(ThemeConstants.BRAND_PRIMARY)
-      Text(s('manga_detail_loading_source'))
+      Text(s(chaptersOnly ? 'manga_detail_loading_chapters' : 'manga_detail_loading_source'))
         .fontSize(ThemeConstants.FONT_SIZE_META)
         .fontColor(ThemeConstants.TEXT_SECONDARY)
         .textAlign(TextAlign.Center)
@@ -3683,7 +3690,7 @@ export struct MangaDetailPage {
       })
     } else if (this.usesDetailPanes && this.isDetailPending()) {
       ListItem() {
-        this.DetailPendingState()
+        this.DetailPendingState(this.sourceDetailDataResolved)
       }
     } else if (this.usesDetailPanes && this.feedbackText.length > 0) {
       ListItem() {
@@ -3902,7 +3909,12 @@ export struct MangaDetailPage {
         KomaActionButton({ label: s('source_login'), kind: 'primary', action: () => { this.authenticateSource() } })
       }.width('100%')
     } else {
-      Text(this.feedbackText).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+      Column({ space: ThemeConstants.SPACE_MD }) {
+        Text(this.feedbackText).width('100%').fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+        if (this.sourceDetailContentState === SourceDetailContentState.ERROR && this.canReloadSourceDetail()) {
+          KomaActionButton({ label: s('common_retry'), action: () => { void this.refreshMangaDetail() } })
+        }
+      }.width('100%')
     }
   }
 

@@ -8680,25 +8680,38 @@
       "title": "WebDAV 自动同步时另一台设备的阅读进度未更新",
       "kind": "bug",
       "priority": "用户反馈",
-      "status": "阅读同步已移除书源限制，包子漫画双机续读通过",
-      "stage": "197 更新到第 24 页，103 在历史页自动接收并打开同一页正文",
+      "status": "真实 WebDAV 双机续读与书架收发已核对",
+      "stage": "197 与 103 收发具名章页，103 书架下拉已带回收藏和目录，独立 AList 回退复验完成",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
       "result": "本地用当前调度和双副本合并实现复现。阅读保存触发延迟 15 秒，发送端先切后台会撤掉本次调度；接收端前台同步成功后没有后续拉取。首次合并暂缓的最近阅读章节会连同该书的后续章节页位一起暂缓，其他书仍可同步。界面将不同原因合为跳过项。另用设置页的按钮分流和双副本同步逻辑连续执行三次立即同步。每次任务成功，接收端已读到服务器上的新页码，但待核对作品的进度不写入本机，另一本书更新。待核对入口在同步内容下方、状态上方的待处理项目；模拟原差异关联待核验进度时，状态仍提示核对但预览没有可选差异。双副本继续复现确认循环。只剩一条可见差异时明确选择并确认，选择实际写入且自动开关维持开启，但未列出的待核验阅读差异仍使管理页立即显示有差异待核对，再打开预览没有可选项。对应记录解除保护并确认后提示才清除。用户进一步报告差异处理后进度和历史仍不一致。本地双副本用支持范围内的作品、无差异连接和模拟章节核验失败复跑：发端保留新章页但从未发布对应阅读记录，发端和收端连续两轮立即同步均结束且无错误，收端历史和页码仍为空。此复现解释独立于暂缓的失效路径，用户现场原因尚未确认。用户提供的现用 WebDAV 目录返回 207。逐一校验现存 6 次提交和全部 7 个分片，最新包含 2 个分类、1 条排序、1 个订阅，整个现存提交链和旧分片均无阅读记录、页码及收藏作品。使用真实服务器和当前接收端同步引擎在主机回放，18 次请求，应用分类与订阅共 4 项，阅读 0 项，仍记录为成功且无待核对，服务端没有写入。手机端未上传的具体筛除点尚未取得。 当前候选已去掉按书源、包版本和作品公开性筛选，收发本机保存的历史和章页。用临时 AList，197 与 103 实测包子漫画《歸還者的魔法要特別》001 01 从第 19 页自动更新到第 24 页，独立复核两机正文一致。",
-      "remaining": "真实登录源及用户自有 WebDAV 尚未双端复验。退后台即时交接、10 秒目标和旧目录异常下的部分收发待专项验收。缺少作品或章节标识的旧记录留在原设备。书架已扩展到普通及需要登录的书源，197 与 103 仅开书架范围，通过临时 AList 同步了包子漫画《歸還者的魔法要特別》的手动分类归属。换源先落目标和分类再移出旧作，断线重试和并发保护已通过本地双端落盘验证，尚未走完整真机换源路径。最近阅读使用同步时间，各设备的排序方式和方向各自保留。",
+      "remaining": "当前候选已自动应用所选组，不再按书源名单筛选。订阅和搜索写入实际存储，书架同步完整章节目录，接收端用同一目录计算未读和筛选。同步内容在同步总览共用，继承旧选择并在无连接时可保存。测试已验证首轮撤销范围、损坏分片的组隔离、新端默认偏好不覆盖已有值，以及缺源设备收到 440 个章节 ID 后重载可得 439 个未读。当前候选通过临时 AList v3.66.0 双主机副本双向收发。两端重载后各有 440 个章节 ID、439 个未读，续读为第 2 章第 6 页及第 9 页。197 真机从设置进入总览改范围，取消连接表单后回原页，重启读回并恢复原勾选。103 用同签名候选走通横屏设置路径，独立复核确认共享范围只在总览。连接表单返回后选择保持，冷启动后读回已修改范围并恢复测试前勾选。使用用户真实 WebDAV，197 已登录 Komiic 并读到《ONE PIECE 航海王》1196 话第 4 页，103 未登录即可点历史续读到相同正文。103 仅手动模式下由历史下拉收到第 6 页。书架下拉完成后收到瓜子《装备我最强》收藏、封面、273 话及第 61 页，章节检查有手动发起日志。独立 AList 制造缺片，新设备回退到第 6 页，已有第 9 页的设备保持原值，修复缺片后追到第 9 页，健康书架组持续可用。单独损坏封面及提交回复丢失时的重试已执行。Komiic 样本允许匿名打开正文，登录硬门槛和真机空闲请求量仍未核。旧记录没有可靠身份时留在原设备。",
       "closedAt": null,
       "relatedItems": [
         "READING_HISTORY_SYNC"
       ],
       "evidence": [
+        ".hvigor/outputs/device-sync-rebuild/live-103-chapter-chrome.log",
+        ".hvigor/outputs/device-sync-rebuild/pull-103-history-swipe.log",
+        ".hvigor/outputs/device-sync-rebuild/equipment-103-shelf-after.log",
+        ".hvigor/outputs/device-sync-rebuild/equipment-103-manual-check.log",
+        ".hvigor/outputs/device-sync-rebuild/alist-damage.log",
+        ".hvigor/outputs/device-sync-rebuild/accepted-cancel-103.log",
+        ".hvigor/outputs/device-sync-rebuild/accepted-103.log",
+        ".hvigor/outputs/device-sync-rebuild/accepted-cold-103.log",
+        ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/device-sync-scope-final/navigate-20261108T001842960082/screen.png",
+        ".hvigor/outputs/device-sync-rebuild/alist-roundtrip.log",
+        ".hvigor/outputs/device-sync-rebuild/accepted-tests.log",
+        ".hvigor/outputs/device-sync-rebuild/accepted-197.log",
+        ".hvigor/outputs/device-sync-rebuild/accepted-cold-197.log",
         ".hvigor/outputs/reading-sync-unrestricted/alist-baozi-page24.json",
         ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/reading-sync-unrestricted/observe-20261107T000236349266/screen.png",
         ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/shelf-sync/navigate-20261107T190924553043/layout.json",
         "https://github.com/honjow/Koma/releases/tag/v1.2.1"
       ],
-      "updatedAt": "2026-11-07T02:34:50+08:00"
+      "updatedAt": "2026-11-08T00:20:03+08:00"
     }
   ],
   "source": {

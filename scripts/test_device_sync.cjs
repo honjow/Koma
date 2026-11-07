@@ -104,61 +104,83 @@ test('wire search identity is independent of host language and folds Unicode exp
   assert.equal(data.safeSyncSearch('https://example.test/path-with-key'), false)
 })
 
-function publicSourceFixture(source, responseFor) {
-  const version = source === data.MANGADEX_SYNC_SOURCE ? '0.1.25' : '0.1.7'
-  return compile('DeviceSyncPublicSource', {
-    '@kit.NetworkKit': { http: { RequestMethod: { GET: 'GET' }, HttpDataType: { ARRAY_BUFFER: 1 }, createHttp: () => ({
-      async request(address) {
-        const response = responseFor(address)
-        const text = typeof response === 'string' ? response : JSON.stringify(response)
-        return { responseCode: 200, result: new TextEncoder().encode(text).buffer }
-      },
-      destroy() {},
-    }) } },
-    '@kit.ArkTS': { util: { TextDecoder: { create: () => ({ decodeToString: bytes => new TextDecoder().decode(bytes) }) } } },
-    '@kit.CoreFileKit': {},
-    '../sourceRuntime/SourceRuntimeAppRegistry': {
-      getInstalledSourcePackage: () => ({ enabled: true, version, catalogOrigin: data.SYNC_OFFICIAL_CATALOG }),
-      appSourceRuntimeRegistry: { lookup: () => ({ entry: { manifestId: source, manifestVersion: version } }) },
-    },
-    '../sourceRuntime/SourceIndexMetadata': { resolveIndexDocumentUrl: address => address, subscriptionIdentity: address => address },
-    './DeviceSyncData': data,
-    './DeviceSyncWire': { ...wire, syncDigestBytes: () => source === data.MANGADEX_SYNC_SOURCE ?
-      'ff51c584cbb49819f073d0718d7b76fe855588717982effe033159096d4caed3' :
-      '29e9d902619370397815798f6c8b79fad6b0918012f6b794bfd226bd300a5863' },
-  })
-}
-
-test('MangaDex public work proof accepts a romanized primary title and safe alternative titles', async () => {
-  const source = data.MANGADEX_SYNC_SOURCE
-  const manga = '65208a20-4253-42c8-b0e7-56524bbe795b'
-  let attributes = { title: { 'zh-ro': 'Xīngjiǎ Húnjiàng Zhuàn' }, altTitles: [{ en: 'Legend of Star General' }] }
-  const { DeviceSyncPublicSources } = publicSourceFixture(source, address => {
-    assert.equal(address, `https://api.mangadex.org/manga/${manga}`)
-    return { result: 'ok', data: { id: manga, attributes } }
-  })
-  const read = () => new DeviceSyncPublicSources().work(source, `mdx:${manga}`, true)
-  assert.equal((await read()).title, 'Legend of Star General')
-  attributes.altTitles[0].en = 'token: rejected'
-  assert.equal((await read()).title, 'Xīngjiǎ Húnjiàng Zhuàn')
-  attributes.title['zh-ro'] = 'https://example.invalid/private'
-  assert.equal(await read(), undefined)
-  attributes.title = 'invalid primary title shape'
-  assert.equal(await read(), undefined)
+test('business records accept unfamiliar sources, catalog addresses and ordinary search punctuation', () => {
+  const cases = [
+    ['reader-settings', ['book-mode', 'net.example.new-source', 'opaque-work'], { mode: 'continuous_scroll', direction: 'right_to_left' }],
+    ['source-subscriptions', data.syncKeyParts(data.syncCatalogRecordKey('https://catalog.example.test/index.json')),
+      { address: 'https://catalog.example.test/index.json', label: 'My catalog' }],
+    ['search-history', ['query', 'volume 1: a (story)'], { text: 'Volume 1: A (Story)', date: 2000 }],
+  ]
+  for (const [group, key, value] of cases) {
+    const fact = edit(facts.emptySyncFact(data.syncKey(key)), dot(A, 1), 'set', JSON.stringify(value))
+    assert.doesNotThrow(() => data.checkSyncGroupFact(group, fact))
+  }
+  assert.equal(data.syncCatalogAddress('https://user:secret@catalog.example.test/index.json'), false)
 })
 
-function runtimeFixture(extra = {}) {
+function runtimeFixture(extra = {}, globals = {}) {
   return compile('DeviceSyncRuntime', {
     '@kit.NetworkKit': {}, '@kit.ArkTS': {}, '@kit.BackgroundTasksKit': {},
     '../model/ReaderSessionStore': {}, '../model/SearchHistoryStore': {},
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceRuntimeAppRegistry': {},
     './DeviceSyncEngine': { syncRequiresExplicitReview: () => false },
     './DeviceSyncFacts': facts, './DeviceSyncOwners': {}, './DeviceSyncStorage': {},
-    './DeviceSyncData': data, './DeviceSyncSignals': {}, './DeviceSyncPublicSource': {},
+    './DeviceSyncData': data, './DeviceSyncSignals': {},
     '../sourceRuntime/SourceIndexMetadata': {},
     ...extra,
-  }, { ObservedV2: value => value, Trace: () => {} }).appDeviceSync
+  }, { ObservedV2: value => value, Trace: () => {}, ...globals }).appDeviceSync
 }
+
+test('foreground idle checks and retries slow down without delaying a reading update or polling in background', async () => {
+  let now = 0, id = 0, requests = 0
+  const timers = new Map()
+  const runtime = runtimeFixture({}, {
+    Date: { now: () => now },
+    setTimeout: (fn, delay) => { timers.set(++id, { fn, due: now + delay }); return id },
+    clearTimeout: timer => timers.delete(timer),
+  })
+  const advance = async ms => {
+    const end = now + ms
+    while (true) {
+      const next = [...timers].filter(([, timer]) => timer.due <= end).sort((a, b) => a[1].due - b[1].due)[0]
+      if (next === undefined) break
+      const [key, timer] = next
+      timers.delete(key)
+      now = timer.due
+      timer.fn()
+      await new Promise(resolve => setImmediate(resolve))
+    }
+    now = end
+  }
+  Object.assign(runtime.view, { configured: true, connected: true, enabled: true, automatic: true, selected: ['reading'] })
+  runtime.foreground = true
+  let failNext = false
+  runtime.sync = async () => {
+    requests++
+    if (failNext) { failNext = false; throw new Error('sync_network_failed') }
+  }
+  runtime.historyOpened()
+  await advance(59999)
+  assert.equal(requests, 1)
+  await advance(1)
+  assert.equal(requests, 2)
+  await advance(119999)
+  assert.equal(requests, 2)
+  await advance(1)
+  assert.equal(requests, 3)
+  runtime.changed('reading')
+  await advance(1500)
+  assert.equal(requests, 4)
+  failNext = true
+  runtime.historyOpened()
+  await advance(59999)
+  assert.equal(requests, 5)
+  await advance(1)
+  assert.equal(requests, 6)
+  runtime.onForeground(false)
+  await advance(600000)
+  assert.equal(requests, 6)
+})
 
 test('draft tests and merge failures preserve the active connection error', async () => {
   const runtime = runtimeFixture()
@@ -168,6 +190,7 @@ test('draft tests and merge failures preserve the active connection error', asyn
   runtime.engine = {
     active: () => ({ selected: ['reader-settings'], groups: [], lastSuccess: 123 }),
     configuration: () => ({ selected: ['reader-settings'], enabled: true, automatic: false }),
+    selection: () => ['reader-settings'],
     hasUnresolvedCommit: () => false,
     stateGuard: () => () => {},
     readingDecisions: () => [], readingScope: () => '',
@@ -198,7 +221,6 @@ test('received reading opens through any enabled source and identifies a missing
   let received = true
   const runtime = runtimeFixture({
     '../sourceRuntime/SourceRuntimeAppRegistry': { getInstalledSourcePackage: () => installed },
-    './DeviceSyncPublicSource': { syncHasTrustedPackage: () => false },
   })
   runtime.owners = { receivedReading: () => received }
   const request = { comicId: 'sample', sourceId: 'com.picacg.koma',
@@ -354,7 +376,9 @@ test('saved zero-scope configuration survives a new engine and stays off until a
   const { replica, draft, servers, assets } = engineFixture()
   const page = data.syncKey(['global', 'page-number'])
   const device = replica(A, [['reader-settings', new Map([[page, 'true']])]])
-  await device.engine.saveConfiguration(draft, [])
+  device.engine.setSelection([])
+  assert.deepEqual(device.restart().selection(), [], 'shared content selection is saved before a service exists')
+  await device.engine.saveConfiguration(draft)
   const reopened = device.restart()
   assert.equal(reopened.active(), undefined)
   assert.deepEqual(reopened.selection(), [])
@@ -401,20 +425,25 @@ test('saved zero-scope configuration survives a new engine and stays off until a
   release()
   await captureRejected
   assert.equal(servers.get(draft.directory).reads, before)
+  await reopened.disconnect()
+  assert.deepEqual(device.restart().selection(), ['reader-settings'])
 })
 
 test('failed replacement keeps the original service; successful save stops it without syncing the new space', async () => {
   const { replica, draft, servers } = engineFixture()
   const device = replica(A)
-  await device.engine.saveConfiguration(draft, ['reader-settings'])
+  device.engine.setSelection(['reader-settings'])
+  await device.engine.saveConfiguration(draft)
   await device.engine.confirm((await device.engine.prepareSaved(['reader-settings'])).token, [])
   device.engine.setAutomatic(true)
+  device.store.update(state => { delete state.syncContents })
+  assert.deepEqual(device.restart().selection(), ['reader-settings'], 'upgrade reads the existing WebDAV selection')
   const original = structuredClone(device.engine.active())
   const replacement = { ...draft, directory: 'https://replacement.invalid', password: 'new' }
   await device.engine.testConnection(replacement)
   const server = servers.get(replacement.directory)
   server.probeError = 'sync_authentication_failed'
-  await assert.rejects(device.engine.saveConfiguration({ ...replacement, password: 'wrong' }, []), /sync_authentication_failed/)
+  await assert.rejects(device.engine.saveConfiguration({ ...replacement, password: 'wrong' }), /sync_authentication_failed/)
   assert.deepEqual(device.engine.active(), original)
   const update = device.store.update
   device.store.update = change => update(state => {
@@ -422,15 +451,16 @@ test('failed replacement keeps the original service; successful save stops it wi
     if (state.pendingConfiguration?.endpointIdentity !== undefined) throw new Error('sync_local_write_failed')
   })
   delete server.probeError
-  await assert.rejects(device.engine.saveConfiguration(replacement, []), /sync_local_write_failed/)
+  await assert.rejects(device.engine.saveConfiguration(replacement), /sync_local_write_failed/)
   assert.deepEqual(device.engine.active(), original)
   assert.deepEqual(await device.engine.connectionDraft(), draft)
   device.store.update = update
-  await device.engine.saveConfiguration(replacement, [])
+  await device.engine.saveConfiguration(replacement)
   const reopened = device.restart()
   assert.equal(reopened.active(), undefined)
   assert.equal(reopened.isEnabled(), false)
   assert.deepEqual(await reopened.connectionDraft(), replacement)
+  assert.deepEqual(reopened.selection(), ['reader-settings'], 'replacing the service connection preserves the common scope')
   await reopened.recoverOnForeground()
   assert.equal(server.published.length, 0)
   assert.ok(device.store.load().archives.some(item => item.space === original.space && item.credential === ''))
@@ -440,13 +470,14 @@ test('password save preserves a confirmed intent, its recovery and the latest pa
   const { replica, draft, servers } = engineFixture()
   const page = data.syncKey(['global', 'page-number'])
   const device = replica(A, [['reader-settings', new Map([[page, 'true']])]])
-  await device.engine.saveConfiguration(draft, ['reader-settings'])
+  device.engine.setSelection(['reader-settings'])
+  await device.engine.saveConfiguration(draft)
   const preview = await device.engine.prepareSaved(['reader-settings'])
   servers.get(draft.directory).failures.push('lost-response')
   await assert.rejects(device.engine.confirm(preview.token, []), /sync_remote_result_unknown/)
   const intent = structuredClone(device.store.load().intent)
   const changed = { ...draft, password: 'changed' }
-  await device.engine.saveConfiguration(changed, ['reader-settings'])
+  await device.engine.saveConfiguration(changed)
   assert.equal(device.store.load().intent.commitBody, intent.commitBody)
   assert.deepEqual(device.store.load().intent.applies, intent.applies)
   assert.equal(device.engine.active(), undefined)
@@ -461,7 +492,7 @@ test('password save preserves a confirmed intent, its recovery and the latest pa
     'deferring the new local difference must retain the exact original remote commit')
   device.engine.setAutomatic(true)
   device.engine.setEnabled(false)
-  await device.engine.saveConfiguration({ ...changed, password: 'changed-again' }, [])
+  await device.engine.saveConfiguration({ ...changed, password: 'changed-again' })
   const reopened = device.restart()
   assert.equal(reopened.isEnabled(), false)
   assert.equal(reopened.active().automatic, true)
@@ -474,7 +505,8 @@ test('review lists actual remote and local deletions before either side is chang
   const left = replica(A, [['shelf', new Map([[category, '"Reading"']])]])
   const right = replica(B)
   for (const device of [left, right]) {
-    await device.engine.saveConfiguration(draft, ['shelf'])
+    device.engine.setSelection(['shelf'])
+    await device.engine.saveConfiguration(draft)
     await device.engine.confirm((await device.engine.prepareSaved(['shelf'])).token, [])
   }
   right.values.get('shelf').delete(category)
@@ -503,7 +535,8 @@ test('fixed local settings retain a shared deletion without implicit revival, bu
   await remote.engine.syncNow()
   const local = replica(A, [['reader-settings', new Map([[animation, 'true']])]])
   local.snapshotExtras.set('reader-settings', { retainedDeletionKeys: [animation] })
-  await local.engine.saveConfiguration(draft, ['reader-settings'])
+  local.engine.setSelection(['reader-settings'])
+  await local.engine.saveConfiguration(draft)
   const preview = await local.engine.prepareSaved(['reader-settings'])
   assert.equal(preview.conflicts[0].retainLocalOnDelete, true)
   assert.equal(preview.groups[0].remove, 0)
@@ -576,49 +609,26 @@ test('first merge cancellation and stale preview leave the remote manifest uncha
   assert.equal(left.values.get('shelf').get(cat), '"First"')
 })
 
-test('first conflict is deferred across runs and a choice for the other device is honored', async () => {
+test('enabling a saved connection merges a first difference automatically and continues unrelated changes', async () => {
   const fixture = engineFixture()
   const mode = data.syncKey(['global', 'image-fit'])
   const animation = data.syncKey(['global', 'animation'])
   const left = fixture.replica(A, [['reader-settings', new Map([[mode, '"fit_width"']])]])
   const right = fixture.replica(B, [['reader-settings', new Map([[mode, '"contain"']])]])
-  await left.engine.testConnection(fixture.draft)
-  await left.engine.confirm((await left.engine.prepare(fixture.draft, ['reader-settings'])).token, [])
-  await right.engine.testConnection(fixture.draft)
-  const preview = await right.engine.prepare(fixture.draft, ['reader-settings'])
-  assert.equal(preview.conflicts.length, 1)
-  assert.equal(preview.groups[0].download, 0, 'an unresolved choice is not a download')
-  await right.engine.confirm(preview.token, [])
-  assert.equal(right.values.get('reader-settings').get(mode), '"contain"')
+  for (const device of [left, right]) {
+    device.engine.setSelection(['reader-settings'])
+    await device.engine.saveConfiguration(fixture.draft)
+    assert.equal(device.engine.active(), undefined)
+    await assert.rejects(device.engine.syncNow(), /sync_service_disabled/)
+    device.engine.setEnabled(true)
+    await device.engine.syncNow()
+    assert.equal(device.engine.active().reviewRequired, false)
+  }
   right.values.get('reader-settings').set(animation, 'false')
   await right.engine.syncNow()
   await left.engine.syncNow()
-  assert.equal(right.values.get('reader-settings').get(mode), '"contain"')
-  assert.equal(left.values.get('reader-settings').get(mode), '"fit_width"')
-  assert.equal(left.values.get('reader-settings').get(animation), 'false', 'ordinary sync continues for unrelated items')
-  const next = await right.engine.prepare(fixture.draft, ['reader-settings'])
-  await right.engine.confirm(next.token, [{ group: 'reader-settings', key: mode, useLocal: false }])
-  assert.equal(right.values.get('reader-settings').get(mode), '"fit_width"')
-  assert.equal(right.engine.active().reviewRequired, false)
-})
-
-test('a deferred book mode stays local even when source verification temporarily omits it', async () => {
-  const { replica, draft } = engineFixture()
-  const bookMode = data.syncKey(['book-mode', ...data.syncKeyParts(key).slice(1, 3)])
-  const local = JSON.stringify({ mode: 'single_page', direction: 'right_to_left' })
-  const other = JSON.stringify({ mode: 'vertical_page', direction: 'right_to_left' })
-  const left = replica(A, [['reader-settings', new Map([[bookMode, other]])]])
-  const right = replica(B, [['reader-settings', new Map([[bookMode, local]])]])
-  for (const device of [left, right]) {
-    await device.engine.testConnection(draft)
-    await device.engine.confirm((await device.engine.prepare(draft, ['reader-settings'])).token, [])
-  }
-  right.snapshotExtras.set('reader-settings', { values: [] })
-  await right.engine.syncNow()
-  assert.equal(right.values.get('reader-settings').get(bookMode), local)
-  assert.equal(right.engine.active().reviewRequired, true)
-  right.snapshotExtras.delete('reader-settings')
-  assert.equal((await right.engine.prepare(draft, ['reader-settings'])).conflicts[0].key, bookMode)
+  assert.equal(left.values.get('reader-settings').get(mode), right.values.get('reader-settings').get(mode))
+  assert.equal(left.values.get('reader-settings').get(animation), 'false')
 })
 
 test('category dependencies wait for their choice and disabled legacy conflicts leave other groups running', async () => {

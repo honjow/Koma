@@ -1,7 +1,7 @@
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
-import { appDeviceSync } from '../deviceSync/DeviceSyncRuntime'
+import { appDeviceSync, DeviceSyncViewState } from '../deviceSync/DeviceSyncRuntime'
 import { SearchResultRow, SearchResultRowSource } from '../model/SearchResultRowSource'
 import { komaSheetOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { SourceWebSessionSheet } from '../components/SourceWebSessionSheet'
@@ -127,6 +127,7 @@ export struct SearchPage {
   private resultRows: SearchResultRowSource = new SearchResultRowSource()
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
+  @Local private syncView: DeviceSyncViewState = appDeviceSync.view
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -363,9 +364,7 @@ export struct SearchPage {
       return
     }
     const sourceFilter = this.effectiveSourceFilter(query)
-    const publicHistory = this.migrationSources === undefined && sourceFilter === 'source' &&
-      this.librarySource === undefined && appDeviceSync.view.connected && appDeviceSync.view.selected.includes('search-history')
-    if (this.migrationSources === undefined && !publicHistory) this.recordHistory(query)
+    if (this.migrationSources === undefined) this.recordHistory(query)
     console.info(`[Search] step=ui_search_start serial=${serial}`)
     try {
       const result = await service.search(query, sourceFilter, (section: CrossSearchSection) => {
@@ -383,12 +382,7 @@ export struct SearchPage {
         console.info(`[Search] step=ui_section_resolved serial=${serial} source=${section.id} state=${section.state}`)
       }, (): boolean => this.ownsRoute(routeEpoch) && serial === this.searchSerial &&
         webChallengeEpoch === this.webChallengeEpoch && this.chrome.visible,
-        this.migrationSources ?? this.replaySources, this.librarySource,
-        (sources: string[]): void => {
-          if (publicHistory && this.ownsRoute(routeEpoch) && serial === this.searchSerial) {
-            this.recordHistory(query, appDeviceSync.verifyPublicSearchPlan(sources))
-          }
-        })
+        this.migrationSources ?? this.replaySources, this.librarySource)
       if (!this.ownsRoute(routeEpoch) || serial !== this.searchSerial) {
         console.info(`[Search] step=ui_search_stale serial=${serial}`)
         return
@@ -417,11 +411,16 @@ export struct SearchPage {
     }
   }
 
-  private loadHistory(): void {
+  @Monitor('syncView.searchHistoryRevision')
+  private refreshSyncedHistory(): void {
+    if (this.routeActive && this.migrationSources === undefined) this.loadHistory(true)
+  }
+
+  private loadHistory(quiet: boolean = false): void {
     const store = this.historyStore
     const routeEpoch = this.routeEpoch
     const mutationEpoch = this.historyMutationEpoch
-    this.historyLoadState = SearchHistoryLoadState.LOADING
+    if (!quiet) this.historyLoadState = SearchHistoryLoadState.LOADING
     if (store === undefined) {
       if (this.ownsRoute(routeEpoch)) {
         this.historyLoadState = SearchHistoryLoadState.FAILED
@@ -432,18 +431,20 @@ export struct SearchPage {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
         return
       }
-      this.history = appDeviceSync.mergeSearchHistory(entries)
+      this.history = entries
       this.historyLoadState = SearchHistoryLoadState.READY
     }).catch((error: Error) => {
       if (!this.ownsRoute(routeEpoch) || mutationEpoch !== this.historyMutationEpoch) {
         return
       }
-      this.historyLoadState = SearchHistoryLoadState.FAILED
+      if (!quiet || this.historyLoadState !== SearchHistoryLoadState.READY) {
+        this.historyLoadState = SearchHistoryLoadState.FAILED
+      }
       DiagnosticLogger.error('search_page', 'history_load_failed', '[Search] step=history_load_failed code=' + safeSearchDiagnostic(error).code)
     })
   }
 
-  private recordHistory(query: string, verifiedSources: string = ''): void {
+  private recordHistory(query: string): void {
     if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
@@ -452,8 +453,7 @@ export struct SearchPage {
     const mutationEpoch = this.historyMutationEpoch + 1
     this.historyMutationEpoch = mutationEpoch
     const scope: SearchHistoryScope = { sourceFilter: this.effectiveSourceFilter(query),
-      librarySource: copyLibrarySearchSource(this.librarySource),
-      syncSourceSet: verifiedSources.length === 0 ? undefined : verifiedSources }
+      librarySource: copyLibrarySearchSource(this.librarySource) }
     this.history = addSearchHistoryEntry(this.history, query, Date.now(), scope)
     DiagnosticLogger.info('search', 'history_prepared', `durationMs=${Date.now() - startedAt} entries=${this.history.length}`)
     this.historyLoadState = SearchHistoryLoadState.READY
@@ -461,10 +461,7 @@ export struct SearchPage {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_record', () => {
-      return store.record(query, scope).then((entries: SearchHistoryEntry[]): SearchHistoryEntry[] => {
-        if (verifiedSources.length > 0) appDeviceSync.recordPublicSearch(query, verifiedSources)
-        return entries
-      })
+      return store.record(query, scope)
     })
   }
 
@@ -483,7 +480,6 @@ export struct SearchPage {
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_clear', () => {
       return store.clear().then((): SearchHistoryEntry[] | undefined => {
-        appDeviceSync.removePublicSearch(undefined)
         return undefined
       })
     })
@@ -505,7 +501,7 @@ export struct SearchPage {
         return
       }
       if (entries !== undefined) {
-        this.history = appDeviceSync.mergeSearchHistory(entries)
+        this.history = entries
       }
       this.historyLoadState = SearchHistoryLoadState.READY
     }).catch((error: Error) => {
@@ -587,28 +583,13 @@ export struct SearchPage {
       return
     }
     this.enqueueHistoryMutation(mutationEpoch, 'history_remove', () => {
-      return store.remove(entry.query, entry).then((entries: SearchHistoryEntry[]): SearchHistoryEntry[] => {
-        if (entry.sourceFilter === 'source' && entry.librarySource === undefined) {
-          appDeviceSync.removePublicSearch(entry.query, entry.syncSourceSet ?? '')
-        }
-        return entries
-      })
+      return store.remove(entry.query, entry)
     })
   }
 
   private runHistoryQuery(entry: SearchHistoryEntry): void {
-    const sources = entry.syncSourceSet === undefined ? undefined : appDeviceSync.availablePublicSearchSources(entry.syncSourceSet)
-    if (sources?.length === 0) {
-      if (this.searchTimer > 0) clearTimeout(this.searchTimer)
-      this.searchTimer = 0
-      this.chrome.updateQuery(entry.query)
-      this.handledQueryChangeSeq = this.chrome.queryChangeSeq
-      this.queryText = entry.query
-      this.feedbackText = s('device_sync_search_sources_missing')
-      return
-    }
     this.replayQuery = entry.query.trim()
-    this.replaySources = sources
+    this.replaySources = undefined
     DiagnosticLogger.info('search', 'history_submit', 'recent_query')
     // Replaying a query restores its own range, without overwriting the user's
     // global preference. Invalidate a still-pending preference read as well.

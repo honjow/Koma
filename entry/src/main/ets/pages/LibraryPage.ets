@@ -9,6 +9,7 @@ import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { common } from '@kit.AbilityKit'
 import { KomaMenuController, KomaMenuAction as LibraryTitleMenuItem, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ComicCoverCard, ComicCoverInfo } from '../components/ComicCoverCard'
+import { PullRefresh } from '../components/PullRefresh'
 import { CachedCoverImage, cachedCoverFailureKey } from '../components/CachedCoverImage'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
@@ -307,6 +308,8 @@ export struct LibraryPage {
   @Event onOpenMangaDetail: (comicId: ComicId) => void = (_comicId: ComicId) => {}
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onProgressStoreReloadRequested: () => void = () => {}
+  @Event onRefresh: () => Promise<void> = async () => {}
+  @Local private scrollEnabled: boolean = true
   @Event onImportRequested: () => void = () => {}
   @Event onSearchRequested: () => void = () => {}
   @Event onMigrationRequested: (comicIds: string[]) => void = () => {}
@@ -347,7 +350,7 @@ export struct LibraryPage {
       this.titleMenuItem(s('tab_search'), $r('sys.symbol.magnifyingglass'),
         () => { this.onSearchRequested() }),
       this.titleMenuItem(s('library_updates_title'), $r('sys.symbol.bell'),
-        () => { this.onOpenUpdatesRequested() }),
+        () => { this.onOpenUpdatesRequested() }, true, 'library-title-updates'),
       this.titleMenuItem(s('common_more_actions'), komaTitleMoreIcon(),
         () => { this.openTitleMenu('more') }, true, 'library-title-more'),
     ]
@@ -995,7 +998,7 @@ export struct LibraryPage {
 
   private listRowSubtitle(comic: ComicCoverInfo): string {
     if (comic.categoryLabels !== undefined && comic.categoryLabels.length > 0) {
-      return `${comic.subtitle} · ${comic.categoryLabels.join(' · ')}`
+      return [comic.subtitle].concat(comic.categoryLabels).filter((label: string): boolean => label !== '').join(' · ')
     }
     return comic.subtitle
   }
@@ -2169,7 +2172,8 @@ export struct LibraryPage {
     .height('100%')
     .padding({ left: this.libraryHorizontalInset(), right: this.libraryHorizontalInset() })
     .clipContent(ContentClipMode.CONTENT_ONLY)
-    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .enableScrollInteraction(this.scrollEnabled)
+    .edgeEffect(EdgeEffect.None)
   }
 
   private shouldShowCoverUri(
@@ -2389,6 +2393,8 @@ export struct LibraryPage {
   private LibraryListSurface() {
       SecondaryListScaffold({
         scroller: this.libraryScroller,
+        scrollEnabled: this.scrollEnabled,
+        alwaysEnableEdgeSpring: false,
         listSpace: this.viewMode === 'list' ? ThemeConstants.SPACE_SM : ThemeConstants.SPACE_LG,
         horizontalPadding: this.viewMode === 'list' ? ThemeConstants.SPACE_MD : this.libraryHorizontalInset(),
         bottomPadding: ThemeConstants.SPACE_XL,
@@ -2439,14 +2445,19 @@ export struct LibraryPage {
 
   build() {
     Column() {
-      if (this.viewMode !== 'list' && !this.isProjectionPending() &&
-        this.hasLibraryContent() && this.hasVisibleLibraryContent()) {
-        this.LibraryGrid()
-      } else {
-        this.LibraryListSurface()
+      PullRefresh({
+        scroller: this.libraryScroller,
+        indicatorTop: this.layoutSafeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT / 2,
+        onRefresh: async (): Promise<void> => { await this.onRefresh() },
+        onScrollEnableChange: (enabled: boolean): void => { this.scrollEnabled = enabled },
+      }) {
+        if (this.viewMode !== 'list' && !this.isProjectionPending() &&
+          this.hasLibraryContent() && this.hasVisibleLibraryContent()) {
+          this.LibraryGrid()
+        } else {
+          this.LibraryListSurface()
+        }
       }
-
-
     }
     .width('100%')
     .height('100%')
