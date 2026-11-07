@@ -26,6 +26,8 @@ export struct KomaModalScaffold {
   @Param contentHorizontalPadding: number = ThemeConstants.SPACE_LG
   @Param contentOwnsScrolling: boolean = false
   @Param contentScrollsUnderTitle: boolean = false
+  // Fixed search results can consume scrolling without changing the sheet detent.
+  @Param keepScrollInContent: boolean = false
   @Param titleBottom: BottomBuilderParams | undefined = undefined
   @Param confirmLabel: ResourceStr | undefined = undefined
   @Param confirmEnabled: boolean = true
@@ -142,8 +144,8 @@ export struct KomaModalScaffold {
               .cachedCount(3, this.contentScrollsUnderTitle)
               .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
               .nestedScroll({
-                scrollForward: this.contentScrollsUnderTitle ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
-                scrollBackward: this.contentScrollsUnderTitle ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
+                scrollForward: this.keepScrollInContent ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
+                scrollBackward: this.keepScrollInContent ? NestedScrollMode.SELF_ONLY : NestedScrollMode.SELF_FIRST,
               })
             }
           }.width('100%').height('100%')

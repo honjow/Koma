@@ -2996,6 +2996,7 @@ export struct MangaDetailPage {
         title: this.trackingSearchProvider?.displayName ??
           s('settings_pane_tracking_title'),
         contentScrollsUnderTitle: this.trackingSearchProvider !== undefined,
+        keepScrollInContent: this.trackingSearchProvider !== undefined,
         titleBottom: this.trackingSearchProvider === undefined ? undefined : {
           builder: () => {},
           builderComponent: this.trackingSearchContent,

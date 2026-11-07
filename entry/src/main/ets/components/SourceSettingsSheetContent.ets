@@ -237,6 +237,8 @@ export struct SourceSettingsSheetContent {
     KomaModalScaffold({
       title: t('source_pkg_settings_title'),
       subtitle: sourceDisplayName(this.settingsSourceId, this.settingsSourceName),
+      // Keep the native title inset at rest and let scrolling fields pass behind its gradient.
+      contentScrollsUnderTitle: true,
       onClose: () => {
         this.regexCheckToken += 1
         this.regexCheckValue = ''

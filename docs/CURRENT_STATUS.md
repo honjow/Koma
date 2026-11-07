@@ -2,7 +2,7 @@
 
 本文件是唯一任务队列。当前有效任务、已接受范围、权限、未验边界及证据以以下 snapshot 为准；不另建重复队列。
 
-当前结果：详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.2 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
+当前结果：237 已复核漫画源设置半模态，原语言筛选项滚过标题下沿时进入渐变模糊。详情章节操作已改为标题栏多选与底部 HDS 操作栏。197 单栏和 103 双栏已验收多选及批量确认路径。操作栏背板边界已在 103 复验，197 和 103 已核对全选、取消全选和退出后恢复原生返回键。图像设置搜索已验收。备份与恢复使用同页记录与居中 Dialog，197 已核对普通与加密文件的直接导出和恢复预览，103 已核对口令字段展开和收起。197 已确认备份页重进直接显示现有记录。Bangumi 话数保存及第 33 话章末即时同步已实机核对。追踪重连、首次授权和 MyAnimeList 手动上传仍待核对。条漫模式进阅读器时顶部闪一下，按用户要求后排。正式版已发布，公开下载包已核对。92漫画章节修复已发布并在 237 核对，双端拒绝的样本继续等待站点响应。1.2.2 已发布，公开下载包已核对。197 已复核图片插件开关动画和空心收藏图标。197 已对照复测迁移选源，确认点选不再重建后续书源行。237 已复现部分 92 漫画正文被站点拒绝，问题仍开放。
 
 设备：197与103已完成本次同步验证，原设置、电源及租约均已恢复，两机保留无测试CA的正常包。临时WebDAV已关闭，私钥和随机凭据已清理。此前的备份验证临时记录已清理。237 已恢复原源包、测试数据和电源并释租，保留 1.2.1 同签验收包。200 本轮两项问题已复测，原超时已恢复并释租。四私库搁置。
 
@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T00:38:59+08:00",
+  "updatedAt": "2026-11-08T02:45:35+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
@@ -3582,9 +3582,9 @@
         "SOURCE_WEB_SESSION",
         "SOURCE_SETTINGS_ACTION_ALIGNMENT"
       ],
-      "status": "三入口限定验收完成，精确CI成功",
+      "status": "237 已核对漫画源设置滚动透底",
       "kind": "accepted",
-      "result": "源浏览与独立源搜索直接弹出原设置表单；原管理入口保持。197保存刷新、关闭返回及测试设置恢复已核。",
+      "result": "源浏览与独立源搜索直接弹出原设置表单；原管理入口保持。197保存刷新、关闭返回及测试设置恢复已核。 2026-11-08 从漫画源页齿轮打开 MangaDex（简体中文）的源设置。237 基线录像确认滚动字段在标题下沿被裁断；同签修正包中「Filter original languages」及说明实际滚过下沿进入 HDS 渐变，回顶首行清晰，关闭返回原源页。仅修正源设置表单的绘制，阅读器和主题色误改均已撤销。",
       "remaining": "本次三入口具名范围冻结；非空查询保存、其他源字段类型未扩认。Root亲见237 MangaDex设置页“Attempt to use the first volume cover as cover”被截断，布尔项源自带说明未显示；用户选择标题换行并显示源说明；Root在SourceSettingsSheetContent和KomaFormTextField实现并完成Release HAP编译。237 v2具名实机验证，Root亲审long-title-description.png、toggle-changed/restored-unsaved.png及MangaBall settings图；开关未保存后返回，设置深相等，三版MangaDex仅版本升级.20/.8/.8。设备最终120000ms/SLEEP、无Override，租约1b4109d2已释放。空候选多选因已积累Dodrio未复现，真实标题两状态未验。App 3058c4c0b89a59c0abaf4b26aa013cfe93b0a0b1已推，CI 40494450005已success。",
       "reportedAt": "2026-10-23T05:31:55.042Z",
       "reportedAtSource": "原始会话JSONL response_item/user口语原文时间；“源设置/源包管理”是结合上下文的当前暂解，待源码确认。",
@@ -8766,6 +8766,38 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "manga-source-settings-scroll-verified-20261108",
+      "at": "2026-11-08T02:45:35+08:00",
+      "title": "漫画源设置内容已滚过标题下沿",
+      "detail": "237 展开竖屏，同一 MangaDex（简体中文）源设置验证基线裁剪和修正后的语言筛选行进入 HDS 渐变。回顶首行清晰，关闭回到源页。未保存源设置。原电源读回并释租，保留修正签名包。",
+      "itemIds": [
+        "SOURCE_SETTINGS_DIRECT_ENTRY"
+      ],
+      "kind": "done",
+      "evidence": ".hvigor/outputs/modal-scroll-under-title-20261108/device237__VDE-AL00/unfolded/portrait-1320x2120/modal-scroll/ 的 manga-source-settings-baseline、manga-source-language-row、source-settings-restore-power。"
+    },
+    {
+      "id": "manga-source-settings-scope-correction-20261108",
+      "at": "2026-11-08T02:38:16+08:00",
+      "title": "明确只核对漫画源设置半模态",
+      "detail": "用户明确指出目标入口为漫画源设置。先前阅读器设置和主题色录像不作验收。Koma、NextE、NextN 中误做的产品源码修改已撤销。",
+      "itemIds": [
+        "SOURCE_SETTINGS_DIRECT_ENTRY"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "modal-scroll-through-title-20261108",
+      "at": "2026-11-08T02:24:24+08:00",
+      "title": "误验入口的历史录像",
+      "detail": "上轮误走 NextE、NextN 主题色和 Koma 阅读器设置，录像保留为历史。用户明确目标是漫画源设置半模态，误改的产品源码已撤销。",
+      "itemIds": [
+        "APP_POPUP_SYSTEM_MATERIAL",
+        "READER_SETTINGS_TABBED_SHEET"
+      ],
+      "kind": "done"
+    },
     {
       "id": "bookshelf-tab-symbols-20261108",
       "at": "2026-11-08T00:38:59+08:00",
