@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.1 已重发",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-07T02:34:50+08:00",
+  "updatedAt": "2026-11-07T17:37:22+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
@@ -283,19 +283,23 @@
       "kind": "accepted",
       "priority": "用户明确要求",
       "owner": "Root",
-      "status": "197 已验证双向高度过渡，用户接受当前效果",
+      "status": "197 已复现闪退，修复包已通过冷启动与交替点按",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户要求新增已置顶分组、右侧主题色图钉及分组平滑增减；精确消息时刻未核实。",
-      "result": "浏览页已启用书源可用主题色系统图钉置顶和取消，沿用既有筛选与备份。197 录像确认首个置顶展开和最后取消收起都有连续中间位置，测试书源返回原中文组，应用留在浏览页。稳定行键减少相邻多行重建；过渡中仍有少量标题或移动行与邻行短暂交叠，用户已明确接受当前效果。",
-      "remaining": "",
+      "result": "浏览页已启用书源可用主题色系统图钉置顶和取消，沿用既有筛选与备份。197 录像确认首个置顶展开和最后取消收起都有连续中间位置，测试书源返回原中文组，应用留在浏览页。稳定行键减少相邻多行重建；过渡中仍有少量标题或移动行与邻行短暂交叠，用户已明确接受当前效果。2026-11-07 用户报告冷启动后快速取消或连续交替操作会闪退。197 原包对 92漫画网的第一次快速取消复现 SIGSEGV，堆栈在 HDS 点击回调结束时关闭句柄。修复包在回调返回后执行分组更新及动画，197 已核冷启动取消和四轮快速交替，每轮在原片中确认换组，保留原高度过渡。测试项冷重启读回已恢复，已恢复电源并释租。",
+      "remaining": "修复在本地候选。用户报告的另一台设备未复验。",
       "evidence": [
         ".hvigor/outputs/browse-source-pin-20261106/final-pin-197-frames",
         ".hvigor/outputs/browse-source-pin-20261106/layout-pin-197-frames",
         ".hvigor/outputs/browse-source-pin-20261106/extent-pin-197-frames",
         ".hvigor/outputs/browse-source-pin-20261106/stable-key-pin-197-frames",
         ".hvigor/outputs/browse-source-pin-20261106/native-stable-pin-197-frames",
-        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restore-20261106T052223386115/run-metadata.json"
+        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restore-20261106T052223386115/run-metadata.json",
+        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/observe-20261107T173009210458/run-metadata.json",
+        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restart-20261107T173427385777/run-metadata.json",
+        ".hvigor/outputs/browse-source-pin-20261106/pin-crash-fix-frames/rapid-pin-top-contact.jpg",
+        ".hvigor/outputs/browse-source-pin-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/browse-source-pin/restore-20261107T173722711709/run-metadata.json"
       ],
       "boundaries": [
         "保留原生分组高度过渡和稳定行身份，不要求单行飞入顶部，也不为此强制滚动。",
@@ -8675,6 +8679,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "browse-source-pin-crash-20261107",
+      "at": "2026-11-07T17:37:22+08:00",
+      "title": "197 复现并验证取消书源置顶闪退修复",
+      "detail": "旧包快速取消时捕获 HDS 原生崩溃。修复包通过冷启动取消和四轮快速交替，录像确认实际换组及高度过渡。",
+      "itemIds": [
+        "BROWSE_SOURCE_PIN"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "koma-121-republish-reading-sync-20261107",
       "at": "2026-11-07T02:34:50+08:00",

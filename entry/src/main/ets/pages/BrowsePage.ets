@@ -86,16 +86,19 @@ export struct BrowsePage {
   }
 
   private toggleSourcePin(id: string): void {
-    const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
-    // Keep the native List layout transition. Stable keys below let rows
-    // which stay in their group move without recreating their HDS content.
-    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, (): void => {
-      void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
-        if (this.active && this.navigationVisible) {
-          this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
-        }
+    // animateTo can rebuild the list and remove the clicked HDS row before
+    // its native click callback returns. Move the whole update to the next task.
+    setTimeout((): void => {
+      if (!this.active || !this.navigationVisible || !this.catalogFilters.loaded) return
+      const pinned = !this.catalogFilters.pinnedSourceIds.includes(id)
+      this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, (): void => {
+        void this.catalogFilters.setSourcePinned(id, pinned).catch((): void => {
+          if (this.active && this.navigationVisible) {
+            this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: s('browse_source_pin_save_failed') }))
+          }
+        })
       })
-    })
+    }, 0)
   }
 
   @Computed
