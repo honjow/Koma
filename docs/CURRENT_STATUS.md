@@ -16,7 +16,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-07T19:51:53+08:00",
+  "updatedAt": "2026-11-07T21:52:01+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": "CONTINUOUS_PERFORMANCE",
   "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
@@ -1955,6 +1955,24 @@
       ],
       "remainingActions": [],
       "updatedAt": "2026-11-05T00:31:58+08:00"
+    },
+    {
+      "id": "APP_PC_2IN1_DECLARATION",
+      "title": "主应用声明支持二合一设备",
+      "kind": "done",
+      "priority": "用户直接要求",
+      "owner": "Root：Koma 主应用",
+      "reportedAt": null,
+      "reportedDate": "2026-11-07",
+      "reportedAtSource": "本会话用户要求检查并提交二合一设备支持声明。",
+      "status": "声明已加入，签名 HAP 已核对",
+      "result": "主模块追加 2in1，保留手机和平板。共享阅读器及图像增强库已有此声明；应用现有窗口宽度适配保持原样。签名构建通过，包内 module.json 和 pack.info 均包含 phone、tablet、2in1。",
+      "remaining": "二合一真机的安装、窗口缩放和键鼠交互未验证；本次仅提交声明。",
+      "evidence": [
+        "entry/src/main/module.json5",
+        ".hvigor/outputs/pc-2in1-20261107/verification.json"
+      ],
+      "updatedAt": "2026-11-07T21:52:01+08:00"
     },
     {
       "id": "RELEASE_1_2_2",
@@ -8735,6 +8753,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "app-pc-2in1-declaration-20261107",
+      "at": "2026-11-07T21:52:01+08:00",
+      "title": "二合一设备声明已写入安装包",
+      "detail": "构建签名 HAP 并读回设备声明。版本保持 1.2.2／11，尚未在二合一真机验证。",
+      "itemIds": [
+        "APP_PC_2IN1_DECLARATION"
+      ],
+      "kind": "done"
+    },
     {
       "id": "koma-122-published-20261107",
       "at": "2026-11-07T19:51:53+08:00",
