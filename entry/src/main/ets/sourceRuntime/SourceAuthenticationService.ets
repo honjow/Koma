@@ -25,6 +25,23 @@ interface AuthenticationOperationRequest {
   hostHints: AuthenticationHostHints
 }
 
+export interface SourceAuthenticationSnapshot {
+  authenticated: boolean
+  loginUrl: string
+  needsRefresh: boolean
+}
+
+interface AuthenticationCacheEntry {
+  authenticated: boolean
+  loginUrl: string
+  packageIdentity: string
+  settingsRevision: string
+  sessionRevision: string
+  checkedAt: number
+}
+
+const AUTHENTICATION_REFRESH_MS: number = 30000
+
 export class SourceAuthenticationRequest {
   sourceId: string
   current: () => boolean
@@ -42,6 +59,7 @@ export function sourceHasAuthentication(sourceId: string): boolean {
 }
 
 export class SourceAuthenticationService {
+  private static snapshots: Map<string, AuthenticationCacheEntry> = new Map()
   readonly entry: SourceRuntimeRegistryEntry
   readonly descriptor: SourceAuthenticationDescriptor
   readonly title: string
@@ -73,12 +91,30 @@ export class SourceAuthenticationService {
     if (this.grantId.length > 0) SourcePrivateSessionHost.cancelCredentialGrant(this.grantId)
     this.grantId = ''
   }
+  private sessionRevision(): string {
+    return SourcePrivateSessionHost.authenticationRevision(this.entry.sourceId, this.packageIdentity)
+  }
+  /** The account sheet may paint a confirmed state immediately on re-entry.
+   * Only display metadata is cached. Private mutations, mirror/settings changes
+   * and package replacement invalidate it without a storage read on opening.
+   */
+  cachedStatus(): SourceAuthenticationSnapshot | undefined {
+    if (this.descriptor.kind !== 'credentials' || !this.isCurrent()) return undefined
+    const snapshot = SourceAuthenticationService.snapshots.get(this.entry.sourceId)
+    if (snapshot === undefined || snapshot.packageIdentity !== this.packageIdentity ||
+      snapshot.settingsRevision !== this.settingsRevision || snapshot.sessionRevision !== this.sessionRevision()) return undefined
+    this.loginUrl = snapshot.loginUrl
+    return { authenticated: snapshot.authenticated, loginUrl: snapshot.loginUrl,
+      needsRefresh: Date.now() - snapshot.checkedAt >= AUTHENTICATION_REFRESH_MS }
+  }
   async run(operation: 'get_authentication' | 'authenticate' | 'logout', username: string = '', password: string = ''): Promise<boolean> {
     if (!this.isCurrent() || this.grantId.length > 0 ||
       (this.descriptor.kind !== 'credentials' && operation !== 'get_authentication')) throw new Error('source_login_not_allowed')
     const target = operation === 'get_authentication' ? this.descriptor.loginUrl : this.loginUrl
     if (target.length === 0) throw new Error('source_login_not_allowed')
+    // A failed descriptor validation must not leave an older mirror armed for credentials.
     if (operation === 'get_authentication' && this.descriptor.loginUrls !== undefined) this.loginUrl = ''
+    const beforeSession = this.sessionRevision()
     const current = (): boolean => this.isCurrent()
     const grantId = SourcePrivateSessionHost.grantCredentials(this.entry.sourceId, this.packageIdentity,
       sourceAuthenticationOrigin(target), operation, username, password, current)
@@ -126,7 +162,16 @@ export class SourceAuthenticationService {
       }
       if (operation === 'authenticate' && data['authenticated'] !== true) throw new Error('source_login_failed')
       if (operation === 'logout' && data['authenticated'] !== false) throw new Error('source_login_failed')
-      return data['authenticated'] as boolean
+      const authenticated = data['authenticated'] as boolean
+      if (this.descriptor.kind === 'credentials') {
+        const sessionRevision = this.sessionRevision()
+        if (operation === 'get_authentication' && beforeSession !== sessionRevision) {
+          throw new Error('source_login_status_changed')
+        }
+        SourceAuthenticationService.snapshots.set(this.entry.sourceId, { authenticated, loginUrl: this.loginUrl,
+          packageIdentity: this.packageIdentity, settingsRevision: this.settingsRevision, sessionRevision, checkedAt: Date.now() })
+      }
+      return authenticated
     } finally {
       SourcePrivateSessionHost.cancelCredentialGrant(grantId)
       if (this.grantId === grantId) this.grantId = ''

@@ -17,6 +17,7 @@ export class RouteName {
   static readonly MANGA_WEB: string = 'MangaWebPage'
   static readonly SOURCE_BROWSE: string = 'SourceBrowsePage'
   static readonly SOURCE_SEARCH: string = 'SourceSearchPage'
+  static readonly SOURCE_RELATED: string = 'SourceRelatedPage'
   static readonly KOMGA_BROWSE: string = 'KomgaBrowsePage'
   static readonly KAVITA_BROWSE: string = 'KavitaBrowsePage'
   static readonly OPDS_BROWSE: string = 'OpdsBrowsePage'

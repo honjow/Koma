@@ -83,6 +83,8 @@ import {
 } from '../model/ReaderChapterSequence'
 import { SourceBrowsePage } from './SourceBrowsePage'
 import { SourceSearchPage } from './SourceSearchPage'
+import { SourceMangaGrid } from '../components/SourceMangaGrid'
+import { MangaGridItem } from '../components/MangaGridItem'
 import { MangaMigrationPage } from './MangaMigrationPage'
 import { MangaMigrationPreferencesStore } from '../model/MangaMigrationPreferencesStore'
 import { MigrationCommand } from '../state/MangaMigrationRouteChromeState'
@@ -113,6 +115,7 @@ import {
   SearchRouteParam,
   SourceBrowseRouteParam,
   SourcePackageManagerRouteParam,
+  SourceRelatedRouteParam,
   SourceSearchRouteParam,
 } from '../common/RouterHelper'
 import { KomaTabIcon } from '../components/KomaTabIcon'
@@ -2579,6 +2582,26 @@ struct Index {
   }
 
   @Builder
+  private SourceRelatedDestination(param: SourceRelatedRouteParam) {
+    HdsNavDestination() {
+      SourceMangaGrid({ contentItemCount: param.manga.length }) {
+        ForEach(param.manga, (manga: SourceManga) => {
+          GridItem() {
+            MangaGridItem({ manga,
+              onMangaTap: (item: SourceManga): void => {
+                RouterHelper.pushMangaDetail({ mangaId: item.id, sourceId: item.sourceId, initialManga: item }, true)
+              },
+            })
+          }
+          .padding({ bottom: ThemeConstants.SPACE_LG })
+          .clip(false)
+        }, (manga: SourceManga): string => manga.id)
+      }
+    }
+    .titleBar(this.navDestTitleBarOpts(AppStrings.get('manga_detail_related')))
+  }
+
+  @Builder
   private SourceSearchDestination(param: SourceSearchRouteParam) {
     HdsNavDestination() {
       SourceSearchPage({
@@ -2769,6 +2792,8 @@ struct Index {
       this.SourceBrowseDestination(param as SourceBrowseRouteParam)
     } else if (name === RouteName.SOURCE_SEARCH) {
       this.SourceSearchDestination(param as SourceSearchRouteParam)
+    } else if (name === RouteName.SOURCE_RELATED) {
+      this.SourceRelatedDestination(param as SourceRelatedRouteParam)
     } else if (name === RouteName.KOMGA_BROWSE) {
       HdsNavDestination() {
         KomgaSeriesPage({
@@ -3817,6 +3842,7 @@ struct Index {
       return [{ id: 'selected-chapters', items }]
     }
     if (chrome.sourceReloadAvailable) add(opening, 'manga_detail_menu_reload_source', MangaDetailTitleAction.RELOAD_SOURCE)
+    if (chrome.relatedMangaAvailable) add(opening, 'manga_detail_related', MangaDetailTitleAction.OPEN_RELATED)
     if (chrome.pageActionsAvailable) {
       if (chrome.personalDataAvailable) add(work, 'manga_notes', MangaDetailTitleAction.EDIT_NOTES, !chrome.personalizationBusy)
       if (chrome.coverActionsAvailable) {

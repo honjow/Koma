@@ -8,7 +8,8 @@ export function sourceHostFeatures(): string[] {
   // The legacy rate-limit feature only guaranteed Manhuagui's rules. BuonDua
   // requires its explicit capability, not an inference from that older flag.
   return ['text_page_image_v1', 'source_rate_limit_v1', 'source_rate_limit_buondua_v1', 'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1', 'source_chapter_exclusions_v1', 'source_setting_uuid_list_v1', 'mangabz_language_cookie_v1', 'mangabz_mirror_session_v1', 'source_settings_context_v1', 'source_http_batch_v1', 'source_filter_scope_header_v1', 'source_filter_fetching_v1', 'source_filter_tristate_v1', 'chapter_reading_order_v1', 'source_private_session_v1', 'source_page_image_processing_v1', 'source_baozi_chapter_identity_v1', 'source_java_regex_v1', 'source_page_text_overlay_v1', 'source_authentication_v1', 'source_private_session_process_v1', 'source_private_session_replace_v1', 'source_required_image_decode_jm_stripes_v1', 'source_rate_limit_jm_v1', 'source_rate_limit_hentaiclub_v1', 'source_rate_limit_wnacg_v1', 'source_setting_positive_integer_v1', 'source_dns_pica_channel_v1',
-    'source_bilimanga_guest_search_v1', 'source_rate_limit_bilimanga_v1', 'source_native_cookie_session_v1']
+    'source_bilimanga_guest_search_v1', 'source_rate_limit_bilimanga_v1', 'source_native_cookie_session_v1',
+    'source_rate_limit_xiutaku_v1', 'source_related_manga_v1']
 }
 
 export function sourceRequestWithHostFeatures(requestJson: string, challengeCause: boolean = false,

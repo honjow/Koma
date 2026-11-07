@@ -84,3 +84,27 @@ test('WNACG mirrors share 50/minute and each redirected HTTP call pays once', as
   await advance(59999);assert.equal(passed,false)
   await advance(60000);await rejected;await next;assert.equal(passed,true)
 })
+
+test('Xiutaku shares one 10/s main-host window and leaves its image CDN independent', async () => {
+  let now = 0
+  const timers = [], exports = {}
+  const source = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/sourceRuntime/SourceRequestPolicy.ets'), 'utf8')
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
+  new Function('exports', 'require', 'Date', 'setTimeout', js)(exports, name => name === '@kit.ArkTS' ? { url: { URL } } : {},
+    { now: () => now }, (fn, ms) => timers.push({ fn, due: now + ms }))
+  const call = {}, sourceId = 'com.xiutaku.koma'
+  const wait = (url, admission, id = sourceId) => exports.waitForSourceRequestSlot(id, url, undefined, undefined, admission)
+  const main = 'https://xiutaku.com'
+  await wait(main + '/hot', call)
+  await wait(main + '/hot?start=20', call)
+  for (let i = 0; i < 9; i++) await wait(main + '/' + i)
+  let allowed = false
+  const queued = wait(main + '/?search=x').then(() => { allowed = true })
+  await wait('https://i.xiutaku.com/cover.webp')
+  await wait(main + '/different-source', undefined, 'other')
+  assert.equal(allowed, false)
+  assert.deepEqual(timers.map(timer => timer.due), [1000])
+  now = 1000; timers.shift().fn()
+  await queued
+  assert.equal(allowed, true)
+})

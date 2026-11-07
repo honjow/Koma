@@ -2,6 +2,7 @@ import { url } from '@kit.ArkTS'
 
 const MANHUAGUI: string = 'com.manhuagui.koma'
 const BUONDUA: string = 'com.buondua.koma'
+const XIUTAKU: string = 'com.xiutaku.koma'
 const JMCOMIC: string = 'com.jmcomic.koma'
 const HENTAICLUB: string = 'com.hentaiclub.koma'
 const WNACG: string = 'com.wnacg.koma'
@@ -20,7 +21,7 @@ class SourceRequestWindow {
 const requestWindows: Map<string, SourceRequestWindow> = new Map()
 
 /** One transport call keeps this object through its redirect hops. */
-export interface SourceRequestAdmission { wnacgAdmitted?: boolean; jmAdmitted?: boolean }
+export interface SourceRequestAdmission { wnacgAdmitted?: boolean; jmAdmitted?: boolean; xiutakuAdmitted?: boolean }
 
 function sourceRequestWindow(sourceId: string, group: string): SourceRequestWindow {
   const key = JSON.stringify([sourceId, group])
@@ -66,7 +67,7 @@ export function configureSourceRequestPolicy(sourceId: string, settings: Object 
 export async function waitForSourceRequestSlot(sourceId: string, requestUrl: string,
   isCurrent: () => boolean = (): boolean => true,
   headers?: Object | string | number | boolean | null, admission?: SourceRequestAdmission): Promise<void> {
-  if (sourceId !== MANHUAGUI && sourceId !== BUONDUA && sourceId !== JMCOMIC && sourceId !== HENTAICLUB &&
+  if (sourceId !== MANHUAGUI && sourceId !== BUONDUA && sourceId !== XIUTAKU && sourceId !== JMCOMIC && sourceId !== HENTAICLUB &&
     sourceId !== WNACG && sourceId !== BILIMANGA) return
   let host: string
   let origin: string
@@ -78,6 +79,10 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
   const main: boolean = sourceId === MANHUAGUI && host === 'www.manhuagui.com'
   const image: boolean = sourceId === MANHUAGUI && (host === 'i.hamreus.com' || host === 'cf.hamreus.com')
   const buondua: boolean = sourceId === BUONDUA && host === 'buondua.com'
+  // Xiutaku uses the same 10/s sliding window for its exact main host;
+  // i.xiutaku.com is an independent CDN and must not consume that allowance.
+  const xiutaku: boolean = sourceId === XIUTAKU && host === 'xiutaku.com'
+  if (xiutaku && admission?.xiutakuAdmitted === true) return
   // The reference matches this hostname, including same-host images and all ports.
   const hentaiclub: boolean = sourceId === HENTAICLUB && host === 'www.hentaiclub.net'
   // All reference-matching mirrors share one window; one HTTP call is charged at most once.
@@ -98,7 +103,7 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
   const jm: boolean = sourceId === JMCOMIC && origin.startsWith('https://') && token && tokenParam
   if (jm && admission?.jmAdmitted === true) return
   const bili = sourceId === BILIMANGA ? bilimangaRate ?? BILIMANGA_DEFAULT_RATE : undefined
-  if (!main && !image && !buondua && !jm && !hentaiclub && !wnacg && bili === undefined) return
+  if (!main && !image && !buondua && !xiutaku && !jm && !hentaiclub && !wnacg && bili === undefined) return
   const window = sourceRequestWindow(sourceId, jm ? origin : image ? 'image' : 'main')
   const period: number = bili?.periodMs ?? (wnacg ? 60000 : jm ? 2000 : main ? 10000 : 1000)
   const previous: Promise<void> = window.tail
@@ -110,12 +115,13 @@ export async function waitForSourceRequestSlot(sourceId: string, requestUrl: str
       if (!isCurrent()) throw new Error('source_request_cancelled')
       const now: number = Date.now()
       window.starts = window.starts.filter((started: number): boolean => now - started < period)
-      const limit: number = bili?.permits ?? (wnacg ? 50 : jm ? 3 : hentaiclub ? 2 : buondua ? 10 :
+      const limit: number = bili?.permits ?? (wnacg ? 50 : jm ? 3 : hentaiclub ? 2 : buondua || xiutaku ? 10 :
         main ? mainPermits : imagePermits)
       if (window.starts.length < limit) {
         window.starts.push(now)
         if (wnacg && admission !== undefined) admission.wnacgAdmitted = true
         if (jm && admission !== undefined) admission.jmAdmitted = true
+        if (xiutaku && admission !== undefined) admission.xiutakuAdmitted = true
         return
       }
       await new Promise<void>((resolve) => {

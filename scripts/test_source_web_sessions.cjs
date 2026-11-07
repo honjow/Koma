@@ -387,7 +387,14 @@ test('authentication service keeps input outside source requests and retires que
   assert.equal(await service.run('get_authentication'), false)
   assert.equal(entry.wasmBytes.byteLength, 1, 'opening account settings must preserve the source bytes for the next settings call')
   assert.equal(await service.run('authenticate', 'synthetic-user', 'synthetic-password'), true)
+  const reopened = new SourceAuthenticationService(entry.sourceId, () => true)
+  assert.deepEqual({ ...reopened.cachedStatus() }, { authenticated: true, loginUrl: auth.loginUrl, needsRefresh: false })
   assert.equal(await service.run('logout'), false)
+  assert.equal(new SourceAuthenticationService(entry.sourceId, () => true).cachedStatus()?.authenticated, false)
+  const snapshotRevision = revision
+  revision = 'different-mirror'
+  assert.equal(new SourceAuthenticationService(entry.sourceId, () => true).cachedStatus(), undefined)
+  revision = snapshotRevision
   assert(calls.every(raw => !raw.includes('synthetic-user') && !raw.includes('synthetic-password')))
   assert.equal(f.assets.size, 0)
   for (const changed of ['settings', 'installation', 'cancel']) {

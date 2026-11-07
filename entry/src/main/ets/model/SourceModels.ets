@@ -322,6 +322,29 @@ export function normalizeSourceManga(sourceId: string, payload: SourceRuntimeMan
   }
 }
 
+/** Optional detail recommendations have the same identity and cover contract as catalogue cards. */
+export function parseSourceRelatedManga(sourceId: string, mangaId: string, value: Object | undefined): SourceManga[] {
+  if (!Array.isArray(value)) return []
+  const rows = value as Object[]
+  const seen = new Set<string>([mangaId])
+  const items: SourceManga[] = []
+  for (let index = 0; index < Math.min(rows.length, 100); index++) {
+    const raw: Object = rows[index]
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue
+    const item = raw as SourceRuntimeMangaPayload
+    if (typeof item.id !== 'string' || typeof item.title !== 'string' || item.title.trim().length === 0) continue
+    const id = item.id.trim()
+    if (id.length === 0 || seen.has(id)) continue
+    try {
+      items.push(normalizeSourceManga(sourceId, item))
+      seen.add(id)
+    } catch (_error) {
+      // A malformed recommendation does not invalidate the work or its chapters.
+    }
+  }
+  return items
+}
+
 export function parseSourceMangaListJson(sourceId: string, json: string): SourceMangaList {
   try {
     const payload = JSON.parse(json) as SourceRuntimeMangaListPayload

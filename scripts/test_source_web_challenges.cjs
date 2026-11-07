@@ -462,32 +462,40 @@ function authenticationPresenterFixture() {
   const owner = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.text === 'SourceAuthenticationSheetHost')
   const methods = ['aboutToAppear', 'aboutToDisappear', 'requestChanged', 'current', 'open', 'openWeb', 'status', 'authenticate', 'logout', 'finish', 'close', 'finishDismissal']
   const source = `export class Presenter { ${methods.map(name => owner.members.find(n => n.name?.text === name).getText(ast).replace(/@Monitor\([^\n]*\)\s*/g, '')).join('\n')} }`
-  const replies = [], operations = [], exports = {}; let canceled = 0, completed = 0
+  const replies = [], operations = [], exports = {}; let canceled = 0, completed = 0, cachedStatus
   class Service {
     descriptor = { kind: 'credentials', loginUrl: 'https://api.invalid/auth', credentialStorage: 'private' }
     title = 'Source'; alive = true
+    loginUrl = this.descriptor.loginUrl
     constructor(_id, current) { this.current = current }
     isCurrent() { return this.alive && this.current() }
     cancel() { this.alive = false }
+    cachedStatus() { return cachedStatus }
     async run(op) { operations.push(op); const reply = replies.shift(); return await (reply ?? false) }
   }
-  new Function('exports', 'SourceAuthenticationService', 'AppStrings', 'sourceAuthenticationOrigin', 'SourceRuntimeError', compile(source))(
-    exports, Service, { get: key => key }, value => new URL(value).origin, SourceRuntimeError)
+  new Function('exports', 'SourceAuthenticationService', 'AppStrings', 'sourceAuthenticationOrigin', 'SourceRuntimeError', 'komaToastOptions', compile(source))(
+    exports, Service, { get: key => key }, value => new URL(value).origin, SourceRuntimeError, value => value)
   const host = new exports.Presenter()
   const request = () => new SourceAuthenticationRequest('source', () => true, async () => { completed++ }, () => { canceled++ })
-  Object.assign(host, { request: request(), active: true, mounted: false, shown: false, closing: false, opening: false,
+  Object.assign(host, { request: request(), active: true, mounted: false, shown: false, closing: false, opening: false, checking: false,
     completed: false, handled: null, presented: null, service: null, epoch: 0, webParams: {},
-    onPresentedChanged() {}, getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }) })
-  return { host, replies, operations, request, get canceled() { return canceled }, get completed() { return completed } }
+    onPresentedChanged() {}, onAuthenticationChanged() {},
+    getUIContext: () => ({ getPromptAction: () => ({ showToast() {} }) }) })
+  return { host, replies, operations, request, setCached(value) { cachedStatus = value },
+    get canceled() { return canceled }, get completed() { return completed } }
 }
 test('login presenter retries after dismissal only, and late canceled initialization cannot close its replacement', async () => {
   const f = authenticationPresenterFixture(); f.host.aboutToAppear(); await settled()
+  assert.equal(f.host.ready, true); assert.equal(f.host.checking, false)
   f.host.username = 'synthetic-user'; f.host.password = 'synthetic-password'; f.replies.push(true)
   await f.host.authenticate(); assert.equal(f.completed, 0); assert.equal(f.host.password, '')
   f.host.finishDismissal(); await settled(); assert.equal(f.completed, 1)
   f.host.finishDismissal(); assert.equal(f.completed, 1)
   let resolve
   f.host.request = f.request(); f.replies.push(new Promise(r => { resolve = r }))
+  f.host.onPresentedChanged = shown => {
+    if (shown) { assert.equal(f.host.checking, true); assert.equal(f.host.ready, false) }
+  }
   f.host.requestChanged(); assert.equal(f.host.shown, true)
   f.host.close(); f.host.finishDismissal()
   f.host.request = f.request(); f.host.requestChanged(); await settled()
@@ -496,6 +504,28 @@ test('login presenter retries after dismissal only, and late canceled initializa
   assert.equal(f.host.presented, presented); assert.equal(f.host.shown, true)
   f.host.aboutToDisappear(); f.host.finishDismissal(); assert.equal(f.completed, 1)
   assert.ok(f.canceled > 0)
+})
+test('a confirmed account is rendered on first paint; stale checks preserve it unless status changes', async () => {
+  const f = authenticationPresenterFixture()
+  f.host.inSettings = true
+  const snapshot = { authenticated: true, loginUrl: 'https://api.invalid/auth', needsRefresh: false }
+  const presented = []
+  f.host.onPresentedChanged = shown => {
+    if (shown) presented.push([f.host.ready, f.host.authenticated, f.host.checking])
+  }
+  f.setCached(snapshot); f.host.aboutToAppear()
+  assert.deepEqual(presented, [[true, true, false]])
+  assert.deepEqual(f.operations, [])
+  f.host.close(); f.host.finishDismissal()
+  f.host.request = f.request(); f.setCached({ ...snapshot, needsRefresh: true })
+  let resolve
+  f.replies.push(new Promise(r => { resolve = r }))
+  f.host.requestChanged()
+  assert.deepEqual(presented.at(-1), [true, true, true])
+  resolve(false); await settled()
+  assert.equal(f.host.checking, false)
+  assert.equal(f.host.ready, true)
+  assert.equal(f.host.authenticated, false)
 })
 test('changed clearance on current successful document retries once without a manual tap', async () => {
   const f=sheetFixture();f.setCookies('cf_clearance=new');f.sheet.pageEnded({url:f.initialUrl});

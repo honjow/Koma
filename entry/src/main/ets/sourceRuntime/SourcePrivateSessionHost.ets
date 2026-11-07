@@ -33,6 +33,7 @@ class PrivateState {
   loaded: boolean = false
   value: PrivateValue | null = null
   manifest: PrivateManifest | null = null
+  revision: number = 0
   owner: PrivateOwner | null = null
   queue: Promise<void> = Promise.resolve()
 }
@@ -53,6 +54,12 @@ export class SourcePrivateSessionHost {
   private static callCredentialGrants: Map<string, string> = new Map()
   private static removingScopes: Set<string> = new Set()
   private static removalVersions: Map<string, number> = new Map()
+
+  /** In-process cache fence. This exposes neither the private value nor its storage identifier. */
+  static authenticationRevision(sourceId: string, packageIdentity: string): string {
+    const key = JSON.stringify([sourceId, packageIdentity])
+    return `${SourcePrivateSessionHost.removalVersions.get(key) ?? 0}:${SourcePrivateSessionHost.states.get(key)?.revision ?? 0}`
+  }
 
   /** Host queue fence only: uninstall retires older calls, even if the same package is reinstalled.
    * Disable/update do not change this fence or the package's existing identity. */
@@ -471,6 +478,7 @@ export class SourcePrivateSessionHost {
             const previous = selected.manifest
             await asset.remove(SourcePrivateSessionHost.identity(selected.root))
             selected.value = null; selected.manifest = null
+            selected.revision += 1
             await SourcePrivateSessionHost.removeChunks(selected, previous)
           }
           return JSON.stringify({ ok: true })
@@ -518,6 +526,7 @@ export class SourcePrivateSessionHost {
         }
         const previous = selected.manifest
         selected.manifest = m; selected.value = { value: req.value, versionTag: id }
+        selected.revision += 1
         if (selected.owner === owner) { selected.owner = null; owner.resolve(true) }
         if (previous !== null) await SourcePrivateSessionHost.removeChunks(selected, previous)
         if (!SourcePrivateSessionHost.active(scope, isCurrent)) return SourcePrivateSessionHost.fail('inactive')

@@ -59,6 +59,10 @@ export interface SourceSearchRouteParam {
   onMangaSelected?: (manga: SourceManga) => void
 }
 
+export interface SourceRelatedRouteParam {
+  manga: SourceManga[]
+}
+
 export interface MangaMigrationRouteParam {
   comicIds: string[]
   fromDetail: boolean
@@ -212,6 +216,12 @@ export class RouterHelper {
       onMangaSelected,
     }
     stack.pushPath({ name: RouteName.SOURCE_SEARCH, param: routeParam })
+  }
+
+  static pushSourceRelated(manga: SourceManga[]): void {
+    if (manga.length === 0) return
+    const param: SourceRelatedRouteParam = { manga }
+    RouterHelper.appPathStack?.pushPath({ name: RouteName.SOURCE_RELATED, param }, { launchMode: LaunchMode.NEW_INSTANCE })
   }
 
   static ensureSearchRouteChrome(param: SearchRouteParam): SearchRouteChromeState {

@@ -23,6 +23,7 @@ function cloneMangaDetail(detail: MangaDetail): MangaDetail {
     coverUrl: detail.coverUrl,
     status: detail.status,
     tags: detail.tags === undefined ? undefined : detail.tags.slice(),
+    relatedManga: detail.relatedManga?.slice(),
     sourceId: detail.sourceId,
     sourceImageId: detail.sourceImageId,
     sourceName: detail.sourceName,

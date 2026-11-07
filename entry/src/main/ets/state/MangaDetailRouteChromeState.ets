@@ -16,6 +16,7 @@ export enum MangaDetailTitleAction {
   DOWNLOAD_INCOMPLETE = 'download_incomplete',
   RETRY_FAILED_DOWNLOADS = 'retry_failed_downloads',
   RELOAD_SOURCE = 'reload_source',
+  OPEN_RELATED = 'open_related',
   OPEN_WEBVIEW = 'open_webview',
   SHARE_LINK = 'share_link',
   OPEN_BROWSER = 'open_browser',
@@ -42,6 +43,7 @@ export class MangaDetailRouteChromeState {
   @Trace showTitle: boolean = false
   @Trace pageActionsAvailable: boolean = false
   @Trace sourceReloadAvailable: boolean = false
+  @Trace relatedMangaAvailable: boolean = false
   @Trace webActionsAvailable: boolean = false
   @Trace linkShareBusy: boolean = false
   @Trace localRefreshAvailable: boolean = false

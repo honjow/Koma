@@ -30,6 +30,8 @@ export struct SourceAuthenticationSheetHost {
   @Local private password: string = ''
   @Local private errorText: string = ''
   @Local private busy: boolean = false
+  @Local private checking: boolean = false
+  @Local private checkFailed: boolean = false
   @Local private ready: boolean = false
   @Local private authenticated: boolean = false
   @Local private replacing: boolean = false
@@ -71,6 +73,7 @@ export struct SourceAuthenticationSheetHost {
     this.presented = request; this.handled = request; this.completed = false
     this.username = ''; this.password = ''; this.errorText = ''; this.authenticated = false; this.replacing = false
     this.ready = false
+    this.checkFailed = false
     const epoch = ++this.epoch
     try {
       this.service = new SourceAuthenticationService(request.sourceId,
@@ -87,8 +90,15 @@ export struct SourceAuthenticationSheetHost {
         void this.openWeb(epoch)
         return
       }
+      // An explicit retry after an access failure must query current status.
+      const cached = this.inSettings ? this.service.cachedStatus() : undefined
+      if (cached !== undefined) {
+        this.authenticated = cached.authenticated
+        this.loginOrigin = sourceAuthenticationOrigin(cached.loginUrl)
+        this.ready = true
+      }
+      if (cached === undefined || cached.needsRefresh) void this.status(epoch)
       this.shown = true; this.onPresentedChanged(true)
-      if (!this.web) void this.status(epoch)
     } catch (_error) {
       request.cancel(); this.service?.cancel(); this.service = null
       this.errorText = AppStrings.get('source_login_unavailable')
@@ -116,16 +126,29 @@ export struct SourceAuthenticationSheetHost {
   }
 
   private async status(epoch: number): Promise<void> {
-    this.busy = true; this.ready = false; this.errorText = ''
+    if (!this.current(epoch) || this.checking) return
+    this.checking = true; this.checkFailed = false; this.errorText = ''
     try {
-      const authenticated = await this.service!.run('get_authentication')
+      let authenticated: boolean
+      try {
+        authenticated = await this.service!.run('get_authentication')
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'source_login_status_changed' || !this.current(epoch)) {
+          throw new Error('source_login_status_unavailable')
+        }
+        // The first result belongs to a session that changed during the check.
+        this.ready = false
+        authenticated = await this.service!.run('get_authentication')
+      }
       if (!this.current(epoch)) { if (this.epoch === epoch) this.close(); return }
       this.loginOrigin = sourceAuthenticationOrigin(this.service!.loginUrl)
       this.authenticated = authenticated; this.ready = true
     } catch (_error) {
-      if (this.current(epoch)) this.errorText = AppStrings.get('source_login_unavailable')
-      else if (this.epoch === epoch) this.close()
-    } finally { if (this.epoch === epoch) this.busy = false }
+      if (this.current(epoch)) {
+        this.checkFailed = !this.ready || this.service?.loginUrl === ''
+        if (this.checkFailed) this.errorText = AppStrings.get('source_login_unavailable')
+      } else if (this.epoch === epoch) this.close()
+    } finally { if (this.epoch === epoch) this.checking = false }
   }
 
   private async authenticate(): Promise<void> {
@@ -133,6 +156,7 @@ export struct SourceAuthenticationSheetHost {
     if (!this.current(epoch)) { this.close(); return }
     if (!this.ready || this.busy) return
     if (this.authenticated && !this.replacing) { this.finish(); return }
+    if (this.checking || this.checkFailed) return
     if (this.username.trim().length === 0 || this.password.length === 0) return
     this.busy = true; this.errorText = ''
     try {
@@ -148,14 +172,15 @@ export struct SourceAuthenticationSheetHost {
   }
 
   private changeReplacement(replacing: boolean): void {
-    if (!this.inSettings || !this.authenticated || !this.ready || this.busy || !this.current(this.epoch)) return
+    if (!this.inSettings || !this.authenticated || !this.ready || this.busy || this.checking || this.checkFailed ||
+      !this.current(this.epoch)) return
     // authenticate performs the existing atomic replacement; the current login survives cancellation and failure.
     this.username = ''; this.password = ''; this.errorText = ''; this.replacing = replacing
   }
 
   private async logout(): Promise<void> {
     const epoch = this.epoch
-    if (!this.current(epoch) || !this.ready || this.busy) return
+    if (!this.current(epoch) || !this.ready || this.busy || this.checking || this.checkFailed) return
     this.busy = true; this.errorText = ''
     try {
       await this.service!.run('logout')
@@ -182,7 +207,7 @@ export struct SourceAuthenticationSheetHost {
   private close(): void {
     const request = this.presented
     this.opening = false
-    this.epoch += 1; this.service?.cancel(); this.username = ''; this.password = ''; this.busy = false
+    this.epoch += 1; this.service?.cancel(); this.username = ''; this.password = ''; this.busy = false; this.checking = false
     if (!this.completed) request?.cancel()
     const session = this.webParams.sourceSession
     if (!this.completed && session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
@@ -196,11 +221,54 @@ export struct SourceAuthenticationSheetHost {
     const complete = this.completed && this.mounted && this.active && request === this.request && request?.current() === true
     this.epoch += 1; this.service?.cancel(); this.service = null; this.presented = null
     this.username = ''; this.password = ''; this.completed = false; this.closing = false; this.shown = false
+    this.busy = false; this.checking = false
     this.onPresentedChanged(false)
     // Resolve only after dismissal: Reader has resumed its existing viewport before same-slot reload.
     if (complete) void request!.complete()
     else request?.cancel()
     this.requestChanged()
+  }
+
+  @Builder
+  private AccountContent() {
+    Text(this.authenticated ? AppStrings.get('source_login_connected') : AppStrings.get('source_login_required'))
+      .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)
+    if (this.loginOrigin.length > 0) {
+      Text(AppStrings.format('source_login_destination', this.loginOrigin))
+        .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+    Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
+      .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    if (!this.authenticated || this.replacing) {
+      KomaFormTextField({ label: this.usernameLabel, value: this.username, isEnabled: this.ready && !this.busy,
+        change: (value: string) => { this.username = value } })
+      KomaFormTextField({ label: this.passwordLabel, value: this.password, isPassword: true, isEnabled: this.ready && !this.busy,
+        change: (value: string) => { this.password = value }, submit: () => { void this.authenticate() } })
+    }
+    if (this.errorText.length > 0) {
+      Text(this.errorText).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
+    }
+    KomaActionButton({ label: AppStrings.get(this.replacing ? 'source_account_switch' :
+      this.authenticated ? (this.inSettings ? 'common_close' : 'source_login_continue') : 'source_login'), kind: 'primary',
+      fullWidth: true, busy: this.busy, isEnabled: this.ready && !this.busy &&
+        ((this.authenticated && !this.replacing) ||
+          (!this.checking && !this.checkFailed && this.username.trim().length > 0 && this.password.length > 0)),
+      action: () => { void this.authenticate() } })
+    if (this.replacing) {
+      KomaActionButton({ label: AppStrings.get('common_cancel'), kind: 'ghost', fullWidth: true,
+        isEnabled: !this.busy, action: () => { this.changeReplacement(false) } })
+    } else if (this.authenticated) {
+      if (this.inSettings) {
+        KomaActionButton({ label: AppStrings.get('source_account_switch'), kind: 'ghost', fullWidth: true,
+          isEnabled: !this.busy && !this.checking && !this.checkFailed, action: () => { this.changeReplacement(true) } })
+      }
+      KomaActionButton({ label: AppStrings.get('source_logout'), kind: 'ghost', fullWidth: true,
+        isEnabled: !this.busy && !this.checking && !this.checkFailed, action: () => { void this.logout() } })
+    }
+    if (this.checkFailed) {
+      KomaActionButton({ label: AppStrings.get('common_retry'), kind: 'ghost', fullWidth: true,
+        action: () => { void this.status(this.epoch) } })
+    }
   }
 
   @Builder
@@ -212,39 +280,14 @@ export struct SourceAuthenticationSheetHost {
       KomaModalScaffold({ title: AppStrings.get(this.inSettings ? 'source_account_settings' : 'source_login'), subtitle: this.title,
         onClose: () => { this.close() } }) {
         Column({ space: ThemeConstants.SPACE_MD }) {
-          Text(this.authenticated ? AppStrings.get('source_login_connected') : AppStrings.get('source_login_required'))
-            .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)
-          if (this.loginOrigin.length > 0) {
-            Text(AppStrings.format('source_login_destination', this.loginOrigin))
-              .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          Text(AppStrings.get(this.credentialStorage === 'private' ? 'source_login_storage_private' : 'source_login_storage_memory'))
-            .fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-          if (!this.authenticated || this.replacing) {
-            KomaFormTextField({ label: this.usernameLabel, value: this.username, isEnabled: this.ready && !this.busy,
-              change: (value: string) => { this.username = value } })
-            KomaFormTextField({ label: this.passwordLabel, value: this.password, isPassword: true, isEnabled: this.ready && !this.busy,
-              change: (value: string) => { this.password = value }, submit: () => { void this.authenticate() } })
-          }
-          if (this.errorText.length > 0) {
-            Text(this.errorText).fontSize(ThemeConstants.FONT_SIZE_META).fontColor(ThemeConstants.TEXT_SECONDARY)
-          }
-          KomaActionButton({ label: AppStrings.get(this.replacing ? 'source_account_switch' :
-            this.authenticated ? (this.inSettings ? 'common_close' : 'source_login_continue') : 'source_login'), kind: 'primary',
-            fullWidth: true, busy: this.busy, isEnabled: this.ready && !this.busy &&
-              ((this.authenticated && !this.replacing) || (this.username.trim().length > 0 && this.password.length > 0)),
-            action: () => { void this.authenticate() } })
-          if (this.replacing) {
-            KomaActionButton({ label: AppStrings.get('common_cancel'), kind: 'ghost', fullWidth: true,
-              isEnabled: !this.busy, action: () => { this.changeReplacement(false) } })
-          } else if (this.authenticated) {
-            if (this.inSettings) {
-              KomaActionButton({ label: AppStrings.get('source_account_switch'), kind: 'ghost', fullWidth: true,
-                isEnabled: !this.busy, action: () => { this.changeReplacement(true) } })
-            }
-            KomaActionButton({ label: AppStrings.get('source_logout'), kind: 'ghost', fullWidth: true,
-              isEnabled: !this.busy, action: () => { void this.logout() } })
-          } else if (!this.ready && !this.busy) {
+          // An unresolved or failed session check is not a logged-out state.
+          if (this.ready) {
+            this.AccountContent()
+          } else if (this.checking) {
+            Text(AppStrings.get('source_login_checking'))
+              .fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)
+          } else {
+            Text(this.errorText).fontSize(ThemeConstants.FONT_SIZE_BODY).fontColor(ThemeConstants.TEXT_SECONDARY)
             KomaActionButton({ label: AppStrings.get('common_retry'), kind: 'ghost', fullWidth: true,
               action: () => { void this.status(this.epoch) } })
           }

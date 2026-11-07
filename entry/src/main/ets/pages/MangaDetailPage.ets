@@ -104,7 +104,7 @@ import {
   SourceChapterPageHydrationResult,
   SourceChapterPageHydrator,
 } from '../model/SourceChapterPageHydrator'
-import { SourceManga } from '../model/SourceModels'
+import { parseSourceRelatedManga, SourceManga } from '../model/SourceModels'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -612,6 +612,7 @@ export struct MangaDetailPage {
     this.sourceDetailRequestEpoch = this.sourceDetailRequestEpoch + 1
     this.chrome.pageActionsAvailable = false
     this.chrome.sourceReloadAvailable = false
+    this.chrome.relatedMangaAvailable = false
   }
 
   @Monitor('chrome.actionRequestSeq')
@@ -638,6 +639,7 @@ export struct MangaDetailPage {
     const actionsAvailable = this.shouldRenderDetailActions()
     this.chrome.pageActionsAvailable = actionsAvailable
     this.chrome.sourceReloadAvailable = this.canReloadSourceDetail()
+    this.chrome.relatedMangaAvailable = actionsAvailable && (this.manga?.relatedManga?.length ?? 0) > 0
     this.chrome.webActionsAvailable = actionsAvailable && this.mangaWebUrl() !== undefined
     this.chrome.linkShareBusy = this.linkShareBusy
     this.chrome.localRefreshAvailable = actionsAvailable && this.canCheckLocalLibraryRefresh()
@@ -770,6 +772,10 @@ export struct MangaDetailPage {
       return
     }
     if (!this.shouldRenderDetailActions()) {
+      return
+    }
+    if (action === MangaDetailTitleAction.OPEN_RELATED) {
+      RouterHelper.pushSourceRelated(this.manga?.relatedManga ?? [])
       return
     }
     if (action === MangaDetailTitleAction.OPEN_WEBVIEW || action === MangaDetailTitleAction.OPEN_BROWSER) {
@@ -1398,8 +1404,10 @@ export struct MangaDetailPage {
       throw new SourceRuntimeError(invalidResponse)
     }
     const context = response.data?.chapterContext
+    const detail = parseMangaDetailFromSourceItem(entry.sourceId, item)
+    detail.relatedManga = parseSourceRelatedManga(entry.sourceId, mangaId, item['relatedManga'])
     return {
-      detail: parseMangaDetailFromSourceItem(entry.sourceId, item),
+      detail,
       embeddedChapters: this.sourceEmbeddedChapterItems(response, item)
         .map((chapter: Record<string, Object>): MangaChapterItem => parseMangaChapterFromSourceItem(chapter)),
       chapterContext: context !== undefined && context !== null && typeof context === 'object' && !Array.isArray(context)
@@ -1425,6 +1433,7 @@ export struct MangaDetailPage {
         this.mangaStatusFromSourceStatus(initialManga?.status) :
         detail.status,
       tags: detail.tags ?? initialManga?.tags,
+      relatedManga: detail.relatedManga,
       sourceId,
       sourceImageId: normalizedMangaId.length > 0 ? normalizedMangaId : (detail.sourceImageId ?? detail.id),
       sourceName: detail.sourceName,

@@ -2,6 +2,7 @@ import { SourceMangaWebLink, sourceMangaWebUrl } from './MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { normalizeSourceDisplayText, normalizeSourceImageUrl } from './SourceTextNormalizer'
 import { ChapterReadSequenceEntry } from './ReaderChapterSequence'
+import { SourceManga } from './SourceModels'
 
 export interface MangaDetail {
   contentRating?: string
@@ -13,6 +14,7 @@ export interface MangaDetail {
   coverUrl?: string
   status?: MangaStatus
   tags?: string[]
+  relatedManga?: SourceManga[]
   sourceId?: string
   sourceImageId?: string
   sourceName?: string
