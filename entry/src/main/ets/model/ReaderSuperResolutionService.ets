@@ -119,6 +119,7 @@ class ReaderSuperResolutionInFlightTask {
   observers: Array<(state: ReaderSuperResolutionTaskState) => void> = []
   uncancellable: boolean = false
   superseded: boolean = false
+  resumeSystemProcessing: (() => void) | null = null
   startAction: () => Promise<ReaderSuperResolutionResult> =
     (): Promise<ReaderSuperResolutionResult> => Promise.resolve(new ReaderSuperResolutionResult())
   resolveTask: (result: ReaderSuperResolutionResult) => void =
@@ -560,6 +561,7 @@ export class ReaderSuperResolutionService {
     task.owners.delete(ownerKey)
     if (task.owners.size <= 0) {
       ReaderNativeSuperResolution.setRequestActive(task.requestId, false)
+      if (!ReaderSuperResolutionService.hasActiveOwner(task)) task.resumeSystemProcessing?.()
       DiagnosticLogger.info(
         'reader-super-resolution',
         'queue_release',
@@ -569,7 +571,9 @@ export class ReaderSuperResolutionService {
   }
 
   static setInteractionPaused(paused: boolean): void {
-    readerSuperResolutionSetInteractionPaused(paused)
+    readerSuperResolutionInteractionPauseRequested = paused
+    applyReaderSuperResolutionInteractionPause()
+    if (!paused) ReaderSuperResolutionService.activeTask?.resumeSystemProcessing?.()
   }
 
   private static configureInteractionProtection(backend: string): void {
@@ -627,6 +631,16 @@ export class ReaderSuperResolutionService {
     }
     ReaderNativeSuperResolution.setRequestActive(task.requestId, false)
     throw new Error(SUPER_RESOLUTION_SUPERSEDED_ERROR)
+  }
+
+  private static async waitForSystemInteractionIdle(task: ReaderSuperResolutionInFlightTask): Promise<void> {
+    // Core Vision and ImageKit run outside our tiled native pause gate.
+    // Do not start a large normalization or encode while the reader is moving.
+    while (readerSuperResolutionInteractionPauseRequested && ReaderSuperResolutionService.hasActiveOwner(task)) {
+      await new Promise<void>((resume: () => void): void => { task.resumeSystemProcessing = resume })
+      task.resumeSystemProcessing = null
+    }
+    ReaderSuperResolutionService.ensureTaskActive(task)
   }
 
   private static notifyProcessing(task: ReaderSuperResolutionInFlightTask): void {
@@ -708,6 +722,7 @@ export class ReaderSuperResolutionService {
     }
     active.superseded = true
     ReaderNativeSuperResolution.setRequestActive(active.requestId, false)
+    active.resumeSystemProcessing?.()
     DiagnosticLogger.info(
       'reader-super-resolution',
       'queue_preempt',
@@ -770,7 +785,6 @@ export class ReaderSuperResolutionService {
     const startedAt: number = Date.now()
     const eventLoopProbe: ReaderSuperResolutionEventLoopProbe =
       new ReaderSuperResolutionEventLoopProbe()
-    eventLoopProbe.start()
     let source: image.ImageSource | undefined = undefined
     let outputPixelMap: image.PixelMap | undefined = undefined
     let normalizedPixelMap: image.PixelMap | undefined = undefined
@@ -781,7 +795,8 @@ export class ReaderSuperResolutionService {
     let sourceHeight: number = 0
     let processingStage: string = 'system_source'
     try {
-      ReaderSuperResolutionService.ensureTaskActive(inFlight)
+      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
+      eventLoopProbe.start()
       source = image.createImageSource(sourcePath)
       const sourceInfo: image.ImageInfo = await source.getImageInfo()
       sourceWidth = sourceInfo.size.width
@@ -811,6 +826,7 @@ export class ReaderSuperResolutionService {
           `source=${sourceWidth}x${sourceHeight} keyHash=${readerProcessingOwnerHash(sourceKey)}`,
       )
       processingStage = 'system_process'
+      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
       outputPixelMap = await ReaderSystemSuperResolutionService.process(sourcePath, maxHeight)
       ReaderSuperResolutionService.ensureTaskActive(inFlight)
       if (outputPixelMap === undefined) {
@@ -842,9 +858,14 @@ export class ReaderSuperResolutionService {
       }
       // Core Vision may return an internal hardware layout that ImagePacker cannot encode.
       processingStage = 'system_normalize'
+      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
       const normalizedBuffer: ArrayBuffer = new ArrayBuffer(outputPixels * 4)
       await outputPixelMap.readPixelsToBuffer(normalizedBuffer)
-      ReaderSuperResolutionService.ensureTaskActive(inFlight)
+      try {
+        await outputPixelMap.release()
+        outputPixelMap = undefined
+      } catch (_releaseError) { /* Retry disposal in finally. */ }
+      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
       const normalizedOptions: image.InitializationOptions = {
         size: { width: outputWidth, height: outputHeight },
         srcPixelFormat: image.PixelMapFormat.RGBA_8888,
@@ -852,6 +873,7 @@ export class ReaderSuperResolutionService {
         editable: false,
       }
       normalizedPixelMap = await image.createPixelMap(normalizedBuffer, normalizedOptions)
+      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
       ReaderSuperResolutionService.removeIfExists(tmpPath)
       processingStage = 'output_file'
       outputFile = fileIo.openSync(
@@ -1529,8 +1551,7 @@ export class ReaderSuperResolutionService {
 
 /** Feature-HAR safe calls for the optional shared reader adapter. */
 export function readerSuperResolutionSetInteractionPaused(paused: boolean): void {
-  readerSuperResolutionInteractionPauseRequested = paused
-  applyReaderSuperResolutionInteractionPause()
+  ReaderSuperResolutionService.setInteractionPaused(paused)
 }
 
 export function readerSuperResolutionPromoteOwner(ownerKey: string): void {

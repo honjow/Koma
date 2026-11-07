@@ -662,9 +662,9 @@ export struct KomaReaderLabPage {
     const session = this.session
     if (session === null || this.readerClosed || !this.routeActive ||
       !this.labVisibility.foreground) return
-    const snapshot = session.snapshot()
-    if (snapshot.phase !== 'ready' || snapshot.unit === null ||
-      !snapshot.unit.key.equals(position.anchor.unit)) return
+    // Fractional scroll observations only need the current chapter and policy.
+    const policy = session.displayPolicyForUnit(position.anchor.unit)
+    if (policy === null) return
     const column = this.hostPreferences?.columnMode ?? 'odd_left'
     const signature = JSON.stringify([position.anchor.unit.scope, position.anchor.unit.work,
       position.anchor.unit.unit, position.anchor.pageKey, position.anchor.sourceIndexHint,
@@ -694,7 +694,7 @@ export struct KomaReaderLabPage {
     // Publish after the host commits the actual chapter. Statistics count every
     // visible original page; the position write still ignores fractional scroll.
     this.observeReadingPages(position.anchor.unit.work, position.anchor.unit.unit, position.displayedSourceIndexes)
-    this.persistObserved(position, snapshot.policy.firstPageAlone ? 'even_left' : 'odd_left')
+    this.persistObserved(position, policy.firstPageAlone ? 'even_left' : 'odd_left')
   }
 
   private enqueuePreferenceWrite(next: ReaderPreferences): void {

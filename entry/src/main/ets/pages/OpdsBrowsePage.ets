@@ -58,6 +58,7 @@ export interface OpdsBrowseRouteParam {
   searchQuery?: string
   publicationId?: string
   remoteHistory?: RemoteReadHistoryEntry
+  historyDetailOnly?: boolean
 }
 
 @ComponentV2
@@ -276,7 +277,7 @@ export struct OpdsBrowsePage {
     const publicationEpoch = this.publicationEpoch + 1
     await this.openPublication(publication)
     if (pageEpoch !== this.pageEpoch || catalogEpoch !== this.catalogEpoch || publicationEpoch !== this.publicationEpoch) return
-    if (history !== undefined) {
+    if (history !== undefined && this.params?.historyDetailOnly !== true) {
       const serverId = this.record?.server.id
       const chapterId = `opds:${serverId}:chapter:${this.shortHash(publication.id + this.currentUrl)}`
       if (chapterId === history.chapterId && this.selectedImages.length > 0) this.openReader()

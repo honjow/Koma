@@ -519,6 +519,7 @@
     { "name": "history_chapter_count", "value": "%s 章" },
     { "name": "history_chapter_index", "value": "第 %s 章" },
     { "name": "history_chapter_read", "value": "已读章节" },
+    { "name": "history_resume_loading", "value": "正在加载阅读进度…" },
     { "name": "history_page_chapter_count", "value": "%s 页 · %s 章" },
     { "name": "history_page_progress", "value": "第 %s / %s 页 · %s" },
     { "name": "history_recent_title", "value": "阅读历史" },

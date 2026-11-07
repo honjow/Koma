@@ -88,6 +88,7 @@ export struct HistoryPage {
   @Local private scrollEnabled: boolean = true
   @Local private historyItems: HistoryItem[] = []
   @Local private failedCoverUris: string[] = []
+  @Event onOpenDetail: (comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry) => void = () => {}
   @Event onOpenReader: (comicId: ComicId, chapterId?: string) => void = (_comicId: ComicId, _chapterId?: string) => {}
   @Event onOpenSourceReader: (request: SourceReaderSessionRequest) => void = (_request: SourceReaderSessionRequest) => {}
   @Event onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => void = () => {}
@@ -564,8 +565,9 @@ export struct HistoryPage {
       Row() {
         this.Cover(item)
       }
+        .id(`history-cover-${item.comicId}`)
         .onClick(() => {
-          this.openHistoryItem(item)
+          this.onOpenDetail(item.comicId, item.sourceHistory, item.remoteHistory)
         })
 
       Column({ space: ThemeConstants.SPACE_SM }) {
@@ -592,18 +594,12 @@ export struct HistoryPage {
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
-        .onClick(() => {
-          this.openHistoryItem(item)
-        })
 
         Row() {
           Text(this.relativeTime(item.lastReadAt))
             .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
             .fontColor(ThemeConstants.TEXT_SECONDARY)
             .layoutWeight(1)
-            .onClick(() => {
-              this.openHistoryItem(item)
-            })
           KomaIconButton({
             icon: $r('sys.symbol.trash'),
             controlSize: 24,
@@ -630,6 +626,7 @@ export struct HistoryPage {
     .borderRadius(ThemeConstants.RADIUS_CARD)
     .backgroundColor(ThemeConstants.CARD)
     .alignItems(VerticalAlign.Center)
+    .onClick(() => { this.openHistoryItem(item) })
   }
 
   @Builder

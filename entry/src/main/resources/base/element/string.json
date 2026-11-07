@@ -519,6 +519,7 @@
     { "name": "history_chapter_count", "value": "%s chapters" },
     { "name": "history_chapter_index", "value": "Chapter %s" },
     { "name": "history_chapter_read", "value": "Read chapter" },
+    { "name": "history_resume_loading", "value": "Loading reading progress…" },
     { "name": "history_page_chapter_count", "value": "%s pages · %s chapters" },
     { "name": "history_page_progress", "value": "Page %s / %s · %s" },
     { "name": "history_recent_title", "value": "Reading history" },

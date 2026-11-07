@@ -16,11 +16,11 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T03:10:39+08:00",
+  "updatedAt": "2026-11-08T05:53:02+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
-  "activeId": "CONTINUOUS_PERFORMANCE",
-  "activity": "条漫入场通过两机复验；分页错序修正已过103正常包回归；正在定位197条漫长帧中的主线程执行。",
-  "nextAction": "核实际主线程采样是否能覆盖长帧区间，保持原阅读位置与设备状态。",
+  "activeId": null,
+  "activity": "#240 历史点击分区和 #001 条漫新页快滑已在 197 复验。",
+  "nextAction": "",
   "proof": [
     {
       "label": "正式主仓",
@@ -81,6 +81,85 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "HISTORY_COVER_OPENS_DETAIL",
+      "number": 240,
+      "title": "历史封面打开漫画详情",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户要求，原始消息时间未核实。",
+      "registeredAt": "2026-11-08T05:19:10+08:00",
+      "updatedAt": "2026-11-08T05:53:02+08:00",
+      "closedAt": "2026-11-08T05:19:10+08:00",
+      "status": "197 已复验",
+      "stage": "封面进详情，标题与进度区域续读",
+      "result": "197 点《装备我最强》和无封面的《學生會也有洞！》分别进详情。返回后点《装备我最强》标题，从保存的第 21 页续读。",
+      "remaining": "远程目录条目沿用既有详情和目录，尚无本轮真机样本。",
+      "relatedItems": [
+        "HISTORY_RESUME_WAIT_FEEDBACK"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T054000205402/screen.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T054008776809/screen.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T054017354209/screen.png"
+      ]
+    },
+    {
+      "id": "READER_SOURCE_FAILURE_CHROME",
+      "number": 239,
+      "title": "书源加载失败后无法呼出阅读器菜单",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
+      "registeredAt": "2026-11-08T05:02:40+08:00",
+      "updatedAt": "2026-11-08T05:05:51+08:00",
+      "status": "197 正常包已复验",
+      "stage": "指定作品实际返回网络错误",
+      "result": "点报错页空白能呼出工具栏，可打开阅读设置、重试并返回历史。",
+      "remaining": "这次修复错误页操作。指定作品的书源请求在 197 仍返回网络错误。",
+      "closedAt": "2026-11-08T05:05:51+08:00",
+      "relatedItems": [
+        "HISTORY_RESUME_WAIT_FEEDBACK"
+      ],
+      "evidence": [
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050304294650/screen.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050335487772/screen.png",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050415023812/run-metadata.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050453008561/run-metadata.json"
+      ]
+    },
+    {
+      "id": "HISTORY_RESUME_WAIT_FEEDBACK",
+      "number": 238,
+      "title": "历史续读等待时没有提示",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
+      "registeredAt": "2026-11-08T04:47:06+08:00",
+      "updatedAt": "2026-11-08T05:05:51+08:00",
+      "status": "197 已验证加载提示",
+      "stage": "无封面的《學生會也有洞！》历史入口",
+      "result": "197 延长等待时显示「正在加载阅读进度…」，进入阅读器后关闭。快速续读直接打开。",
+      "remaining": "返回取消、切后台和晚到的弹窗已通过逻辑复测。",
+      "closedAt": "2026-11-08T05:05:51+08:00",
+      "relatedItems": [
+        "WEBDAV_AUTO_PROGRESS_STALE"
+      ],
+      "evidence": [
+        ".hvigor/outputs/history-resume-dialog-20261108/student-loading-dialog.png",
+        ".hvigor/outputs/history-resume-dialog-20261108/197-natural-contact.png",
+        ".hvigor/outputs/history-resume-dialog-20261108/lifecycle.log"
+      ]
+    },
     {
       "id": "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW",
       "title": "书架分类切换与设置分工",
@@ -2753,22 +2832,39 @@
     },
     {
       "id": "CONTINUOUS_PERFORMANCE",
+      "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "旧长帧间隔内主线程持续运行，正在补调用栈",
-      "kind": "open",
+      "status": "197 具名样本同章和跨章已复验",
+      "stage": "《装备我最强》连续加载新页，系统超分保持开启",
+      "kind": "done",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。 本轮用户反馈条漫仍偶发小卡顿，关掉图片处理和超分后改善不明显。Reader Kit 139669e 去掉每次可见位置采样的快照复制，复用同一次测量中的裁边数据。现有相关检查与 Koma Release 构建通过。 197 原包实测《歸還者的魔法要特別》001 01，图像增强关闭、无已安装图片插件。六次滑动追踪内识别 4 段惯性滚动，段内相邻 App 帧最大间隔 22.27ms。原包读取被设备拒绝，未覆盖安装。已回到第19页、恢复原超时与睡眠并释租。 复查 197 追踪，两个较长的惯性滚动帧间隔前均出现第 21 页的预建，仍未证实因果。02:05 原包已找到并核对留档哈希；197 安装时间随后变为 13:38:06，对应包尚未找到可恢复副本。139669e 候选重新构建并留档，本轮只读检查后释租。 197 保留最新开发包，完成同一作品第19页起点、相同手势的两版实测。原包、位置采样优化、再移除图片就绪回调投影复制三次采样的惯性段最长应用帧间隔为22.27、18.45、18.80ms，应用帧处理最长9.28、8.57、9.74ms；最后一轮仍有2帧超过8.33ms。剩余长间隔附近仍有原生相邻页预建，第二处优化未显示进一步改善。六项数据恢复并逐字读回，电源已恢复并释租。 70df155 让加载条进入视口后才启动不定进度动画。197 同作品第19页、同样六次滑动对比上一候选，惯性段应用帧 P99 5.18→4.48ms、最慢9.74→8.12ms，超8.33ms由2/900降至0/1115。全段同参数900ms动画事件25→6，最长相邻应用帧间隔18.80→16.50ms。197保留新开发包，六项数据逐字读回，恢复超时与睡眠并释租。 重析 197 已有 70df155 trace，将 APP_LIST_FLING 截到下一次按下前。最长应用 VSync 接收间隔 16.501 ms，两侧应用帧处理 3.489 和 4.993 ms。对应 VSync 从渲染服务发出到应用收到用 8.318 ms；第 21 页预建在发出前已结束 1.859 ms。该区间有渲染服务帧，不能由此得出实际显示帧率，也不能归因给该次预建。原设备 HDC 离线后已通过同目标重连恢复并释租。 用相同的事件配对方式重析原包和第二版候选。原包最长应用接收间隔 22.268 ms，VSync 发送到接收 14.116 ms；第二版分别为 18.805 和 10.724 ms；第三版分别为 16.501 和 8.318 ms。三个样本最大间隔两侧应用帧均在预算内。不同运行不能作为受控性能对照，确认的是跨样本均存在发送后的接收延迟。 按设备分工只读复核了 197。设备更新时刻与 detail-install 安装回执完全一致，回执指向的 HAP 为非调试 Release。设备自带 HiPerf 帮助也明确 --app 需要可调试应用。基线休眠和超时未改，读取后释租。 本次遗留复核：最近一次197安装回执与正常包元数据表明，该次留机包已为debug；此前非调试Release的采样限制属于旧包记录，不能直接作为当前阻碍。未操作设备，当前实际包身份仍应在下一设备会话门禁实时读回。 从旧197同一长帧原始trace补核内核调度。VSync发送至应用接收8.318ms内主线程被调度8.299ms，两次运行之间仅0.019ms runnable。该样本不支持“线程没分到CPU”，但未标注的运行区间执行内容仍未知。",
-      "remaining": "以当前197调试包对齐同一窗口应用调用栈与VSync，定位未标注的主线程执行；不同样本不能直接当作优化对照。",
+      "result": "系统超分避开滚动开始大图处理，停稳后恢复。197 从第 4 页快滑到下一章第 10 页，四段主线程任务最长 12.9 毫秒，滑动时未见图片编码。自动阅读开关、加载条和缩略图已复验。",
+      "remaining": "本轮真机范围为 Koma 197、瓜子《装备我最强》和系统超分。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": null,
+      "closedAt": "2026-11-08T05:53:02+08:00",
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-forward-perf-20261108/final4-gesture-frames.jsonl",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T055025261368/audit/gesture-frames.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/record-export-20261108T055129639432/koma-redesign-197-20261108T055108953550.mp4",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-processing-log-20261108T055133322587/run-metadata.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/restore-20261108T055203705932/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T043222108720/audit/koma-ui-frames.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T044324739837/audit/koma-ui-frames.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T044339777046/audit/koma-ui-frames.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T040747639022/audit/fast-release-summary.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T040747639022/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/restore-20261108T040802345920/run-metadata.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-perf-record-20261108T040155159245/audit/fast-aligned-summary.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/restore-20261108T040247501656/run-metadata.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-perf-record-20261108T035646403880/audit/summary.json",
+        ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/observe-20261108T035707150315/screen.png",
         "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-perf197-before-001/parsed-cwd/summary.json",
         "/Users/honjow/git/Koma/.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/diagnostics/continuous-perf197-after-001/parsed-cwd/summary.json",
         "/Users/honjow/git/NextE/.hvigor/outputs/continuous-reader-performance/device197__ALN-AL80/not-applicable/portrait-1260x2720/continuous-trace-007/parsed-cwd/nexte-host-frame-stats.json",
@@ -2799,10 +2895,7 @@
       ],
       "latestCounterexampleAt": "2026-10-23T04:57:37.180Z",
       "evidencePoints": [],
-      "remainingActions": [
-        "本次采用及具名实机范围完成并冻结；未观察布局/自然失败、显示FPS和零区域窗口不扩大，不为填矩阵重跑。",
-        "实时核197当前包身份后，获取可对齐的主线程采样和显示证据，继续定位VSync接收延迟。"
-      ],
+      "remainingActions": [],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
         "本轮只减少位置采样中的快照和裁边数据复制，保留原几何、页位、进度和图片处理行为。"
@@ -2842,10 +2935,12 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-10-25T18:34:37.357834+00:00",
-      "updatedAt": "2026-11-06T04:06:01+08:00",
+      "updatedAt": "2026-11-08T05:53:02+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
-        ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap"
+        ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
+        "原结果｜共同Kit a9d7c641已推main；N226c4df0/40220116846、E59a7a679/40220118407、K79ea6dc7/40220162027均同head completed/success。三宿主签名Release及原进度/偏好/数据保持已核，197170/237322正常timeout120000无override并释租。N同起点六组8000反向主线程均值4.229→3.224ms、最大24.686→17.883ms；顺序暖缓存，非cleanAB/显示FPS。N141、E073、K147普通/快回翻未再见首候选133短空。E模式黑屏另由独立加载修复处理；K147固定黑边已核为第7张原图。 本轮用户反馈条漫仍偶发小卡顿，关掉图片处理和超分后改善不明显。Reader Kit 139669e 去掉每次可见位置采样的快照复制，复用同一次测量中的裁边数据。现有相关检查与 Koma Release 构建通过。 197 原包实测《歸還者的魔法要特別》001 01，图像增强关闭、无已安装图片插件。六次滑动追踪内识别 4 段惯性滚动，段内相邻 App 帧最大间隔 22.27ms。原包读取被设备拒绝，未覆盖安装。已回到第19页、恢复原超时与睡眠并释租。 复查 197 追踪，两个较长的惯性滚动帧间隔前均出现第 21 页的预建，仍未证实因果。02:05 原包已找到并核对留档哈希；197 安装时间随后变为 13:38:06，对应包尚未找到可恢复副本。139669e 候选重新构建并留档，本轮只读检查后释租。 197 保留最新开发包，完成同一作品第19页起点、相同手势的两版实测。原包、位置采样优化、再移除图片就绪回调投影复制三次采样的惯性段最长应用帧间隔为22.27、18.45、18.80ms，应用帧处理最长9.28、8.57、9.74ms；最后一轮仍有2帧超过8.33ms。剩余长间隔附近仍有原生相邻页预建，第二处优化未显示进一步改善。六项数据恢复并逐字读回，电源已恢复并释租。 70df155 让加载条进入视口后才启动不定进度动画。197 同作品第19页、同样六次滑动对比上一候选，惯性段应用帧 P99 5.18→4.48ms、最慢9.74→8.12ms，超8.33ms由2/900降至0/1115。全段同参数900ms动画事件25→6，最长相邻应用帧间隔18.80→16.50ms。197保留新开发包，六项数据逐字读回，恢复超时与睡眠并释租。 重析 197 已有 70df155 trace，将 APP_LIST_FLING 截到下一次按下前。最长应用 VSync 接收间隔 16.501 ms，两侧应用帧处理 3.489 和 4.993 ms。对应 VSync 从渲染服务发出到应用收到用 8.318 ms；第 21 页预建在发出前已结束 1.859 ms。该区间有渲染服务帧，不能由此得出实际显示帧率，也不能归因给该次预建。原设备 HDC 离线后已通过同目标重连恢复并释租。 用相同的事件配对方式重析原包和第二版候选。原包最长应用接收间隔 22.268 ms，VSync 发送到接收 14.116 ms；第二版分别为 18.805 和 10.724 ms；第三版分别为 16.501 和 8.318 ms。三个样本最大间隔两侧应用帧均在预算内。不同运行不能作为受控性能对照，确认的是跨样本均存在发送后的接收延迟。 按设备分工只读复核了 197。设备更新时刻与 detail-install 安装回执完全一致，回执指向的 HAP 为非调试 Release。设备自带 HiPerf 帮助也明确 --app 需要可调试应用。基线休眠和超时未改，读取后释租。 本次遗留复核：最近一次197安装回执与正常包元数据表明，该次留机包已为debug；此前非调试Release的采样限制属于旧包记录，不能直接作为当前阻碍。未操作设备，当前实际包身份仍应在下一设备会话门禁实时读回。 从旧197同一长帧原始trace补核内核调度。VSync发送至应用接收8.318ms内主线程被调度8.299ms，两次运行之间仅0.019ms runnable。该样本不支持“线程没分到CPU”，但未标注的运行区间执行内容仍未知。 两段快滑实测：197 最终测试包从《装备我最强》002 第 10 页连续六次 8000 px/s 向下滑至第 23 页，705 次 UI 帧处理有 22 次超过 8.3 ms，最长 13.102 ms，帧内界面节点更新 11.218 ms。13 次图像解码均在后台线程，最慢 15.88 ms。慢滑 600 px/s 的结果单独保留。快滑独立调用栈文件为空，HiTrace 可读；尚未确定触发更新的具体业务回调。 补采从第 23 页继续快滑至第 34 页，693 次 UI 帧处理有 19 次超过 8.3 ms，最长 15.822 ms，其中界面节点更新 13.100 ms。12 次新图解码均在后台线程。补采取得完整独立采样，观察到 ArkUI 状态管理调用；不同采样时钟仅能做近似对齐，不能据此断定某个业务回调触发全部长帧。设备原电源和超时已恢复并释租，保留授权样本实际续读位置。 同签 Release 复验不采独立 CPU 栈，同一话从第 34 页六次 8000 px/s 连续前读至第 43 页。730 次界面帧处理中 13 次超过 8.3 ms，最长 13.977 ms，其中界面节点更新 12.248 ms。九次解码均在后台线程。不同页段与采样配置不能用来算构建性能差值。Release 候选留在 197，原电源和超时已恢复。",
+        "原取证｜当前 197 使用瓜子《装备我最强》001 连续前读。第 54 至 61 页基线最慢应用帧 14.277 ms，7/1213 帧超过 8.3 ms。候选去掉未裁边时的整章裁边数组，并把新图裁边导致的重定位限制在明确锚点或模式切换。第 61 至 67 页复测最慢 11.076 ms，4/1175 帧超过 8.3 ms。两次为相邻的新页，不作为同页同缓存对照。保留原取证与候选，未把未标注主线程区间归给解码。 已重复快滑取证；已补调用栈并还原电源。具体业务回调和可验证的修复仍待定位。"
       ]
     },
     {
@@ -8766,6 +8861,92 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-system-enhancement-motion-197-20261108",
+      "at": "2026-11-08T05:53:02+08:00",
+      "title": "#001 系统超分避开快滑",
+      "detail": "197《装备我最强》四段快滑跨章，最长 12.9 毫秒。停稳后超分恢复。设备原超时和电源已恢复并释租。",
+      "kind": "verified",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-forward-perf-20261108/final4-gesture-frames.jsonl"
+    },
+    {
+      "id": "history-cover-detail-197-20261108",
+      "at": "2026-11-08T05:19:10+08:00",
+      "title": "#240 历史封面打开详情",
+      "detail": "197 两个封面入口和同记录续读均已验，继续 #001。",
+      "kind": "verified",
+      "itemId": "HISTORY_COVER_OPENS_DETAIL",
+      "evidence": ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T051751721496/screen.png"
+    },
+    {
+      "id": "reader-source-failure-menu-197-20261108",
+      "at": "2026-11-08T05:05:51+08:00",
+      "title": "#239 错误页菜单已实机复验",
+      "detail": "用《學生會也有洞！》实际失败验证工具栏、阅读设置、重试及返回历史。",
+      "kind": "verified",
+      "itemId": "READER_SOURCE_FAILURE_CHROME",
+      "evidence": ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/navigate-20261108T050304294650/screen.png"
+    },
+    {
+      "id": "history-resume-dialog-student-council-197-20261108",
+      "at": "2026-11-08T05:05:51+08:00",
+      "title": "#238 续读加载提示已实机复验",
+      "detail": "197 指定历史记录在受控等待时显示新版文案，进入阅读器后关闭。",
+      "kind": "verified",
+      "itemId": "HISTORY_RESUME_WAIT_FEEDBACK",
+      "evidence": ".hvigor/outputs/history-resume-dialog-20261108/student-loading-dialog.png"
+    },
+    {
+      "id": "history-resume-dialog-implemented-20261108",
+      "at": "2026-11-08T04:47:06+08:00",
+      "title": "#238 历史续读增加加载反馈",
+      "detail": "仅在进阅读器前等待阅读同步时使用系统 LoadingDialogV2。",
+      "kind": "implementation",
+      "itemId": "HISTORY_RESUME_WAIT_FEEDBACK"
+    },
+    {
+      "id": "continuous-null-animation-and-progress-20261108",
+      "at": "2026-11-08T04:47:06+08:00",
+      "title": "#001 消除新页的空动画与整章复制",
+      "detail": "197 两次最终包快滑中未再出现空动画。跨章样本仍有 23.333 毫秒的应用主线程任务，保留开放。",
+      "kind": "verified",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T044324739837/audit/koma-ui-frames.json"
+    },
+    {
+      "id": "hanman-fast-forward-release-20261108",
+      "at": "2026-11-08T04:09:36+08:00",
+      "title": "#001 同签 Release 快滑同样复现",
+      "detail": "197《装备我最强》002 第34至43页，六次8000 px/s。13/730次界面处理超过8.3 ms，最长13.977 ms。设备原电源和超时恢复并释租。",
+      "kind": "verified",
+      "itemIds": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidence": ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T040747639022/audit/fast-release-summary.json"
+    },
+    {
+      "id": "hanman-fast-forward-full-sampling-20261108",
+      "at": "2026-11-08T04:05:01+08:00",
+      "title": "#001 第二段快滑复现并补齐采样",
+      "detail": "《装备我最强》002 第23至34页，六次8000 px/s。19/693次界面处理超过8.3 ms，最长15.822 ms。已取得调用栈并按证据限制保留，197恢复电源和超时后释租。",
+      "kind": "verified",
+      "itemIds": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidence": ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-perf-record-20261108T040155159245/audit/fast-aligned-summary.json"
+    },
+    {
+      "id": "hanman-fast-forward-20261108",
+      "at": "2026-11-08T04:00:31+08:00",
+      "title": "#001 连续快滑复现界面长帧",
+      "detail": "197《装备我最强》002 从第10到23页，六次8000 px/s；22/705次界面处理超过8.3 ms。独立调用栈为空，保留有效HiTrace及真机终态。",
+      "kind": "verified",
+      "itemIds": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidence": ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-perf-record-20261108T035646403880/audit/summary.json"
+    },
     {
       "id": "public-modal-title-scroll-verified-20261108",
       "at": "2026-11-08T03:10:39+08:00",

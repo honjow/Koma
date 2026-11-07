@@ -56,7 +56,7 @@ import {
   BottomBuilderShowType,
   ScrollEffectType,
 } from '@kit.UIDesignKit'
-import { ComponentContent } from '@kit.ArkUI'
+import { ComponentContent, LoadingDialogV2 } from '@kit.ArkUI'
 import { LibraryPage, LibraryTitleBarPresentation } from './LibraryPage'
 import { BrowsePage } from './BrowsePage'
 import { HistoryPage } from './HistoryPage'
@@ -181,6 +181,7 @@ import {
 import { createReaderOfflineMissingUri } from '../model/ReaderPageSourceAdapter'
 import { SourceChapterPageHydrator, resolveSourceChapterPages, sourceChapterPagesMatchSettings } from '../model/SourceChapterPageHydrator'
 import {
+  SourceReadHistoryEntry,
   SourceReaderSessionRequest,
   cloneSourceReaderSessionRequest,
   sourceReadHistoryEntryFromRequest,
@@ -503,6 +504,8 @@ struct Index {
    */
   private readerOpenIntent: ReaderChapterOpenIntent = 'resume'
   private sourceReaderOpenRequest: number = 0
+  private historyResumeLoadingTimer: number = -1
+  private historyResumeLoadingDialog: number = -1
   /**
    * Landing hint for the crossed-into chapter: 'end' asks a continuous session
    * to align the last image's bottom. It follows the same session publication
@@ -1332,31 +1335,110 @@ struct Index {
   }
 
   private async resumeSourceFromHistory(request: SourceReaderSessionRequest): Promise<void> {
+    this.closeHistoryResumeLoading()
     const generation = ++this.sourceReaderOpenRequest
-    await appDeviceSync.waitForReadingSync()
-    if (generation !== this.sourceReaderOpenRequest || this.selectedTab !== TabIndex.HISTORY || !this.rootNavigationVisible) return
+    const isCurrent = (): boolean => generation === this.sourceReaderOpenRequest &&
+      this.selectedTab === TabIndex.HISTORY && this.rootNavigationVisible && this.appForegroundState.active
+    const prompt = this.getUIContext().getPromptAction()
+    let dismissed = false
+    // The sync wait is bounded and can finish immediately. Delay only the
+    // dialog so the ordinary warm resume never flashes before navigation.
+    const timer = setTimeout((): void => {
+      if (!isCurrent()) return
+      void prompt.openCustomDialog({
+        builder: () => { this.HistoryResumeLoading() },
+        alignment: DialogAlignment.Center,
+        autoCancel: false,
+        onWillDismiss: (action: DismissDialogAction): void => {
+          dismissed = true
+          if (this.historyResumeLoadingTimer === timer) {
+            this.historyResumeLoadingDialog = -1
+            this.cancelHistoryResume()
+          }
+          action.dismiss()
+        },
+      }).then((id: number): void => {
+        if (dismissed) return
+        if (this.historyResumeLoadingTimer === timer && isCurrent()) this.historyResumeLoadingDialog = id
+        else prompt.closeCustomDialog(id)
+      }).catch((): void => {
+        // Failure to show feedback must not prevent resuming the saved chapter.
+      })
+    }, 220)
+    this.historyResumeLoadingTimer = timer
+    try {
+      await appDeviceSync.waitForReadingSync()
+    } finally {
+      if (this.historyResumeLoadingTimer === timer) this.closeHistoryResumeLoading()
+    }
+    if (!isCurrent()) return
     const history = this.readerSessionStore.getSourceHistory(request.comicId)
     const latest = history === undefined ? undefined : sourceReaderSessionRequestFromHistory(history)
     if (latest !== undefined) await this.openSourceReader(latest)
   }
 
-  private openRemoteHistory(entry: RemoteReadHistoryEntry): void {
+  @Builder
+  private HistoryResumeLoading() {
+    LoadingDialogV2({ content: $r('app.string.history_resume_loading') })
+  }
+
+  private closeHistoryResumeLoading(): void {
+    if (this.historyResumeLoadingTimer >= 0) clearTimeout(this.historyResumeLoadingTimer)
+    this.historyResumeLoadingTimer = -1
+    if (this.historyResumeLoadingDialog < 0) return
+    const id = this.historyResumeLoadingDialog
+    this.historyResumeLoadingDialog = -1
+    this.getUIContext().getPromptAction().closeCustomDialog(id)
+  }
+
+  private cancelHistoryResume(): void {
+    if (this.historyResumeLoadingTimer < 0) return
+    this.sourceReaderOpenRequest++
+    this.closeHistoryResumeLoading()
+  }
+
+  @Monitor('selectedTab', 'rootNavigationVisible', 'appForegroundState.active')
+  private cancelHistoryResumeWhenCovered(): void {
+    if (this.selectedTab !== TabIndex.HISTORY || !this.rootNavigationVisible || !this.appForegroundState.active) {
+      this.cancelHistoryResume()
+    }
+  }
+
+  private openHistoryDetail(comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry): void {
+    this.cancelHistoryResume()
+    if (source !== undefined) {
+      RouterHelper.pushMangaDetail({
+        mangaId: source.mangaId, sourceId: source.sourceId,
+        initialManga: {
+          id: source.mangaId, sourceId: source.sourceId, title: source.title,
+          coverUrl: source.coverUri, url: source.mangaUrl,
+        },
+      })
+    } else if (remote !== undefined) {
+      this.openRemoteHistory(remote, false)
+    } else {
+      this.openLibraryMangaDetail(comicId)
+    }
+  }
+
+  private openRemoteHistory(entry: RemoteReadHistoryEntry, resume: boolean = true): void {
     const history = copyRemoteReadHistoryEntry(entry)
-    if (history === undefined || this.readerSessionStore.getProgress(history.comicId)?.chapterId !== history.chapterId) return
+    if (history === undefined || (resume && this.readerSessionStore.getProgress(history.comicId)?.chapterId !== history.chapterId)) return
+    const resumeChapterId = resume ? history.chapterId : undefined
     if (history.kind === 'komga') {
       const params: KomgaSeriesRouteParam = { seriesId: history.resourceId, seriesTitle: history.title,
-        expectedServerId: history.serverId, resumeChapterId: history.chapterId }
+        expectedServerId: history.serverId, resumeChapterId }
       this.appPathStack.pushPath({ name: RouteName.KOMGA_BROWSE, param: params })
     } else if (history.kind === 'kavita') {
       const params: KavitaBrowseRouteParam = { libraryId: history.libraryId, seriesId: history.resourceId,
-        seriesTitle: history.title, expectedServerId: history.serverId, resumeChapterId: history.chapterId }
+        seriesTitle: history.title, expectedServerId: history.serverId, resumeChapterId }
       this.appPathStack.pushPath({ name: RouteName.KAVITA_BROWSE, param: params })
     } else if (history.kind === 'webdav') {
       const params: WebDavBrowseRouteParam = { pathSegments: history.pathSegments,
-        expectedServerId: history.serverId, resumeChapterId: history.chapterId }
+        expectedServerId: history.serverId, resumeChapterId }
       this.appPathStack.pushPath({ name: RouteName.WEBDAV_BROWSE, param: params })
     } else {
-      const params: OpdsBrowseRouteParam = { remoteHistory: history }
+      const params: OpdsBrowseRouteParam = { remoteHistory: history, historyDetailOnly: !resume }
       this.appPathStack.pushPath({ name: RouteName.OPDS_BROWSE, param: params })
     }
   }
@@ -2414,6 +2496,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.cancelHistoryResume()
     this.readingStatisticsRecorder.close()
     if (this.catalogHeaderActions !== undefined && !this.catalogHeaderActions.isDisposed()) this.catalogHeaderActions.dispose()
     this.catalogHeaderActions = undefined
@@ -3275,13 +3358,18 @@ struct Index {
                 readerSessionStore: this.readerSessionStore,
                 readerProgressRevision: this.readerProgressRevision,
                 onRefresh: async (): Promise<void> => { await this.syncFromRootRefresh() },
+                onOpenDetail: (comicId: ComicId, source?: SourceReadHistoryEntry, remote?: RemoteReadHistoryEntry) => {
+                  this.openHistoryDetail(comicId, source, remote)
+                },
                 onOpenReader: (comicId: ComicId, chapterId?: string) => {
+                  this.cancelHistoryResume()
                   void this.openReader(comicId, chapterId)
                 },
                 onOpenSourceReader: (request: SourceReaderSessionRequest) => {
                   void this.resumeSourceFromHistory(request)
                 },
                 onOpenRemoteReader: (entry: RemoteReadHistoryEntry) => {
+                  this.cancelHistoryResume()
                   this.openRemoteHistory(entry)
                 }
               })
