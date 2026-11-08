@@ -133,6 +133,7 @@ export struct ReaderSettingsContent {
       superResolutionMaxHeight: p.superResolutionMaxHeight,
       wideImageMode: p.wideImageMode,
       volumeKeyNavigationEnabled: p.volumeKeyNavigationEnabled,
+      eyeGazePageTurnEnabled: p.eyeGazePageTurnEnabled,
       volumeKeyBehavior: p.volumeKeyBehavior,
     }
   }
@@ -247,6 +248,7 @@ export struct ReaderSettingsContent {
     if (key === 'double-tap-zoom') next.doubleTapZoomEnabled = value
     if (key === 'awake') next.keepScreenAwake = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
+    if (key === 'eye-gaze') next.eyeGazePageTurnEnabled = value
     if (key === 'trim-margins') next.trimPageMarginsEnabled = value
     this.update(next)
   }
@@ -488,6 +490,8 @@ export struct ReaderSettingsContent {
               ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_eye_gaze_page_turn_title'), subtitle: s('settings_row_reader_eye_gaze_page_turn_detail'), hasSwitch: true, checked: this.preferences.eyeGazePageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('eye-gaze', value) } })
             }
             ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
               cropControlsAvailable: false, enhancementControlsAvailable: this.enhancementControlsAvailable,

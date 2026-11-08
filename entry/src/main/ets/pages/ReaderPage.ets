@@ -57,6 +57,9 @@ import {
 import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
+import { GazePageTurnController, GazeTurnUiState } from '../readerGaze/GazePageTurnController'
+import { GazePageTurnIndicator } from '../readerGaze/GazePageTurnIndicator'
+import { GazePhase } from '../readerGaze/GazePageTurnEngine'
 import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
 import { ReaderChapterOpenIntent, automaticContinuationChapterIds } from '../model/ReaderChapterSequence'
 import {
@@ -1861,6 +1864,13 @@ export struct ReaderPage {
   private observedCloseRequestId: number = 0
   private volumeDownConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
   private volumeUpConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
+  private gazePageTurn: GazePageTurnController = new GazePageTurnController((): boolean => {
+    this.userNextPage()
+    return true
+  })
+  @Local private gazeUiState: GazeTurnUiState = {
+    tracking: false, phase: GazePhase.CALIBRATING, dwellProgress: 0, errorMessage: null
+  }
   private closing: boolean = false
   private autoPageTimerId: number = -1
   private autoPageWaitingIndex: number = -1
@@ -1897,6 +1907,8 @@ export struct ReaderPage {
     this.loadPreferences()
     this.syncSession(true)
     this.registerVolumeKeyConsumerIfNeeded()
+    this.gazePageTurn.onStateChange((state: GazeTurnUiState): void => { this.gazeUiState = state })
+    this.syncEyeGazePageTurn()
   }
 
   aboutToDisappear(): void {
@@ -1910,6 +1922,7 @@ export struct ReaderPage {
     this.setReaderKeepScreenOn(false)
     this.clearStatusBarHideTimer()
     this.unregisterVolumeKeyConsumer()
+    this.gazePageTurn.dispose()
     this.stopAutoPage()
     void this.thumbnailPixelMapCache.clear()
   }
@@ -2850,6 +2863,7 @@ export struct ReaderPage {
       wideImageMode: p.wideImageMode,
       volumeKeyNavigationEnabled: p.volumeKeyNavigationEnabled,
       volumeKeyBehavior: p.volumeKeyBehavior,
+      eyeGazePageTurnEnabled: p.eyeGazePageTurnEnabled,
     }
   }
 
@@ -2901,6 +2915,7 @@ export struct ReaderPage {
     if (!this.preferences.volumeKeyNavigationEnabled) {
       this.unregisterVolumeKeyConsumer()
     }
+    this.syncEyeGazePageTurn()
     if (this.routeVisible) {
       this.scheduleStatusBarVisibility()
     }
@@ -3310,6 +3325,18 @@ export struct ReaderPage {
     if (next) this.userNextPage()
     else this.userPreviousPage()
     return true
+  }
+
+  @Monitor('readerOpen', 'routeVisible', 'authenticationShown')
+  private syncEyeGazePageTurn(): void {
+    const target = this.readerOpen && this.routeVisible && !this.authenticationShown &&
+      !this.closing && this.preferences.eyeGazePageTurnEnabled
+    if (target) {
+      void this.gazePageTurn.setActive(true,
+        this.getUIContext().getHostContext() as common.UIAbilityContext)
+    } else {
+      this.gazePageTurn.stopTracking()
+    }
   }
 
   private registerVolumeKeyConsumerIfNeeded(): void {
@@ -3961,6 +3988,9 @@ export struct ReaderPage {
       }
       if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.sessionConfig.pageUris.includes('source-placeholder://chapter') && !this.chromeShown && this.preferences.showPageNumber) this.PersistentPageNumber()
       if (this.readerOpen && this.tapPreviewVisible) this.TapZonePreview()
+      if (this.readerOpen && (this.gazeUiState.tracking || this.gazeUiState.errorMessage !== null)) {
+        GazePageTurnIndicator({ state: this.gazeUiState, bottomOffset: this.layout.bottomAvoidHeight })
+      }
       if (this.readerOpen && this.chromeShown) {
         this.ReaderChromeBar('top')
         this.ReaderChromeBar('bottom')

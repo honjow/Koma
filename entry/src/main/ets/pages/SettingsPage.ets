@@ -254,6 +254,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'reader-wide-image-mode', titleKey: 'settings_row_reader_wide_image_mode_title', detailKey: 'settings_row_reader_wide_image_mode_detail' },
         { key: 'reader-volume-key-navigation', titleKey: 'settings_row_reader_volume_key_navigation_title', detailKey: 'settings_row_reader_volume_key_navigation_detail' },
         { key: 'reader-volume-key-behavior', titleKey: 'settings_row_reader_volume_key_behavior_title', detailKey: 'settings_row_reader_volume_key_behavior_detail' },
+        { key: 'reader-eye-gaze-page-turn', titleKey: 'settings_row_reader_eye_gaze_page_turn_title', detailKey: 'settings_row_reader_eye_gaze_page_turn_detail' },
         { key: 'image-plugins', titleKey: 'image_plugins_title', detailKey: 'image_plugins_manage_hint' },
         { key: 'reader-trim-margins', titleKey: 'settings_row_reader_trim_page_margins_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
         { key: 'reader-crop-strength', titleKey: 'reader_crop_strength_title', detailKey: 'settings_row_reader_trim_page_margins_detail' },
@@ -518,6 +519,7 @@ export struct SettingsPage {
   @Local private readerPageGapMode: ReaderPageGapMode = 'normal'
   @Local private readerWideImageMode: ReaderWideImageMode = 'keep_single'
   @Local private readerVolumeKeyNavigationEnabled: boolean = false
+  @Local private readerEyeGazePageTurnEnabled: boolean = false
   @Local private readerVolumeKeyBehavior: ReaderVolumeKeyBehavior = 'up_previous_down_next'
   @Local private language: LanguageState = connectLanguageState()
   @Local private readerModeState: ReaderModeState = connectReaderModeState()
@@ -697,6 +699,9 @@ export struct SettingsPage {
     if (row.key === 'reader-volume-key-navigation') {
       return getReaderVolumeKeyNavigationLabel(this.readerVolumeKeyNavigationEnabled)
     }
+    if (row.key === 'reader-eye-gaze-page-turn') {
+      return getReaderVolumeKeyNavigationLabel(this.readerEyeGazePageTurnEnabled)
+    }
     if (row.key === 'reader-volume-key-behavior') {
       return getReaderVolumeKeyBehaviorLabel(this.readerVolumeKeyBehavior)
     }
@@ -829,7 +834,7 @@ export struct SettingsPage {
           'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['image-plugins', 'reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
-          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior']) },
+          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior', 'reader-eye-gaze-page-turn']) },
         { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages', 'reader-preload-wifi-only']) },
         { key: 'reader-defaults', titleKey: 'settings_reader_group_defaults', rows: this.rowsByKeys(['reader-reset-defaults']) },
       ]
@@ -1127,6 +1132,7 @@ export struct SettingsPage {
     this.readerPageGapMode = preferences.pageGapMode
     this.readerWideImageMode = preferences.wideImageMode
     this.readerVolumeKeyNavigationEnabled = preferences.volumeKeyNavigationEnabled
+    this.readerEyeGazePageTurnEnabled = preferences.eyeGazePageTurnEnabled
     this.readerVolumeKeyBehavior = preferences.volumeKeyBehavior
   }
 
@@ -1596,6 +1602,17 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'save_reader_volume_key_navigation_failed', '[Settings] step=save_reader_volume_key_navigation_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveReaderEyeGazePageTurnEnabled(eyeGazePageTurnEnabled: boolean): void {
+    this.readerEyeGazePageTurnEnabled = eyeGazePageTurnEnabled
+    void this.preferencesStore().saveEyeGazePageTurnEnabled(eyeGazePageTurnEnabled)
+      .then(() => {
+        console.info('[Settings] step=save_reader_eye_gaze_page_turn value=' + eyeGazePageTurnEnabled)
+      })
+      .catch((error: Error) => {
+        DiagnosticLogger.warn('settings_page', 'save_reader_eye_gaze_page_turn_failed', '[Settings] step=save_reader_eye_gaze_page_turn_failed code=' + safeSettingsErrorCode(error))
       })
   }
 
@@ -2115,6 +2132,7 @@ export struct SettingsPage {
       row.key === 'reader-preload-wifi-only' ||
       row.key === 'reader-keep-screen-awake' ||
       row.key === 'reader-volume-key-navigation' ||
+      row.key === 'reader-eye-gaze-page-turn' ||
       row.key === 'reader-volume-key-behavior'
   }
 
@@ -2137,6 +2155,9 @@ export struct SettingsPage {
     }
     if (row.key === 'reader-volume-key-navigation') {
       return this.readerVolumeKeyNavigationEnabled
+    }
+    if (row.key === 'reader-eye-gaze-page-turn') {
+      return this.readerEyeGazePageTurnEnabled
     }
     if (row.key === 'reader-volume-key-behavior') return this.readerVolumeKeyBehavior === 'up_next_down_previous'
     if (row.key === 'download-wifi-only') {
@@ -2176,6 +2197,8 @@ export struct SettingsPage {
       this.saveReaderKeepScreenAwake(value)
     } else if (row.key === 'reader-volume-key-navigation') {
       this.saveReaderVolumeKeyNavigationEnabled(value)
+    } else if (row.key === 'reader-eye-gaze-page-turn') {
+      this.saveReaderEyeGazePageTurnEnabled(value)
     } else if (row.key === 'download-wifi-only') {
       this.saveDownloadWifiOnly(value)
     } else if (row.key === 'tracker-auto-sync') {

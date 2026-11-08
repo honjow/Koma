@@ -24,6 +24,26 @@ target_link_libraries(koma_source_runtime PUBLIC libace_napi.z.so libhilog_ndk.z
 # Keep the browser-compatible transport private to the source runtime. Static
 # dependencies avoid a second curl/SSL namespace and a versioned SO in the HAP.
 set(KOMA_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
+# Native AR Engine face tracker for the gaze page turn feature: eyeball
+# blendshape coefficients through the HMS AREngine C API human-perception
+# session. The faceDetector camera pipeline stays the fallback path.
+# The AREngine NDK library ships in the HMS sysroot, not the OpenHarmony
+# one OHOS_SDK_NATIVE points at, so its root is derived and linked by path.
+add_library(koma_gaze_ar SHARED gaze_ar_tracker.cpp)
+target_compile_features(koma_gaze_ar PRIVATE cxx_std_17)
+string(REPLACE "openharmony" "hms" KOMA_HMS_NATIVE "${OHOS_SDK_NATIVE}")
+if(OHOS_ARCH STREQUAL "arm64-v8a")
+    set(KOMA_HMS_LIBDIR "aarch64-linux-ohos")
+else()
+    set(KOMA_HMS_LIBDIR "${OHOS_ARCH}-linux-ohos")
+endif()
+set(KOMA_ARENGINE_LIB "${KOMA_HMS_NATIVE}/sysroot/usr/lib/${KOMA_HMS_LIBDIR}/libarengine_ndk.z.so")
+if(NOT EXISTS "${KOMA_ARENGINE_LIB}")
+    message(FATAL_ERROR "HMS AREngine NDK library not found at ${KOMA_ARENGINE_LIB}")
+endif()
+target_include_directories(koma_gaze_ar PRIVATE "${KOMA_HMS_NATIVE}/sysroot/usr/include")
+target_link_libraries(koma_gaze_ar PRIVATE libace_napi.z.so "${KOMA_ARENGINE_LIB}")
+
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${KOMA_PROJECT_ROOT}/scripts/prepare-reader-avif.sh")
 execute_process(COMMAND bash "${KOMA_PROJECT_ROOT}/scripts/prepare-reader-avif.sh"

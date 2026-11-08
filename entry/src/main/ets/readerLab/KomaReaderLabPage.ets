@@ -41,6 +41,9 @@ import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 import { KomaReaderSuperResolutionConfiguration, KomaReaderSuperResolutionProvider } from './KomaReaderSuperResolutionProvider'
 import { readerSuperResolutionSetInteractionPaused } from '../model/ReaderSuperResolutionService'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
+import { GazePageTurnController, GazeTurnUiState } from '../readerGaze/GazePageTurnController'
+import { GazePageTurnIndicator } from '../readerGaze/GazePageTurnIndicator'
+import { GazePhase } from '../readerGaze/GazePageTurnEngine'
 
 // A surface keeps one non-null session for its whole component lifetime.
 // Re-entry replaces the entry, rather than updating a mounted surface to null.
@@ -200,6 +203,10 @@ export struct KomaReaderLabPage {
   private initialization: ReaderCancellation | null = null
   private input: ReaderInputPort = new ReaderInputPort()
   private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
+  private gazePageTurn: GazePageTurnController = new GazePageTurnController((): boolean => this.input.move('next'))
+  @Local private gazeUiState: GazeTurnUiState = {
+    tracking: false, phase: GazePhase.CALIBRATING, dwellProgress: 0, errorMessage: null
+  }
   private preferencesStore: ReaderPreferencesStore | null = null
   private preferenceWrites: Promise<void> = Promise.resolve()
   private chapterPickerTarget: ReaderUnitKey | null = null
@@ -282,6 +289,7 @@ export struct KomaReaderLabPage {
       this.preloadNetworkWifi = wifi
       this.session?.setPreloadDepth(this.readerPreloadDepth())
     })
+    this.gazePageTurn.onStateChange((state: GazeTurnUiState): void => { this.gazeUiState = state })
     this.initializeReader()
   }
 
@@ -398,6 +406,7 @@ export struct KomaReaderLabPage {
         this.unitKey.copy(), this.initialPageIndex)]
       this.syncKeepScreenOn()
       this.syncVolumeKeys()
+      this.syncEyeGazePageTurn()
     } catch (_error) {
       if (cancellation.isCancelled() || this.readerClosed) return
       DiagnosticLogger.warn('reader', 'initial_policy_unavailable', '[KomaReaderLab] initial_policy_unavailable')
@@ -433,6 +442,7 @@ export struct KomaReaderLabPage {
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
+    this.gazePageTurn.dispose()
     this.cancelChapterRequest()
     this.adapter?.close()
     void this.keepScreenOn?.close()
@@ -481,6 +491,7 @@ export struct KomaReaderLabPage {
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
+    this.gazePageTurn.dispose()
     this.cancelChapterRequest()
     void this.keepScreenOn?.close()
     if (this.request.progressReadWrite) this.flushObserved()
@@ -504,6 +515,22 @@ export struct KomaReaderLabPage {
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
       !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
+  }
+
+  @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated',
+    'readerMode.eyeGazePageTurnEnabled', 'readerSettingsSheetShown', 'authenticationShown',
+    'chapterPickerShown', 'session')
+  syncEyeGazePageTurn(): void {
+    const enabled = this.hostPreferences?.eyeGazePageTurnEnabled ?? this.readerMode.eyeGazePageTurnEnabled
+    const target = !this.readerClosed && this.request.readingChrome && this.session !== null &&
+      this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
+      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled
+    if (target) {
+      void this.gazePageTurn.setActive(true,
+        this.getUIContext().getHostContext() as common.UIAbilityContext)
+    } else {
+      this.gazePageTurn.stopTracking()
+    }
   }
 
   @Monitor('routeActive', 'labVisibility.foreground')
@@ -634,6 +661,7 @@ export struct KomaReaderLabPage {
       this.chapterPickerShown = true
       this.syncKeepScreenOn()
       this.syncVolumeKeys()
+      this.syncEyeGazePageTurn()
     }
   }
 
@@ -651,6 +679,7 @@ export struct KomaReaderLabPage {
     this.chapterPickerShown = false
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
+    this.syncEyeGazePageTurn()
     const snapshot = this.session?.snapshot()
     if (target !== null && snapshot?.phase === 'ready' && snapshot.unit !== null &&
       !snapshot.unit.key.equals(target)) {
@@ -762,6 +791,7 @@ export struct KomaReaderLabPage {
     this.readerSettingsSheetShown = true
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
+    this.syncEyeGazePageTurn()
   }
 
   private closeHostSettings(): void {
@@ -770,6 +800,7 @@ export struct KomaReaderLabPage {
     this.readerSettingsSheetShown = false
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
+    this.syncEyeGazePageTurn()
   }
 
   @Monitor('translationState.revision')
@@ -1046,6 +1077,7 @@ export struct KomaReaderLabPage {
     }
     this.syncKeepScreenOn()
     this.syncVolumeKeys()
+    this.syncEyeGazePageTurn()
   }
 
   private readerCanvasBackground(): ResourceColor {
@@ -1180,11 +1212,12 @@ export struct KomaReaderLabPage {
       Column() {
         SourceAuthenticationSheetHost({ request: this.authentication, active: this.routeActive && this.labVisibility.foreground,
           onPresentedChanged: (shown: boolean) => { this.authenticationShown = shown } })
-        if (this.session !== null) {
-          ForEach(this.surfaceEntries, (entry: KomaReaderSessionEntry) => {
-            if (this.request.readingChrome) {
-              ReaderSurface({ session: entry.session, initialUnit: entry.unit, initialIndex: entry.initialIndex,
-                doubleTapEnabled: this.hostPreferences?.doubleTapZoomEnabled ?? this.readerMode.doubleTapZoomEnabled,
+        Stack({ alignContent: Alignment.Bottom }) {
+          if (this.session !== null) {
+            ForEach(this.surfaceEntries, (entry: KomaReaderSessionEntry) => {
+              if (this.request.readingChrome) {
+                ReaderSurface({ session: entry.session, initialUnit: entry.unit, initialIndex: entry.initialIndex,
+                  doubleTapEnabled: this.hostPreferences?.doubleTapZoomEnabled ?? this.readerMode.doubleTapZoomEnabled,
                 doubleTapIntervalMs: this.hostPreferences?.doubleTapIntervalMs ?? this.readerMode.doubleTapIntervalMs,
                 chromeAppearance: this.chromeAppearance,
                 chromeSuppressed: this.readerFilterPreview,
@@ -1280,6 +1313,9 @@ export struct KomaReaderLabPage {
         } else {
           Text(this.error)
         }
+        if (this.gazeUiState.tracking || this.gazeUiState.errorMessage !== null) {
+          GazePageTurnIndicator({ state: this.gazeUiState, bottomOffset: this.safeArea.bottomAvoidHeight })
+        }
       }
       .width('100%').height('100%')
       .backgroundColor(this.productionEntry ? this.readerCanvasBackground() : Color.Transparent)
@@ -1295,6 +1331,8 @@ export struct KomaReaderLabPage {
         enableFloatingDragBar: true,
         onDisappear: (): void => { this.closeHostSettings() },
       }))
+      }
+      .width('100%').height('100%')
     }.titleBar({
       avoidLayoutSafeArea: true,
       enableComponentSafeArea: false,
