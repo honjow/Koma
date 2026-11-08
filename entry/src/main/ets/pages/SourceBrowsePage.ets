@@ -639,7 +639,7 @@ export struct SourceBrowsePage {
   @Builder
   private GridRowContent(params: SourceBrowseGridRowParams) {
     if (params.row.kind === 'manga') {
-      MangaGridItem({ manga: params.row.manga!, listLayout: this.chrome.layout === 'list',
+      MangaGridItem({ manga: params.row.manga!, listLayout: this.chrome.layout === 'list', deferOffscreenCover: true,
         onMangaTap: (selected: SourceManga) => { this.onMangaTap(selected) } })
     } else if (params.row.kind === 'home-header') {
       this.HomeSectionHeader({ section: params.row.homeSection! })

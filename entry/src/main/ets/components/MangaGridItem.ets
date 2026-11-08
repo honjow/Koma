@@ -10,6 +10,7 @@ const SOURCE_LIST_COVER_HEIGHT = 78
 export struct MangaGridItem {
   @Param reserveTitleSpace: boolean = false
   @Param listLayout: boolean = false
+  @Param deferOffscreenCover: boolean = false
   @Param manga: SourceManga = {
     id: '',
     sourceId: '',
@@ -17,6 +18,11 @@ export struct MangaGridItem {
   }
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Local private failedCoverUrl: string = ''
+  @Local private coverWasVisible: boolean = false
+
+  private coverVisibilityChanged(visible: boolean): void {
+    if (this.deferOffscreenCover && visible && !this.coverWasVisible) this.coverWasVisible = true
+  }
 
   private hasCover(): boolean {
     const coverUrl = this.manga.coverUrl ?? ''
@@ -46,7 +52,9 @@ export struct MangaGridItem {
   @Builder
   private CoverContent() {
     this.CoverPlaceholder()
-    if (this.hasCover()) {
+    // ArkUI can pre-layout several screenfuls. A card can keep its measured
+    // size without admitting a network request before it enters the viewport.
+    if ((!this.deferOffscreenCover || this.coverWasVisible) && this.hasCover()) {
       CachedCoverImage({
         uri: this.manga.coverUrl ?? '',
         objectFit: ImageFit.Cover,
@@ -67,6 +75,7 @@ export struct MangaGridItem {
     .borderRadius(ThemeConstants.RADIUS_COVER)
     .clip(true)
     .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
+    .onVisibleAreaChange([0.01], (visible: boolean) => { this.coverVisibilityChanged(visible) })
   }
 
   @Builder
@@ -79,6 +88,7 @@ export struct MangaGridItem {
       .clip(true)
       .backgroundColor(ThemeConstants.COVER_PLACEHOLDER)
       .shadow({ radius: 14, color: ThemeConstants.SHADOW_CARD, offsetY: 7 })
+      .onVisibleAreaChange([0.01], (visible: boolean) => { this.coverVisibilityChanged(visible) })
 
       Text(this.manga.title)
         .width('100%')

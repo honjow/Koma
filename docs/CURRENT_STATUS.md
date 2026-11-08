@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T10:02:43+08:00",
+  "updatedAt": "2026-11-08T10:12:52+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 197 长测已完成，#244 书架采样未复现。",
@@ -98,6 +98,34 @@
       "updatedAt": "2026-11-08T10:02:43+08:00",
       "closedAt": "2026-11-08T10:02:43+08:00",
       "evidencePaths": [".hvigor/outputs/history-source-label-20261108/history-197.png"]
+    },
+    {
+      "id": "SOURCE_BILIMANGA_BROWSE_COVER_DEMAND",
+      "number": 251,
+      "title": "嗶哩漫畫浏览首屏的封面工作量",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户反馈嗶哩漫畫浏览卡顿，怀疑列表封面反复请求。",
+      "registeredAt": "2026-11-08T09:34:20+08:00",
+      "updatedAt": "2026-11-08T09:34:20+08:00",
+      "closedAt": "2026-11-08T09:34:20+08:00",
+      "status": "237 首屏封面查找由 18 次降到 9 次",
+      "result": "官网周榜与正式 0.1.1 WASM 对照返回 50 条、每页只取一次榜单。宿主源浏览只在封面首次可见时启动，移出屏幕不重置现有卡片的封面。237 同一热门首屏 A/B 的磁盘热缓存查找为 18 对 9，榜单各请求一次，均无封面网络下载。下滑及回滚实显。",
+      "remaining": "未比较无缓存下载耗时或帧率。237 原源、测试数据和电源已恢复并释租，保留新版签名包。无源包改动，App 未发布。",
+      "evidence": [
+        ".hvigor/outputs/bilimanga-scroll-20261108/live-wasm.json",
+        ".hvigor/outputs/bilimanga-scroll-20261108/comparison.json",
+        ".hvigor/outputs/bilimanga-scroll-20261108/Koma-bili-synopsis-final-signed.hap",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-synopsis-1108-016-after-visible/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-synopsis-1108-018-browse-scroll-back/screen.jpeg"
+      ],
+      "relatedItems": [
+        "SOURCE_BILIMANGA_COVER_CDN",
+        "SOURCE_BROWSE_DESTINATION_CACHE"
+      ]
     },
     {
       "id": "READER_THUMBNAIL_WIDTH_TRANSITION",
@@ -764,7 +792,7 @@
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告同网络同源慢于Mihon，冷封面逐张显示并明确要求修正。",
       "result": "源码确认无缓存时Koma每张封面先经过ArkTS及WAMR同源串行，再发图片下载；Mihon从缓存/普通GET直接消费封面。磁盘清单的旧逐命中写入已由现有改动合并刷新，文件提交仍需保证身份。新增公共cover.headers解析及卡片直连，实际生产函数本地验证两张独立冷图可重叠开始，缓存键、限速、动态旧入口保留。Komiic真实180封面及两个镜像的请求头回放等价，App同签候选构建通过。 237 Koma候选的同一Komiic列表滚动阶段，3张独立冷封面在54ms内开始，早于最先一张完成，全部HTTP200；真实滚动已显示新的封面。首屏前get_listings/get_settings/get_filters在同源队列耗时约2.8秒，实际作品API约1.2秒，和已优化的封面阶段分开。 拷贝漫画同候选从get_listings到get_manga_list发起由3.061秒缩到2.038秒，设置探测后移到列表结果之后。第二次App候选在两秒空闲期复用WAMR运行池，237实测连续的同一WASM调用约43至56ms。每次仍独立模块与请求上下文。拷贝的列表封面候选未声明公开头，旧逐图解析出现失败，列入后续针对源的修正。 拷贝封面修复版保留正文身份验证，独立处理作品封面MID。237普通导入后实显6张列表封面。该次同源新版的元数据首请求到正式列表发起为0.675秒，设置探测仍在列表返回之后。此样本WASM版本也变了，不能当作仅宿主的对比。 拷贝0.1.1已公开，下载的正式WASM已对原36个操作、8个真实封面与32个错误身份边界重放；新版索引仍列六个本批优先源。 用户具名复现紳士漫畫。此前0.1.0逐封面读取私有镜像会话，237连续解析尾部排队近4秒。运行时增加版本化能力 source_public_cover_user_agent_v1：源随列表声明已有公开GET的URL、镜像Referer和原UA，宿主负责并发、限速及缓存。新版保持旧宿主回退。163张固定真实封面与旧解析请求等价。237同签1.2.0候选+0.1.1源包普通滚动进入新页，5个HTTP200请求在110毫秒内发出且重叠，同段无逐图WASM。首屏列表本身另耗4.861秒。正式90源中84声明自定义图片请求，75个源有可用的历史列表/搜索封面响应，其中71个样本源存在会进旧解析队列的封面；不能据此推算逐源时延。 紳士漫畫0.1.1正式索引及包已读回，公开WASM对163个真实封面请求与候选一致。 补核同批剩余三源：会所和拷贝在列表声明完整公开封面请求，运行时新增版本化公开客户端标记头；会所3个HTTP200冷封面请求76ms内发出，拷贝3个50ms内发出，均早于最先完成，无逐图WASM。公开WASM回放144个会所及100个拷贝真实列表封面，与旧请求地址和头一致。哔咔普通线路或外部CDN可直接声明，分流2同站图片保留会话和专用DNS，离线边界通过。Terra对71个历史样本在固定发布源码逐项分类：46纯计算，4依设置，18远端归属核验，2混合，1未判明。 新增宿主旧包受限并行。原版六漫画0.1.9的20张真实列表封面描述与旧路径逐字相同；原版幻塔0.1.2的4张封面在受限路径未进入模拟HTTP，原通道仍请求远端。反序完成时，依赖请求按提交顺序进入原队列。无需更新源包。 237普通浏览原版六漫画，进入下一批作品后7张冷封面154毫秒内发出且早于其中第一张完成，全部HTTP200。Native受限路径命中，末态实图已亲看。 宿主提交9e8d78b6。公开源不需要随该能力升级。",
-      "remaining": "宿主能力待1.2.0正式发布；依赖远端的旧幻塔仅核原通道回退，本轮未作真机速度对比。哔咔真实登录图请求待验。 其余书源的实际封面请求和冷加载时序随各源继续核查。",
+      "remaining": "已发布的 Koma 1.2.2 包含宿主并发优化。旧幻塔仅核对了原通道回退，哔咔登录后和其他书源的冷封面表现仍待核对。",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/komiic-live/cover-clean-replay.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/source-delivery-cover-host-build.log",
@@ -854,15 +882,16 @@
       "id": "SOURCE_KOMIIC_REFERENCE_PARITY",
       "number": 17,
       "title": "Komiic 重复首屏、缺最近更新和筛选",
-      "kind": "open",
+      "kind": "done",
       "priority": "用户直接反馈",
       "owner": "Terra 源侧；Root 宿主、验收与发布",
-      "status": "0.1.13 已公开，正式索引及正式 WASM 回放通过",
+      "status": "0.1.13 已公开。237 核对续页、最近更新和筛选，正式源包已回放。",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户指出热门只显示30本、滚底持续加载、缺最近更新及Popular。精确时刻未核实。",
       "result": "公开0.1.12源码只声明英文Popular，缺参考的最近更新与类型、排序、状态、尺度筛选。App实际传args.page.cursor，源只读数字page。生产limit20的真实体WASM回放连续3页均请求offset=0、返回同30个ID且一直宣称还有更多。237原装0.1.11普通入口观察到Popular及30本；30是首屏加载数。宿主已将计数限于首请求明确返回完整目录的列表，构建和候选待验。源仓规则新增实现前的静态调用链对照，且更正了数字page的目录请求例子。 237旧0.1.11普通滚底真实出现加载中。修正候选按App limit20实际执行热门与最近更新各3页，各组90个不重复ID；筛选和切类后实际请求另有参考同体证据。参考还将warnings合入作品标签，站点真实同作已核，此缺项正补。 最终0.1.13的50个真实详情体中31个有警示、19个为空；除追加原文warnings外原详情和完整目录与旧同体一致。237正常滚动出现新卡，切最近更新后单一分类标题，选择真实愛情类别并回到列表。冷封面重叠请求已独立读回。源和数据、电源已恢复并释租。 正式索引已列 0.1.13，下载的正式 WASM 再通过热门与最近更新各三页、筛选、50 作真实警示标签及普通封面请求头回放。公开包与本地237候选构建字节不同，按上述两类证据分别记录。",
-      "remaining": "App 的目录计数和冷封面优化随 1.2.0；本次未单独实测 Komiic 正文。",
+      "updatedAt": "2026-11-08T10:12:52+08:00",
+      "closedAt": "2026-11-08T10:12:52+08:00",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/komiic-live/production-limit-offline.json",
         ".hvigor/outputs/source-coverage-20261105/komiic-live/site-graphql-receipt.json",
@@ -1293,15 +1322,16 @@
       "id": "SOURCE_GODA_REMOVED_AND_LONG_CHAPTER",
       "number": 29,
       "title": "GoDa明确章节下架与长章正文加载失败",
-      "kind": "open",
+      "kind": "done",
       "priority": "全源覆盖发现",
       "owner": "pixiv_public_catalogue候选；Root验收",
-      "status": "GoDa 0.1.6 已公开，237下架提示及长章入口通过",
+      "status": "GoDa 0.1.6 已公开。237 核对明确下架提示和 221 页章节的阅读入口。",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖发现；不是用户单独报告时间。",
       "result": "2部原作品目录页明确章節下架且无章节节点，0.1.6仅该状态返回not_found，未知缺节点仍parse_error。另一章独立Dto解码得到221唯一图片URL，旧局部缓冲不足；候选复用既有1MiB payload，页序及URI与独立解码相同，原36成功响应相同，24边界保留。10不同作品实际剧情正文已独立HTTP200、完整解码并目视；原后记/留白等保留但不充样本。 Terra已重新运行冻结候选WASM及正常对照，真机和公开仍按本项单独核对。 237《我独自升级》准确命中 GoDa 0.1.6 的站点下架分支，但原 App 按普通 not_found 映射为可能已下架或链接已失效。改用可信结构化 content_removed 并保留旧宿主 not_found 回退；未采信任意错误消息。 237《我独自升级》明确显示站点已下架，《八女帝全背叛，重生悔到肠断》普通进入第1话后实际显示第一页及1/221。正式WASM重新核两作明确下架、完整221页URL、36正常和32边界。App提示提交dd3c32e1，随1.2.0。",
-      "remaining": "正式包与设备候选来自不同构建，正式包已独立WASM回放；下架精确文案随Koma 1.2.0。",
+      "updatedAt": "2026-11-08T10:12:52+08:00",
+      "closedAt": "2026-11-08T10:12:52+08:00",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/goda-web",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-legacy-cover-runtime-044-goda-detail/run-metadata.json",
@@ -1315,15 +1345,16 @@
       "id": "SOURCE_COMICFURY_OPTIONAL_PROFILE",
       "number": 30,
       "title": "ComicFury真实缺省简介或封面导致详情加载失败",
-      "kind": "open",
+      "kind": "done",
       "priority": "全源覆盖发现",
       "owner": "Terra候选；Root验收",
-      "status": "Comic Fury 0.1.8 已公开，237缺省资料及实际阅读通过",
+      "status": "Comic Fury 0.1.8 已公开。237 核对缺省资料的详情和正文。",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖发现；不是用户单独报告时间。",
       "result": "当前中文latest12部中9部详情parse_error，原网页在源原UA合同下均200；6部缺简介、2部缺封面、1部两者均缺。0.1.8仅在唯一profile、精确作品标题与同作reader链接均成立时允许真实缺省。9部恢复、3部原正常响应相同，12部213章ID/标题/顺序逐网页相等，10不同作品正文实体已核。 Terra已重新运行冻结候选WASM及正常对照，真机和公开仍按本项单独核对。 237《普起漫画》缺简介仍打开并显示第4章实图；MyDiary保留站点占位图，成功打开且显示1章。正式包独立回放9个缺省、3个正常、213章及错误边界。",
-      "remaining": "",
+      "updatedAt": "2026-11-08T10:12:52+08:00",
+      "closedAt": "2026-11-08T10:12:52+08:00",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/comicfury-web",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-source-feedback-goda-069-comicfury-reader-ready/run-metadata.json",
@@ -1386,15 +1417,16 @@
       "id": "SOURCE_GUAZI_EMPTY_CHAPTERS",
       "number": 33,
       "title": "瓜子漫画明确零章节仍报目录解析失败",
-      "kind": "open",
+      "kind": "done",
       "priority": "全源覆盖发现",
       "owner": "Terra候选；Root验收",
-      "status": "瓜子漫画0.1.5已公开，零章及正常阅读通过",
+      "status": "瓜子漫画 0.1.5 已公开。237 核对明确零章节提示和正常阅读。",
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话全源覆盖50样本逐例网页对照发现；不是用户单独报告时间。",
       "result": "50部不同作品中43部真实网页目录7527条ID/标题/顺序与公开源一致；7部官网明确暂无章节/0话且桌面目录容器唯一为空，旧源因无移动目录而parse_error。0.1.5仅在同作品config、精确零更新卡及无移动目录/完整空桌面容器相互一致时返回no_chapters，不猜下架；7真实零章候选通过，原正常目录保持同体等价，缺容器/矛盾/非空/错作及403等仍为原错误。10不同作品实际漫画正文实体已核，公告/题字保留并另补，不充作品计数。 Terra已重新运行冻结候选WASM及正常对照，真机和公开仍按本项单独核对。 237《魔导师的假期》明确无可读章节；《从姑获鸟开始》341章并读取334话的真实第一页。正式包复验7个零章与16部正常站点目录。",
-      "remaining": "正式包独立回放，宿主完整无章节提示随1.2.0。",
+      "updatedAt": "2026-11-08T10:12:52+08:00",
+      "closedAt": "2026-11-08T10:12:52+08:00",
       "evidence": [
         ".hvigor/outputs/source-coverage-20261105/guazi-web/website-catalogues.json",
         ".hvigor/outputs/source-coverage-20261105/guazi-web/candidate-replay.json",
@@ -9482,11 +9514,35 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "source-published-closeout-20261108",
+      "at": "2026-11-08T10:12:52+08:00",
+      "title": "四项已发布书源问题关闭",
+      "detail": "Komiic 续页与筛选、GoDa 下架提示和长章入口、Comic Fury 缺省资料、瓜子明确零章节均已有 237 和正式源包证据。所需宿主改动已进入已发布的 1.2.2。",
+      "itemIds": [
+        "SOURCE_KOMIIC_REFERENCE_PARITY",
+        "SOURCE_GODA_REMOVED_AND_LONG_CHAPTER",
+        "SOURCE_COMICFURY_OPTIONAL_PROFILE",
+        "SOURCE_GUAZI_EMPTY_CHAPTERS"
+      ],
+      "kind": "updated"
+    },
+    {
       "id": "manga-synopsis-quote-rule-20261108",
       "at": "2026-11-08T09:47:37+08:00",
       "title": "237 核对简介引用竖线与长按复制",
       "detail": "哔哩漫画《護城花巫女》的灰色引用以连续竖线显示，普通正文保持原位置。已核对三行预览、展开、长按复制菜单及收起。测试数据和电源已恢复。",
       "itemIds": [
+        "SOURCE_DETAIL_MARKDOWN_AND_COPY"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "bilimanga-cover-demand-and-synopsis-20261108",
+      "at": "2026-11-08T09:34:20+08:00",
+      "title": "237 核对首屏封面和简介记忆",
+      "detail": "同热门首屏封面热缓存查找 18→9，榜单各请求一次。真实简介的嵌套粗斜体已实显，展开与收起均按作品恢复。",
+      "itemIds": [
+        "SOURCE_BILIMANGA_BROWSE_COVER_DEMAND",
         "SOURCE_DETAIL_MARKDOWN_AND_COPY"
       ],
       "kind": "checkpoint"
