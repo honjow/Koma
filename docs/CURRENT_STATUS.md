@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T08:54:26+08:00",
+  "updatedAt": "2026-11-08T09:21:53+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 197 长测已完成，#244 书架采样未复现。",
@@ -83,6 +83,23 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_THUMBNAIL_WIDTH_TRANSITION",
+      "number": 250,
+      "title": "缩略图出图时比例过渡",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户报告从占位比例直接跳到实际比例。",
+      "status": "197 已逐帧确认宽度过渡",
+      "result": "缩略图和页码共用宽度。197 实测第 35、36 页出图时逐帧收窄，横滑和回滑后正文仍在第 29 页。",
+      "updatedAt": "2026-11-08T09:21:53+08:00",
+      "closedAt": "2026-11-08T09:21:53+08:00",
+      "relatedItems": ["READER_THUMBNAIL_COLD_LOAD"],
+      "evidencePaths": [".hvigor/outputs/reader-rail-width-20261108/rail-transition.jpg"]
+    },
     {
       "id": "SOURCE_SESSION_UPDATE_CONTINUITY",
       "number": 249,
