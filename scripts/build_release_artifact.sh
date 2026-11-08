@@ -4,7 +4,7 @@ set -euo pipefail
 repo="$(git rev-parse --show-toplevel)"
 cd "$repo"
 
-hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw}"
+hvigorw="$repo/scripts/hvigorw.sh"
 product="${KOMA_RELEASE_PRODUCT:-release}"
 build_mode="${KOMA_RELEASE_BUILD_MODE:-release}"
 module="${KOMA_RELEASE_MODULE:-entry@default}"

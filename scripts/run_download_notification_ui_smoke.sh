@@ -5,7 +5,7 @@ repo="$(git rev-parse --show-toplevel)"
 cd "$repo"
 
 hdc="${HDC:-/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc}"
-hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw}"
+hvigorw="$repo/scripts/hvigorw.sh"
 target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
 user_id="${KOMA_SMOKE_USER_ID:-100}"
 artifact_dir="${KOMA_DOWNLOAD_NOTIFICATION_ARTIFACT_DIR:-.hvigor/outputs/download-notification-ui-smoke}"

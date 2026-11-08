@@ -45,7 +45,7 @@ cd Koma
 ```sh
 ohpm install --all
 bash scripts/check_release_preflight.sh
-hvigorw assembleHap --mode module -p product=default -p buildMode=release --no-daemon
+bash scripts/hvigorw.sh assembleHap --mode module -p product=default -p buildMode=release --no-daemon
 ```
 
 未签名产物位于 `entry/build/default/outputs/default/entry-default-unsigned.hap`。配置本机签名后，可用 [本地发行构建脚本](scripts/build_release_artifact.sh) 在构建前自动执行同一套检查。签名配置的设置方式见 [本地签名配置脚本](scripts/setup-local-build-profile.sh)。

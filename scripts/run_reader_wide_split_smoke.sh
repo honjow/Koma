@@ -5,7 +5,7 @@ repo="$(git rev-parse --show-toplevel)"
 cd "$repo"
 
 hdc="${HDC:-/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc}"
-hvigorw="${HVIGORW:-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw}"
+hvigorw="$repo/scripts/hvigorw.sh"
 target="${KOMA_SMOKE_TARGET:-127.0.0.1:5557}"
 artifact_dir="${KOMA_READER_WIDE_SPLIT_ARTIFACT_DIR:-.hvigor/outputs/reader-wide-split-smoke}"
 remote_smoke_result="${KOMA_READER_WIDE_SPLIT_REMOTE_RESULT:-/data/app/el2/100/base/com.honjow.koma/haps/entry/files/source-runtime-smoke-result.json}"
