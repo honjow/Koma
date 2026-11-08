@@ -46,6 +46,7 @@ import {
 import { safeSearchDiagnostic, searchStateUserText } from '../model/SearchStateMapper'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
+import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
 import { SearchRouteChromeState } from '../state/SearchRouteChromeState'
 import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { SourceRuntimeRegistryInstalledSourceSummary } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -128,6 +129,7 @@ export struct SearchPage {
   private service?: CrossSearchService
   private historyStore?: SearchHistoryStore
   @Local private syncView: DeviceSyncViewState = appDeviceSync.view
+  @Local private incognito: IncognitoState = connectIncognitoState()
   @Param libraryStore: LibraryStore = createSeededLibraryStore()
   @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
   @Event onLibraryChanged: () => void = () => {}
@@ -448,6 +450,8 @@ export struct SearchPage {
     if (!this.ownsRoute(this.routeEpoch)) {
       return
     }
+    // Incognito: the search still runs, but leaves no stored query trace.
+    if (this.incognito.enabled) return
     const startedAt = Date.now()
     const store = this.historyStore
     const mutationEpoch = this.historyMutationEpoch + 1

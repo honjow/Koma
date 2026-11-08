@@ -72,6 +72,20 @@ function copyReadingProgressWithTimestamp(progress: ReadingProgress): ReadingPro
   }
 }
 
+function copyReadingProgress(progress: ReadingProgress): ReadingProgress {
+  return {
+    comicId: progress.comicId,
+    chapterId: progress.chapterId,
+    pageId: progress.pageId,
+    pageIndex: progress.pageIndex,
+    totalPages: progress.totalPages,
+    progressRatio: progress.progressRatio,
+    completed: progress.completed,
+    updatedAt: progress.updatedAt,
+    columnMode: progress.columnMode,
+  }
+}
+
 function copySourceReadHistoryEntry(entry: SourceReadHistoryEntry): SourceReadHistoryEntry | undefined {
   const comicId = entry.comicId.trim()
   const sourceId = entry.sourceId.trim()
@@ -469,6 +483,15 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
   }
 }
 
+/** Complete in-memory reading state, used to seed or restore a session store. */
+export interface ReaderSessionReadingSnapshot {
+  progress: ReadingProgress[]
+  sourceHistory: SourceReadHistoryEntry[]
+  remoteHistory: RemoteReadHistoryEntry[]
+  chapterStates: ChapterReadingState[]
+  readingSessions: ReadingSessionRecord[]
+}
+
 export abstract class ReaderSessionStore {
   protected readingSessions: ReadingSessionRecord[] = []
 
@@ -478,6 +501,40 @@ export abstract class ReaderSessionStore {
       endedAt: record.endedAt, pagesRead: record.pagesRead,
     }))
   }
+
+  snapshotReadingState(): ReaderSessionReadingSnapshot {
+    return {
+      progress: this.listProgress(),
+      sourceHistory: this.listSourceHistory(),
+      remoteHistory: this.listRemoteHistory(),
+      chapterStates: this.listChapterStates(),
+      readingSessions: this.listReadingSessions(),
+    }
+  }
+
+  /** Replace the shared chapter/remote/session state from a snapshot. */
+  protected restoreBaseReadingState(snapshot: ReaderSessionReadingSnapshot): void {
+    this.chapterStates.clear()
+    snapshot.chapterStates.forEach((state: ChapterReadingState): void => {
+      this.chapterStates.set(chapterStateKey(state.comicId, state.chapterId), {
+        comicId: state.comicId, chapterId: state.chapterId, sourceIdentity: state.sourceIdentity,
+        position: state.position === undefined ? undefined : copyReadingProgress(state.position),
+        isRead: state.isRead, bookmarked: state.bookmarked, updatedAt: state.updatedAt,
+      })
+    })
+    this.remoteHistoryByComicId.clear()
+    snapshot.remoteHistory.forEach((row: RemoteReadHistoryEntry): void => {
+      const copied = copyRemoteReadHistoryEntry(row)
+      if (copied !== undefined) this.remoteHistoryByComicId.set(copied.comicId, copied)
+    })
+    this.readingSessions = snapshot.readingSessions.map((record: ReadingSessionRecord): ReadingSessionRecord => ({
+      comicId: record.comicId, chapterId: record.chapterId, startedAt: record.startedAt,
+      endedAt: record.endedAt, pagesRead: record.pagesRead,
+    }))
+  }
+
+  /** Replace every in-memory row with the snapshot. Persistent stores flush. */
+  abstract restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void
 
   addReadingSession(record: ReadingSessionRecord): void {
     this.readingSessions.push({ comicId: record.comicId, chapterId: record.chapterId,
@@ -784,6 +841,19 @@ export class InMemoryReaderSessionStore extends ReaderSessionStore {
     return out
   }
 
+  restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void {
+    this.progressByComicId.clear()
+    snapshot.progress.forEach((progress: ReadingProgress): void => {
+      this.progressByComicId.set(progress.comicId, copyReadingProgress(progress))
+    })
+    this.sourceHistoryByComicId.clear()
+    snapshot.sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
+      const copied = copySourceReadHistoryEntry(entry)
+      if (copied !== undefined) this.sourceHistoryByComicId.set(copied.comicId, copied)
+    })
+    this.restoreBaseReadingState(snapshot)
+  }
+
   flush(): boolean {
     return true
   }
@@ -822,6 +892,21 @@ export class PersistentReaderSessionStore extends ReaderSessionStore {
   reload(): void {
     this.restoreSnapshot(true)
     this.flushPendingMigration()
+  }
+
+  restoreReadingState(snapshot: ReaderSessionReadingSnapshot): void {
+    this.progressByComicId.clear()
+    snapshot.progress.forEach((progress: ReadingProgress): void => {
+      this.progressByComicId.set(progress.comicId, copyReadingProgress(progress))
+    })
+    this.sourceHistoryByComicId.clear()
+    snapshot.sourceHistory.forEach((entry: SourceReadHistoryEntry): void => {
+      const copied = copySourceReadHistoryEntry(entry)
+      if (copied !== undefined) this.sourceHistoryByComicId.set(copied.comicId, copied)
+    })
+    this.restoreBaseReadingState(snapshot)
+    this.persistPending = true
+    this.flush()
   }
 
   private flushPendingMigration(): void {

@@ -5,6 +5,7 @@ import { deviceInfo } from '@kit.BasicServicesKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { DiagnosticsSettings } from '../diagnostics/DiagnosticsSettings'
 import { AppearancePreferencesStore } from '../model/AppearancePreferencesStore'
+import { IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { LibraryFilterStore } from '../model/LibraryFilterStore'
 import { restoreReaderRemoteImageCache } from '../model/ReaderPageSourceAdapter'
 import { UIAbility, Want, AbilityConstant, Configuration, bundleManager } from '@kit.AbilityKit'
@@ -91,6 +92,9 @@ export default class EntryAbility extends UIAbility {
     })
     await new AppearancePreferencesStore(this.context).load().catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_load_failed', '[Appearance] startup_load_failed retained_previous_runtime=true')
+    })
+    await new IncognitoPreferencesStore(this.context).load().catch((_error: Error): void => {
+      DiagnosticLogger.warn('app', 'startup_load_failed', '[Incognito] startup_load_failed retained_previous_runtime=true')
     })
     await new LibraryFilterStore(this.context).load().catch((_error: Error): void => {
       DiagnosticLogger.warn('app', 'startup_load_failed', '[LibraryCover] startup_load_failed retained_previous_runtime=true')
@@ -229,6 +233,10 @@ export default class EntryAbility extends UIAbility {
     this.layoutWindowSizeCallback = (size: window.Size): void => {
       try {
         LayoutSafeAreaBridge.publishWindowWidth(win.getUIContext().px2vp(size.width))
+        // Folding switches the display, which changes the status-bar and
+        // navigation avoid areas. Re-publish them here so the incognito strip
+        // and every safe-area consumer recompute on inner/outer screen switch.
+        this.publishAvoidHeights(win)
       } catch (_error) {
         // Keep the last valid width if this window is being torn down.
       }
@@ -290,6 +298,7 @@ export default class EntryAbility extends UIAbility {
       void error
       DiagnosticLogger.error('app', 'configure_avoid_areas_failed', '[EntryAbility] step=configure_avoid_areas_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
+      LayoutSafeAreaBridge.publishTopCutoutHeight(0)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
   }
@@ -307,12 +316,19 @@ export default class EntryAbility extends UIAbility {
         this.bottomHeight(win, uiContext, window.AvoidAreaType.TYPE_SYSTEM_GESTURE),
       )
       const keyboardArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD)
+      const cutoutRect = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_CUTOUT).topRect
       LayoutSafeAreaBridge.publishInsets(top, bottom)
+      // The label sits below the camera, so publish the cutout's bottom edge
+      // (top + height), not its hole height. Using the hole height alone
+      // overstates the gap and pushes the label to the maximum size.
+      LayoutSafeAreaBridge.publishTopCutoutHeight(
+        uiContext.px2vp(cutoutRect.top + cutoutRect.height))
       LayoutSafeAreaBridge.publishKeyboardHeight(uiContext.px2vp(keyboardArea.bottomRect.height))
     } catch (error) {
       void error
       DiagnosticLogger.error('app', 'publish_avoid_heights_failed', '[EntryAbility] step=publish_avoid_heights_failed code=avoid_area_failed')
       LayoutSafeAreaBridge.publishInsets(FALLBACK_TOP_AVOID, FALLBACK_BOTTOM_AVOID)
+      LayoutSafeAreaBridge.publishTopCutoutHeight(0)
       LayoutSafeAreaBridge.publishKeyboardHeight(0)
     }
   }

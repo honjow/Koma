@@ -1,4 +1,6 @@
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { connectIncognitoState, IncognitoState } from '../state/IncognitoState'
+import { IncognitoPreferences, IncognitoPreferencesStore } from '../model/IncognitoPreferencesStore'
 import { ImagePluginsRequest } from '../model/ImagePluginManagement'
 import { ReaderDisplaySettingsContent } from '../components/ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
@@ -167,6 +169,7 @@ interface SettingsSection {
 
 export type SettingsPaneKey =
   'root' |
+  'incognito' |
   'appearance' |
   'library' |
   'reader' |
@@ -338,6 +341,19 @@ function createSettingsSections(): SettingsSection[] {
 function createSettingsRootSections(): SettingsPaneSection[] {
   return [
     {
+      key: 'privacy',
+      titleKey: 'settings_section_privacy',
+      items: [
+        {
+          key: 'incognito',
+          titleKey: 'settings_row_incognito_title',
+          detailKey: 'settings_row_incognito_detail',
+          icon: $r('sys.symbol.eye_slash'),
+          color: ThemeConstants.STATUS_MUTED,
+        },
+      ],
+    },
+    {
       key: 'primary',
       titleKey: '',
       items: [
@@ -467,6 +483,7 @@ export struct SettingsPage {
   @Param searchTarget: string = ''
   @Param embeddedTracking: boolean = false
   @Local private settingsSafeArea: LayoutSafeAreaState = connectLayoutSafeArea()
+  @Local private incognito: IncognitoState = connectIncognitoState()
   private positionedSearchTarget: boolean = false
   @Event onOpenKomgaSettings: () => void = () => {}
   @Event onOpenKavitaSettings: () => void = () => {}
@@ -559,6 +576,10 @@ export struct SettingsPage {
 
   private appearancePreferencesStore(): AppearancePreferencesStore {
     return new AppearancePreferencesStore(this.context())
+  }
+
+  private incognitoPreferencesStore(): IncognitoPreferencesStore {
+    return new IncognitoPreferencesStore(this.context())
   }
 
   private libraryUpdatePreferencesStore(): LibraryUpdatePreferencesStore {
@@ -1100,6 +1121,27 @@ export struct SettingsPage {
       })
       .catch((error: Error) => {
         DiagnosticLogger.warn('settings_page', 'load_appearance_preferences_failed', '[Settings] step=load_appearance_preferences_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private loadIncognitoPreferences(): void {
+    void this.incognitoPreferencesStore().load()
+      .then((preferences: IncognitoPreferences) => {
+        console.info('[Settings] step=load_incognito_preferences enabled=' + preferences.enabled)
+      })
+      .catch((error: Error) => {
+        DiagnosticLogger.warn('settings_page', 'load_incognito_preferences_failed', '[Settings] step=load_incognito_preferences_failed code=' + safeSettingsErrorCode(error))
+      })
+  }
+
+  private saveIncognitoEnabled(enabled: boolean): void {
+    void this.incognitoPreferencesStore().saveEnabled(enabled)
+      .then((preferences: IncognitoPreferences) => {
+        console.info('[Settings] step=save_incognito enabled=' + preferences.enabled)
+      })
+      .catch((error: Error) => {
+        DiagnosticLogger.warn('settings_page', 'save_incognito_failed', '[Settings] step=save_incognito_failed code=' + safeSettingsErrorCode(error))
+        this.loadIncognitoPreferences()
       })
   }
 
@@ -2472,28 +2514,58 @@ export struct SettingsPage {
 
   @Builder
   private SearchResultRow(result: SettingsSearchResult) {
-    ConciseListRow({
-      title: this.rowTitle(result.row),
-      subtitle: result.row.key === 'settings-category' ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
-      subtitleMaxLines: 2,
-      showChevron: true,
-      action: () => { this.openSearchResult(result) },
-    })
+    if (result.row.key === 'settings-category' && result.pane === 'incognito') {
+      ConciseListRow({
+        title: this.rowTitle(result.row),
+        subtitle: this.rowBaseDetail(result.row),
+        subtitleMaxLines: 2,
+        showChevron: false,
+        hasSwitch: true,
+        checked: this.incognito.enabled,
+        switchAction: (isOn: boolean) => {
+          this.settingsSearchText = ''
+          this.saveIncognitoEnabled(isOn)
+        },
+      })
+    } else {
+      ConciseListRow({
+        title: this.rowTitle(result.row),
+        subtitle: result.row.key === 'settings-category' ? this.rowBaseDetail(result.row) : this.searchResultSubtitle(result),
+        subtitleMaxLines: 2,
+        showChevron: true,
+        action: () => { this.openSearchResult(result) },
+      })
+    }
   }
 
   @Builder
   private RootPaneRow(item: SettingsPaneItem) {
-    ConciseListRow({
-      title: this.paneItemTitle(item),
-      subtitle: this.paneItemDetail(item),
-      leadingIcon: item.icon,
-      leadingIconBackgroundColor: item.color,
-      showChevron: true,
-      action: () => {
-        this.getUIContext().getFocusController().clearFocus()
-        this.onOpenSettingsPane(item.key)
-      },
-    })
+    if (item.key === 'incognito') {
+      ConciseListRow({
+        title: this.paneItemTitle(item),
+        subtitle: this.paneItemDetail(item),
+        leadingIcon: item.icon,
+        leadingIconBackgroundColor: item.color,
+        showChevron: false,
+        hasSwitch: true,
+        checked: this.incognito.enabled,
+        switchAction: (isOn: boolean) => {
+          this.saveIncognitoEnabled(isOn)
+        },
+      })
+    } else {
+      ConciseListRow({
+        title: this.paneItemTitle(item),
+        subtitle: this.paneItemDetail(item),
+        leadingIcon: item.icon,
+        leadingIconBackgroundColor: item.color,
+        showChevron: true,
+        action: () => {
+          this.getUIContext().getFocusController().clearFocus()
+          this.onOpenSettingsPane(item.key)
+        },
+      })
+    }
   }
 
   @Builder
@@ -2678,6 +2750,7 @@ export struct SettingsPage {
     if (this.pane === 'tracking') this.loadTrackerPreferences()
     if (this.pane === 'storage') this.loadImageCachePreferences()
     if (this.pane === 'about') this.loadVersion()
+    if (this.pane === 'root') this.loadIncognitoPreferences()
   }
 
   private applyLibraryFilterPreferences(preferences: LibraryFilterPreferences): void {
