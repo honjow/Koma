@@ -8,7 +8,7 @@ export const DEFAULT_REMOTE_IMAGE_CACHE_MAX_BYTES: number = 500 * 1024 * 1024
 const REMOTE_IMAGE_CACHE_SCHEMA_VERSION: number = 1
 const REMOTE_IMAGE_CACHE_DIR_NAME: string = 'reader-remote-image-cache'
 const REMOTE_IMAGE_CACHE_MANIFEST_NAME: string = 'manifest.v1.json'
-const READER_CACHE_ACCESS_SETTLE_MS: number = 1500
+const READER_CACHE_WRITE_SETTLE_MS: number = 400
 
 export interface RemoteImageCacheManifestEntry {
   key: string
@@ -71,12 +71,14 @@ async function writeBytes(path: string, bytes: ArrayBuffer): Promise<void> {
       throw new Error('Incomplete image cache file')
     }
     await fs.rename(tempPath, path)
-  } finally {
-    await closeFileQuietly(file)
+  } catch (_error) {
     try {
       if (await fs.access(tempPath)) await fs.unlink(tempPath)
-    } catch (_error) {
+    } catch (_cleanupError) {
     }
+    throw _error as Error
+  } finally {
+    await closeFileQuietly(file)
   }
 }
 
@@ -256,7 +258,7 @@ export class RemoteImageCacheStore {
       return Promise.resolve(undefined)
     }
     entry.lastAccessAt = Date.now()
-    if (this.coalesceAccessWrites) this.scheduleAccessWrite()
+    if (this.coalesceAccessWrites) this.scheduleManifestWrite()
     else await this.persist()
     console.info(`[ReaderCache] step=hit key=${key} size=${entry.size}`)
     return Promise.resolve(entry.path)
@@ -314,7 +316,7 @@ export class RemoteImageCacheStore {
       lastAccessAt: Date.now(),
       avif: this.trackAvif ? isAvifFileType(bytes, Math.min(bytes.byteLength, 128)) : undefined,
     })
-    await this.persist()
+    this.scheduleManifestWrite()
     return filePath
   }
 
@@ -518,22 +520,24 @@ export class RemoteImageCacheStore {
     this.accessWriteTimer = -1
   }
 
-  private scheduleAccessWrite(): void {
+  private scheduleManifestWrite(): void {
     this.accessDirty = true
     this.cancelAccessWrite()
     this.accessWriteTimer = setTimeout((): void => {
       this.accessWriteTimer = -1
-      // Cache hits update in-memory eviction order immediately. Only their
-      // restart hint can wait. Serialize it with structural edits so a late
-      // timestamp write cannot overwrite a replacement, eviction or clear.
+      // Hits and new publications both update the in-memory manifest
+      // immediately; only the manifest file can wait. One settled write
+      // commits the full payload. An immediate persist from eviction,
+      // invalidation or clear cancels this timer first, so those paths stay
+      // fully synchronous.
       void this.enqueue(async (): Promise<void> => {
         if (!this.accessDirty || this.accessWriteTimer >= 0) return
-        await this.persist(true)
+        await this.persist()
       }).catch((): void => {
-        // A metadata failure must not fail a hit. Retry on the next access or
-        // let the next structural write commit the live timestamps.
+        // A metadata failure must not fail a hit or a publication. Retry on
+        // the next access, publication or structural write.
       })
-    }, READER_CACHE_ACCESS_SETTLE_MS)
+    }, READER_CACHE_WRITE_SETTLE_MS)
   }
 
   private manifestPayload(): string {
@@ -544,9 +548,9 @@ export class RemoteImageCacheStore {
     return JSON.stringify(document)
   }
 
-  private async persist(accessOnly: boolean = false): Promise<void> {
+  private async persist(): Promise<void> {
     this.cancelAccessWrite()
-    const temporary = this.manifestPath + (accessOnly ? '.access.tmp' : '.tmp')
+    const temporary = this.manifestPath + '.tmp'
     const payload = this.manifestPayload()
     try {
       const file = await fs.open(temporary, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
