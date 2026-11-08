@@ -21,7 +21,7 @@
   "updatedAt": "2026-11-08T21:58:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "#001 quota 逐出场景顿挫回归已修复：缓存门恢复滞后 1.6 秒后，逐出中的 26 次快滑两段全部无 33 毫秒以上间隔。",
+  "activity": "#001 quota 逐出场景顿挫修复链全部实测闭环：evict 分批候选两段 26 次快滑无 33 毫秒以上间隔、偏好读取与滚动中 unlink 归零、>16.7 毫秒帧保持 0。",
   "nextAction": "",
   "proof": [
     {
@@ -3544,7 +3544,7 @@
       "owner": "Root",
       "dependencies": [],
       "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。合法 key 候选 SHA 1aa5a641 已实测提交，四项帧指标全部不低于优化基线最佳段。 缓存写入候选 SHA 2e08e22b 实测 fs 回调 708→118 毫秒（-83%），但六段 156 次快滑长测暴露顿挫：每段 3-6 次 35-98 毫秒手势帧间隔，元因为读完一章的重复偏好读取、约 1.2MB 缓存清单 stringify 进入滚动窗口、滚动中 unlink 与定时回调。 交互暂停写候选 SHA 238e741d 修复后普通跨章段顿挫清零，但 quota 逐出场景（每段 100+ 次 step=evict）仍有 5 次 42-63 毫秒间隔：交互暂停门在快滑间隙约 440 毫秒即被 420 毫秒恢复延迟重新打开，逐出与清单写泄漏回滚动窗口。 门滞后候选 SHA 735f35db 修复：缓存门与超分 GPU 门分离，缓存门恢复滞后 1.6 秒（连续快滑期间保持关闭，真正停稳后才逐出与写清单），并给自动化策略缓存加并发去重与恢复代数防覆盖、阅读器 aboutToAppear 预热。quota 逐出场景 26 次快滑两段复测：33 毫秒以上手势帧间隔 0 次，最长手势帧间隔 21.3-21.8 毫秒，PreferencesGetValue 与 fs.unlink 0 次，ValueSerializer 总量 2.6 毫秒，above8_3=23-30 波动带内，>16.7 毫秒帧保持 0。",
-      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。above8_3 仍在波动带内（23-34 帧），栈集中在 ArkUI FlushDirtyNodeUpdate（引擎内部未打点）与 AreaChange 引擎分发（滚动期 JS 99.3% 位于其中，onAreaChange 无法动态注销），应用层可识别浪费已全部消除。 按轮确认（quota 逐出活跃段）发现残余顿挫：门滞后候选在逐出活跃段仍有每段 0-5 次 37-66 毫秒间隔，普通段干净。逐出批量 unlink 分批限速（每 8 个 unlink 让出一次主线程）已实现并编译通过，设备 A/B 待下一轮验证；另两条根因为 ReaderActivitySink 的 busy 上报频率低于快滑频率（彻底修复需 reader-kit 上报滚动停止，属共享仓授权范围）与一次 62.4 毫秒 PreferencesGetValue 来自自动化策略之外的未识别 store（需 JS 侧插桩定位）。 timer 小回调已归因为每约 140 毫秒一次的 1.5-2.4KB 消息反序列化（单次 1-5.5 毫秒，总占用约 13 毫秒/秒，非顿挫源），穿透归因需 JS 侧插桩，暂缓。 rkit-* 组件 id 全量改名经核查不执行：NextE/NextN 宿主运行时 getRectangleById 与 ohosTest 断言合计数百处消费这些 id，无法在不重新验收两宿主的情况下满足不退化边界；用户批准的共享变更授权保持开放，待用户对跨宿主同步范围重新决定。 共享 Kit 的滚动范围合并候选 01798b1 未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
+      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。above8_3 仍在波动带内（23-34 帧），栈集中在 ArkUI FlushDirtyNodeUpdate（引擎内部未打点）与 AreaChange 引擎分发（滚动期 JS 99.3% 位于其中，onAreaChange 无法动态注销），应用层可识别浪费已全部消除，继续压缩属 ArkUI 引擎行为边界。 evict 分批限速已在 quota 触发场景实测通过（33 毫秒以上间隔 0 次、unlink 与偏好读取滚动中归零），更长会话的逐出分布继续以 step=evict 日志按轮确认。 一次 62.4 毫秒 PreferencesGetValue 来自自动化策略之外的未识别 store，源待 JS 侧插桩定位（暂缓，已不再复现于最近两轮）。 timer 小回调已归因为每约 140 毫秒一次的 1.5-2.4KB 消息反序列化（单次 1-5.5 毫秒，总占用约 13 毫秒/秒，非顿挫源），暂缓。 rkit-* 组件 id 全量改名经核查不执行：NextE/NextN 宿主运行时 getRectangleById 与 ohosTest 断言合计数百处消费这些 id，无法在不重新验收两宿主的情况下满足不退化边界；用户批准的共享变更授权保持开放，待用户对跨宿主同步范围重新决定。 共享 Kit 的滚动范围合并候选 01798b1 未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3553,6 +3553,7 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261109T002138194789/audit/long-scroll-summary.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261109T000728789568/audit/long-scroll-summary.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261108T235717210778/audit/long-scroll-summary.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/settle/checkpoints-paused-writes.jsonl",
