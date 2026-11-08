@@ -399,15 +399,19 @@ export struct BrowsePage {
 
   private async refreshSources(): Promise<void> {
     const context = getContext(this) as common.UIAbilityContext
-    const sourceMetadataReloaded = reloadInstalledSourcePackages(context)
-    this.viewModel = new BrowseViewModel(this.sourceRegistry)
-    this.viewModel.loadInstalledSources()
+    const sourceRevision = this.sourceRuntimeState.revision
+    if (this.displayedSourceRevision !== sourceRevision) {
+      const sourceMetadataReloaded = reloadInstalledSourcePackages(context)
+      this.viewModel = new BrowseViewModel(this.sourceRegistry)
+      this.viewModel.loadInstalledSources()
+      this.displayedSourceRevision = sourceRevision
+      if (!sourceMetadataReloaded) {
+        throw new Error('source_metadata_reload_failed')
+      }
+    }
     await this.loadRemoteAvailability(true)
     await appSourcePackageManagerCache.prepare(context, connectLanguageState().effectiveLocale)
     await appSourcePackageManagerCache.check(context)
-    if (!sourceMetadataReloaded) {
-      throw new Error('source_metadata_reload_failed')
-    }
   }
 
   build() {
