@@ -6,6 +6,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { SourceTextOverlay, sourceTextOverlay } from './SourceTextOverlay'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode } from './SourceRequiredImageDecode'
 import { enrichSourceChapterMetadata } from './SourceChapterMetadata'
+import { sourceCatalogChapter } from './SourceLibraryComic'
 import { SourceTextPage, sourceTextPage, SourceTextPageRequest, sourceTextPageRequest } from './SourceTextPageDescriptor'
 import { MangaChapterItem, MangaDetail } from './MangaDetailModels'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -1003,8 +1004,21 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
     chapterCatalogUpdatedAt: previous.sourceMetadata?.chapterCatalogUpdatedAt,
   }
   if (chaptersResolved) {
+    // The shared IDs can arrive before this device has any chapter rows.
+    // Persist missing rows in the same transaction so a cold open can show
+    // the catalog. Existing rows keep their pages and locally owned fields.
+    const now = Date.now()
+    const storedIds = new Set<string>(next.chapters.map((chapter: Chapter): string => chapter.id))
+    const excluded = new Set<string>(excludedChapterIds)
+    chapters.forEach((chapter: MangaChapterItem): void => {
+      if (storedIds.has(chapter.id) || excluded.has(chapter.id)) return
+      const stored = sourceCatalogChapter(chapter, next.id, next.sourcePath, next.chapters.length, now)
+      next.chapters.push(stored)
+      next.pageCount += stored.pageCount
+      storedIds.add(chapter.id)
+    })
     enrichSourceChapterMetadata(next, chapters)
-    setCompleteSourceChapterCatalog(next, chapters.map((chapter: MangaChapterItem): string => chapter.id), Date.now())
+    setCompleteSourceChapterCatalog(next, chapters.map((chapter: MangaChapterItem): string => chapter.id), now)
   }
   if (JSON.stringify(next) === JSON.stringify(previous)) return false
   upsertComicAndPersistLibraryStore(libraryStore, persistenceService, next)

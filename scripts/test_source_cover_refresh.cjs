@@ -17,18 +17,20 @@ const comicTree = ts.createSourceFile('ComicModels.ts', fs.readFileSync(path.joi
 const comicHelpers = ['assignComicSourceCover', 'setCompleteSourceChapterCatalog'].map(name =>
   comicTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(comicTree))
 const code = [...comicHelpers, productionFunctions('SourceChapterMetadata'), productionFunctions('SourceChapterVisibility'),
+  productionFunctions('SourceLibraryComic'),
   ...names.map(name => tree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(tree)),
 ].join('\n')
 const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
 const exportsForTest = {}
 const clone = value => JSON.parse(JSON.stringify(value))
-new Function('exports', 'ComicSourceKind', 'serializeLibraryStore', 'hydrateLibraryStoreFromJson', 'normalizeSortKey', output)(
+new Function('exports', 'ComicSourceKind', 'serializeLibraryStore', 'hydrateLibraryStoreFromJson', 'normalizeSortKey', 'AppStrings', output)(
   exportsForTest, { PRIVATE_LIBRARY: 'private_library' },
-  store => JSON.stringify(store.values), (store, payload) => { store.values = JSON.parse(payload) }, value => value.toLowerCase())
+  store => JSON.stringify(store.values), (store, payload) => { store.values = JSON.parse(payload) }, value => value.toLowerCase(),
+  { get: key => key })
 const refresh = exportsForTest.refreshSourceComicCoverAndPersistLibraryStore
 function fixture() {
   const original = { id: 'owned-work', sourceKind: 'private_library', sourceRuntimeId: 'owned-source', remoteResourceId: 'owned-remote',
-    coverUri: 'https://owned.invalid/old', title: 'Owned title', createdAt: 1, updatedAt: 2, lastImportedAt: 3,
+    coverUri: 'https://owned.invalid/old', title: 'Owned title', sourcePath: 'https://source.invalid/work', createdAt: 1, updatedAt: 2, lastImportedAt: 3,
     chapters: [{ id: 'owned-chapter', pages: [{ id: 'owned-page', uri: 'file://owned-cache' }], index: 0 }],
     chapterCount: 458, pageCount: 18, categoryIds: ['owned-category'], localMetadata: { custom: 'keep' } }
   const store = { values: { [original.id]: clone(original) }, getComic(id) { return this.values[id] }, addComic(row) { this.values[row.id] = row }, listComics() { return Object.values(this.values) } }
@@ -159,9 +161,10 @@ const pageSource = fs.readFileSync(path.join(__dirname, '../entry/src/main/ets/p
 const pageTree = ts.createSourceFile('page.ts', pageSource, ts.ScriptTarget.Latest, true)
 const pageOwner = pageTree.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'MangaDetailPage')
 const pageMethods = ['refreshSourceLibraryDetail', 'applySourceMangaDetail'].map(name => pageOwner.members.find(node => node.name?.text === name).getText(pageTree)).join('\n')
+const sameChapterRow = pageTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'sameDetailChapterRow').getText(pageTree)
 function detailFixture() {
   const f = chapterFixture(), out = {}, notifications = [], errors = []
-  const compiled = ts.transpileModule('export class Page { ' + pageMethods + ' }', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
+  const compiled = ts.transpileModule(sameChapterRow + '\nexport class Page { ' + pageMethods + ' }', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   new Function('exports', 'refreshSourceMangaDetailAndPersistLibraryStore', 'DiagnosticLogger', 'SourceDetailContentState',
     'reconcileSourceChapterIdentity', 'protectedSourceChapterIds', 'getContext', 'mangaChapterItemFromComicChapter',
     'sourceChapterDisplayRows', 'appSourceRuntimeRegistry', compiled)(
@@ -169,7 +172,7 @@ function detailFixture() {
     (_comic, _id, chapters) => ({ chapters, storedChapters: f.store.getComic('owned-work').chapters }), () => [], () => ({ filesDir: 'unused' }),
     chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows, { lookup: () => ({}) })
   const page = new out.Page()
-  Object.assign(page, { sourceChaptersResolved: true, sourceDetailSettingsFingerprint: '', libraryStore: f.store, libraryPersistenceService: f.service,
+  Object.assign(page, { chapters: [], sourceChaptersResolved: true, sourceDetailSettingsFingerprint: '', libraryStore: f.store, libraryPersistenceService: f.service,
     isCurrentSourceDetailRequest: () => true, sourceDetailWithRouteIdentity: detail => ({ ...detail }),
     sourceComicId: () => 'owned-work', findSourceRuntimeComic: () => f.store.getComic('owned-work'),
     onLibraryChanged: () => notifications.push(true), decorateChapterStates: chapters => chapters, refreshDownloadStatus: () => {} })
@@ -184,7 +187,15 @@ test('detail publication persists only the explicitly resolved snapshot, not pen
   assert.equal(f.saves(), 1)
   assert.equal(f.notifications.length, 1)
   assert.equal(f.page.chapters.length, 4, 'remote and missing saved chapters remain in the manual catalog')
-  assert.equal(f.store.getComic('owned-work').chapters.length, 3, 'display projection must not add stored rows')
+  // A resolved detail must now persist real new rows, so they remain visible after restart.
+  const stored = f.store.getComic('owned-work').chapters
+  assert.deepEqual(stored.map(chapter => chapter.id), ['latest', 'first', 'absent', 'new-remote-only'])
+  assert.deepEqual(stored[0].pages, f.before.chapters[0].pages)
+  assert.deepEqual(stored[3].pages, [])
+  const visible = f.page.chapters
+  f.page.applySourceMangaDetail(1, entry, 'owned-source', 'owned-remote', { title: 'Owned title' }, f.remote, '', 'ready', true)
+  assert.equal(f.page.chapters, visible, 'equal background catalog preserves the visible list')
+  assert.equal(f.saves(), 1)
 })
 test('stale detail epoch and unresolved directories cannot write sequence metadata', () => {
   const f = detailFixture()
@@ -206,7 +217,7 @@ test('detail persistence failure keeps readable detail and catalog without publi
 
 // Rich detail is now part of the existing library document, not an independent
 // disk cache. Execute its real serializer/hydrator and the real update transaction.
-test('collected rich detail survives library serialization and equal refreshes do not write again', () => {
+test('collected details and chapters survive library serialization and equal refreshes do not write again', () => {
   const exports = {}, all = productionFunctions('LibraryPersistence')
   const helpers = productionFunctions('ComicModels')
   const code = ts.transpileModule(helpers + '\n' + all, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
@@ -219,7 +230,9 @@ test('collected rich detail survives library serialization and equal refreshes d
   const detail = { title: 'Fresh title', description: 'Full description', author: 'Author', artist: 'Artist', sourceName: 'Original source',
     status: 'ongoing', tags: ['A', 'B'], webUrl: 'https://source.invalid/work', coverUrl: 'https://owned.invalid/new' }
   const refreshDetail = exportsForTest.refreshSourceMangaDetailAndPersistLibraryStore
-  assert.equal(refreshDetail(f.store, f.service, 'owned-work', 'owned-source', 'owned-remote', detail, [], true, ['hidden'], 'digest'), true)
+  previous.sourceMetadata = { sharedChapterIds: ['source-chapter'] }
+  const chapters = [{ id: 'source-chapter', title: 'Chapter 1', pageCount: 12, readingOrder: 0 }]
+  assert.equal(refreshDetail(f.store, f.service, 'owned-work', 'owned-source', 'owned-remote', detail, chapters, true, ['hidden'], 'digest'), true)
   delete f.store.getComic('owned-work').localMetadata
   const stored = exports.persistComic(f.store.getComic('owned-work'))
   const restored = exports.hydrateComic(JSON.parse(JSON.stringify(stored)))
@@ -230,7 +243,10 @@ test('collected rich detail survives library serialization and equal refreshes d
   assert.deepEqual(restored.sourceMetadata.excludedChapterIds, ['hidden'])
   assert.deepEqual(restored.categoryIds, ['owned-category'])
   assert.equal(restored.createdAt, 1)
-  assert.equal(refreshDetail(f.store, f.service, 'owned-work', 'owned-source', 'owned-remote', detail, [], true, ['hidden'], 'digest'), false)
+  assert.deepEqual(restored.chapters.map(row => [row.id, row.title, row.pageCount, row.readingOrder, row.pages]),
+    [['source-chapter', 'Chapter 1', 12, 0, []]])
+  assert.deepEqual(restored.sourceMetadata.sharedChapterIds, ['source-chapter'])
+  assert.equal(refreshDetail(f.store, f.service, 'owned-work', 'owned-source', 'owned-remote', detail, chapters, true, ['hidden'], 'digest'), false)
   assert.equal(f.saves(), 1)
   delete stored.sourceMetadata
   assert.equal(exports.hydrateComic(stored).sourceMetadata, undefined, 'old library documents remain valid')

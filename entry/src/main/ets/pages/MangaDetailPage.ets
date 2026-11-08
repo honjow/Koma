@@ -1104,6 +1104,22 @@ export struct MangaDetailPage {
       }
       this.sourceDetailSettingsFingerprint = sourceSettingsFingerprint(appSourceSettingsStore.loadForSource(sourceId))
       const cached = forceReload ? undefined : sourceMangaDetailSnapshotCache.read(lookup.entry, sourceId, mangaId, this.sourceMangaRouteUrl(sourceId, mangaId))
+      // A complete catalog already shown for this route needs no request on
+      // entry. A synced list of IDs is insufficient unless every row exists
+      // locally and it was resolved with the current source settings.
+      if (!forceReload && retryStage === 'detail' && retainedDetail !== undefined && !waitingForChapters) {
+        const comic = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+        const metadata = comic?.sourceMetadata
+        const ids = metadata?.sharedChapterIds
+        const localIds = new Set<string>(comic?.chapters.map((chapter: Chapter): string => chapter.id) ?? [])
+        const completeSavedCatalog = ids !== undefined && ids.length > 0 &&
+          metadata?.settingsFingerprint === this.sourceDetailSettingsFingerprint &&
+          ids.every((id: string): boolean => localIds.has(id))
+        if (cached?.chaptersResolved === true || completeSavedCatalog) {
+          this.sourceChaptersResolved = true
+          return
+        }
+      }
       let detail: MangaDetail
       let chapters: MangaChapterItem[]
       // This value belongs only to the freshly loaded detail request. It must
@@ -1227,16 +1243,15 @@ export struct MangaDetailPage {
         return
       }
       const failureText = this.sourceOperationFailureText(error, 'get_manga', 'manga_detail_load_source_failed')
-      if (!backgroundRefresh) {
-        this.publishDetailWebChallenge(error, sourceId, mangaId, requestEpoch, 'detail', automaticRecovery)
-      }
+      if (backgroundRefresh) return
+      this.publishDetailWebChallenge(error, sourceId, mangaId, requestEpoch, 'detail', automaticRecovery)
       if (retainedDetail !== undefined) {
         this.manga = retainedDetail
         this.chapters = retainedChapters
         this.sourceDetailDataResolved = true
         this.sourceChaptersResolved = retainedChaptersResolved
         this.sourceDetailContentState = waitingForChapters ? SourceDetailContentState.ERROR : retainedState
-        this.feedbackText = backgroundRefresh ? '' : failureText
+        this.feedbackText = failureText
         return
       }
       const fallbackDetail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
@@ -1304,9 +1319,17 @@ export struct MangaDetailPage {
           DiagnosticLogger.exception('persistence', 'source_detail_settings_read_failed', error as Error)
         }
       }
-      this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(
-        libraryComic.chapters.map((ch: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)),
-        [], excluded))
+      const stored = libraryComic.chapters.map((ch: Chapter): MangaChapterItem =>
+        mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind))
+      // The shared IDs provide source order, but synced IDs alone are not
+      // usable rows. Keep locally retained chapters available after that order.
+      const storedById = new Map<string, MangaChapterItem>(stored.map((row): [string, MangaChapterItem] => [row.id, row]))
+      const ordered: MangaChapterItem[] = []
+      metadata?.sharedChapterIds?.forEach((id: string): void => {
+        const row = storedById.get(id)
+        if (row !== undefined) ordered.push(row)
+      })
+      this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(ordered, stored, excluded))
       if (this.chapters.length > 0) this.manga.chapterCount = this.chapters.length
       this.isInLibrary = true
       this.sourceDetailDataResolved = true
@@ -1401,7 +1424,13 @@ export struct MangaDetailPage {
     nextDetail.sourceName = entry.manifestName
     if (libraryComic?.customCoverUri) nextDetail.coverUrl = libraryComic.customCoverUri
     this.manga = nextDetail
-    this.chapters = this.decorateChapterStates(displayedChapters)
+    const nextChapters = this.decorateChapterStates(displayedChapters)
+    // Equal background results must not rerun the list's sort/filter and
+    // selection reconciliation just because the source returned new objects.
+    if (nextChapters.length !== this.chapters.length || nextChapters.some((row: MangaChapterItem, index: number): boolean =>
+      !sameDetailChapterRow(row, this.chapters[index]))) {
+      this.chapters = nextChapters
+    }
     this.isInLibrary = nextDetail.isInLibrary
     this.sourceDetailDataResolved = true
     this.feedbackText = feedbackText
@@ -3824,6 +3853,17 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
       })
     }
   }
+}
+
+function sameDetailChapterRow(left: MangaChapterItem, right: MangaChapterItem): boolean {
+  return left.id === right.id && left.title === right.title && left.chapterNumber === right.chapterNumber &&
+    left.volumeNumber === right.volumeNumber && left.readingOrder === right.readingOrder &&
+    left.readingGroup === right.readingGroup && left.continuationEligible === right.continuationEligible &&
+    left.localReadingIndex === right.localReadingIndex && left.scanlator === right.scanlator &&
+    left.language === right.language && left.dateUpload === right.dateUpload &&
+    (left.pageCount ?? 0) === (right.pageCount ?? 0) && left.isRead === right.isRead &&
+    left.isBookmarked === right.isBookmarked && left.isDownloaded === right.isDownloaded &&
+    left.downloadStatus === right.downloadStatus && left.downloadProgress === right.downloadProgress
 }
 
 function mangaDetailFromComic(comic: Comic, registry: SourceRuntimeRegistry): MangaDetail {

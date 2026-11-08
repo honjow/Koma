@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-09T06:40:39+08:00",
+  "updatedAt": "2026-11-09T07:48:58+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 quota 逐出场景顿挫修复链全部实测闭环：evict 分批候选两段 26 次快滑无 33 毫秒以上间隔、偏好读取与滚动中 unlink 归零、>16.7 毫秒帧保持 0。",
@@ -83,6 +83,22 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "DETAIL_COLD_CHAPTER_RELOAD",
+      "number": 262,
+      "title": "冷启动进入详情反复重新加载章节",
+      "kind": "open",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-09",
+      "reportedAtSource": "本会话用户报告冷启动进入详情会重新加载章节，精确消息时刻未核实。",
+      "registeredAt": "2026-11-09T07:48:58+08:00",
+      "updatedAt": "2026-11-09T07:48:58+08:00",
+      "status": "197 已核完整目录冷启动与手动刷新",
+      "result": "进入详情原本无条件请求详情和章节。现复用设置一致且章节齐全的已存目录。197 上《腦洞學生會》先补全目录，再结束进程重开，203 章可见且未新增详情或章节请求。手动重新加载仍请求两者。",
+      "remaining": "新同步历史作品的真实无目录入口尚未实机验证；当前仅按代码与本地逻辑检查确认会请求章节。",
+      "evidence": [".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/navigate-20261109T074454747802/run-metadata.json", ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/navigate-20261109T074647053243/run-metadata.json"]
+    },
     {
       "id": "READER_EYE_GAZE_PR1",
       "number": 261,
@@ -9771,6 +9787,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "detail-cold-chapter-reload-20261109",
+      "at": "2026-11-09T07:48:58+08:00",
+      "itemId": "DETAIL_COLD_CHAPTER_RELOAD",
+      "title": "#262 完整目录冷启动复用",
+      "detail": "197 具名作品验证补全、进程重启后复用和手动重新加载；无目录的同步历史路径尚未实机验证。",
+      "evidence": ".hvigor/outputs/detail-cold-cache-20261109/qa/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail-cold-cache/"
+    },
     {
       "id": "reader-eye-gaze-pr1-merged-20261109",
       "at": "2026-11-09T06:40:39+08:00",
