@@ -923,9 +923,11 @@ export struct SettingsPage {
           titleKey: 'settings_section_storage',
           rows: this.rowsByKeys([
             'image-cache',
+            'content-cache',
+            'translation-cache',
+            'cache-settings-header',
             'cache-limit',
             'cache-auto-clean',
-            'translation-cache',
           ]),
         },
       ]
