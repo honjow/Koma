@@ -487,11 +487,11 @@ export struct ReaderSettingsContent {
               ListDivider()
               ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })
               ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_eye_gaze_page_turn_title'), subtitle: s('settings_row_reader_eye_gaze_page_turn_detail'), hasSwitch: true, checked: this.preferences.eyeGazePageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('eye-gaze', value) } })
+              ListDivider()
               ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
-              ListDivider()
-              ConciseListRow({ title: s('settings_row_reader_eye_gaze_page_turn_title'), subtitle: s('settings_row_reader_eye_gaze_page_turn_detail'), hasSwitch: true, checked: this.preferences.eyeGazePageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('eye-gaze', value) } })
             }
             ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
               cropControlsAvailable: false, enhancementControlsAvailable: this.enhancementControlsAvailable,

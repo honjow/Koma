@@ -352,6 +352,8 @@
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "宽页的处理方式" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "音量键翻页" },
     { "name": "settings_row_reader_volume_key_navigation_detail", "value": "用音量键切换页面" },
+    { "name": "reader_turn_assist", "value": "翻页辅助" },
+    { "name": "reader_turn_assist_auto", "value": "自动翻页" },
     { "name": "settings_row_reader_eye_gaze_page_turn_title", "value": "眼动翻页" },
     { "name": "settings_row_reader_eye_gaze_page_turn_detail", "value": "看到页面底部后抬眼即可翻页（前置摄像头保持开启）" },
     { "name": "reader_eye_gaze_calibrating", "value": "请保持正常阅读姿势" },

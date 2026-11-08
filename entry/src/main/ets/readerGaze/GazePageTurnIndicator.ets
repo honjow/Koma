@@ -12,14 +12,13 @@ import { GazeTurnUiState } from './GazePageTurnController'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
 
+const GAZE_HINT_BACKGROUND: ResourceColor = '#B311100F'
+
 @ComponentV2
 export struct GazePageTurnIndicator {
   @Param state: GazeTurnUiState = {
-    tracking: false, phase: GazePhase.CALIBRATING, dwellProgress: 0, errorMessage: null
+    tracking: false, phase: GazePhase.CALIBRATING, errorMessage: null
   }
-  /** Distance from the reader's bottom edge (e.g. safe-area inset), in vp. */
-  @Param bottomOffset: number = 0
-
   private hintKey(): string | null {
     if (!this.state.tracking) {
       return this.state.errorMessage !== null ? 'reader_eye_gaze_camera_unavailable' : null
@@ -59,8 +58,8 @@ export struct GazePageTurnIndicator {
         bottom: ThemeConstants.SPACE_XS + 2
       })
       .borderRadius(14)
-      .backgroundColor(ThemeConstants.READER_CONTROL_OVERLAY)
-      .offset({ y: -this.bottomOffset - ThemeConstants.SPACE_XS })
+      .backgroundColor(GAZE_HINT_BACKGROUND)
+      .id('koma-eye-gaze-status')
       .hitTestBehavior(HitTestMode.None)
     }
   }

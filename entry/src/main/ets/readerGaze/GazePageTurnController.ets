@@ -7,7 +7,7 @@
  * move; legacy reader: its internal user page-turn). When active it requests
  * the camera permission, runs the camera service feeding the gaze engine, and
  * fires the injected move (plus a soft haptic tick) when the engine triggers.
- * UI state (phase, dwell progress, error) is exposed through one listener.
+ * UI state (phase and error) is exposed through one listener.
  */
 import { abilityAccessCtrl, common } from '@kit.AbilityKit'
 import { BusinessError } from '@kit.BasicServicesKit'
@@ -22,8 +22,6 @@ export interface GazeTurnUiState {
   /** Whether camera tracking is currently running. */
   readonly tracking: boolean
   readonly phase: GazePhase
-  /** 0..1 progress of the bottom dwell window. */
-  readonly dwellProgress: number
   /** Machine-readable failure reason, e.g. camera_permission_denied. */
   readonly errorMessage: string | null
 }
@@ -33,17 +31,22 @@ export type GazeTurnAction = () => boolean
 
 export class GazePageTurnController {
   private fireMove: GazeTurnAction
+  private admitted: () => boolean
   private engine: GazePageTurnEngine
   private cameraService: GazeCameraService
   private arTracker: GazeArTracker
   private stateListener: ((state: GazeTurnUiState) => void) | null = null
   private tracking: boolean = false
-  private starting: boolean = false
-  private engineState: GazeEngineState = { phase: GazePhase.CALIBRATING, dwellProgress: 0 }
+  private active: boolean = false
+  private disposed: boolean = false
+  private activation: number = 0
+  private permissionTask: Promise<boolean> | null = null
+  private engineState: GazeEngineState = { phase: GazePhase.CALIBRATING }
   private errorMessage: string | null = null
 
-  constructor(fireMove: GazeTurnAction) {
+  constructor(fireMove: GazeTurnAction, admitted: () => boolean) {
     this.fireMove = fireMove
+    this.admitted = admitted
     this.engine = new GazePageTurnEngine()
     this.cameraService = new GazeCameraService()
     this.arTracker = new GazeArTracker()
@@ -55,6 +58,7 @@ export class GazePageTurnController {
       this.emitState()
     })
     const onSample: (sample: GazeSample | null) => void = (sample: GazeSample | null): void => {
+      if (!this.tracking || !this.isCurrent(this.activation)) return
       if (sample === null) {
         this.engine.markLost(Date.now())
         return
@@ -64,12 +68,9 @@ export class GazePageTurnController {
     this.cameraService.onFrame(onSample)
     this.arTracker.onFrame(onSample)
     this.cameraService.onError((message: string): void => {
+      if (!this.isCurrent(this.activation)) return
       this.errorMessage = message
-      if (this.tracking) {
-        this.stopTracking()
-      } else {
-        this.emitState()
-      }
+      this.emitState()
     })
   }
 
@@ -87,13 +88,13 @@ export class GazePageTurnController {
       this.stateListener({
         tracking: this.tracking,
         phase: this.engineState.phase,
-        dwellProgress: this.engineState.dwellProgress,
         errorMessage: this.errorMessage
       })
     }
   }
 
   private firePageTurn(): void {
+    if (!this.tracking || !this.isCurrent(this.activation)) return
     const accepted: boolean = this.fireMove()
     if (!accepted) {
       return
@@ -112,10 +113,28 @@ export class GazePageTurnController {
 
   /** Applies the desired tracking state; safe to call repeatedly. */
   async setActive(target: boolean, context: common.UIAbilityContext): Promise<void> {
-    if (target) {
-      await this.startTracking(context)
-    } else {
+    if (!target) {
       this.stopTracking()
+      return
+    }
+    if (this.active || this.disposed || !this.admitted()) return
+    this.active = true
+    await this.startTracking(context, ++this.activation)
+  }
+
+  // The system prompt cannot be cancelled. Reuse it on a quick re-entry, but
+  // only the current admission may start a pipeline or deliver page input.
+  private isCurrent(activation: number): boolean {
+    return this.active && !this.disposed && this.activation === activation && this.admitted()
+  }
+
+  private async permission(context: common.UIAbilityContext): Promise<boolean> {
+    if (this.permissionTask === null) this.permissionTask = this.ensureCameraPermission(context)
+    const task = this.permissionTask
+    try {
+      return await task
+    } finally {
+      if (this.permissionTask === task) this.permissionTask = null
     }
   }
 
@@ -154,45 +173,45 @@ export class GazePageTurnController {
     }
   }
 
-  private async startTracking(context: common.UIAbilityContext): Promise<void> {
-    if (this.tracking || this.starting) {
+  private async startTracking(context: common.UIAbilityContext, activation: number): Promise<void> {
+    const granted: boolean = await this.permission(context)
+    if (!this.isCurrent(activation)) return
+    if (!granted) {
+      this.errorMessage = 'camera_permission_denied'
+      this.emitState()
       return
     }
-    this.starting = true
-    try {
-      const granted: boolean = await this.ensureCameraPermission(context)
-      if (!granted) {
-        this.errorMessage = 'camera_permission_denied'
-        this.emitState()
-        return
-      }
-      this.errorMessage = null
-      this.applyScreenAspect()
-      this.engine.reset()
-      // Prefer the AR Engine tracker: eyeball blendshapes make pure-eye
-      // glances detectable, which the faceDetector pipeline cannot see.
-      // Devices without AREngine support fall back to the camera pipeline.
-      if (GazeArTracker.isSupported() && this.arTracker.start()) {
-        this.tracking = true
-        this.emitState()
-        return
-      }
-      DiagnosticLogger.warn('reader', 'gaze_ar_fallback', 'falling back to faceDetector pipeline')
-      const started: boolean = await this.cameraService.start(context)
-      if (!started) {
-        // errorMessage was recorded through the camera error listener.
-        this.emitState()
-        return
-      }
+    await GazeCameraService.waitForPendingOperations()
+    if (!this.isCurrent(activation)) return
+    this.errorMessage = null
+    this.applyScreenAspect()
+    this.engine.reset()
+    // Prefer the AR Engine tracker: eyeball blendshapes make pure-eye
+    // glances detectable, which the faceDetector pipeline cannot see.
+    // Devices without AREngine support fall back to the camera pipeline.
+    if (GazeArTracker.isSupported() && this.arTracker.start()) {
       this.tracking = true
       this.emitState()
-    } finally {
-      this.starting = false
+      return
     }
+    DiagnosticLogger.warn('reader', 'gaze_ar_fallback', 'falling back to faceDetector pipeline')
+    const started: boolean = await this.cameraService.start(context, (): boolean => this.isCurrent(activation))
+    if (!this.isCurrent(activation)) return
+    if (!started) {
+      // errorMessage was recorded through the camera error listener.
+      this.emitState()
+      return
+    }
+    this.tracking = true
+    this.emitState()
   }
 
   stopTracking(): void {
+    if (!this.active && !this.tracking && this.errorMessage === null) return
+    this.active = false
+    ++this.activation
     this.tracking = false
+    this.errorMessage = null
     this.arTracker.stop()
     this.cameraService.stop().catch((): void => {})
     this.emitState()
@@ -200,6 +219,7 @@ export class GazePageTurnController {
 
   /** Final teardown when the owning route goes away. */
   dispose(): void {
+    this.disposed = true
     this.stateListener = null
     this.stopTracking()
   }

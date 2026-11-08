@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T21:58:00+08:00",
+  "updatedAt": "2026-11-09T06:00:19+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 quota 逐出场景顿挫修复链全部实测闭环：evict 分批候选两段 26 次快滑无 33 毫秒以上间隔、偏好读取与滚动中 unlink 归零、>16.7 毫秒帧保持 0。",
@@ -83,6 +83,38 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "READER_EYE_GAZE_PR1",
+      "number": 261,
+      "title": "PR #1 眼动翻页的相机与误翻页修复",
+      "kind": "open",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-09",
+      "reportedAtSource": "用户在本会话转发 Dot 对 PR #1 的审查并要求先修复。",
+      "registeredAt": "2026-11-09T04:59:51+08:00",
+      "updatedAt": "2026-11-09T06:00:19+08:00",
+      "status": "原候选已获用户手测反馈；两项菜单已完成本地编译",
+      "result": "237 已安装的上一候选恢复点中央唤出工具栏及边缘点击翻页（95→96，菜单测试前回到95）；三项菜单图标可见，半透明眼动提示在页码上方，相隔21像素。用户手测反馈问题不大。设备保留该包，未动用户手测后的阅读位置；原超时已恢复、临时相机授权已撤回、相机没有启动会话并已释租。随后按用户要求去掉第三项，本地编译通过。旧候选触控回归证据仍保留。",
+      "remaining": "新候选只留自动翻页和眼动翻页，点已勾选项回到手动。新候选未安装，重复点选未真机复验。旧版阅读器、备用眼动路径、抬眼具体触发序列及工具栏打开时的提示边界未单独复验。237 上次复验后相机未授权，若未弹出授权可在系统的 Koma 权限页手动开启。提交与合并状态以 GitHub PR #1 为准。",
+      "evidence": [
+        ".hvigor/outputs/gaze-pr1-build.nmTtJ1eC/Koma-gaze-pr1-debug-signed.json",
+        ".hvigor/outputs/gaze-pr1-build.nmTtJ1eC/final-build.log",
+        ".hvigor/outputs/gaze-pr1-build.nmTtJ1eC/release-preflight.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/reader-toolbar-010/toolbar.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/restore-012/run-metadata.json",
+        ".hvigor/outputs/gaze-quick-menu.pQoy5GCY/Koma-gaze-quick-menu-debug-signed.json",
+        ".hvigor/outputs/gaze-quick-menu.pQoy5GCY/final-build.log",
+        ".hvigor/outputs/gaze-quick-menu.pQoy5GCY/Koma-gaze-footer-debug-signed.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/retest-touch-016/reader-chrome.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/retest-edge-next-017/after-next.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/retest-menu-018/assist-menu-detail.png",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/retest-gaze-active-022/gaze-active.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/retest-cleanup-024/run-metadata.json",
+        ".hvigor/outputs/reader-turn-controls.Bq7EBiXK/build.log",
+        ".hvigor/outputs/reader-turn-controls.Bq7EBiXK/Koma-reader-turn-controls-debug-signed.hap"
+      ]
+    },
     {
       "id": "SOURCE_BROWSE_COVER_RETRY",
       "number": 260,
@@ -9736,6 +9768,42 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "reader-turn-controls-local-20261109",
+      "at": "2026-11-09T06:00:19+08:00",
+      "title": "#261 快捷菜单改为再次点选取消",
+      "detail": "签名开发包编译通过，未覆盖安装或验收新候选。",
+      "kind": "checkpoint",
+      "itemId": "READER_EYE_GAZE_PR1",
+      "evidence": ".hvigor/outputs/reader-turn-controls.Bq7EBiXK/build.log"
+    },
+    {
+      "id": "reader-eye-gaze-237-quick-menu-retest-20261109",
+      "at": "2026-11-09T05:43:06+08:00",
+      "title": "#261 237 复验通过正文点按和三项菜单，用户完成手测",
+      "detail": "当前设备版已保留。页码与半透明眼动提示无重叠；本轮超时已恢复、相机授权撤回并释租。未执行整应用权限重置。",
+      "kind": "checkpoint",
+      "itemId": "READER_EYE_GAZE_PR1",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/retest-gaze-active-022/gaze-active.json"
+    },
+    {
+      "id": "reader-eye-gaze-237-touch-and-quick-menu-20261109",
+      "at": "2026-11-09T05:27:16+08:00",
+      "title": "#261 保留 237 触控失败证据，修正提示并接入原时钟菜单",
+      "detail": "原候选正文正常显示，但点中央未打开工具栏；读回原超时和锁屏并释租。去掉整页 overlay 后的新签名包构建通过，尚未在 237 覆盖。",
+      "kind": "checkpoint",
+      "itemId": "READER_EYE_GAZE_PR1",
+      "evidence": ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/reader-gaze-pr1/reader-toolbar-010/toolbar.json"
+    },
+    {
+      "id": "reader-eye-gaze-pr1-local-fix-20261109",
+      "at": "2026-11-09T04:59:51+08:00",
+      "title": "#261 眼动翻页已修复并完成本地验证",
+      "detail": "取消授权启动、备用相机释放后重启、重复帧和低置信度回归通过；真机待用户选定。",
+      "kind": "checkpoint",
+      "itemId": "READER_EYE_GAZE_PR1",
+      "evidence": ".hvigor/outputs/gaze-pr1-build.nmTtJ1eC/Koma-gaze-pr1-debug-signed.json"
+    },
     {
       "id": "continuous-performance-kit-coalesce-197-20261108",
       "at": "2026-11-08T21:58:00+08:00",

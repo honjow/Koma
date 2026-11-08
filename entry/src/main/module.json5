@@ -12,9 +12,7 @@
       { "name": "ohos.permission.KEEP_BACKGROUND_RUNNING" },
       { "name": "ohos.permission.FILE_ACCESS_PERSIST" },
       { "name": "ohos.permission.VIBRATE" },
-      { "name": "ohos.permission.CAMERA", "reason": "$string:camera_permission_reason", "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" } },
-      { "name": "ohos.permission.GYROSCOPE" },
-      { "name": "ohos.permission.ACCELEROMETER" }
+      { "name": "ohos.permission.CAMERA", "reason": "$string:camera_permission_reason", "usedScene": { "abilities": ["EntryAbility"], "when": "inuse" } }
     ],
     "abilities": [
       {

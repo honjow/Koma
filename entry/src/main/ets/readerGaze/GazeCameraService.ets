@@ -16,12 +16,12 @@ import { image } from '@kit.ImageKit'
 import { faceDetector } from '@kit.CoreVisionKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { common } from '@kit.AbilityKit'
-import { fileIo } from '@kit.CoreFileKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { GazeSample } from './GazePageTurnEngine'
 
 export type GazeFrameListener = (sample: GazeSample | null) => void
 export type GazeCameraErrorListener = (message: string) => void
+type GazeCameraAdmission = () => boolean
 
 export class GazeCameraService {
   /** Candidate frame rotations probed at startup; front sensors may deliver
@@ -30,16 +30,17 @@ export class GazeCameraService {
   private static readonly PROBE_FRAMES_PER_ANGLE: number = 5
   private frameListener: GazeFrameListener | null = null
   private errorListener: GazeCameraErrorListener | null = null
-  private cameraManager: camera.CameraManager | null = null
   private cameraInput: camera.CameraInput | null = null
   private captureSession: camera.CaptureSession | null = null
   private previewOutput: camera.PreviewOutput | null = null
   private receiver: image.ImageReceiver | null = null
   private frameWidth: number = 0
   private frameHeight: number = 0
-  private running: boolean = false
-  private processingFrame: boolean = false
-  private startTask: Promise<boolean> | null = null
+  // CoreVisionKit's detector is shared. Finish old setup, frame work and
+  // release before another activation can initialize it.
+  private static pipelineTail: Promise<void> = Promise.resolve()
+  private canDeliver: GazeCameraAdmission | null = null
+  private frameTask: Promise<void> | null = null
   private firstFrameLogged: boolean = false
   private frameLayoutLogged: boolean = false
   private frameErrorLogged: boolean = false
@@ -48,10 +49,6 @@ export class GazeCameraService {
   private probeHits: number[] = [0, 0, 0, 0]
   /** Locked clockwise rotation applied before detection; -1 while probing. */
   private rotationDegrees: number = -1
-  /** One-shot frame dump for on-device forensics (filesDir/gaze_dump_*.jpg). */
-  private dumpContext: common.UIAbilityContext | null = null
-  private dumpOrigDone: boolean = false
-  private dumpRotDone: boolean = false
 
   onFrame(listener: GazeFrameListener): void {
     this.frameListener = listener
@@ -61,33 +58,29 @@ export class GazeCameraService {
     this.errorListener = listener
   }
 
-  isRunning(): boolean {
-    return this.running
+  private static enqueue(action: () => Promise<boolean>): Promise<boolean> {
+    const result = GazeCameraService.pipelineTail.then(action)
+    GazeCameraService.pipelineTail = result.then((): void => {}, (): void => {})
+    return result
   }
 
-  async start(context: common.UIAbilityContext): Promise<boolean> {
-    if (this.running) {
-      return true
-    }
-    if (this.startTask !== null) {
-      return await this.startTask
-    }
-    this.startTask = this.startInternal(context)
-    const ok: boolean = await this.startTask
-    this.startTask = null
-    return ok
+  static waitForPendingOperations(): Promise<void> {
+    return GazeCameraService.pipelineTail
+  }
+
+  start(context: common.UIAbilityContext, admitted: GazeCameraAdmission): Promise<boolean> {
+    return GazeCameraService.enqueue(async (): Promise<boolean> => {
+      if (!admitted()) return false
+      return await this.startInternal(context, admitted)
+    })
   }
 
   async stop(): Promise<void> {
-    if (this.startTask !== null) {
-      await this.startTask
-      this.startTask = null
-    }
-    if (!this.running && this.captureSession === null && this.receiver === null) {
-      return
-    }
-    this.running = false
-    await this.releasePipeline()
+    this.canDeliver = null
+    await GazeCameraService.enqueue(async (): Promise<boolean> => {
+      if (this.receiver !== null) await this.releasePipeline()
+      return true
+    })
   }
 
   private reportError(message: string): void {
@@ -96,11 +89,13 @@ export class GazeCameraService {
     }
   }
 
-  private async startInternal(context: common.UIAbilityContext): Promise<boolean> {
+  private async startInternal(context: common.UIAbilityContext, admitted: GazeCameraAdmission): Promise<boolean> {
     let receiver: image.ImageReceiver | null = null
     let input: camera.CameraInput | null = null
     let session: camera.CaptureSession | null = null
     let preview: camera.PreviewOutput | null = null
+    let detectorReady: boolean = false
+    let published: boolean = false
     try {
       const manager: camera.CameraManager = camera.getCameraManager(context)
       const devices: Array<camera.CameraDevice> = manager.getSupportedCameras()
@@ -131,7 +126,8 @@ export class GazeCameraService {
       DiagnosticLogger.info('reader', 'gaze_camera_profile',
         `front=${front.cameraPosition} profile=${profile.size.width}x${profile.size.height} format=${profile.format}`)
       try {
-        const detectorReady: boolean = await faceDetector.init()
+        detectorReady = await faceDetector.init()
+        if (!admitted()) return false
         if (!detectorReady) {
           DiagnosticLogger.warn('reader', 'gaze_detector_init_failed', 'faceDetector.init returned false')
           this.reportError('detector_init_failed')
@@ -141,7 +137,7 @@ export class GazeCameraService {
         const err = error as BusinessError
         DiagnosticLogger.error('reader', 'gaze_detector_init_threw',
           `code=${err.code} name=${err.name} message=${err.message}`)
-        this.reportError(`detector_init_${err.code}`)
+        if (admitted()) this.reportError(`detector_init_${err.code}`)
         return false
       }
       DiagnosticLogger.info('reader', 'gaze_camera_step', 'detector_ready')
@@ -149,12 +145,15 @@ export class GazeCameraService {
       const height: number = profile.size.height
       receiver = image.createImageReceiver(width, height, image.ImageFormat.JPEG, 2)
       const surfaceId: string = await receiver.getReceivingSurfaceId()
+      if (!admitted()) return false
       DiagnosticLogger.info('reader', 'gaze_camera_step', `receiver_created surface=${surfaceId.length > 0}`)
+      const frameReceiver = receiver
       receiver.on('imageArrival', () => {
-        this.scheduleProcessFrame()
+        if (this.receiver === frameReceiver) this.scheduleProcessFrame()
       })
       input = manager.createCameraInput(front)
       await input.open()
+      if (!admitted()) return false
       DiagnosticLogger.info('reader', 'gaze_camera_step', 'camera_opened')
       session = manager.createCaptureSession()
       session.beginConfig()
@@ -163,10 +162,11 @@ export class GazeCameraService {
       DiagnosticLogger.info('reader', 'gaze_camera_step', 'preview_output_created')
       session.addOutput(preview)
       await session.commitConfig()
+      if (!admitted()) return false
       DiagnosticLogger.info('reader', 'gaze_camera_step', 'config_committed')
       await session.start()
+      if (!admitted()) return false
       DiagnosticLogger.info('reader', 'gaze_camera_step', 'session_started')
-      this.cameraManager = manager
       this.cameraInput = input
       this.captureSession = session
       this.previewOutput = preview
@@ -176,36 +176,33 @@ export class GazeCameraService {
       this.firstFrameLogged = false
       this.frameLayoutLogged = false
       this.frameErrorLogged = false
-      this.dumpContext = context
-      this.dumpOrigDone = false
-      this.dumpRotDone = false
       this.probeHits = [0, 0, 0, 0]
       this.probeRemaining =
         GazeCameraService.PROBE_ANGLES.length * GazeCameraService.PROBE_FRAMES_PER_ANGLE
       this.rotationDegrees = -1
-      this.running = true
+      this.canDeliver = admitted
+      published = true
       return true
     } catch (error) {
       const err = error as BusinessError
       DiagnosticLogger.error('reader', 'gaze_camera_start_failed',
         `code=${err.code} name=${err.name} message=${err.message}`)
-      this.reportError(`camera_start_${err.code}`)
-      this.cameraManager = null
-      this.cameraInput = null
-      this.captureSession = null
-      this.previewOutput = null
-      this.receiver = null
-      await GazeCameraService.releaseSessionPieces(session, preview, input, receiver)
+      if (admitted()) this.reportError(`camera_start_${err.code}`)
       return false
+    } finally {
+      if (!published) {
+        await GazeCameraService.releaseSessionPieces(session, preview, input, receiver, detectorReady, null)
+      }
     }
   }
 
   private static async releaseSessionPieces(session: camera.CaptureSession | null,
     preview: camera.PreviewOutput | null, input: camera.CameraInput | null,
-    receiver: image.ImageReceiver | null): Promise<void> {
+    receiver: image.ImageReceiver | null, detectorReady: boolean, frame: Promise<void> | null): Promise<void> {
     if (session !== null) {
       await session.stop().catch((): void => {})
     }
+    if (frame !== null) await frame.catch((): void => {})
     if (preview !== null) {
       await preview.release().catch((): void => {})
     }
@@ -218,7 +215,7 @@ export class GazeCameraService {
     if (receiver !== null) {
       await receiver.release().catch((): void => {})
     }
-    await faceDetector.release().catch((): void => {})
+    if (detectorReady) await faceDetector.release().catch((): void => {})
   }
 
   private async releasePipeline(): Promise<void> {
@@ -230,38 +227,30 @@ export class GazeCameraService {
     this.previewOutput = null
     this.cameraInput = null
     this.receiver = null
-    this.cameraManager = null
-    await GazeCameraService.releaseSessionPieces(session, preview, input, receiver)
+    await GazeCameraService.releaseSessionPieces(session, preview, input, receiver, true, this.frameTask)
   }
 
   private scheduleProcessFrame(): void {
-    if (!this.running || this.processingFrame) {
-      return
-    }
-    this.processingFrame = true
-    this.processLatestFrame()
-      .then((): void => {
-        this.processingFrame = false
-      })
-      .catch((): void => {
-        this.processingFrame = false
-      })
+    const receiver = this.receiver
+    const admitted = this.canDeliver
+    if (receiver === null || admitted === null || !admitted() || this.frameTask !== null) return
+    this.frameTask = this.processLatestFrame(receiver, admitted).finally((): void => {
+      this.frameTask = null
+    }).catch((): void => {})
   }
 
-  private async processLatestFrame(): Promise<void> {
-    const receiver = this.receiver
-    if (receiver === null || !this.running) {
-      return
-    }
+  private async processLatestFrame(receiver: image.ImageReceiver, admitted: GazeCameraAdmission): Promise<void> {
     let frameImage: image.Image | null = null
     let pixelMap: image.PixelMap | null = null
     try {
       frameImage = await receiver.readLatestImage()
+      if (!admitted()) return
       if (!this.firstFrameLogged) {
         this.firstFrameLogged = true
         DiagnosticLogger.info('reader', 'gaze_first_frame', `size=${this.frameWidth}x${this.frameHeight}`)
       }
       const comp: image.Component = await frameImage.getComponent(image.ComponentType.JPEG)
+      if (!admitted()) return
       if (!this.frameLayoutLogged) {
         this.frameLayoutLogged = true
         const expected: number = this.frameWidth * this.frameHeight * 3 / 2
@@ -275,6 +264,7 @@ export class GazeCameraService {
         pixelFormat: image.PixelMapFormat.RGBA_8888
       }
       pixelMap = await image.createPixelMap(nv21.buffer, options)
+      if (!admitted()) return
       const probing: boolean = this.probeRemaining > 0
       let probeIndex: number = -1
       if (probing) {
@@ -283,21 +273,15 @@ export class GazeCameraService {
         if (GazeCameraService.PROBE_ANGLES[probeIndex] > 0) {
           await pixelMap.rotate(GazeCameraService.PROBE_ANGLES[probeIndex])
         }
-      } else {
-        if (!this.dumpOrigDone && this.dumpContext !== null) {
-          this.dumpOrigDone = true
-          await GazeCameraService.dumpFrame(pixelMap, this.dumpContext, 'gaze_dump_orig.jpg')
-        }
-        if (this.rotationDegrees > 0) {
-          await pixelMap.rotate(this.rotationDegrees)
-        }
-        if (!this.dumpRotDone && this.dumpContext !== null) {
-          this.dumpRotDone = true
-          await GazeCameraService.dumpFrame(pixelMap, this.dumpContext, 'gaze_dump_rot.jpg')
-        }
+      } else if (this.rotationDegrees > 0) {
+        await pixelMap.rotate(this.rotationDegrees)
       }
+      if (!admitted()) return
+      // The permission text promises in-memory analysis. Never pack a
+      // camera frame into a file, including rotation probes.
       const visionInfo: faceDetector.VisionInfo = { pixelMap: pixelMap }
       const faces: Array<faceDetector.Face> = await faceDetector.detect(visionInfo)
+      if (!admitted()) return
       if (probing) {
         if (faces.length > 0) {
           this.probeHits[probeIndex] += 1
@@ -327,6 +311,8 @@ export class GazeCameraService {
         this.frameListener(sample)
       }
     } catch (error) {
+      if (!admitted()) return
+      this.frameListener?.(null)
       if (!this.frameErrorLogged) {
         this.frameErrorLogged = true
         const err = error as BusinessError
@@ -335,10 +321,10 @@ export class GazeCameraService {
       }
     } finally {
       if (pixelMap !== null) {
-        pixelMap.release().catch((): void => {})
+        await pixelMap.release().catch((): void => {})
       }
       if (frameImage !== null) {
-        frameImage.release().catch((): void => {})
+        await frameImage.release().catch((): void => {})
       }
     }
   }
@@ -370,27 +356,6 @@ export class GazeCameraService {
       nv21.set(src.subarray(srcStart, srcStart + width), ySize + row * width)
     }
     return nv21
-  }
-
-  /** Writes one debug frame as JPEG into the app sandbox for offline forensics. */
-  private static async dumpFrame(pixelMap: image.PixelMap, context: common.UIAbilityContext,
-    name: string): Promise<void> {
-    try {
-      const packer: image.ImagePacker = image.createImagePacker()
-      const data: ArrayBuffer = await packer.packing(pixelMap,
-        { format: 'image/jpeg', quality: 80 } as image.PackingOption)
-      await packer.release()
-      const path: string = `${context.filesDir}/${name}`
-      const file: fileIo.File =
-        fileIo.openSync(path, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC)
-      await fileIo.write(file.fd, data)
-      fileIo.closeSync(file)
-      DiagnosticLogger.info('reader', 'gaze_frame_dumped', path)
-    } catch (error) {
-      const err = error as BusinessError
-      DiagnosticLogger.error('reader', 'gaze_frame_dump_failed',
-        `code=${err.code} name=${err.name} message=${err.message}`)
-    }
   }
 
   /** Reduces the detection result to one sample built from the largest face. */

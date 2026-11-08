@@ -29,6 +29,9 @@ namespace {
 /** Eyeball/pose sample from the most recent tracked face; guarded by the state mutex. */
 struct GazeArSnapshot {
     bool hasFace = false;
+    int64_t frameSequence = 0;
+    int64_t lossSequence = 0;
+    AREngine_ARStatus status = ARENGINE_SUCCESS;
     /** Averaged left/right eyeball blendshape coefficients (typically 0..1). */
     float eyeUp = 0.0f;
     float eyeDown = 0.0f;
@@ -47,8 +50,6 @@ struct GazeArTrackerState {
     std::thread pump;
     std::atomic<bool> running{false};
     GazeArSnapshot latest;
-    /** Status of the most recent Update call; surfaces camera/service failures to ArkTS. */
-    std::atomic<int> lastUpdateStatus{ARENGINE_SUCCESS};
 };
 
 GazeArTrackerState g_tracker;
@@ -140,11 +141,26 @@ void PumpLoop()
         session = g_tracker.session;
         frame = g_tracker.frame;
     }
+    int64_t lastFrameTimestampNs = 0;
+    int64_t frameSequence = 0;
+    int64_t lossSequence = 0;
+    bool previousUsable = false;
     while (g_tracker.running.load()) {
-        const AREngine_ARStatus status = HMS_AREngine_ARSession_Update(session, frame);
-        g_tracker.lastUpdateStatus.store(static_cast<int>(status));
-        if (status == ARENGINE_SUCCESS) {
-            GazeArSnapshot snapshot;
+        GazeArSnapshot snapshot;
+        snapshot.status = HMS_AREngine_ARSession_Update(session, frame);
+        int64_t timestampNs = 0;
+        if (snapshot.status == ARENGINE_SUCCESS) {
+            snapshot.status = HMS_AREngine_ARFrame_GetTimestamp(session, frame, &timestampNs);
+        }
+        if (snapshot.status == ARENGINE_SUCCESS && timestampNs > 0) {
+            // LATEST can return the preceding frame even on success. A
+            // successful poll is not evidence of a distinct camera sample.
+            if (timestampNs <= lastFrameTimestampNs) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(33));
+                continue;
+            }
+            lastFrameTimestampNs = timestampNs;
+            snapshot.frameSequence = ++frameSequence;
             AREngine_ARTrackableList *list = nullptr;
             if (HMS_AREngine_ARTrackableList_Create(session, &list) == ARENGINE_SUCCESS && list != nullptr) {
                 if (HMS_AREngine_ARFrame_GetUpdatedTrackables(session, frame, ARENGINE_TRACKABLE_FACE, list) ==
@@ -168,16 +184,17 @@ void PumpLoop()
                 }
                 HMS_AREngine_ARTrackableList_Destroy(list);
             }
-            {
-                std::lock_guard<std::mutex> lock(g_tracker.mutex);
-                g_tracker.latest = snapshot;
-            }
-        } else {
-            // Camera not ready yet or transient failure; retry without burning CPU.
-            std::this_thread::sleep_for(std::chrono::milliseconds(66));
-            continue;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(33));
+        // Preserve interruptions even if the next good frame reaches ArkTS
+        // before the polling timer observes this invalid snapshot.
+        if (previousUsable && !snapshot.hasFace) ++lossSequence;
+        previousUsable = snapshot.hasFace;
+        snapshot.lossSequence = lossSequence;
+        {
+            std::lock_guard<std::mutex> lock(g_tracker.mutex);
+            g_tracker.latest = snapshot;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(snapshot.status == ARENGINE_SUCCESS ? 33 : 66));
     }
 }
 
@@ -244,7 +261,6 @@ napi_value Start(napi_env env, napi_callback_info info)
         g_tracker.frame = frame;
         g_tracker.latest = GazeArSnapshot{};
     }
-    g_tracker.lastUpdateStatus.store(ARENGINE_SUCCESS);
     g_tracker.running.store(true);
     g_tracker.pump = std::thread(PumpLoop);
     napi_create_int32(env, 0, &result);
@@ -275,7 +291,6 @@ napi_value Stop(napi_env env, napi_callback_info info)
         }
         HMS_AREngine_ARSession_Destroy(session);
     }
-    g_tracker.lastUpdateStatus.store(ARENGINE_SUCCESS);
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
     return result;
@@ -285,11 +300,9 @@ napi_value ReadSample(napi_env env, napi_callback_info info)
 {
     (void)info;
     GazeArSnapshot snapshot;
-    int status = ARENGINE_SUCCESS;
     {
         std::lock_guard<std::mutex> lock(g_tracker.mutex);
         snapshot = g_tracker.latest;
-        status = g_tracker.lastUpdateStatus.load();
     }
     napi_value result = nullptr;
     if (napi_create_object(env, &result) != napi_ok) {
@@ -316,7 +329,11 @@ napi_value ReadSample(napi_env env, napi_callback_info info)
     napi_set_named_property(env, result, "qz", value);
     napi_create_double(env, snapshot.quat[3], &value);
     napi_set_named_property(env, result, "qw", value);
-    napi_create_int32(env, status, &value);
+    napi_create_int64(env, snapshot.frameSequence, &value);
+    napi_set_named_property(env, result, "frameSequence", value);
+    napi_create_int64(env, snapshot.lossSequence, &value);
+    napi_set_named_property(env, result, "lossSequence", value);
+    napi_create_int32(env, static_cast<int32_t>(snapshot.status), &value);
     napi_set_named_property(env, result, "status", value);
     return result;
 }

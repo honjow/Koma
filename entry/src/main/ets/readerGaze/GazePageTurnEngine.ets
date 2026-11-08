@@ -2,14 +2,12 @@
  * Gaze page turn state machine.
  *
  * Implements the Huawei-Reading style gesture: after the reader's gaze has
- * stayed at the bottom of the page for a dwell window, glancing back up
+ * reached the lower part of the page for two distinct frames, glancing back up
  * (head pitch up / eyes up relative to the calibrated baseline) fires a
  * single "next page" command. All thresholds are relative to a short
  * calibration baseline captured when tracking starts, so device posture
  * and individual differences do not require absolute tuning.
  */
-import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-
 export enum GazePhase {
   CALIBRATING = 'calibrating',
   READING = 'reading',
@@ -24,7 +22,7 @@ export interface GazeSample {
   /** Eye centers' vertical position inside the face rect, normalized 0..1. */
   readonly eyeCenterY: number
   readonly probability: number
-  /** Monotonic milliseconds timestamp (e.g. Date.now()). */
+  /** Sample arrival in milliseconds, using the same clock as markLost. */
   readonly timestamp: number
 }
 
@@ -32,8 +30,6 @@ export interface GazeSample {
 
 export interface GazeEngineState {
   readonly phase: GazePhase
-  /** 0..1 progress of the bottom dwell window while READING. */
-  readonly dwellProgress: number
 }
 
 /** Tuning constants; signs may be flipped on-device if the detector reports reversed directions. */
@@ -129,9 +125,6 @@ export class GazePageTurnEngine {
   /** Last emitted state, so steady frames do not spam the UI (each emission
    * rebuilds the indicator overlay and can interrupt in-progress gestures). */
   private lastEmittedPhase: GazePhase | null = null
-  private lastEmittedProgress: number = -1
-  /** Throttled diagnostic sampling of raw gaze signals for on-device tuning. */
-  private lastDiagAt: number = 0
   /** Rolling windows of recent READING pitch / eye values driving the per-channel baseline servo. */
   private pitchHistory: number[] = []
   private eyeHistory: number[] = []
@@ -172,6 +165,7 @@ export class GazePageTurnEngine {
     this.calibrationEye = []
     this.calibrationStartedAt = Date.now()
     this.baselineReady = false
+    this.lastFaceAt = 0
     this.armedAt = 0
     this.armedGaze = 0
     this.cooldownUntil = 0
@@ -192,16 +186,13 @@ export class GazePageTurnEngine {
   }
 
   private emitState(): void {
-    const progress: number = this.phase === GazePhase.ARMED ? 1 : 0
-    if (this.phase === this.lastEmittedPhase && progress === this.lastEmittedProgress) {
+    if (this.phase === this.lastEmittedPhase) {
       return
     }
     this.lastEmittedPhase = this.phase
-    this.lastEmittedProgress = progress
     if (this.stateListener !== null) {
       this.stateListener({
-        phase: this.phase,
-        dwellProgress: progress
+        phase: this.phase
       })
     }
   }
@@ -251,19 +242,19 @@ export class GazePageTurnEngine {
     this.eyeHistory = []
   }
 
-  /** Feed one detector frame. Invalid or missing faces are expressed by calling onFaceLost. */
+  /** Feed one fresh detector frame. Invalid or missing faces break confirmation. */
   feed(sample: GazeSample): void {
     const now = sample.timestamp
-    this.lastFaceAt = now
-    this.emitDiag(sample, now)
-    if (sample.probability < GazeTuning.MIN_FACE_PROBABILITY) {
+    if (!Number.isFinite(sample.probability) || sample.probability < GazeTuning.MIN_FACE_PROBABILITY ||
+      !Number.isFinite(sample.pitch) || !Number.isFinite(sample.eyeCenterY)) {
       this.markLost(now)
       return
     }
-    if (this.phase === GazePhase.LOST) {
-      this.reset()
-      return
+    if (this.lastFaceAt > 0 && now - this.lastFaceAt >= GazeTuning.LOST_TOLERANCE_MS) {
+      this.markLost(now)
     }
+    if (this.phase === GazePhase.LOST) this.reset()
+    this.lastFaceAt = now
     if (this.phase === GazePhase.CALIBRATING) {
       this.calibrationPitch.push(sample.pitch)
       this.calibrationEye.push(sample.eyeCenterY)
@@ -405,22 +396,12 @@ export class GazePageTurnEngine {
     this.emitState()
   }
 
-  /** Throttled (500ms) dump of the raw gaze signals to calibrate thresholds. */
-  private emitDiag(sample: GazeSample, now: number): void {
-    if (now - this.lastDiagAt < 500) {
-      return
-    }
-    this.lastDiagAt = now
-    const gaze: string = this.baselineReady
-      ? this.combinedGaze(sample.pitch, sample.eyeCenterY).toFixed(3) : 'n/a'
-    DiagnosticLogger.info('reader', 'gaze_diag',
-      `phase=${this.phase} pitch=${sample.pitch.toFixed(2)} eye=${sample.eyeCenterY.toFixed(3)} ` +
-      `baseP=${this.baselinePitch.toFixed(2)} baseE=${this.baselineEye.toFixed(3)} gaze=${gaze} ` +
-      `lowest=${this.armedGaze.toFixed(3)} top=${this.triggerTopLevel.toFixed(3)} primed=${this.releasePrimed ? 1 : 0}`)
-  }
-
   /** Called when no usable face is present in the latest frame. */
   markLost(now: number): void {
+    // Brief dropouts keep the hint, but cannot complete a consecutive run.
+    this.bottomStreak = 0
+    this.upStreak = 0
+    this.releaseStreak = 0
     if (this.phase === GazePhase.LOST) {
       return
     }
@@ -431,8 +412,6 @@ export class GazePageTurnEngine {
     this.phase = GazePhase.LOST
     this.armedAt = 0
     this.armedGaze = 0
-    this.bottomStreak = 0
-    this.upStreak = 0
     this.emitState()
   }
 }

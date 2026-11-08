@@ -352,6 +352,8 @@
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "Handle wide pages" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "Volume key navigation" },
     { "name": "settings_row_reader_volume_key_navigation_detail", "value": "Use volume keys to turn pages" },
+    { "name": "reader_turn_assist", "value": "Page turn assistance" },
+    { "name": "reader_turn_assist_auto", "value": "Auto page turn" },
     { "name": "settings_row_reader_eye_gaze_page_turn_title", "value": "Eye gaze page turn" },
     { "name": "settings_row_reader_eye_gaze_page_turn_detail", "value": "Look at the bottom of the page, then glance up to turn the page (front camera stays on)" },
     { "name": "reader_eye_gaze_calibrating", "value": "Hold your normal reading posture" },

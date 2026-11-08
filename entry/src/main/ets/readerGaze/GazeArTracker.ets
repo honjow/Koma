@@ -7,13 +7,12 @@
  * center pose quaternion, and eyeCenterY is synthesized from the eyeball
  * down/up blendshape coefficients (straight ≈ 0.5, down > 0.5, up < 0.5).
  * Frames without a tracked face deliver null so the engine marks tracking
- * lost. Raw coefficients are logged (throttled) for on-device threshold
- * tuning; the faceDetector camera pipeline remains the fallback when the
+ * lost. The faceDetector camera pipeline remains the fallback when the
  * device does not support AREngine face tracking.
  */
 import gazeArNative from 'libkoma_gaze_ar.so'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { GazeSample } from './GazePageTurnEngine'
+import { GazeSample, GazeTuning } from './GazePageTurnEngine'
 
 interface NativeGazeAr {
   isSupported(): number
@@ -28,12 +27,8 @@ interface GazeArNativeSample {
   headPitchDeg: number
   eyeUp: number
   eyeDown: number
-  eyeLeft: number
-  eyeRight: number
-  qx: number
-  qy: number
-  qz: number
-  qw: number
+  frameSequence: number
+  lossSequence: number
   status: number
 }
 
@@ -44,10 +39,13 @@ const native: NativeGazeAr = gazeArNative as NativeGazeAr
 export class GazeArTracker {
   private static readonly POLL_INTERVAL_MS: number = 33
   private static readonly AR_SUCCESS: number = 0
+  private static owner: GazeArTracker | null = null
   private frameListener: GazeArFrameListener | null = null
   private pollTimer: number = -1
   private running: boolean = false
-  private lastDiagAt: number = 0
+  private lastFrameSequence: number = 0
+  private lastLossSequence: number = 0
+  private lastFrameAt: number = 0
 
   onFrame(listener: GazeArFrameListener): void {
     this.frameListener = listener
@@ -68,13 +66,17 @@ export class GazeArTracker {
     if (this.running) {
       return true
     }
+    if (GazeArTracker.owner !== null) return false
     const status: number = native.start()
     if (status !== GazeArTracker.AR_SUCCESS) {
       DiagnosticLogger.warn('reader', 'gaze_ar_start_failed', `status=${status}`)
       return false
     }
     this.running = true
-    this.lastDiagAt = 0
+    GazeArTracker.owner = this
+    this.lastFrameSequence = 0
+    this.lastLossSequence = 0
+    this.lastFrameAt = Date.now()
     this.pollTimer = setInterval((): void => {
       this.pollOnce()
     }, GazeArTracker.POLL_INTERVAL_MS)
@@ -91,40 +93,39 @@ export class GazeArTracker {
       return
     }
     this.running = false
-    native.stop()
+    if (GazeArTracker.owner === this) {
+      GazeArTracker.owner = null
+      native.stop()
+    }
     DiagnosticLogger.info('reader', 'gaze_ar_stopped', '')
   }
 
   private pollOnce(): void {
+    if (!this.running) return
     const raw: GazeArNativeSample = native.readSample()
-    this.emitDiag(raw)
     if (this.frameListener === null) {
       return
     }
-    if (!raw.hasFace) {
+    const now = Date.now()
+    const interrupted = raw.lossSequence !== this.lastLossSequence
+    this.lastLossSequence = raw.lossSequence
+    if (raw.status !== GazeArTracker.AR_SUCCESS || !raw.hasFace || raw.frameSequence <= 0) {
       this.frameListener(null)
       return
     }
+    if (raw.frameSequence === this.lastFrameSequence) {
+      if (now - this.lastFrameAt >= GazeTuning.LOST_TOLERANCE_MS) this.frameListener(null)
+      return
+    }
+    if (interrupted) this.frameListener(null)
+    this.lastFrameSequence = raw.frameSequence
+    this.lastFrameAt = now
     this.frameListener({
       pitch: raw.headPitchDeg,
       eyeCenterY: 0.5 + 0.5 * (raw.eyeDown - raw.eyeUp),
       probability: 1,
-      timestamp: Date.now()
+      timestamp: now
     })
   }
 
-  /** Throttled (500ms) dump of the raw AR signals for threshold tuning. */
-  private emitDiag(raw: GazeArNativeSample): void {
-    const now: number = Date.now()
-    if (now - this.lastDiagAt < 500) {
-      return
-    }
-    this.lastDiagAt = now
-    DiagnosticLogger.info('reader', 'gaze_ar_diag',
-      `hasFace=${raw.hasFace ? 1 : 0} pitch=${raw.headPitchDeg.toFixed(2)} ` +
-      `eU=${raw.eyeUp.toFixed(3)} eD=${raw.eyeDown.toFixed(3)} ` +
-      `eL=${raw.eyeLeft.toFixed(3)} eR=${raw.eyeRight.toFixed(3)} ` +
-      `q=[${raw.qx.toFixed(3)},${raw.qy.toFixed(3)},${raw.qz.toFixed(3)},${raw.qw.toFixed(3)}] ` +
-      `st=${raw.status}`)
-  }
 }

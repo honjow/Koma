@@ -857,7 +857,7 @@ export struct SettingsPage {
           'reader-display-effects', 'reader-background', 'reader-image-scaling', 'reader-show-page-number', 'reader-fullscreen', 'reader-keep-screen-awake']) },
         { key: 'reader-images', titleKey: 'settings_reader_group_image_enhancement', rows: this.rowsByKeys(['image-plugins', 'reader-trim-margins', 'reader-crop-strength', 'reader-images', 'reader-super-resolution', 'reader-super-resolution-model', 'reader-super-resolution-max-height', 'enhancement-models']) },
         { key: 'reader-operation', titleKey: 'settings_reader_group_navigation', rows: this.rowsByKeys([
-          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-volume-key-navigation', 'reader-volume-key-behavior', 'reader-eye-gaze-page-turn']) },
+          'reader-tap-zone-preset', 'reader-tap-zone-invert', 'reader-double-tap-zoom', 'reader-double-tap-interval', 'reader-auto-page', 'reader-eye-gaze-page-turn', 'reader-volume-key-navigation', 'reader-volume-key-behavior'']) },
         { key: 'reader-loading', titleKey: 'settings_reader_group_loading', rows: this.rowsByKeys(['reader-preload-pages', 'reader-preload-wifi-only']) },
         { key: 'reader-defaults', titleKey: 'settings_reader_group_defaults', rows: this.rowsByKeys(['reader-reset-defaults']) },
       ]
