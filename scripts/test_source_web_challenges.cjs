@@ -20,7 +20,7 @@ const ast = ts.createSourceFile('vm.ts', read('viewmodel/BrowseViewModel'), ts.S
 const owner = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'BrowseViewModel')
 const methods = ['authenticationRequest', 'challengeGate', 'clearWebChallenge', 'claimWebChallenge', 'canRetryWebChallenge', 'cancelWebChallenge',
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
-  'searchResultFingerprint', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
+  'searchResultFingerprint', 'hasActiveSearch', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'selectBrowseHome', 'loadBrowseHome', 'setSelectedSource',
   'selectBrowseDestination', 'browseDestinationCacheKey', 'rememberBrowseDestination',
   'sourceSupportsOperation', 'clearBrowseContent', 'clearBrowseListing', 'hasBrowseContent', 'resolveBrowseLoad',

@@ -14,8 +14,11 @@ function productionFunctions(name) {
 }
 const comicTree = ts.createSourceFile('ComicModels.ts', fs.readFileSync(path.join(__dirname,
   '../entry/src/main/ets/model/ComicModels.ets'), 'utf8'), ts.ScriptTarget.Latest, true)
-const coverAssignment = comicTree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'assignComicSourceCover').getText(comicTree)
-const code = coverAssignment + '\n' + productionFunctions('SourceChapterMetadata') + '\n' + productionFunctions('SourceChapterVisibility') + '\n' + names.map(name => tree.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name).getText(tree)).join('\n')
+const comicHelpers = ['assignComicSourceCover', 'setCompleteSourceChapterCatalog'].map(name =>
+  comicTree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(comicTree))
+const code = [...comicHelpers, productionFunctions('SourceChapterMetadata'), productionFunctions('SourceChapterVisibility'),
+  ...names.map(name => tree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name).getText(tree)),
+].join('\n')
 const output = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
 const exportsForTest = {}
 const clone = value => JSON.parse(JSON.stringify(value))
