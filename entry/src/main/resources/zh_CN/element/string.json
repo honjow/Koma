@@ -1968,6 +1968,8 @@
     {"name": "comic_render_service_inpainting", "value": "修复方式"},
     {"name": "cache_cover_title", "value": "封面缓存"},
     {"name": "cache_source_index_icons_title", "value": "源索引图标缓存"},
+    {"name": "cache_work_pages_title", "value": "作品页缓存"},
+    {"name": "cache_work_pages_count", "value": "%s 个作品页"},
     {"name": "cache_comic_translation", "value": "漫画翻译缓存"},
     {"name": "cache_clear_confirm", "value": "清除该缓存？"},
     {"name": "cache_stat_failed", "value": "读取缓存失败"},

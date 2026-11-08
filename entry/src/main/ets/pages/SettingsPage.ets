@@ -15,6 +15,7 @@ import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
 import { KomaCacheDirectoryRow } from '../components/KomaCacheDirectoryRow'
+import { KomaPageCacheRow } from '../components/KomaPageCacheRow'
 import { KomaTranslationSourcesContent, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
@@ -314,6 +315,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
         { key: 'cover-cache', titleKey: 'cache_cover_title', detailKey: '' },
         { key: 'source-index-icon-cache', titleKey: 'cache_source_index_icons_title', detailKey: '' },
+        { key: 'page-cache', titleKey: 'cache_work_pages_title', detailKey: '' },
         { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
@@ -2429,6 +2431,8 @@ export struct SettingsPage {
       KomaCacheDirectoryRow({ kind: 'cover', titleKey: 'cache_cover_title' })
     } else if (row.key === 'source-index-icon-cache') {
       KomaCacheDirectoryRow({ kind: 'index-icons', titleKey: 'cache_source_index_icons_title' })
+    } else if (row.key === 'page-cache') {
+      KomaPageCacheRow()
     } else if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
       LibraryAutomationSettingRow({ rowKey: row.key, title: this.rowTitle(row), policy: this.automationPolicy,
         categories: this.automationCategories(), onChange: (change: (policy: LibraryAutomationPreferences) => void) => {
