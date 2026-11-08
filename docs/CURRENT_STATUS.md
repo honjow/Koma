@@ -21,7 +21,7 @@
   "updatedAt": "2026-11-08T21:58:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "#001 197 优化候选长测短停顿明显下降，继续按 8.3 毫秒帧预算排查 ArkUI 布局长帧。",
+  "activity": "#001 197 合法 key 候选四项帧指标全部优于优化基线最佳段，继续压 FlushDirtyNodeUpdate 与剩余连字符 key 来源。",
   "nextAction": "",
   "proof": [
     {
@@ -3543,8 +3543,8 @@
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。优化候选 SHA 8d5f6734 在 197 从《装备我最强》93/95 页连续下翻 518 次、10 分 36 秒，跨章至 12/111 页。三份同参数 HTrace 最长手势帧间隔为 26.5、35.5、62.1 毫秒，基线为 65.2、108.2、70.6 毫秒；超过 33.3 毫秒的间隔从 12 次降到 4 次，界面帧处理均低于 16.7 毫秒。当前偏好与缓存上限不变，关闭阅读器仍立即提交进度和缓存维护。",
-      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。 共享 Kit 的滚动范围合并候选 01798b1 在 197 第一段仍有 25 个超 8.3 毫秒界面帧、最长手势间隔 56.5 毫秒，未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
+      "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。优化候选 SHA 8d5f6734 在 197 从《装备我最强》93/95 页连续下翻 518 次、10 分 36 秒，跨章至 12/111 页。三份同参数 HTrace 最长手势帧间隔为 26.5、35.5、62.1 毫秒，基线为 65.2、108.2、70.6 毫秒；超过 33.3 毫秒的间隔从 12 次降到 4 次，界面帧处理均低于 16.7 毫秒。当前偏好与缓存上限不变，关闭阅读器仍立即提交进度和缓存维护。 合法 key 候选 SHA 1aa5a641（ReaderHostAction id 全部改为字母数字下划线）已覆盖安装 197 实测：74/113 页 26 次快滑跨章至 20/130，同口径 9.56 秒 trace 内超 8.3 毫秒界面帧 18 个（优化基线三段为 25/22/26），最长应用帧 9.904 毫秒（基线 11.437-16.673），最长手势帧间隔 21.5 毫秒（基线 26.5-62.1），无超 16.7 与 33.3 毫秒帧，四项全部不低于基线最佳段。包内 translate-page 字符串已清零确认修复生效。",
+      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。候选 trace 仍有 18 个 8.3-9.9 毫秒界面帧，栈全部集中在 ArkUI FlushDirtyNodeUpdate（5.4-8.1 毫秒），属新页挂载同帧脏节点批量更新；继续压需减少同帧脏节点数量。 Cannot use the key 警告修复不完整：进入阅读器瞬间仍有 39 次、滚动开始 6 次；hilog buffer 在 trace 开始 1 秒后被冲掉，滚动中是否仍有警告未证明。剩余连字符 key 来源：reader-ui 的 rkit-* 组件 id（共享仓，需原仓修改与授权推送）与 MangaDetailPage 的 manga-detail-download-button、menuAnchorId（详情页场景，本轮未触发，可在主仓修）。 共享 Kit 的滚动范围合并候选 01798b1 在 197 第一段仍有 25 个超 8.3 毫秒界面帧、最长手势间隔 56.5 毫秒，未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3553,6 +3553,9 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-long-scroll-197-valid-keys-20261108/settle/checkpoints.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-valid-keys-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-valid-keys/reader-new-pages-trace-20261108T223013663920/audit/long-scroll-summary.json",
+        ".hvigor/outputs/reader-long-scroll-197-valid-keys-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-valid-keys/install-20261108T222848031062/run-metadata.json",
         ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/checkpoints.jsonl",
         ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/trace-summary.jsonl",
         ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-optimized/reader-new-pages-trace-20261108T210418417632/hilog.txt",
