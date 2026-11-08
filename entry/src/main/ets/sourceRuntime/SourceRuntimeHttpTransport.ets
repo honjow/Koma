@@ -332,6 +332,17 @@ function sourceMethod(value: Object | string | number | boolean | null | undefin
   return method
 }
 
+function sourceDiagnosticTarget(value: string): string {
+  try {
+    const parsed = new urlKit.URL(value)
+    const path = parsed.pathname.length > 160 ? parsed.pathname.slice(0, 160) + '...' : parsed.pathname
+    return 'host=' + parsed.hostname + ' port=' + (parsed.port.length > 0 ? parsed.port : 'default') +
+      ' path=' + (path.length > 0 ? path : '/')
+  } catch (_error) {
+    return 'host=invalid'
+  }
+}
+
 function sourceHttpUrl(value: Object | string | number | boolean | null | undefined): string | undefined {
   const url = sourceString(value)?.trim()
   if (url === undefined || (!url.startsWith('https://') && !url.startsWith('http://'))) {
@@ -627,6 +638,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     if (typeof parsed.sourceId === 'string' && typeof parsed.sourceVersion === 'string' && typeof parsed.packageIdentity === 'string' &&
       Array.isArray(parsed.webSessionOrigins) && parsed.webSessionOrigins.every((item: string): boolean => typeof item === 'string')) identity = parsed
   } catch (_error) {}
+  const headerRecord = envelope.headers !== null && typeof envelope.headers === 'object' && !Array.isArray(envelope.headers)
+    ? envelope.headers as Record<string, Object> : undefined
+  const requestHeaderNames = headerRecord === undefined ? '' : Object.keys(headerRecord)
+    .map((name: string): string => name.toLocaleLowerCase()).sort().join(',')
+  trace.info('request_target', sourceDiagnosticTarget(url) + ' method=' + method +
+    ' source=' + (identity?.sourceId ?? '') + ' sourceVersion=' + (identity?.sourceVersion ?? '') +
+    ' headerNames=' + (requestHeaderNames.length > 0 ? requestHeaderNames : 'none'))
   const nativeSession = envelope.nativeSession === true
   const nativeOrigin = nativeSession ? sourceAuthenticationOrigin(url) : ''
   const nativeEntry = nativeSession && identity !== undefined ? appSourceRuntimeRegistry.lookup(identity.sourceId).entry : undefined
@@ -851,7 +869,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         throw error as Error
       } finally { request.off('headersReceive'); request.destroy() }
     }
-    trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode +
+    trace.info('hop_response', 'hop=' + redirects + ' status=' + response.responseCode + ' ' + sourceDiagnosticTarget(currentUrl) +
       ' headersReceived=' + (usedSourceBrowserHttp || firstHeaderMs >= 0) + ' firstHeaderMs=' + firstHeaderMs +
       ' elapsedMs=' + Math.max(0, Date.now() - hopStartedAt) + ' ' + sourceHttpTimingText(response.performanceTiming))
     if (nativeSession && !current()) {
@@ -957,7 +975,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       continue
     }
     if (accessSignal !== undefined) trace.info('access_signal', 'signal=' + accessSignal)
-    trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode + ' chars=' + responseBody.length)
+    trace.finish(response.responseCode >= 400 ? 'failed' : 'completed', 'status=' + response.responseCode +
+      ' chars=' + responseBody.length + ' ' + sourceDiagnosticTarget(currentUrl))
     const result = new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId)
     if (guestSearch) {
       result.guestSearchUrl = currentUrl
