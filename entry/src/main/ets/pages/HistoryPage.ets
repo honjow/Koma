@@ -31,6 +31,7 @@ import { AppStrings } from '../i18n/AppStrings'
 import { RemoteReadHistoryEntry } from '../model/RemoteReaderSession'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
+import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 const HISTORY_LIMIT: number = 50
 const MS_PER_MINUTE: number = 60 * 1000
@@ -63,6 +64,7 @@ interface HistoryItem {
   title: string
   coverUri?: string
   sourceRuntimeId?: string
+  sourceName: string
   sourceImageId?: string
   sourceMangaUrl?: string
   sourceKind?: ComicSourceKind
@@ -144,7 +146,7 @@ export struct HistoryPage {
     }
     const libraryItems: HistoryItem[] = this.libraryStore.listLibraryItems(progressByComicId)
       .filter((item: LibraryItem) => item.lastReadAt !== undefined)
-      .map((item: LibraryItem): HistoryItem => this.libraryHistoryItem(item, sourceByComic.get(item.comicId)?.coverUri))
+      .map((item: LibraryItem): HistoryItem => this.libraryHistoryItem(item, sourceByComic.get(item.comicId)))
     const libraryComicIds: Set<ComicId> = new Set<ComicId>()
     libraryItems.forEach((item: HistoryItem): void => {
       libraryComicIds.add(item.comicId)
@@ -162,7 +164,7 @@ export struct HistoryPage {
         const progress = progressByComicId.get(entry.comicId)
         if (!libraryComicIds.has(entry.comicId) && progress !== undefined && progress.chapterId === entry.chapterId) {
           remoteItems.push({ id: `remote-history:${entry.comicId}`, comicId: entry.comicId,
-            title: entry.title, remoteServerId: entry.serverId, chapterCount: 1,
+            title: entry.title, sourceName: '', remoteServerId: entry.serverId, chapterCount: 1,
             pageCount: progress.totalPages, lastReadAt: progress.updatedAt, progress, remoteHistory: entry })
         }
       })
@@ -175,13 +177,23 @@ export struct HistoryPage {
     console.info(`[History] step=load_done count=${this.historyItems.length}`)
   }
 
-  private libraryHistoryItem(item: LibraryItem, historyCover?: string): HistoryItem {
+  private historySourceName(sourceId?: string, savedName?: string, historyName?: string): string {
+    if (!sourceId) return ''
+    const name = savedName?.trim() ?? ''
+    const fallback = historyName?.trim() ?? ''
+    return sourceDisplayName(sourceId, name && name !== sourceId ? name : fallback === sourceId ? '' : fallback)
+  }
+
+  private libraryHistoryItem(item: LibraryItem, history?: SourceReadHistoryEntry): HistoryItem {
     return {
       id: item.id,
       comicId: item.comicId,
       title: item.title,
-      coverUri: item.coverUri || historyCover,
+      coverUri: item.coverUri || history?.coverUri,
       sourceRuntimeId: item.sourceRuntimeId,
+      sourceName: this.historySourceName(item.sourceRuntimeId,
+        this.libraryStore.getComic(item.comicId)?.sourceMetadata?.sourceName,
+        history?.sourceId === item.sourceRuntimeId ? history?.sourceName : undefined),
       sourceMangaUrl: item.sourcePath,
       sourceImageId: item.sourceImageId,
       sourceKind: item.sourceKind,
@@ -200,6 +212,7 @@ export struct HistoryPage {
       title: entry.title,
       coverUri: entry.coverUri,
       sourceRuntimeId: entry.sourceId,
+      sourceName: this.historySourceName(entry.sourceId, entry.sourceName),
       sourceMangaUrl: entry.mangaUrl,
       sourceImageId: entry.mangaId,
       chapterCount: 1,
@@ -440,6 +453,7 @@ export struct HistoryPage {
       item.id,
       item.title,
       item.coverUri ?? '',
+      item.sourceName,
       item.sourceMangaUrl ?? '',
       item.progress?.chapterId ?? '',
       item.progress?.pageIndex ?? -1,
@@ -560,6 +574,29 @@ export struct HistoryPage {
   }
 
   @Builder
+  private HistoryMetadata(sourceName: string, time: string) {
+    // Let a long source name shrink first so the existing time stays on this line.
+    Row() {
+      if (sourceName.length > 0) {
+        Text(sourceName)
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .flexShrink(1)
+      }
+      if (time.length > 0) {
+        Text(sourceName.length > 0 ? ` · ${time}` : time)
+          .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+          .fontColor(ThemeConstants.TEXT_SECONDARY)
+          .maxLines(1)
+          .flexShrink(0)
+      }
+    }
+    .layoutWeight(1)
+  }
+
+  @Builder
   private HistoryRow(item: HistoryItem) {
     Row({ space: ThemeConstants.SPACE_LG }) {
       Row() {
@@ -596,10 +633,7 @@ export struct HistoryPage {
         .alignItems(HorizontalAlign.Start)
 
         Row() {
-          Text(this.relativeTime(item.lastReadAt))
-            .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
-            .fontColor(ThemeConstants.TEXT_SECONDARY)
-            .layoutWeight(1)
+          this.HistoryMetadata(item.sourceName, this.relativeTime(item.lastReadAt))
           KomaIconButton({
             icon: $r('sys.symbol.trash'),
             controlSize: 24,

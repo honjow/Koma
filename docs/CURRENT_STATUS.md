@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T09:47:37+08:00",
+  "updatedAt": "2026-11-08T10:02:43+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 197 长测已完成，#244 书架采样未复现。",
@@ -83,6 +83,22 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "HISTORY_ROW_SOURCE_LABEL",
+      "number": 252,
+      "title": "历史条目显示书源",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话要求在原时间行前添加书源名，以点号分隔。",
+      "status": "197 已核对书源、时间与卡片高度",
+      "result": "瓜子漫画和动漫屋的书源名与时间同行。修改前后，两条卡片的高度一致。",
+      "updatedAt": "2026-11-08T10:02:43+08:00",
+      "closedAt": "2026-11-08T10:02:43+08:00",
+      "evidencePaths": [".hvigor/outputs/history-source-label-20261108/history-197.png"]
+    },
     {
       "id": "READER_THUMBNAIL_WIDTH_TRANSITION",
       "number": 250,
