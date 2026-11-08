@@ -139,6 +139,7 @@ export struct ReaderSettingsContent {
       superResolutionMaxHeight: p.superResolutionMaxHeight,
       wideImageMode: p.wideImageMode,
       volumeKeyNavigationEnabled: p.volumeKeyNavigationEnabled,
+      eyeGazePageTurnEnabled: p.eyeGazePageTurnEnabled,
       smartKeyPageTurnEnabled: p.smartKeyPageTurnEnabled,
       volumeKeyBehavior: p.volumeKeyBehavior,
     }
@@ -254,6 +255,7 @@ export struct ReaderSettingsContent {
     if (key === 'double-tap-zoom') next.doubleTapZoomEnabled = value
     if (key === 'awake') next.keepScreenAwake = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
+    if (key === 'eye-gaze') next.eyeGazePageTurnEnabled = value
     if (key === 'smart-key') next.smartKeyPageTurnEnabled = value
     if (key === 'trim-margins') next.trimPageMarginsEnabled = value
     this.update(next)
@@ -492,6 +494,8 @@ export struct ReaderSettingsContent {
               ConciseListRow({ title: s('reader_auto_page_title'), trailingText: `${this.preferences.autoPageSeconds}s`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.AutoPageMenu(select) } })
               ListDivider()
               ConciseListRow({ title: s('reader_preload_pages_title'), trailingText: `${this.preferences.preloadPages}`, trailingDropdown: true, dropdownMenuEnabled: true, dropdownMenuBuilder: (select: (action: () => void) => void) => { this.PreloadMenu(select) } })
+              ListDivider()
+              ConciseListRow({ title: s('settings_row_reader_eye_gaze_page_turn_title'), subtitle: s('settings_row_reader_eye_gaze_page_turn_detail'), hasSwitch: true, checked: this.preferences.eyeGazePageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('eye-gaze', value) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
               ListDivider()

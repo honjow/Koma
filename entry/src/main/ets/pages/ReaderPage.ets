@@ -22,7 +22,8 @@ import { fileIo as fs, fileUri } from '@kit.CoreFileKit'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { systemShare } from '@kit.ShareKit'
 import { uniformTypeDescriptor as utd } from '@kit.ArkData'
-import { ReaderChrome, ReaderChromePreferencesChange } from '../components/ReaderChrome'
+import { ReaderChrome, ReaderChromePreferencesChange, readerLegacyBottomHeight } from '../components/ReaderChrome'
+import { ReaderTurnAssist } from '../components/ReaderTurnAssistControl'
 import {
   EMPTY_READER_SESSION_CONFIG,
   InMemoryReaderSessionStore,
@@ -58,6 +59,9 @@ import {
 import { ReadingDirection, ReadingProgress } from '../model/ComicModels'
 import { CoverPixelMapLease, CoverPixelMapMemoryCache } from '../model/CoverPixelMapMemoryCache'
 import { ReaderTapZoneRegion, readerTapZoneRegions, resolveReaderTapZoneAction } from '../model/ReaderTapZoneGeometry'
+import { GazePageTurnController, GazeTurnUiState } from '../readerGaze/GazePageTurnController'
+import { GazePageTurnIndicator } from '../readerGaze/GazePageTurnIndicator'
+import { GazePhase } from '../readerGaze/GazePageTurnEngine'
 import { ReaderPageIndexDataSource } from '../model/ReaderPageIndexDataSource'
 import { ReaderChapterOpenIntent, automaticContinuationChapterIds } from '../model/ReaderChapterSequence'
 import {
@@ -1869,6 +1873,16 @@ export struct ReaderPage {
     if (next) this.userNextPage()
     else this.userPreviousPage()
   })
+  private gazePageTurn: GazePageTurnController = new GazePageTurnController((): boolean => {
+    if (this.turnAssistMenuShown) return false
+    this.userNextPage()
+    return true
+  }, (): boolean => this.gazeAdmitted())
+  @Local private gazeTurnOverride: boolean | null = null
+  private turnAssistMenuShown: boolean = false
+  @Local private gazeUiState: GazeTurnUiState = {
+    tracking: false, phase: GazePhase.CALIBRATING, errorMessage: null
+  }
   private closing: boolean = false
   private autoPageTimerId: number = -1
   private autoPageWaitingIndex: number = -1
@@ -1897,6 +1911,8 @@ export struct ReaderPage {
 
   aboutToAppear(): void {
     this.closing = false
+    this.gazeTurnOverride = null
+    this.turnAssistMenuShown = false
     this.preloadNetworkMonitor = new ReaderPreloadNetworkMonitor((wifi: boolean): void => {
       this.preloadNetworkWifi = wifi
       if (wifi && this.readerOpen) this.prefetchLookahead(this.pageIndex)
@@ -1905,6 +1921,8 @@ export struct ReaderPage {
     this.loadPreferences()
     this.syncSession(true)
     this.registerVolumeKeyConsumerIfNeeded()
+    this.gazePageTurn.onStateChange((state: GazeTurnUiState): void => { this.gazeUiState = state })
+    this.syncEyeGazePageTurn()
   }
 
   aboutToDisappear(): void {
@@ -1919,6 +1937,7 @@ export struct ReaderPage {
     this.clearStatusBarHideTimer()
     this.unregisterVolumeKeyConsumer()
     this.smartKey.close()
+    this.gazePageTurn.dispose()
     this.stopAutoPage()
     void this.thumbnailPixelMapCache.clear()
   }
@@ -2028,6 +2047,7 @@ export struct ReaderPage {
       this.setReaderKeepScreenOn(this.preferences.keepScreenAwake)
       this.emitWebtoonMode(this.preferences.pageMode === 'continuous_scroll' || this.preferences.readingDirection === ReadingDirection.WEBTOON)
       this.registerVolumeKeyConsumerIfNeeded()
+      this.syncEyeGazePageTurn()
       if (this.routeVisible) {
         this.scheduleStatusBarVisibility()
       }
@@ -2160,6 +2180,7 @@ export struct ReaderPage {
     }
     this.closing = true
     this.smartKey.close()
+    this.gazePageTurn.stopTracking()
     this.statusBarEpoch += 1
     this.clearStatusBarHideTimer()
     this.stopAutoPage()
@@ -2198,7 +2219,8 @@ export struct ReaderPage {
 
   private scheduleAutoPage(): void {
     this.clearAutoPageTimer()
-    if (!this.autoPageActive || !this.readerOpen || this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
+    if (!this.autoPageActive || !this.readerOpen || this.turnAssistMenuShown ||
+      this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
       return
     }
     this.autoPageTimerId = setTimeout(() => {
@@ -2225,16 +2247,23 @@ export struct ReaderPage {
     }, Math.max(1, this.preferences.autoPageSeconds) * 1000)
   }
 
-  private toggleAutoPage(): void {
-    if (this.autoPageActive) {
-      this.stopAutoPage()
-      return
+  private selectTurnAssist(mode: ReaderTurnAssist): void {
+    if (this.closing || !this.readerOpen || !this.routeVisible || !this.appForegroundState.active) return
+    if (mode !== 'auto') this.stopAutoPage()
+    this.gazeTurnOverride = mode === 'gaze'
+    if (mode === 'gaze' && this.gazeUiState.errorMessage !== null) this.gazePageTurn.stopTracking()
+    this.syncEyeGazePageTurn()
+    if (mode === 'auto' && this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL && !this.autoPageActive) {
+      this.autoPageActive = true
+      this.scheduleAutoPage()
     }
-    if (this.effectiveMode() === ReaderMode.CONTINUOUS_SCROLL) {
-      return
-    }
-    this.autoPageActive = true
-    this.scheduleAutoPage()
+  }
+
+  private setTurnAssistMenuShown(shown: boolean): void {
+    this.turnAssistMenuShown = shown
+    this.syncSmartKey()
+    if (shown) this.clearAutoPageTimer()
+    else if (this.autoPageWaitingIndex < 0) this.scheduleAutoPage()
   }
 
   private stopAutoPage(): void {
@@ -2859,8 +2888,9 @@ export struct ReaderPage {
       superResolutionMaxHeight: p.superResolutionMaxHeight,
       wideImageMode: p.wideImageMode,
       volumeKeyNavigationEnabled: p.volumeKeyNavigationEnabled,
-      smartKeyPageTurnEnabled: p.smartKeyPageTurnEnabled,
       volumeKeyBehavior: p.volumeKeyBehavior,
+      eyeGazePageTurnEnabled: p.eyeGazePageTurnEnabled,
+      smartKeyPageTurnEnabled: p.smartKeyPageTurnEnabled,
     }
   }
 
@@ -2884,6 +2914,10 @@ export struct ReaderPage {
     const previousTapZone = this.preferences.tapZonePreset
     const previousTapInvert = this.preferences.tapZoneInvert
     this.preferences = next
+    if (previous.eyeGazePageTurnEnabled !== next.eyeGazePageTurnEnabled) {
+      this.gazeTurnOverride = null
+      if (next.eyeGazePageTurnEnabled) this.stopAutoPage()
+    }
     this.preferenceRevision += 1
     this.refreshPageDataSources()
     // NextE's zone feedback is intentionally immediate and one-shot: the
@@ -2912,6 +2946,7 @@ export struct ReaderPage {
     if (!this.preferences.volumeKeyNavigationEnabled) {
       this.unregisterVolumeKeyConsumer()
     }
+    this.syncEyeGazePageTurn()
     if (this.routeVisible) {
       this.scheduleStatusBarVisibility()
     }
@@ -3325,9 +3360,13 @@ export struct ReaderPage {
     return true
   }
 
+  private gazeRequested(): boolean {
+    return this.gazeTurnOverride ?? this.preferences.eyeGazePageTurnEnabled
+  }
+
   private smartKeyAdmitted(): boolean {
     return this.readerOpen && this.routeVisible && this.appForegroundState.active && this.settingsReady &&
-      !this.sessionLoading && !this.authenticationShown && !this.closing &&
+      !this.sessionLoading && !this.authenticationShown && !this.closing && !this.turnAssistMenuShown &&
       this.sessionConfig.totalPages > 0 && this.preferences.smartKeyPageTurnEnabled
   }
 
@@ -3335,6 +3374,23 @@ export struct ReaderPage {
     'sessionLoading', 'authenticationShown', 'sessionConfig', 'preferences')
   private syncSmartKey(): void {
     this.smartKey.setActive(this.smartKeyAdmitted())
+  }
+
+  private gazeAdmitted(): boolean {
+    return this.readerOpen && this.routeVisible && this.appForegroundState.active &&
+      this.settingsReady && !this.sessionLoading && !this.authenticationShown &&
+      !this.closing && this.gazeRequested()
+  }
+
+  @Monitor('readerOpen', 'routeVisible', 'appForegroundState.active', 'settingsReady',
+    'sessionLoading', 'authenticationShown')
+  private syncEyeGazePageTurn(): void {
+    if (this.gazeAdmitted()) {
+      void this.gazePageTurn.setActive(true,
+        this.getUIContext().getHostContext() as common.UIAbilityContext)
+    } else {
+      this.gazePageTurn.stopTracking()
+    }
   }
 
   private registerVolumeKeyConsumerIfNeeded(): void {
@@ -3883,11 +3939,34 @@ export struct ReaderPage {
   }
 
   @Builder
-  private PersistentPageNumber() {
+  private PersistentPageNumber(bottomMargin: number) {
     ReaderPageNumberOverlay({
       value: `${this.pageIndex + 1} / ${Math.max(this.sessionConfig.totalPages, 0)}`,
-      bottomMargin: this.layout.bottomAvoidHeight + 8,
+      bottomMargin,
     })
+  }
+
+  private showPersistentPageNumber(): boolean {
+    return this.sessionConfig.totalPages > 0 && !this.sessionConfig.pageUris.includes('source-placeholder://chapter') &&
+      this.preferences.showPageNumber
+  }
+
+  @Builder
+  private ReaderFooter() {
+    if (this.gazeUiState.tracking || this.gazeUiState.errorMessage !== null) {
+      if (this.chromeShown) {
+        Row() { GazePageTurnIndicator({ state: this.gazeUiState }) }
+          .margin({ bottom: readerLegacyBottomHeight(this.layout.bottomAvoidHeight, this.thumbnailStripVisible) +
+            ThemeConstants.SPACE_XS }).hitTestBehavior(HitTestMode.None)
+      } else {
+        Column({ space: ThemeConstants.SPACE_XS }) {
+          GazePageTurnIndicator({ state: this.gazeUiState })
+          if (this.showPersistentPageNumber()) this.PersistentPageNumber(0)
+        }.width('100%').margin({ bottom: this.layout.bottomAvoidHeight + 8 }).hitTestBehavior(HitTestMode.None)
+      }
+    } else if (!this.chromeShown && this.showPersistentPageNumber()) {
+      this.PersistentPageNumber(this.layout.bottomAvoidHeight + 8)
+    }
   }
 
   @Builder
@@ -3936,6 +4015,9 @@ export struct ReaderPage {
       pageFailed: this.failedPages.includes(this.pageIndex),
       zoomScale: this.zoomScale,
       autoPageActive: this.autoPageActive,
+      gazeSelected: this.gazeRequested(),
+      gazeTracking: this.gazeUiState.tracking,
+      gazeAvailable: this.readerOpen && !this.sessionLoading && this.sessionConfig.totalPages > 0,
       canTurnOnePageInDoublePage: this.canTurnOnePageInDoublePage(),
       thumbStripVisible: this.thumbnailStripVisible,
       pageImageWidth: this.pageWidth(this.pageIndex) ?? 0,
@@ -3964,7 +4046,8 @@ export struct ReaderPage {
       onOpenMangaDetail: () => { this.onOpenMangaDetail() },
       onResetZoom: () => { this.resetZoomState() },
       onReloadPage: () => { this.retryCurrentPage() },
-      onToggleAutoPage: () => { this.toggleAutoPage() },
+      onTurnAssist: (mode: ReaderTurnAssist): void => { this.selectTurnAssist(mode) },
+      onTurnAssistMenuVisible: (visible: boolean): void => { this.setTurnAssistMenuShown(visible) },
       onTurnOnePageInDoublePage: () => { this.turnOnePageInDoublePage() },
       onToggleThumbStrip: () => { this.toggleThumbnailStrip() },
       onSaveImage: () => { void this.saveCurrentPageImage() },
@@ -3984,7 +4067,7 @@ export struct ReaderPage {
       if (this.readerOpen && this.sessionConfig.totalPages > 0 && this.effectiveMode() !== ReaderMode.CONTINUOUS_SCROLL) {
         this.ReaderTapOverlay()
       }
-      if (this.readerOpen && this.sessionConfig.totalPages > 0 && !this.sessionConfig.pageUris.includes('source-placeholder://chapter') && !this.chromeShown && this.preferences.showPageNumber) this.PersistentPageNumber()
+      if (this.readerOpen) this.ReaderFooter()
       if (this.readerOpen && this.tapPreviewVisible) this.TapZonePreview()
       if (this.readerOpen && this.chromeShown) {
         this.ReaderChromeBar('top')

@@ -1794,6 +1794,7 @@ export class BackupService {
       superResolutionMaxHeight: settings.superResolutionMaxHeight ?? DEFAULT_READER_PREFERENCES.superResolutionMaxHeight,
       wideImageMode: settings.wideImageMode ?? DEFAULT_READER_PREFERENCES.wideImageMode,
       volumeKeyNavigationEnabled: settings.volumeKeyNavigationEnabled ?? DEFAULT_READER_PREFERENCES.volumeKeyNavigationEnabled,
+      eyeGazePageTurnEnabled: settings.eyeGazePageTurnEnabled ?? DEFAULT_READER_PREFERENCES.eyeGazePageTurnEnabled,
       smartKeyPageTurnEnabled: settings.smartKeyPageTurnEnabled ?? DEFAULT_READER_PREFERENCES.smartKeyPageTurnEnabled,
       volumeKeyBehavior: settings.volumeKeyBehavior ?? DEFAULT_READER_PREFERENCES.volumeKeyBehavior,
     }

@@ -36,6 +36,7 @@ export class KomaReaderPreferenceBridge {
       superResolutionMaxHeight: current.superResolutionMaxHeight,
       wideImageMode: current.wideImageMode,
       volumeKeyNavigationEnabled: current.volumeKeyNavigationEnabled,
+      eyeGazePageTurnEnabled: current.eyeGazePageTurnEnabled,
       smartKeyPageTurnEnabled: current.smartKeyPageTurnEnabled,
       volumeKeyBehavior: current.volumeKeyBehavior,
       readerImplementation: current.readerImplementation === 'legacy' ? 'legacy' : 'shared',
@@ -73,6 +74,7 @@ export class KomaReaderPreferenceBridge {
       left.superResolutionMaxHeight === right.superResolutionMaxHeight &&
       left.wideImageMode === right.wideImageMode &&
       left.volumeKeyNavigationEnabled === right.volumeKeyNavigationEnabled &&
+      left.eyeGazePageTurnEnabled === right.eyeGazePageTurnEnabled &&
       left.smartKeyPageTurnEnabled === right.smartKeyPageTurnEnabled &&
       left.volumeKeyBehavior === right.volumeKeyBehavior &&
       left.readerImplementation === right.readerImplementation

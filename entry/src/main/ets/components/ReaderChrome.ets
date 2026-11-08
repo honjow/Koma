@@ -1,6 +1,7 @@
 import { ReaderTitleContent } from './ReaderTitleContent'
 import { komaMenuOptions, komaSheetOptions } from '../theme/KomaPopupOptions'
 import { ReaderModeControl } from './ReaderModeControl'
+import { ReaderTurnAssist, ReaderTurnAssistControl } from './ReaderTurnAssistControl'
 import { SymbolGlyphModifier } from '@kit.ArkUI'
 import { ReaderMode } from '../model/ReaderSessionStore'
 import { ReaderPreferences, DEFAULT_READER_PREFERENCES } from '../model/ReaderPreferencesStore'
@@ -14,6 +15,13 @@ import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 
 function s(key: string): string {
   return AppStrings.get(key)
+}
+
+const LEGACY_BOTTOM_CONTROLS_HEIGHT: number = 104
+const LEGACY_THUMBNAIL_STRIP_HEIGHT: number = 156
+
+export function readerLegacyBottomHeight(bottomInset: number, thumbnails: boolean): number {
+  return bottomInset + LEGACY_BOTTOM_CONTROLS_HEIGHT + (thumbnails ? LEGACY_THUMBNAIL_STRIP_HEIGHT : 0)
 }
 
 export interface ReaderChromePreferencesChange {
@@ -50,6 +58,9 @@ export struct ReaderChrome {
   @Param pageFailed: boolean = false
   @Param zoomScale: number = 1
   @Param autoPageActive: boolean = false
+  @Param gazeSelected: boolean = false
+  @Param gazeTracking: boolean = false
+  @Param gazeAvailable: boolean = false
   @Param canTurnOnePageInDoublePage: boolean = false
   @Param thumbStripVisible: boolean = false
   @Param pageImageWidth: number = 0
@@ -70,7 +81,8 @@ export struct ReaderChrome {
   @Event onOpenMangaDetail: () => void = () => {}
   @Event onResetZoom: () => void = () => {}
   @Event onReloadPage: () => void = () => {}
-  @Event onToggleAutoPage: () => void = () => {}
+  @Event onTurnAssist: (mode: ReaderTurnAssist) => void = () => {}
+  @Event onTurnAssistMenuVisible: (visible: boolean) => void = () => {}
   @Event onTurnOnePageInDoublePage: () => void = () => {}
   @Event onToggleThumbStrip: () => void = () => {}
   @Event onSaveImage: () => void = () => {}
@@ -110,7 +122,7 @@ export struct ReaderChrome {
   private barHeight(): number {
     return this.placement === 'top'
       ? this.topInset + 56
-      : this.bottomInset + 104 + (this.thumbStripVisible ? 156 : 0)
+      : readerLegacyBottomHeight(this.bottomInset, this.thumbStripVisible)
   }
 
   private barOffsetY(): number {
@@ -351,9 +363,9 @@ export struct ReaderChrome {
         }
       }
       .width('100%')
-      .height(this.thumbStripVisible ? 156 : 0)
+      .height(this.thumbStripVisible ? LEGACY_THUMBNAIL_STRIP_HEIGHT : 0)
       .padding({ top: this.thumbStripVisible ? ThemeConstants.SPACE_SM : 0, bottom: this.thumbStripVisible ? ThemeConstants.SPACE_SM : 0 })
-      .margin({ bottom: this.bottomInset + 104 })
+      .margin({ bottom: readerLegacyBottomHeight(this.bottomInset, false) })
       .backgroundColor('#CC000000')
       .clip(true)
       .hitTestBehavior(this.thumbStripVisible ? HitTestMode.Default : HitTestMode.None)
@@ -400,8 +412,14 @@ export struct ReaderChrome {
               },
             }))
           Blank().layoutWeight(1)
-          Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.clock')).fontSize(22).fontColor([this.autoPageActive ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
-            .width(44).height(44).backgroundColor(Color.Transparent).enabled(this.readerMode !== ReaderMode.CONTINUOUS_SCROLL).onClick(() => { this.onToggleAutoPage() })
+          ReaderTurnAssistControl({ mode: this.autoPageActive ? 'auto' : this.gazeSelected ? 'gaze' : 'off',
+            gazeTracking: this.gazeTracking,
+            controlEnabled: this.gazeAvailable || this.autoPageActive || this.gazeSelected,
+            autoAvailable: this.readerMode !== ReaderMode.CONTINUOUS_SCROLL,
+            gazeAvailable: this.gazeAvailable,
+            onSelect: (mode: ReaderTurnAssist): void => { this.onTurnAssist(mode) },
+            onMenuVisible: (visible: boolean): void => { this.onTurnAssistMenuVisible(visible) },
+          })
           Button({ type: ButtonType.Circle, stateEffect: true }) { SymbolGlyph($r('sys.symbol.rectangle_grid_2x1')).fontSize(22).fontColor([this.thumbStripVisible ? ThemeConstants.BRAND_PRIMARY : Color.White]) }
             .width(44).height(44).backgroundColor(Color.Transparent).onClick(() => { this.onToggleThumbStrip() })
           ReaderModeControl({ readerMode: this.readerMode,
@@ -409,9 +427,9 @@ export struct ReaderChrome {
           })
         }.width('100%').height(52).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG }).alignItems(VerticalAlign.Center)
       }
-      .width('100%').height(this.bottomInset + 104).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: this.bottomInset + ThemeConstants.SPACE_SM }).backgroundColor('#CC000000')
+      .width('100%').height(readerLegacyBottomHeight(this.bottomInset, false)).padding({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG, top: ThemeConstants.SPACE_SM, bottom: this.bottomInset + ThemeConstants.SPACE_SM }).backgroundColor('#CC000000')
     }
-    .width('100%').height(this.bottomInset + 104 + (this.thumbStripVisible ? 156 : 0)).hitTestBehavior(HitTestMode.Default)
+    .width('100%').height(readerLegacyBottomHeight(this.bottomInset, this.thumbStripVisible)).hitTestBehavior(HitTestMode.Default)
   }
 
   build() {
