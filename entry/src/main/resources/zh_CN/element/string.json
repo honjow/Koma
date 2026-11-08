@@ -1966,6 +1966,8 @@
     {"name": "comic_torii_available_credits", "value": "可用 Credits"},
     {"name": "comic_render_service_detection", "value": "检测灵敏度"},
     {"name": "comic_render_service_inpainting", "value": "修复方式"},
+    {"name": "cache_cover_title", "value": "封面缓存"},
+    {"name": "cache_source_index_icons_title", "value": "源索引图标缓存"},
     {"name": "cache_comic_translation", "value": "漫画翻译缓存"},
     {"name": "cache_clear_confirm", "value": "清除该缓存？"},
     {"name": "cache_stat_failed", "value": "读取缓存失败"},

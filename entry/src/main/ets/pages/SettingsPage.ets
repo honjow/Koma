@@ -14,6 +14,7 @@ import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory
 import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
+import { KomaCacheDirectoryRow } from '../components/KomaCacheDirectoryRow'
 import { KomaTranslationSourcesContent, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
@@ -311,6 +312,8 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'device-sync', titleKey: 'device_sync_title', detailKey: 'device_sync_entry_detail' },
         { key: 'device-sync-webdav', titleKey: 'device_sync_webdav', detailKey: 'device_sync_entry_detail' },
         { key: 'image-cache', titleKey: 'settings_row_image_cache_title', detailKey: 'settings_row_image_cache_detail' },
+        { key: 'cover-cache', titleKey: 'cache_cover_title', detailKey: '' },
+        { key: 'source-index-icon-cache', titleKey: 'cache_source_index_icons_title', detailKey: '' },
         { key: 'translation-cache', titleKey: 'cache_comic_translation', detailKey: '' },
         { key: 'cache-limit', titleKey: 'settings_row_cache_limit_title', detailKey: 'settings_row_cache_limit_detail' },
         { key: 'cache-auto-clean', titleKey: 'settings_row_cache_auto_clean_title', detailKey: 'settings_row_cache_auto_clean_detail' },
@@ -2422,6 +2425,10 @@ export struct SettingsPage {
   private SectionRow(row: SettingsRow) {
     if (row.key === 'translation-cache') {
       KomaTranslationCacheRow()
+    } else if (row.key === 'cover-cache') {
+      KomaCacheDirectoryRow({ kind: 'cover', titleKey: 'cache_cover_title' })
+    } else if (row.key === 'source-index-icon-cache') {
+      KomaCacheDirectoryRow({ kind: 'index-icons', titleKey: 'cache_source_index_icons_title' })
     } else if (LIBRARY_AUTOMATION_SETTING_KEYS.includes(row.key)) {
       LibraryAutomationSettingRow({ rowKey: row.key, title: this.rowTitle(row), policy: this.automationPolicy,
         categories: this.automationCategories(), onChange: (change: (policy: LibraryAutomationPreferences) => void) => {
