@@ -16,12 +16,12 @@
 {
   "schemaVersion": 1,
   "title": "Koma 当前工作",
-  "state": "1.2.3 已正式发布",
+  "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T13:45:50+08:00",
+  "updatedAt": "2026-11-08T14:29:10+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "17个书源更新已进入正式订阅，Komiic最低1.3.0，其余16个可在1.2.3更新。",
+  "activity": "Koma 1.4.0 已正式发布，公开包和更新日志已核对。",
   "nextAction": "",
   "proof": [
     {
@@ -83,6 +83,30 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "RELEASE_1_4_0",
+      "number": 259,
+      "title": "Koma 1.4.0 正式发布",
+      "kind": "accepted",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户要求按规范发布 1.4.0，并提交工作区中应纳入发布的改动。",
+      "status": "GitHub 正式版已发布，公开包与日志已核对",
+      "result": "正式版 1.4.0，构建号 13。公开 HAP、构建清单和更新日志已与正式标签产物核对。",
+      "remaining": "",
+      "updatedAt": "2026-11-08T14:29:10+08:00",
+      "closedAt": "2026-11-08T14:29:10+08:00",
+      "commit": "05f88878dc2f23719abca605f4a8c19ce0cc88d9",
+      "evidence": [
+        "changelog/v1.4.0.md",
+        "https://github.com/honjow/Koma/releases/tag/v1.4.0",
+        "https://github.com/honjow/Koma/actions/runs/42452969701",
+        "https://github.com/honjow/Koma/actions/runs/42453967174",
+        ".hvigor/outputs/release-1.4.0/verification.json"
+      ]
+    },
     {
       "id": "SHELF_WORK_INFO_ON_UPDATE",
       "number": 257,
@@ -9663,6 +9687,14 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "koma-140-published-20261108",
+      "at": "2026-11-08T14:29:10+08:00",
+      "title": "Koma 1.4.0 已发布",
+      "detail": "公开 HAP、构建清单和更新日志均已核对。",
+      "itemIds": ["RELEASE_1_4_0"],
+      "kind": "checkpoint"
+    },
     {
       "id": "shelf-work-info-and-removal-197-20261108",
       "at": "2026-11-08T13:45:50+08:00",
