@@ -213,10 +213,11 @@ export function configureReaderRemoteImageCache(
 }
 
 /** Bound cache directory maintenance and manifest writes to reader
- * interaction idle periods. */
-export function setReaderImageCacheEvictionPaused(paused: boolean): void {
+ * interaction idle periods. The cache gate resumes on its own longer settle;
+ * callers resuming only the GPU path pass skipCacheGate. */
+export function setReaderImageCacheEvictionPaused(paused: boolean, skipCacheGate: boolean = false): void {
   readerImageCacheStore?.setEvictionPaused(paused)
-  readerImageCacheStore?.setManifestWritePaused(paused)
+  if (!skipCacheGate) readerImageCacheStore?.setManifestWritePaused(paused)
 }
 
 async function maintainReaderImageCacheAfterWrite(path: string, original?: string): Promise<void> {

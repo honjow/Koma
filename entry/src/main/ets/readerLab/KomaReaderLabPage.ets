@@ -14,6 +14,7 @@ import { ReaderTitleContent } from '../components/ReaderTitleContent'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { ReaderDirectionControl, ReaderDirectionChoice } from '../components/ReaderDirectionControl'
 import { ReadingDirection } from '../model/ComicModels'
+import { LibraryAutomationPreferencesStore } from '../model/LibraryAutomationPreferencesStore'
 import { common } from '@kit.AbilityKit'
 import { HdsNavDestination } from '@kit.UIDesignKit'
 import { ReaderCancellation, ReaderDisplayPolicy, ReaderImageSaveHost, ReaderImageShareHost, ReaderInputPort,
@@ -279,6 +280,10 @@ export struct KomaReaderLabPage {
   }
 
   aboutToAppear(): void {
+    // Warm the automation policy cache here so the first post-read cleanup
+    // never performs its two native preference calls inside a scroll window.
+    void new LibraryAutomationPreferencesStore(
+      getContext(this) as common.UIAbilityContext).load().catch((): void => {})
     this.preloadNetworkMonitor = new ReaderPreloadNetworkMonitor((wifi: boolean): void => {
       this.preloadNetworkWifi = wifi
       this.session?.setPreloadDepth(this.readerPreloadDepth())
@@ -996,9 +1001,13 @@ export struct KomaReaderLabPage {
       `${effectiveBannerFilter(this.hostPreferences?.bannerFilter, this.hostPreferences?.bannerFilterOverride)}:${this.imageRules.userRevision}`)
   }
 
+  private cacheSettleTimer: number = -1
+
   private setEnhancementInteractionBusy(busy: boolean): void {
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
+    if (this.cacheSettleTimer >= 0) clearTimeout(this.cacheSettleTimer)
+    this.cacheSettleTimer = -1
     setReaderImageCacheEvictionPaused(busy)
     if (busy) {
       readerSuperResolutionSetInteractionPaused(true)
@@ -1008,13 +1017,20 @@ export struct KomaReaderLabPage {
     this.enhancementInteractionTimer = setTimeout((): void => {
       this.enhancementInteractionTimer = -1
       readerSuperResolutionSetInteractionPaused(false)
-      setReaderImageCacheEvictionPaused(false)
     }, 420)
+    // Continuous swipes leave ~440ms gaps between gestures; the cache gate uses
+    // a longer settle so eviction and manifest writes cannot leak into them.
+    this.cacheSettleTimer = setTimeout((): void => {
+      this.cacheSettleTimer = -1
+      setReaderImageCacheEvictionPaused(false)
+    }, 1600)
   }
 
   private releaseEnhancementInteraction(): void {
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
+    if (this.cacheSettleTimer >= 0) clearTimeout(this.cacheSettleTimer)
+    this.cacheSettleTimer = -1
     readerSuperResolutionSetInteractionPaused(false)
     setReaderImageCacheEvictionPaused(false)
   }
