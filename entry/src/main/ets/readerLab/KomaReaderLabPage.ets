@@ -41,6 +41,7 @@ import { KomaReaderCatalogHost } from './KomaReaderCatalogHost'
 import { KomaReaderSuperResolutionConfiguration, KomaReaderSuperResolutionProvider } from './KomaReaderSuperResolutionProvider'
 import { readerSuperResolutionSetInteractionPaused } from '../model/ReaderSuperResolutionService'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
+import { setReaderImageCacheEvictionPaused } from '../model/ReaderPageSourceAdapter'
 
 // A surface keeps one non-null session for its whole component lifetime.
 // Re-entry replaces the entry, rather than updating a mounted surface to null.
@@ -998,6 +999,7 @@ export struct KomaReaderLabPage {
   private setEnhancementInteractionBusy(busy: boolean): void {
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
+    setReaderImageCacheEvictionPaused(busy)
     if (busy) {
       readerSuperResolutionSetInteractionPaused(true)
       return
@@ -1006,6 +1008,7 @@ export struct KomaReaderLabPage {
     this.enhancementInteractionTimer = setTimeout((): void => {
       this.enhancementInteractionTimer = -1
       readerSuperResolutionSetInteractionPaused(false)
+      setReaderImageCacheEvictionPaused(false)
     }, 420)
   }
 
@@ -1013,6 +1016,7 @@ export struct KomaReaderLabPage {
     if (this.enhancementInteractionTimer >= 0) clearTimeout(this.enhancementInteractionTimer)
     this.enhancementInteractionTimer = -1
     readerSuperResolutionSetInteractionPaused(false)
+    setReaderImageCacheEvictionPaused(false)
   }
 
   private currentReaderMode(): ReaderMode {

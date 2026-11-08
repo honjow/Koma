@@ -172,6 +172,11 @@ export class RemoteImageCacheStore {
   private operationTail: Promise<void> = Promise.resolve()
   private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
   private reloadRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
+  private evictionPaused: boolean = false
+  private evictionPending: boolean = false
+  private pendingEvictionMaxBytes: number = 0
+  private pendingEvictionPreservedPaths: string[] = []
+  private resumeEviction: (() => void) | null = null
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.operationTail.then(operation, operation)
@@ -315,6 +320,44 @@ export class RemoteImageCacheStore {
 
   evictIfOver(maxBytes: number, preservedPath?: string | string[]): Promise<void> {
     return this.enqueue(() => this.evictIfOverNow(maxBytes, preservedPath))
+  }
+
+  /**
+   * The live continuous reader publishes many image files while the List is
+   * moving. Directory reconciliation and unlink callbacks return to the UI
+   * thread, so keep their maintenance demand outside the gesture and run the
+   * latest quota once interaction settles. Explicit cache management still
+   * calls evictIfOver directly.
+   */
+  maintainIfOver(maxBytes: number, preservedPath?: string | string[]): void {
+    if (maxBytes <= 0 || this.totalBytes <= maxBytes) return
+    this.pendingEvictionMaxBytes = maxBytes
+    const protectedPaths = typeof preservedPath === 'string' ? [preservedPath] : preservedPath ?? []
+    this.pendingEvictionPreservedPaths = Array.from(new Set(
+      this.pendingEvictionPreservedPaths.concat(protectedPaths)))
+    this.evictionPending = true
+    if (!this.evictionPaused) void this.runPendingEviction()
+  }
+
+  setEvictionPaused(paused: boolean): void {
+    this.evictionPaused = paused
+    if (paused) return
+    const resume = this.resumeEviction
+    this.resumeEviction = null
+    if (resume !== null) resume()
+    if (this.evictionPending) void this.runPendingEviction()
+  }
+
+  private async runPendingEviction(): Promise<void> {
+    if (this.evictionPaused) {
+      await new Promise<void>((resume: () => void): void => { this.resumeEviction = resume })
+    }
+    if (!this.evictionPending) return
+    this.evictionPending = false
+    const maxBytes = this.pendingEvictionMaxBytes
+    const preserved = this.pendingEvictionPreservedPaths
+    this.pendingEvictionPreservedPaths = []
+    await this.evictIfOver(maxBytes, preserved)
   }
 
   private async evictIfOverNow(maxBytes: number, preservedPath?: string | string[]): Promise<void> {

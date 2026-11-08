@@ -208,20 +208,19 @@ export function configureReaderRemoteImageCache(
     readerImageCacheStore = new RemoteImageCacheStore(cacheDir)
   }
   if (readerImageCacheAutoCleanEnabled) {
-    void readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes).catch((): void => {
-      DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
-    })
+    readerImageCacheStore.maintainIfOver(readerImageCacheMaxBytes)
   }
+}
+
+/** Bound cache directory maintenance to reader interaction idle periods. */
+export function setReaderImageCacheEvictionPaused(paused: boolean): void {
+  readerImageCacheStore?.setEvictionPaused(paused)
 }
 
 async function maintainReaderImageCacheAfterWrite(path: string, original?: string): Promise<void> {
   if (readerImageCacheStore === null || !readerImageCacheAutoCleanEnabled) return
-  try {
-    // Keep the just-returned image available even when one image alone exceeds the limit.
-    await readerImageCacheStore.evictIfOver(readerImageCacheMaxBytes, original === undefined ? path : [path, original])
-  } catch (_error) {
-    DiagnosticLogger.warn('reader_page_source_adapter', 'cleanup_failed', '[ReaderCache] step=cleanup_failed')
-  }
+  // Keep the just-returned image available even when one image alone exceeds the limit.
+  readerImageCacheStore.maintainIfOver(readerImageCacheMaxBytes, original === undefined ? path : [path, original])
 }
 
 /** Display compatibility is separate from the source, export and offline paths. */

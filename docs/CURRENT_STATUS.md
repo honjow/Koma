@@ -18,10 +18,10 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T15:51:00+08:00",
+  "updatedAt": "2026-11-08T21:10:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "#001 当前 1.4.0 在 197 长测未复现秒级停顿，仍有短帧波动，问题保持开放。",
+  "activity": "#001 197 优化候选长测短停顿明显下降，继续按 8.3 毫秒帧预算排查 ArkUI 布局长帧。",
   "nextAction": "",
   "proof": [
     {
@@ -3537,14 +3537,14 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "197 当前 1.4.0 长测未复现秒级停顿",
-      "stage": "1.4.0 同签包长距离下翻与停稳后续读",
+      "status": "197 优化候选长测短停顿明显下降",
+      "stage": "1.4.0 优化候选与基线同手势 A/B",
       "kind": "open",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "当前 master 1.4.0 同签包在 197 从《装备我最强》第 43/96 页连续下翻 518 次、10 分 38 秒，跨章到第 82/103 页。三次滚动 HTrace 无超过 33.3 毫秒的界面帧处理；最长手势帧间隔为 65.2、108.2、70.6 毫秒，未复现旧修复候选的 1.02 秒和 1.80 秒停顿。停稳后再采两段 HTrace，最长手势帧间隔为 62.7、67.5 毫秒。当前偏好为共享阅读器、预载页数 2、系统超分开启；停稳后日志有 5 次 3.2 至 6.0 秒的超分处理。",
-      "remaining": "仍有短帧间隔波动和系统超分开启时的加载感知问题。三份滚动 HTrace 的长间隔窗口内可见 PreferencesGetValue、fs.listFile/fs.unlink 与 ValueSerializer::WriteValue 主线程回调；需确认实际调用方并避开滚动时段。用户反馈的条漫性能问题未按全部普通阅读路径关闭。",
+      "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。优化候选 SHA 8d5f6734 在 197 从《装备我最强》93/95 页连续下翻 518 次、10 分 36 秒，跨章至 12/111 页。三份同参数 HTrace 最长手势帧间隔为 26.5、35.5、62.1 毫秒，基线为 65.2、108.2、70.6 毫秒；超过 33.3 毫秒的间隔从 12 次降到 4 次，界面帧处理均低于 16.7 毫秒。当前偏好与缓存上限不变，关闭阅读器仍立即提交进度和缓存维护。",
+      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3553,6 +3553,9 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/checkpoints.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/trace-summary.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-optimized/reader-new-pages-trace-20261108T210418417632/hilog.txt",
         ".hvigor/outputs/reader-long-scroll-197-140-20261108/checkpoints.jsonl",
         ".hvigor/outputs/reader-long-scroll-197-140-20261108/trace-summary.jsonl",
         ".hvigor/outputs/reader-long-scroll-197-140-20261108/settle/checkpoints.jsonl",
@@ -3612,12 +3615,12 @@
         ".hvigor/outputs/detail-chapter-loading-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail/detail-install",
         ".hvigor/outputs/continuous-scroll-20261106/reanalyse-existing-sched/vsync-gap-main-thread-scheduling.json"
       ],
-      "latestCounterexampleAt": "2026-11-08T15:41:47+08:00",
+      "latestCounterexampleAt": "2026-11-08T21:10:00+08:00",
       "evidencePoints": [
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
-        "仍有短帧间隔波动和系统超分开启时的加载感知问题。三份滚动 HTrace 的长间隔窗口内可见 PreferencesGetValue、fs.listFile/fs.unlink 与 ValueSerializer::WriteValue 主线程回调；需确认实际调用方并避开滚动时段。用户反馈的条漫性能问题未按全部普通阅读路径关闭。"
+        "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
@@ -3658,7 +3661,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-08T15:51:00+08:00",
+      "updatedAt": "2026-11-08T21:10:00+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -9723,6 +9726,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-performance-optimized-197-20261108",
+      "at": "2026-11-08T21:10:00+08:00",
+      "title": "#001 197 优化候选长测把最长手势间隔降至 62 毫秒",
+      "detail": "518 次实滑、10 分 36 秒；三份 HTrace 超过 33.3 毫秒间隔由 12 次降至 4 次。8.3 毫秒帧预算仍有 ArkUI 布局长帧，问题保持开放。",
+      "kind": "checkpoint",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-long-scroll-197-optimized-20261108/trace-summary.jsonl"
+    },
     {
       "id": "continuous-performance-140-197-20261108",
       "at": "2026-11-08T15:41:47+08:00",
