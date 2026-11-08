@@ -402,6 +402,14 @@ export class SourceSettingsStore {
     this.sourceRevisions.set(sourceId, (this.sourceRevisions.get(sourceId) ?? 0) + 1)
   }
 
+  /** A package install/update also invalidates source-derived plans even when
+   * the stored settings values are unchanged. */
+  sourcePackageChanged(sourceId: string): void {
+    const normalizedSourceId = sourceId.trim()
+    if (normalizedSourceId.length === 0) return
+    this.sourceCommitted(normalizedSourceId)
+  }
+
   isConfigured(): boolean {
     return this.storagePath.length > 0
   }

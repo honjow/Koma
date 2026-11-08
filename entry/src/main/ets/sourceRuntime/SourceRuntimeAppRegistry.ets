@@ -1295,6 +1295,7 @@ async function registerSourcePackageFromBytes(
     }
     const cleanupAwaitMs = Math.max(0, Date.now() - cleanupStartedAt)
     const publishStartedAt = Date.now()
+    appSourceSettingsStore.sourcePackageChanged(sourceId)
     SourceRuntimeStateBridge.notifyChanged()
     DiagnosticLogger.info('source_package', 'import_ok', '[SourceManager] step=import_ok id=' + sourceId +
       ' persistSyncMs=' + persistSyncMs + ' cleanupAwaitMs=' + cleanupAwaitMs +
