@@ -3473,6 +3473,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
           MangaDescriptionSection({
             description: this.manga.description,
             formatSynopsis: true,
+            synopsisComicId: this.currentComicId(),
             onLinkClick: (url: string) => { this.openMangaExternalLink(url) },
           })
         }

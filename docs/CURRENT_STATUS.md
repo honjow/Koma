@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T09:21:53+08:00",
+  "updatedAt": "2026-11-08T09:47:37+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 197 长测已完成，#244 书架采样未复现。",
@@ -1597,15 +1597,15 @@
       "id": "SOURCE_DETAIL_MARKDOWN_AND_COPY",
       "number": 42,
       "title": "漫画详情标题和简介可复制，简介支持 Markdown",
-      "kind": "accepted",
+      "kind": "done",
       "priority": "用户直接要求",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告 Buon Dua 直接显示 Markdown，要求长按复制，并明确简介链接用外部浏览器。",
-      "status": "237 已核 Markdown、系统复制菜单和外部浏览器交接，已提交本地 master",
-      "result": "正式 Buon Dua 0.1.0 的真实简介在 237 显示为无下划线的强调色链接，三行预览和展开有效。标题及展开后的简介正文长按均弹出系统复制菜单。点击 MediaFire 链接后，前台切到系统浏览器，地址栏显示 ouo.io。系统返回先回到浏览器首页。测试前的源、数据和电源已恢复，237 已释租并保留本次签名测试包。",
-      "remaining": "随 App 1.2.0 正式分发。为保留原剪贴板，本次仅核对系统复制菜单。",
+      "status": "237 已核对引用竖线、原生复制与简介展开记忆",
+      "result": "正式 Buon Dua 0.1.0 的真实简介在 237 显示为无下划线的强调色链接，三行预览和展开有效。标题及展开后的简介正文长按均弹出系统复制菜单。点击 MediaFire 链接后，前台切到系统浏览器，地址栏显示 ouo.io。系统返回先回到浏览器首页。简介改用 Marked 解析后投影到同一个原生可选择 Text。237 实显哔哩漫画《學生會也有洞！》简介中的嵌套粗斜体；展开和收起分别退回再进入，均恢复到原状态。哔哩漫画《護城花巫女》的真实简介在 237 收起和展开时均以连续竖线显示两行灰色引用，不显示箭头；普通正文不缩进，长按引用弹出系统复制菜单，滚动后可正常收起。测试前的源、数据和电源已恢复，237 已释租并保留本次签名测试包。",
+      "remaining": "本地执行测试覆盖引用中的嵌套链接、粗斜体与按作品记忆。引用内链接未在 237 重跑外部浏览器跳转，也未重跑跨进程重启。新版签名包保留于 237，App 未发布。",
       "evidence": [
         ".hvigor/outputs/source-browse-layout-20261106/buondua-markdown-real-sample.json",
         ".hvigor/outputs/source-browse-layout-20261106/detail-markdown-external-build.log",
@@ -1614,10 +1614,21 @@
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-source-description-markdown-036-buon-synopsis-expanded/layout.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-source-description-markdown-037-buon-description-selection/layout.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-source-description-markdown-039-buon-external-browser/run-metadata.json",
-        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-source-description-markdown.json"
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-source-description-markdown.json",
+        ".hvigor/outputs/bilimanga-scroll-20261108/synopsis-tests.log",
+        ".hvigor/outputs/bilimanga-scroll-20261108/combined-build.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-synopsis-1108-020-synopsis-expanded/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-synopsis-1108-022-synopsis-expanded-reopen/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-synopsis-1108-025-synopsis-collapsed-reopen/screen.jpeg",
+        ".hvigor/outputs/synopsis-quote-20261108/wasm-quote.json",
+        ".hvigor/outputs/synopsis-quote-20261108/native-captures.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-quote-copy-1108-013-expanded/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-quote-copy-1108-014-selection/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-bili-quote-copy-1108.json"
       ],
-      "closedAt": "2026-11-06T14:02:57+08:00",
-      "commit": "14e13d39"
+      "closedAt": "2026-11-08T09:34:20+08:00",
+      "commit": "14e13d39",
+      "updatedAt": "2026-11-08T09:47:37+08:00"
     },
     {
       "kind": "accepted",
@@ -9454,6 +9465,16 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "manga-synopsis-quote-rule-20261108",
+      "at": "2026-11-08T09:47:37+08:00",
+      "title": "237 核对简介引用竖线与长按复制",
+      "detail": "哔哩漫画《護城花巫女》的灰色引用以连续竖线显示，普通正文保持原位置。已核对三行预览、展开、长按复制菜单及收起。测试数据和电源已恢复。",
+      "itemIds": [
+        "SOURCE_DETAIL_MARKDOWN_AND_COPY"
+      ],
+      "kind": "checkpoint"
+    },
     {
       "id": "source-session-update-continuity-20261108",
       "at": "2026-11-08T08:54:26+08:00",

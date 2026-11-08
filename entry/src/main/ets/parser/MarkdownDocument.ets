@@ -15,6 +15,7 @@ export class MarkdownInline {
   italic: boolean = false
   code: boolean = false
   strike: boolean = false
+  quote: boolean = false
 }
 
 export class MarkdownBlock {
@@ -152,36 +153,6 @@ export class MarkdownDocument {
       return url
     }
     return ''
-  }
-
-  /** Keep a synopsis in one selectable Text while retaining the shared Markdown styles. */
-  static synopsisSpans(markdown: string): MarkdownInline[] {
-    const blocks = MarkdownDocument.parse(markdown)
-    if (blocks.every((block: MarkdownBlock): boolean => block.kind === MARKDOWN_BLOCK_PARAGRAPH)) {
-      const spans = MarkdownDocument.parseInline(markdown)
-      // Plain descriptions keep their exact existing paragraph and line spacing.
-      return spans.some((span: MarkdownInline): boolean =>
-        span.url.length > 0 || span.bold || span.italic || span.code || span.strike) ? spans : []
-    }
-
-    const spans: MarkdownInline[] = []
-    blocks.forEach((block: MarkdownBlock, index: number): void => {
-      if (index > 0) MarkdownDocument.appendInline(spans, spans.length, '\n')
-      if (block.prefix.length > 0) {
-        MarkdownDocument.appendInline(spans, spans.length, `${'  '.repeat(block.indent)}${block.prefix} `)
-      }
-      if (block.segments.length === 0) {
-        MarkdownDocument.appendInline(spans, spans.length, block.text)
-        spans[spans.length - 1].code = block.kind === MARKDOWN_BLOCK_CODE
-      } else {
-        block.segments.forEach((span: MarkdownInline): void => {
-          span.key = `inline_${spans.length}`
-          if (block.kind === MARKDOWN_BLOCK_HEADING) span.bold = true
-          spans.push(span)
-        })
-      }
-    })
-    return spans
   }
 
   private static appendParagraph(blocks: MarkdownBlock[], lines: string[], sequence: number): number {

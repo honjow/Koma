@@ -1,4 +1,6 @@
 // Ported from the current NextE release-history implementation; native Koma tokens only.
+import { ColorMetrics, LengthMetrics } from '@kit.ArkUI'
+import { drawing } from '@kit.ArkGraphics2D'
 import {
   MarkdownBlock,
   MarkdownDocument,
@@ -23,7 +25,7 @@ function markdownSpanColor(segment: MarkdownInline, color: ResourceColor): Resou
   if (segment.code) {
     return $r('sys.color.font_secondary')
   }
-  return color
+  return segment.quote ? ThemeConstants.TEXT_SECONDARY : color
 }
 
 function markdownSpanDecoration(segment: MarkdownInline, underlineLinks: boolean): TextDecorationType {
@@ -34,6 +36,11 @@ function markdownSpanDecoration(segment: MarkdownInline, underlineLinks: boolean
     return TextDecorationType.LineThrough
   }
   return TextDecorationType.None
+}
+
+function markdownSpanWeight(segment: MarkdownInline, emphasized: boolean = false): FontWeight {
+  if (segment.bold || emphasized) return FontWeight.Bold
+  return segment.code ? FontWeight.Medium : FontWeight.Regular
 }
 
 function markdownHeadingSize(level: number): number {
@@ -61,17 +68,102 @@ export function MarkdownSpans(
   ForEach(segments, (segment: MarkdownInline) => {
     Span(segment.text)
       .fontColor(markdownSpanColor(segment, color))
-      .fontWeight(
-        segment.bold || emphasized
-          ? FontWeight.Bold
-          : (segment.code ? FontWeight.Medium : FontWeight.Regular),
-      )
+      .fontWeight(markdownSpanWeight(segment, emphasized))
       .fontStyle(segment.italic ? FontStyle.Italic : FontStyle.Normal)
       .decoration({ type: markdownSpanDecoration(segment, underlineLinks) })
       .onClick(() => {
         openMarkdownExternalLink(segment.url, onLinkClick)
       })
   }, (segment: MarkdownInline) => segment.key)
+}
+
+const QUOTE_MARGIN = 10
+const QUOTE_RULE_WIDTH = 2
+
+class MarkdownQuoteMargin extends LeadingMarginSpan {
+  private marginPx: number
+  private widthPx: number
+
+  constructor(marginPx: number, widthPx: number) {
+    super()
+    this.marginPx = marginPx
+    this.widthPx = widthPx
+  }
+
+  getLeadingMargin(): LengthMetrics {
+    return LengthMetrics.vp(QUOTE_MARGIN)
+  }
+
+  onDraw(context: DrawContext, line: LeadingMarginSpanDrawInfo): void {
+    const color = ColorMetrics.resourceColor(ThemeConstants.TEXT_TERTIARY)
+    const brush = new drawing.Brush()
+    brush.setColor(color.alpha, color.red, color.green, color.blue)
+    const inset = Math.max(0, line.x - this.marginPx)
+    const left = line.direction === TextDirection.RTL ? context.sizeInPixel.width - inset - this.widthPx : inset
+    context.canvas.attachBrush(brush)
+    context.canvas.drawRect({ left, top: line.top, right: left + this.widthPx, bottom: line.bottom })
+    context.canvas.detachBrush()
+  }
+}
+
+@ComponentV2
+export struct MarkdownQuotedSynopsis {
+  @Require @Param segments: MarkdownInline[]
+  @Param expanded: boolean = false
+  @Event onLinkClick: (url: string) => void = (_url: string) => {}
+  private controller = new TextController()
+
+  @Monitor('segments')
+  private updateText(): void {
+    const ui = this.getUIContext()
+    const paragraph = new ParagraphStyle({ leadingMarginSpan:
+      new MarkdownQuoteMargin(ui.vp2px(QUOTE_MARGIN), ui.vp2px(QUOTE_RULE_WIDTH)) })
+    const value = this.segments.map((segment: MarkdownInline): string => segment.text).join('')
+    const styled = new MutableStyledString(value, [])
+    let offset = 0
+    let quoteStart = -1
+    for (const segment of this.segments) {
+      if (segment.quote && quoteStart < 0) quoteStart = offset
+      if (!segment.quote && quoteStart >= 0) {
+        this.applyQuote(styled, paragraph, quoteStart, offset)
+        quoteStart = -1
+      }
+      const length = segment.text.length
+      styled.setStyle({ start: offset, length, styledKey: StyledStringKey.FONT,
+        styledValue: new TextStyle({ fontColor: markdownSpanColor(segment, ThemeConstants.TEXT_PRIMARY),
+          fontWeight: markdownSpanWeight(segment), fontStyle: segment.italic ? FontStyle.Italic : FontStyle.Normal,
+          fontSize: LengthMetrics.fp(ThemeConstants.FONT_SIZE_BODY) }) })
+      if (segment.strike) {
+        styled.setStyle({ start: offset, length, styledKey: StyledStringKey.DECORATION,
+          styledValue: new DecorationStyle({ type: TextDecorationType.LineThrough }) })
+      }
+      if (markdownExternalUrl(segment.url).length > 0) {
+        styled.setStyle({ start: offset, length, styledKey: StyledStringKey.GESTURE,
+          styledValue: new GestureStyle({ onClick: () => { openMarkdownExternalLink(segment.url, this.onLinkClick) } }) })
+      }
+      offset += length
+    }
+    if (quoteStart >= 0) this.applyQuote(styled, paragraph, quoteStart, offset)
+    this.controller.setStyledString(styled)
+  }
+
+  private applyQuote(styled: MutableStyledString, paragraph: ParagraphStyle, start: number, end: number): void {
+    // The margin draws with the native line layout, leaving one selectable
+    // text node and no decoration characters in the copied text.
+    styled.setStyle({ start, length: end - start, styledKey: StyledStringKey.PARAGRAPH_STYLE, styledValue: paragraph })
+  }
+
+  build() {
+    Text(undefined, { controller: this.controller })
+      .width('100%')
+      .fontSize(ThemeConstants.FONT_SIZE_BODY)
+      .lineHeight(ThemeConstants.LINE_HEIGHT_TITLE)
+      .maxLines(this.expanded ? undefined : 3)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+      .copyOption(CopyOptions.LocalDevice)
+      .animation({ duration: 180, curve: Curve.EaseInOut })
+      .onAppear(() => { this.updateText() })
+  }
 }
 
 // These helpers are global on purpose. `MarkdownContent` can be mounted through a V2 dialog's

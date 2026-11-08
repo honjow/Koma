@@ -167,6 +167,10 @@
   },
   "pending": {},
   "dynamic": {
+    "model/MangaSynopsisPreferences.ets": [
+      "isExpanded: comicId",
+      "save: comicId"
+    ],
     "model/SourceBrowseLayoutPreferences.ets": [
       "load: sourceId",
       "save: sourceId"
