@@ -21,7 +21,7 @@
   "updatedAt": "2026-11-08T21:58:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "#001 197 合法 key 候选四项帧指标全部优于优化基线最佳段，继续压 FlushDirtyNodeUpdate 与剩余连字符 key 来源。",
+  "activity": "#001 长测定位并消除三类滚动顿挫回调：交互暂停清单写后 35-98 毫秒手势间隔清零，偏好读取与滚动中 unlink 归零。",
   "nextAction": "",
   "proof": [
     {
@@ -3543,8 +3543,8 @@
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。优化候选 SHA 8d5f6734 在 197 从《装备我最强》93/95 页连续下翻 518 次、10 分 36 秒，跨章至 12/111 页。三份同参数 HTrace 最长手势帧间隔为 26.5、35.5、62.1 毫秒，基线为 65.2、108.2、70.6 毫秒；超过 33.3 毫秒的间隔从 12 次降到 4 次，界面帧处理均低于 16.7 毫秒。当前偏好与缓存上限不变，关闭阅读器仍立即提交进度和缓存维护。 合法 key 候选 SHA 1aa5a641 已覆盖安装 197 实测并提交，四项帧指标全部不低于优化基线最佳段。 缓存写入候选 SHA 2e08e22b 已覆盖安装 197 实测：trace 定位滚动期主线程第一大成本为图片缓存写入路径，修复前 9.6 秒 fs 回调 708 毫秒（fs.access 597.5 毫秒/84 次主要为 writeBytes 成功路径的临时文件检查；72 套原子写为新图入库的立即索引写），修复 writeBytes 成功路径不再检查临时文件、新图入库与命中更新合并为 400 毫秒防抖全量清单写（清理/失效路径保持立即写，崩溃窗口内丢失条目按同 key 重下载覆盖）；复测同口径 fs 回调 118 毫秒（-83%），fs.access 5.5 毫秒/30 次（-99%），原子写套数 72→46（均为图片文件必要写入），帧指标 above8_3=25、最长应用帧 14.296 毫秒在优化基线波动带内（22-26 帧、11.4-16.7 毫秒），无回归证据，46 张新图入库并正常渲染。",
-      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。候选帧仍在波动带内超 8.3 毫秒，栈集中在 ArkUI FlushDirtyNodeUpdate（引擎内部未打点），应用层可识别浪费已全部消除：偏好读取 0 次、fs 回调 -83%、AreaChange 回调已最小化；滚动期 JS 99.3%（581.7/585 毫秒，20698/20804 次）位于 AreaChange 引擎分发内，onAreaChange 为声明式注册无法动态注销，注册削减无安全实现路径。进一步压缩属 ArkUI 引擎行为边界。 GC 总暂停 264.8 毫秒与分配由框架侧事件对象驱动，应用层分配大户已消除。 rkit-* 组件 id 全量改名经核查不执行：NextE/NextN 宿主运行时 getRectangleById 与 ohosTest 断言合计数百处消费这些 id，改名必然使两宿主断言与几何查询失效，无法在不重新验收两宿主的情况下满足不退化边界；用户批准的共享变更授权保持开放，待用户对跨宿主同步范围重新决定。警告本身是微秒级日志写入，与帧瓶颈无关。 共享 Kit 的滚动范围合并候选 01798b1 在 197 第一段仍有 25 个超 8.3 毫秒界面帧、最长手势间隔 56.5 毫秒，未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
+      "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。合法 key 候选 SHA 1aa5a641 已实测提交，四项帧指标全部不低于优化基线最佳段。 缓存写入候选 SHA 2e08e22b 实测 fs 回调 708→118 毫秒（-83%）。 长测候选 SHA 2e08e22b 六段 156 次快滑跨三章（约 4.5 分钟）暴露短测看不到的顿挫：每段 3-6 次 35-98 毫秒手势帧间隔，四类主线程回调为 PreferencesGetValue（60-69 毫秒，读完一章时 ReadDownloadCleanup 重复异步读自动化策略）、fs.unlink（36-46 毫秒）、ValueSerializer::WriteValue（23-46 毫秒，约 1.2MB 缓存清单全量 stringify 随 400 毫秒防抖写进入滚动窗口）与定时回调。 交互暂停写候选 SHA 238e741d 修复：自动化策略进程内缓存（启动/更新时刷新，备份恢复发布失效钩子）消除滚动中偏好读取；清单写跟随既有交互暂停门（滚动手势期间只标脏，停稳后一次全量写）。同口径跨章 26 次快滑复测：35 毫秒以上手势帧间隔从每段 3-6 次清零，最长手势帧间隔 57-98→20.7-22.0 毫秒，PreferencesGetValue 与 fs.unlink 0 次，ValueSerializer 总量 137-211→2.1 毫秒，timer 回调峰值 38-54→5.5-7.3 毫秒，above8_3=24-28 在基线波动带内，>16.7 毫秒帧保持 0。",
+      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。above8_3 仍在波动带内（20-32 帧），栈集中在 ArkUI FlushDirtyNodeUpdate（引擎内部未打点）与 AreaChange 引擎分发（滚动期 JS 99.3% 位于其中，onAreaChange 无法动态注销），应用层可识别浪费已全部消除。 滚动中 fs.unlink 归零的机制是清单写暂停后未再触发逐出，跨长会话 quota 逐出与坏图清理仍需在后续长测中确认只落在停稳窗口。 timer 小回调每段 67-68 次共约 120-126 毫秒（峰值已降至 5.5-7.3 毫秒，无顿挫）来源未逐一归因。 rkit-* 组件 id 全量改名经核查不执行：NextE/NextN 宿主运行时 getRectangleById 与 ohosTest 断言合计数百处消费这些 id，无法在不重新验收两宿主的情况下满足不退化边界；用户批准的共享变更授权保持开放，待用户对跨宿主同步范围重新决定。 共享 Kit 的滚动范围合并候选 01798b1 未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3553,6 +3553,7 @@
       "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/settle/checkpoints-paused-writes.jsonl",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/settle/checkpoints.jsonl",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/reader-new-pages-trace-20261108T230524725526/audit/long-scroll-summary.json",
         ".hvigor/outputs/reader-long-scroll-197-cache-write-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-cache-write/install-20261108T230433824204/run-metadata.json",
