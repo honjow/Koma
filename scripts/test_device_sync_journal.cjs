@@ -182,6 +182,7 @@ function readingDevice(fixture, id, installed, withShelf = false) {
     progress: [], sourceHistory: [], chapters: [],
   }))
   const strings = { AppStrings: { get: key => key } }
+  const sourceComic = compile('../model/SourceLibraryComic', { './ComicModels': comics, '../i18n/AppStrings': strings })
   const smart = withShelf ? compile('../model/LibrarySmartCategory', { './ComicModels': comics, '../i18n/AppStrings': strings }) : undefined
   const stores = withShelf ? compile('../model/LibraryStore', { './ComicModels': comics, './ReaderSessionStore': sessions,
     './LibrarySmartCategory': smart, '../i18n/AppStrings': strings }) : undefined
@@ -190,7 +191,8 @@ function readingDevice(fixture, id, installed, withShelf = false) {
     './AppFileTextPersistence': { writeAppTextFile }, '../deviceSync/DeviceSyncSignals': signals,
     '../deviceSync/DeviceSyncData': data, '../deviceSync/DeviceSyncFacts': facts,
     './BackupRestoreActivity': backup, '../i18n/AppStrings': strings, './SourceTextOverlay': {},
-    './SourceRequiredImageDecode': {}, './SourceChapterMetadata': {}, './SourceTextPageDescriptor': {},
+    './SourceRequiredImageDecode': {}, './SourceChapterMetadata': {}, './SourceLibraryComic': sourceComic,
+    './SourceTextPageDescriptor': {},
     '../diagnostics/DiagnosticLogger': { DiagnosticLogger: { debug: noop, exception: noop } },
     './LocalLibraryMetadataService': {}, './LocalLibraryFolderContract': {},
     './LocalLibraryRescanService': {},
@@ -203,9 +205,7 @@ function readingDevice(fixture, id, installed, withShelf = false) {
     '../model/AppFileTextPersistence': { writeAppTextFile }, '../model/BackupRestoreActivity': backup,
     '../model/LibraryPersistence': persistence,
     '../model/ReaderSessionStore': sessions, '../model/ReaderPreferencesStore': {}, '../model/ComicModels': comics,
-    '../model/SearchHistoryStore': {}, '../model/SourceLibraryComic': compile('../model/SourceLibraryComic', {
-      './ComicModels': comics, '../i18n/AppStrings': {},
-    }),
+    '../model/SearchHistoryStore': {}, '../model/SourceLibraryComic': sourceComic,
     '../sourceRuntime/SourceIndexService': {}, '../sourceRuntime/SourceIndexMetadata': {},
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncSignals': signals, './DeviceSyncWire': wire,
   })
