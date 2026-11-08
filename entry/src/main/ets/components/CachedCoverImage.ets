@@ -6,16 +6,18 @@ import { image } from '@kit.ImageKit'
 import {
   configureReaderRemoteImageCache,
   fetchAndCacheSourceRuntimeCoverImage,
+  invalidateReaderRemoteImageCachePath,
 } from '../model/ReaderPageSourceAdapter'
 import { ComicSourceKind } from '../model/ComicModels'
 import { SourceCoverHeaders } from '../model/SourceModels'
-import { resolveCachedCoverImage } from '../model/CoverImageCacheService'
+import { invalidateCachedCoverImagePath, resolveCachedCoverImage } from '../model/CoverImageCacheService'
 import { waitForRestoredLocalLibraryFolderAccess } from '../model/LocalLibraryFolderAccessService'
 import {
   CoverPixelMapLease,
   coverPixelMapMemoryCache,
   coverPixelMapMemoryCacheKey,
 } from '../model/CoverPixelMapMemoryCache'
+import { coverImageAutomaticRetryDelayMs } from '../model/CoverImageRetryPolicy'
 
 const COVER_DECODE_MAX_EDGE: number = 320
 
@@ -68,6 +70,55 @@ export struct CachedCoverImage {
   private loadingGeneration: number = 0
   private pixelMapLease: CoverPixelMapLease | undefined = undefined
   private failedAnimationSignature: string = ''
+  private automaticRetryTimer: number = -1
+  private completedAutomaticRetries: number = 0
+
+  private cancelAutomaticRetry(): void {
+    if (this.automaticRetryTimer !== -1) {
+      clearTimeout(this.automaticRetryTimer)
+      this.automaticRetryTimer = -1
+    }
+  }
+
+  private scheduleAutomaticRetry(error: Error, signature: string, generation: number,
+    sourceRuntimeId: string, sourceImageId: string, sourceKind: ComicSourceKind | undefined,
+    remoteServerId: string, sourceMangaUrl: string, decodedCachePath: string, decodeFailure: boolean): boolean {
+    const delay = coverImageAutomaticRetryDelayMs(error, this.completedAutomaticRetries, decodeFailure)
+    if (delay < 0 || this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
+      return false
+    }
+    this.completedAutomaticRetries += 1
+    this.automaticRetryTimer = setTimeout((): void => {
+      this.automaticRetryTimer = -1
+      if (this.disposed || this.sourceSignature !== signature) return
+      void (async (): Promise<void> => {
+        if (decodedCachePath.length > 0) {
+          const context = getContext(this) as common.UIAbilityContext
+          const invalidated = sourceRuntimeId.trim().length > 0
+            ? await invalidateReaderRemoteImageCachePath(decodedCachePath).catch((): boolean => false)
+            : await invalidateCachedCoverImagePath(context, decodedCachePath).catch((): boolean => false)
+          if (!invalidated) {
+            if (!this.disposed && this.sourceSignature === signature) this.onError()
+            return
+          }
+          DiagnosticLogger.warn('cached_cover_image', 'cache_invalidated',
+            '[CachedCoverImage] step=cache_invalidated stage=decode')
+        }
+        if (this.disposed || this.sourceSignature !== signature) return
+        // A failed decode is a terminal state for one attempt, not for the cover.
+        // Clear that attempt and create a fresh generation for the bounded retry.
+        this.failedSignature = ''
+        this.loading = false
+        this.loadingSignature = ''
+        this.loadingGeneration = 0
+        this.decodeGeneration += 1
+        const retryGeneration = this.decodeGeneration
+        await this.decodeImage(this.uri, signature, retryGeneration, sourceRuntimeId, sourceImageId,
+          sourceKind, remoteServerId, sourceMangaUrl)
+      })()
+    }, delay)
+    return true
+  }
 
   aboutToDisappear(): void {
     // Custom-component disappearance is the destruction boundary. A retained
@@ -75,6 +126,7 @@ export struct CachedCoverImage {
     // available when the tab is shown again.
     this.disposed = true
     this.decodeGeneration += 1
+    this.cancelAutomaticRetry()
     // Do not mutate @Local render state during component destruction. The
     // component tree is leaving; only return the ownership lease to the cache.
     const lease = this.pixelMapLease
@@ -112,11 +164,15 @@ export struct CachedCoverImage {
     this.animatedCover = undefined
     this.displayedSignature = signature
     this.failedSignature = ''
+    this.completedAutomaticRetries = 0
+    this.cancelAutomaticRetry()
     await coverPixelMapMemoryCache.release(previousLease)
   }
 
   private onAnimatedCoverReady(cover: AnimatedCover): void {
     if (this.disposed || this.animatedCover?.generation !== cover.generation) return
+    this.completedAutomaticRetries = 0
+    this.cancelAutomaticRetry()
     const lease = this.pixelMapLease
     this.pixelMapLease = undefined
     this.pixelMap = undefined
@@ -204,11 +260,13 @@ export struct CachedCoverImage {
     let imageSource: image.ImageSource | undefined = undefined
     let sourceFile: fs.File | undefined = undefined
     let decodeStep: string = 'resolve'
+    let resolvedCachePath: string = ''
     try {
       const resolvedUri = await this.resolveImageUri(uri, sourceRuntimeId, sourceImageId, sourceKind, remoteServerId, sourceMangaUrl)
       if (this.disposed || this.sourceSignature !== signature || this.decodeGeneration !== generation) {
         return
       }
+      if (resolvedUri.startsWith('/')) resolvedCachePath = resolvedUri
       // A document URI is not a path with its scheme removed. Let FileIO
       // resolve its read grant, then retain the descriptor through decoding.
       if (resolvedUri.startsWith('file://')) {
@@ -267,7 +325,13 @@ export struct CachedCoverImage {
         ' code=' + ((error as BusinessError).code ?? 'unknown'))
       if (!this.disposed && this.sourceSignature === signature && this.decodeGeneration === generation) {
         this.failedSignature = signature
-        this.onError()
+        if (!this.scheduleAutomaticRetry(error as Error, signature, generation, sourceRuntimeId,
+          sourceImageId, sourceKind, remoteServerId, sourceMangaUrl, resolvedCachePath, decodeStep !== 'resolve')) {
+          this.onError()
+        } else {
+          DiagnosticLogger.info('cached_cover_image', 'automatic_retry',
+            '[CachedCoverImage] attempt=1 reason=' + (error as Error).message)
+        }
       }
     } finally {
       if (imageSource !== undefined) {
@@ -314,6 +378,8 @@ export struct CachedCoverImage {
       return
     }
     this.decodeGeneration += 1
+    this.cancelAutomaticRetry()
+    this.completedAutomaticRetries = 0
     const generation = this.decodeGeneration
     this.sourceSignature = nextSignature
     this.loading = false

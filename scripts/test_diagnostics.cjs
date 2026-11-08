@@ -264,12 +264,17 @@ test('ordinary source operation logging preserves responses and thrown objects w
 })
 
 
-function readerImageRequestRuntime({ headers, error, responseCode = 200, observerFails = false }) {
+function readerImageRequestRuntime({ headers, error, responseCode = 200, observerFails = false, coverImage = false }) {
   const r = runtime(), { DiagnosticLogger: log } = r.load('DiagnosticLogger')
   const file = path.join(__dirname, '../entry/src/main/ets/model/ReaderPageSourceAdapter.ets')
   const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
   const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'downloadReaderRemoteBytes')
   assert.ok(fn)
+  const constants = source.statements.filter(node => ts.isVariableStatement(node) &&
+    ['READER_IMAGE_READ_TIMEOUT_MS', 'LARGE_READER_IMAGE_READ_TIMEOUT_MS', 'COVER_IMAGE_READ_TIMEOUT_MS',
+      'COVER_IMAGE_CONNECT_TIMEOUT_MS', 'NETWORKKIT_DEFAULT_BUFFER_BYTES', 'READER_PAGE_IMAGE_BUFFER_BYTES']
+      .some(name => node.declarationList.declarations.some(declaration => declaration.name.getText(source) === name)))
+  assert.equal(constants.length, 6)
   let observer, destroyed = false, options
   const bytes = new ArrayBuffer(7)
   const http = {
@@ -290,11 +295,15 @@ function readerImageRequestRuntime({ headers, error, responseCode = 200, observe
     }),
   }
   const exports = {}
-  const js = ts.transpileModule(fn.getText(source) + '\nexports.fetch = downloadReaderRemoteBytes', {
+  const js = ts.transpileModule(constants.map(node => node.getText(source)).join('\n') + '\n' +
+    fn.getText(source) + '\nexports.fetch = downloadReaderRemoteBytes', {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS },
   }).outputText
-  vm.runInNewContext(js, { exports, http, DiagnosticLogger: log, httpHeadersForReaderRequest: value => value })
-  return { run: () => exports.fetch('https://example.test/privateWork', { Authorization: 'privateToken' }),
+  vm.runInNewContext(js, { exports, http, DiagnosticLogger: log, httpHeadersForReaderRequest: value => value,
+    waitForSourceRequestSlot: async () => {}, appSourceRuntimeRegistry: { lookup: () => ({}) },
+    SourceRuntimeError: class SourceRuntimeError extends Error {} })
+  return { run: () => exports.fetch('https://example.test/privateWork', { Authorization: 'privateToken' },
+    '', undefined, false, undefined, coverImage),
     bytes, log, destroyed: () => destroyed, options: () => options }
 }
 
@@ -323,4 +332,16 @@ test('reader HTTP diagnostics preserve returned bytes and survive unavailable or
     assert.match(text, /status=completed.*bytes=7/)
     assert.equal(text.includes('private'), false)
   }
+})
+
+test('covers use the bounded thumbnail deadline while chapter images keep their original budget', async () => {
+  const cover = readerImageRequestRuntime({ headers: { 'Content-Length': '7' }, coverImage: true })
+  assert.equal(await cover.run(), cover.bytes)
+  assert.equal(cover.options().readTimeout, 15000)
+  assert.equal(cover.options().connectTimeout, 10000)
+  assert.equal(cover.options().maxLimit, undefined)
+  const chapter = readerImageRequestRuntime({ headers: { 'Content-Length': '7' }, coverImage: false })
+  assert.equal(await chapter.run(), chapter.bytes)
+  assert.equal(chapter.options().readTimeout, 60000)
+  assert.equal(chapter.options().connectTimeout, 30000)
 })

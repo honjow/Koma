@@ -247,6 +247,11 @@ export function clearReaderRemoteImageCache(): Promise<ReaderRemoteImageCacheSta
   })
 }
 
+export async function invalidateReaderRemoteImageCachePath(path: string): Promise<boolean> {
+  if (readerImageCacheStore === null) return false
+  return readerImageCacheStore.invalidatePath(path)
+}
+
 export function formatReaderRemoteImageCacheSize(totalBytes: number): string {
   return formatRemoteImageCacheSize(totalBytes)
 }
@@ -409,6 +414,8 @@ async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteIma
 
 const READER_IMAGE_READ_TIMEOUT_MS: number = 60000
 const LARGE_READER_IMAGE_READ_TIMEOUT_MS: number = 90000
+const COVER_IMAGE_READ_TIMEOUT_MS: number = 15000
+const COVER_IMAGE_CONNECT_TIMEOUT_MS: number = 10000
 const NETWORKKIT_DEFAULT_BUFFER_BYTES: number = 50 * 1024 * 1024
 const READER_PAGE_IMAGE_BUFFER_BYTES: number = 64 * 1024 * 1024
 
@@ -443,12 +450,15 @@ function sourceImageResponseError(status: number, rules?: SourceImageResponseErr
 }
 
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
-  dnsOverride?: SourceDnsOverride, chapterImage: boolean = false, responseErrors?: SourceImageResponseErrors): Promise<ArrayBuffer> {
+  dnsOverride?: SourceDnsOverride, chapterImage: boolean = false, responseErrors?: SourceImageResponseErrors,
+  coverImage: boolean = false): Promise<ArrayBuffer> {
   if (dnsOverride !== undefined) return downloadDnsOverrideImage(url, extraHeaders, sourceId, dnsOverride,
     chapterImage ? responseErrors : undefined)
   await waitForSourceRequestSlot(appSourceRuntimeRegistry.lookup(sourceId).entry?.requestLimits, url, undefined, extraHeaders)
-  const readTimeout = chapterImage ? LARGE_READER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS
-  const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=30000 readTimeoutMs=' + readTimeout)
+  const readTimeout = chapterImage ? LARGE_READER_IMAGE_READ_TIMEOUT_MS :
+    (coverImage ? COVER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS)
+  const connectTimeout = coverImage ? COVER_IMAGE_CONNECT_TIMEOUT_MS : 30000
+  const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=' + connectTimeout + ' readTimeoutMs=' + readTimeout)
   const httpRequest = http.createHttp()
   let responseStarted: boolean = false
   let declaredBytes: number = -1
@@ -481,7 +491,7 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       usingCache: false,
       header: httpHeadersForReaderRequest(extraHeaders),
       readTimeout,
-      connectTimeout: 30000,
+      connectTimeout,
     }
     if (chapterImage) options.maxLimit = READER_PAGE_IMAGE_BUFFER_BYTES
     const pending = httpRequest.request(url, options)
@@ -528,11 +538,13 @@ export async function fetchAndCacheReaderRemoteImage(
   context?: common.UIAbilityContext,
   forceReload: boolean = false,
   chapterImage: boolean = true,
+  coverImage: boolean = false,
 ): Promise<string> {
   if (readerImageCacheStore === null) throw new Error('reader_remote_image_cache_unconfigured')
   const request = await resolveReaderRemoteRequest(uri, identity, context)
   const path = await readerImageCacheStore.getOrFetch(request.url, request.headers,
-    () => downloadReaderRemoteBytes(request.requestUrl, request.headers, identity?.sourceRuntimeId ?? '', undefined, chapterImage),
+    () => downloadReaderRemoteBytes(request.requestUrl, request.headers, identity?.sourceRuntimeId ?? '', undefined,
+      chapterImage, undefined, coverImage),
     undefined, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
@@ -872,6 +884,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   discoverCachedProcessing: boolean = false,
   onRequiredDecode?: (hint: SourceRequiredImageDecode | undefined) => void,
   discoverCachedRequired: boolean = false,
+  coverImage: boolean = false,
 ): Promise<string> {
   if (readerImageCacheStore === null) {
     throw new Error('reader_remote_image_cache_unconfigured')
@@ -879,7 +892,7 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const sourceId = sourceRuntimeId.trim()
   const chapterImage = priority === SourceWorkerPriority.FOREGROUND
   if (sourceId.length === 0) {
-    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload, chapterImage)
+    return fetchAndCacheReaderRemoteImage(uri, undefined, undefined, forceReload, chapterImage, coverImage)
   }
   // Source page IDs can be chapter-local, so the original image URI belongs in the cache identity.
   const route = sourceImageMangaRoute(mangaUrl)
@@ -924,13 +937,13 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   }
   if (cachedFast !== undefined && cachedFast.length > 0) return cachedFast
   if (imageRequest === undefined) {
-    return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload, chapterImage)
+    return fetchAndCacheReaderRemoteImage(uri, { sourceRuntimeId: sourceId }, undefined, forceReload, chapterImage, coverImage)
   }
   const resolvedRequest = imageRequest
   const cacheHeaders = resolvedRequest.headers
   const path = await readerImageCacheStore.getOrFetch(resolvedRequest.url, cacheHeaders,
     () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId, resolvedRequest.dnsOverride,
-      chapterImage, resolvedRequest.responseErrors),
+      chapterImage, resolvedRequest.responseErrors, coverImage),
     cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
@@ -946,13 +959,13 @@ export async function fetchAndCacheSourceRuntimeCoverImage(sourceRuntimeId: stri
     let fetched = false
     const path = await readerImageCacheStore.getOrFetch(uri, publicHeaders, (): Promise<ArrayBuffer> => {
       fetched = true
-      return downloadReaderRemoteBytes(uri, publicHeaders, sourceId)
+      return downloadReaderRemoteBytes(uri, publicHeaders, sourceId, undefined, false, undefined, true)
     }, key)
     if (fetched) await maintainReaderImageCacheAfterWrite(path)
     return path
   }
   return fetchAndCacheSourceRuntimeRemoteImage(sourceRuntimeId, uri, sourceImageId, mangaUrl,
-    false, SourceWorkerPriority.BACKGROUND)
+    false, SourceWorkerPriority.BACKGROUND, undefined, false, undefined, false, true)
 }
 
 export function createReaderOfflineMissingUri(

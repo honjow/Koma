@@ -84,6 +84,36 @@
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
     {
+      "id": "SOURCE_BROWSE_COVER_RETRY",
+      "number": 260,
+      "title": "书源浏览封面失败或超时后不重试",
+      "kind": "done",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户反馈书源浏览封面加载失败或超时后一直空白。",
+      "registeredAt": "2026-11-08T21:09:58+08:00",
+      "updatedAt": "2026-11-08T21:09:58+08:00",
+      "closedAt": "2026-11-08T21:09:58+08:00",
+      "status": "代码、专项测试、全量构建及237真实请求回放通过",
+      "result": "封面连接/读取期限改为10秒/15秒。超时、可恢复网络错误、408/425/429/5xx各自动退避一次；认证、403、额度、缺失和源合同错误直接终态。解码失败先移除本次App封面缓存文件，再允许同一次重试；卡片重新进入视口后可再次尝试。237本地测试源12张不可达封面中，首屏9张各记录一次失败和一次automatic_retry，1.2秒后共18次请求即停止，未无限重试；普通Komiic页面封面正常。截图中最终保留现有占位图。",
+      "remaining": "本次只验证封面失败/重试和最终占位，未验证每次成功恢复或所有主题、布局及全部源。测试源和上传包已删除，源注册表回到95项；7份书架、源设置、筛选、会话及偏好文件哈希未变。阅读会话文件在多次App启动中由现有同步/启动流程更新，未恢复到安装前字节，不归因于本改动。",
+      "evidence": [
+        "entry/src/main/ets/model/CoverImageRetryPolicy.ets",
+        "entry/src/main/ets/components/CachedCoverImage.ets",
+        "entry/src/main/ets/components/MangaGridItem.ets",
+        "scripts/test_cover_image_retry.cjs",
+        "scripts/test_diagnostics.cjs",
+        ".hvigor/outputs/source-cover-retry-20261108/open-cover-retry-fixture/run-metadata.json",
+        ".hvigor/outputs/source-cover-retry-20261108/open-cover-retry-fixture/screen.jpeg",
+        ".hvigor/outputs/source-cover-retry-20261108/open-komiic-source/screen.jpeg",
+        ".hvigor/outputs/source-cover-retry-20261108/confirm-fixture-delete/registry.json",
+        ".hvigor/outputs/source-cover-retry-20261108/restore-power-timeout/run-metadata.json",
+        ".hvigor/outputs/source-cover-retry-20261108/final-build.log"
+      ]
+    },
+    {
       "id": "RELEASE_1_4_0",
       "number": 259,
       "title": "Koma 1.4.0 正式发布",

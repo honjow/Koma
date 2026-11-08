@@ -210,6 +210,33 @@ export class RemoteImageCacheStore {
     return this.enqueue(() => this.getNow(url, headers, cacheKeySeed))
   }
 
+  /** Remove one corrupt cached image while keeping the manifest and quota consistent. */
+  invalidatePath(path: string): Promise<boolean> {
+    return this.enqueue(() => this.invalidatePathNow(path))
+  }
+
+  private async invalidatePathNow(path: string): Promise<boolean> {
+    const normalized = normalizeSeparator(path)
+    const prefix = `${this.rootDir}/`
+    if (!normalized.startsWith(prefix)) return false
+    const leaf = normalized.slice(prefix.length)
+    if (leaf.length === 0 || leaf.includes('/') || leaf === '.' || leaf === '..' ||
+      leaf === REMOTE_IMAGE_CACHE_MANIFEST_NAME) return false
+    let dirty = false
+    this.entries.forEach((entry: RemoteImageCacheManifestEntry, key: string): void => {
+      if (entry.path !== normalized) return
+      this.removeEntry(key)
+      dirty = true
+    })
+    try {
+      if (await fs.access(normalized)) await fs.unlink(normalized)
+    } catch (_error) {
+      if (await fs.access(normalized)) return false
+    }
+    if (dirty) await this.persist()
+    return true
+  }
+
   private async getNow(url: string, headers?: RemoteImageCacheHeaders, cacheKeySeed?: string): Promise<string | undefined> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const entry = this.entries.get(key)

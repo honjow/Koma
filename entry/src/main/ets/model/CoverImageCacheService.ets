@@ -278,8 +278,8 @@ async function downloadCoverBytes(url: string, headers?: RemoteImageCacheHeaders
       expectDataType: http.HttpDataType.ARRAY_BUFFER,
       usingCache: false,
       header: httpHeaders(headers),
-      readTimeout: 60000,
-      connectTimeout: 30000,
+      readTimeout: 15000,
+      connectTimeout: 10000,
     })
     if (response.responseCode !== 200) {
       DiagnosticLogger.warn('cover_image_cache_service', 'http_status_failed', `[CoverCache] step=http_status_failed status=${response.responseCode}`)
@@ -287,6 +287,7 @@ async function downloadCoverBytes(url: string, headers?: RemoteImageCacheHeaders
     }
     return response.result as ArrayBuffer
   } catch (error) {
+    if (/^cover_image_http_\d+$/.test((error as Error).message)) throw error as Error
     const businessError = error as BusinessError
     DiagnosticLogger.warn('cover_image_cache_service', 'http_request_failed', `[CoverCache] step=http_request_failed code=${businessError.code === undefined ? 'unknown' : businessError.code}`)
     throw new Error(`cover_image_fetch_failed_${businessError.code === undefined ? 'unknown' : businessError.code}`)
@@ -300,6 +301,10 @@ function cacheStoreFor(context: common.UIAbilityContext): RemoteImageCacheStore 
     coverImageCacheStore = new RemoteImageCacheStore(context.cacheDir, COVER_IMAGE_CACHE_DIRECTORY_NAME)
   }
   return coverImageCacheStore
+}
+
+export async function invalidateCachedCoverImagePath(context: common.UIAbilityContext, path: string): Promise<boolean> {
+  return cacheStoreFor(context).invalidatePath(path)
 }
 
 /**

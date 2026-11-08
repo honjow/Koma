@@ -19,9 +19,18 @@ export struct MangaGridItem {
   @Event onMangaTap: (manga: SourceManga) => void = (_manga: SourceManga) => {}
   @Local private failedCoverUrl: string = ''
   @Local private coverWasVisible: boolean = false
+  @Local private retryWhenVisibleAgain: boolean = false
 
   private coverVisibilityChanged(visible: boolean): void {
     if (this.deferOffscreenCover && visible && !this.coverWasVisible) this.coverWasVisible = true
+    if (!visible && this.failedCoverUrl === this.coverFailureKey()) {
+      this.retryWhenVisibleAgain = true
+    } else if (visible && this.retryWhenVisibleAgain) {
+      // The automatic retry inside CachedCoverImage has already run. Re-enter
+      // the viewport is a new user-visible opportunity, not a background poll.
+      this.retryWhenVisibleAgain = false
+      this.failedCoverUrl = ''
+    }
   }
 
   private hasCover(): boolean {
