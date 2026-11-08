@@ -697,6 +697,14 @@ export class SourceIndexService {
           if (equivalent !== undefined) routes.push({ url, entries: [equivalent] })
         }
       }
+      const pinnedDocument = installedOrigin === undefined ? '' : resolveIndexDocumentUrl(installedOrigin)
+      // A mirror can carry the session only if the original saved endpoint
+      // offered exactly the same archive digest. Grouping URLs alone is not proof.
+      const verifiedSessionCatalog = installedOrigin !== undefined && pinnedDocument.startsWith('https://') &&
+        /^[a-f0-9]{64}$/.test(entry.sha256) && routes.some((route: SourceIndexMetadataCacheRecord): boolean =>
+          route.url === pinnedDocument && route.entries[0].sha256 === entry.sha256) ? installedOrigin : undefined
+      const pinnedEpochKey = this.metadataRequestKey(pinnedDocument)
+      const pinnedEpoch = this.subscriptionEpoch(pinnedEpochKey)
       const recent = lastSourceDownload.get(routeKey)
       if (recent !== undefined) routes.sort((a: SourceIndexMetadataCacheRecord, b: SourceIndexMetadataCacheRecord): number =>
         Number(b.url === recent) - Number(a.url === recent))
@@ -704,13 +712,14 @@ export class SourceIndexService {
       for (const route of routes) {
         const key = this.metadataRequestKey(route.url)
         const epoch = this.subscriptionEpoch(key)
-        const current = (): boolean => epoch === this.subscriptionEpoch(key) && !BackupRestoreActivity.isRestoring()
+        const current = (): boolean => epoch === this.subscriptionEpoch(key) && !BackupRestoreActivity.isRestoring() &&
+          (verifiedSessionCatalog === undefined || pinnedEpoch === this.subscriptionEpoch(pinnedEpochKey))
         if (requireSaved) {
           const live = (await this.loadSavedRepositories()).find((item: SourceIndexRepository): boolean =>
             resolveIndexDocumentUrl(item.url) === route.url)
           if (live === undefined || live.disabled || !current()) continue
         }
-        result = await this.downloadAndInstall(route.url, route.entries[0], current)
+        result = await this.downloadAndInstall(route.url, route.entries[0], current, verifiedSessionCatalog)
         if (result.ok) lastSourceDownload.set(routeKey, route.url)
         if (result.reasonCode !== 'http_error' && result.reasonCode !== 'network_error' &&
           result.reasonCode !== 'subscription_unavailable') break
@@ -720,7 +729,7 @@ export class SourceIndexService {
   }
 
   private async downloadAndInstall(indexUrl: string, entry: SourceIndexEntry,
-    isCurrent: () => boolean): Promise<SourceIndexInstallResult> {
+    isCurrent: () => boolean, verifiedSessionCatalog?: string): Promise<SourceIndexInstallResult> {
     const pkgUrl = safeResolvePkgUrl(indexUrl, entry.pkg)
     if (!isValidHttpUrl(pkgUrl)) {
       return { ok: false, reasonCode: 'invalid_pkg_url' }
@@ -766,7 +775,7 @@ export class SourceIndexService {
       }
 
       if (!isCurrent()) return { ok: false, reasonCode: 'subscription_unavailable' }
-      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent)
+      const install = await installFromBytes(this.context, archiveBytes, entry.pkg, entry.id, indexUrl, isCurrent, verifiedSessionCatalog)
       if (!install.ok) {
         DiagnosticLogger.error('source_index_service', 'install_fail', '[SourceIndex] step=install_fail reason=' + (install.reasonCode ?? 'unknown'))
         // After download the validated archive can require a newer App than the index advertises.

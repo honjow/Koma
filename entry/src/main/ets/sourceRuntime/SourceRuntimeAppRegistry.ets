@@ -1,6 +1,7 @@
 import { SourceChapterOrder } from './SourceChapterOrder'
 import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
-import { appSourceWebSessionStore, sourceWebPackageIdentity } from './SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceSessionStorageIdentity, sourceWebPackageIdentity } from './SourceWebSessionStore'
+import { SourceAuthenticationDescriptor } from './SourceAuthenticationDescriptor'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { BackupRestoreActivity } from '../model/BackupRestoreActivity'
@@ -686,6 +687,7 @@ function restoreRuntimeRegistryEntry(entry: SourceRuntimeRegistryEntry | undefin
     archivePath: entry.archivePath,
     packageIconPath: entry.packageIconPath,
     catalogOrigin: entry.catalogOrigin,
+    sessionStorageIdentity: entry.sessionStorageIdentity,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }, insertionIndex)
@@ -1070,6 +1072,7 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
       archivePath: entry.archivePath,
       packageIconPath: entry.packageIconPath,
       catalogOrigin: entry.catalogOrigin,
+      sessionStorageIdentity: entry.sessionStorageIdentity,
       presentationDescription: entry.presentationDescription,
       presentationIcon: entry.presentationIcon,
     })
@@ -1158,6 +1161,25 @@ function newSourceImportDirectory(context: common.UIAbilityContext): string {
   return joinSourceRuntimePath(appSourcePackagesRoot(context), `import-${Date.now()}-${++sourceImportSequence}`)
 }
 
+function sourceLoginScope(authentication: SourceAuthenticationDescriptor | undefined, webOrigins: string[]): string {
+  return JSON.stringify([webOrigins.slice().sort(), authentication?.kind ?? '', authentication?.loginUrl ?? '',
+    authentication?.credentialStorage ?? '', authentication?.userAgent ?? '',
+    (authentication?.loginUrls ?? []).slice().sort(), (authentication?.sessionCookieNames ?? []).slice().sort()])
+}
+
+async function sourceArchiveMatches(path: string, bytes: Uint8Array): Promise<boolean> {
+  try {
+    const oldBytes = await readImportBytes(path)
+    if (oldBytes.byteLength !== bytes.byteLength) return false
+    const digest = async (data: Uint8Array): Promise<string> => {
+      const hash = cryptoFramework.createMd('SHA256')
+      await hash.update({ data })
+      return buffer.from((await hash.digest()).data).toString('hex')
+    }
+    return await digest(oldBytes) === await digest(bytes)
+  } catch (_error) { return false }
+}
+
 async function registerSourcePackageFromBytes(
   context: common.UIAbilityContext,
   archiveBytes: Uint8Array,
@@ -1166,6 +1188,7 @@ async function registerSourcePackageFromBytes(
   stagedPackageDir?: string,
   catalogOrigin?: string,
   isCurrent?: () => boolean,
+  verifiedSessionCatalog?: string,
 ): Promise<SourcePackageInstallResult> {
   ensureDirSync(appSourceRoot(context))
   ensureDirSync(appSourcePackagesRoot(context))
@@ -1198,6 +1221,15 @@ async function registerSourcePackageFromBytes(
       return { ok: false, reasonCode: 'app_version_unsupported',
         requiredAppVersion: imported.manifest.package.minAppVersion }
     }
+    // Re-importing the exact archive is a no-op. A filename is not a publisher
+    // identity, and a different local archive never acquires a previous account.
+    const previous = appSourceRuntimeRegistry.lookup(sourceId).entry
+    if (catalogOrigin === undefined && previous?.archivePath !== undefined && previous.manifestVersion !== undefined &&
+      previous.manifestVersion === imported.manifest.package.version && previous.hashOk &&
+      await sourceArchiveMatches(previous.archivePath, archiveBytes) && appSourceRuntimeRegistry.lookup(sourceId).entry === previous) {
+      await removeAppSourcePackageDir(context, packageDir)
+      return { ok: true, id: sourceId, name: imported.manifest.package.name }
+    }
     // Keep the installed entry available while the worker probes the new bytes.
     // Read its latest position/enabled state only after the asynchronous boundary.
     const detectedCapabilities = await detectSourceRuntimeCapabilities(sourceId, imported.wasmBytes)
@@ -1208,6 +1240,13 @@ async function registerSourcePackageFromBytes(
     removedExistingPosition = appSourceRuntimeRegistry.list().findIndex((entry: SourceRuntimeRegistryEntry): boolean => entry.sourceId === sourceId)
     removedExisting = appSourceRuntimeRegistry.remove(sourceId)
     const replacementEnabled = removedExisting?.enabled ?? true
+    // The checked catalog can continue this package ID's session. The new
+    // directory and version still fence all previous WASM and HTTP calls.
+    const inheritedSession = removedExisting !== undefined && verifiedSessionCatalog !== undefined &&
+      verifiedSessionCatalog === removedExisting.catalogOrigin &&
+      sourceLoginScope(removedExisting.authentication, removedExisting.webSessionOrigins ?? []) ===
+        sourceLoginScope(imported.manifest.permissions.authentication, imported.manifest.permissions.webSessionOrigins ?? [])
+      ? sourceSessionStorageIdentity(removedExisting) : undefined
     const registered = appSourceRuntimeRegistry.register({
       sourceId,
       route: IMPORTED_SOURCE_ROUTE,
@@ -1225,6 +1264,7 @@ async function registerSourcePackageFromBytes(
       presentationDescription: removedExisting?.presentationDescription,
       presentationIcon: removedExisting?.presentationIcon,
       catalogOrigin: catalogOrigin === undefined ? undefined : removedExisting?.catalogOrigin ?? catalogOrigin,
+      sessionStorageIdentity: inheritedSession ?? ('source-session:' + util.generateRandomUUID(true)),
     }, removedExistingPosition)
     if (!registered.ok) {
       restoreRuntimeRegistryEntry(removedExisting, removedExistingPosition)
@@ -1235,6 +1275,9 @@ async function registerSourcePackageFromBytes(
     registeredReplacementSourceId = sourceId
     const persistStartedAt = Date.now()
     persistInstalledSources(context)
+    if (inheritedSession !== undefined && removedExisting !== undefined) {
+      SourcePrivateSessionHost.retirePackageCalls(sourceId, sourceWebPackageIdentity(removedExisting))
+    }
     const persistSyncMs = Math.max(0, Date.now() - persistStartedAt)
     const cleanupStartedAt = Date.now()
     if (removedExisting?.archivePath !== undefined) {
@@ -1298,13 +1341,15 @@ export async function installFromBytes(
   expectedSourceId?: string,
   catalogOrigin?: string,
   isCurrent?: () => boolean,
+  verifiedSessionCatalog?: string,
 ): Promise<SourcePackageInstallResult> {
   return BackupRestoreActivity.runWrite(async (): Promise<SourcePackageInstallResult> => {
     DiagnosticLogger.info('source_package', 'import_start', '[SourceManager] step=import_start source=bytes pkg=' + pkgFileName)
     const sanitized = pkgFileName.replace(/[\\/]/g, '_').replace(/^_+|_+$/g, '') || 'source-package.koma'
     const archiveFileName = sanitized.endsWith('.koma') || sanitized.endsWith('.koma-source') ||
       sanitized.endsWith('.koma-source.zip') || sanitized.endsWith('.zip') ? sanitized : sanitized + '.koma'
-    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId, undefined, catalogOrigin, isCurrent)
+    return await registerSourcePackageFromBytes(context, archiveBytes, archiveFileName, expectedSourceId, undefined, catalogOrigin,
+      isCurrent, verifiedSessionCatalog)
   })
 }
 
@@ -1406,7 +1451,7 @@ export async function remove(context: common.UIAbilityContext, id: string, befor
         throw new Error('source_remove_commit_failed')
       }
       appSourceRuntimeRegistry.remove(entry.sourceId)
-    })
+    }, entry.sessionStorageIdentity)
     appSourceWebSessionStore.revoke(entry.sourceId)
     clearSourceRuntimeDiagnostic(entry.sourceId)
     SourceRuntimeStateBridge.notifyChanged()

@@ -34,6 +34,7 @@ export interface SourceRuntimeRegistryEntryInput {
   archivePath?: string
   packageIconPath?: string
   catalogOrigin?: string
+  sessionStorageIdentity?: string
   packageHomepage?: string
   packageAuthor?: string
   packageDescription?: string
@@ -70,6 +71,7 @@ export interface SourceRuntimeRegistryEntry {
   archivePath?: string
   packageIconPath?: string
   catalogOrigin?: string
+  sessionStorageIdentity?: string
   packageHomepage?: string
   packageAuthor: string
   packageDescription: string
@@ -118,6 +120,7 @@ export interface SourceRuntimeRegistryPersistedEntry {
   archivePath?: string
   packageIconPath?: string
   catalogOrigin?: string
+  sessionStorageIdentity?: string
   packageHomepage?: string
   packageAuthor?: string
   packageDescription?: string
@@ -413,6 +416,7 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     archivePath: entry.archivePath,
     packageIconPath: entry.packageIconPath,
     catalogOrigin: entry.catalogOrigin,
+    sessionStorageIdentity: entry.sessionStorageIdentity,
     packageHomepage: normalizeSourceHomepage(entry.packageHomepage),
     packageAuthor: entry.packageAuthor,
     packageDescription: entry.packageDescription,
@@ -501,6 +505,8 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
     }
   }
   if (entry.catalogOrigin !== undefined && typeof entry.catalogOrigin !== 'string') return true
+  if (entry.sessionStorageIdentity !== undefined &&
+    (typeof entry.sessionStorageIdentity !== 'string' || entry.sessionStorageIdentity.length === 0)) return true
   if (entry.presentationDescription !== undefined && typeof entry.presentationDescription !== 'string') {
     return true
   }
@@ -579,6 +585,7 @@ export class SourceRuntimeRegistry {
       archivePath: input.archivePath,
       packageIconPath: input.packageIconPath,
       catalogOrigin: input.catalogOrigin,
+      sessionStorageIdentity: input.sessionStorageIdentity,
       packageHomepage: normalizeSourceHomepage(input.manifest.package.homepage),
       packageAuthor: normalizePresentationText(input.manifest.package.author),
       packageDescription: normalizePresentationText(input.manifest.package.description),
@@ -809,6 +816,7 @@ export class SourceRuntimeRegistry {
           archivePath: entry.archivePath,
           packageIconPath: entry.packageIconPath,
           catalogOrigin: entry.catalogOrigin,
+          sessionStorageIdentity: entry.sessionStorageIdentity,
           packageHomepage: normalizeSourceHomepage(entry.packageHomepage),
           packageAuthor: entry.packageAuthor,
           packageDescription: entry.packageDescription,

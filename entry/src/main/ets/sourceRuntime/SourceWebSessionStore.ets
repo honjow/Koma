@@ -31,6 +31,7 @@ export interface SourceHttpIdentity {
   packageIdentity: string
   webSessionOrigins: string[]
   privateCallId?: string
+  privateSessionIdentity?: string
   credentialGrantId?: string
   operationGuardId?: string
   detailChapterContext?: boolean
@@ -91,10 +92,17 @@ export function sourceWebPackageIdentity(entry: SourceRuntimeRegistryEntry): str
   return JSON.stringify(parts)
 }
 
+// The installer's verified update chain owns this pointer. Keeping the legacy
+// identity as its initial value lets existing sessions survive without copying secrets.
+export function sourceSessionStorageIdentity(entry: SourceRuntimeRegistryEntry): string {
+  return entry.sessionStorageIdentity ?? sourceWebPackageIdentity(entry)
+}
+
 export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operationGuardId?: string,
   detailChapterContext: boolean = false, diagnosticOperation?: string): string {
   const identity: SourceHttpIdentity = { sourceId: entry.sourceId, sourceVersion: entry.manifestVersion,
     packageIdentity: sourceWebPackageIdentity(entry), webSessionOrigins: entry.webSessionOrigins ?? [] }
+  if (entry.sessionStorageIdentity !== undefined) identity.privateSessionIdentity = entry.sessionStorageIdentity
   if (operationGuardId !== undefined) identity.operationGuardId = operationGuardId
   if (detailChapterContext) identity.detailChapterContext = true
   if (diagnosticOperation !== undefined && ['search', 'get_manga', 'get_chapters', 'get_pages',
@@ -193,7 +201,7 @@ export class SourceWebSessionStore {
     session.status.state = 'available'
     this.sessions.set(key, session)
     this.persisted.set(key, { sourceId, sourceVersion: session.entry.manifestVersion,
-      packageIdentity: session.packageIdentity, origin: session.status.origin, userAgent: actualUserAgent })
+      packageIdentity: sourceSessionStorageIdentity(session.entry), origin: session.status.origin, userAgent: actualUserAgent })
     try { this.persist() } catch (error) {
       this.sessions.delete(key)
       this.persisted.delete(key)
@@ -289,30 +297,25 @@ export class SourceWebSessionStore {
       })
     }
     if (key === undefined) return undefined
-    let session = this.sessions.get(key)
-    if (session === undefined) {
-      const record = this.persisted.get(key)
-      const registry = this.registry
-      if (record === undefined || registry === undefined) return undefined
-      const entry = registry.lookup(sourceId).entry
-      if (entry === undefined || !entry.enabled || entry.manifestVersion !== record.sourceVersion ||
-        sourceWebPackageIdentity(entry) !== record.packageIdentity ||
-        !(entry.webSessionOrigins ?? []).includes(record.origin)) {
-        this.revokeInvalid(sourceId)
-        return undefined
-      }
-      const status: SourceWebSessionStatus = { sourceId, sessionId: util.generateRandomUUID(true),
-        initialUrl: record.origin + '/', origin: record.origin, state: 'available' }
-      session = { status, registry, entry, packageIdentity: record.packageIdentity, userAgent: record.userAgent }
-      this.sessions.set(key, session)
-    }
-    const entry = session.registry.lookup(sourceId).entry
-    if (entry === undefined || entry.enabled !== true || sourceWebPackageIdentity(entry) !== session.packageIdentity ||
-      !(entry.webSessionOrigins ?? []).includes(session.status.origin)) {
+    const session = this.sessions.get(key)
+    const record = this.persisted.get(key)
+    const registry = session?.registry ?? this.registry
+    if (record === undefined || registry === undefined) return undefined
+    const entry = registry.lookup(sourceId).entry
+    if (entry === undefined || !entry.enabled ||
+      (entry.sessionStorageIdentity === undefined && entry.manifestVersion !== record.sourceVersion) ||
+      sourceSessionStorageIdentity(entry) !== record.packageIdentity ||
+      !(entry.webSessionOrigins ?? []).includes(record.origin)) {
       this.revokeInvalid(sourceId)
       return undefined
     }
-    return session
+    if (session?.entry === entry) return session
+    const status: SourceWebSessionStatus = { sourceId, sessionId: util.generateRandomUUID(true),
+      initialUrl: record.origin + '/', origin: record.origin, state: 'available' }
+    const rebound: SourceWebSession = { status, registry, entry, packageIdentity: sourceWebPackageIdentity(entry),
+      userAgent: record.userAgent }
+    this.sessions.set(key, rebound)
+    return rebound
   }
 
   private revokeInvalid(sourceId: string): void {

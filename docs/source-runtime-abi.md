@@ -126,7 +126,7 @@ DB Multiverse 固定参考将容器 scale 乘到 left、top 和 width，width �
 
 RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` 为毫秒字符串，`gts` 为本地时间 `yyyy-MM-dd+HH:mm:ss`。缓存由可信 Native 调用上下文限定为当前启用的源及安装身份，源不能在请求中指定别源、命名空间或资产别名；探测和无有效调用身份的请求不得访问。UI 侧调用 owner 包住原有 Worker，结束或异常时释放初始化认领；等待不占用本源写队列，不把 Asset 或 UI 模块引入 Worker。
 
-私有值在当前调用内交给本源 WASM 构造请求，持久化只经 Asset 的 1024 字节分块和最后发布的短索引完成；不进入公开设置、备份或诊断。日志只记录操作、固定结果码及 ready/owner 状态，不记录值、随机标识或令牌。替换包的安装身份不同，不能读取旧包私有值；这不是用户配置迁移能力。读写失败保留错误，不以清除所有资产或改用明文文件恢复。
+私有值在当前调用内交给本源 WASM 构造请求，持久化只经 Asset 的 1024 字节分块和最后发布的短索引完成，不进入公开设置、备份或诊断。日志只记录操作、固定结果码及 ready/owner 状态。Host 分开记录当前包的执行身份和书源会话的存储身份。正常更新沿用同包名的既有会话，条件是已绑定并启用的 HTTPS 订阅认可实际下载的整包 SHA-256，且登录地址、授权域、Cookie 名称及凭据策略一致。镜像可用同一份已核对的包。包清单不能声明存储身份，备份不携带它。同版本同字节的本地包重复导入直接沿用原安装。来源或授权范围改变后使用独立会话。新版本只在安装记录提交后接续，旧包在途调用作废。读写失败保留错误，不以清除所有资产或改用明文文件恢复。
 
 普通源管理卸载仅清当前entry安装身份的私密索引及其已验证当前代chunks；只由Host传入精确scope，没有WASM任意删除RPC，不扫描其它源/旧安装/孤儿。卸载退役该scope的在途call与旧排队准入，等待现写队列完成取消回滚后再删除；同字节重装不复活旧任务。Asset删除失败不改公开文件，公开提交失败恢复原代chunks再发布原索引并读回；读写/回滚失败明确报错，不清全部Asset或改明文。公开文件快照在Asset等待后、同一同步提交段内取得，保留其它源期间的新设置。禁用/更新及旧无声明包身份保持原合同。
 
@@ -196,7 +196,7 @@ API 23–25 的 RCP 有禁止连接复用的配置，指定 HTTP 版本的配置
 
 显式点击Host表单后，认证事务只将随机grant引用放入可信Native HTTP context，WASM请求args不含账号密码。同次本源/安装/callId经 `private_session` 的 `credential_input` 读取 `{ok:true,credentials:{username,password}}`；只有authenticate可读，探测/普通call/异源/旧包/已取消事务均不能读。HTTP每跳限该grant的精确APIorigin；取消、换包、设置/页面过期后不发新请求、不提交Asset新代、不重试原操作。源沿真实协议处理签名、登录、token与同代401刷新，Host不把任意401/403或challenge推为登录、不自动授权Cookie。成功后在原query/filter/作品/章节仍有效且页面可见时只重试原操作一次，取消保原错误；旧无descriptor包沿原WebChallenge路径。
 
-账号材料与token复用 `SourcePrivateSessionHost` 原Asset分块/版本/发布/回滚职责，不建另一CookieJar或明文账户库。网页会话和private值按安装identity隔离。新descriptor或requiredImageDecodes仅对该声明包追加身份；旧无声明包identity字串保持逐字不变。退出只作用本源本安装私有代，不全局清Cookie/Asset。
+账号材料与 token 复用 `SourcePrivateSessionHost` 原 Asset 分块、版本、发布与回滚职责。网页授权和私有值沿用上文的存储身份，所有 HTTP、登录授权和验证完成仍核对当前安装身份。已有包的旧存储身份可直接接续，避免重新写入凭据。退出只作用本源当前会话，不全局清 Cookie 或 Asset。
 
 `source_private_session_replace_v1` 为原 `begin` 增加可选 `replaceVersionTag`：在同一有效源/安装/call内只认领当前仍匹配的旧代，旧值和索引保留到成功commit；提交前再次核对代际，旧代变化返回stale_version。取消、abort、分块/索引写失败保留旧代。旧无字段begin/invalidate合同不变；显式authenticate不得先invalidate，须以此替换，logout仍可明确invalidate。它不增加账号输入权，也不另建缓存命名空间。
 

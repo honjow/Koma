@@ -4,7 +4,9 @@ import { buffer, util } from '@kit.ArkTS'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { sourceAuthenticationOrigin } from './SourceAuthenticationDescriptor'
 
-export interface SourcePrivateSessionScope { sourceId: string; packageIdentity: string; callId: string }
+export interface SourcePrivateSessionScope {
+  sourceId: string; packageIdentity: string; callId: string; privateSessionIdentity?: string
+}
 export interface SourcePrivateSessionCall { id: string; httpContextJson: string }
 
 interface PrivateError { code: string }
@@ -38,8 +40,8 @@ class PrivateState {
   queue: Promise<void> = Promise.resolve()
 }
 
-// This namespace belongs exclusively to source-private sessions. A package identity
-// is part of the key: a replacement package must never inherit its predecessor's value.
+// The source ID and host-approved session identity address secure storage. The
+// installed package identity still guards each individual call.
 const PRIVATE_PREFIX: string = 'koma.source.private.v1.'
 const MAX_VALUE_BYTES: number = 65536
 const CHUNK_BYTES: number = 1024
@@ -61,13 +63,15 @@ export class SourcePrivateSessionHost {
     return `${SourcePrivateSessionHost.removalVersions.get(key) ?? 0}:${SourcePrivateSessionHost.states.get(key)?.revision ?? 0}`
   }
 
-  /** Host queue fence only: uninstall retires older calls, even if the same package is reinstalled.
-   * Disable/update do not change this fence or the package's existing identity. */
+  /** Uninstall retires queued calls even when the same package is reinstalled.
+   * The current package check in the transport separately fences updates. */
   static callAdmission(httpContextJson: string): () => boolean {
     try {
       const context = JSON.parse(httpContextJson) as Record<string, Object>
       if (typeof context?.sourceId !== 'string' || typeof context.packageIdentity !== 'string') return (): boolean => true
-      const key = JSON.stringify([context.sourceId, context.packageIdentity])
+      const storageIdentity = typeof context.privateSessionIdentity === 'string' ?
+        context.privateSessionIdentity : context.packageIdentity
+      const key = JSON.stringify([context.sourceId, storageIdentity])
       const version = SourcePrivateSessionHost.removalVersions.get(key) ?? 0
       return (): boolean => !SourcePrivateSessionHost.removingScopes.has(key) &&
         (SourcePrivateSessionHost.removalVersions.get(key) ?? 0) === version
@@ -76,15 +80,14 @@ export class SourcePrivateSessionHost {
 
   /** Ordinary uninstall only. No RPC can select or remove a scope. The caller commits
    * public files/registry inside mutation; failures restore this exact generation in memory/Asset. */
-  static async withScopeRemoved(sourceId: string, packageIdentity: string, mutation: () => Promise<void>): Promise<void> {
+  static async withScopeRemoved(sourceId: string, packageIdentity: string, mutation: () => Promise<void>,
+    storageIdentity: string = packageIdentity): Promise<void> {
     if (sourceId.length === 0 || packageIdentity.length === 0) throw new Error('source_remove_private_identity_invalid')
-    const key = JSON.stringify([sourceId, packageIdentity])
+    const key = JSON.stringify([sourceId, storageIdentity])
     if (SourcePrivateSessionHost.removingScopes.has(key)) throw new Error('source_remove_private_busy')
     SourcePrivateSessionHost.removingScopes.add(key)
     SourcePrivateSessionHost.removalVersions.set(key, (SourcePrivateSessionHost.removalVersions.get(key) ?? 0) + 1)
-    SourcePrivateSessionHost.calls.forEach((scope: SourcePrivateSessionScope, id: string): void => {
-      if (scope.sourceId === sourceId && scope.packageIdentity === packageIdentity) SourcePrivateSessionHost.finishCall(id)
-    })
+    SourcePrivateSessionHost.retirePackageCalls(sourceId, packageIdentity)
     try {
       let state = SourcePrivateSessionHost.states.get(key)
       if (state === undefined) {
@@ -188,8 +191,11 @@ export class SourcePrivateSessionHost {
         return { id: '', httpContextJson }
       }
       const id = `${Date.now().toString(36)}-${(++SourcePrivateSessionHost.nextCall).toString(36)}`
-      const scope: SourcePrivateSessionScope = { sourceId: context.sourceId, packageIdentity: context.packageIdentity, callId: id }
-      if (SourcePrivateSessionHost.removingScopes.has(JSON.stringify([scope.sourceId, scope.packageIdentity]))) return { id: '', httpContextJson }
+      const storageIdentity = typeof context.privateSessionIdentity === 'string' ?
+        context.privateSessionIdentity : context.packageIdentity
+      const scope: SourcePrivateSessionScope = { sourceId: context.sourceId, packageIdentity: context.packageIdentity,
+        privateSessionIdentity: storageIdentity, callId: id }
+      if (SourcePrivateSessionHost.removingScopes.has(JSON.stringify([scope.sourceId, storageIdentity]))) return { id: '', httpContextJson }
       if (context.credentialGrantId !== undefined) {
         if (typeof context.credentialGrantId !== 'string') return { id: '', httpContextJson }
         const grant = SourcePrivateSessionHost.credentialGrants.get(context.credentialGrantId)
@@ -217,6 +223,12 @@ export class SourcePrivateSessionHost {
         state.owner = null
         owner.resolve(false)
       }
+    })
+  }
+
+  static retirePackageCalls(sourceId: string, packageIdentity: string): void {
+    SourcePrivateSessionHost.calls.forEach((scope: SourcePrivateSessionScope, id: string): void => {
+      if (scope.sourceId === sourceId && scope.packageIdentity === packageIdentity) SourcePrivateSessionHost.finishCall(id)
     })
   }
 
@@ -398,7 +410,8 @@ export class SourcePrivateSessionHost {
         if (out === null || out.data.length !== 256) return SourcePrivateSessionHost.fail('crypto_failed')
         return JSON.stringify({ ok: true, value: buffer.from(out.data).toString('base64') })
       }
-      const key = JSON.stringify([scope.sourceId, scope.packageIdentity])
+      const storageIdentity = SourcePrivateSessionHost.calls.get(scope.callId)?.privateSessionIdentity ?? scope.packageIdentity
+      const key = JSON.stringify([scope.sourceId, storageIdentity])
       let state = SourcePrivateSessionHost.states.get(key)
       if (state === undefined) {
         state = new PrivateState(); state.key = key

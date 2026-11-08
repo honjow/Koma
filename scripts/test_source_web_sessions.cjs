@@ -561,6 +561,39 @@ function fixture(sdkApiVersion = 23) {
     reload: () => { const next = new api.SourceWebSessionStore(); next.configure({ filesDir: '/files' }, registry); return next } }
 }
 
+test('a verified source update keeps Web grants across restart but fences the old package', () => {
+  const f = fixture()
+  f.grant()
+  const before = f.identity()
+  const address = 'https://site.invalid/account'
+  f.changeEntry(entry => ({ ...entry, manifestVersion: '0.2.0', wasmPath: '/app/new/source.wasm',
+    sessionStorageIdentity: before.packageIdentity }))
+  const after = f.identity()
+  assert.notEqual(after.packageIdentity, before.packageIdentity)
+  for (const store of [f.store, f.reload()]) {
+    assert.equal(store.requestSession(after, address).userAgent, 'ActualWebViewUA')
+    assert.equal(store.requestSession(before, address), undefined)
+  }
+  f.changeEntry(entry => ({ ...entry, wasmPath: '/app/local/source.wasm', sessionStorageIdentity: undefined }))
+  assert.equal(f.store.requestSession(f.identity(), address), undefined)
+})
+
+test('the next verified package reads the prior private generation and uninstall retires the shared store', async () => {
+  const f = credentialFixture()
+  const old = f.begin()
+  const init = await f.rpc(old.scope, 'begin')
+  assert.equal((await f.rpc(old.scope, 'commit', { lease: init.lease, value: 'synthetic-session' })).ok, true)
+  f.host.retirePackageCalls(f.identity.sourceId, f.identity.packageIdentity)
+  const replacement = f.begin({ packageIdentity: 'replacement', privateSessionIdentity: f.identity.packageIdentity })
+  assert.equal((await f.rpc(replacement.scope, 'peek')).value, 'synthetic-session')
+  assert.equal((await f.rpc(old.scope, 'peek')).ok, false)
+  const unrelated = f.begin({ packageIdentity: 'same-name-local-import' })
+  assert.equal((await f.rpc(unrelated.scope, 'peek')).state, 'empty')
+  await f.host.withScopeRemoved(f.identity.sourceId, 'replacement', async () => {}, f.identity.packageIdentity)
+  assert.equal(f.assets.size, 0)
+  assert.equal((await f.rpc(replacement.scope, 'peek')).ok, false)
+})
+
 test('BiliManga guest search receives only its own guest cookies and follows only same-site results', async () => {
   const f = fixture()
   const sourceId = 'net.bilimanga.koma'

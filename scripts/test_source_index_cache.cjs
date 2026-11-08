@@ -14,7 +14,7 @@ function homepageGuard(){
  const exports={};new Function('exports','url',ts.transpileModule(node.getText(tree),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(exports,{URL:{parseURL:value=>new URL(value)}})
  return exports.normalizeSourceHomepage
 }
-function harness(store=new Map()){
+function harness(store=new Map(), installedOrigin){
  let requests=[],requestedUrls=[],installs=[],flushes=0,failFlush=false,gate
  const pref={async has(k){return store.has(k)},async delete(k){store.delete(k)},async get(k,d){return store.has(k)?store.get(k):d},async put(k,v){store.set(k,v)},async flush(){flushes++;if(gate)await gate;if(failFlush)throw Error('disk')}}
  const exports={}
@@ -30,10 +30,11 @@ function harness(store=new Map()){
   normalizeSourceHomepage:homepageGuard(),
   normalizeSourceLocalizedNames:v=>v, isValidSourcePackageMinAppVersion:v=>v==='' || /^\d+\.\d+\.\d+$/.test(v),
   SOURCE_REPO_PACKAGE_ICON_FILES:['icon.png','icon.jpg','icon.webp'],
-  getInstalledSourcePackage:()=>undefined,isSourcePackageMinAppVersionSatisfied:()=>true,
+  getInstalledSourcePackage:()=>installedOrigin === undefined ? undefined : {catalogOrigin:installedOrigin},
+  isSourcePackageMinAppVersionSatisfied:()=>true,
   computeSourcePackageSha256:bytes=>require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
-  installFromBytes:async(_context,bytes,_name,id,origin,isCurrent)=>{
-   assert.equal(isCurrent(),true);installs.push({bytes,id,origin});return {ok:true,id}
+  installFromBytes:async(_context,bytes,_name,id,origin,isCurrent,verifiedSessionCatalog)=>{
+   assert.equal(isCurrent(),true);installs.push({bytes,id,origin,verifiedSessionCatalog});return {ok:true,id}
   },
   http:{RequestMethod:{GET:'GET'},HttpDataType:{STRING:'STRING',ARRAY_BUFFER:'ARRAY_BUFFER'},createHttp(){
    return {request(url){requestedUrls.push(url);return new Promise(resolve=>requests.push(resolve))},destroy(){}}
@@ -77,9 +78,9 @@ test('backup restore retires late subscription results even when the same URL re
 })
 
 test('an unavailable book source package retries its verified enabled mirror',async()=>{
- const h=harness(),service=h.make()
  const path='github.com/example/sources/releases/latest/download/'
  const original='https://'+path+'index.json',mirror='https://gh-proxy.org/'+path+'index.json'
+ const h=harness(new Map(),original),service=h.make()
  const bytes=Uint8Array.of(1,2,3)
  const offer=item('A',{sha256:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})
  for(const url of [original,mirror]){
@@ -94,6 +95,13 @@ test('an unavailable book source package retries its verified enabled mirror',as
  assert.equal((await pending).ok,true)
  assert.deepEqual(h.requestedUrls.slice(-2),[original.replace('index.json','A.koma'),mirror.replace('index.json','A.koma')])
  assert.equal(h.installs[0].origin,mirror)
+ assert.equal(h.installs[0].verifiedSessionCatalog,original)
+ await service.setSubscriptionDisabled(original,true)
+ const mirrorOnly=service.installPackage(mirror,offer,true)
+ await tick()
+ h.requests.shift()({responseCode:200,result:bytes.buffer})
+ assert.equal((await mirrorOnly).ok,true)
+ assert.equal(h.installs[1].verifiedSessionCatalog,undefined)
  for(const url of [original,mirror])await service.setSubscriptionDisabled(url,true)
  const requestCount=h.requestedUrls.length
  assert.equal((await service.installPackage(original,offer,true)).reasonCode,'subscription_unavailable')

@@ -54,22 +54,61 @@ test('Browse source publication keeps unchanged row inputs while retaining metad
   failed=true;model.loadInstalledSources();assert.deepEqual(model.sources,[])
   assert.equal(model.sourceErrorMessage,'failed');assert.equal(model.loadingSources,false)
 })
-function installFixture(appVersionSupported = true, minAppVersion = '0') {
-  const probe = deferred(), events = [], old = {sourceId:'one',enabled:false,archivePath:'/packages/old/source.koma'}, other = {sourceId:'other'}
+function installFixture(appVersionSupported = true, minAppVersion = '0', installed = {}, manifest = {}, archivedBytes) {
+  const probe = deferred(), events = [], old = {sourceId:'one',enabled:false,archivePath:'/packages/old/source.koma', ...installed}, other = {sourceId:'other'}
   let entries=[other,old], persistFails=false, registerFails=false, next
   const registry={ list:()=>entries.slice(), lookup:id=>({entry:entries.find(e=>e.sourceId===id)}),
     remove:id=>{const e=entries.find(e=>e.sourceId===id);events.push('remove:'+id);entries=entries.filter(e=>e.sourceId!==id);return e},
     register:(entry,index)=>{events.push('register');next=entry;if(registerFails)return {ok:false,reasonCode:'register_failed'};entries.splice(index,0,entry);return {ok:true}} }
   const globals={appSourceRuntimeRegistry:registry, ensureDirSync:()=>{},appSourceRoot:()=>'/files',appSourcePackagesRoot:()=>'/packages',joinSourceRuntimePath:(a,b)=>a+'/'+b,writeBytesSync:()=>{},
-    importLocalSourceArchive:async()=>({ok:true,manifest:{package:{id:'one',name:'One',minAppVersion}},wasmBytes:new Uint8Array([1,2]),hashOk:true}),
+    importLocalSourceArchive:async()=>({ok:true,manifest:{package:{id:'one',name:'One',minAppVersion},...manifest},wasmBytes:new Uint8Array([1,2]),hashOk:true}),
     removeAppSourcePackageDir:async(_c,p)=>{events.push('delete:'+p)},isSourcePackageMinAppVersionSatisfied:()=>appVersionSupported,
     runSourceOperationFromValidatedBytesAsync:async(request,bytes)=>{const r=JSON.parse(request);assert.equal(r.operation,'source_info');assert.deepEqual(r.settings,{});assert.equal(r.hostHints.network,false);assert.equal(registry.lookup('one').entry,old);events.push('probe');return probe.promise},
     IMPORTED_SOURCE_ROUTE:'imported', DiagnosticLogger:{error(){},info(){}},persistInstalledSources:()=>{events.push('persist');if(persistFails)throw Error('disk')},
     restoreRuntimeRegistryEntry:(entry,index)=>{events.push('restore');if(entry&&!entries.some(e=>e.sourceId===entry.sourceId))entries.splice(index,0,entry)},
-    SourceRuntimeStateBridge:{notifyChanged:()=>events.push('notify')},newSourceImportDirectory:()=>'/packages/new',Date }
-  const api=functions(registryFile,['sourceInfoCapabilityToken','detectSourceRuntimeCapabilities','registerSourcePackageFromBytes','installFromBytes'],{...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
+    SourceRuntimeStateBridge:{notifyChanged:()=>events.push('notify')},newSourceImportDirectory:()=>'/packages/new',Date,
+    readImportBytes:async()=>archivedBytes, buffer:{from:bytes=>Buffer.from(bytes)},
+    util:{generateRandomUUID:()=> 'fresh-storage'},
+    cryptoFramework:{createMd:()=>{
+      const hash=require('node:crypto').createHash('sha256')
+      return {update:async({data})=>hash.update(data),digest:async()=>({data:hash.digest()})}
+    }},
+    sourceSessionStorageIdentity:e=>e.sessionStorageIdentity ?? e.archivePath,
+    sourceWebPackageIdentity:e=>e.archivePath,
+    SourcePrivateSessionHost:{retirePackageCalls:id=>events.push('retire:'+id)} }
+  const api=functions(registryFile,['sourceInfoCapabilityToken','detectSourceRuntimeCapabilities','sourceLoginScope',
+    'sourceArchiveMatches','registerSourcePackageFromBytes','installFromBytes'],{...globals,BackupRestoreActivity:{runWrite:async work=>work()}})
   return {api,probe,events,old,registry,set persistFails(v){persistFails=v},set registerFails(v){registerFails=v},get next(){return next}}
 }
+test('identical local archives retain the installed entry and incompatible updates cannot inherit its session', async () => {
+  const catalog = 'https://catalog.example/index.json'
+  const auth = {kind:'credentials',loginUrl:'https://account.example/login',credentialStorage:'memory'}
+  const installed = {catalogOrigin:catalog, manifestVersion:'1.0.0', hashOk:true, authentication:auth,
+    sessionStorageIdentity:'original-storage'}
+  const archive = new Uint8Array([1])
+  const local = installFixture(true, '0', installed, {
+    package:{id:'one',name:'One',version:'1.0.0'}, permissions:{authentication:auth},
+  }, archive)
+  assert.equal((await local.api.registerSourcePackageFromBytes({}, archive, 'renamed.zip', undefined, '/packages/new')).ok, true)
+  assert.equal(local.registry.lookup('one').entry, local.old)
+  assert.deepEqual(local.events, ['delete:/packages/new'])
+
+  for (const [verified, authentication, expected] of [
+    [catalog, {...auth, usernameLabel:'Email'}, 'original-storage'],
+    [catalog, {...auth, loginUrl:'https://other.example/login'}, undefined],
+    [undefined, auth, undefined],
+  ]) {
+    const f = installFixture(true, '0', installed, {
+      package:{id:'one',name:'One',version:'1.1.0'}, permissions:{authentication},
+    })
+    const running = f.api.registerSourcePackageFromBytes({}, archive, 'new.koma', 'one', '/packages/new', catalog,
+      () => true, verified)
+    f.probe.resolve(JSON.stringify(response))
+    assert.equal((await running).ok, true)
+    assert.equal(f.next.sessionStorageIdentity, expected ?? 'source-session:fresh-storage')
+    assert.equal(f.events.includes('retire:one'), expected !== undefined)
+  }
+})
 test('an incompatible archive reports its required app version before probing or replacing the installed source', async () => {
   const fixture = installFixture(false, '1.2.0')
   const result = await fixture.api.registerSourcePackageFromBytes({}, new Uint8Array([1]), 'source.koma', 'one', '/packages/new')

@@ -749,7 +749,7 @@ export class BrowseViewModel {
     const webSessions = (entry.webSessionOrigins ?? []).map((origin: string): string =>
       appSourceWebSessionStore.status(source.sourceId, origin).sessionId)
     const context = JSON.stringify([appSourceSettingsStore.revisionForSource(source.sourceId),
-      SourcePrivateSessionHost.authenticationRevision(source.sourceId, identity), webSessions])
+      SourcePrivateSessionHost.authenticationRevision(source.sourceId, entry.sessionStorageIdentity ?? identity), webSessions])
     // Keep only route-local first results. Settings and account changes cannot
     // display an earlier mirror's cards or another account's recommendations.
     if (this.browseCacheEntry !== entry || this.browseCacheContext !== context) {

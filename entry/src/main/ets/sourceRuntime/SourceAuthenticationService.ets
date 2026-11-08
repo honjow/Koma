@@ -92,7 +92,7 @@ export class SourceAuthenticationService {
     this.grantId = ''
   }
   private sessionRevision(): string {
-    return SourcePrivateSessionHost.authenticationRevision(this.entry.sourceId, this.packageIdentity)
+    return SourcePrivateSessionHost.authenticationRevision(this.entry.sourceId, this.entry.sessionStorageIdentity ?? this.packageIdentity)
   }
   /** The account sheet may paint a confirmed state immediately on re-entry.
    * Only display metadata is cached. Private mutations, mirror/settings changes
