@@ -9,6 +9,7 @@ const REMOTE_IMAGE_CACHE_SCHEMA_VERSION: number = 1
 const REMOTE_IMAGE_CACHE_DIR_NAME: string = 'reader-remote-image-cache'
 const REMOTE_IMAGE_CACHE_MANIFEST_NAME: string = 'manifest.v1.json'
 const READER_CACHE_WRITE_SETTLE_MS: number = 400
+const EVICT_UNLINK_BATCH: number = 8
 
 export interface RemoteImageCacheManifestEntry {
   key: string
@@ -379,6 +380,7 @@ export class RemoteImageCacheStore {
     rows.sort((left: RemoteImageCacheManifestEntry, right: RemoteImageCacheManifestEntry) => {
       return left.lastAccessAt - right.lastAccessAt
     })
+    let removedSinceYield = 0
     for (const entry of rows) {
       if (this.totalBytes <= maxBytes) {
         break
@@ -391,6 +393,11 @@ export class RemoteImageCacheStore {
       }
       this.removeEntry(entry.key)
       dirty = true
+      removedSinceYield += 1
+      if (removedSinceYield >= EVICT_UNLINK_BATCH) {
+        removedSinceYield = 0
+        await new Promise<void>((resolve: () => void): void => { setTimeout(resolve, 0) })
+      }
       console.info(`[ReaderCache] step=evict key=${entry.key} size=${entry.size} total=${this.totalBytes}`)
     }
     if (dirty) await this.persist()
