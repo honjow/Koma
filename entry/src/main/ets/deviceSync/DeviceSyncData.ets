@@ -2,6 +2,21 @@ import { SyncEdit, SyncFact, SyncGroup, isSyncReplica, syncVisibleHeads, syncVis
 import { isSyncDigest, syncDigest } from './DeviceSyncWire'
 import { syncDefaultCaseFold } from './DeviceSyncCaseFold'
 
+/** Bulk projection is asynchronous but each synchronous chunk still shares the UI event loop. */
+export class SyncWorkSlice {
+  private deadline: number = Date.now() + 6
+
+  pause(): Promise<void> | undefined {
+    if (Date.now() < this.deadline) return undefined
+    return new Promise<void>((resolve: () => void): void => {
+      setTimeout((): void => {
+        this.deadline = Date.now() + 6
+        resolve()
+      }, 0)
+    })
+  }
+}
+
 export const SYNC_OFFICIAL_CATALOG = 'https://github.com/honjow/koma-sources/releases/latest/download/index.json'
 export const SYNC_CATALOG_ID = 'honjow/koma-sources'
 export const SYNC_READING_DATASET = 'reading-records'

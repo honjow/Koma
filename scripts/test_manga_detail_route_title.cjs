@@ -18,9 +18,12 @@ function method(page, name, folder = 'pages') {
 
 const code = ts.transpileModule(`
   export class Downloads {
-    libraryStore; blocked = []; toasts = [];
-    blockUnavailableEntry(entry) { this.blocked.push(entry) }
+    libraryStore; toasts = []; opened = [];
     showToast(text) { this.toasts.push(text) }
+    onOpenReader(comicId, chapterId) { this.opened.push({ comicId, chapterId }) }
+    hasReadableDownloadedManifest(entry) { return entry.readable === true }
+    ${method('DownloadsPage', 'canRead')}
+    ${method('DownloadsPage', 'openDownloadedChapter')}
     ${method('DownloadsPage', 'openDownloadEntry')}
   }
   export class Index {
@@ -47,10 +50,10 @@ const strings = new Map(JSON.parse(readFileSync(resolve(root,
 const s = (key) => { assert.ok(strings.has(key), `Missing localized key ${key}`); return strings.get(key) }
 const routes = []
 const compiled = { exports: {} }
-new Function('module', 'exports', 'RouterHelper', 'AppStrings', 's', '$r', 'MangaDetailTitleAction', code)(
+new Function('module', 'exports', 'RouterHelper', 'AppStrings', 's', '$r', 'MangaDetailTitleAction', 'OfflineDownloadStatus', code)(
   compiled, compiled.exports, { pushMangaDetail: (param) => routes.push(param),
     ensureMangaDetailRouteChrome: (param) => param.chrome },
-  { get: s }, s, (resource) => resource, { SELECT_ALL_CHAPTERS: 'select_all_chapters' })
+  { get: s }, s, (resource) => resource, { SELECT_ALL_CHAPTERS: 'select_all_chapters' }, { DOWNLOADED: 'downloaded' })
 const index = new compiled.exports.Index()
 const downloads = new compiled.exports.Downloads()
 const comics = [
@@ -107,8 +110,11 @@ assert.equal(index.mangaDetailTitle({ mangaId: 'missing', chrome: { resolvedTitl
 const count = routes.length
 downloads.openDownloadEntry({ comicId: 'missing' })
 assert.equal(routes.length, count, 'Unavailable downloads must not navigate')
-assert.deepEqual(downloads.blocked, [{ comicId: 'missing' }])
 assert.deepEqual(downloads.toasts, [s('downloads_toast_entry_unavailable')])
+downloads.openDownloadedChapter({ comicId: 'missing', chapterId: 'chapter-a', status: 'downloaded', readable: true })
+downloads.openDownloadedChapter({ comicId: 'missing', chapterId: 'chapter-b', status: 'partial', readable: true })
+assert.deepEqual(downloads.opened, [{ comicId: 'missing', chapterId: 'chapter-a' }],
+  'A valid complete download stays readable after removing the work from the shelf')
 assert.equal(index.mangaDetailTitle({ mangaId: 'remote-1', sourceId: 'source-a' }), 'Source A title',
   'Resolving another route must not retain its title')
 const selection = new compiled.exports.Selection()

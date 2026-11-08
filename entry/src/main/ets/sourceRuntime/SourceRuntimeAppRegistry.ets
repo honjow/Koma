@@ -62,6 +62,10 @@ function compareSourcePackageVersions(left: string, right: string): number {
   return 0
 }
 
+// A bundle upgrade starts a new process. Comparing each offer must not
+// repeatedly call the bundle manager on the UI thread.
+let sourcePackageAppVersion: string | undefined
+
 export function isSourcePackageMinAppVersionSatisfied(minAppVersion: string | undefined): boolean {
   const required = minAppVersion ?? ''
   if (required.length === 0) {
@@ -71,8 +75,9 @@ export function isSourcePackageMinAppVersionSatisfied(minAppVersion: string | un
     return false
   }
   try {
-    const info = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT)
-    const current = info.versionName
+    const current = sourcePackageAppVersion ??
+      bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT).versionName
+    if (current.length > 0) sourcePackageAppVersion = current
     const prerelease = current.endsWith('-pre')
     const baseVersion = prerelease ? current.slice(0, -4) : current
     if (!isValidSourcePackageMinAppVersion(baseVersion) || baseVersion.length === 0) {

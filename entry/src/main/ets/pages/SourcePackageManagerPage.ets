@@ -5,7 +5,8 @@ import { appSourceCatalogFilters, SourceCatalogFilterState } from '../state/Sour
 import { SourceCatalogPageChrome } from '../state/SourceCatalogPageChrome'
 import { SOURCE_MANAGER_SECTIONS_HEIGHT } from '../components/SourceCatalogSections'
 import { ImagePluginsPage } from './ImagePluginsPage'
-import { SourceCatalogFilters, sourceCatalogLanguage, sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
+import { groupSourcesByLanguage, SourceCatalogFilters, sourceCatalogLanguage, SourceLanguageGroup,
+  sourceMatchesCatalogFilters, sourceMatchesCatalogSearch } from '../model/SourceCatalogPresentation'
 import { appSourcePackageLocalImport, SourcePackageLocalImport } from '../sourceRuntime/SourcePackageLocalImport'
 import { SourcePackageManagerCache, appSourcePackageManagerCache, SourcePackageUpdateStatus, SourcePackageUpdateCandidate, SourcePackageUpdateState } from '../viewmodel/SourcePackageManagerCache'
 import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
@@ -23,7 +24,7 @@ import { canShareInstalledSourcePackage, prepareInstalledSourcePackageShare } fr
 import { KomaModalScaffold } from '../components/KomaModalScaffold'
 import { SourcePackageListItem } from '../components/SourcePackageListItem'
 import { ConciseListRow, SourceIdentityIconState } from '../components/ui/ConciseListRow'
-import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
+import { GroupedListSection, ListDivider, SectionHeader } from '../components/ui/GroupedListSection'
 import { KomaActionButton } from '../components/ui/KomaActionButton'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
 import { AppStrings } from '../i18n/AppStrings'
@@ -850,8 +851,22 @@ export struct SourcePackageManagerPage {
   }
 
   @Computed
-  private get lastMissingSourceId(): string {
-    const rows = this.listGroups.missing
+  private get missingLanguageGroups(): SourceLanguageGroup<SourceIndexEntry>[] {
+    return groupSourcesByLanguage(this.listGroups.missing, (entry: SourceIndexEntry): string => entry.lang)
+  }
+
+  @Computed
+  private get missingLanguages(): string[] {
+    return this.missingLanguageGroups.map((group: SourceLanguageGroup<SourceIndexEntry>): string => group.language)
+  }
+
+  private missingInLanguage(language: string): SourceIndexEntry[] {
+    return this.missingLanguageGroups.find((group: SourceLanguageGroup<SourceIndexEntry>): boolean =>
+      group.language === language)?.items ?? []
+  }
+
+  private lastMissingSourceId(language: string): string {
+    const rows = this.missingInLanguage(language)
     return rows.length > 0 ? rows[rows.length - 1].id : ''
   }
 
@@ -2554,16 +2569,6 @@ export struct SourcePackageManagerPage {
         }
       }
     }
-    if (groups.missing.length > 0) {
-      ListItem() {
-        GroupedListSection({ title: t('source_pkg_uninstalled_heading') }) {
-          ForEach(groups.missing, (entry: SourceIndexEntry, index: number) => {
-            this.RemoteIndexCard(entry)
-            if (entry.id !== this.lastMissingSourceId) { ListDivider() }
-          }, (entry: SourceIndexEntry, _index: number) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
-        }
-      }
-    }
     if (groups.installed.length > 0) {
       ListItem() {
         GroupedListSection({ title: t('source_pkg_installed_heading') }) {
@@ -2573,6 +2578,21 @@ export struct SourcePackageManagerPage {
           }, (source: InstalledSourcePackage, _index: number) => JSON.stringify([source.id, source.version, source.enabled, source.nsfw, source.icon, source.name, source.lang]))
         }
       }
+    }
+    if (groups.missing.length > 0) {
+      ListItem() { SectionHeader({ title: t('source_pkg_uninstalled_heading') }) }
+      ForEach(this.missingLanguages, (language: string) => {
+        ListItem() {
+          // Like Browse, keep the language key stable and read the live members
+          // when an install, filter or search changes the section.
+          GroupedListSection({ title: sourceLanguageName(language) || t('source_catalog_language_unknown') }) {
+            ForEach(this.missingInLanguage(language), (entry: SourceIndexEntry) => {
+              this.RemoteIndexCard(entry)
+              if (entry.id !== this.lastMissingSourceId(language)) { ListDivider() }
+            }, (entry: SourceIndexEntry) => JSON.stringify([entry.id, entry.version, entry.icon, entry.nsfw]))
+          }
+        }
+      }, (language: string) => language)
     }
   }
 

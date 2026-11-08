@@ -132,6 +132,7 @@ import {
   Comic,
   ComicId,
   ComicSourceKind,
+  ReadingDirection,
   Page,
   ReadingProgress,
   setCompleteSourceChapterCatalog,
@@ -514,11 +515,11 @@ struct Index {
   private readerOpenAlign: 'start' | 'end' = 'start'
   /** Present only while Reader was launched from an un-shelved source item. */
   private activeSourceReaderRequest?: SourceReaderSessionRequest
-  /** Kavita read snapshot; favorite state remains owned by LibraryStore. */
-  private activeKavitaReaderComic?: Comic
+  /** Read-only snapshots for Kavita and standalone downloads. */
+  private activeReaderComicSnapshot?: Comic
 
   private readerComicForOpen(comicId: ComicId): Comic | undefined {
-    if (this.activeKavitaReaderComic?.id === comicId) return this.activeKavitaReaderComic
+    if (this.activeReaderComicSnapshot?.id === comicId) return this.activeReaderComicSnapshot
     return this.libraryStore.getComic(comicId)
   }
 
@@ -1178,14 +1179,45 @@ struct Index {
       chapterTitles: [comic.chapters.find((item: Chapter): boolean => item.id === chapter)?.title ?? ''] })
   }
 
+  private openDownloadedChapter(comicId: ComicId, chapterId: string): void {
+    const comic = this.libraryStore.getComic(comicId)
+    if (comic?.chapters.some((chapter: Chapter): boolean => chapter.id === chapterId)) {
+      void this.openReader(comicId, chapterId)
+      return
+    }
+    // Finished downloads own their local bytes and labels even after unfavoriting.
+    // A detached Reader snapshot must never re-add the work to the bookshelf.
+    const context = getContext(this) as common.UIAbilityContext
+    const validation = new OfflineDownloadStore(context.filesDir)
+      .validateDownloadedChapter(comicId, chapterId, { validateContentHash: false })
+    const manifest = validation.manifest
+    if (manifest === undefined || validation.status !== OfflineDownloadedChapterStatus.DOWNLOADED) {
+      this.showToast(AppStrings.get('downloads_toast_entry_unavailable'))
+      return
+    }
+    const title = comic?.title ?? manifest.comicTitle ?? AppStrings.get('downloads_local_section')
+    const chapter: Chapter = {
+      id: chapterId, comicId, title: manifest.chapterTitle ?? chapterId, index: 0,
+      sourcePath: '', sortKey: '', pages: [], pageCount: manifest.pageCount,
+      createdAt: manifest.updatedAt, updatedAt: manifest.updatedAt,
+    }
+    const snapshot: Comic = {
+      id: comicId, title, sortTitle: title, sourceKind: ComicSourceKind.PRIVATE_LIBRARY,
+      sourcePath: '', preferredDirection: comic?.preferredDirection ?? ReadingDirection.RIGHT_TO_LEFT,
+      chapters: [chapter], chapterCount: 1, pageCount: manifest.pageCount,
+      createdAt: manifest.updatedAt, updatedAt: manifest.updatedAt, lastImportedAt: manifest.updatedAt,
+    }
+    void this.openReader(comicId, chapterId, 'resume', snapshot)
+  }
+
   private async openReader(
     comicId: ComicId,
     chapterId?: string,
     intent: ReaderChapterOpenIntent = 'resume',
-    kavitaComic?: Comic,
+    comicSnapshot?: Comic,
   ): Promise<void> {
-    if (kavitaComic !== undefined) this.activeKavitaReaderComic = kavitaComic
-    else if (this.activeKavitaReaderComic?.id !== comicId) this.activeKavitaReaderComic = undefined
+    if (comicSnapshot !== undefined) this.activeReaderComicSnapshot = comicSnapshot
+    else if (this.activeReaderComicSnapshot?.id !== comicId) this.activeReaderComicSnapshot = undefined
     this.readerOpenIntent = intent
     this.readerOpenAlign = intent === 'end' ? 'end' : 'start'
     let comic = this.readerComicForOpen(comicId)
@@ -1311,7 +1343,7 @@ struct Index {
     const openEpoch = this.readerOpenEpoch + 1
     this.readerOpenEpoch = openEpoch
     this.activeSourceReaderRequest = nextRequest
-    this.activeKavitaReaderComic = undefined
+    this.activeReaderComicSnapshot = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = true
     this.readerSessionConfig = this.createSourceReaderSessionConfig(nextRequest, [])
@@ -1449,7 +1481,7 @@ struct Index {
     }
     this.readerOpenEpoch += 1
     this.activeSourceReaderRequest = undefined
-    this.activeKavitaReaderComic = undefined
+    this.activeReaderComicSnapshot = undefined
     this.readerChromeVisible = false
     this.readerSessionLoading = false
     this.readerSessionConfig = cloneReaderSessionConfig(MOCK_LIBRARY_READER_SESSION)
@@ -1509,7 +1541,7 @@ struct Index {
   private createReaderSessionConfigForOpen(comic: Comic, chapterId?: string): ReaderSessionConfig {
     const config = createReaderSessionConfigFromComic(comic, chapterId)
     const offlineChapterId = chapterId ?? config.chapterId
-    if (config.totalPages > 0 || offlineChapterId.length === 0) {
+    if ((config.totalPages > 0 && config.pageUris.length > 0) || offlineChapterId.length === 0) {
       return config
     }
     return this.createOfflineDownloadReaderSessionConfig(comic, offlineChapterId, config) ?? config
@@ -1660,7 +1692,7 @@ struct Index {
     this.readerClosing = false
     this.readerRouteVisible = false
     this.readerSessionLoading = false
-    this.activeKavitaReaderComic = undefined
+    this.activeReaderComicSnapshot = undefined
     if (this.cleanupProgressCommitted) {
       this.cleanupProgressCommitted = false
       void this.cleanupService().run(getContext(this) as common.UIAbilityContext,
@@ -1854,7 +1886,7 @@ struct Index {
     const belowReader = routes[routes.length - 2]
     const privateBrowse = belowReader === RouteName.KOMGA_BROWSE || belowReader === RouteName.KAVITA_BROWSE ||
       belowReader === RouteName.WEBDAV_BROWSE || belowReader === RouteName.OPDS_BROWSE
-    if (comic === undefined && (this.activeKavitaReaderComic?.id === comicId ||
+    if (comic === undefined && (this.activeReaderComicSnapshot?.id === comicId ||
       privateBrowse)) {
       // The original private browse page is still below Reader. Retire Reader
       // through its normal persistence/system-bar close before returning there.
@@ -3159,13 +3191,8 @@ struct Index {
       HdsNavDestination() {
         DownloadsPage({
           libraryStore: this.libraryStore,
-          libraryPersistenceService: this.ensureLibraryPersistenceService(),
-          sourceRegistry: this.sourceRegistry,
-          onOpenReader: (comicId: ComicId, chapterId?: string) => {
-            void this.openReader(comicId, chapterId)
-          },
-          onLibraryChanged: () => {
-            this.refreshLibrarySnapshot()
+          onOpenReader: (comicId: ComicId, chapterId: string) => {
+            this.openDownloadedChapter(comicId, chapterId)
           },
         })
       }

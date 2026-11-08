@@ -1,6 +1,7 @@
 // Ported from NextE; Koma owns processing preferences, model files and cache.
 import { readerProcessingOwnerHash, readerSuperResolutionFailureCode } from './ReaderProcessingDiagnostics'
 import { common } from '@kit.AbilityKit'
+import { taskpool } from '@kit.ArkTS'
 import { fileIo } from '@kit.CoreFileKit'
 import { image } from '@kit.ImageKit'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -45,6 +46,12 @@ const MAX_OUTPUT_PIXEL_BYTES: number = MAX_OUTPUT_PIXELS * 4
 const SYSTEM_MAX_OUTPUT_EDGE: number = READER_SUPER_RESOLUTION_MAX_SOURCE_HEIGHT * 4
 const SYSTEM_MAX_OUTPUT_PIXELS: number = SYSTEM_MAX_OUTPUT_EDGE * SYSTEM_MAX_OUTPUT_EDGE
 const SYSTEM_MAX_OUTPUT_PIXEL_BYTES: number = SYSTEM_MAX_OUTPUT_PIXELS * 4
+
+@Concurrent
+function allocateSystemSuperResolutionPixels(bytes: number): ArrayBuffer {
+  return new ArrayBuffer(bytes)
+}
+
 const MAX_CACHE_FILE_COUNT: number = 64
 const MAX_CACHE_BYTES: number = 256 * 1024 * 1024
 const SUPER_RESOLUTION_SUPERSEDED_ERROR: string = 'super-resolution request superseded'
@@ -859,7 +866,8 @@ export class ReaderSuperResolutionService {
       // Core Vision may return an internal hardware layout that ImagePacker cannot encode.
       processingStage = 'system_normalize'
       await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
-      const normalizedBuffer: ArrayBuffer = new ArrayBuffer(outputPixels * 4)
+      const normalizedBuffer = await taskpool.execute(allocateSystemSuperResolutionPixels, outputPixels * 4) as ArrayBuffer
+      await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
       await outputPixelMap.readPixelsToBuffer(normalizedBuffer)
       try {
         await outputPixelMap.release()
@@ -876,7 +884,7 @@ export class ReaderSuperResolutionService {
       await ReaderSuperResolutionService.waitForSystemInteractionIdle(inFlight)
       ReaderSuperResolutionService.removeIfExists(tmpPath)
       processingStage = 'output_file'
-      outputFile = fileIo.openSync(
+      outputFile = await fileIo.open(
         tmpPath,
         fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC,
       )
@@ -887,7 +895,7 @@ export class ReaderSuperResolutionService {
         quality: 98,
       })
       ReaderSuperResolutionService.ensureTaskActive(inFlight)
-      fileIo.closeSync(outputFile)
+      await fileIo.close(outputFile)
       outputFile = null
       ReaderSuperResolutionService.removeIfExists(outputPath)
       ReaderSuperResolutionService.removeIfExists(
@@ -959,7 +967,7 @@ export class ReaderSuperResolutionService {
       )
       if (outputFile !== null) {
         try {
-          fileIo.closeSync(outputFile)
+          await fileIo.close(outputFile)
         } catch (_error) {}
       }
       if (packer !== undefined) {

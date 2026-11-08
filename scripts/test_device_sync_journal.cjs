@@ -13,6 +13,62 @@ const support = new Function('require', '__dirname',
 const { compile, wire, facts, data, journal, engineFixture, runtimeFixture, A, B, C, dot, edit } = support
 const models = compile('../remote/WebDavModels')
 const xml = compile('../remote/WebDavClient', { './WebDavModels': models })
+
+test('a staged sync state cannot overwrite a newer local write or publish after cancellation', async () => {
+  const path = '/test/device-sync-state.v1.json'
+  const files = new Map()
+  let staged
+  let resume
+  let blocked = false
+  const fileIo = {
+    accessSync: file => files.has(file),
+    readTextSync: file => files.get(file),
+    renameSync: (from, to) => {
+      assert.ok(files.has(from))
+      files.set(to, files.get(from))
+      files.delete(from)
+    },
+    unlink: async file => files.delete(file),
+  }
+  const { DeviceSyncStorage } = compile('DeviceSyncStorage', {
+    '@kit.CoreFileKit': { fileIo }, '@kit.AssetStoreKit': {},
+    '@kit.ArkTS': { util: { generateRandomUUID: randomUUID }, taskpool: {
+      async execute(worker, ...args) {
+        const result = worker(...args)
+        if (blocked) {
+          blocked = false
+          await new Promise(resolve => { resume = resolve; staged() })
+        }
+        return result
+      },
+    } },
+    '../model/AppFileTextPersistence': { writeAppTextFile: (file, body) => files.set(file, body) },
+    './DeviceSyncFacts': facts, './DeviceSyncWire': wire, './DeviceSyncWebDav': {},
+  })
+  const storage = new DeviceSyncStorage('/test')
+  storage.update(state => { state.counter = 1 })
+  const pauseNext = () => new Promise(resolve => { blocked = true; staged = resolve })
+  const firstStage = pauseNext()
+  const saving = storage.updateInBackground(state => { state.counter += 1; return true }, () => {})
+  await firstStage
+  storage.update(state => { state.counter = 5 })
+  resume()
+  await saving
+  assert.equal(JSON.parse(files.get(path)).counter, 6)
+  assert.equal(storage.load().counter, 6)
+
+  let allowed = true
+  const secondStage = pauseNext()
+  const cancelled = storage.updateInBackground(state => { state.counter = 9; return true }, () => {
+    if (!allowed) throw new Error('sync_connection_changed')
+  })
+  await secondStage
+  allowed = false
+  resume()
+  await assert.rejects(cancelled, /sync_connection_changed/)
+  assert.equal(JSON.parse(files.get(path)).counter, 6)
+  assert.deepEqual([...files.keys()], [path])
+})
 const noop = () => {}
 const clone = value => structuredClone(value)
 const response = (status, body = '') => ({ responseCode: status,
@@ -70,7 +126,8 @@ function transportFixture() {
   const { DeviceSyncWebDav } = compile('DeviceSyncWebDav', {
     './DeviceSyncWire': wire, './DeviceSyncJournal': journal, '../remote/WebDavClient': xml,
     '@kit.NetworkKit': { http },
-    '@kit.ArkTS': { url: { URL: { parseURL: text => new URL(text) } }, util: {
+    '@kit.ArkTS': { taskpool: { execute: async (fn, ...args) => fn(...args) },
+      url: { URL: { parseURL: text => new URL(text) } }, util: {
       Base64Helper: class { encodeToStringSync(bytes) { return Buffer.from(bytes).toString('base64') } },
       TextDecoder: { create: () => ({ decodeToString: bytes => new TextDecoder('utf-8', { fatal: true }).decode(bytes) }) },
     } },
@@ -105,7 +162,8 @@ const animation = data.syncKey(['global', 'animation'])
 function readingDevice(fixture, id, installed, withShelf = false) {
   const filesDir = '/' + id
   const files = new Map()
-  const fileIo = { accessSync: file => files.has(file), readTextSync: file => files.get(file),
+  const fileIo = { access: async file => files.has(file), readText: async file => files.get(file),
+    accessSync: file => files.has(file), readTextSync: file => files.get(file),
     unlinkSync: file => files.delete(file) }
   const writeAppTextFile = (file, content) => files.set(file, content)
   const nativeFs = { fileIo }
@@ -138,7 +196,10 @@ function readingDevice(fixture, id, installed, withShelf = false) {
     './LocalLibraryRescanService': {},
   }) : { LIBRARY_STORE_PERSISTENCE_FILE_NAME: 'library.json', LIBRARY_STORE_PERSISTENCE_SCHEMA_VERSION: 1 }
   const { KomaDeviceSyncOwners } = compile('DeviceSyncOwners', {
-    '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
+    '@kit.CoreFileKit': nativeFs, '@kit.ArkTS': {
+      util: { generateRandomUUID: randomUUID },
+      taskpool: { execute: async (fn, ...args) => fn(...args) },
+    },
     '../model/AppFileTextPersistence': { writeAppTextFile }, '../model/BackupRestoreActivity': backup,
     '../model/LibraryPersistence': persistence,
     '../model/ReaderSessionStore': sessions, '../model/ReaderPreferencesStore': {}, '../model/ComicModels': comics,
@@ -571,7 +632,7 @@ test('saved history and live page turns from other sources reach a fresh reader 
   save(a.reader, loginWork, loginChapter, 6, 13, 300)
   a.runtime.observeReading(a.reader.getProgress(loginWork))
   assert.equal(a.reader.flush(), true)
-  a.runtime.recordPositions()
+  await a.runtime.recordPositions()
   await a.engine.syncNow()
   await b.engine.syncNow()
   cold = b.coldReader()
@@ -589,7 +650,7 @@ test('saved history and live page turns from other sources reach a fresh reader 
   await b.engine.syncNow()
   assert.equal(f.trace.filter(row => row.method === 'PUT').length, puts, 'receiving reading progress must not reupload it')
   assert.equal(a.reader.removeHistoryEntries([loginWork]), true)
-  a.runtime.recordPositions()
+  await a.runtime.recordPositions()
   await a.engine.syncNow()
   await b.engine.syncNow()
   assert.equal(b.coldReader().getSourceHistory(loginWork), undefined)
@@ -614,8 +675,9 @@ test('a local position missed by the old client survives an independent remote p
   b.engine.recordEdits('reading', [{ key, kind: 'set', value: remote }])
   await b.engine.syncNow()
   await a.engine.syncNow()
-  const decision = a.engine.readingDecisions().find(row => row.key === key)
-  assert.deepEqual(new Set(decision?.values), new Set([local, remote]))
+  const merged = a.engine.active().groups.find(group => group.id === 'reading').facts.find(row => row.key === key)
+  assert.deepEqual(new Set(facts.syncVisibleHeads(merged).map(head => head.value)), new Set([local, remote]))
+  assert.equal(a.values.get('reading').get(key), remote)
 })
 
 test('independent writer publications receive chapter and page without shared conditional writes', async () => {
@@ -1073,26 +1135,25 @@ test('service pause preserves scope and capture dots, blocks sync traffic, and i
   const stored = refs.flatMap(ref => ref.shards.flatMap(shard => wire.decodeSyncShard(ref.id, shard,
     f.files.get(f.root + wire.syncShardPath(shard)), data.syncBucketKey))).find(fact => fact.key === positionKey)
   assert.deepEqual(stored.barriers.find(edit => edit.kind === 'delete').version, captured)
-  const next = left.store.load().counter + 1
-  const concurrent = facts.mergeSyncFact(edit(stored, dot(A, next), 'set', value),
-    edit(stored, dot(B, 100), 'set', JSON.stringify({ page: 2, total: 8, pageTable: 'a'.repeat(64) })))
-  left.store.update(state => {
-    state.counter = next
-    state.active.groups.find(group => group.id === 'reading').facts = [concurrent]
-  })
+  const reread = JSON.stringify({ page: 0, total: 8, date: 500 })
+  left.values.get('reading').set(positionKey, reread)
+  const staged = left.engine.recordEdits('reading', [{ key: positionKey, kind: 'set', value: reread }])
+  assert.ok(staged)
   let enter, release
   const entered = new Promise(resolve => { enter = resolve })
   const gate = new Promise(resolve => { release = resolve })
   const snapshot = left.engine.owner.snapshot.bind(left.engine.owner)
   left.engine.owner.snapshot = async (...args) => { enter(); await gate; return snapshot(...args) }
-  const choice = left.engine.chooseReadingDecision(positionKey, value)
-  const cancelled = assert.rejects(choice, /connection_changed|disabled|paused/)
+  const cancelled = assert.rejects(left.engine.syncNow(), /connection_changed|disabled|paused/)
   await entered
   left.engine.setEnabled(false)
   release()
   await cancelled
-  assert.equal(left.engine.readingDecisions()[0].values.length, 2,
-    'pausing during the local check must retain the unresolved reading decision')
+  assert.equal(left.engine.readingWritePending(staged), true)
+  left.engine.setEnabled(true)
+  await left.engine.syncNow()
+  await right.engine.syncNow()
+  assert.equal(right.values.get('reading').get(positionKey), reread)
 })
 
 test('pause invalidates an in-flight callback but keeps its intent for enabled recovery', async () => {
@@ -1166,7 +1227,7 @@ test('paused runtime keeps Reader clears and bookmarks local until enabled', asy
   ])
   assert.equal(captures.length, 2)
   const requests = f.trace.length
-  runtime.recordReaderActions(captures, scope)
+  await runtime.recordReaderActions(captures, scope)
   assert.equal(reader.engine.knownReadingValue(recentKey), undefined)
   assert.equal(reader.engine.active().groups[0].pending.length, 2)
   assert.equal(f.trace.length, requests)

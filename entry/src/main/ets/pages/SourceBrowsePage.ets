@@ -223,8 +223,15 @@ export struct SourceBrowsePage {
   private openHomeSectionListing(section: SourceHomeSectionState): void {
     const listing = this.listingForHomeSection(section)
     if (listing !== undefined) {
-      void this.viewModel.selectBrowseListing(listing)
+      this.switchBrowseDestination(listing)
     }
+  }
+
+  private switchBrowseDestination(listing?: SourceListingDescriptor): void {
+    if ((listing?.id ?? '') === this.viewModel.selectedListingId) return
+    this.chrome.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
+    if (listing === undefined) void this.viewModel.selectBrowseHome()
+    else void this.viewModel.selectBrowseListing(listing)
   }
 
   private hasBrowseContent(): boolean {
@@ -235,7 +242,7 @@ export struct SourceBrowsePage {
 
   private isBlockingBrowseLoading(): boolean {
     return this.viewModel.browseContentState === BrowseContentState.UNRESOLVED ||
-      this.viewModel.browseContentState === BrowseContentState.LOADING
+      (this.viewModel.browseContentState === BrowseContentState.LOADING && this.listingChoiceCount() === 0)
   }
 
   private isSearchActive(): boolean {
@@ -435,7 +442,7 @@ export struct SourceBrowsePage {
           .selectIcon(true)
           .onClick(() => {
             this.listingMenuOpen = false
-            if (this.viewModel.selectedListingId.length > 0) void this.viewModel.selectBrowseHome()
+            this.switchBrowseDestination()
           })
       }
       ForEach(this.viewModel.listings, (listing: SourceListingDescriptor) => {
@@ -444,14 +451,14 @@ export struct SourceBrowsePage {
           .selectIcon(true)
           .onClick(() => {
             this.listingMenuOpen = false
-            if (this.viewModel.selectedListingId !== listing.id) void this.viewModel.selectBrowseListing(listing)
+            this.switchBrowseDestination(listing)
           })
       }, (listing: SourceListingDescriptor) => listing.id)
     }
   }
 
   private openListingMenu(): void {
-    if (this.listingChoiceCount() > 1 && !this.viewModel.loadingBrowse) {
+    if (this.listingChoiceCount() > 1 && this.viewModel.browseLoadIntent !== BrowseLoadIntent.INITIAL) {
       this.listingMenuOpen = true
     }
   }
@@ -518,7 +525,7 @@ export struct SourceBrowsePage {
       Blank()
       // A pageable listing's loaded cards do not represent its total size.
       if (this.viewModel.selectedListingId.length > 0 && this.viewModel.browsePage === 1 &&
-        !this.viewModel.hasMoreBrowse) {
+        !this.viewModel.hasMoreBrowse && this.viewModel.browseContentState === BrowseContentState.CONTENT) {
         Text(s('library_count_books').replace('%s', `${this.viewModel.popularManga.length}`))
           .fontSize(ThemeConstants.FONT_SIZE_META)
           .fontColor(ThemeConstants.TEXT_SECONDARY)
@@ -592,7 +599,7 @@ export struct SourceBrowsePage {
         rows.push({ key: 'browse-error', kind: 'error', bottomPadding: ThemeConstants.SPACE_MD })
       } else if (this.viewModel.browseContentState === BrowseContentState.EMPTY) {
         rows.push({ key: 'browse-empty', kind: 'empty-browse', bottomPadding: ThemeConstants.SPACE_MD })
-      } else {
+      } else if (this.viewModel.browseContentState !== BrowseContentState.LOADING) {
         this.viewModel.homeSections.forEach((section: SourceHomeSectionState) => {
           const prefix = `home:${section.id}`
           rows.push({ key: `${prefix}:header`, kind: 'home-header', homeSection: section,
@@ -753,9 +760,10 @@ export struct SourceBrowsePage {
   }
 
   @Builder
-  private BlockingBrowseLoadingOverlay() {
+  private BrowseLoadingOverlay(blocking: boolean) {
     Column() {
-      Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT)
+      Blank().height(this.safeArea.topAvoidHeight + ThemeConstants.TITLE_BAR_HEIGHT +
+        (blocking ? 0 : SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT))
       Column() {
         this.LoadingBrowseState()
       }
@@ -767,7 +775,8 @@ export struct SourceBrowsePage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(ThemeConstants.BG_SUB)
+    .backgroundColor(blocking ? ThemeConstants.BG_SUB : Color.Transparent)
+    .hitTestBehavior(HitTestMode.Transparent)
   }
 
   aboutToAppear(): void {
@@ -851,8 +860,9 @@ export struct SourceBrowsePage {
               .clip(false)
           }, (row: SourceBrowseGridRow) => row.key)
         }
-        if (this.isBlockingBrowseLoading() && !this.isSearchActive()) {
-          this.BlockingBrowseLoadingOverlay()
+        if (!this.isSearchActive() && (this.isBlockingBrowseLoading() ||
+          this.viewModel.browseContentState === BrowseContentState.LOADING)) {
+          this.BrowseLoadingOverlay(this.isBlockingBrowseLoading())
         }
       }
       .width('100%')

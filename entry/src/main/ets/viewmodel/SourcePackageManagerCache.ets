@@ -232,11 +232,18 @@ export class SourcePackageManagerCache {
   private async warmCatalogIcons(context: common.UIAbilityContext, revision: number, online: boolean): Promise<void> {
     const service = new SourceIndexService(context)
     const entries = this.indexEntries
-    const urls = Array.from(new Set(entries.map((entry: SourceIndexEntry): string => entry.repositoryUrl ?? this.sourceIndexUrl)))
-    for (const url of urls) {
+    const installed = new Set(this.packages.map((source: InstalledSourcePackage): string => source.id))
+    const offers = new Map<string, SourceIndexEntry[]>()
+    for (const entry of entries) {
+      if (installed.has(entry.id)) continue
+      const url = entry.repositoryUrl ?? this.sourceIndexUrl
+      const rows = offers.get(url)
+      if (rows === undefined) offers.set(url, [entry])
+      else rows.push(entry)
+    }
+    for (const url of offers.keys()) {
       if (revision !== this.indexLoadRevision) return
-      await service.loadIndexIcons(url, entries.filter((entry: SourceIndexEntry): boolean =>
-        (entry.repositoryUrl ?? this.sourceIndexUrl) === url && this.installedPackage(entry.id) === undefined),
+      await service.loadIndexIcons(url, offers.get(url) ?? [],
         (entry: SourceIndexEntry): void => {
           if (revision !== this.indexLoadRevision || entries !== this.indexEntries) return
           const icon = this.indexIconStates[entry.id]

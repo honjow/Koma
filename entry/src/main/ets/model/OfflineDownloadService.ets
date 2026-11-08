@@ -1,7 +1,6 @@
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
-import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
 import { common } from '@kit.AbilityKit'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { taskpool, url } from '@kit.ArkTS'
@@ -33,7 +32,6 @@ import {
   createOfflineDownloadStableByteHash,
 } from './OfflineDownloadStore'
 import {
-  OfflineDownloadQueueEntry,
   OfflineDownloadQueuePreferences,
   OfflineDownloadQueueStore,
 } from './OfflineDownloadQueueStore'
@@ -253,35 +251,27 @@ export class OfflineDownloadService {
     return manifest
   }
 
-  async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels): Promise<OfflineChapterDownloadManifest> {
+  async downloadChapter(comic: Comic, chapterId: string, labels?: OfflineDownloadLabels,
+    isRequested: () => boolean = () => true): Promise<OfflineChapterDownloadManifest> {
     const trace = DiagnosticLogger.begin('download', 'chapter')
     try {
       const filesDir = this.store.filesRootDir()
       await OfflineDownloadService.ensureQueueInitialized(filesDir)
       const key = OfflineDownloadRuntime.key(filesDir, comic.id, chapterId)
       const manifest = await OfflineDownloadRuntime.run(filesDir, comic.id, chapterId,
-        () => canRunOfflineDownloadQueueNow(this.queueStore.loadPreferences())
-          ? BackgroundDownloadOwner.run(this.requestContext, () => this.runChapterDownload(comic, chapterId, key, trace, labels))
-          : this.runChapterDownload(comic, chapterId, key, trace, labels),
+        () => {
+          const start = (): Promise<OfflineChapterDownloadManifest> => {
+            if (!isRequested()) throw new Error('download_request_removed')
+            return this.runChapterDownload(comic, chapterId, key, trace, labels)
+          }
+          return canRunOfflineDownloadQueueNow(this.queueStore.loadPreferences())
+            ? BackgroundDownloadOwner.run(this.requestContext, start) : start()
+        },
         () => this.queueStore.loadPreferences().foregroundConcurrencyLimit)
       trace.finish(manifest.status === OfflineDownloadStatus.DOWNLOADED ? 'completed' : manifest.status,
         'pages=' + manifest.downloadedPageCount + '/' + manifest.pageCount + ' reason=' + (manifest.failureReasonCode ?? 'none'))
       return manifest
     } catch (error) { trace.fail(error as Error); throw error as Error }
-  }
-
-  async runChapterBatch(comic: Comic, chapterIds: string[], execute: (chapterId: string) => Promise<void>): Promise<void> {
-    await OfflineDownloadService.ensureQueueInitialized(this.store.filesRootDir())
-    const targets: OfflineDownloadQueueEntry[] = chapterIds.map((chapterId: string): OfflineDownloadQueueEntry => ({
-      comicId: comic.id, chapterId, comicTitle: comic.title,
-      chapterTitle: comic.chapters.find((chapter: Chapter): boolean => chapter.id === chapterId)?.title,
-      status: OfflineDownloadStatus.QUEUED, pageCount: 0, downloadedPageCount: 0, updatedAt: Date.now(),
-    }))
-    // Enqueue the whole requested batch first so remaining chapters can be moved.
-    // Reverse the insertion input to retain this caller's existing initial order.
-    this.queueStore.addNewEntries(targets.slice().reverse())
-    await runOrderedDownloadQueueBatch(this.queueStore, targets,
-      (entry: OfflineDownloadQueueEntry): Promise<void> => execute(entry.chapterId), () => true)
   }
 
   private async runChapterDownload(

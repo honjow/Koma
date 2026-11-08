@@ -27,10 +27,14 @@ function fileCache(directory) {
     readSync: (fd, bytes) => fs.readSync(fd, new Uint8Array(bytes)),
     writeSync: (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes)),
     unlinkSync: fs.unlinkSync, unlink: p => fs.promises.unlink(p), listFile: p => fs.promises.readdir(p),
-    readTextSync: p => fs.readFileSync(p, 'utf8') }
+    readTextSync: p => fs.readFileSync(p, 'utf8'),
+    access: async p => fs.existsSync(p), stat: fs.promises.stat, rename: fs.promises.rename,
+    open: async (p, mode) => ({ fd: fs.openSync(p, mode === 0 ? 'r' : 'w') }),
+    close: async file => fs.closeSync(file.fd),
+    write: async (fd, bytes) => fs.writeSync(fd, typeof bytes === 'string' ? bytes : new Uint8Array(bytes)) }
   const imageFileContent = functions('model/ImageFileContent.ets', ['isAvifFileType'], {})
   const { RemoteImageCacheStore } = load('model/RemoteImageCacheStore.ets', {
-    '@kit.CoreFileKit': { fileIo: io }, './ImageFileContent': imageFileContent,
+    '@kit.CoreFileKit': { fileIo: io }, '@kit.ArkTS': { buffer: Buffer }, './ImageFileContent': imageFileContent,
   })
   return { io, cache: new RemoteImageCacheStore(directory) }
 }

@@ -1,4 +1,4 @@
-import { util, url } from '@kit.ArkTS'
+import { taskpool, util, url } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { DavResource } from '../remote/WebDavModels'
@@ -46,6 +46,18 @@ interface SyncHttpResponse {
 }
 
 export type SyncRequestGuard = () => void
+
+@Concurrent
+function parseSyncListing(xml: string, address: string): DavResource[] {
+  return parseWebDavMultiStatus(xml, address)
+}
+
+async function readSyncListing(xml: string, address: string, guard: SyncRequestGuard): Promise<DavResource[]> {
+  // A writer directory can contain many responses even when the latest head is unchanged.
+  const resources = await taskpool.execute(parseSyncListing, xml, address) as DavResource[]
+  guard()
+  return resources
+}
 
 const MANIFEST = 'manifest.json'
 const OBJECT_NAME = /^object-([1-9][0-9]*)-([0-9a-f]{64})\.json$/
@@ -203,7 +215,7 @@ export class DeviceSyncWebDav {
     }
     requireSuccess(result.status)
     if (result.status !== 207) throw new Error('sync_not_webdav_directory')
-    const resource = parseWebDavMultiStatus(result.body, address).find((item: DavResource): boolean =>
+    const resource = (await readSyncListing(result.body, address, guard)).find((item: DavResource): boolean =>
       item.href.replace(/\/+$/, '') === address.replace(/\/+$/, ''))
     if (resource === undefined) throw new Error('sync_not_webdav_directory')
     if (!resource.isCollection) throw new Error('sync_path_not_directory')
@@ -227,7 +239,7 @@ export class DeviceSyncWebDav {
     if (listing.status !== 404) requireSuccess(listing.status)
     if (listing.status !== 404 && listing.status !== 207) throw new Error('sync_collection_listing_failed')
     const listed = new Set<string>()
-    if (listing.status === 207) parseWebDavMultiStatus(listing.body, this.root).forEach((item: DavResource): void => {
+    if (listing.status === 207) (await readSyncListing(listing.body, this.root, guard)).forEach((item: DavResource): void => {
       if (!item.isCollection && item.href.startsWith(this.root)) {
         const name = item.href.substring(this.root.length)
         if (SYNC_COMMIT_NAME.test(name)) listed.add(name)
@@ -296,7 +308,7 @@ export class DeviceSyncWebDav {
     if (response.status === 404) return []
     requireSuccess(response.status)
     if (response.status !== 207) throw new Error('sync_collection_listing_failed')
-    return parseWebDavMultiStatus(response.body, address)
+    return (await readSyncListing(response.body, address, guard))
       .filter((item: DavResource): boolean => item.href.startsWith(address) && item.href !== address)
   }
 
@@ -597,7 +609,7 @@ export class DeviceSyncWebDav {
   }
 
   private async writePublication(path: string, body: string, manifest: SyncManifest, guard: SyncRequestGuard,
-    selected: string[], beforeSend: () => void = (): void => {}): Promise<void> {
+    selected: string[], beforeSend: () => void | Promise<void> = (): void => {}): Promise<void> {
     await this.ensureWriterRoot(guard)
     const segment = path.split('/')[1]
     await this.ensureCollection(this.writerRoot + this.writer + '/', guard)
@@ -609,12 +621,12 @@ export class DeviceSyncWebDav {
         if (syncDigest(content) !== ref.hash || syncUtf8(content).byteLength !== ref.bytes) throw new Error('sync_shard_damaged')
       }
     }
-    beforeSend()
+    await beforeSend()
     requireSuccess((await this.requestAt('PUT', this.writerRoot + path, guard, body)).status)
   }
 
   async publish(manifest: SyncManifest, tag: string, guard: SyncRequestGuard,
-    beforeSend: () => void = (): void => {}, selected: string[] = []): Promise<boolean> {
+    beforeSend: () => void | Promise<void> = (): void => {}, selected: string[] = []): Promise<boolean> {
     if (this.writer !== '') {
       const body = this.commitBody(manifest, [])
       const path = this.publicationName(this.writer, manifest.revision, body)
@@ -629,7 +641,7 @@ export class DeviceSyncWebDav {
     const body = syncCommitBody(manifest, current.frontier ?? [])
     const name = syncCommitName(body)
     guard()
-    beforeSend()
+    await beforeSend()
     requireSuccess((await this.request('PUT', name, guard, body)).status)
     const receipt = await this.readCommit(name, guard)
     if (receipt === undefined || receipt.hash !== syncDigest(JSON.stringify(manifest))) throw new Error('sync_remote_result_unknown')

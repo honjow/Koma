@@ -193,7 +193,7 @@ test('draft tests and merge failures preserve the active connection error', asyn
     selection: () => ['reader-settings'],
     hasUnresolvedCommit: () => false,
     stateGuard: () => () => {},
-    readingDecisions: () => [], readingScope: () => '',
+    readingScope: () => '',
     testConnection: async () => { await execute(); return false },
     prepare: execute, confirm: execute, syncNow: execute,
   }
@@ -310,7 +310,7 @@ function engineFixture(providerOverride) {
       if (failure === '412') return false
       const body = journal.syncCommitBody(head, this.server.frontier)
       const name = journal.syncCommitName(body)
-      beforeSend()
+      await beforeSend()
       guard()
       if (failure === 'before-accept') throw new Error('sync_network_failed')
       this.server.commits.set(name, body)
@@ -334,8 +334,14 @@ function engineFixture(providerOverride) {
   }
   const { DeviceSyncEngine } = compile('DeviceSyncEngine', {
     './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
+    './DeviceSyncPlanner': compile('DeviceSyncPlanner', {
+      './DeviceSyncFacts': facts, './DeviceSyncData': data, './DeviceSyncWire': wire,
+    }),
     './DeviceSyncStorage': storagePort, './DeviceSyncWebDav': { DeviceSyncWebDav: providerOverride ?? Provider },
-    '@kit.ArkTS': { util: { generateRandomUUID: randomUUID } },
+    '@kit.ArkTS': {
+      util: { generateRandomUUID: randomUUID },
+      taskpool: { execute: async (fn, ...args) => fn(...args) },
+    },
   })
   const draft = { directory: 'https://local-fixture.invalid', username: '', password: '' }
   function replica(id, initial = [], ownerFactory) {
@@ -345,6 +351,11 @@ function engineFixture(providerOverride) {
     const store = {
       load: () => document,
       update(change) { const next = clone(document); change(next); document = next },
+      async updateInBackground(change, guard) {
+        guard()
+        const next = clone(document)
+        if (change(next)) document = next
+      },
     }
     const owner = ownerFactory?.(store) ?? {
       async snapshot(group) {
@@ -732,33 +743,47 @@ test('a successful backup restore seals an already-sent intent before foreground
   assert.equal(first.engine.active().reviewRequired, true)
 })
 
-test('an explicit reading decision observes both concurrently saved page positions', async () => {
+test('the newest reading time resolves equal positions on first merge and different pages during sync', async () => {
   const { replica, draft } = engineFixture()
-  const left = replica(A, [['reading', new Map([[key, position(1)]])]])
-  const right = replica(B)
-  for (const device of [left, right]) {
-    await device.engine.testConnection(draft)
-    await device.engine.confirm((await device.engine.prepare(draft, ['reading'])).token, [])
-  }
-  left.engine.recordEdits('reading', [{ key, kind: 'set', value: position(3) }])
-  right.engine.recordEdits('reading', [{ key, kind: 'set', value: position(4) }])
+  const at = (page, date) => JSON.stringify({ page, total: 8, date })
+  const [, source, work, chapter] = data.syncKeyParts(key)
+  const recentKey = data.syncKey(['recent', source, work])
+  const nextChapter = 'ch:33333333-3333-3333-3333-333333333333'
+  const recent = (id, date, page) => JSON.stringify(data.syncReadingRecent(source, id, date, 'Test work', 'Test source', id, page))
+  const left = replica(A, [['reading', new Map([[key, at(1, 100)], [recentKey, recent(chapter, 100, 1)]])]])
+  const right = replica(B, [['reading', new Map([[key, at(1, 200)], [recentKey, recent(chapter, 200, 1)]])]])
+  await left.engine.testConnection(draft)
+  await left.engine.confirm((await left.engine.prepare(draft, ['reading'])).token, [])
+  await right.engine.testConnection(draft)
+  const preview = await right.engine.prepare(draft, ['reading'])
+  assert.equal(preview.conflicts.length, 0)
+  await right.engine.confirm(preview.token, [])
   await left.engine.syncNow()
-  await right.engine.syncNow()
-  assert.deepEqual(new Set(right.engine.readingDecisions()[0].values), new Set([position(3), position(4)]))
+  assert.equal(left.values.get('reading').get(key), at(1, 200))
+  assert.equal(right.values.get('reading').get(key), at(1, 200))
+
+  const newerReread = at(0, 400)
+  const olderLaterPage = at(6, 300)
+  const newerRecent = recent(chapter, 400, 0)
+  const olderRecent = recent(nextChapter, 300, 0)
+  left.values.get('reading').set(key, newerReread)
+  left.values.get('reading').set(recentKey, newerRecent)
+  right.values.get('reading').set(key, olderLaterPage)
+  right.values.get('reading').set(recentKey, olderRecent)
+  left.engine.recordEdits('reading', [{ key, kind: 'set', value: newerReread }, { key: recentKey, kind: 'set', value: newerRecent }])
+  right.engine.recordEdits('reading', [{ key, kind: 'set', value: olderLaterPage }, { key: recentKey, kind: 'set', value: olderRecent }])
+  await left.engine.syncNow()
   right.snapshotExtras.set('reading', { protectedKeys: [key] })
-  await assert.rejects(right.engine.chooseReadingDecision(key, position(3)), /sync_reading_proof_pending/)
-  assert.equal(right.engine.readingDecisions().length, 1)
-  right.snapshotExtras.delete('reading')
-  const chosen = await right.engine.chooseReadingDecision(key, position(3))
-  right.snapshotExtras.set('reading', { protectedKeys: [key] })
   await right.engine.syncNow()
-  assert.equal(right.engine.readingWritePending(chosen), true)
+  assert.equal(right.values.get('reading').get(key), olderLaterPage)
   right.snapshotExtras.delete('reading')
   await right.engine.syncNow()
   await left.engine.syncNow()
-  assert.equal(left.values.get('reading').get(key), position(3))
-  assert.equal(right.values.get('reading').get(key), position(3))
-  assert.equal(right.engine.readingDecisions().length, 0)
+  assert.equal(left.values.get('reading').get(key), newerReread)
+  assert.equal(right.values.get('reading').get(key), newerReread)
+  assert.equal(left.values.get('reading').get(recentKey), newerRecent)
+  assert.equal(right.values.get('reading').get(recentKey), newerRecent)
+  assert.equal(right.engine.knownReadingValue(key), newerReread)
 })
 
 test('a real preference change keeps its dot through a rejected conditional write and a lost reply', async () => {

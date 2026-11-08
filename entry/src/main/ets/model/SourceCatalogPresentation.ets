@@ -39,7 +39,9 @@ export function sourceMatchesCatalogSearch(query: string, displayName: string, c
   const needle = query.trim().replace(/\s+/g, ' ').toLowerCase()
   if (needle.length === 0) return true
   const matches = (value: string): boolean => value.trim().replace(/\s+/g, ' ').toLowerCase().includes(needle)
-  return matches(displayName) || matches(canonicalName) || matches(sourceId) ||
+  const id = sourceId.trim().toLowerCase()
+  // The shared package suffix is not a source keyword. A full package ID still matches exactly.
+  return matches(displayName) || matches(canonicalName) || id === needle || matches(id.replace(/\.koma$/, '')) ||
     (localizedNames !== undefined && Object.values(localizedNames).some((value: string): boolean => matches(value)))
 }
 

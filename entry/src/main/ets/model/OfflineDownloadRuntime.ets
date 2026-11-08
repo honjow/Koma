@@ -24,6 +24,7 @@ export class OfflineDownloadRuntime {
   private static initializations: Map<string, Promise<void>> = new Map<string, Promise<void>>()
   private static initialized: Set<string> = new Set<string>()
   private static executions: Map<string, OfflineDownloadExecution> = new Map<string, OfflineDownloadExecution>()
+  private static chapterRemovals: Map<string, Promise<void>> = new Map<string, Promise<void>>()
   private static comicRemovals: Map<string, Promise<number>> = new Map<string, Promise<number>>()
   private static slots: Map<string, OfflineDownloadSlots> = new Map<string, OfflineDownloadSlots>()
   private static listeners: Map<string, Set<() => void>> = new Map<string, Set<() => void>>()
@@ -55,6 +56,10 @@ export class OfflineDownloadRuntime {
     return OfflineDownloadRuntime.executions.has(OfflineDownloadRuntime.key(filesDir, comicId, chapterId))
   }
 
+  static isRemovingChapter(filesDir: string, comicId: string, chapterId: string): boolean {
+    return OfflineDownloadRuntime.chapterRemovals.has(OfflineDownloadRuntime.key(filesDir, comicId, chapterId))
+  }
+
   static async run(
     filesDir: string,
     comicId: string,
@@ -63,7 +68,8 @@ export class OfflineDownloadRuntime {
     concurrencyLimit?: () => number,
   ): Promise<OfflineChapterDownloadManifest> {
     const key = OfflineDownloadRuntime.key(filesDir, comicId, chapterId)
-    if (OfflineDownloadRuntime.comicRemovals.has(JSON.stringify([filesDir, comicId]))) {
+    if (OfflineDownloadRuntime.chapterRemovals.has(key) ||
+      OfflineDownloadRuntime.comicRemovals.has(JSON.stringify([filesDir, comicId]))) {
       throw new Error('download_remove_busy')
     }
     const existing = OfflineDownloadRuntime.executions.get(key)
@@ -94,6 +100,23 @@ export class OfflineDownloadRuntime {
       OfflineDownloadRuntime.executions.delete(key)
       OfflineDownloadRuntime.publish(filesDir)
     }
+  }
+
+  static removeChapterDownload(filesDir: string, comicId: string, chapterId: string, remove: () => Promise<void>): Promise<void> {
+    const key = OfflineDownloadRuntime.key(filesDir, comicId, chapterId)
+    const existing = OfflineDownloadRuntime.chapterRemovals.get(key)
+    if (existing !== undefined) return existing
+    const execution = OfflineDownloadRuntime.executions.get(key)
+    if (execution !== undefined) execution.pauseRequested = true
+    const pending = BackupRestoreActivity.runWrite(async (): Promise<void> => {
+      if (execution !== undefined) await Promise.allSettled([execution.promise])
+      await remove()
+    }).finally(() => {
+      OfflineDownloadRuntime.chapterRemovals.delete(key)
+      OfflineDownloadRuntime.publish(filesDir)
+    })
+    OfflineDownloadRuntime.chapterRemovals.set(key, pending)
+    return pending
   }
 
   static removeComicDownloads(filesDir: string, comicId: string, remove: () => Promise<number>): Promise<number> {

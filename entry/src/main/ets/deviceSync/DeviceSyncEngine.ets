@@ -1,14 +1,13 @@
-import { util } from '@kit.ArkTS'
+import { taskpool, util } from '@kit.ArkTS'
 import {
   applySyncEdit, emptySyncFact, mergeSyncFacts, syncObserves, syncVisibleHeads, syncVisibleValue, SyncEdit,
   SyncEditKind, SyncFact, SyncGroup, SyncVersion, SYNC_GROUPS,
 } from './DeviceSyncFacts'
 import { checkSyncGroupFact, SyncRecentValue, SyncWorkLabel, syncBucketKey, syncBusinessKey, syncGroupVisibleValue, syncKey, syncKeyParts,
-  SYNC_READING_DATASET, SYNC_SHELF_DATASET, SYNC_SHELF_CATALOG_DATASET, SYNC_READER_SETTINGS_DATASET, SYNC_SUBSCRIPTIONS_DATASET, SYNC_SEARCH_DATASET,
-  syncShelfMove, syncShelfMoveDestination } from './DeviceSyncData'
+  SYNC_SHELF_DATASET, syncShelfMove } from './DeviceSyncData'
 import {
-  buildSyncDataset, decodeSyncShard, newSyncManifest, syncDatasetBytes, syncDigest, syncShardPath, syncDatasetBranches,
-  SyncDatasetRef, SyncManifest, SyncObject, SyncShardRef, SYNC_MAX_ROUND_BYTES,
+  decodeSyncShard, syncDatasetBytes, syncDigest, syncShardPath, syncDatasetBranches,
+  SyncDatasetRef, SyncManifest, SyncShardRef, SYNC_MAX_ROUND_BYTES,
 } from './DeviceSyncWire'
 import {
   DeviceSyncStorage, SyncCommitIntent, SyncGroupState, SyncLocalDocument, SyncLocalSnapshot, SyncLocalValue, SyncOwnerRevision,
@@ -17,12 +16,25 @@ import {
 } from './DeviceSyncStorage'
 import { DeviceSyncWebDav, SyncConnectionDraft, SyncRemoteManifest, SyncRequestGuard } from './DeviceSyncWebDav'
 import { DeviceSyncOwner, SyncApplyGroup } from './DeviceSyncOwner'
+import {
+  byLocalValue, bySyncFact, coverDatasetId, dependsOnConflict, hasLegacyRetainedDeletion,
+  isCoverKey, isShelfBook, localValueRows, planDeviceSync,
+  PreparedGroup, priorConflictRoots, ProposedSync, replaceGroup, restorableEdits, sameShelfBook, shelfMoveValue,
+  SyncMergeChoice, SyncPlanTransport, usesReadingTime, writeDatasetId, writeDatasetIds,
+} from './DeviceSyncPlanner'
+
+export { SyncMergeChoice } from './DeviceSyncPlanner'
 
 export interface DeviceSyncLocalEdit {
   key: string
   kind: SyncEditKind
   value: string
   observed?: SyncVersion[]
+}
+
+interface SyncLocalEditChange {
+  apply: (state: SyncLocalDocument) => void
+  version?: SyncVersion
 }
 
 export interface SyncMergeConflict {
@@ -33,13 +45,6 @@ export interface SyncMergeConflict {
   deleted: boolean
   label?: string
   retainLocalOnDelete?: boolean
-}
-
-export interface SyncMergeChoice {
-  group: SyncGroup
-  key: string
-  useLocal: boolean
-  useBeforeRestore?: boolean
 }
 
 export interface SyncPreviewGroup {
@@ -73,20 +78,6 @@ export interface SyncReviewPermit {
   review: number
 }
 
-interface PreparedGroup {
-  coverUnavailable?: boolean
-  id: SyncGroup
-  local: SyncLocalSnapshot
-  remote: SyncFact[]
-  previous?: SyncGroupState
-  requiresPreview: boolean
-  resetBaseline: boolean
-  removed: string[]
-  published?: SyncFact[]
-  migrating?: SyncFact[]
-  degraded?: boolean
-}
-
 export interface SyncPreview {
   token: string
   destination?: string
@@ -98,12 +89,6 @@ export interface SyncPreview {
   beforeRestore: SyncMergeConflict[]
   earlierUnconfirmed: number
   migration?: boolean
-}
-
-export interface SyncReadingDecision {
-  key: string
-  title: string
-  values: string[]
 }
 
 export interface SyncReadingRound {
@@ -126,48 +111,33 @@ interface PreparedSync {
   credential?: string
 }
 
-interface ProposedSync {
-  writtenDatasets?: string[]
-  manifest: SyncManifest
-  objects: SyncObject[]
-  groups: SyncGroupState[]
-  staged: SyncGroupState[]
-  remaining: SyncGroupState[]
-  applies: SyncApplyGroup[]
-  revisions: SyncOwnerRevision[]
-  counter: number
-  initialCounter: number
-  publish: boolean
-}
-
 interface DatasetCache {
   path: string
   data: SyncFact[]
   bytes: number
 }
 
+interface CheckedPlan {
+  plan?: ProposedSync
+  error?: string
+}
+
+@Concurrent
+function prepareSyncPlan(prepared: PreparedGroup[], existing: SyncManifest | undefined, choices: SyncMergeChoice[],
+  space: string, replica: string, counter: number, transport: SyncPlanTransport): CheckedPlan {
+  try {
+    return { plan: planDeviceSync(prepared, existing, choices, space, false, replica, counter, transport) }
+  } catch (error) {
+    return { error: (error as Error).message }
+  }
+}
+
+interface CheckedShard {
+  data?: SyncFact[]
+  error?: string
+}
+
 const DEFAULT_GROUPS: SyncGroup[] = ['shelf', 'reading']
-
-function writeDatasetId(group: SyncGroup): string {
-  if (group === 'reading') return SYNC_READING_DATASET
-  if (group === 'shelf') return SYNC_SHELF_CATALOG_DATASET
-  if (group === 'reader-settings') return SYNC_READER_SETTINGS_DATASET
-  return group === 'source-subscriptions' ? SYNC_SUBSCRIPTIONS_DATASET : SYNC_SEARCH_DATASET
-}
-
-function coverDatasetId(group: SyncGroup): string {
-  // Older readers validate keys strictly in the existing datasets.
-  return group === 'shelf' || group === 'reading' ? group + '-cover-records' : ''
-}
-
-function writeDatasetIds(group: SyncGroup): string[] {
-  const cover = coverDatasetId(group)
-  return cover === '' ? [writeDatasetId(group)] : [writeDatasetId(group), cover]
-}
-
-function isCoverKey(key: string): boolean {
-  return key.startsWith('["cover",')
-}
 
 function groupDatasets(manifest: SyncManifest | undefined, group: SyncGroup): SyncDatasetRef[] {
   const refs = syncDatasetBranches(manifest, writeDatasetId(group))
@@ -185,8 +155,23 @@ function selectedDatasetIds(groups: SyncGroup[]): string[] {
 }
 
 function businessFact(group: SyncGroup, fact: SyncFact): SyncFact {
+  if (group !== 'source-subscriptions') return fact
   const key = syncBusinessKey(group, fact.key)
   return key === fact.key ? fact : { key, seen: fact.seen, values: fact.values, barriers: fact.barriers, cleared: fact.cleared }
+}
+
+@Concurrent
+function validateSyncShard(group: SyncGroup, datasetId: string, ref: SyncShardRef, body: string, cover: boolean): CheckedShard {
+  try {
+    const data = decodeSyncShard(datasetId, ref, body, syncBucketKey)
+    for (const fact of data) {
+      if (fact.key.startsWith('["cover",') !== cover) throw new Error('sync_update_required')
+      checkSyncGroupFact(group, fact, datasetId === 'shelf')
+    }
+    return { data }
+  } catch (error) {
+    return { error: (error as Error).message }
+  }
 }
 
 function businessGroup(row: SyncGroupState | undefined): SyncGroupState | undefined {
@@ -209,85 +194,6 @@ export function syncRequiresExplicitReview(value: SyncSavedConnection | undefine
   if (value.requiresExplicitReview !== undefined) return value.requiresExplicitReview
   return value.restoreReview === true || value.lastError === 'sync_remote_committed_locally_changed' ||
     !value.groups.some((row: SyncGroupState): boolean => (row.deferred?.length ?? 0) > 0)
-}
-
-function byLocalValue(values: SyncLocalValue[]): Map<string, string> {
-  const map = new Map<string, string>()
-  values.forEach((row: SyncLocalValue): void => { map.set(row.key, row.value) })
-  return map
-}
-
-function localValueRows(values: Map<string, string>): SyncLocalValue[] {
-  const rows: SyncLocalValue[] = []
-  values.forEach((value: string, key: string): void => { rows.push({ key, value }) })
-  return rows
-}
-
-function bySyncFact(facts: SyncFact[]): Map<string, SyncFact> {
-  const map = new Map<string, SyncFact>()
-  facts.forEach((fact: SyncFact): void => { map.set(fact.key, fact) })
-  return map
-}
-
-function conflictChoice(choices: SyncMergeChoice[], group: SyncGroup, key: string): SyncMergeChoice | undefined {
-  return choices.find((choice: SyncMergeChoice): boolean => choice.group === group && choice.key === key)
-}
-
-function restorableEdits(local: SyncLocalSnapshot): SyncRestoreEdit[] {
-  const all = local.restoreEdits ?? []
-  return all.filter((edit: SyncRestoreEdit): boolean => !local.protectedKeys?.includes(edit.key) &&
-    (edit.bundle === undefined || !all.some((related: SyncRestoreEdit): boolean =>
-      edit.bundle === related.bundle && local.protectedKeys?.includes(related.key) === true)))
-}
-
-function priorConflictRoots(group: PreparedGroup): string[] {
-  const previous = group.previous
-  if (previous === undefined) return []
-  if (previous.deferredRoots !== undefined) return previous.deferredRoots
-  const legacy = previous.deferred ?? []
-  const baseline = byLocalValue(previous.baseline)
-  const facts = bySyncFact(previous.facts)
-  // Older profiles persisted both differences and their expanded dependencies.
-  // A dependent key without a different value on both sides was never a choice.
-  return legacy.filter((key: string): boolean => {
-    if (!legacy.some((root: string): boolean => root !== key && dependsOnConflict(key, root))) return true
-    const local = baseline.get(key)
-    const fact = facts.get(key)
-    const remote = fact === undefined ? undefined : syncGroupVisibleValue(group.id, fact)
-    return local !== undefined && remote !== undefined && local !== remote
-  })
-}
-
-function dependsOnConflict(key: string, root: string): boolean {
-  const parts = syncKeyParts(key)
-  const conflict = syncKeyParts(root)
-  return (conflict[0] === 'book' && parts[0] === 'member' && parts[1] === conflict[1] && parts[2] === conflict[2]) ||
-    (conflict[0] === 'category' && (parts[0] === 'order' || (parts[0] === 'member' && parts[3] === conflict[1]))) ||
-    (conflict[0] === 'recent' && parts.length === 4 && parts[1] === conflict[1] && parts[2] === conflict[2])
-}
-
-function isShelfBook(group: SyncGroup, key: string): boolean {
-  return group === 'shelf' && syncKeyParts(key)[0] === 'book'
-}
-
-function shelfMoveValue(group: SyncGroup, key: string, value: string | undefined): boolean {
-  return isShelfBook(group, key) && syncShelfMove(value) !== undefined
-}
-
-function sameShelfBook(group: SyncGroup, key: string, left: string | undefined, right: string | undefined): boolean {
-  return isShelfBook(group, key) && left !== undefined && right !== undefined &&
-    syncShelfMove(left) === undefined && syncShelfMove(right) === undefined
-}
-
-function replaceGroup(groups: SyncGroupState[], next: SyncGroupState): SyncGroupState[] {
-  return groups.filter((group: SyncGroupState): boolean => group.id !== next.id).concat(next)
-}
-
-function hasLegacyRetainedDeletion(local: SyncLocalSnapshot, previous: SyncGroupState | undefined, key: string): boolean {
-  if (previous === undefined || !local.retainedDeletionKeys?.includes(key) ||
-    previous.baseline.some((item: SyncLocalValue): boolean => item.key === key)) return false
-  const fact = previous.facts.find((item: SyncFact): boolean => item.key === key)
-  return fact !== undefined && syncVisibleValue(fact) === undefined
 }
 
 function applyReceiptBaselines(groups: SyncGroupState[], applies: SyncApplyGroup[]): SyncGroupState[] {
@@ -638,7 +544,8 @@ export class DeviceSyncEngine {
     // shard encoding/hashing and never allocates durable operation versions.
     const space = prepared.remote.manifest?.space ?? prepared.connection?.space ??
       new DeviceSyncWebDav(prepared.draft).spaceId()
-    const plan = this.propose(prepared.groups, prepared.remote.manifest, choices, space, true)
+    const state = this.storage.load()
+    const plan = planDeviceSync(prepared.groups, prepared.remote.manifest, choices, space, true, state.replica, state.counter)
     const removals: SyncPreviewRemoval[] = []
     const groups = prepared.preview.groups.map((summary: SyncPreviewGroup): SyncPreviewGroup => {
       const input = prepared.groups.find((item: PreparedGroup): boolean => item.id === summary.group)
@@ -727,7 +634,7 @@ export class DeviceSyncEngine {
     try {
       guard()
       if (this.storage.load().counter !== prepared.counter) throw new Error('sync_preview_changed')
-      const proposal = this.propose(prepared.groups, current.manifest, choices, provider.spaceId(), false, current)
+      const proposal = await this.preparePlan(prepared.groups, current, choices, provider.spaceId(), guard)
       if (!current.writer && current.legacyHash !== undefined && !proposal.publish) {
         proposal.publish = true
         proposal.manifest.revision++
@@ -775,14 +682,15 @@ export class DeviceSyncEngine {
         this.checkHighWater(this.active(), remote)
         if (remote.manifest?.maintenance === true) remote = await this.finishMaintenance(provider, remote, guard)
         this.checkHighWater(this.active(), remote)
-        this.rememberRemote(provider.spaceId(), remote)
+        await this.rememberRemote(provider.spaceId(), remote, guard)
         if (remote.manifest?.maintenance === true) throw new Error('sync_maintenance_running')
         const counter = this.storage.load().counter
         const groupErrors: string[] = []
         let groups = await this.prepareGroups(provider, configured.selected, this.active() ?? connection,
           remote.manifest, guard, true, remote, true, groupErrors)
         if (counter !== this.storage.load().counter) continue
-        let proposal = this.propose(groups, remote.manifest, [], provider.spaceId(), false, remote)
+        let proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard)
+        if (counter !== this.storage.load().counter) continue
         const rejected = new Set<SyncGroup>()
         for (const apply of proposal.applies) {
           try { await this.owner.validateChanges?.(apply) } catch (error) {
@@ -793,7 +701,8 @@ export class DeviceSyncEngine {
         }
         if (rejected.size > 0) {
           groups = groups.filter((row: PreparedGroup): boolean => !rejected.has(row.id))
-          proposal = this.propose(groups, remote.manifest, [], provider.spaceId(), false, remote)
+          proposal = await this.preparePlan(groups, remote, [], provider.spaceId(), guard)
+          if (counter !== this.storage.load().counter) continue
         }
         if (groups.length === 0 && groupErrors.length > 0) throw new Error(groupErrors[0])
         try {
@@ -814,9 +723,11 @@ export class DeviceSyncEngine {
       guard()
       const active = this.active()
       if (active !== undefined) {
-        this.storage.update((state: SyncLocalDocument): void => {
-          if (state.active !== undefined) state.active.lastError = (error as Error).message
-        })
+        await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+          if (state.active === undefined || state.active.lastError === (error as Error).message) return false
+          state.active.lastError = (error as Error).message
+          return true
+        }, guard)
       }
       throw error as Error
     }
@@ -848,25 +759,28 @@ export class DeviceSyncEngine {
     const rows: SyncFact[] = []
     const keys = new Set<string>()
     for (const ref of dataset.shards) {
-      const path = dataset.id + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
+      const path = id + ':' + dataset.id + ':' + ref.bucket + ':' + ref.bytes + ':' + syncShardPath(ref)
       let cache = this.cache.find((item: DatasetCache): boolean => item.path === path)
       if (cache === undefined) {
         const body = await provider.readObject(ref, guard)
-        const data = decodeSyncShard(dataset.id, ref, body, syncBucketKey)
-        cache = { path, data, bytes: ref.bytes }
+        const checked = await taskpool.execute(validateSyncShard, id, dataset.id, ref, body,
+          dataset.id === coverDatasetId(id)) as CheckedShard
+        guard()
+        if (checked.data === undefined) throw new Error(checked.error ?? 'sync_shard_damaged')
+        // The ref is content-addressed. Cached facts already passed wire,
+        // group and cover checks; still check duplicates across current shards.
+        cache = { path, data: checked.data, bytes: ref.bytes }
         this.cache.push(cache)
         this.cacheSize += ref.bytes
         while (this.cacheSize > 8 * 1024 * 1024 && this.cache.length > 1) {
           this.cacheSize -= this.cache.shift()?.bytes ?? 0
         }
       }
-      cache.data.forEach((fact: SyncFact): void => {
+      for (const fact of cache.data) {
         if (keys.has(fact.key)) throw new Error('sync_duplicate_fact')
-        if (isCoverKey(fact.key) !== (dataset.id === coverDatasetId(id))) throw new Error('sync_update_required')
-        checkSyncGroupFact(id, fact, dataset.id === 'shelf')
         keys.add(fact.key)
         rows.push(businessFact(id, fact))
-      })
+      }
     }
     return mergeSyncFacts([], rows)
   }
@@ -896,7 +810,7 @@ export class DeviceSyncEngine {
       }
       try {
         const refs = groupDatasets(manifest, id)
-        const local = await this.owner.snapshot(id, verifyPublic, guard, manifest?.space ?? connection?.space ?? '')
+        const local = await this.owner.snapshot(id, verifyPublic, guard, manifest?.space ?? connection?.space ?? '', !automatic)
         const previous = businessGroup(connection?.groups.find((row: SyncGroupState): boolean => row.id === id))
         let remote: SyncFact[]
         try { remote = await load(refs) } catch (error) {
@@ -941,7 +855,7 @@ export class DeviceSyncEngine {
         const removed = requiresPreview || previous === undefined ? [] : id === 'source-subscriptions' ?
           previous.baseline.filter((item: SyncLocalValue): boolean => !local.values.some((now: SyncLocalValue): boolean =>
             now.key === item.key)).map((item: SyncLocalValue): string => item.key) :
-          this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
+          await this.owner.removed(id, previous.baseline.map((value: SyncLocalValue): string => value.key))
         const ownRef = transport?.own?.datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === writeDatasetId(id))
         let published = ownRef === undefined ? [] : await this.loadDataset(provider, ownRef, guard, id)
         let migrating: SyncFact[] = []
@@ -1016,7 +930,8 @@ export class DeviceSyncEngine {
         const retainedDeletion = theirs === undefined && entry.local.retainedDeletionKeys?.includes(key) === true
         const unchangedRetainedValue = retainedDeletion && (entry.previous?.baseline.some((item: SyncLocalValue): boolean =>
           item.key === key && item.value === value) === true || hasLegacyRetainedDeletion(entry.local, entry.previous, key))
-        if (entry.requiresPreview || previous.includes(key) || unchangedRetainedValue) {
+        const automaticReading = theirs !== undefined && usesReadingTime(entry, key)
+        if (!automaticReading && (entry.requiresPreview || previous.includes(key) || unchangedRetainedValue)) {
           const label = entry.local.labels?.[key] ?? (theirs !== undefined && !moving && isShelfBook(entry.id, key) ?
             (JSON.parse(theirs) as SyncWorkLabel).title : undefined)
           conflicts.push({ group: entry.id, key, local: value,
@@ -1075,298 +990,21 @@ export class DeviceSyncEngine {
     return count
   }
 
-  private propose(prepared: PreparedGroup[], existing: SyncManifest | undefined, choices: SyncMergeChoice[],
-    space: string = util.generateRandomUUID(), projectOnly: boolean = false, transport?: SyncRemoteManifest): ProposedSync {
-    const current = this.storage.load()
-    const writer = transport?.writer === true
-    const base = (writer ? transport?.own : existing) ?? newSyncManifest(space)
-    let counter = current.counter
-    const groups: SyncGroupState[] = []
-    const staged: SyncGroupState[] = []
-    const remaining: SyncGroupState[] = []
-    const objects: SyncObject[] = []
-    const applies: SyncApplyGroup[] = []
-    const revisions: SyncOwnerRevision[] = []
-    let datasets = base.datasets.slice()
-    let alternatives = base.alternatives?.slice() ?? []
-    for (const row of prepared) {
-      if (row.degraded === true) {
-        const changes: SyncLocalValue[] = []
-        const facts = row.remote.filter((fact: SyncFact): boolean => {
-          if (row.local.protectedKeys?.includes(fact.key)) return false
-          const value = syncGroupVisibleValue(row.id, fact)
-          if (value !== undefined && shelfMoveValue(row.id, fact.key, value)) return false
-          if (value !== undefined) changes.push({ key: fact.key, value })
-          // Keep observed deletion dots for a future complete round, without
-          // applying deletions or writing any recovered data back to WebDAV.
-          return true
-        })
-        const group: SyncGroupState = { id: row.id, facts, baseline: row.local.values.slice(), pending: [] }
-        groups.push(group)
-        remaining.push(group)
-        applies.push({ group: row.id, changes })
-        revisions.push({ group: row.id, revision: row.local.revision })
-        continue
-      }
-      const remote = bySyncFact(row.remote)
-      const local = byLocalValue(row.local.values)
-      const prior = byLocalValue(row.previous?.baseline ?? [])
-      const edits = bySyncFact(row.resetBaseline ? [] : row.previous?.facts ?? [])
-      const pending = row.resetBaseline ? [] : row.previous?.pending.slice() ?? []
-      const pendingBefore = pending.length
-      const protectedKeys = new Set<string>(row.local.protectedKeys ?? [])
-      const previousRoots = priorConflictRoots(row)
-      // Old review flags are not permission gates for already selected data.
-      // The facts retain both candidates and owner protection still applies.
-      const automaticMerge = !row.requiresPreview && choices.length === 0
-      const reviewRoots = automaticMerge ? previousRoots.filter((key: string): boolean => protectedKeys.has(key)) : previousRoots
-      const deferred = new Set<string>(reviewRoots.filter((key: string): boolean =>
-        (protectedKeys.has(key) || !local.has(key)) && conflictChoice(choices, row.id, key) === undefined))
-      const adopted = new Set<string>()
-      const restoreEdits = restorableEdits(row.local)
-      const selectedBundles = new Set<string>()
-      restoreEdits.forEach((edit: SyncRestoreEdit): void => {
-        if (edit.bundle !== undefined && conflictChoice(choices, row.id, edit.key)?.useBeforeRestore === true) {
-          selectedBundles.add(edit.bundle)
-        }
-      })
-      const useBeforeRestore = (edit: SyncRestoreEdit): boolean =>
-        conflictChoice(choices, row.id, edit.key)?.useBeforeRestore === true ||
-        (edit.bundle !== undefined && selectedBundles.has(edit.bundle))
-      local.forEach((value: string, key: string): void => {
-        if (isCoverKey(key) || protectedKeys.has(key) ||
-          restoreEdits.some((edit: SyncRestoreEdit): boolean => edit.key === key && useBeforeRestore(edit))) return
-        const remoteFact = remote.get(key)
-        const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
-        if (!sameShelfBook(row.id, key, value, theirs) && ((row.requiresPreview && remoteFact !== undefined) || reviewRoots.includes(key)) &&
-          theirs !== undefined && theirs !== value && !shelfMoveValue(row.id, key, theirs) &&
-          conflictChoice(choices, row.id, key) === undefined) deferred.add(key)
-      })
-      const conflictRoots = Array.from(deferred)
-      const isDeferred = (key: string): boolean => {
-        if (deferred.has(key)) return true
-        if (automaticMerge) return false
-        return conflictRoots.some((root: string): boolean => deferred.has(root) && dependsOnConflict(key, root))
-      }
-      const editFact = (key: string, kind: SyncEditKind, value: string, remoteFact?: SyncFact, observed?: SyncVersion[],
-        sharedVersion?: SyncVersion): void => {
-        let fact = edits.get(key) ?? emptySyncFact(key)
-        if (remoteFact !== undefined) fact = mergeSyncFacts([fact], [remoteFact])[0]
-        const version: SyncVersion = sharedVersion ?? { replica: current.replica, sequence: ++counter }
-        const edit: SyncEdit = { version, observed: observed ?? fact.seen, kind, value }
-        const updated = applySyncEdit(fact, edit)
-        checkSyncGroupFact(row.id, updated)
-        edits.set(key, updated)
-        pending.push({ key, version })
-        if (value === '') prior.delete(key)
-        else prior.set(key, value)
-      }
-      const bundleVersions = new Map<string, SyncVersion>()
-      if (automaticMerge) {
-        previousRoots.forEach((key: string): void => {
-          const value = local.get(key)
-          const fact = edits.get(key)
-          // V2 review could hold an owner's value before giving it a dot.
-          // Preserve that value as a concurrent candidate before releasing
-          // the old review. Do not claim it saw a remote deletion or edit.
-          if (value !== undefined && !protectedKeys.has(key) && value !== syncVisibleValue(fact ?? emptySyncFact(key)) &&
-            !fact?.values.some((candidate: SyncEdit): boolean => candidate.value === value)) {
-            editFact(key, 'set', value, undefined, [])
-          }
-        })
-      }
-      restoreEdits.forEach((edit: SyncRestoreEdit): void => {
-        if (!useBeforeRestore(edit)) return
-        deferred.delete(edit.key)
-        let version = edit.bundle === undefined ? undefined : bundleVersions.get(edit.bundle)
-        if (edit.bundle !== undefined && version === undefined) {
-          version = { replica: current.replica, sequence: ++counter }
-          bundleVersions.set(edit.bundle, version)
-        }
-        editFact(edit.key, edit.kind, edit.value, remote.get(edit.key),
-          edit.kind === 'clear-observed' ? edit.observed : undefined, version)
-        if (edit.followUp !== undefined) editFact(edit.key, 'set', edit.followUp)
-        adopted.add(edit.key)
-      })
-      local.forEach((value: string, key: string): void => {
-        if (isDeferred(key) || protectedKeys.has(key) || adopted.has(key)) return
-        const remoteFact = remote.get(key)
-        const theirs = remoteFact === undefined ? undefined : syncGroupVisibleValue(row.id, remoteFact)
-        const recorded = edits.get(key)
-        if (isCoverKey(key)) {
-          if (row.coverUnavailable !== true && remoteFact === undefined && recorded === undefined) editFact(key, 'set', value)
-          return
-        }
-        // A fresh device's built-in defaults are not new edits. Once it has
-        // a baseline, returning to the default is a normal, shareable change.
-        if (automaticMerge && theirs !== undefined && recorded === undefined && !prior.has(key) &&
-          row.local.defaultKeys?.includes(key) === true) return
-        const needsDecision = (row.requiresPreview || reviewRoots.includes(key)) &&
-          remoteFact !== undefined && theirs !== value && !sameShelfBook(row.id, key, value, theirs)
-        const choice = conflictChoice(choices, row.id, key)
-        // A completed older receipt could omit a fixed setting's baseline.
-        // Its already-observed tombstone is not evidence of a new local edit.
-        if (!row.resetBaseline && theirs === undefined && hasLegacyRetainedDeletion(row.local, row.previous, key) &&
-          choice?.useLocal !== true) return
-        if (needsDecision && theirs === undefined && row.local.retainedDeletionKeys?.includes(key) && choice?.useLocal !== true) return
-        // The review shows the same default as an ordinary removal, but a
-        // received move must keep its dependency and its original version.
-        if (needsDecision && choice?.useLocal !== true && shelfMoveValue(row.id, key, theirs)) return
-        if (needsDecision && (choice?.useLocal === false || (theirs === undefined && choice === undefined))) {
-          if (theirs !== undefined || remoteFact !== undefined) {
-            editFact(key, theirs === undefined ? 'delete' : 'set', theirs ?? '', remoteFact)
-          }
-          return
-        }
-        if ((needsDecision && choice?.useLocal !== true) || (row.requiresPreview && theirs === value) ||
-          (choice?.useLocal !== true && sameShelfBook(row.id, key, value,
-            theirs ?? (recorded === undefined ? undefined : syncGroupVisibleValue(row.id, recorded))))) return
-        if (!row.requiresPreview && choice?.useLocal !== true) {
-          if (row.id === 'reading') {
-            const existing = recorded === undefined ? remoteFact : remoteFact === undefined ? recorded :
-              mergeSyncFacts([recorded], [remoteFact])[0]
-            if (existing !== undefined) {
-              const currentValue = syncVisibleValue(existing)
-              // Older clients could save a newer position without staging it
-              // for sync. Keep a distinct local save even if device clocks
-              // disagree. An unchanged receive projection is not a local save.
-              const kind = syncKeyParts(key)[0]
-              if ((kind !== 'position' && kind !== 'recent') || currentValue === undefined || prior.get(key) === value ||
-                pending.some((item: SyncPendingEdit): boolean => item.key === key) ||
-                existing.barriers.length > 0 || existing.cleared.length > 0 ||
-                existing.values.some((candidate: SyncEdit): boolean => candidate.value === value)) return
-              const localDate = (JSON.parse(value) as SyncRecentValue).date
-              if (localDate === undefined || localDate <= 0) return
-              // The local save could only have observed the previous local
-              // baseline, not records first seen in this round.
-              editFact(key, 'set', value, remoteFact, recorded?.seen ?? [])
-              return
-            }
-          } else if (prior.get(key) === value ||
-            (!shelfMoveValue(row.id, key, value) && shelfMoveValue(row.id, key,
-              recorded === undefined ? theirs : syncGroupVisibleValue(row.id, recorded)))) return
-        }
-        const kind: SyncEditKind = shelfMoveValue(row.id, key, value) ? 'reset' : 'set'
-        editFact(key, kind, value, row.requiresPreview || choice?.useLocal === true ? remoteFact : undefined)
-      })
-      row.removed.forEach((key: string): void => {
-        if (row.id === 'shelf') {
-          const parts = syncKeyParts(key)
-          if (parts[0] === 'book' || parts[0] === 'member') {
-            const book = syncKey(['book', parts[1], parts[2]])
-            const oldBook = edits.get(book)
-            const newBook = remote.get(book)
-            const candidates = mergeSyncFacts(oldBook === undefined ? [] : [oldBook], newBook === undefined ? [] : [newBook])
-            if (candidates.length > 0 && shelfMoveValue(row.id, book, syncGroupVisibleValue(row.id, candidates[0]))) return
-          }
-        }
-        if (!isDeferred(key) && !protectedKeys.has(key) && !local.has(key) && syncVisibleValue(edits.get(key) ?? emptySyncFact(key)) !== undefined) {
-          editFact(key, 'delete', '')
-        }
-      })
-      if (pending.length !== pendingBefore) {
-        staged.push({ id: row.id, facts: Array.from(edits.values()), baseline: localValueRows(prior),
-          pending: pending.slice(), deferred: row.previous?.deferred, deferredRoots: row.previous?.deferredRoots })
-      }
-      const facts = mergeSyncFacts(Array.from(edits.values()), row.remote)
-      const accepted = bySyncFact(facts)
-      const visible = (key: string): string | undefined => {
-        const fact = accepted.get(key)
-        return fact === undefined || isDeferred(key) || protectedKeys.has(key) ? undefined : syncGroupVisibleValue(row.id, fact)
-      }
-      const changes: SyncLocalValue[] = []
-      const baseline = row.local.values.slice()
-      facts.forEach((fact: SyncFact): void => {
-        const value = syncGroupVisibleValue(row.id, fact)
-        if (isCoverKey(fact.key) && (value === undefined || local.has(fact.key))) return
-        if (!isDeferred(fact.key) && !protectedKeys.has(fact.key) && value !== local.get(fact.key)) {
-          if (row.id === 'shelf') {
-            const parts = syncKeyParts(fact.key)
-            if (parts[0] === 'member' && syncShelfMove(visible(syncKey(['book', parts[1], parts[2]]))) !== undefined) return
-            if (shelfMoveValue(row.id, fact.key, value)) {
-              if (!local.has(fact.key)) return
-              const target = syncShelfMoveDestination(fact.key, visible, (key: string): boolean =>
-                accepted.has(key) && !isDeferred(key) && !protectedKeys.has(key))
-              if (target === undefined) return
-              changes.push({ key: fact.key, value: JSON.stringify(target) })
-              return
-            }
-          }
-          // Keep the real owner value and its baseline. Dropping only the UI
-          // count would still delete the receipt baseline and resurrect this
-          // old setting on the next ordinary sync.
-          if (value === undefined && row.local.retainedDeletionKeys?.includes(fact.key)) return
-          changes.push({ key: fact.key, value: value ?? '' })
-        }
-      })
-      let outgoing = facts.filter((fact: SyncFact): boolean => !isDeferred(fact.key) && !protectedKeys.has(fact.key))
-        .concat(row.remote.filter((fact: SyncFact): boolean => isDeferred(fact.key) || protectedKeys.has(fact.key)))
-      if (writer) {
-        const touched = new Set<string>(pending.map((item: SyncPendingEdit): string => item.key))
-        const owned = bySyncFact(mergeSyncFacts(row.published ?? [], row.migrating ?? []))
-        outgoing.forEach((fact: SyncFact): void => {
-          // The causal vector and heads must travel together for a touched key.
-          // Receiving another writer's data alone never republishes its facts.
-          if (touched.has(fact.key) && !isDeferred(fact.key) && !protectedKeys.has(fact.key)) owned.set(fact.key, fact)
-        })
-        outgoing = Array.from(owned.values())
-      }
-      const published = bySyncFact(outgoing)
-      const unpublished = pending.filter((item: SyncPendingEdit): boolean => {
-        if (row.coverUnavailable === true && isCoverKey(item.key)) return true
-        const fact = published.get(item.key)
-        return fact === undefined || !syncObserves(fact.seen, item.version)
-      })
-      if (!projectOnly) {
-        for (const datasetId of writeDatasetIds(row.id)) {
-          const ref = datasets.find((dataset: SyncDatasetRef): boolean => dataset.id === datasetId)
-          const covers = datasetId === coverDatasetId(row.id)
-          if (covers && row.coverUnavailable === true) continue
-          const records = outgoing.filter((fact: SyncFact): boolean => isCoverKey(fact.key) === covers)
-          const built = buildSyncDataset(datasetId, records, base.epoch, ref, syncBucketKey)
-          alternatives = alternatives.filter((entry: SyncDatasetRef): boolean => entry.id !== datasetId)
-          if (built.ref.shards.length > 0 || ref !== undefined) {
-            datasets = datasets.filter((dataset: SyncDatasetRef): boolean => dataset.id !== datasetId).concat(built.ref)
-          }
-          objects.push(...built.objects)
-        }
-      }
-      const allDeferred = Array.from(new Set<string>(Array.from(deferred)
-        .concat(facts.filter((fact: SyncFact): boolean => isDeferred(fact.key)).map((fact: SyncFact): string => fact.key))))
-      const deferredRoots = Array.from(deferred)
-      groups.push({ id: row.id, facts, baseline, pending, deferred: allDeferred, deferredRoots })
-      remaining.push({ id: row.id, facts, baseline, pending: unpublished, deferred: allDeferred, deferredRoots })
-      applies.push({ group: row.id, changes })
-      revisions.push({ group: row.id, revision: row.local.revision })
-    }
-    const outputBytes = datasets.filter((dataset: SyncDatasetRef): boolean =>
-      prepared.some((group: PreparedGroup): boolean => writeDatasetId(group.id) === dataset.id ||
-        (group.coverUnavailable !== true && coverDatasetId(group.id) === dataset.id)))
-      .reduce((total: number, dataset: SyncDatasetRef): number => total + syncDatasetBytes(dataset), 0)
-    if (outputBytes > SYNC_MAX_ROUND_BYTES) throw new Error('sync_round_too_large')
-    datasets.sort((a: SyncDatasetRef, b: SyncDatasetRef): number => a.id < b.id ? -1 : a.id === b.id ? 0 : 1)
-    const publish = transport?.ownWritable !== false && (existing === undefined || JSON.stringify(datasets) !== JSON.stringify(base.datasets) ||
-      JSON.stringify(alternatives) !== JSON.stringify(base.alternatives ?? []))
-    if (transport?.ownWritable === false) {
-      objects.splice(0)
-      remaining.splice(0, remaining.length, ...groups)
-    }
-    const manifest: SyncManifest = publish ? { format: base.format, schema: base.schema, minWriter: base.minWriter,
-      space: base.space, revision: base.revision + 1, epoch: base.epoch, maintenance: base.maintenance,
-      datasets, previous: writer ? [] : base.datasets, alternatives } : writer ? existing ?? base : base
-    // V3 republishes the writer's unchanged refs verbatim. Verify new refs
-    // here, so known damage in an unrelated old group cannot block a repair.
-    const writtenDatasets = writer ? datasets.filter((ref: SyncDatasetRef): boolean =>
-      !base.datasets.some((old: SyncDatasetRef): boolean => JSON.stringify(old) === JSON.stringify(ref)))
-      .map((ref: SyncDatasetRef): string => ref.id) : undefined
-    return { manifest, objects, groups, staged, remaining, applies, revisions, counter, initialCounter: current.counter,
-      publish, writtenDatasets }
+  private async preparePlan(groups: PreparedGroup[], remote: SyncRemoteManifest, choices: SyncMergeChoice[],
+    space: string, guard: SyncRequestGuard): Promise<ProposedSync> {
+    const state = this.storage.load()
+    const transport: SyncPlanTransport = { writer: remote.writer, ownWritable: remote.ownWritable, own: remote.own }
+    const checked = await taskpool.execute(prepareSyncPlan, groups, remote.manifest, choices,
+      space, state.replica, state.counter, transport) as CheckedPlan
+    guard()
+    if (checked.plan === undefined) throw new Error(checked.error ?? 'sync_invalid_plan')
+    return checked.plan
   }
 
   private async assertRevisions(revisions: SyncOwnerRevision[]): Promise<SyncLocalSnapshot[]> {
     const snapshots: SyncLocalSnapshot[] = []
     for (const item of revisions) {
-      const snapshot = await this.owner.snapshot(item.group, false)
+      const snapshot = await this.owner.snapshot(item.group, false, undefined, undefined, false)
       if (snapshot.revision !== item.revision) throw new Error('sync_preview_changed')
       snapshots.push(snapshot)
     }
@@ -1388,7 +1026,7 @@ export class DeviceSyncEngine {
       enabled: activate ? true : prior?.enabled ?? true,
     }
     guard()
-    this.storage.update((state: SyncLocalDocument): void => {
+    await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
       if (state.counter !== proposal.initialCounter) throw new Error('sync_preview_changed')
       state.counter = proposal.counter
       if (!manualPreview && state.active?.space === connection.space) {
@@ -1424,19 +1062,21 @@ export class DeviceSyncEngine {
         if (state.active?.endpointIdentity === endpoint) state.active.enabled = true
       }
       state.retiredCredentials = state.retiredCredentials?.filter((ref: string): boolean => ref !== credential)
-    })
+      return true
+    }, guard)
     for (const object of proposal.objects) await provider.storeObject(object, guard)
     if (manualPreview) await this.assertRevisions(proposal.revisions)
     let sent = false
-    const beforeSend = (): void => {
-      guard()
-      this.storage.update((state: SyncLocalDocument): void => {
+    const beforeSend = async (): Promise<void> => {
+      await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
         const intent = state.intent
         if (intent === undefined) throw new Error('sync_connection_changed')
         state.intent = { connection: intent.connection, expected: intent.expected, sent: true,
           detached: intent.detached, groupRevisions: intent.groupRevisions, applies: intent.applies,
           commit: intent.commit, commitBody: intent.commitBody, writtenDatasets: intent.writtenDatasets }
-      })
+        return true
+      }, guard)
+      guard()
       sent = true
     }
     let receipt: SyncRemoteManifest
@@ -1470,7 +1110,7 @@ export class DeviceSyncEngine {
     connection.frontier = this.receiptFrontier(connection.frontier, receipt)
     // A download-only plan also needs durable recovery once its exact remote
     // receipt is verified. It must not disappear if the local owner write fails.
-    if (!proposal.publish) beforeSend()
+    if (!proposal.publish) await beforeSend()
     const previousCredential = this.active()?.credential
     await this.owner.commit(proposal.applies, proposal.revisions, (localReceipt: string): void => {
       guard()
@@ -1749,47 +1389,13 @@ export class DeviceSyncEngine {
   knownReadingValue(key: string): string | undefined {
     const fact = this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'reading')
       ?.facts.find((item: SyncFact): boolean => item.key === key)
-    return fact === undefined ? undefined : syncVisibleValue(fact)
+    return fact === undefined ? undefined : syncGroupVisibleValue('reading', fact)
   }
 
   hasShelfMove(key: string): boolean {
     return this.active()?.groups.find((group: SyncGroupState): boolean => group.id === 'shelf')
       ?.facts.find((fact: SyncFact): boolean => fact.key === key)
       ?.barriers.some((edit: SyncEdit): boolean => syncShelfMove(edit.value) !== undefined) === true
-  }
-
-  readingDecisions(): SyncReadingDecision[] {
-    const group = this.active()?.groups.find((row: SyncGroupState): boolean => row.id === 'reading')
-    if (group === undefined || this.readingScope() === '') return []
-    const facts = bySyncFact(group.facts)
-    const decisions: SyncReadingDecision[] = []
-    group.facts.forEach((fact: SyncFact): void => {
-      const parts = syncKeyParts(fact.key)
-      if (parts[0] !== 'recent' && parts[0] !== 'position') return
-      const byPosition = new Map<string, string>()
-      syncVisibleHeads(fact).forEach((edit: SyncEdit): void => {
-        const key = parts[0] === 'recent' ? (JSON.parse(edit.value) as SyncRecentValue).chapter : edit.value
-        byPosition.set(key, edit.value)
-      })
-      const values = Array.from(byPosition.values())
-      if (values.length < 2) return
-      const recent = facts.get(syncKey(['recent', parts[1], parts[2]]))
-      const label = recent === undefined ? undefined : syncVisibleValue(recent)
-      decisions.push({ key: fact.key, title: label === undefined ? '' : (JSON.parse(label) as SyncRecentValue).title, values })
-    })
-    return decisions
-  }
-
-  async chooseReadingDecision(key: string, value: string): Promise<SyncVersion | undefined> {
-    this.requireEnabled()
-    const guard = this.requestGuard()
-    const scope = this.readingScope()
-    await this.assertReadingUnprotected([key])
-    guard()
-    if (scope !== this.readingScope()) throw new Error('sync_connection_changed')
-    if (!this.readingDecisions().some((decision: SyncReadingDecision): boolean =>
-      decision.key === key && decision.values.includes(value))) throw new Error('sync_preview_changed')
-    return this.recordEdits('reading', [{ key, kind: 'set', value }])
   }
 
   async assertReadingUnprotected(keys: string[]): Promise<void> {
@@ -1805,7 +1411,26 @@ export class DeviceSyncEngine {
   }
 
   recordEdits(group: SyncGroup, actions: DeviceSyncLocalEdit[], receipt?: SyncReadingReceipt): SyncVersion | undefined {
-    const current = this.storage.load()
+    const change = this.prepareEdits(this.storage.load(), group, actions, receipt)
+    if (change === undefined) return undefined
+    this.storage.update(change.apply)
+    return change.version
+  }
+
+  async recordReadingEdits(actions: DeviceSyncLocalEdit[], receipt: SyncReadingReceipt, guard: () => void): Promise<SyncVersion | undefined> {
+    let version: SyncVersion | undefined
+    await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+      const change = this.prepareEdits(state, 'reading', actions, receipt)
+      version = change?.version
+      if (change === undefined) return false
+      change.apply(state)
+      return true
+    }, guard)
+    return version
+  }
+
+  private prepareEdits(current: SyncLocalDocument, group: SyncGroup, actions: DeviceSyncLocalEdit[],
+    receipt?: SyncReadingReceipt): SyncLocalEditChange | undefined {
     const active = current.active
     if (active === undefined || !active.selected.includes(group) ||
       (active.restoreReview === true && syncRequiresExplicitReview(active)) || this.restoreInProgress) return
@@ -1832,7 +1457,7 @@ export class DeviceSyncEngine {
     baseline.forEach((value: string, key: string): void => { rows.push({ key, value }) })
     const next: SyncGroupState = { id: previous.id, facts: Array.from(facts.values()), pending, baseline: rows,
       deferred: previous.deferred, deferredRoots: previous.deferredRoots }
-    this.storage.update((state: SyncLocalDocument): void => {
+    const apply = (state: SyncLocalDocument): void => {
       if (changed) {
         state.counter = version.sequence
         if (state.active !== undefined) state.active.groups = replaceGroup(active.groups, next)
@@ -1841,8 +1466,8 @@ export class DeviceSyncEngine {
         state.readingReceipts = (state.readingReceipts ?? []).filter((item: SyncReadingReceipt): boolean =>
           item.key !== receipt.key).concat({ key: receipt.key, id: receipt.id, version: changed ? version : undefined })
       }
-    })
-    return changed ? version : undefined
+    }
+    return { apply, version: changed ? version : undefined }
   }
 
   recoverOnForeground(): Promise<void> {
@@ -1854,16 +1479,32 @@ export class DeviceSyncEngine {
     })
   }
 
-  private rememberRemote(space: string, remote: SyncRemoteManifest): void {
+  private async rememberRemote(space: string, remote: SyncRemoteManifest, guard: SyncRequestGuard,
+    clearIntent: boolean = false): Promise<void> {
     const manifest = remote.manifest
-    if (manifest === undefined || manifest.space !== space ||
-      (!remote.journal && (this.active()?.revision ?? 0) >= manifest.revision)) return
-    this.storage.update((state: SyncLocalDocument): void => {
-      if (state.active?.space !== space) return
-      state.active.revision = manifest.revision
-      state.active.manifestHash = remote.hash
-      state.active.frontier = remote.frontier?.slice()
-    })
+    const newFrontier = remote.frontier
+    await this.storage.updateInBackground((state: SyncLocalDocument): boolean => {
+      const active = state.active
+      let changed = false
+      if (manifest !== undefined && manifest.space === space && active?.space === space &&
+        (remote.journal || active.revision < manifest.revision)) {
+        const oldFrontier = active.frontier
+        const sameFrontier = oldFrontier === undefined ? newFrontier === undefined :
+          newFrontier !== undefined && oldFrontier.length === newFrontier.length &&
+          oldFrontier.every((path: string, index: number): boolean => path === newFrontier[index])
+        if (active.revision !== manifest.revision || active.manifestHash !== remote.hash || !sameFrontier) {
+          active.revision = manifest.revision
+          active.manifestHash = remote.hash
+          active.frontier = newFrontier?.slice()
+          changed = true
+        }
+      }
+      if (clearIntent && state.intent !== undefined) {
+        state.intent = undefined
+        changed = true
+      }
+      return changed
+    }, guard)
   }
 
   private async recoverIntent(): Promise<void> {
@@ -1940,8 +1581,7 @@ export class DeviceSyncEngine {
         // publication is already durable. The next plan reads it and applies
         // against the latest owner snapshots, keeping any later local dots.
         receipt.frontier = this.receiptFrontier(active.frontier, receipt)
-        this.rememberRemote(connection.space, receipt)
-        this.storage.update((state: SyncLocalDocument): void => { state.intent = undefined })
+        await this.rememberRemote(connection.space, receipt, guard, true)
         return
       }
       this.storage.update((state: SyncLocalDocument): void => {

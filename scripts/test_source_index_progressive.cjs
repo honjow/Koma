@@ -256,6 +256,14 @@ test('source search matches localized and canonical names and source ID', () => 
   assert.equal(match('  ','Mixed Case','Canonical',undefined,'com.example'),true)
   assert.equal(match('missing','Mixed Case','Canonical',undefined,'com.example'),false)
 })
+test('source search ignores the shared Koma package suffix for partial matches', () => {
+  const match = presentation.sourceMatchesCatalogSearch
+  const sources = [['Komiic', 'com.komiic.koma'], ['MangaDex', 'org.mangadex.koma'], ['包子漫画', 'online.baozimh.koma']]
+  const search = query => sources.filter(([name, id]) => match(query, name, name, undefined, id)).map(([name]) => name)
+  assert.deepEqual(search(' KoM '), ['Komiic'])
+  assert.deepEqual(search('baozimh'), ['包子漫画'])
+  assert.deepEqual(search('org.mangadex.koma'), ['MangaDex'])
+})
 test('catalog search state belongs to each page and cancel restores its query', () => {
   const browse=new SourceCatalogPageChrome(),manager=new SourceCatalogPageChrome()
   browse.openSearch();browse.search.updateQuery('快看')

@@ -69,6 +69,7 @@ function disabledActionContent(configuration: ButtonConfiguration) {
 
 @ComponentV2
 export struct KomaActionButton {
+  @Param componentId: string = ''
   @Param label: ResourceStr = ''
   @Param kind: KomaActionButtonKind = 'secondary'
   @Param isEnabled: boolean = true
@@ -181,6 +182,7 @@ export struct KomaActionButton {
       }
         .width('100%')
         .height(this.controlHeight)
+        .id(this.componentId)
         .layoutWeight(this.fill ? 1 : 0)
         .backgroundColor(this.isEnabled && !this.busy ? this.buttonBackgroundColor() : undefined)
         .border({ width: this.buttonBorderWidth(), color: this.buttonBorderColor() })
@@ -198,6 +200,7 @@ export struct KomaActionButton {
         }
       }
         .height(this.controlHeight)
+        .id(this.componentId)
         .layoutWeight(this.fill ? 1 : 0)
         .backgroundColor(this.isEnabled && !this.busy ? this.buttonBackgroundColor() : undefined)
         .border({ width: this.buttonBorderWidth(), color: this.buttonBorderColor() })

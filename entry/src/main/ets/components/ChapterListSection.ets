@@ -1,3 +1,4 @@
+import { RouterHelper } from '../common/RouterHelper'
 import { vibrator } from '@kit.SensorServiceKit'
 import { komaContextMenuOptions, komaMenuOptions } from '../theme/KomaPopupOptions'
 import { AppStrings } from '../i18n/AppStrings'
@@ -61,8 +62,11 @@ export struct ChapterListSection {
   @Local private languageState: LanguageState = connectLanguageState()
   @Param presentation: ChapterListPresentation = new ChapterListPresentation()
   @Local private readStateMenuChapterId: string = ''
+  @Local private downloadMenuChapterId: string = ''
+  @Param downloadActionsAvailable: boolean = true
   @Event onDisplayOrderChange: (chapterIds: string[]) => void = (_chapterIds: string[]) => {}
   @Event onOpenChapter: (chapterId: string) => void = (_chapterId: string) => {}
+  @Event onRemoveChapterDownload: (chapterId: string, cancel: boolean) => void = (_id: string, _cancel: boolean) => {}
   @Event onDownloadChapter: (chapterId: string) => void = (_chapterId: string) => {}
   @Event onExportChapter: (chapterId: string, share: boolean) => void = (_chapterId: string, _share: boolean) => {}
   @Event onBookmarkChapter: (chapterId: string, bookmarked: boolean) => void = (_chapterId: string, _bookmarked: boolean) => {}
@@ -308,7 +312,9 @@ export struct ChapterListSection {
     if (chapter.dateUpload !== undefined) {
       parts.push(this.formatDate(chapter.dateUpload))
     }
-    if (chapter.pageCount !== undefined && chapter.pageCount > 0) {
+    if (chapter.downloadProgress !== undefined) {
+      parts.push(chapter.downloadProgress)
+    } else if (chapter.pageCount !== undefined && chapter.pageCount > 0) {
       parts.push(this.formatString('chapter_list_page_count', [chapter.pageCount]))
     }
     return parts.join(' · ')
@@ -516,6 +522,8 @@ export struct ChapterListSection {
   }
 
   private downloadStatusLabel(status: MangaChapterDownloadStatus): string {
+    if (status === 'waiting_wifi') return s('downloads_status_waiting_wifi')
+    if (status === 'paused') return s('downloads_status_paused')
     if (status === 'queued') {
       return s('downloads_status_queued')
     }
@@ -538,7 +546,7 @@ export struct ChapterListSection {
     if (status === 'downloaded') {
       return ThemeConstants.STATUS_SUCCESS
     }
-    if (status === 'queued') {
+    if (status === 'queued' || status === 'paused' || status === 'waiting_wifi') {
       return ThemeConstants.STATUS_MUTED
     }
     if (status === 'partial' || status === 'downloading') {
@@ -553,7 +561,9 @@ export struct ChapterListSection {
   private downloadStatusIcon(status: MangaChapterDownloadStatus): Resource {
     switch (status) {
       case 'downloaded': return $r('sys.symbol.checkmark_circle')
-      case 'queued': return $r('sys.symbol.clock')
+      case 'queued':
+      case 'waiting_wifi': return $r('sys.symbol.clock')
+      case 'paused': return $r('sys.symbol.pause')
       case 'downloading': return $r('sys.symbol.arrow_down_to_line')
       case 'partial': return $r('sys.symbol.circle_dashed')
       case 'blocked': return $r('sys.symbol.lock')
@@ -606,11 +616,52 @@ export struct ChapterListSection {
     }
   }
 
+  private isPendingDownload(status: MangaChapterDownloadStatus): boolean {
+    return status === 'queued' || status === 'downloading' || status === 'paused' || status === 'waiting_wifi'
+  }
+
+  @Builder
+  private ChapterDownloadMenu(ri: RepeatItem<MangaChapterItem>) {
+    Menu() {
+      if (ri.item.downloadStatus !== undefined) {
+        if (this.isPendingDownload(ri.item.downloadStatus!)) {
+          MenuItem({ content: s('downloads_cancel_task') })
+            .onClick(() => { this.onRemoveChapterDownload(ri.item.id, true) })
+        } else {
+          if (ri.item.downloadStatus !== 'downloaded') {
+            MenuItem({ content: s('common_retry') }).onClick(() => { this.onDownloadChapter(ri.item.id) })
+          }
+          MenuItem({ content: s(ri.item.downloadStatus === 'downloaded'
+            ? 'downloads_action_delete_files' : 'downloads_clear_task') })
+            .onClick(() => { this.onRemoveChapterDownload(ri.item.id, false) })
+        }
+        MenuItem({ content: s('route_downloads_title') }).onClick(() => { RouterHelper.pushDownloads() })
+      }
+    }
+  }
+
   @Builder
   private ChapterDownloadAction(ri: RepeatItem<MangaChapterItem>) {
     if (this.shouldShowDownloadStatus(ri.item)) {
-      this.DownloadStatusBadge(ri)
-    } else {
+      if (this.downloadActionsAvailable) {
+        Button({ type: ButtonType.Circle, stateEffect: true }) {
+          SymbolGlyph(this.downloadStatusIcon(ri.item.downloadStatus!))
+            .fontSize(18)
+            .fontColor([this.downloadStatusColor(ri.item.downloadStatus!)])
+        }
+        .width(ThemeConstants.TOUCH_TARGET_SM)
+        .height(ThemeConstants.TOUCH_TARGET_SM)
+        .backgroundColor(Color.Transparent)
+        .accessibilityText(this.downloadStatusLabel(ri.item.downloadStatus!))
+        .onClick(() => { this.downloadMenuChapterId = ri.item.id })
+        .bindMenu(this.downloadMenuChapterId === ri.item.id, this.ChapterDownloadMenu(ri), komaMenuOptions({
+          placement: Placement.BottomRight,
+          onDisappear: () => { if (this.downloadMenuChapterId === ri.item.id) this.downloadMenuChapterId = '' },
+        }))
+      } else {
+        this.DownloadStatusBadge(ri)
+      }
+    } else if (this.downloadActionsAvailable) {
       Button({ type: ButtonType.Circle, stateEffect: true }) {
         SymbolGlyph(ri.item.isDownloaded ? $r('sys.symbol.checkmark_circle') : $r('sys.symbol.arrow_down_to_line'))
           .fontSize(18)

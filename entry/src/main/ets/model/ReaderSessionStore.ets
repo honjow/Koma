@@ -400,8 +400,8 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     this.saveDocument(document)
   }
 
-  loadSnapshot(): ReaderSessionDocumentSnapshot {
-    return this.loadDocument()
+  loadSnapshot(persistedText?: string | null): ReaderSessionDocumentSnapshot {
+    return this.loadDocument(persistedText)
   }
 
   saveSnapshot(snapshot: ReaderSessionDocumentSnapshot): void {
@@ -412,11 +412,13 @@ export class AppFilesReaderSessionPersistenceAdapter implements ReaderSessionPer
     return this.migrationPending
   }
 
-  private loadDocument(): ReaderSessionDocumentSnapshot {
+  private loadDocument(persistedText?: string | null): ReaderSessionDocumentSnapshot {
     let document: ReaderSessionDocument
     try {
-      document = fs.accessSync(this.filePath)
-        ? JSON.parse(fs.readTextSync(this.filePath, { encoding: 'utf-8' })) as ReaderSessionDocument
+      const text = persistedText === undefined ?
+        (fs.accessSync(this.filePath) ? fs.readTextSync(this.filePath, { encoding: 'utf-8' }) : null) : persistedText
+      document = text !== null
+        ? JSON.parse(text) as ReaderSessionDocument
         : { schemaVersion: READER_PROGRESS_LEGACY_SCHEMA_VERSION, progress: [] }
     } catch (_error) {
       throw new Error('reader_progress_load_failed')

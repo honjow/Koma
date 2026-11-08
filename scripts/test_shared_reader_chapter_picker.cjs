@@ -669,7 +669,8 @@ test('declared source chronology picks earliest unread without sorting tied or u
 
 test('ordinary first-read owners keep explicit chapter and resume before earliest-unread policy',()=>{
  const {firstReaderChapter}=chapterSequence()
- const globals={firstReaderChapter,sourceChapterOrderFor:()=> 'newest_first'}
+ const globals={firstReaderChapter,sourceChapterOrderFor:()=> 'newest_first',
+  ChapterBatchDownloadMode:{NOT_DOWNLOADED:'not_downloaded',FAILED_ONLY:'failed_only'}}
  const comic={id:'work',sourceRuntimeId:'declared',chapters:[
   {id:'down',title:'第1话下',chapterNumber:1},{id:'up',title:'第1话上',chapterNumber:1}]}
  let progress,read=new Set()
@@ -683,10 +684,13 @@ test('ordinary first-read owners keep explicit chapter and resume before earlies
  const Library=subject('../pages/LibraryPage.ets','LibraryPage',['readerChapterIdForComic'],globals)
  const library=new Library();library.readerSessionStore=store
  assert.equal(library.readerChapterIdForComic(comic),'down')
- const Detail=subject('../pages/MangaDetailPage.ets','MangaDetailPage',['firstChapterId','firstUnreadChapterId','primaryReadChapterId'],globals)
+ const Detail=subject('../pages/MangaDetailPage.ets','MangaDetailPage',
+  ['downloadUnreadChapterIds','batchDownloadChapterIds','firstUnreadChapterId','primaryReadChapterId'],globals)
  const detail=new Detail();Object.assign(detail,{readerSessionStore:store,manga:{sourceId:'declared'},chapters:comic.chapters,currentComicId:()=>comic.id,progressChapterId:()=>undefined})
  assert.equal(detail.primaryReadChapterId(),'down');read.clear();assert.equal(detail.primaryReadChapterId(),'up')
- assert.equal(detail.firstChapterId(),'down','standalone download target keeps the prior metadata rule')
+ assert.deepEqual([...detail.downloadUnreadChapterIds(5)],['up','down'])
+ detail.chapters=[comic.chapters[0],{...comic.chapters[1],isDownloaded:true}]
+ assert.deepEqual([...detail.downloadUnreadChapterIds(1)],['down'],'download the next unread chapter without duplicating local files')
 })
 
 

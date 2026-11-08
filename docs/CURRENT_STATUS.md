@@ -8,6 +8,8 @@
 
 书源检查：CosplayTele、Buon Dua、哔咔、拷贝漫画、绅士会所和紳士漫畫已公开。CosplayTele 可用当前正式版，其余最低 Koma 1.2.0。237 已验两绅士源真实列表、封面和阅读。拷贝漫画封面修复、Komiic新图标、东立、科技大观园、漫画柜及zero搬运网的具名修复均已公开。Koma 1.2.2 已发布。六漫画、咚漫、Cartoon18 的具名栏目或筛选修复已上线，新增 Utifa 已进入正式索引。点名的八个新源均已进入正式订阅。嗶哩漫畫 0.1.0、禁漫天堂 0.1.1 和 Komiic 0.1.15 已公开，最低 Koma 1.2.1。禁漫天堂 0.1.1 补齐正式包的正文解扰声明；Komiic 双镜像真实登录通过，237 已核对 .cc 登录、正文和退出。拷贝漫画新图标已公开，237 已核对同位置的新旧显示。绅士会所的网格空首行修复已公开，237 已核对长标题正常使用两行。Kiutaku 与 Xiutaku 0.1.1 已上正式订阅，分别最低要求 Koma 1.2.0 与 1.2.2。现有源继续核对上游功能、补足样本并逐项修复。
 
+事项使用固定编号，重新打开问题沿用原号。进度页默认按「最近活动」排列，可切到「最近提出」或在「全部」里按编号查找。
+
 任务状态、首次报告时间及证据索引不因文档整理改变。局部验收、构建、CI或发布不代表全部缺陷完成。
 
 <!-- koma-progress-snapshot
@@ -16,10 +18,10 @@
   "title": "Koma 当前工作",
   "state": "1.2.2 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T05:53:02+08:00",
+  "updatedAt": "2026-11-08T08:41:55+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "#240 历史点击分区和 #001 条漫新页快滑已在 197 复验。",
+  "activity": "#001 197 长测已完成，#244 书架采样未复现。",
   "nextAction": "",
   "proof": [
     {
@@ -81,6 +83,209 @@
   ],
   "scope": "Koma首个生产版本和中文源质量；当前人类纠正、既定设计和原WIP边界继续有效。 用户本轮明确持续授权197和237本项目验收，无需重复询问：包括唤醒、非通知区解锁、临时常亮、同签候选安装、Koma内验收及结束恢复和释租；197本轮验收和恢复可继续。 用户最新明确197是开发机，后续验收保留最新开发包，不再例行降级回装；临时电源状态仍恢复，数据保护继续。",
   "items": [
+    {
+      "id": "SOURCE_BROWSE_DESTINATION_CACHE",
+      "number": 248,
+      "title": "书源分类即时切换及登录提示",
+      "kind": "active",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户反馈切换等待与 AI 推荐无首屏提示，随后要求居中加载指示器。原始消息精确时刻未核实。",
+      "registeredAt": "2026-11-08T08:33:54+08:00",
+      "status": "237 已核对分类和游客登录提示",
+      "remaining": "237 签名包 1.2.2 (11) 保留。实测本月、本周、回切月榜的首屏及游客 AI 推荐页登录按钮；本地执行验证空白加载态、后台刷新和登录后重试原分类。真机首张快照已收到响应，没有拍到转圈；第二轮启动时原 Komiic 已停在作品详情，为避免接管该页面未继续操作，未点开登录表单。原源包和对应安装路径逐字恢复，未读取或改写原私有会话，原电源与租约已恢复。当前覆盖安装新建目录，会导致新安装无法读取旧会话，本改动不改变该规则。",
+      "updatedAt": "2026-11-08T08:41:55+08:00",
+      "result": "宿主立即进入目标分类，命中同一安装、会话和筛选的路由内存首屏时直接显示并后台刷新。冷分类在内容区居中显示加载指示器，目标失败使用现有原生提示与登录入口。切回后旧请求结果不会覆盖目标页。",
+      "evidence": [
+        ".hvigor/outputs/source-category-switch-20261108/focused-tests.log",
+        ".hvigor/outputs/source-category-switch-20261108/centered-build.log",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-class-switch-v2-1108-031-first-warm-month/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-komiic-class-switch-v2-1108-034-ai-login-visible/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-komiic-class-switch-v2-1108.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-komiic-guest-motion-1108.json"
+      ],
+      "relatedItems": [
+        "SOURCE_KOMIIC_RECOMMENDATIONS",
+        "SOURCE_BROWSE_HOME_STRUCTURE"
+      ]
+    },
+    {
+      "id": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "number": 246,
+      "title": "书源管理分组顺序与语言分类",
+      "kind": "done",
+      "priority": "用户反馈",
+      "status": "197 已验",
+      "stage": "197 真机",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
+      "result": "可更新在前，接着是已安装。可安装在末尾，按语言分组。实机显示多语言与中文。",
+      "remaining": "",
+      "updatedAt": "2026-11-08T08:27:47+08:00",
+      "closedAt": "2026-11-08T08:27:47+08:00",
+      "evidencePaths": [
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-top.png",
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-boundary.png"
+      ]
+    },
+    {
+      "id": "SOURCE_MANAGER_REFRESH_STALL",
+      "number": 247,
+      "title": "书源管理下拉刷新卡顿",
+      "kind": "done",
+      "priority": "用户反馈",
+      "status": "197 已验本轮减负",
+      "stage": "197 真机",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
+      "result": "减少应用版本同步查询，后台准备索引缓存。实机刷新最慢界面帧从13.07降到6.91毫秒，原3项更新保留。",
+      "remaining": "197 没复现用户反馈的反复停转。有一个订阅返回404。",
+      "updatedAt": "2026-11-08T08:27:47+08:00",
+      "closedAt": "2026-11-08T08:27:47+08:00",
+      "evidencePaths": [
+        ".hvigor/outputs/reader-stall-combined-20261108/manager-pull-fixed-frames.jsonl",
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-pull-fixed-frames.jsonl",
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/profile-manager-pull-fixed.log"
+      ]
+    },
+    {
+      "id": "SOURCE_KOMIIC_RECOMMENDATIONS",
+      "number": 245,
+      "title": "Komiic 读者榜和 AI 推荐",
+      "kind": "done",
+      "priority": "用户直接要求",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户提出，随后确定并列成分类。原始消息精确时刻未核实。",
+      "registeredAt": "2026-11-08T08:11:09+08:00",
+      "status": "Komiic 0.1.16 已发布，237 验过分类与月榜续页",
+      "remaining": "最低 Koma 1.2.1。三个读者榜在 237 实显，月榜滚动到第二批。游客 AI 登录提示在原榜末尾，右上角账号也可登录；有会话的 25 条排序通过模拟会话回放，未实测真实账号推荐。237 已恢复。GitHub 最新发布已指向 0.1.16，带查询参数回查的索引一致；原无参数订阅 URL 在本地线路仍命中 0.1.15 缓存。",
+      "updatedAt": "2026-11-08T08:16:43+08:00",
+      "result": "在现有分类菜单并列本周、本月、年度读者榜及 AI 推荐。两个镜像的网页前端均以 30 部为榜单偏移。游客 API 样本的本周 16 部、本月 77 部、年度 443 部，与用户在网页看到的数量分别记录。WASM 对照两域首批、续页、榜尾及 AI 游客与会话回放。",
+      "evidence": [
+        ".hvigor/outputs/komiic-recommendations/replay.json",
+        ".hvigor/outputs/komiic-recommendations/auth-regression.json",
+        ".hvigor/outputs/komiic-recommendations/source-commit.txt",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-5ecfe9bd2578e5edef0a362a005b10ac18bee490",
+        ".hvigor/outputs/komiic-recommendations/official/verification.json",
+        ".hvigor/outputs/komiic-recommendations/official/wasm-replay.json",
+        ".hvigor/outputs/komiic-recommendations/native-captures.json",
+        ".hvigor/outputs/komiic-recommendations/native-pagination.json",
+        ".hvigor/outputs/komiic-recommendations/official/latest-index-recheck.json"
+      ],
+      "closedAt": "2026-11-08T08:16:43+08:00"
+    },
+    {
+      "id": "READER_THUMBNAIL_COLD_LOAD",
+      "number": 243,
+      "title": "阅读器缩略图加载时滑动顿挫",
+      "kind": "done",
+      "priority": "用户反馈",
+      "status": "首次加载和短距离回滑均已验",
+      "stage": "197 真机对照",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
+      "result": "197 冷加载两组各生成22张。UI帧处理峰值从15.95降至5.17毫秒，超过8.3毫秒从111次降至0。未改变正文位置。",
+      "remaining": "首屏出图仍取决于原图获取和后台解码。",
+      "updatedAt": "2026-11-08T08:04:46+08:00",
+      "relatedItems": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidencePaths": [
+        ".hvigor/outputs/reader-stall-cache-20261108/rail-sheet.jpg",
+        ".hvigor/outputs/reader-stall-final-20261108/cold-rail-fixed-frames.jsonl",
+        ".hvigor/outputs/reader-stall-combined-20261108/cold-rail-fixed-frames.jsonl",
+        ".hvigor/outputs/reader-stall-combined-20261108/cold-rail-after.png"
+      ],
+      "closedAt": "2026-11-08T08:04:46+08:00"
+    },
+    {
+      "id": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "number": 244,
+      "title": "书架滑动偶发卡顿",
+      "kind": "open",
+      "priority": "用户反馈",
+      "status": "197 三轮滑动采样未复现",
+      "stage": "197 真机对照",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本轮用户反馈，原始消息时刻未核实。",
+      "result": "同步与图片缓存已减负。197 最后一次书架采样最慢界面帧3.92毫秒。",
+      "remaining": "用户反馈的偶发停顿在本轮采样未复现。",
+      "updatedAt": "2026-11-08T08:35:59+08:00",
+      "relatedItems": [
+        "CONTINUOUS_PERFORMANCE"
+      ],
+      "evidencePaths": [
+        ".hvigor/outputs/reader-stall-root-20261108/shelf-base-frames.jsonl",
+        ".hvigor/outputs/reader-stall-cache-20261108/shelf-fixed-frames.jsonl",
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/shelf-fixed-frames.jsonl"
+      ]
+    },
+    {
+      "id": "WEBDAV_REDUNDANT_READING_DECISIONS",
+      "number": 242,
+      "title": "WebDAV 重复询问续读位置",
+      "kind": "done",
+      "priority": "用户反馈",
+      "status": "普通阅读进度自动合并",
+      "stage": "双端合并回归、197 管理页已验",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本轮用户截图与反馈，原始消息时刻未核实。",
+      "result": "普通章页按阅读时间取新值，首次合并也无需逐项选择。移除会锁住整页的普通进度选项。",
+      "remaining": "197 原连接手动同步约 1 分 32 秒完成，页面未再次出现普通进度待处理。截图设备未复放。",
+      "closedAt": "2026-11-08T06:54:21+08:00",
+      "updatedAt": "2026-11-08T06:54:21+08:00",
+      "relatedItems": [
+        "WEBDAV_AUTO_PROGRESS_STALE"
+      ],
+      "evidencePaths": [
+        ".hvigor/outputs/sync-reading-time-20261108/tests.log",
+        ".hvigor/outputs/sync-reading-time-20261108/test-sign-build.log",
+        ".hvigor/outputs/sync-reading-time-20261108/management.log",
+        ".hvigor/outputs/sync-reading-time-20261108/sync-terminal.log"
+      ]
+    },
+    {
+      "id": "SOURCE_BILIMANGA_COVER_CDN",
+      "number": 241,
+      "title": "嗶哩漫畫封面不显示",
+      "priority": "用户反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedDate": "2026-11-08",
+      "reportedAtSource": "本会话用户反馈，原始消息精确时间未核实。",
+      "registeredAt": "2026-11-08T06:34:31+08:00",
+      "kind": "done",
+      "status": "嗶哩漫畫 0.1.1 已发布，237 列表与详情封面实显",
+      "result": "官网列表和详情切到 c.motiezw.com，原发布源拒绝该地址。当前全局代理下该 CDN 返回 403，同作品的官网同域地址可解码。修复校验作品归属并保留图片后缀和时间戳。用官网页面回放 50 个列表封面、详情及旧地址回读，12 部作品的同域 JPEG 实际下载解码。",
+      "remaining": "封面修复已回查正式订阅和实际 WASM，最低 Koma 1.2.1。237 核对热门网格与作品详情封面并恢复原状态。该作章节在 237 的观察窗口仍在加载，网页与 WASM 回放读到 201 章。本次使用用户临时开启的全局网络，未验证直连。",
+      "evidence": [
+        ".hvigor/outputs/bilimanga-cover-20261108/wasm-replay.json",
+        ".hvigor/outputs/bilimanga-cover-20261108/source-commit.txt",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-86d4ef2bc569791413e1e1a3e14d7c5671366e5d",
+        ".hvigor/outputs/bilimanga-cover-20261108/official/verification.json",
+        ".hvigor/outputs/bilimanga-cover-20261108/official/wasm-replay.json",
+        ".hvigor/outputs/bilimanga-cover-20261108/917-web-replay.json",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-cover-1108-v3-021-cover-grid/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-cover-1108-v3-029-cover-detail/screen.jpeg",
+        ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/new-sources-bili-cover-1108-v3-033-restore-original-power/run-metadata.json"
+      ],
+      "updatedAt": "2026-11-08T06:39:01+08:00",
+      "closedAt": "2026-11-08T06:39:01+08:00"
+    },
     {
       "id": "HISTORY_COVER_OPENS_DETAIL",
       "number": 240,
@@ -161,7 +366,100 @@
       ]
     },
     {
+      "id": "MANGA_DETAIL_INITIAL_LOAD_REGRESSION",
+      "title": "无缓存漫画首次进入一直显示正在加载源详情",
+      "kind": "done",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户报告无缓存首次进入一直转圈，手动下拉后才能加载。精确消息时刻未核实。",
+      "registeredAt": "2026-11-08T03:45:37+08:00",
+      "status": "197 最终包已复验",
+      "stage": "无缓存首次进入与已有目录重进通过",
+      "result": "下载改动的同路径监听覆盖了页面显示时启动详情请求的回调。最终包恢复原入口，MangaDex 更衣人偶无需下拉即可到达目录终态，《想要成为影之实力者！》首次进入自动加载到 100/100。《装备我最强》只显示一次章节加载，恢复 273 章；同进程重进直接显示目录。",
+      "remaining": "197 具名手机路径已验，App 修复仍在工作区。",
+      "relatedItems": [
+        "DOWNLOAD_USER_FLOW",
+        "MANGA_DETAIL_LOADING_LAYOUT_SHIFT"
+      ],
+      "evidence": [
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T032847904686/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T033345695978/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T033535484221/screen.png"
+      ],
+      "number": 2
+    },
+    {
+      "id": "SOURCE_GUAZI_DISPLAY_TEXT",
+      "title": "瓜子漫画作者与章节标题残留 HTML 数字实体",
+      "kind": "done",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户报告《装备我最强》作者转义异常，随后明确要求发布。精确消息时刻未核实。",
+      "registeredAt": "2026-11-08T03:45:37+08:00",
+      "status": "0.1.6 已进入正式订阅，公开包复验通过",
+      "stage": "正式书源包已发布",
+      "result": "197 本地候选显示正确作者。正式 CI 已发布 0.1.6；从最新公开索引下载公开包，执行《装备我最强》真实详情和目录请求，作者显示 Monohumbug(Redice Studio)，目录 273 章。源提交基于正式主分支，仅包含文字修复和源版本，继续使用原图标。",
+      "remaining": "正式包已验证公开下载和真实源请求；197 设备证据来自相同行为的本地候选。",
+      "closedAt": "2026-11-08T03:46:46+08:00",
+      "evidence": [
+        "https://github.com/honjow/koma-sources/actions/runs/42407626645",
+        "https://github.com/honjow/koma-sources/releases/tag/sources-f3adc5145e499ff3d8eebb536b8325c89f8ead3e",
+        ".hvigor/outputs/source-coverage-20261108/guazi-display-text/public-0.1.6/equipment-detail.json",
+        ".hvigor/outputs/source-coverage-20261108/guazi-display-text/public-0.1.6/equipment-chapters.json"
+      ],
+      "relatedItems": [
+        "SOURCE_GUAZI_EMPTY_CHAPTERS",
+        "MANGA_DETAIL_INITIAL_LOAD_REGRESSION"
+      ],
+      "number": 4
+    },
+    {
+      "id": "READER_FIRST_OPEN_FORMAT",
+      "title": "首次打开按作品自动选择条漫或从右到左分页",
+      "kind": "open",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户要求参考其他阅读器，条漫首次使用条漫模式，日漫首次使用默认从右到左。精确消息时刻未核实。",
+      "registeredAt": "2026-11-08T03:45:37+08:00",
+      "status": "已有标签识别路径，普通入口待逐类验收",
+      "stage": "核对首次和已有偏好",
+      "result": "共享和旧阅读器共用首次模式逻辑。已核代码路径：明确标签优先，原图尺寸足够时才以连续长图识别条漫。全局阅读方式仍为默认且无单书设置时，识别为条漫用连续滚动，识别为日漫用右到左；保留用户已有的全局和单书选择。",
+      "remaining": "按用户指定顺序检查条漫和日漫的真实首次打开，保留用户已有手动方向。",
+      "number": 5
+    },
+    {
+      "id": "DOWNLOAD_USER_FLOW",
+      "number": 3,
+      "title": "章节下载、跨书批量与后台队列体验",
+      "kind": "open",
+      "priority": "用户直接反馈",
+      "owner": "Root",
+      "reportedAt": null,
+      "reportedAtSource": "本会话用户反馈下载操作不直观、下载长按钮外观变形，以及无缓存详情首次进入停留在源详情加载。精确消息时刻未核实。",
+      "firstEvidenceAt": "2026-11-08T03:07:55.825+08:00",
+      "status": "197 单章已验，跨书与 Wi-Fi 队列逻辑已执行核对",
+      "stage": "跨书批量、仅 Wi-Fi 和后台继续待核",
+      "result": "下载统一进入持久队列；下载范围、取消、重试、删除与本机已下载分清。原长按钮外层绑定菜单导致宽度失效，已恢复原生按钮锚点。197 蔚蓝档案单章实际下载为 1/1，旧下载 Chibi Son Bra did her best! 从下载管理打开第 2/8 页。详情加载回归及其证据见 #002。",
+      "remaining": "跨书确认及双书实际传输、非 Wi-Fi 等待和系统后台续跑仍待真机；生产队列双书同章 ID 隔离、去重和 Wi-Fi 准入恢复已经用模拟系统接口执行验证。",
+      "relatedItems": ["DETAIL_CHAPTER_LIST_ACTIONS", "MANGA_DETAIL_LOADING_LAYOUT_SHIFT", "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH", "SOURCE_GUAZI_EMPTY_CHAPTERS"],
+      "evidence": [
+        ".hvigor/outputs/download-flow-20261108/multiple-books-wifi-logic.log",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T030755516071/run-metadata.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T032847904686/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T033345695978/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T033452136805/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T033517995603/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T033535484221/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T032613444850/screen.png",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/download-flow/navigate-20261108T032032793238/screen.png"
+      ]
+    },
+    {
       "id": "LIBRARY_CATEGORY_AND_SETTINGS_REVIEW",
+      "number": 6,
       "title": "书架分类切换与设置分工",
       "kind": "done",
       "priority": "用户直接反馈",
@@ -215,6 +513,7 @@
     },
     {
       "id": "LIBRARY_SORT_AND_UPDATE_DEFAULTS",
+      "number": 7,
       "title": "书架排序方向与自动更新默认值",
       "kind": "done",
       "priority": "用户明确要求",
@@ -239,6 +538,7 @@
     },
     {
       "id": "SOURCE_BUONDUA_TEXT_FILTER_CONFIRMATION",
+      "number": 8,
       "title": "Buon Dua 文本筛选提供确认入口",
       "kind": "accepted",
       "priority": "用户直接反馈",
@@ -256,6 +556,7 @@
     },
     {
       "id": "SOURCE_BUONDUA_ANIMATED_COVER",
+      "number": 9,
       "title": "Buon Dua 动图封面播放",
       "kind": "accepted",
       "priority": "用户直接反馈",
@@ -274,6 +575,7 @@
     },
     {
       "id": "SOURCE_MIN_APP_VERSION_MESSAGE",
+      "number": 10,
       "title": "书源版本不支持时明确最低 Koma 版本",
       "kind": "accepted",
       "owner": "Root",
@@ -291,6 +593,7 @@
     },
     {
       "id": "SOURCE_KOMIIC_ICON_SCALE",
+      "number": 11,
       "title": "Komiic 图标移除外留白并放大标志",
       "kind": "accepted",
       "owner": "Terra 素材和源包，Root 237及发布",
@@ -310,6 +613,7 @@
     },
     {
       "id": "SOURCE_ROUTE_TITLE_MENU_CAPACITY",
+      "number": 12,
       "title": "单源页面标题栏外露常用操作",
       "kind": "accepted",
       "priority": "用户指定调整",
@@ -338,6 +642,7 @@
     },
     {
       "id": "SOURCE_TONGLI_PAGINATION_SEARCH",
+      "number": 13,
       "title": "东立最近更新重复第一页及搜索截断",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -358,6 +663,7 @@
     },
     {
       "id": "BROWSE_SOURCE_PIN",
+      "number": 14,
       "title": "浏览页书源置顶与分组动画",
       "kind": "accepted",
       "priority": "用户明确要求",
@@ -388,6 +694,7 @@
     },
     {
       "id": "SOURCE_COLD_COVER_SERIAL_ADMISSION",
+      "number": 15,
       "title": "书源冷缓存下的封面和页面加载慢",
       "kind": "open",
       "priority": "用户直接要求",
@@ -433,6 +740,7 @@
     },
     {
       "id": "SOURCE_KOMIIC_CC_DIRECT",
+      "number": 16,
       "title": "Komiic 切换 .cc 后偶发连接失败及正文大图问题",
       "kind": "open",
       "priority": "用户直接反馈",
@@ -484,6 +792,7 @@
     },
     {
       "id": "SOURCE_KOMIIC_REFERENCE_PARITY",
+      "number": 17,
       "title": "Komiic 重复首屏、缺最近更新和筛选",
       "kind": "open",
       "priority": "用户直接反馈",
@@ -514,6 +823,7 @@
     },
     {
       "id": "SOURCE_COSPLAYTELE_URL_COVER",
+      "number": 18,
       "title": "CosplayTele通过网址打开作品详情没有封面",
       "kind": "accepted",
       "priority": "用户截图新报",
@@ -541,6 +851,7 @@
     },
     {
       "id": "SOURCE_CATALOG_NAME_SEARCH",
+      "number": 19,
       "title": "在源列表按名称搜索书源",
       "kind": "accepted",
       "priority": "用户最新明确要求",
@@ -549,9 +860,11 @@
       "reportedAt": null,
       "reportedDate": "2026-11-05",
       "reportedAtSource": "本会话用户明确要求源的搜索，并纠正为“在源列表里面搜索需要源”；精确消息时刻未核实。 2026-11-06用户进一步指定管理页参考NextE下载管理，用搜索替换分段并将搜索图标切成关闭；随后要求仅搜索展开时允许标题随列表滚动收起、搜索框保留，精确消息时刻未核实。",
-      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；以下保留旧候选反例及修正过程，最终具名通过范围见末尾v11结果。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。 v10在237实际恢复浏览搜索可见；首次展开、重复开合与标题随滚动隐藏/恢复已按连续原片对应区域亲审，稳定整页图另核。角标现在位于HDS标题树内，并直接包住可点击管理Button；上滑与标题共同收起、下滑共同恢复，关闭搜索恢复常驻标题且列表没有回顶。三个标题按钮与跨History返回路径已核，管理官方组件ID也实际可点击开关搜索。用户随后以078原图指出搜索框阴影在正文边界横向截断，整体仍未通过；边线与新动画Column底边477重合，原标准搜索组件无该clip。现最小候选仅让开合期间裁剪，稳定展开解除裁剪，保持64高度、原边距与系统材质阴影；原因需v11同位置图对照，不把节点或本地状态测试当画面通过。 v11只调整动画裁剪状态；237同位置对照中Search与容器bounds完全相同，稳定展开Column变为clip=false，477底边的硬阶跃消失，系统阴影自然延伸渐淡。初次开与关闭/重入/再关闭连续原片对应区域均已完整亲审，稳定整页另核；保持原64高度、间距和材质，没有加宽加高。原四份数据及registry逐字等、原SLEEP/120000/Override10000已独立读回，租约释放，保留v11测试包。 源列表搜索、多语言分类、标题内实际按钮角标及稳定阴影的精确App改动已正常推送，未改版本；相同拟提交树的47项真实逻辑回归通过，该精确提交的Release HAP CI已成功；构建结果与具名237画面/连续原片分开记录。",
+      "result": "名称匹配投影已完成，237曾核对两页命中、无匹配和清空恢复，仅为功能结果。用户已否决列表首行常驻框及标题内替换／文字取消方案，旧候选未提交。当前采用：浏览页标题不变，标准搜索框按需在标题下方动画展开，书源管理文字入口与角标外观保持，角标归属实际管理按钮；管理页忠实参考NextE DownloadTypeBar／Index原生菜单，在既有固定分段区域同高度替换搜索框，搜索图标切关闭，关闭清query并恢复原分段，不叠额外行。最新新增两页仅搜索展开时允许主标题随列表上滑收起、搜索框固定；未展开保持标题显示，关闭恢复标题和原列表位置。已查官方HDS支持标题与底栏独立显隐，但不支持在显隐过程中动态切属性；以下保留旧候选反例及修正过程，最终具名通过范围见末尾v11结果。 237 v8连续录屏反例：浏览页点搜索后搜索区域占位且键盘出现，但BuilderProxy opacity为0，实际搜索框不可见；管理页图标变关闭但固定分段没有替换。普通上滑后标题收起，红38仍悬在原右上；源码及bfbbace4引入历史核实为页面外层偏移装饰，并未归属管理按钮。已否定本版UI验收；最小修正搜索响应组件及角标/按钮同一归属中，不以节点存在或构建通过放行。 v9最小修正后的237结果：管理页真实搜索框成功替换原分段，搜索／漏斗／更多三个入口直接保留；105编码帧已完整亲审，位置同原固定区域。普通输入快看仅显示快看漫画，无匹配显示原空结果提示，清除恢复原列表，关闭恢复书源／图片插件分段。浏览页移除自设opacity后仍不可见，证明该假说不足；保留043截图与proxy透明度0反例，现修正初始零高HDS自定义容器的挂载周期，尚未验收。 v9管理页连续200编码帧已完整亲审：列表上滑时主标题随滚动收起，原搜索框保留顶部；普通返回关闭搜索后，原标题和原分段恢复，仍位于本次列表段，没有回到顶部。 v10在237实际恢复浏览搜索可见；首次展开、重复开合与标题随滚动隐藏/恢复已按连续原片对应区域亲审，稳定整页图另核。角标现在位于HDS标题树内，并直接包住可点击管理Button；上滑与标题共同收起、下滑共同恢复，关闭搜索恢复常驻标题且列表没有回顶。三个标题按钮与跨History返回路径已核，管理官方组件ID也实际可点击开关搜索。用户随后以078原图指出搜索框阴影在正文边界横向截断，整体仍未通过；边线与新动画Column底边477重合，原标准搜索组件无该clip。现最小候选仅让开合期间裁剪，稳定展开解除裁剪，保持64高度、原边距与系统材质阴影；原因需v11同位置图对照，不把节点或本地状态测试当画面通过。 v11只调整动画裁剪状态；237同位置对照中Search与容器bounds完全相同，稳定展开Column变为clip=false，477底边的硬阶跃消失，系统阴影自然延伸渐淡。初次开与关闭/重入/再关闭连续原片对应区域均已完整亲审，稳定整页另核；保持原64高度、间距和材质，没有加宽加高。原四份数据及registry逐字等、原SLEEP/120000/Override10000已独立读回，租约释放，保留v11测试包。 源列表搜索、多语言分类、标题内实际按钮角标及稳定阴影的精确App改动已正常推送，未改版本；相同拟提交树的47项真实逻辑回归通过，该精确提交的Release HAP CI已成功；构建结果与具名237画面/连续原片分开记录。 2026-11-07 修复两页搜索将书源包共有的 .koma 后缀作为关键词的问题；仍支持名称、可区分的标识片段和完整标识。197 同签名调试包两页实测，输入 kom 均只保留 Komiic。",
       "remaining": "本次具名范围已完成；其他设备形态和大字号未外推。",
       "evidence": [
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-search-kom/navigate-20261107T211517049142/layout.json",
+        ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-search-kom/navigate-20261107T211624353393/layout.json",
         ".hvigor/outputs/source-coverage-20261105/new-source-ports/auth-app-candidate.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-host-ui-v1.json",
         ".hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/new-source-regressions/session-search-ui-v8.json",
@@ -568,6 +881,7 @@
     },
     {
       "id": "SOURCE_MULTILINGUAL_CATEGORY",
+      "number": 20,
       "title": "将all明确为多语言分类并移除语言总开关",
       "kind": "accepted",
       "priority": "用户最新明确决定",
@@ -587,6 +901,7 @@
     },
     {
       "id": "SOURCE_EXISTING_NAME_AUDIT",
+      "number": 21,
       "title": "现有书源名称与真实站点身份核对",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -613,6 +928,7 @@
     },
     {
       "id": "SOURCE_EXPLICIT_LOGIN_ENTRY",
+      "number": 22,
       "title": "需要登录的书源明确提示并提供快捷登录入口",
       "kind": "active",
       "priority": "用户直接要求",
@@ -647,6 +963,7 @@
     },
     {
       "id": "SOURCE_NEW_SOURCE_DISCOVERY_AND_PORTS",
+      "number": 23,
       "title": "继续发现并移植中文及高使用量书源",
       "kind": "active",
       "priority": "用户指定独立子代理",
@@ -792,6 +1109,7 @@
     },
     {
       "id": "SOURCE_COPYMANGA_ICON_BOUNDS",
+      "number": 24,
       "title": "拷贝漫画书源图标视觉偏小",
       "kind": "accepted",
       "priority": "用户新报",
@@ -814,6 +1132,7 @@
     },
     {
       "id": "SOURCE_HENTAICLUB_GRID_TITLE_WHITESPACE",
+      "number": 25,
       "title": "绅士会所网格标题空第一行",
       "kind": "accepted",
       "priority": "用户新报",
@@ -835,6 +1154,7 @@
     },
     {
       "id": "SOURCE_KUAIKAN_CHAPTER_ACCESS_FEEDBACK",
+      "number": 26,
       "title": "快看三部漫画正文被拒绝及提示不清楚",
       "kind": "accepted",
       "priority": "用户新报",
@@ -873,6 +1193,7 @@
     },
     {
       "id": "SOURCE_BROWSE_INITIAL_LIST_CANCELS_SEARCH",
+      "number": 27,
       "title": "源初始列表完成时取消刚发出的搜索",
       "kind": "accepted",
       "priority": "237源验收发现",
@@ -893,6 +1214,7 @@
     },
     {
       "id": "SOURCE_MANHUAREN_EXPLICIT_BLOCKED",
+      "number": 28,
       "title": "漫画人明确屏蔽且无游客章节仍显示通用失败",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -909,6 +1231,7 @@
     },
     {
       "id": "SOURCE_GODA_REMOVED_AND_LONG_CHAPTER",
+      "number": 29,
       "title": "GoDa明确章节下架与长章正文加载失败",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -930,6 +1253,7 @@
     },
     {
       "id": "SOURCE_COMICFURY_OPTIONAL_PROFILE",
+      "number": 30,
       "title": "ComicFury真实缺省简介或封面导致详情加载失败",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -950,6 +1274,7 @@
     },
     {
       "id": "ABOUT_COMMUNITY_GROUP_LINK",
+      "number": 31,
       "title": "关于页添加 Koma 交流群入口",
       "kind": "done",
       "priority": "用户明确要求",
@@ -973,6 +1298,7 @@
     },
     {
       "id": "SOURCE_HUANTA_DETAIL_OWNER",
+      "number": 32,
       "title": "幻塔官方中文漫画多部加载失败并显示书源运行异常",
       "kind": "accepted",
       "priority": "用户直接反馈，当前优先",
@@ -998,6 +1324,7 @@
     },
     {
       "id": "SOURCE_GUAZI_EMPTY_CHAPTERS",
+      "number": 33,
       "title": "瓜子漫画明确零章节仍报目录解析失败",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1021,6 +1348,7 @@
     },
     {
       "id": "SOURCE_SCITECHVISTA_MULTI_AUTHOR",
+      "number": 34,
       "title": "科技大观园双作者作品详情误判解析失败",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1049,6 +1377,7 @@
     },
     {
       "id": "SOURCE_MANGABALL_CATALOGUE_LIMIT_AND_EMPTY",
+      "number": 35,
       "title": "MangaBall大目录读取失败及无中文章节提示不准确",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1068,6 +1397,7 @@
     },
     {
       "id": "SOURCE_MIXFLAVOR_BODY_FORMATS",
+      "number": 36,
       "title": "综合口味多种真实正文结构与图片地址解析失败",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1089,6 +1419,7 @@
     },
     {
       "id": "SOURCE_FJUMONKEY_IMAGE_QUERY",
+      "number": 37,
       "title": "輔大猴部分漫画正文图片版本参数被误拒",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1111,6 +1442,7 @@
     },
     {
       "id": "SOURCE_IMMARK_ALBUM_IMAGES",
+      "number": 38,
       "title": "我是马克后续分页和相簿图片被误拒",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1132,6 +1464,7 @@
     },
     {
       "id": "SOURCE_ALL_PROVIDER_COVERAGE",
+      "number": 39,
       "title": "所有现有书源的分层覆盖检查",
       "kind": "open",
       "priority": "用户直接要求",
@@ -1172,6 +1505,7 @@
     },
     {
       "id": "SOURCE_SOC_OFFICIAL_PAGINATION",
+      "number": 40,
       "title": "铃兰之剑官方源只显示首屏且未支持后页多图正文",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1198,6 +1532,7 @@
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "id": "SOURCE_BROWSE_LAYOUT_PER_PROVIDER",
+      "number": 41,
       "title": "书源浏览可按源在网格和列表之间切换",
       "priority": "用户直接要求",
       "reportedAtSource": "本会话用户提出，随后明确每个书源单独记住、默认网格。",
@@ -1216,6 +1551,7 @@
     },
     {
       "id": "SOURCE_DETAIL_MARKDOWN_AND_COPY",
+      "number": 42,
       "title": "漫画详情标题和简介可复制，简介支持 Markdown",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -1245,6 +1581,7 @@
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "id": "SOURCE_PICA_HIGH_RES_ICON",
+      "number": 43,
       "title": "哔咔书源图标模糊",
       "priority": "用户直接反馈",
       "reportedAtSource": "本会话用户指出哔咔图标模糊并要求核高清或重绘。",
@@ -1262,6 +1599,7 @@
     },
     {
       "id": "SOURCE_UNAVAILABLE_FEEDBACK",
+      "number": 44,
       "title": "优化站点不再提供或下架内容的提示",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -1284,6 +1622,7 @@
     },
     {
       "id": "SOURCE_MANHUASHE_LONG_CATALOGUE_AND_AUTHOR",
+      "number": 45,
       "title": "漫画社长目录获取失败及空作者误报解析失败",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1307,6 +1646,7 @@
     },
     {
       "id": "SOURCE_SDK_UTF16_SURROGATE",
+      "number": 46,
       "title": "WEBTOON章节表情的UTF16代理对导致非法UTF8",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1330,6 +1670,7 @@
     },
     {
       "id": "SOURCE_PIXIV_PUBLIC_SERIES_COUNT",
+      "number": 47,
       "title": "Pixiv公开可见目录数与总作品数不同被误拒",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1352,6 +1693,7 @@
     },
     {
       "id": "SOURCE_NHENTAITO_FORMAT_AND_TAGS",
+      "number": 48,
       "title": "NHentai.to合法WebP、PNG及大量标签误报失败",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1374,6 +1716,7 @@
     },
     {
       "id": "SOURCE_MANHUAGUI_PACKER_RADIX",
+      "number": 49,
       "title": "漫画柜部分正常正文的字典进制被固定62误拒",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1398,6 +1741,7 @@
     },
     {
       "id": "SOURCE_ZEROBYW_SEARCH_PAGINATION",
+      "number": 50,
       "title": "zero搬运网关键词搜索第2页重复首屏",
       "kind": "accepted",
       "priority": "全源覆盖发现",
@@ -1418,6 +1762,7 @@
     },
     {
       "id": "SOURCE_OLDMASTERQ_HTTP_ERRORS",
+      "number": 51,
       "title": "老夫子将站点拒绝显示为通用错误",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1437,6 +1782,7 @@
     },
     {
       "id": "SOURCE_NAMEPARA_ARCHIVE_CONCURRENCY",
+      "number": 52,
       "title": "菇菇四格每次开章串行重取四页目录",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1455,6 +1801,7 @@
     },
     {
       "id": "SOURCE_TENCENT_PUBLIC_CHAPTER_AND_PAID",
+      "number": 53,
       "title": "腾讯动漫《铳火》免费正文解析失败，明确付费章节误报拒绝",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1473,6 +1820,7 @@
     },
     {
       "id": "SOURCE_IKMMH_REGION_DENIAL",
+      "number": 54,
       "title": "爱看漫明确地区限制被当成书源运行异常",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1491,6 +1839,7 @@
     },
     {
       "id": "SOURCE_HENTAIFOX_TRANSPORT_ERROR",
+      "number": 55,
       "title": "HentaiFox 中文 TLS 失败被当成缺 HTTP 状态的运行异常",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1509,6 +1858,7 @@
     },
     {
       "id": "SOURCE_MH1234_EXPLICIT_EMPTY_CATALOGUE",
+      "number": 56,
       "title": "漫画1234网《未成年lovers》空目录误报解析失败",
       "kind": "open",
       "priority": "全源覆盖发现",
@@ -1527,6 +1877,7 @@
     },
     {
       "id": "SOURCE_CMANHUA_EMPTY_CHAPTERS",
+      "number": 57,
       "title": "CManhua官网明确0章仍提示解析失败",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1551,6 +1902,7 @@
     },
     {
       "id": "SOURCE_CMANHUA_ENTITY_DECODE",
+      "number": 58,
       "title": "CManhua 把合法网页文本误报为容量溢出",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1570,6 +1922,7 @@
     },
     {
       "id": "SOURCE_3HENTAI_ASSET_OWNER",
+      "number": 59,
       "title": "3Hentai 正文资源册号与作品号不同时被误拒",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1592,6 +1945,7 @@
     },
     {
       "id": "SOURCE_DM5_CATALOGUE_AND_UNAVAILABLE",
+      "number": 60,
       "title": "DM5 新式目录被截断，站点停供却提示解析失败",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1612,6 +1966,7 @@
     },
     {
       "id": "SOURCE_ASMHENTAI_SEARCH_PAGINATION",
+      "number": 61,
       "title": "AsmHentai合法搜索下一页被URL逐字比较误拒",
       "kind": "accepted",
       "priority": "全量覆盖中发现",
@@ -1635,6 +1990,7 @@
     },
     {
       "id": "SOURCE_SIXMH_MAGISTER_CHAPTERS",
+      "number": 62,
       "title": "六漫画《全职法师》章节列表获取失败",
       "kind": "accepted",
       "priority": "P1（用户直接反馈）",
@@ -1658,6 +2014,7 @@
     },
     {
       "id": "BACKUP_SETTINGS_COVERAGE_GATE",
+      "number": 63,
       "title": "备份设置分类与往返门禁",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -1679,6 +2036,7 @@
     },
     {
       "id": "BACKUP_SETTINGS_COVERAGE_GAPS",
+      "number": 64,
       "title": "补齐已知备份设置遗漏与旧文件兼容",
       "kind": "accepted",
       "priority": "用户核对备份设置",
@@ -1708,6 +2066,7 @@
     },
     {
       "id": "READING_HISTORY_SYNC",
+      "number": 65,
       "title": "跨设备数据同步",
       "kind": "done",
       "priority": "用户要求重做及独立评审",
@@ -1790,6 +2149,7 @@
     },
     {
       "id": "BACKUP_MANAGEMENT_REENTRY_LOADING",
+      "number": 66,
       "title": "重进备份与恢复时先显示加载中",
       "kind": "accepted",
       "priority": "用户直接反馈",
@@ -1819,6 +2179,7 @@
     },
     {
       "id": "MIGRATION_SOURCE_PICKER_RENDER_DELAY",
+      "number": 67,
       "title": "迁移点选书源后列表更新慢",
       "kind": "accepted",
       "priority": "用户直接反馈",
@@ -1854,6 +2215,7 @@
     },
     {
       "id": "IMAGE_PLUGIN_SWITCH_ANIMATION",
+      "number": 68,
       "title": "已安装图片插件开关缺少动画",
       "kind": "accepted",
       "priority": "用户直接反馈",
@@ -1877,6 +2239,7 @@
     },
     {
       "id": "SOURCE_92_CHAPTER_PAGES_UNAVAILABLE",
+      "number": 69,
       "title": "92 漫画有章节列表但正文打不开",
       "kind": "external",
       "priority": "用户直接反馈",
@@ -1898,6 +2261,7 @@
     },
     {
       "id": "DETAIL_BOOKMARK_OUTLINE_WEIGHT",
+      "number": 70,
       "title": "详情未收藏图标线条偏细",
       "kind": "accepted",
       "priority": "用户直接反馈",
@@ -1917,6 +2281,7 @@
     },
     {
       "id": "SOURCE_FAILURE_USER_COPY",
+      "number": 71,
       "title": "书源失败提示给出无依据的更新和导出日志指引",
       "kind": "active",
       "priority": "用户直接反馈",
@@ -1934,6 +2299,7 @@
     },
     {
       "id": "SUBSCRIPTION_MIRROR_FALLBACK",
+      "number": 72,
       "title": "书源与图片插件订阅镜像",
       "kind": "external",
       "priority": "用户直接需求",
@@ -1961,6 +2327,7 @@
     },
     {
       "id": "DETAIL_CHAPTER_LIST_ACTIONS",
+      "number": 73,
       "title": "详情页章节多选与批量操作",
       "priority": "用户直接需求",
       "kind": "active",
@@ -2037,6 +2404,7 @@
     },
     {
       "id": "APP_PC_2IN1_DECLARATION",
+      "number": 74,
       "title": "主应用声明支持二合一设备",
       "kind": "done",
       "priority": "用户直接要求",
@@ -2055,6 +2423,7 @@
     },
     {
       "id": "RELEASE_1_2_2",
+      "number": 75,
       "title": "Koma 1.2.2 正式发布",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -2077,6 +2446,7 @@
     },
     {
       "id": "RELEASE_1_2_1",
+      "number": 76,
       "title": "Koma 1.2.1 正式发布",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -2102,6 +2472,7 @@
     },
     {
       "id": "RELEASE_1_2_0",
+      "number": 77,
       "title": "Koma 1.2.0 正式发布",
       "kind": "accepted",
       "priority": "用户直接要求",
@@ -2131,6 +2502,7 @@
     },
     {
       "id": "RELEASE_1_1_1",
+      "number": 78,
       "title": "正式发布 1.1.1",
       "kind": "accepted",
       "priority": "用户指定",
@@ -2151,6 +2523,7 @@
     },
     {
       "id": "RELEASE_1_1_0",
+      "number": 79,
       "title": "正式发布 1.1.0",
       "kind": "accepted",
       "priority": "用户指定",
@@ -2183,6 +2556,7 @@
     },
     {
       "id": "SOURCE_92_CHAPTER_LIST_MISSING",
+      "number": 80,
       "title": "92漫画网页有章节，App 获取不到",
       "priority": "P1（用户直接反馈）",
       "kind": "external",
@@ -2211,6 +2585,7 @@
     },
     {
       "id": "TRACKER_LOGIN_DIALOG_ACTIONS",
+      "number": 81,
       "title": "追踪登录框应使用标准对话框按钮",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -2235,6 +2610,7 @@
     },
     {
       "id": "TRACKER_RECONNECT_UNAVAILABLE",
+      "number": 82,
       "title": "断开后显示未连接，重新连接提示暂不可用",
       "priority": "P1（用户直接反馈）",
       "kind": "open",
@@ -2255,6 +2631,7 @@
     },
     {
       "id": "TRACKER_BROWSER_FIRST_ATTEMPT",
+      "number": 83,
       "title": "追踪首次授权失败、第二次才成功",
       "priority": "P1（用户直接反馈）",
       "kind": "open",
@@ -2275,6 +2652,7 @@
     },
     {
       "id": "TRACKER_EDIT_IMMEDIATE_FEEDBACK",
+      "number": 84,
       "title": "编辑追踪状态和话数后应立即显示新值",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -2302,6 +2680,7 @@
     },
     {
       "id": "TRACKER_SHEET_CACHED_DISPLAY",
+      "number": 85,
       "title": "重开追踪面板先显示缓存，后台刷新",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -2325,6 +2704,7 @@
     },
     {
       "id": "TRACKER_CHAPTER_COMPLETE_SYNC",
+      "number": 86,
       "title": "阅读完章节时进度未更新",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -2350,6 +2730,7 @@
     },
     {
       "id": "SOURCE_CHAPTER_ORDINAL_AUDIT",
+      "number": 87,
       "title": "排查书源章节编号缺失",
       "priority": "P1（用户直接反馈）",
       "kind": "external",
@@ -2376,6 +2757,7 @@
     },
     {
       "id": "TRACKER_SYNC_PROGRESS_MISSING",
+      "number": 88,
       "title": "已读几十话仍提示无可同步进度",
       "priority": "P1（用户直接反馈）",
       "kind": "open",
@@ -2400,6 +2782,7 @@
     },
     {
       "id": "MANGA_DETAIL_ADAPTIVE_PANES",
+      "number": 89,
       "title": "宽窗口漫画详情左右布局",
       "priority": "用户直接需求",
       "kind": "accepted",
@@ -2434,6 +2817,7 @@
     },
     {
       "id": "READER_ENHANCEMENT_THEME_CONTRAST",
+      "number": 90,
       "title": "超分指示器在暗绿色等主题中辨识度不足",
       "priority": "P1（用户本轮直接反馈）",
       "kind": "accepted",
@@ -2477,6 +2861,7 @@
     },
     {
       "id": "MIXFLAVOR_SEARCH_MISSING",
+      "number": 91,
       "title": "綜合口味搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2508,6 +2893,7 @@
     },
     {
       "id": "FJUMONKEY_SEARCH_MISSING",
+      "number": 92,
       "title": "輔大猴搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2538,6 +2924,7 @@
     },
     {
       "id": "PEOPLE2_SEARCH_MISSING",
+      "number": 93,
       "title": "人2搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2566,6 +2953,7 @@
     },
     {
       "id": "IPMINI_SEARCH_MISSING",
+      "number": 94,
       "title": "IP手札mini搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2594,6 +2982,7 @@
     },
     {
       "id": "NHENTAIXXX_SEARCH_MISSING",
+      "number": 95,
       "title": "NHentai.xxx搜索遗漏与空页续取",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2642,6 +3031,7 @@
     },
     {
       "id": "IMMARK_SEARCH_MISSING",
+      "number": 96,
       "title": "我是馬克搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2676,6 +3066,7 @@
     },
     {
       "id": "NHENTAITO_SEARCH_MISSING",
+      "number": 97,
       "title": "NHentai.to搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2707,6 +3098,7 @@
     },
     {
       "id": "THREE_HENTAI_SEARCH_MISSING",
+      "number": 98,
       "title": "3Hentai搜索未移植",
       "priority": "P1（全源搜索自检发现）",
       "kind": "accepted",
@@ -2742,6 +3134,7 @@
     },
     {
       "id": "SIXMH_SEARCH_UNSUPPORTED",
+      "number": 99,
       "title": "六漫画搜索提示书源不支持，排查其他无法搜索的源",
       "priority": "P1（用户本轮直接反馈）",
       "kind": "accepted",
@@ -2773,6 +3166,7 @@
     },
     {
       "id": "READER_THUMBNAIL_LOADING_REGRESSION",
+      "number": 100,
       "title": "NextE/NextN缩略图进入阅读时加载指示器消失",
       "status": "N/E具名路径与两笔精确CI完成",
       "kind": "accepted",
@@ -2803,6 +3197,7 @@
     },
     {
       "id": "READER_WINDOW_LIFECYCLE",
+      "number": 101,
       "title": "三App五入口全屏/状态栏早于转场完成",
       "status": "用户采用范围已正式合入，三宿主具名验证及精确CI完成",
       "kind": "accepted",
@@ -2834,22 +3229,34 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "197 具名样本同章和跨章已复验",
-      "stage": "《装备我最强》连续加载新页，系统超分保持开启",
+      "status": "已修复秒级卡顿并完成197长测",
+      "stage": "条漫长距离、普通翻页实测",
       "kind": "done",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "系统超分避开滚动开始大图处理，停稳后恢复。197 从第 4 页快滑到下一章第 10 页，四段主线程任务最长 12.9 毫秒，滑动时未见图片编码。自动阅读开关、加载条和缩略图已复验。",
-      "remaining": "本轮真机范围为 Koma 197、瓜子《装备我最强》和系统超分。",
+      "result": "197 条漫实滑518次、10分47秒，采样最长约90毫秒。旧包同类停顿曾达1.47秒。最终包普通翻页最慢界面帧26.4毫秒，采样未见超过33毫秒的同类停顿。",
+      "remaining": "仍有短帧间隔波动。200 保留旧包复现证据。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-11-08T05:53:02+08:00",
+      "closedAt": "2026-11-08T08:35:59+08:00",
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-stall-combined-20261108/checkpoints.jsonl",
+        ".hvigor/outputs/reader-stall-combined-20261108/long-frames-final.jsonl",
+        ".hvigor/outputs/reader-stall-shelf-apply-20261108/paged-fixed-frames.jsonl",
+        ".hvigor/outputs/reader-stall-shelf-apply-20261108/processing.log",
+        ".hvigor/outputs/reader-stall-source-refresh-20261108/webdav-final.log",
+        ".hvigor/outputs/reader-stall-root-20261108/first-aligned.json",
+        ".hvigor/outputs/reader-stall-root-20261108/paged-base-aligned.json",
+        ".hvigor/outputs/reader-stall-cache-20261108/late-fixed-aligned.json",
+        ".hvigor/outputs/reader-long-scroll-197-20261108/checkpoints.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-20261108/trace-summary.jsonl",
+        ".hvigor/outputs/reader-long-scroll-200-20261108/checkpoints.jsonl",
+        ".hvigor/outputs/reader-long-scroll-200-20261108/trace-summary.jsonl",
         ".hvigor/outputs/reader-forward-perf-20261108/final4-gesture-frames.jsonl",
         ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T055025261368/audit/gesture-frames.json",
         ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/record-export-20261108T055129639432/koma-redesign-197-20261108T055108953550.mp4",
@@ -2893,8 +3300,10 @@
         ".hvigor/outputs/detail-chapter-loading-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail/detail-install",
         ".hvigor/outputs/continuous-scroll-20261106/reanalyse-existing-sched/vsync-gap-main-thread-scheduling.json"
       ],
-      "latestCounterexampleAt": "2026-10-23T04:57:37.180Z",
-      "evidencePoints": [],
+      "latestCounterexampleAt": "2026-11-08T06:40:29+08:00",
+      "evidencePoints": [
+        "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
+      ],
       "remainingActions": [],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
@@ -2934,8 +3343,8 @@
         "answer": "采用 v3，完成正式合入与验证",
         "date": "2026-10-26"
       },
-      "previousClosedAt": "2026-10-25T18:34:37.357834+00:00",
-      "updatedAt": "2026-11-08T05:53:02+08:00",
+      "previousClosedAt": "2026-11-08T05:53:02+08:00",
+      "updatedAt": "2026-11-08T08:35:59+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -2945,6 +3354,7 @@
     },
     {
       "id": "FIRST_CHAPTER_SELECTION",
+      "number": 102,
       "title": "无历史书架首次阅读误开最新一话",
       "status": "原人类具名范围已交付并有精确CI；未外推边界保留",
       "kind": "accepted",
@@ -2996,6 +3406,7 @@
     },
     {
       "id": "CHAPTER_SORT_MENU",
+      "number": 103,
       "title": "章节排序菜单无作用",
       "status": "本轮限定修复已推送，三宿主构建与精确CI成功",
       "kind": "done",
@@ -3029,6 +3440,7 @@
     },
     {
       "id": "APP_POPUP_SYSTEM_MATERIAL",
+      "number": 104,
       "title": "菜单与半模态漏接系统新材质",
       "kind": "done",
       "priority": "P1（当前人类连续反馈）",
@@ -3077,6 +3489,7 @@
     },
     {
       "id": "READER_SETTINGS_STABILITY",
+      "number": 105,
       "title": "阅读设置菜单跳变及动态本书后缀",
       "status": "原菜单/方向回显/保位具名收束；K339遮挡段仅EVIDENCE_ONLY",
       "kind": "accepted",
@@ -3125,6 +3538,7 @@
     },
     {
       "id": "AUTO_CHAPTER_BOUNDARY_TARGET",
+      "number": 106,
       "title": "自动跨章回退误落首图，应落上一章末页",
       "priority": "P1（阅读正确性）",
       "owner": "Root：shared Reader与Host跨章节预载",
@@ -3238,6 +3652,7 @@
     },
     {
       "id": "NEXT_CHAPTER_PREFETCH_REUSE",
+      "number": 107,
       "title": "接近章末预加载下一章及跨章请求复用",
       "priority": "P2（当前P0后，与跨章联动核查）",
       "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
@@ -3277,6 +3692,7 @@
     },
     {
       "id": "READER_PRESET_SHEET",
+      "number": 108,
       "title": "点击预设后设置半模态被自行收起",
       "status": "具名实机通过，已随f7a6a7d提交推送并冻结",
       "kind": "accepted",
@@ -3301,6 +3717,7 @@
     },
     {
       "id": "CONTINUOUS_PAGE_GAPS",
+      "number": 109,
       "title": "连续滚动页间黑条",
       "status": "已验收并推送",
       "kind": "accepted",
@@ -3340,6 +3757,7 @@
     },
     {
       "id": "READER_DIRECTION_MENU",
+      "number": 110,
       "title": "阅读方向菜单混入单页/双页且重复布局入口",
       "status": "方向/独立单双页具名通过，f7a6a7d已推，CI成功",
       "kind": "accepted",
@@ -3363,6 +3781,7 @@
     },
     {
       "id": "TAB_HEADER_SCROLL_OWNER",
+      "number": 111,
       "title": "根Tab标题栏模糊继承另一页状态",
       "status": "Library/Settings具名通过，a4ec2eb已提交冻结",
       "kind": "accepted",
@@ -3385,6 +3804,7 @@
     },
     {
       "id": "BAOZIMH_BROWSE_FAILURE",
+      "number": 112,
       "title": "包子漫画安装后源浏览失败/重试无效",
       "status": "两书具名恢复/已推7b3f196，精确CI成功",
       "kind": "accepted",
@@ -3420,6 +3840,7 @@
     },
     {
       "id": "SOURCE_RUNTIME_ERRORS",
+      "number": 113,
       "title": "源错误只显示source_runtime且日志不可诊断",
       "status": "原笼统错误/日志及六Native边界具名修复已交付，网站可用性独立",
       "kind": "accepted",
@@ -3492,6 +3913,7 @@
     },
     {
       "id": "SOURCE_WEB_SESSION",
+      "number": 114,
       "title": "源网页挑战会话回流、源内设置及登录入口",
       "priority": "P2（后续处理）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
@@ -3645,6 +4067,7 @@
     },
     {
       "id": "SOURCE_SETTINGS_ACTION_ALIGNMENT",
+      "number": 115,
       "title": "源设置底部清除/保存按钮突兀且不齐",
       "priority": "P2（本sheet限定修正，不取消原队列）",
       "owner": "冻结：Root按新反例或相关依赖变化重开",
@@ -3669,6 +4092,7 @@
     },
     {
       "id": "SOURCE_SETTINGS_DIRECT_ENTRY",
+      "number": 116,
       "title": "当前源页应直接弹源设置，避免绕管理路由",
       "priority": "P2（入口行为，保P0优先）",
       "owner": "Root：三入口具名路径与精确CI已完成，未覆盖边界保留",
@@ -3698,6 +4122,7 @@
     },
     {
       "id": "SOURCE_INDEX_PROGRESSIVE",
+      "number": 117,
       "title": "首次远端索引长空白，需逐项异步显示",
       "status": "r3具名通过，4b878926已推且精确CI成功",
       "kind": "accepted",
@@ -3725,6 +4150,7 @@
     },
     {
       "id": "SEARCH_DETAIL_TITLE",
+      "number": 118,
       "title": "全局搜索进详情显示未命名漫画",
       "status": "两作品标题/返回具名通过，868dbb38 CI成功",
       "kind": "accepted",
@@ -3749,6 +4175,7 @@
     },
     {
       "id": "CHAPTER_PICKER_POSITION",
+      "number": 119,
       "title": "阅读器章节选择器每次从顶部动画滚到当前章",
       "status": "197首开/手动保位通过，1e163c3e精确CI成功",
       "kind": "accepted",
@@ -3776,6 +4203,7 @@
     },
     {
       "id": "SOURCE_FILTERS",
+      "number": 120,
       "title": "已批准源筛选行为的当前设备路径",
       "status": "原反馈普通及快切筛选具名验证完成",
       "kind": "done",
@@ -3842,6 +4270,7 @@
     },
     {
       "id": "SHARED_ROUTE",
+      "number": 121,
       "title": "普通共享阅读入口",
       "status": "Koma原上下栏具名恢复；389400f精确CI成功",
       "kind": "accepted",
@@ -3860,6 +4289,7 @@
     },
     {
       "id": "ICONS",
+      "number": 122,
       "title": "完整书源图标质量",
       "status": "用户确认完成",
       "kind": "accepted",
@@ -3878,6 +4308,7 @@
     },
     {
       "id": "SYNC",
+      "number": 123,
       "title": "现有主分支远端同步",
       "status": "版本/tag/CI/预发布均已完成",
       "kind": "accepted",
@@ -3899,6 +4330,7 @@
     },
     {
       "id": "BACKUP_LOCAL",
+      "number": 124,
       "title": "本地未加密备份创建与预览",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -3917,6 +4349,7 @@
     },
     {
       "id": "BACKUP_WORKFLOW_REDESIGN",
+      "number": 125,
       "title": "备份与恢复按记录和动作重新组织",
       "priority": "用户直接需求",
       "kind": "done",
@@ -4000,6 +4433,7 @@
     },
     {
       "id": "LOCAL_READER_TAPS",
+      "number": 126,
       "title": "1700页归档点击未翻页",
       "status": "原误报已澄清",
       "kind": "accepted",
@@ -4018,6 +4452,7 @@
     },
     {
       "id": "LOCAL_ARCHIVE",
+      "number": 127,
       "title": "本地CBZ导入与进度重开",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4036,6 +4471,7 @@
     },
     {
       "id": "LOCAL_IMAGES",
+      "number": 128,
       "title": "两张既有图片普通导入",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4051,6 +4487,7 @@
     },
     {
       "id": "LOCAL_RESCAN",
+      "number": 129,
       "title": "本地重扫与自然重选分支",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4066,6 +4503,7 @@
     },
     {
       "id": "SETTINGS_SEARCH",
+      "number": 130,
       "title": "设置搜索的实际消费者",
       "status": "图像和备份搜索的普通落点已实机核对",
       "kind": "accepted",
@@ -4098,6 +4536,7 @@
     },
     {
       "id": "OPEN_SOURCE_NOTICE",
+      "number": 131,
       "title": "开源声明占位内容",
       "status": "已批准并具名验收",
       "kind": "accepted",
@@ -4113,6 +4552,7 @@
     },
     {
       "id": "CATEGORY_LIFECYCLE",
+      "number": 132,
       "title": "分类管理普通操作",
       "status": "分类菜单修正已验收",
       "kind": "accepted",
@@ -4133,6 +4573,7 @@
     },
     {
       "id": "KAVITA_HISTORY",
+      "number": 133,
       "title": "已配置Kavita普通阅读与历史重开",
       "status": "PARKED_USER：只待用户明确重提",
       "kind": "parked",
@@ -4155,6 +4596,7 @@
     },
     {
       "id": "WEBTOON_READING",
+      "number": 134,
       "title": "WEBTOON繁中普通公开阅读",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4170,6 +4612,7 @@
     },
     {
       "id": "BROWSE_HEADER_REFRESH",
+      "number": 135,
       "title": "书源分页后的当前数据刷新",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4185,6 +4628,7 @@
     },
     {
       "id": "BACKUP_ENCRYPTED",
+      "number": 136,
       "title": "本地加密备份创建与预览",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4200,6 +4644,7 @@
     },
     {
       "id": "APPEARANCE_CONSUMERS",
+      "number": 137,
       "title": "主题、强调色和语言实际消费者",
       "status": "已采用整组设置范围完整交付：最终各图亲审/普通返回/七文件保持，2821CI成功",
       "kind": "accepted",
@@ -4234,6 +4679,7 @@
     },
     {
       "id": "LIBRARY_COUNT_I18N",
+      "number": 138,
       "title": "英文书架自动章节数量单位",
       "status": "已按人类批准实施并具名验收（既有记录）",
       "kind": "accepted",
@@ -4252,6 +4698,7 @@
     },
     {
       "id": "CATALOG197",
+      "number": 139,
       "title": "完整手动章节目录当前路径",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4267,6 +4714,7 @@
     },
     {
       "id": "FOLDER_REIMPORT197",
+      "number": 140,
       "title": "既有公共根重复导入",
       "status": "具名路径通过",
       "kind": "accepted",
@@ -4282,6 +4730,7 @@
     },
     {
       "id": "MONITOR_AVAILABILITY",
+      "number": 141,
       "title": "原工作监控页8766服务无法打开",
       "priority": "P2（工具可达性，不抢产品主线）",
       "owner": "feedback_registry",
@@ -4306,6 +4755,7 @@
     },
     {
       "id": "CBZ_IMAGE_ORIENTATION",
+      "number": 142,
       "title": "导入CBZ部分图片颠倒的第三方反馈",
       "priority": "P3（用户明确低优先级）",
       "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
@@ -4342,6 +4792,7 @@
     },
     {
       "id": "SOURCE_README_USER_GUIDE",
+      "number": 143,
       "title": "重新整理koma-sources用户README",
       "priority": "待分配（本次未指定）",
       "owner": "/root/koma_sources_readme（已完成）",
@@ -4367,6 +4818,7 @@
     },
     {
       "id": "SOURCE_PACKAGE_INSTALL_LIST_UI",
+      "number": 144,
       "title": "源包管理按软件安装列表整理版本、动作、分组及标记",
       "priority": "P2（保当前P0不抢占）",
       "owner": "冻结：Root按实际新反例重开",
@@ -4398,6 +4850,7 @@
     },
     {
       "id": "SOURCE_CHAPTER_DUPLICATE_TITLE_REVIEW",
+      "number": 145,
       "title": "两书目录顶部同标题章节重复现象调查",
       "priority": "P2（目录身份只读核查）",
       "owner": "source_unknown_metadata：parser精确重复/冲突保留；Root：实机与诊断提交",
@@ -4426,6 +4879,7 @@
     },
     {
       "id": "MANGA_DETAIL_PULL_REFRESH",
+      "number": 146,
       "title": "漫画详情页接入下拉刷新",
       "priority": "P2（当前P0后，与源详情失败恢复关联）",
       "owner": "Root：详情下拉已接受具名范围冻结，无本项当前执行动作",
@@ -4465,6 +4919,7 @@
     },
     {
       "id": "LIST_EDGE_SCROLL_FEEL",
+      "number": 147,
       "title": "普通列表头尾回弹及短列表始终允许滚动",
       "priority": "P2（当前连续性能P0后）",
       "owner": "Root：原普通List/Grid与原生sheet具名范围完成；按新反例重开",
@@ -4514,6 +4969,7 @@
     },
     {
       "id": "TAB_ICON_SELECTION_FEEDBACK",
+      "number": 148,
       "title": "主页Tab选中填充图标与点击弹跳",
       "priority": "P1（Tab切换动效新反例）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -4566,6 +5022,7 @@
     },
     {
       "id": "CMANHUA_ZH_ICON_REGRESSION",
+      "number": 149,
       "title": "創漫繁中图标回退为默认菱形",
       "priority": "P1（已交付图标的新具名回退）",
       "owner": "Root：197普通更新与采用验收；源owner只读发布侧核查已完成",
@@ -4596,6 +5053,7 @@
     },
     {
       "id": "BROWSE_PULL_REFRESH_STALL",
+      "number": 150,
       "title": "浏览页下拉刷新停住数秒才收回",
       "priority": "P1（交互阻塞新反例）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -4639,6 +5097,7 @@
     },
     {
       "id": "SOURCE_ROW_NATIVE_ARROW",
+      "number": 151,
       "title": "源列表右箭头应采用设置同款原生尾部",
       "priority": "P1（UI一致性与准确性）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -4679,6 +5138,7 @@
     },
     {
       "id": "SOURCE_LANGUAGE_DISPLAY_CONSISTENCY",
+      "number": 152,
       "title": "源语言展示统一格式化入口",
       "priority": "P1（跨页面展示一致性）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -4720,6 +5180,7 @@
     },
     {
       "id": "SOURCE_INSTALL_GLOBAL_DISABLE",
+      "number": 153,
       "title": "单源安装或更新导致其他源按钮全部禁用",
       "priority": "P1（安装交互阻塞）",
       "owner": "Root：原请求具名范围已交付，保未外推及实施授权边界",
@@ -4760,6 +5221,7 @@
     },
     {
       "id": "SOURCE_EMPTY_SETTINGS_ENTRY",
+      "number": 154,
       "title": "无设置描述符的源仍显示可点击设置入口",
       "priority": "P1（无效操作入口）",
       "owner": "source_owner_terra负责源代码及已推祖先公开实体核验；Root核双X重复探测复用方案及ABI/失败恢复/源身份边界",
@@ -4819,6 +5281,7 @@
     },
     {
       "id": "SOURCE_PACKAGE_ICON_INVALIDATION",
+      "number": 155,
       "title": "安装或检查更新导致源图标闪烁",
       "priority": "P1（当前源性能主线）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -4878,6 +5341,7 @@
     },
     {
       "id": "SOURCE_PACKAGE_INSTALL_UI_STALL",
+      "number": 156,
       "title": "源安装期间主线程UI阻塞",
       "priority": "P1（当前源性能主线）",
       "owner": "Root：197源安装性能定位修复",
@@ -5084,6 +5548,7 @@
     },
     {
       "id": "MANGA_DETAIL_REFRESH_BACKGROUND",
+      "number": 157,
       "title": "详情下拉刷新顶部露底颜色不一致",
       "priority": "P1（源性能后接续的UI缺陷）",
       "owner": "Root",
@@ -5116,6 +5581,7 @@
     },
     {
       "id": "REFRESH_RETAIN_EXISTING_CONTENT",
+      "number": 158,
       "title": "刷新与首次加载分离，保已有内容与图标",
       "priority": "P1（当前源闪烁主线关联要求）",
       "owner": "Root：原人类触发的具名范围已交付，保其它源/失败分支边界",
@@ -5167,6 +5633,7 @@
     },
     {
       "id": "LIBRARY_READING_PROGRESS_SEMANTICS",
+      "number": 159,
       "title": "误开末话后书架进度长期显示100%",
       "priority": "P1（阅读进度语义正确性）",
       "owner": "Root：原200重复章ID样本禁止操作，237及最新197合法库均无自然同类",
@@ -5217,6 +5684,7 @@
     },
     {
       "id": "BAOZIMH_DAFENG_PAGE_LOAD_FAILURE",
+      "number": 160,
       "title": "包子《大奉打更人》正文无法加载",
       "priority": "P1（具名正文不可读）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
@@ -5263,6 +5731,7 @@
     },
     {
       "id": "SOURCE_BROWSE_HOME_STRUCTURE",
+      "number": 161,
       "title": "源浏览分类下拉与首页分区结构待整理",
       "priority": "P2（设计结构调查）",
       "owner": "Root：审查；home_terra：离线源修复；source_terra：237验证",
@@ -5335,6 +5804,7 @@
     },
     {
       "id": "MANHUAWU_SOURCE_UNAVAILABLE",
+      "number": 162,
       "title": "漫画屋首页403及原错误状态反馈",
       "priority": "P2（后续处理）",
       "owner": "source_terra：源故障及237具名路径；Root：App/Reader发版故障与交付",
@@ -5400,6 +5870,7 @@
     },
     {
       "id": "MANHUAGUI_RUNTIME_TIMEOUT",
+      "number": 163,
       "title": "漫画柜0.1.6列表请求超时",
       "priority": "P1（具名源运行失败）",
       "owner": "Root：当前成功及历史只读查询已核；本机未取得旧失败阶段记录，原项仍open",
@@ -5446,6 +5917,7 @@
     },
     {
       "id": "SOURCE_BROWSE_ALWAYS_WEB_ENTRY",
+      "number": 164,
       "title": "源浏览菜单常驻使用WebView打开",
       "priority": "P1（明确授权的失败恢复入口）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -5494,6 +5966,7 @@
     },
     {
       "id": "MANXIAOSI_SETTINGS_VALIDATION_FAILURE",
+      "number": 165,
       "title": "漫小肆打开设置提示设置验证失败",
       "priority": "P1（具名源设置能力/运行失败）",
       "owner": "Root：原人类具名范围已交付，保未外推边界",
@@ -5535,6 +6008,7 @@
     },
     {
       "id": "SOURCE_INDEX_CACHE_REVALIDATE",
+      "number": 166,
       "title": "源管理先显示持久索引缓存并后台更新",
       "priority": "P1（明确授权的初载/刷新体验）",
       "owner": "source_terra：源更新缓存与后台逻辑；Root：Index集成与交付",
@@ -5609,6 +6083,7 @@
     },
     {
       "id": "TONGLI_CHAPTERS_SETTINGS_FAILURE",
+      "number": 167,
       "title": "東立任意作品章节加载失败、设置提示验证失败",
       "priority": "P1",
       "kind": "done",
@@ -5657,6 +6132,7 @@
     },
     {
       "id": "PROGRESS_TIMELINE_THEME",
+      "number": 168,
       "title": "进度页工作时间线与自动明暗主题",
       "kind": "done",
       "status": "简洁时间线与三种主题已在现有页面验证",
@@ -5677,6 +6153,7 @@
     },
     {
       "id": "NEXTE_READER_FEATURE_MIGRATION",
+      "number": 169,
       "title": "后续迁移NextE阅读器超分、去白边与翻译能力",
       "priority": "P2（翻译完整迁移核对）",
       "owner": "Root：漫画翻译完整迁移；Torii试译与Reader具名路径已核，其他提供方真实网络待验",
@@ -5733,6 +6210,7 @@
     },
     {
       "id": "APP_STARTUP_API23_CRASH",
+      "number": 170,
       "title": "AGC 0.1.3在Harmony6.1/API23普通启动崩溃",
       "priority": "P0（启动不可用）",
       "kind": "accepted",
@@ -5771,6 +6249,7 @@
     },
     {
       "id": "READER_DOUBLE_TAP_PREFERENCE",
+      "number": 171,
       "title": "双击缩放手势开关与双击间隔档位",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -5800,6 +6279,7 @@
     },
     {
       "id": "SOURCE_OFFICIAL_CHINESE_NAMES",
+      "number": 172,
       "title": "书源官方中文名未整体核验",
       "priority": "P2（后续处理）",
       "kind": "external",
@@ -5848,6 +6328,7 @@
     },
     {
       "id": "SOURCE_SETTINGS_MIGRATION_AUDIT",
+      "number": 173,
       "title": "书源设置项未与Mihon/参考扩展整体对照",
       "priority": "P2（后续处理）",
       "kind": "external",
@@ -6175,6 +6656,7 @@
     },
     {
       "id": "MANAGER_REFRESH_BACKGROUND",
+      "number": 174,
       "title": "进入源管理页时全表刷新且图标闪烁",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6205,6 +6687,7 @@
     },
     {
       "id": "TRANSLATION_ENTRY_PLACEMENT",
+      "number": 175,
       "title": "漫画翻译设置入口缺失且位置不合理",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6236,6 +6719,7 @@
     },
     {
       "id": "SETTINGS_GROUPING_ADVANCED",
+      "number": 176,
       "title": "设置页未分组且高级入口与图标不合理",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6307,6 +6791,7 @@
     },
     {
       "id": "ENHANCEMENT_SWITCH_VISIBILITY",
+      "number": 177,
       "title": "未选择增强模型时开关不可见",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6339,6 +6824,7 @@
     },
     {
       "id": "READER_SETTINGS_PLACEMENT",
+      "number": 178,
       "title": "阅读器设置与全局设置职责混乱",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6376,6 +6862,7 @@
     },
     {
       "id": "READER_PAGE_SIZE_SHRINK",
+      "number": 179,
       "title": "跨章图片先小后放大，应先按容器约束显示",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6417,6 +6904,7 @@
     },
     {
       "id": "READER_SWIPE_DIRECTION_MISMATCH",
+      "number": 180,
       "title": "LTR/RTL跨章节滑动方向不正确",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -6470,6 +6958,7 @@
     },
     {
       "id": "MANGA_TRANSLATION_PREPROCESS",
+      "number": 181,
       "title": "超分与翻译未对预载页预处理",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6504,16 +6993,17 @@
     },
     {
       "id": "PROGRESS_PAGE_READABILITY",
+      "number": 182,
       "title": "进度页被流水账占满且近期问题难查找",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
-      "status": "页面近期问题、时间及时间线具名可查",
+      "status": "最近活动与最近提出已在浏览器验证",
       "owner": "Root",
       "dependencies": [],
       "relatedItems": [
         "PROGRESS_TIMELINE_THEME"
       ],
-      "result": "浏览器已核近期问题、动态计数、已验收筛选、时间来源、证据链接和时间线；原始时间无直接依据的事项显示未核实。",
+      "result": "浏览器已核近期问题、动态计数、已验收筛选、时间来源、证据链接和时间线；原始时间无直接依据的事项显示未核实。 本轮修正事项顺序。默认最近活动使用事项自身时间和关联时间线，最近提出保留原始日期精度并在缺失时回退到登记或最早记录。Edge 430 px 实测未完成列表 #001、#003、#005 排到前三。切换最近提出后 #005、#003 排在前两项，切换全部能找到 #002 和 #004。状态筛选、固定编号和轮询后选项均已核对。",
       "remaining": "",
       "remainingActions": [],
       "boundaries": [
@@ -6522,8 +7012,10 @@
       "reportedAt": "2026-10-27T23:39:24.675+08:00",
       "reportedAtSource": "本会话首次可核直接反馈：rollout-2026-10-25T19-19-24-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c.jsonl 第56518行，UserMessage item.id=01a17e04-2a82-7682-9427-3275adb8a024；不排除跨会话更早历史。",
       "reopenedAt": null,
-      "closedAt": "2026-10-29T16:25:56+08:00",
-      "stage": "页面具名范围已核",
+      "previousClosedAt": "2026-10-29T16:25:56+08:00",
+      "closedAt": "2026-11-08T04:24:40+08:00",
+      "updatedAt": "2026-11-08T04:24:40+08:00",
+      "stage": "两种排序与状态筛选已实测",
       "evidence": [
         "原reportedAt 2026-10-27T15:39:00Z为约值；以本会话直接UserMessage事件替换，仍不排除跨会话更早反馈。"
       ],
@@ -6531,6 +7023,7 @@
     },
     {
       "id": "SOURCE_HOMEPAGE_MISSING_COPY",
+      "number": 183,
       "title": "Goda网页打开成包子漫画、Komiic无地址提示",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6566,6 +7059,7 @@
     },
     {
       "id": "READER_RTL_SLIDER_COUNTERS",
+      "number": 184,
       "title": "阅读方向改为从右到左后，滑块两侧页码不随方向交换",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6598,6 +7092,7 @@
     },
     {
       "id": "SOURCE_SHARE_INSTALLED_PACKAGE",
+      "number": 185,
       "title": "通过系统分享已安装的源包",
       "priority": "P3（后续新功能）",
       "kind": "done",
@@ -6627,6 +7122,7 @@
     },
     {
       "id": "TONGLI_HOME_BLANK",
+      "number": 186,
       "title": "东立书源首页空白",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -6657,6 +7153,7 @@
     },
     {
       "id": "ASM_HENTAI_BROWSE_RUNTIME_FAILURE",
+      "number": 187,
       "title": "AsmHentai普通目录加载失败",
       "priority": "P1（本轮实机自检）",
       "kind": "accepted",
@@ -6709,6 +7206,7 @@
       "reportedAtSource": "本会话首次可核的直接反馈：rollout-2026-10-29T02-01-17-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c_01a183ac-6c21-7c20-b914-df42c0cb41e5.jsonl 第1865行，UserMessage item.id=01a183f8-bda0-7760-84eb-34497aa5a660；不排除跨会话更早历史。",
       "closedAt": "2026-10-29T03:56:37+08:00",
       "id": "ZEROBYW_MANGA_WEB_ENTRY_MISSING",
+      "number": 188,
       "title": "Zero搬运网漫画页面缺少网页打开入口",
       "result": "公开Zero 0.1.6在237普通详情菜单提供两种网页入口，实际WebView及外部浏览器均打开该作品；本站登录及锁章目录另由关联事项跟踪。",
       "remaining": "本次具名漫画网页入口范围完成。",
@@ -6740,6 +7238,7 @@
       "reportedAtSource": "本会话首次可核的直接反馈：rollout-2026-10-29T02-01-17-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c_01a183ac-6c21-7c20-b914-df42c0cb41e5.jsonl 第1865行，UserMessage item.id=01a183f8-bda0-7760-84eb-34497aa5a660；不排除跨会话更早历史。",
       "closedAt": "2026-10-29T06:45:24+08:00",
       "id": "ZEROBYW_CHAPTERS_TRUNCATED",
+      "number": 189,
       "title": "Zero搬运网章节显示不全",
       "result": "237公开017显示32章、游客免费与锁章，未访问免费第二章中文原图已亲审，游客锁章拒绝及本站入口已核；原源包与设备已恢复。",
       "remaining": "本次具名目录与游客范围完成；登录态正文及首页图像未知留原会话事项。",
@@ -6771,6 +7270,7 @@
       "reportedAtSource": "本会话首次可核的直接反馈：rollout-2026-10-29T02-01-17-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c_01a183ac-6c21-7c20-b914-df42c0cb41e5.jsonl 第2272行，UserMessage item.id=01a1840b-9e2d-7351-966b-d339a7725bc5；不排除跨会话更早历史。",
       "closedAt": "2026-10-29T06:08:37+08:00",
       "id": "READER_MH1234_BOUNDARY_PRELOAD",
+      "number": 190,
       "title": "漫画12342网RTL章末未提前预载",
       "relatedItems": [
         "AUTO_CHAPTER_BOUNDARY_TARGET"
@@ -6810,6 +7310,7 @@
       "reportedAtSource": "本会话首次可核的直接反馈：rollout-2026-10-29T02-01-17-01a172c9-6743-7cb0-81ac-5dd8e05d5c0c_01a183ac-6c21-7c20-b914-df42c0cb41e5.jsonl 第2272行，UserMessage item.id=01a1840b-9e2d-7351-966b-d339a7725bc5；不排除跨会话更早历史。",
       "closedAt": "2026-10-29T06:08:37+08:00",
       "id": "READER_LOADING_INDICATOR_BACKGROUND_CONTRAST",
+      "number": 191,
       "title": "白灰阅读背景加载提示不可见",
       "relatedItems": [],
       "result": "197未访问页面加载时，白底深色进度与文字、灰底白色进度与文字均可见，最终图像正常。 shared ded07a61与Koma依赖0ac87bd已推，精确CI进行中；197恢复待完成。 Koma 0ac87bd精确CI40775085588 completed/success；197原状态恢复仍待。 197原Blue阅读状态、四份数据及源注册表恢复；原013源文件保留，本轮临时文件已删，电源恢复并释租。",
@@ -6831,6 +7332,7 @@
     },
     {
       "id": "READER_TRIM_REOPEN_DISABLE_LOADING_STALL",
+      "number": 192,
       "title": "去白边后重进关闭导致图片加载卡住",
       "priority": "P1（本轮用户反馈）",
       "kind": "accepted",
@@ -6865,6 +7367,7 @@
     },
     {
       "id": "CHAPTER_LIST_DIVIDER_PRESS_FEEDBACK",
+      "number": 193,
       "title": "漫画详情章节分割线及点击反馈异常",
       "priority": "P1（本轮用户反馈）",
       "kind": "done",
@@ -6898,6 +7401,7 @@
     },
     {
       "id": "MANGA_DETAIL_PERSISTED_BACKGROUND_REFRESH",
+      "number": 194,
       "title": "书架漫画详情持久化与后台更新",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -6931,6 +7435,7 @@
     },
     {
       "id": "MANGA_DETAIL_SCROLL_TITLE_VISIBILITY",
+      "number": 195,
       "title": "漫画详情标题栏按滚动阈值显示漫画名",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -6964,6 +7469,7 @@
     },
     {
       "id": "MANGA_DETAIL_COVER_BLUR_GRADIENT",
+      "number": 196,
       "title": "漫画详情封面模糊并渐变到背景色",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -7000,6 +7506,7 @@
     },
     {
       "id": "ABOUT_PAGE_RELEASE_HISTORY_MIGRATION",
+      "number": 197,
       "title": "按NextE重整关于页并完整移植更新与日志查看",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -7028,6 +7535,7 @@
     },
     {
       "id": "MANHUAREN_REQUEST_REJECTED",
+      "number": 198,
       "title": "漫画人提示书源请求被拒绝",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -7064,6 +7572,7 @@
     },
     {
       "id": "WUXIAN_GUJIAN_LOAD_FAILURE",
+      "number": 199,
       "title": "无限动漫《古见同学》加载失败",
       "priority": "P2（后续处理）",
       "kind": "external",
@@ -7109,6 +7618,7 @@
     },
     {
       "id": "HAPPYMH_SOURCE_UNAVAILABLE",
+      "number": 200,
       "title": "嗨皮漫画普通入口无法连接",
       "priority": "P2（后续处理）",
       "kind": "accepted",
@@ -7142,6 +7652,7 @@
     },
     {
       "id": "LLM_SOURCE_MANGA_RULE_ASSISTANCE",
+      "number": 201,
       "title": "大模型辅助每源每漫画规则与排序",
       "priority": "P3（后续增强）",
       "kind": "parked",
@@ -7164,6 +7675,7 @@
     },
     {
       "id": "MH160_COVER_IMAGES_REJECTED",
+      "number": 202,
       "title": "漫画160原生列表封面全部加载失败",
       "priority": "P1（用户直接反馈）",
       "kind": "done",
@@ -7193,6 +7705,7 @@
     },
     {
       "id": "SOURCE_INSTALL_PIPELINE_SERIAL",
+      "number": 203,
       "title": "多个书源安装串行导致效率低",
       "priority": "P1",
       "kind": "done",
@@ -7223,6 +7736,7 @@
     },
     {
       "id": "LIBRARY_CROSS_SOURCE_MIGRATION",
+      "number": 204,
       "title": "书库漫画跨源迁移",
       "priority": "P1",
       "kind": "accepted",
@@ -7299,6 +7813,7 @@
     },
     {
       "id": "FEATURE_PARITY_COMPARISON",
+      "number": 205,
       "title": "对照参考应用的其他功能缺口",
       "priority": "P1",
       "kind": "done",
@@ -7326,6 +7841,7 @@
     },
     {
       "id": "FEATURE_PARITY_IMPLEMENTATION",
+      "number": 206,
       "title": "补齐参考应用功能差异",
       "priority": "P1",
       "kind": "external",
@@ -7453,6 +7969,7 @@
     },
     {
       "id": "BROWSE_SOURCE_GROUPS_FILTERS_SUBSCRIPTIONS",
+      "number": 207,
       "title": "浏览源按语言分组、评级筛选与订阅管理简化",
       "kind": "accepted",
       "priority": "P1（当前用户要求）",
@@ -7512,6 +8029,7 @@
     },
     {
       "id": "LIBRARY_UPDATES_BELL_ENTRY",
+      "number": 208,
       "title": "书架铃铛入口与新章节更新列表",
       "kind": "accepted",
       "priority": "P1（当前用户要求）",
@@ -7566,6 +8084,7 @@
     },
     {
       "id": "SEARCH_RECENT_TAP_UI_STALL",
+      "number": 209,
       "title": "点击最近搜索后界面卡顿数秒",
       "kind": "accepted",
       "priority": "P1",
@@ -7632,6 +8151,7 @@
     },
     {
       "id": "TOAST_SYSTEM_MATERIAL",
+      "number": 210,
       "title": "Toast未采用新系统材质",
       "kind": "accepted",
       "priority": "P2",
@@ -7662,6 +8182,7 @@
     },
     {
       "id": "LIBRARY_BROWSE_COVER_WIDTH_CONSISTENCY",
+      "number": 211,
       "title": "浏览页封面宽度未统一使用书架设置",
       "kind": "accepted",
       "priority": "P2",
@@ -7695,6 +8216,7 @@
     },
     {
       "id": "SOURCE_DM5_ICON_IDENTITY",
+      "number": 212,
       "title": "动漫屋错用漫画人极速版图标",
       "kind": "accepted",
       "priority": "P2",
@@ -7728,6 +8250,7 @@
     },
     {
       "id": "SOURCE_MANHUAREN_ICON_IDENTITY",
+      "number": 213,
       "title": "漫画人错用极速版App图标",
       "kind": "accepted",
       "priority": "P2",
@@ -7756,6 +8279,7 @@
     },
     {
       "id": "SOURCE_USER_FACING_TERMINOLOGY",
+      "number": 214,
       "title": "界面“源包”统一称为“书源”",
       "kind": "accepted",
       "priority": "P2",
@@ -7778,6 +8302,7 @@
     },
     {
       "id": "SUBSCRIPTION_ROW_MENU_ANCHOR",
+      "number": 215,
       "title": "订阅行更多菜单展开后消失",
       "kind": "accepted",
       "priority": "P1",
@@ -7808,6 +8333,7 @@
     },
     {
       "id": "CONTINUOUS_TRIGGER_PAGING",
+      "number": 216,
       "title": "条漫点按/音量翻页步长不定，动画开关禁用",
       "kind": "accepted",
       "priority": "P1",
@@ -7842,6 +8368,7 @@
     },
     {
       "id": "MISSING_SOURCE_LIBRARY_RECOVERY",
+      "number": 217,
       "title": "删源或备份恢复后缺源的展示、阅读与迁移",
       "kind": "accepted",
       "priority": "P1",
@@ -7879,6 +8406,7 @@
     },
     {
       "id": "DIALOG_CONFIRM_BUTTON_ORDER",
+      "number": 218,
       "title": "双按钮确认框取消位置不一致",
       "kind": "accepted",
       "priority": "P2",
@@ -7907,6 +8435,7 @@
     },
     {
       "id": "MH160_WANGPAI_YUSHI_LOAD_FAILURE",
+      "number": 219,
       "title": "漫画160《王牌御史》等作品加载异常",
       "kind": "accepted",
       "priority": "P1",
@@ -7943,6 +8472,7 @@
     },
     {
       "id": "LIBRARY_SOURCE_SCOPED_SEARCH",
+      "number": 220,
       "title": "书架按指定书源搜索与搜索语法扩展",
       "kind": "accepted",
       "priority": "P3",
@@ -7975,6 +8505,7 @@
     },
     {
       "id": "SETTINGS_ROOT_ICON_COLORS",
+      "number": 221,
       "title": "设置首页相邻分类图标颜色重复",
       "kind": "accepted",
       "priority": "P2",
@@ -8004,6 +8535,7 @@
     },
     {
       "id": "README_SUBSCRIPTION_AND_SCREENSHOTS",
+      "number": 222,
       "title": "订阅操作说明与主库界面截图未同步",
       "kind": "accepted",
       "priority": "P2",
@@ -8033,6 +8565,7 @@
     },
     {
       "id": "RELEASE_1_0_0",
+      "number": 223,
       "title": "正式发布1.0.0",
       "kind": "accepted",
       "priority": "P0",
@@ -8064,6 +8597,7 @@
     },
     {
       "id": "GENERIC_BAOZI_BANNER_PROCESSING",
+      "number": 224,
       "title": "可订阅的图片插件",
       "kind": "accepted",
       "priority": "P3",
@@ -8367,6 +8901,7 @@
     },
     {
       "id": "READER_KIT_SELF_CONTAINED_BUILD",
+      "number": 225,
       "title": "源码构建依赖仓库外的 reader-kit 目录",
       "kind": "accepted",
       "priority": "P0（当前构建故障）",
@@ -8409,6 +8944,7 @@
     },
     {
       "id": "SOURCE_MANAGER_SECTION_ACTION_FLASH",
+      "number": 226,
       "title": "图片插件切回书源时右上角闪蓝",
       "kind": "accepted",
       "priority": "P1（当前用户反馈）",
@@ -8447,6 +8983,7 @@
     },
     {
       "id": "READER_IMAGE_PLUGINS_SHEET_ENTRY",
+      "number": 227,
       "title": "阅读器内图片插件入口被归在裁边且跳出阅读设置",
       "kind": "accepted",
       "priority": "P1（当前用户反馈）",
@@ -8487,6 +9024,7 @@
     },
     {
       "id": "IMAGE_PLUGIN_READER_ENTRY_FLICKER",
+      "number": 228,
       "title": "图像增强开启后图片出现又退回加载",
       "kind": "accepted",
       "priority": "P1（当前用户反馈）",
@@ -8520,6 +9058,7 @@
     },
     {
       "id": "READER_ASYNC_PAGE_ROLLBACK",
+      "number": 229,
       "title": "翻页时偶发退回前一页",
       "kind": "open",
       "priority": "P1（当前用户反馈）",
@@ -8559,6 +9098,7 @@
     },
     {
       "id": "READER_SETTINGS_TABBED_SHEET",
+      "number": 230,
       "title": "阅读设置分段与滤镜实时预览",
       "priority": "P1（用户已采用）",
       "kind": "done",
@@ -8608,6 +9148,7 @@
     },
     {
       "id": "READER_MENU_THEME_REFRESH",
+      "number": 231,
       "title": "深色切回浅色后阅读器菜单文字仍为白色",
       "priority": "P1（用户直接反馈）",
       "kind": "accepted",
@@ -8647,6 +9188,7 @@
     },
     {
       "id": "MANHUAREN_DETAIL_COVER_CHANGE",
+      "number": 232,
       "title": "漫画人详情加载后封面变大或换图",
       "kind": "done",
       "priority": "P1（用户反馈）",
@@ -8672,6 +9214,7 @@
     },
     {
       "id": "MANGA_DETAIL_LOADING_LAYOUT_SHIFT",
+      "number": 233,
       "title": "详情首次加载时简介与标签上下跳动",
       "kind": "done",
       "priority": "P1（用户反馈）",
@@ -8694,6 +9237,7 @@
     },
     {
       "id": "READER_MORE_MENU_GROUPS",
+      "number": 234,
       "title": "阅读器更多菜单按功能分组",
       "kind": "done",
       "priority": "P2（用户反馈）",
@@ -8717,6 +9261,7 @@
     },
     {
       "id": "READER_WEBTOON_ENTRY_TOP_FLICKER",
+      "number": 235,
       "title": "条漫模式进入阅读时顶部闪一下",
       "kind": "external",
       "priority": "后排（用户指定）",
@@ -8748,6 +9293,7 @@
     },
     {
       "id": "WEBVIEW_OVERFLOW_MENU",
+      "number": 236,
       "title": "通用 WebView 更多菜单",
       "kind": "done",
       "priority": "用户需求",
@@ -8772,17 +9318,18 @@
     },
     {
       "id": "WEBDAV_AUTO_PROGRESS_STALE",
+      "number": 237,
       "title": "WebDAV 自动同步时另一台设备的阅读进度未更新",
       "kind": "bug",
       "priority": "用户反馈",
-      "status": "真实 WebDAV 双机续读与书架收发已核对",
-      "stage": "197 与 103 收发具名章页，103 书架下拉已带回收藏和目录，独立 AList 回退复验完成",
+      "status": "197 与 103 已验证跨设备续读",
+      "stage": "同章同页、书架收发、损坏数据回退已验证",
       "owner": "Root",
       "reportedAt": null,
       "reportedDate": "2026-11-06",
       "reportedAtSource": "本会话用户报告，原始消息时间未核实。",
-      "result": "本地用当前调度和双副本合并实现复现。阅读保存触发延迟 15 秒，发送端先切后台会撤掉本次调度；接收端前台同步成功后没有后续拉取。首次合并暂缓的最近阅读章节会连同该书的后续章节页位一起暂缓，其他书仍可同步。界面将不同原因合为跳过项。另用设置页的按钮分流和双副本同步逻辑连续执行三次立即同步。每次任务成功，接收端已读到服务器上的新页码，但待核对作品的进度不写入本机，另一本书更新。待核对入口在同步内容下方、状态上方的待处理项目；模拟原差异关联待核验进度时，状态仍提示核对但预览没有可选差异。双副本继续复现确认循环。只剩一条可见差异时明确选择并确认，选择实际写入且自动开关维持开启，但未列出的待核验阅读差异仍使管理页立即显示有差异待核对，再打开预览没有可选项。对应记录解除保护并确认后提示才清除。用户进一步报告差异处理后进度和历史仍不一致。本地双副本用支持范围内的作品、无差异连接和模拟章节核验失败复跑：发端保留新章页但从未发布对应阅读记录，发端和收端连续两轮立即同步均结束且无错误，收端历史和页码仍为空。此复现解释独立于暂缓的失效路径，用户现场原因尚未确认。用户提供的现用 WebDAV 目录返回 207。逐一校验现存 6 次提交和全部 7 个分片，最新包含 2 个分类、1 条排序、1 个订阅，整个现存提交链和旧分片均无阅读记录、页码及收藏作品。使用真实服务器和当前接收端同步引擎在主机回放，18 次请求，应用分类与订阅共 4 项，阅读 0 项，仍记录为成功且无待核对，服务端没有写入。手机端未上传的具体筛除点尚未取得。 当前候选已去掉按书源、包版本和作品公开性筛选，收发本机保存的历史和章页。用临时 AList，197 与 103 实测包子漫画《歸還者的魔法要特別》001 01 从第 19 页自动更新到第 24 页，独立复核两机正文一致。",
-      "remaining": "当前候选已自动应用所选组，不再按书源名单筛选。订阅和搜索写入实际存储，书架同步完整章节目录，接收端用同一目录计算未读和筛选。同步内容在同步总览共用，继承旧选择并在无连接时可保存。测试已验证首轮撤销范围、损坏分片的组隔离、新端默认偏好不覆盖已有值，以及缺源设备收到 440 个章节 ID 后重载可得 439 个未读。当前候选通过临时 AList v3.66.0 双主机副本双向收发。两端重载后各有 440 个章节 ID、439 个未读，续读为第 2 章第 6 页及第 9 页。197 真机从设置进入总览改范围，取消连接表单后回原页，重启读回并恢复原勾选。103 用同签名候选走通横屏设置路径，独立复核确认共享范围只在总览。连接表单返回后选择保持，冷启动后读回已修改范围并恢复测试前勾选。使用用户真实 WebDAV，197 已登录 Komiic 并读到《ONE PIECE 航海王》1196 话第 4 页，103 未登录即可点历史续读到相同正文。103 仅手动模式下由历史下拉收到第 6 页。书架下拉完成后收到瓜子《装备我最强》收藏、封面、273 话及第 61 页，章节检查有手动发起日志。独立 AList 制造缺片，新设备回退到第 6 页，已有第 9 页的设备保持原值，修复缺片后追到第 9 页，健康书架组持续可用。单独损坏封面及提交回复丢失时的重试已执行。Komiic 样本允许匿名打开正文，登录硬门槛和真机空闲请求量仍未核。旧记录没有可靠身份时留在原设备。",
+      "result": "197 的阅读进度同步到 103，续读到同一章同一页。103 下拉收到了收藏和章节目录。另用独立 AList 验证损坏的数据组能回退。",
+      "remaining": "待验证必须登录的书源能否双机续读，以及空闲时的请求频率。",
       "closedAt": null,
       "relatedItems": [
         "READING_HISTORY_SYNC"
@@ -8804,7 +9351,9 @@
         ".hvigor/outputs/reading-sync-unrestricted/alist-baozi-page24.json",
         ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/reading-sync-unrestricted/observe-20261107T000236349266/screen.png",
         ".hvigor/outputs/device-sync-independent/device103__MLR-AL00/not-applicable/landscape-2560x1600/shelf-sync/navigate-20261107T190924553043/layout.json",
-        "https://github.com/honjow/Koma/releases/tag/v1.2.1"
+        "https://github.com/honjow/Koma/releases/tag/v1.2.1",
+        "原排查记录｜本地用当前调度和双副本合并实现复现。阅读保存触发延迟 15 秒，发送端先切后台会撤掉本次调度；接收端前台同步成功后没有后续拉取。首次合并暂缓的最近阅读章节会连同该书的后续章节页位一起暂缓，其他书仍可同步。界面将不同原因合为跳过项。另用设置页的按钮分流和双副本同步逻辑连续执行三次立即同步。每次任务成功，接收端已读到服务器上的新页码，但待核对作品的进度不写入本机，另一本书更新。待核对入口在同步内容下方、状态上方的待处理项目；模拟原差异关联待核验进度时，状态仍提示核对但预览没有可选差异。双副本继续复现确认循环。只剩一条可见差异时明确选择并确认，选择实际写入且自动开关维持开启，但未列出的待核验阅读差异仍使管理页立即显示有差异待核对，再打开预览没有可选项。对应记录解除保护并确认后提示才清除。用户进一步报告差异处理后进度和历史仍不一致。本地双副本用支持范围内的作品、无差异连接和模拟章节核验失败复跑：发端保留新章页但从未发布对应阅读记录，发端和收端连续两轮立即同步均结束且无错误，收端历史和页码仍为空。此复现解释独立于暂缓的失效路径，用户现场原因尚未确认。用户提供的现用 WebDAV 目录返回 207。逐一校验现存 6 次提交和全部 7 个分片，最新包含 2 个分类、1 条排序、1 个订阅，整个现存提交链和旧分片均无阅读记录、页码及收藏作品。使用真实服务器和当前接收端同步引擎在主机回放，18 次请求，应用分类与订阅共 4 项，阅读 0 项，仍记录为成功且无待核对，服务端没有写入。手机端未上传的具体筛除点尚未取得。 当前候选已去掉按书源、包版本和作品公开性筛选，收发本机保存的历史和章页。用临时 AList，197 与 103 实测包子漫画《歸還者的魔法要特別》001 01 从第 19 页自动更新到第 24 页，独立复核两机正文一致。",
+        "原验证记录｜当前候选已自动应用所选组，不再按书源名单筛选。订阅和搜索写入实际存储，书架同步完整章节目录，接收端用同一目录计算未读和筛选。同步内容在同步总览共用，继承旧选择并在无连接时可保存。测试已验证首轮撤销范围、损坏分片的组隔离、新端默认偏好不覆盖已有值，以及缺源设备收到 440 个章节 ID 后重载可得 439 个未读。当前候选通过临时 AList v3.66.0 双主机副本双向收发。两端重载后各有 440 个章节 ID、439 个未读，续读为第 2 章第 6 页及第 9 页。197 真机从设置进入总览改范围，取消连接表单后回原页，重启读回并恢复原勾选。103 用同签名候选走通横屏设置路径，独立复核确认共享范围只在总览。连接表单返回后选择保持，冷启动后读回已修改范围并恢复测试前勾选。使用用户真实 WebDAV，197 已登录 Komiic 并读到《ONE PIECE 航海王》1196 话第 4 页，103 未登录即可点历史续读到相同正文。103 仅手动模式下由历史下拉收到第 6 页。书架下拉完成后收到瓜子《装备我最强》收藏、封面、273 话及第 61 页，章节检查有手动发起日志。独立 AList 制造缺片，新设备回退到第 6 页，已有第 9 页的设备保持原值，修复缺片后追到第 9 页，健康书架组持续可用。单独损坏封面及提交回复丢失时的重试已执行。Komiic 样本允许匿名打开正文，登录硬门槛和真机空闲请求量仍未核。旧记录没有可靠身份时留在原设备。"
       ],
       "updatedAt": "2026-11-08T00:20:03+08:00"
     }
@@ -8862,6 +9411,156 @@
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
     {
+      "id": "source-browse-destination-cache-native-20261108",
+      "at": "2026-11-08T08:41:55+08:00",
+      "title": "237 已核对分类和游客登录提示",
+      "detail": "237 签名包 1.2.2 (11) 保留。实测本月、本周、回切月榜的首屏及游客 AI 推荐页登录按钮；本地执行验证空白加载态、后台刷新和登录后重试原分类。真机首张快照已收到响应，没有拍到转圈；第二轮启动时原 Komiic 已停在作品详情，为避免接管该页面未继续操作，未点开登录表单。原源包和对应安装路径逐字恢复，未读取或改写原私有会话，原电源与租约已恢复。当前覆盖安装新建目录，会导致新安装无法读取旧会话，本改动不改变该规则。",
+      "itemIds": [
+        "SOURCE_BROWSE_DESTINATION_CACHE"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "continuous-main-thread-final-197-20261108",
+      "at": "2026-11-08T08:35:59+08:00",
+      "title": "#001 修复秒级阻塞并完成197长测",
+      "detail": "条漫518次，采样最长约90毫秒。最终包普通翻页最慢界面帧26.4毫秒，采样未见超过33毫秒的同类停顿。原连续滚动与电源状态已恢复。",
+      "kind": "updated",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-stall-combined-20261108/long-frames-final.jsonl"
+    },
+    {
+      "id": "library-scroll-final-197-20261108",
+      "at": "2026-11-08T08:35:59+08:00",
+      "title": "#244 最终包书架滑动采样未复现",
+      "detail": "书架采样最慢界面帧3.92毫秒，保留用户反馈范围。",
+      "kind": "updated",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "evidence": ".hvigor/outputs/reader-stall-source-refresh-20261108/shelf-fixed-frames.jsonl"
+    },
+    {
+      "id": "source-browse-destination-cache-active-20261108",
+      "at": "2026-11-08T08:33:54+08:00",
+      "title": "分类切换、缓存和居中加载已实现",
+      "detail": "核对 237 首次加载、返回缓存及 AI 登录入口。",
+      "itemIds": [
+        "SOURCE_BROWSE_DESTINATION_CACHE"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "source-manager-order-language-20261108",
+      "at": "2026-11-08T08:27:47+08:00",
+      "title": "#246 书源管理顺序和语言分组已验",
+      "detail": "可更新在前，接着是已安装。可安装在末尾，按语言分组。实机显示多语言与中文。",
+      "kind": "updated",
+      "itemId": "SOURCE_MANAGER_LANGUAGE_SECTIONS",
+      "evidence": ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-boundary.png"
+    },
+    {
+      "id": "source-manager-pull-verify-20261108",
+      "at": "2026-11-08T08:27:47+08:00",
+      "title": "#247 197 下拉检查帧处理减负",
+      "detail": "新包检查3项可更新，峰值6.91毫秒。基线未复现反复停转。",
+      "kind": "updated",
+      "itemId": "SOURCE_MANAGER_REFRESH_STALL",
+      "evidence": ".hvigor/outputs/reader-stall-source-refresh-20261108/manager-pull-fixed-frames.jsonl"
+    },
+    {
+      "id": "komiic-recommendations-done-20261108",
+      "at": "2026-11-08T08:16:43+08:00",
+      "title": "Komiic 0.1.16 已发布，237 验过分类与月榜续页",
+      "detail": "最低 Koma 1.2.1。三个读者榜在 237 实显，月榜滚动到第二批。游客 AI 登录提示在原榜末尾，右上角账号也可登录；有会话的 25 条排序通过模拟会话回放，未实测真实账号推荐。237 已恢复。GitHub 最新发布已指向 0.1.16，带查询参数回查的索引一致；原无参数订阅 URL 在本地线路仍命中 0.1.15 缓存。",
+      "itemIds": [
+        "SOURCE_KOMIIC_RECOMMENDATIONS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "komiic-recommendations-publishing-20261108",
+      "at": "2026-11-08T08:13:56+08:00",
+      "title": "237 已验三个读者榜和 AI 游客提示，正式发布中",
+      "detail": "真机确认月榜续页。AI 登录提示在上一榜单末尾，右上角也可登录。发布后回查订阅与实际公开 WASM。",
+      "itemIds": [
+        "SOURCE_KOMIIC_RECOMMENDATIONS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "komiic-recommendations-active-20261108",
+      "at": "2026-11-08T08:11:09+08:00",
+      "title": "四个并列分类已实现，237 正在复验",
+      "detail": "核对现有 App 的分类菜单、榜单封面及 AI 登录提示，再回查正式书源包。",
+      "itemIds": [
+        "SOURCE_KOMIIC_RECOMMENDATIONS"
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "reader-thumbnail-cold-load-verified-20261108",
+      "at": "2026-11-08T08:04:46+08:00",
+      "title": "#243 197 实测新缩略图加载时可顺畅滑动",
+      "detail": "新图更新局限到该格。两组均有后台裁切和编码，主线程处理峰值降至5.17毫秒。",
+      "kind": "updated",
+      "itemId": "READER_THUMBNAIL_COLD_LOAD",
+      "evidence": ".hvigor/outputs/reader-stall-combined-20261108/cold-rail-fixed-frames.jsonl"
+    },
+    {
+      "id": "reader-thumbnail-cold-load-20261108",
+      "at": "2026-11-08T07:53:29+08:00",
+      "title": "#243 缩略图回滑已验，定位冷加载刷新开销",
+      "detail": "解码编码在后台，主线程最慢帧约 16 毫秒，以节点更新为主。",
+      "kind": "updated",
+      "itemId": "READER_THUMBNAIL_COLD_LOAD",
+      "evidence": ".hvigor/outputs/reader-stall-final-20261108/cold-rail-fixed-frames.jsonl"
+    },
+    {
+      "id": "library-scroll-stall-20261108",
+      "at": "2026-11-08T07:53:29+08:00",
+      "title": "#244 197 书架对照采样",
+      "detail": "短测前后均未复现，继续保留用户反馈。",
+      "kind": "updated",
+      "itemId": "LIBRARY_SCROLL_OCCASIONAL_STALL",
+      "evidence": ".hvigor/outputs/reader-stall-cache-20261108/shelf-fixed-frames.jsonl"
+    },
+    {
+      "id": "continuous-main-thread-sync-cache-20261108",
+      "at": "2026-11-08T07:42:01+08:00",
+      "title": "#001 定位主线程同步和图片缓存阻塞",
+      "detail": "调用栈对齐条漫与普通翻页的秒级停顿。中间候选长测仍有 480 毫秒阻塞，补做快照和合并卸载。",
+      "kind": "updated",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-stall-cache-20261108/late-fixed-aligned.json"
+    },
+    {
+      "id": "webdav-reading-time-auto-20261108",
+      "at": "2026-11-08T06:54:21+08:00",
+      "title": "#242 阅读位置按时间自动合并",
+      "detail": "同页异时、更新的重读回退和暂停续传已通过；197 已核对 WebDAV 管理页。",
+      "kind": "verified",
+      "itemId": "WEBDAV_REDUNDANT_READING_DECISIONS",
+      "evidence": ".hvigor/outputs/sync-reading-time-20261108/management.log"
+    },
+    {
+      "id": "continuous-long-forward-197-200-20261108",
+      "at": "2026-11-08T06:40:29+08:00",
+      "title": "#001 197 和 200 长距离下翻均复现卡顿",
+      "detail": "197 最长停顿 1.80 秒，200 最长停顿 1.59 秒，原问题重开。",
+      "kind": "reopened",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-long-scroll-197-20261108/trace-summary.jsonl"
+    },
+    {
+      "id": "bilimanga-cover-cdn-20261108",
+      "at": "2026-11-08T06:39:01+08:00",
+      "title": "嗶哩漫畫 0.1.1 已发布，237 列表与详情封面实显",
+      "detail": "封面修复已回查正式订阅和实际 WASM，最低 Koma 1.2.1。237 核对热门网格与作品详情封面并恢复原状态。该作章节在 237 的观察窗口仍在加载，网页与 WASM 回放读到 201 章。本次使用用户临时开启的全局网络，未验证直连。",
+      "itemIds": [
+        "SOURCE_BILIMANGA_COVER_CDN"
+      ],
+      "kind": "checkpoint"
+    },
+    {
       "id": "continuous-system-enhancement-motion-197-20261108",
       "at": "2026-11-08T05:53:02+08:00",
       "title": "#001 系统超分避开快滑",
@@ -8915,6 +9614,24 @@
       "evidence": ".hvigor/outputs/device-sync-independent/device197__ALN-AL80/not-applicable/portrait-1260x2720/device-sync-live-account/reader-new-pages-trace-20261108T044324739837/audit/koma-ui-frames.json"
     },
     {
+      "id": "webdav-237-condense-20261108",
+      "at": "2026-11-08T04:29:51+08:00",
+      "title": "#237 精简进度文案",
+      "detail": "主卡只保留当前结果与待验项，原记录移至展开详情。",
+      "kind": "note",
+      "itemId": "WEBDAV_AUTO_PROGRESS_STALE",
+      "affectsActivity": false
+    },
+    {
+      "id": "issue-sort-activity-and-submitted-20261108",
+      "at": "2026-11-08T04:24:40+08:00",
+      "title": "#182 事项排序改为最近活动或最近提出",
+      "detail": "默认最近活动，保留原状态筛选。浏览器实际切换两种排序和三个状态视图，核对了日期精度、固定编号及自动刷新后保留选项。",
+      "kind": "verified",
+      "itemId": "PROGRESS_PAGE_READABILITY",
+      "evidence": "docs/qa/koma-production-progress.html"
+    },
+    {
       "id": "hanman-fast-forward-release-20261108",
       "at": "2026-11-08T04:09:36+08:00",
       "title": "#001 同签 Release 快滑同样复现",
@@ -8937,6 +9654,17 @@
       "evidence": ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-perf-record-20261108T040155159245/audit/fast-aligned-summary.json"
     },
     {
+      "id": "downloads-cross-book-wifi-logic-20261108",
+      "at": "2026-11-08T04:05:01+08:00",
+      "title": "#003 双书队列与 Wi-Fi 准入通过主机执行验证",
+      "detail": "两个作品使用相同章 ID，各入队一次。模拟蜂窝时不执行，恢复 Wi-Fi 后两项均执行。真机网络、后台系统续跑仍未验证。",
+      "kind": "verified",
+      "itemIds": [
+        "DOWNLOAD_USER_FLOW"
+      ],
+      "evidence": ".hvigor/outputs/download-flow-20261108/multiple-books-wifi-logic.log"
+    },
+    {
       "id": "hanman-fast-forward-20261108",
       "at": "2026-11-08T04:00:31+08:00",
       "title": "#001 连续快滑复现界面长帧",
@@ -8946,6 +9674,29 @@
         "CONTINUOUS_PERFORMANCE"
       ],
       "evidence": ".hvigor/outputs/reader-entry-flicker-20261106/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-entry-top-flicker/reader-perf-record-20261108T035646403880/audit/summary.json"
+    },
+    {
+      "id": "guazi-display-text-published-20261108",
+      "at": "2026-11-08T03:46:46+08:00",
+      "title": "#004 瓜子漫画 0.1.6 已公开",
+      "detail": "正式订阅已列出新包，从公开地址回下载执行《装备我最强》真实请求，确认作者正确和目录 273 章。设备此前核对的是本地候选。",
+      "itemIds": ["SOURCE_GUAZI_DISPLAY_TEXT"],
+      "kind": "verified"
+    },
+    {
+      "id": "issue-numbering-20261108",
+      "at": "2026-11-08T03:45:37+08:00",
+      "affectsActivity": false,
+      "title": "进度页事项编号与当前问题拆分",
+      "detail": "#001 韩漫连续新页性能、#002 详情首次加载、#003 下载、#004 瓜子文字修复发布、#005 首次自动阅读方式分别追踪，编号重开不变。Edge 实测切换全部事项能找齐编号。",
+      "kind": "done",
+      "itemIds": [
+        "CONTINUOUS_PERFORMANCE",
+        "MANGA_DETAIL_INITIAL_LOAD_REGRESSION",
+        "DOWNLOAD_USER_FLOW",
+        "SOURCE_GUAZI_DISPLAY_TEXT",
+        "READER_FIRST_OPEN_FORMAT"
+      ]
     },
     {
       "id": "public-modal-title-scroll-verified-20261108",

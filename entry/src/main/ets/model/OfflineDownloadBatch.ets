@@ -9,6 +9,8 @@ import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from './Offline
 import { OfflineDownloadStatus, OfflineDownloadStore } from './OfflineDownloadStore'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
 import { runOrderedDownloadQueueBatch } from './OfflineDownloadQueueExecution'
+import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 
 export interface OfflineDownloadBatchRequest {
   context: common.UIAbilityContext
@@ -25,7 +27,7 @@ export function recoverableDownloadEntry(entry: OfflineDownloadQueueEntry): bool
 }
 
 /** Page actions and automatic updates execute through the same hydrator, identity check and runtime slots. */
-export async function runOfflineDownloadBatch(
+async function runOfflineDownloadBatch(
   request: OfflineDownloadBatchRequest, targets: OfflineDownloadQueueEntry[],
 ): Promise<number> {
   const queue = new OfflineDownloadQueueStore(request.context.filesDir)
@@ -39,7 +41,11 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
   const service = new OfflineDownloadService(new OfflineDownloadStore(request.context.filesDir), queue, request.context)
   let completed = 0
   await runOrderedDownloadQueueBatch(queue, targets, async (entry: OfflineDownloadQueueEntry): Promise<void> => {
-      if (!recoverableDownloadEntry(entry)) return
+      const isPending = (): boolean => !OfflineDownloadRuntime.isRemovingChapter(request.context.filesDir,
+        entry.comicId, entry.chapterId) && queue.load().some((current: OfflineDownloadQueueEntry): boolean =>
+          current.comicId === entry.comicId && current.chapterId === entry.chapterId &&
+          current.status !== OfflineDownloadStatus.DOWNLOADED)
+      if (!recoverableDownloadEntry(entry) || !isPending()) return
       const comic = request.library.getComic(entry.comicId)
       if (comic === undefined) {
         queue.upsert({ comicId: entry.comicId, chapterId: entry.chapterId, comicTitle: entry.comicTitle,
@@ -48,11 +54,18 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
           failureReasonCode: 'comic_missing', updatedAt: Date.now() })
         return
       }
-      const hydration: SourceChapterPageHydrationResult = comic.sourceRuntimeId === undefined || comic.sourceRuntimeId.trim().length === 0
-        ? { hydrated: true, pageCount: 0 } :
-        await new SourceChapterPageHydrator(request.library, request.registry, request.persistence,
-          request.onLibraryChanged).ensureChapterPages(comic.id, comic.sourceRuntimeId, entry.chapterId)
+      let hydration: SourceChapterPageHydrationResult = { hydrated: true, pageCount: 0 }
+      try {
+        if (comic.sourceRuntimeId) {
+          hydration = await new SourceChapterPageHydrator(request.library, request.registry, request.persistence,
+            request.onLibraryChanged).ensureChapterPages(comic.id, comic.sourceRuntimeId, entry.chapterId)
+        }
+      } catch (error) {
+        DiagnosticLogger.exception('downloads', 'chapter_hydration_failed', error as Error)
+        hydration = { hydrated: false, pageCount: 0, reasonCode: 'source_pages_failed' }
+      }
       const current = request.library.getComic(entry.comicId)
+      if (!isPending()) return
       if (current === undefined) {
         entry.status = OfflineDownloadStatus.BLOCKED
         entry.failureReasonCode = 'comic_missing'
@@ -65,9 +78,17 @@ async function executeBatch(request: OfflineDownloadBatchRequest, targets: Offli
           { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle })
         return
       }
-      await service.downloadChapter(current, entry.chapterId,
-        { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle })
-      completed += 1
+      try {
+        const result = await service.downloadChapter(current, entry.chapterId,
+          { comicTitle: entry.comicTitle ?? current.title, chapterTitle: entry.chapterTitle }, isPending)
+        if (result.status === OfflineDownloadStatus.DOWNLOADED) completed += 1
+      } catch (error) {
+        if (!isPending()) return
+        DiagnosticLogger.exception('downloads', 'chapter_execution_failed', error as Error)
+        entry.status = OfflineDownloadStatus.FAILED
+        entry.failureReasonCode = undefined
+        queue.upsert(entry)
+      }
   }, () => canRunOfflineDownloadQueueNow(queue.loadPreferences()))
   return completed
 }
@@ -81,7 +102,7 @@ export function resumeAutomaticDownloads(request: OfflineDownloadBatchRequest): 
   const pending = Promise.resolve().then(async (): Promise<void> => {
     const queue = new OfflineDownloadQueueStore(filesDir)
     while (canRunOfflineDownloadQueueNow(queue.loadPreferences())) {
-      // Explicitly queued manual work keeps its existing start/resume action.
+      // New requests resume when eligible. Previously staged records stay staged.
       const targets = queue.load().filter((entry: OfflineDownloadQueueEntry): boolean =>
         entry.automatic === true && (entry.status === OfflineDownloadStatus.QUEUED ||
           ['wifi_only', 'paused', 'download_interrupted'].includes(entry.failureReasonCode ?? '')))

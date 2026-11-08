@@ -495,7 +495,7 @@ export struct LibraryPage {
       const entries = new OfflineDownloadQueueStore(context.filesDir).loadReconciledSnapshot()
       const entriesByComicId = new Map<ComicId, OfflineDownloadQueueEntry[]>()
       entries.forEach((entry: OfflineDownloadQueueEntry) => {
-        if (entry.status !== OfflineDownloadStatus.DOWNLOADED && entry.status !== OfflineDownloadStatus.PARTIAL) {
+        if (entry.status !== OfflineDownloadStatus.DOWNLOADED) {
           return
         }
         const existing = entriesByComicId.get(entry.comicId) ?? []
@@ -518,10 +518,6 @@ export struct LibraryPage {
           const entry = chapterEntries[index]
           if (!chapterIds.has(entry.chapterId)) {
             continue
-          }
-          if (entry.status === OfflineDownloadStatus.PARTIAL) {
-            comicAvailability.set(comic.id, OfflineDownloadStatus.PARTIAL)
-            return
           }
           downloadedChapterIds.add(entry.chapterId)
         }
@@ -1525,7 +1521,6 @@ export struct LibraryPage {
     if (plan.unavailableComicCount > 0) {
       lines.push(s('library_download_unavailable_comics').replace('%s', `${plan.unavailableComicCount}`))
     }
-    lines.push(s('library_download_queue_instruction'))
     return lines.join('\n\n')
   }
 
@@ -1550,7 +1545,7 @@ export struct LibraryPage {
         title, message, autoCancel: true,
         primaryButton: { value: s('common_cancel'), action: () => {} },
         secondaryButton: {
-          value: s('library_download_enqueue'),
+          value: s('manga_detail_action_download_chapter'),
           action: () => { void this.enqueueSelectedComicsDownload(queue, plan, unreadOnly) },
         },
       })
@@ -1566,10 +1561,9 @@ export struct LibraryPage {
     }
     this.batchDownloadBusy = true
     try {
-      const count = await queue.enqueue(plan.targets, unreadOnly)
+      const count = await queue.enqueue(plan.targets, unreadOnly, true)
       this.showToast(s('library_download_enqueued').replace('%s', `${count}`))
       this.exitSelectionMode()
-      this.onOpenDownloadsRequested()
     } catch (_error) {
       this.showToast(s('library_download_enqueue_failed'))
     } finally {
@@ -1798,6 +1792,7 @@ export struct LibraryPage {
       return [
         { label: s('settings_row_library_view_mode_title'), children: this.titleMenuItems('layout'), action: () => {} },
         { label: s('route_import_title'), action: () => { this.onImportRequested() } },
+        { label: s('route_downloads_title'), action: () => { this.onOpenDownloadsRequested() } },
         { label: s('common_select'), isEnabled: this.hasVisibleLibraryContent(),
           action: () => { this.beginSelectionMode() } },
       ]

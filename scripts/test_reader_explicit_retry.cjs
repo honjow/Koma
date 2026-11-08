@@ -44,10 +44,11 @@ test('reader cache hits update live eviction and coalesce restart metadata witho
     OpenMode: { WRITE_ONLY: 1, CREATE: 2, TRUNC: 4 }, openSync: open, writeSync: write, closeSync: close,
     statSync: fs.statSync, renameSync: fs.renameSync, unlinkSync: fs.unlinkSync,
     readTextSync: file => fs.readFileSync(file, 'utf8'), listFile: fs.promises.readdir, unlink: fs.promises.unlink,
+    access: async file => fs.existsSync(file), stat: fs.promises.stat,
     open: async (...args) => open(...args), write: async (...args) => write(...args), close: async file => close(file),
     rename: async (...args) => {
       if (denyRename) throw new Error('storage unavailable')
-      renames++
+      if (args[0].endsWith('.access.tmp')) renames++
       return fs.promises.rename(...args)
     },
   }

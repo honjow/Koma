@@ -1,13 +1,13 @@
 import { signalDeviceSyncChange, signalDeviceSyncSubscriptionRemoved } from '../deviceSync/DeviceSyncSignals'
-import { parseSourceIndexCacheTask, parseSourceIndexDocumentTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
+import { encodeSourceIndexCacheTask, parseSourceIndexCacheTask, parseSourceIndexDocumentTask,
+  prepareSourceIndexCacheRecordTask, SourceIndexMetadataParseResult } from './SourceIndexMetadataWorker'
 import { computeSourcePackageSha256 } from './SourcePackageHashWorker'
 import { taskpool } from '@kit.ArkTS'
 import {
-  SourceIndexEntry, SourceIndexRepository, SourceRepositoryMetadata, parseSourceRepositoryMetadata, SourceIndexMetadataCacheRecord, SourceIndexMetadataCacheDocument,
-  SOURCE_INDEX_METADATA_RECORD_LIMIT, SOURCE_INDEX_METADATA_CACHE_LIMIT,
+  SourceIndexEntry, SourceIndexRepository, SourceRepositoryMetadata, parseSourceRepositoryMetadata, SourceIndexMetadataCacheRecord,
   normalizeIndexUrl, resolveIndexDocumentUrl, isValidHttpUrl,
   normalizeSourceIndexRepositories, serializeSourceIndexRepositories, parseSavedSourceIndexRepositories, safeResolvePkgUrl,
-  safeResolveIndexAssetUrl, entryWithCachedIcon, parseCachedIndexEntries, subscriptionIdentity,
+  safeResolveIndexAssetUrl, entryWithCachedIcon, subscriptionIdentity,
 } from './SourceIndexMetadata'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { isInvalidSourceLocalizedNames, normalizeSourceLocalizedNames } from './SourceLocalizedNames'
@@ -148,14 +148,23 @@ const sourceSubscriptionEpochs: Map<string, number> = new Map()
 const disabledSourceSubscriptions: Set<string> = new Set()
 const lastSourceDownload: Map<string, string> = new Map()
 const sourceIndexPreferenceOperations: Map<string, Promise<void>> = new Map()
+const sourceIndexIconStores: Map<string, RemoteImageCacheStore> = new Map()
 
 export class SourceIndexService {
   private context: common.UIAbilityContext
-  private iconCacheStore: RemoteImageCacheStore
 
   constructor(context: common.UIAbilityContext) {
     this.context = context
-    this.iconCacheStore = new RemoteImageCacheStore(this.context.cacheDir, SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME)
+  }
+
+  private iconCache(): RemoteImageCacheStore {
+    const directory = this.context.cacheDir
+    let cache = sourceIndexIconStores.get(directory)
+    if (cache === undefined) {
+      cache = new RemoteImageCacheStore(directory, SOURCE_INDEX_ICON_CACHE_DIRECTORY_NAME, true)
+      sourceIndexIconStores.set(directory, cache)
+    }
+    return cache
   }
 
   private async cachedIconUriFor(indexUrl: string, entry: SourceIndexEntry, allowNetwork: boolean = true): Promise<string> {
@@ -166,8 +175,9 @@ export class SourceIndexService {
     // A release keeps a stable icon filename. Tie the cache identity to the
     // package identity/version so an updated source cannot keep an old logo.
     const cacheKeySeed = `source-index-icon-v1\n${entry.id}\n${entry.version}\n${iconUrl}`
+    const cache = this.iconCache()
     try {
-      const cached = await this.iconCacheStore.get(iconUrl, undefined, cacheKeySeed)
+      const cached = await cache.get(iconUrl, undefined, cacheKeySeed)
       if (cached !== undefined && cached.length > 0) {
         if (await validateSourcePackageIconFile(cached)) {
           return fileUri.getUriFromPath(cached)
@@ -195,16 +205,16 @@ export class SourceIndexService {
         !validateSourcePackageIconBytes(new Uint8Array(bytes))) {
         return ''
       }
-      const cachedPath = await this.iconCacheStore.put(iconUrl, undefined, bytes, cacheKeySeed)
+      const cachedPath = await cache.put(iconUrl, undefined, bytes, cacheKeySeed)
       if (!await validateSourcePackageIconFile(cachedPath)) {
-        await this.iconCacheStore.clear()
+        await cache.clear()
         return ''
       }
-      await this.iconCacheStore.evictIfOver(SOURCE_INDEX_ICON_CACHE_MAX_BYTES)
-      const retainedPath = await this.iconCacheStore.get(iconUrl, undefined, cacheKeySeed)
+      await cache.evictIfOver(SOURCE_INDEX_ICON_CACHE_MAX_BYTES)
+      const retainedPath = await cache.get(iconUrl, undefined, cacheKeySeed)
       if (retainedPath === undefined || !await validateSourcePackageIconFile(retainedPath)) {
         if (retainedPath !== undefined) {
-          await this.iconCacheStore.clear()
+          await cache.clear()
         }
         return ''
       }
@@ -300,10 +310,8 @@ export class SourceIndexService {
   private async persistIndexMetadata(url: string, revision: number, entries: SourceIndexEntry[]): Promise<void> {
     // Project before yielding so icon callbacks/callers cannot mutate the saved
     // snapshot. A cache too large to retain leaves the old cache untouched.
-    const metadata = parseCachedIndexEntries(entries as Object[], url)
-    if (metadata === undefined) return
-    const record: SourceIndexMetadataCacheRecord = { url, entries: metadata }
-    if (JSON.stringify(record).length > SOURCE_INDEX_METADATA_RECORD_LIMIT) return
+    const record = await taskpool.execute(prepareSourceIndexCacheRecordTask, url, entries) as SourceIndexMetadataCacheRecord | undefined
+    if (record === undefined) return
     try {
       await BackupRestoreActivity.runWrite(async (): Promise<void> => {
         await this.ordered(async (): Promise<void> => {
@@ -311,15 +319,7 @@ export class SourceIndexService {
           if (sourceIndexMetadataRequests.get(key) !== revision) return
           const store = await preferences.getPreferences(this.context, SOURCE_INDEX_PREFS_STORE_NAME)
           const previous = await store.get(SOURCE_INDEX_METADATA_CACHE_KEY, '')
-          const previousRecords = await taskpool.execute(parseSourceIndexCacheTask, previous) as SourceIndexMetadataCacheRecord[]
-          const records = previousRecords.filter((item: SourceIndexMetadataCacheRecord): boolean => item.url !== url)
-          records.unshift(record)
-          const document: SourceIndexMetadataCacheDocument = { schemaVersion: 1, records: records.slice(0, SOURCE_INDEX_REPOSITORY_LIMIT) }
-          let payload = JSON.stringify(document)
-          while (payload.length > SOURCE_INDEX_METADATA_CACHE_LIMIT && document.records.length > 1) {
-            document.records.pop()
-            payload = JSON.stringify(document)
-          }
+          const payload = await taskpool.execute(encodeSourceIndexCacheTask, previous, record, SOURCE_INDEX_REPOSITORY_LIMIT) as string
           if (sourceIndexMetadataRequests.get(key) !== revision) return
           try {
             await store.put(SOURCE_INDEX_METADATA_CACHE_KEY, payload)

@@ -1,4 +1,3 @@
-import { runOfflineDownloadBatch } from '../model/OfflineDownloadBatch'
 import { ChapterArchiveActions } from '../model/ChapterArchiveExport'
 import { komaMenuOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
@@ -11,9 +10,7 @@ import { KomaEmptyState } from '../components/ui/KomaEmptyState'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { KomaMenuChip } from '../components/ui/KomaMenuChip'
 import { ThemeConstants } from '../theme/ThemeConstants'
-import { Comic, sameComicIdentity } from '../model/ComicModels'
 import { LibraryStore } from '../model/LibraryStore'
-import { LibraryStorePersistenceService } from '../model/LibraryPersistence'
 import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
 import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
@@ -29,15 +26,9 @@ import {
   OfflineDownloadQueueStore,
   summarizeOfflineDownloadQueue,
 } from '../model/OfflineDownloadQueueStore'
-import {
-  SourceChapterPageHydrationResult,
-  SourceChapterPageHydrator,
-} from '../model/SourceChapterPageHydrator'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
 import { RouterHelper } from '../common/RouterHelper'
-import { SourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeRegistry'
-import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 
 function s(name: string): string {
   return AppStrings.get(name)
@@ -61,8 +52,6 @@ interface DownloadComicGroup {
 @ComponentV2
 export struct DownloadsPage {
   @Param libraryStore?: LibraryStore = undefined
-  @Param libraryPersistenceService?: LibraryStorePersistenceService = undefined
-  @Param sourceRegistry: SourceRuntimeRegistry = appSourceRuntimeRegistry
   @Local private languageState: LanguageState = connectLanguageState()
   @Local private entries: OfflineDownloadQueueEntry[] = []
   @Local private preferences: OfflineDownloadQueuePreferences = {
@@ -76,9 +65,8 @@ export struct DownloadsPage {
   @Local private actionMenuKey: string = ''
   private unsubscribeQueue: (() => void) | undefined = undefined
   private queueVisible: boolean = false
-  @Event onOpenReader: (comicId: string, chapterId?: string) => void =
-    (_comicId: string, _chapterId?: string) => {}
-  @Event onLibraryChanged: () => void = () => {}
+  @Event onOpenReader: (comicId: string, chapterId: string) => void =
+    (_comicId: string, _chapterId: string) => {}
 
   private context(): common.UIAbilityContext {
     return getContext(this) as common.UIAbilityContext
@@ -153,8 +141,8 @@ export struct DownloadsPage {
     }
   }
 
-  private groupForId(comicId: string): DownloadComicGroup | undefined {
-    return this.visibleGroups().find((group: DownloadComicGroup) => group.comicId === comicId)
+  private groupForId(comicId: string, completed: boolean): DownloadComicGroup | undefined {
+    return this.visibleGroups(completed).find((group: DownloadComicGroup): boolean => group.comicId === comicId)
   }
 
   private visibleEntries(): OfflineDownloadQueueEntry[] {
@@ -167,7 +155,7 @@ export struct DownloadsPage {
     }
     if (filter === DownloadQueueFilter.FAILED) {
       return entry.status === OfflineDownloadStatus.FAILED ||
-        (entry.status === OfflineDownloadStatus.PARTIAL && !this.isPausedDownload(entry.status, entry.failureReasonCode))
+        (entry.status === OfflineDownloadStatus.PARTIAL && !this.canCancel(entry))
     }
     if (filter === DownloadQueueFilter.DOWNLOADED) {
       return entry.status === OfflineDownloadStatus.DOWNLOADED
@@ -178,7 +166,8 @@ export struct DownloadsPage {
     if (filter === DownloadQueueFilter.DOWNLOADING) {
       return entry.status === OfflineDownloadStatus.DOWNLOADING
     }
-    return entry.status === OfflineDownloadStatus.QUEUED
+    return entry.status === OfflineDownloadStatus.QUEUED ||
+      (entry.status === OfflineDownloadStatus.PARTIAL && this.canCancel(entry))
   }
 
   private shouldShowFilter(filter: DownloadQueueFilter): boolean {
@@ -186,9 +175,10 @@ export struct DownloadsPage {
       this.entries.some((entry: OfflineDownloadQueueEntry): boolean => this.matchesFilter(entry, filter))
   }
 
-  private visibleGroups(): DownloadComicGroup[] {
+  private visibleGroups(completed: boolean): DownloadComicGroup[] {
     const groups: DownloadComicGroup[] = []
-    this.visibleEntries().forEach((entry: OfflineDownloadQueueEntry): void => {
+    this.visibleEntries().filter((entry: OfflineDownloadQueueEntry): boolean =>
+      this.canRead(entry) === completed).forEach((entry: OfflineDownloadQueueEntry): void => {
       const existing = groups.find((group: DownloadComicGroup): boolean => group.comicId === entry.comicId)
       if (existing !== undefined) {
         existing.entries.push(entry)
@@ -247,6 +237,7 @@ export struct DownloadsPage {
     const progress = s('downloads_page_progress')
       .replace('%s', `${entry.downloadedPageCount}`)
       .replace('%s', `${entry.pageCount}`)
+    if (entry.pageCount <= 0) return this.formatEntryStatus(entry)
     if (entry.status === OfflineDownloadStatus.DOWNLOADED) {
       return progress
     }
@@ -320,21 +311,18 @@ export struct DownloadsPage {
     if (this.isPausedDownload(entry.status, entry.failureReasonCode)) {
       return s('downloads_status_paused')
     }
-    if (entry.failureReasonCode === 'wifi_only') {
-      return s('downloads_status_waiting_wifi')
-    }
-    if (this.preferences.isPaused && entry.status === OfflineDownloadStatus.QUEUED) {
-      return s('downloads_status_paused')
+    if (entry.status === OfflineDownloadStatus.QUEUED || entry.status === OfflineDownloadStatus.PARTIAL) {
+      if (this.preferences.isPaused && (entry.status === OfflineDownloadStatus.QUEUED ||
+        entry.failureReasonCode === 'wifi_only')) return s('downloads_status_paused')
+      if (entry.failureReasonCode === 'wifi_only' || (entry.status === OfflineDownloadStatus.QUEUED &&
+        !canRunOfflineDownloadQueueNow(this.preferences))) return s('downloads_status_waiting_wifi')
     }
     return this.formatStatus(entry.status)
   }
 
   private queueOverviewTitle(): string {
-    const summary: OfflineDownloadQueueSummary = summarizeOfflineDownloadQueue(this.entries)
-    return s('downloads_overview_summary')
-      .replace('%s', `${summary.totalCount}`)
-      .replace('%s', `${summary.downloadedPageCount}`)
-      .replace('%s', `${summary.pageCount}`)
+    const count = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => !this.canRead(entry)).length
+    return count > 0 ? s('downloads_tasks_count').replace('%s', `${count}`) : s('downloads_tasks_section')
   }
 
   private queueOverviewSubtitle(): string {
@@ -351,7 +339,7 @@ export struct DownloadsPage {
     if (summary.queuedCount > 0 && !canRunOfflineDownloadQueueNow(this.preferences)) {
       return s('downloads_status_waiting_wifi')
     }
-    if (summary.downloadingCount > 0 || this.busyKey.startsWith('batch-')) {
+    if (summary.downloadingCount > 0) {
       return s('downloads_overview_downloading').replace('%s', `${Math.max(1, summary.downloadingCount)}`)
     }
     if (attentionCount > 0) {
@@ -360,71 +348,53 @@ export struct DownloadsPage {
     if (summary.queuedCount > 0) {
       return s('downloads_overview_queued').replace('%s', `${summary.queuedCount}`)
     }
-    return s('downloads_overview_ready')
+    return s('downloads_no_pending_tasks')
   }
 
   private groupSubtitle(group: DownloadComicGroup): string {
-    let downloadedPages = 0
-    let pageCount = 0
-    group.entries.forEach((entry: OfflineDownloadQueueEntry): void => {
-      downloadedPages += entry.downloadedPageCount
-      pageCount += entry.pageCount
-    })
-    return s('downloads_group_summary')
-      .replace('%s', `${group.entries.length}`)
-      .replace('%s', `${downloadedPages}`)
-      .replace('%s', `${pageCount}`)
+    return s('downloads_chapters_count').replace('%s', `${group.entries.length}`)
   }
 
   private shouldShowPrimaryQueueAction(): boolean {
-    const summary = summarizeOfflineDownloadQueue(this.entries)
-    return this.preferences.isPaused || summary.queuedCount > 0 || summary.downloadingCount > 0 ||
-      this.busyKey.startsWith('batch-')
+    return this.preferences.isPaused ||
+      this.entries.some((entry: OfflineDownloadQueueEntry): boolean => this.canCancel(entry))
   }
 
-  private queuedEntries(): OfflineDownloadQueueEntry[] {
-    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      return entry.status === OfflineDownloadStatus.QUEUED
-    })
+  private hasStagedEntries(): boolean {
+    return this.entries.some((entry: OfflineDownloadQueueEntry): boolean => entry.automatic !== true &&
+      (entry.status === OfflineDownloadStatus.QUEUED ||
+        (entry.status === OfflineDownloadStatus.PARTIAL && this.canCancel(entry))))
+  }
+
+  private shouldStartStagedEntries(): boolean {
+    return this.hasStagedEntries() && !this.entries.some((entry: OfflineDownloadQueueEntry): boolean =>
+      (entry.automatic === true && this.canCancel(entry)) || entry.status === OfflineDownloadStatus.DOWNLOADING)
   }
 
   private primaryQueueActionLabel(): string {
     if (this.preferences.isPaused) {
-      return this.busyKey === 'batch-resume' ? s('downloads_action_resuming') : s('downloads_action_resume_queue')
+      return this.busyKey === 'resume' ? s('downloads_action_resuming') : s('downloads_action_resume_queue')
     }
-    if (this.busyKey.length > 0) {
-      return s('downloads_action_pause_queue')
-    }
-    return this.queuedEntries().length > 0 ? s('downloads_action_start_queue') : s('downloads_action_pause_queue')
+    return this.shouldStartStagedEntries() ? s('downloads_action_start_queue') : s('downloads_action_pause_queue')
   }
 
   private primaryQueueActionKind(): 'primary' | 'ghost' {
-    return this.preferences.isPaused || this.queuedEntries().length > 0 ? 'primary' : 'ghost'
+    return this.preferences.isPaused || this.shouldStartStagedEntries() ? 'primary' : 'ghost'
   }
 
   private handlePrimaryQueueAction(): void {
-    if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
-      return
-    }
-    if (this.preferences.isPaused) {
-      this.resumeQueuedDownloads()
-      return
-    }
-    if (this.busyKey.length > 0) {
+    if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir) || this.busyKey.length > 0) return
+    if (this.preferences.isPaused || this.shouldStartStagedEntries()) {
+      void this.startPendingDownloads()
+    } else {
       this.pauseQueuedDownloads()
-      return
     }
-    if (this.queuedEntries().length > 0) {
-      this.startQueuedDownloads()
-      return
-    }
-    this.pauseQueuedDownloads()
   }
 
   private canRetry(entry: OfflineDownloadQueueEntry): boolean {
-    return entry.status === OfflineDownloadStatus.FAILED ||
-      entry.status === OfflineDownloadStatus.PARTIAL ||
-      this.isRecoverableBlockedEntry(entry)
+    return this.libraryStore?.getComic(entry.comicId) !== undefined && !this.canCancel(entry) &&
+      (entry.status === OfflineDownloadStatus.FAILED || entry.status === OfflineDownloadStatus.PARTIAL ||
+        this.isRecoverableBlockedEntry(entry))
   }
 
   private isRecoverableBlockedEntry(entry: OfflineDownloadQueueEntry): boolean {
@@ -436,38 +406,22 @@ export struct DownloadsPage {
         entry.failureReasonCode === 'source_disabled')
   }
 
-  private canStartQueueWork(): boolean {
-    if (this.preferences.isPaused) {
-      this.showToast(s('downloads_toast_queue_paused'))
-      return false
-    }
-    if (!canRunOfflineDownloadQueueNow(this.preferences)) {
-      this.showToast(s('downloads_status_waiting_wifi'))
-      return false
-    }
-    return true
-  }
-
   private retryableEntries(): OfflineDownloadQueueEntry[] {
-    return this.visibleEntries().filter((entry: OfflineDownloadQueueEntry): boolean => this.canRetry(entry))
+    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => this.canRetry(entry))
   }
 
-  private removableSettledEntries(): OfflineDownloadQueueEntry[] {
-    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-      return entry.status === OfflineDownloadStatus.DOWNLOADED ||
-        entry.status === OfflineDownloadStatus.FAILED ||
-        entry.status === OfflineDownloadStatus.PARTIAL ||
-        entry.status === OfflineDownloadStatus.BLOCKED
-    })
-  }
-
-  private canRemove(entry: OfflineDownloadQueueEntry): boolean {
-    return entry.status !== OfflineDownloadStatus.DOWNLOADING && entry.status !== OfflineDownloadStatus.QUEUED
+  private canCancel(entry: OfflineDownloadQueueEntry): boolean {
+    return entry.status === OfflineDownloadStatus.QUEUED || entry.status === OfflineDownloadStatus.DOWNLOADING ||
+      this.isPausedDownload(entry.status, entry.failureReasonCode) || entry.failureReasonCode === 'wifi_only'
   }
 
   private canRead(entry: OfflineDownloadQueueEntry): boolean {
-    return entry.status === OfflineDownloadStatus.DOWNLOADED ||
-      entry.status === OfflineDownloadStatus.PARTIAL
+    return entry.status === OfflineDownloadStatus.DOWNLOADED
+  }
+
+  private cleanupEntries(completed: boolean): OfflineDownloadQueueEntry[] {
+    return this.entries.filter((entry: OfflineDownloadQueueEntry): boolean =>
+      completed ? this.canRead(entry) : !this.canRead(entry) && !this.canCancel(entry))
   }
 
   private hasReadableDownloadedManifest(entry: OfflineDownloadQueueEntry): boolean {
@@ -476,66 +430,16 @@ export struct DownloadsPage {
         .validateDownloadedChapter(entry.comicId, entry.chapterId, { validateContentHash: false })
       return validation.manifest !== undefined &&
         validation.availablePageCount > 0 &&
-        (validation.status === OfflineDownloadedChapterStatus.DOWNLOADED ||
-          validation.status === OfflineDownloadedChapterStatus.PARTIAL)
+        validation.status === OfflineDownloadedChapterStatus.DOWNLOADED
     } catch (_error) {
       DiagnosticLogger.warn('downloads_page', 'read_manifest_validation_failed', '[Downloads] step=read_manifest_validation_failed failed=true reason=download_manifest')
       return false
     }
   }
 
-  private blockUnavailableEntry(entry: OfflineDownloadQueueEntry): void {
-    if (!OfflineDownloadRuntime.isInitialized(this.context().filesDir)) {
-      return
-    }
-    const store = this.queueStore()
-    const current = store.load().find((item: OfflineDownloadQueueEntry): boolean => {
-      return this.rowKey(item) === this.rowKey(entry)
-    })
-    if (current === undefined) {
-      this.loadQueue()
-      return
-    }
-    const blocked = store.upsert({
-      comicId: current.comicId,
-      chapterId: current.chapterId,
-      comicTitle: current.comicTitle,
-      chapterTitle: current.chapterTitle,
-      status: OfflineDownloadStatus.BLOCKED,
-      pageCount: current.pageCount,
-      downloadedPageCount: current.downloadedPageCount,
-      updatedAt: Date.now(),
-      failureReasonCode: 'comic_missing',
-    })
-    this.entries = this.entries.map((item: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
-      return this.rowKey(item) === this.rowKey(blocked) ? blocked : item
-    })
-  }
-
-  private async blockSourcePagesUnavailable(
-    comic: Comic,
-    entry: OfflineDownloadQueueEntry,
-    reasonCode: string
-  ): Promise<OfflineDownloadQueueEntry> {
-    const service = new OfflineDownloadService(
-      new OfflineDownloadStore(this.context().filesDir),
-      this.queueStore(), this.context()
-    )
-    const manifest = await service.blockChapterDownload(comic, entry.chapterId, reasonCode, {
-      comicTitle: entry.comicTitle ?? comic.title,
-      chapterTitle: entry.chapterTitle,
-    })
-    const blocked = this.queueStore().fromManifest(manifest, entry.comicTitle ?? comic.title, entry.chapterTitle)
-    this.entries = this.entries.map((item: OfflineDownloadQueueEntry): OfflineDownloadQueueEntry => {
-      return this.rowKey(item) === this.rowKey(blocked) ? blocked : item
-    })
-    return blocked
-  }
-
   private openDownloadEntry(entry: OfflineDownloadQueueEntry): void {
     const comic = this.libraryStore?.getComic(entry.comicId)
     if (comic === undefined) {
-      this.blockUnavailableEntry(entry)
       this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
@@ -567,79 +471,43 @@ export struct DownloadsPage {
       this.showToast(s('downloads_toast_entry_unavailable'))
       return
     }
-    const comic = this.libraryStore?.getComic(entry.comicId)
-    if (comic === undefined) {
-      this.blockUnavailableEntry(entry)
-      this.showToast(s('downloads_toast_entry_unavailable'))
-      return
-    }
     this.onOpenReader(entry.comicId, entry.chapterId)
   }
 
-  private retryDownload(entry: OfflineDownloadQueueEntry): void {
-    if (!this.canRetry(entry) || this.busyKey.length > 0) {
-      return
-    }
-    if (!this.canStartQueueWork()) {
-      return
-    }
-    const comic = this.libraryStore?.getComic(entry.comicId)
-    if (comic === undefined) {
-      this.blockUnavailableEntry(entry)
-      this.showToast(s('downloads_toast_entry_unavailable'))
-      return
-    }
-    this.busyKey = this.rowKey(entry)
-    void this.runRetry(comic, entry)
-  }
-
-  private async runRetry(comic: Comic, entry: OfflineDownloadQueueEntry): Promise<void> {
+  private retryDownloads(targets: OfflineDownloadQueueEntry[]): void {
+    if (this.busyKey.length > 0) return
+    let count = 0
     try {
-      const hydration = await this.ensureSourcePagesForDownload(comic, entry.chapterId)
-      const currentComic = this.libraryStore?.getComic(entry.comicId)
-      if (currentComic === undefined) {
-        this.blockUnavailableEntry(entry)
-        return
-      }
-      if (!sameComicIdentity(comic, currentComic)) {
-        this.loadQueue()
-        return
-      }
-      if (!hydration.hydrated) {
-        await this.blockSourcePagesUnavailable(currentComic, entry, hydration.reasonCode ?? 'pages_missing')
-        this.loadQueue()
-        this.showToast(s('downloads_toast_retry_failed'))
-        return
-      }
-      const service = new OfflineDownloadService(
-        new OfflineDownloadStore(this.context().filesDir),
-        this.queueStore(), this.context()
-      )
-      const manifest = await service.downloadChapter(currentComic, entry.chapterId, {
-        comicTitle: entry.comicTitle ?? currentComic.title,
-        chapterTitle: entry.chapterTitle,
+      const queue = this.queueStore()
+      const chaptersByComic = new Map<string, string[]>()
+      targets.forEach((entry: OfflineDownloadQueueEntry) => {
+        const ids = chaptersByComic.get(entry.comicId) ?? []
+        ids.push(entry.chapterId)
+        chaptersByComic.set(entry.comicId, ids)
       })
-      this.loadQueue()
-      this.showToast(this.isPausedDownload(manifest.status, manifest.failureReasonCode)
-        ? s('downloads_status_paused') : s('downloads_toast_retried'))
+      chaptersByComic.forEach((ids: string[], comicId: string) => {
+        const comic = this.libraryStore?.getComic(comicId)
+        if (comic !== undefined) count += queue.requestChapters(comic, ids)
+      })
+      this.showToast(count === 0 ? s('downloads_toast_no_retryable') :
+        this.preferences.isPaused ? s('downloads_status_paused') :
+          !canRunOfflineDownloadQueueNow(this.preferences) ? s('downloads_status_waiting_wifi') :
+            s('library_download_enqueued').replace('%s', `${count}`))
     } catch (error) {
-      void error
-      DiagnosticLogger.warn('downloads_page', 'retry_failed', '[Downloads] step=retry_failed failed=true reason=download_retry')
+      DiagnosticLogger.exception('downloads_page', 'retry_enqueue_failed', error as Error)
       this.showToast(s('downloads_toast_retry_failed'))
-    } finally {
-      this.busyKey = ''
     }
   }
 
   private removeDownload(entry: OfflineDownloadQueueEntry): void {
-    if (!this.canRemove(entry) || this.busyKey.length > 0) {
+    if (this.busyKey.length > 0) {
       return
     }
     this.busyKey = this.rowKey(entry)
     void this.queueStore().deleteChapterDownload(entry.comicId, entry.chapterId)
       .then(() => {
         this.loadQueue()
-        this.showToast(s('downloads_toast_removed'))
+        this.showToast(s(this.canCancel(entry) ? 'downloads_task_canceled' : 'downloads_toast_removed'))
       })
       .catch((error: Error) => {
         void error
@@ -652,12 +520,13 @@ export struct DownloadsPage {
   }
 
   private confirmRemoveDownload(entry: OfflineDownloadQueueEntry): void {
-    if (!this.canRemove(entry) || this.busyKey.length > 0) {
+    if (this.busyKey.length > 0) {
       return
     }
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-      title: s('downloads_remove_title'),
-      message: s('downloads_remove_message').replace('%s', this.rowTitle(entry)),
+      title: s(this.canCancel(entry) ? 'downloads_cancel_task' : 'downloads_remove_title'),
+      message: s(this.canCancel(entry) ? 'downloads_cancel_message' : 'downloads_remove_message')
+        .replace('%s', this.rowTitle(entry)),
       autoCancel: true,
       primaryButton: {
         value: s('common_cancel'),
@@ -673,119 +542,29 @@ export struct DownloadsPage {
     })
   }
 
-  private retryFailedDownloads(): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    if (!this.canStartQueueWork()) {
-      return
-    }
-    const targets = this.retryableEntries()
-    if (targets.length === 0) {
-      this.showToast(s('downloads_toast_no_retryable'))
-      return
-    }
-    this.busyKey = 'batch-retry'
-    void this.runRetryBatch(targets)
-  }
-
-  private async runRetryBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
-    try {
-      const retried = await this.runForegroundDownloadBatch(targets)
-      this.loadQueue()
-      this.showToast(retried > 0 ? s('downloads_toast_retried_failed') : s('downloads_toast_no_retryable'))
-    } catch (error) {
-      void error
-      DiagnosticLogger.warn('downloads_page', 'batch_retry_failed', '[Downloads] step=batch_retry_failed failed=true reason=batch_retry')
-      this.showToast(s('downloads_toast_batch_retry_failed'))
-    } finally {
-      this.busyKey = ''
-    }
-  }
-
   private pauseQueuedDownloads(): void {
     try {
       this.preferences = this.queueStore().pauseAllQueuedWork()
       this.loadQueue()
-      this.showToast(s('downloads_toast_paused_queued'))
+      this.showToast(s('downloads_status_paused'))
     } catch (_error) {
       DiagnosticLogger.warn('downloads_page', 'pause_queue_failed', '[Downloads] step=pause_queue_failed code=queue_commit_failed')
     }
   }
 
-  private startQueuedDownloads(): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    if (!this.canStartQueueWork()) {
-      return
-    }
-    const targets = this.queuedEntries()
-    if (targets.length === 0) {
-      this.showToast(s('downloads_toast_no_queued'))
-      return
-    }
-    this.busyKey = 'batch-start'
-    void this.runStartBatch(targets)
-  }
-
-  private async runStartBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
-    try {
-      const started = await this.runForegroundDownloadBatch(targets)
-      this.loadQueue()
-      this.showToast(started > 0 ? s('downloads_toast_started_queued') : s('downloads_toast_no_queued'))
-    } catch (error) {
-      void error
-      DiagnosticLogger.warn('downloads_page', 'batch_start_failed', '[Downloads] step=batch_start_failed failed=true reason=batch_start')
-      this.showToast(s('downloads_toast_start_failed'))
-    } finally {
-      this.busyKey = ''
-    }
-  }
-
-  private resumeQueuedDownloads(): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    this.busyKey = 'batch-resume'
-    void this.runResumeBatch()
-  }
-
-  private async runResumeBatch(): Promise<void> {
+  private async startPendingDownloads(): Promise<void> {
+    this.busyKey = 'resume'
     try {
       await OfflineDownloadRuntime.waitForPausedExecutions(this.context().filesDir)
-      this.preferences = this.queueStore().resumeAllQueuedWork()
+      const queue = this.queueStore()
+      queue.startStagedWork()
+      this.preferences = queue.resumeAllQueuedWork()
       this.loadQueue()
-      if (!this.canStartQueueWork()) {
-        return
-      }
-      const targets = this.entries.filter((entry: OfflineDownloadQueueEntry): boolean => {
-        return entry.status === OfflineDownloadStatus.QUEUED ||
-          (entry.status === OfflineDownloadStatus.PARTIAL && entry.failureReasonCode === 'paused')
-      })
-      const resumed = await this.runForegroundDownloadBatch(targets)
-      this.loadQueue()
-      this.showToast(resumed > 0 ? s('downloads_toast_resumed_queued') : s('downloads_toast_no_resumable'))
     } catch (error) {
-      void error
-      DiagnosticLogger.warn('downloads_page', 'batch_resume_failed', '[Downloads] step=batch_resume_failed failed=true reason=batch_resume')
+      DiagnosticLogger.exception('downloads_page', 'queue_resume_failed', error as Error)
       this.showToast(s('downloads_toast_resume_failed'))
     } finally {
       this.busyKey = ''
-    }
-  }
-
-  private setWifiOnly(wifiOnly: boolean): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    try {
-      this.preferences = this.queueStore().setWifiOnly(wifiOnly)
-      this.loadQueue()
-    } catch (error) {
-      void error
-      DiagnosticLogger.warn('downloads_page', 'save_wifi_only_failed', '[Downloads] step=save_wifi_only_failed failed=true reason=queue_preference')
-      this.showToast(s('settings_download_wifi_only_save_failed'))
     }
   }
 
@@ -820,90 +599,34 @@ export struct DownloadsPage {
     }
   }
 
-  private async runForegroundDownloadBatch(targets: OfflineDownloadQueueEntry[]): Promise<number> {
-    if (this.libraryStore === undefined) return 0
-    return runOfflineDownloadBatch({ context: this.context(), library: this.libraryStore,
-      registry: this.sourceRegistry, persistence: this.libraryPersistenceService,
-      onLibraryChanged: () => { this.onLibraryChanged() },
-    }, targets)
-  }
-
-  private async ensureSourcePagesForDownload(comic: Comic, chapterId: string): Promise<SourceChapterPageHydrationResult> {
-    const sourceId = comic.sourceRuntimeId
-    if (sourceId === undefined || sourceId.trim().length === 0 || this.libraryStore === undefined) {
-      return { hydrated: true, pageCount: 0 }
-    }
-    const result = await new SourceChapterPageHydrator(
-      this.libraryStore,
-      this.sourceRegistry,
-      this.libraryPersistenceService,
-      () => {
-        this.onLibraryChanged()
-      },
-    ).ensureChapterPages(comic.id, sourceId, chapterId)
-    if (!result.hydrated) {
-      DiagnosticLogger.warn('downloads_page', 'source_pages_hydrate_unavailable', `[Downloads] step=source_pages_hydrate_unavailable reason=${result.reasonCode ?? 'unknown'}`)
-    }
-    return result
-  }
-
-  private removeCompletedFailedDownloads(): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    const targets = this.removableSettledEntries()
-    if (targets.length === 0) {
-      this.showToast(s('downloads_toast_no_cleanup'))
-      return
-    }
-    this.busyKey = 'batch-remove'
-    void this.runRemoveBatch(targets)
-  }
-
-  private confirmRemoveCompletedFailedDownloads(): void {
-    if (this.busyKey.length > 0) {
-      return
-    }
-    const targets = this.removableSettledEntries()
-    if (targets.length === 0) {
-      this.showToast(s('downloads_toast_no_cleanup'))
-      return
-    }
+  private confirmCleanup(completed: boolean): void {
+    if (this.busyKey.length > 0) return
+    const targets = this.cleanupEntries(completed)
+    if (targets.length === 0) return
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-      title: s('downloads_cleanup_title'),
-      message: s('downloads_cleanup_message').replace('%s', `${targets.length}`),
+      title: s(completed ? 'downloads_delete_completed' : 'downloads_clear_failed'),
+      message: s(completed ? 'downloads_delete_completed_confirm' : 'downloads_clear_failed_confirm')
+        .replace('%s', `${targets.length}`),
       autoCancel: true,
-      primaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
-      },
-      secondaryButton: {
-        value: s('common_clear'),
-        fontColor: ThemeConstants.DANGER,
-        action: () => {
-          this.removeCompletedFailedDownloads()
-        },
-      },
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s('common_confirm'), fontColor: ThemeConstants.DANGER,
+        action: () => { void this.runRemoveBatch(targets, completed) } },
     })
   }
 
-  private async runRemoveBatch(targets: OfflineDownloadQueueEntry[]): Promise<void> {
+  private async runRemoveBatch(targets: OfflineDownloadQueueEntry[], completed: boolean): Promise<void> {
+    if (this.busyKey.length > 0) return
+    this.busyKey = 'cleanup'
     try {
+      const allowed = new Set(this.cleanupEntries(completed).map((entry: OfflineDownloadQueueEntry): string => this.rowKey(entry)))
       const store = this.queueStore()
-      for (let index = 0; index < targets.length; index += 1) {
-        const entry = targets[index]
-        if (entry.status === OfflineDownloadStatus.DOWNLOADED ||
-          entry.status === OfflineDownloadStatus.FAILED ||
-          entry.status === OfflineDownloadStatus.PARTIAL ||
-          entry.status === OfflineDownloadStatus.BLOCKED) {
-          await store.deleteChapterDownload(entry.comicId, entry.chapterId)
-        }
+      for (const entry of targets) {
+        if (allowed.has(this.rowKey(entry))) await store.deleteChapterDownload(entry.comicId, entry.chapterId)
       }
       this.loadQueue()
-      this.showToast(s('downloads_toast_cleanup_done'))
+      this.showToast(s('downloads_toast_removed'))
     } catch (error) {
-      void error
-      DiagnosticLogger.warn('downloads_page', 'batch_remove_failed', '[Downloads] step=batch_remove_failed failed=true reason=batch_remove')
+      DiagnosticLogger.exception('downloads_page', 'batch_remove_failed', error as Error)
       this.showToast(s('downloads_toast_cleanup_failed'))
     } finally {
       this.busyKey = ''
@@ -970,7 +693,7 @@ export struct DownloadsPage {
       this.openDownloadedChapter(entry)
       return
     }
-    this.openDownloadEntry(entry)
+    this.actionMenuKey = this.rowKey(entry)
   }
 
   private closeActionMenu(): void {
@@ -981,15 +704,14 @@ export struct DownloadsPage {
   private QueueMoreMenu() {
     Menu() {
       MenuItem({ content: s('downloads_action_retry_failed') })
-        .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
-        .onClick(() => {
-          this.retryFailedDownloads()
-        })
-      MenuItem({ content: s('downloads_action_cleanup_finished_failed') })
-        .enabled(this.busyKey.length === 0)
-        .onClick(() => {
-          this.confirmRemoveCompletedFailedDownloads()
-        })
+        .enabled(this.busyKey.length === 0 && this.retryableEntries().length > 0)
+        .onClick(() => { this.retryDownloads(this.retryableEntries()) })
+      MenuItem({ content: s('downloads_clear_failed') })
+        .enabled(this.busyKey.length === 0 && this.cleanupEntries(false).length > 0)
+        .onClick(() => { this.confirmCleanup(false) })
+      MenuItem({ content: s('downloads_delete_completed') })
+        .enabled(this.busyKey.length === 0 && this.cleanupEntries(true).length > 0)
+        .onClick(() => { this.confirmCleanup(true) })
       MenuItem({ content: s('downloads_action_rescan') })
         .enabled(this.busyKey.length === 0)
         .onClick(() => {
@@ -1188,19 +910,21 @@ export struct DownloadsPage {
   private DownloadRowMenu(key: string) {
     if (this.entryForKey(key) !== undefined) {
       Menu() {
-        MenuItem({ content: s('downloads_action_open_manga') })
+        if (this.libraryStore?.getComic(this.entryForKey(key)!.comicId) !== undefined) {
+          MenuItem({ content: s('downloads_action_open_manga') })
           .onClick(() => {
             const entry = this.entryForKey(key)
             if (entry !== undefined) {
               this.openDownloadEntry(entry)
             }
           })
-        if (this.entryForKey(key)!.status !== OfflineDownloadStatus.DOWNLOADED) {
+        }
+        if (this.canCancel(this.entryForKey(key)!)) {
           MenuItem({ content: s('downloads_move_top') }).onClick(() => { this.moveDownload(key, true, false) })
           MenuItem({ content: s('downloads_move_bottom') }).onClick(() => { this.moveDownload(key, false, false) })
           MenuItem({ content: s('downloads_move_book_top') }).onClick(() => { this.moveDownload(key, true, true) })
           MenuItem({ content: s('downloads_move_book_bottom') }).onClick(() => { this.moveDownload(key, false, true) })
-        } else {
+        } else if (this.canRead(this.entryForKey(key)!)) {
           MenuItem({ content: s('chapter_export_cbz') }).enabled(!this.chapterArchiveBusy)
             .onClick(() => { void this.exportChapter(key, false) })
           MenuItem({ content: s('chapter_share_cbz') }).enabled(!this.chapterArchiveBusy)
@@ -1208,16 +932,16 @@ export struct DownloadsPage {
         }
         if (this.canRetry(this.entryForKey(key)!)) {
           MenuItem({ content: this.busyKey === this.rowKey(this.entryForKey(key)!) ? s('common_retrying') : s('common_retry') })
-            .enabled(this.busyKey.length === 0 && !this.preferences.isPaused)
+            .enabled(this.busyKey.length === 0)
             .onClick(() => {
               const entry = this.entryForKey(key)
               if (entry !== undefined) {
-                this.retryDownload(entry)
+                this.retryDownloads([entry])
               }
             })
         }
-        if (this.canRemove(this.entryForKey(key)!)) {
-          MenuItem({ content: s('downloads_action_delete_files') })
+        MenuItem({ content: s(this.canRead(this.entryForKey(key)!) ? 'downloads_action_delete_files' :
+          this.canCancel(this.entryForKey(key)!) ? 'downloads_cancel_task' : 'downloads_clear_task') })
             .enabled(this.busyKey.length === 0)
             .onClick(() => {
               const entry = this.entryForKey(key)
@@ -1225,7 +949,6 @@ export struct DownloadsPage {
                 this.confirmRemoveDownload(entry)
               }
             })
-        }
       }
     }
   }
@@ -1335,19 +1058,19 @@ export struct DownloadsPage {
   }
 
   @Builder
-  private DownloadGroup(comicId: string) {
-    if (this.groupForId(comicId) !== undefined) {
+  private DownloadGroup(comicId: string, completed: boolean) {
+    if (this.groupForId(comicId, completed) !== undefined) {
       Column() {
         Row({ space: ThemeConstants.SPACE_MD }) {
           this.DownloadCover(comicId)
           Column({ space: ThemeConstants.SPACE_XS }) {
-            Text(this.groupForId(comicId)!.title)
+            Text(this.groupForId(comicId, completed)!.title)
               .fontSize(ThemeConstants.FONT_SIZE_TITLE)
               .fontWeight(FontWeight.Medium)
               .fontColor(ThemeConstants.TEXT_PRIMARY)
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(this.groupSubtitle(this.groupForId(comicId)!))
+            Text(this.groupSubtitle(this.groupForId(comicId, completed)!))
               .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
               .fontColor(ThemeConstants.TEXT_SECONDARY)
               .maxLines(1)
@@ -1360,10 +1083,7 @@ export struct DownloadsPage {
         .padding(ThemeConstants.SPACE_LG)
         .alignItems(VerticalAlign.Center)
         .onClick(() => {
-          const group = this.groupForId(comicId)
-          if (group !== undefined && group.entries.length > 0) {
-            this.openDownloadEntry(group.entries[0])
-          }
+          if (this.libraryStore?.getComic(comicId) !== undefined) this.openDownloadEntry(this.groupForId(comicId, completed)!.entries[0])
         })
 
         Divider()
@@ -1371,7 +1091,7 @@ export struct DownloadsPage {
           .color(ThemeConstants.DIVIDER)
           .margin({ left: ThemeConstants.SPACE_LG, right: ThemeConstants.SPACE_LG })
 
-        ForEach(this.groupForId(comicId)!.entries, (entry: OfflineDownloadQueueEntry) => {
+        ForEach(this.groupForId(comicId, completed)!.entries, (entry: OfflineDownloadQueueEntry) => {
           this.DownloadChapterRow(this.rowKey(entry))
         }, (entry: OfflineDownloadQueueEntry) => this.rowKey(entry))
       }
@@ -1380,6 +1100,14 @@ export struct DownloadsPage {
       .backgroundColor(ThemeConstants.CARD)
       .clip(true)
     }
+  }
+
+  @Builder
+  private DownloadSectionTitle(label: string) {
+    Text(label)
+      .fontSize(ThemeConstants.FONT_SIZE_CAPTION)
+      .fontColor(ThemeConstants.TEXT_SECONDARY)
+      .width('100%')
   }
 
   build() {
@@ -1401,11 +1129,18 @@ export struct DownloadsPage {
               this.EmptyState(this.hasActiveFilter())
             }
           }
-          ForEach(this.visibleGroups(), (group: DownloadComicGroup) => {
-            ListItem() {
-              this.DownloadGroup(group.comicId)
-            }
-          }, (group: DownloadComicGroup) => group.comicId)
+          if (this.visibleGroups(false).length > 0) {
+            ListItem() { this.DownloadSectionTitle(s('downloads_tasks_section')) }
+            ForEach(this.visibleGroups(false), (group: DownloadComicGroup) => {
+              ListItem() { this.DownloadGroup(group.comicId, false) }
+            }, (group: DownloadComicGroup) => group.comicId)
+          }
+          if (this.visibleGroups(true).length > 0) {
+            ListItem() { this.DownloadSectionTitle(s('downloads_local_section')) }
+            ForEach(this.visibleGroups(true), (group: DownloadComicGroup) => {
+              ListItem() { this.DownloadGroup(group.comicId, true) }
+            }, (group: DownloadComicGroup) => group.comicId)
+          }
         }
       }
     }

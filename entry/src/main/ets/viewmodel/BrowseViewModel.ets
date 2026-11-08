@@ -2,7 +2,8 @@ import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticati
 import { runBrowseSourceRequestInWorker as runBrowseSourceOperationTask } from '../sourceRuntime/SourceRuntimeWorkerClient'
 import { sourceLanguageName } from '../sourceRuntime/SourceLanguagePresentation'
 import { SourceWebChallengeGate, SourceWebChallengeReceipt, SourceWebChallengeScope } from '../sourceRuntime/SourceWebChallengeGate'
-import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { appSourceWebSessionStore, sourceHttpIdentityJson, sourceWebPackageIdentity } from '../sourceRuntime/SourceWebSessionStore'
+import { SourcePrivateSessionHost } from '../sourceRuntime/SourcePrivateSessionHost'
 import { clearSourceRejectedRequest, selectSourceRejectedRequest } from '../sourceRuntime/SourceRuntimeHttpTransport'
 import { newSourceRuntimeOperationGuardId, registerSourceRuntimeOperationGuard } from '../sourceRuntime/SourceRuntimeOperationGuard'
 import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
@@ -70,6 +71,13 @@ export interface SourceHomeSectionState {
   manga: SourceManga[]
   listingId?: string
 }
+
+interface BrowseDestinationSnapshot {
+  listingResult?: SourceMangaList
+  homeSections?: SourceHomeSectionState[]
+}
+
+const BROWSE_DESTINATION_CACHE_LIMIT: number = 12
 
 // A zero-length result is only meaningful after the request that produced it has
 // completed. Keep that lifecycle separate from the arrays so a route never
@@ -470,6 +478,9 @@ export class BrowseViewModel {
   private searchWebChallengeGate: SourceWebChallengeGate = new SourceWebChallengeGate()
   @Trace browseAuthentication: SourceWebChallengeReceipt | null = null
   @Trace searchAuthentication: SourceWebChallengeReceipt | null = null
+  private browseDestinationCache: Map<string, BrowseDestinationSnapshot> = new Map()
+  private browseCacheEntry?: SourceRuntimeRegistryEntry
+  private browseCacheContext: string = ''
   private browseAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
   private searchAuthenticationGate: SourceWebChallengeGate = new SourceWebChallengeGate()
 
@@ -729,6 +740,41 @@ export class BrowseViewModel {
     this.clearBrowseListing()
   }
 
+  private browseDestinationCacheKey(source: SourceRuntimeRegistryInstalledSourceSummary,
+    listing?: SourceListingDescriptor, values: SourceMangaListFilters = this.browseFilterValues,
+    filters: SourceFilter[] = this.filters): string {
+    const entry = this.registry.lookup(source.sourceId).entry
+    if (entry === undefined || entry.enabled !== true) return ''
+    const identity = sourceWebPackageIdentity(entry)
+    const webSessions = (entry.webSessionOrigins ?? []).map((origin: string): string =>
+      appSourceWebSessionStore.status(source.sourceId, origin).sessionId)
+    const context = JSON.stringify([appSourceSettingsStore.revisionForSource(source.sourceId),
+      SourcePrivateSessionHost.authenticationRevision(source.sourceId, identity), webSessions])
+    // Keep only route-local first results. Settings and account changes cannot
+    // display an earlier mirror's cards or another account's recommendations.
+    if (this.browseCacheEntry !== entry || this.browseCacheContext !== context) {
+      this.browseDestinationCache.clear()
+      this.browseCacheEntry = entry
+      this.browseCacheContext = context
+    }
+    if (listing === undefined) return JSON.stringify([identity, context, 'home'])
+    const active = listing.supportsFilters === false ? {} as SourceMangaListFilters :
+      this.filterValuesForQuery(values, '', filters)
+    const ordered: SourceMangaListFilters = {}
+    Object.keys(active).sort().forEach((key: string): void => { ordered[key] = active[key] })
+    return JSON.stringify([identity, context, listing.id, ordered])
+  }
+
+  private rememberBrowseDestination(key: string, snapshot: BrowseDestinationSnapshot): void {
+    if (key.length === 0) return
+    this.browseDestinationCache.delete(key)
+    if (this.browseDestinationCache.size >= BROWSE_DESTINATION_CACHE_LIMIT) {
+      const keys: string[] = Array.from(this.browseDestinationCache.keys())
+      this.browseDestinationCache.delete(keys[0])
+    }
+    this.browseDestinationCache.set(key, snapshot)
+  }
+
   private beginBrowseLoad(intent: BrowseLoadIntent, retainsCurrentContent: boolean): void {
     this.clearWebChallenge('browse')
     this.loadingBrowse = true
@@ -752,6 +798,16 @@ export class BrowseViewModel {
   }
 
   private failBrowseLoad(error: Error, intent: BrowseLoadIntent, fallbackKey: string): void {
+    if (intent !== BrowseLoadIntent.PAGINATION && error instanceof SourceRuntimeError &&
+      error.diagnostic.code === 'auth_required') {
+      this.browseDestinationCache.clear()
+      // Preserve the request identity for the login receipt and its retry.
+      this.homeSections = []
+      this.browseSections = []
+      this.popularManga = []
+      this.latestManga = []
+      this.hasMoreBrowse = false
+    }
     this.browseErrorMessage = safeSourceBrowseErrorText(error, fallbackKey)
     this.browseNeedsWebSession = error instanceof SourceRuntimeError &&
       (error.diagnostic.kind === 'challenge' || error.diagnostic.code === 'auth_required')
@@ -767,19 +823,25 @@ export class BrowseViewModel {
     operationGuardId?: string,
   ): Promise<void> {
     const sourceMatchesCurrent = this.isCurrentBrowseSource(source)
-    const previousListingId = intent === BrowseLoadIntent.REFRESH && this.isSameBrowseSource(source)
-      ? this.selectedListingId : ''
+    const sameSourceRefresh = intent === BrowseLoadIntent.REFRESH && this.isSameBrowseSource(source)
+    const previousListingId = sameSourceRefresh ? this.selectedListingId : ''
     const previousHomeAvailable = this.homeAvailable
+    const previousCacheContext = this.browseCacheContext
+    const refreshKey = sameSourceRefresh ? this.browseDestinationCacheKey(source) : ''
     // A user refresh belongs to the source identity, not to the currently
     // installed package bytes.  Keep ready content visible while a source
     // package has been reloaded or updated, then replace it atomically.
-    const retainsCurrentContent = intent === BrowseLoadIntent.REFRESH &&
-      this.isSameBrowseSource(source) && this.hasBrowseContent()
-    const effectiveIntent = sourceMatchesCurrent || retainsCurrentContent
+    const retainsCurrentContent = sameSourceRefresh && this.hasBrowseContent() && refreshKey.length > 0 &&
+      (previousCacheContext.length === 0 || previousCacheContext === this.browseCacheContext)
+    const effectiveIntent = sourceMatchesCurrent || sameSourceRefresh
       ? intent : BrowseLoadIntent.INITIAL
-    if (retainsCurrentContent) {
+    if (sameSourceRefresh) {
       this.browseRequestId += 1
       this.selectedSource = source
+      if (!retainsCurrentContent) {
+        this.clearBrowseContent()
+        this.selectedListingId = previousListingId
+      }
     } else {
       this.setSelectedSource(source)
     }
@@ -815,10 +877,12 @@ export class BrowseViewModel {
       let homeAvailable = source.capabilities.indexOf('home') >= 0 ||
         (source.capabilities.indexOf('sourceInfo') < 0 && previousHomeAvailable)
       let homeSections: SourceHomeSectionState[] = []
+      let cacheKey: string = ''
       if (listing === undefined) {
         if (this.sourceSupportsOperation(source, 'home')) {
           try {
             challengeCurrent = this.webChallengeGuard('browse')
+            cacheKey = this.browseDestinationCacheKey(source)
             homeSections = await this.loadSourceHomeSections(source, listings, challengeCurrent, operationGuardId)
             homeAvailable = source.capabilities.indexOf('home') >= 0 || homeSections.length > 0
           } catch (error) {
@@ -836,11 +900,16 @@ export class BrowseViewModel {
       let listingResult: SourceMangaList | undefined = undefined
       if (listing !== undefined) {
         challengeCurrent = this.webChallengeGuard('browse')
+        cacheKey = this.browseDestinationCacheKey(source, listing, browseFilterValues, filters)
         listingResult = await this.loadMangaListing(source, listing.id, 1, '', browseFilterValues, filters,
           challengeCurrent, operationGuardId, listing.supportsFilters !== false)
         if (requestId !== this.browseRequestId) {
           return
         }
+      }
+      if ((listingResult !== undefined || homeAvailable) && challengeCurrent() &&
+        cacheKey === this.browseDestinationCacheKey(source, listing, browseFilterValues, filters)) {
+        this.rememberBrowseDestination(cacheKey, listingResult !== undefined ? { listingResult } : { homeSections })
       }
       this.listings = listings
       this.homeAvailable = homeAvailable
@@ -869,52 +938,56 @@ export class BrowseViewModel {
   }
 
   async selectBrowseHome(automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
-    if (this.selectedSource === undefined || !this.homeAvailable || this.loadingBrowse) return
-    const source = this.selectedSource
-    const requestId = this.browseRequestId + 1
-    this.browseRequestId = requestId
-    this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, this.hasBrowseContent())
-    const challengeCurrent = this.webChallengeGuard('browse')
-    try {
-      const sections = await this.loadSourceHomeSections(source, this.listings, challengeCurrent, operationGuardId)
-      if (requestId !== this.browseRequestId) return
-      this.clearBrowseListing()
-      this.homeSections = sections
-      this.resolveBrowseLoad()
-    } catch (error) {
-      if (requestId !== this.browseRequestId) return
-      const e = error as Error
-      this.failedBrowseHome = true
-      this.failBrowseLoad(e, BrowseLoadIntent.LISTING_REPLACEMENT, 'browse_error_load_home')
-      this.publishWebChallenge('browse', e, automaticRecovery, challengeCurrent,
-        async (handle?: string): Promise<void> => { await this.retryBrowseFailure(true, handle) })
-    } finally {
-      if (requestId === this.browseRequestId) this.loadingBrowse = false
-    }
+    if (!this.homeAvailable) return
+    await this.selectBrowseDestination(undefined, automaticRecovery, operationGuardId)
   }
 
   async selectBrowseListing(listing: SourceListingDescriptor, replacePending: boolean = false, automaticRecovery: boolean = false, operationGuardId?: string): Promise<void> {
-    if (this.selectedSource === undefined || (this.loadingBrowse && !replacePending)) {
-      return
+    if (!replacePending && this.loadingBrowse && this.selectedListingId === listing.id) return
+    await this.selectBrowseDestination(listing, automaticRecovery, operationGuardId)
+  }
+
+  private async selectBrowseDestination(listing?: SourceListingDescriptor, automaticRecovery: boolean = false,
+    operationGuardId?: string): Promise<void> {
+    const source = this.selectedSource
+    if (source === undefined || (this.loadingBrowse && this.browseLoadIntent === BrowseLoadIntent.INITIAL)) return
+    const cacheKey = this.browseDestinationCacheKey(source, listing)
+    const cached = automaticRecovery ? undefined : this.browseDestinationCache.get(cacheKey)
+    const requestId = ++this.browseRequestId
+    if (listing === undefined) {
+      this.clearBrowseListing()
+      this.homeSections = cached?.homeSections ?? []
+    } else {
+      this.homeSections = []
+      this.applyBrowseListing(listing, cached?.listingResult ?? { manga: [], hasNextPage: false }, 1)
     }
-    const retainsCurrentContent = this.hasBrowseContent()
-    const requestId = this.browseRequestId + 1
-    this.browseRequestId = requestId
-    this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, retainsCurrentContent)
+    this.beginBrowseLoad(BrowseLoadIntent.LISTING_REPLACEMENT, cached !== undefined)
+    if (cached !== undefined && !this.hasBrowseContent()) this.browseContentState = BrowseContentState.EMPTY
     const challengeCurrent = this.webChallengeGuard('browse')
     try {
-      const result = await this.loadMangaListing(this.selectedSource, listing.id, 1, '', this.browseFilterValues, this.filters, challengeCurrent, operationGuardId)
-      if (requestId !== this.browseRequestId) {
-        return
+      if (listing === undefined) {
+        const sections = await this.loadSourceHomeSections(source, this.listings, challengeCurrent, operationGuardId)
+        if (requestId !== this.browseRequestId) return
+        if (challengeCurrent() && cacheKey === this.browseDestinationCacheKey(source)) {
+          this.rememberBrowseDestination(cacheKey, { homeSections: sections })
+        }
+        this.homeSections = sections
+      } else {
+        const result = await this.loadMangaListing(source, listing.id, 1, '', this.browseFilterValues, this.filters,
+          challengeCurrent, operationGuardId)
+        if (requestId !== this.browseRequestId) return
+        if (challengeCurrent() && cacheKey === this.browseDestinationCacheKey(source, listing)) {
+          this.rememberBrowseDestination(cacheKey, { listingResult: result })
+        }
+        this.applyBrowseListing(listing, result, 1)
       }
-      this.applyBrowseListing(listing, result, 1)
-      this.homeSections = []
       this.resolveBrowseLoad()
     } catch (error) {
       if (requestId !== this.browseRequestId) {
         return
       }
       const e = error as Error
+      this.failedBrowseHome = listing === undefined
       this.failedBrowseListing = listing
       this.failBrowseLoad(e, BrowseLoadIntent.LISTING_REPLACEMENT, 'browse_error_load_home')
       this.publishWebChallenge('browse', e, automaticRecovery, challengeCurrent,

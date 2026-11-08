@@ -2,9 +2,7 @@ import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { writeAppTextFile } from './AppFileTextPersistence'
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { OfflineDownloadRuntime } from './OfflineDownloadRuntime'
-import {
-  ComicId,
-} from './ComicModels'
+import { Chapter, Comic, ComicId } from './ComicModels'
 import {
   OFFLINE_DOWNLOAD_ROOT_DIR_NAME,
   OfflineChapterDownloadManifest,
@@ -56,6 +54,7 @@ export const OFFLINE_DOWNLOAD_FAILURE_REASON_CODES: string[] = [
 ]
 
 export interface OfflineDownloadQueueEntry {
+  /** Resume on an eligible network. Older manually staged entries lack this flag. */
   automatic?: boolean
   comicId: ComicId
   chapterId: string
@@ -602,6 +601,57 @@ export class OfflineDownloadQueueStore {
     return added.length
   }
 
+  /** Explicit chapter requests also start previously staged or failed entries. */
+  requestChapters(comic: Comic, chapterIds: string[]): number {
+    const document = this.loadDocument()
+    const entries = new Map<string, OfflineDownloadQueueEntry>()
+    document.entries.forEach((entry: OfflineDownloadQueueEntry) => {
+      if (entry.comicId === comic.id) entries.set(entry.chapterId, entry)
+    })
+    const chapters = new Map<string, Chapter>()
+    comic.chapters.forEach((chapter: Chapter) => { chapters.set(chapter.id, chapter) })
+    const added: OfflineDownloadQueueEntry[] = []
+    let count = 0
+    new Set(chapterIds).forEach((id: string) => {
+      const chapter = chapters.get(id)
+      const entry = entries.get(id)
+      if (chapter === undefined || entry?.status === OfflineDownloadStatus.DOWNLOADED ||
+        entry?.status === OfflineDownloadStatus.DOWNLOADING ||
+        OfflineDownloadRuntime.isActive(this.filesDir, comic.id, id) ||
+        OfflineDownloadRuntime.isRemovingChapter(this.filesDir, comic.id, id)) return
+      if (entry?.status === OfflineDownloadStatus.QUEUED && entry.automatic === true) return
+      if (entry !== undefined) {
+        entry.automatic = true
+        entry.status = OfflineDownloadStatus.QUEUED
+        entry.failureReasonCode = undefined
+      } else {
+        added.push({ automatic: true, comicId: comic.id, chapterId: id, comicTitle: comic.title,
+          chapterTitle: chapter.title, status: OfflineDownloadStatus.QUEUED,
+          pageCount: Math.max(chapter.pageCount, chapter.pages.length), downloadedPageCount: 0, updatedAt: Date.now() })
+      }
+      count++
+    })
+    if (count > 0) this.saveDocument({
+      schemaVersion: OFFLINE_DOWNLOAD_QUEUE_SCHEMA_VERSION, preferences: document.preferences,
+      entries: added.concat(document.entries),
+    })
+    return count
+  }
+
+  startStagedWork(): void {
+    const document = this.loadDocument()
+    let changed = false
+    for (const entry of document.entries) {
+      if (entry.automatic !== true && (entry.status === OfflineDownloadStatus.QUEUED ||
+        (entry.status === OfflineDownloadStatus.PARTIAL &&
+          (entry.failureReasonCode === 'paused' || entry.failureReasonCode === 'wifi_only')))) {
+        entry.automatic = true
+        changed = true
+      }
+    }
+    if (changed) this.saveDocument(document)
+  }
+
   remove(comicId: ComicId, chapterId: string): void {
     const document = this.loadDocument()
     const entries = document.entries.filter((item: OfflineDownloadQueueEntry): boolean => {
@@ -630,9 +680,11 @@ export class OfflineDownloadQueueStore {
   }
 
   async deleteChapterDownload(comicId: ComicId, chapterId: string): Promise<void> {
-    const store = new OfflineDownloadStore(this.filesDir)
-    await store.deleteChapterDownload(comicId, chapterId)
-    this.remove(comicId, chapterId)
+    await OfflineDownloadRuntime.removeChapterDownload(this.filesDir, comicId, chapterId, async (): Promise<void> => {
+      const store = new OfflineDownloadStore(this.filesDir)
+      await store.deleteChapterDownload(comicId, chapterId)
+      this.remove(comicId, chapterId)
+    })
   }
 
   async deleteComicDownloads(comicId: ComicId): Promise<number> {

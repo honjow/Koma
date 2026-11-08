@@ -11,8 +11,7 @@ import { readerControlDirection, readerControlDirectionLabelKey } from '../model
 import { ReaderPageMode } from '../model/ReaderPreferencesStore'
 import { appDeviceSync, DeviceSyncViewState } from '../deviceSync/DeviceSyncRuntime'
 import { SyncGroup, SYNC_GROUPS } from '../deviceSync/DeviceSyncFacts'
-import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup,
-  SyncReadingDecision, SyncPreviewRemoval } from '../deviceSync/DeviceSyncEngine'
+import { SyncMergeChoice, SyncMergeConflict, SyncPreview, SyncPreviewGroup, SyncPreviewRemoval } from '../deviceSync/DeviceSyncEngine'
 import { SyncConnectionDraft } from '../deviceSync/DeviceSyncWebDav'
 import { SyncBlockedReading, SyncLocalValue } from '../deviceSync/DeviceSyncStorage'
 import { SyncShelfRemoval } from '../deviceSync/DeviceSyncOwners'
@@ -266,7 +265,7 @@ export struct DeviceSyncWebDavPage {
             ConciseListRow({ title: t('device_sync_review_restore_title'),
               action: (): void => { this.onReview(this.state.selected.slice(), 'restore') } })
           }
-          if (this.state.shelfRemovals.length > 0 || this.state.readingDecisions.length > 0 || this.state.blockedReadings.length > 0) {
+          if (this.state.shelfRemovals.length > 0 || this.state.blockedReadings.length > 0) {
             ListDivider()
             ConciseListRow({ title: t('device_sync_pending_items'),
               action: (): void => { this.onReview(this.state.selected.slice(), 'pending') } })
@@ -661,19 +660,9 @@ export struct DeviceSyncReviewPage {
           }
         }
       }
-      if (this.state.readingDecisions.length > 0 || this.state.blockedReadings.length > 0) {
+      if (this.state.blockedReadings.length > 0) {
         ListItem() {
           GroupedListSection({ title: t('device_sync_reading_results') }) {
-            ForEach(this.state.readingDecisions, (item: SyncReadingDecision) => {
-              ConciseListRow({ title: item.title || t('device_sync_group_reading'), subtitle: t('device_sync_reading_conflict'), showChevron: false })
-              ForEach(item.values, (value: string) => {
-                ConciseListRow({ title: conflictValue(item.key, value), subtitle: t('device_sync_apply_reading'), showChevron: false,
-                  isEnabled: this.state.enabled && !this.state.busy && !this.state.requiresExplicitReview, action: (): void => {
-                    this.itemAction((): Promise<void> => appDeviceSync.chooseReadingDecision(item.key, value))
-                  } })
-              }, (value: string): string => value)
-              ListDivider()
-            }, (item: SyncReadingDecision): string => item.key)
             ForEach(this.state.blockedReadings, (item: SyncBlockedReading) => {
               ConciseListRow({ title: item.title || t('device_sync_group_reading'), showChevron: false,
                 subtitle: t('device_sync_reading_retained').replace('%s', (item.capture.page + 1).toString()),
@@ -737,7 +726,7 @@ export struct DeviceSyncReviewPage {
         }
       }
       if (this.reason === 'pending' && !this.state.needsReview &&
-        this.state.shelfRemovals.length === 0 && this.state.readingDecisions.length === 0 && this.state.blockedReadings.length === 0) {
+        this.state.shelfRemovals.length === 0 && this.state.blockedReadings.length === 0) {
         ListItem() {
           GroupedListSection() {
             ConciseListRow({ title: t('device_sync_no_pending_items'), showChevron: false })

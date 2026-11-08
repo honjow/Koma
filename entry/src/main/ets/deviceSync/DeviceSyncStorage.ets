@@ -1,7 +1,7 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { asset } from '@kit.AssetStoreKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { util } from '@kit.ArkTS'
+import { taskpool, util } from '@kit.ArkTS'
 import { writeAppTextFile } from '../model/AppFileTextPersistence'
 import { isSyncReplica, SyncEditKind, SyncFact, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { canonicalSyncDirectory, SyncConnectionDraft } from './DeviceSyncWebDav'
@@ -156,9 +156,20 @@ export function copySyncConnection(value: SyncSavedConnection): SyncSavedConnect
     groups: value.groups.slice() }
 }
 
+@Concurrent
+function stageSyncState(path: string, state: SyncLocalDocument): string {
+  try {
+    writeAppTextFile(path, JSON.stringify(state))
+    return ''
+  } catch (error) {
+    return (error as Error).message || 'sync_local_state_write_failed'
+  }
+}
+
 export class DeviceSyncStorage {
   private readonly path: string
   private current?: SyncLocalDocument
+  private backgroundWrite: Promise<void> = Promise.resolve()
 
   constructor(filesDir: string) {
     this.path = filesDir + '/device-sync-state.v1.json'
@@ -182,8 +193,44 @@ export class DeviceSyncStorage {
   }
 
   update(change: (state: SyncLocalDocument) => void): void {
-    const current = this.load()
-    const state: SyncLocalDocument = { schema: current.schema, replica: current.replica,
+    const state = this.copy(this.load())
+    change(state)
+    this.save(state)
+  }
+
+  /** Stage a complete file off the UI thread. Only the current state may replace the durable cursor. */
+  updateInBackground(change: (state: SyncLocalDocument) => boolean, guard: () => void): Promise<void> {
+    const write = this.backgroundWrite.then((): Promise<void> => this.stageUpdate(change, guard))
+    this.backgroundWrite = write.catch((): void => {})
+    return write
+  }
+
+  private async stageUpdate(change: (state: SyncLocalDocument) => boolean, guard: () => void): Promise<void> {
+    const stagedPath = this.path + '.background'
+    try {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        guard()
+        const original = this.load()
+        const next = this.copy(original)
+        if (!change(next)) return
+        const error = await taskpool.execute(stageSyncState, stagedPath, next) as string
+        if (error.length > 0) throw new Error(error)
+        guard()
+        if (this.current !== original) continue
+        // A synchronous rename is the short commit boundary. A normal local
+        // write can win while staging but cannot interleave with this switch.
+        fs.renameSync(stagedPath, this.path)
+        this.current = next
+        return
+      }
+      throw new Error('sync_local_changed')
+    } finally {
+      try { await fs.unlink(stagedPath) } catch (_error) {}
+    }
+  }
+
+  private copy(current: SyncLocalDocument): SyncLocalDocument {
+    return { schema: current.schema, replica: current.replica,
       publicationWriter: current.publicationWriter, counter: current.counter,
       syncContents: current.syncContents?.slice(),
       active: current.active === undefined ? undefined : copySyncConnection(current.active),
@@ -195,8 +242,6 @@ export class DeviceSyncStorage {
       archives: current.archives?.slice(), archivedIntents: current.archivedIntents?.slice(),
       retiredCredentials: current.retiredCredentials?.slice(), readingReceipts: current.readingReceipts?.slice(),
       readingRestoreCandidates: current.readingRestoreCandidates?.slice(), blockedReadings: current.blockedReadings?.slice() }
-    change(state)
-    this.save(state)
   }
 
   save(value: SyncLocalDocument): void {

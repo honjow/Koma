@@ -47,44 +47,34 @@ function joinSandboxPath(parent: string, child: string): string {
   return right.length === 0 ? left : `${left}/${right}`
 }
 
-function closeFileQuietly(file: fs.File | undefined): void {
+async function closeFileQuietly(file: fs.File | undefined): Promise<void> {
   if (file === undefined) {
     return
   }
   try {
-    fs.closeSync(file)
+    await fs.close(file)
   } catch (_err) {
   }
 }
 
-function writeTextSync(path: string, payload: string): void {
-  let file: fs.File | undefined = undefined
-  try {
-    file = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    fs.writeSync(file.fd, payload, { encoding: 'utf-8' })
-  } finally {
-    closeFileQuietly(file)
-  }
-}
-
-function writeBytesSync(path: string, bytes: ArrayBuffer): void {
+async function writeBytes(path: string, bytes: ArrayBuffer): Promise<void> {
   const tempPath = `${path}.tmp`
   let file: fs.File | undefined = undefined
   try {
     // Keep a previously published complete image until its replacement is complete.
-    file = fs.openSync(tempPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
-    const written = fs.writeSync(file.fd, bytes)
+    file = await fs.open(tempPath, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
+    const written = await fs.write(file.fd, bytes)
     if (written !== bytes.byteLength) throw new Error('Incomplete image cache write')
-    fs.closeSync(file)
+    await fs.close(file)
     file = undefined
-    if (fs.statSync(tempPath).size !== bytes.byteLength) {
+    if ((await fs.stat(tempPath)).size !== bytes.byteLength) {
       throw new Error('Incomplete image cache file')
     }
-    fs.renameSync(tempPath, path)
+    await fs.rename(tempPath, path)
   } finally {
-    closeFileQuietly(file)
+    await closeFileQuietly(file)
     try {
-      if (fs.accessSync(tempPath)) fs.unlinkSync(tempPath)
+      if (await fs.access(tempPath)) await fs.unlink(tempPath)
     } catch (_error) {
     }
   }
@@ -172,8 +162,10 @@ export function formatRemoteImageCacheSize(totalBytes: number): string {
 export class RemoteImageCacheStore {
   private readonly rootDir: string
   private readonly manifestPath: string
-  private readonly deferReaderAccess: boolean
+  private readonly trackAvif: boolean
+  private readonly coalesceAccessWrites: boolean
   private entries: Map<string, RemoteImageCacheManifestEntry> = new Map<string, RemoteImageCacheManifestEntry>()
+  private totalBytes: number = 0
   private accessWriteTimer: number = -1
   private accessDirty: boolean = false
 
@@ -187,10 +179,21 @@ export class RemoteImageCacheStore {
     return next
   }
 
-  constructor(cacheDir: string, directoryName: string = REMOTE_IMAGE_CACHE_DIR_NAME) {
+  private setEntry(entry: RemoteImageCacheManifestEntry): void {
+    this.totalBytes += entry.size - (this.entries.get(entry.key)?.size ?? 0)
+    this.entries.set(entry.key, entry)
+  }
+
+  private removeEntry(key: string): void {
+    this.totalBytes -= this.entries.get(key)?.size ?? 0
+    this.entries.delete(key)
+  }
+
+  constructor(cacheDir: string, directoryName: string = REMOTE_IMAGE_CACHE_DIR_NAME, coalesceAccessWrites: boolean = false) {
     this.rootDir = joinSandboxPath(cacheDir, directoryName)
     this.manifestPath = joinSandboxPath(this.rootDir, REMOTE_IMAGE_CACHE_MANIFEST_NAME)
-    this.deferReaderAccess = directoryName === REMOTE_IMAGE_CACHE_DIR_NAME
+    this.trackAvif = directoryName === REMOTE_IMAGE_CACHE_DIR_NAME
+    this.coalesceAccessWrites = this.trackAvif || coalesceAccessWrites
     this.ensureRoot()
     this.restore()
   }
@@ -214,16 +217,15 @@ export class RemoteImageCacheStore {
       console.info(`[ReaderCache] step=miss key=${key}`)
       return Promise.resolve(undefined)
     }
-    if (!fs.accessSync(entry.path)) {
-      this.entries.delete(key)
-      this.persist()
+    if (!await fs.access(entry.path)) {
+      this.removeEntry(key)
+      await this.persist()
       console.info(`[ReaderCache] step=miss key=${key}`)
       return Promise.resolve(undefined)
     }
     entry.lastAccessAt = Date.now()
-    this.entries.set(key, entry)
-    if (this.deferReaderAccess) this.scheduleAccessWrite()
-    else this.persist()
+    if (this.coalesceAccessWrites) this.scheduleAccessWrite()
+    else await this.persist()
     console.info(`[ReaderCache] step=hit key=${key} size=${entry.size}`)
     return Promise.resolve(entry.path)
   }
@@ -271,17 +273,16 @@ export class RemoteImageCacheStore {
   private async putNow(url: string, headers: RemoteImageCacheHeaders | undefined, bytes: ArrayBuffer, cacheKeySeed?: string): Promise<string> {
     const key = cacheKeyFor(url, headers, cacheKeySeed)
     const filePath = joinSandboxPath(this.rootDir, `${key}.${extensionForUrl(url)}`)
-    writeBytesSync(filePath, bytes)
-    const stat = fs.statSync(filePath)
-    this.entries.set(key, {
+    await writeBytes(filePath, bytes)
+    this.setEntry({
       key,
       url,
       path: filePath,
-      size: stat.size,
+      size: bytes.byteLength,
       lastAccessAt: Date.now(),
-      avif: this.deferReaderAccess ? isAvifFileType(bytes, Math.min(bytes.byteLength, 128)) : undefined,
+      avif: this.trackAvif ? isAvifFileType(bytes, Math.min(bytes.byteLength, 128)) : undefined,
     })
-    this.persist()
+    await this.persist()
     return filePath
   }
 
@@ -290,38 +291,36 @@ export class RemoteImageCacheStore {
   }
 
   private async evictIfOverNow(maxBytes: number, preservedPath?: string | string[]): Promise<void> {
-    if (maxBytes <= 0) {
+    if (maxBytes <= 0 || this.totalBytes <= maxBytes) {
       return
     }
-    let total = 0
+    // A cache insert below quota doesn't need to touch any existing file.
+    // Under pressure, reconcile once with the directory (including OS eviction).
+    const files = new Set<string>(await fs.listFile(this.rootDir, { recursion: false, listNum: 0 }))
     const rows: RemoteImageCacheManifestEntry[] = []
-    this.entries.forEach((entry: RemoteImageCacheManifestEntry) => {
-      if (fs.accessSync(entry.path)) {
-        total += entry.size
-        rows.push(entry)
-      }
-    })
-    if (total <= maxBytes) {
-      return
+    let dirty = false
+    for (const entry of this.entries.values()) {
+      if (files.has(entry.path.slice(this.rootDir.length + 1))) rows.push(entry)
+      else { this.removeEntry(entry.key); dirty = true }
     }
     rows.sort((left: RemoteImageCacheManifestEntry, right: RemoteImageCacheManifestEntry) => {
       return left.lastAccessAt - right.lastAccessAt
     })
     for (const entry of rows) {
-      if (total <= maxBytes) {
+      if (this.totalBytes <= maxBytes) {
         break
       }
       if (typeof preservedPath === 'string' ? entry.path === preservedPath : preservedPath?.includes(entry.path)) continue
       try {
         await fs.unlink(entry.path)
       } catch (_err) {
-        if (fs.accessSync(entry.path)) continue
+        if (await fs.access(entry.path)) continue
       }
-      this.entries.delete(entry.key)
-      total -= entry.size
-      console.info(`[ReaderCache] step=evict key=${entry.key} size=${entry.size} total=${total}`)
+      this.removeEntry(entry.key)
+      dirty = true
+      console.info(`[ReaderCache] step=evict key=${entry.key} size=${entry.size} total=${this.totalBytes}`)
     }
-    this.persist()
+    if (dirty) await this.persist()
   }
 
   stats(): Promise<RemoteImageCacheStats> {
@@ -342,9 +341,9 @@ export class RemoteImageCacheStore {
     })
     if (staleKeys.length > 0) {
       staleKeys.forEach((key: string) => {
-        this.entries.delete(key)
+        this.removeEntry(key)
       })
-      this.persist()
+      await this.persist()
     }
     return {
       totalBytes,
@@ -399,13 +398,14 @@ export class RemoteImageCacheStore {
       }
     }
     this.entries.forEach((entry: RemoteImageCacheManifestEntry, key: string) => {
-      if (!fs.accessSync(entry.path)) this.entries.delete(key)
+      if (!fs.accessSync(entry.path)) this.removeEntry(key)
     })
     if (clearFailed) {
-      this.persist()
+      await this.persist()
       throw new Error('remote_image_cache_clear_failed')
     }
     this.entries.clear()
+    this.totalBytes = 0
     try {
       if (fs.accessSync(this.manifestPath)) {
         await fs.unlink(this.manifestPath)
@@ -433,11 +433,12 @@ export class RemoteImageCacheStore {
         // A cache manifest never grants ownership of downloads or external files.
         if (entry.key.length > 0 && entry.size > 0 && leaf.length > 0 &&
           !leaf.includes('/') && leaf !== '.' && leaf !== '..' && leaf !== REMOTE_IMAGE_CACHE_MANIFEST_NAME) {
-          this.entries.set(entry.key, entry)
+          this.setEntry(entry)
         }
       })
     } catch (_err) {
       this.entries.clear()
+      this.totalBytes = 0
     }
   }
 
@@ -457,7 +458,7 @@ export class RemoteImageCacheStore {
       // timestamp write cannot overwrite a replacement, eviction or clear.
       void this.enqueue(async (): Promise<void> => {
         if (!this.accessDirty || this.accessWriteTimer >= 0) return
-        if (await this.persistAccess()) this.accessDirty = false
+        await this.persist(true)
       }).catch((): void => {
         // A metadata failure must not fail a hit. Retry on the next access or
         // let the next structural write commit the live timestamps.
@@ -473,8 +474,9 @@ export class RemoteImageCacheStore {
     return JSON.stringify(document)
   }
 
-  private async persistAccess(): Promise<boolean> {
-    const temporary = `${this.manifestPath}.access.tmp`
+  private async persist(accessOnly: boolean = false): Promise<void> {
+    this.cancelAccessWrite()
+    const temporary = this.manifestPath + (accessOnly ? '.access.tmp' : '.tmp')
     const payload = this.manifestPayload()
     try {
       const file = await fs.open(temporary, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC)
@@ -486,16 +488,10 @@ export class RemoteImageCacheStore {
         await fs.close(file)
       }
       await fs.rename(temporary, this.manifestPath)
-      return true
+      this.accessDirty = false
     } catch (_error) {
       try { await fs.unlink(temporary) } catch (_error) {}
-      return false
+      throw _error as Error
     }
-  }
-
-  private persist(): void {
-    this.cancelAccessWrite()
-    writeTextSync(this.manifestPath, this.manifestPayload())
-    this.accessDirty = false
   }
 }

@@ -24,19 +24,19 @@ export class KomaReaderLabThumbnailProvider {
     if (this.closed) throw new Error('koma_thumbnail_closed')
   }
 
-  private remove(directory: string, path: string): void {
-    try { if (fs.accessSync(path)) fs.unlinkSync(path) } catch (_) {
+  private async remove(directory: string, path: string): Promise<void> {
+    try { if (await fs.access(path)) await fs.unlink(path) } catch (_) {
       DiagnosticLogger.warn('koma_reader_lab_thumbnail_provider', 'file_cleanup_failed', '[KomaReaderLabThumbnail] file_cleanup_failed')
     }
-    // rmdirSync is recursive on this platform: call only after an empty-directory readback.
-    try { if (fs.listFileSync(directory).length === 0) fs.rmdirSync(directory) } catch (_) {
+    // The directory belongs to this derivative. Check that it is empty before removing it.
+    try { if ((await fs.listFile(directory)).length === 0) await fs.rmdir(directory) } catch (_) {
       DiagnosticLogger.warn('koma_reader_lab_thumbnail_provider', 'directory_cleanup_failed', '[KomaReaderLabThumbnail] directory_cleanup_failed')
     }
   }
 
   private async derive(uri: string, cancellation: ReaderCancellation): Promise<ReaderAsset> {
     this.check(cancellation)
-    const directory = fs.mkdtempSync(`${this.cacheDir}/rkit-thumbnail-XXXXXX`)
+    const directory = await fs.mkdtemp(`${this.cacheDir}/rkit-thumbnail-XXXXXX`)
     const path = `${directory}/thumbnail.png`
     let source: image.ImageSource | undefined = undefined
     let pixels: image.PixelMap | undefined = undefined
@@ -44,6 +44,7 @@ export class KomaReaderLabThumbnailProvider {
     let file: fs.File | undefined = undefined
     try {
       try {
+        this.check(cancellation)
         source = image.createImageSource(uri.startsWith('file://') ? uri.substring(7) : uri)
         const info = await source.getImageInfo()
         this.check(cancellation)
@@ -70,20 +71,21 @@ export class KomaReaderLabThumbnailProvider {
         })
         this.check(cancellation)
         packer = image.createImagePacker()
-        file = fs.openSync(path, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
+        file = await fs.open(path, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
+        this.check(cancellation)
         await packer.packToFile(pixels, file.fd, { format: 'image/png', quality: 100 })
         this.check(cancellation)
       } finally {
         // Packing must have settled before any of its inputs are released.
-        if (file !== undefined) { try { fs.closeSync(file) } catch (_) {} }
+        if (file !== undefined) { try { await fs.close(file) } catch (_) {} }
         if (packer !== undefined) { try { await packer.release() } catch (_) {} }
         if (pixels !== undefined) { try { await pixels.release() } catch (_) {} }
         if (source !== undefined) { try { await source.release() } catch (_) {} }
       }
       this.check(cancellation)
-      return new ReaderAsset(`file://${path}`, (): void => { this.remove(directory, path) })
+      return new ReaderAsset(`file://${path}`, (): void => { void this.remove(directory, path) })
     } catch (_error) {
-      this.remove(directory, path)
+      await this.remove(directory, path)
       throw new Error('koma_thumbnail_generation_failed')
     }
   }

@@ -24,7 +24,7 @@ try{const theme=localStorage.getItem('koma-progress-theme');if(['light','dark'].
 </main>
 <script>
 const content=document.querySelector('#content'),connection=document.querySelector('#connection');
-let data=null,lastKey='',lastSuccess=null,inFlight=false,queueFilter='open',timelineOpen=false,timelineScroll=0;
+let data=null,lastKey='',lastSuccess=null,inFlight=false,queueFilter='open',queueSort='activity',timelineOpen=false,timelineScroll=0;
 const expandedRecords=new Set();
 const themeControl=document.querySelector('#theme');
 try{themeControl.value=localStorage.getItem('koma-progress-theme')||'auto'}catch(_){}
@@ -42,6 +42,36 @@ function section(parent,label,lines,muted=false){
 }
 function rememberDetails(details,key){details.open=expandedRecords.has(key);details.addEventListener('toggle',()=>{if(details.open)expandedRecords.add(key);else expandedRecords.delete(key)})}
 function queueGroup(g){return g.kind==='external'||g.kind==='parked'||g.status.includes('PARKED_USER')?'parked':(g.kind==='accepted'||g.kind==='done')?'accepted':'open'}
+function timestamp(value){const parsed=Date.parse(value??'');return Number.isFinite(parsed)?parsed:0}
+function issueTimes(d){
+ const events=new Map();
+ // Link per-issue events by their stable IDs. Bulk bookkeeping such as numbering
+ // stays in the timeline without making the affected issues look newly updated.
+ for(const event of d.timeline||[]){
+  const at=timestamp(event.at);
+  if(!at||event.affectsActivity===false)continue;
+  for(const id of event.itemIds??[event.itemId]){
+   if(!id)continue;
+   const previous=events.get(id);
+   events.set(id,{first:Math.min(previous?.first??at,at),last:Math.max(previous?.last??at,at)});
+  }
+ }
+ return new Map(d.items.map(issue=>{
+  const history=events.get(issue.id);
+  const reported=timestamp(issue.reportedAt),registered=timestamp(issue.registeredAt);
+  const reportedDay=reported?0:timestamp(`${issue.reportedDate}T00:00:00+08:00`);
+  const earliest=[timestamp(issue.firstEvidenceAt),history?.first??0].filter(Boolean);
+  const firstRecord=earliest.length?Math.min(...earliest):0;
+  const exactActivity=Math.max(reported,registered,firstRecord,history?.last??0,
+   timestamp(issue.updatedAt),timestamp(issue.reopenedAt),timestamp(issue.closedAt));
+  return [issue.id,{
+   reported,reportedDay,registered,
+   submitted:reported||reportedDay||registered||firstRecord,
+   activity:Math.max(exactActivity,reportedDay),
+   activityIsDayOnly:reportedDay>exactActivity,
+  }];
+ }));
+}
 function workTimeline(d){
  const records=[...(d.timeline||[]),...(d.milestones||[]).map(m=>({at:m.at,title:'早期检查点',detail:m.text,kind:'checkpoint'}))]
   .filter(e=>e.at&&Number.isFinite(Date.parse(e.at))).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
@@ -68,22 +98,35 @@ function render(d){
   const button=el('button',label+' · '+count,'badge '+(queueFilter===key?'accepted':'pending'));button.type='button';button.setAttribute('aria-pressed',String(queueFilter===key));
   button.onclick=()=>{queueFilter=key;render(data)};filters.append(button);
  }
- queue.append(filters,el('p','按提出时间从新到旧排列；时间未核实的排在最后。','small muted'));
+ const sorting=el('p',null,'small muted'),sortLabel=el('label',null,'theme-control'),sortSelect=el('select');
+ sortSelect.id='issue-sort';sortSelect.setAttribute('aria-label','事项排序');
+ for(const [value,title] of [['activity','最近活动'],['submitted','最近提出']]){
+  const option=el('option',title);option.value=value;sortSelect.append(option);
+ }
+ sortSelect.value=queueSort;
+ sortSelect.onchange=()=>{queueSort=sortSelect.value;render(data);document.querySelector('#issue-sort').focus({preventScroll:true})};
+ sortLabel.append('排序',sortSelect);sorting.append(sortLabel);
+ queue.append(filters,sorting,el('p',queueSort==='activity'?'按最新进展、新增登记或重开时间排列。':'按原始提出时间排列，缺少时使用登记或最早记录时间。','small muted'));
  const shown=d.items.filter(g=>queueFilter==='all'||queueGroup(g)===queueFilter);
- const stamp=g=>{const v=Date.parse(g.reopenedAt||g.reportedAt||g.firstEvidenceAt||'');return Number.isFinite(v)?v:0};
- shown.sort((a,b)=>stamp(b)-stamp(a));
+ const times=issueTimes(d);
+ shown.sort((a,b)=>times.get(b.id)[queueSort]-times.get(a.id)[queueSort]);
  for(const g of shown){
   const n=el('article',null,'item');n.id=g.id;
   const group=queueGroup(g);
   const stage=g.kind==='external'?'等待外部条件':group==='parked'?'已搁置':group==='accepted'?'已验收':g.stage||'待处理';
-  const row=el('div',null,'row');row.append(el('h3',g.title),badge(stage,group));n.append(row);
+  const issueNumber=Number.isInteger(g.number)?'#'+String(g.number).padStart(3,'0'):'';
+  const row=el('div',null,'row');row.append(el('h3',issueNumber?issueNumber+' '+g.title:g.title),badge(stage,group));n.append(row);
   const t=el('div',null,'timing');
-  t.append(el('div','提出：'+(g.reportedAt?date(g.reportedAt):'原始时间未核实')));
+  const time=times.get(g.id);
+  const reportedLabel=time.reported?date(time.reported):time.reportedDay?`${g.reportedDate}（仅记录日期）`:'原始时间未核实';
+  t.append(el('div','提出：'+reportedLabel));
+  if(!time.reported&&!time.reportedDay&&time.submitted)t.append(el('div',(time.registered?'登记：':'最早记录：')+date(time.submitted)));
   if(g.reopenedAt)t.append(el('div','新反例重开：'+date(g.reopenedAt)));
+  if(time.activity)t.append(el('div','最近活动：'+(time.activityIsDayOnly?`${g.reportedDate}（仅记录日期）`:date(time.activity))));
   const elapsed=el('div');elapsed.dataset.elapsed=g.id;t.append(elapsed);
   n.append(t);
   section(n,g.kind==='external'?'外部条件与恢复时机':group==='accepted'?'当前状态':'还差什么',g.remainingActions||[g.remaining]);
-  const evidence=el('details');rememberDetails(evidence,'item:'+g.id);evidence.append(el('summary','依据与边界'),el('p','事项编号：'+g.id));
+  const evidence=el('details');rememberDetails(evidence,'item:'+g.id);evidence.append(el('summary','依据与边界'),el('p',issueNumber?'事项编号 '+issueNumber+' · '+g.id:'事项标识 '+g.id));
   if(g.priority||g.owner)evidence.append(el('p','优先级：'+(g.priority||'未记录')+' · 负责人：'+(g.owner||'未记录')));
   if(g.result)evidence.append(el('p','当前结论：'+g.result));
   section(evidence,'关键证据',[...(g.evidencePoints||[]),...(g.evidence||[])]);

@@ -7,7 +7,7 @@ import { ReadingProgress } from '../model/ComicModels'
 import { appReaderSessionStore } from '../model/ReaderSessionStore'
 import { SourceReaderSessionRequest } from '../model/SourceReaderSession'
 import { getInstalledSourcePackage } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingDecision, SyncReadingRound,
+import { DeviceSyncEngine, DeviceSyncLocalEdit, SyncMergeChoice, SyncPreview, SyncReadingRound,
   syncRequiresExplicitReview } from './DeviceSyncEngine'
 import { mergeSyncVectors, SyncEditKind, SyncGroup, SyncVersion } from './DeviceSyncFacts'
 import { KomaDeviceSyncOwners, SyncShelfRemoval } from './DeviceSyncOwners'
@@ -49,7 +49,6 @@ export class DeviceSyncViewState {
   @Trace revision: number = 0
   @Trace searchHistoryRevision: number = 0
   @Trace shelfRemovals: SyncShelfRemoval[] = []
-  @Trace readingDecisions: SyncReadingDecision[] = []
   @Trace blockedReadings: SyncBlockedReading[] = []
   @Trace manualReadingResult?: SyncReadingRound
 }
@@ -192,14 +191,11 @@ class DeviceSyncRuntime {
       group.id !== 'reading' && state.selected.includes(group.id) && (group.deferred?.length ?? 0) > 0) ?? false
     this.view.lastSuccess = state?.lastSuccess ?? 0
     this.view.shelfRemovals = state?.selected.includes('shelf') ? this.owners?.blockedShelfItems() ?? [] : []
-    const decisions = this.engine?.readingDecisions() ?? []
     const retained = state?.selected.includes('reading') ? (this.storage?.load().blockedReadings ?? [])
       .filter((item: SyncBlockedReading): boolean => item.capture.space === state.space) : []
-    const labelKeys = decisions.map((item: SyncReadingDecision): string => item.key).concat(retained.map((item: SyncBlockedReading): string =>
-      syncKey(['position', item.capture.source, item.capture.work, item.capture.chapterId])))
+    const labelKeys = retained.map((item: SyncBlockedReading): string =>
+      syncKey(['position', item.capture.source, item.capture.work, item.capture.chapterId]))
     const labels: Record<string, string> = labelKeys.length === 0 ? {} : this.owners?.readingLabels(labelKeys) ?? {}
-    this.view.readingDecisions = decisions.map((item: SyncReadingDecision): SyncReadingDecision =>
-      ({ key: item.key, title: labels[item.key] ?? item.title, values: item.values }))
     this.view.blockedReadings = retained.map((item: SyncBlockedReading): SyncBlockedReading =>
       ({ title: labels[syncKey(['position', item.capture.source, item.capture.work, item.capture.chapterId])] ?? item.title, capture: item.capture }))
   }
@@ -270,7 +266,7 @@ class DeviceSyncRuntime {
       const engine = this.needed()
       const permit = engine.beginReview()
       const guard = engine.reviewRequestGuard(permit)
-      if (this.view.connected && selected.includes('reading')) this.recordPositions(guard)
+      if (this.view.connected && selected.includes('reading')) await this.recordPositions(guard)
       guard()
       return engine.prepareSaved(selected, permit)
     }, false, false)
@@ -289,7 +285,7 @@ class DeviceSyncRuntime {
 
   prepare(draft: SyncConnectionDraft, selected: SyncGroup[], publishError: boolean = true): Promise<SyncPreview> {
     return this.task(async (): Promise<SyncPreview> => {
-      if (selected.includes('reading')) this.recordPositions()
+      if (selected.includes('reading')) await this.recordPositions()
       return this.needed().prepare(draft, selected)
     }, publishError)
   }
@@ -333,7 +329,7 @@ class DeviceSyncRuntime {
     const generation = this.changeGeneration
     this.view.transferInFlight = true
     const active = this.task(async (): Promise<void> => {
-      this.recordPositions()
+      await this.recordPositions()
       await this.needed().syncNow(allowIdle && generation === this.syncedGeneration)
       this.syncedGeneration = generation
     }).finally((): void => {
@@ -660,15 +656,6 @@ class DeviceSyncRuntime {
     } catch (_error) { this.view.error = 'sync_local_recovery_required' }
   }
 
-  chooseReadingDecision(key: string, value: string): Promise<void> {
-    return this.task(async (): Promise<void> => {
-      const engine = this.needed()
-      const version = await engine.chooseReadingDecision(key, value)
-      await engine.syncNow()
-      if (engine.readingWritePending(version)) throw new Error('sync_reading_proof_pending')
-    })
-  }
-
   recoverBlockedReading(item: SyncBlockedReading): Promise<void> {
     return this.task(async (): Promise<void> => {
       const capture = item.capture
@@ -732,7 +719,7 @@ class DeviceSyncRuntime {
     return progress === undefined || progress.totalPages === totalPages
   }
 
-  private recordPositions(reviewGuard?: () => void): void {
+  private async recordPositions(reviewGuard?: () => void): Promise<void> {
     const context = this.context
     const owners = this.owners
     const engine = this.engine
@@ -740,11 +727,15 @@ class DeviceSyncRuntime {
     if (context === undefined || owners === undefined || engine === undefined || engine.active()?.enabled === false || scope === '' ||
       (engine.active()?.restoreReview === true && syncRequiresExplicitReview(engine.active()))) return
     const serviceGuard = engine.requestGuard()
-    const guard = (): void => { serviceGuard(); reviewGuard?.() }
+    const guard = (): void => {
+      serviceGuard()
+      reviewGuard?.()
+      if (engine.readingScope() !== scope) throw new Error('sync_connection_changed')
+    }
     const reader = appReaderSessionStore(context.filesDir)
     if (!reader.flush()) throw new Error('sync_local_busy')
     const actions = reader.pendingDeviceSyncActions()
-    this.recordReaderActions(actions, scope, reviewGuard)
+    await this.recordReaderActions(actions, scope, guard)
     guard()
     const pending = reader.pendingDeviceSyncPositions()
     const positionSeenAfterLocalActions = (capture: SyncReadingCapture, key: string, seen: SyncVersion[]): SyncVersion[] => {
@@ -784,7 +775,7 @@ class DeviceSyncRuntime {
         edits.push({ key: readKey, kind: 'set', value: 'true', observed: readSeen })
       }
       const key = deviceSyncCaptureKey(capture)
-      const version = engine.recordEdits('reading', edits, { key, id: capture.id })
+      const version = await engine.recordReadingEdits(edits, { key, id: capture.id }, guard)
       const session = this.session
       if (version !== undefined && session?.chapter === capture.chapterId && session.comicId === capture.comicId && session.scope === scope) {
         if (edits.some((edit: DeviceSyncLocalEdit): boolean => edit.key === positionKey)) session.positionSeen = mergeSyncVectors(session.positionSeen, [version])
@@ -830,7 +821,8 @@ class DeviceSyncRuntime {
     return captured
   }
 
-  private recordReaderActions(actions: SyncReadingActionCapture[], scope: string, reviewGuard?: () => void): void {
+  private async recordReaderActions(actions: SyncReadingActionCapture[], scope: string,
+    guard: () => void = (): void => {}): Promise<void> {
     const engine = this.engine
     const owners = this.owners
     if (engine === undefined || owners === undefined) return
@@ -838,7 +830,7 @@ class DeviceSyncRuntime {
     for (const capture of actions) {
       if (capture.space !== engine.active()?.space) continue
       if (!owners.readingActionAcknowledged(capture)) {
-        reviewGuard?.()
+        guard()
         if (engine.readingScope() !== scope) return
         const edits = capture.edits.map((edit: SyncCapturedReadingEdit): DeviceSyncLocalEdit => {
           let value = edit.value
@@ -854,7 +846,7 @@ class DeviceSyncRuntime {
           }
           return { key: edit.key, kind, value, observed: mergeSyncVectors(edit.observed, earlier.get(edit.key) ?? []) }
         })
-        engine.recordEdits('reading', edits, { key: deviceSyncActionCaptureKey(capture), id: capture.id })
+        await engine.recordReadingEdits(edits, { key: deviceSyncActionCaptureKey(capture), id: capture.id }, guard)
       }
       const version = owners.readingActionReceipt(capture)?.version
       if (version !== undefined) {

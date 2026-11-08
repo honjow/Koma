@@ -22,6 +22,7 @@ const methods = ['authenticationRequest', 'challengeGate', 'clearWebChallenge', 
   'completeWebChallenge', 'challengeFingerprint', 'webChallengeGuard', 'publishWebChallenge',
   'searchResultFingerprint', 'runSearch', 'clearSearch', 'loadMoreSearch', 'retrySearchPage', 'retryBrowseFailure', 'beginBrowseLoad',
   'failBrowseLoad', 'loadMoreBrowse', 'selectBrowseListing', 'selectBrowseHome', 'loadBrowseHome', 'setSelectedSource',
+  'selectBrowseDestination', 'browseDestinationCacheKey', 'rememberBrowseDestination',
   'sourceSupportsOperation', 'clearBrowseContent', 'clearBrowseListing', 'hasBrowseContent', 'resolveBrowseLoad',
   'currentListing', 'defaultListingForBrowse', 'applyBrowseListing', 'isCurrentBrowseSource',
   'ensureSearchFilters', 'prepareSearchSource', 'publishFilterSchema', 'cancelFilterDataLoad',
@@ -33,19 +34,21 @@ const source = `export class Model { ${methods.map(name => owner.members.find(no
 const intents = { NONE: 'none', INITIAL: 'initial', REFRESH: 'refresh', PAGINATION: 'page', LISTING_REPLACEMENT: 'listing' }
 const challenge = () => new SourceRuntimeError({ ok: false, error: { code: 'challenge_required', status: 403 } })
 function fixture() {
-  let entry = {}, revision = 0
+  let entry = { enabled: true }, revision = 0, sessionRevision = 0
   const preferenceReads = [], preferenceWrites = []
   let savedSearchFilters = {}
   const exports = {}
   new Function('exports', 'SourceRuntimeError', 'SourceAuthenticationRequest', 'appSourceSettingsStore', 'safeSearchDiagnostic',
     'safeSourceBrowseErrorText', 'BrowseLoadIntent', 'BrowseContentState', 'appendUniqueSourceManga',
-    'sourceFiltersForQuery', 'appSourceFilterPreferencesStore', compile(source))(
+    'sourceFiltersForQuery', 'appSourceFilterPreferencesStore', 'sourceWebPackageIdentity', 'appSourceWebSessionStore',
+    'SourcePrivateSessionHost', 'BROWSE_DESTINATION_CACHE_LIMIT', compile(source))(
     exports, SourceRuntimeError, SourceAuthenticationRequest, { revisionForSource: () => revision }, error => ({ userText: error.userText }),
     error => error.userText, intents, { CONTENT: 'content', LOADING: 'loading', ERROR: 'error', EMPTY: 'empty', UNRESOLVED: 'unresolved' }, (a,b) => a.concat(b),
     sourceFiltersForQuery, {
       loadForSource: (id, kind) => { preferenceReads.push([id, kind]); return kind === 'search' ? savedSearchFilters : {} },
       saveForSource: (...args) => preferenceWrites.push(args),
-    })
+    }, () => 'test-package', { status: () => ({ sessionId: '' }) },
+    { authenticationRevision: () => String(sessionRevision) }, 12)
   const model = new exports.Model(), calls = [], replies = []
   const sourceSummary = { sourceId: 'test', version: '1', wasmByteCount: 12, webSessionOrigins: ['https://test.invalid'], capabilities: ['home'] }
   Object.assign(model, { selectedSource: sourceSummary, registry: { lookup: () => ({ ok: true, entry }) },
@@ -53,6 +56,7 @@ function fixture() {
     browseWebChallengeGate: new SourceWebChallengeGate(), searchWebChallengeGate: new SourceWebChallengeGate(),
     browseAuthenticationGate: new SourceWebChallengeGate(), searchAuthenticationGate: new SourceWebChallengeGate(),
     browseAuthentication: null, searchAuthentication: null,
+    browseDestinationCache: new Map(), browseCacheContext: '',
     browseRequestId: 1, searchRequestId: 1, selectedListingId: 'popular', searchQuery: '',
     browseFilterValues: {}, searchFilterValues: {}, filters: [], persistSearchFilters: true,
     filterDataRevision: 0, browsePage: 1, searchPage: 1,
@@ -68,7 +72,8 @@ function fixture() {
     loadSourceHomeSections: async () => { calls.push('home'); throw challenge() },
     loadMangaListing: async (_source, listing, page, cursor) => { calls.push({ listing, page, cursor }); throw challenge() },
   })
-  return { model, source: sourceSummary, calls, replies, replaceEntry: () => { entry = {} }, changeSettings: () => revision++,
+  return { model, source: sourceSummary, calls, replies, replaceEntry: () => { entry = { enabled: true } },
+    changeSettings: () => revision++, changeSession: () => sessionRevision++,
     preferenceReads, preferenceWrites, saveSearchFilters: values => { savedSearchFilters = values } }
 }
 
@@ -376,12 +381,13 @@ test('Home and listings are exclusive; refreshing a selected listing keeps its r
   assert.deepEqual(f.calls, ['home', 'latest', 'latest', 'latest'])
   assert.equal(f.model.selectedListingId, 'latest'); assert.deepEqual(f.model.homeSections, [])
 })
-test('a failed switch to Home keeps listing rows and verification retries Home only', async () => {
-  const f = fixture(), oldRows = f.model.browseSections
+// The user now requires the target to own loading and failure immediately.
+test('a failed switch displays Home and verification retries Home only', async () => {
+  const f = fixture()
   f.model.hasMoreBrowse = true
   await f.model.selectBrowseHome()
-  assert.equal(f.model.browseSections, oldRows); assert.equal(f.model.selectedListingId, 'popular')
-  await f.model.loadMoreBrowse() // retained tail must not consume the failed Home target
+  assert.deepEqual(f.model.browseSections, []); assert.equal(f.model.selectedListingId, '')
+  await f.model.loadMoreBrowse()
   assert.deepEqual(f.calls, ['home'])
   const receipt = f.model.browseWebChallenge
   assert.ok(receipt); f.model.claimWebChallenge('browse', receipt.id, true)
@@ -389,6 +395,57 @@ test('a failed switch to Home keeps listing rows and verification retries Home o
   assert.equal(await f.model.completeWebChallenge('browse', receipt.id, true), true)
   assert.deepEqual(f.calls, ['home', 'home']); assert.equal(f.model.selectedListingId, '')
   assert.deepEqual(f.model.browseSections, []); assert.equal(f.model.homeSections[0].manga[0].id, 'ready')
+})
+
+test('a cold login-only listing owns the first error and login retries that destination', async () => {
+  const f = fixture(), ai = { id: 'ai-recommended', supportsFilters: false }
+  f.source.authentication = {}
+  let reject
+  f.model.loadMangaListing = async (_source, id) => {
+    f.calls.push(id)
+    return new Promise((_resolve, fail) => { reject = fail })
+  }
+  const pending = f.model.selectBrowseListing(ai)
+  assert.equal(f.model.selectedListingId, ai.id)
+  assert.equal(f.model.browseContentState, 'loading')
+  assert.deepEqual(f.model.popularManga, [])
+  reject(new SourceRuntimeError({ ok: false, error: { code: 'auth_required' } }))
+  await pending
+  assert.equal(f.model.browseContentState, 'error')
+  assert.ok(f.model.browseAuthentication)
+  const request = f.model.authenticationRequest('browse', () => true)
+  assert.ok(request)
+  f.model.loadMangaListing = async (_source, id) => {
+    f.calls.push(id); return { manga: [{ id: 'recommendation' }], hasNextPage: false }
+  }
+  await request.complete()
+  assert.deepEqual(f.calls, [ai.id, ai.id])
+  assert.deepEqual(f.model.popularManga, [{ id: 'recommendation' }])
+})
+
+test('warm switches present the target cache, revalidate, and discard late responses', async () => {
+  const f = fixture(), latest = { id: 'latest' }, popular = { id: 'popular' }
+  const result = id => ({ manga: [{ id }], hasNextPage: false })
+  f.model.loadMangaListing = async () => result('cached-latest')
+  await f.model.selectBrowseListing(latest)
+  const pending = new Map()
+  f.model.loadMangaListing = async (_source, id) => new Promise(resolve => pending.set(id, resolve))
+  const cold = f.model.selectBrowseListing(popular)
+  assert.equal(f.model.selectedListingId, popular.id)
+  assert.deepEqual(f.model.popularManga, [])
+  const warm = f.model.selectBrowseListing(latest)
+  assert.equal(f.model.selectedListingId, latest.id)
+  assert.deepEqual(f.model.popularManga, result('cached-latest').manga)
+  pending.get(popular.id)(result('late-popular')); await cold
+  assert.equal(f.model.loadingBrowse, true)
+  assert.deepEqual(f.model.popularManga, result('cached-latest').manga)
+  pending.get(latest.id)(result('fresh-latest')); await warm
+  assert.deepEqual(f.model.popularManga, result('fresh-latest').manga)
+  f.changeSession()
+  const afterSessionChange = f.model.selectBrowseListing(latest)
+  assert.equal(f.model.browseContentState, 'loading')
+  assert.deepEqual(f.model.popularManga, [])
+  pending.get(latest.id)(result('another-session')); await afterSessionChange
 })
 test('a late Home response cannot overwrite a newly selected source', async () => {
   const f = fixture(); let resolve

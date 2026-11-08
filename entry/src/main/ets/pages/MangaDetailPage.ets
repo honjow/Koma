@@ -40,7 +40,7 @@ import { ConciseListRow } from '../components/ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from '../components/ui/GroupedListSection'
 import { TRACKER_BRAND_IMAGES } from '../components/TrackerBrandIcons'
 import { KomaFormTextField } from '../components/ui/KomaFormTextField'
-import { KomaMenuAction, KomaMenuController } from '../components/ui/KomaMenuController'
+import { KomaMenuAction, KomaMenuController, KomaMenuGroup } from '../components/ui/KomaMenuController'
 import { KomaIconButton } from '../components/ui/KomaIconButton'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { PullRefresh, PullRefreshController } from '../components/PullRefresh'
@@ -68,7 +68,6 @@ import { ReaderChapterDescriptor, cloneReaderChapterDescriptor } from '../model/
 import {
   Chapter,
   Comic,
-  sameComicIdentity,
   ComicSourceKind,
   ReadingDirection,
   ReadingProgress,
@@ -77,11 +76,11 @@ import {
   readerFormatFromTags,
   setCompleteSourceChapterCatalog,
 } from '../model/ComicModels'
-import { OfflineDownloadService } from '../model/OfflineDownloadService'
+import { canRunOfflineDownloadQueueNow, OfflineDownloadService } from '../model/OfflineDownloadService'
+import { OfflineDownloadQueueEntry, OfflineDownloadQueueStore } from '../model/OfflineDownloadQueueStore'
+import { OfflineDownloadRuntime } from '../model/OfflineDownloadRuntime'
 import {
   OfflineDownloadStatus,
-  OfflineDownloadStore,
-  OfflineDownloadSummary,
 } from '../model/OfflineDownloadStore'
 import { LibraryStore } from '../model/LibraryStore'
 import {
@@ -102,10 +101,6 @@ import {
   formatLocalLibraryFolderRescanActionResult,
 } from '../model/LocalLibraryRefreshService'
 import { canRescanLocalLibraryFolder } from '../model/LocalLibraryFolderAccessService'
-import {
-  SourceChapterPageHydrationResult,
-  SourceChapterPageHydrator,
-} from '../model/SourceChapterPageHydrator'
 import { parseSourceRelatedManga, SourceManga } from '../model/SourceModels'
 import {
   SourceRuntimeRegistry,
@@ -322,7 +317,10 @@ export struct MangaDetailPage {
   @Local private notesDraft: string = ''
   @Local private notesEditorShown: boolean = false
   @Local private personalizationBusy: boolean = false
-  @Local private downloadStatusText: string = ''
+  private readonly downloadMenu: KomaMenuController = new KomaMenuController()
+  private readonly downloadButtonId: string = 'manga-detail-download-button'
+  private unsubscribeDownloads?: () => void
+  private downloadRefreshTimer: number = -1
   @Local private localRefreshText: string = ''
   @Local private feedbackText: string = ''
   @Local private activeLibraryComicId: string = ''
@@ -573,6 +571,8 @@ export struct MangaDetailPage {
       void this.refreshTrackingAvailability()
     })
     this.refreshTrackingWhenVisible()
+    const filesDir = (getContext(this) as common.UIAbilityContext).filesDir
+    this.unsubscribeDownloads = OfflineDownloadRuntime.subscribe(filesDir, () => { this.scheduleDownloadRefresh() })
   }
 
   private chapterArchives: ChapterArchiveActions = new ChapterArchiveActions()
@@ -596,13 +596,22 @@ export struct MangaDetailPage {
   @Monitor('chrome.visible')
   private loadInitialDetailWhenVisible(): void {
     // The library/memory snapshot supplies the first frame. Start revalidation
-    // from the destination's actual shown lifecycle, not an arbitrary delay.
-    if (!this.chrome.visible || this.initialDetailLoadStarted) return
-    this.initialDetailLoadStarted = true
-    void this.loadMangaDetail()
+    // from the destination's actual shown lifecycle. Keep one monitor for this
+    // exact path so another visibility callback cannot replace the initial load.
+    if (!this.chrome.visible) return
+    if (!this.initialDetailLoadStarted) {
+      this.initialDetailLoadStarted = true
+      void this.loadMangaDetail()
+    }
+    this.scheduleDownloadRefresh()
   }
 
   aboutToDisappear(): void {
+    this.downloadMenu.close()
+    this.unsubscribeDownloads?.()
+    this.unsubscribeDownloads = undefined
+    if (this.downloadRefreshTimer >= 0) clearTimeout(this.downloadRefreshTimer)
+    this.downloadRefreshTimer = -1
     this.trackingSearchContent?.dispose()
     this.trackingSearchContent = undefined
     this.unsubscribeTrackingMappings?.()
@@ -652,7 +661,7 @@ export struct MangaDetailPage {
     this.chrome.personalDataAvailable = actionsAvailable && comic !== undefined
     this.chrome.coverActionsAvailable = actionsAvailable && comic !== undefined && !chapterPagesAreLocalOffline(comic.sourceKind)
     this.chrome.customCoverAvailable = comic?.customCoverUri !== undefined
-    this.chrome.chapterDownloadAvailable = actionsAvailable && this.offlineDownloadService() !== undefined &&
+    this.chrome.chapterDownloadAvailable = actionsAvailable &&
       (comic === undefined || !chapterPagesAreLocalOffline(comic.sourceKind))
     this.chrome.personalizationBusy = this.personalizationBusy
     this.chrome.localRefreshBusy = this.localRefreshBusy
@@ -806,29 +815,40 @@ export struct MangaDetailPage {
     })
   }
 
-  private offlineDownloadService(): OfflineDownloadService | undefined {
-    try {
-      const context = getContext(this) as common.UIAbilityContext
-      if (context === undefined || context.filesDir === undefined || context.filesDir.length === 0) {
-        return undefined
-      }
-      return new OfflineDownloadService(new OfflineDownloadStore(context.filesDir), undefined, context)
-    } catch (error) {
-      void error
-      DiagnosticLogger.warn('manga_detail_page', 'detail_service_unavailable', '[ReaderOffline] step=detail_service_unavailable failed=true')
-      return undefined
-    }
+  private downloadQueue(): OfflineDownloadQueueStore {
+    return new OfflineDownloadQueueStore((getContext(this) as common.UIAbilityContext).filesDir)
+  }
+
+  private scheduleDownloadRefresh(): void {
+    if (!this.chrome.visible || this.chapters.length === 0 || this.downloadRefreshTimer >= 0) return
+    this.downloadRefreshTimer = setTimeout(() => {
+      this.downloadRefreshTimer = -1
+      if (this.chrome.visible) this.applyChapterStatesToCurrent()
+    }, 120)
   }
 
   @Monitor('readerProgressRevision')
   private onReadingStateRevision(): void {
     this.applyChapterStatesToCurrent()
-    this.refreshDownloadStatus()
   }
 
   private decorateChapterStates(chapters: MangaChapterItem[]): MangaChapterItem[] {
+    if (chapters.length === 0) return chapters
     const comicId = this.currentComicId()
-    const downloadService = this.offlineDownloadService()
+    const summaries = new Map<string, OfflineDownloadQueueEntry>()
+    let paused = false
+    let waitingForWifi = false
+    try {
+      const queue = this.downloadQueue()
+      const preferences = queue.loadPreferences()
+      paused = preferences.isPaused
+      waitingForWifi = !paused && !canRunOfflineDownloadQueueNow(preferences)
+      queue.load().forEach((entry: OfflineDownloadQueueEntry) => {
+        if (entry.comicId === comicId) summaries.set(entry.chapterId, entry)
+      })
+    } catch (error) {
+      DiagnosticLogger.exception('manga_detail_page', 'download_snapshot_failed', error as Error)
+    }
     const comic = this.libraryStore?.getComic(comicId)
     const localOffline = comic !== undefined && chapterPagesAreLocalOffline(comic.sourceKind)
     return chapters.map((chapter: MangaChapterItem): MangaChapterItem => {
@@ -852,29 +872,31 @@ export struct MangaDetailPage {
         isDownloaded: localOffline && (chapter.pageCount ?? 0) > 0,
         downloadStatus: localOffline && (chapter.pageCount ?? 0) > 0 ? 'downloaded' : undefined,
       }
-      const summary = downloadService?.getChapterSummary(comicId, chapter.id)
+      const summary = summaries.get(chapter.id)
       if (summary !== undefined) {
         next.downloadStatus = summary.status
+        if (summary.status === OfflineDownloadStatus.QUEUED || summary.status === OfflineDownloadStatus.PARTIAL) {
+          if (paused || summary.failureReasonCode === 'paused') next.downloadStatus = 'paused'
+          else if (waitingForWifi || summary.failureReasonCode === 'wifi_only') next.downloadStatus = 'waiting_wifi'
+        }
+        if (summary.pageCount > 0 && (summary.status === OfflineDownloadStatus.DOWNLOADING ||
+          summary.status === OfflineDownloadStatus.PARTIAL)) {
+          next.downloadProgress = this.formatString('downloads_page_progress', [summary.downloadedPageCount, summary.pageCount])
+        }
       }
-      if (summary?.status === OfflineDownloadStatus.DOWNLOADED || summary?.status === OfflineDownloadStatus.PARTIAL) {
-        next.isDownloaded = true
-      }
+      if (summary?.status === OfflineDownloadStatus.DOWNLOADED) next.isDownloaded = true
       return next
     })
   }
 
   private applyChapterStatesToCurrent(): void {
-    this.chapters = this.decorateChapterStates(this.chapters)
-  }
-
-  private refreshDownloadStatus(): void {
-    const service = this.offlineDownloadService()
-    const chapterId = this.firstChapterId()
-    if (service === undefined || chapterId === undefined) {
-      this.downloadStatusText = ''
-      return
-    }
-    this.downloadStatusText = this.formatDownloadStatus(service.getChapterSummary(this.currentComicId(), chapterId))
+    const chapters = this.decorateChapterStates(this.chapters)
+    if (chapters.some((chapter: MangaChapterItem, index: number): boolean => {
+      const previous = this.chapters[index]
+      return chapter.isRead !== previous.isRead || chapter.isBookmarked !== previous.isBookmarked ||
+        chapter.isDownloaded !== previous.isDownloaded || chapter.downloadStatus !== previous.downloadStatus ||
+        chapter.downloadProgress !== previous.downloadProgress
+    })) this.chapters = chapters
   }
 
   private async loadMangaDetail(): Promise<void> {
@@ -916,7 +938,6 @@ export struct MangaDetailPage {
       this.activeLibraryComicId = ''
       this.feedbackText = mangaId === undefined || mangaId.trim().length === 0 ? '' : s('manga_detail_load_local_failed')
       this.sourceDetailContentState = SourceDetailContentState.ERROR
-      this.downloadStatusText = ''
       this.localRefreshText = ''
       return
     }
@@ -930,7 +951,6 @@ export struct MangaDetailPage {
     this.sourceDetailContentState = SourceDetailContentState.LOCAL
     this.feedbackText = ''
     this.localRefreshText = ''
-    this.refreshDownloadStatus()
   }
 
   private canEditLocalMetadata(): boolean {
@@ -1118,17 +1138,27 @@ export struct MangaDetailPage {
       }
       let chaptersLoadFailed = false
       let chaptersFailureText = s('manga_detail_load_source_chapters_failed')
+      const stored = this.findSourceRuntimeComic(sourceId, mangaId, this.sourceComicId(sourceId, mangaId))
+      const expectedChapters = Math.max(detail.chapterCount ?? 0, waitingForChapters ? retainedDetail?.chapterCount ?? 0 : 0,
+        stored?.chapterCount ?? 0, stored?.sourceMetadata?.sharedChapterIds?.length ?? 0)
       try {
         const chapterResult = await resolveSourceChapterList(lookup.entry, mangaId, detail.url,
           (): boolean => this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId), chapterContext)
         if (!this.isCurrentSourceDetailRequest(requestEpoch, sourceId, mangaId)) {
           return
         }
-        chaptersLoadFailed = !chapterResult.resolved
         excludedChapterIds = chapterResult.resolved ? chapterResult.excludedChapterIds ?? [] : []
-        this.sourceChaptersResolved = chapterResult.resolved &&
+        // A successful response containing no rows contradicts a known positive
+        // catalog unless the source explicitly excluded the chapters.
+        const unexpectedEmpty = chapterResult.resolved && chapterResult.chapters.length === 0 &&
+          excludedChapterIds.length === 0 && expectedChapters > 0
+        chaptersLoadFailed = !chapterResult.resolved || unexpectedEmpty
+        if (unexpectedEmpty) {
+          DiagnosticLogger.warn('manga_detail_page', 'chapter_catalog_empty', 'expected=' + expectedChapters)
+        }
+        this.sourceChaptersResolved = !chaptersLoadFailed &&
           (chapterResult.chapters.length > 0 || excludedChapterIds.length > 0)
-        if (chapterResult.chapters.length > 0 || (chapterResult.resolved && (forceReload || excludedChapterIds.length > 0))) {
+        if (chapterResult.chapters.length > 0 || (!chaptersLoadFailed && (forceReload || excludedChapterIds.length > 0))) {
           chapters = chapterResult.chapters
         }
       } catch (_error) {
@@ -1220,7 +1250,6 @@ export struct MangaDetailPage {
       this.activeLibraryComicId = ''
       this.feedbackText = failureText
       this.sourceDetailContentState = SourceDetailContentState.ERROR
-      this.downloadStatusText = ''
       this.localRefreshText = ''
     }
   }
@@ -1269,11 +1298,12 @@ export struct MangaDetailPage {
       this.chapters = this.decorateChapterStates(sourceChapterDisplayRows(
         libraryComic.chapters.map((ch: Chapter): MangaChapterItem => mangaChapterItemFromComicChapter(ch, libraryComic.sourceKind)),
         [], excluded))
-      this.manga.chapterCount = this.chapters.length
+      if (this.chapters.length > 0) this.manga.chapterCount = this.chapters.length
       this.isInLibrary = true
       this.sourceDetailDataResolved = true
-      this.sourceDetailContentState = SourceDetailContentState.LOCAL
-      this.feedbackText = ''
+      this.sourceDetailContentState = this.chapters.length > 0 ?
+        SourceDetailContentState.LOCAL : SourceDetailContentState.LOADING
+      this.feedbackText = this.chapters.length > 0 ? '' : s('manga_detail_loading_chapters')
       return
     }
     const detail = this.sourceDetailFromInitialRouteManga(sourceId, mangaId)
@@ -1287,7 +1317,6 @@ export struct MangaDetailPage {
       this.activeLibraryComicId = ''
       this.sourceDetailContentState = SourceDetailContentState.LOADING
       this.feedbackText = s('manga_detail_loading_source')
-      this.downloadStatusText = ''
       this.localRefreshText = ''
       return
     }
@@ -1302,7 +1331,6 @@ export struct MangaDetailPage {
     this.activeLibraryComicId = ''
     this.sourceDetailContentState = SourceDetailContentState.LOADING
     this.feedbackText = s('manga_detail_loading_source')
-    this.downloadStatusText = ''
     this.localRefreshText = ''
   }
 
@@ -1355,7 +1383,9 @@ export struct MangaDetailPage {
       })
     }
     const displayedChapters = sourceChapterDisplayRows(identity?.chapters ?? chapters, retainedChapters, excludedChapterIds)
-    nextDetail.chapterCount = displayedChapters.length
+    if (displayedChapters.length > 0 || contentState === SourceDetailContentState.READY) {
+      nextDetail.chapterCount = displayedChapters.length
+    }
     nextDetail.isInLibrary = libraryComic !== undefined
     nextDetail.sourceName = entry.manifestName
     if (libraryComic?.customCoverUri) nextDetail.coverUrl = libraryComic.customCoverUri
@@ -1365,7 +1395,6 @@ export struct MangaDetailPage {
     this.sourceDetailDataResolved = true
     this.feedbackText = feedbackText
     this.sourceDetailContentState = contentState
-    this.refreshDownloadStatus()
     return true
   }
 
@@ -1609,12 +1638,6 @@ export struct MangaDetailPage {
     })
   }
 
-  private firstChapterId(): string | undefined {
-    // The standalone download action retains its existing chapter target.
-    // Earliest-unread is the adopted reading rule, not a download retargeting.
-    return firstReaderChapter(this.chapters)?.id
-  }
-
   private firstUnreadChapterId(): string | undefined {
     return firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
       (id: string): boolean => this.readerSessionStore.isChapterRead(this.currentComicId(), id))?.id
@@ -1709,7 +1732,7 @@ export struct MangaDetailPage {
     }
   }
 
-  private async handleAddToLibrary(): Promise<boolean> {
+  private async handleAddToLibrary(showFeedback: boolean = true): Promise<boolean> {
     if (!this.canAddCurrentMangaToLibrary()) {
       return false
     }
@@ -1740,7 +1763,6 @@ export struct MangaDetailPage {
         this.isInLibrary = false
         manga.isInLibrary = false
         this.onLibraryChanged()
-        this.refreshDownloadStatus()
         this.showToast(s('common_removed_from_library'))
         return true
       } catch (error) {
@@ -1768,8 +1790,7 @@ export struct MangaDetailPage {
       // transient-source metadata so History cannot render it twice.
       this.readerSessionStore.removeSourceHistory(comic.id)
       this.onLibraryChanged()
-      this.refreshDownloadStatus()
-      this.showToast(s('common_added_to_library'))
+      if (showFeedback) this.showToast(s('common_added_to_library'))
       return true
     } catch (error) {
       void error
@@ -1846,91 +1867,6 @@ export struct MangaDetailPage {
     return request
   }
 
-  private async handleDownloadChapter(chapterId?: string): Promise<void> {
-    if (this.downloadBusy) {
-      return
-    }
-    const manga = this.manga
-    if (manga === undefined) {
-      return
-    }
-    const resolvedChapterId = chapterId ?? this.firstChapterId()
-    if (resolvedChapterId === undefined) {
-      this.downloadStatusText = s('manga_detail_download_empty')
-      this.showToast(s('manga_detail_download_empty'))
-      return
-    }
-    const service = this.offlineDownloadService()
-    if (service === undefined) {
-      this.downloadStatusText = s('manga_detail_download_unavailable')
-      this.showToast(s('manga_detail_download_unavailable'))
-      return
-    }
-    this.downloadBusy = true
-    this.downloadStatusText = s('manga_detail_download_in_progress')
-    try {
-      if (!this.isInLibrary && manga.sourceId !== undefined) {
-        const added = await this.handleAddToLibrary()
-        if (!added) {
-          this.downloadStatusText = s('manga_detail_download_canceled')
-          return
-        }
-      }
-      let comic = this.libraryStore?.getComic(this.currentComicId())
-      if (comic === undefined) {
-        this.downloadStatusText = s('manga_detail_add_to_library_first')
-        this.showToast(s('manga_detail_add_to_library_first'))
-        return
-      }
-      if (manga.sourceId !== undefined) {
-        const hydration = await this.ensureSourceChapterPages(resolvedChapterId)
-        const currentComic = this.libraryStore?.getComic(comic.id)
-        if (currentComic === undefined || !sameComicIdentity(comic, currentComic) ||
-          !currentComic.chapters.some((item: Chapter): boolean => item.id === resolvedChapterId)) {
-          throw new Error('download_target_changed')
-        }
-        comic = currentComic
-        if (!hydration.hydrated) {
-          const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
-          await service.blockChapterDownload(comic, resolvedChapterId, hydration.reasonCode ?? 'pages_missing', {
-            comicTitle: comic.title,
-            chapterTitle,
-          })
-          this.applyChapterStatesToCurrent()
-          this.downloadStatusText = s('manga_detail_chapter_pages_load_failed')
-          this.showToast(s('manga_detail_chapter_pages_load_failed'))
-          return
-        }
-      }
-      const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === resolvedChapterId)?.title
-      const manifest = await service.downloadChapter(comic, resolvedChapterId, {
-        comicTitle: comic.title,
-        chapterTitle,
-      })
-      this.applyChapterStatesToCurrent()
-      this.downloadStatusText = this.formatDownloadStatus({
-        comicId: manifest.comicId,
-        chapterId: manifest.chapterId,
-        pageCount: manifest.pageCount,
-        downloadedPageCount: manifest.downloadedPageCount,
-        status: manifest.status,
-        updatedAt: manifest.updatedAt,
-        failureReasonCode: manifest.failureReasonCode,
-      })
-      this.showToast(this.isPausedDownload(manifest.status, manifest.failureReasonCode)
-        ? s('downloads_status_paused')
-        : manifest.status === OfflineDownloadStatus.DOWNLOADED
-        ? s('manga_detail_chapter_downloaded')
-        : s('manga_detail_chapter_download_failed'))
-    } catch (_error) {
-      DiagnosticLogger.warn('manga_detail_page', 'detail_download_failed', '[ReaderOffline] step=detail_download_failed failed=true reason=download_execution')
-      this.downloadStatusText = s('manga_detail_chapter_download_failed')
-      this.showToast(this.downloadStatusText)
-    } finally {
-      this.downloadBusy = false
-    }
-  }
-
   private canCheckLocalLibraryRefresh(): boolean {
     const comic = this.libraryStore?.getComic(this.currentComicId())
     return comic !== undefined &&
@@ -1985,205 +1921,142 @@ export struct MangaDetailPage {
   }
 
   private batchDownloadChapterIds(chapterIds: string[], mode: ChapterBatchDownloadMode): string[] {
-    const service = this.offlineDownloadService()
-    if (service === undefined) {
-      return []
-    }
-    const comicId = this.currentComicId()
-    return chapterIds.filter((chapterId: string): boolean => {
-      const summary = service.getChapterSummary(comicId, chapterId)
-      if (mode === ChapterBatchDownloadMode.FAILED_ONLY) {
-        return summary?.status === OfflineDownloadStatus.FAILED ||
-          summary?.status === OfflineDownloadStatus.PARTIAL ||
-          this.isRecoverableBlockedDownload(summary)
-      }
-      if (mode === ChapterBatchDownloadMode.NOT_DOWNLOADED) {
-        return summary?.status !== OfflineDownloadStatus.DOWNLOADED
-      }
-      return true
-    })
-  }
-
-  private isRecoverableBlockedDownload(summary: OfflineDownloadSummary | undefined): boolean {
-    return summary?.status === OfflineDownloadStatus.BLOCKED &&
-      (summary.failureReasonCode === 'pages_missing' ||
-        summary.failureReasonCode === 'source_pages_failed' ||
-        summary.failureReasonCode === 'source_lookup_failed' ||
-        summary.failureReasonCode === 'source_not_installed' ||
-        summary.failureReasonCode === 'source_disabled')
+    const targets = new Set(chapterIds)
+    return this.chapters.filter((chapter: MangaChapterItem): boolean => {
+      if (!targets.has(chapter.id) || chapter.isDownloaded || chapter.downloadStatus === 'queued' ||
+        chapter.downloadStatus === 'downloading' || chapter.downloadStatus === 'waiting_wifi' ||
+        chapter.downloadStatus === 'paused') return false
+      return mode !== ChapterBatchDownloadMode.FAILED_ONLY || chapter.downloadStatus === 'failed' ||
+        chapter.downloadStatus === 'partial' || chapter.downloadStatus === 'blocked'
+    }).map((chapter: MangaChapterItem): string => chapter.id)
   }
 
   private confirmDownloadFilteredChapters(chapterIds: string[], mode: ChapterBatchDownloadMode,
     scope: ChapterBatchScope = ChapterBatchScope.FILTERED): void {
-    if (this.downloadBusy || this.manga === undefined) {
-      return
-    }
-    if (this.offlineDownloadService() === undefined) {
-      this.showToast(s('manga_detail_download_unavailable'))
-      return
-    }
-    const filteredChapterIds = Array.from(new Set<string>(chapterIds))
-    if (scope === ChapterBatchScope.SELECTED && filteredChapterIds.length === 0) {
-      return
-    }
-    const targetChapterIds = this.batchDownloadChapterIds(filteredChapterIds, mode)
-    const title = scope === ChapterBatchScope.SELECTED
-      ? this.formatString('chapter_list_menu_download_selected', [filteredChapterIds.length])
-      : mode === ChapterBatchDownloadMode.FAILED_ONLY
-      ? s('chapter_list_menu_retry_failed') : s('chapter_list_menu_download_filtered')
-    const message = mode === ChapterBatchDownloadMode.FAILED_ONLY
-      ? this.formatString('manga_detail_retry_filtered_confirm', [filteredChapterIds.length, targetChapterIds.length])
-      : this.formatString(scope === ChapterBatchScope.SELECTED
-        ? 'manga_detail_download_selected_confirm' : 'manga_detail_download_filtered_confirm', [
-        filteredChapterIds.length, filteredChapterIds.length - targetChapterIds.length, targetChapterIds.length,
-      ])
-    if (targetChapterIds.length === 0) {
-      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-        title,
-        message,
-        autoCancel: true,
-        confirm: { value: s('common_confirm'), action: () => {} },
-      })
-      return
-    }
-    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-      title,
-      message,
-      autoCancel: true,
-      primaryButton: {
-        value: s('common_cancel'),
-        action: () => {},
-      },
-      secondaryButton: {
-        value: s('common_confirm'),
-        action: () => {
-          void this.handleDownloadChapters(targetChapterIds, mode)
-        },
-      },
-    })
-  }
-
-  private async handleDownloadChapters(chapterIds: string[], mode: ChapterBatchDownloadMode): Promise<void> {
-    if (this.downloadBusy) {
-      return
-    }
-    const manga = this.manga
-    if (manga === undefined) {
-      return
-    }
-    const service = this.offlineDownloadService()
-    if (service === undefined) {
-      this.downloadStatusText = s('manga_detail_download_unavailable')
-      this.showToast(s('manga_detail_download_unavailable'))
-      return
-    }
-    const targetChapterIds = this.batchDownloadChapterIds(chapterIds, mode)
-    if (targetChapterIds.length === 0) {
-      this.downloadStatusText = s('manga_detail_no_matching_chapters')
+    const targets = this.batchDownloadChapterIds(chapterIds, mode)
+    if (targets.length === 0) {
       this.showToast(s('manga_detail_no_matching_chapters'))
       return
     }
+    const title = scope === ChapterBatchScope.SELECTED ? s('manga_detail_action_download_chapter') :
+      mode === ChapterBatchDownloadMode.FAILED_ONLY ? s('chapter_list_menu_retry_failed') :
+      s('chapter_list_menu_download_filtered')
+    const needsLibrary = !this.isInLibrary && this.manga?.sourceId !== undefined
+    const scopeMessage = this.formatString('downloads_confirm_chapters', [targets.length])
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
+      title,
+      message: needsLibrary ? `${scopeMessage}
+${s('downloads_add_to_library_prompt')}` : scopeMessage,
+      autoCancel: true,
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s(needsLibrary ? 'downloads_add_and_download' : 'manga_detail_action_download_chapter'),
+        action: () => { void this.requestDownloads(targets, needsLibrary) } },
+    })
+  }
+
+  private async requestDownloads(chapterIds: string[], allowAddToLibrary: boolean = false): Promise<void> {
+    if (this.downloadBusy || !this.chrome.chapterDownloadAvailable || chapterIds.length === 0) return
+    if (!this.isInLibrary && this.manga?.sourceId !== undefined && !allowAddToLibrary) {
+      this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
+        title: s('manga_detail_action_download_chapter'),
+        message: s('downloads_add_to_library_prompt'),
+        autoCancel: true,
+        primaryButton: { value: s('common_cancel'), action: () => {} },
+        secondaryButton: { value: s('downloads_add_and_download'), action: () => {
+          void this.requestDownloads(chapterIds, true)
+        } },
+      })
+      return
+    }
     this.downloadBusy = true
-    this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [0, targetChapterIds.length])
-    let downloadedCount = 0
-    let blockedCount = 0
-    let failedCount = 0
-    let pausedCount = 0
-    let finishedCount = 0
     try {
-      if (!this.isInLibrary && manga.sourceId !== undefined) {
-        const added = await this.handleAddToLibrary()
-        if (!added) {
-          this.downloadStatusText = s('manga_detail_download_canceled')
-          return
-        }
-      }
-      const initialComic = this.libraryStore?.getComic(this.currentComicId())
-      if (initialComic === undefined) {
-        this.downloadStatusText = s('manga_detail_add_to_library_first')
+      const filesDir = (getContext(this) as common.UIAbilityContext).filesDir
+      await OfflineDownloadService.ensureQueueInitialized(filesDir)
+      if (!this.chrome.visible) return
+      if (!this.isInLibrary && this.manga?.sourceId !== undefined && !await this.handleAddToLibrary(false)) return
+      const comic = this.libraryStore?.getComic(this.currentComicId())
+      if (comic === undefined) {
         this.showToast(s('manga_detail_add_to_library_first'))
         return
       }
-      await service.runChapterBatch(initialComic, targetChapterIds, async (chapterId: string): Promise<void> => {
-        if (manga.sourceId !== undefined) {
-          let hydration: SourceChapterPageHydrationResult
-          try {
-            hydration = await this.ensureSourceChapterPages(chapterId)
-          } catch (_error) {
-            DiagnosticLogger.warn('manga_detail_page', 'batch_pages_unavailable', '[ReaderOffline] step=batch_pages_unavailable failed=true reason=source_pages_lookup')
-            blockedCount += 1
-            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
-            return
-          }
-          if (!hydration.hydrated) {
-            const comic = this.libraryStore?.getComic(this.currentComicId())
-            if (comic !== undefined && sameComicIdentity(initialComic, comic) &&
-              comic.chapters.some((item: Chapter): boolean => item.id === chapterId)) {
-              const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
-              await service.blockChapterDownload(comic, chapterId, hydration.reasonCode ?? 'pages_missing', {
-                comicTitle: comic.title,
-                chapterTitle,
-              })
-            }
-            blockedCount += 1
-            DiagnosticLogger.warn('manga_detail_page', 'batch_pages_unavailable', `[ReaderOffline] step=batch_pages_unavailable failed=true reason=${hydration.reasonCode ?? 'source_pages_missing'}`)
-            this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
-            return
-          }
-        }
-        const comic = this.libraryStore?.getComic(this.currentComicId())
-        if (comic === undefined || !sameComicIdentity(initialComic, comic) ||
-          !comic.chapters.some((item: Chapter): boolean => item.id === chapterId)) {
-          failedCount += 1
-          this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
-          return
-        }
-        const chapterTitle = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)?.title
-        const manifest = await service.downloadChapter(comic, chapterId, {
-          comicTitle: comic.title,
-          chapterTitle,
-        })
-        if (this.isPausedDownload(manifest.status, manifest.failureReasonCode)) {
-          pausedCount += 1
-        } else if (manifest.status === OfflineDownloadStatus.DOWNLOADED) {
-          downloadedCount += 1
-        } else if (manifest.status === OfflineDownloadStatus.BLOCKED) {
-          blockedCount += 1
-        } else {
-          failedCount += 1
-        }
-        this.downloadStatusText = this.formatString('manga_detail_batch_downloading', [++finishedCount, targetChapterIds.length])
-      })
+      const queue = this.downloadQueue()
+      const count = queue.requestChapters(comic, chapterIds)
       this.applyChapterStatesToCurrent()
-      this.downloadStatusText = pausedCount > 0
-        ? this.formatString('manga_detail_batch_paused', [downloadedCount, pausedCount, blockedCount, failedCount])
-        : this.formatString('manga_detail_batch_complete', [downloadedCount, blockedCount, failedCount])
-      this.showToast(this.downloadStatusText)
-    } catch (_error) {
-      DiagnosticLogger.warn('manga_detail_page', 'detail_batch_download_failed', '[ReaderOffline] step=detail_batch_download_failed failed=true reason=download_execution')
-      this.downloadStatusText = s('manga_detail_chapter_download_failed')
-      this.showToast(this.downloadStatusText)
+      if (count === 0) {
+        this.showToast(s('manga_detail_no_matching_chapters'))
+        return
+      }
+      const preferences = queue.loadPreferences()
+      this.showToast(preferences.isPaused ? s('downloads_status_paused') :
+        !canRunOfflineDownloadQueueNow(preferences) ? s('downloads_status_waiting_wifi') :
+        this.formatString('library_download_enqueued', [count]))
+    } catch (error) {
+      DiagnosticLogger.exception('manga_detail_page', 'detail_enqueue_failed', error as Error)
+      this.showToast(s('library_download_enqueue_failed'))
     } finally {
       this.downloadBusy = false
     }
   }
 
-  private async ensureSourceChapterPages(chapterId: string): Promise<SourceChapterPageHydrationResult> {
-    const sourceId = this.manga?.sourceId
-    if (this.libraryStore === undefined || sourceId === undefined) {
-      return { hydrated: false, pageCount: 0, reasonCode: 'source_lookup_failed' }
-    }
-    const result = await new SourceChapterPageHydrator(
-      this.libraryStore,
-      this.sourceRegistry,
-      this.libraryPersistenceService,
-      () => {
-        this.onLibraryChanged()
-      },
-    ).ensureChapterPages(this.currentComicId(), sourceId, chapterId)
-    return result
+  private confirmRemoveChapterDownload(chapterId: string, cancel: boolean): void {
+    const chapter = this.chapters.find((item: MangaChapterItem): boolean => item.id === chapterId)
+    this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
+      title: s(cancel ? 'downloads_cancel_task' : 'downloads_remove_title'),
+      message: this.formatString(cancel ? 'downloads_cancel_message' : 'downloads_remove_message',
+        [chapter?.title ?? chapterId]),
+      autoCancel: true,
+      primaryButton: { value: s('common_cancel'), action: () => {} },
+      secondaryButton: { value: s('common_confirm'), fontColor: ThemeConstants.DANGER,
+        action: () => { void this.removeChapterDownload(chapterId, cancel) } },
+    })
   }
 
+  private async removeChapterDownload(chapterId: string, cancel: boolean): Promise<void> {
+    try {
+      await this.downloadQueue().deleteChapterDownload(this.currentComicId(), chapterId)
+      this.applyChapterStatesToCurrent()
+      this.showToast(s(cancel ? 'downloads_task_canceled' : 'downloads_toast_removed'))
+    } catch (error) {
+      DiagnosticLogger.exception('manga_detail_page', 'detail_download_remove_failed', error as Error)
+      this.showToast(s('downloads_toast_remove_failed'))
+    }
+  }
+
+  private downloadUnreadChapterIds(limit?: number): string[] {
+    const eligible = new Set(this.batchDownloadChapterIds(this.chapters.filter((chapter: MangaChapterItem): boolean =>
+      !chapter.isRead).map((chapter: MangaChapterItem): string => chapter.id), ChapterBatchDownloadMode.NOT_DOWNLOADED))
+    const ids: string[] = []
+    if (limit === undefined) return this.chapters.filter((chapter: MangaChapterItem): boolean =>
+      eligible.has(chapter.id)).map((chapter: MangaChapterItem): string => chapter.id)
+    for (let index = 0; index < limit; index++) {
+      const chapter = firstReaderChapter(this.chapters, sourceChapterOrderFor(this.manga?.sourceId),
+        (id: string): boolean => !eligible.has(id))
+      if (chapter === undefined) break
+      ids.push(chapter.id)
+      eligible.delete(chapter.id)
+    }
+    return ids
+  }
+
+  private detailDownloadMenuGroups(): KomaMenuGroup[] {
+    const next = this.downloadUnreadChapterIds(5)
+    const items: KomaMenuAction[] = [
+      { label: s('downloads_next_unread_one'), isEnabled: next.length > 0,
+        action: () => { void this.requestDownloads(next.slice(0, 1)) } },
+    ]
+    if (next.length > 1) {
+      items.push({ label: this.formatString('downloads_next_unread_many', [next.length]),
+        action: () => { void this.requestDownloads(next) } })
+    }
+    items.push({ label: s('library_download_unread'), isEnabled: next.length > 0, action: () => {
+      this.confirmDownloadFilteredChapters(this.downloadUnreadChapterIds(), ChapterBatchDownloadMode.NOT_DOWNLOADED,
+        ChapterBatchScope.SELECTED)
+    } })
+    items.push({ label: s('chapter_list_menu_enter_selection'),
+      action: () => { this.chapterPresentation.setSelectionMode(true) } })
+    items.push({ label: s('route_downloads_title'), action: () => { RouterHelper.pushDownloads() } })
+    return [{ id: 'detail-downloads', items }]
+  }
 
   private readingSourceIdentity(): SyncReadingSource | undefined {
     const manga = this.manga
@@ -2781,49 +2654,6 @@ export struct MangaDetailPage {
     return page.length > 0 ? `${chapter} · ${page}` : chapter
   }
 
-  private isPausedDownload(status: OfflineDownloadStatus, reason?: string): boolean {
-    return reason === 'paused' &&
-      (status === OfflineDownloadStatus.QUEUED || status === OfflineDownloadStatus.PARTIAL)
-  }
-
-  private formatDownloadStatus(summary: OfflineDownloadSummary | undefined): string {
-    if (summary === undefined) {
-      return ''
-    }
-    if (this.isPausedDownload(summary.status, summary.failureReasonCode)) {
-      return s('downloads_status_paused') + ' · ' +
-        this.formatString('downloads_page_progress', [summary.downloadedPageCount, summary.pageCount])
-    }
-    if (summary.status === OfflineDownloadStatus.DOWNLOADED) {
-      return this.formatString('manga_detail_download_status_downloaded', [summary.downloadedPageCount, summary.pageCount])
-    }
-    if (summary.status === OfflineDownloadStatus.DOWNLOADING || summary.status === OfflineDownloadStatus.QUEUED) {
-      return this.formatString('manga_detail_download_status_downloading', [summary.downloadedPageCount, summary.pageCount])
-    }
-    if (summary.status === OfflineDownloadStatus.PARTIAL) {
-      return this.formatString('manga_detail_download_status_partial', [summary.downloadedPageCount, summary.pageCount])
-    }
-    if (summary.status === OfflineDownloadStatus.BLOCKED) {
-      return s('manga_detail_download_status_blocked')
-    }
-    return s('manga_detail_download_status_failed')
-  }
-
-  private downloadButtonLabel(): string {
-    if (this.downloadBusy) {
-      return this.downloadStatusText.length > 0 ? this.downloadStatusText : s('manga_detail_download_in_progress')
-    }
-    const service = this.offlineDownloadService()
-    const chapterId = this.firstChapterId()
-    if (service !== undefined && chapterId !== undefined) {
-      const summary = service.getChapterSummary(this.currentComicId(), chapterId)
-      if (summary?.status === OfflineDownloadStatus.DOWNLOADED) {
-        return s('manga_detail_action_redownload')
-      }
-    }
-    return s('manga_detail_action_download_chapter')
-  }
-
   @Builder
   private ActionButtons() {
     Column({ space: ThemeConstants.SPACE_SM }) {
@@ -2902,15 +2732,19 @@ export struct MangaDetailPage {
 
       Row({ space: ThemeConstants.SPACE_MD }) {
         KomaActionButton({
-          label: this.downloadButtonLabel(),
+          componentId: this.downloadButtonId,
+          label: s('manga_detail_action_download_chapter'),
           kind: 'secondary',
           icon: $r('sys.symbol.arrow_down_to_line'),
           fill: true,
           compact: true,
           controlHeight: ThemeConstants.ACTION_CHIP_HEIGHT,
-          isEnabled: this.firstChapterId() !== undefined && !this.downloadBusy && !this.isDetailPending(),
+          isEnabled: this.chrome.chapterDownloadAvailable && this.chapters.length > 0 && !this.downloadBusy,
           action: () => {
-            this.handleDownloadChapter()
+            // Attach to the native Button. A modifier on the custom component
+            // wraps it and loses the layout weight used by this action row.
+            this.downloadMenu.open(this.getUIContext(), this.downloadButtonId, () => this.detailDownloadMenuGroups(),
+              () => { DiagnosticLogger.warn('manga_detail_page', 'download_menu_open_failed', 'result=failed') })
           },
         })
 
@@ -3605,7 +3439,8 @@ export struct MangaDetailPage {
       }
     }
 
-    if ((!this.usesDetailPanes || this.shouldRenderChapterList()) && !this.isDetailPending() && this.feedbackText.length > 0) {
+    if ((this.shouldRenderChapterList() || (!this.usesDetailPanes && !this.sourceDetailDataResolved)) &&
+      !this.isDetailPending() && this.feedbackText.length > 0) {
       ListItem() {
         this.DetailFailureFeedback()
       }
@@ -3658,6 +3493,7 @@ export struct MangaDetailPage {
   private DetailChapterItems() {
     if (this.shouldRenderChapterList()) {
       ChapterListSection({
+        downloadActionsAvailable: this.chrome.chapterDownloadAvailable,
         comicId: this.currentComicId(),
         presentation: this.chapterPresentation,
         onDisplayOrderChange: (chapterIds: string[]) => { this.chrome.filteredChapterIds = chapterIds },
@@ -3679,7 +3515,10 @@ export struct MangaDetailPage {
             })
         },
         onDownloadChapter: (chapterId: string) => {
-          this.handleDownloadChapter(chapterId)
+          void this.requestDownloads([chapterId])
+        },
+        onRemoveChapterDownload: (chapterId: string, cancel: boolean) => {
+          this.confirmRemoveChapterDownload(chapterId, cancel)
         },
         onMarkChapterReadState: (chapterId: string, isRead: boolean) => {
           this.markChapterReadState(chapterId, isRead)
@@ -3692,7 +3531,8 @@ export struct MangaDetailPage {
       ListItem() {
         this.DetailPendingState(this.sourceDetailDataResolved)
       }
-    } else if (this.usesDetailPanes && this.feedbackText.length > 0) {
+    } else if ((this.usesDetailPanes || this.sourceDetailDataResolved) &&
+      !this.isDetailPending() && this.feedbackText.length > 0) {
       ListItem() {
         this.DetailFailureFeedback()
       }

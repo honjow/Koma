@@ -92,6 +92,18 @@ test('a synced detail without local chapter rows visibly waits and reports a fai
   assert.notEqual(f.applied.at(-1)[6], '')
 })
 
+test('an empty chapter response does not replace the known catalog of a synced work', async () => {
+  const f = fixture()
+  Object.assign(f.page, { manga: { title: 'Synced work', chapterCount: 273 }, chapters: [],
+    sourceDetailDataResolved: true, sourceChaptersResolved: false, sourceDetailContentState: 'local' })
+  f.state.response.data.manga.chapterCount = 0
+  await f.page.loadSourceMangaDetail('source.test', 'saved')
+  assert.equal(f.page.sourceDetailContentState, 'error')
+  assert.equal(f.page.feedbackText, 'manga_detail_load_source_chapters_failed')
+  assert.equal(f.page.sourceChaptersResolved, false)
+  assert.equal(f.writes.length, 0)
+})
+
 test('required image descriptors retain source access failures and optional descriptors keep their fallback', async () => {
   const source = read('model/ReaderPageSourceAdapter')
   const tree = ts.createSourceFile('adapter.ts', source, ts.ScriptTarget.Latest, true)
