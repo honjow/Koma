@@ -43,6 +43,7 @@ import { KomaReaderSuperResolutionConfiguration, KomaReaderSuperResolutionProvid
 import { readerSuperResolutionSetInteractionPaused } from '../model/ReaderSuperResolutionService'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
 import { setReaderImageCacheEvictionPaused } from '../model/ReaderPageSourceAdapter'
+import { ReaderSmartKeyNavigation } from '../model/ReaderSmartKeyNavigation'
 
 // A surface keeps one non-null session for its whole component lifetime.
 // Re-entry replaces the entry, rather than updating a mounted surface to null.
@@ -202,6 +203,9 @@ export struct KomaReaderLabPage {
   private initialization: ReaderCancellation | null = null
   private input: ReaderInputPort = new ReaderInputPort()
   private volumeKeys: ReaderVolumeKeys = new ReaderVolumeKeys(this.input)
+  private smartKey: ReaderSmartKeyNavigation = new ReaderSmartKeyNavigation((next: boolean): void => {
+    if (this.smartKeyAdmitted()) this.input.move(next ? 'next' : 'previous')
+  })
   private preferencesStore: ReaderPreferencesStore | null = null
   private preferenceWrites: Promise<void> = Promise.resolve()
   private chapterPickerTarget: ReaderUnitKey | null = null
@@ -439,6 +443,7 @@ export struct KomaReaderLabPage {
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
+    this.smartKey.close()
     this.cancelChapterRequest()
     this.adapter?.close()
     void this.keepScreenOn?.close()
@@ -487,6 +492,7 @@ export struct KomaReaderLabPage {
     this.chapterPickerTarget = null
     this.initialization?.cancel()
     this.volumeKeys.close()
+    this.smartKey.close()
     this.cancelChapterRequest()
     void this.keepScreenOn?.close()
     if (this.request.progressReadWrite) this.flushObserved()
@@ -510,6 +516,19 @@ export struct KomaReaderLabPage {
       this.routeActive && this.labVisibility.foreground && this.readerMode.hydrated &&
       !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown && enabled,
       (this.hostPreferences?.volumeKeyBehavior ?? this.readerMode.volumeKeyBehavior) === 'up_next_down_previous')
+  }
+
+  private smartKeyAdmitted(): boolean {
+    return !this.readerClosed && this.request.readingChrome && this.session !== null && this.routeActive &&
+      this.labVisibility.foreground && this.readerMode.hydrated &&
+      !this.authenticationShown && !this.readerSettingsSheetShown && !this.chapterPickerShown &&
+      (this.hostPreferences?.smartKeyPageTurnEnabled ?? this.readerMode.smartKeyPageTurnEnabled)
+  }
+
+  @Monitor('routeActive', 'labVisibility.foreground', 'readerMode.hydrated', 'readerMode.smartKeyPageTurnEnabled',
+    'hostPreferences', 'readerSettingsSheetShown', 'authenticationShown', 'chapterPickerShown', 'session')
+  private syncSmartKey(): void {
+    this.smartKey.setActive(this.smartKeyAdmitted())
   }
 
   @Monitor('routeActive', 'labVisibility.foreground')

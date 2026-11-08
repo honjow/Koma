@@ -352,6 +352,8 @@
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "宽页的处理方式" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "音量键翻页" },
     { "name": "settings_row_reader_volume_key_navigation_detail", "value": "用音量键切换页面" },
+    { "name": "settings_row_reader_smart_key_title", "value": "智控键翻页" },
+    { "name": "settings_row_reader_smart_key_detail", "value": "在侧边智控键上滑翻上一页，下滑翻下一页" },
     { "name": "settings_row_reader_volume_key_behavior_title", "value": "反转音量键" },
     { "name": "settings_row_reader_volume_key_behavior_detail", "value": "音量加翻到下一页，音量减翻到上一页" },
     { "name": "settings_row_reader_reset_defaults_title", "value": "恢复阅读器默认值" },

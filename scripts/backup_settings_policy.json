@@ -75,6 +75,7 @@
       "reader.readerImplementation",
       "reader.wideImageMode",
       "reader.volumeKeyNavigationEnabled",
+      "reader.smartKeyPageTurnEnabled",
       "reader.volumeKeyBehavior",
       "reader.bannerFilterOverrides.v1"
     ],

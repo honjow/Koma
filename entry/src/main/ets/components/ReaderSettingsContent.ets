@@ -7,6 +7,7 @@ import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeA
 import { ReaderDisplaySettingsContent } from './ReaderDisplaySettingsContent'
 import { ReaderDisplaySettings } from '../model/ReaderDisplaySettings'
 import { ReaderImageSettingsContent } from './ReaderImageSettingsContent'
+import { supportsReaderSmartKeyNavigation } from '../model/ReaderSmartKeyNavigation'
 import { ReaderDirectionMenuItems } from './ReaderDirectionMenu'
 import { ReaderDirectionChoice, readerControlDirection, readerControlDirectionSelection, readerControlDirectionLabelKey } from '../model/ReaderControlChoices'
 import { ReaderSuperResolutionModelsContent } from './ReaderSuperResolutionModelsContent'
@@ -61,6 +62,7 @@ export struct ReaderSettingsContent {
   // Reader owns immediate reading controls. Provider/account configuration belongs
   // to the global translation settings route, not a form reachable only in this sheet.
   @Local private selectedTab: number = 0
+  @Local private smartKeyAvailable: boolean = false
   @Local private tabScrolled: boolean = false
   @Local private tabHeaderHeight: number = KOMA_MODAL_TABS_HEADER_HEIGHT
   @Event onFilterSheetHeightChange: (height: number) => void = () => {}
@@ -70,6 +72,10 @@ export struct ReaderSettingsContent {
   private modeScroller: Scroller = new Scroller()
   private generalScroller: Scroller = new Scroller()
   private filterScroller: Scroller = new Scroller()
+
+  aboutToAppear(): void {
+    void supportsReaderSmartKeyNavigation().then((available: boolean): void => { this.smartKeyAvailable = available })
+  }
 
   aboutToDisappear(): void { this.onFilterPreviewChange(false) }
 
@@ -133,6 +139,7 @@ export struct ReaderSettingsContent {
       superResolutionMaxHeight: p.superResolutionMaxHeight,
       wideImageMode: p.wideImageMode,
       volumeKeyNavigationEnabled: p.volumeKeyNavigationEnabled,
+      smartKeyPageTurnEnabled: p.smartKeyPageTurnEnabled,
       volumeKeyBehavior: p.volumeKeyBehavior,
     }
   }
@@ -247,6 +254,7 @@ export struct ReaderSettingsContent {
     if (key === 'double-tap-zoom') next.doubleTapZoomEnabled = value
     if (key === 'awake') next.keepScreenAwake = value
     if (key === 'volume') next.volumeKeyNavigationEnabled = value
+    if (key === 'smart-key') next.smartKeyPageTurnEnabled = value
     if (key === 'trim-margins') next.trimPageMarginsEnabled = value
     this.update(next)
   }
@@ -488,6 +496,10 @@ export struct ReaderSettingsContent {
               ConciseListRow({ title: s('settings_row_reader_volume_key_navigation_title'), hasSwitch: true, checked: this.preferences.volumeKeyNavigationEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('volume', value) } })
               ListDivider()
               ConciseListRow({ title: s('settings_row_reader_volume_key_behavior_title'), hasSwitch: true, checked: this.preferences.volumeKeyBehavior === 'up_next_down_previous', showChevron: false, isEnabled: this.preferences.volumeKeyNavigationEnabled, switchAction: (value: boolean) => { this.setVolumeKeyBehavior(value ? 'up_next_down_previous' : 'up_previous_down_next') } })
+              if (this.smartKeyAvailable) {
+                ListDivider()
+                ConciseListRow({ title: s('settings_row_reader_smart_key_title'), subtitle: s('settings_row_reader_smart_key_detail'), hasSwitch: true, checked: this.preferences.smartKeyPageTurnEnabled, showChevron: false, switchAction: (value: boolean) => { this.setToggle('smart-key', value) } })
+              }
             }
             ReaderImageSettingsContent({ preferences: this.preferences, bookBannerOptions: true,
               cropControlsAvailable: false, enhancementControlsAvailable: this.enhancementControlsAvailable,

@@ -354,6 +354,8 @@
     { "name": "settings_row_reader_wide_image_mode_detail", "value": "Handle wide pages" },
     { "name": "settings_row_reader_volume_key_navigation_title", "value": "Volume key navigation" },
     { "name": "settings_row_reader_volume_key_navigation_detail", "value": "Use volume keys to turn pages" },
+    { "name": "settings_row_reader_smart_key_title", "value": "Smart key page turn" },
+    { "name": "settings_row_reader_smart_key_detail", "value": "Swipe up for the previous page or down for the next page on the side key" },
     { "name": "settings_row_reader_volume_key_behavior_title", "value": "Invert volume keys" },
     { "name": "settings_row_reader_volume_key_behavior_detail", "value": "Volume up turns forward and volume down turns back" },
     { "name": "settings_row_reader_reset_defaults_title", "value": "Reset reader defaults" },

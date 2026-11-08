@@ -9,6 +9,7 @@ import { ReaderImageEffectsLayer } from '@reader-kit/ui'
 import { komaReaderImageEffects } from '../readerLab/KomaReaderDisplayEffects'
 import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
+import { ReaderSmartKeyNavigation } from '../model/ReaderSmartKeyNavigation'
 import { image } from '@kit.ImageKit'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
@@ -1863,6 +1864,11 @@ export struct ReaderPage {
   private observedCloseRequestId: number = 0
   private volumeDownConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
   private volumeUpConsumer: ((event: InputConsumerKeyEvent) => void) | null = null
+  private smartKey: ReaderSmartKeyNavigation = new ReaderSmartKeyNavigation((next: boolean): void => {
+    if (!this.smartKeyAdmitted()) return
+    if (next) this.userNextPage()
+    else this.userPreviousPage()
+  })
   private closing: boolean = false
   private autoPageTimerId: number = -1
   private autoPageWaitingIndex: number = -1
@@ -1912,6 +1918,7 @@ export struct ReaderPage {
     this.setReaderKeepScreenOn(false)
     this.clearStatusBarHideTimer()
     this.unregisterVolumeKeyConsumer()
+    this.smartKey.close()
     this.stopAutoPage()
     void this.thumbnailPixelMapCache.clear()
   }
@@ -2152,6 +2159,7 @@ export struct ReaderPage {
       return
     }
     this.closing = true
+    this.smartKey.close()
     this.statusBarEpoch += 1
     this.clearStatusBarHideTimer()
     this.stopAutoPage()
@@ -2851,6 +2859,7 @@ export struct ReaderPage {
       superResolutionMaxHeight: p.superResolutionMaxHeight,
       wideImageMode: p.wideImageMode,
       volumeKeyNavigationEnabled: p.volumeKeyNavigationEnabled,
+      smartKeyPageTurnEnabled: p.smartKeyPageTurnEnabled,
       volumeKeyBehavior: p.volumeKeyBehavior,
     }
   }
@@ -3314,6 +3323,18 @@ export struct ReaderPage {
     if (next) this.userNextPage()
     else this.userPreviousPage()
     return true
+  }
+
+  private smartKeyAdmitted(): boolean {
+    return this.readerOpen && this.routeVisible && this.appForegroundState.active && this.settingsReady &&
+      !this.sessionLoading && !this.authenticationShown && !this.closing &&
+      this.sessionConfig.totalPages > 0 && this.preferences.smartKeyPageTurnEnabled
+  }
+
+  @Monitor('readerOpen', 'routeVisible', 'appForegroundState.active', 'settingsReady',
+    'sessionLoading', 'authenticationShown', 'sessionConfig', 'preferences')
+  private syncSmartKey(): void {
+    this.smartKey.setActive(this.smartKeyAdmitted())
   }
 
   private registerVolumeKeyConsumerIfNeeded(): void {
