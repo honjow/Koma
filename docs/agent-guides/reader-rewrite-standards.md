@@ -2,7 +2,11 @@
 
 本文件规定当前 Reader 的参考迁移方式。当前共享职责见 [reader-kit consumer contract](../../third_party/reader-kit/README.md#consumer-contract)，具体采用范围、差异和状态见 [CURRENT_STATUS.md](../CURRENT_STATUS.md) 原项，通用执行/验收规则见 [koma-rules.md](koma-rules.md)。
 
-Koma 通过 `third_party/reader-kit` 子模块固定共享阅读器版本，模块配置与 OHPM 依赖均引用仓内目录。CI 递归检出同一 gitlink，不另行维护一份版本号；升级依赖时更新该 gitlink。
+## 共享仓库与依赖同步
+
+- 共享代码在 Koma 同级的独立 `reader-kit` 原仓的 `main` 维护。执行 Git 写操作前先核对 `git rev-parse --show-toplevel`、当前分支和 `git remote get-url --push origin`。推送使用原仓配置的 `origin` 和认证方式。遇到 403，先核对实际仓库和推送地址。
+- Koma 的 `third_party/reader-kit` 只按提交检出，用于构建和验收。禁止在该子模块内提交、维护开发分支或推送。先从独立原仓推送 `main`，读回远端，确认 Koma 的公共依赖地址能检出该提交，再更新 Koma 的 gitlink。
+- Koma 的模块配置和 OHPM 从子模块读取依赖。CI 先递归检出 gitlink，再同步共享远端 `main` 并记录实际构建使用的 SHA。即使后续有同步步骤，初始 gitlink 也必须在公共远端可取。
 
 ## 参考如何使用
 
