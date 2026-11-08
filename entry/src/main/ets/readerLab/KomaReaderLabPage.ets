@@ -209,7 +209,7 @@ export struct KomaReaderLabPage {
   private observedSourceSignature: string = ''
   private chapterPickerScroller: ListScroller = new ListScroller()
   private hostActionDispatch: ReaderHostActions = new ReaderHostActions(
-    [new ReaderHostAction('manga-detail', AppStrings.get('reader_action_return_to_detail'), true, false, false, 'detail')],
+    [new ReaderHostAction('manga_detail', AppStrings.get('reader_action_return_to_detail'), true, false, false, 'detail')],
     (id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void => {
       this.openMangaDetail(id, source, navigation, sourceIndex)
     })
@@ -616,7 +616,7 @@ export struct KomaReaderLabPage {
 
   private openMangaDetail(id: string, source: ReaderUnitKey, navigation: number, sourceIndex: number): void {
     const snapshot = this.session?.snapshot()
-    if (id !== 'manga-detail' || snapshot?.phase !== 'ready' || snapshot.unit === null ||
+    if (id !== 'manga_detail' || snapshot?.phase !== 'ready' || snapshot.unit === null ||
       !snapshot.unit.key.equals(source) || snapshot.navigationRevision !== navigation ||
       snapshot.anchor?.sourceIndexHint !== sourceIndex) return
     this.onOpenMangaDetail(source.work)
@@ -921,10 +921,10 @@ export struct KomaReaderLabPage {
     const index = this.translationCurrentIndex
     if (index < 0 || !this.request.preferencesReadWrite) return []
     const translated = this.translationFrame(index)?.asset.variant === 'translated' && !this.translationHiddenPages.includes(index)
-    return [new ReaderHostAction('translate-page', AppStrings.get('reader_comic_translation_action'), index >= 0,
+    return [new ReaderHostAction('translate_page', AppStrings.get('reader_comic_translation_action'), index >= 0,
       false, this.translationBusyPage === index),
-      new ReaderHostAction('translate-auto', AppStrings.get('reader_comic_translation_auto'), index >= 0, this.translationAutoEnabled),
-      new ReaderHostAction('translate-original', AppStrings.get('reader_comic_translation_show_original'), index >= 0 && translated)]
+      new ReaderHostAction('translate_auto', AppStrings.get('reader_comic_translation_auto'), index >= 0, this.translationAutoEnabled),
+      new ReaderHostAction('translate_original', AppStrings.get('reader_comic_translation_show_original'), index >= 0 && translated)]
   }
 
   private translationTargetCurrent(source: ReaderUnitKey, navigation: number, index: number): boolean {
@@ -934,23 +934,23 @@ export struct KomaReaderLabPage {
   }
 
   private handleHostAction(id: string, source: ReaderUnitKey, navigation: number, index: number): void {
-    if (!id.startsWith('translate-')) { this.hostActionDispatch.request(id, source, navigation, index); return }
+    if (!id.startsWith('translate_')) { this.hostActionDispatch.request(id, source, navigation, index); return }
     if (!this.translationTargetCurrent(source, navigation, index)) return
-    if (id === 'translate-original') {
+    if (id === 'translate_original') {
       if (!this.translationHiddenPages.includes(index)) this.translationHiddenPages = this.translationHiddenPages.concat([index])
       this.translationRequestedPages = this.translationRequestedPages.filter((value: number): boolean => value !== index)
       this.translationErrorPage = -1
       this.translationRevision += 1
       return
     }
-    if (id === 'translate-auto' && this.translationAutoEnabled) {
+    if (id === 'translate_auto' && this.translationAutoEnabled) {
       this.translationAutoEnabled = false; this.translationRevision += 1; return
     }
     if (!this.translationSettings.configured()) {
       this.getUIContext().getPromptAction().showToast(komaToastOptions({ message: AppStrings.get('reader_comic_translation_provider_unavailable') }))
       return
     }
-    if (id === 'translate-auto') {
+    if (id === 'translate_auto') {
       const revision = this.translationSettings.revision
       this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(), title: AppStrings.get('reader_comic_translation_auto'),
         message: AppStrings.get('reader_comic_translation_auto_confirm'),
@@ -964,7 +964,7 @@ export struct KomaReaderLabPage {
         } } })
       return
     }
-    if (id !== 'translate-page' || this.translationBusyPage === index) return
+    if (id !== 'translate_page' || this.translationBusyPage === index) return
     this.translationHiddenPages = this.translationHiddenPages.filter((value: number): boolean => value !== index)
     this.translationAutoFailedPages = this.translationAutoFailedPages.filter((value: number): boolean => value !== index)
     if (!this.translationRequestedPages.includes(index)) this.translationRequestedPages = this.translationRequestedPages.concat([index])
