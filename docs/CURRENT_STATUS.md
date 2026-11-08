@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T21:10:00+08:00",
+  "updatedAt": "2026-11-08T21:58:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 197 优化候选长测短停顿明显下降，继续按 8.3 毫秒帧预算排查 ArkUI 布局长帧。",
@@ -3544,7 +3544,7 @@
       "owner": "Root",
       "dependencies": [],
       "result": "偏好加载合并为一次 Preferences.getAll，远端图片缓存目录维护改到滚动停稳后。优化候选 SHA 8d5f6734 在 197 从《装备我最强》93/95 页连续下翻 518 次、10 分 36 秒，跨章至 12/111 页。三份同参数 HTrace 最长手势帧间隔为 26.5、35.5、62.1 毫秒，基线为 65.2、108.2、70.6 毫秒；超过 33.3 毫秒的间隔从 12 次降到 4 次，界面帧处理均低于 16.7 毫秒。当前偏好与缓存上限不变，关闭阅读器仍立即提交进度和缓存维护。",
-      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。",
+      "remaining": "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。 共享 Kit 的滚动范围合并候选 01798b1 在 197 第一段仍有 25 个超 8.3 毫秒界面帧、最长手势间隔 56.5 毫秒，未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3620,7 +3620,7 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
-        "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。"
+        "用户希望尽量压进 8.3 毫秒 120Hz 帧预算。优化候选三份 trace 仍有 25、22、26 个超预算界面帧，栈集中在 ArkUI FlushDirtyNodeUpdate/FlushLayoutTask；第 9 段还有一次 63 毫秒 PreferencesGetValue 回调。需继续合并连续列表测量触发、定位剩余偏好读取者，并复验普通阅读路径。 共享 Kit 的滚动范围合并候选 01798b1 在 197 第一段仍有 25 个超 8.3 毫秒界面帧、最长手势间隔 56.5 毫秒，未显示收益；Koma 子模块本地已回到 3483d20。reader-kit 原仓本地 revert 580cd8b 尚待用户明确授权后才能推送远端 main。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
@@ -3661,7 +3661,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-08T21:10:00+08:00",
+      "updatedAt": "2026-11-08T21:58:00+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -9726,6 +9726,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-performance-kit-coalesce-197-20261108",
+      "at": "2026-11-08T21:58:00+08:00",
+      "title": "#001 共享 Kit 滚动合并候选未改善 8 毫秒预算",
+      "detail": "197 第一段仍有 25 个超 8.3 毫秒界面帧、最长间隔 56.5 毫秒；Koma 子模块回到已验证提交，原仓 revert 待用户授权推送。",
+      "kind": "checkpoint",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-long-scroll-197-kit-coalesce-20261108/checkpoints.jsonl"
+    },
     {
       "id": "continuous-performance-optimized-197-20261108",
       "at": "2026-11-08T21:10:00+08:00",
