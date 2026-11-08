@@ -887,6 +887,11 @@ export function isRemovableLocalComic(comic: Comic | undefined): boolean {
   return comic.sourceKind === ComicSourceKind.LOCAL_ARCHIVE || comic.sourceKind === ComicSourceKind.LOCAL_FOLDER
 }
 
+export function isRemovableShelfComic(comic: Comic | undefined): boolean {
+  return isRemovableLocalComic(comic) || (comic !== undefined &&
+    comic.sourceKind === ComicSourceKind.PRIVATE_LIBRARY && (comic.sourceRuntimeId?.trim() ?? '').length > 0)
+}
+
 export function upsertComicAndPersistLibraryStore(
   libraryStore: LibraryStore,
   persistenceService: LibraryStorePersistenceService,
@@ -989,7 +994,7 @@ export function refreshSourceMangaDetailAndPersistLibraryStore(
     sourceName: detail.sourceName?.trim() || previous.sourceMetadata?.sourceName,
     contentRating: detail.contentRating ?? previous.sourceMetadata?.contentRating,
     artist: detail.artist,
-    status: detail.status,
+    status: detail.status !== undefined && detail.status !== 'unknown' ? detail.status : previous.sourceMetadata?.status,
     tags: detail.tags?.slice(),
     webUrl: detail.webUrl,
     excludedChapterIds: chaptersResolved ? excludedChapterIds.slice() : previous.sourceMetadata?.excludedChapterIds,
@@ -1489,12 +1494,16 @@ export function removeComicsAndPersistLibraryStore(
   comicIds: ComicId[]
 ): ComicId[] {
   const removedIds: ComicId[] = []
+  const syncEdits: SyncLibrarySignal[] = []
   comicIds.forEach((comicId: ComicId) => {
     if (removedIds.includes(comicId)) {
       return
     }
-    if (isRemovableLocalComic(libraryStore.getComic(comicId))) {
-      removedIds.push(comicId)
+    const comic = libraryStore.getComic(comicId)
+    if (comic === undefined || !isRemovableShelfComic(comic)) return
+    removedIds.push(comicId)
+    if (comic.sourceRuntimeId !== undefined && comic.remoteResourceId !== undefined) {
+      syncEdits.push({ kind: 'remove-book', source: comic.sourceRuntimeId, work: comic.remoteResourceId })
     }
   })
   if (removedIds.length === 0) {
@@ -1506,6 +1515,7 @@ export function removeComicsAndPersistLibraryStore(
   })
   try {
     persistenceService.persist()
+    if (syncEdits.length > 0) signalDeviceSyncLibrary(syncEdits)
     return removedIds
   } catch (error) {
     hydrateLibraryStoreFromJson(libraryStore, previousPayload)

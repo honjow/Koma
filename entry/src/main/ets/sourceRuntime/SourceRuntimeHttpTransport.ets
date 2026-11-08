@@ -12,9 +12,9 @@ import { BusinessError, deviceInfo } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit'
 import { NativeSourceRuntime, SourceBrowserHttpTiming } from './NativeSourceRuntime'
 import { appSourceSettingsStore } from './SourceSettingsStore'
-import { COPY_MANGA_API_MIN_SDK, copyMangaApiTarget } from './CopyMangaHostContract'
-import { initializeSourcePicaChannel, requestSourcePicaHop, sourcePicaChannelIp, sourcePicaDnsOverride,
-  SourcePicaDnsOverride, SourcePicaChannelScope } from './SourcePicaChannelTransport'
+import { sourceDnsTarget, SOURCE_FRESH_HTTP_MIN_SDK, SourceGuestHttp, SourceGuestCookie, SourceGuestCookieCapture, SourceGuestNumberedPath, declaredSourceHttpProfile, mergeDeclaredSourceCookies } from './SourceWebsitePolicy'
+import { initializeSourceDnsBootstrap, requestSourceDnsHop, sourceDnsBootstrapIp, sourceDnsOverride,
+  SourceDnsOverride, SourceDnsBootstrapScope } from './SourceDnsBootstrapTransport'
 import { requestSourceRcpHop, sourceRcpResponseText, SourceRcpTransportFailure } from './SourceRcpTransport'
 
 interface SourcePrivateFailure {
@@ -167,7 +167,7 @@ class SourceHttpSuccessEnvelope {
   guestSearchCookie?: string
   guestSearchUrl?: string
   sessionSetCookies?: string[]
-  dnsOverride?: SourcePicaDnsOverride
+  dnsOverride?: SourceDnsOverride
 
   constructor(status: number, bodyText: string, accessSignal?: string, challengeRequestId?: string) {
     this.status = status
@@ -231,18 +231,24 @@ function sourceHeaders(value: Object | string | number | boolean | null | undefi
   return headers
 }
 
-const BILIMANGA_GUEST_ORIGIN = 'https://www.bilimanga.net'
-const BILIMANGA_GUEST_COOKIE_NAMES = ['night', 'jieqiSearchCss', 'jieqiSearchJs', 'jieqiSearchTicket']
-
-function bilimangaGuestTarget(url: string, redirect: boolean = false): boolean {
-  if (!url.startsWith(BILIMANGA_GUEST_ORIGIN + '/')) return false
-  const path = url.substring(BILIMANGA_GUEST_ORIGIN.length)
-  return /^\/search\.html\?search_guard=(css|js|redeem)$/.test(path) ||
-    /^\/search\/[^/?#\\]+_[1-9]\d*\.html$/.test(path) ||
-    (redirect && /^\/detail\/[1-9]\d*\.html$/.test(path))
+function guestNumberedPath(path: string, rule: SourceGuestNumberedPath): boolean {
+  if (!path.startsWith(rule.prefix) || !path.endsWith(rule.suffix)) return false
+  const part = path.slice(rule.prefix.length, -rule.suffix.length)
+  const separator = rule.numberSeparator
+  if (separator === undefined) return /^[1-9]\d*$/.test(part)
+  const index = part.lastIndexOf(separator)
+  return index > 0 && !/[/?#\\]/.test(part.slice(0, index)) && /^[1-9]\d*$/.test(part.slice(index + 1))
 }
 
-function bilimangaGuestHeadersValid(headers: Record<string, string>): boolean {
+function guestHttpTarget(policy: SourceGuestHttp, url: string, redirect: boolean = false): boolean {
+  if (!url.startsWith(policy.origin + '/')) return false
+  const path = url.substring(policy.origin.length)
+  if (/[\s#\\]/.test(path) || path.includes('..')) return false
+  return policy.exactPaths.includes(path) || policy.numberedPaths.some((rule: SourceGuestNumberedPath): boolean => guestNumberedPath(path, rule)) ||
+    (redirect && (policy.redirectNumberedPaths ?? []).some((rule: SourceGuestNumberedPath): boolean => guestNumberedPath(path, rule)))
+}
+
+function guestHttpHeadersValid(policy: SourceGuestHttp, headers: Record<string, string>): boolean {
   const names = Object.keys(headers)
   if (names.some((name: string): boolean =>
     /[\r\n]/.test(name) || /[\r\n]/.test(headers[name]) ||
@@ -256,8 +262,9 @@ function bilimangaGuestHeadersValid(headers: Record<string, string>): boolean {
     const separator = cookie.indexOf('=')
     const name = cookie.substring(0, separator)
     const value = cookie.substring(separator + 1)
-    if (separator < 1 || !BILIMANGA_GUEST_COOKIE_NAMES.includes(name) || seen.has(name) ||
-      (name === 'night' ? value !== '1' : !/^[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]{1,4096}$/.test(value))) return false
+    const rule = policy.cookies.find((cookie: SourceGuestCookie): boolean => cookie.name === name)
+    if (separator < 1 || rule === undefined || seen.has(name) ||
+      (rule.value !== undefined ? value !== rule.value : !/^[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]{1,4096}$/.test(value))) return false
     seen.add(name)
     return true
   })
@@ -265,10 +272,11 @@ function bilimangaGuestHeadersValid(headers: Record<string, string>): boolean {
 
 // Only the site's anonymous bootstrap headers are visible to this source.
 // Login and WebView cookies are kept in their existing, separately granted session.
-function bilimangaGuestCookie(url: string, headers: Object): string | undefined {
-  const name = url === BILIMANGA_GUEST_ORIGIN + '/search.html?search_guard=css' ? 'jieqiSearchCss' :
-    url === BILIMANGA_GUEST_ORIGIN + '/search.html?search_guard=redeem' ? 'jieqiSearchTicket' : undefined
+function guestHttpCookie(policy: SourceGuestHttp, url: string, headers: Object): string | undefined {
+  const path = url.substring(policy.origin.length)
+  const name = policy.captures.find((capture: SourceGuestCookieCapture): boolean => capture.path === path)?.name
   if (name === undefined) return undefined
+  const host = new urlKit.URL(policy.origin).hostname
   const values = headers as Record<string, Object | string | number | boolean | null>
   const key = Object.keys(values).find((field: string): boolean => field.toLowerCase() === 'set-cookie')
   const raw = key === undefined ? undefined : values[key]
@@ -280,8 +288,10 @@ function bilimangaGuestCookie(url: string, headers: Object): string | undefined 
     const pair = parts[0].trim()
     const wrongScope = parts.slice(1).some((part: string): boolean => {
       const attribute = part.trim().toLowerCase()
-      if (attribute.startsWith('domain=')) return !['domain=www.bilimanga.net', 'domain=bilimanga.net',
-        'domain=.bilimanga.net'].includes(attribute)
+      if (attribute.startsWith('domain=')) {
+        const domain = attribute.slice(7).replace(/^\./, '')
+        return domain !== host && domain !== policy.cookieDomain
+      }
       if (attribute.startsWith('path=')) return attribute !== 'path=/'
       return attribute.startsWith('max-age=') && !(Number(attribute.substring(8)) > 0)
     })
@@ -289,7 +299,7 @@ function bilimangaGuestCookie(url: string, headers: Object): string | undefined 
     if (!pair.startsWith(name + '=')) continue
     const cookieHeader: Record<string, string> = {}
     cookieHeader['Cookie'] = pair
-    if (bilimangaGuestHeadersValid(cookieHeader)) matched.push(pair)
+    if (guestHttpHeadersValid(policy, cookieHeader)) matched.push(pair)
   }
   return matched.length === 1 ? matched[0] : undefined
 }
@@ -312,38 +322,6 @@ function sourceAllowsAnonymousRedirect(identity: SourceHttpIdentity | undefined,
   const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
   return entry !== undefined && sourceRuntimeEntryEnabled(entry) && entry.manifestVersion === identity.sourceVersion &&
     sourceWebPackageIdentity(entry) === identity.packageIdentity && (entry.webSessionOrigins ?? []).includes(origin)
-}
-
-/** The adopted MangaBz language preference is a public request option, not a
- * source-supplied login session. Only this source/domain/key/value may replace
- * its counterpart; WebView owns every other cookie and the user agent.
- * Keep the override request-local, including redirects, without writing the jar.
- */
-function sourceSessionCookies(sourceId: string, fullUrl: string,
-  originalHeaders: Record<string, string>, sessionCookie: string): string {
-  if (sourceId !== 'com.mangabz.koma') return sessionCookie
-  let languageKey: string = ''
-  try {
-    const parsed = new urlKit.URL(fullUrl)
-    const host = parsed.hostname.toLowerCase()
-    if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || parsed.username.length > 0 || parsed.password.length > 0) return sessionCookie
-    if (host === 'mangabz.com' || host.endsWith('.mangabz.com')) languageKey = 'mangabz_lang'
-    else if (parsed.protocol === 'https:' && (host === 'xmanhua.com' || host.endsWith('.xmanhua.com'))) languageKey = 'xmanhua_lang'
-    else if (parsed.protocol === 'https:' && (host === 'yymanhua.com' || host.endsWith('.yymanhua.com'))) languageKey = 'yymanhua_lang'
-    else return sessionCookie
-  } catch (_error) { return sessionCookie }
-  const values: string[] = []
-  Object.keys(originalHeaders).forEach((name: string) => {
-    if (name.toLowerCase() !== 'cookie') return
-    originalHeaders[name].split(';').forEach((part: string) => {
-      const pair = part.trim()
-      if (pair === languageKey + '=1' || pair === languageKey + '=2') values.push(pair)
-    })
-  })
-  if (values.length !== 1) return sessionCookie
-  const retained = sessionCookie.split(';').filter((part: string): boolean =>
-    part.split('=')[0].trim() !== languageKey).join(';').trim()
-  return retained.length === 0 ? values[0] : retained + '; ' + values[0]
 }
 
 function sourceMethod(value: Object | string | number | boolean | null | undefined): string | undefined {
@@ -469,15 +447,17 @@ function nativeSessionResponseCookies(headers: Object, hostname: string, names: 
   return result
 }
 
-function picaScope(identity: SourceHttpIdentity | undefined, current: () => boolean): SourcePicaChannelScope {
-  if (identity?.sourceId !== 'com.picacomic.koma') throw new SourceRcpTransportFailure('invalid_request')
+function dnsScope(identity: SourceHttpIdentity | undefined, current: () => boolean): SourceDnsBootstrapScope {
+  if (identity === undefined) throw new SourceRcpTransportFailure('invalid_request')
   const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
-  if (entry === undefined || !sourceRuntimeEntryEnabled(entry) || sourceWebPackageIdentity(entry) !== identity.packageIdentity ||
-    entry.manifestVersion !== identity.sourceVersion || typeof identity.privateCallId !== 'string') {
+  const policy = entry?.websitePolicy?.dnsBootstrap
+  if (entry === undefined || policy === undefined || !sourceRuntimeEntryEnabled(entry) ||
+    sourceWebPackageIdentity(entry) !== identity.packageIdentity || entry.manifestVersion !== identity.sourceVersion ||
+    typeof identity.privateCallId !== 'string') {
     throw new SourceRcpTransportFailure('invalid_request')
   }
   const scope: SourcePrivateSessionScope = { sourceId: identity.sourceId, packageIdentity: identity.packageIdentity, callId: identity.privateCallId }
-  return { sourceId: identity.sourceId, packageIdentity: identity.packageIdentity, current: (): boolean => {
+  return { policy, packageIdentity: identity.packageIdentity, current: (): boolean => {
     const installed = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
     return current() && installed === entry && sourceRuntimeEntryEnabled(installed) && SourcePrivateSessionHost.callIsActive(scope)
   } }
@@ -492,33 +472,34 @@ function rcpFailure(error: Object, priorNetworkPerformed: boolean = false): stri
   return JSON.stringify(result)
 }
 
-async function executePicaInitialization(envelope: SourceHttpRequestEnvelope, httpContextJson: string): Promise<string> {
+async function executeDnsBootstrap(envelope: SourceHttpRequestEnvelope, httpContextJson: string): Promise<string> {
   try {
     if (envelope.version !== 1 || Object.keys(envelope).some((key: string): boolean =>
       !['type', 'version', 'timeoutMs'].includes(key))) throw new SourceRcpTransportFailure('invalid_request')
     const identity = JSON.parse(httpContextJson) as SourceHttpIdentity
-    const scope = picaScope(identity, (): boolean => sourceRuntimeOperationIsCurrent(identity.operationGuardId))
+    const scope = dnsScope(identity, (): boolean => sourceRuntimeOperationIsCurrent(identity.operationGuardId))
     const privateScope: SourcePrivateSessionScope = { sourceId: identity.sourceId, packageIdentity: identity.packageIdentity,
       callId: identity.privateCallId ?? '' }
     const entry = appSourceRuntimeRegistry.lookup(identity.sourceId).entry
     // A metadata call cannot turn this independent public preparation into HTTP.
     // The existing credential grant still authorizes only its unchanged API origin.
     if (entry?.authentication?.kind !== 'credentials' ||
-      sourceWebOrigin(entry.authentication.loginUrl) !== 'https://picaapi.picacomic.com' ||
+      !sourceDnsTarget(scope.policy, entry.authentication.loginUrl) ||
       !SourcePrivateSessionHost.publicInitializationIsAllowed(privateScope)) throw new SourceRcpTransportFailure('invalid_request')
     const revision = appSourceSettingsStore.revisionForSource(identity.sourceId)
     const settings = appSourceSettingsStore.loadForSource(identity.sourceId)
-    if (settings['APP_CHANNEL'] !== undefined && settings['APP_CHANNEL'] !== '2' && settings['APP_CHANNEL'] !== '3') {
+    const mode = settings[scope.policy.modeSetting]
+    if (mode !== undefined && (typeof mode !== 'string' || !scope.policy.modeValues.includes(mode))) {
       throw new SourceRcpTransportFailure('invalid_request')
     }
-    const raw = settings['APP_CHANNEL_URL']
+    const raw = settings[scope.policy.urlSetting]
     if (raw !== undefined && typeof raw !== 'string') throw new SourceRcpTransportFailure('invalid_request')
-    const initUrl = typeof raw === 'string' && raw.trim().length > 0 ? raw : 'http://68.183.234.72/init'
+    const initUrl = typeof raw === 'string' && raw.trim().length > 0 ? raw : scope.policy.url
     const current = scope.current
     scope.current = (): boolean => current() && appSourceSettingsStore.revisionForSource(identity.sourceId) === revision &&
       SourcePrivateSessionHost.publicInitializationIsAllowed(privateScope) &&
       SourcePrivateSessionHost.credentialRequestAllowed(identity.privateCallId, identity.credentialGrantId, entry.authentication?.loginUrl ?? '')
-    const response = await initializeSourcePicaChannel(initUrl, scope, sourceTimeout(envelope.timeoutMs))
+    const response = await initializeSourceDnsBootstrap(initUrl, scope, sourceTimeout(envelope.timeoutMs))
     const result = new SourceHttpSuccessEnvelope(response.status, response.bodyText)
     if (response.dnsOverride !== undefined) result.dnsOverride = response.dnsOverride
     return JSON.stringify(result)
@@ -536,9 +517,9 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   if (envelope === null || Array.isArray(envelope) || typeof envelope !== 'object') {
     return transportError('invalid_request', false)
   }
-  if (envelope.type === 'pica_channel_init') {
+  if (envelope.type === 'source_dns_bootstrap') {
     if (probe !== undefined) return transportError('invalid_request', false)
-    return executePicaInitialization(envelope, httpContextJson)
+    return executeDnsBootstrap(envelope, httpContextJson)
   }
   if (envelope.type === 'java_regex') {
     // The source worker waits on this bridge; native async work avoids
@@ -664,8 +645,13 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   // A verification probe has its own visible-session guard; the originating
   // worker has already ended and its search guard is intentionally released.
+  const installed = identity === undefined ? undefined : appSourceRuntimeRegistry.lookup(identity.sourceId).entry
+  const installedEntry = installed !== undefined && identity !== undefined && sourceRuntimeEntryEnabled(installed) &&
+    installed.manifestVersion === identity.sourceVersion && sourceWebPackageIdentity(installed) === identity.packageIdentity
+    ? installed : undefined
   const current = (): boolean => probe === undefined ?
     sourceRuntimeOperationIsCurrent(identity?.operationGuardId) &&
+      (installedEntry === undefined || appSourceRuntimeRegistry.lookup(installedEntry.sourceId).entry === installedEntry) &&
       (nativeScope === undefined || (appSourceRuntimeRegistry.lookup(nativeScope.sourceId).entry === nativeEntry &&
         SourcePrivateSessionHost.callIsActive(nativeScope))) &&
       SourcePrivateSessionHost.credentialRequestAllowed(identity?.privateCallId, identity?.credentialGrantId, url) : probe.current()
@@ -673,11 +659,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     trace.finish('cancelled', 'reason=source_request_cancelled')
     return transportError('source_request_cancelled', false)
   }
-  const copyMangaApi = identity !== undefined && copyMangaApiTarget(identity.sourceId, url)
+  const freshHttp = declaredSourceHttpProfile(installedEntry?.websitePolicy, url) === 'fresh_http11'
   const guestSearch = envelope.guestSearch === true
-  if (guestSearch && (identity?.sourceId !== 'net.bilimanga.koma' || probe !== undefined ||
+  const guestPolicy = installedEntry?.websitePolicy?.guestHttp
+  if (guestSearch && (guestPolicy === undefined || identity === undefined || probe !== undefined ||
     identity.credentialGrantId !== undefined || method !== 'GET' || body.length !== 0 || envelope.dnsOverride !== undefined ||
-    !bilimangaGuestTarget(url) || !bilimangaGuestHeadersValid(sourceHeaders(envelope.headers)))) {
+    !guestHttpTarget(guestPolicy, url) || !guestHttpHeadersValid(guestPolicy, sourceHeaders(envelope.headers)))) {
     trace.finish('rejected', 'reason=invalid_guest_search_request')
     return transportError('invalid_request', false)
   }
@@ -689,7 +676,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       return transportError('invalid_request', false)
     }
   }
-  if (!guestSearch && !copyMangaApi && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
+  if (!guestSearch && !freshHttp && !nativeSession && probe === undefined && verifiedSourceGet !== undefined) {
     const ready = verifiedSourceGet
     if (identity !== undefined && ready.request.requestJson === requestJson &&
       ready.request.httpContextJson === httpContextJson) {
@@ -704,8 +691,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       }
     }
   }
-  if (copyMangaApi) {
-    if (deviceInfo.sdkApiVersion < COPY_MANGA_API_MIN_SDK) {
+  if (freshHttp) {
+    if (deviceInfo.sdkApiVersion < SOURCE_FRESH_HTTP_MIN_SDK) {
       trace.finish('rejected', 'reason=unsupported')
       return rcpFailure(new SourceRcpTransportFailure('unsupported'))
     }
@@ -717,7 +704,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     }
   }
   // A native account uses its own private Cookie header, isolated from ArkWeb's cookie jar.
-  const session = guestSearch || copyMangaApi || nativeSession || identity === undefined ? undefined : probe === undefined
+  const session = guestSearch || freshHttp || nativeSession || identity === undefined ? undefined : probe === undefined
     ? appSourceWebSessionStore.requestSession(identity, url)
     : appSourceWebSessionStore.pendingRequestSession(identity, url, probe.proof)
   if (probe !== undefined && (session === undefined || !probe.current())) {
@@ -726,12 +713,10 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
   }
   let rcpNetworkPerformed = false
   try {
-    const picaDns = envelope.dnsOverride === undefined ? undefined : sourcePicaDnsOverride(envelope.dnsOverride)
-    if (picaDns !== undefined) {
-      const initial = new urlKit.URL(url)
-      if (initial.protocol !== 'https:' || (initial.hostname !== 'picacomic.com' && !initial.hostname.endsWith('.picacomic.com'))) {
-        throw new SourceRcpTransportFailure('invalid_request')
-      }
+    const dnsOverride = envelope.dnsOverride === undefined ? undefined : sourceDnsOverride(envelope.dnsOverride)
+    const bootstrap = installedEntry?.websitePolicy?.dnsBootstrap
+    if (dnsOverride !== undefined && (bootstrap === undefined || !sourceDnsTarget(bootstrap, url))) {
+      throw new SourceRcpTransportFailure('invalid_request')
     }
     let currentUrl = url
     const requestAdmission: SourceRequestAdmission = {}
@@ -744,11 +729,12 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     // Login input is granted only to this call and exact API origin, including redirects.
     if (!SourcePrivateSessionHost.credentialRequestAllowed(identity?.privateCallId, identity?.credentialGrantId, currentUrl)) {
       trace.finish('failed', 'reason=source_login_not_allowed')
-      if (picaDns !== undefined) return rcpFailure(new SourceRcpTransportFailure('source_login_not_allowed'), rcpNetworkPerformed)
+      if (dnsOverride !== undefined) return rcpFailure(new SourceRcpTransportFailure('source_login_not_allowed'), rcpNetworkPerformed)
       return transportError('source_login_not_allowed', false)
     }
     const policyStartedAt: number = Date.now()
-    await waitForSourceRequestSlot(identity?.sourceId ?? '', currentUrl, current, envelope.headers, requestAdmission)
+    const requestLimits = installedEntry?.requestLimits
+    await waitForSourceRequestSlot(requestLimits, currentUrl, current, envelope.headers, requestAdmission)
     if (!current()) {
       trace.finish('cancelled', 'reason=source_request_cancelled')
       return transportError('source_request_cancelled', false)
@@ -759,7 +745,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const crossOrigin = sourceWebOrigin(currentUrl) !== sourceWebOrigin(url)
     let originalHeaders = crossOrigin && session !== undefined
       ? sourcePublicRedirectHeaders(sourceHeaders(envelope.headers)) : sourceHeaders(envelope.headers)
-    if (picaDns !== undefined && crossOrigin) {
+    if (dnsOverride !== undefined && crossOrigin) {
       // OkHttp drops Authorization when a redirect changes origin. The ordinary
       // transports retain their established behavior; this is only the opt-in channel path.
       const redirectedHeaders: Record<string, string> = {}
@@ -782,7 +768,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     })
     if (active !== undefined && identity !== undefined) {
       headers['User-Agent'] = active.userAgent
-      const cookie = sourceSessionCookies(identity.sourceId, currentUrl, originalHeaders, active.cookie)
+      const cookie = mergeDeclaredSourceCookies(installedEntry?.websitePolicy, currentUrl, originalHeaders, active.cookie)
       if (cookie.length > 0) headers['Cookie'] = cookie
     }
     trace.info('session', 'identity=' + (identity === undefined ? 'none' : 'native') +
@@ -791,41 +777,32 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
       ' uaSource=' + (active === undefined ? 'source' : 'webview'))
     trace.info('owner', 'operation=' + (identity?.diagnosticOperation ?? 'unknown'))
     if (active !== undefined) trace.info('clearance_cookie', 'state=' + sourceClearanceCookieState(headers['Cookie'] ?? ''))
-    const remaining = session === undefined && picaDns === undefined && !copyMangaApi && !guestSearch ? sourceTimeout(envelope.timeoutMs) :
+    const remaining = session === undefined && dnsOverride === undefined && !freshHttp && !guestSearch ? sourceTimeout(envelope.timeoutMs) :
       Math.max(1, sourceTimeout(envelope.timeoutMs) - (Date.now() - startedAt - policyWaitMs))
     let response: SourceHopResponse | undefined = undefined
     const hopStartedAt = Date.now()
     let firstHeaderMs = -1
     let usedSourceBrowserHttp = false
-    if (copyMangaApi) {
-      if (picaDns !== undefined) throw new SourceRcpTransportFailure('invalid_request')
+    if (freshHttp) {
+      if (dnsOverride !== undefined) throw new SourceRcpTransportFailure('invalid_request')
       const hop = await requestSourceRcpHop(currentUrl, currentMethod, headers, currentBody, remaining, current, { freshHttp11: true })
       rcpNetworkPerformed = true
       response = new SourceHopResult(hop.status, sourceRcpResponseText(hop.bytes), hop.headers)
-    } else if (picaDns !== undefined) {
-      const scope = picaScope(identity, current)
-      const parsed = new urlKit.URL(currentUrl)
-      const host = parsed.hostname.toLowerCase()
-      const matching = host === 'picacomic.com' || host.endsWith('.picacomic.com')
-      const ip = matching ? await sourcePicaChannelIp(currentUrl, picaDns, scope, remaining) : undefined
+    } else if (dnsOverride !== undefined) {
+      const scope = dnsScope(identity, current)
+      const matching = sourceDnsTarget(scope.policy, currentUrl)
+      const ip = matching ? await sourceDnsBootstrapIp(currentUrl, dnsOverride, scope, remaining) : undefined
       const remainingAfterDns = remaining - Math.max(0, Date.now() - hopStartedAt)
       if (remainingAfterDns <= 0) throw new SourceRcpTransportFailure('timeout')
-      const hop = await requestSourcePicaHop(currentUrl, currentMethod, headers, currentBody, remainingAfterDns, scope.current, ip)
+      const hop = await requestSourceDnsHop(currentUrl, currentMethod, headers, currentBody, remainingAfterDns, scope.current, ip)
       rcpNetworkPerformed = true
       response = new SourceHopResult(hop.status, sourceRcpResponseText(hop.bytes), hop.headers)
     }
-    // Only the named source/origin pairs use browser-compatible transport.
-    // Request identity and grant boundaries remain with the existing owner.
-    let browserProfile = ''
-    if (!nativeSession && currentMethod === 'GET' && currentBody.length === 0) {
-      const origin = sourceWebOrigin(currentUrl)
-      if (identity?.sourceId === 'com.simplyhentai.zh.koma' && origin === 'https://api.simply-hentai.com') {
-        browserProfile = 'firefox133'
-      } else if (identity?.sourceId === 'com.manhuawu.koma' && origin === 'https://www.mhua5.com') {
-        browserProfile = 'chrome145'
-      }
-    }
-    if (response === undefined && browserProfile.length > 0) {
+    // A package can select an implemented transport for its declared origin.
+    // Network permission and credential/session scopes are checked separately.
+    const browserProfile = !nativeSession && currentMethod === 'GET' && currentBody.length === 0
+      ? declaredSourceHttpProfile(installedEntry?.websitePolicy, currentUrl) : ''
+    if (response === undefined && browserProfile.length > 0 && browserProfile !== 'fresh_http11') {
       sourceBrowserHttpSequence += 1
       const callId = 'source-browser-http-' + sourceBrowserHttpSequence
       const requestHeaders: string[] = Object.keys(headers).map((name: string): string => name + ': ' + headers[name])
@@ -912,7 +889,7 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         appSourceWebSessionStore.observeRejectedRequest(identity, currentUrl)
       }
       const origin = sourceWebOrigin(currentUrl)
-      if (!copyMangaApi && probe === undefined && method === 'GET' && body.length === 0 && requestJson.length <= 65536 &&
+      if (!freshHttp && probe === undefined && method === 'GET' && body.length === 0 && requestJson.length <= 65536 &&
         origin.length > 0 && identity.webSessionOrigins.includes(origin)) {
         const key = rejectedSourceGetKey(identity.sourceId, identity.operationGuardId)
         const previous = rejectedSourceGets.get(key)
@@ -941,30 +918,30 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
         } else rejectedSourceGets.set(key, rejected)
       }
     }
-    if ((session !== undefined || picaDns !== undefined || copyMangaApi || guestSearch) &&
+    if ((session !== undefined || dnsOverride !== undefined || freshHttp || guestSearch) &&
       [301, 302, 303, 307, 308].includes(response.responseCode)) {
       const responseHeaders = response.header as Record<string, Object | string | number | boolean | null>
       const locationKey = Object.keys(responseHeaders).find((name: string): boolean => name.toLowerCase() === 'location')
       const locationValue = locationKey === undefined ? undefined : responseHeaders[locationKey]
-      const location = (copyMangaApi || guestSearch) && Array.isArray(locationValue) && locationValue.length === 1
+      const location = (freshHttp || guestSearch) && Array.isArray(locationValue) && locationValue.length === 1
         ? sourceString(locationValue[0]) : sourceString(locationValue)
-      if (location === undefined || redirects >= (picaDns === undefined && !copyMangaApi ? 30 : 20) ||
+      if (location === undefined || redirects >= (dnsOverride === undefined && !freshHttp ? 30 : 20) ||
         Date.now() - startedAt - policyWaitMs >= sourceTimeout(envelope.timeoutMs)) {
-        if (copyMangaApi) return rcpFailure(new SourceRcpTransportFailure('network_error', true))
+        if (freshHttp) return rcpFailure(new SourceRcpTransportFailure('network_error', true))
         trace.finish('failed', 'reason=web_session_redirect_rejected')
         return transportError('web_session_redirect_rejected', false)
       }
       const nextTarget = new urlKit.URL(location, currentUrl)
-      if (copyMangaApi && (nextTarget.protocol !== 'https:' || nextTarget.username.length > 0 || nextTarget.password.length > 0)) {
+      if (freshHttp && (nextTarget.protocol !== 'https:' || nextTarget.username.length > 0 || nextTarget.password.length > 0)) {
         return rcpFailure(new SourceRcpTransportFailure('invalid_response', true))
       }
       const nextUrl = nextTarget.toString()
-      if (guestSearch && !bilimangaGuestTarget(nextUrl, true)) {
+      if (guestSearch && (guestPolicy === undefined || !guestHttpTarget(guestPolicy, nextUrl, true))) {
         trace.finish('failed', 'reason=guest_search_redirect_rejected')
         return transportError('invalid_request', false)
       }
       // Re-check the full next URL against this source's explicit session grant.
-      const nextSession = copyMangaApi || identity === undefined ? undefined : probe === undefined
+      const nextSession = guestSearch || freshHttp || identity === undefined ? undefined : probe === undefined
         ? appSourceWebSessionStore.requestSession(identity, nextUrl)
         : appSourceWebSessionStore.pendingRequestSession(identity, nextUrl, probe.proof)
       if (session !== undefined && nextSession === undefined && !sourceAllowsAnonymousRedirect(identity, url, nextUrl, currentMethod, currentBody, probe)) {
@@ -984,7 +961,8 @@ async function executeSourceHttpRequest(requestJson: string, httpContextJson: st
     const result = new SourceHttpSuccessEnvelope(response.responseCode, responseBody, accessSignal, challengeRequestId)
     if (guestSearch) {
       result.guestSearchUrl = currentUrl
-      if (response.responseCode === 200) result.guestSearchCookie = bilimangaGuestCookie(currentUrl, response.header)
+      if (response.responseCode === 200 && guestPolicy !== undefined)
+        result.guestSearchCookie = guestHttpCookie(guestPolicy, currentUrl, response.header)
     }
     if (nativeSession) {
       const hostname = new urlKit.URL(currentUrl).hostname.toLowerCase()

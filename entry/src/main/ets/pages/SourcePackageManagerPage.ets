@@ -2131,8 +2131,6 @@ export struct SourcePackageManagerPage {
       subtitleContentRating: entry.nsfw,
       hasSourceIdentityPrefix: true,
       sourceIdentityIconState: this.indexIconStates[entry.id],
-      sourceIdentitySourceId: entry.id,
-      sourceIdentityVersion: entry.version,
       sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,

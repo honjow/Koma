@@ -677,6 +677,15 @@ export class SourceIndexService {
       const installedOrigin = requireSaved ? getInstalledSourcePackage(entry.id)?.catalogOrigin : undefined
       if (entry.conflictingRepositories?.length || (installedOrigin !== undefined && subscriptionIdentity(installedOrigin) !== identity))
         return { ok: false, reasonCode: 'subscription_conflict' }
+      const pinnedDocument = installedOrigin === undefined ? '' : resolveIndexDocumentUrl(installedOrigin)
+      if (pinnedDocument.length > 0 && pinnedDocument !== document) {
+        const pinned = await this.loadCachedIndex(pinnedDocument)
+        if (!pinnedDocument.startsWith('https://') || !/^[a-f0-9]{64}$/.test(entry.sha256) ||
+          !pinned?.some((offer: SourceIndexEntry): boolean =>
+            offer.id === entry.id && offer.version === entry.version && offer.sha256 === entry.sha256)) {
+          return { ok: false, reasonCode: 'subscription_conflict' }
+        }
+      }
       const routeKey = this.metadataRequestKey(identity)
       const saved = await this.loadSavedRepositories()
       const primary = saved.find((item: SourceIndexRepository): boolean => resolveIndexDocumentUrl(item.url) === document)
@@ -697,7 +706,6 @@ export class SourceIndexService {
           if (equivalent !== undefined) routes.push({ url, entries: [equivalent] })
         }
       }
-      const pinnedDocument = installedOrigin === undefined ? '' : resolveIndexDocumentUrl(installedOrigin)
       // A mirror can carry the session only if the original saved endpoint
       // offered exactly the same archive digest. Grouping URLs alone is not proof.
       const verifiedSessionCatalog = installedOrigin !== undefined && pinnedDocument.startsWith('https://') &&

@@ -14,10 +14,20 @@ export interface ImagePluginOffer {
 export function imagePluginOffers(subscriptions: ImageRuleSubscription[], id: string, origin?: string): ImagePluginOffer[] {
   const offers: ImagePluginOffer[] = []
   const identity = origin === undefined ? undefined : subscriptionIdentity(origin)
+  const pinned = origin === undefined ? undefined : subscriptions.find((subscription: ImageRuleSubscription): boolean =>
+    subscription.url === origin)
+  const published = pinned?.catalog?.find((plugin: ImageProcessingPlugin): boolean => plugin.id === id)
+  const manifest = pinned?.manifestHashes?.[id]
   for (const subscription of subscriptions) {
     if (subscription.disabled || (identity !== undefined && subscriptionIdentity(subscription.url) !== identity)) continue
     const plugin = subscription.catalog?.find((item: ImageProcessingPlugin): boolean => item.id === id)
-    if (plugin !== undefined) offers.push({ subscription, plugin, manifestHash: subscription.manifestHashes?.[id] })
+    if (plugin === undefined) continue
+    const manifestHash = subscription.manifestHashes?.[id]
+    // A proxy URL groups the catalog, but another publisher cannot choose the
+    // bytes for a source the user already selected.
+    if (origin !== undefined && subscription.url !== origin && (published === undefined || manifest === undefined ||
+      plugin.version !== published.version || manifestHash !== manifest || plugin.processor.sha256 !== published.processor.sha256)) continue
+    offers.push({ subscription, plugin, manifestHash })
   }
   return offers.sort((a: ImagePluginOffer, b: ImagePluginOffer): number => b.plugin.version - a.plugin.version ||
     Number(!!a.subscription.lastError) - Number(!!b.subscription.lastError) ||

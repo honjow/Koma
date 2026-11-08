@@ -8,45 +8,20 @@ import { LibraryStorePersistenceService, upsertComicAndPersistLibraryStore,
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { TrackerPreferencesStore } from './TrackerModels'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
-import { MangaDetail, MangaChapterItem, parseMangaDetailFromSourceItem } from './MangaDetailModels'
+import { MangaDetail, MangaChapterItem } from './MangaDetailModels'
 import { SourceManga } from './SourceModels'
-import { SourceRuntimeError } from './SourceRuntimeError'
 import { comicFromSourceManga, sourceLibraryComicId } from './SourceLibraryComic'
 import { resolveSourceChapterList } from './SourceChapterListResolver'
+import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { protectedSourceChapterIds } from './SourceChapterIdentityGuard'
 import { mergeSourceChapters } from './LibraryUpdateService'
 import { canMigrateLibraryComic, MangaMigrationOptions, migrationCategoryIds,
   planMangaMigrationReadState } from './SourceMangaMigration'
 import { SourceRuntimeRegistry, SourceRuntimeRegistryEntry, sourceRuntimeEntryEnabled } from '../sourceRuntime/SourceRuntimeRegistry'
-import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
-import { executeSourceRequestInWorker } from '../sourceRuntime/SourceRuntimeWorkerClient'
-import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
-import { sourceRequestWithHostFeatures } from '../sourceRuntime/SourceHostFeatures'
 import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import { sourceSettingsFingerprint } from '../sourceRuntime/SourceSettingsIdentity'
-import { diagnoseSourceOperation } from '../sourceRuntime/SourceRuntimeRunner'
 import { SourceMangaDetailSnapshot, sourceMangaDetailSnapshotCache } from './SourceMangaDetailSnapshotCache'
-
-interface MigrationDetailData {
-  manga?: Record<string, Object>
-  item?: Record<string, Object>
-  items?: Record<string, Object>[]
-  chapterContext?: Record<string, Object>
-}
-
-interface MigrationDetailArgs { mangaId: string; mangaUrl?: string }
-interface MigrationDetailHints { network: boolean }
-interface MigrationDetailRequest {
-  type: string
-  version: number
-  requestId: string
-  sourceId: string
-  operation: string
-  args: MigrationDetailArgs
-  settings: SourceSettingsRecord
-  hostHints: MigrationDetailHints
-}
 
 export interface PreparedMangaMigration {
   manga: SourceManga
@@ -89,28 +64,16 @@ export async function prepareMangaMigration(
   if (cached?.chaptersResolved && cached.chapters.length > 0) {
     return preparedMigrationFromSnapshot(manga, entry, settingsRevision, settings, cached)
   }
-  const payload: MigrationDetailRequest = { type: 'request', version: 1,
-    requestId: `migration-detail-${Date.now()}`, sourceId: manga.sourceId, operation: 'get_manga',
-    args: { mangaId: manga.id, mangaUrl: manga.url }, settings, hostHints: { network: true } }
-  const request = sourceRequestWithHostFeatures(JSON.stringify(payload))
-  const bytes = new Uint8Array(entry.wasmBytes.byteLength)
-  bytes.set(entry.wasmBytes)
-  const responseJson = await diagnoseSourceOperation(request, () => executeSourceRequestInWorker(request, bytes,
-    sourceHttpIdentityJson(entry, undefined, true, 'get_manga')))
+  const response = await fetchSourceMangaDetail(entry, manga.id, manga.url, settings, 'migration')
   if (!current()) throw new Error('migration_source_changed')
-  const response = JSON.parse(responseJson) as SourceRuntimeCallResponse
-  if (!response.ok) throw new SourceRuntimeError(response)
-  const data = response.data as MigrationDetailData | undefined
-  const item = data?.manga ?? data?.item ?? data?.items?.[0]
-  if (item === undefined) throw new SourceRuntimeError({ ok: false, reasonCode: 'invalid_response' })
-  const detail = parseMangaDetailFromSourceItem(manga.sourceId, item)
+  const detail = response.detail
   detail.id = manga.id
   detail.sourceId = manga.sourceId
   detail.title = detail.title.trim().length > 0 ? detail.title : manga.title
   detail.url = detail.url ?? manga.url
   detail.coverUrl = detail.coverUrl ?? manga.coverUrl
   detail.sourceName = entry.manifestName
-  const catalog = await resolveSourceChapterList(entry, manga.id, detail.url, current, data?.chapterContext)
+  const catalog = await resolveSourceChapterList(entry, manga.id, detail.url, current, response.chapterContext)
   if (!current()) throw new Error('migration_source_changed')
   if (!catalog.resolved || catalog.chapters.length === 0) throw new Error('migration_catalog_unavailable')
   const snapshot: SourceMangaDetailSnapshot = { detail, chapters: catalog.chapters,
@@ -146,8 +109,9 @@ export async function commitMangaMigration(
       comic.sourceRuntimeId === prepared.manga.sourceId && comic.remoteResourceId === prepared.manga.id)
     const target = JSON.parse(JSON.stringify(prepared.comic)) as Comic
     if (existing !== undefined) {
+      const policy = prepared.entry.websitePolicy?.chapterIdentity
       const identity = reconcileSourceChapterIdentity(existing, prepared.manga.id, prepared.chapters,
-        protectedSourceChapterIds(existing, context.filesDir, reader))
+        protectedSourceChapterIds(existing, context.filesDir, reader, policy), policy)
       const retained = JSON.parse(JSON.stringify(existing)) as Comic
       retained.chapters = identity.storedChapters
       target.id = existing.id

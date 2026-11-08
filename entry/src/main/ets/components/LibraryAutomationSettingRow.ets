@@ -5,7 +5,8 @@ import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } fro
 import { ConciseListRow } from './ui/ConciseListRow'
 
 export const LIBRARY_AUTOMATION_SETTING_KEYS: string[] = [
-  'library-update-range', 'library-update-skip', 'library-update-wifi-only', 'library-update-charging-only',
+  'library-update-range', 'library-update-skip', 'library-update-work-info',
+  'library-update-wifi-only', 'library-update-charging-only',
   'download-auto-new', 'download-auto-unread', 'download-auto-range', 'download-read-cleanup', 'download-cleanup-exclude',
 ]
 
@@ -20,10 +21,12 @@ export struct LibraryAutomationSettingRow {
   @Event onChange: (change: (policy: LibraryAutomationPreferences) => void) => void = () => {}
 
   private isSwitch(): boolean {
-    return ['library-update-wifi-only', 'library-update-charging-only', 'download-auto-new', 'download-auto-unread'].includes(this.rowKey)
+    return ['library-update-work-info', 'library-update-wifi-only', 'library-update-charging-only',
+      'download-auto-new', 'download-auto-unread'].includes(this.rowKey)
   }
 
   private value(): boolean {
+    if (this.rowKey === 'library-update-work-info') return this.policy.refreshWorkInfo
     if (this.rowKey === 'library-update-wifi-only') return this.policy.updateWifiOnly
     if (this.rowKey === 'library-update-charging-only') return this.policy.updateChargingOnly
     if (this.rowKey === 'download-auto-new') return this.policy.autoDownloadNewChapters
@@ -32,7 +35,8 @@ export struct LibraryAutomationSettingRow {
 
   private setValue(value: boolean): void {
     this.onChange((policy: LibraryAutomationPreferences): void => {
-      if (this.rowKey === 'library-update-wifi-only') policy.updateWifiOnly = value
+      if (this.rowKey === 'library-update-work-info') policy.refreshWorkInfo = value
+      else if (this.rowKey === 'library-update-wifi-only') policy.updateWifiOnly = value
       else if (this.rowKey === 'library-update-charging-only') policy.updateChargingOnly = value
       else if (this.rowKey === 'download-auto-new') policy.autoDownloadNewChapters = value
       else policy.downloadUnreadOnly = value
@@ -141,6 +145,7 @@ export struct LibraryAutomationSettingRow {
   build() {
     if (this.isSwitch()) {
       ConciseListRow({ title: this.title, hasSwitch: true, checked: this.value(), showChevron: false,
+        subtitle: this.rowKey === 'library-update-work-info' ? AppStrings.get('automation_refresh_work_info_detail') : '',
         switchAction: (value: boolean) => { this.setValue(value) } })
     } else {
       ConciseListRow({ title: this.title, trailingText: this.detail(), trailingMaxLines: 2,

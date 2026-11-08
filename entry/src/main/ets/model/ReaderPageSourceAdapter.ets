@@ -1,3 +1,4 @@
+import { sourceDnsTarget } from '../sourceRuntime/SourceWebsitePolicy'
 import { SourceRequiredImageDecode, sourceRequiredImageDecode, SourceRequiredImageDecodeService,
   readSourceImageBytes } from './SourceRequiredImageDecode'
 import { SourceTextOverlay } from './SourceTextOverlay'
@@ -19,8 +20,8 @@ import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegist
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
-import { sourcePicaDnsOverride, sourcePicaChannelIp, requestSourcePicaHop, SourcePicaDnsOverride,
-  SourcePicaChannelScope } from '../sourceRuntime/SourcePicaChannelTransport'
+import { sourceDnsOverride, sourceDnsBootstrapIp, requestSourceDnsHop, SourceDnsOverride,
+  SourceDnsBootstrapScope } from '../sourceRuntime/SourceDnsBootstrapTransport'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { common } from '@kit.AbilityKit'
@@ -363,26 +364,26 @@ function isLocalFileUri(uri: string): boolean {
   return normalized.startsWith('file://') || normalized.startsWith('mock://')
 }
 
-async function downloadPicaChannelImage(fullUrl: string, extraHeaders: RemoteImageCacheHeaders | undefined,
-  sourceId: string, hint: SourcePicaDnsOverride): Promise<ArrayBuffer> {
+async function downloadDnsOverrideImage(fullUrl: string, extraHeaders: RemoteImageCacheHeaders | undefined,
+  sourceId: string, hint: SourceDnsOverride, responseErrors?: SourceImageResponseErrors): Promise<ArrayBuffer> {
   const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
-  if (entry === undefined || sourceId !== 'com.picacomic.koma' || !entry.enabled) throw new Error('reader_source_image_request_rejected')
+  const policy = entry?.websitePolicy?.dnsBootstrap
+  if (entry === undefined || policy === undefined || !entry.enabled) throw new Error('reader_source_image_request_rejected')
   const identity = JSON.parse(sourceHttpIdentityJson(entry)) as Record<string, string>
   const revision = appSourceSettingsStore.revisionForSource(sourceId)
-  const scope: SourcePicaChannelScope = { sourceId, packageIdentity: identity['packageIdentity'], current: (): boolean =>
+  const scope: SourceDnsBootstrapScope = { policy, packageIdentity: identity['packageIdentity'], current: (): boolean =>
     appSourceRuntimeRegistry.lookup(sourceId).entry === entry && entry.enabled &&
     appSourceSettingsStore.revisionForSource(sourceId) === revision }
   let target = fullUrl
   const started = Date.now()
   for (let redirects = 0; ; redirects += 1) {
-    await waitForSourceRequestSlot(sourceId, target, scope.current)
+    await waitForSourceRequestSlot(entry.requestLimits, target, scope.current, extraHeaders)
     if (!scope.current()) throw new Error('reader_source_image_request_rejected')
-    const parsed = new url.URL(target)
-    const matching = parsed.hostname === 'picacomic.com' || parsed.hostname.endsWith('.picacomic.com')
+    const matching = sourceDnsTarget(policy, target)
     if (redirects === 0 && !matching) throw new Error('reader_source_image_request_invalid')
     const dnsRemaining = 60000 - (Date.now() - started)
     if (dnsRemaining <= 0) throw new Error('reader_remote_image_fetch_failed_2300028')
-    const ip = matching ? await sourcePicaChannelIp(target, hint, scope, dnsRemaining) : undefined
+    const ip = matching ? await sourceDnsBootstrapIp(target, hint, scope, dnsRemaining) : undefined
     const headers: Record<string, string> = {}
     const sourceHeaderValues: RemoteImageCacheHeaders = extraHeaders ?? {}
     Object.keys(sourceHeaderValues).forEach((name: string): void => {
@@ -392,7 +393,7 @@ async function downloadPicaChannelImage(fullUrl: string, extraHeaders: RemoteIma
     })
     const remaining = 60000 - (Date.now() - started)
     if (remaining <= 0) throw new Error('reader_remote_image_fetch_failed_2300028')
-    const response = await requestSourcePicaHop(target, 'GET', headers, '', remaining, scope.current, ip, 128 * 1024 * 1024)
+    const response = await requestSourceDnsHop(target, 'GET', headers, '', remaining, scope.current, ip, 128 * 1024 * 1024)
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const fields = response.headers as Record<string, Object>
       const key = Object.keys(fields).find((name: string): boolean => name.toLowerCase() === 'location')
@@ -401,7 +402,7 @@ async function downloadPicaChannelImage(fullUrl: string, extraHeaders: RemoteIma
       target = new url.URL(location, target).toString()
       continue
     }
-    if (response.status !== 200) throw new Error(`reader_remote_image_http_${response.status}`)
+    if (response.status !== 200) throw sourceImageResponseError(response.status, responseErrors)
     return response.bytes
   }
 }
@@ -411,10 +412,41 @@ const LARGE_READER_IMAGE_READ_TIMEOUT_MS: number = 90000
 const NETWORKKIT_DEFAULT_BUFFER_BYTES: number = 50 * 1024 * 1024
 const READER_PAGE_IMAGE_BUFFER_BYTES: number = 64 * 1024 * 1024
 
+type SourceImageResponseErrors = Record<string, string>
+
+function parseSourceImageResponseErrors(value: Object | undefined): SourceImageResponseErrors | undefined {
+  if (value === undefined || value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const record = value as Record<string, Object>
+  const result: SourceImageResponseErrors = {}
+  for (const status of ['401', '402', '403', '429']) {
+    const code = record[status]
+    if ((status === '401' && code === 'auth_required') ||
+      (status === '403' && code === 'permission_denied') ||
+      (status === '429' && code === 'rate_limited') ||
+      (status !== '401' && code === 'image_quota_exhausted')) {
+      result[status] = code as string
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+function sourceImageResponseError(status: number, rules?: SourceImageResponseErrors): Error {
+  const code = rules?.[String(status)]
+  if (code !== undefined) {
+    const details: Record<string, Object | string | number | boolean | null> = {}
+    details['code'] = code
+    details['status'] = status
+    const response: SourceRuntimeCallResponse = { ok: false, error: details }
+    return new SourceRuntimeError(response)
+  }
+  return new Error(`reader_remote_image_http_${status}`)
+}
+
 async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImageCacheHeaders, sourceId: string = '',
-  dnsOverride?: SourcePicaDnsOverride, chapterImage: boolean = false): Promise<ArrayBuffer> {
-  if (dnsOverride !== undefined) return downloadPicaChannelImage(url, extraHeaders, sourceId, dnsOverride)
-  await waitForSourceRequestSlot(sourceId, url)
+  dnsOverride?: SourceDnsOverride, chapterImage: boolean = false, responseErrors?: SourceImageResponseErrors): Promise<ArrayBuffer> {
+  if (dnsOverride !== undefined) return downloadDnsOverrideImage(url, extraHeaders, sourceId, dnsOverride,
+    chapterImage ? responseErrors : undefined)
+  await waitForSourceRequestSlot(appSourceRuntimeRegistry.lookup(sourceId).entry?.requestLimits, url, undefined, extraHeaders)
   const readTimeout = chapterImage ? LARGE_READER_IMAGE_READ_TIMEOUT_MS : READER_IMAGE_READ_TIMEOUT_MS
   const trace = DiagnosticLogger.begin('reader_image', 'request', 'connectTimeoutMs=30000 readTimeoutMs=' + readTimeout)
   const httpRequest = http.createHttp()
@@ -466,14 +498,18 @@ async function downloadReaderRemoteBytes(url: string, extraHeaders?: RemoteImage
       DiagnosticLogger.warn('reader_page_source_adapter', 'http_status_failed', `[ReaderImage] step=http_status_failed status=${response.responseCode}`)
       trace.finish('failed', 'status=' + response.responseCode + ' responseStarted=' + responseStarted +
         ' declaredBytes=' + declaredBytes + ' receivedBytes=' + (response.result as ArrayBuffer).byteLength)
-      throw new Error(`reader_remote_image_http_${response.responseCode}`)
+      // The source defines the meaning of its endpoint's response. Apply the
+      // declaration only to the actual GET, without fetching the image twice.
+      throw sourceImageResponseError(response.responseCode, chapterImage ? responseErrors : undefined)
     }
     trace.finish('completed', 'status=' + response.responseCode + ' bytes=' + (response.result as ArrayBuffer).byteLength +
       ' responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes)
     return response.result as ArrayBuffer
   } catch (error) {
     // Keep an observed HTTP status intact instead of rewrapping it as transport "unknown".
-    if (/^reader_remote_image_http_\d+$/.test((error as Error).message)) throw error as Error
+    if (error instanceof SourceRuntimeError || /^reader_remote_image_http_\d+$/.test((error as Error).message)) {
+      throw error as Error
+    }
     const e = error as BusinessError
     const code = e.message === 'reader_remote_image_deadline' ? 2300028 : e.code
     trace.finish('failed', 'responseStarted=' + responseStarted + ' declaredBytes=' + declaredBytes +
@@ -525,7 +561,7 @@ function readerImageRequestForPage(sourceId: string, pageId: string, url: string
     settings: settings ?? appSourceSettingsStore.loadForSource(sourceId),
     hostHints: new ReaderImageRuntimeHostHints(),
   }
-  configureSourceRequestPolicy(sourceId, request.settings)
+  configureSourceRequestPolicy(appSourceRuntimeRegistry.lookup(sourceId).entry?.requestLimits, request.settings)
   return JSON.stringify(request)
 }
 
@@ -582,15 +618,18 @@ class SourceImageRequestDescriptor {
   headers: RemoteImageCacheHeaders | undefined
   imageProcessing?: ImageProcessingHint
   requiredImageDecode?: SourceRequiredImageDecode
-  dnsOverride?: SourcePicaDnsOverride
+  dnsOverride?: SourceDnsOverride
+  responseErrors?: SourceImageResponseErrors
 
-  constructor(url: string, headers?: RemoteImageCacheHeaders, processing?: Object, requiredDecode?: Object, dns?: Object) {
+  constructor(url: string, headers?: RemoteImageCacheHeaders, processing?: Object, requiredDecode?: Object, dns?: Object,
+    responseErrors?: SourceImageResponseErrors) {
     this.url = url
     this.headers = headers
     const hint = processing as ImageProcessingHint | undefined
     if (typeof hint?.kind === 'string' && typeof hint?.mode === 'string') this.imageProcessing = { kind: hint.kind, mode: hint.mode }
     if (requiredDecode !== undefined) this.requiredImageDecode = sourceRequiredImageDecode(requiredDecode)
-    if (dns !== undefined) this.dnsOverride = sourcePicaDnsOverride(dns)
+    if (dns !== undefined) this.dnsOverride = sourceDnsOverride(dns)
+    this.responseErrors = responseErrors
   }
 }
 
@@ -617,17 +656,20 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
       return undefined
     }
     const record = data as Record<string, Object>
+    const responseErrors = parseSourceImageResponseErrors(record['responseErrors'])
     const imageRequest = record['imageRequest']
     if (imageRequest !== undefined && imageRequest !== null && typeof imageRequest === 'object') {
       const imageRecord = imageRequest as Record<string, Object>
       const url = imageRecord['url']
       if (typeof url === 'string' && url.length > 0) {
-        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']), record['imageProcessing'], record['requiredImageDecode'], record['dnsOverride'])
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(imageRecord['headers']),
+          record['imageProcessing'], record['requiredImageDecode'], record['dnsOverride'], responseErrors)
       }
     }
     const directUrl = record['url']
     if (typeof directUrl === 'string' && directUrl.length > 0) {
-      const descriptor = new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']), undefined, record['requiredImageDecode'], record['dnsOverride'])
+      const descriptor = new SourceImageRequestDescriptor(directUrl, parseSourceImageRequestHeaders(record['headers']),
+        undefined, record['requiredImageDecode'], record['dnsOverride'], responseErrors)
       const processing = record['imageProcessing'] as Record<string, Object> | undefined
       if (typeof processing?.['kind'] === 'string' && typeof processing?.['mode'] === 'string') {
         descriptor.imageProcessing = { kind: processing['kind'] as string, mode: processing['mode'] as string }
@@ -641,7 +683,8 @@ function parseSourceImageRequestDescriptor(payload: string): SourceImageRequestD
       const requestRecord = request as Record<string, Object>
       const url = requestRecord['url']
       if (requestRecord['method'] === 'GET' && typeof url === 'string' && url.length > 0) {
-        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']), record['imageProcessing'], record['requiredImageDecode'], record['dnsOverride'])
+        return new SourceImageRequestDescriptor(url, parseSourceImageRequestHeaders(requestRecord['headers']),
+          record['imageProcessing'], record['requiredImageDecode'], record['dnsOverride'], responseErrors)
       }
     }
     return undefined
@@ -755,7 +798,7 @@ async function resolveSourceRuntimeImageRequest(
   }
   const data = response.data as Record<string, Object> | undefined
   if (data?.['requiredImageDecode'] !== undefined) sourceRequiredImageDecode(data['requiredImageDecode'])
-  if (data?.['dnsOverride'] !== undefined) sourcePicaDnsOverride(data['dnsOverride'])
+  if (data?.['dnsOverride'] !== undefined) sourceDnsOverride(data['dnsOverride'])
   const descriptor = parseSourceImageRequestDescriptor(responseJson)
   if (descriptor === undefined && descriptorRequired) throw new Error('reader_source_image_request_invalid')
   return descriptor ?? unavailableSourceImageDescriptor(sourceId)
@@ -886,7 +929,8 @@ export async function fetchAndCacheSourceRuntimeRemoteImage(
   const resolvedRequest = imageRequest
   const cacheHeaders = resolvedRequest.headers
   const path = await readerImageCacheStore.getOrFetch(resolvedRequest.url, cacheHeaders,
-    () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId, resolvedRequest.dnsOverride, chapterImage),
+    () => downloadReaderRemoteBytes(resolvedRequest.url, resolvedRequest.headers, sourceId, resolvedRequest.dnsOverride,
+      chapterImage, resolvedRequest.responseErrors),
     cacheKeySeed, forceReload)
   await maintainReaderImageCacheAfterWrite(path)
   return path
@@ -1286,7 +1330,8 @@ export async function fetchReaderRemoteSourceBytes(source: ReaderPageRenderSourc
         source.imageProcessing = imageRequest.imageProcessing
         source.imageProcessingResolved = true
         source.imageProcessingFingerprint = sourceImageProcessingFingerprint(source.sourceRuntimeId)
-        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId, imageRequest.dnsOverride, true)
+        return downloadReaderRemoteBytes(imageRequest.url, imageRequest.headers, source.sourceRuntimeId,
+          imageRequest.dnsOverride, true, imageRequest.responseErrors)
       }
     }
     const request = await resolveReaderRemoteRequest(source.imageUri, source, context)

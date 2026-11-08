@@ -163,9 +163,11 @@ function detailFixture() {
   const f = chapterFixture(), out = {}, notifications = [], errors = []
   const compiled = ts.transpileModule('export class Page { ' + pageMethods + ' }', { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   new Function('exports', 'refreshSourceMangaDetailAndPersistLibraryStore', 'DiagnosticLogger', 'SourceDetailContentState',
-    'reconcileSourceChapterIdentity', 'protectedSourceChapterIds', 'getContext', 'mangaChapterItemFromComicChapter', 'sourceChapterDisplayRows', compiled)(
+    'reconcileSourceChapterIdentity', 'protectedSourceChapterIds', 'getContext', 'mangaChapterItemFromComicChapter',
+    'sourceChapterDisplayRows', 'appSourceRuntimeRegistry', compiled)(
     out, exportsForTest.refreshSourceMangaDetailAndPersistLibraryStore, { exception: (...args) => errors.push(args) }, { READY: 'ready' },
-    (_comic, _id, chapters) => ({ chapters, storedChapters: f.store.getComic('owned-work').chapters }), () => [], () => ({ filesDir: 'unused' }), chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows)
+    (_comic, _id, chapters) => ({ chapters, storedChapters: f.store.getComic('owned-work').chapters }), () => [], () => ({ filesDir: 'unused' }),
+    chapter => clone(chapter), exportsForTest.sourceChapterDisplayRows, { lookup: () => ({}) })
   const page = new out.Page()
   Object.assign(page, { sourceChaptersResolved: true, sourceDetailSettingsFingerprint: '', libraryStore: f.store, libraryPersistenceService: f.service,
     isCurrentSourceDetailRequest: () => true, sourceDetailWithRouteIdentity: detail => ({ ...detail }),

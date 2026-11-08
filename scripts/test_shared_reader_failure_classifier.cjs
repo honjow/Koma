@@ -42,10 +42,71 @@ assert.deepEqual(logEvents[0].slice(0, 2), ['reader', 'page_unavailable'])
 assert.match(logEvents[0][2], /reason=missing_chapter_page/)
 KomaReaderFailure.from(new Error('https://private.example/secret-title?token=secret'))
 assert.equal(JSON.stringify(logEvents).includes('secret'), false)
+const incompatible = new errorExports.SourceRuntimeError({ ok: false, error: { code: 'host_feature_required' } })
+assert.equal(KomaReaderFailure.from(incompatible).title, 'source_failure_host_feature_required')
+assert.equal(KomaReaderFailure.catalogMessage(KomaReaderFailure.sourceError('unsupported', incompatible.diagnostic)),
+  'source_failure_host_feature_required')
+const timedOut = new errorExports.SourceRuntimeError({ ok: false, reasonCode: 'timeout', error: { code: 'host_feature_required' } })
+assert.equal(KomaReaderFailure.from(timedOut).title, 'source_failure_timeout')
+const denied = new errorExports.SourceRuntimeError({ ok: false, error: { code: 'host_feature_required', status: 403 } })
+assert.equal(denied.diagnostic.kind, 'access')
+const malformed = new errorExports.SourceRuntimeError({ ok: false, reasonCode: 'parse_error', error: { code: 'host_feature_required' } })
+assert.equal(malformed.diagnostic.kind, 'parse')
+const unsupported = new errorExports.SourceRuntimeError({ ok: false, error: { code: 'unsupported' } })
+assert.equal(KomaReaderFailure.from(unsupported).title, 'source_failure_unsupported')
 
 const compile = source => ts.transpileModule(source, { compilerOptions: {
   target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
 } }).outputText
+
+require('node:test')('declared image HTTP errors reach the reader; raw 402, ticket rejection and throttling stay distinct', async () => {
+  const source = fs.readFileSync(path.join(root, 'model/ReaderPageSourceAdapter.ets'), 'utf8')
+  const ast = ts.createSourceFile('adapter.ts', source, ts.ScriptTarget.Latest, true)
+  const names = new Set(['SourceImageResponseErrors', 'parseSourceImageResponseErrors', 'sourceImageResponseError',
+    'SourceImageRequestDescriptor', 'parseSourceImageRequestHeaders', 'parseSourceImageRequestDescriptor',
+    'downloadReaderRemoteBytes', 'READER_IMAGE_READ_TIMEOUT_MS', 'LARGE_READER_IMAGE_READ_TIMEOUT_MS',
+    'NETWORKKIT_DEFAULT_BUFFER_BYTES', 'READER_PAGE_IMAGE_BUFFER_BYTES'])
+  const selected = ast.statements.filter(node => names.has(node.name?.getText(ast)) ||
+    ts.isVariableStatement(node) && node.declarationList.declarations.some(d => names.has(d.name.getText(ast))))
+  let status = 402
+  let requests = 0
+  const http = { RequestMethod: { GET: 'GET' }, HttpDataType: { ARRAY_BUFFER: 1 }, createHttp: () => ({
+    on() {}, destroy() {},
+    request: async (_url, options) => {
+      requests++
+      assert.equal(options.usingCache, false)
+      return { responseCode: status, result: new ArrayBuffer(0) }
+    },
+  }) }
+  const { parse, download } = new Function('SourceRuntimeError', 'http', 'waitForSourceRequestSlot',
+    'httpHeadersForReaderRequest', 'DiagnosticLogger', 'appSourceRuntimeRegistry', compile(selected.map(s => s.getText(ast)).join('\n')) +
+    '\nreturn { parse: parseSourceImageRequestDescriptor, download: downloadReaderRemoteBytes };')(
+    errorExports.SourceRuntimeError, http, async () => {}, headers => headers,
+    { begin: () => ({ info() {}, warn() {}, finish() {} }), warn() {} }, { lookup: () => ({}) })
+  const data = { url: 'https://images.example/1.jpg', responseErrors: {
+    402: 'image_quota_exhausted', 403: 'unrecognized', 429: 'rate_limited',
+  } }
+  const descriptor = parse(JSON.stringify({ data }))
+  const load = (chapter = true, rules = descriptor.responseErrors) =>
+    download(descriptor.url, undefined, 'test.source', undefined, chapter, rules)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await assert.rejects(load(), error => {
+      assert.equal(error.diagnostic.kind, 'image_quota_exhausted')
+      assert.equal(error.diagnostic.status, 402)
+      assert.equal(KomaReaderFailure.from(error).title, 'source_failure_image_quota_exhausted')
+      assert.equal(KomaReaderFailure.from(error).hint, 'source_failure_image_quota_hint')
+      return true
+    })
+  }
+  assert.equal(requests, 2)
+  await assert.rejects(load(false), /reader_remote_image_http_402/)
+  await assert.rejects(load(true, {}), /reader_remote_image_http_402/)
+  status = 403
+  await assert.rejects(load(), /reader_remote_image_http_403/)
+  status = 429
+  await assert.rejects(load(), error => error.diagnostic.kind === 'rate_limit')
+})
+
 // Execute the actual adapter handoff; source-shape/constructor-arity checks do
 // not establish this contract and became stale with the adopted provider chain.
 const adapterExports = {}
@@ -66,7 +127,9 @@ async function sourcePageFailureChain() {
   const models = {}
   new Function('exports','require',compile(fs.readFileSync(path.join(root,'model/ComicModels.ets'),'utf8')))(models,()=>({}))
   const hostFeatures = {}, requestPolicy = {}
-  new Function('exports',compile(fs.readFileSync(path.join(root,'sourceRuntime/SourceHostFeatures.ets'),'utf8')))(hostFeatures)
+  new Function('exports','require',compile(fs.readFileSync(path.join(root,'sourceRuntime/SourceHostFeatures.ets'),'utf8')))
+    (hostFeatures, name => name === '@kit.BasicServicesKit' ? { deviceInfo: { sdkApiVersion: 23 } } :
+      { COPY_MANGA_API_MIN_SDK: 26, COPY_MANGA_API_FEATURE: 'source_http_copymanga_api_v1' })
   new Function('exports','require',compile(fs.readFileSync(path.join(root,'sourceRuntime/SourceRequestPolicy.ets'),'utf8')))
     (requestPolicy,()=>({url:{URL}}))
   const hydratedExports = {}

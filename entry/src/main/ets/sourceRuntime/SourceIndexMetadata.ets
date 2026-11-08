@@ -142,12 +142,15 @@ export function resolveIndexDocumentUrl(value: string): string {
   return `${parsed.origin}${directory}index.json`
 }
 
-// Only the documented, exact GitHub proxy forms share a catalog identity.
-// The result is a grouping key. Requests always use the saved address.
+// A transport that embeds the complete upstream document path can group with
+// it. This is a display key, never proof that one endpoint can update another.
 export function subscriptionIdentity(value: string): string {
   const document = resolveIndexDocumentUrl(value)
-  const proxy = /^https:\/\/(?:gh-proxy\.org|ghfast\.top)\/(github\.com\/[^/]+\/[^/]+\/releases\/(?:latest\/download|download\/[^/]+)\/[^/]+\.json)$/.exec(document)
-  return proxy === null ? document || value : `https://${proxy[1]}`
+  const parsed = parseSourceIndexHttpUrl(document)
+  if (parsed === undefined || !parsed.origin.startsWith('https://')) return document || value
+  const upstream = /^\/([a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]{1,5})?)\/(.+\.json)$/i.exec(parsed.path)
+  if (upstream === null) return document
+  return 'https://' + upstream[1].toLowerCase() + '/' + upstream[2]
 }
 
 export function normalizeRepositoryLastUsedAt(value: Object | undefined): number {

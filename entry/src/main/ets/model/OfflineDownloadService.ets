@@ -1,3 +1,4 @@
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { DiagnosticLogger, DiagnosticOperation } from '../diagnostics/DiagnosticLogger'
 import { SourceRequiredImageDecodeService } from './SourceRequiredImageDecode'
 import { BackgroundDownloadOwner } from './BackgroundDownloadOwner'
@@ -112,17 +113,17 @@ function pageAtIndex(chapter: Chapter, index: number): Page | undefined {
   return chapter.pages.find((page: Page): boolean => page.index === index) ?? chapter.pages[index]
 }
 
-// Public manifests retain only this source's allowlisted URL without userinfo,
-// query or fragment; all other source addresses stay out of the manifest.
-function publicBaoziUri(sourceId: string | undefined, value: string | undefined): string | undefined {
-  if (sourceId !== 'online.baozimh.koma' || value === undefined) return undefined
+// Only the installed package's public work origins can persist a safe URL.
+function publicSourceWorkUri(sourceId: string | undefined, value: string | undefined): string | undefined {
+  if (sourceId === undefined || value === undefined) return undefined
+  const domains = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.publicWorkUrlDomains
+  if (domains === undefined) return undefined
   try {
     const parsed = new url.URL(value)
     const host = parsed.hostname.toLowerCase()
     if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || parsed.username.length > 0 ||
       parsed.password.length > 0 || parsed.search.length > 0 || parsed.hash.length > 0 ||
-      !['baozimh.com', 'baozicdn.com', 'bzcdn.net'].some((domain: string): boolean =>
-        host === domain || host.endsWith('.' + domain))) return undefined
+      !domains.some((domain: string): boolean => host === domain || host.endsWith('.' + domain))) return undefined
     return value
   } catch (_error) { return undefined }
 }
@@ -131,8 +132,7 @@ function manifestIdentityFromComic(comic: Comic): OfflineChapterManifestIdentity
   return {
     sourceKind: comic.sourceKind,
     sourceId: comic.sourceRuntimeId ?? comic.remoteServerId ?? comic.sourceKind,
-    sourceMangaUrl: comic.sourceRuntimeId === 'online.baozimh.koma'
-      ? publicBaoziUri(comic.sourceRuntimeId, comic.sourcePath) : undefined,
+    sourceMangaUrl: publicSourceWorkUri(comic.sourceRuntimeId, comic.sourcePath),
     seriesId: comic.id,
   }
 }
@@ -408,7 +408,7 @@ export class OfflineDownloadService {
           imageProcessing: source.imageProcessing,
           imageProcessingResolved: source.imageProcessingResolved,
           imageProcessingFingerprint: source.imageProcessingFingerprint,
-          sourceOriginalUri: publicBaoziUri(comic.sourceRuntimeId, page?.uri),
+          sourceOriginalUri: publicSourceWorkUri(comic.sourceRuntimeId, page?.uri),
           sourceTextOverlay: page?.sourceTextOverlay,
           requiredImageDecodeResolved: writtenPage.requiredImageDecodeResolved,
           updatedAt: Date.now(),

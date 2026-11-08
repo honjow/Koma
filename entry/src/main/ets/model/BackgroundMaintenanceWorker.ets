@@ -109,8 +109,10 @@ export async function executeBackgroundMaintenance(context: common.Context, work
   hydrateLibraryStoreFromJson(library, await fs.readText(libraryPath))
   const reader = appReaderSessionStore(context.filesDir)
   const service = new LibraryUpdateService(library, registry, undefined, new SnapshotRemoteServerStore(context, config.servers),
-    (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(comic, context.filesDir, reader),
-    (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, config.policy))
+    (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(comic, context.filesDir, reader,
+      registry.lookup(comic.sourceRuntimeId ?? '').entry?.websitePolicy?.chapterIdentity),
+    (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, config.policy),
+    config.policy.refreshWorkInfo === true)
   const cursorPath = `${context.filesDir}/${UPDATE_CURSOR}`
   const savedCursor: BackgroundUpdateCursor | undefined = await fs.access(cursorPath)
     ? JSON.parse(await fs.readText(cursorPath)) as BackgroundUpdateCursor : undefined

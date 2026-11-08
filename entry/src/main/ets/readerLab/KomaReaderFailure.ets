@@ -7,7 +7,9 @@ import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 /** Koma owns its reader failure copy; reader-kit only carries this presentation value. */
 export class KomaReaderFailure {
   static sourceError(reason?: string, details?: SourceFailureDetails): Error {
-    if (reason === 'unsupported') return new Error('koma_reader_source_chapter_unsupported')
+    if (reason === 'unsupported' && details?.kind !== 'host_feature_required') {
+      return new Error('koma_reader_source_chapter_unsupported')
+    }
     if (details !== undefined) {
       const error: Record<string, Object | string | number | boolean | null> = {}
       error['code'] = details.code
@@ -29,6 +31,10 @@ export class KomaReaderFailure {
       error instanceof SourceRuntimeError
         ? `kind=${error.diagnostic.kind} reason=${error.diagnostic.reason} error=${error.diagnostic.code} http=${error.diagnostic.status}`
         : DiagnosticLogger.errorSummary(error))
+    if (error instanceof SourceRuntimeError && error.diagnostic.kind === 'image_quota_exhausted') {
+      return new ReaderAssetFailure('pageUnavailable', AppStrings.get('source_failure_image_quota_exhausted'),
+        AppStrings.get('source_failure_image_quota_hint'))
+    }
     return new ReaderAssetFailure('pageUnavailable',
       KomaReaderFailure.catalogMessage(error) || AppStrings.get('reader_page_load_failed'))
   }

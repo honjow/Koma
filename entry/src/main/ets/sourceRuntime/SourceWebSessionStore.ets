@@ -35,6 +35,8 @@ export interface SourceHttpIdentity {
   credentialGrantId?: string
   operationGuardId?: string
   detailChapterContext?: boolean
+  requestLimitsDeclared?: boolean
+  dnsBootstrapDeclared?: boolean
   // Host-owned trace label only; never part of a grant, package identity or persisted session.
   diagnosticOperation?: string
 }
@@ -105,6 +107,8 @@ export function sourceHttpIdentityJson(entry: SourceRuntimeRegistryEntry, operat
   if (entry.sessionStorageIdentity !== undefined) identity.privateSessionIdentity = entry.sessionStorageIdentity
   if (operationGuardId !== undefined) identity.operationGuardId = operationGuardId
   if (detailChapterContext) identity.detailChapterContext = true
+  if ((entry.requestLimits?.length ?? 0) > 0) identity.requestLimitsDeclared = true
+  if (entry.websitePolicy?.dnsBootstrap !== undefined) identity.dnsBootstrapDeclared = true
   if (diagnosticOperation !== undefined && ['search', 'get_manga', 'get_chapters', 'get_pages',
     'get_manga_list', 'get_home', 'get_listings', 'get_filters', 'get_settings', 'get_image_request'].includes(diagnosticOperation)) {
     identity.diagnosticOperation = diagnosticOperation

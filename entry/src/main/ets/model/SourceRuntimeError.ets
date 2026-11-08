@@ -11,9 +11,9 @@ export interface SourceFailureDetails {
 const SOURCE_FAILURE_CODES: string[] = [
   'timeout', 'network_error', 'http_error', 'region_restricted', 'permission_denied', 'challenge_required', 'auth_required',
   'unauthorized', 'forbidden', 'paid_chapter', 'chapter_locked', 'chapter_unavailable',
-  'rate_limited', 'rate_limit', 'not_found', 'content_removed', 'no_chapters', 'server_error', 'client_error', 'parse_error',
+  'rate_limited', 'rate_limit', 'image_quota_exhausted', 'not_found', 'content_removed', 'no_chapters', 'server_error', 'client_error', 'parse_error',
   'invalid_response', 'invalid_json', 'malformed_result', 'result_too_large', 'request_too_large',
-  'source_disabled', 'source_changed', 'source_id_not_registered', 'wasm_missing', 'unsupported',
+  'source_disabled', 'source_changed', 'source_id_not_registered', 'wasm_missing', 'unsupported', 'host_feature_required',
   'unsupported_operation', 'not_implemented', 'not_supported', 'wamr_runtime_error', 'runtime_error', 'source_worker_failed',
   'wasm_load_failed', 'wasm_instantiate_failed', 'wasm_environment_failed', 'missing_export',
   'wasm_call_failed', 'source_init_failed',
@@ -43,6 +43,8 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   }
   let kind = 'runtime'
   if (candidates.includes('challenge_required')) kind = 'challenge'
+  else if ((status === 0 || status === 402 || status === 403 || status === 429) &&
+    candidates.includes('image_quota_exhausted')) kind = 'image_quota_exhausted'
   else if (status === 401 || candidates.some((item: string): boolean =>
     ['auth_required', 'unauthorized'].includes(item))) kind = 'auth'
   else if (status === 403 || candidates.some((item: string): boolean =>
@@ -69,6 +71,7 @@ export function sourceFailureDetails(response: SourceRuntimeCallResponse): Sourc
   else if (status === 0 && candidates.includes('no_chapters')) kind = 'no_chapters'
   else if (candidates.some((item: string): boolean =>
     ['source_disabled', 'source_id_not_registered', 'wasm_missing'].includes(item))) kind = 'unavailable'
+  else if (status === 0 && candidates.includes('host_feature_required')) kind = 'host_feature_required'
   else if (candidates.some((item: string): boolean => ['unsupported', 'unsupported_operation', 'not_implemented', 'not_supported'].includes(item))) kind = 'unsupported'
   else if (candidates.includes('wasm_load_failed') || candidates.includes('missing_export')) kind = 'load'
   else if (candidates.some((item: string): boolean =>
@@ -81,6 +84,7 @@ export function sourceFailureText(details: SourceFailureDetails, fallback: strin
   // Keep internal failures in diagnostics. The caller knows which action failed.
   if (['runtime', 'load', 'init', 'execute', 'parse', 'capacity'].includes(details.kind)) return fallback
   const text = AppStrings.get('source_failure_' + details.kind)
+  if (details.kind === 'image_quota_exhausted') return text + '\n' + AppStrings.get('source_failure_image_quota_hint')
   return details.status > 0 ? AppStrings.format('source_failure_http', text, details.status) : text
 }
 

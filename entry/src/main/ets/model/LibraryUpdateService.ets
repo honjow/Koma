@@ -2,6 +2,7 @@ import { chapterSortKey, enrichSourceChapterMetadata } from './SourceChapterMeta
 import { reconcileSourceChapterIdentity } from './SourceChapterIdentity'
 import { BackupRestoreActivity } from './BackupRestoreActivity'
 import { estimateComicUpdateSchedule } from './ComicReleaseSchedule'
+import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import {
   Chapter,
   Comic,
@@ -13,6 +14,7 @@ import {
   assignComicSourceCover,
   copyComicUpdateSchedule,
   setCompleteSourceChapterCatalog,
+  sameComicIdentity,
 } from './ComicModels'
 import { LibraryStore } from './LibraryStore'
 import {
@@ -20,8 +22,10 @@ import {
   serializeLibraryStore,
   hydrateLibraryStoreFromJson,
 } from './LibraryPersistence'
-import { MangaChapterItem } from './MangaDetailModels'
+import { MangaChapterItem, MangaDetail, MangaStatus } from './MangaDetailModels'
 import { resolveSourceChapterList } from './SourceChapterListResolver'
+import { fetchSourceMangaDetail } from './SourceMangaDetailRequest'
+import { appSourceSettingsStore, SourceSettingsRecord } from '../sourceRuntime/SourceSettingsStore'
 import {
   SourceRuntimeRegistry,
   SourceRuntimeRegistryEntry,
@@ -240,6 +244,40 @@ function updatedComicWithChapters(comic: Comic, chapters: Chapter[], now: number
   copyComicPersonalFields(comic, nextComic)
   copyComicUpdateSchedule(comic, nextComic)
   return nextComic
+}
+
+/** Status is needed by shelf filters and update rules, regardless of the optional work-info refresh. */
+function applySourcePublicationMetadata(comic: Comic, detail: MangaDetail | undefined, refreshWorkInfo: boolean): boolean {
+  if (detail === undefined) return false
+  const status = detail.status
+  const cover = detail.coverUrl?.trim() ?? ''
+  const statusChanged = status !== undefined && status !== MangaStatus.UNKNOWN && comic.sourceMetadata?.status !== status
+  if (statusChanged) {
+    if (comic.sourceMetadata === undefined) comic.sourceMetadata = {}
+    comic.sourceMetadata.status = status
+  }
+  if (!refreshWorkInfo) return statusChanged
+  // Empty or omitted fields never erase a usable snapshot. A custom cover stays in front.
+  const coverChanged = /^https?:\/\//i.test(cover) && (comic.customCoverUri ? comic.sourceCoverUri : comic.coverUri) !== cover
+  if (coverChanged) assignComicSourceCover(comic, cover)
+  const author = detail.author || comic.author
+  const description = detail.description || comic.subtitle
+  const artist = detail.artist || comic.sourceMetadata?.artist
+  const contentRating = detail.contentRating || comic.sourceMetadata?.contentRating
+  const tags = detail.tags?.length ? detail.tags : comic.sourceMetadata?.tags
+  const infoChanged = author !== comic.author || description !== comic.subtitle || artist !== comic.sourceMetadata?.artist ||
+    contentRating !== comic.sourceMetadata?.contentRating || JSON.stringify(tags) !== JSON.stringify(comic.sourceMetadata?.tags)
+  if (infoChanged) {
+    comic.author = author
+    comic.subtitle = description
+    if (artist !== undefined || contentRating !== undefined || tags !== undefined) {
+      if (comic.sourceMetadata === undefined) comic.sourceMetadata = {}
+      comic.sourceMetadata.artist = artist
+      comic.sourceMetadata.contentRating = contentRating
+      comic.sourceMetadata.tags = tags?.slice()
+    }
+  }
+  return statusChanged || coverChanged || infoChanged
 }
 
 function updatedComicWithCoverUri(comic: Comic, chapters: Chapter[], now: number, coverUri?: string): Comic {
@@ -470,6 +508,7 @@ export class LibraryUpdateService {
   private remoteServerStore?: RemoteServerStore
   private protectedChapterIds?: (comic: Comic) => Set<string> | undefined
   private includeComic?: (comic: Comic) => boolean
+  private refreshWorkInfo: boolean
 
   constructor(
     libraryStore: LibraryStore,
@@ -478,6 +517,7 @@ export class LibraryUpdateService {
     remoteServerStore?: RemoteServerStore,
     protectedChapterIds?: (comic: Comic) => Set<string> | undefined,
     includeComic?: (comic: Comic) => boolean,
+    refreshWorkInfo: boolean = false,
   ) {
     this.libraryStore = libraryStore
     this.sourceRegistry = sourceRegistry
@@ -485,6 +525,7 @@ export class LibraryUpdateService {
     this.remoteServerStore = remoteServerStore
     this.protectedChapterIds = protectedChapterIds
     this.includeComic = includeComic
+    this.refreshWorkInfo = refreshWorkInfo
   }
 
   async checkLibraryUpdates(): Promise<LibraryUpdateSummary> {
@@ -615,12 +656,26 @@ export class LibraryUpdateService {
       }
     }
     try {
-      const fetchedChapters = await this.fetchSourceRuntimeChapters(lookup.entry, mangaId, comic.sourcePath)
-      const identity = reconcileSourceChapterIdentity(comic, mangaId, fetchedChapters,
-        this.protectedChapterIds?.(comic))
+      const entry = lookup.entry
+      const settingsRevision = appSourceSettingsStore.revisionForSource(entry.sourceId)
+      const fetchedChapters = await this.fetchSourceRuntimeChapters(entry, mangaId, comic.sourcePath)
+      const detail = await this.fetchSourceRuntimeDetail(entry, mangaId, comic.sourcePath,
+        appSourceSettingsStore.loadForSource(entry.sourceId))
+      if (this.sourceRegistry.lookup(sourceRuntimeId).entry !== entry || !sourceRuntimeEntryEnabled(entry) ||
+        appSourceSettingsStore.revisionForSource(entry.sourceId) !== settingsRevision) {
+        throw new Error('source_chapters_cancelled')
+      }
+      // A network check can overlap a removal or a user edit. Merge into the
+      // live shelf entry and never recreate a removed or migrated favorite.
+      const liveComic = this.libraryStore.getComic(comic.id)
+      if (liveComic === undefined || !sameComicIdentity(comic, liveComic)) {
+        return this.skippedResult(comic, previousChapterCount, AppStrings.get('library_update_no_new_chapters'))
+      }
+      const identity = reconcileSourceChapterIdentity(liveComic, mangaId, fetchedChapters,
+        this.protectedChapterIds?.(liveComic), entry.websitePolicy?.chapterIdentity)
       const remoteChapters = identity.chapters
       const identityChanged = identity.removedDuplicateIds.length > 0
-      const currentComic = identityChanged ? JSON.parse(JSON.stringify(comic)) as Comic : comic
+      const currentComic = identityChanged ? JSON.parse(JSON.stringify(liveComic)) as Comic : liveComic
       if (identityChanged) {
         currentComic.chapters = identity.storedChapters
         currentComic.chapterCount = identity.storedChapters.length
@@ -639,8 +694,10 @@ export class LibraryUpdateService {
         const directoryMissing = remoteIds.some((id: string): boolean => !storedIds.has(id))
         if (directoryMissing) nextComic.chapters = mergeSourceChapters(currentComic, remoteChapters, now)
         const catalogChanged = setCompleteSourceChapterCatalog(nextComic, remoteIds, now)
+        const publicationChanged = applySourcePublicationMetadata(nextComic, detail, this.refreshWorkInfo)
+        if (publicationChanged) nextComic.updatedAt = now
         const metadataChanged = enrichSourceChapterMetadata(nextComic, remoteChapters) || catalogChanged ||
-          identityChanged || directoryMissing
+          identityChanged || directoryMissing || publicationChanged
         if (metadataChanged) {
           this.libraryStore.upsertComic(nextComic)
         }
@@ -657,8 +714,9 @@ export class LibraryUpdateService {
       }
       const now = Date.now()
       const mergedChapters = mergeSourceChapters(currentComic, remoteChapters, now)
-      const updated = updatedComicWithChapters(comic, mergedChapters, now)
+      const updated = updatedComicWithChapters(currentComic, mergedChapters, now)
       setCompleteSourceChapterCatalog(updated, remoteIds, now)
+      applySourcePublicationMetadata(updated, detail, this.refreshWorkInfo)
       this.libraryStore.upsertComic(updated)
       return {
         comicId: comic.id,
@@ -682,6 +740,17 @@ export class LibraryUpdateService {
         newChapterCount: previousChapterCount,
         message: safeLibraryUpdateFailureCode(e.message),
       }
+    }
+  }
+
+  private async fetchSourceRuntimeDetail(entry: SourceRuntimeRegistryEntry, mangaId: string,
+    mangaUrl: string, settings: SourceSettingsRecord): Promise<MangaDetail | undefined> {
+    try {
+      return (await fetchSourceMangaDetail(entry, mangaId, mangaUrl, settings, 'library-update')).detail
+    } catch (_error) {
+      // A failed optional detail request must not block valid chapter updates.
+      DiagnosticLogger.debug('library_update', 'source_detail_unavailable', 'metadata_preserved=true')
+      return undefined
     }
   }
 

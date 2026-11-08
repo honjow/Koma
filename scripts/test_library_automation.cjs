@@ -83,6 +83,9 @@ async function main() {
   })
   const preferences = new store.LibraryAutomationPreferencesStore({})
   assert.equal((await preferences.load()).autoDownloadNewChapters, false)
+  assert.equal((await preferences.load()).refreshWorkInfo, false)
+  await preferences.update(p => { p.refreshWorkInfo = true })
+  assert.equal((await new store.LibraryAutomationPreferencesStore({}).load()).refreshWorkInfo, true)
   await Promise.all([preferences.update(p => { p.autoDownloadNewChapters = true }),
     preferences.update(p => { p.skipCompleted = true })])
   assert.equal((await preferences.load()).autoDownloadNewChapters, true)

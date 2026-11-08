@@ -1,7 +1,7 @@
 import { taskpool } from '@kit.ArkTS'
 import { SourcePrivateSessionHost } from './SourcePrivateSessionHost'
 import { executeSourceRuntimeRequest, runBrowseSourceOperationTask, runLocalCoverOperationTask } from './SourceRuntimeWorker'
-import { sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
+import { sourceRuntimeExecutionHasDnsBootstrap, sourceRuntimeExecutionSourceId } from './SourceRuntimeExecutionIdentity'
 
 export enum SourceWorkerPriority {
   FOREGROUND = 'foreground',
@@ -99,7 +99,7 @@ function enqueueSourceWorker(requestJson: string, wasmBytes: Uint8Array, httpCon
 async function runSourceWorker(requestJson: string, wasmBytes: Uint8Array,
   httpContextJson: string, browse: boolean, copyOnAdmission: boolean): Promise<string> {
   let publicInitializationAllowed = false
-  if (sourceRuntimeExecutionSourceId(httpContextJson) === 'com.picacomic.koma') {
+  if (sourceRuntimeExecutionHasDnsBootstrap(httpContextJson)) {
     try {
       const request = JSON.parse(requestJson) as Record<string, Object>
       const hints = request['hostHints'] as Record<string, Object> | undefined

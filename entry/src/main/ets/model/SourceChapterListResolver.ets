@@ -2,6 +2,7 @@ import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { SourceRuntimeError } from './SourceRuntimeError'
 import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { sourceHttpIdentityJson } from '../sourceRuntime/SourceWebSessionStore'
+import { configureSourceRequestPolicy } from '../sourceRuntime/SourceRequestPolicy'
 import { sourceChapterForRetainedIdentity } from './SourceChapterIdentity'
 import { MangaChapterItem, parseMangaChapterFromSourceItem } from './MangaDetailModels'
 import { SourceRuntimeRegistryEntry } from '../sourceRuntime/SourceRuntimeRegistry'
@@ -96,7 +97,7 @@ export async function resolveSourceChapterForResume(
   isCurrent?: () => boolean,
 ): Promise<MangaChapterItem | undefined> {
   const result = await fetchSourceChapterList(entry, mangaId, chapterId, mangaUrl, isCurrent)
-  return sourceChapterForRetainedIdentity(entry.sourceId, mangaId, chapterId, result.chapters)
+  return sourceChapterForRetainedIdentity(entry.websitePolicy?.chapterIdentity, mangaId, chapterId, result.chapters)
 }
 
 async function fetchSourceChapterList(
@@ -113,6 +114,7 @@ async function fetchSourceChapterList(
   const requestedCursors: Set<string> = new Set()
   const settingsRevision = appSourceSettingsStore.revisionForSource(entry.sourceId)
   const settings = appSourceSettingsStore.loadForSource(entry.sourceId)
+  configureSourceRequestPolicy(entry.requestLimits, settings)
   const observationToken = appSourceSettingObservationStore.tokenForSource(entry.sourceId)
   const current = (): boolean => (isCurrent === undefined || isCurrent()) &&
     appSourceSettingsStore.revisionForSource(entry.sourceId) === settingsRevision

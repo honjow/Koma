@@ -93,9 +93,15 @@ function summary(statuses, time = checkedAt) {
   }
 }
 
+const numericChapterIdentity = { workPrefix: '/comic/', workSuffix: '.html', chapterPrefix: '/comic/',
+  chapterSeparator: '/', chapterSuffix: '.html', encodedLegacy: { prefix: '/go/', separator: '-', hexSuffixLength: 10 } }
+const titleChapterIdentity = { workPrefix: 'manga:', chapterPrefix: 'chapter:', chapterSeparator: ':', titleSeparator: '#' }
+
 function checkChapterIdentityProtection() {
-  const { reconcileSourceChapterIdentity: reconcile, sourceChapterForRetainedIdentity: resume } =
+  const { reconcileSourceChapterIdentity: resolve, sourceChapterForRetainedIdentity: resume } =
     compile(source('SourceChapterIdentity'), {})
+  const reconcile = (comic, work, incoming, protectedIds) =>
+    resolve(comic, work, incoming, protectedIds, numericChapterIdentity)
   const oldId = '/go/' + Buffer.from('9330-123-0123456789').toString('base64url')
   const currentId = '/comic/9330/123.html'
   const old = { id: oldId, pages: [{ id: 'page-1', uri: 'file://kept-page' }], pageCount: 1 }
@@ -120,16 +126,17 @@ function checkChapterIdentityProtection() {
   const ambiguous = { ...comic, chapters: [...comic.chapters,
     { ...old, id: '/go/' + Buffer.from('9330-123-abcdef0123').toString('base64url') }] }
   assert.deepEqual(reconcile(ambiguous, '/comic/9330.html', incoming, new Set()).removedDuplicateIds, [])
-  assert.deepEqual(reconcile({ ...comic, sourceRuntimeId: 'other-source' }, '/comic/9330.html',
+  assert.deepEqual(resolve({ ...comic, sourceRuntimeId: 'other-source' }, '/comic/9330.html',
     incoming, new Set()).removedDuplicateIds, [])
-  assert.equal(resume(comic.sourceRuntimeId, '/comic/9330.html', oldId, incoming).id, oldId)
-  assert.equal(resume(comic.sourceRuntimeId, '/comic/9330.html', oldId,
+  assert.equal(resume(numericChapterIdentity, '/comic/9330.html', oldId, incoming).id, oldId)
+  assert.equal(resume(numericChapterIdentity, '/comic/9330.html', oldId,
     [{ ...incoming[0], id: '/comic/9999/123.html' }]), undefined)
 }
 
 function checkBaoziChapterIdentityProtection() {
-  const { reconcileSourceChapterIdentity: reconcile, sourceChapterForRetainedIdentity: resume } =
+  const { reconcileSourceChapterIdentity: resolve, sourceChapterForRetainedIdentity: resume } =
     compile(source('SourceChapterIdentity'), {})
+  const reconcile = (comic, work, incoming) => resolve(comic, work, incoming, undefined, titleChapterIdentity)
   const sourceId = 'online.baozimh.koma'
   const mangaId = 'manga:fixture'
   const id = 'chapter:fixture:7'
@@ -155,10 +162,10 @@ function checkBaoziChapterIdentityProtection() {
   'switching off cannot collapse distinct chapter rows')
   assert.equal(reconcile({ ...comic, chapters: [] }, mangaId, remote).chapters, remote,
     'first load keeps the full source catalog')
-  assert.equal(resume(sourceId, mangaId, titled, [{ id, title }]).id, titled)
-  assert.equal(resume(sourceId, mangaId, id, [{ id: titled, title }]), undefined,
+  assert.equal(resume(titleChapterIdentity, mangaId, titled, [{ id, title }]).id, titled)
+  assert.equal(resume(titleChapterIdentity, mangaId, id, [{ id: titled, title }]), undefined,
     'an orphaned legacy history ID has no title and cannot be guessed')
-  assert.equal(resume(sourceId, mangaId, titled, [{ id, title }, { id, title: 'different' }]), undefined)
+  assert.equal(resume(titleChapterIdentity, mangaId, titled, [{ id, title }, { id, title: 'different' }]), undefined)
   const opaque = 'chapter:fixture:slot-A'
   assert.equal(reconcile({ ...comic, chapters: [{ ...kept, id: opaque }] }, mangaId,
     [{ id: `${opaque}#${title}`, title }]).chapters[0].id, opaque)
@@ -166,14 +173,22 @@ function checkBaoziChapterIdentityProtection() {
 
 async function checkBaoziUpdateFailure() {
   const identity = compile(source('SourceChapterIdentity'), {})
+  const models = compile(source('ComicModels'), {})
   const owner = serviceFile.statements.find((node) => ts.isClassDeclaration(node) &&
     node.name?.text === 'LibraryUpdateService')
   const method = owner.members.find((node) => node.name?.text === 'checkSourceRuntimeComic')
+  const publication = serviceFile.statements.find((node) => node.name?.text === 'applySourcePublicationMetadata')
   let conflictObserved = false
   const { Update } = compile(`const { sourceMangaIdFromComic, sourceRuntimeEntryEnabled,
     reconcileSourceChapterIdentity, providerKindForComic, sourceKeyForComic,
-    safeLibraryUpdateFailureCode } = require('fixture');
+    safeLibraryUpdateFailureCode, appSourceSettingsStore, sameComicIdentity,
+    setCompleteSourceChapterCatalog, assignComicSourceCover, enrichSourceChapterMetadata,
+    MangaStatus, AppStrings } = require('fixture');
+    ${publication.getText(serviceFile)}
     export class Update { ${method.getText(serviceFile)} }`, { fixture: {
+    ...models, ...strings,
+    ...compile(source('SourceChapterMetadata'), {}), MangaStatus: { UNKNOWN: 'unknown' },
+    appSourceSettingsStore: { revisionForSource: () => '0', loadForSource: () => ({}) },
     sourceMangaIdFromComic: () => 'manga:fixture', sourceRuntimeEntryEnabled: () => true,
     reconcileSourceChapterIdentity: (...args) => {
       try { return identity.reconcileSourceChapterIdentity(...args) }
@@ -182,12 +197,18 @@ async function checkBaoziUpdateFailure() {
     providerKindForComic: () => 'source_runtime', sourceKeyForComic: () => 'source:fixture',
     safeLibraryUpdateFailureCode: service.safeLibraryUpdateFailureCode,
   } })
-  const kept = { id: 'chapter:fixture:7', title: '第7话', isRead: true, pages: [{ id: 'page-1' }] }
-  const comic = { id: 'saved', sourceRuntimeId: 'online.baozimh.koma', chapters: [kept] }
+  const kept = { id: 'chapter:fixture:7', title: '第7话', isRead: true, index: 0, sortKey: '0', pages: [{ id: 'page-1' }] }
+  const comic = { id: 'saved', sourceRuntimeId: 'online.baozimh.koma', chapters: [kept], chapterCount: 1,
+    coverUri: 'file:///selected', customCoverUri: 'file:///selected', sourceCoverUri: 'https://fixture.invalid/old.jpg',
+    subtitle: 'Old summary', sourceMetadata: { status: 'ongoing', sharedChapterIds: [kept.id] } }
   const update = new Update()
+  const entry = { enabled: true, websitePolicy: { chapterIdentity: titleChapterIdentity } }
   let writes = 0
-  update.sourceRegistry = { lookup: () => ({ ok: true, entry: { enabled: true } }) }
-  update.libraryStore = { upsertComic: () => { writes++ } }
+  let current = comic
+  update.sourceRegistry = { lookup: () => ({ ok: true, entry }) }
+  update.libraryStore = { getComic: () => current, upsertComic: (next) => { writes++; current = next } }
+  const detail = { status: 'completed', description: 'New summary', coverUrl: 'https://fixture.invalid/new.jpg' }
+  update.fetchSourceRuntimeDetail = async () => detail
   update.fetchSourceRuntimeChapters = async () => [{ id: kept.id + '#different', title: 'different' }]
   const before = JSON.stringify(comic)
   const result = await update.checkSourceRuntimeComic(comic, 1)
@@ -196,6 +217,35 @@ async function checkBaoziUpdateFailure() {
   assert.equal(conflictObserved, true)
   assert.equal(writes, 0, 'a failed whole-catalog match cannot publish a partial library update')
   assert.equal(JSON.stringify(comic), before)
+
+  update.fetchSourceRuntimeChapters = async () => [{ id: kept.id, title: kept.title }]
+  update.refreshWorkInfo = false
+  const statusOnly = await update.checkSourceRuntimeComic(comic, 1)
+  assert.equal(statusOnly.status, 'unchanged')
+  assert.equal(statusOnly.metadataChanged, true)
+  assert.equal(current.sourceMetadata.status, 'completed')
+  assert.equal(current.subtitle, 'Old summary')
+  assert.equal(current.sourceCoverUri, 'https://fixture.invalid/old.jpg')
+
+  update.refreshWorkInfo = true
+  const full = await update.checkSourceRuntimeComic(current, 1)
+  assert.equal(full.status, 'unchanged')
+  assert.equal(full.metadataChanged, true)
+  assert.equal(current.coverUri, 'file:///selected')
+  assert.equal(current.sourceCoverUri, detail.coverUrl)
+  assert.equal(current.subtitle, detail.description)
+  assert.deepEqual(current.chapters[0].pages, kept.pages)
+
+  update.fetchSourceRuntimeDetail = async () => ({ status: 'unknown', description: '', coverUrl: '' })
+  const incomplete = await update.checkSourceRuntimeComic(current, 1)
+  assert.equal(incomplete.metadataChanged, false)
+  assert.equal(current.sourceMetadata.status, 'completed')
+
+  const removed = current
+  update.skippedResult = () => ({ status: 'skipped' })
+  update.fetchSourceRuntimeDetail = async () => { current = undefined; return detail }
+  assert.equal((await update.checkSourceRuntimeComic(removed, 1)).status, 'skipped')
+  assert.equal(current, undefined, 'an in-flight update must not recreate a removed favorite')
 }
 
 async function main() {

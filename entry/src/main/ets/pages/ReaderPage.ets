@@ -11,7 +11,6 @@ import { readerModeSelection } from '../model/ReaderPreferencesStore'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { image } from '@kit.ImageKit'
 import { ReaderPreloadNetworkMonitor, readerRemotePreloadAllowed } from '../model/ReaderPreloadNetwork'
-import { appSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { LengthMetrics, window } from '@kit.ArkUI'
 import { KeyCode } from '@kit.InputKit'
@@ -2475,10 +2474,7 @@ export struct ReaderPage {
     // Text overlays always produce JPEG, independently of the original URL suffix.
     let extension = source.sourceTextOverlay !== undefined ? 'jpg' :
       this.imageExtension(source.imageUri.length > 0 ? source.imageUri : sourcePath)
-    const bannerMode = source.sourceRuntimeId === 'online.baozimh.koma'
-      ? appSourceSettingsStore.loadForSource(source.sourceRuntimeId)['BAOZI_BANNER'] : undefined
-    if (source.sourceRuntimeId === 'online.baozimh.koma' &&
-      (bannerMode === undefined || bannerMode === '1' || bannerMode === '2')) {
+    if (source.sourceRuntimeId !== undefined && source.sourceTextOverlay === undefined) {
       // A processed page is JPEG; unchanged pages retain their actual format.
       let decoder: image.ImageSource | undefined = undefined
       try {

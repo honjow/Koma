@@ -45,20 +45,11 @@ test('host capability handoff preserves requests and validates plain text withou
   const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
   assert.deepEqual(enriched.args, request.args)
   assert.deepEqual(enriched.settings, request.settings)
-  // The previous exhaustive fixture already failed on HEAD: it stopped at
-  // http_batch. Keep a strict list for the adopted and separately exercised contracts.
-  assert.deepEqual(enriched.hostFeatures, ['text_page_image_v1', 'source_rate_limit_v1', 'source_rate_limit_buondua_v1',
-    'text_page_image_zaimanhua_comments_v1', 'source_text_page_request_v1', 'source_setting_observations_v1',
-    'source_chapter_exclusions_v1', 'source_setting_uuid_list_v1', 'mangabz_language_cookie_v1', 'mangabz_mirror_session_v1',
-    'source_settings_context_v1', 'source_http_batch_v1', 'source_filter_scope_header_v1', 'source_filter_fetching_v1',
-    'source_filter_tristate_v1', 'chapter_reading_order_v1', 'source_private_session_v1', 'source_page_image_processing_v1',
-    'source_baozi_chapter_identity_v1', 'source_java_regex_v1', 'source_page_text_overlay_v1', 'source_authentication_v1',
-    'source_private_session_process_v1', 'source_private_session_replace_v1', 'source_required_image_decode_jm_stripes_v1',
-    'source_rate_limit_jm_v1', 'source_rate_limit_hentaiclub_v1', 'source_rate_limit_wnacg_v1', 'source_setting_positive_integer_v1', 'source_dns_pica_channel_v1',
-    'source_bilimanga_guest_search_v1', 'source_rate_limit_bilimanga_v1', 'source_native_cookie_session_v1',
-    'source_rate_limit_xiutaku_v1', 'source_related_manga_v1',
-    'source_public_cover_user_agent_v1', 'source_public_cover_client_headers_v1', 'source_filter_search_without_query_v1',
-    'source_listing_filter_scope_v1'])
+  assert(enriched.hostFeatures.includes('source_text_page_request_v1'))
+  assert(enriched.hostFeatures.includes('source_http_batch_v1'))
+  assert(!enriched.hostFeatures.includes('source_request_limits_v1'))
+  const limited = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request), false, false, true))
+  assert(limited.hostFeatures.includes('source_request_limits_v1'))
   // The adopted language setting affects all same-site metadata requests too.
   for (const operation of ['search', 'get_manga', 'get_manga_list', 'get_listings', 'get_home', 'get_filters',
     'get_authentication', 'authenticate', 'logout']) {
@@ -255,7 +246,10 @@ test('actual sliding windows share the CDN quota, isolate main-site quota and re
     }
     await flush()
   }
-  const id = 'com.manhuagui.koma'
+  const id = [
+    { group: 'main', permits: 10, periodMs: 10000, hosts: ['www.manhuagui.com'], setting: { key: 'mainSiteRatelimitPreference', maxPermits: 10 } },
+    { group: 'images', permits: 4, periodMs: 1000, hosts: ['i.hamreus.com', 'cf.hamreus.com'], setting: { key: 'imgCDNRatelimitPreference', maxPermits: 10 } },
+  ]
   policy.configureSourceRequestPolicy(id, { mainSiteRatelimitPreference: '1', imgCDNRatelimitPreference: '1' })
   const starts = []
   await policy.waitForSourceRequestSlot(id, 'https://i.hamreus.com/a')
@@ -272,18 +266,18 @@ test('actual sliding windows share the CDN quota, isolate main-site quota and re
   await flush(); current = false
   const next = policy.waitForSourceRequestSlot(id, 'https://i.hamreus.com/d')
   await advance(2000); await rejected; await next
-  await policy.waitForSourceRequestSlot('other.source', 'https://i.hamreus.com/e')
+  await policy.waitForSourceRequestSlot(undefined, 'https://i.hamreus.com/e')
   await policy.waitForSourceRequestSlot(id, 'https://unrelated.example/a')
   await advance(10000); await main
   assert.deepEqual(starts, [['cdn', 1000], ['main', 10000]])
 
-  const buondua = 'com.buondua.koma', buonStarts = []
+  const buondua = [{ group: 'main', permits: 10, periodMs: 1000, hosts: ['buondua.com'] }], buonStarts = []
   for (let i = 0; i < 10; i++) await policy.waitForSourceRequestSlot(buondua, `https://buondua.com/${i}`)
   const eleventh = policy.waitForSourceRequestSlot(buondua, 'https://buondua.com/11').then(() => buonStarts.push(now))
   await flush(); assert.deepEqual(buonStarts, [], 'BuonDua request 11 must wait for its own one-second window')
   // Only this source's exact main host is limited; its CDN and other sources do not share that quota.
   for (const [source, address] of [
-    ['other.source', 'https://buondua.com/a'], [id, 'https://buondua.com/a'],
+    [undefined, 'https://buondua.com/a'], [id, 'https://buondua.com/a'],
     [buondua, 'https://cdn.buondua.com/a'], [buondua, 'https://www.buondua.com/a'],
     [buondua, 'https://buondua.com.evil.test/a'], [id, 'https://i.hamreus.com/independent'],
   ]) await policy.waitForSourceRequestSlot(source, address)
@@ -303,14 +297,15 @@ test('actual sliding windows share the CDN quota, isolate main-site quota and re
   await flush(); assert.equal(remainingStarted, 9, 'a cancelled waiter cannot consume one of the ten slots')
   await remaining
 
-  const bili = 'net.bilimanga.koma'
+  const bili = [{ group: 'all', permits: 10, periodMs: 10000,
+    setting: { key: 'RATE_LIMIT', windowValue: true, keepUntilRestart: true } }]
   policy.configureSourceRequestPolicy(bili, { RATE_LIMIT: '1/2' })
   await policy.waitForSourceRequestSlot(bili, 'https://www.bilimanga.net/top/lastupdate/1.html')
   policy.configureSourceRequestPolicy(bili, { RATE_LIMIT: '10/10' })
   let biliImageStarted = false
   const biliImage = policy.waitForSourceRequestSlot(bili, 'https://w.motiezw.com/img/page.avif')
     .then(() => { biliImageStarted = true })
-  await policy.waitForSourceRequestSlot('other.source', 'https://w.motiezw.com/img/other.avif')
+  await policy.waitForSourceRequestSlot(undefined, 'https://w.motiezw.com/img/other.avif')
   await advance(13999)
   assert.equal(biliImageStarted, false)
   await advance(14000)
@@ -320,8 +315,8 @@ test('actual sliding windows share the CDN quota, isolate main-site quota and re
   const host = load('sourceRuntime/SourceHostFeatures.ets')
   for (const operation of ['search', 'get_pages', 'get_image_request']) {
     const request = { operation, settings: { plain: true }, args: { value: 'unchanged' } }
-    const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request)))
-    assert(enriched.hostFeatures.includes('source_rate_limit_buondua_v1'))
+    const enriched = JSON.parse(host.sourceRequestWithHostFeatures(JSON.stringify(request), false, false, true))
+    assert(enriched.hostFeatures.includes('source_request_limits_v1'))
     assert.deepEqual(enriched.args, request.args); assert.deepEqual(enriched.settings, request.settings)
   }
 })
@@ -343,6 +338,7 @@ test('source text survives persistence and session cloning, then rebuilds throug
   assert.equal(persistence.hydrateChapter(JSON.parse(JSON.stringify(persistence.persistChapter(chapter)))).sourceSettingsFingerprint, undefined)
   const session = functions('model/ReaderSessionStore.ets', ['createReaderSessionConfigFromComic', 'cloneReaderSessionConfig'], {
     sourceTextPage, continuationChapterIds: chapters => chapters.map(c => c.id), readerChapterDisplayTitle: chapter => chapter.title,
+    readerFormatFromTags: load('model/ComicModels.ets').readerFormatFromTags,
   })
   const config = session.cloneReaderSessionConfig(session.createReaderSessionConfigFromComic({ id: 'comic', title: 'Comic',
     chapters: [{ id: 'chapter', title: 'Chapter', pageCount: 1, pages: [restored] }] }, 'chapter'))

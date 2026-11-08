@@ -6,6 +6,7 @@ import { cancelSourceWebProbe, probeSourceWebSession, sourceRejectedRequestUserA
 import { MangaWebRouteParam } from '../common/RouterHelper'
 import { AppStrings } from '../i18n/AppStrings'
 import { mangaHttpUrl } from '../model/MangaWebLink'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { appSourceWebSessionStore, readSourceWebCookies, sourceWebOrigin, SourceWebSessionStatus } from '../sourceRuntime/SourceWebSessionStore'
 import { connectLayoutSafeArea, LayoutSafeAreaState } from '../state/LayoutSafeAreaState'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -114,10 +115,10 @@ export struct SourceWebSessionSheet {
     }
     if (session?.requestHandle !== undefined) {
       const requestUa = sourceRejectedRequestUserAgent(session.sourceId, session.requestHandle, url)
-      // MANHUAWU_SOURCE_UNAVAILABLE: user adopted this source-and-origin exception.
-      // Explicitly reset the UA because unified search can reuse this controller.
-      const useEngineIdentity = session.sourceId === 'com.manhuawu.koma' &&
-        sourceWebOrigin(url) === 'https://www.mhua5.com'
+      // Explicitly reset the UA when the verified package declares the system
+      // identity for this origin. Unified search can reuse this controller.
+      const useEngineIdentity = appSourceRuntimeRegistry.lookup(session.sourceId).entry?.websitePolicy
+        ?.systemWebAgentOrigins?.includes(sourceWebOrigin(url)) === true
       if (requestUa !== undefined || useEngineIdentity) {
         try {
           const userAgent = useEngineIdentity ? this.controller.getUserAgent() : requestUa
@@ -260,8 +261,7 @@ export struct SourceWebSessionSheet {
     }
     DiagnosticLogger.info('source_web_session', 'resource_failed',
       'revision=' + this.pageRevision + ' kind=' + kind + ' code=' + code + ' mainFrame=' + request.isMainFrame() +
-      ' matchingDocument=' + (request.getRequestUrl() === this.pageUrl) +
-      ' challengeHost=' + (sourceWebOrigin(request.getRequestUrl()) === 'https://challenges.cloudflare.com'))
+      ' matchingDocument=' + (request.getRequestUrl() === this.pageUrl))
     this.mainPageFailed(request)
   }
 

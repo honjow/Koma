@@ -96,8 +96,6 @@ export struct SourceListItem {
       subtitleContentRating: this.source.nsfw,
       hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: this.presentationIconUri(),
-      sourceIdentitySourceId: this.source.sourceId,
-      sourceIdentityVersion: this.source.version,
       sourceIdentityFallbackColor: this.accentColor,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,

@@ -73,11 +73,19 @@ SourceRuntimeService 校验当前源启用/能力、请求、设置及身份，W
 - 图像请求描述进入原有下载/缓存通道；源不直接接管文件、账户、图像处理、Reader 进度或共享 Kit。
 - 正文图的常规请求保留原期限。站点在同一次响应中明确给出超过 NetworkKit 默认缓冲的内容长度时，允许在更大的有界传输预算内完成。封面、权限、限速、缓存身份和失败后不写入部分图的行为沿用原路径。
 
-### 站点原生 HTTP 兼容
+### 站点规则声明
 
-空正文 GET 仅在以下精确源和本跳 origin 使用原生浏览器兼容传输：Simply（`com.simplyhentai.zh.koma`，`https://api.simply-hentai.com`）与漫画屋（`com.manhuawu.koma`，`https://www.mhua5.com`）。URL、请求头、UA、Cookie、权限、限速、取消和重定向仍由现有宿主 HTTP 通道决定；不读取网页正文、不替换源解析、不扩大图像通道或会话域。原生工作异步执行，保留证书及主机名校验；系统代理存在或默认代理/信任目录不可用时沿 NetworkKit 原路径，不绕过代理。回退扣除本跳已消耗的网络预算。
+书源根 manifest 可带可选的 `requestLimits` 和 `websitePolicy`，由本源 `metadata.json` 随包生成。导入、注册与重载均校验声明。站点声明只选择已实现的能力，和账号授权、Web会话授权及TLS验证相互独立。
 
-兼容库固定为 curl-impersonate 2.3.2，Simply 采用 Firefox 133 配置，漫画屋采用 Chrome 145 配置并保留已批准的实际 Web UA；均关闭库的默认请求头。依赖由[固定构建配方](../scripts/prepare-source-browser-http.sh)校验并静态链接，隐藏符号，不使用平台私有 curl/SSL。当前 arm64 构建保留 HTTP/2；因 SDK 缺少 HTTP/3 所需的 `recvmmsg` 而关闭 HTTP/3，BoringSSL 使用 C/C++ 实现。第三方版权全文随 App 打包。其它源及未匹配请求保留原传输；新增适用站点必须先有具名请求差异和实际验证依据。
+- `requestLimits` 最多8个滑动窗口，每项声明唯一 `group`、`permits` 和 `periodMs`。可用精确 `hosts` 或带 `prefix` 的 `firstLabels` 匹配主机，可要求指定 `requestHeaders` 存在。默认同源包同组共享，`perOrigin` 将HTTPS origin分开计数，`oncePerRequest` 使同一次HTTP调用的匹配重定向只占一次。可选 `setting.key` 覆盖次数，`windowValue` 读取「次数/秒」，`keepUntilRestart` 采用该安装首次读取的值，`maxPermits` 限制设置值。缓存命中不入队，排队可取消且不占网络超时。`source_request_limits_v1` 仅对声明有效窗口的安装包提供。
+- `websitePolicy.homepageChoices` 通过 `setting` 和 `options[{value,url}]` 选官网地址，缺省回退包首页。普通网页不获得验证授权。验证页可按精确 `systemWebAgentOrigins` 使用系统UA，普通手机网页可按精确 `mobileWebAndroidAgentOrigins` 保留站点兼容标识。`publicCookieOverrides[{origin,name,values}]` 仅允许已授权会话在同一精确origin替换唯一合法的公共Cookie项，每跳重新核验。
+- `httpProfiles[{origin,pathPrefix?,profile}]` 对当前包的精确HTTPS origin选择 `firefox133`、`chrome145` 或 `fresh_http11`。前两者用于空正文GET并保留系统代理和TLS校验。系统代理存在或原生依赖不可用时按原网络预算回退。兼容库的版本与构建见[固定构建配方](../scripts/prepare-source-browser-http.sh)。`source_http_profiles_v1` 表示系统支持 `fresh_http11`（API 26起），该模式要求无正文、Cookie及授权头的GET，使用系统代理、证书验证和HTTP/1.1，禁止连接复用及缓存，仅跟随合法HTTPS重定向，继续使用同传输限制。
+- `source_anonymous_http_v1` 使用 `websitePolicy.guestHttp` 和 `guestSearch:true`。仅该精确HTTPS origin可访问声明的 `exactPaths`、`numberedPaths` 或只允许重定向的 `redirectNumberedPaths`。数字路径声明 `prefix`、`suffix` 及可选 `numberSeparator`，数字必须为正整数。该模式只发送声明的公共Cookie，不使用账号头或系统Web会话。仅声明的响应路径可通过 `guestSearchCookie` 回传指定的公共Cookie，`guestSearchUrl` 返回实际到达地址。
+- `source_dns_bootstrap_v1` 仅能由具备凭据声明的已安装包在网络操作中使用。按 `websitePolicy.dnsBootstrap` 选择域名、已提交的模式/地址设置、默认URL、公共UA和响应字段。独立请求 `{type:"source_dns_bootstrap",version:1,timeoutMs?}` 不接收源提供的任意URL、头、正文或账号材料。最多20次重定向，响应限64 KiB，取消、包替换、设置变化或精确凭据授权失效时停止。成功返回进程内 `dnsOverride:{kind:"dns_bootstrap_v1",proof:"…"}`。API和图片只可用同安装的有效proof为声明的HTTPS域及子域选首地址，保留原URL、SNI、系统证书验证和代理。不同安装不能复用proof。proof不写普通设置、备份或日志。
+- `chapterIdentity` 描述同作品的旧章节ID与当前ID格式。按 `workPrefix/workSuffix`、`chapterPrefix/chapterSeparator/chapterSuffix` 拆分作品和章节槽位，再由 `titleSeparator` 或 `encodedLegacy` 处理完整标题或旧编码。旧ID匹配继续保护已有页表、下载和阅读进度。缺标题或存在歧义时保留原目录。
+- `preserveRouteCover` 允许详情沿用进入时的有效封面，`routeCoverPlaceholderSuffix` 排除占位图。`publicWorkUrlDomains` 仅用于下载记录公开来源地址，继续过滤账号信息、查询和片段。
+
+生产App按声明执行站点规则。缺少所需宿主能力时，源可返回 `host_feature_required`，宿主统一提示在书源管理检查更新。普通的 `unsupported` 继续表示当前操作不受支持。
 
 HTTP 诊断关联宿主提供的操作名，并记录原生传输的 DNS、TCP、TLS、首字节和结束累计时间；零值不单独证明对应阶段完成。操作标签不参与会话或私有数据身份，不持久化；日志不包含请求地址、请求头、Cookie 或响应正文。
 
@@ -85,19 +93,23 @@ JSON POST 使用 HTTP 信封的 `body` 字段传入已经序列化的正文字�
 
 ## 宿主特性
 
+`source_image_response_errors_v1` 允许正文的 `get_image_request` 在 `data.responseErrors`
+声明实际原图 GET 的状态含义。例如 `{"402":"image_quota_exhausted","429":"rate_limited"}`。
+宿主仅消费 401 的 `auth_required`、403 的 `permission_denied`、429 的 `rate_limited`，
+以及 402、403、429 上明确声明的 `image_quota_exhausted`。未知映射忽略。声明只属于这份正文请求，
+不进入缓存或封面，不从响应正文猜原因，也不预请求一次图片。宿主负责实际 GET、错误本地化和
+安全诊断。书源自己发出的 API 请求仍由书源解释业务失败，可直接返回结构化错误。
+未声明此能力的宿主按既有行为加载，源可为新增业务错误提供旧宿主认识的降级原因。
+
 章节可选 `readingOrder` 表示源明确验证的同一阅读序列顺序，独立于展示用 `chapterNumber`／`volumeNumber`。宿主派生自动续读顺序时优先使用有限、非负的 `readingOrder`，并保留既有 `readingGroup`／`continuationEligible` 分组许可；未提供时仍按原卷／话号规则。同组排序位置重复时不能按数组位置决定先后，该组须补齐可区分的序号后才自动续读；有唯一阅读序号的重复话号、无号番外仍可正常续读。不得凭标题猜顺序或伪造卷号。依赖此字段的源仅在 `hostFeatures` 含 `chapter_reading_order_v1` 时输出对应续读合同，旧宿主保留原章节输出。宿主的详情快照、入库、目录更新、持久化和 Reader 会话使用同一字段，缓存页和进度不因预载而写回。
 
-正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`source_rate_limit_v1`、`source_rate_limit_buondua_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`mangabz_language_cookie_v1`、`mangabz_mirror_session_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1` 是正文图片准备的可选声明。现有 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }` 由订阅图片规则中的兼容映射消费；普通、强力及关闭语义保持。宿主在“跟随书源”下遵守该声明，在“自动识别”下使用已取得且允许跨源的规则；“关闭”保留原图。处理不再依赖某个源 ID 或图片域名，封面不参与。
-
-`source_rate_limit_buondua_v1` 明确保证 `com.buondua.koma` 对精确主机 `buondua.com` 的请求沿参考共用每秒10次窗口；元数据、封面及 Reader 图片缓存未命中的实际请求由现有 `SourceRequestPolicy` 统一限流。其它 CDN、其它源和缓存命中不使用该窗口。源必须显式检查此能力，旧的 `source_rate_limit_v1` 只保证漫画柜既有规则，不能据此推断 BuonDua 已限流；生产包的 `minAppVersion` 还需对应实际包含该能力的公开 App。窗口按源与规则组隔离，保漫画柜主站配置及双CDN共享限额、排队取消与网络超时预算；该能力不是 Cookie、账号、镜像或新增网络权限。
-
-`source_rate_limit_xiutaku_v1` 使用同一个宿主限流入口，对 `com.xiutaku.koma` 请求精确主机 `xiutaku.com` 应用共用的每秒 10 次滑动窗口。同一宿主 HTTP 调用的匹配重定向最多入窗一次，未命中主域的 `i.xiutaku.com` CDN、其它源和缓存命中不占用额度。源需要该明确声明才发起联网请求。生产包和正式索引的最低版本须锁定首个包含该能力的 App 版本（1.2.2）；书源先上线时，旧 App 由安装门禁拦截。
+正式源操作的请求顶层由宿主加入 `hostFeatures`，元数据、章节、页表及普通图片/文字页的 `get_image_request` 共用该声明。当前支持 `text_page_image_v1`、`text_page_image_zaimanhua_comments_v1`、`source_text_page_request_v1`、`source_setting_observations_v1`、`source_chapter_exclusions_v1`、`source_setting_uuid_list_v1`、`source_public_cookie_override_v1`、`source_homepage_choices_v1`、`source_settings_context_v1` 、`source_http_batch_v1` 、`source_filter_scope_header_v1`、`source_filter_fetching_v1`、`source_filter_tristate_v1`、`chapter_reading_order_v1`、`source_private_session_v1`、`source_page_image_processing_v1` 是正文图片准备的可选声明。现有 `imageProcessing: { kind: "baozi_banner", mode: "1" | "2" }` 由订阅图片规则中的兼容映射消费；普通、强力及关闭语义保持。宿主在“跟随书源”下遵守该声明，在“自动识别”下使用已取得且允许跨源的规则；“关闭”保留原图。处理不再依赖某个源 ID 或图片域名，封面不参与。
 
 `source_related_manga_v1` 允许 `get_manga` 在 `data.manga.relatedManga` 返回可选的同源作品卡片数组，使用现有列表卡片的身份、标题、封面及公开图片请求字段。宿主保留原顺序，跳过本作、重复和无效条目，最多读取前 100 项。详情仅在有有效条目时通过现有更多菜单显示「相关作品」，用同一书源的普通详情入口打开卡片。缺省或空数组不改变现有详情与阅读，宿主不会为此发起额外的源调用。
 
 图片处理内容由用户单独添加订阅，App按清单区分书源与图片插件，不从 `repo.json` 自动发现或添加。协议和控制范围见[图片处理插件订阅](subscription-image-rules.md)，执行接口见[插件 ABI](image-processing-plugin-abi.md)。当前页和预载共用后台图片准备；原始下载、摘要及普通 CBZ 导出不变。下载清单保存公开处理声明及设置／安装摘要，源已移除时仍可离线消费；源仍安装且设置、版本或安装路径已变化时重新解析声明。兼容映射的可选 `sourceIds` 只用于旧缓存缺失声明时补查，不限制新声明及自动识别；其它缓存正文不新增源请求。派生和未命中缓存按原始内容、算法／规则及配置区分，不改原始 HTTP 会话或缓存身份。
 
-`source_baozi_chapter_identity_v1` 允许包子的 `CHAPTER_ORDER` 在显式启用时以完整标题扩展章节身份；默认关闭，正文仍按原 slot 请求，不改变目录顺序。宿主在详情和书架更新前共用 `SourceChapterIdentity`，仅同作品、slot及完整标题唯一匹配时沿用已有ID，双向切换都保留原进度、页表和下载归属；无法唯一匹配或会合并不同章节时整次更新失败，保留旧目录，不提交部分结果。历史中的标题身份可按同一精确规则恢复；缺少标题的孤立旧ID不猜测映射。旧宿主未声明能力时，源不得展示或消费该设置。
+`source_chapter_identity_v1` 允许包子的 `CHAPTER_ORDER` 在显式启用时以完整标题扩展章节身份；默认关闭，正文仍按原 slot 请求，不改变目录顺序。宿主在详情和书架更新前共用 `SourceChapterIdentity`，仅同作品、slot及完整标题唯一匹配时沿用已有ID，双向切换都保留原进度、页表和下载归属；无法唯一匹配或会合并不同章节时整次更新失败，保留旧目录，不提交部分结果。历史中的标题身份可按同一精确规则恢复；缺少标题的孤立旧ID不猜测映射。旧宿主未声明能力时，源不得展示或消费该设置。
 
 ### 正文图片气泡
 
@@ -134,27 +146,11 @@ RPC 成功返回 `ok:true`，失败只返回 `ok:false,error:{code}`。`nowMs` �
 
 `source_setting_positive_integer_v1` 支持文本设置的 `validation: {kind:"positive_integer", message:"..."}`。沿 WNACG 已采用的 Kotlin `toIntOrNull() >= 1` 保存合同：仅值 1–2147483647，允许前导 `+`、前导零和 UTF-16 BMP 十进制数字，不 trim、不接受浮点、空串、零、负数、溢出或补充平面数字。保留原文本；默认值和 getter 的无效值回退仍归源，不以回退代替拒绝保存。沿现表单错误态/禁用保存及持久化写前校验，不修改旧无此声明字段。
 
-`source_dns_pica_channel_v1` 是哔咔默认分流 2 的专属适配。仅实际已安装的 `com.picacomic.koma`、包中凭据登录 URL 的精确 API origin 和已入队的当前网络操作可用本地桥 `{type:"pica_channel_init",version:1,timeoutMs?}`；不接源提供的 URL、headers 或 body。宿主只读该安装当前已提交的 `APP_CHANNEL_URL`（空白用 `http://68.183.234.72/init`），独立发 `GET`，只使用参考的 `User-Agent: okhttp/3.8.1` 和 `Accept-Encoding: gzip`。不借 Web Cookie、账号授权头或请求正文，不放宽原 `credential_input` 和每跳精确 API origin。元数据操作不能发起此准备。关闭自动跳转，最多 20 次手动 HTTP(S) 跳转，保持两头、无 userinfo；取消、安装替换或初始化中的设置 revision 变化不再发后续请求或签发结果。
-
-成功响应沿 HTTP `{ok:true,status,bodyText,networkPerformed:true}`，只在实际 2xx、`status:"ok"` 且 `addresses[0]` 是合法 IP 或 DNS 名称时附 `dnsOverride:{kind:"pica_channel_v1",proof:"…"}`。不尝试后项。初始化流及解压后均限 64 KiB（参考原普通公开体 109 B）；HTTP 拒绝保原 status，不尝试别的线路。proof 属 Host 当前进程和同一安装，不能传任意 DNS 名称/IP，不能写普通设置、备份或日志。源可在本源私密进程缓存中保存并按 `process_scope` 更新；参考已初始化的地址在本进程内沿用，旧设置初始化迟到不发布。
-
-源在原 HTTPS API HTTP 信封和同域图片 `get_image_request.data` 加同一 `dnsOverride`。宿主只对 `picacomic.com` 或其真实子域用该 proof 的首地址，经系统解析取首结果，向 RCP 当前 hop 注入 exact host/port DNS 映射；原 URL、Host/SNI、系统证书验证、系统代理、UA、签名头和 POST 原正文保持。无 CookieRepository、自动跳转或系统 DNS 降级重试。API redirect 仍由原 HTTP owner 处理；跨源不转发 `Authorization`，登录 grant 拒绝跨 origin。其他域的普通图片与分流 1 继续原传输；有 DNS 声明的图片由现 Reader/封面/下载 descriptor 路径消费，不持久化 proof。无此能力的 CLI 不宣 flag，并在联网前明确 `unsupported`，不得丢计划后用普通 DNS 发请求。
-
-`source_http_copymanga_api_v1` 对应拷贝漫画独立 API 客户端。宿主仅从 HarmonyOS API 26 起声明能力，按已安装的 `com.copymanga.koma` 和三个精确 HTTPS API origin（`api.mangacopy.com`、`api.copy3000.com`、`api.copy4000.com`）的 `/api/v3/` 请求选择该路径。只接受无正文、无 Cookie 和授权头的 GET，不打开 Web 会话。RCP 使用系统代理和证书验证，选择 HTTP/1.1，禁止连接复用及缓存。仅跟随响应实际给出的 HTTPS 跳转，每跳使用同样的客户端和总超时预算。HTTP 210 按原状态交给源判断，不触发其它域或 HTTP 客户端的重试。网页与图片继续使用普通路径。
-
-API 23–25 的 RCP 有禁止连接复用的配置，指定 HTTP 版本的配置从 API 26 起提供。NetworkKit 可指定 HTTP/1.1，公开接口没有同等的禁止连接复用配置。宿主继续支持 App 的原最低系统，拷贝的 API 路径在未声明能力时由源在联网前返回 `unsupported`。列表/筛选设置等不依赖该 API 的路径按原合同工作。
-
 `source_detail_chapter_context_v1` 仅由详情页本次 `get_manga` 和随后的目录请求声明。源可在成功详情的 `data.chapterContext` 返回非敏感 JSON 对象，宿主仅在同一仍有效的详情事务中将其原样传入 `get_chapters` 的 `args.chapterContext`，分页共用；不写缓存或日志，不跨刷新、源包或设置变更、其他作品或精确章恢复使用。源须核对上下文的版本和作品身份，缺失或不完整时沿原请求路径处理；旧宿主不声明该特性。
 
 `source_http_challenge_cause_v1` 仅由可追踪生命周期的统一搜索、单源搜索及 `get_manga_list` 请求声明。源在单个 GET 中设置 `wantChallengeRequestId: true` 后，宿主仅为该源允许的网页 origin 上返回 401、403 或 503 的实际请求附加短 `challengeRequestId`。只有源最终由该次响应产生 challenge/auth 错误时，才可将同一个 ID 放在 `error.challengeRequestId`；不得推测其他请求的 ID。宿主按 ID、源和本次页面请求身份匹配原 GET，验证后的响应仅由该次请求的重试消费；多条不同失败 GET 缺乏明确 ID 时不能猜测。精确选中的原 GET 可在内存中将有效 UA 交给同 URL 的验证页，保持验证及原请求身份一致，不改源或全局默认 UA；会话仍保存其实际 Web UA，取消或请求失效清除关联。旧源不使用此字段，保留单个候选的既有兼容行为，旧宿主不声明该特性。
 
 `source_http_batch_v1` 在原 `http_request` import 上支持 `{version:1,requests:[单请求对象]}`，每组1至5个且不能嵌套，只用于彼此独立的请求；存在响应或会话依赖时仍逐个发送。宿主先校验整组基本请求格式，再并行复用原单请求通道；每项保留源身份、会话、限速、重定向及网络超时。响应为 `{ok:true,responses:[单请求响应对象]}`，顺序与输入一致；外层 `ok` 只表示组格式有效，每项仍可能是原HTTP或传输失败，源必须逐项检查。宿主不自动重试、不缓存组结果、不扩大网络权限；未声明此特性的旧Host沿原逐个请求路径，不需要新增WASM导入。
-
-`source_bilimanga_guest_search_v1` 允许嗶哩漫畫在 `http_request` 对同源搜索 GET 显式传 `guestSearch:true`。源并行读取站点 CSS 和 JS，随后提交原站要求的兑换请求并搜索。只准向 `https://www.bilimanga.net` 的搜索入口发送 `night=1` 及原站下发的三个游客凭据。仅 CSS 和兑换成功的响应可提供 `guestSearchCookie` 的 `name=value`，同源响应另有 `guestSearchUrl` 供区分结果列表和直接详情。禁止跨域跟跳、账户授权头、借用系统 WebView 的 Cookie、记日志和公开持久化。旧宿主不声明此能力。
-
-`source_rate_limit_bilimanga_v1` 沿 Mihon 客户端以单一滑动窗口给元数据、封面和正文请求限速，默认 10 秒内 10 个请求，`RATE_LIMIT` 以「次数/秒」设置，启动后使用首次加载的有效设置。该限额只约束本源实际联网，别源、缓存命中不共享；等候不占用请求网络超时。
-
-`mangabz_language_cookie_v1` 支持已采用的 MangaBz 简繁设置：源在请求中提供 `mangabz_lang=2`（默认简体）或 `1`（繁体）。只有宿主确认的 `com.mangabz.koma` 身份、实际请求域为 `mangabz.com` 或其子域、且源头包含唯一合法语言项时，该项才能替换同名会话 Cookie；其它 Cookie、验证/登录、UA、源会话及重定向边界保持。每跳重新核域，不写 Web Cookie 仓，也不允许源覆盖其它会话 Cookie；图像描述只有同站地址可带语言项，外域 CDN 不携带。源设置改变沿现有页表设置身份按需重取，不清图片缓存或主动改写书库已有标题；旧空设置页表仍沿原兼容合同保留，不能声称默认切换自动刷新了它。
 
 `source_settings_context_v1` 允许 `get_settings` 的 `args.settingValues` 携带本源当前已保存的公开设置副本，供源在设置键或类型迁移时继承原选择；顶层 `settings` 仍为空，`network:false` 保持。成功读取且未保存时传 `{}`；读取失败则省略该字段，源须保留原 schema，不把缺失当作已读空值。其它源的值及凭据字段不进入该上下文；读取不写文件、不修改 revision、不主动迁移或清设置，表单沿原保存与读取错误处理。源对新 schema 同时核 feature 和上下文；依赖该支持的新设置消费也须核 feature，旧 Host 保留旧设置和请求合同。
 
@@ -177,8 +173,7 @@ API 23–25 的 RCP 有禁止连接复用的配置，指定 HTTP 版本的配置
 - 有效原生响应只由精确原请求消费一次，不落盘交接响应头/Cookie；迟到或不匹配回调不得发布。具体自动完成及兼容边界见当前公共实现旁与执行规则，不在本文复制阶段性收据。
 - chapterOrder 保留源已核的 oldest_first/newest_first，未声明时保持宿主兼容准入；完整原源目录没有显式分组/阅读序号时，Host在分页完成后生成 source-catalog 组及 readingOrder，随既有章节元数据保存，不改变目录顺序。旧库合并数组不能作为原源序凭据；保留但已不在新目录的旧章保留原页表和进度，不沿用过期的续读资格。有分组时保留 readingGroup／continuationEligible 的限制；上一章、下一章及跨章预载共用持久阅读序列，已有进度及显式章节优先，不合成章节身份或猜话数。
 
-`mangabz_mirror_session_v1` 扩展 MangaBz 的固定镜像：源仅在宿主声明后显示备用站设置；每站独立保存精确 origin 会话，语言键按域分别为 `mangabz_lang`、`xmanhua_lang`、`yymanhua_lang`，不跨域转移会话或其他 Cookie。旧宿主及未选镜像保原请求与默认。
-
+`source_homepage_choices_v1` 扩展 MangaBz 的固定镜像：源仅在宿主声明后显示备用站设置；每站独立保存精确 origin 会话，语言键按域分别为 `mangabz_lang`、`xmanhua_lang`、`yymanhua_lang`，不跨域转移会话或其他 Cookie。旧宿主及未选镜像保原请求与默认。
 
 ### 书源登录
 
@@ -207,7 +202,5 @@ API 23–25 的 RCP 有禁止连接复用的配置，指定 HTTP 版本的配置
 包 `requiredImageDecodes:["jm_stripes_v1"]` 是能力声明，经标准metadata/build/导入/Registry保留，去重且未知kind拒绝。声明源在旧raw缓存sidecar未知时必须重新发现image descriptor，错误不回原乱码；普通旧源cache命中不增加网页依赖，不按sourceId猜需要解码。
 
 `source_required_image_decode_jm_stripes_v1` 支持 `Page.image.requiredImageDecode:{kind:"jm_stripes_v1",rows:N}` 与 `get_image_request` 成功 `data.requiredImageDecode`。N为2至20的偶数；两处都有时必须一致，不可覆写/丢弃冲突。URI/PID保持原样。Host对实际字节先处理gzip，GIF87a/GIF89a魔数透传保动画，其他图按固定参考纵条带还原；不按URL扩展判断。原wire缓存保留，canonical派生按安装/页身份/算法缓存，在气泡、裁边与其它可选插件之前执行，不受“关闭图片处理”控制，封面不参与。下载写canonical并记录已解码标记，离线/导出不能二次解扰。非法hint、解码/格式/资源错误保持失败，不以原乱码冒可读图。
-
-独立限流能力 `source_rate_limit_jm_v1` 沿实际JM Token/Tokenparam签名请求origin归组3次/2秒，每个原HTTP调用仅在首次实际匹配时按该origin入窗，随后重定向不重复扣额；`source_rate_limit_hentaiclub_v1` 对精确www.hentaiclub.net主站2次/秒；`source_rate_limit_wnacg_v1` 沿已核WN镜像共享50次/60秒，每个原HTTP调用的匹配重定向链只入窗一次。准入/取消/队列/超时仍归SourceRequestPolicy和原Transport，不换栈、不扩Cookie权限；其它源和原漫画柜/Buon规则保持。
 
 网页登录可声明 `authentication.userAgent`，仅web类型、1至1024字符且拒HTTP控制字符；动态get_authentication必须原样回送包内值。仅该显式登录begin使用它，WebView实际加载和完成时UA必须一致，后续HTTP沿已授权会话UA。无字段包保原默认路径，不改变全局或普通源请求头。

@@ -16,6 +16,7 @@ function normalize(value: LibraryAutomationPreferences): LibraryAutomationPrefer
   return {
     updateWifiOnly: value.updateWifiOnly === true,
     updateChargingOnly: value.updateChargingOnly === true,
+    refreshWorkInfo: value.refreshWorkInfo === true,
     updateIncludedCategories: categoryIds(value.updateIncludedCategories),
     updateExcludedCategories: categoryIds(value.updateExcludedCategories),
     skipCompleted: value.skipCompleted === true, skipNotStarted: value.skipNotStarted === true,

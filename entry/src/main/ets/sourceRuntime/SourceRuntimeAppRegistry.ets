@@ -654,6 +654,8 @@ function manifestFromRegistryEntry(entry: SourceRuntimeRegistryEntry): LocalSour
       webSessionOrigins: entry.webSessionOrigins ?? [],
       authentication: entry.authentication,
       requiredImageDecodes: entry.requiredImageDecodes,
+      requestLimits: entry.requestLimits,
+      websitePolicy: entry.websitePolicy,
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -1010,7 +1012,9 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
         existing.packageMinAppVersion === entry.packageMinAppVersion &&
         JSON.stringify(existing.webSessionOrigins ?? []) === JSON.stringify(entry.webSessionOrigins ?? []) &&
         JSON.stringify(existing.authentication) === JSON.stringify(entry.authentication) &&
-        JSON.stringify(existing.requiredImageDecodes) === JSON.stringify(entry.requiredImageDecodes)
+        JSON.stringify(existing.requiredImageDecodes) === JSON.stringify(entry.requiredImageDecodes) &&
+        JSON.stringify(existing.requestLimits) === JSON.stringify(entry.requestLimits) &&
+        JSON.stringify(existing.websitePolicy) === JSON.stringify(entry.websitePolicy)
       if (unchanged) {
         continue
       }
@@ -1051,8 +1055,10 @@ export function reloadInstalledSourcePackages(context: common.Context): boolean 
           network: false,
           hostImports: [],
           webSessionOrigins: entry.webSessionOrigins ?? [],
-      authentication: entry.authentication,
-      requiredImageDecodes: entry.requiredImageDecodes,
+          authentication: entry.authentication,
+          requiredImageDecodes: entry.requiredImageDecodes,
+          requestLimits: entry.requestLimits,
+          websitePolicy: entry.websitePolicy,
         },
         operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
         contentPolicy: {

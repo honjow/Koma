@@ -6,6 +6,7 @@ import { comicUpdateScheduleDue } from './ComicReleaseSchedule'
 export interface LibraryAutomationPreferences {
   updateWifiOnly: boolean
   updateChargingOnly: boolean
+  refreshWorkInfo: boolean
   updateIncludedCategories: string[]
   updateExcludedCategories: string[]
   skipCompleted: boolean
@@ -23,7 +24,7 @@ export interface LibraryAutomationPreferences {
 export function defaultLibraryAutomationPreferences(): LibraryAutomationPreferences {
   // New automatic actions are opt-in. Existing manual updates and downloads keep their scope.
   return {
-    updateWifiOnly: false, updateChargingOnly: false,
+    updateWifiOnly: false, updateChargingOnly: false, refreshWorkInfo: false,
     updateIncludedCategories: [], updateExcludedCategories: [],
     skipCompleted: false, skipNotStarted: false, skipHasUnread: false, skipOutsideReleasePeriod: false,
     autoDownloadNewChapters: false, downloadUnreadOnly: true,

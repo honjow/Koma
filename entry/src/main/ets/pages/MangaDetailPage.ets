@@ -22,7 +22,7 @@ import { SourceRuntimeCallResponse } from '../sourceRuntime/NativeSourceRuntime'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
 import { reconcileSourceChapterIdentity } from '../model/SourceChapterIdentity'
 import { protectedSourceChapterIds } from '../model/SourceChapterIdentityGuard'
-import { sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
+import { appSourceRuntimeRegistry, sourceDisplayName } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { trackerChapterProgress } from '../model/TrackerReadingProgress'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { MangaDetailHeader } from '../components/MangaDetailHeader'
@@ -793,7 +793,7 @@ export struct MangaDetailPage {
       const url = this.mangaWebUrl()
       if (url === undefined) return
       if (action === MangaDetailTitleAction.OPEN_WEBVIEW) {
-        RouterHelper.pushMangaWeb({ url, title: this.manga?.title ?? '' })
+        RouterHelper.pushMangaWeb({ url, title: this.manga?.title ?? '', sourceId: this.manga?.sourceId })
       } else {
         this.openMangaExternalLink(url)
       }
@@ -1369,9 +1369,11 @@ export struct MangaDetailPage {
     const comicId = this.sourceComicId(sourceId, mangaId)
     const libraryComic = this.findSourceRuntimeComic(sourceId, mangaId, comicId)
     this.activeLibraryComicId = libraryComic?.id ?? ''
+    const chapterIdentity = appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy?.chapterIdentity
     const identity = libraryComic !== undefined && this.sourceChaptersResolved
       ? reconcileSourceChapterIdentity(libraryComic, mangaId, chapters,
-        protectedSourceChapterIds(libraryComic, (getContext(this) as common.UIAbilityContext).filesDir, this.readerSessionStore))
+        protectedSourceChapterIds(libraryComic, (getContext(this) as common.UIAbilityContext).filesDir,
+          this.readerSessionStore, chapterIdentity), chapterIdentity)
       : undefined
     if (persistResolvedChapterMetadata && this.sourceChaptersResolved) {
       this.refreshSourceLibraryDetail(sourceId, mangaId, detail, identity?.chapters ?? chapters, true, excludedChapterIds)
@@ -2577,11 +2579,14 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
   private visibleCoverUrl(manga: MangaDetail): string {
     const custom = this.libraryStore?.getComic(this.currentComicId())?.customCoverUri
     if (custom) return custom
-    // Keep Manhuaren's route preview stable while the provider's higher-resolution
-    // detail cover remains available to the source snapshot and shelf.
-    if (manga.sourceId === 'com.manhuaren.koma') {
-      const preview = this.validInitialRouteManga(manga.sourceId, manga.id)?.coverUrl?.trim()
-      if (preview && !preview.includes('/nopic.jpg')) return preview
+    // A source can keep the opened preview stable while its detail cover
+    // remains available to the source snapshot and shelf.
+    const sourceId = manga.sourceId
+    const policy = sourceId === undefined ? undefined : appSourceRuntimeRegistry.lookup(sourceId).entry?.websitePolicy
+    if (sourceId !== undefined && policy?.preserveRouteCover === true) {
+      const preview = this.validInitialRouteManga(sourceId, manga.id)?.coverUrl?.trim()
+      const placeholder = policy.routeCoverPlaceholderSuffix
+      if (preview && (placeholder === undefined || !preview.includes(placeholder))) return preview
     }
     return manga.coverUrl ?? ''
   }

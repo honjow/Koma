@@ -12,7 +12,7 @@ import { CustomLibraryCategory, LibraryCategoryDefinition, LegacyLibraryCategory
 import { KomaAboutContent } from '../components/KomaAboutContent'
 import { KomaTranslationSettingsContent } from '../components/KomaTranslationSettingsContent'
 import { KomaTranslationCacheRow } from '../components/KomaTranslationCacheRow'
-import { KomaTranslationSourcesContent } from '../components/KomaTranslationSourcesContent'
+import { KomaTranslationSourcesContent, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { ReaderImageSettingsContent } from '../components/ReaderImageSettingsContent'
 import { ReaderSuperResolutionModelsContent } from '../components/ReaderSuperResolutionModelsContent'
 import { readerModeSelection, readerDirectionSelection, normalizeReaderPreferences } from '../model/ReaderPreferencesStore'
@@ -278,6 +278,7 @@ function createSettingsSections(): SettingsSection[] {
         { key: 'library-background-update', titleKey: 'automation_background_update', detailKey: 'automation_background_update' },
         { key: 'library-update-notifications', titleKey: 'settings_row_library_update_notifications_title', detailKey: 'settings_row_library_update_notifications_detail' },
         { key: 'library-update-range', titleKey: 'automation_update_range', detailKey: 'automation_update_range' },
+        { key: 'library-update-work-info', titleKey: 'automation_refresh_work_info', detailKey: 'automation_refresh_work_info_detail' },
         { key: 'library-update-skip', titleKey: 'automation_update_skip', detailKey: 'automation_update_skip' },
         { key: 'library-update-wifi-only', titleKey: 'automation_update_wifi', detailKey: 'automation_update_wifi' },
         { key: 'library-update-charging-only', titleKey: 'automation_update_charging', detailKey: 'automation_update_charging' },
@@ -493,6 +494,7 @@ export struct SettingsPage {
   @Local private readerPreferencesLoadFailed: boolean = false
   @Param pane: SettingsPaneKey = 'root'
   @Param formTitleAction: FormTitleActionState = new FormTitleActionState()
+  @Param modelSourcesTitleAction: ModelSourcesTitleAction = new ModelSourcesTitleAction()
   @Local private pageMode: ReaderPageMode = 'single_page'
   @Local private readingDirection: ReadingDirection = ReadingDirection.LEFT_TO_RIGHT
   @Local private readerSpreadLayoutMode: ReaderSpreadLayoutMode = 'joined'
@@ -806,6 +808,7 @@ export struct SettingsPage {
             'library-background-update',
             'library-update-notifications',
             'library-update-range',
+            'library-update-work-info',
             'library-update-skip',
             'library-update-wifi-only',
             'library-update-charging-only',
@@ -2604,7 +2607,7 @@ export struct SettingsPage {
         titleAction: this.formTitleAction,
         onOpenSources: () => { this.onOpenSettingsPane('llm-sources') } })
     } else if (this.pane === 'llm-sources') {
-      KomaTranslationSourcesContent()
+      KomaTranslationSourcesContent({ titleAction: this.modelSourcesTitleAction })
     } else if (this.pane === 'enhancement-models') {
       if (this.readerPreferencesReady) {
         ReaderSuperResolutionModelsContent({ preferences: this.readerPreferences, modelsChanged: () => { this.onEnhancementModelsChanged() },

@@ -26,6 +26,7 @@ export interface SourceWebSessionRouteParam {
 export interface MangaWebRouteParam {
   url: string
   title: string
+  sourceId?: string
   sourceSession?: SourceWebSessionRouteParam
   onSessionCompleted?: () => void
 }

@@ -1,6 +1,6 @@
 import { NativeSourceRuntime } from './NativeSourceRuntime'
 import { sourceRequestWithHostFeatures } from './SourceHostFeatures'
-import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard } from './SourceRuntimeExecutionIdentity'
+import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHasGuard, sourceRuntimeExecutionHasRequestLimits } from './SourceRuntimeExecutionIdentity'
 
 // TaskPool evaluates this module's transitive imports on a worker. Keep this
 // entry Native-only: Service/Runner pull in UI state and localization, whose
@@ -13,7 +13,7 @@ import { sourceRuntimeExecutionHasDetailChapterContext, sourceRuntimeExecutionHa
 export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
   return JSON.stringify(NativeSourceRuntime.runJsonCallFromBytes(
     sourceRequestWithHostFeatures(requestJson, sourceRuntimeExecutionHasGuard(httpContextJson),
-      sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)), wasmBytes, httpContextJson))
+      sourceRuntimeExecutionHasDetailChapterContext(httpContextJson), sourceRuntimeExecutionHasRequestLimits(httpContextJson)), wasmBytes, httpContextJson))
 }
 
 // Browse consumes the raw string. Use the same statically loaded NAPI module
@@ -21,13 +21,13 @@ export function executeSourceRuntimeRequest(requestJson: string, wasmBytes: Uint
 @Concurrent
 export function runBrowseSourceOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
   return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
-    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)),
+    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson), sourceRuntimeExecutionHasRequestLimits(httpContextJson)),
     wasmBytes, httpContextJson)
 }
 
 @Concurrent
 export function runLocalCoverOperationTask(requestJson: string, wasmBytes: Uint8Array, httpContextJson: string): string {
   return NativeSourceRuntime.runRawJsonCallFromBytes(sourceRequestWithHostFeatures(requestJson,
-    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson)),
+    sourceRuntimeExecutionHasGuard(httpContextJson), sourceRuntimeExecutionHasDetailChapterContext(httpContextJson), sourceRuntimeExecutionHasRequestLimits(httpContextJson)),
     wasmBytes, httpContextJson, true)
 }

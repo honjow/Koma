@@ -1,5 +1,7 @@
+import { SourceWebsitePolicy, validSourceWebsitePolicy } from './SourceWebsitePolicy'
 import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
 import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
+import { SourceRateLimitRule, validSourceRequestLimits } from './SourceRequestPolicy'
 import { SOURCE_REPO_PACKAGE_ICON_FILES, isValidSourcePackageMinAppVersion, normalizeSourceHomepage } from './SourcePackageMetadata'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
 import { taskpool, url } from '@kit.ArkTS'
@@ -92,6 +94,8 @@ export interface LocalSourcePackagePermissions {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
+  requestLimits?: SourceRateLimitRule[]
+  websitePolicy?: SourceWebsitePolicy
 }
 
 export interface LocalSourcePackageContentPolicy {
@@ -115,6 +119,8 @@ interface SourceRepoPackageManifest {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
+  requestLimits?: SourceRateLimitRule[]
+  websitePolicy?: SourceWebsitePolicy
   icon?: string
   id: string
   name: string
@@ -171,6 +177,10 @@ export function sourceRepoManifestForShare(manifest: LocalSourcePackageManifest,
     minAppVersion: manifest.package.minAppVersion, icon: iconName,
     wasmSha256: manifest.runtime.wasmSha256, maxWasmBytes: manifest.runtime.maxWasmBytes,
     webSessionOrigins: manifest.permissions.webSessionOrigins,
+    authentication: manifest.permissions.authentication,
+    requiredImageDecodes: manifest.permissions.requiredImageDecodes,
+    requestLimits: manifest.permissions.requestLimits,
+    websitePolicy: manifest.permissions.websitePolicy,
     capabilities,
     contentPolicy: policy,
   }
@@ -655,7 +665,8 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
   const contentPolicy = isPlainObject(parsed.contentPolicy as Object | null) ? parsed.contentPolicy : undefined
   if (!validSourceWebSessionOrigins(parsed.webSessionOrigins) ||
     !validSourceAuthentication(parsed.authentication, parsed.webSessionOrigins) ||
-    !validSourceRequiredImageDecodes(parsed.requiredImageDecodes)) return undefined
+    !validSourceRequiredImageDecodes(parsed.requiredImageDecodes) || !validSourceRequestLimits(parsed.requestLimits) ||
+    !validSourceWebsitePolicy(parsed.websitePolicy)) return undefined
   const declaredSha256 = nonEmptyString(parsed.wasmSha256) ?? nonEmptyString(parsed.sourceWasmSha256) ?? ''
   const maxWasmBytes = optionalNumber(parsed.maxWasmBytes, Math.max(wasmSize, SOURCE_PACKAGE_WASM_MAX_BYTES))
   return {
@@ -687,6 +698,8 @@ function parseSourceRepoPackageManifest(raw: string, wasmSize: number): LocalSou
       webSessionOrigins: parsed.webSessionOrigins ?? [],
       authentication: sourceAuthenticationDescriptor(parsed.authentication),
       requiredImageDecodes: sourceRequiredImageDecodes(parsed.requiredImageDecodes),
+      requestLimits: parsed.requestLimits,
+      websitePolicy: parsed.websitePolicy,
       network: optionalBoolean(capabilities?.network, false),
       hostImports: [],
     },
@@ -704,7 +717,8 @@ export function validateNormalizedManifest(manifest: LocalSourcePackageManifest)
   if (manifest.permissions === undefined || manifest.permissions === null ||
     !validSourceWebSessionOrigins(manifest.permissions.webSessionOrigins) ||
     !validSourceAuthentication(manifest.permissions.authentication, manifest.permissions.webSessionOrigins) ||
-    !validSourceRequiredImageDecodes(manifest.permissions.requiredImageDecodes)) return 'manifest_invalid'
+    !validSourceRequiredImageDecodes(manifest.permissions.requiredImageDecodes) || !validSourceRequestLimits(manifest.permissions.requestLimits) ||
+    !validSourceWebsitePolicy(manifest.permissions.websitePolicy)) return 'manifest_invalid'
   if (manifest.package.id.length === 0 || manifest.package.version.length === 0 || manifest.package.id.length > 96) {
     return 'manifest_invalid'
   }

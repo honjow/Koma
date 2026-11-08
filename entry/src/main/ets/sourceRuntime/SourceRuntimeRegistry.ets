@@ -1,3 +1,5 @@
+import { SourceWebsitePolicy, validSourceWebsitePolicy } from './SourceWebsitePolicy'
+import { SourceRateLimitRule, validSourceRequestLimits } from './SourceRequestPolicy'
 import { sourceRequiredImageDecodes, validSourceRequiredImageDecodes } from './SourceRequiredImageDecodeDeclaration'
 import { SourceAuthenticationDescriptor, sourceAuthenticationDescriptor, validSourceAuthentication } from './SourceAuthenticationDescriptor'
 import { SourceChapterOrder, isValidSourceChapterOrder } from './SourceChapterOrder'
@@ -43,6 +45,8 @@ export interface SourceRuntimeRegistryEntryInput {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
+  requestLimits?: SourceRateLimitRule[]
+  websitePolicy?: SourceWebsitePolicy
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -80,6 +84,8 @@ export interface SourceRuntimeRegistryEntry {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
+  requestLimits?: SourceRateLimitRule[]
+  websitePolicy?: SourceWebsitePolicy
   presentationDescription: string
   presentationIcon: string
 }
@@ -129,6 +135,8 @@ export interface SourceRuntimeRegistryPersistedEntry {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
+  requestLimits?: SourceRateLimitRule[]
+  websitePolicy?: SourceWebsitePolicy
   presentationDescription?: string
   presentationIcon?: string
 }
@@ -165,6 +173,8 @@ export interface SourceRuntimeRegistryInstalledSourceSummary {
   webSessionOrigins?: string[]
   authentication?: SourceAuthenticationDescriptor
   requiredImageDecodes?: string[]
+  requestLimits?: SourceRateLimitRule[]
+  websitePolicy?: SourceWebsitePolicy
   enabled: boolean
   language: string
   nsfw: boolean
@@ -382,6 +392,8 @@ function manifestForReload(entry: SourceRuntimeRegistryPersistedEntry): LocalSou
       webSessionOrigins: entry.webSessionOrigins ?? [],
       authentication: sourceAuthenticationDescriptor(entry.authentication),
       requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+      requestLimits: entry.requestLimits,
+      websitePolicy: entry.websitePolicy,
     },
     operationCapabilities: normalizeSourceOperationCapabilityTokens(entry.capabilities),
     contentPolicy: {
@@ -423,8 +435,10 @@ function persistedEntryFromRegistryEntry(entry: SourceRuntimeRegistryEntry): Sou
     packageContentRating: entry.packageContentRating,
     packageMinAppVersion: entry.packageMinAppVersion,
     webSessionOrigins: entry.webSessionOrigins ?? [],
-      authentication: sourceAuthenticationDescriptor(entry.authentication),
-      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+    authentication: sourceAuthenticationDescriptor(entry.authentication),
+    requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+    requestLimits: entry.requestLimits,
+    websitePolicy: entry.websitePolicy,
     presentationDescription: entry.presentationDescription,
     presentationIcon: entry.presentationIcon,
   }
@@ -521,7 +535,7 @@ function persistedEntryShapeInvalid(entry: SourceRuntimeRegistryPersistedEntry):
   }
   if (!validSourceWebSessionOrigins(entry.webSessionOrigins) ||
     !validSourceAuthentication(entry.authentication, entry.webSessionOrigins) ||
-    !validSourceRequiredImageDecodes(entry.requiredImageDecodes)) return true
+    !validSourceRequiredImageDecodes(entry.requiredImageDecodes) || !validSourceRequestLimits(entry.requestLimits) || !validSourceWebsitePolicy(entry.websitePolicy)) return true
   if (entry.packageMinAppVersion !== undefined && typeof entry.packageMinAppVersion !== 'string') {
     return true
   }
@@ -594,6 +608,8 @@ export class SourceRuntimeRegistry {
       webSessionOrigins: input.manifest.permissions.webSessionOrigins ?? [],
       authentication: sourceAuthenticationDescriptor(input.manifest.permissions.authentication),
       requiredImageDecodes: sourceRequiredImageDecodes(input.manifest.permissions.requiredImageDecodes),
+      requestLimits: input.manifest.permissions.requestLimits,
+      websitePolicy: input.manifest.permissions.websitePolicy,
       presentationDescription: normalizePresentationText(input.presentationDescription),
       presentationIcon: normalizePresentationText(input.presentationIcon),
     }
@@ -678,8 +694,10 @@ export class SourceRuntimeRegistry {
         networkEnabled: false,
         httpEnabled: false,
         webSessionOrigins: entry.webSessionOrigins ?? [],
-      authentication: sourceAuthenticationDescriptor(entry.authentication),
-      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+        authentication: sourceAuthenticationDescriptor(entry.authentication),
+        requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+        requestLimits: entry.requestLimits,
+        websitePolicy: entry.websitePolicy,
         enabled: entry.enabled,
         language: entry.language,
         nsfw: entry.nsfw,
@@ -823,8 +841,10 @@ export class SourceRuntimeRegistry {
           packageContentRating: entry.packageContentRating,
           packageMinAppVersion: entry.packageMinAppVersion,
           webSessionOrigins: entry.webSessionOrigins ?? [],
-      authentication: sourceAuthenticationDescriptor(entry.authentication),
-      requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+          authentication: sourceAuthenticationDescriptor(entry.authentication),
+          requiredImageDecodes: sourceRequiredImageDecodes(entry.requiredImageDecodes),
+          requestLimits: entry.requestLimits,
+          websitePolicy: entry.websitePolicy,
           presentationDescription: entry.presentationDescription,
           presentationIcon: entry.presentationIcon,
         })

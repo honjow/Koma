@@ -23,3 +23,14 @@ export function sourceRuntimeExecutionHasDetailChapterContext(httpContextJson: s
     return value['detailChapterContext'] === true
   } catch (_error) { return false }
 }
+
+
+export function sourceRuntimeExecutionHasRequestLimits(httpContextJson: string): boolean {
+  try { return (JSON.parse(httpContextJson) as Record<string, Object>)['requestLimitsDeclared'] === true }
+  catch (_error) { return false }
+}
+
+export function sourceRuntimeExecutionHasDnsBootstrap(httpContextJson: string): boolean {
+  try { return (JSON.parse(httpContextJson) as Record<string, Object>)['dnsBootstrapDeclared'] === true }
+  catch (_error) { return false }
+}

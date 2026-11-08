@@ -79,7 +79,7 @@ test('backup restore retires late subscription results even when the same URL re
 
 test('an unavailable book source package retries its verified enabled mirror',async()=>{
  const path='github.com/example/sources/releases/latest/download/'
- const original='https://'+path+'index.json',mirror='https://gh-proxy.org/'+path+'index.json'
+ const original='https://'+path+'index.json',mirror='https://any-transport.test/'+path+'index.json'
  const h=harness(new Map(),original),service=h.make()
  const bytes=Uint8Array.of(1,2,3)
  const offer=item('A',{sha256:require('node:crypto').createHash('sha256').update(bytes).digest('hex')})
@@ -96,6 +96,10 @@ test('an unavailable book source package retries its verified enabled mirror',as
  assert.deepEqual(h.requestedUrls.slice(-2),[original.replace('index.json','A.koma'),mirror.replace('index.json','A.koma')])
  assert.equal(h.installs[0].origin,mirror)
  assert.equal(h.installs[0].verifiedSessionCatalog,original)
+ const requestCountBeforeMismatch=h.requestedUrls.length
+ const forged={...offer,version:'2',sha256:'a'.repeat(64)}
+ assert.equal((await service.installPackage(mirror,forged,true)).reasonCode,'subscription_conflict')
+ assert.equal(h.requestedUrls.length,requestCountBeforeMismatch)
  await service.setSubscriptionDisabled(original,true)
  const mirrorOnly=service.installPackage(mirror,offer,true)
  await tick()

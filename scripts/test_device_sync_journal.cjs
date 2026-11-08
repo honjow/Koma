@@ -539,6 +539,31 @@ test('shelf receipts cannot update an unrelated row with the same storage ID', a
   assert.equal(b.coldShelf().shelf.getComic(original.id).title, 'Private library')
 })
 
+test('batch shelf removal persists selected source favorites and syncs their removals', async () => {
+  const transport = transportFixture()
+  const fixture = engineFixture(transport.WriterWebDav)
+  const a = readingDevice(fixture, A, new Map(), true)
+  const b = readingDevice(fixture, B, new Map(), true)
+  const left = a.coldShelf()
+  const books = ['first', 'second', 'retained'].map(work => shelfComic('org.example.source', work))
+  for (const book of books) a.persistence.upsertComicAndPersistLibraryStore(left.shelf, left.service, book)
+  for (const device of [a, b]) {
+    await device.engine.testConnection(transport.draft)
+    await device.engine.confirm((await device.engine.prepare(transport.draft, ['shelf'])).token, [])
+  }
+  const ids = books.slice(0, 2).map(book => book.id)
+  assert.throws(() => a.persistence.removeComicsAndPersistLibraryStore(left.shelf,
+    { persist: () => { throw Error('disk full') } }, ids), /disk full/)
+  assert.ok(ids.every(id => left.shelf.getComic(id)))
+  assert.deepEqual(Array.from(a.persistence.removeComicsAndPersistLibraryStore(left.shelf, left.service, ids)), ids)
+  await a.runtime.libraryEdits
+  await a.engine.syncNow()
+  await b.engine.syncNow()
+  const right = b.coldShelf().shelf
+  assert.ok(ids.every(id => right.getComic(id) === undefined))
+  assert.ok(right.getComic(books[2].id))
+})
+
 test('a writer keeps its original shelf shards while publishing new source books after upgrade', async () => {
   const f = transportFixture()
   const writer = new f.WriterWebDav(f.draft, [], undefined, A)

@@ -9,6 +9,7 @@ import { MangaWebView } from '../components/MangaWebView'
 import { SecondaryListScaffold } from '../components/SecondaryListScaffold'
 import { MangaWebRouteParam, RouterHelper } from '../common/RouterHelper'
 import { appSourceWebSessionStore, sourceWebOrigin } from '../sourceRuntime/SourceWebSessionStore'
+import { appSourceRuntimeRegistry } from '../sourceRuntime/SourceRuntimeAppRegistry'
 import { mangaHttpUrl } from '../model/MangaWebLink'
 import { AppStrings } from '../i18n/AppStrings'
 import { ThemeConstants } from '../theme/ThemeConstants'
@@ -264,15 +265,15 @@ export struct MangaWebPage {
     if (session !== undefined) appSourceWebSessionStore.cancel(session.sourceId, session.sessionId)
   }
 
-  private applyOrdinaryMh160Compatibility(url: string): void {
-    if (this.params.sourceSession !== undefined) return
-    const origin = sourceWebOrigin(url)
-    if (origin !== 'https://www.mh160mh.com' && origin !== 'https://m.mh160mh.com') return
+  private applyOrdinaryUserAgentCompatibility(url: string): void {
+    const sourceId = this.params.sourceId
+    if (this.params.sourceSession !== undefined || sourceId === undefined) return
+    const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
+    const origins = entry?.enabled === true ? entry.websitePolicy?.mobileWebAndroidAgentOrigins : undefined
+    if (origins?.includes(sourceWebOrigin(url)) !== true) return
     try {
       const userAgent = this.controller.getUserAgent()
-      // SOURCE_WEB_SESSION: www accepts Mobile while mobT omits OpenHarmony.
-      // Only this ordinary phone Web instance gets the compatibility marker;
-      // preserve all default fields, native transport and verification sessions.
+      // Apply the phone compatibility marker only to this ordinary WebView.
       if (/OpenHarmony/i.test(userAgent) && /Mobile/i.test(userAgent) &&
         !/Android|iPhone|iPad|iPod/i.test(userAgent)) {
         this.controller.setCustomUserAgent(userAgent + ' Android')
@@ -291,7 +292,7 @@ export struct MangaWebPage {
     }
     this.webDiagnostic = DiagnosticLogger.begin('web_page', 'navigation',
       'hasSourceSession=' + (this.params.sourceSession !== undefined))
-    this.applyOrdinaryMh160Compatibility(url)
+    this.applyOrdinaryUserAgentCompatibility(url)
     try {
       this.controller.loadUrl(url)
     } catch (_error) {

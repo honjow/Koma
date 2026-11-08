@@ -56,7 +56,12 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
   const isolation = compile(read('state/KomaDeviceVerificationIsolation'), {})
   const dependencies = {
     ...isolation,
+    appDeviceSync: { attachPublisher() {} },
+    applyBackgroundLibraryResults: async () => {},
     appSourceWebSessionStore: { configure() {} },
+    appSourcePackageManagerCache: { prepare: async () => {}, revalidateInBackground() {} },
+    connectLanguageState: () => ({ effectiveLocale: 'zh-CN' }),
+    ImageRuleStore: { forContext: () => ({ revalidateInBackground() {} }) },
     getContext: () => context,
     RouterHelper: { setAppPathStack() {}, setReaderOpener() {}, consumePendingLaunchRoute() {} },
     configureSourceSettingsStore() {}, configureSourceFilterPreferencesStore() {},
@@ -81,10 +86,14 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
   const Index = compile(`export class Index {
     libraryUpdateReady = false; libraryPersistenceRestored = false; readerSessionPersistenceReady = true;
     libraryRevision = 0; appPathStack = {}; libraryComics = [];
+    libraryUpdateState = { busy: false };
+    catalogFilters = { prepare: async () => {} };
     appForegroundState; libraryStore; sourceRegistry; libraryPersistenceService;
     ensureLibraryPersistenceService() { return this.libraryPersistenceService }
     handleReaderLabLaunch() {} openExternalReaderSession() {} reloadReaderSessionStore() {}
-    triggerAutomaticBackup() {} triggerPendingTrackerProgressSync() {}
+    triggerAutomaticBackup() {} triggerPendingTrackerProgressSync() {} runForegroundAutomaticBackup() {}
+    loadLibraryChapterUpdateHistory() {} refreshLibraryUpdateBadge() {} resumeAutomaticDownloadQueue() {}
+    showLibraryUpdateResult() {}
     ${['aboutToAppear', 'runForegroundLibraryUpdate', 'refreshLibrarySnapshot']
       .map((name) => method('pages/Index', name)).join('\n')}
   }`, dependencies).Index
@@ -93,9 +102,11 @@ function environment({ restoreFails = false, noPersistence = false } = {}) {
     sourceRegistry: registry, libraryPersistenceService: noPersistence ? undefined : persistence })
   const Entry = compile(`export class Entry {
     context = { applicationInfo: { debug: false } };
+    startupPromise = Promise.resolve(); syncForegroundGeneration = 0;
     syncRemoteProgressInBackground() {}
     ${['onForeground', 'onBackground'].map((name) => method('entryability/EntryAbility', name)).join('\n')}
   }`, { ...isolation, AppForegroundStateBridge: bridge.AppForegroundStateBridge,
+    appDeviceSync: { onForeground() {} }, synchronizeBackgroundMaintenance: async () => {},
     updateReaderLabForeground: () => {}, setTimeout: () => 0 }).Entry
   const entry = new Entry()
   return { index, entry, calls, events, foreground,

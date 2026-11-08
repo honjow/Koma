@@ -1,135 +1,180 @@
 import { url } from '@kit.ArkTS'
 
-const MANHUAGUI: string = 'com.manhuagui.koma'
-const BUONDUA: string = 'com.buondua.koma'
-const XIUTAKU: string = 'com.xiutaku.koma'
-const JMCOMIC: string = 'com.jmcomic.koma'
-const HENTAICLUB: string = 'com.hentaiclub.koma'
-const WNACG: string = 'com.wnacg.koma'
-const BILIMANGA: string = 'net.bilimanga.koma'
-let mainPermits: number = 10
-let imagePermits: number = 4
+export interface SourceRateLimitSetting {
+  key: string
+  windowValue?: boolean
+  keepUntilRestart?: boolean
+  maxPermits?: number
+}
+
+export interface SourceRateLimitLabel {
+  prefix: string
+  decimalSuffix?: boolean
+}
+
+export interface SourceRateLimitRule {
+  group: string
+  permits: number
+  periodMs: number
+  hosts?: string[]
+  firstLabels?: SourceRateLimitLabel[]
+  requestHeaders?: string[]
+  perOrigin?: boolean
+  oncePerRequest?: boolean
+  setting?: SourceRateLimitSetting
+}
+
 interface SourceRateWindow { permits: number; periodMs: number }
-const BILIMANGA_DEFAULT_RATE: SourceRateWindow = { permits: 10, periodMs: 10000 }
-let bilimangaRate: SourceRateWindow | undefined
+
+function policyInteger(value: Object | undefined, max: number): boolean {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= max
+}
+
+function policyObject(value: Object | undefined): boolean {
+  return value !== undefined && value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function policyStrings(values: Object | undefined, pattern: RegExp): boolean {
+  return values === undefined || (Array.isArray(values) && values.length > 0 && values.length <= 16 &&
+    values.every((value: Object): boolean => typeof value === 'string' && pattern.test(value)))
+}
+
+export function validSourceRequestLimits(value?: Object): boolean {
+  if (value === undefined) return true
+  if (!Array.isArray(value) || value.length > 8) return false
+  const groups = new Set<string>()
+  for (const item of value as Object[]) {
+    if (!policyObject(item)) return false
+    const rule = item as Record<string, Object>
+    const group = rule['group']
+    if (typeof group !== 'string' || !/^[a-z][a-z0-9_-]{0,31}$/.test(group) || groups.has(group) ||
+      !policyInteger(rule['permits'], 2147483647) || !policyInteger(rule['periodMs'], 2147483647000) ||
+      !policyStrings(rule['hosts'], /^[a-z0-9][a-z0-9.-]{0,252}$/) ||
+      !policyStrings(rule['requestHeaders'], /^[a-z0-9][a-z0-9_-]{0,63}$/)) return false
+    groups.add(group)
+    const labels = rule['firstLabels']
+    if (labels !== undefined) {
+      if (!Array.isArray(labels) || labels.length < 1 || labels.length > 8) return false
+      for (const item of labels as Object[]) {
+        if (!policyObject(item)) return false
+        const label = item as Record<string, Object>
+        const prefix = label['prefix']
+        if (typeof prefix !== 'string' || !/^[a-z0-9][a-z0-9-]{0,30}$/.test(prefix) ||
+          (label['decimalSuffix'] !== undefined && typeof label['decimalSuffix'] !== 'boolean')) return false
+      }
+    }
+    if (rule['hosts'] !== undefined && labels !== undefined) return false
+    if ((rule['perOrigin'] !== undefined && typeof rule['perOrigin'] !== 'boolean') ||
+      (rule['oncePerRequest'] !== undefined && typeof rule['oncePerRequest'] !== 'boolean')) return false
+    const setting = rule['setting']
+    if (setting !== undefined) {
+      if (!policyObject(setting)) return false
+      const bind = setting as Record<string, Object>
+      const key = bind['key']
+      if (typeof key !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(key) ||
+        (bind['maxPermits'] !== undefined && !policyInteger(bind['maxPermits'], 2147483647)) ||
+        (bind['windowValue'] !== undefined && typeof bind['windowValue'] !== 'boolean') ||
+        (bind['keepUntilRestart'] !== undefined && typeof bind['keepUntilRestart'] !== 'boolean')) return false
+    }
+  }
+  return true
+}
 
 class SourceRequestWindow {
   starts: number[] = []
   tail: Promise<void> = Promise.resolve()
 }
 
-const requestWindows: Map<string, SourceRequestWindow> = new Map()
+const configuredRates: WeakMap<SourceRateLimitRule, SourceRateWindow> = new WeakMap()
+const requestWindows: WeakMap<SourceRateLimitRule, Map<string, SourceRequestWindow>> = new WeakMap()
 
 /** One transport call keeps this object through its redirect hops. */
-export interface SourceRequestAdmission { wnacgAdmitted?: boolean; jmAdmitted?: boolean; xiutakuAdmitted?: boolean }
+export interface SourceRequestAdmission { groups?: Set<string> }
 
-function sourceRequestWindow(sourceId: string, group: string): SourceRequestWindow {
-  const key = JSON.stringify([sourceId, group])
-  let window = requestWindows.get(key)
+function sourceRequestWindow(rule: SourceRateLimitRule, key: string): SourceRequestWindow {
+  let windows = requestWindows.get(rule)
+  if (windows === undefined) {
+    windows = new Map<string, SourceRequestWindow>()
+    requestWindows.set(rule, windows)
+  }
+  let window = windows.get(key)
   if (window === undefined) {
     window = new SourceRequestWindow()
-    requestWindows.set(key, window)
+    windows.set(key, window)
   }
   return window
 }
 
-function permits(value: Object | undefined, fallback: number): number {
-  const parsed: number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : fallback
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 10 ? parsed : fallback
-}
-
-/** Publish the request's existing settings snapshot; the HTTP/image hot paths never read preferences. */
-export function configureSourceRequestPolicy(sourceId: string, settings: Object | null | undefined): void {
-  if (sourceId !== MANHUAGUI && sourceId !== BILIMANGA) return
-  const values: Record<string, Object> = settings !== undefined && settings !== null &&
-    typeof settings === 'object' && !Array.isArray(settings) ? settings as Record<string, Object> : {}
-  if (sourceId === BILIMANGA) {
-    // Mihon reads this setting when building its shared client. Keep one
-    // allowance across metadata and image fetches until the app restarts.
-    if (bilimangaRate !== undefined) return
-    const configured = values['RATE_LIMIT']
-    const match = typeof configured === 'string' ? /^(\d+)\/(\d+)$/.exec(configured) : null
-    const permits = match === null ? 0 : Number(match[1])
-    const seconds = match === null ? 0 : Number(match[2])
-    bilimangaRate = permits >= 1 && permits <= 2147483647 && seconds >= 1 && seconds <= 2147483647 ?
-      { permits: permits, periodMs: seconds * 1000 } : BILIMANGA_DEFAULT_RATE
-    return
+/** Consume settings with the same package snapshot as the source operation. */
+export function configureSourceRequestPolicy(rules: SourceRateLimitRule[] | undefined, settings: Object | null | undefined): void {
+  const values = policyObject(settings ?? undefined) ? settings as Record<string, Object> : undefined
+  for (const rule of rules ?? []) {
+    const setting = rule.setting
+    if (setting === undefined || (setting.keepUntilRestart && configuredRates.has(rule))) continue
+    const value = values?.[setting.key]
+    const match = setting.windowValue && typeof value === 'string' ? /^(\d+)\/(\d+)$/.exec(value) : null
+    const permits = match !== null ? Number(match[1]) :
+      setting.windowValue || (typeof value !== 'number' && typeof value !== 'string') ? 0 : Number(value)
+    const periodMs = match === null ? rule.periodMs : Number(match[2]) * 1000
+    const valid = policyInteger(permits, setting.maxPermits ?? 2147483647) && policyInteger(periodMs, 2147483647000)
+    configuredRates.set(rule, valid ? { permits, periodMs } : { permits: rule.permits, periodMs: rule.periodMs })
   }
-  mainPermits = permits(values['mainSiteRatelimitPreference'], 10)
-  imagePermits = permits(values['imgCDNRatelimitPreference'], 4)
 }
 
-/** Keiyoushi's rules share one sliding window for the entire matched CDN set.
- * Metadata, covers and Reader cache misses must use this same owner; a per-image-host queue
- * would multiply the allowance. BuonDua only limits its exact main host, 10 requests per second.
- * Separate source/group windows keep unrelated sources/hosts and cache hits from waiting.
- */
-export async function waitForSourceRequestSlot(sourceId: string, requestUrl: string,
+function matchesRule(rule: SourceRateLimitRule, parsed: url.URL, headers?: Object | string | number | boolean | null): boolean {
+  const host = parsed.hostname.toLowerCase()
+  if (rule.hosts !== undefined && !rule.hosts.includes(host)) return false
+  if (rule.firstLabels !== undefined) {
+    const domain = host.startsWith('www.') ? host.slice(4) : host
+    const dot = domain.indexOf('.')
+    if (dot < 1) return false
+    const label = domain.slice(0, dot)
+    if (!rule.firstLabels.some((part: SourceRateLimitLabel): boolean => label.startsWith(part.prefix) &&
+      (part.decimalSuffix ? /^\d+$/.test(label.slice(part.prefix.length)) : /^\w*$/.test(label.slice(part.prefix.length))))) return false
+  }
+  if (rule.perOrigin && parsed.protocol !== 'https:') return false
+  const required = rule.requestHeaders
+  if (required === undefined) return true
+  const values = policyObject(headers as Object | undefined) ? headers as Record<string, Object> : undefined
+  if (values === undefined) return false
+  const keys = Object.keys(values)
+  return required.every((name: string): boolean => keys.some((key: string): boolean => {
+    const value = values[key]
+    return key.toLowerCase() === name && typeof value === 'string' && value.length > 0
+  }))
+}
+
+/** Metadata and actual image GETs share the installed package's declared window. */
+export async function waitForSourceRequestSlot(rules: SourceRateLimitRule[] | undefined, requestUrl: string,
   isCurrent: () => boolean = (): boolean => true,
   headers?: Object | string | number | boolean | null, admission?: SourceRequestAdmission): Promise<void> {
-  if (sourceId !== MANHUAGUI && sourceId !== BUONDUA && sourceId !== XIUTAKU && sourceId !== JMCOMIC && sourceId !== HENTAICLUB &&
-    sourceId !== WNACG && sourceId !== BILIMANGA) return
-  let host: string
-  let origin: string
-  try {
-    const parsed = new url.URL(requestUrl)
-    host = parsed.hostname.toLowerCase()
-    origin = parsed.origin
-  } catch (_error) { return }
-  const main: boolean = sourceId === MANHUAGUI && host === 'www.manhuagui.com'
-  const image: boolean = sourceId === MANHUAGUI && (host === 'i.hamreus.com' || host === 'cf.hamreus.com')
-  const buondua: boolean = sourceId === BUONDUA && host === 'buondua.com'
-  // Xiutaku uses the same 10/s sliding window for its exact main host;
-  // i.xiutaku.com is an independent CDN and must not consume that allowance.
-  const xiutaku: boolean = sourceId === XIUTAKU && host === 'xiutaku.com'
-  if (xiutaku && admission?.xiutakuAdmitted === true) return
-  // The reference matches this hostname, including same-host images and all ports.
-  const hentaiclub: boolean = sourceId === HENTAICLUB && host === 'www.hentaiclub.net'
-  // All reference-matching mirrors share one window; one HTTP call is charged at most once.
-  const wnacg: boolean = sourceId === WNACG && /^(?:www\.)?wn(?:acg\w*|\d+)\./.test(host)
-  if (wnacg && admission?.wnacgAdmitted === true) return
-  const rawHeaders: Record<string, Object> = headers !== undefined && headers !== null &&
-    typeof headers === 'object' && !Array.isArray(headers) ? headers as Record<string, Object> : {}
-  let token: boolean = false
-  let tokenParam: boolean = false
-  for (const key of Object.keys(rawHeaders)) {
-    const value = rawHeaders[key]
-    if (typeof value !== 'string' || value.length === 0) continue
-    if (key.toLowerCase() === 'token') token = true
-    if (key.toLowerCase() === 'tokenparam') tokenParam = true
-  }
-  // JM selects its API origin dynamically. Its signed API calls share a
-  // three-per-two-second origin window; server-list and CDN lack these headers.
-  const jm: boolean = sourceId === JMCOMIC && origin.startsWith('https://') && token && tokenParam
-  if (jm && admission?.jmAdmitted === true) return
-  const bili = sourceId === BILIMANGA ? bilimangaRate ?? BILIMANGA_DEFAULT_RATE : undefined
-  if (!main && !image && !buondua && !xiutaku && !jm && !hentaiclub && !wnacg && bili === undefined) return
-  const window = sourceRequestWindow(sourceId, jm ? origin : image ? 'image' : 'main')
-  const period: number = bili?.periodMs ?? (wnacg ? 60000 : jm ? 2000 : main ? 10000 : 1000)
-  const previous: Promise<void> = window.tail
+  if (rules === undefined || rules.length === 0) return
+  let parsed: url.URL
+  try { parsed = new url.URL(requestUrl) } catch (_error) { return }
+  const rule = rules.find((candidate: SourceRateLimitRule): boolean => matchesRule(candidate, parsed, headers))
+  if (rule === undefined) return
+  if (rule.oncePerRequest && admission?.groups?.has(rule.group)) return
+  const rate = configuredRates.get(rule) ?? rule
+  const window = sourceRequestWindow(rule, rule.perOrigin ? parsed.origin : '')
+  const previous = window.tail
   let release: () => void = () => {}
   window.tail = new Promise<void>((resolve) => { release = resolve })
   try {
     await previous
     while (true) {
       if (!isCurrent()) throw new Error('source_request_cancelled')
-      const now: number = Date.now()
-      window.starts = window.starts.filter((started: number): boolean => now - started < period)
-      const limit: number = bili?.permits ?? (wnacg ? 50 : jm ? 3 : hentaiclub ? 2 : buondua || xiutaku ? 10 :
-        main ? mainPermits : imagePermits)
-      if (window.starts.length < limit) {
+      const now = Date.now()
+      window.starts = window.starts.filter((started: number): boolean => now - started < rate.periodMs)
+      if (window.starts.length < rate.permits) {
         window.starts.push(now)
-        if (wnacg && admission !== undefined) admission.wnacgAdmitted = true
-        if (jm && admission !== undefined) admission.jmAdmitted = true
-        if (xiutaku && admission !== undefined) admission.xiutakuAdmitted = true
+        if (rule.oncePerRequest && admission !== undefined) {
+          if (admission.groups === undefined) admission.groups = new Set<string>()
+          admission.groups.add(rule.group)
+        }
         return
       }
-      await new Promise<void>((resolve) => {
-        const wait = Math.max(1, window.starts[0] + period - now)
-        // A configured BiliManga window may span a long period. Recheck
-        // cancellation without delaying unrelated queued calls for that period.
-        setTimeout(resolve, bili === undefined ? wait : Math.min(1000, wait))
-      })
+      const wait = Math.max(1, window.starts[0] + rate.periodMs - now)
+      await new Promise<void>((resolve) => { setTimeout(resolve, Math.min(1000, wait)) })
     }
   } finally { release() }
 }

@@ -1,4 +1,4 @@
-import { selectedMangaBzMirror } from './MangaBzMirrorNavigation'
+import { selectedSourceHomepage } from './SourceHomepageSelection'
 import { common } from '@kit.AbilityKit'
 import { RouterHelper } from '../common/RouterHelper'
 import { appSourceRuntimeRegistry } from './SourceRuntimeAppRegistry'
@@ -9,7 +9,7 @@ import { normalizeSourceHomepage } from './SourcePackageImporter'
 export async function resolveSourceHomepage(context: common.UIAbilityContext, sourceId: string): Promise<string | undefined> {
   const entry = appSourceRuntimeRegistry.lookup(sourceId).entry
   if (entry === undefined) return undefined
-  const selectedMirror = selectedMangaBzMirror(sourceId)
+  const selectedMirror = selectedSourceHomepage(sourceId)
   if (selectedMirror !== undefined) return selectedMirror
   const installed = normalizeSourceHomepage(entry.packageHomepage)
   if (installed !== undefined) return installed
@@ -43,7 +43,7 @@ export async function openSourceHomepage(
   if (!isCurrent()) return true
   if (homepage === undefined) return false
   try {
-    RouterHelper.pushMangaWeb({ url: homepage, title })
+    RouterHelper.pushMangaWeb({ url: homepage, title, sourceId })
     return true
   } catch (_error) {
     return false

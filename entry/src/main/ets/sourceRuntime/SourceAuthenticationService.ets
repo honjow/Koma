@@ -123,7 +123,7 @@ export class SourceAuthenticationService {
       const context = JSON.parse(sourceHttpIdentityJson(this.entry)) as SourceHttpIdentity
       context.credentialGrantId = grantId
       const settings = appSourceSettingsStore.loadForSource(this.entry.sourceId)
-      configureSourceRequestPolicy(this.entry.sourceId, settings)
+      configureSourceRequestPolicy(this.entry.requestLimits, settings)
       const payload: AuthenticationOperationRequest = { type: 'request', version: 1,
         operation, sourceId: this.entry.sourceId,
         args: { settingObservations: appSourceSettingObservationStore.snapshotForSource(this.entry.sourceId) },

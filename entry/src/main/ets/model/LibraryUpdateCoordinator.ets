@@ -164,9 +164,11 @@ async function runLibraryUpdateCheck(request: LibraryUpdateCheckRequest): Promis
     const service = new LibraryUpdateService(request.libraryStore, request.sourceRegistry,
       request.libraryPersistenceService, new RemoteServerStore(request.context),
       (comic: Comic): Set<string> | undefined => protectedSourceChapterIds(
-        comic, request.context.filesDir, reader),
+        comic, request.context.filesDir, reader,
+        request.sourceRegistry.lookup(comic.sourceRuntimeId ?? '').entry?.websitePolicy?.chapterIdentity),
       request.reason === 'due' && automaticPolicy !== undefined ?
-        (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, automaticPolicy) : undefined)
+        (comic: Comic): boolean => shouldAutomaticallyUpdateComic(comic, reader, automaticPolicy) : undefined,
+      policy?.refreshWorkInfo === true)
     summary = await service.checkLibraryUpdates()
   } catch (_error) {
     // Only a service exception reaches this branch; persistence and notification failures are separate.

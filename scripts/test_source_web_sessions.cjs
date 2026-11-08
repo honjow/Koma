@@ -480,9 +480,9 @@ function fixture(sdkApiVersion = 23) {
       if (name === './SourceRuntimeAppRegistry') return { appSourceRuntimeRegistry: registry }
       if (name === './SourceRuntimeRegistry') return { sourceRuntimeEntryEnabled: () => true }
       if (name === './SourceSettingsStore') return { appSourceSettingsStore: {} }
-      if (name === './CopyMangaHostContract') return moduleFrom('CopyMangaHostContract', () => ({ url: { URL } }))
+      if (name === './SourceWebsitePolicy') return moduleFrom('SourceWebsitePolicy', () => ({ url: { URL } }))
       if (name === './SourceRcpTransport') return moduleFrom('SourceRcpTransport', () => ({}))
-      if (name === './SourcePicaChannelTransport') return moduleFrom('SourcePicaChannelTransport', () => ({}))
+      if (name === './SourceDnsBootstrapTransport') return moduleFrom('SourceDnsBootstrapTransport', () => ({}))
       if (name === './SourcePrivateSessionHost') return { SourcePrivateSessionHost: network.privateHost ?? privateHost }
       if (name === './SourceAuthenticationDescriptor') return mocks(name)
       if (name === './NativeSourceRuntime') return { NativeSourceRuntime: {
@@ -598,7 +598,14 @@ test('BiliManga guest search receives only its own guest cookies and follows onl
   const f = fixture()
   const sourceId = 'net.bilimanga.koma'
   const origin = 'https://www.bilimanga.net'
-  f.changeEntry(e => ({ ...e, sourceId, webSessionOrigins: [origin] }))
+  f.changeEntry(e => ({ ...e, sourceId, webSessionOrigins: [origin], websitePolicy: {
+    guestHttp: { origin, exactPaths: ['/search.html?search_guard=css', '/search.html?search_guard=js', '/search.html?search_guard=redeem'],
+      numberedPaths: [{ prefix: '/search/', suffix: '.html', numberSeparator: '_' }],
+      redirectNumberedPaths: [{ prefix: '/detail/', suffix: '.html' }], cookieDomain: 'bilimanga.net',
+      cookies: [{ name: 'night', value: '1' }, { name: 'jieqiSearchCss' }, { name: 'jieqiSearchJs' }, { name: 'jieqiSearchTicket' }],
+      captures: [{ path: '/search.html?search_guard=css', name: 'jieqiSearchCss' },
+        { path: '/search.html?search_guard=redeem', name: 'jieqiSearchTicket' }] },
+  } }))
   const pending = f.store.begin(f.registry, sourceId, origin + '/')
   f.store.complete(sourceId, pending.sessionId, origin + '/', 'private-browser-ua')
   const context = JSON.stringify(f.identity())
@@ -618,6 +625,7 @@ test('BiliManga guest search receives only its own guest cookies and follows onl
     { responseCode: 200, result: 'detail', header: { 'Set-Cookie': 'account=ignored' } },
   ], context, { ...request, url, headers: { Cookie: 'night=1; jieqiSearchTicket=guest-ticket' } })
   assert.deepEqual(success.calls.map(call => call.fullUrl), [url, detail])
+  assert.equal(success.calls[1].options.header.Cookie, 'night=1; jieqiSearchTicket=guest-ticket')
   assert.equal(success.result.guestSearchUrl, detail)
   assert.equal(success.result.guestSearchCookie, undefined)
   assert.equal(success.result.bodyText, 'detail')
@@ -640,7 +648,8 @@ test('BiliManga guest search receives only its own guest cookies and follows onl
 
 test('browser-compatible source HTTP preserves the original request and stays within its source and origin', async () => {
   const f = fixture()
-  f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))
+  f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'],
+    websitePolicy: { httpProfiles: [{ origin: 'https://api.simply-hentai.com', profile: 'firefox133' }] } }))
   const nativeCalls = []
   const network = { sourceBrowserHttp: async (...args) => {
     nativeCalls.push(args)
@@ -666,10 +675,11 @@ test('browser-compatible source HTTP preserves the original request and stays wi
     const old = await f.http([response(200)], JSON.stringify(f.identity()), request, network)
     assert.equal(old.calls.length, 1)
   }
-  f.changeEntry(e => ({ ...e, sourceId: 'another.source' }))
+  f.changeEntry(e => ({ ...e, sourceId: 'another.source', websitePolicy: undefined }))
   await f.http([response(200)], JSON.stringify(f.identity()), { url: 'https://api.simply-hentai.com/v3/search/complex' }, network)
   assert.equal(nativeCalls.length, 1)
-  f.changeEntry(e => ({ ...e, sourceId: 'com.manhuawu.koma', webSessionOrigins: ['https://www.mhua5.com'] }))
+  f.changeEntry(e => ({ ...e, sourceId: 'com.manhuawu.koma', webSessionOrigins: ['https://www.mhua5.com'],
+    websitePolicy: { httpProfiles: [{ origin: 'https://www.mhua5.com', profile: 'chrome145' }] } }))
   const mhw = await f.http([], JSON.stringify(f.identity()), { url: 'https://www.mhua5.com/category/order/hits' }, network)
   assert.equal(mhw.result.ok, true)
   assert.equal(mhw.calls.length, 0)
@@ -682,7 +692,8 @@ test('proxy fallback and ordinary redirects retain only the remaining source HTT
     { eligible: true, cancelled: false, code: 0, status: 302, body: '', headers: ['location: /next'] },
   ]) {
     const f = fixture()
-    f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))
+    f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'],
+    websitePolicy: { httpProfiles: [{ origin: 'https://api.simply-hentai.com', profile: 'firefox133' }] } }))
     let now = 1000
     const result = await f.http([response(200)], JSON.stringify(f.identity()), {
       url: 'https://api.simply-hentai.com/list', timeoutMs: 5000,
@@ -696,7 +707,8 @@ test('proxy fallback and ordinary redirects retain only the remaining source HTT
 
 test('a cancelled source request stops the native transfer and cannot publish its response', async () => {
   const f = fixture()
-  f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'] }))
+  f.changeEntry(e => ({ ...e, sourceId: 'com.simplyhentai.zh.koma', webSessionOrigins: ['https://api.simply-hentai.com'],
+    websitePolicy: { httpProfiles: [{ origin: 'https://api.simply-hentai.com', profile: 'firefox133' }] } }))
   const guardId = f.guards.newSourceRuntimeOperationGuardId()
   let current = true, started, finish, callId
   const entered = new Promise(resolve => { started = resolve })
@@ -745,7 +757,7 @@ test('verification navigation uses the installed source name for the current lan
   let locale = 'zh-CN'
   const navigation = moduleFrom('SourceWebSessionNavigation', name => {
     if (name === '../common/RouterHelper') return { RouterHelper: {} }
-    if (name === './MangaBzMirrorNavigation') return { selectedMangaBzMirror: () => undefined }
+    if (name === './SourceHomepageSelection') return { selectedSourceHomepage: () => undefined }
     if (name === './SourceWebSessionStore') return { appSourceWebSessionStore: f.store }
     if (name === './SourceRuntimeHttpTransport') return { sourceRejectedRequestUrl: () => '' }
     if (name === './SourceRuntimeAppRegistry') return {
@@ -890,7 +902,9 @@ test('WASM-supplied identity cannot acquire a session; separate native identity 
 test('MangaBz language overrides only its own cookie while verification survives every redirect', async () => {
   function granted(sourceId = 'com.mangabz.koma', origin = 'https://www.mangabz.com') {
     const f = fixture()
-    f.changeEntry(entry => ({ ...entry, sourceId, webSessionOrigins: [origin] }))
+    f.changeEntry(entry => ({ ...entry, sourceId, webSessionOrigins: [origin],
+      websitePolicy: sourceId === 'com.mangabz.koma' ? { publicCookieOverrides:
+        [{ origin: 'https://www.mangabz.com', name: 'mangabz_lang', values: ['1', '2'] }] } : undefined }))
     const pending = f.store.begin(f.registry, sourceId, origin + '/verify')
     f.store.complete(sourceId, pending.sessionId, origin + '/done', 'ActualWebViewUA')
     f.setCookie('cf_clearance=jar-clearance; session=jar-login; mangabz_lang=1; mangabz_lang=2; other=kept')
@@ -1075,7 +1089,7 @@ test('public initialization permission follows the actual admitted network opera
   for (const [operation, network, expected] of [['get_settings', true, false], ['get_authentication', true, false],
     ['search', false, false], ['search', true, true], ['authenticate', true, true]]) {
     await worker.client.executeSourceRequestInWorker(JSON.stringify({ operation, hostHints: { network } }),
-      new Uint8Array([0]), JSON.stringify({ ...f.identity, sourceId: 'com.picacomic.koma' }))
+      new Uint8Array([0]), JSON.stringify({ ...f.identity, dnsBootstrapDeclared: true }))
     assert.equal(seen.at(-1).allowed, expected, operation)
     assert.equal(f.host.publicInitializationIsAllowed(seen.at(-1).scope), false)
   }
@@ -1120,7 +1134,7 @@ test('ordinary Browse queue derives native identity from the admitted registry e
   assert.deepEqual(JSON.parse(nativeCalls[0].context), { ...f.identity(), diagnosticOperation: 'get_home' })
   assert.equal(JSON.parse(nativeCalls[0].request).sourceId, 'wasm-forged')
   assert.deepEqual(JSON.parse(nativeCalls[0].request).settings, { traditional: false })
-  assert(JSON.parse(nativeCalls[0].request).hostFeatures.includes('mangabz_language_cookie_v1'))
+  assert(JSON.parse(nativeCalls[0].request).hostFeatures.includes('source_public_cookie_override_v1'))
   assert(!nativeCalls[0].context.includes('cookie-value'))
 })
 
@@ -1251,7 +1265,7 @@ test('shared Native worker retains each invocation request, bytes, HTTP context,
     assert.equal(received.operation, operation)
     assert.deepEqual(received.settings, { traditional: true })
     if (operation === 'source_info') assert.equal(calls.at(-1)[0], request)
-    else assert(received.hostFeatures.includes('mangabz_language_cookie_v1'))
+    else assert(received.hostFeatures.includes('source_public_cookie_override_v1'))
     assert.equal(calls.at(-1)[1], bytes); assert.equal(calls.at(-1)[2], context)
     assert.equal(calls.at(-1)[3], operation)
   }
@@ -1350,7 +1364,7 @@ function homepageFixture({entry={sourceId:'one'},cached=[],fresh={ok:true,entrie
  let cacheReads=0,fetches=0,savedReads=0;const pushed=[]
  const api=moduleFrom('SourceHomepageNavigation',name=>{
   if(name==='./SourcePackageImporter')return exports
-  if(name==='./MangaBzMirrorNavigation')return {selectedMangaBzMirror:()=>undefined}
+  if(name==='./SourceHomepageSelection')return {selectedSourceHomepage:()=>undefined}
   if(name==='./SourceRuntimeAppRegistry')return {appSourceRuntimeRegistry:{lookup:id=>({entry:id==='one'?entry:undefined})}}
   if(name==='../common/RouterHelper')return {RouterHelper:{pushMangaWeb:params=>pushed.push(params)}}
   if(name==='./SourceIndexService')return {SourceIndexService:class{
@@ -1371,7 +1385,7 @@ test('homepage URL parsing preserves full HTTP(S) page paths and rejects non-nav
 test('installed homepage opens immediately even when browse failed, with no index IO or session grant',async()=>{
  const f=homepageFixture({entry:{sourceId:'one',packageHomepage:'https://website.example/comics/',webSessionOrigins:['https://session.example']}})
  assert.equal(await f.api.openSourceHomepage({},'one','Site',()=>true),true)
- assert.deepEqual({...f.pushed[0]},{url:'https://website.example/comics/',title:'Site'})
+ assert.deepEqual({...f.pushed[0]},{url:'https://website.example/comics/',title:'Site',sourceId:'one'})
  assert.deepEqual(f.reads,{cacheReads:0,fetches:0,savedReads:0})
 })
 test('legacy packages use declared same-source cached homepage before fallback origins; unrelated/API fields are ignored',async()=>{
@@ -1410,35 +1424,35 @@ test('ordinary source menus advertise only already-known website addresses',()=>
  const menuLimit = tree.statements.find(node => ts.isVariableStatement(node) &&
   node.declarationList.declarations.some(declaration => declaration.name.getText(tree) === 'SOURCE_ROUTE_TITLE_MENU_MAX_COUNT'))
  const subjectSource = menuLimit.getText(tree) + '\nexport class Subject {' + body + '}'
- const {copyMangaSelectedHomepage}=moduleFrom('CopyMangaHostContract',()=>({url:{URL}}))
  const pushed=[];let savedDomain,settingsReads=0
  const exports={};vm.runInNewContext(ts.transpileModule(subjectSource,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{
   exports,AppStrings:{get:key=>key},$r:key=>key,sourceDisplayName:(_id,name)=>name,
   normalizeSourceHomepage:homepageFixture().guard,appSourcePackageManagerCache:{indexEntries:[]},
-  copyMangaSelectedHomepage,appSourceSettingsStore:{loadForSource(){settingsReads++;return {domain:savedDomain}}},
+  selectedSourceHomepage(id){if(id==='com.copymanga.koma'){settingsReads++;return savedDomain?.replace('api.','www.')}return undefined},
   RouterHelper:{pushMangaWeb:params=>pushed.push({...params})},
   BottomBuilderShowType:{DIRECTLY_SHOW:1},SOURCE_BROWSE_TITLE_BOTTOM_HEIGHT:1,SOURCE_SEARCH_TITLE_BOTTOM_HEIGHT:1})
  const subject=new exports.Subject();subject.browseFieldContent=()=>({});subject.sourceSearchFieldContent=()=>({});subject.sourceRouteTitleBarOpts=opts=>opts
+ subject.sourceBrowseOverflow=()=>({content:{label:'common_more_actions'}})
  const source={sourceId:'one',displayName:'Site',enabled:true,homepage:'https://site.example/'},chrome={visible:true,filtersAvailable:false,settingsAvailable:false,webSessionAvailable:false}
  for(const method of ['sourceBrowseTitleBarOpts','sourceSearchTitleBarOpts']){
   const opts=subject[method]({source,chrome})
-  assert.deepEqual(Array.from(opts.menu.value,item=>item.content.label),['manga_detail_menu_open_webview'])
+  assert.deepEqual(Array.from(opts.menu.value,item=>item.content.label).filter(label=>label!=='common_more_actions'),['manga_detail_menu_open_webview'])
   assert.equal(opts.menu.value[0].content.isEnabled,true)
   const readsBefore=settingsReads
   opts.menu.value[0].content.action()
-  assert.deepEqual(pushed.pop(),{url:source.homepage,title:source.displayName})
+  assert.deepEqual(pushed.pop(),{url:source.homepage,sourceId:source.sourceId,title:source.displayName})
   assert.equal(settingsReads,readsBefore)
   chrome.webSessionAvailable=true
   const withSession=subject[method]({source,chrome})
-  assert.deepEqual(Array.from(withSession.menu.value,item=>item.content.label),['manga_detail_menu_open_webview','source_web_open'])
+  assert.deepEqual(Array.from(withSession.menu.value,item=>item.content.label).filter(label=>label!=='common_more_actions'),['manga_detail_menu_open_webview','source_web_open'])
   chrome.webSessionAvailable=false
   const absent=subject[method]({source:{...source,homepage:undefined},chrome})
-  assert.equal(absent.menu.value.length,0)
+  assert(!absent.menu?.value?.some(item=>item.content.label==='manga_detail_menu_open_webview'))
   const copy={sourceId:'com.copymanga.koma',displayName:'拷贝漫画',enabled:true,homepage:'https://www.mangacopy.com'}
   const openCopy=subject[method]({source:copy,chrome}).menu.value[0].content.action
   savedDomain='https://api.copy3000.com'
   openCopy()
-  assert.deepEqual(pushed.pop(),{url:'https://www.copy3000.com',title:copy.displayName})
+  assert.deepEqual(pushed.pop(),{url:'https://www.copy3000.com',sourceId:copy.sourceId,title:copy.displayName})
   assert.equal(settingsReads,readsBefore+1)
   chrome.visible=false
   openCopy()

@@ -296,7 +296,7 @@ async function fetchSourceChapterPages(
     settings: appSourceSettingsStore.loadForSource(entry.sourceId),
     hostHints: { network: true, imageStrategy: 'descriptor-or-url' },
   }
-  configureSourceRequestPolicy(entry.sourceId, sourceRequest.settings)
+  configureSourceRequestPolicy(entry.requestLimits, sourceRequest.settings)
   const requestJson: string = sourceRequestWithHostFeatures(JSON.stringify(sourceRequest))
   const responseJson = await diagnoseSourceOperation(requestJson, () => executeSourceChapterPagesOperation(
     requestJson,
@@ -454,7 +454,8 @@ export class SourceChapterPageHydrator {
     const latest = this.libraryStore.getComic(comicId)
     if (!catalog.resolved || !sourceCurrent() || latest === undefined || !sameComicIdentity(comic, latest) ||
       latest.sourceRuntimeId !== sourceId || sourceMangaIdFromComic(latest, sourceId) !== mangaId) return undefined
-    const resolved = reconcileSourceChapterIdentity(latest, mangaId, catalog.chapters, undefined)
+    const resolved = reconcileSourceChapterIdentity(latest, mangaId, catalog.chapters, undefined,
+      lookup.entry.websitePolicy?.chapterIdentity)
     const updated = JSON.parse(JSON.stringify(latest)) as Comic
     const catalogChanged = setCompleteSourceChapterCatalog(updated,
       resolved.chapters.map((item: MangaChapterItem): string => item.id), Date.now())

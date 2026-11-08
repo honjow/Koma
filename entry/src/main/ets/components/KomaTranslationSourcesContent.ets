@@ -12,24 +12,34 @@ import { ExperimentalCodexOAuthService } from '../readerTranslation/services/Exp
 import { ComicTranslationCodexUsageService, CodexUsageSnapshot,
   CodexUsageWindow } from '../readerTranslation/services/ComicTranslationCodexUsageService'
 import { DiagnosticLogger } from '../diagnostics/DiagnosticLogger'
-import { komaMenuOptions, komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
+import { komaSheetOptions, komaToastOptions, komaDialogMaterial } from '../theme/KomaPopupOptions'
 import { ConciseListRow } from './ui/ConciseListRow'
 import { GroupedListSection, ListDivider } from './ui/GroupedListSection'
 import { KomaFormTextField } from './ui/KomaFormTextField'
 import { KomaActionButton } from './ui/KomaActionButton'
+import { KomaMenuController } from './ui/KomaMenuController'
 import { KomaModalScaffold } from './KomaModalScaffold'
 
 function t(key: string): string { return AppStrings.get(key) }
 
+export const MODEL_SOURCE_ADD_BUTTON_ID: string = 'model-source-add'
+
+@ObservedV2
+export class ModelSourcesTitleAction {
+  @Trace enabled: boolean = false
+  @Trace requestId: number = 0
+}
+
 /** NextE's source list/detail responsibilities, backed by Koma's existing secure settings owner. */
 @ComponentV2
 export struct KomaTranslationSourcesContent {
+  @Param titleAction: ModelSourcesTitleAction = new ModelSourcesTitleAction()
   @Local private settings: KomaTranslationSettingsSnapshot = new KomaTranslationSettingsSnapshot()
   @Local private editing: KomaTranslationLlmSource = new KomaTranslationLlmSource()
   @Local private editorShown: boolean = false
   @Local private ready: boolean = false
   @Local private busy: boolean = false
-  @Local private addMenuShown: boolean = false
+  private addMenu: KomaMenuController = new KomaMenuController()
   @Local private codexConnected: boolean = false
   @Local private codexAccountId: string = ''
   @Local private codexLoginBusy: boolean = false
@@ -41,7 +51,17 @@ export struct KomaTranslationSourcesContent {
   private editorLifetime: number = 0
 
   aboutToAppear(): void { this.active = true; void this.load() }
-  aboutToDisappear(): void { this.active = false; this.editorLifetime += 1 }
+  aboutToDisappear(): void {
+    this.active = false
+    this.titleAction.enabled = false
+    this.addMenu.close()
+    this.editorLifetime += 1
+  }
+
+  @Monitor('ready', 'busy', 'editorShown')
+  private updateTitleAction(): void {
+    this.titleAction.enabled = this.active && this.ready && !this.busy && !this.editorShown
+  }
 
   private context(): common.UIAbilityContext {
     return this.getUIContext().getHostContext() as common.UIAbilityContext
@@ -358,35 +378,35 @@ export struct KomaTranslationSourcesContent {
     }
   }
 
-  @Builder
-  private AddSourceMenu() {
-    Menu() {
-      MenuItem({ content: t('llm_source_type_api') }).onClick(() => {
-        this.addMenuShown = false
-        this.open(null, LLM_SOURCE_TYPE_OPENAI_COMPATIBLE)
-      })
-      MenuItem({ content: t('llm_source_type_codex') }).onClick(() => {
-        this.addMenuShown = false
-        this.open(null, LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL)
-      })
-    }
+  @Monitor('titleAction.requestId')
+  private openAddMenu(): void {
+    if (!this.titleAction.enabled) return
+    this.addMenu.open(this.getUIContext(), MODEL_SOURCE_ADD_BUTTON_ID, () => [{
+      id: 'model-source-types',
+      items: [
+        { label: t('llm_source_type_api'), action: () => { this.open(null, LLM_SOURCE_TYPE_OPENAI_COMPATIBLE) } },
+        { label: t('llm_source_type_codex'), action: () => { this.open(null, LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL) } },
+      ],
+    }], () => { DiagnosticLogger.warn('llm-source', 'add_menu_failed', 'title_action_unavailable') })
   }
 
   build() {
     Column({ space: ThemeConstants.SPACE_LG }) {
-      GroupedListSection() {
-        ForEach(this.settings.llmSources, (source: KomaTranslationLlmSource, index: number) => {
-          if (index > 0) ListDivider()
-          ConciseListRow({ title: source.profile.displayName,
-            subtitle: source.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL ?
-              t('llm_source_type_codex') : source.profile.baseUrl,
-            isEnabled: this.ready && !this.busy, action: () => { this.open(source) } })
-        }, (source: KomaTranslationLlmSource): string => source.profile.sourceProfileId)
+      if (this.settings.llmSources.length > 0) {
+        GroupedListSection() {
+          ForEach(this.settings.llmSources, (source: KomaTranslationLlmSource, index: number) => {
+            if (index > 0) ListDivider()
+            ConciseListRow({ title: source.profile.displayName,
+              subtitle: source.profile.sourceType === LLM_SOURCE_TYPE_CODEX_OAUTH_EXPERIMENTAL ?
+                t('llm_source_type_codex') : source.profile.baseUrl,
+              isEnabled: this.ready && !this.busy, action: () => { this.open(source) } })
+          }, (source: KomaTranslationLlmSource): string => source.profile.sourceProfileId)
+        }
+      } else if (this.ready) {
+        ConciseListRow({ title: t('llm_sources_empty'), showChevron: false })
       }
-      KomaActionButton({ label: t('llm_source_add'), fullWidth: true, kind: 'primary',
-        isEnabled: this.ready && !this.busy, action: () => { this.addMenuShown = true } })
-        .bindMenu(this.addMenuShown, this.AddSourceMenu(), komaMenuOptions())
     }
+    .width('100%')
     .bindSheet($$this.editorShown, this.Editor(), komaSheetOptions({ height: SheetSize.LARGE, showClose: false }))
   }
 }

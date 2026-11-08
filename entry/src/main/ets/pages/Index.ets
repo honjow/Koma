@@ -68,6 +68,7 @@ import { SearchPage } from './SearchPage'
 import { SEARCH_TITLE_BOTTOM_HEIGHT, SearchTitleFieldContentBuilder } from '../components/SearchTitleField'
 import { SettingsPage, SettingsPaneKey, settingsPaneTitle } from './SettingsPage'
 import { FormTitleActionState } from '../state/FormTitleActionState'
+import { MODEL_SOURCE_ADD_BUTTON_ID, ModelSourcesTitleAction } from '../components/KomaTranslationSourcesContent'
 import { KomaMenuController, KomaMenuAction, KomaMenuGroup, komaTitleMoreIcon } from '../components/ui/KomaMenuController'
 import { ImportPage, LocalFolderImportPersistResult } from './ImportPage'
 import { LocalImportCoordinator } from '../import/LocalImportCoordinator'
@@ -157,6 +158,7 @@ import {
   LibraryStorePersistenceService,
   editComicCategoriesAndPersistLibraryStore,
   isRemovableLocalComic,
+  isRemovableShelfComic,
   removeComicAndPersistLibraryStore,
   removeComicsAndPersistLibraryStore,
   retainLibrarySourceNameAndPersist,
@@ -196,11 +198,11 @@ import {
   appSourceRuntimeRegistry,
   bootstrapSourceRuntimeAppRegistry,
 } from '../sourceRuntime/SourceRuntimeAppRegistry'
-import { appSourceSettingsStore, configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
+import { configureSourceSettingsStore } from '../sourceRuntime/SourceSettingsStore'
 import { appSourceWebSessionStore } from '../sourceRuntime/SourceWebSessionStore'
 import { openSourceWebSession } from '../sourceRuntime/SourceWebSessionNavigation'
 import { normalizeSourceHomepage } from '../sourceRuntime/SourcePackageMetadata'
-import { copyMangaSelectedHomepage } from '../sourceRuntime/CopyMangaHostContract'
+import { selectedSourceHomepage } from '../sourceRuntime/SourceHomepageSelection'
 import { configureSourceFilterPreferencesStore } from '../sourceRuntime/SourceFilterPreferencesStore'
 import { AppStrings } from '../i18n/AppStrings'
 import { connectLanguageState, LanguageState } from '../state/LanguageState'
@@ -226,6 +228,7 @@ interface SettingsPaneRouteParam {
   pane: string
   searchTarget?: string
   formTitleAction: FormTitleActionState
+  modelSourcesTitleAction: ModelSourcesTitleAction
 }
 
 interface DeviceSyncWebDavRouteParam {
@@ -2118,7 +2121,8 @@ struct Index {
       this.appPathStack.pushPath({ name: RouteName.TRACKER_SETTINGS, param: { searchTarget: rowKey ?? '' } as SettingsSearchRouteParam })
       return
     }
-    const routeParam: SettingsPaneRouteParam = { pane: pane, searchTarget: rowKey, formTitleAction: new FormTitleActionState() }
+    const routeParam: SettingsPaneRouteParam = { pane: pane, searchTarget: rowKey, formTitleAction: new FormTitleActionState(),
+      modelSourcesTitleAction: new ModelSourcesTitleAction() }
     this.appPathStack.pushPath({ name: RouteName.SETTINGS_PANE, param: routeParam })
   }
 
@@ -2405,13 +2409,17 @@ struct Index {
 
   private handleRemoveComicsRequested(comicIds: ComicId[]): number {
     const removableIds = comicIds.filter((comicId: ComicId): boolean => {
-      return isRemovableLocalComic(this.libraryStore.getComic(comicId))
+      return isRemovableShelfComic(this.libraryStore.getComic(comicId))
     })
     console.info(`[library-remove] batch_requested count=${comicIds.length} removable=${removableIds.length}`)
     if (removableIds.length === 0) {
       console.info('[library-remove] batch_result removed=0')
       return 0
     }
+    // A source favorite can be removed while its downloads remain usable,
+    // matching the detail page's shelf toggle. Keep local cleanup separate.
+    const localIds = new Set<ComicId>(removableIds.filter((comicId: ComicId): boolean =>
+      isRemovableLocalComic(this.libraryStore.getComic(comicId))))
     const persistenceService = this.ensureLibraryPersistenceService()
     if (persistenceService === undefined) {
       removableIds.forEach((comicId: ComicId) => {
@@ -2419,7 +2427,7 @@ struct Index {
       })
       this.refreshLibrarySnapshot()
       removableIds.forEach((comicId: ComicId) => {
-        this.cleanupRemovedComicDownloads(comicId)
+        if (localIds.has(comicId)) this.cleanupRemovedComicDownloads(comicId)
       })
       console.info(`[library-remove] batch_result removed=${removableIds.length} persistence=unavailable`)
       return removableIds.length
@@ -2429,7 +2437,7 @@ struct Index {
       if (removedIds.length > 0) {
         this.refreshLibrarySnapshot()
         removedIds.forEach((comicId: ComicId) => {
-          this.cleanupRemovedComicDownloads(comicId)
+          if (localIds.has(comicId)) this.cleanupRemovedComicDownloads(comicId)
         })
       }
       console.info(`[library-remove] batch_result removed=${removedIds.length} persistence=available`)
@@ -3116,6 +3124,7 @@ struct Index {
           pane: this.settingsPaneFromParam(param),
           searchTarget: (param as SettingsPaneRouteParam).searchTarget ?? '',
           formTitleAction: (param as SettingsPaneRouteParam).formTitleAction,
+          modelSourcesTitleAction: (param as SettingsPaneRouteParam).modelSourcesTitleAction,
           onClosePane: () => { this.appPathStack.pop() },
           onLibraryPreferencesChanged: () => { this.libraryPreferencesRevision += 1 },
           libraryStore: this.libraryStore,
@@ -3715,9 +3724,8 @@ struct Index {
       'isEnabled': true,
       'action': (): void => {
         if (!isCurrent()) return
-        const selected = copyMangaSelectedHomepage(source.sourceId, installedHomepage,
-          () => appSourceSettingsStore.loadForSource(source.sourceId)['domain'])
-        RouterHelper.pushMangaWeb({ url: selected ?? homepage, title: sourceDisplayName(source.sourceId, source.displayName) })
+        const selected = selectedSourceHomepage(source.sourceId)
+        RouterHelper.pushMangaWeb({ url: selected ?? homepage, sourceId: source.sourceId, title: sourceDisplayName(source.sourceId, source.displayName) })
       },
     }
     return { 'content': content }
@@ -3918,6 +3926,16 @@ struct Index {
 
   private settingsPaneTitleBarOpts(param: SettingsPaneRouteParam): Record<string, Object> {
     const options = this.navDestTitleBarOpts(settingsPaneTitle(this.settingsPaneFromParam(param)))
+    if (param.pane === 'llm-sources') {
+      const content = options['content'] as Record<string, Object>
+      const add: Record<string, Object> = { 'label': AppStrings.get('llm_source_add'),
+        'icon': $r('sys.symbol.plus'), 'componentId': MODEL_SOURCE_ADD_BUTTON_ID,
+        'isEnabled': param.modelSourcesTitleAction.enabled,
+        'action': (): void => { param.modelSourcesTitleAction.requestId++ } }
+      const items: Record<string, Object>[] = [{ 'content': add }]
+      content['menu'] = { 'value': items, 'maxCount': 1 } as Record<string, Object>
+      return options
+    }
     if (param.pane !== 'translation') return options
     const content = options['content'] as Record<string, Object>
     const action: Record<string, Object> = {

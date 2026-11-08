@@ -506,7 +506,7 @@ function admitRegisteredSourceRequest(
     })
   }
 
-  if (operation !== 'get_settings') configureSourceRequestPolicy(lookup.entry.sourceId, request['settings'])
+  if (operation !== 'get_settings') configureSourceRequestPolicy(lookup.entry.requestLimits, request['settings'])
   return { sourceCount: lookup.sourceCount, entry: lookup.entry, operation }
 }
 
@@ -544,7 +544,7 @@ export function runRegisteredSourceRequestById(
       responseOk: false, attemptedWamrExecution: false }
   }
   try {
-    const response = runSourceOperationFromBytes(sourceRequestWithHostFeatures(requestJson), admission.entry.wasmBytes, sourceHttpIdentityJson(admission.entry, undefined, false, admission.operation))
+    const response = runSourceOperationFromBytes(sourceRequestWithHostFeatures(requestJson, false, false, (admission.entry.requestLimits?.length ?? 0) > 0), admission.entry.wasmBytes, sourceHttpIdentityJson(admission.entry, undefined, false, admission.operation))
     const result = registeredSourceResponse(admission, admission.entry.sourceId, response)
     trace.finish(result.ok ? 'completed' : 'failed', 'operation=' + admission.operation + ' reason=' + (result.reasonCode ?? 'none'))
     return result

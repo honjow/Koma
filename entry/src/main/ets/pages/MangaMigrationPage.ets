@@ -495,7 +495,7 @@ export struct MangaMigrationPage {
     ConciseListRow({ title: resolveSourceLocalizedName(source.displayName, source.localizedNames,
       this.languageState.effectiveLocale), showChevron: false, wrapTitle: true,
       subtitle: sourceLanguageName(source.language), hasSourceIdentityPrefix: true,
-      sourceIdentityIconUri: source.icon ?? '', sourceIdentitySourceId: source.sourceId, sourceIdentityVersion: source.version,
+      sourceIdentityIconUri: source.icon ?? '',
       isEnabled: !this.starting,
       surfaceRadius: ThemeConstants.GROUPED_LIST_INNER_RADIUS,
       suffixBuilderParam: selected ? (): void => { this.SelectedSourceActions(source.sourceId) } : undefined,

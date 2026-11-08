@@ -75,6 +75,7 @@ import { LibraryBatchDownloadPlan, LibraryBatchDownloadQueue } from '../model/Li
 import { connectRemoteProgressSyncState, RemoteProgressSyncState } from '../state/RemoteProgressSyncState'
 import {
   isRemovableLocalComic,
+  isRemovableShelfComic,
   LibraryStorePersistenceService,
   setCategoryDisplayStrategyAndPersistLibraryStore,
 } from '../model/LibraryPersistence'
@@ -465,10 +466,8 @@ export struct LibraryPage {
     if (this.filterMetadataStatus === 'all') {
       return comics
     }
-    if (this.filterMetadataStatus === 'unknown') {
-      return comics.filter((comic: Comic): boolean => comic.localMetadata?.status === undefined)
-    }
-    return comics.filter((comic: Comic): boolean => comic.localMetadata?.status === this.filterMetadataStatus)
+    return comics.filter((comic: Comic): boolean =>
+      (comic.sourceMetadata?.status ?? comic.localMetadata?.status ?? 'unknown') === this.filterMetadataStatus)
   }
 
   private filterAvailabilityComics(comics: Comic[]): Comic[] {
@@ -1342,11 +1341,16 @@ export struct LibraryPage {
   }
 
   private selectedRemovableCount(): number {
-    return Array.from(this.selectedIds).filter((comicId: ComicId): boolean => this.canRemoveComic(comicId)).length
+    return this.selectedRemovableIds().length
+  }
+
+  private selectedRemovableIds(): ComicId[] {
+    return this.displayedRevision < 0 ? [] : Array.from(this.selectedIds).filter((comicId: ComicId): boolean =>
+      isRemovableShelfComic(this.libraryStore.getComic(comicId)))
   }
 
   private removeSelectedComics(): void {
-    const comicIds = Array.from(this.selectedIds).filter((comicId: ComicId): boolean => this.canRemoveComic(comicId))
+    const comicIds = this.selectedRemovableIds()
     if (comicIds.length === 0) {
       return
     }

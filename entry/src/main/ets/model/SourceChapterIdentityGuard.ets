@@ -1,3 +1,4 @@
+import { SourceChapterIdentityPolicy } from '../sourceRuntime/SourceWebsitePolicy'
 import { Comic } from './ComicModels'
 import { ReaderSessionStore } from './ReaderSessionStore'
 import { OfflineDownloadQueueStore } from './OfflineDownloadQueueStore'
@@ -5,9 +6,9 @@ import { OfflineDownloadStore } from './OfflineDownloadStore'
 
 /** Read references without migrating, reconciling or rewriting their owning stores. */
 export function protectedSourceChapterIds(
-  comic: Comic, filesDir: string, reader: ReaderSessionStore,
+  comic: Comic, filesDir: string, reader: ReaderSessionStore, policy?: SourceChapterIdentityPolicy,
 ): Set<string> | undefined {
-  if (comic.sourceRuntimeId !== 'com.mh1234.koma') return undefined
+  if (policy?.encodedLegacy === undefined) return undefined
   try {
     const ids = new Set<string>()
     reader.listProgress().forEach((row): void => { if (row.comicId === comic.id) ids.add(row.chapterId) })

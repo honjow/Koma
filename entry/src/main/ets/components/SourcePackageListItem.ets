@@ -27,8 +27,6 @@ export struct SourcePackageListItem {
       actionButtonAction: () => { this.onUpdate(this.source) },
       hasSourceIdentityPrefix: true,
       sourceIdentityIconUri: this.source.icon,
-      sourceIdentitySourceId: this.source.id,
-      sourceIdentityVersion: this.source.version,
       sourceIdentityFallbackColor: ThemeConstants.SOURCE_WASM_COLOR,
       prefixPaddingLeft: ThemeConstants.SPACE_MD,
       prefixPaddingRight: ThemeConstants.SPACE_SM,

@@ -1,22 +1,33 @@
 import { Chapter, Comic } from './ComicModels'
 import { MangaChapterItem } from './MangaDetailModels'
 
-const MH1234_SOURCE_ID: string = 'com.mh1234.koma'
-const BAOZI_SOURCE_ID: string = 'online.baozimh.koma'
+import { SourceChapterIdentityPolicy, SourceLegacyChapterEncoding } from '../sourceRuntime/SourceWebsitePolicy'
 
-interface BaoziChapterIdentity {
+interface TitledChapterIdentity {
   base: string
   title?: string
 }
 
-function baoziChapterIdentity(work: string, id: string): BaoziChapterIdentity | undefined {
-  const identity = /^chapter:([^:#]+):([^#]+)(?:#([\s\S]+))?$/.exec(id)
-  if (identity === null || identity[1] !== work) return undefined
-  return { base: `chapter:${work}:${identity[2]}`, title: identity[3] }
+function identitySlot(id: string, prefix: string, suffix: string = ''): string | undefined {
+  if (!id.startsWith(prefix) || !id.endsWith(suffix) || id.length <= prefix.length + suffix.length) return undefined
+  return id.slice(prefix.length, id.length - suffix.length)
 }
 
-function baoziWork(mangaId: string): string | undefined {
-  return /^manga:([^:#]+)$/.exec(mangaId)?.[1]
+function chapterPrefix(work: string, policy: SourceChapterIdentityPolicy): string {
+  return policy.chapterPrefix + work + policy.chapterSeparator
+}
+
+function titledChapterIdentity(work: string, id: string, policy: SourceChapterIdentityPolicy,
+  separator: string): TitledChapterIdentity | undefined {
+  const index = id.indexOf(separator, chapterPrefix(work, policy).length)
+  const base = index < 0 ? id : id.slice(0, index)
+  if (identitySlot(base, chapterPrefix(work, policy), policy.chapterSuffix) === undefined) return undefined
+  return { base, title: index < 0 ? undefined : id.slice(index + separator.length) }
+}
+
+function titledWork(mangaId: string, policy: SourceChapterIdentityPolicy, separator: string): string | undefined {
+  const work = identitySlot(mangaId, policy.workPrefix, policy.workSuffix)
+  return work !== undefined && !work.includes(separator) && !work.includes(policy.chapterSeparator) ? work : undefined
 }
 
 function chapterIdentityConflict(): void {
@@ -24,22 +35,23 @@ function chapterIdentityConflict(): void {
 }
 
 /** Keep persisted IDs in both directions; never infer a missing legacy title. */
-function reconcileBaoziChapterIdentity(
+function reconcileTitledChapterIdentity(
   comic: Comic, mangaId: string, chapters: MangaChapterItem[],
+  policy: SourceChapterIdentityPolicy, separator: string,
 ): SourceChapterIdentityResolution {
   const unchanged: SourceChapterIdentityResolution = {
     chapters, storedChapters: comic.chapters, removedDuplicateIds: [],
   }
-  const work = baoziWork(mangaId)
+  const work = titledWork(mangaId, policy, separator)
   if (work === undefined || comic.chapters.length === 0) return unchanged
   const storedGroups = new Map<string, Chapter[]>()
   const remoteGroups = new Map<string, MangaChapterItem[]>()
   comic.chapters.forEach((chapter: Chapter): void => {
-    const key = baoziChapterIdentity(work, chapter.id)?.base
+    const key = titledChapterIdentity(work, chapter.id, policy, separator)?.base
     if (key !== undefined) storedGroups.set(key, (storedGroups.get(key) ?? []).concat([chapter]))
   })
   chapters.forEach((chapter: MangaChapterItem): void => {
-    const key = baoziChapterIdentity(work, chapter.id)?.base
+    const key = titledChapterIdentity(work, chapter.id, policy, separator)?.base
     if (key !== undefined) remoteGroups.set(key, (remoteGroups.get(key) ?? []).concat([chapter]))
   })
   const aliases = new Map<string, string>()
@@ -98,16 +110,16 @@ function reconcileBaoziChapterIdentity(
   return { chapters: resolved, storedChapters: comic.chapters, removedDuplicateIds: [] }
 }
 
-function workId(sourceId: string | undefined, mangaId: string): string | undefined {
-  if (sourceId !== MH1234_SOURCE_ID) return undefined
-  return /^\/comic\/([1-9][0-9]*)\.html$/.exec(mangaId)?.[1]
+function numericWork(mangaId: string, policy: SourceChapterIdentityPolicy): string | undefined {
+  const work = identitySlot(mangaId, policy.workPrefix, policy.workSuffix)
+  return work !== undefined && /^[1-9][0-9]*$/.test(work) ? work : undefined
 }
 
 // Decode only the observed unpadded base64url identity. The opaque suffix is
 // validated, never calculated or used to construct a request URL.
-function legacyIdentity(id: string): string | undefined {
-  const token = /^\/go\/([A-Za-z0-9_-]+)$/.exec(id)?.[1]
-  if (token === undefined || token.length > 256 || token.length % 4 === 1) return undefined
+function legacyIdentity(id: string, legacy: SourceLegacyChapterEncoding): string[] | undefined {
+  const token = identitySlot(id, legacy.prefix)
+  if (token === undefined || token.length > 256 || token.length % 4 === 1 || !/^[A-Za-z0-9_-]+$/.test(token)) return undefined
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
   let value = 0
   let bits = 0
@@ -122,14 +134,17 @@ function legacyIdentity(id: string): string | undefined {
     }
   }
   if (value !== 0) return undefined
-  return /^([1-9][0-9]*)-([1-9][0-9]*)-[0-9a-f]{10}$/.test(decoded) ? decoded : undefined
+  const parts = decoded.split(legacy.separator)
+  return parts.length === 3 && /^[1-9][0-9]*$/.test(parts[0]) && /^[1-9][0-9]*$/.test(parts[1]) &&
+    parts[2].length === legacy.hexSuffixLength && /^[0-9a-f]+$/.test(parts[2]) ? parts : undefined
 }
 
-function chapterKey(work: string, id: string): string | undefined {
-  const current = /^\/comic\/([1-9][0-9]*)\/([1-9][0-9]*)\.html$/.exec(id)
-  if (current !== null) return current[1] === work ? current[2] : undefined
-  const legacy = legacyIdentity(id)?.split('-')
-  return legacy !== undefined && legacy[0] === work ? legacy[1] : undefined
+function chapterKey(work: string, id: string, policy: SourceChapterIdentityPolicy,
+  legacy: SourceLegacyChapterEncoding): string | undefined {
+  const current = identitySlot(id, chapterPrefix(work, policy), policy.chapterSuffix)
+  if (current !== undefined && /^[1-9][0-9]*$/.test(current)) return current
+  const parts = legacyIdentity(id, legacy)
+  return parts !== undefined && parts[0] === work ? parts[1] : undefined
 }
 
 function withChapterId(chapter: MangaChapterItem, id: string): MangaChapterItem {
@@ -150,34 +165,39 @@ export function reconcileSourceChapterIdentity(
   mangaId: string,
   chapters: MangaChapterItem[],
   protectedChapterIds: Set<string> | undefined,
+  policy?: SourceChapterIdentityPolicy,
 ): SourceChapterIdentityResolution {
-  if (comic.sourceRuntimeId === BAOZI_SOURCE_ID) return reconcileBaoziChapterIdentity(comic, mangaId, chapters)
+  if (policy?.titleSeparator !== undefined) {
+    return reconcileTitledChapterIdentity(comic, mangaId, chapters, policy, policy.titleSeparator)
+  }
   const unchanged: SourceChapterIdentityResolution = {
     chapters, storedChapters: comic.chapters, removedDuplicateIds: [],
   }
-  const work = workId(comic.sourceRuntimeId, mangaId)
+  const legacyFormat = policy?.encodedLegacy
+  if (policy === undefined || legacyFormat === undefined) return unchanged
+  const work = numericWork(mangaId, policy)
   if (work === undefined) return unchanged
   const storedGroups = new Map<string, Chapter[]>()
   comic.chapters.forEach((chapter: Chapter): void => {
-    const key = chapterKey(work, chapter.id)
+    const key = chapterKey(work, chapter.id, policy, legacyFormat)
     if (key !== undefined) storedGroups.set(key, (storedGroups.get(key) ?? []).concat([chapter]))
   })
   const remoteGroups = new Map<string, MangaChapterItem[]>()
   chapters.forEach((chapter: MangaChapterItem): void => {
-    const key = chapterKey(work, chapter.id)
+    const key = chapterKey(work, chapter.id, policy, legacyFormat)
     if (key !== undefined) remoteGroups.set(key, (remoteGroups.get(key) ?? []).concat([chapter]))
   })
   const aliases = new Map<string, string>()
   const removed = new Set<string>()
   storedGroups.forEach((stored: Chapter[], key: string): void => {
-    const legacy = stored.filter((chapter: Chapter): boolean => chapter.id.startsWith('/go/'))
-    const current = stored.filter((chapter: Chapter): boolean => !chapter.id.startsWith('/go/'))
+    const legacy = stored.filter((chapter: Chapter): boolean => chapter.id.startsWith(legacyFormat.prefix))
+    const current = stored.filter((chapter: Chapter): boolean => !chapter.id.startsWith(legacyFormat.prefix))
     const remote = remoteGroups.get(key) ?? []
     const currentIds = new Set<string>(remote.filter((chapter: MangaChapterItem): boolean =>
-      !chapter.id.startsWith('/go/')).map((chapter: MangaChapterItem): string => chapter.id))
+      !chapter.id.startsWith(legacyFormat.prefix)).map((chapter: MangaChapterItem): string => chapter.id))
     if (legacy.length !== 1 || current.length > 1 || currentIds.size !== 1 ||
       remote.some((chapter: MangaChapterItem): boolean =>
-        chapter.id.startsWith('/go/') && chapter.id !== legacy[0].id)) return
+        chapter.id.startsWith(legacyFormat.prefix) && chapter.id !== legacy[0].id)) return
     const currentId = Array.from(currentIds)[0]
     if (current.length === 1 && current[0].id !== currentId) return
     aliases.set(currentId, legacy[0].id)
@@ -207,30 +227,34 @@ export function reconcileSourceChapterIdentity(
 
 /** An old history ID may resolve through the same exact pair without changing that history ID. */
 export function sourceChapterForRetainedIdentity(
-  sourceId: string, mangaId: string, chapterId: string, chapters: MangaChapterItem[],
+  policy: SourceChapterIdentityPolicy | undefined, mangaId: string, chapterId: string, chapters: MangaChapterItem[],
 ): MangaChapterItem | undefined {
   const exact = chapters.find((chapter: MangaChapterItem): boolean => chapter.id === chapterId)
   if (exact !== undefined) return exact
-  if (sourceId === BAOZI_SOURCE_ID) {
-    const work = baoziWork(mangaId)
-    const retained = work === undefined ? undefined : baoziChapterIdentity(work, chapterId)
+  if (policy === undefined) return undefined
+  const separator = policy.titleSeparator
+  if (separator !== undefined) {
+    const work = titledWork(mangaId, policy, separator)
+    const retained = work === undefined ? undefined : titledChapterIdentity(work, chapterId, policy, separator)
     // An orphaned legacy ID carries no title: a unique current slot alone
     // cannot prove which old chapter it was. Existing stored chapters resume
     // directly; a title-bearing history ID can use an exact title match here.
     if (work === undefined || retained?.title === undefined) return undefined
     const group = chapters.filter((chapter: MangaChapterItem): boolean =>
-      baoziChapterIdentity(work, chapter.id)?.base === retained.base)
+      titledChapterIdentity(work, chapter.id, policy, separator)?.base === retained.base)
     const matches = group.filter((chapter: MangaChapterItem): boolean => chapter.title === retained.title)
     const ids = new Set<string>(matches.map((chapter: MangaChapterItem): string => chapter.id))
     if (ids.size !== 1 || group.some((chapter: MangaChapterItem): boolean =>
       chapter.id === matches[0]?.id && chapter.title !== retained.title)) return undefined
     return withChapterId(matches[0], chapterId)
   }
-  const work = workId(sourceId, mangaId)
-  if (work === undefined || legacyIdentity(chapterId) === undefined) return undefined
-  const key = chapterKey(work, chapterId)
+  const legacyFormat = policy.encodedLegacy
+  if (legacyFormat === undefined) return undefined
+  const work = numericWork(mangaId, policy)
+  if (work === undefined || legacyIdentity(chapterId, legacyFormat) === undefined) return undefined
+  const key = chapterKey(work, chapterId, policy, legacyFormat)
   if (key === undefined) return undefined
-  const matching = chapters.filter((chapter: MangaChapterItem): boolean => chapterKey(work, chapter.id) === key)
-  if (matching.length !== 1 || matching[0].id.startsWith('/go/')) return undefined
+  const matching = chapters.filter((chapter: MangaChapterItem): boolean => chapterKey(work, chapter.id, policy, legacyFormat) === key)
+  if (matching.length !== 1 || matching[0].id.startsWith(legacyFormat.prefix)) return undefined
   return withChapterId(matching[0], chapterId)
 }

@@ -94,7 +94,8 @@ async function environment(autoCheckEnabled = true) {
       return storage.get(key)
     } } },
   })
-  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: { listComics: () => [] }, sourceRegistry: {}, libraryPersistenceService: {}, reason: 'manual' }
+  const request = { context: { filesDir: '/test/koma-files' }, libraryStore: { listComics: () => [] },
+    sourceRegistry: { lookup: () => ({ ok: false }) }, libraryPersistenceService: {}, reason: 'manual' }
   class PreferencesStore extends preferences.LibraryUpdatePreferencesStore {
     async load(strict) {
       if (controls.readGate) await controls.readGate.promise
@@ -164,12 +165,13 @@ async function environment(autoCheckEnabled = true) {
     './BackupRestoreActivity': { BackupRestoreActivity: activity },
     './RemoteServerStore': { RemoteServerStore: class {} },
     './LibraryUpdateService': { ...helpers, LibraryUpdateService: class {
-      constructor(store, registry, persistence, _remote, protectedChapterIds, includeComic) {
+      constructor(store, registry, persistence, _remote, protectedChapterIds, includeComic, refreshWorkInfo) {
         assert.equal(store, request.libraryStore)
         assert.equal(registry, request.sourceRegistry)
         assert.equal(persistence, request.libraryPersistenceService)
         assert.equal(protectedChapterIds(guardComic), protectedIds)
         ;(calls.scopes ??= []).push(includeComic !== undefined)
+        ;(calls.workInfo ??= []).push(refreshWorkInfo)
       }
       async checkLibraryUpdates() {
         calls.service++
@@ -200,6 +202,7 @@ async function environment(autoCheckEnabled = true) {
   const prefsStore = new preferences.LibraryUpdatePreferencesStore(request.context)
   await prefsStore.save({ ...preferences.DEFAULT_LIBRARY_UPDATE_PREFERENCES, autoCheckEnabled })
   return { controls, calls, events, preferences, results, prefsStore, coordinator, activity,
+    automation: new automationStore.LibraryAutomationPreferencesStore(request.context),
     state: bridge.connectLibraryUpdateState(), request,
     foreground: foreground.connectAppForegroundState(),
     run: (reason = 'manual', requireForeground = false) =>
@@ -418,6 +421,12 @@ async function main() {
   assert.equal(persisted.autoCheckEnabled, false)
   assert.equal(persisted.intervalHours, 48)
   assert.ok(persisted.lastCheckedAt)
+
+  const metadata = await environment()
+  await metadata.run()
+  await metadata.automation.update(p => { p.refreshWorkInfo = true })
+  await metadata.run()
+  assert.deepEqual(metadata.calls.workInfo, [false, true])
   console.log('PASS library update coordinator: single-flight, manual admission, real summary persistence, failure isolation, shared state and preference edits')
 }
 main().catch((error) => { console.error(error); process.exitCode = 1 })
