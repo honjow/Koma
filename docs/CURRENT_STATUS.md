@@ -18,10 +18,10 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T14:29:10+08:00",
+  "updatedAt": "2026-11-08T15:41:47+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
-  "activity": "Koma 1.4.0 已正式发布，公开包和更新日志已核对。",
+  "activity": "#001 当前 1.4.0 在 197 长测未复现秒级停顿，仍有短帧波动，问题保持开放。",
   "nextAction": "",
   "proof": [
     {
@@ -3507,22 +3507,26 @@
       "id": "CONTINUOUS_PERFORMANCE",
       "number": 1,
       "title": "连续滚动卡顿与新版/旧版性能差异",
-      "status": "已修复秒级卡顿并完成197长测",
-      "stage": "条漫长距离、普通翻页实测",
-      "kind": "done",
+      "status": "197 当前 1.4.0 长测未复现秒级停顿",
+      "stage": "1.4.0 同签包长距离下翻与停稳后续读",
+      "kind": "open",
       "priority": "P0（最高）",
       "owner": "Root",
       "dependencies": [],
-      "result": "197 条漫实滑518次、10分47秒，采样最长约90毫秒。旧包同类停顿曾达1.47秒。最终包普通翻页最慢界面帧26.4毫秒，采样未见超过33毫秒的同类停顿。",
-      "remaining": "仍有短帧间隔波动。200 保留旧包复现证据。",
+      "result": "当前 master 1.4.0 同签包在 197 从《装备我最强》第 43/96 页连续下翻 518 次、10 分 38 秒，跨章到第 82/103 页。三次滚动 HTrace 无超过 33.3 毫秒的界面帧处理；最长手势帧间隔为 65.2、108.2、70.6 毫秒，未复现旧修复候选的 1.02 秒和 1.80 秒停顿。停稳后再采两段 HTrace，最长手势帧间隔为 62.7、67.5 毫秒。当前偏好为共享阅读器、预载页数 2、系统超分开启；停稳后日志有 5 次 3.2 至 6.0 秒的超分处理。",
+      "remaining": "仍有短帧间隔波动和系统超分开启时的加载感知问题，用户反馈的条漫性能问题未按全部普通阅读路径关闭。需继续对照慢速手动滑动、不同预载页数与超分状态，并观察完整画面出图过程。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
       "firstHandlingAt": null,
       "handling": "当前执行者与未完成动作以owner/remainingActions为准。",
-      "closedAt": "2026-11-08T08:35:59+08:00",
+      "closedAt": null,
       "firstHandlingAtSource": "本次收到实现结果，未倒猜该实现的开始时间。",
       "evidencePaths": [
+        ".hvigor/outputs/reader-long-scroll-197-140-20261108/checkpoints.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-140-20261108/trace-summary.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-140-20261108/settle/checkpoints.jsonl",
+        ".hvigor/outputs/reader-long-scroll-197-140-20261108/device197__ALN-AL80/not-applicable/portrait-1260x2720/reader-long-scroll-197-140/reader-pref-baseline-20261108T153327555856/reader-preferences.xml",
         ".hvigor/outputs/reader-stall-combined-20261108/checkpoints.jsonl",
         ".hvigor/outputs/reader-stall-combined-20261108/long-frames-final.jsonl",
         ".hvigor/outputs/reader-stall-shelf-apply-20261108/paged-fixed-frames.jsonl",
@@ -3578,11 +3582,13 @@
         ".hvigor/outputs/detail-chapter-loading-20261103/device197__ALN-AL80/not-applicable/portrait-1260x2720/detail/detail-install",
         ".hvigor/outputs/continuous-scroll-20261106/reanalyse-existing-sched/vsync-gap-main-thread-scheduling.json"
       ],
-      "latestCounterexampleAt": "2026-11-08T06:40:29+08:00",
+      "latestCounterexampleAt": "2026-11-08T15:41:47+08:00",
       "evidencePoints": [
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
-      "remainingActions": [],
+      "remainingActions": [
+        "仍有短帧间隔波动和系统超分开启时的加载感知问题，用户反馈的条漫性能问题未按全部普通阅读路径关闭。需继续对照慢速手动滑动、不同预载页数与超分状态，并观察完整画面出图过程。"
+      ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
         "本轮只减少位置采样中的快照和裁边数据复制，保留原几何、页位、进度和图片处理行为。"
@@ -3621,8 +3627,8 @@
         "answer": "采用 v3，完成正式合入与验证",
         "date": "2026-10-26"
       },
-      "previousClosedAt": "2026-11-08T05:53:02+08:00",
-      "updatedAt": "2026-11-08T08:35:59+08:00",
+      "previousClosedAt": "2026-11-08T08:35:59+08:00",
+      "updatedAt": "2026-11-08T15:41:47+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
@@ -9687,6 +9693,15 @@
   "evidenceNote": "当前设备原件在Koma/.hvigor/outputs/user-flow-audit；下列旧清理证据仅为历史回查，不代表当前产品验收。",
   "excluded": "不新增工作树/源码副本/归档/报告/脚本，不做哈希核验，不擅改已定样式，不清用户数据。旧清理工时和目录数不换算产品完成度。",
   "timeline": [
+    {
+      "id": "continuous-performance-140-197-20261108",
+      "at": "2026-11-08T15:41:47+08:00",
+      "title": "#001 当前 1.4.0 在 197 长测未复现秒级停顿",
+      "detail": "518 次实滑、10 分 38 秒，最长手势帧间隔 108.2 毫秒；超分停稳后续读两段最长 67.5 毫秒。问题按用户反馈保留开放。",
+      "kind": "checkpoint",
+      "itemId": "CONTINUOUS_PERFORMANCE",
+      "evidence": ".hvigor/outputs/reader-long-scroll-197-140-20261108/trace-summary.jsonl"
+    },
     {
       "id": "koma-140-published-20261108",
       "at": "2026-11-08T14:29:10+08:00",
