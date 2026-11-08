@@ -212,9 +212,11 @@ export function configureReaderRemoteImageCache(
   }
 }
 
-/** Bound cache directory maintenance to reader interaction idle periods. */
+/** Bound cache directory maintenance and manifest writes to reader
+ * interaction idle periods. */
 export function setReaderImageCacheEvictionPaused(paused: boolean): void {
   readerImageCacheStore?.setEvictionPaused(paused)
+  readerImageCacheStore?.setManifestWritePaused(paused)
 }
 
 async function maintainReaderImageCacheAfterWrite(path: string, original?: string): Promise<void> {

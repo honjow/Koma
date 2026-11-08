@@ -6,6 +6,7 @@ import { LibraryAutomationPreferences, defaultLibraryAutomationPreferences } fro
 export const LIBRARY_AUTOMATION_STORE_NAME: string = 'koma_library_automation_v1'
 export const LIBRARY_AUTOMATION_POLICY_KEY: string = 'automation.policy'
 let mutations: Promise<void> = Promise.resolve()
+let cachedAutomationPolicy: LibraryAutomationPreferences | undefined = undefined
 
 function categoryIds(value: string[] | undefined): string[] {
   return Array.isArray(value) ? Array.from(new Set<string>(value.filter((id: string): boolean =>
@@ -36,10 +37,16 @@ export class LibraryAutomationPreferencesStore {
   constructor(context: common.Context) { this.context = context }
 
   async load(): Promise<LibraryAutomationPreferences> {
+    // Read once per process; every reader-of-record (post-read cleanup, auto
+    // update, auto download) otherwise repeats two native preference calls.
+    // Backup restore publishes through invalidateLibraryAutomationPolicyCache.
+    if (cachedAutomationPolicy !== undefined) return cachedAutomationPolicy
     const store = await preferences.getPreferences(this.context, LIBRARY_AUTOMATION_STORE_NAME)
     const payload = await store.get(LIBRARY_AUTOMATION_POLICY_KEY, '') as string
-    return payload.length === 0 ? defaultLibraryAutomationPreferences() :
+    const policy = payload.length === 0 ? defaultLibraryAutomationPreferences() :
       normalize(JSON.parse(payload) as LibraryAutomationPreferences)
+    cachedAutomationPolicy = policy
+    return policy
   }
 
   update(change: (policy: LibraryAutomationPreferences) => void): Promise<LibraryAutomationPreferences> {
@@ -60,6 +67,15 @@ export class LibraryAutomationPreferencesStore {
       return next
     }))
     mutations = pending.then(() => {}, () => {})
+    void pending.then((next: LibraryAutomationPreferences): void => {
+      cachedAutomationPolicy = next
+    })
     return pending
   }
+}
+
+/** Backup restore overwrites the preference file without update(); callers
+ * must drop the process cache so the next load reads the restored values. */
+export function invalidateLibraryAutomationPolicyCache(): void {
+  cachedAutomationPolicy = undefined
 }

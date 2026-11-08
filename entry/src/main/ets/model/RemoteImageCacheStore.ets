@@ -170,6 +170,7 @@ export class RemoteImageCacheStore {
   private totalBytes: number = 0
   private accessWriteTimer: number = -1
   private accessDirty: boolean = false
+  private manifestWritePaused: boolean = false
 
   private operationTail: Promise<void> = Promise.resolve()
   private imageRequests: Map<string, Promise<string>> = new Map<string, Promise<string>>()
@@ -520,8 +521,16 @@ export class RemoteImageCacheStore {
     this.accessWriteTimer = -1
   }
 
+  setManifestWritePaused(paused: boolean): void {
+    this.manifestWritePaused = paused
+    // The reader pauses writes while gestures move the List; resuming starts
+    // one settled write that commits every hit and publication since then.
+    if (!paused && this.accessDirty && this.accessWriteTimer < 0) this.scheduleManifestWrite()
+  }
+
   private scheduleManifestWrite(): void {
     this.accessDirty = true
+    if (this.manifestWritePaused) return
     this.cancelAccessWrite()
     this.accessWriteTimer = setTimeout((): void => {
       this.accessWriteTimer = -1
@@ -531,7 +540,7 @@ export class RemoteImageCacheStore {
       // invalidation or clear cancels this timer first, so those paths stay
       // fully synchronous.
       void this.enqueue(async (): Promise<void> => {
-        if (!this.accessDirty || this.accessWriteTimer >= 0) return
+        if (!this.accessDirty || this.accessWriteTimer >= 0 || this.manifestWritePaused) return
         await this.persist()
       }).catch((): void => {
         // A metadata failure must not fail a hit or a publication. Retry on
