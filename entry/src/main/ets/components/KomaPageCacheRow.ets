@@ -17,13 +17,13 @@ export struct KomaPageCacheRow {
   aboutToDisappear(): void { this.active = false }
 
   private detail(): string {
-    return AppStrings.format('cache_work_pages_count', this.count.toString())
+    return AppStrings.format('cache_content_count', this.count.toString())
   }
 
   private confirmClear(): void {
     this.getUIContext().showAlertDialog({ systemMaterial: komaDialogMaterial(),
-      title: AppStrings.get('cache_work_pages_title'),
-      message: AppStrings.format('cache_clear_confirm', AppStrings.get('cache_work_pages_title')),
+      title: AppStrings.get('cache_content_title'),
+      message: AppStrings.format('cache_clear_confirm', AppStrings.get('cache_content_title')),
       primaryButton: { value: AppStrings.get('common_cancel'), action: () => {} },
       secondaryButton: { value: AppStrings.get('common_clear'), action: (): void => {
         sourceMangaDetailSnapshotCache.clear()
@@ -33,7 +33,7 @@ export struct KomaPageCacheRow {
   }
 
   build() {
-    ConciseListRow({ title: AppStrings.get('cache_work_pages_title'), trailingText: this.detail(),
+    ConciseListRow({ title: AppStrings.get('cache_content_title'), trailingText: this.detail(),
       showChevron: false, action: (): void => { this.confirmClear() } })
   }
 }
