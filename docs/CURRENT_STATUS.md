@@ -18,7 +18,7 @@
   "title": "Koma 当前工作",
   "state": "1.4.0 已正式发布",
   "outcome": "查看当前问题、已验收范围和剩余工作。",
-  "updatedAt": "2026-11-08T15:41:47+08:00",
+  "updatedAt": "2026-11-08T15:51:00+08:00",
   "target": "/Users/honjow/git/Koma；共享阅读器依赖固定在third_party/reader-kit，koma-sources仍为独立原主仓",
   "activeId": null,
   "activity": "#001 当前 1.4.0 在 197 长测未复现秒级停顿，仍有短帧波动，问题保持开放。",
@@ -3514,7 +3514,7 @@
       "owner": "Root",
       "dependencies": [],
       "result": "当前 master 1.4.0 同签包在 197 从《装备我最强》第 43/96 页连续下翻 518 次、10 分 38 秒，跨章到第 82/103 页。三次滚动 HTrace 无超过 33.3 毫秒的界面帧处理；最长手势帧间隔为 65.2、108.2、70.6 毫秒，未复现旧修复候选的 1.02 秒和 1.80 秒停顿。停稳后再采两段 HTrace，最长手势帧间隔为 62.7、67.5 毫秒。当前偏好为共享阅读器、预载页数 2、系统超分开启；停稳后日志有 5 次 3.2 至 6.0 秒的超分处理。",
-      "remaining": "仍有短帧间隔波动和系统超分开启时的加载感知问题，用户反馈的条漫性能问题未按全部普通阅读路径关闭。需继续对照慢速手动滑动、不同预载页数与超分状态，并观察完整画面出图过程。",
+      "remaining": "仍有短帧间隔波动和系统超分开启时的加载感知问题。三份滚动 HTrace 的长间隔窗口内可见 PreferencesGetValue、fs.listFile/fs.unlink 与 ValueSerializer::WriteValue 主线程回调；需确认实际调用方并避开滚动时段。用户反馈的条漫性能问题未按全部普通阅读路径关闭。",
       "reportedAt": "2026-10-22T19:43:05.108Z",
       "reportedAtSource": "原始会话 JSONL response_item/user 时间戳（UTC）；不是摘要推算。",
       "firstEvidenceAt": "2026-10-22T19:43:05.108Z",
@@ -3587,7 +3587,7 @@
         "同包同作品向下跨章，197 实滑 11 分 17 秒、最长停顿 1.80 秒；200 实滑 10 分 41 秒、最长停顿 1.59 秒。两机都出现刷新信号已发出、应用主线程迟迟未处理。"
       ],
       "remainingActions": [
-        "仍有短帧间隔波动和系统超分开启时的加载感知问题，用户反馈的条漫性能问题未按全部普通阅读路径关闭。需继续对照慢速手动滑动、不同预载页数与超分状态，并观察完整画面出图过程。"
+        "仍有短帧间隔波动和系统超分开启时的加载感知问题。三份滚动 HTrace 的长间隔窗口内可见 PreferencesGetValue、fs.listFile/fs.unlink 与 ValueSerializer::WriteValue 主线程回调；需确认实际调用方并避开滚动时段。用户反馈的条漫性能问题未按全部普通阅读路径关闭。"
       ],
       "boundaries": [
         "这些是host主线程切片及三宿主具名运动/缩略条行为，不等同显示FPS、满帧或全内容通过。NextN050是34页真实样本，旧两页证据不能替代它。设置位置与全屏时机仍独立。",
@@ -3628,7 +3628,7 @@
         "date": "2026-10-26"
       },
       "previousClosedAt": "2026-11-08T08:35:59+08:00",
-      "updatedAt": "2026-11-08T15:41:47+08:00",
+      "updatedAt": "2026-11-08T15:51:00+08:00",
       "evidence": [
         ".hvigor/outputs/sync-ui-redesign-20261105/device197-r5-final-restoration.json",
         ".hvigor/outputs/sync-ui-redesign-20261105/normal-r5-current-signed.hap",
