@@ -1,6 +1,6 @@
 import { SourceAuthenticationSheetHost } from '../components/SourceAuthenticationSheetHost'
 import { SourceAuthenticationRequest } from '../sourceRuntime/SourceAuthenticationService'
-import { gridColumnCount } from '../utils/GridColumns'
+import { gridColumnCount, gridFallbackContainerWidth } from '../utils/GridColumns'
 import { ActionBarButton, ActionBarStyle, BottomBuilderShowType, HdsActionBar } from '@kit.UIDesignKit'
 import { ReaderPreferencesStore } from '../model/ReaderPreferencesStore'
 import { comicFromSourceManga, sourceLibraryComicId } from '../model/SourceLibraryComic'
@@ -225,6 +225,15 @@ class DetailDisabledReadContent implements ContentModifier<ButtonConfiguration> 
 // Keep mid-size portrait windows such as device 103 in one column.
 const DETAIL_PANES_MIN_CONTENT_WIDTH: number = 700
 
+// The destination must choose single or split layout before its first frame.
+// Prefer the window width published by EntryAbility; the display query is only
+// the cold-start fallback when no window measurement has been published yet.
+function initialDetailContentWidth(windowWidthVp: number): number {
+  const width: number = Number.isFinite(windowWidthVp) && windowWidthVp > 0
+    ? windowWidthVp : gridFallbackContainerWidth()
+  return Math.max(0, width - 2 * ThemeConstants.SPACE_MD)
+}
+
 @Builder
 function detailDisabledReadContent(configuration: ButtonConfiguration) {
   Row({ space: ThemeConstants.SPACE_SM }) {
@@ -340,7 +349,7 @@ export struct MangaDetailPage {
   private get chapterPresentation(): ChapterListPresentation {
     return this.chrome.chapterPresentation
   }
-  @Local private detailContentWidth: number = 0
+  @Local private detailContentWidth: number = initialDetailContentWidth(this.detailSafeArea.windowWidthVp)
   private visibleChapterId: string = ''
   private chapterToRestore: string = ''
   @Local private chapterActionBarHeight: number = 0
@@ -3665,7 +3674,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
         scroller: this.detailScroller,
         scrollEnabled: this.usesDetailPanes || this.detailScrollEnabled,
         alwaysEnableEdgeSpring: this.usesDetailPanes || nativeSpring,
-        horizontalPadding: this.usesDetailPanes ? 0 : ThemeConstants.SPACE_MD,
+        horizontalPadding: ThemeConstants.SPACE_MD,
         bottomPadding: this.usesDetailPanes ? ThemeConstants.SPACE_XL : this.chapterListBottomPadding(),
         listSpace: ThemeConstants.SPACE_LG,
         onDidScroll: (offset: number) => { this.onInformationScroll(offset) },
@@ -3690,7 +3699,7 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
       scroller: this.chapterScroller,
       scrollEnabled: this.detailScrollEnabled,
       alwaysEnableEdgeSpring: nativeSpring,
-      horizontalPadding: 0,
+      horizontalPadding: ThemeConstants.SPACE_MD,
       bottomPadding: this.chapterListBottomPadding(),
       listSpace: ThemeConstants.SPACE_LG,
       onVisibleContentChange: (start: VisibleListContentInfo) => { this.onChapterViewport(start, true) },
@@ -3725,12 +3734,12 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
   @Builder
   private DetailLayout() {
     if (this.usesDetailPanes) {
-      Row({ space: 24 }) {
+      Row() {
         Column() {
           this.InformationList(true)
         }
-        .width(Math.max(264, Math.min(360, (this.detailContentWidth - 24) * 0.38,
-          this.detailContentWidth - 24 - 332)))
+        .width(Math.max(264, Math.min(360, this.detailContentWidth * 0.38,
+          this.detailContentWidth - 332)))
         .height('100%')
 
         Column() {
@@ -3739,7 +3748,6 @@ ${s('downloads_add_to_library_prompt')}` : scopeMessage,
         .layoutWeight(1)
         .height('100%')
       }
-      .padding({ left: ThemeConstants.SPACE_MD, right: ThemeConstants.SPACE_MD })
       .width('100%')
       .height('100%')
     } else {
