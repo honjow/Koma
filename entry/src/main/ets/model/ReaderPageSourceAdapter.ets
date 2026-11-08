@@ -836,8 +836,12 @@ async function resolveSourceRuntimeImageRequest(
   if (response.ok !== true) {
     // Required image descriptors retain safe provider diagnostics, as text pages
     // already do. Keep the optional-descriptor fallback for older sources.
+    const sourceMessage = response.error !== undefined && typeof response.error['message'] === 'string'
+      ? (response.error['message'] as string).slice(0, 120) : ''
     DiagnosticLogger.warn('reader_image_request', 'failed', 'source=' + sourceId +
-      ' sourceVersion=' + lookup.entry.manifestVersion + ' reason=' + (response.reasonCode ?? 'unknown'))
+      ' sourceVersion=' + lookup.entry.manifestVersion +
+      ' reason=' + (response.reasonCode ?? response.error?.['code'] ?? 'unknown') +
+      ' sourceError=' + (sourceMessage.length > 0 ? sourceMessage : 'none'))
     if (descriptorRequired) throw new SourceRuntimeError(response)
     return unavailableSourceImageDescriptor(sourceId)
   }
